@@ -24,10 +24,14 @@ instance FreeVars a => FreeVars [a] where
   freeVars = Set.unions . map freeVars
   freeFVars = Set.unions . map freeFVars
 
+instance FreeVars Name where
+  freeVars = Set.singleton
+  freeFVars _ = mempty
+  
 instance FreeVars Expr where
   freeVars expr =
     case expr of
-      Var x           -> Set.singleton x
+      Var x           -> freeVars x
       PureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
       Struct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
       ECase e         -> freeVars e
@@ -39,7 +43,7 @@ instance FreeVars Expr where
 
   freeFVars expr =
     case expr of
-      Var _           -> Set.empty
+      Var x           -> freeFVars x
       PureLet _ e1 e2 -> freeFVars [e1,e2]
       Struct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
       ECase e         -> freeFVars e
@@ -128,8 +132,8 @@ instance FreeVars ByteSet where
 
 
 instance FreeVars e => FreeVars (Case e) where
-  freeVars  (Case e opts) = freeVars e `Set.union` freeVars (map snd opts)
-  freeFVars (Case e opts) = freeFVars e `Set.union` freeFVars (map snd opts)
+  freeVars  (Case v opts) = Set.insert v (freeVars (map snd opts))
+  freeFVars (Case _ opts) = freeFVars (map snd opts)
 
 instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =

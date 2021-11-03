@@ -42,7 +42,6 @@ library
                      , Talos.Analysis.Slice
                      , Talos.Analysis.EntangledVars
                      , Talos.Analysis.Projection
-                     , Talos.Analysis.Demands
                      
                      , Talos.Strategy
                      , Talos.Strategy.Monad

@@ -49,7 +49,6 @@ import qualified Talos.Analysis as A
 import Talos.Analysis.Monad (Summary, makeDeclInvs)
 import Talos.SymExec.Path (ProvenanceMap)
 import Talos.Analysis.Slice (SummaryClass)
-import Talos.Analysis.Demands (calculateDemands, ppDemandSummary)
 
 import Talos.Strategy
 import Talos.Strategy.Monad
@@ -72,10 +71,6 @@ summarise :: FilePath -> Maybe FilePath -> Maybe String
           -> IO (Map FName (Map SummaryClass Summary))
 summarise inFile m_invFile m_entry = do
   (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
-
-  let demands = calculateDemands md
-  putStrLn "Demands"
-  print (ppDemandSummary md demands)
 
   let invs = makeDeclInvs (mGFuns md) (mFFuns md)
   putStrLn "Inverses"

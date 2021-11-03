@@ -54,8 +54,8 @@ partial mbV =
 
 
 evalCase :: (a -> Env -> b) -> b -> Case a -> Env -> b
-evalCase cont nope (Case e alts) env =
-  let v = eval e env
+evalCase cont nope (Case x alts) env =
+  let v = lookupVar x env
   in case [ k | (p,k) <- alts, matches p v ] of
        g : _ -> cont g env
        []    -> nope

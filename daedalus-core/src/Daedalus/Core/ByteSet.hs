@@ -28,11 +28,11 @@ data ByteSet =
   | SetCase (Case ByteSet)
   deriving (Generic,NFData)
 
-bIf :: Expr -> ByteSet -> ByteSet -> ByteSet
-bIf e b1 b2 = bCase e [ (PBool True, b1), (PBool False, b2) ]
+bIf :: Name -> ByteSet -> ByteSet -> ByteSet
+bIf n b1 b2 = bCase n [ (PBool True, b1), (PBool False, b2) ]
 
-bCase :: Expr -> [(Pattern,ByteSet)] -> ByteSet
-bCase e bs = SetCase (Case e bs)
+bCase :: Name -> [(Pattern,ByteSet)] -> ByteSet
+bCase n bs = SetCase (Case n bs)
 
 ebChildrenB ::
   Applicative f => (Expr -> f Expr) -> (ByteSet -> f ByteSet) ->
@@ -49,7 +49,7 @@ ebChildrenB ef bf bs =
 
     SetLet n e b -> SetLet n <$> ef e <*> bf b
     SetCall fn es -> SetCall fn <$> traverse ef es
-    SetCase (Case e ps) -> SetCase <$> (Case <$> ef e <*> traverse (\(l,b') -> (,) l <$> bf b') ps)
+    SetCase cs -> SetCase <$> traverse bf cs
 
 ebMapChildrenB :: (Expr -> Expr) -> (ByteSet -> ByteSet) -> ByteSet -> ByteSet
 ebMapChildrenB ef bf bs = g1

@@ -43,11 +43,11 @@ data Sem = SemNo | SemYes
 data ErrorSource = ErrorFromUser | ErrorFromSystem
   deriving (Generic,NFData)
 
-gIf :: Expr -> Grammar -> Grammar -> Grammar
-gIf e g1 g2 = GCase (Case e [ (PBool True, g1), (PBool False, g2) ])
+gIf :: Name -> Grammar -> Grammar -> Grammar
+gIf n g1 g2 = GCase (Case n [ (PBool True, g1), (PBool False, g2) ])
 
-gCase :: Expr -> [(Pattern,Grammar)] -> Grammar
-gCase e as = GCase (Case e as)
+gCase :: Name -> [(Pattern,Grammar)] -> Grammar
+gCase n as = GCase (Case n as)
 
 --------------------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ gebChildrenG gf ef bf gram =
     OrUnbiased g1 g2  -> OrUnbiased <$> gf g1 <*> gf g2
     Call fn args      -> Call fn <$> traverse ef args
     Annot a g         -> Annot a <$> gf g
-    GCase (Case e ps) -> GCase <$> (Case <$> ef e <*> traverse (\(a, b) -> (,) a <$> gf b) ps)
+    GCase cs          -> GCase <$> traverse gf cs
 
 gebMapChildrenG :: (Grammar -> Grammar) -> (Expr -> Expr) -> (ByteSet -> ByteSet) ->
                    Grammar -> Grammar

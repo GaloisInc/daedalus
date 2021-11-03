@@ -261,8 +261,8 @@ symExecCoerce fromT toT _v  =
 
 -- Compile patterns to a list of predicates, one for each alternative
 symExecCaseAlts :: (Monad m, HasGUID m, MonadIO m) => Case a -> SymExecM m [(SExpr, a)]
-symExecCaseAlts (Case e alts) = do
-  se <- symExecExpr e
+symExecCaseAlts (Case y alts) = do
+  se <- symExecName y
   pure [ (patAssn se p, a) | (p, a) <- alts ]
   where
     patAssn se p = case p of
@@ -273,7 +273,7 @@ symExecCaseAlts (Case e alts) = do
       PCon l   -> S.fun ("is-" ++ labelToField tyName l) [se]
       PAny     -> S.bool True
       
-    ty = typeOf e
+    ty = typeOf y
     mkLit n = symExecOp0 (IntL n ty)
 
     tyName = case ty of

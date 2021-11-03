@@ -42,7 +42,7 @@ instance Subst Expr where
       Struct ut fs -> Struct ut <$> mapM substField fs
         where substField (a,b) = (,) a <$> subst b
 
-      ECase c         -> ECase <$> subst c
+      ECase c         -> substCase PureLet ECase c
 
       Ap0 {}          -> pure expr
       Ap1 op e        -> Ap1 op <$> subst e
@@ -65,7 +65,7 @@ instance Subst Grammar where
       OrUnbiased g1 g2    -> OrUnbiased <$> subst g1 <*> subst g2
       Call f es           -> Call f <$> traverse subst es
       Annot a g           -> Annot a <$> subst g
-      GCase c             -> GCase <$> subst c
+      GCase c             -> substCase Let GCase c
 
 instance Subst Match where
   subst mat =
@@ -84,15 +84,19 @@ instance Subst ByteSet where
       SetUnion x y          -> SetUnion <$> subst x <*> subst y
       SetIntersection x y   -> SetIntersection <$> subst x <*> subst y
       SetCall f es          -> SetCall f <$> traverse subst es
-      SetCase e             -> SetCase <$> subst e
+      SetCase e             -> substCase SetLet SetCase e
       SetLet x e s          -> letLike SetLet x e s
 
-
-
-instance Subst e => Subst (Case e) where
-  subst (Case e ps) = Case <$> subst e <*> mapM substBranch ps
-    where substBranch (p,rhs) = (,) p <$> subst rhs
-
+substCase :: (Subst e, HasGUID m) => (Name -> Expr -> e -> e) -> (Case e -> e) ->
+             Case e -> SubstM m e
+substCase mklet mk cs = do
+  r@(Case v ps') <- traverse subst cs
+  subst_v <- shouldSubst v
+  case subst_v of
+    Nothing -> pure (mk r)
+    Just e  -> do
+      v' <- newName v
+      pure (mklet v' e (mk (Case v' ps')))
 
 letLike ::
   (Subst a, Subst b, HasGUID m) =>

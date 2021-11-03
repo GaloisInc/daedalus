@@ -410,13 +410,13 @@ synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs)
   
 synthesiseGLHS (Just (SelectedChoice {})) g = panic "synthesiseGLHS: expected a choose" [showPP g]
 
-synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case e alts))
+synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case y alts))
   | n < length alts = do
-      v <- synthesiseV e
+      v <- synthesiseV (Var y) -- FIXME: a bit gross, should just lookup the env
       let (pat, g) = alts !! n
       if I.matches pat (assertInterpValue v) -- sanity check prover result
         then synthesiseG sp g
-        else do env <- projectEnvForM e
+        else do env <- projectEnvForM y
                 let ppOne (k, v') = pp k <+> "->" <+> pp v'
                     ppM = block "{" "," "}" . map ppOne . Map.toList
                 panic "Failed to match pattern" [show n, showPP (assertInterpValue v), showPP cs, show (ppM (I.vEnv env))]
@@ -455,8 +455,8 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
     
     Call fn args     -> synthesiseCallG Assertions Unconstrained fn args
     Annot {}         -> synthesiseG Unconstrained g
-    GCase c@(Case e _) -> do
-      env <- projectEnvForM e
+    GCase c@(Case y _) -> do
+      env <- projectEnvForM y
       I.evalCase (\g' _env -> synthesiseG Unconstrained g')
                  (do bs <- SynthesisM $ gets seenBytes
                      panic "Case failed" [showPP g

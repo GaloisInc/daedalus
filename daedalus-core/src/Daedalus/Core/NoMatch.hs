@@ -1,10 +1,11 @@
 {-# Language OverloadedStrings #-}
-module Daedalus.Core.NoMatch where
+module Daedalus.Core.NoMatch (noMatch) where
 
 import Daedalus.GUID(HasGUID)
 
 import Daedalus.Core
 import Daedalus.Core.Type(sizeType)
+import Control.Monad (join)
 
 
 noMatch :: HasGUID m => Module -> m Module
@@ -23,10 +24,9 @@ noMatchGFun fu =
 noMatchBFun :: HasGUID m => Fun ByteSet -> m (Fun Expr)
 noMatchBFun fu =
   do x <- freshNameSys (TUInt (TSize 8))
+     def <- traverse (flip desugarByteSet (Var x)) (fDef fu)
      pure fu { fParams = x : fParams fu
-             , fDef = case fDef fu of
-                        Def b    -> Def (desugarByteSet b (Var x))
-                        External -> External
+             , fDef = def
              }
 
 
@@ -44,9 +44,11 @@ desugarMatch s mat =
 
     MatchEnd ->
       do i <- freshNameSys TStream
+         b <- freshNameSys TBool
          let msg = byteArrayL "Leftover input"
          pure $ Do i GetStream
-              $ gIf (isEmptyStream (Var i))
+              $ Let b (isEmptyStream (Var i))
+              $ gIf b
                     (Pure unit)
                     (Fail ErrorFromSystem TUnit (Just msg))
 
@@ -54,6 +56,7 @@ desugarMatch s mat =
       do i <- freshNameSys TStream
          let bytes = TArray (TUInt (TSize 8))
          x <- freshNameSys bytes
+         b <- freshNameSys TBool
 
          let msg = eConcat (arrayL bytes [ byteArrayL "Expected ", e ])
              advance = SetStream (eDrop (arrayLen (Var x)) (Var i))
@@ -62,7 +65,8 @@ desugarMatch s mat =
                        SemYes -> (bytes, Do_ advance (Pure (Var x)))
          pure $ Do i GetStream
               $ Let x e
-              $ gIf (isPrefix (Var x) (Var i))
+              $ Let b (isPrefix (Var x) (Var i))
+              $ gIf b
                     ok
                     (Fail ErrorFromSystem t (Just msg))
 
@@ -70,6 +74,10 @@ desugarMatch s mat =
       do i <- freshNameSys TStream
          let byte = TUInt (TSize 8)
          x <- freshNameSys byte
+         p <- freshNameSys TBool
+         p' <- freshNameSys TBool
+         
+         pv <- desugarByteSet b (Var x)
          let msgNoByte = byteArrayL "Unexpected end of input"
              msgBadByte = byteArrayL "Byte does not match specification"
              advance = SetStream (eDrop (intL 1 sizeType) (Var i))
@@ -77,25 +85,36 @@ desugarMatch s mat =
                         SemNo  -> (TUnit, advance)
                         SemYes -> (byte, Do_ advance (Pure (Var x)))
          pure $ Do i GetStream
-              $ gIf (isEmptyStream (Var i))
+              $ Let p (isEmptyStream (Var i))
+              $ gIf p
                     (Fail ErrorFromSystem t (Just msgNoByte))
               $ Let x (eHead (Var i))
-              $ gIf (desugarByteSet b (Var x))
+              $ Let p' pv
+              $ gIf p'
                     ok
                     (Fail ErrorFromSystem t (Just msgBadByte))
 
 
-desugarByteSet :: ByteSet -> Expr -> Expr
+eOr, eAnd :: HasGUID m => Expr -> Expr -> m Expr
+eOr x y = do
+  p <- freshNameSys TBool
+  pure (PureLet p x (eIf p (boolL True) y))
+  
+eAnd x y = do
+  p <- freshNameSys TBool
+  pure (PureLet p x (eIf p y (boolL False)))
+
+desugarByteSet :: HasGUID m => ByteSet -> Expr -> m Expr
 desugarByteSet bs b =
   case bs of
-    SetAny        -> boolL True
-    SetSingle x   -> x `eq` b
+    SetAny        -> pure (boolL True)
+    SetSingle x   -> pure (x `eq` b)
     SetRange x y  -> (x `leq` b) `eAnd` (b `leq` y)
-    SetComplement x -> eNot (desugarByteSet x b)
-    SetUnion x y -> desugarByteSet x b `eOr` desugarByteSet y b
-    SetIntersection x y -> desugarByteSet x b `eAnd` desugarByteSet y b
-    SetLet x e y -> PureLet x e (desugarByteSet y b) -- assumes no capture
-    SetCall f es -> callF f (b:es)
-    SetCase (Case e as) ->
-      ECase (Case e [ (p, desugarByteSet x b) | (p,x) <- as ])
+    SetComplement x -> eNot <$> desugarByteSet x b
+    SetUnion x y -> join (eOr <$> desugarByteSet x b <*> desugarByteSet y b)
+    SetIntersection x y -> join (eAnd <$> desugarByteSet x b <*> desugarByteSet y b)
+    SetLet x e y -> PureLet x e <$> desugarByteSet y b -- assumes no capture
+    SetCall f es -> pure (callF f (b:es))
+    SetCase cs -> ECase <$> traverse (flip desugarByteSet b) cs
+
 

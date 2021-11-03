@@ -59,7 +59,7 @@ compileE expr k =
          do s <- stmt ty (\x -> CallPrim x (StructCon t) vs)
             continue k s
 
-    Src.ECase (Src.Case e as) ->
+    Src.ECase (Src.Case x as) ->
       do next' <- case k of
                     Nothing -> pure Nothing
                     Just kont ->
@@ -71,7 +71,8 @@ compileE expr k =
          codes <- forM as \(p,rhs) ->
                     do l <- label0 NormalBlock =<< compileE rhs next'
                        pure (p, l)
-         compileE e $ Just \v -> jumpCase v (Map.fromList codes)
+         b <- lookupN x
+         pure (jumpCase (Map.fromList codes) =<< b)
 
     Src.Ap0 op          -> compileOp0 op ty k
     Src.Ap1 op e        -> compileOp1 op ty e k

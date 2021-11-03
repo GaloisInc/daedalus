@@ -160,7 +160,7 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SAssertion (GuardAssertion e) -> exprToPolyFuns e
       SChoice cs   -> foldMap go cs
       SCall cn     -> foldMap exprToPolyFuns (callNodeActualArgs cn)
-      SCase _ c@(Case e _) -> exprToPolyFuns e <> foldMap go c
+      SCase _ c    -> foldMap go c
       SInverse _n fe pe -> exprToPolyFuns fe <> exprToPolyFuns pe
         
       

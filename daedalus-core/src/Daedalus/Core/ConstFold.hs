@@ -83,8 +83,9 @@ constFoldE e = do
     -- Special cases
     Var n | Map.member n (vEnv (partialEnv env)) -> folded
     Struct _ut flds | all (exprIsConst . snd) flds -> folded
-    ECase c@(Case ce _)
-      | exprIsConst ce -> S.evalCase const (panic "Missing case" [showPP e]) c (partialEnv env)
+    ECase c@(Case x _)
+      | Map.member x (vEnv (partialEnv env)) ->
+          S.evalCase const (panic "Missing case" [showPP e]) c (partialEnv env)
 
     Ap0 {} -> folded
     Ap1 _ e1 | exprIsConst e1 -> folded
@@ -116,8 +117,9 @@ constFoldG g = do
   g' <- gebChildrenG constFoldG constFoldE constFoldB g
   env <- ask
   pure $ case g' of
-    GCase c@(Case e _)
-      | exprIsConst e -> S.evalCase const (sysErr (typeOf e) "Missing case alternative") c (partialEnv env)
+    GCase c@(Case x _)
+      | Map.member x (vEnv (partialEnv env)) ->
+          S.evalCase const (sysErr (typeOf g') "Missing case alternative") c (partialEnv env)
     _ -> g'
 
 exprIsConst :: Expr -> Bool
