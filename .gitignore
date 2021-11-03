@@ -6,5 +6,6 @@ dist
 /talos/test-output
 /test-parser-gen-output
 .*.swp
-/icc_tests
 .DS_Store
+tmp
+__pycache__

@@ -126,7 +126,7 @@ MavNumerics.Digit : Grammar int =
                            pure (_170 - '0')
      pure (_171 as int)
  
-MavNumerics.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+MavNumerics.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
@@ -168,12 +168,12 @@ MavNumerics.Float : Grammar MavNumerics.Float =
                                                                                   ($$ : uint 23) <- pure mant
                                                                                   pure $$
                                                            pure {denormalized: _180}
-                                   | {- infty -} do (_182 : MavNumerics.Float0) <- do MavNumerics._Guard (exp == 255)
+                                   | {- infty -} do (_182 : MavNumerics.Float0) <- do MavNumerics._Guard (exp == 0xFF)
                                                                                       MavNumerics._Guard (mant == 0)
                                                                                       ($$ : MavNumerics.Float0) <- pure isPos
                                                                                       pure $$
                                                     pure {infty: _182}
-                                   | {- nan -} do (_184 : {}) <- do MavNumerics._Guard (exp == 255)
+                                   | {- nan -} do (_184 : {}) <- do MavNumerics._Guard (exp == 0xFF)
                                                                     ($$ : {}) <- MavNumerics.Guard (mant != 0)
                                                                     pure $$
                                                   pure {nan: _184}
@@ -329,9 +329,9 @@ MavNumerics._Float : Grammar {} =
        { {- zero -} do MavNumerics._Guard (exp == 0)
                        MavNumerics._Guard (mant == 0)
        | {- denormalized -} MavNumerics._Guard (exp == 0)
-       | {- infty -} do MavNumerics._Guard (exp == 255)
+       | {- infty -} do MavNumerics._Guard (exp == 0xFF)
                         MavNumerics._Guard (mant == 0)
-       | {- nan -} do MavNumerics._Guard (exp == 255)
+       | {- nan -} do MavNumerics._Guard (exp == 0xFF)
                       MavNumerics._Guard (mant != 0)
        | {- number -} pure {}
        }
@@ -514,49 +514,49 @@ type MavEnums.MavMissionResult = Choose { mavMissionAccepted: {}
  
 MavEnums.MavFrame : Grammar MavEnums.MavFrame =
   Choose biased
-    { {- mavFrameGlobal -} do (_207 : {}) <- @Match {'\NUL'}
+    { {- mavFrameGlobal -} do (_207 : {}) <- @Match {0}
                               pure {mavFrameGlobal: _207}
-    | {- mavFrameLocalNed -} do (_208 : {}) <- @Match {'\SOH'}
+    | {- mavFrameLocalNed -} do (_208 : {}) <- @Match {1}
                                 pure {mavFrameLocalNed: _208}
-    | {- mavFrameMission -} do (_209 : {}) <- @Match {'\STX'}
+    | {- mavFrameMission -} do (_209 : {}) <- @Match {2}
                                pure {mavFrameMission: _209}
-    | {- mavFrameGlobalRelativeAlt -} do (_210 : {}) <- @Match {'\ETX'}
+    | {- mavFrameGlobalRelativeAlt -} do (_210 : {}) <- @Match {3}
                                          pure {mavFrameGlobalRelativeAlt: _210}
-    | {- mavFrameLocalEnu -} do (_211 : {}) <- @Match {'\EOT'}
+    | {- mavFrameLocalEnu -} do (_211 : {}) <- @Match {4}
                                 pure {mavFrameLocalEnu: _211}
-    | {- mavFrameGlobalInt -} do (_212 : {}) <- @Match {'\ENQ'}
+    | {- mavFrameGlobalInt -} do (_212 : {}) <- @Match {5}
                                  pure {mavFrameGlobalInt: _212}
-    | {- mavFrameGlobalRelativeAltInt -} do (_213 : {}) <- @Match {'\ACK'}
+    | {- mavFrameGlobalRelativeAltInt -} do (_213 : {}) <- @Match {6}
                                             pure {mavFrameGlobalRelativeAltInt: _213}
-    | {- mavFrameLocalOffsetNed -} do (_214 : {}) <- @Match {'\a'}
+    | {- mavFrameLocalOffsetNed -} do (_214 : {}) <- @Match {7}
                                       pure {mavFrameLocalOffsetNed: _214}
-    | {- mavFrameBodyNed -} do (_215 : {}) <- @Match {'\b'}
+    | {- mavFrameBodyNed -} do (_215 : {}) <- @Match {8}
                                pure {mavFrameBodyNed: _215}
-    | {- mavFrameBodyOffsetNed -} do (_216 : {}) <- @Match {'\t'}
+    | {- mavFrameBodyOffsetNed -} do (_216 : {}) <- @Match {9}
                                      pure {mavFrameBodyOffsetNed: _216}
-    | {- mavFrameGlobalTerrainAlt -} do (_217 : {}) <- @Match {'\n'}
+    | {- mavFrameGlobalTerrainAlt -} do (_217 : {}) <- @Match {10}
                                         pure {mavFrameGlobalTerrainAlt: _217}
-    | {- mavFrameGlobalTerrainAltInt -} do (_218 : {}) <- @Match {'\v'}
+    | {- mavFrameGlobalTerrainAltInt -} do (_218 : {}) <- @Match {11}
                                            pure {mavFrameGlobalTerrainAltInt: _218}
-    | {- mavFrameBodyFrd -} do (_219 : {}) <- @Match {'\f'}
+    | {- mavFrameBodyFrd -} do (_219 : {}) <- @Match {12}
                                pure {mavFrameBodyFrd: _219}
-    | {- mavFrameReserved13 -} do (_220 : {}) <- @Match {'\r'}
+    | {- mavFrameReserved13 -} do (_220 : {}) <- @Match {13}
                                   pure {mavFrameReserved13: _220}
-    | {- mavFrameReserved14 -} do (_221 : {}) <- @Match {'\SO'}
+    | {- mavFrameReserved14 -} do (_221 : {}) <- @Match {14}
                                   pure {mavFrameReserved14: _221}
-    | {- mavFrameReserved14 -} do (_222 : {}) <- @Match {'\SI'}
+    | {- mavFrameReserved14 -} do (_222 : {}) <- @Match {15}
                                   pure {mavFrameReserved14: _222}
-    | {- mavFrameReserved14 -} do (_223 : {}) <- @Match {'\DLE'}
+    | {- mavFrameReserved14 -} do (_223 : {}) <- @Match {16}
                                   pure {mavFrameReserved14: _223}
-    | {- mavFrameReserved14 -} do (_224 : {}) <- @Match {'\DC1'}
+    | {- mavFrameReserved14 -} do (_224 : {}) <- @Match {17}
                                   pure {mavFrameReserved14: _224}
-    | {- mavFrameReserved14 -} do (_225 : {}) <- @Match {'\DC2'}
+    | {- mavFrameReserved14 -} do (_225 : {}) <- @Match {18}
                                   pure {mavFrameReserved14: _225}
-    | {- mavFrameReserved14 -} do (_226 : {}) <- @Match {'\DC3'}
+    | {- mavFrameReserved14 -} do (_226 : {}) <- @Match {19}
                                   pure {mavFrameReserved14: _226}
-    | {- mavFrameLocalFrd -} do (_227 : {}) <- @Match {'\DC4'}
+    | {- mavFrameLocalFrd -} do (_227 : {}) <- @Match {20}
                                 pure {mavFrameLocalFrd: _227}
-    | {- mavFrameLocalFlu -} do (_228 : {}) <- @Match {'\NAK'}
+    | {- mavFrameLocalFlu -} do (_228 : {}) <- @Match {21}
                                 pure {mavFrameLocalFlu: _228}
     }
  
@@ -686,76 +686,76 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
  
 MavEnums.MavMissionType : Grammar MavEnums.MavMissionType =
   Choose biased
-    { {- mavMissionTypeMission -} do (_248 : {}) <- @Match {'\NUL'}
+    { {- mavMissionTypeMission -} do (_248 : {}) <- @Match {0}
                                      pure {mavMissionTypeMission: _248}
-    | {- mavMissionTypeFence -} do (_249 : {}) <- @Match {'\SOH'}
+    | {- mavMissionTypeFence -} do (_249 : {}) <- @Match {1}
                                    pure {mavMissionTypeFence: _249}
-    | {- mavMissionTypeRally -} do (_250 : {}) <- @Match {'\STX'}
+    | {- mavMissionTypeRally -} do (_250 : {}) <- @Match {2}
                                    pure {mavMissionTypeRally: _250}
-    | {- mavMissionTypeAll -} do (_251 : {}) <- @Match {'\255'}
+    | {- mavMissionTypeAll -} do (_251 : {}) <- @Match {255}
                                  pure {mavMissionTypeAll: _251}
     }
  
 MavEnums.MavMissionResult : Grammar MavEnums.MavMissionResult =
   Choose biased
-    { {- mavMissionAccepted -} do (_252 : {}) <- @Match {'\NUL'}
+    { {- mavMissionAccepted -} do (_252 : {}) <- @Match {0}
                                   pure {mavMissionAccepted: _252}
-    | {- mavMissionError -} do (_253 : {}) <- @Match {'\SOH'}
+    | {- mavMissionError -} do (_253 : {}) <- @Match {1}
                                pure {mavMissionError: _253}
-    | {- mavMissionUnsupportedFrame -} do (_254 : {}) <- @Match {'\STX'}
+    | {- mavMissionUnsupportedFrame -} do (_254 : {}) <- @Match {2}
                                           pure {mavMissionUnsupportedFrame: _254}
-    | {- mavMissionUnsupported -} do (_255 : {}) <- @Match {'\ETX'}
+    | {- mavMissionUnsupported -} do (_255 : {}) <- @Match {3}
                                      pure {mavMissionUnsupported: _255}
-    | {- mavMissionNoSpace -} do (_256 : {}) <- @Match {'\EOT'}
+    | {- mavMissionNoSpace -} do (_256 : {}) <- @Match {4}
                                  pure {mavMissionNoSpace: _256}
-    | {- mavMissionInvalid -} do (_257 : {}) <- @Match {'\ENQ'}
+    | {- mavMissionInvalid -} do (_257 : {}) <- @Match {5}
                                  pure {mavMissionInvalid: _257}
-    | {- mavMissionInvalidParam1 -} do (_258 : {}) <- @Match {'\ACK'}
+    | {- mavMissionInvalidParam1 -} do (_258 : {}) <- @Match {6}
                                        pure {mavMissionInvalidParam1: _258}
-    | {- mavMissionInvalidParam2 -} do (_259 : {}) <- @Match {'\a'}
+    | {- mavMissionInvalidParam2 -} do (_259 : {}) <- @Match {7}
                                        pure {mavMissionInvalidParam2: _259}
-    | {- mavMissionInvalidParam3 -} do (_260 : {}) <- @Match {'\b'}
+    | {- mavMissionInvalidParam3 -} do (_260 : {}) <- @Match {8}
                                        pure {mavMissionInvalidParam3: _260}
-    | {- mavMissionInvalidParam4 -} do (_261 : {}) <- @Match {'\t'}
+    | {- mavMissionInvalidParam4 -} do (_261 : {}) <- @Match {9}
                                        pure {mavMissionInvalidParam4: _261}
-    | {- mavMissionInvalidParam5X -} do (_262 : {}) <- @Match {'\n'}
+    | {- mavMissionInvalidParam5X -} do (_262 : {}) <- @Match {10}
                                         pure {mavMissionInvalidParam5X: _262}
-    | {- mavMissionInvalidParam6Y -} do (_263 : {}) <- @Match {'\v'}
+    | {- mavMissionInvalidParam6Y -} do (_263 : {}) <- @Match {11}
                                         pure {mavMissionInvalidParam6Y: _263}
-    | {- mavMissionInvalidParam7 -} do (_264 : {}) <- @Match {'\f'}
+    | {- mavMissionInvalidParam7 -} do (_264 : {}) <- @Match {12}
                                        pure {mavMissionInvalidParam7: _264}
-    | {- mavMissionInvalidSequence -} do (_265 : {}) <- @Match {'\r'}
+    | {- mavMissionInvalidSequence -} do (_265 : {}) <- @Match {13}
                                          pure {mavMissionInvalidSequence: _265}
-    | {- mavMissionDenied -} do (_266 : {}) <- @Match {'\SO'}
+    | {- mavMissionDenied -} do (_266 : {}) <- @Match {14}
                                 pure {mavMissionDenied: _266}
-    | {- mavMissionOperationCancelled -} do (_267 : {}) <- @Match {'\SI'}
+    | {- mavMissionOperationCancelled -} do (_267 : {}) <- @Match {15}
                                             pure {mavMissionOperationCancelled: _267}
     }
  
 MavEnums._MavFrame : Grammar {} =
   Choose biased
-    { {- mavFrameGlobal -} @Match {'\NUL'}
-    | {- mavFrameLocalNed -} @Match {'\SOH'}
-    | {- mavFrameMission -} @Match {'\STX'}
-    | {- mavFrameGlobalRelativeAlt -} @Match {'\ETX'}
-    | {- mavFrameLocalEnu -} @Match {'\EOT'}
-    | {- mavFrameGlobalInt -} @Match {'\ENQ'}
-    | {- mavFrameGlobalRelativeAltInt -} @Match {'\ACK'}
-    | {- mavFrameLocalOffsetNed -} @Match {'\a'}
-    | {- mavFrameBodyNed -} @Match {'\b'}
-    | {- mavFrameBodyOffsetNed -} @Match {'\t'}
-    | {- mavFrameGlobalTerrainAlt -} @Match {'\n'}
-    | {- mavFrameGlobalTerrainAltInt -} @Match {'\v'}
-    | {- mavFrameBodyFrd -} @Match {'\f'}
-    | {- mavFrameReserved13 -} @Match {'\r'}
-    | {- mavFrameReserved14 -} @Match {'\SO'}
-    | {- mavFrameReserved14 -} @Match {'\SI'}
-    | {- mavFrameReserved14 -} @Match {'\DLE'}
-    | {- mavFrameReserved14 -} @Match {'\DC1'}
-    | {- mavFrameReserved14 -} @Match {'\DC2'}
-    | {- mavFrameReserved14 -} @Match {'\DC3'}
-    | {- mavFrameLocalFrd -} @Match {'\DC4'}
-    | {- mavFrameLocalFlu -} @Match {'\NAK'}
+    { {- mavFrameGlobal -} @Match {0}
+    | {- mavFrameLocalNed -} @Match {1}
+    | {- mavFrameMission -} @Match {2}
+    | {- mavFrameGlobalRelativeAlt -} @Match {3}
+    | {- mavFrameLocalEnu -} @Match {4}
+    | {- mavFrameGlobalInt -} @Match {5}
+    | {- mavFrameGlobalRelativeAltInt -} @Match {6}
+    | {- mavFrameLocalOffsetNed -} @Match {7}
+    | {- mavFrameBodyNed -} @Match {8}
+    | {- mavFrameBodyOffsetNed -} @Match {9}
+    | {- mavFrameGlobalTerrainAlt -} @Match {10}
+    | {- mavFrameGlobalTerrainAltInt -} @Match {11}
+    | {- mavFrameBodyFrd -} @Match {12}
+    | {- mavFrameReserved13 -} @Match {13}
+    | {- mavFrameReserved14 -} @Match {14}
+    | {- mavFrameReserved14 -} @Match {15}
+    | {- mavFrameReserved14 -} @Match {16}
+    | {- mavFrameReserved14 -} @Match {17}
+    | {- mavFrameReserved14 -} @Match {18}
+    | {- mavFrameReserved14 -} @Match {19}
+    | {- mavFrameLocalFrd -} @Match {20}
+    | {- mavFrameLocalFlu -} @Match {21}
     }
  
 MavEnums._CmdParams : Grammar {} =
@@ -821,30 +821,30 @@ MavEnums._MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float
  
 MavEnums._MavMissionType : Grammar {} =
   Choose biased
-    { {- mavMissionTypeMission -} @Match {'\NUL'}
-    | {- mavMissionTypeFence -} @Match {'\SOH'}
-    | {- mavMissionTypeRally -} @Match {'\STX'}
-    | {- mavMissionTypeAll -} @Match {'\255'}
+    { {- mavMissionTypeMission -} @Match {0}
+    | {- mavMissionTypeFence -} @Match {1}
+    | {- mavMissionTypeRally -} @Match {2}
+    | {- mavMissionTypeAll -} @Match {255}
     }
  
 MavEnums._MavMissionResult : Grammar {} =
   Choose biased
-    { {- mavMissionAccepted -} @Match {'\NUL'}
-    | {- mavMissionError -} @Match {'\SOH'}
-    | {- mavMissionUnsupportedFrame -} @Match {'\STX'}
-    | {- mavMissionUnsupported -} @Match {'\ETX'}
-    | {- mavMissionNoSpace -} @Match {'\EOT'}
-    | {- mavMissionInvalid -} @Match {'\ENQ'}
-    | {- mavMissionInvalidParam1 -} @Match {'\ACK'}
-    | {- mavMissionInvalidParam2 -} @Match {'\a'}
-    | {- mavMissionInvalidParam3 -} @Match {'\b'}
-    | {- mavMissionInvalidParam4 -} @Match {'\t'}
-    | {- mavMissionInvalidParam5X -} @Match {'\n'}
-    | {- mavMissionInvalidParam6Y -} @Match {'\v'}
-    | {- mavMissionInvalidParam7 -} @Match {'\f'}
-    | {- mavMissionInvalidSequence -} @Match {'\r'}
-    | {- mavMissionDenied -} @Match {'\SO'}
-    | {- mavMissionOperationCancelled -} @Match {'\SI'}
+    { {- mavMissionAccepted -} @Match {0}
+    | {- mavMissionError -} @Match {1}
+    | {- mavMissionUnsupportedFrame -} @Match {2}
+    | {- mavMissionUnsupported -} @Match {3}
+    | {- mavMissionNoSpace -} @Match {4}
+    | {- mavMissionInvalid -} @Match {5}
+    | {- mavMissionInvalidParam1 -} @Match {6}
+    | {- mavMissionInvalidParam2 -} @Match {7}
+    | {- mavMissionInvalidParam3 -} @Match {8}
+    | {- mavMissionInvalidParam4 -} @Match {9}
+    | {- mavMissionInvalidParam5X -} @Match {10}
+    | {- mavMissionInvalidParam6Y -} @Match {11}
+    | {- mavMissionInvalidParam7 -} @Match {12}
+    | {- mavMissionInvalidSequence -} @Match {13}
+    | {- mavMissionDenied -} @Match {14}
+    | {- mavMissionOperationCancelled -} @Match {15}
     }
 module MissionItemInt
  

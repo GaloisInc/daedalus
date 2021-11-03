@@ -69,6 +69,10 @@ tcBounds it = case it of
           do traverse_ (modify . Set.insert . Some) x
              TCDo x <$> go e1 <*> go e2
 
+        TCLet x e1 e2 ->
+          do modify (Set.insert (Some x))
+             TCLet x <$> go e1 <*> go e2
+
         TCFor lp ->
           do modify ( addK
                     . Set.insert (Some (loopElName lp))
@@ -159,7 +163,9 @@ instance TCFree (TCF a k) where
       TCVar x             -> Set.singleton (Some x)
       TCDo (Just x) e1 e2 ->
         tcFree e1 `Set.union` (forgetFree x (tcFree e2))
-  
+
+      TCLet x e1 e2 -> tcFree e1 `Set.union` forgetFree x (tcFree e2)
+
       TCCall f _ts as | isLocalName (tcName f) ->
         Set.singleton (Some f) `Set.union` tcFree as
 

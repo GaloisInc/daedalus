@@ -64,13 +64,13 @@ type D018.Main = { x: [D018.Value]
 --- Rules:
  
 D018.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 D018.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 D018.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 D018.SimpleEOL : Grammar (uint 8) =
   Choose fair
@@ -149,7 +149,7 @@ D018.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Gramma
      D018._KW close
      pure $$
  
-D018.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+D018.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
@@ -198,14 +198,18 @@ D018.Frac (n : uint 64) (w : D018.Number) : Grammar D018.Number =
   do @MatchBytes "."
      (ds : [int]) <- Many[ n .. ] D018.Digit
      ($$ : D018.Number) <- pure (for ((val : D018.Number) = w; (d : int) in ds)
-                                   {num = (10 * (val.num)) + d,
-                                    exp = (val.exp) - 1})
+                                   let num = (10 * (val.num)) + d in
+                                   let exp = (val.exp) - 1 in
+                                   {num = num,
+                                    exp = exp})
      pure $$
  
 D018.UnsignedLeadDigits : Grammar D018.Number =
   do (n : int) <- D018.Natural
-     (val : D018.Number) <- pure {num = n,
-                                  exp = 0}
+     (val : D018.Number) <- pure let num = n in
+                                 let exp = 0 in
+                                 {num = num,
+                                  exp = exp}
      ($$ : D018.Number) <- Choose biased
                              { D018.Frac 0 val
                              | pure val
@@ -215,19 +219,21 @@ D018.UnsignedLeadDigits : Grammar D018.Number =
 D018.UnsignedNumber : Grammar D018.Number =
   Choose biased
     { D018.UnsignedLeadDigits
-    | D018.Frac 1 {num = 0,
-                   exp = 0}
+    | D018.Frac 1 let num = 0 in
+                  let exp = 0 in
+                  {num = num,
+                   exp = exp}
     }
  
 D018.Number : Grammar D018.Number =
   D018.Token D018.Number do (sign : D018.Sign) <- D018.Sign
                             (n : D018.Number) <- D018.UnsignedNumber
                             ($$ : D018.Number) <- case sign is
-                                                    { {| pos = _ |} -> pure n
-                                                    ; {| neg = _ |} -> do (num : int) <- pure (0 - (n.num))
-                                                                          (exp : int) <- pure (n.exp)
-                                                                          pure {num = num,
-                                                                                exp = exp}
+                                                    { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure n
+                                                    ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} do (num : int) <- pure (0 - (n.num))
+                                                                                                           (exp : int) <- pure (n.exp)
+                                                                                                           pure {num = num,
+                                                                                                                 exp = exp}
                                                     }
                             pure $$
  
@@ -452,8 +458,8 @@ D018._Number : Grammar {} =
                              do D018.UnsignedNumber
                                 pure {}
                              case sign is
-                               { {| pos = _ |} -> pure {}
-                               ; {| neg = _ |} -> pure {}
+                               { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
+                               ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
                                }
  
 D018._Frac (n : uint 64) : Grammar {} =

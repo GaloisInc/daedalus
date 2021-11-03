@@ -29,6 +29,7 @@ import           Daedalus.LSP.Diagnostics    (sourceRangeToRange)
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position
 import qualified Daedalus.LSP.SemanticTokens as SI
+import System.Log.Logger (debugM)
 
 -- -----------------------------------------------------------------------------
 -- Semantic tokens (highlighting etc.)
@@ -39,17 +40,17 @@ semanticTokens resp m_range uri = do
   e_mr <- uriToModuleState uri
 
   caps <- getClientCapabilities
-  let m_semcaps = caps ^. J.textDocument >>= view J.semanticTokens
+  let m_semcaps = Nothing -- caps ^. J.textDocument >>= view J.semanticTokens
 
   -- case e_mr of
-  --   Right mr | Just _tks <- mrTokens mr ->
-  --              liftIO $ debugM "reactor.semanticTokens" $ "Got some tokens" ++ show (SI.semanticTokens m_range m_semcaps mr)
+  --   Right mr | FinishedStatus _tks <- mr ^. msTokens . passStatus ->
+  --              liftIO $ debugM "reactor.semanticTokens" $ "Got some tokens " ++ show (SI.semanticTokens m_range m_semcaps mr)
   --   Right _ -> liftIO $ debugM "reactor.semanticTokens" $ "No tokens"
   --   Left  _ -> liftIO $ debugM "reactor.semanticTokens" $ "No results"
 
   -- case m_semcaps of
   --   Nothing   -> liftIO $ debugM "reactor.semanticTokens" $ "No caps"
-  --   Just caps -> liftIO $ debugM "reactor.semanticTokens" $ "Caps" ++ show (caps ^. J.tokenTypes)
+  --   Just caps -> liftIO $ debugM "reactor.semanticTokens" $ "Caps " ++ show (caps ^. J.tokenTypes)
     
   -- We might want to cache these?
   resp $ fmap (SI.semanticTokens m_range m_semcaps) e_mr

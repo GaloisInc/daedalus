@@ -47,9 +47,9 @@ normaliseV tc =
     TCMapEmpty t -> NMapEmpty (ntype t)
     TCCoerce t t' v -> NCoerce (ntype t) (ntype t') (normaliseV v)
 
-    TCLiteral (LNumber n) t -> NNumber n (ntype t)
+    TCLiteral (LNumber n _) t -> NNumber n (ntype t)
     TCLiteral (LBool b)   _ -> NBool b
-    TCLiteral (LByte b)   _ -> NByte b
+    TCLiteral (LByte b _)   _ -> NByte b
     TCLiteral (LBytes bs) _ -> NByteArray bs
 
     TCNothing t     -> NNothing (ntype t)

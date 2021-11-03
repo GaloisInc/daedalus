@@ -62,11 +62,13 @@ More about the Daedalus Language
 ---------------------------------
 
 The documentation for ``Daedlus`` is not yet complete, but you may read
-more about the language in ``docs/UserGuide.pdf``.  The ``tests`` directory
+more about the language in the 
+`user guide`_.  The ``tests`` directory
 contains numerous small examples of ``Daedlus`` specifications, of particular
 interest might be subdirectories ``ppm`` (PPM image format),
 ``sexp`` (S-expressions) and ``midi`` (MIDI messages).
 
+.. _`user guide`: https://galoisinc.github.io/daedalus/
 
 Generating Parsers
 ------------------

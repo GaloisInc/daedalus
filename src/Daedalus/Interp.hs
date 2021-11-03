@@ -328,6 +328,8 @@ compilePureExpr env = go
         TCBinOp op e1 e2 _ -> evalBinOp op (go e1) (go e2)
         TCTriOp op e1 e2 e3 _ -> evalTriOp op (go e1) (go e2) (go e3)
 
+        TCLet x e1 e2 ->
+          compilePureExpr (addVal x (compilePureExpr env e1) env) e2
 
         TCFor lp -> evalFor env lp
 
@@ -360,7 +362,7 @@ compilePureExpr env = go
 evalLiteral :: Env -> Type -> Literal -> Value
 evalLiteral env t l =
   case l of
-    LNumber n ->
+    LNumber n _ ->
       case tval of
         TVInteger     -> VInteger n
         TVUInt s      -> vUInt s n
@@ -373,7 +375,7 @@ evalLiteral env t l =
         TVOther       -> bad
 
     LBool b           -> VBool b
-    LByte w           -> vByte w
+    LByte w _         -> vByte w
     LBytes bs         -> vByteString bs
     LFloating d       ->
       case tval of
@@ -480,7 +482,7 @@ matchPat pat =
     TCConPat _ l p    -> \v -> case valueToUnion v of
                                  (l1,v1) | l == l1 -> matchPat p v1
                                  _ -> Nothing
-    TCNumPat _ i      -> \v -> do guard (valueToIntegral v == i)
+    TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
                                   pure []
     TCBoolPat b       -> \v -> do guard (valueToBool v == b)
                                   pure []
@@ -758,14 +760,15 @@ compilePExpr env expr0 args = go expr0
             | isLocalName f =
                 case Map.lookup f (gmrEnv env) of
                   Just r  -> Fun (\_ -> r)
-                  Nothing -> bad "local"
+                  Nothing -> bad "local" (Map.keys $ gmrEnv env)
             | otherwise =
                 case Map.lookup f (ruleEnv env) of
                   Just r  -> r
-                  Nothing -> bad "top-level"
+                  Nothing -> bad "top-level" (Map.keys $ ruleEnv env)
 
-          bad z = panic "compileExpr"
-                  [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x)) ]
+          bad z ks = panic "compileExpr"
+                     [ "Unknown " ++ z ++ " function " ++ show (backticks (pp x))
+                     , "Known functions: " ++ show ks ]
 
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of

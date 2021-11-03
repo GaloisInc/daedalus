@@ -13,8 +13,8 @@ T061.Main : Grammar T061.Main =
                                      2])
      (ex1 : bool) <- do (_2 : uint 8) <- GetByte
                         case _2 is
-                          { 1 -> pure true
-                          ; 2 -> pure false
+                          { 1 -> {- case branch  1 -} pure true
+                          ; 2 -> {- case branch  2 -} pure false
                           }
      pure {ex1 = ex1}
  
@@ -23,6 +23,6 @@ T061._Main : Grammar {} =
                                      2])
      (_2 : uint 8) <- GetByte
      case _2 is
-       { 1 -> pure {}
-       ; 2 -> pure {}
+       { 1 -> {- case branch  1 -} pure {}
+       ; 2 -> {- case branch  2 -} pure {}
        }

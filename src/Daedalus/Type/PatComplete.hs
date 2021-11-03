@@ -104,7 +104,7 @@ missingNumPatterns _declTys allPats
         _                            -> Nothing
       
     (typs, caseNums) = unzip $ map extractLbl allPats
-    extractLbl (TCNumPat typ n) = (typ, n)
+    extractLbl (TCNumPat typ n _) = (typ, n)
     extractLbl pat = panic "Saw a non-constructor pattern" [show (pp pat)]
 
 summariseCase :: Map TCTyName TCTyDecl -> TC a k -> (PatternCompleteness, CaseSummary)

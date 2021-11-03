@@ -6,6 +6,7 @@ module Daedalus.Parser.Lexer
   ) where
 
 import AlexTools
+import Data.List(foldl')
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.ByteString as BS
@@ -41,6 +42,8 @@ $ws         = [\0\9\10\13\32]
 @esc        = \\ (@natural | \\ | \' | " | n | t | r | [xX] $hexDigit $hexDigit* )
 @byte       = \' ($anybyte # [\\] | @esc) \'
 @bytes      = \" ($anybyte # [\"\\] | @esc)* \"
+
+@b256Literal = 0 [sS] @bytes
 
 @comment    = "--" .* \n
 
@@ -187,6 +190,7 @@ $ws+        ;
 @smallIdentI  { lexeme SmallIdentI }
 @setIdent     { lexeme SetIdent }
 @setIdentI    { lexeme SetIdentI }
+@b256Literal  { lex256Literal }
 @byte         { lexByte }
 @bytes        { lexBytes }
 @integer      { lexInteger }
@@ -230,15 +234,26 @@ lexBytes :: Action s [Lexeme Token]
 lexBytes =
   do x <- Text.unpack <$> matchText
      lexeme $!
-       case go (noQuotes x) of
+       case checkBytes (noQuotes x) of
          Left err -> TokError err
          Right bs -> Bytes (BS.pack bs)
-  where
-  go xs = case xs of
-            [] -> Right []
-            _  -> do (c,cs) <- unEsc xs
-                     rest <- go cs
-                     pure (c:rest)
+
+checkBytes :: String -> Either String [Word8]
+checkBytes xs =
+  case xs of
+    [] -> Right []
+    _  -> do (c,cs) <- unEsc xs
+             rest <- checkBytes cs
+             pure (c:rest)
+
+lex256Literal :: Action s [Lexeme Token]
+lex256Literal =
+  do x <- Text.unpack <$> matchText
+     lexeme $!
+       case checkBytes (noQuotes (drop 2 x)) of
+         Left err -> TokError err
+         Right bs  -> Number val (Just (length bs * 8))
+           where val = foldl' (\tot d -> tot * 256 + toInteger d) 0 bs
 
 noQuotes :: String -> String
 noQuotes = init . drop 1

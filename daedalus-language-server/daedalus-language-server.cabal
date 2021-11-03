@@ -23,7 +23,8 @@ library
                        Daedalus.LSP.SemanticTokens,
                        Daedalus.LSP.Position,
                        Daedalus.LSP.LanguageFeatures,
-                       Daedalus.LSP.Command,                       
+                       Daedalus.LSP.Command,
+                       Daedalus.LSP.Command.Debug, 
                        Daedalus.LSP.Command.Regions,
                        Daedalus.LSP.Command.Run,
                        Daedalus.LSP.Worker                       
@@ -37,7 +38,7 @@ library
                        lens,
                        containers,
                        lsp,
-                       lsp-types,
+                       lsp-types >= 1.3.0.1,
                        aeson < 2.0.0.0,
                        stm,
                        text,

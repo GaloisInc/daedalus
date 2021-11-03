@@ -4,6 +4,7 @@ module Daedalus.Parser.Grammar (moduleP) where
 
 import Data.Word(Word8)
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.ByteString(ByteString)
 
 import Daedalus.SourceRange
@@ -26,7 +27,7 @@ import Daedalus.Parser.Monad
   SETIDNETI   { (isLexSetIdentI   -> Just $$) }
   BYTE        { (isLexByte        -> Just $$) }
   BYTES       { (isLexBytes       -> Just $$) }
-  NUMBER      { (isLexTypedNumber -> Just $$) }
+  NUMBER      { (isLexNumber      -> Just $$) }
 
   '('         { Lexeme { lexemeRange = $$, lexemeToken = OpenParen } }
   ')'         { Lexeme { lexemeRange = $$, lexemeToken = CloseParen } }
@@ -233,10 +234,12 @@ bitdata_field                            :: { Located BitDataField }
                                                         (Just $3)) }
 
 bitdata_tag                              :: { Located BitDataField }
-  : NUMBER                                  { let (l,(n,t)) = $1
-                                              in loc l (BDFLiteral n t) }
-  | NUMBER ':' type                         { let (l,(n,_)) = $1
-                                              in loc l (BDFLiteral n (Just $3))}
+  : NUMBER                                  { loc (nRange $1)
+                                                  (BDFLiteral (nValue $1)
+                                                               (nType $1)) }
+  | NUMBER ':' type                         { loc (nRange $1)
+                                                  (BDFLiteral (nValue $1)
+                                                              (Just $3)) }
 
 
 optDef                                   :: { Maybe Expr }
@@ -405,6 +408,7 @@ call_expr                                :: { Expr }
 
   | 'Fail' aexpr                            { at ($1,$2) (EFail $2) }
 
+  | '-' aexpr                               { at ($1,$2) (EUniOp Neg $2) }
   | '!' aexpr                               { at ($1,$2) (EUniOp Not $2) }
   | '~' aexpr                               { at ($1,$2)
                                               (EUniOp BitwiseComplement $2) }
@@ -446,7 +450,7 @@ aexpr                                    :: { Expr }
   | 'pi'                                    { at $1 (ELiteral LPi) }
   | 'UInt8'                                 { at $1      EAnyByte }
   | 'Accept'                                { at $1 (EStruct []) }
-  | '$uint' NUMBER                          {% mkUInt $1 (fst `fmap` $2) }
+  | '$uint' NUMBER                          {% mkUInt $1 $2 }
 
   | '$' '[' separated(expr, commaOrSemi) ']'{ at ($1,$4) (EMatch1
                                               (at ($2,$4) (EArray $3))) }
@@ -525,11 +529,11 @@ union_field                              :: { Either Expr (UnionField Expr) }
   | label '=' expr                          { Right ($1 :> $3) }
 
 literal                                  :: { (SourceRange, Literal) }
-  : NUMBER                                  { (LNumber . fst) `fmap` $1 }
+  : NUMBER                                  { (nRange $1, mkNumLit $1) }
   | 'true'                                  { ($1, LBool True) }
   | 'false'                                 { ($1, LBool False) }
   | BYTES                                   { LBytes `fmap` $1 }
-  | BYTE                                    { LByte  `fmap` $1 }
+  | BYTE                                    { (nRange $1, mkByteLit $1) }
 
 case_patterns                            :: { PatternCase Expr }
   :  '_' '->' expr                          { PatternDefault $3 }
@@ -574,7 +578,8 @@ type                                     :: { SrcType }
   | '(' type  ')'                           { $2 }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
-  | NUMBER                                  { atT (fst $1) (TNum (fst (snd $1))) }
+  | NUMBER                                  { atT (nRange $1)
+                                                  (TNum (nValue $1)) }
   | name                                    { SrcCon $1 }
   | SMALLIDENTI                             { SrcVar (loc (fst $1) (snd $1)) }
 
@@ -648,29 +653,40 @@ isLexSetIdentI x =
 
 
 
-isLexByte :: LexPattern Word8
-isLexByte x = case lexemeToken x of
-                Byte v -> Just (lexemeRange x, v)
-                _      -> Nothing
-
-
 isLexBytes :: LexPattern ByteString
 isLexBytes x = case lexemeToken x of
                  Bytes v -> Just (lexemeRange x, v)
                  _      -> Nothing
 
-isLexNumber :: LexPattern Integer
-isLexNumber x = case lexemeToken x of
-                  Number v _ -> Just (lexemeRange x, v)
-                  _          -> Nothing
+data NumL a = NumL { nRange :: SourceRange
+                   , nText :: Text
+                   , nValue ::a
+                   , nType :: Maybe SrcType
+                   }
 
-isLexTypedNumber :: LexPattern (Integer, Maybe SrcType)
-isLexTypedNumber x = case lexemeToken x of
-		 Number v m_n -> 
-		   let r   = lexemeRange x
-		       m_t = atT r . TUInt . atT r . TNum . fromIntegral <$> m_n
-		   in Just (r, (v, m_t))
-		 _            -> Nothing
+isLexNumber :: Lexeme Token -> Maybe (NumL Integer)
+isLexNumber x =
+  case lexemeToken x of
+    Number v m_n ->
+      let r   = lexemeRange x
+          m_t = atT r . TUInt . atT r . TNum . fromIntegral <$> m_n
+      in Just NumL { nText = lexemeText x
+                   , nRange = r
+                   , nValue = v
+                   , nType = m_t
+                   }
+    _            -> Nothing
+
+isLexByte :: Lexeme Token -> Maybe (NumL Word8)
+isLexByte x = case lexemeToken x of
+                Byte v -> Just NumL { nRange = lexemeRange x
+                                    , nText = lexemeText x
+                                    , nValue = v
+                                    , nType = Nothing
+                                    }
+                _      -> Nothing
+
+
 
 --------------------------------------------------------------------------------
 
@@ -730,10 +746,12 @@ mkIP ctx (r,t) = IPName { ipName = t, ipContext = ctx, ipRange = r }
 mkLabel :: (SourceRange, Text) -> Located Label
 mkLabel (r,t) = Located { thingRange = r, thingValue = t }
 
-mkUInt :: SourceRange -> (SourceRange,Integer) -> Parser Expr
-mkUInt r1 (r2,n)
-  | n == 8 = pure (at (r1,r2) EAnyByte)
+mkUInt :: SourceRange -> NumL Integer -> Parser Expr
+mkUInt r1 n
+  | nValue n == 8 = pure (at (r1,r2) EAnyByte)
   | otherwise = parseError (sourceFrom r2) "Only size 8 supported for now"
+  where
+  r2 = nRange n
 
 
 mkMany :: Located Commit -> Maybe Expr -> Expr -> Expr
@@ -753,7 +771,7 @@ mkForMap :: ((Maybe Name,Name), Expr) -> Expr -> ExprF Expr
 mkForMap ((k,v),xs) e = EFor FMap k v xs e
 
 mkNumber :: Integer -> ExprF Expr
-mkNumber = ELiteral . LNumber
+mkNumber x = ELiteral (LNumber x (Text.pack (show x)))
 
 mkRngUp1 :: HasRange r => r -> Expr -> Expr
 mkRngUp1 kw end = expr (ETriOp RangeUp (expr (mkNumber 0)) end (expr (mkNumber 1)))
@@ -803,5 +821,11 @@ mkIn :: Located Label -> SourceRange -> Maybe Expr -> ExprF Expr
 mkIn l b mbE = EIn (l :> case mbE of
                            Just e  -> e
                            Nothing -> at (l,b) (EStruct []))
+
+mkNumLit :: NumL Integer -> Literal
+mkNumLit n = LNumber (nValue n) (nText n)
+
+mkByteLit :: NumL Word8 -> Literal
+mkByteLit n = LByte (nValue n) (nText n)
 
 }

@@ -11,7 +11,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
 import Data.Word(Word8)
 import Data.Char (isAscii, isPrint, chr)
-import Data.Bits(shiftL,(.&.))
 import Numeric(showHex)
 
 import Daedalus.PP hiding (empty)
@@ -80,9 +79,11 @@ vSInt w x
   | inRange (sintRange w) x = pure (VSInt w x)
   | otherwise               = vErr (show x ++ " does not fit in sint" ++ show w)
 
--- | Used for coercion.  Make a value onlu using the lowest `n` bits.
+-- | Used for coercion.  Make a value only using the lowest `n` bits.
 vSInt' :: Int -> Integer -> Value
-vSInt' w x = VSInt w (x .&. ((1 `shiftL` w) - 1))
+vSInt' w x = VSInt w (mod (x - lb) (ub - lb + 1) + lb)
+  where
+  (lb,ub) = sintRange w
 
 vSize :: Integer -> Value
 vSize = vUInt 64

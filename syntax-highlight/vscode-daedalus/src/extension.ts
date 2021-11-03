@@ -6,12 +6,17 @@
 import * as vscode from 'vscode'
 
 import {
+	ClientCapabilities,
 	ExecuteCommandParams,
 	ExecuteCommandRequest,
 	LanguageClient,
 	LanguageClientOptions,
+	SemanticTokenModifiers,
+	SemanticTokenTypes,
 	ServerOptions,
-	TransportKind
+	StaticFeature,
+	TokenFormat,
+	TransportKind,
 } from 'vscode-languageclient/node'
 
 import {
@@ -22,6 +27,58 @@ import {
 
 let client: LanguageClient
 
+class SemanticTokensFeature implements StaticFeature {
+	dispose() {
+		return
+	}
+	fillClientCapabilities(capabilities: ClientCapabilities) {
+		capabilities.textDocument = capabilities.textDocument || { moniker: {} }
+		capabilities.textDocument.semanticTokens = {
+			requests: {
+				full: true,
+			},
+			tokenModifiers: [
+				SemanticTokenModifiers.abstract,
+				SemanticTokenModifiers.async,
+				SemanticTokenModifiers.declaration,
+				SemanticTokenModifiers.defaultLibrary,
+				SemanticTokenModifiers.definition,
+				SemanticTokenModifiers.deprecated,
+				SemanticTokenModifiers.documentation,
+				SemanticTokenModifiers.modification,
+				SemanticTokenModifiers.readonly,
+				SemanticTokenModifiers.static,
+			],
+			tokenTypes: [
+				SemanticTokenTypes.class,
+				SemanticTokenTypes.comment,
+				SemanticTokenTypes.enum,
+				SemanticTokenTypes.enumMember,
+				SemanticTokenTypes.event,
+				SemanticTokenTypes.function,
+				SemanticTokenTypes.interface,
+				SemanticTokenTypes.keyword,
+				SemanticTokenTypes.macro,
+				SemanticTokenTypes.method,
+				SemanticTokenTypes.modifier,
+				SemanticTokenTypes.namespace,
+				SemanticTokenTypes.number,
+				SemanticTokenTypes.operator,
+				SemanticTokenTypes.parameter,
+				SemanticTokenTypes.property,
+				SemanticTokenTypes.regexp,
+				SemanticTokenTypes.string,
+				SemanticTokenTypes.struct,
+				SemanticTokenTypes.type,
+				SemanticTokenTypes.typeParameter,
+				SemanticTokenTypes.variable,
+			],
+			formats: [TokenFormat.Relative],
+		}
+	}
+	initialize(): void {
+	}
+}
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -47,6 +104,8 @@ export function activate(context: vscode.ExtensionContext) {
 		serverOptions,
 		clientOptions
 	)
+
+	// client.registerFeature(new SemanticTokensFeature())
 
 	const runWatchProvider = new DaedalusWatchContentProvider()
 

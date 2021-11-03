@@ -10,7 +10,7 @@ import Data.Graph.SCC(stronglyConnComp)
 import Data.Graph(SCC(..))
 import Data.List(foldl')
 import Data.Maybe(mapMaybe)
-import Control.Monad(forM,forM_,unless)
+import Control.Monad(forM,forM_)
 
 import Daedalus.PP
 
@@ -19,6 +19,7 @@ import Daedalus.Type.Monad
 import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.Constraints
+
 
 -- | This is result of generalization.
 data DeclInfo = DeclInfo
@@ -37,7 +38,6 @@ generalize ds =
   do -- Simplify constraints.
      -- Includes adding definitions for "inferred" type defintitions.
      (lcs,tds,ds1) <- simpCtrs ds
-
      -- Check no left-over mono types
      cs <- forM lcs \lc ->
               case thingValue lc of
@@ -48,18 +48,6 @@ generalize ds =
                   , "Please use a type annotation to specify it."
                   ]
                 x         -> pure x
-
-     -- Check that all types that needed definitions were defined
-     todo <- getNeedsDef
-     forM_ todo \l ->
-         do let nm = thingValue l
-            unless (nm `Map.member` tds) $
-               do mb <- lookupTypeDefMaybe nm
-                  case mb of
-                    Nothing -> reportError l ("Name" <+> backticks (pp nm)
-                                         <+> "does not refer to a named type.")
-                    _ -> pure ()
-
 
      -- Since we don't have local definitions there should be no free
      -- type variables in the environment

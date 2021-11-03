@@ -17,8 +17,7 @@ type plain-ppm.PPM = { width: uint 64
 --- Rules:
  
 plain-ppm._WS : Grammar {} =
-  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-          {'\r'})
+  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 plain-ppm.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
@@ -67,8 +66,7 @@ plain-ppm.Main : Grammar plain-ppm.PPM =
      pure $$
  
 plain-ppm.WS : Grammar (uint 8) =
-  Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-         {'\r'})
+  Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 plain-ppm._Token ?a0 (_P : Grammar {}) : Grammar {} =
   do _P

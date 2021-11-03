@@ -5,6 +5,7 @@
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
+import qualified Data.Text as Text
 import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
@@ -132,7 +133,7 @@ inferRuleRec sr =
        pure res
 
 
--- | Infer a mono type for a collection of rules.
+-- | Infer a mono type for a single rule.
 inferRule :: Rule -> STypeM (TCDecl SourceRange, RuleType)
 inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
   where
@@ -325,13 +326,14 @@ inferExpr expr =
          addConstraint expr (FloatingType a)
          pure (exprAt expr (TCLiteral l a), a)
 
-    ELiteral l@(LNumber n) ->
+    ELiteral l@(LNumber n txt) ->
       do ctxt <- getContext
          case ctxt of
            AClass
              | 0 <= n && n < 256 ->
                 pure ( exprAt expr $ TCSetSingle
-                     $ exprAt expr $ TCLiteral (LByte $ fromInteger n) tByteClass
+                     $ exprAt expr $ TCLiteral (LByte (fromInteger n) txt)
+                                                                      tByteClass
                     , tByteClass
                     )
              | otherwise ->
@@ -342,7 +344,7 @@ inferExpr expr =
                    addConstraint expr (Literal n a)
                    pure (exprAt expr (TCLiteral l a), a)
 
-    ELiteral l@(LByte _) -> 
+    ELiteral l@(LByte _ _) ->
       do ctxt <- getContext
          case ctxt of
            AClass   -> promoteValueToSet =<< inContext AValue (inferExpr expr)
@@ -387,7 +389,7 @@ inferExpr expr =
         -- XXX: We don't seem to have surface syntax for this?
         Neg ->
           liftValAppPure expr [e] \ ~[(e1,t)] ->
-          do addConstraint expr (Numeric t)
+          do addConstraint expr (Arith t)
              pure (exprAt expr (TCUniOp Neg e1), t)
 
         Concat ->
@@ -457,7 +459,7 @@ inferExpr expr =
                                           ] ->
         do unify r1 r2
            unify r1 r3
-           addConstraint expr (Numeric t1)
+           addConstraint expr (Integral t1)
            pure (exprAt expr (TCTriOp op e1' e2' e3' (tArray t1)), tArray t1)
 
 
@@ -473,7 +475,7 @@ inferExpr expr =
 
         LCat ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-          do addConstraint expr (Numeric t1)
+          do addConstraint expr (Integral t1)
              r <- newTVar e2 KNumber
              unify (tUInt r) (e2',t2)
 
@@ -507,11 +509,11 @@ inferExpr expr =
           inferExpr $ pExprAt expr
                     $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
-        Add   -> num2
-        Sub   -> num2
-        Mul   -> num2
-        Div   -> num2
-        Mod   -> num2
+        Add   -> num2 Arith
+        Sub   -> num2 Arith
+        Mul   -> num2 Arith
+        Div   -> num2 Arith
+        Mod   -> num2 Integral
         Lt    -> rel
         Leq   -> rel
         Eq    -> relEq
@@ -520,21 +522,21 @@ inferExpr expr =
       where
       bitwiseOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-        do addConstraint expr (Numeric t1)
+        do addConstraint expr (Integral t1)
            unify (e1', t1) (e2', t2)
            pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
       shiftOp =
         liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-        do addConstraint expr (Numeric t1)
+        do addConstraint expr (Integral t1)
            unify tSize (e2',t2)
            pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
-      num2 = liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
-             do addConstraint e1 (Numeric t1)
-                addConstraint e2 (Numeric t2)
-                unify (e1', t1) (e2',t2)
-                pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
+      num2 c = liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
+               do addConstraint e1 (c t1)
+                  addConstraint e2 (c t2)
+                  unify (e1', t1) (e2',t2)
+                  pure (exprAt expr (TCBinOp op e1' e2' t1), t1)
 
       -- XXX: what types should allow to be compared:
       -- only numeric? or do structural comparisons?
@@ -696,29 +698,7 @@ inferExpr expr =
       do ctxt <- getContext
          case ctxt of
            AClass   -> reportError expr "Unexpected struct in a byte set."
-
-           AValue ->
-             do fs1 <- forM fs \sf ->
-                         case sf of
-                           COMMIT r -> reportError r
-                                    "COMMIT may not appear in a semantic value."
-                           Anon e -> reportError e "Struct value needs a label."
-                           x := e ->
-                             do (e1,t1) <- inContext AValue (inferExpr e)
-                                pure (x,e1,t1)
-
-                           -- XXX
-                           x :?= _ -> reportError x
-                              "implcit parameters only work in parsers for now"
-
-                           -- this could make sense as a `let`?
-                           x :@= _ -> reportError x "Unexpected local variable."
-
-                let (xs,es,ts) = unzip3 fs1
-                    ls = map nameScopeAsLocal xs
-                pureStruct expr ls ts es
-
-
+           AValue   -> inferStructPure expr fs
            AGrammar -> inferStructGrammar expr fs
 
     EIn (lf :> e) ->
@@ -844,8 +824,8 @@ inferExpr expr =
       do checkCommit e com
          (e1,t) <- inferExpr e
          a      <- grammarResult e t
-         newBnds <- checkManyBounds bnds
-         pure ( exprAt expr (TCMany YesSem com newBnds e1)
+         (newBnds,stmts) <- checkManyBounds bnds
+         pure ( addBinds stmts (exprAt expr (TCMany YesSem com newBnds e1))
               , tGrammar (tArray a)
               )
 
@@ -878,7 +858,7 @@ inferExpr expr =
            AClass ->
              do let checkBound d b =
                       case b of
-                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d) tByte))
+                        Nothing -> pure (exprAt expr (TCLiteral (LNumber d (Text.pack (show d))) tByte))
                         Just e ->
                           do (e1',t) <- inContext AValue (inferExpr e)
                              unify tByte (e1',t)
@@ -1093,12 +1073,12 @@ checkPattern ty pat =
 
     LitPattern l ->
       case thingValue l of
-        LNumber i ->
+        LNumber i txt ->
           do addConstraint l (Literal i ty)
-             pure (TCNumPat ty i)
-        LByte i ->
+             pure (TCNumPat ty i txt)
+        LByte i txt ->
           do unify ty (pat,tByte)
-             pure (TCNumPat tByte (toInteger i))
+             pure (TCNumPat tByte (toInteger i) txt)
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)
@@ -1141,10 +1121,18 @@ checkPatternCase tIn tOut ps e =
            let check v1 v2 = unify (v1,typeOf v1) (v2,typeOf v2)
            zipWithM check vars (patBinds q1)
      let addVar x = extEnv (tcName x) (tcType x)
-     r@(e',_) <- foldr addVar (inferExpr e) vars
-     unify tOut r
-     pure (TCAlt qs e')
 
+     ctx <- getContext
+     case ctx of
+       AGrammar ->
+        do r@(e',_) <- foldr addVar (inferExpr e) vars
+           unify tOut r
+           let lab = "case branch " <+> commaSep (map pp qs)
+           pure (TCAlt qs $ exprAt e' $ TCLabel (Text.pack (show lab)) e')
+       _ ->
+        do r@(e',_) <- foldr addVar (inferExpr e) vars
+           unify tOut r
+           pure (TCAlt qs e') -- (exprAt e' (TCLabel lab e')))
 
 checkPatternCases :: HasRange r =>
   r ->
@@ -1417,16 +1405,83 @@ checkNameContext n@Name { nameContext } =
 
 
 checkManyBounds ::
-  ManyBounds Expr -> TypeM ctx (ManyBounds (TC SourceRange Value))
+  ManyBounds Expr -> TypeM ctx (ManyBounds (TC SourceRange Value),[BindStmt])
 checkManyBounds bnds =
   case bnds of
-    Exactly e     -> Exactly <$> checkNum e
-    Between e1 e2 -> Between <$> traverse checkNum e1 <*> traverse checkNum e2
+    Exactly e ->
+      do (e1,bs) <- checkNum e
+         pure (Exactly e1, bs)
+    Between e1 e2 ->
+      do (e1',bs1) <- checkNumMb e1
+         (e2',bs2) <- checkNumMb e2
+         pure (Between e1' e2', bs1 ++ bs2)
   where
+  checkNumMb e =
+    case e of
+      Nothing -> pure (Nothing,[])
+      Just e' ->
+        do (et,bs) <- checkNum e'
+           pure (Just et, bs)
+
   checkNum e =
-    do (e1,t) <- inContext AValue (inferExpr e)
-       unify tSize (e,t)
-       pure e1
+    do ((e1,t),mb) <- liftValExpr e
+       unify tSize (e1,t)
+       pure (e1,maybeToList mb)
+
+
+inferStructPure ::
+  HasRange r =>
+    r -> [StructField Expr] -> TypeM Value (TC SourceRange Value, Type)
+inferStructPure toploc = check Set.empty []
+
+
+  where
+  check allLs done fs =
+    case fs of
+      COMMIT r : _ ->
+        reportError r "COMMIT may not appear in a semantic value."
+
+      Anon e : more ->
+        case more of
+          [] | null done -> inferExpr e
+          _  -> reportError e "Struct value needs a label."
+
+      -- XXX
+      x :?= _ : _ -> reportError x
+                          "implcit parameters only work in parsers for now"
+
+      x := e : more
+        | x `Set.member` allLs ->
+          reportError x ("Multiple definitions for " <+> pp x)
+
+        | otherwise ->
+        do (e1,t1) <- inferExpr e
+           let x' = TCName { tcName = x, tcType = t1, tcNameCtx = AValue }
+               e' = exprAt x (TCVar x')
+
+           (e2,ty) <- extEnv x t1 $ check (Set.insert x allLs)
+                                          ((nameScopeAsLocal x,t1,e'):done)
+                                          more
+           pure (exprAt (x <-> e2) (TCLet x' e1 e2), ty)
+
+      x :@= e : more
+        | x `Set.member` allLs ->
+          reportError x ("Multiple definitions for " <+> pp x)
+
+        | otherwise ->
+          case more of
+            [] -> reportError x "`block` may not end with a `let`"
+            _  -> do (e1,t1) <- inferExpr e
+                     (e2,ty) <- extEnv x t1 (check (Set.insert x allLs)
+                                                   done more)
+                     let x' = TCName { tcName = x, tcType = t1,
+                                                        tcNameCtx = AValue }
+                     pure (exprAt (x <-> e2) (TCLet x' e1 e2), ty)
+
+      [] -> pureStruct toploc ls ts es
+        where
+        (ls,ts,es) = unzip3 (reverse done)
+
 
 
 

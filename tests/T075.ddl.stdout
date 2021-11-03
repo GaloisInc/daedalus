@@ -1,0 +1,19 @@
+module T075
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+T075.P : Grammar (uint 8) =
+  GetByte
+ 
+T075.Main : Grammar (uint 8) =
+  pure 2
+ 
+T075._P : Grammar {} =
+  @GetByte
+ 
+T075._Main : Grammar {} =
+  pure {}

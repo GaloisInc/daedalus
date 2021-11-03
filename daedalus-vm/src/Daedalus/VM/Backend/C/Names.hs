@@ -31,6 +31,10 @@ cUserNameSpace = "User"
 cUserPrivateNameSpace :: Doc
 cUserPrivateNameSpace = "Private"
 
+cUserTagNameSpace :: Doc
+cUserTagNameSpace = "TG"
+
+
 -- | Root name of a type, without namesapces
 cTNameRoot :: Src.TName -> CType
 cTNameRoot t = case Src.tnameAnon t of

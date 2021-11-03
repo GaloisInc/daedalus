@@ -19,6 +19,7 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.List(intersperse,intercalate,nub)
 import qualified Data.Kind as HS
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.List.NonEmpty (NonEmpty)
@@ -54,7 +55,8 @@ data RuleType   = ([(IPName,Type)],[Type]) :-> Type
 data Poly a     = Poly [TVar] [Constraint] a
                   deriving (Show, Eq)
 
-data Constraint = Numeric Type
+data Constraint = Integral Type
+                | Arith Type
                 | HasStruct Type Label Type
                 | HasUnion  Type Label Type
 
@@ -148,6 +150,8 @@ data TCF :: HS -> Ctx -> HS where
    TCDo         :: Maybe (TCName Value) ->
                    TC a Grammar -> TC a Grammar -> TCF a Grammar
 
+   TCLet        :: TCName Value -> TC a Value -> TC a Value -> TCF a Value
+
    -- This is just a tag for error reporting.
    TCLabel      :: Text -> TC a Grammar -> TCF a Grammar
 
@@ -158,7 +162,8 @@ data TCF :: HS -> Ctx -> HS where
    TCChoice     :: Commit -> [TC a Grammar] -> Type -> TCF a Grammar
    TCOptional   :: Commit -> TC a Grammar -> TCF a Grammar
    TCMany       :: WithSem ->
-                    Commit -> ManyBounds (TC a Value) -> TC a Grammar -> TCF a Grammar
+                   Commit -> ManyBounds (TC a Value) -> TC a Grammar ->
+                   TCF a Grammar
    TCEnd        :: TCF a Grammar
    TCOffset     :: TCF a Grammar
 
@@ -240,6 +245,7 @@ data TCF :: HS -> Ctx -> HS where
              TCF a k
 
 
+
 deriving instance Show a => Show (TCF a k)
 
 -- | A branch in a case.  Succeeds if *any* of the patterns match.
@@ -251,7 +257,7 @@ data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
 
 -- | Deconstruct a value
 data TCPat = TCConPat Type Label TCPat
-           | TCNumPat Type Integer
+           | TCNumPat Type Integer Text   -- text is how to show
            | TCBoolPat Bool
            | TCJustPat TCPat
            | TCNothingPat Type
@@ -316,16 +322,6 @@ data TCBDUnionMeta =
                 , tcbduBits :: !Integer   -- ^ Expected value
                 } deriving (Show, Eq)
 
-
--- These (should) be known at type checking time.  An 8 bit field in
--- the least-significant bits of a word will be TCBitDataRange { lowBit = 0, highBit = 7 }
-data TCBitDataRange =
-  TCBitDataRange { tcbdrLowBit  :: !Int
-                 , tcbdfHighBit :: !Int
-                 -- FIXME: split this into 2 types, one for struct, one for unions?
-                 , tcbdrMask    :: !Integer
-                 , tcbdrValue   :: !Integer
-                 }  deriving Show
 
 data TCDecl a   = forall k.
                   TCDecl { tcDeclName     :: !Name
@@ -449,6 +445,7 @@ instance PP (TCF a k) where
     case texpr of
       TCPure e      -> wrapIf (n > 0) ("pure" <+> ppPrec 1 e)
       TCDo {}       -> "do" <+> ppStmt texpr
+      TCLet x e1 e2 -> "let" <+> pp x <+> "=" <+> pp e1 <+> "in" $$ pp e2
 
       TCLabel l p    -> "{-" <+> pp l <+> "-}" <+> ppPrec n p
 
@@ -623,7 +620,7 @@ instance PP TCPat where
   ppPrec n pat =
     case pat of
       TCConPat _ l p  -> "{|" <+> pp l <+> "=" <+> pp p <+> "|}"
-      TCNumPat _ i    -> pp i
+      TCNumPat _ _ txt  -> text (Text.unpack txt)
       TCBoolPat b     -> if b then "true" else "false"
       TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
       TCNothingPat _  -> "nothing"
@@ -656,7 +653,7 @@ describePat par pat =
   in
   case pat of
     TCConPat _ l p -> ppCon l p
-    TCNumPat _ n   -> pp n
+    TCNumPat _ _ txt -> text (Text.unpack txt)
     TCBoolPat b    -> pp b
     TCJustPat p    -> ppCon "just" p
     TCNothingPat _ -> "nothing"
@@ -722,7 +719,8 @@ ppBinder x = parens (pp (tcName x) <+> ":" <+> pp (tcType x))
 instance PP Constraint where
   ppPrec n c =
     case c of
-      Numeric x -> wrapIf (n > 0) ("Numeric" <+> ppPrec 2 x)
+      Integral x -> wrapIf (n > 0) ("Integral" <+> ppPrec 2 x)
+      Arith x    -> wrapIf (n > 0) ("Arith" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
 
       StructCon _ t fs ->
@@ -957,6 +955,7 @@ instance TypeOf (TCF a k) where
     case expr of
       TCPure e        -> tGrammar (typeOf e)
       TCDo _ _ e      -> typeOf e
+      TCLet _ _ e     -> typeOf e
 
       TCLabel _ e     -> typeOf e
 
@@ -1059,7 +1058,7 @@ instance TypeOf TCPat where
   typeOf pat =
     case pat of
       TCConPat t _ _ -> t
-      TCNumPat t _ -> t
+      TCNumPat t _ _ -> t
       TCBoolPat _ -> tBool
       TCJustPat p -> tMaybe (typeOf p)
       TCNothingPat t -> tMaybe t

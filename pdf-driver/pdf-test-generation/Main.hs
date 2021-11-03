@@ -84,6 +84,12 @@ applyEdits e bs =
   case e of
     E_None         -> return bs
     E_Shell f args -> B8.pack <$> readProcess f args (B8.unpack bs)
+                               -- above throws IOError if not ExitSuccess
+                      
+   -- FIXME:
+   --  - this is fragile enough as it is: you should fail if the shell script fails!
+   --    - sed doesn't 'fail' on on no-match ..., so ?
+   --    - check that file changed?
 
 ppCtgy :: Ctgy -> [String]
 ppCtgy = \case
@@ -95,9 +101,6 @@ ppLine (mc,s) = "  " ++ show mc ++ ": " ++ s
 
 
 ---- tests -------------------------------------------------------------------
-
--- FIXME:
---  - this is fragile enough as it is: you should fail if the shell script fails!
 
 allTests =
   -- these tests all based on the same "DOM" pdf1:
@@ -144,14 +147,29 @@ allTests =
       
   -- based on pdf3{a,b}:
   , Test "3a_invalid_emptyvalue" pdf3a RT_XRef_Trad
-         E_None
-         (Probs [(Error, "bad syntax for value, object id 1")])
-         ["simple file, one syntax error, traditional xref table"]
+      E_None
+      (Probs [(Error, "bad syntax for value, object id 1")])
+      ["simple file, one syntax error, traditional xref table"]
       
   , Test "3b_invalid_badvaluesyntax" pdf3b RT_XRef_Trad
-         E_None
-         (Probs [(Error, "bad syntax for value, object id 1")])
-         ["simple file, one syntax error, traditional xref table"]
-      
+      E_None
+      (Probs [(Error, "bad syntax for value, object id 1")])
+      ["simple file, one syntax error, traditional xref table"]
+
+  -- based on pdf4       
+  , Test "4a_valid_2xref_strms" pdf4 RT_XRef_Strm
+      E_None
+      Good
+      ["two compressed objects"]
+  , Test "4b_invalid_2xref_strms_recursive" pdf4 RT_XRef_Strm
+      (E_Shell "sed" [intercalate ";" ["s#/N 4#/N 13 0 R#"          -- using 5 extra chars
+                                      ,"22s#UNUSED 12345#UNUSED #"  -- remove 5 chars
+                                      ,"s#10013#00004#"
+                                      ,"s#/N 3#/N 6 0 R#"           -- using 4 extra chars
+                                      ,"s#10006#00003#"
+                                      ,"67s#UNUSED 1234#UNUSED #"  -- remove 4 chars
+                                      ]])
+      (Probs [(Error, "xref strms mutually recursive")])
+      ["two compressed objects, mutually recursive in N values"]
   ]
 

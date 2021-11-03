@@ -6,6 +6,7 @@
 module Daedalus.Driver
   ( Daedalus
   , daedalus
+  , daedalusPass  
   , ddlPassFromFile
   , ddlLoadModule
   , ddlGetPhaseMaybe
@@ -21,6 +22,7 @@ module Daedalus.Driver
     -- * Compiling to Haskell from TC
   , saveHS
   , saveHSCustomWriteFile
+  , writeOnlyIfChanged
   , CompilerCfg(..)
   , UseQual(..)
 
@@ -52,8 +54,12 @@ module Daedalus.Driver
   , State(..)
   , ddlState
   , ddlGet
+  , ddlUpdate_  
   , ddlSetState
 
+    -- * Updating state externally
+  , recordTCModule
+  
     -- * Options
   , ddlGetOpt
   , ddlSetOpt
@@ -83,16 +89,15 @@ import Data.List(find)
 import Control.Monad(msum,foldM,forM,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
-import System.IO(Handle,hPutStr,hPutStrLn,hPrint,stdout)
+import qualified System.IO as IO
 import System.FilePath((</>),addExtension)
-import System.Directory(createDirectoryIfMissing)
-import MonadLib (StateT, runM, sets_, set, get, inBase, lift)
+import System.Directory(createDirectoryIfMissing,doesFileExist)
+import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
 import Daedalus.PP(pp,vcat,(<+>))
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
-import Daedalus.GUID
 
 import Daedalus.Pass
 
@@ -258,7 +263,7 @@ data State = State
   , useWarning    :: TypeWarning -> Bool
     -- ^ Which warnings to report
 
-  , outHandle     :: Handle
+  , outHandle     :: IO.Handle
     -- ^ This is where we say things
 
 
@@ -286,9 +291,6 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
-
-  , nextFreeGUID :: !GUID
-    -- ^ Plumb through fresh names
   }
 
 
@@ -296,7 +298,7 @@ defaultState :: State
 defaultState = State
   { searchPath          = ["."]
   , useWarning          = const True
-  , outHandle           = stdout
+  , outHandle           = IO.stdout
   , moduleFiles         = Map.empty
   , loadedModules       = Map.empty
   , moduleDefines       = Map.empty
@@ -305,7 +307,6 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
-  , nextFreeGUID        = firstValidGUID
   }
 
 
@@ -398,6 +399,9 @@ instance MonadIO Daedalus where
 daedalus :: Daedalus a -> IO a
 daedalus (Daedalus m) = fst <$> runM m defaultState
 
+daedalusPass :: Daedalus a -> PassM a
+daedalusPass (Daedalus m) = fst <$> runStateT defaultState m
+
 ddlState :: Daedalus State
 ddlState = Daedalus get
 
@@ -422,19 +426,19 @@ ddlThrow = ddlIO . throwIO
 ddlPutStr :: String -> Daedalus ()
 ddlPutStr msg =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPutStr h msg
+     ddlIO $ IO.hPutStr h msg
 
 
 ddlPutStrLn :: String -> Daedalus ()
 ddlPutStrLn msg =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPutStrLn h msg
+     ddlIO $ IO.hPutStrLn h msg
 
 
 ddlPrint :: Show a => a -> Daedalus ()
 ddlPrint x =
   do h <- ddlGetOpt optOutHandle
-     ddlIO $ hPrint h x
+     ddlIO $ IO.hPrint h x
 
 ddlDebug :: String -> Daedalus ()
 ddlDebug = if debug then ddlPutStrLn else const (pure ())
@@ -466,7 +470,7 @@ ddlUpdOpt opt f =
 optSearchPath :: DDLOpt [FilePath]
 optSearchPath = DDLOpt searchPath \a s -> s { searchPath = a }
 
-optOutHandle :: DDLOpt Handle
+optOutHandle :: DDLOpt IO.Handle
 optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 
 optWarnings :: DDLOpt (TypeWarning -> Bool)
@@ -536,6 +540,25 @@ resolveModule m =
        Left err -> ddlThrow $ AScopeError err
 
 
+-- | Does the book-keeping involved in adding a TCModule to the state.
+recordTCModule :: TCModule SourceRange -> Daedalus ()
+recordTCModule m1' = do
+  let m1 = normTCModule m1'
+  ddlUpdate_ \s -> s
+    { loadedModules = Map.insert (tcModuleName m1)
+                                 (TypeCheckedModule m1)
+                                 (loadedModules s)
+    , declaredTypes =
+        foldr (\d -> Map.insert (tctyName d) d)
+              (declaredTypes s)
+              (forgetRecs (tcModuleTypes m1))
+   
+    , ruleTypes =
+        foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
+              (ruleTypes s)
+              (forgetRecs (tcModuleDecls m1))
+    }
+  
 -- | Typecheck this module
 tcModule :: Module -> Daedalus ()
 tcModule m =
@@ -551,22 +574,8 @@ tcModule m =
      case r of
        Left err -> ddlThrow $ ATypeError err
        Right (m1',warnings) ->
-         do let m1 = normTCModule m1'
-            unless (null warnings) (ppTCWarn warnings)
-            ddlUpdate_ \s -> s
-              { loadedModules = Map.insert (tcModuleName m1)
-                                           (TypeCheckedModule m1)
-                                           (loadedModules s)
-              , declaredTypes =
-                  foldr (\d -> Map.insert (tctyName d) d)
-                        (declaredTypes s)
-                        (forgetRecs (tcModuleTypes m1))
-
-              , ruleTypes =
-                  foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
-                        (ruleTypes s)
-                        (forgetRecs (tcModuleDecls m1))
-              }
+         do unless (null warnings) (ppTCWarn warnings)
+            recordTCModule m1'
   where
   ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
 
@@ -843,5 +852,17 @@ saveHSCustomWriteFile writeFile' mb cfg m =
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
             writeFile' file (show (pp hs))
+
+writeOnlyIfChanged :: FilePath -> String -> IO ()
+writeOnlyIfChanged file cont =
+  do have <- doesFileExist file
+     if not have
+       then writeFile file cont
+       else do h <- IO.openFile file IO.ReadMode
+               s <- IO.hGetContents h
+               if s == cont
+                 then IO.hClose h
+                 else do IO.hClose h
+                         writeFile file cont
 
 

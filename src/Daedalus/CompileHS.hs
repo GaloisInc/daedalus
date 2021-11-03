@@ -160,7 +160,8 @@ hsType env ty =
 hsConstraint :: Env -> Constraint -> Term
 hsConstraint env ctr =
   case ctr of
-    Numeric t -> "RTS.Numeric" `Ap` hsType env t
+    Integral t -> "RTS.Numeric" `Ap` hsType env t
+    Arith t    -> "RTS.Arith" `Ap` hsType env t
 
     HasStruct t l a ->
       aps "RTS.HasStruct" [ hsType env t, hsLabelT l, hsType env a ]
@@ -350,12 +351,15 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
 hsValue :: Env -> TC SourceRange Value -> Term
 hsValue env tc =
   case texprValue tc of
+    TCLet x e1 e2 ->
+      (Lam [hsTCName env x] (hsValue env e2)) `Ap` hsValue env e1
+
     TCLiteral l t ->
       case l of
-        LNumber n -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
+        LNumber n _ -> hasType (hsType env t) ("RTS.lit" `Ap` hsInteger n)
         LFloating n -> hasType (hsType env t) (hsDouble n)
         LBool b   -> hsBool b
-        LByte b   -> "RTS.uint8" `Ap` hsWord8 b
+        LByte b _ -> "RTS.uint8" `Ap` hsWord8 b
         LBytes b  -> "Vector.vecFromRep" `Ap` hsByteString b
         LPi       -> hasType (hsType env t) "HS.pi"
 
@@ -689,7 +693,7 @@ hsPat env pat =
                                       , show (pp t)
                                       , show (pp pat)
                                       ]
-    TCNumPat t i ->
+    TCNumPat t i _ ->
       case t of
         Type TInteger  -> Raw i
         Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]

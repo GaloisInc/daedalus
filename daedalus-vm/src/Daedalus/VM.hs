@@ -118,7 +118,7 @@ data CInstr =
 -- If yes, then the function could return multiple times, and we need to
 -- explicitly store the continuation closures.
 -- It is always safe, but less efficient, to use 'Capture'
-data Captures = Capture | NoCapture
+data Captures = Capture | NoCapture | Unknown
   deriving (Eq,Show)
 
 
@@ -366,6 +366,7 @@ instance PP Captures where
   pp c = case c of
           Capture   -> ".spawns"
           NoCapture -> empty
+          Unknown   -> ".capture-unknown"
 
 instance PP VMT where
   pp ty =

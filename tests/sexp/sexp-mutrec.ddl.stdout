@@ -11,18 +11,16 @@ rec
 --- Rules:
  
 sexp-mutrec.lf : uint 8 =
-  '\n'
+  '\10'
  
 sexp-mutrec.cr : uint 8 =
-  '\r'
+  '\13'
  
 sexp-mutrec.WS : Grammar {} =
-  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-          {'\r'})
+  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 sexp-mutrec._WS : Grammar {} =
-  @Match ((((({'\NUL'} | {'\t'}) | {'\f'}) | {' '}) | {'\n'}) |
-          {'\r'})
+  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 sexp-mutrec.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P

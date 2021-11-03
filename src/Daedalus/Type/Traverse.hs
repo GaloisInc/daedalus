@@ -68,6 +68,8 @@ instance TraverseTypes (TCF a k) where
       TCPure e        -> TCPure <$> traverseTypes f e
       TCDo x e1 e2    -> TCDo   <$> traverseTypes f x
                                 <*> traverseTypes f e1 <*> traverseTypes f e2
+      TCLet x e1 e2   -> TCLet  <$> traverseTypes f x
+                                <*> traverseTypes f e1 <*> traverseTypes f e2
 
       TCLabel l e     -> TCLabel l <$> traverseTypes f e
 
@@ -175,7 +177,8 @@ instance TraverseTypes e => TraverseTypes (ManyBounds e) where
 instance TraverseTypes Constraint where
   traverseTypes f constraint =
     case constraint of
-      Numeric t         -> Numeric <$> f t
+      Integral t        -> Integral <$> f t
+      Arith t           -> Arith <$> f t
       FloatingType t    -> FloatingType <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
       StructCon nm t fs -> StructCon nm <$> f t <*> traverse tF fs
@@ -237,7 +240,7 @@ instance TraverseTypes TCPat where
     case pat of
       TCConPat t l p ->
         (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
-      TCNumPat t i   -> (`TCNumPat` i) <$> f t
+      TCNumPat t i l -> (\t' -> TCNumPat t' i l) <$> f t
       TCBoolPat b    -> pure (TCBoolPat b)
       TCJustPat p    -> TCJustPat <$> traverseTypes f p
       TCNothingPat t -> TCNothingPat <$> f t
@@ -266,6 +269,7 @@ traverseTCF f = go
       case texpr of
         TCPure e      -> TCPure <$> f e
         TCDo  x e1 e2 -> TCDo x <$> f e1 <*> f e2
+        TCLet x e1 e2 -> TCLet x <$> f e1 <*> f e2
 
         TCGetByte x    -> pure (TCGetByte x)
         TCMatch s b    -> TCMatch s <$> f b

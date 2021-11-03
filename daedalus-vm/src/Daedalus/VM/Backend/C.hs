@@ -693,6 +693,7 @@ cTermStmt ccInstr =
       case ?captures of
         Capture   -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
         NoCapture -> [ "return false;" ]
+        Unknown   -> panic "cTermStmt" ["Unknown"]
 
     ReturnYes e i ->
       case ?captures of
@@ -706,6 +707,7 @@ cTermStmt ccInstr =
           , cAssign ("*" <.> cRetInputFun) (cExpr i)
           , "return true;"
           ]
+        Unknown   -> panic "cTermStmt" ["Unknown"]
 
     ReturnPure e ->
       case ?captures of
@@ -715,9 +717,12 @@ cTermStmt ccInstr =
           ]
         NoCapture ->
           [ cStmt ("return" <+> cExpr e) ]
+        Unknown   -> panic "cTermStmt" ["Unknown"]
 
     Call f captures no yes es ->
       case captures of
+        Unknown   -> panic "cTermStmt" ["Unknown"]
+
         Capture ->
             doPush no
           : doPush yes
@@ -788,6 +793,8 @@ cTermStmt ccInstr =
             | vmfPure fun = []
             | otherwise   = [ "p", cRetVarFun, cRetInputFun ]
 
+        (Unknown,_) ->  panic "cTermStmt" ["Unknown"]
+        (_,Unknown) ->  panic "cTermStmt" ["Unknown"]
 
   where
   lkpFun f = case Map.lookup f ?allFuns of

@@ -31,13 +31,13 @@ type P026.Main = { x: [P026.Number]
 --- Rules:
  
 P026.$lf : ByteClass =
-  {'\n'}
+  {10}
  
 P026.$cr : ByteClass =
-  {'\r'}
+  {13}
  
 P026.$simpleWS : ByteClass =
-  (({'\NUL'} | {'\t'}) | {'\f'}) | {' '}
+  (({0} | {9}) | {12}) | {32}
  
 P026.SimpleEOL : Grammar (uint 8) =
   Choose fair
@@ -117,7 +117,7 @@ P026.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Gramma
      P026._KW [uint 8] (@MatchBytes close)
      pure $$
  
-P026.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Numeric ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+P026.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  
@@ -152,22 +152,28 @@ P026.Frac (n : uint 64) (w : P026.Number) : Grammar P026.Number =
                         ($$ : [int]) <- Many[ n .. ] P026.Digit
                         pure $$
      ($$ : P026.Number) <- pure (for ((val : P026.Number) = w; (d : int) in ds)
-                                   {num = (10 * (val.num)) + d,
-                                    exp = (val.exp) - 1})
+                                   let num = (10 * (val.num)) + d in
+                                   let exp = (val.exp) - 1 in
+                                   {num = num,
+                                    exp = exp})
      pure $$
  
 P026.UnsignedNumber : Grammar P026.Number =
   Choose fair
     { do (n : int) <- P026.Natural
-         (val : P026.Number) <- pure {num = n,
-                                      exp = 0}
+         (val : P026.Number) <- pure let num = n in
+                                     let exp = 0 in
+                                     {num = num,
+                                      exp = exp}
          ($$ : P026.Number) <- Choose biased
                                  { P026.Frac 0 val
                                  | pure val
                                  }
          pure $$
-    | P026.Frac 1 {num = 0,
-                   exp = 0}
+    | P026.Frac 1 let num = 0 in
+                  let exp = 0 in
+                  {num = num,
+                   exp = exp}
     }
  
 P026.Number : Grammar P026.Number =
@@ -182,8 +188,10 @@ P026.Number : Grammar P026.Number =
                                                     | do case sign is
                                                            { {| neg = _61 |} -> pure {}
                                                            }
-                                                         ($$ : P026.Number) <- pure {num = 0 - (n.num),
-                                                                                     exp = n.exp}
+                                                         ($$ : P026.Number) <- pure let num = 0 - (n.num) in
+                                                                                    let exp = n.exp in
+                                                                                    {num = num,
+                                                                                     exp = exp}
                                                          pure $$
                                                     }
                             pure $$
