@@ -105,7 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 		clientOptions
 	)
 
-	client.registerFeature(new SemanticTokensFeature())
+	// client.registerFeature(new SemanticTokensFeature())
 
 	const runWatchProvider = new DaedalusWatchContentProvider()
 
