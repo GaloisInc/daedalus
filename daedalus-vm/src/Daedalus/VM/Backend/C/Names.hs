@@ -27,8 +27,6 @@ nsPrivate = "Private"
 nsTag :: Doc
 nsTag = "Tag"
 
-ddlName :: Doc -> Doc -> Doc
-ddlName x = nsDDL .:: x
 --------------------------------------------------------------------------------
 
 
