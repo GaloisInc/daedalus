@@ -10,20 +10,8 @@ type CType  = Doc
 type CDecl  = Doc
 type CIdent = Doc
 
-cDebug :: String -> CStmt
-cDebug x = cStmt (cCall "DDL::debug" [ cString x ] )
-
-cDebugLine :: String -> CStmt
-cDebugLine x = cStmt (cCall "DDL::debugLine" [ cString x ] )
-
-cDebugNL :: CStmt
-cDebugNL = cStmt (cCall "DDL::debugNL" [])
-
-cDebugVal :: CExpr -> CStmt
-cDebugVal x = cStmt (cCall "DDL::debugVal" [ x ])
-
-cDebugValNL :: CExpr -> CStmt
-cDebugValNL x = cStmt (cCall "DDL::debugValNL" [ x ])
+(.::) :: Doc -> Doc -> Doc
+ns .:: a = ns <.> "::" <.> a
 
 cInst :: CExpr -> [CExpr] -> CExpr
 cInst f es = f P.<> "<" <.> (fsep (punctuate comma es)) <.> ">"
@@ -85,6 +73,14 @@ cIf' e ifThen =
        , "}"
        ]
 
+cIfConst' :: CExpr -> [CStmt] -> CStmt
+cIfConst' e ifThen =
+  vcat [ "if" <+> "constexpr" <+> parens e <+> "{"
+       , nest 2 (vcat ifThen)
+       , "}"
+       ]
+
+
 
 
 cSwitch :: CExpr -> [CStmt] -> CStmt
@@ -93,6 +89,15 @@ cSwitch e cs =
        , nest 2 (vcat cs)
        , "}"
        ]
+
+cSwitchDefault :: CExpr -> [CStmt] -> CStmt -> CStmt
+cSwitchDefault e cs def =
+  vcat [ "switch" <+> parens e <+> "{"
+       , nest 2 (vcat cs $$ cDefault def)
+       , "}"
+       ]
+
+
 
 cCase :: CExpr -> CStmt -> Doc
 cCase e s = "case" <+> e <.> colon $$ nest 2 s
@@ -110,11 +115,11 @@ cBreak = cStmt "break"
 cGoto :: CExpr -> CStmt
 cGoto e = cStmt ("goto" <+> e)
 
-cRetrun :: CExpr -> CStmt
-cRetrun e = cStmt ("return" <+> e)
+cReturn :: CExpr -> CStmt
+cReturn e = cStmt ("return" <+> e)
 
 cBlock :: [CStmt] -> CStmt
-cBlock xs = ("{" <+> vcat xs) $$ "}"
+cBlock xs = vcat [ "{" <+> vcat xs, "}" ]
 
 cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> [CStmt] -> CStmt
 cDefineCon name params is stmts =

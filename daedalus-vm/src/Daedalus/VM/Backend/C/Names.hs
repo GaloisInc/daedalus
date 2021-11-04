@@ -14,6 +14,45 @@ import Daedalus.VM
 import qualified Daedalus.Core as Src
 import Daedalus.VM.Backend.C.Lang
 
+--------------------------------------------------------------------------------
+nsDDL :: Doc
+nsDDL = "DDL"
+
+nsUser :: Doc
+nsUser = "User"
+
+nsPrivate :: Doc
+nsPrivate = "Private"
+
+nsTag :: Doc
+nsTag = "Tag"
+
+ddlName :: Doc -> Doc -> Doc
+ddlName x = nsDDL .:: x
+--------------------------------------------------------------------------------
+
+
+
+
+--------------------------------------------------------------------------------
+cDebug :: String -> CStmt
+cDebug x = cStmt (cCall (nsDDL .:: "debug") [ cString x ] )
+
+cDebugLine :: String -> CStmt
+cDebugLine x = cStmt (cCall (nsDDL .:: "debugLine") [ cString x ] )
+
+cDebugNL :: CStmt
+cDebugNL = cStmt (cCall (nsDDL .:: "debugNL") [])
+
+cDebugVal :: CExpr -> CStmt
+cDebugVal x = cStmt (cCall (nsDDL .:: "debugVal") [ x ])
+
+cDebugValNL :: CExpr -> CStmt
+cDebugValNL x = cStmt (cCall (nsDDL .:: "debugValNL") [ x ])
+--------------------------------------------------------------------------------
+
+
+
 
 -- These are always local to the main function, so no need for namespace
 cReturnClassName :: [VMT] -> Doc
@@ -25,14 +64,6 @@ cThreadClassName :: [VMT] -> Doc
 cThreadClassName ts = "Thread_" <.> escDoc nm
   where nm = hcat $ punctuate "_" $ map pp ts
 
-cUserNameSpace :: Doc
-cUserNameSpace = "User"
-
-cUserPrivateNameSpace :: Doc
-cUserPrivateNameSpace = "Private"
-
-cUserTagNameSpace :: Doc
-cUserTagNameSpace = "TG"
 
 
 -- | Root name of a type, without namesapces
@@ -51,9 +82,8 @@ cTNameRoot t = case Src.tnameAnon t of
 cTNameUse :: GenVis -> Src.TName -> CType
 cTNameUse vis x =
   case vis of
-    GenPublic -> hcat [ cUserNameSpace, "::", cTNameRoot x ]
-    GenPrivate ->
-      hcat [ cUserNameSpace,"::",cUserPrivateNameSpace,"::",cTNameRoot x ]
+    GenPublic  -> nsUser .:: cTNameRoot x
+    GenPrivate -> nsUser .:: nsPrivate .:: cTNameRoot x
 
 
 data GenVis = GenPublic | GenPrivate
