@@ -10,7 +10,6 @@ def Main =
     header = ProfileHeader
     tags   = TagTable s
 
-
 --------------------------------------------------------------------------------
 -- Header (Section 7.2)
 
@@ -144,16 +143,16 @@ def Tag (sig : uint 32) =
     0s"B2D2" -> {| B2D2 = MultiProcessElementsType |}
     0s"B2D3" -> {| B2D3 = MultiProcessElementsType |}
 
-    0s"wtpt" -> {| wtpt = XYZType |}
+    0s"wtpt" -> {| wtpt = Only XYZType |}
     0s"cprt" -> {| cprt = LaxTextType |}
     0s"c2sp" -> {| c2sp = MultiProcessElementsType |}
     0s"s2cp" -> {| s2cp = MultiProcessElementsType |}
 
-    0s"svcn" -> {| svcn = Only SpectralViewingConditionsType |}
+    0s"svcn" -> {| svcn = SpectralViewingConditionsType |}
 
-    0s"rXYZ" -> {| rXYZ = XYZType |}
-    0s"gXYZ" -> {| gXYZ = XYZType |}
-    0s"bXYZ" -> {| bXYZ = XYZType |}
+    0s"rXYZ" -> {| rXYZ = Only XYZType |}
+    0s"gXYZ" -> {| gXYZ = Only XYZType |}
+    0s"bXYZ" -> {| bXYZ = Only XYZType |}
 
     0s"rTRC" -> {| rTRC = CurveOrPCurve |}
     0s"gTRC" -> {| gTRC = CurveOrPCurve |}
@@ -162,8 +161,8 @@ def Tag (sig : uint 32) =
     0s"dmdd" -> {| dmdd = LaxTextType |}
     0s"dmnd" -> {| dmnd = LaxTextType |}
 
-    0s"chrm" -> {| chrm = Only ChromaticityType |}
-    0s"chad" -> {| chad = Only S15Fixed16ArrayType |}
+    0s"chrm" -> {| chrm = ChromaticityType |}
+    0s"chad" -> {| chad = S15Fixed16ArrayType |}
 
     -- XXX: more ttags
     _        -> {| unimplemented = explode32 sig |}
@@ -220,13 +219,11 @@ def Response16Number =
 -- Shared Tag Bodies
 
 def LutAB_or_multi =
-  Only
   First
     lutAB = LutAToBType
     mpe   = MultiProcessElementsType
 
 def LutBA_or_multi =
-  Only
   First
     lutBA = LutAToBType
     mpe   = MultiProcessElementsType
@@ -246,7 +243,7 @@ def LaxTextType =
     desc = Only TextDescriptionType
     text = Only TextType
 
-def MultiProcessElementsType = Only MPElement
+def MultiProcessElementsType = MPElement
 
 
 
@@ -267,7 +264,7 @@ def DateTimeType =
 def TextType =
   block
     StartTag "text"
-    Only ASCII7
+    ASCII7
 
 def SignatureType =
   block
@@ -286,14 +283,10 @@ def UnicodeRecord s =
   block
     language    = Many 2 UInt8
     country     = Many 2 UInt8
-    let size    = BEUInt32 as ?auto
-    let offset  = BEUInt32 as ?auto
-    data        = LookAhead
-                    block
-                      SetStreamAt offset s
-                      Many size UInt8
+    data        = Positioned s (Many UInt8)
 
 def S15Fixed16ArrayType =
+  Only
   block
     StartTag "sf32"
     Many BEUInt32     -- fixed point rationals
@@ -426,9 +419,9 @@ def SpectralViewingConditionsType =
   block
     StartTag "svcn"
     colometric_observer = BEUInt32
+    xxx = Only (Many UInt8)
 
 def XYZType =
-  Only
   block
     StartTag "XYZ "
     Many block
@@ -461,7 +454,7 @@ def NamedColor2Type =
 
 def ColorName m =
   block
-    name_root     = Chunk 32 ASCII7
+    name_root     = Chunk 32 (Only ASCII7)
     pcs_coords    = Many 3 BEUInt16
     device_coords = Many m BEUInt16
 
