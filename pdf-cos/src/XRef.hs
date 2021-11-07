@@ -216,23 +216,34 @@ quit msg = do hPutStrLn stdout msg
 
 -- | Construct the xref map (and etc), version 2
 parseXRefsVersion2 :: DbgMode
-                   => Input -> FileOffset -> IO (Possibly ([IncUpdate], ObjIndex, TrailerDict))
+                   => Input -> FileOffset
+                   -> IO (Updates, Possibly ObjIndex, Possibly TrailerDict)
 parseXRefsVersion2 inp offset =
     do
     updates <- parseAllIncUpdates inp offset
-    
-    -- create object index map:
-    let pObjectIndex =
-          foldlM
-            (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
-                         return (Map.union oi' oi))
-                                 -- NOTE: Map.union is left-biased.
-            Map.empty
-            updates
 
-    pure $ do
-           objectIndex <- pObjectIndex
-           return (updates, objectIndex, iu_trailer(last updates))
+    let pObjectIndex = getObjIndexFromUpdates updates
+    let pTrailer     = getTrailerFromUpdates updates
+    return (updates, pObjectIndex, pTrailer)
+      
+
+-- Better
+getTrailerFromUpdates  :: Updates -> Possibly TrailerDict
+getTrailerFromUpdates us = Left []
+            -- iu_trailer(last updates))
+
+-- create object index map
+getObjIndexFromUpdates :: Updates -> Possibly ObjIndex
+getObjIndexFromUpdates updates =
+  do
+  updates' <- allOrNoUpdates updates
+              -- FIXME: extend error msg
+  foldlM
+    (\oi iu-> do oi' <- convertSubSectionsToObjMap (iu_xrefs iu)
+                 return (Map.union oi' oi))
+                         -- NOTE: Map.union is left-biased.
+    Map.empty
+    updates'
       
     -- updates == [base,upd1,upd2,...]
     -- length(updates) >= 1
@@ -252,31 +263,62 @@ parseXRefsVersion2 inp offset =
 
 ---- parsing IncUpdates ------------------------------------------------------
 
+type ErrorMsg = [String]
+
+-- Don't want errors here to be all or nothing:
+data Updates = U_Success [IncUpdate]
+             | U_Failure [IncUpdate] ErrorMsg
+
+allOrNoUpdates :: Updates -> Possibly [IncUpdate]
+allOrNoUpdates = \case
+                   U_Success xs   -> Right xs
+                   U_Failure _  e -> Left e
+
+-- lastUpdate = last in file, first processed
+lastUpdate :: Updates -> Possibly IncUpdate
+lastUpdate = \case
+                U_Failure [] e -> Left e
+                U_Failure xs _ -> Right (last xs)
+                U_Success []   -> error "lastUpdate: internal error"
+                U_Success xs   -> Right (last xs)
+                   
+
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
-parseAllIncUpdates :: Input -> FileOffset -> IO [IncUpdate]
+parseAllIncUpdates :: Input -> FileOffset -> IO Updates
 parseAllIncUpdates = parseAllIncUpdates' IntSet.empty
 
+parseAllIncUpdates' :: IntSet.IntSet -> Input -> FileOffset -> IO Updates
 parseAllIncUpdates' prevSet inp offset0 =
   do
-  iu <- parseOneIncUpdate prevSet inp offset0
-               -- end of file, first-processed update
-  prev <- getPrev iu
-  case prev of
-    Just offset1 -> (++[iu]) <$> parseAllIncUpdates'
-                                   (IntSet.insert (sizeToInt offset0) prevSet)
-                                   inp
-                                   offset1
-    Nothing      -> return [iu]
+  r <- parseOneIncUpdate prevSet inp offset0
+       -- end of file, first-processed update
+
+  case Right r of -- FIXME!!
+    Left ms  -> return $ U_Failure [] ms
+    Right iu ->
+        case getPrev iu of
+          Left ms              -> return $ U_Failure [iu] ("getPrev:":ms)
+          Right Nothing        -> return $ U_Success [iu]
+          Right (Just offset1) -> do
+                                  x <- parseAllIncUpdates'
+                                         (IntSet.insert (sizeToInt offset0) prevSet)
+                                         inp
+                                         offset1
+                                  return $ addUpdate iu x
 
   where
-  getPrev :: IncUpdate -> IO (Maybe FileOffset)
+  addUpdate x = \case
+                   U_Success xs   -> U_Success (xs++[x])
+                   U_Failure xs e -> U_Failure (xs++[x]) e
+                    
+  getPrev :: IncUpdate -> Possibly (Maybe FileOffset)
   getPrev IU{iu_trailer=t} =
     case getField @"prev" t of
       Nothing -> pure Nothing
       Just i ->
          case toInt i of
-           Nothing      -> newError FromUser "parseTrailer"
-                                             "Prev offset too large to fit in int."
+           Nothing      -> newError2 FromUser "parseTrailer"
+                                              "Prev offset too large to fit in Int"
            Just offset' -> return (Just (intToSize offset'))
  
 
