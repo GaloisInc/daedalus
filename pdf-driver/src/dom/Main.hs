@@ -4,7 +4,8 @@ import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Map as Map
-import Control.Monad(when)
+import Control.Monad(when,unless)
+import Data.Either
 import GHC.Records(getField) 
 import System.IO(hPutStrLn,stderr,stdout)
 import System.Exit(exitFailure)
@@ -22,6 +23,7 @@ import XRef( findStartXRef
            , printObjIndex
            , validateUpdates
            , printCavityReport
+           , allOrNoUpdates
            , fromPdfResult
            , FileOffset
            , Possibly
@@ -82,39 +84,57 @@ parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, 
 parseXRefsVersion1 inp off0 =
   XRef.parseXRefsVersion1 inp off0 >>= return . fromPdfResult "parsing xref (v1)"
 
+     
+-- FIXME[E2]: when more sure of v1 == v2, remove this and the
+--            parseXRefsVersion1 code.
+-- checkV1V2Consistency :: (Possibly ObjIndex, Possibly TrailerDict) -> IO ()
+checkV1V2Consistency topInput idx (refs2, trailer2) =
+  do
+  logMsg "parseXRefsVersion1:"
+  resV1 <- parseXRefsVersion1 topInput idx 
+
+  -- high level V1, V2 conformity:
+  let v2IsGood    = isRight refs2 && isRight trailer2
+      v1v2conform = case resV1 of
+                      Right _ -> v2IsGood
+                      Left  _ -> not v2IsGood
+  unless v1v2conform $        
+    putStrLn "WARN: V1 and V2 xref parsers do not conform"
+
+  case resV1 of
+    Left  ss            ->
+        warn $ addContextToMsg "computing XRef table (V1)" ss
+    Right (refs1, trailer1)
+        | Right refs2'    <- refs2
+        , Right trailer2' <- trailer2
+        ->
+            do
+            -- run-time testing of equivalence of parseXRefsVersion{1,2}
+            when (trailer1 /= trailer2') $
+              putStrLn "WARN: trailer_V1 /= trailer_V2"
+            when (refs1 /= refs2') $
+              putStrLn "WARN: refs_V1 /= refs_V2"
+        | otherwise ->
+            return ()
+
 parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
 parsePdf opts file bs topInput =
   do idx <- case findStartXRef bs of
-              Left err  -> quit err
-              Right idx -> pure idx
+              Left err   -> quit err
+              Right idx' -> pure idx'
 
-     logMsg "parseXRefsVersion2:"
-     resV2 <- parseXRefsVersion2 topInput idx 
-     warnIfFail "computing XRef table (v2)" resV2
-     
-     logMsg "parseXRefsVersion1:"
-     resV1 <- parseXRefsVersion1 topInput idx 
-     warnIfFail "computing XRef table (v1)" resV1
-     
-     case (resV1, resV2) of
-       (Right _, Right _) -> return ()
-       (Left  _, Left  _) -> return ()
-       _                  -> putStrLn "WARN: V1 and V2 of xref parse do not conform"
-       
-     (incUpdates, refs', trail') <- quitOnFail "computing XRef table (v2)" resV2
-     (refs, trail)               <- quitOnFail "computing XRef table (v1)" resV1
-                          
-     -- run-time testing of equivalance of parseXRefsVersion{1,2}
-     when (trail /= trail') $
-       putStrLn "WARN: trail-v1 /= trail-v2"
-     when (refs /= refs') $
-       putStrLn "WARN: refs-v1 /= refs-v2"
+     (updates, mRefs, mTrailer) <- parseXRefsVersion2 topInput idx 
+       -- shouldn't fail, but returns Possible's
 
-     validateUpdates (incUpdates, refs', trail')
+     checkV1V2Consistency topInput idx (mRefs, mTrailer)
+     validateUpdates (updates, mRefs, mTrailer)
 
-     -- FIXME[E2]: when more sure of v1 == v2, remove the parseXRefsVersion1 code.
+     -- FIXME[F2]: let's not give up so easily!
+     incUpdates <- quitOnFail "updates" (allOrNoUpdates updates)
+     refs       <- quitOnFail "mRefs"   mRefs
+     trailer    <- quitOnFail "trailer" mTrailer
      
-     fileEC <- makeEncContext trail refs topInput (password opts)
+     fileEC <- makeEncContext trailer refs topInput (password opts)
                -- calls EncryptionDict which calls 'ResolveValRef'!
 
      let ppRef pref r@(Ref ro rg) =
@@ -126,7 +146,7 @@ parsePdf opts file bs topInput =
                     Nothing -> print (pref <+> pp (Value_null ()))
                                       -- FIXME: This what the user wants to see?
                 ParseErr e    -> print (pref <+> pp e)
-                ParseAmbig {} -> quit "BUG: Ambiguous result"
+                ParseAmbig {} -> quit "BUG: Ambiguous parse result"
 
          rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
 
@@ -165,11 +185,11 @@ parsePdf opts file bs topInput =
                 putStrLn "]"
 
        PrettyPrint
-         | object opts < 0 -> print (pp trail)
+         | object opts < 0 -> print (pp trailer)
          | otherwise -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do runParser refs Nothing (pPdfTrailer trail) topInput
+          do runParser refs Nothing (pPdfTrailer trailer) topInput
                >>= quitIfParseError "parsing PDF trailer"
                               
              putStrLn "PDF trailer is well-formed (use other options to check more)"
@@ -199,15 +219,20 @@ quitIfParseError context r =
    ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
-    
+
+addContextToMsg contextAsVerb ss = msg : (map ("  "++) ss)
+  where
+  msg = "while " ++ contextAsVerb ++ ":"
+
 warnIfFail :: String -> Possibly a -> IO ()
 warnIfFail context r = 
  case r of
    Right a     -> return ()
-   Left []     -> warn "warning: [empty error?!]" 
-   Left (s:ss) -> warn $ unlines $ ("warning: "++s) : map ("  "++) ss
- where
- warn s = hPutStrLn stdout s
+   Left ss     -> warn ss
+
+warn :: [String] -> IO ()
+warn []     = quit "panic: warning with empty message"
+warn (s:ss) = mapM_ putStrLn $ ("warning: "++s) : map ("  "++) ss
   
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 

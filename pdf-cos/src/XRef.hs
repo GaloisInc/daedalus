@@ -10,6 +10,8 @@ module XRef
   , printIncUpdateReport
   , printCavityReport
   , validateUpdates
+  , allOrNoUpdates
+  , lastUpdate
   , fromPdfResult
   -- types:
   , FileOffset
@@ -28,7 +30,7 @@ import qualified Data.IntSet as IntSet
 import qualified Data.Map as Map
 import           GHC.Records(HasField, getField)
 import           System.Exit(exitFailure)
-import           System.IO(hPutStrLn,stderr,stdout)
+import           System.IO(hPutStrLn,stdout)
 
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
@@ -79,13 +81,14 @@ ppXRefType XRefStream = "cross reference stream"
 ---- additional validation ---------------------------------------------------
 -- validation done in IO to allow for warns as well as errors.
 
-validateUpdates :: ([IncUpdate], ObjIndex, TrailerDict) -> IO ()
+validateUpdates :: (Updates, Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
-  do
-  validateBase (head updates)
-  -- FIXME[F2]: more things to validate!
-  return ()
+  case lastUpdate updates of
+    Left m -> return ()
+    Right u -> validateBase u
 
+-- FIXME: warn more, error less
+-- FIXME: - label/categorize messages as not-PDF,NBCUR,info/warn,...
 validateBase :: IncUpdate -> IO ()
 validateBase iu =
   do
@@ -156,17 +159,24 @@ runParserWithoutObjectIndex i p =
 
 type Possibly a = Either [String] a
      -- FIXME[C]: hardly where this belongs, used by clients
-     -- calling 'Left' 'Fail'
+     -- we often use term 'Fail' to refer to the 'Left' case
                 
-quitIfFail :: Possibly a -> IO a
-quitIfFail = \case
-                Left ss -> quit (unlines ss)
-                Right a -> return a
+-- the bind for the IO(Possibly -) monad
+-- (actually has more general type)
+bind_IOPossibly ::
+  IO (Possibly a) -> (a -> IO (Possibly b)) -> IO (Possibly b)
+bind_IOPossibly ioA ioB =   
+  do
+  r1 <- ioA
+  case r1 of
+    Left s   -> return (Left s)
+    Right v1 -> ioB v1
 
                   
 ---- utilities ---------------------------------------------------------------
 
-type PrevSet = IntSet.IntSet -- set of all the "Prev" offsets we have encountered
+-- | set of all the "Prev" offsets we have encountered
+type PrevSet = IntSet.IntSet
 
 
 getXRefStart :: TrailerEnd -> UInt 64
@@ -185,24 +195,10 @@ fromPdfResult contextString r =
   where
   msg = "while " ++ contextString
 
-newError :: ParseErrorSource -> SourceRange -> String -> IO a
-newError  _ c msg = quit $ concat [msg, " (", c, ")"]
-
 newError2 :: ParseErrorSource -> SourceRange -> String -> Possibly a
 newError2 _ c msg = Left $ [concat [msg, " (", c, ")"]]
 
-  -- FIXME: remove first arg last 2 funcs
-
--- FIXME: deduplicate/remove this:
-quitIfParseError :: String -> PdfResult a -> IO a 
-quitIfParseError context r = 
- case r of
-   ParseOk a     -> pure a
-   ParseAmbig {} -> quit (msg ++ ": ambiguous.")
-   ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
-  where
-  msg = "Fatal error while " ++ context ++ ", cannot proceed"
-    
+  -- FIXME: remove first arg in newError/newError2
 
 warn :: String -> IO ()
 warn s = putStrLn $ "Warning: " ++ s
@@ -229,8 +225,7 @@ parseXRefsVersion2 inp offset =
 
 -- Better
 getTrailerFromUpdates  :: Updates -> Possibly TrailerDict
-getTrailerFromUpdates us = Left []
-            -- iu_trailer(last updates))
+getTrailerFromUpdates = fmap iu_trailer . lastUpdate
 
 -- create object index map
 getObjIndexFromUpdates :: Updates -> Possibly ObjIndex
@@ -293,7 +288,7 @@ parseAllIncUpdates' prevSet inp offset0 =
   r <- parseOneIncUpdate prevSet inp offset0
        -- end of file, first-processed update
 
-  case Right r of -- FIXME!!
+  case r of
     Left ms  -> return $ U_Failure [] ms
     Right iu ->
         case getPrev iu of
@@ -320,70 +315,80 @@ parseAllIncUpdates' prevSet inp offset0 =
            Nothing      -> newError2 FromUser "parseTrailer"
                                               "Prev offset too large to fit in Int"
            Just offset' -> return (Just (intToSize offset'))
- 
 
 -- | parseOneIncUpdate - go to offset and parse xref table
-parseOneIncUpdate :: PrevSet -> Input -> FileOffset -> IO IncUpdate
+parseOneIncUpdate :: PrevSet -> Input -> FileOffset -> IO (Possibly IncUpdate)
 parseOneIncUpdate prevSet input0 offset =
   if sizeToInt offset `IntSet.member` prevSet then
-    quit (unwords[ "recursive incremental updates:"
-                 , "adding xref at ", show offset, "where we already have", show prevSet])
+    fail' [unwords[ "recursive incremental updates:"
+                  , "adding xref at "
+                  , show offset, "where we already have", show prevSet]]
   else
     case advanceBy offset input0 of
       Nothing ->
-        quit ("Offset out of bounds: " ++ show offset)
+        fail' ["Offset out of bounds: " ++ show offset]
       Just input1 ->
-        do
-        -- Parse the basic syntax of the xref table
-        (xref,xrefEnd) <-
-          let ctx = "parsing xref table (at byte offset " ++ show (sizeToInt offset) ++ ")"
-          in
-            runParserWithoutObjectIndexFailOnRef
-              ctx
-              input1
-              (do
-               pSetInput input1
-               pManyWS     -- FIXME: later: warn if this consumes anything
-               crossRef <- pCrossRef
-               crossRefEnd <- pOffset
-               return (crossRef, crossRefEnd))
-            >>= quitIfParseError ctx                
-         
-        -- NOTE: the following parsing of TrailerEnd is where Version1 differs from Version2:
-        --   FIXME[F1]: Are we overconstraining syntax?
-        --   FIXME[F1]: on the first-found update, we don't really know if this trailerEnd
-        --              is the same one we found at the end of the file!
-        
-        --   When we need/want to parse this
-        --    - not to just create xref table
-        --    - YES to compute cavities
-        --    - YES to allow us to do some sanity checks
-        
-        trailerEnd <-
-          do
-          let ctx = "parsing 'startxref' to '%%EOF'"
-              Just input2 = advanceBy xrefEnd input0 -- result of 'pOffset' must be good
-              
-          te <- runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
-          return $ case fromPdfResult ctx te of
-                     Right te' -> Right te'
-                     Left _    -> Left xrefEnd
-
-        case xref of
+        parseXRefTable input1   `bind_IOPossibly` \(xref,xrefEnd) ->
+        parseTrailerEnd xrefEnd `bind_IOPossibly` \trailerEnd ->
+        return $ case xref of
           CrossRef_oldXref x -> processTrailer XRefTable  x trailerEnd
           CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
 
   where
+  fail' ss = return (Left ss)
+
+  -- parseTrailerEnd:
+  --   NOTE: The following parsing of TrailerEnd is where Version1 differs
+  --         from Version2!
+  --   FIXME[F1]: Are we overconstraining syntax?
+  --   FIXME[F1]: on the first-found update, we don't really know if this
+  --              trailerEnd is the same one we found at the end of the file!
+  --   
+  --   When do we need/want to parse the trailer end:
+  --    - not to just create xref table
+  --    - YES to compute cavities
+  --    - YES to allow us to do some sanity checks
+        
+  parseTrailerEnd :: FileOffset -> IO (Possibly TrailerEnd')
+  parseTrailerEnd xrefEnd =
+    do
+    let ctx = "parsing 'startxref' to '%%EOF'"
+        Just input2 = advanceBy xrefEnd input0
+        -- result of 'pOffset' must be good
+        
+    te <- runParserWithoutObjectIndexFailOnRef ctx input2 pTrailerEnd
+    return $ Right $ case fromPdfResult ctx te of
+                       Left _    -> Left xrefEnd
+                       Right te' -> Right te'
+
+  -- Parse the basic syntax of the xref table
+  parseXRefTable :: Input -> IO (Possibly (CrossRef,FileOffset))
+  parseXRefTable input1 =
+    do
+    let ctx = "parsing xref table (at byte offset "
+              ++ show (sizeToInt offset) ++ ")"
+    r <- runParserWithoutObjectIndexFailOnRef
+           ctx
+           input1
+           (do
+            pSetInput input1
+            pManyWS     -- FIXME: later: warn if this consumes anything
+            crossRef <- pCrossRef
+            crossRefEnd <- pOffset
+            return (crossRef, crossRefEnd))
+    return $ fromPdfResult ctx r
+
+
   processTrailer :: ( VecElem s
                     , HasField "trailer" x TrailerDict
                     , HasField "xref"    x (Vector s)
                     , XRefSection s e o
-                    ) => XRefType -> x -> TrailerEnd' -> IO IncUpdate
+                    ) => XRefType -> x -> TrailerEnd' -> Possibly IncUpdate
   processTrailer xrefType x trailerEnd =
     do let trailerDict = getField @"trailer" x
                            
-       xrefss <- quitIfFail $ mapM convertToXRefEntries (toList (getField @"xref" x))
-       -- FIXME[F3]: PDF requires that the trailers are consistent. check somewhere.
+       xrefss <- mapM convertToXRefEntries (toList (getField @"xref" x))
+  -- FIXME[F3]: PDF requires that the trailers are consistent. check somewhere.
        return $ IU{ iu_offset    = offset
                   , iu_type      = xrefType
                   , iu_xrefs     = xrefss
@@ -454,6 +459,10 @@ printCavityReport bodyStart_base input updates =
       Left  o   -> o
 
 
+printOneUpdate :: Input
+               -> (Int, Int)
+               -> (String, IncUpdate, FileOffset)
+               -> IO (Int, Int)
 printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
   do
   let xrefStart = sizeToInt $ iu_offset iu
