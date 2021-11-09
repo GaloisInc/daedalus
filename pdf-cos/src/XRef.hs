@@ -94,7 +94,7 @@ validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
-    quit' "base xref must have only one subsection"
+    warn' "the base xref table must have only one subsection"
 
     -- Section 7.5.4: For a PDF file that has never been incrementally
     -- updated, the cross-reference section shall contain only one subsection,
