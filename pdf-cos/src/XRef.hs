@@ -12,6 +12,7 @@ module XRef
   , validateUpdates
   , allOrNoUpdates
   , fstFndLstAppld
+  , fstAppldLstFnd
   , fromPdfResult
   -- types:
   , FileOffset
@@ -121,8 +122,8 @@ validateBase iu =
     -- shall initially have generation numbers of 0.
        
   where
-  warn' s = warn $ "in first(base) xref table: " ++ s
-  quit' s = quit ("Error: in first(base) xref table: " ++ s)
+  warn' s = warn $ "in first (base) xref table: " ++ s
+  quit' s = quit ("Error: in first (base) xref table: " ++ s)
 
 
 ---- parsing when no Object Index yet available ------------------------------
@@ -430,12 +431,12 @@ printIncUpdateReport updates =
     \(nm,x)->
       do
       case x of
-        Left ss ->
+        Left msg ->
             mapM_ putStrLn $
               [ nm ++ ":"
               , "  ERROR parsing update:"
               ]
-              ++ map ("  "++) ss
+              ++ map ("  "++) msg
         Right iu ->
             do
             mapM_ putStrLn [ nm ++ ":"
@@ -537,7 +538,10 @@ printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
   if not (null errors) then
     do
     putStrLn "  cavities are uncomputable due to object parsing errors:"
-    mapM_ (mapM_ (\s->putStr "    " >> putStrLn s >> putChar '\n')) errors
+    mapM_
+       (\ss-> mapM_ (\s->putStr "    " >> putStrLn s) ss
+              >> putChar '\n')
+       errors
     putChar '\n'
     return (numC,totalSizeC) -- unchanged
   else
@@ -604,9 +608,8 @@ getObjectRanges inp iu =
                  warn "xref object gen =/= object gen obj ... endobj"
                return $ Right rng
                -- FIXME[C2]: '_x' is dead, use?
-        ParseErr e                  -> fail' [ "unparseable:"
-                                             , render (pp e)
-                                             ]
+        ParseErr e                  -> let ss = lines(render (pp e)) in
+                                       fail' ("unparseable:" : ss)
         ParseAmbig {}               -> fail' ["ambiguous."]
 
     where
@@ -614,7 +617,7 @@ getObjectRanges inp iu =
     fail' (s:ss) = return $ Left $
                        unwords ["object (", show r, ") at offset", show off, "is", s]
                      : map ("  "++) ss
-           
+
 parseObjectAt :: Input -> Int -> Parser (Range, TopDecl)
 parseObjectAt inp offsetStart =
   case advanceBy (intToSize offsetStart) inp of

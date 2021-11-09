@@ -76,7 +76,7 @@ main =
 
        _ -> parsePdf opts file bs topInput
 
-logMsg s = putStrLn s
+logMsg s = putStrLn $ "log: " ++ s
            -- FIXME[F2] TODO: allow control by a verbose flag or the like.
 
 
@@ -93,7 +93,7 @@ checkV1V2Consistency :: Input -> FileOffset ->
                         (Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 checkV1V2Consistency topInput idx (refs2, trailer2) =
   do
-  logMsg "parseXRefsVersion1:"
+  logMsg "checking conformity of V1 and V2 xref processing:"
   resV1 <- parseXRefsVersion1 topInput idx 
 
   -- high level V1, V2 conformity:
@@ -103,7 +103,7 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
                       Left  _ -> not v2IsGood
                       
   unless v1v2conform $        
-    putStrLn "WARN: V1 and V2 xref parsers do not conform"
+    logMsg "WARN: V1 and V2 xref parsers do not conform"
 
   case resV1 of
     Left  ss            ->
@@ -115,9 +115,9 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
             -- run-time testing of equivalence of parseXRefsVersion{1,2}
             do
             when (trailer1 /= trailer2') $
-              putStrLn "WARN: trailer_V1 /= trailer_V2"
+              logMsg "WARN: trailer_V1 /= trailer_V2"
             when (refs1 /= refs2') $
-              putStrLn "WARN: refs_V1 /= refs_V2"
+              logMsg "WARN: refs_V1 /= refs_V2"
         | otherwise ->
             return ()
 
