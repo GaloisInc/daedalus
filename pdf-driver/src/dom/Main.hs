@@ -134,25 +134,25 @@ parsePdf opts file bs topInput =
      validateUpdates (incUpdates, mRefs, mTrailer)
 
      -- FIXME[F1]: let's not give up so easily!
-     refs       <- quitOnFail "-mRefs"   mRefs
-     trailer    <- quitOnFail "-trailer" mTrailer
+     refs    <- quitOnFail "-mRefs"   mRefs
+     trailer <- quitOnFail "-trailer" mTrailer
      
      fileEC <- makeEncContext trailer refs topInput (password opts)
                -- calls EncryptionDict which calls 'ResolveValRef'!
-
+               -- FIXME[F2]: feels odd, what happens when the values resolved
+               -- here are updated??
+               
      let ppRef pref r@(Ref ro rg) =
            do
            res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
            case res of
-             ParseOk a ->
+             ParseOk a     ->
                case a of
                  Just d  -> print (pref <+> pp d)
                  Nothing -> print (pref <+> pp (Value_null ()))
                               -- FIXME: This what the user wants to see?
              ParseErr e    -> print (pref <+> pp e)
              ParseAmbig {} -> quit "BUG: Ambiguous parse result"
-
-     let rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
 
      case command opts of
        ListXRefs      ->
@@ -185,11 +185,14 @@ parsePdf opts file bs topInput =
 
        PrettyPrintAll ->
            case map rToRef (Map.keys refs) of
-             [] -> putStrLn "[]"
-             x : xs ->
-               do ppRef "[" x
-                  mapM_ (ppRef ",") xs
-                  putStrLn "]"
+             []   -> putStrLn "[]"
+             x:xs -> do
+                     ppRef "[" x
+                     mapM_ (ppRef ",") xs
+                     putStrLn "]"
+           where
+           rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
+
 
        PrettyPrint
          | object opts < 0 -> print (pp trailer)
