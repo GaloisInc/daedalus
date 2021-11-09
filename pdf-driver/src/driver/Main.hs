@@ -175,8 +175,8 @@ fmtDriver fmt file pageTreeParser pwd =
      res <- runParser refs Nothing (pageTreeParser root) topInput
      case res of
        ParseOk r    -> catalogParsed fmt (show r)
-       ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
-       ParseErr e    -> catalogParseError fmt e
+       ParseAmbig _ -> error "BUG: Validation of the catalog is ambiguous?"
+       ParseErr e   -> catalogParseError fmt e
 
      mb <- try (makeEncContext trail refs topInput pwd)
      case mb of

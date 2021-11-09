@@ -80,14 +80,17 @@ logMsg s = putStrLn s
            -- FIXME[F2] TODO: allow control by a verbose flag or the like.
 
 
-parseXRefsVersion1 :: DbgMode => Input -> FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
+parseXRefsVersion1 :: DbgMode => Input ->
+                      FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
 parseXRefsVersion1 inp off0 =
-  XRef.parseXRefsVersion1 inp off0 >>= return . fromPdfResult "parsing xref (v1)"
+  XRef.parseXRefsVersion1 inp off0
+    >>= return . fromPdfResult "parsing xref (V1)"
 
      
 -- FIXME[E2]: when more sure of v1 == v2, remove this and the
 --            parseXRefsVersion1 code.
--- checkV1V2Consistency :: (Possibly ObjIndex, Possibly TrailerDict) -> IO ()
+checkV1V2Consistency :: Input -> FileOffset ->
+                        (Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 checkV1V2Consistency topInput idx (refs2, trailer2) =
   do
   logMsg "parseXRefsVersion1:"
@@ -98,6 +101,7 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
       v1v2conform = case resV1 of
                       Right _ -> v2IsGood
                       Left  _ -> not v2IsGood
+                      
   unless v1v2conform $        
     putStrLn "WARN: V1 and V2 xref parsers do not conform"
 
@@ -108,8 +112,8 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
         | Right refs2'    <- refs2
         , Right trailer2' <- trailer2
         ->
-            do
             -- run-time testing of equivalence of parseXRefsVersion{1,2}
+            do
             when (trailer1 /= trailer2') $
               putStrLn "WARN: trailer_V1 /= trailer_V2"
             when (refs1 /= refs2') $
@@ -129,7 +133,7 @@ parsePdf opts file bs topInput =
      checkV1V2Consistency topInput idx (mRefs, mTrailer)
      validateUpdates (updates, mRefs, mTrailer)
 
-     -- FIXME[F2]: let's not give up so easily!
+     -- FIXME[F1]: let's not give up so easily!
      incUpdates <- quitOnFail "updates" (allOrNoUpdates updates)
      refs       <- quitOnFail "mRefs"   mRefs
      trailer    <- quitOnFail "trailer" mTrailer
@@ -138,65 +142,70 @@ parsePdf opts file bs topInput =
                -- calls EncryptionDict which calls 'ResolveValRef'!
 
      let ppRef pref r@(Ref ro rg) =
-           do res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
-              case res of
-                ParseOk a ->
-                  case a of
-                    Just d  -> print (pref <+> pp d)
-                    Nothing -> print (pref <+> pp (Value_null ()))
-                                      -- FIXME: This what the user wants to see?
-                ParseErr e    -> print (pref <+> pp e)
-                ParseAmbig {} -> quit "BUG: Ambiguous parse result"
+           do
+           res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
+           case res of
+             ParseOk a ->
+               case a of
+                 Just d  -> print (pref <+> pp d)
+                 Nothing -> print (pref <+> pp (Value_null ()))
+                              -- FIXME: This what the user wants to see?
+             ParseErr e    -> print (pref <+> pp e)
+             ParseAmbig {} -> quit "BUG: Ambiguous parse result"
 
-         rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
+     let rToRef (R x y) = Ref (fromIntegral x) (fromIntegral y)
 
      case command opts of
-       ListXRefs      -> printObjIndex 0 refs
+       ListXRefs      ->
+           printObjIndex 0 refs
        
-       ListIncUpdates -> do
-                         printIncUpdateReport incUpdates
-                         putStrLn "Combined xref table:"
-                         printObjIndex 2 refs
+       ListIncUpdates ->
+           do
+           printIncUpdateReport incUpdates
+           putStrLn "Combined xref table:"
+           printObjIndex 2 refs
 
-       ListCavities   -> do
-                         (_isBinary,baseBodyStart)
-                           <- runParser (error "pHeader: no ref expected")
-                                           Nothing
-                                           ( do
-                                             h <- pHeader
-                                             o <- pOffset  -- byte offset after header             
-                                             return (h,o)
-                                           )
-                                           topInput
-                                >>= quitIfParseError "parsing PDF header"
+       ListCavities->
+           do
+           (_isBinary,baseBodyStart)
+             <- runParser (error "pHeader: no ref expected")
+                             Nothing
+                             ( do
+                               h <- pHeader
+                               o <- pOffset  -- byte offset after header
+                               return (h,o)
+                             )
+                             topInput
+                  >>= quitIfParseError "parsing PDF header"
 
-                                -- FIXME[F1]: problem elsewhere: this the
-                                -- only code that looks at header!
+                  -- FIXME[F1]: problem elsewhere: this the
+                  -- only code that looks at header!
 
-                         -- FIXME[F3]: check that !isBinary => no binary bytes in file.
-                         printCavityReport baseBodyStart topInput incUpdates
+           -- FIXME[F3]: check that !isBinary => no binary bytes in file.
+           printCavityReport baseBodyStart topInput incUpdates
 
        PrettyPrintAll ->
-         case map rToRef (Map.keys refs) of
-           [] -> putStrLn "[]"
-           x : xs ->
-             do ppRef "[" x
-                mapM_ (ppRef ",") xs
-                putStrLn "]"
+           case map rToRef (Map.keys refs) of
+             [] -> putStrLn "[]"
+             x : xs ->
+               do ppRef "[" x
+                  mapM_ (ppRef ",") xs
+                  putStrLn "]"
 
        PrettyPrint
          | object opts < 0 -> print (pp trailer)
-         | otherwise -> ppRef "" (Ref (object opts) (generation opts))
+         | otherwise       -> ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
-          do runParser refs Nothing (pPdfTrailer trailer) topInput
-               >>= quitIfParseError "parsing PDF trailer"
-                              
-             putStrLn "PDF trailer is well-formed (use other options to check more)"
-             -- xref and such was also checked
-             -- FIXME[EC2]: did we already check the PdfTrailer??
+           do
+           runParser refs Nothing (pPdfTrailer trailer) topInput
+             >>= quitIfParseError "parsing PDF trailer"
+                               
+           putStrLn "PDF trailer & crossref table are valid (use other options to check more)"
+           -- FIXME[EC2]: did we already check the PdfTrailer??
              
-       ShowHelp -> dumpUsage options
+       ShowHelp ->
+           dumpUsage options
 
 quit :: String -> IO a
 quit msg =

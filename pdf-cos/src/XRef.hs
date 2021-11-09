@@ -84,7 +84,7 @@ ppXRefType XRefStream = "cross reference stream"
 validateUpdates :: (Updates, Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
   case lastUpdate updates of
-    Left m -> return ()
+    Left _  -> return ()
     Right u -> validateBase u
 
 -- FIXME: warn more, error less
