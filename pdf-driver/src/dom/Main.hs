@@ -133,35 +133,45 @@ parsePdf opts file bs topInput =
      checkV1V2Consistency topInput idx (mRefs, mTrailer)
      validateUpdates (incUpdates, mRefs, mTrailer)
 
-     -- FIXME[F1]: let's not give up so easily!
-     refs    <- quitOnFail "-mRefs"   mRefs
-     trailer <- quitOnFail "-trailer" mTrailer
-     
-     fileEC <- makeEncContext trailer refs topInput (password opts)
-               -- calls EncryptionDict which calls 'ResolveValRef'!
-               -- FIXME[F2]: feels odd, what happens when the values resolved
-               -- here are updated??
-               
-     let ppRef pref r@(Ref ro rg) =
+     -- let's not unnecessarily fail, only fail when these next three
+     -- are called to acquire the necessary values:
+     let getRefs    = quitOnFail "parsing xref table" mRefs
+         getTrailer = quitOnFail "parsing trailer"    mTrailer
+         mk_ppRef =
            do
-           res <- runParser refs (fileEC (ro, rg)) (pResolveRef r) topInput
-           case res of
-             ParseOk a     ->
-               case a of
-                 Just d  -> print (pref <+> pp d)
-                 Nothing -> print (pref <+> pp (Value_null ()))
-                              -- FIXME: This what the user wants to see?
-             ParseErr e    -> print (pref <+> pp e)
-             ParseAmbig {} -> quit "BUG: Ambiguous parse result"
+           refs <- getRefs
+           trailer <- getTrailer
+           fileEC <- makeEncContext trailer refs topInput (password opts)
+             -- calls EncryptionDict which calls 'ResolveValRef'!
+             -- FIXME[F2]: feels odd, what happens when the values resolved
+             -- here are updated??
+           let ppRef pref r@(Ref ro rg) =
+                 do
+                 res <- runParser refs
+                                  (fileEC (ro, rg))
+                                  (pResolveRef r)
+                                  topInput
+                 case res of
+                   ParseOk a     ->
+                     case a of
+                       Just d  -> print (pref <+> pp d)
+                       Nothing -> print (pref <+> pp (Value_null ()))
+                                    -- FIXME: This what the user wants to see?
+                   ParseErr e    -> print (pref <+> pp e)
+                   ParseAmbig {} -> quit "BUG: Ambiguous parse result"
+           return ppRef
 
      case command opts of
        ListXRefs      ->
+           do
+           refs <- getRefs
            printObjIndex 0 refs
        
        ListIncUpdates ->
            do
            printIncUpdateReport incUpdates
            putStrLn "Combined xref table:"
+           refs <- getRefs
            printObjIndex 2 refs
 
        ListCavities->
@@ -184,6 +194,9 @@ parsePdf opts file bs topInput =
            printCavityReport baseBodyStart topInput incUpdates
 
        PrettyPrintAll ->
+           do
+           ppRef <- mk_ppRef
+           refs <- getRefs
            case map rToRef (Map.keys refs) of
              []   -> putStrLn "[]"
              x:xs -> do
@@ -195,11 +208,17 @@ parsePdf opts file bs topInput =
 
 
        PrettyPrint
-         | object opts < 0 -> print (pp trailer)
-         | otherwise       -> ppRef "" (Ref (object opts) (generation opts))
+         | object opts < 0 -> do
+                              trailer <- getTrailer
+                              print (pp trailer)
+         | otherwise       -> do
+                              ppRef <- mk_ppRef
+                              ppRef "" (Ref (object opts) (generation opts))
 
        Validate ->
            do
+           refs <- getRefs
+           trailer <- getTrailer
            runParser refs Nothing (pPdfTrailer trailer) topInput
              >>= quitIfParseError "parsing PDF trailer"
                                
