@@ -94,7 +94,7 @@ validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
-    quit' "must have only one subsection"
+    quit' "base xref must have only one subsection"
 
     -- Section 7.5.4: For a PDF file that has never been incrementally
     -- updated, the cross-reference section shall contain only one subsection,
@@ -105,7 +105,7 @@ validateBase iu =
     []                              -> quit' "must not be empty"
     Free 0 (R _ n) : _ | n == 65535 -> return ()
                        | n == 0     -> warn' "object 0 has generation 0 (should be 65535)"
-    _                               -> quit' "first object must be object 0, free, generation 65535"
+    _                               -> warn' "first object must be object 0, free, generation 65535"
 
     -- The first entry in the table (object number 0) shall always be free and
     -- shall have a generation number of 65,535;
