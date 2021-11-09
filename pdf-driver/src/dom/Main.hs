@@ -225,7 +225,7 @@ quitIfParseError context r =
  case r of
    ParseOk a     -> pure a
    ParseAmbig {} -> quit (msg ++ ": ambiguous.")
-   ParseErr e    -> quit (msg ++ ":\n\n" ++ show (pp e))
+   ParseErr e    -> quit (msg ++ ":\n\n" ++ render (pp e))
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
 

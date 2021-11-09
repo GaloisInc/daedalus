@@ -545,7 +545,9 @@ getObjectRanges inp iu =
                  warn "xref object gen =/= object gen obj ... endobj"
                return $ Right rng
                -- FIXME[C2]: '_x' is dead, use?
-        ParseErr e                  -> fail' ["unparseable:", show e]
+        ParseErr e                  -> fail' [ "unparseable:"
+                                             , render (pp e)
+                                             ]
         ParseAmbig {}               -> fail' ["ambiguous."]
 
     where
