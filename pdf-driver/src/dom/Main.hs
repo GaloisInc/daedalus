@@ -127,16 +127,15 @@ parsePdf opts file bs topInput =
               Left err   -> quit err
               Right idx' -> pure idx'
 
-     (updates, mRefs, mTrailer) <- parseXRefsVersion2 topInput idx 
+     (incUpdates, mRefs, mTrailer) <- parseXRefsVersion2 topInput idx 
        -- shouldn't fail, but returns Possible's
 
      checkV1V2Consistency topInput idx (mRefs, mTrailer)
-     validateUpdates (updates, mRefs, mTrailer)
+     validateUpdates (incUpdates, mRefs, mTrailer)
 
      -- FIXME[F1]: let's not give up so easily!
-     incUpdates <- quitOnFail "updates" (allOrNoUpdates updates)
-     refs       <- quitOnFail "mRefs"   mRefs
-     trailer    <- quitOnFail "trailer" mTrailer
+     refs       <- quitOnFail "-mRefs"   mRefs
+     trailer    <- quitOnFail "-trailer" mTrailer
      
      fileEC <- makeEncContext trailer refs topInput (password opts)
                -- calls EncryptionDict which calls 'ResolveValRef'!

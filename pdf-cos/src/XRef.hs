@@ -398,23 +398,46 @@ parseOneIncUpdate prevSet input0 offset =
          
 ---- report ------------------------------------------------------------------
 
-printIncUpdateReport :: [IncUpdate] -> IO ()
+printIncUpdateReport :: Updates -> IO ()
 printIncUpdateReport updates =
   do
-  let us = zip ("initial DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
-               updates 
-  forM_ us $
-    \(nm,iu)->
+  us' <- 
+    do
+    (us,es) <-
+      case updates of
+        U_Success xs   ->
+            return (xs,[])
+        U_Failure xs e ->
+            do 
+            warn "Error in parsing updates, showing only partial results:"
+            return (xs, [e])
+    return $
+      zip
+       ("initial DOM" :
+         map (\n->"incremental update " ++ show (n::Int)) [1..])
+       (map Right us ++ map Left es)
+       
+  forM_ us' $
+    \(nm,x)->
       do
-      mapM_ putStrLn [ nm ++ ":"
-                     , "  " ++ render(ppXRefType (iu_type iu))
-                     , "  starts at byte offset "
-                          ++ show (sizeToInt $ iu_offset iu)
-                     , "  xref entries:"
-                     ]
-      printXRefs 4 (iu_xrefs iu)
-      putStrLn "  trailer dictionary:"
-      print (nest 4 $ pp (iu_trailer iu))
+      case x of
+        Left ss ->
+            mapM_ putStrLn $
+              [ nm ++ ":"
+              , "  ERROR parsing update:"
+              ]
+              ++ map ("  "++) ss
+        Right iu ->
+            do
+            mapM_ putStrLn [ nm ++ ":"
+                           , "  " ++ render(ppXRefType (iu_type iu))
+                           , "  starts at byte offset "
+                                ++ show (sizeToInt $ iu_offset iu)
+                           , "  xref entries:"
+                           ]
+            printXRefs 4 (iu_xrefs iu)
+            putStrLn "  trailer dictionary:"
+            print (nest 4 $ pp (iu_trailer iu))
 
 
 printXRefs :: Int -> [[XRefEntry]] -> IO ()
@@ -435,24 +458,51 @@ printObjIndex indent oi = print
 
 type Range = (Int,Int)
 
-printCavityReport :: FileOffset -> Input -> [IncUpdate] -> IO ()
+printCavityReport :: FileOffset -> Input -> Updates -> IO ()
 printCavityReport bodyStart_base input updates =
   do
+  (us,es) <-
+    case updates of
+      U_Success xs   ->
+          return (xs,[])
+      U_Failure xs e ->
+          do 
+          warn "Error in parsing updates, showing only partial results:"
+          return (xs, [e])
+           
   (numCavities,totalSizeCavities) <-
-    foldlM (printOneUpdate input) (0,0)
-      $ zip3 ("base DOM" : map (\n->"incremental update " ++ show (n::Int)) [1..])
-             updates
-             (bodyStart_base : map getEndOfUpdate updates)
+    foldlM (printOneUpdate' input) (0,0)
+      $ zip3 ("base DOM" :
+                map (\n->"incremental update " ++ show (n::Int)) [1..])
+             (map Right us ++ map Left es)
+             (bodyStart_base : map getEndOfUpdate us)
              -- FIXME[F1]: assumes updates are ordered from end to start!
              --  - which is not necessarily the case.
     
   putStrLn $ "Total number of cavities: "   ++ show numCavities
   putStrLn $ "Total size of all cavities: " ++ show totalSizeCavities
 
-  -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to "%%EOF"
-  --  - must nab the locations when we parse these!
+  -- FIXME[F1]: we are accidentally including the bytes from "xref\n" to
+  --            "%%EOF"
+  --            - must nab the locations when we parse these!
 
   where
+  printOneUpdate' :: Input
+                  -> (Int, Int)
+                  -> (String, Either [String] IncUpdate, FileOffset)
+                  -> IO (Int, Int)
+  printOneUpdate' i x (nm, e, bodyStart') =
+    case e of
+      Right u -> printOneUpdate i x (nm, u, bodyStart')
+      Left ss -> do
+                 mapM_ putStrLn $
+                   [ nm ++ ":"
+                   , "  body starts at byte offset " ++ show bodyStart'
+                   , "ERROR parsing update:"
+                   ]
+                   ++ map ("  "++) ss
+                 return x  -- OK?
+  
   getEndOfUpdate IU{iu_trailerEnd=te} =
     case te of
       Right te' -> getEndOfTrailerEnd te'
