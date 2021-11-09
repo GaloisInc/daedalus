@@ -1182,7 +1182,7 @@ inferCase rng e ps =
                  do ctx <- getContext
                     case ctx of
                       AGrammar -> pure (addBind s expr1)
-                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+                      _ -> reportError e "Found a parser, but expecte a value"
      pure (expr, tOut)
 
 

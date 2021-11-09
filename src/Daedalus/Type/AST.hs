@@ -989,7 +989,7 @@ instance TypeOf (TCF a k) where
 
       TCLiteral _ t   -> t
       TCUnit          -> tUnit
-      TCNothing t     -> t
+      TCNothing t     -> tMaybe t
       TCJust e        -> tMaybe (typeOf e)
       TCStruct _ t    -> t
       TCArray _ t     -> tArray t

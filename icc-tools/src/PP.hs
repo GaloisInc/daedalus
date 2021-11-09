@@ -64,7 +64,7 @@ instance PP RTS.ParseError where
 
 --------------------------------------------------------------------------------
 
-instance PP Main where
+instance PP ICC where
   pp x = vcat [ ppF @"header" x
               , ppF @"tags" x
 

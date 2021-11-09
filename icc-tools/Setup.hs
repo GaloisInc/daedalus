@@ -29,7 +29,7 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "ICC" ]
+     let mods = [ "Parser", "Validator", "ICC" ]
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $
