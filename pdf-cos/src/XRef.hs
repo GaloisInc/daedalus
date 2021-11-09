@@ -11,7 +11,7 @@ module XRef
   , printCavityReport
   , validateUpdates
   , allOrNoUpdates
-  , lastUpdate
+  , fstFndLstAppld
   , fromPdfResult
   -- types:
   , FileOffset
@@ -83,7 +83,7 @@ ppXRefType XRefStream = "cross reference stream"
 
 validateUpdates :: (Updates, Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
-  case lastUpdate updates of
+  case fstFndLstAppld updates of
     Left _  -> return ()
     Right u -> validateBase u
 
@@ -160,7 +160,10 @@ runParserWithoutObjectIndex i p =
 type Possibly a = Either [String] a
      -- FIXME[C]: hardly where this belongs, used by clients
      -- we often use term 'Fail' to refer to the 'Left' case
-                
+
+failP :: [String] -> Possibly a
+failP = Left
+  
 -- the bind for the IO(Possibly -) monad
 -- (actually has more general type)
 bind_IOPossibly ::
@@ -195,11 +198,6 @@ fromPdfResult contextString r =
   where
   msg = "while " ++ contextString
 
-newError2 :: ParseErrorSource -> SourceRange -> String -> Possibly a
-newError2 _ c msg = Left $ [concat [msg, " (", c, ")"]]
-
-  -- FIXME: remove first arg in newError/newError2
-
 warn :: String -> IO ()
 warn s = putStrLn $ "Warning: " ++ s
 
@@ -225,7 +223,7 @@ parseXRefsVersion2 inp offset =
 
 -- Better
 getTrailerFromUpdates  :: Updates -> Possibly TrailerDict
-getTrailerFromUpdates = fmap iu_trailer . lastUpdate
+getTrailerFromUpdates = fmap iu_trailer . fstFndLstAppld
 
 -- create object index map
 getObjIndexFromUpdates :: Updates -> Possibly ObjIndex
@@ -250,9 +248,10 @@ getObjIndexFromUpdates updates =
   convertSubSectionsToObjMap xrefss =
     do objMaps  <- mapM xrefEntriesToMap xrefss
        let objMap = Map.unions objMaps
-       unless (Map.size objMap == sum (map Map.size objMaps))
-           (newError2 FromUser "convertSubSectionsToObjMap"
-                      "Duplicate entries in xref section")
+       unless (Map.size objMap == sum (map Map.size objMaps)) $
+         -- FIXME[F2]: print out the duplicates!
+         -- let unionDup m1 m2 = (Map.union m1 m1, Map.intersect m1 m2)
+         failP ["Duplicate entries between xref sections"]
        pure objMap
 
 
@@ -260,23 +259,30 @@ getObjIndexFromUpdates updates =
 
 type ErrorMsg = [String]
 
--- Don't want errors here to be all or nothing:
+-- Don't want update errors to be all or nothing:
+--  updates ordered
+--    - from top of file to end of file (typically)
+--    - from the base-dom to the last update
+--    - reverse order in which we process them
+
 data Updates = U_Success [IncUpdate]
              | U_Failure [IncUpdate] ErrorMsg
 
+-- fstFndLstAppld = last in file, first processed
+fstFndLstAppld :: Updates -> Possibly IncUpdate
+fstFndLstAppld =
+  \case
+    U_Failure [] e -> Left e
+    U_Failure xs _ -> Right (last xs)
+    U_Success []   -> error "fstFndLstAppld: internal error"
+    U_Success xs   -> Right (last xs)
+                   
+                   
 allOrNoUpdates :: Updates -> Possibly [IncUpdate]
 allOrNoUpdates = \case
                    U_Success xs   -> Right xs
                    U_Failure _  e -> Left e
 
--- lastUpdate = last in file, first processed
-lastUpdate :: Updates -> Possibly IncUpdate
-lastUpdate = \case
-                U_Failure [] e -> Left e
-                U_Failure xs _ -> Right (last xs)
-                U_Success []   -> error "lastUpdate: internal error"
-                U_Success xs   -> Right (last xs)
-                   
 
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the first-processed at EOF
 parseAllIncUpdates :: Input -> FileOffset -> IO Updates
@@ -312,21 +318,21 @@ parseAllIncUpdates' prevSet inp offset0 =
       Nothing -> pure Nothing
       Just i ->
          case toInt i of
-           Nothing      -> newError2 FromUser "parseTrailer"
-                                              "Prev offset too large to fit in Int"
+           Nothing      -> failP ["Prev offset too large to fit in Int"]
            Just offset' -> return (Just (intToSize offset'))
 
 -- | parseOneIncUpdate - go to offset and parse xref table
 parseOneIncUpdate :: PrevSet -> Input -> FileOffset -> IO (Possibly IncUpdate)
 parseOneIncUpdate prevSet input0 offset =
   if sizeToInt offset `IntSet.member` prevSet then
-    fail' [unwords[ "recursive incremental updates:"
-                  , "adding xref at "
-                  , show offset, "where we already have", show prevSet]]
+    return $ Left
+              [unwords[ "recursive incremental updates:"
+                      , "adding xref at "
+                      , show offset, "where we already have", show prevSet]]
   else
     case advanceBy offset input0 of
       Nothing ->
-        fail' ["Offset out of bounds: " ++ show offset]
+        return $ Left ["Offset out of bounds: " ++ show offset]
       Just input1 ->
         parseXRefTable input1   `bind_IOPossibly` \(xref,xrefEnd) ->
         parseTrailerEnd xrefEnd `bind_IOPossibly` \trailerEnd ->
@@ -335,7 +341,6 @@ parseOneIncUpdate prevSet input0 offset =
           CrossRef_newXref x -> processTrailer XRefStream x trailerEnd
 
   where
-  fail' ss = return (Left ss)
 
   -- parseTrailerEnd:
   --   NOTE: The following parsing of TrailerEnd is where Version1 differs
@@ -401,23 +406,20 @@ parseOneIncUpdate prevSet input0 offset =
 printIncUpdateReport :: Updates -> IO ()
 printIncUpdateReport updates =
   do
-  us' <- 
-    do
-    (us,es) <-
-      case updates of
-        U_Success xs   ->
-            return (xs,[])
-        U_Failure xs e ->
-            do 
-            warn "Error in parsing updates, showing only partial results:"
-            return (xs, [e])
-    return $
-      zip
-       ("initial DOM" :
-         map (\n->"incremental update " ++ show (n::Int)) [1..])
-       (map Right us ++ map Left es)
+  case updates of
+    U_Success{} -> return ()
+    U_Failure{} -> warn
+                    "Error in parsing updates, showing only partial results:"
+
+  let (ss,fs) = case updates of
+                  U_Success xs   -> (xs, [])
+                  U_Failure xs e -> (xs, [e])
+      us = zip
+             ("base DOM" :
+               map (\n->"incremental update " ++ show (n::Int)) [1..])
+             (map Right ss ++ map Left fs)
        
-  forM_ us' $
+  forM_ us $
     \(nm,x)->
       do
       case x of
@@ -792,13 +794,12 @@ xrefEntriesToMap = foldM entry Map.empty
            in case exists of
                 Nothing -> pure newMap
                 Just _  ->
-                  newError2 FromUser "xrefEntriesToMap.entry"
-                                     ("Multiple entries for " ++ show ref)
+                  failP ["Multiple entries for " ++ show ref]
 
 integerToInt :: Integer -> Possibly Int
 integerToInt i =
   case toInt i of
-    Nothing -> newError2 FromUser "integerToInt" "Integer constant too large."
+    Nothing -> failP ["Integer constant too large (" ++ show i ++ ")"]
     Just x  -> pure x
 
 
