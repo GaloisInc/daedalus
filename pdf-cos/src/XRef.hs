@@ -83,7 +83,7 @@ ppXRefType XRefStream = "cross reference stream"
 
 validateUpdates :: (Updates, Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
-  case fstFndLstAppld updates of
+  case fstAppldLstFnd updates of
     Left _  -> return ()
     Right u -> validateBase u
 
@@ -277,6 +277,13 @@ fstFndLstAppld =
     U_Success []   -> error "fstFndLstAppld: internal error"
     U_Success xs   -> Right (last xs)
                    
+fstAppldLstFnd :: Updates -> Possibly IncUpdate
+fstAppldLstFnd =
+  \case
+    U_Failure [] e -> Left e
+    U_Failure xs _ -> Right (head xs)
+    U_Success []   -> error "fstAppldLstFn: internal error"
+    U_Success xs   -> Right (head xs)
                    
 allOrNoUpdates :: Updates -> Possibly [IncUpdate]
 allOrNoUpdates = \case
