@@ -84,6 +84,8 @@ def mpeInTag (t : Tag) =
     chrm   -> nothing
     chad   -> nothing
 
+    _      -> nothing
+
 def mpeInLutAB_or_multi (x : LutAB_or_multi) =
   case x of
     lutAB -> nothing
