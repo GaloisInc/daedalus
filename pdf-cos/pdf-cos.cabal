@@ -205,10 +205,12 @@ library
     containers,
     cryptonite,
     daedalus-utils,
+    linguistic-ordinals,
     memory,
     pretty,
     range-set-list,
     rts-hs, 
+    text,
     zlib
 
 

@@ -23,8 +23,12 @@ import           Data.Either
 import           Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.IntSet as IntSet
+import qualified Data.Text.Lazy as Text
 import           GHC.Records(HasField, getField)
 import           Text.PrettyPrint
+
+-- pkg linguistic-ordinals:
+import qualified Text.Ordinal
 
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
@@ -331,22 +335,39 @@ validateBase iu =
 
 ---- report ------------------------------------------------------------------
 
+printUpdateSummary :: Updates -> IO [(String, Possibly IncUpdate)]
+printUpdateSummary updates =
+  do
+  let (fs,ss,gd,len) = case updates of
+                         U_Success xs   -> ( [], xs, True , length xs)
+                         U_Failure e xs -> ([e], xs, False, length xs + 1)
+             
+      incUpdateName n =
+        (if gd then
+           if n == 0 then "base, " else showOrdinal' n ++ " applied, "
+         else
+           "")
+        ++ showOrdinal' (len-n) ++ " found"
+        where
+        showOrdinal' = Text.unpack . Text.Ordinal.showOrdinal 
+
+  case updates of
+    U_Success{} -> logInfo $
+                     "Found base and "
+                     ++ show (len-1) ++ " incremental update(s):"
+    U_Failure{} -> logWarn $
+                     "cannot follow & parse all updates, showing "
+                     ++ show len ++ " partial results:"
+
+  return $ zip
+             (map (\i->"UPDATE: " ++ incUpdateName i) [0..])
+             (map Left fs ++ map Right ss)
+
+    
 printIncUpdateReport :: Updates -> IO ()
 printIncUpdateReport updates =
   do
-  case updates of
-    U_Success{} -> return ()
-    U_Failure{} -> logWarn
-                     "error in parsing updates, showing partial results:"
-
-  let (ss,fs) = case updates of
-                  U_Success xs   -> (xs, [])
-                  U_Failure e xs -> (xs, [e])
-      us = zip
-             ("base DOM" :  -- FIXME: wrong when Failure!
-               map (\n->"incremental update " ++ show (n::Int)) [1..])
-             (map Right ss ++ map Left fs)
-       
+  us <- printUpdateSummary updates
   forM_ us $
     \(nm,x)->
       do
@@ -368,7 +389,7 @@ printIncUpdateReport updates =
             printXRefs 4 (iu_xrefs iu)
             putStrLn "  trailer dictionary:"
             print (nest 4 $ pp (iu_trailer iu))
-
+      putChar '\n'
 
 printXRefs :: Int -> [[XRefEntry]] -> IO ()
 printXRefs indent ess =
@@ -391,21 +412,11 @@ type Range = (Int,Int)
 printCavityReport :: FileOffset -> Input -> Updates -> IO ()
 printCavityReport bodyStart_base input updates =
   do
-  (us,es) <-
-    case updates of
-      U_Success xs   ->
-          return (xs,[])
-      U_Failure e xs ->
-          do 
-          logWarn "Error in parsing updates, showing only partial results:"
-          return (xs, [e])
-           
+  us <- printUpdateSummary updates
   (numCavities,totalSizeCavities) <-
     foldlM (printOneUpdate' input) (0,0)
-      $ zip3 ("base DOM" :
-                map (\n->"incremental update " ++ show (n::Int)) [1..])
-             (map Right us ++ map Left es)
-             (bodyStart_base : map getEndOfUpdate us)
+      $ zip us
+            (bodyStart_base : map getEndOfUpdate (rights $ map snd us))
              -- FIXME[F1]: assumes updates are ordered from end to start!
              --  - which is not necessarily the case.
     
@@ -419,18 +430,20 @@ printCavityReport bodyStart_base input updates =
   where
   printOneUpdate' :: Input
                   -> (Int, Int)
-                  -> (String, Either [String] IncUpdate, FileOffset)
+                  -> ((String, Either [String] IncUpdate), FileOffset)
                   -> IO (Int, Int)
-  printOneUpdate' i x (nm, e, bodyStart') =
+  printOneUpdate' i x ((nm, e), bodyStart') =
     case e of
       Right u -> printOneUpdate i x (nm, u, bodyStart')
       Left ss -> do
                  mapM_ putStrLn $
                    [ nm ++ ":"
                    , "  body starts at byte offset " ++ show bodyStart'
-                   , "ERROR parsing update:"
+                     ++ " (assumption)"
                    ]
-                   ++ map ("  "++) ss
+                 mapM_ putStrLn $ "  ERROR parsing update:"
+                                  : map ("    "++) ss
+                 putChar '\n'
                  return x  -- OK?
   
   getEndOfUpdate IU{iu_trailerEnd=te} =
@@ -450,6 +463,7 @@ printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
   mapM_ putStrLn [ nm ++ ":"
                  , "  " ++ render (ppXRefType (iu_type iu))
                  , "  body starts at byte offset " ++ show bodyStart
+                   ++ " (assumption)"
                  , "  xref starts at byte offset " ++ show xrefStart
                  ]
   -- FIXME[F2]: want to warn when no valid trailerEnd
