@@ -125,36 +125,39 @@ getObjIndexFromUpdates updates =
 
 ---- parsing IncUpdates ------------------------------------------------------
 
--- Don't want update errors to be all or nothing:
---  updates ordered
---    - from top of file to end of file (typically)
---    - from the base-dom to the last update
---    - reverse order in which we process them
+-- | Updates
+--
+--   Don't want update errors to be all or nothing:
+--    updates ordered
+--      - from the base-dom to the last update
+--      - reverse order in which we process them
+--      - from start of file to end of file (when ordered typically!)
 
 data Updates = U_Success [IncUpdate]
-             | U_Failure [IncUpdate] ErrorMsg
-
+             | U_Failure ErrorMsg [IncUpdate]
+                 -- ^ the error will be the last processed.
+               
 -- fstFndLstAppld = last in file, first processed
 fstFndLstAppld :: Updates -> Possibly IncUpdate
 fstFndLstAppld =
   \case
-    U_Failure [] e -> Left e
-    U_Failure xs _ -> Right (last xs)
+    U_Failure e [] -> Left e
+    U_Failure _ xs -> Right (last xs)
     U_Success []   -> panic "fstFndLstAppld: internal error" []
     U_Success xs   -> Right (last xs)
                    
 fstAppldLstFnd :: Updates -> Possibly IncUpdate
 fstAppldLstFnd =
   \case
-    U_Failure [] e -> Left e
-    U_Failure xs _ -> Right (head xs) -- N.B.: dangerous, what you want?
+    U_Failure e [] -> Left e
+    U_Failure _ xs -> Right (head xs) -- N.B.: dangerous, what you want?
     U_Success []   -> panic "fstAppldLstFn: internal error" []
     U_Success xs   -> Right (head xs)
                    
 allOrNoUpdates :: Updates -> Possibly [IncUpdate]
 allOrNoUpdates = \case
-                   U_Success xs   -> Right xs
-                   U_Failure _  e -> Left e
+                   U_Success xs  -> Right xs
+                   U_Failure e _ -> Left e
 
 
 -- | parseAllIncUpdates - return IncUpdates, head is base, last is the
@@ -169,10 +172,10 @@ parseAllIncUpdates' prevSet inp offset0 =
        -- end of file, first-processed update
 
   case r of
-    Left ms  -> return $ U_Failure [] ms
+    Left ms  -> return $ U_Failure ms []
     Right iu ->
         case getPrev iu of
-          Left ms              -> return $ U_Failure [iu] ("getPrev:":ms)
+          Left ms              -> return $ U_Failure ("getPrev:":ms) [iu] 
           Right Nothing        -> return $ U_Success [iu]
           Right (Just offset1) -> do
                                   x <- parseAllIncUpdates'
@@ -184,7 +187,7 @@ parseAllIncUpdates' prevSet inp offset0 =
   where
   addUpdate x = \case
                    U_Success xs   -> U_Success (xs++[x])
-                   U_Failure xs e -> U_Failure (xs++[x]) e
+                   U_Failure e xs -> U_Failure e (xs++[x])
                     
   getPrev :: IncUpdate -> Possibly (Maybe FileOffset)
   getPrev IU{iu_trailer=t} =
@@ -338,7 +341,7 @@ printIncUpdateReport updates =
 
   let (ss,fs) = case updates of
                   U_Success xs   -> (xs, [])
-                  U_Failure xs e -> (xs, [e])
+                  U_Failure e xs -> (xs, [e])
       us = zip
              ("base DOM" :  -- FIXME: wrong when Failure!
                map (\n->"incremental update " ++ show (n::Int)) [1..])
@@ -392,7 +395,7 @@ printCavityReport bodyStart_base input updates =
     case updates of
       U_Success xs   ->
           return (xs,[])
-      U_Failure xs e ->
+      U_Failure e xs ->
           do 
           logWarn "Error in parsing updates, showing only partial results:"
           return (xs, [e])
