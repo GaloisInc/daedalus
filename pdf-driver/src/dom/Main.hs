@@ -1,33 +1,40 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds, BlockArguments #-}
+module Main(main) where
+
+-- system:
+import           Control.Monad(when,unless)
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString          as BS
+import           Data.Either
+import qualified Data.Map as Map
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
-import qualified Data.Map as Map
-import Control.Monad(when,unless)
-import Data.Either
-import GHC.Records(getField) 
-import System.IO(hPutStrLn,stderr,stdout)
-import System.Exit(exitFailure)
-import Text.PrettyPrint
-import SimpleGetOpt
+import           GHC.Records(getField) 
+import           System.IO(hPutStrLn,stderr,stdout)
+import           System.Exit(exitFailure)
+import           Text.PrettyPrint
 
+import           SimpleGetOpt
+
+-- daedalus:
 import RTS.Input(newInput,inputBytes)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 import RTS.Numeric
 
+-- local:
 import qualified XRef
 import XRef( findStartXRef
-           , parseXRefsVersion2
-           , printIncUpdateReport
-           , printObjIndex
-           , validateUpdates
-           , printCavityReport
-           , allOrNoUpdates
-           , fromPdfResult
            , FileOffset
-           , Possibly
            )
+import IncUpdates( parseXRefsVersion2
+                 , printIncUpdateReport
+                 , printObjIndex
+                 , validateUpdates
+                 , printCavityReport
+                 , allOrNoUpdates
+                 , fromPdfResult
+                 )
+import Possibly    
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
 

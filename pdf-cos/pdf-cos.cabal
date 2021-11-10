@@ -77,6 +77,8 @@ library
   exposed-modules:
     PdfMonad,
     XRef,
+    Possibly,
+    IncUpdates,
     Primitives.Resolve,
     Primitives.Validate,
     Primitives.Deflate,
@@ -198,13 +200,14 @@ library
     base,
     base64-bytestring,
     bytestring,
-    containers,
-    zlib,
-    rts-hs, 
-    cryptonite,
     cereal, 
+    containers,
+    cryptonite,
+    daedalus-utils,
     memory,
     pretty,
-    range-set-list                   
+    range-set-list,
+    rts-hs, 
+    zlib
 
 

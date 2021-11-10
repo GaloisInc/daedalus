@@ -17,6 +17,7 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate,try,throwIO)
+
 import RTS.Numeric(intToSize, fromUInt,sizeToInt)
 import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
 import RTS.Input
