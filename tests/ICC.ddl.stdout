@@ -6,35 +6,35 @@ module Daedalus
  
 --- Rules:
  
-Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_346 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
-  if _346 then a # b else b # a
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_352 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _352 then a # b else b # a
  
-Daedalus.UInt16 (_347 : bool) : Grammar (uint 16) =
-  do (_348 : uint 8) <- GetByte
-     (_349 : uint 8) <- GetByte
-     pure (Daedalus.joinWords 8 8 16 _347 _348 _349)
+Daedalus.UInt16 (_353 : bool) : Grammar (uint 16) =
+  do (_354 : uint 8) <- GetByte
+     (_355 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _353 _354 _355)
  
-Daedalus.UInt32 (_350 : bool) : Grammar (uint 32) =
-  do (_351 : uint 16) <- Daedalus.UInt16 _350
-     (_352 : uint 16) <- Daedalus.UInt16 _350
-     pure (Daedalus.joinWords 16 16 32 _350 _351 _352)
- 
-Daedalus.UInt64 (_353 : bool) : Grammar (uint 64) =
-  do (_354 : uint 32) <- Daedalus.UInt32 _353
-     (_355 : uint 32) <- Daedalus.UInt32 _353
-     pure (Daedalus.joinWords 32 32 64 _353 _354 _355)
- 
-Daedalus.SInt16 (_356 : bool) : Grammar (sint 16) =
+Daedalus.UInt32 (_356 : bool) : Grammar (uint 32) =
   do (_357 : uint 16) <- Daedalus.UInt16 _356
-     pure (_357 as sint 16)
+     (_358 : uint 16) <- Daedalus.UInt16 _356
+     pure (Daedalus.joinWords 16 16 32 _356 _357 _358)
  
-Daedalus.SInt32 (_358 : bool) : Grammar (sint 32) =
-  do (_359 : uint 32) <- Daedalus.UInt32 _358
-     pure (_359 as sint 32)
+Daedalus.UInt64 (_359 : bool) : Grammar (uint 64) =
+  do (_360 : uint 32) <- Daedalus.UInt32 _359
+     (_361 : uint 32) <- Daedalus.UInt32 _359
+     pure (Daedalus.joinWords 32 32 64 _359 _360 _361)
  
-Daedalus.SInt64 (_360 : bool) : Grammar (sint 64) =
-  do (_361 : uint 64) <- Daedalus.UInt64 _360
-     pure (_361 as sint 64)
+Daedalus.SInt16 (_362 : bool) : Grammar (sint 16) =
+  do (_363 : uint 16) <- Daedalus.UInt16 _362
+     pure (_363 as sint 16)
+ 
+Daedalus.SInt32 (_364 : bool) : Grammar (sint 32) =
+  do (_365 : uint 32) <- Daedalus.UInt32 _364
+     pure (_365 as sint 32)
+ 
+Daedalus.SInt64 (_366 : bool) : Grammar (sint 64) =
+  do (_367 : uint 64) <- Daedalus.UInt64 _366
+     pure (_367 as sint 64)
  
 Daedalus.wordToHalfFloat (w : uint 16) : float =
   let sign = w >> 15 as uint 1 in
@@ -45,106 +45,106 @@ Daedalus.wordToHalfFloat (w : uint 16) : float =
                       if (sign == 1) then - num else num else let newExp = if (expo == 0x1F) then 0xFF else (127 - 15) + (0 # expo) in
                                                               wordToFloat (((sign # newExp) # mant) # 0)
  
-Daedalus.HalfFloat (_362 : bool) : Grammar float =
-  do (_363 : uint 16) <- Daedalus.UInt16 _362
-     pure (Daedalus.wordToHalfFloat _363)
+Daedalus.HalfFloat (_368 : bool) : Grammar float =
+  do (_369 : uint 16) <- Daedalus.UInt16 _368
+     pure (Daedalus.wordToHalfFloat _369)
  
-Daedalus.Float (_364 : bool) : Grammar float =
-  do (_365 : uint 32) <- Daedalus.UInt32 _364
-     pure (wordToFloat _365)
+Daedalus.Float (_370 : bool) : Grammar float =
+  do (_371 : uint 32) <- Daedalus.UInt32 _370
+     pure (wordToFloat _371)
  
-Daedalus.Double (_366 : bool) : Grammar double =
-  do (_367 : uint 64) <- Daedalus.UInt64 _366
-     pure (wordToDouble _367)
+Daedalus.Double (_372 : bool) : Grammar double =
+  do (_373 : uint 64) <- Daedalus.UInt64 _372
+     pure (wordToDouble _373)
  
 Daedalus.BEUInt16 : Grammar (uint 16) =
-  do (_368 : bool) <- pure true
-     ($$ : uint 16) <- Daedalus.UInt16 _368
+  do (_374 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _374
      pure $$
  
 Daedalus.BEUInt32 : Grammar (uint 32) =
-  do (_370 : bool) <- pure true
-     ($$ : uint 32) <- Daedalus.UInt32 _370
+  do (_376 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _376
      pure $$
  
 Daedalus.BEUInt64 : Grammar (uint 64) =
-  do (_372 : bool) <- pure true
-     ($$ : uint 64) <- Daedalus.UInt64 _372
+  do (_378 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _378
      pure $$
  
 Daedalus.BESInt16 : Grammar (sint 16) =
-  do (_374 : bool) <- pure true
-     ($$ : sint 16) <- Daedalus.SInt16 _374
+  do (_380 : bool) <- pure true
+     ($$ : sint 16) <- Daedalus.SInt16 _380
      pure $$
  
 Daedalus.BESInt32 : Grammar (sint 32) =
-  do (_376 : bool) <- pure true
-     ($$ : sint 32) <- Daedalus.SInt32 _376
+  do (_382 : bool) <- pure true
+     ($$ : sint 32) <- Daedalus.SInt32 _382
      pure $$
  
 Daedalus.BESInt64 : Grammar (sint 64) =
-  do (_378 : bool) <- pure true
-     ($$ : sint 64) <- Daedalus.SInt64 _378
+  do (_384 : bool) <- pure true
+     ($$ : sint 64) <- Daedalus.SInt64 _384
      pure $$
  
 Daedalus.BEHalfFloat : Grammar float =
-  do (_380 : bool) <- pure true
-     ($$ : float) <- Daedalus.HalfFloat _380
+  do (_386 : bool) <- pure true
+     ($$ : float) <- Daedalus.HalfFloat _386
      pure $$
  
 Daedalus.BEFloat : Grammar float =
-  do (_382 : bool) <- pure true
-     ($$ : float) <- Daedalus.Float _382
+  do (_388 : bool) <- pure true
+     ($$ : float) <- Daedalus.Float _388
      pure $$
  
 Daedalus.BEDouble : Grammar double =
-  do (_384 : bool) <- pure true
-     ($$ : double) <- Daedalus.Double _384
+  do (_390 : bool) <- pure true
+     ($$ : double) <- Daedalus.Double _390
      pure $$
  
 Daedalus.LEUInt16 : Grammar (uint 16) =
-  do (_386 : bool) <- pure false
-     ($$ : uint 16) <- Daedalus.UInt16 _386
+  do (_392 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _392
      pure $$
  
 Daedalus.LEUInt32 : Grammar (uint 32) =
-  do (_388 : bool) <- pure false
-     ($$ : uint 32) <- Daedalus.UInt32 _388
+  do (_394 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _394
      pure $$
  
 Daedalus.LEUInt64 : Grammar (uint 64) =
-  do (_390 : bool) <- pure false
-     ($$ : uint 64) <- Daedalus.UInt64 _390
+  do (_396 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _396
      pure $$
  
 Daedalus.LESInt16 : Grammar (sint 16) =
-  do (_392 : bool) <- pure false
-     ($$ : sint 16) <- Daedalus.SInt16 _392
+  do (_398 : bool) <- pure false
+     ($$ : sint 16) <- Daedalus.SInt16 _398
      pure $$
  
 Daedalus.LESInt32 : Grammar (sint 32) =
-  do (_394 : bool) <- pure false
-     ($$ : sint 32) <- Daedalus.SInt32 _394
+  do (_400 : bool) <- pure false
+     ($$ : sint 32) <- Daedalus.SInt32 _400
      pure $$
  
 Daedalus.LESInt64 : Grammar (sint 64) =
-  do (_396 : bool) <- pure false
-     ($$ : sint 64) <- Daedalus.SInt64 _396
+  do (_402 : bool) <- pure false
+     ($$ : sint 64) <- Daedalus.SInt64 _402
      pure $$
  
 Daedalus.LEHalfFloat : Grammar float =
-  do (_398 : bool) <- pure false
-     ($$ : float) <- Daedalus.HalfFloat _398
+  do (_404 : bool) <- pure false
+     ($$ : float) <- Daedalus.HalfFloat _404
      pure $$
  
 Daedalus.LEFloat : Grammar float =
-  do (_400 : bool) <- pure false
-     ($$ : float) <- Daedalus.Float _400
+  do (_406 : bool) <- pure false
+     ($$ : float) <- Daedalus.Float _406
      pure $$
  
 Daedalus.LEDouble : Grammar double =
-  do (_402 : bool) <- pure false
-     ($$ : double) <- Daedalus.Double _402
+  do (_408 : bool) <- pure false
+     ($$ : double) <- Daedalus.Double _408
      pure $$
  
 Daedalus.Guard (b : bool) : Grammar {} =
@@ -157,22 +157,28 @@ Daedalus.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
      END
      pure $$
  
+Daedalus.min ?a0 (x : ?a0) (y : ?a0) : ?a0 =
+  if (x < y) then x else y
+ 
+Daedalus.max ?a0 (x : ?a0) (y : ?a0) : ?a0 =
+  if (x < y) then y else x
+ 
 Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
-  do (_404 : Stream) <- StreamOff n s
-     SetStream _404
+  do (_410 : Stream) <- StreamOff n s
+     SetStream _410
  
 Daedalus.Skip (n : uint 64) : Grammar {} =
-  do (_405 : Stream) <- CurrentStream
-     Daedalus.SetStreamAt n _405
+  do (_411 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt n _411
  
 Daedalus._SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
-  do (_404 : Stream) <- StreamOff n s
-     SetStream _404
+  do (_410 : Stream) <- StreamOff n s
+     SetStream _410
  
 Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
-     do (_406 : Stream) <- StreamLen n s
-        SetStream _406
+     do (_412 : Stream) <- StreamLen n s
+        SetStream _412
      ($$ : ?a0) <- P
      Daedalus._SetStreamAt n s
      pure $$
@@ -280,13 +286,13 @@ Daedalus._Only ?a0 (_P : Grammar {}) : Grammar {} =
      END
  
 Daedalus._Skip (n : uint 64) : Grammar {} =
-  do (_405 : Stream) <- CurrentStream
-     Daedalus._SetStreamAt n _405
+  do (_411 : Stream) <- CurrentStream
+     Daedalus._SetStreamAt n _411
  
 Daedalus._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
-     do (_406 : Stream) <- StreamLen n s
-        SetStream _406
+     do (_412 : Stream) <- StreamLen n s
+        SetStream _412
      _P
      Daedalus._SetStreamAt n s
  
@@ -729,8 +735,8 @@ ICC.VersionField : Grammar ICC.VersionField =
            bugfix = bugfix}
  
 ICC.ProfileClass : Grammar ICC.ProfileClass =
-  do (_407 : uint 32) <- Daedalus.BEUInt32
-     case _407 is
+  do (_413 : uint 32) <- Daedalus.BEUInt32
+     case _413 is
        { 0s"scnr" -> {- case branch  0s"scnr" -} pure {input_device_profile: {}}
        ; 0s"mntr" -> {- case branch  0s"mntr" -} pure {display_device_profile: {}}
        ; 0s"prtr" -> {- case branch  0s"prtr" -} pure {output_device_profile: {}}
@@ -781,8 +787,8 @@ ICC.DataColorSpace : Grammar ICC.DataColorSpace =
      pure $$
  
 ICC.PrimaryPlatform : Grammar ICC.PrimaryPlatform =
-  do (_410 : uint 32) <- Daedalus.BEUInt32
-     case _410 is
+  do (_416 : uint 32) <- Daedalus.BEUInt32
+     case _416 is
        { 0s"APPL" -> {- case branch  0s"APPL" -} pure {apple_computer_inc: {}}
        ; 0s"MSFT" -> {- case branch  0s"MSFT" -} pure {microsoft_corporation: {}}
        ; 0s"SGI " -> {- case branch  0s"SGI " -} pure {silicon_graphics_inc: {}}
@@ -791,8 +797,8 @@ ICC.PrimaryPlatform : Grammar ICC.PrimaryPlatform =
        }
  
 ICC.RenderingIntent : Grammar ICC.RenderingIntent =
-  do (_411 : uint 32) <- Daedalus.BEUInt32
-     case _411 is
+  do (_417 : uint 32) <- Daedalus.BEUInt32
+     case _417 is
        { 0 -> {- case branch  0 -} pure {perceptual: {}}
        ; 1 -> {- case branch  1 -} pure {media_relative_colorimetric: {}}
        ; 2 -> {- case branch  2 -} pure {saturation: {}}
@@ -877,10 +883,10 @@ ICC.MPElementHead : Grammar ICC.MPElementHead =
                   0,
                   0,
                   0]
-     (inputs : uint 64) <- do (_412 : uint 16) <- Daedalus.BEUInt16
-                              pure (_412 as uint 64)
-     (outputs : uint 64) <- do (_413 : uint 16) <- Daedalus.BEUInt16
-                               pure (_413 as uint 64)
+     (inputs : uint 64) <- do (_418 : uint 16) <- Daedalus.BEUInt16
+                              pure (_418 as uint 64)
+     (outputs : uint 64) <- do (_419 : uint 16) <- Daedalus.BEUInt16
+                               pure (_419 as uint 64)
      pure {offset = offset,
            tag = tag,
            inputs = inputs,
@@ -888,15 +894,15 @@ ICC.MPElementHead : Grammar ICC.MPElementHead =
  
 ICC.SelCase : Grammar (uint 64) =
   do @MatchBytes "case"
-     ($$ : uint 64) <- do (_416 : uint 32) <- Daedalus.BEUInt32
-                          pure (_416 as uint 64)
+     ($$ : uint 64) <- do (_422 : uint 32) <- Daedalus.BEUInt32
+                          pure (_422 as uint 64)
      pure $$
  
 ICC._Exactly ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar {} =
   Choose biased
-    { do (_418 : bool) <- do (_417 : ?a0) <- P
-                             pure (_417 == x)
-         Daedalus._Guard _418
+    { do (_424 : bool) <- do (_423 : ?a0) <- P
+                             pure (_423 == x)
+         Daedalus._Guard _424
     | Fail "Unexpected field value"
     }
  
@@ -904,16 +910,16 @@ ICC.NoParams : Grammar {} =
   ICC._Exactly (uint 32) 0 Daedalus.BEUInt32
  
 ICC.OpParam : Grammar (uint 64) =
-  do ($$ : uint 64) <- do (_420 : uint 16) <- Daedalus.BEUInt16
-                          pure (_420 as uint 64)
+  do ($$ : uint 64) <- do (_426 : uint 16) <- Daedalus.BEUInt16
+                          pure (_426 as uint 64)
      ICC._Exactly (uint 16) 0 Daedalus.BEUInt16
      pure $$
  
 ICC.OpParams : Grammar ICC.OpParams =
-  do (s : uint 64) <- do (_421 : uint 16) <- Daedalus.BEUInt16
-                         pure (_421 as uint 64)
-     (t : uint 64) <- do (_422 : uint 16) <- Daedalus.BEUInt16
-                         pure (_422 as uint 64)
+  do (s : uint 64) <- do (_427 : uint 16) <- Daedalus.BEUInt16
+                         pure (_427 as uint 64)
+     (t : uint 64) <- do (_428 : uint 16) <- Daedalus.BEUInt16
+                         pure (_428 as uint 64)
      pure {s = s,
            t = t}
  
@@ -930,8 +936,8 @@ rec value
                                                 (ICC.ManyFunOps n)
        (dflt : Maybe [ICC.FunOpWithPosition]) <- case mbDflt is
                                                    { nothing -> {- case branch  nothing -} pure nothing
-                                                   ; just n -> {- case branch  just n -} do (_423 : [ICC.FunOpWithPosition]) <- ICC.ManyFunOps n
-                                                                                            pure (just _423)
+                                                   ; just n -> {- case branch  just n -} do (_429 : [ICC.FunOpWithPosition]) <- ICC.ManyFunOps n
+                                                                                            pure (just _429)
                                                    }
        pure {case1 = case1,
              cases = cases,
@@ -946,178 +952,178 @@ rec value
   ICC.FunOp : Grammar ICC.FunOp =
     do (tag : uint 32) <- Daedalus.BEUInt32
        ($$ : ICC.FunOp) <- case tag is
-                             { 0s"data" -> {- case branch  0s"data" -} do (_425 : float) <- Daedalus.BEFloat
-                                                                          pure {data: _425}
-                             ; 0s"in  " -> {- case branch  0s"in  " -} do (_426 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {opIn: _426}
-                             ; 0s"out " -> {- case branch  0s"out " -} do (_427 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {opOut: _427}
-                             ; 0s"tget" -> {- case branch  0s"tget" -} do (_428 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {opTGet: _428}
-                             ; 0s"tput" -> {- case branch  0s"tput" -} do (_429 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {opTPut: _429}
-                             ; 0s"tsav" -> {- case branch  0s"tsav" -} do (_430 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {opTSave: _430}
-                             ; 0s"env " -> {- case branch  0s"env " -} do (_431 : uint 32) <- Daedalus.BEUInt32
-                                                                          pure {opEnv: _431}
-                             ; 0s"curv" -> {- case branch  0s"curv" -} do (_433 : uint 64) <- do (_432 : uint 64) <- ICC.OpParam
-                                                                                                 pure (_432 as uint 64)
-                                                                          pure {curv: _433}
-                             ; 0s"mtx " -> {- case branch  0s"mtx " -} do (_435 : uint 64) <- do (_434 : uint 64) <- ICC.OpParam
-                                                                                                 pure (_434 as uint 64)
-                                                                          pure {mtx: _435}
-                             ; 0s"clut" -> {- case branch  0s"clut" -} do (_437 : uint 64) <- do (_436 : uint 64) <- ICC.OpParam
-                                                                                                 pure (_436 as uint 64)
-                                                                          pure {clut: _437}
-                             ; 0s"calc" -> {- case branch  0s"calc" -} do (_439 : uint 64) <- do (_438 : uint 64) <- ICC.OpParam
+                             { 0s"data" -> {- case branch  0s"data" -} do (_431 : float) <- Daedalus.BEFloat
+                                                                          pure {data: _431}
+                             ; 0s"in  " -> {- case branch  0s"in  " -} do (_432 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {opIn: _432}
+                             ; 0s"out " -> {- case branch  0s"out " -} do (_433 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {opOut: _433}
+                             ; 0s"tget" -> {- case branch  0s"tget" -} do (_434 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {opTGet: _434}
+                             ; 0s"tput" -> {- case branch  0s"tput" -} do (_435 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {opTPut: _435}
+                             ; 0s"tsav" -> {- case branch  0s"tsav" -} do (_436 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {opTSave: _436}
+                             ; 0s"env " -> {- case branch  0s"env " -} do (_437 : uint 32) <- Daedalus.BEUInt32
+                                                                          pure {opEnv: _437}
+                             ; 0s"curv" -> {- case branch  0s"curv" -} do (_439 : uint 64) <- do (_438 : uint 64) <- ICC.OpParam
                                                                                                  pure (_438 as uint 64)
-                                                                          pure {calc: _439}
-                             ; 0s"tint" -> {- case branch  0s"tint" -} do (_441 : uint 64) <- do (_440 : uint 64) <- ICC.OpParam
+                                                                          pure {curv: _439}
+                             ; 0s"mtx " -> {- case branch  0s"mtx " -} do (_441 : uint 64) <- do (_440 : uint 64) <- ICC.OpParam
                                                                                                  pure (_440 as uint 64)
-                                                                          pure {tint: _441}
-                             ; 0s"elem" -> {- case branch  0s"elem" -} do (_443 : uint 64) <- do (_442 : uint 64) <- ICC.OpParam
+                                                                          pure {mtx: _441}
+                             ; 0s"clut" -> {- case branch  0s"clut" -} do (_443 : uint 64) <- do (_442 : uint 64) <- ICC.OpParam
                                                                                                  pure (_442 as uint 64)
-                                                                          pure {elem: _443}
-                             ; 0s"copy" -> {- case branch  0s"copy" -} do (_444 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {copy: _444}
-                             ; 0s"rotl" -> {- case branch  0s"rotl" -} do (_445 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {rotl: _445}
-                             ; 0s"rotr" -> {- case branch  0s"rotr" -} do (_446 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {rotr: _446}
-                             ; 0s"posd" -> {- case branch  0s"posd" -} do (_447 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {posd: _447}
-                             ; 0s"flip" -> {- case branch  0s"flip" -} do (_448 : uint 64) <- ICC.OpParam
-                                                                          pure {flip: _448}
-                             ; 0s"pop " -> {- case branch  0s"pop " -} do (_449 : uint 64) <- ICC.OpParam
-                                                                          pure {pop: _449}
-                             ; 0s"solv" -> {- case branch  0s"solv" -} do (_450 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {solv: _450}
-                             ; 0s"tran" -> {- case branch  0s"tran" -} do (_451 : ICC.OpParams) <- ICC.OpParams
-                                                                          pure {tran: _451}
-                             ; 0s"sum " -> {- case branch  0s"sum " -} do (_452 : uint 64) <- ICC.OpParam
-                                                                          pure {sum: _452}
-                             ; 0s"prod" -> {- case branch  0s"prod" -} do (_453 : uint 64) <- ICC.OpParam
-                                                                          pure {prod: _453}
-                             ; 0s"min " -> {- case branch  0s"min " -} do (_454 : uint 64) <- ICC.OpParam
-                                                                          pure {min: _454}
-                             ; 0s"max " -> {- case branch  0s"max " -} do (_455 : uint 64) <- ICC.OpParam
-                                                                          pure {max: _455}
-                             ; 0s"and " -> {- case branch  0s"and " -} do (_456 : uint 64) <- ICC.OpParam
-                                                                          pure {and: _456}
-                             ; 0s"or  " -> {- case branch  0s"or  " -} do (_457 : uint 64) <- ICC.OpParam
-                                                                          pure {or: _457}
-                             ; 0s"pi  " -> {- case branch  0s"pi  " -} do (_458 : {}) <- ICC.NoParams
-                                                                          pure {opPi: _458}
-                             ; 0s"+INF" -> {- case branch  0s"+INF" -} do (_459 : {}) <- ICC.NoParams
-                                                                          pure {opPosInf: _459}
-                             ; 0s"-INF" -> {- case branch  0s"-INF" -} do (_460 : {}) <- ICC.NoParams
-                                                                          pure {opNegInf: _460}
-                             ; 0s"NaN " -> {- case branch  0s"NaN " -} do (_461 : {}) <- ICC.NoParams
-                                                                          pure {opNaN: _461}
-                             ; 0s"add " -> {- case branch  0s"add " -} do (_462 : uint 64) <- ICC.OpParam
-                                                                          pure {opAdd: _462}
-                             ; 0s"sub " -> {- case branch  0s"sub " -} do (_463 : uint 64) <- ICC.OpParam
-                                                                          pure {opSub: _463}
-                             ; 0s"mul " -> {- case branch  0s"mul " -} do (_464 : uint 64) <- ICC.OpParam
-                                                                          pure {opMul: _464}
-                             ; 0s"div " -> {- case branch  0s"div " -} do (_465 : uint 64) <- ICC.OpParam
-                                                                          pure {opDiv: _465}
-                             ; 0s"mod " -> {- case branch  0s"mod " -} do (_466 : uint 64) <- ICC.OpParam
-                                                                          pure {opMod: _466}
-                             ; 0s"pow " -> {- case branch  0s"pow " -} do (_467 : uint 64) <- ICC.OpParam
-                                                                          pure {opPow: _467}
-                             ; 0s"gama" -> {- case branch  0s"gama" -} do (_468 : uint 64) <- ICC.OpParam
-                                                                          pure {opGamma: _468}
-                             ; 0s"sadd" -> {- case branch  0s"sadd" -} do (_469 : uint 64) <- ICC.OpParam
-                                                                          pure {opSAdd: _469}
-                             ; 0s"ssub" -> {- case branch  0s"ssub" -} do (_470 : uint 64) <- ICC.OpParam
-                                                                          pure {opSSub: _470}
-                             ; 0s"smul" -> {- case branch  0s"smul" -} do (_471 : uint 64) <- ICC.OpParam
-                                                                          pure {opSMul: _471}
-                             ; 0s"sdiv" -> {- case branch  0s"sdiv" -} do (_472 : uint 64) <- ICC.OpParam
-                                                                          pure {opSDiv: _472}
-                             ; 0s"sq  " -> {- case branch  0s"sq  " -} do (_473 : uint 64) <- ICC.OpParam
-                                                                          pure {opSq: _473}
-                             ; 0s"sqrt" -> {- case branch  0s"sqrt" -} do (_474 : uint 64) <- ICC.OpParam
-                                                                          pure {opSqrt: _474}
-                             ; 0s"cb  " -> {- case branch  0s"cb  " -} do (_475 : uint 64) <- ICC.OpParam
-                                                                          pure {opCb: _475}
-                             ; 0s"cbrt" -> {- case branch  0s"cbrt" -} do (_476 : uint 64) <- ICC.OpParam
-                                                                          pure {opCbrt: _476}
-                             ; 0s"abs " -> {- case branch  0s"abs " -} do (_477 : uint 64) <- ICC.OpParam
-                                                                          pure {opAbs: _477}
-                             ; 0s"neg " -> {- case branch  0s"neg " -} do (_478 : uint 64) <- ICC.OpParam
-                                                                          pure {opNeg: _478}
-                             ; 0s"rond" -> {- case branch  0s"rond" -} do (_479 : uint 64) <- ICC.OpParam
-                                                                          pure {opRond: _479}
-                             ; 0s"flor" -> {- case branch  0s"flor" -} do (_480 : uint 64) <- ICC.OpParam
-                                                                          pure {opFlor: _480}
-                             ; 0s"ceil" -> {- case branch  0s"ceil" -} do (_481 : uint 64) <- ICC.OpParam
-                                                                          pure {opCeil: _481}
-                             ; 0s"trnc" -> {- case branch  0s"trnc" -} do (_482 : uint 64) <- ICC.OpParam
-                                                                          pure {opTrnc: _482}
-                             ; 0s"sign" -> {- case branch  0s"sign" -} do (_483 : uint 64) <- ICC.OpParam
-                                                                          pure {opSign: _483}
-                             ; 0s"exp " -> {- case branch  0s"exp " -} do (_484 : uint 64) <- ICC.OpParam
-                                                                          pure {opExp: _484}
-                             ; 0s"log " -> {- case branch  0s"log " -} do (_485 : uint 64) <- ICC.OpParam
-                                                                          pure {opLog: _485}
-                             ; 0s"ln  " -> {- case branch  0s"ln  " -} do (_486 : uint 64) <- ICC.OpParam
-                                                                          pure {opLn: _486}
-                             ; 0s"sin " -> {- case branch  0s"sin " -} do (_487 : uint 64) <- ICC.OpParam
-                                                                          pure {opSin: _487}
-                             ; 0s"cos " -> {- case branch  0s"cos " -} do (_488 : uint 64) <- ICC.OpParam
-                                                                          pure {opCos: _488}
-                             ; 0s"tan " -> {- case branch  0s"tan " -} do (_489 : uint 64) <- ICC.OpParam
-                                                                          pure {opTan: _489}
-                             ; 0s"asin" -> {- case branch  0s"asin" -} do (_490 : uint 64) <- ICC.OpParam
-                                                                          pure {opASin: _490}
-                             ; 0s"acos" -> {- case branch  0s"acos" -} do (_491 : uint 64) <- ICC.OpParam
-                                                                          pure {opACos: _491}
-                             ; 0s"atan" -> {- case branch  0s"atan" -} do (_492 : uint 64) <- ICC.OpParam
-                                                                          pure {opATan: _492}
-                             ; 0s"atn2" -> {- case branch  0s"atn2" -} do (_493 : uint 64) <- ICC.OpParam
-                                                                          pure {opATn2: _493}
-                             ; 0s"ctop" -> {- case branch  0s"ctop" -} do (_494 : uint 64) <- ICC.OpParam
-                                                                          pure {opCTop: _494}
-                             ; 0s"ptoc" -> {- case branch  0s"ptoc" -} do (_495 : uint 64) <- ICC.OpParam
-                                                                          pure {opPToc: _495}
-                             ; 0s"rnum" -> {- case branch  0s"rnum" -} do (_496 : uint 64) <- ICC.OpParam
-                                                                          pure {opRNum: _496}
-                             ; 0s"lt  " -> {- case branch  0s"lt  " -} do (_497 : uint 64) <- ICC.OpParam
-                                                                          pure {opLT: _497}
-                             ; 0s"le  " -> {- case branch  0s"le  " -} do (_498 : uint 64) <- ICC.OpParam
-                                                                          pure {opLE: _498}
-                             ; 0s"eq  " -> {- case branch  0s"eq  " -} do (_499 : uint 64) <- ICC.OpParam
-                                                                          pure {opEQ: _499}
-                             ; 0s"near" -> {- case branch  0s"near" -} do (_500 : uint 64) <- ICC.OpParam
-                                                                          pure {opNear: _500}
-                             ; 0s"ge  " -> {- case branch  0s"ge  " -} do (_501 : uint 64) <- ICC.OpParam
-                                                                          pure {opGE: _501}
-                             ; 0s"gt  " -> {- case branch  0s"gt  " -} do (_502 : uint 64) <- ICC.OpParam
-                                                                          pure {opGT: _502}
-                             ; 0s"vmin" -> {- case branch  0s"vmin" -} do (_503 : uint 64) <- ICC.OpParam
-                                                                          pure {opVMin: _503}
-                             ; 0s"vmax" -> {- case branch  0s"vmax" -} do (_504 : uint 64) <- ICC.OpParam
-                                                                          pure {opVMax: _504}
-                             ; 0s"vand" -> {- case branch  0s"vand" -} do (_505 : uint 64) <- ICC.OpParam
-                                                                          pure {opVAnd: _505}
-                             ; 0s"vor " -> {- case branch  0s"vor " -} do (_506 : uint 64) <- ICC.OpParam
-                                                                          pure {opVOr: _506}
-                             ; 0s"tLab" -> {- case branch  0s"tLab" -} do (_507 : uint 64) <- ICC.OpParam
-                                                                          pure {opTLab: _507}
-                             ; 0s"tXYZ" -> {- case branch  0s"tXYZ" -} do (_508 : uint 64) <- ICC.OpParam
-                                                                          pure {opTXYZ: _508}
-                             ; 0s"if  " -> {- case branch  0s"if  " -} do (thenOps : uint 64) <- do (_509 : uint 32) <- Daedalus.BEUInt32
-                                                                                                    pure (_509 as uint 64)
-                                                                          ($$ : ICC.FunOp) <- do (_511 : Maybe [uint 8]) <- Optional (MatchBytes "else")
-                                                                                                 case _511 is
-                                                                                                   { nothing -> {- case branch  nothing -} do (_512 : [ICC.FunOpWithPosition]) <- ICC.ManyFunOps thenOps
-                                                                                                                                              pure {opIfThen: _512}
-                                                                                                   ; just _ -> {- case branch  just _ -} do (_515 : ICC.IfThenElse) <- do (_514 : uint 64) <- do (_513 : uint 32) <- Daedalus.BEUInt32
-                                                                                                                                                                                                 pure (_513 as uint 64)
-                                                                                                                                                                          ICC.IfThenElse thenOps _514
-                                                                                                                                            pure {opIfThenElse: _515}
+                                                                          pure {clut: _443}
+                             ; 0s"calc" -> {- case branch  0s"calc" -} do (_445 : uint 64) <- do (_444 : uint 64) <- ICC.OpParam
+                                                                                                 pure (_444 as uint 64)
+                                                                          pure {calc: _445}
+                             ; 0s"tint" -> {- case branch  0s"tint" -} do (_447 : uint 64) <- do (_446 : uint 64) <- ICC.OpParam
+                                                                                                 pure (_446 as uint 64)
+                                                                          pure {tint: _447}
+                             ; 0s"elem" -> {- case branch  0s"elem" -} do (_449 : uint 64) <- do (_448 : uint 64) <- ICC.OpParam
+                                                                                                 pure (_448 as uint 64)
+                                                                          pure {elem: _449}
+                             ; 0s"copy" -> {- case branch  0s"copy" -} do (_450 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {copy: _450}
+                             ; 0s"rotl" -> {- case branch  0s"rotl" -} do (_451 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {rotl: _451}
+                             ; 0s"rotr" -> {- case branch  0s"rotr" -} do (_452 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {rotr: _452}
+                             ; 0s"posd" -> {- case branch  0s"posd" -} do (_453 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {posd: _453}
+                             ; 0s"flip" -> {- case branch  0s"flip" -} do (_454 : uint 64) <- ICC.OpParam
+                                                                          pure {flip: _454}
+                             ; 0s"pop " -> {- case branch  0s"pop " -} do (_455 : uint 64) <- ICC.OpParam
+                                                                          pure {pop: _455}
+                             ; 0s"solv" -> {- case branch  0s"solv" -} do (_456 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {solv: _456}
+                             ; 0s"tran" -> {- case branch  0s"tran" -} do (_457 : ICC.OpParams) <- ICC.OpParams
+                                                                          pure {tran: _457}
+                             ; 0s"sum " -> {- case branch  0s"sum " -} do (_458 : uint 64) <- ICC.OpParam
+                                                                          pure {sum: _458}
+                             ; 0s"prod" -> {- case branch  0s"prod" -} do (_459 : uint 64) <- ICC.OpParam
+                                                                          pure {prod: _459}
+                             ; 0s"min " -> {- case branch  0s"min " -} do (_460 : uint 64) <- ICC.OpParam
+                                                                          pure {min: _460}
+                             ; 0s"max " -> {- case branch  0s"max " -} do (_461 : uint 64) <- ICC.OpParam
+                                                                          pure {max: _461}
+                             ; 0s"and " -> {- case branch  0s"and " -} do (_462 : uint 64) <- ICC.OpParam
+                                                                          pure {and: _462}
+                             ; 0s"or  " -> {- case branch  0s"or  " -} do (_463 : uint 64) <- ICC.OpParam
+                                                                          pure {or: _463}
+                             ; 0s"pi  " -> {- case branch  0s"pi  " -} do (_464 : {}) <- ICC.NoParams
+                                                                          pure {opPi: _464}
+                             ; 0s"+INF" -> {- case branch  0s"+INF" -} do (_465 : {}) <- ICC.NoParams
+                                                                          pure {opPosInf: _465}
+                             ; 0s"-INF" -> {- case branch  0s"-INF" -} do (_466 : {}) <- ICC.NoParams
+                                                                          pure {opNegInf: _466}
+                             ; 0s"NaN " -> {- case branch  0s"NaN " -} do (_467 : {}) <- ICC.NoParams
+                                                                          pure {opNaN: _467}
+                             ; 0s"add " -> {- case branch  0s"add " -} do (_468 : uint 64) <- ICC.OpParam
+                                                                          pure {opAdd: _468}
+                             ; 0s"sub " -> {- case branch  0s"sub " -} do (_469 : uint 64) <- ICC.OpParam
+                                                                          pure {opSub: _469}
+                             ; 0s"mul " -> {- case branch  0s"mul " -} do (_470 : uint 64) <- ICC.OpParam
+                                                                          pure {opMul: _470}
+                             ; 0s"div " -> {- case branch  0s"div " -} do (_471 : uint 64) <- ICC.OpParam
+                                                                          pure {opDiv: _471}
+                             ; 0s"mod " -> {- case branch  0s"mod " -} do (_472 : uint 64) <- ICC.OpParam
+                                                                          pure {opMod: _472}
+                             ; 0s"pow " -> {- case branch  0s"pow " -} do (_473 : uint 64) <- ICC.OpParam
+                                                                          pure {opPow: _473}
+                             ; 0s"gama" -> {- case branch  0s"gama" -} do (_474 : uint 64) <- ICC.OpParam
+                                                                          pure {opGamma: _474}
+                             ; 0s"sadd" -> {- case branch  0s"sadd" -} do (_475 : uint 64) <- ICC.OpParam
+                                                                          pure {opSAdd: _475}
+                             ; 0s"ssub" -> {- case branch  0s"ssub" -} do (_476 : uint 64) <- ICC.OpParam
+                                                                          pure {opSSub: _476}
+                             ; 0s"smul" -> {- case branch  0s"smul" -} do (_477 : uint 64) <- ICC.OpParam
+                                                                          pure {opSMul: _477}
+                             ; 0s"sdiv" -> {- case branch  0s"sdiv" -} do (_478 : uint 64) <- ICC.OpParam
+                                                                          pure {opSDiv: _478}
+                             ; 0s"sq  " -> {- case branch  0s"sq  " -} do (_479 : uint 64) <- ICC.OpParam
+                                                                          pure {opSq: _479}
+                             ; 0s"sqrt" -> {- case branch  0s"sqrt" -} do (_480 : uint 64) <- ICC.OpParam
+                                                                          pure {opSqrt: _480}
+                             ; 0s"cb  " -> {- case branch  0s"cb  " -} do (_481 : uint 64) <- ICC.OpParam
+                                                                          pure {opCb: _481}
+                             ; 0s"cbrt" -> {- case branch  0s"cbrt" -} do (_482 : uint 64) <- ICC.OpParam
+                                                                          pure {opCbrt: _482}
+                             ; 0s"abs " -> {- case branch  0s"abs " -} do (_483 : uint 64) <- ICC.OpParam
+                                                                          pure {opAbs: _483}
+                             ; 0s"neg " -> {- case branch  0s"neg " -} do (_484 : uint 64) <- ICC.OpParam
+                                                                          pure {opNeg: _484}
+                             ; 0s"rond" -> {- case branch  0s"rond" -} do (_485 : uint 64) <- ICC.OpParam
+                                                                          pure {opRond: _485}
+                             ; 0s"flor" -> {- case branch  0s"flor" -} do (_486 : uint 64) <- ICC.OpParam
+                                                                          pure {opFlor: _486}
+                             ; 0s"ceil" -> {- case branch  0s"ceil" -} do (_487 : uint 64) <- ICC.OpParam
+                                                                          pure {opCeil: _487}
+                             ; 0s"trnc" -> {- case branch  0s"trnc" -} do (_488 : uint 64) <- ICC.OpParam
+                                                                          pure {opTrnc: _488}
+                             ; 0s"sign" -> {- case branch  0s"sign" -} do (_489 : uint 64) <- ICC.OpParam
+                                                                          pure {opSign: _489}
+                             ; 0s"exp " -> {- case branch  0s"exp " -} do (_490 : uint 64) <- ICC.OpParam
+                                                                          pure {opExp: _490}
+                             ; 0s"log " -> {- case branch  0s"log " -} do (_491 : uint 64) <- ICC.OpParam
+                                                                          pure {opLog: _491}
+                             ; 0s"ln  " -> {- case branch  0s"ln  " -} do (_492 : uint 64) <- ICC.OpParam
+                                                                          pure {opLn: _492}
+                             ; 0s"sin " -> {- case branch  0s"sin " -} do (_493 : uint 64) <- ICC.OpParam
+                                                                          pure {opSin: _493}
+                             ; 0s"cos " -> {- case branch  0s"cos " -} do (_494 : uint 64) <- ICC.OpParam
+                                                                          pure {opCos: _494}
+                             ; 0s"tan " -> {- case branch  0s"tan " -} do (_495 : uint 64) <- ICC.OpParam
+                                                                          pure {opTan: _495}
+                             ; 0s"asin" -> {- case branch  0s"asin" -} do (_496 : uint 64) <- ICC.OpParam
+                                                                          pure {opASin: _496}
+                             ; 0s"acos" -> {- case branch  0s"acos" -} do (_497 : uint 64) <- ICC.OpParam
+                                                                          pure {opACos: _497}
+                             ; 0s"atan" -> {- case branch  0s"atan" -} do (_498 : uint 64) <- ICC.OpParam
+                                                                          pure {opATan: _498}
+                             ; 0s"atn2" -> {- case branch  0s"atn2" -} do (_499 : uint 64) <- ICC.OpParam
+                                                                          pure {opATn2: _499}
+                             ; 0s"ctop" -> {- case branch  0s"ctop" -} do (_500 : uint 64) <- ICC.OpParam
+                                                                          pure {opCTop: _500}
+                             ; 0s"ptoc" -> {- case branch  0s"ptoc" -} do (_501 : uint 64) <- ICC.OpParam
+                                                                          pure {opPToc: _501}
+                             ; 0s"rnum" -> {- case branch  0s"rnum" -} do (_502 : uint 64) <- ICC.OpParam
+                                                                          pure {opRNum: _502}
+                             ; 0s"lt  " -> {- case branch  0s"lt  " -} do (_503 : uint 64) <- ICC.OpParam
+                                                                          pure {opLT: _503}
+                             ; 0s"le  " -> {- case branch  0s"le  " -} do (_504 : uint 64) <- ICC.OpParam
+                                                                          pure {opLE: _504}
+                             ; 0s"eq  " -> {- case branch  0s"eq  " -} do (_505 : uint 64) <- ICC.OpParam
+                                                                          pure {opEQ: _505}
+                             ; 0s"near" -> {- case branch  0s"near" -} do (_506 : uint 64) <- ICC.OpParam
+                                                                          pure {opNear: _506}
+                             ; 0s"ge  " -> {- case branch  0s"ge  " -} do (_507 : uint 64) <- ICC.OpParam
+                                                                          pure {opGE: _507}
+                             ; 0s"gt  " -> {- case branch  0s"gt  " -} do (_508 : uint 64) <- ICC.OpParam
+                                                                          pure {opGT: _508}
+                             ; 0s"vmin" -> {- case branch  0s"vmin" -} do (_509 : uint 64) <- ICC.OpParam
+                                                                          pure {opVMin: _509}
+                             ; 0s"vmax" -> {- case branch  0s"vmax" -} do (_510 : uint 64) <- ICC.OpParam
+                                                                          pure {opVMax: _510}
+                             ; 0s"vand" -> {- case branch  0s"vand" -} do (_511 : uint 64) <- ICC.OpParam
+                                                                          pure {opVAnd: _511}
+                             ; 0s"vor " -> {- case branch  0s"vor " -} do (_512 : uint 64) <- ICC.OpParam
+                                                                          pure {opVOr: _512}
+                             ; 0s"tLab" -> {- case branch  0s"tLab" -} do (_513 : uint 64) <- ICC.OpParam
+                                                                          pure {opTLab: _513}
+                             ; 0s"tXYZ" -> {- case branch  0s"tXYZ" -} do (_514 : uint 64) <- ICC.OpParam
+                                                                          pure {opTXYZ: _514}
+                             ; 0s"if  " -> {- case branch  0s"if  " -} do (thenOps : uint 64) <- do (_515 : uint 32) <- Daedalus.BEUInt32
+                                                                                                    pure (_515 as uint 64)
+                                                                          ($$ : ICC.FunOp) <- do (_517 : Maybe [uint 8]) <- Optional (MatchBytes "else")
+                                                                                                 case _517 is
+                                                                                                   { nothing -> {- case branch  nothing -} do (_518 : [ICC.FunOpWithPosition]) <- ICC.ManyFunOps thenOps
+                                                                                                                                              pure {opIfThen: _518}
+                                                                                                   ; just _ -> {- case branch  just _ -} do (_521 : ICC.IfThenElse) <- do (_520 : uint 64) <- do (_519 : uint 32) <- Daedalus.BEUInt32
+                                                                                                                                                                                                 pure (_519 as uint 64)
+                                                                                                                                                                          ICC.IfThenElse thenOps _520
+                                                                                                                                            pure {opIfThenElse: _521}
                                                                                                    }
                                                                           pure $$
                              ; 0s"else" -> {- case branch  0s"else" -} Fail "`else` with no `if"
@@ -1125,11 +1131,11 @@ rec value
                                                                           (c1 : uint 64) <- ICC.SelCase
                                                                           (cs : [uint 64]) <- Many[] ICC.SelCase
                                                                           (d : Maybe (uint 64)) <- Optional do @MatchBytes "dflt"
-                                                                                                               ($$ : uint 64) <- do (_517 : uint 32) <- Daedalus.BEUInt32
-                                                                                                                                    pure (_517 as uint 64)
+                                                                                                               ($$ : uint 64) <- do (_523 : uint 32) <- Daedalus.BEUInt32
+                                                                                                                                    pure (_523 as uint 64)
                                                                                                                pure $$
-                                                                          ($$ : ICC.FunOp) <- do (_519 : ICC.Sel) <- ICC.Sel c1 cs d
-                                                                                                 pure {opSel: _519}
+                                                                          ($$ : ICC.FunOp) <- do (_525 : ICC.Sel) <- ICC.Sel c1 cs d
+                                                                                                 pure {opSel: _525}
                                                                           pure $$
                              ; 0s"case" -> {- case branch  0s"case" -} Fail "`case` with no `sel`"
                              ; 0s"dflt" -> {- case branch  0s"dflt" -} Fail "`dflt` with no `sel`"
@@ -1153,16 +1159,16 @@ ICC._StartTag (x : [uint 8]) : Grammar {} =
  
 ICC.CalcFun : Grammar [ICC.FunOpWithPosition] =
   do ICC._StartTag "func"
-     ($$ : [ICC.FunOpWithPosition]) <- do (_522 : uint 64) <- do (_521 : uint 32) <- Daedalus.BEUInt32
-                                                                 pure (_521 as uint 64)
-                                          ICC.ManyFunOps _522
+     ($$ : [ICC.FunOpWithPosition]) <- do (_528 : uint 64) <- do (_527 : uint 32) <- Daedalus.BEUInt32
+                                                                 pure (_527 as uint 64)
+                                          ICC.ManyFunOps _528
      pure $$
  
 ICC.PositionNumber : Grammar ICC.PositionNumber =
-  do (offset : uint 64) <- do (_523 : uint 32) <- Daedalus.BEUInt32
-                              pure (_523 as uint 64)
-     (size : uint 64) <- do (_524 : uint 32) <- Daedalus.BEUInt32
-                            pure (_524 as uint 64)
+  do (offset : uint 64) <- do (_529 : uint 32) <- Daedalus.BEUInt32
+                              pure (_529 as uint 64)
+     (size : uint 64) <- do (_530 : uint 32) <- Daedalus.BEUInt32
+                            pure (_530 as uint 64)
      pure {offset = offset,
            size = size}
  
@@ -1187,9 +1193,9 @@ ICC.SingleSampledCurve : Grammar ICC.SingleSampledCurve =
  
 ICC.FormualCurveSegment : Grammar ICC.FormualCurveSegment =
   do (fun : uint 16) <- Daedalus.BEUInt16
-     do (_528 : bool) <- do (_527 : uint 16) <- Daedalus.BEUInt16
-                            pure (_527 == 0)
-        Daedalus._Guard _528
+     do (_534 : bool) <- do (_533 : uint 16) <- Daedalus.BEUInt16
+                            pure (_533 == 0)
+        Daedalus._Guard _534
      ($$ : ICC.FormualCurveSegment) <- case fun is
                                          { 0 -> {- case branch  0 -} do (fun : uint 16) <- pure fun
                                                                         (args : [float]) <- Many[4] Daedalus.BEFloat
@@ -1214,18 +1220,18 @@ ICC.CurveSegment : Grammar ICC.CurveSegment =
   do (tag : uint 32) <- Daedalus.BEUInt32
      ICC._Exactly (uint 32) 0 Daedalus.BEUInt32
      ($$ : ICC.CurveSegment) <- case tag is
-                                  { 0s"parf" -> {- case branch  0s"parf" -} do (_531 : ICC.FormualCurveSegment) <- ICC.FormualCurveSegment
-                                                                               pure {parf: _531}
-                                  ; 0s"samf" -> {- case branch  0s"samf" -} do (_534 : [float]) <- do (_533 : uint 64) <- do (_532 : uint 32) <- Daedalus.BEUInt32
-                                                                                                                             pure (_532 as uint 64)
-                                                                                                      Many[_533] Daedalus.BEFloat
-                                                                               pure {samf: _534}
+                                  { 0s"parf" -> {- case branch  0s"parf" -} do (_537 : ICC.FormualCurveSegment) <- ICC.FormualCurveSegment
+                                                                               pure {parf: _537}
+                                  ; 0s"samf" -> {- case branch  0s"samf" -} do (_540 : [float]) <- do (_539 : uint 64) <- do (_538 : uint 32) <- Daedalus.BEUInt32
+                                                                                                                             pure (_538 as uint 64)
+                                                                                                      Many[_539] Daedalus.BEFloat
+                                                                               pure {samf: _540}
                                   }
      pure $$
  
 ICC.SegmentedCurve : Grammar ICC.SegmentedCurve =
-  do (n : uint 64) <- do (_535 : uint 16) <- Daedalus.BEUInt16
-                         pure (_535 as uint 64)
+  do (n : uint 64) <- do (_541 : uint 16) <- Daedalus.BEUInt16
+                         pure (_541 as uint 64)
      Choose biased
        { Daedalus._Guard (1 <= n)
        | Fail "Need at least one curve segment"
@@ -1241,10 +1247,10 @@ ICC.Curve : Grammar ICC.Curve =
   do (tag : uint 32) <- Daedalus.BEUInt32
      ICC._Exactly (uint 32) 0 Daedalus.BEUInt32
      ($$ : ICC.Curve) <- case tag is
-                           { 0s"sngf" -> {- case branch  0s"sngf" -} do (_537 : ICC.SingleSampledCurve) <- ICC.SingleSampledCurve
-                                                                        pure {sngf: _537}
-                           ; 0s"curf" -> {- case branch  0s"curf" -} do (_538 : ICC.SegmentedCurve) <- ICC.SegmentedCurve
-                                                                        pure {curf: _538}
+                           { 0s"sngf" -> {- case branch  0s"sngf" -} do (_543 : ICC.SingleSampledCurve) <- ICC.SingleSampledCurve
+                                                                        pure {sngf: _543}
+                           ; 0s"curf" -> {- case branch  0s"curf" -} do (_544 : ICC.SegmentedCurve) <- ICC.SegmentedCurve
+                                                                        pure {curf: _544}
                            ; _ -> pure {unimplemented: (ICC.explode32 tag)}
                            }
      pure $$
@@ -1263,8 +1269,8 @@ rec value
              body = body}
    
   ICC.CalcElement (head : ICC.MPElementHead) : Grammar ICC.CalcElement =
-    do (subElNum : uint 64) <- do (_539 : uint 32) <- Daedalus.BEUInt32
-                                  pure (_539 as uint 64)
+    do (subElNum : uint 64) <- do (_545 : uint 32) <- Daedalus.BEUInt32
+                                  pure (_545 as uint 64)
        (inputs : uint 64) <- pure (head.inputs)
        (outputs : uint 64) <- pure (head.outputs)
        (main : [ICC.FunOpWithPosition]) <- ICC.Positioned [ICC.FunOpWithPosition] (head.offset) ICC.CalcFun
@@ -1276,21 +1282,21 @@ rec value
    
   ICC.MPElementBody (head : ICC.MPElementHead) : Grammar ICC.MPElementBody =
     case head.tag is
-      { 0s"calc" -> {- case branch  0s"calc" -} do (_540 : ICC.CalcElement) <- ICC.CalcElement head
-                                                   pure {calc: _540}
-      ; 0s"cvst" -> {- case branch  0s"cvst" -} do (_541 : [ICC.Curve]) <- Many[head.inputs] ICC.Positioned ICC.Curve (head.offset) ICC.Curve
-                                                   pure {cvst: _541}
-      ; 0s"matf" -> {- case branch  0s"matf" -} do (_542 : ICC.Matrix) <- ICC.Matrix (head.inputs) (head.outputs)
-                                                   pure {matf: _542}
-      ; 0s"mpet" -> {- case branch  0s"mpet" -} do (_545 : [ICC.MPElement]) <- do (n : uint 64) <- do (_543 : uint 32) <- Daedalus.BEUInt32
-                                                                                                      pure (_543 as uint 64)
+      { 0s"calc" -> {- case branch  0s"calc" -} do (_546 : ICC.CalcElement) <- ICC.CalcElement head
+                                                   pure {calc: _546}
+      ; 0s"cvst" -> {- case branch  0s"cvst" -} do (_547 : [ICC.Curve]) <- Many[head.inputs] ICC.Positioned ICC.Curve (head.offset) ICC.Curve
+                                                   pure {cvst: _547}
+      ; 0s"matf" -> {- case branch  0s"matf" -} do (_548 : ICC.Matrix) <- ICC.Matrix (head.inputs) (head.outputs)
+                                                   pure {matf: _548}
+      ; 0s"mpet" -> {- case branch  0s"mpet" -} do (_551 : [ICC.MPElement]) <- do (n : uint 64) <- do (_549 : uint 32) <- Daedalus.BEUInt32
+                                                                                                      pure (_549 as uint 64)
                                                                                   Choose biased
                                                                                     { Daedalus._Guard (1 <= n)
                                                                                     | Fail "Need at least one MPE"
                                                                                     }
                                                                                   ($$ : [ICC.MPElement]) <- Many[n] ICC.Positioned ICC.MPElement (head.offset) ICC.MPElement
                                                                                   pure $$
-                                                   pure {mpet: _545}
+                                                   pure {mpet: _551}
       ; _ -> pure {unimplemented: (ICC.explode32 (head.tag))}
       }
  
@@ -1320,24 +1326,24 @@ ICC.LutAToBType : Grammar ICC.LutAToBType =
  
 ICC.LutAB_or_multi : Grammar ICC.LutAB_or_multi =
   Choose biased
-    { {- lutAB -} do (_546 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutAB: _546}
-    | {- mpe -} do (_547 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                   pure {mpe: _547}
+    { {- lutAB -} do (_552 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutAB: _552}
+    | {- mpe -} do (_553 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                   pure {mpe: _553}
     }
  
 ICC.LutBA_or_multi : Grammar ICC.LutBA_or_multi =
   Choose biased
-    { {- lutBA -} do (_548 : ICC.LutAToBType) <- ICC.LutAToBType
-                     pure {lutBA: _548}
-    | {- mpe -} do (_549 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                   pure {mpe: _549}
+    { {- lutBA -} do (_554 : ICC.LutAToBType) <- ICC.LutAToBType
+                     pure {lutBA: _554}
+    | {- mpe -} do (_555 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                   pure {mpe: _555}
     }
  
 ICC.CurveType : Grammar [uint 16] =
   do ICC._StartTag "curv"
-     (n : uint 64) <- do (_550 : uint 32) <- Daedalus.BEUInt32
-                         pure (_550 as uint 64)
+     (n : uint 64) <- do (_556 : uint 32) <- Daedalus.BEUInt32
+                         pure (_556 as uint 64)
      ($$ : [uint 16]) <- Many[n] Daedalus.BEUInt16
      pure $$
  
@@ -1352,15 +1358,15 @@ ICC.ParametricCurveType : Grammar ICC.ParametricCurveType =
  
 ICC.CurveOrPCurve : Grammar ICC.CurveOrPCurve =
   Choose biased
-    { {- curve -} do (_552 : [uint 16]) <- ICC.CurveType
-                     pure {curve: _552}
-    | {- pcurve -} do (_553 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
-                      pure {pcurve: _553}
+    { {- curve -} do (_558 : [uint 16]) <- ICC.CurveType
+                     pure {curve: _558}
+    | {- pcurve -} do (_559 : ICC.ParametricCurveType) <- ICC.ParametricCurveType
+                      pure {pcurve: _559}
     }
  
 ICC.ASCII7 : Grammar [uint 7] =
-  do ($$ : [uint 7]) <- Many[] do (_554 : uint 8) <- Match (1 .. 255)
-                                  _554 AS uint 7
+  do ($$ : [uint 7]) <- Many[] do (_560 : uint 8) <- Match (1 .. 255)
+                                  _560 AS uint 7
      Choose biased
        { @Many[ 1 .. ] @Match {0}
        | Fail "Non 0 string terminator"
@@ -1390,19 +1396,19 @@ ICC.MultiLocalizedUnicodeType : Grammar [ICC.UnicodeRecord] =
  
 ICC.TextDescriptionType : Grammar ICC.TextDescriptionType =
   do ICC._StartTag "desc"
-     (ascii_data : [uint 8]) <- do (_558 : uint 64) <- do (_557 : uint 32) <- Daedalus.BEUInt32
-                                                          pure (_557 as uint 64)
-                                   Many[_558] GetByte
+     (ascii_data : [uint 8]) <- do (_564 : uint 64) <- do (_563 : uint 32) <- Daedalus.BEUInt32
+                                                          pure (_563 as uint 64)
+                                   Many[_564] GetByte
      (unicode_code : [uint 8]) <- Many[4] GetByte
-     (unicode_data : [uint 8]) <- do (_561 : uint 64) <- do (_560 : uint 32) <- do (_559 : uint 32) <- Daedalus.BEUInt32
-                                                                                   pure (2 * _559)
-                                                            pure (_560 as uint 64)
-                                     Many[_561] GetByte
+     (unicode_data : [uint 8]) <- do (_567 : uint 64) <- do (_566 : uint 32) <- do (_565 : uint 32) <- Daedalus.BEUInt32
+                                                                                   pure (2 * _565)
+                                                            pure (_566 as uint 64)
+                                     Many[_567] GetByte
      (script_code : [uint 8]) <- Many[2] GetByte
      Daedalus._BEUInt32
-     (script_data : [uint 8]) <- do (_564 : uint 64) <- do (_563 : uint 32) <- Daedalus.BEUInt32
-                                                           pure (_563 as uint 64)
-                                    Many[_564] GetByte
+     (script_data : [uint 8]) <- do (_570 : uint 64) <- do (_569 : uint 32) <- Daedalus.BEUInt32
+                                                           pure (_569 as uint 64)
+                                    Many[_570] GetByte
      @Many[] @Match {0}
      pure {ascii_data = ascii_data,
            unicode_code = unicode_code,
@@ -1412,12 +1418,12 @@ ICC.TextDescriptionType : Grammar ICC.TextDescriptionType =
  
 ICC.LaxTextType : Grammar ICC.LaxTextType =
   Choose biased
-    { {- uni -} do (_565 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
-                   pure {uni: _565}
-    | {- desc -} do (_566 : ICC.TextDescriptionType) <- Daedalus.Only ICC.TextDescriptionType ICC.TextDescriptionType
-                    pure {desc: _566}
-    | {- text -} do (_567 : [uint 7]) <- Daedalus.Only [uint 7] ICC.TextType
-                    pure {text: _567}
+    { {- uni -} do (_571 : [ICC.UnicodeRecord]) <- ICC.MultiLocalizedUnicodeType
+                   pure {uni: _571}
+    | {- desc -} do (_572 : ICC.TextDescriptionType) <- Daedalus.Only ICC.TextDescriptionType ICC.TextDescriptionType
+                    pure {desc: _572}
+    | {- text -} do (_573 : [uint 7]) <- Daedalus.Only [uint 7] ICC.TextType
+                    pure {text: _573}
     }
  
 ICC.S15Fixed16ArrayType : Grammar [uint 32] =
@@ -1433,8 +1439,8 @@ ICC.XYNumber : Grammar ICC.XYNumber =
  
 ICC.ChromaticityType : Grammar ICC.ChromaticityType =
   do ICC._StartTag "chrm"
-     (number_of_device_channels : uint 64) <- do (_569 : uint 16) <- Daedalus.BEUInt16
-                                                 pure (_569 as uint 64)
+     (number_of_device_channels : uint 64) <- do (_575 : uint 16) <- Daedalus.BEUInt16
+                                                 pure (_575 as uint 64)
      (phosphor_or_colorant : uint 16) <- Daedalus.BEUInt16
      (cie_coords : [ICC.XYNumber]) <- Many[number_of_device_channels] ICC.XYNumber
      pure {phosphor_or_colorant = phosphor_or_colorant,
@@ -1468,74 +1474,74 @@ ICC.XYZType : Grammar [ICC.XYZNumber] =
 ICC.Tag (sig : uint 32) : Grammar ICC.Tag =
   Choose biased
     { case sig is
-        { 0s"desc" -> {- case branch  0s"desc" -} do (_571 : ICC.LaxTextType) <- ICC.LaxTextType
-                                                     pure {desc: _571}
-        ; 0s"A2B0" -> {- case branch  0s"A2B0" -} do (_572 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                                                     pure {A2B0: _572}
-        ; 0s"A2B1" -> {- case branch  0s"A2B1" -} do (_573 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                                                     pure {A2B1: _573}
-        ; 0s"A2B2" -> {- case branch  0s"A2B2" -} do (_574 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                                                     pure {A2B2: _574}
-        ; 0s"A2B3" -> {- case branch  0s"A2B3" -} do (_575 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
-                                                     pure {A2B3: _575}
-        ; 0s"A2M0" -> {- case branch  0s"A2M0" -} do (_576 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {A2M0: _576}
-        ; 0s"B2A0" -> {- case branch  0s"B2A0" -} do (_577 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
-                                                     pure {B2A0: _577}
-        ; 0s"B2A1" -> {- case branch  0s"B2A1" -} do (_578 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
-                                                     pure {B2A1: _578}
-        ; 0s"B2A2" -> {- case branch  0s"B2A2" -} do (_579 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
-                                                     pure {B2A2: _579}
-        ; 0s"B2A3" -> {- case branch  0s"B2A3" -} do (_580 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
-                                                     pure {B2A3: _580}
-        ; 0s"B2D0" -> {- case branch  0s"B2D0" -} do (_581 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {B2D0: _581}
-        ; 0s"B2D1" -> {- case branch  0s"B2D1" -} do (_582 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {B2D1: _582}
-        ; 0s"B2D2" -> {- case branch  0s"B2D2" -} do (_583 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {B2D2: _583}
-        ; 0s"B2D3" -> {- case branch  0s"B2D3" -} do (_584 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {B2D3: _584}
-        ; 0s"wtpt" -> {- case branch  0s"wtpt" -} do (_585 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
-                                                     pure {wtpt: _585}
-        ; 0s"cprt" -> {- case branch  0s"cprt" -} do (_586 : ICC.LaxTextType) <- ICC.LaxTextType
-                                                     pure {cprt: _586}
-        ; 0s"c2sp" -> {- case branch  0s"c2sp" -} do (_587 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {c2sp: _587}
-        ; 0s"s2cp" -> {- case branch  0s"s2cp" -} do (_588 : ICC.MPElement) <- ICC.MultiProcessElementsType
-                                                     pure {s2cp: _588}
-        ; 0s"svcn" -> {- case branch  0s"svcn" -} do (_589 : ICC.SpectralViewingConditionsType) <- ICC.SpectralViewingConditionsType
-                                                     pure {svcn: _589}
-        ; 0s"rXYZ" -> {- case branch  0s"rXYZ" -} do (_590 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
-                                                     pure {rXYZ: _590}
-        ; 0s"gXYZ" -> {- case branch  0s"gXYZ" -} do (_591 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
-                                                     pure {gXYZ: _591}
-        ; 0s"bXYZ" -> {- case branch  0s"bXYZ" -} do (_592 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
-                                                     pure {bXYZ: _592}
-        ; 0s"rTRC" -> {- case branch  0s"rTRC" -} do (_593 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
-                                                     pure {rTRC: _593}
-        ; 0s"gTRC" -> {- case branch  0s"gTRC" -} do (_594 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
-                                                     pure {gTRC: _594}
-        ; 0s"bTRC" -> {- case branch  0s"bTRC" -} do (_595 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
-                                                     pure {bTRC: _595}
-        ; 0s"dmdd" -> {- case branch  0s"dmdd" -} do (_596 : ICC.LaxTextType) <- ICC.LaxTextType
-                                                     pure {dmdd: _596}
-        ; 0s"dmnd" -> {- case branch  0s"dmnd" -} do (_597 : ICC.LaxTextType) <- ICC.LaxTextType
-                                                     pure {dmnd: _597}
-        ; 0s"chrm" -> {- case branch  0s"chrm" -} do (_598 : ICC.ChromaticityType) <- ICC.ChromaticityType
-                                                     pure {chrm: _598}
-        ; 0s"chad" -> {- case branch  0s"chad" -} do (_599 : [uint 32]) <- ICC.S15Fixed16ArrayType
-                                                     pure {chad: _599}
+        { 0s"desc" -> {- case branch  0s"desc" -} do (_577 : ICC.LaxTextType) <- ICC.LaxTextType
+                                                     pure {desc: _577}
+        ; 0s"A2B0" -> {- case branch  0s"A2B0" -} do (_578 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                                                     pure {A2B0: _578}
+        ; 0s"A2B1" -> {- case branch  0s"A2B1" -} do (_579 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                                                     pure {A2B1: _579}
+        ; 0s"A2B2" -> {- case branch  0s"A2B2" -} do (_580 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                                                     pure {A2B2: _580}
+        ; 0s"A2B3" -> {- case branch  0s"A2B3" -} do (_581 : ICC.LutAB_or_multi) <- ICC.LutAB_or_multi
+                                                     pure {A2B3: _581}
+        ; 0s"A2M0" -> {- case branch  0s"A2M0" -} do (_582 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {A2M0: _582}
+        ; 0s"B2A0" -> {- case branch  0s"B2A0" -} do (_583 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                                                     pure {B2A0: _583}
+        ; 0s"B2A1" -> {- case branch  0s"B2A1" -} do (_584 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                                                     pure {B2A1: _584}
+        ; 0s"B2A2" -> {- case branch  0s"B2A2" -} do (_585 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                                                     pure {B2A2: _585}
+        ; 0s"B2A3" -> {- case branch  0s"B2A3" -} do (_586 : ICC.LutBA_or_multi) <- ICC.LutBA_or_multi
+                                                     pure {B2A3: _586}
+        ; 0s"B2D0" -> {- case branch  0s"B2D0" -} do (_587 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {B2D0: _587}
+        ; 0s"B2D1" -> {- case branch  0s"B2D1" -} do (_588 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {B2D1: _588}
+        ; 0s"B2D2" -> {- case branch  0s"B2D2" -} do (_589 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {B2D2: _589}
+        ; 0s"B2D3" -> {- case branch  0s"B2D3" -} do (_590 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {B2D3: _590}
+        ; 0s"wtpt" -> {- case branch  0s"wtpt" -} do (_591 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
+                                                     pure {wtpt: _591}
+        ; 0s"cprt" -> {- case branch  0s"cprt" -} do (_592 : ICC.LaxTextType) <- ICC.LaxTextType
+                                                     pure {cprt: _592}
+        ; 0s"c2sp" -> {- case branch  0s"c2sp" -} do (_593 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {c2sp: _593}
+        ; 0s"s2cp" -> {- case branch  0s"s2cp" -} do (_594 : ICC.MPElement) <- ICC.MultiProcessElementsType
+                                                     pure {s2cp: _594}
+        ; 0s"svcn" -> {- case branch  0s"svcn" -} do (_595 : ICC.SpectralViewingConditionsType) <- ICC.SpectralViewingConditionsType
+                                                     pure {svcn: _595}
+        ; 0s"rXYZ" -> {- case branch  0s"rXYZ" -} do (_596 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
+                                                     pure {rXYZ: _596}
+        ; 0s"gXYZ" -> {- case branch  0s"gXYZ" -} do (_597 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
+                                                     pure {gXYZ: _597}
+        ; 0s"bXYZ" -> {- case branch  0s"bXYZ" -} do (_598 : [ICC.XYZNumber]) <- Daedalus.Only [ICC.XYZNumber] ICC.XYZType
+                                                     pure {bXYZ: _598}
+        ; 0s"rTRC" -> {- case branch  0s"rTRC" -} do (_599 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
+                                                     pure {rTRC: _599}
+        ; 0s"gTRC" -> {- case branch  0s"gTRC" -} do (_600 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
+                                                     pure {gTRC: _600}
+        ; 0s"bTRC" -> {- case branch  0s"bTRC" -} do (_601 : ICC.CurveOrPCurve) <- ICC.CurveOrPCurve
+                                                     pure {bTRC: _601}
+        ; 0s"dmdd" -> {- case branch  0s"dmdd" -} do (_602 : ICC.LaxTextType) <- ICC.LaxTextType
+                                                     pure {dmdd: _602}
+        ; 0s"dmnd" -> {- case branch  0s"dmnd" -} do (_603 : ICC.LaxTextType) <- ICC.LaxTextType
+                                                     pure {dmnd: _603}
+        ; 0s"chrm" -> {- case branch  0s"chrm" -} do (_604 : ICC.ChromaticityType) <- ICC.ChromaticityType
+                                                     pure {chrm: _604}
+        ; 0s"chad" -> {- case branch  0s"chad" -} do (_605 : [uint 32]) <- ICC.S15Fixed16ArrayType
+                                                     pure {chad: _605}
         ; _ -> pure {unimplemented: (ICC.explode32 sig)}
         }
-    | do (_600 : ICC.InvalidTag) <- ICC.InvalidTag sig
-         pure {invalid_tag: _600}
+    | do (_606 : ICC.InvalidTag) <- ICC.InvalidTag sig
+         pure {invalid_tag: _606}
     }
  
 ICC.TagTable (s : Stream) : Grammar [ICC.Tag] =
-  do (_603 : uint 64) <- do (_602 : uint 32) <- Daedalus.BEUInt32
-                            pure (_602 as uint 64)
-     Many[_603] do (sig : uint 32) <- Daedalus.BEUInt32
+  do (_609 : uint 64) <- do (_608 : uint 32) <- Daedalus.BEUInt32
+                            pure (_608 as uint 64)
+     Many[_609] do (sig : uint 32) <- Daedalus.BEUInt32
                    ($$ : ICC.Tag) <- ICC.Positioned ICC.Tag s (ICC.Tag sig)
                    pure $$
  
@@ -1585,8 +1591,8 @@ ICC.Colorant : Grammar ICC.Colorant =
  
 ICC.ColorantTableType : Grammar [ICC.Colorant] =
   do ICC._StartTag "clrt"
-     (count_of_colorant : uint 64) <- do (_607 : uint 32) <- Daedalus.BEUInt32
-                                         pure (_607 as uint 64)
+     (count_of_colorant : uint 64) <- do (_613 : uint 32) <- Daedalus.BEUInt32
+                                         pure (_613 as uint 64)
      ($$ : [ICC.Colorant]) <- Many[count_of_colorant] ICC.Colorant
      pure $$
  
@@ -1603,12 +1609,12 @@ ICC.ResponseCurve (n : uint 64) : Grammar ICC.ResponseCurve =
 ICC.ResponseCurveSet16Type : Grammar [ICC.ResponseCurve] =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "rcs2"
-     (number_of_channels : uint 64) <- do (_609 : uint 16) <- Daedalus.BEUInt16
-                                          pure (_609 as uint 64)
-     (count : uint 64) <- do (_610 : uint 16) <- Daedalus.BEUInt16
-                             pure (_610 as uint 64)
-     ($$ : [ICC.ResponseCurve]) <- Many[count] do (off : uint 64) <- do (_612 : uint 32) <- Daedalus.BEUInt32
-                                                                        pure (_612 as uint 64)
+     (number_of_channels : uint 64) <- do (_615 : uint 16) <- Daedalus.BEUInt16
+                                          pure (_615 as uint 64)
+     (count : uint 64) <- do (_616 : uint 16) <- Daedalus.BEUInt16
+                             pure (_616 as uint 64)
+     ($$ : [ICC.ResponseCurve]) <- Many[count] do (off : uint 64) <- do (_618 : uint 32) <- Daedalus.BEUInt32
+                                                                        pure (_618 as uint 64)
                                                   ($$ : ICC.ResponseCurve) <- Daedalus.LookAhead ICC.ResponseCurve do Daedalus._SetStreamAt off s
                                                                                                                       ($$ : ICC.ResponseCurve) <- ICC.ResponseCurve number_of_channels
                                                                                                                       pure $$
@@ -1628,8 +1634,8 @@ ICC.Lut8Type : Grammar ICC.Lut8Type =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {0x00}
-     (encoded_e_parameters : [sint 32]) <- Many[9] do (_615 : uint 32) <- Daedalus.BEUInt32
-                                                      pure (_615 as sint 32)
+     (encoded_e_parameters : [sint 32]) <- Many[9] do (_621 : uint 32) <- Daedalus.BEUInt32
+                                                      pure (_621 as sint 32)
      (input_tables : Stream) <- Daedalus.Bytes (256 * i)
      (clut_values : Stream) <- Daedalus.Bytes ((ICC.exp (uint 64) (uint 64) g i) * o)
      (output_tables : Stream) <- Daedalus.Bytes (256 * o)
@@ -1650,8 +1656,8 @@ ICC.Lut16Type : Grammar ICC.Lut16Type =
      (number_of_clut_grid_points : uint 8) <- GetByte
      (g : uint 64) <- pure (number_of_clut_grid_points as uint 64)
      @Match {0x00}
-     (encoded_e_parameters : [sint 32]) <- Many[9] do (_616 : uint 32) <- Daedalus.BEUInt32
-                                                      pure (_616 as sint 32)
+     (encoded_e_parameters : [sint 32]) <- Many[9] do (_622 : uint 32) <- Daedalus.BEUInt32
+                                                      pure (_622 as sint 32)
      (number_of_input_table_entries : uint 32) <- Daedalus.BEUInt32
      (n : uint 64) <- pure (number_of_input_table_entries as uint 64)
      (number_of_output_table_entries : uint 32) <- Daedalus.BEUInt32
@@ -1714,10 +1720,10 @@ ICC.ColorName (m : uint 64) : Grammar ICC.ColorName =
 ICC.NamedColor2Type : Grammar ICC.NamedColor2Type =
   do ICC._StartTag "ncl2"
      (vendor_specific : uint 32) <- Daedalus.BEUInt32
-     (count : uint 64) <- do (_617 : uint 32) <- Daedalus.BEUInt32
-                             pure (_617 as uint 64)
-     (number_of_coords : uint 64) <- do (_618 : uint 32) <- Daedalus.BEUInt32
-                                        pure (_618 as uint 64)
+     (count : uint 64) <- do (_623 : uint 32) <- Daedalus.BEUInt32
+                             pure (_623 as uint 64)
+     (number_of_coords : uint 64) <- do (_624 : uint 32) <- Daedalus.BEUInt32
+                                        pure (_624 as uint 64)
      (prefix : [uint 7]) <- Daedalus.Chunk [uint 7] 32 (Daedalus.Only [uint 7] ICC.ASCII7)
      (suffix : [uint 7]) <- Daedalus.Chunk [uint 7] 32 (Daedalus.Only [uint 7] ICC.ASCII7)
      (names : [ICC.ColorName]) <- Many[count] ICC.ColorName number_of_coords
@@ -1737,9 +1743,9 @@ ICC.ViewConditionsType : Grammar ICC.ViewConditionsType =
  
 ICC.Exactly ?a0 (x : ?a0) (P : Grammar ?a0) : Grammar {} =
   Choose biased
-    { do (_418 : bool) <- do (_417 : ?a0) <- P
-                             pure (_417 == x)
-         Daedalus.Guard _418
+    { do (_424 : bool) <- do (_423 : ?a0) <- P
+                             pure (_423 == x)
+         Daedalus.Guard _424
     | Fail "Unexpected field value"
     }
  
@@ -1755,8 +1761,8 @@ ICC._VersionField : Grammar {} =
                   0x00]
  
 ICC._ProfileClass : Grammar {} =
-  do (_407 : uint 32) <- Daedalus.BEUInt32
-     case _407 is
+  do (_413 : uint 32) <- Daedalus.BEUInt32
+     case _413 is
        { 0s"scnr" -> {- case branch  0s"scnr" -} pure {}
        ; 0s"mntr" -> {- case branch  0s"mntr" -} pure {}
        ; 0s"prtr" -> {- case branch  0s"prtr" -} pure {}
@@ -1804,8 +1810,8 @@ ICC._DataColorSpace : Grammar {} =
        }
  
 ICC._PrimaryPlatform : Grammar {} =
-  do (_410 : uint 32) <- Daedalus.BEUInt32
-     case _410 is
+  do (_416 : uint 32) <- Daedalus.BEUInt32
+     case _416 is
        { 0s"APPL" -> {- case branch  0s"APPL" -} pure {}
        ; 0s"MSFT" -> {- case branch  0s"MSFT" -} pure {}
        ; 0s"SGI " -> {- case branch  0s"SGI " -} pure {}
@@ -1814,8 +1820,8 @@ ICC._PrimaryPlatform : Grammar {} =
        }
  
 ICC._RenderingIntent : Grammar {} =
-  do (_411 : uint 32) <- Daedalus.BEUInt32
-     case _411 is
+  do (_417 : uint 32) <- Daedalus.BEUInt32
+     case _417 is
        { 0 -> {- case branch  0 -} pure {}
        ; 1 -> {- case branch  1 -} pure {}
        ; 2 -> {- case branch  2 -} pure {}
@@ -1978,22 +1984,22 @@ ICC._FunOp : Grammar {} =
        ; 0s"vor " -> {- case branch  0s"vor " -} ICC._OpParam
        ; 0s"tLab" -> {- case branch  0s"tLab" -} ICC._OpParam
        ; 0s"tXYZ" -> {- case branch  0s"tXYZ" -} ICC._OpParam
-       ; 0s"if  " -> {- case branch  0s"if  " -} do (thenOps : uint 64) <- do (_509 : uint 32) <- Daedalus.BEUInt32
-                                                                              pure (_509 as uint 64)
-                                                    (_511 : Maybe [uint 8]) <- Optional (MatchBytes "else")
-                                                    case _511 is
+       ; 0s"if  " -> {- case branch  0s"if  " -} do (thenOps : uint 64) <- do (_515 : uint 32) <- Daedalus.BEUInt32
+                                                                              pure (_515 as uint 64)
+                                                    (_517 : Maybe [uint 8]) <- Optional (MatchBytes "else")
+                                                    case _517 is
                                                       { nothing -> {- case branch  nothing -} ICC._ManyFunOps thenOps
-                                                      ; just _ -> {- case branch  just _ -} do (_514 : uint 64) <- do (_513 : uint 32) <- Daedalus.BEUInt32
-                                                                                                                      pure (_513 as uint 64)
-                                                                                               ICC._IfThenElse thenOps _514
+                                                      ; just _ -> {- case branch  just _ -} do (_520 : uint 64) <- do (_519 : uint 32) <- Daedalus.BEUInt32
+                                                                                                                      pure (_519 as uint 64)
+                                                                                               ICC._IfThenElse thenOps _520
                                                       }
        ; 0s"else" -> {- case branch  0s"else" -} Fail "`else` with no `if"
        ; 0s"sel " -> {- case branch  0s"sel " -} do ICC._NoParams
                                                     (c1 : uint 64) <- ICC.SelCase
                                                     (cs : [uint 64]) <- Many[] ICC.SelCase
                                                     (d : Maybe (uint 64)) <- Optional do @MatchBytes "dflt"
-                                                                                         ($$ : uint 64) <- do (_517 : uint 32) <- Daedalus.BEUInt32
-                                                                                                              pure (_517 as uint 64)
+                                                                                         ($$ : uint 64) <- do (_523 : uint 32) <- Daedalus.BEUInt32
+                                                                                                              pure (_523 as uint 64)
                                                                                          pure $$
                                                     ICC._Sel c1 cs d
        ; 0s"case" -> {- case branch  0s"case" -} Fail "`case` with no `sel`"
@@ -2007,9 +2013,9 @@ ICC._FunOpWithPosition : Grammar {} =
  
 ICC._CalcFun : Grammar {} =
   do ICC._StartTag "func"
-     (_522 : uint 64) <- do (_521 : uint 32) <- Daedalus.BEUInt32
-                            pure (_521 as uint 64)
-     ICC._ManyFunOps _522
+     (_528 : uint 64) <- do (_527 : uint 32) <- Daedalus.BEUInt32
+                            pure (_527 as uint 64)
+     ICC._ManyFunOps _528
  
 ICC._PositionNumber : Grammar {} =
   do Daedalus._BEUInt32
@@ -2029,9 +2035,9 @@ ICC._SingleSampledCurve : Grammar {} =
  
 ICC._FormualCurveSegment : Grammar {} =
   do (fun : uint 16) <- Daedalus.BEUInt16
-     do (_528 : bool) <- do (_527 : uint 16) <- Daedalus.BEUInt16
-                            pure (_527 == 0)
-        Daedalus._Guard _528
+     do (_534 : bool) <- do (_533 : uint 16) <- Daedalus.BEUInt16
+                            pure (_533 == 0)
+        Daedalus._Guard _534
      case fun is
        { 0 -> {- case branch  0 -} @Many[4] Daedalus._BEFloat
        ; 1 -> {- case branch  1 -} @Many[5] Daedalus._BEFloat
@@ -2044,14 +2050,14 @@ ICC._CurveSegment : Grammar {} =
      ICC._Exactly (uint 32) 0 Daedalus.BEUInt32
      case tag is
        { 0s"parf" -> {- case branch  0s"parf" -} ICC._FormualCurveSegment
-       ; 0s"samf" -> {- case branch  0s"samf" -} do (_533 : uint 64) <- do (_532 : uint 32) <- Daedalus.BEUInt32
-                                                                           pure (_532 as uint 64)
-                                                    @Many[_533] Daedalus._BEFloat
+       ; 0s"samf" -> {- case branch  0s"samf" -} do (_539 : uint 64) <- do (_538 : uint 32) <- Daedalus.BEUInt32
+                                                                           pure (_538 as uint 64)
+                                                    @Many[_539] Daedalus._BEFloat
        }
  
 ICC._SegmentedCurve : Grammar {} =
-  do (n : uint 64) <- do (_535 : uint 16) <- Daedalus.BEUInt16
-                         pure (_535 as uint 64)
+  do (n : uint 64) <- do (_541 : uint 16) <- Daedalus.BEUInt16
+                         pure (_541 as uint 64)
      Choose biased
        { Daedalus._Guard (1 <= n)
        | Fail "Need at least one curve segment"
@@ -2080,8 +2086,8 @@ ICC._MPElement : Grammar {} =
      pure {}
  
 ICC._CalcElement (head : ICC.MPElementHead) : Grammar {} =
-  do (subElNum : uint 64) <- do (_539 : uint 32) <- Daedalus.BEUInt32
-                                pure (_539 as uint 64)
+  do (subElNum : uint 64) <- do (_545 : uint 32) <- Daedalus.BEUInt32
+                                pure (_545 as uint 64)
      ICC._Positioned [ICC.FunOpWithPosition] (head.offset) ICC._CalcFun
      @Many[subElNum] ICC._Positioned ICC.MPElement (head.offset) ICC._MPElement
  
@@ -2090,8 +2096,8 @@ ICC._MPElementBody (head : ICC.MPElementHead) : Grammar {} =
     { 0s"calc" -> {- case branch  0s"calc" -} ICC._CalcElement head
     ; 0s"cvst" -> {- case branch  0s"cvst" -} @Many[head.inputs] ICC._Positioned ICC.Curve (head.offset) ICC._Curve
     ; 0s"matf" -> {- case branch  0s"matf" -} ICC._Matrix (head.inputs) (head.outputs)
-    ; 0s"mpet" -> {- case branch  0s"mpet" -} do (n : uint 64) <- do (_543 : uint 32) <- Daedalus.BEUInt32
-                                                                     pure (_543 as uint 64)
+    ; 0s"mpet" -> {- case branch  0s"mpet" -} do (n : uint 64) <- do (_549 : uint 32) <- Daedalus.BEUInt32
+                                                                     pure (_549 as uint 64)
                                                  Choose biased
                                                    { Daedalus._Guard (1 <= n)
                                                    | Fail "Need at least one MPE"
@@ -2129,8 +2135,8 @@ ICC._LutBA_or_multi : Grammar {} =
  
 ICC._CurveType : Grammar {} =
   do ICC._StartTag "curv"
-     (n : uint 64) <- do (_550 : uint 32) <- Daedalus.BEUInt32
-                         pure (_550 as uint 64)
+     (n : uint 64) <- do (_556 : uint 32) <- Daedalus.BEUInt32
+                         pure (_556 as uint 64)
      @Many[n] Daedalus._BEUInt16
  
 ICC._ParametricCurveType : Grammar {} =
@@ -2147,8 +2153,8 @@ ICC._CurveOrPCurve : Grammar {} =
     }
  
 ICC._ASCII7 : Grammar {} =
-  do @Many[] do (_554 : uint 8) <- Match (1 .. 255)
-                @(_554 AS uint 7)
+  do @Many[] do (_560 : uint 8) <- Match (1 .. 255)
+                @(_560 AS uint 7)
      Choose biased
        { @Many[ 1 .. ] @Match {0}
        | Fail "Non 0 string terminator"
@@ -2172,19 +2178,19 @@ ICC._MultiLocalizedUnicodeType : Grammar {} =
  
 ICC._TextDescriptionType : Grammar {} =
   do ICC._StartTag "desc"
-     do (_558 : uint 64) <- do (_557 : uint 32) <- Daedalus.BEUInt32
-                               pure (_557 as uint 64)
-        @Many[_558] @GetByte
-     @Many[4] @GetByte
-     do (_561 : uint 64) <- do (_560 : uint 32) <- do (_559 : uint 32) <- Daedalus.BEUInt32
-                                                      pure (2 * _559)
-                               pure (_560 as uint 64)
-        @Many[_561] @GetByte
-     @Many[2] @GetByte
-     Daedalus._BEUInt32
      do (_564 : uint 64) <- do (_563 : uint 32) <- Daedalus.BEUInt32
                                pure (_563 as uint 64)
         @Many[_564] @GetByte
+     @Many[4] @GetByte
+     do (_567 : uint 64) <- do (_566 : uint 32) <- do (_565 : uint 32) <- Daedalus.BEUInt32
+                                                      pure (2 * _565)
+                               pure (_566 as uint 64)
+        @Many[_567] @GetByte
+     @Many[2] @GetByte
+     Daedalus._BEUInt32
+     do (_570 : uint 64) <- do (_569 : uint 32) <- Daedalus.BEUInt32
+                               pure (_569 as uint 64)
+        @Many[_570] @GetByte
      @Many[] @Match {0}
  
 ICC._LaxTextType : Grammar {} =
@@ -2204,8 +2210,8 @@ ICC._XYNumber : Grammar {} =
  
 ICC._ChromaticityType : Grammar {} =
   do ICC._StartTag "chrm"
-     (number_of_device_channels : uint 64) <- do (_569 : uint 16) <- Daedalus.BEUInt16
-                                                 pure (_569 as uint 64)
+     (number_of_device_channels : uint 64) <- do (_575 : uint 16) <- Daedalus.BEUInt16
+                                                 pure (_575 as uint 64)
      Daedalus._BEUInt16
      @Many[number_of_device_channels] ICC._XYNumber
  
@@ -2268,9 +2274,9 @@ ICC._Tag (sig : uint 32) : Grammar {} =
     }
  
 ICC._TagTable (s : Stream) : Grammar {} =
-  do (_603 : uint 64) <- do (_602 : uint 32) <- Daedalus.BEUInt32
-                            pure (_602 as uint 64)
-     @Many[_603] do (sig : uint 32) <- Daedalus.BEUInt32
+  do (_609 : uint 64) <- do (_608 : uint 32) <- Daedalus.BEUInt32
+                            pure (_608 as uint 64)
+     @Many[_609] do (sig : uint 32) <- Daedalus.BEUInt32
                     ICC._Positioned ICC.Tag s (ICC._Tag sig)
  
 ICC._ICC : Grammar {} =
@@ -2302,8 +2308,8 @@ ICC._Colorant : Grammar {} =
  
 ICC._ColorantTableType : Grammar {} =
   do ICC._StartTag "clrt"
-     (count_of_colorant : uint 64) <- do (_607 : uint 32) <- Daedalus.BEUInt32
-                                         pure (_607 as uint 64)
+     (count_of_colorant : uint 64) <- do (_613 : uint 32) <- Daedalus.BEUInt32
+                                         pure (_613 as uint 64)
      @Many[count_of_colorant] ICC._Colorant
  
 ICC._ResponseCurve (n : uint 64) : Grammar {} =
@@ -2317,12 +2323,12 @@ ICC._ResponseCurve (n : uint 64) : Grammar {} =
 ICC._ResponseCurveSet16Type : Grammar {} =
   do (s : Stream) <- CurrentStream
      ICC._StartTag "rcs2"
-     (number_of_channels : uint 64) <- do (_609 : uint 16) <- Daedalus.BEUInt16
-                                          pure (_609 as uint 64)
-     (count : uint 64) <- do (_610 : uint 16) <- Daedalus.BEUInt16
-                             pure (_610 as uint 64)
-     @Many[count] do (off : uint 64) <- do (_612 : uint 32) <- Daedalus.BEUInt32
-                                           pure (_612 as uint 64)
+     (number_of_channels : uint 64) <- do (_615 : uint 16) <- Daedalus.BEUInt16
+                                          pure (_615 as uint 64)
+     (count : uint 64) <- do (_616 : uint 16) <- Daedalus.BEUInt16
+                             pure (_616 as uint 64)
+     @Many[count] do (off : uint 64) <- do (_618 : uint 32) <- Daedalus.BEUInt32
+                                           pure (_618 as uint 64)
                      Daedalus._LookAhead ICC.ResponseCurve do Daedalus._SetStreamAt off s
                                                               ICC._ResponseCurve number_of_channels
  
@@ -2386,10 +2392,10 @@ ICC._ColorName (m : uint 64) : Grammar {} =
 ICC._NamedColor2Type : Grammar {} =
   do ICC._StartTag "ncl2"
      Daedalus._BEUInt32
-     (count : uint 64) <- do (_617 : uint 32) <- Daedalus.BEUInt32
-                             pure (_617 as uint 64)
-     (number_of_coords : uint 64) <- do (_618 : uint 32) <- Daedalus.BEUInt32
-                                        pure (_618 as uint 64)
+     (count : uint 64) <- do (_623 : uint 32) <- Daedalus.BEUInt32
+                             pure (_623 as uint 64)
+     (number_of_coords : uint 64) <- do (_624 : uint 32) <- Daedalus.BEUInt32
+                                        pure (_624 as uint 64)
      Daedalus._Chunk [uint 7] 32 (Daedalus._Only [uint 7] ICC._ASCII7)
      Daedalus._Chunk [uint 7] 32 (Daedalus._Only [uint 7] ICC._ASCII7)
      @Many[count] ICC._ColorName number_of_coords

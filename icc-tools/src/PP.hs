@@ -17,6 +17,7 @@ import qualified RTS.Input as RTS
 import qualified RTS.Vector as RTS
 import qualified RTS.Numeric as RTS
 import ICC
+import qualified Validator
 
 
 class PP a where
@@ -31,6 +32,9 @@ instance RTS.SizeType n => PP (RTS.UInt n) where
 
 instance RTS.SizeType n => PP (RTS.SInt n) where
   pp x = integer (RTS.asInt x)
+
+instance PP Integer where
+  pp = integer
 
 
 instance PP Text where
@@ -59,6 +63,21 @@ instance PP RTS.ParseError where
          ]
     where
     off = RTS.inputOffset (RTS.peInput x)
+    loc = int off <+> brackets ("0x" <> text (showHex off ""))
+
+
+--------------------------------------------------------------------------------
+
+instance PP Validator.TcalcInfo where
+  pp x =
+    vcat [ loc
+         , ppF' @"inputs" x
+         , ppF' @"outputs" x
+         , ppF' @"maxStack" x
+         , ppF' @"cost" x
+         ]
+    where
+    off = RTS.inputOffset (getField @"tag" x)
     loc = int off <+> brackets ("0x" <> text (showHex off ""))
 
 

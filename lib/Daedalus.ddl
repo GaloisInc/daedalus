@@ -68,6 +68,13 @@ def Only P        = block $$ = P; END
 
 
 --------------------------------------------------------------------------------
+
+def min x y = if x < y then x else y
+def max x y = if x < y then y else x
+
+
+
+--------------------------------------------------------------------------------
 -- Stream Manipulation
 
 -- Set the stream to the `n`-th byte of `s`.
