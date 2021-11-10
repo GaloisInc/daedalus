@@ -288,8 +288,6 @@ validateUpdates (updates,_,_) =
     Left _  -> return ()
     Right u -> validateBase u
 
--- FIXME: warn more, error less
--- FIXME: - label/categorize messages as not-PDF,NBCUR,info/warn,...
 validateBase :: IncUpdate -> IO ()
 validateBase iu =
   do
@@ -334,13 +332,13 @@ printIncUpdateReport updates =
   case updates of
     U_Success{} -> return ()
     U_Failure{} -> logWarn
-                    "error in parsing updates, showing partial results:"
+                     "error in parsing updates, showing partial results:"
 
   let (ss,fs) = case updates of
                   U_Success xs   -> (xs, [])
                   U_Failure xs e -> (xs, [e])
       us = zip
-             ("base DOM" :
+             ("base DOM" :  -- FIXME: wrong when Failure!
                map (\n->"incremental update " ++ show (n::Int)) [1..])
              (map Right ss ++ map Left fs)
        
