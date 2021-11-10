@@ -68,10 +68,10 @@ getEndOfTrailerEnd x = getField @"offset4" x
 
 fromPdfResult :: String -> PdfResult a -> Possibly a
 fromPdfResult contextString r = 
- case r of
-   ParseOk a     -> Right a
-   ParseAmbig {} -> Left [msg ++ ": ambiguous."]
-   ParseErr e    -> Left [msg ++ ":", [], show (pp e)]
+  case r of
+    ParseOk a     -> Right a
+    ParseAmbig {} -> Left [msg ++ ": ambiguous."]
+    ParseErr e    -> Left $ (msg ++ ":") : lines (render(pp e))
   where
   msg = "while " ++ contextString
 
