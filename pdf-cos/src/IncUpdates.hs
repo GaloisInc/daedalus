@@ -293,13 +293,13 @@ validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
-    logWarn' "must have only one subsection"
+    logError' "must have only one subsection"
+  let [xrefs] = xrefss -- works because of last
 
     -- Section 7.5.4: For a PDF file that has never been incrementally
     -- updated, the cross-reference section shall contain only one subsection,
     -- whose object numbering begins at 0.
 
-  let [xrefs] = xrefss
   case xrefs of
     []                              -> logWarn' "must not be empty"
     Free 0 (R _ n) : _ | n == 65535 -> return ()
@@ -313,7 +313,7 @@ validateBase iu =
     -- The last free entry (the tail of the linked list) links back to object number 0.
 
   case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
-    _:_ -> logError' "objects exist without generation number 0"
+    _:_ -> logWarn' "objects exist without generation number 0"
     []  -> return ()
 
     -- Except for object number 0, all objects in the cross-reference table
