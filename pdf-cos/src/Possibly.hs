@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Possibly where
   
 ---- Possibly ----------------------------------------------------------------
@@ -19,4 +21,16 @@ bind_IOPossibly ioA ioB =
     Left s   -> return (Left s)
     Right v1 -> ioB v1
 
-                  
+
+addContextToPossibly :: String -> Possibly a -> Possibly a
+addContextToPossibly context =
+  \case
+     Left ss -> Left $ addContextToErrorMsg context ss
+     Right x -> Right x
+     
+addContextToErrorMsg :: String -> ErrorMsg -> ErrorMsg
+addContextToErrorMsg contextAsVerb ss = msg : (map ("  "++) ss)
+  where
+  msg = "while " ++ contextAsVerb ++ ":"
+
+                

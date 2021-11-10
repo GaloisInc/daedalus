@@ -76,6 +76,7 @@ library
 
   exposed-modules:
     PdfMonad,
+    Logger,
     XRef,
     Possibly,
     IncUpdates,

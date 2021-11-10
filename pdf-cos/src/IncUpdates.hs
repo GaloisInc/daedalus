@@ -24,8 +24,6 @@ import           Data.Foldable(foldlM)
 import qualified Data.Map as Map
 import qualified Data.IntSet as IntSet
 import           GHC.Records(HasField, getField)
-import           System.Exit(exitFailure)
-import           System.IO(hPutStrLn,stdout)
 import           Text.PrettyPrint
 
 -- pkg range-set-list:
@@ -36,6 +34,7 @@ import Daedalus.Panic
 import RTS.Vector(Vector,toList,VecElem)
 import RTS.Numeric
 import RTS.Input(advanceBy)
+import Logger
 
 import PdfMonad
 import PdfParser
@@ -66,14 +65,6 @@ getEndOfTrailerEnd x = getField @"offset4" x
 
 
 ---- misc --------------------------------------------------------------------
-
-warn :: String -> IO ()
-warn s = putStrLn $ "WARN: " ++ s
-
-quit :: String -> IO a
-quit msg = do hPutStrLn stdout msg
-              exitFailure
-
 
 fromPdfResult :: String -> PdfResult a -> Possibly a
 fromPdfResult contextString r = 
@@ -304,7 +295,7 @@ validateBase iu =
   do
   let xrefss = iu_xrefs iu
   unless (length xrefss == 1) $
-    warn' "the base xref table must have only one subsection"
+    logWarn' "must have only one subsection"
 
     -- Section 7.5.4: For a PDF file that has never been incrementally
     -- updated, the cross-reference section shall contain only one subsection,
@@ -312,10 +303,10 @@ validateBase iu =
 
   let [xrefs] = xrefss
   case xrefs of
-    []                              -> quit' "must not be empty"
+    []                              -> logWarn' "must not be empty"
     Free 0 (R _ n) : _ | n == 65535 -> return ()
-                       | n == 0     -> warn' "object 0 has generation 0 (should be 65535)"
-    _                               -> warn' "first object must be object 0, free, generation 65535"
+                       | n == 0     -> logWarn' "object 0 has generation 0 (should be 65535)"
+    _                               -> logWarn' "first object must be object 0, free, generation 65535"
 
     -- The first entry in the table (object number 0) shall always be free and
     -- shall have a generation number of 65,535;
@@ -324,15 +315,15 @@ validateBase iu =
     -- The last free entry (the tail of the linked list) links back to object number 0.
 
   case [ g | InUse (R _ g) _ <- xrefs, g /= 0] of
-    _:_ -> quit' "objects exist without generation number 0"
+    _:_ -> logError' "objects exist without generation number 0"
     []  -> return ()
 
     -- Except for object number 0, all objects in the cross-reference table
     -- shall initially have generation numbers of 0.
        
   where
-  warn' s = warn $ "in first (base) xref table: " ++ s
-  quit' s = quit ("Error: in first (base) xref table: " ++ s)
+  logWarn'  s = logWarn  ("in first (base) xref table: " ++ s)
+  logError' s = logError ("in first (base) xref table: " ++ s)
 
 
 ---- report ------------------------------------------------------------------
@@ -342,7 +333,7 @@ printIncUpdateReport updates =
   do
   case updates of
     U_Success{} -> return ()
-    U_Failure{} -> warn
+    U_Failure{} -> logWarn
                     "error in parsing updates, showing partial results:"
 
   let (ss,fs) = case updates of
@@ -403,7 +394,7 @@ printCavityReport bodyStart_base input updates =
           return (xs,[])
       U_Failure xs e ->
           do 
-          warn "Error in parsing updates, showing only partial results:"
+          logWarn "Error in parsing updates, showing only partial results:"
           return (xs, [e])
            
   (numCavities,totalSizeCavities) <-
@@ -492,7 +483,7 @@ printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
             mapM_ (\r->putStrLn ("    " ++ ppCavity r)) cs
 
     unless (RIntSet.null i) $
-      warn $
+      logWarn $
         "object definitions overlap (highly suspicious) on the following offsets: "
          ++ show (RIntSet.toRangeList i)
 
@@ -531,7 +522,7 @@ getObjectRanges inp iu =
             do let o' = fromIntegral (refObj r)
                    g' = fromIntegral (refGen r)
                unless (o' == o && g' == g) $
-                 warn "xref object gen =/= object gen obj ... endobj"
+                 logWarn "xref object gen =/= object gen obj ... endobj"
                return $ Right rng
                -- FIXME[C2]: '_x' is dead, use?
         ParseErr e                  -> let ss = lines(render (pp e)) in
@@ -539,7 +530,7 @@ getObjectRanges inp iu =
         ParseAmbig {}               -> fail' ["ambiguous."]
 
     where
-    fail' []     = error "fail'"
+    fail' []     = panic "fail'" []
     fail' (s:ss) = return $ Left $
                        unwords ["object (", show r, ") at offset", show off, "is", s]
                      : map ("  "++) ss

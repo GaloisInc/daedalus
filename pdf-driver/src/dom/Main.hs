@@ -34,6 +34,7 @@ import IncUpdates( parseXRefsVersion2
                  , allOrNoUpdates
                  , fromPdfResult
                  )
+import Logger
 import Possibly    
 import PdfMonad
 import Primitives.Decrypt(makeFileKey)
@@ -83,15 +84,11 @@ main =
 
        _ -> parsePdf opts file bs topInput
 
-logMsg s = putStrLn $ "log: " ++ s
-           -- FIXME[F2] TODO: allow control by a verbose flag or the like.
-
-
 parseXRefsVersion1 :: DbgMode => Input ->
                       FileOffset -> IO (Possibly (ObjIndex, TrailerDict))
 parseXRefsVersion1 inp off0 =
   XRef.parseXRefsVersion1 inp off0
-    >>= return . fromPdfResult "parsing xref (V1)"
+    >>= return . fromPdfResult "parsing XRef table (V1)"
 
      
 -- FIXME[E2]: when more sure of v1 == v2, remove this and the
@@ -100,7 +97,7 @@ checkV1V2Consistency :: Input -> FileOffset ->
                         (Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 checkV1V2Consistency topInput idx (refs2, trailer2) =
   do
-  logMsg "checking conformity of V1 and V2 xref processing:"
+  logInfo "BEGIN checking conformity of V1 and V2 xref processing"
   resV1 <- parseXRefsVersion1 topInput idx 
 
   -- high level V1, V2 conformity:
@@ -110,11 +107,11 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
                       Left  _ -> not v2IsGood
                       
   unless v1v2conform $        
-    logMsg "WARN: V1 and V2 xref parsers do not conform"
+    logWarnIndent 1 "V1 and V2 XRef parsers do not conform"
 
   case resV1 of
     Left  ss            ->
-        warn $ addContextToMsg "computing XRef table (V1)" ss
+        logWarnSIndent 1 ss
     Right (refs1, trailer1)
         | Right refs2'    <- refs2
         , Right trailer2' <- trailer2
@@ -122,11 +119,12 @@ checkV1V2Consistency topInput idx (refs2, trailer2) =
             -- run-time testing of equivalence of parseXRefsVersion{1,2}
             do
             when (trailer1 /= trailer2') $
-              logMsg "WARN: trailer_V1 /= trailer_V2"
+              logWarnIndent 1 "trailer_V1 /= trailer_V2"
             when (refs1 /= refs2') $
-              logMsg "WARN: refs_V1 /= refs_V2"
+              logWarnIndent 1 "refs_V1 /= refs_V2"
         | otherwise ->
             return ()
+  logInfo "END checking conformity of ..."
 
 parsePdf :: Settings -> FilePath -> ByteString -> Input -> IO ()
 parsePdf opts file bs topInput =
@@ -142,8 +140,10 @@ parsePdf opts file bs topInput =
 
      -- let's not unnecessarily fail, only fail when these next three
      -- are called to acquire the necessary values:
-     let getRefs    = quitOnFail "parsing xref table" mRefs
-         getTrailer = quitOnFail "parsing trailer"    mTrailer
+     let getRefs    = logErrorIfFail
+                      $ addContextToPossibly "parsing XRef table" mRefs
+         getTrailer = logErrorIfFail
+                      $ addContextToPossibly "parsing Trailer"    mTrailer
          mk_ppRef =
            do
            refs <- getRefs
@@ -177,7 +177,7 @@ parsePdf opts file bs topInput =
        ListIncUpdates ->
            do
            printIncUpdateReport incUpdates
-           putStrLn "Combined xref table:"
+           putStrLn "Combined XRef table:"
            refs <- getRefs
            printObjIndex 2 refs
 
@@ -235,19 +235,6 @@ parsePdf opts file bs topInput =
        ShowHelp ->
            dumpUsage options
 
-quit :: String -> IO a
-quit msg =
-  do hPutStrLn stdout msg
-     exitFailure
-
-
-quitOnFail :: String -> Possibly a -> IO a 
-quitOnFail context r = case r of
-                         Right x -> pure x
-                         Left ss -> quit (unlines (msg:ss))
-  where
-  msg = "Fatal error while " ++ context ++ ", cannot proceed"
-
 quitIfParseError :: String -> PdfResult a -> IO a 
 quitIfParseError context r = 
  case r of
@@ -257,20 +244,6 @@ quitIfParseError context r =
   where
   msg = "Fatal error while " ++ context ++ ", cannot proceed"
 
-addContextToMsg contextAsVerb ss = msg : (map ("  "++) ss)
-  where
-  msg = "while " ++ contextAsVerb ++ ":"
-
-warnIfFail :: String -> Possibly a -> IO ()
-warnIfFail context r = 
- case r of
-   Right a     -> return ()
-   Left ss     -> warn ss
-
-warn :: [String] -> IO ()
-warn []     = quit "panic: warning with empty message"
-warn (s:ss) = mapM_ putStrLn $ ("warning: "++s) : map ("  "++) ss
-  
 -- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
                      TrailerDict  
