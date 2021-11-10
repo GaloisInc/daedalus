@@ -147,7 +147,7 @@ fstAppldLstFnd :: Updates -> Possibly IncUpdate
 fstAppldLstFnd =
   \case
     U_Failure [] e -> Left e
-    U_Failure xs _ -> Right (head xs)
+    U_Failure xs _ -> Right (head xs) -- N.B.: dangerous, what you want?
     U_Success []   -> panic "fstAppldLstFn: internal error" []
     U_Success xs   -> Right (head xs)
                    
@@ -284,9 +284,11 @@ parseOneIncUpdate prevSet input0 offset =
 
 validateUpdates :: (Updates, Possibly ObjIndex, Possibly TrailerDict) -> IO ()
 validateUpdates (updates,_,_) =
-  case fstAppldLstFnd updates of
-    Left _  -> return ()
-    Right u -> validateBase u
+  case updates of
+    U_Failure {}    -> return ()
+    U_Success []    -> panic "validateUpates: internal error" []
+    U_Success (x:_) -> validateBase x
+    -- FIXME[F2]: validate others to some degree, even in U_Failure
 
 validateBase :: IncUpdate -> IO ()
 validateBase iu =
