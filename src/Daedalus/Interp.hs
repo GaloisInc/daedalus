@@ -452,7 +452,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
         TCTyStruct mb flds ->
           do case mb of
                Nothing -> pure ()
-               Just u  -> guard (matchU bits u)
+               Just u  -> guard (matchU bits (bdPat u))
              vStruct <$> mapM (goS bits) flds
         TCTyUnion  flds -> msum (map (goU bits) flds)
 

@@ -303,7 +303,7 @@ data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct (Maybe BDD.Pat)
+data TCTyDef    = TCTyStruct (Maybe BDCon)
                              [(Label, (Type, Maybe TCBitdataField))]
                 | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
                   deriving (Show, Eq)
@@ -312,6 +312,20 @@ data TCBitdataField =
   TCBitdataField { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
                  , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
                  } deriving (Show, Eq)
+
+data BDCon = BDCon
+  { bdPat     :: BDD.Pat        -- ^ All possible values that match this con
+  , bdFields  :: [BDField]
+  } deriving (Eq,Show)
+
+data BDField = BDField
+  { bdOffset    :: BDD.Width
+  , bdWidth     :: BDD.Width
+  , bdFieldType :: BDFieldType
+  } deriving (Eq,Show)
+
+data BDFieldType = BDWild | BDTag Integer | BDData Label Type
+  deriving (Eq,Show)
 
 
 data TCDecl a   = forall k.
@@ -597,11 +611,23 @@ instance PP TCTyDecl where
 instance PP TCTyDef where
   ppPrec _ d =
     case d of
-      TCTyStruct _ fs -> block "{" ";" "}" (map ppF fs)
+      TCTyStruct mb fs ->
+        case mb of
+          Nothing  -> block "{" ";" "}" (map ppF fs)
+          Just con -> pp con
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where
     ppF (x,(t, _)) = pp x <.> ":" <+> pp t
+
+instance PP BDCon where
+  pp c = block "[" "|" "]" (map pp (bdFields c)) -- XXX: show pattern?
+
+instance PP BDField where
+  pp f = case bdFieldType f of
+           BDWild     -> "_"  <+> brackets (pp (bdWidth f))
+           BDTag i    -> pp i <+> brackets (pp (bdWidth f))
+           BDData l t -> pp l <+> ":" <+> pp t
 
 instance PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
