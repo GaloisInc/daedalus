@@ -90,12 +90,7 @@ inferStruct name w (loc, fields) m_sz_tys =
   do sz_tys <- resolveMissingTypes loc w m_sz_tys
      zipWithM_ checkLiteralWidth fields (map snd sz_tys)
      let con = mkFields w (zip fields sz_tys)
-         fs  = [ (l, (t, Just TCBitdataField { tcbdsLowBit = bdOffset fi
-                                             , tcbdsWidth  = bdWidth fi
-                                             }))
-               | fi <- bdFields con
-               , BDData l t <- [ bdFieldType fi ]
-               ]
+         fs  = [ (l, t) | BDData l t <- map bdFieldType (bdFields con) ]
 
      pure TCTyDecl { tctyName    = TCTy name
                    , tctyParams  = []

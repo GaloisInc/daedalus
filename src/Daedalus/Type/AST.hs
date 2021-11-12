@@ -304,7 +304,7 @@ data TCTyName   = TCTyAnon !Name !Int
                   deriving (Eq,Ord,Show)
 
 data TCTyDef    = TCTyStruct (Maybe BDCon)
-                             [(Label, (Type, Maybe TCBitdataField))]
+                             [(Label, Type)]
                 | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
                   deriving (Show, Eq)
 
@@ -613,11 +613,12 @@ instance PP TCTyDef where
     case d of
       TCTyStruct mb fs ->
         case mb of
-          Nothing  -> block "{" ";" "}" (map ppF fs)
+          Nothing  -> block "{" ";" "}" (map ppS fs)
           Just con -> pp con
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where
+    ppS (x,t)      = pp x <.> ":" <+> pp t
     ppF (x,(t, _)) = pp x <.> ":" <+> pp t
 
 instance PP BDCon where

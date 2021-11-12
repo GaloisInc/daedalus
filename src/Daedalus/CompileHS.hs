@@ -243,7 +243,7 @@ hsTyDeclDef env me@TCTyDecl { .. } =
       , concatMap hasInst fts
       )
       where
-      fts = map fldT fs
+      fts = map fldT' fs
       hasInst (f,t) =
         let pat = hsStructConName env NameUse tctyName `aps`
                      [ if f == fst fi then "x" else "_" | fi <- fts ]
@@ -281,6 +281,10 @@ hsTyDeclDef env me@TCTyDecl { .. } =
   where
   fldT :: (Label, (Type, a)) -> (Label, Term)
   fldT (f,(t, _)) = (f, hsType env t) -- FIXME: this erases BitData info
+
+
+  fldT' :: (Label, Type) -> (Label, Term)
+  fldT' (f,t) = (f, hsType env t) -- FIXME: this erases BitData info
 
 -- | Declara a type and related instances.
 hsTyDecl :: Env -> TCTyDecl -> [Decl]

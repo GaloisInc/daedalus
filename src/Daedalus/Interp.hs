@@ -39,6 +39,7 @@ import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe(catMaybes)
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -449,33 +450,32 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
 
     goCon bits tdecl =
       case tctyDef tdecl of
-        TCTyStruct mb flds ->
-          do case mb of
-               Nothing -> pure ()
-               Just u  -> guard (matchU bits (bdPat u))
-             vStruct <$> mapM (goS bits) flds
+        TCTyStruct mb _ ->
+          case mb of
+            Nothing -> panic "evalBitdata" ["Not bidata"]
+            Just con ->
+              do guard (matchBDD bits (bdPat con))
+                 vStruct . catMaybes  <$> mapM (goS bits) (bdFields con)
         TCTyUnion  flds -> msum (map (goU bits) flds)
 
-    goS _bits (_, (_, Nothing)) =
-      panic "evalBitData" [ "Missing bitdata struct meta data"
-                          , show (pp ty)
-                          ]
+    goS bits fi =
+      case bdFieldType fi of
+        BDWild        -> pure Nothing
+        BDTag {}      -> pure Nothing
+        BDData l ty'  ->
+          do let fbits = bits `shiftR` fromIntegral (bdOffset fi)
+                                                        `mod` (2 ^ bdWidth fi)
+             v <- go fbits ty'
+             pure (Just (l,v))
 
-    goS bits (fld, (ty', Just sm)) =
-      (,) fld <$> go ((bits `shiftR` fromIntegral (tcbdsLowBit sm)) `mod` 2 ^  (tcbdsWidth sm)) ty'
-
-    matchU bits sm =
+    matchBDD bits sm =
       or [ bits .&. patMask test == patValue test
          | test <- patTests sm
          ]
 
-    goU _bits (_, (_, Nothing)) =
-      panic "evalBitData" [ "Missing bitdata union meta data"
-                          , show (pp ty)
-                          ]
-    goU bits (fld, (ty', Just sm))
-      | matchU bits sm = VUnionElem fld <$> go bits ty'
-      | otherwise      = Nothing
+    goU bits (fld, (ty', ~(Just sm)))
+      | matchBDD bits sm = VUnionElem fld <$> go bits ty'
+      | otherwise        = Nothing
 
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
 matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
