@@ -452,7 +452,7 @@ evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
       case tctyDef tdecl of
         TCTyStruct mb _ ->
           case mb of
-            Nothing -> panic "evalBitdata" ["Not bidata"]
+            Nothing -> panic "evalBitdata" ["Not bitdata", show (pp tdecl)]
             Just con ->
               do guard (matchBDD bits (bdPat con))
                  vStruct . catMaybes  <$> mapM (goS bits) (bdFields con)

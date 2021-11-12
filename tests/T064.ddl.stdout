@@ -6,12 +6,14 @@ module T064
 {- bitdata
 01000010
 -}
-type T064.myBD2_B = { }
+type T064.myBD2_B = [ 66 [8]
+                    ]
  
 {- bitdata
 01000011
 -}
-type T064.myBD2_C = { }
+type T064.myBD2_C = [ 67 [8]
+                    ]
  
 {- bitdata
 0100001_
@@ -23,14 +25,16 @@ type T064.myBD2 = Choose { B: T064.myBD2_B
 {- bitdata
 010000010100001_
 -}
-type T064.myBD3_D = { x: T064.myBD2
-                    }
+type T064.myBD3_D = [ 65 [8]
+                    | x : T064.myBD2
+                    ]
  
 {- bitdata
 010000100100001_
 -}
-type T064.myBD3_E = { x: T064.myBD2
-                    }
+type T064.myBD3_E = [ 66 [8]
+                    | x : T064.myBD2
+                    ]
  
 {- bitdata
 010000010100001_

@@ -6,12 +6,14 @@ module T065
 {- bitdata
 00111111
 -}
-type T065.Bar_b1 = { }
+type T065.Bar_b1 = [ 63 [8]
+                   ]
  
 {- bitdata
 01000000
 -}
-type T065.Bar_b2 = { }
+type T065.Bar_b2 = [ 64 [8]
+                   ]
  
 {- bitdata
 00111111
@@ -24,25 +26,29 @@ type T065.Bar = Choose { b1: T065.Bar_b1
 {- bitdata
 01000010
 -}
-type T065.Foo_A = { }
+type T065.Foo_A = [ 66 [8]
+                  ]
  
 {- bitdata
 11______
 -}
-type T065.Foo_B = { x: uint 6
-                  }
+type T065.Foo_B = [ 3 [2]
+                  | x : uint 6
+                  ]
  
 {- bitdata
 00111111
 01000000
 -}
-type T065.Foo_C = { b: T065.Bar
-                  }
+type T065.Foo_C = [ b : T065.Bar
+                  ]
  
 {- bitdata
 10______
 -}
-type T065.Foo_D = { }
+type T065.Foo_D = [ 2 [2]
+                  | _ [6]
+                  ]
  
 {- bitdata
 00111111

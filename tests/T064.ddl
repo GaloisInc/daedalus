@@ -10,6 +10,6 @@ bitdata myBD3 where
 def Main =
   block
     SetStream (arrayStream ['A', 'B'])
-    @v = UInt8 # UInt8;
+    let v = UInt8 # UInt8
     v as? myBD3
 

@@ -6,12 +6,14 @@ module T071
 {- bitdata
 00
 -}
-type T071.B_A = { }
+type T071.B_A = [ 0 [2]
+                ]
  
 {- bitdata
 01
 -}
-type T071.B_B = { }
+type T071.B_B = [ 1 [2]
+                ]
  
 {- bitdata
 0_
@@ -23,15 +25,16 @@ type T071.B = Choose { A: T071.B_A
 {- bitdata
 0_______
 -}
-type T071.C_X = { tag: T071.B
-                ; val: uint 6
-                }
+type T071.C_X = [ tag : T071.B
+                | val : uint 6
+                ]
  
 {- bitdata
 1_______
 -}
-type T071.C_Y = { val: uint 7
-                }
+type T071.C_Y = [ 1 [1]
+                | val : uint 7
+                ]
  
 {- bitdata
 ________

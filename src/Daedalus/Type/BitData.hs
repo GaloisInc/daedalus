@@ -226,12 +226,7 @@ inferBitData bd = runSTypeM . runTypeM (P.bdName bd) $ do
                              , tctyDef     = TCTyUnion tags
                              }
 
-         -- remove checks from anonymous types, as they are in the
-         -- constructor now
-         let decls' = [ d { tctyDef = TCTyStruct Nothing fs }
-                      | d <- decls, let  TCTyStruct _ fs = tctyDef d
-                      ]
-         pure (Map.fromList [ (tctyName d, d) | d <- decl : decls' ])
+         pure (Map.fromList [ (tctyName d, d) | d <- decl : decls ])
   where
     knownWidth :: Maybe Label -> [ Maybe (Type, BDD.Pat) ] ->
                   Maybe (Maybe Label, BDD.Width)
