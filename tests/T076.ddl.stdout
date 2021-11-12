@@ -1,0 +1,355 @@
+module Daedalus
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (_73 : bool) (a : uint ?a0) (b : uint ?a1) : uint ?a2 =
+  if _73 then a # b else b # a
+ 
+Daedalus.UInt16 (_74 : bool) : Grammar (uint 16) =
+  do (_75 : uint 8) <- GetByte
+     (_76 : uint 8) <- GetByte
+     pure (Daedalus.joinWords 8 8 16 _74 _75 _76)
+ 
+Daedalus.UInt32 (_77 : bool) : Grammar (uint 32) =
+  do (_78 : uint 16) <- Daedalus.UInt16 _77
+     (_79 : uint 16) <- Daedalus.UInt16 _77
+     pure (Daedalus.joinWords 16 16 32 _77 _78 _79)
+ 
+Daedalus.UInt64 (_80 : bool) : Grammar (uint 64) =
+  do (_81 : uint 32) <- Daedalus.UInt32 _80
+     (_82 : uint 32) <- Daedalus.UInt32 _80
+     pure (Daedalus.joinWords 32 32 64 _80 _81 _82)
+ 
+Daedalus.SInt16 (_83 : bool) : Grammar (sint 16) =
+  do (_84 : uint 16) <- Daedalus.UInt16 _83
+     pure (_84 as sint 16)
+ 
+Daedalus.SInt32 (_85 : bool) : Grammar (sint 32) =
+  do (_86 : uint 32) <- Daedalus.UInt32 _85
+     pure (_86 as sint 32)
+ 
+Daedalus.SInt64 (_87 : bool) : Grammar (sint 64) =
+  do (_88 : uint 64) <- Daedalus.UInt64 _87
+     pure (_88 as sint 64)
+ 
+Daedalus.wordToHalfFloat (w : uint 16) : float =
+  let sign = w >> 15 as uint 1 in
+  let expo = w >> 10 as uint 5 in
+  let mant = w as uint 10 in
+  if (expo == 0) then let magic = 126 << 23 in
+                      let num = (wordToFloat (magic + (0 # mant))) - (wordToFloat magic) in
+                      if (sign == 1) then - num else num else let newExp = if (expo == 0x1F) then 0xFF else (127 - 15) + (0 # expo) in
+                                                              wordToFloat (((sign # newExp) # mant) # 0)
+ 
+Daedalus.HalfFloat (_89 : bool) : Grammar float =
+  do (_90 : uint 16) <- Daedalus.UInt16 _89
+     pure (Daedalus.wordToHalfFloat _90)
+ 
+Daedalus.Float (_91 : bool) : Grammar float =
+  do (_92 : uint 32) <- Daedalus.UInt32 _91
+     pure (wordToFloat _92)
+ 
+Daedalus.Double (_93 : bool) : Grammar double =
+  do (_94 : uint 64) <- Daedalus.UInt64 _93
+     pure (wordToDouble _94)
+ 
+Daedalus.BEUInt16 : Grammar (uint 16) =
+  do (_95 : bool) <- pure true
+     ($$ : uint 16) <- Daedalus.UInt16 _95
+     pure $$
+ 
+Daedalus.BEUInt32 : Grammar (uint 32) =
+  do (_97 : bool) <- pure true
+     ($$ : uint 32) <- Daedalus.UInt32 _97
+     pure $$
+ 
+Daedalus.BEUInt64 : Grammar (uint 64) =
+  do (_99 : bool) <- pure true
+     ($$ : uint 64) <- Daedalus.UInt64 _99
+     pure $$
+ 
+Daedalus.BESInt16 : Grammar (sint 16) =
+  do (_101 : bool) <- pure true
+     ($$ : sint 16) <- Daedalus.SInt16 _101
+     pure $$
+ 
+Daedalus.BESInt32 : Grammar (sint 32) =
+  do (_103 : bool) <- pure true
+     ($$ : sint 32) <- Daedalus.SInt32 _103
+     pure $$
+ 
+Daedalus.BESInt64 : Grammar (sint 64) =
+  do (_105 : bool) <- pure true
+     ($$ : sint 64) <- Daedalus.SInt64 _105
+     pure $$
+ 
+Daedalus.BEHalfFloat : Grammar float =
+  do (_107 : bool) <- pure true
+     ($$ : float) <- Daedalus.HalfFloat _107
+     pure $$
+ 
+Daedalus.BEFloat : Grammar float =
+  do (_109 : bool) <- pure true
+     ($$ : float) <- Daedalus.Float _109
+     pure $$
+ 
+Daedalus.BEDouble : Grammar double =
+  do (_111 : bool) <- pure true
+     ($$ : double) <- Daedalus.Double _111
+     pure $$
+ 
+Daedalus.LEUInt16 : Grammar (uint 16) =
+  do (_113 : bool) <- pure false
+     ($$ : uint 16) <- Daedalus.UInt16 _113
+     pure $$
+ 
+Daedalus.LEUInt32 : Grammar (uint 32) =
+  do (_115 : bool) <- pure false
+     ($$ : uint 32) <- Daedalus.UInt32 _115
+     pure $$
+ 
+Daedalus.LEUInt64 : Grammar (uint 64) =
+  do (_117 : bool) <- pure false
+     ($$ : uint 64) <- Daedalus.UInt64 _117
+     pure $$
+ 
+Daedalus.LESInt16 : Grammar (sint 16) =
+  do (_119 : bool) <- pure false
+     ($$ : sint 16) <- Daedalus.SInt16 _119
+     pure $$
+ 
+Daedalus.LESInt32 : Grammar (sint 32) =
+  do (_121 : bool) <- pure false
+     ($$ : sint 32) <- Daedalus.SInt32 _121
+     pure $$
+ 
+Daedalus.LESInt64 : Grammar (sint 64) =
+  do (_123 : bool) <- pure false
+     ($$ : sint 64) <- Daedalus.SInt64 _123
+     pure $$
+ 
+Daedalus.LEHalfFloat : Grammar float =
+  do (_125 : bool) <- pure false
+     ($$ : float) <- Daedalus.HalfFloat _125
+     pure $$
+ 
+Daedalus.LEFloat : Grammar float =
+  do (_127 : bool) <- pure false
+     ($$ : float) <- Daedalus.Float _127
+     pure $$
+ 
+Daedalus.LEDouble : Grammar double =
+  do (_129 : bool) <- pure false
+     ($$ : double) <- Daedalus.Double _129
+     pure $$
+ 
+Daedalus.Guard (b : bool) : Grammar {} =
+  case b is
+    { true -> pure {}
+    }
+ 
+Daedalus.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do ($$ : ?a0) <- P
+     END
+     pure $$
+ 
+Daedalus.min ?a0 (x : ?a0) (y : ?a0) : ?a0 =
+  if (x < y) then x else y
+ 
+Daedalus.max ?a0 (x : ?a0) (y : ?a0) : ?a0 =
+  if (x < y) then y else x
+ 
+Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
+  do (_131 : Stream) <- StreamOff n s
+     SetStream _131
+ 
+Daedalus.Skip (n : uint 64) : Grammar {} =
+  do (_132 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt n _132
+ 
+Daedalus._SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
+  do (_131 : Stream) <- StreamOff n s
+     SetStream _131
+ 
+Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
+  do (s : Stream) <- CurrentStream
+     do (_133 : Stream) <- StreamLen n s
+        SetStream _133
+     ($$ : ?a0) <- P
+     Daedalus._SetStreamAt n s
+     pure $$
+ 
+Daedalus.Bytes (n : uint 64) : Grammar Stream =
+  Daedalus.Chunk Stream n CurrentStream
+ 
+Daedalus.LookAhead ?a0 (P : Grammar ?a0) : Grammar ?a0 =
+  do (s : Stream) <- CurrentStream
+     ($$ : ?a0) <- P
+     SetStream s
+     pure $$
+ 
+Daedalus._UInt16 : Grammar {} =
+  do @GetByte
+     @GetByte
+ 
+Daedalus._UInt32 : Grammar {} =
+  do Daedalus._UInt16
+     Daedalus._UInt16
+ 
+Daedalus._UInt64 : Grammar {} =
+  do Daedalus._UInt32
+     Daedalus._UInt32
+ 
+Daedalus._SInt16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._SInt32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._SInt64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._HalfFloat : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._Float : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._Double : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._BEUInt16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._BEUInt32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._BEUInt64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._BESInt16 : Grammar {} =
+  Daedalus._SInt16
+ 
+Daedalus._BESInt32 : Grammar {} =
+  Daedalus._SInt32
+ 
+Daedalus._BESInt64 : Grammar {} =
+  Daedalus._SInt64
+ 
+Daedalus._BEHalfFloat : Grammar {} =
+  Daedalus._HalfFloat
+ 
+Daedalus._BEFloat : Grammar {} =
+  Daedalus._Float
+ 
+Daedalus._BEDouble : Grammar {} =
+  Daedalus._Double
+ 
+Daedalus._LEUInt16 : Grammar {} =
+  Daedalus._UInt16
+ 
+Daedalus._LEUInt32 : Grammar {} =
+  Daedalus._UInt32
+ 
+Daedalus._LEUInt64 : Grammar {} =
+  Daedalus._UInt64
+ 
+Daedalus._LESInt16 : Grammar {} =
+  Daedalus._SInt16
+ 
+Daedalus._LESInt32 : Grammar {} =
+  Daedalus._SInt32
+ 
+Daedalus._LESInt64 : Grammar {} =
+  Daedalus._SInt64
+ 
+Daedalus._LEHalfFloat : Grammar {} =
+  Daedalus._HalfFloat
+ 
+Daedalus._LEFloat : Grammar {} =
+  Daedalus._Float
+ 
+Daedalus._LEDouble : Grammar {} =
+  Daedalus._Double
+ 
+Daedalus._Guard (b : bool) : Grammar {} =
+  case b is
+    { true -> pure {}
+    }
+ 
+Daedalus._Only ?a0 (_P : Grammar {}) : Grammar {} =
+  do _P
+     END
+ 
+Daedalus._Skip (n : uint 64) : Grammar {} =
+  do (_132 : Stream) <- CurrentStream
+     Daedalus._SetStreamAt n _132
+ 
+Daedalus._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     do (_133 : Stream) <- StreamLen n s
+        SetStream _133
+     _P
+     Daedalus._SetStreamAt n s
+ 
+Daedalus._Bytes (n : uint 64) : Grammar {} =
+  Daedalus._Chunk Stream n (pure {})
+ 
+Daedalus._LookAhead ?a0 (_P : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     _P
+     SetStream s
+module T076
+ 
+--- Imports:
+import Daedalus
+ 
+--- Type defs:
+type T076.BTreeHeader = { off: uint 64
+                        ; count: uint 64
+                        }
+ 
+type T076.BTree = { count: uint 64
+                  ; hdr: [T076.BTreeHeader]
+                  ; s: Stream
+                  }
+ 
+--- Rules:
+ 
+T076.BTreeHeader : Grammar T076.BTreeHeader =
+  do (off : uint 64) <- Daedalus.BEUInt64
+     (count : uint 64) <- Daedalus.BEUInt64
+     pure {off = off,
+           count = count}
+ 
+rec value
+  T076.BTree : Grammar T076.BTree =
+    do (count : uint 64) <- Daedalus.BEUInt64
+       (hdr : [T076.BTreeHeader]) <- Many[count] T076.BTreeHeader
+       (s : Stream) <- CurrentStream
+       do map ((h : T076.BTreeHeader) in hdr)
+            do Daedalus._SetStreamAt (h.off) s
+               ($$ : [T076.BTree]) <- Many[h.count] T076.BTree
+               pure $$
+          pure {}
+       pure {count = count,
+             hdr = hdr,
+             s = s}
+ 
+T076._BTreeHeader : Grammar {} =
+  do Daedalus._BEUInt64
+     Daedalus._BEUInt64
+ 
+T076._BTree : Grammar {} =
+  do (count : uint 64) <- Daedalus.BEUInt64
+     (hdr : [T076.BTreeHeader]) <- Many[count] T076.BTreeHeader
+     (s : Stream) <- CurrentStream
+     map ((h : T076.BTreeHeader) in hdr)
+       do Daedalus._SetStreamAt (h.off) s
+          ($$ : [T076.BTree]) <- Many[h.count] T076.BTree
+          pure $$
+     pure {}
