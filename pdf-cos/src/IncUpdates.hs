@@ -256,7 +256,7 @@ parseOneIncUpdate prevSet input0 offset =
   parseXRefTable :: Input -> IO (Possibly (CrossRef,FileOffset))
   parseXRefTable input1 =
     do
-    let ctx = "parsing xref table (at byte offset "
+    let ctx = "parsing XRef table (at byte offset "
               ++ show (sizeToInt offset) ++ ")"
     r <- runParserWithoutObjectIndexFailOnRef
            ctx
@@ -330,8 +330,8 @@ validateBase iu =
     -- shall initially have generation numbers of 0.
        
   where
-  logWarn'  s = logWarn  ("in first (base) xref table: " ++ s)
-  logError' s = logError ("in first (base) xref table: " ++ s)
+  logWarn'  s = logWarn  ("in the first applied (base) XRef table: " ++ s)
+  logError' s = logError ("in the first applied (base) XRef table: " ++ s)
 
 
 ---- report ------------------------------------------------------------------
@@ -385,12 +385,13 @@ printIncUpdateReport updates =
                            , "  " ++ render(ppXRefType (iu_type iu))
                            , "  starts at byte offset "
                                 ++ show (sizeToInt $ iu_offset iu)
-                           , "  xref entries:"
+                           , "  XRef entries:"
                            ]
             printXRefs 4 (iu_xrefs iu)
             putStrLn "  trailer dictionary:"
             print (nest 4 $ pp (iu_trailer iu))
       putChar '\n'
+
 
 printXRefs :: Int -> [[XRefEntry]] -> IO ()
 printXRefs indent ess =
@@ -440,8 +441,9 @@ printCavityReport bodyStart_base input updates =
       Left ss -> do
                  mapM_ putStrLn $
                    [ nm ++ ":"
-                   , "  body starts at byte offset " ++ show bodyStart'
-                     ++ " (assumption)"
+                   , "  Body starts at byte offset " ++ show bodyStart'
+                     ++ " (guess)"
+                       -- FIXME[f2]: this guess meaningful?
                    ]
                  mapM_ putStrLn $ "  ERROR parsing update:"
                                   : map ("    "++) ss
@@ -464,9 +466,9 @@ printCavityIncUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
       bodyStart = sizeToInt bodyStart'
   mapM_ putStrLn [ nm ++ ":"
                  , "  " ++ render (ppXRefType (iu_type iu))
-                 , "  body starts at byte offset " ++ show bodyStart
-                   ++ " (assumption)"
-                 , "  xref starts at byte offset " ++ show xrefStart
+                 , "  XRef starts at byte offset " ++ show xrefStart
+                 , "  Body starts at byte offset " ++ show bodyStart
+                   ++ " (guess)"
                  ]
   -- FIXME[F2]: want to warn when no valid trailerEnd
   es <- getObjectRanges input iu
