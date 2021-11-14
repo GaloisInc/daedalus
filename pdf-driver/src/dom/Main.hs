@@ -21,7 +21,6 @@ import RTS.Input(newInput,inputBytes)
 import RTS.Vector(vecFromRep,vecToRep,toList) 
 import RTS.Numeric
 
--- local:
 import qualified XRef
 import XRef( findStartXRef
            , FileOffset
@@ -37,18 +36,20 @@ import IncUpdates( parseXRefsVersion2
 import Logger
 import Possibly    
 import PdfMonad
+import PdfPP
 import Primitives.Decrypt(makeFileKey)
 
 -- daedalus generated parsers:
 import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import PdfDecl(pResolveRef)
+import PdfDOM
 import PdfXRef(TrailerDict) 
 import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
 import PdfValue(Value(..),Ref(..),pValue,pHeader)
 
-import PdfDOM
-import PdfPP
+-- local:
 import CommandLine
+
 
 main :: IO ()
 main =
@@ -235,16 +236,10 @@ parsePdf opts file bs topInput =
        ShowHelp ->
            dumpUsage options
 
-quitIfParseError :: String -> PdfResult a -> IO a 
-quitIfParseError context r = 
- case r of
-   ParseOk a     -> pure a
-   ParseAmbig {} -> quit (msg ++ ": ambiguous.")
-   ParseErr e    -> quit (msg ++ ":\n\n" ++ render (pp e))
-  where
-  msg = "Fatal error while " ++ context ++ ", cannot proceed"
+quitIfParseError :: String -> PdfResult a -> IO a
+quitIfParseError s r = logErrorIfFail $ fromPdfResult s r
 
--- XXX: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
+-- FIXME: Identical code in pdf-driver/src/driver/Main.hs. Should de-duplicate
 makeEncContext :: Integral a => 
                      TrailerDict  
                   -> ObjIndex 

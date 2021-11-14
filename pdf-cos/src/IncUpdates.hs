@@ -80,7 +80,7 @@ fromPdfResult contextString r =
   msg = "while " ++ contextString
 
 
----- xref table: parse and construct from many updates -----------------------
+---- XRef table: parse and construct from many updates -----------------------
 
 -- | Construct the xref map (and etc), version 2
 parseXRefsVersion2 :: DbgMode
@@ -126,6 +126,7 @@ getObjIndexFromUpdates updates =
          -- let unionDup m1 m2 = (Map.union m1 m1, Map.intersect m1 m2)
          failP ["Duplicate entries between xref sections"]
        pure objMap
+
 
 ---- parsing IncUpdates ------------------------------------------------------
 
@@ -414,7 +415,7 @@ printCavityReport bodyStart_base input updates =
   do
   us <- printUpdateSummary updates
   (numCavities,totalSizeCavities) <-
-    foldlM (printOneUpdate' input) (0,0)
+    foldlM (printCavityIncUpdate' input) (0,0)
       $ zip us
             (bodyStart_base : map getEndOfUpdate (rights $ map snd us))
              -- FIXME[F1]: assumes updates are ordered from end to start!
@@ -428,13 +429,14 @@ printCavityReport bodyStart_base input updates =
   --            - must nab the locations when we parse these!
 
   where
-  printOneUpdate' :: Input
-                  -> (Int, Int)
-                  -> ((String, Either [String] IncUpdate), FileOffset)
-                  -> IO (Int, Int)
-  printOneUpdate' i x ((nm, e), bodyStart') =
+  printCavityIncUpdate' ::
+       Input
+    -> (Int, Int)
+    -> ((String, Either [String] IncUpdate), FileOffset)
+    -> IO (Int, Int)
+  printCavityIncUpdate' i x ((nm, e), bodyStart') =
     case e of
-      Right u -> printOneUpdate i x (nm, u, bodyStart')
+      Right u -> printCavityIncUpdate i x (nm, u, bodyStart')
       Left ss -> do
                  mapM_ putStrLn $
                    [ nm ++ ":"
@@ -452,11 +454,11 @@ printCavityReport bodyStart_base input updates =
       Left  o   -> o
 
 
-printOneUpdate :: Input
-               -> (Int, Int)
-               -> (String, IncUpdate, FileOffset)
-               -> IO (Int, Int)
-printOneUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
+printCavityIncUpdate :: Input
+                     -> (Int, Int)
+                     -> (String, IncUpdate, FileOffset)
+                     -> IO (Int, Int)
+printCavityIncUpdate input (numC, totalSizeC) (nm,iu,bodyStart') =
   do
   let xrefStart = sizeToInt $ iu_offset iu
       bodyStart = sizeToInt bodyStart'
