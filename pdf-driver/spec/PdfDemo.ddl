@@ -101,28 +101,22 @@ def mergeSafetyInfo si1 si2 =
 def safeSafetyInfo = safetyInfo false false
 
 def ValueIsSafe (v : Value) =
-    Choose {
-        When (@(v is null) | @(v is bool) | @(v is ref) | @(v is name)
-              | @(v is string) | @(v is number)) safeSafetyInfo;
-        { @dict = v is dict;
-          -- Check to see whether it contains a JS action
-          Choose1 {
-             When  (DictIsAction "JavaScript" dict) (safetyInfo true false);
-             When  (DictIsAction "URI" dict) (safetyInfo false true);
-             (for (acc = safeSafetyInfo; v in dict) {
-                 @r = ValueIsSafe v;
-                 ^ mergeSafetyInfo acc r;
+  case v of
+    dict  d   -> -- Check to see whether it contains a JS action
+                 Choose1 {
+                    When  (DictIsAction "JavaScript" d) (safetyInfo true false);
+                    When  (DictIsAction "URI" d) (safetyInfo false true);
+                    (for (acc = safeSafetyInfo; v in d) {
+                        @r = ValueIsSafe v;
+                        ^ mergeSafetyInfo acc r;
+                        }
+                    )
                  }
-             )
-          }
-        };
-        { @arr = v is array;
-          for (acc = safeSafetyInfo; v in arr) {
-              @r = ValueIsSafe v;
-              ^ mergeSafetyInfo acc r;
-          }
-        }
-    }
+    array arr -> for (acc = safeSafetyInfo; v in arr) {
+                   @r = ValueIsSafe v;
+                   ^ mergeSafetyInfo acc r;
+                 }
+    _         -> safeSafetyInfo
 
 def DictIsAction a d = {
   -- Type is optional, so we ignore it and just look for the field "S"
