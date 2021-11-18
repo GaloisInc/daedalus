@@ -20,6 +20,12 @@ module Daedalus.Value
   , vStruct
   , vStructLookup
 
+    -- * Bitdata
+  , BDStruct(..)
+  , BDUnion(..)
+  , vFromBits
+  , vToBits
+
     -- * Deconstructing values
   , valueToIntegral
   , valueToBool
@@ -138,10 +144,18 @@ vStruct = VStruct
 
 vStructLookup :: Value -> Label -> Value
 vStructLookup v l =
-  case lookup l (valueToStruct v) of
-    Just i -> i
-    Nothing -> panic "vStructLookup" [ "Invalid struct lookup"
-                                     , "Label: " ++ show l
-                                     , "Struct " ++ show v
-                                     ]
+  case v of
+    VStruct fs ->
+      case lookup l fs of
+        Just i  -> i
+        Nothing -> bad
+    VBDStruct t i -> bdGetField t l i
+    _ -> bad
+
+  where
+  bad = panic "vStructLookup" [ "Invalid struct lookup"
+                              , "Label: " ++ show l
+                              , "Struct " ++ show v
+                              ]
+
 

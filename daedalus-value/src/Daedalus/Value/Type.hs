@@ -1,7 +1,10 @@
 {-# Language OverloadedStrings, DataKinds #-}
 module Daedalus.Value.Type where
 
+import GHC.Float
+
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.Vector(Vector)
 import qualified Data.Vector as Vector
 import Data.Map.Strict(Map)
@@ -14,6 +17,7 @@ import Data.Char (isAscii, isPrint, chr)
 import Numeric(showHex)
 
 import Daedalus.PP hiding (empty)
+import qualified Daedalus.BDD as BDD
 import Daedalus.Range
 import Daedalus.Panic(panic)
 import RTS.Input(Input(..),inputName,inputOffset,inputLength)
@@ -28,6 +32,8 @@ data Value =
   | VDouble                !Double
   | VUnionElem             !Label !Value
   | VStruct                ![(Label,Value)]
+  | VBDStruct !BDStruct    !Integer
+  | VBDUnion  !BDUnion     !Integer
   | VArray                 !(Vector Value)
   | VMaybe                 !(Maybe Value)
   | VMap                   !(Map Value Value)
@@ -35,6 +41,30 @@ data Value =
   | VBuilder               ![Value]   -- array builder
   | VIterator              ![(Value,Value)]
     deriving Show
+
+data BDStruct = BDStruct
+   { bdName     :: !Text
+   , bdWidth    :: !Int
+   , bdGetField :: !(Label -> Integer -> Value)
+   , bdStruct   :: !([(Label,Value)] -> Integer)
+   , bdValid    :: !(Integer -> Bool)
+   , bdFields   :: ![Label]
+   }
+
+data BDUnion = BDUnion
+  { bduName     :: !Text
+  , bduWidth    :: !Int
+  , bduValid    :: !(Integer -> Bool)
+  , bduGet      :: !(Label   -> Integer -> Value)
+  , bduCover    :: !(Label   -> BDD.Pat)
+  , bduCases    :: ![Label]
+  }
+
+instance Show BDStruct where
+  show _ = "BDStruct"
+
+instance Show BDUnion where
+  show _ = "BDUnion"
 
 type Label = Text
 type Partial = Either String    -- ^ values with errors
@@ -52,6 +82,8 @@ data TValue =
   | TVDouble
   | TVArray
   | TVMap
+  | TVBDStruct BDStruct
+  | TVBDUnion  BDUnion
   | TVOther
     deriving Show
 
@@ -88,6 +120,33 @@ vSInt' w x = VSInt w (mod (x - lb) (ub - lb + 1) + lb)
 vSize :: Integer -> Value
 vSize = vUInt 64
 
+vFromBits :: TValue -> Integer -> Value
+vFromBits t i =
+  case t of
+    TVUInt n      -> vUInt n i
+    TVSInt n      -> vSInt' n i
+    TVBDStruct bd -> VBDStruct bd (clampTo (bdWidth bd))
+    TVBDUnion bd  -> VBDUnion bd (clampTo (bduWidth bd))
+    TVFloat       -> VFloat  (castWord32ToFloat  (fromInteger i))
+    TVDouble      -> VDouble (castWord64ToDouble (fromInteger i))
+    _             -> panic "vFromBits" [ "Value cannot be made from bits"
+                                       , showPP t
+                                       , show i ]
+
+  where
+  clampTo w = mod i (snd (uintRange w) + 1)
+
+vToBits :: Value -> Integer
+vToBits v =
+  case v of
+    VUInt _ i     -> i
+    VSInt _ i     -> i
+    VBDStruct _ i -> i
+    VBDUnion  _ i -> i
+    VFloat f      -> toInteger (castFloatToWord32 f)
+    VDouble f     -> toInteger (castDoubleToWord64 f)
+    _             -> panic "vFromBits" [ "Value cannot be converted to bits"
+                                       , showPP v ]
 
 --------------------------------------------------------------------------------
 -- Dynamic checks on values
@@ -217,6 +276,14 @@ vCompare a b =
     (VStruct _,      _)                     -> LT
     (_,              VStruct _)             -> GT
 
+    (VBDStruct _ x,  VBDStruct _ y)         -> compare x y
+    (VBDStruct {},   _)                     -> LT
+    (_,              VBDStruct {})          -> GT
+
+    (VBDUnion _ x,   VBDUnion _ y)          -> compare x y
+    (VBDUnion {},    _)                     -> LT
+    (_,              VBDUnion {})           -> GT
+
     (VArray xs,      VArray ys)             -> compare xs ys
     (VArray _,       _)                     -> LT
     (_,              VArray _)              -> GT
@@ -253,15 +320,24 @@ instance Ord Value where
 instance PP TValue where
   ppPrec _ tv =
     case tv of
-      TVInteger -> "integer"
-      TVUInt n  -> "uint" <.> int n
-      TVSInt n  -> "sint" <.> int n
-      TVFloat   -> "float"
-      TVDouble  -> "double"
-      TVNum n   -> int n
-      TVArray   -> "array"
-      TVMap     -> "map"
-      TVOther   -> "other"
+      TVInteger     -> "integer"
+      TVUInt n      -> "uint" <.> int n
+      TVSInt n      -> "sint" <.> int n
+      TVFloat       -> "float"
+      TVDouble      -> "double"
+      TVNum n       -> int n
+      TVArray       -> "array"
+      TVMap         -> "map"
+      TVBDStruct bd -> pp (bdName bd)
+      TVBDUnion bd  -> pp (bduName bd)
+      TVOther       -> "other"
+
+ppRawBD :: Int -> Integer -> Doc
+ppRawBD w i = "0x" <.> padding <.> text txt <.> brackets (int w)
+  where
+  txt     = showHex i ""
+  padding = let p = div (w - 4 * length txt + 1) 4
+            in text (replicate p '0')
 
 instance PP Value where
   ppPrec n val =
@@ -275,9 +351,28 @@ instance PP Value where
       VFloat x   -> pp x
       VDouble x  -> pp x
       VBool b    -> if b then "T" else "F"
-      VUnionElem lbl v -> braces (pp lbl <+> colon <+> pp v)
+      VUnionElem lbl v -> braces (pp lbl <.> colon <+> pp v)
       VStruct xs      -> block "{" "," "}" (map ppF xs)
         where ppF (x,t) = pp x <.> colon <+> pp t
+
+      VBDStruct t x ->
+        hang (ppRawBD (bdWidth t) x) 2
+        $ block "{" "," "}"
+         [ pp l <.> colon <+> pp (bdGetField t l x) | l <- bdFields t ]
+
+      VBDUnion t x ->
+        hang (ppRawBD (bduWidth t) x) 2 (braces (pp lbl <.> colon <+> pp v))
+        where
+        views = [ (l, bduGet t l x)
+                | l <- bduCases t, BDD.willMatch (bduCover t l) x ]
+        (lbl,v) = case views of
+                    a : _ -> a
+                    []    -> panic "pp@Value"
+                               [ "Invalid bitdata value"
+                               , "type: " ++ Text.unpack (bduName t)
+                               , "value: " ++ show x
+                               ]
+
 
       VArray v -> case vs of
                     VUInt 8 _ : _ ->
@@ -316,6 +411,21 @@ valueToJS val =
     VStruct vs ->
       jsBlock "{" "," "}"
        [ text (show (show (pp l))) <.> colon <+> valueToJS v | (l,v) <- vs ]
+
+    VBDStruct t x -> jsBlock "{" "," "}"
+                     [ valueToJS (bdGetField t l x) | l <- bdFields t ]
+
+    VBDUnion t x -> tagged tag (valueToJS v)
+      where
+      views = [ (pp l, bduGet t l x)
+              | l <- bduCases t, BDD.willMatch (bduCover t l) x ]
+      (tag,v) = case views of
+                  g : _ -> g
+                  []    -> panic "valueToJS"
+                            [ "Invalid value"
+                            , "bitdata: " ++ Text.unpack (bduName t)
+                            , "value: " ++ show x
+                            ]
 
     VArray vs -> jsBlock "[" "," "]" (map valueToJS (Vector.toList vs))
 

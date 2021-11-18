@@ -15,6 +15,8 @@ vCoerceTo tgt v =
         TVInteger -> (VInteger  n, exact)
         TVUInt st -> (vUInt  st n, inRange (uintRange st) n)
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
+        TVBDStruct bd -> (VBDStruct bd n, bdValid bd n)
+        TVBDUnion bd  -> (VBDUnion bd n, bduValid bd n)
         TVFloat   -> bug -- XXX
         TVDouble  -> bug -- XXX
         TVNum {}  -> bug
@@ -29,6 +31,8 @@ vCoerceTo tgt v =
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
         TVFloat   -> bug -- XXX
         TVDouble  -> bug -- XXX
+        TVBDStruct {} -> bug
+        TVBDUnion {} -> bug
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
@@ -41,34 +45,70 @@ vCoerceTo tgt v =
         TVSInt st -> (vSInt' st n, inRange (sintRange st) n)
         TVFloat   -> bug -- XXX
         TVDouble  -> bug -- XXX
+        TVBDStruct {} -> bug
+        TVBDUnion {} -> bug
         TVNum {}  -> bug
         TVArray   -> bug
         TVMap     -> bug
         TVOther   -> bug
 
-    VFloat f ->
+    VFloat _ ->
       case tgt of
-        TVInteger -> bug -- XXX
-        TVUInt st -> bug -- XXX
-        TVSInt st -> bug -- XXX
-        TVFloat   -> (v, exact)
-        TVDouble  -> bug -- XXX
-        TVNum {}  -> bug
-        TVArray   -> bug
-        TVMap     -> bug
-        TVOther   -> bug
+        TVInteger     -> bug -- XXX
+        TVUInt {}     -> bug -- XXX
+        TVSInt {}     -> bug -- XXX
+        TVFloat       -> (v, exact)
+        TVDouble      -> bug -- XXX
+        TVNum {}      -> bug
+        TVArray       -> bug
+        TVMap         -> bug
+        TVBDStruct {} -> bug
+        TVBDUnion {} -> bug
+        TVOther       -> bug
 
-    VDouble f ->
+    VDouble _ ->
       case tgt of
-        TVInteger -> bug -- XXX
-        TVUInt st -> bug -- XXX
-        TVSInt st -> bug -- XXX
-        TVFloat   -> bug -- XXX
-        TVDouble  -> (v, exact)
-        TVNum {}  -> bug
-        TVArray   -> bug
-        TVMap     -> bug
-        TVOther   -> bug
+        TVInteger     -> bug -- XXX
+        TVUInt {}     -> bug -- XXX
+        TVSInt {}     -> bug -- XXX
+        TVFloat       -> bug -- XXX
+        TVDouble      -> (v, exact)
+        TVNum {}      -> bug
+        TVArray       -> bug
+        TVMap         -> bug
+        TVBDStruct {} -> bug
+        TVBDUnion {}  -> bug
+        TVOther       -> bug
+
+    VBDStruct _ n ->
+      case tgt of
+        TVUInt w      -> (VUInt w n, exact)
+        -- assumes that the widths match
+        TVInteger     -> bug
+        TVSInt {}     -> bug
+        TVFloat       -> bug
+        TVDouble      -> bug
+        TVNum {}      -> bug
+        TVArray       -> bug
+        TVMap         -> bug
+        TVBDStruct {} -> (v, exact)
+        TVBDUnion {}  -> bug
+        TVOther       -> bug
+
+    VBDUnion _ n ->
+      case tgt of
+        TVUInt w      -> (VUInt w n, exact)
+        -- assumes that the widths match
+        TVInteger     -> bug
+        TVSInt {}     -> bug
+        TVFloat       -> bug
+        TVDouble      -> bug
+        TVNum {}      -> bug
+        TVArray       -> bug
+        TVMap         -> bug
+        TVBDStruct {} -> bug
+        TVBDUnion {}  -> (v,exact)
+        TVOther       -> bug
 
     VBool {}      -> (v, exact)
     VUnionElem {} -> (v, exact)
