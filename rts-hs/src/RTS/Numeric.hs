@@ -16,6 +16,8 @@ module RTS.Numeric
   , cvtNum
   , cvtNumMaybe
 
+  , Bitdata(..)
+
   , shiftl, shiftr, cat, lcat
 
   , Size(..)
@@ -374,5 +376,50 @@ wordToFloat x = castWord32ToFloat (fromUInt x)
 wordToDouble :: UInt 64 -> Double
 wordToDouble x = castWord64ToDouble (fromUInt x)
 {-# INLINE wordToDouble #-}
+
+
+--------------------------------------------------------------------------------
+
+class Bitdata t where
+  type family BDWidth t :: Nat
+  bdToRep   :: SizeType (BDWidth t) => t -> UInt (BDWidth t)
+  bdFromRep :: SizeType (BDWidth t) => UInt (BDWidth t) -> t
+
+instance Bitdata () where
+  type instance BDWidth () = 0
+  bdToRep _   = UInt 0
+  bdFromRep _ = ()
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata (UInt n) where
+  type instance BDWidth (UInt n) = n
+  bdToRep   = id
+  bdFromRep = id
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata (SInt n) where
+  type instance BDWidth (SInt n) = n
+  bdToRep = cvtNum
+  bdFromRep = cvtNum
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata Float where
+  type instance BDWidth Float = 32
+  bdToRep x  = UInt (castFloatToWord32 x)
+  bdFromRep  = wordToFloat
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata Double where
+  type instance BDWidth Double = 64
+  bdToRep x  = UInt (castDoubleToWord64 x)
+  bdFromRep  = wordToDouble
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+
 
 
