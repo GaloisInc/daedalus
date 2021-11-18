@@ -1,16 +1,18 @@
 -- Copied from hobbit
+{-# Language DeriveGeneric, DeriveAnyClass #-}
 module Daedalus.BDD where
 
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
-import Data.Word
+import Data.Bits(testBit)
 
 -- Ordered binary decision diagrams --------------------------------------------
-type Var            = Word32
+type Var            = Int
 data BDD            = F | T | ITE Var BDD BDD
-                      deriving (Eq,Show)
+                      deriving (Eq,Show,NFData,Generic)
 
 
--- | Evaluate a BDD in the context of the given variable assignment.
 simp :: [(Var,Bool)] -> BDD -> BDD
 simp _xs F = F
 simp _xs T = T
@@ -39,11 +41,11 @@ ite p t e   = let x   = maximum [ x' | ITE x' _ _ <- [p,t,e] ]
 
 
 -- Bit patterns ----------------------------------------------------------------
-type Width          = Word32
+type Width          = Int
 
 -- A `Pat` describes the set of bit-vectors that will match a pattern.
 data Pat            = Pat { width :: Width, bdd :: BDD }
-                      deriving Eq
+                      deriving (Eq,Generic,NFData)
 
 -- | A wild-card patterns (the whole set)
 pWild              :: Width -> Pat
@@ -59,7 +61,7 @@ pNot (Pat n p)      = Pat n (ite p F T)  -- match if argument does not match
 
 -- | A pattern that succeeds if both pattern succeed (intersection)
 pAnd               :: Pat {-n-} -> Pat {-n-} -> Pat {-n-}
-pAnd (Pat m p) (Pat n q)            
+pAnd (Pat m p) (Pat n q)
   | m == n          = Pat m (ite p q F)   -- match if both patterns matchs
   | otherwise       = bug "pAnd"
                           ("Different widths: " ++ show m ++ " vs. " ++ show n)
@@ -193,7 +195,19 @@ data PatTest = PatTest
   { patMask  :: Integer
   , patValue :: Integer
   , patWidth :: Width
-  } deriving (Eq,Show)
+  } deriving (Eq)
+
+instance Show PatTest where
+  show p = zipWith jn (toBits (patMask p)) (toBits (patValue p))
+    where
+    w         = fromIntegral (patWidth p) :: Int
+    jn m v    = if m == '0' then '_' else v
+    toBits x  = [ if testBit x i then '1' else '0'
+                | i <- reverse (take w [0..])
+                ]
+
+
+
 
 noTest :: Width -> PatTest
 noTest w = PatTest { patMask = 0, patValue = 0, patWidth = w }
@@ -214,8 +228,11 @@ cons0 pt = PatTest { patMask  = patMask  pt + one
   where
   one = 2^patWidth pt
 
-
-
+consW :: PatTest -> PatTest
+consW pt = PatTest { patMask  = patMask  pt
+                   , patValue = patValue pt
+                   , patWidth = patWidth pt + 1
+                   }
 
 -- | Returns pt
 -- @x `matches` pt = patValue pt == (x .&. patMask pt)@
@@ -223,13 +240,41 @@ patTests            :: Pat -> [PatTest]
 patTests (Pat w T)   = [noTest w]
 patTests (Pat _ F)   = []
 patTests (Pat w f@(ITE v p q))
-  | w' > v          = patTests (Pat w' f)
+  | w' > v          = map consW (patTests (Pat w' f))
   | otherwise       = map cons0 (patTests (Pat w' q))
                    ++ map cons1 (patTests (Pat w' p))
     where w' = w - 1
 
+-- | Compute tests for a pattern, assuming that the first pattern holds.
+patTestsAssuming :: Pat -> Pat -> [PatTest]
+patTestsAssuming univ (Pat w shape) =
+  case shape of
+    T       -> [noTest w]
+    F       -> []
+    ITE v p q
+      | w' > v -> map consW (patTestsAssuming subUniv (Pat w' shape))
+      | otherwise ->
+        case pDropR univ w' of
+          Pat _ F           -> []
+          Pat _ (ITE _ T F) -> map consW ifThen
+          Pat _ (ITE _ F T) -> map consW ifElse
+          _                 -> map cons0 ifElse ++ map cons1 ifThen
+      where
+      w'      = w - 1
+      subUniv = pDropL univ 1
+      ifThen  = patTestsAssuming subUniv (Pat w' p)
+      ifElse  = patTestsAssuming subUniv (Pat w' q)
+
+patTestsAssumingInOrderd :: Pat -> [(Pat,a)] -> [(PatTest,a)]
+patTestsAssumingInOrderd univ opts =
+  case opts of
+    [] -> []
+    (p,a) : ps ->
+      [ (t,a) | t <- patTestsAssuming univ p ] ++
+      patTestsAssumingInOrderd (pNot p `pAnd` univ) ps
+
 pr :: Pat -> IO ()
-pr x                = putStrLn $ unlines $ showPat x
+pr x = putStrLn $ unlines $ showPat x
 
 willAlwaysMatch :: Pat -> Bool
 willAlwaysMatch (Pat _ T) = True
