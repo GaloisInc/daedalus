@@ -19,6 +19,187 @@ import qualified Data.ByteString as BS
 import Daedalus.PP
 import Daedalus.Core.Type (typeOf)
 
+{-
+forall x, x is number 
+
+proc _F6409(_x6402 : Builder (), _x6410 : Iter [Value], y : Word 32) : Builder () =
+  do let _x6412 = itNull _x6410
+     case _x6412 of
+       True ->
+         pure _x6402
+       False ->
+         do let x = itVal _x6410
+            let _x6407 = x
+            _6317 <- case _x6407 of
+                       number ->
+                         do let _6316 = fromTag number _x6407
+                            pure _6316
+                       _ ->
+                         fail_sys @(Word 32) "Pattern match failure"
+            let _6318 = _6317 < y
+            let _x6408 = _6318
+            _x6403 <- case _x6408 of
+                        True ->
+                          pure ()
+                        False ->
+                          fail_sys @() "Pattern match failure"
+            let _x6411 = cons _x6403 _x6402
+            _F6409(_x6411, itNext _x6410, y)
+ 
+proc P_bounded(xs : [Value], y : Word 32) : () =
+  do _x6413 <- _F6409(nil @(), itNew xs, y)
+     pure (listToArray _x6413)
+     pure ()
+
+====================
+
+_F90  ::  • Assertions: • exported {y, _x91} => do _x93 <- pure (itNull _x91)
+                                                   case _x93 of
+                                                     True ->
+                                                       [..]*;
+                                                     False ->
+                                                       do x <- pure (itVal _x91)
+                                                          _x88 <- pure x
+                                                          _44 <- case _x88 of
+                                                                   number ->
+                                                                     do _43 <- pure (fromTag number _x88)
+                                                                        pure _43
+                                                          _45 <- pure (_44 < y)
+                                                          _x89 <- pure _45
+                                                          assert _x89
+                                                          [..]; call _F90 {{y, _x91}}
+
+====================
+
+  { _x90: nil  -> T }
+, { _x90: cons ->
+          ( hd -> ( key -> T , val -> number -> T  )
+          , tl -> R@1
+          )
+  }
+
+-}
+
+{-
+
+do _x92 <- pure (itNull _x90)
+   case _x92 of
+     True ->
+       [..]*;
+     False ->
+       do x <- pure (itVal _x90)
+          this <- case x of
+                    number ->
+                      do _46 <- pure (fromTag number x)
+                         pure _46
+          _x87 <- pure (last <= this)
+          assert _x87
+          _x91 <- pure this
+          call _F89 {{last, _x90}}
+
+===>
+
+  { _x90: nil  -> T
+  , _last : T }
+, { _x90: cons ->
+          ( hd -> ( key -> T , val -> number -> R@2  )
+          , tl -> R@1
+          )
+  , _last : T }
+
+-}
+
+{-
+
+force each element to be > 0
+
+P (last, _x90) = 
+ 1 do _x92 <- pure (itNull _x90)
+ 2    case _x92 of
+ 3      True ->
+ 4        [..]*;
+ 5      False ->
+ 6        do x <- pure (itVal _x90)
+ 7           this <- case x of
+ 8                     number ->
+ 9                       do _46 <- pure (fromTag number x)
+10                          pure _46
+11           _x87 <- pure (last < this)
+12           assert _x87
+13           _x91 <- pure this
+14           call _F89 {{last, _x90}}
+15
+
+--------
+steps
+--------
+
+vc = VCAny
+2:
+ vc = VCAny
+
+ 3: -> { _x92: true }
+
+ 5:
+  14:
+   -> { { this: R(0), _x90: itNext -> R(1) } }
+  12:
+   -> { { this: R(0), _x90: itNext -> R(1), _x87: true } }
+  11: vc = true
+   -> { { this: R(0), _x90: itNext -> R(1), this: > 0, last: (< MAX) } }
+  7: vc = R(0) && (> 0)
+   9: vc = R(0) && (> 0)
+    { x: number -> R(0) && (> 0) }
+  -> { { x: number -> R(0) && (> 0), _x90: cons -> { hd: Top, tl: R(1) }, last: (< MAX) } }
+
+  6: vc = number -> R(0) && (> 0)
+  -> { { _x90: cons -> { hd: number -> R(0) && (> 0), tl: R(1) }, last: (< MAX) } }
+
+  5: { { _x92: false: _x90: cons -> { hd: number -> R(0) && (> 0), tl: R(1) }, last: (< MAX) } }
+
+  -> { { _x92: true }
+     , { _x92: false: _x90: cons -> { hd: number -> R(0) && (> 0), tl: R(1) }, last: (< MAX) }
+     }
+
+  1: -> 
+     { { _x90: nil -> T }
+     , { _x90: cons -> { hd: number -> R(0) && (> 0), tl: R(1) }, last: (< MAX) }
+     } 
+
+--------
+
+One iteration yields 
+
+     { { _x90: nil -> T }
+     , { _x90: cons -> { hd: number -> R(last) && (> 0), tl: R(_x90) }, last: (< MAX) }
+     }
+
+we want
+
+Fix R. \x -> case x of nil => T | cons => { hd : number -> (> 0), tl : R }
+
+
+
+-}
+
+{-
+
+There are a number of different classes of predicates we want to support:
+  1) sum type predictes 'this is a particular constructor' like 'x is number',
+     and 'each constructor C in x matches P' (i.e, Fix R. case x of C -> P ; _ -> R x, sort of)
+  2) list predicates 'the list is at most/exactly N elements', 'each element matches P'
+  3) map predicates  'each key/value matches P', 'the map has these keys, whos value matches P(key)'
+
+-}
+  
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+
 data ValueConstraint =
   VCAny
   | VCUnionElem Label ValueConstraint
@@ -123,15 +304,14 @@ trivialDomain = singletonD mempty
 
 type TyEnv = Map TName TDef
 
--- We can't short-cut on VCAny as the expression may contain partial
--- elements (fromJust, etc.).  Probably these could be caught by the
--- case that usually surrounds these elements, but this seems less
--- fragile.
+
+-- Although we have partioal functions, like fromJust, they are
+-- guarded by case statements, so we safely (?) ignore them for VCAny.
 transfer :: TyEnv -> ValueConstraint -> Expr -> Domain
+transfer _tys VCAny _ = trivialDomain
 transfer tys vc expr = 
   case expr of
-    Var n | vc /= VCAny -> singletonD (Map.singleton n vc)
-          | otherwise   -> trivialDomain
+    Var n -> singletonD (Map.singleton n vc)
           
     PureLet n e e' ->
       let vcs = go vc e'
@@ -140,10 +320,7 @@ transfer tys vc expr =
             -- n is known to exist from 'has'
             let (Just vc', h') = Map.updateLookupWithKey (\_ _ -> Nothing) n h
             in meet (singletonD h') (go vc' e)
-          -- If n isn't in the domain (i.e., implicitly Any), we still
-          -- need to process e to get any partial elements.
-          justPartials = go VCAny e
-      in joins (fromListD (map (meet justPartials) havesNot) ++ map goHave haves))
+      in joins (fromListD havesNot : map goHave haves)
 
     -- This is tricky as we need to find a solution which works across
     -- all fields, so we can't just or together the models.  Given we have
@@ -163,16 +340,15 @@ transfer tys vc expr =
       | VCStruct vcs <- vc ->
         -- FIXME: assert labels are the same
         meets (zipWith go (map snd vcs) (map snd ctors))
-      | otherwise -> panic "Constraint mismatch" []
 
     -- Case is where we get the alternatives.
     ECase c -> transferCase (go vc <$> c)
 
     Ap0 op       -> transferOp0 tys vc op
     Ap1 op e     -> transferOp1 tys vc op e
-  --   Ap2 op e1 e2 -> join (semiExecOp2 op rty (typeOf e1) (typeOf e2) <$> go e1 <*> go e2)
-  --   Ap3 op e1 e2 e3 -> join (semiExecOp3 op rty (typeOf e1) <$> go e1 <*> go e2 <*> go e3)
-  --   ApN opN vs     -> semiExecOpN opN rty =<< mapM go vs
+    Ap2 op e1 e2 -> transferOp2 tys vc op e1 e2
+    Ap3 op e1 e2 e3 -> transferOp3 tys vc op e1 e2 e3
+    -- ApN opN vs     -> semiExecOpN opN rty =<< mapM go vs
   -- where
   --   go = semiExecExpr
   --   rty = typeOf expr
@@ -204,6 +380,10 @@ transferOp0 tys vc op =
 
 
 transferOp1 :: TyEnv -> ValueConstraint -> Op1 -> Expr -> Domain
+-- Partial operations
+transferOp1 tys vc (FromUnion _t l) e = transfer tys (VCUnionElem l vc) e
+transferOp1 tys vc FromJust         e = transfer tys (VCJust vc) e
+transferOp1 _tys VCAny _            _ = trivialDomain
 transferOp1 tys vc op e =
   case op of
     CoerceTo {}   -> go vc e
@@ -213,11 +393,11 @@ transferOp1 tys vc op e =
     StreamLen     -> unimplemented
 
     -- Most numeric operations aren't predicated
-    OneOf {}      -> justPartials -- should be VCAny
-    Neg           -> justPartials -- should be VCAny
-    BitNot        -> justPartials -- should be VCAny
-    Not           -> justPartials -- should be VCAny
-    ArrayLen      -> justPartials -- should be VCAny
+    OneOf {}      -> unimplemented -- should be VCAny
+    Neg           -> unimplemented -- should be VCAny
+    BitNot        -> unimplemented -- should be VCAny
+    Not           -> unimplemented -- should be VCAny
+    ArrayLen      -> unimplemented -- should be VCAny
 
     -- This is tricky we would need to pick N arrays which combine to
     -- the result we want.
@@ -242,14 +422,10 @@ transferOp1 tys vc op e =
         -> let mkOne (l'', _) = (l'', VCAny)
                vc' = VCStruct (map mkOne pfx ++ [(l, vc)] ++ map mkOne sfx)
            in go vc' e
-      | otherwise -> justPartials
       
     InUnion _ut l
       | VCUnionElem l' vc' <- vc ->
           if l == l' then go vc' e else DBottom
-      | otherwise -> justPartials
-
-    FromUnion _t l -> go (VCUnionElem l vc) e
     
     -- FP
     WordToFloat    -> unimplemented
@@ -263,36 +439,37 @@ transferOp1 tys vc op e =
     unimplemented = panic "Unimplemented" [showPP op]
     go = transfer tys
     e_ty = typeOf e
-    justPartials = go VCAny e
 
 transferOp2 :: TyEnv -> ValueConstraint -> Op2 -> Expr -> Expr -> Domain
+transferOp2 _tys VCAny _ _ _ = trivialDomain
 transferOp2 tys vc op e1 e2 =
   case op of
+    -- Stream stuff
     IsPrefix    -> unimplemented
     Drop        -> unimplemented
     Take        -> unimplemented
 
     -- FIXME: maybe we need a VCBool b to catch predicates
-    Eq          -> justPartials
-    NotEq       -> justPartials
-    Leq         -> justPartials
-    Lt          -> justPartials
+    Eq          -> unimplemented -- should be VCAny
+    NotEq       -> unimplemented -- should be VCAny
+    Leq         -> unimplemented -- should be VCAny
+    Lt          -> unimplemented -- should be VCAny
 
-    Add         -> justPartials
-    Sub         -> justPartials
-    Mul         -> justPartials
-    Div         -> justPartials
-    Mod         -> justPartials
+    Add         -> unimplemented -- should be VCAny
+    Sub         -> unimplemented -- should be VCAny
+    Mul         -> unimplemented -- should be VCAny
+    Div         -> unimplemented -- should be VCAny
+    Mod         -> unimplemented -- should be VCAny
 
-    BitAnd      -> justPartials
-    BitOr       -> justPartials
-    BitXor      -> justPartials
-    Cat         -> justPartials
-    LCat        -> justPartials
-    LShift      -> justPartials
-    RShift      -> justPartials
+    BitAnd      -> unimplemented -- should be VCAny
+    BitOr       -> unimplemented -- should be VCAny
+    BitXor      -> unimplemented -- should be VCAny
+    Cat         -> unimplemented -- should be VCAny
+    LCat        -> unimplemented -- should be VCAny
+    LShift      -> unimplemented -- should be VCAny
+    RShift      -> unimplemented -- should be VCAny
 
-    ArrayIndex  -> justPartials -- FIXME: maybe we could do more here
+    ArrayIndex  -> unimplemented 
     ConsBuilder -> unimplemented
     MapLookup   -> unimplemented
     MapMember   -> unimplemented
@@ -301,8 +478,17 @@ transferOp2 tys vc op e1 e2 =
   where
     unimplemented = panic "Unimplemented" [showPP op]
     go = transfer tys
-    justPartials = meet (go VCAny e1) (go VCAny e2)
 
+transferOp3 :: TyEnv -> ValueConstraint -> Op3 ->
+               Expr -> Expr -> Expr -> Domain
+transferOp3 _tys VCAny _ _ _ _ = trivialDomain
+transferOp3 tys vc op e1 e2 e3 =
+  case op of
+    RangeUp   -> unimplemented
+    RangeDown -> unimplemented
+    MapInsert -> unimplemented
+  where
+    unimplemented = panic "Unimplemented" [showPP op]
 
 transferCase :: Case Domain -> Domain
 transferCase (Case y alts) =
