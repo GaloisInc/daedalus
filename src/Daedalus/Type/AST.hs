@@ -308,14 +308,9 @@ data TCTyDef    = TCTyStruct (Maybe BDCon)
                 | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
                   deriving (Show, Eq)
 
-data TCBitdataField =
-  TCBitdataField { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
-                 , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
-                 } deriving (Show, Eq)
-
 data BDCon = BDCon
   { bdPat     :: BDD.Pat        -- ^ All possible values that match this con
-  , bdFields  :: [BDField]
+  , bdFields  :: [BDField]      -- ^ Assumes sorted (most signifcant first)
   } deriving (Eq,Show)
 
 data BDField = BDField
@@ -619,7 +614,11 @@ instance PP TCTyDef where
 
     where
     ppS (x,t)      = pp x <.> ":" <+> pp t
-    ppF (x,(t, _)) = pp x <.> ":" <+> pp t
+    ppF (x,(t, mb)) =
+      pp x <.> ":" <+> pp t <+>
+        case mb of
+          Nothing -> empty
+          Just p  -> vcat [ "--" <+> l | l <- map text (lines (show p)) ]
 
 instance PP BDCon where
   pp c = block "[" "|" "]" (map pp (bdFields c)) -- XXX: show pattern?
