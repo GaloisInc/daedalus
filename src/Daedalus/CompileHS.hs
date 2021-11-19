@@ -15,6 +15,7 @@ import qualified Data.List.NonEmpty as NE
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.Panic
+import qualified Daedalus.BDD as BDD
 
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -236,9 +237,95 @@ hsThisTy env TCTyDecl { .. } =
 
 -- | Declarations for the constructors of a type, and related instances.
 hsTyDeclDef :: Env -> TCTyDecl -> ([Term],[Decl])
-hsTyDeclDef env me@TCTyDecl { .. } =
+hsTyDeclDef env me =
+  case tctyBD me of
+    Nothing  -> hsTyDeclDefADT env me
+    Just pat -> hsTyDeclDefBD env pat me
+
+hsTyDeclDefBD :: Env -> BDD.Pat -> TCTyDecl -> ([Term],[Decl])
+hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
+  where
+  con   = aps (hsStructConName env NameDecl tctyName) [ repTy ]
+  wi    = toInteger (BDD.width univ)
+
+  ty    = hsThisTy env me
+  repTy = hsType env (tUInt (tNum wi))
+
+  insts = bdinst : coerce1 : coerce2 : selInsts
+
+  bdinst =
+    InstanceDecl
+      Instance
+        { instOverlaps = Normal
+        , instAsmps   = []
+        , instHead    = aps "RTS.Bitdata" [ ty ]
+        , instMethods =
+          [ Fun TypeFun (aps "BDWidth"  [ ty ]) (hsInteger wi)
+          , Fun ValueFun "bdToRep" "HS.coerce"
+          , Fun ValueFun "bdFromRep" "HS.coerce"
+          ]
+        }
+
+  coerce1 =
+    InstanceDecl
+      Instance
+        { instOverlaps = Overlaps
+        , instAsmps   = []
+        , instHead    = aps "RTS.Convert" [ repTy, ty ]
+        , instMethods =
+          [ Fun ValueFun "convert" "HS.coerce"
+          , Fun ValueFun (aps "convertMaybe" ["x"])
+            let yep = aps "HS.Just" [ aps "HS.coerce" [ "x" ] ]
+            in
+            case [ t | t <- BDD.patTests univ, BDD.patMask t /= 0 ] of
+              [] -> yep
+              ts ->
+                let mkOrs = foldr1 (ApI "HS.||")
+                    ok = mkOrs
+                       $ map check
+                       $ Map.toList
+                       $ BDD.groupTestsByMask ts
+                    check (m,vs) =
+                      let masked
+                            | m == (2^wi - 1) = aps "RTS.fromUInt" ["x"]
+                            | otherwise =
+                              ApI "HS..&." (aps "RTS.fromUInt" ["x"])
+                                           (hsInteger m)
+                      in case vs of
+                           [] -> panic "ConvertInstace" ["empty test"]
+                           [v] -> ApI "HS.==" masked (hsInteger v)
+                           _   -> aps (Lam ["y"] body) [masked]
+                              where tryIt v = ApI "HS.==" "y" (hsInteger v)
+                                    body    = mkOrs (map tryIt vs)
+                in If ok yep "HS.Nothing"
+          ]
+        }
+
+  coerce2 =
+    InstanceDecl
+      Instance
+        { instOverlaps = Overlaps
+        , instAsmps   = []
+        , instHead    = aps "RTS.Convert" [ ty, repTy ]
+        , instMethods =
+          [ Fun ValueFun "convert" "HS.coerce"
+          , Fun ValueFun "convertMaybe" (ApI "HS.." "HS.Just" "HS.coerce")
+          ]
+        }
+
+
+
+  selInsts =
+    case tctyDef of
+      TCTyStruct ~(Just bd) _ -> [] -- XXX undefined
+      TCTyUnion {} -> []
+
+
+
+hsTyDeclDefADT :: Env -> TCTyDecl -> ([Term],[Decl])
+hsTyDeclDefADT env me@TCTyDecl { .. } =
   case tctyDef of
-    TCTyStruct _ fs ->  -- XXX: bitdata
+    TCTyStruct _ fs ->
       ( [ aps (hsStructConName env NameDecl tctyName) (map snd fts) ]
       , concatMap hasInst fts
       )
@@ -251,9 +338,10 @@ hsTyDeclDef env me@TCTyDecl { .. } =
             ft = hsLabelT f
 
         in [ declare Instance
-             { instAsmps = []
+             { instOverlaps = Normal
+             , instAsmps = []
              , instHead  = "HS.HasField" `Ap` ft `Ap` st `Ap` t
-             , instMethods = [ Fun ("getField" `Ap` pat) "x" ]
+             , instMethods = [ Fun ValueFun ("getField" `Ap` pat) "x" ]
              }
            ]
 
@@ -266,13 +354,14 @@ hsTyDeclDef env me@TCTyDecl { .. } =
         in
         ( hsUniConName env NameDecl tctyName f `Ap` t
         , [ declare Instance
-              { instAsmps = []
+              { instOverlaps = Normal
+              , instAsmps = []
               , instHead  = "HS.HasField" `Ap` ft `Ap` st `Ap`
                                                           ("HS.Maybe" `Ap` t)
               , instMethods =
                   let pat = hsUniConName env NameUse tctyName f `Ap` "x"
-                  in [ Fun ("getField" `Ap` pat) ("HS.Just" `Ap` "x")
-                     , Fun ("getField" `Ap` "_") "HS.Nothing"
+                  in [ Fun ValueFun ("getField" `Ap` pat) ("HS.Just" `Ap` "x")
+                     , Fun ValueFun ("getField" `Ap` "_") "HS.Nothing"
                      ]
               }
           ]
@@ -304,7 +393,8 @@ hsTyDecl env me@TCTyDecl { .. } =
                       }
 
   ddlT = declare Instance
-          { instAsmps = concatMap extraCtrs tctyParams
+          { instOverlaps = Normal
+          , instAsmps = concatMap extraCtrs tctyParams
           , instHead  = "RTS.DDL" `Ap` hsThisTy env me
           , instMethods = []
           }
@@ -332,7 +422,8 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                     , sigType = hsPolyRule env (declTypeOf d)
                     }
   def = declare Fun
-          { funLHS = nm `aps` map (hsParam env) tcDeclParams
+          { funNS = ValueFun
+          , funLHS = nm `aps` map (hsParam env) tcDeclParams
           , funDef = defRHS
           }
 
@@ -825,6 +916,8 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  [ Import "Prelude"       (QualifyAs "HS")
                  , Import "GHC.TypeLits"  (QualifyAs "HS")
                  , Import "GHC.Records"   (QualifyAs "HS")
+                 , Import "Data.Coerce"   (QualifyAs "HS")
+                 , Import "Data.Bits"     (QualifyAs "HS")
                  , Import "Control.Monad" (QualifyAs "HS")
                  , Import "RTS"           (QualifyAs "RTS")
                  , Import "RTS.Input"     (QualifyAs "RTS")

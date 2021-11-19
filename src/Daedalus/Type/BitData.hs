@@ -22,6 +22,7 @@ import Daedalus.Type.AST
 import Daedalus.Type.Monad
 import Daedalus.Type.Kind
 
+
 srcTypeToSizedType :: P.SrcType -> TypeM a (Type, BDD.Pat)
 srcTypeToSizedType sTy = do
   ty <- checkType KValue sTy

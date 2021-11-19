@@ -43,21 +43,21 @@ data Value =
     deriving Show
 
 data BDStruct = BDStruct
-   { bdName     :: !Text
-   , bdWidth    :: !Int
-   , bdGetField :: !(Label -> Integer -> Value)
-   , bdStruct   :: !([(Label,Value)] -> Integer)
-   , bdValid    :: !(Integer -> Bool)
-   , bdFields   :: ![Label]
+   { bdName       :: !Text
+   , bdWidth      :: !Int
+   , bdGetField   :: !(Label -> Integer -> Value)
+   , bdStruct     :: !([(Label,Value)] -> Integer)
+   , bdValid      :: !(Integer -> Bool)
+   , bdFields     :: ![Label]
    }
 
 data BDUnion = BDUnion
-  { bduName     :: !Text
-  , bduWidth    :: !Int
-  , bduValid    :: !(Integer -> Bool)
-  , bduGet      :: !(Label   -> Integer -> Value)
-  , bduCover    :: !(Label   -> BDD.Pat)
-  , bduCases    :: ![Label]
+  { bduName       :: !Text
+  , bduWidth      :: !Int
+  , bduValid      :: !(Integer -> Bool)
+  , bduGet        :: !(Label   -> Integer -> Value)
+  , bduCover      :: !(Label   -> BDD.Pat)
+  , bduCases      :: ![Label]
   }
 
 instance Show BDStruct where
@@ -125,8 +125,8 @@ vFromBits t i =
   case t of
     TVUInt n      -> vUInt n i
     TVSInt n      -> vSInt' n i
-    TVBDStruct bd -> VBDStruct bd (clampTo (bdWidth bd))
-    TVBDUnion bd  -> VBDUnion bd (clampTo (bduWidth bd))
+    TVBDStruct bd -> VBDStruct bd (clampTo (bdWidth bd) i)
+    TVBDUnion bd  -> VBDUnion bd (clampTo (bduWidth bd) i)
     TVFloat       -> VFloat  (castWord32ToFloat  (fromInteger i))
     TVDouble      -> VDouble (castWord64ToDouble (fromInteger i))
     _             -> panic "vFromBits" [ "Value cannot be made from bits"
@@ -134,7 +134,7 @@ vFromBits t i =
                                        , show i ]
 
   where
-  clampTo w = mod i (snd (uintRange w) + 1)
+  clampTo w j = mod j (snd (uintRange w) + 1)
 
 vToBits :: Value -> Integer
 vToBits v =

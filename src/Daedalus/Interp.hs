@@ -515,6 +515,9 @@ evalType env ty =
                                                 , "Got: " ++ show (pp it)
                                                 ]
 
+-- XXX: This reavaluates types over and over againg.  It might be
+-- better to evalute bitdata types in the environment once instead,
+-- and store them in the environemtn.
 evalBitdataType :: Env -> Text -> BDD.Pat -> TCTyDef -> TValue
 evalBitdataType env name u def =
   case def of

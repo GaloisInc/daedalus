@@ -6,6 +6,8 @@ import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
 import Data.Bits(testBit)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 -- Ordered binary decision diagrams --------------------------------------------
 type Var            = Int
@@ -206,7 +208,9 @@ instance Show PatTest where
                 | i <- reverse (take w [0..])
                 ]
 
-
+groupTestsByMask :: [PatTest] -> Map Integer [Integer]
+groupTestsByMask = foldr cons Map.empty
+  where cons t = Map.insertWith (++) (patMask t) [patValue t]
 
 
 noTest :: Width -> PatTest
