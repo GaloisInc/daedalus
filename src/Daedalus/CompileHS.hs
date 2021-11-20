@@ -245,13 +245,14 @@ hsTyDeclDef env me =
 hsTyDeclDefBD :: Env -> BDD.Pat -> TCTyDecl -> ([Term],[Decl])
 hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
   where
-  con   = aps (hsStructConName env NameDecl tctyName) [ repTy ]
-  wi    = toInteger (BDD.width univ)
+  conName = hsStructConName env NameDecl tctyName
+  con     = aps conName [ repTy ]
+  wi      = toInteger (BDD.width univ)
 
-  ty    = hsThisTy env me
-  repTy = hsType env (tUInt (tNum wi))
+  ty      = hsThisTy env me
+  repTy   = hsType env (tUInt (tNum wi))
 
-  insts = bdinst : coerce1 : coerce2 : selInsts
+  insts   = bdinst : coerce1 : coerce2 : selInsts
 
   bdinst =
     InstanceDecl
@@ -317,9 +318,27 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
 
   selInsts =
     case tctyDef of
-      TCTyStruct ~(Just bd) _ -> [] -- XXX undefined
+      TCTyStruct ~(Just bd) _ ->
+        [ InstanceDecl
+            Instance
+              { instOverlaps = Normal
+              , instAsmps    = []
+              , instHead     = aps "HS.HasField" [ hsText l, ty, hsType env t ]
+              , instMethods =
+                [ Fun ValueFun (aps "getField" [aps conName ["x"]])
+                               (aps "RTS.bdFromRep"
+                                  [ aps "RTS.cvtU" [doShift "x" (bdOffset fi)]])
+                ]
+              }
+        | fi <- bdFields bd, BDData l t <- [ bdFieldType fi ]
+        ]
       TCTyUnion {} -> []
 
+
+  doShift x n
+    | n == 0 = x
+    | otherwise =
+      aps "RTS.shiftr" [x, aps "RTS.lit" [ hsInteger (fromIntegral n)] ]
 
 
 hsTyDeclDefADT :: Env -> TCTyDecl -> ([Term],[Decl])
@@ -923,6 +942,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  , Import "RTS.Input"     (QualifyAs "RTS")
                  , Import "RTS.Map"       (QualifyAs "Map")
                  , Import "RTS.Vector"    (QualifyAs "Vector")
+                 , Import "RTS.Numeric"   (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)
