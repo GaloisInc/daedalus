@@ -27,6 +27,7 @@ data Env = Env
   , envCurMod     :: ModuleName
   , envExtern     :: Map Name Term
   , envQualNames  :: UseQual
+  , envTypes      :: !(Map TCTyName TCTyDecl)
   }
 
 lkpInEnv :: (PP k, Ord k) => String -> Map k a -> k -> a
@@ -480,12 +481,20 @@ hsValue env tc =
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
     TCUnit      -> Tuple []
+
     TCStruct fs t ->
       case t of
-        TCon c _ -> hsStructConName env NameUse c `aps`
-                          [ hsValue env e | (_,e) <- fs ]
-        _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
+        TCon c _ ->
+          case Map.lookup c (envTypes env) of
+            Just decl | Just _bd <- tctyBD decl ->
+              case tctyDef decl of
+                TCTyStruct ~(Just con) _ -> hsBitdataStruct env t con fields
+                TCTyUnion alts -> undefined
 
+            _ -> hsStructConName env NameUse c `aps` map snd fields
+          where
+          fields = [ (f, hsValue env e) | (f,e) <- fs ]
+        _ -> panic "hsValue" [ "Unexpected struct of type:", showPP t ]
 
 
     TCArray vs t  ->
@@ -591,6 +600,26 @@ hsByteClass env tc =
                                         (hsByteClass env e2)
      TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
 
+
+hsBitdataStruct :: Env -> Type -> BDCon -> [(Label,Term)] -> Term
+hsBitdataStruct env ty con fs =
+  case map doCon (bdFields con) of
+    [] -> bv 0 0
+    vs -> hasType (hsType env ty)
+        $ aps "RTS.bdFromRep" [ foldl1 (\a b -> aps "RTS.cat" [a,b]) vs ]
+
+  where
+  bv w i = hasType (hsType env (tUInt (tNum (toInteger w))))
+         $ aps "RTS.UInt" [ hsInteger i ]
+
+  doCon f =
+    case bdFieldType f of
+      BDWild     -> bv (bdWidth f) 0
+      BDTag n    -> bv (bdWidth f) n
+      BDData l _ -> case lookup l fs of
+                      Just v  -> aps "RTS.bdToRep" [v]
+                      Nothing -> panic "hsBitdataStruct"
+                                  [ "Missing field", showPP l ]
 
 --------------------------------------------------------------------------------
 hsLabelT :: Label -> Term
@@ -952,6 +981,8 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
             , envTParser = cParserType
             , envExtern  = cPrims
             , envQualNames = cQualNames
+            , envTypes = Map.fromList [ (tctyName d, d)
+                                      | d <- concatMap recToList tcModuleTypes ]
             }
 
 
