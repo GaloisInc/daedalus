@@ -1596,17 +1596,15 @@ pureStruct r ls ts es
   | l : _ <- repeated =
       reportError r ("Multiple entries for field" <+> backticks (pp l))
   | otherwise =
-    case ls of
-      [] -> pure (exprAt r TCUnit, tUnit)
-      _  -> do ty <- newTVar r KValue
-               nm <- newTyDefName
-               addConstraint r $
-                  StructCon nm ty
-                    [ (l, Located { thingRange = range e, thingValue = t })
-                    | l <- ls
-                    | e <- es
-                    | t <- ts
-                    ]
-               pure (exprAt r (TCStruct (zip ls es) ty), ty)
+    do ty <- newTVar r KValue
+       nm <- newTyDefName
+       addConstraint r $
+          StructCon nm ty
+            [ (l, Located { thingRange = range e, thingValue = t })
+            | l <- ls
+            | e <- es
+            | t <- ts
+            ]
+       pure (exprAt r (TCStruct (zip ls es) ty), ty)
   where
   repeated = [ l | (l : _ : _) <- group (sort ls) ]

@@ -484,17 +484,13 @@ hsValue env tc =
 
     TCStruct fs t ->
       case t of
-        TCon c _ ->
-          case Map.lookup c (envTypes env) of
-            Just decl | Just _bd <- tctyBD decl ->
-              case tctyDef decl of
-                TCTyStruct ~(Just con) _ -> hsBitdataStruct env t con fields
-                TCTyUnion alts -> undefined
-
-            _ -> hsStructConName env NameUse c `aps` map snd fields
-          where
-          fields = [ (f, hsValue env e) | (f,e) <- fs ]
-        _ -> panic "hsValue" [ "Unexpected struct of type:", showPP t ]
+        TCon c _
+          | Just decl <- Map.lookup c (envTypes env)
+          , TCTyStruct (Just con) _ <- tctyDef decl ->
+            hsBitdataStruct env t con fields
+          | otherwise -> hsStructConName env NameUse c `aps` map snd fields
+            where fields = [ (f, hsValue env e) | (f,e) <- fs ]
+        _ -> panic "hsValue" ["Not a struct type", showPP t]
 
 
     TCArray vs t  ->
@@ -504,7 +500,12 @@ hsValue env tc =
 
     TCIn l v t ->
       case t of
-        TCon c _ -> hsUniConName env NameUse c l `Ap` hsValue env v
+        TCon c _
+          | Just decl <- Map.lookup c (envTypes env)
+          , Just _    <- tctyBD decl ->
+            hasType (hsType env t)
+              (aps "RTS.bdFromRep" [ aps "RTS.bdToRep" [ hsValue env v ] ])
+          | otherwise -> hsUniConName env NameUse c l `Ap` hsValue env v
         _ -> panic "hsValue" ["Unexpected type in `TCIn`"]
 
     TCTriOp op v1 v2 v3 _t ->
@@ -620,6 +621,7 @@ hsBitdataStruct env ty con fs =
                       Just v  -> aps "RTS.bdToRep" [v]
                       Nothing -> panic "hsBitdataStruct"
                                   [ "Missing field", showPP l ]
+
 
 --------------------------------------------------------------------------------
 hsLabelT :: Label -> Term

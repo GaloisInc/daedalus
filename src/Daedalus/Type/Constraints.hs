@@ -505,8 +505,17 @@ isStructCon r ty fs =
                      pure Solved
                TCTyUnion {} -> reportError r "Union used a structure"
 
-    Type _ -> reportDetailedError r "Type is not a structure"
-                  [ "Type:" <+> pp ty ]
+    Type tc ->
+      case tc of
+        TUnit ->
+          case fs of
+            [] -> pure Solved
+            (f,_) : _ ->
+              reportError r
+                ("Type {} does not have field" <+> backticks (pp f))
+
+        _ -> reportDetailedError r "Type is not a structure"
+              [ "Type:" <+> pp ty ]
 
 
 isUnionCon ::
@@ -682,8 +691,15 @@ simplifyConstraints =
     case todo of
       ctr : more
         | StructCon suggested ty fs <- thingValue ctr ->
-          chooseName suggested ty
-            (TCTyStruct Nothing [ (f, thingValue lt) | (f,lt) <- fs ])
+          case fs of
+
+            -- Empty struct types just get the unit type
+            [] -> do unify ty (ctr, tUnit)
+                     su <- getTypeSubst
+                     go False [] su (notYet ++ more)
+
+            _  -> chooseName suggested ty
+                     (TCTyStruct Nothing [ (f, thingValue lt) | (f,lt) <- fs ])
         | UnionCon suggested ty c t <- thingValue ctr ->
           chooseName suggested ty
             (TCTyUnion [ (c, (thingValue t,Nothing)) ])
