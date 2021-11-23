@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 import Data.Char(isUpper,isLower, toUpper)
 import Data.Word(Word8)
 import Data.ByteString(ByteString)
+import Data.List(groupBy)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
@@ -813,8 +814,16 @@ hsCase ::
   NonEmpty (TCAlt SourceRange k) ->
   Maybe (TC SourceRange k) ->
   Term
-hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
+hsCase eval ifFail env e alts dfl
+  | isBitdata = hsBitdataCase eval ifFail env e alts dfl
+  | otherwise = Case (hsValue env e) branches
   where
+  isBitdata = case typeOf e of
+                TCon c _
+                   | Just _ <- tctyBD (lkpInEnv "typeEnv" (envTypes env) c) ->
+                     True
+                _ -> False
+
   branches =
     concatMap alt (NE.toList alts) ++ [
       case dfl of
@@ -827,6 +836,110 @@ hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
     in [ (hsPat env p, r) | p <- ps ]
 
 
+hsBitdataUniv :: Env -> Type -> BDD.Pat
+hsBitdataUniv env ty =
+  case ty of
+    TCon c _ -> case tctyBD (lkpInEnv "envTypes" (envTypes env) c) of
+                  Just p -> p
+                  _      -> bad
+    TVar {} -> bad
+    Type tc ->
+      case tc of
+        TUInt (Type (TNum n)) -> BDD.pWild (fromInteger n)
+        TSInt (Type (TNum n)) -> BDD.pWild (fromInteger n)
+        TFloat                -> BDD.pWild 32
+        TDouble               -> BDD.pWild 64
+        TUnit                 -> BDD.pWild 0
+        _                     -> bad
+  where
+  bad = panic "hsBitdataWidth" [ "Not a bitdata type", showPP ty ]
+
+hsBitdataWidth :: Env -> Type -> BDD.Width
+hsBitdataWidth env t = BDD.width (hsBitdataUniv env t)
+
+hsPatBDD :: Env -> TCPat -> BDD.Pat
+hsPatBDD env pat =
+  case pat of
+    TCConPat _ _ p1 -> hsPatBDD env p1
+    TCNumPat t n _  -> BDD.pInt (hsBitdataWidth env t) n
+    TCVarPat x      -> hsBitdataUniv env (typeOf x)
+    TCWildPat t     -> hsBitdataUniv env t
+
+    TCBoolPat {}    -> bad
+    TCJustPat {}    -> bad
+    TCNothingPat {} -> bad
+
+  where
+  bad = panic "hsPatBDD" [ "Invlalid bitdata pattern", showPP pat ]
+
+hsPatVars :: TCPat -> [TCName Value]
+hsPatVars pat =
+  case pat of
+    TCVarPat x      -> [x]
+    TCConPat _ _ p1 -> hsPatVars p1
+    TCNumPat {}     -> []
+    TCWildPat {}    -> []
+    TCBoolPat {}    -> []
+    TCJustPat p     -> hsPatVars p
+    TCNothingPat {} -> []
+
+hsBitdataAlts :: Env -> [TCAlt a k] -> [(BDD.Pat,Int)]
+hsBitdataAlts env alts =
+  [ (hsPatBDD env p,n)
+  | (alt,n) <- zip alts [ 0 .. ]
+  , p <- tcAltPatterns alt
+  ]
+
+hsBitdataCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Term ->
+  Env ->
+  TC SourceRange Value ->
+  NonEmpty (TCAlt SourceRange k) ->
+  Maybe (TC SourceRange k) ->
+  Term
+
+hsBitdataCase doAlt ifFail env e alts mbD =
+  aps (Lam [caseValName] actualCase) [ aps "RTS.bdToRep" [hsValue env e] ]
+  where
+  caseValName = "caseVal" :: Term
+  actualCase = foldr doCase finalCase tests
+
+  finalCase = case mbD of
+                Just d -> doAlt env d
+                Nothing -> ifFail
+
+  doCase :: [(BDD.PatTest,Int)] -> Term -> Term
+  doCase opts doElse =
+    let (p,rhs) : _ = opts
+    in if BDD.patMask p == 0
+        then hsAlt rhs
+        else Case (ApI "HS..&." caseValName (hsInteger (BDD.patMask p)))
+               $ [ (hsInteger (BDD.patValue t), hsAlt n) | (t,n) <- opts ] ++
+                 [ ("_", doElse) ]
+
+  ty    = typeOf e
+  univ  = hsBitdataUniv env ty
+
+  sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
+
+  tests :: [[(BDD.PatTest,Int)]]
+  tests = groupBy sameMask
+        $ BDD.patTestsAssumingInOrder univ
+        $ hsBitdataAlts env
+        $ NE.toList alts
+  -- XXX: potentially duplicates RHS.  They could (should) be named instead
+  -- We name the RHS with ints in prep for that.
+
+  hsAlt n = let alt = alts NE.!! n
+                rhs = doAlt env (tcAltBody alt)
+                xs  = map (hsTCName env) (hsPatVars (head (tcAltPatterns alt)))
+            in aps (Lam xs rhs)
+                   [ aps "RTS.bdFromRep" [ caseValName ] | _ <- xs ]
+            -- XXX: if we added struct patterns this would have to
+            -- change to actually project the fields.  At the moment
+            -- we can have only variable which always has the same rep
+            -- as the original value, but possibly at a different type
 
 hsPat :: Env -> TCPat -> Term
 hsPat env pat =
