@@ -269,13 +269,13 @@ patTestsAssuming univ (Pat w shape) =
       ifThen  = patTestsAssuming subUniv (Pat w' p)
       ifElse  = patTestsAssuming subUniv (Pat w' q)
 
-patTestsAssumingInOrderd :: Pat -> [(Pat,a)] -> [(PatTest,a)]
-patTestsAssumingInOrderd univ opts =
+patTestsAssumingInOrder :: Pat -> [(Pat,a)] -> [(PatTest,a)]
+patTestsAssumingInOrder univ opts =
   case opts of
     [] -> []
     (p,a) : ps ->
       [ (t,a) | t <- patTestsAssuming univ p ] ++
-      patTestsAssumingInOrderd (pNot p `pAnd` univ) ps
+      patTestsAssumingInOrder (pNot p `pAnd` univ) ps
 
 pr :: Pat -> IO ()
 pr x = putStrLn $ unlines $ showPat x
