@@ -114,6 +114,7 @@ instance PP Term where
       ApI o x y -> wrapIf (n > 0) (hang (ppPrec 1 x) 2 (text o <+> ppPrec 1 y))
       Tuple xs  -> parens (commas (map pp xs))
       List xs   -> brackets (commas (map pp xs))
+      Lam [] e  -> ppPrec n e
       Lam ps e  -> wrapIf (n > 0) $
                    hang ("\\" <.> hsep (map (ppPrec 1) ps) <+> "->") 2 (pp e)
       Raw x     -> text (show x)
