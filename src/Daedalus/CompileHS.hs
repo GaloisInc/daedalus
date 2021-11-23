@@ -900,7 +900,8 @@ hsBitdataCase ::
   Term
 
 hsBitdataCase doAlt ifFail env e alts mbD =
-  aps (Lam [caseValName] actualCase) [ aps "RTS.bdToRep" [hsValue env e] ]
+  aps (Lam [aps "RTS.UInt" [caseValName]] actualCase)
+      [ aps "RTS.bdToRep" [hsValue env e] ]
   where
   caseValName = "caseVal" :: Term
   actualCase = foldr doCase finalCase tests
@@ -935,7 +936,8 @@ hsBitdataCase doAlt ifFail env e alts mbD =
                 rhs = doAlt env (tcAltBody alt)
                 xs  = map (hsTCName env) (hsPatVars (head (tcAltPatterns alt)))
             in aps (Lam xs rhs)
-                   [ aps "RTS.bdFromRep" [ caseValName ] | _ <- xs ]
+                   [ aps "RTS.bdFromRep" [ aps "RTS.UInt" [caseValName] ]
+                   | _ <- xs ]
             -- XXX: if we added struct patterns this would have to
             -- change to actually project the fields.  At the moment
             -- we can have only variable which always has the same rep

@@ -116,7 +116,7 @@ instance PP Term where
       List xs   -> brackets (commas (map pp xs))
       Lam [] e  -> ppPrec n e
       Lam ps e  -> wrapIf (n > 0) $
-                   hang ("\\" <.> hsep (map (ppPrec 1) ps) <+> "->") 2 (pp e)
+                   hang ("\\" <.> hsep (map (ppPrec 2) ps) <+> "->") 2 (pp e)
       Raw x     -> text (show x)
       TyParam x -> "@" <.> ppPrec 2 x
       If x y z  -> wrapIf (n > 0) $
