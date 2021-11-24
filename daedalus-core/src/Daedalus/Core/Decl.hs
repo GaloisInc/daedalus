@@ -9,6 +9,7 @@ import Control.DeepSeq       (NFData)
 
 import Daedalus.PP
 import Daedalus.Rec
+import qualified Daedalus.BDD as BDD
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -46,6 +47,7 @@ data TDecl = TDecl
 data TDef =
     TStruct [(Label,Type)]
   | TUnion  [(Label,Type)]
+  | TBitdata BDD.Pat BitdataDef
   deriving (Generic,NFData)
 
 class GetFields t where
@@ -58,6 +60,29 @@ instance GetFields TDef where
   getFields td = case td of
                    TStruct fs -> fs
                    TUnion  fs -> fs
+                   TBitdata _ bd -> getFields bd
+
+instance GetFields BitdataDef where
+  getFields bd =
+    case bd of
+      BDStruct fs -> [ (l,t) | f <- fs, BDData l t <- [ bdFieldType f ] ]
+      BDUnion fs  -> fs
+
+data BitdataDef =
+    BDStruct [BDField]
+  | BDUnion  [(Label,Type)]
+  deriving (Generic,NFData)
+
+data BDField = BDField
+  { bdOffset    :: BDD.Width
+  , bdWidth     :: BDD.Width
+  , bdFieldType :: BDFieldType
+  } deriving (Generic,NFData)
+
+data BDFieldType = BDWild | BDTag Integer | BDData Label Type
+  deriving (Generic,NFData)
+
+
 
 
 --------------------------------------------------------------------------------
@@ -98,11 +123,25 @@ instance PP TDecl where
 instance PP TDef where
   pp d =
     case d of
-      TStruct fs -> ppK "struct" fs
-      TUnion  fs -> ppK "union"  fs
+      TStruct fs    -> ppK "struct" fs
+      TUnion  fs    -> ppK "union"  fs
+      TBitdata _ bd -> "bitdata" $$ nest 2 (pp bd)
     where
     ppK k fs  = k $$ nest 2 (vcat (map ppF fs))
     ppF (l,t) = pp l <+> ":" <+> pp t
+
+instance PP BitdataDef where
+  pp d =
+    case d of
+      BDStruct fs -> vcat (map pp fs)
+      BDUnion  fs -> vcat [ pp l <+> ":" <+> pp t | (l,t) <- fs ]
+
+instance PP BDField where
+  pp f = case bdFieldType f of
+           BDWild     -> "_"  <+> ":" <+> pp w
+           BDTag n    -> pp n <+> ":" <+> pp w
+           BDData l t -> pp l <+> ":" <+>  pp t
+    where w = TUInt (TSize (toInteger (bdWidth f)))
 
 
 class DefKW a where

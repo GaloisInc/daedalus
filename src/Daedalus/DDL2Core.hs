@@ -21,6 +21,7 @@ import MonadLib
 
 import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
+import qualified Daedalus.BDD as BDD
 import Daedalus.GUID(invalidGUID)
 
 import Daedalus.Pass(PassM)
@@ -1207,7 +1208,7 @@ fromTCTyDecl td =
          f  = let ?tenv = te { tVars    = Map.fromList (zip txs ts)
                              , tNumVars = Map.fromList (zip ixs is)
                              }
-              in fromTCTyDef (TC.tctyDef td)
+              in fromTCTyDef (TC.tctyBD td) (TC.tctyDef td)
      pure TDecl { tName = lkpTCon te (TC.tctyName td)
                 , tTParamKNumber = is
                 , tTParamKValue  = ts
@@ -1219,15 +1220,35 @@ fromTCTyDecl td =
                TC.KNumber -> Left x
                k -> panic "fromTCTyDecl" [ "Unexpected kind param: " ++ show k ]
 
-
-fromTCTyDef :: (?tenv :: TEnv) => TC.TCTyDef -> TDef
-fromTCTyDef tdef =
-  case tdef of
-    TC.TCTyStruct _ fs -> TStruct (map fieldS fs) -- FIXME: bitdata
-    TC.TCTyUnion fs  -> TUnion  (map field fs)
+fromBitdata :: (?tenv :: TEnv) => TC.TCTyDef -> BitdataDef
+fromBitdata def =
+  case def of
+    TC.TCTyStruct mbCon _ ->
+      case mbCon of
+        Just con -> BDStruct [ cvt f | f <- TC.bdFields con ]
+        Nothing -> panic "fromBitdata" [ "Not bitdata", showPP def ]
+    TC.TCTyUnion fs -> BDUnion [ (l,fromType t) | (l,(t,_)) <- fs ]
   where
-  fieldS (l,t)     = (l, fromType t) -- FIXME: this erases bitdata info
-  field (l,(t, _)) = (l, fromType t) -- FIXME: this erases bitdata info
+  cvt f = BDField { bdOffset = TC.bdOffset f
+                  , bdWidth  = TC.bdWidth f
+                  , bdFieldType =
+                    case TC.bdFieldType f of
+                      TC.BDWild     -> BDWild
+                      TC.BDTag n    -> BDTag n
+                      TC.BDData l t -> BDData l (fromType t)
+                  }
+
+fromTCTyDef :: (?tenv :: TEnv) => Maybe BDD.Pat -> TC.TCTyDef -> TDef
+fromTCTyDef bd tdef =
+  case bd of
+    Nothing ->
+      case tdef of
+        TC.TCTyStruct _ fs -> TStruct (map fieldS fs)
+        TC.TCTyUnion fs  -> TUnion  (map field fs)
+    Just univ -> TBitdata univ (fromBitdata tdef)
+  where
+  fieldS (l,t)     = (l, fromType t)
+  field (l,(t, _)) = (l, fromType t)
 
 
 

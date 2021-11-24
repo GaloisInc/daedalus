@@ -21,10 +21,13 @@ data Env = Env
   , fEnv    :: Map FName ([Value] -> Value)
   , bEnv    :: Map FName ([Value] -> Word8 -> Bool)
   , gEnv    :: Map FName ([Value] -> Parser Value)
+  , tEnv    :: !()
   }
 
 emptyEnv :: Env
-emptyEnv = Env mempty mempty mempty mempty mempty 
+emptyEnv =
+  Env { vEnv = mempty, cEnv = mempty, fEnv = mempty, bEnv = mempty
+      , gEnv = mempty, tEnv = () }
 
 lookupVar :: Name -> Env -> Value
 lookupVar x env =
@@ -49,9 +52,10 @@ lookupFun :: FName -> Env -> [Value] -> Value
 lookupFun f env =
   case Map.lookup f (fEnv env) of
     Just fv -> fv
-    Nothing -> panic "lookupFun" [ "Undefined function", show (pp f), "Known "
-                                 , show (hsep (punctuate "," (map pp (Map.keys (fEnv env)))))
-                                 ]
+    Nothing -> panic "lookupFun"
+                  [ "Undefined function", show (pp f), "Known "
+                  , show (hsep (punctuate "," (map pp (Map.keys (fEnv env)))))
+                  ]
 
 defFun :: FName -> ([Value] -> Value) -> Env -> Env
 defFun f v env = env { fEnv = Map.insert f v (fEnv env) }
