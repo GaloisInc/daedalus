@@ -12,7 +12,7 @@ import Daedalus.Value
 
 import Daedalus.Panic(panic)
 import Daedalus.PP (pp, hsep, punctuate)
-import Daedalus.Core(Name,FName)
+import Daedalus.Core(Name,FName,TName,TDecl)
 
 
 data Env = Env
@@ -21,13 +21,13 @@ data Env = Env
   , fEnv    :: Map FName ([Value] -> Value)
   , bEnv    :: Map FName ([Value] -> Word8 -> Bool)
   , gEnv    :: Map FName ([Value] -> Parser Value)
-  , tEnv    :: !()
+  , tEnv    :: Map TName TDecl
   }
 
 emptyEnv :: Env
 emptyEnv =
   Env { vEnv = mempty, cEnv = mempty, fEnv = mempty, bEnv = mempty
-      , gEnv = mempty, tEnv = () }
+      , gEnv = mempty, tEnv = mempty }
 
 lookupVar :: Name -> Env -> Value
 lookupVar x env =
@@ -81,3 +81,11 @@ lookupBFun f env =
 defBFuns :: Map FName ([Value] -> Word8 -> Bool) -> Env -> Env
 defBFuns fs env = env { bEnv = Map.union fs (bEnv env) }
 
+lookupType :: TName -> Env -> TDecl
+lookupType t env =
+  case Map.lookup t (tEnv env) of
+    Just d -> d
+    Nothing -> panic "lookupType" [ "Undefined type", show (pp t) ]
+
+defTypes :: Map TName TDecl -> Env -> Env
+defTypes tys env = env { tEnv = tys `Map.union` tEnv env }

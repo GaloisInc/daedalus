@@ -8,7 +8,7 @@ import Data.Word(Word8)
 
 import RTS.Parser(Parser,runParser)
 import RTS.ParserAPI(Result,Input)
-import Daedalus.Rec(topoOrder)
+import Daedalus.Rec(topoOrder,forgetRecs)
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 
@@ -32,6 +32,12 @@ evalModuleEmptyEnv m = evalModule m emptyEnv
 
 evalModule :: Module -> Env -> Env
 evalModule m = evalGFuns (mGFuns m) . evalBFuns (mBFuns m) . evalFuns (mFFuns m)
+             . defTypes tys
+  where
+  tys = Map.fromList
+      [ (tName decl, decl)
+      | decl <- forgetRecs (mTypes m)
+      ]
 
 evalFuns :: [Fun Expr] -> Env -> Env
 evalFuns fns0 env0 = foldl' evalRec env0 (topoOrder deps fns0)
