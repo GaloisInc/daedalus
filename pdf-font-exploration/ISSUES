@@ -1,19 +1,120 @@
+-*- mode: org; -*-
 * TODO next tasks
 
-1. get an example together so as to test code for the cmap lookup
-2. add the cmap lookup code to this defn
-  def ExtractStringType1 (font : Type1Font) (s : [ uint 8 ]) : [ UTF8 ] = {...}
-3. add more cmap tests
-4. fixing CMap.ddl
-  - do UTF right: parse as hexadecimal UTF16-BE and convert to UTF8 bytes!
-  - see other FIXMEs in CMap.ddl (some maybe unimportant)
+1. debug 2020-03-eval/0311_*.pdf, see below
+2. add more cmap tests
+   - integrate these as a 3rd tool into the new&improved pdf-driver/test!
+3. fixing CMap.ddl
+   - do UTF right: parse as hexadecimal UTF16-BE and convert to UTF8 bytes!
+     - DONE?
+   - see other FIXMEs in CMap.ddl (some may be unimportant)
+4. cidranges and bfranges - mutually exclusive
+5. no check is made that notdef conflicts with others!
+6. cidfonts don't use UTF16-BE nor <> notation! *HUH?*
 
-5. cidranges and bfranges - mutually exclusive
-6. no check is made that notdef conflicts with others!
-7. cidfonts don't use UTF16-BE nor <> notation!
-      
+* TODO [#A] issues with `pdf-hs-driver -t 2020-03-eval/0311_*.pdf
+
+1. the first line of the first paragraph (after "THE WINE:") is not found: this
+   seems weird.
+
+2. A font encoding issues,  after "Color:"
+     Color:
+   - bright ruby with reflections of garnet
+   + EULJKWUXE\ZLWKUHHFWLRQVRI JDU QHW
+
+   NOTE:
+   - This is a type1 CID font!
+   - The CMAP is parsed just fine.
+
+qpdf -qdf --stream-data=uncompress 0311_*.pdf ~/tmp/0311_read.pdf
+
+#+begin_src
+6 0 obj ...
+    /Font <<
+      /C2_0 11 0 R
+      /T1_0 12 0 R
+      /TT0 13 0 R
+      /TT1 14 0 R
+    >>
+...
+
+11 0 obj
+<<
+  /BaseFont /DGZPGN+Garamond
+  /DescendantFonts 17 0 R
+  /Encoding /Identity-H
+  /Subtype /Type0
+  /ToUnicode 18 0 R
+  /Type /Font
+>>
+endobj
+
+/TT1 1 Tf
+12 0 0 12 288 269.2 Tm
+[(Color)-10 (:)]TJ
+ET
+EMC
+/Span <</Lang (en-US)/MCID 27 >>BDC
+BT
+/C2_0 1 Tf
+12 0 0 12 319.1191 269.2 Tm
+[<000300450055004c004a004b005700030055>-33 <00580045>13.2
+<005c0003005a004c0057004b00030055004800c1004800460057004c005200510056000300520049>-127.9
+<0003004a>-19.8 <00440055>-20.7 <005100480057>]TJ
+#+end_src   
+
+
+* NOTE current status on 2021-11-23
+
+src/daedalus $ cd tests/cmaps
+tests/cmaps $ pdf-dom --help
+...
+Flags:
+    --xrefs              List the cross-reference table.
+    --pp                 Pretty print trailier or the reference --obj --gen
+    --list               Pretty print all objects in the PDF.
+    --obj=NUM            Focus on this object.
+    --gen=NUM            Set the generation of the focused object.
+    --pwd=STRING         Set the encryption password for the document.
+    --parse-value        File contains a value instead of a PDF document.
+    --parse-type=PARSER  File contains an object of type PARSER instead of a PDF document.
+    --help               Show this help.
+
+tests/cmaps $ pdf-dom --parse-type=ToUnicodeCMap_simpleFont govdocs-000009-a.sf-cmap
+ToUnicodeCMap0 (CMapProper (fromList [(CMapKey_cMapName "CMapName",CMapVal_cMapNameVal "F1+0"),(CMapKey_cMapType "CMapType",CMapVal_cMapTypeVal (Number 2 0)),(CMapKey_cidSysInfo "CIDSystemInfo",CMapVal_cidSysInfoVal (fromList [(CIDSysInfoKey_ordering "Ordering",CIDSysInfoVal_orderingVal "T1UV"),(CIDSysInfoKey_registry "Registry",CIDSysInfoVal_registryVal "F1+0"),(CIDSysInfoKey_supplement "Supplement",CIDSysInfoVal_supplementVal (Number 0 0))]))]) [CodeRange 45 72] (fromList []) (fromList []) (fromList [(CodeRange 45 1,UnicodeSeq_singleUnicode [45]),(CodeRange 48 4,UnicodeSeq_singleUnicode [48]),(CodeRange 58 0,UnicodeSeq_singleUnicode [58]),(CodeRange 67 2,UnicodeSeq_singleUnicode [67]),(CodeRange 71 1,UnicodeSeq_singleUnicode [71]),(CodeRange 80 0,UnicodeSeq_singleUnicode [80]),(CodeRange 83 1,UnicodeSeq_singleUnicode [83]),(CodeRange 97 8,UnicodeSeq_singleUnicode [97]),(CodeRange 108 4,UnicodeSeq_singleUnicode [108]),(CodeRange 114 3,UnicodeSeq_singleUnicode [114])]) (fromList [(45,[45]),(46,[46]),(48,[48]),(49,[49]),(50,[50]),(51,[51]),(52,[52]),(58,[58]),(67,[67]),(68,[68]),(69,[69]),(71,[71]),(72,[72]),(80,[80]),(83,[83]),(84,[84]),(97,[97]),(98,[98]),(99,[99]),(100,[100]),(101,[101]),(102,[102]),(103,[103]),(104,[104]),(105,[105]),(108,[108]),(109,[109]),(110,[110]),(111,[111]),(112,[112]),(114,[114]),(115,[115]),(116,[116]),(117,[117])])) "currentdict"
+
+tests/cmaps $ pdf-dom --parse-type=ToUnicodeCMap_cidFont spec-p358-example.cid-cmap
+{ $error:
+  { input: "spec-p358-example.cid-cmap"
+  , offset: 384
+  , message: "byte 'e' does not match (((byte 0x00), or (byte 0x09)), or (byte 0x0c)), or (byte ' ')"
+  , grammar: [ "166:42--166:50" ]
+  , context:
+      [ "Stdlib._IgnoreResult"
+      , "Stdlib._AnyWS"
+      , "PdfValue._Token"
+      , "PdfValue._KW"
+      , "CMap.GenCMapScope"
+      , "CMap.SizedOp"
+      , "bfchar"
+      , "CMap.CodeRangeOp"
+      , "injr"
+      , "Sum.Sum"
+      , "Stdlib.Lists2"
+      , "CMap.CMapProper_Raw"
+      , "CMap.CMapProper"
+      , "CMap.GenCMapScope"
+      , "CMap.GenCMapScope"
+      , "CMap.CMapScope"
+      , "CMap.GenCMapScope"
+      , "CMap.CMapScope"
+      , "CMap.ToUnicodeCMap0"
+      , "CMap.ToUnicodeCMap"
+      ]
+  }
+}
+     
 * TODO find a good hello-world.pdf
-
 ** input.pdf with the qpdf generated input-read.pdf ?
 
 output
