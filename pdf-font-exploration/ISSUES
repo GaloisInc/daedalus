@@ -14,19 +14,30 @@
 
 * TODO [#A] issues with `pdf-hs-driver -t 2020-03-eval/0311_*.pdf
 
+The below is actually based on an easier to read PDF:
+  qpdf -qdf --stream-data=uncompress 0311_*.pdf ~/tmp/0311_read.pdf
+
 1. the first line of the first paragraph (after "THE WINE:") is not found: this
    seems weird.
 
 2. A font encoding issues,  after "Color:"
-     Color:
-   - bright ruby with reflections of garnet
-   + EULJKWUXE\ZLWKUHHFWLRQVRI JDU QHW
+   extract text diff between desired and actual:
+   
+   :    Color:
+   :  - bright ruby with reflections of garnet 
+   :  + EULJKWUXE\ZLWKUHHFWLRQVRI JDU QHW
 
    NOTE:
-   - This is a type1 CID font!
+   - This is a type0 CID composite font!
    - The CMAP is parsed just fine.
-
-qpdf -qdf --stream-data=uncompress 0311_*.pdf ~/tmp/0311_read.pdf
+   - tracing the daedalus, we aren't doing the CMap:
+      : ExtractString_Composite(...) {
+      :  -- AHA: not implemented yet!!
+      but when I add this 
+      : case font.toUnicode of
+      :   just cmap -> ...
+      :   nothing -> ...
+      we always get nothing, but look in "11 0 obj" below
 
 #+begin_src
 6 0 obj ...
@@ -63,6 +74,8 @@ BT
 <0003004a>-19.8 <00440055>-20.7 <005100480057>]TJ
 #+end_src   
 
+- this (for "bright ruby...") is like 16bit unicode, but offset
+  : <0003 0045 0055 004c 004a 004b 0057 0003 0055>
 
 * NOTE current status on 2021-11-23
 
