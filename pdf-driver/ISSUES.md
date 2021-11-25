@@ -72,4 +72,8 @@ TODO
    
 10. Inspect DOM and check xref/DOM consistency: LOTS HERE, TODO.
 
+11. Support out of order updates, esp with `--cavity` (how exactly)?
 
+    The `--cavity` report gives "body starts at ..." which is based on an
+    assumption that the updates were ordered "historically" in the file.
+    Linearization breaks this assumption.
