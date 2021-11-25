@@ -17,7 +17,6 @@ import Data.Char (isAscii, isPrint, chr)
 import Numeric(showHex)
 
 import Daedalus.PP hiding (empty)
-import qualified Daedalus.BDD as BDD
 import Daedalus.Range
 import Daedalus.Panic(panic)
 import RTS.Input(Input(..),inputName,inputOffset,inputLength)
@@ -56,7 +55,7 @@ data BDUnion = BDUnion
   , bduWidth      :: !Int
   , bduValid      :: !(Integer -> Bool)
   , bduGet        :: !(Label   -> Integer -> Value)
-  , bduCover      :: !(Label   -> BDD.Pat)
+  , bduMatches    :: !(Label   -> Integer -> Bool)
   , bduCases      :: ![Label]
   }
 
@@ -364,7 +363,7 @@ instance PP Value where
         hang (ppRawBD (bduWidth t) x) 2 (braces (pp lbl <.> colon <+> pp v))
         where
         views = [ (l, bduGet t l x)
-                | l <- bduCases t, BDD.willMatch (bduCover t l) x ]
+                | l <- bduCases t, bduMatches t l x ]
         (lbl,v) = case views of
                     a : _ -> a
                     []    -> panic "pp@Value"
@@ -418,7 +417,7 @@ valueToJS val =
     VBDUnion t x -> tagged tag (valueToJS v)
       where
       views = [ (pp l, bduGet t l x)
-              | l <- bduCases t, BDD.willMatch (bduCover t l) x ]
+              | l <- bduCases t, bduMatches t l x ]
       (tag,v) = case views of
                   g : _ -> g
                   []    -> panic "valueToJS"

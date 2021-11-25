@@ -327,7 +327,10 @@ compilePureExpr env = go
                TVBDStruct bd -> VBDStruct bd (bdStruct bd vs)
                _             -> vStruct vs
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
-        TCIn lbl e _   -> VUnionElem lbl (go e)
+        TCIn lbl e t ->
+          case evalType env t of
+            TVBDUnion bd -> VBDUnion bd (vToBits (go e))
+            _ -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
                             Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
@@ -448,7 +451,7 @@ matchPat pat =
                                  VUnionElem l1 v1
                                    | l == l1 -> matchPat p v1
                                  VBDUnion t x
-                                   | BDD.willMatch (bduCover t l) x ->
+                                   | bduMatches t l x ->
                                      matchPat p (bduGet t l x)
                                  _ -> Nothing
     TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
@@ -551,14 +554,17 @@ evalBitdataType env name u def =
         { bduName  = name
         , bduWidth = BDD.width u
         , bduValid = BDD.willMatch u
-        , bduGet   = \l -> case Map.lookup l mp of
-                             Just (t,_) -> vFromBits t
-                             Nothing -> panic ("bduGet@" ++ Text.unpack name)
-                                          ["Unknown constructor: " ++ showPP l]
-        , bduCover = \l -> case Map.lookup l mp of
-                             Just (_,p) -> p
-                             Nothing -> panic ("bduCover@" ++ Text.unpack name)
-                                          ["Unknown constructor: " ++ showPP l]
+        , bduGet   =
+          \l -> case Map.lookup l mp of
+                  Just (t,_) -> vFromBits t
+                  Nothing -> panic ("bduGet@" ++ Text.unpack name)
+                                   ["Unknown constructor: " ++ showPP l]
+        , bduMatches =
+          \l -> BDD.willMatch
+                case Map.lookup l mp of
+                  Just (_,p) -> p
+                  Nothing -> panic ("bduMatches@" ++ Text.unpack name)
+                                   ["Unknown constructor: " ++ showPP l]
         , bduCases = map fst fs
         }
 

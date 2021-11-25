@@ -9,18 +9,24 @@ module Daedalus.Core.Semantics.Expr where
 
 import GHC.Float(double2Float)
 
+import Data.Bits(shiftR, shiftL, (.|.))
 import qualified Data.Map as Map
 import qualified Data.ByteString as BS
 import Data.Maybe(isJust)
+import Data.List(foldl')
+import qualified Data.Text as Text
 
 import Daedalus.Range(integerToInt)
 import Daedalus.Panic(panic)
+import qualified Daedalus.BDD as BDD
 
+import Daedalus.PP(showPP)
 import Daedalus.Value
 import RTS.Input (inputBytes)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
+import qualified Daedalus.Core.Decl as Decl
 import Daedalus.Core.Type(typeOf)
 
 import Daedalus.Core.Semantics.Env
@@ -35,13 +41,18 @@ eval expr env =
     PureLet x e1 e2 ->
       eval e2 $! defLocal x (eval e1 env) env
 
-    Struct _ fs -> vStruct [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
+    Struct t fs ->
+      let fvs = [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
+      in
+      case evalType env (TUser t) of
+        TVBDStruct bd -> VBDStruct bd (bdStruct bd fvs)
+        _             -> vStruct fvs
 
     ECase c -> evalCase eval err c env
       where err = panic "eval" [ "Pattern match failure in semantic value" ]
 
     Ap0 op          -> partial (evalOp0 op)
-    Ap1 op e        -> evalOp1 op (typeOf e) (eval e env)
+    Ap1 op e        -> evalOp1 env op (typeOf e) (eval e env)
     Ap2 op e1 e2    -> evalOp2 op (eval e1 env) (eval e2 env)
     Ap3 op e1 e2 e3 -> evalOp3 op (eval e1 env) (eval e2 env) (eval e3 env)
     ApN op es       -> evalOpN op (evalArgs es env) env
@@ -72,7 +83,10 @@ matches pat v =
                   _       -> False
     PNum n -> valueToIntegral v == n
 
-    PCon l -> fst (valueToUnion v) == l
+    PCon l -> case v of
+                VUnionElem l1 _ -> l1 == l
+                VBDUnion bd i   -> bduMatches bd l i
+                _ -> panic "matches" [ "Not a union" ]
     PAny   -> True
 
 
@@ -126,8 +140,8 @@ evalOp0 op =
 
 --------------------------------------------------------------------------------
 
-evalType :: Type -> TValue
-evalType ty =
+evalType :: Env -> Type -> TValue
+evalType env ty =
   case ty of
     TStream       -> TVOther
     TUInt n       -> TVUInt (sizeType n)
@@ -142,7 +156,14 @@ evalType ty =
     TMap {}       -> TVMap
     TBuilder {}   -> TVOther
     TIterator {}  -> TVOther
-    TUser {}      -> TVOther
+    TUser (UserType nm _ _)  ->
+      case Decl.tDef (lookupType nm env) of
+        Decl.TBitdata univ def ->
+          case def of
+            Decl.BDStruct fs -> tBDStruct nm univ fs
+            Decl.BDUnion fs  -> tBDUnion nm univ fs
+
+        _ -> TVOther
     TParam {}     -> panic "evalType" [ "Unexpected type parameter" ]
   where
   sizeType x = case x of
@@ -152,9 +173,60 @@ evalType ty =
                  TSizeParam {} ->
                    panic "evalType" [ "Unexpected numeric type parameter" ]
 
-evalOp1 :: Op1 -> Type -> Value -> Value
-evalOp1 op ty v = case op of
-  CoerceTo t    -> fst (vCoerceTo (evalType t) v)
+  tBDStruct nm univ fs =
+    let mp = Map.fromList
+                [ (l, \i -> vFromBits (evalType env ft)
+                                      (i `shiftR` Decl.bdOffset f))
+                | f <- fs, Decl.BDData l ft <- [Decl.bdFieldType f] ]
+        outField fvs w f =
+          shiftL w (Decl.bdWidth f) .|.
+          case Decl.bdFieldType f of
+            Decl.BDWild  -> 0
+            Decl.BDTag n -> n
+            Decl.BDData l _ ->
+              vToBits
+              case lookup l fvs of
+                Just fv -> fv
+                Nothing -> panic "outField" ["Missing field value", showPP l ]
+    in
+    TVBDStruct
+      BDStruct
+        { bdName     = tnameText nm
+        , bdWidth    = BDD.width univ
+        , bdGetField = (mp Map.!)
+        , bdStruct   = \fvs -> foldl' (outField fvs) 0 fs
+        , bdValid    = BDD.willMatch univ
+        , bdFields   = [ l | f <- fs, Decl.BDData l _ <- [ Decl.bdFieldType f ]]
+        }
+
+  tBDUnion nm univ fs =
+    let mp = Map.fromList [ (l, (evalType env t,undefined)) | (l,t) <- fs ]
+        name = tnameText nm
+    in
+    TVBDUnion BDUnion
+      { bduName  = name
+      , bduWidth = BDD.width univ
+      , bduValid = BDD.willMatch univ
+      , bduGet   = \l -> case Map.lookup l mp of
+                           Just (t,_) -> vFromBits t
+                           Nothing ->
+                              panic ("bduGet@" ++ Text.unpack name)
+                                        ["Unknown constructor: " ++ showPP l]
+      , bduMatches = \l -> BDD.willMatch
+                         case Map.lookup l mp of
+                           Just (_,p) -> p
+                           Nothing -> panic ("bduMatches@" ++ Text.unpack name)
+                                        ["Unknown constructor: " ++ showPP l]
+      , bduCases = map fst fs
+      }
+
+
+
+
+
+evalOp1 :: Env -> Op1 -> Type -> Value -> Value
+evalOp1 env op ty v = case op of
+  CoerceTo t    -> fst (vCoerceTo (evalType env t) v)
 
   WordToFloat     -> vWordToFloat v
   WordToDouble    -> vWordToDouble v
@@ -175,7 +247,7 @@ evalOp1 op ty v = case op of
   Concat        -> vArrayConcat v
   FinishBuilder -> vFinishBuilder v
   NewIterator ->
-    case evalType ty of
+    case evalType env ty of
       TVArray -> vIteratorFromArray v
       TVMap   -> vIteratorFromMap v
       _       -> panic "newIterator" [ "Not a map or array", show v ]
@@ -193,8 +265,15 @@ evalOp1 op ty v = case op of
 
   SelStruct _ l -> vStructLookup v l
 
-  InUnion _ l   -> VUnionElem l v
-  FromUnion _ _ -> snd (valueToUnion v)
+  InUnion t l   ->
+    case evalType env (TUser t) of
+      TVBDUnion bd -> VBDUnion bd (vToBits v)
+      _            -> VUnionElem l v
+  FromUnion _ l ->
+    case v of
+      VBDUnion bd i   -> bduGet bd l i
+      VUnionElem _ v' -> v'
+      _               -> panic "evalOp1" [ "FromUnion not union" ]
 
 --------------------------------------------------------------------------------
 
