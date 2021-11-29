@@ -67,16 +67,15 @@ data StrategyMState =
                  , stsSummaries :: Summaries
                  , stsModule    :: Module
                  -- Derived from the module
-                 , stsTypeDefs  :: Map TName TDecl
                  , stsFunDefs   :: Map FName (Fun Expr)
                  , stsIEnv      :: I.Env
                  , stsNextGUID  :: GUID
                  }
 
 emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md tyDefs funDefs env0 nguid
+emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md funDefs env0 nguid
   where
-    env0 = I.evalModule md I.emptyEnv
+    env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
     tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
     funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
 
@@ -119,7 +118,7 @@ getModule :: LiftStrategyM m => m Module
 getModule = liftStrategy (StrategyM (gets stsModule))
 
 getTypeDefs :: LiftStrategyM m => m (Map TName TDecl)
-getTypeDefs = liftStrategy (StrategyM (gets stsTypeDefs))
+getTypeDefs = liftStrategy (StrategyM (gets (I.tEnv . stsIEnv)))
 
 getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
 getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
@@ -166,10 +165,14 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 
       TUInt (TSize n) -> flip intL ty <$> randR (0, 2 ^ n - 1)
       TUInt _    -> unimplemented
-      
+
       TSInt (TSize n) -> flip intL ty <$> randR (- 2 ^ (n - 1), 2 ^ (n - 1) - 1)
       TSInt _    -> unimplemented
-      
+
+      -- FIXME
+      TFloat     -> unimplemented
+      TDouble    -> unimplemented
+
       TInteger   -> flip intL ty <$> rand
       TBool      -> boolL <$> rand
       TUnit      -> pure unit
@@ -212,6 +215,9 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
             TUnion  fs -> do
               (l, ty) <- randL fs
               inUnion ut l <$> go ty
+
+            TBitdata {} -> unimplemented  -- FIXME
+
       | otherwise = panic "Unknown user type " [showPP ut]
       
     unimplemented = panic "Unimplemented" [showPP targetTy]
