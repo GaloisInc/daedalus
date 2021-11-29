@@ -27,7 +27,7 @@ import RTS.Input (inputBytes)
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import qualified Daedalus.Core.Decl as Decl
-import Daedalus.Core.Type(typeOf)
+import Daedalus.Core.Type(typeOf,bdUniverse)
 
 import Daedalus.Core.Semantics.Env
 
@@ -200,7 +200,8 @@ evalType env ty =
         }
 
   tBDUnion nm univ fs =
-    let mp = Map.fromList [ (l, (evalType env t,undefined)) | (l,t) <- fs ]
+    let mp = Map.fromList
+              [ (l, (evalType env t,bdUniverse (tEnv env) t)) | (l,t) <- fs ]
         name = tnameText nm
     in
     TVBDUnion BDUnion
