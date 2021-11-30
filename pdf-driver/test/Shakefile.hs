@@ -85,10 +85,10 @@ main = shakeArgs shakeOptions{shakeFiles=".shake"} $
   
 -- | runTest - one tool, one directory of inputs, one 'summary'
 runTest :: FilePath -> FilePath -> Rules ()
-runTest toolNm corpDir =
+runTest toolName corpName =
   do
-  let srcDir     = "corp" </> corpDir
-      testDir    = concat ["test","--",toolNm,"--",corpDir]
+  let srcDir     = "corpora" </> corpName
+      testDir    = concat ["test","--",toolName,"--",corpName]
       resultDir  = testDir </> "results"
       expctdDir  = testDir </> "expctd"
       summaryF   = testDir </> "test-summary"
@@ -96,10 +96,10 @@ runTest toolNm corpDir =
         
         
   T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} <-
-    case [ t | t <- tools, t_name t == toolNm ] of
+    case [ t | t <- tools, t_name t == toolName ] of
       [x] -> return x
-      []  -> fail $ "not valid tool name: " ++ toolNm
-      _   -> error "in 'tools'"
+      []  -> fail $ "not a valid tool name: " ++ toolName
+      _   -> error "in 'tools/runTest'"
     
   action $ do       
     do e <- doesDirectoryExist srcDir
