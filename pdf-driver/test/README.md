@@ -1,7 +1,7 @@
 FIXME: needs work:
 
 The `runtest` binary uses `shake` (a Haskell build system library) to 
-drive test generation and checking with "Make" like efficiency.
+drive test invocation and checking, achieving "Make" like efficiency.
 
 Common structure:
   ```
@@ -32,7 +32,7 @@ Each test directory (of form `test--TOOLNAME--CORPORANAME/`)
         test-summary
       ```
     
-We support two tools currently, by name,
+We support two tools currently, by name (see src/Shakefile.hs):
   - validatePDF : `pdf-hs-driver ...`
   - totext      : `pdf-hs-driver ...`
       

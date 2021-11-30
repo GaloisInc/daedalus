@@ -3,8 +3,10 @@
 -- system:
 import           Control.Monad
 import           Data.Char
+import           Data.List
 import           Data.Maybe
 import           System.Exit
+import           System.Console.GetOpt
 
 -- shake pkg:
 import qualified Development.Shake as Shake
@@ -45,8 +47,15 @@ data MetaData = MetaData { exitCode :: ExitCode
 
 ---- tools -------------------------------------------------------------------
 
+tools :: [Tool]
 tools = [validate_T]
 
+toolnames :: [String]
+toolnames = map t_name tools
+  
+toolnameRegEx :: String
+toolnameRegEx = intercalate "|" toolnames
+  
 validate_T :: Tool
 validate_T =
   T { t_name          = "validatePDF"
@@ -75,18 +84,49 @@ validate_T =
 data Result = Good | Bad | Timeout
               deriving (Eq, Read, Show)  
 
+
 ---- code --------------------------------------------------------------------
 
-main :: IO ()
-main = shakeArgs shakeOptions{shakeFiles=".shake"} $
-  do
-  runTest "validatePDF" "misc"
-  -- FIXME: nab from commandline
+data Flags = F_ToolName String
+           | F_CorporaName String
+           deriving (Eq,Show,Ord)
+
+options =
+  [ Option [] ["tool"]    (ReqArg mkToolName    toolnameRegEx) "tool name"
+  , Option [] ["corpora"] (ReqArg mkCorporaName "CORP"       ) "corpora name"
+  ]
+  where
+  mkCorporaName s = Right (F_CorporaName s)
+  mkToolName s
+    | s `elem` toolnames = Right (F_ToolName s)
+    | otherwise          = Left $ "toolname must be '" ++ toolnameRegEx ++ "'"
   
+main :: IO ()
+main =
+  shakeArgsWith
+    shakeOptions{shakeFiles=".shake"}
+    options
+    main'
+  
+main' flags targets =
+    pure
+  $ Just
+  $ if null targets then
+      runTest flags
+    else
+      want targets >> withoutActions (runTest flags)
+          
 -- | runTest - one tool, one directory of inputs, one 'summary'
-runTest :: FilePath -> FilePath -> Rules ()
-runTest toolName corpName =
+runTest :: [Flags] -> Rules ()
+runTest flags =
   do
+  (toolName,corpName) <-
+    case sort flags of
+      [F_ToolName tn, F_CorporaName cn] -> return (tn,cn)
+      _                                 -> liftIO $ quit msg
+        where
+        msg = "must specify both --tool tname and --corpora cname"
+    
   let srcDir     = "corpora" </> corpName
       testDir    = concat ["test","--",toolName,"--",corpName]
       resultDir  = testDir </> "results"
@@ -94,6 +134,8 @@ runTest toolName corpName =
       summaryF   = testDir </> "test-summary"
       variancesF = testDir </> "variances.filelist"
         
+
+  action $ putInfo $ "running test '" ++ testDir ++ "'"
         
   T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} <-
     case [ t | t <- tools, t_name t == toolName ] of
@@ -113,7 +155,7 @@ runTest toolName corpName =
     do
     putInfo "Cleaning files"
     removeFilesAfter resultDir ["//*"]
-    removeFilesAfter "." [summaryF]
+    removeFilesAfter testDir [summaryF]
     
   map (resultDir </>) ["*.stdout","*.stderr","*.meta"]
      &%> \[outF,errF,metaF] ->
@@ -145,7 +187,9 @@ runTest toolName corpName =
              $ t_proj (readFile outF)
                       (readFile errF)
                       ((\s-> read s :: MetaData) <$> readFile metaF)
-    writeFile' resultF resultC
+    writeFile'
+      resultF
+      (resultC ++ if last resultC /= '\n' then ['\n'] else [])
       
   summaryF %> \summaryF' ->
     do
@@ -156,7 +200,8 @@ runTest toolName corpName =
     need [variancesF]
     varianceFiles <- filter firstCharNonWhite . lines
                      <$> readFile' variancesF
-    exps <- getDirectoryFiles expctdDir ["*.result-expctd"]
+    exps <- getDirectoryFiles "" [expctdDir </> "*.result-expctd"]
+    -- putInfo $ "exps: " ++ show exps
     need exps
 
     -- needed generated files:
@@ -186,23 +231,17 @@ runTest toolName corpName =
               if null fs then
                []
               else
-                "inputs where results not equal but no variance specified:"
+                " Files where result =/= expctd but no variance specified:"
                 : map ("  "++) fs)
           ++ (let fs = [ f | (f, EQ_Variance) <- rs'] in
               if null fs then
                 []
               else
-                "inputs where variance specified but results are equal:"
+                " Files where result == expctd but a variance is specified:"
                 : map ("  "++) fs)
           
     putInfo report
     writeFile' summaryF' report
-{-
-ppErrorType = \case  
- Eq_Variance   -> "Variance When Equal"
- NE_NoVariance -> "Not Equal, no Variance"
--}
-
 
 
 ---- utilities ---------------------------------------------------------------
@@ -230,5 +269,9 @@ sfStripExtension ext fp = case stripExtension ext fp of
                             Just fp' -> fp'
                             Nothing  -> error "sfStripExtension"
 
-
+quit :: String -> IO a
+quit msg =
+  do putStrLn msg
+     exitFailure
+     
 
