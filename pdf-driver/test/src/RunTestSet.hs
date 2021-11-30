@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures, NamedFieldPuns #-}
+module Main where
 
 -- system:
 import           Control.Monad
@@ -125,17 +126,16 @@ runTest flags =
       [F_ToolName tn, F_CorporaName cn] -> return (tn,cn)
       _                                 -> liftIO $ quit msg
         where
-        msg = "must specify both --tool tname and --corpora cname"
+        msg = "must specify both --tool <tname> and --corpora <cname>"
     
   let srcDir     = "corpora" </> corpName
-      testDir    = concat ["test","--",toolName,"--",corpName]
+      testDir    = concat ["test","_",toolName,"_",corpName]
       resultDir  = testDir </> "results"
       expctdDir  = testDir </> "expctd"
       summaryF   = testDir </> "test-summary"
       variancesF = testDir </> "variances.filelist"
-        
 
-  action $ putInfo $ "running test '" ++ testDir ++ "'"
+  action $ putInfo $ "running testset in '" ++ testDir ++ "'"
         
   T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} <-
     case [ t | t <- tools, t_name t == toolName ] of
