@@ -491,6 +491,7 @@ hsValue env tc =
             hsBitdataStruct env t con fields
           | otherwise -> hsStructConName env NameUse c `aps` map snd fields
             where fields = [ (f, hsValue env e) | (f,e) <- fs ]
+        Type TUnit | null fs -> Tuple []
         _ -> panic "hsValue" ["Not a struct type", showPP t]
 
 
@@ -1059,8 +1060,9 @@ evalForM env lp =
 --------------------------------------------------------------------------------
 
 -- testing
-hsModule :: CompilerCfg -> TCModule SourceRange -> Module
-hsModule CompilerCfg { .. } TCModule { .. } = Module
+hsModule ::
+  CompilerCfg -> Map TCTyName TCTyDecl -> TCModule SourceRange -> Module
+hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   { hsModName  = hsIdentMod tcModuleName
   , hsLangExts = [ "DataKinds", "KindSignatures", "TypeOperators"
                  , "MultiParamTypeClasses", "FlexibleInstances"
@@ -1098,8 +1100,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
             , envTParser = cParserType
             , envExtern  = cPrims
             , envQualNames = cQualNames
-            , envTypes = Map.fromList [ (tctyName d, d)
-                                      | d <- concatMap recToList tcModuleTypes ]
+            , envTypes = allTys
             }
 
 
