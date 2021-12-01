@@ -900,11 +900,12 @@ fromExpr expr =
       pure unit
 
     TC.TCStruct fs t ->
-      Struct <$> userTypeM t <*> mapM field fs
+      case t of
+        TC.Type TC.TUnit -> pure unit
+        _ -> Struct <$> userTypeM t <*> mapM field fs
 
         where field (l,v) = do e <- fromExpr v
                                pure (l,e)
-
 
     TC.TCArray vs t ->
       arrayL <$> fromTypeM t <*> mapM fromExpr vs
@@ -1183,7 +1184,7 @@ userType ty =
               TC.KNumber -> go ts (fromNumType t : nts) more
               k -> error "userType" ["Unexpecte paramtere kind: " ++ show k]
 
-    _ -> panic "userType" ["Not a type constructor"]
+    _ -> panic "userType" ["Not a type constructor", showPP ty ]
 
 
 
