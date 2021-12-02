@@ -33,6 +33,18 @@ Two tools currently are supported, by name (see src/Shakefile.hs):
   - validatePDF : `pdf-hs-driver ...`
   - totext      : `pdf-hs-driver ...`
 
+== The repo ==
+
+The following generated files will be stored in the repo, they are
+(intentionally) small and should help us to keep track of functional 
+changes:
+
+    test_TOOLNAME_CORPORANAME/
+      results/*.meta
+      results/*.result-actual
+      test-summary
+   
+ 
 == Run a Test ==
 
 You run a test thus (or `cabal v2-run -- run-testset ...`)

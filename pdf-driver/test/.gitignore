@@ -1,2 +1,4 @@
 .shake
-corpora/2020-03-eval/
+corpora/2020-03-eval
+test_*_*/results/*.stdout
+test_*_*/results/*.stderr
