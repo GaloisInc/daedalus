@@ -6,6 +6,7 @@ import           Control.Monad
 import           Data.Char
 import           Data.List
 import           Data.Maybe
+import           GHC.Generics (Generic)
 import           System.Exit
 import           System.Console.GetOpt
 
@@ -68,7 +69,7 @@ validate_T =
     }
 
   where
-  timeoutInSecs = 5 -- 5*60 -- FIXME
+  timeoutInSecs = 3*60  -- FIXME: be able to specify on command line??
     
   validate_proj :: IO String -> IO String -> IO MetaData-> IO String
   validate_proj _getOut _getErr getMeta =
@@ -82,8 +83,12 @@ validate_T =
               Bad
     return (show r)
 
-data Result = Good | Bad | Timeout
-              deriving (Eq, Read, Show)  
+data ValidateResult =
+       Good
+     | Bad
+     | Timeout 
+     | NCBUR   -- can be the expected result tho now not 'returned' by
+     deriving (Eq, Read, Show)  
 
 
 ---- code --------------------------------------------------------------------
@@ -217,10 +222,13 @@ runTest flags =
                          actualF  = resultDir </> baseF <.> "result-actual"
                          variance = baseF `elem` varianceFiles
                      eqv <- liftIO $ cmpFileContents t_cmp expctdF actualF
-                     return $ case (eqv,variance) of
+                     return $! case (eqv,variance) of
                        (False,False) -> Just (baseF, NE_NoVariance)
                        (True ,True ) -> Just (baseF, EQ_Variance)
                        _             -> Nothing
+                       
+                       -- N.B. the $! : this fixes a resource leak where
+                       -- we have all the files open at once.
                        
     let rs' = catMaybes rs
         report = unlines $
