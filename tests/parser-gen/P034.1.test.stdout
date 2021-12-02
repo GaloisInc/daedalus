@@ -2,9 +2,9 @@
             Using unbiased choice may be inefficient.
 --- Found 2 results:
 { a: 'a'
-, t: {x : "a"}
+, t: {x: "a"}
 }
  
 { a: 'a'
-, t: {y : "b"}
+, t: {y: "b"}
 }

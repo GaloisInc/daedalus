@@ -582,7 +582,7 @@ inferExpr expr =
                  do unify tBool (e1,t)
                     let pat = TCBoolPat True
                         alt = TCAlt [pat]
-                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                                (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
                          , tGrammar tUnit
                          )
@@ -593,7 +593,7 @@ inferExpr expr =
                  do unify tBool (e1,t)
                     let pat = TCBoolPat False
                         alt = TCAlt [pat]
-                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                                (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
                          , tGrammar tUnit
                          )
@@ -603,7 +603,7 @@ inferExpr expr =
                  liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e,t)
                     let pat = TCNothingPat a
-                        alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                        alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure (exprAt expr (TCCase e1 (alt :| []) Nothing), tGrammar tUnit)
 
                SelJust ->
@@ -834,7 +834,7 @@ inferExpr expr =
       do (e1,_t) <- inferExpr e
          pure ( exprAt expr $ TCDo Nothing e1
               $ exprAt expr $ TCPure
-              $ exprAt expr $ TCUnit
+              $ exprAt expr $ tcUnit
               , tGrammar tUnit
               )
 

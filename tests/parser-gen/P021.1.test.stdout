@@ -1,16 +1,16 @@
 [WARNING] ./P021.ddl:6:9--9:5:
             Using unbiased choice may be inefficient.
 --- Found 2 results:
-{ p: {z : "a"}
-, x: [ {x : "a"}
-     , {x : "a"}
-     , {x : "a"}
+{ p: {z: "a"}
+, x: [ {x: "a"}
+     , {x: "a"}
+     , {x: "a"}
      ]
 }
  
-{ p: {t : "a"}
-, x: [ {x : "a"}
-     , {x : "a"}
-     , {x : "a"}
+{ p: {t: "a"}
+, x: [ {x: "a"}
+     , {x: "a"}
+     , {x: "a"}
      ]
 }

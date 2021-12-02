@@ -77,8 +77,8 @@ rec
                           ; tail: IntList.IntList
                           }
    
-  type IntList.IntList = Choose { cons: IntList.IntList0
-                                ; nil: {}
+  type IntList.IntList = Choose { nil: {}
+                                ; cons: IntList.IntList0
                                 }
  
 --- Rules:

@@ -27,17 +27,17 @@
 [WARNING] ./D018.ddl:5:29--5:46:
             Using unbiased choice may be inefficient.
 --- Found 1 results:
-{ x: [ {dict : {| "Count" -> {number : { num: 1
-                                       , exp: 0
-                                       }}
-               |}}
-     , {dict : {| "Count" -> {number : { num: 1
-                                       , exp: 0
-                                       }}
-               ,  "Kids" -> {array : [ {ref : { obj: 3
-                                              , gen: 0
-                                              }}
-                                     ]}
-               |}}
+{ x: [ {dict: {| "Count" -> {number: { num: 1
+                                     , exp: 0
+                                     }}
+              |}}
+     , {dict: {| "Count" -> {number: { num: 1
+                                     , exp: 0
+                                     }}
+              ,  "Kids" -> {array: [ {ref: { obj: 3
+                                           , gen: 0
+                                           }}
+                                   ]}
+              |}}
      ]
 }

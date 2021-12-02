@@ -19,8 +19,8 @@ type T065.Bar_b2 = [ 64 [8]
 00111111
 01000000
 -}
-type T065.Bar = Choose { b1: T065.Bar_b1
-                       ; b2: T065.Bar_b2
+type T065.Bar = Choose { b1: T065.Bar_b1 -- 00111111
+                       ; b2: T065.Bar_b2 -- 01000000
                        }
  
 {- bitdata
@@ -55,10 +55,11 @@ type T065.Foo_D = [ 2 [2]
 010000_0
 1_______
 -}
-type T065.Foo = Choose { A: T065.Foo_A
-                       ; B: T065.Foo_B
-                       ; C: T065.Foo_C
-                       ; D: T065.Foo_D
+type T065.Foo = Choose { A: T065.Foo_A -- 01000010
+                       ; B: T065.Foo_B -- 11______
+                       ; C: T065.Foo_C -- 00111111
+                                       -- 01000000
+                       ; D: T065.Foo_D -- 10______
                        }
  
 --- Rules:

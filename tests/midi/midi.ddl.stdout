@@ -25,9 +25,9 @@ type midi.MidiFormat_multi_song = [ 2 [16]
 000000000000000_
 0000000000000010
 -}
-type midi.MidiFormat = Choose { single_track: midi.MidiFormat_single_track
-                              ; multi_track: midi.MidiFormat_multi_track
-                              ; multi_song: midi.MidiFormat_multi_song
+type midi.MidiFormat = Choose { single_track: midi.MidiFormat_single_track -- 0000000000000000
+                              ; multi_track: midi.MidiFormat_multi_track -- 0000000000000001
+                              ; multi_song: midi.MidiFormat_multi_song -- 0000000000000010
                               }
  
 {- bitdata
@@ -47,8 +47,8 @@ type midi.MidiTimeUnit_smtpe = [ 1 [1]
 {- bitdata
 ________________
 -}
-type midi.MidiTimeUnit = Choose { quarter_len: midi.MidiTimeUnit_quarter_len
-                                ; smtpe: midi.MidiTimeUnit_smtpe
+type midi.MidiTimeUnit = Choose { quarter_len: midi.MidiTimeUnit_quarter_len -- 0_______________
+                                ; smtpe: midi.MidiTimeUnit_smtpe -- 1_______________
                                 }
  
 type midi.Header = { format: midi.MidiFormat
@@ -127,8 +127,8 @@ type midi.Accidentals_sharps = [ 0 [1]
 {- bitdata
 ________
 -}
-type midi.Accidentals = Choose { flats: midi.Accidentals_flats
-                               ; sharps: midi.Accidentals_sharps
+type midi.Accidentals = Choose { flats: midi.Accidentals_flats -- 1_______
+                               ; sharps: midi.Accidentals_sharps -- 0_______
                                }
  
 {- bitdata
@@ -146,8 +146,8 @@ type midi.Mode_major = [ 1 [8]
 {- bitdata
 0000000_
 -}
-type midi.Mode = Choose { minor: midi.Mode_minor
-                        ; major: midi.Mode_major
+type midi.Mode = Choose { minor: midi.Mode_minor -- 00000000
+                        ; major: midi.Mode_major -- 00000001
                         }
  
 type midi.KeySig = { key: midi.Accidentals
@@ -242,13 +242,13 @@ type midi.VoiceMessageTag_pitch_bend = [ 14 [4]
 110_
 1110
 -}
-type midi.VoiceMessageTag = Choose { note_off: midi.VoiceMessageTag_note_off
-                                   ; note_on: midi.VoiceMessageTag_note_on
-                                   ; aftertouch: midi.VoiceMessageTag_aftertouch
-                                   ; controller_change: midi.VoiceMessageTag_controller_change
-                                   ; program_change: midi.VoiceMessageTag_program_change
-                                   ; channel_pressure: midi.VoiceMessageTag_channel_pressure
-                                   ; pitch_bend: midi.VoiceMessageTag_pitch_bend
+type midi.VoiceMessageTag = Choose { note_off: midi.VoiceMessageTag_note_off -- 1000
+                                   ; note_on: midi.VoiceMessageTag_note_on -- 1001
+                                   ; aftertouch: midi.VoiceMessageTag_aftertouch -- 1010
+                                   ; controller_change: midi.VoiceMessageTag_controller_change -- 1011
+                                   ; program_change: midi.VoiceMessageTag_program_change -- 1100
+                                   ; channel_pressure: midi.VoiceMessageTag_channel_pressure -- 1101
+                                   ; pitch_bend: midi.VoiceMessageTag_pitch_bend -- 1110
                                    }
  
 {- bitdata
@@ -265,7 +265,9 @@ type midi.VoiceMessagesHeader_VoiceMessagesHeader = [ tag : midi.VoiceMessageTag
 110_____
 1110____
 -}
-type midi.VoiceMessagesHeader = Choose { VoiceMessagesHeader: midi.VoiceMessagesHeader_VoiceMessagesHeader
+type midi.VoiceMessagesHeader = Choose { VoiceMessagesHeader: midi.VoiceMessagesHeader_VoiceMessagesHeader -- 10______
+                                                                                                           -- 110_____
+                                                                                                           -- 1110____
                                        }
  
 {- bitdata
@@ -278,7 +280,7 @@ type midi.ModeMessagesHeader_ModeMessagesHeader = [ 11 [4]
 {- bitdata
 1011____
 -}
-type midi.ModeMessagesHeader = Choose { ModeMessagesHeader: midi.ModeMessagesHeader_ModeMessagesHeader
+type midi.ModeMessagesHeader = Choose { ModeMessagesHeader: midi.ModeMessagesHeader_ModeMessagesHeader -- 1011____
                                       }
  
 {- bitdata
@@ -298,8 +300,8 @@ type midi.VarQChunk_Last = [ 0 [1]
 {- bitdata
 ________
 -}
-type midi.VarQChunk = Choose { More: midi.VarQChunk_More
-                             ; Last: midi.VarQChunk_Last
+type midi.VarQChunk = Choose { More: midi.VarQChunk_More -- 1_______
+                             ; Last: midi.VarQChunk_Last -- 0_______
                              }
  
 --- Rules:

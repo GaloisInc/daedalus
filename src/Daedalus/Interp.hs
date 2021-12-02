@@ -320,7 +320,6 @@ compilePureExpr env = go
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCUnit         -> vUnit
         TCStruct fs t  ->
           let vs = [ (n,go e) | (n,e) <- fs ]
           in case evalType env t of

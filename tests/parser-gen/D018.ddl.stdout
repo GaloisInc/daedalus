@@ -54,8 +54,8 @@ type D018.Dict0 = { key: [uint 8]
                   ; value: D018.Value
                   }
  
-type D018.Sign = Choose { neg: {}
-                        ; pos: {}
+type D018.Sign = Choose { pos: {}
+                        ; neg: {}
                         }
  
 type D018.Main = { x: [D018.Value]

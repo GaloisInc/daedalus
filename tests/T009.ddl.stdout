@@ -7,8 +7,8 @@ type T009.P = { x: uint 8
               ; y: uint 8
               }
  
-type T009.R = Choose { a: uint 8
-                     ; b: {}
+type T009.R = Choose { b: {}
+                     ; a: uint 8
                      }
  
 --- Rules:

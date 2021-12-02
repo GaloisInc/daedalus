@@ -896,9 +896,6 @@ fromExpr expr =
     TC.TCJust e ->
       just <$> fromExpr e
 
-    TC.TCUnit ->
-      pure unit
-
     TC.TCStruct fs t ->
       case t of
         TC.Type TC.TUnit -> pure unit

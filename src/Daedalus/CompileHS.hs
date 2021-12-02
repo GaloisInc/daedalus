@@ -481,7 +481,6 @@ hsValue env tc =
 
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
-    TCUnit      -> Tuple []
 
     TCStruct fs t ->
       case t of

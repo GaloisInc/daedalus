@@ -1,6 +1,6 @@
 [WARNING] ./P023.ddl:1:9--4:5:
             Using unbiased choice may be inefficient.
 --- Found 1 results:
-{ p: {z : {y : "a"}}
+{ p: {z: {y: "a"}}
 , q: "bb"
 }

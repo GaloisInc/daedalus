@@ -101,7 +101,6 @@ instance TraverseTypes (TCF a k) where
       TCLiteral l t   -> TCLiteral l <$> f t
       TCNothing t     -> TCNothing <$> f t
       TCJust e        -> TCJust <$> traverseTypes f e
-      TCUnit          -> pure expr
       TCStruct fs t   -> TCStruct <$> traverse doField fs <*> f t
         where doField (x,e) = (x,) <$> traverseTypes f e
       TCArray e t     -> TCArray  <$> traverseTypes f e <*> f t
@@ -321,7 +320,6 @@ traverseTCF f = go
         TCNothing x   -> pure (TCNothing x)
         TCJust e      -> TCJust <$> f e
         TCStruct xs t -> TCStruct <$> traverse (traverse f) xs <*> pure t
-        TCUnit        -> pure TCUnit
         TCArray xs t  -> TCArray <$> traverse f xs <*> pure t
         TCIn l e t    -> TCIn l <$> f e <*> pure t
 

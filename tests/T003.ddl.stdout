@@ -8,8 +8,8 @@ rec
                     ; tail: T003.List
                     }
    
-  type T003.List = Choose { nil: {}
-                          ; node: T003.List0
+  type T003.List = Choose { node: T003.List0
+                          ; nil: {}
                           }
  
 --- Rules:

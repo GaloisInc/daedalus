@@ -523,7 +523,6 @@ isSimpleVExpr e =
     TCCall _fname _t _lst -> False
     TCFor _ -> False
     TCArray _lste _ty -> False
-    TCUnit -> False
     x -> error ("TODO: "++ show x)
 
 defaultValue :: Val
@@ -645,7 +644,6 @@ evalVExpr gbl expr ctrl out =
           case ev of
             Interp.VArray v -> Interp.VUInt 64 (fromIntegral $ length v)
             _ -> error "should be an array"
-        TCUnit -> defaultValue
         TCCase e1 lpat defaultp ->
           loop (NonEmpty.toList lpat)
 

@@ -71,7 +71,6 @@ idVExpr vexpr =
         TCNothing t -> TCNothing t
         TCJust e -> TCJust (idVExpr e)
         TCStruct s t -> TCStruct (map (\ (s',e) -> (s', idVExpr e)) s) t
-        TCUnit -> TCUnit
         TCArray lst t -> TCArray (map idVExpr lst) t
         TCArrayLength e -> TCArrayLength (idVExpr e)
         TCMapEmpty t -> TCMapEmpty t
@@ -590,7 +589,7 @@ genGExpr gbl e =
                 case s of
                   YesSem -> [(stSemStart, UniChoice (SAct (EvalPure e1), stSemEnd))]
                   NoSem  ->
-                    let eunit = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = TCUnit}) in
+                    let eunit = TC (TCAnnot { tcAnnot = texprAnnot e, tcAnnotExpr = tcUnit}) in
                     [(stSemStart, UniChoice (SAct (EvalPure eunit), stSemEnd))]
               else
                 let ebyte = w !! index

@@ -18,8 +18,8 @@ type T064.myBD2_C = [ 67 [8]
 {- bitdata
 0100001_
 -}
-type T064.myBD2 = Choose { B: T064.myBD2_B
-                         ; C: T064.myBD2_C
+type T064.myBD2 = Choose { B: T064.myBD2_B -- 01000010
+                         ; C: T064.myBD2_C -- 01000011
                          }
  
 {- bitdata
@@ -40,8 +40,8 @@ type T064.myBD3_E = [ 66 [8]
 010000010100001_
 010000100100001_
 -}
-type T064.myBD3 = Choose { D: T064.myBD3_D
-                         ; E: T064.myBD3_E
+type T064.myBD3 = Choose { D: T064.myBD3_D -- 010000010100001_
+                         ; E: T064.myBD3_E -- 010000100100001_
                          }
  
 --- Rules:

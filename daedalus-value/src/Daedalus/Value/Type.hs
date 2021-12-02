@@ -412,7 +412,10 @@ valueToJS val =
        [ text (show (show (pp l))) <.> colon <+> valueToJS v | (l,v) <- vs ]
 
     VBDStruct t x -> jsBlock "{" "," "}"
-                     [ valueToJS (bdGetField t l x) | l <- bdFields t ]
+                     [ lab l <+> valueToJS (bdGetField t l x)
+                     | l <- bdFields t ]
+      where
+      lab l = text (show (show (pp l))) <.> colon
 
     VBDUnion t x -> tagged tag (valueToJS v)
       where

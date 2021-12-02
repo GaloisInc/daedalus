@@ -3,8 +3,8 @@ module T007
 --- Imports:
  
 --- Type defs:
-type T007.Sign = Choose { neg: {}
-                        ; pos: {}
+type T007.Sign = Choose { pos: {}
+                        ; neg: {}
                         }
  
 --- Rules:

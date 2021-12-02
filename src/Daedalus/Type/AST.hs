@@ -193,7 +193,6 @@ data TCF :: HS -> Ctx -> HS where
    TCNothing    :: Type -> TCF a Value
    TCJust       :: TC a Value -> TCF a Value
 
-   TCUnit       :: TCF a Value
    TCStruct     :: [ (Label,TC a Value) ] -> Type -> TCF a Value
    -- The type is the type of the result,
    -- which should be a named struct type, possibly with some parameters.
@@ -494,7 +493,6 @@ instance PP (TCF a k) where
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
-      TCUnit        -> "{}"
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
 
       TCCall f [] []  -> pp f
@@ -880,7 +878,14 @@ instance Eq TVar where
 instance Ord TVar where
   compare x y = compare (tvarId x) (tvarId y)
 
+tcUnit :: TCF a Value
+tcUnit = TCStruct [] (Type TUnit)
 
+isTCUnit :: TCF a Value -> Bool
+isTCUnit f =
+  case f of
+    TCStruct [] (Type TUnit) -> True
+    _                        -> False
 
 annotExpr :: a -> TCF a k -> TC a k
 annotExpr a e = TC TCAnnot { tcAnnot = a, tcAnnotExpr = e }
@@ -1005,7 +1010,6 @@ instance TypeOf (TCF a k) where
       TCIf _ e _      -> typeOf e
 
       TCLiteral _ t   -> t
-      TCUnit          -> tUnit
       TCNothing t     -> tMaybe t
       TCJust e        -> tMaybe (typeOf e)
       TCStruct _ t    -> t
