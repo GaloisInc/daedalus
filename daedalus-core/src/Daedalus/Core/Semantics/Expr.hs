@@ -156,7 +156,7 @@ evalType env ty =
     TMap {}       -> TVMap
     TBuilder {}   -> TVOther
     TIterator {}  -> TVOther
-    TUser (UserType nm _ _)  ->
+    TUser UserType { utName = nm } ->
       case Decl.tDef (lookupType nm env) of
         Decl.TBitdata univ def ->
           case def of

@@ -43,11 +43,10 @@ data Sem = SemNo | SemYes
 data ErrorSource = ErrorFromUser | ErrorFromSystem
   deriving (Generic,NFData)
 
-gIf :: Name -> Grammar -> Grammar -> Grammar
-gIf n g1 g2 = GCase (Case n [ (PBool True, g1), (PBool False, g2) ])
-
-gCase :: Name -> [(Pattern,Grammar)] -> Grammar
-gCase n as = GCase (Case n as)
+instance CoreSyn Grammar where
+  coreLet       = Let
+  coreCase x ps = GCase (Case x ps)
+  coreCall      = Call
 
 --------------------------------------------------------------------------------
 

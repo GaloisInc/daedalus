@@ -26,6 +26,7 @@ data TName = TName
   , tnameMod  :: MName
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
+  , tnameBD   :: !Bool        -- ^ Is this a bitdata type
   , tnameFlav :: TFlav        -- ^ Some information about the type
   }
   deriving (Generic, NFData)

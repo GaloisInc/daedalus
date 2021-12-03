@@ -145,8 +145,21 @@ foldMapChildrenE f e = m
 -- Constructors
 --------------------------------------------------------------------------------
 
-eCase :: Name -> [(Pattern,Expr)] -> Expr
-eCase n ps = ECase (Case n ps)
+class CoreSyn t where
+  coreLet  :: Name  -> Expr -> t -> t
+  coreCase :: Name  -> [(Pattern,t)] -> t
+  coreCall :: FName -> [Expr] -> t
+
+coreIf :: CoreSyn t => Name -> t -> t -> t
+coreIf x ifTrue ifFalse =
+  coreCase x [ (PBool True, ifTrue), (PBool False, ifFalse) ]
+
+
+
+instance CoreSyn Expr where
+  coreLet       = PureLet
+  coreCase x as = ECase (Case x as)
+  coreCall      = callF
 
 --------------------------------------------------------------------------------
 unit    = Ap0 Unit
@@ -228,9 +241,6 @@ rShift        = Ap2 RShift
 -- Boolean
 boolL b      = Ap0 (BoolL b)
 eNot         = Ap1 Not
--- eOr x y      = eIf x (boolL True) y
--- eAnd x y     = eIf x y (boolL False)
-eIf bv e1 e2  = eCase bv [ (PBool True, e1), (PBool False, e2) ]
 
 --------------------------------------------------------------------------------
 -- Arrays
