@@ -114,46 +114,52 @@ main =
     options
     main'
   
+main' :: [Flags] -> [FilePath] -> IO (Maybe (Rules ()))
 main' flags targets =
-    pure
-  $ Just
-  $ if null targets then
-      runTest flags
-    else
-      want targets >> withoutActions (runTest flags)
-          
--- | runTest - one tool, one directory of inputs, one 'summary'
-runTest :: [Flags] -> Rules ()
-runTest flags =
   do
   (toolName,corpName) <-
     case sort flags of
       [F_ToolName tn, F_CorporaName cn] -> return (tn,cn)
-      _                                 -> liftIO $ quit msg
+      _                                 -> quit msg
         where
         msg = "must specify both --tool <tname> and --corpora <cname>"
-    
+  t <- case [ t | t <- tools, t_name t == toolName ] of
+         [x] -> return x
+         []  -> fail $ "not a valid tool name: " ++ toolName
+         _   -> error "in 'tools/runTest'"
+
+  (Exit ExitSuccess, StdoutTrim toolPath) <-
+    cmd "which" [t_cmd_exec t]
+    -- NB: if which fails, we fail.
+
+  let runTest' = runTest t toolPath corpName flags
+  return
+    $ Just
+    $ if null targets then
+        runTest'
+      else
+        want targets >> withoutActions runTest'
+        
+-- | runTest - one tool, one directory of inputs, one 'summary'
+runTest :: Tool -> FilePath -> String -> [Flags] -> Rules ()
+runTest t toolPath corpName flags =
+  do
+  let T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} = t
   let srcDir     = "corpora" </> corpName
-      testDir    = concat ["test","_",toolName,"_",corpName]
+      testDir    = concat ["test","_",t_name,"_",corpName]
       resultDir  = testDir </> "results"
       expctdDir  = testDir </> "expctd"
       summaryF   = testDir </> "test-summary"
       variancesF = testDir </> "variances.filelist"
 
-  action $ putInfo $ "running testset in '" ++ testDir ++ "'"
-        
-  T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} <-
-    case [ t | t <- tools, t_name t == toolName ] of
-      [x] -> return x
-      []  -> fail $ "not a valid tool name: " ++ toolName
-      _   -> error "in 'tools/runTest'"
-    
+  action $ putInfo $ "Running testset in directory '" ++ testDir ++ "'"
+  
   action $ do       
     do e <- doesDirectoryExist srcDir
        unless e $ fail $ "corpora directory does not exist: " ++ srcDir
     do e <- doesDirectoryExist testDir
        unless e $ fail $ "test directory does not exist: " ++ testDir
-    
+
   want [summaryF]
 
   phony "clean" $
@@ -165,6 +171,7 @@ runTest flags =
   map (resultDir </>) ["*.stdout","*.stderr","*.meta"]
      &%> \[outF,errF,metaF] ->
     do
+    need [toolPath]
     let srcBase = sfStripExtension ".stdout" outF
         src     = replaceDirectory srcBase srcDir
     need [src]
