@@ -130,7 +130,7 @@ main' flags targets =
 
   (Exit ExitSuccess, StdoutTrim toolPath) <-
     cmd "which" [t_cmd_exec t]
-    -- NB: if which fails, we fail.
+    -- NB: if 'which' fails, program fails.
 
   let runTest' = runTest t toolPath corpName flags
   return
