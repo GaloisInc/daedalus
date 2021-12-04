@@ -15,10 +15,10 @@ import Data.Aeson
 
 {-
 
-This program is used to convert Kudu's ground truth files into a set of
-expctd/*.result-expctd files:
+This program is used to convert Kudu's "ground truth" file into these files:
+  test_validatePDF_2020-03-eval/expctd/*.result-expctd
 
-The full story would be to run the following shell commands:
+The full process is to run the following shell commands:
 
   SAFEDOCS=~/src/sado
   cd ~/src/daedalus/pdf-driver/test
@@ -26,6 +26,7 @@ The full story would be to run the following shell commands:
     > T-groundtruth.jsonlines
   cat T-groundtruth.jsonlines |
     runghc src/CreateExpected.hs test_validatePDF_2020-03-eval/expctd
+
 -}
 
 data Status = Status { testfile :: String

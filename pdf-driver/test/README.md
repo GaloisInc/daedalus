@@ -60,3 +60,13 @@ Refer to Makefile for examples.
 The `runtest` binary uses `shake` (a Haskell build system library) to 
 drive test invocation and checking, achieving "Make" like efficiency.
 
+== test specific documentation ==
+=== test_validatePDF_2020-03-eval ===
+
+See src/CreateExpected.hs for how to create these files
+
+    test_validatePDF_2020-03-eval/expctd/*.result-expctd
+
+The required pdfs must be in corpora/2020-03-eval/*, which are not part
+of the repo.
+
