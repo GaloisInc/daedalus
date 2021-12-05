@@ -2,17 +2,30 @@ SHAKEOPTS=-j8
   # works like Make's -j
 RUNTESTSET=cabal v2-run -- run-testset ${SHAKEOPTS}
 
-QUICKTESTS=test_validatePDF_generated/test-summary \
-           test_validatePDF_misc/test-summary
+QUICKTESTS=test_validatePDF_generated/test-summary     \
+           test_validatePDF_misc/test-summary          \
+           test_validatePDF_pdf20examples/test-summary \
+           test_validatePDF_govdocs-subset-a/test-summary    
+
 LONGTESTS=test_validatePDF_2020-03-eval/test-summary
 
 # copy corpora files into appropriate directories:
+#  - the rule action is a no-op if accidentally invoked on existing directory.
+
+REMOTECORPORA= corpora/pdf20examples \
+               corpora/2020-03-eval  \
+               corpora/govdocs-subset-a
+
+nodefaulttarget:
+	@echo did you want ...?
+	@echo " " make remotecorpora
+	@echo " " make quick
+
+remotecorpora: ${REMOTECORPORA}
+
 corpora/%:
 	../scripts/get-pdf-corpora.sh $*
 
-# Note:
-#  - dependency on corpora/name not encoded
-#  - dependency on executable not encoded
 
 test_%/test-summary: build
 	${RUNTESTSET} --tool $(firstword $(subst _, ,$*)) \

@@ -20,12 +20,21 @@ This program is used to convert Kudu's "ground truth" file into these files:
 
 The full process is to run the following shell commands:
 
+  # for march eval
   SAFEDOCS=~/src/sado
   cd ~/src/daedalus/pdf-driver/test
   jq -c ".[] | {testfile,status} " $SAFEDOCS/pdf-etl/decisions+data/EvalOneGroundTruth.json \
     > T-groundtruth.jsonlines
   cat T-groundtruth.jsonlines |
     runghc src/CreateExpected.hs test_validatePDF_2020-03-eval/expctd
+
+
+  # for govdocs-subsets
+  cd ~/src/daedalus/pdf-driver/test
+  jq -c ".[] | {testfile,status} " ~/do/w/sado/govdocsGroundTruth.json |
+    > T-govdocsgroundtruth.jsonlines
+  egrep "000009|0000[12].|007526|099692|736151|974733" T-govdocsgroundtruth.jsonlines
+    # and all give 'valid'
 
 -}
 
