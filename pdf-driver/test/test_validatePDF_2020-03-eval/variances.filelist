@@ -1,3 +1,8 @@
+  Regarding all the current files (unless comments below them):
+   - there is no reasoning behind a file being present here,
+     except for the fact that the Good/Bad result is not the same as
+     the Kudu Ground Truth.
+  
 0015_0001c61c1d2c2b323a7d13d9ea192bab52af0a635b73b6b24cc38c57f2684367.pdf
 0016_0027411ea2119ffc6e2af72b822bd7704c59920915c469e3eed15e621fa25b9b.pdf
 0017_002ce5f30043763c06df713525b552f663849ee6f3f1262a632e2663166b2ed5.pdf
