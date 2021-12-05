@@ -75,7 +75,7 @@ changes:
 The `*.meta` files will change a lot (as they have the runtime) but we still
 want to keep track of this.
  
-== Runing a Test ==
+== Running a Test ==
 
 You run a test thus (or `cabal v2-run -- run-testset ...`)
 
@@ -83,17 +83,35 @@ You run a test thus (or `cabal v2-run -- run-testset ...`)
   
 === Passing a Test & variances.filelist ==
 
+For every file from the (designated) corpora we want tested, e.g.,
+
+    corpora/CORP/myfile1.pdf
+
+we need to indicate the expected value by having this file
+
+    test_validatePDF_CORP/expctd/myfile1.pdf.result-expctd
+
+We also have a notion of 'variances', captured in `variances.filelist` in which
+we record the files for which these are not equivalent (tool specific):
+
+    test_validatePDF_CORP/expctd/myfile1.pdf.result-expctd
+    test_validatePDF_CORP/results/myfile1.pdf.result-actual
+
+Any line in `variances.filelist` that starts with a space is a comment.
+
+Passing a test ONLY means that the 'variances' exactly match the test results:
+
 For a test to "pass" you want to see "0 problems" in the test-summary file.
 There are two kinds of problems:
-  
 
-== Examples ==
+   1. "Files where result =/= expctd but no variance specified:"
+   2. "Files where result == expctd but a variance is specified:"
 
-Refer to `Makefile` for examples.
+== Details & Implementation ==
 
-== Implementation ==
+Refer to `Makefile` for examples and some further details.
 
-The `runtest` program uses `shake` (a Haskell build system library) to 
+The `run-testset` program uses `shake` (a Haskell build system library) to 
 drive test invocation and checking, achieving "Make" like efficiency, see
 `src/RunTestSet.hs` for the code.
 
