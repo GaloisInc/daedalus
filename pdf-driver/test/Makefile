@@ -31,9 +31,9 @@ build:
 # turn 'all tests succeed' into single standard error code
 
 quick-status: ${QUICKTESTS}
-	test `egrep '^0 problem.s.:' $^ | wc -l` \
+	test `egrep '^0 problems' $^ | wc -l` \
          -eq `echo $^ | wc -w`
 
 long-status: ${QUICKTESTS} ${LONGTESTS}
-	test `egrep '^0 problem.s.:' $^ | wc -l` \
+	test `egrep '^0 problems' $^ | wc -l` \
          -eq `echo $^ | wc -w`

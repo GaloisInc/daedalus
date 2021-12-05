@@ -132,6 +132,12 @@ main' flags targets =
     cmd "which" [t_cmd_exec t]
     -- NB: if 'which' fails, program fails.
 
+  let quote s = "'" ++ s ++ "'"
+  putStrLn $ unwords [ "Results of testset with tool"
+                     , quote toolName
+                     , "and corpora"
+                     , quote corpName ++ ":"
+                     ]
   let runTest' = runTest t toolPath corpName flags
   return
     $ Just
@@ -152,16 +158,14 @@ runTest t toolPath corpName flags =
       summaryF   = testDir </> "test-summary"
       variancesF = testDir </> "variances.filelist"
 
-  action $ putInfo $ "Running testset in directory '" ++ testDir ++ "'"
-  
-  action $ do       
+  action $ do
     do e <- doesDirectoryExist srcDir
        unless e $ fail $ "corpora directory does not exist: " ++ srcDir
     do e <- doesDirectoryExist testDir
        unless e $ fail $ "test directory does not exist: " ++ testDir
-
-  want [summaryF]
-
+    need [summaryF]
+    liftIO $ readFile summaryF >>= putStrLn 
+             
   phony "clean" $
     do
     putInfo "Cleaning files"
@@ -240,7 +244,9 @@ runTest t toolPath corpName flags =
     let rs' = catMaybes rs
         report = unlines $
           [ show(length rs) ++ " files"
-          , show(length rs') ++ " problem(s):"
+          , case length rs' of
+              0 -> "0 problems."
+              n -> show n ++ " problem(s):"
           ]
           ++ (let fs = [ f | (f, NE_NoVariance) <- rs'] in
               if null fs then
@@ -255,7 +261,6 @@ runTest t toolPath corpName flags =
                 " Files where result == expctd but a variance is specified:"
                 : map ("  "++) fs)
           
-    putInfo report
     writeFile' summaryF' report
 
 
