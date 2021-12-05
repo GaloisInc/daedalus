@@ -217,7 +217,6 @@ runTest t toolPath corpName flags =
     varianceFiles <- filter firstCharNonWhite . lines
                      <$> readFile' variancesF
     exps <- getDirectoryFiles "" [expctdDir </> "*.result-expctd"]
-    -- putInfo $ "exps: " ++ show exps
     need exps
 
     -- needed generated files:
@@ -226,7 +225,8 @@ runTest t toolPath corpName flags =
                       exps
         baseToActual b = resultDir </> b <.> "result-actual"
     need $ map baseToActual basenames
-    
+
+    -- compute variances (results):
     rs <- forM basenames
           $ \baseF-> do
                      let expctdF  = expctdDir </> baseF <.> "result-expctd"
@@ -240,28 +240,30 @@ runTest t toolPath corpName flags =
                        
                        -- N.B. the $! : this fixes a resource leak where
                        -- we have all the files open at once.
-                       
-    let rs' = catMaybes rs
-        report = unlines $
-          [ show(length rs) ++ " files"
-          , case length rs' of
+
+    let ps = catMaybes rs  -- the problems
+
+    -- generate summary report:
+    let report = unlines $
+          [ show(length basenames) ++ " files"
+          , case length ps of
               0 -> "0 problems."
               n -> show n ++ " problem(s):"
           ]
-          ++ (let fs = [ f | (f, NE_NoVariance) <- rs'] in
+          ++ (let fs = [ f | (f, NE_NoVariance) <- ps] in
               if null fs then
                []
               else
                 " Files where result =/= expctd but no variance specified:"
                 : map ("  "++) fs)
-          ++ (let fs = [ f | (f, EQ_Variance) <- rs'] in
+          ++ (let fs = [ f | (f, EQ_Variance) <- ps] in
               if null fs then
                 []
               else
                 " Files where result == expctd but a variance is specified:"
                 : map ("  "++) fs)
-          
     writeFile' summaryF' report
+
 
 
 ---- utilities ---------------------------------------------------------------
