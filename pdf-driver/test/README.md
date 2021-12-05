@@ -112,7 +112,7 @@ drive test invocation and checking, achieving "Make" like efficiency, see
 `src/RunTestSet.hs` for the code.
 
 ## test specific documentation ##
-##= test_validatePDF_2020-03-eval ##=
+### test_validatePDF_2020-03-eval ###
 
 See src/CreateExpected.hs for how to create these files
 
