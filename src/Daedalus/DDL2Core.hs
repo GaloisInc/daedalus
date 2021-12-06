@@ -5,13 +5,15 @@
 {-# Language RecordWildCards #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 {-# Language ViewPatterns #-}
+{-# Language ImplicitParams #-}
+{-# Language ConstraintKinds #-}
 module Daedalus.DDL2Core where
 
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Maybe(maybeToList)
+import Data.Maybe(maybeToList,isJust)
 import Data.List((\\))
 import Data.Either(partitionEithers)
 import qualified Data.ByteString as BS
@@ -22,14 +24,14 @@ import MonadLib
 import Daedalus.PP hiding (cat)
 import Daedalus.Panic(panic)
 import qualified Daedalus.BDD as BDD
+import Daedalus.Rec(forgetRecs)
 import Daedalus.GUID(invalidGUID)
 
 import Daedalus.Pass(PassM)
 import qualified Daedalus.Type.AST as TC
 import Daedalus.Type.AST (Commit(..), WithSem(..))
 
-import Daedalus.Core hiding (gIf, bIf, eIf, gCase, bCase, eCase)
-import qualified Daedalus.Core as C
+import Daedalus.Core
 
 import Daedalus.Core.Free
 import Daedalus.Core.Type(typeOf,sizeType)
@@ -40,6 +42,8 @@ import Daedalus.Core.Type(typeOf,sizeType)
 fromModule :: TC.TCModule a -> M Module
 fromModule mo =
   fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
+
+type UsesTypes = (?tyMap :: Map TName TDecl)
 
 fromDecls ::
   TC.ModuleName ->
@@ -52,6 +56,7 @@ fromDecls mo tdecls decls =
      tds <- mapM fromTCTyDeclRec tdecls
 
      let ds = concatMap recToList decls
+     let ?tyMap = Map.fromList [ (tName d, d) | d <- forgetRecs tds ]
      mapM_ addDeclName ds
      (dffs,dbfs,dgfs) <- splitSomeFuns <$> mapM fromDecl ds
      (effs,egfs) <- removeNewFuns
@@ -95,7 +100,7 @@ splitSomeFuns fs = ( [ x | FE x <- fs ]
                    , [ x | FG x <- fs ]
                    )
 
-fromDecl :: TC.TCDecl a -> M SomeFun
+fromDecl :: UsesTypes => TC.TCDecl a -> M SomeFun
 fromDecl TC.TCDecl { .. }
   | null tcDeclTyParams
   , null tcDeclCtrs =
@@ -138,7 +143,7 @@ fromDecl TC.TCDecl { .. }
 
 
 
-fromGrammar :: TC.TC a TC.Grammar -> M Grammar
+fromGrammar :: UsesTypes => TC.TC a TC.Grammar -> M Grammar
 fromGrammar gram =
   case TC.texprValue gram of
 
@@ -203,7 +208,7 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> gIf (lenE `leq` streamLen strE)
+           NoSem -> doIf (lenE `leq` streamLen strE)
                         (Pure unit)
                         (sysErr TUnit "unexpected end of input")
 
@@ -211,7 +216,7 @@ fromGrammar gram =
            YesSem -> do len <- newLocal sizeType
                         str <- newLocal TStream
                         Let len lenE . Let str strE
-                          <$> gIf (Var len `leq` streamLen (Var str))
+                          <$> doIf (Var len `leq` streamLen (Var str))
                                   (Pure $ eTake (Var len) (Var str))
                                   (sysErr TUnit "unexpected end of input")
 
@@ -219,14 +224,14 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> gIf (lenE `leq` streamLen strE)
+           NoSem -> doIf (lenE `leq` streamLen strE)
                         (Pure unit)
                         (sysErr TUnit "unexpected end of input")
            YesSem ->
              do len <- newLocal sizeType
                 str <- newLocal TStream
                 Let len lenE . Let str strE
-                  <$> gIf (Var len `leq` streamLen (Var str))
+                  <$> doIf (Var len `leq` streamLen (Var str))
                           (Pure $ eDrop (Var len) (Var str))
                           (sysErr TUnit "unexpected end of input")
 
@@ -270,7 +275,7 @@ fromGrammar gram =
 
            TC.Between (Just lb) (Just ub) ->
              -- FIXME: bind lb and ub?
-             gIf (ub `lt` lb)
+             doIf (ub `lt` lb)
                  (sysErr (TArray ty) "Empty bounds")
                  =<< case sem of
              NoSem  -> do
@@ -296,10 +301,10 @@ fromGrammar gram =
          mpE <- fromExpr mp
          ty  <- fromTypeM (TC.typeOf mp)
          case sem of
-           NoSem  -> gIf (mapMember mpE kE)
+           NoSem  -> doIf (mapMember mpE kE)
                          (sysErr TUnit "duplicate key in map")
                          (Pure unit)
-           YesSem -> gIf (mapMember mpE kE)
+           YesSem -> doIf (mapMember mpE kE)
                          (sysErr ty "duplicate key in map")
                          (Pure (mapInsert mpE kE vE))
 
@@ -307,7 +312,7 @@ fromGrammar gram =
       do aE <- fromExpr arr
          iE <- fromExpr ix
          case sem of
-           NoSem -> gIf (arrayLen aE `leq` iE)
+           NoSem -> doIf (arrayLen aE `leq` iE)
                         (sysErr TUnit "array index out of bounds")
                         (Pure unit)
            YesSem ->
@@ -319,7 +324,7 @@ fromGrammar gram =
                 a <- newLocal ty0
                 i <- newLocal sizeType
                 Let a aE . Let i iE
-                  <$> gIf (arrayLen (Var a) `leq` Var i)
+                  <$> doIf (arrayLen (Var a) `leq` Var i)
                           (sysErr ty "array index out of bounds")
                           (Pure (arrayIndex (Var a) (Var i)))
 
@@ -333,7 +338,7 @@ fromGrammar gram =
          chk <- needsCoerceCheck tgt e
          case chk of
            Nothing  -> pure e'
-           Just c   -> gIf c e' (sysErr tgt "Coercion is lossy")
+           Just c   -> doIf c e' (sysErr tgt "Coercion is lossy")
 
     TC.TCFor l -> doLoopG l
 
@@ -351,7 +356,8 @@ fromGrammar gram =
         Backtrack -> fromGrammar g
         Commit -> panic "fromGrammar" ["Commit is not yet supported"]
 
-    TC.TCIf e e1 e2 -> join (gIf <$> fromExpr e <*> fromGrammar e1 <*> fromGrammar e2)
+    TC.TCIf e e1 e2 ->
+      join (doIf <$> fromExpr e <*> fromGrammar e1 <*> fromGrammar e2)
 
     TC.TCCase e as dflt ->
       do t  <- fromGTypeM (TC.typeOf gram)
@@ -367,7 +373,8 @@ fromSem sem = case sem of
                 NoSem -> SemNo
                 YesSem -> SemYes
 
-needsCoerceCheck :: Type -> Expr -> M (Maybe Expr)
+
+needsCoerceCheck :: UsesTypes => Type -> Expr -> M (Maybe Expr)
 needsCoerceCheck toTy e =
   case (toTy, fromTy) of
 
@@ -380,23 +387,26 @@ needsCoerceCheck toTy e =
     (isBits -> Just _, TInteger) ->
       Just <$> eAnd lowerBoundCheck upperBoundCheck
 
-    -- Something is different here (eq. caught above)
+    -- Cases for two numeric types, that don't match the above
     (isBits -> Just (toSigned, nTo), isBits -> Just (fromSigned, nFrom))
 
 
       -- uint 8 -> uint 9
       -- sint 8 -> sint 9
       -- uint 8 -> sint 9
-      | nFrom < nTo && (toSigned == fromSigned || not fromSigned) -> pure Nothing
+      | nFrom < nTo && (toSigned == fromSigned || not fromSigned) ->
+        pure Nothing
 
       -- sint 8 -> uint 8
       -- sint 8 -> uint 9
       -- check: 0 <= e
-      | nFrom <= nTo && not toSigned -> pure (Just lowerBoundCheck) -- signed -> unsigned
+      | nFrom <= nTo && not toSigned -> pure (Just lowerBoundCheck)
+        -- signed -> unsigned
 
       -- uint 8 -> sint 8
       -- e <= 127
-      | nFrom == nTo && toSigned      -> pure (Just upperBoundCheck)  -- unsigned -> signed
+      | nFrom == nTo && toSigned -> pure (Just upperBoundCheck)
+        -- unsigned -> signed
 
       -- uint 9 -> sint 8, check: e <= 127
       -- uint 9 -> uint 8, check: e <= 255
@@ -404,13 +414,25 @@ needsCoerceCheck toTy e =
 
       -- sint 9 -> uint 8
       -- check: 0 <= e
-      | nTo == nFrom + 1 && fromSigned && not toSigned -> pure (Just lowerBoundCheck)
+      | nTo == nFrom + 1 && fromSigned && not toSigned ->
+        pure (Just lowerBoundCheck)
 
       -- sint 9 -> sint 8: -128 <= e <= 127
       -- sint 10 -> uint 8 0    <= e <= 255
-      | nTo < nFrom                  -> Just <$> eAnd lowerBoundCheck upperBoundCheck
+      | nTo < nFrom -> Just <$> eAnd lowerBoundCheck upperBoundCheck
 
-    _ -> pure Nothing
+    -- bitdata -> uint
+    (isUInt -> Just _, TUser ut)
+      | tnameBD (utName ut) -> pure Nothing -- TC ensures widths match
+
+    (TUser ut, isUInt -> Just _)
+      | Just decl <- Map.lookup (utName ut) ?tyMap ->
+        bitdataValidator (tDef decl) e
+
+    _ -> panic "needsCoerceCheck"
+          [ "Unexpected coercsion:"
+          , showPP fromTy, showPP toTy
+          ]
   where
     fromTy = typeOf e
     Just (s, n) = isBits toTy -- lazy
@@ -515,7 +537,8 @@ matchToGrammar t match e =
         Nothing -> pure g
         Just x  -> pure (Let x e g)
     IfPat {} ->
-      gCase e (fmap (completeAlts pFail) . matchToAlts (matchToGrammar t) match)
+      doCase e
+        (fmap (completeAlts pFail) . matchToAlts (matchToGrammar t) match)
   where
   pFail = sysErr t "Pattern match failure"
 
@@ -527,7 +550,7 @@ matchToByteSet match e =
       case mb of
         Nothing -> pure k
         Just x -> pure (SetLet x e k)
-    IfPat {} -> bCase e (matchToAlts matchToByteSet match)
+    IfPat {} -> doCase e (matchToAlts matchToByteSet match)
 
 matchToExpr :: PMatch Expr -> Expr -> M Expr
 matchToExpr match e =
@@ -537,7 +560,7 @@ matchToExpr match e =
       case mb of
        Nothing -> pure k
        Just x  -> pure (PureLet x e k)
-    IfPat {} -> eCase e (matchToAlts matchToExpr match)
+    IfPat {} -> doCase e (matchToAlts matchToExpr match)
 
 matchToAlts ::
   (PMatch k -> Expr -> M k) ->
@@ -591,7 +614,7 @@ completeAlts d ps0 =
 -- Loops
 
 
-doLoopG :: TC.Loop a TC.Grammar -> M Grammar
+doLoopG :: UsesTypes => TC.Loop a TC.Grammar -> M Grammar
 doLoopG lp =
   do keyVar <- traverse fromName (TC.loopKName lp)
      elVar  <- fromName (TC.loopElName lp)
@@ -676,7 +699,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
      defFunG f (sVar : i : vs)
-       =<< gIf (iteratorDone (Var i))
+       =<< doIf (iteratorDone (Var i))
                (Pure (Var sVar))
                (Let elVar (iteratorVal (Var i))
                 $    maybeAddKey (iteratorKey (Var i))
@@ -691,7 +714,7 @@ maybeSkip cmt p yes no =
      pure case cmt of
             Commit ->
               Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
-               $ C.gIf r yes no
+               $ coreIf r yes no
             _ -> orOp cmt (Do_ p yes) no
 
 
@@ -741,7 +764,7 @@ pSkipExactlyMany _cmt vs tgt p =
      let body = Do_ (OrBiased p (sysErr TUnit "insufficient element occurances"))
                     (Call f (add xe (intL 1 sizeType) : es))
 
-     defFunG f (x : vs) =<< gIf (xe `lt` tgt) body (Pure unit)
+     defFunG f (x : vs) =<< doIf (xe `lt` tgt) body (Pure unit)
      pure $ Call f (intL 0 sizeType : es)
 
 -- | Produces a function which returns a builder
@@ -767,7 +790,7 @@ pParseExactlyMany _cmt ty vs tgt p =
                               : consBuilder re be
                               : es))
 
-     defFunG f (x : b : vs) =<< gIf (xe `lt` tgt) body (Pure be)
+     defFunG f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : es)
 
 pSkipAtMost :: Commit -> [Name] -> Expr -> Grammar -> M Grammar
@@ -778,7 +801,7 @@ pSkipAtMost cmt vs tgt p =
      let xe = Var x
      skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 sizeType) : es))
                                  (Pure xe)
-     defFunG f (x:vs) =<< gIf (xe `lt` tgt) skipBody (Pure xe)
+     defFunG f (x:vs) =<< doIf (xe `lt` tgt) skipBody (Pure xe)
      pure (Call f (intL 0 sizeType : es))
 
 pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
@@ -796,7 +819,7 @@ pParseAtMost cmt ty vs tgt be p =
                               : es))
                 (Pure bve)
 
-     defFunG f (x : bv : vs) =<< gIf (xe `lt` tgt) body (Pure bve)
+     defFunG f (x : bv : vs) =<< doIf (xe `lt` tgt) body (Pure bve)
      pure $ Call f (intL 0 sizeType : be : es)
 
 finishMany :: Type -> Grammar -> M Grammar
@@ -840,7 +863,8 @@ fromClass cla =
         _ -> panic "fromClass" ["Unexptect type parameters"]
 
 
-    TC.TCIf e e1 e2 -> join (bIf <$> fromExpr e <*> fromClass e1 <*> fromClass e2)
+    TC.TCIf e e1 e2 ->
+      join (doIf <$> fromExpr e <*> fromClass e1 <*> fromClass e2)
 
     TC.TCCase e as dflt ->
       do ms <- mapM (doAlt fromClass) as
@@ -917,7 +941,7 @@ fromExpr expr =
       do e1 <- fromExpr v1
          e2 <- fromExpr v2
          e3 <- fromExpr v3
-         eIf e1 e2 e3
+         doIf e1 e2 e3
 
     TC.TCVar x -> sourceLocal x
 
@@ -1073,7 +1097,7 @@ foldLoop colT ty vs0 sVar initS keyVar elVar colE g =
      f <- newFName' Nothing ty
      i <- newLocal (TIterator colT)
      defFunF f (sVar : i : vs)
-       =<< eIf (iteratorDone (Var i))
+       =<< doIf (iteratorDone (Var i))
                (Var sVar)
                (PureLet elVar (iteratorVal (Var i))
                 $ maybeAddKey   (iteratorKey (Var i))
@@ -1218,6 +1242,38 @@ fromTCTyDecl td =
                TC.KNumber -> Left x
                k -> panic "fromTCTyDecl" [ "Unexpected kind param: " ++ show k ]
 
+bitdataValidator :: TDef -> Expr -> M (Maybe Expr)
+bitdataValidator tdef = \e' ->
+  case tdef of
+    TBitdata univ _ | not (BDD.willAlwaysMatch univ) ->
+      Just <$>
+      case e' of
+        Ap0 (IntL n _) -> pure (boolL (BDD.willMatch univ n))
+        Var x          -> doTests x
+        _              -> withVar e' doTests
+        where
+        ty = typeOf e'
+
+        appMask :: Integer -> Expr -> Expr
+        appMask mask e = if mask == (2 ^ BDD.width univ) - 1
+                           then e
+                           else bitAnd (intL mask ty) e
+
+        tests = BDD.groupTestsByMask (BDD.patTests univ)
+
+        doTests x = foldr (doTest x) (pure (boolL False)) (Map.toList tests)
+
+        doTest :: Name -> (Integer,[Integer]) -> M Expr -> M Expr
+        doTest e (mask,cases) orElseM =
+          do orElse <- orElseM
+             withVar (appMask mask (Var e)) \x ->
+                pure $ coreCase x
+                     $ [ (PNum c, boolL True) | c <- cases ] ++
+                       [ (PAny, orElse) ]
+
+    _ -> pure Nothing
+
+
 fromBitdata :: (?tenv :: TEnv) => TC.TCTyDef -> BitdataDef
 fromBitdata def =
   case def of
@@ -1341,43 +1397,25 @@ fromManybeBound bnds =
 --------------------------------------------------------------------------------
 -- Utilities
 
--- Factoring out isn't really worthwhile
-gCase :: Expr -> (Name -> M [(Pattern, Grammar)]) -> M Grammar
-gCase e mkAlts = do
-  x <- newLocal (typeOf e)
-  alts <- mkAlts x
-  pure (Let x e (C.gCase x alts))
+withVar :: CoreSyn t => Expr -> (Name -> M t) -> M t
+withVar e k =
+  case e of
+    Var x -> k x
+    _     -> do x <- newLocal (typeOf e)
+                coreLet x e <$> k x
 
-bCase :: Expr -> (Name -> M [(Pattern, ByteSet)]) -> M ByteSet
-bCase e mkAlts = do
-  x <- newLocal (typeOf e)
-  alts <- mkAlts x
-  pure (SetLet x e (C.bCase x alts))
+doCase :: CoreSyn t => Expr -> (Name -> M [(Pattern, t)]) -> M t
+doCase e mkAlts =
+  withVar e \x ->
+  do alts <- mkAlts x
+     pure (coreCase x alts)
 
-eCase :: Expr -> (Name -> M [(Pattern, Expr)]) -> M Expr
-eCase e mkAlts = do
-  x <- newLocal (typeOf e)
-  alts <- mkAlts x
-  pure (PureLet x e (C.eCase x alts))
-
-gIf :: Expr -> Grammar -> Grammar -> M Grammar
-gIf e g1 g2 = do
-  x <- newLocal TBool
-  pure (Let x e (C.gIf x g1 g2))
-
-eIf :: Expr -> Expr -> Expr -> M Expr
-eIf e e1 e2 = do
-  x <- newLocal TBool
-  pure (PureLet x e (C.eIf x e1 e2))
-
-bIf :: Expr -> ByteSet -> ByteSet -> M ByteSet
-bIf e b1 b2 = do
-  x <- newLocal TBool
-  pure (SetLet x e (C.bIf x b1 b2))
+doIf :: CoreSyn t => Expr -> t -> t -> M t
+doIf e g1 g2 = withVar e \x -> pure (coreIf x g1 g2)
 
 eOr, eAnd :: Expr -> Expr -> M Expr
-eOr x y  = eIf x (boolL True) y
-eAnd x y = eIf x y (boolL False)
+eOr x y  = doIf x (boolL True) y
+eAnd x y = doIf x y (boolL False)
 
 tByte :: Type
 tByte = TUInt (TSize 8)
@@ -1400,11 +1438,11 @@ orOp cmt = case cmt of
 fromMb :: WithSem -> Type -> Expr -> M Grammar
 fromMb sem t e =
   case sem of
-    NoSem -> gCase e (const (pure [ (PNothing, nope TUnit)
+    NoSem -> doCase e (const (pure [ (PNothing, nope TUnit)
                                    , (PJust, Pure unit)
                                    ]))
     YesSem ->
-      gCase e (\x -> pure [ (PNothing, nope t)
+      doCase e (\x -> pure [ (PNothing, nope t)
                           , (PJust, Pure (eFromJust (Var x)))
                           ])
   where
@@ -1473,15 +1511,16 @@ newTNameRec rec =
     MutRec ds -> mapM_ (doOne True) ds
   where
   doOne r d =
-    let flavor = case TC.tctyDef d of
+    let bd = isJust (TC.tctyBD d)
+        flavor = case TC.tctyDef d of
                    TC.TCTyStruct {} -> TFlavStruct
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
-                     | otherwise                                -> TFlavUnion (map fst cs)
-    in newTName r flavor (TC.tctyName d)
+                     | otherwise -> TFlavUnion (map fst cs)
+    in newTName r bd flavor (TC.tctyName d)
 
-newTName :: Bool -> TFlav -> TC.TCTyName -> M ()
-newTName isRec flavor nm = M
+newTName :: Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
+newTName isRec isBD flavor nm = M
   do r <- ask
      let (l,anon) = case nm of
                       TC.TCTy a -> (a, Nothing)
@@ -1494,6 +1533,7 @@ newTName isRec flavor nm = M
                   , tnameAnon = anon
                   , tnameMod = curMod r
                   , tnameRec = isRec
+                  , tnameBD = isBD
                   , tnameFlav = flavor
                   }
      sets_ \s -> s { topTNames = Map.insert nm x (topTNames s) }
