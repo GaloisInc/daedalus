@@ -7,8 +7,8 @@ Overall structure of the testing infrastructure
         CORPORANAME1/*       -- pdf (or anything, no suffix required) files for testing
         CORPORANAME2/*       -- pdf (or anything, no suffix required) files for testing
         ...
-      test_TOOLNAME_CORPORANAME1
-      test_TOOLNAME_CORPORANAME2
+      test_TOOLNAME_CORPORANAME1/
+      test_TOOLNAME_CORPORANAME2/
       ...
 
 ## Corporas ##

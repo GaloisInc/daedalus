@@ -50,29 +50,31 @@ data MetaData = MetaData { exitCode :: ExitCode
 ---- tools -------------------------------------------------------------------
 
 tools :: [Tool]
-tools = [validate_T]
+tools = [validate_T, totext_T]
 
 toolnames :: [String]
 toolnames = map t_name tools
   
 toolnameRegEx :: String
 toolnameRegEx = intercalate "|" toolnames
-  
+
+---- validate ----
+
 validate_T :: Tool
 validate_T =
   T { t_name          = "validatePDF"
     , t_cmd_exec      = "pdf-hs-driver"
     , t_cmd_mkArgs    = (\f->[f])
     , t_timeoutInSecs = timeoutInSecs
-    , t_proj          = validate_proj
+    , t_proj          = proj
     , t_cmp           = (==)
     }
 
   where
   timeoutInSecs = 3*60  -- FIXME: be able to specify on command line??
     
-  validate_proj :: IO String -> IO String -> IO MetaData-> IO String
-  validate_proj _getOut _getErr getMeta =
+  proj :: IO String -> IO String -> IO MetaData-> IO String
+  proj _getOut _getErr getMeta =
     do
     metaD <- getMeta
     let r = if runtime metaD >= timeoutInSecs*1000 then
@@ -83,14 +85,40 @@ validate_T =
               Bad
     return (show r)
 
-data ValidateResult =
+data Result_validate_T =
        Good
      | Bad
      | Timeout 
      | NCBUR   -- can be the expected result tho now not 'returned' by
      deriving (Eq, Read, Show)  
 
+---- totext ----
 
+totext_T :: Tool
+totext_T =
+  T { t_name          = "totext"
+    , t_cmd_exec      = "pdf-hs-driver"
+    , t_cmd_mkArgs    = (\f->["-t", f])
+    , t_timeoutInSecs = timeoutInSecs
+    , t_proj          = proj
+    , t_cmp           = cmp
+    }
+
+  where
+  timeoutInSecs = 3*60
+    
+  proj :: IO String -> IO String -> IO MetaData-> IO String
+  proj getStdOut _getErr _getMeta =
+    unlines . filter isText . lines <$> getStdOut
+    where
+    isText []                           = False   
+    isText s | "INFO - " `isPrefixOf` s = False
+             | otherwise                = True
+
+  cmp expctd actual =
+    expctd == actual  -- FIXME[F1]: must relax!
+    -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
+    
 ---- code --------------------------------------------------------------------
 
 data Flags = F_ToolName String

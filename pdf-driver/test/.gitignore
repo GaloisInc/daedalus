@@ -5,3 +5,4 @@ corpora/govdocs-subset-a
 test_*_*/results/*.stdout
 test_*_*/results/*.stderr
 report.html
+README.html
