@@ -76,8 +76,8 @@ validate_T =
 
   where
   matchesRE :: String -> String -> Bool
-  matchesRE goldRegEx actual =
-    RE.matchTest (regExpNotCS goldRegEx) actual
+  matchesRE expectedRegEx actual =
+    RE.matchTest (regExpNotCS expectedRegEx) actual
     where
     regExpNotCS :: String -> RE.Regex
     regExpNotCS s =
@@ -129,8 +129,8 @@ totext_T =
     isText s | "INFO - " `isPrefixOf` s = False
              | otherwise                = True
 
-  cmp expctd actual =
-    expctd == actual  -- FIXME[F1]: must relax!
+  cmp expected actual =
+    expected == actual  -- FIXME[F1]: must relax!
     -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
     
 ---- code --------------------------------------------------------------------
@@ -152,7 +152,7 @@ options =
 main :: IO ()
 main =
   shakeArgsWith
-    shakeOptions{shakeFiles=".shake"}
+    shakeOptions{shakeFiles=".shake",shakeProgress=progressSimple}
     options
     main'
   
@@ -196,7 +196,7 @@ runTest t toolPath corpName flags =
   let srcDir     = "corpora" </> corpName
       testDir    = concat ["test","_",t_name,"_",corpName]
       resultDir  = testDir </> "results"
-      expctdDir  = testDir </> "expctd"
+      expectedDir  = testDir </> "expected"
       summaryF   = testDir </> "test-summary"
       variancesF = testDir </> "variances.filelist"
 
@@ -258,12 +258,12 @@ runTest t toolPath corpName flags =
     need [variancesF]
     varianceFiles <- filter firstCharNonWhite . lines
                      <$> readFile' variancesF
-    exps <- getDirectoryFiles "" [expctdDir </> "*.result-expctd"]
+    exps <- getDirectoryFiles "" [expectedDir </> "*.result-expected"]
     need exps
 
     -- needed generated files:
     let basenames = map
-                      (takeFileName . sfStripExtension ".result-expctd")
+                      (takeFileName . sfStripExtension ".result-expected")
                       exps
         baseToActual b = resultDir </> b <.> "result-actual"
     need $ map baseToActual basenames
@@ -271,10 +271,10 @@ runTest t toolPath corpName flags =
     -- compute variances (results):
     rs <- forM basenames
           $ \baseF-> do
-                     let expctdF  = expctdDir </> baseF <.> "result-expctd"
-                         actualF  = resultDir </> baseF <.> "result-actual"
-                         variance = baseF `elem` varianceFiles
-                     eqv <- liftIO $ cmpFileContents t_cmp expctdF actualF
+                     let expectedF = expectedDir </> baseF <.> "result-expected"
+                         actualF   = resultDir   </> baseF <.> "result-actual"
+                         variance  = baseF `elem` varianceFiles
+                     eqv <- liftIO $ cmpFileContents t_cmp expectedF actualF
                      return $! case (eqv,variance) of
                        (False,False) -> Just (baseF, NE_NoVariance)
                        (True ,True ) -> Just (baseF, EQ_Variance)
@@ -296,13 +296,13 @@ runTest t toolPath corpName flags =
               if null fs then
                []
               else
-                " Files where result =/= expctd but no variance specified:"
+                " Files where result =/= expected but no variance specified:"
                 : map ("  "++) fs)
           ++ (let fs = [ f | (f, EQ_Variance) <- ps] in
               if null fs then
                 []
               else
-                " Files where result == expctd but a variance is specified:"
+                " Files where result == expected but a variance is specified:"
                 : map ("  "++) fs)
     writeFile' summaryF' report
 

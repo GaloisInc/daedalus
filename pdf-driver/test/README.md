@@ -34,7 +34,7 @@ Each testset directory (of form `test_TOOLNAME_CORPORANAME/`)
   - starts with this given structure:
 
         test_TOOLNAME_CORPORANAME/
-          expctd/*.result-expctd
+          expected/*.result-expected
           variances.filelist
     
   - and after running a test, the directory will have new files:
@@ -43,13 +43,13 @@ Each testset directory (of form `test_TOOLNAME_CORPORANAME/`)
           ...
           results/*.{stdout,stderr,meta} -- raw results
           results/*.result-actual        -- final result, for comparison
-                                         --  with expctd/*.result-expctd
+                                         --  with expected/*.result-expected
           test-summary
 
 Note that we don't test all the files in the `corpora/CORPORANAME` but only the
-files for which we have an `expctd/*.result-expctd` file.  I.e.,
+files for which we have an `expected/*.result-expected` file.  I.e.,
   
-      for f in expctd/*.result-expctd; do
+      for f in expected/*.result-expected; do
         base=basenameNoSuffix(f)
         run the test on this input-file:  corpora/CORPORANAME/$base
       done
@@ -85,12 +85,12 @@ For every file from the (designated) corpora we want tested, e.g.,
 
 we need to indicate the expected value by having this file
 
-      test_validatePDF_CORP/expctd/myfile1.pdf.result-expctd
+      test_validatePDF_CORP/expected/myfile1.pdf.result-expected
 
 We also have a notion of 'variances', captured in `variances.filelist` in which
 we record the files for which these are not equivalent (tool specific):
 
-      test_validatePDF_CORP/expctd/myfile1.pdf.result-expctd
+      test_validatePDF_CORP/expected/myfile1.pdf.result-expected
       test_validatePDF_CORP/results/myfile1.pdf.result-actual
 
 Any line in `variances.filelist` that starts with a space is a comment.
@@ -99,8 +99,8 @@ Passing a test ONLY means that the 'variances' exactly match the test results:
 For a test to "pass" you want to see "0 problems" in the test-summary file.
 There are two kinds of problems:
 
-   1. Files where result `=/=` expctd but no variance specified.
-   2. Files where result `==` expctd but a variance is specified.
+   1. Files where result `=/=` expected but no variance specified.
+   2. Files where result `==` expected but a variance is specified.
 
 ## Details & Implementation ##
 
@@ -115,7 +115,7 @@ drive test invocation and checking, achieving "Make" like efficiency, see
 
 See src/CreateExpected.hs for how to create these files
 
-      test_validatePDF_2020-03-eval/expctd/*.result-expctd
+      test_validatePDF_2020-03-eval/expected/*.result-expected
 
 The PDFs under test are not in the repo, but are expected to be in this
 directory: `corpora/2020-03-eval/`.  You can either
