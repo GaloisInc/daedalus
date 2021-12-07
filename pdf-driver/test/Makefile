@@ -34,6 +34,11 @@ test_%/test-summary: build
   # RUNTESTSET does make-like dependencies using Shake library
   #  - for details, see source here src/RunTestSet.hs
 
+test_%/clean: build
+	${RUNTESTSET} --tool $(firstword $(subst _, ,$*)) \
+                      --corpora $(lastword $(subst _, ,$*)) \
+                      clean
+
 quick: ${QUICKTESTS}
 
 long:  quick ${LONGTESTS}
