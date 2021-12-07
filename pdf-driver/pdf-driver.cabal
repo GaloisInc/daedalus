@@ -99,7 +99,7 @@ executable run-testset
   build-depends:
     base,
     containers,
+    regex-tdfa,
     shake
-
 
     

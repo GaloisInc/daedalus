@@ -16,6 +16,9 @@ REMOTECORPORA= corpora/pdf20examples \
                corpora/2020-03-eval  \
                corpora/govdocs-subset-a
 
+git-ignoremetadata:
+	git ch test_*/result/*-meta
+
 nodefaulttarget:
 	@echo did you want ...?
 	@echo " " make remotecorpora
@@ -41,7 +44,7 @@ long:  quick ${LONGTESTS}
 build:
 	cd ../..; cabal v2-build exe:run-testset
 
-# turn 'all tests succeed' into single standard error code
+# turn 'all tests succeed' into an error code:
 
 quick-status: ${QUICKTESTS}
 	test `egrep '^0 problems' $^ | wc -l` \

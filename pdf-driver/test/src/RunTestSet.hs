@@ -10,6 +10,9 @@ import           GHC.Generics (Generic)
 import           System.Exit
 import           System.Console.GetOpt
 
+--- regex-tdfa pkg:
+import qualified Text.Regex.TDFA as RE
+
 -- shake pkg:
 import qualified Development.Shake as Shake
 import           Development.Shake         hiding (Timeout)
@@ -31,7 +34,8 @@ data Tool =
                       -> IO String   -- the result of tool (as string)
                         -- FIXME: this may add unnecessary 'needs'
 
-    , t_cmp           :: String -> String -> Bool -- or, expand
+    , t_cmp           :: String -> String -> Bool
+                         -- FIXME: possibly elaborate Bool to provide error messages?
     }
 
   -- FIXME: name things as an 'isvalid' (not 'result') projection
@@ -56,7 +60,7 @@ toolnames :: [String]
 toolnames = map t_name tools
   
 toolnameRegEx :: String
-toolnameRegEx = intercalate "|" toolnames
+toolnameRegEx = "("++ intercalate "|" toolnames ++ ")"
 
 ---- validate ----
 
@@ -67,10 +71,20 @@ validate_T =
     , t_cmd_mkArgs    = (\f->[f])
     , t_timeoutInSecs = timeoutInSecs
     , t_proj          = proj
-    , t_cmp           = (==)
+    , t_cmp           = matchesRE
     }
 
   where
+  matchesRE :: String -> String -> Bool
+  matchesRE goldRegEx actual =
+    RE.matchTest (regExpNotCS goldRegEx) actual
+    where
+    regExpNotCS :: String -> RE.Regex
+    regExpNotCS s =
+      RE.makeRegexOpts RE.defaultCompOpt{RE.caseSensitive=False}
+                       RE.defaultExecOpt
+                       s
+                
   timeoutInSecs = 3*60  -- FIXME: be able to specify on command line??
     
   proj :: IO String -> IO String -> IO MetaData-> IO String
@@ -211,7 +225,7 @@ runTest t toolPath corpName flags =
       command [ Shake.Timeout (fromIntegral t_timeoutInSecs)
               , WithStdout True
               , WithStderr True
-              , EchoStderr True
+              , EchoStderr False
               , FileStdout outF
               , FileStderr errF
               ]
