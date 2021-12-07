@@ -56,7 +56,7 @@ files for which we have an `expctd/*.result-expctd` file.  I.e.,
 
 Two tools currently are supported, by name (see `src/RunTestSet.hs`):
   - validatePDF : `pdf-hs-driver ...`
-  - totext      : `pdf-hs-driver ...`
+  - totext      : `pdf-hs-driver -t ...`
 
 ## What to store in the repo ##
 
@@ -65,7 +65,6 @@ The following generated files will be stored in the repo, they are
 changes:
 
       test_TOOLNAME_CORPORANAME/
-        results/*.meta
         results/*.result-actual
         test-summary
    

@@ -16,9 +16,6 @@ REMOTECORPORA= corpora/pdf20examples \
                corpora/2020-03-eval  \
                corpora/govdocs-subset-a
 
-git-ignoremetadata:
-	git ch test_*/result/*-meta
-
 nodefaulttarget:
 	@echo did you want ...?
 	@echo " " make remotecorpora
@@ -53,3 +50,4 @@ quick-status: ${QUICKTESTS}
 long-status: ${QUICKTESTS} ${LONGTESTS}
 	test `egrep '^0 problems' $^ | wc -l` \
          -eq `echo $^ | wc -w`
+

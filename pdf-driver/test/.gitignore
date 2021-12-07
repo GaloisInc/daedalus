@@ -4,5 +4,6 @@ corpora/pdf20examples
 corpora/govdocs-subset-a
 test_*_*/results/*.stdout
 test_*_*/results/*.stderr
+test_*_*/results/*.meta
 report.html
 README.html
