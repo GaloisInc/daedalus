@@ -8,6 +8,7 @@
 #include "ddl/map.h"
 #include "ddl/size.h"
 #include "ddl/float.h"
+#include "ddl/bitdata.h"
 
 
 #include "user_data.h"
@@ -19,6 +20,7 @@
 #include "test_casts.cpp"
 #include "test_array.cpp"
 #include "test_float.cpp"
+#include "test_bitdata.cpp"
 
 using namespace std;
 
@@ -32,5 +34,6 @@ int main() {
   test_array();
   test_map();
   test_float();
+  test_bitdata();
   return 0;
 }

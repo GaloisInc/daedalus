@@ -147,6 +147,7 @@ cProgram fileNameRoot prog =
          , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
          , "#include <ddl/float.h>"
+         , "#include <ddl/bitdata.h>"
          , "#include <ddl/integer.h>"
          , "#include <ddl/cast.h>"
          , "#include <ddl/maybe.h>"
@@ -444,6 +445,10 @@ cOp1 x op1 ~[e'] =
               Src.TInteger  -> cInst "DDL::uint_to_integer" [sz from]
               Src.TUInt to  -> cInst "DDL::uint_to_uint" [sz from, sz to]
               Src.TSInt to  -> cInst "DDL::uint_to_sint" [sz from, sz to]
+              Src.TUser ut
+                | let nm = Src.utName ut
+                , Src.tnameBD nm -> cTNameUse GenPublic nm <.> "::fromBits"
+
               _             -> bad "Unexpected target type"
 
           Src.TSInt from ->
@@ -459,6 +464,14 @@ cOp1 x op1 ~[e'] =
               Src.TUInt to  -> cInst "DDL::integer_to_uint" [sz to]
               Src.TSInt to  -> cInst "DDL::integer_to_sint" [sz to]
               _             -> bad "Unexpected target type"
+
+
+          Src.TUser ut
+            | let nm = Src.utName ut
+            , Src.tnameBD nm ->
+              case tgtT of
+                Src.TUInt {} -> "DDL::bitdata_to_uint"
+                _ -> bad "Unexpected target type"
 
           _ | srcT == tgtT -> cInst "DDL::refl_cast" [cSemType tgtT]
             | otherwise    -> bad "Unexpected source type"

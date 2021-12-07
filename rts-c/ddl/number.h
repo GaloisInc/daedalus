@@ -30,6 +30,8 @@ public:
                                             uint64_t
     >::type>::type>::type;
 
+  static constexpr Width bitWidth = w;
+
 private:
   Rep data;
 
@@ -107,6 +109,11 @@ public:
   bool operator >= (UInt x) const { return rep() >= x.rep(); }
 
   Size asSize() const { return Size::from(rep()); }  // used in array
+
+  // Bitdata
+  UInt toBits()                { return *this; }
+  static UInt fromBits(UInt x) { return x; }
+  static bool isValid(UInt x)  { return true; }
 };
 
 
@@ -157,6 +164,9 @@ class SInt : public Value {
   static_assert(w <= 64, "SInt larger than 64 not supported.");
 
 public:
+
+  static constexpr Width bitWidth = w;
+
   using Rep =
     typename std::conditional < (w <= 8),   int8_t,
     typename std::conditional < (w <= 16),  int16_t,
@@ -229,6 +239,12 @@ public:
   SInt operator >> (Size x) const { return SInt(data >> x.rep()); }
 
   Size asSize() const { return Size::from(rep()); } // used in array
+
+  // Bitdata
+  UInt<w> toBits()                { return UInt(data); }
+  static SInt fromBits(UInt<w> x) { return SInt(x.rep()); }
+  static bool isValid(UInt<w> x)  { return true; }
+
 };
 
 

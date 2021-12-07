@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 
+#include <ddl/size.h>
 #include <ddl/value.h>
 
 namespace DDL {
@@ -12,6 +13,8 @@ namespace DDL {
 class Float : public Value {
   float f;
 public:
+  static constexpr Width bitWidth = 32;
+
   Float() {}
   Float(float x) : f(x) {}
 
@@ -39,6 +42,17 @@ public:
   bool isInfinite() { return std::isinf(getValue()); }
   bool isDenormalized() { return std::fpclassify(f) == FP_SUBNORMAL; }
   bool isNegativeZero() { return f == 0 && std::signbit(f); }
+
+
+  // Bitdata
+  UInt<bitWidth> toBits() {
+    uint32_t x;
+    static_assert(sizeof(x) == sizeof(f));
+    memcpy(&x,&f,sizeof(f));
+    return UInt<bitWidth>(x);
+  }
+  static Float fromBits(UInt<bitWidth> x) { return Float::fromBits(x.rep()); }
+  static bool isValid(UInt<bitWidth> x)   { return true; }
 };
 
 inline int compare(Float x, Float y) {
@@ -64,6 +78,8 @@ std::ostream& toJS(std::ostream& os, Float x) {
 class Double : public Value {
   double f;
 public:
+  static constexpr Width bitWidth = 64;
+
   Double() {}
   Double(double x) : f(x) {}
 
@@ -93,6 +109,17 @@ public:
   bool isInfinite() { return std::isinf(getValue()); }
   bool isDenormalized() { return std::fpclassify(f) == FP_SUBNORMAL; }
   bool isNegativeZero() { return f == 0 && std::signbit(f); }
+
+  // Bitdata
+  UInt<bitWidth> toBits() {
+    uint64_t x;
+    static_assert(sizeof(x) == sizeof(f));
+    memcpy(&x,&f,sizeof(f));
+    return UInt<bitWidth>(x);
+  }
+  static Float fromBits(UInt<bitWidth> x) { return Float::fromBits(x.rep()); }
+  static bool isValid(UInt<bitWidth> x)   { return true; }
+
 };
 
 inline int compare(Double x, Double y) {
