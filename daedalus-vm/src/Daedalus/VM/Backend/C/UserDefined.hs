@@ -3,12 +3,13 @@ module Daedalus.VM.Backend.C.UserDefined where
 
 import qualified Data.Set as Set
 import Data.List(partition)
-import Data.Maybe(catMaybes,mapMaybe)
+import Data.Maybe(catMaybes)
+import Data.Map(Map)
+import qualified Data.Map as Map
 
 import Daedalus.PP
 import Daedalus.Rec
 import Daedalus.Panic(panic)
-import qualified Daedalus.BDD as BDD
 
 import Daedalus.Core
 import Daedalus.Core.Free
@@ -16,11 +17,12 @@ import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
+import Daedalus.VM.Backend.C.Bitdata
 
 
 -- | Returns (declaration, methods)
-cTypeGroup :: Rec TDecl -> (Doc,Doc)
-cTypeGroup rec =
+cTypeGroup :: Map TName TDecl -> Rec TDecl -> (Doc,Doc)
+cTypeGroup allTypes rec =
     case rec of
       NonRec d ->
         case tDef d of
@@ -31,8 +33,13 @@ cTypeGroup rec =
                         , generateMethods GenPublic GenUnboxed d
                         )
 
-          TBitdata univ def -> ( cBitdata d univ def
-                               , empty
+          TBitdata univ def -> ( vcat' [ cBitdata d univ def
+                                       , decShow GenPublic d
+                                       , decShowJS GenPublic d
+                                       ]
+                               , vcat' [ defShow allTypes GenPublic d
+                                       , defShowJS allTypes GenPublic d
+                                       ]
                                )
 
       MutRec ds ->
@@ -374,7 +381,7 @@ generateMethods vis boxed ty =
     , defCmpOp "<=" vis ty
     , defCmpOp ">=" vis ty
     ] ++
-    [defShow vis ty, defShowJS vis ty]
+    [defShow Map.empty vis ty, defShowJS Map.empty vis ty]
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
@@ -402,8 +409,8 @@ decShow vis tdecl =
 
 -- XXX: for boxed things we could delegate, but that would require
 -- friendship to access `ptr`
-defShow :: GenVis -> TDecl -> CDecl
-defShow vis tdecl =
+defShow :: Map TName TDecl -> GenVis -> TDecl -> CDecl
+defShow allTypes vis tdecl =
   cUserNS vis
   [ cTemplateDecl tdecl
   , "inline"
@@ -415,38 +422,48 @@ defShow vis tdecl =
 
       TUnion fs ->
         [ cStmt ("os <<" <+> cString "{| ")
-        , vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
-               , nest 2 $ vcat
-                    [ "case" <+> cSumTagV (tName tdecl) l <.> colon <+>
-                      vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
-                           , cStmt "break"
-                           ]
-                    | (l,_) <- fs
-                    , let lab = cString (show (pp l <+> "= "))
-                          val = cCallMethod "x" (selName GenBorrow l) []
-                    ]
-               , "}"
-               ]
+        , cSwitch (cCallMethod "x" "getTag" [])
+             [ cCase (cSumTagV (tName tdecl) l) (showUnionCase False f)
+             | f@(l,_) <- fs ]
         , cStmt ("return os <<" <+> cString " |}")
         ]
 
-      TBitdata _unif def ->
+      TBitdata univ def ->
         case def of
           BDStruct fs -> showStruct True
                           [ (l,t) | f <- fs, BDData l t <- [bdFieldType f ] ]
+          BDUnion fs ->
+            [ cStmt ("os <<" <+> cString "{| ")
+            , bdCase allTypes univ "x"
+              [ (t, showUnionCase True f)
+              | f@(_,t) <- fs ]
+            , cStmt ("return os <<" <+> cString " |}")
+            ]
     ]
   where
   ty = cTypeNameUse vis tdecl
 
   showStruct bd fs =
     let how = if bd then GenOwn else GenBorrow
+        end = case fs of
+                [] -> "{}" :: String
+                _  -> " }"
     in
     [ cStmt ("os <<" <+> fld <+> "<<" <+> thing)
     | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
     , let thing = cCallMethod "x" (selName how l) []
           fld   = cString (show (sepa <+> pp l <+> "= "))
     ] ++
-    [ cStmt ("return os <<" <+> cString " }") ]
+    [ cStmt ("return os <<" <+> cString end) ]
+
+  showUnionCase bd (l,_) =
+    let lab = cString (show (pp l <+> "= "))
+        how = if bd then GenOwn else GenBorrow
+        val = cCallMethod "x" (selName how l) []
+    in vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
+            , cStmt "break"
+            ]
+
 
 
 
@@ -460,8 +477,8 @@ decShowJS vis tdecl =
   ty = cTypeNameUse vis tdecl
 
 -- | Show in ppshow friendly format
-defShowJS :: GenVis -> TDecl -> CDecl
-defShowJS vis tdecl =
+defShowJS :: Map TName TDecl -> GenVis -> TDecl -> CDecl
+defShowJS allTypes vis tdecl =
   cNamespace nsDDL
     [ cTemplateDecl tdecl
     , "inline"
@@ -474,27 +491,25 @@ defShowJS vis tdecl =
          TUnion fs ->
            [ vcat [ "switch" <+> parens (cCallMethod "x" "getTag" []) <+> "{"
                   , nest 2 $ vcat
-                       [ "case" <+> cSumTagV (tName tdecl) l <.> colon $$ nest 2 (
-                         vcat [ cStmt ("os <<" <+>
-                                         cString ("{ " ++ show lab ++ ": "))
-                              , cStmt (cCall (nsDDL .:: "toJS") [ "os", val ])
-                              , cStmt "os << \"}\""
-                              , cStmt "break"
-                              ])
-                       | (l,_) <- fs
-                       , let lab = '$' : show (pp l)
-                             val = cCallMethod "x" (selName GenBorrow l) []
+                       [ "case" <+> cSumTagV (tName tdecl) l <.> colon
+                          $$ nest 2 (defShowUnionCase False f)
+                       | f@(l,_) <- fs
                        ]
                   , "}"
                   ]
            , cStmt "return os"
            ]
 
-         TBitdata _univ def ->
+         TBitdata univ def ->
            case def of
              BDStruct fs ->
               defShowStruct True [ (l,t)
                                  | f <- fs, BDData l t <- [bdFieldType f] ]
+             BDUnion fs ->
+               [ bdCase allTypes univ "x"
+                   [ (t,defShowUnionCase True f) | f@(_,t) <- fs ]
+               , cStmt "return os"
+               ]
 
       ]
   where
@@ -502,14 +517,28 @@ defShowJS vis tdecl =
 
   defShowStruct bd fs =
     let how = if bd then GenOwn else GenBorrow
+        end = case fs of
+                [] -> "{}" :: String
+                _  -> " }"
     in
     [ cStmt (cCall (nsDDL .:: "toJS") ["os <<" <+> fld, thing])
     | ((l,_),sepa) <- fs `zip` ("{" : repeat ",")
     , let thing = cCallMethod "x" (selName how l) []
           fld   = cString (show (sepa <+> cString (show (pp l)) <.> ": "))
     ] ++
-    [ cStmt ("return os <<" <+> cString " }") ]
+    [ cStmt ("return os <<" <+> cString end) ]
 
+  defShowUnionCase bd (l,_t) =
+    let lab = '$' : show (pp l)
+        how = if bd then GenOwn else GenBorrow
+        val = cCallMethod "x" (selName how l) []
+    in
+      vcat [ cStmt ("os <<" <+>
+                      cString ("{ " ++ show lab ++ ": "))
+           , cStmt (cCall (nsDDL .:: "toJS") [ "os", val ])
+           , cStmt "os << \"}\""
+           , cStmt "break"
+           ]
 
 
 
@@ -749,91 +778,4 @@ maybeCopyFree fun ty e =
 
   where
   doIt = cStmt (cCallMethod e fun [])
-
---------------------------------------------------------------------------------
--- Bitdata
-
--- XXX: generate documentation
-cBitdata :: TDecl -> BDD.Pat -> BitdataDef -> Doc
-cBitdata ty univ def = vcat (theClass : funs)
-  where
-  theClass = cNamespace nsUser
-    [ cTypeDecl' ty <+> ": public" <+> cInst (nsDDL .:: "Bitdata") [w] <+> "{"
-    , nest 2 (vcat' privateMethods)
-    , "public:"
-    , nest 2 (vcat' methods)
-    , "};"
-    ]
-
-  funs = [ defShow GenPublic ty, defShowJS GenPublic ty ]
-
-
-
-  uint n = cInst (nsDDL .:: "UInt") [n]
-
-  w      = int (BDD.width univ)
-  rep    = uint w
-  cty    = cTNameUse GenPublic (tName ty)
-
-  privateMethods =
-    [ bdCon ]
-
-  methods =
-      defaultCon
-    : fromBits
-    : case def of
-        BDStruct fs -> defBDStructCon fs : mapMaybe defBDSel fs
-        BDUnion  fs -> [] -- cSumCtrs ty -- also tags/getters
-
-  bdTy = cInst (nsDDL .:: "Bitdata") [w]
-
-  fromBits = "static" $$
-             cDefineFun cty "fromBits" [rep <+> "x"] [
-               cReturn (cCallCon bdTy ["x"])
-             ]
-
-  cTyName = cTNameRoot (tName ty)
-
-  defaultCon = cDefineCon cTyName [] [ (bdTy,empty) ] []
-
-  bdCon = cDefineCon cTyName
-                     [ bdTy <+> "x" ]
-                     [ (bdTy,"x") ]
-                     []
-
-
-
-  -- assumes fields are sorted
-  defBDStructCon fs = cDefineFun "void" structCon args
-                      [ cAssign "*this" (cCall "fromBits" [expr]) ]
-    where
-    args = [ cSemType t <+> escText l | f <- fs, BDData l t <- [bdFieldType f] ]
-    expr = case fs of
-             [] -> cCallCon rep []
-             _  -> fst $ foldl1 jn (map fToExpr fs `zip` map bdWidth fs)
-
-    jn (a,m) (b,n) = (cCallCon (uint (int (m+n))) [a,b], m + n)
-
-    fToExpr :: BDField -> CExpr
-    fToExpr f =
-      case bdFieldType f of
-        BDWild     -> cCallCon (uint (int (bdWidth f))) []
-        BDTag n    -> cCallCon (uint (int (bdWidth f))) [integer n] -- suff?
-        BDData l _ -> cCallMethod (escText l) "toBits" []
-
-  defBDSel f =
-    case bdFieldType f of
-     BDData l t ->
-      let base    = cCall "toBits" []
-          shifted = if bdOffset f == 0
-                      then base
-                      else base <+> ">>" <+> cCallCon (nsDDL .:: "Size")
-                                                      [int (bdOffset f)]
-          bits = cCallCon (uint (int (bdWidth f)))
-                  [ cCallMethod shifted "rawRep" [] ]
-
-      in Just (cDefineFun (cSemType t) (selName GenOwn l) []
-                  [ cReturn (cCall (cSemType t .:: "fromBits") [bits]) ])
-
-     _ -> Nothing
 
