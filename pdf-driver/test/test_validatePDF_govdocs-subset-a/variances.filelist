@@ -1,5 +1,9 @@
 000029.pdf
   TODO quite a few warnings, but kudu ground truth == valid
+  better error from pdf-dom:
+     Fatal error while extracting context for encryption, cannot proceed: ...
+  I think something's wrong in decryption part of parser
+  
 736151.pdf
   TODO quite a few warnings, but kudu ground truth == valid
   
