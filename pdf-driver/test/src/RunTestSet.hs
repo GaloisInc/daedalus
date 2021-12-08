@@ -170,9 +170,10 @@ main' flags targets =
          []  -> fail $ "not a valid tool name: " ++ toolName
          _   -> error "in 'tools/runTest'"
 
-  (Exit ExitSuccess, StdoutTrim toolPath) <-
+  (Exit ecode, StdoutTrim toolPath) <-
     cmd "which" [t_cmd_exec t]
-    -- NB: if 'which' fails, program fails.
+  unless (ecode == ExitSuccess) $
+    fail $ "tool is not in path: '" ++ t_cmd_exec t ++ "'"
 
   let quote s = "'" ++ s ++ "'"
   putStrLn $ unwords [ "Results of testset with tool"
