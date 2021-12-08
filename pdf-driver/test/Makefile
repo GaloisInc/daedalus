@@ -1,6 +1,6 @@
-SHAKEOPTS=-j8
+SHAKEOPTS?=-j8
   # works like Make's -j
-RUNTESTSET=cabal v2-run -- run-testset ${SHAKEOPTS}
+RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS}
 
 QUICKTESTS=test_validatePDF_generated/test-summary     \
            test_validatePDF_misc/test-summary          \
