@@ -12,11 +12,13 @@ maintainer:          iavor.diatchki@gmail.com
 category:            Development
 extra-source-files:
   CHANGELOG.md
-  exe/driver-template/Makefile
-  exe/driver-template/Doxyfile
-  exe/driver-template/main.cpp
-  exe/driver-template/render.js
-  exe/driver-template/style.css
+  exe/c-template/Makefile
+  exe/c-template/Doxyfile
+  exe/c-template/main.cpp
+  exe/html-template/render.js
+  exe/html-template/style.css
+  exe/hs-template/Main.hs
+  exe/hs-template/template.cabal
   rts-c/ddl/*.h
 
 library
