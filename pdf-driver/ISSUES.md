@@ -51,7 +51,8 @@ TODO
 
 5. Check consistency of the traditional and stream xrefs in hybrid files.
 
-6. Add support for linearization and check consistency of linearized data/hints.
+6. Add support for linearization and check consistency of linearized
+   data/hints.  [priority C]
 
 7. Improve display and reporting of cavities
     - show content of cavities
@@ -79,4 +80,4 @@ TODO
     Linearization breaks this assumption.
 
 12. Change output (or add option to allow) to be json format 
-    for `--cavities and --updates` (and ...).
+    for `--cavities and --updates` (and ...). [priority A]

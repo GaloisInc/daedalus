@@ -1,3 +1,34 @@
+## TLDR, quickstart on how to run a test ##
+
+      cd pdf-driver/test
+
+      # Let's run the quick tests
+
+      make remotecorpora      # rsyncs remote files to your machine
+      make build              # not necessary, but let's do things piece by piece
+      make quick              # builds run-testset tool and runs the quick tests
+      make quick              # see how quick it is this time!
+
+      # 'totext' is not included in the quick target, to run this 'test', do
+
+      make test_totext_font-exercises/test-summary
+
+      # it should say 0 problems, but that's because we've already captured the 
+      # problems in this file:
+
+      $ cat test_totext_font-exercises/variances.filelist
+      helloworld.pdf
+        missing 'WORLD' - serious FIXME
+
+      jagpdf_doc_font_encoding.pdf
+
+      quickbrownetc.pdf
+        simple issue: two 'f's versus the unicode ligature of "ff"
+      $ ...
+
+      # lines that start with space are comments, note that all three files
+      # in the corpora `font-exercises` have an entry in `variances.filelist`
+
 ## Overview ##
 
 Overall structure of the testing infrastructure
