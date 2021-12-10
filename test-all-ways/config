@@ -1,0 +1,20 @@
+HS_ROOT_DIR=hs
+CPP_ROOT_DIR=c++
+OUT_ROOT_DIR=output
+
+
+function name () {
+  basename "$1" ".ddl"
+}
+
+function hs_dir () {
+  echo "$HS_ROOT_DIR/$(name $1)"
+}
+
+function cpp_dir () {
+  echo "$CPP_ROOT_DIR/$(name $1)"
+}
+
+function out_dir () {
+  echo "$OUT_ROOT_DIR/$(name $1)"
+}
