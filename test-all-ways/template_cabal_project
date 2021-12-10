@@ -1,0 +1,3 @@
+packages: ../../rts-hs
+optional-packages: */*.cabal
+

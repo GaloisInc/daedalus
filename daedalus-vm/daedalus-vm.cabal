@@ -37,6 +37,7 @@ library
     Daedalus.VM.Backend.C.Names
     Daedalus.VM.Backend.C.Types
     Daedalus.VM.Backend.C.UserDefined
+    Daedalus.VM.Backend.C.Bitdata
     Daedalus.VM.Backend.C.Call
 
   build-depends:

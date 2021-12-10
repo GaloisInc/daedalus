@@ -43,7 +43,10 @@ instance GetTypeRep Src.Type where
       Src.TMap {}       -> HasRefs
       Src.TBuilder {}   -> HasRefs
       Src.TIterator {}  -> HasRefs
-      Src.TUser {}      -> HasRefs
+      Src.TUser ut      -> if Src.tnameBD (Src.utName ut)
+                              then NoRefs
+                              else HasRefs  -- hm, an unboxed struct full of
+                                            -- ints wouldn't have any refs...
       Src.TParam {}     -> panic "typeRep" ["Unexpepected type paramer"]
     where
     numRep n =

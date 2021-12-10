@@ -449,7 +449,7 @@ aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'pi'                                    { at $1 (ELiteral LPi) }
   | 'UInt8'                                 { at $1      EAnyByte }
-  | 'Accept'                                { at $1 (EStruct []) }
+  | 'Accept'                                { mkAccept $1 }
   | '$uint' NUMBER                          {% mkUInt $1 $2 }
 
   | '$' '[' separated(expr, commaOrSemi) ']'{ at ($1,$4) (EMatch1
@@ -827,5 +827,9 @@ mkNumLit n = LNumber (nValue n) (nText n)
 
 mkByteLit :: NumL Word8 -> Literal
 mkByteLit n = LByte (nValue n) (nText n)
+
+mkAccept :: SourceRange -> Expr
+mkAccept r = at r (EHasType MatchType (at r (EStruct [])) t)
+  where t = SrcType Located { thingRange = r, thingValue = TUnit }
 
 }

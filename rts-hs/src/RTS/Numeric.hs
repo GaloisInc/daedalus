@@ -14,7 +14,10 @@ module RTS.Numeric
   , uint8
   , sint8
   , cvtNum
+  , cvtU
   , cvtNumMaybe
+
+  , Bitdata(..)
 
   , shiftl, shiftr, cat, lcat
 
@@ -111,7 +114,8 @@ type Supports c n  = (c (UIntRep n) :: Constraint, c (SIntRep n))
 
 type NormCtrs n    = (KnownNat n, Supports Bits n, Supports Integral n)
 type SizeTypeDef n = ( NormCtrs n
-                     , NormS (SizeOf n)
+                     , NormU n (SizeOf n)
+                     , NormS n (SizeOf n)
                      , Supports Show n
                      )
 
@@ -119,12 +123,35 @@ class SizeTypeDef n => SizeType n
 
 -- The 0 instance is here to ensure that GHC does
 -- not "simplify" `SizeType` into a whole lot of other constraints,
--- which would reult in equivalent but much messier types.
+-- which would result in equivalent but much messier types.
 instance {-# OVERLAPPING #-} SizeType 0
 instance SizeTypeDef n => SizeType n
 
-normU :: NormCtrs n => UInt n -> UInt n
-normU n@(UInt w) = UInt (mask n w)
+
+class (SizeOf w ~ s) => NormU (w :: Nat) (s :: Size) where
+  normU :: UInt w -> UInt w
+
+instance {-# OVERLAPPING #-} NormU 8  'S8  where normU = id
+instance {-# OVERLAPPING #-} NormU 16 'S16 where normU = id
+instance {-# OVERLAPPING #-} NormU 32 'S32 where normU = id
+instance {-# OVERLAPPING #-} NormU 64 'S64 where normU = id
+
+instance (NormCtrs w, SizeOf w ~ s) => NormU w s where
+  normU n@(UInt w) = UInt (mask n w)
+
+type CvtU a b = (SizeType a, SizeType b, CvtU' a b (a <=? b))
+
+class (extending ~ (a <=? b)) => CvtU' a b (extending :: Bool) where
+  cvtU' :: UInt a -> UInt b
+
+instance ((a <=? b) ~ 'True, SizeType a, SizeType b) => CvtU' a b 'True where
+  cvtU' (UInt x) = UInt (fromIntegral x)
+
+instance ((a <=? b) ~ 'False, SizeType a, SizeType b) => CvtU' a b 'False where
+  cvtU' (UInt x) = normU (UInt (fromIntegral x))
+
+cvtU :: CvtU x y => UInt x -> UInt y
+cvtU = cvtU'
 
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
 mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
@@ -133,24 +160,32 @@ mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
 thisWidth :: KnownNat n => num n -> Int
 thisWidth x = fromIntegral (natVal x)
 
+
 normS' :: NormCtrs n => Int -> SInt n -> SInt n
 normS' repW n@(SInt i) = SInt ((mask n i `shiftL` amt) `shiftR` amt)
   where amt = repW - thisWidth n
 
 
-class NormS sz where
-  normS :: (KnownNat n, SizeOf n ~ sz) => SInt n -> SInt n
+class (SizeOf n ~ sz) => NormS n sz where
+  normS :: SInt n -> SInt n
 
-instance NormS 'S8   where normS = normS' 8
-instance NormS 'S16  where normS = normS' 16
-instance NormS 'S32  where normS = normS' 32
-instance NormS 'S64  where normS = normS' 64
-instance NormS 'SBig where
+
+instance (SizeOf w ~ 'SBig, NormCtrs w) => NormS w 'SBig where
   normS n@(SInt i) = SInt (((i + half) `Prelude.mod` whole) - half)
     -- XXX: this could do a lot of allocation. Maybe using `if` is better?
-    where w = thisWidth n
+    where w     = thisWidth n
           whole = 1 `shiftL` w
           half  = whole `shiftR` 1
+
+instance {-# OVERLAPPING #-}              NormS 8  'S8  where normS = id
+instance {-# OVERLAPPING #-}              NormS 16 'S16 where normS = id
+instance {-# OVERLAPPING #-}              NormS 32 'S32 where normS = id
+instance {-# OVERLAPPING #-}              NormS 64 'S64 where normS = id
+
+instance (SizeOf w ~ 'S8 , NormCtrs w) => NormS w  'S8  where normS = normS' 8
+instance (SizeOf w ~ 'S16, NormCtrs w) => NormS w  'S16 where normS = normS' 16
+instance (SizeOf w ~ 'S32, NormCtrs w) => NormS w  'S32 where normS = normS' 32
+instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64
 
 
 type Literal (x :: Nat) t = Numeric t
@@ -309,6 +344,9 @@ cvtNumMaybe a = if asInt b == ia then Just b else Nothing
   b  = lit ia
 
 
+
+
+
 lcat :: (Numeric a, SizeType n) => a -> UInt n -> a
 lcat x y = shiftl' x (thisWidth y) `bitOr` cvtNum y
 
@@ -374,5 +412,50 @@ wordToFloat x = castWord32ToFloat (fromUInt x)
 wordToDouble :: UInt 64 -> Double
 wordToDouble x = castWord64ToDouble (fromUInt x)
 {-# INLINE wordToDouble #-}
+
+
+--------------------------------------------------------------------------------
+
+class Bitdata t where
+  type family BDWidth t :: Nat
+  bdToRep   :: SizeType (BDWidth t) => t -> UInt (BDWidth t)
+  bdFromRep :: SizeType (BDWidth t) => UInt (BDWidth t) -> t
+
+instance Bitdata () where
+  type instance BDWidth () = 0
+  bdToRep _   = UInt 0
+  bdFromRep _ = ()
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata (UInt n) where
+  type instance BDWidth (UInt n) = n
+  bdToRep   = id
+  bdFromRep = id
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata (SInt n) where
+  type instance BDWidth (SInt n) = n
+  bdToRep = cvtNum
+  bdFromRep = cvtNum
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata Float where
+  type instance BDWidth Float = 32
+  bdToRep x  = UInt (castFloatToWord32 x)
+  bdFromRep  = wordToFloat
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+instance Bitdata Double where
+  type instance BDWidth Double = 64
+  bdToRep x  = UInt (castDoubleToWord64 x)
+  bdFromRep  = wordToDouble
+  {-# INLINE bdToRep #-}
+  {-# INLINE bdFromRep #-}
+
+
 
 

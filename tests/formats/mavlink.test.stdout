@@ -3,11 +3,11 @@ module MavNumerics
 --- Imports:
  
 --- Type defs:
-type MavNumerics.Float0 = Choose { pos: bool
+type MavNumerics.Float1 = Choose { pos: bool
                                  ; neg: {}
                                  }
  
-type MavNumerics.Float1 = { sign: MavNumerics.Float0
+type MavNumerics.Float2 = { sign: MavNumerics.Float1
                           ; mantissa: uint 23
                           ; exponent: int
                           }
@@ -21,9 +21,9 @@ type MavNumerics.InclusiveFractional0 = { incMantissa: uint 23
                                         }
  
 type MavNumerics.Float = Choose { denormalized: uint 23
-                                ; infty: MavNumerics.Float0
+                                ; infty: MavNumerics.Float1
                                 ; nan: {}
-                                ; number: MavNumerics.Float1
+                                ; number: MavNumerics.Float2
                                 ; zero: {}
                                 }
  
@@ -150,7 +150,7 @@ MavNumerics.Float : Grammar MavNumerics.Float =
      (mantissaLow : uint 16) <- MavNumerics.UInt16
      (hb : uint 8) <- MavNumerics.HighBit
      (signBit : uint 8) <- pure (dig0 .&. hb)
-     (isPos : MavNumerics.Float0) <- Choose biased
+     (isPos : MavNumerics.Float1) <- Choose biased
                                        { {- pos -} do (_174 : bool) <- pure (signBit == 0)
                                                       pure {pos: _174}
                                        | {- neg -} do (_175 : {}) <- pure {}
@@ -168,16 +168,16 @@ MavNumerics.Float : Grammar MavNumerics.Float =
                                                                                   ($$ : uint 23) <- pure mant
                                                                                   pure $$
                                                            pure {denormalized: _180}
-                                   | {- infty -} do (_182 : MavNumerics.Float0) <- do MavNumerics._Guard (exp == 0xFF)
+                                   | {- infty -} do (_182 : MavNumerics.Float1) <- do MavNumerics._Guard (exp == 0xFF)
                                                                                       MavNumerics._Guard (mant == 0)
-                                                                                      ($$ : MavNumerics.Float0) <- pure isPos
+                                                                                      ($$ : MavNumerics.Float1) <- pure isPos
                                                                                       pure $$
                                                     pure {infty: _182}
                                    | {- nan -} do (_184 : {}) <- do MavNumerics._Guard (exp == 0xFF)
                                                                     ($$ : {}) <- MavNumerics.Guard (mant != 0)
                                                                     pure $$
                                                   pure {nan: _184}
-                                   | {- number -} do (_185 : MavNumerics.Float1) <- do (sign : MavNumerics.Float0) <- pure isPos
+                                   | {- number -} do (_185 : MavNumerics.Float2) <- do (sign : MavNumerics.Float1) <- pure isPos
                                                                                        (mantissa : uint 23) <- pure mant
                                                                                        (exponent : int) <- pure ((exp as int) - 127)
                                                                                        pure {sign = sign,
@@ -197,7 +197,7 @@ MavNumerics.NonNegFloat (f : MavNumerics.Float) : Grammar MavNumerics.NonNegFloa
                                                   { {| denormalized = _188 |} -> pure _188
                                                   }
                             pure {nonNegDenorm: _189}
-    | {- nonNegInfty -} do (_193 : bool) <- do (s : MavNumerics.Float0) <- case f is
+    | {- nonNegInfty -} do (_193 : bool) <- do (s : MavNumerics.Float1) <- case f is
                                                                              { {| infty = _190 |} -> pure _190
                                                                              }
                                                ($$ : bool) <- case s is
@@ -205,7 +205,7 @@ MavNumerics.NonNegFloat (f : MavNumerics.Float) : Grammar MavNumerics.NonNegFloa
                                                                 }
                                                pure $$
                            pure {nonNegInfty: _193}
-    | {- nonNegNumber -} do (_196 : MavNumerics.NonNegFloat0) <- do (n : MavNumerics.Float1) <- case f is
+    | {- nonNegNumber -} do (_196 : MavNumerics.NonNegFloat0) <- do (n : MavNumerics.Float2) <- case f is
                                                                                                   { {| number = _194 |} -> pure _194
                                                                                                   }
                                                                     case n.sign is
@@ -344,13 +344,13 @@ MavNumerics._NonNegFloat (f : MavNumerics.Float) : Grammar {} =
     | {- nonNegDenorm -} case f is
                            { {| denormalized = _188 |} -> pure {}
                            }
-    | {- nonNegInfty -} do (s : MavNumerics.Float0) <- case f is
+    | {- nonNegInfty -} do (s : MavNumerics.Float1) <- case f is
                                                          { {| infty = _190 |} -> pure _190
                                                          }
                            case s is
                              { {| pos = _192 |} -> pure {}
                              }
-    | {- nonNegNumber -} do (n : MavNumerics.Float1) <- case f is
+    | {- nonNegNumber -} do (n : MavNumerics.Float2) <- case f is
                                                           { {| number = _194 |} -> pure _194
                                                           }
                             case n.sign is
@@ -590,7 +590,7 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
                                                           { {| zero = _229 |} -> pure _229
                                                           }
                                          pure {precisionLandModeDisabled: _230}
-    | {- precisionLandModeOpportunistic -} do (_234 : {}) <- do (n : MavNumerics.Float1) <- case f is
+    | {- precisionLandModeOpportunistic -} do (_234 : {}) <- do (n : MavNumerics.Float2) <- case f is
                                                                                               { {| number = _231 |} -> pure _231
                                                                                               }
                                                                 case n.sign is
@@ -600,7 +600,7 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
                                                                 ($$ : {}) <- MavNumerics.Guard ((n.mantissa) == 1)
                                                                 pure $$
                                               pure {precisionLandModeOpportunistic: _234}
-    | {- precisionLandModeRequired -} do (_238 : {}) <- do (n : MavNumerics.Float1) <- case f is
+    | {- precisionLandModeRequired -} do (_238 : {}) <- do (n : MavNumerics.Float2) <- case f is
                                                                                          { {| number = _235 |} -> pure _235
                                                                                          }
                                                            case n.sign is
@@ -775,7 +775,7 @@ MavEnums._PrecisionLandMode (f : MavNumerics.Float) : Grammar {} =
     { {- precisionLandModeDisabled -} case f is
                                         { {| zero = _229 |} -> pure {}
                                         }
-    | {- precisionLandModeOpportunistic -} do (n : MavNumerics.Float1) <- case f is
+    | {- precisionLandModeOpportunistic -} do (n : MavNumerics.Float2) <- case f is
                                                                             { {| number = _231 |} -> pure _231
                                                                             }
                                               case n.sign is
@@ -783,7 +783,7 @@ MavEnums._PrecisionLandMode (f : MavNumerics.Float) : Grammar {} =
                                                 }
                                               MavNumerics._Guard ((n.exponent) == 0)
                                               MavNumerics._Guard ((n.mantissa) == 1)
-    | {- precisionLandModeRequired -} do (n : MavNumerics.Float1) <- case f is
+    | {- precisionLandModeRequired -} do (n : MavNumerics.Float2) <- case f is
                                                                        { {| number = _235 |} -> pure _235
                                                                        }
                                          case n.sign is

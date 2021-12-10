@@ -2,6 +2,6 @@
             Using unbiased choice may be inefficient.
 --- Found 1 results:
 { x: '4'
-, y: {c4 : {| "x" -> 'a'
-           |}}
+, y: {c4: {| "x" -> 'a'
+          |}}
 }

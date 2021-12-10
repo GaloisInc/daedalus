@@ -3,6 +3,7 @@
 {-# Language MonoLocalBinds #-}
 module RTS
   ( Numeric(..), Arith(..), UInt, SInt, SizeType, uint8
+  , Bitdata(..)
   , fromUInt, fromSInt
   , shiftl, shiftr, lcat, cat
   , Literal

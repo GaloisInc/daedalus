@@ -576,17 +576,7 @@ newTyDefName = TypeM $
 
 
 apSuTCTyDecl :: Map TVar Type -> TCTyDecl -> TCTyDecl
-apSuTCTyDecl su d = d { tctyDef = apSubstTCTyDef su (tctyDef d) }
-
-apSubstTCTyDef :: Map TVar Type -> TCTyDef -> TCTyDef
-apSubstTCTyDef su def =
-  case def of
-    TCTyStruct mb fs -> TCTyStruct mb (map doField fs)
-    TCTyUnion  fs -> TCTyUnion  (map doField fs)
-  where
-  doField :: (Label, (Type, a)) -> (Label, (Type, a))
-  doField (f,(t,m)) = (f,(apSubstT su t, m))
-
+apSuTCTyDecl su d = d { tctyDef = apSubstT su (tctyDef d) }
 
 --------------------------------------------------------------------------------
 sets' :: StateM m s => (s -> (a,s)) -> m a

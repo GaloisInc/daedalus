@@ -7,6 +7,9 @@
 
 namespace DDL {
 
+template <typename T>
+UInt<T::bitWidth> bitdata_to_uint(T x) { return x.toBits(); }
+
 template <Width in, Width out>
 inline
 UInt<out> uint_to_uint(UInt<in> x) { return UInt<out>(x.rep()); }

@@ -7,7 +7,6 @@ module Daedalus.Type.BitData (inferBitData) where
 import Data.Foldable (find)
 import Control.Monad (zipWithM_, when, unless, forM)
 import Data.Maybe (catMaybes, fromJust)
-import Data.Bits  (shiftL, (.|.) )
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -18,12 +17,13 @@ import qualified Daedalus.BDD as BDD
 import Daedalus.Pass
 import Daedalus.SourceRange
 
-import Daedalus.AST
+import qualified Daedalus.AST as P
 import Daedalus.Type.AST
 import Daedalus.Type.Monad
 import Daedalus.Type.Kind
 
-srcTypeToSizedType :: SrcType -> TypeM a (Type, BDD.Pat)
+
+srcTypeToSizedType :: P.SrcType -> TypeM a (Type, BDD.Pat)
 srcTypeToSizedType sTy = do
   ty <- checkType KValue sTy
   let badType msg = reportError sTy ("Type " <> backticks (pp ty) <>
@@ -38,6 +38,8 @@ srcTypeToSizedType sTy = do
          TVar {} -> badType "(unexpected type variable)"
          Type (TUInt (Type (TNum n))) -> pure (BDD.pWild (fromInteger n))
          Type (TSInt (Type (TNum n))) -> pure (BDD.pWild (fromInteger n))
+         Type TFloat                  -> pure (BDD.pWild 32)
+         Type TDouble                 -> pure (BDD.pWild 64)
          Type (TUInt {}) -> badType "(type has non-constant size)"
          Type (TSInt {}) -> badType "(type has non-constant size)"
          _ -> badType "(type cannot be used in bitdata)"
@@ -45,17 +47,18 @@ srcTypeToSizedType sTy = do
   pure (ty, n)
 
 
-bdfSizedType :: BitDataField -> TypeM a (Maybe (Type, BDD.Pat))
+bdfSizedType :: P.BitDataField -> TypeM a (Maybe (Type, BDD.Pat))
 bdfSizedType bdf =
   case bdf of
-    BDFLiteral _ m_sty -> traverse srcTypeToSizedType m_sty
-    BDFField   _ m_sty -> traverse srcTypeToSizedType m_sty
-    BDFWildcard  m_sty -> traverse srcTypeToSizedType m_sty
+    P.BDFLiteral _ m_sty -> traverse srcTypeToSizedType m_sty
+    P.BDFField   _ m_sty -> traverse srcTypeToSizedType m_sty
+    P.BDFWildcard  m_sty -> traverse srcTypeToSizedType m_sty
 
 -- Sizes of fields n a record.  Also ensure that there is at most
 -- one Maybe in the result
 fieldSizes ::
-  HasRange r => r -> [Located BitDataField] -> TypeM a [(Maybe (Type, BDD.Pat))]
+  HasRange r =>
+  r -> [Located P.BitDataField] -> TypeM a [(Maybe (Type, BDD.Pat))]
 fieldSizes r flds =
   do sizes <- mapM (bdfSizedType . thingValue) flds
      let nothings = [ loc | (loc, Nothing) <- zip (map thingRange flds) sizes ]
@@ -68,11 +71,11 @@ fieldSizes r flds =
 
 -- Sizes for each constructor
 bodySize ::
-  HasRange r => r -> BitDataBody -> TypeM a [[(Maybe (Type, BDD.Pat))]]
+  HasRange r => r -> P.BitDataBody -> TypeM a [[(Maybe (Type, BDD.Pat))]]
 bodySize r bd =
   case bd of
-    BitDataUnion ctrs -> mapM (fieldSizes r . snd) ctrs
-    BitDataStruct fs  -> (:[]) <$> fieldSizes r fs
+    P.BitDataUnion ctrs -> mapM (fieldSizes r . snd) ctrs
+    P.BitDataStruct fs  -> (:[]) <$> fieldSizes r fs
 
 
 
@@ -81,76 +84,46 @@ inferStruct ::
   HasRange r =>
   Name                          {- ^ Name of target type -} ->
   BDD.Width                     {- ^ Total width -} ->
-  (r, [ Located BitDataField ]) {- ^ Location (for errs) and fields -} ->
+  (r, [ Located P.BitDataField ]) {- ^ Location (for errs) and fields -} ->
   [Maybe (Type, BDD.Pat)]       {- ^ Type and sizes of fields -} ->
   TypeM a TCTyDecl
 inferStruct name w (loc, fields) m_sz_tys =
   do sz_tys <- resolveMissingTypes loc w m_sz_tys
-     let szs = map snd sz_tys
-
-     zipWithM_ checkLiteralWidth fields szs
-
-     let (umeta,cpat) = mkConMeta w (zip fields szs)
-         (fs,fpat)    = mkFields w (zip fields sz_tys)
-         recognize    = BDD.pAnd cpat fpat
+     zipWithM_ checkLiteralWidth fields (map snd sz_tys)
+     let con = mkFields w (zip fields sz_tys)
+         fs  = [ (l, t) | BDData l t <- map bdFieldType (bdFields con) ]
 
      pure TCTyDecl { tctyName    = TCTy name
                    , tctyParams  = []
-                   , tctyBD      = Just recognize
-                   , tctyDef     = TCTyStruct (Just umeta) fs
+                   , tctyBD      = Just (bdPat con)
+                   , tctyDef     = TCTyStruct (Just con) fs
                    }
 
-
-
-mkFields ::
-  BDD.Width ->
-  [(Located BitDataField, (Type, BDD.Pat))] ->
-  ([(Label, (Type, Maybe TCBitdataField))], BDD.Pat)
-
-mkFields w = go [] (BDD.pWild w) w
+mkFields :: BDD.Width -> [(Located P.BitDataField, (Type, BDD.Pat))] -> BDCon
+mkFields w = go [] (BDD.pWild 0) w
   where
   go fs pat todo fields =
     case fields of
-      [] -> if todo == 0 then (reverse fs, pat)
+      [] -> if todo == 0 then BDCon { bdPat = pat, bdFields = reverse fs }
                          else panic "Saw non-zero remainder" [showPP todo]
-      (fld, (ty, fpat)) : rest -> go fs' pat' todo' rest
+      (fld, (ty, fpat)) : rest -> go (f' : fs) (BDD.pSplit pat pat') todo' rest
         where
         n     = BDD.width fpat
         todo' = todo - n
-        (fs',pat') =
-           case thingValue fld of
-             BDFField l _ ->
-               ( (l, (ty, Just TCBitdataField { tcbdsLowBit = todo'
-                                              , tcbdsWidth  = n }))
-                 : fs
-               , BDD.pField todo' fpat pat
-               )
-             _ -> (fs,pat)
+        (f', pat') =
+          let (shape,p) =
+                case thingValue fld of
+                  P.BDFField l _   -> (BDData l ty, fpat)
+                  P.BDFLiteral l _ -> (BDTag l, BDD.pInt n l)
+                  P.BDFWildcard {} -> (BDWild, BDD.pWild n)
+          in ( BDField
+                 { bdOffset = todo'
+                 , bdWidth  = n
+                 , bdFieldType = shape
+                 }
+             , p
+             )
 
-
--- This assumes the high bits are stored as the first fields
-mkConMeta ::
-  BDD.Width -> [(Located BitDataField,BDD.Pat)] -> (TCBDUnionMeta, BDD.Pat)
-mkConMeta w = go 0 0 w (BDD.pWild w)
-  where
-  -- XXX: foldl'
-  go macc bacc _todo pat [] =
-      ( TCBDUnionMeta { tcbduMask = macc, tcbduBits = bacc }
-      , pat
-      )
-  go macc bacc todo pat ((fld, fpat) : rest) =
-    let n     = BDD.width fpat
-        todo' = todo - n
-        off   = fromIntegral todo' :: Int
-        num l = (2 ^ n - 1, l, BDD.pField todo' (BDD.pInt n l) pat)
-        (mask, v, pat') = case thingValue fld of
-                            BDFLiteral l _ -> num l
-                            _              -> (0, 0, pat)
-    in go (macc .|. (mask `shiftL` off))
-          (bacc .|. (v    `shiftL` off))
-          todo'
-          pat'
-          rest
 
 
 
@@ -178,8 +151,8 @@ resolveField w' Nothing  = ( tUInt (tNum (fromIntegral w'))
 
 
 
-checkLiteralWidth :: Located BitDataField -> BDD.Pat -> TypeM a ()
-checkLiteralWidth v@(thingValue -> BDFLiteral l _) pat =
+checkLiteralWidth :: Located P.BitDataField -> BDD.Pat -> TypeM a ()
+checkLiteralWidth v@(thingValue -> P.BDFLiteral l _) pat =
   do let n = BDD.width pat
      unless (l < 2 ^ n) $
         reportError v ("Literal value" <+> backticks (pp l) <+>
@@ -190,27 +163,28 @@ checkLiteralWidth _ _ = pure ()
 
 
 
-inferBitData :: BitData -> MTypeM (Map TCTyName TCTyDecl)
-inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
-  m_sz_tyss <- bodySize (bdName bd) (bdBody bd)
+inferBitData :: P.BitData -> MTypeM (Map TCTyName TCTyDecl)
+inferBitData bd = runSTypeM . runTypeM (P.bdName bd) $ do
+  m_sz_tyss <- bodySize (P.bdName bd) (P.bdBody bd)
 
   -- Get the first known type width, if it exists (error otherwise)
-  let conNames = case bdBody bd of
-                   BitDataUnion cs  -> map (Just . thingValue . fst) cs
-                   BitDataStruct {} -> repeat Nothing
+  let conNames = case P.bdBody bd of
+                   P.BitDataUnion cs  -> map (Just . thingValue . fst) cs
+                   P.BitDataStruct {} -> repeat Nothing
   let knownWidths = catMaybes (zipWith knownWidth conNames m_sz_tyss)
   (mbCon,width) <-
      case knownWidths of
        []    -> reportError bd "Unable to determine size of type"
        r : _ -> pure r
 
-  case bdBody bd of
+  case P.bdBody bd of
 
-    BitDataStruct fields ->
-      do d <- inferStruct (bdName bd) width (bdName bd, fields) (head m_sz_tyss)
+    P.BitDataStruct fields ->
+      do d <- inferStruct (P.bdName bd) width
+                          (P.bdName bd, fields) (head m_sz_tyss)
          pure (Map.singleton (tctyName d) d)
 
-    BitDataUnion cons ->
+    P.BitDataUnion cons ->
 
       -- Check all known widths are the same
       do case find ((/= width) . snd) knownWidths of
@@ -224,13 +198,13 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
 
          decls <- forM (zip cons m_sz_tyss) \(ctor,sz) ->
                     do let mkIdent ident = ident <> "_" <> thingValue (fst ctor)
-                       nm <- deriveNameWith mkIdent (bdName bd)
+                       nm <- deriveNameWith mkIdent (P.bdName bd)
                        inferStruct nm width ctor sz
 
          let labels = map fst cons
              pats   = map (fromJust . tctyBD) decls
              tags   = map thingValue labels
-                      `zip` [ (TCon (tctyName d) [], tag)
+                      `zip` [ (TCon (tctyName d) [], bdPat <$> tag)
                             | d <- decls
                             , let TCTyStruct tag _ = tctyDef d
                             ]
@@ -247,18 +221,13 @@ inferBitData bd = runSTypeM . runTypeM (bdName bd) $ do
            (a,b) : _ -> reportDetailedError bd "Overlapping constructors"
                           [ "constructor" <+> pp a, "constructor" <+> pp b ]
 
-         let decl = TCTyDecl { tctyName    = TCTy (bdName bd)
+         let decl = TCTyDecl { tctyName    = TCTy (P.bdName bd)
                              , tctyParams  = []
                              , tctyBD      = Just (BDD.pOrs width pats)
                              , tctyDef     = TCTyUnion tags
                              }
 
-         -- remove checks from anonymous types, as they are in the
-         -- constructor now
-         let decls' = [ d { tctyDef = TCTyStruct Nothing fs }
-                      | d <- decls, let  TCTyStruct _ fs = tctyDef d
-                      ]
-         pure (Map.fromList [ (tctyName d, d) | d <- decl : decls' ])
+         pure (Map.fromList [ (tctyName d, d) | d <- decl : decls ])
   where
     knownWidth :: Maybe Label -> [ Maybe (Type, BDD.Pat) ] ->
                   Maybe (Maybe Label, BDD.Width)

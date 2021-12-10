@@ -9,12 +9,14 @@ import qualified Data.Text as Text
 import Data.Char(isUpper,isLower, toUpper)
 import Data.Word(Word8)
 import Data.ByteString(ByteString)
+import Data.List(groupBy)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
 import Daedalus.Panic
+import qualified Daedalus.BDD as BDD
 
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
@@ -26,6 +28,7 @@ data Env = Env
   , envCurMod     :: ModuleName
   , envExtern     :: Map Name Term
   , envQualNames  :: UseQual
+  , envTypes      :: !(Map TCTyName TCTyDecl)
   }
 
 lkpInEnv :: (PP k, Ord k) => String -> Map k a -> k -> a
@@ -236,14 +239,119 @@ hsThisTy env TCTyDecl { .. } =
 
 -- | Declarations for the constructors of a type, and related instances.
 hsTyDeclDef :: Env -> TCTyDecl -> ([Term],[Decl])
-hsTyDeclDef env me@TCTyDecl { .. } =
+hsTyDeclDef env me =
+  case tctyBD me of
+    Nothing  -> hsTyDeclDefADT env me
+    Just pat -> hsTyDeclDefBD env pat me
+
+hsTyDeclDefBD :: Env -> BDD.Pat -> TCTyDecl -> ([Term],[Decl])
+hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
+  where
+  conName = hsStructConName env NameDecl tctyName
+  con     = aps conName [ repTy ]
+  wi      = toInteger (BDD.width univ)
+
+  ty      = hsThisTy env me
+  repTy   = hsType env (tUInt (tNum wi))
+
+  insts   = bdinst : coerce1 : coerce2 : selInsts
+
+  bdinst =
+    InstanceDecl
+      Instance
+        { instOverlaps = Normal
+        , instAsmps   = []
+        , instHead    = aps "RTS.Bitdata" [ ty ]
+        , instMethods =
+          [ Fun TypeFun (aps "BDWidth"  [ ty ]) (hsInteger wi)
+          , Fun ValueFun "bdToRep" "HS.coerce"
+          , Fun ValueFun "bdFromRep" "HS.coerce"
+          ]
+        }
+
+  coerce1 =
+    InstanceDecl
+      Instance
+        { instOverlaps = Overlaps
+        , instAsmps   = []
+        , instHead    = aps "RTS.Convert" [ repTy, ty ]
+        , instMethods =
+          [ Fun ValueFun "convert" "HS.coerce"
+          , Fun ValueFun (aps "convertMaybe" ["x"])
+            let yep = aps "HS.Just" [ aps "HS.coerce" [ "x" ] ]
+            in
+            case [ t | t <- BDD.patTests univ, BDD.patMask t /= 0 ] of
+              [] -> yep
+              ts ->
+                let mkOrs = foldr1 (ApI "HS.||")
+                    ok = mkOrs
+                       $ map check
+                       $ Map.toList
+                       $ BDD.groupTestsByMask ts
+                    check (m,vs) =
+                      let masked
+                            | m == (2^wi - 1) = aps "RTS.fromUInt" ["x"]
+                            | otherwise =
+                              ApI "HS..&." (aps "RTS.fromUInt" ["x"])
+                                           (hsInteger m)
+                      in case vs of
+                           [] -> panic "ConvertInstace" ["empty test"]
+                           [v] -> ApI "HS.==" masked (hsInteger v)
+                           _   -> aps (Lam ["y"] body) [masked]
+                              where tryIt v = ApI "HS.==" "y" (hsInteger v)
+                                    body    = mkOrs (map tryIt vs)
+                in If ok yep "HS.Nothing"
+          ]
+        }
+
+  coerce2 =
+    InstanceDecl
+      Instance
+        { instOverlaps = Overlaps
+        , instAsmps   = []
+        , instHead    = aps "RTS.Convert" [ ty, repTy ]
+        , instMethods =
+          [ Fun ValueFun "convert" "HS.coerce"
+          , Fun ValueFun "convertMaybe" (ApI "HS.." "HS.Just" "HS.coerce")
+          ]
+        }
+
+
+
+  selInsts =
+    case tctyDef of
+      TCTyStruct ~(Just bd) _ ->
+        [ InstanceDecl
+            Instance
+              { instOverlaps = Normal
+              , instAsmps    = []
+              , instHead     = aps "HS.HasField" [ hsText l, ty, hsType env t ]
+              , instMethods =
+                [ Fun ValueFun (aps "getField" [aps conName ["x"]])
+                               (aps "RTS.bdFromRep"
+                                  [ aps "RTS.cvtU" [doShift "x" (bdOffset fi)]])
+                ]
+              }
+        | fi <- bdFields bd, BDData l t <- [ bdFieldType fi ]
+        ]
+      TCTyUnion {} -> []
+
+
+  doShift x n
+    | n == 0 = x
+    | otherwise =
+      aps "RTS.shiftr" [x, aps "RTS.lit" [ hsInteger (fromIntegral n)] ]
+
+
+hsTyDeclDefADT :: Env -> TCTyDecl -> ([Term],[Decl])
+hsTyDeclDefADT env me@TCTyDecl { .. } =
   case tctyDef of
-    TCTyStruct _ fs ->  -- XXX: bitdata
+    TCTyStruct _ fs ->
       ( [ aps (hsStructConName env NameDecl tctyName) (map snd fts) ]
       , concatMap hasInst fts
       )
       where
-      fts = map fldT fs
+      fts = map fldT' fs
       hasInst (f,t) =
         let pat = hsStructConName env NameUse tctyName `aps`
                      [ if f == fst fi then "x" else "_" | fi <- fts ]
@@ -251,9 +359,10 @@ hsTyDeclDef env me@TCTyDecl { .. } =
             ft = hsLabelT f
 
         in [ declare Instance
-             { instAsmps = []
+             { instOverlaps = Normal
+             , instAsmps = []
              , instHead  = "HS.HasField" `Ap` ft `Ap` st `Ap` t
-             , instMethods = [ Fun ("getField" `Ap` pat) "x" ]
+             , instMethods = [ Fun ValueFun ("getField" `Ap` pat) "x" ]
              }
            ]
 
@@ -266,13 +375,14 @@ hsTyDeclDef env me@TCTyDecl { .. } =
         in
         ( hsUniConName env NameDecl tctyName f `Ap` t
         , [ declare Instance
-              { instAsmps = []
+              { instOverlaps = Normal
+              , instAsmps = []
               , instHead  = "HS.HasField" `Ap` ft `Ap` st `Ap`
                                                           ("HS.Maybe" `Ap` t)
               , instMethods =
                   let pat = hsUniConName env NameUse tctyName f `Ap` "x"
-                  in [ Fun ("getField" `Ap` pat) ("HS.Just" `Ap` "x")
-                     , Fun ("getField" `Ap` "_") "HS.Nothing"
+                  in [ Fun ValueFun ("getField" `Ap` pat) ("HS.Just" `Ap` "x")
+                     , Fun ValueFun ("getField" `Ap` "_") "HS.Nothing"
                      ]
               }
           ]
@@ -281,6 +391,10 @@ hsTyDeclDef env me@TCTyDecl { .. } =
   where
   fldT :: (Label, (Type, a)) -> (Label, Term)
   fldT (f,(t, _)) = (f, hsType env t) -- FIXME: this erases BitData info
+
+
+  fldT' :: (Label, Type) -> (Label, Term)
+  fldT' (f,t) = (f, hsType env t) -- FIXME: this erases BitData info
 
 -- | Declara a type and related instances.
 hsTyDecl :: Env -> TCTyDecl -> [Decl]
@@ -300,7 +414,8 @@ hsTyDecl env me@TCTyDecl { .. } =
                       }
 
   ddlT = declare Instance
-          { instAsmps = concatMap extraCtrs tctyParams
+          { instOverlaps = Normal
+          , instAsmps = concatMap extraCtrs tctyParams
           , instHead  = "RTS.DDL" `Ap` hsThisTy env me
           , instMethods = []
           }
@@ -328,7 +443,8 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                     , sigType = hsPolyRule env (declTypeOf d)
                     }
   def = declare Fun
-          { funLHS = nm `aps` map (hsParam env) tcDeclParams
+          { funNS = ValueFun
+          , funLHS = nm `aps` map (hsParam env) tcDeclParams
           , funDef = defRHS
           }
 
@@ -365,13 +481,17 @@ hsValue env tc =
 
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
-    TCUnit      -> Tuple []
+
     TCStruct fs t ->
       case t of
-        TCon c _ -> hsStructConName env NameUse c `aps`
-                          [ hsValue env e | (_,e) <- fs ]
-        _ -> panic "hsValue" ["Unexpected type in `TCStruct`"]
-
+        TCon c _
+          | Just decl <- Map.lookup c (envTypes env)
+          , TCTyStruct (Just con) _ <- tctyDef decl ->
+            hsBitdataStruct env t con fields
+          | otherwise -> hsStructConName env NameUse c `aps` map snd fields
+            where fields = [ (f, hsValue env e) | (f,e) <- fs ]
+        Type TUnit | null fs -> Tuple []
+        _ -> panic "hsValue" ["Not a struct type", showPP t]
 
 
     TCArray vs t  ->
@@ -381,7 +501,12 @@ hsValue env tc =
 
     TCIn l v t ->
       case t of
-        TCon c _ -> hsUniConName env NameUse c l `Ap` hsValue env v
+        TCon c _
+          | Just decl <- Map.lookup c (envTypes env)
+          , Just _    <- tctyBD decl ->
+            hasType (hsType env t)
+              (aps "RTS.bdFromRep" [ aps "RTS.bdToRep" [ hsValue env v ] ])
+          | otherwise -> hsUniConName env NameUse c l `Ap` hsValue env v
         _ -> panic "hsValue" ["Unexpected type in `TCIn`"]
 
     TCTriOp op v1 v2 v3 _t ->
@@ -476,6 +601,27 @@ hsByteClass env tc =
      TCIf e e1 e2 -> If (hsValue env e) (hsByteClass env e1)
                                         (hsByteClass env e2)
      TCCase e as d -> hsCase hsByteClass "RTS.bcNone" env e as d
+
+
+hsBitdataStruct :: Env -> Type -> BDCon -> [(Label,Term)] -> Term
+hsBitdataStruct env ty con fs =
+  case map doCon (bdFields con) of
+    [] -> bv 0 0
+    vs -> hasType (hsType env ty)
+        $ aps "RTS.bdFromRep" [ foldl1 (\a b -> aps "RTS.cat" [a,b]) vs ]
+
+  where
+  bv w i = hasType (hsType env (tUInt (tNum (toInteger w))))
+         $ aps "RTS.UInt" [ hsInteger i ]
+
+  doCon f =
+    case bdFieldType f of
+      BDWild     -> bv (bdWidth f) 0
+      BDTag n    -> bv (bdWidth f) n
+      BDData l _ -> case lookup l fs of
+                      Just v  -> aps "RTS.bdToRep" [v]
+                      Nothing -> panic "hsBitdataStruct"
+                                  [ "Missing field", showPP l ]
 
 
 --------------------------------------------------------------------------------
@@ -668,8 +814,16 @@ hsCase ::
   NonEmpty (TCAlt SourceRange k) ->
   Maybe (TC SourceRange k) ->
   Term
-hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
+hsCase eval ifFail env e alts dfl
+  | isBitdata = hsBitdataCase eval ifFail env e alts dfl
+  | otherwise = Case (hsValue env e) branches
   where
+  isBitdata = case typeOf e of
+                TCon c _
+                   | Just _ <- tctyBD (lkpInEnv "typeEnv" (envTypes env) c) ->
+                     True
+                _ -> False
+
   branches =
     concatMap alt (NE.toList alts) ++ [
       case dfl of
@@ -682,6 +836,112 @@ hsCase eval ifFail env e alts dfl = Case (hsValue env e) branches
     in [ (hsPat env p, r) | p <- ps ]
 
 
+hsBitdataUniv :: Env -> Type -> BDD.Pat
+hsBitdataUniv env ty =
+  case ty of
+    TCon c _ -> case tctyBD (lkpInEnv "envTypes" (envTypes env) c) of
+                  Just p -> p
+                  _      -> bad
+    TVar {} -> bad
+    Type tc ->
+      case tc of
+        TUInt (Type (TNum n)) -> BDD.pWild (fromInteger n)
+        TSInt (Type (TNum n)) -> BDD.pWild (fromInteger n)
+        TFloat                -> BDD.pWild 32
+        TDouble               -> BDD.pWild 64
+        TUnit                 -> BDD.pWild 0
+        _                     -> bad
+  where
+  bad = panic "hsBitdataWidth" [ "Not a bitdata type", showPP ty ]
+
+hsBitdataWidth :: Env -> Type -> BDD.Width
+hsBitdataWidth env t = BDD.width (hsBitdataUniv env t)
+
+hsPatBDD :: Env -> TCPat -> BDD.Pat
+hsPatBDD env pat =
+  case pat of
+    TCConPat _ _ p1 -> hsPatBDD env p1
+    TCNumPat t n _  -> BDD.pInt (hsBitdataWidth env t) n
+    TCVarPat x      -> hsBitdataUniv env (typeOf x)
+    TCWildPat t     -> hsBitdataUniv env t
+
+    TCBoolPat {}    -> bad
+    TCJustPat {}    -> bad
+    TCNothingPat {} -> bad
+
+  where
+  bad = panic "hsPatBDD" [ "Invlalid bitdata pattern", showPP pat ]
+
+hsPatVars :: TCPat -> [TCName Value]
+hsPatVars pat =
+  case pat of
+    TCVarPat x      -> [x]
+    TCConPat _ _ p1 -> hsPatVars p1
+    TCNumPat {}     -> []
+    TCWildPat {}    -> []
+    TCBoolPat {}    -> []
+    TCJustPat p     -> hsPatVars p
+    TCNothingPat {} -> []
+
+hsBitdataAlts :: Env -> [TCAlt a k] -> [(BDD.Pat,Int)]
+hsBitdataAlts env alts =
+  [ (hsPatBDD env p,n)
+  | (alt,n) <- zip alts [ 0 .. ]
+  , p <- tcAltPatterns alt
+  ]
+
+hsBitdataCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Term ->
+  Env ->
+  TC SourceRange Value ->
+  NonEmpty (TCAlt SourceRange k) ->
+  Maybe (TC SourceRange k) ->
+  Term
+
+hsBitdataCase doAlt ifFail env e alts mbD =
+  aps (Lam [aps "RTS.UInt" [caseValName]] actualCase)
+      [ aps "RTS.bdToRep" [hsValue env e] ]
+  where
+  caseValName = "caseVal" :: Term
+  actualCase = foldr doCase finalCase tests
+
+  finalCase = case mbD of
+                Just d -> doAlt env d
+                Nothing -> ifFail
+
+  doCase :: [(BDD.PatTest,Int)] -> Term -> Term
+  doCase opts doElse =
+    let (p,rhs) : _ = opts
+    in if BDD.patMask p == 0
+        then hsAlt rhs
+        else Case (ApI "HS..&." caseValName (hsInteger (BDD.patMask p)))
+               $ [ (hsInteger (BDD.patValue t), hsAlt n) | (t,n) <- opts ] ++
+                 [ ("_", doElse) ]
+
+  ty    = typeOf e
+  univ  = hsBitdataUniv env ty
+
+  sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
+
+  tests :: [[(BDD.PatTest,Int)]]
+  tests = groupBy sameMask
+        $ BDD.patTestsAssumingInOrder univ
+        $ hsBitdataAlts env
+        $ NE.toList alts
+  -- XXX: potentially duplicates RHS.  They could (should) be named instead
+  -- We name the RHS with ints in prep for that.
+
+  hsAlt n = let alt = alts NE.!! n
+                rhs = doAlt env (tcAltBody alt)
+                xs  = map (hsTCName env) (hsPatVars (head (tcAltPatterns alt)))
+            in aps (Lam xs rhs)
+                   [ aps "RTS.bdFromRep" [ aps "RTS.UInt" [caseValName] ]
+                   | _ <- xs ]
+            -- XXX: if we added struct patterns this would have to
+            -- change to actually project the fields.  At the moment
+            -- we can have only variable which always has the same rep
+            -- as the original value, but possibly at a different type
 
 hsPat :: Env -> TCPat -> Term
 hsPat env pat =
@@ -799,8 +1059,9 @@ evalForM env lp =
 --------------------------------------------------------------------------------
 
 -- testing
-hsModule :: CompilerCfg -> TCModule SourceRange -> Module
-hsModule CompilerCfg { .. } TCModule { .. } = Module
+hsModule ::
+  CompilerCfg -> Map TCTyName TCTyDecl -> TCModule SourceRange -> Module
+hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   { hsModName  = hsIdentMod tcModuleName
   , hsLangExts = [ "DataKinds", "KindSignatures", "TypeOperators"
                  , "MultiParamTypeClasses", "FlexibleInstances"
@@ -821,11 +1082,14 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
                  [ Import "Prelude"       (QualifyAs "HS")
                  , Import "GHC.TypeLits"  (QualifyAs "HS")
                  , Import "GHC.Records"   (QualifyAs "HS")
+                 , Import "Data.Coerce"   (QualifyAs "HS")
+                 , Import "Data.Bits"     (QualifyAs "HS")
                  , Import "Control.Monad" (QualifyAs "HS")
                  , Import "RTS"           (QualifyAs "RTS")
                  , Import "RTS.Input"     (QualifyAs "RTS")
                  , Import "RTS.Map"       (QualifyAs "Map")
                  , Import "RTS.Vector"    (QualifyAs "Vector")
+                 , Import "RTS.Numeric"   (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)
@@ -835,6 +1099,7 @@ hsModule CompilerCfg { .. } TCModule { .. } = Module
             , envTParser = cParserType
             , envExtern  = cPrims
             , envQualNames = cQualNames
+            , envTypes = allTys
             }
 
 

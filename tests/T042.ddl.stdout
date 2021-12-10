@@ -7,12 +7,12 @@ module T042
 --- Imports:
  
 --- Type defs:
-type T042.Ex1 = Choose { A: {}
-                       ; B: {}
+type T042.Ex1 = Choose { B: {}
+                       ; A: {}
                        }
  
-type T042.T ?a0 = Choose { A: ?a0
-                         ; B: {}
+type T042.T ?a0 = Choose { B: {}
+                         ; A: ?a0
                          }
  
 type T042.Ex6 = { x: uint 8

@@ -48,7 +48,7 @@ desugarMatch s mat =
          let msg = byteArrayL "Leftover input"
          pure $ Do i GetStream
               $ Let b (isEmptyStream (Var i))
-              $ gIf b
+              $ coreIf b
                     (Pure unit)
                     (Fail ErrorFromSystem TUnit (Just msg))
 
@@ -66,7 +66,7 @@ desugarMatch s mat =
          pure $ Do i GetStream
               $ Let x e
               $ Let b (isPrefix (Var x) (Var i))
-              $ gIf b
+              $ coreIf b
                     ok
                     (Fail ErrorFromSystem t (Just msg))
 
@@ -86,11 +86,11 @@ desugarMatch s mat =
                         SemYes -> (byte, Do_ advance (Pure (Var x)))
          pure $ Do i GetStream
               $ Let p (isEmptyStream (Var i))
-              $ gIf p
+              $ coreIf p
                     (Fail ErrorFromSystem t (Just msgNoByte))
               $ Let x (eHead (Var i))
               $ Let p' pv
-              $ gIf p'
+              $ coreIf p'
                     ok
                     (Fail ErrorFromSystem t (Just msgBadByte))
 
@@ -98,11 +98,11 @@ desugarMatch s mat =
 eOr, eAnd :: HasGUID m => Expr -> Expr -> m Expr
 eOr x y = do
   p <- freshNameSys TBool
-  pure (PureLet p x (eIf p (boolL True) y))
+  pure (PureLet p x (coreIf p (boolL True) y))
   
 eAnd x y = do
   p <- freshNameSys TBool
-  pure (PureLet p x (eIf p y (boolL False)))
+  pure (PureLet p x (coreIf p y (boolL False)))
 
 desugarByteSet :: HasGUID m => ByteSet -> Expr -> m Expr
 desugarByteSet bs b =

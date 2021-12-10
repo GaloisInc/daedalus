@@ -1,15 +1,53 @@
 module Daedalus.Core.Type where
 
+import Data.Map(Map)
+import qualified Data.Map as Map
+
+import qualified Daedalus.BDD as BDD
+import Daedalus.PP(showPP)
 import Daedalus.Panic(panic)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import Daedalus.Core.Grammar
+import Daedalus.Core.Decl
 
+
+bdUniverse :: Map TName TDecl -> Type -> BDD.Pat
+bdUniverse env ty =
+  case ty of
+
+    TUInt w ->
+      case w of
+        TSize n -> BDD.pWild (fromIntegral n)
+        _       -> bad
+
+    TSInt w ->
+      case w of
+        TSize n -> BDD.pWild (fromIntegral n)
+        _       -> bad
+
+    TFloat          -> BDD.pWild 32
+    TDouble         -> BDD.pWild 64
+    TUnit           -> BDD.pWild 0
+    TUser ut        -> case Map.lookup (utName ut) env of
+                         Just decl | TBitdata p _ <- tDef decl -> p
+                         _ -> bad
+
+    TStream         -> bad
+    TInteger        -> bad
+    TBool           -> bad
+    TArray {}       -> bad
+    TMaybe {}       -> bad
+    TMap {}         -> bad
+    TBuilder {}     -> bad
+    TIterator {}    -> bad
+    TParam {}       -> bad
+  where
+  bad = panic "bdUniverse" [ "Not a bitdata type", showPP ty ]
 
 class TypeOf t where
   typeOf :: t -> Type
-
 
 instance TypeOf Name where
   typeOf = nameType

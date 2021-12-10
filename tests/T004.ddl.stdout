@@ -8,8 +8,8 @@ rec
                           ; tail: T004.Repeat ?a0
                           }
    
-  type T004.Repeat ?a0 = Choose { cons: T004.Repeat0 ?a0
-                                ; nil: {}
+  type T004.Repeat ?a0 = Choose { nil: {}
+                                ; cons: T004.Repeat0 ?a0
                                 }
  
 --- Rules:
