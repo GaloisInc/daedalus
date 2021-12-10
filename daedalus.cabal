@@ -117,7 +117,7 @@ library
 executable daedalus
   main-is:             Main.hs
   other-modules:       CommandLine,
-                       CPPDriver
+                       Templates
 
   build-depends:       daedalus,
                        daedalus-utils,

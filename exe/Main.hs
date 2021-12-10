@@ -52,7 +52,7 @@ import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
-import CPPDriver
+import Templates
 
 main :: IO ()
 main =

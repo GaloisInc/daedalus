@@ -1,5 +1,5 @@
 {-# Language TemplateHaskell #-}
-module CPPDriver where
+module Templates where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
