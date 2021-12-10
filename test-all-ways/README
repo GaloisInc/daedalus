@@ -1,2 +1,2 @@
-This directory contains infrastructure that the various ways in which
+This directory contains infrastructure to test that the various ways in which
 we can execute parsers produce compatible results.
