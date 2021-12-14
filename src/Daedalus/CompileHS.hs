@@ -1,5 +1,5 @@
 {-# Language BlockArguments, RecordWildCards, OverloadedStrings, GADTs #-}
-module Daedalus.CompileHS (hsModule) where
+module Daedalus.CompileHS (hsModule, hsIdentMod) where
 
 import Data.Text(Text)
 import Data.Map(Map)
