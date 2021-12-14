@@ -898,8 +898,8 @@ cDoCase e opts =
                        , Just t <- [lookup l fs]
                        ]
             in case dflt of
-                 Nothing -> bdCase ?allTypes univ (cExpr e) alts
-                 Just x  -> bdCaseDflt ?allTypes univ (cExpr e) alts
+                 Nothing -> bdCase False ?allTypes univ (cExpr e) alts
+                 Just x  -> bdCaseDflt False ?allTypes univ (cExpr e) alts
                                                          (vcat (doChoice x))
             ]
           _ -> panic "mkBDSwitch" [ "Invalid switch", showPP ut ]

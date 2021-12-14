@@ -91,8 +91,8 @@ defBDSel f =
       let base    = cCall "toBits" []
           shifted = if bdOffset f == 0
                       then base
-                      else base <+> ">>" <+> cCallCon (nsDDL .:: "Size")
-                                                      [int (bdOffset f)]
+                      else parens (base <+> ">>" <+> cCallCon (nsDDL .:: "Size")
+                                                      [int (bdOffset f)])
           bits = cCallCon (uint (int (bdWidth f)))
                   [ cCallMethod shifted "rawRep" [] ]
 
@@ -106,8 +106,9 @@ defBDSel f =
 
 -- XXX: This can duplicate RHSs if there are multiple checks for a pattern
 bdCaseDflt ::
+  Bool {- ^ If True, then add `break` to blocks -} ->
   Map TName TDecl -> BDD.Pat -> CExpr -> [ (Type,CStmt) ] -> CStmt -> CStmt
-bdCaseDflt allTys univ e cases dflt =
+bdCaseDflt addBrk allTys univ e cases dflt =
     foldr doCase dflt
   $ map rearrange
   $ groupBy sameMask
@@ -116,6 +117,10 @@ bdCaseDflt allTys univ e cases dflt =
 
   where
   val = cCallMethod (cCallMethod e "toBits" []) "rep" []
+
+  addBreak s
+    | addBrk    = s $$ cBreak
+    | otherwise = s
 
   maskedWith m
     | m == ((2 ^ BDD.width univ) - 1) = val
@@ -126,7 +131,7 @@ bdCaseDflt allTys univ e cases dflt =
     | otherwise =
       cSwitchDefault
         (maskedWith mask)
-        [ cCase (integer v) rhs | (v,rhs) <- alts ]
+        [ cCase (integer v) (addBreak rhs) | (v,rhs) <- alts ]
         orElse
 
   rearrange xs = ( BDD.patMask (fst (head xs))
@@ -136,9 +141,10 @@ bdCaseDflt allTys univ e cases dflt =
   sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
 
 bdCase ::
-  Map TName TDecl -> BDD.Pat -> CExpr -> [ (Type,CStmt) ] -> CStmt
-bdCase allTys univ e cases = bdCaseDflt allTys univ e cases
-                                        (cCall "assert" [ "false" ])
+  Bool -> Map TName TDecl -> BDD.Pat -> CExpr -> [ (Type,CStmt) ] -> CStmt
+bdCase addBreak allTys univ e cases =
+  bdCaseDflt addBreak allTys univ e cases
+                                        (cStmt (cCall "assert" [ "false" ]))
 
 --------------------------------------------------------------------------------
 uint :: CExpr -> CType

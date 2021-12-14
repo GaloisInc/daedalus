@@ -241,7 +241,7 @@ public:
   Size asSize() const { return Size::from(rep()); } // used in array
 
   // Bitdata
-  UInt<w> toBits()                { return UInt(data); }
+  UInt<w> toBits()                { return UInt<w>(data); }
   static SInt fromBits(UInt<w> x) { return SInt(x.rep()); }
   static bool isValid(UInt<w> x)  { return true; }
 

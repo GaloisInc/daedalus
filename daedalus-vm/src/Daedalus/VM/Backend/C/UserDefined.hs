@@ -434,7 +434,7 @@ defShow allTypes vis tdecl =
                           [ (l,t) | f <- fs, BDData l t <- [bdFieldType f ] ]
           BDUnion fs ->
             [ cStmt ("os <<" <+> cString "{| ")
-            , bdCase allTypes univ "x"
+            , bdCase True allTypes univ "x"
               [ (t, showUnionCase True f)
               | f@(_,t) <- fs ]
             , cStmt ("return os <<" <+> cString " |}")
@@ -460,9 +460,9 @@ defShow allTypes vis tdecl =
     let lab = cString (show (pp l <+> "= "))
         how = if bd then GenOwn else GenBorrow
         val = cCallMethod "x" (selName how l) []
-    in vcat [ cStmt ("os <<" <+> lab <+> "<<" <+> val)
-            , cStmt "break"
-            ]
+    in vcat $ cStmt ("os <<" <+> lab <+> "<<" <+> val)
+            : if bd then [] else [cBreak]
+              -- break added by bdCase for bitdata
 
 
 
@@ -506,7 +506,7 @@ defShowJS allTypes vis tdecl =
               defShowStruct True [ (l,t)
                                  | f <- fs, BDData l t <- [bdFieldType f] ]
              BDUnion fs ->
-               [ bdCase allTypes univ "x"
+               [ bdCase True allTypes univ "x"
                    [ (t,defShowUnionCase True f) | f@(_,t) <- fs ]
                , cStmt "return os"
                ]
@@ -532,13 +532,12 @@ defShowJS allTypes vis tdecl =
     let lab = '$' : show (pp l)
         how = if bd then GenOwn else GenBorrow
         val = cCallMethod "x" (selName how l) []
-    in
-      vcat [ cStmt ("os <<" <+>
-                      cString ("{ " ++ show lab ++ ": "))
-           , cStmt (cCall (nsDDL .:: "toJS") [ "os", val ])
-           , cStmt "os << \"}\""
-           , cStmt "break"
-           ]
+        addBreak xs = if bd then xs else xs $$ cBreak
+    in addBreak $
+       vcat [ cStmt ("os <<" <+> cString ("{ " ++ show lab ++ ": "))
+            , cStmt (cCall (nsDDL .:: "toJS") [ "os", val ])
+            , cStmt "os << \"}\""
+              ]
 
 
 
