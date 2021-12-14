@@ -1,3 +1,5 @@
 #!/bin/bash
 
-rm -rf hs c++ output
+source ./config
+
+rm -rf $BUILD_DIR $OUT_ROOT_DIR

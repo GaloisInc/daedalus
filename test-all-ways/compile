@@ -21,6 +21,7 @@ cabal exec daedalus -- --compile-hs --out-dir="$HS_DIR" "$DDL"
 echo Building Haskell
 pushd $HS_DIR
 cabal build
+rm -f parser
 ln -s $(cabal exec which $(name $DDL)) parser
 popd
 
@@ -33,6 +34,6 @@ mkdir -p $CPP_DIR
 cabal exec daedalus -- --compile-c++ --out-dir="$CPP_DIR" "$DDL"
 
 echo Building C++
-make -C "$CPP_DIR"
+make -C "$CPP_DIR" parser
 
 

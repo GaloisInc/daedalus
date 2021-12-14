@@ -1,5 +1,6 @@
-HS_ROOT_DIR=hs
-CPP_ROOT_DIR=c++
+BUILD_DIR=build
+HS_ROOT_DIR="$BUILD_DIR/hs"
+CPP_ROOT_DIR="$BUILD_DIR/c++"
 OUT_ROOT_DIR=output
 
 
