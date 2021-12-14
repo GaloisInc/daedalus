@@ -37,6 +37,7 @@ import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
+import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
@@ -171,16 +172,6 @@ handleOptions opts
          DumpTypes -> error "Bug: DumpTypes"
 
          CompileHS -> generateHS opts mm allMods
-{-
-            mapM_ (saveHS (optOutDir opts) cfg) allMods
-            where
-            cfg = CompilerCfg
-                    { cPrims      = Map.empty -- Don't support prims
-                    , cParserType = "Parser"
-                    , cImports    = [Import "RTS.Parser" Unqualified]
-                    , cQualNames  = UseQualNames
-                    }
--}
 
          CompileCPP ->
            -- XXX: this is a backend in a different sense
@@ -277,8 +268,7 @@ generateCPP opts mm =
 
        when makeExe
          do let save (x,b) =
-                  do putStrLn ("Saving " ++ x)
-                     let d = dir </> takeDirectory x
+                  do let d = dir </> takeDirectory x
                      createDirectoryIfMissing True d
                      BS.writeFile (dir </> x) b
             mapM_ save c_template_files
@@ -293,18 +283,18 @@ generateHS opts mainMod allMods =
      when makeExe $ ddlIO
        do let outD = fromJust (optOutDir opts)
               name = takeFileName outD
+              mkMod = Text.encodeUtf8 . Text.pack . hsIdentMod
               vars = Map.fromList
                        [ ("EXE", BS8.pack name)
                        , ("AUTHOR", "Daedalus")
                        , ("EMAIL", "unknown@email.com")
-                       , ("MODULES", BS8.intercalate ","
-                                    (map Text.encodeUtf8 allMods))
+                       , ("MODULES", BS8.intercalate "," (map mkMod allMods))
                        ]
               Just main_template  = lookup "Main.hs" hs_template_files
               Just cabal_template = lookup "template.cabal" hs_template_files
           BS.writeFile (outD </> "Main.hs")
                       $ BS8.unlines
-                        [ "import " <> Text.encodeUtf8 mainMod <> "(pMain)"
+                        [ "import " <> mkMod mainMod <> "(pMain)"
                         , main_template
                         ]
           BS.writeFile (outD </> name <.> "cabal")
