@@ -45,6 +45,7 @@ import Data.Bits
 import Data.List(foldl',unfoldr)
 
 import RTS.Base
+import RTS.JSON
 
 
 data {-kind-} Size = S8 | S16 | S32 | S64 | SBig
@@ -456,6 +457,12 @@ instance Bitdata Double where
   {-# INLINE bdToRep #-}
   {-# INLINE bdFromRep #-}
 
+--------------------------------------------------------------------------------
 
+instance SizeType n => ToJSON (UInt n) where
+  toJSON = toJSON . asInt
+
+instance SizeType n => ToJSON (SInt n) where
+  toJSON = toJSON . asInt
 
 

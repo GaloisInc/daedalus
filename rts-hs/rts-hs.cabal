@@ -25,7 +25,8 @@ library
                        RTS.Map,
                        RTS.Input,
                        RTS.Base,
-                       RTS.ByteRanges
+                       RTS.ByteRanges,
+                       RTS.JSON
   build-depends:       base >=4.13 && <4.15,
                        vector,
                        containers,

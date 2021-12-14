@@ -17,11 +17,14 @@ module RTS.Input
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Short as SBS
 import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Short(ShortByteString,toShort)
 import Data.Word(Word8)
 import Control.Monad(guard)
+import Numeric(showHex)
 
+import RTS.JSON
 import RTS.Numeric(UInt,sizeToInt)
 import RTS.Vector(Vector)
 import qualified RTS.Vector as Vector
@@ -150,4 +153,14 @@ newInputFromFile mb =
     Just file ->
       do bs <- BS.readFile file
          pure (newInput (BS8.pack file) bs)
+
+
+instance ToJSON Input where
+  toJSON inp =
+    jsTagged "$$input" (jsText (SBS.fromShort (inputName inp) <> ":" <> rng))
+      where
+      rng = BS8.pack
+          $ "0x" ++ showHex (inputOffset inp) (
+          "--0x" ++ showHex (inputOffset inp + inputLength inp) "")
+
 

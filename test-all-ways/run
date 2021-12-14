@@ -11,10 +11,12 @@ shift
 
 OUT_DIR=$(out_dir "$DDL")
 
+RUN_OPTS="--json"
+
 if [ $# -lt 1 ]; then
-  RUN_OPTS="--run"
+  RUN_OPTS="$RUN_OPTS --run"
 else
-  RUN_OPTS="--interp=$1"
+  RUN_OPTS="$RUN_OPTS --interp=$1"
   OUT_DIR="$OUT_DIR/$(basename $1)"
 fi
 

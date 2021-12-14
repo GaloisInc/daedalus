@@ -2,6 +2,7 @@
 module Daedalus.CompileHS (hsModule, hsIdentMod) where
 
 import Data.Text(Text)
+import qualified Data.Text.Encoding as Text
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -254,7 +255,7 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
   ty      = hsThisTy env me
   repTy   = hsType env (tUInt (tNum wi))
 
-  insts   = bdinst : coerce1 : coerce2 : selInsts
+  insts   = bdinst : coerce1 : coerce2 : jsInst : selInsts
 
   bdinst =
     InstanceDecl
@@ -317,6 +318,42 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
         }
 
 
+  jsInst =
+    InstanceDecl
+      Instance
+        { instOverlaps = Normal
+        , instAsmps = []
+        , instHead = aps "RTS.ToJSON" [ ty ]
+        , instMethods =
+          [ Fun ValueFun (aps "toJSON" ["x"])
+            case tctyDef of
+              TCTyStruct _ fs ->
+                        (aps "RTS.jsObject"
+                          [ List
+                              [ Tuple [ hsl
+                                      , aps "RTS.toJSON"
+                                      [ aps "HS.getField" [ TyParam hsl, "x" ] ]
+                                      ]
+                              | (l,_) <- fs
+                              , let hsl = hsByteString (Text.encodeUtf8 l)
+                              ]
+                           ]
+                         )
+              TCTyUnion fs ->
+                hsBitdataCase'
+                  (TCon tctyName [])
+                  (aps "HS.error" [ hsByteString "Pattern match failure" ])
+                  env
+                  "x"
+                  [ ( [("y",t)]
+                    , [ p ]
+                    , aps "RTS.jsTagged" [ hsl, aps "RTS.toJSON" [ "y" ] ]
+                    ) | (l, (t,Just p)) <- fs
+                      , let hsl = hsByteString (Text.encodeUtf8 l)
+                  ]
+                  Nothing
+          ]
+        }
 
   selInsts =
     case tctyDef of
@@ -348,7 +385,7 @@ hsTyDeclDefADT env me@TCTyDecl { .. } =
   case tctyDef of
     TCTyStruct _ fs ->
       ( [ aps (hsStructConName env NameDecl tctyName) (map snd fts) ]
-      , concatMap hasInst fts
+      , jsinst body : map hasInst fts
       )
       where
       fts = map fldT' fs
@@ -358,17 +395,32 @@ hsTyDeclDefADT env me@TCTyDecl { .. } =
             st = hsThisTy env me
             ft = hsLabelT f
 
-        in [ declare Instance
+        in declare Instance
              { instOverlaps = Normal
              , instAsmps = []
              , instHead  = "HS.HasField" `Ap` ft `Ap` st `Ap` t
              , instMethods = [ Fun ValueFun ("getField" `Ap` pat) "x" ]
              }
-           ]
+      body = aps "RTS.jsObject"
+               [ List [ Tuple [ hsl
+                              , aps "RTS.toJSON"
+                              [ aps "HS.getField" [ TyParam hsl, "x" ] ]
+                              ]
+                      | (l,_) <- fs
+                      , let hsl = hsByteString (Text.encodeUtf8 l)
+                      ]
+               ]
 
     TCTyUnion fs -> let (cs,insts) = unzip (map (mkCon . fldT) fs)
-                    in (cs, concat insts)
+                    in (cs, jsinst body : concat insts)
       where
+      body = Case "x"
+               [ ( hsUniConName env NameUse tctyName l `Ap` "y"
+                 , aps "RTS.jsTagged" [ hsByteString ("$" <> Text.encodeUtf8 l)
+                                      , "RTS.toJSON" `Ap` "y" ]
+                 )
+               | (l,_) <- fs ]
+
       mkCon (f,t) =
         let st = hsThisTy env me
             ft = hsLabelT f
@@ -395,6 +447,16 @@ hsTyDeclDefADT env me@TCTyDecl { .. } =
 
   fldT' :: (Label, Type) -> (Label, Term)
   fldT' (f,t) = (f, hsType env t) -- FIXME: this erases BitData info
+
+  jsinst body = declare Instance
+                { instOverlaps = Normal
+                , instAsmps = [ aps "RTS.ToJSON" [ hsType env (TVar a) ]
+                              | a <- tctyParams, tvarKind a == KValue ]
+                , instHead = "RTS.ToJSON" `Ap` hsThisTy env me
+                , instMethods = [ Fun ValueFun ("toJSON" `Ap` "x") body ]
+                }
+
+
 
 -- | Declara a type and related instances.
 hsTyDecl :: Env -> TCTyDecl -> [Decl]
@@ -852,19 +914,16 @@ hsBitdataUniv env ty =
         TUnit                 -> BDD.pWild 0
         _                     -> bad
   where
-  bad = panic "hsBitdataWidth" [ "Not a bitdata type", showPP ty ]
-
-hsBitdataWidth :: Env -> Type -> BDD.Width
-hsBitdataWidth env t = BDD.width (hsBitdataUniv env t)
+  bad = panic "hsBitdataUniv" [ "Not a bitdata type", showPP ty ]
 
 hsPatBDD :: Env -> TCPat -> BDD.Pat
 hsPatBDD env pat =
   case pat of
     TCConPat _ _ p1 -> hsPatBDD env p1
-    TCNumPat t n _  -> BDD.pInt (hsBitdataWidth env t) n
     TCVarPat x      -> hsBitdataUniv env (typeOf x)
     TCWildPat t     -> hsBitdataUniv env t
 
+    TCNumPat {}     -> bad
     TCBoolPat {}    -> bad
     TCJustPat {}    -> bad
     TCNothingPat {} -> bad
@@ -883,31 +942,24 @@ hsPatVars pat =
     TCJustPat p     -> hsPatVars p
     TCNothingPat {} -> []
 
-hsBitdataAlts :: Env -> [TCAlt a k] -> [(BDD.Pat,Int)]
-hsBitdataAlts env alts =
-  [ (hsPatBDD env p,n)
-  | (alt,n) <- zip alts [ 0 .. ]
-  , p <- tcAltPatterns alt
-  ]
-
-hsBitdataCase ::
-  (Env -> TC SourceRange k -> Term) ->
+hsBitdataCase' ::
+  Type ->
   Term ->
   Env ->
-  TC SourceRange Value ->
-  NonEmpty (TCAlt SourceRange k) ->
-  Maybe (TC SourceRange k) ->
+  Term ->
+  [ ([(Term,Type)],[BDD.Pat],Term) ] ->
+  Maybe Term ->
   Term
 
-hsBitdataCase doAlt ifFail env e alts mbD =
+hsBitdataCase' ty ifFail env e alts mbD =
   aps (Lam [aps "RTS.UInt" [caseValName]] actualCase)
-      [ aps "RTS.bdToRep" [hsValue env e] ]
+      [ aps "RTS.bdToRep" [e] ]
   where
   caseValName = "caseVal" :: Term
   actualCase = foldr doCase finalCase tests
 
   finalCase = case mbD of
-                Just d -> doAlt env d
+                Just d -> d
                 Nothing -> ifFail
 
   doCase :: [(BDD.PatTest,Int)] -> Term -> Term
@@ -919,7 +971,6 @@ hsBitdataCase doAlt ifFail env e alts mbD =
                $ [ (hsInteger (BDD.patValue t), hsAlt n) | (t,n) <- opts ] ++
                  [ ("_", doElse) ]
 
-  ty    = typeOf e
   univ  = hsBitdataUniv env ty
 
   sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
@@ -927,21 +978,49 @@ hsBitdataCase doAlt ifFail env e alts mbD =
   tests :: [[(BDD.PatTest,Int)]]
   tests = groupBy sameMask
         $ BDD.patTestsAssumingInOrder univ
-        $ hsBitdataAlts env
-        $ NE.toList alts
+          [ (p,n)
+          | (alt,n) <- zip [ ps | (_,ps,_) <- alts ] [ 0 .. ]
+          , p <- alt
+          ]
+
+
   -- XXX: potentially duplicates RHS.  They could (should) be named instead
   -- We name the RHS with ints in prep for that.
 
-  hsAlt n = let alt = alts NE.!! n
-                rhs = doAlt env (tcAltBody alt)
-                xs  = map (hsTCName env) (hsPatVars (head (tcAltPatterns alt)))
-            in aps (Lam xs rhs)
-                   [ aps "RTS.bdFromRep" [ aps "RTS.UInt" [caseValName] ]
-                   | _ <- xs ]
+  hsAlt n = let (xs,_,rhs) = alts !! n
+            in aps (Lam (map fst xs) rhs)
+                   [ ApI "::"
+                      (aps "RTS.bdFromRep" [ aps "RTS.UInt" [caseValName] ])
+                      (hsType env t)
+                   | (_,t) <- xs ]
             -- XXX: if we added struct patterns this would have to
             -- change to actually project the fields.  At the moment
             -- we can have only variable which always has the same rep
             -- as the original value, but possibly at a different type
+
+
+
+
+
+hsBitdataCase ::
+  (Env -> TC SourceRange k -> Term) ->
+  Term ->
+  Env ->
+  TC SourceRange Value ->
+  NonEmpty (TCAlt SourceRange k) ->
+  Maybe (TC SourceRange k) ->
+  Term
+
+hsBitdataCase doAlt ifFail env e alts mbD =
+  hsBitdataCase' (typeOf e) ifFail env (hsValue env e)
+      [ ( [ (hsTCName env v, typeOf v) | v <- vs ]
+        , map (hsPatBDD env) (tcAltPatterns a)
+        , doAlt env (tcAltBody a)
+        )
+      | a <- NE.toList alts
+      , let vs = hsPatVars (head (tcAltPatterns a))
+      ]
+      (doAlt env <$> mbD)
 
 hsPat :: Env -> TCPat -> Term
 hsPat env pat =
@@ -1090,6 +1169,7 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
                  , Import "RTS.Map"       (QualifyAs "Map")
                  , Import "RTS.Vector"    (QualifyAs "Vector")
                  , Import "RTS.Numeric"   (QualifyAs "RTS")
+                 , Import "RTS.JSON"      (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)
