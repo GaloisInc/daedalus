@@ -349,7 +349,7 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
                     , [ p ]
                     , aps "RTS.jsTagged" [ hsl, aps "RTS.toJSON" [ "y" ] ]
                     ) | (l, (t,Just p)) <- fs
-                      , let hsl = hsByteString (Text.encodeUtf8 l)
+                      , let hsl = hsByteString ("$" <> Text.encodeUtf8 l)
                   ]
                   Nothing
           ]
