@@ -36,16 +36,32 @@ done:
 
 int main(int argc, char* argv[]) {
 
-  if (argc > 2) {
-    cout << "Usage: " << argv[0] << " [FILE]" << endl;
+  bool timed = false;
+
+  if (argc > 3) {
+    cout << "Usage: " << argv[0] << " [--timed] [FILE]" << endl;
     return 1;
   }
 
+  int fileArg = 0;
+  if (argc == 3) {
+    timed = true;
+    fileArg = 2;
+  } else {
+    if (argc == 2) {
+      if (strcmp("--timed",argv[1]) == 0) {
+        timed = true;
+      } else {
+        fileArg = 1;
+      }
+    }
+  }
+
   DDL::Input i;
-  if (argc == 1) {
+  if (fileArg > 0) {
     i = DDL::Input("(none)","");
   } else {
-    char *file = argv[1];
+    char *file = argv[fileArg];
     i = inputFromFile(file);
     if (i.length() == 0) {
       // Does not escape quotes...
@@ -67,11 +83,13 @@ int main(int argc, char* argv[]) {
 
   size_t resultNum = out.size();
 
-  cout << "{ \"resultNum\": " << resultNum << endl;
-  cout << ", \"input_mb\": " << mb << endl;
-  cout << ", \"time_secs\": " << secs << endl;
-  cout << ", \"mb_s\": " << mb_s << endl;
-  cout << ", \"results\": " << endl;
+  if (timed) {
+    cout << "{ \"resultNum\": " << resultNum << endl;
+    cout << ", \"input_mb\": " << mb << endl;
+    cout << ", \"time_secs\": " << secs << endl;
+    cout << ", \"mb_s\": " << mb_s << endl;
+    cout << ", \"results\": " << endl;
+  }
 
   if (resultNum == 0) {
     cout << "\"Parser error at " << err.offset << "\"}" << endl;
@@ -83,7 +101,11 @@ int main(int argc, char* argv[]) {
     DDL::toJS(cout,(DDL::ResultOf::parseMain)out[i]);
     if constexpr (DDL::hasRefs<DDL::ResultOf::parseMain>()) out[i].free();
   }
-  cout << "]}\n";
+  cout << "]";
+
+  if (timed) cout << "}";
+
+  cout << endl;
 
   return 0;
 }
