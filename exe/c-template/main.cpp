@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (resultNum == 0) {
-    cout << "\"Parser error at " << err.offset << "\"}" << endl;
+    cout << "{ \"error\": \"\", \"offset\": " << err.offset << "}" << endl;
     return 1;
   }
 
