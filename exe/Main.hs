@@ -290,13 +290,17 @@ generateHS opts mainMod allMods =
                        , ("EMAIL", "unknown@email.com")
                        , ("MODULES", BS8.intercalate "," (map mkMod allMods))
                        ]
+
+              mainVars = Map.fromList
+                [ ("IMPORT", mkMod mainMod <> "(pMain)")
+                ]
               Just main_template  = lookup "Main.hs" hs_template_files
               Just cabal_template = lookup "template.cabal" hs_template_files
+
+
           BS.writeFile (outD </> "Main.hs")
-                      $ BS8.unlines
-                        [ "import " <> mkMod mainMod <> "(pMain)"
-                        , main_template
-                        ]
+                       (substTemplate mainVars main_template)
+
           BS.writeFile (outD </> name <.> "cabal")
                        (substTemplate vars cabal_template)
 
