@@ -442,16 +442,21 @@ hsTyDeclDefADT env me@TCTyDecl { .. } =
 
   where
   fldT :: (Label, (Type, a)) -> (Label, Term)
-  fldT (f,(t, _)) = (f, hsType env t) -- FIXME: this erases BitData info
+  fldT (f,(t, _)) = (f, hsType env t)
 
 
   fldT' :: (Label, Type) -> (Label, Term)
-  fldT' (f,t) = (f, hsType env t) -- FIXME: this erases BitData info
+  fldT' (f,t) = (f, hsType env t)
 
   jsinst body = declare Instance
                 { instOverlaps = Normal
-                , instAsmps = [ aps "RTS.ToJSON" [ hsType env (TVar a) ]
-                              | a <- tctyParams, tvarKind a == KValue ]
+                , instAsmps = [ c
+                              | a <- tctyParams, tvarKind a == KValue
+                              , let v = hsType env (TVar a)
+                              , c <- [ "RTS.ToJSON" `Ap` v
+                                     , "RTS.DDL" `Ap` v
+                                     ]
+                              ]
                 , instHead = "RTS.ToJSON" `Ap` hsThisTy env me
                 , instMethods = [ Fun ValueFun ("toJSON" `Ap` "x") body ]
                 }
