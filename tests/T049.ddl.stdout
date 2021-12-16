@@ -3,8 +3,8 @@ module T049
 --- Imports:
  
 --- Type defs:
-type T049.V = Choose { null: {}
-                     ; num: uint 8
+type T049.V = Choose { num: uint 8
+                     ; null: {}
                      }
  
 type T049.TDDef = Choose { stream: T049.V

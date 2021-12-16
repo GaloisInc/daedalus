@@ -32,7 +32,7 @@ def Main = {
         CheckDateTime ldt imgHeader.idatim ;
 
         -- parse the bytes in the data segment
-        -- imgData = Many imglens.li Byte ;
+        imgData = @Many imglens.li Byte ;
       };
 
     -- parse each graphic segment:
@@ -74,5 +74,9 @@ def Main = {
       } ;
 
     -- TEST: enable to fail JITC Neg Format cases
-    -- END;
+    END;
+
+    -- trailing_unparsed = ( { END ; ^ ['a']}
+    --   | Many UInt8
+    -- );
 }

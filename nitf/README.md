@@ -30,3 +30,77 @@ To test the DaeDaLus parser on the JITC sample files,
 ```
 > ./test_jitc.sh
 ```
+
+# Generating the C++ NITF parser #
+
+```
+cabal run daedalus -- nitf/nitf_main.ddl --compile-c++ --out-dir=nitf_cpp_parser
+cd nitf_cpp_parser
+make parser
+```
+
+# Comparison with other NITF parsing tools #
+
+The following two sections are notes for how to run the NITRO tools or GDAL tools.
+They require to be adapted to the local machine.
+
+## Testing NITRO parser ##
+
+The following instructions are just notes and would likely require to be adapted.
+
+Get NITRO at
+https://github.com/mdaus/nitro
+
+```bash
+git clone https://github.com/mdaus/nitro
+```
+
+Start a docker container from a base Ubuntu image and run the following commands, making sure the NITRO repo is volume mounted
+
+```bash
+apt-get update
+apt-get install cmake -y
+apt-get install g++
+apt-get install python3
+apt-get install python3-pip
+pip install numpy
+apt-get install libgmp-dev # required to build daedalus c++ parsers
+
+<FROM nitro repo>
+mkdir build
+cd build
+cmake ..
+cmake --build . -j
+cmake --build . --target install
+ctest
+
+<save the docker image using docker save>
+
+docker run -it \
+  -v <PATH>/NITF/NITRO/nitro:/nitro \
+  -v /tmp/JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1:/tmp/JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1:ro \
+  -v /tmp/gwg.nga.mil_samples:/tmp/gwg.nga.mil_samples:ro \
+  -v <PATH>/DAEDALUS/daedalus/nitf/:/daedalus/nitf \
+  -v <PATH>/DAEDALUS/daedalus/nitf_cpp_parser/:/daedalus/nitf_cpp_parser \
+  nitro:v2 \
+  /bin/bash
+
+# modify regression.sh so that it runs the NITRO  parser
+```
+
+## Testing GDAL parser ##
+
+The GDAL repo is available at the following address but it not necessary
+https://github.com/OSGeo/gdal
+
+```
+docker pull osgeo/gdal:latest
+docker run -it \
+  -v /tmp/gwg.nga.mil_samples:/tmp/gwg.nga.mil_samples:ro \
+  -v /tmp/JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1:/tmp/JITC\ -\ NITF\ Test\ Data\ -\ Set\ 1:ro \
+  -v <PATH>/DAEDALUS/daedalus/nitf:/daedalus/nitf \
+  osgeo/gdal:latest \
+  /bin/bash
+
+# modify regression.sh so that it runs the GDAL  parser
+```

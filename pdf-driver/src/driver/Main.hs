@@ -17,7 +17,8 @@ import Text.PrettyPrint hiding ((<>))
 import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate,try,throwIO)
-import RTS.Numeric(intToSize, fromUInt)
+
+import RTS.Numeric(intToSize, fromUInt,sizeToInt)
 import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
 import RTS.Input
 
@@ -25,7 +26,7 @@ import Data.Char(isDigit)
 
 import Common
 import PdfMonad
-import XRef
+import XRef(findStartXRef, parseXRefsVersion1)
 import PdfParser
 import PdfDemo
 import PdfExtractText
@@ -155,9 +156,9 @@ fmtDriver fmt file pageTreeParser pwd =
               Left err -> xrefMissing fmt err >> exitFailure
               Right idx -> pure idx
 
-     xrefFound fmt idx
+     xrefFound fmt (sizeToInt idx)
      (refs, trail) <-
-       parseXRefs topInput idx >>= \res ->
+       parseXRefsVersion1 topInput idx >>= \res ->
          case res of
            ParseOk a    -> pure a
            ParseAmbig _ -> error "BUG: Ambiguous XRef table."
@@ -175,8 +176,8 @@ fmtDriver fmt file pageTreeParser pwd =
      res <- runParser refs Nothing (pageTreeParser root) topInput
      case res of
        ParseOk r    -> catalogParsed fmt (show r)
-       ParseAmbig _  -> error "BUG: Validation of the catalog is ambiguous?"
-       ParseErr e    -> catalogParseError fmt e
+       ParseAmbig _ -> error "BUG: Validation of the catalog is ambiguous?"
+       ParseErr e   -> catalogParseError fmt e
 
      mb <- try (makeEncContext trail refs topInput pwd)
      case mb of
@@ -263,7 +264,7 @@ driverValidate opts = runReport opts $
                Right idx -> return idx
 
      (refs, root, trail) <-
-            liftIO (parseXRefs topInput idx) >>= \res ->
+            liftIO (parseXRefsVersion1 topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
@@ -307,7 +308,7 @@ driverExtractText opts = runReport opts $
                Right idx -> return idx
 
      (refs, root, trail) <-
-            liftIO (parseXRefs topInput idx) >>= \res ->
+            liftIO (parseXRefsVersion1 topInput idx) >>= \res ->
             case res of
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->

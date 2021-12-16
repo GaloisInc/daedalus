@@ -246,11 +246,10 @@ choose bs = do
 
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
-  tys  <- getTypeDefs
   funs <- getFunDefs
   lenv <- ask
   env  <- getIEnv  
-  inSolver (runSemiSolverM tys funs lenv env m)  
+  inSolver (runSemiSolverM funs lenv env m)  
 
 synthesiseExpr :: Expr -> SymbolicM SemiSExpr
 synthesiseExpr = liftSemiSolverM . semiExecExpr

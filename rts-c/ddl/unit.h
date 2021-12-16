@@ -2,10 +2,19 @@
 #define DDL_UNIT_H
 
 #include <iostream>
+#include <ddl/size.h>
 #include <ddl/value.h>
+#include <ddl/number.h>
 
 namespace DDL {
-class Unit : public Value {};
+struct Unit : public Value {
+
+  static constexpr Width bitWidth = 0;
+
+  UInt<bitWidth> toBits()                { return UInt<bitWidth>(0); }
+  static Unit fromBits(UInt<bitWidth> x) { return Unit{}; }
+  static bool isValid(UInt<bitWidth> x)  { return true; }
+};
 
 inline
 std::ostream& operator<<(std::ostream& os, Unit x) {

@@ -28,7 +28,7 @@ type ObjIndex = Map R ObjLoc -- Maps opbject ids to their locations.
 
 data ObjLoc = InFileAt !Int   -- ^ At this index
             | InObj !R !Int   -- ^ In this object stream, at this index.
-              deriving Show
+              deriving (Eq,Ord,Show)
 
 newtype PdfT m a = P (RO -> RW -> m (a,RW))
 

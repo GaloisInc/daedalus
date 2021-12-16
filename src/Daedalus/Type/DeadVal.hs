@@ -438,14 +438,14 @@ noSem' tc =
                 -- fold body has not effect, and we don't care about result
                 case texprValue m' of
                   TCPure {} ->
-                    pure $ pure ( exprAt tc (TCPure (exprAt tc TCUnit))
+                    pure $ pure ( exprAt tc (TCPure (exprAt tc tcUnit))
                                 , Set.empty
                                 )
                   _ ->
                     pure do guard (not (Some x `Set.member` i)) -- state unused
 
                             let v' = x { tcType = tUnit }
-                                lp' = lp { loopFlav = Fold v' (exprAt tc TCUnit)
+                                lp' = lp { loopFlav = Fold v' (exprAt tc tcUnit)
                                          , loopBody = m'
                                          , loopType = tGrammar tUnit
                                          }
@@ -540,7 +540,7 @@ noSemUni ::
 noSemUni tc c ms = exprAt tc (TCChoice c ms tUnit)
 
 noSemPure :: HasRange r => r -> TC SourceRange Grammar
-noSemPure tc = exprAt tc (TCPure (exprAt tc TCUnit))
+noSemPure tc = exprAt tc (TCPure (exprAt tc tcUnit))
 
 mkDo :: HasRange r =>
         r ->
@@ -551,7 +551,7 @@ mkDo :: HasRange r =>
 mkDo r x m1 m2
   | Type (TGrammar (Type TUnit)) <- typeOf m1
   , TCPure e <- texprValue m2
-  , TCUnit   <- texprValue e
+  , isTCUnit (texprValue e)
     = m1
 
   | Nothing <- x

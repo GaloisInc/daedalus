@@ -12,6 +12,8 @@ import Type1Font
 import Type3Font
 import Unicode
 
+import Debug
+
 -- TODO: indirect deps
 import CMap
 import CIDFont
@@ -136,10 +138,25 @@ def ExtractString (q: textState) (szFont: sizedFont) (s : [ uint 8 ]) :
   ; trueType fontTT -> ExtractStringType1 fontTT s
   }
 
-def ExtractString_Composite (f: Type0Font) (q: textState) (s : [ uint 8 ]) :
+def ExtractString_Composite (font: Type0Font) (q: textState) (s : [ uint 8 ]) :
   [ UTF8 ] = {
-  -- TODO: use f to encode character codes in UTF
-  WithStream (arrayStream s) (Many UTF81Code)
+  Trace (concat ["ExtractString_Composite(", s, ")"]);
+  case font.toUnicode of
+    just cmap ->
+      {
+        -- FIXME: copied from ExtractStringType1, not tested!
+        @cps = concat (map (c in s) (MapLookupCodepoint (c as int) cmap));
+        @s = map (cp in cps) (codePointToUTF8 cp);
+        @s_ = concat (map (c in s) (utf8CharBytes c));
+        Trace (concat[" results=(",s_,")"]);
+        ^ s;
+      }
+    nothing ->
+      {
+        Trace (" - nothing");
+        WithStream (arrayStream s) (Many UTF81Code)
+      }
+  
 }
 
 def filler = [ mkUTF81 (bytes1 '.') ]

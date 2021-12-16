@@ -42,6 +42,7 @@ import Data.Int
 import Data.Coerce(coerce)
 import Data.List(unfoldr)
 
+import RTS.JSON
 import RTS.Numeric
 import RTS.Base
 
@@ -426,4 +427,5 @@ instance (VecElem a, VecElem b) => IsMapLoop (Vector a) (Vector b) where
   {-# INLINE loopMap #-}
   {-# INLINE loopIMap #-}
 
-
+instance (VecElem a, ToJSON a) => ToJSON (Vector a) where
+  toJSON = jsArray . map toJSON . toList

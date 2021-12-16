@@ -9,9 +9,12 @@ import qualified Data.ByteString.Char8 as C
 data Command =
     PrettyPrint
   | PrettyPrintAll
-  | Validate
+  | Validate          -- FIXME: Misnomer: just validates trailer. 
   | ListXRefs
-  | ParseType String  -- only allowable strings {"Value"}
+  | ParseType String  -- string must be name of a select few parsers (see Main.hs)
+  | ListIncUpdates
+  | ListCavities
+  | ParseValue
   | ShowHelp
 
   -- | ShowEncrypt  
@@ -28,7 +31,7 @@ options :: OptSpec Settings
 options = OptSpec
   { progDefaults =
       Settings
-        { command     = Validate
+        { command     = Validate  -- FIXME: remove or change default
         , object      = -1    -- means show trailer
         , generation  = 0
         , password    = C.empty 
@@ -38,10 +41,18 @@ options = OptSpec
   , progOptions =
       [ Option [] ["xrefs"]
         "List the cross-reference table."
-      $ NoArg $ \s -> Right s { command = ListXRefs }
+        $ NoArg $ \s -> Right s { command = ListXRefs }
+
+      , Option [] ["updates"]
+        "List incremental updates."
+        $ NoArg $ \s -> Right s { command = ListIncUpdates }
+
+      , Option [] ["cavities"]
+        "List cavities (in each incr. update)."
+        $ NoArg $ \s -> Right s { command = ListCavities }
 
       , Option [] ["pp"]
-        "Pretty print trailier or the reference --obj --gen"
+        "Pretty print trailer or the reference --obj --gen"
         $ NoArg \s -> Right s { command = PrettyPrint }
 
       -- , Option [] ["enc"]

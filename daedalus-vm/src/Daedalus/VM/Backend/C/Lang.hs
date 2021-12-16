@@ -123,12 +123,15 @@ cBlock xs = vcat [ "{" <+> vcat xs, "}" ]
 
 cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> [CStmt] -> CStmt
 cDefineCon name params is stmts =
-  hang (cCall name params) 2 initializers <+> "{" $$ nest 2 (vcat stmts) $$ "}"
+  hang (cCall name params) 2 initializers <+> body
   where
   initializers = case is of
                    [] -> empty
                    _  -> ":" <+> fsep (punctuate comma (map doInit is))
   doInit (x,y) = x <.> parens y
+  body = case stmts of
+          [] -> "{}"
+          _  -> "{" $$ nest 2 (vcat stmts) $$ "}"
 
 cDefineFun :: CType -> CIdent -> [CExpr] -> [CStmt] -> CStmt
 cDefineFun ty name params stmts =
@@ -140,10 +143,6 @@ cDefineFun ty name params stmts =
 cDeclareFun :: CType -> CIdent -> [CType] -> CDecl
 cDeclareFun ty name params = cStmt decl
   where decl = ty <+> name P.<> parens (fsep (punctuate comma params))
-
-cUnion :: CIdent -> [CDecl] -> CDecl
-cUnion n as =
-  cStmt ("union" <+> n <+> "{" $$ nest 2 (vcat as) $$ "}")
 
 cNamespace :: CIdent -> [CDecl] -> CDecl
 cNamespace nm d =

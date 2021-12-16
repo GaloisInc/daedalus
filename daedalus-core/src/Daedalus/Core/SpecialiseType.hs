@@ -119,7 +119,8 @@ instantiateTDecl orig new td =
     def' = case tDef td of
              TStruct ls -> TStruct (goLabeled ls)
              TUnion  ls -> TUnion  (goLabeled ls)
-             
+             TBitdata b d -> TBitdata b d -- nothing to instnatiate here
+
     goTy ty =
       case ty of
         TStream   -> ty

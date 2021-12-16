@@ -582,7 +582,7 @@ inferExpr expr =
                  do unify tBool (e1,t)
                     let pat = TCBoolPat True
                         alt = TCAlt [pat]
-                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                                (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
                          , tGrammar tUnit
                          )
@@ -593,7 +593,7 @@ inferExpr expr =
                  do unify tBool (e1,t)
                     let pat = TCBoolPat False
                         alt = TCAlt [pat]
-                                (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                                (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure ( exprAt expr (TCCase e1 (alt :| []) Nothing)
                          , tGrammar tUnit
                          )
@@ -603,7 +603,7 @@ inferExpr expr =
                  liftApp [e] \ ~[(e1,t)] ->
                  do unify (tMaybe a) (e,t)
                     let pat = TCNothingPat a
-                        alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr TCUnit)
+                        alt = TCAlt [pat] (exprAt expr $ TCPure $ exprAt expr tcUnit)
                     pure (exprAt expr (TCCase e1 (alt :| []) Nothing), tGrammar tUnit)
 
                SelJust ->
@@ -834,7 +834,7 @@ inferExpr expr =
       do (e1,_t) <- inferExpr e
          pure ( exprAt expr $ TCDo Nothing e1
               $ exprAt expr $ TCPure
-              $ exprAt expr $ TCUnit
+              $ exprAt expr $ tcUnit
               , tGrammar tUnit
               )
 
@@ -1182,7 +1182,7 @@ inferCase rng e ps =
                  do ctx <- getContext
                     case ctx of
                       AGrammar -> pure (addBind s expr1)
-                      _ -> panic "inferCase" [ "Lifted in non-grammar context"]
+                      _ -> reportError e "Found a parser, but expecte a value"
      pure (expr, tOut)
 
 
@@ -1596,17 +1596,15 @@ pureStruct r ls ts es
   | l : _ <- repeated =
       reportError r ("Multiple entries for field" <+> backticks (pp l))
   | otherwise =
-    case ls of
-      [] -> pure (exprAt r TCUnit, tUnit)
-      _  -> do ty <- newTVar r KValue
-               nm <- newTyDefName
-               addConstraint r $
-                  StructCon nm ty
-                    [ (l, Located { thingRange = range e, thingValue = t })
-                    | l <- ls
-                    | e <- es
-                    | t <- ts
-                    ]
-               pure (exprAt r (TCStruct (zip ls es) ty), ty)
+    do ty <- newTVar r KValue
+       nm <- newTyDefName
+       addConstraint r $
+          StructCon nm ty
+            [ (l, Located { thingRange = range e, thingValue = t })
+            | l <- ls
+            | e <- es
+            | t <- ts
+            ]
+       pure (exprAt r (TCStruct (zip ls es) ty), ty)
   where
   repeated = [ l | (l : _ : _) <- group (sort ls) ]

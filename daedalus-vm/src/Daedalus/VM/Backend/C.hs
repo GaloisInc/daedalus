@@ -28,6 +28,7 @@ import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
 import Daedalus.VM.Backend.C.UserDefined
+import Daedalus.VM.Backend.C.Bitdata(bdCase,bdCaseDflt)
 import Daedalus.VM.Backend.C.Call
 
 
@@ -53,7 +54,7 @@ cProgram fileNameRoot prog =
           , " "
           , includes
           , " "
-          , let (ds,defs) = unzip (map cTypeGroup allTypes)
+          , let (ds,defs) = unzip (map (cTypeGroup allTypesMap) allTypes)
             in vcat' (ds ++ defs)
           , " "
           , "// --- Parsing Functions ---"
@@ -87,7 +88,9 @@ cProgram fileNameRoot prog =
                ] ++
 
                map cFunSig noPrims ++
-               (let ?allFuns = allFunMap in mapMaybe cFun noCapFun) ++
+               (let ?allFuns = allFunMap
+                    ?allTypes = allTypesMap
+                in mapMaybe cFun noCapFun) ++
 
                [ parserSig <+> "{"
                , nest 2 parserDef
@@ -101,6 +104,7 @@ cProgram fileNameRoot prog =
   modDeps m      = (mName m, Set.fromList (mImports m))
 
   allTypes       = concatMap mTypes orderedModules
+  allTypesMap    = Map.fromList [ (Src.tName d, d) | d <- forgetRecs allTypes ]
   allFuns        = concatMap mFuns orderedModules
   allFunMap      = Map.fromList [ (vmfName f, f) | f <- allFuns ]
 
@@ -111,6 +115,7 @@ cProgram fileNameRoot prog =
   doBlock b      = let ?allFuns = allFunMap
                        ?allBlocks = allBlocks
                        ?captures = Capture
+                       ?allTypes = allTypesMap
                    in cBasicBlock b
 
   parserDef      = vcat [ "DDL::ParserState p;"
@@ -147,6 +152,7 @@ cProgram fileNameRoot prog =
          , "#include <ddl/bool.h>"
          , "#include <ddl/number.h>"
          , "#include <ddl/float.h>"
+         , "#include <ddl/bitdata.h>"
          , "#include <ddl/integer.h>"
          , "#include <ddl/cast.h>"
          , "#include <ddl/maybe.h>"
@@ -157,6 +163,7 @@ cProgram fileNameRoot prog =
 
 
 type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
+type AllTypes   = (?allTypes  :: Map Src.TName Src.TDecl)
 type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
@@ -246,7 +253,7 @@ cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
   retTy   = cSemType (Src.fnameType (vmfName fun))
   retArgs = [ "DDL::ParserState&", cPtrT retTy, cPtrT (cSemType Src.TStream) ]
 
-cFun :: (AllFuns) => VMFun -> Maybe CDecl
+cFun :: (AllTypes,AllFuns) => VMFun -> Maybe CDecl
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> Nothing
@@ -283,7 +290,7 @@ cFun fun =
 --------------------------------------------------------------------------------
 
 
-cBasicBlock :: (AllFuns,AllBlocks,CaptureFun) => Block -> CStmt
+cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun) => Block -> CStmt
 cBasicBlock b = "//" <+> text (show (blockType b))
              $$ cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
@@ -444,6 +451,10 @@ cOp1 x op1 ~[e'] =
               Src.TInteger  -> cInst "DDL::uint_to_integer" [sz from]
               Src.TUInt to  -> cInst "DDL::uint_to_uint" [sz from, sz to]
               Src.TSInt to  -> cInst "DDL::uint_to_sint" [sz from, sz to]
+              Src.TUser ut
+                | let nm = Src.utName ut
+                , Src.tnameBD nm -> cTNameUse GenPublic nm <.> "::fromBits"
+
               _             -> bad "Unexpected target type"
 
           Src.TSInt from ->
@@ -459,6 +470,14 @@ cOp1 x op1 ~[e'] =
               Src.TUInt to  -> cInst "DDL::integer_to_uint" [sz to]
               Src.TSInt to  -> cInst "DDL::integer_to_sint" [sz to]
               _             -> bad "Unexpected target type"
+
+
+          Src.TUser ut
+            | let nm = Src.utName ut
+            , Src.tnameBD nm ->
+              case tgtT of
+                Src.TUInt {} -> "DDL::bitdata_to_uint"
+                _ -> bad "Unexpected target type"
 
           _ | srcT == tgtT -> cInst "DDL::refl_cast" [cSemType tgtT]
             | otherwise    -> bad "Unexpected source type"
@@ -675,7 +694,7 @@ cExpr expr =
 
 --------------------------------------------------------------------------------
 
-cTermStmt :: (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+cTermStmt :: (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
   CInstr -> [CStmt]
 cTermStmt ccInstr =
   case ccInstr of
@@ -822,7 +841,7 @@ cJump (JumpPoint l es) =
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
-cDoCase :: (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+cDoCase :: (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
            E -> Map Pattern JumpWithFree -> [CStmt]
 cDoCase e opts =
   case getType e of
@@ -844,7 +863,9 @@ cDoCase e opts =
 
     TSem (Src.TUInt _)  -> mkSwitch "rep" numPat
     TSem (Src.TSInt _)  -> mkSwitch "rep" numPat
-    TSem (Src.TUser {}) -> mkSwitch "getTag" conPat
+    TSem (Src.TUser ut)
+      | Src.tnameBD (Src.utName ut) -> mkBDSwitch ut
+      | otherwise -> mkSwitch "getTag" conPat
 
     ty -> panic "JumpIf" [ "`case` on unexpected type", show (pp ty) ]
 
@@ -865,6 +886,24 @@ cDoCase e opts =
     case getType e of
       TSem (Src.TUser ut) -> cSumTagV (Src.utName ut) l
       _ -> panic "cDoCase" [ "conPat on non-user type" ]
+
+  mkBDSwitch ut =
+    case Map.lookup (Src.utName ut) ?allTypes of
+      Just d ->
+        case Src.tDef d of
+          Src.TBitdata univ (Src.BDUnion fs) ->
+            [
+            let alts = [ (t, vcat (doChoice ch))
+                       | (PCon l,ch) <- Map.toList opts
+                       , Just t <- [lookup l fs]
+                       ]
+            in case dflt of
+                 Nothing -> bdCase False ?allTypes univ (cExpr e) alts
+                 Just x  -> bdCaseDflt False ?allTypes univ (cExpr e) alts
+                                                         (vcat (doChoice x))
+            ]
+          _ -> panic "mkBDSwitch" [ "Invalid switch", showPP ut ]
+      _ -> panic "mkBDSwitch" [ "Missing type", showPP ut ]
 
   mkSwitch getNum pToCase =
     let addDflt cs = case dflt of

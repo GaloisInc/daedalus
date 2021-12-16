@@ -58,11 +58,32 @@ instance ApSubst Type where
 instance ApSubst TCTyDef where
   apSubstT' su td =
     case td of
-      TCTyStruct mb fs -> TCTyStruct mb <$> someJusts apF fs
+      TCTyStruct mb fs ->
+        someJust2 TCTyStruct (apSubstT' su) (someJusts apFS) mb fs
       TCTyUnion fs  -> TCTyUnion  <$> someJusts apF fs
     where
     apF :: (Label, (Type, a)) -> Maybe (Label, (Type, a))
     apF (x,(t,m)) = (x,) <$> ((,) <$> apSubstT' su t <*> pure m)
+
+
+    apFS :: (Label, Type) -> Maybe (Label, Type)
+    apFS (x,t) = (x,) <$> apSubstT' su t
+
+instance ApSubst BDCon where
+  apSubstT' su c = newCon <$> someJusts (apSubstT' su) (bdFields c)
+    where newCon fs1 = c { bdFields = fs1 }
+
+instance ApSubst BDField where
+  apSubstT' su c = new <$> apSubstT' su (bdFieldType c)
+    where new x = c { bdFieldType = x }
+
+instance ApSubst BDFieldType where
+  apSubstT' su fi =
+    case fi of
+      BDData l t -> BDData l <$> apSubstT' su t
+      BDWild     -> Nothing
+      BDTag {}   -> Nothing
+
 
 instance ApSubst Constraint where
   apSubstT' su ctr =
@@ -102,6 +123,12 @@ instance ApSubst a => ApSubst (Located a) where
 
 instance ApSubst a => ApSubst [a] where
   apSubstT' su = someJusts (apSubstT' su)
+
+
+instance ApSubst a => ApSubst (Maybe a) where
+  apSubstT' su mb = case mb of
+                      Nothing -> Nothing
+                      Just a  -> Just <$> apSubstT' su a
 
 
 someJust2 :: (a -> b -> c) -> (a -> Maybe a) -> (b -> Maybe b) ->

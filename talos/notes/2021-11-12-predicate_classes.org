@@ -1,0 +1,37 @@
+
+<2021-11-12 Fri 14:55>
+
+* More predicate examples                                 :predicate_slicing:
+
+There are a number of different classes of predicates we want to
+support, depending on the class of type:
+
+- base types :: these are more useful for the non-symbolic strategies
+  1. 'this is true/false' is useful/necessary for discovering predicates, e.g. '(foo > 1) is true'
+  2. Most other predicates may or may not be useful (e.g. > 10)
+
+- list types :: including arrays, iterators, and builders
+  1. 'the list is at most/exactly N elements'.  If we represent the
+     list as nil/cons, this could be represented without a special
+     predicate, although for large lengths it could be expensive
+  2. 'each element matches P' or, 'forall x : xs, P x'
+
+- sum types :: these include user types, maybe
+  1. 'this is a V x, where P x', or, in DDL 'P (x is V)', where V is a constructor of the sum type, e.g. 
+  2. 'all constructors of this form match P', e.g. 
+
+     'def P x = case x of { Leaf v -> v is number; Node n -> { P n.left ; P n.right } }'
+
+     which are essentially 
+
+     'def P = fix R, Leaf -> number /\ Node -> { left: R, right: R }'.  
+
+     This is a generalisation of the list case.
+  
+- map types :: these are unordered in DDL, and are otherwise similar to lists
+  1. 'All key/values satisfy P'
+  2. 'The map contains at least/exactly k1, ..., kn satisfying P1, ..., P n'
+
+For PDF we are less interested in recusive predicates over general sum
+types, although we probably do want recursive predicates over
+list-like types (all elements match P).

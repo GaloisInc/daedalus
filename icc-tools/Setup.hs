@@ -29,7 +29,7 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath ["spec"]
-     let mods = [ "ICC" ]
+     let mods = [ "Parser", "Validator" ]
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $
@@ -45,7 +45,11 @@ compileDDL =
 
 cfg :: CompilerCfg
 cfg = CompilerCfg
-  { cPrims      = Map.empty
+  { cPrims      = Map.fromList
+                   [ ( primName "Debug" "Trace" AGrammar
+                     , aps "RTS.pTrace" [ "message" ]
+                     )
+                   ]
   , cParserType = "Parser"
   , cImports    = [ Import "RTS.Parser" Unqualified ]
   , cQualNames = UseQualNames

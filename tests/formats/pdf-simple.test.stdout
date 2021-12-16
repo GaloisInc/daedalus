@@ -26,8 +26,8 @@ type PdfValue.Dict0 = { key: [uint 8]
                       ; value: PdfValue.Value
                       }
  
-type PdfValue.Sign = Choose { neg: {}
-                            ; pos: {}
+type PdfValue.Sign = Choose { pos: {}
+                            ; neg: {}
                             }
  
 --- Rules:

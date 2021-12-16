@@ -212,23 +212,24 @@ semiExecCase c@(Case y pats) = do
 
 data SemiSolverEnv = SemiSolverEnv
   { localBoundNames :: Map Name SemiSExpr
-  , typeDefs        :: Map TName TDecl
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
   , interpEnv       :: I.Env
   , funDefs         :: Map FName (Fun Expr)
   }
 
+typeDefs :: SemiSolverEnv -> Map TName TDecl
+typeDefs = I.tEnv . interpEnv
+
 type SemiSolverM m = ReaderT SemiSolverEnv (SolverT m)
 
 runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
-                  Map TName TDecl ->
                   Map FName (Fun Expr) ->
                   Map Name SemiSExpr ->
                   I.Env ->
                   SemiSolverM m a -> SolverT m a
-runSemiSolverM tys funs lenv env m =
-  runReaderT m (SemiSolverEnv lenv tys env funs)
+runSemiSolverM funs lenv env m =
+  runReaderT m (SemiSolverEnv lenv env funs)
 
 
 semiExecExpr :: (HasGUID m, Monad m, MonadIO m) => Expr -> SemiSolverM m SemiSExpr
@@ -264,7 +265,9 @@ semiExecExpr expr =
     
 -- Might be able to just use the value instead of requiring t
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
-semiExecOp1 op _rty ty (VValue v) = pure $ VValue (evalOp1 op ty v)
+semiExecOp1 op _rty ty (VValue v) =
+  do env <- asks interpEnv
+     pure $ VValue (evalOp1 env op ty v)
 -- These operations are lazy in the value, so we can produce concrete
 -- values even though we have symbolic arguments
 semiExecOp1 EJust _rty _ty sv = pure (VMaybe (Just sv))

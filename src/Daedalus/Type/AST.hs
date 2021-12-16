@@ -193,7 +193,6 @@ data TCF :: HS -> Ctx -> HS where
    TCNothing    :: Type -> TCF a Value
    TCJust       :: TC a Value -> TCF a Value
 
-   TCUnit       :: TCF a Value
    TCStruct     :: [ (Label,TC a Value) ] -> Type -> TCF a Value
    -- The type is the type of the result,
    -- which should be a named struct type, possibly with some parameters.
@@ -303,24 +302,24 @@ data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
                   deriving (Eq,Ord,Show)
 
-data TCTyDef    = TCTyStruct (Maybe TCBDUnionMeta)
-                             [(Label, (Type, Maybe TCBitdataField))]
-                | TCTyUnion  [(Label, (Type, Maybe TCBDUnionMeta))]
+data TCTyDef    = TCTyStruct (Maybe BDCon)
+                             [(Label, Type)]
+                | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
                   deriving (Show, Eq)
 
-data TCBitdataField =
-  TCBitdataField { tcbdsLowBit :: !BDD.Width  -- ^ Start bit
-                 , tcbdsWidth  :: !BDD.Width  -- ^ Width of field
-                 } deriving (Show, Eq)
+data BDCon = BDCon
+  { bdPat     :: BDD.Pat        -- ^ All possible values that match this con
+  , bdFields  :: [BDField]      -- ^ Assumes sorted (most signifcant first)
+  } deriving (Eq,Show)
 
--- ^ The mask and value let us match the corresponding tag bits for
--- union constructors. This does not include the masks etc. for
--- sub-fields (which may also be unions).  We use Integer here as we
--- support arbitrary bit widths.
-data TCBDUnionMeta =
-  TCBDUnionMeta { tcbduMask :: !Integer   -- ^ Bits to consider
-                , tcbduBits :: !Integer   -- ^ Expected value
-                } deriving (Show, Eq)
+data BDField = BDField
+  { bdOffset    :: BDD.Width
+  , bdWidth     :: BDD.Width
+  , bdFieldType :: BDFieldType
+  } deriving (Eq,Show)
+
+data BDFieldType = BDWild | BDTag Integer | BDData Label Type
+  deriving (Eq,Show)
 
 
 data TCDecl a   = forall k.
@@ -494,7 +493,6 @@ instance PP (TCF a k) where
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
-      TCUnit        -> "{}"
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
 
       TCCall f [] []  -> pp f
@@ -606,11 +604,28 @@ instance PP TCTyDecl where
 instance PP TCTyDef where
   ppPrec _ d =
     case d of
-      TCTyStruct _ fs -> block "{" ";" "}" (map ppF fs)
+      TCTyStruct mb fs ->
+        case mb of
+          Nothing  -> block "{" ";" "}" (map ppS fs)
+          Just con -> pp con
       TCTyUnion  fs -> "Choose" <+> block "{" ";" "}" (map ppF fs)
 
     where
-    ppF (x,(t, _)) = pp x <.> ":" <+> pp t
+    ppS (x,t)      = pp x <.> ":" <+> pp t
+    ppF (x,(t, mb)) =
+      pp x <.> ":" <+> pp t <+>
+        case mb of
+          Nothing -> empty
+          Just p  -> vcat [ "--" <+> l | l <- map text (lines (show p)) ]
+
+instance PP BDCon where
+  pp c = block "[" "|" "]" (map pp (bdFields c)) -- XXX: show pattern?
+
+instance PP BDField where
+  pp f = case bdFieldType f of
+           BDWild     -> "_"  <+> brackets (pp (bdWidth f))
+           BDTag i    -> pp i <+> brackets (pp (bdWidth f))
+           BDData l t -> pp l <+> ":" <+> pp t
 
 instance PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
@@ -863,7 +878,14 @@ instance Eq TVar where
 instance Ord TVar where
   compare x y = compare (tvarId x) (tvarId y)
 
+tcUnit :: TCF a Value
+tcUnit = TCStruct [] (Type TUnit)
 
+isTCUnit :: TCF a Value -> Bool
+isTCUnit f =
+  case f of
+    TCStruct [] (Type TUnit) -> True
+    _                        -> False
 
 annotExpr :: a -> TCF a k -> TC a k
 annotExpr a e = TC TCAnnot { tcAnnot = a, tcAnnotExpr = e }
@@ -988,8 +1010,7 @@ instance TypeOf (TCF a k) where
       TCIf _ e _      -> typeOf e
 
       TCLiteral _ t   -> t
-      TCUnit          -> tUnit
-      TCNothing t     -> t
+      TCNothing t     -> tMaybe t
       TCJust e        -> tMaybe (typeOf e)
       TCStruct _ t    -> t
       TCArray _ t     -> tArray t

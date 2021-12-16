@@ -28,11 +28,10 @@ data ByteSet =
   | SetCase (Case ByteSet)
   deriving (Generic,NFData)
 
-bIf :: Name -> ByteSet -> ByteSet -> ByteSet
-bIf n b1 b2 = bCase n [ (PBool True, b1), (PBool False, b2) ]
-
-bCase :: Name -> [(Pattern,ByteSet)] -> ByteSet
-bCase n bs = SetCase (Case n bs)
+instance CoreSyn ByteSet where
+  coreLet       = SetLet
+  coreCase x ps = SetCase (Case x ps)
+  coreCall      = SetCall
 
 ebChildrenB ::
   Applicative f => (Expr -> f Expr) -> (ByteSet -> f ByteSet) ->

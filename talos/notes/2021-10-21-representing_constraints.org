@@ -1,0 +1,74 @@
+<2021-10-21 Thu 16:58>
+
+* Representing Constraints for Predicate Slicing          :predicate_slicing:
+
+For an example, consider we want values of the form 
+
+ P :== Foo ~> Bar ~> \top
+
+and have the code (in Core syntax)
+
+#+begin_src daedalus
+
+  def F x y = 
+    case x of
+      just -> fromJust x
+      nothing -> {| Foo: y |}
+
+  def G x z =
+    let y = case z of
+	      left  -> fromLeft  z
+	      right -> fromRight z
+    in F x y
+
+#+end_src
+
+calculating WP(F x y, P) looks like:
+
+#+begin_example
+
+WP(fromJust x, P)    = { x: just ~> P } 
+WP({| Foo : y |}, P) = { y: Bar ~> \top }
+
+WP(case x of ..., P) = 
+  ( (x: just ~> \top} \join (x: just ~> P) ) 
+      \or 
+  ( (x: nothing ~> \top ) \join (y: Bar ~> \top) )
+
+reduces to
+
+Q :== {x : just ~> P} \or { x : nothing ~> \top, y: Bar ~> \top }
+
+#+end_example
+
+then calculation WP(G x z, P) looks like
+
+#+begin_example
+
+WP(case z of ..., Bar ~> \top) = 
+  { z: left ~> Bar ~> \top } \or { z: right ~> Bar ~> \top }
+
+(which could be represented more compactly as { z : _ ~> Bar ~> \top } 
+but this example is somewhat artificial as both sides of the case have the same WP)
+
+WP(G x z, P) = 
+ {x : just ~> P} 
+  \or
+ { x : nothing ~> \top
+ , ({ z: left ~> Bar ~> \top } \or { z: right ~> Bar ~> \top }) }
+
+which is
+
+ {x : just ~> P} 
+  \or
+ { x : nothing ~> \top
+ , z: left ~> Bar ~> \top } 
+  \or
+ { x : nothing ~> \top
+ , z: right ~> Bar ~> \top }
+
+#+end_example
+
+So it seems, in general, we can use a sum-of-products representation,
+with potential space savings by having a more compact representation.
+

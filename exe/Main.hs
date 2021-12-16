@@ -4,13 +4,14 @@
 module Main where
 
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,forM_)
-import Data.Maybe(fromMaybe)
-import System.FilePath hiding (normalise,(<.>))
+import Data.Maybe(fromMaybe,fromJust)
+import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
@@ -23,7 +24,7 @@ import Text.Show.Pretty (ppDoc)
 
 import Hexdump
 
-import Daedalus.PP
+import Daedalus.PP hiding ((<.>))
 import Daedalus.SourceRange
 
 import Daedalus.Driver
@@ -36,6 +37,7 @@ import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
+import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
@@ -51,7 +53,7 @@ import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 
 import CommandLine
-import CPPDriver
+import Templates
 
 main :: IO ()
 main =
@@ -169,15 +171,7 @@ handleOptions opts
          DumpRaw -> error "Bug: DumpRaw"
          DumpTypes -> error "Bug: DumpTypes"
 
-         CompileHS ->
-            mapM_ (saveHS (optOutDir opts) cfg) allMods
-            where
-            cfg = CompilerCfg
-                    { cPrims      = Map.empty -- Don't support prims
-                    , cParserType = "Parser"
-                    , cImports    = [Import "RTS.Parser" Unqualified]
-                    , cQualNames  = UseQualNames
-                    }
+         CompileHS -> generateHS opts mm allMods
 
          CompileCPP ->
            -- XXX: this is a backend in a different sense
@@ -253,7 +247,7 @@ generateCPP opts mm =
   do let makeExe = null (optEntries opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
-           [ "Generating a parser executable requires an output director" ]
+           [ "Generating a parser executable requires an output directory" ]
 
      prog <- doToVM opts mm
      let outFileRoot = "main_parser" -- XXX: parameterize on this
@@ -274,11 +268,51 @@ generateCPP opts mm =
 
        when makeExe
          do let save (x,b) =
-                  do putStrLn ("Saving " ++ x)
-                     let d = dir </> takeDirectory x
+                  do let d = dir </> takeDirectory x
                      createDirectoryIfMissing True d
                      BS.writeFile (dir </> x) b
-            mapM_ save template_files
+            mapM_ save c_template_files
+
+generateHS :: Options -> ModuleName -> [ModuleName] -> Daedalus ()
+generateHS opts mainMod allMods =
+  do let makeExe = null (optEntries opts)
+     when (makeExe && optOutDir opts == Nothing)
+       $ ddlIO $ throwOptError
+           [ "Generating a parser executable requires an output directory" ]
+     mapM_ saveModule allMods
+     when makeExe $ ddlIO
+       do let outD = fromJust (optOutDir opts)
+              name = takeFileName outD
+              mkMod = Text.encodeUtf8 . Text.pack . hsIdentMod
+              vars = Map.fromList
+                       [ ("EXE", BS8.pack name)
+                       , ("AUTHOR", "Daedalus")
+                       , ("EMAIL", "unknown@email.com")
+                       , ("MODULES", BS8.intercalate "," (map mkMod allMods))
+                       ]
+
+              mainVars = Map.fromList
+                [ ("IMPORT", mkMod mainMod <> "(pMain)")
+                ]
+              Just main_template  = lookup "Main.hs" hs_template_files
+              Just cabal_template = lookup "template.cabal" hs_template_files
+
+
+          BS.writeFile (outD </> "Main.hs")
+                       (substTemplate mainVars main_template)
+
+          BS.writeFile (outD </> name <.> "cabal")
+                       (substTemplate vars cabal_template)
+
+  where
+  saveModule = saveHS (optOutDir opts) cfg
+  cfg = CompilerCfg
+          { cPrims      = Map.empty -- Don't support prims
+          , cParserType = "Parser"
+          , cImports    = [Import "RTS.Parser" Unqualified]
+          , cQualNames  = UseQualNames
+          }
+
 
 
 
@@ -429,7 +463,7 @@ dumpHTML jsData = vcat
   , "</html>"
   ]
   where
-  Just tstyle  = lookup "style.css" template_files
-  Just trender = lookup "render.js" template_files
+  Just tstyle  = lookup "style.css" html_files
+  Just trender = lookup "render.js" html_files
   bytes = text . BS8.unpack
 

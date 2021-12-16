@@ -40,19 +40,25 @@ data SigDecl = Sig
   }
 
 data FunDecl = Fun
-  { funLHS :: Term
+  { funNS  :: FunNS
+  , funLHS :: Term
   , funDef :: Term
   }
+
+data FunNS = TypeFun | ValueFun
 
 data DataDecl = Data { dataLHS :: Term
                      , dataCons :: [Term]
                      }
 
 data InstanceDecl = Instance
-  { instAsmps   :: [Term]
-  , instHead    :: Term
-  , instMethods :: [FunDecl]
+  { instOverlaps  :: Overlaps
+  , instAsmps     :: [Term]
+  , instHead      :: Term
+  , instMethods   :: [FunDecl]
   }
+
+data Overlaps = Normal | Overlaps
 
 data DerivingDecl = Deriving
   { deriveAsmps :: [Term]
@@ -108,8 +114,9 @@ instance PP Term where
       ApI o x y -> wrapIf (n > 0) (hang (ppPrec 1 x) 2 (text o <+> ppPrec 1 y))
       Tuple xs  -> parens (commas (map pp xs))
       List xs   -> brackets (commas (map pp xs))
+      Lam [] e  -> ppPrec n e
       Lam ps e  -> wrapIf (n > 0) $
-                   hang ("\\" <.> hsep (map (ppPrec 1) ps) <+> "->") 2 (pp e)
+                   hang ("\\" <.> hsep (map (ppPrec 2) ps) <+> "->") 2 (pp e)
       Raw x     -> text (show x)
       TyParam x -> "@" <.> ppPrec 2 x
       If x y z  -> wrapIf (n > 0) $
@@ -145,7 +152,10 @@ instance PP DataDecl where
 
 
 instance PP FunDecl where
-  pp Fun { .. } = hang (pp funLHS <+> "=") 2 (pp funDef)
+  pp Fun { .. } = hang (pref <+> pp funLHS <+> "=") 2 (pp funDef)
+    where pref = case funNS of
+                   ValueFun -> empty
+                   TypeFun  -> "type" <+> "instance"
 
 instance PP Qual where
   pp (Forall xs cs t) = hang vars 2 (hang ctrs 2 (pp t))
@@ -159,9 +169,12 @@ instance PP Qual where
              _   -> pp (Tuple cs) <+> "=>"
 
 instance PP InstanceDecl where
-  pp Instance { .. } = "instance" <+> pp qual <+> "where"
+  pp Instance { .. } = "instance" <+> pragma <+> pp qual <+> "where"
                       $$ nest 2 (vcat' (map pp instMethods))
       where qual = Forall [] instAsmps instHead
+            pragma = case instOverlaps of
+                       Normal -> empty
+                       Overlaps -> "{-# OVERLAPS #-}"
 
 instance PP DerivingDecl where
   pp Deriving { .. } = "deriving instance" <+> pp qual

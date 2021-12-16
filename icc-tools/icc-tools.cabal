@@ -12,8 +12,11 @@ copyright:           2021, Galois Inc
 -- category:
 build-type:          Custom
 extra-source-files:
+  spec/Debug.ddl
   spec/Daedalus.ddl
   spec/ICC.ddl
+  spec/Parser.ddl
+  spec/Validator.ddl
 
 custom-setup
   setup-depends:
@@ -27,13 +30,18 @@ library
   exposed-modules:
     ICC
     PP
+    Parser
+    Validator
 
   other-modules:
+    Debug
     Daedalus
 
   autogen-modules:
     ICC
     Daedalus
+    Parser
+    Validator
 
   build-depends:
     base,

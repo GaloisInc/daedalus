@@ -54,7 +54,6 @@ normaliseV tc =
 
     TCNothing t     -> NNothing (ntype t)
     TCJust e        -> NJust (normaliseV e)
-    TCUnit          -> NUnit
     TCStruct fs t   -> NStruct [(l, normaliseV v) | (l, v) <- fs] (ntype t)
     TCArray vs t    -> NArray (map normaliseV vs) (ntype t)
     TCArrayLength v -> NArrayLength (normaliseV v)

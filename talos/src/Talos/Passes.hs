@@ -41,7 +41,7 @@ nameConstArgsG gram = do
   gram' <- childrenG nameConstArgsG gram
   case gram' of
     Call fn args -> do
-      (bindss, args') <- unzip <$> zipWithM (nameArg fn) [0..] args
+      (bindss, args') <- unzip <$> zipWithM (nameArg fn) [0 :: Integer ..] args
       pure (foldl (\body' (v, e) -> Let v e body') (Call fn args') (concat bindss))
     _ -> pure gram'
 

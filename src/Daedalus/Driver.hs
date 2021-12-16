@@ -59,7 +59,7 @@ module Daedalus.Driver
 
     -- * Updating state externally
   , recordTCModule
-  
+
     -- * Options
   , ddlGetOpt
   , ddlSetOpt
@@ -844,7 +844,8 @@ saveHSCustomWriteFile ::
   Daedalus ()
 saveHSCustomWriteFile writeFile' mb cfg m =
   do ast <- ddlGetAST m astTC
-     let hs = HS.hsModule cfg ast
+     tdefs <- ddlGet declaredTypes
+     let hs = HS.hsModule cfg tdefs ast
      case mb of
        Nothing  -> ddlPrint (pp hs)
        Just dir ->

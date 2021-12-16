@@ -31,12 +31,14 @@ module Daedalus.Interp
 import GHC.Float(double2Float)
 import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
 
-import Data.Bits (shiftR, (.&.))
+import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
+import Data.List(foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
@@ -47,11 +49,13 @@ import qualified Data.Vector as Vector
 import Daedalus.SourceRange
 import Daedalus.PP hiding (empty)
 import Daedalus.Panic
+import qualified Daedalus.BDD as BDD
 
 import Daedalus.Value
 
 import qualified Daedalus.AST as K
-import Daedalus.Type.AST hiding (Value)
+import Daedalus.Type.AST hiding (Value, BDCon(..), BDField(..))
+import qualified Daedalus.Type.AST as AST
 import Daedalus.Rec (forgetRecs)
 
 
@@ -316,10 +320,16 @@ compilePureExpr env = go
         TCNothing _    -> VMaybe Nothing
         TCJust e       -> VMaybe (Just (go e))
 
-        TCUnit         -> vUnit
-        TCStruct fs _  -> vStruct (map (\(n, e) -> (n, go e)) fs)
+        TCStruct fs t  ->
+          let vs = [ (n,go e) | (n,e) <- fs ]
+          in case evalType env t of
+               TVBDStruct bd -> VBDStruct bd (bdStruct bd vs)
+               _             -> vStruct vs
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
-        TCIn lbl e _   -> VUnionElem lbl (go e)
+        TCIn lbl e t ->
+          case evalType env t of
+            TVBDUnion bd -> VBDUnion bd (vToBits (go e))
+            _ -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
                             Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
                             Just v  -> v
@@ -341,12 +351,6 @@ compilePureExpr env = go
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts es []
             Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
-
-        -- XXX: move to generic
-        TCCoerce _ t@(TCon {}) e ->
-          case evalBitData env e t of
-            Just v  -> v
-            Nothing -> panic "TCCoerceCheck" [ "Unexpeted coercion failre" ]
 
         TCCoerce _ t2 e -> fst (vCoerceTo (evalType env t2) (go e))
 
@@ -370,6 +374,8 @@ evalLiteral env t l =
         TVFloat       -> vFloat (fromIntegral n)
         TVDouble      -> vDouble (fromIntegral n)
         TVNum {}      -> panic "compilePureExpr" ["Kind error"]
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
         TVArray       -> bad
         TVMap         -> bad
         TVOther       -> bad
@@ -387,6 +393,8 @@ evalLiteral env t l =
         TVNum {}      -> bad
         TVArray       -> bad
         TVMap         -> bad
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
         TVOther       -> bad
 
     LPi ->
@@ -399,6 +407,8 @@ evalLiteral env t l =
         TVNum {}      -> bad
         TVArray       -> bad
         TVMap         -> bad
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
         TVOther       -> bad
 
   where
@@ -430,57 +440,18 @@ tryAlt eval env v (TCAlt ps e) =
      let newEnv = foldr (uncurry addVal) env binds
      pure (eval newEnv e)
 
-evalBitData :: HasRange a =>
-  Env ->
-  TC a K.Value ->
-  Type ->
-  Maybe Value
-evalBitData env e ty = go (valueToIntegral (compilePureExpr env e)) ty
-  where
-    go bits ty' =
-      case ty' of
-        Type (TUInt (Type (TNum w))) -> Just $ vUInt  (fromIntegral w) bits
-        TCon n [] | Just tdecl <- Map.lookup n (tyDecls env) -> goCon bits tdecl
-        _ -> panic "evalBitData"
-                   [ "Cannot coerce to type"
-                   , show (pp ty')
-                   ]
-
-    goCon bits tdecl =
-      case tctyDef tdecl of
-        TCTyStruct mb flds ->
-          do case mb of
-               Nothing -> pure ()
-               Just u  -> guard (matchU bits u)
-             vStruct <$> mapM (goS bits) flds
-        TCTyUnion  flds -> msum (map (goU bits) flds)
-
-    goS _bits (_, (_, Nothing)) =
-      panic "evalBitData" [ "Missing bitdata struct meta data"
-                          , show (pp ty)
-                          ]
-
-    goS bits (fld, (ty', Just sm)) =
-      (,) fld <$> go ((bits `shiftR` fromIntegral (tcbdsLowBit sm)) `mod` 2 ^  (tcbdsWidth sm)) ty'
-
-    matchU bits sm = bits .&. tcbduMask sm == tcbduBits sm
-
-    goU _bits (_, (_, Nothing)) =
-      panic "evalBitData" [ "Missing bitdata union meta data"
-                          , show (pp ty)
-                          ]
-    goU bits (fld, (ty', Just sm))
-      | matchU bits sm = VUnionElem fld <$> go bits ty'
-      | otherwise      = Nothing
-
 matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
 matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
 
 matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
 matchPat pat =
   case pat of
-    TCConPat _ l p    -> \v -> case valueToUnion v of
-                                 (l1,v1) | l == l1 -> matchPat p v1
+    TCConPat _ l p    -> \v -> case v of
+                                 VUnionElem l1 v1
+                                   | l == l1 -> matchPat p v1
+                                 VBDUnion t x
+                                   | bduMatches t l x ->
+                                     matchPat p (bduGet t l x)
                                  _ -> Nothing
     TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
                                   pure []
@@ -509,6 +480,10 @@ evalType :: Env -> Type -> TValue
 evalType env ty =
   case ty of
     TVar x -> lkpTy x
+    TCon c []
+      | Just decl <- Map.lookup c (tyDecls env)
+      , let name = Text.pack (show (pp (tctyName decl)))
+      , Just u <- tctyBD decl -> evalBitdataType env name u (tctyDef decl)
     TCon {} -> TVOther
     Type t0 ->
       case t0 of
@@ -541,6 +516,72 @@ evalType env ty =
               it      -> panic "evalType.tvInt" [ "Expected a number"
                                                 , "Got: " ++ show (pp it)
                                                 ]
+
+-- XXX: This reavaluates types over and over againg.  It might be
+-- better to evalute bitdata types in the environment once instead,
+-- and store them in the environemtn.
+evalBitdataType :: Env -> Text -> BDD.Pat -> TCTyDef -> TValue
+evalBitdataType env name u def =
+  case def of
+
+    TCTyStruct ~(Just bd) _ ->
+      let fs = AST.bdFields bd
+      in
+      TVBDStruct BDStruct
+        { bdName = name
+        , bdWidth  = BDD.width u
+        , bdGetField =
+            let mp =
+                  Map.fromList
+                    [ (l, inField (AST.bdOffset f) ty)
+                    | f <- fs
+                    , AST.BDData l ty <- [AST.bdFieldType f]
+                    ]
+            in \l -> case Map.lookup l mp of
+                       Just v  -> v
+                       Nothing -> panic "evalBitdataType"
+                                    [ "Missing field: " ++ showPP l ]
+        , bdStruct   = \fvs -> foldl' (outField fvs) 0 (AST.bdFields bd)
+        , bdValid    = BDD.willMatch u
+        , bdFields   = [ l | AST.BDData l _ <- map AST.bdFieldType fs ]
+        }
+
+    TCTyUnion fs ->
+      let mp = Map.fromList [ (l, (evalType env t,p)) | (l,(t,Just p)) <- fs ]
+      in
+      TVBDUnion BDUnion
+        { bduName  = name
+        , bduWidth = BDD.width u
+        , bduValid = BDD.willMatch u
+        , bduGet   =
+          \l -> case Map.lookup l mp of
+                  Just (t,_) -> vFromBits t
+                  Nothing -> panic ("bduGet@" ++ Text.unpack name)
+                                   ["Unknown constructor: " ++ showPP l]
+        , bduMatches =
+          \l -> BDD.willMatch
+                case Map.lookup l mp of
+                  Just (_,p) -> p
+                  Nothing -> panic ("bduMatches@" ++ Text.unpack name)
+                                   ["Unknown constructor: " ++ showPP l]
+        , bduCases = map fst fs
+        }
+
+
+  where
+  inField off t = \i -> vFromBits (evalType env t) (i `shiftR` off)
+  outField fs w f =
+    shiftL w (AST.bdWidth f) .|.
+    case AST.bdFieldType f of
+      AST.BDWild  -> 0
+      AST.BDTag n -> n
+      AST.BDData l _ ->
+        vToBits
+        case lookup l fs of
+          Just fv -> fv
+          Nothing -> panic "outField" ["Missing field value", showPP l ]
+
+
 
 compilePredicateExpr :: HasRange a => Env -> TC a K.Class -> ClassVal
 compilePredicateExpr env = go
@@ -774,18 +815,6 @@ compilePExpr env expr0 args = go expr0
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v args
             Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
-
-        -- BitData
-        -- XXX: should go in generic value
-        TCCoerceCheck  s _ t@(TCon {}) e ->
-          case evalBitData env e t of
-            Just v  -> pure $! mbSkip s v
-            Nothing -> pError FromSystem erng "value does not fit in target type"
-
-        -- XXX:  actually identty coercions between *any* type should work...
-        TCCoerceCheck  s t@(TCon {}) _ e ->
-          panic "compileExpr"
-            [ "XXX: Coercion from bitdata to word is not yet implemented." ]
 
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of

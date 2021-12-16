@@ -59,8 +59,30 @@ def HexDigit  =  Digit
               <| 10 + Match1 ('A' .. 'F') - 'A' as int
 
 def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
---------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------
+-- parsing the first 2 lines of PDF, the header
+
+def Header = { Match "%PDF-"
+             ; Choose1 { {Match "1."; Match1 ('0' .. '7'); ^{}}
+                       ; {Match "2.0"; ^{}}
+                       }
+             ; Many (Match1 (! ($lf | $cr)))  -- cavity
+             ; EOL
+             ; case Optional BinaryMarker of
+                 just _  -> ^ true         -- a binary file is indicated
+                 nothing -> ^ false
+             }
+
+def BinaryMarker = { Match "%";
+                     Many (4..) BinaryByte;
+                     Many (Match1 (! ($lf | $cr))); -- cavity
+                     EOL;
+                   }  
+
+def BinaryByte = { x = UInt8;
+                   Guard (x >= 128)
+                 }
 
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)

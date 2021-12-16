@@ -76,7 +76,10 @@ library
 
   exposed-modules:
     PdfMonad,
+    Logger,
     XRef,
+    Possibly,
+    IncUpdates,
     Primitives.Resolve,
     Primitives.Validate,
     Primitives.Deflate,
@@ -88,7 +91,7 @@ library
     PdfMonad.Release,
     PdfParserNotSpecialized,
     PdfParser,
-    
+
     -- copying the 'autogen-modules':
     Array,
     CIDFont,
@@ -107,6 +110,7 @@ library
     GlyphListNewFonts,
     GraphicsStateOps,
 --    ISOCodes,
+    PdfPP,
     JpegBasics,
     MacEncoding,
     MacExpert,
@@ -195,12 +199,18 @@ library
 
   build-depends:
     base,
+    base64-bytestring,
     bytestring,
-    containers,
-    zlib,
-    rts-hs, 
-    cryptonite,
     cereal, 
-    memory 
+    containers,
+    cryptonite,
+    daedalus-utils,
+    linguistic-ordinals,
+    memory,
+    pretty,
+    range-set-list,
+    rts-hs, 
+    text,
+    zlib
 
 
