@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
   }
 
   DDL::Input i;
-  if (fileArg > 0) {
+  if (fileArg == 0) {
     i = DDL::Input("(none)","");
   } else {
     char *file = argv[fileArg];
