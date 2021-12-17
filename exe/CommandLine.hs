@@ -41,6 +41,7 @@ data Options =
           , optInline    :: Bool
           , optStripFail :: Bool
           , optSpecTys   :: Bool
+          , optDeterminize :: Bool
           , optOutDir    :: Maybe FilePath
           , optNoWarnUnbiased :: Bool
           }
@@ -60,6 +61,7 @@ options = OptSpec
                            , optInline    = False
                            , optStripFail = False
                            , optSpecTys   = False
+                           , optDeterminize = False
                            , optOutDir    = Nothing
                            , optNoWarnUnbiased = False
                            }
@@ -152,6 +154,10 @@ options = OptSpec
       , Option [] ["spec-types"]
         "Specialise types"
         $ NoArg \o -> Right o { optSpecTys = True }
+
+      , Option [] ["determinize"]
+        "Determinize core"
+        $ NoArg \o -> Right o { optDeterminize = True }
 
       , Option [] ["entry"]
         "Generate a library containg this parser."
