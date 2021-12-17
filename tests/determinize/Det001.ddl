@@ -1,0 +1,24 @@
+def Main = { Simple1 ; SimpleNot1; Simple2; Simple3 }
+
+def Simple1 =
+    Match1 'a'
+  | Match1 'b'
+  | Match1 'c'
+  | Match1 'd'
+
+def SimpleNot1 =
+    Match1 'a'
+  | Match1 'b'
+  | Match1 'b'
+  | Match1 'd'
+
+def Simple2 =
+    @Match1 'a'
+  | @Match1 'b'
+  | @Match1 'c'
+
+def Simple3 =
+    { @x = Match1 'a' ; @Match1 'b'; ^ x }
+  | Match1 'b'
+  | { @x = Match1 'c' ; @Match1 'b'; ^ x + x }
+

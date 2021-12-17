@@ -1,0 +1,132 @@
+[WARNING] ./Det001.ddl:21:5--22:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:21:5--23:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:16:5--17:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:16:5--18:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--11:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--12:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--13:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--5:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--6:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--7:14:
+            Using unbiased choice may be inefficient.
+module Det001
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Det001.Simple3 : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { do (x : uint 8) <- Match {'a'}
+             @Match {'b'}
+             ($$ : uint 8) <- pure x
+             pure $$
+        | Match {'b'}
+        }
+    | do (x : uint 8) <- Match {'c'}
+         @Match {'b'}
+         ($$ : uint 8) <- pure (x + x)
+         pure $$
+    }
+ 
+Det001._Simple1 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { @Match {'a'}
+            | @Match {'b'}
+            }
+        | @Match {'c'}
+        }
+    | @Match {'d'}
+    }
+ 
+Det001._SimpleNot1 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { @Match {'a'}
+            | @Match {'b'}
+            }
+        | @Match {'b'}
+        }
+    | @Match {'d'}
+    }
+ 
+Det001._Simple2 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { @Match {'a'}
+        | @Match {'b'}
+        }
+    | @Match {'c'}
+    }
+ 
+Det001.Main : Grammar (uint 8) =
+  do Det001._Simple1
+     Det001._SimpleNot1
+     Det001._Simple2
+     ($$ : uint 8) <- Det001.Simple3
+     pure $$
+ 
+Det001.Simple1 : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Match {'a'}
+            | Match {'b'}
+            }
+        | Match {'c'}
+        }
+    | Match {'d'}
+    }
+ 
+Det001.SimpleNot1 : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { Match {'a'}
+            | Match {'b'}
+            }
+        | Match {'b'}
+        }
+    | Match {'d'}
+    }
+ 
+Det001.Simple2 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { @Match {'a'}
+        | @Match {'b'}
+        }
+    | @Match {'c'}
+    }
+ 
+Det001._Simple3 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { do @Match {'a'}
+             @Match {'b'}
+        | @Match {'b'}
+        }
+    | do @Match {'c'}
+         @Match {'b'}
+    }
+ 
+Det001._Main : Grammar {} =
+  do Det001._Simple1
+     Det001._SimpleNot1
+     Det001._Simple2
+     Det001._Simple3
