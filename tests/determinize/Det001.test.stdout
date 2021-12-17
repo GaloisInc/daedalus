@@ -1,0 +1,78 @@
+[WARNING] ./Det001.ddl:21:5--22:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:21:5--23:46:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:16:5--17:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:16:5--18:15:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--11:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--12:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:10:5--13:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--5:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--6:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:4:5--7:14:
+            Using unbiased choice may be inefficient.
+module DaedalusMain where
+ 
+ 
+-------------
+ 
+proc Simple3() : Word 8 =
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do let x = 97 @(Word 8)
+            match1_ { 98 @(Word 8) }
+            pure x
+       98 ->
+         pure (98 @(Word 8))
+       99 ->
+         do let x = 99 @(Word 8)
+            match1_ { 98 @(Word 8) }
+            pure (x + x)
+ 
+proc _Simple1() : () =
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         pure ()
+       98 ->
+         pure ()
+       99 ->
+         pure ()
+       100 ->
+         pure ()
+ 
+proc _SimpleNot1() : () =
+    fork
+        fork
+            fork
+              match1_ { 97 @(Word 8) }
+            fork
+              match1_ { 98 @(Word 8) }
+        fork
+          match1_ { 98 @(Word 8) }
+    fork
+      match1_ { 100 @(Word 8) }
+ 
+proc _Simple2() : () =
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         pure ()
+       98 ->
+         pure ()
+       99 ->
+         pure ()
+ 
+proc Main() : Word 8 =
+  do _Simple1()
+     _SimpleNot1()
+     _Simple2()
+     Simple3()
