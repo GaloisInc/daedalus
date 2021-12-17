@@ -219,6 +219,7 @@ doToCore opts mm =
      when (optInline opts) (passInline ents specMod)
      when (optStripFail opts) (passStripFail specMod)
      when (optSpecTys opts) (passSpecTys specMod)
+     when (optDeterminize opts) (passDeterminize specMod)
      pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program

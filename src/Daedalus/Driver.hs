@@ -6,7 +6,7 @@
 module Daedalus.Driver
   ( Daedalus
   , daedalus
-  , daedalusPass  
+  , daedalusPass
   , ddlPassFromFile
   , ddlLoadModule
   , ddlGetPhaseMaybe
@@ -47,6 +47,7 @@ module Daedalus.Driver
   , passStripFail
   , passSpecTys
   , passConstFold
+  , passDeterminize
   , passVM
   , ddlRunPass
 
@@ -54,7 +55,7 @@ module Daedalus.Driver
   , State(..)
   , ddlState
   , ddlGet
-  , ddlUpdate_  
+  , ddlUpdate_
   , ddlSetState
 
     -- * Updating state externally
@@ -125,6 +126,7 @@ import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
+import qualified Daedalus.Core.Determinize as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -552,13 +554,13 @@ recordTCModule m1' = do
         foldr (\d -> Map.insert (tctyName d) d)
               (declaredTypes s)
               (forgetRecs (tcModuleTypes m1))
-   
+
     , ruleTypes =
         foldr (\d -> Map.insert (tcDeclName d) (declTypeOf d))
               (ruleTypes s)
               (forgetRecs (tcModuleDecls m1))
     }
-  
+
 -- | Typecheck this module
 tcModule :: Module -> Daedalus ()
 tcModule m =
@@ -704,7 +706,7 @@ passSpecialize tgt roots =
          tdecls = concat tdss
          decls = concat dss
          rootNames = concat rootss
-         
+
      mb <- getLoaded tgt
      case mb of
        Just _ ->
@@ -793,6 +795,16 @@ passConstFold m =
      case ph of
        CoreModue ast ->
          do i <- ddlRunPass (Core.constFold ast)
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passConstFold" ["Module is not in Core form"]
+
+passDeterminize :: ModuleName -> Daedalus ()
+passDeterminize m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do let i = Core.determinizeModule ast
             ddlUpdate_ \s ->
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
        _ -> panic "passConstFold" ["Module is not in Core form"]
