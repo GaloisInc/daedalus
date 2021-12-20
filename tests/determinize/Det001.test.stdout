@@ -27,13 +27,13 @@ proc Simple3() : Word 8 =
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
-         do let x = 97 @(Word 8)
+         do x <- pure (97 @(Word 8))
             match1_ { 98 @(Word 8) }
             pure x
        98 ->
          pure (98 @(Word 8))
        99 ->
-         do let x = 99 @(Word 8)
+         do x <- pure (99 @(Word 8))
             match1_ { 98 @(Word 8) }
             pure (x + x)
  

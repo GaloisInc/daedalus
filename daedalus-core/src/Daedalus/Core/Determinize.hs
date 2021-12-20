@@ -45,20 +45,29 @@ detGram g =
     Do_ g1 g2     -> Do_     (detGram g1) (detGram g2)
     Do name g1 g2 -> Do name (detGram g1) (detGram g2)
     Let name e g1 -> Let name e (detGram g1)
-    OrBiased {}    -> g
+    OrBiased {}    -> detOrUnbiased g
     OrUnbiased _ _ -> detOrUnbiased g
     Call {}  -> g
     Annot {} -> g
-    GCase {} -> g
+    GCase (Case name lst) ->
+      GCase (Case name (map (\ (pat, g1) -> (pat, detGram g1)) lst))
 
+
+data ZMatch =
+    ZMatchByte
+  | ZMatchBytes
+  | ZMatchEnd
 
 data ZGrammar =
-    ZTop
+    ZMatch Sem ZMatch
   | ZDo_ Grammar
   | ZDo Name Grammar
-  | ZYesSem
+  | ZAnnot Annot
 
 type ZipGrammar = [ ZGrammar ]
+
+emptyZipGrammar :: ZipGrammar
+emptyZipGrammar = []
 
 detOrUnbiased :: Grammar -> Grammar
 detOrUnbiased g =
@@ -73,7 +82,7 @@ detOrUnbiased g =
     Nothing  -> g
     Just a ->
       if checkNonOverlapping a
-      then translateToCase a
+      then trace "YEAH" $ translateToCase a
       else g
 
   where
@@ -81,35 +90,41 @@ detOrUnbiased g =
   listOrUnbiased g =
     case g of
       OrUnbiased g1 g2 -> listOrUnbiased g1 ++ listOrUnbiased g2
+      OrBiased   g1 g2 -> listOrUnbiased g1 ++ listOrUnbiased g2
       _                -> [g]
 
-  tryDet :: [Grammar] -> Maybe [(ByteSet, Sem, Maybe ZipGrammar)]
+  tryDet :: [Grammar] -> Maybe [(ByteSet, Sem, ZipGrammar)]
   tryDet lst =
     mapM closure lst
 
-  closure :: Grammar -> Maybe (ByteSet, Sem, Maybe ZipGrammar)
-  closure g =
-    case g of
-      Let {}    -> Nothing
-      Do_ g1 g2 ->
-        case g1 of
-          Match {} -> deriveMatch g1 (Just [ZDo_ g2])
-          _        -> Nothing
-      Do name g1 g2 ->
-        case g1 of
-          Match {} -> deriveMatch g1 (Just [ZDo name g2])
-          _        -> Nothing
-      Match {} -> deriveMatch g Nothing
-      _        -> Nothing
+  closure :: Grammar -> Maybe (ByteSet, Sem, ZipGrammar)
+  closure gram =
+    closureGo gram emptyZipGrammar
+    where
+    closureGo :: Grammar -> ZipGrammar -> Maybe (ByteSet, Sem, ZipGrammar)
+    closureGo g z =
+      case g of
+        Let {}    -> Nothing
+        Do_ g1 g2 ->
+          case g1 of
+            Match {} -> deriveMatch g1 (ZDo_ g2 : z)
+            _        -> Nothing
+        Do name g1 g2 ->
+          case g1 of
+            Match {} -> deriveMatch g1 (ZDo name g2 : z)
+            _        -> Nothing
+        Match {} -> deriveMatch g z
+        Annot ann g1 -> closureGo g1 (ZAnnot ann : z)
+        _        -> Nothing
 
-  deriveMatch :: Grammar -> Maybe ZipGrammar -> Maybe (ByteSet, Sem, Maybe ZipGrammar)
+  deriveMatch :: Grammar -> ZipGrammar -> Maybe (ByteSet, Sem, ZipGrammar)
   deriveMatch (Match sem match) gCont =
     case match of
       MatchByte b ->
         case b of
           SetAny -> Just (b, sem, gCont)
-          SetSingle (Ap0 (IntL s (TUInt (TSize 8)))) ->
-            trace (show (pp s)) $ Just (b, sem, gCont)
+          SetSingle (Ap0 (IntL _s (TUInt (TSize 8)))) ->
+            Just (b, sem, (ZMatch sem ZMatchByte) : gCont)
           _ -> Nothing
       _ -> Nothing
   deriveMatch _ _ = error "function should be applied to Match"
@@ -125,18 +140,19 @@ detOrUnbiased g =
         else Nothing
       _      -> Nothing
 
-  checkNonOverlapping :: [(Set Integer, Sem, Maybe ZipGrammar)] -> Bool
+  checkNonOverlapping :: [(Set Integer, Sem, ZipGrammar)] -> Bool
   checkNonOverlapping [] = True
   checkNonOverlapping ((s, _, _) : rs) =
     if checkOnTail rs
     then checkNonOverlapping rs
     else False
+
     where
     checkOnTail [] = True
     checkOnTail ((t, _, _) : rest) = if Set.disjoint s t then checkOnTail rest else False
 
 
-  translateToCase :: [(Set Integer, Sem, Maybe ZipGrammar)] -> Grammar
+  translateToCase :: [(Set Integer, Sem, ZipGrammar)] -> Grammar
   translateToCase lst =
     let name = Name { nameId = firstValidGUID ,
                       nameText = Nothing,
@@ -149,21 +165,36 @@ detOrUnbiased g =
         (concatMap (\ (s, sem, g1) -> map (\ b -> buildCase (b, sem, g1)) (Set.toList s)) lst)))
 
     where
-    buildCase :: (Integer, Sem, Maybe ZipGrammar) -> (Pattern, Grammar)
-    buildCase (c, SemYes, Nothing) = (PNum c, Pure (Ap0 (IntL c (TUInt (TSize 8)))))
-    buildCase (c, SemNo, Nothing)  = (PNum c, Pure (Ap0 Unit))
-    buildCase (c, s,     Just g1) = (PNum c, buildContinuation c s g1)
+    buildCase :: (Integer, Sem, ZipGrammar) -> (Pattern, Grammar)
+    --buildCase (c, SemYes, Nothing) = (PNum c, Pure (Ap0 (IntL c (TUInt (TSize 8)))))
+    --buildCase (c, SemNo , Nothing) = (PNum c, Pure (Ap0 Unit))
+    buildCase (c, s     , g1) = (PNum c, buildContinuation c s g1)
 
     buildContinuation :: Integer -> Sem -> ZipGrammar -> Grammar
-    buildContinuation _ _ [] = Pure (Ap0 Unit)
-    buildContinuation c SemYes [ZDo_ g2] =
-      let name = Name { nameId = firstValidGUID ,
+    buildContinuation c SemYes (ZMatch _ (ZMatchByte) : zgram) =
+      let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
+      buildUp newBuilt zgram
+    buildContinuation _c SemNo (ZMatch _ (ZMatchByte) : zgram) =
+      let newBuilt = Pure (Ap0 Unit) in
+      buildUp newBuilt zgram
+    buildContinuation _ _ (ZMatch _ (_) : _) = error "Should not happen"
+    buildContinuation _ _ _ = error "Should not happen"
+
+
+    buildUp :: Grammar -> ZipGrammar -> Grammar
+    buildUp built [] =
+      built
+    buildUp built (ZDo_ g2 : z) =
+      {-let name = Name { nameId = firstValidGUID,
                         nameText = Nothing,
                         nameType = TUInt (TSize 8)
-                      } in
-      Let name (Ap0 (IntL c (TUInt (TSize 8)))) g2
-    buildContinuation _c SemNo [ZDo_ g2] = g2
-    buildContinuation c SemYes [ZDo name g2] =
-      Let name (Ap0 (IntL c (TUInt (TSize 8)))) g2
-    buildContinuation _c SemNo [ZDo _name g2] = g2
-    buildContinuation _ _ _ = Pure (Ap0 Unit)
+                      } in -}
+      let newBuilt = Do_ built g2 in
+      -- let newBuilt = Let name (Ap0 (IntL c (TUInt (TSize 8)))) g2 in
+      buildUp newBuilt z
+    buildUp built (ZDo name g2 : z) =
+      let newBuilt = Do name built g2 in
+      buildUp newBuilt z
+    buildUp built (ZAnnot ann : z) =
+      buildUp (Annot ann built) z
+    buildUp _ _ = error "case not handled"
