@@ -4,6 +4,7 @@ module Daedalus.Core.Determinize (determinizeModule) where
 
 import Debug.Trace(trace)
 
+import Data.Text (pack)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -75,15 +76,13 @@ detOrUnbiased g =
   let derLst = tryDet orLst in
   let linDerLst = do
         linLst <- derLst
-        traverse (\ (a, b, c) -> do { d <- charListFromByteSet a ; return (d, b, c) }) linLst
-        -- sequenceA (map (\ (a, b, c) -> do { d <- charListFromByteSet a ; return (d, b, c) })
+        forM linLst (\ (a, b, c) -> do { d <- charListFromByteSet a ; return (d, b, c) })
   in
   case linDerLst of
     Nothing  -> g
-    Just a ->
-      if checkNonOverlapping a
-      then trace "YEAH" $ translateToCase a
-      else g
+    Just a -> if checkNonOverlapping a
+              then translateToCase a
+              else g
 
   where
   listOrUnbiased :: Grammar -> [Grammar]
@@ -158,11 +157,12 @@ detOrUnbiased g =
                       nameText = Nothing,
                       nameType = TUInt (TSize 8)
                     } in
-    Do name (Match SemYes (MatchByte SetAny))
-     (GCase
-       (Case
-         name
-        (concatMap (\ (s, sem, g1) -> map (\ b -> buildCase (b, sem, g1)) (Set.toList s)) lst)))
+    Annot (SrcAnnot $ Data.Text.pack "DETERMINIZE HERE") $
+      Do name (Match SemYes (MatchByte SetAny))
+      (GCase
+        (Case
+          name
+          (concatMap (\ (s, sem, g1) -> map (\ b -> buildCase (b, sem, g1)) (Set.toList s)) lst)))
 
     where
     buildCase :: (Integer, Sem, ZipGrammar) -> (Pattern, Grammar)
@@ -182,8 +182,7 @@ detOrUnbiased g =
 
 
     buildUp :: Grammar -> ZipGrammar -> Grammar
-    buildUp built [] =
-      built
+    buildUp built [] = built
     buildUp built (ZDo_ g2 : z) =
       {-let name = Name { nameId = firstValidGUID,
                         nameText = Nothing,
