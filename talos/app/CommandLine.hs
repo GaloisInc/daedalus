@@ -6,6 +6,7 @@ module CommandLine ( Options(..)
                    ) where
 
 import Options.Applicative
+import Text.Read (readMaybe)
 
 data Outfile = AllOutput FilePath | PatOutput FilePath
 
@@ -28,8 +29,9 @@ data Options =
           , optMode :: Mode
           , optDDLEntry   :: Maybe String
           , optStrategy  :: Maybe String
-          , optInvFile    :: Maybe FilePath          
-          , optDDLInput  :: FilePath
+          , optInvFile    :: Maybe FilePath
+          , optCacheBounds :: Maybe (Int, Int)
+          , optDDLInput  :: FilePath          
           }
 
 solverOpt :: Parser String
@@ -96,6 +98,16 @@ invFileOpt = strOption
      <> short 'i'
      <> help "Inverse annotations" )
 
+cacheBoundsOpt :: Parser (Int, Int)
+cacheBoundsOpt = option (maybeReader parse)
+  (long "cache"
+   <> metavar "LOW,HIGH"
+   <> help "Cache solved paths" )
+  where
+    parse s = do
+      (ls, ',' : hs) <- pure (span ((/=) ',') s)
+      (,) <$> readMaybe ls <*> readMaybe hs
+
 
 allOutputOpt :: Parser String
 allOutputOpt = strOption
@@ -146,6 +158,7 @@ options = Options <$> solverOpt
                   <*> optional entryOpt
                   <*> optional strategyOpt
                   <*> optional invFileOpt
+                  <*> optional cacheBoundsOpt
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

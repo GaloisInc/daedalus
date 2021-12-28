@@ -75,7 +75,7 @@ doSynthesis opts = do
 
   strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts)
+            logOpt (optSeed opts) (optCacheBounds opts)
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines

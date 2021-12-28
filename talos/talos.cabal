@@ -47,6 +47,7 @@ library
                      , Talos.Strategy.Monad
                      , Talos.Strategy.DFST
                      , Talos.Strategy.SymbolicM
+                     , Talos.Strategy.PathCache
                      
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic

@@ -4,7 +4,7 @@
 
 {-# LANGUAGE TupleSections #-}
 module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, PathRootMap, makeDeclInvs
-                            , Summary (..), Summaries, IterM, AnalysisState(..)
+                            , Summary (..), Summaries, IterM, AnalysisState(..), SliceName(..)
                             , module Export) where
 
 import           Data.Map                     (Map)
@@ -41,6 +41,15 @@ data Summary =
           }
 
 type Summaries    = Map FName (Map SummaryClass Summary)
+
+-- The (unique) name of a slice that begins at a variable.
+data SliceName =
+  SliceName { snFunction :: FName
+            , snClass    :: SummaryClass
+            , snVar      :: Name
+            , snProj     :: FieldSet
+            }
+  deriving (Eq, Ord)
 
 --------------------------------------------------------------------------------
 -- Instances

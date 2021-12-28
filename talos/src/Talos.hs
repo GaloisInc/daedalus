@@ -58,6 +58,7 @@ import Daedalus.AST (nameScopeAsModScope)
 import Daedalus.Type.AST (tcModuleDecls, tcDeclName)
 import Daedalus.Rec (forgetRecs)
 import qualified Data.Map as Map
+import Talos.Strategy.PathCache (PathCachePolicy(CacheBounded, CacheNever))
 
 
 -- -- FIXME: move, maybe to GUID.hs?
@@ -117,8 +118,9 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe String       -- ^ Synthesis strategy 
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
+           -> Maybe (Int, Int)   -- ^ Path cache bounds
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = do
+synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed m_cacheBounds = do
   (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
   -- SMT init
@@ -137,6 +139,10 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
+  let pcp = case m_cacheBounds of
+        Nothing -> CacheNever
+        Just (l, h) -> CacheBounded l h
+
   let strat = case stratOpt of
              Nothing    -> allStrategies
              Just "all" -> allStrategies
@@ -148,7 +154,7 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  T.synthesise m_seed nguid solver strat mainRule md
+  T.synthesise m_seed nguid solver pcp strat mainRule md
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type

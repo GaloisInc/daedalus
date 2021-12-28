@@ -42,7 +42,7 @@ import RTS.Parser (runParser)
 import RTS.ParserAPI (Result(..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
-import           Talos.Analysis.Monad            (PathRootMap, Summary (..))
+import           Talos.Analysis.Monad            (PathRootMap, Summary (..), SliceName (SliceName, snFunction))
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
@@ -52,6 +52,9 @@ import           Talos.SymExec.StdLib
 import           Talos.Strategy
 import           Talos.Strategy.Monad
 import RTS.Input (newInput)
+import Talos.Strategy.PathCache
+import Talos.Analysis.EntangledVars (FieldSet)
+import System.IO (stdout, hFlush)
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -131,6 +134,7 @@ data SynthesisMState =
                   , provenances :: ProvenanceMap
                   , stratlist :: [Strategy]
                   , solverState :: SolverState
+                  , pathCache   :: PathCache
                   }
 
 newtype SynthesisM a =
@@ -175,9 +179,9 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> [Strategy] -> FName -> Module 
+synthesise :: Maybe Int -> GUID -> Solver -> PathCachePolicy -> [Strategy] -> FName -> Module 
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv strat root md = do
+synthesise m_seed nguid solv pcp strat root md = do
   let (allSummaries, nguid') = summarise md nguid
 
   -- We do this in one giant step to deal with recursion and deps on
@@ -198,29 +202,31 @@ synthesise m_seed nguid solv strat root md = do
 
   let sst0 = emptyStrategyMState gen allSummaries md nguid'
       solvSt0 = emptySolverState solv
+      pc0     = emptyPathCache pcp
       
   -- Init solver stdlib
   -- FIXME: probably move?
   makeStdLib solv 
 
-  Streams.fromGenerator (go sst0 solvSt0)
+  Streams.fromGenerator (go sst0 solvSt0 pc0)
   
   where
-    go :: StrategyMState -> SolverState -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go s0 solvSt = do
+    go :: StrategyMState -> SolverState -> PathCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go s0 solvSt pc = do
       ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
-                                               (initState solvSt)) s0
+                                               (initState solvSt pc)) s0
                        
       Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go sts (solverState s)
+      go sts (solverState s) (pathCache s)
 
-    initState solvSt = 
+    initState solvSt pc = 
       SynthesisMState { seenBytes      = mempty
                       , curStream      = emptyStream
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
                       , stratlist      = strat
                       , solverState    = solvSt
+                      , pathCache      = pc
                       }
     
     Just rootDecl = find (\d -> fName d == root) allDecls
@@ -314,6 +320,12 @@ synthesiseCallG cl fp n args = do
 --------------------------------------------------------------------------------
 -- Selection
 
+sliceName :: Name -> FieldSet -> SynthesisM SliceName
+sliceName x fset = do
+  fn   <- SynthesisM $ asks currentFName
+  cl   <- SynthesisM $ asks currentClass
+  pure (SliceName fn cl x fset)
+
 choosePath :: SelectedPath -> Name -> SynthesisM SelectedPath
 choosePath cp x = do
   m_sl <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
@@ -324,22 +336,29 @@ choosePath cp x = do
     -- projections, just the slices as we will (re)construct the value for
     -- x when we pass the bytes through the interpreter. 
     Just fsets_sls -> do
-      let (_, sls) = unzip fsets_sls
       solvSt <- SynthesisM $ gets solverState
-      go [] solvSt sls
+      pc     <- SynthesisM $ gets pathCache
+      go [] pc solvSt fsets_sls
   where    
-    go acc solvSt [] = do
-      SynthesisM $ modify (\s -> s { solverState = solvSt })
+    go acc pc solvSt [] = do
+      SynthesisM $ modify (\s -> s { solverState = solvSt, pathCache = pc })
       pure (foldl' merge cp acc)
-      
-    go acc solvSt (sl : sls) = do
+        
+    go acc pc solvSt ((fset, sl) : sls) = do
       prov <- freshProvenanceTag
-      fn   <- SynthesisM $ asks currentFName
-      strats <- SynthesisM $ gets stratlist
-      (m_cp, solvSt') <- runStrategies solvSt strats prov fn x sl
-      case m_cp of
-        Nothing -> panic "All strategies failed" []
-        Just sp -> go (sp : acc) solvSt' sls
+      sn   <- sliceName x fset
+      -- try cache
+      m_ccp <- lookupPathCache sn pc
+      case m_ccp of
+        Just sp -> do
+          liftIO (do { putStr $ "Used cache at " ++ showPP (snFunction sn) ++ "." ++ showPP x ++ " ... "; hFlush stdout })
+          go (sp : acc) pc solvSt sls
+        Nothing -> do -- need to solve
+          strats <- SynthesisM $ gets stratlist
+          (m_cp, solvSt') <- runStrategies solvSt strats prov (snFunction sn) x sl
+          case m_cp of
+            Nothing -> panic "All strategies failed" []
+            Just sp -> go (sp : acc) (addPathCache sn sp pc) solvSt' sls
         
       -- -- We have a path starting at this node, so we need to call the
       -- -- corresponding SMT function and process any generated model.      

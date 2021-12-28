@@ -15,32 +15,30 @@ module Talos.Strategy.Monad ( Strategy(..)
                             -- , timeStrategy
                             ) where
 
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Trans.Maybe
-import System.Random
-import Data.Foldable (find)
-import qualified Data.Map as Map
-import Data.Map (Map)
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Control.Monad.Trans.Maybe
+import qualified Data.ByteString              as BS
+import           Data.Foldable                (find, foldl')
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           System.Random
 
-import Daedalus.Core
-import Daedalus.GUID
-import Daedalus.Panic
-import Daedalus.PP
-import qualified Daedalus.Core.Semantics.Env as I
+import           Daedalus.Core
 import qualified Daedalus.Core.Semantics.Decl as I
+import qualified Daedalus.Core.Semantics.Env  as I
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
+import           Daedalus.Rec                 (forgetRecs)
 
-import Talos.SymExec.Path
-import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
-import Talos.Analysis.Domain (domainInvariant, domainElement)
-
-import Talos.SymExec.SolverT (SolverT)
-import Talos.Analysis.EntangledVars (EntangledVars)
-import qualified Data.ByteString as BS
-import Data.Foldable (foldl')
-import Daedalus.Rec (forgetRecs)
-
+import           Talos.Analysis.Domain        (domainElement, domainInvariant)
+import           Talos.Analysis.EntangledVars (EntangledVars)
+import           Talos.Analysis.Monad         (SliceName, Summaries,
+                                               Summary (exportedDomain))
+import           Talos.Analysis.Slice
+import           Talos.SymExec.Path
+import           Talos.SymExec.SolverT        (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -73,12 +71,12 @@ data StrategyMState =
                  }
 
 emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md funDefs env0 nguid
+emptyStrategyMState gen ss md nguid = StrategyMState gen ss md funDefs env0 nguid
   where
     env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
     tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
     funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
-
+    
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
   deriving (Functor, Applicative, Monad, MonadIO)
