@@ -351,7 +351,7 @@ choosePath cp x = do
       m_ccp <- lookupPathCache sn pc
       case m_ccp of
         Just sp -> do
-          liftIO (do { putStr $ "Used cache at " ++ showPP (snFunction sn) ++ "." ++ showPP x ++ " ... "; hFlush stdout })
+          liftIO (do { putStrLn $ "Used cache at " ++ showPP (snFunction sn) ++ "." ++ showPP x ++ " ... "; hFlush stdout })
           go (sp : acc) pc solvSt sls
         Nothing -> do -- need to solve
           strats <- SynthesisM $ gets stratlist
