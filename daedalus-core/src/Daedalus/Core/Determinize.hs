@@ -12,6 +12,8 @@ import qualified Data.Set as Set
 import qualified Data.Foldable as Foldable
 import MonadLib
 import Data.List(partition)
+import Data.Word(Word8)
+import Data.ByteString(ByteString, uncons, empty)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.Graph(SCC(..))
 
@@ -28,6 +30,7 @@ import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 import Daedalus.Core.Basics
+import Daedalus.Core.Semantics.Grammar (evalByteSet)
 -- import Daedalus.Type.AST (Arg(GrammarArg))
 
 determinizeModule :: Module -> Module
@@ -46,112 +49,160 @@ detGram g =
     Do_ g1 g2     -> Do_     (detGram g1) (detGram g2)
     Do name g1 g2 -> Do name (detGram g1) (detGram g2)
     Let name e g1 -> Let name e (detGram g1)
-    OrBiased {}    -> detOrUnbiased g
-    OrUnbiased _ _ -> detOrUnbiased g
+    OrBiased {}   -> detOr g
+    OrUnbiased {} -> detOr g
     Call {}  -> g
     Annot {} -> g
     GCase (Case name lst) ->
       GCase (Case name (map (\ (pat, g1) -> (pat, detGram g1)) lst))
 
 
+
+{- Zipped Grammar -}
 data ZMatch =
-    ZMatchByte
-  | ZMatchBytes
+    ZMatchByte ByteSet
+  | ZMatchBytes (Maybe ByteString) ByteString
   | ZMatchEnd
 
 data ZGrammar =
-    ZMatch Sem ZMatch
+    ZBot
+  | ZMatch Sem
   | ZDo_ Grammar
   | ZDo Name Grammar
   | ZAnnot Annot
 
-type ZipGrammar = [ ZGrammar ]
+type PathGrammar = [ ZGrammar ]
 
-emptyZipGrammar :: ZipGrammar
-emptyZipGrammar = []
+data ZipGrammar =
+    ZipNode{ focus :: Grammar, path :: PathGrammar }
+  | ZipLeaf{ zmatch :: ZMatch, path :: PathGrammar }
 
-detOrUnbiased :: Grammar -> Grammar
-detOrUnbiased g =
-  let orLst = listOrUnbiased g in
-  let derLst = tryDet orLst in
+emptyPathGrammar :: PathGrammar
+emptyPathGrammar = []
+
+mkPathGrammar :: ZGrammar -> PathGrammar -> PathGrammar
+mkPathGrammar n z = n : z
+
+initZipGrammar :: Grammar -> ZipGrammar
+initZipGrammar gram = ZipNode {focus = gram, path = emptyPathGrammar}
+
+mkZipGrammar :: Grammar -> PathGrammar -> ZipGrammar
+mkZipGrammar g p = ZipNode g p
+
+goLeft :: ZipGrammar -> ZipGrammar
+goLeft (ZipNode {focus = foc, path = pth}) =
+  case foc of
+    Do_ g1 g2     -> ZipNode {focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
+    Do name g1 g2 -> ZipNode {focus = g1, path = mkPathGrammar (ZDo name g2) pth }
+    Annot ann g1  -> ZipNode {focus = g1, path = mkPathGrammar (ZAnnot ann) pth}
+    _ -> error "should not happen"
+goLeft (ZipLeaf {}) = error "should not happen"
+
+{- END of Zipped Grammar -}
+
+data NextChar =
+    NCByteSet ByteSet
+  | NCWord8 Word8
+
+detOr :: Grammar -> Grammar
+detOr grammar =
+  let orLst = getListOr grammar in
+  let derLst = tryDeterminizeListOr orLst in
   let linDerLst = do
         linLst <- derLst
-        forM linLst (\ (a, b, c) -> do { d <- charListFromByteSet a ; return (d, b, c) })
+        forM linLst (\ (a, c) -> do { d <- charListFromByteSet a ; return (d, c) })
   in
   case linDerLst of
-    Nothing  -> g
+    Nothing  -> grammar
     Just a -> if checkNonOverlapping a
               then translateToCase a
-              else g
+              else grammar
 
   where
-  listOrUnbiased :: Grammar -> [Grammar]
-  listOrUnbiased g =
+  getListOr :: Grammar -> [Grammar]
+  getListOr g =
     case g of
-      OrUnbiased g1 g2 -> listOrUnbiased g1 ++ listOrUnbiased g2
-      OrBiased   g1 g2 -> listOrUnbiased g1 ++ listOrUnbiased g2
+      OrUnbiased g1 g2 -> getListOr g1 ++ getListOr g2
+      OrBiased   g1 g2 -> getListOr g1 ++ getListOr g2
       _                -> [g]
 
-  tryDet :: [Grammar] -> Maybe [(ByteSet, Sem, ZipGrammar)]
-  tryDet lst =
-    mapM closure lst
+  tryDeterminizeListOr :: [Grammar] -> Maybe [(NextChar, ZipGrammar)]
+  tryDeterminizeListOr lst =
+    mapM deriveOneByte lst
 
-  closure :: Grammar -> Maybe (ByteSet, Sem, ZipGrammar)
-  closure gram =
-    closureGo gram emptyZipGrammar
+  deriveOneByte :: Grammar -> Maybe (NextChar, ZipGrammar)
+  deriveOneByte gram =
+    deriveGo (initZipGrammar gram)
     where
-    closureGo :: Grammar -> ZipGrammar -> Maybe (ByteSet, Sem, ZipGrammar)
-    closureGo g z =
+    deriveGo :: ZipGrammar -> Maybe (NextChar, ZipGrammar)
+    deriveGo gr@(ZipNode {focus = g}) =
       case g of
         Let {}    -> Nothing
-        Do_ g1 g2 ->
-          case g1 of
-            Match {} -> deriveMatch g1 (ZDo_ g2 : z)
-            _        -> Nothing
-        Do name g1 g2 ->
-          case g1 of
-            Match {} -> deriveMatch g1 (ZDo name g2 : z)
-            _        -> Nothing
-        Match {} -> deriveMatch g z
-        Annot ann g1 -> closureGo g1 (ZAnnot ann : z)
+        Do_ {} -> deriveGo (goLeft gr)
+        Do {} -> deriveGo (goLeft gr)
+        Match {} -> deriveMatch gr
+        Annot {} -> deriveGo (goLeft gr)
         _        -> Nothing
+    deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
+      case zm of
+        ZMatchByte _ -> error "TODO should move up"
+        ZMatchBytes prev next ->
+          case uncons next of
+            Nothing -> error "TODO should move up"
+            Just (w, rest) ->
+              Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes prev rest, path = pth})
+        ZMatchEnd -> error "TODO END"
 
-  deriveMatch :: Grammar -> ZipGrammar -> Maybe (ByteSet, Sem, ZipGrammar)
-  deriveMatch (Match sem match) gCont =
+
+  deriveMatch :: ZipGrammar -> Maybe (NextChar, ZipGrammar)
+  deriveMatch (ZipNode { focus = Match sem match, path = pth}) =
+    let newPath = mkPathGrammar (ZMatch sem) pth in
     case match of
       MatchByte b ->
         case b of
-          SetAny -> Just (b, sem, gCont)
+          SetAny ->
+            let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
+            Just (NCByteSet b, x)
           SetSingle (Ap0 (IntL _s (TUInt (TSize 8)))) ->
-            Just (b, sem, (ZMatch sem ZMatchByte) : gCont)
+            let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
+            Just (NCByteSet b, x)
+          _ -> Nothing
+      MatchBytes b ->
+        case b of
+          Ap0 (ByteArrayL bs) ->
+            case uncons bs of
+              Nothing -> error "TODO should move up"
+              Just (w, rest) ->
+                Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes (Just empty) rest, path = newPath})
           _ -> Nothing
       _ -> Nothing
-  deriveMatch _ _ = error "function should be applied to Match"
+  deriveMatch _ = error "function should be applied to Match"
 
-  charListFromByteSet :: ByteSet -> Maybe (Set Integer)
+  charListFromByteSet :: NextChar -> Maybe (Set Integer)
   charListFromByteSet b =
     case b of
-      SetAny -> Just (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255])
-      SetSingle (Ap0 (IntL s (TUInt (TSize 8)))) -> Just (Set.singleton s)
-      SetRange (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8)))) ->
+      NCWord8 w -> Just (Set.singleton $ toInteger w)
+      NCByteSet SetAny -> Just (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255])
+      NCByteSet (SetSingle (Ap0 (IntL s (TUInt (TSize 8))))) -> Just (Set.singleton s)
+      NCByteSet (SetRange (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
         if s1 <= s2 && s1 >=0 && s2 <= 255
         then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
         else Nothing
       _      -> Nothing
 
-  checkNonOverlapping :: [(Set Integer, Sem, ZipGrammar)] -> Bool
+  checkNonOverlapping :: [(Set Integer, ZipGrammar)] -> Bool
   checkNonOverlapping [] = True
-  checkNonOverlapping ((s, _, _) : rs) =
+  checkNonOverlapping ((s, _) : rs) =
     if checkOnTail rs
     then checkNonOverlapping rs
     else False
 
     where
     checkOnTail [] = True
-    checkOnTail ((t, _, _) : rest) = if Set.disjoint s t then checkOnTail rest else False
+    checkOnTail ((t, _) : rest) = if Set.disjoint s t then checkOnTail rest else False
 
 
-  translateToCase :: [(Set Integer, Sem, ZipGrammar)] -> Grammar
+  translateToCase :: [(Set Integer, ZipGrammar)] -> Grammar
   translateToCase lst =
     let name = Name { nameId = firstValidGUID ,
                       nameText = Nothing,
@@ -162,38 +213,40 @@ detOrUnbiased g =
       (GCase
         (Case
           name
-          (concatMap (\ (s, sem, g1) -> map (\ b -> buildCase (b, sem, g1)) (Set.toList s)) lst)))
+          (concatMap (\ (s, g1) -> map (\ b -> buildCase (b, g1)) (Set.toList s)) lst)))
 
     where
-    buildCase :: (Integer, Sem, ZipGrammar) -> (Pattern, Grammar)
+    buildCase :: (Integer, ZipGrammar) -> (Pattern, Grammar)
     --buildCase (c, SemYes, Nothing) = (PNum c, Pure (Ap0 (IntL c (TUInt (TSize 8)))))
     --buildCase (c, SemNo , Nothing) = (PNum c, Pure (Ap0 Unit))
-    buildCase (c, s     , g1) = (PNum c, buildContinuation c s g1)
+    buildCase (c, g1) = (PNum c, buildLeaf c g1)
 
-    buildContinuation :: Integer -> Sem -> ZipGrammar -> Grammar
-    buildContinuation c SemYes (ZMatch _ (ZMatchByte) : zgram) =
+    buildLeaf :: Integer -> ZipGrammar -> Grammar
+    buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch SemYes : pth}) =
       let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
-      buildUp newBuilt zgram
-    buildContinuation _c SemNo (ZMatch _ (ZMatchByte) : zgram) =
+      buildUp (mkZipGrammar newBuilt pth)
+    buildLeaf _c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch SemNo : pth}) =
       let newBuilt = Pure (Ap0 Unit) in
-      buildUp newBuilt zgram
-    buildContinuation _ _ (ZMatch _ (_) : _) = error "Should not happen"
-    buildContinuation _ _ _ = error "Should not happen"
+      buildUp (mkZipGrammar newBuilt pth)
+    buildLeaf _ _ = error "Should not happen"
 
 
-    buildUp :: Grammar -> ZipGrammar -> Grammar
-    buildUp built [] = built
-    buildUp built (ZDo_ g2 : z) =
-      {-let name = Name { nameId = firstValidGUID,
-                        nameText = Nothing,
-                        nameType = TUInt (TSize 8)
-                      } in -}
-      let newBuilt = Do_ built g2 in
-      -- let newBuilt = Let name (Ap0 (IntL c (TUInt (TSize 8)))) g2 in
-      buildUp newBuilt z
-    buildUp built (ZDo name g2 : z) =
-      let newBuilt = Do name built g2 in
-      buildUp newBuilt z
-    buildUp built (ZAnnot ann : z) =
-      buildUp (Annot ann built) z
-    buildUp _ _ = error "case not handled"
+    buildUp :: ZipGrammar -> Grammar
+    buildUp (ZipNode {focus = built, path = pth}) =
+      case pth of
+        [] -> built
+        (ZDo_ g2 : z) ->
+          {-let name = Name { nameId = firstValidGUID,
+                              nameText = Nothing,
+                              nameType = TUInt (TSize 8)
+                            } in -}
+          let newBuilt = Do_ built g2 in
+       -- let newBuilt = Let name (Ap0 (IntL c (TUInt (TSize 8)))) g2 in
+          buildUp (mkZipGrammar newBuilt z)
+        (ZDo name g2 : z) ->
+          let newBuilt = Do name built g2 in
+          buildUp (mkZipGrammar newBuilt z)
+        (ZAnnot ann : z) ->
+          buildUp (mkZipGrammar (Annot ann built) z)
+        _  -> error "case not handled"
+    buildUp (ZipLeaf {}) = error "broken invariant"
