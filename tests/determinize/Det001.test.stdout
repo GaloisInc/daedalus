@@ -24,6 +24,7 @@ module DaedalusMain where
 -------------
  
 proc Simple3() : Word 8 =
+  -- DETERMINIZE HERE
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
@@ -38,6 +39,7 @@ proc Simple3() : Word 8 =
             pure (x + x)
  
 proc _Simple1() : () =
+  -- DETERMINIZE HERE
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
@@ -62,6 +64,7 @@ proc _SimpleNot1() : () =
       match1_ { 100 @(Word 8) }
  
 proc _Simple2() : () =
+  -- DETERMINIZE HERE
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
