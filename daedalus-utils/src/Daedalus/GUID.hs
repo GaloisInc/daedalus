@@ -3,7 +3,7 @@
 module Daedalus.GUID (GUID
                      , invalidGUID
                      , firstValidGUID
-                     -- , succGUID
+                     , succGUID
                      , getNextGUID
                      , mkGUIDState
                      , mkGUIDState'
