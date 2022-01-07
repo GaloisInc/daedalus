@@ -20,7 +20,7 @@ import Data.Graph(SCC(..))
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Rec(Rec(..))
-import Daedalus.GUID(HasGUID, GUID, firstValidGUID)
+import Daedalus.GUID(HasGUID, GUID, firstValidGUID, succGUID)
 
 import Daedalus.Core.Free(FreeVars(freeFVars))
 import Daedalus.Core.Subst
@@ -65,8 +65,7 @@ data ZMatch =
   | ZMatchEnd
 
 data ZGrammar =
-    ZBot
-  | ZMatch Sem
+    ZMatch Sem
   | ZDo_ Grammar
   | ZDo Name Grammar
   | ZAnnot Annot
@@ -204,7 +203,8 @@ detOr grammar =
 
   translateToCase :: [(Set Integer, ZipGrammar)] -> Grammar
   translateToCase lst =
-    let name = Name { nameId = firstValidGUID ,
+    let guid1 = firstValidGUID in
+    let name = Name { nameId = guid1 ,
                       nameText = Nothing,
                       nameType = TUInt (TSize 8)
                     } in
@@ -217,17 +217,45 @@ detOr grammar =
 
     where
     buildCase :: (Integer, ZipGrammar) -> (Pattern, Grammar)
-    --buildCase (c, SemYes, Nothing) = (PNum c, Pure (Ap0 (IntL c (TUInt (TSize 8)))))
-    --buildCase (c, SemNo , Nothing) = (PNum c, Pure (Ap0 Unit))
     buildCase (c, g1) = (PNum c, buildLeaf c g1)
 
     buildLeaf :: Integer -> ZipGrammar -> Grammar
-    buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch SemYes : pth}) =
-      let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
-      buildUp (mkZipGrammar newBuilt pth)
-    buildLeaf _c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch SemNo : pth}) =
-      let newBuilt = Pure (Ap0 Unit) in
-      buildUp (mkZipGrammar newBuilt pth)
+    buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
+      case sem of
+        SemYes ->
+          let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
+          buildUp (mkZipGrammar newBuilt pth)
+        SemNo ->
+          let newBuilt = Pure (Ap0 Unit) in
+           buildUp (mkZipGrammar newBuilt pth)
+    buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes _ rest, path = ZMatch sem : pth}) =
+      let matchRest = Match sem (MatchBytes (Ap0 (ByteArrayL rest))) in
+      case sem of
+        SemYes ->
+          let guid1 = firstValidGUID in
+          let guid2 = succGUID guid1 in
+          let namePrev = Name {
+                nameId = guid1,
+                nameText = Nothing,
+                nameType = TArray (TUInt (TSize 8))
+              } in
+          let nameNext = Name {
+                nameId = guid2,
+                nameText = Nothing,
+                nameType = TArray (TUInt (TSize 8))
+              } in
+          let newBuilt =
+                Let namePrev (Ap0 (IntL c (TUInt (TSize 8))))
+                  (Do nameNext matchRest
+                      (Pure
+                        (Ap1
+                          Concat
+                          (ApN (ArrayL (TArray (TUInt (TSize 8))))
+                            [Var namePrev, Var nameNext])))) in
+          buildUp (mkZipGrammar newBuilt pth)
+        SemNo ->
+          let newBuilt = matchRest in
+          buildUp (mkZipGrammar newBuilt pth)
     buildLeaf _ _ = error "Should not happen"
 
 
