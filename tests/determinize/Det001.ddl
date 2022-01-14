@@ -1,4 +1,4 @@
-def Main = { Simple1 ; SimpleNot1; Simple2; Simple3 }
+def Main = { x = Simple1 ; y = SimpleNot1; z = Simple2; t = Simple3 }
 
 def Simple1 =
     Match1 'a'
