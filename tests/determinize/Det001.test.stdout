@@ -21,7 +21,50 @@
 module DaedalusMain where
  
  
+type Main =
+  struct
+    x : Word 8
+    y : Word 8
+    z : ()
+    t : Word 8
+ 
 -------------
+ 
+proc Simple1() : Word 8 =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         pure (97 @(Word 8))
+       98 ->
+         pure (98 @(Word 8))
+       99 ->
+         pure (99 @(Word 8))
+       100 ->
+         pure (100 @(Word 8))
+ 
+proc SimpleNot1() : Word 8 =
+    fork
+        fork
+            fork
+              match1 { 97 @(Word 8) }
+            fork
+              match1 { 98 @(Word 8) }
+        fork
+          match1 { 98 @(Word 8) }
+    fork
+      match1 { 100 @(Word 8) }
+ 
+proc Simple2() : () =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         pure ()
+       98 ->
+         pure ()
+       99 ->
+         pure ()
  
 proc Simple3() : Word 8 =
   -- DETERMINIZE HERE
@@ -38,44 +81,9 @@ proc Simple3() : Word 8 =
             match1_ { 98 @(Word 8) }
             pure (x + x)
  
-proc _Simple1() : () =
-  -- DETERMINIZE HERE
-  do _x0 <- match1 { ... }
-     case _x0 of
-       97 ->
-         pure ()
-       98 ->
-         pure ()
-       99 ->
-         pure ()
-       100 ->
-         pure ()
- 
-proc _SimpleNot1() : () =
-    fork
-        fork
-            fork
-              match1_ { 97 @(Word 8) }
-            fork
-              match1_ { 98 @(Word 8) }
-        fork
-          match1_ { 98 @(Word 8) }
-    fork
-      match1_ { 100 @(Word 8) }
- 
-proc _Simple2() : () =
-  -- DETERMINIZE HERE
-  do _x0 <- match1 { ... }
-     case _x0 of
-       97 ->
-         pure ()
-       98 ->
-         pure ()
-       99 ->
-         pure ()
- 
-proc Main() : Word 8 =
-  do _Simple1()
-     _SimpleNot1()
-     _Simple2()
-     Simple3()
+proc Main() : Main =
+  do x <- Simple1()
+     y <- SimpleNot1()
+     z <- Simple2()
+     t <- Simple3()
+     pure Main {x = x, y = y, z = z, t = t}

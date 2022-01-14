@@ -23,63 +23,13 @@ module Det001
 --- Imports:
  
 --- Type defs:
+type Det001.Main = { x: uint 8
+                   ; y: uint 8
+                   ; z: {}
+                   ; t: uint 8
+                   }
  
 --- Rules:
- 
-Det001.Simple3 : Grammar (uint 8) =
-  Choose fair
-    { Choose fair
-        { do (x : uint 8) <- Match {'a'}
-             @Match {'b'}
-             ($$ : uint 8) <- pure x
-             pure $$
-        | Match {'b'}
-        }
-    | do (x : uint 8) <- Match {'c'}
-         @Match {'b'}
-         ($$ : uint 8) <- pure (x + x)
-         pure $$
-    }
- 
-Det001._Simple1 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { @Match {'a'}
-            | @Match {'b'}
-            }
-        | @Match {'c'}
-        }
-    | @Match {'d'}
-    }
- 
-Det001._SimpleNot1 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { @Match {'a'}
-            | @Match {'b'}
-            }
-        | @Match {'b'}
-        }
-    | @Match {'d'}
-    }
- 
-Det001._Simple2 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { @Match {'a'}
-        | @Match {'b'}
-        }
-    | @Match {'c'}
-    }
- 
-Det001.Main : Grammar (uint 8) =
-  do Det001._Simple1
-     Det001._SimpleNot1
-     Det001._Simple2
-     ($$ : uint 8) <- Det001.Simple3
-     pure $$
  
 Det001.Simple1 : Grammar (uint 8) =
   Choose fair
@@ -106,6 +56,64 @@ Det001.SimpleNot1 : Grammar (uint 8) =
     }
  
 Det001.Simple2 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { @Match {'a'}
+        | @Match {'b'}
+        }
+    | @Match {'c'}
+    }
+ 
+Det001.Simple3 : Grammar (uint 8) =
+  Choose fair
+    { Choose fair
+        { do (x : uint 8) <- Match {'a'}
+             @Match {'b'}
+             ($$ : uint 8) <- pure x
+             pure $$
+        | Match {'b'}
+        }
+    | do (x : uint 8) <- Match {'c'}
+         @Match {'b'}
+         ($$ : uint 8) <- pure (x + x)
+         pure $$
+    }
+ 
+Det001.Main : Grammar Det001.Main =
+  do (x : uint 8) <- Det001.Simple1
+     (y : uint 8) <- Det001.SimpleNot1
+     (z : {}) <- Det001.Simple2
+     (t : uint 8) <- Det001.Simple3
+     pure {x = x,
+           y = y,
+           z = z,
+           t = t}
+ 
+Det001._Simple1 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { @Match {'a'}
+            | @Match {'b'}
+            }
+        | @Match {'c'}
+        }
+    | @Match {'d'}
+    }
+ 
+Det001._SimpleNot1 : Grammar {} =
+  Choose fair
+    { Choose fair
+        { Choose fair
+            { @Match {'a'}
+            | @Match {'b'}
+            }
+        | @Match {'b'}
+        }
+    | @Match {'d'}
+    }
+ 
+Det001._Simple2 : Grammar {} =
   Choose fair
     { Choose fair
         { @Match {'a'}
