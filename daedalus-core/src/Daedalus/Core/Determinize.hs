@@ -109,13 +109,16 @@ detOr grammar =
   let derLst = tryDeterminizeListOr orLst in
   let linDerLst = do
         linLst <- derLst
-        forM linLst (\ (a, c) -> do { d <- charListFromByteSet a ; return (d, c) })
+        forM linLst
+          (\ (a, c) -> do { d <- charListFromByteSet a ; return (d, c) })
   in
   case linDerLst of
     Nothing  -> grammar
-    Just a -> if checkNonOverlapping a
-              then translateToCase a
-              else grammar
+    Just a ->
+      let f = factorize a in
+      if checkUnambiguous f
+      then translateToCase a
+      else grammar
 
   where
   getListOr :: Grammar -> [Grammar]
@@ -136,15 +139,15 @@ detOr grammar =
     deriveGo :: ZipGrammar -> Maybe (NextChar, ZipGrammar)
     deriveGo gr@(ZipNode {focus = g}) =
       case g of
-        Let {}    -> Nothing
-        Do_ {} -> deriveGo (goLeft gr)
-        Do {} -> deriveGo (goLeft gr)
+        Let {}   -> Nothing
+        Do_ {}   -> deriveGo (goLeft gr)
+        Do {}    -> deriveGo (goLeft gr)
         Match {} -> deriveMatch gr
         Annot {} -> deriveGo (goLeft gr)
         _        -> Nothing
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
-        ZMatchByte _ -> error "TODO should move up"
+        ZMatchByte _          -> error "TODO should move up"
         ZMatchBytes prev next ->
           case uncons next of
             Nothing -> error "TODO should move up"
@@ -189,16 +192,56 @@ detOr grammar =
         else Nothing
       _      -> Nothing
 
-  checkNonOverlapping :: [(Set Integer, ZipGrammar)] -> Bool
-  checkNonOverlapping [] = True
-  checkNonOverlapping ((s, _) : rs) =
-    if checkOnTail rs
-    then checkNonOverlapping rs
-    else False
-
+  factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
+  factorize lst =
+    factorizeGo lst []
     where
-    checkOnTail [] = True
-    checkOnTail ((t, _) : rest) = if Set.disjoint s t then checkOnTail rest else False
+      factorizeGo :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])] -> [(Set Integer, [ZipGrammar])]
+      factorizeGo [] acc = acc
+      factorizeGo ((s, g) : rs) acc =
+        let newAcc = insertInResult (s,g) acc in
+        factorizeGo rs newAcc
+
+      insertInResult :: (Set Integer, ZipGrammar) -> [(Set Integer, [ZipGrammar])] -> [(Set Integer, [ZipGrammar])]
+      insertInResult x@(s, g) [] = [(s,[g])]
+      insertInResult x@(s, g) ((y@(s1, gs)) : rest) =
+        let inter = Set.intersection s s1 in
+        if Set.null inter
+        then y : insertInResult x rest
+        else
+          let diff1 = Set.difference s s1 in
+          let diff2 = Set.difference s1 s in
+          case (Set.null diff1, Set.null diff2) of
+            (False, False) ->
+              -- NNNNNNNNN
+              --     OOOOOOOOOO
+              let notNew = (diff2, gs) in
+              let new = (inter, gs ++ [g]) in
+              notNew : new : insertInResult (diff1, g) rest
+            (False, True) ->
+              -- NNNNNNNNN
+              --    OOOOO
+              let new = (inter, gs ++ [g]) in
+              new : insertInResult (diff1, g) rest
+            (True, False) ->
+              --  NNNNN
+              --  OOOOOOOOO
+              let notNew = (diff2, gs) in
+              let new = (inter, gs ++ [g]) in
+              notNew : new : rest
+            (True, True) ->
+              --  NNNNN
+              --  OOOOO
+              let new = (inter, gs ++ [g]) in
+              new : rest
+
+  checkUnambiguous :: [(Set Integer, [ZipGrammar])] -> Bool
+  checkUnambiguous [] = True
+  checkUnambiguous ((s, gs) : rs) =
+    case length gs of
+      0 -> error "impossible"
+      1 -> checkUnambiguous rs
+      _ -> False
 
 
   translateToCase :: [(Set Integer, ZipGrammar)] -> Grammar
