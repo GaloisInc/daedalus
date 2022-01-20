@@ -1,9 +1,3 @@
-[WARNING] ./Det002.ddl:10:5--12:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det002.ddl:10:5--13:62:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det002.ddl:6:5--7:16:
-            Using unbiased choice may be inefficient.
 module Det002
  
 --- Imports:
@@ -16,7 +10,7 @@ type Det002.Main = { x: [uint 8]
 --- Rules:
  
 Det002.Simple1 : Grammar [uint 8] =
-  Choose fair
+  Choose biased
     { do (x : [uint 8]) <- MatchBytes "ab"
          ($$ : [uint 8]) <- pure (concat [x,
                                           x])
@@ -25,8 +19,8 @@ Det002.Simple1 : Grammar [uint 8] =
     }
  
 Det002.Simple2 : Grammar [uint 8] =
-  Choose fair
-    { Choose fair
+  Choose biased
+    { Choose biased
         { MatchBytes "abc"
         | MatchBytes "bc"
         }
@@ -44,14 +38,14 @@ Det002.Main : Grammar Det002.Main =
            y = y}
  
 Det002._Simple1 : Grammar {} =
-  Choose fair
+  Choose biased
     { @MatchBytes "ab"
     | @MatchBytes "bcde"
     }
  
 Det002._Simple2 : Grammar {} =
-  Choose fair
-    { Choose fair
+  Choose biased
+    { Choose biased
         { @MatchBytes "abc"
         | @MatchBytes "bc"
         }

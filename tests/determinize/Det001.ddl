@@ -9,18 +9,18 @@ def Simple1 =
   | Match1 'd'
 
 def SimpleNot1 =
-    Match1 'a'
-  | Match1 'b'
-  | Match1 'b'
-  | Match1 'd'
+    Match1 'e'
+  | Match1 'f'
+  | Match1 'f'
+  | Match1 'g'
 
 def Simple2 =
-    @Match1 'a'
-  | @Match1 'b'
-  | @Match1 'c'
+     @Match1 'A'
+  <| @Match1 'B'
+  <| @Match1 'C'
 
 def Simple3 =
-    { @x = Match1 'a' ; @Match1 'b'; ^ x }
-  | Match1 'b'
-  | { @x = Match1 'c' ; @Match1 'b'; ^ x + x }
+     { @x = Match1 'a' ; @Match1 'b'; ^ x }
+  <| Match1 'b'
+  <| { @x = Match1 'c' ; @Match1 'b'; ^ x + x }
 
