@@ -9,7 +9,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import MonadLib
 import Data.Word(Word8)
-import Data.ByteString(ByteString, uncons, pack, null)
+import Data.ByteString(ByteString, uncons, null)
 
 --import Daedalus.Panic(panic)
 --import Daedalus.PP(pp)
@@ -52,7 +52,8 @@ detGram g =
 {- Zipped Grammar -}
 data ZMatch =
     ZMatchByte ByteSet
-  | ZMatchBytes [Word8] ByteString
+  | ZMatchBytes ([Word8], ByteString) ByteString -- the pair is the zipper of a ByteString
+                                                 -- the last ByteString is the original one in the grammar
   | ZMatchEnd
 
 data ZGrammar =
@@ -119,14 +120,13 @@ goNextLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
     SemNo ->
       let newBuilt = Pure (Ap0 Unit) in
       goUpRight (mkZipGrammar newBuilt pth)
-goNextLeaf _c (ZipLeaf{ zmatch = ZMatchBytes zpast rest, path = fpth@(ZMatch sem : pth)}) =
+goNextLeaf _c (ZipLeaf{ zmatch = zm@(ZMatchBytes (_, rest) orig), path = fpth@(ZMatch sem : pth)}) =
   if not (Data.ByteString.null rest)
-  then Just $ ZipLeaf {zmatch = ZMatchBytes zpast rest, path = fpth }
+  then Just $ ZipLeaf {zmatch = zm, path = fpth }
   else
     case sem of
       SemYes ->
-        let str = (Data.ByteString.pack (reverse zpast)) :: ByteString in
-        let pureMatch = Pure (Ap0 (ByteArrayL str))
+        let pureMatch = Pure (Ap0 (ByteArrayL orig))
         in
         goUpRight (mkZipGrammar pureMatch pth)
       SemNo ->
@@ -248,11 +248,11 @@ detOr grammar =
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
         ZMatchByte _          -> error "TODO should move up"
-        ZMatchBytes prev next ->
+        ZMatchBytes (prev, next) orig ->
           case uncons next of
             Nothing -> error "TODO should move up"
             Just (w, rest) ->
-              Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev) rest, path = pth})
+              Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
         ZMatchEnd -> error "TODO END"
 
 
@@ -275,7 +275,7 @@ detOr grammar =
             case uncons bs of
               Nothing -> error "TODO should move up"
               Just (w, rest) ->
-                Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes [w] rest, path = newPath})
+                Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           _ -> Nothing
       _ -> Nothing
   deriveMatch _ = error "function should be applied to Match"
@@ -396,43 +396,25 @@ detOr grammar =
         SemNo ->
           let newBuilt = Pure (Ap0 Unit) in
            buildUp (mkZipGrammar newBuilt pth)
-    buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes zpast rest, path = ZMatch sem : pth}) =
+    buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes (zpast, rest) orig, path = ZMatch sem : pth}) =
       if not (c == (toInteger $ head zpast))
       then error "broken invariant"
       else
+        let pureMatch = Pure (Ap0 (ByteArrayL orig)) in
         if Data.ByteString.null rest
         then
           case sem of
             SemYes ->
-              let newBuilt = Pure (Ap0 (ByteArrayL $ Data.ByteString.pack (reverse zpast))) in
+              let newBuilt = pureMatch in
               buildUp (mkZipGrammar newBuilt pth)
             SemNo ->
               let newBuilt = Pure (Ap0 Unit) in
               buildUp (mkZipGrammar newBuilt pth)
         else
-          let matchRest = Match sem (MatchBytes (Ap0 (ByteArrayL rest))) in
+          let matchRest = Match SemNo (MatchBytes (Ap0 (ByteArrayL rest))) in
           case sem of
             SemYes ->
-              let guid1 = firstValidGUID in
-              let guid2 = succGUID guid1 in
-              let namePrev = Name {
-                    nameId = guid1,
-                    nameText = Nothing,
-                    nameType = TArray (TUInt (TSize 8))
-                  } in
-              let nameNext = Name {
-                    nameId = guid2,
-                    nameText = Nothing,
-                    nameType = TArray (TUInt (TSize 8))
-                  } in
-              let newBuilt =
-                    Let namePrev (Ap0 (ByteArrayL $ Data.ByteString.pack (reverse zpast)))
-                      (Do nameNext matchRest
-                          (Pure
-                            (Ap1
-                              Concat
-                              (ApN (ArrayL (TArray (TUInt (TSize 8))))
-                                [Var namePrev, Var nameNext])))) in
+              let newBuilt = Do_ matchRest pureMatch in
               buildUp (mkZipGrammar newBuilt pth)
             SemNo ->
               let newBuilt = matchRest in
