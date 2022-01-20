@@ -1,0 +1,122 @@
+[WARNING] ./Det003.ddl:11:5--12:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--13:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--14:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--15:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--16:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--17:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:11:5--18:21:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det003.ddl:6:5--7:16:
+            Using unbiased choice may be inefficient.
+module DaedalusMain where
+ 
+ 
+type Main =
+  struct
+    x : [Word 8]
+    y : [Word 8]
+ 
+-------------
+ 
+proc Simple1() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              98 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     99 ->
+                       pure "abc"
+                     100 ->
+                       do let _x0 = "abd"
+                          _x1 <- match "e"
+                          pure (concat [_x0, _x1])
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Simple2() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       48 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              48 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do let _x0 = "000"
+                          _x1 <- match " AAAAA"
+                          pure (concat [_x0, _x1])
+                     49 ->
+                       do let _x0 = "001"
+                          _x1 <- match " BBBBB"
+                          pure (concat [_x0, _x1])
+                     _ ->
+                       fail_sys @[Word 8]
+              49 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do let _x0 = "010"
+                          _x1 <- match " CCCCC"
+                          pure (concat [_x0, _x1])
+                     49 ->
+                       do let _x0 = "011"
+                          _x1 <- match " DDDDD"
+                          pure (concat [_x0, _x1])
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       49 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              48 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do let _x0 = "100"
+                          _x1 <- match " EEEEE"
+                          pure (concat [_x0, _x1])
+                     49 ->
+                       do let _x0 = "101"
+                          _x1 <- match " FFFFF"
+                          pure (concat [_x0, _x1])
+                     _ ->
+                       fail_sys @[Word 8]
+              49 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do let _x0 = "110"
+                          _x1 <- match " GGGGG"
+                          pure (concat [_x0, _x1])
+                     49 ->
+                       do let _x0 = "111"
+                          _x1 <- match " HHHHH"
+                          pure (concat [_x0, _x1])
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Main() : Main =
+  do x <- Simple1()
+     y <- Simple2()
+     pure Main {x = x, y = y}
