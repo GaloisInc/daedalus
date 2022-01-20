@@ -81,10 +81,10 @@ public:
   UInt operator - (UInt x) const { return UInt(data - x.data); }
   UInt operator * (UInt x) const { return UInt(data * x.data); }
   UInt operator % (UInt x) const { Rep xv = x.rep();
-                                   assert(xv /= 0);
+                                   assert(xv != 0);
                                    return UInt(rep() % xv); }
   UInt operator / (UInt x) const { Rep xv = x.rep();
-                                   assert(xv /= 0);
+                                   assert(xv != 0);
                                    return UInt(rep() / xv); }
   UInt operator - ()       const { return UInt(-data); }
   UInt operator ~ ()       const { return UInt(~data); }
