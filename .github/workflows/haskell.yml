@@ -68,9 +68,9 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
-                   , { name: 'Talos', verb: 'test', noun: 'talos' }
-                   , { name: 'Daedalus', verb: 'test', noun: '--test-show-details=streaming' }
+        component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom', flag: '' }
+                   , { name: 'Talos', verb: 'test', noun: 'talos', flag: '' }
+                   , { name: 'Daedalus', verb: 'test', noun: '', flag: '--test-show-details=streaming' }
                    ]
 
     steps:
@@ -116,7 +116,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: ${{ matrix.component.name }} (${{ matrix.component.verb }})
-      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
+      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }} ${{ matrix.component.flag }}
 
 
   pdf-driver:
