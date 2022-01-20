@@ -1,44 +1,35 @@
-[WARNING] ./Det003.ddl:11:5--12:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--13:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--14:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--15:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--16:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--17:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:11:5--18:21:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det003.ddl:6:5--7:16:
-            Using unbiased choice may be inefficient.
 module Det003
  
 --- Imports:
  
 --- Type defs:
-type Det003.Main = { x: [uint 8]
+type Det003.Main = { x: {}
                    ; y: [uint 8]
+                   ; z: [uint 8]
                    }
  
 --- Rules:
  
-Det003.Simple1 : Grammar [uint 8] =
-  Choose fair
+Det003.Gram1 : Grammar {} =
+  Choose biased
+    { @MatchBytes "abc"
+    | @MatchBytes "abde"
+    }
+ 
+Det003.Gram2 : Grammar [uint 8] =
+  Choose biased
     { MatchBytes "abc"
     | MatchBytes "abde"
     }
  
-Det003.Simple2 : Grammar [uint 8] =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { Choose fair
-                        { Choose fair
+Det003.Gram3 : Grammar [uint 8] =
+  Choose biased
+    { Choose biased
+        { Choose biased
+            { Choose biased
+                { Choose biased
+                    { Choose biased
+                        { Choose biased
                             { MatchBytes "000 AAAAA"
                             | MatchBytes "001 BBBBB"
                             }
@@ -56,25 +47,33 @@ Det003.Simple2 : Grammar [uint 8] =
     }
  
 Det003.Main : Grammar Det003.Main =
-  do (x : [uint 8]) <- Det003.Simple1
-     (y : [uint 8]) <- Det003.Simple2
+  do (x : {}) <- Det003.Gram1
+     (y : [uint 8]) <- Det003.Gram2
+     (z : [uint 8]) <- Det003.Gram3
      pure {x = x,
-           y = y}
+           y = y,
+           z = z}
  
-Det003._Simple1 : Grammar {} =
-  Choose fair
+Det003._Gram1 : Grammar {} =
+  Choose biased
     { @MatchBytes "abc"
     | @MatchBytes "abde"
     }
  
-Det003._Simple2 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { Choose fair
-                { Choose fair
-                    { Choose fair
-                        { Choose fair
+Det003._Gram2 : Grammar {} =
+  Choose biased
+    { @MatchBytes "abc"
+    | @MatchBytes "abde"
+    }
+ 
+Det003._Gram3 : Grammar {} =
+  Choose biased
+    { Choose biased
+        { Choose biased
+            { Choose biased
+                { Choose biased
+                    { Choose biased
+                        { Choose biased
                             { @MatchBytes "000 AAAAA"
                             | @MatchBytes "001 BBBBB"
                             }
@@ -92,5 +91,6 @@ Det003._Simple2 : Grammar {} =
     }
  
 Det003._Main : Grammar {} =
-  do Det003._Simple1
-     Det003._Simple2
+  do Det003._Gram1
+     Det003._Gram2
+     Det003._Gram3

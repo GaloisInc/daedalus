@@ -1,11 +1,3 @@
-[WARNING] ./Det001.ddl:23:5--24:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:23:5--25:46:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:18:5--19:15:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:18:5--20:15:
-            Using unbiased choice may be inefficient.
 [WARNING] ./Det001.ddl:12:5--13:14:
             Using unbiased choice may be inefficient.
 [WARNING] ./Det001.ddl:12:5--14:14:
@@ -47,26 +39,26 @@ Det001.SimpleNot1 : Grammar (uint 8) =
   Choose fair
     { Choose fair
         { Choose fair
-            { Match {'a'}
-            | Match {'b'}
+            { Match {'e'}
+            | Match {'f'}
             }
-        | Match {'b'}
+        | Match {'f'}
         }
-    | Match {'d'}
+    | Match {'g'}
     }
  
 Det001.Simple2 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { @Match {'a'}
-        | @Match {'b'}
+  Choose biased
+    { Choose biased
+        { @Match {'A'}
+        | @Match {'B'}
         }
-    | @Match {'c'}
+    | @Match {'C'}
     }
  
 Det001.Simple3 : Grammar (uint 8) =
-  Choose fair
-    { Choose fair
+  Choose biased
+    { Choose biased
         { do (x : uint 8) <- Match {'a'}
              @Match {'b'}
              ($$ : uint 8) <- pure x
@@ -105,26 +97,26 @@ Det001._SimpleNot1 : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
-            { @Match {'a'}
-            | @Match {'b'}
+            { @Match {'e'}
+            | @Match {'f'}
             }
-        | @Match {'b'}
+        | @Match {'f'}
         }
-    | @Match {'d'}
+    | @Match {'g'}
     }
  
 Det001._Simple2 : Grammar {} =
-  Choose fair
-    { Choose fair
-        { @Match {'a'}
-        | @Match {'b'}
+  Choose biased
+    { Choose biased
+        { @Match {'A'}
+        | @Match {'B'}
         }
-    | @Match {'c'}
+    | @Match {'C'}
     }
  
 Det001._Simple3 : Grammar {} =
-  Choose fair
-    { Choose fair
+  Choose biased
+    { Choose biased
         { do @Match {'a'}
              @Match {'b'}
         | @Match {'b'}

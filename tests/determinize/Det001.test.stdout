@@ -1,11 +1,3 @@
-[WARNING] ./Det001.ddl:23:5--24:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:23:5--25:46:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:18:5--19:15:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:18:5--20:15:
-            Using unbiased choice may be inefficient.
 [WARNING] ./Det001.ddl:12:5--13:14:
             Using unbiased choice may be inefficient.
 [WARNING] ./Det001.ddl:12:5--14:14:
@@ -49,23 +41,23 @@ proc SimpleNot1() : Word 8 =
     fork
         fork
             fork
-              match1 { 97 @(Word 8) }
+              match1 { 101 @(Word 8) }
             fork
-              match1 { 98 @(Word 8) }
+              match1 { 102 @(Word 8) }
         fork
-          match1 { 98 @(Word 8) }
+          match1 { 102 @(Word 8) }
     fork
-      match1 { 100 @(Word 8) }
+      match1 { 103 @(Word 8) }
  
 proc Simple2() : () =
   -- DETERMINIZE HERE
   do _x0 <- match1 { ... }
      case _x0 of
-       97 ->
+       65 ->
          pure ()
-       98 ->
+       66 ->
          pure ()
-       99 ->
+       67 ->
          pure ()
        _ ->
          fail_sys @()

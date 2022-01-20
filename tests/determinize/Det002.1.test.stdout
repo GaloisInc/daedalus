@@ -1,9 +1,3 @@
-[WARNING] ./Det002.ddl:10:5--12:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det002.ddl:10:5--13:62:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det002.ddl:6:5--7:16:
-            Using unbiased choice may be inefficient.
 --- Found 1 results:
 { x: "bcde"
 , y: "cb"

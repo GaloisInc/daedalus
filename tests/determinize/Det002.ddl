@@ -3,13 +3,12 @@
 def Main = { x = Simple1 ; y = Simple2 }
 
 def Simple1 =
-    {@x = Match "ab"; ^ concat [ x, x ]}
-  | Match "bcde"
+     {@x = Match "ab"; ^ concat [ x, x ]}
+  <| Match "bcde"
 
 def Simple2 =
-    Match "abc"
-  --| Match "ac"
-  | Match "bc"
-  | { @x = Match1 'c' ; @y = Match "b"; ^ (concat [ [x], y]) }
+     Match "abc"
+  <| Match "bc"
+  <| { @x = Match1 'c' ; @y = Match "b"; ^ (concat [ [x], y]) }
 
 
