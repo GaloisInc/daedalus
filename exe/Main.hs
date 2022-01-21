@@ -178,11 +178,11 @@ handleOptions opts
            case optBackend opts of
              UseInterp -> generateCPP opts mm
              UseCore   -> generateCPP opts mm
-             UsePGen _ ->
-               do passSpecialize specMod [mainRule]
-                  prog <- ddlGetAST specMod astTC
-                  let outDir = fromMaybe "." $ optOutDir opts
-                  compilePGen [prog] outDir
+             UsePGen _ -> generateCPP opts mm
+               -- do passSpecialize specMod [mainRule]
+               --    prog <- ddlGetAST specMod astTC
+               --    let outDir = fromMaybe "." $ optOutDir opts
+               --    compilePGen [prog] outDir
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 

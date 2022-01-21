@@ -11,8 +11,8 @@ module Daedalus.ParserGen
   , buildPipelineLLA
   , llaToGraphviz
   , statsLLA
-  , generateIO
-  , generateTextIO
+--  , generateIO
+--  , generateTextIO
   )
 where
 
@@ -35,7 +35,7 @@ import Daedalus.ParserGen.Runner (
   )
 import Daedalus.ParserGen.Utils (autToGraphviz)
 import Daedalus.ParserGen.LL
-import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
+-- import Daedalus.ParserGen.Generate (generateIO, generateTextIO)
 
 extractParseError :: BS.ByteString -> Result -> String
 extractParseError orig res =

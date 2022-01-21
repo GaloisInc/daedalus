@@ -61,8 +61,8 @@ library
                        Daedalus.Type.CheckUnused,
                        Daedalus.Type.RefreshGUID,
                        Daedalus.Type.NormalizeTypeVars,
-                       Daedalus.Type.PatComplete, 
-                       Daedalus.Type.BitData,                      
+                       Daedalus.Type.PatComplete,
+                       Daedalus.Type.BitData,
                        Daedalus.Specialise.Monad,
                        Daedalus.Specialise.PartialApply,
                        Daedalus.Specialise.Unify,
@@ -84,8 +84,8 @@ library
                        Daedalus.ParserGen.LL.DFAStep,
                        Daedalus.ParserGen.LL.DFA,
                        Daedalus.ParserGen.LL.LLA,
-                       Daedalus.ParserGen.Runner,
-                       Daedalus.ParserGen.Generate
+                       Daedalus.ParserGen.Runner
+                       -- Daedalus.ParserGen.Generate
 
   build-depends:       base,
                        array,
@@ -106,7 +106,7 @@ library
                        ansi-terminal,
                        directory,
                        ghc-prim,
-                       language-c,
+                       -- language-c,
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
