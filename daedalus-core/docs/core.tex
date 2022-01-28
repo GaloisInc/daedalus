@@ -35,7 +35,7 @@ E &{}={}& \text{\dots language of expressions\dots} \\
 \section{Semantics}
 
 In this section we present a few different formulations of the semantics
-of the Core language.  Throught, we use the following notation:
+of the Core language.  Throughout, we use the following notation:
 \[
 \begin{array}{ll}
 I       & \text{The type of streams of tokens (i.e., strings)} \\
@@ -255,7 +255,7 @@ Another way to give semantics is to model them as a state transformer:
 \]
 
 Using state transformers is a more powerful abstraction than what is
-expressable in Core. In particular, consider an extension of Core
+expressible in Core. In particular, consider an extension of Core
 that allows for direct stream manipulation, $\gSetS E$, which returns
 no interesting semantic value, but modifies the stream that we are parsing.
 Such a construct is readily expressible using the state transformers semantics:
@@ -265,7 +265,7 @@ Such a construct is readily expressible using the state transformers semantics:
 \]
 
 We cannot, however, express such a parser using the set-based semantics,
-because in the fromalizm, parsers declare constraints on a global stream,
+because in this formalism, parsers declare constraints on a global stream,
 but they cannot change the actual stream.  One attempt to define the
 semantics of such a construct could be:
 
@@ -276,8 +276,7 @@ This, however, is not correct because instead of changing the stream,
 we are making a look-ahead assertion about what the stream should be.
 Thus, we'll reject any inputs that do not match $E$, which is quite
 different than the intended semantics, which is a parser that never fails
-but modifyies the input. As a concrete example, consider:
-for example the parser $\gSetS {\eString a}$:
+but modifies the input. As a concrete example, consider $\gSetS {\eString a}$:
 \begin{align*}
 \funSem{\gSetS {\eString a}}~X &= \set { ((),\eString a) } \\
 \setSem{\gSetS {\eString a}}   &= \set { ((),\eString {},\eString a) }
