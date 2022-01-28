@@ -7,6 +7,8 @@
 
 
 \newcommand{\sem}[1]{\llbracket{#1}\rrbracket}
+\newcommand{\setSem}[1]{{\sem {#1}}^{\mathrm{set}}}
+\newcommand{\funSem}[1]{{\sem {#1}}^{\mathrm{fun}}}
 \newcommand{\fun}[1]{\mathrm{#1}~}
 \newcommand{\set}[1]{\{{#1}\}}
 \newcommand{\prefixOf}[2]{{#1}~\mathrm{prefixOf}~{#2}}
@@ -17,6 +19,9 @@
 \newcommand{\parser}[4]{{#1}~\rightarrow~{#2}\rhd{#3}\cdot{#4}}
 \newcommand{\rejectsPrefixesOf}[2]{{#2}\notin{#1}}
 
+
+\newcommand{\eString}[1]{\mathtt{"{#1}"}}
+
 \newcommand{\gPure}[1]{\mathbf{pure}~{#1}}
 \newcommand{\gFail}{\mathbf{fail}}
 \newcommand{\gMatch}[1]{\mathbf{match}~{#1}}
@@ -26,8 +31,10 @@
 \newcommand{\gOrB}[2]{{#1} \triangleleft {#2}}
 \newcommand{\gParse}[2]{\mathbf{parse}~{#1}~{#2}}
 \newcommand{\gGetS}{\mathbf{peek}}
+\newcommand{\gSetS}[1]{\mathbf{setStream}~{#1}}
 \newcommand{\gEnd}{\mathbf{end}}
 \newcommand{\gCase}[2]{\mathbf{case}~{#1}~\mathbf{of}~{#2}}
+\newcommand{\gIf}[3]{\mathbf{if}~{#1}~\mathbf{then}~{#2}~\mathbf{else}~{#3}}
 \newcommand{\gCall}[2]{{#1}~{#2}}
 
 \newcommand{\from}{\leftarrow}

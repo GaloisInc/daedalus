@@ -22,7 +22,9 @@ S &{}={}& \gPure E \\
   &{}|{}& \gGetS \\
 \\
   &{}|{}& \gParse S E \\
-  &{}|{}& \gCase E {(P \to S)^+}
+  &{}|{}& \gCase E {(P \to S)^+} \\
+\\
+E &{}={}& \text{\dots language of expressions\dots} \\
 \end{array}
 \]
 }
@@ -32,12 +34,40 @@ S &{}={}& \gPure E \\
 
 \section{Semantics}
 
-The semantics of a parser is a set of triples $(v,X,Y)$, where
-$v$ is a semantic value, and $X$ and $Y$ are strings.
+In this section we present a few different formulations of the semantics
+of the Core language.  Throught, we use the following notation:
+\[
+\begin{array}{ll}
+I       & \text{The type of streams of tokens (i.e., strings)} \\
+X,Y,Z   & \text{Refer to elements of $I$} \\
+\append & \text{Concatenates members of $I$} \\
+V       & \text{The type of semantic values} \\
+u,v     & \text{Refer to elements of $V$}
+\end{array}
+\]
+
+The dynamic environments are implicit, except in the relational specification.
+The notation $\sem{ \_ }^{x=v}$ indicates the dynamic environment is extended
+with a new binding of variable $x$ to $v$.
+
+We won't specify the details of expression language is as it is
+somewhat orthogonal to the semantics of parsers:
+\[
+\sem E : V
+\]
+
+
+\subsection{Set Semantics}
+
+The semantics of a parser is a set of triples $(v,X,Y)$:
+\[
+\sem S : \set{ (V,I,I) }
+\]
+
 If $(v,X,Y)$ is in the semantics of $S$, then when applied to
 input $X \append Y$, $S$ will consume $X$ and produce result $v$.
-This formulation allows us to talk about parsers in context.  We'll
-say that a parser {\em accepts} an input if it doesn't fail on it:
+This formulation allows us to talk about parsers in context.
+A parser {\em accepts} an input if it doesn't fail on it:
 \begin{align*}
 \fun{accepts} S~(X \append Y) &= \exists v. (v,X,Y) \in \sem S \\
 \end{align*}
@@ -56,8 +86,8 @@ say that a parser {\em accepts} an input if it doesn't fail on it:
 \sem{\gGet E} &= \set{ (X, X, Y) ~|~ |X| = \sem{E} } \\
 \sem{\gGetS}  &= \set{ (X, [], X) } \\
 \sem{\gParse S E} &= \set{ (v,[],Z) ~|~ (v,X,Y) \from \sem{S},
-                                        \sem{E} = X \append Y } \\
-\sem{\gCase E A} &= \sem{ \fun{select} \sem{E}~A }
+                                        \sem{E} = X \append Y} \\
+\sem{\gCase E A} &= \sem {\caseSelect {\sem E} A}
 \end{align*}
 \caption{Set semantics of Core parsers.}
 \end{figure}
@@ -72,12 +102,9 @@ of the input.
 
 \subsection{Semantics as a Relation}
 
+This is an alternative presentation of the set semantics.
+
 \begin{figure}[H]
-\caption {
-$\env \Gamma {\parser S v X Y}$ describes the behavior or parser $S$
-in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ will consume $X$ and produce semantic value $v$.}
-
-
 \begin{mathpar}
 
 \inferrule[Pure]
@@ -117,7 +144,7 @@ in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ w
   {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
 
 \inferrule[Nested-Parser]
-  { \env \Gamma {\expr E {(X \append Y)}} \\
+  { \env \Gamma {\expr E {(X \append Y \append Z)}} \\
     \env \Gamma {\parser S v X Y} }
   {\env \Gamma {\parser {\gParse S E} v {[]} Z}}
 
@@ -128,6 +155,9 @@ in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ w
   {\env \Gamma {\parser {\gCase E A} v X Y}}
 
 \end{mathpar}
+\caption {
+$\env \Gamma {\parser S v X Y}$ describes the behavior or parser $S$
+in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ will consume $X$ and produce semantic value $v$.}
 \end{figure}
 
 
@@ -186,6 +216,78 @@ in the sense described before.
 
 \end{figure}
 
+\section{Semantics as a State Transformer}
+
+Another way to give semantics is to model them as a state transformer:
+\[
+\sem S : I \to \set{ (V,I) }
+\]
+
+\begin{figure}[H]
+\begin{align*}
+\sem {\gPure E}~X &= \set{ (\sem E, X) } \\
+\sem {\gBind x {S_1} {S_2}}~X &=  \set{ (v,Z) ~|~ (u,Y) \from \sem {S_1}~X,
+                                        (v,Z) \from \sem {S_2}^{x=u}~Y } \\
+\sem {\gFail}~X   &= \set{ } \\
+\sem {\gOr {S_1} {S_2}}~X &= \sem{S_1}~X \union \sem{S_2}~X \\
+\sem {\gOrB {S_1} {S_2}}~X &=
+  \begin{cases}
+  \sem {S_1}~X &\text{if}~\sem{S_1}~X \neq \emptyset \\
+  \sem {S_2}~X &\text{otherwise}
+  \end{cases} \\
+\sem {\gGet E}~X &=
+  \begin{cases}
+  \set{ (Y,Z) } &\text{if}~|Y| = \sem{E} \conj X = Y \append Z \\
+  \emptyset     &\text{otherwise}
+  \end{cases} \\
+\sem {\gGetS}~X &= \set {(X,X)} \\
+\sem {\gParse S E}~X &= \set{ (v,X) ~|~ (v,Y) \from \sem S~\sem E } \\
+\sem {\gCase E A}~X &= \sem {\caseSelect {\sem E} A}~X
+\end{align*}
+\caption{State transformer semantics of Core parsers.}
+\end{figure}
+
+
+\section{Set vs. State Transformer Semantics}
+
+\[
+(v,X,Y) \in \setSem S \iff (v,Y) \in \funSem S~(X \append Y)
+\]
+
+Using state transformers is a more powerful abstraction than what is
+expressable in Core. In particular, consider an extension of Core
+that allows for direct stream manipulation, $\gSetS E$, which returns
+no interesting semantic value, but modifies the stream that we are parsing.
+Such a construct is readily expressible using the state transformers semantics:
+
+\[
+\funSem{\gSetS E} X = \set {((),\sem E)}
+\]
+
+We cannot, however, express such a parser using the set-based semantics,
+because in the fromalizm, parsers declare constraints on a global stream,
+but they cannot change the actual stream.  One attempt to define the
+semantics of such a construct could be:
+
+\[
+\setSem{\gSetS E} = \set { ((),[], \sem E) }
+\]
+This, however, is not correct because instead of changing the stream,
+we are making a look-ahead assertion about what the stream should be.
+Thus, we'll reject any inputs that do not match $E$, which is quite
+different than the intended semantics, which is a parser that never fails
+but modifyies the input. As a concrete example, consider:
+for example the parser $\gSetS {\eString a}$:
+\begin{align*}
+\funSem{\gSetS {\eString a}}~X &= \set { ((),\eString a) } \\
+\setSem{\gSetS {\eString a}}   &= \set { ((),\eString {},\eString a) }
+\end{align*}
+
+\begin{align*}
+((),\eString a) & \in \funSem{\gSetS {\eString a}}~
+                                      (\eString {} \append \eString b) \\
+((),\eString {},\eString b) & \notin \setSem{\gSetS {\eString a}}
+\end{align*}
 
 
 
