@@ -144,7 +144,7 @@ This is an alternative presentation of the set semantics.
   {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
 
 \inferrule[Nested-Parser]
-  { \env \Gamma {\expr E {(X \append Y \append Z)}} \\
+  { \env \Gamma {\expr E {X \append Y}} \\
     \env \Gamma {\parser S v X Y} }
   {\env \Gamma {\parser {\gParse S E} v {[]} Z}}
 
