@@ -1,0 +1,38 @@
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+\usepackage{mathpartir}
+\usepackage{stmaryrd}
+\usepackage{float}
+
+
+\newcommand{\sem}[1]{\llbracket{#1}\rrbracket}
+\newcommand{\fun}[1]{\mathrm{#1}~}
+\newcommand{\set}[1]{\{{#1}\}}
+\newcommand{\prefixOf}[2]{{#1}~\mathrm{prefixOf}~{#2}}
+\newcommand{\caseSelect}[2]{\fun{select}{#1}~{#2}}
+
+\newcommand{\env}[2]{{#1}\vdash{#2}}
+\newcommand{\expr}[2]{{#1}~\rightarrow~{#2}}
+\newcommand{\parser}[4]{{#1}~\rightarrow~{#2}\rhd{#3}\cdot{#4}}
+\newcommand{\rejectsPrefixesOf}[2]{{#2}\notin{#1}}
+
+\newcommand{\gPure}[1]{\mathbf{pure}~{#1}}
+\newcommand{\gFail}{\mathbf{fail}}
+\newcommand{\gMatch}[1]{\mathbf{match}~{#1}}
+\newcommand{\gGet}[1]{\mathbf{get}{#1}}
+\newcommand{\gBind}[3]{{#1} = {#2}; {#3}}
+\newcommand{\gOr}[2]{{#1} \talloblong {#2}}
+\newcommand{\gOrB}[2]{{#1} \triangleleft {#2}}
+\newcommand{\gParse}[2]{\mathbf{parse}~{#1}~{#2}}
+\newcommand{\gGetS}{\mathbf{peek}}
+\newcommand{\gEnd}{\mathbf{end}}
+\newcommand{\gCase}[2]{\mathbf{case}~{#1}~\mathbf{of}~{#2}}
+\newcommand{\gCall}[2]{{#1}~{#2}}
+
+\newcommand{\from}{\leftarrow}
+\newcommand{\append}{+\!\!\!+}
+\newcommand{\conj}{\wedge}
+\newcommand{\union}{\cup}
+
+

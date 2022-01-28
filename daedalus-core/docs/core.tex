@@ -1,0 +1,192 @@
+\documentclass{article}
+
+\input{macro.tex}
+
+\begin{document}
+
+\section{Syntax}
+
+\begin{figure}[H]
+{\setlength{\arraycolsep}{0pt}
+\[
+\begin{array}{rcl}
+S &{}={}& \gPure E \\
+  &{}|{}& \gBind x {S_1} {S_2} \\
+  &{}|{}& \gCall f {E^*} \\
+\\
+  &{}|{}& \gFail \\
+  &{}|{}& \gOr {S_1} {S_2} \\
+  &{}|{}& \gOrB {S_1} {S_2} \\
+\\
+  &{}|{}& \gGet E \\
+  &{}|{}& \gGetS \\
+\\
+  &{}|{}& \gParse S E \\
+  &{}|{}& \gCase E {(P \to S)^+}
+\end{array}
+\]
+}
+\caption{The Core language}
+\end{figure}
+
+
+\section{Semantics}
+
+The semantics of a parser is a set of triples $(v,X,Y)$, where
+$v$ is a semantic value, and $X$ and $Y$ are strings.
+If $(v,X,Y)$ is in the semantics of $S$, then when applied to
+input $X \append Y$, $S$ will consume $X$ and produce result $v$.
+This formulation allows us to talk about parsers in context.  We'll
+say that a parser {\em accepts} an input if it doesn't fail on it:
+\begin{align*}
+\fun{accepts} S~(X \append Y) &= \exists v. (v,X,Y) \in \sem S \\
+\end{align*}
+
+\begin{figure}[H]
+\begin{align*}
+\sem {\gPure E} &= \set{ (\sem E, [], X) } \\
+\sem {\gBind x {S_1} {S_2}} &=
+  \set{ (v,X \append Y,Z) ~|~ (u,X,Y \append Z) \from \sem{S_1},
+                              (v,Y,Z)           \from \sem{S_2}^{x=u} } \\
+\sem{\gFail} &= \set{ } \\
+\sem{\gOr {S_1} {S_2}} &= \sem{S_1} \union \sem{S_2} \\
+\sem{\gOrB {S_1} {S_2}} &= \sem{S_1} \union
+  \set { (v,X,Y) ~|~ (v,X,Y) \from \sem{S_2},
+                     \fun{not} (\fun{accepts} S_1~(X \append Y)) } \\
+\sem{\gGet E} &= \set{ (X, X, Y) ~|~ |X| = \sem{E} } \\
+\sem{\gGetS}  &= \set{ (X, [], X) } \\
+\sem{\gParse S E} &= \set{ (v,[],Z) ~|~ (v,X,Y) \from \sem{S},
+                                        \sem{E} = X \append Y } \\
+\sem{\gCase E A} &= \sem{ \fun{select} \sem{E}~A }
+\end{align*}
+\caption{Set semantics of Core parsers.}
+\end{figure}
+
+Example of a parser that depends on context:
+\begin{equation*}
+S = \gBind x \gGetS {\gCase x {\set{[] \to \gFail; \_ \to \gPure {()}}}}
+\end{equation*}
+This parser accepts the empty string, but only if is not at the end
+of the input.
+
+
+\subsection{Semantics as a Relation}
+
+\begin{figure}[H]
+\caption {
+$\env \Gamma {\parser S v X Y}$ describes the behavior or parser $S$
+in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ will consume $X$ and produce semantic value $v$.}
+
+
+\begin{mathpar}
+
+\inferrule[Pure]
+  {\env \Gamma {\expr E v}}
+  {\env \Gamma {\parser {\gPure E} v {[]} X}}
+
+\inferrule[Advance]
+  {\env \Gamma {\expr E |X|}}
+  {\env \Gamma {\parser {\gGet E} X X Y}}
+
+\inferrule[Look-Ahead]
+  { }
+  {\env \Gamma {\parser \gGetS X {[]} X}}
+
+\inferrule[Sequnce]
+  { \env \Gamma           {\parser {S_1} u X {Y \append Z}} \\
+    \env {\Gamma, x = u } {\parser {S_2} v Y Z}
+  }
+  {\env \Gamma {\parser {\gBind x {S_1} {S_2}} v {X \append Y} Z}}
+
+\inferrule[Unbiased-Choice-Left]
+  {\env \Gamma {\parser {S_1} v X Y}}
+  {\env \Gamma {\parser {\gOr {S_1} {S_2}} v X Y}}
+
+\inferrule[Unbiased-Choice-Right]
+  {\env \Gamma {\parser {S_2} v X Y}}
+  {\env \Gamma {\parser {\gOr {S_1} {S_2}} v X Y}}
+
+\inferrule[Biased-Choice-Left]
+  {\env \Gamma {\parser {S_1} v X Y}}
+  {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
+
+\inferrule[Biased-Choice-Right]
+  {\env \Gamma {\parser {S_2} v X Y} \\
+   \env \Gamma {\rejectsPrefixesOf {S_1} {(X \append Y)}}
+  }
+  {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
+
+\inferrule[Nested-Parser]
+  { \env \Gamma {\expr E {(X \append Y)}} \\
+    \env \Gamma {\parser S v X Y} }
+  {\env \Gamma {\parser {\gParse S E} v {[]} Z}}
+
+\inferrule[Case]
+  {\env \Gamma {\expr E u} \\
+   \env \Gamma {\parser {\caseSelect u A} v X Y}
+  }
+  {\env \Gamma {\parser {\gCase E A} v X Y}}
+
+\end{mathpar}
+\end{figure}
+
+
+\begin{figure}[H]
+\begin{mathpar}
+
+\inferrule[Empty]
+  { }
+  {\env \Gamma {\rejectsPrefixesOf {\gFail} X}}
+
+\inferrule[Too-Short]
+  { \env \Gamma {\expr E v} \\
+    |X| < v
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gGet E} X}}
+\\
+\inferrule[Unbiased-Mismatch]
+  { \env \Gamma {\rejectsPrefixesOf {S_1} X} \\
+    \env \Gamma {\rejectsPrefixesOf {S_2} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gOr {S_1} {S_2}} X}}
+
+\inferrule[Biased-Mismatch]
+  { \env \Gamma {\rejectsPrefixesOf {S_1} X} \\
+    \env \Gamma {\rejectsPrefixesOf {S_2} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gOrB {S_1} {S_2}} X}}
+
+\inferrule[Not-Front]
+  {\env \Gamma {\rejectsPrefixesOf {S_1} X}}
+  {\env \Gamma {\rejectsPrefixesOf {\gBind x {S_1} {S_2}} X}}
+
+\inferrule[Not-Back]
+  {\env \Gamma {\parser {S_1} v X Y} \\
+   \env {\Gamma, x=v} {\rejectsPrefixesOf {S_2} Y}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gBind x {S_1} {S_2}} {(X \append Y)}}}
+
+\inferrule[Not-Nested]
+  {\env \Gamma {\expr E v} \\
+   \env \Gamma {\rejectsPrefixesOf P v}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gParse P E} X}}
+
+\inferrule[No-Case]
+  {\env \Gamma {\expr E v} \\
+   \env \Gamma {\rejectsPrefixesOf {\caseSelect v A} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gCase E A} X}}
+
+\end{mathpar}
+\caption{
+$\env \Gamma {\rejectsPrefixesOf S X}$ asserts that $X$ is not accepted by $S$
+in the sense described before.
+}
+
+\end{figure}
+
+
+
+
+\end{document}
