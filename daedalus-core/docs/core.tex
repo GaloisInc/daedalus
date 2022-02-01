@@ -57,9 +57,44 @@ somewhat orthogonal to the semantics of parsers:
 \]
 
 
+\subsection{Semantics as a State Transformer}
+
+One way to give semantics is to model them as a state transformer:
+\[
+\sem S : I \to \set{ (V,I) }
+\]
+
+\begin{figure}[H]
+\begin{align*}
+\sem {\gPure E}~X &= \set{ (\sem E, X) } \\
+\sem {\gBind x {S_1} {S_2}}~X &=  \set{ (v,Z) ~|~ (u,Y) \from \sem {S_1}~X,
+                                        (v,Z) \from \sem {S_2}^{x=u}~Y } \\
+\sem {\gFail}~X   &= \set{ } \\
+\sem {\gOr {S_1} {S_2}}~X &= \sem{S_1}~X \union \sem{S_2}~X \\
+\sem {\gOrB {S_1} {S_2}}~X &=
+  \begin{cases}
+  \sem {S_1}~X &\text{if}~\sem{S_1}~X \neq \emptyset \\
+  \sem {S_2}~X &\text{otherwise}
+  \end{cases} \\
+\sem {\gGet E}~X &=
+  \begin{cases}
+  \set{ (Y,Z) } &\text{if}~|Y| = \sem{E} \conj X = Y \append Z \\
+  \emptyset     &\text{otherwise}
+  \end{cases} \\
+\sem {\gGetS}~X &= \set {(X,X)} \\
+\sem {\gParse S E}~X &= \set{ (v,X) ~|~ (v,Y) \from \sem S~\sem E } \\
+\sem {\gCase E A}~X &= \sem {\caseSelect {\sem E} A}~X
+\end{align*}
+\caption{State transformer semantics of Core parsers.}
+\end{figure}
+
+
+
+
 \subsection{Set Semantics}
 
-The semantics of a parser is a set of triples $(v,X,Y)$:
+An alternative to state transformers is to describe a parser is a set
+of triples:
 \[
 \sem S : \set{ (V,I,I) }
 \]
@@ -216,38 +251,6 @@ in the sense described before.
 
 \end{figure}
 
-\section{Semantics as a State Transformer}
-
-Another way to give semantics is to model them as a state transformer:
-\[
-\sem S : I \to \set{ (V,I) }
-\]
-
-\begin{figure}[H]
-\begin{align*}
-\sem {\gPure E}~X &= \set{ (\sem E, X) } \\
-\sem {\gBind x {S_1} {S_2}}~X &=  \set{ (v,Z) ~|~ (u,Y) \from \sem {S_1}~X,
-                                        (v,Z) \from \sem {S_2}^{x=u}~Y } \\
-\sem {\gFail}~X   &= \set{ } \\
-\sem {\gOr {S_1} {S_2}}~X &= \sem{S_1}~X \union \sem{S_2}~X \\
-\sem {\gOrB {S_1} {S_2}}~X &=
-  \begin{cases}
-  \sem {S_1}~X &\text{if}~\sem{S_1}~X \neq \emptyset \\
-  \sem {S_2}~X &\text{otherwise}
-  \end{cases} \\
-\sem {\gGet E}~X &=
-  \begin{cases}
-  \set{ (Y,Z) } &\text{if}~|Y| = \sem{E} \conj X = Y \append Z \\
-  \emptyset     &\text{otherwise}
-  \end{cases} \\
-\sem {\gGetS}~X &= \set {(X,X)} \\
-\sem {\gParse S E}~X &= \set{ (v,X) ~|~ (v,Y) \from \sem S~\sem E } \\
-\sem {\gCase E A}~X &= \sem {\caseSelect {\sem E} A}~X
-\end{align*}
-\caption{State transformer semantics of Core parsers.}
-\end{figure}
-
-
 \section{Set vs. State Transformer Semantics}
 
 \[
@@ -272,21 +275,13 @@ semantics of such a construct could be:
 \[
 \setSem{\gSetS E} = \set { ((),[], \sem E) }
 \]
-This, however, is not correct because instead of changing the stream,
+This, however, is incorrect because instead of changing the stream,
 we are making a look-ahead assertion about what the stream should be.
 Thus, we'll reject any inputs that do not match $E$, which is quite
 different than the intended semantics, which is a parser that never fails
 but modifies the input. As a concrete example, consider $\gSetS {\eString a}$:
-\begin{align*}
-\funSem{\gSetS {\eString a}}~X &= \set { ((),\eString a) } \\
-\setSem{\gSetS {\eString a}}   &= \set { ((),\eString {},\eString a) }
-\end{align*}
-
-\begin{align*}
-((),\eString a) & \in \funSem{\gSetS {\eString a}}~
-                                      (\eString {} \append \eString b) \\
-((),\eString {},\eString b) & \notin \setSem{\gSetS {\eString a}}
-\end{align*}
+the input ${\eString b}$ is accepted by the transformer interpreation but
+not by the (incorrect) set interpreation.
 
 
 
