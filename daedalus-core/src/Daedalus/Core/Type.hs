@@ -46,6 +46,8 @@ bdUniverse env ty =
   where
   bad = panic "bdUniverse" [ "Not a bitdata type", showPP ty ]
 
+
+
 class TypeOf t where
   typeOf :: t -> Type
 
@@ -228,5 +230,6 @@ instance TypeOf Match where
 
 instance TypeOf a => TypeOf (Case a) where
   typeOf (Case _ as) = typeOf (snd (head as))
+
 
 

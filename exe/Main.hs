@@ -24,8 +24,10 @@ import Text.Show.Pretty (ppDoc)
 
 import Hexdump
 
+import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
 import Daedalus.SourceRange
+import Daedalus.Core(checkModule)
 
 import Daedalus.Driver
 
@@ -220,6 +222,12 @@ doToCore opts mm =
      when (optStripFail opts) (passStripFail specMod)
      when (optSpecTys opts) (passSpecTys specMod)
      when (optDeterminize opts) (passDeterminize specMod)
+
+     core <- ddlGetAST mm astCore
+     case checkModule core of
+       Just err -> panic "Malformed Core" [ show err ]
+       Nothing  -> pure ()
+
      pure ents
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
