@@ -222,8 +222,7 @@ doToCore opts mm =
      when (optStripFail opts) (passStripFail specMod)
      when (optSpecTys opts) (passSpecTys specMod)
      when (optDeterminize opts) (passDeterminize specMod)
-
-     core <- ddlGetAST mm astCore
+     core <- ddlGetAST specMod astCore
      case checkModule core of
        Just err -> panic "Malformed Core" [ show err ]
        Nothing  -> pure ()
