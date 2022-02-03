@@ -26,26 +26,53 @@ import Daedalus.Core.Type (typeOf)
 
 determinizeModule :: Module -> Module
 determinizeModule m  =
-  let newGram = map (fmap detGram) (mGFuns m) in
+  let newGram = map (fmap (detGram m)) (mGFuns m) in
   m {mGFuns = newGram}
 
-detGram :: Grammar -> Grammar
-detGram g =
-  case g of
+detGram :: Module -> Grammar -> Grammar
+detGram modl gram =
+  detGo gram
+
+  where
+  detGo g = case g of
     Pure _      -> g
     GetStream   -> g
     SetStream _ -> g
     Match _ _   -> g
     Fail {}     -> g
-    Do_ g1 g2     -> Do_     (detGram g1) (detGram g2)
-    Do name g1 g2 -> Do name (detGram g1) (detGram g2)
-    Let name e g1 -> Let name e (detGram g1)
-    OrBiased {}   -> detOr g
-    OrUnbiased {} -> detOr g
-    Call {}  -> g
+    Do_ g1 g2     -> Do_     (detGo g1) (detGo g2)
+    Do name g1 g2 -> Do name (detGo g1) (detGo g2)
+    Let name e g1 -> Let name e (detGo g1)
+    OrBiased {}   -> detOr modl g
+    OrUnbiased {} -> detOr modl g
+    Call {} -> g
     Annot {} -> g
     GCase (Case name lst) ->
-      GCase (Case name (map (\ (pat, g1) -> (pat, detGram g1)) lst))
+      GCase (Case name (map (\ (pat, g1) -> (pat, detGo g1)) lst))
+
+getGrammarDef :: Module -> FName -> Maybe Grammar
+getGrammarDef modl name =
+  goGetGrammar (mGFuns modl)
+  where
+  goGetGrammar [] = error "cannot find grammar"
+  goGetGrammar ( Fun {fName = n1, fDef = fdef} : rest ) =
+    if fnameId n1 == fnameId name
+    then case fdef of
+           Def g2 -> Just g2
+           External -> Nothing
+    else goGetGrammar rest
+
+getByteSetDef :: Module -> FName -> Maybe ByteSet
+getByteSetDef modl name =
+  goGetByteSet (mBFuns modl)
+  where
+  goGetByteSet [] = error "cannot find grammar"
+  goGetByteSet ( Fun {fName = n1, fDef = fdef} : rest ) =
+    if fnameId n1 == fnameId name
+    then case fdef of
+           Def g2 -> Just g2
+           External -> Nothing
+    else goGetByteSet rest
 
 
 
@@ -150,8 +177,8 @@ data Resolution =
     YesResolved   ZipGrammar
   | NoResolved    Deriv
 
-detOr :: Grammar -> Grammar
-detOr grammar =
+detOr :: Module -> Grammar -> Grammar
+detOr modl grammar =
   let ty = typeOf grammar in
   let orLst = getListOr grammar in
   iterateDerivFactorize ty (DerivStart $ map initZipGrammar orLst) 0
@@ -226,6 +253,10 @@ detOr grammar =
     case g of
       OrUnbiased g1 g2 -> getListOr g1 ++ getListOr g2
       OrBiased   g1 g2 -> getListOr g1 ++ getListOr g2
+      Call name []  ->
+        case getGrammarDef modl name of
+          Nothing -> [ g ]
+          Just gram1 -> getListOr gram1
       _                -> [g]
 
   tryDeterminizeListOr :: [ZipGrammar] -> Maybe [(CharSet, ZipGrammar)]
@@ -244,6 +275,10 @@ detOr grammar =
         Do {}    -> deriveGo (goLeft gr)
         Match {} -> deriveMatch gr
         Annot {} -> deriveGo (goLeft gr)
+        Call name []  ->
+          case getGrammarDef modl name of
+            Nothing -> Nothing
+            Just gram1 -> deriveGo (gr {focus = gram1 })
         _        -> Nothing
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
@@ -261,14 +296,8 @@ detOr grammar =
     let newPath = mkPathGrammar (ZMatch sem) pth in
     case match of
       MatchByte b ->
-        case b of
-          SetAny ->
-            let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
-            Just (NCByteSet b, x)
-          SetSingle (Ap0 (IntL _s (TUInt (TSize 8)))) ->
-            let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
-            Just (NCByteSet b, x)
-          _ -> Nothing
+        let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
+        Just (NCByteSet b, x)
       MatchBytes b ->
         case b of
           Ap0 (ByteArrayL bs) ->
@@ -282,14 +311,25 @@ detOr grammar =
 
   charListFromByteSet :: CharSet -> Maybe (Set Integer)
   charListFromByteSet b =
+    let allBytes = (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255]) in
     case b of
       NCWord8 w -> Just (Set.singleton $ toInteger w)
-      NCByteSet SetAny -> Just (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255])
+      NCByteSet SetAny -> Just allBytes
       NCByteSet (SetSingle (Ap0 (IntL s (TUInt (TSize 8))))) -> Just (Set.singleton s)
       NCByteSet (SetRange (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
         if s1 <= s2 && s1 >=0 && s2 <= 255
         then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
         else Nothing
+      NCByteSet (SetComplement bs1) ->
+        do s1 <- charListFromByteSet (NCByteSet bs1)
+           return $ Set.difference allBytes s1
+      NCByteSet (SetUnion bs1 bs2) ->
+        do s1 <- charListFromByteSet (NCByteSet bs1)
+           s2 <- charListFromByteSet (NCByteSet bs2)
+           Just (Set.union s1 s2)
+      NCByteSet (SetCall name []) ->
+        do s1 <- getByteSetDef modl name
+           charListFromByteSet (NCByteSet s1)
       _      -> Nothing
 
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
