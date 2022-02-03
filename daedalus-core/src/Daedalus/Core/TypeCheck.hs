@@ -420,8 +420,8 @@ checkOp2 op arg1 arg2 =
          pure t
 
     ConsBuilder ->
-      do typeIs (TBuilder arg2) arg1
-         pure arg1
+      do typeIs (TBuilder arg1) arg2
+         pure arg2
 
     ArrayStream ->
       do typeIs (TArray tByte) arg1 -- name

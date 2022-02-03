@@ -42,6 +42,7 @@ data Options =
           , optStripFail :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
+          , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
           , optNoWarnUnbiased :: Bool
           }
@@ -61,6 +62,7 @@ options = OptSpec
                            , optInline    = False
                            , optStripFail = False
                            , optSpecTys   = False
+                           , optCheckCore = True
                            , optDeterminize = False
                            , optOutDir    = Nothing
                            , optNoWarnUnbiased = False
@@ -126,6 +128,10 @@ options = OptSpec
       , Option [] ["core"]
         "Use the Core interpreter"
         $ NoArg \o -> Right o { optBackend = UseCore }
+
+      , Option [] ["no-core-check"]
+        "Do not validate Core"
+        $ NoArg \o -> Right o { optCheckCore = False }
 
       , Option [] ["gen-metrics"]
         "Use parser-generator backend when interpreting and print metrics"
