@@ -1,2 +1,0 @@
-
-def Main = Match "a"
