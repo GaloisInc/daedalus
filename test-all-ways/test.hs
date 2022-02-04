@@ -113,16 +113,17 @@ runWith be ddl mbInput =
   do putStrLn $ unwords [ "[RUN " ++ show be ++ "]", ddl, fromMaybe "" mbInput ]
      let file = outputFileFor be ddl mbInput
      createDirectoryIfMissing True (takeDirectory file)
+     let interp = [ "exec", "daedalus", "--"
+                  , "--json", "--no-warn-unbiased"
+                  ]
      save file =<<
         case be of
 
           InterpDaedalus ->
-            readProcessWithExitCode "cabal"
-              [ "exec", "daedalus", "--", "--json", ddl, inp ] ""
+            readProcessWithExitCode "cabal" (interp ++ [ ddl, inp ]) ""
 
           InterpCore ->
-            readProcessWithExitCode "cabal"
-              [ "exec", "daedalus", "--", "--json", "--core", ddl, inp ] ""
+            readProcessWithExitCode "cabal" (interp ++ ["--core", ddl, inp ]) ""
 
           CompileHaskell ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
