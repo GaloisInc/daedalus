@@ -218,7 +218,7 @@ fromGrammar gram =
                         Let len lenE . Let str strE
                           <$> doIf (Var len `leq` streamLen (Var str))
                                   (Pure $ eTake (Var len) (Var str))
-                                  (sysErr TUnit "unexpected end of input")
+                                  (sysErr TStream "unexpected end of input")
 
     TC.TCStreamOff sem n s ->
       do lenE <- fromExpr n
@@ -233,7 +233,7 @@ fromGrammar gram =
                 Let len lenE . Let str strE
                   <$> doIf (Var len `leq` streamLen (Var str))
                           (Pure $ eDrop (Var len) (Var str))
-                          (sysErr TUnit "unexpected end of input")
+                          (sysErr TStream "unexpected end of input")
 
 
     TC.TCMany sem cmt bnd g ->
