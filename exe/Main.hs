@@ -217,19 +217,23 @@ doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
+     checkCore "Core"
      ents <- mapM (uncurry ddlGetFName) entries
-     when (optInline opts) (passInline ents specMod)
-     when (optStripFail opts) (passStripFail specMod)
-     when (optSpecTys opts) (passSpecTys specMod)
-     when (optDeterminize opts) (passDeterminize specMod)
+     when (optInline opts) (passInline ents specMod >> checkCore "Inline")
+     when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
+     when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
+     when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
+     pure ents
 
-     when (optCheckCore opts)
+  where
+  checkCore x =
+    when (optCheckCore opts)
        do core <- ddlGetAST specMod astCore
           case checkModule core of
-            Just err -> panic "Malformed Core" [ show err ]
+            Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
             Nothing  -> pure ()
 
-     pure ents
+
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
