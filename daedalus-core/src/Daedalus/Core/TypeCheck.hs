@@ -419,7 +419,7 @@ checkOp2 op arg1 arg2 =
 
     LCat ->
       do isIntegral arg1
-         typeIs tByte arg2
+         _ <- isWord arg2
          pure arg1
 
     LShift ->
