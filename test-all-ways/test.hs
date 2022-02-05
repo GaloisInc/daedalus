@@ -1,9 +1,11 @@
 #!/usr/bin/env runhaskell
+{-# Language BlockArguments #-}
 module Main where
 
 import Text.Read(readMaybe)
 import Data.Maybe
 import Data.List
+import Control.Monad(forM_,filterM)
 import System.FilePath
 import System.Process
 import System.Directory
@@ -41,14 +43,18 @@ main =
                      [input] -> diff be1 be2 f (Just input)
             _ -> putStrLn "Usage: diff BACKEND1 BACKEND2 DDL_FILE [INPUT]"
 
+       "all" : fs ->
+          case fs of
+            [] -> doAllTests
+            _  -> putStrLn "Usage: all"
+
        "clean" : fs ->
           case fs of
             [] -> clean
             _  -> putStrLn "Usage: clean"
 
-       [ file ] -> compile file >> run file Nothing >> validate file Nothing
-       [ file, input ] ->
-          compile file >> run file (Just input) >> validate file (Just input)
+       [ file ]        -> allPhases file Nothing
+       [ file, input ] -> allPhases file (Just input)
 
        _ -> mapM_ putStrLn
               [ "Usage:"
@@ -57,8 +63,18 @@ main =
               , "  run     DDL_FILE [INPUT]"
               , "  check   DDL_FILE [INPUT]"
               , "  diff    BACKEND1 BACKEND2 DDL_FILE [INPUT]"
+              , "  all"
               , "  clean"
               ]
+
+--------------------------------------------------------------------------------
+allPhases :: FilePath -> Maybe FilePath -> IO ()
+allPhases file mbInp =
+  do compile file
+     run file mbInp
+     validate file mbInp
+
+
 
 --------------------------------------------------------------------------------
 -- Compilation
@@ -197,7 +213,62 @@ clean =
 
 
 --------------------------------------------------------------------------------
+-- Run all tests
+
+doAllTests :: IO ()
+doAllTests = doAllTestsIn testsDir
+
+doAllTestsIn :: FilePath -> IO ()
+doAllTestsIn dirName =
+  do files <- listDirectory dirName
+     if "Main.ddl" `elem` files
+        then doOneTestInDir files
+        else forM_ files \f ->
+               do let file = dirName </> f
+                  isDir <- doesDirectoryExist file
+                  if isDir
+                    then doAllTestsIn file
+                    else if takeExtension f == ".ddl"
+                            then doOneTest f =<< findInputsFile files f
+                            else pure ()
+
+  where
+  findInputsFile siblings file =
+    do let root = dropExtension file
+       let inputDir = dirName </> root
+       hasInput <- doesDirectoryExist inputDir
+       fs1 <- if hasInput
+                then do fs <- listDirectory inputDir
+                        pure (map (inputDir </>) fs)
+                else pure []
+       let fs2' = [ dirName </> f
+                  | f <- siblings, takeExtension f /= ".ddl" &&
+                                   dropExtensions f == root ]
+       fs2 <- filterM doesFileExist fs2'
+       pure (fs1 ++ fs2)
+
+  doOneTest ddl ins =
+    do putStrLn ("--- " ++ ddl ++ " ------------------------------------------")
+       let file = dirName </> ddl
+       compile file
+       case ins of
+         [] -> do run file Nothing
+                  validate file Nothing
+         _  -> forM_ ins \i ->
+                 do run file (Just i)
+                    validate file (Just i)
+
+  doOneTestInDir siblings = undefined
+    --do putStrLn ("--- " ++ 
+
+
+
+--------------------------------------------------------------------------------
 -- Directory structure
+
+
+testsDir :: FilePath
+testsDir = "tests"
 
 buildDir :: FilePath
 buildDir = "build"
