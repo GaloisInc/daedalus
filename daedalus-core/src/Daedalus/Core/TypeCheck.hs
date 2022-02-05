@@ -1,5 +1,6 @@
 {-# Language ImplicitParams, ConstraintKinds, OverloadedStrings #-}
 {-# Language BlockArguments #-}
+{-# Language GeneralizedNewtypeDeriving #-}
 -- | Validate types, for sanity.
 module Daedalus.Core.TypeCheck where
 
@@ -7,7 +8,8 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List(sort,group)
 import Data.Functor(($>))
-import Control.Monad(zipWithM_,when)
+import Control.Monad(zipWithM_,when,forM,forM_)
+import qualified MonadLib as M
 
 import Daedalus.PP
 import Daedalus.Rec(forgetRecs)
@@ -20,7 +22,7 @@ import Daedalus.Core.Type
 
 checkModule :: Module -> Maybe TypeError
 checkModule m =
-  case checkModuleM m of
+  case runTCResult (checkModuleM m) of
     Left err -> Just err
     Right _  -> Nothing
 
@@ -45,6 +47,7 @@ checkFun check fun =
   case fDef fun of
     External -> pure ()
     Def e ->
+      inContext ("function" <+> pp (fName fun))
       do let env = Map.fromList [ (x, typeOf x) | x <- fParams fun ]
          t <- check e env
          typeIs (typeOf (fName fun)) t
@@ -53,12 +56,13 @@ checkFun check fun =
 checkGrammar :: (GEnv,BEnv,FEnv,TEnv) => Grammar -> Env -> TCResult Type
 checkGrammar gram env =
   case gram of
-    Pure e -> checkExpr e env
+    Pure e -> inContext "argument of pure" $ checkExpr e env
 
     GetStream -> pure TStream
 
     SetStream e ->
-      do typeIs TStream =<< checkExpr e env
+      do t <- inContext "argument of SetStram" (checkExpr e env)
+         inContext "SetStream" (typeIs TStream t)
          pure TUnit
 
     Match s m ->
@@ -74,30 +78,34 @@ checkGrammar gram env =
          pure t
 
     Do_ g1 g2 ->
-      do _ <- checkGrammar g1 env
-         checkGrammar g2 env
+      do _ <- inContext "do head" $ checkGrammar g1 env
+         inContext "do" $ checkGrammar g2 env
 
     Do x g1 g2 ->
-      do t <- checkGrammar g1 env
-         checkGrammar g2 (extEnv x t env)
+      do t <- inContext "do head" $ checkGrammar g1 env
+         inContext "do" $ checkGrammar g2 (extEnv x t env)
 
     Let x e g ->
-      do t <- checkExpr e env
-         checkGrammar g (extEnv x t env)
+      do t <- inContext "let expression" $ checkExpr e env
+         inContext "let" $ checkGrammar g (extEnv x t env)
 
     OrBiased g1 g2 ->
-      do t1 <- checkGrammar g1 env
-         t2 <- checkGrammar g2 env
-         isSameType t1 t2
+      do t1 <- inContext "<| left"  $ checkGrammar g1 env
+         t2 <- inContext "<| right" $ checkGrammar g2 env
+         inContext "<|" $ isSameType t1 t2
          pure t1
 
     OrUnbiased g1 g2 ->
-      do t1 <- checkGrammar g1 env
-         t2 <- checkGrammar g2 env
-         isSameType t1 t2
+      do t1 <- inContext "| left"  $ checkGrammar g1 env
+         t2 <- inContext "| right" $ checkGrammar g2 env
+         inContext "|"             $ isSameType t1 t2
          pure t1
 
-    Call f es -> checkCall ?genv f =<< mapM (`checkExpr` env) es
+    Call f es ->
+      do xs <- forM (zip [1..] es) \(n,e) ->
+                  inContext (int n <+> "argument of" <+> pp f) $
+                      checkExpr e env
+         checkCall ?genv f xs
 
     Annot _a g -> checkGrammar g env
 
@@ -175,7 +183,7 @@ checkExpr expr env =
          checkExpr e2 (extEnv x t env)
 
     Struct ut fields ->
-      do def     <- getUserType ut
+      do def     <- getUserTypeM ut
          dFields <- case def of
                       TStruct fs -> pure fs
                       TUnion _   -> typeMismatch "struct" (TUser ut)
@@ -205,17 +213,21 @@ checkExpr expr env =
     ECase c -> checkCase checkExpr c env
 
     Ap0 op0 ->
-      checkOp0 op0
+      inContext (pp op0) $
+       checkOp0 op0
 
     Ap1 op1 e ->
-      do t1 <- checkExpr e env
-         checkOp1 op1 t1
+      do t1 <- inContext ("argument of" <+> pp op1) $
+               checkExpr e env
+         inContext (pp op1) $ checkOp1 op1 t1
 
 
     Ap2 op2 e1 e2 ->
-      do t1 <- checkExpr e1 env
-         t2 <- checkExpr e2 env
-         checkOp2 op2 t1 t2
+      do t1 <- inContext ("1st argument of" <+> pp op2) $
+               checkExpr e1 env
+         t2 <- inContext ("2nd argument of" <+> pp op2) $
+               checkExpr e2 env
+         inContext (pp op2) $ checkOp2 op2 t1 t2
 
     Ap3 op3 e1 e2 e3 ->
       do t1 <- checkExpr e1 env
@@ -229,13 +241,19 @@ checkExpr expr env =
 checkCase ::
   TEnv => (a -> Env -> TCResult Type) -> Case a -> Env -> TCResult Type
 checkCase checkRHS (Case x alts) env =
-  do t <- checkVar x env
-     checkPatterns t (map fst alts)
-     ts <- mapM (\(_,r) -> checkRHS r env) alts
+  inContext "case"
+  do t <- inContext ("discriminat" <+> pp x) $ checkVar x env
+     inContext "exhaustive" (checkPatterns t (map fst alts))
+     ts <- forM alts \(p,r) ->
+           inContext ("alternative" <+> pp p)
+              do ty <- checkRHS r env
+                 pure (p,ty)
      case ts of
        [] -> typeError "Empty case" []
-       tr : trs ->
-         do mapM_ (typeIs tr) trs
+       (_,tr) : trs ->
+         do forM_ trs \(p1,t1) ->
+              inContext ("alternative" <+> pp p1)
+                        (typeIs tr t1)
             pure tr
 
 checkPatterns :: TEnv => Type -> [Pattern] -> TCResult ()
@@ -276,7 +294,7 @@ checkPatterns t ps
   resolve =
     case t of
       TUser ut ->
-        do def <- getUserType ut
+        do def <- getUserTypeM ut
            case def of
              TUnion fs  -> pure (Just (map fst fs))
              TStruct {} -> notPat
@@ -501,14 +519,21 @@ type FEnv      = (?fenv :: Map FName ([Type],Type)) -- ^ values
 type BEnv      = (?benv :: Map FName ([Type],Type)) -- ^ byte set
 type GEnv      = (?genv :: Map FName ([Type],Type)) -- ^ grammar
 
-type TCResult  = Either Doc
+newtype TCResult a  = TC (M.ReaderT [Doc] (M.ExceptionT TypeError M.Id) a)
+  deriving (Functor,Applicative,Monad)
+
+runTCResult :: TCResult a -> Either Doc a
+runTCResult (TC m) = M.runId $ M.runExceptionT $ M.runReaderT [] m
+
 type TypeError = Doc
 type Env       = Map Name Type
 
 
+getUserType :: TEnv => UserType -> Either Doc TDef
+getUserType ut = runTCResult (getUserTypeM ut)
 
-getUserType :: TEnv => UserType -> TCResult TDef
-getUserType ut =
+getUserTypeM :: TEnv => UserType -> TCResult TDef
+getUserTypeM ut =
   do def <- case Map.lookup (utName ut) ?tenv of
               Nothing -> bad "Undefined user type:" ""
               Just d  -> pure (tDef d)
@@ -571,7 +596,13 @@ tByte = tWord 8
 
 
 typeError :: Doc -> [Doc] -> TCResult a
-typeError x xs = Left (hang x 2 (bullets xs))
+typeError x xs = TC
+  do ctx <- M.ask
+     let ys = xs ++ [ "Context", bullets (reverse ctx) ]
+     M.raise (hang x 2 (bullets ys))
+
+inContext :: Doc -> TCResult a -> TCResult a
+inContext d (TC m) = TC (M.mapReader (d:) m)
 
 typeMismatch :: Doc -> Type -> TCResult a
 typeMismatch expected actual =
@@ -607,7 +638,7 @@ hasField :: TEnv => Label -> Type -> Type -> TCResult ()
 hasField l t ty =
   case ty of
     TUser ut ->
-      do def <- getUserType ut
+      do def <- getUserTypeM ut
          case def of
            TStruct fs -> check fs
            TUnion {} -> notStruct
@@ -640,7 +671,7 @@ hasCon :: TEnv => Label -> Type -> Type -> TCResult ()
 hasCon l t ty =
   case ty of
     TUser ut ->
-      do def <- getUserType ut
+      do def <- getUserTypeM ut
          case def of
            TStruct {} ->  notUnion
            TUnion fs  -> check fs
