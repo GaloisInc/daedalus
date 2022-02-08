@@ -70,7 +70,8 @@ jobs:
         os: [ ubuntu-latest ]
         component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom', flag: '' }
                    , { name: 'Talos', verb: 'test', noun: 'talos', flag: '' }
-                   , { name: 'Daedalus', verb: 'test', noun: '', flag: '--test-show-details=streaming' }
+                   , { name: 'Daedalus', verb: 'test', noun: 'daedalus-tests', flag: '--test-show-details=streaming' }
+                   , { name: 'Daedalus backends', verb: 'test', noun: 'daedalus-test-backends', flag: '--test-show-details=streaming' }
                    ]
 
     steps:

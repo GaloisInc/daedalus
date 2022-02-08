@@ -1,20 +1,26 @@
 #!/usr/bin/env runhaskell
 {-# Language BlockArguments #-}
+{-# Language ImplicitParams #-}
+{-# Language ConstraintKinds #-}
 module Main where
 
 import Text.Read(readMaybe)
 import Data.Maybe
 import Data.List
-import Control.Monad(forM_,filterM)
+import Data.Char
+import Control.Monad(filterM,forM)
+import Control.Exception(SomeException(..),catch)
 import System.FilePath
 import System.Process
 import System.Directory
 import System.Environment
 import System.IO
+import System.Exit(exitFailure,exitSuccess)
 
 main :: IO ()
 main =
   do args <- getArgs
+     let ?verbosity = 1
      case args of
        "compile" : fs ->
           case fs of
@@ -41,11 +47,14 @@ main =
                 -> case rest of
                      []      -> diff be1 be2 f Nothing
                      [input] -> diff be1 be2 f (Just input)
+                     _ -> putStrLn
+                            "Usage: diff BACKEND1 BACKEND2 DDL_FILE [INPUT]"
             _ -> putStrLn "Usage: diff BACKEND1 BACKEND2 DDL_FILE [INPUT]"
 
        "all" : fs ->
           case fs of
-            [] -> doAllTests
+            [] -> do let ?verbosity = 0
+                     doAllTests
             _  -> putStrLn "Usage: all"
 
        "clean" : fs ->
@@ -67,8 +76,21 @@ main =
               , "  clean"
               ]
 
+type Quiet = (?verbosity :: Int)
+
+
+data TestResult = OK | OutputsDiffer [[Backend]] | Fail SomeException
+  deriving Show
+
+isOK :: TestResult -> Bool
+isOK result =
+  case result of
+    OK -> True
+    _  -> False
+
+
 --------------------------------------------------------------------------------
-allPhases :: FilePath -> Maybe FilePath -> IO ()
+allPhases :: Quiet => FilePath -> Maybe FilePath -> IO ()
 allPhases file mbInp =
   do compile file
      run file mbInp
@@ -79,10 +101,10 @@ allPhases file mbInp =
 --------------------------------------------------------------------------------
 -- Compilation
 
-compile :: FilePath -> IO ()
+compile :: Quiet => FilePath -> IO ()
 compile file = mapM_ (`compileWith` file) allBackends
 
-compileWith :: Backend -> FilePath -> IO ()
+compileWith :: Quiet => Backend -> FilePath -> IO ()
 compileWith be ddl =
   do putStrLn ("[COMPILE " ++ show be ++ "] " ++ ddl)
      case be of
@@ -91,13 +113,13 @@ compileWith be ddl =
        CompileHaskell -> compileHaskell ddl
        CompileCPP     -> compileCPP ddl
 
-compileHaskell :: FilePath -> IO ()
+compileHaskell :: Quiet => FilePath -> IO ()
 compileHaskell ddl =
   do let root   = buildRootDirFor CompileHaskell
          build  = buildDirFor CompileHaskell ddl
      createDirectoryIfMissing True build
-     callProcess "cp" ["template_cabal_project", root </> "cabal.project"]
-     callProcess "cabal"
+     callProcess' "cp" ["template_cabal_project", root </> "cabal.project"]
+     callProcess' "cabal"
         [ "exec", "daedalus", "--"
         , "--compile-hs", "--out-dir=" ++ build, ddl
         ]
@@ -107,15 +129,15 @@ compileHaskell ddl =
      callProcessIn_ build "ln" ["-s", head (lines path), "parser"]
      pure ()
 
-compileCPP :: FilePath -> IO ()
+compileCPP :: Quiet => FilePath -> IO ()
 compileCPP ddl =
   do let build = buildDirFor CompileCPP ddl
      createDirectoryIfMissing True build
-     callProcess "cabal"
+     callProcess' "cabal"
         [ "exec", "daedalus", "--"
         , "--compile-c++", "--out-dir=" ++ build, ddl
         ]
-     callProcess "make" [ "-C", build, "parser" ]
+     callProcess' "make" [ "-C", build, "parser" ]
 
 
 --------------------------------------------------------------------------------
@@ -161,8 +183,8 @@ runWith be ddl mbInput =
 -- Validation
 
 equiv :: Eq b => [(a,b)] -> [[a]]
-equiv xs =
-  case xs of
+equiv xs0 =
+  case xs0 of
     [] -> []
     (x,b) : xs ->
       case partition ((== b) . snd) xs of
@@ -175,12 +197,16 @@ load be ddl mbInput =
      pure (be,txt)
 
 validate :: FilePath -> Maybe FilePath -> IO ()
-validate ddl mbInput =
+validate x y = validate' x y >> pure ()
+
+validate' :: FilePath -> Maybe FilePath -> IO TestResult
+validate' ddl mbInput =
   do results <- mapM (\be -> load be ddl mbInput) allBackends
      case equiv results of
-       [_] -> putStrLn "OK"
+       [_] -> putStrLn "OK" >> pure OK
        rs  -> do putStrLn "DIFFERENT"
                  mapM_ (putStrLn . unwords . map show) rs
+                 pure (OutputsDiffer rs)
 
 
 --------------------------------------------------------------------------------
@@ -215,22 +241,30 @@ clean =
 --------------------------------------------------------------------------------
 -- Run all tests
 
-doAllTests :: IO ()
-doAllTests = doAllTestsIn testsDir
+doAllTests :: Quiet => IO ()
+doAllTests =
+  do rs <- doAllTestsIn testsDir
+     let (good,bad) = partition isOK rs
+         ok    = length good
+         notOk = length bad
+         total = ok + notOk
+     putStrLn ("Passed " ++ show ok ++ " / " ++ show total)
+     if notOk > 0 then exitFailure else exitSuccess
 
-doAllTestsIn :: FilePath -> IO ()
+doAllTestsIn :: Quiet => FilePath -> IO [TestResult]
 doAllTestsIn dirName =
   do files <- listDirectory dirName
      if "Main.ddl" `elem` files
         then doOneTestInDir files
-        else forM_ files \f ->
+        else concat <$>
+             forM files \f ->
                do let file = dirName </> f
                   isDir <- doesDirectoryExist file
                   if isDir
                     then doAllTestsIn file
                     else if takeExtension f == ".ddl"
                             then doOneTest f =<< findInputsFile files f
-                            else pure ()
+                            else pure []
 
   where
   findInputsFile siblings file =
@@ -248,19 +282,25 @@ doAllTestsIn dirName =
        pure (fs1 ++ fs2)
 
   doOneTest ddl ins =
+    attempt
     do putStrLn ("--- " ++ ddl ++ " ------------------------------------------")
        let file = dirName </> ddl
        compile file
        case ins of
-         [] -> do run file Nothing
-                  validate file Nothing
-         _  -> forM_ ins \i ->
+         [] -> attempt
+               do run file Nothing
+                  (:[]) <$> validate' file Nothing
+         _  -> concat <$>
+               forM ins \i ->
+                 attempt
                  do run file (Just i)
-                    validate file (Just i)
+                    (:[]) <$> validate' file (Just i)
 
-  doOneTestInDir siblings = undefined
-    --do putStrLn ("--- " ++ 
+  -- XXX
+  doOneTestInDir siblings = error "Not yet implemented"
 
+
+  attempt m = m `catch` \e@SomeException{} -> pure [Fail e]
 
 
 --------------------------------------------------------------------------------
@@ -299,13 +339,39 @@ outputFileFor be ddl mbInput =
 --------------------------------------------------------------------------------
 -- Utilities
 
-callProcessIn_ :: FilePath -> String -> [String] -> IO ()
+callProcessIn_ :: Quiet => FilePath -> String -> [String] -> IO ()
 callProcessIn_ dir f xs =
   do _ <- callProcessIn dir f xs
      pure ()
 
-callProcessIn :: FilePath -> String -> [String] -> IO String
-callProcessIn dir f xs = readCreateProcess (proc f xs) { cwd = Just dir } ""
+callProcessIn :: Quiet => FilePath -> String -> [String] -> IO String
+callProcessIn dir f xs =
+  do verbose f xs
+     (_exit,stdout,err) <-
+        readCreateProcessWithExitCode (proc f xs) { cwd = Just dir } ""
+     quiet err
+     pure stdout
+
+callProcess' :: Quiet => FilePath -> [String] -> IO ()
+callProcess' f xs =
+  do verbose f xs
+     (_,out,err) <- readCreateProcessWithExitCode (proc f xs) ""
+     quiet out
+     quiet err
+     pure ()
+
+verbose :: Quiet => String -> [String] -> IO ()
+verbose f xs
+  | ?verbosity > 1  = putStrLn (unwords (map esc (f : xs)))
+  | otherwise       = pure ()
+  where
+  escChar c = isSpace c || c == '"'
+  esc s     = if any escChar s then show s else s
+
+quiet :: Quiet => String -> IO ()
+quiet err
+  | ?verbosity < 1 = pure ()
+  | otherwise      = hPutStr stderr err >> hFlush stderr
 
 short :: FilePath -> String
 short = dropExtension . takeFileName
