@@ -374,6 +374,16 @@ fromSem sem = case sem of
                 YesSem -> SemYes
 
 
+-- XXX: uint -> float/double    if > 24/53
+-- XXX: sint -> float/double    if > 25/54
+-- XXX: int  -> float/double    if always
+-- XXX: float -> double         never
+-- XXX: double -> float         always
+-- Checks:
+--  let y = double2float x
+--  ok, if isNaN x || float2double y == x
+--
+-- integeral: ?
 needsCoerceCheck :: UsesTypes => Type -> Expr -> M (Maybe Expr)
 needsCoerceCheck toTy e =
   case (toTy, fromTy) of

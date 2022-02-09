@@ -335,6 +335,7 @@ isCoercible r lossy tt1 tt2 =
             TUInt _  -> pure Solved
             TSInt _  -> pure Solved
             TInteger -> pure Solved
+            TFloat   -> pure Solved
             _        -> nope
 
 
@@ -376,6 +377,20 @@ isCoercible r lossy tt1 tt2 =
 
             | otherwise -> pure Solved
 
+          TFloat
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 24 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
+          TDouble
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 53 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
           _  -> nope
 
 
@@ -402,8 +417,23 @@ isCoercible r lossy tt1 tt2 =
 
             | otherwise -> pure Solved
 
-          _ -> nope
+          TFloat
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 25 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
 
+          TDouble
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 54 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
+
+
+          _ -> nope
 
 
 

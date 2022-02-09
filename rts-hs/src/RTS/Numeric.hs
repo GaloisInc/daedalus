@@ -14,6 +14,8 @@ module RTS.Numeric
   , uint8
   , sint8
   , cvtNum
+  , cvtHsNum
+  , cvtHsFracMaybe
   , cvtU
   , cvtNumMaybe
 
@@ -343,6 +345,21 @@ cvtNumMaybe a = if asInt b == ia then Just b else Nothing
   where
   ia = asInt a
   b  = lit ia
+
+-- Number to Floating
+-- XXX: these can be more effecient
+cvtHsNum :: (Numeric a, Num b) => a -> b
+cvtHsNum = fromInteger . asInt
+
+-- Number to Floating Maybe.
+-- XXX: these can be more effecient
+cvtHsFracMaybe :: (Numeric a, Fractional b, Real b) => a -> Maybe b
+cvtHsFracMaybe x
+  | toRational y == r = Just y
+  | otherwise         = Nothing
+  where
+  r = toRational (asInt x)
+  y = fromRational r
 
 
 

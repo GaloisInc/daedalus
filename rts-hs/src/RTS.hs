@@ -21,6 +21,7 @@ module RTS
   where
 
 import Data.Map(Map)
+import GHC.Float
 
 import RTS.Base
 import RTS.Numeric
@@ -37,6 +38,46 @@ instance {-# OVERLAPPING #-} Convert a a where
   convertMaybe = Just
   {-# INLINE convert #-}
   {-# INLINE convertMaybe #-}
+
+instance {-# OVERLAPPING #-} Convert Float Double where
+  convert = float2Double
+  convertMaybe = Just . float2Double
+
+instance {-# OVERLAPPING #-} Convert Double Float where
+  convert = double2Float
+  convertMaybe x
+    | isNaN x || float2Double y == x = Just y
+    | otherwise                      = Nothing
+    where y = double2Float x
+
+
+instance {-# OVERLAPPING #-} Convert Integer Float where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Float where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Float where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+instance {-# OVERLAPPING #-} Convert Integer Double where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Double where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Double where
+  convert      = cvtHsNum
+  convertMaybe = cvtHsFracMaybe
+
+
+
+
 
 instance (Numeric a, Numeric b) => Convert a b where
   convert = cvtNum
@@ -58,5 +99,7 @@ instance DDL a => DDL (Maybe a)
 instance (DDL k, DDL v) => DDL (Map k v)
 instance DDL a => DDL (Vector a)
 instance DDL Input
+instance DDL Float
+instance DDL Double
 
 
