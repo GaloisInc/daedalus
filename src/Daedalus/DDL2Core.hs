@@ -332,10 +332,13 @@ fromGrammar gram =
                   [ "Unexpected grammar variable: " ++ show x ]
 
     TC.TCCoerceCheck sem _t1 t2 v ->
-      do e   <- fromExpr v
-         tgt <- fromTypeM t2
-         let e' = Pure $ case sem of { YesSem -> coerceTo tgt e; NoSem -> unit }
-         chk <- needsCoerceCheck tgt e
+      fromExpr v >>= \e ->
+      withVar e      \x ->
+      do tgt <- fromTypeM t2
+         let e' = Pure case sem of
+                         YesSem -> coerceTo tgt (Var x)
+                         NoSem -> unit
+         chk <- needsCoerceCheck tgt x
          case chk of
            Nothing  -> pure e'
            Just c   -> doIf c e' (sysErr tgt "Coercion is lossy")
@@ -384,8 +387,8 @@ fromSem sem = case sem of
 --  ok, if isNaN x || float2double y == x
 --
 -- integeral: ?
-needsCoerceCheck :: UsesTypes => Type -> Expr -> M (Maybe Expr)
-needsCoerceCheck toTy e =
+needsCoerceCheck :: UsesTypes => Type -> Name -> M (Maybe Expr)
+needsCoerceCheck toTy x =
   case (toTy, fromTy) of
 
     -- uint 8 -> uint 8
@@ -444,6 +447,7 @@ needsCoerceCheck toTy e =
           , showPP fromTy, showPP toTy
           ]
   where
+    e = Var x
     fromTy = typeOf e
     Just (s, n) = isBits toTy -- lazy
     upperBoundCheck = e `leq` intL (2 ^ (if s then n - 1 else n) - 1) fromTy
@@ -1572,7 +1576,6 @@ newName mb t =
 -- | Make up a new local name
 newLocal :: Type -> M Name
 newLocal = newName Nothing
-
 
 -- | Add a local varialble from the source (i.e., not newly generate)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a
