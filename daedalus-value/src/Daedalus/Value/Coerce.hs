@@ -79,7 +79,7 @@ vCoerceTo tgt v =
         TVArray       -> bug
         TVMap         -> bug
         TVBDStruct {} -> bug
-        TVBDUnion {} -> bug
+        TVBDUnion {}  -> bug
         TVOther       -> bug
 
     VDouble n ->

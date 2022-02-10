@@ -377,23 +377,49 @@ fromSem sem = case sem of
                 YesSem -> SemYes
 
 
--- XXX: uint -> float/double    if > 24/53
--- XXX: sint -> float/double    if > 25/54
--- XXX: int  -> float/double    if always
--- XXX: float -> double         never
--- XXX: double -> float         always
--- Checks:
---  let y = double2float x
---  ok, if isNaN x || float2double y == x
---
--- integeral: ?
 needsCoerceCheck :: UsesTypes => Type -> Name -> M (Maybe Expr)
 needsCoerceCheck toTy x =
   case (toTy, fromTy) of
 
-    -- uint 8 -> uint 8
-    -- (non numeric types)
+    -- equal types need no checking
     _ | toTy == fromTy -> pure Nothing
+
+    -- coerciong to a float
+    (TFloat, _) ->
+      case fromTy of
+
+        TDouble -> Just <$> (eOr (eIsNaN e) =<< backForth)
+
+        TInteger -> Just <$> backForth
+
+        (isUInt -> Just w)
+          | w <= 24   -> pure Nothing
+          | otherwise -> Just <$> backForth
+
+        (isSInt -> Just w)
+          | w <= 25   -> pure Nothing
+          | otherwise -> Just <$> backForth
+
+        _ -> bad
+
+    -- coerciong to a double
+    (TDouble, _) ->
+      case fromTy of
+
+        TFloat -> pure Nothing
+
+        TInteger -> Just <$> backForth
+
+        (isUInt -> Just w)
+          | w <= 53   -> pure Nothing
+          | otherwise -> Just <$> backForth
+
+        (isSInt -> Just w)
+          | w <= 54   -> pure Nothing
+          | otherwise -> Just <$> backForth
+
+        _ -> bad
+
 
     -- int -> uint 8
     -- int -> sint 8
@@ -442,16 +468,23 @@ needsCoerceCheck toTy x =
       | Just decl <- Map.lookup (utName ut) ?tyMap ->
         bitdataValidator (tDef decl) e
 
-    _ -> panic "needsCoerceCheck"
-          [ "Unexpected coercsion:"
-          , showPP fromTy, showPP toTy
-          ]
+    _ -> bad
   where
+    bad = panic "needsCoerceCheck"
+            [ "Unexpected coercsion:"
+            , showPP fromTy, showPP toTy
+            ]
+
     e = Var x
     fromTy = typeOf e
     Just (s, n) = isBits toTy -- lazy
     upperBoundCheck = e `leq` intL (2 ^ (if s then n - 1 else n) - 1) fromTy
     lowerBoundCheck = intL (if s then - (2 ^ (n - 1)) else 0) fromTy `leq` e
+
+    backForth =
+      withVar (coerceTo toTy e) \y ->
+        eAnd (eNot (eIsInfinite (Var y)))
+             (eq e (coerceTo fromTy (Var y)))
 
 --------------------------------------------------------------------------------
 -- Pattern Matching
