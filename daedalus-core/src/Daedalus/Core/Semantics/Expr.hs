@@ -57,7 +57,7 @@ eval expr env =
     Ap3 op e1 e2 e3 -> evalOp3 op (eval e1 env) (eval e2 env) (eval e3 env)
     ApN op es       -> evalOpN op (evalArgs es env) env
 
-partial :: Partial Value -> Value
+partial :: Partial a -> a
 partial mbV =
   case mbV of
     Right a  -> a
@@ -227,7 +227,7 @@ evalType env ty =
 
 evalOp1 :: Env -> Op1 -> Type -> Value -> Value
 evalOp1 env op ty v = case op of
-  CoerceTo t    -> fst (vCoerceTo (evalType env t) v)
+  CoerceTo t    -> partial (fst (vCoerceTo (evalType env t) v))
 
   WordToFloat     -> vWordToFloat v
   WordToDouble    -> vWordToDouble v

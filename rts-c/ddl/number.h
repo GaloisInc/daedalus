@@ -49,6 +49,9 @@ public:
   UInt(long x)               : data(static_cast<Rep>(x)) {}
   UInt(long long x)          : data(static_cast<Rep>(x)) {}
 
+  UInt(float x)              : data(static_cast<Rep>(x)) {}
+  UInt(double x)             : data(static_cast<Rep>(x)) {}
+
 
   // Shouldn't really be used by client code.
   Rep rawRep() const { return data; }
@@ -199,6 +202,9 @@ public:
   SInt(int16_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 16) fixUp(); }
   SInt(int32_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 32) fixUp(); }
   SInt(int64_t x) : data(static_cast<Rep>(x)) { if constexpr (w < 64) fixUp(); }
+
+  SInt(float x)   : data(static_cast<Rep>(x)) { fixUp(); }
+  SInt(double x)  : data(static_cast<Rep>(x)) { fixUp(); }
 
   Rep rep() const { return data; }
 

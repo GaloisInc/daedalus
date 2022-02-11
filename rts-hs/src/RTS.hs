@@ -53,27 +53,54 @@ instance {-# OVERLAPPING #-} Convert Double Float where
 
 instance {-# OVERLAPPING #-} Convert Integer Float where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Float where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Float where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} Convert Integer Double where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Double where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Double where
   convert      = cvtHsNum
-  convertMaybe = cvtHsFracMaybe
+  convertMaybe = cvtNumToFloatingMaybe
+
+
+instance {-# OVERLAPPING #-} Convert Double Integer where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert Double (UInt n) where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert Double (SInt n) where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+instance {-# OVERLAPPING #-} Convert Float Integer where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert Float (UInt n) where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+instance {-# OVERLAPPING #-} SizeType n => Convert Float (SInt n) where
+  convert = cvtFloatingToNum
+  convertMaybe = cvtFloatingToNumMaybe
+
+
 
 
 

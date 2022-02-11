@@ -120,7 +120,7 @@ addValMaybe (Just x) v e = addVal x v e
 
 --------------------------------------------------------------------------------
 
-partial :: Partial Value -> Value
+partial :: Partial a -> a
 partial val =
   case val of
     Left err -> error err
@@ -352,7 +352,7 @@ compilePureExpr env = go
             Just r  -> invoke r env ts es []
             Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
 
-        TCCoerce _ t2 e -> fst (vCoerceTo (evalType env t2) (go e))
+        TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
 
         TCMapEmpty _    -> VMap Map.empty
         TCArrayLength e -> vArrayLength (go e)
@@ -820,7 +820,10 @@ compilePExpr env expr0 args = go expr0
           case vCoerceTo (evalType env t) (compilePureExpr env e) of
             (v, exact) ->
               if exact
-                then pure $! mbSkip s v
+                then pure $! mbSkip s (partial v)
+                     -- XXX: should it still be an error if the value is
+                     -- skipped?
+
                 else pError FromSystem erng "value does not fit in target type"
 
         TCFor lp -> evalForM env  lp

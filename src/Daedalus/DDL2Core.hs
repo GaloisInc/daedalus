@@ -341,7 +341,8 @@ fromGrammar gram =
          chk <- needsCoerceCheck tgt x
          case chk of
            Nothing  -> pure e'
-           Just c   -> doIf c e' (sysErr tgt "Coercion is lossy")
+           Just c   -> doIf c e'
+                        (sysErr tgt "value does not fit in target type")
 
     TC.TCFor l -> doLoopG l
 
@@ -388,17 +389,17 @@ needsCoerceCheck toTy x =
     (TFloat, _) ->
       case fromTy of
 
-        TDouble -> Just <$> (eOr (eIsNaN e) =<< backForth)
+        TDouble -> Just <$> backForthFromFloatToFloat
 
-        TInteger -> Just <$> backForth
+        TInteger -> Just <$> backForthFromIntToFloat
 
         (isUInt -> Just w)
           | w <= 24   -> pure Nothing
-          | otherwise -> Just <$> backForth
+          | otherwise -> Just <$> backForthFromIntToFloat
 
         (isSInt -> Just w)
           | w <= 25   -> pure Nothing
-          | otherwise -> Just <$> backForth
+          | otherwise -> Just <$> backForthFromIntToFloat
 
         _ -> bad
 
@@ -408,17 +409,26 @@ needsCoerceCheck toTy x =
 
         TFloat -> pure Nothing
 
-        TInteger -> Just <$> backForth
+        TInteger -> Just <$> backForthFromIntToFloat
 
         (isUInt -> Just w)
           | w <= 53   -> pure Nothing
-          | otherwise -> Just <$> backForth
+          | otherwise -> Just <$> backForthFromIntToFloat
 
         (isSInt -> Just w)
           | w <= 54   -> pure Nothing
-          | otherwise -> Just <$> backForth
+          | otherwise -> Just <$> backForthFromIntToFloat
 
         _ -> bad
+
+    (TInteger, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TUInt {}, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TSInt {}, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TInteger, TDouble) -> Just <$> backForthFromFloatToInt
+    (TUInt {}, TDouble) -> Just <$> backForthFromFloatToInt
+    (TSInt {}, TDouble) -> Just <$> backForthFromFloatToInt
+
+
 
 
     -- int -> uint 8
@@ -481,10 +491,23 @@ needsCoerceCheck toTy x =
     upperBoundCheck = e `leq` intL (2 ^ (if s then n - 1 else n) - 1) fromTy
     lowerBoundCheck = intL (if s then - (2 ^ (n - 1)) else 0) fromTy `leq` e
 
-    backForth =
+    backForthFromFloatToFloat =
+      do let p1 = eIsNaN e
+         let p2 = eq e (coerceTo fromTy (coerceTo toTy e))
+         eOr p1 p2
+
+    backForthFromIntToFloat =
       withVar (coerceTo toTy e) \y ->
-        eAnd (eNot (eIsInfinite (Var y)))
-             (eq e (coerceTo fromTy (Var y)))
+        do let p1 = eNot (eIsInfinite (Var y))
+           let p2 = eq e (coerceTo fromTy (Var y))
+           eAnd p1 p2
+
+    backForthFromFloatToInt =
+      do p1 <- eNot <$> eOr (eIsNaN e) (eIsInfinite e)
+         let p2 = eq e (coerceTo fromTy (coerceTo toTy e))
+         eAnd p1 p2
+
+
 
 --------------------------------------------------------------------------------
 -- Pattern Matching

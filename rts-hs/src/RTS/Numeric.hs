@@ -15,7 +15,9 @@ module RTS.Numeric
   , sint8
   , cvtNum
   , cvtHsNum
-  , cvtHsFracMaybe
+  , cvtNumToFloatingMaybe
+  , cvtFloatingToNum
+  , cvtFloatingToNumMaybe
   , cvtU
   , cvtNumMaybe
 
@@ -191,9 +193,10 @@ instance (SizeOf w ~ 'S32, NormCtrs w) => NormS w  'S32 where normS = normS' 32
 instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64
 
 
-type Literal (x :: Nat) t = Numeric t
+type Literal (x :: Nat) t = Arith t
 
 class Arith t where
+  lit :: Integer -> t
   add :: t -> t -> t
   sub :: t -> t -> t
   mul :: t -> t -> t
@@ -201,6 +204,7 @@ class Arith t where
   neg :: t -> t
 
 instance Arith Float where
+  lit = fromInteger
   add = (+)
   sub = (-)
   mul = (*)
@@ -208,6 +212,7 @@ instance Arith Float where
   neg = negate
 
 instance Arith Double where
+  lit = fromInteger
   add = (+)
   sub = (-)
   mul = (*)
@@ -216,7 +221,6 @@ instance Arith Double where
 
 class Arith t => Numeric t where
   mod :: t -> t -> t
-  lit :: Integer -> t
   asInt :: t -> Integer
 
   shiftl' :: t -> Int -> t
@@ -227,6 +231,7 @@ class Arith t => Numeric t where
   bitCompl :: t -> t
 
 instance Arith Integer where
+  lit = id
   add = (+)
   sub = (-)
   mul = (*)
@@ -236,7 +241,6 @@ instance Arith Integer where
 instance Numeric Integer where
   mod = Prelude.mod
 
-  lit = id
   asInt = id
 
   shiftl' = shiftL
@@ -287,6 +291,7 @@ normUnS f x = normS (unS f x)
 
 
 instance SizeType n => Arith (UInt n) where
+  lit x           = normU (UInt (fromInteger x))
   add             = normBinU (+)
   sub             = normBinU (-)
   mul             = normBinU (*)
@@ -304,10 +309,10 @@ instance SizeType n => Numeric (UInt n) where
   shiftr' x i     = normUnU (`shiftR` i) x
 
   asInt (UInt x)  = toInteger x
-  lit x           = normU (UInt (fromInteger x))
 
 
 instance SizeType n => Arith (SInt n) where
+  lit x           = normS (SInt (fromInteger x))
   add             = normBinS (+)
   sub             = normBinS (-)
   mul             = normBinS (*)
@@ -325,7 +330,6 @@ instance SizeType n => Numeric (SInt n) where
   shiftr' x i     = normUnS (`shiftR` i) x
 
   asInt (SInt x)  = toInteger x
-  lit x           = normS (SInt (fromInteger x))
 
 deriving instance SizeType n => Show (UInt n)
 deriving instance SizeType n => Eq   (UInt n)
@@ -337,7 +341,7 @@ deriving instance SizeType n => Ord  (SInt n)
 
 --------------------------------------------------------------------------------
 
-cvtNum :: (Numeric a, Numeric b) => a -> b
+cvtNum :: (Numeric a, Arith b) => a -> b
 cvtNum = lit . asInt
 
 cvtNumMaybe :: (Numeric a, Numeric b) => a -> Maybe b
@@ -353,13 +357,26 @@ cvtHsNum = fromInteger . asInt
 
 -- Number to Floating Maybe.
 -- XXX: these can be more effecient
-cvtHsFracMaybe :: (Numeric a, Fractional b, Real b) => a -> Maybe b
-cvtHsFracMaybe x
+cvtNumToFloatingMaybe :: (Numeric a, Fractional b, Real b) => a -> Maybe b
+cvtNumToFloatingMaybe x
   | toRational y == r = Just y
   | otherwise         = Nothing
   where
   r = toRational (asInt x)
   y = fromRational r
+
+cvtFloatingToNum :: (RealFloat a, Numeric b) => a -> b
+cvtFloatingToNum x
+  | isNaN x      = error "Cannot cast NaN"
+  | isInfinite x = error "Cannot cast Inf"
+  | otherwise    = lit (truncate x)
+
+cvtFloatingToNumMaybe :: (RealFloat a, Numeric b) => a -> Maybe b
+cvtFloatingToNumMaybe x
+  | isNaN x      = Nothing
+  | isInfinite x = Nothing
+  | otherwise    = if cvtHsNum y == x then Just y else Nothing
+    where y = lit (truncate x)
 
 
 
