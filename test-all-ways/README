@@ -1,2 +1,7 @@
 This directory contains infrastructure to test that the various ways in which
 we can execute parsers produce compatible results.
+
+The main entry point is the script `test.hs`.  Run it with no arguments
+to see the available options.
+
+

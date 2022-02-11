@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cabal test daedalus-test-backends --test-show-details=streaming

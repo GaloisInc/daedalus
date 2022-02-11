@@ -2,6 +2,7 @@ module Daedalus.Core (module Syn) where
 
 import Daedalus.Rec as Syn (Rec(..), recToList)
 
+import Daedalus.Core.TypeCheck as Syn (checkModule)
 import Daedalus.Core.Decl    as Syn
 import Daedalus.Core.Grammar as Syn
 import Daedalus.Core.Expr    as Syn

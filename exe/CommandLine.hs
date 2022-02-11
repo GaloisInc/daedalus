@@ -41,6 +41,8 @@ data Options =
           , optInline    :: Bool
           , optStripFail :: Bool
           , optSpecTys   :: Bool
+          , optDeterminize :: Bool
+          , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
           , optNoWarnUnbiased :: Bool
           }
@@ -60,6 +62,8 @@ options = OptSpec
                            , optInline    = False
                            , optStripFail = False
                            , optSpecTys   = False
+                           , optCheckCore = True
+                           , optDeterminize = False
                            , optOutDir    = Nothing
                            , optNoWarnUnbiased = False
                            }
@@ -125,6 +129,10 @@ options = OptSpec
         "Use the Core interpreter"
         $ NoArg \o -> Right o { optBackend = UseCore }
 
+      , Option [] ["no-core-check"]
+        "Do not validate Core"
+        $ NoArg \o -> Right o { optCheckCore = False }
+
       , Option [] ["gen-metrics"]
         "Use parser-generator backend when interpreting and print metrics"
         $ NoArg \o -> Right o { optBackend = UsePGen True}
@@ -152,6 +160,10 @@ options = OptSpec
       , Option [] ["spec-types"]
         "Specialise types"
         $ NoArg \o -> Right o { optSpecTys = True }
+
+      , Option [] ["determinize"]
+        "Determinize core"
+        $ NoArg \o -> Right o { optDeterminize = True }
 
       , Option [] ["entry"]
         "Generate a library containg this parser."

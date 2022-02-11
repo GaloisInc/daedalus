@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [self-hosted]
-    
+
     steps:
     - uses: actions/checkout@v2
       with:
@@ -24,7 +24,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential
         sudo apt-get install -y libgmp-dev zlib1g-dev
-        
+
     - name: Install GHC
       uses: haskell/actions/setup@v1
       id: setup-haskell
@@ -61,29 +61,30 @@ jobs:
   # Run the tests in matrix.components, in parallel.
   tests:
     name: Test ${{ matrix.component.name }}
-    
+
     runs-on: ${{ matrix.os }}
 
     needs: [build]
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom' }
-                   , { name: 'Talos', verb: 'test', noun: 'talos' }
-                   , { name: 'Daedalus', verb: 'test', noun: '' }
+        component: [ { name: 'PDF DOM', verb: 'build', noun: 'exe:pdf-dom', flag: '' }
+                   , { name: 'Talos', verb: 'test', noun: 'talos', flag: '' }
+                   , { name: 'Daedalus', verb: 'test', noun: 'daedalus-tests', flag: '--test-show-details=streaming' }
+                   , { name: 'Daedalus backends', verb: 'test', noun: 'daedalus-test-backends', flag: '--test-show-details=streaming' }
                    ]
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
-        
+
     - name: Install prereqs.
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
         sudo apt-get install -y libgmp-dev zlib1g-dev
-        
+
     - name: Install Z3 (Ubuntu)
       if: matrix.component.noun == 'talos' && matrix.os == 'ubuntu-latest'
       id: z3-install
@@ -116,7 +117,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: ${{ matrix.component.name }} (${{ matrix.component.verb }})
-      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }}
+      run: cabal ${{ matrix.component.verb }} ${{ matrix.component.noun }} ${{ matrix.component.flag }}
 
 
   pdf-driver:
@@ -127,12 +128,12 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-    
+
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
-        
+
     # Copied from 'build'
     - name: Install GHC
       uses: haskell/actions/setup@v1

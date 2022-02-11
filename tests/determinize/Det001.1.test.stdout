@@ -1,0 +1,24 @@
+[WARNING] ./Det001.ddl:12:5--13:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:12:5--14:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:12:5--15:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--7:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--8:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--9:14:
+            Using unbiased choice may be inefficient.
+--- Found 2 results:
+{ x: 'b'
+, y: 'f'
+, z: { }
+, t: 198[8]
+}
+ 
+{ x: 'b'
+, y: 'f'
+, z: { }
+, t: 198[8]
+}

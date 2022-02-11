@@ -54,11 +54,11 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            # if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
+            if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
             # if ${NITRO_PARSER} "$file" > ${TMPFILE}; then
             # if ${GDAL_PARSER} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus -- nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
+            # if cabal run ../:daedalus -- nitf_main.ddl -i"${file}" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -76,11 +76,11 @@ test_jitc(){
         find "$dir" -type f -iname '*.ntf' -o -iname '*.nitf' |
         while read -r file; do
             printf ' %s ... ' "$file"
-            # if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
+            if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
             # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
             # if ${NITRO_PARSER} "$file" > ${TMPFILE}; then
             # if ${GDAL_PARSER} "$file" > ${TMPFILE}; then
-            if cabal run ../:daedalus --  nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+            # if cabal run ../:daedalus --  nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
                 printf "pass\n"
                 if [ ! -z "$COUNT" ];
                 then
@@ -97,11 +97,11 @@ test_gwg(){
     find "${GWG_DIR}" -type f -iname '*.ntf' -o -iname '*.nitf' |
     while read -r file; do
         printf '%s ... ' "$file"
-        # if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
+        if ${DAEDALUS_CPP} "$file" > ${TMPFILE}; then
         # if ${NITF_HAMMER} -f "$file" > ${TMPFILE}; then
         # if ${NITRO_PARSER} "$file" > ${TMPFILE}; then
         # if ${GDAL_PARSER} "$file" > ${TMPFILE}; then
-        if cabal run ../:daedalus -- nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
+        # if cabal run ../:daedalus -- nitf_main.ddl -i"$file" ${USING_GEN} > ${TMPFILE}; then
             printf "pass\n"
             if [ ! -z "$COUNT" ];
             then

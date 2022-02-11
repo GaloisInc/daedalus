@@ -1,0 +1,45 @@
+module DaedalusMain where
+ 
+ 
+type Main =
+  struct
+    x : [Word 8]
+    y : [Word 8]
+ 
+-------------
+ 
+proc Simple1() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do x <- do match_ "b"
+                    pure "ab"
+            pure (concat [x, x])
+       98 ->
+         do match_ "cde"
+            pure "bcde"
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Simple2() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do match_ "bc"
+            pure "abc"
+       98 ->
+         do match_ "c"
+            pure "bc"
+       99 ->
+         do x <- pure (99 @(Word 8))
+            y <- match "b"
+            pure (concat [[x], y])
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Main() : Main =
+  do x <- Simple1()
+     y <- Simple2()
+     pure Main {x = x, y = y}

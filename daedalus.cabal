@@ -160,7 +160,7 @@ test-suite daedalus-tests
   type:               exitcode-stdio-1.0
   hs-source-dirs:     tests
   main-is:            RunUnitTests.hs
-  default-language:    Haskell2010
+  default-language:   Haskell2010
   build-depends:      base,
                       filepath,
                       bytestring,
@@ -168,4 +168,13 @@ test-suite daedalus-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
+
+test-suite daedalus-test-backends
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test-all-ways
+  main-is:            TestSuite.hs
+  default-language:   Haskell2010
+  build-depends:      base,
+                      process,
+                      directory
 

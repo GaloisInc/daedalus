@@ -1,0 +1,4 @@
+Det002.ddl
+--core
+--determinize
+--interp=inputs/Det002.1.inp

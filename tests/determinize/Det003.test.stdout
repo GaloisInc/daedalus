@@ -1,0 +1,120 @@
+module DaedalusMain where
+ 
+ 
+type Main =
+  struct
+    x : ()
+    y : [Word 8]
+    z : [Word 8]
+ 
+-------------
+ 
+proc Gram1() : () =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              98 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     99 ->
+                       pure ()
+                     100 ->
+                       match_ "e"
+                     _ ->
+                       fail_sys @()
+              _ ->
+                fail_sys @()
+       _ ->
+         fail_sys @()
+ 
+proc Gram2() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              98 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     99 ->
+                       pure "abc"
+                     100 ->
+                       do match_ "e"
+                          pure "abde"
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Gram3() : [Word 8] =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       48 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              48 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do match_ " AAAAA"
+                          pure "000 AAAAA"
+                     49 ->
+                       do match_ " BBBBB"
+                          pure "001 BBBBB"
+                     _ ->
+                       fail_sys @[Word 8]
+              49 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do match_ " CCCCC"
+                          pure "010 CCCCC"
+                     49 ->
+                       do match_ " DDDDD"
+                          pure "011 DDDDD"
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       49 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              48 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do match_ " EEEEE"
+                          pure "100 EEEEE"
+                     49 ->
+                       do match_ " FFFFF"
+                          pure "101 FFFFF"
+                     _ ->
+                       fail_sys @[Word 8]
+              49 ->
+                do _x2 <- match1 { ... }
+                   case _x2 of
+                     48 ->
+                       do match_ " GGGGG"
+                          pure "110 GGGGG"
+                     49 ->
+                       do match_ " HHHHH"
+                          pure "111 HHHHH"
+                     _ ->
+                       fail_sys @[Word 8]
+              _ ->
+                fail_sys @[Word 8]
+       _ ->
+         fail_sys @[Word 8]
+ 
+proc Main() : Main =
+  do x <- Gram1()
+     y <- Gram2()
+     z <- Gram3()
+     pure Main {x = x, y = y, z = z}

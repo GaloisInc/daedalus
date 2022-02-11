@@ -1,0 +1,87 @@
+[WARNING] ./Det001.ddl:12:5--13:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:12:5--14:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:12:5--15:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--7:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--8:14:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det001.ddl:6:5--9:14:
+            Using unbiased choice may be inefficient.
+module DaedalusMain where
+ 
+ 
+type Main =
+  struct
+    x : Word 8
+    y : Word 8
+    z : ()
+    t : Word 8
+ 
+-------------
+ 
+proc Simple1() : Word 8 =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         pure (97 @(Word 8))
+       98 ->
+         pure (98 @(Word 8))
+       99 ->
+         pure (99 @(Word 8))
+       100 ->
+         pure (100 @(Word 8))
+       _ ->
+         fail_sys @(Word 8)
+ 
+proc SimpleNot1() : Word 8 =
+    fork
+        fork
+            fork
+              match1 { 101 @(Word 8) }
+            fork
+              match1 { 102 @(Word 8) }
+        fork
+          match1 { 102 @(Word 8) }
+    fork
+      match1 { 103 @(Word 8) }
+ 
+proc Simple2() : () =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       65 ->
+         pure ()
+       66 ->
+         pure ()
+       67 ->
+         pure ()
+       _ ->
+         fail_sys @()
+ 
+proc Simple3() : Word 8 =
+  -- DETERMINIZE HERE
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do x <- pure (97 @(Word 8))
+            match1_ { 98 @(Word 8) }
+            pure x
+       98 ->
+         pure (98 @(Word 8))
+       99 ->
+         do x <- pure (99 @(Word 8))
+            match1_ { 98 @(Word 8) }
+            pure (x + x)
+       _ ->
+         fail_sys @(Word 8)
+ 
+proc Main() : Main =
+  do x <- Simple1()
+     y <- SimpleNot1()
+     z <- Simple2()
+     t <- Simple3()
+     pure Main {x = x, y = y, z = z, t = t}

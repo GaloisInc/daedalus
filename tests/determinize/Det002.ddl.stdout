@@ -1,0 +1,58 @@
+module Det002
+ 
+--- Imports:
+ 
+--- Type defs:
+type Det002.Main = { x: [uint 8]
+                   ; y: [uint 8]
+                   }
+ 
+--- Rules:
+ 
+Det002.Simple1 : Grammar [uint 8] =
+  Choose biased
+    { do (x : [uint 8]) <- MatchBytes "ab"
+         ($$ : [uint 8]) <- pure (concat [x,
+                                          x])
+         pure $$
+    | MatchBytes "bcde"
+    }
+ 
+Det002.Simple2 : Grammar [uint 8] =
+  Choose biased
+    { Choose biased
+        { MatchBytes "abc"
+        | MatchBytes "bc"
+        }
+    | do (x : uint 8) <- Match {'c'}
+         (y : [uint 8]) <- MatchBytes "b"
+         ($$ : [uint 8]) <- pure (concat [[x],
+                                          y])
+         pure $$
+    }
+ 
+Det002.Main : Grammar Det002.Main =
+  do (x : [uint 8]) <- Det002.Simple1
+     (y : [uint 8]) <- Det002.Simple2
+     pure {x = x,
+           y = y}
+ 
+Det002._Simple1 : Grammar {} =
+  Choose biased
+    { @MatchBytes "ab"
+    | @MatchBytes "bcde"
+    }
+ 
+Det002._Simple2 : Grammar {} =
+  Choose biased
+    { Choose biased
+        { @MatchBytes "abc"
+        | @MatchBytes "bc"
+        }
+    | do @Match {'c'}
+         @MatchBytes "b"
+    }
+ 
+Det002._Main : Grammar {} =
+  do Det002._Simple1
+     Det002._Simple2

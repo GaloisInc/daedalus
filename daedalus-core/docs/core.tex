@@ -1,0 +1,288 @@
+\documentclass{article}
+
+\input{macro.tex}
+
+\begin{document}
+
+\section{Syntax}
+
+\begin{figure}[H]
+{\setlength{\arraycolsep}{0pt}
+\[
+\begin{array}{rcl}
+S &{}={}& \gPure E \\
+  &{}|{}& \gBind x {S_1} {S_2} \\
+  &{}|{}& \gCall f {E^*} \\
+\\
+  &{}|{}& \gFail \\
+  &{}|{}& \gOr {S_1} {S_2} \\
+  &{}|{}& \gOrB {S_1} {S_2} \\
+\\
+  &{}|{}& \gGet E \\
+  &{}|{}& \gGetS \\
+\\
+  &{}|{}& \gParse S E \\
+  &{}|{}& \gCase E {(P \to S)^+} \\
+\\
+E &{}={}& \text{\dots language of expressions\dots} \\
+\end{array}
+\]
+}
+\caption{The Core language}
+\end{figure}
+
+
+\section{Semantics}
+
+In this section we present a few different formulations of the semantics
+of the Core language.  Throughout, we use the following notation:
+\[
+\begin{array}{ll}
+I       & \text{The type of streams of tokens (i.e., strings)} \\
+X,Y,Z   & \text{Refer to elements of $I$} \\
+\append & \text{Concatenates members of $I$} \\
+V       & \text{The type of semantic values} \\
+u,v     & \text{Refer to elements of $V$}
+\end{array}
+\]
+
+The dynamic environments are implicit, except in the relational specification.
+The notation $\sem{ \_ }^{x=v}$ indicates the dynamic environment is extended
+with a new binding of variable $x$ to $v$.
+
+We won't specify the details of expression language is as it is
+somewhat orthogonal to the semantics of parsers:
+\[
+\sem E : V
+\]
+
+
+\subsection{Semantics as a State Transformer}
+
+One way to give semantics is to model them as a state transformer:
+\[
+\sem S : I \to \set{ (V,I) }
+\]
+
+\begin{figure}[H]
+\begin{align*}
+\sem {\gPure E}~X &= \set{ (\sem E, X) } \\
+\sem {\gBind x {S_1} {S_2}}~X &=  \set{ (v,Z) ~|~ (u,Y) \from \sem {S_1}~X,
+                                        (v,Z) \from \sem {S_2}^{x=u}~Y } \\
+\sem {\gFail}~X   &= \set{ } \\
+\sem {\gOr {S_1} {S_2}}~X &= \sem{S_1}~X \union \sem{S_2}~X \\
+\sem {\gOrB {S_1} {S_2}}~X &=
+  \begin{cases}
+  \sem {S_1}~X &\text{if}~\sem{S_1}~X \neq \emptyset \\
+  \sem {S_2}~X &\text{otherwise}
+  \end{cases} \\
+\sem {\gGet E}~X &=
+  \begin{cases}
+  \set{ (Y,Z) } &\text{if}~|Y| = \sem{E} \conj X = Y \append Z \\
+  \emptyset     &\text{otherwise}
+  \end{cases} \\
+\sem {\gGetS}~X &= \set {(X,X)} \\
+\sem {\gParse S E}~X &= \set{ (v,X) ~|~ (v,Y) \from \sem S~\sem E } \\
+\sem {\gCase E A}~X &= \sem {\caseSelect {\sem E} A}~X
+\end{align*}
+\caption{State transformer semantics of Core parsers.}
+\end{figure}
+
+
+
+
+\subsection{Set Semantics}
+
+An alternative to state transformers is to describe a parser is a set
+of triples:
+\[
+\sem S : \set{ (V,I,I) }
+\]
+
+If $(v,X,Y)$ is in the semantics of $S$, then when applied to
+input $X \append Y$, $S$ will consume $X$ and produce result $v$.
+This formulation allows us to talk about parsers in context.
+A parser {\em accepts} an input if it doesn't fail on it:
+\begin{align*}
+\fun{accepts} S~(X \append Y) &= \exists v. (v,X,Y) \in \sem S \\
+\end{align*}
+
+\begin{figure}[H]
+\begin{align*}
+\sem {\gPure E} &= \set{ (\sem E, [], X) } \\
+\sem {\gBind x {S_1} {S_2}} &=
+  \set{ (v,X \append Y,Z) ~|~ (u,X,Y \append Z) \from \sem{S_1},
+                              (v,Y,Z)           \from \sem{S_2}^{x=u} } \\
+\sem{\gFail} &= \set{ } \\
+\sem{\gOr {S_1} {S_2}} &= \sem{S_1} \union \sem{S_2} \\
+\sem{\gOrB {S_1} {S_2}} &= \sem{S_1} \union
+  \set { (v,X,Y) ~|~ (v,X,Y) \from \sem{S_2},
+                     \fun{not} (\fun{accepts} S_1~(X \append Y)) } \\
+\sem{\gGet E} &= \set{ (X, X, Y) ~|~ |X| = \sem{E} } \\
+\sem{\gGetS}  &= \set{ (X, [], X) } \\
+\sem{\gParse S E} &= \set{ (v,[],Z) ~|~ (v,X,Y) \from \sem{S},
+                                        \sem{E} = X \append Y} \\
+\sem{\gCase E A} &= \sem {\caseSelect {\sem E} A}
+\end{align*}
+\caption{Set semantics of Core parsers.}
+\end{figure}
+
+Example of a parser that depends on context:
+\begin{equation*}
+S = \gBind x \gGetS {\gCase x {\set{[] \to \gFail; \_ \to \gPure {()}}}}
+\end{equation*}
+This parser accepts the empty string, but only if is not at the end
+of the input.
+
+
+\subsection{Semantics as a Relation}
+
+This is an alternative presentation of the set semantics.
+
+\begin{figure}[H]
+\begin{mathpar}
+
+\inferrule[Pure]
+  {\env \Gamma {\expr E v}}
+  {\env \Gamma {\parser {\gPure E} v {[]} X}}
+
+\inferrule[Advance]
+  {\env \Gamma {\expr E |X|}}
+  {\env \Gamma {\parser {\gGet E} X X Y}}
+
+\inferrule[Look-Ahead]
+  { }
+  {\env \Gamma {\parser \gGetS X {[]} X}}
+
+\inferrule[Sequnce]
+  { \env \Gamma           {\parser {S_1} u X {Y \append Z}} \\
+    \env {\Gamma, x = u } {\parser {S_2} v Y Z}
+  }
+  {\env \Gamma {\parser {\gBind x {S_1} {S_2}} v {X \append Y} Z}}
+
+\inferrule[Unbiased-Choice-Left]
+  {\env \Gamma {\parser {S_1} v X Y}}
+  {\env \Gamma {\parser {\gOr {S_1} {S_2}} v X Y}}
+
+\inferrule[Unbiased-Choice-Right]
+  {\env \Gamma {\parser {S_2} v X Y}}
+  {\env \Gamma {\parser {\gOr {S_1} {S_2}} v X Y}}
+
+\inferrule[Biased-Choice-Left]
+  {\env \Gamma {\parser {S_1} v X Y}}
+  {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
+
+\inferrule[Biased-Choice-Right]
+  {\env \Gamma {\parser {S_2} v X Y} \\
+   \env \Gamma {\rejectsPrefixesOf {S_1} {(X \append Y)}}
+  }
+  {\env \Gamma {\parser {\gOrB {S_1} {S_2}} v X Y}}
+
+\inferrule[Nested-Parser]
+  { \env \Gamma {\expr E {X \append Y}} \\
+    \env \Gamma {\parser S v X Y} }
+  {\env \Gamma {\parser {\gParse S E} v {[]} Z}}
+
+\inferrule[Case]
+  {\env \Gamma {\expr E u} \\
+   \env \Gamma {\parser {\caseSelect u A} v X Y}
+  }
+  {\env \Gamma {\parser {\gCase E A} v X Y}}
+
+\end{mathpar}
+\caption {
+$\env \Gamma {\parser S v X Y}$ describes the behavior or parser $S$
+in dynamic environment $\Gamma$.  When applied to the input $X \append Y$, $S$ will consume $X$ and produce semantic value $v$.}
+\end{figure}
+
+
+\begin{figure}[H]
+\begin{mathpar}
+
+\inferrule[Empty]
+  { }
+  {\env \Gamma {\rejectsPrefixesOf {\gFail} X}}
+
+\inferrule[Too-Short]
+  { \env \Gamma {\expr E v} \\
+    |X| < v
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gGet E} X}}
+\\
+\inferrule[Unbiased-Mismatch]
+  { \env \Gamma {\rejectsPrefixesOf {S_1} X} \\
+    \env \Gamma {\rejectsPrefixesOf {S_2} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gOr {S_1} {S_2}} X}}
+
+\inferrule[Biased-Mismatch]
+  { \env \Gamma {\rejectsPrefixesOf {S_1} X} \\
+    \env \Gamma {\rejectsPrefixesOf {S_2} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gOrB {S_1} {S_2}} X}}
+
+\inferrule[Not-Front]
+  {\env \Gamma {\rejectsPrefixesOf {S_1} X}}
+  {\env \Gamma {\rejectsPrefixesOf {\gBind x {S_1} {S_2}} X}}
+
+\inferrule[Not-Back]
+  {\env \Gamma {\parser {S_1} v X Y} \\
+   \env {\Gamma, x=v} {\rejectsPrefixesOf {S_2} Y}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gBind x {S_1} {S_2}} {(X \append Y)}}}
+
+\inferrule[Not-Nested]
+  {\env \Gamma {\expr E v} \\
+   \env \Gamma {\rejectsPrefixesOf P v}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gParse P E} X}}
+
+\inferrule[No-Case]
+  {\env \Gamma {\expr E v} \\
+   \env \Gamma {\rejectsPrefixesOf {\caseSelect v A} X}
+  }
+  {\env \Gamma {\rejectsPrefixesOf {\gCase E A} X}}
+
+\end{mathpar}
+\caption{
+$\env \Gamma {\rejectsPrefixesOf S X}$ asserts that $X$ is not accepted by $S$
+in the sense described before.
+}
+
+\end{figure}
+
+\section{Set vs. State Transformer Semantics}
+
+\[
+(v,X,Y) \in \setSem S \iff (v,Y) \in \funSem S~(X \append Y)
+\]
+
+Using state transformers is a more powerful abstraction than what is
+expressible in Core. In particular, consider an extension of Core
+that allows for direct stream manipulation, $\gSetS E$, which returns
+no interesting semantic value, but modifies the stream that we are parsing.
+Such a construct is readily expressible using the state transformers semantics:
+
+\[
+\funSem{\gSetS E} X = \set {((),\sem E)}
+\]
+
+We cannot, however, express such a parser using the set-based semantics,
+because in this formalism, parsers declare constraints on a global stream,
+but they cannot change the actual stream.  One attempt to define the
+semantics of such a construct could be:
+
+\[
+\setSem{\gSetS E} = \set { ((),[], \sem E) }
+\]
+This, however, is incorrect because instead of changing the stream,
+we are making a look-ahead assertion about what the stream should be.
+Thus, we'll reject any inputs that do not match $E$, which is quite
+different than the intended semantics, which is a parser that never fails
+but modifies the input. As a concrete example, consider $\gSetS {\eString a}$:
+the input ${\eString b}$ is accepted by the transformer interpreation but
+not by the (incorrect) set interpreation.
+
+
+
+\end{document}

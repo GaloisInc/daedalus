@@ -24,8 +24,10 @@ import Text.Show.Pretty (ppDoc)
 
 import Hexdump
 
+import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
 import Daedalus.SourceRange
+import Daedalus.Core(checkModule)
 
 import Daedalus.Driver
 
@@ -215,11 +217,23 @@ doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
+     checkCore "Core"
      ents <- mapM (uncurry ddlGetFName) entries
-     when (optInline opts) (passInline ents specMod)
-     when (optStripFail opts) (passStripFail specMod)
-     when (optSpecTys opts) (passSpecTys specMod)
+     when (optInline opts) (passInline ents specMod >> checkCore "Inline")
+     when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
+     when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
+     when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
      pure ents
+
+  where
+  checkCore x =
+    when (optCheckCore opts)
+       do core <- ddlGetAST specMod astCore
+          case checkModule core of
+            Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
+            Nothing  -> pure ()
+
+
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
