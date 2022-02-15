@@ -40,4 +40,3 @@ substBuilder vars bs =
                Just (val,yes) -> Build.byteString val <> substBuilder vars yes
                Nothing -> Build.word8 vc <> substBuilder vars rest
         Nothing -> mempty
-

@@ -96,6 +96,9 @@ public:
   Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
   Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
 
+  Integer(double x) : Boxed<mpz_class>(x) {}
+  Integer(float  x) : Boxed<mpz_class>(static_cast<double>(x)) {}
+
   bool isNatural() { return sgn(getValue()) >= 0; }
 
   void exportI(uint8_t &x)  { x = toUnsigned<uint8_t>(); }
@@ -107,6 +110,9 @@ public:
   void exportI(int16_t &x) { x = toSigned<int16_t,uint16_t>(); }
   void exportI(int32_t &x) { x = toSigned<int32_t,uint32_t>(); }
   void exportI(int64_t &x) { x = toSigned<int64_t,uint64_t>(); }
+
+  // Used for casting
+  double asDouble() { return getValue().get_d(); }
 
   // Used in array
   Size asSize() { return Size{ toUnsigned<size_t>() }; }

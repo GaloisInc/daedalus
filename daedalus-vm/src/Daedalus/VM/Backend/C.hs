@@ -426,7 +426,9 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CStmt
 cOp1 x op1 ~[e'] =
   case op1 of
-    Src.CoerceTo tgtT -> cVarDecl x (cCall fun [e])
+    Src.CoerceTo tgtT
+      | srcT == tgtT  -> cVarDecl x e
+      | otherwise     -> cVarDecl x (cCall fun [e])
       where
       srcT = case getType e' of
                TSem t -> t
@@ -451,6 +453,9 @@ cOp1 x op1 ~[e'] =
               Src.TInteger  -> cInst "DDL::uint_to_integer" [sz from]
               Src.TUInt to  -> cInst "DDL::uint_to_uint" [sz from, sz to]
               Src.TSInt to  -> cInst "DDL::uint_to_sint" [sz from, sz to]
+              Src.TFloat    -> cInst "DDL::uint_to_float" [sz from]
+              Src.TDouble   -> cInst "DDL::uint_to_double" [sz from]
+
               Src.TUser ut
                 | let nm = Src.utName ut
                 , Src.tnameBD nm -> cTNameUse GenPublic nm <.> "::fromBits"
@@ -462,6 +467,8 @@ cOp1 x op1 ~[e'] =
               Src.TInteger  -> cInst "DDL::sint_to_integer" [sz from]
               Src.TUInt to  -> cInst "DDL::sint_to_uint" [sz from, sz to]
               Src.TSInt to  -> cInst "DDL::sint_to_sint" [sz from, sz to]
+              Src.TFloat    -> cInst "DDL::sint_to_float" [sz from]
+              Src.TDouble   -> cInst "DDL::sint_to_double" [sz from]
               _             -> bad "Unexpected target type"
 
           Src.TInteger ->
@@ -469,7 +476,27 @@ cOp1 x op1 ~[e'] =
               Src.TInteger  -> cInst "DDL::refl_cast" [cSemType tgtT]
               Src.TUInt to  -> cInst "DDL::integer_to_uint" [sz to]
               Src.TSInt to  -> cInst "DDL::integer_to_sint" [sz to]
+              Src.TFloat    -> "DDL::integer_to_float"
+              Src.TDouble   -> "DDL::integer_to_double"
               _             -> bad "Unexpected target type"
+
+          Src.TFloat  ->
+            case tgtT of
+              Src.TInteger -> "DDL::float_to_integer"
+              Src.TUInt to -> cInst "DDL::float_to_uint" [sz to]
+              Src.TSInt to -> cInst "DDL::float_to_sint" [sz to]
+              Src.TDouble  -> "DDL::float_to_double"
+              _            -> bad "Unexpected target type"
+
+          Src.TDouble ->
+            case tgtT of
+              Src.TInteger -> "DDL::double"
+              Src.TUInt to -> cInst "DDL:double_to_uint" [sz to]
+              Src.TSInt to -> cInst "DDL::double_to_sint" [sz to]
+              Src.TFloat   -> "DDL::double_to_float"
+              _            -> bad "Unexpected target type"
+
+
 
 
           Src.TUser ut

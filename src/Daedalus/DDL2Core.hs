@@ -332,13 +332,17 @@ fromGrammar gram =
                   [ "Unexpected grammar variable: " ++ show x ]
 
     TC.TCCoerceCheck sem _t1 t2 v ->
-      do e   <- fromExpr v
-         tgt <- fromTypeM t2
-         let e' = Pure $ case sem of { YesSem -> coerceTo tgt e; NoSem -> unit }
-         chk <- needsCoerceCheck tgt e
+      fromExpr v >>= \e ->
+      withVar e      \x ->
+      do tgt <- fromTypeM t2
+         let e' = Pure case sem of
+                         YesSem -> coerceTo tgt (Var x)
+                         NoSem -> unit
+         chk <- needsCoerceCheck tgt x
          case chk of
            Nothing  -> pure e'
-           Just c   -> doIf c e' (sysErr tgt "Coercion is lossy")
+           Just c   -> doIf c e'
+                        (sysErr tgt "value does not fit in target type")
 
     TC.TCFor l -> doLoopG l
 
@@ -374,13 +378,58 @@ fromSem sem = case sem of
                 YesSem -> SemYes
 
 
-needsCoerceCheck :: UsesTypes => Type -> Expr -> M (Maybe Expr)
-needsCoerceCheck toTy e =
+needsCoerceCheck :: UsesTypes => Type -> Name -> M (Maybe Expr)
+needsCoerceCheck toTy x =
   case (toTy, fromTy) of
 
-    -- uint 8 -> uint 8
-    -- (non numeric types)
+    -- equal types need no checking
     _ | toTy == fromTy -> pure Nothing
+
+    -- coerciong to a float
+    (TFloat, _) ->
+      case fromTy of
+
+        TDouble -> Just <$> backForthFromFloatToFloat
+
+        TInteger -> Just <$> backForthFromIntToFloat
+
+        (isUInt -> Just w)
+          | w <= 24   -> pure Nothing
+          | otherwise -> Just <$> backForthFromIntToFloat
+
+        (isSInt -> Just w)
+          | w <= 25   -> pure Nothing
+          | otherwise -> Just <$> backForthFromIntToFloat
+
+        _ -> bad
+
+    -- coerciong to a double
+    (TDouble, _) ->
+      case fromTy of
+
+        TFloat -> pure Nothing
+
+        TInteger -> Just <$> backForthFromIntToFloat
+
+        (isUInt -> Just w)
+          | w <= 53   -> pure Nothing
+          | otherwise -> Just <$> backForthFromIntToFloat
+
+        (isSInt -> Just w)
+          | w <= 54   -> pure Nothing
+          | otherwise -> Just <$> backForthFromIntToFloat
+
+        _ -> bad
+
+    (TInteger, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TUInt {}, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TSInt {}, TFloat)  -> Just <$> backForthFromFloatToInt
+    (TInteger, TDouble) -> Just <$> backForthFromFloatToInt
+    (TUInt {}, TDouble) -> Just <$> backForthFromFloatToInt
+    (TSInt {}, TDouble) -> Just <$> backForthFromFloatToInt
+
+
+
 
     -- int -> uint 8
     -- int -> sint 8
@@ -429,15 +478,36 @@ needsCoerceCheck toTy e =
       | Just decl <- Map.lookup (utName ut) ?tyMap ->
         bitdataValidator (tDef decl) e
 
-    _ -> panic "needsCoerceCheck"
-          [ "Unexpected coercsion:"
-          , showPP fromTy, showPP toTy
-          ]
+    _ -> bad
   where
+    bad = panic "needsCoerceCheck"
+            [ "Unexpected coercsion:"
+            , showPP fromTy, showPP toTy
+            ]
+
+    e = Var x
     fromTy = typeOf e
     Just (s, n) = isBits toTy -- lazy
     upperBoundCheck = e `leq` intL (2 ^ (if s then n - 1 else n) - 1) fromTy
     lowerBoundCheck = intL (if s then - (2 ^ (n - 1)) else 0) fromTy `leq` e
+
+    backForthFromFloatToFloat =
+      do let p1 = eIsNaN e
+         let p2 = eq e (coerceTo fromTy (coerceTo toTy e))
+         eOr p1 p2
+
+    backForthFromIntToFloat =
+      withVar (coerceTo toTy e) \y ->
+        do let p1 = eNot (eIsInfinite (Var y))
+           let p2 = eq e (coerceTo fromTy (Var y))
+           eAnd p1 p2
+
+    backForthFromFloatToInt =
+      do p1 <- eNot <$> eOr (eIsNaN e) (eIsInfinite e)
+         let p2 = eq e (coerceTo fromTy (coerceTo toTy e))
+         eAnd p1 p2
+
+
 
 --------------------------------------------------------------------------------
 -- Pattern Matching
@@ -1562,7 +1632,6 @@ newName mb t =
 -- | Make up a new local name
 newLocal :: Type -> M Name
 newLocal = newName Nothing
-
 
 -- | Add a local varialble from the source (i.e., not newly generate)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a

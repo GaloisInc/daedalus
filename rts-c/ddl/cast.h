@@ -2,6 +2,7 @@
 #define DDL_CAST_H
 
 #include <ddl/number.h>
+#include <ddl/float.h>
 #include <ddl/integer.h>
 #include <ddl/maybe.h>
 
@@ -18,6 +19,16 @@ template <Width in, Width out>
 inline
 UInt<out> sint_to_uint(SInt<in> x) { return UInt<out>(x.rep()); }
 
+template <Width out>
+inline
+UInt<out> float_to_uint(Float x) { return UInt<out>(x.getValue()); }
+
+template <Width out>
+inline
+UInt<out> double_to_uint(Double x) { return UInt<out>(x.getValue()); }
+
+
+
 
 template <Width in, Width out>
 inline
@@ -26,6 +37,49 @@ SInt<out> uint_to_sint(UInt<in> x) { return SInt<out>(x.rep()); }
 template <Width in, Width out>
 inline
 SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
+
+template <Width out>
+inline
+SInt<out> float_to_sint(Float x) { return SInt<out>(x.getValue()); }
+
+template <Width out>
+inline
+SInt<out> double_to_sint(Double x) { return SInt<out>(x.getValue()); }
+
+
+template <Width in>
+inline
+Float uint_to_float(UInt<in> x) { return Float(static_cast<float>(x.rep())); }
+
+template <Width in>
+inline
+Float sint_to_float(UInt<in> x) { return Float(static_cast<float>(x.rep())); }
+
+inline
+Float double_to_float(Double x) { return Float::fromDouble(x.getValue()); }
+
+
+
+template <Width in>
+inline
+Double uint_to_double(UInt<in> x) {
+  return Double(static_cast<double>(x.rep()));
+}
+
+template <Width in>
+inline
+Double sint_to_double(UInt<in> x) {
+  return Double(static_cast<double>(x.rep()));
+}
+
+inline
+Double float_to_double(Float x) { return Double::fromFloat(x.getValue()); }
+
+
+
+
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -38,6 +92,12 @@ Integer uint_to_integer(UInt<in> x) { return Integer(x.rep()); }
 template <Width in>
 inline
 Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
+
+inline
+Integer float_to_integer(Float x)   { return Integer(x.getValue()); }
+
+inline
+Integer double_to_integer(Double x) { return Integer(x.getValue()); }
 
 
 // borrow
@@ -59,6 +119,14 @@ SInt<out> integer_to_sint(Integer x) {
 }
 
 
+// borrow
+inline
+Float  integer_to_float(Integer x) { return Float::fromDouble(x.asDouble()); }
+
+inline
+Double integer_to_double(Integer x) { return Double(x.asDouble()); }
+
+
 
 template <typename T>
 inline
@@ -72,6 +140,7 @@ T refl_cast(T x) {
 
 // -----------------------------------------------------------------------------
 
+// XXX: Where do we use the _maybe functions?
 
 
 

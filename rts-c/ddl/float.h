@@ -16,7 +16,9 @@ public:
   static constexpr Width bitWidth = 32;
 
   Float() {}
-  Float(float x) : f(x) {}
+  Float(float x)  : f(x) {}
+
+  static Float fromDouble(double x) { return Float{static_cast<float>(x)}; }
 
   static Float fromBits(uint32_t x) {
     float f;
@@ -82,6 +84,8 @@ public:
 
   Double() {}
   Double(double x) : f(x) {}
+
+  static Double fromFloat(float x) { return Double{static_cast<double>(x)}; }
 
   static Double fromBits(uint64_t x) {
     double f;

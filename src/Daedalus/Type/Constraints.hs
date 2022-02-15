@@ -306,6 +306,8 @@ isCoercible r lossy tt1 tt2 =
         TInteger  -> fromInt
         TUInt x   -> fromUInt x
         TSInt x   -> fromSInt x
+        TFloat    -> fromFloat
+        TDouble   -> fromDouble
         _         -> refl
   where
   nope =
@@ -335,6 +337,8 @@ isCoercible r lossy tt1 tt2 =
             TUInt _  -> pure Solved
             TSInt _  -> pure Solved
             TInteger -> pure Solved
+            TFloat   -> pure Solved
+            TDouble  -> pure Solved
             _        -> nope
 
 
@@ -376,6 +380,20 @@ isCoercible r lossy tt1 tt2 =
 
             | otherwise -> pure Solved
 
+          TFloat
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 24 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
+          TDouble
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 53 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
           _  -> nope
 
 
@@ -402,7 +420,65 @@ isCoercible r lossy tt1 tt2 =
 
             | otherwise -> pure Solved
 
+          TFloat
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 25 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
+          TDouble
+            | NotLossy <- lossy ->
+              case x of
+                Type (TNum s) -> if s <= 54 then pure Solved else nope
+                _             -> pure Unsolved
+            | otherwise -> pure Solved
+
+
+
           _ -> nope
+
+
+
+  fromFloat =
+    case tt2 of
+      TVar {} -> pure Unsolved
+      TCon {} -> nope
+      Type t2 ->
+        case t2 of
+          TInteger
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TUInt {}
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TSInt {}
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TFloat                -> pure Solved
+          TDouble               -> pure Solved
+          _                     -> nope
+
+  fromDouble =
+    case tt2 of
+      TVar {} -> pure Unsolved
+      TCon {} -> nope
+      Type t2 ->
+        case t2 of
+          TInteger
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TUInt {}
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TSInt {}
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TFloat
+            | NotLossy <- lossy -> nope
+            | otherwise         -> pure Solved
+          TDouble               -> pure Solved
+          _                     -> nope
 
 
 
