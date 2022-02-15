@@ -263,7 +263,12 @@ allocGExpr n ctx gexpr =
         TCFail e1 t ->
           let ae1 = maybe Nothing (\ e -> Just $ idVExpr e) e1
           in allocate (TCFail ae1 t) n 2
-        TCCase e1 lpat mdpat ->
+        TCIf e1 g1 g2 ->
+          let ae1 = idVExpr e1 in
+          let (ag1, n1) = allocGram n ctx g1 in
+          let (ag2, n2) = allocGram n1 ctx g2 in
+          allocate (TCIf ae1 ag1 ag2) n2 4
+        TCCase e1 lpat mdpat -> -- Just a more involved version of TCIf
           let ae1 = idVExpr e1 in
           let stepPat (ags, n') g@(TCAlt { tcAltBody = body }) =
                 let (abody, n1) = allocGram n' ctx body
@@ -761,7 +766,34 @@ genGExpr gbl e =
           n2 = getS 1
       in mkAut n1 (mkTr [(n1, UniChoice (BAct (FailAction e1), n2))]) n2
 
-    TCCase e1 lpat dpat ->
+    TCIf e1 g1 g2 ->
+      let
+        n1 = getS 0
+        n2 = getS 1
+        n3 = getS 2
+        n4 = getS 3
+        infoN = n4
+      in
+      let (i1, t1, f1, pops1) = dsAut $ genGram gbl g1
+          (i2, t2, f2, pops2) = dsAut $ genGram gbl g2
+          pops =  unionPopTrans pops1 (unionPopTrans pops2 emptyPopTrans)
+      in
+      let transTrue = (CAct (CaseTry (Just [TCBoolPat True])), i1)
+          transFalse = (CAct (CaseTry (Just [TCBoolPat False])), i2)
+          transIn = [transTrue , transFalse]
+          transBdy = unionTr t1 (unionTr t2 emptyTr)
+          transOut = mkTr
+            [ (f1, UniChoice (BAct (CutBiasAlt infoN), n3))
+            , (f2, UniChoice (BAct (CutBiasAlt infoN), n3)) ]
+      in
+      let tr = mkTr [ (n1, UniChoice (CAct (CaseCall e1), n2))
+                    , (n2, SeqChoice transIn infoN)
+                    , (n3, UniChoice (CAct CaseEnd, n4))
+                    ]
+      in
+      mkAutWithPop n1 (unionTr tr (unionTr transOut transBdy)) n4 pops
+
+    TCCase e1 lpat dpat -> -- Just a more involved version of TCIf
       let
         lstITF =
           map
@@ -792,7 +824,7 @@ genGExpr gbl e =
         pops     = foldr (\ (_mpcase, (_,_,_, p1)) accPop -> unionPopTrans p1 accPop) emptyPopTrans lstITF
       in
       let
-        transOut =
+        transOut = mkTr $
           foldr
           (\ (_mpcase, (_i1,_t1,f1,_)) accTr ->
               (f1, UniChoice (BAct (CutBiasAlt infoN), n3)) : accTr
@@ -804,9 +836,9 @@ genGExpr gbl e =
               , (n2, SeqChoice transIn infoN)
               , (n3, UniChoice (CAct CaseEnd, n4))
               ])
-        (unionTr (mkTr transOut) transBdy)
+        (unionTr transOut transBdy)
       )
-           n4 pops
+      n4 pops
 
     x -> error ("Case not handled: " ++ show x)
 
