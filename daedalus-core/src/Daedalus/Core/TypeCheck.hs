@@ -452,8 +452,8 @@ checkOp2 op arg1 arg2 =
          pure v
 
     MapMember ->
-      do (k,_) <- isMap arg2
-         typeIs k arg1
+      do (k,_) <- isMap arg1
+         typeIs k arg2
          pure TBool
 
 
