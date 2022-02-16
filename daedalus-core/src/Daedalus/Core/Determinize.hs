@@ -177,6 +177,18 @@ data Resolution =
     YesResolved   ZipGrammar
   | NoResolved    Deriv
 
+checkUnambiguousDeriv :: Deriv -> Bool
+checkUnambiguousDeriv der =
+  case der of
+    DerivStart {} -> False
+    DerivUnResolved {} -> False
+    DerivResolved lst ->
+      foldr
+      (\ (_a, r) b -> b && case r of
+                             YesResolved {} -> True
+                             NoResolved d -> checkUnambiguousDeriv d
+      ) True lst
+
 detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
   let ty = typeOf grammar in
@@ -186,7 +198,7 @@ detOr modl grammar =
   where
   stepDerivFactorize :: [ZipGrammar] -> Maybe Deriv
   stepDerivFactorize orLst =
-    let derLst = tryDeterminizeListOr orLst in
+    let derLst = deriveOneByteOnList orLst in
     let linDerLst = do
           linLst <- derLst
           forM linLst
@@ -198,10 +210,10 @@ detOr modl grammar =
         let f = factorize a in
         Just $ DerivUnResolved (map (\ (c, l) -> (c, l)) f)
 
-  mapDeriv :: Deriv -> Maybe Deriv
-  mapDeriv (DerivStart orLst) =
+  mapStep :: Deriv -> Maybe Deriv
+  mapStep (DerivStart orLst) =
     stepDerivFactorize orLst
-  mapDeriv (DerivUnResolved opts) = do
+  mapStep (DerivUnResolved opts) = do
     der <- forM opts
         (\ (c, orLst) ->
             do
@@ -221,14 +233,14 @@ detOr modl grammar =
                 return $ map (\ (x, tr) -> (x, NoResolved tr)) pairAfterStep
         )
     return $ DerivResolved (concat der)
-  mapDeriv (DerivResolved opts) =
+  mapStep (DerivResolved opts) =
     do
       der <- forM opts
         (\ x@(c, l) ->
           case l of
             YesResolved _ -> Just x
             NoResolved d ->
-              do n <- mapDeriv d
+              do n <- mapStep d
                  return (c, NoResolved n)
         )
       return $ DerivResolved der
@@ -239,7 +251,7 @@ detOr modl grammar =
     if depth > 10
     then grammar
     else
-      let der1 = mapDeriv der in
+      let der1 = mapStep der in
       case der1 of
         Nothing -> grammar
         Just a ->
@@ -259,8 +271,8 @@ detOr modl grammar =
           Just gram1 -> getListOr gram1
       _                -> [g]
 
-  tryDeterminizeListOr :: [ZipGrammar] -> Maybe [(CharSet, ZipGrammar)]
-  tryDeterminizeListOr lst =
+  deriveOneByteOnList :: [ZipGrammar] -> Maybe [(CharSet, ZipGrammar)]
+  deriveOneByteOnList lst =
     mapM deriveOneByte lst
 
   deriveOneByte :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
@@ -381,17 +393,6 @@ detOr modl grammar =
       0 -> error "impossible"
       1 -> True
       _ -> False
-
-  checkUnambiguousDeriv :: Deriv -> Bool
-  checkUnambiguousDeriv der =
-    case der of
-      DerivStart {} -> False
-      DerivUnResolved {} -> False
-      DerivResolved lst ->
-        foldr (\ (_a, r) b -> b && case r of
-                               YesResolved {} -> True
-                               NoResolved d -> checkUnambiguousDeriv d
-                              ) True lst
 
   translateToCaseDeriv :: Type -> Deriv -> Grammar
   translateToCaseDeriv ty der =

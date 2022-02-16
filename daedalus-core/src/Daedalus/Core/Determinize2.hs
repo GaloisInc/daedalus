@@ -145,6 +145,7 @@ der n g k =
     OrBiased g1 g2 -> Alt (der n g1 (BCut : k)) (der n g2 (BCut : k))
     Do n g1 g2     -> der n (ZDo n g2 : k)
     Do_ g1 g2      -> der n (ZDo_ g2 : k)
+    _ -> error "unhandled case"
 
 -- der up
 next :: Int -> Grammar -> PathGrammar -> BackTree
@@ -156,6 +157,7 @@ next n g (k1: k) =
     ZDo2 n g1 -> next n (Do n g1 g) k
     ZDo_2  g1 -> next n (Do_  g1 g) k
     ZCut      -> BCut (next n g k)
+    _ -> error "unhandled case"
 
 -- epsilon up
 eps :: Int -> Grammar -> PathGrammar -> BackTree
@@ -167,6 +169,7 @@ eps n g (k1: k) =
     ZDo2 n g1 -> eps   n (Do n g1 g) k
     ZDo_2  g1 -> eps   n (Do_  g1 g) k
     ZCut      -> BCut (eps n g k)
+    _ -> error "unhandled case"
 
 -- epsilon down
 epsdo :: Int -> Grammar -> PathGrammar -> BackTree
@@ -177,6 +180,7 @@ epsdo n g k =
     OrBiased g1 g2        -> Next (n, g, k)
     Do n g1 g2            -> Next (n, g, k)
     Do_  g1 g2            -> Next (n, g, k)
+    _ -> error "unhandled case"
 
 
 dummy :: Grammar -> PathGrammar -> Int
@@ -201,6 +205,6 @@ data Resolution =
 
 detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
-  let _z = der 0 grammar emptyPathGrammar
+  let _z = der 0 grammar emptyPathGrammar in
   trace (show $ (dummy grammar)) $
   grammar
