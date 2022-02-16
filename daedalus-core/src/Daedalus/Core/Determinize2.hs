@@ -89,8 +89,8 @@ data ZGrammar =
   | ZDo_2 Grammar
   | ZDo Name Grammar
   | ZDo2 Name Grammar
-  | ZCut
-  | ZAnnot Annot
+  | ZOr
+  -- | ZAnnot Annot
 
 type PathGrammar = [ ZGrammar ]
 
@@ -112,12 +112,14 @@ mkZipGrammar g p = ZipNode g p
 
 
 data BackTree =
-    Alt BackTree BackTree
+    Alt   BackTree BackTree
   | BTake (Int, ZMatch, BackTree)
-  | BCut BackTree
-  | Done (ZipGrammar)
-  | Next (Int, PathGrammar)
-  | Eps
+  | BCut  BackTree
+  | Done  Grammar
+  | Next  (Int, Grammar, PathGrammar)
+  | FailInput
+  | FailByCut
+
 
 
 genGUID :: Int -> GUID
@@ -142,33 +144,33 @@ der n g k =
   case g of
     Pure v         -> next n (Pure v) k
     Match _ (MatchByte b) -> BTake (n, ZMatchByte b, eps n (mkVarGrammar n) k)
-    OrBiased g1 g2 -> Alt (der n g1 (BCut : k)) (der n g2 (BCut : k))
-    Do n g1 g2     -> der n (ZDo n g2 : k)
-    Do_ g1 g2      -> der n (ZDo_ g2 : k)
+    OrBiased g1 g2 -> Alt (der n g1 (ZOr : k)) (der n g2 (ZOr : k))
+    Do m g1 g2     -> der n g1 (ZDo m g2 : k)
+    Do_ g1 g2      -> der n g1 (ZDo_  g2 : k)
     _ -> error "unhandled case"
 
 -- der up
 next :: Int -> Grammar -> PathGrammar -> BackTree
-next n g [] = Done g
+next _ g [] = Done g
 next n g (k1: k) =
   case k1 of
-    ZDo  n g2 -> der n g2 (ZDo2 n g : k)
-    ZDo_   g2 -> der n g2 (ZDo2_  g : k)
-    ZDo2 n g1 -> next n (Do n g1 g) k
+    ZDo  m g2 -> der  n g2 (ZDo2 m g : k)
+    ZDo_   g2 -> der  n g2 (ZDo_2  g : k)
+    ZDo2 m g1 -> next n (Do m g1 g) k
     ZDo_2  g1 -> next n (Do_  g1 g) k
-    ZCut      -> BCut (next n g k)
+    ZOr       -> BCut (next n g k)
     _ -> error "unhandled case"
 
 -- epsilon up
 eps :: Int -> Grammar -> PathGrammar -> BackTree
-eps n g [] = Done g
+eps _ g [] = Done g
 eps n g (k1: k) =
   case k1 of
-    ZDo n g2  -> epsdo n g2 (ZDo2 n g : k)
-    ZDo_  g2  -> epsdo n g2 (ZDo2_  g : k)
-    ZDo2 n g1 -> eps   n (Do n g1 g) k
+    ZDo m g2  -> epsdo n g2 (ZDo2 m g : k)
+    ZDo_  g2  -> epsdo n g2 (ZDo_2  g : k)
+    ZDo2 m g1 -> eps   n (Do m g1 g) k
     ZDo_2  g1 -> eps   n (Do_  g1 g) k
-    ZCut      -> BCut (eps n g k)
+    ZOr       -> BCut (eps n g k)
     _ -> error "unhandled case"
 
 -- epsilon down
@@ -176,16 +178,27 @@ epsdo :: Int -> Grammar -> PathGrammar -> BackTree
 epsdo n g k =
   case g of
     Pure v -> eps n (Pure v) k
-    Match _ (MatchByte b) -> Next (n, g, k)
-    OrBiased g1 g2        -> Next (n, g, k)
-    Do n g1 g2            -> Next (n, g, k)
-    Do_  g1 g2            -> Next (n, g, k)
+    Match _ (MatchByte _b) -> Next (n, g, k)
+    OrBiased _g1 _g2        -> Next (n, g, k)
+    Do _ _g1 _g2            -> Next (n, g, k)
+    Do_  _g1 _g2            -> Next (n, g, k)
     _ -> error "unhandled case"
 
 
-dummy :: Grammar -> PathGrammar -> Int
-dummy g p = 0
+dummy :: BackTree -> Int
+dummy _t = 0
 
+-- take a backtree at step n and return the backtree at step n+1
+derivStep :: BackTree -> BackTree
+derivStep t = error "not implemented"
+
+isUnambiguous :: BackTree -> Bool
+isUnambiguous t = case t of
+  Alt bt bt' -> _
+  BTake x0 -> _
+  BCut bt -> _
+  Done gram -> _
+  Next x0 -> _
 
 
 {- END of Zipped Grammar -}
@@ -205,6 +218,6 @@ data Resolution =
 
 detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
-  let _z = der 0 grammar emptyPathGrammar in
-  trace (show $ (dummy grammar)) $
+  let t = der 0 grammar emptyPathGrammar in
+  trace (show $ (dummy t)) $
   grammar
