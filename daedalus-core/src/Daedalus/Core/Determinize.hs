@@ -2,7 +2,7 @@
 {-# Language BlockArguments #-}
 module Daedalus.Core.Determinize (determinizeModule) where
 
--- import Debug.Trace(trace)
+import Debug.Trace(trace)
 
 import Data.Text (pack)
 import Data.Set (Set)
@@ -22,6 +22,7 @@ import Daedalus.Core.Grammar
     ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..), ErrorSource (ErrorFromSystem)  )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
+--import Daedalus.Type.AST (Arg(GrammarArg))
 -- import Daedalus.Type.AST (Arg(GrammarArg))
 
 determinizeModule :: Module -> Module
@@ -161,6 +162,26 @@ goNextLeaf _c (ZipLeaf{ zmatch = zm@(ZMatchBytes (_, rest) orig), path = fpth@(Z
         goUpRight (mkZipGrammar newBuilt pth)
 goNextLeaf _ _ = error "Should not happen"
 
+buildUp :: ZipGrammar -> Grammar
+buildUp (ZipNode {focus = built, path = pth}) =
+  case pth of
+    [] -> built
+    (ZDo_ g2 : z) ->
+      let newBuilt = Do_ built g2 in
+      buildUp (mkZipGrammar newBuilt z)
+    (ZDo_2 g1 : z) ->
+      let newBuilt = Do_ g1 built in
+      buildUp (mkZipGrammar newBuilt z)
+    (ZDo name g2 : z) ->
+      let newBuilt = Do name built g2 in
+      buildUp (mkZipGrammar newBuilt z)
+    (ZDo2 name g1 : z) ->
+      let newBuilt = Do name g1 built in
+      buildUp (mkZipGrammar newBuilt z)
+    (ZAnnot ann : z) ->
+      buildUp (mkZipGrammar (Annot ann built) z)
+    _  -> error "case not handled"
+buildUp (ZipLeaf {}) = error "broken invariant"
 
 {- END of Zipped Grammar -}
 
@@ -201,9 +222,9 @@ data Deriv =
   | DerivUnResolved [(Set Integer, [ZipGrammar])] -- disjoing set of integers in list
   | DerivResolved   [(Integer, Resolution)]
 
-
 data Resolution =
     YesResolved   ZipGrammar
+  | FailResolved [ZipGrammar]
   | NoResolved    Deriv
 
 checkUnambiguousDeriv :: Deriv -> Bool
@@ -216,6 +237,8 @@ checkUnambiguousDeriv der =
       (\ (_a, r) b -> b && case r of
                              YesResolved {} -> True
                              NoResolved d -> checkUnambiguousDeriv d
+                             FailResolved _ -> True -- that's a little weird, but it basically
+                                                  -- means there is no more work to do
       ) True lst
 
 gLLkDEPTH :: Int
@@ -246,28 +269,49 @@ detOr modl grammar =
   mapStep (DerivStart orLst) = stepDerivFactor orLst
   mapStep (DerivUnResolved opts) = do
     der <- forM opts
-        (\ (c, orLst) -> do
+      (\ (c, orLst) ->
+            if checkUnambiguousList orLst
+            then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
+            else
+              forM (Set.toList c)
+              (\ x -> do
+                 let mepsLst = forM orLst (\ z -> goNextLeaf x z)
+                 case mepsLst of
+                   Nothing -> return (x, FailResolved orLst)
+                   Just epsLst ->
+                     let mDerLst = stepDerivFactor epsLst in
+                     case mDerLst of
+                       Nothing -> return (x, FailResolved orLst)
+                       Just derLst -> return (x, NoResolved derLst)
+              )
+      )
+    return $ DerivResolved (concat der)
+
+  {-
+   do
+    der <- forM opts
+        (\ (c, orLst) ->
               if checkUnambiguousList orLst
               then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
               else do
-                pairs <-
-                  forM (Set.toList c)
+                pairs <- forM (Set.toList c)
                   (\ x -> do
-                      newNextList <- forM orLst (\ zg -> goNextLeaf x zg)
-                      return (x, newNextList))
+                      newNextList <- forM orLst (\ zg -> goNextLeaf x zg) -- eps transition
+                      return (x, newNextList)) in
                 pairAfterStep <- forM pairs
                     (\ (x, lst) -> do
-                        dzg <- stepDerivFactor lst
+                        dzg <- stepDerivFactor lst -- deriv a char
                         return (x, dzg)
                     )
                 return $ map (\ (x, tr) -> (x, NoResolved tr)) pairAfterStep
         )
-    return $ DerivResolved (concat der)
+    return $ DerivResolved (concat der) -}
   mapStep (DerivResolved opts) = do
       der <- forM opts
         (\ x@(c, l) ->
           case l of
-            YesResolved _ -> Just x
+            YesResolved _  -> Just x
+            FailResolved _ -> Just x
             NoResolved d ->
               do n <- mapStep d
                  return (c, NoResolved n)
@@ -424,15 +468,27 @@ detOr modl grammar =
             (\ (c, g1) ->
                 case g1 of
                   YesResolved zg -> buildCase (c, zg)
+                  FailResolved zg ->
+                    let newOr = buildOr c zg
+                    in (PNum c, newOr)
                   NoResolved der ->
                     let newG1 = translateToCase ty (succGUID guid) der
-                    in (PNum c, newG1)) lst)
-           ++ [ (PAny, Fail ErrorFromSystem ty Nothing) ]
-          )))
+                    in (PNum c, newG1))
+            lst
+          ) ++ [ (PAny, Fail ErrorFromSystem ty Nothing) ]
+        )))
 
     where
     buildCase :: (Integer, ZipGrammar) -> (Pattern, Grammar)
     buildCase (c, g1) = (PNum c, buildLeaf c g1)
+
+    buildOr :: Integer -> [ ZipGrammar ] -> Grammar
+    buildOr c zgs =
+      go zgs
+      where
+      go [] = error ""
+      go [x] = buildLeaf c x
+      go (x : xs) = OrBiased (buildLeaf c x) (go xs)
 
     buildLeaf :: Integer -> ZipGrammar -> Grammar
     buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
@@ -468,24 +524,3 @@ detOr modl grammar =
               buildUp (mkZipGrammar newBuilt pth)
     buildLeaf _ _ = error "Should not happen"
 
-
-    buildUp :: ZipGrammar -> Grammar
-    buildUp (ZipNode {focus = built, path = pth}) =
-      case pth of
-        [] -> built
-        (ZDo_ g2 : z) ->
-          let newBuilt = Do_ built g2 in
-          buildUp (mkZipGrammar newBuilt z)
-        (ZDo_2 g1 : z) ->
-          let newBuilt = Do_ g1 built in
-          buildUp (mkZipGrammar newBuilt z)
-        (ZDo name g2 : z) ->
-          let newBuilt = Do name built g2 in
-          buildUp (mkZipGrammar newBuilt z)
-        (ZDo2 name g1 : z) ->
-          let newBuilt = Do name g1 built in
-          buildUp (mkZipGrammar newBuilt z)
-        (ZAnnot ann : z) ->
-          buildUp (mkZipGrammar (Annot ann built) z)
-        _  -> error "case not handled"
-    buildUp (ZipLeaf {}) = error "broken invariant"
