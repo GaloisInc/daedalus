@@ -198,8 +198,9 @@ fromCharSetToSet modl b =
 
 data Deriv =
     DerivStart      [ZipGrammar]
-  | DerivUnResolved [(Set Integer, [ZipGrammar])]
+  | DerivUnResolved [(Set Integer, [ZipGrammar])] -- disjoing set of integers in list
   | DerivResolved   [(Integer, Resolution)]
+
 
 data Resolution =
     YesResolved   ZipGrammar
@@ -217,15 +218,18 @@ checkUnambiguousDeriv der =
                              NoResolved d -> checkUnambiguousDeriv d
       ) True lst
 
+gLLkDEPTH :: Int
+gLLkDEPTH = 10
+
 detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
   let ty = typeOf grammar in
   let orLst = getListOr grammar in
-  iterateDerivFactorize ty (DerivStart $ map initZipGrammar orLst) 0
+  iterDerivFactor ty (DerivStart $ map initZipGrammar orLst) 0
 
   where
-  stepDerivFactorize :: [ZipGrammar] -> Maybe Deriv
-  stepDerivFactorize orLst =
+  stepDerivFactor :: [ZipGrammar] -> Maybe Deriv
+  stepDerivFactor orLst =
     let derLst = deriveOneByteOnList orLst in
     let linDerLst = do
           linLst <- derLst
@@ -233,18 +237,16 @@ detOr modl grammar =
             (\ (a, c) -> do { d <- fromCharSetToSet modl a ; return (d, c) })
     in
     case linDerLst of
-      Nothing  -> Nothing
+      Nothing -> Nothing
       Just a ->
         let f = factorize a in
         Just $ DerivUnResolved (map (\ (c, l) -> (c, l)) f)
 
   mapStep :: Deriv -> Maybe Deriv
-  mapStep (DerivStart orLst) =
-    stepDerivFactorize orLst
+  mapStep (DerivStart orLst) = stepDerivFactor orLst
   mapStep (DerivUnResolved opts) = do
     der <- forM opts
-        (\ (c, orLst) ->
-            do
+        (\ (c, orLst) -> do
               if checkUnambiguousList orLst
               then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
               else do
@@ -255,14 +257,13 @@ detOr modl grammar =
                       return (x, newNextList))
                 pairAfterStep <- forM pairs
                     (\ (x, lst) -> do
-                        dzg <- stepDerivFactorize lst
+                        dzg <- stepDerivFactor lst
                         return (x, dzg)
                     )
                 return $ map (\ (x, tr) -> (x, NoResolved tr)) pairAfterStep
         )
     return $ DerivResolved (concat der)
-  mapStep (DerivResolved opts) =
-    do
+  mapStep (DerivResolved opts) = do
       der <- forM opts
         (\ x@(c, l) ->
           case l of
@@ -274,18 +275,18 @@ detOr modl grammar =
       return $ DerivResolved der
 
 
-  iterateDerivFactorize :: Type -> Deriv -> Int ->  Grammar
-  iterateDerivFactorize ty der depth =
-    if depth > 10
+  iterDerivFactor :: Type -> Deriv -> Int -> Grammar
+  iterDerivFactor ty der depth =
+    if depth > gLLkDEPTH
     then grammar
     else
-      let der1 = mapStep der in
-      case der1 of
+      let mder1 = mapStep der in
+      case mder1 of
         Nothing -> grammar
-        Just a ->
-          if checkUnambiguousDeriv a
-          then translateToCaseDeriv ty a
-          else iterateDerivFactorize ty a (depth + 1)
+        Just der1 ->
+          if checkUnambiguousDeriv der1
+          then translateToCaseDeriv ty der1
+          else iterDerivFactor ty der1 (depth + 1)
 
 
   getListOr :: Grammar -> [Grammar]
