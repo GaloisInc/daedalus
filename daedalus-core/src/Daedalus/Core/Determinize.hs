@@ -165,8 +165,36 @@ goNextLeaf _ _ = error "Should not happen"
 {- END of Zipped Grammar -}
 
 data CharSet =
-    NCByteSet ByteSet
-  | NCWord8 Word8
+    CByteSet ByteSet
+  | CWord8 Word8
+
+fromCharSetToSet :: Module -> CharSet -> Maybe (Set Integer)
+fromCharSetToSet modl b =
+  go b
+  where
+  go bc =
+    let allBytes = (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255]) in
+    case bc of
+      CWord8 w -> Just (Set.singleton $ toInteger w)
+      CByteSet SetAny -> Just allBytes
+      CByteSet (SetSingle (Ap0 (IntL s  (TUInt (TSize 8))))) -> Just (Set.singleton s)
+      CByteSet (SetRange  (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
+        if s1 <= s2 && s1 >=0 && s2 <= 255
+        then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
+        else Nothing
+      CByteSet (SetComplement bs1) -> do
+        s1 <- go (CByteSet bs1)
+        return $ Set.difference allBytes s1
+      CByteSet (SetUnion bs1 bs2) -> do
+        s1 <- go (CByteSet bs1)
+        s2 <- go (CByteSet bs2)
+        Just (Set.union s1 s2)
+      CByteSet (SetCall name []) -> do
+        s1 <- getByteSetDef modl name
+        go (CByteSet s1)
+      _      -> Nothing
+
+
 
 data Deriv =
     DerivStart      [ZipGrammar]
@@ -202,7 +230,7 @@ detOr modl grammar =
     let linDerLst = do
           linLst <- derLst
           forM linLst
-            (\ (a, c) -> do { d <- charListFromByteSet a ; return (d, c) })
+            (\ (a, c) -> do { d <- fromCharSetToSet modl a ; return (d, c) })
     in
     case linDerLst of
       Nothing  -> Nothing
@@ -299,7 +327,7 @@ detOr modl grammar =
           case uncons next of
             Nothing -> error "TODO should move up"
             Just (w, rest) ->
-              Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
+              Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
         ZMatchEnd -> error "TODO END"
 
 
@@ -309,40 +337,17 @@ detOr modl grammar =
     case match of
       MatchByte b ->
         let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
-        Just (NCByteSet b, x)
+        Just (CByteSet b, x)
       MatchBytes b ->
         case b of
           Ap0 (ByteArrayL bs) ->
             case uncons bs of
               Nothing -> error "TODO should move up"
               Just (w, rest) ->
-                Just (NCWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
+                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           _ -> Nothing
       _ -> Nothing
   deriveMatch _ = error "function should be applied to Match"
-
-  charListFromByteSet :: CharSet -> Maybe (Set Integer)
-  charListFromByteSet b =
-    let allBytes = (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255]) in
-    case b of
-      NCWord8 w -> Just (Set.singleton $ toInteger w)
-      NCByteSet SetAny -> Just allBytes
-      NCByteSet (SetSingle (Ap0 (IntL s (TUInt (TSize 8))))) -> Just (Set.singleton s)
-      NCByteSet (SetRange (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
-        if s1 <= s2 && s1 >=0 && s2 <= 255
-        then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
-        else Nothing
-      NCByteSet (SetComplement bs1) ->
-        do s1 <- charListFromByteSet (NCByteSet bs1)
-           return $ Set.difference allBytes s1
-      NCByteSet (SetUnion bs1 bs2) ->
-        do s1 <- charListFromByteSet (NCByteSet bs1)
-           s2 <- charListFromByteSet (NCByteSet bs2)
-           Just (Set.union s1 s2)
-      NCByteSet (SetCall name []) ->
-        do s1 <- getByteSetDef modl name
-           charListFromByteSet (NCByteSet s1)
-      _      -> Nothing
 
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
   factorize lst =
