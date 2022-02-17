@@ -1,14 +1,16 @@
 {-# Language TupleSections, GeneralizedNewtypeDeriving #-}
 {-# Language BlockArguments #-}
-module Daedalus.Core.Determinize (determinizeModule) where
+module Daedalus.Core.Determinize2 (determinizeModule2) where
 
 import Debug.Trace(trace)
 
 import Data.Text (pack)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import MonadLib
 import Data.Word(Word8)
+import Data.Maybe(fromJust)
 import Data.ByteString(ByteString, uncons, null)
 
 --import Daedalus.Panic(panic)
@@ -24,8 +26,8 @@ import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
 -- import Daedalus.Type.AST (Arg(GrammarArg))
 
-determinizeModule :: Module -> Module
-determinizeModule m  =
+determinizeModule2 :: Module -> Module
+determinizeModule2 m  =
   let newGram = map (fmap (detGram m)) (mGFuns m) in
   m {mGFuns = newGram}
 
@@ -110,15 +112,40 @@ initZipGrammar gram = ZipNode {focus = gram, path = emptyPathGrammar}
 mkZipGrammar :: Grammar -> PathGrammar -> ZipGrammar
 mkZipGrammar g p = ZipNode g p
 
+fromCharSetToSet :: Module -> CharSet -> Maybe (Set Integer)
+fromCharSetToSet modl b =
+  go b
+  where
+  go bc =
+    let allBytes = (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255]) in
+    case bc of
+      CWord8 w -> Just (Set.singleton $ toInteger w)
+      CByteSet SetAny -> Just allBytes
+      CByteSet (SetSingle (Ap0 (IntL s  (TUInt (TSize 8))))) -> Just (Set.singleton s)
+      CByteSet (SetRange  (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
+        if s1 <= s2 && s1 >=0 && s2 <= 255
+        then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
+        else Nothing
+      CByteSet (SetComplement bs1) -> do
+        s1 <- go (CByteSet bs1)
+        return $ Set.difference allBytes s1
+      CByteSet (SetUnion bs1 bs2) -> do
+        s1 <- go (CByteSet bs1)
+        s2 <- go (CByteSet bs2)
+        Just (Set.union s1 s2)
+      CByteSet (SetCall name []) -> do
+        s1 <- getByteSetDef modl name
+        go (CByteSet s1)
+      _      -> Nothing
 
 data BackTree =
     Alt   BackTree BackTree
-  | BTake (Int, ZMatch, BackTree)
+  | BTake Int CharSet BackTree
   | BCut  BackTree
   | Done  Grammar
-  | Next  (Int, Grammar, PathGrammar)
+  | Next  Int Grammar PathGrammar
   | FailInput
-  | FailByCut
+  | FailCut
 
 
 
@@ -143,7 +170,7 @@ der :: Int -> Grammar -> PathGrammar -> BackTree
 der n g k =
   case g of
     Pure v         -> next n (Pure v) k
-    Match _ (MatchByte b) -> BTake (n, ZMatchByte b, eps n (mkVarGrammar n) k)
+    Match _ (MatchByte b) -> BTake n (CByteSet b) (eps n (mkVarGrammar n) k)
     OrBiased g1 g2 -> Alt (der n g1 (ZOr : k)) (der n g2 (ZOr : k))
     Do m g1 g2     -> der n g1 (ZDo m g2 : k)
     Do_ g1 g2      -> der n g1 (ZDo_  g2 : k)
@@ -166,8 +193,8 @@ eps :: Int -> Grammar -> PathGrammar -> BackTree
 eps _ g [] = Done g
 eps n g (k1: k) =
   case k1 of
-    ZDo m g2  -> epsdo n g2 (ZDo2 m g : k)
-    ZDo_  g2  -> epsdo n g2 (ZDo_2  g : k)
+    ZDo  m g2  -> epsdo n g2 (ZDo2 m g : k)
+    ZDo_   g2  -> epsdo n g2 (ZDo_2  g : k)
     ZDo2 m g1 -> eps   n (Do m g1 g) k
     ZDo_2  g1 -> eps   n (Do_  g1 g) k
     ZOr       -> BCut (eps n g k)
@@ -178,10 +205,10 @@ epsdo :: Int -> Grammar -> PathGrammar -> BackTree
 epsdo n g k =
   case g of
     Pure v -> eps n (Pure v) k
-    Match _ (MatchByte _b) -> Next (n, g, k)
-    OrBiased _g1 _g2        -> Next (n, g, k)
-    Do _ _g1 _g2            -> Next (n, g, k)
-    Do_  _g1 _g2            -> Next (n, g, k)
+    Match _ (MatchByte _b) -> Next n g k
+    OrBiased _g1 _g2       -> Next n g k
+    Do _ _g1 _g2           -> Next n g k
+    Do_  _g1 _g2           -> Next n g k
     _ -> error "unhandled case"
 
 
@@ -194,18 +221,67 @@ derivStep t = error "not implemented"
 
 isUnambiguous :: BackTree -> Bool
 isUnambiguous t = case t of
-  Alt bt bt' -> _
-  BTake x0 -> _
-  BCut bt -> _
-  Done gram -> _
-  Next x0 -> _
+  Alt bt bt' -> error "unhandled case"
+  BTake _ _ _ -> error "unhandled case"
+  BCut bt -> error "unhandled case"
+  Done gram -> error "unhandled case"
+  Next _ _ _ -> error "unhandled case"
+
+
+trimi :: Module -> [(Int, Integer)] -> BackTree -> BackTree
+trimi modl inp t =
+  go t
+  where
+  go tr =
+    case tr of
+      Alt t1 t2 -> Alt (go t1) (go t2)
+      BTake n b t1 ->
+        let i = fromJust $ lookup n inp in
+        if Set.member i (fromJust $ fromCharSetToSet modl b)
+        then
+          BTake n b (go t1)
+        else FailInput
+      BCut t1    -> BCut (go t1)
+      Done gram  -> Done gram
+      Next n g k -> Next n g k
+      FailInput  -> FailInput
+      FailCut    -> FailCut
+      -- _ -> error ""
+
+data TreeInfo =
+    BFail
+  | BOne
+  | BDunno
+
+trimfail :: BackTree -> TreeInfo
+trimfail tr = case tr of
+  Alt t1 t2 ->
+    let i1 = trimfail t1
+        i2 = trimfail t2
+    in
+    let f = case (i2, i2) of
+              (BFail, BFail)  -> BFail
+              (BFail, BOne)   -> BOne
+              (BFail, BDunno) -> BDunno
+              (BOne,  BFail)   -> BOne
+              (BOne,  BOne)    -> BDunno
+              (BOne,  BDunno)  -> BDunno
+              (BDunno, _)     -> BDunno
+    in f
+  BTake n cs t1 -> trimfail t1
+  BCut t1       -> trimfail t1
+  Done g1     -> BOne
+  Next n g1 zgs -> BOne
+  FailInput     -> BFail
+  FailCut   -> BFail
+
 
 
 {- END of Zipped Grammar -}
 
 data CharSet =
-    NCByteSet ByteSet
-  | NCWord8 Word8
+    CByteSet ByteSet
+  | CWord8 Word8
 
 data Deriv =
     DerivStart      [ZipGrammar]
