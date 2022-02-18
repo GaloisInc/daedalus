@@ -28,6 +28,22 @@ captureAnalysis prog =
           $ Map.fromList
               [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
 
+
+  -- NOTE: we assume that return blocks are not shared across functions with
+  -- different capture state!
+
+  -- capturing functions may call non-capturing ones, in which case
+  -- the corresponding return block should be *non* capturing!
+  findNoCaptureRet b =
+    case blockTerm b of
+      Call f _ r1 r2 _
+        | NoCapture <- getCaptures info f -> [ jLabel r1, jLabel r2 ]
+      _ -> []
+
+  nonCapture = Set.fromList (concatMap findNoCaptureRet (pAllBlocks prog))
+  retBlockCaptureInfo b =
+    if blockName b `Set.member` nonCapture then NoCapture else Capture
+
   ---
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
@@ -51,17 +67,19 @@ captureAnalysis prog =
       VMExtern {} -> d
       VMDef b -> VMDef b { vmfBlocks = annotateBlock me <$> vmfBlocks b }
 
-  annotateBlock me b = b { blockTerm = annotateTerm me (blockTerm b)
-                         , blockType = case blockType b of
-                                         NormalBlock -> NormalBlock
-                                         ThreadBlock -> ThreadBlock
-                                         ReturnBlock how ->
-                                           ReturnBlock
-                                           case how of
-                                             RetPure  -> RetPure
-                                             RetNo _  -> RetNo me
-                                             RetYes _ -> RetYes me
-                         }
+  annotateBlock me b =
+    b { blockTerm = annotateTerm me (blockTerm b)
+      , blockType = case blockType b of
+                      NormalBlock -> NormalBlock
+                      ThreadBlock -> ThreadBlock
+                      ReturnBlock how ->
+                        ReturnBlock
+                          case how of
+                            RetPure  -> RetPure
+                            RetNo _  -> RetNo (retBlockCaptureInfo b)
+                            RetYes _ -> RetYes (retBlockCaptureInfo b)
+      }
+
   annotateTerm me i =
     case i of
       Call f _ no yes es  -> Call f (callSanity f) no yes es

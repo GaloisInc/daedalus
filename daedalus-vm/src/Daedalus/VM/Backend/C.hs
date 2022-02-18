@@ -303,6 +303,7 @@ cBasicBlock b = "//" <+> text (show (blockType b))
   getArgs = case blockType b of
               NormalBlock -> empty
 
+              -- This block is used as the address to return to after calling a function.
               ReturnBlock how ->
                 case how of
                   RetPure -> empty

@@ -72,6 +72,8 @@ data Block = Block
 data BlockType =
     NormalBlock
   | ReturnBlock ReturnHow
+    {- ^ This block is used for returning from a function -}
+
   | ThreadBlock
     {- ^ This block is an entry point to a thread. -}
     deriving (Eq,Show)
