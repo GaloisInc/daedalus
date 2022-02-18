@@ -26,6 +26,7 @@ normG gram =
     Do_ (Let a x y) z
       | not (a `Set.member` freeVars z) -> Let a x (normG (Do_ y z))
 
+    Do_ (Pure (Ap0 Unit)) x -> normG x
     Do_ x (Pure (Ap0 Unit))
       | typeOf x == TUnit -> x
 
