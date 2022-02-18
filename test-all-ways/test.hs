@@ -194,6 +194,10 @@ load :: Backend -> FilePath -> Maybe FilePath -> IO (Backend,String)
 load be ddl mbInput =
   do let file = outputFileFor be ddl mbInput
      txt <- readProcess "jq" [".",file] ""
+                `catch` \SomeException{} ->
+                   do putStrLn ("Failed to parse output: " ++ show file)
+                      putStrLn =<< readFile file
+                      pure ""
      pure (be,txt)
 
 validate :: FilePath -> Maybe FilePath -> IO ()
