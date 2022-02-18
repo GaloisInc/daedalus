@@ -223,6 +223,7 @@ doToCore opts mm =
      when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
      when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
+     when (optDeterminize opts) (passNorm specMod >> checkCore "Norm")
      pure ents
 
   where

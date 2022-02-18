@@ -48,6 +48,7 @@ module Daedalus.Driver
   , passSpecTys
   , passConstFold
   , passDeterminize
+  , passNorm
   , passVM
   , ddlRunPass
 
@@ -807,7 +808,17 @@ passDeterminize m =
          do let i = Core.determinizeModule ast
             ddlUpdate_ \s ->
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
-       _ -> panic "passConstFold" ["Module is not in Core form"]
+       _ -> panic "passDeterminize" ["Module is not in Core form"]
+
+passNorm :: ModuleName -> Daedalus ()
+passNorm m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do let i = Core.normM ast
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passNorm" ["Module is not in Core form"]
 
 
 -- | (7) Convert to VM. The given module should be in Core form.
