@@ -9,7 +9,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import MonadLib
 import Data.Word(Word8)
-import Data.ByteString(ByteString, uncons, null)
+import Data.ByteString(ByteString, uncons, null, pack)
 
 --import Daedalus.Panic(panic)
 --import Daedalus.PP(pp)
@@ -22,7 +22,6 @@ import Daedalus.Core.Grammar
     ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..), ErrorSource (ErrorFromSystem)  )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
---import Daedalus.Type.AST (Arg(GrammarArg))
 -- import Daedalus.Type.AST (Arg(GrammarArg))
 
 determinizeModule :: Module -> Module
@@ -116,6 +115,7 @@ goLeft (ZipNode {focus = foc, path = pth}) =
     Do_ g1 g2     -> ZipNode {focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
     Do name g1 g2 -> ZipNode {focus = g1, path = mkPathGrammar (ZDo name g2) pth }
     Annot ann g1  -> ZipNode {focus = g1, path = mkPathGrammar (ZAnnot ann) pth}
+    -- Let _ _ g1 -> ZipNode {focus = g1, path = pth} -- WARNING TOTALLY INCORECT EARSING LET
     _ -> error "should not happen"
 goLeft (ZipLeaf {}) = error "should not happen"
 
@@ -227,8 +227,8 @@ data Resolution =
   | FailResolved [ZipGrammar]
   | NoResolved    Deriv
 
-checkUnambiguousDeriv :: Deriv -> Bool
-checkUnambiguousDeriv der =
+checkUnambiguousOrDone :: Deriv -> Bool
+checkUnambiguousOrDone der =
   case der of
     DerivStart {} -> False
     DerivUnResolved {} -> False
@@ -236,7 +236,7 @@ checkUnambiguousDeriv der =
       foldr
       (\ (_a, r) b -> b && case r of
                              YesResolved {} -> True
-                             NoResolved d -> checkUnambiguousDeriv d
+                             NoResolved d -> checkUnambiguousOrDone d
                              FailResolved _ -> True -- that's a little weird, but it basically
                                                   -- means there is no more work to do
       ) True lst
@@ -248,7 +248,7 @@ detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
   let ty = typeOf grammar in
   let orLst = getListOr grammar in
-  iterDerivFactor ty (DerivStart $ map initZipGrammar orLst) 0
+  repeatStep ty (DerivStart $ map initZipGrammar orLst) 0
 
   where
   stepDerivFactor :: [ZipGrammar] -> Maybe Deriv
@@ -319,8 +319,8 @@ detOr modl grammar =
       return $ DerivResolved der
 
 
-  iterDerivFactor :: Type -> Deriv -> Int -> Grammar
-  iterDerivFactor ty der depth =
+  repeatStep :: Type -> Deriv -> Int -> Grammar
+  repeatStep ty der depth =
     if depth > gLLkDEPTH
     then grammar
     else
@@ -328,9 +328,9 @@ detOr modl grammar =
       case mder1 of
         Nothing -> grammar
         Just der1 ->
-          if checkUnambiguousDeriv der1
+          if checkUnambiguousOrDone der1
           then translateToCaseDeriv ty der1
-          else iterDerivFactor ty der1 (depth + 1)
+          else repeatStep ty der1 (depth + 1)
 
 
   getListOr :: Grammar -> [Grammar]
@@ -346,24 +346,32 @@ detOr modl grammar =
 
   deriveOneByteOnList :: [ZipGrammar] -> Maybe [(CharSet, ZipGrammar)]
   deriveOneByteOnList lst =
-    mapM deriveOneByte lst
+    let t = mapM deriveOneByte lst in
+    fmap concat t
 
-  deriveOneByte :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
+  deriveOneByte :: ZipGrammar -> Maybe [(CharSet, ZipGrammar)]
   deriveOneByte gram =
     deriveGo gram
     where
-    deriveGo :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
+    deriveGo :: ZipGrammar -> Maybe [(CharSet, ZipGrammar)]
     deriveGo gr@(ZipNode {focus = g}) =
       case g of
-        Let {}   -> Nothing
         Do_ {}   -> deriveGo (goLeft gr)
         Do {}    -> deriveGo (goLeft gr)
-        Match {} -> deriveMatch gr
+        Match {} -> fmap (\ x -> [x]) $ deriveMatch gr
         Annot {} -> deriveGo (goLeft gr)
         Call name []  ->
           case getGrammarDef modl name of
             Nothing -> Nothing
             Just gram1 -> deriveGo (gr {focus = gram1 })
+        OrBiased _g1 _g2 -> Nothing
+          -- do d1 <- deriveGo (gr {focus = g1}) -- WARNING Should be Zor
+          --   d2 <- deriveGo (gr {focus = g2})
+          --   return (d1 ++ d2)
+        Let _ _ _g   ->
+          -- trace "LET" $ deriveGo (goLeft gr) -- WARNING INCORRECT
+          -- trace "LET" $
+          Nothing
         _        -> Nothing
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
@@ -372,8 +380,18 @@ detOr modl grammar =
           case uncons next of
             Nothing -> error "TODO should move up"
             Just (w, rest) ->
-              Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
+              Just [(CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth}) ]
         ZMatchEnd -> error "TODO END"
+
+  convArrayToByteString :: [Expr] -> ByteString
+  convArrayToByteString lst =
+    Data.ByteString.pack (map f lst)
+    where
+    f (Ap0 (IntL n (TUInt (TSize 8)))) =
+      if 0 <=n && n <= 255
+      then fromInteger n
+      else error "error converting Integer to Word8"
+    f _ = error "error converting Expr to Word8"
 
 
   deriveMatch :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
@@ -386,6 +404,15 @@ detOr modl grammar =
       MatchBytes b ->
         case b of
           Ap0 (ByteArrayL bs) ->
+            case uncons bs of
+              Nothing -> error "TODO should move up"
+              Just (w, rest) ->
+                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
+          Ap1 ArrayLen _ -> trace ("AP1 ArrayLen")  $ Nothing
+          Ap1 _ _ -> trace ("AP1")  $ Nothing
+          Ap0 _ -> trace ("AP0")  $ Nothing
+          ApN (ArrayL (TUInt (TSize 8))) arr  ->
+            let bs = convArrayToByteString arr in
             case uncons bs of
               Nothing -> error "TODO should move up"
               Just (w, rest) ->
