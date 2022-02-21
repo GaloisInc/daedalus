@@ -89,6 +89,7 @@ data ZGrammar =
   | ZDo_2 Grammar
   | ZDo Name Grammar
   | ZDo2 Name Grammar
+  | ZLet Name Expr
   | ZAnnot Annot
 
 type PathGrammar = [ ZGrammar ]
@@ -112,10 +113,10 @@ mkZipGrammar g p = ZipNode g p
 goLeft :: ZipGrammar -> ZipGrammar
 goLeft (ZipNode {focus = foc, path = pth}) =
   case foc of
-    Do_ g1 g2     -> ZipNode {focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
-    Do name g1 g2 -> ZipNode {focus = g1, path = mkPathGrammar (ZDo name g2) pth }
-    Annot ann g1  -> ZipNode {focus = g1, path = mkPathGrammar (ZAnnot ann) pth}
-    -- Let _ _ g1 -> ZipNode {focus = g1, path = pth} -- WARNING TOTALLY INCORECT EARSING LET
+    Do_ g1 g2     -> ZipNode { focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
+    Do name g1 g2 -> ZipNode { focus = g1, path = mkPathGrammar (ZDo name g2) pth }
+    Annot ann g1  -> ZipNode { focus = g1, path = mkPathGrammar (ZAnnot ann) pth }
+    Let name e g1 -> ZipNode { focus = g1, path = mkPathGrammar (ZLet name e) pth }
     _ -> error "should not happen"
 goLeft (ZipLeaf {}) = error "should not happen"
 
@@ -135,6 +136,8 @@ goUpRight (ZipNode {focus = foc, path = pth}) =
       goUpRight (mkZipGrammar (Do name g1 foc) z)
     (ZAnnot ann : z) ->
       goUpRight (mkZipGrammar (Annot ann foc) z)
+    (ZLet name e : z) ->
+      goUpRight (mkZipGrammar (Let name e foc) z)
     _  -> error "case not handled"
 goUpRight (ZipLeaf{}) = error "cannot be a leaf"
 
@@ -177,6 +180,9 @@ buildUp (ZipNode {focus = built, path = pth}) =
       buildUp (mkZipGrammar newBuilt z)
     (ZDo2 name g1 : z) ->
       let newBuilt = Do name g1 built in
+      buildUp (mkZipGrammar newBuilt z)
+    (ZLet name e : z) ->
+      let newBuilt = Let name e built in
       buildUp (mkZipGrammar newBuilt z)
     (ZAnnot ann : z) ->
       buildUp (mkZipGrammar (Annot ann built) z)
@@ -368,10 +374,10 @@ detOr modl grammar =
           -- do d1 <- deriveGo (gr {focus = g1}) -- WARNING Should be Zor
           --   d2 <- deriveGo (gr {focus = g2})
           --   return (d1 ++ d2)
-        Let _ _ _g   ->
+        Let _ _ _g   -> deriveGo (goLeft gr)
           -- trace "LET" $ deriveGo (goLeft gr) -- WARNING INCORRECT
           -- trace "LET" $
-          Nothing
+          -- Nothing
         _        -> Nothing
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
@@ -418,7 +424,7 @@ detOr modl grammar =
               Just (w, rest) ->
                 Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           _ -> Nothing
-      _ -> Nothing
+      _ -> Nothing -- TODO: replace this with an error, or look into it
   deriveMatch _ = error "function should be applied to Match"
 
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
@@ -517,6 +523,8 @@ detOr modl grammar =
       go [x] = buildLeaf c x
       go (x : xs) = OrBiased (buildLeaf c x) (go xs)
 
+
+    -- TODO: is this not redundant with goNextLeaf ????
     buildLeaf :: Integer -> ZipGrammar -> Grammar
     buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
       case sem of
