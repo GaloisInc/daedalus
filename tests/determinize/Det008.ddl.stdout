@@ -1,0 +1,94 @@
+[WARNING] ./Det008.ddl:7:10--7:81:
+            Using unbiased choice may be inefficient.
+module Det008
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Det008._T1 : Grammar {} =
+  Choose biased
+    { do @Match {'a'}
+         Choose biased
+           { @Match {'a'}
+           | @Match {'b'}
+           }
+    | do @Match {'a'}
+         @Match {'c'}
+    }
+ 
+Det008._T2 : Grammar {} =
+  Choose biased
+    { do @Match {'a'}
+         Choose biased
+           { @Match {'a'}
+           | @Match {'b'}
+           }
+    | do @Match {'a'}
+         @Match {'b'}
+    }
+ 
+Det008._T3 : Grammar {} =
+  Choose fair
+    { do @Match {'a'}
+         Choose biased
+           { @Match {'a'}
+           | @Match {'b'}
+           }
+    | do @Match {'a'}
+         @Match {'a'}
+    }
+ 
+Det008.Main : Grammar {} =
+  do Det008._T1
+     Det008._T2
+     Det008._T3
+     ($$ : {}) <- END
+     pure $$
+ 
+Det008.T1 : Grammar (uint 8) =
+  Choose biased
+    { do @Match {'a'}
+         ($$ : uint 8) <- Choose biased
+                            { Match {'a'}
+                            | Match {'b'}
+                            }
+         pure $$
+    | do @Match {'a'}
+         ($$ : uint 8) <- Match {'c'}
+         pure $$
+    }
+ 
+Det008.T2 : Grammar (uint 8) =
+  Choose biased
+    { do @Match {'a'}
+         ($$ : uint 8) <- Choose biased
+                            { Match {'a'}
+                            | Match {'b'}
+                            }
+         pure $$
+    | do @Match {'a'}
+         ($$ : uint 8) <- Match {'b'}
+         pure $$
+    }
+ 
+Det008.T3 : Grammar (uint 8) =
+  Choose fair
+    { do @Match {'a'}
+         ($$ : uint 8) <- Choose biased
+                            { Match {'a'}
+                            | Match {'b'}
+                            }
+         pure $$
+    | do @Match {'a'}
+         ($$ : uint 8) <- Match {'a'}
+         pure $$
+    }
+ 
+Det008._Main : Grammar {} =
+  do Det008._T1
+     Det008._T2
+     Det008._T3
+     END

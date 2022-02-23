@@ -1,0 +1,135 @@
+[WARNING] ./Det007.ddl:14:14--14:44:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det007.ddl:12:14--12:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det007.ddl:10:14--10:24:
+            Using unbiased choice may be inefficient.
+module Det007
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Det007._A : Grammar {} =
+  @Match {'a'}
+ 
+Det007._B : Grammar {} =
+  @Match {'b'}
+ 
+Det007._Test1 : Grammar {} =
+  Choose biased
+    { Choose fair
+        { do Det007._A
+             Det007._B
+        | Det007._B
+        }
+    | Det007._A
+    }
+ 
+Det007._Test2 : Grammar {} =
+  Choose fair
+    { Choose biased
+        { do Det007._A
+             Det007._B
+        | Det007._B
+        }
+    | Det007._A
+    }
+ 
+Det007._C : Grammar {} =
+  @Match {'c'}
+ 
+Det007._D : Grammar {} =
+  @Match {'d'}
+ 
+Det007._Test3 : Grammar {} =
+  Choose fair
+    { Choose biased
+        { do Det007._A
+             Det007._B
+        | do Det007._A
+             Det007._B
+             Det007._C
+        }
+    | do Det007._A
+         Det007._D
+    }
+ 
+Det007._Test4 : Grammar {} =
+  Choose biased
+    { Det007._A
+    | pure {}
+    }
+ 
+Det007.Main : Grammar {} =
+  do Det007._Test1
+     Det007._Test2
+     Det007._Test3
+     Det007._Test4
+     ($$ : {}) <- END
+     pure $$
+ 
+Det007.A : Grammar (uint 8) =
+  Match {'a'}
+ 
+Det007.B : Grammar (uint 8) =
+  Match {'b'}
+ 
+Det007.C : Grammar (uint 8) =
+  Match {'c'}
+ 
+Det007.D : Grammar (uint 8) =
+  Match {'d'}
+ 
+Det007.Test1 : Grammar (uint 8) =
+  Choose biased
+    { Choose fair
+        { do Det007._A
+             ($$ : uint 8) <- Det007.B
+             pure $$
+        | Det007.B
+        }
+    | Det007.A
+    }
+ 
+Det007.Test2 : Grammar (uint 8) =
+  Choose fair
+    { Choose biased
+        { do Det007._A
+             ($$ : uint 8) <- Det007.B
+             pure $$
+        | Det007.B
+        }
+    | Det007.A
+    }
+ 
+Det007.Test3 : Grammar (uint 8) =
+  Choose fair
+    { Choose biased
+        { do Det007._A
+             ($$ : uint 8) <- Det007.B
+             pure $$
+        | do Det007._A
+             Det007._B
+             ($$ : uint 8) <- Det007.C
+             pure $$
+        }
+    | do Det007._A
+         ($$ : uint 8) <- Det007.D
+         pure $$
+    }
+ 
+Det007.Test4 : Grammar {} =
+  Choose biased
+    { Det007._A
+    | pure {}
+    }
+ 
+Det007._Main : Grammar {} =
+  do Det007._Test1
+     Det007._Test2
+     Det007._Test3
+     Det007._Test4
+     END

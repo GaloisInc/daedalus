@@ -1,0 +1,81 @@
+module Det005
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+Det005.$simpleWS : ByteClass =
+  (({0} | {9}) | {12}) | {32}
+ 
+Det005.$cr : ByteClass =
+  {13}
+ 
+Det005.$lf : ByteClass =
+  {10}
+ 
+Det005._SimpleEOL : Grammar {} =
+  Choose biased
+    { do @Match Det005.$cr
+         @Match Det005.$lf
+    | @Match Det005.$lf
+    }
+ 
+Det005._EOL : Grammar {} =
+  Choose biased
+    { Det005._SimpleEOL
+    | @Match Det005.$cr
+    }
+ 
+Det005._Comment : Grammar {} =
+  do @MatchBytes "%"
+     @Many[] @Match (!(Det005.$lf | Det005.$cr))
+     Det005._EOL
+ 
+Det005._AnyWS : Grammar {} =
+  Choose biased
+    { Choose biased
+        { @Match Det005.$simpleWS
+        | Det005._Comment
+        }
+    | Det005._EOL
+    }
+ 
+Det005.Main : Grammar {} =
+  do Det005._AnyWS
+     ($$ : {}) <- END
+     pure $$
+ 
+Det005.SimpleEOL : Grammar (uint 8) =
+  Choose biased
+    { do @Match Det005.$cr
+         ($$ : uint 8) <- Match Det005.$lf
+         pure $$
+    | Match Det005.$lf
+    }
+ 
+Det005.EOL : Grammar (uint 8) =
+  Choose biased
+    { Det005.SimpleEOL
+    | Match Det005.$cr
+    }
+ 
+Det005.Comment : Grammar (uint 8) =
+  do @MatchBytes "%"
+     @Many[] @Match (!(Det005.$lf | Det005.$cr))
+     ($$ : uint 8) <- Det005.EOL
+     pure $$
+ 
+Det005.AnyWS : Grammar (uint 8) =
+  Choose biased
+    { Choose biased
+        { Match Det005.$simpleWS
+        | Det005.Comment
+        }
+    | Det005.EOL
+    }
+ 
+Det005._Main : Grammar {} =
+  do Det005._AnyWS
+     END

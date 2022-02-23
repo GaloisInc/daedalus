@@ -1,0 +1,54 @@
+module Det004
+ 
+--- Imports:
+ 
+--- Type defs:
+type Det004.Main = { x: uint 8
+                   ; y: uint 8
+                   ; z: uint 8
+                   }
+ 
+--- Rules:
+ 
+Det004.Gram2 : Grammar (uint 8) =
+  Match {'b'}
+ 
+Det004.Gram3 : Grammar (uint 8) =
+  Match {'c'}
+ 
+Det004.Gram1 : Grammar (uint 8) =
+  Choose biased
+    { do @MatchBytes "a"
+         ($$ : uint 8) <- Det004.Gram2
+         pure $$
+    | do @MatchBytes "a"
+         ($$ : uint 8) <- Det004.Gram3
+         pure $$
+    }
+ 
+Det004.Main : Grammar Det004.Main =
+  do (x : uint 8) <- Det004.Gram1
+     (y : uint 8) <- Det004.Gram2
+     (z : uint 8) <- Det004.Gram3
+     pure {x = x,
+           y = y,
+           z = z}
+ 
+Det004._Gram2 : Grammar {} =
+  @Match {'b'}
+ 
+Det004._Gram3 : Grammar {} =
+  @Match {'c'}
+ 
+Det004._Gram1 : Grammar {} =
+  Choose biased
+    { do @MatchBytes "a"
+         Det004._Gram2
+    | do @MatchBytes "a"
+         Det004._Gram3
+    }
+ 
+Det004._Main : Grammar {} =
+  do Det004._Gram1
+     Det004._Gram2
+     Det004._Gram3

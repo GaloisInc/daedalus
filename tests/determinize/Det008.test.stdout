@@ -1,0 +1,70 @@
+[WARNING] ./Det008.ddl:7:10--7:81:
+            Using unbiased choice may be inefficient.
+module DaedalusMain where
+ 
+ 
+-------------
+ 
+proc _T1() : () =
+  -- DETERMINIZE 2 Fully
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              97 ->
+                pure ()
+              98 ->
+                pure ()
+              99 ->
+                pure ()
+              _ ->
+                fail_sys @()
+       _ ->
+         fail_sys @()
+ 
+proc _T2() : () =
+  -- DETERMINIZE 2
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              97 ->
+                pure ()
+              98 ->
+                -- OR RECONSTRUCTION
+                try
+                  pure ()
+                else
+                  pure ()
+              _ ->
+                fail_sys @()
+       _ ->
+         fail_sys @()
+ 
+proc _T3() : () =
+  -- DETERMINIZE 2
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              97 ->
+                -- OR RECONSTRUCTION
+                  fork
+                    pure ()
+                  fork
+                    pure ()
+              98 ->
+                pure ()
+              _ ->
+                fail_sys @()
+       _ ->
+         fail_sys @()
+ 
+proc Main() : () =
+  do _T1()
+     _T2()
+     _T3()
+     matchEnd

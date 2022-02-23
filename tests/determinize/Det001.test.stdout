@@ -23,7 +23,7 @@ type Main =
 -------------
  
 proc Simple1() : Word 8 =
-  -- DETERMINIZE HERE
+  -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
@@ -38,19 +38,24 @@ proc Simple1() : Word 8 =
          fail_sys @(Word 8)
  
 proc SimpleNot1() : Word 8 =
-    fork
-        fork
-            fork
-              match1 { 101 @(Word 8) }
-            fork
-              match1 { 102 @(Word 8) }
-        fork
-          match1 { 102 @(Word 8) }
-    fork
-      match1 { 103 @(Word 8) }
+  -- DETERMINIZE 1
+  do _x0 <- match1 { ... }
+     case _x0 of
+       101 ->
+         pure (101 @(Word 8))
+       102 ->
+         -- OR RECONSTRUCTION
+           fork
+             pure (102 @(Word 8))
+           fork
+             pure (102 @(Word 8))
+       103 ->
+         pure (103 @(Word 8))
+       _ ->
+         fail_sys @(Word 8)
  
 proc Simple2() : () =
-  -- DETERMINIZE HERE
+  -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        65 ->
@@ -63,17 +68,17 @@ proc Simple2() : () =
          fail_sys @()
  
 proc Simple3() : Word 8 =
-  -- DETERMINIZE HERE
+  -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
-         do x <- pure (97 @(Word 8))
+         do let x = 97 @(Word 8)
             match1_ { 98 @(Word 8) }
             pure x
        98 ->
          pure (98 @(Word 8))
        99 ->
-         do x <- pure (99 @(Word 8))
+         do let x = 99 @(Word 8)
             match1_ { 98 @(Word 8) }
             pure (x + x)
        _ ->

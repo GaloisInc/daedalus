@@ -1,0 +1,86 @@
+module DaedalusMain where
+ 
+ 
+-------------
+ 
+byteset $simpleWS() : Bool =
+  { 0 @(Word 8) } | { 9 @(Word 8) } | { 12 @(Word 8) } | { 32 @(Word 8) }
+ 
+byteset $cr() : Bool =
+  { 13 @(Word 8) }
+ 
+byteset $lf() : Bool =
+  { 10 @(Word 8) }
+ 
+proc _F24() : () =
+  do _x25 <- try
+               do match1_ !($lf() | $cr())
+                  pure True
+             else
+               pure False
+     case _x25 of
+       True ->
+         _F24()
+       False ->
+         pure ()
+ 
+proc _SimpleEOL() : () =
+  -- DETERMINIZE 1 Fully
+  do _x0 <- match1 { ... }
+     case _x0 of
+       10 ->
+         pure ()
+       13 ->
+         match1_ $lf()
+       _ ->
+         fail_sys @()
+ 
+proc _EOL() : () =
+  -- DETERMINIZE 1
+  do _x0 <- match1 { ... }
+     case _x0 of
+       10 ->
+         pure ()
+       13 ->
+         -- OR RECONSTRUCTION
+         try
+           match1_ $lf()
+         else
+           pure ()
+       _ ->
+         fail_sys @()
+ 
+proc _Comment() : () =
+  do match_ "%"
+     _F24()
+     _EOL()
+ 
+proc _AnyWS() : () =
+  -- DETERMINIZE 1
+  do _x0 <- match1 { ... }
+     case _x0 of
+       0 ->
+         pure ()
+       9 ->
+         pure ()
+       10 ->
+         pure ()
+       12 ->
+         pure ()
+       13 ->
+         -- OR RECONSTRUCTION
+         try
+           match1_ $lf()
+         else
+           pure ()
+       32 ->
+         pure ()
+       37 ->
+         do _F24()
+            _EOL()
+       _ ->
+         fail_sys @()
+ 
+proc Main() : () =
+  do _AnyWS()
+     matchEnd

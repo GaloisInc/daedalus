@@ -1,0 +1,85 @@
+[WARNING] ./Det007.ddl:14:14--14:44:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det007.ddl:12:14--12:30:
+            Using unbiased choice may be inefficient.
+[WARNING] ./Det007.ddl:10:14--10:24:
+            Using unbiased choice may be inefficient.
+module DaedalusMain where
+ 
+ 
+-------------
+ 
+proc _A() : () =
+  match1_ { 97 @(Word 8) }
+ 
+proc _B() : () =
+  match1_ { 98 @(Word 8) }
+ 
+proc _Test1() : () =
+  -- DETERMINIZE 1
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         -- OR RECONSTRUCTION
+         try
+           _B()
+         else
+           pure ()
+       98 ->
+         pure ()
+       _ ->
+         fail_sys @()
+ 
+proc _Test2() : () =
+  -- DETERMINIZE 1
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         -- OR RECONSTRUCTION
+           fork
+             _B()
+           fork
+             pure ()
+       98 ->
+         pure ()
+       _ ->
+         fail_sys @()
+ 
+proc _C() : () =
+  match1_ { 99 @(Word 8) }
+ 
+proc _D() : () =
+  match1_ { 100 @(Word 8) }
+ 
+proc _Test3() : () =
+  -- DETERMINIZE 2
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              98 ->
+                -- OR RECONSTRUCTION
+                try
+                  pure ()
+                else
+                  _C()
+              100 ->
+                pure ()
+              _ ->
+                fail_sys @()
+       _ ->
+         fail_sys @()
+ 
+proc _Test4() : () =
+  try
+    _A()
+  else
+    pure ()
+ 
+proc Main() : () =
+  do _Test1()
+     _Test2()
+     _Test3()
+     _Test4()
+     matchEnd
