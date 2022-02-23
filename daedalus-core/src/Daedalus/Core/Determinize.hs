@@ -2,7 +2,7 @@
 {-# Language BlockArguments #-}
 module Daedalus.Core.Determinize (determinizeModule) where
 
-import Debug.Trace(trace)
+-- import Debug.Trace(trace)
 
 import Data.Text (pack)
 import Data.Set (Set)
@@ -22,7 +22,6 @@ import Daedalus.Core.Grammar
     ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..), ErrorSource (ErrorFromSystem)  )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
--- import Daedalus.Type.AST (Arg(GrammarArg))
 
 determinizeModule :: Module -> Module
 determinizeModule m  =
@@ -31,24 +30,24 @@ determinizeModule m  =
 
 detGram :: Module -> Grammar -> Grammar
 detGram modl gram =
-  detGo gram
+  go gram
 
   where
-  detGo g = case g of
+  go g = case g of
     Pure _      -> g
     GetStream   -> g
     SetStream _ -> g
     Match _ _   -> g
     Fail {}     -> g
-    Do_ g1 g2     -> Do_     (detGo g1) (detGo g2)
-    Do name g1 g2 -> Do name (detGo g1) (detGo g2)
-    Let name e g1 -> Let name e (detGo g1)
-    OrBiased {}   -> detOr modl g
-    OrUnbiased {} -> detOr modl g
+    Do_ g1 g2     -> Do_     (go g1) (go g2)
+    Do name g1 g2 -> Do name (go g1) (go g2)
+    Let name e g1 -> Let name e (go g1)
+    OrBiased {}   -> determinize modl g
+    OrUnbiased {} -> determinize modl g
     Call {} -> g
     Annot {} -> g
     GCase (Case name lst) ->
-      GCase (Case name (map (\ (pat, g1) -> (pat, detGo g1)) lst))
+      GCase (Case name (map (\ (pat, g1) -> (pat, go g1)) lst))
 
 getGrammarDef :: Module -> FName -> Maybe Grammar
 getGrammarDef modl name =
@@ -66,7 +65,7 @@ getByteSetDef :: Module -> FName -> Maybe ByteSet
 getByteSetDef modl name =
   goGetByteSet (mBFuns modl)
   where
-  goGetByteSet [] = error "cannot find grammar"
+  goGetByteSet [] = error "cannot find byteset"
   goGetByteSet ( Fun {fName = n1, fDef = fdef} : rest ) =
     if fnameId n1 == fnameId name
     then case fdef of
@@ -74,6 +73,13 @@ getByteSetDef modl name =
            External -> Nothing
     else goGetByteSet rest
 
+
+{-
+  The progression for how we do determinization is:
+  * zipgrammar: to derive a grammar until
+  * Alternation/Or Tree: to derive a grammar traversing through alternation
+  * Derivation Tree: to repeat the derivation until branches are unique or no more progress can be made
+-}
 
 
 {- Zipped Grammar -}
@@ -112,15 +118,15 @@ initZipGrammar gram = ZipNode {focus = gram, path = emptyPathGrammar}
 mkZipGrammar :: Grammar -> PathGrammar -> ZipGrammar
 mkZipGrammar g p = ZipNode g p
 
-goLeft :: ZipGrammar -> ZipGrammar
-goLeft (ZipNode {focus = foc, path = pth}) =
+moveLeft :: ZipGrammar -> ZipGrammar
+moveLeft (ZipNode {focus = foc, path = pth}) =
   case foc of
     Do_ g1 g2     -> ZipNode { focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
     Do name g1 g2 -> ZipNode { focus = g1, path = mkPathGrammar (ZDo name g2) pth }
     Annot ann g1  -> ZipNode { focus = g1, path = mkPathGrammar (ZAnnot ann) pth }
     Let name e g1 -> ZipNode { focus = g1, path = mkPathGrammar (ZLet name e) pth }
     _ -> error "should not happen"
-goLeft (ZipLeaf {}) = error "should not happen"
+moveLeft (ZipLeaf {}) = error "should not happen"
 
 goUpRight :: ZipGrammar -> Maybe ZipGrammar
 goUpRight (ZipNode {focus = foc, path = pth}) =
@@ -200,35 +206,44 @@ buildUp (ZipLeaf {}) = error "broken invariant"
 {- END of Zipped Grammar -}
 
 data CharSet =
-    CByteSet ByteSet
+    CByteSet (Set Integer)
   | CWord8 Word8
 
-fromCharSetToSet :: Module -> CharSet -> Maybe (Set Integer)
-fromCharSetToSet modl b =
-  go b
+fromCharSetToSet :: CharSet -> Set Integer
+fromCharSetToSet c =
+  case c of
+    CByteSet s -> s
+    CWord8 w -> Set.singleton $ fromIntegral w
+
+memberCharSet :: Integer -> CharSet -> Bool
+memberCharSet n c = Set.member n (fromCharSetToSet c)
+
+fromByteSetToSet :: Module -> ByteSet -> Maybe (Set Integer)
+fromByteSetToSet modl bs =
+  go bs
   where
-  go bc =
-    let allBytes = (foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255]) in
-    case bc of
-      CWord8 w -> Just (Set.singleton $ toInteger w)
-      CByteSet SetAny -> Just allBytes
-      CByteSet (SetSingle (Ap0 (IntL s  (TUInt (TSize 8))))) -> Just (Set.singleton s)
-      CByteSet (SetRange  (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
+  go b =
+    let allBytes = foldr (\ i s -> Set.insert i s) Set.empty [0 .. 255] in
+    case b of
+      SetAny -> Just allBytes
+      (SetSingle (Ap0 (IntL s  (TUInt (TSize 8))))) -> Just (Set.singleton s)
+      (SetRange  (Ap0 (IntL s1 (TUInt (TSize 8)))) (Ap0 (IntL s2 (TUInt (TSize 8))))) ->
         if s1 <= s2 && s1 >=0 && s2 <= 255
         then Just (foldr (\ i s -> Set.insert i s) Set.empty [s1 .. s2])
         else Nothing
-      CByteSet (SetComplement bs1) -> do
-        s1 <- go (CByteSet bs1)
+      (SetComplement bs1) -> do
+        s1 <- go bs1
         return $ Set.difference allBytes s1
-      CByteSet (SetUnion bs1 bs2) -> do
-        s1 <- go (CByteSet bs1)
-        s2 <- go (CByteSet bs2)
+      (SetUnion bs1 bs2) -> do
+        s1 <- go bs1
+        s2 <- go bs2
         Just (Set.union s1 s2)
-      CByteSet (SetCall name []) -> do
+      (SetCall name []) -> do
         s1 <- getByteSetDef modl name
-        go (CByteSet s1)
+        go s1
       _      -> Nothing
 
+{- END of CharSet -}
 
 
 data AltTree a = -- AltTree [ a ]
@@ -323,6 +338,106 @@ extractOne t = case t of
       _ -> error "broken invariant"
 
 
+deriveOneByte :: Module -> ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+deriveOneByte modl gram =
+  deriveGo gram
+  where
+  deriveGo :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+  deriveGo gr@(ZipNode {focus = g, path = pth}) =
+    case g of
+      Pure _ -> deriveUp gr
+      Do_ {}   -> deriveGo (moveLeft gr)
+      Do  {}   -> deriveGo (moveLeft gr)
+      Let {}   -> deriveGo (moveLeft gr)
+      Match {} -> case deriveMatch gr of -- fmap (\ x -> [x]) $ deriveMatch gr
+        Nothing -> Nothing
+        Just c ->  Just (AltLeaf c)
+      Annot {} -> deriveGo (moveLeft gr)
+      Call name []  ->
+        case getGrammarDef modl name of
+          Nothing -> Nothing
+          Just gram1 -> deriveGo (gr {focus = gram1 })
+      OrBiased g1 g2 ->
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased  pth })
+            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased  pth }) in
+        case (g1', g2') of
+          (Nothing, _) -> Nothing
+          (_, Nothing) -> Nothing
+          (Just a1, Just a2) -> Just (AltBiased a1 a2)
+      OrUnbiased g1 g2 ->
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased  pth })
+            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrUnbiased pth }) in
+        case (g1', g2') of
+          (Nothing, _) -> Nothing
+          (_, Nothing) -> Nothing
+          (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
+      _        -> Nothing
+  deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
+    case zm of
+      ZMatchByte _          -> error "TODO should move up"
+      ZMatchBytes (prev, next) orig ->
+        case uncons next of
+          Nothing -> error "TODO should move up"
+          Just (w, rest) ->
+            Just $ AltLeaf (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
+      ZMatchEnd -> error "TODO END"
+
+  deriveUp :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+  deriveUp (ZipNode {focus = g, path = pth}) = case pth of
+    [] -> error "" -- TODO AltDone gr
+    k : ks -> case k of
+      ZMatch _   -> error "broken invariant"
+      ZDo_ g2    -> deriveGo (ZipNode g2 (ZDo_2 g : ks))
+      ZDo_2 g1   -> deriveUp (ZipNode (Do_ g1 g) ks)
+      ZDo na g2  -> deriveGo (ZipNode g2 (ZDo2 na g : ks))
+      ZDo2 na g1 -> deriveUp (ZipNode (Do na g1 g) ks)
+      ZLet na ex -> deriveUp (ZipNode (Let na ex g) ks)
+      ZAnnot an  -> deriveUp (ZipNode (Annot an g) ks)
+      ZOrBiased   -> Nothing
+      ZOrUnbiased -> Nothing
+  deriveUp (ZipLeaf {}) = error "broken invariant"
+
+  convArrayToByteString :: [Expr] -> ByteString
+  convArrayToByteString lst =
+    Data.ByteString.pack (map f lst)
+    where
+    f (Ap0 (IntL n (TUInt (TSize 8)))) =
+      if 0 <= n && n <= 255
+      then fromInteger n
+      else error "error converting Integer to Word8"
+    f _ = error "error converting Expr to Word8"
+
+  deriveMatch :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
+  deriveMatch (ZipNode { focus = Match sem match, path = pth}) =
+    let newPath = mkPathGrammar (ZMatch sem) pth in
+    case match of
+      MatchByte b ->
+        do s <- fromByteSetToSet modl b
+           let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath}
+           return (CByteSet s, x)
+      MatchBytes b ->
+        case b of
+          Ap0 (ByteArrayL bs) ->
+            case uncons bs of
+              Nothing -> error "TODO should move up"
+              Just (w, rest) ->
+                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
+          Ap1 ArrayLen _ -> Nothing
+          Ap1 _ _        -> Nothing
+          Ap0 _          -> Nothing
+          ApN (ArrayL (TUInt (TSize 8))) arr  ->
+            let bs = convArrayToByteString arr in
+            case uncons bs of
+              Nothing -> error "TODO should move up"
+              Just (w, rest) ->
+                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
+          _ -> Nothing
+      _ -> Nothing -- TODO: replace this with an error, or look into it
+  deriveMatch _ = error "function should be applied to Match"
+
+{- END of AltTree -}
+
+
 data Deriv =
     DerivStart      (AltTree ZipGrammar)
   | DerivUnResolved [(Integer, AltTree (Either ZipGrammar ()))] -- disjoing set of integers in list
@@ -383,8 +498,8 @@ getDepth der =
 gLLkDEPTH :: Int
 gLLkDEPTH = 10
 
-detOr :: Module -> Grammar -> Grammar
-detOr modl grammar =
+determinize :: Module -> Grammar -> Grammar
+determinize modl grammar =
   let ty = typeOf grammar in
   repeatStep ty (DerivStart $ AltLeaf (initZipGrammar grammar)) 0
 
@@ -403,24 +518,16 @@ detOr modl grammar =
 
 
   applyCharToAltTree ::
-    Integer -> AltTree (Set Integer, ZipGrammar) -> AltTree (Either ZipGrammar ())
+    Integer -> AltTree (CharSet, ZipGrammar) -> AltTree (Either ZipGrammar ())
   applyCharToAltTree c t =
-    fmap (\ (cset, z) -> if Set.member c cset then Left z else Right ()) t
+    fmap (\ (cset, z) -> if memberCharSet c cset then Left z else Right ()) t
 
   stepDerivFactor :: AltTree (ZipGrammar) -> Maybe Deriv
-  stepDerivFactor orLst =
-    let derLst = deriveOneByteOnList orLst in
-    let linDerLst = do
-          linLst <- derLst
-          mapAlt
-            (\ (a, c) -> do
-                { d <- fromCharSetToSet modl a ; return (AltLeaf (d, c)) }
-            ) linLst
-    in
-    do t <- linDerLst
-       let charSet = Set.toList $ foldAlt (\ (a,_) b -> Set.union a b) Set.empty t
-       let charTrans = map (\ c -> (c, applyCharToAltTree c t)) charSet
-       return $ DerivUnResolved charTrans
+  stepDerivFactor t =
+    do tStep <- deriveOneByteOnAltTree t
+       let charSet = Set.toList $ foldAlt (\ (a,_) b -> Set.union (fromCharSetToSet a) b) Set.empty tStep
+       let tStepApplied = map (\ c -> (c, applyCharToAltTree c tStep)) charSet
+       return $ DerivUnResolved tStepApplied
 
   mapStep :: Deriv -> Maybe Deriv
   mapStep (DerivStart orLst) = stepDerivFactor orLst
@@ -445,23 +552,6 @@ detOr modl grammar =
                     Just derLst -> return (c, NoResolved derLst)
       )
     return $ DerivResolved der
-{-
-          if checkUnambiguousList orLst
-          then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
-          else
-            forM (Set.toList c)
-            (\ x -> do
-                let mepsLst = forM orLst (\ z -> goNextLeaf x z)
-                case mepsLst of
-                  Nothing -> return (x, FailResolved orLst)
-                  Just epsLst ->
-                    let mDerLst = stepDerivFactor epsLst in
-                    case mDerLst of
-                      Nothing -> return (x, FailResolved orLst)
-                      Just derLst -> return (x, NoResolved derLst)
-            )
-      )
-    return $ DerivResolved (concat der) -}
 
   mapStep (DerivResolved opts) = do
       der <- forM opts
@@ -476,107 +566,9 @@ detOr modl grammar =
         )
       return $ DerivResolved der
 
-  deriveOneByteOnList :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
-  deriveOneByteOnList t =
-    mapAlt deriveOneByte t
-
-  deriveOneByte :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
-  deriveOneByte gram =
-    deriveGo gram
-    where
-    deriveGo :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
-    deriveGo gr@(ZipNode {focus = g, path = pth}) =
-      case g of
-        Pure _ -> deriveUp gr
-        Do_ {}   -> deriveGo (goLeft gr)
-        Do  {}   -> deriveGo (goLeft gr)
-        Let {}   -> deriveGo (goLeft gr)
-        Match {} -> case deriveMatch gr of -- fmap (\ x -> [x]) $ deriveMatch gr
-          Nothing -> Nothing
-          Just c ->  Just (AltLeaf c)
-        Annot {} -> deriveGo (goLeft gr)
-        Call name []  ->
-          case getGrammarDef modl name of
-            Nothing -> Nothing
-            Just gram1 -> deriveGo (gr {focus = gram1 })
-        OrBiased g1 g2 ->
-          let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased  pth })
-              g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased  pth }) in
-          case (g1', g2') of
-            (Nothing, _) -> Nothing
-            (_, Nothing) -> Nothing
-            (Just a1, Just a2) -> Just (AltBiased a1 a2)
-        OrUnbiased g1 g2 ->
-          let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased  pth })
-              g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrUnbiased pth }) in
-          case (g1', g2') of
-            (Nothing, _) -> Nothing
-            (_, Nothing) -> Nothing
-            (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
-        _        -> Nothing
-    deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
-      case zm of
-        ZMatchByte _          -> error "TODO should move up"
-        ZMatchBytes (prev, next) orig ->
-          case uncons next of
-            Nothing -> error "TODO should move up"
-            Just (w, rest) ->
-              Just $ AltLeaf (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
-        ZMatchEnd -> error "TODO END"
-
-    deriveUp :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
-    deriveUp (ZipNode {focus = g, path = pth}) = case pth of
-      [] -> error "" -- TODO AltDone gr
-      k : ks -> case k of
-        ZMatch _ -> error "broken invariant"
-        ZDo_ g2    -> deriveGo (ZipNode g2 (ZDo_2 g : ks))
-        ZDo_2 g1   -> deriveUp (ZipNode (Do_ g1 g) ks)
-        ZDo na g2  -> deriveGo (ZipNode g2 (ZDo2 na g : ks))
-        ZDo2 na g1 -> deriveUp (ZipNode (Do na g1 g) ks)
-        ZLet na ex -> deriveUp (ZipNode (Let na ex g) ks)
-        ZAnnot an  -> deriveUp (ZipNode (Annot an g) ks)
-        ZOrBiased   -> Nothing
-        ZOrUnbiased -> Nothing
-    deriveUp (ZipLeaf {}) = error "broken invariant"
-
-
-  convArrayToByteString :: [Expr] -> ByteString
-  convArrayToByteString lst =
-    Data.ByteString.pack (map f lst)
-    where
-    f (Ap0 (IntL n (TUInt (TSize 8)))) =
-      if 0 <=n && n <= 255
-      then fromInteger n
-      else error "error converting Integer to Word8"
-    f _ = error "error converting Expr to Word8"
-
-
-  deriveMatch :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
-  deriveMatch (ZipNode { focus = Match sem match, path = pth}) =
-    let newPath = mkPathGrammar (ZMatch sem) pth in
-    case match of
-      MatchByte b ->
-        let x = ZipLeaf{ zmatch = ZMatchByte b, path = newPath} in
-        Just (CByteSet b, x)
-      MatchBytes b ->
-        case b of
-          Ap0 (ByteArrayL bs) ->
-            case uncons bs of
-              Nothing -> error "TODO should move up"
-              Just (w, rest) ->
-                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
-          Ap1 ArrayLen _ -> trace ("AP1 ArrayLen")  $ Nothing
-          Ap1 _ _ -> trace ("AP1")  $ Nothing
-          Ap0 _ -> trace ("AP0")  $ Nothing
-          ApN (ArrayL (TUInt (TSize 8))) arr  ->
-            let bs = convArrayToByteString arr in
-            case uncons bs of
-              Nothing -> error "TODO should move up"
-              Just (w, rest) ->
-                Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
-          _ -> Nothing
-      _ -> Nothing -- TODO: replace this with an error, or look into it
-  deriveMatch _ = error "function should be applied to Match"
+  deriveOneByteOnAltTree :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+  deriveOneByteOnAltTree t =
+    mapAlt (deriveOneByte modl)  t
 
   {-
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
