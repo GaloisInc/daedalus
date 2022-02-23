@@ -1,0 +1,59 @@
+module DaedalusMain where
+ 
+ 
+type T =
+  union
+    reset_controllers : ()
+    poly_on : ()
+    omni_on : ()
+    omni_off : ()
+    mono_on : Word 8
+    local_control_on : ()
+    local_control_off : ()
+    all_sound_off : ()
+    all_notes_off : ()
+ 
+-------------
+ 
+proc _T() : () =
+  -- DETERMINIZE 2 Fully
+  do _x0 <- match1 { ... }
+     case _x0 of
+       120 ->
+         -- all_sound_off
+         match_ "\NUL"
+       121 ->
+         -- reset_controllers
+         match_ "\NUL"
+       122 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              0 ->
+                -- local_control_off
+                pure ()
+              127 ->
+                -- local_control_on
+                pure ()
+              _ ->
+                fail_sys @()
+       123 ->
+         -- all_notes_off
+         match_ "\NUL"
+       124 ->
+         -- omni_off
+         match_ "\NUL"
+       125 ->
+         -- omni_on
+         match_ "\NUL"
+       126 ->
+         -- mono_on
+         match1_ { 0 @(Word 8) .. 16 @(Word 8) }
+       127 ->
+         -- poly_on
+         match_ "\NUL"
+       _ ->
+         fail_sys @()
+ 
+proc Main() : () =
+  do _T()
+     matchEnd

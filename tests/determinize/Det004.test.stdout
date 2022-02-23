@@ -1,0 +1,38 @@
+module DaedalusMain where
+ 
+ 
+type Main =
+  struct
+    x : Word 8
+    y : Word 8
+    z : Word 8
+ 
+-------------
+ 
+proc Gram2() : Word 8 =
+  match1 { 98 @(Word 8) }
+ 
+proc Gram3() : Word 8 =
+  match1 { 99 @(Word 8) }
+ 
+proc Gram1() : Word 8 =
+  -- DETERMINIZE 2 Fully
+  do _x0 <- match1 { ... }
+     case _x0 of
+       97 ->
+         do _x1 <- match1 { ... }
+            case _x1 of
+              98 ->
+                pure (98 @(Word 8))
+              99 ->
+                pure (99 @(Word 8))
+              _ ->
+                fail_sys @(Word 8)
+       _ ->
+         fail_sys @(Word 8)
+ 
+proc Main() : Main =
+  do x <- Gram1()
+     y <- Gram2()
+     z <- Gram3()
+     pure Main {x = x, y = y, z = z}

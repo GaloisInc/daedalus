@@ -1,0 +1,80 @@
+module Det006
+ 
+--- Imports:
+ 
+--- Type defs:
+type Det006.T = Choose { reset_controllers: {}
+                       ; poly_on: {}
+                       ; omni_on: {}
+                       ; omni_off: {}
+                       ; mono_on: uint 8
+                       ; local_control_on: {}
+                       ; local_control_off: {}
+                       ; all_sound_off: {}
+                       ; all_notes_off: {}
+                       }
+ 
+--- Rules:
+ 
+Det006._T : Grammar {} =
+  Choose biased
+    { {- all_sound_off -} @MatchBytes [0x78,
+                                       0x00]
+    | {- reset_controllers -} @MatchBytes [0x79,
+                                           0x00]
+    | {- local_control_off -} @MatchBytes [0x7A,
+                                           0x00]
+    | {- local_control_on -} @MatchBytes [0x7A,
+                                          0x7f]
+    | {- all_notes_off -} @MatchBytes [0x7B,
+                                       0x00]
+    | {- omni_off -} @MatchBytes [0x7C,
+                                  0x00]
+    | {- omni_on -} @MatchBytes [0x7D,
+                                 0x00]
+    | {- mono_on -} do @Match {0x7E}
+                       @Match (0x00 .. 0x10)
+    | {- poly_on -} @MatchBytes [0x7F,
+                                 0x00]
+    }
+ 
+Det006.Main : Grammar {} =
+  do Det006._T
+     ($$ : {}) <- END
+     pure $$
+ 
+Det006.T : Grammar Det006.T =
+  Choose biased
+    { {- all_sound_off -} do (_3 : {}) <- @MatchBytes [0x78,
+                                                       0x00]
+                             pure {all_sound_off: _3}
+    | {- reset_controllers -} do (_4 : {}) <- @MatchBytes [0x79,
+                                                           0x00]
+                                 pure {reset_controllers: _4}
+    | {- local_control_off -} do (_5 : {}) <- @MatchBytes [0x7A,
+                                                           0x00]
+                                 pure {local_control_off: _5}
+    | {- local_control_on -} do (_6 : {}) <- @MatchBytes [0x7A,
+                                                          0x7f]
+                                pure {local_control_on: _6}
+    | {- all_notes_off -} do (_7 : {}) <- @MatchBytes [0x7B,
+                                                       0x00]
+                             pure {all_notes_off: _7}
+    | {- omni_off -} do (_8 : {}) <- @MatchBytes [0x7C,
+                                                  0x00]
+                        pure {omni_off: _8}
+    | {- omni_on -} do (_9 : {}) <- @MatchBytes [0x7D,
+                                                 0x00]
+                       pure {omni_on: _9}
+    | {- mono_on -} do (_10 : uint 8) <- do @Match {0x7E}
+                                            ($$ : uint 8) <- Match (0x00 .. 0x10)
+                                            pure $$
+                       pure {mono_on: _10}
+    | {- poly_on -} do (_11 : {}) <- @MatchBytes [0x7F,
+                                                  0x00]
+                       pure {poly_on: _11}
+    }
+ 
+Det006._Main : Grammar {} =
+  do Det006._T
+     END
