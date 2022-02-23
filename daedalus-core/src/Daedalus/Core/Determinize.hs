@@ -91,6 +91,8 @@ data ZGrammar =
   | ZDo2 Name Grammar
   | ZLet Name Expr
   | ZAnnot Annot
+  | ZOrBiased
+  | ZOrUnbiased
 
 type PathGrammar = [ ZGrammar ]
 
@@ -130,7 +132,7 @@ goUpRight (ZipNode {focus = foc, path = pth}) =
     (ZDo_2 g1 : z) ->
       goUpRight (mkZipGrammar (Do_ g1 foc) z)
     (ZDo name g2 : z) ->
-        let newPath = ZDo2 name foc : z in
+      let newPath = ZDo2 name foc : z in
       Just (mkZipGrammar g2 newPath)
     (ZDo2 name g1 : z) ->
       goUpRight (mkZipGrammar (Do name g1 foc) z)
@@ -138,6 +140,8 @@ goUpRight (ZipNode {focus = foc, path = pth}) =
       goUpRight (mkZipGrammar (Annot ann foc) z)
     (ZLet name e : z) ->
       goUpRight (mkZipGrammar (Let name e foc) z)
+    (ZOrBiased : _) -> Nothing
+    (ZOrUnbiased : _) -> Nothing
     _  -> error "case not handled"
 goUpRight (ZipLeaf{}) = error "cannot be a leaf"
 
@@ -186,6 +190,10 @@ buildUp (ZipNode {focus = built, path = pth}) =
       buildUp (mkZipGrammar newBuilt z)
     (ZAnnot ann : z) ->
       buildUp (mkZipGrammar (Annot ann built) z)
+    (ZOrBiased : z) ->
+      buildUp (mkZipGrammar built z)
+    (ZOrUnbiased : z) ->
+      buildUp (mkZipGrammar built z)
     _  -> error "case not handled"
 buildUp (ZipLeaf {}) = error "broken invariant"
 
@@ -223,15 +231,109 @@ fromCharSetToSet modl b =
 
 
 
+data AltTree a = -- AltTree [ a ]
+    AltLeaf     a
+  | AltBiased   (AltTree a) (AltTree a)
+  | AltUnbiased (AltTree a) (AltTree a)
+
+instance Functor AltTree where
+  fmap f (AltLeaf a) = AltLeaf (f a)
+  fmap f (AltBiased a b) = AltBiased (fmap f a) (fmap f b)
+  fmap f (AltUnbiased a b) = AltUnbiased (fmap f a) (fmap f b)
+
+mapAlt :: (a -> Maybe (AltTree b)) -> AltTree a -> Maybe (AltTree b)
+mapAlt f t =
+  case t of
+    AltLeaf a -> f a
+    AltBiased t1 t2 ->
+      let f1 = mapAlt f t1
+          f2 = mapAlt f t2 in
+      case (f1,f2) of
+        (Nothing, _) -> Nothing
+        (_, Nothing) -> Nothing
+        (Just a1, Just a2) -> Just (AltBiased a1 a2)
+    AltUnbiased t1 t2 ->
+      let f1 = mapAlt f t1
+          f2 = mapAlt f t2 in
+      case (f1,f2) of
+        (Nothing, _) -> Nothing
+        (_, Nothing) -> Nothing
+        (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
+
+foldAlt :: (a -> b -> b) -> b -> AltTree a -> b
+foldAlt reduce b t =
+  case t of
+    AltLeaf a -> reduce a b
+    AltBiased t1 t2 ->
+      let f1 = foldAlt reduce b t1 in
+      foldAlt reduce f1 t2
+    AltUnbiased t1 t2 ->
+      let f1 = foldAlt reduce b t1 in
+      foldAlt reduce f1 t2
+
+data GC a =
+    GZero
+  | GOne  a
+  | GMany a
+
+garbageCollect :: AltTree (Either z ()) -> GC (AltTree z)
+garbageCollect t = case t of
+  AltLeaf e -> case e of
+    Left z -> GOne (AltLeaf z)
+    Right () -> GZero
+  AltBiased t1 t2 ->
+    let x = garbageCollect t1
+        y = garbageCollect t2 in
+    case (x,y) of
+      (GZero, _) -> y
+      (_, GZero) -> x
+      (GOne a, GOne b)   -> GMany (AltBiased a b)
+      (GOne a, GMany b)  -> GMany (AltBiased a b)
+      (GMany a, GOne b)  -> GMany (AltBiased a b)
+      (GMany a, GMany b) -> GMany (AltBiased a b)
+  AltUnbiased t1 t2 ->
+    let x = garbageCollect t1
+        y = garbageCollect t2 in
+    case (x,y) of
+      (GZero, _) -> y
+      (_, GZero) -> x
+      (GOne a, GOne b)   -> GMany (AltUnbiased a b)
+      (GOne a, GMany b)  -> GMany (AltUnbiased a b)
+      (GMany a, GOne b)  -> GMany (AltUnbiased a b)
+      (GMany a, GMany b) -> GMany (AltUnbiased a b)
+
+extractOne :: AltTree ZipGrammar -> Maybe ZipGrammar
+extractOne t = case t of
+  AltLeaf z -> Just z
+  AltBiased t1 t2 ->
+    let a1 = extractOne t1
+        a2 = extractOne t2 in
+    case (a1, a2) of
+      (Nothing, Nothing) -> Nothing
+      (Just z, Nothing) -> Just z
+      (Nothing, Just z) -> Just z
+      _ -> error "broken invariant"
+  AltUnbiased t1 t2 ->
+    let a1 = extractOne t1
+        a2 = extractOne t2 in
+    case (a1, a2) of
+      (Nothing, Nothing) -> Nothing
+      (Just z, Nothing) -> Just z
+      (Nothing, Just z) -> Just z
+      _ -> error "broken invariant"
+
+
 data Deriv =
-    DerivStart      [ZipGrammar]
-  | DerivUnResolved [(Set Integer, [ZipGrammar])] -- disjoing set of integers in list
+    DerivStart      (AltTree ZipGrammar)
+  | DerivUnResolved [(Integer, AltTree (Either ZipGrammar ()))] -- disjoing set of integers in list
   | DerivResolved   [(Integer, Resolution)]
 
 data Resolution =
-    YesResolved   ZipGrammar
-  | FailResolved [ZipGrammar]
-  | NoResolved    Deriv
+    YesResolvedZero
+  | YesResolvedOne  ZipGrammar
+  | YesResolvedMany (AltTree ZipGrammar)
+  | NoResolved      Deriv
+
 
 checkUnambiguousOrDone :: Deriv -> Bool
 checkUnambiguousOrDone der =
@@ -241,11 +343,42 @@ checkUnambiguousOrDone der =
     DerivResolved lst ->
       foldr
       (\ (_a, r) b -> b && case r of
-                             YesResolved {} -> True
+                             YesResolvedZero   -> True
+                             YesResolvedOne  _ -> True
+                             YesResolvedMany _ -> True
                              NoResolved d -> checkUnambiguousOrDone d
-                             FailResolved _ -> True -- that's a little weird, but it basically
-                                                  -- means there is no more work to do
       ) True lst
+
+checkFullyDeterminized :: Deriv -> Bool
+checkFullyDeterminized der =
+  case der of
+    DerivStart {} -> False
+    DerivUnResolved {} -> False
+    DerivResolved lst ->
+      foldr
+      (\ (_a, r) b -> b && case r of
+                             YesResolvedZero   -> True
+                             YesResolvedOne  _ -> True
+                             YesResolvedMany _ -> False
+                             NoResolved d -> checkFullyDeterminized d
+      ) True lst
+
+getDepth :: Deriv -> Int
+getDepth der =
+  go der
+  where
+  go d =
+    case d of
+      DerivStart {} -> error "getDepth on starting derivation"
+      DerivUnResolved {} -> error "getDepth on not Resolved"
+      DerivResolved lst ->
+        foldr
+        (\ (_a, r) b -> max b (case r of
+                                YesResolvedZero   -> 0
+                                YesResolvedOne  _ -> 1
+                                YesResolvedMany _ -> 1
+                                NoResolved d1 -> 1 + go d1)
+        ) 0 lst
 
 gLLkDEPTH :: Int
 gLLkDEPTH = 10
@@ -253,84 +386,14 @@ gLLkDEPTH = 10
 detOr :: Module -> Grammar -> Grammar
 detOr modl grammar =
   let ty = typeOf grammar in
-  let orLst = getListOr grammar in
-  repeatStep ty (DerivStart $ map initZipGrammar orLst) 0
+  repeatStep ty (DerivStart $ AltLeaf (initZipGrammar grammar)) 0
 
   where
-  stepDerivFactor :: [ZipGrammar] -> Maybe Deriv
-  stepDerivFactor orLst =
-    let derLst = deriveOneByteOnList orLst in
-    let linDerLst = do
-          linLst <- derLst
-          forM linLst
-            (\ (a, c) -> do { d <- fromCharSetToSet modl a ; return (d, c) })
-    in
-    case linDerLst of
-      Nothing -> Nothing
-      Just a ->
-        let f = factorize a in
-        Just $ DerivUnResolved (map (\ (c, l) -> (c, l)) f)
-
-  mapStep :: Deriv -> Maybe Deriv
-  mapStep (DerivStart orLst) = stepDerivFactor orLst
-  mapStep (DerivUnResolved opts) = do
-    der <- forM opts
-      (\ (c, orLst) ->
-            if checkUnambiguousList orLst
-            then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
-            else
-              forM (Set.toList c)
-              (\ x -> do
-                 let mepsLst = forM orLst (\ z -> goNextLeaf x z)
-                 case mepsLst of
-                   Nothing -> return (x, FailResolved orLst)
-                   Just epsLst ->
-                     let mDerLst = stepDerivFactor epsLst in
-                     case mDerLst of
-                       Nothing -> return (x, FailResolved orLst)
-                       Just derLst -> return (x, NoResolved derLst)
-              )
-      )
-    return $ DerivResolved (concat der)
-
-  {-
-   do
-    der <- forM opts
-        (\ (c, orLst) ->
-              if checkUnambiguousList orLst
-              then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
-              else do
-                pairs <- forM (Set.toList c)
-                  (\ x -> do
-                      newNextList <- forM orLst (\ zg -> goNextLeaf x zg) -- eps transition
-                      return (x, newNextList)) in
-                pairAfterStep <- forM pairs
-                    (\ (x, lst) -> do
-                        dzg <- stepDerivFactor lst -- deriv a char
-                        return (x, dzg)
-                    )
-                return $ map (\ (x, tr) -> (x, NoResolved tr)) pairAfterStep
-        )
-    return $ DerivResolved (concat der) -}
-  mapStep (DerivResolved opts) = do
-      der <- forM opts
-        (\ x@(c, l) ->
-          case l of
-            YesResolved _  -> Just x
-            FailResolved _ -> Just x
-            NoResolved d ->
-              do n <- mapStep d
-                 return (c, NoResolved n)
-        )
-      return $ DerivResolved der
-
-
   repeatStep :: Type -> Deriv -> Int -> Grammar
   repeatStep ty der depth =
     if depth > gLLkDEPTH
     then grammar
-    else
-      let mder1 = mapStep der in
+    else let mder1 = mapStep der in
       case mder1 of
         Nothing -> grammar
         Just der1 ->
@@ -339,45 +402,117 @@ detOr modl grammar =
           else repeatStep ty der1 (depth + 1)
 
 
-  getListOr :: Grammar -> [Grammar]
-  getListOr g =
-    case g of
-      OrUnbiased g1 g2 -> getListOr g1 ++ getListOr g2
-      OrBiased   g1 g2 -> getListOr g1 ++ getListOr g2
-      Call name []  ->
-        case getGrammarDef modl name of
-          Nothing -> [ g ]
-          Just gram1 -> getListOr gram1
-      _                -> [g]
+  applyCharToAltTree ::
+    Integer -> AltTree (Set Integer, ZipGrammar) -> AltTree (Either ZipGrammar ())
+  applyCharToAltTree c t =
+    fmap (\ (cset, z) -> if Set.member c cset then Left z else Right ()) t
 
-  deriveOneByteOnList :: [ZipGrammar] -> Maybe [(CharSet, ZipGrammar)]
-  deriveOneByteOnList lst =
-    let t = mapM deriveOneByte lst in
-    fmap concat t
+  stepDerivFactor :: AltTree (ZipGrammar) -> Maybe Deriv
+  stepDerivFactor orLst =
+    let derLst = deriveOneByteOnList orLst in
+    let linDerLst = do
+          linLst <- derLst
+          mapAlt
+            (\ (a, c) -> do
+                { d <- fromCharSetToSet modl a ; return (AltLeaf (d, c)) }
+            ) linLst
+    in
+    do t <- linDerLst
+       let charSet = Set.toList $ foldAlt (\ (a,_) b -> Set.union a b) Set.empty t
+       let charTrans = map (\ c -> (c, applyCharToAltTree c t)) charSet
+       return $ DerivUnResolved charTrans
 
-  deriveOneByte :: ZipGrammar -> Maybe [(CharSet, ZipGrammar)]
+  mapStep :: Deriv -> Maybe Deriv
+  mapStep (DerivStart orLst) = stepDerivFactor orLst
+  mapStep (DerivUnResolved opts) = do
+    der <- forM opts
+      (\ (c, orLst) ->
+          let g = garbageCollect orLst in
+          case g of
+            GZero  -> return (c, YesResolvedZero)
+            GOne t ->
+              case extractOne t of
+                Nothing -> error "broken Invariant"
+                Just z -> return (c, YesResolvedOne z)
+            GMany t ->
+              let mepsAlt = mapAlt (\ z -> fmap (\ x -> AltLeaf x) (goNextLeaf c z)) t in -- epsilon transition
+              case mepsAlt of
+                Nothing -> return (c, YesResolvedMany t) -- stop deriving
+                Just epsAlt ->
+                  let mDerLst = stepDerivFactor epsAlt in
+                  case mDerLst of
+                    Nothing -> return (c, YesResolvedMany t) -- stop deriving
+                    Just derLst -> return (c, NoResolved derLst)
+      )
+    return $ DerivResolved der
+{-
+          if checkUnambiguousList orLst
+          then Just (map (\ x -> (x, YesResolved (head orLst))) (Set.toList c))
+          else
+            forM (Set.toList c)
+            (\ x -> do
+                let mepsLst = forM orLst (\ z -> goNextLeaf x z)
+                case mepsLst of
+                  Nothing -> return (x, FailResolved orLst)
+                  Just epsLst ->
+                    let mDerLst = stepDerivFactor epsLst in
+                    case mDerLst of
+                      Nothing -> return (x, FailResolved orLst)
+                      Just derLst -> return (x, NoResolved derLst)
+            )
+      )
+    return $ DerivResolved (concat der) -}
+
+  mapStep (DerivResolved opts) = do
+      der <- forM opts
+        (\ x@(c, l) ->
+          case l of
+            YesResolvedZero  -> Just x
+            YesResolvedOne _ -> Just x
+            YesResolvedMany _ -> Just x
+            NoResolved d ->
+              do n <- mapStep d
+                 return (c, NoResolved n)
+        )
+      return $ DerivResolved der
+
+  deriveOneByteOnList :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+  deriveOneByteOnList t =
+    mapAlt deriveOneByte t
+
+  deriveOneByte :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
   deriveOneByte gram =
     deriveGo gram
     where
-    deriveGo :: ZipGrammar -> Maybe [(CharSet, ZipGrammar)]
-    deriveGo gr@(ZipNode {focus = g}) =
+    deriveGo :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+    deriveGo gr@(ZipNode {focus = g, path = pth}) =
       case g of
+        Pure _ -> deriveUp gr
         Do_ {}   -> deriveGo (goLeft gr)
-        Do {}    -> deriveGo (goLeft gr)
-        Match {} -> fmap (\ x -> [x]) $ deriveMatch gr
+        Do  {}   -> deriveGo (goLeft gr)
+        Let {}   -> deriveGo (goLeft gr)
+        Match {} -> case deriveMatch gr of -- fmap (\ x -> [x]) $ deriveMatch gr
+          Nothing -> Nothing
+          Just c ->  Just (AltLeaf c)
         Annot {} -> deriveGo (goLeft gr)
         Call name []  ->
           case getGrammarDef modl name of
             Nothing -> Nothing
             Just gram1 -> deriveGo (gr {focus = gram1 })
-        OrBiased _g1 _g2 -> Nothing
-          -- do d1 <- deriveGo (gr {focus = g1}) -- WARNING Should be Zor
-          --   d2 <- deriveGo (gr {focus = g2})
-          --   return (d1 ++ d2)
-        Let _ _ _g   -> deriveGo (goLeft gr)
-          -- trace "LET" $ deriveGo (goLeft gr) -- WARNING INCORRECT
-          -- trace "LET" $
-          -- Nothing
+        OrBiased g1 g2 ->
+          let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased  pth })
+              g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased  pth }) in
+          case (g1', g2') of
+            (Nothing, _) -> Nothing
+            (_, Nothing) -> Nothing
+            (Just a1, Just a2) -> Just (AltBiased a1 a2)
+        OrUnbiased g1 g2 ->
+          let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased  pth })
+              g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrUnbiased pth }) in
+          case (g1', g2') of
+            (Nothing, _) -> Nothing
+            (_, Nothing) -> Nothing
+            (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
         _        -> Nothing
     deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
       case zm of
@@ -386,8 +521,24 @@ detOr modl grammar =
           case uncons next of
             Nothing -> error "TODO should move up"
             Just (w, rest) ->
-              Just [(CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth}) ]
+              Just $ AltLeaf (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
         ZMatchEnd -> error "TODO END"
+
+    deriveUp :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+    deriveUp (ZipNode {focus = g, path = pth}) = case pth of
+      [] -> error "" -- TODO AltDone gr
+      k : ks -> case k of
+        ZMatch _ -> error "broken invariant"
+        ZDo_ g2    -> deriveGo (ZipNode g2 (ZDo_2 g : ks))
+        ZDo_2 g1   -> deriveUp (ZipNode (Do_ g1 g) ks)
+        ZDo na g2  -> deriveGo (ZipNode g2 (ZDo2 na g : ks))
+        ZDo2 na g1 -> deriveUp (ZipNode (Do na g1 g) ks)
+        ZLet na ex -> deriveUp (ZipNode (Let na ex g) ks)
+        ZAnnot an  -> deriveUp (ZipNode (Annot an g) ks)
+        ZOrBiased   -> Nothing
+        ZOrUnbiased -> Nothing
+    deriveUp (ZipLeaf {}) = error "broken invariant"
+
 
   convArrayToByteString :: [Expr] -> ByteString
   convArrayToByteString lst =
@@ -427,6 +578,7 @@ detOr modl grammar =
       _ -> Nothing -- TODO: replace this with an error, or look into it
   deriveMatch _ = error "function should be applied to Match"
 
+  {-
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
   factorize lst =
     factorizeGo lst []
@@ -469,18 +621,14 @@ detOr modl grammar =
               --  OOOOO
               let new = (inter, gs ++ [g]) in
               new : rest
-
-  checkUnambiguousList :: [ZipGrammar] -> Bool
-  checkUnambiguousList opts =
-    case length opts of
-      0 -> error "impossible"
-      1 -> True
-      _ -> False
+  -}
 
   translateToCaseDeriv :: Type -> Deriv -> Grammar
   translateToCaseDeriv ty der =
     let guid1 = firstValidGUID in
-    Annot (SrcAnnot $ Data.Text.pack "DETERMINIZE HERE") $
+    let depth = getDepth der in
+    let isFullyDet = if checkFullyDeterminized der then " Fully" else "" in
+    Annot (SrcAnnot $ Data.Text.pack ("DETERMINIZE " ++ show depth ++ isFullyDet)) $
       translateToCase ty guid1 der
 
   translateToCase :: Type -> GUID -> Deriv -> Grammar
@@ -500,9 +648,10 @@ detOr modl grammar =
         ((map
             (\ (c, g1) ->
                 case g1 of
-                  YesResolved zg -> buildCase (c, zg)
-                  FailResolved zg ->
-                    let newOr = buildOr c zg
+                  YesResolvedZero -> (PNum c, Fail ErrorFromSystem ty Nothing)
+                  YesResolvedOne zg -> buildCase (c, zg)
+                  YesResolvedMany t ->
+                    let newOr = buildOr c t
                     in (PNum c, newOr)
                   NoResolved der ->
                     let newG1 = translateToCase ty (succGUID guid) der
@@ -515,13 +664,34 @@ detOr modl grammar =
     buildCase :: (Integer, ZipGrammar) -> (Pattern, Grammar)
     buildCase (c, g1) = (PNum c, buildLeaf c g1)
 
-    buildOr :: Integer -> [ ZipGrammar ] -> Grammar
-    buildOr c zgs =
-      go zgs
+    buildOr :: Integer -> AltTree ZipGrammar -> Grammar
+    buildOr c t =
+      let mtres = go t in
+      case mtres of
+        Just tres -> tres
+        Nothing -> error "broken invariant"
       where
-      go [] = error ""
-      go [x] = buildLeaf c x
-      go (x : xs) = OrBiased (buildLeaf c x) (go xs)
+      go tr =
+        let ann = SrcAnnot $ Data.Text.pack ("OR RECONSTRUCTION") in
+        case tr of
+          AltLeaf x -> Just $ buildLeaf c x
+          AltBiased t1 t2 ->
+            let a1 = go t1
+                a2 = go t2 in
+            case (a1, a2) of
+              (Nothing, Nothing) -> Nothing
+              (Just _, Nothing) -> a1
+              (Nothing, Just _) -> a2
+              (Just b1, Just b2) -> Just (Annot ann $ OrBiased b1 b2)
+          AltUnbiased t1 t2 ->
+            let a1 = go t1
+                a2 = go t2 in
+            case (a1, a2) of
+              (Nothing, Nothing) -> Nothing
+              (Just _, Nothing) -> a1
+              (Nothing, Just _) -> a2
+              (Just b1, Just b2) -> Just (Annot ann $ OrUnbiased b1 b2)
+
 
 
     -- TODO: is this not redundant with goNextLeaf ????
