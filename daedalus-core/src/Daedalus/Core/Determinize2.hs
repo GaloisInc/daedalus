@@ -270,7 +270,7 @@ trimfail tr = case tr of
     in f
   BTake n cs t1 -> trimfail t1
   BCut t1       -> trimfail t1
-  Done g1     -> BOne
+  Done g1       -> BOne
   Next n g1 zgs -> BOne
   FailInput     -> BFail
   FailCut   -> BFail
