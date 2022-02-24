@@ -89,7 +89,6 @@ class Map : HasRefs {
 
 
 
-    // assumes key not already in tree
     // own k, own v, own n
     static Node* insert(Key k, Value v, Node *n) {
       Node *curr  = ins(k, v, n);
@@ -109,18 +108,6 @@ class Map : HasRefs {
       dump(tab + 2, n->right);
     }
 
-
-    // assumes the k is not in the tree
-    // owns k, owns v, owns n
-    // returns an owned *unique* node (i.e, node with ref_count == 1)
-    static Node* ins(Key k, Value v, Node * n) {
-      if (n == nullptr) return new Node(red, nullptr, k, v, nullptr);
-
-      if (k      < n->key) return setRebalanceLeft (n, ins(k,v,n->left));
-      if (n->key < k)      return setRebalanceRight(n, ins(k,v,n->right));
-      else                 assert(false);
-    }
-
     // Return a node that has the same data as `p` but is guaranteed to
     // be unique.  If `p` was already unique than we can reuse it.
     // owns p
@@ -131,6 +118,25 @@ class Map : HasRefs {
       Node *res = new Node(p);
       free(p);
       return res;
+    }
+
+
+
+
+    // assumes the k is not in the tree
+    // owns k, owns v, owns n
+    // returns an owned *unique* node (i.e, node with ref_count == 1)
+    static Node* ins(Key k, Value v, Node * n) {
+      if (n == nullptr) return new Node(red, nullptr, k, v, nullptr);
+
+      if (k      < n->key) return setRebalanceLeft (n, ins(k,v,n->left));
+      if (n->key < k)      return setRebalanceRight(n, ins(k,v,n->right));
+      else {
+        Node *res = makeCopy(n);
+        if constexpr (hasRefs<Value>()) n->value.free();
+        n->value = v;
+        return res;
+      }
     }
 
     // owns non-null n, owns unique non-null newLeft
@@ -349,6 +355,7 @@ public:
   void dump() { Node::dump(0,tree); debugNL(); }
 
   friend
+  // borrow m
   std::ostream& operator << (std::ostream &os, Map m) {
     os << "[| " << m.tree << " |]";
     return os;
