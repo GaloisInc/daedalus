@@ -8,10 +8,8 @@ vMapEmpty :: Value
 vMapEmpty = VMap Map.empty
 
 vMapInsert ::
-  Value {- ^ key -} -> Value {- ^ value -} -> Value {- ^ map -} -> Partial Value
-vMapInsert k v m
-  | k `Map.member` mp = vErr "Key already exists in value"
-  | otherwise         = pure (VMap (Map.insert k v mp))
+  Value {- ^ key -} -> Value {- ^ value -} -> Value {- ^ map -} -> Value
+vMapInsert k v m = VMap (Map.insert k v mp)
   where
   mp = valueToMap m
 

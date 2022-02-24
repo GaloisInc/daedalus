@@ -329,7 +329,7 @@ evalOp3 :: Op3 -> Value -> Value -> Value -> Value
 evalOp3 op v1 v2 v3 = case op of
   RangeUp   -> partial (vRangeUp v1 v2 v3)
   RangeDown -> partial (vRangeDown v1 v2 v3)
-  MapInsert -> partial (vMapInsert v2 v3 v1)
+  MapInsert -> vMapInsert v2 v3 v1
   
 --------------------------------------------------------------------------------
 

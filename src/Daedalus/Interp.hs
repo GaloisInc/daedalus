@@ -700,9 +700,10 @@ compilePExpr env expr0 args = go expr0
         TCLabel l p -> pEnter (Text.unpack l) (go p)
 
         TCMapInsert s ke ve me ->
-          case vMapInsert kv vv mv of
-            Right a -> pure $! mbSkip s a
-            Left _  -> pError FromSystem erng ("duplicate key " ++ show (pp kv))
+          case vMapLookup kv mv of
+            Right {} ->
+              pError FromSystem erng ("duplicate key " ++ show (pp kv))
+            Left {} -> pure $! mbSkip s (vMapInsert kv vv mv)
           where
           kv = compilePureExpr env ke
           vv = compilePureExpr env ve
