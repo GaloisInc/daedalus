@@ -304,7 +304,9 @@ doAllTestsIn dirName =
   doOneTestInDir siblings = error "Not yet implemented"
 
 
-  attempt m = m `catch` \e@SomeException{} -> pure [Fail e]
+  attempt m = m `catch` \e@SomeException{} ->
+                            do print e
+                               pure [Fail e]
 
 
 --------------------------------------------------------------------------------
