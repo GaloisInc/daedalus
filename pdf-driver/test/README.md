@@ -13,8 +13,9 @@
 
       make test_totext_font-exercises/test-summary
 
-      # it should say 0 problems, but that's because we've already captured the 
-      # problems in this file:
+      # it should say "0 unexpected variances", but this doesn't mean there
+      # are no problems, we've already captured the problems in
+      # "variances.filelist":
 
       $ cat test_totext_font-exercises/variances.filelist
       helloworld.pdf

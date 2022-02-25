@@ -290,8 +290,8 @@ runTest t toolPath corpName flags =
     let report = unlines $
           [ show(length basenames) ++ " files"
           , case length ps of
-              0 -> "0 problems."
-              n -> show n ++ " problem(s):"
+              0 -> "0 unexpected variances."
+              n -> show n ++ " unexpected variance(s):"
           ]
           ++ (let fs = [ f | (f, NE_NoVariance) <- ps] in
               if null fs then
