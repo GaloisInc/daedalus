@@ -107,6 +107,7 @@ data Token =
   | KWCOMMIT
   | KWMapEmpty
   | KWMapInsert
+  | KWMapinsert
   | KWMapLookup
   | KWArrayLength
   | KWArrayIndex

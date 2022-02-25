@@ -272,7 +272,7 @@ data Commit = Commit | Backtrack
 data SigType = MatchType | CoerceSafe | CoerceCheck | CoerceForce
   deriving Show
 
-data TriOp = RangeUp | RangeDown
+data TriOp = RangeUp | RangeDown | MapDoInsert
   deriving (Show,Eq)
 
 data BinOp = Add | Sub | Mul | Div | Mod
@@ -444,6 +444,7 @@ instance PP TriOp where
     case op of
       RangeUp -> "rangeUp"
       RangeDown -> "rangeDown"
+      MapDoInsert -> "insert"
 
 instance PP BinOp where
   pp op =

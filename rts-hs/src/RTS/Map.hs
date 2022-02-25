@@ -4,6 +4,7 @@ module RTS.Map
   ( Map
   , Map.empty
   , Map.lookup
+  , Map.insert
   , insertMaybe
   ) where
 

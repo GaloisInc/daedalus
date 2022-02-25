@@ -450,6 +450,10 @@ inferExpr expr =
       case op of
         RangeUp -> rangeOp
         RangeDown -> rangeOp
+        MapDoInsert ->
+          liftValAppPure expr [e1,e2,e3] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
+          do unify (tMap kt vt) (e3, mt)
+             pure (exprAt expr (TCTriOp op k1 v1 m1 mt), mt)
 
       where
       rangeOp =

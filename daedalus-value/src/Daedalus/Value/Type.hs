@@ -431,7 +431,7 @@ valueToJS val =
 
     VArray vs -> jsBlock "[" "," "]" (map valueToJS (Vector.toList vs))
 
-    VMap mp -> tagged "$$map" $ jsBlock "[" "," "]" (map pair (Map.toList mp))
+    VMap mp -> tagged "$map" $ jsBlock "[" "," "]" (map pair (Map.toList mp))
 
     VMaybe mb ->
       case mb of

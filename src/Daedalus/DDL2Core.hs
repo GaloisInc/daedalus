@@ -1072,8 +1072,9 @@ fromExpr expr =
          e2 <- fromExpr v2
          e3 <- fromExpr v3
          pure case op of
-                TC.RangeUp    -> rangeUp e1 e2 e3
-                TC.RangeDown  -> rangeDown e1 e2 e3
+                TC.RangeUp     -> rangeUp e1 e2 e3
+                TC.RangeDown   -> rangeDown e1 e2 e3
+                TC.MapDoInsert -> mapInsert e3 e1 e2 -- note: map is 1st here
 
     TC.TCFor lp -> doLoop lp
 

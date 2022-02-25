@@ -182,8 +182,9 @@ evalBinOp op =
 evalTriOp :: TriOp -> Value -> Value -> Value -> Value
 evalTriOp op =
   case op of
-    RangeUp   -> partial3 vRangeUp
-    RangeDown -> partial3 vRangeDown
+    RangeUp     -> partial3 vRangeUp
+    RangeDown   -> partial3 vRangeDown
+    MapDoInsert -> vMapInsert
 
 
 --------------------------------------------------------------------------------

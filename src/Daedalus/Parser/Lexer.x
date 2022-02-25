@@ -146,6 +146,7 @@ $ws+        ;
 
 "empty"     { lexeme KWMapEmpty }
 "Insert"    { lexeme KWMapInsert }
+"insert"    { lexeme KWMapinsert }
 "Lookup"    { lexeme KWMapLookup }
 
 "Offset"    { lexeme KWOffset }

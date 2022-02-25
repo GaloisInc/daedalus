@@ -129,6 +129,7 @@ import Daedalus.Parser.Monad
   'COMMIT'    { Lexeme { lexemeRange = $$, lexemeToken = KWCOMMIT } }
   'empty'     { Lexeme { lexemeRange = $$, lexemeToken = KWMapEmpty } }
   'Insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapInsert } }
+  'insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapinsert } }
   'Lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapLookup } }
   'Offset'    { Lexeme { lexemeRange = $$, lexemeToken = KWOffset } }
   'GetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWGetStream } }
@@ -297,6 +298,7 @@ label                                    :: { Located Label }
   | 'empty'                                 { mkLabel ($1,"empty") }
   | 'Lookup'                                { mkLabel ($1,"Lookup") }
   | 'Insert'                                { mkLabel ($1,"Insert") }
+  | 'insert'                                { mkLabel ($1,"insert") }
   | 'Offset'                                { mkLabel ($1,"Offset") }
   | 'GetStream'                             { mkLabel ($1,"GetStream") }
   | 'SetStream'                             { mkLabel ($1,"SetStream") }
@@ -415,6 +417,7 @@ call_expr                                :: { Expr }
 
   | 'Lookup' aexpr aexpr                    { at ($1,$3) (EMapLookup $2 $3) }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
+  | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
   | 'Take' aexpr aexpr                      { at ($1,$2) (EStreamLen $2 $3) }
   | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
@@ -784,6 +787,10 @@ mkRngUp2 kw start end = expr (ETriOp RangeUp start end (expr (mkNumber 1)))
 mkRngUp3 :: HasRange r => r -> Expr -> Expr -> Expr -> Expr
 mkRngUp3 kw start end step = expr (ETriOp RangeUp start end step)
   where expr = at (kw,step)
+
+mkDoInsert :: HasRange r => r -> Expr -> Expr -> Expr -> Expr
+mkDoInsert kw k v m = expr (ETriOp MapDoInsert k v m)
+  where expr = at (kw,m)
 
 mkRngDown1 :: HasRange r => r -> Expr -> Expr
 mkRngDown1 kw start = expr (ETriOp RangeDown start

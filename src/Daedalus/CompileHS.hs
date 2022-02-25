@@ -578,8 +578,9 @@ hsValue env tc =
 
     TCTriOp op v1 v2 v3 _t ->
       case op of
-        RangeUp -> tri "Vector.rangeUp"
-        RangeDown -> tri "Vector.rangeDown"
+        RangeUp     -> tri "Vector.rangeUp"
+        RangeDown   -> tri "Vector.rangeDown"
+        MapDoInsert -> tri "Map.insert"
       where
       tri x = x `aps` [ hsValue env v1, hsValue env v2, hsValue env v3 ]
 
