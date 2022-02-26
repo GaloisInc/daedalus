@@ -90,7 +90,7 @@ Two tools currently are supported, by name (see `src/RunTestSet.hs`):
   - validatePDF : `pdf-hs-driver ...`
   - totext      : `pdf-hs-driver -t ...`
 
-## What to store in the repo ##
+## What we store in the repo ##
 
 The following generated files will be stored in the repo, they are
 (intentionally) small and should help us to keep track of functional 
@@ -153,6 +153,18 @@ Refer to `Makefile` for examples and some further details.
 The `run-testset` program uses `shake` (a Haskell build system library) to 
 drive test invocation and checking, achieving "Make" like efficiency, see
 `src/RunTestSet.hs` for the code.
+
+Although `run-testset` does a lot of make-like dependency checking, 
+it does *not* have a dependency on `pdf-hs-driver`, i.e., 
+it does not regenerate test outputs when `pdf-hs-driver` is newer.
+
+So to regenerate all test outputs, one needs to first purge the 
+test file outputs with one of
+```
+  make quick-clean
+  make long-clean
+``` 
+This does remove files from the repo, so `make {quick,long}` afterwards!
 
 ## test specific documentation ##
 ### test_validatePDF_2020-03-eval ###

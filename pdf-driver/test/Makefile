@@ -7,7 +7,7 @@ QUICKTESTS=test_validatePDF_generated/test-summary     \
            test_validatePDF_pdf20examples/test-summary \
            test_validatePDF_govdocs-subset-a/test-summary    
 
-LONGTESTS=test_validatePDF_2020-03-eval/test-summary
+LONGTESTS=${QUICKTESTS} test_validatePDF_2020-03-eval/test-summary
 
 # copy corpora files into appropriate directories:
 #  - the rule action is a no-op if accidentally invoked on existing directory.
@@ -41,7 +41,12 @@ test_%/clean: build
 
 quick: ${QUICKTESTS}
 
-long:  quick ${LONGTESTS}
+long:  ${LONGTESTS}
+
+quick-clean: $(QUICKTESTS:test-summary=clean)
+
+long-clean:  $(LONGTESTS:test-summary=clean)
+
 
 build:
 	cd ../..; cabal v2-build exe:run-testset
@@ -49,10 +54,10 @@ build:
 # turn 'all tests succeed' into an error code:
 
 quick-status: ${QUICKTESTS}
-	test `egrep '^0 problems' $^ | wc -l` \
+	test `egrep '^0 unexpected variance' $^ | wc -l` \
          -eq `echo $^ | wc -w`
 
-long-status: ${QUICKTESTS} ${LONGTESTS}
-	test `egrep '^0 problems' $^ | wc -l` \
+long-status: ${LONGTESTS}
+	test `egrep '^0 unexpected variance' $^ | wc -l` \
          -eq `echo $^ | wc -w`
 
