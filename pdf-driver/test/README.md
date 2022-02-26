@@ -134,6 +134,18 @@ There are two kinds of problems:
    1. Files where result `=/=` expected but no variance specified.
    2. Files where result `==` expected but a variance is specified.
 
+## Expected and Actual
+
+For a given test, you can see the differences between the actual and 
+the expected results by (e.g.)
+```
+cd test/test_totext_font-exercises
+../src/show-test-diff.sh helloworld.pdf
+```
+Currently the `run-testset` program verifies that actual and expected are 
+"exact equals" but that can easily be changed for an individual tool.
+E.g., we should change the comparision function for the "totest" tool!
+
 ## Details & Implementation ##
 
 Refer to `Makefile` for examples and some further details.
