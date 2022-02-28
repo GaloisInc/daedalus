@@ -90,7 +90,7 @@ def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)
 
-def String = { Match1 '('; $$ = StringChars; Match1 ')'; Many JustWhite }
+def String = { Match1 '('; $$ = StringChars 16; Match1 ')'; Many AnyWS }
 
 def StringChars (lim : uint 64) = concat (Many (StringChunk lim))
 
