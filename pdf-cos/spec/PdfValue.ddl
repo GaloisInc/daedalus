@@ -163,7 +163,7 @@ def Array = Between "[" "]" (Many Value)
 
 def Dict = {
   @ents = Between "<<" ">>" (Many { key = Name; value = Value });
-  for (d = empty; e in ents) (Insert e.key e.value d)
+  for (d = empty; e in ents) (insert e.key e.value d)
 }
 
 
