@@ -73,7 +73,7 @@ def CheckDecl expectId expectGen (decl : TopDecl) = {
   Guard (decl.gen == expectGen);
   obj    = ^ decl.obj;
   isSafe = { @v = decl.obj is value;  ValueIsSafe v }
-         | {      decl.obj is stream; ^ safeSafetyInfo };
+        <| {      decl.obj is stream; ^ safeSafetyInfo };
 }
 
 def TopDeclCheck expectId expectGen = {

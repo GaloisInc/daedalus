@@ -225,12 +225,12 @@ def Filter (name : Value) (param : Value) = {
 }
 
 def FilterParam (param : Value) =
-    { param      is null; ^ nothing }
-  | { @x = param is dict; ^ just x }
+     { param      is null; ^ nothing }
+  <| { @x = param is dict; ^ just x }
 
--- Stub for the Decrypt primitive 
-def Decrypt (body : stream) 
-            : stream 
+-- Stub for the Decrypt primitive
+def Decrypt (body : stream)
+            : stream
 
 def TryApplyFilter (f : Filter) (body : stream) =
 

@@ -181,7 +181,7 @@ def CMapVal (k : CMapKey) = case k of
 
 -- UnicodeSeq: a sequence of unicode characters
 def UnicodeSeq cc =
-  Choose {
+  Choose1 {
     -- single unicode char:
     singleUnicode= ParseCharacterCodes;
 
