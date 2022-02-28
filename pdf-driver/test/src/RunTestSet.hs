@@ -248,7 +248,10 @@ runTest t toolPath corpName flags =
                       ((\s-> read s :: MetaData) <$> readFile metaF)
     writeFile'
       resultF
-      (resultC ++ if last resultC /= '\n' then ['\n'] else [])
+      (case resultC of
+         [] -> "\n"
+         _  -> resultC ++ if last resultC /= '\n' then ['\n'] else []
+      )
       
   summaryF %> \summaryF' ->
     do
