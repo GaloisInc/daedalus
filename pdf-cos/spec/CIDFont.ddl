@@ -22,7 +22,7 @@ def CIDToGIDMapRec (pos : uint 64) m = Default m
     (inc pos)
     { @hb = UInt8 as uint 16;
       @lb = UInt8 as uint 16;
-      Insert pos ((hb * 256) + lb) m
+      insert pos ((hb * 256) + lb) m
     })
 
 def CIDMap = CIDToGIDMapRec (0 : uint 64) empty

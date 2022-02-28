@@ -89,7 +89,7 @@ def DisjointUnion m0 m1 = for (acc1 = m0; rng1, v1 in m1) {
   -- assert that ranges are disjoint
   for (acc0 = {}; rng0, v0 in m0) Guard (disjointRanges rng1 rng0);
   -- add subject binding to map
-  Insert rng1 v1 acc1
+  insert rng1 v1 acc1
 }
 
 -- Overwrite m0 m1: union of range maps m0 and m1, preferring bindings
@@ -428,7 +428,7 @@ def CodeRangeMapToCharCodeMap (crmap : [ CodeRange -> UnicodeSeq ] )  : [ int ->
                        Index css (j as! uint 64);
                      };
                   };
-        Insert key val ccmap2
+        insert key val ccmap2
       }
 
 -- Special Entry Points --------------------------------------------------------
