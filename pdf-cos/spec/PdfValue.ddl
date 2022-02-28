@@ -87,7 +87,7 @@ def BinaryByte = { x = UInt8;
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)
 
-def String = Between "(" ")" StringChars
+def String = { Match1 '('; $$ = StringChars; Match1 ')'; Many JustWhite }
 
 def StringChars = concat (Many StringChunk)
 

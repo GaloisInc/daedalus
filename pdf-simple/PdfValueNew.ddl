@@ -90,7 +90,7 @@ def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)
 
-def String = Between "(" ")" (StringChars 16)
+def String = { Match1 '('; $$ = StringChars; Match1 ')'; Many JustWhite }
 
 def StringChars (lim : uint 64) = concat (Many (StringChunk lim))
 
