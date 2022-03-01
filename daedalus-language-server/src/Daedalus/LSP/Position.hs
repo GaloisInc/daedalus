@@ -23,7 +23,7 @@ import Data.Maybe (maybeToList, fromMaybe)
 import Daedalus.Type.Traverse
 import Daedalus.Rec (forgetRecs)
 import Data.Foldable
-import Daedalus.LSP.Diagnostics (sourceRangeToRange)
+import Daedalus.LSP.Diagnostics (sourceRangeToRange, jSourceColumn, jSourceLine)
 
 
 data NameRefClass = NameDef | NameUse
@@ -158,9 +158,9 @@ positionToExprs pos = go
 
 positionInRange :: HasRange a => J.Position -> a -> Bool
 positionInRange (J.Position line0 col0) (range -> SourceRange start end) =
-  (sourceLine start < line || (sourceLine start == line && sourceColumn start <= col))
+  (jSourceLine start < line || (jSourceLine start == line && jSourceColumn start <= col))
   &&
-  (sourceLine end > line || (sourceLine end == line && sourceColumn end >= col))
+  (jSourceLine end > line || (jSourceLine end == line && jSourceColumn end >= col))
   where
     line = line0 + 1
     col  = col0  + 1
