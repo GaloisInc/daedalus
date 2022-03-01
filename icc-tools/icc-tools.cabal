@@ -38,8 +38,9 @@ library
     Daedalus
 
   autogen-modules:
-    ICC
     Daedalus
+    Debug
+    ICC
     Parser
     Validator
 

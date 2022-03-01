@@ -125,7 +125,7 @@ compileHaskell ddl =
         ]
      callProcessIn_ build "cabal" ["build"]
      callProcessIn_ build "rm" ["-f", "parser"]
-     path <- callProcessIn build "cabal" [ "exec", "which", short ddl ]
+     path <- callProcessIn build "cabal" [ "-v0", "exec", "which", short ddl ]
      callProcessIn_ build "ln" ["-s", head (lines path), "parser"]
      pure ()
 

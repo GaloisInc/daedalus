@@ -10,8 +10,8 @@ Installing Haskell
 
 Daedalus is implemented in Haskell, so to build it you'd need to setup
 a Haskell environment.  An easy way to get this setup is to use ghcup_.
-You need a Haskell compiler (recommended `GHC 8.8.3`), and a Haskell package
-installer (recommended `Cabal 3.2`).
+You need a Haskell compiler (recommended `GHC 8.10.7`), and a Haskell package
+installer (recommended `Cabal 3.6`).
 
 .. _ghcup: https://www.haskell.org/ghcup/
 
