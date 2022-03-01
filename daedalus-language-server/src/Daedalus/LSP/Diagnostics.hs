@@ -1,64 +1,26 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- | Implements core diagnostics (parse errors, type errors, etc.)
-
-
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ViewPatterns #-}
 module Daedalus.LSP.Diagnostics where
 
-import           Control.Applicative          (Alternative)
-import           Control.Concurrent           (forkIO, threadDelay)
-import           Control.Concurrent.Async
-import           Control.Concurrent.STM.TChan
-import           Control.Concurrent.STM.TVar
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.STM
-import           Control.Monad.State
-import           Data.Foldable                (fold)
-import           Data.Functor
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (catMaybes)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
-import qualified Data.Text.IO                 as Text
-import           System.FilePath
 
 import           Control.Lens                 hiding (Iso, (<.>))
 
-import           Language.LSP.Diagnostics     (partitionBySource)
-import           Language.LSP.Server
 import           Language.LSP.Types           (Diagnostic (..))
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
-import           Language.LSP.VFS
-import           System.Log.Logger
 
 import           Daedalus.PP                  hiding ((<.>))
-import           Daedalus.Panic
-import           Daedalus.Pass
-import           Daedalus.Rec                 (forgetRecs)
+
 import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..), range)
 
-import           Daedalus.AST                 (Module (..))
-import           Daedalus.Module              (pathToModuleName)
-import           Daedalus.Parser              (ParseError (..), parseFromTokens)
-import           Daedalus.Scope               (Scope (..), ScopeError (..),
-                                               resolveModule)
-import           Daedalus.Type.AST            (Located (..), ModuleName,
-                                               TCDecl (..), TCModule (..),
-                                               TCTyDecl, TCTyName, declTypeOf,
-                                               tctyName)
-import           Daedalus.Type.Monad          (RuleEnv, TypeError (..), TypeWarning(..),
-                                               runMTypeM)
-
-import           Daedalus.LSP.Monad
-import           Daedalus.Parser.Lexer        (Lexeme, Token, lexer)
-import           Daedalus.Type                (inferRules)
+import           Daedalus.Parser              (ParseError (..))
+import           Daedalus.Scope               (ScopeError (..))
+import           Daedalus.Type.AST            (Located (..))
+import           Daedalus.Type.Monad          (TypeError (..), TypeWarning(..))
 
 
 -- This module handles parsing and type checking of modules.  Note
@@ -675,8 +637,16 @@ import           Daedalus.Type                (inferRules)
 -- -----------------------------------------------------------------------------
 -- Diagnostics
 
+-- | Returns the line number using the custom unsigned integer type used by LSP
+jSourceLine :: SourcePos -> J.UInt
+jSourceLine sp = fromIntegral (sourceLine sp)
+
+-- | Returns the column number using the custom unsigned integer type used by LSP
+jSourceColumn :: SourcePos -> J.UInt
+jSourceColumn sp = fromIntegral (sourceColumn sp)
+
 sourcePosToPosition :: SourcePos -> J.Position
-sourcePosToPosition sp = J.Position (sourceLine sp - 1) (sourceColumn sp - 1)
+sourcePosToPosition sp = J.Position (jSourceLine sp - 1) (jSourceColumn sp - 1)
 
 sourcePosToRange :: SourcePos -> J.Range
 sourcePosToRange sp = J.Range pos pos -- FIXME: same point? 

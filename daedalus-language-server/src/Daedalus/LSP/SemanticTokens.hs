@@ -35,7 +35,7 @@ semanticTokens m_range m_caps ms = do
     Right r  -> pure r 
 
 lexemeToSemanticToken :: Lexeme Token -> Maybe J.SemanticTokenAbsolute
-lexemeToSemanticToken lexeme = uncurry (J.SemanticTokenAbsolute l c len) <$> tokenToSTT (lexemeToken lexeme)
+lexemeToSemanticToken lexeme = uncurry (J.SemanticTokenAbsolute l c (fromIntegral len)) <$> tokenToSTT (lexemeToken lexeme)
   where
     r = range lexeme
     J.Position l c = sourceRangeToRange r ^. J.start
