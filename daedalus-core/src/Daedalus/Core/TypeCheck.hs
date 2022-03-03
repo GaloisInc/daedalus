@@ -449,7 +449,7 @@ checkOp2 op arg1 arg2 =
     MapLookup ->
       do (k,v) <- isMap arg1
          typeIs k arg2
-         pure v
+         pure (TMaybe v)
 
     MapMember ->
       do (k,_) <- isMap arg1
