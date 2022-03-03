@@ -447,8 +447,8 @@ checkOp2 op arg1 arg2 =
          pure TStream
 
     MapLookup ->
-      do (k,v) <- isMap arg2
-         typeIs k arg1
+      do (k,v) <- isMap arg1
+         typeIs k arg2
          pure v
 
     MapMember ->
