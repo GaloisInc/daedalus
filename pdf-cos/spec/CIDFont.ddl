@@ -27,7 +27,7 @@ def CIDToGIDMapRec (pos : uint 64) m = Default m
 
 def CIDMap = CIDToGIDMapRec (0 : uint 64) empty
 
-def CIDToGIDMap = Choose {
+def CIDToGIDMap = Choose1 {
   strm = WithReffedStreamBody CIDMap;
   identity = DirectOrRef (NameToken "Identity");
 }

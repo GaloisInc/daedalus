@@ -79,7 +79,8 @@ def ResolveRef (r : Ref) : maybe TopDecl
 --------------------------------------------------------------------------------
 -- Resolving references to streams
 
-def ObjStart (s : stream) = Choose {
+-- NOTE: warning: this grammar is actually never called, but defined here to declare the type associated
+def ObjStart (s : stream) = Choose1 {
   inInput = s
 ; inObjStream = s
 }

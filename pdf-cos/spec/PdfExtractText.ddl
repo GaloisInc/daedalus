@@ -22,7 +22,7 @@ def ExtractRootText r = Default [ ] {
 }
 
 def ExtractPageOrPagesText p c =
-  (ExtractPageText p c) |
+  (ExtractPageText p c) <|
   (ExtractPagesText p c)
 
 def ExtractPageText (p : maybe Ref) (r : Ref) =

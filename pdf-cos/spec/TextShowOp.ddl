@@ -9,7 +9,7 @@ import TextEffect
 import Unicode
 
 -- TJOper: operands in a use of TJ
-def TJOper = Choose {
+def TJOper = Choose1 {
   shownString = String;
   hexBytes = HexString;
   adjustNum = Number;

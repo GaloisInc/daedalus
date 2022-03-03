@@ -2,7 +2,7 @@ import PdfDecl
 import PdfValue
 import Stdlib
 
-def CrossRef = Choose {
+def CrossRef = Choose1 {
   oldXref = CrossRefAndTrailer;
   newXref = XRefObj;
 }
