@@ -110,6 +110,8 @@ handleOptions opts
        mo  <- ddlGetAST mm astTC
        ddlPrint (ppTypes mo)
 
+  | JStoHTML <- optCommand opts = jsToHTML opts
+
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
@@ -172,6 +174,7 @@ handleOptions opts
          DumpRuleRanges -> error "Bug: DumpRuleRanges"
          DumpRaw -> error "Bug: DumpRaw"
          DumpTypes -> error "Bug: DumpTypes"
+         JStoHTML -> error "Bug: JStoHTML"
 
          CompileHS -> generateHS opts mm allMods
 
@@ -185,6 +188,7 @@ handleOptions opts
                   prog <- ddlGetAST specMod astTC
                   let outDir = fromMaybe "." $ optOutDir opts
                   compilePGen [prog] outDir
+
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
 
@@ -458,6 +462,15 @@ dumpErr err
                    , transformByte =
                       wrapRange startErr endErr
                                 errLoc errLoc }
+
+
+jsToHTML :: Options -> Daedalus ()
+jsToHTML opts =
+  ddlPrint . dumpHTML . text =<<
+    ddlIO
+    if null (optParserDDL opts)
+      then getContents
+      else readFile (optParserDDL opts)
 
 
 dumpHTML :: Doc -> Doc
