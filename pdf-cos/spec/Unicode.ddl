@@ -11,7 +11,7 @@ import PdfValue
 -- sequence of UTF16_BE unicode values
 
 def ParseHexUTF16_BE : [uint 32] =
-  Choose {
+  Choose1 {
     {@x1 = HexWord16;
      if x1 < 0xD800 || x1 > 0xDFFF
        then concat [[x1], ParseHexUTF16_BE]
@@ -50,10 +50,11 @@ def NonASCIIByte = {
 }
 
 -- UTF-8: byte sequences of length 1 <= n <= 4
+-- NOTE: warning: this grammar is actually never called, but defined here to declare the type associated
 def UTF8 (bs1 : bytes1)
   (bs2 : bytes2)
   (bs3 : bytes3)
-  (bs4 : bytes4) = Choose {
+  (bs4 : bytes4) = Choose1 {
   utf81 = bs1;
   utf82 = bs2;
   utf83 = bs3;

@@ -380,7 +380,8 @@ def FontCode_SF  = Between "<" ">" HexByte
 def FontCode_CID = Between "<" ">" (numBase (256 : int) (Many (1..) HexByte))
 
 -- fontType: different types of fonts. Inherited from context of CMap.
-def FontType = Choose {
+-- NOTE: warning: this grammar is actually never called, but there to define the type associated
+def FontType = Choose1 {
   simpleFont = ^{};
   cidFont = ^{};
 }
