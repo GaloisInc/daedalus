@@ -1,5 +1,7 @@
 #include <iostream>
 #include <chrono>
+#include <unordered_set>
+
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -9,6 +11,9 @@
 #include <ddl/input.h>
 #include <ddl/number.h>
 #include <main_parser.h>
+
+#include "state.hpp"
+#include "Owned.hpp"
 
 const size_t not_found = (size_t) (-1);
 
@@ -59,7 +64,158 @@ done:
   return result;
 }
 
+namespace {
 
+  class XrefException : public std::exception {
+    const char * what () const throw () override
+    {
+      return "Invalid Cross Reference Table";
+    }
+  };
+
+  void process_xref(std::unordered_set<size_t>*, DDL::Input, DDL::Size);
+  void process_oldXRef(std::unordered_set<size_t>*, DDL::Input, User::CrossRefAndTrailer);
+  void process_newXRef(std::unordered_set<size_t>*, DDL::Input, User::XRefObjTable);
+  void process_trailer(std::unordered_set<size_t>*, DDL::Input, User::MyTrailerDict);
+  
+  void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::MyTrailerDict trailer)
+  {
+    if (trailer.borrow_prev().isJust()) {
+      auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().getValue()));
+      if (offset->isNothing()) {
+        throw XrefException();
+      }
+      process_xref(visited, input, offset->getValue().asSize());
+    }
+  }
+
+  void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table)
+  {
+    auto xrefs = table.borrow_xref();
+    process_trailer(visited, input, table.borrow_trailer());
+
+    auto subsections = table.borrow_xref();
+    for (DDL::Size i = 0; i < subsections.size(); i.increment()) {
+      auto subsection = Owned(subsections[i]);
+
+      // XXX: bounds check
+      uint64_t refid = subsection->borrow_firstId().getValue().get_ui();
+
+      auto entries = subsection->borrow_entries();
+      for (DDL::Size j = 0; j < entries.size(); j.increment()) {
+        auto entry = Owned(entries[j]);
+
+        switch (entry->getTag()) {
+          case DDL::Tag::XRefObjEntry::compressed:
+            throw XrefException(); // XXX: not implemented
+            break;
+          case DDL::Tag::XRefObjEntry::free:
+            throw XrefException(); // XXX: not implemented
+            break;
+
+          case DDL::Tag::XRefObjEntry::inUse: {
+            auto inUse = entry->borrow_inUse();
+            
+            // 10 digit natural fits in 34 bits
+            uint64_t offset = inUse.borrow_offset().asSize().value;
+
+            // maximum generation number is 65,535
+            uint16_t gen = inUse.borrow_gen().getValue().get_ui();
+
+            std::cerr << "Adding xref " << refid << " " << gen << " at " << offset << std::endl;
+
+            references.register_uncompressed_reference(refid, gen, offset);
+            break;
+          }
+
+          case DDL::Tag::XRefObjEntry::null: {
+            throw XrefException(); // XXX: not implemented
+            break;
+          }
+        }
+      }
+
+
+    }
+
+    throw XrefException(); // XXX: not implemented
+  }
+
+  void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old)
+  {
+    process_trailer(visited, input, old.borrow_trailer());
+
+    auto subsections = old.borrow_xref();
+
+    DDL::Size in = subsections.size().value;
+    for (DDL::Size i = 0; i < in; i.increment()) {
+      auto sub = Owned(subsections[i]);
+
+      // XXX: Bounds check
+      uint64_t refid = sub->borrow_firstId().getValue().get_ui();
+
+      auto entries = sub->borrow_entries();
+      for (DDL::Size j = 0; j < entries.size(); j.increment()) {
+        auto entry = Owned(entries[j]);
+
+        switch (entry->getTag()) {
+          case DDL::Tag::CrossRefEntry::inUse: {
+
+            auto isUse = entry->borrow_inUse();
+
+            // 10 digit natural fits in 34 bits
+            uint64_t offset = isUse.borrow_offset().asSize().value;
+
+            // maximum generation number is 65,535
+            uint16_t gen = isUse.borrow_gen().getValue().get_ui();
+
+            std::cerr << "Adding xref " << refid << " " << gen << " at " << offset << std::endl;
+
+            references.register_uncompressed_reference(refid, gen, offset);
+            break;
+          }
+          case DDL::Tag::CrossRefEntry::free: {
+            // XXX: implement
+            break;
+          }
+        }
+
+        refid++;
+      }
+    }
+  }
+
+  void process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset) {
+
+    // Detect if cross-reference sections form a cycle
+    if (!visited->insert(offset.value).second) {
+      throw XrefException();
+    }
+
+    DDL::ParseError error;
+    std::vector<User::CrossRef> crossRefs;
+
+    input.copy();
+    parseCrossRef(input.iDrop(offset), error, crossRefs);
+
+    if (crossRefs.size() != 1) {
+      for (auto &&x : crossRefs) { x.free(); }
+      throw XrefException();
+    }
+
+    auto crossRef = Owned(crossRefs[0]);
+    crossRefs.clear();
+
+    switch (crossRef->getTag()) {
+      case DDL::Tag::CrossRef::oldXref:
+        process_oldXRef(visited, input, crossRef->borrow_oldXref());
+        break;
+      case DDL::Tag::CrossRef::newXref:
+        process_newXRef(visited, input, crossRef->borrow_newXref());
+        break;
+    }
+  }
+}
 
 
 int main(int argc, char* argv[]) {
@@ -75,8 +231,6 @@ int main(int argc, char* argv[]) {
     input.free();
     return 1;
   }
-
-  std::cout << "PDF found at offset: " << end << std::endl;
 
   DDL::ParseError error;
   std::vector<DDL::UInt<64>> results;
@@ -104,7 +258,23 @@ int main(int argc, char* argv[]) {
       return 3;
   }
 
-  std::cout << "XREF offset = " << results[0] << std::endl;
+  auto offset = results[0].asSize();
+  std::unordered_set<size_t> visited;
+  process_xref(&visited, input, offset);
+
+  for (auto && [key, val] : references.table) {
+    auto && [refid, gen] = key;
+    std::cerr << "Getting " << refid << " " << gen << std::endl;
+    DDL::Maybe<User::TopDecl> decl;
+
+    if (references.resolve_reference(input, refid, gen, &decl)) {
+      DDL::toJS(std::cerr, decl);
+      decl.free();
+    } else {
+      std::cerr << "Failed\n";
+    }
+  }
+
 
   input.free();
   return 0;

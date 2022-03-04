@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.13)
+set(CMAKE_CXX_STANDARD 17)
+
+project(pdfcos
+    VERSION 1
+    DESCRIPTION "C++ PDF parser driver"
+    LANGUAGES CXX
+)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
+
+add_custom_command(
+  OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/main_parser.h
+  COMMAND daedalus
+            --compile-c++
+            --out-dir=${CMAKE_CURRENT_BINARY_DIR}
+            --entry=PdfXRef.PdfEnd
+            --entry=PdfXRef.CrossRef
+            --entry=PdfDecl.TopDecl
+            ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
+  )
+
+add_executable(parser-test
+    src/primitives.cpp
+    src/main.cpp
+    src/state.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
+)
+
+target_include_directories(parser-test
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../rts-c
+)
+
+target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX)
