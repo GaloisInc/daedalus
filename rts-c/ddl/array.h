@@ -273,7 +273,8 @@ int compare (Array<T> x, Array<T> y) {
     int result = compare(x.borrowElement(i),y.borrowElement(i));
     if (result != 0) return result;
   }
-  return size_x > size_y ? (size_x.rep() - size_y.rep()) : -1;
+  return size_x == size_y ?  0 :
+         size_x  < size_y ? -1 : 1;
 }
 
 
