@@ -25,9 +25,16 @@ def CrossRefAndTrailer = {
   Many JustWhite;   -- no comments, but arbitrary whitespace allowed here.
   KW "trailer";
 
-  @t = Dict;
-  trailer = TrailerDict t;
+  trailer = MyTrailerDict Dict;
 }
+
+def MyTrailerDict (dict : [ [uint 8] -> Value] ) =
+  block
+    root    = case Optional (Lookup "Root" dict) of
+                just x -> just (x is ref)
+                nothing -> nothing
+
+    prev    = Optional (LookupNatDirect "Prev" dict)
 
 -- TrailerEnd should follow the CrossRefAndTrailer.
 -- This must be at the end of every [incremental] "body".
@@ -152,7 +159,7 @@ def XRefObjTable (meta : XRefMeta) = {
            firstId = ^ idx.firstId;
            entries = Many idx.num (XRefObjEntry meta.widths)
          };
-  trailer = TrailerDict meta.header;
+  trailer = MyTrailerDict meta.header;
 }
 
 -- Section 7.5.8.3
