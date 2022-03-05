@@ -10,6 +10,8 @@ project(pdfcos
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
 
+find_package(ZLIB REQUIRED)
+
 add_custom_command(
   OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
@@ -36,4 +38,4 @@ target_include_directories(parser-test
         ${CMAKE_CURRENT_SOURCE_DIR}/../../rts-c
 )
 
-target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX)
+target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB)
