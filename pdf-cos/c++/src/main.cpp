@@ -76,9 +76,9 @@ namespace {
   void process_xref(std::unordered_set<size_t>*, DDL::Input, DDL::Size);
   void process_oldXRef(std::unordered_set<size_t>*, DDL::Input, User::CrossRefAndTrailer);
   void process_newXRef(std::unordered_set<size_t>*, DDL::Input, User::XRefObjTable);
-  void process_trailer(std::unordered_set<size_t>*, DDL::Input, User::MyTrailerDict);
+  void process_trailer(std::unordered_set<size_t>*, DDL::Input, User::TrailerDict);
   
-  void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::MyTrailerDict trailer)
+  void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
   {
     if (trailer.borrow_prev().isJust()) {
       auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().getValue()));
@@ -269,12 +269,12 @@ int main(int argc, char* argv[]) {
 
     if (references.resolve_reference(input, refid, gen, &decl)) {
       DDL::toJS(std::cerr, decl);
+      std::cerr << std::endl;
       decl.free();
     } else {
       std::cerr << "Failed\n";
     }
   }
-
 
   input.free();
   return 0;

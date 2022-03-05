@@ -1,6 +1,8 @@
 #include <iostream>
 #include <main_parser.h>
 
+#include <zlib.h>
+
 #include "state.hpp"
 
 bool parse_ResolveRef
@@ -32,8 +34,8 @@ bool parse_Decrypt
   ) {
 
   *out_input = input;
-  std::cout << "XXX: parse_Decrypt\n";
-  return false;
+  *result = body;
+  return true;
 }
 
 
@@ -49,10 +51,46 @@ bool parse_FlateDecode
   , DDL::Integer columns
   , DDL::Input   body
   ) {
+  // XXX: Implement predictors
 
   *out_input = input;
-  std::cout << "XXX: parse_FlateDecode\n";
-  return false;
+
+  std::vector<unsigned char> buffer;
+  std::vector<unsigned char> chunk(512);
+
+  z_stream strm;
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+  strm.avail_in = input.length().value;
+  strm.next_in = reinterpret_cast<unsigned char *>(input.borrowBytes());
+  
+  if (Z_OK != inflateInit(&strm)) {
+    return false;
+  }
+
+  do {
+    strm.avail_out = chunk.size();
+    strm.next_out = chunk.data();
+
+    int ret = inflate(&strm, Z_FINISH);
+
+    switch (ret) {
+      case Z_NEED_DICT:
+      case Z_DATA_ERROR:
+      case Z_MEM_ERROR:
+        inflateEnd(&strm);
+        return false;
+    }
+
+    std::copy_n(std::begin(chunk), chunk.size() - strm.avail_out, std::back_inserter(buffer));
+  } while (strm.avail_out == 0);
+
+  inflateEnd(&strm);
+
+  *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
+
+  return true;
 }
 
 
