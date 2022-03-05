@@ -7,7 +7,7 @@ QUICKTESTS=test_validatePDF_generated/test-summary     \
            test_validatePDF_pdf20examples/test-summary \
            test_validatePDF_govdocs-subset-a/test-summary    
 
-LONGTESTS=${QUICKTESTS} test_validatePDF_2020-03-eval/test-summary
+LONGTESTS=test_validatePDF_2020-03-eval/test-summary
 
 # copy corpora files into appropriate directories:
 #  - the rule action is a no-op if accidentally invoked on existing directory.
@@ -17,9 +17,10 @@ REMOTECORPORA= corpora/pdf20examples \
                corpora/govdocs-subset-a
 
 nodefaulttarget:
-	@echo did you want ...?
-	@echo " " make remotecorpora
-	@echo " " make quick
+	@echo no default target, did you want ...?
+	@echo " " make quick "         # 5 min check of local pdfs"
+	@echo " " make remotecorpora " # rsync remote corporas to here"
+	@echo " " make long "          # 2 hour check of larger corporas"
 
 remotecorpora: ${REMOTECORPORA}
 
