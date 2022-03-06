@@ -6,7 +6,7 @@ MY_PATH=$(dirname "$0")
 DEST_DIR=$MY_PATH/../test/corpora
 
 # directories of corpora we can nab with get-pdf-corpora.sh:
-REMOTECORPORA=2020-03-eval govdocs-subset-a pdf20examples
+REMOTECORPORA="2020-03-eval govdocs-subset-a pdf20examples"
 # REMOTECORPORA=govdocs-subset-a
 
 get_abs_filename() {
