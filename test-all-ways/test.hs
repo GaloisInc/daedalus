@@ -120,7 +120,7 @@ compileHaskell ddl =
      createDirectoryIfMissing True build
      callProcess' "cp" ["template_cabal_project", root </> "cabal.project"]
      callProcess' "cabal"
-        [ "exec", "daedalus", "--"
+        [ "run", "-v0", "exe:daedalus", "--"
         , "--compile-hs", "--out-dir=" ++ build, ddl
         ]
      callProcessIn_ build "cabal" ["build"]
@@ -134,7 +134,7 @@ compileCPP ddl =
   do let build = buildDirFor CompileCPP ddl
      createDirectoryIfMissing True build
      callProcess' "cabal"
-        [ "exec", "daedalus", "--"
+        [ "run", "-v0", "exe:daedalus", "--"
         , "--compile-c++", "--out-dir=" ++ build, ddl
         ]
      callProcess' "make" [ "-C", build, "parser" ]
@@ -151,7 +151,7 @@ runWith be ddl mbInput =
   do putStrLn $ unwords [ "[RUN " ++ show be ++ "]", ddl, fromMaybe "" mbInput ]
      let file = outputFileFor be ddl mbInput
      createDirectoryIfMissing True (takeDirectory file)
-     let interp = [ "exec", "daedalus", "--"
+     let interp = [ "run", "-v0", "exe:daedalus", "--"
                   , "--json", "--no-warn-unbiased"
                   ]
      save file =<<
