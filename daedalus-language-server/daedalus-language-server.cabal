@@ -39,7 +39,7 @@ library
                        containers,
                        lsp,
                        lsp-types ^>= 1.4.0.1,
-                       aeson < 2.0.0.0,
+                       aeson < 2.1,
                        stm,
                        text,
                        hslogger,
