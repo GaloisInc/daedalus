@@ -53,7 +53,7 @@ main =
 
        "all" : fs ->
           case fs of
-            [] -> do let ?verbosity = 0
+            [] -> do let ?verbosity = 1
                      doAllTests
             _  -> putStrLn "Usage: all"
 
