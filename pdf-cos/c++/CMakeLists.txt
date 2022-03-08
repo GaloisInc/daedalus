@@ -22,6 +22,7 @@ add_custom_command(
             --entry=PdfXRef.PdfEnd
             --entry=PdfXRef.CrossRef
             --entry=PdfDecl.TopDecl
+            --entry=PdfValue.Value
             ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
