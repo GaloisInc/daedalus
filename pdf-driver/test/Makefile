@@ -55,10 +55,10 @@ build:
 # turn 'all tests succeed' into an error code:
 
 quick-status: ${QUICKTESTS}
-	test `egrep '^0 unexpected variance' $^ | wc -l` \
+	test `egrep '^0 unexpected variances' $^ | wc -l` \
          -eq `echo $^ | wc -w`
 
 long-status: ${LONGTESTS}
-	test `egrep '^0 unexpected variance' $^ | wc -l` \
+	test `egrep '^0 unexpected variances' $^ | wc -l` \
          -eq `echo $^ | wc -w`
 
