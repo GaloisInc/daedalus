@@ -26,6 +26,7 @@ data Command =
   | CompileHS
   | CompileCPP
   | Interp (Maybe FilePath)
+  | JStoHTML
   | ShowHelp
 
 data Backend = UseInterp | UseCore | UsePGen Bool
@@ -121,6 +122,10 @@ options = OptSpec
         "Show semantics values as HTML."
         $ NoArg \o -> Right o { optShowJS = True, optShowHTML = True }
 
+      , Option [] ["json-to-html"]
+        "Render externally produced JSON as HTML."
+        $ NoArg \o -> Right o { optCommand = JStoHTML }
+
       , Option ['g'] ["gen"]
         "Use parser-generator backend when interpreting"
         $ NoArg \o -> Right o { optBackend = UsePGen False}
@@ -200,6 +205,7 @@ getOptions =
   do opts <- getOpts options
      case optCommand opts of
        ShowHelp -> dumpUsage options >> exitSuccess
+       JStoHTML -> pure opts
        _ | let file = optParserDDL opts
          , takeExtension file == ".test" -> getOptionsFromFile file
          | otherwise ->

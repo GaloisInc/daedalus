@@ -140,7 +140,7 @@ For a given test, you can see the differences between the actual and
 the expected results by (e.g.)
 ```
 cd test/test_totext_font-exercises
-../src/show-test-diff.sh helloworld.pdf
+../../scripts/show-test-diff.sh helloworld.pdf
 ```
 Currently the `run-testset` program verifies that actual and expected are 
 "exact equals" but that can easily be changed for an individual tool.
@@ -164,7 +164,8 @@ test file outputs with one of
   make quick-clean
   make long-clean
 ``` 
-This does remove files from the repo, so `make {quick,long}` afterwards!
+This does remove files from the repo, so you should `make {quick,long}` 
+after you do the `make {quick,long}-clean`.
 
 ## test specific documentation ##
 ### test_validatePDF_2020-03-eval ###

@@ -543,7 +543,8 @@ hsValue env tc =
         LFloating n -> hasType (hsType env t) (hsDouble n)
         LBool b   -> hsBool b
         LByte b _ -> "RTS.uint8" `Ap` hsWord8 b
-        LBytes b  -> "Vector.vecFromRep" `Ap` hsByteString b
+        LBytes b  -> hasType (hsType env (tArray tByte))
+                             ("Vector.vecFromRep" `Ap` hsByteString b)
         LPi       -> hasType (hsType env t) "HS.pi"
 
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
