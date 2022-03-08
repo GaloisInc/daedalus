@@ -1,0 +1,6 @@
+3 files
+3 unexpected variance(s):
+ Files where result =/= expected but no variance specified:
+  march-0311-a.cid-cmap
+  march-0311-b.cid-cmap
+  spec-p358-example.cid-cmap

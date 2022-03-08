@@ -2,6 +2,13 @@ SHAKEOPTS?=-j16
   # works like Make's -j
 RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS}
 
+nodefaulttarget:
+	@echo no default target, did you want ...?
+	@echo " " make quick "         # 5 min check of local pdfs"
+	@echo " " make remotecorpora " # rsync remote corporas to here"
+	@echo " " make long "          # 2 hour check of larger corporas"
+
+
 QUICKTESTS=test_validatePDF_generated/test-summary     \
            test_validatePDF_misc/test-summary          \
            test_validatePDF_pdf20examples/test-summary \
@@ -15,12 +22,6 @@ LONGTESTS=test_validatePDF_2020-03-eval/test-summary
 REMOTECORPORA= corpora/pdf20examples \
                corpora/2020-03-eval  \
                corpora/govdocs-subset-a
-
-nodefaulttarget:
-	@echo no default target, did you want ...?
-	@echo " " make quick "         # 5 min check of local pdfs"
-	@echo " " make remotecorpora " # rsync remote corporas to here"
-	@echo " " make long "          # 2 hour check of larger corporas"
 
 remotecorpora: ${REMOTECORPORA}
 
@@ -39,6 +40,11 @@ test_%/clean: build
 	${RUNTESTSET} --tool $(firstword $(subst _, ,$*)) \
                       --corpora $(lastword $(subst _, ,$*)) \
                       clean
+
+CMAPTESTS=test_cmap-cid_cmaps-cid/test-summary \
+          test_cmap-sf_cmaps-simple/test-summary
+
+cmaps: ${CMAPTESTS}
 
 quick: ${QUICKTESTS}
 

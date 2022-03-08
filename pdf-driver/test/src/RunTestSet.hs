@@ -54,7 +54,7 @@ data MetaData = MetaData { exitCode :: ExitCode
 ---- tools -------------------------------------------------------------------
 
 tools :: [Tool]
-tools = [validate_T, totext_T]
+tools = [validate_T, totext_T, cmapSimple_T, cmapCid_T]
 
 toolnames :: [String]
 toolnames = map t_name tools
@@ -86,7 +86,7 @@ validate_T =
                        s
                 
   timeoutInSecs = 3*60  -- FIXME: be able to specify on command line??
-    
+                        -- currently 8-ish files are timing out (2020-03-eval/*)
   proj :: IO String -> IO String -> IO MetaData-> IO String
   proj _getOut _getErr getMeta =
     do
@@ -106,6 +106,46 @@ data Result_validate_T =
      | NCBUR   -- can be the expected result tho now not 'returned' by
      deriving (Eq, Read, Show)  
 
+
+---- two cmap tools ----
+
+cmapSimple_T :: Tool
+cmapSimple_T =
+  T { t_name          = "cmap-sf"
+    , t_cmd_exec      = "pdf-dom"
+    , t_cmd_mkArgs    = (\f->["--parse-type=ToUnicodeCMap_simpleFont", f])
+    , t_timeoutInSecs = 30
+    , t_proj          = proj
+    , t_cmp           = cmp
+    }
+
+  where
+    
+  proj :: IO String -> IO String -> IO MetaData-> IO String
+  proj getStdOut _getErr _getMeta = getStdOut
+  
+  cmp expected actual =
+    expected == actual -- FIXME[F1]: must relax!
+  
+cmapCid_T :: Tool
+cmapCid_T =
+  T { t_name          = "cmap-cid"
+    , t_cmd_exec      = "pdf-dom"
+    , t_cmd_mkArgs    = (\f->["--parse-type=ToUnicodeCMap_cidFont", f])
+    , t_timeoutInSecs = 30
+    , t_proj          = proj
+    , t_cmp           = cmp
+    }
+
+  where
+    
+  proj :: IO String -> IO String -> IO MetaData-> IO String
+  proj getStdOut _getErr _getMeta = getStdOut
+  
+  cmp expected actual =
+    expected == actual -- FIXME[F1]: must relax!
+  
+
 ---- totext ----
 
 totext_T :: Tool
@@ -119,7 +159,7 @@ totext_T =
     }
 
   where
-  timeoutInSecs = 4*60 -- currently seeing no/little change from 3-4 minutes!
+  timeoutInSecs = 3*60
     
   proj :: IO String -> IO String -> IO MetaData-> IO String
   proj getStdOut _getErr _getMeta =

@@ -1,0 +1,29 @@
+{ $error:
+  { input: "corpora/cmaps-cid/spec-p358-example.cid-cmap"
+  , offset: 384
+  , message: "byte 'e' does not match (((byte 0x00), or (byte 0x09)), or (byte 0x0c)), or (byte ' ')"
+  , grammar: [ "166:42--166:50" ]
+  , context:
+      [ "Stdlib._IgnoreResult"
+      , "Stdlib._AnyWS"
+      , "PdfValue._Token"
+      , "PdfValue._KW"
+      , "CMap.GenCMapScope"
+      , "CMap.SizedOp"
+      , "bfchar"
+      , "CMap.CodeRangeOp"
+      , "injr"
+      , "Sum.Sum"
+      , "Stdlib.Lists2"
+      , "CMap.CMapProper_Raw"
+      , "CMap.CMapProper"
+      , "CMap.GenCMapScope"
+      , "CMap.GenCMapScope"
+      , "CMap.CMapScope"
+      , "CMap.GenCMapScope"
+      , "CMap.CMapScope"
+      , "CMap.ToUnicodeCMap0"
+      , "CMap.ToUnicodeCMap"
+      ]
+  }
+}

@@ -1,12 +1,3 @@
 This directory holds various items for the sake of
   - understanding pdf fonts and things related
   - generating good test cases to explore them
-
-NOTE
-  - the symlink 'safedocs' should point to your safedocs repo.
-  
-  
-  
-  
-  
-

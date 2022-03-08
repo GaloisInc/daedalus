@@ -1,0 +1,8 @@
+5 files
+5 unexpected variance(s):
+ Files where result =/= expected but no variance specified:
+  govdocs-000009-a-2.sf-cmap
+  govdocs-000009-a.sf-cmap
+  govdocs-000009-b.sf-cmap
+  govdocs-000009-c.sf-cmap
+  govdocs-000025-a.sf-cmap
