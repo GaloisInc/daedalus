@@ -200,9 +200,13 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
                 nothing -> nothing
 
     prev    = Optional (LookupNatDirect "Prev" dict)
+
+    xrefstm = Optional (LookupNat "XRefStm" dict)
+
     encrypt = case Optional (Lookup "Encrypt" dict) of
                 just d  -> just (TrailerDictEncrypt dict d)
                 nothing -> nothing
+
     all     = dict
 
 def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
