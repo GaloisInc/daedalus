@@ -168,6 +168,16 @@ void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User
         }
         process_xref(visited, input, offset->getValue().asSize());
     }
+
+    // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
+    // the prev entries so that the xrefstm entries can overwrite them.
+    if (trailer.borrow_xrefstm().isJust()) {
+        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().getValue()));
+        if (offset->isNothing()) {
+            throw XrefException("Trailer has invalid XRefStm value");
+        }
+        process_xref(visited, input, offset->getValue().asSize());
+    }
 }
 
 void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table)
