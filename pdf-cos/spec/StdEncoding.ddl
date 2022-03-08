@@ -3,6 +3,7 @@ import Map
 
 import Glyph
 
+-- Std encodings of glyphs, based on Table D.2
 def stdEncodings = [
   mapEntry (octalTriple 1 0 1) (glyph "A")
 , mapEntry (octalTriple 3 4 1) (glyph "AE")
@@ -50,6 +51,7 @@ def stdEncodings = [
 , mapEntry (octalTriple 1 3 3) (glyph "bracketleft")
 , mapEntry (octalTriple 1 3 5) (glyph "bracketright")
 , mapEntry (octalTriple 3 0 6) (glyph "breve")
+, mapEntry (octalTriple 2 6 7) (glyph "bullet")
 , mapEntry (octalTriple 1 4 3) (glyph "c")
 , mapEntry (octalTriple 3 1 7) (glyph "caron")
 , mapEntry (octalTriple 3 1 3) (glyph "cedilla")
@@ -57,7 +59,7 @@ def stdEncodings = [
 , mapEntry (octalTriple 3 0 3) (glyph "circumflex")
 , mapEntry (octalTriple 0 7 2) (glyph "colon")
 , mapEntry (octalTriple 0 5 4) (glyph "comma")
-, mapEntry (octalTriple 2 5 0) (glyph "currency1")
+, mapEntry (octalTriple 2 5 0) (glyph "currency")
 , mapEntry (octalTriple 1 4 4) (glyph "d")
 , mapEntry (octalTriple 2 6 2) (glyph "dagger")
 , mapEntry (octalTriple 2 6 3) (glyph "daggerdbl")
@@ -84,10 +86,13 @@ def stdEncodings = [
 , mapEntry (octalTriple 3 7 3) (glyph "germandbls")
 , mapEntry (octalTriple 3 0 1) (glyph "grave")
 , mapEntry (octalTriple 0 7 6) (glyph "greater")
+, mapEntry (octalTriple 2 5 3) (glyph "guillemotleft")
+, mapEntry (octalTriple 2 7 3) (glyph "guillemotright")
 , mapEntry (octalTriple 2 5 4) (glyph "guilsinglleft")
 , mapEntry (octalTriple 2 5 5) (glyph "guilsinglright")
 , mapEntry (octalTriple 1 5 0) (glyph "h")
 , mapEntry (octalTriple 3 1 5) (glyph "hungarumlaut")
+, mapEntry (octalTriple 0 5 5) (glyph "hyphen")
 , mapEntry (octalTriple 1 5 1) (glyph "i")
 , mapEntry (octalTriple 1 5 2) (glyph "j")
 , mapEntry (octalTriple 1 5 3) (glyph "k")
@@ -133,6 +138,7 @@ def stdEncodings = [
 , mapEntry (octalTriple 0 7 3) (glyph "semicolon")
 , mapEntry (octalTriple 0 6 7) (glyph "seven")
 , mapEntry (octalTriple 0 6 6) (glyph "six")
+, mapEntry (octalTriple 0 4 0) (glyph "space")
 , mapEntry (octalTriple 0 5 7) (glyph "slash")
 , mapEntry (octalTriple 2 4 3) (glyph "sterling")
 , mapEntry (octalTriple 1 6 4) (glyph "t")

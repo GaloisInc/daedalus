@@ -1,2 +1,22 @@
 21 files
-0 unexpected variances.
+19 unexpected variance(s):
+ Files where result =/= expected but no variance specified:
+  000009.pdf
+  000010.pdf
+  000011.pdf
+  000012.pdf
+  000013.pdf
+  000015.pdf
+  000016.pdf
+  000018.pdf
+  000019.pdf
+  000020.pdf
+  000021.pdf
+  000022.pdf
+  000024.pdf
+  000025.pdf
+  000026.pdf
+  000028.pdf
+  007526.pdf
+  099692.pdf
+  974733.pdf

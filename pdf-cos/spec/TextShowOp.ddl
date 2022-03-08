@@ -17,7 +17,7 @@ def TJOper = Choose {
 
 def TextShowOper = Choose1 { -- operations are mutually exclusive:
   showString = {
-    $$ = Token String;
+    $$ = Token (String <| HexString)  ;
     KW "Tj" 
   };
   showManyStrings = {

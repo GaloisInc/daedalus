@@ -1,2 +1,8 @@
 6 files
-0 unexpected variances.
+5 unexpected variance(s):
+ Files where result =/= expected but no variance specified:
+  PDF-2.0-UTF-8-string-and-annotation.pdf
+  PDF-2.0-image-with-BPC.pdf
+  PDF-2.0-via-incremental-save.pdf
+  PDF-2.0-with-page-level-output-intent.pdf
+  Simple-PDF-2.0-file.pdf

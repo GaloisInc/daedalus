@@ -1,2 +1,15 @@
 11 files
-0 unexpected variances.
+11 unexpected variance(s):
+ Files where result =/= expected but no variance specified:
+  1_valid_xref_strm.pdf
+  1_valid_xref_trad.pdf
+  2_valid_xref_strm.pdf
+  2_valid_xref_strm_indirects.pdf
+  4a_valid_2xref_strms.pdf
+ Files where result == expected but a variance is specified:
+  1_invalid_xref_trad-a.pdf
+  1_invalid_xref_trad-b.pdf
+  2_invalid_xref_strm_rec_indirects.pdf
+  3a_invalid_emptyvalue.pdf
+  3b_invalid_badvaluesyntax.pdf
+  4b_invalid_2xref_strms_recursive.pdf
