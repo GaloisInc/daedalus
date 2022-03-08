@@ -31,8 +31,13 @@ def ObjStream (val : Value) = block
   let n = LookupNat "N" h as? uint 64
   let first = LookupNat "First" h as? uint 64
 
--- XXX: Support Extends
-  Nested (Drop first body) (Many n Value)
+  -- XXX: Support Extends
+  index = Nested body (Many n ObjStmMeta)
+  bytes = Drop first body
+
+def ObjStmMeta = block
+  oid = Token Natural
+  off = Token Natural
 
 def Stream (val : Value) = {
   header = val is dict;

@@ -12,12 +12,11 @@
 struct Blackhole {};
 
 struct StreamThunk {
-    uint64_t refid;
     uint64_t container;
     uint64_t index;
-    explicit StreamThunk(uint64_t refid, uint64_t container, uint64_t index);
+    explicit StreamThunk(uint64_t container, uint64_t index);
 
-    bool getDecl(DDL::Input input, User::TopDecl *result);
+    bool getDecl(DDL::Input input, uint64_t refid, User::TopDecl *result);
 };
 
 struct TopThunk {
@@ -39,21 +38,24 @@ using oref = std::variant<
     Owned<User::TopDecl>
 >;
 
-class BlackholeException : public std::exception
-{
-public:
-    const char * what () const throw () override;
+using generation_type = uint16_t;
+
+struct ReferenceEntry {
+    ReferenceEntry(oref value, generation_type gen);
+    oref value;
+    generation_type gen;
 };
 
 class ReferenceTable {
-public: // temporary
-    std::map<std::pair<uint64_t, uint16_t>, oref> table;
+public: // temporarily public member
+    std::map<uint64_t, ReferenceEntry> table;
 
 public:
-    void register_uncompressed_reference(uint64_t refid, uint16_t gen, uint64_t offset);
+    void register_uncompressed_reference(uint64_t refid, generation_type gen, uint64_t offset);
     void register_compressed_reference(uint64_t refid, uint64_t container, uint64_t index);
-    void register_topdecl(uint64_t refid, uint16_t gen, User::TopDecl topDecl);
-    bool resolve_reference(DDL::Input input, uint64_t refid, uint16_t gen, DDL::Maybe<User::TopDecl> *result);
+    void register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl);
+    void unregister(uint64_t refid);
+    bool resolve_reference(DDL::Input input, uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
 };
 
 extern ReferenceTable references;

@@ -49,14 +49,26 @@ int main(int argc, char* argv[]) {
   auto input = owned(inputFromFile(argv[1]));
   process_pdf(input.borrow());
 
-  for (auto && [key, val] : references.table) {
-    auto && [refid, gen] = key;
-    std::cerr << "Getting " << refid << " " << gen << std::endl;
+  for (auto && [refid, val] : references.table) {
+
+    std::cerr << "Getting " << refid << " " << val.gen << std::endl;
     DDL::Maybe<User::TopDecl> decl;
 
-    if (references.resolve_reference(input.borrow(), refid, gen, &decl)) {
+    if (references.resolve_reference(input.borrow(), refid, val.gen, &decl)) {
+/*
       DDL::toJS(std::cerr, decl);
       std::cerr << std::endl;
+
+      if (DDL::Tag::TopDeclDef::stream == decl.borrowValue().borrow_obj().getTag()) {
+        size_t n = decl.borrowValue().borrow_obj().borrow_stream().borrow_body().borrow_ok().length().value;
+        auto ptr = decl.borrowValue().borrow_obj().borrow_stream().borrow_body().borrow_ok().borrowBytes();
+        std::cerr << "STREAM!\n";
+        for (size_t i = 0; i < n; i++) {
+          std::cerr << ptr[i];
+        }
+        std::cerr << "END!\n";
+      }
+*/
       decl.free();
     } else {
       std::cerr << "Failed\n";
