@@ -119,7 +119,7 @@ totext_T =
     }
 
   where
-  timeoutInSecs = 3*60
+  timeoutInSecs = 4*60 -- currently seeing no/little change from 3-4 minutes!
     
   proj :: IO String -> IO String -> IO MetaData-> IO String
   proj getStdOut _getErr _getMeta =

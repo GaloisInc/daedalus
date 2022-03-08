@@ -1,4 +1,4 @@
-SHAKEOPTS?=-j8
+SHAKEOPTS?=-j16
   # works like Make's -j
 RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS}
 
