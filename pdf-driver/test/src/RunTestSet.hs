@@ -85,7 +85,7 @@ validate_T =
                        RE.defaultExecOpt
                        s
                 
-  timeoutInSecs = 3*60  -- FIXME: be able to specify on command line??
+  timeoutInSecs = 4*60  -- FIXME: be able to specify on command line??
                         -- currently 8-ish files are timing out (2020-03-eval/*)
   proj :: IO String -> IO String -> IO MetaData-> IO String
   proj _getOut _getErr getMeta =
