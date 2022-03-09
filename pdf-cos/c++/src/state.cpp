@@ -10,7 +10,6 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
 {
     input.copy();
     input.iDropMut(offset);
-
     DDL::ParseError error;
     std::vector<User::TopDecl> results;
 
@@ -45,12 +44,12 @@ StreamThunk::getDecl(DDL::Input input, uint64_t refid, User::TopDecl *result)
         return false;
     }
 
-    if (DDL::Tag::TopDeclDef::objstream != streamResult.getValue().borrow_obj().getTag()) {
+    if (DDL::Tag::TopDeclDef::objstream != streamResult.borrowValue().borrow_obj().getTag()) {
         streamResult.free();
         return false;
     }
 
-    auto stream = borrowed(streamResult.borrowValue().borrow_obj().borrow_objstream());
+    auto stream = owned(streamResult.borrowValue().borrow_obj().get_objstream());
     streamResult.free();
 
     if (index >= stream->borrow_index().size().value) {
@@ -162,21 +161,21 @@ ReferenceTable::resolve_reference(
 void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
-        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().getValue()));
+        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
-        process_xref(visited, input, offset->getValue().asSize());
+        process_xref(visited, input, offset->borrowValue().asSize());
     }
 
     // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
     // the prev entries so that the xrefstm entries can overwrite them.
     if (trailer.borrow_xrefstm().isJust()) {
-        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().getValue()));
+        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid XRefStm value");
         }
-        process_xref(visited, input, offset->getValue().asSize());
+        process_xref(visited, input, offset->borrowValue().asSize());
     }
 }
 
@@ -190,7 +189,7 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
         auto subsection = owned(subsections[i]);
 
         // XXX: bounds check
-        uint64_t refid = subsection->borrow_firstId().getValue().get_ui();
+        uint64_t refid = subsection->borrow_firstId().asSize().value;
 
         auto entries = subsection->borrow_entries();
         for (DDL::Size j = 0; j < entries.size(); j.increment()) {
@@ -218,7 +217,7 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
                     uint64_t offset = inUse.borrow_offset().asSize().value;
 
                     // maximum generation number is 65,535
-                    generation_type gen = inUse.borrow_gen().getValue().get_ui();
+                    generation_type gen = inUse.borrow_gen().asSize().value;
 
                     std::cerr << "Adding uncompressed xref " << refid << " " << gen << " at " << offset << std::endl;
 
@@ -245,6 +244,7 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
     }
 }
 
+// Borrows input and old
 void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old)
 {
     process_trailer(visited, input, old.borrow_trailer());
@@ -253,31 +253,31 @@ void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
 
     DDL::Size in = subsections.size().value;
     for (DDL::Size i = 0; i < in; i.increment()) {
-        auto sub = owned(subsections[i]);
+        auto sub = subsections.borrowElement(i);
 
         // XXX: Bounds check
-        uint64_t refid = sub->borrow_firstId().getValue().get_ui();
+        uint64_t refid = sub.borrow_firstId().asSize().value;
 
-        auto entries = sub->borrow_entries();
+        auto entries = sub.borrow_entries();
         for (DDL::Size j = 0; j < entries.size(); j.increment()) {
-            auto entry = owned(entries[j]);
+            auto entry = entries.borrowElement(j);
 
-            switch (entry->getTag()) {
+            switch (entry.getTag()) {
                 case DDL::Tag::CrossRefEntry::inUse: {
-                    auto isUse = entry->borrow_inUse();
+                    auto isUse = entry.borrow_inUse();
 
                     // 10 digit natural fits in 34 bits
                     uint64_t offset = isUse.borrow_offset().asSize().value;
 
                     // maximum generation number is 65,535
-                    generation_type gen = isUse.borrow_gen().getValue().get_ui();
+                    generation_type gen = isUse.borrow_gen().asSize().value;
 
                     references.register_uncompressed_reference(refid, gen, offset);
                     break;
                 }
 
                 case DDL::Tag::CrossRefEntry::free: {
-                    references.unregister(entry->borrow_free().borrow_obj().asSize().value);
+                    references.unregister(entry.borrow_free().borrow_obj().asSize().value);
                     break;
                 }
             }
@@ -287,6 +287,7 @@ void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
     }
 }
 
+// Borrows input
 void process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset)
 {
     // Detect if cross-reference sections form a cycle
@@ -359,10 +360,12 @@ void process_pdf(DDL::Input input)
     parsePdfEnd(x, error, results);
 
     if (1 != results.size()) {
+        for (auto && x : results) { x.free(); }
         throw XrefException("Failed parsing startxref");
     }
 
-    auto offset = results[0].asSize();
+    auto result = owned(results[0]);
+    auto offset = result->asSize();
     std::unordered_set<size_t> visited;
     process_xref(&visited, input, offset);
 }
