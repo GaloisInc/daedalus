@@ -1,9 +1,12 @@
 #include <iostream>
+#include <cctype>
 #include <main_parser.h>
 
 #include <zlib.h>
 
 #include "state.hpp"
+#include "asciihex.hpp"
+#include "ascii85.hpp"
 
 bool parse_ResolveRef
   ( DDL::ParserState &pstate
@@ -62,7 +65,6 @@ bool parse_FlateDecode
   *out_input = input;
 
   std::vector<unsigned char> buffer;
-  std::vector<unsigned char> chunk(512);
 
   z_stream strm;
   strm.zalloc = Z_NULL;
@@ -75,9 +77,14 @@ bool parse_FlateDecode
     return false;
   }
 
+  size_t const chunksize = 2048;
+
   do {
-    strm.avail_out = chunk.size();
-    strm.next_out = chunk.data();
+    size_t used = buffer.size();
+    buffer.resize(used + chunksize);
+
+    strm.avail_out = chunksize;
+    strm.next_out = &buffer[used];
 
     int ret = inflate(&strm, Z_FINISH);
 
@@ -89,7 +96,9 @@ bool parse_FlateDecode
         return false;
     }
 
-    std::copy_n(std::begin(chunk), chunk.size() - strm.avail_out, std::back_inserter(buffer));
+    if (strm.avail_out > 0) {
+      buffer.resize(used + (chunksize - strm.avail_out));
+    }
   } while (strm.avail_out == 0);
 
   inflateEnd(&strm);
@@ -119,7 +128,6 @@ bool parse_LZWDecode
   return false;
 }
 
-
 bool parse_ASCIIHexDecode
   ( DDL::ParserState &pstate
   , DDL::Input *result
@@ -129,8 +137,16 @@ bool parse_ASCIIHexDecode
   ) {
 
   *out_input = input;
-  std::cout << "XXX: parse_ASCIIHexDecode\n";
-  return false;
+  auto bodyRef = owned(body);
+
+  std::vector<unsigned char> buffer;
+  
+  if (ASCIIHexDecode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
+    *result = DDL::Input("asciihex", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
+    return true;
+  } else {
+    return false;
+  }
 }
 
 bool parse_ASCII85Decode
@@ -142,8 +158,14 @@ bool parse_ASCII85Decode
   ) {
 
   *out_input = input;
-  std::cout << "XXX: parse_ASCII85Decode\n";
-  return false;
+  auto bodyRef = owned(body);
+
+  std::vector<uint8_t> buffer;
+
+  if (ASCII85Decode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
+    *result = DDL::Input("ascii85", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
+    return true;
+  } else {
+    return false;
+  }
 }
-
-

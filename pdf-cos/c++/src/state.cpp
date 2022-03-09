@@ -219,8 +219,6 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
                     // maximum generation number is 65,535
                     generation_type gen = inUse.borrow_gen().asSize().value;
 
-                    std::cerr << "Adding uncompressed xref " << refid << " " << gen << " at " << offset << std::endl;
-
                     references.register_uncompressed_reference(refid, gen, offset);
                     break;
                 }
