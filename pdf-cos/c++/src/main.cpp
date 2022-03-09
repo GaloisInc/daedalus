@@ -47,7 +47,13 @@ int main(int argc, char* argv[]) {
   }
 
   auto input = owned(inputFromFile(argv[1]));
-  process_pdf(input.borrow());
+  
+  try {
+    process_pdf(input.borrow());
+  } catch (XrefException const& e) {
+    std::cerr << "Error while processing cross-references: " << e.what() << std::endl;
+    return 1;
+  }
 
   for (auto && [refid, val] : references.table) {
 

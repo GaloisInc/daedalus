@@ -301,8 +301,10 @@ void process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Si
     parseCrossRef(input.iDrop(offset), error, crossRefs);
 
     if (crossRefs.size() != 1) {
-        for (auto &&x : crossRefs) { x.free(); }
-        throw XrefException("Ambiguous parse");
+        for (auto &&x : crossRefs) {
+            x.free();
+        }
+        throw XrefException("Unable to parse xrefs");
     }
 
     auto crossRef = owned(crossRefs[0]);
