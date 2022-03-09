@@ -53,6 +53,12 @@ bool parse_FlateDecode
   ) {
   // XXX: Implement predictors
 
+  predictor.free();
+  colors.free();
+  bpc.free();
+  columns.free();
+  auto bodyRef = owned(body);
+
   *out_input = input;
 
   std::vector<unsigned char> buffer;
@@ -63,7 +69,7 @@ bool parse_FlateDecode
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
   strm.avail_in = input.length().value;
-  strm.next_in = reinterpret_cast<unsigned char *>(input.borrowBytes());
+  strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
   
   if (Z_OK != inflateInit(&strm)) {
     return false;

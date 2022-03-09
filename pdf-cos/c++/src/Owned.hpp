@@ -72,9 +72,7 @@ Owned<T>::Owned(const Owned<T> &x) : obj(x.obj)
 //Owned<T>::Owned(Owned<T> &&x) : obj(x.obj) {}
 
 template <class T>
-Owned<T>::Owned(T x) : obj(x) {
-    x.copy();
-}
+Owned<T>::Owned(T x) : obj(x) {}
 
 template <class T>
 Owned<T> &Owned<T>::operator=(const Owned<T> &rhs)
