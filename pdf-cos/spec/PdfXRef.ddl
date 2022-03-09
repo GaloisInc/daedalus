@@ -51,6 +51,7 @@ def TrailerEnd = {
 --  between the keywords xref and trailer.
 
 def CrossRefSection = {
+  ManyWS;
   Match "xref"; Many $simpleWS; EOL;
 
     -- we enforce EOL above (rejecting some NCBUR files).  The spec:
