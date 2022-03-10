@@ -1,5 +1,10 @@
 #include "state.hpp"
 
+#include <algorithm>
+#include <cstring>
+#include <vector>
+#include <openssl/evp.h>
+
 ReferenceEntry::ReferenceEntry(oref value, generation_type gen)
 : value(value), gen(gen) {}
 
@@ -113,6 +118,24 @@ ReferenceTable::unregister(uint64_t refid)
     table.erase(refid);
 }
 
+class ReferenceContext {
+    ReferenceTable &tab;
+    uint64_t oldObjId;
+    generation_type oldGen;
+
+public:
+    ReferenceContext(ReferenceTable &tab, uint64_t objId, generation_type gen)
+    : tab(tab), oldObjId(tab.currentObjId), oldGen(tab.currentGen) {
+        tab.currentObjId = objId;
+        tab.currentGen = gen;
+    }
+
+    ~ReferenceContext() {
+        tab.currentObjId = oldObjId;
+        tab.currentGen = oldGen;
+    }
+};
+
 bool
 ReferenceTable::resolve_reference(
     uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result
@@ -139,6 +162,8 @@ ReferenceTable::resolve_reference(
     }
 
     if (auto *thunk = std::get_if<TopThunk>(&entry)) {
+        ReferenceContext refCon{*this, refid, gen};
+
         cursor->second.value = Blackhole();
         User::TopDecl decl;
         bool success = thunk->getDecl(topinput, &decl);
@@ -150,6 +175,8 @@ ReferenceTable::resolve_reference(
     }
 
     if (auto *thunk = std::get_if<StreamThunk>(&entry)) {
+        ReferenceContext refCon{*this, refid, gen};
+
         cursor->second.value = Blackhole();
         User::TopDecl decl;
         bool success = thunk->getDecl(refid, &decl);
@@ -163,7 +190,78 @@ ReferenceTable::resolve_reference(
     return true;
 }
 
-void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
+namespace {
+
+    std::string makeFileKeyAlg2(
+        DDL::Array<DDL::UInt<8>> encO,
+        DDL::Integer encP,
+        DDL::Array<DDL::UInt<8>> id0,
+        std::string password
+    ){
+        const uint8_t padding[] {
+          0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41
+        , 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08
+        , 0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80
+        , 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A};
+
+        EVP_MD const* md5 = EVP_get_digestbyname("MD5"); 
+        EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+        
+        EVP_DigestInit(ctx, md5);
+        
+        EVP_DigestUpdate(ctx, password.data(), std::min(password.size(), size_t(32)));
+        
+        if (password.size() < 32) {
+            EVP_DigestUpdate(ctx, padding, 32 - password.size());
+        }
+
+        std::vector<uint8_t> hashInput;
+        hashInput.reserve(encO.size().value);
+        for (DDL::Size i = 0; i < encO.size(); i.increment()) {
+            hashInput.push_back(encO.borrowElement(i).rep());
+        }
+        EVP_DigestUpdate(ctx, hashInput.data(), hashInput.size());
+
+        uint32_t pval = encP.asSize().value;
+        uint8_t pbytes[4] = { uint8_t(pval >> (0*8)), uint8_t(pval >> (1*8)), uint8_t(pval >> (2*8)), uint8_t(pval >> (3*8)) };
+        EVP_DigestUpdate(ctx, pbytes, std::size(pbytes));
+
+        hashInput.clear();
+        hashInput.reserve(id0.size().value);
+        for (DDL::Size i = 0; i < encO.size(); i.increment()) {
+            hashInput.push_back(id0.borrowElement(i).rep());
+        }
+        EVP_DigestUpdate(ctx, hashInput.data(), hashInput.size());
+
+        // XXX: If document metadata is not being encrypted, pass 4 bytes with value 0xFFFFFFFF to the MD5
+
+        unsigned char md[EVP_MAX_MD_SIZE];
+        unsigned int mdsz = std::size(md);
+        EVP_DigestFinal(ctx, md, &mdsz);
+        EVP_MD_CTX_free(ctx);
+
+        // XXX: Revision 3 or greater only
+        for (int i = 0; i < 50; i++) {
+            EVP_Digest(md, mdsz, md, &mdsz, md5, NULL);
+        }     
+
+        return std::string(reinterpret_cast<char const*>(md), size_t(mdsz));
+    }
+
+
+    EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
+        auto encO = dict.borrow_encO();
+        auto encP = dict.borrow_encP();
+        auto id0 = dict.borrow_id0();
+        auto pwd = "";
+
+        std::string key = makeFileKeyAlg2(encO, encP, id0, pwd);
+
+        return EncryptionContext(key, dict.borrow_ciph());
+    }
+}
+
+void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
         auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
@@ -184,7 +282,7 @@ void process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User
     }
 }
 
-void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table)
+void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table)
 {
     auto xrefs = table.borrow_xref();
     process_trailer(visited, input, table.borrow_trailer());
@@ -207,11 +305,11 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
                     uint64_t container = compressed.borrow_container_obj().asSize().value;
                     uint64_t obj_index = compressed.borrow_obj_index().asSize().value;
 
-                    references.register_compressed_reference(refid, container, obj_index);
+                    register_compressed_reference(refid, container, obj_index);
                     break;
                 }
                 case DDL::Tag::XRefObjEntry::free: {
-                    references.unregister(entry->borrow_free().borrow_obj().asSize().value);
+                    unregister(entry->borrow_free().borrow_obj().asSize().value);
                     break;
                 }
 
@@ -224,7 +322,7 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
                     // maximum generation number is 65,535
                     generation_type gen = inUse.borrow_gen().asSize().value;
 
-                    references.register_uncompressed_reference(refid, gen, offset);
+                    register_uncompressed_reference(refid, gen, offset);
                     break;
                 }
 
@@ -237,7 +335,7 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
                     obj.init_value(value);
                     topDecl.init(refid, 0, obj);
 
-                    references.register_topdecl(refid, 0, topDecl);
+                    register_topdecl(refid, 0, topDecl);
                     break;
                 }
             }
@@ -245,10 +343,14 @@ void process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
             refid++;
         }
     }
+
+    if (table.borrow_trailer().borrow_encrypt().isJust()) {
+        //XXX encCtx = makeEncryptionContext(trailer.borrow_encrypt().borrowValue());
+    }
 }
 
 // Borrows input and old
-void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old)
+void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old)
 {
     process_trailer(visited, input, old.borrow_trailer());
 
@@ -288,10 +390,21 @@ void process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User
             refid++;
         }
     }
+    
+    if (old.borrow_trailer().borrow_encrypt().isJust()) {
+        //XXX encCtx = makeEncryptionContext(trailer.borrow_encrypt().borrowValue());
+    }
 }
 
+std::optional<EncryptionContext> const&
+ReferenceTable::getEncryptionContext() const
+{
+    return encCtx;
+}
+
+
 // Borrows input
-void process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset)
+void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset)
 {
     // Detect if cross-reference sections form a cycle
     if (!visited->insert(offset.value).second) {
@@ -348,8 +461,24 @@ size_t findPdfEnd(size_t len, const char *bytes) {
   }
 }
 
-void process_pdf(DDL::Input input)
+
+size_t findPdfStart(size_t len, char const* bytes) {
+    char const* tgt = "%PDF-";
+
+    char const* found = (char const*)memmem(bytes, len, tgt, 5);
+
+    if (NULL == found) {
+        throw XrefException("Start of PDF not found");
+    }
+
+    return found - bytes;
+}
+
+void ReferenceTable::process_pdf(DDL::Input input)
 {
+    auto start = findPdfStart(input.length().value, input.borrowBytes());
+    input.iDropMut(start);
+
     input.copy();
     references.topinput = input;
 
