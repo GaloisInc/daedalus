@@ -34,7 +34,8 @@ compileModule m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
-         , mFuns  = map compileGFun (Src.mGFuns m)
+         , mFuns  = map compileFFun (Src.mFFuns m)
+                 ++ map compileGFun (Src.mGFuns m)
          }
 
 inpArg :: BA
