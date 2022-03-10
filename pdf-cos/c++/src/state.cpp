@@ -248,7 +248,7 @@ namespace {
         return std::string(reinterpret_cast<char const*>(md), size_t(mdsz));
     }
 
-
+/*
     EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
         auto encO = dict.borrow_encO();
         auto encP = dict.borrow_encP();
@@ -259,6 +259,7 @@ namespace {
 
         return EncryptionContext(key, dict.borrow_ciph());
     }
+    */
 }
 
 void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
