@@ -7,6 +7,8 @@
 #include "state.hpp"
 #include "asciihex.hpp"
 #include "ascii85.hpp"
+#include "bitstream.hpp"
+#include "lzw.hpp"
 
 bool parse_ResolveRef
   ( DDL::ParserState &pstate
@@ -23,7 +25,7 @@ bool parse_ResolveRef
   uint64_t refid = ref.borrow_obj().asSize().value;
   uint16_t gen = ref.borrow_gen().asSize().value;
 
-  return references.resolve_reference(input, refid, gen, result);
+  return references.resolve_reference(refid, gen, result);
 }
 
 
@@ -54,8 +56,8 @@ bool parse_FlateDecode
   , DDL::Integer columns
   , DDL::Input   body
   ) {
-  // XXX: Implement predictors
 
+  // XXX: Implement predictors
   predictor.free();
   colors.free();
   bpc.free();
@@ -93,6 +95,8 @@ bool parse_FlateDecode
       case Z_DATA_ERROR:
       case Z_MEM_ERROR:
         inflateEnd(&strm);
+            std::cerr << "inflate failed" << std::endl;
+
         return false;
     }
 
@@ -107,7 +111,6 @@ bool parse_FlateDecode
 
   return true;
 }
-
 
 bool parse_LZWDecode
   ( DDL::ParserState &pstate
@@ -124,8 +127,23 @@ bool parse_LZWDecode
   ) {
 
   *out_input = input;
-  std::cout << "XXX: parse_LZWDecode\n";
-  return false;
+  auto bodyRef = owned(body);
+
+  // XXX: support predictors
+  predictor.free();
+  colors.free();
+  bpc.free();
+  columns.free();
+  earlychange.free();
+
+  try {
+    auto output = decompress(BitStream{reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value});
+    *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
+    return true;
+  } catch (LzwException const& e) {
+    std::cerr << e.what() << std::endl;
+    return false;
+  }
 }
 
 bool parse_ASCIIHexDecode
@@ -166,6 +184,7 @@ bool parse_ASCII85Decode
     *result = DDL::Input("ascii85", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
     return true;
   } else {
+    std::cerr << "ascii85 failed" << std::endl;
     return false;
   }
 }

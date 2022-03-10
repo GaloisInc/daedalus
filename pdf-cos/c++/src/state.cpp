@@ -8,8 +8,13 @@ TopThunk::TopThunk(uint64_t offset) : offset(offset) {}
 bool
 TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
 {
+    if (offset > input.length().value) {
+        return false;
+    }
+
     input.copy();
     input.iDropMut(offset);
+
     DDL::ParseError error;
     std::vector<User::TopDecl> results;
 
@@ -33,10 +38,10 @@ StreamThunk::StreamThunk(uint64_t container, uint64_t index)
 : container(container), index(index) {}
 
 bool
-StreamThunk::getDecl(DDL::Input input, uint64_t refid, User::TopDecl *result)
+StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
 {
     DDL::Maybe<User::TopDecl> streamResult;
-    if (!references.resolve_reference(input, container, 0, &streamResult)) {
+    if (!references.resolve_reference(container, 0, &streamResult)) {
         return false;
     }
 
@@ -110,7 +115,7 @@ ReferenceTable::unregister(uint64_t refid)
 
 bool
 ReferenceTable::resolve_reference(
-    DDL::Input input, uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result
+    uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result
 ) {
     auto cursor = table.find(refid);
 
@@ -136,7 +141,7 @@ ReferenceTable::resolve_reference(
     if (auto *thunk = std::get_if<TopThunk>(&entry)) {
         cursor->second.value = Blackhole();
         User::TopDecl decl;
-        bool success = thunk->getDecl(input, &decl);
+        bool success = thunk->getDecl(topinput, &decl);
         if (success) {
             cursor->second.value = borrowed(decl);
             *result = decl;
@@ -147,7 +152,7 @@ ReferenceTable::resolve_reference(
     if (auto *thunk = std::get_if<StreamThunk>(&entry)) {
         cursor->second.value = Blackhole();
         User::TopDecl decl;
-        bool success = thunk->getDecl(input, refid, &decl);
+        bool success = thunk->getDecl(refid, &decl);
         if (success) {
             cursor->second.value = borrowed(decl);
             *result = decl;
@@ -345,6 +350,9 @@ size_t findPdfEnd(size_t len, const char *bytes) {
 
 void process_pdf(DDL::Input input)
 {
+    input.copy();
+    references.topinput = input;
+
     auto end = findPdfEnd(input.length().rep(), input.borrowBytes());
     if (end == not_found) {
         throw XrefException("End of pdf not found");

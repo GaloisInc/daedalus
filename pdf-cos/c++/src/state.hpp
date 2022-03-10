@@ -16,7 +16,7 @@ struct StreamThunk {
     uint64_t index;
     explicit StreamThunk(uint64_t container, uint64_t index);
 
-    bool getDecl(DDL::Input input, uint64_t refid, User::TopDecl *result);
+    bool getDecl(uint64_t refid, User::TopDecl *result);
 };
 
 struct TopThunk {
@@ -47,15 +47,17 @@ struct ReferenceEntry {
 };
 
 class ReferenceTable {
+
 public: // temporarily public member
     std::map<uint64_t, ReferenceEntry> table;
+    DDL::Input topinput;
 
 public:
     void register_uncompressed_reference(uint64_t refid, generation_type gen, uint64_t offset);
     void register_compressed_reference(uint64_t refid, uint64_t container, uint64_t index);
     void register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl);
     void unregister(uint64_t refid);
-    bool resolve_reference(DDL::Input input, uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
+    bool resolve_reference(uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
 };
 
 extern ReferenceTable references;

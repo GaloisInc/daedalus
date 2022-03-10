@@ -1,4 +1,5 @@
 #include "ascii85.hpp"
+#include <iostream>
 
 bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
 {
@@ -11,7 +12,7 @@ bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
     char x = text[i];
 
     if ('!' <= x && x <= 'u') {
-      next = next * 85 + (x-'!');
+      next = next * 85 + (x-33);
       counter++;
 
       if (counter == 5) {
@@ -25,14 +26,17 @@ bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
     } else if (isspace(x)) {
       continue;
     } else if (x == '~') {
-      if ('>' != text[i+1]) {
+      if (i+1 >= n || '>' != text[i+1]) {
         return false;
       }
 
       if (counter == 1) {
         return false;
       } else if (counter > 1) {
-        for (int j = counter; j < 5; j++) { next *= 85; }
+        for (int j = counter; j < 5; j++) {
+            next = next * 85 + ('u'-33);
+        }
+
                          buffer.push_back(next >> (3*8));
         if (counter > 2) buffer.push_back(next >> (2*8));
         if (counter > 3) buffer.push_back(next >> (1*8));

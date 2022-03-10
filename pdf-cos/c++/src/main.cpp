@@ -60,21 +60,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "Getting " << refid << " " << val.gen << std::endl;
     DDL::Maybe<User::TopDecl> decl;
 
-    if (references.resolve_reference(input.borrow(), refid, val.gen, &decl)) {
-/*
-      DDL::toJS(std::cerr, decl);
-      std::cerr << std::endl;
-
-      if (DDL::Tag::TopDeclDef::stream == decl.borrowValue().borrow_obj().getTag()) {
-        size_t n = decl.borrowValue().borrow_obj().borrow_stream().borrow_body().borrow_ok().length().value;
-        auto ptr = decl.borrowValue().borrow_obj().borrow_stream().borrow_body().borrow_ok().borrowBytes();
-        std::cerr << "STREAM!\n";
-        for (size_t i = 0; i < n; i++) {
-          std::cerr << ptr[i];
-        }
-        std::cerr << "END!\n";
-      }
-*/
+    if (references.resolve_reference(refid, val.gen, &decl)) {
       decl.free();
     } else {
       std::cerr << "Failed\n";
