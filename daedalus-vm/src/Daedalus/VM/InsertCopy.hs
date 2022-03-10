@@ -19,11 +19,8 @@ import Daedalus.VM.FreeVars
 
 
 addCopyIs :: Program -> Program
-addCopyIs p = p { pEntries = annEntry  <$> pEntries p
-                , pModules = annModule <$> pModules p
-                }
+addCopyIs p = Program { pModules = annModule <$> pModules p }
   where
-  annEntry e  = e { entryBoot = blockMap (entryBoot e) }
   annModule m = m { mFuns = map annFun (mFuns m) }
   annFun f    = f { vmfDef = annDef (vmfDef f) }
   annDef d    = case d of
@@ -38,10 +35,7 @@ addCopyIs p = p { pEntries = annEntry  <$> pEntries p
 buildRO :: Program -> RO
 buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
   where
-  initRO = RO { funMap = Map.empty
-              , labOwn = Map.unions [ blockSig <$> entryBoot entry
-                                                        | entry <- pEntries p ]
-              }
+  initRO = RO { funMap = Map.empty, labOwn = Map.empty }
 
   addFun f i =
     case vmfDef f of

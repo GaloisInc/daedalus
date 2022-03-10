@@ -52,6 +52,7 @@ inferRules m =
       [] -> pure TCModule
                    { tcModuleName = moduleName m
                    , tcModuleImports = moduleImports m
+                   , tcEntries = []
                    , tcModuleTypes = map sccToRec
                                    $ stronglyConnComp
                                    $ map getDeps

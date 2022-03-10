@@ -15,12 +15,7 @@ import Daedalus.VM
 
 
 captureAnalysis :: Program -> Program
-captureAnalysis prog =
-  Program { pModules = map annotateModule ms
-          , pEntries = map annotateEntry (pEntries prog)
-          }
-
-
+captureAnalysis prog = Program { pModules = map annotateModule ms }
   where
   ms = pModules prog
 
@@ -47,15 +42,6 @@ captureAnalysis prog =
   ---
 
   annotateModule m = m { mFuns = map annotateFun (mFuns m) }
-  annotateEntry e =
-    let bs   = entryBoot e
-        c    = case foldMap captureInfo bs of
-                 CapturesYes -> Capture
-                 CapturesIf xs
-                   | any (\x -> getCaptures info x == Capture) xs -> Capture
-                   | otherwise -> NoCapture
-
-    in e { entryBoot = annotateBlock c <$> entryBoot e }
 
   annotateFun f = f { vmfCaptures = me
                     , vmfDef = annotateDef me (vmfDef f)

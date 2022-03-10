@@ -19,19 +19,7 @@ import qualified Daedalus.Core as Src
 
 
 -- | A program
-data Program = Program
-  { pModules    :: [Module]
-  , pEntries    :: [Entry]
-  }
-
--- XXX: maybe this needs a name also to be used for the external API
--- | An entry point to the program
-data Entry = Entry
-  { entryType   :: Src.Type          -- ^ type of value produced by parser
-  , entryBoot   :: Map Label Block   -- ^ code specific to the entry point
-  , entryLabel  :: Label             -- ^ start executing here
-  , entryName   :: Text
-  }
+newtype Program = Program { pModules :: [Module] }
 
 -- | A module
 data Module = Module
@@ -49,6 +37,7 @@ data VMFun = VMFun
   , vmfLoop     :: Bool     -- XXX we need to know the other loop members
                             -- for inlining
   , vmfDef      :: VMFDef   -- ^ Definition for the function, if any
+  , vmfIsEntry  :: Bool
   }
 
 data VMFDef = VMExtern [BA]      -- ^ Primitive with these arguments
@@ -198,7 +187,6 @@ iArgs i =
 
 pAllBlocks :: Program -> [Block]
 pAllBlocks p =
-  [ b | ent <- pEntries p, b <- Map.elems (entryBoot ent) ] ++
   [ b | m <- pModules p, f <- mFuns m, VMDef d <- [vmfDef f]
       , b <- Map.elems (vmfBlocks d) ]
 
@@ -335,14 +323,7 @@ instance PP JumpWithFree where
                   else pp (Free (freeFirst jf)) <.> semi
 
 instance PP Program where
-  pp p = vcat' (map pp (pEntries p) ++ map pp (pModules p))
-
-instance PP Entry where
-  pp entry = vcat' [ ".parser" <+> pp (entryName entry)
-                   , nest 2 (vcat' $ ".entry" <+> pp (entryLabel entry)
-                                   :  map pp (Map.elems (entryBoot entry))
-                            )
-                   ]
+  pp p = vcat' (map pp (pModules p))
 
 instance PP Module where
   pp m =
@@ -356,6 +337,7 @@ instance PP VMFun where
   pp f =
     (".function" <+> pp (vmfName f)) $$
     nest 2 (pp (vmfCaptures f) <+> (if vmfLoop f then ".loop" else empty)
+                               <+> (if vmfIsEntry f then ".root" else empty)
         $$ case vmfDef f of
              VMExtern as -> ".extern" <+>
                   hsep [ parens (pp a <+> ":" <+> pp (getType a)) | a <- as ]

@@ -344,6 +344,7 @@ data TCDeclDef a k = ExternDecl Type | Defined (TC a k)
 -- | A module consists of a collection of types and a collection of decls.
 data TCModule a = TCModule { tcModuleName    :: ModuleName
                            , tcModuleImports :: [ Located ModuleName ]
+                           , tcEntries       :: ![ Name ]
                            , tcModuleTypes   :: [ Rec TCTyDecl ]
                            , tcModuleDecls   :: [ Rec (TCDecl a) ]
                            } deriving Show

@@ -30,6 +30,7 @@ data Fun e = Fun
   { fName    :: FName
   , fParams  :: [Name]
   , fDef     :: FunDef e
+  , fIsEntry :: !Bool
   }
   deriving (Functor, Foldable, Traversable, Generic, NFData)
 

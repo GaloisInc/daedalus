@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
   DDL::ParseError err;
   std::vector<DDL::ResultOf::parseMain> out;
   auto start = std::chrono::high_resolution_clock::now();
-  parseMain(i,err,out);
+  parseMain(err,out,i);
   auto end  = std::chrono::high_resolution_clock::now();
   auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
             .count();
