@@ -242,11 +242,11 @@ doToCore opts mm =
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
-  do ents <- doToCore opts mm
+  do _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
      let addMM = VM.addCopyIs . VM.doBorrowAnalysis
-     pure $ addMM $ VM.moduleToProgram ents [m]
+     pure $ addMM $ VM.moduleToProgram [m]
 
 
 parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]

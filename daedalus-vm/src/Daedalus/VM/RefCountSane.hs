@@ -29,11 +29,9 @@ checkProgram prog =
     Right _  -> Nothing
     Left err -> Just err
   where
-  check = do mapM_ checkModule (pModules prog)
-             mapM_ checkEntry  (pEntries prog)
+  check = mapM_ checkModule (pModules prog)
 
   checkModule = mapM_ checkVMFun . mFuns
-  checkEntry  = checkBlocks . entryBoot
   checkVMFun f = case vmfDef f of
                    VMDef b -> checkBlocks (vmfBlocks b)
                    VMExtern {} -> pure ()

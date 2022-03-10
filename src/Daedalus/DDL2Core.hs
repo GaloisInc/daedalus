@@ -12,6 +12,7 @@ module Daedalus.DDL2Core where
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.Maybe(maybeToList,isJust)
 import Data.List((\\))
@@ -41,11 +42,14 @@ import Daedalus.Core.Type(typeOf,sizeType)
 
 fromModule :: TC.TCModule a -> M Module
 fromModule mo =
-  fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
+  let ?ents = Set.fromList (TC.tcEntries mo)
+  in fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
 
 type UsesTypes = (?tyMap :: Map TName TDecl)
+type Ents      = (?ents  :: Set TC.Name)
 
 fromDecls ::
+  Ents =>
   TC.ModuleName ->
   [ Rec TC.TCTyDecl ] ->
   [ Rec (TC.TCDecl a) ] ->
@@ -100,7 +104,7 @@ splitSomeFuns fs = ( [ x | FE x <- fs ]
                    , [ x | FG x <- fs ]
                    )
 
-fromDecl :: UsesTypes => TC.TCDecl a -> M SomeFun
+fromDecl :: (Ents,UsesTypes) => TC.TCDecl a -> M SomeFun
 fromDecl TC.TCDecl { .. }
   | null tcDeclTyParams
   , null tcDeclCtrs =
@@ -112,30 +116,35 @@ fromDecl TC.TCDecl { .. }
            TC.AValue   ->
               case tcDeclDef of
                 TC.ExternDecl _ ->
-                  pure $ FE Fun { fName = f, fParams = xs, fDef = External }
+                  pure $ FE Fun { fName = f, fParams = xs, fDef = External
+                                , fIsEntry = tcDeclName `Set.member` ?ents }
 
                 TC.Defined v ->
                    do e <- fromExpr v
-                      pure $ FE Fun { fName = f, fParams = xs, fDef = Def e }
-
+                      pure $ FE Fun { fName = f, fParams = xs, fDef = Def e
+                                    , fIsEntry = tcDeclName `Set.member` ?ents }
            TC.AClass ->
              case tcDeclDef of
                TC.ExternDecl _ ->
-                 pure $ FB Fun { fName = f, fParams = xs, fDef = External }
+                 pure $ FB Fun { fName = f, fParams = xs, fDef = External
+                               , fIsEntry = tcDeclName `Set.member` ?ents }
 
                TC.Defined v ->
                  do e <- fromClass v
-                    pure $ FB Fun { fName = f, fParams = xs, fDef = Def e }
+                    pure $ FB Fun { fName = f, fParams = xs, fDef = Def e
+                                  , fIsEntry = tcDeclName `Set.member` ?ents }
 
            TC.AGrammar ->
              case tcDeclDef of
 
                TC.ExternDecl _ ->
-                 pure $ FG Fun { fName = f, fParams = xs, fDef = External }
+                 pure $ FG Fun { fName = f, fParams = xs, fDef = External
+                               , fIsEntry = tcDeclName `Set.member` ?ents }
 
                TC.Defined v ->
                  do e <- fromGrammar v
-                    pure $ FG Fun { fName = f, fParams = xs, fDef = Def e }
+                    pure $ FG Fun { fName = f, fParams = xs, fDef = Def e
+                                  , fIsEntry = tcDeclName `Set.member` ?ents }
 
 
   | otherwise =
@@ -1705,12 +1714,14 @@ newFName' mb ty = M
 
 defFunG :: FName -> [Name] -> Grammar -> M ()
 defFunG  f xs e =
-  M $ sets_ \s -> s { newGFuns = Fun { fName = f, fParams = xs, fDef = Def e }
+  M $ sets_ \s -> s { newGFuns = Fun { fName = f, fParams = xs, fDef = Def e
+                                     , fIsEntry = False }
                                : newGFuns s }
 
 defFunF :: FName -> [Name] -> Expr -> M ()
 defFunF f xs e =
-  M $ sets_ \s -> s { newFFuns = Fun { fName = f, fParams = xs, fDef = Def e }
+  M $ sets_ \s -> s { newFFuns = Fun { fName = f, fParams = xs, fDef = Def e
+                                     , fIsEntry = False }
                                : newFFuns s }
 
 
