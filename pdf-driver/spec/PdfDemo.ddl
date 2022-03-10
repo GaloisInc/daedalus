@@ -13,7 +13,7 @@ def IsRootPages r = Default false {
 }
 
 def IsPageOrPages p c =
-  (IsPage p c) |
+  (IsPage p c) <|
   (IsPages p c)
 
 def IsPage (p : maybe Ref) (r : Ref) =
@@ -61,7 +61,7 @@ def CatalogIsOK r = {
   @cat   = catv is dict;
   CheckType "Catalog" cat;
   @pages = LookupRef "Pages" cat;
-  Holds (PageTreeP pages)
+  { PageTreeP pages ; ^true } <| { ^false }
   --IsRootPages pages;
 }
 
