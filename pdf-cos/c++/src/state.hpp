@@ -48,10 +48,8 @@ struct ReferenceEntry {
 
 struct EncryptionContext {
     std::string key;
-    Owned<User::ChooseCiph> cipher;
-
-    EncryptionContext(std::string key, User::ChooseCiph cipher)
-    : key(key), cipher(borrowed(cipher)) {}
+    EncryptionContext(std::string key)
+    : key(key) {}
 };
 
 class ReferenceTable {
