@@ -7,7 +7,6 @@
 #include "state.hpp"
 #include "asciihex.hpp"
 #include "ascii85.hpp"
-#include "bitstream.hpp"
 #include "lzw.hpp"
 
 bool parse_Trace
@@ -164,7 +163,7 @@ bool parse_LZWDecode
   earlychange.free();
 
   try {
-    auto output = decompress(BitStream{reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value});
+    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
     *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
     return true;
   } catch (LzwException const& e) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <exception>
 
 #include "bitstream.hpp"
@@ -12,4 +11,4 @@ struct LzwException : public std::exception {
     const char * what () const throw () override;
 };
 
-std::string decompress(BitStream bits);
+std::string decompress(uint8_t const* bits, size_t len);

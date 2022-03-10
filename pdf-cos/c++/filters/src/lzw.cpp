@@ -8,9 +8,11 @@ const char * LzwException::what () const throw ()
     return msg;
 }
 
-std::string decompress(BitStream bits) {
+std::string decompress(uint8_t const* ptr, size_t len) {
 
     int codelen = 9;
+
+    BitStream bits {ptr, len};
 
     std::vector<std::string> dictionary;
     for (int i = 0; i < 256; i++) {
