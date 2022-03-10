@@ -1,8 +1,7 @@
 #pragma once
 
 #include <exception>
-
-#include "bitstream.hpp"
+#include <cstdint>
 
 struct LzwException : public std::exception {
     char const* msg;

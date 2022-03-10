@@ -9,10 +9,10 @@ bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
   buffer.reserve(n); // overapproximated
 
   for (size_t i = 0; i < n; i++) {
-    char x = text[i];
+    char const x = text[i];
 
     if ('!' <= x && x <= 'u') {
-      next = next * 85 + (x-33);
+      next = next * 85 + uint32_t(x-33);
       counter++;
 
       if (counter == 5) {
@@ -23,16 +23,8 @@ bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
         next = 0;
         counter = 0;
       }
-    } else if (isspace(x)) {
-      continue;
-    } else if (x == '~') {
-      if (i+1 >= n || '>' != text[i+1]) {
-        return false;
-      }
-
-      if (counter == 1) {
-        return false;
-      } else if (counter > 1) {
+    } else if (x == '~' && i+1 < n && '>' == text[i+1] && counter != 1) {
+      if (counter > 1) {
         for (int j = counter; j < 5; j++) {
             next = next * 85 + ('u'-33);
         }
@@ -43,17 +35,12 @@ bool ASCII85Decode(const char *text, size_t n, std::vector<uint8_t> &buffer)
       }
 
       return true;
-      
-    } else if (x == 'z') {
-      if (counter == 0) {
-        buffer.push_back(0);
-        buffer.push_back(0);
-        buffer.push_back(0);
-        buffer.push_back(0);
-      } else {
-        return false;
-      }
-    } else {
+    } else if (x == 'z' && counter == 0) {
+      buffer.push_back(0);
+      buffer.push_back(0);
+      buffer.push_back(0);
+      buffer.push_back(0);
+    } else if (!isspace(x)) {
       return false;
     }
   }

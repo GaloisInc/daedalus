@@ -1,4 +1,6 @@
 #include "lzw.hpp"
+#include "bitstream.hpp"
+
 #include <vector>
 #include <iostream>
 LzwException::LzwException(char const* msg) : msg(msg) {}

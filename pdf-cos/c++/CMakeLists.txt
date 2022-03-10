@@ -19,14 +19,19 @@ add_custom_command(
   OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.h
-  COMMAND daedalus
-            --compile-c++
-            --out-dir=${CMAKE_CURRENT_BINARY_DIR}
-            --entry=PdfXRef.PdfEnd
-            --entry=PdfXRef.CrossRef
-            --entry=PdfDecl.TopDecl
-            --entry=PdfValue.Value
-            ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
+  DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfDecl.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfXRef.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfValue.ddl
+  COMMAND cabal run exe:daedalus -v0 --
+    --compile-c++
+    --out-dir=${CMAKE_CURRENT_BINARY_DIR}
+    --entry=PdfXRef.PdfEnd
+    --entry=PdfXRef.CrossRef
+    --entry=PdfDecl.TopDecl
+    --entry=PdfValue.Value
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
 add_executable(parser-test
@@ -47,9 +52,4 @@ target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB OpenSSL::C
 target_compile_options(parser-test PRIVATE -fsanitize=address)
 target_link_options(parser-test PRIVATE -fsanitize=address)
 
-
-add_executable(bitstream-test
-    tests/bitstream_test.cpp
-)
-target_include_directories(bitstream-test PRIVATE src)
-target_link_libraries(bitstream-test PRIVATE pdffilters)
+add_subdirectory(tests)
