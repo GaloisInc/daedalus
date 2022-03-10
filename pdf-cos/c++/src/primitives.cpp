@@ -10,6 +10,27 @@
 #include "bitstream.hpp"
 #include "lzw.hpp"
 
+bool parse_Trace
+  ( DDL::ParserState& state
+  , DDL::Unit* result
+  , DDL::Input* inputout
+  , DDL::Input inputin
+  , DDL::Array<DDL::UInt<8ul>> message
+  )
+{
+  *inputout = inputin;
+  *result = DDL::Unit();
+
+  std::string msg;
+  for (DDL::Size i = 0; i < message.size(); i.increment()) {
+    msg += message.borrowElement(i).rep();
+  }
+
+  std::cerr << "Parser trace: " << msg << std::endl;
+
+  return true;
+}
+
 bool parse_ResolveRef
   ( DDL::ParserState &pstate
   , DDL::Maybe<User::TopDecl> *result
@@ -24,7 +45,6 @@ bool parse_ResolveRef
   // XXX: bounds checking
   uint64_t refid = ref.borrow_obj().asSize().value;
   uint16_t gen = ref.borrow_gen().asSize().value;
-
   return references.resolve_reference(refid, gen, result);
 }
 
@@ -39,8 +59,15 @@ bool parse_Decrypt
   ) {
 
   *out_input = input;
-  *result = body;
-  return true;
+  
+  if (references.getEncryptionContext().has_value()) {
+    auto const& e = *references.getEncryptionContext();
+    std::cerr << "Encryption not implemented" << std::endl;
+    return false;
+  } else {
+    *result = body;
+    return true;
+  }
 }
 
 

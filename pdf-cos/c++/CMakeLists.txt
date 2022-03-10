@@ -4,13 +4,14 @@ set(CMAKE_CXX_STANDARD 17)
 project(pdfcos
     VERSION 1
     DESCRIPTION "C++ PDF parser driver"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 add_custom_command(
   OUTPUT
@@ -30,6 +31,10 @@ add_executable(parser-test
     src/primitives.cpp
     src/main.cpp
     src/state.cpp
+    src/asciihex.cpp
+    src/ascii85.cpp
+    src/bitstream.cpp
+    src/lzw.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
 )
 
@@ -39,4 +44,16 @@ target_include_directories(parser-test
         ${CMAKE_CURRENT_SOURCE_DIR}/../../rts-c
 )
 
-target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB)
+target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB OpenSSL::Crypto)
+
+target_compile_options(parser-test PRIVATE -fsanitize=address)
+target_link_options(parser-test PRIVATE -fsanitize=address)
+
+
+add_executable(bitstream-test
+    src/bitstream.cpp
+    src/ascii85.cpp
+    src/lzw.cpp
+    tests/bitstream_test.cpp
+)
+target_include_directories(bitstream-test PRIVATE src)
