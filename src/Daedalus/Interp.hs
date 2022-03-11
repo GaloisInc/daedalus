@@ -146,6 +146,7 @@ evalUniOp op =
     IsInfinite        -> vIsInfinite
     IsDenormalized    -> vIsDenormalized
     IsNegativeZero    -> vIsNegativeZero
+    BytesOfStream     -> vBytesOfStream
 
 
 

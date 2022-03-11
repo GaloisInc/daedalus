@@ -87,6 +87,7 @@ instance TypeOf Expr where
           Head            -> TUInt (TSize 8)
           StreamOffset    -> sizeType
           StreamLen       -> sizeType
+          BytesOfStream   -> TArray (TUInt (TSize 8))
           OneOf _         -> TBool
           Neg             -> typeOf e
           BitNot          -> typeOf e

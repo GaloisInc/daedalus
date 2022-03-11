@@ -446,6 +446,10 @@ inferExpr expr =
           do addConstraint expr (FloatingType t)
              pure (exprAt expr (TCUniOp IsNegativeZero e1'), tBool)
 
+        BytesOfStream ->
+          liftValAppPure expr [e] \ ~[(e1',t)] ->
+            pure (exprAt expr (TCUniOp BytesOfStream e1'), tArray tByte)
+
 
     ETriOp op e1 e2 e3 ->
       case op of

@@ -123,6 +123,7 @@ data Token =
   | KWNothing
   | KWDef
   | KWArrayStream
+  | KWBytesOfStream
   | KWFail
   | KWCase
   | KWBitData

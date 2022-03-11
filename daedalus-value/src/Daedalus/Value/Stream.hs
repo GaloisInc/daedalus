@@ -9,6 +9,9 @@ vStreamFromArray a b = VStream (newInput nm bs)
   where nm = valueToByteString a
         bs = valueToByteString b
 
+vBytesOfStream :: Value -> Value
+vBytesOfStream = vByteString . inputBytes . valueToStream
+
 vStreamOffset :: Value -> Value
 vStreamOffset = vSize . toInteger . inputOffset . valueToStream
 

@@ -46,6 +46,7 @@ data Op1 =
   | Head
   | StreamOffset
   | StreamLen
+  | BytesOfStream
   | OneOf ByteString
   | Neg
   | BitNot
@@ -199,6 +200,7 @@ eTake         = Ap2 Take
 streamOffset  = Ap1 StreamOffset
 streamLen     = Ap1 StreamLen
 arrayStream   = Ap2 ArrayStream
+bytesOfStream = Ap1 BytesOfStream
 
 --------------------------------------------------------------------------------
 -- Relations
@@ -358,6 +360,7 @@ instance PP Op1 where
       Head            -> "iHead"
       StreamOffset    -> "iOffset"
       StreamLen       -> "iLen"
+      BytesOfStream   -> "bytesOfStream"
       OneOf xs        -> "oneOf" <+> pp xs
       Neg             -> "neg"
       BitNot          -> "complement"

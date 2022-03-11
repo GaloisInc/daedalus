@@ -343,6 +343,7 @@ checkOp1 op arg =
     Head            -> typeIs TStream arg       $> tByte
     StreamOffset    -> typeIs TStream arg       $> sizeType
     StreamLen       -> typeIs TStream arg       $> sizeType
+    BytesOfStream   -> typeIs TStream arg       $> TArray tByte
     OneOf _         -> typeIs tByte   arg       $> sizeType
     Neg             -> isArith arg              $> arg
 

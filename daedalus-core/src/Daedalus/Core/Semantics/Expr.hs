@@ -240,6 +240,7 @@ evalOp1 env op ty v = case op of
   Head          -> partial (vStreamHead v)
   StreamOffset  -> vStreamOffset v
   StreamLen     -> vStreamLength v
+  BytesOfStream -> vBytesOfStream v
   OneOf bs      -> VBool $ isJust $ BS.elemIndex (valueToByte v) bs
   Neg           -> partial (vNeg v)
   BitNot        -> vComplement v

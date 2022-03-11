@@ -137,6 +137,7 @@ import Daedalus.Parser.Monad
   'Take'      { Lexeme { lexemeRange = $$, lexemeToken = KWTake } }
   'Drop'      { Lexeme { lexemeRange = $$, lexemeToken = KWDrop } }
   'arrayStream' { Lexeme { lexemeRange = $$, lexemeToken = KWArrayStream } }
+  'bytesOfStream' { Lexeme { lexemeRange = $$, lexemeToken = KWBytesOfStream} }
   'nothing'   { Lexeme { lexemeRange = $$, lexemeToken = KWNothing } }
   'just'      { Lexeme { lexemeRange = $$, lexemeToken = KWJust } }
   'length'    { Lexeme { lexemeRange = $$, lexemeToken = KWArrayLength } }
@@ -310,6 +311,7 @@ label                                    :: { Located Label }
   | 'rangeDown'                             { mkLabel ($1,"rangeDown") }
   | 'try'                                   { mkLabel ($1,"try") }
   | 'arrayStream'                           { mkLabel ($1,"arrayStream") }
+  | 'bytesOfStream'                         { mkLabel ($1,"bytesOfStream") }
   | 'Fail'                                  { mkLabel ($1,"Fail") }
 
 expr                                     :: { Expr }
@@ -436,6 +438,7 @@ call_expr                                :: { Expr }
                                               (at ($1,$2) (ELiteral (LBytes "array")))
                                               $2) }
   | 'arrayStream' aexpr aexpr   { at ($1,$3)(EBinOp ArrayStream $2 $3)}
+  | 'bytesOfStream' aexpr       { at ($1,$2) (EUniOp BytesOfStream $2) }
 
   | 'wordToFloat' aexpr         { at ($1,$2) (EUniOp WordToFloat $2) }
   | 'wordToDouble' aexpr        { at ($1,$2) (EUniOp WordToDouble $2) }

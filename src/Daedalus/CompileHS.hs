@@ -626,6 +626,8 @@ hsValue env tc =
         IsInfinite        -> "HS.isInfinite" `Ap` hsValue env v
         IsDenormalized    -> "HS.isDenormalized" `Ap` hsValue env v
         IsNegativeZero    -> "HS.isNegativeZero" `Ap` hsValue env v
+        BytesOfStream     ->
+            "Vector.vecFromRep" `Ap` ("RTS.inputBytes" `Ap` hsValue env v)
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as

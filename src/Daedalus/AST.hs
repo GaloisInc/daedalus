@@ -285,6 +285,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
+           | BytesOfStream
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -482,6 +483,7 @@ instance PP UniOp where
       IsInfinite      -> "isInfinit"
       IsDenormalized  -> "isDenormalized"
       IsNegativeZero  -> "isNegativeZero"
+      BytesOfStream   -> "bytesAOfStream"
 
 instance PP Selector where
   pp sel = case sel of
