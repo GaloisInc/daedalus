@@ -82,7 +82,7 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       Just sig ->
         let as = zipWith annArg (blockArgs b) sig
             mp = Map.fromList [ (x,a) | a@(BA x _ _) <- as ]
-        in b { blockArgs = as
+        in b { blockArgs   = as
              , blockInstrs = map (annI mp) (blockInstrs b)
              , blockTerm   = annTerm mp (blockTerm b)
              }
@@ -274,7 +274,6 @@ vmProgram p i = foldr vmModule i (pModules p)
 vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
 
--- XXX: entry function should own their arguments?
 vmFun :: VMFun -> Info -> Info
 vmFun f = case vmfDef f of
             VMExtern {} -> id
@@ -282,8 +281,13 @@ vmFun f = case vmfDef f of
 
 block :: Block -> Info -> Info
 block b i =
-  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1) }
+  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1)
+     , iChanges    = newChanges
+     }
   where
+  newChanges = iChanges i
+            || Map.lookup (blockName b) (iBlockInfo i1) /= Just newOwnership
+
   owned = case Map.lookup (blockName b) (iBlockInfo i) of
             Nothing -> Set.empty
             Just ms -> Set.fromList
