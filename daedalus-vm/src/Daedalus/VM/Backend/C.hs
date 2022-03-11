@@ -70,7 +70,7 @@ cProgram fileNameRoot prog =
   cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
-               map cFunSig noPrims ++
+               map (cFunSig Static) noPrims ++
                [ capPrserSig ] ++
                noCapRootDefs ++
                capRootDefs ++
@@ -89,7 +89,7 @@ cProgram fileNameRoot prog =
                [] -> []
                _  -> " "
                    : "// --- External Primitives ---"
-                   : map cFunSig prims
+                   : map (cFunSig Extern) prims
 
   -- Non-capturing parsers
   noPrimDefs =
@@ -270,7 +270,7 @@ cCaptureEntryFun n f as =
   args = [ (cType t, "a" <.> int i) | (t,i) <- zip as [0..] ]
   body = cStmt
        $ cCall "parser"
-       $ [ int n, "error", "&results", "input" ] ++ map snd args
+       $ [ int n, "error", "&results" ] ++ map snd args
 
 
 
@@ -386,9 +386,15 @@ delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
 --------------------------------------------------------------------------------
 -- Non-capturing parsers
 
-cFunSig :: VMFun -> CDecl
-cFunSig fun = "static" <+> cDeclareFun res (cFName (vmfName fun)) args
+data FunLinkage = Static | Extern
+
+cFunSig :: FunLinkage -> VMFun -> CDecl
+cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
   where
+  linkageStr =
+    case linkage of
+      Static -> "static"
+      Extern -> "extern"
   res  = if vmfPure fun then retTy else "bool"
   args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
   normalArgs = [ cType (getType x)
