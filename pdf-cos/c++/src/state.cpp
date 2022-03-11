@@ -23,11 +23,11 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
     DDL::ParseError error;
     std::vector<User::TopDecl> results;
 
-    parseTopDecl(input, error, results);
+    parseTopDecl(error, results, input);
 
     if (results.size() != 1) {
         for (auto &&x : results) { x.free(); }
-        std::cerr << "PARSE ERROR " << input << " @ " << error.offset << std::endl;
+        std::cerr << "PARSE ERROR " << error.offset << std::endl;
         return false;
     }
 
@@ -71,7 +71,7 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
     
     std::vector<User::Value> results;
     DDL::ParseError error;
-    parseValue(objInput, error, results);
+    parseValue(error, results, objInput);
 
     if (1 != results.size()) {
         for (auto && x : results) { x.free(); }
@@ -89,6 +89,7 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
 void
 ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl)
 {
+    std::cerr << "NULL reference " << refid << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{owned(topDecl), gen});
 }
 
@@ -99,6 +100,7 @@ ReferenceTable::register_compressed_reference(
     uint64_t index
 )
 {
+    std::cerr << "Compressed reference " << refid << " at " << container << " " << index << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{StreamThunk{container, index}, 0});
 }
 
@@ -109,6 +111,7 @@ ReferenceTable::register_uncompressed_reference(
     uint64_t offset
 )
 {
+    std::cerr << "Uncompressed reference " << refid << " at " << offset << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{TopThunk(offset), 0});
 }
 
@@ -228,7 +231,7 @@ namespace {
 
         hashInput.clear();
         hashInput.reserve(id0.size().value);
-        for (DDL::Size i = 0; i < encO.size(); i.increment()) {
+        for (DDL::Size i = 0; i < id0.size(); i.increment()) {
             hashInput.push_back(id0.borrowElement(i).rep());
         }
         EVP_DigestUpdate(ctx, hashInput.data(), hashInput.size());
@@ -248,7 +251,6 @@ namespace {
         return std::string(reinterpret_cast<char const*>(md), size_t(mdsz));
     }
 
-/*
     EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
         auto encO = dict.borrow_encO();
         auto encP = dict.borrow_encP();
@@ -256,10 +258,9 @@ namespace {
         auto pwd = "";
 
         std::string key = makeFileKeyAlg2(encO, encP, id0, pwd);
-
+        std::cerr << "MADE A KEY " << key << std::endl;
         return EncryptionContext(key, dict.borrow_ciph());
     }
-    */
 }
 
 void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
@@ -269,7 +270,9 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
-        process_xref(visited, input, offset->borrowValue().asSize());
+        std::cerr << "Has PREV at " << offset->borrowValue().asSize().value << std::endl;
+        process_xref(visited, input, offset->borrowValue().asSize(), false);
+        std::cerr << "prev complete" << std::endl;
     }
 
     // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
@@ -279,29 +282,30 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid XRefStm value");
         }
-        process_xref(visited, input, offset->borrowValue().asSize());
+        process_xref(visited, input, offset->borrowValue().asSize(), false);
     }
 }
 
-void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table)
+void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table, bool top)
 {
     auto xrefs = table.borrow_xref();
     process_trailer(visited, input, table.borrow_trailer());
 
     auto subsections = table.borrow_xref();
     for (DDL::Size i = 0; i < subsections.size(); i.increment()) {
-        auto subsection = owned(subsections[i]);
+        auto subsection = subsections.borrowElement(i);
 
         // XXX: bounds check
-        uint64_t refid = subsection->borrow_firstId().asSize().value;
+        uint64_t refid = subsection.borrow_firstId().asSize().value;
+        std::cerr << "XRef Section starting at " << refid << std::endl;
 
-        auto entries = subsection->borrow_entries();
+        auto entries = subsection.borrow_entries();
         for (DDL::Size j = 0; j < entries.size(); j.increment()) {
-            auto entry = owned(entries[j]);
+            auto entry = entries.borrowElement(j);
 
-            switch (entry->getTag()) {
+            switch (entry.getTag()) {
                 case DDL::Tag::XRefObjEntry::compressed: {
-                    auto compressed = entry->borrow_compressed();
+                    auto compressed = entry.borrow_compressed();
 
                     uint64_t container = compressed.borrow_container_obj().asSize().value;
                     uint64_t obj_index = compressed.borrow_obj_index().asSize().value;
@@ -310,12 +314,13 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
                     break;
                 }
                 case DDL::Tag::XRefObjEntry::free: {
-                    unregister(entry->borrow_free().borrow_obj().asSize().value);
+                    std::cerr << "FREE entry " << refid << std::endl;
+                    unregister(entry.borrow_free().borrow_obj().asSize().value);
                     break;
                 }
 
                 case DDL::Tag::XRefObjEntry::inUse: {
-                    auto inUse = entry->borrow_inUse();
+                    auto inUse = entry.borrow_inUse();
                     
                     // 10 digit natural fits in 34 bits
                     uint64_t offset = inUse.borrow_offset().asSize().value;
@@ -345,13 +350,31 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
         }
     }
 
-    if (table.borrow_trailer().borrow_encrypt().isJust()) {
-        //XXX encCtx = makeEncryptionContext(trailer.borrow_encrypt().borrowValue());
+    if (top) {
+        process_trailer_post(table.borrow_trailer());
+    }
+}
+
+void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
+{
+    if (trailer.borrow_encrypt().isJust()) {
+        DDL::Input emptyInput("empty", "", DDL::Size(0));
+        DDL::ParseError error;
+        std::vector<User::EncryptionDict> results;
+
+        parseEncryptionDict(error, results, emptyInput, trailer.borrow_encrypt().getValue());
+        if (1 != results.size()) {
+            for (auto && x : results) { x.free(); }
+            throw XrefException("Bad encryption dictionary");
+        }
+
+        auto edict = owned(results[0]);
+        encCtx = makeEncryptionContext(edict.borrow());
     }
 }
 
 // Borrows input and old
-void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old)
+void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old, bool top)
 {
     process_trailer(visited, input, old.borrow_trailer());
 
@@ -392,8 +415,8 @@ void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::I
         }
     }
     
-    if (old.borrow_trailer().borrow_encrypt().isJust()) {
-        //XXX encCtx = makeEncryptionContext(trailer.borrow_encrypt().borrowValue());
+    if (top) {
+        process_trailer_post(old.borrow_trailer());
     }
 }
 
@@ -405,7 +428,7 @@ ReferenceTable::getEncryptionContext() const
 
 
 // Borrows input
-void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset)
+void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset, bool top)
 {
     // Detect if cross-reference sections form a cycle
     if (!visited->insert(offset.value).second) {
@@ -416,7 +439,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
     std::vector<User::CrossRef> crossRefs;
 
     input.copy();
-    parseCrossRef(input.iDrop(offset), error, crossRefs);
+    parseCrossRef(error, crossRefs, input.iDrop(offset));
 
     if (crossRefs.size() != 1) {
         for (auto &&x : crossRefs) {
@@ -430,10 +453,10 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
 
     switch (crossRef->getTag()) {
         case DDL::Tag::CrossRef::oldXref:
-        process_oldXRef(visited, input, crossRef->borrow_oldXref());
+        process_oldXRef(visited, input, crossRef->borrow_oldXref(), top);
         break;
         case DDL::Tag::CrossRef::newXref:
-        process_newXRef(visited, input, crossRef->borrow_newXref());
+        process_newXRef(visited, input, crossRef->borrow_newXref(), top);
         break;
     }
 }
@@ -492,8 +515,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     std::vector<DDL::UInt<64>> results;
 
     input.copy();
-    DDL::Input x = input.iDrop(DDL::Size(end));
-    parsePdfEnd(x, error, results);
+    parsePdfEnd(error, results, input.iDrop(DDL::Size(end)));
 
     if (1 != results.size()) {
         for (auto && x : results) { x.free(); }
@@ -503,7 +525,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     auto result = owned(results[0]);
     auto offset = result->asSize();
     std::unordered_set<size_t> visited;
-    process_xref(&visited, input, offset);
+    process_xref(&visited, input, offset, true);
 }
 
 ReferenceTable references;

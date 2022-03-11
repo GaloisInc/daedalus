@@ -1,33 +1,46 @@
 import PdfDecl 
 import PdfValue 
 import PdfXRef 
+import Debug
 
 -- Encryption dictionary (Table 20 in S7.6.1) 
 def EncryptionDict (enc : TrailerDictEncrypt) = { 
+  Trace "enc1";
   @edict = (ResolveValRef enc.eref) is dict; 
-
+  Trace "enc2";
   id0 = enc.id0; 
+  Trace "enc2";
 
   encFilter = (Lookup "Filter" edict) is name; 
+  Trace "enc2";
   encFilter == "Standard" is true; -- Other modes unsupported 
+  Trace "enc2";
 
   encSubFilter = Optional ((Lookup "SubFilter" edict) is name); 
+  Trace "enc2";
 
   encV = LookupNat "V" edict; 
+  Trace "enc2";
 
   -- Fields for the Standard security handler (Table 21, S7.6.3.2)
   encR = LookupNat "R" edict; 
+  Trace "enc2";
   encR == 3 || (encV == 4 && encR == 4) is true; -- Other modes unsupported 
+  Trace "enc2";
 
   encO = (Lookup "O" edict) is string; 
+  Trace "enc2";
   encU = (Lookup "U" edict) is string; 
+  Trace "enc2";
 
   encP = { 
     @v = (Lookup "P" edict) is number; 
+  Trace "enc2";
     ^ v.num;
   }; 
 
   ciph = ChooseCiph edict encV; 
+  Trace "enc2";
 } 
 
 def ChooseCiph edict v = Choose1 { 

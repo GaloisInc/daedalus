@@ -2,10 +2,9 @@ import PdfDecl
 import PdfValue
 import Stdlib
 
-def CrossRef = Choose1 {
-  oldXref = CrossRefAndTrailer;
-  newXref = XRefObj;
-}
+def CrossRef = First
+  oldXref = CrossRefAndTrailer
+  newXref = XRefObj
 
 def PdfEnd =
   block

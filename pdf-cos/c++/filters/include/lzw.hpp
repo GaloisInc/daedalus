@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <cstdint>
+#include <string>
 
 struct LzwException : public std::exception {
     char const* msg;

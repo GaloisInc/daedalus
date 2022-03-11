@@ -9,7 +9,7 @@
 #include "ascii85.hpp"
 #include "lzw.hpp"
 
-bool parse_Trace
+bool parser_Trace
   ( DDL::ParserState& state
   , DDL::Unit* result
   , DDL::Input* inputout
@@ -30,7 +30,7 @@ bool parse_Trace
   return true;
 }
 
-bool parse_ResolveRef
+bool parser_ResolveRef
   ( DDL::ParserState &pstate
   , DDL::Maybe<User::TopDecl> *result
   , DDL::Input *out_input
@@ -48,7 +48,7 @@ bool parse_ResolveRef
 }
 
 
-bool parse_Decrypt
+bool parser_Decrypt
   ( DDL::ParserState &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -57,20 +57,20 @@ bool parse_Decrypt
   , DDL::Input body
   ) {
 
-  *out_input = input;
-  
-  if (references.getEncryptionContext().has_value()) {
+  if (false && references.getEncryptionContext().has_value()) {
     auto const& e = *references.getEncryptionContext();
     std::cerr << "Encryption not implemented" << std::endl;
+    body.free();
+    input.free();
     return false;
   } else {
     *result = body;
+    *out_input = input;
     return true;
   }
 }
 
-
-bool parse_FlateDecode
+bool parser_FlateDecode
   ( DDL::ParserState &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -90,18 +90,17 @@ bool parse_FlateDecode
   columns.free();
   auto bodyRef = owned(body);
 
-  *out_input = input;
-
   std::vector<unsigned char> buffer;
 
   z_stream strm;
   strm.zalloc = Z_NULL;
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
-  strm.avail_in = input.length().value;
+  strm.avail_in = body.length().value;
   strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
   
   if (Z_OK != inflateInit(&strm)) {
+    input.free();
     return false;
   }
 
@@ -122,7 +121,7 @@ bool parse_FlateDecode
       case Z_MEM_ERROR:
         inflateEnd(&strm);
             std::cerr << "inflate failed" << std::endl;
-
+        input.free();
         return false;
     }
 
@@ -134,11 +133,12 @@ bool parse_FlateDecode
   inflateEnd(&strm);
 
   *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
+  *out_input = input;
 
   return true;
 }
 
-bool parse_LZWDecode
+bool parser_LZWDecode
   ( DDL::ParserState &pstate
   , DDL::Input* result
   , DDL::Input* out_input
@@ -152,7 +152,6 @@ bool parse_LZWDecode
   , DDL::Input body
   ) {
 
-  *out_input = input;
   auto bodyRef = owned(body);
 
   // XXX: support predictors
@@ -165,14 +164,16 @@ bool parse_LZWDecode
   try {
     auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
     *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
+    *out_input = input;
     return true;
   } catch (LzwException const& e) {
     std::cerr << e.what() << std::endl;
+    input.free();
     return false;
   }
 }
 
-bool parse_ASCIIHexDecode
+bool parser_ASCIIHexDecode
   ( DDL::ParserState &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -180,20 +181,21 @@ bool parse_ASCIIHexDecode
   , DDL::Input body
   ) {
 
-  *out_input = input;
   auto bodyRef = owned(body);
 
   std::vector<unsigned char> buffer;
   
   if (ASCIIHexDecode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
     *result = DDL::Input("asciihex", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
+    *out_input = input;
     return true;
   } else {
+    input.free();
     return false;
   }
 }
 
-bool parse_ASCII85Decode
+bool parser_ASCII85Decode
   ( DDL::ParserState &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -201,16 +203,17 @@ bool parse_ASCII85Decode
   , DDL::Input body
   ) {
 
-  *out_input = input;
   auto bodyRef = owned(body);
 
   std::vector<uint8_t> buffer;
 
   if (ASCII85Decode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
     *result = DDL::Input("ascii85", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
+    *out_input = input;
     return true;
   } else {
     std::cerr << "ascii85 failed" << std::endl;
+    input.free();
     return false;
   }
 }
