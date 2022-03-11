@@ -9,33 +9,33 @@ def EncryptionDict (enc : TrailerDictEncrypt) = {
   @edict = (ResolveValRef enc.eref) is dict; 
   Trace "enc2";
   id0 = enc.id0; 
-  Trace "enc2";
+  Trace "enc3";
 
   encFilter = (Lookup "Filter" edict) is name; 
-  Trace "enc2";
+  Trace "enc4";
   encFilter == "Standard" is true; -- Other modes unsupported 
-  Trace "enc2";
+  Trace "enc5";
 
   encSubFilter = Optional ((Lookup "SubFilter" edict) is name); 
-  Trace "enc2";
+  Trace "enc6";
 
   encV = LookupNat "V" edict; 
-  Trace "enc2";
+  Trace "enc7";
 
   -- Fields for the Standard security handler (Table 21, S7.6.3.2)
   encR = LookupNat "R" edict; 
-  Trace "enc2";
+  Trace "enc8";
   encR == 3 || (encV == 4 && encR == 4) is true; -- Other modes unsupported 
-  Trace "enc2";
+  Trace "enc9";
 
   encO = (Lookup "O" edict) is string; 
-  Trace "enc2";
+  Trace "enc10";
   encU = (Lookup "U" edict) is string; 
-  Trace "enc2";
+  Trace "enc11";
 
   encP = { 
     @v = (Lookup "P" edict) is number; 
-  Trace "enc2";
+  Trace "enc12";
     ^ v.num;
   }; 
 

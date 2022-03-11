@@ -8,6 +8,7 @@
 #include "asciihex.hpp"
 #include "ascii85.hpp"
 #include "lzw.hpp"
+#include "predictor.hpp"
 
 bool parser_Trace
   ( DDL::ParserState& state
@@ -83,59 +84,68 @@ bool parser_FlateDecode
   , DDL::Input   body
   ) {
 
-  // XXX: Implement predictors
-  predictor.free();
-  colors.free();
-  bpc.free();
-  columns.free();
-  auto bodyRef = owned(body);
+    auto predictorOwned = owned(predictor);
+    auto colorsOwned = owned(colors);
+    auto bpcOwned = owned(bpc);
+    auto columnsOwned = owned(columns);
+    auto bodyRef = owned(body);
 
-  std::vector<unsigned char> buffer;
+    std::string buffer;
 
-  z_stream strm;
-  strm.zalloc = Z_NULL;
-  strm.zfree = Z_NULL;
-  strm.opaque = Z_NULL;
-  strm.avail_in = body.length().value;
-  strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
-  
-  if (Z_OK != inflateInit(&strm)) {
-    input.free();
-    return false;
-  }
-
-  size_t const chunksize = 2048;
-
-  do {
-    size_t used = buffer.size();
-    buffer.resize(used + chunksize);
-
-    strm.avail_out = chunksize;
-    strm.next_out = &buffer[used];
-
-    int ret = inflate(&strm, Z_FINISH);
-
-    switch (ret) {
-      case Z_NEED_DICT:
-      case Z_DATA_ERROR:
-      case Z_MEM_ERROR:
-        inflateEnd(&strm);
-            std::cerr << "inflate failed" << std::endl;
-        input.free();
-        return false;
+    z_stream strm;
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = body.length().value;
+    strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
+    
+    if (Z_OK != inflateInit(&strm)) {
+      input.free();
+      return false;
     }
 
-    if (strm.avail_out > 0) {
-      buffer.resize(used + (chunksize - strm.avail_out));
+    size_t const chunksize = 2048;
+
+    do {
+      size_t used = buffer.size();
+      buffer.resize(used + chunksize);
+
+      strm.avail_out = chunksize;
+      strm.next_out = reinterpret_cast<unsigned char*>(&buffer[used]);
+
+      int ret = inflate(&strm, Z_FINISH);
+
+      switch (ret) {
+        case Z_NEED_DICT:
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+          inflateEnd(&strm);
+              std::cerr << "inflate failed" << std::endl;
+          input.free();
+          return false;
+      }
+
+      if (strm.avail_out > 0) {
+        buffer.resize(used + (chunksize - strm.avail_out));
+      }
+    } while (strm.avail_out == 0);
+
+    inflateEnd(&strm);
+
+    if (!unpredict(
+        predictor.asSize().value,
+        colors.asSize().value,
+        bpc.asSize().value,
+        columns.asSize().value,
+        buffer))
+    {
+      return false;
     }
-  } while (strm.avail_out == 0);
 
-  inflateEnd(&strm);
+    *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
+    *out_input = input;
 
-  *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
-  *out_input = input;
-
-  return true;
+    return true;
 }
 
 bool parser_LZWDecode
@@ -163,6 +173,17 @@ bool parser_LZWDecode
 
   try {
     auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
+
+    if (!unpredict(
+        predictor.asSize().value,
+        colors.asSize().value,
+        bpc.asSize().value,
+        columns.asSize().value,
+        output))
+    {
+      return false;
+    }
+
     *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
     *out_input = input;
     return true;

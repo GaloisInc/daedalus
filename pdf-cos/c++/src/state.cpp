@@ -5,6 +5,8 @@
 #include <vector>
 #include <openssl/evp.h>
 
+template<class> inline constexpr bool always_false_v = false;
+
 ReferenceEntry::ReferenceEntry(oref value, generation_type gen)
 : value(value), gen(gen) {}
 
@@ -155,42 +157,37 @@ ReferenceTable::resolve_reference(
 
     std::cerr << "Resolving reference " << refid << " with thunk type " << entry.index() << std::endl;
 
-    if (auto *top = std::get_if<Owned<User::TopDecl>>(&entry)) {
-        *result = top->get();
-        return true;
-    }
-
-    if (std::holds_alternative<Blackhole>(entry)) {
-        return false;
-    }
-
-    if (auto *thunk = std::get_if<TopThunk>(&entry)) {
-        ReferenceContext refCon{*this, refid, gen};
-
-        cursor->second.value = Blackhole();
-        User::TopDecl decl;
-        bool success = thunk->getDecl(topinput, &decl);
-        if (success) {
-            cursor->second.value = borrowed(decl);
-            *result = decl;
+    return std::visit([refid, gen, this, cursor, result](auto&& arg) -> bool {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Owned<User::TopDecl>>) {
+            *result = arg.get();
+            return true;
+        } else if constexpr (std::is_same_v<T, Blackhole>) {
+            return false;
+        } else if constexpr (std::is_same_v<T, TopThunk>) {
+            ReferenceContext refCon{*this, refid, gen};
+            cursor->second.value = Blackhole();
+            User::TopDecl decl;
+            bool success = arg.getDecl(topinput, &decl);
+            if (success) {
+                cursor->second.value = borrowed(decl);
+                *result = decl;
+            }
+            return success;
+        } else if constexpr (std::is_same_v<T, StreamThunk>) {
+            ReferenceContext refCon{*this, refid, gen};
+            cursor->second.value = Blackhole();
+            User::TopDecl decl;
+            bool success = arg.getDecl(refid, &decl);
+            if (success) {
+                cursor->second.value = borrowed(decl);
+                *result = decl;
+            }
+            return success;
+        } else {
+            static_assert(always_false_v<T>, "non-exhaustive visitor!");
         }
-        return success;
-    }
-
-    if (auto *thunk = std::get_if<StreamThunk>(&entry)) {
-        ReferenceContext refCon{*this, refid, gen};
-
-        cursor->second.value = Blackhole();
-        User::TopDecl decl;
-        bool success = thunk->getDecl(refid, &decl);
-        if (success) {
-            cursor->second.value = borrowed(decl);
-            *result = decl;
-        }
-        return success;
-    }
-
-    return true;
+    }, entry);
 }
 
 namespace {

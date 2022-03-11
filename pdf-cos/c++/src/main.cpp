@@ -1,6 +1,9 @@
 #include <iostream>
 #include <chrono>
 #include <unordered_set>
+#include <fstream>
+#include <sstream>
+#include <exception>
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -15,29 +18,22 @@
 #include "state.hpp"
 #include "Owned.hpp"
 
-DDL::Input inputFromFile(const char *file) {
+bool inputFromFile(const char *file, DDL::Input *input) {
 
   DDL::Input result{};
-  char *bytes;
-  size_t size;
 
-  int fd = open(file,O_RDONLY);
-  if (fd == -1) return result;
+  std::ifstream fin {file, std::ios::in | std::ios::binary};
+  std::ostringstream sout;
 
-  struct stat info;
-  if (fstat(fd, &info) != 0) goto done;
+  if (!fin.is_open()) {
+    return false;
+  }
 
-  size = info.st_size;
-  bytes = (char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (bytes == MAP_FAILED) goto done;
+  sout << fin.rdbuf();  
+  std::string str = std::move(sout.str());
 
-  result = DDL::Input{file,bytes,size};
-
-  munmap (bytes, size); // wecopied them
-
-done:
-  close(fd);
-  return result;
+  *input = DDL::Input{file, str.data(), str.size()};
+  return true;
 }
 
 int main(int argc, char* argv[]) {
@@ -46,17 +42,21 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  auto input = owned(inputFromFile(argv[1]));
-  
+  DDL::Input input;
+  if (!inputFromFile(argv[1], &input)) {
+    std::cerr << "unable to open file" << std::endl;
+    return 1;
+  }
+  auto ownedInput = owned(input);
+
   try {
-    references.process_pdf(input.borrow());
+    references.process_pdf(input);
   } catch (XrefException const& e) {
     std::cerr << "Error while processing cross-references: " << e.what() << std::endl;
     return 1;
   }
 
   for (auto && [refid, val] : references.table) {
-
     std::cerr << "Getting " << refid << " " << val.gen << std::endl;
     DDL::Maybe<User::TopDecl> decl;
 
