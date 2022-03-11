@@ -722,6 +722,7 @@ passSpecialize tgt roots =
              mo = TCModule
                     { tcModuleName = tgt
                     , tcModuleImports = []
+                    , tcEntries = rootNames
                     , tcModuleTypes = tdecls
                     , tcModuleDecls = ds
                     }

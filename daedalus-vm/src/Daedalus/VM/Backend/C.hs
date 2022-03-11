@@ -13,7 +13,6 @@ import           Data.Int(Int32,Int64)
 import           Data.Maybe(maybeToList,fromMaybe,mapMaybe)
 import           Data.List(partition,sortBy)
 import           Data.Function(on)
-import qualified Data.Text as Text
 import           Control.Applicative((<|>))
 
 import Daedalus.PP
@@ -43,10 +42,11 @@ import Daedalus.VM.Backend.C.Call
 cProgram :: String -> Program -> (Doc,Doc)
 cProgram fileNameRoot prog =
   case checkProgram prog of
-    Nothing -> (hpp,cpp)
+    Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
   where
   module_marker = text fileNameRoot <.> "_H"
+
 
   hpp = vcat $
           [ "#ifndef" <+> module_marker
@@ -58,19 +58,28 @@ cProgram fileNameRoot prog =
             in vcat' (ds ++ defs)
           , " "
           , "// --- Parsing Functions ---"
-          , "namespace DDL { namespace ResultOf {"
-          ] ++ map declareParserResult (pEntries prog) ++
-          [ "}}" ] ++
-          [ cStmt (cEntrySig ent) | ent <- pEntries prog ] ++
+          ] ++
+          [ delcareEntryResults (noCapRoots ++ capRoots) ] ++
           primSigs ++
+          noCapRootSigs ++
+          capRootSigs ++
           [ ""
           , "#endif"
           ]
 
-  declareParserResult ent =
-    cStmt ("using" <+> nm <+> "=" <+> cSemType (entryType ent))
-    where nm = ptext (Text.unpack (entryName ent)) -- Not escaped!
+  cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
+               , " "
+               ] ++
+               map (cFunSig Static) noPrims ++
+               [ entTypeDef, capPrserSig ] ++
+               noCapRootDefs ++
+               capRootDefs ++
+               noPrimDefs ++
+               [ capParserDef ]
 
+
+
+  -- primitives
   (prims,noPrims) = flip partition noCapFun \fun ->
                     case vmfDef fun of
                       VMExtern {} -> True
@@ -80,25 +89,37 @@ cProgram fileNameRoot prog =
                [] -> []
                _  -> " "
                    : "// --- External Primitives ---"
-                   : map cFunSig prims
+                   : map (cFunSig Extern) prims
+
+  -- Non-capturing parsers
+  noPrimDefs =
+    let ?allFuns = allFunMap
+        ?allTypes = allTypesMap
+    in mapMaybe cFun noCapFun
 
 
-  cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
-               , " "
-               ] ++
+  -- Non-capturing roots
+  noCapRoots      = [ f | f <- noCapFun, vmfIsEntry f ]
+  (noCapRootSigs,noCapRootDefs) =
+     let ?allFuns  = allFunMap
+         ?allTypes = allTypesMap
+     in unzip (map cNonCaptureRoot noCapRoots)
 
-               map cFunSig noPrims ++
-               (let ?allFuns = allFunMap
-                    ?allTypes = allTypesMap
-                in mapMaybe cFun noCapFun) ++
+  -- Capturing roots
+  capRoots                   = [ f | f <- capFuns, vmfIsEntry f ]
+  (capEnts,capBlocks)        = unzip (zipWith cCaptureEntryDef [0..] capRoots)
+  (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
+  (capRootSigs,capRootDefs)  = unzip cEntFuns
+  (capPrserSig,capParserDef,entTypeDef) =
+    let ?allFuns = allFunMap
+        ?allBlocks = allBlocks
+        ?captures = Capture
+        ?allTypes = allTypesMap
+    in defineCaptureParser cEntTs cEntCode capFuns
 
-               [ parserSig <+> "{"
-               , nest 2 parserDef
-               , "}"
-               ] ++
-               zipWith cDefineEntry [0..] (pEntries prog)
 
-  parserSig = "static void parser(DDL::Input i0, int entry, DDL::ParseError &err, void* out)"
+
+
 
   orderedModules = forgetRecs (topoOrder modDeps (pModules prog))
   modDeps m      = (mName m, Set.fromList (mImports m))
@@ -110,56 +131,28 @@ cProgram fileNameRoot prog =
 
   (capFuns,noCapFun) = partition ((Capture ==) . vmfCaptures) allFuns
 
-  allBlocks      = Map.unions (map entryBoot (pEntries prog) ++
-                          [ vmfBlocks d | f <- capFuns, VMDef d <- [vmfDef f] ])
-  doBlock b      = let ?allFuns = allFunMap
-                       ?allBlocks = allBlocks
-                       ?captures = Capture
-                       ?allTypes = allTypesMap
-                   in cBasicBlock b
-
-  parserDef      = vcat [ "DDL::ParserState p;"
-                        , "clang_bug_workaround: void *clang_bug = &&clang_bug_workaround;"
-                        , params
-                        , cDeclareRetVars capFuns
-                        , cDeclareClosures (Map.elems allBlocks)
-                        , " "
-                        , "// --- States ---"
-                        , " "
-                        , cSwitch "entry"
-                            [ cCase (int i) $ vcat
-                                  [ cAssign (cArgUse b i0) "i0"
-                                  , cGoto (cBlockLabel bn)
-                                  ]
-                            | (i,e) <- zip [0..] (pEntries prog)
-                            , let bn = entryLabel e
-                                  b  = entryBoot e Map.! bn
-                                  i0 = head (blockArgs b)
-                            ]
-                        , " "
-                        , vcat' (map doBlock (Map.elems allBlocks))
-                        ]
+  allBlocks      = Map.unions
+                 $ capBlocks ++
+                   [ vmfBlocks d | f <- capFuns, VMDef d <- [vmfDef f] ]
 
 
-  params         = vcat (map cDeclareBlockParams (Map.elems allBlocks))
 
-
-  includes =
-    vcat [ "#include <ddl/parser.h>"
-         , "#include <ddl/size.h>"
-         , "#include <ddl/input.h>"
-         , "#include <ddl/unit.h>"
-         , "#include <ddl/bool.h>"
-         , "#include <ddl/number.h>"
-         , "#include <ddl/float.h>"
-         , "#include <ddl/bitdata.h>"
-         , "#include <ddl/integer.h>"
-         , "#include <ddl/cast.h>"
-         , "#include <ddl/maybe.h>"
-         , "#include <ddl/array.h>"
-         , "#include <ddl/map.h>"
-         ]
-
+includes :: Doc
+includes =
+  vcat [ "#include <ddl/parser.h>"
+       , "#include <ddl/size.h>"
+       , "#include <ddl/input.h>"
+       , "#include <ddl/unit.h>"
+       , "#include <ddl/bool.h>"
+       , "#include <ddl/number.h>"
+       , "#include <ddl/float.h>"
+       , "#include <ddl/bitdata.h>"
+       , "#include <ddl/integer.h>"
+       , "#include <ddl/cast.h>"
+       , "#include <ddl/maybe.h>"
+       , "#include <ddl/array.h>"
+       , "#include <ddl/map.h>"
+       ]
 
 
 type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
@@ -169,22 +162,39 @@ type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
 type CaptureFun = (?captures  :: Captures)
 
-cEntrySig :: Entry -> Doc
-cEntrySig ent =
-  "void" <+> nm <.>
-    vcat [ "( DDL::Input input"
-         , ", DDL::ParseError &error"
-         , "," <+> cInst "std::vector" [ ty ] <+> "&results"
-         , ")"
-         ]
-  where
-  nm = text (Text.unpack (entryName ent)) -- Not escaped!
-  ty = cSemType (entryType ent)
 
-cDefineEntry :: Int -> Entry -> Doc
-cDefineEntry n ent = cEntrySig ent <+> "{" $$ nest 2 body $$ "}"
+
+
+--------------------------------------------------------------------------------
+-- Parsers that need to capture the stack
+
+cCaptureParserSig :: Doc
+cCaptureParserSig =
+  "static void" <+>
+  "parser(EntryArgs entry, DDL::ParseError &err, void* out)"
+
+
+defineCaptureParser :: (AllFuns,AllTypes,AllBlocks,CaptureFun) =>
+  [CDecl] -> [CExpr -> CStmt] -> [VMFun] -> (CDecl, CDecl, CDecl)
+defineCaptureParser entTs ents capFuns
+  | null ents   = (empty,empty,empty)
+  | otherwise   = (cStmt cCaptureParserSig, def, cDeclareEntryArgs entTs)
   where
-  body = cStmt (cCall "parser" [ "input", int n, "error", "&results" ])
+  def = cCaptureParserSig <+> "{" $$ nest 2 (vcat body) $$ "}"
+  body =
+    [ "DDL::ParserState p;"
+    , "clang_bug_workaround: void *clang_bug = &&clang_bug_workaround;"
+    , vcat (map cDeclareBlockParams (Map.elems ?allBlocks))
+    , cDeclareRetVars capFuns
+    , cDeclareClosures (Map.elems ?allBlocks)
+    , " "
+    , "// --- Entry points ---"
+    , " "
+    , cSwitch "entry.tag" ([ e "entry" | e <- ents ] ++ [ cDefault "return;" ])
+    , " "
+    , vcat' (map cBasicBlock (Map.elems ?allBlocks))
+    ]
+
 
 
 cDeclareBlockParams :: Block -> CStmt
@@ -238,10 +248,176 @@ cDeclareClosures bs =
 
 
 --------------------------------------------------------------------------------
+-- Entry Points
 
-cFunSig :: VMFun -> CDecl
-cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
+standardEntryArgs :: CType -> [Doc]
+standardEntryArgs ty =
+  [ "DDL::ParseError &error"
+  , cInst "std::vector" [ ty ] <+> "&results"
+  ]
+
+cCaptureEntryFun :: Int -> Src.FName -> [VMT] -> (CDecl,CDecl)
+cCaptureEntryFun n f as =
+  (cStmt sig, sig <+> "{" $$ nest 2 body $$ "}")
   where
+  nm   = cFEntryName f
+  ty   = cSemType (Src.fnameType f)
+  sig  = "void" <+> nm <+>
+                  cArgBlock (standardEntryArgs ty ++ map (uncurry (<+>)) args)
+  args = [ (cType t, "a" <.> int i) | (t,i) <- zip as [0..] ]
+  ent  = vcat [ "{ .tag =" <+> int n
+              , ", .args = { ." <.> capEntryName n <+> "= {"
+                        <+> hcat (punctuate comma argVs) <+> "}}"
+              , "}"
+              ]
+  argVs = [ "." <.> capArgName i <+> "=" <+> a | (i,(_,a)) <- zip [0..] args ]
+  body = cStmt (cCall "parser" [ ent, "error", "&results" ])
+
+
+cDeclareEntryArgs :: [CDecl] -> CDecl
+cDeclareEntryArgs as = cStmt ("struct EntryArgs {" $$ nest 2 (vcat def) $$ "}")
+  where
+  def = [ cDeclareVar "int" "tag"
+        , cStmt ("union {" $$ vcat as $$ "} args")
+        ]
+
+capArgName :: Int -> CIdent
+capArgName i = "arg" <.> int i
+
+capEntryName :: Int -> CIdent
+capEntryName i = "entry" <.> int i
+
+cCaptureEntryDef ::
+  Int -> VMFun -> ((CExpr -> CStmt, (CDecl, CDecl), CDecl), Map Label Block)
+cCaptureEntryDef n fun =
+  ( (call, cCaptureEntryFun n name argTs, entTyDecl)
+  , Map.fromList [ (blockName b, b) | b <- blocks ]
+  )
+  where
+  call e = cCaseBlock (int n)
+         $ doPush (Label nameText 0)
+         : doPush (Label nameText 1)
+         : zipWith (getArg e) [0..] args ++
+           [ cGoto (cBlockLabel entryBlockName)
+           ]
+
+  doPush l =
+    let clo = cCall (cReturnClassName []) ["&&" <.> cBlockLabel l]
+    in cStmt (cCall "p.push" ["new" <+> clo])
+
+  getArg ent a ba =
+    cAssign (cArgUse entryBlock ba)
+            (ent <.> ".args." <.> capEntryName n <.> "." <.> capArgName a)
+
+  entTyDecl = cStmt $ vcat [ "struct {"
+                           , nest 2 (vcat as)
+                           , "}" <+> capEntryName n
+                           ]
+    where
+    as = [ cDeclareVar (cType t) (capArgName i) | (i,t) <- zip [ 0 .. ] argTs ]
+
+
+  name = vmfName fun
+  nameText = case Src.fnameText name of
+               Just txt -> "__" <> txt
+               Nothing  -> panic "cCaptureEntryDef" [ "No name" ]
+
+  ty   = TSem (Src.fnameType name)
+  def  = case vmfDef fun of
+           VMDef d     -> d
+           VMExtern {} -> panic "cCaptureEntryDef" [ "Extern" ]
+
+  entryBlockName = vmfEntry def
+  entryBlock     = vmfBlocks def Map.! entryBlockName
+  args           = blockArgs entryBlock
+  argTs          = map getType args
+
+  blocks =
+    [ Block
+        { blockName     = Label nameText 0
+        , blockType     = ReturnBlock (RetNo Capture)
+        , blockArgs     = []
+        , blockLocalNum = 0
+        , blockInstrs   = []
+        , blockTerm     = Yield
+        }
+
+    , let v = BA 0 ty Owned
+          i = BA 1 (TSem Src.TStream) Owned
+      in Block
+          { blockName     = Label nameText 1
+          , blockType     = ReturnBlock (RetYes Capture)
+          , blockArgs     = [v,i]
+          , blockLocalNum = 0
+          , blockInstrs   = [ Free (Set.singleton (ArgVar i))
+                            , Output (EBlockArg v)
+                            ]
+          , blockTerm     = Yield
+          }
+    ]
+
+
+
+
+
+
+
+-- Entry point for a non-capturing parser: siganture,defintiion
+cNonCaptureRoot :: (AllTypes,AllFuns) => VMFun -> (CDecl,CDecl)
+cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
+  where
+  sig = "void" <+> cname <+>
+                   cArgBlock (standardEntryArgs ty ++ map (uncurry (<+>)) pargs)
+
+  cname = cFEntryName name
+  name  = vmfName fun
+
+  normalArgs = [ cType (getType x)
+               | x <- case vmfDef fun of
+                        VMDef d -> blockArgs (vmfBlocks d Map.! vmfEntry d)
+                        VMExtern as -> as
+               ]
+
+  pargs = [ (t,"a" <> int n) | (t,n) <- zip normalArgs [ 1 .. ] ]
+
+  ty   = cSemType (Src.fnameType name)
+
+  call = cCall (cFName name)
+               ([ "p", "&out_result", "&out_input" ] ++ map snd pargs)
+
+  body = [ cDeclareVar "DDL::ParserState" "p"
+         , cDeclareVar ty "out_result"
+         , cDeclareVar "DDL::Input" "out_input"
+         , cIf call
+              [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
+              , cStmt (cCallMethod "out_input" "free" [])
+              ]
+              [ cAssign "error.offset" (cCallMethod "p" "getFailOffset" [])]
+         ]
+
+
+
+-- Declare the result of an entry
+delcareEntryResults :: [VMFun] -> CDecl
+delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
+  where
+  ty e = let n = vmfName e
+         in cUsingT (cFEntryName n) (cSemType (Src.fnameType n))
+
+
+
+--------------------------------------------------------------------------------
+-- Non-capturing parsers
+
+data FunLinkage = Static | Extern
+
+cFunSig :: FunLinkage -> VMFun -> CDecl
+cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
+  where
+  linkageStr =
+    case linkage of
+      Static -> "static"
+      Extern -> "extern"
   res  = if vmfPure fun then retTy else "bool"
   args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
   normalArgs = [ cType (getType x)
@@ -253,14 +429,23 @@ cFunSig fun = cDeclareFun res (cFName (vmfName fun)) args
   retTy   = cSemType (Src.fnameType (vmfName fun))
   retArgs = [ "DDL::ParserState&", cPtrT retTy, cPtrT (cSemType Src.TStream) ]
 
+
+
 cFun :: (AllTypes,AllFuns) => VMFun -> Maybe CDecl
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> Nothing
     VMDef d -> Just (cDefineFun res (cFName (vmfName fun)) args body)
       where
-      res  = if vmfPure fun then retTy else "bool"
-      args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
+      res
+        | vmfPure fun    = retTy
+        | otherwise      = "bool"
+
+      args
+        | vmfPure fun = normalArgs
+        | otherwise = retArgs ++ normalArgs
+
+
 
       entryBlock = vmfBlocks d Map.! vmfEntry d
 

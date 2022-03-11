@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Data.Void(Void)
 
-import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 
 import qualified Daedalus.Core as Src
@@ -24,54 +23,26 @@ import Daedalus.VM.TailCallJump
 
 
 
-moduleToProgram :: [Src.FName] -> [Module] -> Program
-moduleToProgram entries ms =
+moduleToProgram :: [Module] -> Program
+moduleToProgram ms =
   tailProgram $
   captureAnalysis
-  Program
-    { pModules = map loopAnalysis ms
-    , pEntries = [ compileEntry entry (Src.Call entry []) | entry <- entries ]
-    }
-
-compileEntry :: Src.FName -> Src.Grammar -> Entry
-compileEntry entry pe =
-  Entry { entryLabel = l
-        , entryBoot  = Map.adjust addArgs l b
-        , entryType  = Src.fnameType entry
-        , entryName  = entName
-        }
-  where
-  entName = Text.pack ("parse" ++ show (pp entry))
-
-  addArgs bl = bl { blockArgs = [inpArg] }
-  (l,b) =
-    runC entName (Src.typeOf pe) $
-    do code <- compile pe
-                  Next { onNo  = Just
-                                 do stmt_ $ Say "Branch failed, resuming"
-                                    term  $ Yield
-                       , onYes = Just \v ->
-                                 do stmt_ $ Say "Branch succeeded, resuming"
-                                    stmt_ $ Output v
-                                    term  $ Yield
-                       }
-       pure (setInput (EBlockArg inpArg) >> code)
-
+  Program { pModules = map loopAnalysis ms }
 
 compileModule :: Src.Module -> Module
 compileModule m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
-         , mFuns = map compileFFun (Src.mFFuns m) ++
-                   map compileGFun (Src.mGFuns m)
+         , mFuns  = map compileFFun (Src.mFFuns m)
+                 ++ map compileGFun (Src.mGFuns m)
          }
 
 inpArg :: BA
 inpArg = BA 0 (TSem Src.TStream) Borrowed
 
 compileSomeFun ::
-  Bool -> (Maybe a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
+  Bool -> (a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
 compileSomeFun isPure doBody fun =
   let xs         = Src.fParams fun
       name       = Src.fName fun
@@ -93,7 +64,7 @@ compileSomeFun isPure doBody fun =
       def = case Src.fDef fun of
                Src.Def e    ->
                  VMDef
-                   let body   = foldr setInp (doBody (Just e)) inpArgs
+                   let body   = foldr setInp (doBody e) inpArgs
                        (l,ls) = runC lab (Src.typeOf name)
                                          (foldr getArgC body (zip xs args))
                    in VMFBody { vmfEntry = l
@@ -113,17 +84,11 @@ compileSomeFun isPure doBody fun =
             , vmfPure   = isPure
             , vmfLoop   = False
             , vmfDef    = def
+            , vmfIsEntry = Src.fIsEntry fun
             }
 
 compileFFun :: Src.Fun Src.Expr -> VMFun
-compileFFun = compileSomeFun True \mb ->
-  case mb of
-    Just e -> compileE e Nothing
-    Nothing -> panic "compileFFun" ["XXX: External primitives"]
+compileFFun = compileSomeFun True \e -> compileE e Nothing
 
 compileGFun :: Src.Fun Src.Grammar -> VMFun
-compileGFun = compileSomeFun False \mb ->
-  case mb of
-    Just e -> compile e ret
-    Nothing -> panic "compileGFun" ["XXX: External primitives"]
-
+compileGFun = compileSomeFun False (\e -> compile e ret)

@@ -376,6 +376,7 @@ allocTCModule n _tc@(TCModule{..}) =
       annotTCModule =
         TCModule
         { tcModuleName = tcModuleName
+        , tcEntries = []
         , tcModuleImports = tcModuleImports
         , tcModuleTypes = tcModuleTypes
         , tcModuleDecls = reverse atc
@@ -421,6 +422,7 @@ allocStates decls =
             NonRec d ->
               let uniModule =
                     TCModule { tcModuleName = tcModuleName
+                             , tcEntries = []
                              , tcModuleImports = tcModuleImports
                              , tcModuleTypes = tcModuleTypes
                              , tcModuleDecls = [ NonRec d ]
@@ -433,6 +435,7 @@ allocStates decls =
         f localM decl =
           let uniModule =
                 TCModule { tcModuleName = tcModuleName
+                         , tcEntries = []
                          , tcModuleImports = tcModuleImports
                          , tcModuleTypes = tcModuleTypes
                          , tcModuleDecls = [ NonRec decl ]

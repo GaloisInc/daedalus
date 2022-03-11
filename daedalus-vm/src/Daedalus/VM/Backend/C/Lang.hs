@@ -121,6 +121,13 @@ cReturn e = cStmt ("return" <+> e)
 cBlock :: [CStmt] -> CStmt
 cBlock xs = vcat [ "{" <+> vcat xs, "}" ]
 
+cArgBlock :: [Doc] -> Doc
+cArgBlock as =
+  case as of
+    [] -> "()"
+    _  -> vcat (zipWith (<+>) start as) $$ ")"
+      where start = "(" : repeat ","
+
 cDefineCon :: CIdent -> [CExpr] -> [(CIdent,CExpr)] -> [CStmt] -> CStmt
 cDefineCon name params is stmts =
   hang (cCall name params) 2 initializers <+> body
@@ -147,6 +154,9 @@ cDeclareFun ty name params = cStmt decl
 cNamespace :: CIdent -> [CDecl] -> CDecl
 cNamespace nm d =
   "namespace" <+> nm <+> "{" $$ nest 2 (vcat d) $$ "}"
+
+cUsingT :: CIdent -> CType -> CDecl
+cUsingT x t = cStmt ("using" <+> x <+> "=" <+> t)
 
 cUnreachable :: CStmt
 cUnreachable = "__builtin_unreachable();"

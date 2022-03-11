@@ -27,6 +27,8 @@ class ParserState {
 public:
   ParserState() : fail_offset(0) {}
 
+  Size getFailOffset() { return fail_offset; }
+
   // All alternatives failed.   Free the stack and return the
   // offset of the best error we computed.
   Size finalYield() {

@@ -13,8 +13,6 @@ import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
 import Daedalus.VM.TypeRep
 
--- import Debug.Trace
-
 {-
 * Notes on reference variables:
 
@@ -69,13 +67,10 @@ of basic blocks (point 5)
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
-                             , pModules = annModule <$> pModules prog
-                             }
+doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
   where
   info        = borrowAnalysis prog
 
-  annEntry  e = e { entryBoot = annBlock <$> entryBoot e }
   annModule m = m { mFuns     = annFun   <$> mFuns m }
   annFun f    = f { vmfDef    = annDef       (vmfDef f) }
   annDef d    = case d of
@@ -87,7 +82,7 @@ doBorrowAnalysis prog = prog { pEntries = annEntry  <$> pEntries prog
       Just sig ->
         let as = zipWith annArg (blockArgs b) sig
             mp = Map.fromList [ (x,a) | a@(BA x _ _) <- as ]
-        in b { blockArgs = as
+        in b { blockArgs   = as
              , blockInstrs = map (annI mp) (blockInstrs b)
              , blockTerm   = annTerm mp (blockTerm b)
              }
@@ -241,8 +236,10 @@ borrowAnalysis :: Program -> Map Label [Ownership]
 borrowAnalysis p = loop i0
   where
   i0 = Info { iBlockOwned = Set.empty
-            , iBlockInfo  = Map.fromList $ (entryOwns <$> pEntries p)
-                                        ++ concatMap nonNormal (pAllBlocks p)
+            , iBlockInfo  = Map.fromList
+                          $ [ x | m <- pModules p, f <- mFuns m
+                            , x <- checkEntry f ]
+                         ++ concatMap nonNormal (pAllBlocks p)
             , iChanges    = False
             , iFunEntry   = Map.fromList [ (vmfName f, infoEntry f)
                                          | m <- pModules p, f <- mFuns m
@@ -253,18 +250,12 @@ borrowAnalysis p = loop i0
 
   infoEntry f = case vmfDef f of
                   VMExtern as -> Left [ (Nothing, Owned `ifRefs` a) | a <- as ]
-                  VMDef b     -> Right (vmfEntry b)
+                  VMDef d -> Right (vmfEntry d)
 
   loop i = let i1 = vmProgram p i
            in if iChanges i1
                 then loop i1 { iChanges = False }
                 else iBlockInfo i
-
-  -- entries own their arguments
-  entryOwns ent =
-      let l = entryLabel ent
-          args = blockArgs (entryBoot ent Map.! l)
-      in (l, [ Owned `ifRefs` a | a <- args ])
 
   -- return and thread blocks own thier arguments
   nonNormal b =
@@ -272,13 +263,13 @@ borrowAnalysis p = loop i0
       NormalBlock {} -> []
       _ -> [(blockName b, [ Owned `ifRefs` a | a <- blockArgs b ])]
 
-vmProgram :: Program -> Info -> Info
-vmProgram p i = foldr vmModule bs (pModules p)
-  where
-  bs = foldr vmEntry i (pEntries p)
+  checkEntry f
+    | vmfIsEntry f, VMDef d <- vmfDef f, let e = vmfEntry d =
+      [ (e, [ Owned `ifRefs` a | a <- blockArgs (vmfBlocks d Map.! e) ]) ]
+    | otherwise = []
 
-vmEntry :: Entry -> Info -> Info
-vmEntry e i = foldr block i (Map.elems (entryBoot e))
+vmProgram :: Program -> Info -> Info
+vmProgram p i = foldr vmModule i (pModules p)
 
 vmModule :: Module -> Info -> Info
 vmModule = foldr (.) id . map vmFun . mFuns
@@ -290,8 +281,13 @@ vmFun f = case vmfDef f of
 
 block :: Block -> Info -> Info
 block b i =
-  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1) }
+  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1)
+     , iChanges    = newChanges
+     }
   where
+  newChanges = iChanges i
+            || Map.lookup (blockName b) (iBlockInfo i1) /= Just newOwnership
+
   owned = case Map.lookup (blockName b) (iBlockInfo i) of
             Nothing -> Set.empty
             Just ms -> Set.fromList
