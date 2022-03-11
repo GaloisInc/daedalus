@@ -1,6 +1,7 @@
 SHAKEOPTS?=-j16
   # works like Make's -j
-RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS}
+RUNTESTSET_TIMEOUT?=-t 240
+RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS} ${RUNTESTSET_TIMEOUT}
 
 nodefaulttarget:
 	@echo no default target, did you want ...?
