@@ -71,7 +71,7 @@ cProgram fileNameRoot prog =
                , " "
                ] ++
                map (cFunSig Static) noPrims ++
-               [ capPrserSig ] ++
+               [ entTypeDef, capPrserSig ] ++
                noCapRootDefs ++
                capRootDefs ++
                noPrimDefs ++
@@ -108,14 +108,14 @@ cProgram fileNameRoot prog =
   -- Capturing roots
   capRoots                   = [ f | f <- capFuns, vmfIsEntry f ]
   (capEnts,capBlocks)        = unzip (zipWith cCaptureEntryDef [0..] capRoots)
-  (cEntCode,cEntFuns)        = unzip capEnts
+  (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
   (capRootSigs,capRootDefs)  = unzip cEntFuns
-  (capPrserSig,capParserDef) =
+  (capPrserSig,capParserDef,entTypeDef) =
     let ?allFuns = allFunMap
         ?allBlocks = allBlocks
         ?captures = Capture
         ?allTypes = allTypesMap
-    in defineCaptureParser cEntCode capFuns
+    in defineCaptureParser cEntTs cEntCode capFuns
 
 
 
@@ -152,7 +152,6 @@ includes =
        , "#include <ddl/maybe.h>"
        , "#include <ddl/array.h>"
        , "#include <ddl/map.h>"
-       , "#include <stdarg.h>"
        ]
 
 
@@ -172,32 +171,30 @@ type CaptureFun = (?captures  :: Captures)
 cCaptureParserSig :: Doc
 cCaptureParserSig =
   "static void" <+>
-  "parser(int entry, DDL::ParseError &err, void* out, ...)"
+  "parser(EntryArgs entry, DDL::ParseError &err, void* out)"
 
 
 defineCaptureParser :: (AllFuns,AllTypes,AllBlocks,CaptureFun) =>
-  [CStmt] -> [VMFun] -> (CDecl, CDecl)
-defineCaptureParser ents capFuns
-  | null ents   = (empty,empty)
-  | otherwise   = (cStmt cCaptureParserSig, def)
+  [CDecl] -> [CExpr -> CStmt] -> [VMFun] -> (CDecl, CDecl, CDecl)
+defineCaptureParser entTs ents capFuns
+  | null ents   = (empty,empty,empty)
+  | otherwise   = (cStmt cCaptureParserSig, def, cDeclareEntryArgs entTs)
   where
   def = cCaptureParserSig <+> "{" $$ nest 2 (vcat body) $$ "}"
   body =
     [ "DDL::ParserState p;"
     , "clang_bug_workaround: void *clang_bug = &&clang_bug_workaround;"
-    , cDeclareVar "va_list" "parser_params"
-    , params
+    , vcat (map cDeclareBlockParams (Map.elems ?allBlocks))
     , cDeclareRetVars capFuns
     , cDeclareClosures (Map.elems ?allBlocks)
     , " "
     , "// --- Entry points ---"
     , " "
-    , cSwitch "entry" (ents ++ [ cDefault "return;" ])
+    , cSwitch "entry.tag" ([ e "entry" | e <- ents ] ++ [ cDefault "return;" ])
     , " "
     , vcat' (map cBasicBlock (Map.elems ?allBlocks))
     ]
 
-  params = vcat (map cDeclareBlockParams (Map.elems ?allBlocks))
 
 
 cDeclareBlockParams :: Block -> CStmt
@@ -268,33 +265,57 @@ cCaptureEntryFun n f as =
   sig  = "void" <+> nm <+>
                   cArgBlock (standardEntryArgs ty ++ map (uncurry (<+>)) args)
   args = [ (cType t, "a" <.> int i) | (t,i) <- zip as [0..] ]
-  body = cStmt
-       $ cCall "parser"
-       $ [ int n, "error", "&results" ] ++ map snd args
+  ent  = vcat [ "{ .tag =" <+> int n
+              , ", .args = { ." <.> capEntryName n <+> "= {"
+                        <+> hcat (punctuate comma argVs) <+> "}}"
+              , "}"
+              ]
+  argVs = [ "." <.> capArgName i <+> "=" <+> a | (i,(_,a)) <- zip [0..] args ]
+  body = cStmt (cCall "parser" [ ent, "error", "&results" ])
 
 
+cDeclareEntryArgs :: [CDecl] -> CDecl
+cDeclareEntryArgs as = cStmt ("struct EntryArgs {" $$ nest 2 (vcat def) $$ "}")
+  where
+  def = [ cDeclareVar "int" "tag"
+        , cStmt ("union {" $$ vcat as $$ "} args")
+        ]
 
-cCaptureEntryDef :: Int -> VMFun -> ((CStmt, (CDecl,CDecl)), Map Label Block)
+capArgName :: Int -> CIdent
+capArgName i = "arg" <.> int i
+
+capEntryName :: Int -> CIdent
+capEntryName i = "entry" <.> int i
+
+cCaptureEntryDef ::
+  Int -> VMFun -> ((CExpr -> CStmt, (CDecl, CDecl), CDecl), Map Label Block)
 cCaptureEntryDef n fun =
-  ( (call, cCaptureEntryFun n name argTs)
+  ( (call, cCaptureEntryFun n name argTs, entTyDecl)
   , Map.fromList [ (blockName b, b) | b <- blocks ]
   )
   where
-  call = cCaseBlock (int n)
-       $ doPush (Label nameText 0)
-       : doPush (Label nameText 1)
-       : cStmt (cCall "va_start" [ "parser_params", "out" ])
-       : map getArg args ++
-         [ cStmt (cCall "va_end" [ "parser_params" ])
-         , cGoto (cBlockLabel entryBlockName)
-         ]
+  call e = cCaseBlock (int n)
+         $ doPush (Label nameText 0)
+         : doPush (Label nameText 1)
+         : zipWith (getArg e) [0..] args ++
+           [ cGoto (cBlockLabel entryBlockName)
+           ]
 
   doPush l =
     let clo = cCall (cReturnClassName []) ["&&" <.> cBlockLabel l]
     in cStmt (cCall "p.push" ["new" <+> clo])
 
-  getArg ba = cAssign (cArgUse entryBlock ba)
-                      (cCall "va_arg" [ "parser_params", cType (getType ba) ])
+  getArg ent a ba =
+    cAssign (cArgUse entryBlock ba)
+            (ent <.> ".args." <.> capEntryName n <.> "." <.> capArgName a)
+
+  entTyDecl = cStmt $ vcat [ "struct {"
+                           , nest 2 (vcat as)
+                           , "}" <+> capEntryName n
+                           ]
+    where
+    as = [ cDeclareVar (cType t) (capArgName i) | (i,t) <- zip [ 0 .. ] argTs ]
+
 
   name = vmfName fun
   nameText = case Src.fnameText name of
