@@ -367,9 +367,11 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
   body = [ cDeclareVar "DDL::ParserState" "p"
          , cDeclareVar ty "out_result"
          , cDeclareVar "DDL::Input" "out_input"
-         , cIf' call
-              [ cStmt (cCallMethod "results" "push_back" [ "out_result" ]) ]
-         , cStmt (cCallMethod "out_input" "free" [])
+         , cIf call
+              [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
+              , cStmt (cCallMethod "out_input" "free" [])
+              ]
+              [ cAssign "error.offset" (cCallMethod "p" "getFailOffset" [])]
          ]
 
 
