@@ -145,6 +145,9 @@ public:
   }
 
   char* borrowBytes() { return (char*) bytes.borrowData() + offset.rep(); }
+
+  Array<UInt<8>> borrowByteArray() { return bytes; }
+  Array<UInt<8>> getByteArray() { bytes.copy(); return bytes; }
 };
 
 

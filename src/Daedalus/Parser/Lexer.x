@@ -155,6 +155,7 @@ $ws+        ;
 "Take"      { lexeme KWTake }
 "Drop"      { lexeme KWDrop }
 "arrayStream" { lexeme KWArrayStream }
+"bytesOfStream" { lexeme KWBytesOfStream }
 
 "Index"     { lexeme KWArrayIndex }
 "concat"    { lexeme KWConcat }

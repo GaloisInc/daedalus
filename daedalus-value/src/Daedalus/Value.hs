@@ -106,6 +106,7 @@ module Daedalus.Value
   , vStreamLength
   , vStreamTake
   , vStreamDrop
+  , vBytesOfStream
 
   -- * Iterators
   , vIteratorFromArray

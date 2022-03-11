@@ -1036,6 +1036,7 @@ instance TypeOf (TCF a k) where
           IsInfinite {}     -> tBool
           IsDenormalized {} -> tBool
           IsNegativeZero {} -> tBool
+          BytesOfStream {}  -> tArray tByte
 
 
       TCSelStruct _ _ t  -> t

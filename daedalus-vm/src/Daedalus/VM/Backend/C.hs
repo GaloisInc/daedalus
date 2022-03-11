@@ -707,6 +707,9 @@ cOp1 x op1 ~[e'] =
     Src.StreamLen ->
       cVarDecl x $ sizeTo64 (cCallMethod e "length" [])
 
+    Src.BytesOfStream ->
+      cVarDecl x $ cCallMethod e "getByteArray" []
+
     Src.OneOf bs ->
       let v     = cVarUse x
           true  = cAssign v (cCall "DDL::Bool" [ "true" ]) $$ cBreak

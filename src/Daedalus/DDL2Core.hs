@@ -1048,6 +1048,7 @@ fromExpr expr =
                 TC.IsInfinite     -> eIsInfinite e
                 TC.IsDenormalized -> eIsDenormalized e
                 TC.IsNegativeZero -> eIsNegativeZero e
+                TC.BytesOfStream  -> bytesOfStream e
 
     TC.TCBinOp op v1 v2 _ ->
       do e1 <- fromExpr v1
