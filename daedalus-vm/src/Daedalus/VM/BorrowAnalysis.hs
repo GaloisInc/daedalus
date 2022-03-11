@@ -13,8 +13,6 @@ import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
 import Daedalus.VM
 import Daedalus.VM.TypeRep
 
-import Debug.Trace
-
 {-
 * Notes on reference variables:
 
@@ -69,7 +67,7 @@ of basic blocks (point 5)
 
 
 doBorrowAnalysis :: Program -> Program
-doBorrowAnalysis prog = traceShow info $ Program { pModules = annModule <$> pModules prog }
+doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
   where
   info        = borrowAnalysis prog
 
