@@ -1105,8 +1105,6 @@ altBinds (TCAlt ps _) = patBinds (head ps)
 
 
 
-$(return [])
-
 --------------------------------------------------------------------------------
 -- OrdF, TestEquality, etc.
 

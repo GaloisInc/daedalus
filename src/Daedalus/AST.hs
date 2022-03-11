@@ -522,6 +522,14 @@ instance PP Literal where
       LBytes b    -> text (show (BS8.unpack b))
       LPi         -> "pi"
 
+instance PP SrcType where
+  ppPrec n ty = case ty of
+                  SrcVar x -> ppPrec n x
+                  SrcCon x -> ppPrec n x
+                  SrcType l -> ppPrec n (thingValue l)
+
+
+
 
 $(return [])
 
@@ -536,12 +544,6 @@ instance TestEquality Context where
 
 instance OrdF Context where
   compareF = $(structuralTypeOrd [t| Context |] [])
-
-instance PP SrcType where
-  ppPrec n ty = case ty of
-                  SrcVar x -> ppPrec n x
-                  SrcCon x -> ppPrec n x
-                  SrcType l -> ppPrec n (thingValue l)
 
 
 

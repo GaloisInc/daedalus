@@ -41,7 +41,7 @@ library
     Daedalus.VM.Backend.C.Call
 
   build-depends:
-    base >=4.13 && <4.15,
+    base >=4.13 && <4.17,
     containers,
     text,
     bytestring,
