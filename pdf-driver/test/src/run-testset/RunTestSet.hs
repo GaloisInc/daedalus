@@ -27,34 +27,27 @@ main =
   shakeArgsWith
     shakeOptions{shakeFiles=".shake",shakeProgress=progressSimple}
     options
-    main'
-  
-main' :: [Flags] -> [FilePath] -> IO (Maybe (Rules ()))
-main' flags targets =
-  do
-  (toolName,corpName) <-
-    case sort flags of
-      [F_ToolName tn, F_CorporaName cn] -> return (tn,cn)
-      _                                 -> quit msg
-        where
-        msg = "must specify both --tool <tname> and --corpora <cname>"
-  t <- case [ t | t <- tools, t_name t == toolName ] of
-         [x] -> return x
-         []  -> fail $ "not a valid tool name: " ++ toolName
-         _   -> error "in 'tools/runTest'"
+    (\flags ts-> do
+                 opts <- processFlags flags
+                 main' opts ts
+    )
 
+main' :: Options -> [FilePath] -> IO (Maybe (Rules ()))
+main' opts targets =
+  do
+  let cmd_exec = t_cmd_exec (tool opts)
   (Exit ecode, StdoutTrim toolPath) <-
-    cmd "which" [t_cmd_exec t]
+    cmd "which" [cmd_exec]
   unless (ecode == ExitSuccess) $
-    fail $ "tool is not in path: '" ++ t_cmd_exec t ++ "'"
+    fail $ "tool is not in path: '" ++ cmd_exec ++ "'"
 
   let quote s = "'" ++ s ++ "'"
   putStrLn $ unwords [ "Results of testset with tool"
-                     , quote toolName
+                     , quote (toolName opts)
                      , "and corpora"
-                     , quote corpName ++ ":"
+                     , quote (corpName opts) ++ ":"
                      ]
-  let runTest' = runTest t toolPath corpName flags
+  let runTest' = runTest opts toolPath
   return
     $ Just
     $ if null targets then
@@ -63,12 +56,16 @@ main' flags targets =
         want targets >> withoutActions runTest'
         
 -- | runTest - one tool, one directory of inputs, one 'summary'
-runTest :: Tool -> FilePath -> String -> [Flags] -> Rules ()
-runTest t toolPath corpName flags =
+runTest :: Options -> FilePath -> Rules ()
+runTest opts toolPath =
   do
-  let T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} = t
-  let srcDir     = "corpora" </> corpName
-      testDir    = concat ["test","_",t_name,"_",corpName]
+  let T{t_name,t_cmd_exec,t_cmd_mkArgs,t_timeoutInSecs,t_proj,t_cmp} =
+        tool opts
+      timeoutInSecs = case timeOut opts of
+                        Just t  -> t
+                        Nothing -> t_timeoutInSecs
+      srcDir     = "corpora" </> (corpName opts)
+      testDir    = concat ["test","_",t_name,"_",corpName opts]
       resultDir  = testDir </> "results"
       expectedDir  = testDir </> "expected"
       summaryF   = testDir </> "test-summary"
@@ -96,7 +93,7 @@ runTest t toolPath corpName flags =
         src     = replaceDirectory srcBase srcDir
     need [src]
     (Exit code, CmdTime t) <-
-      command [ Shake.Timeout (fromIntegral t_timeoutInSecs)
+      command [ Shake.Timeout (fromIntegral timeoutInSecs)
               , WithStdout True
               , WithStderr True
               , EchoStderr False

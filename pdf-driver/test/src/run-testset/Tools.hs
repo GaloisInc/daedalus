@@ -4,33 +4,14 @@ module Tools where
 import           Data.List
 import           System.Console.GetOpt
 import           System.Exit
+import           Text.Read(readMaybe)
 
 -- regex-tdfa pkg:
 import qualified Text.Regex.TDFA as RE
 
 -- local:
 import Types
-
-
----- options -----------------------------------------------------------------
-
-data Flags = F_ToolName String
-           | F_CorporaName String
---         | F_Timeout Int
-           deriving (Eq,Show,Ord)
-
-options =
-  [ Option [] ["tool"]    (ReqArg mkToolName    toolnameRegEx) "tool name"
-  , Option [] ["corpora"] (ReqArg mkCorporaName "CORP"       ) "corpora name"
-  -- , Option "s" ["timeout"] (ReqArg  "sec")  "timeout"
-  ]
-  where
-  -- mkTimeout s = 
-  mkCorporaName s = Right (F_CorporaName s)
-  mkToolName s
-    | s `elem` toolnames = Right (F_ToolName s)
-    | otherwise          = Left $ "toolname must be '" ++ toolnameRegEx ++ "'"
-  
+import Util
 
 
 ---- tools -------------------------------------------------------------------
@@ -154,4 +135,61 @@ totext_T =
   cmp expected actual =
     expected == actual  -- FIXME[F1]: must relax!
     -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
+
     
+---- options -----------------------------------------------------------------
+
+data Flags = F_ToolName String
+           | F_CorporaName String
+           | F_Timeout Int
+           deriving (Eq,Show,Ord)
+
+options =
+  [ Option []  ["tool"]    (ReqArg mkToolName    toolnameRegEx)
+      "tool name (REQUIRED)"
+  , Option []  ["corpora"] (ReqArg mkCorporaName "CORP"       )
+      "corpora name (REQUIRED)"
+  , Option "t" ["timeout"] (ReqArg (fmap F_Timeout . mkIntegerArg) "sec")
+      "timeout"
+  ]
+  where
+  mkCorporaName s = Right (F_CorporaName s)
+  
+  mkToolName s
+    | s `elem` toolnames = Right (F_ToolName s)
+    | otherwise          = Left $ "toolname must be '" ++ toolnameRegEx ++ "'"
+  
+  mkIntegerArg s = case readMaybe s of
+                     Just i  -> Right i
+                     Nothing -> Left "can't parse integer"
+
+data Options = Options { tool     :: Tool
+                       , corpName :: String
+                       , timeOut  :: Maybe Int  -- in secs!
+                       }
+
+toolName :: Options -> String
+toolName (Options{tool=T{t_name=s}}) = s
+
+usage = quit (usageInfo "Usage: run-testset [OPTION...]\nOPTIONS:" options)
+                     
+processFlags :: [Flags] -> IO Options
+processFlags flags =
+  do
+  (toolName,corpName') <- 
+    case ([cn | F_CorporaName cn <- flags]
+         ,[tn | F_ToolName tn <- flags]
+         )
+    of
+      ([cn],[tn]) -> return (tn,cn)
+      _           -> usage
+    
+  let to = case [s | F_Timeout s <- flags] of
+             [] -> Nothing
+             ts -> Just (last ts)
+             
+  t <- case [ t | t <- tools, t_name t == toolName ] of
+         [x] -> return x
+         []  -> fail $ "not a valid tool name: " ++ toolName
+         _   -> error "in 'tools/runTest'"
+  return $ Options {tool=t, corpName=corpName', timeOut=Nothing}
