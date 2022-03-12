@@ -250,17 +250,15 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseErr e    -> declErr fmt ref loc res { declResult = e }
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
 
-
--- driver for Validate mode
-driverValidate :: DbgMode => Options -> IO ()
-driverValidate opts = runReport opts $
+preDOM :: Options -> ReportM (FilePath, ObjIndex, Ref, TrailerDict, Input)
+preDOM opts =
   do let file = optPDFInput opts
      bs   <- liftIO (BS.readFile file)
      let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
 
      idx  <- case findStartXRef bs of
                Left err  -> reportCritical file 0
-                                            ("unable to find %%EOF" <+> parens (text err))
+                                           ("unable to find %%EOF" <+> parens (text err))
                Right idx -> return idx
 
      (refs, root, trail) <-
@@ -269,7 +267,6 @@ driverValidate opts = runReport opts $
                ParseOk (r,t) -> case getField @"root" t of
                                   Nothing ->
                                     reportCritical file 0 "Missing document root"
-
                                   Just ro ->
                                     do
                                     report RInfo file (sizeToInt idx)
@@ -279,7 +276,12 @@ driverValidate opts = runReport opts $
                  reportCritical file 0 "Ambiguous results?"
                ParseErr e ->
                  reportCritical file (peOffset e) (ppParserError e)
+     return (file,refs,root,trail,topInput)
 
+-- driver for Validate mode
+driverValidate :: DbgMode => Options -> IO ()
+driverValidate opts = runReport opts $
+  do (file,refs,root,trail,topInput) <- preDOM opts
      res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
        ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
@@ -302,32 +304,7 @@ driverValidate opts = runReport opts $
 -- driver for text extraction
 driverExtractText :: DbgMode => Options -> IO ()
 driverExtractText opts = runReport opts $
-  do let file = optPDFInput opts
-     bs   <- liftIO (BS.readFile file)
-     let topInput = newInput (Text.encodeUtf8 (Text.pack file)) bs
-
-     idx  <- case findStartXRef bs of
-               Left err  -> reportCritical file 0
-                                            ("unable to find %%EOF" <+> parens (text err))
-               Right idx -> return idx
-
-     (refs, root, trail) <-
-            liftIO (parseXRefsVersion1 topInput idx) >>= \res ->
-            case res of
-               ParseOk (r,t) -> case getField @"root" t of
-                                  Nothing ->
-                                    reportCritical file 0 "Missing document root"
-
-                                  Just ro -> 
-                                    do
-                                    report RInfo file (sizeToInt idx)
-                                           "Updates and xref tables parsed"
-                                    pure (r,ro,t)
-               ParseAmbig _ ->
-                 reportCritical file 0 "Ambiguous results?"
-               ParseErr e ->
-                 reportCritical file (peOffset e) (ppParserError e)
-
+  do (file,refs,root,trail,topInput) <- preDOM opts
      res <- liftIO (runParser refs Nothing (pExtractCatalogText root) topInput)
      case res of
        ParseOk r ->
