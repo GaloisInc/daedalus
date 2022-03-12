@@ -74,9 +74,9 @@ fawFormat = Format
   , xrefMissing =
       \x -> putStrLn ("ERROR: " ++ x)
   , xrefFound =
-      \x -> putStrLn ("INFO:" ++ show x ++ " Found pointer to xref table/stream.")
+      \x -> putStrLn ("INFO: " ++ show x ++ " Found pointer to xref table/stream.")
   , xrefBad =
-      \p -> putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
+      \p -> putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
   , xrefOK =
       \o _t -> putStrLn ("INFO: " ++ show (Map.size o) ++ " xref entries.")
   , warnEncrypt =
@@ -86,7 +86,7 @@ fawFormat = Format
       \r -> putStrLn ("INFO: Root reference is " ++
                         showR (getField @"obj" r) (getField @"gen" r))
   , catalogParseError = \p ->
-      putStrLn ("ERROR:" ++ show (peOffset p) ++ " " ++ peMsg p)
+      putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
   , catalogParsed = \ok ->
       putStrLn ("INFO: Catalog value:\n" ++ ok)
   , declErr =
@@ -207,11 +207,10 @@ parseDecl fileEC topInput refMap (ref,loc) =
      pure DeclResult { declTime = fromIntegral ((end-start) `div` (10^(6::Int)))
                      , declCompressed = compressed
                      , declResult = result
-                    }
+                     }
   where
   (parser,compressed,objEC) =
     case loc of
-
       InFileAt off ->
         ( case advanceBy (intToSize off) topInput of
             Just i -> do pSetInput i
@@ -236,8 +235,6 @@ parseDecl fileEC topInput refMap (ref,loc) =
 --------------------------------------------------------------------------------
 
 
-
-
 checkDecl ::
   DbgMode =>
   Format ->
@@ -249,6 +246,7 @@ checkDecl fmt fileEC topInput refMap d@(ref,loc) =
        ParseAmbig {} -> error "BUG: Ambiguous parse?"
        ParseErr e    -> declErr fmt ref loc res { declResult = e }
        ParseOk x     -> declParsed fmt ref loc res { declResult = x }
+
 
 preDOM :: Options -> ReportM (FilePath, ObjIndex, Ref, TrailerDict, Input)
 preDOM opts =
@@ -319,7 +317,6 @@ driverExtractText opts = runReport opts $
          (Text.decodeUtf8 $ BS.pack (map (toEnum . aux . show . fromUInt) (toList r)))
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
-
      let pwd = BS.pack (optPassword opts)
      mb <- liftIO (try (makeEncContext trail refs topInput pwd))
      case mb of
@@ -381,7 +378,7 @@ handlePdfResult x msg =
         ParseAmbig {} -> error msg
         ParseErr e    -> throwIO e
 
--- XXX: Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
+-- FIXME Identical code in pdf-driver/src/dom/Main.hs. Should de-duplicate
 makeEncContext :: Integral a =>
                       TrailerDict
                   -> ObjIndex

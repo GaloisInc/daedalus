@@ -4,13 +4,11 @@
 module Common where
 
 
-import Control.Monad.IO.Class(MonadIO(..))
 import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
-                 , hPutStr, hPutStrLn, hFlush, hSetEncoding, hGetEncoding, utf8)
+                 , hPutStr, hPutStrLn, hFlush, hSetEncoding, utf8)
 
 import RTS.ParserAPI(ParseError(..),peOffset)
-import RTS.Input(inputOffset)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
