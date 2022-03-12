@@ -270,7 +270,11 @@ driverValidate opts = runReport opts $
                                   Nothing ->
                                     reportCritical file 0 "Missing document root"
 
-                                  Just ro -> pure (r,ro,t)
+                                  Just ro ->
+                                    do
+                                    report RInfo file (sizeToInt idx)
+                                           "Updates and xref tables parsed"
+                                    pure (r,ro,t)
                ParseAmbig _ ->
                  reportCritical file 0 "Ambiguous results?"
                ParseErr e ->
@@ -314,7 +318,11 @@ driverExtractText opts = runReport opts $
                                   Nothing ->
                                     reportCritical file 0 "Missing document root"
 
-                                  Just ro -> pure (r,ro,t)
+                                  Just ro -> 
+                                    do
+                                    report RInfo file (sizeToInt idx)
+                                           "Updates and xref tables parsed"
+                                    pure (r,ro,t)
                ParseAmbig _ ->
                  reportCritical file 0 "Ambiguous results?"
                ParseErr e ->
