@@ -1,12 +1,3 @@
-  TODO All variances here are SUSPECT.
-  These are all files that have been constructed to be invalid but currently
-  are given 'valid' by pdf-hs-driver.  At least we should be sending out
-  a warning that suspicious files are being "parsed".
-  
-1_invalid_xref_trad-a.pdf
-1_invalid_xref_trad-b.pdf
-2_invalid_xref_strm_rec_indirects.pdf
-3a_invalid_emptyvalue.pdf
-3b_invalid_badvaluesyntax.pdf
-4b_invalid_2xref_strms_recursive.pdf
-  
+2_valid_xref_strm.pdf
+2_valid_xref_strm_indirects.pdf
+4a_valid_2xref_strms.pdf

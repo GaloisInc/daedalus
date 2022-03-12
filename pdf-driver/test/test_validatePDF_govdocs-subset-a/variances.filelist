@@ -1,3 +1,7 @@
+000022.pdf
+  good file
+  bug in our code Ill-formed LZW stream: first key is not in initial dictionary.
+
 000029.pdf
   TODO quite a few warnings, but kudu ground truth == valid
   better error from pdf-dom:

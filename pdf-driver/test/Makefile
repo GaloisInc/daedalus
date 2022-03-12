@@ -1,6 +1,9 @@
 SHAKEOPTS?=-j16
   # works like Make's -j
 RUNTESTSET_TIMEOUT?=-t 240
+  # timeout : corp         : no. file timeouts
+  # 240     : 2020-03-eval : ~8
+
 RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS} ${RUNTESTSET_TIMEOUT}
 
 nodefaulttarget:
