@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cctype>
+#include <iomanip>
 #include <main_parser.h>
+#include <openssl/evp.h>
 
 #include <zlib.h>
 
@@ -9,6 +11,7 @@
 #include "ascii85.hpp"
 #include "lzw.hpp"
 #include "predictor.hpp"
+#include "encryption.hpp"
 
 bool parser_Trace
   ( DDL::ParserState& state
@@ -48,6 +51,14 @@ bool parser_ResolveRef
   return references.resolve_reference(refid, gen, result);
 }
 
+void debug_print(char const* label, char const* data, size_t len)
+{
+  std::cerr << label << ":";
+  for (size_t i = 0; i < len; i++) {
+    std::cerr << " " << std::hex << std::setfill('0') << std::setw(2) << unsigned((unsigned char)data[i]);
+  }
+  std::cerr << std::endl;
+}
 
 bool parser_Decrypt
   ( DDL::ParserState &pstate
@@ -58,12 +69,59 @@ bool parser_Decrypt
   , DDL::Input body
   ) {
 
-  if (false && references.getEncryptionContext().has_value()) {
+  if (references.getEncryptionContext().has_value()) {
     auto const& e = *references.getEncryptionContext();
-    std::cerr << "Encryption not implemented" << std::endl;
-    body.free();
-    input.free();
-    return false;
+    
+    if (DDL::Tag::ChooseCiph::v4AES == e.cipher.borrow().getTag()) {
+      std::string key = makeObjKey(
+        *references.getEncryptionContext(),
+        references.currentObjId,
+        references.currentGen,
+        true);
+
+      // Check length is multiple of 16 and longer than 0
+
+      std::string output(body.length().value - 16, 0);
+
+      EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+
+      EVP_DecryptInit(ctx, EVP_aes_128_cbc(),
+        reinterpret_cast<unsigned char const*>(key.data()),
+        reinterpret_cast<unsigned char const*>(body.borrowBytes())
+      );
+
+      int outl = output.size();
+      EVP_DecryptUpdate(ctx,
+        reinterpret_cast<unsigned char *>(output.data()),
+        &outl,
+        reinterpret_cast<unsigned char const*>(body.borrowBytes()+16),
+        body.length().value - 16
+      );
+
+      EVP_DecryptFinal(ctx, NULL, NULL);
+
+      EVP_CIPHER_CTX_free(ctx);
+
+      body.free();
+
+      if (!removePadding(output)) {
+        input.free();
+        return false;
+      }
+
+      *result = DDL::Input("decrypted", output.data(), output.size());
+      *out_input = input;
+      return true;
+    } else {
+      std::cerr
+        << "Encryption not implemented "
+        << references.currentObjId << " "
+        << references.currentGen
+        << std::endl;
+      body.free();
+      input.free();
+      return false;
+    }
   } else {
     *result = body;
     *out_input = input;

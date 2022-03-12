@@ -9,6 +9,7 @@
 #include "main_parser.h"
 #include <ddl/input.h>
 #include "Owned.hpp"
+#include "encryption.hpp"
 
 struct Blackhole {};
 
@@ -47,12 +48,6 @@ struct ReferenceEntry {
     generation_type gen;
 };
 
-struct EncryptionContext {
-    std::string key;
-    Owned<User::ChooseCiph> cipher;
-    EncryptionContext(std::string key, User::ChooseCiph cipher)
-    : key(key), cipher(borrowed(cipher)) {}
-};
 
 class ReferenceTable {
 

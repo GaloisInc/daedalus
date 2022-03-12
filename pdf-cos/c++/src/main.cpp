@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
   }
 
   for (auto && [refid, val] : references.table) {
-    std::cerr << "Getting " << refid << " " << val.gen << std::endl;
+    std::cerr << "Getting " << std::dec << refid << " " << val.gen << std::endl;
     DDL::Maybe<User::TopDecl> decl;
 
     if (references.resolve_reference(refid, val.gen, &decl)) {
