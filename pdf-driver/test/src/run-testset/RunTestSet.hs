@@ -123,42 +123,54 @@ runTest opts toolPath =
          _  -> resultC ++ if last resultC /= '\n' then ['\n'] else []
       )
       
+  resultDir</>"*.diff" %> \diffF ->
+    do
+    let baseF     = takeBaseName diffF
+        actualF   = resultDir   </> baseF <.> "result-actual"
+        expectedF = expectedDir </> baseF <.> "result-expected"
+    need [expectedF,actualF]
+    cResult <- liftIO $ cmpFileContents t_cmp expectedF actualF
+    writeFile' diffF $
+      show cResult
+    {-
+      case eqv of
+        Right () -> "equivalent"
+        Left ss  -> "not-equivalent: " ++ unlines ss
+    -}
+      
   summaryF %> \summaryF' ->
     do
-    -- needed source files:
     let firstCharNonWhite []    = False
         firstCharNonWhite (c:_) = not (isSpace c)
         
     need [variancesF]
     varianceFiles <- filter firstCharNonWhite . lines
                      <$> readFile' variancesF
-    exps <- getDirectoryFiles "" [expectedDir </> "*.result-expected"]
-    need exps
 
-    -- needed generated files:
+    -- we work on the '*.result-expected' files:
+    exps <- getDirectoryFiles "" [expectedDir </> "*.result-expected"]
     let basenames = map
                       (takeFileName . sfStripExtension ".result-expected")
                       exps
-        baseToActual b = resultDir </> b <.> "result-actual"
-    need $ map baseToActual basenames
 
-    -- compute variances (results):
-    rs <- forM basenames
-          $ \baseF-> do
-                     let expectedF = expectedDir </> baseF <.> "result-expected"
-                         actualF   = resultDir   </> baseF <.> "result-actual"
-                         variance  = baseF `elem` varianceFiles
-                     eqv <- liftIO $ cmpFileContents t_cmp expectedF actualF
-                     return $! case (eqv,variance) of
-                       (False,False) -> Just (baseF, NE_NoVariance)
-                       (True ,True ) -> Just (baseF, EQ_Variance)
-                       _             -> Nothing
-                       
-                       -- N.B. the $! : this fixes a resource leak where
-                       -- we have all the files open at once.
+    -- need the diff file for each result-expected file:
+    need $ map
+             (\b->resultDir </> b <.> "diff")
+             basenames
 
-    let ps = catMaybes rs  -- the problems
-
+    -- compute the problems / unexpected variances:
+    ps <- catMaybes <$> (
+          forM basenames
+              $ \baseF-> do
+                         let diffF = resultDir </> baseF <.> "diff"
+                             variance  = baseF `elem` varianceFiles
+                         diff <- read <$> readFile' diffF
+                         return $ case (diff,variance) of
+                           (False,False) -> Just (baseF, NE_NoVariance)
+                           (True ,True ) -> Just (baseF, EQ_Variance)
+                           _             -> Nothing
+          )
+          
     -- generate summary report:
     let report = unlines $
           [ show(length basenames) ++ " files"
