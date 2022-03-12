@@ -1,9 +1,21 @@
-#include "encryption.hpp"
+#include <vector>
+#include <memory>
 
 #include <openssl/evp.h>
+
 #include <ddl/integer.h>
 #include "main_parser.h"
-#include <vector>
+
+#include "encryption.hpp"
+
+namespace {
+    template<class T> struct DeleterOf;
+    template<> struct DeleterOf<EVP_CIPHER_CTX> { void operator()(EVP_CIPHER_CTX *p) const { EVP_CIPHER_CTX_free(p); } };
+    template<> struct DeleterOf<EVP_MD_CTX> { void operator()(EVP_MD_CTX *p) const { EVP_MD_CTX_free(p); } };
+
+    template<class OpenSSLType>
+    using OpenSSL_ptr = std::unique_ptr<OpenSSLType, DeleterOf<OpenSSLType>>;
+} 
 
 bool removePadding(std::string &str)
 {
@@ -36,11 +48,11 @@ std::string makeObjKey(
     uint16_t gen,
     bool isAES
 ) { 
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    auto ctx = OpenSSL_ptr<EVP_MD_CTX>(EVP_MD_CTX_new());
 
-    EVP_DigestInit(ctx, EVP_md5());
+    EVP_DigestInit(ctx.get(), EVP_md5());
     
-    EVP_DigestUpdate(ctx, encCtx.key.data(), encCtx.key.size());
+    EVP_DigestUpdate(ctx.get(), encCtx.key.data(), encCtx.key.size());
     
     // Specified to use 3 bytes of refid and 2 bytes of gen in little-endian encoding
     uint8_t idbytes[] = {
@@ -51,20 +63,18 @@ std::string makeObjKey(
         uint8_t(gen   >> (1*8)),
     };
     
-    EVP_DigestUpdate(ctx, idbytes, std::size(idbytes));
+    EVP_DigestUpdate(ctx.get(), idbytes, std::size(idbytes));
 
     if (isAES) {
         const uint8_t salt[] = {0x73, 0x41, 0x6C, 0x54};
-        EVP_DigestUpdate(ctx, salt, std::size(salt));
+        EVP_DigestUpdate(ctx.get(), salt, std::size(salt));
     }
 
     unsigned char md[EVP_MAX_MD_SIZE] = {0};
     unsigned int size = std::size(md);
-    EVP_DigestFinal(ctx, md, &size);
+    EVP_DigestFinal(ctx.get(), md, &size);
 
     std::string result{ reinterpret_cast<char const*>(md), size_t(size)};
-
-    EVP_MD_CTX_free(ctx);
 
     return result;
 }
@@ -82,14 +92,15 @@ std::string makeFileKeyAlg2(
     , 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A};
 
     EVP_MD const* md5 = EVP_get_digestbyname("MD5"); 
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     
-    EVP_DigestInit(ctx, md5);
+    auto ctx = OpenSSL_ptr<EVP_MD_CTX>(EVP_MD_CTX_new());
     
-    EVP_DigestUpdate(ctx, password.data(), std::min(password.size(), size_t(32)));
+    EVP_DigestInit(ctx.get(), md5);
+    
+    EVP_DigestUpdate(ctx.get(), password.data(), std::min(password.size(), size_t(32)));
     
     if (password.size() < 32) {
-        EVP_DigestUpdate(ctx, padding, 32 - password.size());
+        EVP_DigestUpdate(ctx.get(), padding, 32 - password.size());
     }
 
     std::vector<uint8_t> hashInput;
@@ -97,30 +108,29 @@ std::string makeFileKeyAlg2(
     for (DDL::Size i = 0; i < encO.size(); i.increment()) {
         hashInput.push_back(encO.borrowElement(i).rep());
     }
-    EVP_DigestUpdate(ctx, hashInput.data(), hashInput.size());
+    EVP_DigestUpdate(ctx.get(), hashInput.data(), hashInput.size());
 
     uint32_t pval = encP.asSize().value;
     uint8_t pbytes[4] = { uint8_t(pval >> (0*8)), uint8_t(pval >> (1*8)), uint8_t(pval >> (2*8)), uint8_t(pval >> (3*8)) };
-    EVP_DigestUpdate(ctx, pbytes, std::size(pbytes));
+    EVP_DigestUpdate(ctx.get(), pbytes, std::size(pbytes));
 
     hashInput.clear();
     hashInput.reserve(id0.size().value);
     for (DDL::Size i = 0; i < id0.size(); i.increment()) {
         hashInput.push_back(id0.borrowElement(i).rep());
     }
-    EVP_DigestUpdate(ctx, hashInput.data(), hashInput.size());
+    EVP_DigestUpdate(ctx.get(), hashInput.data(), hashInput.size());
 
     // XXX: If document metadata is not being encrypted, pass 4 bytes with value 0xFFFFFFFF to the MD5
 
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned int mdsz = std::size(md);
-    EVP_DigestFinal(ctx, md, &mdsz);
-    EVP_MD_CTX_free(ctx);
+    EVP_DigestFinal(ctx.get(), md, &mdsz);
 
     // XXX: Revision 3 or greater only
     for (int i = 0; i < 50; i++) {
         EVP_Digest(md, mdsz, md, &mdsz, md5, NULL);
-    }     
+    }
 
     return std::string(reinterpret_cast<char const*>(md), size_t(mdsz));
 }
@@ -132,13 +142,42 @@ EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
     auto pwd = "";
 
     std::string key = makeFileKeyAlg2(encO, encP, id0, pwd);
-    
-    std::cerr << "MADE A KEY " ;
-    for (auto &&x : key) { std::cerr << std::dec << unsigned((unsigned char)x) << " "; }
-    std::cerr << std::endl;
-
-    DDL::toJS(std::cerr, dict.borrow_ciph());
-    std::cerr << std::endl;
 
     return EncryptionContext(key, dict.borrow_ciph());
+}
+
+bool aes_cbc_decryption(
+    char const* input, size_t input_len,
+    char const* key,
+    std::string &output)
+{
+    if (input_len < 32 || input_len % 16) {
+        return false;
+    }
+
+    output.resize(input_len - 16);
+
+    auto ctx = OpenSSL_ptr<EVP_CIPHER_CTX>(EVP_CIPHER_CTX_new());
+
+    EVP_DecryptInit(ctx.get(), EVP_aes_128_cbc(),
+        reinterpret_cast<unsigned char const*>(key),
+        reinterpret_cast<unsigned char const*>(input) // iv
+    );
+
+    int outl = output.size();
+    EVP_DecryptUpdate(ctx.get(),
+        reinterpret_cast<unsigned char *>(output.data()),
+        &outl,
+        reinterpret_cast<unsigned char const*>(input+16),
+        input_len - 16
+    );
+
+    EVP_DecryptFinal(ctx.get(), NULL, NULL);
+
+    if (!removePadding(output)) {
+        output.clear();
+        return false;
+    }
+
+    return true;
 }
