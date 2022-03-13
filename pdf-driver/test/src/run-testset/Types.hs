@@ -29,7 +29,7 @@ data ErrorType = EQ_Variance
                deriving (Eq, Read, Show)
 
 data MetaData = MetaData { exitCode :: ExitCode
-                         , runtime  :: Int
+                         , runtime  :: Int  -- in msecs
                          }
                 deriving (Eq,Show,Read)
 

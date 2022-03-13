@@ -12,7 +12,7 @@ fi
 
 cd $TEST_DIR
 
-make $TARGET-status
+RUNTESTSET_TIMEOUT_IN_SECS=600 make $TARGET-status
 
 if [ $? -eq 0 ]
 then

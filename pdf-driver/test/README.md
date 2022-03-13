@@ -157,6 +157,30 @@ One could view all the false positives from `validatePDF` tool by
    grep false-positive test_validatePDF_*/results/*.diff
 ```
 
+## Dealing with Timeouts 
+
+We want to have *timeouts* but, for long running tests that may or may not
+finish, this makes our results non-deterministic.
+For `validatePDF` one can add "|Timeout" to the expected regex.
+But this might cause difficulties with files in the variances.filelist 
+when they timeout: the test *looks like* a success, thus we see "unexpected variances", e.g.,
+```
+2 unexpected variance(s):
+ Files where result == expected but a variance is specified:
+  0737_ae24537e723bae0cce6d51206855710b0184f4920e41bcfc2888e1f75f714080.pdf
+  0989_fcc3d37aa21e4e1f7c076e835596fd18fcac90a8e14691e6ff47a40858a0e98c.pdf
+```
+
+Here's an idiom for re-testing files that have timed out:
+```
+cd pdf-driver/test
+for f in $(grep -l Timeout test_validatePDF_2020-03-eval/results/*.result-actual | sed 's/\.result-actual//')
+do 
+ rm $f.*
+done
+RUNTESTSET_TIMEOUT_IN_SECS=600 make long-status
+```
+
 ## Details & Implementation ##
 
 Refer to `Makefile` for examples and some further details.

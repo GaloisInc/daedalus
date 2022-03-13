@@ -215,4 +215,4 @@ processFlags flags =
          [x] -> return x
          []  -> fail $ "not a valid tool name: " ++ toolName
          _   -> error "in 'tools/runTest'"
-  return $ Options {tool=t, corpName=corpName', timeOut=Nothing}
+  return $ Options {tool=t, corpName=corpName', timeOut=to}
