@@ -173,12 +173,12 @@ when they timeout: the test *looks like* a success, thus we see "unexpected vari
 
 Here's an idiom for re-testing files that have timed out:
 ```
-cd pdf-driver/test
+cd ~/src/daedalus/pdf-driver/test # change to your daedalus home!
 for f in $(grep -l Timeout test_validatePDF_2020-03-eval/results/*.result-actual | sed 's/\.result-actual//')
 do 
  rm $f.*
 done
-RUNTESTSET_TIMEOUT_IN_SECS=600 make long-status
+RUNTESTSET_TIMEOUT_IN_SECS=600 make long-status  # 10 minutes
 ```
 
 ## Details & Implementation ##
