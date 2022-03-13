@@ -1,7 +1,7 @@
 # maybe one day the cabal build will morph into this ... but just to add a few helpful targets
 
 all:
-	echo there is no default target, cabal is used to build
+	@echo there is no default target, cabal is used to build
 
 
 # The moving of generated Haskell files from place to place can play havoc with
