@@ -17,14 +17,13 @@ data Tool =
                       -> IO String   -- the result of tool (as string)
                         -- FIXME: this may add unnecessary 'needs'
 
-    , t_cmp           :: String -> String -> Bool
-                         -- FIXME: possibly elaborate Bool to provide error messages?
+    , t_cmp           :: String -> String -> Compared
     }
+
 
   -- FIXME: name things as an 'isvalid' (not 'result') projection
   -- and abstract over projections (e.g., have multiple, named projs)
 
-  
 data ErrorType = EQ_Variance
                | NE_NoVariance
                deriving (Eq, Read, Show)
@@ -33,4 +32,19 @@ data MetaData = MetaData { exitCode :: ExitCode
                          , runtime  :: Int
                          }
                 deriving (Eq,Show,Read)
+
+---- Compared ... ------------------------------------------------------------
+
+data Compared = Equivalent
+              | NotEquivalent String
+               deriving (Eq, Read, Show)
+
+isEquivalent :: Compared -> Bool
+isEquivalent Equivalent = True
+isEquivalent _          = False
+
+boolToCompared b = if b then
+                     Equivalent
+                   else
+                     NotEquivalent ""
 

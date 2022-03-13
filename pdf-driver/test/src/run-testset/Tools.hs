@@ -34,10 +34,31 @@ validate_T =
     , t_cmd_mkArgs    = (\f->[f])
     , t_timeoutInSecs = 4*60  -- typically overridden on command-line
     , t_proj          = proj
-    , t_cmp           = matchesRE -- NB: the result-expected data is a RegExp!
+    , t_cmp           = cmp
     }
 
   where
+  -- NB: the result-expected data is a RegExp!
+  cmp re' actual' =
+    if matchesRE re actual then
+      Equivalent
+    else
+      NotEquivalent msg
+      
+    where
+    re = rmTrailingWhitespace re'
+    actual = rmTrailingWhitespace actual'
+    res = split '|' re
+    info = concat ["driver gives '", actual, "', but expected is '",re,"'"]
+    pinfo = "(" ++ info ++ ")"
+    msg =
+      case (re,actual) of
+        ("NCBUR","Good") -> "semi false-negative: " ++ pinfo
+        ("NCBUR","Bad" ) -> "semi false-positive: " ++ pinfo
+        (_      ,"Good") | "Bad"  `elem` res -> "false-negative: " ++ pinfo
+        (_      ,"Bad" ) | "Good" `elem` res -> "false-positive: " ++ pinfo
+        _                                    -> info                   
+      
   matchesRE :: String -> String -> Bool
   matchesRE expectedRegEx actual =
     RE.matchTest (regExpNotCS expectedRegEx) actual
@@ -91,7 +112,7 @@ cmapSimple_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    expected == actual -- FIXME[F1]: must relax!
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 cmapCid_T :: Tool
 cmapCid_T =
@@ -109,7 +130,7 @@ cmapCid_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    expected == actual -- FIXME[F1]: must relax!
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 
 ---- tool: totext ----
@@ -135,7 +156,7 @@ totext_T =
              | otherwise                = True
 
   cmp expected actual =
-    expected == actual  -- FIXME[F1]: must relax!
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
     -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
 
     

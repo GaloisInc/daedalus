@@ -1,21 +1,13 @@
 module Util where
 
 -- system:
+import           Data.Char
 import           System.Exit
 
 -- shake:
 import           Development.Shake.FilePath
 
 ---- utilities ---------------------------------------------------------------
-
-cmpFileContents :: (String -> String -> Bool)
-                -> FilePath -> FilePath -> IO Bool
-cmpFileContents eqv fa fb =
-  do
-  ca <- readFile fa
-  cb <- readFile fb
-  return (eqv ca cb)
-
 
 triviallyFormat []     = ""
 triviallyFormat (c:cs) =
@@ -36,4 +28,33 @@ quit msg =
   do putStrLn msg
      exitFailure
      
+cmpFileContents :: (String -> String -> a)
+                -> FilePath -> FilePath -> IO a
+cmpFileContents eqv fa fb =
+  do
+  ca <- readFile fa
+  cb <- readFile fb
+  return (eqv ca cb)
 
+
+rmTrailingWhitespace :: [Char] -> [Char]
+rmTrailingWhitespace = reverse . dropWhile isSpace . reverse
+  
+---- split,unsplit -----------------------------------------------------------
+
+-- split,unsplit a generalization of words,unwords!
+
+split        :: Eq a => a -> [a] -> [[a]]
+split x = splitBy (==x)
+
+splitBy      :: (a->Bool) -> [a] -> [[a]]
+splitBy _ []  = []
+splitBy p xs  = let (l,xs') = break p xs
+                in l : case xs' of []       -> []
+                                   (_:xs'') -> splitBy p xs''
+
+unsplit :: a -> [[a]] -> [a]
+unsplit _ [] = []
+unsplit x xs = foldr1 (\x' s -> x' ++ x:s) xs
+
+unsplit' x xs = foldr (\x' s -> x' ++ x:s) [] xs

@@ -132,11 +132,6 @@ runTest opts toolPath =
     cResult <- liftIO $ cmpFileContents t_cmp expectedF actualF
     writeFile' diffF $
       show cResult
-    {-
-      case eqv of
-        Right () -> "equivalent"
-        Left ss  -> "not-equivalent: " ++ unlines ss
-    -}
       
   summaryF %> \summaryF' ->
     do
@@ -164,11 +159,13 @@ runTest opts toolPath =
               $ \baseF-> do
                          let diffF = resultDir </> baseF <.> "diff"
                              variance  = baseF `elem` varianceFiles
-                         diff <- read <$> readFile' diffF
-                         return $ case (diff,variance) of
+                         cmprd <- read <$> readFile' diffF
+                         return $! case (isEquivalent cmprd,variance) of
                            (False,False) -> Just (baseF, NE_NoVariance)
                            (True ,True ) -> Just (baseF, EQ_Variance)
                            _             -> Nothing
+                          -- N.B. the $! : this fixes a resource leak where
+                          -- we have all the files open at once.
           )
           
     -- generate summary report:

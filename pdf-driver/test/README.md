@@ -86,9 +86,11 @@ files for which we have an `expected/*.result-expected` file.  I.e.,
         run the test on this input-file:  corpora/CORPORANAME/$base
       done
 
-Two tools currently are supported, by name (see `src/RunTestSet.hs`):
+These tools currently are supported, by name (see `src/run-testset/Tools.hs`):
   - validatePDF : `pdf-hs-driver ...`
   - totext      : `pdf-hs-driver -t ...`
+  - cmap-sf     : parses CMAP (simple fonts)
+  - cmap-cid    : parses CMAP (CID fonts)
 
 ## What we store in the repo ##
 
@@ -98,16 +100,14 @@ changes:
 
       test_TOOLNAME_CORPORANAME/
         results/*.result-actual
+        results/*.diff
         test-summary
    
-The `*.meta` files will change a lot (as they have the runtime) but we still
-want to keep track of this.
- 
 ## Running a Test ##
 
 You run a test thus (or `cabal v2-run -- run-testset ...`)
 
-    run-testset TOOLNAME CORPORANAME
+    run-testset --tool=TOOLNAME --corpora=CORPORANAME
   
 ### Passing a Test & variances.filelist ###
 
@@ -136,15 +136,26 @@ There are two kinds of problems:
 
 ## Expected and Actual
 
-For a given test, you can see the differences between the actual and 
+Depending on the tool the `run-testset` program may compared the expected 
+value and the actual value differently.
+- totext : strict equality of bytes, which in fact is not very useful!
+- validatePDF : the expected value is a regular expression.
+
+For `totext`, you can see the differences between the actual and 
 the expected results by (e.g.)
 ```
 cd test/test_totext_font-exercises
 ../../scripts/show-test-diff.sh helloworld.pdf
 ```
-Currently the `run-testset` program verifies that actual and expected are 
-"exact equals" but that can easily be changed for an individual tool.
-E.g., we should change the comparision function for the "totest" tool!
+
+For `validatePDF` you can view the diff files, e.g.,
+```
+   test_validatePDF_2020-03-eval/results/*.diff
+```
+One could view all the false positives from `validatePDF` tool by
+```
+   grep false-positive test_validatePDF_*/results/*.diff
+```
 
 ## Details & Implementation ##
 

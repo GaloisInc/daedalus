@@ -8,7 +8,7 @@ RUNTESTSET?=cabal v2-run -- run-testset ${SHAKEOPTS} ${RUNTESTSET_TIMEOUT}
 
 nodefaulttarget:
 	@echo no default target, did you want ...?
-	@echo " " make quick "         # 5 min check of local pdfs"
+	@echo " " make quick "         # 1 min check of local pdfs"
 	@echo " " make remotecorpora " # rsync remote corporas to here"
 	@echo " " make long "          # 2 hour check of larger corporas"
 
@@ -59,7 +59,7 @@ quick-clean: $(QUICKTESTS:test-summary=clean)
 long-clean:  $(LONGTESTS:test-summary=clean)
 
 
-build:
+build:  src/run-testset/*.hs Makefile
 	cd ../..; cabal v2-build exe:run-testset
 
 # turn 'all tests succeed' into an error code:
