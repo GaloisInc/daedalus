@@ -79,35 +79,19 @@ bool parser_Decrypt
         references.currentGen,
         true);
 
-      // Check length is multiple of 16 and longer than 0
-
-      std::string output(body.length().value - 16, 0);
-
-      EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-
-      EVP_DecryptInit(ctx, EVP_aes_128_cbc(),
-        reinterpret_cast<unsigned char const*>(key.data()),
-        reinterpret_cast<unsigned char const*>(body.borrowBytes())
-      );
-
-      int outl = output.size();
-      EVP_DecryptUpdate(ctx,
-        reinterpret_cast<unsigned char *>(output.data()),
-        &outl,
-        reinterpret_cast<unsigned char const*>(body.borrowBytes()+16),
-        body.length().value - 16
-      );
-
-      EVP_DecryptFinal(ctx, NULL, NULL);
-
-      EVP_CIPHER_CTX_free(ctx);
-
-      body.free();
-
-      if (!removePadding(output)) {
-        input.free();
+      std::string output;
+      if (!aes_cbc_decryption(
+            body.borrowBytes(),
+            body.length().value,
+            reinterpret_cast<char const*>(key.data()),
+            output)
+      ) {
+        std::cerr << "Decryption has failed?" << std::endl;
         return false;
       }
+      // Check length is multiple of 16 and longer than 0
+
+      body.free();
 
       *result = DDL::Input("decrypted", output.data(), output.size());
       *out_input = input;

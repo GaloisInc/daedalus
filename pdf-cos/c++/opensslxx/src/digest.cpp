@@ -1,3 +1,4 @@
+#include <iostream>
 #include <openssl/evp.h>
 
 #include "digest.hpp"
@@ -18,7 +19,7 @@ void Digest::update(void const* d, size_t cnt) {
 
 std::vector<uint8_t> Digest::final()
 {
-    std::vector<uint8_t>result {EVP_MAX_MD_SIZE};
+    std::vector<uint8_t>result(size_t(EVP_MAX_MD_SIZE), uint8_t(0));
     unsigned int s = result.size();
     if (!EVP_DigestFinal(ctx.get(), result.data(), &s)) throw_openssl_error();
     result.resize(s);
@@ -35,7 +36,7 @@ Digest make_digest()
 }
 
 std::vector<uint8_t> digest(EVP_MD const* mdtype, void * input, size_t len) {
-    std::vector<uint8_t> result { EVP_MAX_MD_SIZE };
+    std::vector<uint8_t> result(size_t(EVP_MAX_MD_SIZE), 0);
     unsigned int sz = result.size();
     if (!EVP_Digest(input, len, result.data(), &sz, mdtype, nullptr))
         throw_openssl_error();

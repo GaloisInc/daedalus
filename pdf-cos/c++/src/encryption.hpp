@@ -33,3 +33,8 @@ std::vector<uint8_t> makeFileKeyAlg2(
 );
 
 EncryptionContext makeEncryptionContext(User::EncryptionDict dict);
+
+bool aes_cbc_decryption(
+    char const* input, size_t input_len,
+    char const* key,
+    std::string &output);

@@ -1,38 +1,15 @@
 #include <vector>
 #include <memory>
+#include <iomanip>
 
 #include "digest.hpp"
 #include "cipher.hpp"
+#include "cryptoerror.hpp"
 
 #include <ddl/integer.h>
 #include "main_parser.h"
 
 #include "encryption.hpp"
-
-bool removePadding(std::string &str)
-{
-    if (str.empty())
-        return false;
-
-    if (str.size() % 16)
-        return false;
-    
-    char p = str.back();
-    if (p < 0 || p > 15)
-        return false;
-
-    size_t padlen = p;
-    if (padlen == 0)
-        padlen = 16;
-
-    for (int i = 0; i < padlen; i++) {
-        if (str[str.size() - 1 - i] != p)
-            return false;
-    }
-
-    str.resize(str.size() - padlen);
-    return true;
-}
 
 std::vector<uint8_t> makeObjKey(
     EncryptionContext const& encCtx,
@@ -41,7 +18,6 @@ std::vector<uint8_t> makeObjKey(
     bool isAES
 ) { 
     auto ctx = opensslxx::make_digest();
-
     ctx.init(EVP_md5());
     
     ctx.update(encCtx.key.data(), encCtx.key.size());
@@ -112,7 +88,8 @@ std::vector<uint8_t> makeFileKeyAlg2(
 
     // XXX: Revision 3 or greater only
     for (int i = 0; i < 50; i++) {
-        md = opensslxx::digest(md5, md.data(), md.size());
+        auto x = opensslxx::digest(md5, md.data(), md.size());
+        md = x;
     }
 
     return md;
@@ -140,26 +117,34 @@ bool aes_cbc_decryption(
 
     output.resize(input_len - 16);
 
-    auto ctx = opensslxx::make_cipher();
+    try {
+        auto ctx = opensslxx::make_cipher();
 
-    ctx.init(EVP_aes_128_cbc(),
-        reinterpret_cast<unsigned char const*>(key),
-        reinterpret_cast<unsigned char const*>(input), // iv
-        opensslxx::CipherDirection::decrypt
-    );
+        ctx.init(EVP_aes_128_cbc(),
+            reinterpret_cast<unsigned char const*>(key),
+            reinterpret_cast<unsigned char const*>(input), // iv
+            opensslxx::CipherDirection::decrypt
+        );
 
-    int outl = output.size();
-    outl = ctx.update(
-        reinterpret_cast<unsigned char *>(output.data()),
-        outl,
-        reinterpret_cast<unsigned char const*>(input+16),
-        input_len - 16
-    );
+        unsigned char * cursor = reinterpret_cast<unsigned char *>(output.data());
+        int out_avail = output.size();
 
-    ctx.final(nullptr, 0);
+        int outl = ctx.update(
+            cursor, out_avail,
+            reinterpret_cast<unsigned char const*>(input+16),
+            input_len - 16
+        );
+        cursor += outl;
+        out_avail -= outl;
 
-    if (!removePadding(output)) {
-        output.clear();
+        int outf = ctx.final(cursor, out_avail);
+        cursor += outf;
+        out_avail -= outf;
+
+        output.resize(output.size() - out_avail);
+
+    } catch (opensslxx::OpenSSLXX_exception const& e) {
+        std::cerr << "OpenSLL failed: " << e.code << std::endl;
         return false;
     }
 
