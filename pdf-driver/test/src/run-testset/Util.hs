@@ -36,6 +36,14 @@ cmpFileContents eqv fa fb =
   cb <- readFile fb
   return (eqv ca cb)
 
+cmpFileContentsIO :: (String -> String -> IO a)
+                  -> FilePath -> FilePath -> IO a
+cmpFileContentsIO eqv fa fb =
+  do
+  ca <- readFile fa
+  cb <- readFile fb
+  eqv ca cb
+
 
 rmTrailingWhitespace :: [Char] -> [Char]
 rmTrailingWhitespace = reverse . dropWhile isSpace . reverse

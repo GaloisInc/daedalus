@@ -129,7 +129,7 @@ runTest opts toolPath =
         actualF   = resultDir   </> baseF <.> "result-actual"
         expectedF = expectedDir </> baseF <.> "result-expected"
     need [expectedF,actualF]
-    cResult <- liftIO $ cmpFileContents t_cmp expectedF actualF
+    cResult <- liftIO $ cmpFileContentsIO t_cmp expectedF actualF
     writeFile' diffF $
       show cResult
       

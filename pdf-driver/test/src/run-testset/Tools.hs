@@ -40,10 +40,10 @@ validate_T =
   where
   -- NB: the result-expected data is a RegExp!
   cmp re' actual' =
-    if matchesRE re actual then
-      Equivalent
-    else
-      NotEquivalent msg
+    return $ if matchesRE re actual then
+               Equivalent
+             else
+               NotEquivalent msg
       
     where
     re = rmTrailingWhitespace re'
@@ -112,7 +112,7 @@ cmapSimple_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 cmapCid_T :: Tool
 cmapCid_T =
@@ -130,7 +130,7 @@ cmapCid_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 
 ---- tool: totext ----
@@ -156,7 +156,7 @@ totext_T =
              | otherwise                = True
 
   cmp expected actual =
-    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
     -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
 
     
