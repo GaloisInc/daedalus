@@ -1,6 +1,9 @@
 helloworld.pdf
   missing 'WORLD' - serious FIXME
 
+helloworld-encrypted.pdf
+  encryption issues: bug? not-implemented?
+  
 jagpdf_doc_font_encoding.pdf
 
 quickbrownetc.pdf
