@@ -9,6 +9,9 @@ import           Text.Read(readMaybe)
 -- regex-tdfa pkg:
 import qualified Text.Regex.TDFA as RE
 
+-- shake pkg:
+import           Development.Shake.Command hiding (Timeout)
+
 -- local:
 import Types
 import Util
@@ -34,16 +37,16 @@ validate_T =
     , t_cmd_mkArgs    = (\f->[f])
     , t_timeoutInSecs = 4*60  -- typically overridden on command-line
     , t_proj          = proj
-    , t_cmp           = cmp
+    , t_cmp           = cmpFileContents cmp
     }
 
   where
   -- NB: the result-expected data is a RegExp!
-  cmp re' actual' =
-    return $ if matchesRE re actual then
-               Equivalent
-             else
-               NotEquivalent msg
+  cmp re' actual' = 
+    if matchesRE re actual then
+      Equivalent
+    else
+      NotEquivalent msg
       
     where
     re = rmTrailingWhitespace re'
@@ -103,7 +106,7 @@ cmapSimple_T =
     , t_cmd_mkArgs    = (\f->["--parse-type=ToUnicodeCMap_simpleFont", f])
     , t_timeoutInSecs = 30
     , t_proj          = proj
-    , t_cmp           = cmp
+    , t_cmp           = cmpFileContents cmp
     }
 
   where
@@ -112,7 +115,7 @@ cmapSimple_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 cmapCid_T :: Tool
 cmapCid_T =
@@ -121,7 +124,7 @@ cmapCid_T =
     , t_cmd_mkArgs    = (\f->["--parse-type=ToUnicodeCMap_cidFont", f])
     , t_timeoutInSecs = 30
     , t_proj          = proj
-    , t_cmp           = cmp
+    , t_cmp           = cmpFileContents cmp
     }
 
   where
@@ -130,7 +133,7 @@ cmapCid_T =
   proj getStdOut _getErr _getMeta = getStdOut
   
   cmp expected actual =
-    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
   
 
 ---- tool: totext ----
@@ -142,9 +145,8 @@ totext_T =
     , t_cmd_mkArgs    = (\f->["-t", f])
     , t_timeoutInSecs = 3*60
     , t_proj          = proj
-    , t_cmp           = cmp
+    , t_cmp           = cmpFileContents cmp
     }
-
   where
     
   proj :: IO String -> IO String -> IO MetaData-> IO String
@@ -156,8 +158,7 @@ totext_T =
              | otherwise                = True
 
   cmp expected actual =
-    return $ boolToCompared (expected == actual) -- FIXME[F1]: must relax!
-    -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
+    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
 
     
 ---- options -----------------------------------------------------------------

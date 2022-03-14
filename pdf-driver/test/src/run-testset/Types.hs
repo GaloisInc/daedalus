@@ -17,7 +17,7 @@ data Tool =
                       -> IO String   -- the result of tool (as string)
                         -- FIXME: this may add unnecessary 'needs'
 
-    , t_cmp           :: String -> String -> IO Compared
+    , t_cmp           :: FilePath -> FilePath -> IO Compared
     }
 
 
