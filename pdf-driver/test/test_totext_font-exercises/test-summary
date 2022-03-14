@@ -1,2 +1,4 @@
 4 files
-0 unexpected variances.
+1 unexpected variance(s):
+ Files where result == expected but a variance is specified:
+  helloworld.pdf
