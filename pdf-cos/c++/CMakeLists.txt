@@ -11,9 +11,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
 
 find_package(ZLIB REQUIRED)
-find_package(OpenSSL REQUIRED)
 
 add_subdirectory(filters)
+add_subdirectory(opensslxx)
 
 add_custom_command(
   OUTPUT
@@ -39,6 +39,7 @@ add_executable(parser-test
     src/primitives.cpp
     src/main.cpp
     src/state.cpp
+    src/encryption.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
 )
 
@@ -48,7 +49,7 @@ target_include_directories(parser-test
         ${CMAKE_CURRENT_SOURCE_DIR}/../../rts-c
 )
 
-target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB OpenSSL::Crypto pdffilters)
+target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB opensslxx pdffilters)
 
 target_compile_options(parser-test PRIVATE -fsanitize=address)
 target_link_options(parser-test PRIVATE -fsanitize=address)

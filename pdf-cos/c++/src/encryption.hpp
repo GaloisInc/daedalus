@@ -12,20 +12,20 @@ struct EncryptionException : public std::exception {
 bool removePadding(std::string &str);
 
 struct EncryptionContext {
-    std::string key;
+    std::vector<uint8_t> key;
     Owned<User::ChooseCiph> cipher;
-    EncryptionContext(std::string key, User::ChooseCiph cipher)
+    EncryptionContext(std::vector<uint8_t> key, User::ChooseCiph cipher)
     : key(key), cipher(borrowed(cipher)) {}
 };
 
-std::string makeObjKey(
+std::vector<uint8_t> makeObjKey(
     EncryptionContext const& encCtx,
     uint64_t objId,
     uint16_t gen,
     bool isAES
 );
 
-std::string makeFileKeyAlg2(
+std::vector<uint8_t> makeFileKeyAlg2(
     DDL::Array<DDL::UInt<8>> encO,
     DDL::Integer encP,
     DDL::Array<DDL::UInt<8>> id0,

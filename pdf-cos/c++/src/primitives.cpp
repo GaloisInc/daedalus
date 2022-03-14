@@ -73,7 +73,7 @@ bool parser_Decrypt
     auto const& e = *references.getEncryptionContext();
     
     if (DDL::Tag::ChooseCiph::v4AES == e.cipher.borrow().getTag()) {
-      std::string key = makeObjKey(
+      auto key = makeObjKey(
         *references.getEncryptionContext(),
         references.currentObjId,
         references.currentGen,
