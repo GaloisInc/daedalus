@@ -145,7 +145,7 @@ totext_T =
     , t_cmd_mkArgs    = (\f->["-t", f])
     , t_timeoutInSecs = 3*60
     , t_proj          = proj
-    , t_cmp           = cmpFileContents cmp
+    , t_cmp           = cmp
     }
   where
     
@@ -157,8 +157,15 @@ totext_T =
     isText s | "INFO - " `isPrefixOf` s = False
              | otherwise                = True
 
-  cmp expected actual =
-    boolToCompared (expected == actual) -- FIXME[F1]: must relax!
+  cmp :: FilePath -> FilePath -> IO Compared
+  cmp expectedF actualF =
+    do
+    (Exit c, Stdout s) <- cmd "diff" ["-w","-a",expectedF,actualF]
+    return $ if c == ExitSuccess then
+               Equivalent
+             else
+               NotEquivalent s
+    -- note that we do unicode 'ff' while pdftotext does 2 'f' chars
 
     
 ---- options -----------------------------------------------------------------
