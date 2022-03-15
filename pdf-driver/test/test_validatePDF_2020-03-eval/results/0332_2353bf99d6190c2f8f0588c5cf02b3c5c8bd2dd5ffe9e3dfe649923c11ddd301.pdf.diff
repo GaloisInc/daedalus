@@ -1,1 +1,2 @@
-NotEquivalent "false-negative: (driver gives 'Good', but expected is 'Bad')"
+NotEquivalent
+false-negative: (driver gives 'Good', but expected is 'Bad')

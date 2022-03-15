@@ -1,1 +1,59 @@
-NotEquivalent "1c1,54\n< HELLO WORLD\n\\ No newline at end of file\n---\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 - Parsing Catalog/Page tree\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   byte offset: 348\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   error: Codec.Compression.Zlib: compressed data stream format error (incorrect header check)\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   call stack:\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.FlateDecode\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ApplyFilter\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.TryApplyFilter\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| ok = bs |}\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ApplyFilters\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.Chunk\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfValue.Token\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.StreamBody\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.Stream\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     stream\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.TopDeclDef\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ResolveRef\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ResolveStreamRef\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Page.AddContents\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Adder\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.DictAdderRec\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfValue.Between\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenPdfDict1\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Page.PageP\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     pageKid\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageNodeKid\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenObj\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Stdlib.WithStream\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| inInput = s |}\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ParseAtRef\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Final\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenPdfDict1\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageTreeNodeP\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenObj\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Stdlib.WithStream\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| inInput = s |}\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ParseAtRef\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageTreeP\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfExtractText.ExtractRootText1\n> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfExtractText.ExtractRootUTF8Bytes\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - byte offset: 1122\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - error: byte 'e' does not match (((byte 0x00), or (byte 0x09)), or (byte 0x0c)), or (byte ' ')\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - call stack:\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   Stdlib._IgnoreResult\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   Stdlib._AnyWS\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue._Token\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue._KW\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Between\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Dict\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   dict\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Value\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfDecl.ResolveRef\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfDecl.ResolveValRef\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfCrypto.EncryptionDict\n> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   case branch  just enc\n"
+NotEquivalent
+1c1,54
+< HELLO WORLD
+\ No newline at end of file
+---
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 - Parsing Catalog/Page tree
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   byte offset: 348
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   error: Codec.Compression.Zlib: compressed data stream format error (incorrect header check)
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -   call stack:
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.FlateDecode
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ApplyFilter
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.TryApplyFilter
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| ok = bs |}
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ApplyFilters
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.Chunk
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfValue.Token
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.StreamBody
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.Stream
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     stream
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.TopDeclDef
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ResolveRef
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ResolveStreamRef
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Page.AddContents
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Adder
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.DictAdderRec
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfValue.Between
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenPdfDict1
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Page.PageP
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     pageKid
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageNodeKid
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenObj
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Stdlib.WithStream
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| inInput = s |}
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ParseAtRef
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Final
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenPdfDict1
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageTreeNodeP
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     GenPdfValue.GenObj
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     Stdlib.WithStream
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     case branch  {| inInput = s |}
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfDecl.ParseAtRef
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PageTreeNode.PageTreeP
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfExtractText.ExtractRootText1
+> ERROR - corpora/font-exercises/helloworld-encrypted.pdf at 348 -     PdfExtractText.ExtractRootUTF8Bytes
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - byte offset: 1122
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - error: byte 'e' does not match (((byte 0x00), or (byte 0x09)), or (byte 0x0c)), or (byte ' ')
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 - call stack:
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   Stdlib._IgnoreResult
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   Stdlib._AnyWS
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue._Token
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue._KW
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Between
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Dict
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   dict
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfValue.Value
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfDecl.ResolveRef
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfDecl.ResolveValRef
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   PdfCrypto.EncryptionDict
+> CRITICAL - corpora/font-exercises/helloworld-encrypted.pdf at 1122 -   case branch  just enc
