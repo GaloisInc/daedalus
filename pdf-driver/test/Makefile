@@ -62,8 +62,7 @@ quick-clean: $(QUICKTESTS:test-summary=clean)
 
 long-clean:  $(LONGTESTS:test-summary=clean)
 
-
-build:  src/run-testset/*.hs Makefile
+build:  ${TOP}/pdf-driver/test/src/run-testset/*.hs
 	cd ${TOP}; cabal v2-build exe:run-testset
 
 # turn 'all tests succeed' into an error code:
