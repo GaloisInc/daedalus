@@ -1,3 +1,5 @@
+TOP=../..
+  # top of daedalus repo
 SHAKEOPTS?=-j16
   # works like Make's -j
 RUNTESTSET_TIMEOUT_IN_SECS?=240
@@ -12,7 +14,7 @@ nodefaulttarget:
 	@echo no default target, did you want ...?
 	@echo " " make quick "         # 1 min check of local pdfs"
 	@echo " " make remotecorpora " # rsync remote corporas to here"
-	@echo " " make long "          # 2 hour check of larger corporas"
+	@echo " " make long "          # 20 min check of larger corporas"
 
 
 QUICKTESTS=test_validatePDF_generated/test-summary     \
@@ -32,7 +34,7 @@ REMOTECORPORA= corpora/pdf20examples \
 remotecorpora: ${REMOTECORPORA}
 
 corpora/%:
-	../scripts/get-pdf-corpora.sh $*
+	${TOP}/pdf-driver/scripts/get-pdf-corpora.sh $*
 
 
 test_%/test-summary: build
@@ -62,7 +64,7 @@ long-clean:  $(LONGTESTS:test-summary=clean)
 
 
 build:  src/run-testset/*.hs Makefile
-	cd ../..; cabal v2-build exe:run-testset
+	cd ${TOP}; cabal v2-build exe:run-testset
 
 # turn 'all tests succeed' into an error code:
 
