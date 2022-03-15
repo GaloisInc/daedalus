@@ -131,7 +131,7 @@ runTest opts toolPath =
     need [expectedF,actualF]
     cResult <- liftIO $ t_cmp expectedF actualF
     writeFile' diffF $
-      show cResult
+      ppCompared cResult
       
   summaryF %> \summaryF' ->
     do
@@ -159,8 +159,8 @@ runTest opts toolPath =
               $ \baseF-> do
                          let diffF = resultDir </> baseF <.> "diff"
                              variance  = baseF `elem` varianceFiles
-                         cmprd <- read <$> readFile' diffF
-                         return $! case (isEquivalent cmprd,variance) of
+                         diffTxt <- readFile' diffF -- the pp of Compared
+                         return $! case (isPPEquivalent diffTxt,variance) of
                            (False,False) -> Just (baseF, NE_NoVariance)
                            (True ,True ) -> Just (baseF, EQ_Variance)
                            _             -> Nothing

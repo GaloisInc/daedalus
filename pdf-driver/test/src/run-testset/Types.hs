@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Types where
 
 -- system:
@@ -48,3 +50,14 @@ boolToCompared b = if b then
                    else
                      NotEquivalent ""
 
+ppCompared = \case
+  Equivalent      -> "Equivalent"
+  NotEquivalent s -> "NotEquivalent\n" ++ s
+
+isPPEquivalent :: String -> Bool
+isPPEquivalent s =
+  case lines s of
+    "Equivalent":_     -> True
+    "NotEquivalent":_  -> False
+    _                  -> error "malformed pretty-print of Compared"
+  
