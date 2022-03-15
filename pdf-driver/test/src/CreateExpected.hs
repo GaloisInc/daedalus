@@ -67,7 +67,7 @@ main =
                "rejected" -> return "Bad"
                "nbcur"    -> return "NCBUR" -- sic
                _          -> quit $ "unexpected status: " ++ st
-        writeFile (d </> f <.> "result-expctd") (x++"\n")
+        writeFile (d </> f <.> "result-expected") (x++"\n")
         
 decode'' :: BS.ByteString -> IO Status
 decode'' bs = case decode bs of
