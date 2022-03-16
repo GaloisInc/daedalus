@@ -323,11 +323,16 @@ apSubst' go = go'
           TCDo x <$> go e1 <*> local (maybe id forgetSubst x) (go e2)
 
         TCCall f ts as | isLocalName (tcName f) -> do
-          m_f' <- lookupSubst f <$> ask
+          m_f' <- asks (lookupSubst f)
           case m_f' of
             Nothing         -> TCCall f  ts <$> traverse (traverseArg go) as
             Just (TCVar f') -> TCCall f' ts <$> traverse (traverseArg go) as
-            _               -> panic "Non-variable subst in Call" []
+            Just (TCCall g ts' as') ->
+              -- g will have type t1 -> t2 -> t3 -> T where the tN
+              -- correspond to the unapplied arguments.
+              let g' = g { tcType = fixupType (tcType g) (length as) }
+              in TCCall g' (ts' ++ ts) . (as' ++) <$> traverse (traverseArg go) as
+            Just tc         -> panic "Non-{variable,call} subst in Call" [showPP tc]
 
         TCFor lp ->
           mk <$> newFl
@@ -350,10 +355,12 @@ apSubst' go = go'
               TCAlt ps <$> foldr (local . forgetSubst) (go rhs) (patBinds (head ps))
 
         e  -> traverseTCF go e
-      where
-        doVar x def = fromMaybe def . lookupSubst x <$> ask
 
+    doVar x def = asks (fromMaybe def . lookupSubst x)
 
+    fixupType ty 0 = ty
+    fixupType (Type (TFun _ rhs)) n = fixupType rhs (n - 1)
+    fixupType ty n = panic "Cannot remove argument types" [showPP ty, show n]
 
 apSubst :: Subst a -> TC a k -> TC a k
 apSubst s = flip runReader s . go

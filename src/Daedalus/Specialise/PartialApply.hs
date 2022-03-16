@@ -37,7 +37,7 @@ partialApply ::
   Name            {- ^ New name for instantiate declaration -}   ->
   [Type]          {- ^ Concrete types to use for the instance. -} ->
   [TCName Value]  {- ^ Additional paramteres for the instances. See NOTE -} ->
-  [Maybe (Arg a)] {- ^ Concrete values to use for instances. -} ->
+  [Maybe (Arg a)] {- ^ Concrete values to use for instances, possible only partially applied -} ->
   TCDecl a        {- ^ Uninstantiated declaration -} ->
   PassM (TCDecl a)
 partialApply tnm' targs newPs args
@@ -64,8 +64,12 @@ partialApply tnm' targs newPs args
               ExternDecl t -> ExternDecl t
               Defined d    -> Defined (apSubst subst d)
 
+    -- Infinitely many args to support partially applied
+    -- instantiations.
+    argsExtended = args ++ repeat Nothing
+
     -- FIXME: we should ensure that the new tys don't overlap.
-    tparams' = [ mapTypes (apSubstT substT) p | (p, Nothing) <- zip tparams args ]
+    tparams' = [ mapTypes (apSubstT substT) p | (p, Nothing) <- zip tparams argsExtended ]
     newPs'   = map ValParam newPs
 
     substT :: Map TVar Type
@@ -73,7 +77,7 @@ partialApply tnm' targs newPs args
 
     -- Make a substitution for the new args
     subst = foldl (flip mkOne) emptySubst $ catMaybes
-            $ zipWith (\x y -> (x, ) <$> y) tparams args
+            $ zipWith (\x y -> (x, ) <$> y) tparams args -- don't need extended here, as we drop Nothings
     mkOne (ValParam p,     ValArg e)     = addSubst p (texprValue e)
     mkOne (GrammarParam p, GrammarArg e) = addSubst p (texprValue e)
     mkOne (p, a) = panic ("Mismatched argument kinds: " ++ show (pp p) ++ " " ++ show (pp a))  []
