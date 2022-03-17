@@ -32,6 +32,7 @@ class Integer : public Boxed<mpz_class> {
 
     rep result = 0;
     mpz_export(&result, NULL, 1, sizeof(rep), 0, 0, r);
+    mpz_clear(r);
     return result;
   }
 
@@ -44,6 +45,7 @@ class Integer : public Boxed<mpz_class> {
     mpz_init(r);
     mpz_fdiv_r_2exp(r,getValue().get_mpz_t(),8*sizeof(sign));
     mpz_export(&u, NULL, 1, sizeof(sign), 0, 0, r);
+    mpz_clear(r);
 
     sign result = static_cast<usign>(u);
     return result;
