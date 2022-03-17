@@ -29,9 +29,11 @@ import Daedalus.Type.Kind
 import Daedalus.Type.Traverse
 import Daedalus.Type.Subst
 import Daedalus.Type.InferContext
+import Daedalus.Type.IP
 import Daedalus.Type.Generalize
 import Daedalus.Type.BitData
 import qualified Daedalus.Type.CheckUnused as CheckUnused
+
 
 inferRules :: Module -> MTypeM (TCModule SourceRange)
 inferRules m =
@@ -75,22 +77,32 @@ inferRules m =
 inferRuleRec :: Rec Rule -> STypeM (Rec (TCDecl SourceRange))
 inferRuleRec sr =
   case sr of
-    NonRec r ->
-      do d <- fst <$> inferRule r
+    NonRec r0 ->
+      do ~[(r,ips)] <- doIPs [r0]
+         d <- fst <$> inferRule r
          d1 <- traverseTypes zonkT d
          mapM_ defaultByKind (Set.toList (freeTVS d1))
-         pure (NonRec d1)
-    MutRec rs ->
-      do rts <- mapM guessRuleType rs
+         pure (NonRec d1 { tcDeclImplicit = ips } )
+    MutRec rs0 ->
+      do (rs,ips) <- unzip <$> doIPs rs0
+         rts <- mapM guessRuleType rs
          res <- extEnvManyRules rts (zipWithM checkRule rs (map snd rts))
          res1 <- traverseTypes zonkT res
-         let decls = MutRec res1
+         let decls = MutRec [ r { tcDeclImplicit = is }
+                            | (r,is) <- res1 `zip` ips ]
 
          -- Default type variables based on kind
          mapM_ defaultByKind (Set.toList (freeTVS decls))
          pure decls
 
   where
+  doIPs rs =
+    do env <- getRuleEnv
+       let onlyIp (Poly _ _ ((is,_) :-> _)) = map fst is
+       rs1 <- resolveRuleIPs (onlyIp <$> env) rs
+       pure rs1
+
+
   -- we only allow for polymorphism at kinds Type, and Num
   defaultByKind v =
     case tvarKind v of
@@ -794,23 +806,7 @@ inferExpr expr =
                                               , thingValue = EApp x [] })
 
     EImplicit ip ->
-      do mb <- lookupIP ip
-         case mb of
-           Nothing -> newIP
-           Just arg -> fromArg arg
-      where
-      newIP =
-        do p <- addIPUse ip
-           case p of
-             ValParam x     -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
-             ClassParam x   -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
-             GrammarParam x -> checkPromote x (exprAt expr (TCVar x)) (typeOf p)
-
-      fromArg arg =
-        case arg of
-          ValArg x     -> checkPromoteFrom AValue   ip x (typeOf x)
-          ClassArg x   -> checkPromoteFrom AClass   ip x (typeOf x)
-          GrammarArg x -> checkPromoteFrom AGrammar ip x (typeOf x)
+      panic "inferExpr" [ "Unexpected implicit parameter", show (pp ip) ]
 
     EAnyByte ->
       do ctxt <- getContext
@@ -1219,26 +1215,6 @@ inferLocalCall erng f@Name { nameContext } es ty =
                            backticks (pp f))
 
 
-checkImplicitParam ::
-  HasRange r => r -> (IPName,Type) -> TypeM ctx (Arg SourceRange)
-checkImplicitParam r (i,t) =
-  do mb <- lookupIP i
-     case mb of
-       Nothing -> noIP
-       Just a  ->
-         do unify (r,typeOf a) (i,t)
-            pure a
-  where
-  noIP =
-    do p <- addIPUse i
-       unify (r,typeOf p) (i,t)
-       pure case p of
-              ValParam x     -> ValArg     (exprAt r (TCVar x))
-              ClassParam x   -> ClassArg   (exprAt r (TCVar x))
-              GrammarParam x -> GrammarArg (exprAt r (TCVar x))
-
-
-
 checkTopRuleCall ::
   SourceRange ->
   Name     {- ^ Name of function -} ->
@@ -1247,14 +1223,13 @@ checkTopRuleCall ::
   [Expr]   {- ^ Epxression arguments -} ->
   TypeM ctx (TC SourceRange ctx, Type)
 checkTopRuleCall r f@Name { nameContext = fctx } tys
-                    ((impTs,inTs) :-> outT) es =
+                    ((impTs,inTs0) :-> outT) es =
   do ctx <- getContext
      let ppf = backticks (pp f)
 
-     iargs <- mapM (checkImplicitParam r) impTs
+     let inTs = map snd impTs ++ inTs0
 
-     (args,_,mbStmts) <-
-                      unzip3 <$> zipWithM checkArg (map Just inTs) es
+     (args,_,mbStmts) <- unzip3 <$> zipWithM checkArg (map Just inTs) es
      let have  = length es
          need  = length inTs
          stmts = catMaybes mbStmts
@@ -1277,7 +1252,7 @@ checkTopRuleCall r f@Name { nameContext = fctx } tys
                      , tcType = out1
                      , tcNameCtx = fctx
                      }
-         call = exprAt r (TCCall nm tys (iargs ++ args))
+         call = exprAt r (TCCall nm tys args)
      case ctx of
        AGrammar ->
           do (e1,t1) <- checkPromote nm call out1
@@ -1455,9 +1430,8 @@ inferStructPure toploc = check Set.empty []
           [] | null done -> inferExpr e
           _  -> reportError e "Struct value needs a label."
 
-      -- XXX
-      x :?= _ : _ -> reportError x
-                          "implcit parameters only work in parsers for now"
+      x :?= _ : _ -> panic "inferStructPure"
+                       [ "Unexpected implicit parameter", show (pp x) ]
 
       x := e : more
         | x `Set.member` allLs ->
@@ -1518,8 +1492,6 @@ inferStructGrammar r = go [] []
 
       [COMMIT rn] -> reportError rn "COMMIT at the end of a struct"
 
-      [x :?= _] -> reportError x "Implcit parameter at the end of a struct"
-
       f : more ->
         case f of
           COMMIT rn -> do (res,kt) <- go mbRes done more
@@ -1534,65 +1506,29 @@ inferStructGrammar r = go [] []
                (ke,kt) <- go mbRes done more
                pure (exprAt (e <-> ke) (TCDo Nothing e1 ke), kt)
 
-          x@IPName { ipContext } :?= e ->
-            case ipContext of
-              AGrammar ->
-                do (e1,_) <- allowPartialApps False (inferExpr e)
-                   -- this copies the parser many times, but we have no good
-                   -- way to name it for now.
-                   withIP x (GrammarArg e1) (go mbRes done more)
-
-              AClass ->
-                -- copies the byte class
-                do (e1,_) <- inContext AClass (inferExpr e)
-                   withIP x (ClassArg e1) (go mbRes done more)
-
-              AValue ->
-                do ((e1,et),mb) <- liftValExpr e
-                   case mb of
-                     Just b ->
-                        -- copy is OK, because `e1` is a variable
-                        withIP x (ValArg e1)
-                        do (k,y) <- go mbRes done more
-                           pure (addBind b k, y)
-                     Nothing ->
-                       case texprValue e1 of
-                         TCVar {} -> withIP x (ValArg e1) (go mbRes done more)
-
-                         -- name the expression
-                         _ -> do v <- newName x et
-                                 let e2 = exprAt x (TCVar v)
-                                 do (k,y) <- withIP x (ValArg e2)
-                                             (go mbRes done more)
-                                    let s = exprAt (x <-> k) (TCDo (Just v) (exprAt x (TCPure e1)) k)
-                                    pure (s,y)
-
+          x :?= _ -> panic "inferStructGrammar"
+                      [ "Unexpected implicit parameter", show (pp x) ]
 
       [] ->
-        do ips <- getUndefinedIPs
-           case ips of
-             i : _ -> reportError i ("Undefined implicit parameter" <+> pp i)
-             []    -> pure ()
+        case (mbRes, done) of
+          ([], _) ->
+            do let xs'   = reverse done
+                   ls    = map (nameScopeAsLocal . tcName) xs'
+               (e,ty) <- pureStruct r ls (map tcType xs')
+                                         [ exprAt x (TCVar x) | x <- xs' ]
+               pure ( exprAt r (TCPure e)
+                    , tGrammar ty
+                    )
+          ([x],[]) -> pure ( exprAt x $ TCPure $
+                             exprAt x $ TCVar x
+                           , tGrammar (tcType x)
+                           )
+          (x : y : more, []) ->
+             reportDetailedError y "Cannot have multiple `$$` fields. See:"
+                            [ pp (range z) | z <- x : y : more
+                            ]
 
-           case (mbRes, done) of
-             ([], _) ->
-               do let xs'   = reverse done
-                      ls    = map (nameScopeAsLocal . tcName) xs'
-                  (e,ty) <- pureStruct r ls (map tcType xs')
-                                            [ exprAt x (TCVar x) | x <- xs' ]
-                  pure ( exprAt r (TCPure e)
-                       , tGrammar ty
-                       )
-             ([x],[]) -> pure ( exprAt x $ TCPure $
-                                exprAt x $ TCVar x
-                              , tGrammar (tcType x)
-                              )
-             (x : y : more, []) ->
-                reportDetailedError y "Cannot have multiple `$$` fields. See:"
-                               [ pp (range z) | z <- x : y : more
-                               ]
-
-             (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
+          (x : _, _) -> reportError x "Cannot mix `$$` and named fields."
 
 
 

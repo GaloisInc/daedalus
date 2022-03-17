@@ -69,12 +69,6 @@ module Daedalus.Type.Monad
   , addConstraint
   , removeConstraints
 
-    -- * Implicit parameters
-  , addIPUse
-  , removeIPUses
-  , withIP
-  , lookupIP
-  , getUndefinedIPs
   ) where
 
 
@@ -117,6 +111,7 @@ instance Exception TypeError where
 data TypeWarning =
     WarnUnbiasedChoice SourceRange
   | WarnNoOpStatement SourceRange
+  | WarnUnusiedIP IPName
     deriving Show
 
 instance PP TypeWarning where
@@ -124,6 +119,7 @@ instance PP TypeWarning where
     case w of
       WarnUnbiasedChoice r -> msg r "Using unbiased choice may be inefficient."
       WarnNoOpStatement r  -> msg r "Statement has no effect."
+      WarnUnusiedIP x -> msg (ipRange x) ("Unused implicit parameter:" <+> pp x)
 
     where
     msg r d = hang (text (prettySourceRangeLong r) <.> colon) 2 d
@@ -136,6 +132,7 @@ instance HasRange TypeWarning where
     case w of
       WarnUnbiasedChoice r -> r
       WarnNoOpStatement r  -> r
+      WarnUnusiedIP x      -> ipRange x
 
 
 
@@ -237,7 +234,6 @@ data SRW = SRW
   { sSubst        :: !(Map TVar Type)       -- ^ Idempotent substitution
   , sNextTName    :: !Int                   -- ^ Generate type variables
   , sConstraints  :: ![Located Constraint]  -- ^ Constraints on type varis
-  , sIP           :: !(Map IPName Param)    -- ^ Implicit param constraint
   , sTypeDefs     :: !(Map TCTyName TCTyDecl)
   }
 
@@ -264,7 +260,6 @@ runSTypeM (STypeM m) = fst <$> runStateT rw m
   rw = SRW { sSubst       = Map.empty
            , sNextTName   = 0
            , sConstraints = []
-           , sIP          = Map.empty
            , sTypeDefs    = Map.empty
            }
 
@@ -283,8 +278,6 @@ class MTCMonad m => STCMonad m where
   removeConstraints :: m [Located Constraint]
   addConstraint     :: HasRange r => r -> Constraint -> m ()
   addTVarDef        :: TVar -> Type -> m ()
-  addIPUse          :: IPName -> m Param
-  removeIPUses      :: m [(IPName,Param)]
 
 
 
@@ -364,34 +357,6 @@ instance STCMonad STypeM where
                            , tctyDef = def
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }
-
-  addIPUse x =
-    do mb <- STypeM (Map.lookup x . sIP <$> get)
-       case mb of
-         Just p -> pure p
-         Nothing ->
-           do p <- newIPParam x
-              STypeM $ sets \s -> (p, s { sIP = Map.insert x p (sIP s) })
-
-  removeIPUses =
-    do xs <- STypeM (Map.toList . sIP <$> get)
-       forM xs \(i,t) -> (,) i <$> traverseTypes zonkT t
-
-newIPParam :: STCMonad m => IPName -> m Param
-newIPParam x@IPName { ipContext } =
-  case ipContext of
-    AValue ->
-      do t <- newTVar x KValue
-         ValParam <$> newName' x AValue t
-
-    AClass ->
-      ClassParam <$> newName' x AClass tByteClass
-
-    AGrammar ->
-      do t <- newTVar x KValue
-         GrammarParam <$> newName' x AGrammar (tGrammar t)
-
- 
 
 zonkT :: (ApSubst t, STCMonad m) => t -> m t
 zonkT t = do su  <- getTypeSubst
@@ -508,8 +473,6 @@ instance STCMonad (TypeM ctx) where
   removeConstraints       = sType removeConstraints
   addConstraint r c       = sType (addConstraint r c)
   addTVarDef x t          = sType (addTVarDef x t)
-  addIPUse x              = sType (addIPUse x)
-  removeIPUses            = sType removeIPUses
 
 instance HasGUID (TypeM ctx) where
   guidState f = sType (guidState f)
@@ -543,26 +506,6 @@ getEnv = TypeM (roEnv <$> ask)
 extEnv :: Name -> Type -> TypeM ctx a -> TypeM ctx a
 extEnv x t (TypeM m) = TypeM (mapReader upd m)
   where upd ro = ro { roEnv = Map.insert x t (roEnv ro) }
-
-withIP :: IPName -> Arg SourceRange -> TypeM ctx a -> TypeM ctx a
-withIP x t (TypeM m) = TypeM
-  do ro   <- ask
-     a    <- local ro { roIP = Map.insert x t (roIP ro) } m
-     sets \s -> (a, s { sIPUsed = Set.delete x (sIPUsed s) })
-
-lookupIP :: IPName -> TypeM ctx (Maybe (Arg SourceRange))
-lookupIP x = TypeM
-  do ro <- ask
-     case Map.lookup x (roIP ro) of
-       Nothing -> pure Nothing
-       Just i  -> sets \s -> (Just i, s { sIPUsed = Set.insert x (sIPUsed s) })
-
-getUndefinedIPs :: TypeM ctx [ IPName ]
-getUndefinedIPs = TypeM
-  do ro <- ask
-     s  <- get
-     pure [ x | x <- Map.keys (roIP ro), not (x `Set.member` sIPUsed s) ]
-
 
 newTyDefName :: TypeM ctx TCTyName
 newTyDefName = TypeM $

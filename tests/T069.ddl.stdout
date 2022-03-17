@@ -13,17 +13,17 @@ type T069.Main = { one: T069.Example
  
 --- Rules:
  
-T069.Word16 (_10 : bool) : Grammar (uint 16) =
+T069.Word16 (?be : bool) : Grammar (uint 16) =
   do (b1 : uint 8) <- GetByte
      (b2 : uint 8) <- GetByte
-     ($$ : uint 16) <- if _10 then pure (b1 # b2) else pure (b2 # b1)
+     ($$ : uint 16) <- if ?be then pure (b1 # b2) else pure (b2 # b1)
      pure $$
  
 T069.Example : Grammar T069.Example =
-  do (_12 : bool) <- do (_11 : uint 8) <- GetByte
-                        pure (_11 == 0)
-     (x : uint 16) <- T069.Word16 _12
-     (y : uint 16) <- T069.Word16 _12
+  do (?be : bool) <- do (_12 : uint 8) <- GetByte
+                        pure (_12 == 0)
+     (x : uint 16) <- T069.Word16 ?be
+     (y : uint 16) <- T069.Word16 ?be
      pure {x = x,
            y = y}
  
@@ -43,16 +43,16 @@ T069.Main : Grammar T069.Main =
      pure {one = one,
            two = two}
  
-T069._Word16 (_10 : bool) : Grammar {} =
+T069._Word16 (?be : bool) : Grammar {} =
   do @GetByte
      @GetByte
-     if _10 then pure {} else pure {}
+     if ?be then pure {} else pure {}
  
 T069._Example : Grammar {} =
-  do (_12 : bool) <- do (_11 : uint 8) <- GetByte
-                        pure (_11 == 0)
-     T069._Word16 _12
-     T069._Word16 _12
+  do (?be : bool) <- do (_12 : uint 8) <- GetByte
+                        pure (_12 == 0)
+     T069._Word16 ?be
+     T069._Word16 ?be
  
 T069._Main : Grammar {} =
   do SetStream (arrayStream "array" [1,
