@@ -1,0 +1,670 @@
+* TODO Administrative/Plans/Org
+** NOTE Effort: 2wks
+** TODO [#A] submit Trust Chain paper to Langsec
+DEADLINE: <2022-02-07 Mon -30d>
+** APPT meeting <2022-02-07 Mon 15:00>
+
+- agenda
+  - abstract/intro
+  - "contextual data"
+  - desire to shorten?
+  - parser combinators (?)
+    - monadic parsing
+  - page by page
+- Bill H
+  - Abstract
+  - 4.A, 4.C (stage C)
+  - 3.C (partial DOMs)
+    
+- analyses: e.g., cavity analysis
+    
+- sublanguages and dialects []
+  - consistency
+  - dialect
+
+- Peter
+- "Stream Extent Dictionary" - tech. name.
+- topActon
+- magic numbers:
+  - 1024 linearized data.
+- adobe implem. note: 1024 (other implems)
+  - subset, PDF-A = byte offset 0
+- two startxref's next to each other
+
+- Peter Wyatt4:14 PM
+https://github.com/pdf-association/pdf-issues/issues/149  
+  
+** APPT meeting <2022-01-19 Wed 15:00-16:00>
+
+- overleaf
+- share
+  - spec.hs
+  - outline
+- considering a gitlab-ext repo for _
+  - overleaf creates repo
+- any task allocations
+
+** NOTE 2022-01-19 mtg notes
+
+- BTW,
+  Extends
+- PW: pragmatism vs formalisms of model
+- PW: ICC table at front
+  - anything with abs/relative offsets
+    - mpeg?
+  - WH: discuss ICC
+- Bill: "tone down Haskell" - any functional/monadic    
+- wiki pages : ICC : Q&A??
+  - https://wiki.pdfa.org/pages/viewpage.action?pageId=51839560
+- https://pdf-issues.pdfa.org/32000-2-2020/clause07.html#H7.5.7
+  
+** WAIT [#B] walt w review
+** NOTE 2022-02-01 meeting
+
+- Agenda
+  - disc. of outline/etc
+  - finish going through the spec.hs / the section
+  - for NLS: ask about the Ruhr CVE and reporting and _
+  - add people for \todo's
+  - who's doing what?
+
+- task allocation
+  - Bill: conclusion
+  - Bill?: 
+  - Peter:
+  - Mark : finish up _
+  - Mark : move Peters stuff from TC to _
+  - ? : ?
+        
+- TODO
+  - Trust Chain
+    - make consistently "Trust Chain"
+  - in principle: what is xref table!
+    - gory details
+  - II.
+    - levels/phases/layers
+    - 
+  - 1.A & 1.B
+
+- random notes   
+  - ETSI - pdf signature process      
+  - phase: _
+  - ICC earlier
+  - "current work in progress"
+    
+- Terms
+  - partial differentials & schizophrenic files.
+    - ambiguity!
+  - file level/object level
+  - polyglot
+    - cavities
+  - NEED FOR TERMINOLOGY
+
+- contribs
+  - terminology for PDF/etc
+
+** DONE [#A] status of sections : send out
+SCHEDULED: <2022-02-03 Thu>
+
+Here's the current outline
+```  
+  1. Introduction \note{1.5pp}
+  2. The PDF Trust Chain \note{1.5pp}
+     - Trust Chains in General
+     - The Trust Chain of a PDF Parser
+  3. PDF: Structure, Complexity, Vulnerabilities
+     A. PDF Structure
+     B. Root Causes of PDF Complexity
+     C. \todo{para. needs home: ``data integrity relationships...''}
+     D. Vulnerabilities \note{1pp}
+  4. Specifying the DOM's Foundations \note{4pp}
+     A. A Specification?
+     B. Stages 1 - 4, Preliminaries
+     C. Stage 1: Find \& Parse Header and Trailer
+     D. Stage 2: Find \& Parse Incremental Updates
+     E. Stage 3: Merge Incremental Updates
+     F. Stage 4: Transform XRef Map to Object Map (DOM)
+     G. Stage 4: Details of Streams and Type 2 References
+     H. Can We Avoid Multiple Stages? \note{0.3pp}w
+     I. Incremental Updates and Signatures: What A Tangled Web \note{0.3pp}
+     J. Assessments
+  5. Relevance to Other Formats \note{1pp}
+  6. Related Work
+  7. Conclusion \note{1.5pp}
+     - Contributions
+     - Future Work
+Appendix
+   Primitive Functions
+```
+My status
+ - section 2: "written", ready for review
+ - sections 4.A-C: "written", ready for review
+ - sections 4.D - 4.J: still filling in parts and writing
+I'm thinking
+ - sections 1 and 7 : Bill will be writing/reviewing 
+ - section 3 : Peter, if he has the time, could contribute here.
+ - section 4.I : and maybe Peter here too??
+
+** NOTE 2022-02-04 tag up
+
+- Bill advice: details if result is surprising to the reader
+  
+** DONE msg to team
+
+- I did a little restructuring in the doc:
+  - removed some sections
+  - added new top level sections
+    - PDF 
+      - Structures
+      - Vulnerabilities
+      - Root Causes of PDF Complexity
+    - Relevance to Other Formats
+
+- current task allocation in the new structure:
+  - Bill: Conclusion
+  - Bill: Intro
+    - (can we (want we) to fit in paragraphs on PDF challenges and vulnerabilities?)
+  - Peter: III.A. PDF Structure
+    - and other subsections in III?
+  - Peter: V. Relevance to Other Formats
+    - ICC Stuff here
+  - Mark : move Peter's details from II.B to IV
+  - Mark : finish up IV.
+      
+* TODO re writing
+** TODO misc
+
+\pwnote{"schizo" is a SafeDocs term I believe, both "schizo files" AND "schizo objects". Polyglot is definitely pre-SafeDocs.}
+
+** TODO MT comments
+
+- parser combinators?
+    
+** DONE [#A] finish section 4 and notify Bill
+SCHEDULED: <2022-02-05 Sat>
+** TODO add xspace
+see v2v/PapersWritten/CmpctPaper/prelude.tex
+** TODO [#A] thk re "key item (5)" AND laziness : 4.A
+
+- boiling 4A and get to this!
+  - 3C
+- (5) 
+  - resurrect missing text [other missing text]?
+    
+  - motivates 'laziness', goal
+    : spec(pdf) = ERROR  => impl(pdf) == ERROR
+    : implem(pdf) passes => spec(pdf) passes
+  - 
+    : spec-validate(pdf)==TRUE => impl(pdf) passes
+    
+  - due to two factors:
+    - many dependencies and parallelism
+    - redundant features
+
+- properties we want?
+ : valid(pdf) => parseObj1(pdf) == rightvalue
+
+ : if valid(pdf) then parseObj1(pdf) == Good (rightvalue)
+ :               else parseObj1(pdp) == Error _
+
+** TODO mt: update section 4 w/ Bill's suggestions                      :E1:
+** TODO get all the biblios filled in                                   :E1:
+** TODO further tweak lstlisting!                                       :E0:
+** TODO spell check                                                     :E1:
+- and diction, and Rogan's scripts
+** TODO final review                                                    :E3:
+- acronyms defined
+- search for TODO, FIXME, "..."  
+** TODO submit paper                                                    :E1:
+** ----
+** NOTE misc/old-ish
+
+- cavities - ??
+  - dead angle / fr. blind spot / shroedinger bytes
+  - shroedinger bytes
+    - use for validateAction
+    - try to avoid?
+      
+- ?? for the repetitious use of ``parsing and computation''
+- challenge: figuring out how much detail to go into, e.g., xref
+- the idiom
+  - details (e.g., in PDF)
+  - general principles
+    - E.g., such as
+      - cavities
+      - trust-chain 
+      - redundant-data [highlight]
+        - E.g., Size, we don't want to *invisibly*
+          null-out obj. nums > Size
+      - file-offsets in format
+      - schizophrenia / polyglot
+      - limitations of informal (english) standards
+   - at least 1 other example of the principle
+   - ICC, etc.
+** TODO misc orphans
+
+to give better error messages or passing around the info to do further
+validation can _
+
+TODO: remove $ from Hs code
+\mttodo{checking that object-ids match ...}
+
+\begin{lstlisting}[style=meta]
+- PW: lots of opportunities
+   - failure to notice digitally signed PDFs that have been tampered with
+    - where failure leads to "parser differential" without user
+      warning (e.g. excessive trailer /Size)
+    - PDF requires "backwards parsing" which is unnatural for
+      many programming languages
+      - elaborate?
+\end{lstlisting}
+
+** TODO [#D] resurrect dropped text on cavity tool
+
+  - Tool for inspecting and checking PDF at the pre-DOM level:
+    Created tool for exploring the DOM Antecedent structures
+    as well as validating them (more than a
+    PDF reader necessarily does).
+    - Based on Galois's \todo{TA2} PDF parser, this tool can
+      parse and validate each incremental update separately
+      display "incremental updates," "incremental xref tables,"
+      parsed objects, and cavities (bytes that are not used)
+      validate that object definitions do not overlap (in their source bytes)
+
+* TODO tasks (from MT pt of view)
+** TODO [#A] Q. a paper for Daedalus?
+** TODO [#B] ascii-ify diagram                                          :E1:
+** TODO [#B] replace "object identifier" by \lstcd{ObjID} and the like?
+** TODO [#C] spec improvements
+*** TODO misc
+
+validateA $
+  parse every object in ObjStms
+
+** NOTE [#A] meta thoughts (theme, focus, audience)
+
+- assume PDF expert? no, though will be hard going
+  - no way our text will be sufficient!
+  - so, how can we convey *content* to non-experts?! 
+
+- assume LangSec kinda person
+  - understand security implications of input formats!!
+     
+- assume Hs expert? no, hopefully computer scientists can read well enough
+  
+- lessons
+  - file offsets
+  - unintended/surprising complexity
+  - termination: know?
+          
+** DONE [#A] paper writing outline
+**** WAIT 1. Introduction [WH]
+**** DONE 2. The PDF Trust Chain
+**** WAIT 3. PDF: Structure, Complexity, Vulnerabilities [PW?]
+**** WAIT 3.A. PDF Structure
+**** WAIT 3.B. Root Causes of PDF Complexity
+**** WAIT 3.x \todo{para. needs home:}
+**** WAIT 3.C. Vulnerabilities 
+**** TODO 4. Specifying the DOM's Foundations
+***** DONE 4.A. A Specification?
+***** TODO 4.B. Preliminaries [update]                               :E1:
+***** DONE 4.C. Stage 1: Find \& Parse Header and Trailer
+***** DONE 4.D. Stage 2: Find \& Parse Incremental Updates        
+***** TODO 4.E. Stage 3: Combine Incremental Updates                 :E1:
+***** DONE 4.F. Stage 4: Transform XRef Map to Object Map (DOM)     
+***** DONE 4.G. A One Stage Version?                                 
+***** DONE 4.H. Incremental Updates and Signatures
+***** DONE 4.I. Assessments
+**** TODO 5. Relevance to Other Formats [PW+?]                        :E2:
+- PW: stuff on ICC
+- more?
+**** DONE 6. Related Work
+**** WAIT 7. Conclusion [WH]
+**** TODO Appendix
+***** A. Primitive Functions
+***** B. Details of Streams and Type 2 References
+** TODO [#C] dropped text [pick up again?]
+
+\begin{lstlisting}[style=meta]
+ - [maybe some of this covered in previous section]
+ - enforcing full standard compliance with 20 byte (only) XRef entries.
+    - currently 19,21 byte XRef entries are considered NCBUR!
+ - if we were to allow 19-21 byte XRef entries, we'd need
+   to parse a lot more strictly and sooner.
+ - nothing essential would change in our spec
+\end{lstlisting}
+
+** TODO [#B] orphans [to add back in]
+
+ - should detect (or fail) on
+   - mixture of XRef table and XRef streams [PW?]
+   - trailer dicts that aren't consistent between updates
+
+** DONE Fix Stages 2 & 3: text AND spec                                 :E3:
+
+- note that 2 and 3 *might* be merged/fused.
+  - but sem. difference
+    - if Size or update/free makes the xref moot!
+
+- and direction of update?
+  - follow Prev all the way back, then construct table forwards
+    - catch more errors
+  - construct xref from last-update to first
+    - does less work
+- then issue
+  - should _ be valid PDFs
+  - ...
+
+- our guideline (little subjective)
+  - reject little that an efficient standards compliant parser might accept
+    - this also allows us to maximize no of error messages, when desired
+      all the mapM's could be turned into a parallelMapM
+  - and use validate's to control/tweak
+            
+- brings up another point
+  - ^ is unclear from the standard
+  - we could have the same issue if not every obj id is
+    - defined in DOM
+    - used in DOM
+  
+- what
+  - make stage 2 lazy, update stage 3 to reflect
+  - change spec code to be generic across both trad and stream xref tables!
+
+- since you are going to "meld" the Traditional and Xref streams
+  - want to parse the xref entries earlier?
+    - no need, xref streams are the same: one can get the subsection
+      data without parsing xref entries!
+      
+  - what *WERE* the advantages?
+    - ability of the spec to allow for
+      - tools that minimally parse
+    - not overconstrain implementations that are lazier/minimalistic
+    - an implem. that doesn't parse/read dead xrefs, dead objects
+      should not be considered out of spec
+  - one could/would parse *all* in a =validate=
+
+* TODO by final submission
+** TODO [#A] Q. ask nls re darpa numbers
+SCHEDULED: <2022-02-05 Sat>
+
+* TODO the spec (spec.hs)
+** TODO s/XRefRaw/XRefTblRaw/
+** DONE new merge updates
+
+- Q. backwards same as forwards if we really check?
+
+- check for
+  - double frees
+  - references outside of associated body
+  - freelist makes sense
+
+- when don't we need to parse xref for a given ObjId
+  - ObjId > Size
+  - last to first and ObjId alreday freed or updated
+    
+- when don't we need to even look at earlier Updates
+  - we have filled "Size"
+
+** BTW https://github.com/pdf-association/safedocs/issues/2
+** TODO [#C] validateAction and cavities : dropped, any solution?
+
+Note \lstcd{validateAction}: it differs from \lstcd{validate} in that
+its argument can have side-effects (fail or change the file reading point).
+
+    validateAction $
+      -- ensures nothing in the cavity between dictionary and ``startxref''
+      do
+      cs <- readToPrimitive startxrefOff -- get bytes up to `startxrefOff`
+      return (all isSpace cs)
+
+** NOTE [#A] overview of pDOM
+
+#+begin_src haskell
+
+    updates :: [(XRefRaw, TrailerDict)]
+
+  {- combine updates into single, good map -}
+     -- if things all out of order!
+     -- if indirect length is in later update
+
+    xref :: ObjInd `Map` (Offset :+: Type2Ref)
+
+  {- for trad offsets: parse the top level defns, stop at "stream" keyword -}
+
+    domPass1 :: ObjId `Map` (TopLevelDef_UnDecStm :+: Type2Ref)
+
+  {- for all Streams: decode the streams -}
+
+    domPass2 :: ObjId `Map` (TopLevelDef :+: Type2Ref)
+
+  {- lookup (and parse) compressed objects (that are referenced in xref) -}
+
+    domFinal :: ObjId `Map` TopLevelDef
+
+#+end_src
+
+** TODO [#A] regarding spec: file:spec.hs
+
+- TODO enumerate 'constraints' (so you can refer to in spec)
+  - no length stored in ObjStm
+    - really a constraint about Length fields in streams!
+
+- NOTE    
+  - no effort to attempt trivial efficiency gains, e.g.,
+    - "first" do streams w/ direct lengths, and later
+    - do streams w/ indirect lengths
+  - where do we have over-eagerness?
+    - or, when an error could occur, to over-strictnes
+    - use =validate= to       
+  - we could be more efficient by splitting into two maps.
+    - error messages simpler with one map
+  - this is a spec
+    - could evaluate sooner, but dangerous
+    - how to evaluate implem?
+      - if spec shows *all* errors
+        - implem must show some?
+        - ???
+
+- Q. can spec.hs be *more* declarative?
+  - laziness gets you a lot, makes more declarative
+    - TODO :: think about how this works
+  - no avoiding the dependencies and places of failure
+  - currently
+    - hiding std parsing
+    - laziness
+    - type-directed, gives clarity
+      - and tells us sooner/easier when a problem!
+          
+- desiderata
+  - get various behaviours from one implem
+    - e.g., the above =validate=
+    - strict/lazy maps:
+      - And encode errors in value of Map
+           
+  - you would like to get small variances/modifications with small changes
+  - you should be able to get *all* errors at each place of parallelism
+    - e.g., the map
+  - E.g.,
+    - add =validate b= and if "--validate" flag set, we =assert(b)=
+
+** TODO spec (N) compared to a more Dynamic (D) spec/implementation
+
+- implementation /N/ (New, typed, static, unrecursive)
+  - see file:spec.hs
+  - Q. how much of spec/*.ddl needs to change?
+
+- implementation /D/ (Dynamic)
+  - same as spec.hs, until pDOM
+  - harder to ensure efficiency??
+    - need/require updates?
+  - similar to existing code/implementation:
+    - you have =derefId= command
+      - very lazy & you only access/read what is needed
+      - it calls itself recursively!
+        - TODO :: add check for infinite loop
+      - e.g., if a "dependent on DOM parser" (stream with indirect), 
+        then immediately look that up and parse that, then return
+      
+  - NOTE, /D/ compared to implementation /N/     
+    - it *IS* nicely lazy if you don't want to =derefId= all obj ids
+      - doesn't parse unused ObjStms
+      - TODO :: ...?
+    - more efficient than /N/ (?)
+      - each object goes from unparsed to fully parsed
+      - directly follows references without needing to recurse over ObjId Map
+      - but ... every derefId needs to check evaled/not
+    - con :: as currently done in pdf-hs-driver, allows bad PDFs
+      - not detecting length in ObjStm unless *required*
+      - we might have a recursive situation that is "well-defined"
+      - help to have a =derefLength= / =derefFromUncompressed=
+        - more complicated than just this, because this won't catch error if we
+          luck out and the length is already decoded.
+    - con :: no parallel execution, no parallel error messages
+    - con :: imperative
+    - con :: no way to create a validator from. ?
+            
+  - TODO :: write sketch of code, esp. w/o daedalus hacks.
+    - could you do this part exclusively in Hs?
+    
+- reasons for /N/ over /D/
+  - want to parse everything and be done
+  - want to *efficiently* parse all objects
+  - want to know (sooner) that all objects parse and pre-Dom works.
+  - want to be assured that the code terminates 
+  - elegance/simplicity in all objects being in same state of "evaluation"
+                                  
+** TODO [#B] regarding spec: themes
+
+- redundancies:
+  - in presence of *any* redundancy
+    - [due to design or to new versions of standard]
+    - if we want to be very lazy
+      - we want to do things *one* way (easier)
+    - if we want to be safe
+      - we do things both ways and verify the same
+    - if we want to be exuberant/robust
+      - try all ways until one is successful
+    - so, is there a way to *capture* these redundancies?
+      : validateRedundancy p1 p2 -- where these may use ... already parsed
+    
+- how lazy/dynamic to be?
+  - "Allow" can just mean "Ignore" here
+  - E.g.,
+    - Allow broken xref tables that are 'dead' after a
+      bunch of updates?
+      - how broken?
+    - allow broken xref entries if
+      - updated
+      - the object id is unused
+        - is unused in final version
+    - ETC, ETC!
+
+- adaptibility/etc
+  - have a validate/not flag
+  - change the laziness
+  - print first / print *all* errors
+      
+* TODO [#B] exploring topic/thesis/slant
+*** topics / what we want to address in any of the below approaches
+
+- concept of cavities
+  - polyglots leverage!
+    
+- we can show shadow attacks as being an instance of a more general
+  issue/vulnerability
+  - these being ...
+    
+- concept of trust chain can be relevant even to monolithic sw
+  - show examples of low-level problems undermining high-level constructs
+    - PDF, ICC, <find others>
+      
+- Examples    
+  - ICC
+    - effectively the same thing, has index table
+      - implementations don't enforce "4 byte alignment" [?]
+    - "enforce no gaps" [in ICC spec, but not implemented]
+    - in OS!
+  - PDF
+    - detail of these in PDF
+  - Examples of others _
+
+*** (A) potential paper topics
+
+1. Principles for Securing Data Formats (generalizing/principles/_)
+   - E.g., PDF, ICC, and <TBD>
+   - Principles/Generalizations
+     - cavities
+     - ambiguities
+     - trust chain (dependencies for safety)
+   - Specific attacks
+     - shadow attacks
+     - polyglots
+     - ...  
+    
+2. The concept of trust chain for monolithic software
+   - helps one to focus on 
+     - most important vulnerabilities
+     - a limited part of codebase
+   - PDF a good example, thus the prime example for this paper
+
+3. A taxonomy of low level PDF vulnerabilities
+   - [i.e., an experience report for this work]
+   - bill
+     - problms: why nasty
+     - why not yacc/bison
+     - clear that we terminate (even with )
+     - daedalus
+       - parameterized rules & maps
+     - _
+   - ?
+                  
+4. real-world parsing (conceptual overview of PDF challenges)
+   - [title: "parsing vs PARSING"]
+   - PDF vs simpler formats
+   - not just "sequence/choice/bind" but
+     - parallelism
+     - set-input-at
+     - parse result of parse
+     - redundant "parsing methods" [word for?] {A,B} giving many choices:
+       : A, B, A `thenTry` B, B `thenTry` A, parseBothCheckIdentical A B
+       - parse A, process with B
+         
+     - significant/complex computation required "in the midst" of basic
+       computation (_)
+     - ? : the recursive object stream thing: where there are circular
+       dependencies among objects in same type.
+
+   - NOTE, both
+     - more complex than typical data formats
+     - more complex, in some ways, than Programming Language parsing
+
+*** (B) potential paper topics
+
+1. Categorizing parsers 
+   - [more theoretical]
+   - PL concepts
+     - lattice of parser definedness
+     - projections
+   - useful for ...
+    
+2. cavities, a concept for understanding PDFs (and _)
+   - 
+
+* ---- history/ref ----
+* DONE citation for 'cavity' term?
+* DONE biblio
+
+If you're interested in browsing the citations and having the CITEKEYS at hand, do what I did:
+I installed Better BibTex in my Zotero *App*, see this
+ https://retorque.re/zotero-better-bibtex/installation/
+Leave the citekeys as default as they note
+  "the default setting of BBT will generate different citekeys than Zotero"
+You don't need to export, as ...
+I exported all 597 references in PDF to zotero-pdf-biblio.bib (now in the repo).
+
+See my screen shot,
+your Citation Keys should be identical to mine, and you should be good to use Zotero to insert Citation Keys.
+Peter, to cite that first paper, you would just put this in the latex:
+  \cite{mladenovTrillionDollarRefund2019}
+

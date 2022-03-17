@@ -1,0 +1,240 @@
+* TODO old material: August 2021 site visit:
+** https://docs.google.com/presentation/d/1H4TAQkS2EpCATcllR-h1uUsawUHFL-Ia/edit#slide=id.p39
+** Extraordinary Challenges
+
+- Creation of DOM ("document object model")
+  - list of object definitions
+  - ... containing object references
+  - designated root object
+- Cross-reference (xref) table
+  - table with byte offset for each object
+- Cross-reference streams (added in PDF 1.5) [7 pp. in spec]
+  - compressed, complicated, space-efficient, …
+  - allows for hybrid files with both traditional xref tables and new xref streams
+- Incremental updates
+  - by only appending to PDF file we can add, update, delete objects
+- Linearized PDF (efficient incremental access)
+
+** To Create the DOM
+
+- We must accurately create the DOM (a DAG, no cycles allowed)
+  - ... while abstracting over xref tables, xref streams, hybrid files, incremental updates, linearization
+  - ... while recovering from errors
+  - ... while doing xref table reconstruction
+
+- This is the source of errors, ambiguities, even vulnerabilities!
+
+** The DOM [... and what lies beneath]
+
+<use these graphics?>
+
+** TODO Breaking the DOM-abstraction: (1) simple schizophrenia
+<see slide>
+
+** TODO Breaking the DOM-abstraction: (2) shadow attacks
+<see slide>
+
+** TODO Shadow Attacks
+
+Contrary to the Ruhr University Bochum paper:
+ - not a vulnerability in PDF specification, but ...
+ - usability and implementation issues!
+
+Note   
+- Incremental updates, previously hidden from user, must now be exposed
+- PDF allows dead bytes, dead objects, etc.: key to shadow attacks
+
+** TODO Shoring up the Foundations
+  
+- Mitigations for shadow attacks:
+  - Before signing
+    - check for shadow content "in the DOM", "in the bytes" (in cavities)
+  - After signing
+    - develop better validator for post-signing updates
+- Some research goals
+  - Clarify semantics of the pre-DOM abstraction layers
+  - Understand interactions of the layers, especially in the presence of "exuberances" or error recovery  
+- Galois is developing a tool (based on our TA2 PDF parser) to
+  - analyse and extract data on the "pre-DOM" structures
+    - find cavities and dead objects
+    - detect overlapping objects
+  - for each incremental update
+    - analyze & extract "pre-DOM" structures
+    - check consistency of the intermediate PDF
+
+* TODO old material: Nov 2021 PI Meeting: Trust Chain
+** https://docs.google.com/presentation/d/18vcSwpbPBZ7POU0tDmPIWBYQwgIxfDiI/edit?skip_itp2_check=true&pli=1#slide=id.gf6504f27f9_0_1107
+** [page 2, somewhat graphical description of 3 levels of trust chain]
+** Vulnerabilities occurring primarily at the pre-DOM levels
+  
+- Schizophrenic files
+- Polyglot files
+- Shadow attacks: possible because of ability to sign dead objects and cavities
+- Multiple places for hidden/unused/malicious data in PDF
+  - non-obvious places, unnoticed when "simply parsing"
+  - e.g., shadow-attacks
+  - dead bytes, dead objects, dead updates, dead linearization sections, etc.
+
+** Challenges to Creating Correct and Trustworthy pre-DOM 'Code'
+
+- Lack of formality in standard. Thus, implementations:
+  - are more effort
+  - over implement, under implement, wrongly implement
+- No definition of acceptable, reasonable error recovery
+- Less than ideal design that reflects 27 years of an evolving standard
+- Pre-DOM processing
+  - is where many parsing errors & recovery occur
+  - is non-trivial
+  - involves multiple interdependent features
+  - involves multiple redundant features
+    - schizophrenic if these features aren't mutually consistent
+
+** Progress and Future Work
+
+PDF pre-DOM parsing and semantics:
+Clarified aspects of PDF with respect to incremental updates, minor parsing details
+Submitted a problem in the definition of cross reference streams (Sec 7.5.8) to
+ISO via Peter Wyatt.
+Write a proposed implementation/specification for dealing with parsing (DOM-dependent) object streams
+Develop formal definitions for pre-DOM parsing/computation
+
+Tool for inspecting and checking PDF at the pre-DOM level:
+Created tool for exploring the DOM Antecedent structures as well as validating them (more than a PDF reader necessarily does).  Based on Galois's TA2 PDF parser, this tool can
+parse & validate each incremental update separately
+display "incremental updates," "incremental xref tables," parsed objects, and cavities (bytes that are not used)
+validate that object definitions do not overlap (in their source bytes)
+Add more features
+support linearized files (to improve cavity detection)
+more consistency checks: e.g, for hybrid xref files
+analysis and categorization of cavities
+
+* DONE outline
+** Title/Topic
+
+- ideas
+  - A taxonomy of low level PDF vulnerabilities
+  - Vulnerabilities in the PDF Trust Chain
+    - Shoring up ...
+  - Strengthening Weak Links in the PDF Trust Chain
+    
+- thesis/abstract
+
+  In order to describe PDF vulnerabilities,
+    we introduce the [surprising] notion
+      that a Trust Chain exists in the context of a monolithic parser.
+  We
+    note the foundational components of this trust chain,
+    and describe methods we are using to ensure correctness of these
+    components
+
+** Outline
+
+1. [Meta-Notes for Authors]
+\begin{environment}
+- shoot for 12 pages (in ieee format)
+- challenge: figuring out how much detail to go into, e.g., xref
+- the idiom
+  - details (e.g., in PDF)
+  - general principles
+    - E.g., such as
+      - cavities
+      - trust-chain 
+      - redundant-data [highlight]
+        - E.g., Size
+        - we don't want to *invisibly* null-out obj. nums > Size
+      - file-offsets in format
+      - schizophrenia / polyglot
+      - limitations of informal (english) standards
+   - at least 1 other example of the principle
+    - ICC, etc.
+- notations/conventions
+  - using the verbatim environment to capture text in outline form that has not
+    been fleshed out!
+\end{environment}
+   
+1. Introduction \note{1.5pp}
+\label{sec:intro}
+   1. PDF and its challenges
+   2. PDF Vulnerabilities
+      \begin{verbatim}
+      - General Vulnerabilities
+      - Pre-Dom Vulnerabilities!
+        \todo{these the most important (see \cref{sec:predom-vulnerabilities})}
+      \end{verbatim}
+   3. Summary of Paper
+      
+2. Trust Chain for Parsers? \note{1.5pp}
+\label{sec:trustchain}
+   1. What do we mean by Trust Chain / Trust Chain in General
+   2. The PDF Parser Trust Chain
+      - pre-dom processing
+      - NOTE: [vulnerable/low links]
+    
+3. Pre-DOM Vulnerabilities \note{2.5pp}
+\label{sec:predom-vulnerabilities}
+
+   1. shadow attacks
+      - notion of cavities [belongs?]
+   2. schizophrenia arising from *
+      - parser differentials
+        - e.g., ignoring xref tables
+      - recovering parsers !!
+   3. polyglots arising from _
+   4. DoS
+      - [potential recursion many places]
+      - format may not be well-defined because the recursion is not
+        "well-defined"
+   5. Other?
+
+4. Securing the Pre-DOM Components \note{1pp}
+\label{sec:securing}
+
+\todo{the low/first components are most vulnerable...}
+     
+There are three major approaches we are using to improve the security of the
+Pre-DOM components of PDF parsing:
+\begin{itemize}
+   \item Understanding and clarifying the standard. 
+f     \todo{examples}
+     
+   \item Writing a formal specification (see \cref{sec:specifying}).
+
+   \item Developing Tools
+\end{itemize}
+
+5. Specifying pre-DOM Components \note{4pp}
+\label{sec:specifying}
+   1. Motivating Specification
+      \begin{verbatim}
+      - [terms: complies with standard, compatible with]
+      - an implementation
+        - should follow the standard
+        - should safely support less than standard
+        - should carefully support more than the standard
+        - should not "inf. loop"
+          - lots of opportunities
+            - elaborate?
+      \end{verbatim}
+   2. The PDF constructs involved
+      \todo{Hmmm: how much detail to go into?
+            How will reader understand next section if we say nothing?
+           }
+   3. Specifying pre-DOM components
+      \begin{verbatim}
+      - presented
+        - going into PDF details, as needed
+      - note
+        - 
+      \end{verbatim}
+
+6. Conclusion \note{1.5pp}
+   \label{sec:conclusion}
+   1. Contributions
+      \todo{summarized}
+      
+   2. Related Work
+      \todo{Daedalus, of course! ...}
+      
+   3. Future Work
+      \todo{}
+      
