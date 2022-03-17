@@ -460,7 +460,8 @@ inferExpr expr =
 
         BytesOfStream ->
           liftValAppPure expr [e] \ ~[(e1',t)] ->
-            pure (exprAt expr (TCUniOp BytesOfStream e1'), tArray tByte)
+            do unify tStream (e1',t)
+               pure (exprAt expr (TCUniOp BytesOfStream e1'), tArray tByte)
 
 
     ETriOp op e1 e2 e3 ->
