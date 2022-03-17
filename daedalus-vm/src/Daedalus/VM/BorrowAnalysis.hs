@@ -153,29 +153,32 @@ data Info = Info
 
   , iFunEntry   :: Map FName (Either [OwnInfo] Label)
     -- ^ Entry block for a function.
+    -- Left for primitives, Right for functions with definitions.
 
   , iBlockType  :: Map Label BlockType
     -- ^ Information about what kind of block is this (return,thread,regular)
     -- as those use different calling conventions.
-
-  , iChanges    :: Bool
-    -- ^ Did we change anything?  Used to see if we reached a fixed point.
   }
 
 -- | Add a constraint on a block argument
 addBlockArg :: VMVar -> OwnInfo -> Info -> Info
 addBlockArg y (prov,m) i =
   case m of
+
+    -- `y` is a block argument that needs to become owned
     Owned | ArgVar x <- y
           , not (x `Set.member` iBlockOwned i) ->
              -- trace ("Forcing " ++ showPP x ++ " to be owned")
-             i { iChanges = True, iBlockOwned = Set.insert x (iBlockOwned i) }
+             i { iBlockOwned = Set.insert x (iBlockOwned i) }
+
+    -- `y` is known to be owned, but is forced to be borrowed from a
+    -- block argument.  In that case we need to change the block argument to
+    -- be owned instead.
     Borrowed | alreadyOwned
              , Just (l,n) <- prov ->
               -- trace ("Forcing argument " ++ show n ++ " of "
               -- ++ show (pp l) ++ " to be owned.") $
-              i { iChanges = True
-                , iBlockInfo =
+              i { iBlockInfo =
                   Map.insert l
                     case splitAt n (map snd (getBlockOwnership l i)) of
                       (as,_:bs) -> as ++ Owned:bs
@@ -200,11 +203,12 @@ setOwnership (mb,own) i =
         (as,b:bs) | b /= own ->
           -- trace ("Changing " ++ show (pp l) ++ ":" ++ show n ++ " from " ++
           --           show b ++ " to " ++ show own)
-          i { iChanges = True, iBlockInfo = Map.insert l (as ++ own : bs)
+          i { iBlockInfo = Map.insert l (as ++ own : bs)
                                                          (iBlockInfo i) }
         _ -> i
 
 -- Is the constraint from an argument of a block
+-- Just (l,i):  from the i-th argument of `l`.
 type OwnInfo = (Maybe (Label,Int),Ownership)
 
 getBlockOwnership :: Label -> Info -> [OwnInfo]
@@ -240,7 +244,6 @@ borrowAnalysis p = loop i0
                           $ [ x | m <- pModules p, f <- mFuns m
                             , x <- checkEntry f ]
                          ++ concatMap nonNormal (pAllBlocks p)
-            , iChanges    = False
             , iFunEntry   = Map.fromList [ (vmfName f, infoEntry f)
                                          | m <- pModules p, f <- mFuns m
                                          ]
@@ -253,11 +256,11 @@ borrowAnalysis p = loop i0
                   VMDef d -> Right (vmfEntry d)
 
   loop i = let i1 = vmProgram p i
-           in if iChanges i1
-                then loop i1 { iChanges = False }
+           in if iBlockInfo i /= iBlockInfo i1
+                then loop i1
                 else iBlockInfo i
 
-  -- return and thread blocks own thier arguments
+  -- return and thread blocks own their arguments
   nonNormal b =
     case blockType b of
       NormalBlock {} -> []
@@ -281,13 +284,8 @@ vmFun f = case vmfDef f of
 
 block :: Block -> Info -> Info
 block b i =
-  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1)
-     , iChanges    = newChanges
-     }
+  i1 { iBlockInfo  = Map.insert (blockName b) newOwnership (iBlockInfo i1) }
   where
-  newChanges = iChanges i
-            || Map.lookup (blockName b) (iBlockInfo i1) /= Just newOwnership
-
   owned = case Map.lookup (blockName b) (iBlockInfo i) of
             Nothing -> Set.empty
             Just ms -> Set.fromList
@@ -316,7 +314,7 @@ block b i =
 instr :: String -> Instr -> Info -> Info
 instr _b i =
   case i of
-    Spawn _ l -> closure l
+    Spawn _ l -> closure l    -- XXX: why special case here?
     _ -> foldr (.) id
                    $ zipWith expr (iArgs i) (zip (repeat Nothing) (modeI i))
 
