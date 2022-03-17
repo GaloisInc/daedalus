@@ -35,7 +35,7 @@ Digest make_digest()
     return Digest(ctx);
 }
 
-std::vector<uint8_t> digest(EVP_MD const* mdtype, void * input, size_t len) {
+std::vector<uint8_t> digest(EVP_MD const* mdtype, void const* input, size_t len) {
     std::vector<uint8_t> result(size_t(EVP_MAX_MD_SIZE), 0);
     unsigned int sz = result.size();
     if (!EVP_Digest(input, len, result.data(), &sz, mdtype, nullptr))

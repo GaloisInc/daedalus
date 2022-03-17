@@ -41,6 +41,106 @@ std::vector<uint8_t> makeObjKey(
     return ctx.final();
 }
 
+struct EncStringParts {
+    uint8_t hashValue[32];
+    uint8_t validationSalt[8];
+    uint8_t keySalt[8];
+};
+
+namespace {
+EncStringParts splitEncBytes(DDL::Array<DDL::UInt<8>> & input)
+{
+    if (input.size().value != 48) {
+        throw EncryptionException();
+    }
+
+    EncStringParts result;
+
+    for (DDL::Size i = 0; i < 32; i.increment()) {
+        result.hashValue[i.value] = input[i].rep();
+    }
+
+    for (DDL::Size i = 0; i < 8; i.increment()) {
+        result.validationSalt[i.value] = input[i].rep();
+    }
+
+    for (DDL::Size i = 0; i < 8; i.increment()) {
+        result.keySalt[i.value] = input[i].rep();
+    }
+
+    return result;
+}
+}
+
+std::vector<uint8_t> makeHash2b(
+    std::vector<uint8_t> const& input,
+    std::vector<uint8_t> const& extra
+)
+{
+    auto k = opensslxx::digest(EVP_sha256(), input.data(), input.size());
+    
+    for (int iad = 0;; iad++) {
+        std::vector<uint8_t> k1;
+        
+        for (int ia = 0; ia < 64; ia++) {
+            std::copy(std::begin(input), std::end(input), std::back_inserter(k1));
+            std::copy(std::begin(k), std::end(k), std::back_inserter(k1));
+            std::copy(std::begin(extra), std::end(extra), std::back_inserter(k1));
+        }
+
+        // b
+        auto cipher_b = opensslxx::make_cipher();
+        cipher_b.set_padding(false);
+        cipher_b.init(EVP_aes_128_cbc(), &k1[0], &k1[16], opensslxx::CipherDirection::encrypt);
+
+        std::vector<uint8_t> e(k1.size() - 32);
+        cipher_b.update(e.data(), e.size(), &k1[32], k1.size() - 32);
+
+        int hash_choice = 0;
+        for (size_t j = 0; j < 16; j++) {
+            hash_choice += e[j];
+        }
+        EVP_MD const* md;
+        switch (hash_choice % 3) {
+            case 0: md = EVP_sha256(); break;
+            case 1: md = EVP_sha384(); break;
+            case 2: md = EVP_sha512(); break;
+        }
+
+        auto digest = opensslxx::make_digest();
+        digest.init(md);
+        digest.update(e.data(), e.size());
+        k = digest.final();
+
+        if (iad > 64 && e.back() <= (iad - 32)) break;
+    }
+
+    return k;
+}
+
+// 7.6.4.3.3 Algorithm 2.A: Retrieving the file encryption key from an encrypted document in order to decrypt it
+// Revision 6 and later
+std::vector<uint8_t> makeFileKeyAlg2a(
+    DDL::Array<DDL::UInt<8>> encO,
+    DDL::Integer encP,
+    DDL::Array<DDL::UInt<8>> encU,
+    DDL::Array<DDL::UInt<8>> encOE,
+    DDL::Array<DDL::UInt<8>> encUE,
+    DDL::Array<DDL::UInt<8>> id0,
+    std::string password
+){
+    // a) SASLprep - assumed to be complete already
+
+    // b) Truncate password to 127 bytes
+    if (password.size() > 127) password.resize(127);
+
+    // c) test password against owner key
+    auto ownerParts = splitEncBytes(encO);
+
+    throw "incomplete";
+}
+
+// Revision 4 and earlier
 std::vector<uint8_t> makeFileKeyAlg2(
     DDL::Array<DDL::UInt<8>> encO,
     DDL::Integer encP,
@@ -107,6 +207,7 @@ EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
 }
 
 bool aes_cbc_decryption(
+    EVP_CIPHER const* alg,
     char const* input, size_t input_len,
     char const* key,
     std::string &output)
@@ -120,7 +221,7 @@ bool aes_cbc_decryption(
     try {
         auto ctx = opensslxx::make_cipher();
 
-        ctx.init(EVP_aes_128_cbc(),
+        ctx.init(alg,
             reinterpret_cast<unsigned char const*>(key),
             reinterpret_cast<unsigned char const*>(input), // iv
             opensslxx::CipherDirection::decrypt

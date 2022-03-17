@@ -4,6 +4,7 @@
 #include <ddl/array.h>
 #include "main_parser.h"
 #include "Owned.hpp"
+#include <openssl/evp.h>
 
 struct EncryptionException : public std::exception {
 
@@ -35,6 +36,7 @@ std::vector<uint8_t> makeFileKeyAlg2(
 EncryptionContext makeEncryptionContext(User::EncryptionDict dict);
 
 bool aes_cbc_decryption(
+    EVP_CIPHER const* alg,
     char const* input, size_t input_len,
     char const* key,
     std::string &output);

@@ -32,4 +32,9 @@ Cipher make_cipher()
     return ctx;
 }
 
+void Cipher::set_padding(bool padding)
+{
+    EVP_CIPHER_CTX_set_padding(ctx.get(), padding);
+}
+
 }

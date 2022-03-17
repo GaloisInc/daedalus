@@ -81,6 +81,7 @@ bool parser_Decrypt
 
       std::string output;
       if (!aes_cbc_decryption(
+            EVP_aes_128_cbc(),
             body.borrowBytes(),
             body.length().value,
             reinterpret_cast<char const*>(key.data()),

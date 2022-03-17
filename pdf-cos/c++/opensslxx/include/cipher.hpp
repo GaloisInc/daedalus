@@ -20,6 +20,7 @@ public:
     void init(EVP_CIPHER const* cipher, unsigned char const* key, unsigned char const* iv, CipherDirection dir);
     int update(unsigned char *out, int outlen, unsigned char const* in, int inlen);
     int final(unsigned char *out, int outlen);
+    void set_padding(bool);
 };
 
 Cipher make_cipher();

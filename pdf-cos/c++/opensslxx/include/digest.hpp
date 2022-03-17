@@ -22,6 +22,6 @@ public:
 
 Digest make_digest();
 
-std::vector<uint8_t> digest(EVP_MD const* mdtype, void * input, size_t len);
+std::vector<uint8_t> digest(EVP_MD const* mdtype, void const* input, size_t len);
 
 }
