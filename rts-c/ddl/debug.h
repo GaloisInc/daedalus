@@ -12,14 +12,14 @@ namespace DDL {
 static inline
 void debug(const char* msg) {
 #if DEBUG_LEVEL > 0
-  std::cout << msg;
+  std::cerr << msg;
 #endif
 }
 
 static inline
 void debugNL() {
 #if DEBUG_LEVEL > 0
-  std::cout << std::endl;
+  std::cerr << std::endl;
 #endif
 }
 
@@ -27,7 +27,7 @@ template <typename T>
 static inline
 void debugVal(const T& val) {
 #if DEBUG_LEVEL > 0
-  std::cout << val;
+  std::cerr << val;
 #endif
 }
 

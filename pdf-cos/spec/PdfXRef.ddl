@@ -2,10 +2,9 @@ import PdfDecl
 import PdfValue
 import Stdlib
 
-def CrossRef = Choose1 {
-  oldXref = CrossRefAndTrailer;
-  newXref = XRefObj;
-}
+def CrossRef = First
+  oldXref = CrossRefAndTrailer
+  newXref = XRefObj
 
 def PdfEnd =
   block
@@ -25,8 +24,7 @@ def CrossRefAndTrailer = {
   Many JustWhite;   -- no comments, but arbitrary whitespace allowed here.
   KW "trailer";
 
-  @t = Dict;
-  trailer = TrailerDict t;
+  trailer = TrailerDict Dict;
 }
 
 -- TrailerEnd should follow the CrossRefAndTrailer.
@@ -52,6 +50,7 @@ def TrailerEnd = {
 --  between the keywords xref and trailer.
 
 def CrossRefSection = {
+  ManyWS;
   Match "xref"; Many $simpleWS; EOL;
 
     -- we enforce EOL above (rejecting some NCBUR files).  The spec:
@@ -201,9 +200,13 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
                 nothing -> nothing
 
     prev    = Optional (LookupNatDirect "Prev" dict)
+
+    xrefstm = Optional (LookupNat "XRefStm" dict)
+
     encrypt = case Optional (Lookup "Encrypt" dict) of
                 just d  -> just (TrailerDictEncrypt dict d)
                 nothing -> nothing
+
     all     = dict
 
 def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =

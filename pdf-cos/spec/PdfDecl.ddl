@@ -17,9 +17,27 @@ def TopDecl = {
 }
 
 def TopDeclDef (val : Value) = Choose1 {
+  objstream = ObjStream val;
   stream = Stream val;
   value  = ^ val
 }
+
+def ObjStream (val : Value) = block
+  let s = Stream val
+  let h = s.header
+  Guard ("ObjStm" == LookupName "Type" h)
+
+  let body = s.body is ok
+  let n = LookupNat "N" h as? uint 64
+  let first = LookupNat "First" h as? uint 64
+
+  -- XXX: Support Extends
+  index = Nested body (Many n ObjStmMeta)
+  bytes = Drop first body
+
+def ObjStmMeta = block
+  oid = Token Natural
+  off = Token Natural
 
 def Stream (val : Value) = {
   header = val is dict;
@@ -113,6 +131,10 @@ def ResolveObjectStreamPoint
   @s       = stm.body is ok;
   {| inObjStream = WithStream s (ObjectStreamStrm n first idx)
   |}
+}
+
+def ObjectStreamValues : [Value] = {
+  Many Value
 }
 
 -- InputStream r: the input stream at reference r
@@ -416,3 +438,8 @@ def LookupName k m = {
   vV is name;
 }
 
+def Nested s P = block
+  let now = GetStream
+  SetStream s
+  $$ = P
+  SetStream now
