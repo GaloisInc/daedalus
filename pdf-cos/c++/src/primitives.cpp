@@ -72,40 +72,62 @@ bool parser_Decrypt
   if (references.getEncryptionContext().has_value()) {
     auto const& e = *references.getEncryptionContext();
     
-    if (DDL::Tag::ChooseCiph::v4AES == e.cipher.borrow().getTag()) {
-      auto key = makeObjKey(
-        *references.getEncryptionContext(),
-        references.currentObjId,
-        references.currentGen,
-        true);
+    switch (e.cipher.borrow().getTag()) {
+      case DDL::Tag::ChooseCiph::v4AES: {
+        auto key = makeObjKey(
+          *references.getEncryptionContext(),
+          references.currentObjId,
+          references.currentGen,
+          true);
 
-      std::string output;
-      if (!aes_cbc_decryption(
-            EVP_aes_128_cbc(),
-            body.borrowBytes(),
-            body.length().value,
-            reinterpret_cast<char const*>(key.data()),
-            output)
-      ) {
-        std::cerr << "Decryption has failed?" << std::endl;
-        return false;
+        std::string output;
+        if (!aes_cbc_decryption(
+              EVP_aes_128_cbc(),
+              body.borrowBytes(),
+              body.length().value,
+              reinterpret_cast<char const*>(key.data()),
+              output)
+        ) {
+          std::cerr << "Decryption has failed?" << std::endl;
+          return false;
+        }
+        // Check length is multiple of 16 and longer than 0
+
+        body.free();
+
+        *result = DDL::Input("decrypted", output.data(), output.size());
+        *out_input = input;
+        return true;
       }
-      // Check length is multiple of 16 and longer than 0
+      case DDL::Tag::ChooseCiph::v5AES: {
+        std::string output;
+        if (!aes_cbc_decryption(
+              EVP_aes_256_cbc(),
+              body.borrowBytes(),
+              body.length().value,
+              reinterpret_cast<char const*>(references.getEncryptionContext()->key.data()),
+              output)
+        ) {
+          std::cerr << "Decryption has failed?" << std::endl;
+          return false;
+        }
+        // Check length is multiple of 16 and longer than 0
 
-      body.free();
+        body.free();
 
-      *result = DDL::Input("decrypted", output.data(), output.size());
-      *out_input = input;
-      return true;
-    } else {
-      std::cerr
-        << "Encryption not implemented "
-        << references.currentObjId << " "
-        << references.currentGen
-        << std::endl;
-      body.free();
-      input.free();
-      return false;
+        *result = DDL::Input("decrypted", output.data(), output.size());
+        *out_input = input;
+        return true;
+      }
+      default:
+        std::cerr
+          << "Encryption not implemented "
+          << references.currentObjId << " "
+          << references.currentGen
+          << std::endl;
+        body.free();
+        input.free();
+        return false;
     }
   } else {
     *result = body;

@@ -30,7 +30,7 @@ std::vector<uint8_t> makeFileKeyAlg2(
     DDL::Array<DDL::UInt<8>> encO,
     DDL::Integer encP,
     DDL::Array<DDL::UInt<8>> id0,
-    std::string password
+    std::vector<uint8_t> const& password
 );
 
 EncryptionContext makeEncryptionContext(User::EncryptionDict dict);

@@ -60,12 +60,12 @@ EncStringParts splitEncBytes(DDL::Array<DDL::UInt<8>> & input)
         result.hashValue[i.value] = input[i].rep();
     }
 
-    for (DDL::Size i = 0; i < 8; i.increment()) {
-        result.validationSalt[i.value] = input[i].rep();
+    for (DDL::Size i = 32; i < 40; i.increment()) {
+        result.validationSalt[i.value-32] = input[i].rep();
     }
 
-    for (DDL::Size i = 0; i < 8; i.increment()) {
-        result.keySalt[i.value] = input[i].rep();
+    for (DDL::Size i = 40; i < 48; i.increment()) {
+        result.keySalt[i.value-40] = input[i].rep();
     }
 
     return result;
@@ -73,32 +73,41 @@ EncStringParts splitEncBytes(DDL::Array<DDL::UInt<8>> & input)
 }
 
 std::vector<uint8_t> makeHash2b(
-    std::vector<uint8_t> const& input,
-    std::vector<uint8_t> const& extra
+    std::vector<uint8_t> const& password,
+    std::vector<uint8_t> const& salt,
+    std::vector<uint8_t> const& udata
 )
 {
-    auto k = opensslxx::digest(EVP_sha256(), input.data(), input.size());
-    
-    for (int iad = 0;; iad++) {
-        std::vector<uint8_t> k1;
-        
+    // Round 0
+    auto digest0 = opensslxx::make_digest();
+    digest0.init(EVP_sha256());
+    digest0.update(password.data(), password.size());
+    digest0.update(salt.data(), salt.size());
+    digest0.update(udata.data(), udata.size());
+    auto K = digest0.final();
+
+    // If R < 6: return K;
+
+    for (int round_num = 1;; round_num++) {
+        std::vector<uint8_t> K1;
         for (int ia = 0; ia < 64; ia++) {
-            std::copy(std::begin(input), std::end(input), std::back_inserter(k1));
-            std::copy(std::begin(k), std::end(k), std::back_inserter(k1));
-            std::copy(std::begin(extra), std::end(extra), std::back_inserter(k1));
+            std::copy(std::begin(password), std::end(password), std::back_inserter(K1));
+            std::copy(std::begin(K), std::end(K), std::back_inserter(K1));
+            std::copy(std::begin(udata), std::end(udata), std::back_inserter(K1));
         }
 
         // b
+        std::vector<uint8_t> E(K1.size());
         auto cipher_b = opensslxx::make_cipher();
+        cipher_b.init(EVP_aes_128_cbc(), &K1[0], &K1[16], opensslxx::CipherDirection::encrypt);
         cipher_b.set_padding(false);
-        cipher_b.init(EVP_aes_128_cbc(), &k1[0], &k1[16], opensslxx::CipherDirection::encrypt);
+        cipher_b.update(E.data(), E.size(), K1.data(), K1.size());
+        cipher_b.final(nullptr, 0);
 
-        std::vector<uint8_t> e(k1.size() - 32);
-        cipher_b.update(e.data(), e.size(), &k1[32], k1.size() - 32);
-
+        // c
         int hash_choice = 0;
         for (size_t j = 0; j < 16; j++) {
-            hash_choice += e[j];
+            hash_choice += E[j];
         }
         EVP_MD const* md;
         switch (hash_choice % 3) {
@@ -107,15 +116,17 @@ std::vector<uint8_t> makeHash2b(
             case 2: md = EVP_sha512(); break;
         }
 
+        // d
         auto digest = opensslxx::make_digest();
         digest.init(md);
-        digest.update(e.data(), e.size());
-        k = digest.final();
+        digest.update(E.data(), E.size());
+        K = digest.final();
 
-        if (iad > 64 && e.back() <= (iad - 32)) break;
+        if (round_num >= 64 && E.back() <= round_num - 32) {
+            K.resize(32);
+            return K;
+        }
     }
-
-    return k;
 }
 
 // 7.6.4.3.3 Algorithm 2.A: Retrieving the file encryption key from an encrypted document in order to decrypt it
@@ -127,12 +138,12 @@ std::vector<uint8_t> makeFileKeyAlg2a(
     DDL::Array<DDL::UInt<8>> encOE,
     DDL::Array<DDL::UInt<8>> encUE,
     DDL::Array<DDL::UInt<8>> id0,
-    std::string password
+    std::vector<uint8_t> const& password
 ){
     // a) SASLprep - assumed to be complete already
 
     // b) Truncate password to 127 bytes
-    if (password.size() > 127) password.resize(127);
+    //if (password.size() > 127) password.resize(127);
 
     // c) test password against owner key
     auto ownerParts = splitEncBytes(encO);
@@ -140,15 +151,28 @@ std::vector<uint8_t> makeFileKeyAlg2a(
     throw "incomplete";
 }
 
+namespace {
+std::vector<uint8_t> arrayToVector(DDL::Array<DDL::UInt<8>> array) {
+    std::vector<uint8_t> result;
+    result.reserve(array.size().value);
+
+    for (DDL::Size i = 0; i < array.size(); i.increment()) {
+        result.push_back(array.borrowElement(i).rep());
+    }
+
+    return result;
+}
+}
+
 // Revision 4 and earlier
 std::vector<uint8_t> makeFileKeyAlg2(
     DDL::Array<DDL::UInt<8>> encO,
     DDL::Integer encP,
     DDL::Array<DDL::UInt<8>> id0,
-    std::string password
+    std::vector<uint8_t> const& password
 ){
     const uint8_t padding[] {
-        0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41
+      0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41
     , 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08
     , 0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80
     , 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A};
@@ -199,11 +223,53 @@ EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
     auto encO = dict.borrow_encO();
     auto encP = dict.borrow_encP();
     auto id0 = dict.borrow_id0();
-    auto pwd = "";
+    auto pwd = std::vector<uint8_t>();
 
-    auto key = makeFileKeyAlg2(encO, encP, id0, pwd);
+    uint8_t encV;
+    dict.borrow_encV().exportI(encV);
 
-    return EncryptionContext(key, dict.borrow_ciph());
+    if (encV < 5) {
+        auto key = makeFileKeyAlg2(encO, encP, id0, pwd);
+        return EncryptionContext(key, dict.borrow_ciph());
+    } else {
+        auto encO = dict.borrow_encO();
+        auto encU = dict.borrow_encU();
+
+        auto owner = splitEncBytes(encO);
+        auto user = splitEncBytes(encU);
+        auto userBytes = arrayToVector(encU);
+
+        std::vector<uint8_t> pwdBytes;
+
+        std::vector<uint8_t> encUBytes = arrayToVector(dict.borrow_encU());
+
+        auto ovs = std::vector(std::begin(owner.validationSalt), std::end(owner.validationSalt));
+        auto step_c = makeHash2b(pwdBytes, ovs, encUBytes);
+
+        if (std::equal(std::begin(step_c), std::end(step_c), std::begin(owner.hashValue))) {
+            std::cerr << "Password is OWNER password\n";
+
+            if (dict.borrow_encOE().isNothing()) {
+                throw EncryptionException();
+            }
+
+            auto oks = std::vector(std::begin(owner.keySalt), std::end(owner.keySalt));
+            auto step_d = makeHash2b(pwdBytes, oks, encUBytes);
+            auto oeBytes = arrayToVector(dict.borrow_encOE().borrowValue());
+
+            auto cipher = opensslxx::make_cipher();
+            std::vector<uint8_t> iv(16, 0);
+            std::vector<uint8_t> filekey(oeBytes.size());
+            cipher.init(EVP_aes_256_cbc(), step_d.data(), iv.data(), opensslxx::CipherDirection::decrypt);
+            cipher.set_padding(false);
+            cipher.update(filekey.data(), filekey.size(), oeBytes.data(), oeBytes.size());
+            cipher.final(nullptr, 0);
+
+            return EncryptionContext(filekey, dict.borrow_ciph());
+        } else {
+            throw EncryptionException();
+        }
+    }
 }
 
 bool aes_cbc_decryption(

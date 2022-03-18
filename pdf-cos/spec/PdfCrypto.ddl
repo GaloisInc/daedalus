@@ -25,12 +25,16 @@ def EncryptionDict (enc : TrailerDictEncrypt) = {
   -- Fields for the Standard security handler (Table 21, S7.6.3.2)
   encR = LookupNat "R" edict; 
   Trace "enc8";
-  encR == 3 || (encV == 4 && encR == 4) is true; -- Other modes unsupported 
+  encR == 3 || (encV == 4 && encR == 4) || (encV == 5 && encR == 6) is true; -- Other modes unsupported 
   Trace "enc9";
 
   encO = (Lookup "O" edict) is string; 
   Trace "enc10";
-  encU = (Lookup "U" edict) is string; 
+  encU = (Lookup "U" edict) is string;
+
+  encOE = Optional ((Lookup "OE" edict) is string);
+  encUE = Optional ((Lookup "UE" edict) is string);
+
   Trace "enc11";
 
   encP = { 
@@ -58,6 +62,11 @@ def ChooseCiph edict v = Choose1 {
     v == 4 is true;
     @stmFname = V4stmFname edict; 
     stmFname == "AESV2" is true;
+  };
+  v5AES = { 
+    v == 5 is true;
+    @stmFname = V4stmFname edict; 
+    stmFname == "AESV3" is true;
   }; 
 }
 
