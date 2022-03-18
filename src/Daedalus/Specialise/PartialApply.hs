@@ -53,7 +53,7 @@ partialApply tnm' targs newPs args
     tcDeclTyParams = [],
     tcDeclCtrs     = [],
     tcDeclImplicit = [],
-    tcDeclParams   = tparams' ++ newPs',
+    tcDeclParams   = newPs' ++ tparams',
     tcDeclDef      = tdef',
     tcDeclCtxt     = tctxt,
     tcDeclAnnot    = tannot
