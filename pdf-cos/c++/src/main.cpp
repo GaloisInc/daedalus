@@ -18,10 +18,8 @@
 #include "state.hpp"
 #include "Owned.hpp"
 
-bool inputFromFile(const char *file, DDL::Input *input) {
-
-  DDL::Input result{};
-
+bool inputFromFile(const char *file, DDL::Input *input)
+{
   std::ifstream fin {file, std::ios::in | std::ios::binary};
   std::ostringstream sout;
 

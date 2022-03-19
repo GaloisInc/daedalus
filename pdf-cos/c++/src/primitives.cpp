@@ -69,6 +69,8 @@ bool parser_Decrypt
   , DDL::Input body
   ) {
 
+    auto bodyRef = owned(body);
+
   if (references.getEncryptionContext().has_value()) {
     auto const& e = *references.getEncryptionContext();
     
@@ -89,12 +91,9 @@ bool parser_Decrypt
               output)
         ) {
           std::cerr << "Decryption has failed?" << std::endl;
+          input.free();
           return false;
         }
-        // Check length is multiple of 16 and longer than 0
-
-        body.free();
-
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
         return true;
@@ -109,12 +108,10 @@ bool parser_Decrypt
               output)
         ) {
           std::cerr << "Decryption has failed?" << std::endl;
+          input.free();
           return false;
         }
         // Check length is multiple of 16 and longer than 0
-
-        body.free();
-
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
         return true;
@@ -125,7 +122,6 @@ bool parser_Decrypt
           << references.currentObjId << " "
           << references.currentGen
           << std::endl;
-        body.free();
         input.free();
         return false;
     }
@@ -204,12 +200,12 @@ bool parser_FlateDecode
         columns.asSize().value,
         buffer))
     {
+      input.free();
       return false;
     }
 
     *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
-
     return true;
 }
 
@@ -246,6 +242,7 @@ bool parser_LZWDecode
         columns.asSize().value,
         output))
     {
+      input.free();
       return false;
     }
 
