@@ -43,12 +43,18 @@ bool parser_ResolveRef
   , User::Ref ref
   ) {
 
-  *out_input = input;
 
   // XXX: bounds checking
   uint64_t refid = ref.borrow_obj().asSize().value;
   uint16_t gen = ref.borrow_gen().asSize().value;
-  return references.resolve_reference(refid, gen, result);
+  
+  if (references.resolve_reference(refid, gen, result)) {
+    *out_input = input;
+    return true;
+  } else {
+    input.free();
+    return false;
+  }
 }
 
 void debug_print(char const* label, char const* data, size_t len)
@@ -68,8 +74,6 @@ bool parser_Decrypt
 
   , DDL::Input body
   ) {
-
-    auto bodyRef = owned(body);
 
   if (references.getEncryptionContext().has_value()) {
     auto const& e = *references.getEncryptionContext();
@@ -92,10 +96,12 @@ bool parser_Decrypt
         ) {
           std::cerr << "Decryption has failed?" << std::endl;
           input.free();
+          body.free();
           return false;
         }
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
+        body.free();
         return true;
       }
       case DDL::Tag::ChooseCiph::v5AES: {
@@ -109,11 +115,13 @@ bool parser_Decrypt
         ) {
           std::cerr << "Decryption has failed?" << std::endl;
           input.free();
+          body.free();
           return false;
         }
         // Check length is multiple of 16 and longer than 0
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
+        body.free();
         return true;
       }
       default:
@@ -123,6 +131,7 @@ bool parser_Decrypt
           << references.currentGen
           << std::endl;
         input.free();
+        body.free();
         return false;
     }
   } else {

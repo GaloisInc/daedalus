@@ -12,14 +12,17 @@ ReferenceEntry::ReferenceEntry(oref value, generation_type gen)
 
 TopThunk::TopThunk(uint64_t offset) : offset(offset) {}
 
+// Owns input
+// Writes result on success
+// Returns true on success
 bool
 TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
 {
     if (offset > input.length().value) {
+        input.free();
         return false;
     }
 
-    input.copy();
     input.iDropMut(offset);
 
     DDL::ParseError error;

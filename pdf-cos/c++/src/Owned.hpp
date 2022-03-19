@@ -33,18 +33,17 @@ public:
     T const* operator->() const;
 
     T borrow() const;
-    T get() const;
+    T get();
 
     friend Owned<T> owned<T>(T);
     friend Owned<T> borrowed<T>(T);
 };
 
 template <class T>
-T Owned<T>::get() const
+T Owned<T>::get()
 {
-    T r = obj;
-    r.copy();
-    return r;
+    obj.copy();
+    return obj;
 }
 
 // Takes ownership of its argument
