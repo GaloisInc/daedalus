@@ -52,7 +52,7 @@ struct ReferenceEntry {
 class ReferenceTable {
 
 private:
-    DDL::Input topinput;
+    std::optional<Owned<DDL::Input>> topinput;
     std::optional<EncryptionContext> encCtx;
 
     void process_xref(std::unordered_set<size_t>*, DDL::Input, DDL::Size, bool top);
@@ -75,6 +75,8 @@ public:
     std::optional<EncryptionContext> const& getEncryptionContext() const;
 
     bool resolve_reference(uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
+    
+    // owns input
     void process_pdf(DDL::Input);
 };
 

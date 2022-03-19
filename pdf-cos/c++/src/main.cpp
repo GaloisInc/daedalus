@@ -45,7 +45,6 @@ int main(int argc, char* argv[]) {
     std::cerr << "unable to open file" << std::endl;
     return 1;
   }
-  auto ownedInput = owned(input);
 
   try {
     references.process_pdf(input);

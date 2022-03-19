@@ -168,7 +168,7 @@ ReferenceTable::resolve_reference(
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
             User::TopDecl decl;
-            bool success = arg.getDecl(topinput, &decl);
+            bool success = arg.getDecl(topinput->get(), &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
                 *result = decl;
@@ -429,13 +429,13 @@ size_t findPdfStart(size_t len, char const* bytes) {
     return found - bytes;
 }
 
+// Owns input
 void ReferenceTable::process_pdf(DDL::Input input)
 {
     auto start = findPdfStart(input.length().value, input.borrowBytes());
     input.iDropMut(start);
 
-    input.copy();
-    references.topinput = input;
+    references.topinput = owned(input);
 
     auto end = findPdfEnd(input.length().rep(), input.borrowBytes());
     if (end == not_found) {
