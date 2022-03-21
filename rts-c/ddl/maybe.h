@@ -31,8 +31,8 @@ public:
 
 template <typename T>
 inline int compare(Maybe<T> x, Maybe<T> y) {
-  if (x.isNothing()) return y.isNothing();
-  return y.isNothing() ? -1 : compare(x.getValue(),y.getValue());
+  if (x.isNothing()) return y.isNothing() ? 0 : -1;
+  return y.isNothing() ? 1 : compare(x.borrowValue(),y.borrowValue());
 }
 
 
