@@ -95,8 +95,8 @@ public:
   }
 
 
-  Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x)              {}
-  Integer(mpz_class &&x)      : Boxed<mpz_class>(std::move(x))   {}
+  Integer(Boxed<mpz_class> x) : Boxed<mpz_class>(x) {}
+  Integer(mpz_class x)        : Boxed<mpz_class>(x) {}
 
   Integer(double x) : Boxed<mpz_class>(x) {}
   Integer(float  x) : Boxed<mpz_class>(static_cast<double>(x)) {}
