@@ -1,22 +1,6 @@
 import PdfValue
 import PdfDecl
 import Stdlib
-
-{-
-def ExtractCatalogText (r : Ref) =
-  block
-    let cat = ResolveValRef r is dict
-    CheckType "Catalog" cat
-    ExtractRootText1 (LookupRef "Pages" cat)
-
-def ExtractRootText1 (r : Ref) =
-  concat (
-    map (cs in PageTreeContentStreams (PageTreeP r))
-        (ExtractContentStreamText cs)
-  )
-
--}
-
 def Catalog (r : Ref) =
   block
     let d = ResolveValRef r is dict
@@ -35,7 +19,7 @@ def PageTree (p : maybe Ref) (r : Ref) =
             |}
 
        else if type == "Page"
-              then {| Leaf = node |}
+              then {| Leaf = Page node |}
               else Fail "Unexpected `Type` in page tree"
 
 def CheckParent (p : maybe Ref) (d : Dict) =
@@ -43,3 +27,20 @@ def CheckParent (p : maybe Ref) (d : Dict) =
     nothing -> p is nothing
     just v  -> Guard (p == just (v is ref))
   <| Fail "Malformed node parent"
+
+
+def Page (pageNode : Dict) =
+  case Optional (Lookup "Contents" pageNode) of
+    nothing -> {| EmptyPage = Accept |}
+    just vr -> {| ContentStreams = PageContnet vr |}
+
+def PageContnet (vr : Value) =
+  case vr of
+    ref r    -> [ContentStreamBytes r]
+    array xs -> map (x in xs) (ContentStreamBytes (x is ref))
+
+def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
+
+
+
+
