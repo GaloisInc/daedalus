@@ -26,6 +26,8 @@ bool parser_Trace
   *result = DDL::Unit();
 
   std::string msg;
+  msg.reserve(message.size().value);
+
   for (DDL::Size i = 0; i < message.size(); i.increment()) {
     msg += message.borrowElement(i).rep();
   }
@@ -47,30 +49,21 @@ bool parser_ResolveRef
   , User::Ref ref
   ) {
 
+    uint64_t refid;
+    generation_type gen;
 
-  // XXX: bounds checking
-  uint64_t refid = ref.borrow_obj().asSize().value;
-  uint16_t gen = ref.borrow_gen().asSize().value;
-  ref.free();
+    ref.borrow_obj().exportI(refid);
+    ref.borrow_gen().exportI(gen);
+    ref.free();
 
-  if (references.resolve_reference(refid, gen, result)) {
-    *out_input = input;
-    return true;
-  } else {
-    input.free();
-    return false;
-  }
+    if (references.resolve_reference(refid, gen, result)) {
+      *out_input = input;
+      return true;
+    } else {
+      input.free();
+      return false;
+    }
 }
-
-void debug_print(char const* label, char const* data, size_t len)
-{
-  std::cerr << label << ":";
-  for (size_t i = 0; i < len; i++) {
-    std::cerr << " " << std::hex << std::setfill('0') << std::setw(2) << unsigned((unsigned char)data[i]);
-  }
-  std::cerr << std::endl;
-}
-
 
 // owns input body
 bool parser_Decrypt
@@ -162,11 +155,11 @@ bool parser_FlateDecode
   , DDL::Input   body
   ) {
 
-    auto predictorOwned = owned(predictor);
-    auto colorsOwned = owned(colors);
-    auto bpcOwned = owned(bpc);
-    auto columnsOwned = owned(columns);
-    auto bodyRef = owned(body);
+    auto predictorOwned = Owned(predictor);
+    auto colorsOwned = Owned(colors);
+    auto bpcOwned = Owned(bpc);
+    auto columnsOwned = Owned(columns);
+    auto bodyRef = Owned(body);
 
     std::string buffer;
 
@@ -198,8 +191,8 @@ bool parser_FlateDecode
         case Z_DATA_ERROR:
         case Z_MEM_ERROR:
           inflateEnd(&strm);
-              std::cerr << "inflate failed" << std::endl;
           input.free();
+          std::cerr << "inflate failed" << std::endl;
           return false;
       }
 
@@ -242,17 +235,25 @@ bool parser_LZWDecode
   , DDL::Input body
   ) {
 
-  auto bodyRef = owned(body);
-
-  // XXX: support predictors
-  predictor.free();
-  colors.free();
-  bpc.free();
-  columns.free();
-  earlychange.free();
+  auto predictorOwned = Owned(predictor);
+  auto colorsOwned = Owned(colors);
+  auto bpcOwned = Owned(bpc);
+  auto columnsOwned = Owned(columns);
+  auto bodyRef = Owned(body);
 
   try {
     auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
+
+    if (!unpredict(
+        predictor.asSize().value,
+        colors.asSize().value,
+        bpc.asSize().value,
+        columns.asSize().value,
+        output))
+    {
+      input.free();
+      return false;
+    }
 
     if (!unpredict(
         predictor.asSize().value,
@@ -284,7 +285,7 @@ bool parser_ASCIIHexDecode
   , DDL::Input body
   ) {
 
-  auto bodyRef = owned(body);
+  auto bodyRef = Owned(body);
 
   std::vector<unsigned char> buffer;
   
@@ -307,7 +308,7 @@ bool parser_ASCII85Decode
   , DDL::Input body
   ) {
 
-  auto bodyRef = owned(body);
+  auto bodyRef = Owned(body);
 
   std::vector<uint8_t> buffer;
 

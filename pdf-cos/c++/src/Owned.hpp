@@ -14,14 +14,13 @@ template<class T>
 class Owned {
     T obj;
 
-    // Owns x
-    explicit Owned(T x);
     Owned() = delete;
 
 public:
+    // Owns x
+    explicit Owned(T x);
 
     Owned(const Owned<T> &x);
-    //Owned(Owned &&x);
 
     // Frees owned value
     ~Owned();
@@ -32,10 +31,12 @@ public:
     T* operator->();
     T const* operator->() const;
 
+    // Caller borrows result
     T borrow() const;
+
+    // Caller owns result
     T get();
 
-    friend Owned<T> owned<T>(T);
     friend Owned<T> borrowed<T>(T);
 };
 
@@ -44,13 +45,6 @@ T Owned<T>::get()
 {
     obj.copy();
     return obj;
-}
-
-// Takes ownership of its argument
-template <class T>
-Owned<T> owned(T x)
-{
-    return Owned{x};
 }
 
 // Borrows its argument
@@ -66,9 +60,6 @@ Owned<T>::Owned(const Owned<T> &x) : obj(x.obj)
 {
     obj.copy();
 }
-
-//template <class T>
-//Owned<T>::Owned(Owned<T> &&x) : obj(x.obj) {}
 
 template <class T>
 Owned<T>::Owned(T x) : obj(x) {}

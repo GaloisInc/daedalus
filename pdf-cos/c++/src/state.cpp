@@ -64,7 +64,7 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
         return false;
     }
 
-    auto stream = owned(streamResult.borrowValue().borrow_obj().get_objstream());
+    auto stream = Owned(streamResult.borrowValue().borrow_obj().get_objstream());
     streamResult.free();
 
     if (index >= stream->borrow_index().size().value) {
@@ -95,7 +95,7 @@ void
 ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl)
 {
     std::cerr << "NULL reference " << refid << std::endl;
-    table.insert_or_assign(refid, ReferenceEntry{owned(topDecl), gen});
+    table.insert_or_assign(refid, ReferenceEntry{Owned(topDecl), gen});
 }
 
 void
@@ -200,7 +200,7 @@ namespace {
 void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
-        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
+        auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
@@ -212,7 +212,7 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
     // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
     // the prev entries so that the xrefstm entries can overwrite them.
     if (trailer.borrow_xrefstm().isJust()) {
-        auto offset = owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().borrowValue()));
+        auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid XRefStm value");
         }
@@ -302,12 +302,12 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
             throw XrefException("Bad encryption dictionary");
         }
 
-        auto edict = owned(results[0]);
+        auto edict = Owned(results[0]);
         encCtx = makeEncryptionContext(edict.borrow());
     }
 
     if (trailer.borrow_root().isJust()) {
-      root = owned(trailer.borrow_root().getValue());
+      root = Owned(trailer.borrow_root().getValue());
     }
 }
 
@@ -389,7 +389,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
         throw XrefException("Unable to parse xrefs");
     }
 
-    auto crossRef = owned(crossRefs[0]);
+    auto crossRef = Owned(crossRefs[0]);
     crossRefs.clear();
 
     switch (crossRef->getTag()) {
@@ -445,7 +445,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     auto start = findPdfStart(input.length().value, input.borrowBytes());
     input.iDropMut(start);
 
-    references.topinput = owned(input);
+    references.topinput = Owned(input);
 
     auto end = findPdfEnd(input.length().rep(), input.borrowBytes());
     if (end == not_found) {
@@ -463,7 +463,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
         throw XrefException("Failed parsing startxref");
     }
 
-    auto result = owned(results[0]);
+    auto result = Owned(results[0]);
     auto offset = result->asSize();
     std::unordered_set<size_t> visited;
     process_xref(&visited, input, offset, true);
