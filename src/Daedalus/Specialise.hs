@@ -56,6 +56,7 @@ import Daedalus.Type.Traverse
 import Daedalus.Type.Free
 import Daedalus.Specialise.Monad
 import Daedalus.Specialise.Unify
+import Data.Maybe (isNothing)
 
 -- -----------------------------------------------------------------------------
 -- Top level driver
@@ -201,19 +202,19 @@ specialiseCall ::
   PApplyM (TCF SourceRange k)
 
 -- No specialisation required if there are no type args, and no grammar args.
-specialiseCall _ n [] args | all isValArg args = do
-  addSeenRule (tcName n)
-  pure (TCCall n [] args)
-  where
-    isValArg (ValArg _ ) = True
-    isValArg _           = False
-
--- We have some type args and/or some grammar args.
-specialiseCall m nm ts args = requestSpec m nm ts probArgs args
+specialiseCall m n ts args
+  | [] <- ts, all isNothing probArgs = do
+      addSeenRule (tcName n)
+      pure (TCCall n [] args)
+  | otherwise = requestSpec m n ts probArgs args
   where
     probArgs = map probArg args
 
+    -- If it is a partially applied function, we inline.
+    probArg arg | Type (TFun _ _) <- typeOf arg = Just arg
+    -- Any non-function typed value is left alone
     probArg (ValArg _) = Nothing
+    -- Anything else is inlined.
     probArg arg        = Just arg
 
 -- -----------------------------------------------------------------------------
@@ -266,7 +267,7 @@ requestSpec m tnm ts args origArgs = do
     -- We don't pass any type args, as the target should be monomorphic
     mkCall nm' params =
       TCCall (tnm { tcName = nm' }) []
-             (remainingArgs ++ map (ValArg . syntheticTC . TCVar) params)
+             (map (ValArg . syntheticTC . TCVar) params ++ remainingArgs)
 
 syntheticTC :: TCF SourceRange k -> TC SourceRange k
 syntheticTC = annotExpr synthetic

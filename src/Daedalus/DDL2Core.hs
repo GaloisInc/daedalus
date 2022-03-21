@@ -36,6 +36,7 @@ import Daedalus.Core
 
 import Daedalus.Core.Free
 import Daedalus.Core.Type(typeOf,sizeType)
+import Panic (HasCallStack)
 
 
 --------------------------------------------------------------------------------
@@ -1203,7 +1204,7 @@ lkpTCon env x =
     Just y -> y
     Nothing -> panic "lkpTCon" ["Undefined type constructor: " ++ show x ]
 
-fromGTypeM :: TC.Type -> M Type
+fromGTypeM :: HasCallStack => TC.Type -> M Type
 fromGTypeM ty =
   do te <- getTEnv
      let ?tenv = te
@@ -1221,13 +1222,11 @@ userTypeM ty =
      let ?tenv = te
      pure (userType ty)
 
-
-fromGType :: (?tenv :: TEnv) => TC.Type -> Type
+fromGType :: (?tenv :: TEnv, HasCallStack) => TC.Type -> Type
 fromGType ty =
   case ty of
     TC.Type (TC.TGrammar t) -> fromType t
-    _ -> panic "fromGType" [ "Not a grammar" ]
-
+    _ -> panic "fromGType" [ "Not a grammar", showPP ty ]
 
 fromType :: (?tenv :: TEnv) => TC.Type -> Type
 fromType ty =
@@ -1418,7 +1417,7 @@ fromFDefName :: TC.Name -> TC.Type -> M ()
 fromFDefName x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
-                 _ -> panic "fromGDefName" ["Not a top-level name"]
+                 _ -> panic "fromFDefName" ["Not a top-level name"]
      addTopName x =<< newFName' (Just lab) =<< fromTypeM t
 
 
