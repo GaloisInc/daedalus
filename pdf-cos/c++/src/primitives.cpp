@@ -13,6 +13,7 @@
 #include "predictor.hpp"
 #include "encryption.hpp"
 
+// owns inputin, message
 bool parser_Trace
   ( DDL::ParserState& state
   , DDL::Unit* result
@@ -28,12 +29,15 @@ bool parser_Trace
   for (DDL::Size i = 0; i < message.size(); i.increment()) {
     msg += message.borrowElement(i).rep();
   }
+  message.free();
 
   std::cerr << "Parser trace: " << msg << std::endl;
 
   return true;
 }
 
+
+// owns input,ref
 bool parser_ResolveRef
   ( DDL::ParserState &pstate
   , DDL::Maybe<User::TopDecl> *result
@@ -47,7 +51,8 @@ bool parser_ResolveRef
   // XXX: bounds checking
   uint64_t refid = ref.borrow_obj().asSize().value;
   uint16_t gen = ref.borrow_gen().asSize().value;
-  
+  ref.free();
+
   if (references.resolve_reference(refid, gen, result)) {
     *out_input = input;
     return true;
@@ -66,6 +71,8 @@ void debug_print(char const* label, char const* data, size_t len)
   std::cerr << std::endl;
 }
 
+
+// owns input body
 bool parser_Decrypt
   ( DDL::ParserState &pstate
   , DDL::Input *result
@@ -141,6 +148,7 @@ bool parser_Decrypt
   }
 }
 
+// owns input, predictor, colors, bpc, columns, body
 bool parser_FlateDecode
   ( DDL::ParserState &pstate
   , DDL::Input *result
@@ -218,6 +226,8 @@ bool parser_FlateDecode
     return true;
 }
 
+
+// owns input predictor colors bpc column earlychange body
 bool parser_LZWDecode
   ( DDL::ParserState &pstate
   , DDL::Input* result
@@ -265,6 +275,7 @@ bool parser_LZWDecode
   }
 }
 
+// owns input,body
 bool parser_ASCIIHexDecode
   ( DDL::ParserState &pstate
   , DDL::Input *result
@@ -287,6 +298,7 @@ bool parser_ASCIIHexDecode
   }
 }
 
+// owns input,body
 bool parser_ASCII85Decode
   ( DDL::ParserState &pstate
   , DDL::Input *result
