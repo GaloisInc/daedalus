@@ -305,6 +305,10 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
         auto edict = owned(results[0]);
         encCtx = makeEncryptionContext(edict.borrow());
     }
+
+    if (trailer.borrow_root().isJust()) {
+      root = owned(trailer.borrow_root().getValue());
+    }
 }
 
 // Borrows input and old
@@ -359,6 +363,9 @@ ReferenceTable::getEncryptionContext() const
 {
     return encCtx;
 }
+
+std::optional<Owned<User::Ref>> const&
+ReferenceTable::getRoot() const { return root; }
 
 
 // Borrows input

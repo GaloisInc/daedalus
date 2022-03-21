@@ -54,6 +54,7 @@ class ReferenceTable {
 private:
     std::optional<Owned<DDL::Input>> topinput;
     std::optional<EncryptionContext> encCtx;
+    std::optional<Owned<User::Ref>> root;
 
     void process_xref(std::unordered_set<size_t>*, DDL::Input, DDL::Size, bool top);
     void process_oldXRef(std::unordered_set<size_t>*, DDL::Input, User::CrossRefAndTrailer, bool top);
@@ -75,6 +76,8 @@ public:
     std::optional<EncryptionContext> const& getEncryptionContext() const;
 
     bool resolve_reference(uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
+
+    std::optional<Owned<User::Ref>> const& getRoot() const;
     
     // owns input
     void process_pdf(DDL::Input);

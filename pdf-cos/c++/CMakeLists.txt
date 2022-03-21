@@ -24,6 +24,7 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfDecl.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfXRef.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfValue.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/TE.ddl
   COMMAND cabal run exe:daedalus -v0 --
     --compile-c++
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
@@ -32,6 +33,7 @@ add_custom_command(
     --entry=PdfDecl.TopDecl
     --entry=PdfValue.Value
     --entry=PdfCrypto.EncryptionDict
+    --entry=TE.Catalog
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
@@ -40,6 +42,7 @@ add_executable(parser-test
     src/main.cpp
     src/state.cpp
     src/encryption.cpp
+    src/catalog.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
 )
 
@@ -51,7 +54,8 @@ target_include_directories(parser-test
 
 target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB opensslxx pdffilters)
 
-target_compile_options(parser-test PRIVATE -fsanitize=address)
-target_link_options(parser-test PRIVATE -fsanitize=address)
+target_compile_options(parser-test PRIVATE -O3)
+# target_compile_options(parser-test PRIVATE -fsanitize=address -g3)
+# target_link_options(parser-test PRIVATE -fsanitize=address)
 
 add_subdirectory(tests)

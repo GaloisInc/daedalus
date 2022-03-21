@@ -2,3 +2,4 @@
 
 import PdfXRef
 import PdfCrypto
+import TE
