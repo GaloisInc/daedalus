@@ -428,10 +428,7 @@ def LookupNats k m = {
   }
 }
 
-def LookupRef k m =
-  { @vV = Lookup k m : Value;
-    vV is ref;
-  }
+def LookupRef k m = (Lookup k m : Value) is ref
 
 def LookupName k m = {
   @vV = LookupResolve k m : Value;
