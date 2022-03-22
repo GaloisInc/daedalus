@@ -2,6 +2,7 @@
 #define DDL_ARRAY_H
 
 #include <string.h>
+#include <cctype>
 
 #include <ddl/debug.h>
 #include <ddl/list.h>
@@ -225,6 +226,50 @@ public:
 
 
 };
+
+
+// borrow
+inline
+std::ostream& operator<<(std::ostream& os, Array<UInt<8>> x) {
+  Size n = x.size();
+  Size count_print = 0;
+  for (Size i = 0; i < n; i.increment()) {
+    if (isprint(x[i].rep())) count_print.increment();
+  }
+
+  float perc = float(100 * count_print.rep()) / n.rep();
+
+  if (perc > 75) {
+    auto flags = os.flags();
+    os << std::hex;
+    os << "\"";
+    for (Size i = 0; i < n; i.increment()) {
+      uint8_t c = x[i].rep();
+      if (isprint(c)) os << (char)c;
+      else {
+        os << "\\";
+        if (c < 16) os << '0';
+        os << (int)c;
+      }
+    }
+    os << "\"";
+    os.setf(flags);
+  }
+  else {
+    os << "[";
+    char sep[] = ", ";
+    sep[0] = 0;
+    for (Size i = 0; i < n; i.increment()) {
+      os << sep << x.borrowElement(i);
+      sep[0] = ',';
+    }
+    os << "]";
+  }
+
+  return os;
+}
+
+
 
 // borrow
 template <typename T>
