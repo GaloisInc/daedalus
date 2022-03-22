@@ -34,11 +34,12 @@ add_custom_command(
     --entry=PdfDecl.ObjStream
     --entry=PdfValue.Value
     --entry=PdfCrypto.EncryptionDict
-    --entry=TE.Catalog
+    --entry=TE.PdfCatalog
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
 add_executable(parser-test
+    src/debug.cpp
     src/primitives.cpp
     src/main.cpp
     src/state.cpp

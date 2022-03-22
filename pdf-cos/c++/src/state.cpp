@@ -1,4 +1,5 @@
 #include "state.hpp"
+#include "debug.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -104,7 +105,7 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
 void
 ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl)
 {
-    std::cerr << "NULL reference " << refid << std::endl;
+    dbg << "NULL reference " << refid << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{Owned(topDecl), gen});
 }
 
@@ -115,7 +116,7 @@ ReferenceTable::register_compressed_reference(
     uint64_t index
 )
 {
-    std::cerr << "Compressed reference " << refid << " at " << container << " " << index << std::endl;
+    dbg << "Compressed reference " << refid << " at " << container << " " << index << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{StreamThunk{container, index}, 0});
 }
 
@@ -126,7 +127,7 @@ ReferenceTable::register_uncompressed_reference(
     uint64_t offset
 )
 {
-    std::cerr << "Uncompressed reference " << refid << " at " << offset << std::endl;
+    dbg << "Uncompressed reference " << refid << " at " << offset << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{TopThunk(offset), 0});
 }
 
@@ -168,7 +169,7 @@ ReferenceTable::resolve_reference(
     // Copy the entry by value so that we can replace it with a blackhole if needed
     auto entry = cursor->second.value;
 
-    std::cerr << "Resolving reference " << refid << " with thunk type " << entry.index() << std::endl;
+    dbg << "Resolving reference " << refid << " with thunk type " << entry.index() << std::endl;
 
     return std::visit([refid, gen, this, cursor, result](auto&& arg) -> bool {
         using T = std::decay_t<decltype(arg)>;
@@ -214,9 +215,9 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
-        std::cerr << "Has PREV at " << offset->borrowValue().asSize().value << std::endl;
+        dbg << "Has PREV at " << offset->borrowValue().asSize().value << std::endl;
         process_xref(visited, input, offset->borrowValue().asSize(), false);
-        std::cerr << "prev complete" << std::endl;
+        dbg << "prev complete" << std::endl;
     }
 
     // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
@@ -241,7 +242,7 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
 
         // XXX: bounds check
         uint64_t refid = subsection.borrow_firstId().asSize().value;
-        std::cerr << "XRef Section starting at " << refid << std::endl;
+        dbg << "XRef Section starting at " << refid << std::endl;
 
         auto entries = subsection.borrow_entries();
         for (DDL::Size j = 0; j < entries.size(); j.increment()) {
@@ -258,7 +259,7 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
                     break;
                 }
                 case DDL::Tag::XRefObjEntry::free: {
-                    std::cerr << "FREE entry " << refid << std::endl;
+                    dbg << "FREE entry " << refid << std::endl;
                     unregister(entry.borrow_free().borrow_obj().asSize().value);
                     break;
                 }

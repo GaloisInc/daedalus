@@ -15,6 +15,7 @@
 #include <ddl/number.h>
 #include <main_parser.h>
 
+#include "debug.hpp"
 #include "state.hpp"
 #include "catalog.hpp"
 #include "Owned.hpp"
@@ -57,13 +58,13 @@ int main(int argc, char* argv[]) {
   check_catalog();
 
   for (auto && [refid, val] : references.table) {
-    std::cerr << "Getting " << std::dec << refid << " " << val.gen << std::endl;
+    dbg << "Getting " << std::dec << refid << " " << val.gen << std::endl;
     DDL::Maybe<User::TopDecl> decl;
 
     if (references.resolve_reference(refid, val.gen, &decl)) {
       decl.free();
     } else {
-      std::cerr << "Failed\n";
+      dbg << "Failed\n";
     }
   }
 

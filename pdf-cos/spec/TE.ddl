@@ -1,46 +1,73 @@
 import PdfValue
 import PdfDecl
 import Stdlib
-def Catalog (r : Ref) =
+
+
+def PdfCatalog (r : Ref) =
   block
     let d = ResolveValRef r is dict
-    pageTree = PageTreeRoot (LookupRef "Pages" d)
+    pageTree = PdfPageTreeRoot (LookupRef "Pages" d)
+    -- other fields omitted
 
-def PageTreeRoot (r : Ref) = PageTree nothing r
+def PdfPageTreeRoot (r : Ref) = PdfPageTree nothing empty r
 
-def PageTree (p : maybe Ref) (r : Ref) =
+def PdfPageTree (p : maybe Ref) (pResources : Dict) (r : Ref) =
   block
     let node = ResolveValRef r is dict
-    CheckParent p node
+    PdfCheckParent p node
+    let resources = case Optional (Lookup "Resources" node) of
+                      just v  -> ResolveVal v is dict
+                      nothing -> pResources
     let type = LookupResolve "Type" node is name
     if type == "Pages"
        then {| Node = map (child in (LookupResolve "Kids" node is array))
-                          (PageTree (just r) (child is ref))
+                          (PdfPageTree (just r) resources (child is ref))
             |}
 
        else if type == "Page"
-              then {| Leaf = Page node |}
+              then {| Leaf = PdfPage resources node |}
               else Fail "Unexpected `Type` in page tree"
 
-def CheckParent (p : maybe Ref) (d : Dict) =
+def PdfCheckParent (p : maybe Ref) (d : Dict) =
   case Optional (Lookup "Parent" d) of
     nothing -> p is nothing
     just v  -> Guard (p == just (v is ref))
   <| Fail "Malformed node parent"
 
 
-def Page (pageNode : Dict) =
+def PdfPage (resources : Dict) (pageNode : Dict) =
   case Optional (Lookup "Contents" pageNode) of
     nothing -> {| EmptyPage = Accept |}
-    just vr -> {| ContentStreams = PageContnet vr |}
+    just vr -> {| ContentStreams = PdfPageContent resources vr |}
 
-def PageContnet (vr : Value) =
-  case vr of
-    ref r    -> [ContentStreamBytes r]
-    array xs -> map (x in xs) (ContentStreamBytes (x is ref))
+def PdfPageContent (resources : Dict) (vr : Value) =
+  block
+    resources = resources
+    SetStream
+      case vr of
+        ref r    -> ContentStreamBytes r
+
+        -- inefficient!
+        array xs ->
+          block
+            let chunks =
+                  map (x in xs)
+                    block
+                    let bs = bytesOfStream (ContentStreamBytes (x is ref))
+                    concat [bs, " "] -- yikes.
+
+            arrayStream (concat chunks)
+    values =
+      block
+        ManyWS
+        $$ = Many ContentStreamEntry
+        END
 
 def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
 
-
+def ContentStreamEntry =
+  First
+    operator = Many (1..) (Token $['a'..'z','A'..'Z',"*'",'"'])
+    value    = Value
 
 
