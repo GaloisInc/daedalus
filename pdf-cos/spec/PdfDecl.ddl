@@ -17,13 +17,11 @@ def TopDecl = {
 }
 
 def TopDeclDef (val : Value) = Choose1 {
-  objstream = ObjStream val;
   stream = Stream val;
   value  = ^ val
 }
 
-def ObjStream (val : Value) = block
-  let s = Stream val
+def ObjStream (s : Stream) = block
   let h = s.header
   Guard ("ObjStm" == LookupName "Type" h)
 

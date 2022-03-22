@@ -59,32 +59,42 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
         return false;
     }
 
-    if (DDL::Tag::TopDeclDef::objstream != streamResult.borrowValue().borrow_obj().getTag()) {
+    if (DDL::Tag::TopDeclDef::stream != streamResult.borrowValue().borrow_obj().getTag()) {
         streamResult.free();
         return false;
     }
 
-    auto stream = Owned(streamResult.borrowValue().borrow_obj().get_objstream());
+    auto stream = streamResult.borrowValue().borrow_obj().get_stream();
     streamResult.free();
 
-    if (index >= stream->borrow_index().size().value) {
+    DDL::ParseError error;
+    std::vector<User::ObjStream> results;
+    parseObjStream(error, results, DDL::Input("empty", ""), stream);
+
+    if (results.size() != 1) {
+        for (auto && x : results) { x.free(); }
         return false;
     }
 
-    auto byteOffset = stream->borrow_index().borrowElement(index).borrow_off().asSize();
-    auto objInput = stream->get_bytes().iDrop(byteOffset);
-    
-    std::vector<User::Value> results;
-    DDL::ParseError error;
-    parseValue(error, results, objInput);
+    auto objstream = Owned(results[0]);
 
-    if (1 != results.size()) {
+    if (index >= objstream->borrow_index().size().value) {
+        return false;
+    }
+
+    auto byteOffset = objstream->borrow_index().borrowElement(index).borrow_off().asSize();
+    auto objInput = objstream->get_bytes().iDrop(byteOffset);
+    
+    std::vector<User::Value> vresults;
+    parseValue(error, vresults, objInput);
+
+    if (1 != vresults.size()) {
         for (auto && x : results) { x.free(); }
         return false;
     }
 
     User::TopDeclDef topDef;
-    topDef.init_value(results[0]);
+    topDef.init_value(vresults[0]);
     result->init(refid, 0, topDef);
 
     return true;
