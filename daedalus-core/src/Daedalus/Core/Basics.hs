@@ -233,7 +233,7 @@ instance PP UserType where
                       ]
 
 instance PP TParam where
-  pp (TP x) = "t" <.> pp x
+  pp (TP x) = "?t" <.> pp x
 
 instance PP SizeType where
   pp t =
