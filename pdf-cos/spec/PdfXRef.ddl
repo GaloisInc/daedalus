@@ -203,7 +203,9 @@ def XRefOffset (w : XRefFormat) = {
 
 def XRefCompressed (w : XRefFormat) = {
   container_obj = XRefFieldRequired w.b2;   -- generation is implicitly 0
-  obj_index     = XRefFieldRequired w.b3;
+  obj_index     = XRefFieldWithDefault 0 w.b3; -- Accorcding toSec. 7.5.8.3 Table 18,
+                                               -- there is no default but we assume 0
+                                               -- because that's what seems to work
 }
 
 
