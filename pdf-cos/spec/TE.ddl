@@ -13,14 +13,19 @@ def PdfCatalog (r : Ref) =
 --------------------------------------------------------------------------------
 -- Page Tree; Section 7.7.3
 
-def PdfPageTreeRoot (r : Ref) = PdfPageTree nothing empty r
+def PdfPageTreeRoot (r : Ref) = PdfPageTree nothing noResources r
 
-def PdfPageTree (p : maybe Ref) (pResources : Dict) (r : Ref) =
+def PdfPageTree (p : maybe Ref) (pResources : Resources) (r : Ref) =
   block
     let node = ResolveValRef r is dict
     PdfCheckParent p node
+
+    {- Since resources are shared, we want to process them once at the
+    node and pass the processed resources down the tree, otherwise
+    we are going to reprocess them again for each leaf which is a lot
+    of repeated work in large doucuments. -}
     let resources = case Optional (Lookup "Resources" node) of
-                      just v  -> ResolveVal v is dict
+                      just v  -> Resources v
                       nothing -> pResources
     let type = LookupResolve "Type" node is name
     if type == "Pages"
@@ -31,6 +36,16 @@ def PdfPageTree (p : maybe Ref) (pResources : Dict) (r : Ref) =
        else if type == "Page"
               then {| Leaf = PdfPage resources node |}
               else Fail "Unexpected `Type` in page tree"
+
+def noResources : Resources =
+  block
+    fonts = empty
+
+def Resources (v : Value) =
+  block
+    fonts = GetFonts (v is dict)
+    -- others resources omitted
+    -- we need the fonts because they determine the character encoding to use
 
 def PdfCheckParent (p : maybe Ref) (d : Dict) =
   case Optional (Lookup "Parent" d) of
@@ -44,14 +59,15 @@ def PdfCheckParent (p : maybe Ref) (d : Dict) =
 --------------------------------------------------------------------------------
 -- Page. Section 7.7.3.3, Table 31
 
-def PdfPage (resources : Dict) (pageNode : Dict) =
+def PdfPage (resources : Resources) (pageNode : Dict) =
   case Optional (Lookup "Contents" pageNode) of
     nothing -> {| EmptyPage = Accept |}
     just vr -> {| ContentStreams = PdfPageContent resources vr |}
 
-def PdfPageContent (resources : Dict) (vr : Value) =
+def PdfPageContent (resources : Resources) (vr : Value) =
   block
     resources = resources
+
     SetStream
       case vr of
         ref r    -> ContentStreamBytes r
@@ -178,6 +194,15 @@ def SkipImageData =
   block
     Many $[!'E']
     @(Match "EI") <| SkipImageData
+
+--------------------------------------------------------------------------------
+
+def GetFonts (r : Dict) : [ [uint 8] -> Dict ] =
+  case Optional (Lookup "Font" r) of
+    nothing -> empty
+    just v  ->
+      map (v in (ResolveVal v is dict)) (ResolveVal v is dict)
+
 
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
