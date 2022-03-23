@@ -1,10 +1,7 @@
 #include "debug.hpp"
 
-#ifdef DEBUG
+#ifndef DEBUG
 
-#define dbg std::cerr
-
-#else
 struct NullBuffer : public std::streambuf {
   int overflow(int c) { return c; }
 } null_buffer;
