@@ -42,7 +42,7 @@ import Logger
 
 import PdfMonad
 import PdfParser
-import Stdlib(pManyWS)
+import PdfValue(pManyWS)
 
 import PdfPP
 import Possibly
