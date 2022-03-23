@@ -142,30 +142,4 @@ def lenLists2 ls =
   (length ls.fst) +
   (length ls.snd)
 
---------------------------------------------------------------------------------
--- White Space (Section 7.2)
-
-def $lf                   = 10
-def $cr                   = 13
-def $space                = 32
-def $simpleWS             = 0 | 9 | 12 | 32
-
-def SimpleEOL             = IgnoreResult ($lf <| { $cr; $lf })
-                            -- Beware: this is rarely used!  PDF uses only after 'stream' keyword
-
-def EOL : {}              = IgnoreResult $lf <| {$cr ; ( IgnoreResult $lf <| ^{} )}
-
-def GenComment start = {
-  Match (append "%" start);
-  Many (Match1 (! ($lf | $cr)));
-  EOL;
-  ^ {}}
-def Comment               = GenComment ""
-def JustWhite             = IgnoreResult $simpleWS <| EOL
-
-def AnyWS                 = IgnoreResult $simpleWS <| Comment <| EOL
-
--- and sequences of ...
-def ManyJustWhite         = {Many JustWhite; ^{}}
-def ManyWS                = {Many AnyWS; ^{}}
 

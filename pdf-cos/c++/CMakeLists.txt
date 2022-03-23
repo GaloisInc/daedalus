@@ -35,6 +35,7 @@ add_custom_command(
     --entry=PdfValue.Value
     --entry=PdfCrypto.EncryptionDict
     --entry=TE.PdfCatalog
+    --entry=TE.TextInCatalog
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
