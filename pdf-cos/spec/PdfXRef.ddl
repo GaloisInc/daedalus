@@ -6,6 +6,26 @@ def CrossRef = First
   oldXref = CrossRefAndTrailer
   newXref = XRefObj
 
+
+def PdfStart =
+  block
+    Match "%PDF-"
+
+    First
+      block Match "1."; @$['0' .. '7']
+      @Match "2.0"
+
+    SkipTillEOL
+    case Optional BinaryMarker of
+      just    -> true         -- a binary file is indicated
+      nothing -> false
+
+def BinaryMarker =
+  block
+    Match "%"
+    Many (4..) $[ 128 .. ]
+    SkipTillEOL
+
 def PdfEnd =
   block
     Match "startxref"

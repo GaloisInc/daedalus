@@ -31,6 +31,12 @@ def AnyWS                 = JustWhite <| Comment
 def ManyJustWhite         = @Many JustWhite
 def ManyWS                = @Many AnyWS
 
+def SkipTillEOL =
+  block
+    Many $[! ($lf | $cr)] -- cavity
+    EOL
+
+
 
 
 --------------------------------------------------------------------------------
@@ -94,33 +100,6 @@ def NumberAsNat (x : Number) =
   block
     Guard (x.num >= 0 && x.exp == 0)
     x.num
-
---------------------------------------------------------------------------------
--- parsing the first 2 lines of PDF, the header
-
-def Header =
-  block
-    Match "%PDF-"
-
-    First
-      block Match "1."; @$['0' .. '7']
-      @Match "2.0"
-
-    SkipTillEOL
-    case Optional BinaryMarker of
-      just    -> true         -- a binary file is indicated
-      nothing -> false
-
-def BinaryMarker =
-  block
-    Match "%"
-    Many (4..) $[ 128 .. ]
-    SkipTillEOL
-
-def SkipTillEOL =
-  block
-    Many $[! ($lf | $cr)] -- cavity
-    EOL
 
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)

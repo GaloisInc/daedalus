@@ -43,9 +43,9 @@ import Primitives.Decrypt(makeFileKey)
 import CMap(pToUnicodeCMap_simpleFont, pToUnicodeCMap_cidFont)
 import PdfDecl(pResolveRef)
 import PdfDOM
-import PdfXRef(TrailerDict) 
+import PdfXRef(TrailerDict, pPdfStart)
 import PdfCrypto(ChooseCiph(..),pMakeContext,MakeContext(..))
-import PdfValue(Value(..),Ref(..),pValue,pHeader)
+import PdfValue(Value(..),Ref(..),pValue)
 
 -- local:
 import CommandLine
@@ -185,10 +185,10 @@ parsePdf opts file bs topInput =
        ListCavities->
            do
            (_isBinary,baseBodyStart)
-             <- runParser (error "pHeader: no ref expected")
+             <- runParser (error "pPdfStart: no ref expected")
                              Nothing
                              ( do
-                               h <- pHeader
+                               h <- pPdfStart
                                o <- pOffset  -- byte offset after header
                                return (h,o)
                              )
