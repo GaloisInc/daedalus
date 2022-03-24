@@ -259,12 +259,12 @@ data ExprF e =
   | ESetStream !e
   | EStreamLen !e !e
   | EStreamOff !e !e
-    deriving Show
+    deriving (Show, Functor, Foldable, Traversable)
 
 -- | Different flavors of loop
 data FLoopFlav e = FFold !Name e
                  | FMap
-  deriving Show
+  deriving (Show, Functor, Foldable, Traversable)
 
 data Commit = Commit | Backtrack
   deriving (Eq, Show, Lift)
@@ -300,7 +300,7 @@ data ManyBounds e =
     deriving (Show, Functor, Foldable, Traversable)
 
 data UnionField e = !(Located Label) :> !e
-                    deriving Show
+                    deriving (Show, Functor, Foldable, Traversable)
 
 data StructField e =
     Anon      !e
@@ -325,7 +325,7 @@ data PatternCase e =
     PatternDefault e
   | PatternCase ![Pattern] !e
     -- ^ A union of patterns. The union should not be empty.
-  deriving (Show, Functor)
+  deriving (Show, Functor, Foldable, Traversable)
 
 data Pattern =
     LitPattern (Located Literal)
