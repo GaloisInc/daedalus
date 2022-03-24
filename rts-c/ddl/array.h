@@ -232,7 +232,7 @@ public:
 inline
 std::ostream& operator<<(std::ostream& os, Array<UInt<8>> x) {
   Size n = x.size();
-  if (n == 0) { os << ""; return os; }
+  if (n == 0) { os << "[]"; return os; }
 
   Size count_print = 0;
   for (Size i = 0; i < n; i.increment()) {
