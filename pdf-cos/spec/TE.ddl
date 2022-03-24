@@ -43,7 +43,7 @@ def noResources : Resources =
 
 def Resources (v : Value) =
   block
-    fonts = GetFonts (v is dict)
+    fonts = GetFonts (ResolveVal v is dict)
     -- others resources omitted
     -- we need the fonts because they determine the character encoding to use
 
