@@ -284,10 +284,13 @@ def TryApplyFilter (f : Filter) (body : stream) =
     then ApplyFilter f true (ASCII85Decode body)
 
   else if f.name == "DCTDecode"
-    then ApplyFilter f true
-          block
-            WithStream body SomeJpeg  -- Just validate
-            body
+    then
+      ApplyFilter f true
+        block
+          -- Jpeg disabled
+          -- WithStream body SomeJpeg  -- Just validate
+          body
+
 
   else ApplyFilter f false (Fail "Unsupported filter")
 
