@@ -87,7 +87,6 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     data = block
              ManyWS
              Many ContentStreamEntry
-             [] : [ContentStreamEntry] --
 
     UNPARSED = if ?strict then { END; [] } else Many UInt8
 
@@ -199,6 +198,9 @@ def SkipImageData =
 
 --------------------------------------------------------------------------------
 
+-- XXX: It'd be nice to cache preocessed fonts by reference so if we encounter
+-- the same reference we don't parse it over and over again.
+-- (this might be a generally useful thing to have)
 def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
   case Optional (Lookup "Font" r) of
     nothing -> empty
@@ -319,9 +321,6 @@ def CMapOperator =
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
 
--- XXX: need to keep track of the font being used so that we know
--- the character encoding
-
 def TextInCatalog (c : PdfCatalog) = reverse nil (TextInPageTree nil c.pageTree)
 
 def TextInPageTree acc (t : PdfPageTree) =
@@ -351,21 +350,29 @@ def FindTextOnPage acc i =
           case op of
 
             Tj, quote, dquote ->
-              FindTextOnPage
-                (push (GetOperand (i - 1) is string) acc)
-                (i+1)
+              block
+                let word = {| word = GetOperand (i - 1) is string |} : TextItem
+                FindTextOnPage (push word acc) (i+1)
 
             TJ ->
               for (s = acc; x in GetOperand (i - 1) is array)
                 case x of
-                  string v -> push v s
+                  string v -> push {| word = v |} s
                   _        -> s
+
+            Tf ->
+              block
+                let font = GetOperand (i - 2) is name
+                FindTextOnPage (push {| font = font |} acc) (i+1)
 
             _  -> FindTextOnPage acc (i+1)
 
         _  -> FindTextOnPage acc (i+1)
 
-
+-- type only
+def TextItem =
+     {| word = [] : [uint 8] |}
+  <| {| font = [] : [uint 8] |}
 
 --------------------------------------------------------------------------------
 -- Just used for the type (lists/builders should be a standard type)
