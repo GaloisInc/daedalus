@@ -197,11 +197,18 @@ def SkipImageData =
 
 --------------------------------------------------------------------------------
 
-def GetFonts (r : Dict) : [ [uint 8] -> Dict ] =
+def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
   case Optional (Lookup "Font" r) of
     nothing -> empty
     just v  ->
-      map (v in (ResolveVal v is dict)) (ResolveVal v is dict)
+      map (v in (ResolveVal v is dict)) (Font v)
+
+def Font (v : Value) =
+  block
+    dict = ResolveVal v is dict
+    toUnicode = case Optional (Lookup "ToUnicode" dict) of
+                  nothing -> nothing
+                  just v  -> just (ResolveStreamRef (v is ref))
 
 
 --------------------------------------------------------------------------------
