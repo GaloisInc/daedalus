@@ -217,7 +217,7 @@ data ExprF e =
   | EVar        !Name
   | EImplicit   !IPName
   | ETry        !e
-  | ECase       !Expr [PatternCase e]
+  | ECase       !e [PatternCase e]
 
   | EMatch !e
   | EMatch1 !e
