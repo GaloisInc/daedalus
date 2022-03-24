@@ -1,5 +1,6 @@
 import PdfValue
 import PdfDecl
+import Debug
 
 --------------------------------------------------------------------------------
 -- Section 7.7.2, Table 29
@@ -86,6 +87,7 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     data = block
              ManyWS
              Many ContentStreamEntry
+             [] : [ContentStreamEntry] --
 
     UNPARSED = if ?strict then { END; [] } else Many UInt8
 
@@ -206,14 +208,119 @@ def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
 def Font (v : Value) =
   block
     dict = ResolveVal v is dict
+    subType = ResolveVal (Lookup "Subtype" dict) is name
+    -- encoding = Optional (Lookup "Encoding" dict)
     toUnicode = case Optional (Lookup "ToUnicode" dict) of
                   nothing -> nothing
-                  just v  -> just (ResolveStreamRef (v is ref))
+                  just v  -> just (ToUnicodeCMap v)
+
+
+--------------------------------------------------------------------------------
+-- Character Maps
+
+def ToUnicodeCMap (v : Value) =
+  case v of
+    ref r ->
+      case ResolveDeclRef r of
+        value v  -> {| named = v is name |}
+        stream s -> {| cmap = ToUnicodeCMapDef s |}
+    name x -> {| named = x |}
+
+def CMapScope begin end P =
+  block
+    KW begin
+    $$ = P
+    KW end
+
+-- XXX: .. in patterns
+def Hex64 (acc : uint 64) =
+  block
+    let b = UInt8
+    case b of
+      '0', '1','2','3','4','5','6','7','8','9' ->
+        Hex64 (16 * acc + ((b - '0') as ?auto))
+
+      'a', 'b', 'c', 'd', 'e', 'f' ->
+        Hex64 (16 * acc + ((b - 'a') as ?auto))
+
+      'A', 'B', 'C', 'D', 'E', 'F' ->
+        Hex64 (16 * acc + ((b - 'A') as ?auto))
+
+      '>' -> acc
+
+def Hex = block $['<']; Hex64 0
+
+
+
+def ToUnicodeCMapDef (s : Stream) =
+  block
+    SetStream (s.body is ok)
+    ManyWS
+    Name == "CIDInit" is true
+    Name == "ProcSet" is true
+    KW "findresource"
+    KW "begin"
+    -- XXX: don't quite understand the dict/dup format thing
+    let size = Token Natural
+    KW "dict"
+    -- XXX: don't quite understand the dict/dup format thing
+    KW "begin"
+    KW "begincmap"
+    $$ = Many CMapEntry
+    KW "endcmap"
+
+    -- XXX: ignore rest
+
+
+def CMapEntry =
+  block
+    First
+      keyVal   = CMapKeyVal
+      operator = CMapOperator
+
+
+def CMapKeyVal =
+  block
+    key   = Name
+    value = CMapValue
+    Optional (KW "def")
+
+def CMapValue =
+  First
+    dict    = CMapDict
+    string  = String
+    string  = HexString
+    name    = Name
+    number  = Number
+
+def CMapDict =
+  block
+    let ents = Between "<<" ">>" (Many CMapKeyVal)
+    for (d = empty; e in ents) (insert e.key e.value d)
+
+def CMapOperator =
+  block
+    let size = Token Natural as? uint 64
+    size <= 100 is true
+    KW "begin"
+    op = Token (Many $['a' .. 'z'])
+    let w = if op == "codespacerange" then 2 else
+            if op == "bfrange"        then 3 else
+            if op == "bfchar"         then 2 else
+            Fail "Unknown op"
+    args = Many size (Many w (Token Hex))
+    KW "end"
+    Token (Match op)
+
+
+
 
 
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
 
+-- XXX: need to keep track of the font being used so that we know
+-- the character encoding
 
 def TextInCatalog (c : PdfCatalog) = reverse nil (TextInPageTree nil c.pageTree)
 
@@ -279,6 +386,11 @@ def reverse acc (xs : List) =
   case xs of
     nil    -> acc
     cons n -> reverse (push n.head acc) n.tail
+
+def DumpStream (s : Stream) =
+  block
+    SetStream (s.body is ok)
+    Many UInt8
 
 
 
