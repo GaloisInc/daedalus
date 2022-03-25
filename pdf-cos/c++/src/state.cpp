@@ -33,7 +33,7 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
 
     if (results.size() != 1) {
         for (auto &&x : results) { x.free(); }
-        std::cerr << "PARSE ERROR " << error.offset << std::endl;
+        std::cerr << "ERROR: PARSE ERROR " << error.offset << std::endl;
         return false;
     }
 

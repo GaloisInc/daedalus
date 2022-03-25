@@ -44,29 +44,42 @@ int main(int argc, char* argv[]) {
 
   DDL::Input input;
   if (!inputFromFile(argv[1], &input)) {
-    std::cerr << "unable to open file" << std::endl;
+    std::cerr << "Unable to open file" << std::endl;
     return 1;
   }
+
+  bool reject = false;
+  bool safe   = true;
 
   try {
     references.process_pdf(input);
-  } catch (XrefException const& e) {
-    std::cerr << "Error while processing cross-references: " << e.what() << std::endl;
-    return 1;
-  }
+    check_catalog();
 
-  check_catalog();
-
-  for (auto && [refid, val] : references.table) {
-    dbg << "Getting " << std::dec << refid << " " << val.gen << std::endl;
-    DDL::Maybe<User::TopDecl> decl;
-
-    if (references.resolve_reference(refid, val.gen, &decl)) {
-      decl.free();
-    } else {
-      dbg << "Failed\n";
+    for (auto && [refid, val] : references.table) {
+      User::Ref ref;
+      ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
+      std::vector<DDL::Bool> results;
+      DDL::ParseError error;
+      parseCheckRef(error, results, DDL::Input{"",""}, ref);
+      if (results.size() != 1) {
+        std::cerr << "ERROR: [" << refid << "," << val.gen << "] Malformed\n";
+        reject = true;
+      } else {
+        safe &= results[0].getValue();
+      }
     }
+
+  } catch (XrefException const& e) {
+    std::cerr << "ERROR: [XRef] " << e.what() << std::endl;
+    reject = true;
+
+  } catch (CatalogException const& e) {
+    std::cerr << "ERROR: [Catalog] " << e.what() << std::endl;
+    reject = true;
   }
+
+  std::cerr << (reject?          "REJECT" : "ACCEPT") << std::endl;
+  std::cerr << (!reject && safe? "SAFE"   : "UNSAFE") << std::endl;
 
   return 0;
 }

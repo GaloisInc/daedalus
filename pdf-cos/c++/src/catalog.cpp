@@ -1,13 +1,11 @@
 #include <main_parser.h>
 #include "state.hpp"
 #include "state.hpp"
+#include "catalog.hpp"
 
 void check_catalog() {
   auto root = references.getRoot();
-  if (!root.has_value()) {
-    std::cerr << "Missing root\n";
-    return;
-  }
+  if (!root.has_value()) { throw CatalogException("Missing root"); }
 
   std::vector<User::PdfCatalog> results;
   DDL::ParseError error;
@@ -16,11 +14,10 @@ void check_catalog() {
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
-    std::cerr << "Failed to parse catalog\n";
-    return;
+    throw CatalogException("Failed to parse catalog");
   }
 
-  bool text = false;
+  bool text = false; // true;
 
   if (text) {
     std::vector<DDL::ResultOf::parseTextInCatalog> chunks;
@@ -28,14 +25,15 @@ void check_catalog() {
 
     if (chunks.size() != 1) {
       for (auto &&x : results) { x.free(); }
-      std::cerr << "Failed to extract text\n";
-      return;
+      throw CatalogException("Failed to extract text");
     }
 
     auto p = chunks[0];
 
     bool done = false;
     while (!done) {
+      std::cout << std::endl;
+
       switch(p.getTag()) {
         case DDL::Tag::List::nil:
           done = true;
@@ -43,7 +41,7 @@ void check_catalog() {
 
         case DDL::Tag::List::cons:
           auto node = p.borrow_cons();
-          std::cerr << (char*)node.borrow_head().borrowData();
+          std::cout << node.borrow_head();
           p = node.borrow_tail();
       }
     }
@@ -51,7 +49,7 @@ void check_catalog() {
 
     chunks[0].free();
   } else {
-    std::cerr << results[0] << std::endl;
+    // dbg << results[0] << std::endl;
     results[0].free();
   }
 }

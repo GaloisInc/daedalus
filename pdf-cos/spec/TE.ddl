@@ -4,8 +4,9 @@ import Debug
 
 --------------------------------------------------------------------------------
 -- Section 7.7.2, Table 29
-def PdfCatalog (r : Ref) =
+def PdfCatalog (strict : bool) (r : Ref) =
   block
+    let ?strict = strict
     let d = ResolveValRef r is dict
     pageTree = PdfPageTreeRoot (LookupRef "Pages" d)
     -- other fields omitted
@@ -402,6 +403,32 @@ def DumpStream (s : Stream) =
   block
     SetStream (s.body is ok)
     Many UInt8
+
+
+--------------------------------------------------------------------------------
+-- Hacky "validation" we look for JavaScript or URI actions
+
+-- Return `true` if this declaration is "safe"
+def CheckRef (r : Ref) : bool =
+  case ResolveDeclRef r of
+    stream  -> true
+    value v ->
+      First
+        block
+          FindUnsafe v
+          false
+        true
+
+def FindUnsafe (v : Value) =
+  case v of
+    dict d ->
+      First
+        block let act = ResolveVal (Lookup "S" d) is name
+              (act == "JavaScript" || act == "URI") is true
+        @Lookup "JS" d
+
+    array xs -> @map (x in xs) (FindUnsafe x)
+    _        -> Fail "not unsafe"
 
 
 
