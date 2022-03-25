@@ -72,24 +72,31 @@ def PdfPageContent (resources : Resources) (vr : Value) =
 
     SetStream
       case vr of
-        ref r    -> ContentStreamBytes r
+        ref r ->
+          case ResolveDeclRef r of
+            value v  -> StreamFromArray (v is array)
+            stream s -> s.body is ok
 
-        -- inefficient!
-        array xs ->
-          block
-            let chunks =
-                  map (x in xs)
-                    block
-                    let bs = bytesOfStream (ContentStreamBytes (x is ref))
-                    concat [bs, " "] -- yikes.
-
-            arrayStream (concat chunks)
+        array xs -> StreamFromArray xs
 
     data = block
              ManyWS
              Many ContentStreamEntry
 
     UNPARSED = if ?strict then { END; [] } else Many UInt8
+
+
+        -- inefficient!
+def StreamFromArray (xs : [Value]) =
+  block
+    let chunks = map (x in xs)
+                    block
+                    let bs = bytesOfStream (ContentStreamBytes (x is ref))
+                    concat [bs, " "] -- yikes.
+
+    arrayStream (concat chunks)
+
+
 
 def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
 
@@ -322,7 +329,8 @@ def CMapOperator =
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
 
-def TextInCatalog (c : PdfCatalog) = reverse nil (TextInPageTree nil c.pageTree)
+def TextInCatalog (c : PdfCatalog) =
+  reverse nil (TextInPageTree nil c.pageTree)
 
 def TextInPageTree acc (t : PdfPageTree) =
   case t of
@@ -342,6 +350,16 @@ def TextInPageContnet acc (p : PdfPageContent) =
     let ?instrs = p.data
     FindTextOnPage acc 0
 
+def Dump (xs : List) =
+  case xs of
+    cons x ->
+      block
+        case x.head : TextItem of
+          word w -> Trace w
+          font   -> Trace "<FONT>"
+        Dump x.tail
+    nil -> Accept
+
 def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
 def FindTextOnPage acc i =
@@ -359,10 +377,12 @@ def FindTextOnPage acc i =
                 FindTextOnPage (push word acc) (i+1)
 
             TJ ->
-              for (s = acc; x in GetOperand (i - 1) is array)
-                case x of
-                  string v -> push {| word = v |} s
-                  _        -> s
+              block
+                let acc1 = for (s = acc; x in GetOperand (i - 1) is array)
+                             case x of
+                               string v -> push {| word = v |} s
+                               _        -> s
+                FindTextOnPage acc1 (i+1)
 
             Tf ->
               block
