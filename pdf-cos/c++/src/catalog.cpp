@@ -30,24 +30,28 @@ void check_catalog() {
 
     auto p = chunks[0];
 
+    // we free things as we go to avoid running out of stuck
+    // in one big recursive free at the end.
     bool done = false;
     while (!done) {
       std::cout << std::endl;
 
       switch(p.getTag()) {
         case DDL::Tag::List::nil:
+          p.free();
           done = true;
           break;
 
         case DDL::Tag::List::cons:
           auto node = p.borrow_cons();
           std::cout << node.borrow_head();
-          p = node.borrow_tail();
+          auto q = node.get_tail();
+          p.free();
+          p = q;
       }
     }
     std::cerr << "\n";
 
-    chunks[0].free();
   } else {
     // dbg << results[0] << std::endl;
     results[0].free();
