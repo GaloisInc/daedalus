@@ -194,7 +194,8 @@ def ContentStreamOperator =
 def SkipImageData =
   block
     Many $[!'E']
-    @(Match "EI") <| SkipImageData
+    $['E']
+    @$['I'] <| SkipImageData
 
 --------------------------------------------------------------------------------
 
