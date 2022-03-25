@@ -81,6 +81,7 @@ compileDDL =
                 , "PageTreeNode"
                 , "PdfXRef"
                 , "PdfExtractText"
+                , "TE"
                 ]
 
                 -- This order is intentional: we order in reverse dependency order, thus no module

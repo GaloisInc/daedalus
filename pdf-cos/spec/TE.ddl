@@ -16,7 +16,7 @@ def PdfCatalog (r : Ref) =
 
 def PdfPageTreeRoot (r : Ref) = PdfPageTree nothing noResources r
 
-def PdfPageTree (p : maybe Ref) (pResources : Resources) (r : Ref) =
+def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
   block
     let node = ResolveValRef r is dict
     PdfCheckParent p node
@@ -27,7 +27,7 @@ def PdfPageTree (p : maybe Ref) (pResources : Resources) (r : Ref) =
     of repeated work in large doucuments. -}
     let resources = case Optional (Lookup "Resources" node) of
                       just v  -> Resources v
-                      nothing -> pResources
+                      nothing -> parentResources
     let type = LookupResolve "Type" node is name
     if type == "Pages"
        then {| Node = map (child in (LookupResolve "Kids" node is array))
@@ -210,13 +210,12 @@ def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
 
 def Font (v : Value) =
   block
-    dict = ResolveVal v is dict
+    let dict = ResolveVal v is dict
     subType = ResolveVal (Lookup "Subtype" dict) is name
-    -- encoding = Optional (Lookup "Encoding" dict)
+    encoding = Optional (Lookup "Encoding" dict)
     toUnicode = case Optional (Lookup "ToUnicode" dict) of
                   nothing -> nothing
                   just v  -> just (ToUnicodeCMap v)
-
 
 --------------------------------------------------------------------------------
 -- Character Maps
@@ -332,7 +331,10 @@ def TextInPageTree acc (t : PdfPageTree) =
 def TextInPage acc (p : PdfPage) =
   case p of
     EmptyPage -> acc
-    ContentStreams content -> TextInPageContnet acc content
+    ContentStreams content ->
+      block
+        let ?resources = content.resources
+        TextInPageContnet acc content
 
 def TextInPageContnet acc (p : PdfPageContent) =
   block
@@ -363,7 +365,8 @@ def FindTextOnPage acc i =
 
             Tf ->
               block
-                let font = GetOperand (i - 2) is name
+                let fontName = GetOperand (i - 2) is name
+                let font     = Lookup fontName ?resources.fonts
                 FindTextOnPage (push {| font = font |} acc) (i+1)
 
             _  -> FindTextOnPage acc (i+1)
@@ -373,7 +376,7 @@ def FindTextOnPage acc i =
 -- type only
 def TextItem =
      {| word = [] : [uint 8] |}
-  <| {| font = [] : [uint 8] |}
+  <| {| font = Fail "unused" : Font |}
 
 --------------------------------------------------------------------------------
 -- Just used for the type (lists/builders should be a standard type)
