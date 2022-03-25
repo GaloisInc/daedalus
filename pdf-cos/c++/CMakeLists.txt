@@ -27,6 +27,7 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/TE.ddl
   COMMAND cabal run exe:daedalus -v0 --
     --compile-c++
+    --determinize
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef
