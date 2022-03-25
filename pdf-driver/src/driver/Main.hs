@@ -27,6 +27,7 @@ import Data.Char(isDigit)
 import Common
 import PdfMonad
 import XRef(findStartXRef, parseXRefsVersion1)
+import TE(pPdfCatalog)
 import PdfParser
 import PdfDemo
 import PdfExtractText
@@ -47,7 +48,7 @@ main =
        FAW   ->
          let fmt = fawFormat in
          case optOps opts of
-           Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
+           Validate -> fmtDriver fmt inputFile pPdfCatalog pw
            ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
 
 
@@ -280,10 +281,9 @@ preDOM opts =
 driverValidate :: DbgMode => Options -> IO ()
 driverValidate opts = runReport opts $
   do (file,refs,root,trail,topInput) <- preDOM opts
-     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
+     res <- liftIO (runParser refs Nothing (pPdfCatalog root) topInput)
      case res of
-       ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
-       ParseOk False -> report RWarning file 0 "Malformed Catalog (page tree)"
+       ParseOk _ -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
@@ -294,7 +294,7 @@ driverValidate opts = runReport opts $
        Right fileEC -> parseObjs file fileEC topInput refs
 
 -- TODO: In principle, we could merge driverValidate and
--- driverExtractText. One challenge is the type of pCatalogIsOk and
+-- driverExtractText. One challenge is the type of pCatalogIsOk/pPdfCatalog and
 -- pExtractCatalogText are different, therefore this should be
 -- revisited once the associated ddl grammars are not under active
 -- development.
