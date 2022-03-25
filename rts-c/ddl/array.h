@@ -232,6 +232,8 @@ public:
 inline
 std::ostream& operator<<(std::ostream& os, Array<UInt<8>> x) {
   Size n = x.size();
+  if (n == 0) { os << "[]"; return os; }
+
   Size count_print = 0;
   for (Size i = 0; i < n; i.increment()) {
     if (isprint(x[i].rep())) count_print.increment();
@@ -245,6 +247,7 @@ std::ostream& operator<<(std::ostream& os, Array<UInt<8>> x) {
     os << "\"";
     for (Size i = 0; i < n; i.increment()) {
       uint8_t c = x[i].rep();
+      if (c == '\\') os << '\\'; else
       if (isprint(c)) os << (char)c;
       else {
         os << "\\";

@@ -41,7 +41,7 @@ import RTS.Input(advanceBy)
 
 import PdfMonad
 import PdfParser
-import Stdlib(pManyWS)
+import PdfValue(pManyWS)
 
 import Possibly
 import PdfPP

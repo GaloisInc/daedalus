@@ -86,13 +86,6 @@ def ObjectStreamNth (n : uint 64) (first : uint 64) (idx : uint 64) = {
 def SkipBytes n = Chunk n {}
 
 --------------------------------------------------------------------------------
--- Resolving of Refernece
-
--- Returns 'nothing' if there is no entry for this declaration.
--- For values this means we should return 'null'.
-def ResolveRef (r : Ref) : maybe TopDecl
-
---------------------------------------------------------------------------------
 -- Resolving references to streams
 
 -- NOTE: warning: this grammar is actually never called, but defined here to declare the type associated
@@ -157,24 +150,35 @@ def WithReffedStreamBody P = WithStream
 
 --------------------------------------------------------------------------------
 
-def CheckExpected (r : Ref) (d : TopDecl) = {
-  GuardMsg ((d.id  == r.obj && d.gen == r.gen))
-    "objid and gen don't match between xref table and the object definition";
-  ^ d.obj;
-}
+--------------------------------------------------------------------------------
+-- Resolving of Refernece
 
-def ResolveStreamRef (r : Ref) = 
-  CheckExpected r (ResolveRef r is just) is stream
+-- Returns 'nothing' if there is no entry for this declaration.
+-- For values this means we should return 'null'.
+def ResolveRef (r : Ref) : maybe TopDecl
 
-def ResolveStream (v : Value) = {
-  @r  = v is ref;
-  ResolveStreamRef r
-}
 
-def ResolveValRef (r : Ref) : Value =
+def ResolveDeclRef (r : Ref) : TopDeclDef =
   case ResolveRef r of
-    nothing -> nullValue
-    just v  -> CheckExpected r v is value
+    nothing -> {| value = nullValue |}
+    just d  -> CheckExpected r d
+
+def ResolveStreamRef (r : Ref) = ResolveDeclRef r is stream
+def ResolveValRef    (r : Ref) = ResolveDeclRef r is value
+
+def ResolveStream (v : Value) = ResolveStreamRef (v is ref)
+def ResolveVal (v : Value) =
+  case v of
+    ref r -> ResolveValRef r
+    _     -> v
+
+def CheckExpected (r : Ref) (d : TopDecl) : TopDeclDef =
+  block
+    GuardMsg ((d.id  == r.obj && d.gen == r.gen))
+      "objid and gen don't match between xref table and the object definition";
+    d.obj
+--------------------------------------------------------------------------------
+
 
 def ResolveObjectStream (v : Value) : [ ObjectStreamEntry ] = {
   @stm = ResolveStream v;
@@ -194,11 +198,6 @@ def ResolveObjectStreamEntry
   @entry   = WithStream s (ObjectStreamNth n first idx);
   ^ { id = entry.oid; gen = 0; obj = {| value = entry.val |} };
 }
-
-def ResolveVal (v : Value) =
-  case v of
-    ref r -> ResolveValRef r
-    _     -> v
 
 
 def LookupResolve k header = {

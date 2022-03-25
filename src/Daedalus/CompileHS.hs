@@ -60,6 +60,7 @@ hsIdentVal i = case Text.unpack i of
                  x@(c : cs)
                    | isUpper c -> 'p' : x
                    | isLower c -> x
+                   | c == '?'  -> "ip_" ++ cs
                    | c == '$'  -> "cs_" ++ cs
                    | c == '_'  -> x
                  _ -> panic "hsIdentVal" ["Unexpected name", show i]

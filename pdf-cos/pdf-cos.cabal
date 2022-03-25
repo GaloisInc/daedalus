@@ -62,7 +62,8 @@ extra-source-files:
   spec/Type1Font.ddl,
   spec/Type3Font.ddl,
   spec/Unicode.ddl,
-  spec/WinEncoding.ddl
+  spec/WinEncoding.ddl,
+  spec/TE.ddl
 
 custom-setup
   setup-depends: base, containers, daedalus, directory, text, unix, filepath, Cabal
@@ -143,7 +144,8 @@ library
     Type3Font,
     Unicode,
     WinEncoding,
-    ZapfDingbatsEncoding
+    ZapfDingbatsEncoding,
+    TE
 
   autogen-modules:
     Array,
@@ -195,7 +197,8 @@ library
     Type3Font,
     Unicode,
     WinEncoding,
-    ZapfDingbatsEncoding
+    ZapfDingbatsEncoding,
+    TE
 
   build-depends:
     base,

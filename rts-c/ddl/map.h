@@ -288,6 +288,18 @@ public:
     // borrow this
     bool  done()        { return cur == nullptr; }
 
+    // borrow this, return owned
+    Key   key() {
+      if constexpr (hasRefs<Key>()) cur->key.copy();
+      return cur->key;
+    }
+
+    // borrow this, return owned
+    Value value() {
+      if constexpr (hasRefs<Value>()) cur->value.copy();
+      return cur->value;
+    }
+
     // borrow this
     Key   borrowKey()   { return cur->key; }
 

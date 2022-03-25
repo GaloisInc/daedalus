@@ -34,7 +34,7 @@ bool parser_Trace
   }
   message.free();
 
-  dbg << "Parser trace: " << msg << std::endl;
+  std::cerr << "Parser trace: " << msg << std::endl;
 
   return true;
 }
