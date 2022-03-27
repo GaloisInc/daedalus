@@ -48,7 +48,7 @@ main =
        FAW   ->
          let fmt = fawFormat in
          case optOps opts of
-           Validate -> fmtDriver fmt inputFile (pPdfCatalog True) pw
+           Validate -> fmtDriver fmt inputFile (pPdfCatalog False) pw
            ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
 
 
@@ -281,7 +281,7 @@ preDOM opts =
 driverValidate :: DbgMode => Options -> IO ()
 driverValidate opts = runReport opts $
   do (file,refs,root,trail,topInput) <- preDOM opts
-     res <- liftIO (runParser refs Nothing (pPdfCatalog True root) topInput)
+     res <- liftIO (runParser refs Nothing (pPdfCatalog False root) topInput)
      case res of
        ParseOk _ -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"

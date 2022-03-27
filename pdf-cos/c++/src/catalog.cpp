@@ -10,7 +10,7 @@ void check_catalog() {
   std::vector<User::PdfCatalog> results;
   DDL::ParseError error;
 
-  parsePdfCatalog(error,results,DDL::Input("empty",""),true,root->get());
+  parsePdfCatalog(error,results,DDL::Input("empty",""),false,root->get());
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
