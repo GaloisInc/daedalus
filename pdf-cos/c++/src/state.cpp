@@ -132,8 +132,8 @@ ReferenceTable::register_uncompressed_reference(
     uint64_t offset
 )
 {
-    dbg << "Uncompressed reference " << refid << " at " << offset << std::endl;
-    table.insert_or_assign(refid, ReferenceEntry{TopThunk(offset), 0});
+    dbg << "Uncompressed reference " << refid << " gen " << gen <<  " at " << offset << std::endl;
+    table.insert_or_assign(refid, ReferenceEntry{TopThunk(offset), gen});
 }
 
 void
