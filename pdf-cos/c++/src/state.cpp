@@ -29,13 +29,18 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
     DDL::ParseError error;
     std::vector<User::TopDecl> results;
 
+    input.copy();
     parseTopDecl(error, results, input);
 
     if (results.size() != 1) {
         for (auto &&x : results) { x.free(); }
-        std::cerr << "ERROR: PARSE ERROR " << error.offset << std::endl;
+        std::cerr << "ERROR: PARSE ERROR " << input.borrowNameBytes()
+                                  << " at " << error.offset << std::endl;
+        input.free();
         return false;
     }
+
+    input.free();
 
     User::TopDecl topDecl = results[0];
     results.clear();
@@ -315,6 +320,7 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
 
         auto edict = Owned(results[0]);
         encCtx = makeEncryptionContext(edict.borrow());
+        std::cerr << "INFO: Using encryption\n";
     }
 
     if (trailer.borrow_root().isJust()) {

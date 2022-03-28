@@ -95,7 +95,7 @@ bool parser_Decrypt
               reinterpret_cast<char const*>(key.data()),
               output)
         ) {
-          dbg << "Decryption has failed?" << std::endl;
+          std::cerr << "INFO: Decryption has failed?" << std::endl;
           input.free();
           body.free();
           return false;
@@ -114,7 +114,7 @@ bool parser_Decrypt
               reinterpret_cast<char const*>(references.getEncryptionContext()->key.data()),
               output)
         ) {
-          dbg << "Decryption has failed?" << std::endl;
+          std::cerr << "INFO: Decryption has failed?" << std::endl;
           input.free();
           body.free();
           return false;
@@ -126,10 +126,12 @@ bool parser_Decrypt
         return true;
       }
       default:
-        dbg
-          << "Encryption not implemented "
+        std::cerr
+          << "INFO: Encryption not implemented. "
+          << "Object: "
           << references.currentObjId << " "
           << references.currentGen
+          << ", cipher: " << e.cipher.borrow()
           << std::endl;
         input.free();
         body.free();
@@ -193,7 +195,7 @@ bool parser_FlateDecode
         case Z_MEM_ERROR:
           inflateEnd(&strm);
           input.free();
-          dbg << "inflate failed" << std::endl;
+          std::cerr << "INFO: inflate failed" << std::endl;
           return false;
       }
 
@@ -271,7 +273,7 @@ bool parser_LZWDecode
     *out_input = input;
     return true;
   } catch (LzwException const& e) {
-    dbg << e.what() << std::endl;
+    std::cerr << "INFO: " << e.what() << std::endl;
     input.free();
     return false;
   }
@@ -318,7 +320,7 @@ bool parser_ASCII85Decode
     *out_input = input;
     return true;
   } else {
-    dbg << "ascii85 failed" << std::endl;
+    std::cerr << "INFO: ascii85 failed" << std::endl;
     input.free();
     return false;
   }

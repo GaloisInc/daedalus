@@ -311,7 +311,7 @@ bool aes_cbc_decryption(
         output.resize(output.size() - out_avail);
 
     } catch (opensslxx::OpenSSLXX_exception const& e) {
-        std::cerr << "ERROR: OpenSLL failed: " << e.code << std::endl;
+        std::cerr << "[ERROR] OpenSLL failed: " << e.code << std::endl;
         return false;
     }
 
