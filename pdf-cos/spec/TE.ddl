@@ -439,17 +439,27 @@ def CheckRef (r : Ref) : bool =
           false
         true
 
+
 def FindUnsafe (v : Value) =
   case v of
     dict d ->
       First
-        block let act = ResolveVal (Lookup "S" d) is name
-              (act == "JavaScript" || act == "URI") is true
+        block
+          let act = ResolveVal (Lookup "S" d) is name
+          (act == "JavaScript" || act == "URI") is true
         @Lookup "JS" d
 
-    array xs -> @map (x in xs) (FindUnsafe x)
+    array xs ->
+      block
+        let ?vals = xs
+        AnyUnsafe 0
+
     _        -> Fail "not unsafe"
 
 
+def AnyUnsafe i =
+  block
+    let v = Index ?vals i
+    FindUnsafe v <| AnyUnsafe (i+1)
 
 

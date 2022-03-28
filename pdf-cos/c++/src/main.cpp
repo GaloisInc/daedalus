@@ -66,6 +66,8 @@ int main(int argc, char* argv[]) {
         reject = true;
       } else {
         safe &= results[0].getValue();
+        if (!results[0].getValue())
+          std::cerr << "INFO: " << refid << "," << val.gen << " is unsafe\n";
       }
     }
 
