@@ -148,6 +148,11 @@ public:
 
   Array<UInt<8>> borrowByteArray() { return bytes; }
   Array<UInt<8>> getByteArray() { bytes.copy(); return bytes; }
+
+
+  Array<UInt<8>> borrowName() { return name; }
+  Array<UInt<8>> getName() { name.copy(); return name; }
+  char* borrowNameBytes() { return (char*) name.borrowData(); }
 };
 
 
