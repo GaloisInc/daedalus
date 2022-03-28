@@ -2,6 +2,7 @@ import Stdlib
 import PdfValue
 import GenPdfValue
 import JpegBasics
+import Debug
 
 def TopDecl = {
   ManyWS;          -- FIXME: would rather do in Haskell and provide warning when this occurs!
@@ -37,13 +38,14 @@ def ObjStmMeta = block
   oid = Token Natural
   off = Token Natural
 
-def Stream (val : Value) = {
-  header = val is dict;
-  Match "stream";
-  SimpleEOL;
-  body = StreamBody header;
-  KW "endstream"
-}
+def Stream (val : Value) =
+  block
+    header = val is dict
+
+    Match "stream"
+    SimpleEOL
+    body = StreamBody header
+    KW "endstream"
 
 --------------------------------------------------------------------------------
 -- Object Streams (pdf 1.4, S3.4.6)
@@ -210,47 +212,43 @@ def LookupResolve k header = {
 -- Section 7.3.8.1
 
 
-def StreamBody header = Token {
-  @len   = StreamLen header;
-  Chunk len {
-    @body = GetStream;
-    ApplyFilters header body;
-  };
-}
+def StreamBody header = Token
+  (Chunk (StreamLen header) (ApplyFilters header GetStream))
 
-def StreamLen header = {
-  @lenV = LookupResolve "Length" header;
-  @lenI = lenV is number;
-  NumberAsNat lenI as? uint 64;
-}
+def StreamLen header =
+  block
+    let lenV = LookupResolve "Length" header
+    let lenI = lenV is number
+    NumberAsNat lenI as? uint 64
 
 -- Section 7.3.8.2
-def ApplyFilters header initialBody = {
-  @decrypt = Decrypt initialBody; -- A no-op if crypto is disabled
-  @filter_names  = LookOptArray "Filter" header;
-  @filter_params = LookOptArray "DecodeParms" header;
-  for (bytes = {| ok = decrypt |}; ix, name in filter_names) {
-    @param  = Default nullValue (Index filter_params ix);
-    @filter = Filter name param;
-    case bytes of
-      ok bs -> TryApplyFilter filter bs
-      _     -> bytes
-  };
-}
+def ApplyFilters header initialBody : ApplyFilter =
+  block
+    let decrypt = Decrypt initialBody -- A no-op if crypto is disabled
+    let filter_names  = LookOptArray "Filter" header
+    let filter_params = LookOptArray "DecodeParms" header
+    for (bytes = {| ok = decrypt |}; ix, name in filter_names)
+      block
+        let param  = Default nullValue (Index filter_params ix)
+        let filter = Filter name param
+        case bytes of
+          ok bs -> TryApplyFilter filter bs
+          _     -> bytes
 
 
-def Filter (name : Value) (param : Value) = {
-  name  = name is name;
-  param = FilterParam param;
-}
+def Filter (name : Value) (param : Value) =
+  block
+    name  = name is name
+    param = FilterParam param
 
 def FilterParam (param : Value) =
-     { param      is null; ^ nothing }
-  <| { @x = param is dict; ^ just x }
+  case param of
+    null   -> nothing
+    dict x -> just x
+
 
 -- Stub for the Decrypt primitive
-def Decrypt (body : stream)
-            : stream
+def Decrypt (body : stream) : stream
 
 def TryApplyFilter (f : Filter) (body : stream) =
 
