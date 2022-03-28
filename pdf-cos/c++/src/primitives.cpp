@@ -174,6 +174,7 @@ bool parser_FlateDecode
     strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
     
     if (Z_OK != inflateInit(&strm)) {
+      std::cerr << "INFO: inflate failed Z NOT OK" << std::endl;
       input.free();
       return false;
     }
@@ -213,6 +214,7 @@ bool parser_FlateDecode
         columns.asSize().value,
         buffer))
     {
+      std::cerr << "INFO: unpredict failed" << std::endl;
       input.free();
       return false;
     }
