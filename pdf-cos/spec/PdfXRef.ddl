@@ -29,8 +29,11 @@ def BinaryMarker =
 def PdfEnd =
   block
     Match "startxref"
+    Many $simpleWS      -- NOTE: does not appear in spec but seems to ok in practice
     EOL
+    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
     $$ = Natural as? uint 64
+    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
     EOL
     Match "%%EOF"
 
