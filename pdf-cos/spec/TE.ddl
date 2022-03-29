@@ -45,9 +45,8 @@ def noResources : Resources =
 
 def Resources (v : Value) =
   block
-    -- WARNING: GetFonts commented out
-    -- fonts = GetFonts (ResolveVal v is dict)
-    fonts = (empty : [ [uint 8] -> Font ])
+    -- NOTE: allow GetFonts to fail in case of incomplete coverage
+    fonts = ( GetFonts (ResolveVal v is dict) <| empty )
     -- others resources omitted
     -- we need the fonts because they determine the character encoding to use
 
