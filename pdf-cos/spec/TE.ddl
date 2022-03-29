@@ -243,23 +243,30 @@ def CMapScope begin end P =
     KW end
 
 -- XXX: .. in patterns
-def Hex64 (acc : uint 64) =
+def HexNum acc =
   block
     let b = UInt8
     case b of
       '0', '1','2','3','4','5','6','7','8','9' ->
-        Hex64 (16 * acc + ((b - '0') as ?auto))
+        HexNum (16 * acc + ((b - '0') as ?auto))
 
       'a', 'b', 'c', 'd', 'e', 'f' ->
-        Hex64 (16 * acc + ((b - 'a') as ?auto))
+        HexNum (16 * acc + (10 + (b - 'a') as ?auto))
 
       'A', 'B', 'C', 'D', 'E', 'F' ->
-        Hex64 (16 * acc + ((b - 'A') as ?auto))
+        HexNum (16 * acc + (10 + (b - 'A') as ?auto))
 
       '>' -> acc
 
-def Hex = block $['<']; Hex64 0
+def HexD =
+  First
+    $['0' .. '9'] - '0'
+    10 + $['a' .. 'f'] - 'a'
+    10 + $['A' .. 'F'] - 'A'
 
+def HexByte = 16 * HexD + HexD
+
+def Hex : uint 32 = block $['<']; HexNum 0
 
 
 def ToUnicodeCMapDef (s : Stream) =
@@ -276,18 +283,34 @@ def ToUnicodeCMapDef (s : Stream) =
     -- XXX: don't quite understand the dict/dup format thing
     KW "begin"
     KW "begincmap"
-    $$ = Many CMapEntry
+    $$ = CMapEntries cmap
     KW "endcmap"
-
     -- XXX: ignore rest
 
 
-def CMapEntry =
+def cmap =
   block
-    First
-      keyVal   = CMapKeyVal
-      operator = CMapOperator
+    charMap = empty : [ uint 32 -> uint 32 ]
+    ranges  = []    : [ CodespaceRangeEntry ]
 
+def insertChar x y (acc : cmap) : cmap =
+  block
+    charMap = insert x y acc.charMap
+    ranges  = cmap.ranges
+
+def addCodespaceRange xs (acc : cmap) : cmap =
+  block
+    charMap = acc.charMap
+    ranges  = concat [ xs, acc.ranges ] -- yikes
+
+
+def CMapEntries acc =
+  case Optional CMapKeyVal of
+    nothing ->
+      case Optional (CMapOperator acc) of
+        just acc1 -> CMapEntries acc1
+        nothing   -> acc
+    just _  -> CMapEntries acc   -- ignore metadata
 
 def CMapKeyVal =
   block
@@ -308,19 +331,79 @@ def CMapDict =
     let ents = Between "<<" ">>" (Many CMapKeyVal)
     for (d = empty; e in ents) (insert e.key e.value d)
 
-def CMapOperator =
+def CMapOperator (acc : cmap) =
   block
     let size = Token Natural as? uint 64
     size <= 100 is true
     KW "begin"
-    op = Token (Many $['a' .. 'z'])
-    let w = if op == "codespacerange" then 2 else
-            if op == "bfrange"        then 3 else
-            if op == "bfchar"         then 2 else
-            Fail "Unknown op"
-    args = Many size (Many w (Token Hex))
+    let op = Token (Many $['a' .. 'z'])
+    $$ =      if op == "bfrange" then BFRangeMapping acc size
+         else if op == "bfchar"  then BFCharMapping acc size
+         else if op == "codespacerange" then
+                  addCodespaceRange (Many size CodespaceRangeEntry) acc
+         else Fail "Unsupported operator"
     KW "end"
     Token (Match op)
+
+def CodespaceRangeEntry =
+  block
+    $['<']
+    keyBytes = Many (1 .. 4) HexByte
+    Token $['>']
+    start = for (s = 0 : uint 32; x in keyBytes) (s <# x)
+    end   = Token Hex
+
+def BFCharMapping acc count =
+  if count > 0 then
+    block
+      let key = Token Hex
+      let val = Token Hex
+      BFCharMapping (insertChar key val acc) (count - 1)
+  else
+    acc
+
+def BFRangeMapping acc count =
+  if count > 0 then
+    block
+      let start = Token Hex
+      let end   = Token Hex
+      let tgt   = Token Hex
+      if end < start
+        then BFRangeMapping acc (count - 1)
+        else block
+               let ?start  = start
+               let ?target = tgt
+               let ?count  = end - start + 1
+               BFRangeMapping (insertRange 0 acc) (count - 1)
+  else
+    acc
+
+def insertRange (i : uint 32) (acc : cmap) =
+  if i < ?count
+    then insertRange (i+1) (insertChar (?start + i) (?target + i) acc)
+    else acc
+
+def LookupCMap cmap =
+  First
+    block
+      let ?cmap = cmap.charMap
+      LookupCMapLoop 0 0
+    block
+      let cr = cmap.ranges
+      if length cr == 1
+        then block
+               let skip = length ((Index cr 0).keyBytes)
+               @Many skip UInt8
+        else @{UInt8;UInt8} -- XXX: we just skip 2 bytes
+      EmitChar ('?' as ?auto)
+
+def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
+  block
+    let c = prevIx <# UInt8
+    case Optional (Lookup c ?cmap) of
+      just v  -> EmitChar v
+      nothing -> if w < 16 then LookupCMapLoop (w + 8) c
+                           else Fail "Unknown character code"
 
 
 
@@ -329,13 +412,12 @@ def CMapOperator =
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
 
-def TextInCatalog (c : PdfCatalog) =
-  reverse nil (TextInPageTree nil c.pageTree)
+def TextInCatalog (c : PdfCatalog) = @(TextInPageTree nothing c.pageTree)
 
 def TextInPageTree acc (t : PdfPageTree) =
   case t of
     Node kids -> for (s = acc; x in kids) (TextInPageTree s x)
-    Leaf p -> TextInPage acc p
+    Leaf p    -> TextInPage acc p
 
 def TextInPage acc (p : PdfPage) =
   case p of
@@ -350,16 +432,6 @@ def TextInPageContnet acc (p : PdfPageContent) =
     let ?instrs = p.data
     FindTextOnPage acc 0
 
-def Dump (xs : List) =
-  case xs of
-    cons x ->
-      block
-        case x.head : TextItem of
-          word w -> Trace w
-          font   -> Trace "<FONT>"
-        Dump x.tail
-    nil -> Accept
-
 def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
 def FindTextOnPage acc i =
@@ -373,31 +445,55 @@ def FindTextOnPage acc i =
 
             Tj, quote, dquote ->
               block
-                let word = {| word = GetOperand (i - 1) is string |} : TextItem
-                FindTextOnPage (push word acc) (i+1)
+                DecodeText acc (GetOperand (i - 1) is string)
+                FindTextOnPage acc (i+1)
 
             TJ ->
               block
-                let acc1 = for (s = acc; x in GetOperand (i - 1) is array)
-                             case x of
-                               string v -> push {| word = v |} s
-                               _        -> s
-                FindTextOnPage acc1 (i+1)
+                map (x in (GetOperand (i - 1) is array))  
+                    case x of
+                      string s -> DecodeText acc s
+                      _        -> Accept
+
+                FindTextOnPage acc (i+1)
 
             Tf ->
               block
                 let fontName = GetOperand (i - 2) is name
-                let font     = Lookup fontName ?resources.fonts
-                FindTextOnPage (push {| font = font |} acc) (i+1)
+                let font     = Optional (Lookup fontName ?resources.fonts)
+                FindTextOnPage font (i+1)
 
             _  -> FindTextOnPage acc (i+1)
 
         _  -> FindTextOnPage acc (i+1)
 
--- type only
-def TextItem =
-     {| word = [] : [uint 8] |}
-  <| {| font = Fail "unused" : Font |}
+def DecodeText mbFont str =
+  case mbFont of
+    nothing -> Raw str
+
+    just f ->
+      case (f : Font).toUnicode of
+
+        nothing -> Raw str
+
+        just cmap ->
+          case cmap of
+            named x -> Raw str
+
+            cmap c ->
+              block
+                let s = GetStream
+                SetStream (arrayStream str)
+                Many (LookupCMap c)
+                -- END
+                SetStream s
+
+
+def Raw (str : [uint 8]) = @map (x in str) (EmitChar (x as ?auto))
+
+-- Emit a character
+def EmitChar (c : uint 32) : {}
+
 
 --------------------------------------------------------------------------------
 -- Just used for the type (lists/builders should be a standard type)

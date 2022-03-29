@@ -48,12 +48,15 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  bool text = false;
+
   bool reject = false;
   bool safe   = true;
 
   try {
     references.process_pdf(input);
-    check_catalog();
+    check_catalog(text);
+    if (text) return 0;
 
     for (auto && [refid, val] : references.table) {
       User::Ref ref;
@@ -67,7 +70,7 @@ int main(int argc, char* argv[]) {
       } else {
         safe &= results[0].getValue();
         if (!results[0].getValue())
-          std::cerr << "INFO: " << refid << "," << val.gen << " is unsafe\n";
+          std::cerr << "INFO: [" << refid << "," << val.gen << "] is unsafe\n";
       }
     }
 

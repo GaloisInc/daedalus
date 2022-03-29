@@ -14,6 +14,25 @@
 #include "predictor.hpp"
 #include "encryption.hpp"
 
+
+bool parser_EmitChar
+  ( DDL::ParserState& state
+  , DDL::Unit* result
+  , DDL::Input *inputout
+  , DDL::Input inputin
+  , DDL::UInt<32> c
+  ) {
+
+  wchar_t w = static_cast<wchar_t>(c.rep());
+  std::wcout << w;
+  // std::cerr << std::hex << "<" << w << ">";
+
+  *inputout = inputin;
+  *result   = DDL::Unit();
+  return true;
+}
+
+
 // owns inputin, message
 bool parser_Trace
   ( DDL::ParserState& state

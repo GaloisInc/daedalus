@@ -7,4 +7,4 @@ public:
   const char *what() const throw () override { return msg; }
 };
 
-void check_catalog();
+void check_catalog(bool text);
