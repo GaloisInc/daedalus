@@ -234,11 +234,31 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
 
     all     = dict
 
+-- Sec 7.5.5 File Trailer, Table 15, ID may be optional
+def TrailerIds (trailer : [ [uint 8] -> Value ]) = block
+  let x =
+    First
+      idContent = Lookup "ID" trailer
+      idMissing = ""
+  case x of {
+    idContent ic ->
+      (block
+        let arr = ic is array
+        (length arr == 2) is true
+        id0 = Index arr 0 is string
+        id1 = Index arr 1 is string
+      ) ;
+    idMissing ->
+      (block
+       id0 = ""
+       id1 = ""
+      ) ;
+    }
+
 def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
   block
     d = d
     eref = d is ref
-    let arr = (Lookup "ID" trailer) is array
-    (length arr == 2) is true
-    id0 = Index arr 0 is string
-    id1 = Index arr 1 is string
+    let x = TrailerIds trailer
+    id0 = x.id0
+    id1 = x.id1
