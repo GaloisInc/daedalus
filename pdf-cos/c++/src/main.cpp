@@ -13,13 +13,13 @@
 
 #include <ddl/input.h>
 #include <ddl/number.h>
+#include <ddl/owned.h>
 #include <main_parser.h>
 
 #include "args.hpp"
 #include "debug.hpp"
 #include "state.hpp"
 #include "catalog.hpp"
-#include "Owned.hpp"
 #include "primitives.hpp"
 
 bool inputFromFile(const char *file, DDL::Input *input)
@@ -66,6 +66,9 @@ int main(int argc, char* argv[]) {
     check_catalog(text);
     if (text) {
       try {
+
+        std::cout << "PRINT TEXT HERE\n";
+#if 0
         std::wstring_convert<deletable_facet<std::codecvt<char32_t, char, std::mbstate_t>>, char32_t> convert;
         auto u8bytes = convert.to_bytes(emittedCodepoints); 
         
@@ -75,6 +78,7 @@ int main(int argc, char* argv[]) {
           std::ofstream fout(args.outputFile);
           fout << u8bytes;
         }
+#endif
       } catch (std::exception const& e) {
         std::cerr << e.what() << std::endl;
       }

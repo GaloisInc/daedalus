@@ -156,8 +156,13 @@ selName own l = pref <.> "_" <.> cLabel l
 cFName :: FName -> CIdent
 cFName f = escDoc ("parser_" <.> pp f)
 
+cFNameInit :: FName -> CIdent
+cFNameInit f = escDoc ("init_" <.> pp f)
+
 cFEntryName :: FName -> CIdent
 cFEntryName f = escDoc ("parse" <.> pp f)
+
+
 
 --------------------------------------------------------------------------------
 isReserved :: Text -> Bool

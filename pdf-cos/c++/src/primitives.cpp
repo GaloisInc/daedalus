@@ -175,11 +175,11 @@ bool parser_FlateDecode
   , DDL::Input   body
   ) {
 
-    auto predictorOwned = Owned(predictor);
-    auto colorsOwned = Owned(colors);
-    auto bpcOwned = Owned(bpc);
-    auto columnsOwned = Owned(columns);
-    auto bodyRef = Owned(body);
+    auto predictorOwned = DDL::Owned(predictor);
+    auto colorsOwned = DDL::Owned(colors);
+    auto bpcOwned = DDL::Owned(bpc);
+    auto columnsOwned = DDL::Owned(columns);
+    auto bodyRef = DDL::Owned(body);
 
     std::string buffer;
 
@@ -257,11 +257,11 @@ bool parser_LZWDecode
   , DDL::Input body
   ) {
 
-  auto predictorOwned = Owned(predictor);
-  auto colorsOwned = Owned(colors);
-  auto bpcOwned = Owned(bpc);
-  auto columnsOwned = Owned(columns);
-  auto bodyRef = Owned(body);
+  auto predictorOwned = DDL::Owned(predictor);
+  auto colorsOwned = DDL::Owned(colors);
+  auto bpcOwned = DDL::Owned(bpc);
+  auto columnsOwned = DDL::Owned(columns);
+  auto bodyRef = DDL::Owned(body);
 
   try {
     auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
@@ -307,7 +307,7 @@ bool parser_ASCIIHexDecode
   , DDL::Input body
   ) {
 
-  auto bodyRef = Owned(body);
+  auto bodyRef = DDL::Owned(body);
 
   std::vector<unsigned char> buffer;
   
@@ -330,7 +330,7 @@ bool parser_ASCII85Decode
   , DDL::Input body
   ) {
 
-  auto bodyRef = Owned(body);
+  auto bodyRef = DDL::Owned(body);
 
   std::vector<uint8_t> buffer;
 

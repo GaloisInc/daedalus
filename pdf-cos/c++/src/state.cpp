@@ -82,7 +82,7 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
         return false;
     }
 
-    auto objstream = Owned(results[0]);
+    auto objstream = DDL::Owned(results[0]);
 
     if (index >= objstream->borrow_index().size().value) {
         return false;
@@ -111,7 +111,7 @@ void
 ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl)
 {
     dbg << "NULL reference " << refid << std::endl;
-    table.insert_or_assign(refid, ReferenceEntry{Owned(topDecl), gen});
+    table.insert_or_assign(refid, ReferenceEntry{DDL::Owned(topDecl), gen});
 }
 
 void
@@ -178,7 +178,7 @@ ReferenceTable::resolve_reference(
 
     return std::visit([refid, gen, this, cursor, result](auto&& arg) -> bool {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, Owned<User::TopDecl>>) {
+        if constexpr (std::is_same_v<T, DDL::Owned<User::TopDecl>>) {
             *result = arg.get();
             return true;
         } else if constexpr (std::is_same_v<T, Blackhole>) {
@@ -216,7 +216,7 @@ namespace {
 void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
-        auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
+        auto offset = DDL::Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
@@ -228,7 +228,7 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
     // PDF specifies that entries in XRefStm take precedence over entries in Prev, so we add them after adding
     // the prev entries so that the xrefstm entries can overwrite them.
     if (trailer.borrow_xrefstm().isJust()) {
-        auto offset = Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().borrowValue()));
+        auto offset = DDL::Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_xrefstm().borrowValue()));
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid XRefStm value");
         }
@@ -318,13 +318,13 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
             throw XrefException("Bad encryption dictionary");
         }
 
-        auto edict = Owned(results[0]);
+        auto edict = DDL::Owned(results[0]);
         encCtx = makeEncryptionContext(edict.borrow());
         std::cerr << "INFO: Using encryption\n";
     }
 
     if (trailer.borrow_root().isJust()) {
-      root = Owned(trailer.borrow_root().getValue());
+      root = DDL::Owned(trailer.borrow_root().getValue());
     }
 }
 
@@ -381,7 +381,7 @@ ReferenceTable::getEncryptionContext() const
     return encCtx;
 }
 
-std::optional<Owned<User::Ref>> const&
+std::optional<DDL::Owned<User::Ref>> const&
 ReferenceTable::getRoot() const { return root; }
 
 
@@ -406,7 +406,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
         throw XrefException("Unable to parse xrefs");
     }
 
-    auto crossRef = Owned(crossRefs[0]);
+    auto crossRef = DDL::Owned(crossRefs[0]);
     crossRefs.clear();
 
     switch (crossRef->getTag()) {
@@ -462,7 +462,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     auto start = findPdfStart(input.length().value, input.borrowBytes());
     input.iDropMut(start);
 
-    references.topinput = Owned(input);
+    references.topinput = DDL::Owned(input);
 
     auto end = findPdfEnd(input.length().rep(), input.borrowBytes());
     if (end == not_found) {
@@ -480,7 +480,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
         throw XrefException("Failed parsing startxref");
     }
 
-    auto result = Owned(results[0]);
+    auto result = DDL::Owned(results[0]);
     auto offset = result->asSize();
     std::unordered_set<size_t> visited;
     process_xref(&visited, input, offset, true);
