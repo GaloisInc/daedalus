@@ -153,6 +153,7 @@ includes =
        , "#include <ddl/array.h>"
        , "#include <ddl/map.h>"
        , "#include <ddl/owned.h>"
+       , "#include <optional>"
        ]
 
 
