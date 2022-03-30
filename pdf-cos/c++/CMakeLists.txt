@@ -42,6 +42,7 @@ add_custom_command(
   )
 
 add_executable(parser-test
+    src/args.cpp
     src/debug.cpp
     src/primitives.cpp
     src/main.cpp
