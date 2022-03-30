@@ -54,7 +54,7 @@ def PdfCheckParent (p : maybe Ref) (d : Dict) =
     nothing -> p is nothing
     just v  -> p == just (v is ref) is true
   )
-   <| Trace "WARNING: Malformed node parent"
+   <| Fail "Malformed node parent"
 
 --------------------------------------------------------------------------------
 
