@@ -37,9 +37,7 @@ def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
 
        else if type == "Page"
               then {| Leaf = PdfPage resources node |}
-              else { Trace (concat ["WARNING: ", "`Type` not `Page/Pages`: ", type ])
-                   ; {| NotPageType = type |}
-                   }
+              else Fail "Unexpected `Type` in page tree"
 
 def noResources : Resources =
   block
