@@ -38,13 +38,35 @@ bool inputFromFile(const char *file, DDL::Input *input)
   return true;
 }
 
-template<class Facet>
-struct deletable_facet : Facet
+void utf8(std::ostream &out, std::u32string str)
 {
-    template<class ...Args>
-    deletable_facet(Args&& ...args) : Facet(std::forward<Args>(args)...) {}
-    ~deletable_facet() {}
-};
+  for (uint32_t u : str) {
+    if (u <= 0x7fU) {
+      out << static_cast<unsigned char>(u);
+    } else if (u <= 0x7ffU) {
+      const unsigned char xs[2] {
+        static_cast<unsigned char>(0xc0U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 2);
+    } else if (u <= 0xffffU) {
+      const unsigned char xs[3] {
+        static_cast<unsigned char>(0xe0U | u>>12 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 3);
+    } else if (u <= 0x10ffffU) {
+      const unsigned char xs[4] {
+        static_cast<unsigned char>(0xf0U | u>>18 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>>12 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 4);
+    } else {
+      const unsigned char xs[2] { 0xffU, 0xfdU };
+      out.write(reinterpret_cast<char const*>(xs), 2);
+    }
+  }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -65,22 +87,11 @@ int main(int argc, char* argv[]) {
     references.process_pdf(input);
     check_catalog(text);
     if (text) {
-      try {
-
-        std::cout << "PRINT TEXT HERE\n";
-#if 0
-        std::wstring_convert<deletable_facet<std::codecvt<char32_t, char, std::mbstate_t>>, char32_t> convert;
-        auto u8bytes = convert.to_bytes(emittedCodepoints); 
-        
-        if (args.outputFile.empty()) {
-          std::cout << u8bytes;
-        } else {
-          std::ofstream fout(args.outputFile);
-          fout << u8bytes;
-        }
-#endif
-      } catch (std::exception const& e) {
-        std::cerr << e.what() << std::endl;
+      if (args.outputFile.empty()) {
+        utf8(std::cout, emittedCodepoints);
+      } else {
+        std::ofstream fout(args.outputFile, std::ios::binary | std::ios::out);
+        utf8(fout, emittedCodepoints);
       }
       return 0;
     }
