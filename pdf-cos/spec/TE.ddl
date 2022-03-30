@@ -27,7 +27,7 @@ def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
     we are going to reprocess them again for each leaf which is a lot
     of repeated work in large doucuments. -}
     let resources = case Optional (Lookup "Resources" node) of
-                      just v  -> Resources v
+                      just v  -> Resources v <| parentResources -- if `GetFonts` fails in `Resources` then assign the parentResources
                       nothing -> parentResources
     let type = LookupResolve "Type" node is name
     if type == "Pages"
@@ -47,8 +47,7 @@ def noResources : Resources =
 
 def Resources (v : Value) =
   block
-    -- NOTE: allow GetFonts to fail in case of incomplete coverage
-    fonts = ( GetFonts (ResolveVal v is dict) <| empty )
+    fonts = GetFonts (ResolveVal v is dict)
     -- others resources omitted
     -- we need the fonts because they determine the character encoding to use
 
