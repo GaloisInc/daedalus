@@ -257,7 +257,7 @@ def TryApplyFilter (f : Filter) (body : stream) =
       let params = FlateDecodeParams f.param
       ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
                       (params.colors == 1) &&
-                      (params.bpc == 8))
+                      (params.bpc == 8)) body
                     (FlateDecode params.predictor
                                  params.colors
                                  params.bpc
@@ -269,7 +269,7 @@ def TryApplyFilter (f : Filter) (body : stream) =
       let params = LZWDecodeParams f.param
       ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
                       (params.colors == 1) &&
-                      (params.bpc == 8) )
+                      (params.bpc == 8) ) body
                     ( LZWDecode params.predictor
                                 params.colors
                                 params.bpc
@@ -278,26 +278,26 @@ def TryApplyFilter (f : Filter) (body : stream) =
                                 body )
 
   else if f.name == "ASCIIHexDecode"
-    then ApplyFilter f true (ASCIIHexDecode body)
+    then ApplyFilter f true body (ASCIIHexDecode body)
 
   else if f.name == "ASCII85Decode"
-    then ApplyFilter f true (ASCII85Decode body)
+    then ApplyFilter f true body (ASCII85Decode body)
 
   else if f.name == "DCTDecode"
     then
-      ApplyFilter f true
+      ApplyFilter f true body
         block
           -- Jpeg disabled
           -- WithStream body SomeJpeg  -- Just validate
           body
 
 
-  else ApplyFilter f false (Fail "Unsupported filter")
+  else ApplyFilter f false body (Fail "Unsupported filter")
 
-
-def ApplyFilter (f : Filter) guard (P : stream) : ApplyFilter =
+def ApplyFilter (f : Filter) guard (body: stream) (P : stream) : ApplyFilter = block
+  -- Trace "ApplyFilter"
   if guard
-    then {| ok = P |}
+    then {| ok = P |} <| {| undecoded = body |}
     else {| unsupported =
               case f.param of
                 nothing -> f.name

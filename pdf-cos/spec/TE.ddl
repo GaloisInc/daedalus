@@ -76,7 +76,12 @@ def PdfPageContent (resources : Resources) (vr : Value) =
         ref r ->
           case ResolveDeclRef r of
             value v  -> StreamFromArray (v is array)
-            stream s -> s.body is ok
+            stream s -> ( s.body is ok
+                         <|
+                          { @x = s.body is undecoded
+                          ; Trace "WARNING: undecoded stream"
+                          ; ^ x }
+                        )
 
         array xs -> StreamFromArray xs
 
@@ -99,7 +104,15 @@ def StreamFromArray (xs : [Value]) =
 
 
 
-def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
+def ContentStreamBytes (r : Ref) : stream = block
+  let bdy = (ResolveStreamRef r).body
+  ( bdy is ok
+    <|
+      { @x = bdy is undecoded
+      ; Trace "WARNING: undecoded ContentStreamBytes"
+      ; ^ x
+      }
+    )
 
 
 --------------------------------------------------------------------------------

@@ -60,11 +60,12 @@ data Format = Format
   , xrefFound   :: Int -> IO ()
   , xrefBad     :: ParseError -> IO ()
   , xrefOK      :: ObjIndex -> Map String Value -> IO ()
-  , warnEncrypt :: IO()
+  , warnEncrypt :: IO ()
   , rootMissing :: IO ()
   , rootFound   :: Ref -> IO ()
   , catalogParseError :: ParseError -> IO ()
   , catalogParsed :: String -> IO ()
+  , warnEncContext :: ParseError -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
   , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
@@ -91,6 +92,8 @@ fawFormat = Format
       putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
   , catalogParsed = \ok ->
       putStrLn ("INFO: Catalog value:\n" ++ ok)
+  , warnEncContext =
+      \ p -> putStrLn ("WARNING: unable to make encryption context. " ++ show (peOffset p) ++ " " ++ peMsg p)
   , declErr =
       \r l res ->
         let x = declResult res
@@ -183,7 +186,7 @@ fmtDriver fmt file pageTreeParser pwd =
 
      mb <- try (makeEncContext trail refs topInput pwd)
      case mb of
-       Left err -> catalogParseError fmt err
+       Left err -> warnEncContext fmt err
        Right fileEC ->
          mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
@@ -292,7 +295,8 @@ driverValidate opts = runReport opts $
      let pwd = BS.pack (optPassword opts)
      mb <- liftIO (try (makeEncContext trail refs topInput pwd))
      case mb of
-       Left err -> reportCritical file (peOffset err) (ppParserError err)
+       Left err -> do report RWarning file (peOffset err) ("unable to make encryption context" )
+                      report RWarning file (peOffset err) (ppParserError err)
        Right fileEC -> parseObjs file fileEC topInput refs
 
 -- TODO: In principle, we could merge driverValidate and
