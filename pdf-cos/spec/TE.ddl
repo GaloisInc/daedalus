@@ -52,10 +52,12 @@ def Resources (v : Value) =
     -- we need the fonts because they determine the character encoding to use
 
 def PdfCheckParent (p : maybe Ref) (d : Dict) =
-  case Optional (Lookup "Parent" d) of
+  (case Optional (Lookup "Parent" d) of
     nothing -> p is nothing
     just v  -> p == just (v is ref) is true
-  <| Fail "Malformed node parent"
+  )
+   <| Trace "WARNING: Malformed node parent"
+
 --------------------------------------------------------------------------------
 
 
