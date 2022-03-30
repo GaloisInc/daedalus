@@ -14,6 +14,7 @@
 #include "predictor.hpp"
 #include "encryption.hpp"
 
+std::u32string emittedCodepoints;
 
 bool parser_EmitChar
   ( DDL::ParserState& state
@@ -22,10 +23,7 @@ bool parser_EmitChar
   , DDL::Input inputin
   , DDL::UInt<32> c
   ) {
-
-  wchar_t w = static_cast<wchar_t>(c.rep());
-  std::wcout << w;
-  // std::cerr << std::hex << "<" << w << ">";
+  emittedCodepoints.push_back(c.rep());
 
   *inputout = inputin;
   *result   = DDL::Unit();

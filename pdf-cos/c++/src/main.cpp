@@ -15,10 +15,12 @@
 #include <ddl/number.h>
 #include <main_parser.h>
 
+#include "args.hpp"
 #include "debug.hpp"
 #include "state.hpp"
 #include "catalog.hpp"
 #include "Owned.hpp"
+#include "primitives.hpp"
 
 bool inputFromFile(const char *file, DDL::Input *input)
 {
@@ -36,19 +38,25 @@ bool inputFromFile(const char *file, DDL::Input *input)
   return true;
 }
 
+template<class Facet>
+struct deletable_facet : Facet
+{
+    template<class ...Args>
+    deletable_facet(Args&& ...args) : Facet(std::forward<Args>(args)...) {}
+    ~deletable_facet() {}
+};
+
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " FILE\n";
-    return 1;
-  }
+
+  auto args = parse_args(argc, argv);
 
   DDL::Input input;
-  if (!inputFromFile(argv[1], &input)) {
+  if (!inputFromFile(args.inputFile.c_str(), &input)) {
     std::cerr << "Unable to open file" << std::endl;
     return 1;
   }
 
-  bool text = false;
+  bool text = args.extractText;
 
   bool reject = false;
   bool safe   = true;
@@ -56,7 +64,22 @@ int main(int argc, char* argv[]) {
   try {
     references.process_pdf(input);
     check_catalog(text);
-    if (text) return 0;
+    if (text) {
+      try {
+        std::wstring_convert<deletable_facet<std::codecvt<char32_t, char, std::mbstate_t>>, char32_t> convert;
+        auto u8bytes = convert.to_bytes(emittedCodepoints); 
+        
+        if (args.outputFile.empty()) {
+          std::cout << u8bytes;
+        } else {
+          std::ofstream fout(args.outputFile);
+          fout << u8bytes;
+        }
+      } catch (std::exception const& e) {
+        std::cerr << e.what() << std::endl;
+      }
+      return 0;
+    }
 
     for (auto && [refid, val] : references.table) {
       User::Ref ref;
