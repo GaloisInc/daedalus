@@ -90,8 +90,8 @@ fawFormat = Format
                         showR (getField @"obj" r) (getField @"gen" r))
   , catalogParseError = \p ->
       putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
-  , catalogParsed = \ok ->
-      putStrLn ("INFO: Catalog value:\n" ++ ok)
+  , catalogParsed = \_ok ->
+      putStrLn ("INFO: Catalog parsed ok\n")
   , warnEncContext =
       \ p -> putStrLn ("WARNING: unable to make encryption context. " ++ show (peOffset p) ++ " " ++ peMsg p)
   , declErr =
