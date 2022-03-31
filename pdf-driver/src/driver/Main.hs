@@ -91,7 +91,7 @@ fawFormat = Format
   , catalogParseError = \p ->
       putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
   , catalogParsed = \_ok ->
-      putStrLn ("INFO: Catalog parsed ok\n")
+      putStrLn ("INFO: Catalog parsed ok")
   , warnEncContext =
       \ p -> putStrLn ("WARNING: unable to make encryption context. " ++ show (peOffset p) ++ " " ++ peMsg p)
   , declErr =
