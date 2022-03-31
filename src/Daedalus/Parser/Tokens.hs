@@ -109,6 +109,7 @@ data Token =
   | KWMapInsert
   | KWMapinsert
   | KWMapLookup
+  | KWMaplookup
   | KWArrayLength
   | KWArrayIndex
   | KWRangeUp

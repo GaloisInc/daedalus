@@ -608,6 +608,7 @@ hsValue env tc =
         BitwiseXor  -> bin "RTS.bitXor"
 
         ArrayStream -> bin "RTS.arrayStream"
+        LookupMap   -> bin "Map.lookup"
 
         LogicAnd    -> binI "HS.&&"
         LogicOr     -> binI "HS.||"

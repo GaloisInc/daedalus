@@ -150,6 +150,7 @@ $ws+        ;
 "Insert"    { lexeme KWMapInsert }
 "insert"    { lexeme KWMapinsert }
 "Lookup"    { lexeme KWMapLookup }
+"lookup"    { lexeme KWMaplookup }
 
 "Offset"    { lexeme KWOffset }
 "SetStream" { lexeme KWSetStream }

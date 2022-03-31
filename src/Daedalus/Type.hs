@@ -494,6 +494,12 @@ inferExpr expr =
              unify (tArray tByte) (e2',t2)
              pure (exprAt expr (TCBinOp op e1' e2' tStream), tStream)
 
+        LookupMap ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',kt),(e2',mt)] ->
+          do vt <- newTVar e2' KValue
+             unify (tMap kt vt) (e2',mt)
+             let ty = tMaybe vt
+             pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
 
         LCat ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->

@@ -280,6 +280,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LShift | RShift | BitwiseAnd | BitwiseOr | BitwiseXor
            | LogicAnd | LogicOr
            | ArrayStream
+           | LookupMap
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
@@ -469,6 +470,7 @@ instance PP BinOp where
       LogicAnd -> "&&"
       LogicOr  -> "||"
       ArrayStream -> "arrayStream"
+      LookupMap -> "lookup"
 
 instance PP UniOp where
   pp op =
