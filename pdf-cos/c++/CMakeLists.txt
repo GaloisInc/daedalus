@@ -27,7 +27,8 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/TE.ddl
   COMMAND cabal run exe:daedalus -v0 --
     --compile-c++
-    --determinize
+    --inline-this=GlyphList1.mapEntry
+    --inline-this=StandardEncodings.glyph
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef

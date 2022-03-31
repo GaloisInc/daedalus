@@ -40,6 +40,7 @@ data Options =
           , optShowJS    :: Bool
           , optShowHTML  :: Bool
           , optInline    :: Bool
+          , optInlineThis :: [String]
           , optStripFail :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
@@ -61,6 +62,7 @@ options = OptSpec
                            , optShowJS    = False
                            , optShowHTML  = False
                            , optInline    = False
+                           , optInlineThis = []
                            , optStripFail = False
                            , optSpecTys   = False
                            , optCheckCore = True
@@ -157,6 +159,11 @@ options = OptSpec
       , Option [] ["inline"]
         "Do aggressive inlining on Core"
         $ NoArg \o -> Right o { optInline = True }
+
+      , Option [] ["inline-this"]
+        "Inline this decl"
+        $ ReqArg "[MODULE.]NAME" \s o ->
+          Right o { optInline = True, optInlineThis = s : optInlineThis o }
 
       , Option [] ["strip-fail"]
         "Strip failure nodes in Core"

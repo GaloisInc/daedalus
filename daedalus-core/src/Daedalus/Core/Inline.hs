@@ -1,6 +1,6 @@
 {-# Language TupleSections, GeneralizedNewtypeDeriving #-}
 {-# Language BlockArguments #-}
-module Daedalus.Core.Inline (inlineModule) where
+module Daedalus.Core.Inline (InlineWhat(..), inlineModule) where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -26,8 +26,20 @@ import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
 import Daedalus.Core.Basics
 
-inlineModule :: HasGUID m => [FName] -> Module -> m Module
-inlineModule no = runInlineM (Set.fromList no) . expandModule
+data InlineWhat = Only | AllBut
+
+inlineModule :: HasGUID m => InlineWhat -> [FName] -> Module -> m Module
+inlineModule what no m = runInlineM (toNoInline what no m) (expandModule m)
+
+toNoInline :: InlineWhat -> [FName] -> Module -> Set FName
+toNoInline what xs m =
+  case what of
+    AllBut -> Set.fromList xs
+    Only   -> Set.fromList allNames `Set.difference` Set.fromList xs
+  where
+  allNames = map fName (mFFuns m) ++
+             map fName (mBFuns m) ++
+             map fName (mGFuns m)
 
 data Inlineable = Inlineable
   { inlineE  :: Map FName (Fun Expr)
@@ -54,6 +66,7 @@ runInlineM no (InlineM m) = fst <$> runStateT s m
                        , inlineG = Map.empty
                        , inlineB = Map.empty
                        , noInline = no }
+        
 
 shouldExpand ::
   Monad m => (Inlineable -> Map FName a) -> FName -> InlineM m (Maybe a)

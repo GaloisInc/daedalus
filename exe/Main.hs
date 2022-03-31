@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when,forM_)
+import Control.Monad(when,forM_,forM)
 import Data.Maybe(fromMaybe,fromJust)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -47,6 +47,7 @@ import Daedalus.Type.Pretty(ppTypes)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
+import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
@@ -223,7 +224,14 @@ doToCore opts mm =
      passCore specMod
      checkCore "Core"
      ents <- mapM (uncurry ddlGetFName) entries
-     when (optInline opts) (passInline ents specMod >> checkCore "Inline")
+     when (optInline opts)
+        do fs <- forM (optInlineThis opts) \s ->
+                    uncurry ddlGetFName (parseEntry specMod s)
+           case fs of
+             [] -> passInline Core.AllBut ents specMod
+             _  -> passInline Core.Only fs specMod
+           checkCore "Inline"
+
      when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
      when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
@@ -253,12 +261,13 @@ parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]
 parseEntries opts mm =
   case optEntries opts of
     [] -> [(mm,"Main")]
-    es -> map parseEntry es
-  where
-  parseEntry x =
-    case break (== '.') x of
-      (as,_:bs) -> (Text.pack as, Text.pack bs)
-      _         -> (mm, Text.pack x)
+    es -> map (parseEntry mm) es
+
+parseEntry :: ModuleName -> String -> (ModuleName,Ident)
+parseEntry mm x =
+  case break (== '.') x of
+    (as,_:bs) -> (Text.pack as, Text.pack bs)
+    _         -> (mm, Text.pack x)
 
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
