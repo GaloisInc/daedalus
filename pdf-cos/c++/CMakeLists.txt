@@ -50,6 +50,7 @@ add_executable(parser-test
     src/state.cpp
     src/encryption.cpp
     src/catalog.cpp
+    src/glyphmap.c
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
 )
 
