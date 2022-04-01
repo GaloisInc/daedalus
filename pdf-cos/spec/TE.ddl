@@ -5,13 +5,15 @@ import Debug
 
 --------------------------------------------------------------------------------
 -- Section 7.7.2, Table 29
-def PdfCatalog (strict : bool) (enc : StdEncodings) (r : Ref) =
+def PdfCatalog (strict : bool) (enc : maybe StdEncodings) (r : Ref) =
   block
     let ?strict = strict
-    let ?stdEncodings = enc
-    let d = ResolveValRef r is dict
+    let ?doText = enc
+    let d       = ResolveValRef r is dict
     pageTree = PdfPageTreeRoot (LookupRef "Pages" d)
-    stdEncodings = enc
+    stdEncodings = case enc of
+                     nothing -> noStdEncodings
+                     just e  -> e
     -- other fields omitted
 
 
@@ -214,10 +216,15 @@ def SkipImageData =
 -- the same reference we don't parse it over and over again.
 -- (this might be a generally useful thing to have)
 def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
-  case Optional (Lookup "Font" r) of
+  case ?doText of
     nothing -> empty
-    just v  ->
-      map (v in (ResolveVal v is dict)) (Font v)
+    just enc ->
+      block
+        let ?stdEncodings = enc
+        case Optional (Lookup "Font" r) of
+          nothing -> empty
+          just v  ->
+            map (v in (ResolveVal v is dict)) (Font v)
 
 def Font (v : Value) =
   block

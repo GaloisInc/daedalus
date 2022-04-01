@@ -29,6 +29,15 @@ def StdEncodings =
     pdf = pdfEncoding
     uni = ?glyphToUni
 
+def noStdEncodings : StdEncodings =
+  block
+    std = empty
+    win = empty
+    mac = empty
+    pdf = empty
+    uni = empty
+
+
 def stdEncoding =
   for (enc = empty; x in latin)
     if x.std == undef  then enc else

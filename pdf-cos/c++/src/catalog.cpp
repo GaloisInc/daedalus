@@ -54,13 +54,16 @@ void check_catalog(bool text) {
   std::vector<User::PdfCatalog> results;
   DDL::ParseError error;
 
-  DDL::ResultOf::parseStdEncodings glyphs;
+  DDL::Maybe <DDL::ResultOf::parseStdEncodings> mbglyphs;
 
-  if (text)
+  if (text) {
+    DDL::ResultOf::parseStdEncodings glyphs;
     if (!getGlyphMap("glyphs.txt",&glyphs))
       throw CatalogException("Failed to parse glyph file.");
+    mbglyphs = DDL::Maybe {glyphs};
+  }
 
-  parsePdfCatalog(error,results,DDL::Input("empty",""),true,glyphs,root->get());
+  parsePdfCatalog(error,results,DDL::Input("empty",""),true,mbglyphs,root->get());
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
