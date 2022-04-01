@@ -1,6 +1,6 @@
-import GlyphList1
+-- import GlyphList1
 
-def GlyphLine : ME =
+def GlyphLine =
   block
     Many $[!':']
     Match ": "
@@ -9,16 +9,53 @@ def GlyphLine : ME =
     value = Many (1..)
               block
                 $$ = for (s = 0 : uint 16; d in Many (1..) $['0' .. '9'])
-                         (10 * s + ((d - '0') as ?auto))
+                         (10 * s + ((d - '0') as uint 16))
                 Many $[' ']
     $['\n']
 
 
-def ParseGlyphFile =
+def GlyphFile =
   block
-    $$ = Many GlyphLine
+    let list = Many GlyphLine
     END
+    for (s = empty; e in list) (insert e.key e.value s)
 
+def StdEncodings =
+  block
+    let ?glyphToUni = GlyphFile
+    std = stdEncoding
+    win = winEncoding
+    mac = macEncoding
+    pdf = pdfEncoding
+    uni = ?glyphToUni
+
+def stdEncoding =
+  for (enc = empty; x in latin)
+    if x.std == undef  then enc else
+    case lookup x.glyph ?glyphToUni of
+      just u -> insert x.std u enc
+      nothing -> enc
+
+def winEncoding =
+  for (enc = empty; x in latin)
+    if x.win == undef  then enc else
+    case lookup x.glyph ?glyphToUni of
+      just u -> insert x.win u enc
+      nothing -> enc
+
+def macEncoding =
+  for (enc = empty; x in latin)
+    if x.mac == undef then enc else
+    case lookup x.glyph ?glyphToUni of
+      just u -> insert x.mac u enc
+      nothing -> enc
+
+def pdfEncoding =
+  for (enc = empty; x in latin)
+    if x.pdf == undef  then enc else
+    case lookup x.glyph ?glyphToUni of
+      just u -> insert x.pdf u enc
+      nothing -> enc
 
 
 def glyph (name : [uint 8])
@@ -30,37 +67,6 @@ def glyph (name : [uint 8])
     win   = win
     pdf   = pdf
 
-def stdEncoding =
-  for (enc = empty; x in latin)
-    if x.std == undef  then enc else
-    case lookup x.glyph glyphToUni of
-      just u -> insert x.std u enc
-      nothing -> enc
-
-def winEncoding =
-  for (enc = empty; x in latin)
-    if x.win == undef  then enc else
-    case lookup x.glyph glyphToUni of
-      just u -> insert x.win u enc
-      nothing -> enc
-
-def macEncoding =
-  for (enc = empty; x in latin)
-    if x.mac == undef then enc else
-    case lookup x.glyph glyphToUni of
-      just u -> insert x.mac u enc
-      nothing -> enc
-
-def pdfEncoding =
-  for (enc = empty; x in latin)
-    if x.pdf == undef  then enc else
-    case lookup x.glyph glyphToUni of
-      just u -> insert x.pdf u enc
-      nothing -> enc
-
-def glyphToUni =
-  for (enc = empty; x in glyphEncs)
-    insert x.key x.value enc
 
 
 def undef  : uint 8  = 0o000
@@ -203,6 +209,7 @@ def latin5 =
   , glyph "comma"         0o054 0o054 0o054 0o054
   , glyph "copyright"     undef 0o251 0o251 0o251
   , glyph "currency"      0o250 0o333 0o244 0o244
+  , glyph "d"             0o144 0o144 0o144 0o144
   , glyph "dagger"        0o262 0o240 0o206 0o201
   , glyph "daggerdbl"     0o263 0o340 0o207 0o202
   , glyph "degree"        undef 0o241 0o260 0o260

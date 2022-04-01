@@ -5,11 +5,13 @@ import Debug
 
 --------------------------------------------------------------------------------
 -- Section 7.7.2, Table 29
-def PdfCatalog (strict : bool) (r : Ref) =
+def PdfCatalog (strict : bool) (enc : StdEncodings) (r : Ref) =
   block
     let ?strict = strict
+    let ?stdEncodings = enc
     let d = ResolveValRef r is dict
     pageTree = PdfPageTreeRoot (LookupRef "Pages" d)
+    stdEncodings = enc
     -- other fields omitted
 
 
@@ -227,14 +229,14 @@ def Font (v : Value) =
                   just v  -> just (ToUnicodeCMap v)
 
 def namedEncoding (encName : [uint 8]) =
-  if encName == "WinAnsiEncoding"  then just winEncoding else
-  if encName == "MacRomanEncoding" then just macEncoding else
-  if encName == "PDFDocEncoding"   then just pdfEncoding else
-  if encName == "StandardEncoding" then just stdEncoding else
+  if encName == "WinAnsiEncoding"  then just ?stdEncodings.win else
+  if encName == "MacRomanEncoding" then just ?stdEncodings.mac else
+  if encName == "PDFDocEncoding"   then just ?stdEncodings.pdf else
+  if encName == "StandardEncoding" then just ?stdEncodings.std else
   nothing
 
 
-def GetEncoding (d : Dict) =
+def GetEncoding (d : Dict) : maybe [uint 8 -> [uint 16]] =
   case lookup "Encoding" d of
     nothing -> nothing
     just v ->
@@ -248,23 +250,26 @@ def GetEncoding (d : Dict) =
                          nothing -> nothing
             case lookup "Differences" encD of
               nothing -> base
-              just d  -> just (EncodingDifferences base (d is array))
+              just d  -> just (EncodingDifferences base (ResolveVal d is array))
 
         _ -> nothing
 
 
-def EncodingDifferences base ds =
+def EncodingDifferences base ds : [ uint 8 -> [uint 16] ]=
   block
     let start = case base of
-                  nothing -> stdEncoding
+                  nothing -> ?stdEncodings.std
                   just e  -> e
     let s = for (s = { enc = start, code = 0 }; x in ds)
              case ResolveVal x of
                number n -> { enc = s.enc, code = NumberAsNat n as? uint 8 }
                name x ->
-                 { enc  = case lookup x glyphToUni of
+                 { enc  = case lookup x ?stdEncodings.uni of
                             just u  -> insert s.code u s.enc
-                            nothing -> insert s.code ['?' as ?auto] s.enc
+                            nothing ->
+                              block
+                                -- Trace (concat ["Missing: ", x])
+                                insert s.code ['?' as ?auto] s.enc
                  , code = s.code + 1
                  }
 
@@ -458,7 +463,10 @@ def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
 --------------------------------------------------------------------------------
 -- Simple Text Extraction
 
-def TextInCatalog (c : PdfCatalog) = @(TextInPageTree nothing c.pageTree)
+def TextInCatalog (c : PdfCatalog) =
+  block
+    let ?stdEncodings = c.stdEncodings
+    @(TextInPageTree nothing c.pageTree)
 
 def TextInPageTree acc (t : PdfPageTree) =
   case t of
@@ -489,9 +497,21 @@ def FindTextOnPage acc i =
         operator op ->
           case op of
 
-            Tj, quote, dquote ->
+            Tj ->
               block
                 DecodeText acc (GetOperand (i - 1) is string)
+                FindTextOnPage acc (i+1)
+
+
+            quote, dquote ->
+              block
+                EmitChar ('\n' as ?auto)
+                DecodeText acc (GetOperand (i - 1) is string)
+                FindTextOnPage acc (i+1)
+
+            Td, TD, T_star ->
+              block
+                EmitChar ('\n' as ?auto)
                 FindTextOnPage acc (i+1)
 
             TJ ->
@@ -499,7 +519,7 @@ def FindTextOnPage acc i =
                 map (x in (GetOperand (i - 1) is array))  
                     case x of
                       string s -> DecodeText acc s
-                      _        -> Accept
+                      _        -> Accept -- EmitChar (' ' as ?auto)
 
                 FindTextOnPage acc (i+1)
 
@@ -539,7 +559,7 @@ def DecodeText mbFont str =
 def DecodeTextWithEncoding (f : Font) str =
   block
     let enc = case f.encoding of
-                nothing  -> stdEncoding
+                nothing  -> ?stdEncodings.std
                 just enc -> enc
     @map (x in str)
        case lookup x enc of

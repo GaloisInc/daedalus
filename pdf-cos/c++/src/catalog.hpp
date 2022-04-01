@@ -1,4 +1,3 @@
-
 class CatalogException : std::exception {
   const char *msg;
 public:
@@ -8,3 +7,6 @@ public:
 };
 
 void check_catalog(bool text);
+
+
+bool inputFromFile(const char *file, DDL::Input *input);
