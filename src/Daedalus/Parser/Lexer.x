@@ -112,6 +112,9 @@ $ws+        ;
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }
 "bitdata"   { lexeme KWBitData }
+"type"      { lexeme KWtype }
+"struct"    { lexeme KWstruct }
+"union"     { lexeme KWunion }
 "where"     { lexeme KWWhere }
 
 "for"       { lexeme KWFor }

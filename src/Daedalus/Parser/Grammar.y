@@ -82,6 +82,9 @@ import Daedalus.Parser.Monad
    for 'label` also, as it is likely to be a valid union label. -}
 
   'def'       { Lexeme { lexemeRange = $$, lexemeToken = KWDef } }
+  'type'      { Lexeme { lexemeRange = $$, lexemeToken = KWtype} }
+  'struct'    { Lexeme { lexemeRange = $$, lexemeToken = KWstruct } }
+  'union'     { Lexeme { lexemeRange = $$, lexemeToken = KWunion } }
   'bitdata'   { Lexeme { lexemeRange = $$, lexemeToken = KWBitData } }
   'where'     { Lexeme { lexemeRange = $$, lexemeToken = KWWhere } }
 
@@ -202,6 +205,7 @@ decls ::                                      { [Decl] }
 decl                                       :: { Decl }
   : rule                                      { DeclRule $1 }
   | bitdata                                   { DeclBitData $1 }
+  | type_decl                                 { DeclType $1 }
 
 rule                                     :: { Rule }
   : 'def' name listOf(ruleParam)
@@ -315,6 +319,9 @@ label                                    :: { Located Label }
   | 'arrayStream'                           { mkLabel ($1,"arrayStream") }
   | 'bytesOfStream'                         { mkLabel ($1,"bytesOfStream") }
   | 'Fail'                                  { mkLabel ($1,"Fail") }
+  | 'type'                                  { mkLabel ($1,"type") }
+  | 'union'                                 { mkLabel ($1,"union") }
+  | 'struct'                                { mkLabel ($1,"struct") }
 
 expr                                     :: { Expr }
   : call_expr                               { $1 }
@@ -574,6 +581,23 @@ separated(p,s)                           :: { [p] }
 separated1(p,s)                          :: { [p] }
   : p                                       { [$1] }
   | p s separated(p,s)                      { $1 : $3 }
+
+type_decl                                :: { TypeDecl }
+  : 'type' name listOf(name) '=' type_flavor
+  'v{' separated(type_field, virtSep) 'v}'  { TypeDecl
+                                                { tyName   = $2
+                                                , tyParams = $3
+                                                , tyFlavor = $5
+                                                , tyData   = $7
+                                                }
+                                            }
+
+type_flavor                              :: { TypeFlavor }
+  : 'struct'                                { Struct }
+  | 'union'                                 { Union }
+
+type_field                               :: { (Located Label,SrcType) }
+  : label ':' type                          { ($1,$3) }
 
 type                                     :: { SrcType }
   : atype                                   { $1 }

@@ -11,6 +11,7 @@ syn keyword ddlKeywordImport import
 
 syn keyword ddlKeyword bitdata where
 syn keyword ddlKeyword def
+syn keyword ddlKeyword type struct union
 syn keyword ddlKeyword for map in
 syn keyword ddlKeyword if then else
 syn keyword ddlKeyword is

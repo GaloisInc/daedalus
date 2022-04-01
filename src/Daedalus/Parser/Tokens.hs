@@ -66,6 +66,9 @@ data Token =
   | BitwiseXorT
   | BitwiseComplementT
 
+  | KWstruct
+  | KWunion
+  | KWtype
   | KWChoose
   | KWChoose1
   | KWFirst

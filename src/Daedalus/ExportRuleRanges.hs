@@ -12,7 +12,7 @@ jsModules :: [Module] -> JS
 jsModules = jsObj . concatMap jsModule
 
 jsModule :: Module -> [(String,JS)]
-jsModule m = [ jsRule q r | rs <- moduleRules m, r <- recToList rs ]
+jsModule m = [ jsRule q r | rs <- moduleRules m, DRule r <- recToList rs ]
   where q = Text.unpack (moduleName m)
 
 jsRule :: String -> Rule -> (String,JS)

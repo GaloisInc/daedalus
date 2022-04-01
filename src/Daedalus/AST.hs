@@ -131,10 +131,13 @@ instance HasRange IPName where
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
                      , moduleBitData :: [BitData] -- ordered
-                     , moduleRules   :: [Rec Rule]
+                     , moduleRules   :: [Rec TRule]
                      } deriving Show
 
-data Decl = DeclRule Rule | DeclBitData BitData
+data TRule = DRule Rule | DType TypeDecl
+  deriving Show
+
+data Decl = DeclRule Rule | DeclBitData BitData | DeclType TypeDecl
 
 data Rule =
   Rule { ruleName     :: !Name
@@ -153,6 +156,16 @@ instance HasRange RuleParam where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
+
+data TypeFlavor = Struct | Union
+  deriving Show
+
+data TypeDecl =
+  TypeDecl { tyName   :: !Name
+           , tyParams :: ![Name]
+           , tyFlavor :: TypeFlavor
+           , tyData   :: [(Located Label,SrcType)]
+           } deriving Show
 
 
 data BitData =
