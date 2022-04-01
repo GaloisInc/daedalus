@@ -75,9 +75,11 @@ int main(int argc, char* argv[]) {
     if (text) {
       if (args.outputFile.empty()) {
         utf8(std::cout, emittedCodepoints);
+        std::cout << std::endl;
       } else {
         std::ofstream fout(args.outputFile, std::ios::binary | std::ios::out);
         utf8(fout, emittedCodepoints);
+        fout << std::endl;
       }
       return 0;
     }
