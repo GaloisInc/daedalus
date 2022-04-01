@@ -1,5 +1,9 @@
 -- GlyphList: mapping form glyphs to unicode
 
+import Debug
+
+
+-- def Main = @map (x in glyphEncs) (DumpKeyVal x)
 
 def ME (x : [uint 8]) (xs : [uint 16]) : ME =
   block
@@ -10,6 +14,16 @@ def mapEntry (x : [uint 8]) (xs : [uint 16]) : ME =
   block
     key = x
     value = xs
+
+
+{-
+def DumpKeyVal (x : ME) =
+  block
+    let xs = concat [ [x.key], map (n in x.value) (dbgShowNumber n) ]
+    Trace (concat (map (v in xs) (concat [ v, " " ])))
+-}
+
+
 
 -- GlyphEncs: encoding of glyph list
 def glyphEncs = concat [ glyphEncs1

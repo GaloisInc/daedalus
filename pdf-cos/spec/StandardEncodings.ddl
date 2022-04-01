@@ -1,5 +1,26 @@
 import GlyphList1
 
+def GlyphLine : ME =
+  block
+    Many $[!':']
+    Match ": "
+    key = Many $['a' .. 'z', 'A' .. 'Z', '0' .. '9']
+    $[' ']
+    value = Many (1..)
+              block
+                $$ = for (s = 0 : uint 16; d in Many (1..) $['0' .. '9'])
+                         (10 * s + ((d - '0') as ?auto))
+                Many $[' ']
+    $['\n']
+
+
+def ParseGlyphFile =
+  block
+    $$ = Many GlyphLine
+    END
+
+
+
 def glyph (name : [uint 8])
           (std : uint 8) (mac : uint 8) (win : uint 8) (pdf : uint 8) =
   block
