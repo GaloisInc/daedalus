@@ -378,7 +378,7 @@ data TypeF t =
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
 data SrcType = SrcVar (Located Text)
-             | SrcCon Name
+             | SrcCon Name [SrcType]
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
@@ -396,7 +396,8 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
-      SrcCon x -> range x
+      SrcCon x [] -> range x
+      SrcCon x xs -> range x <-> range (last xs)
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -529,7 +530,9 @@ instance PP Literal where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
-                  SrcCon x -> ppPrec n x
+                  SrcCon x [] -> ppPrec n x
+                  SrcCon x xs ->
+                    wrapIf (n > 1) (pp x <+> hsep (map (ppPrec 2) xs))
                   SrcType l -> ppPrec n (thingValue l)
 
 

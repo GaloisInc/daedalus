@@ -377,9 +377,9 @@ instance ResolveNames t => ResolveNames (Located t) where
 instance ResolveNames SrcType where
   resolve ty =
     case ty of
-      SrcVar x   -> pure (SrcVar x)
-      SrcCon x   -> SrcCon  <$> resolve x
-      SrcType tf -> SrcType <$> resolve tf
+      SrcVar x    -> pure (SrcVar x)
+      SrcCon x xs -> SrcCon  <$> resolve x <*> traverse resolve xs
+      SrcType tf  -> SrcType <$> resolve tf
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]
 resolveStructFields []       = return []

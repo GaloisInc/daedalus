@@ -576,20 +576,24 @@ separated1(p,s)                          :: { [p] }
   | p s separated(p,s)                      { $1 : $3 }
 
 type                                     :: { SrcType }
+  : atype                                   { $1 }
+  | 'uint' atype                            { atT ($1 <-> $2) (TUInt $2) }
+  | 'sint' atype                            { atT ($1 <-> $2) (TSInt $2) }
+  | 'maybe' atype                           { atT ($1 <-> $2) (TMaybe $2) }
+  | name listOf1(atype)                     { SrcCon $1 $2 }
+
+atype                                    :: { SrcType }
   : 'bool'                                  { atT $1 TBool }
   | 'float'                                 { atT $1 TFloat }
   | 'double'                                { atT $1 TDouble }
   | 'int'                                   { atT $1 TInteger }
-  | 'uint' type                             { atT ($1 <-> $2) (TUInt $2) }
-  | 'sint' type                             { atT ($1 <-> $2) (TSInt $2) }
-  | 'maybe' type                            { atT ($1 <-> $2) (TMaybe $2) }
   | 'stream'                                { atT $1 TStream }
   | '(' type  ')'                           { $2 }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
   | NUMBER                                  { atT (nRange $1)
                                                   (TNum (nValue $1)) }
-  | name                                    { SrcCon $1 }
+  | name                                    { SrcCon $1 [] }
   | SMALLIDENTI                             { SrcVar (loc (fst $1) (snd $1)) }
 
 arr_or_map                               :: { TypeF SrcType }
