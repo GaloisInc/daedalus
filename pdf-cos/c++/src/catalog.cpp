@@ -5,6 +5,7 @@
 #include "state.hpp"
 #include "state.hpp"
 #include "catalog.hpp"
+#include "glyphmap.h"
 
 bool inputFromFile(const char *file, DDL::Input *input)
 {
@@ -15,7 +16,7 @@ bool inputFromFile(const char *file, DDL::Input *input)
     return false;
   }
 
-  sout << fin.rdbuf();  
+  sout << fin.rdbuf();
   std::string str = std::move(sout.str());
 
   *input = DDL::Input{file, str.data(), str.size()};
@@ -26,11 +27,7 @@ bool inputFromFile(const char *file, DDL::Input *input)
 
 bool getGlyphMap(const char *file, DDL::ResultOf::parseStdEncodings *out) {
 
-  DDL::Input input;
-  if (!inputFromFile(file, &input)) {
-    std::cerr << "Unable to open glyph file " << file << std::endl;
-    return false;
-  }
+  DDL::Input input{"glyphmap.txt",(const char*)glyphmap_txt,glyphmap_txt_len};
 
   std::vector<DDL::ResultOf::parseStdEncodings> results;
   DDL::ParseError err;
