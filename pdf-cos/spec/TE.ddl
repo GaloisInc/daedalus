@@ -1,5 +1,6 @@
 import PdfValue
 import PdfDecl
+import StandardEncodings
 import Debug
 
 --------------------------------------------------------------------------------
@@ -219,11 +220,57 @@ def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
 def Font (v : Value) =
   block
     let dict = ResolveVal v is dict
-    subType = ResolveVal (Lookup "Subtype" dict) is name
-    encoding = Optional (Lookup "Encoding" dict)
+    subType   = ResolveVal (Lookup "Subtype" dict) is name
+    encoding  = GetEncoding dict
     toUnicode = case Optional (Lookup "ToUnicode" dict) of
                   nothing -> nothing
                   just v  -> just (ToUnicodeCMap v)
+
+def namedEncoding (encName : [uint 8]) =
+  if encName == "WinAnsiEncoding"  then just winEncoding else
+  if encName == "MacRomanEncoding" then just macEncoding else
+  if encName == "PDFDocEncoding"   then just pdfEncoding else
+  if encName == "StandardEncoding" then just stdEncoding else
+  nothing
+
+
+def GetEncoding (d : Dict) =
+  case lookup "Encoding" d of
+    nothing -> nothing
+    just v ->
+     block
+      case ResolveVal v of
+        name encName -> namedEncoding encName
+        dict encD ->
+          block
+            let base = case lookup "BaseEncoding" encD of
+                         just ev -> namedEncoding (ResolveVal ev is name)
+                         nothing -> nothing
+            case lookup "Differences" encD of
+              nothing -> base
+              just d  -> just (EncodingDifferences base (d is array))
+
+        _ -> nothing
+
+
+def EncodingDifferences base ds =
+  block
+    let start = case base of
+                  nothing -> stdEncoding
+                  just e  -> e
+    let s = for (s = { enc = start, code = 0 }; x in ds)
+             case ResolveVal x of
+               number n -> { enc = s.enc, code = NumberAsNat n as? uint 8 }
+               name x ->
+                 { enc  = case lookup x glyphToUni of
+                            just u  -> insert s.code u s.enc
+                            nothing -> insert s.code ['?' as ?auto] s.enc
+                 , code = s.code + 1
+                 }
+
+    s.enc
+
+
 
 --------------------------------------------------------------------------------
 -- Character Maps
@@ -235,12 +282,6 @@ def ToUnicodeCMap (v : Value) =
         value v  -> {| named = v is name |}
         stream s -> {| cmap = ToUnicodeCMapDef s |}
     name x -> {| named = x |}
-
-def CMapScope begin end P =
-  block
-    KW begin
-    $$ = P
-    KW end
 
 -- XXX: .. in patterns
 def HexNum acc =
@@ -268,10 +309,17 @@ def HexByte = 16 * HexD + HexD
 
 def Hex : uint 32 = block $['<']; HexNum 0
 
+def HexBytes (lo : uint 64) (hi : uint 64) =
+  block
+    Token $['<']
+    $$ = Many (1 .. 4) HexByte
+    Token $['>']
+
 
 def ToUnicodeCMapDef (s : Stream) =
   block
     SetStream (s.body is ok)
+    -- Trace (bytesOfStream (s.body is ok))
     ManyWS
     Name == "CIDInit" is true
     Name == "ProcSet" is true
@@ -296,7 +344,7 @@ def cmap =
 def insertChar x y (acc : cmap) : cmap =
   block
     charMap = insert x y acc.charMap
-    ranges  = cmap.ranges
+    ranges  = acc.ranges
 
 def addCodespaceRange xs (acc : cmap) : cmap =
   block
@@ -310,6 +358,7 @@ def CMapEntries acc =
       case Optional (CMapOperator acc) of
         just acc1 -> CMapEntries acc1
         nothing   -> acc
+
     just _  -> CMapEntries acc   -- ignore metadata
 
 def CMapKeyVal =
@@ -335,23 +384,26 @@ def CMapOperator (acc : cmap) =
   block
     let size = Token Natural as? uint 64
     size <= 100 is true
-    KW "begin"
+    Match "begin"
     let op = Token (Many $['a' .. 'z'])
     $$ =      if op == "bfrange" then BFRangeMapping acc size
          else if op == "bfchar"  then BFCharMapping acc size
          else if op == "codespacerange" then
                   addCodespaceRange (Many size CodespaceRangeEntry) acc
          else Fail "Unsupported operator"
-    KW "end"
+    Match "end"
     Token (Match op)
 
 def CodespaceRangeEntry =
   block
-    $['<']
-    keyBytes = Many (1 .. 4) HexByte
-    Token $['>']
-    start = for (s = 0 : uint 32; x in keyBytes) (s <# x)
-    end   = Token Hex
+    start = HexBytes 1 4
+    end   = HexBytes 1 4
+
+-- 00 00 -- FF FF
+
+-- start    end
+-- 00       50
+-- 40 00    60 10
 
 def BFCharMapping acc count =
   if count > 0 then
@@ -383,19 +435,13 @@ def insertRange (i : uint 32) (acc : cmap) =
     then insertRange (i+1) (insertChar (?start + i) (?target + i) acc)
     else acc
 
+
+def GetCharCode (cmap : cmap) : sint 32
+
 def LookupCMap cmap =
-  First
-    block
-      let ?cmap = cmap.charMap
-      LookupCMapLoop 0 0
-    block
-      let cr = cmap.ranges
-      if length cr == 1
-        then block
-               let skip = length ((Index cr 0).keyBytes)
-               @Many skip UInt8
-        else @{UInt8;UInt8} -- XXX: we just skip 2 bytes
-      EmitChar ('?' as ?auto)
+  block
+    let c = GetCharCode cmap
+    EmitChar (Lookup (c as? uint 32) cmap.charMap <| ('?' as ?auto))
 
 def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
   block
@@ -468,25 +514,38 @@ def FindTextOnPage acc i =
         _  -> FindTextOnPage acc (i+1)
 
 def DecodeText mbFont str =
+
   case mbFont of
     nothing -> Raw str
 
     just f ->
-      case (f : Font).toUnicode of
+      if f.subType == "Type1" || f.subType == "Type3"
+        then DecodeTextWithEncoding f str
+        else
+          case (f : Font).toUnicode of
+            nothing -> Raw str
+            just cmap ->
+              case cmap of
+                named x -> Raw str
 
-        nothing -> Raw str
+                cmap c ->
+                  block
+                    let s = GetStream
+                    SetStream (arrayStream str)
+                    Many (LookupCMap c)
+                    SetStream s
 
-        just cmap ->
-          case cmap of
-            named x -> Raw str
 
-            cmap c ->
-              block
-                let s = GetStream
-                SetStream (arrayStream str)
-                Many (LookupCMap c)
-                -- END
-                SetStream s
+def DecodeTextWithEncoding (f : Font) str =
+  block
+    let enc = case f.encoding of
+                nothing  -> stdEncoding
+                just enc -> enc
+    @map (x in str)
+       case lookup x enc of
+         just us -> @map (u in us) (EmitChar (u as ?auto))
+         nothing -> EmitChar ('.' as ?auto)
+
 
 
 def Raw (str : [uint 8]) = @map (x in str) (EmitChar (x as ?auto))
