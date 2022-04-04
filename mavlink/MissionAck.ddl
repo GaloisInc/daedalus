@@ -5,7 +5,7 @@ import MavEnums
 def MissionAck = { 
   target_system = UInt8;          -- System ID 
   target_component = UInt8;       -- Component ID 
-  type = MavMissionResult;        -- Mission result 
+  result = MavMissionResult;      -- Mission result 
   mission_type = MavMissionType;  -- Mission type 
 }
 

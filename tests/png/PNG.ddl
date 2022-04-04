@@ -15,10 +15,10 @@ def Type   = Many 4 (Match1 $letter)
 
 def Chunk = {
   @len     = Length;
-  type     = Type;
+  chunk_type = Type;
   contents = Many len UInt8;
   crcField = CRC;
-  crcCheck = ^crc (concat [type,contents])
+  crcCheck = ^crc (concat [chunk_type,contents])
           -- This check currently fails, and there is insufficient
           -- time to debug it. The error message is not very useful,
           -- either, presumably due to too much backtracking.
