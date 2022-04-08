@@ -110,6 +110,7 @@ compileDDL =
                        ++ map (("  " ++) . Data.Text.unpack) todo
      let cfgFor m = case m of
                       "PdfDecl"     -> cfgPdfDecl
+                      "TE"          -> cfgTE
                       _             -> cfg
          -- more efficient replacement for 'saveHS'
          saveHS' dir cfg mod =
@@ -219,3 +220,13 @@ cfgPdfDecl = CompilerCfg
   where
   fld x r = "HS.getField" `Ap` TyParam (Raw (x :: String)) `Ap` r
   x |-> y = (x,y)
+
+cfgTE :: CompilerCfg
+cfgTE = CompilerCfg
+  { cPrims = Map.singleton
+      (primName "TE" "EmitChar" AGrammar)
+      (aps "D.emitChar" [ "c" ])
+  , cParserType = "D.Parser"
+  , cImports    = [Import "PdfMonad" (QualifyAs "D")]
+  , cQualNames = UseQualNames
+  }      
