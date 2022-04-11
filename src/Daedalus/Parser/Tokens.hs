@@ -68,7 +68,6 @@ data Token =
 
   | KWstruct
   | KWunion
-  | KWtype
   | KWChoose
   | KWChoose1
   | KWFirst

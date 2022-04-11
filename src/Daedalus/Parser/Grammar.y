@@ -82,7 +82,6 @@ import Daedalus.Parser.Monad
    for 'label` also, as it is likely to be a valid union label. -}
 
   'def'       { Lexeme { lexemeRange = $$, lexemeToken = KWDef } }
-  'type'      { Lexeme { lexemeRange = $$, lexemeToken = KWtype} }
   'struct'    { Lexeme { lexemeRange = $$, lexemeToken = KWstruct } }
   'union'     { Lexeme { lexemeRange = $$, lexemeToken = KWunion } }
   'bitdata'   { Lexeme { lexemeRange = $$, lexemeToken = KWBitData } }
@@ -203,13 +202,23 @@ decls ::                                      { [Decl] }
   : listOf(decl)                              { $1 }
 
 decl                                       :: { Decl }
-  : rule                                      { DeclRule $1 }
-  | bitdata                                   { DeclBitData $1 }
-  | type_decl                                 { DeclType $1 }
+  : bitdata                                   { DeclBitData $1 }
 
-rule                                     :: { Rule }
-  : 'def' name listOf(ruleParam)
-          optRetType optDef                 { mkRule $1 $2 $3 $4 $5 }
+  | 'def' name listOf(ruleParam) ':' type optDef
+                                              { DeclRule (mkRule $1 $2 $3 (Just $5) $6) }
+
+  | 'def' name listOf(ruleParam) optDef       { DeclRule (mkRule $1 $2 $3 Nothing $4) }
+
+  | 'def' name listOf(ruleParam) '=' type_flavor
+    'v{' separated(type_field, virtSep) 'v}'  {% traverse (typeDefParamName $1) $3 >>= \params ->
+                                                pure $
+                                                DeclType TypeDecl
+                                                { tyName   = $2
+                                                , tyParams = params
+                                                , tyFlavor = $5
+                                                , tyData   = $7
+                                                }
+                                              }
 
 bitdata ::                                  { BitData }
   : 'bitdata' name 'where'
@@ -252,11 +261,6 @@ bitdata_tag                              :: { Located BitDataField }
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
   | {- empty -}                             { Nothing }
-
-optRetType                               :: { Maybe SrcType }
-  : ':' type                                { Just $2 }
-  | {- empty -}                             { Nothing }
-
 
 ruleParam                                :: { RuleParam }
   : name                                      { RuleParam
@@ -319,7 +323,6 @@ label                                    :: { Located Label }
   | 'arrayStream'                           { mkLabel ($1,"arrayStream") }
   | 'bytesOfStream'                         { mkLabel ($1,"bytesOfStream") }
   | 'Fail'                                  { mkLabel ($1,"Fail") }
-  | 'type'                                  { mkLabel ($1,"type") }
   | 'union'                                 { mkLabel ($1,"union") }
   | 'struct'                                { mkLabel ($1,"struct") }
 
@@ -581,16 +584,6 @@ separated(p,s)                           :: { [p] }
 separated1(p,s)                          :: { [p] }
   : p                                       { [$1] }
   | p s separated(p,s)                      { $1 : $3 }
-
-type_decl                                :: { TypeDecl }
-  : 'type' name listOf(name) '=' type_flavor
-  'v{' separated(type_field, virtSep) 'v}'  { TypeDecl
-                                                { tyName   = $2
-                                                , tyParams = $3
-                                                , tyFlavor = $5
-                                                , tyData   = $7
-                                                }
-                                            }
 
 type_flavor                              :: { TypeFlavor }
   : 'struct'                                { Struct }
@@ -872,5 +865,11 @@ mkByteLit n = LByte (nValue n) (nText n)
 mkAccept :: SourceRange -> Expr
 mkAccept r = at r (EHasType MatchType (at r (EStruct [])) t)
   where t = SrcType Located { thingRange = r, thingValue = TUnit }
+
+typeDefParamName :: SourceRange -> RuleParam -> Parser Name
+typeDefParamName loc param =
+  case paramType param of
+    Nothing -> pure (paramName param)
+    Just{}  -> parseError (sourceFrom loc) "type definition parameters do not support signatures"
 
 }
