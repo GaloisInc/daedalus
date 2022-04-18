@@ -1077,6 +1077,7 @@ fromExpr expr =
            TC.ArrayStream  -> pure $ arrayStream e1 e2
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
+           TC.LookupMap    -> pure $ mapLookup e2 e1
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1

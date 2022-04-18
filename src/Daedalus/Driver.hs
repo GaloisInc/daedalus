@@ -755,12 +755,12 @@ passCore m =
           }
 
 
-passInline :: [Core.FName] -> ModuleName -> Daedalus ()
-passInline no m =
+passInline :: Core.InlineWhat -> [Core.FName] -> ModuleName -> Daedalus ()
+passInline what no m =
   do ph <- doGetLoaded m
      case ph of
        CoreModue ast ->
-         do i <- ddlRunPass (Core.inlineModule no ast)
+         do i <- ddlRunPass (Core.inlineModule what no ast)
             ddlUpdate_ \s ->
               s { loadedModules =
                      Map.insert m

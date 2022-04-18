@@ -20,8 +20,9 @@ parseFromText txtName n txt = do
       rs' = map NonRec rs
   pure (Module n imps bds rs')
   where
-    declToEither :: Decl -> Either Rule BitData
-    declToEither (DeclRule rl) = Left rl
+    declToEither :: Decl -> Either TRule BitData
+    declToEither (DeclRule rl) = Left (DRule rl)
+    declToEither (DeclType rl) = Left (DType rl)
     declToEither (DeclBitData bd) = Right bd
 
 parseFromTokens :: Text -> ModuleName -> [Lexeme Token] -> Either ParseError Module
@@ -31,8 +32,9 @@ parseFromTokens txtName n toks = do
       rs' = map NonRec rs
   pure (Module n imps bds rs')
   where
-    declToEither :: Decl -> Either Rule BitData
-    declToEither (DeclRule rl) = Left rl
+    declToEither :: Decl -> Either TRule BitData
+    declToEither (DeclRule rl) = Left (DRule rl)
+    declToEither (DeclType rl) = Left (DType rl)
     declToEither (DeclBitData bd) = Right bd
     
 parseFromFile :: FilePath -> ModuleName -> IO (Either ParseError Module)

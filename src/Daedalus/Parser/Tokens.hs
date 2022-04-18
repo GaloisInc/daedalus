@@ -66,6 +66,8 @@ data Token =
   | BitwiseXorT
   | BitwiseComplementT
 
+  | KWstruct
+  | KWunion
   | KWChoose
   | KWChoose1
   | KWFirst
@@ -109,6 +111,7 @@ data Token =
   | KWMapInsert
   | KWMapinsert
   | KWMapLookup
+  | KWMaplookup
   | KWArrayLength
   | KWArrayIndex
   | KWRangeUp

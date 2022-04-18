@@ -22,22 +22,6 @@
 #include "catalog.hpp"
 #include "primitives.hpp"
 
-bool inputFromFile(const char *file, DDL::Input *input)
-{
-  std::ifstream fin {file, std::ios::in | std::ios::binary};
-  std::ostringstream sout;
-
-  if (!fin.is_open()) {
-    return false;
-  }
-
-  sout << fin.rdbuf();  
-  std::string str = std::move(sout.str());
-
-  *input = DDL::Input{file, str.data(), str.size()};
-  return true;
-}
-
 void utf8(std::ostream &out, std::u32string str)
 {
   for (uint32_t u : str) {
@@ -68,6 +52,8 @@ void utf8(std::ostream &out, std::u32string str)
   }
 }
 
+
+
 int main(int argc, char* argv[]) {
 
   auto args = parse_args(argc, argv);
@@ -89,9 +75,11 @@ int main(int argc, char* argv[]) {
     if (text) {
       if (args.outputFile.empty()) {
         utf8(std::cout, emittedCodepoints);
+        std::cout << std::endl;
       } else {
         std::ofstream fout(args.outputFile, std::ios::binary | std::ios::out);
         utf8(fout, emittedCodepoints);
+        fout << std::endl;
       }
       return 0;
     }

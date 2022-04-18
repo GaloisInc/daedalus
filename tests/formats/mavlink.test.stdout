@@ -933,7 +933,7 @@ import MavNumerics
 --- Type defs:
 type MissionAck.MissionAck = { target_system: uint 8
                              ; target_component: uint 8
-                             ; type: MavEnums.MavMissionResult
+                             ; result: MavEnums.MavMissionResult
                              ; mission_type: MavEnums.MavMissionType
                              }
  
@@ -942,11 +942,11 @@ type MissionAck.MissionAck = { target_system: uint 8
 MissionAck.MissionAck : Grammar MissionAck.MissionAck =
   do (target_system : uint 8) <- GetByte
      (target_component : uint 8) <- GetByte
-     (type : MavEnums.MavMissionResult) <- MavEnums.MavMissionResult
+     (result : MavEnums.MavMissionResult) <- MavEnums.MavMissionResult
      (mission_type : MavEnums.MavMissionType) <- MavEnums.MavMissionType
      pure {target_system = target_system,
            target_component = target_component,
-           type = type,
+           result = result,
            mission_type = mission_type}
  
 MissionAck._MissionAck : Grammar {} =

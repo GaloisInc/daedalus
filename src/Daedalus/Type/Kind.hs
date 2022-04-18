@@ -1,7 +1,7 @@
 {-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.Type.Kind where
 
-import Control.Monad(unless)
+import Control.Monad(unless,forM)
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
@@ -14,8 +14,13 @@ import Daedalus.AST
 checkType :: Kind -> SrcType -> TypeM ctx Type
 checkType expK srcty =
   case srcty of
-    SrcCon x ->
-      do t <- lookupTySyn x
+    SrcCon x xs ->
+      do ks <- lookupTySynArgs x
+         ts <- forM (zip ks (map Just xs ++ repeat Nothing)) \(k,t) ->
+               case t of
+                 Just arg -> checkType k arg
+                 Nothing  -> newTVar x k
+         t  <- lookupTySyn x ts
          case kindOf t of
            KGrammar ->
              do expect KValue

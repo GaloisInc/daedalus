@@ -314,10 +314,7 @@ evalOp2 op v1 v2 = case op of
   ConsBuilder -> vConsBuilder v1 v2
  
   -- map is 1st
-  MapLookup ->
-    case vMapLookup v2 v1 of
-      Right a -> VMaybe (Just a)
-      Left _  -> VMaybe Nothing
+  MapLookup -> vMapLookup v2 v1
  
   -- map is 1st
   MapMember -> vMapMember v2 v1

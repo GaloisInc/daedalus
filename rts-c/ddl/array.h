@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <cctype>
+#include <vector>
 
 #include <ddl/debug.h>
 #include <ddl/list.h>
@@ -87,10 +88,57 @@ public:
     return Array(p);
   }
 
+  class Builder {
+    List<std::vector<T>> list;
 
+  public:
+    Builder () : list() {}
 
-  using Builder = List<T>;
+    // owns x, xs
+    Builder (T x, Builder xs) {
+      if (xs.list.refCount() == 1) {
+        list = xs.list;
+        list.borrowHead().push_back(x);
+      } else {
+        list = List{{x}, xs.list};
+      }
+    }
 
+    void free() {
+      if constexpr (hasRefs<T>()) {
+        for (auto cursor = list; cursor.refCount() == 1; cursor = cursor.borrowTail()) {
+          for (auto && x : cursor.borrowHead()) {
+            x.free();
+          }
+        }
+      }
+      list.free();
+    }
+
+    void copy() { list.copy(); }
+
+    // owns *this
+    Content *toContent() {
+      size_t n = 0;
+      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
+        n += cursor.borrowHead().size();
+      }
+      auto ptr = Content::allocate(Size{n});
+      
+      bool moving = hasRefs<T>();
+      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
+        moving = moving && cursor.refCount() == 1;
+        auto &v = cursor.borrowHead();
+        for (auto i = v.size(); i > 0; i--) {
+          auto &x = v[i-1];
+          if (!moving) x.copy();
+          ptr->data[--n] = x;
+        }
+      }
+      list.free();
+      return ptr;
+    }
+  };
 
   Array() : ptr(NULL) {}
 
@@ -99,16 +147,8 @@ public:
   Array(Size n, Elems ... xs)
     : ptr(Content::allocate(n)) { fill(Size{0},xs...); }
 
-  // Array from builder. Owns xs
-  Array(Builder xs) {
-    Size n = xs.size();
-    ptr = Content::allocate(n);
-    for (T *arr = ptr->data; n > 0; n.decrement()) {
-      List<T> ys;
-      xs.uncons(arr[n.decremented().rep()],ys);
-      xs = ys;
-    }
-  }
+  // Array from builder. Owns b
+  Array(Builder b) : ptr(b.toContent()) {}
 
   // Concat. Borrows xs
   Array(Array<Array<T>> xs) {

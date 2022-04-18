@@ -24,10 +24,10 @@ type T051.Main = { a: [int]
                  ; c: [int]
                  ; d: [T051.Main1]
                  ; m: Map (uint 64) int
-                 ; e: [int]
-                 ; f: [T051.Main2]
-                 ; g: [int]
-                 ; h: [T051.Main3]
+                 ; e: Map (uint 64) int
+                 ; f: Map (uint 64) T051.Main2
+                 ; g: Map (uint 64) int
+                 ; h: Map (uint 64) T051.Main3
                  }
  
 --- Rules:
@@ -57,20 +57,20 @@ T051.Main : Grammar T051.Main =
                                    {k = k,
                                     x = x})
      (m : Map (uint 64) int) <- T051.Mp
-     (e : [int]) <- pure (map ((x : int) in m)
-                            (x + 1))
-     (f : [T051.Main2]) <- pure (map ((k : uint 64), (x : int) in m)
-                                   let k = k in
-                                   let x = x + 1 in
-                                   {k = k,
-                                    x = x})
-     (g : [int]) <- map ((x : int) in m)
-                      (pure (x + 1))
-     (h : [T051.Main3]) <- map ((k : uint 64), (x : int) in m)
-                             (pure let k = k in
-                                   let x = x + 1 in
-                                   {k = k,
-                                    x = x})
+     (e : Map (uint 64) int) <- pure (map ((x : int) in m)
+                                        (x + 1))
+     (f : Map (uint 64) T051.Main2) <- pure (map ((k : uint 64), (x : int) in m)
+                                               let k = k in
+                                               let x = x + 1 in
+                                               {k = k,
+                                                x = x})
+     (g : Map (uint 64) int) <- map ((x : int) in m)
+                                  (pure (x + 1))
+     (h : Map (uint 64) T051.Main3) <- map ((k : uint 64), (x : int) in m)
+                                         (pure let k = k in
+                                               let x = x + 1 in
+                                               {k = k,
+                                                x = x})
      pure {a = a,
            b = b,
            c = c,

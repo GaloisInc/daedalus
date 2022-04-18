@@ -101,10 +101,15 @@ recordNameRef r
   | otherwise = pure ()
 
 extendLocalScopeIn :: [Name] -> ScopeM a -> ScopeM a
-extendLocalScopeIn ids (ScopeM m) = ScopeM (mapReader extendScope m)
+extendLocalScopeIn = extendNSLocalScopeIn IdentFun
+
+extendNSLocalScopeIn :: IdentClass -> [Name] -> ScopeM a -> ScopeM a
+extendNSLocalScopeIn c ids (ScopeM m) = ScopeM (mapReader extendScope m)
   where
     extendScope s = s { identScope = foldl extendOneScope (identScope s) ids }
-    extendOneScope vs n = Map.insert (nameScopeAsLocal n) (IdentFun, n) vs
+    extendOneScope vs n = Map.insert (nameScopeAsLocal n) (c, n) vs
+
+
 
 makeNameLocal :: Name -> ScopeM Name
 makeNameLocal n = do
@@ -148,7 +153,7 @@ resolveModule scope m = runExceptionT (runStateT scope (getResolveM go))
 
 resolveModule' :: Module -> ResolveM Module
 resolveModule' m =
-  do ns' <- mapM (makeNameModScope (moduleName m) . ruleName) rs
+  do ns' <- mapM (makeNameModScope (moduleName m) . tRuleName) rs
      let namedRs = zip ns' rs
      bdns' <- mapM (makeNameModScope (moduleName m) . bdName) (moduleBitData m)
      let namedBDs = zip bdns' (moduleBitData m)
@@ -164,14 +169,19 @@ resolveModule' m =
     rs  = forgetRecs (moduleRules m)
     mkRec = map sccToRec . stronglyConnComp
 
+    tRuleName x =
+      case x of
+        DRule r -> ruleName r
+        DType r -> tyName r
+
     checkBDRecs :: Rec BitData -> ResolveM BitData
     checkBDRecs (NonRec v) = pure v
     checkBDRecs (MutRec vs) = ResolveM $ raise (RecursiveBitData (map bdName vs))
     
     -- FIXME: make nicer (can plumb through nextguid better)
-    runResolve :: Scope -> (Name, Rule) -> ResolveM (Rule, Name, [Name])
+    runResolve :: Scope -> (Name, TRule) -> ResolveM (TRule, Name, [Name])
     runResolve scope (n, r) = do
-      (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveRule r n))) >>= raises)
+      (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveTRule r n))) >>= raises)
       return (r', n, Set.toList (seenToplevelNames st))
 
     runResolveBD :: Scope -> (Name, BitData) -> ResolveM (BitData, Name, [Name])
@@ -179,15 +189,16 @@ resolveModule' m =
       (r', st) <- ResolveM $ (lift (lift (runScopeM scope (resolveBitData bd n))) >>= raises)
       return (r', n, Set.toList (seenToplevelNames st))
 
+
 -- | Figure out the map from idents to resolved names for a given
 -- module.  This is slightly more complex than it has to be, as we try
 -- to detect all dups, not just the first.
-moduleScope :: Module -> GlobalScope -> [(Name, Rule)] -> [(Name, BitData)] -> ResolveM Scope
+moduleScope :: Module -> GlobalScope -> [(Name, TRule)] -> [(Name, BitData)] -> ResolveM Scope
   {- ^ All things in scope of this module, new things defined -}
 moduleScope m ms rs bds =
   case runM merged Map.empty of
     ((allDs, defs'), dups) | Map.null dups -> allDs <$ (ResolveM $ sets_ (addRuleNames defs'))
-    (_, dups)                 -> ResolveM $ raise (DuplicateNames (moduleName m) dups)
+    (_, dups) -> ResolveM $ raise (DuplicateNames (moduleName m) dups)
   where
     addRuleNames defs' = Map.insert (moduleName m) defs'
     
@@ -205,11 +216,38 @@ moduleScope m ms rs bds =
     imported = [ identScope (ms Map.! thingValue i) | i <- moduleImports m ]
 
     -- Makes it easier to detect duplicates
-    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) (IdentFun, n) | (n, r) <- rs ]
-            ++ [ Map.singleton (nameScopeAsUnknown (bdName bd)) (IdentTy, n) | (n, bd) <- bds ]
+    defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) (IdentFun, n)
+            | (n, DRule r) <- rs ]
+
+         ++ [ Map.singleton (nameScopeAsUnknown (tyName r)) (IdentTy, n)
+            | (n, DType r) <- rs ]
+
+         ++ [ Map.singleton (nameScopeAsUnknown (bdName bd)) (IdentTy, n)
+            | (n, bd) <- bds ]
+
 
 -- -----------------------------------------------------------------------------
 -- A type class for resolving names
+
+resolveTRule :: TRule -> Name -> ScopeM TRule
+resolveTRule tr n' =
+  case tr of
+    DRule r -> DRule <$> resolveRule r n'
+    DType r -> DType <$> resolveTypeDecl r n'
+
+resolveTypeDecl :: TypeDecl -> Name -> ScopeM TypeDecl
+resolveTypeDecl ty n' =
+  do ps <- mapM makeNameLocal (tyParams ty)
+     fs <- extendNSLocalScopeIn IdentTy ps (mapM resolveField (tyData ty))
+     pure TypeDecl { tyName   = n'
+                   , tyParams = ps
+                   , tyFlavor = tyFlavor ty
+                   , tyData   = fs
+                   }
+  where
+  resolveField (l,t) =
+    do t' <- resolve t
+       pure (l,t')
 
 resolveRule :: Rule -> Name -> ScopeM Rule
 resolveRule r n' = do
@@ -377,9 +415,9 @@ instance ResolveNames t => ResolveNames (Located t) where
 instance ResolveNames SrcType where
   resolve ty =
     case ty of
-      SrcVar x   -> pure (SrcVar x)
-      SrcCon x   -> SrcCon  <$> resolve x
-      SrcType tf -> SrcType <$> resolve tf
+      SrcVar x    -> pure (SrcVar x)
+      SrcCon x xs -> SrcCon  <$> resolve x <*> traverse resolve xs
+      SrcType tf  -> SrcType <$> resolve tf
 
 resolveStructFields :: ResolveNames e => [StructField e] -> ScopeM [StructField e]
 resolveStructFields []       = return []

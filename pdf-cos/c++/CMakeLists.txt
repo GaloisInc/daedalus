@@ -24,10 +24,11 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfDecl.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfXRef.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfValue.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/NewTextExtract.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/TE.ddl
   COMMAND cabal run exe:daedalus -v0 --
     --compile-c++
-    --determinize
+    --inline-this=StandardEncodings.glyph
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef
@@ -35,9 +36,10 @@ add_custom_command(
     --entry=PdfDecl.ObjStream
     --entry=PdfValue.Value
     --entry=PdfCrypto.EncryptionDict
+    --entry=NewTextExtract.TextInCatalog
     --entry=TE.PdfCatalog
-    --entry=TE.TextInCatalog
     --entry=TE.CheckRef
+    --entry=StandardEncodings.StdEncodings
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfCos.ddl
   )
 
@@ -49,6 +51,7 @@ add_executable(parser-test
     src/state.cpp
     src/encryption.cpp
     src/catalog.cpp
+    src/glyphmap.c
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
 )
 

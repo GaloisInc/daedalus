@@ -3,3 +3,4 @@
 import PdfXRef
 import PdfCrypto
 import TE
+import NewTextExtract

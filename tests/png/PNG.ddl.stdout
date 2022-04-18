@@ -3,7 +3,7 @@ module PNG
 --- Imports:
  
 --- Type defs:
-type PNG.Chunk = { type: [uint 8]
+type PNG.Chunk = { chunk_type: [uint 8]
                  ; contents: [uint 8]
                  ; crcField: uint 32
                  ; crcCheck: uint 32
@@ -59,12 +59,12 @@ PNG.crc (input : [uint 8]) : uint 32 =
  
 PNG.Chunk : Grammar PNG.Chunk =
   do (len : uint 64) <- PNG.Length
-     (type : [uint 8]) <- PNG.Type
+     (chunk_type : [uint 8]) <- PNG.Type
      (contents : [uint 8]) <- Many[len] GetByte
      (crcField : uint 32) <- PNG.CRC
-     (crcCheck : uint 32) <- pure (PNG.crc (concat [type,
+     (crcCheck : uint 32) <- pure (PNG.crc (concat [chunk_type,
                                                     contents]))
-     pure {type = type,
+     pure {chunk_type = chunk_type,
            contents = contents,
            crcField = crcField,
            crcCheck = crcCheck}

@@ -131,10 +131,13 @@ instance HasRange IPName where
 data Module = Module { moduleName    :: ModuleName
                      , moduleImports :: [Located ModuleName]
                      , moduleBitData :: [BitData] -- ordered
-                     , moduleRules   :: [Rec Rule]
+                     , moduleRules   :: [Rec TRule]
                      } deriving Show
 
-data Decl = DeclRule Rule | DeclBitData BitData
+data TRule = DRule Rule | DType TypeDecl
+  deriving Show
+
+data Decl = DeclRule Rule | DeclBitData BitData | DeclType TypeDecl
 
 data Rule =
   Rule { ruleName     :: !Name
@@ -153,6 +156,16 @@ instance HasRange RuleParam where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
+
+data TypeFlavor = Struct | Union
+  deriving Show
+
+data TypeDecl =
+  TypeDecl { tyName   :: !Name
+           , tyParams :: ![Name]
+           , tyFlavor :: TypeFlavor
+           , tyData   :: [(Located Label,SrcType)]
+           } deriving Show
 
 
 data BitData =
@@ -280,6 +293,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LShift | RShift | BitwiseAnd | BitwiseOr | BitwiseXor
            | LogicAnd | LogicOr
            | ArrayStream
+           | LookupMap
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
@@ -377,7 +391,7 @@ data TypeF t =
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
 data SrcType = SrcVar (Located Text)
-             | SrcCon Name
+             | SrcCon Name [SrcType]
              | SrcType (Located (TypeF SrcType))
               deriving Show
 
@@ -395,7 +409,8 @@ instance HasRange SrcType where
   range ty =
     case ty of
       SrcVar x -> range x
-      SrcCon x -> range x
+      SrcCon x [] -> range x
+      SrcCon x xs -> range x <-> range (last xs)
       SrcType x -> range x
 
 instance HasRange Pattern where
@@ -469,6 +484,7 @@ instance PP BinOp where
       LogicAnd -> "&&"
       LogicOr  -> "||"
       ArrayStream -> "arrayStream"
+      LookupMap -> "lookup"
 
 instance PP UniOp where
   pp op =
@@ -527,7 +543,9 @@ instance PP Literal where
 instance PP SrcType where
   ppPrec n ty = case ty of
                   SrcVar x -> ppPrec n x
-                  SrcCon x -> ppPrec n x
+                  SrcCon x [] -> ppPrec n x
+                  SrcCon x xs ->
+                    wrapIf (n > 1) (pp x <+> hsep (map (ppPrec 2) xs))
                   SrcType l -> ppPrec n (thingValue l)
 
 
