@@ -49,6 +49,7 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passWarnFork
   , passVM
   , ddlRunPass
 
@@ -88,7 +89,8 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM,unless)
+import qualified Data.Text as Text
+import Control.Monad(msum,foldM,forM,forM_,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
 import qualified System.IO as IO
@@ -97,7 +99,7 @@ import System.Directory(createDirectoryIfMissing,doesFileExist)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp,vcat,(<+>))
+import Daedalus.PP(pp,vcat,(<+>),nest,($$),text,colon)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 
@@ -820,6 +822,19 @@ passNorm m =
             ddlUpdate_ \s ->
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
        _ -> panic "passNorm" ["Module is not in Core form"]
+
+passWarnFork :: ModuleName -> Daedalus ()
+passWarnFork m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do let bad = Core.checkFork ast
+            forM_ bad \t ->
+              ddlPrint ("[WARNING]" <+>
+                          (text (Text.unpack t) <> colon) $$
+                          nest 2 ("Using unbiased choice may be inefficient.")
+                       )
+       _ -> panic "passwarnFork" ["Module is not in Core form"]
 
 
 -- | (7) Convert to VM. The given module should be in Core form.

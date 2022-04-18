@@ -33,6 +33,7 @@ library
     Daedalus.Core.TraverseUserTypes,
     Daedalus.Core.StripFail,
     Daedalus.Core.ConstFold,
+    Daedalus.Core.CheckFork,
     Daedalus.Core.SpecialiseType,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,

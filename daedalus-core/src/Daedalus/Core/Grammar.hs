@@ -104,6 +104,9 @@ mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
 mapChildrenG f g = g1
   where Identity g1 = childrenG (Identity . f) g
 
+collectChildren :: Monoid a => (Grammar -> a) -> Grammar -> a
+collectChildren f = fst . childrenG (\g -> (f g, g))
+
 --------------------------------------------------------------------------------
 
 

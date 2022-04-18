@@ -236,6 +236,7 @@ doToCore opts mm =
      when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
      when (optDeterminize opts) (passNorm specMod >> checkCore "Norm")
+     passWarnFork specMod
      pure ents
 
   where
