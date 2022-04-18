@@ -61,7 +61,7 @@ void check_catalog(bool text) {
     mbglyphs = DDL::Maybe {glyphs};
   }
 
-  parsePdfCatalog(error,results,DDL::Input("empty",""),false,mbglyphs,root->get());
+  parsePdfCatalog(error,results,DDL::Input("empty",""),true,mbglyphs,root->get());
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
