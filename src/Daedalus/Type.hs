@@ -11,6 +11,7 @@ import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
 import Data.Maybe(catMaybes,maybeToList)
 import Control.Monad(zipWithM)
+import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Parameterized.Some(Some(..))
@@ -44,12 +45,12 @@ inferRules m =
   where
   getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 
-  goBD done [] = go done [] (moduleRules m)
+  goBD done [] = go done [] [] (moduleRules m)
   goBD done (x : more) = do
     newDecls <- inferBitData x
     extGlobTyDefs newDecls $ goBD (newDecls : done) more
 
-  go bds done todo =
+  go bds tys done todo =
     case todo of
       [] -> pure TCModule
                    { tcModuleName = moduleName m
@@ -59,20 +60,69 @@ inferRules m =
                                    $ stronglyConnComp
                                    $ map getDeps
                                    $ concatMap Map.elems
-                                   $ bds ++ map tcTypeDefs done
+                                   $ bds ++ tys ++ map tcTypeDefs done
                    , tcModuleDecls = map tcDecls (reverse done)
                    }
 
       x : more ->
-        do info <- runSTypeM (generalize =<< inferRuleRec x)
-           let env = [ (tcDeclName d, declTypeOf d)
-                     | d <- recToList (tcDecls info)
-                     ]
-           extEnvManyRules env
-             $ extGlobTyDefs (tcTypeDefs info)
-             $ go bds (info : done) more
+        do mb <- inferTRuleRec x
+           case mb of
+             Right tds -> extGlobTyDefs tds (go bds (tds : tys) done more)
+             Left info -> extEnvManyRules env
+                        $ extGlobTyDefs (tcTypeDefs info)
+                        $ go bds tys (info : done) more
+               where env = [ (tcDeclName d, declTypeOf d)
+                           | d <- recToList (tcDecls info)
+                           ]
 
 --------------------------------------------------------------------------------
+
+inferTRuleRec :: Rec TRule -> MTypeM (Either DeclInfo (Map TCTyName TCTyDecl))
+inferTRuleRec ins =
+  runSTypeM
+  case (rDs,tDs) of
+    (_,[])  -> Left <$> (generalize =<< inferRuleRec (mk rDs))
+    ([],_)  -> Right <$> checkTypeDecls (mk tDs)
+    (_,t:_) -> reportDetailedError (tyName t)
+                  "A type declaration and a rule may not depend on each other"
+                  (map (pp . ruleName) rDs ++ map (pp . tyName) tDs)
+  where
+  rDs = [ r | DRule r <- recToList ins ]
+  tDs = [ t | DType t <- recToList ins ]
+
+  mk :: [a] -> Rec a
+  mk a = case ins of
+           NonRec _ -> NonRec (head a)
+           MutRec _ -> MutRec a
+
+checkTypeDecls :: Rec TypeDecl -> STypeM (Map TCTyName TCTyDecl)
+checkTypeDecls r =
+  case r of
+    NonRec td ->
+      case tyParams td of
+        [] ->
+          runTypeM (tyName td)
+          do fs <- mapM checkField (tyData td)
+             let def = case tyFlavor td of
+                         Struct -> TCTyStruct Nothing fs
+                         Union  -> TCTyUnion [ (l, (t,Nothing)) | (l,t) <- fs ]
+                 nm = TCTy (tyName td)
+             pure (Map.singleton nm
+                    TCTyDecl
+                      { tctyName   = nm
+                      , tctyParams = []
+                      , tctyBD     = Nothing
+                      , tctyDef    = def
+                      })
+        _ -> reportError (tyName td) "XXX: Type parameters in data declarations"
+    MutRec ~(d:_) -> reportError (tyName d) "XXX: Recursive type declaration"
+  where
+  checkField (l,t) =
+    do t' <- checkType KValue t
+       pure (thingValue l, t')
+
+
+
 
 inferRuleRec :: Rec Rule -> STypeM (Rec (TCDecl SourceRange))
 inferRuleRec sr =
@@ -494,6 +544,12 @@ inferExpr expr =
              unify (tArray tByte) (e2',t2)
              pure (exprAt expr (TCBinOp op e1' e2' tStream), tStream)
 
+        LookupMap ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',kt),(e2',mt)] ->
+          do vt <- newTVar e2' KValue
+             unify (tMap kt vt) (e2',mt)
+             let ty = tMaybe vt
+             pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
 
         LCat ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->

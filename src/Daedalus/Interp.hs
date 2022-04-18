@@ -173,6 +173,7 @@ evalBinOp op =
     BitwiseXor  -> vBitXor
 
     ArrayStream -> vStreamFromArray
+    LookupMap   -> vMapLookup
 
     LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
     LogicOr     -> panic "evalBinOp" ["LogicOr"]
@@ -703,9 +704,9 @@ compilePExpr env expr0 args = go expr0
 
         TCMapInsert s ke ve me ->
           case vMapLookup kv mv of
-            Right {} ->
+            VMaybe (Just {}) ->
               pError FromSystem erng ("duplicate key " ++ show (pp kv))
-            Left {} -> pure $! mbSkip s (vMapInsert kv vv mv)
+            _ -> pure $! mbSkip s (vMapInsert kv vv mv)
           where
           kv = compilePureExpr env ke
           vv = compilePureExpr env ve
@@ -713,8 +714,8 @@ compilePExpr env expr0 args = go expr0
 
         TCMapLookup s ke me ->
           case vMapLookup kv mv of
-            Right a -> pure $! mbSkip s a
-            Left _  -> pError FromSystem erng ("missing key " ++ show (pp kv))
+            VMaybe (Just a) -> pure $! mbSkip s a
+            _ -> pError FromSystem erng ("missing key " ++ show (pp kv))
           where
           kv = compilePureExpr env ke
           mv = compilePureExpr env me

@@ -10,7 +10,7 @@ import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.Word(Word32,Word64)
 import           Data.Int(Int32,Int64)
-import           Data.Maybe(maybeToList,fromMaybe,mapMaybe)
+import           Data.Maybe(maybeToList,fromMaybe)
 import           Data.List(partition,sortBy)
 import           Data.Function(on)
 import           Control.Applicative((<|>))
@@ -95,7 +95,7 @@ cProgram fileNameRoot prog =
   noPrimDefs =
     let ?allFuns = allFunMap
         ?allTypes = allTypesMap
-    in mapMaybe cFun noCapFun
+    in concatMap cFun noCapFun
 
 
   -- Non-capturing roots
@@ -152,6 +152,8 @@ includes =
        , "#include <ddl/maybe.h>"
        , "#include <ddl/array.h>"
        , "#include <ddl/map.h>"
+       , "#include <ddl/owned.h>"
+       , "#include <optional>"
        ]
 
 
@@ -431,12 +433,20 @@ cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
 
 
 
-cFun :: (AllTypes,AllFuns) => VMFun -> Maybe CDecl
+cFun :: (AllTypes,AllFuns) => VMFun -> [CDecl]
 cFun fun =
   case vmfDef fun of
-    VMExtern {} -> Nothing
-    VMDef d -> Just (cDefineFun res (cFName (vmfName fun)) args body)
+    VMExtern {} -> []
+    VMDef d
+      | null args ->
+        [ "static inline" $$ thisDef
+        , cMemoValFun (vmfName fun)
+        ]
+      | otherwise -> [ thisDef ]
       where
+      thisName = if null args then cFNameInit else cFName
+      thisDef  = cDefineFun res (thisName (vmfName fun)) args body
+
       res
         | vmfPure fun    = retTy
         | otherwise      = "bool"
@@ -469,6 +479,21 @@ cFun fun =
                     ]
                  ++ cGoto (cBlockLabel (vmfEntry d))
                   : [ cBasicBlock b | b <- Map.elems (vmfBlocks d) ]
+
+
+cMemoValFun :: FName -> CDecl
+cMemoValFun f = cDefineFun retTy (cFName f) [] body
+  where
+  retTy  = cSemType (Src.fnameType f)
+  var    = "result"
+  memoTy = cInst "std::optional" [ cInst "DDL::Owned" [retTy]]
+
+  body  = [ cDeclareVar ("static" <+> memoTy) var
+          , cIf' ("!" <+> cCallMethod var "has_value" []) [
+              cAssign var (cCallCon "DDL::Owned" [cCall (cFNameInit f) []])
+            ]
+          , cReturn (var <.> "->get()")
+          ]
 
 
 

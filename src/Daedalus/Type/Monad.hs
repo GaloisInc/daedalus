@@ -31,6 +31,7 @@ module Daedalus.Type.Monad
   , extEnvManyRules
   , lookupRuleTypeOf
   , lookupTySyn
+  , lookupTySynArgs
   , RuleInfo(..)
 
     -- * Local type variables
@@ -75,8 +76,6 @@ module Daedalus.Type.Monad
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.Set(Set)
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Control.Exception(Exception(..))
 import MonadLib hiding (Label)
@@ -389,21 +388,31 @@ instantiate r (Poly as cs t) =
      mapM_ (addConstraint r) (apSubstT su cs)
      pure (ts,mapTypes fresh t)
 
--- | Lookup the type of a rule as when used as a type synonym
--- (the resulting type may be a grammar though)
-lookupTySyn :: Name -> TypeM ctx Type
-lookupTySyn x =
+lookupTySynArgs :: Name -> TypeM ctx [Kind]
+lookupTySynArgs x =
   do mb <- lookupTypeDefMaybe (TCTy x)
      case mb of
-       Just td -> do ps <- forM (tctyParams td) \_ -> newTVar x KValue
-                     pure (tCon (tctyName td) ps)
+       Just td -> pure (map tvarKind (tctyParams td))
+       Nothing ->
+         do mbr <- Map.lookup x <$> getRuleEnv
+            case mbr of
+              Nothing -> reportError x ("Undeclared name:" <+> pp x)
+              Just (Poly as _ _) -> pure (map tvarKind as)
+
+
+-- | Lookup the type of a rule as when used as a type synonym
+-- (the resulting type may be a grammar though)
+lookupTySyn :: Name -> [Type] -> TypeM ctx Type
+lookupTySyn x ps =
+  do mb <- lookupTypeDefMaybe (TCTy x)
+     case mb of
+       Just td -> pure (tCon (tctyName td) ps)
        Nothing ->
          do mbr <- Map.lookup x <$> getRuleEnv
             case mbr of
               Nothing -> reportError x ("Undeclared name:" <+> pp x)
               Just (Poly as _ (_ :-> t)) ->
-                do ts <- forM as \a -> newTVar x (tvarKind a)
-                   let su = Map.fromList (as `zip` ts)
+                do let su = Map.fromList (as `zip` ps)
                    pure (apSubstT su t)
 
 
@@ -421,7 +430,6 @@ newtype TypeM ctx a = TypeM ( WithBase STypeM '[ ReaderT (RO ctx)
 data RO ctx = RO
   { roEnv         :: !Env            -- ^ Types for locals
   , roName        :: !Name           -- ^ Root name for generating type decls
-  , roIP          :: !(Map IPName (Arg SourceRange))  -- ^ IPs in scope
   , allowPartial  :: !Bool           -- ^ Are partial apps OK?
   , roContext     :: !(Context ctx)  -- ^ Current context (lazy)
   }
@@ -429,9 +437,6 @@ data RO ctx = RO
 data RW = RW
   { sLocalTyVars  :: !(Map Text Type) -- ^ Names for local types (from sigs)
   , sNextType     :: !Int             -- ^ Used to generate variants of the root
-  , sIPUsed       :: !(Set IPName)
-    -- ^ IPs (from the ones in scope) that were used.  We keep track of this
-    -- so that we can report "undefined IP" for IPs that weren't used
   }
 
 
@@ -440,11 +445,10 @@ runTypeM n (TypeM m) = fst <$> runStateT rw (runReaderT ro m)
   where
   ro = RO { roEnv        = Map.empty
           , roName       = n
-          , roIP         = Map.empty
           , allowPartial = False
           , roContext    = AGrammar
           }
-  rw = RW { sLocalTyVars = Map.empty, sNextType = 0, sIPUsed = Set.empty }
+  rw = RW { sLocalTyVars = Map.empty, sNextType = 0 }
 
 sType :: STypeM a -> TypeM ctx a
 sType m = TypeM (lift (lift m))

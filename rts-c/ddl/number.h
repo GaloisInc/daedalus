@@ -124,7 +124,7 @@ template <Width a, Width b>
 static inline
 UInt<a> lcat(UInt<a> x, UInt<b> y) {
   if constexpr (b >= a) return UInt<a>(y.data);
-  return UInt<a>((x.data << b) | y.rep());
+  return UInt<a>((x.rawRep() << b) | y.rep());
 }
 
 template <Width w>

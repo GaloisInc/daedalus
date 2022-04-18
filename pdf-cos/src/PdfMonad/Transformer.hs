@@ -1,4 +1,4 @@
-{-# Language BlockArguments, RecordWildCards #-}
+{-# Language BlockArguments, RecordWildCards, DataKinds #-}
 module PdfMonad.Transformer
   ( PdfT
   , runPdfT, PdfResult(..)
@@ -16,8 +16,10 @@ import Data.Set(Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad(liftM,ap)
+import Data.Word (Word32)
 
 import RTS.ParserAPI
+import RTS.Numeric
 
 
 data R = R { refObj :: {-# UNPACK #-} !Int
@@ -50,6 +52,7 @@ data RO = RO
 
 data RW = RW
   { rwValidated :: Map R ByteString
+  , rwEmitted :: [Word32]
     -- | References that are validated (or in the process) at the given type
   }
 
@@ -61,7 +64,7 @@ runPdfT :: Functor m => Input -> ObjIndex -> Maybe EncContext -> PdfT m a -> m a
 runPdfT inp objMap ec (P m) = fst <$> m ro rw
   where
   ro = RO { roTopInput = inp, roObjMap = objMap, roResolving = Set.empty, encContext = ec }
-  rw = RW { rwValidated = Map.empty }
+  rw = RW { rwValidated = Map.empty, rwEmitted = [] }
 {-# INLINE runPdfT #-}
 
 doM :: Monad m => m a -> PdfT m a
@@ -77,6 +80,7 @@ class BasicParser m => PdfParser m where
   isValidated     :: R -> ByteString -> m Bool
   startvalidating :: R -> ByteString -> m ()
   getEncContext   :: m (Maybe EncContext)
+  emitChar        :: UInt 32 -> m ()
 
 
 instance BasicParser m => PdfParser (PdfT m) where
@@ -113,6 +117,10 @@ instance BasicParser m => PdfParser (PdfT m) where
     pure ((), RW { rwValidated = Map.insert r b rwValidated, .. })
 
   getEncContext = P \ro rw -> pure (encContext ro, rw)
+
+  emitChar (UInt x) = P \_ rw ->
+    let rw' = rw { rwEmitted = x : rwEmitted rw }
+    in rw' `seq` pure ((), rw')
 
   {-# INLINE resolving  #-}
   {-# INLINE getObjIndex #-}

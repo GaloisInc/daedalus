@@ -1,4 +1,3 @@
-
 class CatalogException : std::exception {
   const char *msg;
 public:
@@ -7,4 +6,7 @@ public:
   const char *what() const throw () override { return msg; }
 };
 
-void check_catalog();
+void check_catalog(bool text);
+
+
+bool inputFromFile(const char *file, DDL::Input *input);

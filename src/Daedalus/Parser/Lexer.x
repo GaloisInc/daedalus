@@ -22,6 +22,7 @@ import Daedalus.Parser.Layout
 $bigAlpha   = [A-Z]
 $smallAlpha = [a-z]
 $alpha      = [$bigAlpha $smallAlpha _]
+$octDigit   = [0-8]
 $digit      = [0-9]
 $hexDigit   = [0-9a-fA-F]
 $binDigit   = [01]
@@ -37,6 +38,7 @@ $ws         = [\0\9\10\13\32]
 @natural    = $digit+
 @integer    = \-? @natural
 @hexLiteral = 0 [xX] $hexDigit $hexDigit*
+@octLiteral = 0 [oO] $octDigit $octDigit*
 @binLiteral = 0 [bB] $binDigit $binDigit*
 
 @esc        = \\ (@natural | \\ | \' | " | n | t | r | [xX] $hexDigit $hexDigit* )
@@ -110,6 +112,8 @@ $ws+        ;
 "import"    { lexeme KWImport }
 "def"       { lexeme KWDef }
 "bitdata"   { lexeme KWBitData }
+"struct"    { lexeme KWstruct }
+"union"     { lexeme KWunion }
 "where"     { lexeme KWWhere }
 
 "for"       { lexeme KWFor }
@@ -148,6 +152,7 @@ $ws+        ;
 "Insert"    { lexeme KWMapInsert }
 "insert"    { lexeme KWMapinsert }
 "Lookup"    { lexeme KWMapLookup }
+"lookup"    { lexeme KWMaplookup }
 
 "Offset"    { lexeme KWOffset }
 "SetStream" { lexeme KWSetStream }
@@ -197,6 +202,7 @@ $ws+        ;
 @bytes        { lexBytes }
 @integer      { lexInteger }
 @hexLiteral   { lexHexLiteral }
+@octLiteral   { lexOctLiteral }
 @binLiteral   { lexBinLiteral }
 
 .           { do { txt <- matchText
@@ -217,6 +223,12 @@ lexHexLiteral =
   do x <- Text.unpack <$> matchText
      -- read supports hex literals too
      lexeme $! Number (read x) (Just ((length x - 2) * 4)) -- - 2 for '0x'
+
+lexOctLiteral :: Action s [Lexeme Token]
+lexOctLiteral =
+  do x <- Text.unpack <$> matchText
+     -- read supports hex literals too
+     lexeme $! Number (read x) (Just ((length x - 2) * 3)) -- - 2 for '0o'
 
 lexBinLiteral :: Action s [Lexeme Token]
 lexBinLiteral =

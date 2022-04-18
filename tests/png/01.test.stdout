@@ -1,35 +1,35 @@
 --- Found 1 results:
-[ { type: "IHDR"
+[ { chunk_type: "IHDR"
   , contents: "\NUL\NUL\NUL\SOH\NUL\NUL\NUL\SOH\b\NUL\NUL\NUL\NUL"
   , crcField: 981375829[32]
   , crcCheck: 4278190080[32]
   }
-, { type: "iCCP"
+, { chunk_type: "iCCP"
   , contents: "ICC profile\NUL\NUL(\145\157\144\177J\195P\DC4\134\191TQ):YDD!\131\139C\193\197L.U!\b\n1V\176:\165I\138\197$\134$\165\248\ACK\190\137>L\aA\240\ENQ|\ETX\ENQg\255\ESC\GS\FS\204\226\133\195\255q8\231\255\239\189\208\178\147\&0-\231w!\205\170\194\245{\131\203\193\149\189\248F\155-:\236\176\RS\132e\222\243\188\DC3\SUB\207\231+\150\209\151\174\241j\158\251\243,Dq\EMJg\170,\204\139\n\172}\177\&3\173r\195*:\183}\255P\252 \182\163\&4\139\196O\226\237(\141\f\155]?M&\225\143\167\185\205r\156]\156\155\190j\DC3\151cN\241\176\EM2aLBEW\154\169s\132\195\158\212\165 \224\158\146P\154\DLE\171\&7\213L\197\141\168\148\147\203\129\168/\210m\SUB\242\&6\234<O)Cy\140\229e\DC2\238H\229i\242\&0\255\251\189\246qVoZk\179<(\130\186\&5\167j\141F\240\254\b+\ETXX}\134\246uC\214\210\239\183\&5\204\&8\245\204?\223\248\ENQ\FS\249P\DEL"
   , crcField: 3776015268[32]
   , crcCheck: 1069182125[32]
   }
-, { type: "pHYs"
+, { chunk_type: "pHYs"
   , contents: "\NUL\NUL.#\NUL\NUL.#\SOH"
   , crcField: 2024095606[32]
   , crcCheck: 2282172566[32]
   }
-, { type: "tIME"
+, { chunk_type: "tIME"
   , contents: "\a\227\n\GS\DC4*\SUB"
   , crcField: 1038183057[32]
   , crcCheck: 40040826[32]
   }
-, { type: "tEXt"
+, { chunk_type: "tEXt"
   , contents: "Comment\NULCreated with GIMP"
   , crcField: 1468075543[32]
   , crcCheck: 2490061300[32]
   }
-, { type: "IDAT"
+, { chunk_type: "IDAT"
   , contents: "\b\215c\248\SI\NUL\SOH\SOH\SOH\NUL"
   , crcField: 464973398[32]
   , crcCheck: 4278190080[32]
   }
-, { type: "IEND"
+, { chunk_type: "IEND"
   , contents: [ ]
   , crcField: 2923585666[32]
   , crcCheck: 2393998729[32]

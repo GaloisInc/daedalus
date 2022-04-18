@@ -2,8 +2,8 @@
 #include <string>
 #include <exception>
 #include <ddl/array.h>
+#include <ddl/owned.h>
 #include "main_parser.h"
-#include "Owned.hpp"
 #include <openssl/evp.h>
 
 struct EncryptionException : public std::exception {
@@ -14,7 +14,7 @@ bool removePadding(std::string &str);
 
 struct EncryptionContext {
     std::vector<uint8_t> key;
-    Owned<User::ChooseCiph> cipher;
+    DDL::Owned<User::ChooseCiph> cipher;
     EncryptionContext(std::vector<uint8_t> key, User::ChooseCiph cipher)
     : key(key), cipher(borrowed(cipher)) {}
 };

@@ -13,47 +13,76 @@
 
 #include <ddl/input.h>
 #include <ddl/number.h>
+#include <ddl/owned.h>
 #include <main_parser.h>
 
+#include "args.hpp"
 #include "debug.hpp"
 #include "state.hpp"
 #include "catalog.hpp"
-#include "Owned.hpp"
+#include "primitives.hpp"
 
-bool inputFromFile(const char *file, DDL::Input *input)
+void utf8(std::ostream &out, std::u32string str)
 {
-  std::ifstream fin {file, std::ios::in | std::ios::binary};
-  std::ostringstream sout;
-
-  if (!fin.is_open()) {
-    return false;
+  for (uint32_t u : str) {
+    if (u <= 0x7fU) {
+      out << static_cast<unsigned char>(u);
+    } else if (u <= 0x7ffU) {
+      const unsigned char xs[2] {
+        static_cast<unsigned char>(0xc0U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 2);
+    } else if (u <= 0xffffU) {
+      const unsigned char xs[3] {
+        static_cast<unsigned char>(0xe0U | u>>12 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 3);
+    } else if (u <= 0x10ffffU) {
+      const unsigned char xs[4] {
+        static_cast<unsigned char>(0xf0U | u>>18 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>>12 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u>> 6 & 0x3fU),
+        static_cast<unsigned char>(0x80U | u     & 0x3fU)};
+      out.write(reinterpret_cast<char const*>(xs), 4);
+    } else {
+      const unsigned char xs[2] { 0xffU, 0xfdU };
+      out.write(reinterpret_cast<char const*>(xs), 2);
+    }
   }
-
-  sout << fin.rdbuf();  
-  std::string str = std::move(sout.str());
-
-  *input = DDL::Input{file, str.data(), str.size()};
-  return true;
 }
 
+
+
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " FILE\n";
-    return 1;
-  }
+
+  auto args = parse_args(argc, argv);
 
   DDL::Input input;
-  if (!inputFromFile(argv[1], &input)) {
+  if (!inputFromFile(args.inputFile.c_str(), &input)) {
     std::cerr << "Unable to open file" << std::endl;
     return 1;
   }
+
+  bool text = args.extractText;
 
   bool reject = false;
   bool safe   = true;
 
   try {
     references.process_pdf(input);
-    check_catalog();
+    check_catalog(text);
+    if (text) {
+      if (args.outputFile.empty()) {
+        utf8(std::cout, emittedCodepoints);
+        std::cout << std::endl;
+      } else {
+        std::ofstream fout(args.outputFile, std::ios::binary | std::ios::out);
+        utf8(fout, emittedCodepoints);
+        fout << std::endl;
+      }
+      return 0;
+    }
 
     for (auto && [refid, val] : references.table) {
       User::Ref ref;
@@ -67,7 +96,7 @@ int main(int argc, char* argv[]) {
       } else {
         safe &= results[0].getValue();
         if (!results[0].getValue())
-          std::cerr << "INFO: " << refid << "," << val.gen << " is unsafe\n";
+          std::cerr << "INFO: [" << refid << "," << val.gen << "] is unsafe\n";
       }
     }
 

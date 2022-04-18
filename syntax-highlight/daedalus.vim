@@ -11,6 +11,7 @@ syn keyword ddlKeywordImport import
 
 syn keyword ddlKeyword bitdata where
 syn keyword ddlKeyword def
+syn keyword ddlKeyword type struct union
 syn keyword ddlKeyword for map in
 syn keyword ddlKeyword if then else
 syn keyword ddlKeyword is
@@ -109,7 +110,7 @@ syn region  ddlString start="\"" skip="\\\"" end="\"" contains=ddlEsc
 syn region  ddlByte   start="'"  skip="\\'"  end="'"  contains=ddlEsc
 
 
-syn match   ddlNumber "\(0\(x\|X\)\x\+\)\|-\?\d\+"
+syn match   ddlNumber "\(0\(x\|X\|b\|B\|o\|O\)\x\+\)\|-\?\d\+"
 
 hi def link ddlKeywordImport  Include
 hi def link ddlKeyword        Structure

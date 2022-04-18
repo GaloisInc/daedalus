@@ -149,8 +149,8 @@ def DHT =
 def HT =
   block
     let info    = UInt8
-    class       = truncate8to4 info
-    type        = truncate8to4 (info >> 4)
+    ht_class    = truncate8to4 info
+    ht_type     = truncate8to4 (info >> 4)
     let symNums = Many 16 UInt8
     table       = map (n in symNums) (Many (n as uint 64) UInt8)
 

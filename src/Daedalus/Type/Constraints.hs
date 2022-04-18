@@ -73,7 +73,7 @@ isMappable r t s =
         _              -> bad
 
     Type TArray {}  -> mkArray s
-    Type TMap {}    -> mkArray s
+    Type TMap {}    -> mkMap s
     _               -> bad
 
   where

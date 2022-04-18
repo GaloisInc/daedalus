@@ -63,6 +63,7 @@ extra-source-files:
   spec/Type3Font.ddl,
   spec/Unicode.ddl,
   spec/WinEncoding.ddl,
+  spec/StdEncodings.ddl,
   spec/TE.ddl
 
 custom-setup
@@ -145,7 +146,8 @@ library
     Unicode,
     WinEncoding,
     ZapfDingbatsEncoding,
-    TE
+    TE,
+    StandardEncodings
 
   autogen-modules:
     Array,
@@ -198,7 +200,8 @@ library
     Unicode,
     WinEncoding,
     ZapfDingbatsEncoding,
-    TE
+    TE,
+    StandardEncodings
 
   build-depends:
     base,

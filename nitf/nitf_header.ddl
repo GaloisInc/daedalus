@@ -107,7 +107,7 @@ def FS_declass =
 
 def FSC_auth =
     { CallMeMaybe {
-        type = Match1 ('O' | 'D' | 'M');
+        auth_type = Match1 ('O' | 'D' | 'M');
         auth = Many 40 ECSA;
       }
     }

@@ -13,7 +13,6 @@ import Daedalus.Panic(panic)
 
 import Daedalus.Core
 import Daedalus.Core.Free
-import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
@@ -764,17 +763,11 @@ defCopyFree vis boxed fun tdecl =
        ]
 
 
--- | Emit some code to copy/free a field
+-- | Emit some code to copy/free a field, unless it is Unit
+-- as those are deleted.
 maybeCopyFree :: Doc -> Type -> CExpr -> Maybe CStmt
 maybeCopyFree fun ty e =
   case ty of
-    TParam {} -> Just (cIfConst' check [ doIt ])
-      where check = cCall (cInst (nsDDL .:: "hasRefs") [cSemType ty]) []
-
-    _ -> case typeRep ty of
-           HasRefs -> Just doIt
-           NoRefs  -> Nothing
-
-  where
-  doIt = cStmt (cCallMethod e fun [])
+    TUnit -> Nothing  -- these are deleted
+    _     -> Just (cStmt (cCallMethod e fun []))
 

@@ -82,6 +82,8 @@ import Daedalus.Parser.Monad
    for 'label` also, as it is likely to be a valid union label. -}
 
   'def'       { Lexeme { lexemeRange = $$, lexemeToken = KWDef } }
+  'struct'    { Lexeme { lexemeRange = $$, lexemeToken = KWstruct } }
+  'union'     { Lexeme { lexemeRange = $$, lexemeToken = KWunion } }
   'bitdata'   { Lexeme { lexemeRange = $$, lexemeToken = KWBitData } }
   'where'     { Lexeme { lexemeRange = $$, lexemeToken = KWWhere } }
 
@@ -131,6 +133,7 @@ import Daedalus.Parser.Monad
   'Insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapInsert } }
   'insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapinsert } }
   'Lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapLookup } }
+  'lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMaplookup } }
   'Offset'    { Lexeme { lexemeRange = $$, lexemeToken = KWOffset } }
   'GetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWGetStream } }
   'SetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWSetStream } }
@@ -199,12 +202,23 @@ decls ::                                      { [Decl] }
   : listOf(decl)                              { $1 }
 
 decl                                       :: { Decl }
-  : rule                                      { DeclRule $1 }
-  | bitdata                                   { DeclBitData $1 }
+  : bitdata                                   { DeclBitData $1 }
 
-rule                                     :: { Rule }
-  : 'def' name listOf(ruleParam)
-          optRetType optDef                 { mkRule $1 $2 $3 $4 $5 }
+  | 'def' name listOf(ruleParam) ':' type optDef
+                                              { DeclRule (mkRule $1 $2 $3 (Just $5) $6) }
+
+  | 'def' name listOf(ruleParam) optDef       { DeclRule (mkRule $1 $2 $3 Nothing $4) }
+
+  | 'def' name listOf(ruleParam) '=' type_flavor
+    'v{' separated(type_field, virtSep) 'v}'  {% traverse (typeDefParamName $1) $3 >>= \params ->
+                                                pure $
+                                                DeclType TypeDecl
+                                                { tyName   = $2
+                                                , tyParams = params
+                                                , tyFlavor = $5
+                                                , tyData   = $7
+                                                }
+                                              }
 
 bitdata ::                                  { BitData }
   : 'bitdata' name 'where'
@@ -247,11 +261,6 @@ bitdata_tag                              :: { Located BitDataField }
 optDef                                   :: { Maybe Expr }
   : '=' expr                                { Just $2 }
   | {- empty -}                             { Nothing }
-
-optRetType                               :: { Maybe SrcType }
-  : ':' type                                { Just $2 }
-  | {- empty -}                             { Nothing }
-
 
 ruleParam                                :: { RuleParam }
   : name                                      { RuleParam
@@ -298,6 +307,7 @@ label                                    :: { Located Label }
   | 'END'                                   { mkLabel ($1,"END") }
   | 'empty'                                 { mkLabel ($1,"empty") }
   | 'Lookup'                                { mkLabel ($1,"Lookup") }
+  | 'lookup'                                { mkLabel ($1,"lookup") }
   | 'Insert'                                { mkLabel ($1,"Insert") }
   | 'insert'                                { mkLabel ($1,"insert") }
   | 'Offset'                                { mkLabel ($1,"Offset") }
@@ -313,6 +323,8 @@ label                                    :: { Located Label }
   | 'arrayStream'                           { mkLabel ($1,"arrayStream") }
   | 'bytesOfStream'                         { mkLabel ($1,"bytesOfStream") }
   | 'Fail'                                  { mkLabel ($1,"Fail") }
+  | 'union'                                 { mkLabel ($1,"union") }
+  | 'struct'                                { mkLabel ($1,"struct") }
 
 expr                                     :: { Expr }
   : call_expr                               { $1 }
@@ -418,6 +430,7 @@ call_expr                                :: { Expr }
                                               (EUniOp BitwiseComplement $2) }
 
   | 'Lookup' aexpr aexpr                    { at ($1,$3) (EMapLookup $2 $3) }
+  | 'lookup' aexpr aexpr                    { at ($1,$3) (EBinOp LookupMap $2 $3) }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
   | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
@@ -572,21 +585,32 @@ separated1(p,s)                          :: { [p] }
   : p                                       { [$1] }
   | p s separated(p,s)                      { $1 : $3 }
 
+type_flavor                              :: { TypeFlavor }
+  : 'struct'                                { Struct }
+  | 'union'                                 { Union }
+
+type_field                               :: { (Located Label,SrcType) }
+  : label ':' type                          { ($1,$3) }
+
 type                                     :: { SrcType }
+  : atype                                   { $1 }
+  | 'uint' atype                            { atT ($1 <-> $2) (TUInt $2) }
+  | 'sint' atype                            { atT ($1 <-> $2) (TSInt $2) }
+  | 'maybe' atype                           { atT ($1 <-> $2) (TMaybe $2) }
+  | name listOf1(atype)                     { SrcCon $1 $2 }
+
+atype                                    :: { SrcType }
   : 'bool'                                  { atT $1 TBool }
   | 'float'                                 { atT $1 TFloat }
   | 'double'                                { atT $1 TDouble }
   | 'int'                                   { atT $1 TInteger }
-  | 'uint' type                             { atT ($1 <-> $2) (TUInt $2) }
-  | 'sint' type                             { atT ($1 <-> $2) (TSInt $2) }
-  | 'maybe' type                            { atT ($1 <-> $2) (TMaybe $2) }
   | 'stream'                                { atT $1 TStream }
   | '(' type  ')'                           { $2 }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
   | NUMBER                                  { atT (nRange $1)
                                                   (TNum (nValue $1)) }
-  | name                                    { SrcCon $1 }
+  | name                                    { SrcCon $1 [] }
   | SMALLIDENTI                             { SrcVar (loc (fst $1) (snd $1)) }
 
 arr_or_map                               :: { TypeF SrcType }
@@ -841,5 +865,11 @@ mkByteLit n = LByte (nValue n) (nText n)
 mkAccept :: SourceRange -> Expr
 mkAccept r = at r (EHasType MatchType (at r (EStruct [])) t)
   where t = SrcType Located { thingRange = r, thingValue = TUnit }
+
+typeDefParamName :: SourceRange -> RuleParam -> Parser Name
+typeDefParamName loc param =
+  case paramType param of
+    Nothing -> pure (paramName param)
+    Just{}  -> parseError (sourceFrom loc) "type definition parameters do not support signatures"
 
 }

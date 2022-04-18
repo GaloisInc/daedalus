@@ -1,14 +1,19 @@
 import PdfValue
 import PdfDecl
+import StandardEncodings
 import Debug
 
 --------------------------------------------------------------------------------
 -- Section 7.7.2, Table 29
-def PdfCatalog (strict : bool) (r : Ref) =
+def PdfCatalog (strict : bool) (enc : maybe StdEncodings) (r : Ref) =
   block
     let ?strict = strict
-    let d = ResolveValRef r is dict
+    let ?doText = enc
+    let d       = ResolveValRef r is dict
     pageTree = PdfPageTreeRoot (LookupRef "Pages" d)
+    stdEncodings = case enc of
+                     nothing -> noStdEncodings
+                     just e  -> e
     -- other fields omitted
 
 
@@ -226,19 +231,75 @@ def SkipImageData =
 -- the same reference we don't parse it over and over again.
 -- (this might be a generally useful thing to have)
 def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
-  case Optional (Lookup "Font" r) of
+  case ?doText of
     nothing -> empty
-    just v  ->
-      map (v in (ResolveVal v is dict)) (Font v)
+    just enc ->
+      block
+        let ?stdEncodings = enc
+        case Optional (Lookup "Font" r) of
+          nothing -> empty
+          just v  ->
+            map (v in (ResolveVal v is dict)) (Font v)
 
 def Font (v : Value) =
   block
     let dict = ResolveVal v is dict
-    subType = ResolveVal (Lookup "Subtype" dict) is name
-    encoding = Optional (Lookup "Encoding" dict)
+    subType   = ResolveVal (Lookup "Subtype" dict) is name
+    encoding  = GetEncoding dict
     toUnicode = case Optional (Lookup "ToUnicode" dict) of
                   nothing -> nothing
                   just v  -> just (ToUnicodeCMap v)
+
+def namedEncoding (encName : [uint 8]) =
+  if encName == "WinAnsiEncoding"  then just ?stdEncodings.win else
+  if encName == "MacRomanEncoding" then just ?stdEncodings.mac else
+  if encName == "PDFDocEncoding"   then just ?stdEncodings.pdf else
+  if encName == "StandardEncoding" then just ?stdEncodings.std else
+  nothing
+
+
+def GetEncoding (d : Dict) : maybe [uint 8 -> [uint 16]] =
+  case lookup "Encoding" d of
+    nothing -> nothing
+    just v ->
+     block
+      case ResolveVal v of
+        name encName -> namedEncoding encName
+        dict encD ->
+          block
+            let base = case lookup "BaseEncoding" encD of
+                         just ev -> namedEncoding (ResolveVal ev is name)
+                         nothing -> nothing
+            case lookup "Differences" encD of
+              nothing -> base
+              just d  -> just (EncodingDifferences base (ResolveVal d is array))
+
+        _ -> nothing
+
+
+def EncodingDifferences base ds : [ uint 8 -> [uint 16] ]=
+  block
+    let start = case base of
+                  nothing -> ?stdEncodings.std
+                  just e  -> e
+    let s = for (s = { enc = start, code = 0 }; x in ds)
+             case ResolveVal x of
+               number n -> { enc = s.enc, code = NumberAsNat n as? uint 8 }
+               name x ->
+                 { enc  = case lookup x ?stdEncodings.uni of
+                            just u  -> insert s.code u s.enc
+                            nothing ->
+                              block
+                                -- Trace (concat ["Missing: ", x])
+                                insert s.code
+                                  (map (c in concat ["[",x,"]"])
+                                       (c as uint 16)) s.enc
+                 , code = s.code + 1
+                 }
+
+    s.enc
+
+
 
 --------------------------------------------------------------------------------
 -- Character Maps
@@ -251,35 +312,43 @@ def ToUnicodeCMap (v : Value) =
         stream s -> {| cmap = ToUnicodeCMapDef s |}
     name x -> {| named = x |}
 
-def CMapScope begin end P =
-  block
-    KW begin
-    $$ = P
-    KW end
-
 -- XXX: .. in patterns
-def Hex64 (acc : uint 64) =
+def HexNum acc =
   block
     let b = UInt8
     case b of
       '0', '1','2','3','4','5','6','7','8','9' ->
-        Hex64 (16 * acc + ((b - '0') as ?auto))
+        HexNum (16 * acc + ((b - '0') as ?auto))
 
       'a', 'b', 'c', 'd', 'e', 'f' ->
-        Hex64 (16 * acc + ((b - 'a') as ?auto))
+        HexNum (16 * acc + (10 + (b - 'a') as ?auto))
 
       'A', 'B', 'C', 'D', 'E', 'F' ->
-        Hex64 (16 * acc + ((b - 'A') as ?auto))
+        HexNum (16 * acc + (10 + (b - 'A') as ?auto))
 
       '>' -> acc
 
-def Hex = block $['<']; Hex64 0
+def HexD =
+  First
+    $['0' .. '9'] - '0'
+    10 + $['a' .. 'f'] - 'a'
+    10 + $['A' .. 'F'] - 'A'
 
+def HexByte = 16 * HexD + HexD
+
+def Hex : uint 32 = block $['<']; HexNum 0
+
+def HexBytes (lo : uint 64) (hi : uint 64) =
+  block
+    Token $['<']
+    $$ = Many (1 .. 4) HexByte
+    Token $['>']
 
 
 def ToUnicodeCMapDef (s : Stream) =
   block
     SetStream (s.body is ok)
+    -- Trace (bytesOfStream (s.body is ok))
     ManyWS
     Name == "CIDInit" is true
     Name == "ProcSet" is true
@@ -291,18 +360,35 @@ def ToUnicodeCMapDef (s : Stream) =
     -- XXX: don't quite understand the dict/dup format thing
     KW "begin"
     KW "begincmap"
-    $$ = Many CMapEntry
+    $$ = CMapEntries cmap
     KW "endcmap"
-
     -- XXX: ignore rest
 
 
-def CMapEntry =
+def cmap =
   block
-    First
-      keyVal   = CMapKeyVal
-      operator = CMapOperator
+    charMap = empty : [ uint 32 -> uint 32 ]
+    ranges  = []    : [ CodespaceRangeEntry ]
 
+def insertChar x y (acc : cmap) : cmap =
+  block
+    charMap = insert x y acc.charMap
+    ranges  = acc.ranges
+
+def addCodespaceRange xs (acc : cmap) : cmap =
+  block
+    charMap = acc.charMap
+    ranges  = concat [ xs, acc.ranges ] -- yikes
+
+
+def CMapEntries acc =
+  case Optional CMapKeyVal of
+    nothing ->
+      case Optional (CMapOperator acc) of
+        just acc1 -> CMapEntries acc1
+        nothing   -> acc
+
+    just _  -> CMapEntries acc   -- ignore metadata
 
 def CMapKeyVal =
   block
@@ -323,121 +409,60 @@ def CMapDict =
     let ents = Between "<<" ">>" (Many CMapKeyVal)
     for (d = empty; e in ents) (insert e.key e.value d)
 
-def CMapOperator =
+def CMapOperator (acc : cmap) =
   block
     let size = Token Natural as? uint 64
     size <= 100 is true
-    KW "begin"
-    op = Token (Many $['a' .. 'z'])
-    let w = if op == "codespacerange" then 2 else
-            if op == "bfrange"        then 3 else
-            if op == "bfchar"         then 2 else
-            Fail "Unknown op"
-    args = Many size (Many w (Token Hex))
-    KW "end"
+    Match "begin"
+    let op = Token (Many $['a' .. 'z'])
+    $$ =      if op == "bfrange" then BFRangeMapping acc size
+         else if op == "bfchar"  then BFCharMapping acc size
+         else if op == "codespacerange" then
+                  addCodespaceRange (Many size CodespaceRangeEntry) acc
+         else Fail "Unsupported operator"
+    Match "end"
     Token (Match op)
 
-
-
-
-
---------------------------------------------------------------------------------
--- Simple Text Extraction
-
-def TextInCatalog (c : PdfCatalog) =
-  reverse nil (TextInPageTree nil c.pageTree)
-
-def TextInPageTree acc (t : PdfPageTree) =
-  case t of
-    Node kids -> for (s = acc; x in kids) (TextInPageTree s x)
-    Leaf p -> TextInPage acc p
-
-def TextInPage acc (p : PdfPage) =
-  case p of
-    EmptyPage -> acc
-    ContentStreams content ->
-      block
-        let ?resources = content.resources
-        TextInPageContnet acc content
-
-def TextInPageContnet acc (p : PdfPageContent) =
+def CodespaceRangeEntry =
   block
-    let ?instrs = p.data
-    FindTextOnPage acc 0
+    start = HexBytes 1 4
+    end   = HexBytes 1 4
 
-def Dump (xs : List) =
-  case xs of
-    cons x ->
-      block
-        case x.head : TextItem of
-          word w -> Trace w
-          font   -> Trace "<FONT>"
-        Dump x.tail
-    nil -> Accept
+-- 00 00 -- FF FF
 
-def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
+-- start    end
+-- 00       50
+-- 40 00    60 10
 
-def FindTextOnPage acc i =
-  case Optional (Index ?instrs i) of
-    nothing -> acc
-    just instr ->
-      case instr of
+def BFCharMapping acc count =
+  if count > 0 then
+    block
+      let key = Token Hex
+      let val = Token Hex
+      BFCharMapping (insertChar key val acc) (count - 1)
+  else
+    acc
 
-        operator op ->
-          case op of
+def BFRangeMapping acc count =
+  if count > 0 then
+    block
+      let start = Token Hex
+      let end   = Token Hex
+      let tgt   = Token Hex
+      if end < start
+        then BFRangeMapping acc (count - 1)
+        else block
+               let ?start  = start
+               let ?target = tgt
+               let ?count  = end - start + 1
+               BFRangeMapping (insertRange 0 acc) (count - 1)
+  else
+    acc
 
-            Tj, quote, dquote ->
-              block
-                let word = {| word = GetOperand (i - 1) is string |} : TextItem
-                FindTextOnPage (push word acc) (i+1)
-
-            TJ ->
-              block
-                let acc1 = for (s = acc; x in GetOperand (i - 1) is array)
-                             case x of
-                               string v -> push {| word = v |} s
-                               _        -> s
-                FindTextOnPage acc1 (i+1)
-
-            Tf ->
-              block
-                let fontName = GetOperand (i - 2) is name
-                let font     = Lookup fontName ?resources.fonts
-                FindTextOnPage (push {| font = font |} acc) (i+1)
-
-            _  -> FindTextOnPage acc (i+1)
-
-        _  -> FindTextOnPage acc (i+1)
-
--- type only
-def TextItem =
-     {| word = [] : [uint 8] |}
-  <| {| font = Fail "unused" : Font |}
-
---------------------------------------------------------------------------------
--- Just used for the type (lists/builders should be a standard type)
-def List P =
-  First
-    cons = Node P
-    nil  = Accept
-
-def Node P =
-  block
-    head = P
-    tail = List P
-
-def nil : List = {| nil |}
-def push x xs : List = {| cons = { head = x, tail = xs } |}
-
-def reverse acc (xs : List) =
-  case xs of
-    nil    -> acc
-    cons n -> reverse (push n.head acc) n.tail
-
-def DumpStream (s : Stream) =
-  block
-    SetStream (s.body is ok)
-    Many UInt8
+def insertRange (i : uint 32) (acc : cmap) =
+  if i < ?count
+    then insertRange (i+1) (insertChar (?start + i) (?target + i) acc)
+    else acc
 
 
 --------------------------------------------------------------------------------
@@ -476,5 +501,4 @@ def AnyUnsafe i =
   block
     let v = Index ?vals i
     FindUnsafe v <| AnyUnsafe (i+1)
-
 
