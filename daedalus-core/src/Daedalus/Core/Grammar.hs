@@ -50,6 +50,26 @@ instance CoreSyn Grammar where
 
 --------------------------------------------------------------------------------
 
+skipAnnot :: Grammar -> Grammar
+skipAnnot g =
+  case g of
+    Annot _ g1 -> skipAnnot g1
+    _          -> g
+
+skipGetAnnot :: Grammar -> ([Annot], Grammar)
+skipGetAnnot = go []
+  where
+  go as g =
+    case g of
+      Annot a g1 -> go (a:as) g1
+      _          -> (as,g)
+
+pattern SkipAnnot :: Grammar -> Grammar
+pattern SkipAnnot g <- (skipAnnot -> g)
+
+pattern Annotated :: [Annot] -> Grammar -> Grammar
+pattern Annotated as g <- (skipGetAnnot -> (as,g))
+
 pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 
