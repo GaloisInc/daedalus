@@ -12,6 +12,7 @@ import GHC.Generics (Generic)
 import Data.Text(Text)
 import Data.Function(on)
 
+import Daedalus.SourceRange(SourceRange)
 import Daedalus.PP
 import Daedalus.GUID
 
@@ -58,7 +59,8 @@ data Name = Name
 -- | Annotation
 data Annot =
     SrcAnnot Text
-  | NoFail          -- ^ The grammar is known to not fail
+  | SrcRange SourceRange  -- ^ Reference to something in the original source
+  | NoFail                -- ^ The grammar is known to not fail
   deriving (Generic,NFData)
 
 type Label = Text
@@ -200,6 +202,7 @@ instance PP Annot where
   pp ann =
     case ann of
       SrcAnnot t -> pp t
+      SrcRange r -> pp r
       NoFail     -> "NoFail"
 
 

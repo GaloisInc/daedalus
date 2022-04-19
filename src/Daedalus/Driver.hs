@@ -89,7 +89,6 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 import Data.List(find)
-import qualified Data.Text as Text
 import Control.Monad(msum,foldM,forM,forM_,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
@@ -99,7 +98,7 @@ import System.Directory(createDirectoryIfMissing,doesFileExist)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp,vcat,(<+>),nest,($$),text,colon)
+import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 
@@ -830,8 +829,12 @@ passWarnFork m =
        CoreModue ast ->
          do let bad = Core.checkFork ast
             forM_ bad \t ->
-              ddlPrint ("[WARNING]" <+>
-                          (text (Text.unpack t) <> colon) $$
+              let loc = case t of
+                          Left f  -> pp f
+                          Right r -> pp r
+                        <> colon
+              in
+              ddlPrint ("[WARNING]" <+> loc $$
                           nest 2 ("Using unbiased choice may be inefficient.")
                        )
        _ -> panic "passwarnFork" ["Module is not in Core form"]

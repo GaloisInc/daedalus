@@ -78,7 +78,7 @@ fromDecls mo tdecls decls =
               }
 
 srcRangeAnnot :: TC.SourceRange -> Annot
-srcRangeAnnot = SrcAnnot . Text.pack . show . pp
+srcRangeAnnot = SrcRange
 
 exprAnnot :: TC.TC TC.SourceRange a -> [Annot]
 exprAnnot e = [ srcRangeAnnot (TC.texprAnnot e) ]
