@@ -1,11 +1,13 @@
 [WARNING] ./Det008.ddl:7:10--7:81:
-            Using unbiased choice may be inefficient.
+  Using unbiased choice may be inefficient.
 module DaedalusMain where
  
  
 -------------
  
+-- ./Det008.ddl:5:1--5:81
 proc _T1() : () =
+  -- ./Det008.ddl:5:10--5:81
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
      case _x0 of
@@ -13,17 +15,27 @@ proc _T1() : () =
          do _x1 <- match1 { ... }
             case _x1 of
               97 ->
+                -- ./Det008.ddl:5:11--5:49
+                -- ./Det008.ddl:5:25--5:49
+                -- ./Det008.ddl:5:25--5:35
                 pure ()
               98 ->
+                -- ./Det008.ddl:5:11--5:49
+                -- ./Det008.ddl:5:25--5:49
+                -- ./Det008.ddl:5:40--5:49
                 pure ()
               99 ->
+                -- ./Det008.ddl:5:58--5:80
+                -- ./Det008.ddl:5:71--5:80
                 pure ()
               _ ->
                 fail_sys @()
        _ ->
          fail_sys @()
  
+-- ./Det008.ddl:6:1--6:81
 proc _T2() : () =
+  -- ./Det008.ddl:6:10--6:81
   -- DETERMINIZE 2
   do _x0 <- match1 { ... }
      case _x0 of
@@ -31,19 +43,29 @@ proc _T2() : () =
          do _x1 <- match1 { ... }
             case _x1 of
               97 ->
+                -- ./Det008.ddl:6:11--6:49
+                -- ./Det008.ddl:6:25--6:49
+                -- ./Det008.ddl:6:25--6:35
                 pure ()
               98 ->
                 -- OR RECONSTRUCTION
                 try
+                  -- ./Det008.ddl:6:11--6:49
+                  -- ./Det008.ddl:6:25--6:49
+                  -- ./Det008.ddl:6:40--6:49
                   pure ()
-                else
+                orelse
+                  -- ./Det008.ddl:6:58--6:80
+                  -- ./Det008.ddl:6:71--6:80
                   pure ()
               _ ->
                 fail_sys @()
        _ ->
          fail_sys @()
  
+-- ./Det008.ddl:7:1--7:81
 proc _T3() : () =
+  -- ./Det008.ddl:7:10--7:81
   -- DETERMINIZE 2
   do _x0 <- match1 { ... }
      case _x0 of
@@ -53,18 +75,35 @@ proc _T3() : () =
               97 ->
                 -- OR RECONSTRUCTION
                   fork
+                    -- ./Det008.ddl:7:11--7:49
+                    -- ./Det008.ddl:7:25--7:49
+                    -- ./Det008.ddl:7:25--7:35
                     pure ()
                   fork
+                    -- ./Det008.ddl:7:58--7:80
+                    -- ./Det008.ddl:7:71--7:80
                     pure ()
               98 ->
+                -- ./Det008.ddl:7:11--7:49
+                -- ./Det008.ddl:7:25--7:49
+                -- ./Det008.ddl:7:40--7:49
                 pure ()
               _ ->
                 fail_sys @()
        _ ->
          fail_sys @()
  
+-- ./Det008.ddl:3:1--3:30
 proc Main() : () =
-  do _T1()
+  -- ./Det008.ddl:3:14--3:28
+  do -- ./Det008.ddl:3:14--3:15
+     _T1()
+     -- ./Det008.ddl:3:18--3:28
+     -- ./Det008.ddl:3:18--3:19
      _T2()
+     -- ./Det008.ddl:3:22--3:28
+     -- ./Det008.ddl:3:22--3:23
      _T3()
+     -- ./Det008.ddl:3:26--3:28
+     -- ./Det008.ddl:3:26--3:28
      matchEnd

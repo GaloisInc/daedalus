@@ -171,7 +171,7 @@ fromGrammar :: UsesTypes => TC.TC TC.SourceRange TC.Grammar -> M Grammar
 fromGrammar gram =
   let annot = exprAnnot gram
   in
-  (\x -> foldr Annot x annot) <$>
+  gAnnotate annot <$>
   case TC.texprValue gram of
 
     TC.TCFail mbE t ->

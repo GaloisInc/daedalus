@@ -14,7 +14,7 @@ import Data.ByteString(ByteString, uncons, null, pack)
 import Data.Foldable(foldl')
 
 --import Daedalus.Panic(panic)
---import Daedalus.PP(pp)
+-- import Daedalus.PP(pp)
 import Daedalus.GUID(GUID, firstValidGUID, succGUID)
 
 import Daedalus.Core.Decl
@@ -22,7 +22,8 @@ import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
     ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..)
-    , ErrorSource (ErrorFromSystem), mapChildrenG  )
+    , ErrorSource (ErrorFromSystem)
+    , mapChildrenG, gBinAnnotate )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
 
@@ -652,7 +653,8 @@ determinize modl grammar =
               (Nothing, Nothing) -> Nothing
               (Just _, Nothing) -> a1
               (Nothing, Just _) -> a2
-              (Just b1, Just b2) -> Just (Annot ann $ OrBiased b1 b2)
+              (Just b1, Just b2) ->
+                Just (Annot ann (gBinAnnotate OrBiased b1 b2))
           AltUnbiased t1 t2 ->
             let a1 = go t1
                 a2 = go t2 in
@@ -660,7 +662,8 @@ determinize modl grammar =
               (Nothing, Nothing) -> Nothing
               (Just _, Nothing) -> a1
               (Nothing, Just _) -> a2
-              (Just b1, Just b2) -> Just (Annot ann $ OrUnbiased b1 b2)
+              (Just b1, Just b2) ->
+                Just (Annot ann (gBinAnnotate OrUnbiased b1 b2))
 
 
 

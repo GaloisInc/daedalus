@@ -61,7 +61,7 @@ data Annot =
     SrcAnnot Text
   | SrcRange SourceRange  -- ^ Reference to something in the original source
   | NoFail                -- ^ The grammar is known to not fail
-  deriving (Generic,NFData)
+  deriving (Generic,NFData,Show)
 
 type Label = Text
 
