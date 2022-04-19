@@ -1,5 +1,6 @@
 {-# Language TupleSections, GeneralizedNewtypeDeriving #-}
 {-# Language BlockArguments #-}
+{-# Language DeriveFunctor, DeriveFoldable #-}
 module Daedalus.Core.Determinize (determinizeModule) where
 
 -- import Debug.Trace(trace)
@@ -10,6 +11,7 @@ import qualified Data.Set as Set
 import MonadLib
 import Data.Word(Word8)
 import Data.ByteString(ByteString, uncons, null, pack)
+import Data.Foldable(foldl')
 
 --import Daedalus.Panic(panic)
 --import Daedalus.PP(pp)
@@ -238,11 +240,7 @@ data AltTree a = -- AltTree [ a ]
     AltLeaf     a
   | AltBiased   (AltTree a) (AltTree a)
   | AltUnbiased (AltTree a) (AltTree a)
-
-instance Functor AltTree where
-  fmap f (AltLeaf a) = AltLeaf (f a)
-  fmap f (AltBiased a b) = AltBiased (fmap f a) (fmap f b)
-  fmap f (AltUnbiased a b) = AltUnbiased (fmap f a) (fmap f b)
+    deriving (Functor,Foldable)
 
 mapAlt :: (a -> Maybe (AltTree b)) -> AltTree a -> Maybe (AltTree b)
 mapAlt f t =
@@ -264,15 +262,7 @@ mapAlt f t =
         (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
 
 foldAlt :: (a -> b -> b) -> b -> AltTree a -> b
-foldAlt reduce b t =
-  case t of
-    AltLeaf a -> reduce a b
-    AltBiased t1 t2 ->
-      let f1 = foldAlt reduce b t1 in
-      foldAlt reduce f1 t2
-    AltUnbiased t1 t2 ->
-      let f1 = foldAlt reduce b t1 in
-      foldAlt reduce f1 t2
+foldAlt reduce = foldl' (flip reduce)
 
 data GC a =
     GZero
