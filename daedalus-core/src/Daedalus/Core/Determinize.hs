@@ -19,7 +19,8 @@ import Daedalus.Core.Decl
 import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
-    ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..), ErrorSource (ErrorFromSystem)  )
+    ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..)
+    , ErrorSource (ErrorFromSystem), mapChildrenG  )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
 
@@ -29,25 +30,12 @@ determinizeModule m  =
   m {mGFuns = newGram}
 
 detGram :: Module -> Grammar -> Grammar
-detGram modl gram =
-  go gram
-
+detGram modl gram = go gram
   where
   go g = case g of
-    Pure _      -> g
-    GetStream   -> g
-    SetStream _ -> g
-    Match _ _   -> g
-    Fail {}     -> g
-    Do_ g1 g2     -> Do_     (go g1) (go g2)
-    Do name g1 g2 -> Do name (go g1) (go g2)
-    Let name e g1 -> Let name e (go g1)
-    OrBiased {}   -> determinize modl g
-    OrUnbiased {} -> determinize modl g
-    Call {} -> g
-    Annot {} -> g
-    GCase (Case name lst) ->
-      GCase (Case name (map (\ (pat, g1) -> (pat, go g1)) lst))
+           OrBiased {}   -> determinize modl g
+           OrUnbiased {} -> determinize modl g
+           _             -> mapChildrenG go g
 
 getGrammarDef :: Module -> FName -> Maybe Grammar
 getGrammarDef modl name =
