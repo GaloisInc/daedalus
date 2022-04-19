@@ -70,6 +70,10 @@ checkType expK srcty =
 
         TMap k v -> do expect KValue
                        tMap <$> checkType KValue k <*> checkType KValue v
+
+        TBuilder t ->
+         do expect KValue
+            tBuilder <$> checkType KValue t
   where
   expect :: Kind -> TypeM ctx ()
   expect actK =

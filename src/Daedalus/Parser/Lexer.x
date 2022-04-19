@@ -154,6 +154,10 @@ $ws+        ;
 "Lookup"    { lexeme KWMapLookup }
 "lookup"    { lexeme KWMaplookup }
 
+"build"     { lexeme KWBuilderbuild}
+"emit"      { lexeme KWBuilderemit }
+"builder"   { lexeme KWBuilderbuilder }
+
 "Offset"    { lexeme KWOffset }
 "SetStream" { lexeme KWSetStream }
 "GetStream" { lexeme KWGetStream }

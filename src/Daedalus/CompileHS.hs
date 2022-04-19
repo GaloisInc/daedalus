@@ -160,6 +160,7 @@ hsType env ty =
         TArray t    -> "Vector.Vector" `Ap` hsType env t
         TMaybe t    -> "HS.Maybe" `Ap` hsType env t
         TMap k t    -> "Map.Map" `Ap` hsType env k `Ap` hsType env t
+        TBuilder t  -> List [hsType env t]
 
 
 hsConstraint :: Env -> Constraint -> Term
@@ -551,6 +552,8 @@ hsValue env tc =
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
 
+    TCBuilder t -> hasType (List [hsType env t]) (List [])
+
     TCStruct fs t ->
       case t of
         TCon c _
@@ -609,6 +612,7 @@ hsValue env tc =
 
         ArrayStream -> bin "RTS.arrayStream"
         LookupMap   -> bin "Map.lookup"
+        BuilderEmit -> ApI ":" (hsValue env v2) (hsValue env v1)
 
         LogicAnd    -> binI "HS.&&"
         LogicOr     -> binI "HS.||"
@@ -630,6 +634,7 @@ hsValue env tc =
         IsNegativeZero    -> "HS.isNegativeZero" `Ap` hsValue env v
         BytesOfStream     ->
             "Vector.vecFromRep" `Ap` ("RTS.inputBytes" `Ap` hsValue env v)
+        BuilderBuild      -> "Vector.fromList" `Ap` ("HS.reverse" `Ap` hsValue env v)
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as

@@ -54,6 +54,7 @@ instance ApSubst Type where
           TMaybe t   -> tMaybe <$> apSubstT' su t
           TMap kt vt -> do ~[k',t'] <- someJusts (apSubstT' su) [kt,vt]
                            pure (tMap k' t')
+          TBuilder t -> tBuilder <$> apSubstT' su t
 
 instance ApSubst TCTyDef where
   apSubstT' su td =
@@ -206,6 +207,7 @@ instance FreeTVS t => FreeTVS (TypeF t) where
       TArray t   -> freeTVS t
       TMaybe t   -> freeTVS t
       TMap kt vt -> freeTVS kt `Set.union` freeTVS vt
+      TBuilder t -> freeTVS t
 
 instance FreeTVS a => FreeTVS [a] where
   freeTVS = Set.unions . map freeTVS

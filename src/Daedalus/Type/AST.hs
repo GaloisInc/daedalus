@@ -200,6 +200,8 @@ data TCF :: HS -> Ctx -> HS where
    TCArray      :: [TC a Value] -> Type -> TCF a Value
     -- Type of elements (for empty arr.)
 
+   TCBuilder    :: Type -> TCF a Value
+
    TCIn         :: Label -> TC a Value -> Type -> TCF a Value
     -- The type is the type of the final result,
     -- which should be a named union type, possibly with some parameters.
@@ -491,6 +493,7 @@ instance PP (TCF a k) where
       
       TCLiteral l _ -> pp l
       TCNothing _   -> "nothing"
+      TCBuilder _   -> "builder"
       TCJust e      -> wrapIf (n > 0) ("just" <+> ppPrec 1 e)
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
@@ -841,6 +844,9 @@ tMaybe t = Type (TMaybe t)
 tArray :: Type -> Type
 tArray t = Type (TArray t)
 
+tBuilder :: Type -> Type
+tBuilder t = Type (TBuilder t)
+
 tUnit :: Type
 tUnit = Type TUnit
 
@@ -925,6 +931,7 @@ kindOf ty =
         TArray {}   -> KValue
         TMaybe {}   -> KValue
         TMap {}     -> KValue
+        TBuilder {} -> KValue
 
 class TypeOf t where
   typeOf :: t -> Type
@@ -1017,6 +1024,7 @@ instance TypeOf (TCF a k) where
       TCArray _ t     -> tArray t
       TCIn _ _ t      -> t
       TCVar x         -> tcType x
+      TCBuilder t     -> tBuilder t
 
       TCCall f _ _    -> tcType f
 
@@ -1037,6 +1045,9 @@ instance TypeOf (TCF a k) where
           IsDenormalized {} -> tBool
           IsNegativeZero {} -> tBool
           BytesOfStream {}  -> tArray tByte
+          BuilderBuild ->
+            let Type (TBuilder t) = typeOf e
+            in tArray t
 
 
       TCSelStruct _ _ t  -> t

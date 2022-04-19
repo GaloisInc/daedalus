@@ -366,6 +366,10 @@ inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
 inferExpr expr =
   case exprValue expr of
 
+    EBuilder -> liftValAppPure expr [] \_ ->
+                do a <- newTVar expr KValue
+                   pure (exprAt expr (TCBuilder a), tBuilder a)
+
     ENothing -> liftValAppPure expr [] \_ ->
                 do a <- newTVar expr KValue
                    pure (exprAt expr (TCNothing a), tMaybe a)
@@ -513,6 +517,12 @@ inferExpr expr =
             do unify tStream (e1',t)
                pure (exprAt expr (TCUniOp BytesOfStream e1'), tArray tByte)
 
+        BuilderBuild ->
+          liftValAppPure expr [e] \ ~[(e1',bt)] ->
+            do t <- newTVar expr KValue
+               unify (tBuilder t) (e1',bt)
+               pure (exprAt expr (TCUniOp BuilderBuild e1'), tArray t)
+
 
     ETriOp op e1 e2 e3 ->
       case op of
@@ -596,6 +606,12 @@ inferExpr expr =
         Leq   -> rel
         Eq    -> relEq
         NotEq -> relEq
+
+        BuilderEmit ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',bt),(e2',t)] ->
+          do 
+             unify (tBuilder t) (e1',bt)
+             pure (exprAt expr (TCBinOp op e1' e2' bt), bt)
 
       where
       bitwiseOp =

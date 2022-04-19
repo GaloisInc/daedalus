@@ -250,6 +250,9 @@ data ExprF e =
   | EMapInsert   !e !e !e
   | EMapLookup   !e !e
 
+  -- Builders
+  | EBuilder -- ^ empty builder value
+
   -- Array operations
   | EArrayLength !e
   | EArrayIndex  !e !e  -- x[y], partial so a grammar
@@ -294,12 +297,14 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LogicAnd | LogicOr
            | ArrayStream
            | LookupMap
+           | BuilderEmit -- ^ push a new element onto the end of a builder
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
+           | BuilderBuild -- ^ build array from a builder
   deriving (Show, Eq)
 
 data Selector = SelStruct (Located Label)
@@ -387,6 +392,7 @@ data TypeF t =
   | TUnit
   | TArray !t
   | TMaybe !t
+  | TBuilder !t
   | TMap   !t !t
     deriving (Eq,Show,Functor,Foldable,Traversable)
 
@@ -485,6 +491,7 @@ instance PP BinOp where
       LogicOr  -> "||"
       ArrayStream -> "arrayStream"
       LookupMap -> "lookup"
+      BuilderEmit -> "emit"
 
 instance PP UniOp where
   pp op =
@@ -500,6 +507,7 @@ instance PP UniOp where
       IsDenormalized  -> "isDenormalized"
       IsNegativeZero  -> "isNegativeZero"
       BytesOfStream   -> "bytesAOfStream"
+      BuilderBuild    -> "build"
 
 instance PP Selector where
   pp sel = case sel of
@@ -528,7 +536,7 @@ instance PP t => PP (TypeF t) where
       TArray t   -> brackets (pp t)
       TMaybe t   -> wrapIf (n > 1) ("Maybe" <+> ppPrec 2 t)
       TMap kt vt -> wrapIf (n > 1) ("Map" <+> ppPrec 2 kt <+> ppPrec 2 vt)
-
+      TBuilder t -> wrapIf (n > 1) ("Builder" <+> ppPrec 2 t)
 
 instance PP Literal where
   pp lit =

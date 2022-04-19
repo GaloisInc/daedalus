@@ -12,6 +12,7 @@ inferContext expr =
   case exprValue expr of
     ELiteral {}  -> Some AValue
     ENothing {}  -> Some AValue
+    EBuilder {}  -> Some AValue
     EJust e      -> inferContext e
     EIn (_ :> e) -> inferContext e
     EMatch {}    -> Some AGrammar

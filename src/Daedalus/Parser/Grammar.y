@@ -147,6 +147,9 @@ import Daedalus.Parser.Monad
   'Index'     { Lexeme { lexemeRange = $$, lexemeToken = KWArrayIndex } }
   'rangeUp'   { Lexeme { lexemeRange = $$, lexemeToken = KWRangeUp } }
   'rangeDown' { Lexeme { lexemeRange = $$, lexemeToken = KWRangeDown } }
+  'builder'   { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderbuilder } }
+  'build'     { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderbuild } }
+  'emit'      { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderemit } }
 
   'pi'             { Lexeme { lexemeRange = $$, lexemeToken = KWpi } }
   'wordToFloat'    { Lexeme { lexemeRange = $$, lexemeToken = KWWordToFloat } }
@@ -413,6 +416,7 @@ call_expr                                :: { Expr }
   : name listOf1(aexpr)                     { at ($1, last $2) (EApp $1 $2) }
   | 'just' aexpr                            { at ($1,$2) (EJust $2) }
   | 'concat' aexpr                          { at ($1,$2) (EUniOp Concat $2) }
+  | 'build' aexpr                           { at ($1,$2) (EUniOp BuilderBuild $2) }
   | 'Optional' aexpr                        { at ($1,$2) (EOptional Commit $2) }
   | 'Optional?' aexpr                       { at ($1,$2)
                                                  (EOptional Backtrack $2) }
@@ -438,6 +442,7 @@ call_expr                                :: { Expr }
   | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
   | 'length' aexpr                          { at ($1,$2) (EArrayLength $2)  }
   | 'Index' aexpr aexpr                     { at ($1,$2) (EArrayIndex $2 $3) }
+  | 'emit' aexpr aexpr                      { at ($1,$2) (EBinOp BuilderEmit $2 $3) }
 
   | 'rangeUp' aexpr                         { mkRngUp1 $1 $2 }
   | 'rangeUp' aexpr aexpr                   { mkRngUp2 $1 $2 $3 }
@@ -479,6 +484,7 @@ aexpr                                    :: { Expr }
   | 'END'                                   { at $1 EEnd }
   | 'empty'                                 { at $1 EMapEmpty }
   | 'nothing'                               { at $1 ENothing }
+  | 'builder'                               { at $1 EBuilder }
   | 'Offset'                                { at $1 EOffset }
   | 'GetStream'                             { at $1 ECurrentStream }
 
@@ -597,6 +603,7 @@ type                                     :: { SrcType }
   | 'uint' atype                            { atT ($1 <-> $2) (TUInt $2) }
   | 'sint' atype                            { atT ($1 <-> $2) (TSInt $2) }
   | 'maybe' atype                           { atT ($1 <-> $2) (TMaybe $2) }
+  | 'builder' type                          { atT ($1 <-> $2) (TBuilder $2) }
   | name listOf1(atype)                     { SrcCon $1 $2 }
 
 atype                                    :: { SrcType }

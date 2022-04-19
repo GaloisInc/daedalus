@@ -154,7 +154,7 @@ specialise ruleRoots decls =
 
 
 -- This function traverses a term and replaces all problematic
--- function calls by speciialised versions
+-- function calls by specialised versions
 specialiseOne :: TCDecl SourceRange -> PApplyM (TCDecl SourceRange)
 specialiseOne TCDecl {..}
   | not (null tcDeclTyParams) = panic "specialiseOne"

@@ -124,6 +124,9 @@ data Token =
   | KWDrop
   | KWJust
   | KWNothing
+  | KWBuilderbuild
+  | KWBuilderemit
+  | KWBuilderbuilder
   | KWDef
   | KWArrayStream
   | KWBytesOfStream

@@ -10,12 +10,12 @@ template <typename T>
 class List : IsBoxed {
 
   class Node : HasRefs {
-    Size size;    // lenght of the list
+    Size size;    // length of the list
     T    head;
     List tail;
   public:
     friend List;
-    Node(T h, List t) : size(t.size().incremented()), head(h), tail(t) {}
+    Node(T&& h, List t) : size(t.size().incremented()), head(h), tail(t) {}
 
     void free() {
       if constexpr (std::is_base_of<HasRefs,T>::value) head.free();

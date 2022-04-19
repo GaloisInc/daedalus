@@ -996,6 +996,9 @@ fromExpr expr =
 
     TC.TCNothing t ->
       nothing <$> fromTypeM t
+    
+    TC.TCBuilder t ->
+      newBuilder <$> fromTypeM t
 
     TC.TCJust e ->
       just <$> fromExpr e
@@ -1050,6 +1053,7 @@ fromExpr expr =
                 TC.IsDenormalized -> eIsDenormalized e
                 TC.IsNegativeZero -> eIsNegativeZero e
                 TC.BytesOfStream  -> bytesOfStream e
+                TC.BuilderBuild   -> finishBuilder e
 
     TC.TCBinOp op v1 v2 _ ->
       do e1 <- fromExpr v1
@@ -1078,6 +1082,7 @@ fromExpr expr =
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1
+           TC.BuilderEmit  -> pure $ consBuilder e2 e1
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1
@@ -1249,6 +1254,7 @@ fromType ty =
         TC.TArray t    -> TArray (fromType t)
         TC.TMaybe t    -> TMaybe (fromType t)
         TC.TMap k v    -> TMap (fromType k) (fromType v)
+        TC.TBuilder t  -> TBuilder (fromType t)
 
     TC.TCon {} -> TUser (userType ty)
     TC.TVar x ->

@@ -147,6 +147,7 @@ evalUniOp op =
     IsDenormalized    -> vIsDenormalized
     IsNegativeZero    -> vIsNegativeZero
     BytesOfStream     -> vBytesOfStream
+    BuilderBuild      -> vFinishBuilder
 
 
 
@@ -175,6 +176,7 @@ evalBinOp op =
     ArrayStream -> vStreamFromArray
     LookupMap   -> vMapLookup
 
+    BuilderEmit -> flip vConsBuilder
     LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
     LogicOr     -> panic "evalBinOp" ["LogicOr"]
 
@@ -321,6 +323,7 @@ compilePureExpr env = go
 
         TCLiteral l t  -> evalLiteral env t l
         TCNothing _    -> VMaybe Nothing
+        TCBuilder _    -> VBuilder []
         TCJust e       -> VMaybe (Just (go e))
 
         TCStruct fs t  ->
@@ -505,6 +508,7 @@ evalType env ty =
         TDouble    -> TVDouble
         TUnit      -> TVOther
         TMaybe {}  -> TVOther
+        TBuilder {}-> TVOther
 
   where
   lkpTy x = case Map.lookup x (tyEnv env) of

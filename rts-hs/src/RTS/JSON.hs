@@ -54,6 +54,8 @@ instance (ToJSON a, ToJSON b) => ToJSON (Map a b) where
   toJSON = jsTagged "$$map" . jsArray . map pair . Map.toList
     where pair (k,v) = jsArray [ toJSON k, toJSON v ]
 
+instance (ToJSON a) => ToJSON [a] where
+  toJSON = jsArray . map toJSON
 
 jsNull :: JSON
 jsNull = JSON "null"

@@ -313,6 +313,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
     case expr of
       ELiteral {}     -> pure expr
       ENothing {}     -> pure expr
+      EBuilder {}     -> pure expr
       EJust e         -> EJust <$> resolve e
       EMatch e        -> EMatch <$> resolve e
       EMatch1 e       -> EMatch1 <$> resolve e
@@ -408,6 +409,7 @@ instance ResolveNames t => ResolveNames (TypeF t) where
       TArray t   -> TArray <$> resolve t
       TMaybe t   -> TMaybe <$> resolve t
       TMap  k v  -> TMap <$> resolve k <*> resolve v
+      TBuilder t -> TBuilder <$> resolve t
 
 instance ResolveNames t => ResolveNames (Located t) where
   resolve t = traverse resolve t

@@ -12,6 +12,8 @@
 
 namespace DDL {
 
+template <typename T> class Builder;
+
 template <typename T>
 class Array : IsBoxed {
 
@@ -23,6 +25,7 @@ class Array : IsBoxed {
 
 
   public:
+    friend Builder<T>;
 
     // Allocate an array with unitialized data
     static
@@ -55,6 +58,7 @@ class Array : IsBoxed {
   }
 
 public:
+  friend Builder<T>;
 
   static Array rangeUp(T start,T end, T step) {
     // step > 0 && step <= MAX(Size)
@@ -88,58 +92,6 @@ public:
     return Array(p);
   }
 
-  class Builder {
-    List<std::vector<T>> list;
-
-  public:
-    Builder () : list() {}
-
-    // owns x, xs
-    Builder (T x, Builder xs) {
-      if (xs.list.refCount() == 1) {
-        list = xs.list;
-        list.borrowHead().push_back(x);
-      } else {
-        list = List{{x}, xs.list};
-      }
-    }
-
-    void free() {
-      if constexpr (hasRefs<T>()) {
-        for (auto cursor = list; cursor.refCount() == 1; cursor = cursor.borrowTail()) {
-          for (auto && x : cursor.borrowHead()) {
-            x.free();
-          }
-        }
-      }
-      list.free();
-    }
-
-    void copy() { list.copy(); }
-
-    // owns *this
-    Content *toContent() {
-      size_t n = 0;
-      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
-        n += cursor.borrowHead().size();
-      }
-      auto ptr = Content::allocate(Size{n});
-      
-      bool moving = hasRefs<T>();
-      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
-        moving = moving && cursor.refCount() == 1;
-        auto &v = cursor.borrowHead();
-        for (auto i = v.size(); i > 0; i--) {
-          auto &x = v[i-1];
-          if (!moving) x.copy();
-          ptr->data[--n] = x;
-        }
-      }
-      list.free();
-      return ptr;
-    }
-  };
-
   Array() : ptr(NULL) {}
 
   // Array literal. Owns xs
@@ -148,7 +100,7 @@ public:
     : ptr(Content::allocate(n)) { fill(Size{0},xs...); }
 
   // Array from builder. Owns b
-  Array(Builder b) : ptr(b.toContent()) {}
+  Array(Builder<T> b) : ptr(b.toContent()) {}
 
   // Concat. Borrows xs
   Array(Array<Array<T>> xs) {
@@ -267,6 +219,64 @@ public:
 
 };
 
+template <typename T>
+static inline
+int compare (Builder<T> b1, Builder<T> b2);
+
+template <typename T>
+class Builder {
+    List<std::vector<T>> list;
+
+  public:
+    friend int compare<T> (Builder<T> b1, Builder<T> b2);
+
+    Builder () : list() {}
+
+    // owns x, xs
+    Builder (T x, Builder xs) {
+      if (xs.list.refCount() == 1) {
+        list = xs.list;
+        list.borrowHead().push_back(x);
+      } else {
+        list = List{{x}, xs.list};
+      }
+    }
+
+    void free() {
+      if constexpr (hasRefs<T>()) {
+        for (auto cursor = list; cursor.refCount() == 1; cursor = cursor.borrowTail()) {
+          for (auto && x : cursor.borrowHead()) {
+            x.free();
+          }
+        }
+      }
+      list.free();
+    }
+
+    void copy() { list.copy(); }
+
+    // owns *this
+    typename Array<T>::Content *toContent() {
+      size_t n = 0;
+      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
+        n += cursor.borrowHead().size();
+      }
+      auto ptr = Array<T>::Content::allocate(Size{n});
+      
+      bool moving = hasRefs<T>();
+      for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
+        moving = moving && cursor.refCount() == 1;
+        auto &v = cursor.borrowHead();
+        for (auto i = v.size(); i > 0; i--) {
+          auto &x = v[i-1];
+          if (!moving) x.copy();
+          ptr->data[--n] = x;
+        }
+      }
+      list.free();
+      return ptr;
+    }
+  };
 
 // borrow
 inline
@@ -331,6 +341,25 @@ std::ostream& operator<<(std::ostream& os, Array<T> x) {
   return os;
 }
 
+// borrow
+template <typename T>
+inline
+std::ostream& operator<<(std::ostream& os, Builder<T> b) {
+  b.copy();
+  Array<T> x {b};
+  Size n = x.size();
+
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
+  for (Size i = 0; i < n; i.increment()) {
+    os << sep << x.borrowElement(i);
+    sep[0] = ',';
+  }
+  os << "]";
+  x.free();
+  return os;
+}
 
 // borrow
 template <typename T>
@@ -349,6 +378,26 @@ std::ostream& toJS(std::ostream& os, Array<T> x) {
   return os;
 }
 
+// borrow
+template <typename T>
+inline
+std::ostream& toJS(std::ostream& os, Builder<T> b) {
+  b.copy();
+  Array<T> x {b};
+  Size n = x.size();
+
+  os << "[";
+  char sep[] = ", ";
+  sep[0] = 0;
+  for (Size i = 0; i < n; i.increment()) {
+    toJS(os << sep, x.borrowElement(i));
+    sep[0] = ',';
+  }
+  os << "]";
+  x.free();
+  return os;
+}
+
 // -ve: x < y; 0: x == y; +ve: x > y
 // borrow arguments
 template <typename T>
@@ -363,6 +412,35 @@ int compare (Array<T> x, Array<T> y) {
   }
   return size_x == size_y ?  0 :
          size_x  < size_y ? -1 : 1;
+}
+
+// borrow arguments
+template <typename T>
+static inline
+int compare (Builder<T> b1, Builder<T> b2) {
+
+  auto c1 = b1.list;
+  auto i1 = c1.isNull() ? 0 : c1.borrowHead().size();
+
+  auto c2 = b2.list;
+  auto i2 = c2.isNull() ? 0 : c2.borrowHead().size();
+
+  while (i1 && i2) {
+    auto r = compare(c1.borrowHead()[--i1], c2.borrowHead()[--i2]);
+    if (r) return r;
+
+    if (!i1) {
+      c1 = c1.borrowTail();
+      if (!c1.isNull()) i1 = c1.borrowHead().size();
+    }
+
+    if (!i2) {
+      c2 = c2.borrowTail();
+      if (!c2.isNull()) i2 = c2.borrowHead().size();
+    }
+  }
+
+  return i2 ? -1 : !!i1;
 }
 
 
@@ -390,6 +468,29 @@ bool operator <= (Array<T> xs, Array<T> ys) { return !(xs > ys); }
 template <typename T> static inline
 bool operator >= (Array<T> xs, Array<T> ys) { return !(xs < ys); }
 
+// Borrow arguments
+template <typename T> static inline
+bool operator == (Builder<T> xs, Builder<T> ys) { return compare(xs,ys) == 0; }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator < (Builder<T> xs, Builder<T> ys) { return compare(xs,ys) < 0; }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator > (Builder<T> xs, Builder<T> ys) { return compare(xs,ys) > 0; }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator != (Builder<T> xs, Builder<T> ys) { return !(xs == ys); }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator <= (Builder<T> xs, Builder<T> ys) { return !(xs > ys); }
+
+// Borrow arguments
+template <typename T> static inline
+bool operator >= (Builder<T> xs, Builder<T> ys) { return !(xs < ys); }
 
 
 

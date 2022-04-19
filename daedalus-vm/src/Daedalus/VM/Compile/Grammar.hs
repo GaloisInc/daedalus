@@ -1,5 +1,8 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use record patterns" #-}
+{-# HLINT ignore "Use const" #-}
 module Daedalus.VM.Compile.Grammar where
 
 import Data.Void(Void)
@@ -51,7 +54,7 @@ compile expr next0 =
       case a of
         Src.NoFail -> compile e next { onNo = Nothing }
         -- XXX
-        Src.SrcAnnot ann -> compile e next    -- XXX:
+        Src.SrcAnnot _ann -> compile e next    -- XXX:
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next
@@ -114,7 +117,7 @@ compile expr next0 =
 
          qCode <-
             do finished <-
-                 label0 NormalBlock $ term $ Yield
+                 label0 NormalBlock $ term Yield
 
                bothFailed <-
                  label0 NormalBlock $ nextNo next'

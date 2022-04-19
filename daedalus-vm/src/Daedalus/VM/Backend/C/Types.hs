@@ -32,7 +32,7 @@ cSemType sty =
     Src.TArray t    -> cInst "DDL::Array" [ cSemType t ]
     Src.TMaybe t    -> cInst "DDL::Maybe" [ cSemType t ]
     Src.TMap k v    -> cInst "DDL::Map" [ cSemType k, cSemType v ]
-    Src.TBuilder t  -> cInst "DDL::Array" [ cSemType t ] <.> "::Builder"
+    Src.TBuilder t  -> cInst "DDL::Builder" [ cSemType t ]
 
     Src.TIterator t ->
       case t of

@@ -106,6 +106,7 @@ ppTy n t =
         TArray a   -> "[" <+> ppTy 0 a <+> "]"
         TMaybe a   -> wrap 2 ("maybe" <+> ppTy 1 a)
         TMap a b   -> "[" <+> ppTy 1 a <+> "->" <+> ppTy 0 b <+> "]"
+        TBuilder a -> wrap 2 ("builder" <+> ppTy 1 a)
 
     TCon f []      -> ppTC f
     TCon f ts      -> wrap 2 (ppTC f <+> hsep (map (ppTy 2) ts))
