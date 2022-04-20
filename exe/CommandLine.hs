@@ -46,6 +46,7 @@ data Options =
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
+          , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
           }
 
@@ -68,6 +69,7 @@ options = OptSpec
                            , optCheckCore = True
                            , optDeterminize = False
                            , optOutDir    = Nothing
+                           , optNoWarnUnbiasedFront = False
                            , optNoWarnUnbiased = False
                            }
   , progOptions =
@@ -230,7 +232,7 @@ throwOptError :: [String] -> IO a
 throwOptError err = throwIO (GetOptException err)
 
 impliedOptions :: Options -> Options
-impliedOptions opts =
+impliedOptions opts0 =
   case optBackend opts of
     UseCore -> noTCUnbiased
     _ ->
@@ -252,4 +254,7 @@ impliedOptions opts =
         ShowHelp        -> opts
 
   where
-  noTCUnbiased = opts { optNoWarnUnbiased = True }
+  opts = if optNoWarnUnbiased opts0
+          then opts0 { optNoWarnUnbiasedFront = True }
+          else opts0
+  noTCUnbiased = opts { optNoWarnUnbiasedFront = True }

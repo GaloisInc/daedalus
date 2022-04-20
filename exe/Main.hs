@@ -88,7 +88,7 @@ specMod = "DaedalusMain"
 
 configure :: Options -> Daedalus ()
 configure opts =
-  do when (optNoWarnUnbiased opts) $
+  do when (optNoWarnUnbiasedFront opts) $
        ddlSetOpt optWarnings \w -> case w of
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
