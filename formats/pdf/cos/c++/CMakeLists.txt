@@ -58,7 +58,7 @@ add_executable(parser-test
 target_include_directories(parser-test
     PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../rts-c
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../rts-c
 )
 
 target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB opensslxx pdffilters)
