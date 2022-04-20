@@ -39,7 +39,7 @@ library
     PdfDOM,
 
   build-depends:
-    base >=4.13 && <4.15,
+    base >=4.13,
     containers,
     bytestring,
     rts-hs,

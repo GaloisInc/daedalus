@@ -55,6 +55,7 @@ compile expr next0 =
         Src.NoFail -> compile e next { onNo = Nothing }
         -- XXX
         Src.SrcAnnot _ann -> compile e next    -- XXX:
+        Src.SrcRange ann -> compile e next    -- XXX:
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next

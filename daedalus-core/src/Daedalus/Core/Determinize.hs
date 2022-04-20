@@ -1,5 +1,6 @@
 {-# Language TupleSections, GeneralizedNewtypeDeriving #-}
 {-# Language BlockArguments #-}
+{-# Language DeriveFunctor, DeriveFoldable #-}
 module Daedalus.Core.Determinize (determinizeModule) where
 
 -- import Debug.Trace(trace)
@@ -10,16 +11,19 @@ import qualified Data.Set as Set
 import MonadLib
 import Data.Word(Word8)
 import Data.ByteString(ByteString, uncons, null, pack)
+import Data.Foldable(foldl')
 
 --import Daedalus.Panic(panic)
---import Daedalus.PP(pp)
+-- import Daedalus.PP(pp)
 import Daedalus.GUID(GUID, firstValidGUID, succGUID)
 
 import Daedalus.Core.Decl
 import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
 import Daedalus.Core.Grammar
-    ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..), ErrorSource (ErrorFromSystem)  )
+    ( Grammar(..), Match(MatchByte, MatchBytes), Sem(..)
+    , ErrorSource (ErrorFromSystem)
+    , mapChildrenG, gBinAnnotate )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
 
@@ -29,25 +33,12 @@ determinizeModule m  =
   m {mGFuns = newGram}
 
 detGram :: Module -> Grammar -> Grammar
-detGram modl gram =
-  go gram
-
+detGram modl gram = go gram
   where
   go g = case g of
-    Pure _      -> g
-    GetStream   -> g
-    SetStream _ -> g
-    Match _ _   -> g
-    Fail {}     -> g
-    Do_ g1 g2     -> Do_     (go g1) (go g2)
-    Do name g1 g2 -> Do name (go g1) (go g2)
-    Let name e g1 -> Let name e (go g1)
-    OrBiased {}   -> determinize modl g
-    OrUnbiased {} -> determinize modl g
-    Call {} -> g
-    Annot {} -> g
-    GCase (Case name lst) ->
-      GCase (Case name (map (\ (pat, g1) -> (pat, go g1)) lst))
+           OrBiased {}   -> determinize modl g
+           OrUnbiased {} -> determinize modl g
+           _             -> mapChildrenG go g
 
 getGrammarDef :: Module -> FName -> Maybe Grammar
 getGrammarDef modl name =
@@ -250,11 +241,7 @@ data AltTree a = -- AltTree [ a ]
     AltLeaf     a
   | AltBiased   (AltTree a) (AltTree a)
   | AltUnbiased (AltTree a) (AltTree a)
-
-instance Functor AltTree where
-  fmap f (AltLeaf a) = AltLeaf (f a)
-  fmap f (AltBiased a b) = AltBiased (fmap f a) (fmap f b)
-  fmap f (AltUnbiased a b) = AltUnbiased (fmap f a) (fmap f b)
+    deriving (Functor,Foldable)
 
 mapAlt :: (a -> Maybe (AltTree b)) -> AltTree a -> Maybe (AltTree b)
 mapAlt f t =
@@ -276,15 +263,7 @@ mapAlt f t =
         (Just a1, Just a2) -> Just (AltUnbiased a1 a2)
 
 foldAlt :: (a -> b -> b) -> b -> AltTree a -> b
-foldAlt reduce b t =
-  case t of
-    AltLeaf a -> reduce a b
-    AltBiased t1 t2 ->
-      let f1 = foldAlt reduce b t1 in
-      foldAlt reduce f1 t2
-    AltUnbiased t1 t2 ->
-      let f1 = foldAlt reduce b t1 in
-      foldAlt reduce f1 t2
+foldAlt reduce = foldl' (flip reduce)
 
 data GC a =
     GZero
@@ -674,7 +653,8 @@ determinize modl grammar =
               (Nothing, Nothing) -> Nothing
               (Just _, Nothing) -> a1
               (Nothing, Just _) -> a2
-              (Just b1, Just b2) -> Just (Annot ann $ OrBiased b1 b2)
+              (Just b1, Just b2) ->
+                Just (Annot ann (gBinAnnotate OrBiased b1 b2))
           AltUnbiased t1 t2 ->
             let a1 = go t1
                 a2 = go t2 in
@@ -682,7 +662,8 @@ determinize modl grammar =
               (Nothing, Nothing) -> Nothing
               (Just _, Nothing) -> a1
               (Nothing, Just _) -> a2
-              (Just b1, Just b2) -> Just (Annot ann $ OrUnbiased b1 b2)
+              (Just b1, Just b2) ->
+                Just (Annot ann (gBinAnnotate OrUnbiased b1 b2))
 
 
 

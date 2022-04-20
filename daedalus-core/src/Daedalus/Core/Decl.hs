@@ -31,6 +31,7 @@ data Fun e = Fun
   , fParams  :: [Name]
   , fDef     :: FunDef e
   , fIsEntry :: !Bool
+  , fAnnot   :: ![Annot]
   }
   deriving (Functor, Foldable, Traversable, Generic, NFData)
 
@@ -100,12 +101,16 @@ instance PP Module where
 
 
 instance (DefKW e, PP e) => PP (Fun e) where
-  pp f = kw <+> pp (fName f)
+  pp f = annot $$
+         kw <+> pp (fName f)
        <.> parens (commaSep (map ppP (fParams f)))
        <+> ":" <+> pp (fnameType (fName f)) <+> "="
         $$ nest 2 (pp (fDef f))
     where ppP x = pp x <+> ":" <+> pp (nameType x)
           kw = defKW (fDef f)
+          annot = case fAnnot f of
+                    [] -> empty
+                    as -> hsep ("--" : map pp as)
 
 instance PP e => PP (FunDef e) where
   pp def =

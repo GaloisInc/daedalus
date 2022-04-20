@@ -404,13 +404,13 @@ synthesiseGLHS (Just (SelectedBytes prov bs)) g = do
       
   pure (InterpValue res)
       
-synthesiseGLHS (Just (SelectedChoice n sp)) (Choice _biased gs)
+synthesiseGLHS (Just (SelectedChoice n sp)) (Annotated _ (Choice _biased gs))
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
   
 synthesiseGLHS (Just (SelectedChoice {})) g = panic "synthesiseGLHS: expected a choose" [showPP g]
 
-synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case y alts))
+synthesiseGLHS (Just (SelectedCase n sp)) (Annotated _ (GCase cs@(Case y alts)))
   | n < length alts = do
       v <- synthesiseV (Var y) -- FIXME: a bit gross, should just lookup the env
       let (pat, g) = alts !! n
@@ -424,7 +424,7 @@ synthesiseGLHS (Just (SelectedCase n sp)) (GCase cs@(Case y alts))
   
 synthesiseGLHS (Just (SelectedCase {})) g = panic "synthesiseGLHS: expected a case" [showPP g]
 
-synthesiseGLHS (Just (SelectedCall cl sp)) (Call fn args) = synthesiseCallG cl sp fn args
+synthesiseGLHS (Just (SelectedCall cl sp)) (Annotated _ (Call fn args)) = synthesiseCallG cl sp fn args
   
 synthesiseGLHS (Just (SelectedCall {})) tc = panic "synthesiseGLHS: expected a call" [showPP tc]
 

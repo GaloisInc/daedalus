@@ -9,13 +9,19 @@ type Main =
  
 -------------
  
+-- ./Det004.ddl:9:1--10:13
 proc Gram2() : Word 8 =
+  -- ./Det004.ddl:10:4--10:13
   match1 { 98 @(Word 8) }
  
+-- ./Det004.ddl:12:1--13:12
 proc Gram3() : Word 8 =
+  -- ./Det004.ddl:13:3--13:12
   match1 { 99 @(Word 8) }
  
+-- ./Det004.ddl:5:1--7:24
 proc Gram1() : Word 8 =
+  -- ./Det004.ddl:6:6--7:24
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
      case _x0 of
@@ -23,16 +29,32 @@ proc Gram1() : Word 8 =
          do _x1 <- match1 { ... }
             case _x1 of
               98 ->
+                -- ./Det004.ddl:6:8--6:23
+                -- ./Det004.ddl:6:19--6:23
+                -- ./Det004.ddl:6:19--6:23
+                -- ./Det004.ddl:10:4--10:13
                 pure (98 @(Word 8))
               99 ->
+                -- ./Det004.ddl:7:8--7:23
+                -- ./Det004.ddl:7:19--7:23
+                -- ./Det004.ddl:7:19--7:23
+                -- ./Det004.ddl:13:3--13:12
                 pure (99 @(Word 8))
               _ ->
                 fail_sys @(Word 8)
        _ ->
          fail_sys @(Word 8)
  
+-- ./Det004.ddl:3:1--3:47
 proc Main() : Main =
-  do x <- Gram1()
-     y <- Gram2()
-     z <- Gram3()
+  -- ./Det004.ddl:3:14--3:47
+  do x <- -- ./Det004.ddl:3:18--3:22
+          Gram1()
+     -- ./Det004.ddl:3:26--3:47
+     y <- -- ./Det004.ddl:3:30--3:34
+          Gram2()
+     -- ./Det004.ddl:3:37--3:47
+     z <- -- ./Det004.ddl:3:41--3:45
+          Gram3()
+     -- ./Det004.ddl:3:12--3:47
      pure Main {x = x, y = y, z = z}
