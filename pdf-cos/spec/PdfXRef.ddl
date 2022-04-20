@@ -29,8 +29,11 @@ def BinaryMarker =
 def PdfEnd =
   block
     Match "startxref"
+    Many $simpleWS      -- NOTE: does not appear in spec but seems to ok in practice
     EOL
+    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
     $$ = Natural as? uint 64
+    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
     EOL
     Match "%%EOF"
 
@@ -203,7 +206,9 @@ def XRefOffset (w : XRefFormat) = {
 
 def XRefCompressed (w : XRefFormat) = {
   container_obj = XRefFieldRequired w.b2;   -- generation is implicitly 0
-  obj_index     = XRefFieldRequired w.b3;
+  obj_index     = XRefFieldWithDefault 0 w.b3; -- Accorcding toSec. 7.5.8.3 Table 18,
+                                               -- there is no default but we assume 0
+                                               -- because that's what seems to work
 }
 
 
@@ -229,11 +234,31 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
 
     all     = dict
 
+-- Sec 7.5.5 File Trailer, Table 15, ID may be optional
+def TrailerIds (trailer : [ [uint 8] -> Value ]) = block
+  let x =
+    First
+      idContent = Lookup "ID" trailer
+      idMissing = ""
+  case x of {
+    idContent ic ->
+      (block
+        let arr = ic is array
+        (length arr == 2) is true
+        id0 = Index arr 0 is string
+        id1 = Index arr 1 is string
+      ) ;
+    idMissing ->
+      (block
+       id0 = ""
+       id1 = ""
+      ) ;
+    }
+
 def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
   block
     d = d
     eref = d is ref
-    let arr = (Lookup "ID" trailer) is array
-    (length arr == 2) is true
-    id0 = Index arr 0 is string
-    id1 = Index arr 1 is string
+    let x = TrailerIds trailer
+    id0 = x.id0
+    id1 = x.id1

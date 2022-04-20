@@ -51,6 +51,7 @@ void check_catalog(bool text) {
   std::vector<User::PdfCatalog> results;
   DDL::ParseError error;
 
+
   DDL::Maybe <DDL::ResultOf::parseStdEncodings> mbglyphs;
 
   if (text) {

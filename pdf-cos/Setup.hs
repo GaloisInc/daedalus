@@ -101,7 +101,7 @@ compileDDL =
 
                 -- FIXME: This appears to no longer be necessary due to improvements in daedalus:
                 --  - confirm and remove.
-                
+
      mapM_ ddlLoadModule mods
      todo <- ddlBasisMany mods
      ddlIO $

@@ -88,7 +88,7 @@ library
     Primitives.LZW,
     Primitives.ASCIIHex,
     Primitives.ASCII85,
-    Primitives.Decrypt, 
+    Primitives.Decrypt,
     PdfMonad.Transformer,
     PdfMonad.Release,
     PdfParserNotSpecialized,
@@ -207,7 +207,7 @@ library
     base,
     base64-bytestring,
     bytestring,
-    cereal, 
+    cereal,
     containers,
     cryptonite,
     daedalus-utils,
@@ -215,7 +215,7 @@ library
     memory,
     pretty,
     range-set-list,
-    rts-hs, 
+    rts-hs,
     text,
     zlib
 

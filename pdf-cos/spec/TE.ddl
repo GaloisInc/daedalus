@@ -32,7 +32,7 @@ def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
     we are going to reprocess them again for each leaf which is a lot
     of repeated work in large doucuments. -}
     let resources = case Optional (Lookup "Resources" node) of
-                      just v  -> Resources v
+                      just v  -> Resources v <| parentResources -- if `GetFonts` fails in `Resources` then assign the parentResources
                       nothing -> parentResources
     let type = LookupResolve "Type" node is name
     if type == "Pages"
@@ -55,10 +55,12 @@ def Resources (v : Value) =
     -- we need the fonts because they determine the character encoding to use
 
 def PdfCheckParent (p : maybe Ref) (d : Dict) =
-  case Optional (Lookup "Parent" d) of
+  (case Optional (Lookup "Parent" d) of
     nothing -> p is nothing
     just v  -> p == just (v is ref) is true
-  <| Fail "Malformed node parent"
+  )
+   <| Fail "Malformed node parent"
+
 --------------------------------------------------------------------------------
 
 
@@ -80,7 +82,12 @@ def PdfPageContent (resources : Resources) (vr : Value) =
         ref r ->
           case ResolveDeclRef r of
             value v  -> StreamFromArray (v is array)
-            stream s -> s.body is ok
+            stream s -> ( s.body is ok
+                         <|
+                          { @x = s.body is undecoded
+                          ; Trace "WARNING: undecoded stream"
+                          ; ^ x }
+                        )
 
         array xs -> StreamFromArray xs
 
@@ -103,7 +110,15 @@ def StreamFromArray (xs : [Value]) =
 
 
 
-def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
+def ContentStreamBytes (r : Ref) : stream = block
+  let bdy = (ResolveStreamRef r).body
+  ( bdy is ok
+    <|
+      { @x = bdy is undecoded
+      ; Trace "WARNING: undecoded ContentStreamBytes"
+      ; ^ x
+      }
+    )
 
 
 --------------------------------------------------------------------------------

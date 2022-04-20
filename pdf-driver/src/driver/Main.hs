@@ -27,6 +27,7 @@ import Data.Char(isDigit)
 import Common
 import PdfMonad
 import XRef(findStartXRef, parseXRefsVersion1)
+import TE(pPdfCatalog)
 import PdfParser
 import PdfDemo
 import PdfExtractText
@@ -47,7 +48,8 @@ main =
        FAW   ->
          let fmt = fawFormat in
          case optOps opts of
-           Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
+           Validate -> fmtDriver fmt inputFile (pPdfCatalog False Nothing) pw
+           -- Validate -> fmtDriver fmt inputFile pCatalogIsOK pw
            ExtractText -> fmtDriver fmt inputFile pExtractCatalogText pw
 
 
@@ -58,11 +60,12 @@ data Format = Format
   , xrefFound   :: Int -> IO ()
   , xrefBad     :: ParseError -> IO ()
   , xrefOK      :: ObjIndex -> Map String Value -> IO ()
-  , warnEncrypt :: IO()
+  , warnEncrypt :: IO ()
   , rootMissing :: IO ()
   , rootFound   :: Ref -> IO ()
   , catalogParseError :: ParseError -> IO ()
   , catalogParsed :: String -> IO ()
+  , warnEncContext :: ParseError -> IO ()
   , declErr     :: R -> ObjLoc -> DeclResult' ParseError -> IO ()
   , declParsed  :: R -> ObjLoc -> DeclResult' CheckDecl -> IO ()
   }
@@ -87,8 +90,10 @@ fawFormat = Format
                         showR (getField @"obj" r) (getField @"gen" r))
   , catalogParseError = \p ->
       putStrLn ("ERROR: " ++ show (peOffset p) ++ " " ++ peMsg p)
-  , catalogParsed = \ok ->
-      putStrLn ("INFO: Catalog value:\n" ++ ok)
+  , catalogParsed = \_ok ->
+      putStrLn ("INFO: Catalog parsed ok")
+  , warnEncContext =
+      \ p -> putStrLn ("WARNING: unable to make encryption context. " ++ show (peOffset p) ++ " " ++ peMsg p)
   , declErr =
       \r l res ->
         let x = declResult res
@@ -181,7 +186,7 @@ fmtDriver fmt file pageTreeParser pwd =
 
      mb <- try (makeEncContext trail refs topInput pwd)
      case mb of
-       Left err -> catalogParseError fmt err
+       Left err -> warnEncContext fmt err
        Right fileEC ->
          mapM_ (checkDecl fmt fileEC topInput refs) (Map.toList refs)
 
@@ -280,21 +285,22 @@ preDOM opts =
 driverValidate :: DbgMode => Options -> IO ()
 driverValidate opts = runReport opts $
   do (file,refs,root,trail,topInput) <- preDOM opts
-     res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
+     res <- liftIO (runParser refs Nothing (pPdfCatalog False Nothing root) topInput)
+     -- res <- liftIO (runParser refs Nothing (pCatalogIsOK root) topInput)
      case res of
-       ParseOk True  -> report RInfo file 0 "Catalog (page tree) is OK"
-       ParseOk False -> report RWarning file 0 "Malformed Catalog (page tree)"
+       ParseOk _ -> report RInfo file 0 "Catalog (page tree) is OK"
        ParseAmbig _  -> report RError file 0 "Ambiguous results?"
        ParseErr e    -> report RError file (peOffset e) (hang "Parsing Catalog/Page tree" 2 (ppParserError e))
 
      let pwd = BS.pack (optPassword opts)
      mb <- liftIO (try (makeEncContext trail refs topInput pwd))
      case mb of
-       Left err -> reportCritical file (peOffset err) (ppParserError err)
+       Left err -> do report RWarning file (peOffset err) ("unable to make encryption context" )
+                      report RWarning file (peOffset err) (ppParserError err)
        Right fileEC -> parseObjs file fileEC topInput refs
 
 -- TODO: In principle, we could merge driverValidate and
--- driverExtractText. One challenge is the type of pCatalogIsOk and
+-- driverExtractText. One challenge is the type of pCatalogIsOk/pPdfCatalog and
 -- pExtractCatalogText are different, therefore this should be
 -- revisited once the associated ddl grammars are not under active
 -- development.

@@ -15,6 +15,7 @@ import RTS.Input
 
 import PdfMonad.Transformer
 
+import Debug.Trace
 
 flateDecode :: PdfParser m =>
                Integer -> Integer -> Integer -> Integer -> Input -> m Input
@@ -23,7 +24,7 @@ flateDecode predi colors bpc cols inp =
     Right a -> do bs <- unPredict predi colors bpc cols a
                   pure (newInput name bs)
                   -- XXX: better indicattion of where these bytes came from.
-    Left err -> pError FromUser "Deflate.flateDecode" (show err)
+    Left err -> trace "WARNING: deflate is failing" $ pError FromUser "Deflate.flateDecode" (show err)
   where name = C.pack ("FlateDecode" ++ show (inputOffset inp))
 
 strictDecompress :: B.ByteString -> Either DecompressError B.ByteString
