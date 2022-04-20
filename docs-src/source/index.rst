@@ -28,3 +28,8 @@ This allows for a clear, yet precise, specification of many binary formats.
   lifting
   implicit-parameters
 
+.. toctree::
+  :maxdepth: 5
+  :caption: Daedalus Tutorial
+
+  tutorial/getting-started
