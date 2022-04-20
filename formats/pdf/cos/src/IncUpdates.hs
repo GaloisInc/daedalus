@@ -590,9 +590,9 @@ parseFinalTrailerEnd inp bs =
 -- find the file byte offset of where we find (last) 'startxref'
 locationOf_startxref :: BS.ByteString -> Either String FileOffset
 locationOf_startxref bs =
-  case BS.findSubstring (BS.reverse startxref) (BS.reverse lastChunk) of
-    Nothing -> Left "Couldn't find startxref"
-    Just i  -> Right (intToSize $ len - i - BS.length startxref)
+  case BS.breakSubstring (BS.reverse startxref) (BS.reverse lastChunk) of
+    (_,bs) | BS.null bs -> Left "Couldn't find startxref"
+    (as,_) -> Right (intToSize $ len - BS.length as - BS.length startxref)
 
   where
   len             = BS.length bs

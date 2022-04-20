@@ -31,7 +31,7 @@ compileDDL :: IO ()
 compileDDL =
   daedalus
   do ddlSetOpt optSearchPath [ "spec"             -- new ddl modules here
-                             , "../pdf-cos/spec"  -- other ddl modules in pdf-cos pkg
+                             , "../cos/spec"  -- other ddl modules in cos pkg
                              ]
      let mods = [ "PdfDemo", "PdfValidate", "PdfDOM"]
      mapM_ ddlLoadModule mods

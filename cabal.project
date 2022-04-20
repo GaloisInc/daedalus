@@ -5,9 +5,9 @@ packages:
   daedalus-vm/
   daedalus-value/
   rts-hs/
-  pdf-cos/
-  pdf-driver/
-  icc-tools/
+  formats/pdf/cos/
+  formats/pdf/driver/
+  formats/icc/
   talos/
   daedalus-language-server/
   -- daedalus-language-server/deps/lsp/lsp
