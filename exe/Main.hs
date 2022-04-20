@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when,forM_,forM)
+import Control.Monad(when,unless,forM_,forM)
 import Data.Maybe(fromMaybe,fromJust)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -236,7 +236,7 @@ doToCore opts mm =
      when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
      when (optDeterminize opts) (passNorm specMod >> checkCore "Norm")
-     passWarnFork specMod
+     unless (optNoWarnUnbiased opts) (passWarnFork specMod)
      pure ents
 
   where
