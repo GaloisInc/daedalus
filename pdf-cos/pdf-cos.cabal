@@ -63,7 +63,7 @@ extra-source-files:
   spec/Type3Font.ddl,
   spec/Unicode.ddl,
   spec/WinEncoding.ddl,
-  spec/StdEncodings.ddl,
+  -- spec/StdEncodings.ddl,
   spec/TE.ddl
 
 custom-setup
