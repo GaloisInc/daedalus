@@ -1,5 +1,5 @@
 -- Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
-import Stdlib
+import Daedalus
 
 -- DBG:
 def SomeJpeg =
@@ -43,9 +43,9 @@ def SomeMarker (front : uint 4) =
   block
     UInt8 0xFF
     let tag   = UInt8
-    let upper = truncate8to4 (tag >> 4)
+    let upper = (tag >> 4) as! uint 4
     upper == front is true
-    truncate8to4 tag
+    tag as! uint 4
 
 -- Segement payload
 def Payload P =
@@ -109,8 +109,8 @@ def FrameComponent =
   block
     identifier          = UInt8
     let samplingFactors = UInt8
-    hoizontalSampling   = truncate8to4 (samplingFactors >> 4)
-    verticalSampling    = truncate8to4 samplingFactors
+    hoizontalSampling   = (samplingFactors >> 4) as! uint 4
+    verticalSampling    = samplingFactors        as! uint 4
     quantTableSel       = UInt8
 
 
@@ -128,15 +128,15 @@ def SOSHeader =
     ss = UInt8
     se = UInt8
     let a = UInt8
-    ah = truncate8to4 (a >> 4)
-    al = truncate8to4 a
+    ah = (a >> 4) as! uint 4
+    al = a as! uint 4
 
 def SOSComponent =
   block
     id      = UInt8
     let table  = UInt8
-    acTable = truncate8to4 table
-    dcTable = truncate8to4 (table >> 4)
+    acTable = table as! uint 4
+    dcTable = (table >> 4) as! uint 4
 
 
 -- Define Huffman tables
@@ -149,8 +149,8 @@ def DHT =
 def HT =
   block
     let info    = UInt8
-    ht_class    = truncate8to4 info
-    ht_type     = truncate8to4 (info >> 4)
+    ht_class    = info as! uint 4
+    ht_type     = (info >> 4) as! uint 4
     let symNums = Many 16 UInt8
     table       = map (n in symNums) (Many (n as uint 64) UInt8)
 
@@ -164,8 +164,8 @@ def DQT =
 def QT =
   block
     let info = UInt8
-    number   = truncate8to4 info
-    let precision = info >> 4
+    number   = info as! uint 4
+    let precision = info as! uint 4
     data =
       Choose1
         bit8  = { precision == 0 is true; Many 64 UInt8; }
