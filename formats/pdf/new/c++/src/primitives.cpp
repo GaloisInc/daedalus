@@ -198,7 +198,7 @@ bool parser_Decrypt
               reinterpret_cast<char const*>(key.data()),
               output)
         ) {
-          std::cerr << "INFO: Decryption has failed?" << std::endl;
+          std::cerr << "INFO: Decryption has failed (v4AES)?" << std::endl;
           input.free();
           body.free();
           return false;
@@ -217,7 +217,7 @@ bool parser_Decrypt
               reinterpret_cast<char const*>(references.getEncryptionContext()->key.data()),
               output)
         ) {
-          std::cerr << "INFO: Decryption has failed?" << std::endl;
+          std::cerr << "INFO: Decryption has failed (v5AES)?" << std::endl;
           input.free();
           body.free();
           return false;
