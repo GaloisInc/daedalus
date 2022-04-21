@@ -35,7 +35,7 @@ add_custom_command(
     --entry=PdfXRef.CrossRef
     --entry=PdfDecl.TopDecl
     --entry=PdfDecl.ObjStream
-    --entry=PdfValue.Value
+    --entry=PdfDecl.ObjStreamEntry
     --entry=PdfCrypto.EncryptionDict
     --entry=NewTextExtract.TextInCatalog
     --entry=TE.PdfCatalog

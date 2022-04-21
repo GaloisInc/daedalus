@@ -119,7 +119,13 @@ def FreeEntry (num : int) (gen : int) = {
   Match1 'f'; obj = ^num; gen = ^gen;
 }
 
+def BEBytes n =
+            { @bs = Many n UInt8;
+              ^ for (v = 0; b in bs) (v * 256 + (b as int))
+            }
 
+
+def NatN n = { @ds = Many n Digit; ^ numBase 10 ds }
 
 
 

@@ -13,6 +13,7 @@
 
 struct Blackhole {};
 
+// Unprocessed declaration inside an object stream
 struct StreamThunk {
     uint64_t container;
     uint64_t index;
@@ -21,6 +22,8 @@ struct StreamThunk {
     bool getDecl(uint64_t refid, User::TopDecl *result);
 };
 
+
+// Unprocessed declaration in the file
 struct TopThunk {
     uint64_t offset;
 
@@ -34,10 +37,10 @@ public:
 };
 
 using oref = std::variant<
-    Blackhole,
-    TopThunk,
-    StreamThunk,
-    DDL::Owned<User::TopDecl>
+    Blackhole,                // we are currently processing this declaration
+    TopThunk,                 // unprocessed, in the file
+    StreamThunk,              // unprocessed, in an object stream
+    DDL::Owned<User::TopDecl> // processed
 >;
 
 using generation_type = uint16_t;
