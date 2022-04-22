@@ -229,19 +229,6 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
 
 -- ----------------------------------------------------------------------------------------
--- Strategy helpers
-
--- Backtracking choice + random permutation
-choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
-choose bs = do
-  bs' <- randPermute bs
-  foldr (mplus . pure) doFail bs'
-  where
-    doFail = do
-      -- liftStrategy (liftIO (putStrLn "No more choices"))
-      mzero
-
--- ----------------------------------------------------------------------------------------
 -- Solver helpers
 
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a

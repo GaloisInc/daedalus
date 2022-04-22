@@ -58,22 +58,38 @@ getName n = SymbolicM $ do
     Nothing -> lift (lift (VOther . Typed (typeOf n) <$> Solv.getName n))
     Just r  -> pure r
 
-instance Alternative SymbolicM where
-  (SymbolicM m1) <|> (SymbolicM m2) = SymbolicM $ do
-    env <- ask
-    lift $ bracketS (runReaderT m1 env) <|> bracketS (runReaderT m2 env)
-    where
-      bracketS m = do
-        lift push
-        m `onBacktrack` popFail
-      popFail = lift pop >> mzero
+-- ----------------------------------------------------------------------------------------
+-- Strategy helpers
 
-  empty = SymbolicM empty
+-- Backtracking choice + random permutation
+choose :: [a] -> SymbolicM a
+choose bs = do
+  bs' <- randPermute bs
+  foldr (mplus . pure) doFail bs'
+  where
+    doFail = do
+      -- liftStrategy (liftIO (putStrLn "No more choices"))
+      mzero
 
-instance MonadPlus SymbolicM where -- default body (Alternative)
+backtrack :: 
 
-instance Semigroup a => Semigroup (SymbolicM a) where
-  m1 <> m2 = (<>) <$> m1 <*> m2
 
-instance Monoid a => Monoid (SymbolicM a) where
-  mempty = pure mempty
+-- instance Alternative SymbolicM where
+--   (SymbolicM m1) <|> (SymbolicM m2) = SymbolicM $ do
+--     env <- ask
+--     lift $ bracketS (runReaderT m1 env) <|> bracketS (runReaderT m2 env)
+--     where
+--       bracketS m = do
+--         lift push
+--         m `onBacktrack` popFail
+--       popFail = lift pop >> mzero
+
+--   empty = SymbolicM empty
+
+-- instance MonadPlus SymbolicM where -- default body (Alternative)
+
+-- instance Semigroup a => Semigroup (SymbolicM a) where
+--   m1 <> m2 = (<>) <$> m1 <*> m2
+
+-- instance Monoid a => Monoid (SymbolicM a) where
+--   mempty = pure mempty

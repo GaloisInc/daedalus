@@ -61,83 +61,95 @@ data PolyFun = PMapLookup SExpr SExpr -- kt vt
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
 data SolverFrame =
-  SolverFrame { frKnownTypes :: Set TName -- ^ We lazily define types, but their names are mapped directly
-              , frKnownFuns  :: Set FName -- ^ Similarly for (pure) functions (incl. bytesets)
-              , frBoundNames :: Map Name String
+  SolverFrame { frIx         :: !Int -- ^ The index of the choice which led to this frame
+              , frCommands   :: ![IO ()] -- FIXME: make a datatype?
+              , frBoundNames :: !(Map Name String)
               -- ^ May include names bound in closed scopes, to allow for
               --
               -- def P = { x = { $$ = UInt8; $$ > 10 }, ...}
               --
               -- where the execution of the body of x will return
               -- '$$' as it's symbolc result
-              , frKnownPolys :: Map PolyFun String -- Maps from a defined poly fun to its SMT name
               }
   
 emptySolverFrame :: SolverFrame
-emptySolverFrame = SolverFrame mempty mempty mempty mempty
+emptySolverFrame = SolverFrame { frIx = 0, frCommands = mempty, frBoundNames = mempty }
+
+newtype SolverContext = SolverContext { getSolverContext :: [SolverFrame] }
 
 data SolverState =
-  SolverState { solver       :: Solver
-              , frames       :: [SolverFrame]
-              , currentFrame :: SolverFrame
-              -- This is the number of pushes we have delayed, as
-              -- frequently we have push/pop with nothing in between.
-              , pendingPushes :: Int
+  SolverState { solver       :: !Solver
+              -- These have to be defined at the top level (before we start pushing etc.)
+              , ssKnownTypes :: !(Set TName)
+              , ssKnownFuns  :: !(Set FName)
+              , ssKnownPolys :: !(Map PolyFun String)
+
+              , ssFrames          :: ![SolverFrame]
+              , ssNFlushedFrames  :: !Int
+              
+              , ssCurrentFrame    :: !SolverFrame
+              , ssNCurrentFlushed :: !Int
+              
+              , ssNextFrameID     :: !Int
               }
 
 emptySolverState :: Solver -> SolverState
-emptySolverState s = SolverState s mempty emptySolverFrame 0
-
+emptySolverState s = SolverState
+  { solver = s
+  , ssKnownTypes = mempty
+  , ssKnownFuns  = mempty
+  , ssKnownPolys = mempty
+  
+  , ssFrames          = mempty
+  , ssNFlushedFrames  = 0
+  , ssCurrentFrame    = emptySolverFrame
+  , ssNCurrentFlushed = 0
+  , ssNextFrameID     = 1
+  }
+  
 inCurrentFrame :: Monad m => (SolverFrame -> SolverT m a) -> SolverT m a
-inCurrentFrame f = SolverT (gets currentFrame) >>= f
+inCurrentFrame f = SolverT (gets ssCurrentFrame) >>= f
 
 overCurrentFrame :: Monad m => (SolverFrame -> SolverT m (a, SolverFrame)) -> SolverT m a
 overCurrentFrame f = do
   (r, frame') <- inCurrentFrame f
-  SolverT (modify (\s -> s { currentFrame = frame' }))
+  SolverT (modify (\s -> s { ssCurrentFrame = frame' }))
   pure r
 
 modifyCurrentFrame :: Monad m => (SolverFrame -> SolverFrame) -> SolverT m ()
 modifyCurrentFrame f = overCurrentFrame (\s -> pure ((), f s))
 
--- If we have pending pushes we do them now.  We only need to do this
--- before talking to the solver, so it is done in withSolver.
-flushPushes :: MonadIO m => SolverT m ()
-flushPushes = do
-  n <- SolverT $ gets pendingPushes
-  when (n > 0) $ do
-    SolverT $ modify (\s -> s { frames = replicate n (currentFrame s) ++ frames s
-                              , pendingPushes = 0
-                              })
-    solverOp (flip S.pushMany (fromIntegral n))
+-- push :: MonadIO m => SolverT m ()
+-- push = do
+--   -- We push lazily
+--   SolverT (modify (\s -> s { pendingPushes = pendingPushes s + 1 }))
+--   -- solverOp S.push
 
-push :: MonadIO m => SolverT m ()
-push = do
-  -- We push lazily
-  SolverT (modify (\s -> s { pendingPushes = pendingPushes s + 1 }))
-  -- solverOp S.push
+-- pop :: MonadIO m => SolverT m ()
+-- pop = do
+--   n <- SolverT $ gets pendingPushes
+--   if n > 0
+--     then SolverT (modify (\s -> s { pendingPushes = pendingPushes s - 1 }))
+--     else do
+--     fs <- SolverT (gets frames)
+--     case fs of
+--       [] -> panic "Attempted to pop past top of solver stack" []
+--       (f : fs') -> do
+--         SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
+--         solverOp S.pop
 
-pop :: MonadIO m => SolverT m ()
-pop = do
-  n <- SolverT $ gets pendingPushes
-  if n > 0
-    then SolverT (modify (\s -> s { pendingPushes = pendingPushes s - 1 }))
-    else do
-    fs <- SolverT (gets frames)
-    case fs of
-      [] -> panic "Attempted to pop past top of solver stack" []
-      (f : fs') -> do
-        SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
-        solverOp S.pop
+-- popAll :: MonadIO m => SolverT m ()
+-- popAll = do
+--   fs <- SolverT (gets frames)
+--   case reverse fs of
+--     [] -> pure () -- do nothing
+--     (topF : _rest) -> do
+--       solverOp (\s -> S.popMany s (fromIntegral $ length fs))
+--       SolverT (modify (\s -> s { frames = [], currentFrame = topF, pendingPushes = 0 }))
 
-popAll :: MonadIO m => SolverT m ()
-popAll = do
-  fs <- SolverT (gets frames)
-  case reverse fs of
-    [] -> pure () -- do nothing
-    (topF : _rest) -> do
-      solverOp (\s -> S.popMany s (fromIntegral $ length fs))
-      SolverT (modify (\s -> s { frames = [], currentFrame = topF, pendingPushes = 0 }))
+-- | Pushes all pending asserts to the solver
+flush :: MonadIO m => SolverT m ()
+flush = undefined
 
 reset :: MonadIO m => SolverT m ()
 reset = do
@@ -150,9 +162,6 @@ bindName k v f = f { frBoundNames = Map.insert k v (frBoundNames f) }
 
 lookupName :: Name -> SolverFrame -> Maybe SExpr
 lookupName k = fmap S.const . Map.lookup k . frBoundNames
-
-lookupPolyFun :: PolyFun -> SolverFrame -> Maybe SExpr
-lookupPolyFun pf = fmap S.const . Map.lookup pf . frKnownPolys
 
 newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
@@ -168,10 +177,15 @@ withSolver f = do
 
 solverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
 solverOp f = withSolver (liftIO . f)
+
+queueSolverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
+queueSolverOp f = withSolver (\s -> modifyCurrentFrame (\fr -> fr { frCommands = frCommands fr ++ [f s]}))
   
 -- MonadIO would be enough here.
 assert :: MonadIO m => SExpr -> SolverT m ()
-assert assn = solverOp (\s -> S.assert s assn)
+assert assn = queueSolverOp (\s -> S.assert s assn)
+  
+  -- solverOp (\s -> S.assert s assn)
 
 check :: MonadIO m => SolverT m S.Result
 check = solverOp S.check
@@ -234,8 +248,9 @@ freshSymbol pfx = do
 declareSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
 declareSymbol pfx ty = do
   sym <- freshSymbol pfx
-  solverOp (\s -> S.declare s sym ty)
-
+  queueSolverOp (\s -> void $ S.declare s sym ty)
+  pure (S.const sym)
+  
 freshName :: (Monad m, HasGUID m) => Name -> SolverT m String
 freshName n = do
   n' <- lift (C.freshName n)
@@ -248,12 +263,14 @@ freshName n = do
 defineName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
 defineName n ty v = do
   n' <- freshName n
-  solverOp (\s -> S.define s n' ty v)
+  queueSolverOp (\s -> void $ S.define s n' ty v)
+  pure (S.const s')
 
 declareName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SolverT m SExpr
 declareName n ty = do
   n' <- freshName n
-  solverOp (\s -> S.declare s n' ty)
+  queueSolverOp (\s -> void $ S.declare s n' ty)
+  pure (S.const n')
 
 solverState :: Monad m => (SolverState -> m (a, SolverState)) -> SolverT m a
 solverState f = do
@@ -262,18 +279,18 @@ solverState f = do
   SolverT (put s')
   pure a
 
--- Execute the monadic action and clean up the scope and state when it
--- completes.
-scoped :: MonadIO m => SolverT m a -> SolverT m a
-scoped m = do
-  st0  <- SolverT get
-  SolverT (put (st0 { frames = [] }))
-  push
-  r <- m
-  popAll
-  -- We could just reuse st0, but this avoids issues if we change the state type.
-  SolverT (modify (\s -> s { frames = frames st0 })) 
-  pure r
+-- -- Execute the monadic action and clean up the scope and state when it
+-- -- completes.
+-- scoped :: MonadIO m => SolverT m a -> SolverT m a
+-- scoped m = do
+--   st0  <- SolverT get
+--   SolverT (put (st0 { frames = [] }))
+--   push
+--   r <- m
+--   popAll
+--   -- We could just reuse st0, but this avoids issues if we change the state type.
+--   SolverT (modify (\s -> s { frames = frames st0 })) 
+--   pure r
 
 runSolverT :: SolverT m a -> SolverState -> m (a, SolverState)
 runSolverT (SolverT m) s = runStateT m s
@@ -317,8 +334,9 @@ defineDefaultType std = void $ solverOp (\s -> S.declare s n ty)
 -- FIXME: merge with defineSMTFunDefs ?
 -- FIXME: add defaults
 defineSMTTypeDefs :: MonadIO m => Rec SMTTypeDef -> SolverT m ()
-defineSMTTypeDefs (NonRec std) = overCurrentFrame $ \f -> 
-  if stdName std `Set.member` frKnownTypes f
+defineSMTTypeDefs (NonRec std) = do
+  s <- SolverT get
+  if stdName std `Set.member` ssKnownTypes s
   then pure ((), f)
   else do solverOp doDef
           defineDefaultType std
@@ -368,17 +386,17 @@ data SMTFunDef = SMTFunDef { sfdName :: FName
                            }
 
 defineSMTFunDefs :: MonadIO m => Rec SMTFunDef -> SolverT m ()
-defineSMTFunDefs (NonRec sfd) = overCurrentFrame $ \f -> 
-  if sfdName sfd `Set.member` frKnownFuns f
-  then pure ((), f)
-  else solverOp doDef $> ((), f { frKnownFuns = Set.insert (sfdName sfd) (frKnownFuns f) })
+defineSMTFunDefs (NonRec sfd) = SolverT . modify $ \s -> 
+  if sfdName sfd `Set.member` ssKnownFuns s
+  then pure s
+  else solverOp doDef $> (s { ssKnownFuns = Set.insert (sfdName sfd) (ssKnownFuns s) })
   where
     doDef s = void $ S.defineFun s (fnameToSMTName (sfdName sfd)) (sfdArgs sfd) (sfdRet sfd) (sfdBody sfd)
 
-defineSMTFunDefs (MutRec sfds) = overCurrentFrame $ \f -> 
-  if not (Set.disjoint allNames (frKnownFuns f)) -- if we define one we should have defined all
-  then pure ((), f)
-  else solverOp (flip S.defineFunsRec defs) $> ((), f { frKnownFuns = Set.union allNames (frKnownFuns f) })
+defineSMTFunDefs (MutRec sfds) = SolverT . modify $ \s -> 
+  if not (Set.disjoint allNames (ssKnownFuns s)) -- if we define one we should have defined all
+  then pure s
+  else solverOp (flip S.defineFunsRec defs) $> (s { ssKnownFuns = Set.union allNames (ssKnownFuns s) })
   where
     allNames = Set.fromList (map sfdName sfds)
     defs = map (\sfd -> (fnameToSMTName (sfdName sfd), sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
@@ -387,29 +405,28 @@ defineSMTFunDefs (MutRec sfds) = overCurrentFrame $ \f ->
 -- Poly functions
 
 defineSMTPolyFun :: (HasGUID m, MonadIO m) => PolyFun -> SolverT m ()
-defineSMTPolyFun pf = overCurrentFrame $ \f ->
-  if pf `Map.member` frKnownPolys f
-  then pure ((), f)
-  else do f' <- go f
-          pure ((), f')
+defineSMTPolyFun pf = do
+  s <- SolverT get
+  if pf `Map.member` ssKnownPolys s
+    then pure s
+    else go s
   where
-    go f = do
+    go = do
       fnm <- case pf of
         PMapLookup kt vt -> do
           fnm <- freshSymbol "mapLookup"
-          solverOp (\s -> mkMapLookup s fnm kt vt)
+          solverOp (\s' -> mkMapLookup s' fnm kt vt)
           pure fnm
         PMapMember kt vt -> do
           fnm <- freshSymbol "mapMember"
-          solverOp (\s -> mkMapMember s fnm kt vt)
+          solverOp (\s' -> mkMapMember s' fnm kt vt)
           pure fnm
         PMapInsert kt vt -> do
           fnm <- freshSymbol "mapInsert"
-          solverOp (\s -> mkMapInsert s fnm kt vt)
+          solverOp (\s' -> mkMapInsert s' fnm kt vt)
           pure fnm
           
-      pure (f { frKnownPolys = Map.insert pf fnm (frKnownPolys f) })
-
+      SolverT (modify $ \s -> s { ssKnownPolys = Map.insert pf fnm (ssKnownPolys s) })
   
 -- -----------------------------------------------------------------------------
 -- instances
