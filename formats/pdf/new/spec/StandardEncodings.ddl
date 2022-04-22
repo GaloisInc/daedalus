@@ -1,3 +1,13 @@
+
+-- Since Adobe's stand glyph list is quite large, instead of baking
+-- it in here, we parse it from a file a startup.
+def GlyphFile =
+  block
+    let list = Many GlyphLine
+    END
+    for (s = empty; e in list) (insert e.key e.value s)
+
+
 def GlyphLine =
   block
     Many $[!':']
@@ -12,12 +22,8 @@ def GlyphLine =
     $['\n']
 
 
-def GlyphFile =
-  block
-    let list = Many GlyphLine
-    END
-    for (s = empty; e in list) (insert e.key e.value s)
 
+-- ENTRY
 def StdEncodings =
   block
     let ?glyphToUni = GlyphFile

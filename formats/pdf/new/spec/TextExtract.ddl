@@ -1,8 +1,11 @@
+import Debug
 import PdfValue
 import PdfDecl
 import StandardEncodings
-import Debug
-import TE
+import Catalog
+import CMap
+import ContentStream
+import Fonts
 
 def GetCharCode (cmap : cmap) : sint 32
 
