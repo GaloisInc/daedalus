@@ -133,29 +133,3 @@ def Raw (str : [uint 8]) = @map (x in str) (EmitChar (x as ?auto))
 def EmitChar (c : uint 32) : {}
 
 
---------------------------------------------------------------------------------
--- Just used for the type (lists/builders should be a standard type)
-def List P =
-  First
-    cons = Node P
-    nil  = Accept
-
-def Node P =
-  block
-    head = P
-    tail = List P
-
-def nil : List = {| nil |}
-def push x xs : List = {| cons = { head = x, tail = xs } |}
-
-def reverse acc (xs : List) =
-  case xs of
-    nil    -> acc
-    cons n -> reverse (push n.head acc) n.tail
-
-def DumpStream (s : Stream) =
-  block
-    SetStream (s.body is ok)
-    Many UInt8
-
-
