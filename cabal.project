@@ -5,8 +5,8 @@ packages:
   daedalus-vm/
   daedalus-value/
   rts-hs/
-  formats/pdf/cos/
-  formats/pdf/driver/
+  formats/pdf/old/cos/
+  formats/pdf/old/driver/
   formats/icc/
   talos/
   daedalus-language-server/
