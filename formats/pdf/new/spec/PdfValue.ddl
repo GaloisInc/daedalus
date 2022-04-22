@@ -15,7 +15,7 @@ def $simpleWS             = 0 | 9 | 12 | 32
 -- Beware: this is rarely used!  PDF uses only after 'stream' keyword
 def SimpleEOL             = @($lf <| { $cr; $lf })
 
-def EOL : {}              = @$lf <| { $cr; @$lf <| Accept }
+def EOL : {}              = @$lf <| { $cr; @Optional $lf }
 
 def GenComment start =
   block
@@ -34,6 +34,11 @@ def ManyWS                = @Many AnyWS
 def SkipTillEOL =
   block
     Many $[! ($lf | $cr)] -- cavity
+    EOL
+
+def WhiteTillEOL =
+  block
+    Many $simpleWS
     EOL
 
 

@@ -2,11 +2,8 @@ import Daedalus
 import PdfDecl
 import PdfValue
 
-def CrossRef = First
-  oldXref = CrossRefAndTrailer
-  newXref = XRefObj
 
-
+-- Maybe this should be an ENTRY also...
 def PdfStart =
   block
     Match "%PDF-"
@@ -26,196 +23,189 @@ def BinaryMarker =
     Many (4..) $[ 128 .. ]
     SkipTillEOL
 
+-- ENTRY
 def PdfEnd =
   block
-    Match "startxref"
-    Many $simpleWS      -- NOTE: does not appear in spec but seems to ok in practice
-    EOL
-    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
-    $$ = Natural as? uint 64
-    Many $simpleWS  -- NOTE: does not appear in spec but seems to ok in practice
-    EOL
-    Match "%%EOF"
+    Many $simpleWS; Match "startxref";        WhiteTillEOL
+    Many $simpleWS; $$ = Natural as? uint 64; WhiteTillEOL
+    Many $simpleWS; Match "%%EOF"
 
 --------------------------------------------------------------------------------
 -- xref section and trailer
--- "Old style"? not really, not deprecated.
---   However, an alternative approach via "cross reference streams" was added in PDF 1.5.
 
-def CrossRefAndTrailer = {
-  xref    = CrossRefSection;
-  Many JustWhite;   -- no comments, but arbitrary whitespace allowed here.
-  KW "trailer";
+-- ENTRY
+def CrossRef =
+  First
+    oldXref = CrossRefAndTrailer
+    newXref = XRefObj
 
-  trailer = TrailerDict Dict;
-}
+def CrossRefAndTrailer =
+  block
+    xref    = CrossRefSection
+    Many JustWhite   -- no comments, but arbitrary whitespace allowed here.
+    KW "trailer"
+    trailer = TrailerDict Dict
 
--- TrailerEnd should follow the CrossRefAndTrailer.
--- This must be at the end of every [incremental] "body".
--- Unclear from spec whether comments are allowed (we'll start by not allowing)
--- We capture the offsets for the sake of reporting and determining 'cavities'
-
-def TrailerEnd = {
-  offset0 = Offset;
-  Many AnyWS;
-  offset1 = Offset;
-  Match "startxref"; Many $simpleWS; EOL;
-  offset2 = Offset;
-  xrefStart = Natural as? uint 64; Many $simpleWS; EOL;
-    -- spec doesn't constrain the integer, but ...
-  offset3 = Offset;
-  Match "%%EOF"; Many $simpleWS;
-  offset4 = Offset;
-}
 
 -- NOTE 7.5.4 of ISO_32000-2_2020:
 --  PDF comments shall not be included in a cross-reference table
 --  between the keywords xref and trailer.
 
-def CrossRefSection = {
-  ManyWS;
-  Match "xref"; Many $simpleWS; EOL;
+def CrossRefSection =
+  block
+    ManyWS
+    Match "xref"; WhiteTillEOL
+    Many (1..) CrossRefSubSection
 
-    -- we enforce EOL above (rejecting some NCBUR files).  The spec:
-    --   7.5.4
-    --   "Each cross-reference section shall begin with a line containing the keyword xref. Following
-    --   this line shall be one or more cross-reference subsections"
+def CrossRefSubSection =
+  block
+    firstId = Natural; $space
+    let num = Natural as? uint 64; WhiteTillEOL
+    entries = Many num CrossRefEntry
 
-  @x  = CrossRefSubSection;
-  @xs = Many CrossRefSubSection;
-  ^ concat [[x],xs];  -- this greatly improves error messages when errors in 'x'
-}
+def CrossRefEntry =
+  block
+    let num = NatN 10; $space
+    let gen = NatN 5;  $space
+    $$ = First
+           inUse = UsedEntry num gen
+           free  = FreeEntry num gen
 
-def CrossRefSubSection = {
-  firstId = Natural; $space;
-  @num    = Natural as? uint 64; Many $simpleWS; EOL;
-  entries = Many num CrossRefEntry;
-}
+    First
+      { $cr;    $lf }
+      { $space; $cr }
+      { $space; $lf }
+      $cr               -- the last 2 are not standar complaint
+      $lf               -- but some tools allow them
 
-def CrossRefEntry = {
-  @num = NatN 10; $space;
-  @gen = NatN 5;  $space;
-  $$   = Choose1 {
-           inUse = UsedEntry num gen;
-           free  = FreeEntry num gen;
-        };
+def UsedEntry (num : int) (gen : int) =
+  block
+    Match1 'n'
+    offset = num
+    gen    = gen
 
-   { $simpleWS;  $cr <| $lf }
-    -- standard compliant:
+def FreeEntry (num : int) (gen : int) =
+  block
+    Match1 'f'
+    obj = num
+    gen = gen
 
-    -- | { $cr; $lf }
-
-    -- Extending the above to allow *commonly allowed* (qpdf, mutool) exuberances:
-    -- (which allows the CrossRefEntry to possibly only have 19 bytes):
-
-    <| { $cr <| $lf ; Choose1{ $cr, $lf, ^0 }}
-}
-
-def UsedEntry (num : int) (gen : int) = {
-  Match1 'n'; offset = ^num; gen = ^gen;
-}
-
-def FreeEntry (num : int) (gen : int) = {
-  Match1 'f'; obj = ^num; gen = ^gen;
-}
-
-def BEBytes n =
-            { @bs = Many n UInt8;
-              ^ for (v = 0; b in bs) (v * 256 + (b as int))
-            }
+def NatN n = numBase 10 (Many n Digit)
 
 
-def NatN n = { @ds = Many n Digit; ^ numBase 10 ds }
 
 
 
 --------------------------------------------------------------------------------
 -- Cross-reference streams (section 7.5.8)
---  "beginning with PDF 1.5"
---  Peter Wyatt: "not preferable"
+-- Introduced in PDF 1.5
 
-def XRefObj = {
-  @str  = TopDecl.obj is stream;
-  WithStream (str.body is ok) (XRefObjTable (XRefMeta str.header));
-}
+def XRefObj =
+  block
+    let str = TopDecl.obj is stream;
+    WithStream (str.body is ok) (XRefObjTable (XRefMeta str.header))
 
-def XRefMeta header = {
-  CheckType "XRef" header;
-  index    = XRefIndex header;
-  widths   = XRefFormat header;
-  header   = ^ header;
-}
+def XRefMeta header =
+  block
+    CheckType "XRef" header
+    index    = XRefIndex header
+    widths   = XRefFormat header
+    header   = header
 
-def XRefFormat header = {
-  @kv    = LookupResolve "W" header;
-  @vs    = kv is array;
-  b1     = LookupInt vs 0 as? uint 64;
-  b2     = LookupInt vs 1 as? uint 64;
-  b3     = LookupInt vs 2 as? uint 64;
-  @bigwidth = for (s = 0; x in vs) { s + NatValue x };
-  width  = bigwidth as? uint 64;
-}
+def XRefIndex header =
+  block
+    let size = LookupNat  "Size" header
+    let arr  = Default [0,size] (LookupNats "Index" header)
+    map (i in rangeUp 0 (length arr) 2)
+      block
+        firstId = Index arr i
+        num     = Index arr (i+1) as? uint 64
+
+def XRefFormat header =
+  block
+    let vs = (LookupResolve "W" header) is array;
+    b1     = LookupInt vs 0 as? uint 64;
+    b2     = LookupInt vs 1 as? uint 64;
+    b3     = LookupInt vs 2 as? uint 64;
+    let bigwidth = for (s = 0; x in vs) (s + NatValue x)
+    width  = bigwidth as? uint 64;
 
 def LookupInt arr i =
   if i < length arr then NatValue (Index arr i)
                     else 0
 
 
-def XRefIndex header = {
-  @size = LookupNat  "Size" header;
-  @arr  = Default [0,size] (LookupNats "Index" header);
-  map (i in rangeUp 0 (length arr) 2) {
-    firstId = Index arr i;
-    num     = Index arr (i+1) as? uint 64;
-  }
-}
-
 
 
 --------------------------------------------------------------------------------
 -- Contents of object stream
 
-def XRefObjTable (meta : XRefMeta) = {
-  xref = map (idx in meta.index) {
-           firstId = ^ idx.firstId;
-           entries = Many idx.num (XRefObjEntry meta.widths)
-         };
-  trailer = TrailerDict meta.header;
-}
+def XRefObjTable (meta : XRefMeta) =
+  block
+    xref = map (idx in meta.index)
+             block
+               firstId = idx.firstId
+               entries = Many idx.num (XRefObjEntry meta.widths)
+
+    trailer = TrailerDict meta.header
 
 -- Section 7.5.8.3
-def XRefObjEntry (w : XRefFormat) = Chunk w.width {
-  @ftype = XRefFieldWithDefault 1 w.b1;
-  Choose1 {
-    free       = { Guard (ftype == 0); XRefFree w };
-    inUse      = { Guard (ftype == 1); XRefOffset w };
-    compressed = { Guard (ftype == 2); XRefCompressed w };
-    null       = { Guard (ftype > 2); }
-  }
-}
 
-def XRefFieldWithDefault x n = { Guard (n == 0); ^ x } <| BEBytes n
-def XRefFieldRequired n      = { Guard (n != 0); BEBytes n }
+def XRefFieldWithDefault x n =
+  case n of
+    0 -> x
+    _ -> BEBytes n
 
-def XRefFree (w : XRefFormat) = {
-  obj = XRefFieldRequired w.b2;
-  gen = XRefFieldWithDefault 0 w.b3;
-}
+def XRefFieldRequired n =
+  block
+    Guard (n != 0)
+    BEBytes n
 
-{- NOTE: For offset spec has default of 0, but also says that this field
-should always be present.  Seems like a bug in the spec, and having
-a default offset doesn't really make sense. -}
-def XRefOffset (w : XRefFormat) = {
-  offset = XRefFieldRequired w.b2;
-  gen    = XRefFieldWithDefault 0 w.b3;
-}
+def BEBytes n =
+  block
+    let bs = Many n UInt8;
+    for (v = 0; b in bs) (v * 256 + (b as int))
 
-def XRefCompressed (w : XRefFormat) = {
-  container_obj = XRefFieldRequired w.b2;   -- generation is implicitly 0
-  obj_index     = XRefFieldWithDefault 0 w.b3; -- Accorcding toSec. 7.5.8.3 Table 18,
-                                               -- there is no default but we assume 0
-                                               -- because that's what seems to work
-}
+
+def XRefObjEntry (w : XRefFormat) =
+  Chunk w.width
+    case XRefFieldWithDefault 1 w.b1 of
+      0 -> {| free       = XRefFree w |}
+      1 -> {| inUse      = XRefOffset w |}
+      2 -> {| compressed = XRefCompressed w |}
+      _ -> {| null |}
+
+{- NOTE: Table 18 in Section 7.5.8.3 has some issues:
+
+  * Type 0, Field 1 is given a default value.
+    This contradicts Table 17, which specifies that if the type of an entry
+    is missing it shall be 1
+
+  * Type 1, Field 2 is given a default value.
+    This contradicts Table 17, which specifies that the 2nd entry
+    should never be 0 (i.e., can't have a default value.
+
+  * Type 2, Field 3 does not have a default value.
+    However, some "valid" PDF files seem to assume that the field
+    may be ommitted and will have the value 0.
+
+-}
+
+
+def XRefFree (w : XRefFormat) =
+  block
+    obj = XRefFieldRequired w.b2
+    gen = XRefFieldWithDefault 0 w.b3
+
+def XRefOffset (w : XRefFormat) =
+  block
+    offset = XRefFieldRequired w.b2
+    gen    = XRefFieldWithDefault 0 w.b3
+
+def XRefCompressed (w : XRefFormat) =
+  block
+    container_obj = XRefFieldRequired w.b2   -- generation is implicitly 0
+    obj_index     = XRefFieldWithDefault 0 w.b3
 
 
 
@@ -226,7 +216,7 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
   block
     size    = LookupNatDirect "Size" dict
 
-    root    = case Optional (Lookup "Root" dict) of
+    root    = case lookup "Root" dict of
                 just x -> just (x is ref)
                 nothing -> nothing
 
@@ -234,37 +224,35 @@ def TrailerDict (dict : [ [uint 8] -> Value] ) =
 
     xrefstm = Optional (LookupNat "XRefStm" dict)
 
-    encrypt = case Optional (Lookup "Encrypt" dict) of
+    encrypt = case lookup "Encrypt" dict of
                 just d  -> just (TrailerDictEncrypt dict d)
                 nothing -> nothing
 
     all     = dict
 
--- Sec 7.5.5 File Trailer, Table 15, ID may be optional
-def TrailerIds (trailer : [ [uint 8] -> Value ]) = block
-  let x =
-    First
-      idContent = Lookup "ID" trailer
-      idMissing = ""
-  case x of {
-    idContent ic ->
-      (block
-        let arr = ic is array
-        (length arr == 2) is true
-        id0 = Index arr 0 is string
-        id1 = Index arr 1 is string
-      ) ;
-    idMissing ->
-      (block
-       id0 = ""
-       id1 = ""
-      ) ;
-    }
 
-def TrailerDictEncrypt (trailer : [ [uint 8] -> Value ]) (d : Value) =
+def TrailerDictEncrypt (trailer : Dict) (d : Value) =
   block
     d = d
     eref = d is ref
     let x = TrailerIds trailer
     id0 = x.id0
     id1 = x.id1
+
+-- Sec 7.5.5 File Trailer, Table 15, ID may be optional
+def TrailerIds (trailer : Dict) =
+  case lookup "ID" trailer of
+    nothing ->
+      block
+        id0 = ""
+        id1 = ""
+
+    just v ->
+      block
+        let arr = v is array
+        (length arr == 2) is true
+        id0 = Index arr 0 is string
+        id1 = Index arr 1 is string
+
+
+
