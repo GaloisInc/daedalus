@@ -185,7 +185,7 @@ def TryApplyFilter (f : Filter) (body : stream) =
 def ApplyFilter (f : Filter) guard (body: stream) (P : stream) : ApplyFilter = block
   -- Trace "ApplyFilter"
   if guard
-    then {| ok = P |} <| {| undecoded = body |}
+    then {| ok = P |}
     else {| unsupported =
               case f.param of
                 nothing -> f.name
