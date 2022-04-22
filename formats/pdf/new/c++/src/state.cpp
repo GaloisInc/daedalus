@@ -1,5 +1,6 @@
 #include "state.hpp"
 #include "debug.hpp"
+#include <ddl/utils.h>
 
 #include <algorithm>
 #include <cstring>
@@ -73,37 +74,15 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
     auto stream = streamResult.borrowValue().borrow_obj().get_stream();
     streamResult.free();
 
+    // XXX: Maybe we should cache the parsed ObjStreams so we don't
+    // have to reparse them for every object?
     DDL::ParseError error;
-    std::vector<User::ObjStream> results;
-    parseObjStream(error, results, DDL::Input("empty", ""), stream);
+    User::ObjStream objStream;
+    if (!DDL::parseOne(parseObjStream, error, &objStream,
+       DDL::Input("ObjStream", ""), stream)) return false;
 
-    if (results.size() != 1) {
-        for (auto && x : results) { x.free(); }
-        return false;
-    }
-
-    auto objstream = DDL::Owned(results[0]);
-
-    if (index >= objstream->borrow_index().size().value) {
-        return false;
-    }
-
-    auto byteOffset = objstream->borrow_index().borrowElement(index).borrow_off().asSize();
-    auto objInput = objstream->get_bytes().iDrop(byteOffset);
-    
-    std::vector<User::Value> vresults;
-    parseValue(error, vresults, objInput);
-
-    if (1 != vresults.size()) {
-        for (auto && x : results) { x.free(); }
-        return false;
-    }
-
-    User::TopDeclDef topDef;
-    topDef.init_value(vresults[0]);
-    result->init(refid, 0, topDef);
-
-    return true;
+    return DDL::parseOne(parseObjStreamEntry, error, result,
+                  DDL::Input("",""), objStream, DDL::UInt<64>(index));
 }
 
 // Owns topDecl
