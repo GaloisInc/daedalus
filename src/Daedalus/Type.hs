@@ -1160,6 +1160,10 @@ checkPattern ty pat =
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)
+
+        LBytes bs ->
+          do unify ty (pat, tArray tByte)
+             pure (TCStrPat bs)
         _ -> reportError pat "Unsuported literal pattern"
 
     WildPattern _ ->

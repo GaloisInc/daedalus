@@ -562,6 +562,7 @@ patMatch pat leaf k =
   case pat of
      TC.TCConPat _ l p   -> nested (PCon l) p
      TC.TCNumPat _ x _   -> terminal (PNum x)
+     TC.TCStrPat xs      -> terminal (PBytes xs)
      TC.TCBoolPat b      -> terminal (PBool b)
      TC.TCJustPat p      -> nested PJust p
      TC.TCNothingPat {}  -> terminal PNothing
@@ -683,6 +684,7 @@ matchToAlts mExpr match x =
                      PBool {} -> bad
                      PNothing -> bad
                      PNum {}  -> bad
+                     PBytes {} -> bad
                      PAny     -> bad
       bad = panic "matchToAlts" ["Unexpected nested pattern"]
       e   = Var x
@@ -698,6 +700,7 @@ completeAlts d ps0 =
         PNothing      -> this : go [PJust] more
         PJust         -> this : go [PNothing] more
         PNum {}       -> this : completeAlts d more
+        PBytes {}     -> this : completeAlts d more
         PCon {}       -> this : completeAlts d more -- XXX: could check that we have all
   where
   go need ps =

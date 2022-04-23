@@ -12,6 +12,7 @@ import qualified Daedalus.Core.Type as Src
 import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
+import Daedalus.VM.Compile.StrPat
 
 
 compileEs :: [Src.Expr] -> ([E] -> BlockBuilder Void) -> C (BlockBuilder Void)
@@ -71,6 +72,7 @@ compileE expr k =
          codes <- forM as \(p,rhs) ->
                     do l <- label0 NormalBlock =<< compileE rhs next'
                        pure (p, l)
+
          b <- lookupN x
          pure (jumpCase (Map.fromList codes) =<< b)
 
@@ -81,8 +83,6 @@ compileE expr k =
     Src.ApN op es       -> compileOpN op ty es k
 
   where ty = TSem (Src.typeOf expr)
-
-
 
 compileOp0 :: Src.Op0 -> VMT -> CE
 compileOp0 op ty k' =
