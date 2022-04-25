@@ -276,6 +276,7 @@ checkPatterns t ps
              TInteger        -> notExhaustive
              TUInt (TSize n) -> countNotExhaustive (2^n)
              TSInt (TSize n) -> countNotExhaustive (2^n)
+             TArray (TUInt (TSize 8)) -> notExhaustive
              _               -> notPat
 
 
