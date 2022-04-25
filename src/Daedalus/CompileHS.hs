@@ -894,6 +894,7 @@ hsCase ::
   Term
 hsCase eval ifFail env e alts dfl
   | isBitdata = hsBitdataCase eval ifFail env e alts dfl
+  | isStrPat  = Case ("Vector.vecToRep" `Ap` hsValue env e) branches
   | otherwise = Case (hsValue env e) branches
   where
   isBitdata = case typeOf e of
@@ -901,6 +902,8 @@ hsCase eval ifFail env e alts dfl
                    | Just _ <- tctyBD (lkpInEnv "typeEnv" (envTypes env) c) ->
                      True
                 _ -> False
+
+  isStrPat = typeOf e == tArray tByte
 
   branches =
     concatMap alt (NE.toList alts) ++ [
@@ -940,6 +943,7 @@ hsPatBDD env pat =
     TCWildPat t     -> hsBitdataUniv env t
 
     TCNumPat {}     -> bad
+    TCStrPat {}     -> bad
     TCBoolPat {}    -> bad
     TCJustPat {}    -> bad
     TCNothingPat {} -> bad
@@ -955,6 +959,7 @@ hsPatVars pat =
     TCNumPat {}     -> []
     TCWildPat {}    -> []
     TCBoolPat {}    -> []
+    TCStrPat {}     -> []
     TCJustPat p     -> hsPatVars p
     TCNothingPat {} -> []
 
@@ -1054,6 +1059,8 @@ hsPat env pat =
         Type (TUInt _) -> Tuple [ApI "->" "RTS.fromUInt" (Raw i)]
         Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
         _ -> panic "hsPat" [ "We don't support polymorphic case." ]
+
+    TCStrPat bs -> Raw bs
 
     TCBoolPat b     -> hsBool b
     TCJustPat p     -> "HS.Just" `Ap` hsPat env p

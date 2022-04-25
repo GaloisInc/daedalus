@@ -8,7 +8,6 @@ module Daedalus.VM.Compile.Grammar where
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
 import Control.Monad(forM)
-import qualified Data.Map as Map
 
 import Daedalus.Panic(panic)
 
@@ -20,7 +19,6 @@ import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.Expr
-
 
 
 compile :: Src.Grammar -> WhatNext -> C (BlockBuilder Void)
@@ -62,8 +60,8 @@ compile expr next0 =
          codes <- forM as \(p,g) ->
                     do l <- label0 NormalBlock =<< compile g next'
                        pure (p, l)
-         b <- lookupN x
-         pure (jumpCase (Map.fromList codes) =<< b)
+
+         compileCaseBranches x codes
 
     Src.Do_ p q ->
 

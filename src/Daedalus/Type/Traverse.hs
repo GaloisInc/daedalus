@@ -260,6 +260,7 @@ instance TraverseTypes TCPat where
       TCConPat t l p ->
         (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
       TCNumPat t i l -> (\t' -> TCNumPat t' i l) <$> f t
+      TCStrPat bs    -> pure (TCStrPat bs)
       TCBoolPat b    -> pure (TCBoolPat b)
       TCJustPat p    -> TCJustPat <$> traverseTypes f p
       TCNothingPat t -> TCNothingPat <$> f t

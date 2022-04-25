@@ -30,6 +30,7 @@ library
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
     Daedalus.VM.Compile.Decl
+    Daedalus.VM.Compile.StrPat
     Daedalus.VM.GraphViz
     Daedalus.VM.TailCallJump
     Daedalus.VM.Backend.C

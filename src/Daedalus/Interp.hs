@@ -461,6 +461,8 @@ matchPat pat =
                                  _ -> Nothing
     TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
                                   pure []
+    TCStrPat bs       -> \v -> do guard (valueToByteString v == bs)
+                                  pure []
     TCBoolPat b       -> \v -> do guard (valueToBool v == b)
                                   pure []
     TCJustPat p       -> \v -> case valueToMaybe v of

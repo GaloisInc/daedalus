@@ -131,6 +131,7 @@ jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 
 -- | Two joint points, but we'll use exactly one of the two.
 -- This matters for memory management.
+-- NOTE:  String literal patterns should have been already compiled away.
 data JumpChoice = JumpCase (Map Src.Pattern JumpWithFree)
 
 -- | Constants, and acces to the VM state that does not change in a block.

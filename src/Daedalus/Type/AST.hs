@@ -6,6 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
 {-# Language RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Daedalus.Type.AST
   ( module Daedalus.Type.AST
@@ -241,7 +242,7 @@ data TCF :: HS -> Ctx -> HS where
       -- Custom error message: message (byte array)
 
    TCCase :: TC a Value           {- thing we examine -} ->
-             NonEmpty (TCAlt a k) {- brances; non-empty -} ->
+             NonEmpty (TCAlt a k) {- branches; non-empty -} ->
              Maybe (TC a k)       {- default -} ->
              TCF a k
 
@@ -259,6 +260,7 @@ data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
 -- | Deconstruct a value
 data TCPat = TCConPat Type Label TCPat
            | TCNumPat Type Integer Text   -- text is how to show
+           | TCStrPat ByteString
            | TCBoolPat Bool
            | TCJustPat TCPat
            | TCNothingPat Type
@@ -643,6 +645,7 @@ instance PP TCPat where
       TCBoolPat b     -> if b then "true" else "false"
       TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
       TCNothingPat _  -> "nothing"
+      TCStrPat xs     -> text (show xs)
       TCVarPat x      -> pp x
       TCWildPat _     -> "_"
 
@@ -673,6 +676,7 @@ describePat par pat =
   case pat of
     TCConPat _ l p -> ppCon l p
     TCNumPat _ _ txt -> text (Text.unpack txt)
+    TCStrPat xs    -> text (show xs)
     TCBoolPat b    -> pp b
     TCJustPat p    -> ppCon "just" p
     TCNothingPat _ -> "nothing"
@@ -1093,6 +1097,7 @@ instance TypeOf TCPat where
     case pat of
       TCConPat t _ _ -> t
       TCNumPat t _ _ -> t
+      TCStrPat {} -> tArray tByte
       TCBoolPat _ -> tBool
       TCJustPat p -> tMaybe (typeOf p)
       TCNothingPat t -> tMaybe t
@@ -1104,6 +1109,7 @@ patBinds pat =
   case pat of
     TCConPat _ _ p  -> patBinds p
     TCNumPat {}     -> []
+    TCStrPat {}     -> []
     TCBoolPat {}    -> []
     TCJustPat p     -> patBinds p
     TCNothingPat {} -> []

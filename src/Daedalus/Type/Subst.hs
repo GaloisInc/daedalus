@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings, NamedFieldPuns, GADTs, RankNTypes
   , TupleSections
   , ScopedTypeVariables, FlexibleContexts #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Daedalus.Type.Subst where
 
 import Control.Monad.Reader

@@ -276,6 +276,7 @@ checkPatterns t ps
              TInteger        -> notExhaustive
              TUInt (TSize n) -> countNotExhaustive (2^n)
              TSInt (TSize n) -> countNotExhaustive (2^n)
+             TArray (TUInt (TSize 8)) -> notExhaustive
              _               -> notPat
 
 
@@ -311,6 +312,7 @@ checkPatterns t ps
       PNothing {} -> isMaybe t >> pure ()
       PJust {}    -> isMaybe t >> pure ()
       PNum {}     -> isIntegral t
+      PBytes {}   -> isArray t >>= typeIs tByte
       PCon c
         | Just fs <- ty
         , c `elem` fs -> pure ()

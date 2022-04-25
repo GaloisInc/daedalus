@@ -6,6 +6,7 @@
 
 module Daedalus.Core.Basics where
 
+import Data.ByteString(ByteString)
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 
@@ -106,6 +107,7 @@ data Pattern =
   | PNothing
   | PJust
   | PNum Integer
+  | PBytes ByteString
   | PCon Label
   | PAny
     deriving (Eq,Ord,Generic,NFData)
@@ -256,5 +258,6 @@ instance PP Pattern where
       PNothing  -> "nothing"
       PJust     -> "just"
       PNum   n  -> pp n
+      PBytes bs -> text (show bs)
       PCon   l  -> pp l
       PAny      -> "_"
