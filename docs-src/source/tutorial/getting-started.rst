@@ -117,47 +117,8 @@ may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
 represented in this PPM format.) Here it is:
 
-.. code-block:: DaeDaLus
-
-    def Main = {
-      $$ = PPM;
-    }
-
-    def Token P = {
-      $$ = P;
-      Many (1..) WS;
-    }
-
-    def PPM = {
-      Match "P";
-      @version = Token Natural;
-      version == 3 is true;
-      width  = Token Natural;
-      height = Token Natural;
-      maxVal = Token Natural;
-      data   = Many height (Many width RGB);
-    }
-
-    def RGB = {
-      red   = Token Natural;
-      green = Token Natural;
-      blue  = Token Natural;
-    }
-
-    def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
-
-    def Natural = {
-      @ds = Many (1..) Digit;
-      ^ for (val = 0; d in ds) (addDigit val d);
-    }
-
-    def Digit = {
-      @d = Match1 ('0' .. '9');
-      ^ d - '0';
-    }
-
-    def addDigit val d =
-      10 * val + (d as uint 64)
+.. literalinclude:: examples/plain-ppm.ddl
+    :language: DaeDaLus
 
 You may notice that this specification does not perform any *validation* of the
 image data -- later, we'll discuss the pros and cons of including validation in
