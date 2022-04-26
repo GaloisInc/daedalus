@@ -34,7 +34,7 @@ syn keyword ddlKeywordConst true false
 syn keyword ddlKeywordConst nothing just
 syn keyword ddlKeywordConst empty
 syn keyword ddlKeywordFun   arrayStream bytesOfStream
-syn keyword ddlKeywordFun   insert Insert Lookup
+syn keyword ddlKeywordFun   insert Insert Lookup lookup
 syn keyword ddlKeywordFun   Index length concat rangeUp rangeDown
 syn keyword ddlKeywordFun   try
 syn keyword ddlKeywordFun   pi wordToFloat wordToDouble

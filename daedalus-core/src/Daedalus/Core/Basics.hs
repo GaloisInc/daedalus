@@ -6,12 +6,14 @@
 
 module Daedalus.Core.Basics where
 
+import Data.ByteString(ByteString)
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 
 import Data.Text(Text)
 import Data.Function(on)
 
+import Daedalus.SourceRange(SourceRange)
 import Daedalus.PP
 import Daedalus.GUID
 
@@ -58,8 +60,9 @@ data Name = Name
 -- | Annotation
 data Annot =
     SrcAnnot Text
-  | NoFail          -- ^ The grammar is known to not fail
-  deriving (Generic,NFData)
+  | SrcRange SourceRange  -- ^ Reference to something in the original source
+  | NoFail                -- ^ The grammar is known to not fail
+  deriving (Generic,NFData,Show)
 
 type Label = Text
 
@@ -104,6 +107,7 @@ data Pattern =
   | PNothing
   | PJust
   | PNum Integer
+  | PBytes ByteString
   | PCon Label
   | PAny
     deriving (Eq,Ord,Generic,NFData)
@@ -200,6 +204,7 @@ instance PP Annot where
   pp ann =
     case ann of
       SrcAnnot t -> pp t
+      SrcRange r -> pp r
       NoFail     -> "NoFail"
 
 
@@ -253,5 +258,6 @@ instance PP Pattern where
       PNothing  -> "nothing"
       PJust     -> "just"
       PNum   n  -> pp n
+      PBytes bs -> text (show bs)
       PCon   l  -> pp l
       PAny      -> "_"

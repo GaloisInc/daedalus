@@ -83,6 +83,8 @@ matches pat v =
                   _       -> False
     PNum n -> valueToIntegral v == n
 
+    PBytes bs -> valueToByteString v == bs
+
     PCon l -> case v of
                 VUnionElem l1 _ -> l1 == l
                 VBDUnion bd i   -> bduMatches bd l i

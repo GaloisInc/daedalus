@@ -16,30 +16,40 @@ normGFun fu =
     _     -> fu
 
 -- XXX: rename things rather than disabling the optimization
+-- XXX: The annotation manipulation makes sense for source ranges,
+-- but not so sure for other things..
 normG :: Grammar -> Grammar
 normG gram =
   case mapChildrenG normG gram of
-    Do_ (Do_ x y) z -> Do_ x (normG (Do_ y z))
-    Do_ (Do a x y) z
-      | not (a `Set.member` freeVars z) -> Do a x (normG (Do_ y z))
+    Do_ (Annotated as (Do_ x y)) z ->
+      gBinAnnotate Do_ (gAnnotate as x) (normG (Do_ (gAnnotate as y )z))
 
-    Do_ (Let a x y) z
-      | not (a `Set.member` freeVars z) -> Let a x (normG (Do_ y z))
+    Do_ (Annotated as (Do a x y)) z
+      | not (a `Set.member` freeVars z) ->
+      gBinAnnotate (Do a) (gAnnotate as x) (normG (Do_ (gAnnotate as y) z))
 
-    Do_ (Pure (Ap0 Unit)) x -> normG x
-    Do_ x (Pure (Ap0 Unit))
+    Do_ (Annotated as (Let a x y)) z
+      | not (a `Set.member` freeVars z) ->
+      Let a x (normG (Do_ (gAnnotate as y) z))
+
+    Do_ (Annotated _as (Pure (Ap0 Unit))) x -> normG x
+    Do_ x (Annotated _as (Pure (Ap0 Unit)))
       | typeOf x == TUnit -> x
 
-    Do a (Do_  x y) z -> Do_ x (normG (Do a y z))
-    Do a (Do b x y) z
-      | not (b `Set.member` freeVars z) -> Do b x (normG (Do a y z))
+    Do a (Annotated as (Do_  x y)) z ->
+      gBinAnnotate Do_ (gAnnotate as x) (normG (Do a (gAnnotate as y) z))
 
-    Do a (Let b x y) z
-      | not (b `Set.member` freeVars z) -> Let b x (normG (Do a y z))
+    Do a (Annotated as (Do b x y)) z
+      | not (b `Set.member` freeVars z) ->
+        gBinAnnotate (Do b) (gAnnotate as x) (normG (Do a (gAnnotate as y) z))
 
-    Do a x (Pure (Var a')) | a == a' -> x
+    Do a (Annotated as (Let b x y)) z
+      | not (b `Set.member` freeVars z) ->
+        Let b x (normG (Do a (gAnnotate as y) z))
 
-    Do a (Pure e) x -> Let a e x
+    Do a x (Annotated _as (Pure (Var a'))) | a == a' -> x
+
+    Do a (Annotated as (Pure e)) x -> gAnnotate as (Let a e x)
 
     norm            -> norm
 

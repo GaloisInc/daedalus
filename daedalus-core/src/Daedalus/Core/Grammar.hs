@@ -50,6 +50,72 @@ instance CoreSyn Grammar where
 
 --------------------------------------------------------------------------------
 
+skipAnnot :: Grammar -> Grammar
+skipAnnot g =
+  case g of
+    Annot _ g1 -> skipAnnot g1
+    _          -> g
+
+skipGetAnnot :: Grammar -> ([Annot], Grammar)
+skipGetAnnot = go []
+  where
+  go as g =
+    case g of
+      Annot a g1 -> go (a:as) g1
+      _          -> (as,g)
+
+
+gAnnotate :: [Annot] -> Grammar -> Grammar
+gAnnotate as g = foldr Annot g as
+  where
+  -- can use this to only add a single src range annotation
+  _addAnn a gram =
+    case a of
+      SrcRange {} ->
+        case gram of
+          Annot (SrcRange {}) _ -> gram
+          Annot b g1 -> Annot b (_addAnn a g1)
+          _ -> Annot a gram
+      _ -> Annot a gram
+
+
+-- | Apply a binary constructor but factor out common SrcRange annotations
+gBinAnnotate :: (Grammar -> Grammar -> Grammar) -> Grammar -> Grammar -> Grammar
+gBinAnnotate mk (Annotated as0 g1) (Annotated bs0 g2) =
+  gAnnotate c (mk (gAnnotate leftAs g1) (gAnnotate rightAs g2))
+  where
+  (c,leftAs,rightAs) = commonSrcAnn (reverse as0) (reverse bs0)
+
+  commonSrcAnn as bs =
+    case as of
+      [] -> ([], as, bs)
+      a : as' ->
+        case a of
+          SrcRange r1 ->
+            case bs of
+              [] -> ([], as, bs)
+              b : bs' ->
+                case b of
+                  SrcRange r2 -> if r1 == r2
+                                    then let (cs,xs,ys) = commonSrcAnn as' bs'
+                                         in (a:cs,xs,ys)
+                                    else ([], as, bs)
+                  _ -> let (cs,xs,ys) = commonSrcAnn as bs'
+                       in (cs,xs,b:ys)
+          _ -> let (cs,xs,ys) = commonSrcAnn as' bs
+               in (cs, a:xs, ys)
+
+
+
+
+{-# COMPLETE SkipAnnot #-}
+pattern SkipAnnot :: Grammar -> Grammar
+pattern SkipAnnot g <- (skipAnnot -> g)
+
+{-# COMPLETE Annotated #-}
+pattern Annotated :: [Annot] -> Grammar -> Grammar
+pattern Annotated as g <- (skipGetAnnot -> (as,g))
+
 pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 
@@ -104,6 +170,9 @@ mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
 mapChildrenG f g = g1
   where Identity g1 = childrenG (Identity . f) g
 
+collectChildren :: Monoid a => (Grammar -> a) -> Grammar -> a
+collectChildren f = fst . childrenG (\g -> (f g, g))
+
 --------------------------------------------------------------------------------
 
 
@@ -122,8 +191,8 @@ instance PP Grammar where
       Do_ {}         -> "do" <+> ppStmts gram
       Do  {}         -> "do" <+> ppStmts gram
       Let {}         -> "do" <+> ppStmts gram
-      OrBiased g1 g2 -> "try" $$ nest 2 (pp g1) $$ ppOrBiased g2
-      OrUnbiased {}  -> nest 2 (ppOrUnbiased gram)
+      OrBiased g1 g2 -> "try" $$ nest 2 (pp g1) $$ ppOrBiased False g2
+      OrUnbiased {}  -> nest 2 (ppOrUnbiased False gram)
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
@@ -141,19 +210,33 @@ ppSemSuff sem =
     SemYes -> ""
     SemNo  -> "_"
 
-ppOrUnbiased :: Grammar -> Doc
-ppOrUnbiased gram =
+ppOrUnbiased :: Bool -> Grammar -> Doc
+ppOrUnbiased forked gram =
   case gram of
-    OrUnbiased g1 g2 -> "fork" $$ nest 2 (pp g1) $$ ppOrUnbiased g2
-    Annot a g -> "--" <+> pp a $$ ppOrUnbiased g
-    _ -> "fork" $$ nest 2 (pp gram)
+    OrUnbiased g1 g2 -> "fork" $$ nest 2 (pp g1) $$ ppOrUnbiased False g2
+    Annot a g
+      | forked    -> next
+      | otherwise -> "fork" $$ nest 2 next
+        where next = "--" <+> pp a $$ ppOrUnbiased True g
 
-ppOrBiased :: Grammar -> Doc
-ppOrBiased gram =
+    _
+      | forked    -> next
+      | otherwise -> "fork" $$ nest 2 next
+      where next = pp gram
+
+ppOrBiased :: Bool -> Grammar -> Doc
+ppOrBiased forked gram =
   case gram of
-    OrBiased g1 g2 -> "else try" $$ nest 2 (pp g1) $$ ppOrBiased g2
-    Annot a g      -> "--" <+> pp a $$ ppOrBiased g
-    _              -> "else" $$ nest 2 (pp gram)
+    OrBiased g1 g2 -> "else try" $$ nest 2 (pp g1) $$ ppOrBiased False g2
+
+    Annot a g
+      | forked    -> next
+      | otherwise -> "orelse" $$ nest 2 next
+      where next = "--" <+> pp a $$ ppOrBiased True g
+
+    _ | forked    -> next
+      | otherwise -> "orelse" $$ nest 2 next
+      where next = pp gram
 
 ppStmts :: Grammar -> Doc
 ppStmts gram =

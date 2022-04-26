@@ -46,6 +46,7 @@ data Options =
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
+          , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
           }
 
@@ -68,6 +69,7 @@ options = OptSpec
                            , optCheckCore = True
                            , optDeterminize = False
                            , optOutDir    = Nothing
+                           , optNoWarnUnbiasedFront = False
                            , optNoWarnUnbiased = False
                            }
   , progOptions =
@@ -212,19 +214,47 @@ getOptions =
   do opts <- getOpts options
      case optCommand opts of
        ShowHelp -> dumpUsage options >> exitSuccess
-       JStoHTML -> pure opts
+       JStoHTML -> pure (impliedOptions opts)
        _ | let file = optParserDDL opts
          , takeExtension file == ".test" -> getOptionsFromFile file
          | otherwise ->
             do when (null (optParserDDL opts)) (dumpUsage options)
-               pure opts
+               pure (impliedOptions opts)
 
 getOptionsFromFile :: FilePath -> IO Options
 getOptionsFromFile file =
   do inp <- readFile file
      case getOptsFrom options (lines inp) of
        Left err   -> throwIO err
-       Right opts -> pure opts
+       Right opts -> pure (impliedOptions opts)
 
 throwOptError :: [String] -> IO a
 throwOptError err = throwIO (GetOptException err)
+
+impliedOptions :: Options -> Options
+impliedOptions opts0 =
+  case optBackend opts of
+    UseCore -> noTCUnbiased
+    _ ->
+      case optCommand opts of
+        DumpRaw         -> opts
+        DumpTC          -> opts
+        DumpTypes       -> opts
+        DumpSpec        -> opts
+        DumpNorm        -> opts
+        DumpRuleRanges  -> opts
+        DumpCore        -> noTCUnbiased
+        DumpVM          -> noTCUnbiased
+        DumpGraph {}    -> opts
+        DumpGen         -> opts
+        CompileHS       -> opts
+        CompileCPP      -> noTCUnbiased
+        Interp {}       -> opts
+        JStoHTML        -> opts
+        ShowHelp        -> opts
+
+  where
+  opts = if optNoWarnUnbiased opts0
+          then opts0 { optNoWarnUnbiasedFront = True }
+          else opts0
+  noTCUnbiased = opts { optNoWarnUnbiasedFront = True }

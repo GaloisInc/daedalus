@@ -1,2 +1,2 @@
-sexp-mutrec.ddl
+../../formats/sexp-mutrec.ddl
 --interp=sexp-mutrec.sexp
