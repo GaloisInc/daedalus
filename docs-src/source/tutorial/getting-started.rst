@@ -109,8 +109,8 @@ We can match this up with the format description given above:
 3. The maximum color value is ``15``
 4. There is a four-by-four grid of triples, one triple per pixel
 
-The DaeDaLus PPM Specification
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+DaeDaLus PPM Specification
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
