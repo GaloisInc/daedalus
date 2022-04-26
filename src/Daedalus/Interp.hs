@@ -3,9 +3,12 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 -- An interpreter for the typed AST
 module Daedalus.Interp
   ( interp, interpFile
@@ -194,125 +197,139 @@ evalTriOp op =
 --------------------------------------------------------------------------------
 -- Generic utilities for evaluating loops
 
-data LoopEval col b = LoopEval
+data LoopEval col v = LoopEval
   { unboxCol  :: Value -> col
-  , loopNoKey :: (Value -> Value          -> LoopV b) -> Value -> col -> LoopV b
-  , loopKey   :: (Value -> Value -> Value -> LoopV b) -> Value -> col -> LoopV b
+  , loopNoKey :: (Value -> Value          -> v) -> Value -> col -> v
+  , loopKey   :: (Value -> Value -> Value -> v) -> Value -> col -> v
 
-  , mapNoKey  :: (Value          -> LoopV b) -> col -> LoopV b
-  , mapKey    :: (Value -> Value -> LoopV b) -> col -> LoopV b
+  , mapNoKey  :: (Value          -> v) -> col -> v
+  , mapKey    :: (Value -> Value -> v) -> col -> v
   }
 
-class EvalLoopBody b where
-  type LoopV b
-  evalLoopBody :: HasRange a => Env -> TC a b -> LoopV b
+loopOverArray :: LoopEval (Vector.Vector Value) Value
+loopOverArray =
+  LoopEval
+    { unboxCol  = valueToVector
+    , mapNoKey  = \f -> VArray . Vector.map f
+    , mapKey    = \f -> VArray . Vector.imap (stepKeyMap f)
+    , loopNoKey = \f s -> Vector.foldl' f s
+    , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
+    }
+  where
+  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
+  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
 
-instance EvalLoopBody K.Value where
-  type LoopV K.Value = Value
+loopOverArrayM :: LoopEval (Vector.Vector Value) (Parser Value)
+loopOverArrayM =
+  LoopEval
+    { unboxCol  = valueToVector
+    , loopNoKey = \f s -> Vector.foldM'           f  s
+    , loopKey   = \f s -> Vector.ifoldM' (stepKey f) s
+    , mapNoKey  = \f   -> fmap VArray . Vector.mapM f
+    , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
+    }
+  where
+  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
+  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
+
+loopOverMap :: LoopEval (Map Value Value) Value
+loopOverMap =
+  LoopEval
+    { unboxCol  = valueToMap
+    , loopNoKey = \f s -> Map.foldl' f s
+    , loopKey   = \f s -> Map.foldlWithKey' f s
+    , mapNoKey  = \f -> VMap . Map.map f
+    , mapKey    = \f -> VMap . Map.mapWithKey f
+    }
+
+loopOverMapM :: LoopEval (Map Value Value) (Parser Value)
+loopOverMapM =
+  LoopEval
+    { unboxCol  = valueToMap
+    , loopNoKey = \f s -> foldM (stepNoKey f) s . Map.toList
+    , loopKey   = \f s -> foldM (stepKey   f) s . Map.toList
+    , mapNoKey  = \f -> fmap VMap . traverse f
+    , mapKey    = \f -> fmap VMap . Map.traverseWithKey f
+    }
+  where
+  stepNoKey f = \sV (_  ,elV)-> f sV    elV
+  stepKey f   = \sV (kV,elV) -> f sV kV elV
+
+
+
+
+
+class EvalLoopBody v where
+  type KindOf v :: Ctx
+  evalLoopBody  :: HasRange a => Env -> TC a (KindOf v) -> v
+  arrayLoop     :: LoopEval (Vector.Vector Value) v
+  mapLoop       :: LoopEval (Map Value Value) v
+
+instance EvalLoopBody Value where
+  type KindOf Value = K.Value
   evalLoopBody = compilePureExpr
+  arrayLoop    = loopOverArray
+  mapLoop      = loopOverMap
 
-instance EvalLoopBody K.Grammar where
-  type LoopV K.Grammar = Parser Value
+instance EvalLoopBody (Parser Value) where
+  type KindOf (Parser Value) = K.Grammar
   evalLoopBody = compileExpr
+  arrayLoop    = loopOverArrayM
+  mapLoop      = loopOverMapM
 
-doLoop :: (HasRange a, EvalLoopBody b) =>
-          Env -> Loop a b -> LoopEval col b -> LoopV b
-doLoop env lp ev =
-  case loopKName lp of
-    Nothing ->
-      case loopFlav lp of
-        LoopMap -> mapNoKey ev step colV
-          where
-          step elV = bodyVal (addVal (loopElName lp) elV)
 
-        Fold x s -> loopNoKey ev step initVal colV
-          where
-          initVal     = compilePureExpr env s
-          step sV elV = bodyVal ( addVal x               sV
-                                . addVal (loopElName lp) elV
-                                )
+loopOver ::
+  EvalLoopBody v =>
+  Env -> LoopCollection a -> (forall col. LoopEval col v -> v) -> v
+loopOver env col k =
+  case evalType env (typeOf (lcCol col)) of
+    TVArray -> k arrayLoop
+    TVMap   -> k mapLoop
+    t       -> panic "loopOver" [ "Unexpected loop type", show (pp t) ]
 
-    Just k ->
-      case loopFlav lp of
-        LoopMap -> mapKey ev step colV
-          where
-          step kV elV = bodyVal ( addVal k kV
-                                . addVal (loopElName lp) elV
-                                )
+doLoop :: (HasRange a, EvalLoopBody v) => Env -> Loop a (KindOf v) -> v
+doLoop env lp =
+  case loopFlav lp of
 
-        Fold x s -> loopKey ev step initVal colV
-          where
-          initVal        = compilePureExpr env s
-          step sV kV elV = bodyVal ( addVal x sV
-                                   . addVal k kV
-                                   . addVal (loopElName lp) elV
-                                   )
+    LoopMap c ->
+
+      loopOver env c \ev ->
+        let colV = unboxCol ev (compilePureExpr env (lcCol c))
+        in
+        case lcKName c of
+          Nothing -> mapNoKey ev step colV
+            where
+            step elV = bodyVal (addVal (lcElName c) elV)
+
+          Just k -> mapKey ev step colV
+            where
+            step kV elV = bodyVal ( addVal k kV
+                                  . addVal (lcElName c) elV
+                                  )
+
+    Fold x s c ->
+      loopOver env c \ev ->
+        let colV  = unboxCol ev (compilePureExpr env (lcCol c))
+        in
+        case lcKName c of
+          Nothing -> loopNoKey ev step initVal colV
+            where
+            initVal     = compilePureExpr env s
+            step sV elV = bodyVal ( addVal x             sV
+                                  . addVal (lcElName c) elV
+                                  )
+
+          Just k -> loopKey ev step initVal colV
+            where
+            initVal        = compilePureExpr env s
+            step sV kV elV = bodyVal ( addVal x sV
+                                     . addVal k kV
+                                     . addVal (lcElName c) elV
+                                     )
 
   where
-  colV           = unboxCol ev (compilePureExpr env (loopCol lp))
   bodyVal extEnv = evalLoopBody (extEnv env) (loopBody lp)
 --------------------------------------------------------------------------------
-
-
-
-evalFor :: HasRange a => Env -> Loop a K.Value -> Value
-evalFor env lp =
-
-  case evalType env (typeOf (loopCol lp)) of
-
-    TVArray -> doLoop env lp LoopEval
-      { unboxCol  = valueToVector
-      , mapNoKey  = \f -> VArray . Vector.map f
-      , mapKey    = \f -> VArray . Vector.imap (stepKeyMap f)
-      , loopNoKey = \f s -> Vector.foldl' f s
-      , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
-      }
-      where
-      stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-      stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-    TVMap -> doLoop env lp LoopEval
-      { unboxCol  = valueToMap
-      , loopNoKey = \f s -> Map.foldl' f s
-      , loopKey   = \f s -> Map.foldlWithKey' f s
-      , mapNoKey  = \f -> VMap . Map.map f
-      , mapKey    = \f -> VMap . Map.mapWithKey f
-      }
-
-    t -> panic "evalPureFor" [ "Unexpected collection in `for`", show (pp t) ]
-
-
-
-evalForM :: HasRange a => Env -> Loop a K.Grammar -> Parser Value
-evalForM env lp =
-
-  case evalType env (typeOf (loopCol lp)) of
-
-    TVArray -> doLoop env lp LoopEval
-      { unboxCol  = valueToVector
-      , loopNoKey = \f s -> Vector.foldM'           f  s
-      , loopKey   = \f s -> Vector.ifoldM' (stepKey f) s
-      , mapNoKey  = \f   -> fmap VArray . Vector.mapM f
-      , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
-      }
-      where
-      stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-      stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-    TVMap -> doLoop env lp LoopEval
-      { unboxCol  = valueToMap
-      , loopNoKey = \f s -> foldM (stepNoKey f) s . Map.toList
-      , loopKey   = \f s -> foldM (stepKey   f) s . Map.toList
-      , mapNoKey  = \f -> fmap VMap . traverse f
-      , mapKey    = \f -> fmap VMap . Map.traverseWithKey f
-      }
-      where
-      stepNoKey f = \sV (_  ,elV)-> f sV    elV
-      stepKey f   = \sV (kV,elV) -> f sV kV elV
-
-    t -> panic "evalForM" [ "Unexpected collection in `for`", show (pp t) ]
-
-
 
 -- Handles expr with kind KValue
 compilePureExpr :: HasRange a => Env -> TC a K.Value -> Value
@@ -347,7 +364,7 @@ compilePureExpr env = go
         TCLet x e1 e2 ->
           compilePureExpr (addVal x (compilePureExpr env e1) env) e2
 
-        TCFor lp -> evalFor env lp
+        TCFor lp -> doLoop env lp
 
         TCIf be te fe  -> go (if valueToBool (go be) then te else fe)
 
@@ -836,7 +853,7 @@ compilePExpr env expr0 args = go expr0
 
                 else pError FromSystem erng "value does not fit in target type"
 
-        TCFor lp -> evalForM env  lp
+        TCFor lp -> doLoop env  lp
 
         TCErrorMode m p -> pErrorMode m' (compileExpr env p)
           where m' = case m of

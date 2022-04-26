@@ -312,13 +312,10 @@ mbSem tc =
 
     TCFor lp  ->
       do (m',i) <- mbSem (loopBody lp)
-         let bnd = Set.unions [ tcBinds (loopFlav lp),
-                                tcBinds (loopKName lp),
-                                tcBinds (loopElName lp) ]
+         let bnd = tcBinds (loopFlav lp)
 
          pure ( exprAt tc (TCFor lp { loopBody = m' })
               , tcFree (loopFlav lp) <>
-                tcFree (loopCol lp) <>
                 Set.difference i bnd
               )
 
@@ -353,7 +350,6 @@ mbSem tc =
            Just (d,vs2) -> pure ( exprAt tc $ TCCase e pats1 (Just d)
                                 , Set.unions (tcFree e : vs2 : NE.toList vs1)
                                 )
-
 
 
 -- | Rewrite productions to avoid constructing a semantic value.
@@ -424,6 +420,7 @@ noSem' tc =
      TCErrorMode m p -> do (p',is) <- noSem' p
                            pure (exprAt tc (TCErrorMode m p'), is)
 
+
      TCFor lp ->
        attempt
          do (m', i) <- noSem' (loopBody lp)
@@ -431,9 +428,9 @@ noSem' tc =
               -- map (i,x in xs) e
               -- ~>
               -- for (i,x in xs) e'
-              LoopMap -> pure Nothing -- XXX
+              LoopMap _ -> pure Nothing -- XXX
 
-              Fold x _s ->
+              Fold x _s col ->
 
                 -- fold body has not effect, and we don't care about result
                 case texprValue m' of
@@ -445,24 +442,22 @@ noSem' tc =
                     pure do guard (not (Some x `Set.member` i)) -- state unused
 
                             let v' = x { tcType = tUnit }
-                                lp' = lp { loopFlav = Fold v' (exprAt tc tcUnit)
-                                         , loopBody = m'
-                                         , loopType = tGrammar tUnit
-                                         }
+                                lp' = Loop { loopFlav = Fold v'
+                                                          (exprAt tc tcUnit) col
+                                           , loopBody = m'
+                                           , loopType = tGrammar tUnit
+                                           }
                             pure ( exprAt tc (TCFor lp')
-                                 , tcFree (loopCol lp) <> Set.difference i bnd
+                                 , tcFree (loopFlav lp) <> Set.difference i bnd
                                  )
 
          do (m'', i') <- mbSem (loopBody lp)
-            pure ( mkDo tc Nothing (exprAt tc (TCFor lp { loopBody = m'' })) (noSemPure tc)
-                 , tcFree (loopFlav lp) <> tcFree (loopCol lp) <>
-                   Set.difference i' bnd
+            pure ( mkDo tc Nothing
+                        (exprAt tc (TCFor lp { loopBody = m'' })) (noSemPure tc)
+                 , tcFree (loopFlav lp) <> Set.difference i' bnd
                  )
 
-       where bnd = Set.unions [ tcBinds (loopFlav lp)
-                              , tcBinds (loopKName lp)
-                              , tcBinds (loopElName lp)
-                              ]
+       where bnd = tcBinds (loopFlav lp)
 
      TCVar x ->
        case typeOf x of

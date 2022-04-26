@@ -44,8 +44,6 @@ library
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
                        Daedalus.Pass,
-                       Daedalus.Normalise.AST,
-                       Daedalus.Normalise,
                        Daedalus.Type,
                        Daedalus.Type.Pretty,
                        Daedalus.Type.Generalize,

@@ -990,9 +990,11 @@ inferExpr expr =
                      unify elOut (e,et)
                      pure ( exprAt expr (TCFor Loop
                                                { loopFlav = LoopMap
-                                               , loopKName = k1
-                                               , loopElName = i1
-                                               , loopCol = is1
+                                                    LoopCollection
+                                                      { lcKName = k1
+                                                      , lcElName = i1
+                                                      , lcCol = is1
+                                                      }
                                                , loopBody = e1
                                                , loopType = result
                                                })
@@ -1008,9 +1010,11 @@ inferExpr expr =
                     pure ( addBinds bs
                            $ exprAt expr (TCFor Loop
                                                { loopFlav = LoopMap
-                                               , loopKName = k1
-                                               , loopElName = i1
-                                               , loopCol = is1
+                                                    LoopCollection
+                                                      { lcKName = k1
+                                                      , lcElName = i1
+                                                      , lcCol = is1
+                                                      }
                                                , loopBody = e1
                                                , loopType = result
                                                })
@@ -1050,9 +1054,11 @@ inferExpr expr =
                   do unify st (e,et)
                      pure ( exprAt expr (TCFor Loop
                                                 { loopFlav = Fold x1 s1
-                                                , loopKName = k1
-                                                , loopElName = i1
-                                                , loopCol = is1
+                                                      LoopCollection
+                                                      { lcKName = k1
+                                                      , lcElName = i1
+                                                      , lcCol = is1
+                                                      }
                                                 , loopBody = e1
                                                 , loopType = et
                                                 })
@@ -1069,9 +1075,11 @@ inferExpr expr =
                      pure ( addBinds bs
                             $ exprAt expr (TCFor Loop
                                                   { loopFlav = Fold x1 s1
-                                                  , loopKName = k1
-                                                  , loopElName = i1
-                                                  , loopCol = is1
+                                                      LoopCollection
+                                                      { lcKName = k1
+                                                      , lcElName = i1
+                                                      , lcCol = is1
+                                                      }
                                                   , loopBody = e1
                                                   , loopType = et
                                                   })

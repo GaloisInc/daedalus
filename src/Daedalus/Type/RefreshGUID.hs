@@ -107,7 +107,7 @@ instance RefreshGUID (TC a k) where
             pure $ case lookupSubst x subst of
                      Nothing  -> texpr -- FIXME: this is an error?
                      Just tcf -> tcf
-                     
+
           TCDo (Just x) e1 e2 -> do
             e1' <- go e1
             withVar x $ \x' -> TCDo (Just x') e1' <$> go e2
@@ -115,24 +115,40 @@ instance RefreshGUID (TC a k) where
           -- TCCall f ts as -> TCCall f ts <$> (traverse (traverseArg go) as)
 
           -- HERE
-          TCFor lp -> TCFor <$> do
-            col' <- go (loopCol lp)
-            mk \flav' ->
-              withVarMaybe (loopKName lp) \k' ->
-              withVar (loopElName lp) \el' -> do
-              body' <- go (loopBody lp)
-              pure (Loop { loopFlav   = flav'
-                         , loopKName  = k'
-                         , loopElName = el'
-                         , loopCol    = col'
-                         , loopBody   = body'
-                         , loopType   = loopType lp
-                         })
-            
-            where
-              mk rest = case loopFlav lp of
-                          Fold v e -> do e' <- go e
-                                         withVar v \v' -> rest (Fold v' e')
-                          LoopMap -> rest LoopMap
+          TCFor lp -> TCFor <$> goLoop lp
 
           e  -> traverseTCF go e
+
+      goLoop lp =
+        case loopFlav lp of
+
+          Fold v e col ->
+            do e' <- go e
+               c' <- goCol col
+               withVar v \v' ->
+                 withCol c' \col' ->
+                   do body' <- go (loopBody lp)
+                      pure Loop { loopFlav  = Fold v' e' col'
+                                , loopBody  = body'
+                                , loopType  = loopType lp
+                                }
+
+          LoopMap col ->
+            do c' <- goCol col
+               withCol c' \col' ->
+                 do body' <- go (loopBody lp)
+                    pure Loop { loopFlav = LoopMap col'
+                              , loopBody = body'
+                              , loopType = loopType lp
+                              }
+
+
+      goCol col =
+        do c <- go (lcCol col)
+           pure col { lcCol = c }
+
+      withCol col cont =
+        withVarMaybe (lcKName col)  \k'  ->
+        withVar      (lcElName col) \el' ->
+        cont col { lcKName = k', lcElName = el' }
+
