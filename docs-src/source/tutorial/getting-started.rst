@@ -109,17 +109,13 @@ We can match this up with the format description given above:
 3. The maximum color value is ``15``
 4. There is a four-by-four grid of triples, one triple per pixel
 
-DaeDaLus PPM Specification
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+A DaeDaLus PPM Specification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
-represented in this PPM format.) You may notice that this specification does
-not perform any *validation* of the image data; later, we'll discuss the pros
-and cons of including validation in parsers, and some strategies for deciding
-whether or not that is best left to other parts of the application consuming
-the formatted data. Without further ado:
+represented in this PPM format.) Here it is:
 
 .. code-block:: DaeDaLus
 
@@ -162,3 +158,10 @@ the formatted data. Without further ado:
 
     def addDigit val d =
       10 * val + (d as uint 64)
+
+You may notice that this specification does not perform any *validation* of the
+image data -- later, we'll discuss the pros and cons of including validation in
+parsers, and some strategies for deciding whether or not that is best left to
+other parts of the application consuming the formatted data. For now, let's
+break down this example to understand the building blocks of parser
+specifications.
