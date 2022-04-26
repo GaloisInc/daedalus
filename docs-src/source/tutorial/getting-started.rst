@@ -66,18 +66,20 @@ for details on how to install these extra features.
 Your First DaeDaLus Specification
 ---------------------------------
 
+In order to give a feel for what DaeDaLus specifications look like, we now
+present a well-known image format, PPM, and a DaeDaLus parser for it. This
+example will be broken down in detail in the following sections of the
+tutorial as a means of exploring the available language features.
+
 The Portable PixMap Format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Let's dive right in and write a format specification for the ASCII Portable
-PixMap format, PPM.
-
-PPM is a simple image format designed to make it easy to exchange between
-different platforms. For the purposes of this introduction, we'll be looking
+PPM is a simple image format designed to make exchange between different
+platforms easy. For the purposes of this introduction, we'll be looking
 specifically at the ASCII PPM format, which describes color RGB images in a
 human-readable format. Informally, this format consists of:
 
-1. A magic number identifying the file type
+1. A magic number identifying the file type (for ASCII PPM, this is ``P3``)
 2. The dimensions of the image (width then height)
 3. The maximum color value
 4. A 'matrix' of RGB triples for each pixel defined in row-major order
@@ -113,9 +115,11 @@ The DaeDaLus PPM Specification
 Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
-represented in this PPM format.) That specification is provided here wholesale;
-don't worry if it doesn't make sense just yet! In the next section, we'll break
-this specification down line-by-line. Without further ado:
+represented in this PPM format.) You may notice that this specification does
+not perform any *validation* of the image data; later, we'll discuss the pros
+and cons of including validation in parsers, and some strategies for deciding
+whether or not that is best left to other parts of the application consuming
+the formatted data. Without further ado:
 
 .. code-block:: DaeDaLus
 
