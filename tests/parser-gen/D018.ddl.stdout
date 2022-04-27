@@ -149,7 +149,7 @@ D018.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Gramma
      D018._KW close
      pure $$
  
-D018.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+D018.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  

@@ -1147,6 +1147,10 @@ evalForM env lp =
                                , hsTCName env (lcElName col)
                                ] bodyV
 
+    LoopMany c x s -> "RTS.pLoopMany" `Ap` hsCommit c `Ap` step `Ap` initVal
+      where initVal = hsValue env s
+            step = Lam [ hsTCName env x ] bodyV
+
     Fold x s col ->
       let colV = hsValue env (lcCol col)
       in case lcKName col of

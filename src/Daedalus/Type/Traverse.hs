@@ -47,12 +47,13 @@ instance TraverseTypes (TC a k) where
   traverseTypes f (TC m) = TC <$> traverseTypes f m
 
 
-instance TraverseTypes (LoopFlav a) where
+instance TraverseTypes (LoopFlav a k) where
   traverseTypes f lt =
     case lt of
       Fold x s col -> Fold <$> traverseTypes f x <*> traverseTypes f s
                                                  <*> traverseTypes f col
       LoopMap col  -> LoopMap <$> traverseTypes f col
+      LoopMany c x s -> LoopMany c <$> traverseTypes f x <*> traverseTypes f s
 
 instance TraverseTypes (Loop a k) where
   traverseTypes f lp =
@@ -354,6 +355,7 @@ traverseTCF f = go
             case ty of
               Fold x s col -> Fold x <$> f s <*> travCol col
               LoopMap col  -> LoopMap <$> travCol col
+              LoopMany c x s -> LoopMany c x <$> f s
 
           travCol col = (\c -> col { lcCol = c }) <$> f (lcCol col)
 

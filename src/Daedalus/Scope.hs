@@ -12,6 +12,7 @@ import qualified Data.Set as Set
 
 import Data.Graph.SCC(stronglyConnComp)
 
+import Data.Maybe(maybeToList)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Map.Merge.Lazy (preserveMissing, zipWithAMatched, mergeA)
@@ -345,25 +346,33 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EArrayLength ve  -> EArrayLength <$> resolve ve       
       EArrayIndex  ve ixe -> EArrayIndex <$> resolve ve <*> resolve ixe
 
-      EFor fl mbI y b c -> do
-        mbI' <- traverse makeNameLocal mbI
-        y'   <- makeNameLocal y
-        (fnames, fl') <-
-          case fl of
-            FFold x e -> do x' <- makeNameLocal x
-                            e' <- resolve e
-                            pure ([x'], FFold x' e')
-            FMap      -> pure ([], FMap)
-
-        let names = fnames ++ inames mbI' ++ [y']
-    
-        EFor fl' mbI' y'
-          <$> resolve b 
-          <*> extendLocalScopeIn names (resolve c)
+      EFor fl c ->
+        do (xs,f') <- doFlav
+           c' <- extendLocalScopeIn xs (resolve c)
+           pure (EFor f' c')
         where
-        inames x = case x of
-                   Nothing -> []
-                   Just i  -> [i]
+        doFlav =
+          case fl of
+            FFold x s col ->
+              do x' <- makeNameLocal x
+                 s' <- resolve s
+                 (xs,col') <- doCol col
+                 pure (x' : xs, FFold x' s' col')
+            FMap col ->
+              do (xs',col') <- doCol col
+                 pure (xs', FMap col')
+            FMany cmt x s ->
+              do x' <- makeNameLocal x
+                 s' <- resolve s
+                 pure ([x'], FMany cmt x' s')
+
+
+        doCol col =
+          do k <- traverse makeNameLocal (flKey col)
+             v <- makeNameLocal (flVal col)
+             e <- resolve (flCol col)
+             let newCol = FLoopCol { flKey = k, flVal = v, flCol = e }
+             pure (maybeToList k ++ [v], newCol)
 
       EIf be te fe    -> EIf       <$> resolve be <*> resolve te <*> resolve fe
 

@@ -142,6 +142,14 @@ instance RefreshGUID (TC a k) where
                               , loopType = loopType lp
                               }
 
+          LoopMany c v e ->
+            do e' <- go e
+               withVar v \v' ->
+                 do body' <- go (loopBody lp)
+                    pure Loop { loopFlav = LoopMany c v' e'
+                              , loopBody = body'
+                              , loopType = loopType lp
+                              }
 
       goCol col =
         do c <- go (lcCol col)

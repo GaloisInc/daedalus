@@ -47,11 +47,12 @@ instance (TCBinds a, TCBinds b) => TCBinds (a,b) where
 instance TCBinds (TCName k) where
   tcBinds x = Set.singleton (Some x)
 
-instance TCBinds (LoopFlav a) where
+instance TCBinds (LoopFlav a k) where
   tcBinds lf =
     case lf of
       Fold x _ col -> tcBinds (x,col)
       LoopMap col  -> tcBinds col
+      LoopMany _ x _ -> tcBinds x
 
 instance TCBinds (LoopCollection a) where
   tcBinds col = tcBinds (lcKName col, lcElName col)
@@ -77,11 +78,12 @@ instance TCFree a => TCFree (ManyBounds a) where
 instance TCFree (LoopCollection a) where
   tcFree col = tcFree (lcCol col)
 
-instance TCFree (LoopFlav a) where
+instance TCFree (LoopFlav a k) where
   tcFree lf =
     case lf of
       Fold _ s col -> tcFree (s,col)
       LoopMap col  -> tcFree col
+      LoopMany _ _ s -> tcFree s
 
 instance TCFree (Loop a k) where
   tcFree lp =

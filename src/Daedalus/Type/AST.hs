@@ -270,9 +270,12 @@ data TCPat = TCConPat Type Label TCPat
 
 
 
-data LoopFlav a = Fold (TCName Value) (TC a Value) (LoopCollection a)
-                | LoopMap (LoopCollection a)
-  deriving Show
+data LoopFlav a k where
+  Fold     :: TCName Value -> TC a Value -> LoopCollection a -> LoopFlav a k
+  LoopMany :: Commit -> TCName Value -> TC a Value -> LoopFlav a Grammar
+  LoopMap  :: LoopCollection a -> LoopFlav a k
+
+deriving instance Show a => Show (LoopFlav a k)
 
 -- | For loops that iterate over things
 data LoopCollection a = LoopCollection
@@ -282,7 +285,7 @@ data LoopCollection a = LoopCollection
   } deriving Show
 
 data Loop a k = Loop
-  { loopFlav    :: LoopFlav a
+  { loopFlav    :: LoopFlav a k
   , loopBody    :: TC a k
   , loopType    :: !Type
   } deriving Show
@@ -440,8 +443,12 @@ instance PP (Loop a k) where
     where
     (kw,hdr) =
       case loopFlav lp of
-        Fold x e c -> ("for", ppBinder x <+> "=" <+> pp e <.> semi <+> pp c)
-        LoopMap c  -> ("map", pp c)
+        Fold x e c   -> ("for", ppBinder x <+> "=" <+> pp e <.> semi <+> pp c)
+        LoopMap c    -> ("map", pp c)
+        LoopMany c x e -> (k, ppBinder x <+> "=" <+> pp  e)
+          where k = case c of
+                      Commit    -> "for"
+                      Backtrack -> "for?"
 
 instance PP (LoopCollection a) where
   ppPrec _ lp = ppK <+> ppBinder (lcElName lp) <+> "in" <+> pp (lcCol lp)

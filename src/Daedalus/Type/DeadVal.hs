@@ -430,6 +430,20 @@ noSem' tc =
               -- for (i,x in xs) e'
               LoopMap _ -> pure Nothing -- XXX
 
+              LoopMany c x _s ->
+
+                pure do guard (not (Some x `Set.member` i)) -- state unused
+
+                        let v' = x { tcType = tUnit }
+                            lp' = Loop { loopFlav = LoopMany c v'
+                                                            (exprAt tc tcUnit)
+                                       , loopBody = m'
+                                       , loopType = tGrammar tUnit
+                                       }
+                        pure ( exprAt tc (TCFor lp')
+                             , tcFree (loopFlav lp') <> Set.difference i bnd
+                             )
+
               Fold x _s col ->
 
                 -- fold body has not effect, and we don't care about result
@@ -448,7 +462,7 @@ noSem' tc =
                                            , loopType = tGrammar tUnit
                                            }
                             pure ( exprAt tc (TCFor lp')
-                                 , tcFree (loopFlav lp) <> Set.difference i bnd
+                                 , tcFree (loopFlav lp') <> Set.difference i bnd
                                  )
 
          do (m'', i') <- mbSem (loopBody lp)

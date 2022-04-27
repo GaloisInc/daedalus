@@ -12,7 +12,7 @@ syn keyword ddlKeywordImport import
 syn keyword ddlKeyword bitdata where
 syn keyword ddlKeyword def
 syn keyword ddlKeyword type struct union
-syn keyword ddlKeyword for map in
+syn keyword ddlKeyword for map in many many?
 syn keyword ddlKeyword if then else
 syn keyword ddlKeyword is
 syn keyword ddlKeyword of
@@ -33,6 +33,7 @@ syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
 syn keyword ddlKeywordConst true false
 syn keyword ddlKeywordConst nothing just
 syn keyword ddlKeywordConst empty
+syn keyword ddlKeywordFun   emit build
 syn keyword ddlKeywordFun   arrayStream bytesOfStream
 syn keyword ddlKeywordFun   insert Insert Lookup lookup
 syn keyword ddlKeywordFun   Index length concat rangeUp rangeDown
@@ -40,7 +41,7 @@ syn keyword ddlKeywordFun   try
 syn keyword ddlKeywordFun   pi wordToFloat wordToDouble
 syn keyword ddlKeywordFun   isNaN isInfinite isDenormalized isNegativeZero
 
-syn keyword ddlKeywordType int uint sint bool maybe stream float double
+syn keyword ddlKeywordType int uint sint bool maybe stream float double builder
 
 syn match ddlIdentBig    "\u\(\a\|\d\|_\)*"
 syn match ddlIdentSmall  "\l\(\a\|\d\|_\)*"

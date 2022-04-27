@@ -6,7 +6,7 @@ module T045
  
 --- Rules:
  
-T045.f ?a0 ?a1 ?a2 (HasElement ?a0 ?a2) (HasKey ?a0 ?a1) (Traversable ?a0) (xs : ?a0) : uint 8 =
+T045.f ?a0 ?a1 ?a2 (Traversable ?a0) (HasElement ?a0 ?a2) (HasKey ?a0 ?a1) (xs : ?a0) : uint 8 =
   for ((s : uint 8) = 0; (x : ?a2) in xs)
     (s + 1)
  
@@ -24,7 +24,7 @@ T045.B ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar ?a1 =
 T045.D : Grammar (uint 8) =
   287 AS uint 8
  
-T045.E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (xs : ?a0) : Grammar ?a1 =
+T045.E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Traversable ?a0) (xs : ?a0) : Grammar ?a1 =
   for ((s : ?a1) = 0; (x : ?a3) in xs)
     (pure s)
  
@@ -47,7 +47,7 @@ T045._B ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
 T045._D : Grammar {} =
   @(287 AS uint 8)
  
-T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (Traversable ?a0) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) : Grammar {} =
+T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Traversable ?a0) : Grammar {} =
   pure {}
  
 T045._F : Grammar {} =

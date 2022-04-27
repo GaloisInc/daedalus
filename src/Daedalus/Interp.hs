@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -197,16 +198,22 @@ evalTriOp op =
 --------------------------------------------------------------------------------
 -- Generic utilities for evaluating loops
 
-data LoopEval col v = LoopEval
-  { unboxCol  :: Value -> col
-  , loopNoKey :: (Value -> Value          -> v) -> Value -> col -> v
-  , loopKey   :: (Value -> Value -> Value -> v) -> Value -> col -> v
+type family ResultFor a where
+  ResultFor K.Value   = Value
+  ResultFor K.Grammar = Parser Value
 
-  , mapNoKey  :: (Value          -> v) -> col -> v
-  , mapKey    :: (Value -> Value -> v) -> col -> v
+data LoopEval col k = LoopEval
+  { unboxCol  :: Value -> col
+  , loopNoKey :: (Value -> Value          -> ResultFor k) ->
+                  Value -> col -> ResultFor k
+  , loopKey   :: (Value -> Value -> Value -> ResultFor k) ->
+                  Value -> col -> ResultFor k
+
+  , mapNoKey  :: (Value          -> ResultFor k) -> col -> ResultFor k
+  , mapKey    :: (Value -> Value -> ResultFor k) -> col -> ResultFor k
   }
 
-loopOverArray :: LoopEval (Vector.Vector Value) Value
+loopOverArray :: LoopEval (Vector.Vector Value) K.Value
 loopOverArray =
   LoopEval
     { unboxCol  = valueToVector
@@ -219,7 +226,7 @@ loopOverArray =
   stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
   stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
 
-loopOverArrayM :: LoopEval (Vector.Vector Value) (Parser Value)
+loopOverArrayM :: LoopEval (Vector.Vector Value) K.Grammar
 loopOverArrayM =
   LoopEval
     { unboxCol  = valueToVector
@@ -232,7 +239,7 @@ loopOverArrayM =
   stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
   stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
 
-loopOverMap :: LoopEval (Map Value Value) Value
+loopOverMap :: LoopEval (Map Value Value) K.Value
 loopOverMap =
   LoopEval
     { unboxCol  = valueToMap
@@ -242,7 +249,7 @@ loopOverMap =
     , mapKey    = \f -> VMap . Map.mapWithKey f
     }
 
-loopOverMapM :: LoopEval (Map Value Value) (Parser Value)
+loopOverMapM :: LoopEval (Map Value Value) K.Grammar
 loopOverMapM =
   LoopEval
     { unboxCol  = valueToMap
@@ -258,42 +265,39 @@ loopOverMapM =
 
 
 
+class EvalLoopBody k where
+  evalLoopBody  :: HasRange a => Env -> TC a k -> ResultFor k
+  arrayLoop     :: LoopEval (Vector.Vector Value) k
+  mapLoop       :: LoopEval (Map Value Value) k
 
-class EvalLoopBody v where
-  type KindOf v :: Ctx
-  evalLoopBody  :: HasRange a => Env -> TC a (KindOf v) -> v
-  arrayLoop     :: LoopEval (Vector.Vector Value) v
-  mapLoop       :: LoopEval (Map Value Value) v
-
-instance EvalLoopBody Value where
-  type KindOf Value = K.Value
+instance EvalLoopBody K.Value where
   evalLoopBody = compilePureExpr
   arrayLoop    = loopOverArray
   mapLoop      = loopOverMap
 
-instance EvalLoopBody (Parser Value) where
-  type KindOf (Parser Value) = K.Grammar
+instance EvalLoopBody K.Grammar where
   evalLoopBody = compileExpr
   arrayLoop    = loopOverArrayM
   mapLoop      = loopOverMapM
 
 
+
 loopOver ::
-  EvalLoopBody v =>
-  Env -> LoopCollection a -> (forall col. LoopEval col v -> v) -> v
-loopOver env col k =
+  EvalLoopBody k => f k -> Env -> LoopCollection a ->
+  (forall col. LoopEval col k -> ResultFor k) -> ResultFor k
+loopOver _ env col k =
   case evalType env (typeOf (lcCol col)) of
     TVArray -> k arrayLoop
     TVMap   -> k mapLoop
     t       -> panic "loopOver" [ "Unexpected loop type", show (pp t) ]
 
-doLoop :: (HasRange a, EvalLoopBody v) => Env -> Loop a (KindOf v) -> v
+doLoop :: (HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
 doLoop env lp =
   case loopFlav lp of
 
     LoopMap c ->
 
-      loopOver env c \ev ->
+      loopOver lp env c \ev ->
         let colV = unboxCol ev (compilePureExpr env (lcCol c))
         in
         case lcKName c of
@@ -308,7 +312,7 @@ doLoop env lp =
                                   )
 
     Fold x s c ->
-      loopOver env c \ev ->
+      loopOver lp env c \ev ->
         let colV  = unboxCol ev (compilePureExpr env (lcCol c))
         in
         case lcKName c of
@@ -326,6 +330,19 @@ doLoop env lp =
                                      . addVal k kV
                                      . addVal (lcElName c) elV
                                      )
+
+    LoopMany c x s -> loop initVal
+      where
+      initVal = compilePureExpr env s
+      loop :: Value -> Parser Value
+      loop v  = do mb <- alt (Just <$> bodyVal (addVal x v)) (pure Nothing)
+                   case mb of
+                     Nothing -> pure v
+                     Just v1 -> loop v1
+      alt     = case c of
+                  Commit    -> (<||)
+                  Backtrack -> (|||)
+
 
   where
   bodyVal extEnv = evalLoopBody (extEnv env) (loopBody lp)

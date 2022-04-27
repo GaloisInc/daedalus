@@ -30,9 +30,9 @@ def J:
 def L:
   for any type a b c d:
     `c` contains the number 0
-    `a` supports iteration
     `a` is a collection with index `b`
     `a` is a collection of `c`
+    `a` supports iteration
     `c` supports arithmetic
     `d` is a collection with index `b`
     `d` is a collection of `bool`

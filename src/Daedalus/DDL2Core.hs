@@ -739,6 +739,31 @@ doLoopG ann lp =
 
      case TC.loopFlav lp of
 
+       TC.LoopMany cmt x s ->
+         do v@(_,sVar)  <- fromName x
+            initS <- fromExpr s
+            g     <- withSourceLocal v (fromGrammar (TC.loopBody lp))
+            ty    <- fromGTypeM (TC.loopType lp)
+            let free = Set.toList (Set.delete sVar (freeVars g))
+                es   = map Var free
+
+            f     <- newGName ty
+
+            let def = do lhs <- do r1 <- newLocal ty
+                                   pure (Do r1 g (Pure (just (Var r1))))
+                         r2 <- newLocal (TMaybe ty)
+                         pure $ Do r2 (orOp cmt lhs (Pure (nothing ty)))
+                              $ GCase
+                              $ Case r2
+                                  [ (PJust, Call f (eFromJust (Var r2) : es))
+                                  , (PNothing, Pure (Var sVar))
+                                  ]
+
+            defFunG ann f (sVar : free) =<< def
+            pure (Call f (initS : es))
+
+
+
        TC.Fold x s col ->
          do (keyVar,elVar,colE,colT) <- doLoopCol col
 

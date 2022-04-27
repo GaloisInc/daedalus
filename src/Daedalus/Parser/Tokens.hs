@@ -79,6 +79,8 @@ data Token =
   | KWMatch1
   | KWMany
   | KWManyQuestion
+  | KWmany
+  | KWmanyQuestion
   | KWOptional
   | KWOptionalQuestion
   | KWUInt8

@@ -345,6 +345,7 @@ apSubst' go = go'
           newFl = case loopFlav lp of
                     Fold x s c -> Fold x <$> go s <*> goCol c
                     LoopMap c  -> LoopMap <$> goCol c
+                    LoopMany c x s -> LoopMany c x <$> go s
 
           newS s = foldr forgetSomeSubst s (tcBinds (loopFlav lp))
 

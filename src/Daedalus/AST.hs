@@ -260,7 +260,7 @@ data ExprF e =
   | EPure !e
   | EFail !e
 
-  | EFor !(FLoopFlav e) !(Maybe Name) !Name !e !e
+  | EFor !(FLoopFlav e) e
 
   | EIf         !e !e !e
 
@@ -278,9 +278,16 @@ data ExprF e =
     deriving (Show, Functor, Foldable, Traversable)
 
 -- | Different flavors of loop
-data FLoopFlav e = FFold !Name e
-                 | FMap
+data FLoopFlav e = FFold !Name e (FLoopCol e)
+                 | FMap (FLoopCol e)
+                 | FMany Commit Name e
   deriving (Show, Functor, Foldable, Traversable)
+
+data FLoopCol e  = FLoopCol
+  { flKey :: Maybe Name
+  , flVal :: Name
+  , flCol :: e
+  } deriving (Show, Functor, Foldable, Traversable)
 
 data Commit = Commit | Backtrack
   deriving (Eq, Show, Lift)
