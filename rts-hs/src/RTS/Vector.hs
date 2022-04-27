@@ -4,6 +4,7 @@
 {-# Language StandaloneDeriving #-}
 {-# Language ConstraintKinds #-}
 {-# Language MultiParamTypeClasses #-}
+{-# Language ScopedTypeVariables #-}
 module RTS.Vector
   ( RTS.Vector.Vector
   , RTS.Vector.VecElem
@@ -27,6 +28,13 @@ module RTS.Vector
   , (RTS.Vector.!?)
   , RTS.Vector.rangeUp
   , RTS.Vector.rangeDown
+
+  , Builder
+  , emptyBuilder
+  , pushBack
+  , pushBackVector
+  , pushBackBuilder
+  , finishBuilder
   ) where
 
 import qualified Data.Vector as V
@@ -37,6 +45,8 @@ import qualified Data.ByteString.Unsafe as BS (unsafeIndex)
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Vector.Unboxed as U
+import qualified VectorBuilder.Builder as VB
+import qualified VectorBuilder.Vector  as VB
 import Data.Word
 import Data.Int
 import Data.Coerce(coerce)
@@ -90,6 +100,7 @@ newtype Vector a = Vec (VecOf a)
 
 type ValidV a = ( VecImpl (VecOf a)
                 , ElemOf (VecOf a) ~ VecElT a
+                , Monoid (BuilderT (VecOf a))
                 , Show (VecOf a)
                 , Ord (VecOf a)
                 )
@@ -224,6 +235,10 @@ class VecImpl t where
   vToList     :: t -> [ElemOf t]
   vLookup     :: t -> Int -> Maybe (ElemOf t)
 
+  vVecBuilder :: t -> BuilderT t
+  vOneBuilder :: f t -> ElemOf t -> BuilderT t
+  vBuild      :: BuilderT t -> t
+
 instance (U.Unbox a) => VecImpl (U.Vector a) where
   type ElemOf (U.Vector a) = a
   vEmpty        = U.empty
@@ -240,6 +255,10 @@ instance (U.Unbox a) => VecImpl (U.Vector a) where
   vToList       = U.toList
   vLookup       = (U.!?)
 
+  vVecBuilder   = VB.vector
+  vOneBuilder   = \_ -> VB.singleton
+  vBuild        = VB.build
+
   {-# INLINE vEmpty #-}
   {-# INLINE vLen #-}
   {-# INLINE vFromList #-}
@@ -252,6 +271,9 @@ instance (U.Unbox a) => VecImpl (U.Vector a) where
   {-# INLINE vIFoldM' #-}
   {-# INLINE vToList #-}
   {-# INLINE vLookup #-}
+  {-# INLINE vVecBuilder #-}
+  {-# INLINE vOneBuilder #-}
+  {-# INLINE vBuild #-}
 
 
 
@@ -271,6 +293,10 @@ instance VecImpl (V.Vector a) where
   vToList       = V.toList
   vLookup       = (V.!?)
 
+  vVecBuilder   = VB.vector
+  vOneBuilder   = \_ -> VB.singleton
+  vBuild        = VB.build
+
   {-# INLINE vEmpty #-}
   {-# INLINE vLen #-}
   {-# INLINE vFromList #-}
@@ -284,6 +310,9 @@ instance VecImpl (V.Vector a) where
   {-# INLINE vIFoldM' #-}
   {-# INLINE vLookup #-}
 
+  {-# INLINE vVecBuilder #-}
+  {-# INLINE vOneBuilder #-}
+  {-# INLINE vBuild #-}
 
 
 instance VecImpl ByteString where
@@ -303,6 +332,10 @@ instance VecImpl ByteString where
   vIFoldM'    = bsIFoldM'
   vLookup     = bsLookup
 
+  vVecBuilder = BS.byteString
+  vOneBuilder = \_ -> BS.word8
+  vBuild      = LBS.toStrict . BS.toLazyByteString
+
   {-# INLINE vEmpty #-}
   {-# INLINE vLen #-}
   {-# INLINE vFromList #-}
@@ -316,6 +349,10 @@ instance VecImpl ByteString where
   {-# INLINE vIFoldl'  #-}
   {-# INLINE vIFoldM'  #-}
   {-# INLINE vLookup #-}
+
+  {-# INLINE vVecBuilder #-}
+  {-# INLINE vOneBuilder #-}
+  {-# INLINE vBuild #-}
 
 doBuild :: BS.Builder -> ByteString
 doBuild = LBS.toStrict . BS.toLazyByteString
@@ -429,3 +466,33 @@ instance (VecElem a, VecElem b) => IsMapLoop (Vector a) (Vector b) where
 
 instance (VecElem a, ToJSON a) => ToJSON (Vector a) where
   toJSON = jsArray . map toJSON . toList
+
+
+
+--------------------------------------------------------------------------------
+
+type family BuilderT container where
+  BuilderT ByteString   = BS.Builder
+  BuilderT (U.Vector a) = VB.Builder a
+  BuilderT (V.Vector a) = VB.Builder a
+
+newtype Builder a = Builder (BuilderT (VecOf a))
+
+emptyBuilder :: VecElem a => Builder a
+emptyBuilder = Builder mempty
+
+finishBuilder :: VecElem a => Builder a -> Vector a
+finishBuilder (Builder b) = Vec (vBuild b)
+
+pushBackBuilder :: VecElem a => Builder a -> Builder a -> Builder a
+pushBackBuilder (Builder x) (Builder y) = Builder (x <> y)
+
+pushBack :: forall a. VecElem a => Builder a -> a -> Builder a
+pushBack (Builder x) a = Builder (x <> vOneBuilder sig (storing a))
+  where sig = Nothing :: Maybe (VecOf a)
+
+pushBackVector :: VecElem a => Builder a -> Vector a -> Builder a
+pushBackVector (Builder x) (Vec y) = Builder (x <> vVecBuilder y)
+
+
+
