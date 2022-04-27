@@ -52,7 +52,7 @@ import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 symbolicStrats :: [Strategy]
 symbolicStrats = map mkOne strats
   where
-    strats = [("dfs", dfs)]
+    strats = [("dfs", dfs), ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart) ]
     mkOne :: (Doc, SearchStrat) -> Strategy
     mkOne (name, sstrat) = 
       Strategy { stratName  = "symbolic-" ++ show name

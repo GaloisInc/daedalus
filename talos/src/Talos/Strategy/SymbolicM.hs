@@ -70,16 +70,13 @@ getName n = SymbolicM $ do
 -- -- Backtracking choice + random permutation
 choose :: [a] -> SymbolicM a
 choose bs = do
-  liftIO $ putStrLn ("Choosing from " ++ show (length bs) ++ " alternatives")
   sctxt <- inSolver Solv.getContext
   a <- SymbolicM (lift $ ST.choose bs)
   inSolver (Solv.restoreContext sctxt)
   pure a
   
 backtrack :: SymbolicM a
-backtrack = do
-  liftIO $ putStrLn "Backtracking ..."
-  SymbolicM (lift ST.backtrack)
+backtrack = SymbolicM (lift ST.backtrack)
 
 --------------------------------------------------------------------------------
 -- Search strtegies
@@ -98,7 +95,7 @@ randDFS = SearchStrat $ ST.tree ch bt
         0 -> pure loc
         n -> do
           i <- randR (0, n - 1)
-          pure (tryMove (downward i) loc)
+          ch (tryMove (downward i) loc)
       
     bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
     bt loc = traverse ch (forgetGoUp loc)
@@ -111,7 +108,7 @@ randRestart = SearchStrat $ ST.tree ch bt
         0 -> pure loc
         n -> do
           i <- randR (0, n - 1)
-          pure (tryMove (downward i) loc)
+          ch (tryMove (downward i) loc)
       
     bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
     bt loc = traverse (ch . maximally upward) (forgetGoUp loc)
