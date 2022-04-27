@@ -128,10 +128,6 @@ handleOptions opts
               mo <- ddlGetAST specMod astTC
               ddlPrint (pp mo)
 
-         DumpNorm ->
-           do passSpecialize specMod [mainRule]
-              mapM_ (ddlPrint . pp) =<< normalizedDecls
-
          DumpCore ->
             do _ <- doToCore opts mm
                ddlPrint . pp =<< ddlGetAST specMod astCore

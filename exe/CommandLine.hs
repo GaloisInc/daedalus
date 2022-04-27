@@ -17,7 +17,6 @@ data Command =
   | DumpTC
   | DumpTypes
   | DumpSpec
-  | DumpNorm
   | DumpRuleRanges
   | DumpCore
   | DumpVM
@@ -105,10 +104,6 @@ options = OptSpec
       , Option [] ["dump-gen"]
         "Dump parser-generator automaton-based parser"
        $ simpleCommand DumpGen
-
-      , Option ['n'] ["norm"]
-        "Dump normalised type-checke AST"
-        $ simpleCommand DumpNorm
 
       , Option ['i'] ["interp"]
         "Parse this file"
@@ -241,7 +236,6 @@ impliedOptions opts0 =
         DumpTC          -> opts
         DumpTypes       -> opts
         DumpSpec        -> opts
-        DumpNorm        -> opts
         DumpRuleRanges  -> opts
         DumpCore        -> noTCUnbiased
         DumpVM          -> noTCUnbiased

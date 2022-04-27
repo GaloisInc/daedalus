@@ -113,6 +113,8 @@ import Daedalus.Parser.Monad
   'Optional?' { Lexeme { lexemeRange = $$, lexemeToken = KWOptionalQuestion } }
   'Many'      { Lexeme { lexemeRange = $$, lexemeToken = KWMany } }
   'Many?'     { Lexeme { lexemeRange = $$, lexemeToken = KWManyQuestion } }
+  'many'      { Lexeme { lexemeRange = $$, lexemeToken = KWmany } }
+  'many?'     { Lexeme { lexemeRange = $$, lexemeToken = KWmanyQuestion } }
   'Fail'      { Lexeme { lexemeRange = $$, lexemeToken = KWFail } }
   'UInt8'     { Lexeme { lexemeRange = $$, lexemeToken = KWUInt8 } }
   'Match'     { Lexeme { lexemeRange = $$, lexemeToken = KWMatch } }
@@ -297,6 +299,7 @@ label                                    :: { Located Label }
   | 'Choose1'                               { mkLabel ($1, "Choose1") }
   | 'Optional'                              { mkLabel ($1, "Optional") }
   | 'Many'                                  { mkLabel ($1, "Many") }
+  | 'many'                                  { mkLabel ($1, "many") }
   | 'Match'                                 { mkLabel ($1, "Match") }
   | 'Match1'                                { mkLabel ($1, "Match1") }
   | 'UInt8'                                 { mkLabel ($1, "UInt8") }
@@ -401,6 +404,12 @@ expr                                     :: { Expr }
            expr               %prec 'else'  { at ($1,$9) (mkFor $3 $5 $7 $9) }
   | 'map' '(' for_binder ')'
            expr               %prec 'else'  { at ($1,$5) (mkForMap $3 $5) }
+  | 'many' '(' name '=' expr ')'
+           expr               %prec 'else'  { at ($1,$7)
+                                                 (mkForMany Commit $3 $5 $7) }
+  | 'many?' '(' name '=' expr ')'
+           expr               %prec 'else'  { at ($1,$7)
+                                                 (mkForMany Backtrack $3 $5 $7)}
 
 
 
@@ -802,10 +811,15 @@ mkMany c mb e = at (c,e) (EMany (thingValue c) bnds e)
 
 
 mkFor :: Name -> Expr -> ((Maybe Name,Name), Expr) -> Expr -> ExprF Expr
-mkFor s s0 ((k,v),xs) e = EFor (FFold s s0) k v xs e
+mkFor s s0 ((k,v),xs) e = EFor (FFold s s0 col) e
+  where col = FLoopCol { flKey = k, flVal = v, flCol = xs }
 
 mkForMap :: ((Maybe Name,Name), Expr) -> Expr -> ExprF Expr
-mkForMap ((k,v),xs) e = EFor FMap k v xs e
+mkForMap ((k,v),xs) e = EFor (FMap col) e
+  where col = FLoopCol { flKey = k, flVal = v, flCol = xs }
+
+mkForMany :: Commit -> Name -> Expr -> Expr -> ExprF Expr
+mkForMany cmt x s e = EFor (FMany cmt x s) e
 
 mkNumber :: Integer -> ExprF Expr
 mkNumber x = ELiteral (LNumber x (Text.pack (show x)))

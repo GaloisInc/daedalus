@@ -618,9 +618,9 @@ evalVExpr gbl expr ctrl out =
                _ -> error "Unexpected body type, not a ValueExpression"
         TCFor lp ->
           case loopFlav lp of
-            Fold n1 e1 ->
-              let n2 = loopElName lp
-                  e2 = loopCol lp
+            Fold n1 e1 c ->
+              let n2 = lcElName c
+                  e2 = lcCol c
                   e3 = loopBody lp
               in
                 -- NVFor n1 e1 n2 e2 e3 ->
@@ -632,7 +632,7 @@ evalVExpr gbl expr ctrl out =
                       let localenv = concatLocalEnv (Just ([(tcName n1, b), (tcName n2, a)])) env
                       in eval localenv e3
                 _ -> error "Unexpected type in For"
-            LoopMap -> error "Unhandled LoopMap"
+            LoopMap _c -> error "Unhandled LoopMap"
         TCVar nname ->
           case env of
             Just env1 -> -- inside a function call

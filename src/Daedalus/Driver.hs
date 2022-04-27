@@ -17,8 +17,6 @@ module Daedalus.Driver
   , ddlGetFNameMaybe
   , ddlGetFName
 
-  , normalizedDecls
-
     -- * Compiling to Haskell from TC
   , saveHS
   , saveHSCustomWriteFile
@@ -116,8 +114,6 @@ import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
-import Daedalus.Normalise(normalise)
-import Daedalus.Normalise.AST(NDecl)
 import qualified Daedalus.CompileHS      as HS
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
@@ -852,18 +848,6 @@ passVM m =
 
 
 --------------------------------------------------------------------------------
-
--- | Get the normalized declarations from the specialized modules.
--- It is an error if there are multiple (or none) modules that are specialized.
-normalizedDecls :: Daedalus [NDecl]
-normalizedDecls =
-  do ms <- ddlGet loadedModules
-     case [ m | SpecializedModule m <- Map.elems ms ] of
-       [ mo ] -> pure (map normalise (forgetRecs (tcModuleDecls mo)))
-       [] -> ddlThrow (ADriverError "There are not specialized modules.")
-       xs -> ddlThrow (ADriverError ("Multiple specialized modules: " ++
-                         unwords (map (show . pp . tcModuleName) xs)))
-
 
 -- | Save Haskell for the given module.
 -- Assumes that the module is in one of the `astTC` phases.

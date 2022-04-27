@@ -173,7 +173,7 @@ Daedalus.Only ?a0 (P : Grammar ?a0) : Grammar ?a0 =
      END
      pure $$
  
-Daedalus.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (Traversable ?a0) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
+Daedalus.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
   for ((val : ?a2) = 0; (d : ?a2) in ds)
     ((val * base) + d)
  

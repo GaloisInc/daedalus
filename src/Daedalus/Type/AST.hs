@@ -270,15 +270,22 @@ data TCPat = TCConPat Type Label TCPat
 
 
 
-data LoopFlav a = Fold (TCName Value) (TC a Value)
-                | LoopMap
-  deriving Show
+data LoopFlav a k where
+  Fold     :: TCName Value -> TC a Value -> LoopCollection a -> LoopFlav a k
+  LoopMany :: Commit -> TCName Value -> TC a Value -> LoopFlav a Grammar
+  LoopMap  :: LoopCollection a -> LoopFlav a k
+
+deriving instance Show a => Show (LoopFlav a k)
+
+-- | For loops that iterate over things
+data LoopCollection a = LoopCollection
+  { lcKName   :: Maybe (TCName Value) -- Key name, optional
+  , lcElName  :: TCName Value
+  , lcCol     :: TC a Value
+  } deriving Show
 
 data Loop a k = Loop
-  { loopFlav    :: LoopFlav a
-  , loopKName   :: Maybe (TCName Value) -- Key name, optional
-  , loopElName  :: TCName Value
-  , loopCol     :: TC a Value
+  { loopFlav    :: LoopFlav a k
   , loopBody    :: TC a k
   , loopType    :: !Type
   } deriving Show
@@ -432,16 +439,24 @@ instance PP (TC a k) where
 
 instance PP (Loop a k) where
   ppPrec n lp = wrapIf (n > 0) $
-    kw <+> parens (st <+>
-                   ppK <+> ppBinder (loopElName lp) <+> "in" <+> pp (loopCol lp)
-      ) $$ nest 2 (ppPrec 1 (loopBody lp))
+    kw <+> parens hdr $$ nest 2 (ppPrec 1 (loopBody lp))
     where
-    ppK = case loopKName lp of
+    (kw,hdr) =
+      case loopFlav lp of
+        Fold x e c   -> ("for", ppBinder x <+> "=" <+> pp e <.> semi <+> pp c)
+        LoopMap c    -> ("map", pp c)
+        LoopMany c x e -> (k, ppBinder x <+> "=" <+> pp  e)
+          where k = case c of
+                      Commit    -> "for"
+                      Backtrack -> "for?"
+
+instance PP (LoopCollection a) where
+  ppPrec _ lp = ppK <+> ppBinder (lcElName lp) <+> "in" <+> pp (lcCol lp)
+    where
+    ppK = case lcKName lp of
             Nothing -> empty
             Just k  -> ppBinder k <.> comma
-    (kw,st) = case loopFlav lp of
-                Fold x e -> ("for", ppBinder x <+> "=" <+> pp e <.> semi)
-                LoopMap  -> ("map", empty)
+
 
 
 instance PP (TCF a k) where

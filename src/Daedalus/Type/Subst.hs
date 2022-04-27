@@ -338,18 +338,18 @@ apSubst' go = go'
             Just tc         -> panic "Non-{variable,call} subst in Call" [showPP tc]
 
         TCFor lp ->
-          mk <$> newFl
-             <*> go (loopCol lp)
-             <*> local newS (go (loopBody lp))
+          mk <$> newFl <*> local newS (go (loopBody lp))
           where
-          mk s i e = TCFor lp { loopFlav = s, loopCol = i, loopBody = e }
+          mk s e = TCFor lp { loopFlav = s, loopBody = e }
 
           newFl = case loopFlav lp of
-                    Fold x s -> Fold x <$> go s
-                    LoopMap  -> pure LoopMap
+                    Fold x s c -> Fold x <$> go s <*> goCol c
+                    LoopMap c  -> LoopMap <$> goCol c
+                    LoopMany c x s -> LoopMany c x <$> go s
 
-          newS s = foldr forgetSomeSubst s
-                 (tcBinds (loopFlav lp, (loopKName lp, loopElName lp)))
+          newS s = foldr forgetSomeSubst s (tcBinds (loopFlav lp))
+
+          goCol c = (\c1 -> c { lcCol = c1 }) <$> go (lcCol c)
 
         TCCase e pats mdef ->
           TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef

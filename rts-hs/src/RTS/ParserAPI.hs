@@ -262,6 +262,12 @@ pOptional orElse mk e = orElse (mk <$> e) (pure Nothing)
 {-# INLINE pOptional #-}
 
 
+pLoopMany :: BasicParser p => Commit p -> (a -> p a) -> a -> p a
+pLoopMany orElse p s =
+  do mb <- pOptional orElse Just (p s)
+     case mb of
+       Nothing -> pure s
+       Just s1 -> pLoopMany orElse p s1
 
 pMany :: (VecElem a, BasicParser p) => Commit p -> p a -> p (Vector a)
 pMany orElse = \p ->

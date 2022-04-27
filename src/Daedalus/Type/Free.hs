@@ -11,7 +11,6 @@ import Control.Monad.State
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Graph.SCC(stronglyConnComp)
-import Data.Foldable(traverse_)
 import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Some
@@ -32,69 +31,6 @@ topoOrder = map sccToRec . stronglyConnComp . map node
 
 
 
--- Generates new names for locals
--- makeFreshFor :: Set (Some TCName) -> TCName k -> TCName k
--- makeFreshFor bounds tnm = mkN nm'
---   where
---     mkN nm =  tnm { tcName = nm }
-    
---     nm' = head  . dropWhile (flip Set.member bounds . Some . mkN)
---           . freshCandidates $ tcName tnm
-    
---     freshCandidates :: Name -> [Name]
---     freshCandidates x =
---       x : [ x { nameScope = Local $ nameScopeAsLocal x <> T.pack (show n) }
---           | n <- [(1::Int)..] ]
-
--- Collect all variables bound.  Mainly used to avoid capture.
--- XXX: This is an odd function... why do we need it?
-tcBounds :: TCDeclDef a k -> Set (Some TCName)
-tcBounds it = case it of
-                Defined d     -> flip execState Set.empty (go d)
-                ExternDecl _  -> Set.empty
-  where
-    go :: forall a k'. TC a k' -> State (Set (Some TCName)) (TC a k')
-    go (TC v) = TC <$> traverse go' v
-
-    doAlt :: forall a k'. TCAlt a k' -> State (Set (Some TCName)) (TCAlt a k')
-    doAlt a@(TCAlt ps e) =
-      do let vs = Set.fromList $ map Some $ altBinds a
-         modify (Set.union vs)
-         TCAlt ps <$> go e
-
-    go' :: forall a k'. TCF a k' -> State (Set (Some TCName)) (TCF a k')
-    go' texpr =
-      case texpr of
-        TCDo x e1 e2 ->
-          do traverse_ (modify . Set.insert . Some) x
-             TCDo x <$> go e1 <*> go e2
-
-        TCLet x e1 e2 ->
-          do modify (Set.insert (Some x))
-             TCLet x <$> go e1 <*> go e2
-
-        TCFor lp ->
-          do modify ( addK
-                    . Set.insert (Some (loopElName lp))
-                    )
-             mk <$> addLF <*> go (loopCol lp) <*> go (loopBody lp)
-          where
-          mk s i e = TCFor lp { loopFlav = s, loopCol = i, loopBody = e }
-
-          addLF = case loopFlav lp of
-                    Fold x s -> do modify (Set.insert (Some x))
-                                   Fold x <$> go s
-                    LoopMap  -> pure LoopMap
-
-          addK = case loopKName lp of
-                   Nothing -> id
-                   Just k  -> Set.insert (Some k)
-
-        TCCase e pats mdef ->
-          TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
-  
-        x -> traverseTCF go x
-
  -- TCName because we need the context
 class TCFree t where
   tcFree :: t -> Set (Some TCName)
@@ -111,11 +47,15 @@ instance (TCBinds a, TCBinds b) => TCBinds (a,b) where
 instance TCBinds (TCName k) where
   tcBinds x = Set.singleton (Some x)
 
-instance TCBinds (LoopFlav a) where
+instance TCBinds (LoopFlav a k) where
   tcBinds lf =
     case lf of
-      Fold x _ -> tcBinds x
-      LoopMap  -> Set.empty
+      Fold x _ col -> tcBinds (x,col)
+      LoopMap col  -> tcBinds col
+      LoopMany _ x _ -> tcBinds x
+
+instance TCBinds (LoopCollection a) where
+  tcBinds col = tcBinds (lcKName col, lcElName col)
 
 forgetFree :: forall k. TCName k -> Set (Some TCName) -> Set (Some TCName)
 forgetFree v = Set.delete (Some v)
@@ -126,37 +66,31 @@ instance TCFree a => TCFree [a] where
 instance TCFree a => TCFree (Maybe a) where
   tcFree = maybe Set.empty tcFree
 
+instance (TCFree a, TCFree b) => TCFree (a,b) where
+  tcFree (a,b) = Set.union (tcFree a) (tcFree b)
+
 instance TCFree a => TCFree (ManyBounds a) where
   tcFree b =
     case b of
       Exactly e -> tcFree e
-      Between x y -> Set.union (tcFree x) (tcFree y)
+      Between x y -> tcFree (x,y)
 
-instance TCFree (LoopFlav a) where
+instance TCFree (LoopCollection a) where
+  tcFree col = tcFree (lcCol col)
+
+instance TCFree (LoopFlav a k) where
   tcFree lf =
     case lf of
-      Fold _ s -> tcFree s
-      LoopMap  -> Set.empty
+      Fold _ s col -> tcFree (s,col)
+      LoopMap col  -> tcFree col
+      LoopMany _ _ s -> tcFree s
 
 instance TCFree (Loop a k) where
   tcFree lp =
-    Set.unions [ tcFree (loopCol lp)
-               , flavS
-               , delM flavB
-                 (delM (loopKName lp) 
-                  (forgetFree (loopElName lp) (tcFree (loopBody lp))))
+    Set.unions [ tcFree (loopFlav lp)
+               , tcFree (loopBody lp) `Set.difference` tcBinds (loopFlav lp)
                ]
-    where
-      (flavB, flavS) = case loopFlav lp of
-        Fold v i -> (Just v, tcFree i)
-        LoopMap  -> (Nothing, Set.empty)
-      
-      delM :: Maybe (TCName Value) ->
-              Set (Some TCName) ->
-              Set (Some TCName)
-      delM Nothing  = id
-      delM (Just x) = forgetFree x
-      
+
 instance TCFree (TCF a k) where
   tcFree texpr = 
     case texpr of
