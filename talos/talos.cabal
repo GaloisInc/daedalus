@@ -46,6 +46,8 @@ library
                      , Talos.Strategy
                      , Talos.Strategy.Monad
                      , Talos.Strategy.DFST
+                     , Talos.Strategy.SearchTree
+                     , Talos.Strategy.SearchT                     
                      , Talos.Strategy.SymbolicM
                      
                      , Talos.Strategy.BTRand
@@ -79,6 +81,9 @@ library
                      , clock
                      , text
                      , vector
+                     , generic-lens
+                     , lens
+                     , free
 
 executable talos
   main-is:             Main.hs

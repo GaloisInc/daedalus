@@ -10,6 +10,7 @@ module Talos.Strategy.SearchTree
   , Location(..)
   -- Views
   , locTag
+  , locBranches
   -- Movement
   , upward
   , downward
@@ -24,6 +25,7 @@ module Talos.Strategy.SearchTree
   , forgetGoUp
   -- Helpers
   , maximally
+  , tryMove
   ) where
 import Control.Applicative ((<|>))
 
@@ -47,6 +49,10 @@ data Location m a = Location
 locTag :: Location m a -> Maybe a
 locTag Location { locCtx = CNode a _ _ _ } = Just a
 locTag _ = Nothing
+
+locBranches :: Location m a -> Int
+locBranches Location { locTree = Node _ ns } = length ns
+locBranches _                                = 0
 
 --------------------------------------------------------------------------------
 -- Movement
@@ -121,3 +127,9 @@ maximally f = go
     go x
       | Just x' <-  f x = go x'
       | otherwise = x
+
+
+tryMove :: (a -> Maybe a) -> a -> a
+tryMove f x
+  | Just x' <- f x = x'
+  | otherwise      = x
