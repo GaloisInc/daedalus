@@ -112,7 +112,12 @@ def StreamLen header =
 -- Section 7.3.8.2
 def ApplyFilters header initialBody : ApplyFilter =
   block
-    let decrypt = Decrypt initialBody -- A no-op if crypto is disabled
+    let decrypt =
+          First
+            block
+              Guard (Lookup "Type" header is name == "XRef")
+              initialBody
+            Decrypt initialBody
     let filter_names  = LookupOptArray "Filter" header
     let filter_params = LookupOptArray "DecodeParms" header
     for (bytes = {| ok = decrypt |}; ix, name in filter_names)
