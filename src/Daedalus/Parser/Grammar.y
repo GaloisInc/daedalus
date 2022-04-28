@@ -6,6 +6,7 @@ import Data.Word(Word8)
 import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.ByteString(ByteString)
+import Data.Either(isLeft,isRight)
 
 import Daedalus.SourceRange
 import Daedalus.GUID
@@ -208,12 +209,7 @@ decls ::                                      { [Decl] }
 
 decl                                       :: { Decl }
   : bitdata                                   { DeclBitData $1 }
-
-  | 'def' name listOf(ruleParam) ':' type optDef
-                                              { DeclRule (mkRule $1 $2 $3 (Just $5) $6) }
-
-  | 'def' name listOf(ruleParam) optDef       { DeclRule (mkRule $1 $2 $3 Nothing $4) }
-
+  | 'def' name listOf(ruleParam) optDef       {% DeclRule `fmap` mkRule $1 $2 $3 $4 }
   | 'def' name listOf(ruleParam) '=' type_flavor
     'v{' separated(type_field, virtSep) 'v}'  {% traverse (typeDefParamName $1) $3 >>= \params ->
                                                 pure $
@@ -224,6 +220,13 @@ decl                                       :: { Decl }
                                                 , tyData   = $7
                                                 }
                                               }
+
+
+optDef                                   :: { (Maybe SrcType, Maybe Expr) }
+  : ':' type                                { (Just $2, Nothing) }
+  | ':' type '=' expr                       { (Just $2, Just $4) }
+  | '=' expr                                { (Nothing, Just $2) }
+
 
 bitdata ::                                  { BitData }
   : 'bitdata' name 'where'
@@ -263,18 +266,22 @@ bitdata_tag                              :: { Located BitDataField }
                                                               (Just $3)) }
 
 
-optDef                                   :: { Maybe Expr }
-  : '=' expr                                { Just $2 }
-  | {- empty -}                             { Nothing }
 
-ruleParam                                :: { RuleParam }
-  : name                                      { RuleParam
+ruleParam                                :: { RuleParam (Either IPName Name) }
+  : nameOrIP                                { RuleParam
                                                   { paramName = $1
                                                   , paramType = Nothing } }
-  | '(' name ':' type ')'                    { RuleParam
+
+  | '(' nameOrIP ':' type ')'               { RuleParam
                                                   { paramName = $2
                                                   , paramType = Just $4
                                                   } }
+
+
+nameOrIP                                 :: { Either IPName Name }
+  : name                                    { Right $1 }
+  | implicitParam                           { Left $1 }
+
 
 name                                     :: { Name }
   : BIGIDENT                                { mkName AGrammar $1 }
@@ -855,14 +862,32 @@ mkRngDown3 kw start end step = expr (ETriOp RangeDown start end step)
   where expr = at (kw,step)
 
 mkRule :: HasRange r =>
-  r -> Name -> [RuleParam] -> Maybe SrcType -> Maybe Expr -> Rule
-mkRule d nm ps t e = Rule { ruleName = nm,
-                            ruleParams = ps,
-                            ruleResTy = t,
-                            ruleDef = e,
-                            ruleRange = d <-> end
-                          }
-  where end = case e of
+  r -> Name -> [RuleParam (Either IPName Name)] ->
+  (Maybe SrcType, Maybe Expr) -> Parser Rule
+mkRule d nm params (t,e) =
+  do let (implictPs,normalPs) = span (isLeft . paramName)  params
+         badIPs   = dropWhile (isRight . paramName) normalPs
+     case badIPs of
+       [] -> pure ()
+       p : _ -> parseError (sourceFrom (range p))
+                   "Implicit parameters need to be declared before normal ones."
+
+     case (e,implictPs) of
+       (Nothing,p : _) ->
+          parseError (sourceFrom (range p))
+            "External primitves may not use implicit parameters"
+       _ -> pure ()
+
+     pure Rule { ruleName = nm
+               , ruleIParams = ips
+               , ruleParams = ps
+               , ruleResTy = t
+               , ruleDef = e
+               , ruleRange = d <-> end
+               }
+  where ips = [ p { paramName = n } | p <- params, Left  n <- [ paramName p ] ]
+        ps  = [ p { paramName = n } | p <- params, Right n <- [ paramName p ] ]
+        end = case e of
                 Just e' -> range e'
                 Nothing ->
                   case t of
@@ -887,10 +912,16 @@ mkAccept :: SourceRange -> Expr
 mkAccept r = at r (EHasType MatchType (at r (EStruct [])) t)
   where t = SrcType Located { thingRange = r, thingValue = TUnit }
 
-typeDefParamName :: SourceRange -> RuleParam -> Parser Name
+typeDefParamName :: SourceRange -> RuleParam (Either IPName Name) -> Parser Name
 typeDefParamName loc param =
-  case paramType param of
-    Nothing -> pure (paramName param)
-    Just{}  -> parseError (sourceFrom loc) "type definition parameters do not support signatures"
+  do n <- case paramName param of
+            Right n -> pure n
+            Left _  -> parseError (sourceFrom loc)
+                            "type definition cannot have implicit parameters"
+     case paramType param of
+       Nothing -> pure n
+       Just{}  ->
+         parseError (sourceFrom loc)
+            "type definition parameters do not support signatures"
 
 }

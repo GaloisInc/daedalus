@@ -15,24 +15,24 @@ def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
         let ?stdEncodings = enc
         case Optional (Lookup "Font" r) of
           nothing -> empty
-          just v  ->
-            map (v in (ResolveVal v is dict)) (Font v)
+          just v  -> map (v in (ResolveVal v is dict)) (Font v)
 
 def Font (v : Value) =
   block
     let dict  = ResolveVal v is dict
-    subType   = ResolveVal (Lookup "Subtype" dict) is name
+    subType   = LookupName "Subtype" dict
     encoding  = GetEncoding dict
-    toUnicode = case Optional (Lookup "ToUnicode" dict) of
+    toUnicode = case lookup "ToUnicode" dict of
                   nothing -> nothing
                   just v  -> just (ToUnicodeCMap v)
 
-def namedEncoding (encName : [uint 8]) =
-  if encName == "WinAnsiEncoding"  then just ?stdEncodings.win else
-  if encName == "MacRomanEncoding" then just ?stdEncodings.mac else
-  if encName == "PDFDocEncoding"   then just ?stdEncodings.pdf else
-  if encName == "StandardEncoding" then just ?stdEncodings.std else
-  nothing
+def namedEncoding encName =
+  case encName of
+    "WinAnsiEncoding"  -> just stdEncodings.win
+    "MacRomanEncoding" -> just stdEncodings.mac
+    "PDFDocEncoding"   -> just stdEncodings.pdf
+    "StandardEncoding" -> just stdEncodings.std
+    _                  -> nothing
 
 
 def GetEncoding (d : Dict) : maybe [uint 8 -> [uint 16]] =
@@ -54,16 +54,16 @@ def GetEncoding (d : Dict) : maybe [uint 8 -> [uint 16]] =
         _ -> nothing
 
 
-def EncodingDifferences base ds : [ uint 8 -> [uint 16] ]=
+def EncodingDifferences base (ds : [Value]) : [ uint 8 -> [uint 16] ]=
   block
     let start = case base of
-                  nothing -> ?stdEncodings.std
+                  nothing -> stdEncodings.std
                   just e  -> e
     let s = for (s = { enc = start, code = 0 }; x in ds)
              case ResolveVal x of
                number n -> { enc = s.enc, code = NumberAsNat n as? uint 8 }
                name x ->
-                 { enc  = case lookup x ?stdEncodings.uni of
+                 { enc  = case lookup x stdEncodings.uni of
                             just u  -> insert s.code u s.enc
                             nothing ->
                               block

@@ -178,7 +178,7 @@ inferRuleRec sr =
       AClass   -> newTVar nm KClass
       AValue   -> newTVar nm KValue
 
-  guessParamType :: RuleParam -> STypeM Type
+  guessParamType :: RuleParam Name -> STypeM Type
   guessParamType p = guessType (paramName p)
 
   guessRuleType r =

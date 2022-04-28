@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, OverloadedStrings #-}
 {-# LANGUAGE RankNTypes, StandaloneDeriving, DeriveFunctor, DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Daedalus.Scope (
   -- resolveModules,
@@ -252,10 +253,12 @@ resolveTypeDecl ty n' =
 
 resolveRule :: Rule -> Name -> ScopeM Rule
 resolveRule r n' = do
-  ps1 <- mapM resolve (ruleParams r)  
+  ips1 <- mapM resolve (ruleIParams r)
+  ps1 <- mapM resolve (ruleParams r)
   e' <- extendLocalScopeIn (map paramName ps1) (resolve (ruleDef r))
   resT1 <- resolve (ruleResTy r)
   return (Rule { ruleName   = n'
+               , ruleIParams = ips1
                , ruleParams = ps1
                , ruleResTy  = resT1
                , ruleDef    = e'
@@ -290,9 +293,12 @@ instance ResolveNames Name where
 instance ResolveNames Expr where
   resolve (Expr r) = Expr <$> traverse resolve r
 
-instance ResolveNames RuleParam where
+instance ResolveNames (RuleParam Name) where
   resolve p = RuleParam <$> makeNameLocal (paramName p)
                         <*> resolve (paramType p)
+
+instance ResolveNames (RuleParam IPName) where
+  resolve p = RuleParam (paramName p) <$> resolve (paramType p)
 
 instance ResolveNames BitDataBody where
   resolve bo =
