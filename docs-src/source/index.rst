@@ -33,3 +33,4 @@ This allows for a clear, yet precise, specification of many binary formats.
   :caption: Daedalus Tutorial
 
   tutorial/getting-started
+  tutorial/ppm-breakdown
