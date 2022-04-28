@@ -494,5 +494,15 @@ pushBack (Builder x) a = Builder (x <> vOneBuilder sig (storing a))
 pushBackVector :: VecElem a => Builder a -> Vector a -> Builder a
 pushBackVector (Builder x) (Vec y) = Builder (x <> vVecBuilder y)
 
+instance VecElem a => Eq (Builder a) where
+  x == y = finishBuilder x == finishBuilder y
 
+instance VecElem a => Ord (Builder a) where
+  compare x y = compare (finishBuilder x) (finishBuilder y)
+
+instance VecElem a => Show (Builder a) where
+  showsPrec n b = showsPrec n (show (finishBuilder b))
+
+instance (VecElem a, ToJSON a) => ToJSON (Builder a) where
+  toJSON = toJSON . finishBuilder
 
