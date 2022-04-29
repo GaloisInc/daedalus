@@ -1,8 +1,9 @@
+{-# LANGUAGE RankNTypes #-}
 {-# Language OverloadedStrings #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.Symbolic (symbolicStrat) where
+module Talos.Strategy.Symbolic (symbolicStrats) where
 
 import Control.Monad.Reader
 
@@ -40,8 +41,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
-                                               declareSymbol, reset,
-                                               scoped)
+                                               declareSymbol, reset, scoped)
 import qualified Talos.SymExec.SolverT        as Solv hiding (getName)
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
@@ -49,19 +49,26 @@ import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
-symbolicStrat :: Strategy
-symbolicStrat =
-  Strategy { stratName  = "symbolic"
-           , stratDescr = "Symbolic execution"
-           , stratFun   = SolverStrat symbolicFun
+symbolicStrats :: [Strategy]
+symbolicStrats = map mkOne strats
+  where
+    strats = [("dfs", dfs), ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart) ]
+    mkOne :: (Doc, SearchStrat) -> Strategy
+    mkOne (name, sstrat) = 
+      Strategy { stratName  = "symbolic-" ++ show name
+               , stratDescr = "Symbolic execution (" <> name <> ")"
+               , stratFun   = SolverStrat (symbolicFun sstrat)
            }
 
 -- ----------------------------------------------------------------------------------------
 -- Main functions
 
 -- FIXME: define all types etc. eagerly
-symbolicFun :: ProvenanceTag -> Slice -> SolverT StrategyM (Maybe SelectedPath)
-symbolicFun ptag sl = do
+symbolicFun :: SearchStrat ->
+               ProvenanceTag ->
+               Slice ->
+               SolverT StrategyM (Maybe SelectedPath)
+symbolicFun sstrat ptag sl = do
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -72,7 +79,7 @@ symbolicFun ptag sl = do
     defineSlicePolyFuns sl'    
     defineSliceFunDefs md sl'
     
-  scoped $ runSymbolicM $ do
+  scoped $ runSymbolicM sstrat $ do
     (_, pathM) <- stratSlice ptag sl
     check -- FIXME: only required if there was no recent 'check' command
     inSolver pathM
@@ -145,7 +152,9 @@ stratSlice ptag = go
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
-          -- liftIO (putStrLn ("Chose " ++ show i)) 
+          -- liftIO (putStrLn ("Chose " ++ show i ++ " " ++ showPP sl'))
+          -- e <- ask
+          -- liftIO (print [ (pp n, v) | (n, v) <- Map.toList e] )          
           onSlice (fmap (SelectedChoice i)) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
@@ -194,7 +203,7 @@ stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
     DidMatch i sl -> onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
-    NoMatch  -> mzero -- just backtrack, no cases matched
+    NoMatch  -> backtrack -- just backtrack, no cases matched
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
       (i, (p, sl)) <- choose (enumerate ps)
@@ -229,19 +238,6 @@ stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allAr
     allUsedArgs   = Map.restrictKeys allArgs allUsedParams
 
 -- ----------------------------------------------------------------------------------------
--- Strategy helpers
-
--- Backtracking choice + random permutation
-choose :: (MonadPlus m, LiftStrategyM m) => [a] -> m a
-choose bs = do
-  bs' <- randPermute bs
-  foldr (mplus . pure) doFail bs'
-  where
-    doFail = do
-      -- liftStrategy (liftIO (putStrLn "No more choices"))
-      mzero
-
--- ----------------------------------------------------------------------------------------
 -- Solver helpers
 
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
@@ -262,15 +258,15 @@ check = do
   r <- inSolver Solv.check
   case r of
     S.Sat     -> pure ()
-    S.Unsat   -> mzero
-    S.Unknown -> mzero
+    S.Unsat   -> backtrack
+    S.Unknown -> backtrack
 
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
     VOther p -> inSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
-    VValue (I.VBool False) -> mzero
+    VValue (I.VBool False) -> backtrack
     _ -> panic "Malformed boolean" [show sv]
 
 
@@ -281,9 +277,6 @@ enumerate :: Traversable t => t a -> t (Int, a)
 enumerate t = evalState (traverse go t) 0
   where
     go a = state (\i -> ((i, a), i + 1))
-
-inSolver :: SolverT StrategyM a -> SymbolicM a
-inSolver = SymbolicM . lift . lift
 
 -- THis all happens after we have finished, so we need to be a bit
 -- careful about what is in scope (only thins in the current solver

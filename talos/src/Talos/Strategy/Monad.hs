@@ -40,6 +40,7 @@ import Talos.Analysis.EntangledVars (EntangledVars)
 import qualified Data.ByteString as BS
 import Data.Foldable (foldl')
 import Daedalus.Rec (forgetRecs)
+import Control.Monad.Trans.Free (FreeT)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -243,6 +244,8 @@ instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
   liftStrategy m = lift (liftStrategy m)
 
+instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
+  liftStrategy m = lift (liftStrategy m)
 
 -- -----------------------------------------------------------------------------
 -- Instances
