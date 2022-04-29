@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 import Control.Monad(forM,forM_,unless)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
-import Data.Maybe(catMaybes,maybeToList)
+import Data.Maybe(catMaybes,maybeToList,fromMaybe)
 import Control.Monad(zipWithM)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -362,7 +362,7 @@ checkCommit r cmt =
     Backtrack -> addWarning (WarnUnbiasedChoice (range r))
 
 
-inferExpr :: Expr -> TypeM ctx (TC SourceRange ctx,Type)
+inferExpr :: forall ctx. Expr -> TypeM ctx (TC SourceRange ctx,Type)
 inferExpr expr =
   case exprValue expr of
 
@@ -948,135 +948,115 @@ inferExpr expr =
             -- XXX: Maybe require explicit match?
            AGrammar -> promoteSetToGrammar =<< inContext AClass (inferExpr expr)
 
-    EFor fl mbIx i is e ->
-      case fl of
+    EFor fl e ->
+      do (binds, env, loopT, bodyT, fl') <- doFlav
 
-        FMap ->
-          do ((is1,it),mbB) <- liftValExpr is
-             kT       <- newTVar i KValue
-             addConstraint e (ColKeyType it kT)
+         (e1,et)  <- addLocals env (inferExpr e)
+         ctxt <- getContext
+         case ctxt of
+           AClass ->
+             reportError expr "Expected a byte set but found a loop"
 
-             elIn     <- newTVar i KValue
-             addConstraint e (ColElType it elIn)
+           AValue
+             | null binds ->
+               do unify bodyT (e,et)
+                  pure ( exprAt expr (TCFor Loop { loopFlav = fl'
+                                                 , loopBody = e1
+                                                 , loopType = loopT
+                                                 })
+                      , loopT
+                      )
+              | otherwise ->
+                reportError expr
+                   "Expected a semantic value but found a parser"
 
-             outColT  <- newTVar i KValue
-             addConstraint e (ColKeyType outColT kT)
-
-             elOut <- newTVar i KValue
-             addConstraint e (ColElType outColT elOut)
-
-             addConstraint e (Mappable it outColT)
-
-             let toName n t = TCName { tcName = n,
-                                       tcNameCtx = AValue,
-                                       tcType = t }
-                 k1 = (`toName` kT) <$> mbIx
-                 i1 = toName i elIn
+           AGrammar ->
+             do let result = tGrammar loopT
+                unify (tGrammar bodyT) (e,et)
+                pure ( addBinds binds
+                       $ exprAt expr (TCFor Loop { loopFlav = fl'
+                                                 , loopBody = e1
+                                                 , loopType = result
+                                                 })
+                     , result
+                     )
 
 
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
+      where
+      toName n t = TCName { tcName = n, tcNameCtx = AValue, tcType = t }
 
-             (e1,et)  <- addKey $ extEnv i elIn $ inferExpr e
-
-             ctxt <- getContext
-             case (ctxt, maybeToList mbB) of
-               (AClass,_) ->
-                  reportError expr "Expected a byte set but found `map`"
-
-               (AValue,[]) ->
-                  do let result = outColT
-                     unify elOut (e,et)
-                     pure ( exprAt expr (TCFor Loop
-                                               { loopFlav = LoopMap
-                                               , loopKName = k1
-                                               , loopElName = i1
-                                               , loopCol = is1
-                                               , loopBody = e1
-                                               , loopType = result
-                                               })
-                         , result
+      doCol :: FLoopCol Expr ->
+               TypeM ctx ( [BindStmt]
+                         , [(Name,Type)]
+                         , Type, Type   -- key, col
+                         , LoopCollection SourceRange
                          )
+      doCol FLoopCol { flKey = mbIx, flVal = i, flCol = is } =
+        do ((is1,it),mbB) <- liftValExpr is
+           kT             <- newTVar (fromMaybe i mbIx) KValue
+           elT            <- newTVar i KValue
+           addConstraint e (ColKeyType it kT)
+           addConstraint e (ColElType  it elT)
+           let k1  = (`toName` kT) <$> mbIx
+               i1  = toName i elT
+               env = case mbIx of
+                       Nothing -> [ (i, elT) ]
+                       Just k  -> [ (k, kT), (i, elT) ]
+           pure ( maybeToList mbB
+                , env
+                , kT,it
+                , LoopCollection { lcKName  = k1
+                                 , lcElName = i1
+                                 , lcCol    = is1
+                                 }
+                )
 
-               (AValue,_) ->
-                 reportError expr "Expected a semantic value but found a parser"
+      addLocals xs m =
+        case xs of
+          [] -> m
+          (x,t) : more -> extEnv x t (addLocals more m)
 
-               (AGrammar,bs) ->
-                 do let result = tGrammar outColT
-                    unify (tGrammar elOut) (e,et)
-                    pure ( addBinds bs
-                           $ exprAt expr (TCFor Loop
-                                               { loopFlav = LoopMap
-                                               , loopKName = k1
-                                               , loopElName = i1
-                                               , loopCol = is1
-                                               , loopBody = e1
-                                               , loopType = result
-                                               })
-                         , result
-                         )
-
-        FFold x s ->
-          do ((s1,st),bs1)  <- liftValExpr s
-             ((is1,it),bs2) <- liftValExpr is
-             addConstraint e (Traversable it)
-
-             kT       <- newTVar i KValue
-             elT      <- newTVar i KValue
-             addConstraint e (ColKeyType it kT)
-             addConstraint e (ColElType  it elT)
-
-             let toName n t = TCName { tcName = n,
-                                       tcNameCtx = AValue,
-                                       tcType = t }
-                 x1 = toName x st
-                 k1 = (`toName` kT) <$> mbIx
-                 i1 = toName i elT
-
-
-             let addKey = case mbIx of
-                            Nothing -> id
-                            Just kx -> extEnv kx kT
-
-             (e1,et)  <- extEnv x st $ addKey $ extEnv i elT $ inferExpr e
-
-             ctxt <- getContext
-             case (ctxt, catMaybes [bs1,bs2]) of
-               (AClass, _) ->
-                  reportError expr "Expected a byte set but found `for`"
-
-               (AValue,[]) ->
-                  do unify st (e,et)
-                     pure ( exprAt expr (TCFor Loop
-                                                { loopFlav = Fold x1 s1
-                                                , loopKName = k1
-                                                , loopElName = i1
-                                                , loopCol = is1
-                                                , loopBody = e1
-                                                , loopType = et
-                                                })
-                          , st
+      doFlav :: TypeM ctx ( [BindStmt]
+                          , [(Name,Type)]
+                          , Type, Type    -- loopT, bodyT
+                          , LoopFlav SourceRange ctx
                           )
+      doFlav =
+        case fl of
+          FMap col ->
+            do (binds, env, kT, inColT, col') <- doCol col
 
+               outColT  <- newTVar (flCol col) KValue
+               outElT   <- newTVar (flVal col) KValue
+               addConstraint e (ColKeyType outColT kT)
+               addConstraint e (ColElType  outColT outElT)
+               addConstraint e (Mappable inColT outColT)
 
-               (AValue,_) ->
-                  reportError expr
-                        "Expected a semantic value but found a parser."
+               pure (binds, env, outColT, outElT, LoopMap col')
 
-               (AGrammar, bs) ->
-                  do unify (tGrammar st) (e,et)
-                     pure ( addBinds bs
-                            $ exprAt expr (TCFor Loop
-                                                  { loopFlav = Fold x1 s1
-                                                  , loopKName = k1
-                                                  , loopElName = i1
-                                                  , loopCol = is1
-                                                  , loopBody = e1
-                                                  , loopType = et
-                                                  })
-                          , tGrammar st
-                          )
+          FFold x s col ->
+            do ((s1,st),bs1) <- liftValExpr s
+               (binds, env, _kT, inColT, col') <- doCol col
+               addConstraint e (Traversable inColT)
+               pure ( maybeToList bs1 ++ binds
+                    , (x,st) : env
+                    , st, st
+                    , Fold (toName x st) s1 col'
+                    )
+          FMany c x s ->
+            do ctxt <- getContext
+               case ctxt of
+                 AValue -> reportError expr
+                   "Expected a semantic value but found a parser"
+                 AClass -> reportError expr
+                   "Expected a byte class but found a parser"
+                 AGrammar ->
+                   do ((s1,st),bs) <- liftValExpr s
+                      pure ( maybeToList bs
+                           , [(x,st)]
+                           , st, st
+                           , LoopMany c (toName x st) s1
+                           )
 
     EIf be te fe -> inferIf expr be te fe
 
@@ -1160,6 +1140,10 @@ checkPattern ty pat =
         LBool b ->
           do unify ty (pat,tBool)
              pure (TCBoolPat b)
+
+        LBytes bs ->
+          do unify ty (pat, tArray tByte)
+             pure (TCStrPat bs)
         _ -> reportError pat "Unsuported literal pattern"
 
     WildPattern _ ->

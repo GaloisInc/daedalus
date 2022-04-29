@@ -6,12 +6,16 @@ import Data.Maybe(fromMaybe)
 import qualified Data.Map as Map
 import Control.Monad(forM)
 
+import Daedalus.Panic(panic)
+import Daedalus.PP(pp)
+
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 
 import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
+import Daedalus.VM.Compile.StrPat
 
 
 compileEs :: [Src.Expr] -> ([E] -> BlockBuilder Void) -> C (BlockBuilder Void)
@@ -59,20 +63,7 @@ compileE expr k =
          do s <- stmt ty (\x -> CallPrim x (StructCon t) vs)
             continue k s
 
-    Src.ECase (Src.Case x as) ->
-      do next' <- case k of
-                    Nothing -> pure Nothing
-                    Just kont ->
-                      do res  <- newLocal (TSem (Src.typeOf expr))
-                         nextL <- label0 NormalBlock (kont =<< getLocal res)
-                         pure $ Just \v -> do setLocal res v
-                                              jump nextL
-
-         codes <- forM as \(p,rhs) ->
-                    do l <- label0 NormalBlock =<< compileE rhs next'
-                       pure (p, l)
-         b <- lookupN x
-         pure (jumpCase (Map.fromList codes) =<< b)
+    Src.ECase (Src.Case x as) -> compileCase (Src.typeOf expr) x as k
 
     Src.Ap0 op          -> compileOp0 op ty k
     Src.Ap1 op e        -> compileOp1 op ty e k
@@ -81,8 +72,6 @@ compileE expr k =
     Src.ApN op es       -> compileOpN op ty es k
 
   where ty = TSem (Src.typeOf expr)
-
-
 
 compileOp0 :: Src.Op0 -> VMT -> CE
 compileOp0 op ty k' =
@@ -138,8 +127,72 @@ compileOpN op ty es k =
          compileEs es doCall
 
 
+compileCase ::
+  Src.Type -> Src.Name -> [(Src.Pattern, Src.Expr)] ->
+  Maybe (E -> BlockBuilder Void) ->
+  C (BlockBuilder Void)
+compileCase resT x as k =
+  do next' <- case k of
+                Nothing -> pure Nothing
+                Just kont ->
+                  do res  <- newLocal (TSem resT)
+                     nextL <- label0 NormalBlock (kont =<< getLocal res)
+                     pure $ Just \v -> do setLocal res v
+                                          jump nextL
+
+     codes <- forM as \(p,rhs) ->
+                do l <- label0 NormalBlock =<< compileE rhs next'
+                   pure (p, l)
+
+     compileCaseBranches x codes
+
+
+compileCaseBranches ::
+  Src.Name -> [(Pattern, BlockBuilder JumpPoint)] -> C (BlockBuilder Void)
+compileCaseBranches x codes =
+  case Src.typeOf x of
+    Src.TArray _ -> compileStrCase x codes
+    _            -> do b <- lookupN x
+                       pure (jumpCase (Map.fromList codes) =<< b)
 
 
 
+compileStrCase ::
+  Src.Name -> [(Pattern, BlockBuilder JumpPoint)] -> C (BlockBuilder Void)
+compileStrCase x codes =
+  do lenCodes <- forM (Map.toList decision) \(n,opts) ->
+                    do l <- label0 NormalBlock =<< compileN 0 opts
+                       pure (PNum (toInteger n), l)
+     let lenMap = Map.insert PAny dflt (Map.fromList lenCodes)
+     let srcLenExp = Src.arrayLen (Src.Var x)
+     compileE srcLenExp $ Just \e -> jumpCase lenMap e
+
+
+  where
+  (strAlts,dflt) = splitUp [] codes
+  decision = strDecisionTree strAlts
+
+  compileN ::
+    Integer -> StrTree (BlockBuilder JumpPoint) -> C (BlockBuilder Void)
+  compileN n tree =
+    case tree of
+      StrDone l -> pure (jump l)
+      StrCase mp ->
+        do let mkPat k = PNum (toInteger k)
+               mkBranch b = label0 NormalBlock =<< compileN (n+1) b
+           caseMap0 <- traverse mkBranch (Map.mapKeys mkPat mp)
+           let caseMap = Map.insert PAny dflt caseMap0
+           let sizeT = Src.TUInt (Src.TSize 64)
+           let byteExpr = Src.arrayIndex (Src.Var x) (Src.intL n sizeT)
+           compileE byteExpr $ Just \e -> jumpCase caseMap e
+
+  splitUp alts ps =
+    case ps of
+      (p,b) : more ->
+        case p of
+          PBytes bs -> splitUp ((bs,b) : alts) more
+          PAny   -> (reverse alts, b)
+          _      -> panic "compileStrCase" [ "Unexpected pattern", show (pp p) ]
+      [] -> panic "compileStrCase" [ "Missing default in StrPat" ]
 
 

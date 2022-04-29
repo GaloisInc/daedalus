@@ -31,13 +31,9 @@ instance PP ModuleException where
 resolveModulePath :: [FilePath] -> ModuleName -> IO (Maybe FilePath)
 resolveModulePath [] _n = return Nothing
 resolveModulePath (p : searchPaths) n =
-                          do
-                          let p' = p </> Text.unpack n <.> "ddl"
-                          e <- doesFileExist p'
-                          if e then
-                            return (Just p')
-                          else
-                            resolveModulePath searchPaths n
+  do let p' = p </> Text.unpack n <.> "ddl"
+     e <- doesFileExist p'
+     if e then return (Just p') else resolveModulePath searchPaths n
 
 pathToModuleName :: FilePath -> (FilePath, ModuleName)
 pathToModuleName f = (dir, Text.pack (dropExtension rest))

@@ -47,20 +47,25 @@ instance TraverseTypes (TC a k) where
   traverseTypes f (TC m) = TC <$> traverseTypes f m
 
 
-instance TraverseTypes (LoopFlav a) where
+instance TraverseTypes (LoopFlav a k) where
   traverseTypes f lt =
     case lt of
-      Fold x s -> Fold <$> traverseTypes f x <*> traverseTypes f s
-      LoopMap  -> pure LoopMap
+      Fold x s col -> Fold <$> traverseTypes f x <*> traverseTypes f s
+                                                 <*> traverseTypes f col
+      LoopMap col  -> LoopMap <$> traverseTypes f col
+      LoopMany c x s -> LoopMany c <$> traverseTypes f x <*> traverseTypes f s
 
 instance TraverseTypes (Loop a k) where
   traverseTypes f lp =
     Loop <$> traverseTypes f (loopFlav lp)
-         <*> traverseTypes f (loopKName lp)
-         <*> traverseTypes f (loopElName lp)
-         <*> traverseTypes f (loopCol lp)
          <*> traverseTypes f (loopBody lp)
          <*> f (loopType lp)
+
+instance TraverseTypes (LoopCollection a) where
+  traverseTypes f col =
+    LoopCollection <$> traverseTypes f (lcKName  col)
+                   <*> traverseTypes f (lcElName col)
+                   <*> traverseTypes f (lcCol    col)
 
 instance TraverseTypes (TCF a k) where
   traverseTypes f expr =
@@ -260,6 +265,7 @@ instance TraverseTypes TCPat where
       TCConPat t l p ->
         (\t1 p1 -> TCConPat t1 l p1) <$> f t <*> traverseTypes f p
       TCNumPat t i l -> (\t' -> TCNumPat t' i l) <$> f t
+      TCStrPat bs    -> pure (TCStrPat bs)
       TCBoolPat b    -> pure (TCBoolPat b)
       TCJustPat p    -> TCJustPat <$> traverseTypes f p
       TCNothingPat t -> TCNothingPat <$> f t
@@ -342,13 +348,16 @@ traverseTCF f = go
 
         -- Eliminators
         TCFor lp ->
-          mk <$> travFlav (loopFlav lp) <*> f (loopCol lp) <*> f (loopBody lp)
+          mk <$> travFlav (loopFlav lp) <*> f (loopBody lp)
           where
-          mk t i e = TCFor lp { loopFlav = t, loopCol = i, loopBody = e }
+          mk t e = TCFor lp { loopFlav = t, loopBody = e }
           travFlav ty =
             case ty of
-              Fold x s -> Fold x <$> f s
-              LoopMap  -> pure LoopMap
+              Fold x s col -> Fold x <$> f s <*> travCol col
+              LoopMap col  -> LoopMap <$> travCol col
+              LoopMany c x s -> LoopMany c x <$> f s
+
+          travCol col = (\c -> col { lcCol = c }) <$> f (lcCol col)
 
         TCSelStruct x n t  -> TCSelStruct  <$> f x <*> pure n <*> pure t
 

@@ -24,7 +24,7 @@ extra-source-files:
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2  -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
   build-tool-depends:  alex:alex, happy:happy
   exposed-modules:     Daedalus.Parser.Tokens,
@@ -44,8 +44,6 @@ library
                        Daedalus.Compile.Config,
                        Daedalus.Driver,
                        Daedalus.Pass,
-                       Daedalus.Normalise.AST,
-                       Daedalus.Normalise,
                        Daedalus.Type,
                        Daedalus.Type.Pretty,
                        Daedalus.Type.Generalize,
@@ -139,7 +137,7 @@ executable daedalus
                        file-embed >= 0.0.13
 
   hs-source-dirs:      exe
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2 -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
   default-language:    Haskell2010
 

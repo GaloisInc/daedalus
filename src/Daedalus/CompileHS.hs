@@ -160,7 +160,7 @@ hsType env ty =
         TArray t    -> "Vector.Vector" `Ap` hsType env t
         TMaybe t    -> "HS.Maybe" `Ap` hsType env t
         TMap k t    -> "Map.Map" `Ap` hsType env k `Ap` hsType env t
-        TBuilder t  -> List [hsType env t]
+        TBuilder t  -> "Vector.Builder" `Ap` hsType env t
 
 
 hsConstraint :: Env -> Constraint -> Term
@@ -552,7 +552,8 @@ hsValue env tc =
     TCNothing t  -> hasType ("HS.Maybe" `Ap` hsType env t) "HS.Nothing"
     TCJust e    -> "HS.Just" `Ap` hsValue env e
 
-    TCBuilder t -> hasType (List [hsType env t]) (List [])
+    TCBuilder t -> hasType ("Vector.Builder" `Ap` hsType env t)
+                           "Vector.emptyBuilder"
 
     TCStruct fs t ->
       case t of
@@ -612,7 +613,7 @@ hsValue env tc =
 
         ArrayStream -> bin "RTS.arrayStream"
         LookupMap   -> bin "Map.lookup"
-        BuilderEmit -> ApI ":" (hsValue env v2) (hsValue env v1)
+        BuilderEmit -> "Vector.pushBack" `Ap` hsValue env v1 `Ap` hsValue env v2
 
         LogicAnd    -> binI "HS.&&"
         LogicOr     -> binI "HS.||"
@@ -634,7 +635,7 @@ hsValue env tc =
         IsNegativeZero    -> "HS.isNegativeZero" `Ap` hsValue env v
         BytesOfStream     ->
             "Vector.vecFromRep" `Ap` ("RTS.inputBytes" `Ap` hsValue env v)
-        BuilderBuild      -> "Vector.fromList" `Ap` ("HS.reverse" `Ap` hsValue env v)
+        BuilderBuild      -> "Vector.finishBuilder" `Ap` hsValue env v
 
     TCVar x -> hsValName env NameUse (tcName x)
     TCCall f ts as -> hsApp env f ts as
@@ -894,6 +895,7 @@ hsCase ::
   Term
 hsCase eval ifFail env e alts dfl
   | isBitdata = hsBitdataCase eval ifFail env e alts dfl
+  | isStrPat  = Case ("Vector.vecToRep" `Ap` hsValue env e) branches
   | otherwise = Case (hsValue env e) branches
   where
   isBitdata = case typeOf e of
@@ -901,6 +903,8 @@ hsCase eval ifFail env e alts dfl
                    | Just _ <- tctyBD (lkpInEnv "typeEnv" (envTypes env) c) ->
                      True
                 _ -> False
+
+  isStrPat = typeOf e == tArray tByte
 
   branches =
     concatMap alt (NE.toList alts) ++ [
@@ -940,6 +944,7 @@ hsPatBDD env pat =
     TCWildPat t     -> hsBitdataUniv env t
 
     TCNumPat {}     -> bad
+    TCStrPat {}     -> bad
     TCBoolPat {}    -> bad
     TCJustPat {}    -> bad
     TCNothingPat {} -> bad
@@ -955,6 +960,7 @@ hsPatVars pat =
     TCNumPat {}     -> []
     TCWildPat {}    -> []
     TCBoolPat {}    -> []
+    TCStrPat {}     -> []
     TCJustPat p     -> hsPatVars p
     TCNothingPat {} -> []
 
@@ -1055,6 +1061,8 @@ hsPat env pat =
         Type (TSInt _) -> Tuple [ApI "->" "RTS.fromSInt" (Raw i)]
         _ -> panic "hsPat" [ "We don't support polymorphic case." ]
 
+    TCStrPat bs -> Raw bs
+
     TCBoolPat b     -> hsBool b
     TCJustPat p     -> "HS.Just" `Ap` hsPat env p
     TCNothingPat _t -> "HS.Nothing"
@@ -1086,67 +1094,81 @@ hsArg env arg =
 
 evalFor :: Env -> Loop SourceRange Value -> Term
 evalFor env lp =
-  case loopKName lp of
-    Nothing ->
-      case loopFlav lp of
-        LoopMap -> hasType (hsType env (loopType lp))
-                 $ ("RTS.loopMap" `Ap` step `Ap` colV)
-          where step = Lam [ hsTCName env (loopElName lp) ] bodyV
+  case loopFlav lp of
 
-        Fold x s -> "RTS.loopFold" `Ap` step `Ap` initVal `Ap` colV
-          where initVal = hsValue env s
-                step = Lam [ hsTCName env x
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
-    Just k ->
-      case loopFlav lp of
-        LoopMap -> hasType (hsType env (loopType lp))
-                 $ "RTS.loopIMap" `Ap` step `Ap` colV
-          where step = Lam [ hsTCName env k
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
+    LoopMap col ->
+      let colV = hsValue env (lcCol col)
+      in
+      case lcKName col of
+        Nothing -> hasType (hsType env (loopType lp))
+                           ("RTS.loopMap" `Ap` step `Ap` colV)
+              where step = Lam [ hsTCName env (lcElName col) ] bodyV
 
-        Fold x s -> "RTS.loopIFold" `Ap` step `Ap` initVal `Ap` colV
-          where initVal = hsValue env s
-                step = Lam [ hsTCName env x
-                           , hsTCName env k
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
+        Just k -> hasType (hsType env (loopType lp))
+                          ("RTS.loopIMap" `Ap` step `Ap` colV)
+              where step = Lam [ hsTCName env k
+                               , hsTCName env (lcElName col)
+                               ] bodyV
+
+    Fold x s col ->
+      let colV = hsValue env (lcCol col)
+      in
+      case lcKName col of
+        Nothing -> "RTS.loopFold" `Ap` step `Ap` initVal `Ap` colV
+
+              where initVal = hsValue env s
+                    step = Lam [ hsTCName env x
+                               , hsTCName env (lcElName col)
+                               ] bodyV
+        Just k -> "RTS.loopIFold" `Ap` step `Ap` initVal `Ap` colV
+              where initVal = hsValue env s
+                    step = Lam [ hsTCName env x
+                               , hsTCName env k
+                               , hsTCName env (lcElName col)
+                               ] bodyV
   where
-  colV    = hsValue env (loopCol lp)
   bodyV   = hsValue env (loopBody lp)
 
 
 evalForM :: Env -> Loop SourceRange Grammar -> Term
 evalForM env lp =
-  case loopKName lp of
-    Nothing ->
-      case loopFlav lp of
-        LoopMap -> hasType (hsType env (loopType lp))
-                 $ "RTS.loopMapM" `Ap` step `Ap` colV
-          where step = Lam [ hsTCName env (loopElName lp) ] bodyV
 
-        Fold x s -> "RTS.loopFoldM" `Ap` step `Ap` initVal `Ap` colV
-          where initVal = hsValue env s
-                step = Lam [ hsTCName env x
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
-    Just k ->
-      case loopFlav lp of
-        LoopMap -> hasType (hsType env (loopType lp))
-                 $ "RTS.loopIMapM" `Ap` step `Ap` colV
-          where step = Lam [ hsTCName env k
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
+  case loopFlav lp of
 
-        Fold x s -> "RTS.loopIFoldM" `Ap` step `Ap` initVal `Ap` colV
-          where initVal = hsValue env s
-                step = Lam [ hsTCName env x
-                           , hsTCName env k
-                           , hsTCName env (loopElName lp)
-                           ] bodyV
+    LoopMap col ->
+      let colV = hsValue env (lcCol col)
+      in case lcKName col of
+           Nothing -> hasType (hsType env (loopType lp))
+                              ("RTS.loopMapM" `Ap` step `Ap` colV)
+              where step = Lam [ hsTCName env (lcElName col) ] bodyV
+
+           Just k -> hasType (hsType env (loopType lp))
+                             ("RTS.loopIMapM" `Ap` step `Ap` colV)
+              where step = Lam [ hsTCName env k
+                               , hsTCName env (lcElName col)
+                               ] bodyV
+
+    LoopMany c x s -> "RTS.pLoopMany" `Ap` hsCommit c `Ap` step `Ap` initVal
+      where initVal = hsValue env s
+            step = Lam [ hsTCName env x ] bodyV
+
+    Fold x s col ->
+      let colV = hsValue env (lcCol col)
+      in case lcKName col of
+
+           Nothing -> "RTS.loopFoldM" `Ap` step `Ap` initVal `Ap` colV
+             where initVal = hsValue env s
+                   step = Lam [ hsTCName env x
+                              , hsTCName env (lcElName col)
+                              ] bodyV
+
+           Just k -> "RTS.loopIFoldM" `Ap` step `Ap` initVal `Ap` colV
+             where initVal = hsValue env s
+                   step = Lam [ hsTCName env x
+                              , hsTCName env k
+                              , hsTCName env (lcElName col)
+                              ] bodyV
   where
-  colV    = hsValue   env (loopCol lp)
   bodyV   = hsGrammar env (loopBody lp)
 
 

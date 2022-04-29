@@ -3,20 +3,25 @@ module DaedalusMain where
  
 -------------
  
+-- ./Det005.ddl:7:1--7:43
 byteset $simpleWS() : Bool =
   { 0 @(Word 8) } | { 9 @(Word 8) } | { 12 @(Word 8) } | { 32 @(Word 8) }
  
+-- ./Det005.ddl:6:1--6:30
 byteset $cr() : Bool =
   { 13 @(Word 8) }
  
+-- ./Det005.ddl:5:1--5:30
 byteset $lf() : Bool =
   { 10 @(Word 8) }
  
+-- ./Det005.ddl:11:42--11:67
 proc _F24() : () =
   do _x25 <- try
-               do match1_ !($lf() | $cr())
+               do -- ./Det005.ddl:11:48--11:67
+                  match1_ !($lf() | $cr())
                   pure True
-             else
+             orelse
                pure False
      case _x25 of
        True ->
@@ -24,63 +29,117 @@ proc _F24() : () =
        False ->
          pure ()
  
+-- ./Det005.ddl:9:1--9:47
 proc _SimpleEOL() : () =
+  -- ./Det005.ddl:9:29--9:47
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        10 ->
+         -- ./Det005.ddl:9:45--9:47
          pure ()
        13 ->
+         -- ./Det005.ddl:9:31--9:38
+         -- ./Det005.ddl:9:36--9:38
          match1_ $lf()
        _ ->
          fail_sys @()
  
+-- ./Det005.ddl:10:1--10:44
 proc _EOL() : () =
+  -- ./Det005.ddl:10:29--10:44
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
      case _x0 of
        10 ->
+         -- ./Det005.ddl:10:29--10:37
+         -- ./Det005.ddl:9:29--9:47
+         -- ./Det005.ddl:9:45--9:47
          pure ()
        13 ->
          -- OR RECONSTRUCTION
          try
+           -- ./Det005.ddl:10:29--10:37
+           -- ./Det005.ddl:9:29--9:47
+           -- ./Det005.ddl:9:31--9:38
+           -- ./Det005.ddl:9:36--9:38
            match1_ $lf()
-         else
+         orelse
+           -- ./Det005.ddl:10:42--10:44
            pure ()
        _ ->
          fail_sys @()
  
+-- ./Det005.ddl:11:1--11:77
 proc _Comment() : () =
-  do match_ "%"
+  -- ./Det005.ddl:11:31--11:75
+  do -- ./Det005.ddl:11:31--11:39
+     match_ "%"
+     -- ./Det005.ddl:11:42--11:75
+     -- ./Det005.ddl:11:42--11:67
      _F24()
+     -- ./Det005.ddl:11:73--11:75
      _EOL()
  
+-- ./Det005.ddl:12:1--12:55
 proc _AnyWS() : () =
+  -- ./Det005.ddl:12:29--12:55
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
      case _x0 of
        0 ->
+         -- ./Det005.ddl:12:29--12:48
+         -- ./Det005.ddl:12:29--12:37
          pure ()
        9 ->
+         -- ./Det005.ddl:12:29--12:48
+         -- ./Det005.ddl:12:29--12:37
          pure ()
        10 ->
+         -- ./Det005.ddl:12:53--12:55
+         -- ./Det005.ddl:10:29--10:44
+         -- ./Det005.ddl:10:29--10:37
+         -- ./Det005.ddl:9:29--9:47
+         -- ./Det005.ddl:9:45--9:47
          pure ()
        12 ->
+         -- ./Det005.ddl:12:29--12:48
+         -- ./Det005.ddl:12:29--12:37
          pure ()
        13 ->
          -- OR RECONSTRUCTION
+         -- ./Det005.ddl:12:53--12:55
+         -- ./Det005.ddl:10:29--10:44
          try
+           -- ./Det005.ddl:10:29--10:37
+           -- ./Det005.ddl:9:29--9:47
+           -- ./Det005.ddl:9:31--9:38
+           -- ./Det005.ddl:9:36--9:38
            match1_ $lf()
-         else
+         orelse
+           -- ./Det005.ddl:10:42--10:44
            pure ()
        32 ->
+         -- ./Det005.ddl:12:29--12:48
+         -- ./Det005.ddl:12:29--12:37
          pure ()
        37 ->
-         do _F24()
+         -- ./Det005.ddl:12:29--12:48
+         -- ./Det005.ddl:12:42--12:48
+         -- ./Det005.ddl:11:31--11:75
+         -- ./Det005.ddl:11:42--11:75
+         do -- ./Det005.ddl:11:42--11:67
+            _F24()
+            -- ./Det005.ddl:11:73--11:75
             _EOL()
        _ ->
          fail_sys @()
  
+-- ./Det005.ddl:3:1--3:26
 proc Main() : () =
-  do _AnyWS()
+  -- ./Det005.ddl:3:14--3:24
+  do -- ./Det005.ddl:3:14--3:18
+     _AnyWS()
+     -- ./Det005.ddl:3:22--3:24
+     -- ./Det005.ddl:3:22--3:24
      matchEnd

@@ -62,10 +62,24 @@ def wordToHalfFloat (w : uint 16) =
 
 -- Succeed if the condition holds or fail otherwise.
 def Guard b       = b is true
+def GuardMsg p s  = if p then Accept
+                         else Fail (concat ["Guard failed: ", s])
+
+
+-- Parse with `P` and return result `x`
+def When P x      = block P; x
+
+-- Parse with `P` but return `x` if `P` fails.
+def Default x P   = P <| x
+
+
 
 -- Succeed if `P` consumes all input.
 def Only P        = block $$ = P; END
 
+
+-- Evaluate a sequence of digits in the given base
+def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 --------------------------------------------------------------------------------
 
@@ -103,6 +117,13 @@ def LookAhead P =
     let s = GetStream
     $$ = P
     SetStream s
+
+-- Parse the given stream with P. Does not affect the current stream
+def WithStream s P =
+  LookAhead
+    block
+      SetStream s
+      P
 
 
 

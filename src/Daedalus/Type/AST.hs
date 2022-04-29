@@ -6,6 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
 {-# Language RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Daedalus.Type.AST
   ( module Daedalus.Type.AST
@@ -241,7 +242,7 @@ data TCF :: HS -> Ctx -> HS where
       -- Custom error message: message (byte array)
 
    TCCase :: TC a Value           {- thing we examine -} ->
-             NonEmpty (TCAlt a k) {- brances; non-empty -} ->
+             NonEmpty (TCAlt a k) {- branches; non-empty -} ->
              Maybe (TC a k)       {- default -} ->
              TCF a k
 
@@ -259,6 +260,7 @@ data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
 -- | Deconstruct a value
 data TCPat = TCConPat Type Label TCPat
            | TCNumPat Type Integer Text   -- text is how to show
+           | TCStrPat ByteString
            | TCBoolPat Bool
            | TCJustPat TCPat
            | TCNothingPat Type
@@ -268,15 +270,22 @@ data TCPat = TCConPat Type Label TCPat
 
 
 
-data LoopFlav a = Fold (TCName Value) (TC a Value)
-                | LoopMap
-  deriving Show
+data LoopFlav a k where
+  Fold     :: TCName Value -> TC a Value -> LoopCollection a -> LoopFlav a k
+  LoopMany :: Commit -> TCName Value -> TC a Value -> LoopFlav a Grammar
+  LoopMap  :: LoopCollection a -> LoopFlav a k
+
+deriving instance Show a => Show (LoopFlav a k)
+
+-- | For loops that iterate over things
+data LoopCollection a = LoopCollection
+  { lcKName   :: Maybe (TCName Value) -- Key name, optional
+  , lcElName  :: TCName Value
+  , lcCol     :: TC a Value
+  } deriving Show
 
 data Loop a k = Loop
-  { loopFlav    :: LoopFlav a
-  , loopKName   :: Maybe (TCName Value) -- Key name, optional
-  , loopElName  :: TCName Value
-  , loopCol     :: TC a Value
+  { loopFlav    :: LoopFlav a k
   , loopBody    :: TC a k
   , loopType    :: !Type
   } deriving Show
@@ -430,16 +439,24 @@ instance PP (TC a k) where
 
 instance PP (Loop a k) where
   ppPrec n lp = wrapIf (n > 0) $
-    kw <+> parens (st <+>
-                   ppK <+> ppBinder (loopElName lp) <+> "in" <+> pp (loopCol lp)
-      ) $$ nest 2 (ppPrec 1 (loopBody lp))
+    kw <+> parens hdr $$ nest 2 (ppPrec 1 (loopBody lp))
     where
-    ppK = case loopKName lp of
+    (kw,hdr) =
+      case loopFlav lp of
+        Fold x e c   -> ("for", ppBinder x <+> "=" <+> pp e <.> semi <+> pp c)
+        LoopMap c    -> ("map", pp c)
+        LoopMany c x e -> (k, ppBinder x <+> "=" <+> pp  e)
+          where k = case c of
+                      Commit    -> "for"
+                      Backtrack -> "for?"
+
+instance PP (LoopCollection a) where
+  ppPrec _ lp = ppK <+> ppBinder (lcElName lp) <+> "in" <+> pp (lcCol lp)
+    where
+    ppK = case lcKName lp of
             Nothing -> empty
             Just k  -> ppBinder k <.> comma
-    (kw,st) = case loopFlav lp of
-                Fold x e -> ("for", ppBinder x <+> "=" <+> pp e <.> semi)
-                LoopMap  -> ("map", empty)
+
 
 
 instance PP (TCF a k) where
@@ -643,6 +660,7 @@ instance PP TCPat where
       TCBoolPat b     -> if b then "true" else "false"
       TCJustPat p     -> wrapIf (n > 0) ("just" <+> ppPrec 1 p)
       TCNothingPat _  -> "nothing"
+      TCStrPat xs     -> text (show xs)
       TCVarPat x      -> pp x
       TCWildPat _     -> "_"
 
@@ -673,6 +691,7 @@ describePat par pat =
   case pat of
     TCConPat _ l p -> ppCon l p
     TCNumPat _ _ txt -> text (Text.unpack txt)
+    TCStrPat xs    -> text (show xs)
     TCBoolPat b    -> pp b
     TCJustPat p    -> ppCon "just" p
     TCNothingPat _ -> "nothing"
@@ -1093,6 +1112,7 @@ instance TypeOf TCPat where
     case pat of
       TCConPat t _ _ -> t
       TCNumPat t _ _ -> t
+      TCStrPat {} -> tArray tByte
       TCBoolPat _ -> tBool
       TCJustPat p -> tMaybe (typeOf p)
       TCNothingPat t -> tMaybe t
@@ -1104,6 +1124,7 @@ patBinds pat =
   case pat of
     TCConPat _ _ p  -> patBinds p
     TCNumPat {}     -> []
+    TCStrPat {}     -> []
     TCBoolPat {}    -> []
     TCJustPat p     -> patBinds p
     TCNothingPat {} -> []

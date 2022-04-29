@@ -27,8 +27,9 @@ library
                        RTS.Base,
                        RTS.ByteRanges,
                        RTS.JSON
-  build-depends:       base >=4.13 && <4.15,
+  build-depends:       base >=4.13,
                        vector,
+                       vector-builder,
                        containers,
                        bytestring,
                        pretty

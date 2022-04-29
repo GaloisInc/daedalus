@@ -13,6 +13,7 @@ import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
                     )
 
+import Daedalus.PP(pp)
 import Daedalus.Value
 
 import Daedalus.Core
@@ -59,8 +60,9 @@ evalG gram env =
     Call f es -> lookupGFun f env $! evalArgs es env
     Annot a g ->
       case a of
-        NoFail -> evalG g env
+        NoFail     -> evalG g env
         SrcAnnot t -> pEnter (Text.unpack t) (evalG g env)
+        SrcRange r -> pEnter (show (pp r))   (evalG g env)
 
     GCase c ->
       evalCase evalG (pError' FromSystem [] "Pattern match failure") c env

@@ -17,8 +17,6 @@ module Daedalus.Driver
   , ddlGetFNameMaybe
   , ddlGetFName
 
-  , normalizedDecls
-
     -- * Compiling to Haskell from TC
   , saveHS
   , saveHSCustomWriteFile
@@ -49,6 +47,7 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passWarnFork
   , passVM
   , ddlRunPass
 
@@ -88,7 +87,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM,unless)
+import Control.Monad(msum,foldM,forM,forM_,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
 import qualified System.IO as IO
@@ -97,7 +96,7 @@ import System.Directory(createDirectoryIfMissing,doesFileExist)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp,vcat,(<+>))
+import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 
@@ -115,8 +114,6 @@ import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
-import Daedalus.Normalise(normalise)
-import Daedalus.Normalise.AST(NDecl)
 import qualified Daedalus.CompileHS      as HS
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
@@ -821,6 +818,23 @@ passNorm m =
               s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
        _ -> panic "passNorm" ["Module is not in Core form"]
 
+passWarnFork :: ModuleName -> Daedalus ()
+passWarnFork m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->
+         do let bad = Core.checkFork ast
+            forM_ bad \t ->
+              let loc = case t of
+                          Left f  -> pp f
+                          Right r -> pp r
+                        <> colon
+              in
+              ddlPrint ("[WARNING]" <+> loc $$
+                          nest 2 ("Using unbiased choice may be inefficient.")
+                       )
+       _ -> panic "passwarnFork" ["Module is not in Core form"]
+
 
 -- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
@@ -834,18 +848,6 @@ passVM m =
 
 
 --------------------------------------------------------------------------------
-
--- | Get the normalized declarations from the specialized modules.
--- It is an error if there are multiple (or none) modules that are specialized.
-normalizedDecls :: Daedalus [NDecl]
-normalizedDecls =
-  do ms <- ddlGet loadedModules
-     case [ m | SpecializedModule m <- Map.elems ms ] of
-       [ mo ] -> pure (map normalise (forgetRecs (tcModuleDecls mo)))
-       [] -> ddlThrow (ADriverError "There are not specialized modules.")
-       xs -> ddlThrow (ADriverError ("Multiple specialized modules: " ++
-                         unwords (map (show . pp . tcModuleName) xs)))
-
 
 -- | Save Haskell for the given module.
 -- Assumes that the module is in one of the `astTC` phases.

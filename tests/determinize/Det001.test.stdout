@@ -1,15 +1,5 @@
-[WARNING] ./Det001.ddl:12:5--13:14:
-            Using unbiased choice may be inefficient.
 [WARNING] ./Det001.ddl:12:5--14:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:12:5--15:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--7:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--8:14:
-            Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--9:14:
-            Using unbiased choice may be inefficient.
+  Using unbiased choice may be inefficient.
 module DaedalusMain where
  
  
@@ -22,71 +12,126 @@ type Main =
  
 -------------
  
+-- ./Det001.ddl:5:1--9:14
 proc Simple1() : Word 8 =
+  -- ./Det001.ddl:6:5--9:14
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
+         -- ./Det001.ddl:6:5--8:14
+         -- ./Det001.ddl:6:5--7:14
+         -- ./Det001.ddl:6:5--6:14
          pure (97 @(Word 8))
        98 ->
+         -- ./Det001.ddl:6:5--8:14
+         -- ./Det001.ddl:6:5--7:14
+         -- ./Det001.ddl:7:5--7:14
          pure (98 @(Word 8))
        99 ->
+         -- ./Det001.ddl:6:5--8:14
+         -- ./Det001.ddl:8:5--8:14
          pure (99 @(Word 8))
        100 ->
+         -- ./Det001.ddl:9:5--9:14
          pure (100 @(Word 8))
        _ ->
          fail_sys @(Word 8)
  
+-- ./Det001.ddl:11:1--15:14
 proc SimpleNot1() : Word 8 =
+  -- ./Det001.ddl:12:5--15:14
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
      case _x0 of
        101 ->
+         -- ./Det001.ddl:12:5--14:14
+         -- ./Det001.ddl:12:5--13:14
+         -- ./Det001.ddl:12:5--12:14
          pure (101 @(Word 8))
        102 ->
          -- OR RECONSTRUCTION
+         -- ./Det001.ddl:12:5--14:14
            fork
+             -- ./Det001.ddl:12:5--13:14
+             -- ./Det001.ddl:13:5--13:14
              pure (102 @(Word 8))
            fork
+             -- ./Det001.ddl:14:5--14:14
              pure (102 @(Word 8))
        103 ->
+         -- ./Det001.ddl:15:5--15:14
          pure (103 @(Word 8))
        _ ->
          fail_sys @(Word 8)
  
+-- ./Det001.ddl:17:1--20:16
 proc Simple2() : () =
+  -- ./Det001.ddl:18:6--20:16
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        65 ->
+         -- ./Det001.ddl:18:6--19:16
+         -- ./Det001.ddl:18:7--18:16
          pure ()
        66 ->
+         -- ./Det001.ddl:18:6--19:16
+         -- ./Det001.ddl:19:7--19:16
          pure ()
        67 ->
+         -- ./Det001.ddl:20:7--20:16
          pure ()
        _ ->
          fail_sys @()
  
+-- ./Det001.ddl:22:1--25:47
 proc Simple3() : Word 8 =
+  -- ./Det001.ddl:23:6--25:47
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
+         -- ./Det001.ddl:23:6--24:15
+         -- ./Det001.ddl:23:9--23:41
+         -- ./Det001.ddl:23:13--23:22
          do let x = 97 @(Word 8)
+            -- ./Det001.ddl:23:26--23:41
+            -- ./Det001.ddl:23:27--23:36
             match1_ { 98 @(Word 8) }
+            -- ./Det001.ddl:23:39--23:41
+            -- ./Det001.ddl:23:39--23:41
             pure x
        98 ->
+         -- ./Det001.ddl:23:6--24:15
+         -- ./Det001.ddl:24:6--24:15
          pure (98 @(Word 8))
        99 ->
+         -- ./Det001.ddl:25:9--25:45
+         -- ./Det001.ddl:25:13--25:22
          do let x = 99 @(Word 8)
+            -- ./Det001.ddl:25:26--25:45
+            -- ./Det001.ddl:25:27--25:36
             match1_ { 98 @(Word 8) }
+            -- ./Det001.ddl:25:39--25:45
+            -- ./Det001.ddl:25:39--25:45
             pure (x + x)
        _ ->
          fail_sys @(Word 8)
  
+-- ./Det001.ddl:3:1--3:69
 proc Main() : Main =
-  do x <- Simple1()
-     y <- SimpleNot1()
-     z <- Simple2()
-     t <- Simple3()
+  -- ./Det001.ddl:3:14--3:69
+  do x <- -- ./Det001.ddl:3:18--3:24
+          Simple1()
+     -- ./Det001.ddl:3:28--3:69
+     y <- -- ./Det001.ddl:3:32--3:41
+          SimpleNot1()
+     -- ./Det001.ddl:3:44--3:69
+     z <- -- ./Det001.ddl:3:48--3:54
+          Simple2()
+     -- ./Det001.ddl:3:57--3:69
+     t <- -- ./Det001.ddl:3:61--3:67
+          Simple3()
+     -- ./Det001.ddl:3:12--3:69
      pure Main {x = x, y = y, z = z, t = t}

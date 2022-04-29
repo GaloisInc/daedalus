@@ -140,6 +140,8 @@ $ws+        ;
 "Optional?" { lexeme KWOptionalQuestion }
 "Many"      { lexeme KWMany }
 "Many?"     { lexeme KWManyQuestion }
+"many"      { lexeme KWmany }
+"many?"     { lexeme KWmanyQuestion }
 "UInt8"     { lexeme KWUInt8 }
 "$uint"     { lexeme KWDollarUInt }
 "Match"     { lexeme KWMatch }

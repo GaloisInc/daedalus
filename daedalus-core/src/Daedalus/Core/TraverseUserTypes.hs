@@ -74,6 +74,7 @@ instance TraverseUserTypes a => TraverseUserTypes (Fun a) where
         <*> traverseUserTypes f (fParams fn)
         <*> traverseUserTypes f (fDef fn)
         <*> pure (fIsEntry fn)
+        <*> pure (fAnnot fn)
 
 instance TraverseUserTypes Name where
   traverseUserTypes f n =

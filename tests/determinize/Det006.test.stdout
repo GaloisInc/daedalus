@@ -15,45 +15,71 @@ type T =
  
 -------------
  
+-- ./Det006.ddl:5:1--15:3
 proc _T() : () =
+  -- ./Det006.ddl:5:9--15:3
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        120 ->
+         -- ./Det006.ddl:6:5--6:45
          -- all_sound_off
+         -- ./Det006.ddl:6:26--6:45
          match_ "\NUL"
        121 ->
+         -- ./Det006.ddl:7:5--7:45
          -- reset_controllers
+         -- ./Det006.ddl:7:26--7:45
          match_ "\NUL"
        122 ->
          do _x1 <- match1 { ... }
             case _x1 of
               0 ->
+                -- ./Det006.ddl:8:5--8:45
                 -- local_control_off
+                -- ./Det006.ddl:8:26--8:45
                 pure ()
               127 ->
+                -- ./Det006.ddl:9:5--9:45
                 -- local_control_on
+                -- ./Det006.ddl:9:26--9:45
                 pure ()
               _ ->
                 fail_sys @()
        123 ->
+         -- ./Det006.ddl:10:5--10:45
          -- all_notes_off
+         -- ./Det006.ddl:10:26--10:45
          match_ "\NUL"
        124 ->
+         -- ./Det006.ddl:11:5--11:45
          -- omni_off
+         -- ./Det006.ddl:11:26--11:45
          match_ "\NUL"
        125 ->
+         -- ./Det006.ddl:12:5--12:45
          -- omni_on
+         -- ./Det006.ddl:12:26--12:45
          match_ "\NUL"
        126 ->
+         -- ./Det006.ddl:13:5--13:65
          -- mono_on
+         -- ./Det006.ddl:13:27--13:41
+         -- ./Det006.ddl:13:45--13:62
          match1_ { 0 @(Word 8) .. 16 @(Word 8) }
        127 ->
+         -- ./Det006.ddl:14:5--14:45
          -- poly_on
+         -- ./Det006.ddl:14:26--14:45
          match_ "\NUL"
        _ ->
          fail_sys @()
  
+-- ./Det006.ddl:3:1--3:21
 proc Main() : () =
-  do _T()
+  -- ./Det006.ddl:3:14--3:19
+  do -- ./Det006.ddl:3:14--3:14
+     _T()
+     -- ./Det006.ddl:3:17--3:19
+     -- ./Det006.ddl:3:17--3:19
      matchEnd

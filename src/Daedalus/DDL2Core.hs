@@ -41,7 +41,7 @@ import Panic (HasCallStack)
 
 --------------------------------------------------------------------------------
 
-fromModule :: TC.TCModule a -> M Module
+fromModule :: TC.TCModule TC.SourceRange -> M Module
 fromModule mo =
   let ?ents = Set.fromList (TC.tcEntries mo)
   in fromDecls (TC.tcModuleName mo) (TC.tcModuleTypes mo) (TC.tcModuleDecls mo)
@@ -53,7 +53,7 @@ fromDecls ::
   Ents =>
   TC.ModuleName ->
   [ Rec TC.TCTyDecl ] ->
-  [ Rec (TC.TCDecl a) ] ->
+  [ Rec (TC.TCDecl TC.SourceRange) ] ->
   M Module
 fromDecls mo tdecls decls =
   withModuleName mo $
@@ -76,6 +76,14 @@ fromDecls mo tdecls decls =
               , mGFuns  = egfs ++ dgfs
               }
 
+srcRangeAnnot :: TC.SourceRange -> Annot
+srcRangeAnnot = SrcRange
+
+exprAnnot :: TC.TC TC.SourceRange a -> [Annot]
+exprAnnot e = [ srcRangeAnnot (TC.texprAnnot e) ]
+
+declAnnot :: TC.TCDecl TC.SourceRange -> [Annot]
+declAnnot d = [ srcRangeAnnot (TC.tcDeclAnnot d) ]
 
 
 addDeclName :: TC.TCDecl a -> M ()
@@ -105,8 +113,8 @@ splitSomeFuns fs = ( [ x | FE x <- fs ]
                    , [ x | FG x <- fs ]
                    )
 
-fromDecl :: (Ents,UsesTypes) => TC.TCDecl a -> M SomeFun
-fromDecl TC.TCDecl { .. }
+fromDecl :: (Ents,UsesTypes) => TC.TCDecl TC.SourceRange -> M SomeFun
+fromDecl decl@TC.TCDecl { .. }
   | null tcDeclTyParams
   , null tcDeclCtrs =
     do xs0 <- mapM fromParam tcDeclParams
@@ -118,34 +126,40 @@ fromDecl TC.TCDecl { .. }
               case tcDeclDef of
                 TC.ExternDecl _ ->
                   pure $ FE Fun { fName = f, fParams = xs, fDef = External
-                                , fIsEntry = tcDeclName `Set.member` ?ents }
+                                , fIsEntry = tcDeclName `Set.member` ?ents
+                                , fAnnot = declAnnot decl }
 
                 TC.Defined v ->
                    do e <- fromExpr v
                       pure $ FE Fun { fName = f, fParams = xs, fDef = Def e
-                                    , fIsEntry = tcDeclName `Set.member` ?ents }
+                                    , fIsEntry = tcDeclName `Set.member` ?ents
+                                    , fAnnot = declAnnot decl }
            TC.AClass ->
              case tcDeclDef of
                TC.ExternDecl _ ->
                  pure $ FB Fun { fName = f, fParams = xs, fDef = External
-                               , fIsEntry = tcDeclName `Set.member` ?ents }
+                               , fIsEntry = tcDeclName `Set.member` ?ents
+                               , fAnnot = declAnnot decl }
 
                TC.Defined v ->
                  do e <- fromClass v
                     pure $ FB Fun { fName = f, fParams = xs, fDef = Def e
-                                  , fIsEntry = tcDeclName `Set.member` ?ents }
+                                  , fIsEntry = tcDeclName `Set.member` ?ents
+                                  , fAnnot = declAnnot decl }
 
            TC.AGrammar ->
              case tcDeclDef of
 
                TC.ExternDecl _ ->
                  pure $ FG Fun { fName = f, fParams = xs, fDef = External
-                               , fIsEntry = tcDeclName `Set.member` ?ents }
+                               , fIsEntry = tcDeclName `Set.member` ?ents
+                               , fAnnot = declAnnot decl }
 
                TC.Defined v ->
                  do e <- fromGrammar v
                     pure $ FG Fun { fName = f, fParams = xs, fDef = Def e
-                                  , fIsEntry = tcDeclName `Set.member` ?ents }
+                                  , fIsEntry = tcDeclName `Set.member` ?ents
+                                  , fAnnot = declAnnot decl }
 
 
   | otherwise =
@@ -153,8 +167,11 @@ fromDecl TC.TCDecl { .. }
 
 
 
-fromGrammar :: UsesTypes => TC.TC a TC.Grammar -> M Grammar
+fromGrammar :: UsesTypes => TC.TC TC.SourceRange TC.Grammar -> M Grammar
 fromGrammar gram =
+  let annot = exprAnnot gram
+  in
+  gAnnotate annot <$>
   case TC.texprValue gram of
 
     TC.TCFail mbE t ->
@@ -255,32 +272,32 @@ fromGrammar gram =
          case cbnd of
            TC.Exactly e ->
              case sem of
-               NoSem  -> pSkipExactlyMany cmt vs e ge
-               YesSem -> pParseExactlyMany cmt ty vs e ge
+               NoSem  -> pSkipExactlyMany annot cmt vs e ge
+               YesSem -> pParseExactlyMany annot cmt ty vs e ge
                          >>= finishMany ty
 
            TC.Between Nothing Nothing ->
               case sem of
-                NoSem  -> pSkipMany cmt vs ge
-                YesSem -> pParseMany cmt ty vs (newBuilder ty) ge
+                NoSem  -> pSkipMany annot cmt vs ge
+                YesSem -> pParseMany annot cmt ty vs (newBuilder ty) ge
                           >>= finishMany ty
 
            TC.Between Nothing (Just e) ->
               case sem of
-                NoSem  -> pSkipAtMost cmt vs e ge
-                YesSem -> pParseAtMost cmt ty vs e (newBuilder ty) ge
+                NoSem  -> pSkipAtMost annot cmt vs e ge
+                YesSem -> pParseAtMost annot cmt ty vs e (newBuilder ty) ge
                           >>= finishMany ty
 
            TC.Between (Just e) Nothing ->
               case sem of
                 NoSem  -> do
-                  p1 <- pSkipExactlyMany cmt vs e ge
-                  p2 <- pSkipMany cmt vs ge
+                  p1 <- pSkipExactlyMany annot cmt vs e ge
+                  p2 <- pSkipMany annot cmt vs ge
                   pure $ Do_ p1 p2
                 YesSem -> do
                   b <- newLocal (TBuilder ty)
-                  p1 <- pParseExactlyMany cmt ty vs e ge
-                  p2 <- pParseMany cmt ty vs (Var b) ge
+                  p1 <- pParseExactlyMany annot cmt ty vs e ge
+                  p2 <- pParseMany annot cmt ty vs (Var b) ge
                   finishMany ty (Do b p1 p2)
 
            TC.Between (Just lb) (Just ub) ->
@@ -289,13 +306,13 @@ fromGrammar gram =
                  (sysErr (TArray ty) "Empty bounds")
                  =<< case sem of
              NoSem  -> do
-               p1 <- pSkipExactlyMany cmt vs lb ge
-               p2 <- pSkipAtMost cmt vs (ub `sub` lb) ge
+               p1 <- pSkipExactlyMany annot cmt vs lb ge
+               p2 <- pSkipAtMost annot cmt vs (ub `sub` lb) ge
                pure $ Do_ p1 p2
              YesSem -> do
                b <- newLocal (TBuilder ty)
-               p1 <- pParseExactlyMany cmt ty vs lb ge
-               p2 <- pParseAtMost cmt ty vs (ub `sub` lb) (Var b) ge
+               p1 <- pParseExactlyMany annot cmt ty vs lb ge
+               p2 <- pParseAtMost annot cmt ty vs (ub `sub` lb) (Var b) ge
                finishMany ty (Do b p1 p2)
 
     TC.TCMapLookup sem k mp ->
@@ -354,7 +371,7 @@ fromGrammar gram =
            Just c   -> doIf c e'
                         (sysErr tgt "value does not fit in target type")
 
-    TC.TCFor l -> doLoopG l
+    TC.TCFor l -> doLoopG annot l
 
     TC.TCCall f ts as ->
       case ts of
@@ -545,6 +562,7 @@ patMatch pat leaf k =
   case pat of
      TC.TCConPat _ l p   -> nested (PCon l) p
      TC.TCNumPat _ x _   -> terminal (PNum x)
+     TC.TCStrPat xs      -> terminal (PBytes xs)
      TC.TCBoolPat b      -> terminal (PBool b)
      TC.TCJustPat p      -> nested PJust p
      TC.TCNothingPat {}  -> terminal PNothing
@@ -666,6 +684,7 @@ matchToAlts mExpr match x =
                      PBool {} -> bad
                      PNothing -> bad
                      PNum {}  -> bad
+                     PBytes {} -> bad
                      PAny     -> bad
       bad = panic "matchToAlts" ["Unexpected nested pattern"]
       e   = Var x
@@ -681,6 +700,7 @@ completeAlts d ps0 =
         PNothing      -> this : go [PJust] more
         PJust         -> this : go [PNothing] more
         PNum {}       -> this : completeAlts d more
+        PBytes {}     -> this : completeAlts d more
         PCon {}       -> this : completeAlts d more -- XXX: could check that we have all
   where
   go need ps =
@@ -693,44 +713,85 @@ completeAlts d ps0 =
 --------------------------------------------------------------------------------
 -- Loops
 
+doLoopCol ::
+  TC.LoopCollection TC.SourceRange ->
+  M ( Maybe (TC.TCName TC.Value, Name)
+    , (TC.TCName TC.Value, Name)
+    , Expr
+    , Type
+    )
+doLoopCol col =
+  do keyVar <- traverse fromName (TC.lcKName col)
+     elVar  <- fromName (TC.lcElName col)
+     colE   <- fromExpr (TC.lcCol col)
+     colT   <- fromTypeM $ TC.typeOf (TC.lcCol col)
+     pure (keyVar, elVar, colE, colT)
 
-doLoopG :: UsesTypes => TC.Loop a TC.Grammar -> M Grammar
-doLoopG lp =
-  do keyVar <- traverse fromName (TC.loopKName lp)
-     elVar  <- fromName (TC.loopElName lp)
-     colE   <- fromExpr (TC.loopCol lp)
 
-     colT   <- fromTypeM $ TC.typeOf (TC.loopCol lp)
 
-     let doBody = withSourceLocal elVar
-                $ maybe id withSourceLocal keyVar
-                $ fromGrammar $ TC.loopBody lp
+
+doLoopG ::
+  UsesTypes => [Annot] -> TC.Loop TC.SourceRange TC.Grammar -> M Grammar
+doLoopG ann lp =
+  do let doBody elVar keyVar = withSourceLocal elVar
+                             $ maybe id withSourceLocal keyVar
+                             $ fromGrammar $ TC.loopBody lp
 
      case TC.loopFlav lp of
 
-       TC.Fold x s ->
-         do sVar     <- fromName x
+       TC.LoopMany cmt x s ->
+         do v@(_,sVar)  <- fromName x
+            initS <- fromExpr s
+            g     <- withSourceLocal v (fromGrammar (TC.loopBody lp))
+            ty    <- fromGTypeM (TC.loopType lp)
+            let free = Set.toList (Set.delete sVar (freeVars g))
+                es   = map Var free
+
+            f     <- newGName ty
+
+            let def = do lhs <- do r1 <- newLocal ty
+                                   pure (Do r1 g (Pure (just (Var r1))))
+                         r2 <- newLocal (TMaybe ty)
+                         pure $ Do r2 (orOp cmt lhs (Pure (nothing ty)))
+                              $ GCase
+                              $ Case r2
+                                  [ (PJust, Call f (eFromJust (Var r2) : es))
+                                  , (PNothing, Pure (Var sVar))
+                                  ]
+
+            defFunG ann f (sVar : free) =<< def
+            pure (Call f (initS : es))
+
+
+
+       TC.Fold x s col ->
+         do (keyVar,elVar,colE,colT) <- doLoopCol col
+
+            sVar     <- fromName x
             initS    <- fromExpr s
-            g        <- withSourceLocal sVar doBody
+            g        <- withSourceLocal sVar (doBody elVar keyVar)
             let free = freeVars g
             ty       <- fromGTypeM $ TC.loopType lp
             foldLoopG
+              ann
               colT ty (Set.toList free)
               (snd sVar) initS
               (snd <$> keyVar) (snd elVar) colE
               \_ -> g
 
-       TC.LoopMap ->
+       TC.LoopMap col ->
          fromGTypeM (TC.loopType lp) >>= \resT ->
+         doLoopCol col >>= \(keyVar,elVar,colE,colT) ->
          case resT of
 
            TArray elTy ->
              do sVar <- newLocal (TBuilder elTy)
                 newEl <- newLocal elTy
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoopG
+                           ann
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
                            (snd <$> keyVar) (snd elVar) colE
@@ -744,9 +805,9 @@ doLoopG lp =
            ty@(TMap tk tv) ->
               do sVar <- newLocal ty
                  newEl <- newLocal tv
-                 g <- doBody
+                 g <- doBody elVar keyVar
                  let free = freeVars g
-                 foldLoopG colT ty (Set.toList free)
+                 foldLoopG ann colT ty (Set.toList free)
                    sVar (mapEmpty tk tv)
                    (snd <$> keyVar) (snd elVar) colE
                    \i -> Do newEl g
@@ -758,6 +819,7 @@ doLoopG lp =
 
 
 foldLoopG ::
+  [Annot]            {- ^ Locaiton information -} ->
   Type               {- ^ Collection type -} ->
   Type               {- ^ Result type -} ->
   [Name]             {- ^ Free vars -} ->
@@ -768,7 +830,7 @@ foldLoopG ::
   Expr               {- ^ Collection to fold -} ->
   (Expr -> Grammar)  {- ^ Loop body, parameterized by iterator -} ->
   M Grammar
-foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
+foldLoopG ann colT ty vs0 sVar initS keyVar elVar colE g =
   do let vs  = vs0 \\ (maybeToList keyVar ++ [sVar,elVar])
          es  = map Var vs
          maybeAddKey e = case keyVar of
@@ -778,7 +840,7 @@ foldLoopG colT ty vs0 sVar initS keyVar elVar colE g =
      f <- newGName ty
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
-     defFunG f (sVar : i : vs)
+     defFunG ann f (sVar : i : vs)
        =<< doIf (iteratorDone (Var i))
                (Pure (Var sVar))
                (Let elVar (iteratorVal (Var i))
@@ -815,27 +877,28 @@ maybeParse cmt ty p yes no =
             _ ->
              orOp cmt (Do r p (yes (Var r))) no
 
-pSkipMany :: Commit -> [Name] -> Grammar -> M Grammar
-pSkipMany cmt vs p =
+pSkipMany :: [Annot] -> Commit -> [Name] -> Grammar -> M Grammar
+pSkipMany ann cmt vs p =
   do f <- newGName TUnit
      let es = map Var vs
      skipBody <- maybeSkip cmt p (Call f es) (Pure unit)
-     defFunG f vs skipBody
+     defFunG ann f vs skipBody
      pure (Call f es)
 
-pParseMany :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
-pParseMany cmt ty vs be p =
+pParseMany ::
+  [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+pParseMany ann cmt ty vs be p =
   do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal (TBuilder ty)
      let xe = Var x
      body <- maybeParse cmt ty p
                               (\a -> Call f (consBuilder a xe : es)) (Pure xe)
-     defFunG f (x:vs) body
+     defFunG ann f (x:vs) body
      pure $ Call f (be : es)
 
-pSkipExactlyMany :: Commit -> [Name] -> Expr -> Grammar -> M Grammar
-pSkipExactlyMany _cmt vs tgt p =
+pSkipExactlyMany :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipExactlyMany ann _cmt vs tgt p =
   do f <- newGName TUnit
      let es = map Var vs
      x <- newLocal sizeType
@@ -844,15 +907,16 @@ pSkipExactlyMany _cmt vs tgt p =
      let body = Do_ (OrBiased p (sysErr TUnit "insufficient element occurances"))
                     (Call f (add xe (intL 1 sizeType) : es))
 
-     defFunG f (x : vs) =<< doIf (xe `lt` tgt) body (Pure unit)
+     defFunG ann f (x : vs) =<< doIf (xe `lt` tgt) body (Pure unit)
      pure $ Call f (intL 0 sizeType : es)
 
 -- | Produces a function which returns a builder
 
 -- FIXME: we should evaluate tgt outside of the function if it is
 -- complex to avoid recomputing it.
-pParseExactlyMany :: Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
-pParseExactlyMany _cmt ty vs tgt p =
+pParseExactlyMany ::
+  [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+pParseExactlyMany ann _cmt ty vs tgt p =
   do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
@@ -870,22 +934,23 @@ pParseExactlyMany _cmt ty vs tgt p =
                               : consBuilder re be
                               : es))
 
-     defFunG f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
+     defFunG ann f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : es)
 
-pSkipAtMost :: Commit -> [Name] -> Expr -> Grammar -> M Grammar
-pSkipAtMost cmt vs tgt p =
+pSkipAtMost :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipAtMost ann cmt vs tgt p =
   do f <- newGName sizeType
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
      skipBody <- maybeSkip cmt p (Call f (add xe (intL 1 sizeType) : es))
                                  (Pure xe)
-     defFunG f (x:vs) =<< doIf (xe `lt` tgt) skipBody (Pure xe)
+     defFunG ann f (x:vs) =<< doIf (xe `lt` tgt) skipBody (Pure xe)
      pure (Call f (intL 0 sizeType : es))
 
-pParseAtMost :: Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
-pParseAtMost cmt ty vs tgt be p =
+pParseAtMost ::
+  [Annot] -> Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
+pParseAtMost ann cmt ty vs tgt be p =
   do f <- newGName (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
@@ -899,7 +964,7 @@ pParseAtMost cmt ty vs tgt be p =
                               : es))
                 (Pure bve)
 
-     defFunG f (x : bv : vs) =<< doIf (xe `lt` tgt) body (Pure bve)
+     defFunG ann f (x : bv : vs) =<< doIf (xe `lt` tgt) body (Pure bve)
      pure $ Call f (intL 0 sizeType : be : es)
 
 finishMany :: Type -> Grammar -> M Grammar
@@ -910,7 +975,7 @@ finishMany ty p = do
 --------------------------------------------------------------------------------
 
 
-fromClass :: TC.TC a TC.Class -> M ByteSet
+fromClass :: TC.TC TC.SourceRange TC.Class -> M ByteSet
 fromClass cla =
   case TC.texprValue cla of
     TC.TCSetAny          -> pure SetAny
@@ -964,7 +1029,7 @@ fromClass cla =
 --------------------------------------------------------------------------------
 
 
-fromExpr :: TC.TC a TC.Value -> M Expr
+fromExpr :: TC.TC TC.SourceRange TC.Value -> M Expr
 fromExpr expr =
   case TC.texprValue expr of
     TC.TCLet x e1 e2 ->
@@ -1093,7 +1158,7 @@ fromExpr expr =
                 TC.RangeDown   -> rangeDown e1 e2 e3
                 TC.MapDoInsert -> mapInsert e3 e1 e2 -- note: map is 1st here
 
-    TC.TCFor lp -> doLoop lp
+    TC.TCFor lp -> doLoop (exprAnnot expr) lp
 
     TC.TCCase e as dflt ->
       do ms <- mapM (doAlt fromExpr) as
@@ -1107,42 +1172,40 @@ fromExpr expr =
 
 
 
-doLoop :: TC.Loop a TC.Value -> M Expr
-doLoop lp =
-  do keyVar <- traverse fromName (TC.loopKName lp)
-     elVar  <- fromName (TC.loopElName lp)
-     colE   <- fromExpr (TC.loopCol lp)
-
-     colT   <- fromTypeM $ TC.typeOf (TC.loopCol lp)
-
-     let doBody = withSourceLocal elVar
-                $ maybe id withSourceLocal keyVar
-                $ fromExpr $ TC.loopBody lp
+doLoop :: [Annot] -> TC.Loop TC.SourceRange TC.Value -> M Expr
+doLoop ann lp =
+  do let doBody elVar keyVar = withSourceLocal elVar
+                             $ maybe id withSourceLocal keyVar
+                             $ fromExpr $ TC.loopBody lp
 
      case TC.loopFlav lp of
 
-       TC.Fold x s ->
-         do sVar     <- fromName x
+       TC.Fold x s col ->
+         do (keyVar,elVar,colE,colT) <- doLoopCol col
+            sVar     <- fromName x
             initS    <- fromExpr s
-            g        <- withSourceLocal sVar doBody
+            g        <- withSourceLocal sVar (doBody elVar keyVar)
             let free = freeVars g
             ty       <- fromTypeM $ TC.loopType lp
             foldLoop
+              ann
               colT ty (Set.toList free)
               (snd sVar) initS
               (snd <$> keyVar) (snd elVar) colE
               \_ -> g
 
-       TC.LoopMap ->
+       TC.LoopMap col ->
          fromTypeM (TC.loopType lp) >>= \resT ->
+         doLoopCol col >>= \(keyVar,elVar,colE,colT) ->
          case resT of
 
            TArray elTy ->
              do sVar <- newLocal (TBuilder elTy)
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoop
+                           ann
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
                            (snd <$> keyVar) (snd elVar) colE
@@ -1152,9 +1215,9 @@ doLoop lp =
 
            ty@(TMap tk tv) ->
              do sVar <- newLocal ty
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
-                foldLoop colT ty (Set.toList free)
+                foldLoop ann colT ty (Set.toList free)
                   sVar (mapEmpty tk tv)
                   (snd <$> keyVar) (snd elVar) colE
                   \i -> mapInsert (Var sVar) (iteratorKey i) g
@@ -1165,6 +1228,7 @@ doLoop lp =
 
 
 foldLoop ::
+  [Annot]            {- ^ Location information -} ->
   Type               {- ^ Collection type -} ->
   Type               {- ^ Result type -} ->
   [Name]             {- ^ Free vars -} ->
@@ -1175,7 +1239,7 @@ foldLoop ::
   Expr               {- ^ Collection to fold -} ->
   (Expr -> Expr)     {- ^ Loop body, parameterized by iterator -} ->
   M Expr
-foldLoop colT ty vs0 sVar initS keyVar elVar colE g =
+foldLoop ann colT ty vs0 sVar initS keyVar elVar colE g =
   do let vs  = vs0 \\ (maybeToList keyVar ++ [sVar,elVar])
          es  = map Var vs
          maybeAddKey e = case keyVar of
@@ -1184,7 +1248,7 @@ foldLoop colT ty vs0 sVar initS keyVar elVar colE g =
 
      f <- newFName' Nothing ty
      i <- newLocal (TIterator colT)
-     defFunF f (sVar : i : vs)
+     defFunF ann f (sVar : i : vs)
        =<< doIf (iteratorDone (Var i))
                (Var sVar)
                (PureLet elVar (iteratorVal (Var i))
@@ -1446,7 +1510,7 @@ fromGDefName x t =
      addTopName x =<< newFName' (Just lab) =<< fromGTypeM t
 
 
-fromArg :: TC.Arg a -> M Expr
+fromArg :: TC.Arg TC.SourceRange -> M Expr
 fromArg a =
   case a of
     TC.ValArg e -> fromExpr e
@@ -1470,7 +1534,8 @@ fromParamE p e =
 
 
 
-fromManybeBound :: TC.ManyBounds (TC.TC a TC.Value) -> M (TC.ManyBounds Expr)
+fromManybeBound ::
+  TC.ManyBounds (TC.TC TC.SourceRange TC.Value) -> M (TC.ManyBounds Expr)
 fromManybeBound bnds =
   case bnds of
     TC.Exactly e   -> TC.Exactly <$> fromExpr e
@@ -1719,16 +1784,17 @@ newFName' mb ty = M
 --------------------------------------------------------------------------------
 -- Definint new functions
 
-defFunG :: FName -> [Name] -> Grammar -> M ()
-defFunG  f xs e =
+defFunG :: [Annot] -> FName -> [Name] -> Grammar -> M ()
+defFunG ann f xs e =
   M $ sets_ \s -> s { newGFuns = Fun { fName = f, fParams = xs, fDef = Def e
-                                     , fIsEntry = False }
+                                     , fIsEntry = False
+                                     , fAnnot = ann }
                                : newGFuns s }
 
-defFunF :: FName -> [Name] -> Expr -> M ()
-defFunF f xs e =
+defFunF :: [Annot] -> FName -> [Name] -> Expr -> M ()
+defFunF ann f xs e =
   M $ sets_ \s -> s { newFFuns = Fun { fName = f, fParams = xs, fDef = Def e
-                                     , fIsEntry = False }
+                                     , fIsEntry = False, fAnnot = ann }
                                : newFFuns s }
 
 
