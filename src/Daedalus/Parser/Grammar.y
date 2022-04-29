@@ -153,6 +153,8 @@ import Daedalus.Parser.Monad
   'builder'   { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderbuilder } }
   'build'     { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderbuild } }
   'emit'      { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderemit } }
+  'emitArray' { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderemitArray } }
+  'emitBuilder' { Lexeme { lexemeRange = $$, lexemeToken = KWBuilderemitBuilder } }
 
   'pi'             { Lexeme { lexemeRange = $$, lexemeToken = KWpi } }
   'wordToFloat'    { Lexeme { lexemeRange = $$, lexemeToken = KWWordToFloat } }
@@ -459,6 +461,8 @@ call_expr                                :: { Expr }
   | 'length' aexpr                          { at ($1,$2) (EArrayLength $2)  }
   | 'Index' aexpr aexpr                     { at ($1,$2) (EArrayIndex $2 $3) }
   | 'emit' aexpr aexpr                      { at ($1,$2) (EBinOp BuilderEmit $2 $3) }
+  | 'emitArray' aexpr aexpr                 { at ($1,$2) (EBinOp BuilderEmitArray $2 $3) }
+  | 'emitBuilder' aexpr aexpr               { at ($1,$2) (EBinOp BuilderEmitBuilder $2 $3) }
 
   | 'rangeUp' aexpr                         { mkRngUp1 $1 $2 }
   | 'rangeUp' aexpr aexpr                   { mkRngUp2 $1 $2 $3 }

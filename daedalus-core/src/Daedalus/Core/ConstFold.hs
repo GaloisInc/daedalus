@@ -193,7 +193,11 @@ valueToExpr tenv ty v =
     -- Thes are a bit hacky, and probably shouldn't actually occur,
     -- but there are included for completeness.
     VStream inp -> arrayStream (byteArrayL (inputBytes inp)) (byteArrayL "array")
-    VBuilder vs | TBuilder ty' <- ty -> foldr (consBuilder . go ty') (newBuilder ty') vs
+    VBuilder vs | TBuilder ty' <- ty ->
+      let es = map (go ty') vs
+          arr = arrayL ty' (reverse es)
+      in emitArray (newBuilder ty') arr
+
     VBuilder {} -> panic "Malfomed builder value/type" [showPP v, showPP ty]
     VIterator vs
       | TIterator (TMap kt vt) <- ty -> newIterator (fromMapEls kt vt vs)

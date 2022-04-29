@@ -614,6 +614,8 @@ hsValue env tc =
         ArrayStream -> bin "RTS.arrayStream"
         LookupMap   -> bin "Map.lookup"
         BuilderEmit -> "Vector.pushBack" `Ap` hsValue env v1 `Ap` hsValue env v2
+        BuilderEmitArray -> "Vector.pushBackVector" `Ap` hsValue env v1 `Ap` hsValue env v2
+        BuilderEmitBuilder -> "Vector.pushBackArray" `Ap` hsValue env v1 `Ap` hsValue env v2
 
         LogicAnd    -> binI "HS.&&"
         LogicOr     -> binI "HS.||"

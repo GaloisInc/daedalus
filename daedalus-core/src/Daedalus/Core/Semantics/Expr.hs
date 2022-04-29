@@ -312,8 +312,10 @@ evalOp2 op v1 v2 = case op of
   -- array is 1st
   ArrayIndex -> partial (vArrayIndex v1 v2)
  
-  -- builder is 2nd
-  ConsBuilder -> vConsBuilder v1 v2
+  -- builder is 1st
+  Emit        -> vEmit v1 v2
+  EmitArray   -> vEmitArray v1 v2
+  EmitBuilder -> vEmitBuilder v1 v2
  
   -- map is 1st
   MapLookup -> vMapLookup v2 v1

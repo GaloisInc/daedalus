@@ -158,6 +158,8 @@ $ws+        ;
 
 "build"     { lexeme KWBuilderbuild}
 "emit"      { lexeme KWBuilderemit }
+"emitArray" { lexeme KWBuilderemitArray }
+"emitBuilder" { lexeme KWBuilderemitBuilder }
 "builder"   { lexeme KWBuilderbuilder }
 
 "Offset"    { lexeme KWOffset }

@@ -306,6 +306,8 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | ArrayStream
            | LookupMap
            | BuilderEmit -- ^ push a new element onto the end of a builder
+           | BuilderEmitArray
+           | BuilderEmitBuilder
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
@@ -500,6 +502,8 @@ instance PP BinOp where
       ArrayStream -> "arrayStream"
       LookupMap -> "lookup"
       BuilderEmit -> "emit"
+      BuilderEmitArray -> "emitArray"
+      BuilderEmitBuilder -> "emitBuilder"
 
 instance PP UniOp where
   pp op =

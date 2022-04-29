@@ -609,9 +609,25 @@ inferExpr expr =
 
         BuilderEmit ->
           liftValAppPure expr [e1,e2] \ ~[(e1',bt),(e2',t)] ->
-          do 
+          do unify (tBuilder t) (e1',bt)
+             pure (exprAt expr (TCBinOp op e1' e2' bt), bt)
+
+        BuilderEmitArray ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',bt),(e2',arrT)] ->
+          do t <- newTVar e2 KValue
+             unify (tArray t) (e2',arrT)
              unify (tBuilder t) (e1',bt)
              pure (exprAt expr (TCBinOp op e1' e2' bt), bt)
+
+        BuilderEmitBuilder ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',bt),(e2',buildT)] ->
+          do t <- newTVar e2 KValue
+             unify (tBuilder t) (e2',buildT)
+             unify (tBuilder t) (e1',bt)
+             pure (exprAt expr (TCBinOp op e1' e2' bt), bt)
+
+
+
 
       where
       bitwiseOp =

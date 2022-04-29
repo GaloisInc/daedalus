@@ -33,7 +33,7 @@ syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
 syn keyword ddlKeywordConst true false
 syn keyword ddlKeywordConst nothing just
 syn keyword ddlKeywordConst empty
-syn keyword ddlKeywordFun   emit build
+syn keyword ddlKeywordFun   emit emitArray emitBuilder build
 syn keyword ddlKeywordFun   arrayStream bytesOfStream
 syn keyword ddlKeywordFun   insert Insert Lookup lookup
 syn keyword ddlKeywordFun   Index length concat rangeUp rangeDown

@@ -180,7 +180,9 @@ evalBinOp op =
     ArrayStream -> vStreamFromArray
     LookupMap   -> vMapLookup
 
-    BuilderEmit -> flip vConsBuilder
+    BuilderEmit        -> vEmit
+    BuilderEmitArray   -> vEmitArray
+    BuilderEmitBuilder -> vEmitBuilder
     LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
     LogicOr     -> panic "evalBinOp" ["LogicOr"]
 

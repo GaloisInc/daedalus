@@ -175,7 +175,10 @@ instance TypeOf Expr where
               TArray t -> t
               _        -> bad "ArrayIndex"
 
-          ConsBuilder -> typeOf e2
+          Emit        -> typeOf e1
+          EmitBuilder -> typeOf e1
+          EmitArray   -> typeOf e1
+
           ArrayStream -> TStream
 
           MapLookup ->
