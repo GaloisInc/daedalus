@@ -78,6 +78,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#case">Case</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#commit">Commit</a></li>
 </ul>
 </li>
@@ -101,9 +102,10 @@
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#builders">Builders</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="streams.html">Stream manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="external.html">External Declarations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
@@ -250,7 +252,7 @@ total.</p>
 </div>
 </div>
 <div class="section" id="for-loops">
-<h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline"></a></h2>
+<span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
 the accumulated result of the computation, and a variable that is
@@ -311,6 +313,30 @@ sequence indexes and values:</p>
     <span class="n">len</span>       <span class="k">=</span> <span class="k">^</span> <span class="p">{</span> <span class="n">index</span> <span class="k">=</span> <span class="n">i</span><span class="p">,</span> <span class="n">elem</span> <span class="k">=</span> <span class="n">x</span> <span class="p">}</span>
     <span class="n">something</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">x</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span>
 </pre></div>
+</div>
+</div>
+<div class="section" id="many-loops">
+<h2><code class="docutils literal notranslate"><span class="pre">many</span></code> loops<a class="headerlink" href="#many-loops" title="Permalink to this headline"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">many</span></code> loops are similar to <code class="docutils literal notranslate"><span class="pre">for</span></code> loops and the <code class="docutils literal notranslate"><span class="pre">Many</span></code> combinator.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>The loop stops when the parser in the loop’s body fails, which is just
+like the <code class="docutils literal notranslate"><span class="pre">Many</span></code> combinator.</p></li>
+<li><p>The body is parameterized by a piece of state, which is initialized at
+the start of the loop, and is updated by the result of the body on each
+iteration.</p></li>
+</ul>
+</div></blockquote>
+<p>For example, this is how one might parse a base 10 number:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">many</span> <span class="p">(</span><span class="n">s</span> <span class="k">=</span> <span class="m">0</span><span class="p">)</span> <span class="p">(</span><span class="m">10</span> <span class="o">*</span> <span class="n">s</span> <span class="o">+</span> <span class="n">Digit</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There is also a variant called <code class="docutils literal notranslate"><span class="pre">many?</span></code> which is similar to <code class="docutils literal notranslate"><span class="pre">Many?</span></code> in
+that the loop repeats just enough times to make the parser succeed.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is quite easy to write inefficient or ambiguous parser when using
+<code class="docutils literal notranslate"><span class="pre">many?</span></code> so it should be avoided, if possible.</p>
 </div>
 </div>
 <div class="section" id="commit">
