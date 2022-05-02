@@ -132,7 +132,7 @@ symExecOp1 op ty =
 symExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> SExpr -> SExpr -> SolverT m SExpr
 
 -- Generic ops
-symExecOp2 ConsBuilder elTy = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v1 v2
+symExecOp2 Emit elTy         = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v2 v1
 symExecOp2 Eq          _elTy = \v1 v2 -> pure $ S.eq v1 v2
 symExecOp2 NotEq       _elTy = \x y -> pure $ S.distinct [x, y]
 symExecOp2 MapLookup   (TMap kt vt) = \x y -> do
@@ -173,7 +173,7 @@ symExecOp2 bop (isBits -> Just (signed, nBits)) =
                               x (S.List [ S.fam "int2bv" [nBits], y] )
 
     ArrayIndex  -> unimplemented
-    ConsBuilder -> unimplemented
+    Emit        -> unimplemented
     MapLookup   -> unimplemented -- handled above
     MapMember   -> unimplemented -- handled above
 
@@ -209,7 +209,7 @@ symExecOp2 bop TInteger =
     RShift -> unimplemented
 
     ArrayIndex  -> unimplemented
-    ConsBuilder -> unimplemented
+    Emit        -> unimplemented
     MapLookup   -> unimplemented -- handled above
     MapMember   -> unimplemented -- handled above
 

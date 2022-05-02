@@ -203,7 +203,7 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
         let maxLength = 100
         len <- randR (0, maxLength)
         vs <- replicateM len (go t)
-        pure $ foldl' (flip consBuilder) (newBuilder t) vs
+        pure $ foldl' emit (newBuilder t) vs
         
       TIterator _t -> unimplemented
       TUser ut     -> goUT ut
