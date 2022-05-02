@@ -14,57 +14,7 @@ copyright:           2021, Galois Inc
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
-  spec/Array.ddl,
-  spec/CIDFont.ddl,
-  spec/CMap.ddl,
-  spec/ColourSpaceOps.ddl,
-  spec/ContentStreamLight.ddl,
-  spec/Encoding.ddl,
-  spec/FontCommon.ddl,
-  spec/FontDesc.ddl,
-  spec/FontDict.ddl,
-  spec/GenPdfValue.ddl,
-  spec/Glyph.ddl,
-  spec/GlyphEnc.ddl,
-  spec/GlyphList.ddl,
-  spec/GlyphListNewFonts.ddl,
-  spec/GraphicsStateOps.ddl,
---  spec/ISOCodes.ddl,
-  spec/JpegBasics.ddl,
-  spec/MacEncoding.ddl,
-  spec/MacExpert.ddl,
-  spec/Map.ddl,
-  spec/MarkedContentOps.ddl,
-  spec/Maybe.ddl,
-  spec/Page.ddl,
-  spec/PageTreeNode.ddl,
-  spec/Pair.ddl,
-  spec/PdfCos.ddl,
-     -- ^ ddl convenience, no autogen'd file
-  spec/PdfCrypto.ddl,
-  spec/PdfDecl.ddl,
-  -- spec/PdfDeclStub.ddl,  part of repo, but you shouldn't be building it, don't add.
-  spec/PdfExtractText.ddl,
---  spec/PdfText.ddl,
-  spec/PdfValue.ddl,
-  spec/PdfXRef.ddl,
-  spec/Rectangle.ddl,
-  spec/ResourceDict.ddl,
-  spec/StdEncoding.ddl,
-  spec/Stdlib.ddl,
-  spec/Sum.ddl,
-  spec/TextEffect.ddl,
-  spec/TextObj.ddl,
-  spec/TextPosOp.ddl,
-  spec/TextShowOp.ddl,
-  spec/TextStateOp.ddl,
-  spec/Type0Font.ddl,
-  spec/Type1Font.ddl,
-  spec/Type3Font.ddl,
-  spec/Unicode.ddl,
-  spec/WinEncoding.ddl,
-  spec/StandardEncodings.ddl,
-  spec/TE.ddl
+  spec/*.ddl
 
 custom-setup
   setup-depends: base, containers, daedalus, directory, text, unix, filepath, Cabal
@@ -100,7 +50,6 @@ library
     CMap,
     ColourSpaceOps,
     ContentStreamLight,
-    Debug,
     Encoding,
     FontCommon,
     FontDesc,
@@ -149,6 +98,10 @@ library
     TE,
     StandardEncodings
 
+  other-modules:
+    Debug,
+    Daedalus
+
   autogen-modules:
     Array,
     CIDFont,
@@ -156,6 +109,7 @@ library
     ColourSpaceOps,
     ContentStreamLight,
     Debug,
+    Daedalus,
     Encoding,
     FontCommon,
     FontDesc,

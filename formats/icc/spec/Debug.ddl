@@ -1,1 +1,1 @@
-../../lib/Debug.ddl
+../../../lib/Debug.ddl
