@@ -845,7 +845,10 @@ cOp2 x op2 ~[e1',e2'] =
     Src.ArrayIndex  -> cVarDecl x (cArraySelect e1 i)
       where i = cCall "DDL::Size::from" [cCallMethod e2 "rep" []]
 
-    Src.ConsBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.Emit        -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.EmitArray   -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+    Src.EmitBuilder -> cVarDecl x (cCall (cType (getType x)) [ e1, e2 ])
+
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
     Src.MapLookup -> cVarDecl x (cCallMethod e1 "lookup" [e2])

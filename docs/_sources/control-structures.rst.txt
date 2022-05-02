@@ -136,6 +136,8 @@ total.
 .. todo:: 
   It should be true that guards are just syntactic sugar for case
 
+.. _for_loops:
+
 ``for`` loops
 -------------
 
@@ -216,6 +218,30 @@ sequence indexes and values:
       something = Many x $['A']
 
 
+``many`` loops
+--------------
+
+``many`` loops are similar to ``for`` loops and the ``Many`` combinator.
+
+  * The loop stops when the parser in the loop's body fails, which is just
+    like the ``Many`` combinator.
+
+  * The body is parameterized by a piece of state, which is initialized at
+    the start of the loop, and is updated by the result of the body on each
+    iteration.
+
+For example, this is how one might parse a base 10 number:
+
+.. code-block:: DaeDaLus
+
+  many (s = 0) (10 * s + Digit)
+
+There is also a variant called ``many?`` which is similar to ``Many?`` in
+that the loop repeats just enough times to make the parser succeed.
+
+.. warning::
+  It is quite easy to write inefficient or ambiguous parser when using
+  ``many?`` so it should be avoided, if possible.
 
 
 

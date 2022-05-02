@@ -141,18 +141,19 @@ data Decl = DeclRule Rule | DeclBitData BitData | DeclType TypeDecl
 
 data Rule =
   Rule { ruleName     :: !Name
-       , ruleParams   :: ![RuleParam]
+       , ruleIParams  :: ![RuleParam IPName]
+       , ruleParams   :: ![RuleParam Name]
        , ruleResTy    :: !(Maybe SrcType)
        , ruleDef      :: !(Maybe Expr)
        , ruleRange    :: !SourceRange
        } deriving Show
 
-data RuleParam = RuleParam
-  { paramName :: Name
+data RuleParam name = RuleParam
+  { paramName :: name
   , paramType :: Maybe SrcType
   } deriving Show
 
-instance HasRange RuleParam where
+instance HasRange name => HasRange (RuleParam name) where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
@@ -305,6 +306,8 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | ArrayStream
            | LookupMap
            | BuilderEmit -- ^ push a new element onto the end of a builder
+           | BuilderEmitArray
+           | BuilderEmitBuilder
   deriving (Show, Eq)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
@@ -463,7 +466,7 @@ instance PP e => PP (ManyBounds e) where
       Between a b -> "[" <+> ppMb a <+> ".." <+> ppMb b <+> "]"
         where ppMb = maybe empty pp
 
-instance PP RuleParam where
+instance PP name => PP (RuleParam name) where
   pp p = case paramType p of
            Nothing -> pp (paramName p)
            Just t -> parens (pp (paramName p) <+> ":" <+> pp t)
@@ -499,6 +502,8 @@ instance PP BinOp where
       ArrayStream -> "arrayStream"
       LookupMap -> "lookup"
       BuilderEmit -> "emit"
+      BuilderEmitArray -> "emitArray"
+      BuilderEmitBuilder -> "emitBuilder"
 
 instance PP UniOp where
   pp op =

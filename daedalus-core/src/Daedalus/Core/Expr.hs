@@ -97,7 +97,9 @@ data Op2 =
   | RShift
 
   | ArrayIndex
-  | ConsBuilder
+  | Emit
+  | EmitArray
+  | EmitBuilder
   | MapLookup
   | MapMember
 
@@ -259,7 +261,9 @@ rangeDown     = Ap3 RangeDown
 --------------------------------------------------------------------------------
 -- Builder (list?)
 finishBuilder = Ap1 FinishBuilder
-consBuilder   = Ap2 ConsBuilder
+emit          = Ap2 Emit
+emitArray     = Ap2 EmitArray
+emitBuilder   = Ap2 EmitBuilder
 newBuilder t  = Ap0 (NewBuilder t)
 
 
@@ -433,7 +437,9 @@ ppOp2 op =
       RShift      -> inf ">>"
 
       ArrayIndex  -> pref "aGet"
-      ConsBuilder -> pref "cons"
+      Emit        -> pref "emit"
+      EmitArray   -> pref "emitArray"
+      EmitBuilder -> pref "emitBuilder"
       MapLookup   -> pref "mGet"
       MapMember   -> pref "mMember"
 

@@ -520,7 +520,7 @@ parseModule n =
      sp     <- ddlGetOpt optSearchPath
      m_path <- ddlIO $ resolveModulePath sp n
      case m_path of
-       Nothing -> ddlThrow $ AModuleError $ MissingModule n
+       Nothing -> ddlThrow $ AModuleError $ MissingModule sp n
        Just file -> parseModuleFromFile n file
 
 

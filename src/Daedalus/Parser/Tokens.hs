@@ -128,6 +128,8 @@ data Token =
   | KWNothing
   | KWBuilderbuild
   | KWBuilderemit
+  | KWBuilderemitArray
+  | KWBuilderemitBuilder
   | KWBuilderbuilder
   | KWDef
   | KWArrayStream

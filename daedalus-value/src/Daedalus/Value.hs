@@ -89,7 +89,9 @@ module Daedalus.Value
   , vRangeDown
   , vByteString
   , vBuilder
-  , vConsBuilder
+  , vEmit
+  , vEmitArray
+  , vEmitBuilder
   , vFinishBuilder
 
   -- * Maps

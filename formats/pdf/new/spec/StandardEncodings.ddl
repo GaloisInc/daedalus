@@ -33,6 +33,8 @@ def StdEncodings =
     pdf = pdfEncoding
     uni = ?glyphToUni
 
+def stdEncodings : StdEncodings = ?stdEncodings
+
 def noStdEncodings : StdEncodings =
   block
     std = empty

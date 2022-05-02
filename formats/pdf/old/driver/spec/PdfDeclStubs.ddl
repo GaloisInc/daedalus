@@ -1,0 +1,1 @@
+../../cos/spec/PdfDeclStubs.ddl

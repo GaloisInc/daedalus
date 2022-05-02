@@ -30,8 +30,7 @@ main = defaultMainWithHooks simpleUserHooks
 compileDDL :: IO ()
 compileDDL =
   daedalus
-  do ddlSetOpt optSearchPath [ "spec"             -- new ddl modules here
-                             , "../cos/spec"  -- other ddl modules in cos pkg
+  do ddlSetOpt optSearchPath [ "spec"  -- new ddl modules here
                              ]
      let mods = [ "PdfDemo", "PdfValidate", "PdfDOM"]
      mapM_ ddlLoadModule mods

@@ -797,7 +797,7 @@ doLoopG ann lp =
                            (snd <$> keyVar) (snd elVar) colE
                            \_ ->
                              Do newEl g
-                              $ Pure (consBuilder (Var newEl) (Var sVar))
+                              $ Pure (emit (Var sVar) (Var newEl))
 
                 x <- newLocal (TBuilder elTy)
                 pure $ Do x step1 (Pure (finishBuilder (Var x)))
@@ -893,7 +893,7 @@ pParseMany ann cmt ty vs be p =
      x <- newLocal (TBuilder ty)
      let xe = Var x
      body <- maybeParse cmt ty p
-                              (\a -> Call f (consBuilder a xe : es)) (Pure xe)
+                              (\a -> Call f (emit xe a : es)) (Pure xe)
      defFunG ann f (x:vs) body
      pure $ Call f (be : es)
 
@@ -931,7 +931,7 @@ pParseExactlyMany ann _cmt ty vs tgt p =
      -- always take exactly tgt many iterations
      let body = Do r (OrBiased p (sysErr ty "insufficient element occurances"))
                      (Call f (add xe (intL 1 sizeType)
-                              : consBuilder re be
+                              : emit be re
                               : es))
 
      defFunG ann f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
@@ -960,7 +960,7 @@ pParseAtMost ann cmt ty vs tgt be p =
 
      body <- maybeParse cmt ty p
                 (\a -> Call f (add xe (intL 1 sizeType)
-                              : consBuilder a bve
+                              : emit bve a
                               : es))
                 (Pure bve)
 
@@ -1147,7 +1147,9 @@ fromExpr expr =
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1
-           TC.BuilderEmit  -> pure $ consBuilder e2 e1
+           TC.BuilderEmit        -> pure $ emit e1 e2
+           TC.BuilderEmitArray   -> pure $ emitArray e1 e2
+           TC.BuilderEmitBuilder -> pure $ emitArray e1 e2
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1
@@ -1209,7 +1211,7 @@ doLoop ann lp =
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
                            (snd <$> keyVar) (snd elVar) colE
-                           \_ -> consBuilder g (Var sVar)
+                           \_ -> emit (Var sVar) g
 
                 pure (finishBuilder step1)
 

@@ -55,7 +55,7 @@ Basic Arithmetic
 
 Numeric types support basic arithmetic: addition, subtraction, 
 multiplication, division, and modulus using the usual operators
-``+``,``-``,``*``,``/``, and ``%``.
+``+``, ``-``, ``*``, ``/``, and ``%``.
 
 Bitwise Operations
 ^^^^^^^^^^^^^^^^^^
@@ -104,13 +104,83 @@ To examine values of the ``maybe`` type you may use
 Arrays
 ------
 
-.. todo::
-  Describe the interface to ``[ el_type ]``
+The type of arrays containg elements of type ``T`` is ``[T]``.
+
+.. code-block:: DaeDaLus
+
+  -- Array literals
+  []        -- empty array
+  [1,2,3]   -- array with 3 elements
+  "Hello"   -- array with 5 elements
+
+  -- Get the element at the given array index
+  -- This is a parser, which fails if the index is out of bounds
+  Index (a : [?a]) (i : uint 64) : ?a
+
+  -- Length of an array
+  length (a : [?a]) : uint 64
+
+To visit all elements in array you may use a ``for`` loop :ref:`for_loops`.
+
 
 Association Maps
 ----------------
 
-.. todo::
-  Describe the interface to ``[ key -> value ]``
+The type of association maps with keys of type ``K`` and elements of type
+``T`` is ``[ K -> T ]``.
+
+.. code-block:: DaeDaLus
+
+  -- An empty map
+  empty : [ ?k -> ?v ]
+
+  -- Insert an element in a map.
+  -- The element is replaced, if it was already present.
+  insert (key : ?k) (value : ?v) (m : [ ?k -> ?v ]) : [ ?k -> ?v ]
+
+  -- Insert an element in a map.
+  -- This is a parser which fails if the element was already in the map.
+  Insert (key : ?k) (value : ?v) (m : [ ?k -> ?v ]) : [ ?k -> ?v ]
+
+  -- Lookup an element in the map.
+  lookup (key : ?k) (m : [ ?k -> ?v ]) : maybe ?v
+
+  -- Lookup an element in the map.
+  -- This is a parse which fails if the element is not in the map.
+  Lookup (key : ?k) (m : [ ?k -> ?v ]) : ?v
+
+To visit all elements of an association map you may use a
+``for`` loop :ref:`for_loops`.
+
+
+
+
+Builders
+--------
+
+A ``builder`` is a datastructure that helps build arrays.
+To build an array, start with the empty builder ``builder`` and use
+``emit`` to add elements to the builder.  Once all elements have been
+added, you may use ``build`` to convert the ``builder`` to an array.
+
+.. code-block:: DaeDaLus
+
+  -- empty builder
+  builder : builder ?a
+
+  emit (front : builder ?a) (back : ?a) : builder ?a
+
+  -- Add an array of element to the end of the builder
+  emitArray (front : builder ?a) (back : [?a]) : builder ?a
+
+  -- Add a builder at the end of another builder
+  emitBuilder (front : builder ?a) (back : builder ?a) : builder ?a
+
+  -- Turn a builder into an array
+  build (b : builder ?a) : [?a]
+
+
+
+
 
 

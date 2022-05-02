@@ -3,6 +3,8 @@
 
 #include <string.h>
 #include <cctype>
+#include <algorithm>
+#include <functional>
 #include <vector>
 
 #include <ddl/debug.h>
@@ -92,7 +94,7 @@ public:
     return Array(p);
   }
 
-  Array() : ptr(NULL) {}
+  Array() : ptr(nullptr) {}
 
   // Array literal. Owns xs
   template <typename ...Elems>
@@ -233,13 +235,33 @@ class Builder {
     Builder () : list() {}
 
     // owns x, xs
-    Builder (T x, Builder xs) {
+    Builder (Builder xs, T x) {
       if (xs.list.refCount() == 1) {
         list = xs.list;
         list.borrowHead().push_back(x);
       } else {
         list = List{{x}, xs.list};
       }
+    }
+
+    // owns a, b
+    Builder(Builder b, Array<T> a) {
+      auto beginData = a.ptr->data;
+      auto endData = beginData + a.ptr->size.value;
+
+      // support copy if array has 1 reference
+      if constexpr (hasRefs<T>()) {
+        std::for_each(beginData, endData, std::mem_fn(&T::copy));
+      }
+
+      if (b.list.refCount() == 1) {
+        auto &v = b.list.borrowHead();
+        v.insert(v.end(), beginData, endData);
+        list = b.list;
+      } else {
+        list = List{std::vector(beginData, endData), b.list};
+      }
+      a.free();
     }
 
     void free() {
