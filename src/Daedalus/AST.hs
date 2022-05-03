@@ -8,6 +8,7 @@ module Daedalus.AST where
 import Data.Word
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Char as Char
 import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.Kind as HS
@@ -45,8 +46,17 @@ isLocalName n =
     Local {} -> True
     _        -> False
 
-primName :: Text -> Text -> Context c -> Name
-primName m x c = Name (ModScope m x) c synthetic invalidGUID
+primName' :: Text -> Text -> Context c -> Name
+primName' m x c = Name (ModScope m x) c synthetic invalidGUID
+
+primName :: Text -> Text -> Name
+primName m x = case Text.uncons x of
+                 Just (a,_)
+                   | a == '$'       -> primName' m x AClass
+                   | Char.isUpper a -> primName' m x AGrammar
+                 _                  -> primName' m x AValue
+
+
 
 instance PP ScopedIdent where
   pp x = case x of

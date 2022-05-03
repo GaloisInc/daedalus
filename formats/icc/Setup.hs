@@ -39,19 +39,7 @@ compileDDL =
 
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
      mapM_ (\m -> saveHSCustomWriteFile writeOnlyIfChanged
-                                                (Just "src/spec") cfg m) todo
+                        (Just "src/spec") defaultCompilerCfg m) todo
      ddlIO $ putStrLn "... daedalus done"
   `catch` \d -> putStrLn =<< prettyDaedalusError d
-
-cfg :: CompilerCfg
-cfg = CompilerCfg
-  { cPrims      = Map.fromList
-                   [ ( primName "Debug" "Trace" AGrammar
-                     , aps "RTS.pTrace" [ "message" ]
-                     )
-                   ]
-  , cParserType = "Parser"
-  , cImports    = [ Import "RTS.Parser" Unqualified ]
-  , cQualNames = UseQualNames
-  }
 

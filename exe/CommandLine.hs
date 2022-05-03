@@ -4,8 +4,11 @@ module CommandLine ( Command(..)
                    , getOptions
                    , options
                    , throwOptError
+                   , OptsHS(..)
                    ) where
 
+import Data.Text(Text)
+import Data.String(fromString)
 import Control.Monad(when)
 import Control.Exception(throwIO)
 import System.FilePath(takeExtension)
@@ -45,9 +48,32 @@ data Options =
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
+          , optHS        :: OptsHS
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
           }
+
+data OptsHS =
+  OptsHS
+    { hsoptMonad   :: Maybe String
+    , hsoptImports :: [ (String,Maybe String) ]   -- module as A
+    , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
+    }
+
+noOptsHS :: OptsHS
+noOptsHS =
+  OptsHS
+    { hsoptMonad   = Nothing
+    , hsoptImports = []
+    , hsoptPrims   = []
+    }
+
+reqOptHS :: (String -> OptsHS -> Either String OptsHS) ->
+            String -> Options -> Either String Options
+reqOptHS f s o =
+  do o1 <- f s (optHS o)
+     pure o { optHS = o1 }
+
 
 simpleCommand :: Command -> ArgDescr Options
 simpleCommand x = NoArg \o -> Right o { optCommand = x }
@@ -70,6 +96,7 @@ options = OptSpec
                            , optOutDir    = Nothing
                            , optNoWarnUnbiasedFront = False
                            , optNoWarnUnbiased = False
+                           , optHS        = noOptsHS
                            }
   , progOptions =
       [ Option ['s'] ["spec"]
@@ -149,6 +176,27 @@ options = OptSpec
         "Generate Haskell code."
         $ NoArg \o -> Right o { optCommand = CompileHS }
 
+      , Option [] ["hs-monad"]
+        "Use this parser monad (default `Parser`)."
+        $ ReqArg "[QUAL.]NAME"
+        $ reqOptHS \s o -> Right o { hsoptMonad = Just s }
+
+      , Option [] ["hs-import"]
+        "Add this import to all generated Haskell modules."
+        $ ReqArg "MODULE[:QUAL]"
+        $ reqOptHS \s o ->
+          Right o { hsoptImports = colonSplit s : hsoptImports o }
+
+      , Option [] ["hs-prim"]
+        "Define an external Haskell primitive."
+        $ ReqArg "MODULE:PRIM_NAME:EXTERNAL_NAME"
+        $ reqOptHS \s o ->
+          case colonSplitText s of
+            (m,Just rest) | (n,Just p) <- colonSplitText rest ->
+                Right o { hsoptPrims = (m, n, p) : hsoptPrims o }
+            _ -> Left
+              "Invalid primitve, expected: MODULE:PRIM_NAME:EXTERNAL_NAME"
+
       , Option [] ["compile-c++"]
         "Generate C++ code"
         $ NoArg \o -> Right o { optCommand = CompileCPP }
@@ -201,6 +249,17 @@ options = OptSpec
 
   , progParams = \s o -> Right o { optParserDDL = s }
   }
+
+colonSplit :: String -> (String, Maybe String)
+colonSplit a =
+  case break (== ':') a of
+    (xs,ys) -> (xs, case ys of
+                      _ : more -> Just more
+                      _        -> Nothing)
+
+colonSplitText :: String -> (Text, Maybe String)
+colonSplitText a = (fromString x, xs)
+  where (x,xs) = colonSplit a
 
 
 

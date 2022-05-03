@@ -331,10 +331,20 @@ generateHS opts mainMod allMods =
 
   where
   saveModule = saveHS (optOutDir opts) cfg
+  hsopts = optHS opts
+
+  imps = [ Import a case b of
+                      Nothing -> Unqualified
+                      Just m  -> QualifyAs m
+         | (a,b) <- hsoptImports hsopts ]
+
+  primMap = Map.fromList
+              [ (primName m x, aps (Var p)) | (m,x,p) <- hsoptPrims hsopts ]
+
   cfg = CompilerCfg
-          { cPrims      = Map.empty -- Don't support prims
-          , cParserType = "Parser"
-          , cImports    = [Import "RTS.Parser" Unqualified]
+          { cPrims      = primMap
+          , cParserType = Var <$> hsoptMonad hsopts
+          , cImports    = imps
           , cQualNames  = UseQualNames
           }
 

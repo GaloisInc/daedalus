@@ -67,25 +67,20 @@ compileDDL =
 cfg :: CompilerCfg
 cfg = CompilerCfg
   { cPrims      = Map.empty
-  , cParserType = "D.Parser"
+  , cParserType = Just "D.Parser"
   , cImports    = [ Import "PdfMonad" (QualifyAs "D") ]
   , cQualNames = UseQualNames
   }
 
 
 cfgPdfValidate :: CompilerCfg
-cfgPdfValidate = CompilerCfg
+cfgPdfValidate = cfg
   { cPrims = Map.fromList
-      [ primName "PdfValidate" "IsValidated" AGrammar |->
-        aps "D.primIsValidated" [ "obj", "gen", "ty" ]
-
-      , primName "PdfValidate" "StartValidating" AGrammar |->
-        aps "D.primStartValidating" [ "obj", "gen", "ty" ]
+      [ primName "PdfValidate" "IsValidated" |-> aps "D.primIsValidated"
+      , primName "PdfValidate" "StartValidating" |-> aps "D.primStartValidating"
       ]
-  , cParserType = "D.Parser"
-  , cImports    = [ Import "Primitives.Validate" (QualifyAs "D"),
-                    Import "PdfMonad" (QualifyAs "D")
-                  ]
+  , cImports    = [ Import "Primitives.Validate" (QualifyAs "D")
+                  ] ++ cImports cfg
   , cQualNames = UseQualNames
   }
   where

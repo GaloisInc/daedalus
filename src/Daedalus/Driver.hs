@@ -22,6 +22,7 @@ module Daedalus.Driver
   , saveHSCustomWriteFile
   , writeOnlyIfChanged
   , CompilerCfg(..)
+  , defaultCompilerCfg
   , UseQual(..)
 
     -- * Various ASTs
@@ -57,6 +58,9 @@ module Daedalus.Driver
   , ddlGet
   , ddlUpdate_
   , ddlSetState
+
+    -- ** State accessors
+  , moduleSourcePath
 
     -- * Updating state externally
   , recordTCModule
@@ -308,6 +312,10 @@ defaultState = State
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   }
+
+
+moduleSourcePath :: ModuleName -> State -> Maybe FilePath
+moduleSourcePath m = Map.lookup m . moduleFiles
 
 
 data ModulePhase =
@@ -868,9 +876,11 @@ saveHSCustomWriteFile ::
   CompilerCfg ->
   ModuleName ->
   Daedalus ()
-saveHSCustomWriteFile writeFile' mb cfg m =
+saveHSCustomWriteFile writeFile' mb cfg' m =
   do ast <- ddlGetAST m astTC
      tdefs <- ddlGet declaredTypes
+     cfg <- getHaskellConfigFor cfg' m
+
      let hs = HS.hsModule cfg tdefs ast
      case mb of
        Nothing  -> ddlPrint (pp hs)
@@ -879,6 +889,23 @@ saveHSCustomWriteFile writeFile' mb cfg m =
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
             writeFile' file (show (pp hs))
+
+getHaskellConfigFor :: CompilerCfg -> ModuleName -> Daedalus CompilerCfg
+getHaskellConfigFor cfg' m =
+  do srcFile <- ddlGet (moduleSourcePath m)
+     case srcFile of
+       Nothing -> pure cfg'
+       Just f ->
+         ddlIO
+         do let cfgFile = addExtension f ".hs"
+            yes <- doesFileExist cfgFile
+            if yes then processFile =<< readFile cfgFile else pure cfg'
+
+  where
+  processFile txt =
+    do print txt
+       pure cfg'
+
 
 writeOnlyIfChanged :: FilePath -> String -> IO ()
 writeOnlyIfChanged file cont =
