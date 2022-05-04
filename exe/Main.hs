@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, ScopedTypeVariables, BlockArguments #-}
+{-# Language ScopedTypeVariables #-}
 {-# Language ImplicitParams #-}
 {-# Language GADTs #-}
 module Main where
@@ -30,6 +30,7 @@ import Daedalus.SourceRange
 import Daedalus.Core(checkModule)
 
 import Daedalus.Driver
+import Daedalus.DriverHS
 
 import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS

@@ -13,6 +13,7 @@ import Distribution.Types.HookedBuildInfo
 import qualified Data.Map as Map
 import qualified Data.Text
 import Daedalus.Driver
+import Daedalus.DriverHS
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
 

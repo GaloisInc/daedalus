@@ -24,6 +24,11 @@ extra-source-files:
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
+  default-extensions:
+    BlockArguments,
+    OverloadedStrings,
+    RecordWildCards
+
   ghc-options:         -Wall -O2  -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
   build-tool-depends:  alex:alex, happy:happy
@@ -45,6 +50,7 @@ library
                        Daedalus.Compile.Config,
                        Daedalus.Compile.ConfigParser,
                        Daedalus.Driver,
+                       Daedalus.DriverHS,
                        Daedalus.Pass,
                        Daedalus.Type,
                        Daedalus.Type.Pretty,
@@ -142,6 +148,12 @@ executable daedalus
   ghc-options:         -Wall -O2 -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
   default-language:    Haskell2010
+  default-extensions:
+    BlockArguments,
+    OverloadedStrings,
+    RecordWildCards
+
+
 
 
 executable daedalus-run-test

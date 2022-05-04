@@ -1207,6 +1207,10 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
                  ]
   , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
+                 case cParserType of
+                   Nothing -> [ Import "RTS.Parser" (QualifyAs "RTS") ]
+                   _       -> []
+                  ++
                  [ Import (hsIdentMod i) Qualified
                             | i <- map thingValue tcModuleImports
                  ] ++
@@ -1235,5 +1239,4 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
             , envQualNames = cQualNames
             , envTypes = allTys
             }
-
 
