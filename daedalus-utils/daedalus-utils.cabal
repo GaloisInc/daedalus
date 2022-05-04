@@ -34,6 +34,7 @@ library
     GraphSCC,
     alex-tools,
     panic,
+    template-haskell,
     monadLib
 
   hs-source-dirs:      src

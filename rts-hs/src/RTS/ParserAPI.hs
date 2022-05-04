@@ -24,6 +24,7 @@ import Debug.Trace(traceM)
 
 data Result a = NoResults ParseError
               | Results (NonEmpty a)
+                deriving Show
 
 instance Functor Result where
   fmap f r =

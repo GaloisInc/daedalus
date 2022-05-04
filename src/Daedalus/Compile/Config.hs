@@ -1,3 +1,4 @@
+{-# Language OverloadedStrings, QuasiQuotes #-}
 module Daedalus.Compile.Config where
 
 import Data.Map(Map)
@@ -5,6 +6,7 @@ import qualified Data.Map as Map
 
 import Daedalus.Type.AST(Name)
 import Daedalus.Compile.LangHS
+
 
 data CompilerCfg = CompilerCfg
   { cImports :: [ Import ]
@@ -28,6 +30,7 @@ defaultCompilerCfg = CompilerCfg
   }
 
 data UseQual = UseQualNames | DoNotUseQualNames
+
 
 
 

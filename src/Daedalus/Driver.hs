@@ -37,6 +37,7 @@ module Daedalus.Driver
   , Pass(..)
   , phasePass
   , passParse
+  , parseModuleFromText
   , passResolve
   , passTC
   , passDeadVal
@@ -87,6 +88,7 @@ module Daedalus.Driver
   , ddlIO
   ) where
 
+import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
@@ -109,7 +111,7 @@ import Daedalus.Pass
 import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
-import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
+import Daedalus.Parser(prettyParseError, ParseError, parseFromFile, parseFromText)
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
@@ -520,6 +522,17 @@ parseModuleFromFile n file =
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
+
+
+parseModuleFromText :: ModuleName -> Text -> Daedalus ()
+parseModuleFromText n txt =
+  do let mb = parseFromText "" n txt
+     m <- case mb of
+            Left err -> ddlThrow (AParseError err)
+            Right m -> pure (ParsedModule m)
+     ddlUpdate_ \s -> s { loadedModules = Map.insert n m (loadedModules s) }
+
+
 
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()

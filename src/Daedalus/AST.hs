@@ -2,6 +2,7 @@
 {-# Language DataKinds, GADTs, KindSignatures, ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell, DeriveLift #-} -- For deriving ord and eqs
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Daedalus.AST where
 
@@ -32,6 +33,8 @@ data Name = forall ctx.
        , nameRange       :: SourceRange
        , nameID          :: !GUID
        }
+
+deriving instance Lift Name
 
 type ModuleName = Text
 type Ident = Text
@@ -116,6 +119,8 @@ data IPName = forall ctx. IPName
   , ipContext :: Context ctx
   , ipRange   :: SourceRange
   }
+
+deriving instance Lift IPName
 
 instance Eq IPName where
   x == y = ipName x == ipName y
@@ -209,6 +214,8 @@ data Context :: Ctx -> HS.Type where
   AGrammar :: Context Grammar
   AValue   :: Context Value
   AClass   :: Context Class
+
+deriving instance Lift (Context a)
 
 -- XXX: use parametrized-utils classes?
 sameContext :: Context a -> Context b -> Maybe (a :~: b)
@@ -307,7 +314,7 @@ data SigType = MatchType | CoerceSafe | CoerceCheck | CoerceForce
   deriving Show
 
 data TriOp = RangeUp | RangeDown | MapDoInsert
-  deriving (Show,Eq)
+  deriving (Show,Eq,Lift)
 
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
@@ -318,14 +325,14 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | BuilderEmit -- ^ push a new element onto the end of a builder
            | BuilderEmitArray
            | BuilderEmitBuilder
-  deriving (Show, Eq)
+  deriving (Show, Eq, Lift)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
            | BuilderBuild -- ^ build array from a builder
-  deriving (Show, Eq)
+  deriving (Show, Eq, Lift)
 
 data Selector = SelStruct (Located Label)
               | SelUnion (Located Label)
@@ -336,7 +343,7 @@ data Selector = SelStruct (Located Label)
 data ManyBounds e =
     Exactly e
   | Between (Maybe e) (Maybe e)
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving (Show, Functor, Foldable, Traversable,Lift)
 
 data UnionField e = !(Located Label) :> !e
                     deriving (Show, Functor, Foldable, Traversable)
@@ -356,7 +363,7 @@ data Literal =
   | LBytes      !ByteString
   | LByte       !Word8    Text    -- Text is how to show
   | LPi
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Lift)
 
 
 -- Non empty
@@ -391,7 +398,7 @@ pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
 
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
-                         } deriving (Show, Functor, Foldable, Traversable)
+                         } deriving (Show, Functor, Foldable, Traversable,Lift)
 
 instance Eq a => Eq (Located a) where
   (==) = (==) `on` thingValue
@@ -414,7 +421,7 @@ data TypeF t =
   | TMaybe !t
   | TBuilder !t
   | TMap   !t !t
-    deriving (Eq,Show,Functor,Foldable,Traversable)
+    deriving (Eq,Show,Functor,Foldable,Traversable,Lift)
 
 data SrcType = SrcVar (Located Text)
              | SrcCon Name [SrcType]
