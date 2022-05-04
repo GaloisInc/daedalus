@@ -44,27 +44,27 @@ import Talos.Analysis.Slice (SummaryClass, Merge(..))
 -- just program defensively and assume a non-normalised term at the
 -- cost of somewhat increased complexity and maybe some performance
 -- overhead.
-data SelectedPath =
+data SelectedPath p =
   Unconstrained -- Base case, all paths are feasible
-  | DontCare Int SelectedPath 
+  | DontCare Int (SelectedPath p)
   -- ^ We don't care about the nodes, so they can take any value.
 
   -- A node we do care about.  The first argument is Just (v, tc) if
   -- the variable is entangled on this path, the tc being the lhs of
   -- the bind that assigns the variable.
-  | PathNode SelectedNode SelectedPath
+  | PathNode (SelectedNode p) (SelectedPath p)
   deriving (Generic, NFData)
 
 data SelectedNode =
-  SelectedChoice Int SelectedPath
+  SelectedChoice Int (SelectedPath p)
   -- ^ We chose an alternative.
 
-  | SelectedCase Int SelectedPath
+  | SelectedCase Int (SelectedPath p)
   -- ^ We have selected an alternative of a case.  The index is also
   -- determined by the value (here to check). The default (if any) is
   -- considered the last element in the list.
 
-  | SelectedCall SummaryClass SelectedPath
+  | SelectedCall (SummaryClass p) (SelectedPath p)
   -- ^ We have a function call.
   
   | SelectedBytes ProvenanceTag ByteString 
@@ -72,11 +72,11 @@ data SelectedNode =
   -- of interest to other paths.  We still need to execute the term on
   -- the bytes to get the resutl.
 
-  | SelectedDo SelectedPath -- ^ Wraps a nested Do node
+  | SelectedDo (SelectedPath p) -- ^ Wraps a nested Do node
   deriving (Generic, NFData)
 
 -- isXs, mainly because we don't always have equality over nodes
-isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
+isUnconstrained, isDontCare, isPathNode :: SelectedPath p -> Bool
 isUnconstrained Unconstrained = True
 isUnconstrained _             = False
 
@@ -86,7 +86,7 @@ isDontCare _             = False
 isPathNode (PathNode {}) = True
 isPathNode _             = False
         
-splitPath :: SelectedPath -> (Maybe SelectedNode, SelectedPath)
+splitPath :: SelectedPath p -> (Maybe (SelectedNode p), SelectedPath p)
 splitPath cp =
   case cp of
     Unconstrained             -> (Nothing, Unconstrained)
@@ -99,13 +99,13 @@ splitPath cp =
 -- smart constructors
 
 -- smart constructor for dontCares.
-dontCare :: Int -> SelectedPath -> SelectedPath
+dontCare :: Int -> SelectedPath p -> SelectedPath p
 dontCare 0 ps = ps
 dontCare  n (DontCare m ps)   = DontCare (n + m) ps
 dontCare _n Unconstrained = Unconstrained
 dontCare n  ps = DontCare n ps
 
-pathNode :: SelectedNode -> SelectedPath ->  SelectedPath
+pathNode :: SelectedNode p -> SelectedPath p ->  SelectedPath p
 pathNode (SelectedDo Unconstrained) rhs = dontCare 1 rhs
 pathNode n rhs = PathNode n rhs
 
@@ -178,7 +178,7 @@ firstSolverProvenance = 2
 
 
 -- FIXME: too general probably
-instance Merge SelectedPath where
+instance Eq p => Merge (SelectedPath p) where
   merge psL psR = 
     case (psL, psR) of
       (Unconstrained, _) -> psR   
@@ -191,7 +191,7 @@ instance Merge SelectedPath where
         PathNode (merge n1 n2) (merge ps1 ps2)
       _ -> merge psR psL
 
-instance Merge SelectedNode where
+instance Eq p => Merge (SelectedNode p) where
   --  We may merge nested nodes and calls, although choices and cases should occur on only 1 path.
   merge (SelectedChoice n1 sp1) (SelectedChoice n2 sp2)
     | n1 /= n2  = panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
@@ -205,7 +205,7 @@ instance Merge SelectedNode where
   merge (SelectedDo ps1) (SelectedDo ps2) = SelectedDo (merge ps1 ps2)  
   merge _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
 
-instance PP SelectedPath where
+instance PP (SelectedPath p) where
   ppPrec n ps =
     case ps of
       Unconstrained -> "[..]*;"
@@ -216,7 +216,7 @@ instance PP SelectedPath where
       PathNode n' Unconstrained -> ppPrec n n'
       PathNode n' ps' -> wrapIf (n > 0) $  pp n' <> "; " <> pp ps'
 
-instance PP SelectedNode where
+instance PP (SelectedNode p) where
   ppPrec n sn =
     case sn of
       SelectedChoice n' sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp

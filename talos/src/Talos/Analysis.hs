@@ -39,9 +39,10 @@ import Talos.Analysis.Projection (freeEntangledVars, freeVarsToEntangledVars)
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: Module -> GUID -> (Summaries, GUID)
+summarise :: AbsEnv ae => Module -> GUID -> (Summaries ae, GUID)
 summarise md nguid = (summaries, nextGUID s')
   where
+    -- FIXME: need to rename bound vars to avoid clashing in synthesis
     (s', summaries) = calcFixpoint seqv doOne wl0 s0
     s0    = initState (mGFuns md) (mFFuns md) nguid
 
@@ -63,24 +64,20 @@ summarise md nguid = (summaries, nextGUID s')
 --------------------------------------------------------------------------------
 -- Summary functions
 
-summariseDecl :: SummaryClass -> Fun Grammar -> IterM Summary
+summariseDecl :: AbsEnv ae => SummaryClass ae -> Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls Fun { fName = fn
                       , fDef = Def def
                       , fParams = ps } = do
-  let m_ret = case cls of
-        Assertions           -> Nothing
-        FunctionResult fsets -> Just (ResultVar, fsets)
 
-  (d, m) <- runSummariseM (summariseG m_ret def)
+  d <- runSummariseM (summariseG def)
 
-  let newS = Summary { exportedDomain = d
-                     , pathRootMap = m
+  let newS = Summary { domain = d
                      , params = ps
                      , summaryClass = cls
                      }
-  -- Sanity check
-  unless (domainInvariant (exportedDomain newS)) $
-    panic "Failed domain invariant" ["At " ++ showPP fn]
+  -- -- Sanity check
+  -- unless (domainInvariant (exportedDomain newS)) $
+  --   panic "Failed domain invariant" ["At " ++ showPP fn]
 
   pure newS
 
@@ -95,19 +92,21 @@ newtype SummariseMState =
 emptySummariseMState :: SummariseMState
 emptySummariseMState = SummariseMState Map.empty
 
-newtype SummariseM a = SummariseM { getSummariseM :: StateT SummariseMState IterM a }
-  deriving (Applicative, Functor, Monad)
+-- newtype SummariseM a = SummariseM { getSummariseM :: StateT SummariseMState IterM a }
+--   deriving (Applicative, Functor, Monad)
 
-runSummariseM :: SummariseM a -> IterM (a, PathRootMap)
-runSummariseM m = evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptySummariseMState
+type SummariseM = IterM 
 
-liftIterM :: IterM a -> SummariseM a
-liftIterM = SummariseM . lift
+runSummariseM :: SummariseM ae a -> IterM ae a
+runSummariseM m = m -- evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptySummariseMState
 
--- v should not already be mapped
-addPathRoot :: Name -> [(FieldSet, Slice)] -> SummariseM ()
-addPathRoot _v []  = pure ()
-addPathRoot v  sls = SummariseM $ modify (\s -> s { pathRoots = Map.insert v sls (pathRoots s) })
+liftIterM :: IterM ae a -> SummariseM ae a
+liftIterM = id -- SummariseM . lift
+
+-- -- v should not already be mapped
+-- addPathRoot :: Name -> [(FieldSet, Slice)] -> SummariseM ()
+-- addPathRoot _v []  = pure ()
+-- addPathRoot v  sls = SummariseM $ modify (\s -> s { pathRoots = Map.insert v sls (pathRoots s) })
 
 --------------------------------------------------------------------------------
 -- Transfer function
@@ -271,9 +270,7 @@ caseIsTotal (Case e alts)
       TFlavUnion ls -> length ls
       TFlavEnum  ls -> length ls
 
-summariseCase :: Maybe (BaseEntangledVar, Set FieldSet) ->
-                 Case Grammar ->
-                 SummariseM Domain
+summariseCase :: AbsEnv ae => Case Grammar -> SummariseM ae (Domain ae)
 summariseCase m_x cs@(Case y alts) = do
   bDoms   <- mapM (summariseG m_x . snd) alts
   let trivial   = all nullDomain bDoms
@@ -356,46 +353,41 @@ summariseCase m_x cs@(Case y alts) = do
 -- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
 -- that we choose one.
 
-summariseG :: Maybe (BaseEntangledVar, Set FieldSet) ->
-              -- The assigned variable, along with fields we care
-              -- about (the set of projections is non-empty, it can
-              -- contain [emptyFieldSet] representing the entire
-              -- object)
-              Grammar -> SummariseM Domain
-summariseG m_x tc =
+summariseG :: AbsEnv ae => SummaryClass' ae -> Grammar -> SummariseM ae (Domain ae)
+summariseG cl tc =
   case tc of
     Pure e
-      | Just (x, fsets) <- m_x -> pure $ mconcat
-          [ singletonDomain (singletonEntangledVars x fset <> freeEntangledVars fset e)
-                            (SLeaf (SPure fset e))
-          | fset <- Set.toList fsets ]
-      | otherwise     -> pure emptyDomain
+      | Result p <- cl -> pure (absPre p e)
+      | otherwise     -> pure emptyDomain -- should this be (absTop, SHole)?
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
     Match _ (MatchByte bset)
-        -- fsets should be {emptyFieldSet} here as we are returning a byte
-      | Just (x, _fsets) <- m_x ->
-          pure $ singletonDomain (singletonEntangledVars x emptyFieldSet
-                                  <> freeVarsToEntangledVars bset)
-                                 (SLeaf (SMatch bset))
-      | otherwise -> pure emptyDomain
-    Match {} | isJust m_x -> panic "Saw a relevant match" [showPP tc]
-             | otherwise  -> pure emptyDomain
+      | Result p <- cl -> pure (absByteSet p e)
+      | otherwise      -> pure emptyDomain
+    Match {} | isResult cl -> panic "Saw a relevant match" [showPP tc]
+             | otherwise   -> pure emptyDomain
     Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
 
     Do_ lhs rhs -> do
-      rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      merge rhsD <$> summariseG Nothing lhs
+      -- FIXME: we might want to have a nicer name
+      n <- freshNameSys
+      summariseG cl (Do n lhs rhs)
+      -- rhsD <- dontCareD 1 <$> summariseG m_x rhs
+      -- merge rhsD <$> summariseG Nothing lhs
 
-    Do x' lhs rhs -> do
-      -- we add the dontCare to leave a spot to merge in the dom for lhs
-      rhsD <- dontCareD 1 <$> summariseG m_x rhs
-      let ex' = ProgramVar x'
-      case domainFileSets ex' rhsD of
-        -- There is no variable, or no path from here is entangled with it
-        [] -> merge rhsD <$> summariseG Nothing lhs
-        fset -> do
-          -- we care about the variable, so we need a FunctionResult summary
+    Do x lhs rhs -> do
+      rhsD <- summariseG cl rhs
+      let (matching, rhsD') = partitionDomain x rhsD
+          indepD            = mapSlices (SDo x SHole) rhsD'
+      if null matching
+        then merge indepD . mapSlices (\sl -> SDo x sl SHole) <$> summariseG Assertions lhs
+        else do
+          
+          -- we care about the variable, so we need a Result summary
+        
+          -- FIXME: I _think_ the preds should be disjoint, so we
+          -- don't get anything by collecting the predicates first.
+        
           lhsD <- summariseG (Just (ex', Set.fromList fset)) lhs
           let lhsD' = mapDomain (bindBaseEV x') lhsD
               -- inefficient, but simple
@@ -443,9 +435,21 @@ summariseG m_x tc =
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
-
     unimplemented = panic "summariseG unimplemented" [showPP tc]
 
+    -- We summarise the lhs for every use of its result.
+    bindOne x (isRes, (gs, p)) lhs = do
+      lhsD <- summariseG (Result p) lhs
+      -- FIXME: index domains by if they have a result?
+      let resD = case resultElement lhsD of
+            Nothing  -> panic "Missing result" []
+            Just gs' ->
+              let env' = absUnion (gsEnv gs) (gsEnv gs')
+                  sl'  = SDo x (gsSlice gs') (gsSlice gs)
+              in singletonResultDomain (GuardedSlice env' sl')
+          lhsD' = mapSlices (\sl -> SDo x sl SHole) (lhsD { resultElement = Nothing })
+      pure (isRes, (merge resD lhsD'))
+      
     bindBaseEV x evs sl
       | Just _ <- lookupBaseEV (ProgramVar x) evs = SDo (Just x) sl SUnconstrained
       | otherwise                                 = sl

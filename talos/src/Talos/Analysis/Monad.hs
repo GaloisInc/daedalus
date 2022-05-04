@@ -1,9 +1,9 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 {-# LANGUAGE TupleSections #-}
-module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, PathRootMap, makeDeclInvs
+module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs
                             , Summary (..), Summaries, IterM, AnalysisState(..)
                             , module Export) where
 
@@ -26,37 +26,39 @@ import Talos.Analysis.Fixpoint as Export (currentDeclName, currentSummaryClass
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
-type PathRootMap =  Map Name [(FieldSet, Slice)]
+-- type PathRootMap =  Map Name [(FieldSet, Slice)]
+
+type SummaryClass' ae = SummaryClass (AbsPred ae)
 
 -- This is the summarisation for a given class for a given function
-data Summary =
-  Summary { exportedDomain   :: Domain
-          -- ^ If this is a function result summary, this will contain
-          -- an entry for ResultVar, including any params entangled
-          -- with the result.
-          , pathRootMap :: PathRootMap
+data Summary ae =
+  Summary { domain   :: Domain ae
           -- Essentially a copy of the params in the decl.
           , params      :: [Name]
-          , summaryClass :: SummaryClass
+          , summaryClass :: SummaryClass' ae
           }
 
-type Summaries    = Map FName (Map SummaryClass Summary)
+
+emptySummary :: SummaryClass' ae -> Summary ae
+emptySummary = Summary emptyDomain []
+
+type Summaries ae = Map FName (Map (SummaryClass (AbsPred ae)) (Summary ae))
 
 --------------------------------------------------------------------------------
 -- Instances
 
-explodePathRootMap :: PathRootMap -> [ (Name, FieldSet, Slice) ]
-explodePathRootMap m =
-  [ (n, fs, sl) | (n, m') <- Map.toList m, (fs, sl) <- m' ]
+-- explodePathRootMap :: PathRootMap -> [ (Name, FieldSet, Slice) ]
+-- explodePathRootMap m =
+--   [ (n, fs, sl) | (n, m') <- Map.toList m, (fs, sl) <- m' ]
 
-instance PP Summary where
-  pp s = bullets [ "exported" <+> pp (exportedDomain s)
-                 , "internal" <+> vcat (map pp_el (explodePathRootMap (pathRootMap s)))
-                 ]
-    where
-      pp_el (n, fs, sl)
-        | fs == emptyFieldSet = pp n <> " => " <> pp sl
-        | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl
+-- instance PP Summary where
+--   pp s = bullets [ "exported" <+> pp (exportedDomain s)
+--                  , "internal" <+> vcat (map pp_el (explodePathRootMap (pathRootMap s)))
+--                  ]
+--     where
+--       pp_el (n, fs, sl)
+--         | fs == emptyFieldSet = pp n <> " => " <> pp sl
+--         | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl
 
 --------------------------------------------------------------------------------
 -- Monad and state
@@ -81,7 +83,8 @@ initState decls funs nguid = AnalysisState
   , nextGUID    = nguid
   }
 
-type IterM = F.FixpointM FName SummaryClass Summary AnalysisState
+newtype IterM ae a = IterM { getIterM :: F.FixpointM FName (SummaryClass (AbsPred ae)) (Summary ae) AnalysisState a}
+  deriving (Functor, Applicative, Monad)
 
 --------------------------------------------------------------------------------
 -- Inverses
@@ -128,18 +131,18 @@ makeDeclInvs decls funs = Map.fromList fnsWithInvs
 --------------------------------------------------------------------------------
 -- low-level IterM primitives
 
-instance HasGUID IterM where
-  guidState f = F.fixpointState (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
+instance HasGUID (IterM ae) where
+  guidState f = IterM $ F.fixpointState (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
 
-getDeclInv :: FName -> IterM (Maybe (Name -> [Expr] -> (Expr, Expr)))
-getDeclInv n = F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
+getDeclInv :: FName -> IterM ae (Maybe (Name -> [Expr] -> (Expr, Expr)))
+getDeclInv n = IterM $ F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
 
 -- Gets the precondition for a given decl.  This may update the worklist and revdeps
-requestSummary :: FName -> SummaryClass -> IterM Summary
-requestSummary nm cl = do
+requestSummary :: Ord (AbsPred ae) => FName -> SummaryClass (AbsPred ae) -> IterM ae (Summary ae)
+requestSummary nm cl = IterM $ do
   m_summary <- F.requestSummary nm cl
   case m_summary of
     Nothing -> -- It is OK to return Nothing for the result var
-      pure $ Summary mempty mempty mempty cl
+      pure $ emptySummary cl
     Just s  -> pure s
 

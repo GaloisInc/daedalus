@@ -39,6 +39,12 @@ import Talos.Analysis.Projection (projectE)
 data SummaryClass p = Assertions | Result p
   deriving (Ord, Eq, Show, Generic, NFData)
 
+isAssertions, isResult :: SummaryClass p -> Bool
+isAssertions Assertions = True
+isAssertions _ = False
+
+isResult = not . isAssertions
+
 -- We represent a Call by a set of the entangled args.  If the
 -- args aren't futher entangled by the calling context, then for
 -- each argument slice we get a single Call node, where the Set is a
