@@ -101,7 +101,8 @@ import Daedalus.Pass
 import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
-import Daedalus.Parser(prettyParseError, ParseError, parseFromFile, parseFromText)
+import Daedalus.Parser
+          (prettyParseError, ParseError, parseFromFile, parseFromTextAt)
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
@@ -511,9 +512,9 @@ parseModuleFromFile n file =
           }
 
 
-parseModuleFromText :: ModuleName -> Text -> Daedalus ()
-parseModuleFromText n txt =
-  do let mb = parseFromText "" n txt
+parseModuleFromText :: ModuleName -> SourcePos -> Text -> Daedalus ()
+parseModuleFromText n loc txt =
+  do let mb = parseFromTextAt loc n txt
      m <- case mb of
             Left err -> ddlThrow (AParseError err)
             Right m -> pure (ParsedModule m)

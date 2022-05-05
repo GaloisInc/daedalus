@@ -58,6 +58,7 @@ data OptsHS =
     { hsoptMonad   :: Maybe String
     , hsoptImports :: [ (String,Maybe String) ]   -- module as A
     , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
+    , hsoptFile    :: Maybe FilePath
     }
 
 noOptsHS :: OptsHS
@@ -66,6 +67,7 @@ noOptsHS =
     { hsoptMonad   = Nothing
     , hsoptImports = []
     , hsoptPrims   = []
+    , hsoptFile    = Nothing
     }
 
 reqOptHS :: (String -> OptsHS -> Either String OptsHS) ->
@@ -175,6 +177,12 @@ options = OptSpec
       , Option [] ["compile-hs"]
         "Generate Haskell code."
         $ NoArg \o -> Right o { optCommand = CompileHS }
+
+      , Option [] ["hs-config"]
+        "Configuraiton file to use for Haskell compilation"
+        $ ReqArg "FILE"
+        $ reqOptHS \s o ->
+          Right o { hsoptFile = Just s }
 
       , Option [] ["hs-monad"]
         "Use this parser monad (default `Parser`)."

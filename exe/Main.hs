@@ -117,7 +117,9 @@ handleOptions opts
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
-       let mainRule = (mm,"Main")
+       let mainRule = (mm, case optEntries opts of
+                             e : _ -> Text.pack e
+                             _     -> "Main")
 
        case optCommand opts of
 
@@ -305,6 +307,11 @@ generateHS opts mainMod allMods =
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
+     cfg <- case hsoptFile hsopts of
+              Nothing -> pure  (const dfltCfg)
+              Just f  -> ddlIO (moduleConfigsFromFile dfltCfg f)
+
+     let saveModule = saveHS (optOutDir opts) cfg
      mapM_ saveModule allMods
      when makeExe $ ddlIO
        do let outD = fromJust (optOutDir opts)
@@ -331,7 +338,6 @@ generateHS opts mainMod allMods =
                        (substTemplate vars cabal_template)
 
   where
-  saveModule = saveHS (optOutDir opts) cfg
   hsopts = optHS opts
 
   imps = [ Import a case b of
@@ -342,12 +348,13 @@ generateHS opts mainMod allMods =
   primMap = Map.fromList
               [ (primName m x, aps (Var p)) | (m,x,p) <- hsoptPrims hsopts ]
 
-  cfg = CompilerCfg
-          { cPrims      = primMap
-          , cParserType = Var <$> hsoptMonad hsopts
-          , cImports    = imps
-          , cQualNames  = UseQualNames
-          }
+  dfltCfg =
+    CompilerCfg
+      { cPrims      = primMap
+      , cParserType = Var <$> hsoptMonad hsopts
+      , cImports    = imps
+      , cQualNames  = UseQualNames
+      }
 
 
 

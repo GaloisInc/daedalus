@@ -4,6 +4,7 @@
 import System.Directory
 import System.IO
 import System.Posix.Temp(mkstemps)
+import Control.Exception(catches,Handler(..))
 
 import Distribution.Simple
 import Distribution.Simple.Setup
@@ -44,13 +45,15 @@ compileDDL =
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
                        ++ [""]
-     let cfgFor m = case m of
-                      "PdfValidate" -> cfgPdfValidate
-                      _             -> cfg
-         saveHS' = saveHSCustomWriteFile smartWriteFile
+     cfg <- ddlIO (moduleConfigsFromFile mempty "CodeGenConfig.conf")
+     let saveHS' = saveHSCustomWriteFile smartWriteFile
                    -- more efficient replacement for 'saveHS'
 
-     mapM_ (\m -> saveHS' (Just "src/spec") (cfgFor m) m) todo
+     mapM_ (saveHS' (Just "src/spec") cfg) todo
+
+  `catches` [ Handler \d -> putStrLn =<< prettyDaedalusError d
+            , Handler \d -> print (ppParseError d)
+            ]
 
   where
 
@@ -61,32 +64,6 @@ compileDDL =
            , ("PdfDemo", "ResolveObjectStreamEntryCheck")
            , ("PdfDOM",  "DOMTrailer")
            ]
-
-
-
-
-cfg :: CompilerCfg
-cfg = CompilerCfg
-  { cPrims      = Map.empty
-  , cParserType = Just "D.Parser"
-  , cImports    = [ Import "PdfMonad" (QualifyAs "D") ]
-  , cQualNames = UseQualNames
-  }
-
-
-cfgPdfValidate :: CompilerCfg
-cfgPdfValidate = cfg
-  { cPrims = Map.fromList
-      [ primName "PdfValidate" "IsValidated" |-> aps "D.primIsValidated"
-      , primName "PdfValidate" "StartValidating" |-> aps "D.primStartValidating"
-      ]
-  , cImports    = [ Import "Primitives.Validate" (QualifyAs "D")
-                  ] ++ cImports cfg
-  , cQualNames = UseQualNames
-  }
-  where
-  x |-> y = (x,y)
-
 
 -- equivalent to writeFile except that file access dates untouched when file-data unchanged.
 smartWriteFile :: FilePath -> String -> IO ()

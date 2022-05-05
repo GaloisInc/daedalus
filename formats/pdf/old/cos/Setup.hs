@@ -25,7 +25,6 @@ main = defaultMainWithHooks simpleUserHooks
          pure emptyHookedBuildInfo
   }
 
-
 {- We split up basic PDF validation from DOM related stuff into separate
 packages.  This allows us to avoid recompiling things that have not changed. -}
 compileDDL :: IO ()
@@ -109,20 +108,21 @@ compileDDL =
        mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
-     let cfgFor m = case m of
-                      "PdfDecl"     -> cfgPdfDecl
-                      "TE"          -> cfgTE
-                      _             -> cfgDefault
+
+     cfg <- ddlIO (moduleConfigsFromFile mempty "CodeGenConfig.conf")
+
          -- more efficient replacement for 'saveHS'
-         saveHS' dir cfg mod =
+     let saveHS' dir cfg mod =
             saveHSCustomWriteFile (smartWriteFile log) dir cfg mod
 
          log fn = putStrLn $ "  " ++ fn
 
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
-     mapM_ (\m -> saveHS' (Just "src/spec")   (cfgFor m) m)  todo
+     mapM_ (\m -> saveHS' (Just "src/spec") cfg m)  todo
      ddlIO $ putStrLn "... daedalus done"
-  `catch` \d -> putStrLn =<< prettyDaedalusError d
+  `catches` [ Handler \d -> putStrLn =<< prettyDaedalusError d
+            , Handler \d -> print (ppParseError d)
+            ]
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if
@@ -161,55 +161,3 @@ smartWriteFile logUpdate outFile s =
                     renameFile tmpFile outFile
                     logUpdate outFile
 
--- Common
-cfgDefault :: CompilerCfg
-cfgDefault = CompilerCfg
-  { cPrims      = Map.empty
-  , cParserType = Just "D.Parser"
-  , cImports    = [ Import "PdfMonad" (QualifyAs "D") ]
-  , cQualNames  = UseQualNames
-  }
-
-cfgPdfDecl :: CompilerCfg
-cfgPdfDecl = cfgDefault
-  { cPrims = Map.fromList
-      [ primName "PdfDecl" "ResolveRef" |->
-        \ ~[r] ->
-        aps "D.resolveImpl" [ "PdfDecl.pTopDecl"
-                            , "PdfDecl.pResolveObjectStreamEntry"
-                            , fld "obj" r
-                            , fld "gen" r
-                            ]
-
-      , primName "PdfDecl" "FlateDecode"    |-> aps "D.flateDecode"
-      , primName "PdfDecl" "LZWDecode"      |-> aps "D.lzwDecode"
-      , primName "PdfDecl" "ASCIIHexDecode" |-> aps "D.asciiHexDecode"
-      , primName "PdfDecl" "ASCII85Decode"  |-> aps "D.ascii85Decode"
-      , primName "PdfDecl" "Decrypt"        |-> aps "D.decrypt"
-
-      , primName "PdfDecl" "InputAtRef" |-> -- get a stream:
-        \ ~[r] ->
-        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
-                            , "PdfDecl.pResolveObjectStreamPoint"
-                            , fld "obj" r
-                            , fld "gen" r
-                            ]
-
-      ]
-  , cImports    = [ Import "Primitives.Resolve"   (QualifyAs "D"),
-                    Import "Primitives.Deflate"   (QualifyAs "D"),
-                    Import "Primitives.LZW"       (QualifyAs "D"),
-                    Import "Primitives.ASCIIHex"  (QualifyAs "D"),
-                    Import "Primitives.ASCII85"   (QualifyAs "D"),
-                    Import "Primitives.Decrypt"   (QualifyAs "D")
-                  ] ++ cImports cfgDefault
-  }
-
-  where
-  fld x r = "HS.getField" `Ap` TyParam (Raw (x :: String)) `Ap` r
-  x |-> y = (x,y)
-
-cfgTE :: CompilerCfg
-cfgTE = cfgDefault
-  { cPrims = Map.singleton (primName "TE" "EmitChar") (aps "D.emitChar")
-  }

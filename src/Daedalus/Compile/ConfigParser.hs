@@ -7,9 +7,23 @@ import Daedalus.Quote
 
 def Config =
   block
-    imports = Many Import
-    prims   = Many PrimDecl
+    Many Space
+    header  = Header
+    modules = Many Module
     END
+
+def Module =
+  block
+    KW "module"
+    name = Name
+    KW "where"
+    header  = Header
+    prims   = Many PrimDecl
+
+def Header =
+  block
+    imports = Many Import
+    monad   = Optional MonadDecl
 
 def Import =
   block
@@ -21,16 +35,20 @@ def Import =
           KW "as"
           Name
 
+def MonadDecl =
+  block
+    KW "monad"
+    Term
+
 def PrimDecl =
   block
     KW "def"
     name       = Name
+    args       = Many Name
     KW "="
     definition = Term
 
-def Term = Fun
-
-def Fun =
+def Term =
   block
     fun  = Name
     args = Many Arg
@@ -64,21 +82,33 @@ def $name_char    = $alpha | '0' .. '9' | "_."
 def $space        = " \n\r\t"
 def $string_char  = '"'
 
+def Comment =
+  block
+    Match "--"
+    @Many $[!'\n']
+
+def Space = Comment <| @$space
+
 def Token P =
   block
     $$ = P
-    Many $space
+    Many Space
 
 def KW x = @Token (Match x)
 
-def Name = Token (build (many (b = emit builder $alpha) (emit b $name_char)))
+def Name =
+  block
+    $$ = Token (build (many (b = emit builder $alpha) (emit b $name_char)))
+    case $$ of
+      "def", "module", "where", "monad" -> Fail "keyword"
+      _                                 -> Accept
 
 def String =
   Token
-  block
-    $string_char
-    $$ = build (many (b = builder) (StringChar b))
-    $string_char
+    block
+      $string_char
+      $$ = build (many (b = builder) (StringChar b))
+      $string_char
 
 def StringChar b =
   First

@@ -2,6 +2,7 @@
 module Daedalus.DriverHS
   ( module Daedalus.DriverHS
   , module Daedalus.Compile.Config
+  , ppParseError
   ) where
 
 import System.FilePath((</>),addExtension)
@@ -10,6 +11,7 @@ import qualified System.IO as IO
 
 import Daedalus.PP(pp)
 
+import RTS.ParserAPI(ppParseError)
 import Daedalus.AST(ModuleName)
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
@@ -23,7 +25,7 @@ import Daedalus.Driver
 -- Does not affect the state.
 saveHS ::
   Maybe FilePath {- ^ Directory to save things in. -} ->
-  CompilerCfg ->
+  (ModuleName -> CompilerCfg) ->
   ModuleName ->
   Daedalus ()
 saveHS = saveHSCustomWriteFile writeFile
@@ -33,13 +35,13 @@ saveHS = saveHSCustomWriteFile writeFile
 saveHSCustomWriteFile ::
   (FilePath -> String -> IO ()) ->
   Maybe FilePath {- ^ Directory to save things in. -} ->
-  CompilerCfg ->
+  (ModuleName -> CompilerCfg) ->
   ModuleName ->
   Daedalus ()
 saveHSCustomWriteFile writeFile' mb cfg' m =
   do ast <- ddlGetAST m astTC
      tdefs <- ddlGet declaredTypes
-     cfg <- getHaskellConfigFor cfg' m
+     let cfg = cfg' m
 
      let hs = hsModule cfg tdefs ast
      case mb of
@@ -49,23 +51,6 @@ saveHSCustomWriteFile writeFile' mb cfg' m =
          do createDirectoryIfMissing True dir
             let file = addExtension (dir </> HS.hsModName hs) "hs"
             writeFile' file (show (pp hs))
-
-getHaskellConfigFor :: CompilerCfg -> ModuleName -> Daedalus CompilerCfg
-getHaskellConfigFor cfg' m =
-  do srcFile <- ddlGet (moduleSourcePath m)
-     case srcFile of
-       Nothing -> pure cfg'
-       Just f ->
-         ddlIO
-         do let cfgFile = addExtension f ".hs"
-            yes <- doesFileExist cfgFile
-            if yes then processFile =<< readFile cfgFile else pure cfg'
-
-  where
-  processFile txt =
-    do print txt
-       pure cfg'
-
 
 writeOnlyIfChanged :: FilePath -> String -> IO ()
 writeOnlyIfChanged file cont =

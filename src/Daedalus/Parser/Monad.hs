@@ -2,7 +2,7 @@
 module Daedalus.Parser.Monad
   ( Parser
   , ParseError(..)
-  , runParser, runParserOnTokens
+  , runParser, runParserAt, runParserOnTokens
   , happyError, parseError
   , nextToken
   , currentLoc
@@ -33,10 +33,12 @@ data Input = Input { inputTokens    :: ![Lexeme Token]
                    , inputLastToken :: !SourceRange
                      -- ^ Last consumed token, if any
                    }
+runParser :: Parser a -> Text {- Input name -} -> Text -> Either ParseError a
+runParser p f = runParserAt p (startPos f)
 
 -- | Apply the given parser to some input.
-runParser :: Parser a -> Text {- Input name -} -> Text -> Either ParseError a
-runParser (Parser m) f txt =
+runParserAt :: Parser a -> SourcePos -> Text -> Either ParseError a
+runParserAt (Parser m) loc txt =
   case m i of
     Left err -> Left err
     Right (a,j) ->
@@ -47,14 +49,9 @@ runParser (Parser m) f txt =
                                  }
 
   where
-  i = Input { inputTokens    = lexer f txt
-            , inputLastToken = SourceRange { sourceFrom = p, sourceTo = p }
+  i = Input { inputTokens    = lexerAt loc txt
+            , inputLastToken = SourceRange { sourceFrom = loc, sourceTo = loc }
             }
-  p = SourcePos { sourceIndex  = 0
-                , sourceLine   = 1
-                , sourceColumn = 1
-                , sourceFile   = f
-                }
 
 -- | Apply the given parser to some input.
 runParserOnTokens :: Parser a -> Text {- Input name -} -> [Lexeme Token] -> Either ParseError a
