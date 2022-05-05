@@ -33,10 +33,10 @@ import Talos.Analysis.Projection (projectE)
 --------------------------------------------------------------------------------
 -- Slices
 
--- Grammars are summarised w.r.t a (pointed) predicate constraining
--- the post-condition.  If the predicate is bottom then we only care
--- about the constraints inside the grammar.
-data SummaryClass p = Assertions | Result p
+-- Grammars are summarised w.r.t a (pointed) collection of predicates
+-- constraining the post-condition.  If the predicate is bottom then
+-- we only care about the constraints inside the grammar.
+data SummaryClass p = Assertions | Result (Set p)
   deriving (Ord, Eq, Show, Generic, NFData)
 
 isAssertions, isResult :: SummaryClass p -> Bool
@@ -44,6 +44,14 @@ isAssertions Assertions = True
 isAssertions _ = False
 
 isResult = not . isAssertions
+
+summaryClassToPreds :: SummaryClass p -> [p]
+summaryClassToPreds Assertions = []
+summaryClassToPreds (Result p) = Set.toList p
+
+summaryClassFromPreds :: Ord p => [p] -> SummaryClass p
+summaryClassFromPreds [] = Assertions
+summaryClassFromPreds ps = Result (Set.fromList ps)
 
 -- We represent a Call by a set of the entangled args.  If the
 -- args aren't futher entangled by the calling context, then for
@@ -86,7 +94,7 @@ data CallNode p =
 
 -- This is a variant of Grammar from Core
 data Slice p =
-    SHole Type
+    SHole -- Type
   | SPure SLExpr
   --  | GetStream
   --  | SetStream Expr
@@ -160,10 +168,10 @@ class Eqv a where
 
 instance Eqv Int
 instance Eqv Integer
-instance Eqv p => Eqv (SummaryClass p) where
-  eqv Assertions Assertions = True
-  eqv (Result p) (Result q) = eqv p q
-  eqv _          _          = False
+instance Eq p => Eqv (SummaryClass p) 
+  -- eqv Assertions Assertions = True
+  -- eqv (Result p) (Result q) = eqv p q
+  -- eqv _          _          = False
 
 -- instance Eqv SLExpr -- juse (==)
 
@@ -173,7 +181,10 @@ instance (Eqv a, Eqv b) => Eqv (a, b) where
 instance (Eqv a, Eqv b, Eqv c) => Eqv (a, b, c) where
   eqv (a, b, c) (a', b', c') = a `eqv` a' && b `eqv` b' && c `eqv` c'
 
-instance Eqv p => Eqv (Slice p) where
+instance Eqv a => Eqv [a] where
+  eqv xs ys = and (zipWith eqv xs ys)
+
+instance Eq p => Eqv (Slice p) where
   eqv l r =
     case (l, r) of
       (SHole {}, SHole {}) -> True
@@ -183,14 +194,14 @@ instance Eqv p => Eqv (Slice p) where
       (SPure e, SPure e')  -> eqv e e' -- FIXME: needed?
       (SMatch {}, SMatch {}) -> True
       (SDo _ l r, SDo _ l' r')  -> (l, r) `eqv` (l', r')
-      (SChoice ls, SChoice rs)       -> and (zipWith eqv ls rs)
+      (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
       (SAssertion {}, SAssertion {}) -> True      
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
-instance Eqv p => Eqv (CallNode p) where
+instance Eq p => Eqv (CallNode p) where
   eqv CallNode { callClass = cl1, callSlices = paths1 }
       CallNode { callClass = cl2, callSlices = paths2 } =
     -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
@@ -205,15 +216,14 @@ instance Eqv SLExpr where
       (SVar {}, SVar {})      -> True
       (SPureLet x e1 e2 , SPureLet _x e1' e2') ->
         (e1, e2) `eqv` (e1', e2')
-      (SStruct _ty fs, SStruct _ty' fs') ->
-        and (zipWith (eqv `on` snd) fs fs')
+      (SStruct _ty fs, SStruct _ty' fs') -> map snd fs `eqv` map snd fs'
       (SECase e, SECase e') -> e `eqv` e'
       (SAp0 {}, SAp0 {})   -> True
       (SAp1 _op e, SAp1 _op' e') -> e `eqv` e'
       (SAp2 op e1 e2, SAp2 _op e1' e2') -> (e1, e2) `eqv` (e1', e2')
       (SAp3 op e1 e2 e3, SAp3 _op e1' e2' e3') ->
         (e1, e2, e3) `eqv` (e1', e2', e3')
-      (SApN op es, SApN _op es') -> and (zipWith eqv es es')
+      (SApN op es, SApN _op es') -> es `eqv` es'
       _ -> panic "Mismatched terms in eqv (SLExpr)" ["Left", showPP l, "Right", showPP r]      
 
 instance Eqv a => Eqv (Case a) where
@@ -343,7 +353,7 @@ traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
 instance TraverseUserTypes p => TraverseUserTypes (Slice p) where
   traverseUserTypes f sl =
     case sl of
-      SHole ty         -> SHole <$> traverseUserTypes f ty
+      SHole            -> pure SHole
       SPure v          -> SPure <$> traverseUserTypes f v
       SDo x l r        -> SDo  <$> traverseUserTypes f x
                                <*> traverseUserTypes f l
@@ -359,7 +369,7 @@ instance TraverseUserTypes p => TraverseUserTypes (CallNode p) where
   traverseUserTypes f cn  =
     (\n' -> cn { callName = n' }) <$> traverseUserTypes f (callName cn)
 
-instance TraverseUserTypes p => TraverseUserTypes (SummaryClass p) where
+instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
   traverseUserTypes f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
 
@@ -437,7 +447,7 @@ instance PP (CallNode p) where
 instance PP (Slice p) where
   pp sl =
     case sl of
-      SHole ty       -> "hole" <> ppPrec 1 ty
+      SHole          -> "[]"
       SPure e        -> "pure" <+> ppPrec 1 e
       SMatch e       -> "match" <+> pp e
       SDo  {}        -> "do" <+> ppStmts' sl
@@ -456,7 +466,7 @@ ppStmts' sl =
 
 instance PP p => PP (SummaryClass p) where
   pp Assertions = "Assertions"
-  pp (Result p) = "Result" <+> pp p
+  pp (Result p) = "Result" <+> brackets (commaSep (map pp (Set.toList p)))
 
 instance PP SLExpr where
   ppPrec n expr =

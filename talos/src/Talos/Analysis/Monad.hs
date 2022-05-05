@@ -4,7 +4,8 @@
 
 {-# LANGUAGE TupleSections #-}
 module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs
-                            , Summary (..), Summaries, IterM, AnalysisState(..)
+                            , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
+                            , calcFixpoint
                             , module Export) where
 
 import           Data.Map                     (Map)
@@ -18,11 +19,12 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.Analysis.Domain
-import           Talos.Analysis.EntangledVars
+import           Talos.Analysis.Fixpoint      as Export (addSummary,
+                                                         currentDeclName,
+                                                         currentSummaryClass,
+                                                         lookupSummary)
+import qualified Talos.Analysis.Fixpoint      as F
 import           Talos.Analysis.Slice
-import qualified Talos.Analysis.Fixpoint as F
-import Talos.Analysis.Fixpoint as Export (currentDeclName, currentSummaryClass
-                                         , lookupSummary, addSummary, calcFixpoint)
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
@@ -42,7 +44,7 @@ data Summary ae =
 emptySummary :: SummaryClass' ae -> Summary ae
 emptySummary = Summary emptyDomain []
 
-type Summaries ae = Map FName (Map (SummaryClass (AbsPred ae)) (Summary ae))
+type Summaries ae = Map FName (Map (SummaryClass' ae) (Summary ae))
 
 --------------------------------------------------------------------------------
 -- Instances
@@ -83,7 +85,7 @@ initState decls funs nguid = AnalysisState
   , nextGUID    = nguid
   }
 
-newtype IterM ae a = IterM { getIterM :: F.FixpointM FName (SummaryClass (AbsPred ae)) (Summary ae) AnalysisState a}
+newtype IterM ae a = IterM { getIterM :: F.FixpointM FName (SummaryClass' ae) (Summary ae) AnalysisState a}
   deriving (Functor, Applicative, Monad)
 
 --------------------------------------------------------------------------------
@@ -146,3 +148,10 @@ requestSummary nm cl = IterM $ do
       pure $ emptySummary cl
     Just s  -> pure s
 
+calcFixpoint :: (AbsEnv ae, Ord (AbsPred ae)) =>
+                (FName -> SummaryClass' ae -> IterM ae (Summary ae)) ->
+                F.Worklist FName (SummaryClass' ae) ->
+                AnalysisState -> (AnalysisState, Summaries ae)
+calcFixpoint m wl = F.calcFixpoint seqv (\n cl -> getIterM (m n cl)) wl
+  where
+    seqv oldS newS = domainEqv (domain oldS) (domain newS)

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
  -- for dealing with TCDecl and existential k
 
 -- We walk through the each decl figuring out if it has things we
@@ -13,40 +14,31 @@ module Talos.Analysis ( summarise
                       -- FIXME: move
                       ) where
 
-import Control.Monad.State
-import Data.List (inits)
 import qualified Data.Map as Map
-import Data.Map (Map)
 import qualified Data.Set as Set
-import Data.Set (Set)
-import Data.Maybe ( isJust )
 
 import Daedalus.GUID
 import Daedalus.PP
 import Daedalus.Panic
-
 import Daedalus.Core
 import Daedalus.Core.Type
 
 import Talos.Analysis.Domain
-import Talos.Analysis.EntangledVars
 import Talos.Analysis.Monad
 import Talos.Analysis.Slice
-import Talos.Analysis.Projection (freeEntangledVars, freeVarsToEntangledVars)
 
 -- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: AbsEnv ae => Module -> GUID -> (Summaries ae, GUID)
+summarise :: AbsEnv ae =>
+             Module -> GUID -> (Summaries ae, GUID)
 summarise md nguid = (summaries, nextGUID s')
   where
     -- FIXME: need to rename bound vars to avoid clashing in synthesis
-    (s', summaries) = calcFixpoint seqv doOne wl0 s0
+    (s', summaries) = calcFixpoint doOne wl0 s0
     s0    = initState (mGFuns md) (mFFuns md) nguid
-
-    seqv oldS newS = domainEqv (exportedDomain oldS) (exportedDomain newS)
 
     doOne nm cl
       | Just decl <- Map.lookup nm decls = summariseDecl cl decl
@@ -64,13 +56,15 @@ summarise md nguid = (summaries, nextGUID s')
 --------------------------------------------------------------------------------
 -- Summary functions
 
-summariseDecl :: AbsEnv ae => SummaryClass ae -> Fun Grammar -> IterM ae (Summary ae)
+summariseDecl :: AbsEnv ae => SummaryClass' ae -> Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls Fun { fName = fn
                       , fDef = Def def
                       , fParams = ps } = do
 
-  d <- runSummariseM (summariseG def)
+  let preds = summaryClassToPreds cls
+  d <- runSummariseM (summariseG preds def)
 
+        
   let newS = Summary { domain = d
                      , params = ps
                      , summaryClass = cls
@@ -86,11 +80,11 @@ summariseDecl _ _ = panic "Expecting a defined decl" []
 --------------------------------------------------------------------------------
 -- Decl-local monad 
 
-newtype SummariseMState =
-  SummariseMState { pathRoots :: PathRootMap }
+-- newtype SummariseMState =
+--   SummariseMState { pathRoots :: PathRootMap }
 
-emptySummariseMState :: SummariseMState
-emptySummariseMState = SummariseMState Map.empty
+-- emptySummariseMState :: SummariseMState
+-- emptySummariseMState = SummariseMState Map.empty
 
 -- newtype SummariseM a = SummariseM { getSummariseM :: StateT SummariseMState IterM a }
 --   deriving (Applicative, Functor, Monad)
@@ -113,7 +107,7 @@ liftIterM = id -- SummariseM . lift
 
 -- Get the summary and link it to the actual arguments
 --
--- For each element in expDom, we need to construct a domain element
+-- For each element in domain, we need to construct a domain element
 -- by substituting the free variables in the argument for the
 -- paramaters in the entanglement set.  E.g., if we have
 --
@@ -121,100 +115,65 @@ liftIterM = id -- SummariseM . lift
 --
 -- and we have a call
 --
--- f (a + 1) (b + c) q
+-- f a b q
 --
 -- then we produce a node like
 --
--- {a, b, c} => Call m_res args {x}
+-- {a, b} => Call args 0
 --
--- Where {a, b, c} is the result of substituting the args in {x, y};
--- m_res is Nothing unless 'x' is ResultVar and m_x is not Nothing;
--- args are all the actuals (this is informative, and doesn't depend
--- on the analysis); and {x} is a name for the path set above
--- (indexed by the variable returned by explodeDomain).
+-- Where {a, b} is the result of substituting the args in {x, y} and
+-- 0 is a name for the path set above.
 
+exprAsVar :: Expr -> Maybe Name
+exprAsVar (Var n) = Just n
+exprAsVar _       = Nothing
 
--- Given a call F(e1, e2, e3) to F(x, y, z) with domain
---
--- { {x.a.b, x.c, y.a} |-> sl1 , {x.d, y.c} |-> sl2 }
---
--- we need to construct the new var sets for the derived domain
--- (i.e. where the node is Call F) by figuring out the free evs in the
--- arguments w.r.t the domain field sets, so in the above we have
---
--- { e1/{a.b, c}, e2/{a} } and { e1/{d}, e2/{c} }
---
--- noting that two resulting var sets may overlap.
+summariseCall :: AbsEnv ae => [AbsPred ae] -> FName -> [Expr] ->
+                 SummariseM ae (Domain ae)
+summariseCall preds fn args 
+  | Just vargs <-  mapM exprAsVar args = do
+      m_invs <- liftIterM (getDeclInv fn)
+      case m_invs of
+        -- We only really care about inverses if we have a result
+        -- (probably otherwise pure?)
+        Just f | not (null preds) -> do
+           -- FIXME: we ignore the projection (we over project)
+           n <- liftIterM (freshNameSys (fnameType fn))
+           let (ifn, pfn) = f n args
+           let gs = GuardedSlice
+                 { gsEnv   = absInverse n ifn pfn
+                 , gsPred  = preds
+                 , gsSlice = SInverse n ifn pfn
+                 }
+           pure (singletonDomain gs)
 
-substituteArgs :: Map Name Expr -> Maybe (BaseEntangledVar, a) ->
-                  EntangledVars -> EntangledVars
-substituteArgs argsMap m_x evs =
-  substEntangledVars evs $ \bv fset ->
-    case bv of
-      -- fset here is the result of the analysis, fset' was the
-      -- requested field set, so it should be contained in fset, but
-      -- may not be equal (if the analysis overapproximated, for
-      -- example)
-      ResultVar
-        | Just (x, _fsets) <- m_x -> singletonEntangledVars x fset
-        | otherwise -> mempty
+        _ -> do
+          let cl = summaryClassFromPreds preds
+          Summary dom ps _cl <- liftIterM $ requestSummary fn cl
+  
+          -- do d <- liftIterM $ currentDeclName
+          --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
 
-      ProgramVar n
-        | Just e <- Map.lookup n argsMap -> freeEntangledVars fset e
-        | otherwise -> panic "Missing parameter" [showPP n]
+          -- We need to now substitute the actuals for the params in
+          -- summary, and merge the results (the substitution may have
+          -- introduced duplicates, so we need to do a pointwise merge)
+          let argsMap     = Map.fromList $ zip ps vargs
+              argsFor env = zipWith (\param arg -> arg <$ absProj param env) ps vargs
+              mkCallNode i gs =
+                CallNode { callClass        = cl
+                         , callName         = fn
+                         , callSlices       = Map.singleton i (argsFor (gsEnv gs))
+                         }
 
-summariseCall :: Maybe (BaseEntangledVar, Set FieldSet) -> FName -> [Expr] ->
-                 SummariseM Domain
-summariseCall m_x fn args = do
-  m_invs <- liftIterM (getDeclInv fn)
-  case m_invs of
-    -- We only really care about inverses if we have a result
-    -- (probably otherwise pure?)
-    Just f | Just (x, _) <- m_x -> do -- FIXME: we ignore the projection (we over project)
-      n <- liftIterM (freshNameSys (fnameType fn))
-      let (ifn, pfn) = f n args
-      let sl  = SLeaf $ SInverse n ifn pfn
-          evs0 = freeEntangledVars emptyFieldSet ifn
-                <> freeEntangledVars emptyFieldSet pfn
-          evs  = snd $ deleteBaseEV (ProgramVar n) evs0
+              mkCall i gs =
+                GuardedSlice { gsEnv   = absSubstEnv argsMap (gsEnv gs)
+                             , gsPred  = gsPred gs -- FIXME: subst?
+                             , gsSlice = SCall (mkCallNode i gs)
+                             }
+                
+          pure $ domainFromElements $ zipWith mkCall [0..] (elements dom)
+  | otherwise = panic "Saw non-Var arg" []
 
-      pure $ singletonDomain (singletonEntangledVars x emptyFieldSet <> evs) sl
-
-    _ -> do
-      -- We ignore rMap for this bit, it is only used during synthesis of
-      -- the internal bytes.  If cl is FunctionResult then ResultVar will
-      -- occur in expDom.
-      Summary expDom _rMap ps _cl <- liftIterM $ requestSummary fn cl
-
-      -- do d <- liftIterM $ currentDeclName
-      --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
-
-      -- We need to now substitute the actuals for the params in
-      -- summary, and merge the results (the substitution may have
-      -- introduced duplicates, so we need to do a pointwise merge)
-      let argsMap    = Map.fromList $ zip ps args -- FIXME: This gets recomputed for each fset
-          mkCallNode (evs, _sl) =
-            CallNode { callClass        = cl
-                     , callAllArgs      = argsMap
-                     , callName         = fn
-                     , callPaths        = Set.singleton evs {- sl -}
-                     }
-
-          mkCall b@(evs, _) =
-            singletonDomain (substituteArgs argsMap m_x evs)
-                            (SLeaf . SCall $ mkCallNode b)
-
-      pure $ foldMap mkCall (explodeDomain expDom)
-
-  where
-    cl | Just (_, fsets) <- m_x = FunctionResult fsets
-       | otherwise              = Assertions
-
-asSingleton :: Domain -> (EntangledVars, Slice)
-asSingleton dom
-  | nullDomain dom = (mempty, SUnconstrained)
-  | [r] <- elements dom = r
-  | otherwise = panic "Saw non-singleton domain" [show (pp dom)]
 
 -- Case is a bit tricky.
 -- 
@@ -270,22 +229,37 @@ caseIsTotal (Case e alts)
       TFlavUnion ls -> length ls
       TFlavEnum  ls -> length ls
 
-summariseCase :: AbsEnv ae => Case Grammar -> SummariseM ae (Domain ae)
-summariseCase m_x cs@(Case y alts) = do
-  bDoms   <- mapM (summariseG m_x . snd) alts
+-- For case and choose we have to make sure the same result happens on
+-- all slices, which we can only do by making sure we have a single
+-- slice (well, this is the simplest approach).
+collapseDoms :: AbsEnv ae => [AbsPred ae] ->
+                ([Slice (AbsPred ae)] -> Slice (AbsPred ae)) ->
+                [Domain ae] -> Domain ae
+collapseDoms _preds _mk []       = emptyDomain
+collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
+  where
+    (envs, sls, doms) = unzip3 (map (asSingleton . squashDomain) branchDs)
+    gs' = GuardedSlice { gsEnv   = foldl1 absUnion envs
+                       , gsPred  = preds
+                       , gsSlice = mk sls
+                       }
+    -- asSingleton :: Domain ae -> (ae, Slice (AbsPred ae), Domain ae)
+    asSingleton dom
+      | null (elements dom)  = (absTop, SHole, dom)
+      | [gs] <- elements dom = (gsEnv gs, gsSlice gs, dom { elements = [] })
+      | otherwise = panic "Saw non-singleton domain" [] -- [show (pp dom)]
+
+summariseCase :: AbsEnv ae => [AbsPred ae] ->
+                 Case Grammar -> SummariseM ae (Domain ae)
+summariseCase preds cs@(Case y alts) = do
+  let (pats, rhss) = unzip alts
+  bDoms   <- mapM (summariseG preds) rhss
   let trivial   = all nullDomain bDoms
       total     = caseIsTotal cs
 
-  if trivial && total then pure emptyDomain else do
-    -- We have a non-trivial node, so we construct a singleton domain.
-    -- This breaks the domain abstraction, but it is a bit simpler to
-    -- write like this.
-    let pats = map fst alts
-        (vs, els) = unzip (map (asSingleton . squashDomain) bDoms)
-        cs'       = Case y (zip pats els)
-        y_vs      = singletonEntangledVars (ProgramVar y) emptyFieldSet
-        vs'       = mergeEntangledVarss (y_vs : vs)
-    pure (singletonDomain vs' (SLeaf (SCase total cs')))
+  if trivial && total
+    then pure emptyDomain
+    else pure (collapseDoms preds (SCase total . Case y . zip pats) bDoms)
 
 -- Some examples:
 --
@@ -353,59 +327,36 @@ summariseCase m_x cs@(Case y alts) = do
 -- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
 -- that we choose one.
 
-summariseG :: AbsEnv ae => SummaryClass' ae -> Grammar -> SummariseM ae (Domain ae)
-summariseG cl tc =
+summariseG :: AbsEnv ae => [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
+summariseG preds tc =
   case tc of
-    Pure e
-      | Result p <- cl -> pure (absPre p e)
-      | otherwise     -> pure emptyDomain -- should this be (absTop, SHole)?
+    -- When preds == [] this is emptyDomain
+    Pure e -> pure $ domainFromElements $
+      [ GuardedSlice { gsEnv = env, gsPred = [p], gsSlice = SPure e'}
+      | p <- preds, let (env, e') = absPre p e ]
+        
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
-    Match _ (MatchByte bset)
-      | Result p <- cl -> pure (absByteSet p e)
-      | otherwise      -> pure emptyDomain
-    Match {} | isResult cl -> panic "Saw a relevant match" [showPP tc]
-             | otherwise   -> pure emptyDomain
+    Match _ (MatchByte bset) -> pure $ domainFromElements $
+      [ GuardedSlice { gsEnv = absByteSet p bset
+                     , gsPred = [p]
+                     , gsSlice = SMatch bset}
+      | p <- preds ]
+    Match {}
+      | not (null preds) -> panic "Saw a relevant match" [showPP tc]
+      | otherwise        -> pure emptyDomain
     Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
 
     Do_ lhs rhs -> do
       -- FIXME: we might want to have a nicer name
-      n <- freshNameSys
-      summariseG cl (Do n lhs rhs)
+      n <- freshNameSys (typeOf lhs)
+      summariseG preds (Do n lhs rhs)
       -- rhsD <- dontCareD 1 <$> summariseG m_x rhs
       -- merge rhsD <$> summariseG Nothing lhs
 
-    Do x lhs rhs -> do
-      rhsD <- summariseG cl rhs
-      let (matching, rhsD') = partitionDomain x rhsD
-          indepD            = mapSlices (SDo x SHole) rhsD'
-      if null matching
-        then merge indepD . mapSlices (\sl -> SDo x sl SHole) <$> summariseG Assertions lhs
-        else do
-          
-          -- we care about the variable, so we need a Result summary
-        
-          -- FIXME: I _think_ the preds should be disjoint, so we
-          -- don't get anything by collecting the predicates first.
-        
-          lhsD <- summariseG (Just (ex', Set.fromList fset)) lhs
-          let lhsD' = mapDomain (bindBaseEV x') lhsD
-              -- inefficient, but simple
-              dom = merge rhsD lhsD'
-
-          let (newRoots, dom') = splitRemoveVar ex' dom
-          dom' <$ addPathRoot x' newRoots
-
-          -- d <- liftIterM $ currentDeclName
-
-          -- traceM (show $ "in" <+> pp d <+> vcat [ "var" <+> pp x' <+> "size" <+> pp (sizeEntangledVars ns)
-          --                                       , "binding" <+> pp ns <+> pp sl
-          --                                       , "dom"  <+> pp dom
-          --                                       , "lhsD" <+> pp lhsD
-          --                                       , "rhsD" <+> pp rhsD
-          --                                       ])
-
-    Let n e rhs -> summariseG m_x (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
+    Do x lhs rhs -> summariseBind preds x lhs rhs
+      
+    Let n e rhs -> summariseG preds (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
 
     -- doms contains a domain for each path in the choose. We create a
     -- diagonal list of domains, like
@@ -415,50 +366,60 @@ summariseG cl tc =
     -- and then merge
     --
     Choice _biased gs -> do
-      doms <- mapM (summariseG m_x) gs
-      let mkOne p s fp = SLeaf (SChoice (p ++ [fp] ++ s))
-          mk p d' s = mapDomain (\_ -> mkOne p s) d'
-          doms' = diagonalise SUnconstrained doms mk
-      pure (squashDomain $ mconcat doms') -- FIXME: do we _really_ have to squash here?
+      doms <- mapM (summariseG preds) gs
+      pure (collapseDoms preds SChoice doms)
 
-    Call fn args  -> summariseCall m_x fn args
-    Annot _ g     -> summariseG m_x g
-
+    Call fn args  -> summariseCall preds fn args
+    Annot _ g     -> summariseG preds g
+ 
     -- Cases
     GuardP e g    -> do
-      rhsD <- dontCareD 1 <$> summariseG m_x g
-      let lhsD = singletonDomain (freeEntangledVars emptyFieldSet e)
-                                 (SLeaf (SAssertion (GuardAssertion e)))
+      n <- freshNameSys TUnit
+      rhsD <- mapSlices (SDo n SHole) <$> summariseG preds g
+      let lhsD = singletonDomain (GuardedSlice { gsEnv  = absGuard e
+                                               , gsPred = []
+                                               , gsSlice = SAssertion e
+                                               })
       pure (merge lhsD rhsD)
 
-    GCase cs      -> summariseCase m_x cs
+    GCase cs      -> summariseCase preds cs
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
     unimplemented = panic "summariseG unimplemented" [showPP tc]
-
-    -- We summarise the lhs for every use of its result.
-    bindOne x (isRes, (gs, p)) lhs = do
-      lhsD <- summariseG (Result p) lhs
-      -- FIXME: index domains by if they have a result?
-      let resD = case resultElement lhsD of
-            Nothing  -> panic "Missing result" []
-            Just gs' ->
-              let env' = absUnion (gsEnv gs) (gsEnv gs')
-                  sl'  = SDo x (gsSlice gs') (gsSlice gs)
-              in singletonResultDomain (GuardedSlice env' sl')
-          lhsD' = mapSlices (\sl -> SDo x sl SHole) (lhsD { resultElement = Nothing })
-      pure (isRes, (merge resD lhsD'))
       
-    bindBaseEV x evs sl
-      | Just _ <- lookupBaseEV (ProgramVar x) evs = SDo (Just x) sl SUnconstrained
-      | otherwise                                 = sl
+summariseBind :: AbsEnv ae =>
+                 [AbsPred ae] -> Name -> Grammar -> Grammar ->
+                 SummariseM ae (Domain ae)
+summariseBind preds x lhs rhs = do
+  rhsD <- summariseG preds rhs
+  let (matching, rhsD') = partitionDomainForVar x rhsD
+      preds'            = map snd matching
+  lhsD <- summariseG preds' lhs
+  let (lhsMatching, lhsD') = partitionDomainForResult lhsD
+      -- For each element of lhsMatching we find the corresponding
+      -- rhs(s) from matching, merge if there are multiple, and the
+      -- bind them all together.
+      --
+      -- gsFor gets the rhs(s) for a particular result lhs
+      gsFor gs = [ gs' | (gs', p) <- matching, p `elem` gsPred gs ]
+        
+      els = [ bindGuardedSlice x gs gs'
+            | gs <- lhsMatching
+            , let gs' = foldl1 merge (gsFor gs)
+            ]
 
-diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
-diagonalise el xs f =
-  let pfxs = inits (replicate (length xs - 1) el)
-      sfxs = reverse pfxs
-  in zipWith3 f pfxs xs sfxs
+      -- There are the elements which do not care about x.
+      indepLHSD = mapSlices (\sl -> SDo x sl SHole) lhsD'
+      indepRHSD = mapSlices (SDo x SHole) rhsD'
+            
+  pure (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
+
+-- diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
+-- diagonalise el xs f =
+--   let pfxs = inits (replicate (length xs - 1) el)
+--       sfxs = reverse pfxs
+--   in zipWith3 f pfxs xs sfxs
 
 
 -- -----------------------------------------------------------------------------
