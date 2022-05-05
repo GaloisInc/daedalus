@@ -40,8 +40,8 @@ summarise md nguid = (summaries, nextGUID s')
     (s', summaries) = calcFixpoint doOne wl0 s0
     s0    = initState (mGFuns md) (mFFuns md) nguid
 
-    doOne nm cl
-      | Just decl <- Map.lookup nm decls = summariseDecl cl decl
+    doOne nm cl fid
+      | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
       | otherwise = panic "Missing decl" [showPP nm]
 
     wl0   = Set.fromList grammarDecls
@@ -49,25 +49,26 @@ summarise md nguid = (summaries, nextGUID s')
     decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
 
     grammarDecls =
-      [ (name, Assertions)
+      [ (name, assertionsFID) -- FIXME: using an explicit FID is a bit gross here
       | Fun { fName = name, fDef = Def _ } <- mGFuns md
       ]
 
 --------------------------------------------------------------------------------
 -- Summary functions
 
-summariseDecl :: AbsEnv ae => SummaryClass' ae -> Fun Grammar -> IterM ae (Summary ae)
-summariseDecl cls Fun { fName = fn
-                      , fDef = Def def
-                      , fParams = ps } = do
+summariseDecl :: AbsEnv ae =>
+                 SummaryClass' ae -> FInstId ->
+                 Fun Grammar -> IterM ae (Summary ae)
+summariseDecl cls fid Fun { fName = fn
+                          , fDef = Def def
+                          , fParams = ps } = do
 
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
-
         
   let newS = Summary { domain = d
                      , params = ps
-                     , summaryClass = cls
+                     , fInstId = fid
                      }
   -- -- Sanity check
   -- unless (domainInvariant (exportedDomain newS)) $
@@ -75,7 +76,7 @@ summariseDecl cls Fun { fName = fn
 
   pure newS
 
-summariseDecl _ _ = panic "Expecting a defined decl" []
+summariseDecl _ _ _ = panic "Expecting a defined decl" []
 
 --------------------------------------------------------------------------------
 -- Decl-local monad 
@@ -149,7 +150,7 @@ summariseCall preds fn args
 
         _ -> do
           let cl = summaryClassFromPreds preds
-          Summary dom ps _cl <- liftIterM $ requestSummary fn cl
+          Summary dom ps fid <- liftIterM $ requestSummary fn cl
   
           -- do d <- liftIterM $ currentDeclName
           --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
@@ -160,7 +161,7 @@ summariseCall preds fn args
           let argsMap     = Map.fromList $ zip ps vargs
               argsFor env = zipWith (\param arg -> arg <$ absProj param env) ps vargs
               mkCallNode i gs =
-                CallNode { callClass        = cl
+                CallNode { callClass        = fid
                          , callName         = fn
                          , callSlices       = Map.singleton i (argsFor (gsEnv gs))
                          }
@@ -233,7 +234,7 @@ caseIsTotal (Case e alts)
 -- all slices, which we can only do by making sure we have a single
 -- slice (well, this is the simplest approach).
 collapseDoms :: AbsEnv ae => [AbsPred ae] ->
-                ([Slice (AbsPred ae)] -> Slice (AbsPred ae)) ->
+                ([Slice] -> Slice) ->
                 [Domain ae] -> Domain ae
 collapseDoms _preds _mk []       = emptyDomain
 collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms

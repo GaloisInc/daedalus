@@ -54,7 +54,7 @@ tranclTypeDefs md roots0 = go [] roots0 (reverse (mTypes md))
 
 
 -- we already have recs and it is ordered, so we don't need to calculate a fixpoint
-sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
+sliceToSMTTypeDefs :: Module -> Slice p -> [Rec SMTTypeDef]
 sliceToSMTTypeDefs md = tranclTypeDefs md . freeTCons
 
 tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
@@ -76,7 +76,7 @@ tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [],
     mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
       
-defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice p -> SolverT m ()
 defineSliceTypeDefs md sl = mapM_ defineSMTTypeDefs (sliceToSMTTypeDefs md sl)
 
 symExecTy :: Type -> SExpr

@@ -7,13 +7,11 @@
 
 module Talos.Analysis.Slice where
 
-import Control.Applicative ((<|>))
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (fold)
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
@@ -25,13 +23,20 @@ import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
-import Talos.Analysis.EntangledVars
-import Talos.Analysis.Projection (projectE)
-
 -- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- Slices
+
+-- This tags a particular instance of a function, It is used to name
+-- SummaryClasses so that after analysis we can forget which AbsEnv
+-- was used to generate the slices.
+newtype FInstId = FInstId Int
+  deriving (Eq, Ord, Generic, NFData)
+
+-- We reserve a well-known id for the assertions class
+assertionsFID :: FInstId
+assertionsFID = FInstId 0
 
 -- Grammars are summarised w.r.t a (pointed) collection of predicates
 -- constraining the post-condition.  If the predicate is bottom then
@@ -79,9 +84,8 @@ summaryClassFromPreds ps = Result (Set.fromList ps)
 -- F will generate slices for 'x', 'y', and the result, but at Q we
 -- entangle 'x' and 'y' through 'a'
 
-data CallNode p =
-  CallNode { callClass        :: SummaryClass p
-           -- ^ A shared map (across all domain elements) of the args to the call
+data CallNode cl =
+  CallNode { callClass        :: cl
            , callName         :: FName
            -- ^ The called function
            , callSlices      :: Map Int [Maybe Name]
@@ -93,7 +97,7 @@ data CallNode p =
   deriving (Generic, NFData)
 
 -- This is a variant of Grammar from Core
-data Slice p =
+data Slice =
     SHole -- Type
   | SPure SLExpr
   --  | GetStream
@@ -102,11 +106,11 @@ data Slice p =
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SDo Name (Slice p) (Slice p)
+  | SDo Name Slice Slice
   --  | Let Name Expr Grammar
-  | SChoice [Slice p] -- This gives better probabilities than nested Ors
-  | SCall (CallNode p) 
-  | SCase Bool (Case (Slice p)) 
+  | SChoice [Slice] -- This gives better probabilities than nested Ors
+  | SCall (CallNode FInstId) 
+  | SCase Bool (Case Slice)
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
@@ -168,7 +172,8 @@ class Eqv a where
 
 instance Eqv Int
 instance Eqv Integer
-instance Eq p => Eqv (SummaryClass p) 
+instance Eqv FInstId
+-- instance Eq p => Eqv (SummaryClass p) 
   -- eqv Assertions Assertions = True
   -- eqv (Result p) (Result q) = eqv p q
   -- eqv _          _          = False
@@ -184,7 +189,7 @@ instance (Eqv a, Eqv b, Eqv c) => Eqv (a, b, c) where
 instance Eqv a => Eqv [a] where
   eqv xs ys = and (zipWith eqv xs ys)
 
-instance Eq p => Eqv (Slice p) where
+instance Eqv Slice where
   eqv l r =
     case (l, r) of
       (SHole {}, SHole {}) -> True
@@ -193,7 +198,7 @@ instance Eq p => Eqv (Slice p) where
       
       (SPure e, SPure e')  -> eqv e e' -- FIXME: needed?
       (SMatch {}, SMatch {}) -> True
-      (SDo _ l r, SDo _ l' r')  -> (l, r) `eqv` (l', r')
+      (SDo _ l1 r1, SDo _ l2 r2)  -> (l1, r1) `eqv` (l2, r2)
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
@@ -201,7 +206,7 @@ instance Eq p => Eqv (Slice p) where
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
-instance Eq p => Eqv (CallNode p) where
+instance Eqv p => Eqv (CallNode p) where
   eqv CallNode { callClass = cl1, callSlices = paths1 }
       CallNode { callClass = cl2, callSlices = paths2 } =
     -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
@@ -214,16 +219,16 @@ instance Eqv SLExpr where
       (EHole {}, _)           -> False
       (_, EHole {})           -> False
       (SVar {}, SVar {})      -> True
-      (SPureLet x e1 e2 , SPureLet _x e1' e2') ->
+      (SPureLet _x e1 e2 , SPureLet _x' e1' e2') ->
         (e1, e2) `eqv` (e1', e2')
       (SStruct _ty fs, SStruct _ty' fs') -> map snd fs `eqv` map snd fs'
       (SECase e, SECase e') -> e `eqv` e'
       (SAp0 {}, SAp0 {})   -> True
       (SAp1 _op e, SAp1 _op' e') -> e `eqv` e'
-      (SAp2 op e1 e2, SAp2 _op e1' e2') -> (e1, e2) `eqv` (e1', e2')
-      (SAp3 op e1 e2 e3, SAp3 _op e1' e2' e3') ->
+      (SAp2 _op e1 e2, SAp2 _op' e1' e2') -> (e1, e2) `eqv` (e1', e2')
+      (SAp3 _op e1 e2 e3, SAp3 _op' e1' e2' e3') ->
         (e1, e2, e3) `eqv` (e1', e2', e3')
-      (SApN op es, SApN _op es') -> es `eqv` es'
+      (SApN _op es, SApN _op' es') -> es `eqv` es'
       _ -> panic "Mismatched terms in eqv (SLExpr)" ["Left", showPP l, "Right", showPP r]      
 
 instance Eqv a => Eqv (Case a) where
@@ -252,7 +257,7 @@ instance Merge a => Merge (Case a) where
     where
       goAlt (p, a1) (_p, a2) = (p, merge a1 a2)
 
-instance Eq p => Merge (Slice p) where
+instance Merge Slice where
   merge l r =
     case (l, r) of
       (SHole {}, _)                  -> r
@@ -279,7 +284,7 @@ instance Merge SLExpr where
         SPureLet x (merge e1 e1') (merge e2 e2')
       (SStruct ty fs, SStruct _ty fs') ->
         -- FIXME: we assume the orders match up here.
-        SStruct ty [ (l, merge e e') | ((l, e), (_, e')) <- zip fs fs' ] 
+        SStruct ty [ (l', merge e e') | ((l', e), (_, e')) <- zip fs fs' ] 
       (SECase e, SECase e') -> SECase (merge e e')
       (SAp0 {}, SAp0 {})   -> l
       (SAp1 op e, SAp1 _op e') -> SAp1 op (merge e e')
@@ -293,7 +298,7 @@ instance Merge SLExpr where
 -- Called slices
 --
 
-sliceToCallees :: Ord p => Slice p -> Set (FName, SummaryClass p, Int)
+sliceToCallees :: Slice -> Set (FName, FInstId, Int)
 sliceToCallees = go
   where
     go sl = case sl of
@@ -313,7 +318,7 @@ sliceToCallees = go
 --
 --  Used for getting deps for the SMT solver defs.
 
-instance FreeVars (Slice p) where
+instance FreeVars Slice where
   freeVars sl =
     case sl of
       SHole {}       -> mempty
@@ -338,7 +343,7 @@ instance FreeVars (Slice p) where
       SCase _ c      -> freeFVars c
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
-      SInverse _ f p -> {- freeFVars f <> -} freeFVars p 
+      SInverse _ _f p -> {- freeFVars f <> -} freeFVars p 
 
 instance FreeVars (CallNode p) where
   freeVars cn  = foldMap freeVars (Map.elems (callSlices cn))
@@ -350,7 +355,7 @@ traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applic
                         (UserType -> f UserType) -> Map a b -> f (Map a b)
 traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
 
-instance TraverseUserTypes p => TraverseUserTypes (Slice p) where
+instance TraverseUserTypes Slice where
   traverseUserTypes f sl =
     case sl of
       SHole            -> pure SHole
@@ -365,12 +370,12 @@ instance TraverseUserTypes p => TraverseUserTypes (Slice p) where
       SCase b c        -> SCase b <$> traverseUserTypes f c
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
-instance TraverseUserTypes p => TraverseUserTypes (CallNode p) where
+instance TraverseUserTypes (CallNode p) where
   traverseUserTypes f cn  =
     (\n' -> cn { callName = n' }) <$> traverseUserTypes f (callName cn)
 
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
-  traverseUserTypes f Assertions = pure Assertions
+  traverseUserTypes _f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
 
 instance TraverseUserTypes SLExpr where
@@ -438,13 +443,13 @@ instance FreeVars SLExpr where
 instance PP (CallNode p) where
   ppPrec n CallNode { callName = fname, callSlices = sls } =
     wrapIf (n > 0) $ pp fname
-    <+> vcat (map (\(n, vs) -> brackets (pp n) <> parens (commaSep (map ppA vs))) (Map.toList sls))
+    <+> vcat (map (\(n', vs) -> brackets (pp n') <> parens (commaSep (map ppA vs))) (Map.toList sls))
     where
       ppA Nothing = "_"
       ppA (Just v) = pp v
     
 -- c.f. PP Grammar
-instance PP (Slice p) where
+instance PP Slice where
   pp sl =
     case sl of
       SHole          -> "[]"
@@ -458,11 +463,14 @@ instance PP (Slice p) where
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
       
-ppStmts' :: Slice p -> Doc
+ppStmts' :: Slice -> Doc
 ppStmts' sl =
   case sl of
     SDo x g1 g2 -> pp x <+> "<-" <+> pp g1 $$ ppStmts' g2
     _           -> pp sl
+
+instance PP FInstId where
+  pp (FInstId i) = pp i
 
 instance PP p => PP (SummaryClass p) where
   pp Assertions = "Assertions"

@@ -9,20 +9,18 @@
 
 module Talos.Analysis.Domain where
 
-import Data.Function (on)
-import Control.DeepSeq (NFData)
-import GHC.Generics (Generic)
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.List (partition, foldl1')
-import Data.Either (partitionEithers)
-import Data.Maybe (mapMaybe)
+import           Control.DeepSeq (NFData)
+import           Data.Either     (partitionEithers)
+import           Data.Function   (on)
+import           Data.List       (foldl1', partition)
+import           Data.Map        (Map)
+import qualified Data.Map        as Map
+import           GHC.Generics    (Generic)
 
-import Daedalus.Core (Name, Expr, ByteSet)
-import Daedalus.PP
-import Daedalus.Panic
+import           Daedalus.Core  (ByteSet, Expr, Name)
+import           Daedalus.Panic
 
-import Talos.Analysis.Slice
+import           Talos.Analysis.Slice
 
 --------------------------------------------------------------------------------
 -- Abstract Environments
@@ -50,7 +48,7 @@ data GuardedSlice ae = GuardedSlice
   -- ^ The predicate(s) used to generate the result in this slice.  If
   -- non-empty, this slice returns a value (i.e., the last grammar
   -- isn't a hole or a non-result call)
-  , gsSlice :: Slice (AbsPred ae)
+  , gsSlice :: Slice
   }
   deriving (Generic)
 
@@ -67,7 +65,7 @@ instance AbsEnv ae => Eqv (GuardedSlice ae) where
     gsPred gs == gsPred gs' && -- FIXME, we have (==) over preds
     eqv (gsSlice gs) (gsSlice gs')
 
-mapGuardedSlice :: (Slice (AbsPred ae) -> Slice (AbsPred ae)) ->
+mapGuardedSlice :: (Slice -> Slice) ->
                    GuardedSlice ae -> GuardedSlice ae
 mapGuardedSlice f gs = gs { gsSlice = f (gsSlice gs) }
 
@@ -89,7 +87,7 @@ deriving instance (NFData (AbsPred ae), NFData ae) => NFData (GuardedSlice ae)
 data Domain ae = Domain
   { elements      :: [ GuardedSlice ae ]
   -- ^ In-progress (open, containing free vars) elements
-  , closedElements :: Map Name [Slice (AbsPred ae)]
+  , closedElements :: Map Name [Slice]
   -- ^ Finalised (closed, no free vars, internal) elements.  We may
   -- have multiple starting from a single var, e.g.
   --
@@ -247,7 +245,7 @@ partitionDomainForResult d = ( matching, d' )
     d' = d { elements = nonMatching }
 
 -- Maps over non-closed slices
-mapSlices :: (Slice (AbsPred ae) -> Slice (AbsPred ae)) -> Domain ae -> Domain ae
+mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae
 mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
       
 -- splitRemoveVar :: BaseEntangledVar -> Domain -> ([(FieldSet, Slice)], Domain)
