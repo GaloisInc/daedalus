@@ -20,93 +20,47 @@ import Talos.Analysis.Slice (Merge(..), FInstId)
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
--- The analysis will be over something like
---
--- type AnalysisState = [ (EntangledVars, PathSet) ]
---
--- although we might want a union-find structure to help with
--- entangling variables
-
--- A collection of possible path, or a path, depending on n.
-
--- FIXME: this could be normalised, s.t. DontCare is never followed by
--- Unconstrained, or DontCare.  We could express this in the type
--- system, but it might make it a pain to use, e.g.
---
--- data PathSet a k n where
---   Unconstrained :: PathSet a U n
---   DontCare :: Int -> PathSet a N n -> PathSet a U n
---   PathNode :: forall k. n   -> PathSet a k n -> PathSet a N n
---
--- We could also merge the PathNode following a DontCare into the
--- DontCare, but that duplicates where a node can appear.  For now we
--- just program defensively and assume a non-normalised term at the
--- cost of somewhat increased complexity and maybe some performance
--- overhead.
-data SelectedPath =
-  Unconstrained -- Base case, all paths are feasible
-  | DontCare Int SelectedPath 
-  -- ^ We don't care about the nodes, so they can take any value.
-
-  -- A node we do care about.  The first argument is Just (v, tc) if
-  -- the variable is entangled on this path, the tc being the lhs of
-  -- the bind that assigns the variable.
-  | PathNode SelectedNode SelectedPath
-  deriving (Generic, NFData)
-
-data SelectedNode =
-  SelectedChoice Int SelectedPath
-  -- ^ We chose an alternative.
-
-  | SelectedCase Int SelectedPath
-  -- ^ We have selected an alternative of a case.  The index is also
-  -- determined by the value (here to check). The default (if any) is
-  -- considered the last element in the list.
-
-  | SelectedCall FInstId SelectedPath 
-  -- ^ We have a function call.
-
+data SelectedPath = 
+    SelectedHole 
   | SelectedBytes ProvenanceTag ByteString
-  -- ^ The term has been fully processed and does not contain anything
-  -- of interest to other paths.  We still need to execute the term on
-  -- the bytes to get the resutl.
-
-  | SelectedDo SelectedPath -- ^ Wraps a nested Do node
+  --  | Fail ErrorSource Type (Maybe Expr)
+  | SelectedDo SelectedPath SelectedPath
+  | SelectedChoice Int SelectedPath
+  | SelectedCall FInstId SelectedPath
+  | SelectedCase Int SelectedPath
   deriving (Generic, NFData)
 
--- isXs, mainly because we don't always have equality over nodes
-isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
-isUnconstrained Unconstrained = True
-isUnconstrained _             = False
+-- -- isXs, mainly because we don't always have equality over nodes
+-- isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
+-- isUnconstrained Unconstrained = True
+-- isUnconstrained _             = False
 
-isDontCare (DontCare {}) = True
-isDontCare _             = False
+-- isDontCare (DontCare {}) = True
+-- isDontCare _             = False
 
-isPathNode (PathNode {}) = True
-isPathNode _             = False
+-- isPathNode (PathNode {}) = True
+-- isPathNode _             = False
 
-splitPath :: SelectedPath -> (Maybe SelectedNode, SelectedPath)
+splitPath :: SelectedPath -> (SelectedPath, SelectedPath)
 splitPath cp =
   case cp of
-    Unconstrained             -> (Nothing, Unconstrained)
-    -- Shouldn't happen
-    DontCare 0 cp' -> splitPath cp'
-    DontCare n cp' -> (Nothing, dontCare (n - 1) cp')
-    PathNode n cp' -> (Just n, cp')
+    SelectedDo l r -> (l, r)
+    SelectedHole   -> (SelectedHole, SelectedHole)
+    _ -> panic "splitPath: saw a non-{Do,Hole}" []
 
---------------------------------------------------------------------------------
--- smart constructors
+-- --------------------------------------------------------------------------------
+-- -- smart constructors
 
--- smart constructor for dontCares.
-dontCare :: Int -> SelectedPath -> SelectedPath
-dontCare 0 ps = ps
-dontCare  n (DontCare m ps)   = DontCare (n + m) ps
-dontCare _n Unconstrained = Unconstrained
-dontCare n  ps = DontCare n ps
+-- -- smart constructor for dontCares.
+-- dontCare :: Int -> SelectedPath -> SelectedPath
+-- dontCare 0 ps = ps
+-- dontCare  n (DontCare m ps)   = DontCare (n + m) ps
+-- dontCare _n Unconstrained = Unconstrained
+-- dontCare n  ps = DontCare n ps
 
-pathNode :: SelectedNode -> SelectedPath ->  SelectedPath
-pathNode (SelectedDo Unconstrained) rhs = dontCare 1 rhs
-pathNode n rhs = PathNode n rhs
+-- pathNode :: SelectedNode -> SelectedPath ->  SelectedPath
+-- pathNode (SelectedDo Unconstrained) rhs = dontCare 1 rhs
+-- pathNode n rhs = PathNode n rhs
 
 
 --------------------------------------------------------------------------------
@@ -180,46 +134,32 @@ firstSolverProvenance = 2
 instance Merge SelectedPath where
   merge psL psR =
     case (psL, psR) of
-      (Unconstrained, _) -> psR
-      (DontCare 0 rest, _)   -> merge rest psR
-      (DontCare n rest, DontCare m rest') ->
-        let count = min m n
-        in dontCare count (merge (dontCare (n - count) rest) (dontCare (m - count) rest'))
-      (DontCare n rest, PathNode pn ps') -> PathNode pn (merge (dontCare (n - 1) rest) ps')
-      (PathNode n1 ps1, PathNode n2 ps2) ->
-        PathNode (merge n1 n2) (merge ps1 ps2)
-      _ -> merge psR psL
-
-instance Merge SelectedNode where
-  --  We may merge nested nodes and calls, although choices and cases should occur on only 1 path.
-  merge (SelectedChoice n1 sp1) (SelectedChoice n2 sp2)
-    | n1 /= n2  = panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
-    | otherwise = SelectedChoice n1 (merge sp1 sp2)
-  merge (SelectedCase n1 sp1) (SelectedCase n2 sp2)
-    | n1 /= n2  = panic "BUG: Incompatible cases selected in merge" [show n1, show n2]
-    | otherwise = SelectedCase n1 (merge sp1 sp2)
-  merge (SelectedCall cl1 sp1) (SelectedCall cl2 sp2)
-    | cl1 /= cl2 = panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
-    | otherwise = SelectedCall cl1 (merge sp1 sp2)
-  merge (SelectedDo ps1) (SelectedDo ps2) = SelectedDo (merge ps1 ps2)
-  merge _n1 _n2 = panic "BUG: merging non-mergeable nodes" []
+      (SelectedHole, _) -> psR
+      (_, SelectedHole) -> psL
+      (SelectedChoice n1 sp1, SelectedChoice n2 sp2)
+        | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
+        | otherwise -> SelectedChoice n1 (merge sp1 sp2)
+      (SelectedCase n1 sp1, SelectedCase n2 sp2)
+        | n1 /= n2  -> panic "BUG: Incompatible cases selected in merge" [show n1, show n2]
+        | otherwise -> SelectedCase n1 (merge sp1 sp2)
+      (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
+        | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
+        | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
+      (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
+      _ -> panic "BUG: merging non-mergeable nodes" []
 
 instance PP SelectedPath where
-  ppPrec n ps =
-    case ps of
-      Unconstrained -> "[..]*;"
-      -- These probably shouldn't have Unconstrained after them, so we
-      -- will not try to simplify the output
-      DontCare 1 ps' -> wrapIf (n > 0) $ "[..]; " <> pp ps'
-      DontCare n' ps' -> wrapIf (n > 0) $ "[..]" <> pp n' <> "; " <> pp ps'
-      PathNode n' Unconstrained -> ppPrec n n'
-      PathNode n' ps' -> wrapIf (n > 0) $  pp n' <> "; " <> pp ps'
+  ppPrec n p =
+    case p of
+      SelectedHole       -> "[]"
+      SelectedBytes _ bs -> pp bs
+      SelectedDo {}      -> "do" <+> ppStmts' p
+      SelectedChoice n'  sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
+      SelectedCase   n'  sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
+      SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
 
-instance PP SelectedNode where
-  ppPrec n sn =
-    case sn of
-      SelectedChoice n' sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
-      SelectedCase   n' sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
-      SelectedCall   _  sp  -> wrapIf (n > 0) $ "call" <+> ppPrec 1 sp
-      SelectedBytes _pr bs -> pp bs  -- XXX: print provenance 
-      SelectedDo ps        -> "do" $$ pp ps
+ppStmts' :: SelectedPath -> Doc
+ppStmts' p =
+  case p of
+    SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2
+    _                -> pp p

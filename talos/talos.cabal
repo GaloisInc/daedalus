@@ -40,6 +40,7 @@ library
                      , Talos.Analysis.Fixpoint                     
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
+                     , Talos.Analysis.SLExpr                     
                      , Talos.Analysis.EntangledVars
                      , Talos.Analysis.Projection
                      

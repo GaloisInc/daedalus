@@ -5,13 +5,19 @@
 -- Path set analysis
 
 
-module Talos.Analysis.Slice where
+module Talos.Analysis.Slice
+  ( FInstId(..)
+  , assertionsFID
+  , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
+  , CallNode(..), Slice(..)
+  , Eqv(..), Merge(..)
+  ) where
 
-import Data.Function (on)
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
+import           Data.Function (on)
+import           Data.Map      (Map)
+import qualified Data.Map      as Map
+import           Data.Set      (Set)
+import qualified Data.Set      as Set
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
@@ -23,6 +29,7 @@ import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
+import Talos.Analysis.SLExpr
 -- import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -93,6 +100,7 @@ data CallNode cl =
            -- this will be a singleton map for this slice, but we
            -- might need to merge, hence we have multiple.  The map
            -- just allows us to merge easily.
+           --           , callArgs        :: [Name]
            }
   deriving (Generic, NFData)
 
@@ -120,21 +128,6 @@ data Slice =
   -- name for the result (considered bound in this term only), the
   -- inverse expression, and a predicate constraining the value
   -- produced by this node (i.e., result of the original DDL code).
-  deriving (Generic, NFData)
-
--- Expressions with a hole
-data SLExpr =
-    SVar Name
-  | SPureLet Name SLExpr SLExpr
-  | SStruct UserType [ (Label, SLExpr) ]
-  | SECase (Case SLExpr)
-
-  | SAp0 Op0
-  | SAp1 Op1 SLExpr
-  | SAp2 Op2 SLExpr SLExpr
-  | SAp3 Op3 SLExpr SLExpr SLExpr
-  | SApN OpN [SLExpr]
-  | EHole Type
   deriving (Generic, NFData)
 
 -- A note on inverses.  The ides is if we have something like
@@ -250,6 +243,7 @@ instance Eq p => Merge (CallNode p) where
     -- FIXME: check that the sets don't overlap
     | otherwise =
       -- trace ("Merging " ++ showPP cn ++ " and " ++ showPP cn') $
+      -- Note: it is OK to use as the maps are disjoint
       cn { callSlices = Map.union sls1 sls2 }
 
 instance Merge a => Merge (Case a) where
@@ -293,25 +287,6 @@ instance Merge SLExpr where
         SAp3 op (merge e1 e1') (merge e2 e2') (merge e3 e3')
       (SApN op es, SApN _op es') -> SApN op (zipWith merge es es')
       _ -> panic "Mismatched terms in merge (SLExpr)" ["Left", showPP l, "Right", showPP r]
-
---------------------------------------------------------------------------------
--- Called slices
---
-
-sliceToCallees :: Slice -> Set (FName, FInstId, Int)
-sliceToCallees = go
-  where
-    go sl = case sl of
-      SHole {}          -> mempty
-      SPure {}          -> mempty
-      SDo _ l r         -> go l <> go r
-      SMatch _m         -> mempty
-      SAssertion _e     -> mempty
-      SChoice cs        -> foldMap go cs
-      SCall cn          -> Set.map (\n -> (callName cn, callClass cn, n))
-                                   (Map.keysSet (callSlices cn))
-      SCase _ c         -> foldMap go c
-      SInverse {}       -> mempty -- No grammar calls
 
 --------------------------------------------------------------------------------
 -- Free instances
@@ -378,62 +353,6 @@ instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) wher
   traverseUserTypes _f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
 
-instance TraverseUserTypes SLExpr where
-  traverseUserTypes f e =
-    case e of
-      EHole ty -> EHole <$> traverseUserTypes f ty
-      SVar n  -> SVar <$> traverseUserTypes f n
-      SPureLet x e' e'' -> SPureLet <$> traverseUserTypes f x
-                                    <*> traverseUserTypes f e'
-                                    <*> traverseUserTypes f e''
-      SStruct ut ls    -> SStruct  <$> traverseUserTypes f ut
-                                   <*> traverse (\(l, e') -> (,) l
-                                       <$> traverseUserTypes f e') ls
-      SECase c          -> SECase   <$> traverseUserTypes f c
-
-      SAp0 op0          -> SAp0 <$> traverseUserTypes f op0
-      SAp1 op1 e'       -> SAp1 <$> traverseUserTypes f op1
-                                <*> traverseUserTypes f e'
-      SAp2 op2 e' e''   -> SAp2 op2 <$> traverseUserTypes f e'
-                                    <*> traverseUserTypes f e''
-      SAp3 op3 e1 e2 e3 -> SAp3 op3 <$> traverseUserTypes f e1
-                                    <*> traverseUserTypes f e2
-                                    <*> traverseUserTypes f e3
-      SApN opN es       -> SApN <$> traverseUserTypes f opN
-                                <*> traverseUserTypes f es
-
-instance FreeVars SLExpr where
-  freeVars expr =
-    case expr of
-      EHole {}         -> Set.empty
-      SVar x           -> freeVars x
-      SPureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
-      SStruct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
-      SECase e         -> freeVars e
-      SAp0 _           -> Set.empty
-      SAp1 _ e         -> freeVars e
-      SAp2 _ e1 e2     -> freeVars [e1,e2]
-      SAp3 _ e1 e2 e3  -> freeVars [e1,e2,e3]
-      SApN _ es        -> freeVars es
-
-  freeFVars expr =
-    case expr of
-      EHole {}         -> Set.empty
-      SVar x           -> freeFVars x
-      SPureLet _ e1 e2 -> freeFVars [e1,e2]
-      SStruct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
-      SECase e         -> freeFVars e
-      SAp0 _           -> Set.empty
-      SAp1 _ e         -> freeFVars e
-      SAp2 _ e1 e2     -> freeFVars [e1,e2]
-      SAp3 _ e1 e2 e3  -> freeFVars [e1,e2,e3]
-      SApN op es ->
-        let fs = freeFVars es
-        in case op of
-            CallF f  -> Set.insert f fs
-            ArrayL _ -> fs
-
-
 --------------------------------------------------------------------------------
 -- PP Instances
 -- instance PP CallInstance where
@@ -475,44 +394,3 @@ instance PP FInstId where
 instance PP p => PP (SummaryClass p) where
   pp Assertions = "Assertions"
   pp (Result p) = "Result" <+> brackets (commaSep (map pp (Set.toList p)))
-
-instance PP SLExpr where
-  ppPrec n expr =
-    case expr of
-      EHole ty       -> wrapIf (n > 0) $ "hole" <> ppPrec 1 ty
-      SVar x -> pp x
-      SPureLet x e1 e2 ->
-        wrapIf (n > 0)
-          $ "let" <+> pp x <+> "=" <+> pp e1 <+> "in"
-          $$ pp e2
-
-      SStruct t fs -> ppPrec 1 t <+> braces (commaSep (map ppF fs))
-        where ppF (l,e) = pp l <+> "=" <+> pp e
-
-      SECase c -> pp c
-
-      SAp0 op   -> ppPrec n op
-
-      SAp1 op e -> wrapIf (n > 0) (pp op <+> ppPrec 1 e)
-
-      SAp2 op e1 e2 -> wrapIf (n > 0) $
-        case ppOp2 op of
-          (how,d) ->
-            case how of
-              PPPref   -> d <+> ppPrec 1 e1 <+> ppPrec 1 e2
-              PPInf    -> ppPrec 1 e1 <+> d <+> ppPrec 1 e2
-              PPCustom -> panic "PP Ap2" [show d]
-
-      SAp3 op e1 e2 e3 -> wrapIf (n > 0) $
-        case ppOp3 op of
-          (PPPref,d) -> d <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3
-          (_,d) -> panic "PP Ap3" [show d]
-
-      SApN op es ->
-        case op of
-          ArrayL t ->
-            case es of
-              [] -> ppTApp n "[]" [t]
-              _  -> brackets (commaSep (map pp es))
-          CallF f -> pp f <.> parens (commaSep (map pp es))
-

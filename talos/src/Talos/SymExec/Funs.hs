@@ -26,6 +26,7 @@ import           Daedalus.Panic
 import           Daedalus.Rec
 
 -- import Talos.Strategy.Monad
+import           Talos.Analysis.SLExpr
 import           Talos.Analysis.Slice
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
@@ -149,18 +150,16 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
   where
     polys = go sl
     go sl' = case sl' of
-      SDontCare _n sl''  -> go sl''
-      SDo _m_x l r       -> go l <> go r
-      SUnconstrained     -> mempty
-      SLeaf s            -> goL s
-
-    goL l = case l of
-      SPure _fset v -> exprToPolyFuns v
-      SMatch m      -> byteSetToPolyFuns m
-      SAssertion (GuardAssertion e) -> exprToPolyFuns e
-      SChoice cs   -> foldMap go cs
-      SCall cn     -> foldMap exprToPolyFuns (callNodeActualArgs cn)
-      SCase _ c    -> foldMap go c
+      SHole             -> mempty
+      -- We turns an SLExpr into an Expr, replacing Holes with Units.
+      -- This is a bit gross, but should be OK for this purpose.
+      SPure v           -> exprToPolyFuns (slExprToExpr (const unit) v)
+      SDo _m_x l r      -> go l <> go r
+      SMatch m          -> byteSetToPolyFuns m
+      SAssertion  e     -> exprToPolyFuns e
+      SChoice cs        -> foldMap go cs
+      SCall {}          -> mempty
+      SCase _ c         -> foldMap go c
       SInverse _n fe pe -> exprToPolyFuns fe <> exprToPolyFuns pe
         
       

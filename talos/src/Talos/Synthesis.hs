@@ -1,8 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# Language RecordWildCards #-}
 {-# Language ViewPatterns #-}
 {-# Language OverloadedStrings #-}
+{-# Language ExistentialQuantification #-}
+
 
 module Talos.Synthesis (synthesise) where
 
@@ -42,7 +46,7 @@ import RTS.Parser (runParser)
 import RTS.ParserAPI (Result(..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
-import           Talos.Analysis.Monad            (PathRootMap, Summary (..))
+import           Talos.Analysis.Monad            (ExpSummary (..))
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
@@ -52,6 +56,8 @@ import           Talos.SymExec.StdLib
 import           Talos.Strategy
 import           Talos.Strategy.Monad
 import RTS.Input (newInput)
+import Talos.Analysis.Domain (AbsEnvTy (AbsEnvTy))
+import Data.Data (Proxy(Proxy))
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int
@@ -75,8 +81,8 @@ emptyStream = Stream 0 Nothing
 data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
-                         , pathSetRoots :: PathRootMap
-                         , currentClass :: SummaryClass
+                         , pathSetRoots :: Map Name [Slice]
+                         , currentClass :: FInstId
                          , currentFName :: FName
                          }
 
@@ -175,11 +181,11 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> [Strategy] -> FName -> Module 
+synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [Strategy] -> FName -> Module 
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv strat root md = do
-  let (allSummaries, nguid') = summarise md nguid
-
+synthesise m_seed nguid solv (AbsEnvTy p) strat root md = do
+  let (allSummaries, nguid') = summarise p md nguid
+  
   -- We do this in one giant step to deal with recursion and deps on
   -- pure functions.
   -- symExecSummaries md allSummaries
@@ -231,9 +237,9 @@ synthesise m_seed nguid solv strat root md = do
     -- 'Assertions' result class.
     --
     -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
-    once = synthesiseCallG Assertions Unconstrained (fName rootDecl) []
+    once = synthesiseCallG SelectedHole (fName rootDecl) assertionsFID []
 
-    env0      = SynthEnv Map.empty Map.empty Assertions root
+    env0      = SynthEnv Map.empty Map.empty assertionsFID root
 
     -- FIXME: we assume topologically sorted (by reference)
     allDecls  = mGFuns md
@@ -286,16 +292,16 @@ mbPure _     v = pure v
 --   where
 --     getV v = fromInteger . I.valueToInteger . assertInterpValue <$> synthesiseV v
 
-synthesiseDecl :: SummaryClass -> SelectedPath -> Fun Grammar -> [Expr] -> SynthesisM Value
-synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
+synthesiseDecl :: SelectedPath -> FInstId -> Fun Grammar -> [Expr] -> SynthesisM Value
+synthesiseDecl fp fid Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
-  summary <- flip (Map.!) cl . flip (Map.!) fName <$> summaries
+  summary <- flip (Map.!) fid . flip (Map.!) fName <$> summaries
   -- Add definitions for the function parameters, mapping to the
-  -- actuals.  We also set the path root map for the duration of thsi
+  -- actuals.  We also set the path root map for the duration of this
   -- function from the results discovered during analysis.
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
-      setEnv e = e { pathSetRoots = pathRootMap summary
-                   , currentClass = cl
+      setEnv e = e { pathSetRoots = esInternalSlices summary
+                   , currentClass = fid
                    , currentFName = fName
                    }
   -- Update the synthesis scope for the function and synthesise its body.
@@ -303,10 +309,10 @@ synthesiseDecl cl fp Fun { fDef = Def def, ..} args = do
 
 synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
-synthesiseCallG :: SummaryClass -> SelectedPath -> FName -> [Expr] -> SynthesisM Value
-synthesiseCallG cl fp n args = do
+synthesiseCallG :: SelectedPath -> FName -> FInstId -> [Expr] -> SynthesisM Value
+synthesiseCallG fp n fid args = do
   decl <- getGFun n
-  synthesiseDecl cl fp decl args
+  synthesiseDecl fp fid decl args
 
 -- =============================================================================
 -- Tricky Synthesis
@@ -323,8 +329,7 @@ choosePath cp x = do
     -- the value of x that are rooted here.  We don't care about the
     -- projections, just the slices as we will (re)construct the value for
     -- x when we pass the bytes through the interpreter. 
-    Just fsets_sls -> do
-      let (_, sls) = unzip fsets_sls
+    Just sls -> do
       solvSt <- SynthesisM $ gets solverState
       go [] solvSt sls
   where    
@@ -392,25 +397,39 @@ byteStringToValue = I.vByteString
 --     TCWildPat {}      -> \_ -> Just [
 
 -- -- Does all the heavy lifting
-synthesiseGLHS :: Maybe SelectedNode -> Grammar -> SynthesisM Value
-synthesiseGLHS (Just (SelectedBytes prov bs)) g = do
+synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
+synthesiseG p (Annot _ g) = synthesiseG p g
+
+-- This does all the work for internal slices etc.
+synthesiseG cp (Do x lhs rhs) = do
+  cp' <- choosePath cp x
+  let (lhsp, rhsp) = splitPath cp' 
+  v <- synthesiseG lhsp lhs
+  bindIn x v (synthesiseG rhsp rhs)
+
+-- We don't care about the result here, so we can never start an
+-- internal slice here.
+synthesiseG cp (Do_ lhs rhs) = do
+  let (lhsp, rhsp) = splitPath cp  
+  void $ synthesiseG lhsp lhs
+  synthesiseG rhsp rhs
+
+synthesiseG (SelectedBytes prov bs) g = do
   addBytes prov bs
   env <- projectEnvForM g
 
   let inp = newInput "<synthesised bytes>" bs
       res = case runParser (I.evalG g env) inp of
         NoResults e -> panic "No results" [ show (ppParseError e) ]
-        Results  rs -> NE.head rs
+        Results  rs -> NE.head rs -- FIXME: this is maybe a little suspicious
       
   pure (InterpValue res)
       
-synthesiseGLHS (Just (SelectedChoice n sp)) (Annotated _ (Choice _biased gs))
+synthesiseG (SelectedChoice n sp) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
-  
-synthesiseGLHS (Just (SelectedChoice {})) g = panic "synthesiseGLHS: expected a choose" [showPP g]
 
-synthesiseGLHS (Just (SelectedCase n sp)) (Annotated _ (GCase cs@(Case y alts)))
+synthesiseG (SelectedCase n sp) (GCase cs@(Case y alts))
   | n < length alts = do
       v <- synthesiseV (Var y) -- FIXME: a bit gross, should just lookup the env
       let (pat, g) = alts !! n
@@ -422,15 +441,11 @@ synthesiseGLHS (Just (SelectedCase n sp)) (Annotated _ (GCase cs@(Case y alts)))
                 panic "Failed to match pattern" [show n, showPP (assertInterpValue v), showPP cs, show (ppM (I.vEnv env))]
   | otherwise = panic "No matching case" [show n, showPP cs]
   
-synthesiseGLHS (Just (SelectedCase {})) g = panic "synthesiseGLHS: expected a case" [showPP g]
+synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
-synthesiseGLHS (Just (SelectedCall cl sp)) (Annotated _ (Call fn args)) = synthesiseCallG cl sp fn args
+synthesiseG p (Let x e rhs) = synthesiseG p (Do x (Pure e) rhs)
   
-synthesiseGLHS (Just (SelectedCall {})) tc = panic "synthesiseGLHS: expected a call" [showPP tc]
-
-synthesiseGLHS (Just (SelectedDo cp)) g = synthesiseG cp g
-  
-synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose randomly
+synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose randomly
   case g of
     Pure e            -> synthesiseV e
     GetStream         -> unimplemented
@@ -444,20 +459,22 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
       mbPure s bs
     Match _s _        -> unimplemented
     Fail {}           -> unimplemented -- probably should be impossible
-    Do  {}            -> synthesiseG Unconstrained g
-    Do_ {}            -> synthesiseG Unconstrained g
-    Let {}            -> synthesiseG Unconstrained g
+    -- Handled above
+    Do  {}            -> impossible
+    Let {}            -> impossible
+    Do_ {}            -> impossible
+    
     Choice _biased gs -> do
       g' <- randL gs
-      synthesiseG Unconstrained g'
+      synthesiseG SelectedHole g'
     OrBiased {}      -> impossible
     OrUnbiased {}    -> impossible
     
-    Call fn args     -> synthesiseCallG Assertions Unconstrained fn args
-    Annot {}         -> synthesiseG Unconstrained g
+    Call fn args     -> synthesiseCallG SelectedHole fn assertionsFID args
+    Annot {}         -> impossible
     GCase c@(Case y _) -> do
       env <- projectEnvForM y
-      I.evalCase (\g' _env -> synthesiseG Unconstrained g')
+      I.evalCase (\g' _env -> synthesiseG SelectedHole g')
                  (do bs <- SynthesisM $ gets seenBytes
                      panic "Case failed" [showPP g
                                          , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
@@ -470,30 +487,6 @@ synthesiseGLHS Nothing g = -- Result of this is unentangled, so we can choose ra
   where
     unimplemented = panic "Unimplemented" [showPP g]
     impossible    = panic "Impossible (theoretically)" [showPP g]
-    
-synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
-synthesiseG cPath g = do
-  case g of
-    Do_ lhs rhs -> do
-      -- no roots here
-      let (n, cp') = splitPath cPath
-      void $ synthesiseGLHS n lhs
-      synthesiseG cp' rhs
 
-    Do x lhs rhs -> do
-      cp       <- choosePath cPath x
-      let (n, cp') = splitPath cp
-      v <- synthesiseGLHS n lhs
-      bindIn x v (synthesiseG cp' rhs)
-
-    Let x e g' -> do
-      -- We can hang a slice off a let-bound variable, but it must be a literal
-      cp       <- choosePath cPath x
-      let (_n, cp') = splitPath cp
-      v <- synthesiseV e
-      bindIn x v (synthesiseG cp' g')
-      
-    Annot _ g'       -> synthesiseG cPath g'
-    
-    -- leaf case
-    _lhs            -> synthesiseGLHS (fst (splitPath cPath)) g
+-- We didn't match any of the above, so this is a bug
+synthesiseG _p _g = panic "Mismatched path/grammar in synthesiseG" []

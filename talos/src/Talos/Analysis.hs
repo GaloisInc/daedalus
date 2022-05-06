@@ -26,6 +26,7 @@ import Daedalus.Core.Type
 import Talos.Analysis.Domain
 import Talos.Analysis.Monad
 import Talos.Analysis.Slice
+import Data.Proxy (Proxy)
 
 -- import Debug.Trace
 
@@ -33,8 +34,8 @@ import Talos.Analysis.Slice
 -- Top level function
 
 summarise :: AbsEnv ae =>
-             Module -> GUID -> (Summaries ae, GUID)
-summarise md nguid = (summaries, nextGUID s')
+             Proxy ae -> Module -> GUID -> (Summaries ae, GUID)
+summarise _ md nguid = (summaries, nextGUID s')
   where
     -- FIXME: need to rename bound vars to avoid clashing in synthesis
     (s', summaries) = calcFixpoint doOne wl0 s0
@@ -59,8 +60,7 @@ summarise md nguid = (summaries, nextGUID s')
 summariseDecl :: AbsEnv ae =>
                  SummaryClass' ae -> FInstId ->
                  Fun Grammar -> IterM ae (Summary ae)
-summariseDecl cls fid Fun { fName = fn
-                          , fDef = Def def
+summariseDecl cls fid Fun { fDef = Def def
                           , fParams = ps } = do
 
   let preds = summaryClassToPreds cls

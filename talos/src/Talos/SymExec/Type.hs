@@ -54,7 +54,7 @@ tranclTypeDefs md roots0 = go [] roots0 (reverse (mTypes md))
 
 
 -- we already have recs and it is ordered, so we don't need to calculate a fixpoint
-sliceToSMTTypeDefs :: Module -> Slice p -> [Rec SMTTypeDef]
+sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
 sliceToSMTTypeDefs md = tranclTypeDefs md . freeTCons
 
 tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
@@ -72,11 +72,12 @@ tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [],
     sflds = case td of
               TStruct flds -> [(typeNameToCtor name, map mkOneS flds) ]
               TUnion flds  -> map mkOneU flds
+              TBitdata {} -> panic "Bitdata is curtently unsupported" []
     mkOneS (l, t) = (lblToFld l, symExecTy t)
     mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
       
-defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice p -> SolverT m ()
+defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
 defineSliceTypeDefs md sl = mapM_ defineSMTTypeDefs (sliceToSMTTypeDefs md sl)
 
 symExecTy :: Type -> SExpr
@@ -103,6 +104,8 @@ symExecTy = go
         TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> S.const (symExecTName n)
         TUser _ut       -> panic "Saw type with arguments" [showPP ty']
         TParam _x       -> panic "Saw type variable" [showPP ty']
+        TFloat          -> panic "Saw a float" []
+        TDouble         -> panic "Saw a double" []
 
 typeDefault :: Type -> SExpr
 typeDefault = go
@@ -128,3 +131,5 @@ typeDefault = go
                S.const (typeNameToDefault n)
         TUser {}        -> unimplemented
         TParam {}       -> unimplemented
+        TFloat          -> panic "Saw a float" []
+        TDouble         -> panic "Saw a double" []

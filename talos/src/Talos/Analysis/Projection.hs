@@ -2,17 +2,14 @@
 
 module Talos.Analysis.Projection where
 
-import Daedalus.Core
-import Talos.Analysis.EntangledVars
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Daedalus.Core.Free
-import Data.Map (Map)
-import Daedalus.Core.Type
-import Data.Maybe (mapMaybe, fromMaybe)
-import Daedalus.PP
-import Daedalus.Panic
+import           Daedalus.Core
+import           Daedalus.Core.Free
+import           Daedalus.Core.Type
+import qualified Data.Map                     as Map
+import           Data.Maybe                   (fromMaybe, mapMaybe)
+import           Data.Set                     (Set)
+import qualified Data.Set                     as Set
+import           Talos.Analysis.EntangledVars
 
 -- -----------------------------------------------------------------------------
 -- Expression level analysis
@@ -84,33 +81,6 @@ freeVarsToEntangledVars = EntangledVars . Map.fromSet (const emptyFieldSet ) . S
 
 --------------------------------------------------------------------------------
 -- Type inhabitants
-
-typeToInhabitant :: Map TName TDecl -> Type -> Expr
-typeToInhabitant tdecls = go
-  where
-    go ty = case ty of
-      TStream    -> arrayStream (byteArrayL "array") (byteArrayL mempty)
-      TUInt {}   -> intL 0 ty
-      TSInt {}   -> intL 0 ty
-      TInteger   -> intL 0 ty
-      TBool      -> boolL False
-      TUnit      -> unit
-      TArray (TUInt (TSize 8)) -> byteArrayL mempty
-      TArray t   -> arrayL t []
-      TMaybe t -> nothing t
-      TMap tk tv -> mapEmpty tk tv
-      TBuilder t -> newBuilder t
-      TIterator t -> newIterator (go t)
-      TUser ut     -> goUT ut
-      TParam _     -> panic "Saw a type param" []
-
-    goUT ut
-      | Just decl <- Map.lookup (utName ut) tdecls =
-          case tDef decl of
-            TStruct fs -> Struct ut [ (l, go ty) | (l, ty) <- fs ]
-            TUnion  ((l, ty) : _) -> inUnion ut l (go ty)
-            TUnion  _ -> panic "Empty union" [showPP ut]
-      | otherwise = panic "Unknown user type " [showPP ut]
 
 -- -- fixme: this is the fallback case
 -- class FreeEntangledVars a where

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies, FlexibleContexts, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- This module contains the datastructure representing future path
 -- constraints for a variable.  A path may be thought of as an
@@ -20,7 +21,9 @@ import           GHC.Generics    (Generic)
 import           Daedalus.Core  (ByteSet, Expr, Name)
 import           Daedalus.Panic
 
+import           Talos.Analysis.SLExpr
 import           Talos.Analysis.Slice
+import Data.Proxy (Proxy)
 
 --------------------------------------------------------------------------------
 -- Abstract Environments
@@ -39,6 +42,8 @@ class (Ord (AbsPred ae), Eqv ae) => AbsEnv ae where
   absSubstEnv    :: Map Name Name -> ae -> ae
   absTop         :: {- Set Name -> -} ae
   
+data AbsEnvTy = forall ae. AbsEnv ae => AbsEnvTy (Proxy ae) 
+
 --------------------------------------------------------------------------------
 -- Domains
 

@@ -200,19 +200,21 @@ calcFixpoint m wl = F.calcFixpoint seqv go wl
 -- we don't have to carry the information around into the synthesis pass.
 
 data ExpSummary = ExpSummary
-  { esSlices         :: [Slice]
+  { esSlices         :: [(Bool, Slice)]
   , esInternalSlices :: Map Name [Slice]
-  , esParams        :: [Name]
+  , esParams         :: [Name]
   }
 
 type ExpSummaries = Map FName (Map FInstId ExpSummary)
 
 exportSummary :: Summary ae -> ExpSummary
 exportSummary s = ExpSummary
-  { esSlices         = map gsSlice (elements (domain s))
+  { esSlices         = map expGS (elements (domain s))
   , esInternalSlices = closedElements (domain s)
   , esParams         = params s
   }
+  where
+    expGS gs = (not (null (gsPred gs)), gsSlice gs) 
 
 exportSummaries :: Summaries ae -> ExpSummaries
 exportSummaries = fmap (fmap exportSummary)
