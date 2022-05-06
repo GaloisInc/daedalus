@@ -6,6 +6,7 @@
 {-# LANGUAGE TemplateHaskell #-} -- For deriving ord and eqs
 {-# Language StandaloneDeriving #-}
 {-# Language RecordWildCards #-}
+{-# Language DeriveLift #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Daedalus.Type.AST
@@ -27,6 +28,7 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Classes -- OrdF
+import qualified Language.Haskell.TH.Syntax as TH
 
 import Daedalus.SourceRange
 import Daedalus.Rec
@@ -47,14 +49,14 @@ type HS = HS.Type
 
 
 data Kind       = KValue | KGrammar | KClass | KNumber
-                  deriving (Eq,Show)
+                  deriving (Eq,Show,TH.Lift)
 
 
 data RuleType   = ([(IPName,Type)],[Type]) :-> Type
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, TH.Lift)
 
 data Poly a     = Poly [TVar] [Constraint] a
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, TH.Lift)
 
 data Constraint = Integral Type
                 | Arith Type
@@ -84,7 +86,7 @@ data Constraint = Integral Type
                 | ColElType Type Type         -- col, elT
                 | ColKeyType Type Type        -- col, key
                 | IsNamed Type
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, TH.Lift)
 
 {- [Note] Constructor Constraints
    ==============================
@@ -114,37 +116,37 @@ only generate a single type declaration.
 -}
 
 data Lossy = Lossy | NotLossy | Dynamic
-  deriving (Eq,Show)
+  deriving (Eq,Show,TH.Lift)
 
 
 data Type       = Type (TypeF Type)
                 | TCon TCTyName [Type]
                 | TVar !TVar
-                  deriving (Eq,Show)
+                  deriving (Eq,Show,TH.Lift)
 
 data TVar       = TV { tvarId    :: !Int
                      , tvarKind  :: !Kind
                      , tvarRange :: !SourceRange
                        -- XXX: add description?
-                     } deriving Show
+                     } deriving (Show,TH.Lift)
 
 
 data TCName (k :: Ctx)   = TCName { tcName    :: !Name
                                   , tcType    :: !Type
                                   , tcNameCtx :: !(Context k)
-                                  } deriving Show
+                                  } deriving (Show,TH.Lift)
 
 newtype TC a k = TC (TCAnnot a (TCF a k))
-                   deriving Show
+                   deriving (Show,TH.Lift)
 
 data TCAnnot a e = TCAnnot
   { tcAnnot     :: a
   , tcAnnotExpr :: e
-  } deriving (Show, Functor, Foldable, Traversable)
+  } deriving (Show, Functor, Foldable, Traversable,TH.Lift)
 
 
 -- Whether or not to produce a semantic value.
-data WithSem = NoSem | YesSem deriving (Eq,Show)
+data WithSem = NoSem | YesSem deriving (Eq,Show,TH.Lift)
 
 data TCF :: HS -> Ctx -> HS where
    TCPure       :: TC a Value -> TCF a Grammar
@@ -249,13 +251,14 @@ data TCF :: HS -> Ctx -> HS where
 
 
 deriving instance Show a => Show (TCF a k)
+deriving instance TH.Lift a => TH.Lift (TCF a k)
 
 -- | A branch in a case.  Succeeds if *any* of the patterns match.
 -- All alternatives must bind the same variables (with the same types)
 data TCAlt a k = TCAlt { tcAltPatterns :: [TCPat]
                        , tcAltBody     :: (TC a k)
                        }
-  deriving Show
+  deriving (Show,TH.Lift)
 
 -- | Deconstruct a value
 data TCPat = TCConPat Type Label TCPat
@@ -266,7 +269,7 @@ data TCPat = TCConPat Type Label TCPat
            | TCNothingPat Type
            | TCVarPat (TCName Value)
            | TCWildPat Type
-             deriving Show
+             deriving (Show,TH.Lift)
 
 
 
@@ -276,30 +279,31 @@ data LoopFlav a k where
   LoopMap  :: LoopCollection a -> LoopFlav a k
 
 deriving instance Show a => Show (LoopFlav a k)
+deriving instance TH.Lift a => TH.Lift (LoopFlav a k)
 
 -- | For loops that iterate over things
 data LoopCollection a = LoopCollection
   { lcKName   :: Maybe (TCName Value) -- Key name, optional
   , lcElName  :: TCName Value
   , lcCol     :: TC a Value
-  } deriving Show
+  } deriving (Show,TH.Lift)
 
 data Loop a k = Loop
   { loopFlav    :: LoopFlav a k
   , loopBody    :: TC a k
   , loopType    :: !Type
-  } deriving Show
+  } deriving (Show,TH.Lift)
 
 
 data Arg a  = ValArg (TC a Value)
             | ClassArg (TC a Class)
             | GrammarArg (TC a Grammar)
-             deriving Show
+             deriving (Show,TH.Lift)
 
 data Param = ValParam (TCName Value)
            | ClassParam (TCName Class)
            | GrammarParam (TCName Grammar)
-             deriving Show
+             deriving (Show,TH.Lift)
 
 data TCTyDecl   = TCTyDecl
                    { tctyName   :: !TCTyName
@@ -307,30 +311,30 @@ data TCTyDecl   = TCTyDecl
                    , tctyBD     :: !(Maybe BDD.Pat)
                    -- ^ All possible value patterns for bitdata types.
                    , tctyDef    :: !TCTyDef
-                   } deriving (Show, Eq)
+                   } deriving (Show, Eq,TH.Lift)
 
 data TCTyName   = TCTyAnon !Name !Int
                 | TCTy !Name
-                  deriving (Eq,Ord,Show)
+                  deriving (Eq,Ord,Show,TH.Lift)
 
 data TCTyDef    = TCTyStruct (Maybe BDCon)
                              [(Label, Type)]
                 | TCTyUnion  [(Label, (Type, Maybe BDD.Pat))]
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, TH.Lift)
 
 data BDCon = BDCon
   { bdPat     :: BDD.Pat        -- ^ All possible values that match this con
   , bdFields  :: [BDField]      -- ^ Assumes sorted (most signifcant first)
-  } deriving (Eq,Show)
+  } deriving (Eq,Show, TH.Lift)
 
 data BDField = BDField
   { bdOffset    :: BDD.Width
   , bdWidth     :: BDD.Width
   , bdFieldType :: BDFieldType
-  } deriving (Eq,Show)
+  } deriving (Eq,Show, TH.Lift)
 
 data BDFieldType = BDWild | BDTag Integer | BDData Label Type
-  deriving (Eq,Show)
+  deriving (Eq,Show, TH.Lift)
 
 
 data TCDecl a   = forall k.
@@ -347,9 +351,10 @@ data TCDecl a   = forall k.
                          }
 
 deriving instance Show a => Show (TCDecl a)
+deriving instance TH.Lift a => TH.Lift (TCDecl a)
 
 data TCDeclDef a k = ExternDecl Type | Defined (TC a k)
-  deriving Show
+  deriving (Show, TH.Lift)
 
 
 -- | A module consists of a collection of types and a collection of decls.
@@ -358,7 +363,7 @@ data TCModule a = TCModule { tcModuleName    :: ModuleName
                            , tcEntries       :: ![ Name ]
                            , tcModuleTypes   :: [ Rec TCTyDecl ]
                            , tcModuleDecls   :: [ Rec (TCDecl a) ]
-                           } deriving Show
+                           } deriving (Show,TH.Lift)
 
 --------------------------------------------------------------------------------
 -- Pretty

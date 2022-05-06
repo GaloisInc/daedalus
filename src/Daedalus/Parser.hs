@@ -1,5 +1,7 @@
-module Daedalus.Parser (parseFromText, parseFromTokens, parseFromFile
-                       , ParseError(..), prettyParseError) where
+module Daedalus.Parser
+  ( parseFromText, parseFromTextAt, parseFromTokens, parseFromFile
+  , ParseError(..), prettyParseError
+  ) where
 
 import           Data.Either             (partitionEithers)
 import           Data.Text               (Text)
@@ -8,14 +10,17 @@ import qualified Data.Text.IO            as Text
 
 import           Daedalus.AST
 import           Daedalus.Parser.Grammar
-import           Daedalus.Parser.Lexer   (Lexeme, Token)
+import           Daedalus.Parser.Lexer   (Lexeme, Token,SourcePos, startPos)
 import           Daedalus.Parser.Monad
 import           Daedalus.PrettyError
 import           Daedalus.Rec            (Rec (NonRec))
 
 parseFromText :: Text -> ModuleName -> Text -> Either ParseError Module
-parseFromText txtName n txt = do
-  (imps, ds) <- runParser moduleP txtName txt
+parseFromText f = parseFromTextAt (startPos f)
+
+parseFromTextAt :: SourcePos -> ModuleName -> Text -> Either ParseError Module
+parseFromTextAt loc n txt = do
+  (imps, ds) <- runParserAt moduleP loc txt
   let (rs, bds) = partitionEithers (map declToEither ds)
       rs' = map NonRec rs
   pure (Module n imps bds rs')

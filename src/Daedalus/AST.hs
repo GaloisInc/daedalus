@@ -2,12 +2,14 @@
 {-# Language DataKinds, GADTs, KindSignatures, ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell, DeriveLift #-} -- For deriving ord and eqs
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Daedalus.AST where
 
 import Data.Word
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Char as Char
 import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.Kind as HS
@@ -18,6 +20,7 @@ import Data.Parameterized.Classes (OrdF(..))
 import Data.Parameterized.TH.GADT
 import Language.Haskell.TH.Syntax(Lift(..))
 
+import Daedalus.Compat()
 import Daedalus.PP
 import Daedalus.SourceRange
 import Daedalus.Rec
@@ -32,6 +35,8 @@ data Name = forall ctx.
        , nameID          :: !GUID
        }
 
+deriving instance Lift Name
+
 type ModuleName = Text
 type Ident = Text
 type Label = Text
@@ -45,8 +50,17 @@ isLocalName n =
     Local {} -> True
     _        -> False
 
-primName :: Text -> Text -> Context c -> Name
-primName m x c = Name (ModScope m x) c synthetic invalidGUID
+primName' :: Text -> Text -> Context c -> Name
+primName' m x c = Name (ModScope m x) c synthetic invalidGUID
+
+primName :: Text -> Text -> Name
+primName m x = case Text.uncons x of
+                 Just (a,_)
+                   | a == '$'       -> primName' m x AClass
+                   | Char.isUpper a -> primName' m x AGrammar
+                 _                  -> primName' m x AValue
+
+
 
 instance PP ScopedIdent where
   pp x = case x of
@@ -106,6 +120,8 @@ data IPName = forall ctx. IPName
   , ipContext :: Context ctx
   , ipRange   :: SourceRange
   }
+
+deriving instance Lift IPName
 
 instance Eq IPName where
   x == y = ipName x == ipName y
@@ -199,6 +215,8 @@ data Context :: Ctx -> HS.Type where
   AGrammar :: Context Grammar
   AValue   :: Context Value
   AClass   :: Context Class
+
+deriving instance Lift (Context a)
 
 -- XXX: use parametrized-utils classes?
 sameContext :: Context a -> Context b -> Maybe (a :~: b)
@@ -297,7 +315,7 @@ data SigType = MatchType | CoerceSafe | CoerceCheck | CoerceForce
   deriving Show
 
 data TriOp = RangeUp | RangeDown | MapDoInsert
-  deriving (Show,Eq)
+  deriving (Show,Eq,Lift)
 
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
@@ -308,14 +326,14 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | BuilderEmit -- ^ push a new element onto the end of a builder
            | BuilderEmitArray
            | BuilderEmitBuilder
-  deriving (Show, Eq)
+  deriving (Show, Eq, Lift)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
            | BuilderBuild -- ^ build array from a builder
-  deriving (Show, Eq)
+  deriving (Show, Eq, Lift)
 
 data Selector = SelStruct (Located Label)
               | SelUnion (Located Label)
@@ -326,7 +344,7 @@ data Selector = SelStruct (Located Label)
 data ManyBounds e =
     Exactly e
   | Between (Maybe e) (Maybe e)
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving (Show, Functor, Foldable, Traversable,Lift)
 
 data UnionField e = !(Located Label) :> !e
                     deriving (Show, Functor, Foldable, Traversable)
@@ -346,7 +364,7 @@ data Literal =
   | LBytes      !ByteString
   | LByte       !Word8    Text    -- Text is how to show
   | LPi
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Lift)
 
 
 -- Non empty
@@ -381,7 +399,7 @@ pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
 
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
-                         } deriving (Show, Functor, Foldable, Traversable)
+                         } deriving (Show, Functor, Foldable, Traversable,Lift)
 
 instance Eq a => Eq (Located a) where
   (==) = (==) `on` thingValue
@@ -404,7 +422,7 @@ data TypeF t =
   | TMaybe !t
   | TBuilder !t
   | TMap   !t !t
-    deriving (Eq,Show,Functor,Foldable,Traversable)
+    deriving (Eq,Show,Functor,Foldable,Traversable,Lift)
 
 data SrcType = SrcVar (Located Text)
              | SrcCon Name [SrcType]

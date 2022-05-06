@@ -13,6 +13,7 @@ import Distribution.Types.HookedBuildInfo
 import qualified Data.Map as Map
 import qualified Data.Text
 import Daedalus.Driver
+import Daedalus.DriverHS
 import Daedalus.Type.AST
 import Daedalus.Compile.LangHS
 
@@ -23,7 +24,6 @@ main = defaultMainWithHooks simpleUserHooks
          compileDDL
          pure emptyHookedBuildInfo
   }
-
 
 {- We split up basic PDF validation from DOM related stuff into separate
 packages.  This allows us to avoid recompiling things that have not changed. -}
@@ -108,21 +108,21 @@ compileDDL =
        mapM putStrLn $ [ "daedalus generating .hs for these .ddl modules:"
                        ]
                        ++ map (("  " ++) . Data.Text.unpack) todo
-     let cfgFor m = case m of
-                      "PdfDecl"     -> cfgPdfDecl
-                      "TE"          -> cfgTE
-                      _             -> cfg
+
+     cfg <- ddlIO (moduleConfigsFromFile mempty "CodeGenConfig.conf")
+
          -- more efficient replacement for 'saveHS'
-         saveHS' dir cfg mod =
-            do
+     let saveHS' dir cfg mod =
             saveHSCustomWriteFile (smartWriteFile log) dir cfg mod
 
          log fn = putStrLn $ "  " ++ fn
 
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
-     mapM_ (\m -> saveHS' (Just "src/spec")   (cfgFor m) m)  todo
+     mapM_ (\m -> saveHS' (Just "src/spec") cfg m)  todo
      ddlIO $ putStrLn "... daedalus done"
-  `catch` \d -> putStrLn =<< prettyDaedalusError d
+  `catches` [ Handler \d -> putStrLn =<< prettyDaedalusError d
+            , Handler \d -> print (ppParseError d)
+            ]
 
   where
   -- XXX: This should list all parsers we need, and it'd be used if
@@ -161,72 +161,3 @@ smartWriteFile logUpdate outFile s =
                     renameFile tmpFile outFile
                     logUpdate outFile
 
-cfg :: CompilerCfg
-cfg = CompilerCfg
-  { cPrims      = Map.empty
-  , cParserType = "D.Parser"
-  , cImports    = [ Import "PdfMonad" (QualifyAs "D") ]
-  , cQualNames = UseQualNames
-  }
-
-
-cfgPdfDecl :: CompilerCfg
-cfgPdfDecl = CompilerCfg
-  { cPrims = Map.fromList
-      [ primName "PdfDecl" "ResolveRef" AGrammar |->
-        aps "D.resolveImpl" [ "PdfDecl.pTopDecl"
-                            , "PdfDecl.pResolveObjectStreamEntry"
-                            , fld "obj" "r"
-                            , fld "gen" "r"
-                            ]
-
-      , primName "PdfDecl" "FlateDecode" AGrammar |->
-        aps "D.flateDecode"
-                  [ "predictor", "colors", "bpc", "columns", "body" ]
-
-      , primName "PdfDecl" "LZWDecode" AGrammar |->
-        aps "D.lzwDecode"
-                  [ "predictor", "colors", "bpc", "columns", "earlychange", "body" ]
-
-      , primName "PdfDecl" "ASCIIHexDecode" AGrammar |->
-        aps "D.asciiHexDecode" [ "body" ]
-
-      , primName "PdfDecl" "ASCII85Decode" AGrammar |->
-        aps "D.ascii85Decode" [ "body" ]
-
-      , primName "PdfDecl" "Decrypt" AGrammar |->
-        aps "D.decrypt" [ "body" ]
-
-      , primName "PdfDecl" "InputAtRef" AGrammar |-> -- get a stream:
-        aps "D.resolveImpl" [ "PdfDecl.pWrapGetStream"
-                            , "PdfDecl.pResolveObjectStreamPoint"
-                            , fld "obj" "r"
-                            , fld "gen" "r"
-                            ]
-
-      ]
-  , cParserType = "D.Parser"
-  , cImports    = [ Import "Primitives.Resolve" (QualifyAs "D"),
-                    Import "Primitives.Deflate" (QualifyAs "D"),
-                    Import "Primitives.LZW" (QualifyAs "D"),
-                    Import "Primitives.ASCIIHex" (QualifyAs "D"),
-                    Import "Primitives.ASCII85" (QualifyAs "D"),
-                    Import "Primitives.Decrypt" (QualifyAs "D"),
-                    Import "PdfMonad" (QualifyAs "D")
-                  ]
-  , cQualNames = UseQualNames
-  }
-
-  where
-  fld x r = "HS.getField" `Ap` TyParam (Raw (x :: String)) `Ap` r
-  x |-> y = (x,y)
-
-cfgTE :: CompilerCfg
-cfgTE = CompilerCfg
-  { cPrims = Map.singleton
-      (primName "TE" "EmitChar" AGrammar)
-      (aps "D.emitChar" [ "c" ])
-  , cParserType = "D.Parser"
-  , cImports    = [Import "PdfMonad" (QualifyAs "D")]
-  , cQualNames = UseQualNames
-  }      

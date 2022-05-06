@@ -2,7 +2,9 @@
 {-# Language TemplateHaskell, OverloadedStrings, BlockArguments #-}
 module Daedalus.Parser.Lexer
   ( Lexeme(..), Token(..)
-  , lexer
+  , lexer, lexerAt
+  , SourcePos(..)
+  , startPos
   ) where
 
 import AlexTools
@@ -336,7 +338,10 @@ endComment =
      pure []
 
 lexer :: Text -> Text -> [Lexeme Token]
-lexer file txt = layout ($makeLexer cfg (initialInput file txt))
+lexer file = lexerAt (startPos file)
+
+lexerAt :: SourcePos -> Text -> [Lexeme Token]
+lexerAt loc txt = layout ($makeLexer cfg (initialInputAt loc txt))
   where
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
   --          "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
