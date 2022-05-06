@@ -22,7 +22,8 @@ library
     Daedalus.Range,
     Daedalus.Panic,
     Daedalus.BDD,
-    Daedalus.GUID
+    Daedalus.GUID,
+    Daedalus.Compat
 
   build-depends:
     base >=4.13 && <4.17,

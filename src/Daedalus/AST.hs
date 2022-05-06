@@ -20,6 +20,7 @@ import Data.Parameterized.Classes (OrdF(..))
 import Data.Parameterized.TH.GADT
 import Language.Haskell.TH.Syntax(Lift(..))
 
+import Daedalus.Compat()
 import Daedalus.PP
 import Daedalus.SourceRange
 import Daedalus.Rec
