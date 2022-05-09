@@ -29,16 +29,12 @@ def ContentStream (vr : Value) =
 
     UNPARSED = if ?strict then { END; [] } else Many UInt8
 
+def buildStream b = arrayStream (build b)
 
--- inefficient!
 def StreamFromArray (xs : [Value]) =
-  block
-    let chunks = map (x in xs)
-                    block
-                    let bs = bytesOfStream (ContentStreamBytes (x is ref))
-                    concat [bs, " "] -- yikes.
-
-    arrayStream (concat chunks)
+  buildStream block
+    for (b = builder; x in xs)
+      emit (emitArray b (bytesOfStream (ContentStreamBytes (x is ref)))) ' '
 
 def ContentStreamBytes (r : Ref) : stream = (ResolveStreamRef r).body is ok
 
