@@ -2,26 +2,82 @@
 #include <ddl/array.h>
 
 #include <string>
+#include <ranges>
 
 #include "comparisons.hpp"
 
 TEST(Arrays, EmptyArray) {
-    DDL::Array<DDL::UInt<32>> a {DDL::Size(0)};
+    DDL::Array<DDL::UInt<32>> a {};
     EXPECT_EQ(a.size(), 0);
+    a.free();
+}
+
+TEST(Arrays, NonEmptyArray) {
+    DDL::Array<DDL::Bool> a {false, true};
+    EXPECT_EQ(a.size(), 2);
+    EXPECT_EQ(a[0], false);
+    EXPECT_EQ(a[1], true);
     a.free();
 }
 
 TEST(Arrays, Comparisons) {
     DDL::Array<DDL::Bool> cases[] {
-        {DDL::Size(0)},
-        {DDL::Size(1), false},
-        {DDL::Size(2), false, false},
-        {DDL::Size(2), false, true},
-        {DDL::Size(1), true},
-        {DDL::Size(2), true, false},
-        {DDL::Size(2), true, true},
+        {},
+        {false},
+        {false, false},
+        {false, true},
+        {true},
+        {true, false},
+        {true, true},
     };
 
     ComparisonsFromOrderedArray(cases);
     for (auto& x : cases) { x.free(); }
+}
+
+TEST(Arrays, EmptyBuilder) {
+    DDL::Builder<DDL::UInt<8>> b;
+    DDL::Array<DDL::UInt<8>> a(b);
+    EXPECT_EQ(a.size(), 0);
+    a.free();
+}
+
+TEST(Arrays, Builders) {
+    DDL::Builder<DDL::UInt<8>> b;
+
+    for (int i = 0; i < 10; i++) {
+        b = {b, i};
+    }
+
+    DDL::Array<DDL::UInt<8>> a(b);
+
+    for (int i = 0; i < 10; i++) {
+        EXPECT_EQ(a[i], i);
+    }
+
+    a.free();
+}
+
+
+TEST(Arrays, SharedBuilders) {
+    DDL::Builder<DDL::UInt<8>> b;
+
+    for (int i = 0; i < 10; i++) { b = {b, i}; }
+
+    b.copy();
+    auto b1 = b;
+    for (int i = 10; i < 20; i++) { b1 = {b1, i}; }
+
+    DDL::Array<DDL::UInt<8>> a(b), a1(b1);
+
+    for (int i = 0; i < 10; i++) {
+        EXPECT_EQ(a[i], i);
+        EXPECT_EQ(a1[i], i);
+    }
+    for (int i = 10; i < 20; i++) {
+        EXPECT_EQ(a1[i], i);
+    }
+
+    a.free();
+    a1.free();
 }

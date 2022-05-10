@@ -608,12 +608,10 @@ cBlockStmt cInstr =
         Integer n    -> cVarDecl x (cCall "DDL::Integer" [ cString (show n) ])
         ByteArray bs -> cVarDecl x
                               (cCallCon "DDL::Array<DDL::UInt<8>>"
-                                ( cCallCon "DDL::Size" [int (BS.length bs)]
-                                : [ cCall "DDL::UInt<8>"
+                                [ cCall "DDL::UInt<8>"
                                               [ text (show w) <> "UL" ]
                                   | w <- BS.unpack bs
-                                  ]
-                                ))
+                                ])
         Op1 op1      -> cOp1 x op1 es
         Op2 op2      -> cOp2 x op2 es
         Op3 op3      -> cOp3 x op3 es
@@ -877,9 +875,8 @@ cOp3 x op es =
 cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
 cOpN x op es =
   case op of
-    Src.ArrayL t -> cVarDecl x (cCallCon con (len : map cExpr es))
+    Src.ArrayL t -> cVarDecl x (cCallCon con (map cExpr es))
       where con = cSemType (Src.TArray t)
-            len = cCallCon "size_t" [ int (length es) ]
 
     Src.CallF _  -> panic "cOpN" ["CallF"]
 

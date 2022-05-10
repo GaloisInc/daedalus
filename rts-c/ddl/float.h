@@ -7,6 +7,7 @@
 
 #include <ddl/size.h>
 #include <ddl/value.h>
+#include <ddl/number.h>
 
 namespace DDL {
 
@@ -27,18 +28,20 @@ public:
     return Float{f};
   }
 
-  float getValue() { return f; }
+  float getValue() const { return f; }
 
-  bool operator == (Float x) { return getValue() == x.getValue(); }
-  bool operator != (Float x) { return getValue() != x.getValue(); }
-  bool operator <  (Float x) { return getValue() <  x.getValue(); }
-  bool operator <= (Float x) { return getValue() <= x.getValue(); }
+  bool operator == (Float x) const { return getValue() == x.getValue(); }
+  bool operator != (Float x) const { return getValue() != x.getValue(); }
+  bool operator <  (Float x) const { return getValue() <  x.getValue(); }
+  bool operator <= (Float x) const { return getValue() <= x.getValue(); }
+  bool operator >  (Float x) const { return getValue() >  x.getValue(); }
+  bool operator >= (Float x) const { return getValue() >= x.getValue(); }
 
-  Float operator + (Float x) { return Float{getValue() + x.getValue()}; }
-  Float operator - (Float x) { return Float{getValue() - x.getValue()}; }
-  Float operator * (Float x) { return Float{getValue() * x.getValue()}; }
-  Float operator / (Float x) { return Float{getValue() / x.getValue()}; }
-  Float operator - ()        { return Float{-getValue()}; }
+  Float operator + (Float x) const { return Float{getValue() + x.getValue()}; }
+  Float operator - (Float x) const { return Float{getValue() - x.getValue()}; }
+  Float operator * (Float x) const { return Float{getValue() * x.getValue()}; }
+  Float operator / (Float x) const { return Float{getValue() / x.getValue()}; }
+  Float operator - ()        const { return Float{-getValue()}; }
 
   bool isNaN() { return std::isnan(getValue()); }
   bool isInfinite() { return std::isinf(getValue()); }
@@ -94,18 +97,20 @@ public:
     return Double{f};
   }
 
-  double getValue() { return f; }
+  double getValue() const { return f; }
 
-  bool operator == (Double x) { return getValue() == x.getValue(); }
-  bool operator != (Double x) { return getValue() != x.getValue(); }
-  bool operator <  (Double x) { return getValue() <  x.getValue(); }
-  bool operator <= (Double x) { return getValue() <= x.getValue(); }
+  bool operator == (Double x) const { return getValue() == x.getValue(); }
+  bool operator != (Double x) const { return getValue() != x.getValue(); }
+  bool operator <  (Double x) const { return getValue() <  x.getValue(); }
+  bool operator <= (Double x) const { return getValue() <= x.getValue(); }
+  bool operator >  (Double x) const { return getValue() >  x.getValue(); }
+  bool operator >= (Double x) const { return getValue() >= x.getValue(); }
 
-  Double operator + (Double x) { return Double{getValue() + x.getValue()}; }
-  Double operator - (Double x) { return Double{getValue() - x.getValue()}; }
-  Double operator * (Double x) { return Double{getValue() * x.getValue()}; }
-  Double operator / (Double x) { return Double{getValue() / x.getValue()}; }
-  Double operator - ()         { return Double{-getValue()}; }
+  Double operator + (Double x) const { return Double{getValue() + x.getValue()}; }
+  Double operator - (Double x) const { return Double{getValue() - x.getValue()}; }
+  Double operator * (Double x) const { return Double{getValue() * x.getValue()}; }
+  Double operator / (Double x) const { return Double{getValue() / x.getValue()}; }
+  Double operator - ()         const { return Double{-getValue()}; }
 
 
 
