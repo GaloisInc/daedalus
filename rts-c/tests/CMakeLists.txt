@@ -5,7 +5,7 @@ project(rts-c-tests
 )
 
 enable_testing()
-find_package(GTest REQUIRED IMPORTED)
+find_package(GTest REQUIRED)
 
 add_executable(rts-c-tests main.cpp
     array_tests.cpp
