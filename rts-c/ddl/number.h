@@ -76,7 +76,7 @@ public:
     if constexpr (w == 16) return UINT16_MAX; else
     if constexpr (w == 32) return UINT32_MAX; else
     if constexpr (w == 64) return UINT64_MAX; else
-    return (1 << w) - 1;
+    return (Rep{1} << w) - 1;
   }
 
 
@@ -123,7 +123,7 @@ public:
 template <Width a, Width b>
 static inline
 UInt<a> lcat(UInt<a> x, UInt<b> y) {
-  if constexpr (b >= a) return UInt<a>(y.data);
+  if constexpr (b >= a) return UInt<a>(y.rawRep());
   return UInt<a>((x.rawRep() << b) | y.rep());
 }
 
@@ -217,19 +217,19 @@ public:
   SInt operator / (SInt x) const { return Rep(data / x.data); }
   SInt operator - ()       const { return Rep(-data); }
 
-  bool operator == (SInt<w> x) const { return rep() == x.rep(); }
-  bool operator != (SInt<w> x) const { return rep() != x.rep(); }
-  bool operator <  (SInt<w> x) const { return rep() <  x.rep(); }
-  bool operator >  (SInt<w> x) const { return rep() >  x.rep(); }
-  bool operator <= (SInt<w> x) const { return rep() <= x.rep(); }
-  bool operator >= (SInt<w> x) const { return rep() >= x.rep(); }
+  bool operator == (SInt<w> x) const { return data == x.data; }
+  bool operator != (SInt<w> x) const { return data != x.data; }
+  bool operator <  (SInt<w> x) const { return data <  x.data; }
+  bool operator >  (SInt<w> x) const { return data >  x.data; }
+  bool operator <= (SInt<w> x) const { return data <= x.data; }
+  bool operator >= (SInt<w> x) const { return data >= x.data; }
 
   constexpr static Rep maxValRep() {
     if constexpr (w ==  8) return INT8_MAX;  else
     if constexpr (w == 16) return INT16_MAX; else
     if constexpr (w == 32) return INT32_MAX; else
     if constexpr (w == 64) return INT64_MAX; else
-    return (1 << (w-1)) - 1;
+    return (Rep{1} << (w-1)) - 1;
   }
 
   constexpr static Rep minValRep() {
