@@ -9,10 +9,11 @@ find_package(GTest REQUIRED)
 
 add_executable(rts-c-tests main.cpp
     array_tests.cpp
-    maybe_tests.cpp
-    map_tests.cpp
     bool_tests.cpp
     float_tests.cpp
+    map_tests.cpp
+    maybe_tests.cpp
+    unit_tests.cpp
     )
 
 target_link_libraries(rts-c-tests GTest::GTest GTest::Main)
