@@ -7,7 +7,6 @@ def Token P = {
   Many (1..) WS;
 }
 
-
 def PPM = {
   Match "P";
   @version = Token Natural;
@@ -24,8 +23,6 @@ def RGB = {
   blue  = Token Natural;
 }
 
-
-
 def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
 
 
@@ -38,7 +35,6 @@ def Digit = {
   @d = Match1 ('0' .. '9');
   ^ d - '0';
 }
-
 
 def addDigit val d =
   10 * val + (d as uint 64)
