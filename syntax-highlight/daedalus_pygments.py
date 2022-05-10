@@ -15,7 +15,7 @@ class DaeDaLusLexer(RegexLexer):
           , (r'"', token.String, 'string')
 
           ,  (words(('import', 'bitdata', 'where', 'def'
-                 , 'for', 'map', 'in', 'if', 'then', 'else'
+                 , 'for', 'map', 'many', 'many?', 'in', 'if', 'then', 'else'
                  , 'is', 'of', 'as', 'as!', 'as?'
                  , 'First', 'Choose', 'case', 'block'
                  , 'let'
@@ -28,10 +28,10 @@ class DaeDaLusLexer(RegexLexer):
                  , 'Match'
                  , 'END'
 
-                 , 'Insert', 'Lookup'
+                 , 'insert', 'Insert', 'lookup', 'Lookup'
                  , 'Index', 'concat', 'length', 'rangeUp', 'rangeDown'
                  , 'GetStream', 'SetStream', 'Offset'
-                 , 'Take', 'Drop', 'arrayStream'
+                 , 'Take', 'Drop', 'arrayStream', 'bytesOfStream'
 
                  , 'wordToFloat'
                  , 'wordToDouble'
@@ -40,8 +40,10 @@ class DaeDaLusLexer(RegexLexer):
                  , 'isDenormalized'
                  , 'isNegativeZero'
 
+                 , 'emit', 'emitArray', 'emitBuilder'
+
                  , 'int', 'uint', 'sint', 'bool', 'maybe', 'float', 'double'
-                 , 'stream'
+                 , 'stream', 'builder'
 
                  ), suffix=r'\b'), token.Keyword)
 

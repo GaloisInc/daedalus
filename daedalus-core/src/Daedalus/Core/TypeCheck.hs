@@ -440,9 +440,23 @@ checkOp2 op arg1 arg2 =
          typeIs sizeType arg2
          pure t
 
-    ConsBuilder ->
-      do typeIs (TBuilder arg1) arg2
-         pure arg2
+    Emit ->
+      do typeIs (TBuilder arg2) arg1
+         pure arg1
+
+    EmitArray ->
+      do t <- isArray arg2
+         typeIs (TBuilder t) arg1
+         pure arg1
+
+    EmitBuilder ->
+      do t <- isBuilder arg2
+         typeIs (TBuilder t) arg1
+         pure arg1
+
+
+
+
 
     ArrayStream ->
       do typeIs (TArray tByte) arg1 -- name

@@ -19,13 +19,13 @@ import Talos.SymExec.Path
 import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM {-, timeStrategy -})
 -- strategies
 import Talos.Strategy.BTRand
-import Talos.Strategy.Symbolic (symbolicStrat)
+import Talos.Strategy.Symbolic (symbolicStrats)
 -- import Talos.Strategy.BackwardSymbolic (backwardSymbolicStrat)
 
 import Daedalus.Core
 
 allStrategies :: [Strategy]
-allStrategies = [ randRestart, randMaybeT, randDFS, symbolicStrat {- , backwardSymbolicStrat -} ]
+allStrategies = [ randRestart, randMaybeT, randDFS ] ++ symbolicStrats {- , backwardSymbolicStrat -}
 
 runStrategy :: SolverState -> Strategy -> ProvenanceTag -> Slice ->
                StrategyM (Maybe SelectedPath, SolverState)

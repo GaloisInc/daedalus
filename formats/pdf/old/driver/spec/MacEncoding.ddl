@@ -1,0 +1,1 @@
+../../cos/spec/MacEncoding.ddl

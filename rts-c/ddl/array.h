@@ -3,6 +3,8 @@
 
 #include <string.h>
 #include <cctype>
+#include <algorithm>
+#include <functional>
 #include <vector>
 
 #include <ddl/debug.h>
@@ -41,14 +43,6 @@ class Array : IsBoxed {
   } *ptr;
 
   Array(Content *p) : ptr(p) {}
-
-  void fill(Size) {}
-
-  template <typename ... Elems>
-  void fill(Size i, T x, Elems ... xs) {
-    ptr->data[i.rep()] = x;
-    fill(i.incremented(),xs...);
-  }
 
   static
   Size rangeSize(Size space, Size step) {
@@ -92,12 +86,12 @@ public:
     return Array(p);
   }
 
-  Array() : ptr(NULL) {}
+  Array() : ptr(nullptr) {}
 
-  // Array literal. Owns xs
-  template <typename ...Elems>
-  Array(Size n, Elems ... xs)
-    : ptr(Content::allocate(n)) { fill(Size{0},xs...); }
+  Array(std::initializer_list<T> xs)
+  : ptr(Content::allocate(xs.size())) {
+    std::copy(xs.begin(), xs.end(), ptr->data);
+  }
 
   // Array from builder. Owns b
   Array(Builder<T> b) : ptr(b.toContent()) {}
@@ -124,12 +118,13 @@ public:
   }
 
   // Borrow arguments
-  Array(T *data, Size n) : ptr(Content::allocate(n)) {
-    memcpy(ptr->data, data, sizeof(T[n.rep()]));
+  Array(T *data, Size n)
+  : ptr(Content::allocate(n)) {
+    std::copy_n(data, n.rep(), ptr->data);
   }
 
   // Borrows this
-  Size size() { return ptr->size; }
+  Size size() { return ptr == nullptr ? 0 : ptr->size; }
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
@@ -155,11 +150,13 @@ public:
 
 
 // -- Boxed --------------------------------------------------------------------
-  RefCount refCount() { return ptr->ref_count; }
+  RefCount refCount() { return ptr == nullptr ? 0 : ptr->ref_count; }
 
-  void copy() { ++(ptr->ref_count); }
+  void copy() { if (ptr != nullptr) ptr->ref_count++; }
 
   void free() {
+    if (ptr == nullptr) return;
+
     RefCount n = refCount();
     if (n == 1) {
       if constexpr (std::is_base_of<HasRefs,T>::value) {
@@ -169,6 +166,7 @@ public:
       }
       debug("  Freeing array "); debugValNL((void*)ptr);
       delete[] (char*)ptr;
+      ptr = nullptr;
     } else {
       ptr->ref_count = n - 1;
     }
@@ -233,13 +231,33 @@ class Builder {
     Builder () : list() {}
 
     // owns x, xs
-    Builder (T x, Builder xs) {
+    Builder (Builder xs, T x) {
       if (xs.list.refCount() == 1) {
         list = xs.list;
         list.borrowHead().push_back(x);
       } else {
         list = List{{x}, xs.list};
       }
+    }
+
+    // owns a, b
+    Builder(Builder b, Array<T> a) {
+      auto beginData = a.ptr->data;
+      auto endData = beginData + a.ptr->size.value;
+
+      // support copy if array has 1 reference
+      if constexpr (hasRefs<T>()) {
+        std::for_each(beginData, endData, std::mem_fn(&T::copy));
+      }
+
+      if (b.list.refCount() == 1) {
+        auto &v = b.list.borrowHead();
+        v.insert(v.end(), beginData, endData);
+        list = b.list;
+      } else {
+        list = List{std::vector(beginData, endData), b.list};
+      }
+      a.free();
     }
 
     void free() {

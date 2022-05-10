@@ -85,11 +85,16 @@ format respectively.  You may install them using the commands:
 
 .. code-block:: bash
 
-    cabal install exe:icc-parser    --installdir=DIR
+    cabal install exe:icc           --installdir=DIR
     cabal install exe:pdf-hs-driver --installdir=DIR
 
 The source code for the ICC validator is in ``icc-driver`` and the source
 code for the PDF validator is in ``pdf-driver``.
+
+NOTE:  The ``pdf-hs-dirver`` is being replaced by a validator using our C++
+backend.  For instructions on how to build this, please have a look at the
+README in ``formats/pdf/new/c++``.
+
 
 Generating C++ Parsers
 ----------------------

@@ -2,12 +2,14 @@
 {-# Language DataKinds, GADTs, KindSignatures, ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell, DeriveLift #-} -- For deriving ord and eqs
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Daedalus.AST where
 
 import Data.Word
 import Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Char as Char
 import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.Kind as HS
@@ -18,6 +20,7 @@ import Data.Parameterized.Classes (OrdF(..))
 import Data.Parameterized.TH.GADT
 import Language.Haskell.TH.Syntax(Lift(..))
 
+import Daedalus.Compat()
 import Daedalus.PP
 import Daedalus.SourceRange
 import Daedalus.Rec
@@ -32,6 +35,8 @@ data Name = forall ctx.
        , nameID          :: !GUID
        }
 
+deriving instance Lift Name
+
 type ModuleName = Text
 type Ident = Text
 type Label = Text
@@ -45,8 +50,17 @@ isLocalName n =
     Local {} -> True
     _        -> False
 
-primName :: Text -> Text -> Context c -> Name
-primName m x c = Name (ModScope m x) c synthetic invalidGUID
+primName' :: Text -> Text -> Context c -> Name
+primName' m x c = Name (ModScope m x) c synthetic invalidGUID
+
+primName :: Text -> Text -> Name
+primName m x = case Text.uncons x of
+                 Just (a,_)
+                   | a == '$'       -> primName' m x AClass
+                   | Char.isUpper a -> primName' m x AGrammar
+                 _                  -> primName' m x AValue
+
+
 
 instance PP ScopedIdent where
   pp x = case x of
@@ -107,6 +121,8 @@ data IPName = forall ctx. IPName
   , ipRange   :: SourceRange
   }
 
+deriving instance Lift IPName
+
 instance Eq IPName where
   x == y = ipName x == ipName y
 
@@ -141,18 +157,19 @@ data Decl = DeclRule Rule | DeclBitData BitData | DeclType TypeDecl
 
 data Rule =
   Rule { ruleName     :: !Name
-       , ruleParams   :: ![RuleParam]
+       , ruleIParams  :: ![RuleParam IPName]
+       , ruleParams   :: ![RuleParam Name]
        , ruleResTy    :: !(Maybe SrcType)
        , ruleDef      :: !(Maybe Expr)
        , ruleRange    :: !SourceRange
        } deriving Show
 
-data RuleParam = RuleParam
-  { paramName :: Name
+data RuleParam name = RuleParam
+  { paramName :: name
   , paramType :: Maybe SrcType
   } deriving Show
 
-instance HasRange RuleParam where
+instance HasRange name => HasRange (RuleParam name) where
   range p = case paramType p of
               Nothing -> range (paramName p)
               Just t  -> paramName p <-> t
@@ -198,6 +215,8 @@ data Context :: Ctx -> HS.Type where
   AGrammar :: Context Grammar
   AValue   :: Context Value
   AClass   :: Context Class
+
+deriving instance Lift (Context a)
 
 -- XXX: use parametrized-utils classes?
 sameContext :: Context a -> Context b -> Maybe (a :~: b)
@@ -260,7 +279,7 @@ data ExprF e =
   | EPure !e
   | EFail !e
 
-  | EFor !(FLoopFlav e) !(Maybe Name) !Name !e !e
+  | EFor !(FLoopFlav e) e
 
   | EIf         !e !e !e
 
@@ -278,9 +297,16 @@ data ExprF e =
     deriving (Show, Functor, Foldable, Traversable)
 
 -- | Different flavors of loop
-data FLoopFlav e = FFold !Name e
-                 | FMap
+data FLoopFlav e = FFold !Name e (FLoopCol e)
+                 | FMap (FLoopCol e)
+                 | FMany Commit Name e
   deriving (Show, Functor, Foldable, Traversable)
+
+data FLoopCol e  = FLoopCol
+  { flKey :: Maybe Name
+  , flVal :: Name
+  , flCol :: e
+  } deriving (Show, Functor, Foldable, Traversable)
 
 data Commit = Commit | Backtrack
   deriving (Eq, Show, Lift)
@@ -289,7 +315,7 @@ data SigType = MatchType | CoerceSafe | CoerceCheck | CoerceForce
   deriving Show
 
 data TriOp = RangeUp | RangeDown | MapDoInsert
-  deriving (Show,Eq)
+  deriving (Show,Eq,Lift)
 
 data BinOp = Add | Sub | Mul | Div | Mod
            | Lt | Eq | NotEq | Leq | Cat | LCat
@@ -298,14 +324,16 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | ArrayStream
            | LookupMap
            | BuilderEmit -- ^ push a new element onto the end of a builder
-  deriving (Show, Eq)
+           | BuilderEmitArray
+           | BuilderEmitBuilder
+  deriving (Show, Eq, Lift)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
            | BuilderBuild -- ^ build array from a builder
-  deriving (Show, Eq)
+  deriving (Show, Eq, Lift)
 
 data Selector = SelStruct (Located Label)
               | SelUnion (Located Label)
@@ -316,7 +344,7 @@ data Selector = SelStruct (Located Label)
 data ManyBounds e =
     Exactly e
   | Between (Maybe e) (Maybe e)
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving (Show, Functor, Foldable, Traversable,Lift)
 
 data UnionField e = !(Located Label) :> !e
                     deriving (Show, Functor, Foldable, Traversable)
@@ -336,7 +364,7 @@ data Literal =
   | LBytes      !ByteString
   | LByte       !Word8    Text    -- Text is how to show
   | LPi
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Lift)
 
 
 -- Non empty
@@ -371,7 +399,7 @@ pExprAt r e = Expr Located { thingRange = range r, thingValue = e }
 
 data Located a = Located { thingRange :: SourceRange
                          , thingValue :: a
-                         } deriving (Show, Functor, Foldable, Traversable)
+                         } deriving (Show, Functor, Foldable, Traversable,Lift)
 
 instance Eq a => Eq (Located a) where
   (==) = (==) `on` thingValue
@@ -394,7 +422,7 @@ data TypeF t =
   | TMaybe !t
   | TBuilder !t
   | TMap   !t !t
-    deriving (Eq,Show,Functor,Foldable,Traversable)
+    deriving (Eq,Show,Functor,Foldable,Traversable,Lift)
 
 data SrcType = SrcVar (Located Text)
              | SrcCon Name [SrcType]
@@ -456,7 +484,7 @@ instance PP e => PP (ManyBounds e) where
       Between a b -> "[" <+> ppMb a <+> ".." <+> ppMb b <+> "]"
         where ppMb = maybe empty pp
 
-instance PP RuleParam where
+instance PP name => PP (RuleParam name) where
   pp p = case paramType p of
            Nothing -> pp (paramName p)
            Just t -> parens (pp (paramName p) <+> ":" <+> pp t)
@@ -492,6 +520,8 @@ instance PP BinOp where
       ArrayStream -> "arrayStream"
       LookupMap -> "lookup"
       BuilderEmit -> "emit"
+      BuilderEmitArray -> "emitArray"
+      BuilderEmitBuilder -> "emitBuilder"
 
 instance PP UniOp where
   pp op =

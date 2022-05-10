@@ -79,6 +79,8 @@ data Token =
   | KWMatch1
   | KWMany
   | KWManyQuestion
+  | KWmany
+  | KWmanyQuestion
   | KWOptional
   | KWOptionalQuestion
   | KWUInt8
@@ -126,6 +128,8 @@ data Token =
   | KWNothing
   | KWBuilderbuild
   | KWBuilderemit
+  | KWBuilderemitArray
+  | KWBuilderemitBuilder
   | KWBuilderbuilder
   | KWDef
   | KWArrayStream

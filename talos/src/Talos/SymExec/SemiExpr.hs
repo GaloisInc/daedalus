@@ -441,7 +441,7 @@ semiExecOp2 op rty ty1 ty2 sv1 sv2 =
       | Just svs <- SV.toList sv1
       , VValue v <- sv2, Just ix <- V.valueToIntSize v
         -> pure (svs !! ix)
-    ConsBuilder | Just svs <- SV.toList sv2 -> pure (VSequence True (svs ++ [sv1]))
+    Emit | Just svs <- SV.toList sv1 -> pure (VSequence True (svs ++ [sv2]))
 
     -- sv1 is map, sv2 is key
     MapLookup -> mapOp (VValue $ V.VMaybe Nothing) (sNothing . symExecTy)

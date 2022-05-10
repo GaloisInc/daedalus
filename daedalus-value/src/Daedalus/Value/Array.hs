@@ -40,8 +40,19 @@ vRangeDown = rangeOp "rangeDown" subtract (<)
 vBuilder :: Value
 vBuilder = VBuilder []
 
-vConsBuilder :: Value -> Value -> Value
-vConsBuilder v b = VBuilder (v : valueToBuilder b)
+-- | Builder, Array
+vEmit :: Value -> Value -> Value
+vEmit b v = VBuilder (v : valueToBuilder b)
+
+-- | Builder, Array
+vEmitArray :: Value -> Value -> Value
+vEmitArray b arr =
+  VBuilder (reverse (Vector.toList (valueToVector arr)) ++ valueToBuilder b)
+
+-- | Builder, Array
+vEmitBuilder :: Value -> Value -> Value
+vEmitBuilder b bv =
+  VBuilder (valueToBuilder bv ++ valueToBuilder b)
 
 vFinishBuilder :: Value -> Value
 vFinishBuilder = vArray . reverse . valueToBuilder

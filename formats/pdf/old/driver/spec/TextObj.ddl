@@ -1,0 +1,1 @@
+../../cos/spec/TextObj.ddl

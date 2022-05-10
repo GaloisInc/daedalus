@@ -23,10 +23,19 @@ resolveRuleIPs extIps rs =
   do mapM_ (addWarning . WarnUnusiedIP) (concatMap Set.toList (Map.elems errs))
      mapM rewRule rs
   where
+  declaredIPs =
+    let mp = Map.fromList
+               [ (ruleName r, Set.fromList (map paramName (ruleIParams r)))
+               | r <- rs
+               ]
+    in \r -> Map.findWithDefault Set.empty r mp
 
-  ruleIPs r = (ruleName r, case ruleDef r of
-                             Nothing -> UseIPs Set.empty
-                             Just e  -> getIPs e)
+  ruleIPs r = ( ruleName r
+              , case ruleDef r of
+                  Nothing -> (UseIPs Set.empty, Set.empty)
+                  Just e  -> (getIPs e, declaredIPs (ruleName r))
+              )
+
   thisIPs   = Map.fromList (map ruleIPs rs)
 
   extSet    = Set.fromList <$> extIps
@@ -34,22 +43,29 @@ resolveRuleIPs extIps rs =
   thisList  = Set.toList <$> thisSet
   allList   = Map.union thisList extIps
 
-  -- XXX: report
+
   errs      = let ?funs = Map.union thisSet extSet
                   ?cur  = Set.empty
-              in findUnused . externalIPs <$> thisIPs
+              in findUnused <$> thisIPs
+
   rewRule r =
     case Map.lookup (ruleName r) allList of
       Just is ->
-        do xs <- mapM newIP is
-           let toParam x = RuleParam { paramName = x, paramType = Nothing }
+        do let tys = Map.fromList [ (paramName p, t)
+                                  | p <- ruleIParams r
+                                  , Just t <- [ paramType p ] ]
+           xs <- mapM newIP is
+           let toParam x y = RuleParam { paramName = x
+                                       , paramType = Map.lookup y tys
+                                       }
                toIP x y  = (x, pExprAt (ruleName r) (EVar y))
                ipMap     = Map.fromList (zipWith toIP is xs)
                doExpr    = let ?funs = allList
                            in makeExplicit ipMap
 
            def <- traverse doExpr (ruleDef r)
-           pure ( r { ruleParams = map toParam xs ++ ruleParams r
+           pure ( r { ruleIParams = []
+                    , ruleParams = zipWith toParam xs is ++ ruleParams r
                     , ruleDef = def
                     }
                 , is
@@ -97,9 +113,14 @@ getStructIPs fs =
 
 -- | Find implicit parameters that were defined but not used
 -- Assumes that functions have been resolved.
-findUnused :: IPs -> Set IPName
-findUnused = fst . go
+findUnused :: ( ?funs :: Map Name (Set IPName)
+              , ?cur :: Set Name
+              ) => (IPs, Set IPName) -> Set IPName
+findUnused (ips0,declared) =
+  Set.union unused (declared `Set.difference` topUsed)
   where
+  (unused,topUsed) = go (externalIPs ips0)
+
   go ips =
     case ips of
       DefIP x is ->
@@ -142,14 +163,18 @@ externalIPs ips =
       | f `Set.member` ?cur -> ips
       | otherwise           -> UseIPs (lookupIPs f)
 
+
 -- | Compute a fixed point for the implicit parameters of an SCC
-fixIPs :: Map Name (Set IPName) -> Map Name IPs -> Map Name (Set IPName)
+fixIPs ::
+  Map Name (Set IPName) -> Map Name (IPs, Set IPName) -> Map Name (Set IPName)
 fixIPs external defs0 = loop initS
   where
+  jn (is,s) = is <> UseIPs s
+
   defs :: Map Name IPs
   defs = let ?funs = external
              ?cur  = Map.keysSet defs0
-          in externalIPs <$> defs0
+          in externalIPs . jn <$> defs0
 
   step :: Map Name (Set IPName) -> Map Name (Set IPName)
   step s = let ?funs = s

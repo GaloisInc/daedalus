@@ -42,7 +42,7 @@ benches = [ Bench { bname = "NITF Header"
                   , ddlFile = "nitf/nitf-simple/nitf_header.ddl"
                   , invFile = Just "nitf/nitf-simple/nitf_inverses.ddl"
                   , entry   = "Header"
-                  , strategies = ["symbolic"]
+                  , strategies = ["symbolic-dfs", "symbolic-bfs"]
                   , bseeds = Left 1
                   }
           ]
@@ -71,7 +71,7 @@ mkBenchmarks solv seeds summaries md nguid strats fn clM =
                      ]
   where
     goSl n fset sl =
-      [ bench (showPP n ++ "/" ++ showPP fset {- ++ "/" ++ show seed -})
+      [ bench (showPP n ++ "/" ++ showPP fset ++ "/" ++ stratName strat {- ++ "/" ++ show seed -})
               (benchSl seed strat sl)
       | seed <- seeds, strat <- strats]
 

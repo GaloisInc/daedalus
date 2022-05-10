@@ -713,26 +713,63 @@ completeAlts d ps0 =
 --------------------------------------------------------------------------------
 -- Loops
 
+doLoopCol ::
+  TC.LoopCollection TC.SourceRange ->
+  M ( Maybe (TC.TCName TC.Value, Name)
+    , (TC.TCName TC.Value, Name)
+    , Expr
+    , Type
+    )
+doLoopCol col =
+  do keyVar <- traverse fromName (TC.lcKName col)
+     elVar  <- fromName (TC.lcElName col)
+     colE   <- fromExpr (TC.lcCol col)
+     colT   <- fromTypeM $ TC.typeOf (TC.lcCol col)
+     pure (keyVar, elVar, colE, colT)
+
+
+
 
 doLoopG ::
   UsesTypes => [Annot] -> TC.Loop TC.SourceRange TC.Grammar -> M Grammar
 doLoopG ann lp =
-  do keyVar <- traverse fromName (TC.loopKName lp)
-     elVar  <- fromName (TC.loopElName lp)
-     colE   <- fromExpr (TC.loopCol lp)
-
-     colT   <- fromTypeM $ TC.typeOf (TC.loopCol lp)
-
-     let doBody = withSourceLocal elVar
-                $ maybe id withSourceLocal keyVar
-                $ fromGrammar $ TC.loopBody lp
+  do let doBody elVar keyVar = withSourceLocal elVar
+                             $ maybe id withSourceLocal keyVar
+                             $ fromGrammar $ TC.loopBody lp
 
      case TC.loopFlav lp of
 
-       TC.Fold x s ->
-         do sVar     <- fromName x
+       TC.LoopMany cmt x s ->
+         do v@(_,sVar)  <- fromName x
+            initS <- fromExpr s
+            g     <- withSourceLocal v (fromGrammar (TC.loopBody lp))
+            ty    <- fromGTypeM (TC.loopType lp)
+            let free = Set.toList (Set.delete sVar (freeVars g))
+                es   = map Var free
+
+            f     <- newGName ty
+
+            let def = do lhs <- do r1 <- newLocal ty
+                                   pure (Do r1 g (Pure (just (Var r1))))
+                         r2 <- newLocal (TMaybe ty)
+                         pure $ Do r2 (orOp cmt lhs (Pure (nothing ty)))
+                              $ GCase
+                              $ Case r2
+                                  [ (PJust, Call f (eFromJust (Var r2) : es))
+                                  , (PNothing, Pure (Var sVar))
+                                  ]
+
+            defFunG ann f (sVar : free) =<< def
+            pure (Call f (initS : es))
+
+
+
+       TC.Fold x s col ->
+         do (keyVar,elVar,colE,colT) <- doLoopCol col
+
+            sVar     <- fromName x
             initS    <- fromExpr s
-            g        <- withSourceLocal sVar doBody
+            g        <- withSourceLocal sVar (doBody elVar keyVar)
             let free = freeVars g
             ty       <- fromGTypeM $ TC.loopType lp
             foldLoopG
@@ -742,14 +779,15 @@ doLoopG ann lp =
               (snd <$> keyVar) (snd elVar) colE
               \_ -> g
 
-       TC.LoopMap ->
+       TC.LoopMap col ->
          fromGTypeM (TC.loopType lp) >>= \resT ->
+         doLoopCol col >>= \(keyVar,elVar,colE,colT) ->
          case resT of
 
            TArray elTy ->
              do sVar <- newLocal (TBuilder elTy)
                 newEl <- newLocal elTy
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoopG
@@ -759,7 +797,7 @@ doLoopG ann lp =
                            (snd <$> keyVar) (snd elVar) colE
                            \_ ->
                              Do newEl g
-                              $ Pure (consBuilder (Var newEl) (Var sVar))
+                              $ Pure (emit (Var sVar) (Var newEl))
 
                 x <- newLocal (TBuilder elTy)
                 pure $ Do x step1 (Pure (finishBuilder (Var x)))
@@ -767,7 +805,7 @@ doLoopG ann lp =
            ty@(TMap tk tv) ->
               do sVar <- newLocal ty
                  newEl <- newLocal tv
-                 g <- doBody
+                 g <- doBody elVar keyVar
                  let free = freeVars g
                  foldLoopG ann colT ty (Set.toList free)
                    sVar (mapEmpty tk tv)
@@ -855,7 +893,7 @@ pParseMany ann cmt ty vs be p =
      x <- newLocal (TBuilder ty)
      let xe = Var x
      body <- maybeParse cmt ty p
-                              (\a -> Call f (consBuilder a xe : es)) (Pure xe)
+                              (\a -> Call f (emit xe a : es)) (Pure xe)
      defFunG ann f (x:vs) body
      pure $ Call f (be : es)
 
@@ -893,7 +931,7 @@ pParseExactlyMany ann _cmt ty vs tgt p =
      -- always take exactly tgt many iterations
      let body = Do r (OrBiased p (sysErr ty "insufficient element occurances"))
                      (Call f (add xe (intL 1 sizeType)
-                              : consBuilder re be
+                              : emit be re
                               : es))
 
      defFunG ann f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
@@ -922,7 +960,7 @@ pParseAtMost ann cmt ty vs tgt be p =
 
      body <- maybeParse cmt ty p
                 (\a -> Call f (add xe (intL 1 sizeType)
-                              : consBuilder a bve
+                              : emit bve a
                               : es))
                 (Pure bve)
 
@@ -1109,7 +1147,9 @@ fromExpr expr =
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1
-           TC.BuilderEmit  -> pure $ consBuilder e2 e1
+           TC.BuilderEmit        -> pure $ emit e1 e2
+           TC.BuilderEmitArray   -> pure $ emitArray e1 e2
+           TC.BuilderEmitBuilder -> pure $ emitArray e1 e2
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1
@@ -1136,22 +1176,17 @@ fromExpr expr =
 
 doLoop :: [Annot] -> TC.Loop TC.SourceRange TC.Value -> M Expr
 doLoop ann lp =
-  do keyVar <- traverse fromName (TC.loopKName lp)
-     elVar  <- fromName (TC.loopElName lp)
-     colE   <- fromExpr (TC.loopCol lp)
-
-     colT   <- fromTypeM $ TC.typeOf (TC.loopCol lp)
-
-     let doBody = withSourceLocal elVar
-                $ maybe id withSourceLocal keyVar
-                $ fromExpr $ TC.loopBody lp
+  do let doBody elVar keyVar = withSourceLocal elVar
+                             $ maybe id withSourceLocal keyVar
+                             $ fromExpr $ TC.loopBody lp
 
      case TC.loopFlav lp of
 
-       TC.Fold x s ->
-         do sVar     <- fromName x
+       TC.Fold x s col ->
+         do (keyVar,elVar,colE,colT) <- doLoopCol col
+            sVar     <- fromName x
             initS    <- fromExpr s
-            g        <- withSourceLocal sVar doBody
+            g        <- withSourceLocal sVar (doBody elVar keyVar)
             let free = freeVars g
             ty       <- fromTypeM $ TC.loopType lp
             foldLoop
@@ -1161,13 +1196,14 @@ doLoop ann lp =
               (snd <$> keyVar) (snd elVar) colE
               \_ -> g
 
-       TC.LoopMap ->
+       TC.LoopMap col ->
          fromTypeM (TC.loopType lp) >>= \resT ->
+         doLoopCol col >>= \(keyVar,elVar,colE,colT) ->
          case resT of
 
            TArray elTy ->
              do sVar <- newLocal (TBuilder elTy)
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoop
@@ -1175,13 +1211,13 @@ doLoop ann lp =
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
                            (snd <$> keyVar) (snd elVar) colE
-                           \_ -> consBuilder g (Var sVar)
+                           \_ -> emit (Var sVar) g
 
                 pure (finishBuilder step1)
 
            ty@(TMap tk tv) ->
              do sVar <- newLocal ty
-                g <- doBody
+                g <- doBody elVar keyVar
                 let free = freeVars g
                 foldLoop ann colT ty (Set.toList free)
                   sVar (mapEmpty tk tv)

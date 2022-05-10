@@ -5,7 +5,7 @@
 -} 
 module Daedalus.Specialise.Unify where
 
-import Control.Monad (zipWithM, foldM)
+import Control.Monad (zipWithM, foldM, unless)
 
 import Data.Parameterized.Map (MapF)
 import qualified Data.Parameterized.Map as MapF
@@ -87,18 +87,31 @@ instance Unify a => Unify (Maybe a) where
 instance Unify (Loop a k) where
   unify lp1 lp2 =
     do uB <- unify (loopBody lp1) (loopBody lp2)
-       uB_1 <- case (loopKName lp1, loopKName lp2) of
-                 (Nothing,Nothing) -> pure uB
-                 (Just k,Just k')  -> variableCheck k k' uB
-                 _                 -> Left SyntaxMismatch
-       uB_2 <- variableCheck (loopElName lp1) (loopElName lp2) uB_1
+
        case (loopFlav lp1, loopFlav lp2) of
-         (LoopMap,LoopMap) -> pure emptyUnifier
-         (Fold x1 s1, Fold x2 s2) ->
-            do uB_3 <- variableCheck x1 x2 uB_2
+
+         (LoopMany c1 x1 s1, LoopMany c2 x2 s2) ->
+           do unless (c1 == c2) (Left SyntaxMismatch)
+              uB_1 <- variableCheck x1 x2 uB
+              uS   <- unify s1 s2
+              mergeUnifiers uS uB_1
+
+         (LoopMap c1,LoopMap c2) -> unifyCol uB c1 c2
+
+         (Fold x1 s1 c1, Fold x2 s2 c2) ->
+            do uB_2 <- unifyCol uB c1 c2
+               uB_3 <- variableCheck x1 x2 uB_2
                uS   <- unify s1 s2
                mergeUnifiers uS uB_3
          _ -> Left SyntaxMismatch
+    where
+    unifyCol uB c1 c2 =
+      do uB_1 <- case (lcKName c1, lcKName c2) of
+                   (Nothing,Nothing) -> pure uB
+                   (Just k,Just k')  -> variableCheck k k' uB
+                   _                 -> Left SyntaxMismatch
+         variableCheck (lcElName c1) (lcElName c2) uB_1
+
 
 instance Unify (TCF a k) where
   unify texpr1 texpr2 = 

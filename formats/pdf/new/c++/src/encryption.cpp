@@ -279,6 +279,7 @@ bool aes_cbc_decryption(
     std::string &output)
 {
     if (input_len < 32 || input_len % 16) {
+        std::cerr << "[ERROR] aes_cbc_decryption unexpected input_len=" << input_len << std::endl;
         return false;
     }
 
@@ -311,7 +312,7 @@ bool aes_cbc_decryption(
         output.resize(output.size() - out_avail);
 
     } catch (opensslxx::OpenSSLXX_exception const& e) {
-        std::cerr << "[ERROR] OpenSLL failed: " << e.code << std::endl;
+        std::cerr << "[ERROR] OpenSSL failed: " << e.code << std::endl;
         return false;
     }
 

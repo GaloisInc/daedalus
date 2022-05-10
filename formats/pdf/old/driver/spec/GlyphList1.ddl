@@ -1,0 +1,1 @@
+../../cos/spec/GlyphList1.ddl

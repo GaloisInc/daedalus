@@ -2,7 +2,9 @@
 {-# Language TemplateHaskell, OverloadedStrings, BlockArguments #-}
 module Daedalus.Parser.Lexer
   ( Lexeme(..), Token(..)
-  , lexer
+  , lexer, lexerAt
+  , SourcePos(..)
+  , startPos
   ) where
 
 import AlexTools
@@ -140,6 +142,8 @@ $ws+        ;
 "Optional?" { lexeme KWOptionalQuestion }
 "Many"      { lexeme KWMany }
 "Many?"     { lexeme KWManyQuestion }
+"many"      { lexeme KWmany }
+"many?"     { lexeme KWmanyQuestion }
 "UInt8"     { lexeme KWUInt8 }
 "$uint"     { lexeme KWDollarUInt }
 "Match"     { lexeme KWMatch }
@@ -156,6 +160,8 @@ $ws+        ;
 
 "build"     { lexeme KWBuilderbuild}
 "emit"      { lexeme KWBuilderemit }
+"emitArray" { lexeme KWBuilderemitArray }
+"emitBuilder" { lexeme KWBuilderemitBuilder }
 "builder"   { lexeme KWBuilderbuilder }
 
 "Offset"    { lexeme KWOffset }
@@ -332,7 +338,10 @@ endComment =
      pure []
 
 lexer :: Text -> Text -> [Lexeme Token]
-lexer file txt = layout ($makeLexer cfg (initialInput file txt))
+lexer file = lexerAt (startPos file)
+
+lexerAt :: SourcePos -> Text -> [Lexeme Token]
+lexerAt loc txt = layout ($makeLexer cfg (initialInputAt loc txt))
   where
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
   --          "\t" ++ show (lexemeToken l) |  l <- xs ]) xs

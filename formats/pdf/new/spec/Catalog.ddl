@@ -42,15 +42,15 @@ def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
                                   -- we ignore resources that we couldn't
                                   -- parse, for the time being
                       nothing -> parentResources
-    let type = LookupResolve "Type" node is name
-    if type == "Pages"
-       then {| Node = map (child in (LookupResolve "Kids" node is array))
-                          (PdfPageTree (just r) resources (child is ref))
-            |}
 
-       else if type == "Page"
-              then {| Leaf = PdfPage resources node |}
-              else Fail "Unexpected `Type` in page tree"
+    case LookupName "Type" node of
+      "Pages" -> {| Node = map (child in (LookupResolve "Kids" node is array))
+                               (PdfPageTree (just r) resources (child is ref))
+                 |}
+
+      "Page"  -> {| Leaf = PdfPage resources node |}
+
+      _       -> Fail "Unexpected `Type` in page tree"
 
 def noResources : Resources =
   block

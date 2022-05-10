@@ -11,6 +11,7 @@ import Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Short as SBS
 import Data.Word(Word8)
 import Data.Char (isAscii, isPrint, chr)
@@ -183,11 +184,17 @@ valueToVector v =
    VArray vs -> vs
    _         -> panic "valueToVector" [ "Not a vector", show v ]
 
+valueToList :: Value -> [Value]
+valueToList = Vector.toList . valueToVector
+
 valueToStruct :: Value -> [(Label,Value)]
 valueToStruct v =
   case v of
     VStruct fs -> fs
     _          -> panic "valueToStruct" [ "Not a struct", show v ]
+
+valueToStructMap :: Value -> Map Label Value
+valueToStructMap = Map.fromList . valueToStruct
 
 valueToUnion :: Value -> (Label,Value)
 valueToUnion v =
@@ -200,6 +207,9 @@ valueToByteString v =
   case v of
     VArray vs -> BS.pack (map valueToByte (Vector.toList vs))
     _         -> panic "valueToByteString" [ "Not a bytesring", show v ]
+
+valueToString :: Value -> String
+valueToString = BS8.unpack . valueToByteString
 
 valueToMap :: Value -> Map Value Value
 valueToMap v =

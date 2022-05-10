@@ -468,7 +468,9 @@ modeOp2 op =
     RShift               -> [Owned,Borrowed]
 
     ArrayIndex           -> [Borrowed,Borrowed]
-    ConsBuilder          -> [Owned,Owned]
+    Emit                 -> [Owned,Owned]
+    EmitBuilder          -> [Owned,Owned]
+    EmitArray            -> [Owned,Owned]
     MapLookup            -> [Borrowed,Borrowed]
     MapMember            -> [Borrowed,Borrowed]
 

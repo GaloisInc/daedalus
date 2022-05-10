@@ -84,20 +84,24 @@ idVExpr vexpr =
         -- TCFor n e1 Nothing n1 e2 e3 -> TCVFor n (idVExpr e1) n1 (idVExpr e2) (idVExpr e3)
         TCFor lp ->
           case loopFlav lp of
-            LoopMap -> TCFor $
+            LoopMap col -> TCFor $
               Loop{ loopFlav = LoopMap
-                  , loopKName = loopKName lp
-                  , loopElName = loopElName lp
-                  , loopCol = idVExpr (loopCol lp)
+                      LoopCollection
+                        { lcKName = lcKName col
+                        , lcElName = lcElName col
+                        , lcCol = idVExpr (lcCol col)
+                        }
                   , loopBody = idVExpr (loopBody lp)
                   , loopType = loopType lp
                   }
-            Fold n1 e1 ->
+            Fold n1 e1 col ->
               TCFor $
               Loop{ loopFlav = Fold n1 (idVExpr e1)
-                  , loopKName = loopKName lp
-                  , loopElName = loopElName lp
-                  , loopCol = idVExpr (loopCol lp)
+                       LoopCollection
+                          { lcKName = lcKName col
+                          , lcElName = lcElName col
+                          , lcCol = idVExpr (lcCol col)
+                          }
                   , loopBody = idVExpr (loopBody lp)
                   , loopType = loopType lp
                   }
@@ -221,34 +225,36 @@ allocGExpr n ctx gexpr =
 
         TCFor lp ->
           case loopFlav lp of
-            Fold x e ->
+            Fold x e col ->
               let gram = loopBody lp
                   e1 = e
-                  e2 = loopCol lp
+                  e2 = lcCol col
                   (agram, n1) = allocGram n ctx gram
                   ae1 = idVExpr e1
                   ae2 = idVExpr e2
                   forContent = Loop
-                      { loopFlav = Fold x ae1
-                      , loopKName = loopKName lp
-                      , loopElName = loopElName lp
-                      , loopCol = ae2
+                      { loopFlav = Fold x ae1 LoopCollection
+                                                { lcKName = lcKName col
+                                                , lcElName = lcElName col
+                                                , lcCol = ae2
+                                                }
                       , loopBody = agram
                       , loopType = loopType lp
                       }
               in
                 allocate (TCFor forContent) n1 5
 
-            LoopMap ->
+            LoopMap col ->
               let gram = loopBody lp
-                  e1 = loopCol lp
+                  e1 = lcCol col
                   (agram, n1) = allocGram n ctx gram
                   ae1 = idVExpr e1
                   forContent = Loop
-                      { loopFlav = LoopMap
-                      , loopKName = loopKName lp
-                      , loopElName = loopElName lp
-                      , loopCol = ae1
+                      { loopFlav = LoopMap LoopCollection
+                                             { lcKName = lcKName col
+                                             , lcElName = lcElName col
+                                             , lcCol = ae1
+                                             }
                       , loopBody = agram
                       , loopType = loopType lp
                       }
@@ -697,10 +703,10 @@ genGExpr gbl e =
       in mkAut n1 (mkTr [ (n1, UniChoice (SAct (CoerceCheck ws t1 t2 e1), n2)) ]) n2
     TCFor lp ->
       case loopFlav lp of
-        Fold name1 e1 ->
+        Fold name1 e1 col ->
           let nname1 = tcName name1
-              nname2 = tcName (loopElName lp)
-              e2 = loopCol lp
+              nname2 = tcName (lcElName col)
+              e2 = lcCol col
               gram = loopBody lp
               n1 = getS 0
               n2 = getS 1
@@ -717,9 +723,9 @@ genGExpr gbl e =
                 , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
           in mkAutWithPop n1 (unionTr trans t1) n5 pops
-        LoopMap ->
-          let nname1 = tcName (loopElName lp)
-              e1 = loopCol lp
+        LoopMap col ->
+          let nname1 = tcName (lcElName col)
+              e1 = lcCol col
               gram = loopBody lp
               n1 = getS 0
               n2 = getS 1

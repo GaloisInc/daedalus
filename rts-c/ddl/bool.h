@@ -13,15 +13,17 @@ public:
   Bool()              {}
   Bool(bool x) : b(x) {}
 
-  bool getValue() { return b; }
+  bool getValue() const { return b; }
 
-  bool operator == (Bool x) { return getValue() == x.getValue(); }
-  bool operator != (Bool x) { return getValue() != x.getValue(); }
-  bool operator <  (Bool x) { return getValue() <  x.getValue(); }
-  bool operator <= (Bool x) { return getValue() <= x.getValue(); }
-
-  Bool operator ! ()        { return Bool(!getValue()); }
 };
+
+inline bool operator == (Bool x, Bool y) { return x.getValue() == y.getValue(); }
+inline bool operator != (Bool x, Bool y) { return x.getValue() != y.getValue(); }
+inline bool operator <  (Bool x, Bool y) { return x.getValue() <  y.getValue(); }
+inline bool operator <= (Bool x, Bool y) { return x.getValue() <= y.getValue(); }
+inline bool operator >  (Bool x, Bool y) { return x.getValue() >  y.getValue(); }
+inline bool operator >= (Bool x, Bool y) { return x.getValue() >= y.getValue(); }
+inline Bool operator ! (Bool x)  { return Bool(!x.getValue()); }
 
 inline int compare(Bool x, Bool y) { return x.getValue() - y.getValue(); }
 

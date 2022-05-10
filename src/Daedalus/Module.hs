@@ -16,7 +16,9 @@ import Daedalus.PP hiding ((<.>))
 import Daedalus.AST
 
 
-data ModuleException = ImportLoop ModuleName | MissingModule ModuleName
+data ModuleException =
+    ImportLoop ModuleName
+  | MissingModule [FilePath] ModuleName
   deriving Show
 
 instance Exception ModuleException
@@ -25,8 +27,11 @@ instance PP ModuleException where
   pp x = case x of
            ImportLoop m ->
               "Recursive module dependency. See module" <+> backticks (pp m)
-           MissingModule m ->
-              "Missing module" <+> backticks (pp m)
+           MissingModule fs m ->
+              vcat [ "Missing module" <+> backticks (pp m)
+                   , "Searched paths:"
+                   , nest 2 $ vcat [ "*" <+> text f | f <- fs ]
+                   ]
 
 resolveModulePath :: [FilePath] -> ModuleName -> IO (Maybe FilePath)
 resolveModulePath [] _n = return Nothing

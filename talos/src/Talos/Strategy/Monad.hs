@@ -40,6 +40,7 @@ import Talos.Analysis.EntangledVars (EntangledVars)
 import qualified Data.ByteString as BS
 import Data.Foldable (foldl')
 import Daedalus.Rec (forgetRecs)
+import Control.Monad.Trans.Free (FreeT)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -202,7 +203,7 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
         let maxLength = 100
         len <- randR (0, maxLength)
         vs <- replicateM len (go t)
-        pure $ foldl' (flip consBuilder) (newBuilder t) vs
+        pure $ foldl' emit (newBuilder t) vs
         
       TIterator _t -> unimplemented
       TUser ut     -> goUT ut
@@ -243,6 +244,8 @@ instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
   liftStrategy m = lift (liftStrategy m)
 
+instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
+  liftStrategy m = lift (liftStrategy m)
 
 -- -----------------------------------------------------------------------------
 -- Instances

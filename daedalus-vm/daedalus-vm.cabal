@@ -50,7 +50,7 @@ library
     daedalus-utils,
     daedalus-core
 
-  ghc-options: -Wall
+  ghc-options: -Wall -Wno-incomplete-uni-patterns
 
   hs-source-dirs:      src
   default-language:    Haskell2010

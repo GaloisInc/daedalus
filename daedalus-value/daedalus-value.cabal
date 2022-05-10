@@ -28,6 +28,7 @@ library
     Daedalus.Value.Iterator
     Daedalus.Value.Coerce
     Daedalus.Value.Utils
+    Daedalus.Value.Extract
 
   build-depends:
     base,

@@ -31,7 +31,9 @@ module Daedalus.Value
   , valueToBool
   , valueToMaybe
   , valueToVector
+  , valueToList
   , valueToStruct
+  , valueToStructMap
   , valueToUnion
   , valueToMap
   , valueToStream
@@ -40,6 +42,7 @@ module Daedalus.Value
 
   , valueToByte
   , valueToByteString
+  , valueToString
 
     -- * Comparisons
   , vEq
@@ -89,7 +92,9 @@ module Daedalus.Value
   , vRangeDown
   , vByteString
   , vBuilder
-  , vConsBuilder
+  , vEmit
+  , vEmitArray
+  , vEmitBuilder
   , vFinishBuilder
 
   -- * Maps

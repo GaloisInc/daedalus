@@ -29,6 +29,7 @@ library
                        RTS.JSON
   build-depends:       base >=4.13,
                        vector,
+                       vector-builder,
                        containers,
                        bytestring,
                        pretty

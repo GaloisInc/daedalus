@@ -13,9 +13,7 @@ copyright:           2019, Galois Inc
 build-type:          Custom
 extra-source-files:
   CHANGELOG.md,
-  spec/PdfDemo.ddl,
-  spec/PdfValidate.ddl,
-  spec/PdfDOM.ddl
+  spec/*.ddl,
 
 -- This is the compiler: it generates the sources in `pdf-spec`
 custom-setup
