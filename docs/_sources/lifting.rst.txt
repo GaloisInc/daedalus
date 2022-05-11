@@ -1,3 +1,5 @@
+.. _implicit_lifting:
+
 Implicit Lifting
 ================
 
@@ -11,7 +13,7 @@ Various language constructs have expectations about the kinds of entities
 they would be used with.  For example:
 
   * the operator ``+`` expects two semantic values;
-  * the construct ``Match1`` expects a character class;
+  * the construct ``$[ ]`` expects a character class;
   * the construct ``Many`` expects a parser.
 
 DaeDaLus allows more flexible expressions where language constructs and
@@ -27,7 +29,7 @@ categories, subject to the following conversions:
 +-------------------+-----------------+-----------------------------------------+
 | Char Class ``$x`` | Value           | Not allowed                             |
 +-------------------+-----------------+-----------------------------------------+
-| Char Class ``$x`` | Parser          | ``Match1 $x`` match the char class      |
+| Char Class ``$x`` | Parser          | ``$[ $x ]`` match the char class        |
 +-------------------+-----------------+-----------------------------------------+
 
 In addition to these conversions, DaeDaLus also allows using parsers in

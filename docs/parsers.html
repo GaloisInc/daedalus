@@ -78,6 +78,7 @@
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#case">Case</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#commit">Commit</a></li>
 </ul>
 </li>
@@ -101,6 +102,7 @@
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#builders">Builders</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
@@ -139,14 +141,14 @@
 <h1>Parsers<a class="headerlink" href="#parsers" title="Permalink to this headline"></a></h1>
 <div class="section" id="primitive-parsers">
 <h2>Primitive Parsers<a class="headerlink" href="#primitive-parsers" title="Permalink to this headline"></a></h2>
-<p><strong>Any Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> extracts a single byte from the input.
-It fails if there are no bytes left in the input.  If successful, it constructs
-a value of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.</p>
 <p><strong>Specific Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">set</span> <span class="pre">]</span></code> matches a single byte that
 belongs to the set of bytes described by <em>set</em>.
 For example, <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span> <span class="pre">]</span></code> matches any bytes in the range 48 (<code class="docutils literal notranslate"><span class="pre">'0'</span></code>)
 through 57 (<code class="docutils literal notranslate"><span class="pre">'9'</span></code>) inclusive.  See <a class="reference internal" href="character-classes.html#character-classes"><span class="std std-ref">Character Classes</span></a> for deatails
 on how to write sets of bytes.</p>
+<p><strong>Any Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> extracts a single byte from the input.
+It fails if there are no bytes left in the input.  If successful, it constructs
+a value of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.  This is equivalent to writing <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">$any</span> <span class="pre">]</span></code>.</p>
 <p><strong>Specific Byte Sequence.</strong> The parser <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">bytes</span></code> matches the byte
 sequence <em>bytes</em> in the current input. The resulting semantic value is an
 array of bytes, <code class="docutils literal notranslate"><span class="pre">[uint</span> <span class="pre">8]</span></code>, corresponding to the matched bytes.
@@ -162,7 +164,8 @@ not consume any input and always succeeds with the given result.  To do
 so prefix the semantic value with the operator <code class="docutils literal notranslate"><span class="pre">^</span></code>.  Thus, <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">'A'</span></code> is
 a parser that always succeeds and produces byte <code class="docutils literal notranslate"><span class="pre">'A'</span></code> as a result.
 The parser <code class="docutils literal notranslate"><span class="pre">Accept</span></code> may be used to match the empty string without
-constructing an interesting semantic value.  It is equivalent to <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">{}</span></code>.</p>
+constructing an interesting semantic value.  It is equivalent to <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">{}</span></code>.
+In many cases, one may omit the <code class="docutils literal notranslate"><span class="pre">^</span></code> operator because of <a class="reference internal" href="lifting.html#implicit-lifting"><span class="std std-ref">Implicit Lifting</span></a>.</p>
 <p><strong>Explicit Failure</strong> The <code class="docutils literal notranslate"><span class="pre">Fail</span></code> construct will always fail.  This
 parser is parameterized by an optional location, along with an error
 message.</p>

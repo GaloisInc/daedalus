@@ -18,7 +18,7 @@ syn keyword ddlKeyword is
 syn keyword ddlKeyword of
 syn keyword ddlKeyword as
 syn match   ddlKeyword "\$\$"
-syn keyword ddlKeyword Choose Choose1 First
+syn keyword ddlKeyword Choose First
 syn keyword ddlKeyword commit
 syn keyword ddlKeyword case
 syn keyword ddlKeyword block
@@ -27,7 +27,7 @@ syn keyword ddlKeyword let
 syn keyword ddlKeywordFun   Optional Optional?
 syn keyword ddlKeywordFun   Many Many?
 syn keyword ddlKeywordFun   Fail Accept
-syn keyword ddlKeywordFun   UInt8 $uint Match Match1 END
+syn keyword ddlKeywordFun   UInt8 $any Match END
 syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
 
 syn keyword ddlKeywordConst true false

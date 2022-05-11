@@ -69,14 +69,12 @@ data Token =
   | KWstruct
   | KWunion
   | KWChoose
-  | KWChoose1
   | KWFirst
   | KWAccept
   | KWblock
   | KWlet
   | KWTry
   | KWMatch
-  | KWMatch1
   | KWMany
   | KWManyQuestion
   | KWmany
@@ -119,7 +117,7 @@ data Token =
   | KWRangeUp
   | KWRangeDown
   | KWOffset
-  | KWDollarUInt
+  | KWDollarAny
   | KWGetStream
   | KWSetStream
   | KWTake

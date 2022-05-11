@@ -135,7 +135,6 @@ $ws+        ;
 "let"       { lexeme KWlet }
 
 "Choose"    { lexeme KWChoose }
-"Choose1"   { lexeme KWChoose1 }
 "First"     { lexeme KWFirst }
 "Accept"    { lexeme KWAccept }
 "Optional"  { lexeme KWOptional }
@@ -145,9 +144,8 @@ $ws+        ;
 "many"      { lexeme KWmany }
 "many?"     { lexeme KWmanyQuestion }
 "UInt8"     { lexeme KWUInt8 }
-"$uint"     { lexeme KWDollarUInt }
+"$any"      { lexeme KWDollarAny }
 "Match"     { lexeme KWMatch }
-"Match1"    { lexeme KWMatch1 }
 "END"       { lexeme KWEND }
 "commit"    { lexeme KWCOMMIT }
 "Fail"      { lexeme KWFail }
