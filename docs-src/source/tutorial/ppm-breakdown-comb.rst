@@ -1,7 +1,7 @@
 Breaking down PPM: Parser Combinators
 =====================================
 
-These primitives are critical to defining parsers, but aren't very interesting
+The primitives are critical to defining parsers, but aren't very interesting
 on their own - we need ways to sequence them, represent notions of choice,
 and deal with repetition. First, we look at the various ways to sequence a
 collection of parsers.
@@ -12,7 +12,7 @@ Standard Sequencing
 First and foremost, we need a way to run one parser after another. In DaeDaLus,
 we write sequenced parsers by surrounding them with curly braces (``{ ... }``)
 and separating the parsers with semicolons. We've already seen this in the
-``Token`` parser above:
+``Token`` parser:
 
 .. code-block:: DaeDaLus
 
@@ -73,6 +73,8 @@ value, since array elements must all have the same type.
 
 .. warning::
     Remember: Arrays in DaeDaLus must contain only elements of the same type!
+    If you need to package up data of varying types, keep reading on about
+    structure sequencing.
 
 Structure Sequencing
 --------------------
@@ -149,34 +151,151 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
     Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
     creating a local variable, *not* the field of a structure!
 
+De-Sugaring Nonstandard Structure Sequences
+-------------------------------------------
+
+Let's pull back the curtain a bit: As it turns out, most of the constructs
+for sequencing we've looked at so far can be expressed using only local
+variables and standard sequencing!
+
+First, recall that the special variable ``$$`` allows us to control which
+parser's result is returned in a standard sequence - if we have
+``{ $$ = P; Q }``, that means "run parser ``P``", then run parser ``Q``,
+and return the result of parser ``P``." Can we write this without using the
+special variable?
+
+Yes! All we need to do is store the result of ``P`` to refer to later, like
+so: ``{ @x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
+variable ``x``, which we later lift using the primitive pure parser ``^``.
+
+Similarly, array sequencing of parsers, such as ``[ P; Q ]``, can be
+written: ``{ @x0 = P; @x1 = Q; ^ [x0, x1] }``. Note that, in both this and
+the previous case, the expanded forms require us to come up with more names
+for things. Arguably, naming is one of the hardest problems we face in
+computer science, so it's nice to be able to avoid coming up with new names
+using the shorthand originally presented.
+
+Finally, even structure sequencing can be written this way, since we can
+construct structure semantic values using the primitive pure parser. If
+we have ``{ x = P; y = Q }``, this can also be written
+``{ @x = P; @y = Q; ^ { x = x, y = y } }``.
+
+While we recommend using the shorthand, developing an understanding of what
+it actually means can make it more obvious when each construct is
+appropriate for your use-cases.
+
+Parsing Alternates
+------------------
+
+While it is great to be able to parse many things in sequence, most interesting
+formats require that we be able to parse one of a set of *alternatives* - as an
+example, in a programming language, there are typically many different forms of
+expression, and anywhere an expression is allowed, we must be able to
+successfully parse any of those different forms.
+
+DaeDaLus is unique in that it provides two ways of handling alternatives:
+*biased choice* and *unbiased choice* - many parsing libraries do not provide
+this flexibility. We'll now look at these alternatives (no pun intended), and
+some examples that demonstrate their differing behaviors.
+
+Note that our working PPM example does not use any alternative parsing - the
+extended exercise following this section, to implement the PNG image format,
+will show off these features more concretely.
+
+Biased Choice Parsing
+^^^^^^^^^^^^^^^^^^^^^
+
+If we have two parsers, ``P`` and ``Q``, we can construct the parser
+``P <| Q``. This new parser succeeds if either ``P`` or ``Q`` succeeds, and
+crucially, when *both* succeed, it behaves like ``P`` (the symbol should
+you of this.) Thought about another way: ``P <| Q`` tries to parse using
+``P``, and if this fails, it backtracks and tries parsing with ``Q``.
+
+Consider this contrived example:
+
+.. code-block:: DaeDaLus
+
+    def P = (Match1 'A') <| (^ 'B')
+
+``P`` consumes a single byte, ``'A'``, and returns it, or it consumes nothing
+and returns the byte ``'B'`` (in the case that parsing a single ``'A'`` fails.)
+Important to note is that, on inputs starting with ``'A'``, ``P``'s behavior is
+unambiguous - it will always consume the ``'A'``, rather than consuming
+nothing.
+
+Unbiased Choice Parsing
+^^^^^^^^^^^^^^^^^^^^^^^
+
+We can also construct the parser ``P | Q`` from two parsers ``P`` and ``Q``.
+Like biased choice, this parser succeeds if either ``P`` or ``Q`` succeed -
+However, when *both* succeed, it is *ambiguous*, and can parse inputs in more
+than one way. Typically, these ambiguities are handled by sequencing with other
+parsers.
+
+If we take our biased choice example and replace ``<|`` with ``|``:
+
+.. code-block:: DaeDaLus
+
+    def P = (Match1 'A') | (^ 'B')
+
+``P`` is now ambiguous on inputs that start with ``'A'``, since it can consume
+either one or zero bytes - remember, DaeDaLus parsers in general only need to
+match a prefix of the input to succeed.
+
+There are many grammars that have intentional ambiguities, and this unbiased
+choice facility in DaeDaLus allows us to express those formats with ease.
+
 .. note::
 
-    Let's pull back the curtain a bit: As it turns out, most of the constructs
-    for sequencing we've looked at so far can be expressed using only local
-    variables and standard sequencing!
+    Much like with parser sequencing, we can use a layout-based syntax to write
+    down alternatives parsers. We use the keyword ``First`` for biased choice,
+    and ``Choose`` for unbiased choice, like so:
 
-    First, recall that the special variable ``$$`` allows us to control which
-    parser's result is returned in a standard sequence - if we have
-    ``{ $$ = P; Q }``, that means "run parser ``P``", then run parser ``Q``,
-    and return the result of parser ``P``." Can we write this without using the
-    special variable?
+    .. code-block:: DaeDaLus
 
-    Yes! All we need to do is store the result of ``P`` to refer to later, like
-    so: ``{ @x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
-    variable ``x``, which we later lift using the primitive pure parser ``^``.
+        def BP =
+          First
+            block
+              Match "This is"
+              Match "the first alternative"
+            Match
+              "The second one is here"
 
-    Similarly, array sequencing of parsers, such as ``[ P; Q ]``, can be
-    written: ``{ @x0 = P; @x1 = Q; ^ [x0, x1] }``. Note that, in both this and
-    the previous case, the expanded forms require us to come up with more names
-    for things. Arguably, naming is one of the hardest problems we face in
-    computer science, so it's nice to be able to avoid coming up with new names
-    using the shorthand originally presented.
+        def UP =
+          Choose
+            block
+              Match "This is"
+              Match "the first alternative"
+            Match
+              "The second one is here"
 
-    Finally, even structure sequencing can be written this way, since we can
-    construct structure semantic values using the primitive pure parser. If
-    we have ``{ x = P; y = Q }``, this can also be written
-    ``{ @x = P; @y = Q; ^ { x = x, y = y } }``.
+    Again, the language does not prefer this style over the use of ``<|`` and
+    ``|`` - use whatever syntax is more comfortable for you. There is one major
+    exception to this, which we'll address in the next section.
 
-    While we recommend using the shorthand, developing an understanding of what
-    it actually means can make it more obvious when each construct is
-    appropriate for your use-cases.
+Tagged Sum Types
+^^^^^^^^^^^^^^^^
+
+Something not mentioned above is that, like array-sequenced parsers,
+alternative parsers must parse to the same type of semantic value on all
+branches - but this is limiting! What if, for example, we're parsing a format
+that allows strings or numbers to appear in the same place? As described so
+far, we can't handle this using biased or unbiased choice.
+
+Enter *sum types*.
+
+In many programming languages, sum types are how we can describe a set of
+alternatives. They are a 'dual' to record types, which are also known as
+*product* types. Typically, the *variants* of a sum type are labeled with a
+*tag*, which may or may not carry some additional data of some other type.
+
+As a simple example, we can think of the type ``bool`` as a sum type with
+two variants, both of which are simply tags: ``true`` and ``false``.
+
+DaeDaLus allows us to return a tagged sum type using variations of the
+layout-based syntax described in the note above, similar to how we can
+build structures using parser sequencing. Note that we can't use the infix
+operators ``<|`` or ``|`` to accomplish this same goal, we *must* use
+``First`` and ``Choose``.
+
+
