@@ -10,39 +10,22 @@
 
 module Talos.Analysis.Domain where
 
-import           Control.DeepSeq (NFData)
-import           Data.Either     (partitionEithers)
-import           Data.Function   (on)
-import           Data.List       (foldl1', partition)
-import           Data.Map        (Map)
-import qualified Data.Map        as Map
-import           GHC.Generics    (Generic)
+import           Control.DeepSeq       (NFData)
+import           Data.Either           (partitionEithers)
+import           Data.Function         (on)
+import           Data.List             (foldl1', partition)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           GHC.Generics          (Generic)
 
-import           Daedalus.Core  (ByteSet, Expr, Name)
+import           Daedalus.Core         (Name)
 import           Daedalus.Panic
+import           Daedalus.PP
 
-import           Talos.Analysis.SLExpr
+import           Talos.Analysis.AbsEnv
+import           Talos.Analysis.Eqv
+import           Talos.Analysis.Merge
 import           Talos.Analysis.Slice
-import Data.Proxy (Proxy)
-
---------------------------------------------------------------------------------
--- Abstract Environments
-
-class (Ord (AbsPred ae), Eqv ae) => AbsEnv ae where
-  type AbsPred ae
-  -- (\forall x. absProj x ae = Nothing) --> absNullEnv ae
-  absNullEnv     :: ae -> Bool
-  absPre         :: AbsPred ae -> Expr -> (ae, SLExpr)
-  absGuard       :: Expr -> ae
-  absByteSet     :: AbsPred ae -> ByteSet -> ae
-  absProj        :: Name -> ae -> Maybe (ae, AbsPred ae)
-  absInverse     :: Name -> Expr -> Expr -> ae
-  absUnion       :: ae -> ae -> ae
-  absEnvOverlaps :: ae -> ae -> Bool
-  absSubstEnv    :: Map Name Name -> ae -> ae
-  absTop         :: {- Set Name -> -} ae
-  
-data AbsEnvTy = forall ae. AbsEnv ae => AbsEnvTy (Proxy ae) 
 
 --------------------------------------------------------------------------------
 -- Domains
@@ -142,13 +125,14 @@ singletonDomain gs
   -- A non-result element with a null environment must start with SDo
   | closedGuardedSlice gs, SDo x _ _ <- gsSlice gs =
       Domain { elements = [], closedElements = Map.singleton x [gsSlice gs] }
-      
-  | closedGuardedSlice gs = panic "Expecting a slice headed by a SDo" []
+
+  | closedGuardedSlice gs = panic "Expecting a slice headed by a SDo" [showPP gs]
   | otherwise = Domain { elements = [gs], closedElements = Map.empty }
 
--- | Constructs a domain from the non-empty, possibly-overlapping elements.
+-- | Constructs a domain from the possibly-overlapping elements.
 domainFromElements :: AbsEnv ae => [GuardedSlice ae] -> Domain ae
-domainFromElements = foldl1 merge . map singletonDomain
+domainFromElements []  = emptyDomain
+domainFromElements els = foldl1 merge (map singletonDomain els)
 
 -- singletonResultDomain :: GuardedSlice ae -> Domain ae
 -- singletonResultDomain el = Domain
@@ -200,9 +184,8 @@ squashDomain d = d { elements = [ foldl1' merge (elements d) ] }
 -- This is maybe too strict, as we require that the order of elements is the same.
 domainEqv :: AbsEnv ae => Domain ae -> Domain ae -> Bool
 domainEqv dL dR =
-  and (zipWith eqv (elements dL) (elements dR))
-  && Map.keysSet (closedElements dL) == Map.keysSet (closedElements dR)
-  && Map.isSubmapOfBy eqv (closedElements dL) (closedElements dR)
+  elements dL `eqv` elements dR &&
+  eqv (closedElements dL) (closedElements dR)
 
 -- Turns a domain into a map from a representative entangle var to the
 -- entangled vars and FPS.
@@ -238,10 +221,10 @@ partitionDomainForVar x d = ( matching, d' )
     part gs = case absProj x (gsEnv gs) of
       Nothing      -> Right gs
       Just (e, p)  -> Left (gs { gsEnv = e }, p)
-      
+
     d' = d { elements = nonMatching }
 
-partitionDomainForResult :: AbsEnv ae => 
+partitionDomainForResult :: AbsEnv ae =>
                             Domain ae ->
                             ( [ GuardedSlice ae ], Domain ae )
 partitionDomainForResult d = ( matching, d' )
@@ -252,7 +235,7 @@ partitionDomainForResult d = ( matching, d' )
 -- Maps over non-closed slices
 mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae
 mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
-      
+
 -- splitRemoveVar :: BaseEntangledVar -> Domain -> ([(FieldSet, Slice)], Domain)
 -- splitRemoveVar bv ds = (nin, Domain nout)
 --   where
@@ -276,6 +259,19 @@ mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
 
 --------------------------------------------------------------------------------
 -- Class instances
+
+instance AbsEnv ae => PP (GuardedSlice ae) where
+  pp gs = vcat [ pp (gsEnv gs)
+               , "For" <+> brackets (commaSep $ map pp (gsPred gs))
+               , pp (gsSlice gs)  ]
+
+instance AbsEnv ae => PP (Domain ae) where
+  pp d =
+    hang "Open" 2 (vcat (map pp (elements d)))
+    $+$
+    hang "Closed" 2 (vcat (map go (Map.toList (closedElements d))))
+    where
+      go (k, v) = hang (pp k) 2 (bullets (map pp v))
 
 -- instance PP Domain where
 --   pp d = vcat (map pp_el (elements d))

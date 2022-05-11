@@ -1,22 +1,19 @@
 
 -- This is a hack so that the analysis works when we have constant arguments.
 
-module Talos.Passes (nameConstArgsM, removeUnitsM, nameMatchResultsM, allPassesM ) where
-
-import qualified Data.Set as Set
+module Talos.Passes (nameArgsM, removeUnitsM, nameMatchResultsM, allPassesM ) where
 
 import Daedalus.GUID
 import Daedalus.Core
-import Daedalus.Core.Free
 import Daedalus.Core.Type
 import Daedalus.Core.Normalize
-import Daedalus.Core.Inline
+-- import Daedalus.Core.Inline
 import qualified Data.Text as Text
 import Daedalus.PP (showPP)
 import Control.Monad (zipWithM)
 
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
-allPassesM _entry m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM  >>= pure . normM
+allPassesM _entry m = nameArgsM (removeUnitsM m) >>= nameMatchResultsM  >>= pure . normM
                      -- >>= inlineModule [entry]
 
 -- ----------------------------------------------------------------------------------------
@@ -25,20 +22,20 @@ allPassesM _entry m = nameConstArgsM (removeUnitsM m) >>= nameMatchResultsM  >>=
 -- This is required as the analysis needs something to anchor argument slices.
 -- FIXME: hack
 
-nameConstArgsM :: (Monad m, HasGUID m) => Module -> m Module
-nameConstArgsM m = do
-  gfuns' <- mapM nameConstArgsGFun (mGFuns m)
+nameArgsM :: (Monad m, HasGUID m) => Module -> m Module
+nameArgsM m = do
+  gfuns' <- mapM nameArgsGFun (mGFuns m)
   pure (m { mGFuns = gfuns' })
 
-nameConstArgsGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
-nameConstArgsGFun fu =
+nameArgsGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
+nameArgsGFun fu =
   case fDef fu of
-    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameConstArgsG g
+    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameArgsG g
     _     -> pure fu
 
-nameConstArgsG :: (Monad m, HasGUID m) => Grammar -> m Grammar
-nameConstArgsG gram = do
-  gram' <- childrenG nameConstArgsG gram
+nameArgsG :: (Monad m, HasGUID m) => Grammar -> m Grammar
+nameArgsG gram = do
+  gram' <- childrenG nameArgsG gram
   case gram' of
     Call fn args -> do
       (bindss, args') <- unzip <$> zipWithM (nameArg fn) [0 :: Integer ..] args
@@ -46,12 +43,11 @@ nameConstArgsG gram = do
     _ -> pure gram'
 
   where
-    nameArg fn i e
-      | not (Set.null (freeVars e)) = pure ([], e)
-      | otherwise = do
-          n <- freshNameSys (typeOf e)
-          let n' = n { nameText = Just (Text.pack $ "_c" ++ showPP fn ++ "_" ++ show i) }
-          pure ([(n', e)], Var n')
+    nameArg _fn _i e@(Var _) = pure ([], e)
+    nameArg fn i e = do
+      n <- freshNameSys (typeOf e)
+      let n' = n { nameText = Just (Text.pack $ "_a" ++ showPP fn ++ "_" ++ show i) }
+      pure ([(n', e)], Var n')
 
 -- ----------------------------------------------------------------------------------------
 -- Eliminate unit typed variables

@@ -31,21 +31,21 @@ import           System.Random
 
 import           SimpleSMT                       (Solver)
 
-import           Daedalus.GUID
-import           Daedalus.PP
-import           Daedalus.Panic
-import qualified Daedalus.Value                  as I
-
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
 import qualified Daedalus.Core.Semantics.Env     as I
 import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
-
-import RTS.Parser (runParser)
-import RTS.ParserAPI (Result(..), ppParseError)
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
+import qualified Daedalus.Value                  as I
+import           RTS.Input                       (newInput)
+import           RTS.Parser                      (runParser)
+import           RTS.ParserAPI                   (Result (..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
+import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (ExpSummary (..))
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
@@ -53,11 +53,10 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT           (SolverState, emptySolverState)
 import           Talos.SymExec.StdLib
 
+import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
 import           Talos.Strategy
 import           Talos.Strategy.Monad
-import RTS.Input (newInput)
-import Talos.Analysis.Domain (AbsEnvTy (AbsEnvTy))
-import Data.Data (Proxy(Proxy))
+
 
 data Stream = Stream { streamOffset :: Integer
                      , streamBound  :: Maybe Int

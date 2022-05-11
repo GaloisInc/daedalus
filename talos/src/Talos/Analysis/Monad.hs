@@ -3,29 +3,30 @@
 {-# LANGUAGE FlexibleInstances, TypeFamilies, GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 {-# LANGUAGE TupleSections #-}
-module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs
+module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs, currentDeclName
                             , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
                             , ExpSummary(..), ExpSummaries, exportSummaries
                             , calcFixpoint
                             , module Export) where
 
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromJust, mapMaybe)
-import qualified Data.Text                    as Text
+import           Data.Map.Strict         (Map)
+import qualified Data.Map.Strict         as Map
+import           Data.Maybe              (fromJust, mapMaybe)
+import qualified Data.Text               as Text
 
 import           Daedalus.Core
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
+import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
-import           Talos.Analysis.Fixpoint      as Export (addSummary,
-                                                         currentDeclName,
-                                                         currentSummaryClass,
-                                                         lookupSummary)
-import qualified Talos.Analysis.Fixpoint      as F
+import           Talos.Analysis.Fixpoint as Export (addSummary, 
+                                                    currentSummaryClass,
+                                                    lookupSummary)
+import qualified Talos.Analysis.Fixpoint as F
 import           Talos.Analysis.Slice
+import Debug.Trace (trace, traceM)
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
@@ -40,7 +41,6 @@ data Summary ae =
           , params      :: [Name]
           , fInstId     :: FInstId
           }
-
 
 emptySummary :: FInstId -> Summary ae
 emptySummary = Summary emptyDomain []
@@ -174,7 +174,7 @@ getSummaryClass fid = IterM $ F.fixpointState go
       | otherwise = panic "Missing inst id." []
 
 -- Gets the precondition for a given decl.  This may update the worklist and revdeps
-requestSummary :: Ord (AbsPred ae) => FName -> SummaryClass' ae -> IterM ae (Summary ae)
+requestSummary :: AbsEnv ae => FName -> SummaryClass' ae -> IterM ae (Summary ae)
 requestSummary nm cl = do
   fid <- getAllocInstId cl
   m_summary <- IterM $ F.requestSummary nm fid
@@ -192,6 +192,9 @@ calcFixpoint m wl = F.calcFixpoint seqv go wl
       cl <- getSummaryClass fid
       m n cl fid
     seqv oldS newS = domainEqv (domain oldS) (domain newS)
+    
+currentDeclName :: IterM ae FName
+currentDeclName = IterM F.currentDeclName
 
 --------------------------------------------------------------------------------
 -- Exporting
@@ -220,4 +223,7 @@ exportSummaries :: Summaries ae -> ExpSummaries
 exportSummaries = fmap (fmap exportSummary)
 
 
+
+instance AbsEnv ae => PP (Summary ae) where
+  pp s = pp (domain s)
 

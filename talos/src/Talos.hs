@@ -12,53 +12,41 @@ module Talos (
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
-import Data.IORef(newIORef, modifyIORef', readIORef,
-                  writeIORef)
-
-import Data.Version
-import Text.ParserCombinators.ReadP (readP_to_S)
+import           Control.Monad.State
+import           Data.ByteString              (ByteString)
+import           Data.IORef                   (modifyIORef', newIORef,
+                                               readIORef, writeIORef)
+import           Data.List                    (find)
+import           Data.List.Split              (splitWhen)
+import qualified Data.Map                     as Map
+import           Data.String                  (fromString)
+import           Data.Version
+import qualified SimpleSMT                    as SMT
+import           System.Exit                  (exitFailure)
+import           System.IO                    (IOMode (..), hFlush, hPutStr,
+                                               hPutStrLn, openFile, stderr,
+                                               stdout)
+import           System.IO.Streams            (InputStream)
+import           Text.ParserCombinators.ReadP (readP_to_S)
 import qualified Text.ParserCombinators.ReadP as RP
 
-import Data.String (fromString)
-import Control.Monad.State
+import           Daedalus.AST                 (nameScopeAsModScope)
+import           Daedalus.Core
+import           Daedalus.Driver              hiding (State)
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Rec                 (forgetRecs)
+import           Daedalus.Type.AST            (tcDeclName, tcModuleDecls)
+import           Daedalus.Value               (Value)
 
-import System.IO (hFlush, hPutStr, hPutStrLn
-                 , stdout, stderr
-                 , openFile, IOMode(..))
-import System.Exit (exitFailure)
-
-import System.IO.Streams (InputStream)
-
-import Data.ByteString (ByteString)
-
-import Data.Map ( Map, mapMaybe )
-
-import Data.List ( find )
-import Data.List.Split ( splitWhen )
-
-import qualified SimpleSMT as SMT
-
-import Daedalus.GUID
-import Daedalus.Driver hiding (State)
-import Daedalus.Core
-import Daedalus.Value (Value)
-import Daedalus.PP
-
-import qualified Talos.Synthesis as T
-import qualified Talos.Analysis as A
-import Talos.Analysis.Monad (Summary, makeDeclInvs)
-import Talos.SymExec.Path (ProvenanceMap)
-import Talos.Analysis.Slice (SummaryClass)
-
-import Talos.Strategy
-import Talos.Strategy.Monad
-
-import Talos.Passes
-import Daedalus.AST (nameScopeAsModScope)
-import Daedalus.Type.AST (tcModuleDecls, tcDeclName)
-import Daedalus.Rec (forgetRecs)
-import qualified Data.Map as Map
-
+import qualified Talos.Analysis               as A
+import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
+import           Talos.Analysis.Monad         (makeDeclInvs)
+import           Talos.Passes
+import           Talos.Strategy
+import           Talos.Strategy.Monad
+import           Talos.SymExec.Path           (ProvenanceMap)
+import qualified Talos.Synthesis              as T
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -67,20 +55,29 @@ import qualified Data.Map as Map
 -- instance HasGUID FreshGUIDM where
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
-summarise :: FilePath -> Maybe FilePath -> Maybe String
-          -> IO (Map FName (Map SummaryClass Summary))
-summarise inFile m_invFile m_entry = do
+summarise :: FilePath -> Maybe FilePath -> Maybe String -> String
+          -> IO Doc
+summarise inFile m_invFile m_entry absEnv = do
   (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+
+  AbsEnvTy p <- case lookup absEnv A.absEnvTys of
+    Just x -> pure x
+    _      -> errorExit ("Unknown abstract env " ++ absEnv)
 
   let invs = makeDeclInvs (mGFuns md) (mFFuns md)
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
-  putStrLn "Slices"  
-  pure (fst $ A.summarise md nguid)
+  putStrLn "Slices"
+  let (summs, _) = A.summarise p md nguid
+  pure (bullets (map goF (Map.toList summs)))
+  where
+    goF (fn, m) =
+      hang (pp fn) 2 $
+        bullets [ hang (pp fid) 2 (pp d)
+                | (fid, d) <- Map.toList m]
 
-
-z3VersionCheck :: SMT.Solver -> IO ()
-z3VersionCheck s = do
+_z3VersionCheck :: SMT.Solver -> IO ()
+_z3VersionCheck s = do
   r <- SMT.command s (SMT.fun "get-info" [SMT.const ":name"])
   case r of
     SMT.List [ _, SMT.Atom name ]
@@ -100,11 +97,12 @@ z3VersionCheck s = do
         _ -> errorExit "Could not parse version"
     _ -> errorExit ("Unexpected solver response: " ++ SMT.showsSExpr r' "")
 
-  where
-    errorExit msg = do
-      hPutStrLn stderr msg
-      hFlush stderr
-      exitFailure
+
+errorExit :: String -> IO b
+errorExit msg = do
+  hPutStrLn stderr msg
+  hFlush stderr
+  exitFailure
 
 
 synthesise :: FilePath           -- ^ DDL file
@@ -117,8 +115,9 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe String       -- ^ Synthesis strategy 
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
+           -> String             -- ^ Analysis abstract env.
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed = do
+synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed absEnv = do
   (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
   -- SMT init
@@ -137,6 +136,11 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
+  absty <- case lookup absEnv A.absEnvTys of
+    Just x -> pure x
+    _      -> errorExit ("Unknown abstract env " ++ absEnv)
+
+
   let strat = case stratOpt of
              Nothing    -> allStrategies
              Just "all" -> allStrategies
@@ -148,7 +152,7 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  T.synthesise m_seed nguid solver strat mainRule md
+  T.synthesise m_seed nguid solver absty strat mainRule md
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type

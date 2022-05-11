@@ -27,6 +27,7 @@ import qualified Daedalus.Value               as I
 
 import qualified SimpleSMT                    as S
 
+import           Talos.Analysis.Merge      (merge)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM

@@ -36,6 +36,10 @@ library
                      
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
+                     , Talos.Analysis.AbsEnv
+                     , Talos.Analysis.VarAbsEnv                     
+                     , Talos.Analysis.Eqv
+                     , Talos.Analysis.Merge                     
                      , Talos.Analysis.Domain
                      , Talos.Analysis.Fixpoint                     
                      , Talos.Analysis.Monad

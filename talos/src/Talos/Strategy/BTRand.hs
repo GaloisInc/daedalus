@@ -18,11 +18,11 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.Core.Type              (typeOf)
 import qualified Daedalus.Value                  as I
 
+import           Talos.Analysis.Merge
 import           Talos.Analysis.Slice
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
-
 
 
 -- ----------------------------------------------------------------------------------------

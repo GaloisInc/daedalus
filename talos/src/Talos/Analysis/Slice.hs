@@ -10,10 +10,8 @@ module Talos.Analysis.Slice
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
   , CallNode(..), Slice(..)
-  , Eqv(..), Merge(..)
   ) where
 
-import           Data.Function (on)
 import           Data.Map      (Map)
 import qualified Data.Map      as Map
 import           Data.Set      (Set)
@@ -30,6 +28,9 @@ import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
 import Talos.Analysis.SLExpr
+import Talos.Analysis.Eqv
+import Talos.Analysis.Merge
+
 -- import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -39,7 +40,7 @@ import Talos.Analysis.SLExpr
 -- SummaryClasses so that after analysis we can forget which AbsEnv
 -- was used to generate the slices.
 newtype FInstId = FInstId Int
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Generic, NFData, Eqv)
 
 -- We reserve a well-known id for the assertions class
 assertionsFID :: FInstId
@@ -158,30 +159,6 @@ data Slice =
 -- Thus, for some cases, the presence of a node is enough to return
 -- True (e.g. for Assertion)
 
-class Eqv a where
-  eqv :: a -> a -> Bool
-  default eqv :: Eq a => a -> a -> Bool
-  eqv = (==)
-
-instance Eqv Int
-instance Eqv Integer
-instance Eqv FInstId
--- instance Eq p => Eqv (SummaryClass p) 
-  -- eqv Assertions Assertions = True
-  -- eqv (Result p) (Result q) = eqv p q
-  -- eqv _          _          = False
-
--- instance Eqv SLExpr -- juse (==)
-
-instance (Eqv a, Eqv b) => Eqv (a, b) where
-  eqv (a, b) (a', b') = a `eqv` a' && b `eqv` b'
-
-instance (Eqv a, Eqv b, Eqv c) => Eqv (a, b, c) where
-  eqv (a, b, c) (a', b', c') = a `eqv` a' && b `eqv` b' && c `eqv` c'
-
-instance Eqv a => Eqv [a] where
-  eqv xs ys = and (zipWith eqv xs ys)
-
 instance Eqv Slice where
   eqv l r =
     case (l, r) of
@@ -205,37 +182,6 @@ instance Eqv p => Eqv (CallNode p) where
     -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
     cl1 `eqv` cl2 && paths1 == paths2
 
-instance Eqv SLExpr where
-  eqv l r =
-    case (l,r) of
-      (EHole {}, EHole {})    -> True
-      (EHole {}, _)           -> False
-      (_, EHole {})           -> False
-      (SVar {}, SVar {})      -> True
-      (SPureLet _x e1 e2 , SPureLet _x' e1' e2') ->
-        (e1, e2) `eqv` (e1', e2')
-      (SStruct _ty fs, SStruct _ty' fs') -> map snd fs `eqv` map snd fs'
-      (SECase e, SECase e') -> e `eqv` e'
-      (SAp0 {}, SAp0 {})   -> True
-      (SAp1 _op e, SAp1 _op' e') -> e `eqv` e'
-      (SAp2 _op e1 e2, SAp2 _op' e1' e2') -> (e1, e2) `eqv` (e1', e2')
-      (SAp3 _op e1 e2 e3, SAp3 _op' e1' e2' e3') ->
-        (e1, e2, e3) `eqv` (e1', e2', e3')
-      (SApN _op es, SApN _op' es') -> es `eqv` es'
-      _ -> panic "Mismatched terms in eqv (SLExpr)" ["Left", showPP l, "Right", showPP r]      
-
-instance Eqv a => Eqv (Case a) where
-  eqv (Case _e alts1) (Case _e' alts2) =
-    and (zipWith (eqv `on` snd) alts1 alts2)
-
--- Merging
---
--- Similar to a semigroup, but with more restrictions about how it can
--- be used (i.e., the merged objects come from the same program)
-
-class Merge a where
-  merge :: a -> a -> a
-
 instance Eq p => Merge (CallNode p) where
   merge cn@CallNode { callClass = cl1, callSlices = sls1}
            CallNode { callClass = cl2, callSlices = sls2 }
@@ -245,11 +191,6 @@ instance Eq p => Merge (CallNode p) where
       -- trace ("Merging " ++ showPP cn ++ " and " ++ showPP cn') $
       -- Note: it is OK to use as the maps are disjoint
       cn { callSlices = Map.union sls1 sls2 }
-
-instance Merge a => Merge (Case a) where
-  merge (Case e alts1) (Case _e alts2) = Case e (zipWith goAlt alts1 alts2)
-    where
-      goAlt (p, a1) (_p, a2) = (p, merge a1 a2)
 
 instance Merge Slice where
   merge l r =
@@ -267,26 +208,6 @@ instance Merge Slice where
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
-
-instance Merge SLExpr where
-  merge l r =
-    case (l,r) of
-      (EHole {}, _)    -> r
-      (_, EHole {})    -> l
-      (SVar {}, SVar {}) -> l
-      (SPureLet x e1 e2 , SPureLet _x e1' e2') ->
-        SPureLet x (merge e1 e1') (merge e2 e2')
-      (SStruct ty fs, SStruct _ty fs') ->
-        -- FIXME: we assume the orders match up here.
-        SStruct ty [ (l', merge e e') | ((l', e), (_, e')) <- zip fs fs' ] 
-      (SECase e, SECase e') -> SECase (merge e e')
-      (SAp0 {}, SAp0 {})   -> l
-      (SAp1 op e, SAp1 _op e') -> SAp1 op (merge e e')
-      (SAp2 op e1 e2, SAp2 _op e1' e2') -> SAp2 op (merge e1 e1') (merge e2 e2')
-      (SAp3 op e1 e2 e3, SAp3 _op e1' e2' e3') ->
-        SAp3 op (merge e1 e1') (merge e2 e2') (merge e3 e3')
-      (SApN op es, SApN _op es') -> SApN op (zipWith merge es es')
-      _ -> panic "Mismatched terms in merge (SLExpr)" ["Left", showPP l, "Right", showPP r]
 
 --------------------------------------------------------------------------------
 -- Free instances
@@ -326,9 +247,10 @@ instance FreeVars (CallNode p) where
 
 -- -----------------------------------------------------------------------------
 -- FreeTCons
-traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applicative f) =>
-                        (UserType -> f UserType) -> Map a b -> f (Map a b)
-traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
+
+-- traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applicative f) =>
+--                         (UserType -> f UserType) -> Map a b -> f (Map a b)
+-- traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
 
 instance TraverseUserTypes Slice where
   traverseUserTypes f sl =
@@ -359,9 +281,9 @@ instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) wher
 --   ppPrec n (CallInstance { callParams = ps, callSlice = sl }) =
 --     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
 
-instance PP (CallNode p) where
-  ppPrec n CallNode { callName = fname, callSlices = sls } =
-    wrapIf (n > 0) $ pp fname
+instance PP p => PP (CallNode p) where
+  ppPrec n CallNode { callName = fname, callClass = cl, callSlices = sls } =
+    wrapIf (n > 0) $ (pp fname <> parens (pp cl))
     <+> vcat (map (\(n', vs) -> brackets (pp n') <> parens (commaSep (map ppA vs))) (Map.toList sls))
     where
       ppA Nothing = "_"
@@ -371,7 +293,7 @@ instance PP (CallNode p) where
 instance PP Slice where
   pp sl =
     case sl of
-      SHole          -> "[]"
+      SHole          -> "□"
       SPure e        -> "pure" <+> ppPrec 1 e
       SMatch e       -> "match" <+> pp e
       SDo  {}        -> "do" <+> ppStmts' sl

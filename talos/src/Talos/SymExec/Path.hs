@@ -15,7 +15,8 @@ import Control.DeepSeq -- for benchmarking etc.
 import Daedalus.PP
 import Daedalus.Panic
 
-import Talos.Analysis.Slice (Merge(..), FInstId)
+import Talos.Analysis.Slice (FInstId)
+import Talos.Analysis.Merge (Merge(..))
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets

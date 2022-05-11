@@ -22,6 +22,7 @@ import Daedalus.PP
 
 import CommandLine
 import Talos
+import Data.Maybe (fromMaybe)
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -50,16 +51,9 @@ doDumpCore opts = do
 doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
-  summaries <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
-  mapM_ (print . doOne) (Map.toList summaries)
-  where
-    doOne (nm, summary) = pp nm <+> " :: " <+> bullets (map doOneS (Map.toList summary))
-    doOneS (cl, s) = pp cl <> ": "  <> pp s
-    --                    $+$ bullets (map ppCfg (Map.elems (pathRootMap s)))
-    -- ppCfg c = (ppSExpr (futurePathSetConfig c)) $+$
-    --           (ppSExpr (futurePathSetRel (S.const "$cfg") c))
-
-    -- ppSExpr = vcat . map text . lines . flip S.ppSExpr ""
+  let absEnv = fromMaybe "vars" (optAnalysisKind opts)
+  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) absEnv
+  print summaryDoc
     
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
@@ -72,10 +66,10 @@ doSynthesis opts = do
                  else []
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
-
+      absEnv = fromMaybe "vars" (optAnalysisKind opts)
   strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts)
+            logOpt (optSeed opts) absEnv
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines

@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 {-# LANGUAGE FlexibleContexts #-}
  -- for dealing with TCDecl and existential k
 
@@ -10,25 +10,32 @@
 -- moment this is any Guard.
 
 module Talos.Analysis ( summarise
+                      , absEnvTys
                       , Summary
                       -- FIXME: move
                       ) where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import qualified Data.Map                 as Map
+import           Data.Monoid              (All (All))
+import qualified Data.Set                 as Set
 
-import Daedalus.GUID
-import Daedalus.PP
-import Daedalus.Panic
-import Daedalus.Core
-import Daedalus.Core.Type
+import           Daedalus.Core
+import           Daedalus.Core.Type
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
 
-import Talos.Analysis.Domain
-import Talos.Analysis.Monad
-import Talos.Analysis.Slice
-import Data.Proxy (Proxy)
 
--- import Debug.Trace
+import           Data.Proxy               (Proxy)
+import           Talos.Analysis.AbsEnv
+import           Talos.Analysis.Domain
+import           Talos.Analysis.Merge     (merge)
+import           Talos.Analysis.Monad
+import           Talos.Analysis.Slice
+import           Talos.Analysis.VarAbsEnv (varAbsEnvTy)
+
+
+-- import Debug.Trace (traceM)
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -54,6 +61,12 @@ summarise _ md nguid = (summaries, nextGUID s')
       | Fun { fName = name, fDef = Def _ } <- mGFuns md
       ]
 
+
+-- Not sure these belong here
+absEnvTys :: [(String, AbsEnvTy)]
+absEnvTys = [ ("vars", varAbsEnvTy)
+            ]
+
 --------------------------------------------------------------------------------
 -- Summary functions
 
@@ -62,10 +75,9 @@ summariseDecl :: AbsEnv ae =>
                  Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls fid Fun { fDef = Def def
                           , fParams = ps } = do
-
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
-        
+
   let newS = Summary { domain = d
                      , params = ps
                      , fInstId = fid
@@ -73,6 +85,7 @@ summariseDecl cls fid Fun { fDef = Def def
   -- -- Sanity check
   -- unless (domainInvariant (exportedDomain newS)) $
   --   panic "Failed domain invariant" ["At " ++ showPP fn]
+  ---  traceM ("Summarised " ++ showPP fn ++ " for " ++ showPP cls ++ " " ++ showPP newS)
 
   pure newS
 
@@ -90,7 +103,7 @@ summariseDecl _ _ _ = panic "Expecting a defined decl" []
 -- newtype SummariseM a = SummariseM { getSummariseM :: StateT SummariseMState IterM a }
 --   deriving (Applicative, Functor, Monad)
 
-type SummariseM = IterM 
+type SummariseM = IterM
 
 runSummariseM :: SummariseM ae a -> IterM ae a
 runSummariseM m = m -- evalStateT ((,) <$> getSummariseM m <*> gets pathRoots) emptySummariseMState
@@ -131,7 +144,7 @@ exprAsVar _       = Nothing
 
 summariseCall :: AbsEnv ae => [AbsPred ae] -> FName -> [Expr] ->
                  SummariseM ae (Domain ae)
-summariseCall preds fn args 
+summariseCall preds fn args
   | Just vargs <-  mapM exprAsVar args = do
       m_invs <- liftIterM (getDeclInv fn)
       case m_invs of
@@ -151,14 +164,10 @@ summariseCall preds fn args
         _ -> do
           let cl = summaryClassFromPreds preds
           Summary dom ps fid <- liftIterM $ requestSummary fn cl
-  
-          -- do d <- liftIterM $ currentDeclName
-          --    traceShowM ("Calling" <+> pp fn <+> "from" <+> pp d $+$ pp expDom)
-
           -- We need to now substitute the actuals for the params in
           -- summary, and merge the results (the substitution may have
           -- introduced duplicates, so we need to do a pointwise merge)
-          let argsMap     = Map.fromList $ zip ps vargs
+          let argsMap     = Map.fromList $ zip vargs ps
               argsFor env = zipWith (\param arg -> arg <$ absProj param env) ps vargs
               mkCallNode i gs =
                 CallNode { callClass        = fid
@@ -171,8 +180,11 @@ summariseCall preds fn args
                              , gsPred  = gsPred gs -- FIXME: subst?
                              , gsSlice = SCall (mkCallNode i gs)
                              }
-                
-          pure $ domainFromElements $ zipWith mkCall [0..] (elements dom)
+              res = domainFromElements $ zipWith mkCall [0..] (elements dom)
+          -- traceM ("Call result from " ++ showPP fn' ++ " to " ++ showPP fn ++
+          --         " for " ++ showPP cl ++
+          --          "\n" ++ show (nest 4 (pp res)))
+          pure res
   | otherwise = panic "Saw non-Var arg" []
 
 
@@ -236,7 +248,10 @@ caseIsTotal (Case e alts)
 collapseDoms :: AbsEnv ae => [AbsPred ae] ->
                 ([Slice] -> Slice) ->
                 [Domain ae] -> Domain ae
-collapseDoms _preds _mk []       = emptyDomain
+-- The case where all are nullDomain is handled in the caller, as we
+-- may want to construct e.g. Case nodes over empty bodies when the
+-- case is partial.
+collapseDoms _preds _mk [] = emptyDomain
 collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
   where
     (envs, sls, doms) = unzip3 (map (asSingleton . squashDomain) branchDs)
@@ -244,23 +259,42 @@ collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
                        , gsPred  = preds
                        , gsSlice = mk sls
                        }
-    -- asSingleton :: Domain ae -> (ae, Slice (AbsPred ae), Domain ae)
-    asSingleton dom
-      | null (elements dom)  = (absTop, SHole, dom)
-      | [gs] <- elements dom = (gsEnv gs, gsSlice gs, dom { elements = [] })
-      | otherwise = panic "Saw non-singleton domain" [] -- [show (pp dom)]
+
+asSingleton :: AbsEnv ae => Domain ae -> (ae, Slice, Domain ae)
+asSingleton dom
+  | null (elements dom)  = (absTop, SHole, dom)
+  | [gs] <- elements dom = (gsEnv gs, gsSlice gs, dom { elements = [] })
+  | otherwise = panic "Saw non-singleton domain" [] -- [show (pp dom)]
 
 summariseCase :: AbsEnv ae => [AbsPred ae] ->
                  Case Grammar -> SummariseM ae (Domain ae)
-summariseCase preds cs@(Case y alts) = do
-  let (pats, rhss) = unzip alts
-  bDoms   <- mapM (summariseG preds) rhss
-  let trivial   = all nullDomain bDoms
-      total     = caseIsTotal cs
+summariseCase preds cs = do
+  bDoms   <- traverse (summariseG preds) cs
+  let All trivial = foldMap (All . nullDomain) bDoms
+      total       = caseIsTotal cs
 
+  -- This is a bit gross because we need to be careful to merge in any
+  -- info from the case, and to construct the new gsEnv properly.
   if trivial && total
     then pure emptyDomain
-    else pure (collapseDoms preds (SCase total . Case y . zip pats) bDoms)
+    else do
+    let squashed = asSingleton . squashDomain <$> bDoms
+        newEnv   = absCase ((\(ae, _, _) -> ae) <$> squashed)
+        newCase  = (\(_, sl, _) -> sl) <$> squashed
+        newDoms  = (\(_, _, d ) -> d) <$> squashed
+        gs'      =
+          GuardedSlice { gsEnv   = newEnv
+                       , gsPred  = preds
+                       , gsSlice = SCase total newCase
+                       }
+
+    -- fn <- currentDeclName
+    -- traceM ("Summarising case in " ++ showPP fn ++
+    --       "(trivial: " ++ show trivial ++ ", total: " ++ show total ++ ") " ++
+    --       showPP cs)
+    -- traceM ("\tresult: " ++ showPP gs')
+
+    pure (foldl merge (singletonDomain gs') newDoms)
 
 -- Some examples:
 --
@@ -335,7 +369,7 @@ summariseG preds tc =
     Pure e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env, gsPred = [p], gsSlice = SPure e'}
       | p <- preds, let (env, e') = absPre p e ]
-        
+
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
     Match _ (MatchByte bset) -> pure $ domainFromElements $
@@ -356,7 +390,7 @@ summariseG preds tc =
       -- merge rhsD <$> summariseG Nothing lhs
 
     Do x lhs rhs -> summariseBind preds x lhs rhs
-      
+
     Let n e rhs -> summariseG preds (Do n (Pure e) rhs) -- FIXME: this is a bit of a hack
 
     -- doms contains a domain for each path in the choose. We create a
@@ -368,35 +402,40 @@ summariseG preds tc =
     --
     Choice _biased gs -> do
       doms <- mapM (summariseG preds) gs
-      pure (collapseDoms preds SChoice doms)
+      if all nullDomain doms
+        then pure emptyDomain
+        else pure (collapseDoms preds SChoice doms)
 
     Call fn args  -> summariseCall preds fn args
     Annot _ g     -> summariseG preds g
- 
+
     -- Cases
-    GuardP e g    -> do
-      n <- freshNameSys TUnit
-      rhsD <- mapSlices (SDo n SHole) <$> summariseG preds g
-      let lhsD = singletonDomain (GuardedSlice { gsEnv  = absGuard e
-                                               , gsPred = []
-                                               , gsSlice = SAssertion e
-                                               })
-      pure (merge lhsD rhsD)
+    -- GuardP e g    -> do
+    --   n <- freshNameSys TUnit
+    --   rhsD <- mapSlices (SDo n SHole) <$> summariseG preds g
+    --   let lhsD = singletonDomain
+    --         (GuardedSlice { gsEnv  = absGuard e
+    --                       , gsPred = []
+    --                       , gsSlice = SDo n (SAssertion e) SHole
+    --                       })
+    --   pure (merge lhsD rhsD)
 
     GCase cs      -> summariseCase preds cs
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
     unimplemented = panic "summariseG unimplemented" [showPP tc]
-      
+
 summariseBind :: AbsEnv ae =>
                  [AbsPred ae] -> Name -> Grammar -> Grammar ->
                  SummariseM ae (Domain ae)
 summariseBind preds x lhs rhs = do
   rhsD <- summariseG preds rhs
+
   let (matching, rhsD') = partitionDomainForVar x rhsD
       preds'            = map snd matching
   lhsD <- summariseG preds' lhs
+
   let (lhsMatching, lhsD') = partitionDomainForResult lhsD
       -- For each element of lhsMatching we find the corresponding
       -- rhs(s) from matching, merge if there are multiple, and the
@@ -404,7 +443,7 @@ summariseBind preds x lhs rhs = do
       --
       -- gsFor gets the rhs(s) for a particular result lhs
       gsFor gs = [ gs' | (gs', p) <- matching, p `elem` gsPred gs ]
-        
+
       els = [ bindGuardedSlice x gs gs'
             | gs <- lhsMatching
             , let gs' = foldl1 merge (gsFor gs)
@@ -413,7 +452,16 @@ summariseBind preds x lhs rhs = do
       -- There are the elements which do not care about x.
       indepLHSD = mapSlices (\sl -> SDo x sl SHole) lhsD'
       indepRHSD = mapSlices (SDo x SHole) rhsD'
-            
+  -- fn <- currentDeclName
+  -- when (showPP fn == "Main") $
+  -- traceM ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
+  --         show (nest 4 $ pp (Do x lhs rhs)) ++
+  --         "\n (result'? " ++ show (not $ null preds') ++ ")" ++
+  --         "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
+  --         "\n" ++
+  --         show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++ "\n els " ++
+  --         show (nest 4 $ bullets (map pp els)))
+
   pure (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
 -- diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
