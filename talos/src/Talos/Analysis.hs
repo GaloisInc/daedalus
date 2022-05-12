@@ -33,6 +33,7 @@ import           Talos.Analysis.Merge     (merge)
 import           Talos.Analysis.Monad
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv (varAbsEnvTy)
+import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
 
 
 -- import Debug.Trace (traceM)
@@ -65,6 +66,7 @@ summarise _ md nguid = (summaries, nextGUID s')
 -- Not sure these belong here
 absEnvTys :: [(String, AbsEnvTy)]
 absEnvTys = [ ("vars", varAbsEnvTy)
+            , ("fields", fieldAbsEnvTy)
             ]
 
 --------------------------------------------------------------------------------
@@ -255,7 +257,7 @@ collapseDoms _preds _mk [] = emptyDomain
 collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
   where
     (envs, sls, doms) = unzip3 (map (asSingleton . squashDomain) branchDs)
-    gs' = GuardedSlice { gsEnv   = foldl1 absUnion envs
+    gs' = GuardedSlice { gsEnv   = foldl1 (<>) envs
                        , gsPred  = preds
                        , gsSlice = mk sls
                        }

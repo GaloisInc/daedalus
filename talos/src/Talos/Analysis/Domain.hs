@@ -42,7 +42,7 @@ data GuardedSlice ae = GuardedSlice
 
 instance AbsEnv ae => Merge (GuardedSlice ae) where
   merge gs gs' = GuardedSlice
-    { gsEnv  = absUnion (gsEnv gs) (gsEnv gs')
+    { gsEnv  = gsEnv gs <> gsEnv gs'
     , gsPred = gsPred gs <> gsPred gs'
     , gsSlice = merge (gsSlice gs) (gsSlice gs')
     }
@@ -60,7 +60,7 @@ mapGuardedSlice f gs = gs { gsSlice = f (gsSlice gs) }
 bindGuardedSlice :: AbsEnv ae => Name ->
                     GuardedSlice ae -> GuardedSlice ae -> GuardedSlice ae
 bindGuardedSlice x lhs rhs = GuardedSlice
-  { gsEnv = absUnion (gsEnv lhs) (gsEnv rhs)
+  { gsEnv = gsEnv lhs <> gsEnv rhs
   , gsPred = gsPred rhs
   , gsSlice = SDo x (gsSlice lhs) (gsSlice rhs)
   }
