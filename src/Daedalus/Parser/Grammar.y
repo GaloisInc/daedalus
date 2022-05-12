@@ -452,7 +452,7 @@ call_expr                                :: { Expr }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
   | 'Take' aexpr aexpr                      { at ($1,$2) (EStreamLen $2 $3) }
   | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
-  | 'length' aexpr                          { at ($1,$2) (EArrayLength $2)  }
+  | 'length' aexpr                          { at ($1,$2) (EUniOp ArrayLength $2)}
   | 'Index' aexpr aexpr                     { at ($1,$2) (EArrayIndex $2 $3) }
   | 'emit' aexpr aexpr                      { at ($1,$2) (EBinOp BuilderEmit $2 $3) }
   | 'emitArray' aexpr aexpr                 { at ($1,$2) (EBinOp BuilderEmitArray $2 $3) }

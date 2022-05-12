@@ -1041,9 +1041,6 @@ fromExpr expr =
         TMap k v -> pure (mapEmpty k v)
         _ -> panic "fromExpr" ["MapEmpty not a map"]
 
-    TC.TCArrayLength v ->
-      arrayLen <$> fromExpr v
-
     TC.TCCoerce _t1 t2 v ->
       coerceTo <$> fromTypeM t2 <*> fromExpr v
 
@@ -1106,6 +1103,7 @@ fromExpr expr =
                 TC.Not -> eNot e
                 TC.Neg -> neg e
                 TC.Concat -> eConcat e
+                TC.ArrayLength -> arrayLen e
                 TC.BitwiseComplement -> bitNot e
 
                 TC.WordToFloat    -> wordToFloat e

@@ -142,6 +142,7 @@ evalUniOp op =
   case op of
     Not               -> vNot
     Neg               -> partial . vNeg
+    ArrayLength       -> vArrayLength
     Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
     WordToFloat       -> vWordToFloat
@@ -397,7 +398,6 @@ compilePureExpr env = go
         TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
 
         TCMapEmpty _    -> VMap Map.empty
-        TCArrayLength e -> vArrayLength (go e)
 
         TCCase e alts def ->
           evalCase

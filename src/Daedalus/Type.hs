@@ -459,6 +459,12 @@ inferExpr expr =
           do addConstraint expr (Arith t)
              pure (exprAt expr (TCUniOp Neg e1), t)
 
+        ArrayLength ->
+          liftValAppPure expr [e] \ ~[(e1,et)] ->
+            do vt <- newTVar e KValue
+               unify (tArray vt) (e, et)
+               pure (exprAt expr (TCUniOp ArrayLength e1), tSize)
+
         Concat ->
           do ctxt <- getContext
              case ctxt of
@@ -789,12 +795,6 @@ inferExpr expr =
                 do t <- newTVar expr KValue
                    mapM_ (unify t) res
                    pure (exprAt expr (TCArray (map fst res) t), tArray t)
-
-    EArrayLength e ->
-      liftValAppPure expr [e] \ ~[(e1,et)] ->
-      do vt <- newTVar e KValue
-         unify (tArray vt) (e, et)
-         pure (exprAt expr (TCArrayLength e1), tSize)
 
     EArrayIndex e ix ->
       grammarOnly expr $

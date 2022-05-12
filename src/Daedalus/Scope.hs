@@ -349,7 +349,6 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EMapInsert ke ve me -> EMapInsert <$> resolve ke <*> resolve ve <*> resolve me
       EMapLookup ke me -> EMapLookup <$> resolve ke <*> resolve me
 
-      EArrayLength ve  -> EArrayLength <$> resolve ve       
       EArrayIndex  ve ixe -> EArrayIndex <$> resolve ve <*> resolve ixe
 
       EFor fl c ->

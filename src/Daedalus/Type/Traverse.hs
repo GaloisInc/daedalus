@@ -93,7 +93,6 @@ instance TraverseTypes (TCF a k) where
       TCMapLookup s k m -> TCMapLookup s <$> traverseTypes f k
                                          <*> traverseTypes f m
 
-      TCArrayLength e   -> TCArrayLength <$> traverseTypes f e
       TCArrayIndex s e ix -> TCArrayIndex s <$> traverseTypes f e
                                             <*> traverseTypes f ix
 
@@ -313,7 +312,6 @@ traverseTCF f = go
         TCMapLookup s k m -> TCMapLookup s <$> f k <*> f m
 
         -- Arrays
-        TCArrayLength e -> TCArrayLength <$> f e
         TCArrayIndex s e ix -> TCArrayIndex s <$> f e <*> f ix
 
         -- Coercions
