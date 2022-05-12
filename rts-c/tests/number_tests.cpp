@@ -86,4 +86,3 @@ TEST(UInt, Concat) {
     DDL::UInt<4> w { 0xf };
     EXPECT_EQ(DDL::lcat(w, DDL::UInt<12>{0xabc}), DDL::UInt<4>{0xc});
 }
-
