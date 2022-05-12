@@ -295,7 +295,108 @@ two variants, both of which are simply tags: ``true`` and ``false``.
 DaeDaLus allows us to return a tagged sum type using variations of the
 layout-based syntax described in the note above, similar to how we can
 build structures using parser sequencing. Note that we can't use the infix
-operators ``<|`` or ``|`` to accomplish this same goal, we *must* use
+operators ``<|`` or ``|`` to accomplish this same goal - we *must* use
 ``First`` and ``Choose``.
 
+As usual, this concept is best demonstrated by an example:
 
+.. code-block:: DaeDaLus
+
+    def GoodOrBad =
+      First
+        good = Match1 `G`
+        bad  = Match1 'B'
+
+This parser returns a semantic value of a new tagged sum type named
+``GoodOrBad``, which has two variants whose tags are ``good`` and ``bad``; this
+is like parser sequencing that produces structures, except rather than each
+variable corresponding to a field, each corresponds to one of the variants of
+the sum type.
+
+.. note::
+
+    You might wonder if, like sequencing earlier, there is some syntactic sugar
+    at play. Indeed, we can construct semantic values of tagged-sum types
+    explicitly, using a special "barbed wire" bracket:
+
+    .. code-block:: DaeDaLus
+
+        def GoodOrBad2 =
+          First
+            block
+              @x = Match1 'G'
+              ^ {| good = x |}
+            block
+              @x = Match1 'B'
+              ^ {| bad = x |}
+
+    Note that, because of the way DaeDaLus attempts to infer the types of these
+    sum-typed values, this declaration will in fact create a *new* sum type
+    named ``GoodOrBad2`` - it is *not* interchangeable with the previous
+    definition of ``GoodOrBad``, even though both types have essentially the
+    same values.
+
+    If we wanted this new parser to return the same type of semantic value as
+    the original ``GoodOrBad``, we would need to provide *type annotations* to
+    guide the type inferencer:
+
+    .. code-block:: DaeDaLus
+
+        def GoodOrBad3 =
+          First
+            block
+              @x = Match1 'G'
+              ^ {| good = x |} : GoodOrBad
+            block
+              @x = Match1 'B'
+              ^ {| bad = x |}
+
+    Note that, since all branches of ``First`` and ``Choose`` parsers must have
+    the same type, we need only annotate the first branch's result - the type
+    inferencer will take care of the rest.
+
+With this set of rich type-constructing mechanisms, you can go forth and create
+many interesting format specifications with DaeDaLus - but, what happens when
+you need to parse many copies of the same thing in sequence, perhaps an unknown
+number of times?
+
+Repeating Parsers
+-----------------
+
+If we need to parse the same thing multiple times, we can use the ``Many``
+parser combinator. In its most basic form, it can parse an arbitrarily long
+sequence, stopping only when the given parser first fails. As a simple example:
+
+.. code-block:: DaeDaLus
+
+    { $$ = Many (Match1 '7'); Match1 '0' }
+
+This parser will match any number of ``'7'`` followed by a ``'0'`` e.g.
+``'0'``, ``"70"``, ``770``, etc. The semantic value returned by the above
+parser is an array of all the ``'7'``s that were parsed.
+
+Be cautious when using this unbounded form of ``Many``! It parses inputs
+maximally, so it's possible to accidentally create a parser that never
+succeeds, e.g.:
+
+.. code-block:: DaeDaLus
+
+    { Many (Match1 '7'); Match1 '7' }
+
+When we know that we are only parsing a particular number of things (or even
+that there is a lower or upper bound on the number of things), we can provide
+an optional additional argument to ``Many``:
+
+* The parser ``Many n P`` succeeds if ``P`` succeeds exactly ``n`` times
+* The parser ``Many (i .. j) P`` succeeds if ``P`` succeeds at least ``i`` and
+  at most ``j`` times
+
+This latter form can be modified to leave off either the lower or upper bound,
+e.g. ``Many (i ..) P``, which will succeed if ``P`` succeeds at least ``i``
+times.
+
+All we're missing now for a complete understanding of the PPM example is some
+control-flow mechanisms and expressions involving semantic values - if you're
+already familiar with other programming languages, you can probably figure out
+what's going on with the ``for``-loops and integer expressions, but the
+following section will explain these features in more detail.
