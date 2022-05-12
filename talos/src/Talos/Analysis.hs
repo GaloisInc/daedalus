@@ -404,8 +404,8 @@ summariseG preds tc =
     --
     Choice _biased gs -> do
       doms <- mapM (summariseG preds) gs
-      if all nullDomain doms
-        then pure emptyDomain
+      if all closedDomain doms
+        then pure (foldl merge emptyDomain doms)
         else pure (collapseDoms preds SChoice doms)
 
     Call fn args  -> summariseCall preds fn args

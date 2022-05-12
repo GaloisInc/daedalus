@@ -151,6 +151,10 @@ nullDomain :: Domain ae -> Bool
 nullDomain (Domain [] ce) = Map.null ce
 nullDomain _              = False
 
+closedDomain :: Domain ae -> Bool
+closedDomain (Domain [] _) = True
+closedDomain _             = False
+
 -- mapDomain :: (EntangledVars -> Slice -> Slice) -> Domain -> Domain
 -- mapDomain f = Domain . map (\(x, y) -> (x, f x y)) . elements
 
