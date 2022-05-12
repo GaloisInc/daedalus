@@ -158,7 +158,6 @@ data TCF :: HS -> Ctx -> HS where
    -- This is just a tag for error reporting.
    TCLabel      :: Text -> TC a Grammar -> TCF a Grammar
 
-   TCGetByte    :: WithSem -> TCF a Grammar
    TCMatch      :: WithSem -> TC a Class -> TCF a Grammar
    TCMatchBytes :: WithSem -> TC a Value -> TCF a Grammar
 
@@ -473,7 +472,6 @@ instance PP (TCF a k) where
 
       TCLabel l p    -> "{-" <+> pp l <+> "-}" <+> ppPrec n p
 
-      TCGetByte s    -> annotKW' s "GetByte"
       TCMatch s b    -> wrapIf (n > 0) (annotKW' s "Match" <+> ppPrec 1 b)
 
       TCMatchBytes s b -> wrapIf (n > 0)
@@ -1012,8 +1010,6 @@ instance TypeOf (TCF a k) where
       TCLet _ _ e     -> typeOf e
 
       TCLabel _ e     -> typeOf e
-
-      TCGetByte s     -> tGrammar (mbTy s tByte)
 
       TCMatch s _     -> tGrammar (mbTy s tByte)
       TCMatchBytes s _-> tGrammar (mbTy s (tArray tByte))

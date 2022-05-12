@@ -899,10 +899,11 @@ inferExpr expr =
 
     EAnyByte ->
       do ctxt <- getContext
+         let anyC = exprAt expr TCSetAny
          case ctxt of
            AValue   -> reportError expr "Invalid semantic value."
-           AClass   -> pure (exprAt expr TCSetAny, tByteClass)
-           AGrammar -> pure (exprAt expr (TCGetByte YesSem), tGrammar tByte)
+           AClass   -> pure (anyC, tByteClass)
+           AGrammar -> pure (exprAt expr (TCMatch YesSem anyC), tGrammar tByte)
 
     EOptional cmt e ->
       grammarOnly expr

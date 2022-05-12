@@ -182,8 +182,6 @@ allocGExpr n ctx gexpr =
           let ae1 = idVExpr e1
               ae2 = idVExpr e2
           in allocate (TCStreamOff ws ae1 ae2) n 2
-        TCGetByte ws ->
-          allocate (TCGetByte ws) n 2
         TCMatch ws cexpr ->
           let acexpr = idCExpr cexpr
           in
@@ -577,10 +575,6 @@ genGExpr gbl e =
       let n1 = getS 0
           n2 = getS 1
       in mkAut n1 (mkTr [ (n1, UniChoice (IAct (StreamDrop s e1 e2), n2)) ]) n2
-    TCGetByte s ->
-      let n1 = getS 0
-          n2 = getS 1
-      in mkAut n1 (mkTr [ (n1, UniChoice (IAct (IGetByte s), n2)) ]) n2
     TCMatch s e1 ->
       let n1 = getS 0
           n2 = getS 1

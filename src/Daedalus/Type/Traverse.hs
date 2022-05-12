@@ -78,7 +78,6 @@ instance TraverseTypes (TCF a k) where
 
       TCLabel l e     -> TCLabel l <$> traverseTypes f e
 
-      TCGetByte {}    -> pure expr
       TCMatch s e     -> TCMatch s <$> traverseTypes f e
       TCMatchBytes s e -> TCMatchBytes s <$> traverseTypes f e
 
@@ -296,7 +295,6 @@ traverseTCF f = go
         TCDo  x e1 e2 -> TCDo x <$> f e1 <*> f e2
         TCLet x e1 e2 -> TCLet x <$> f e1 <*> f e2
 
-        TCGetByte x    -> pure (TCGetByte x)
         TCMatch s b    -> TCMatch s <$> f b
 
         TCLabel l e    -> TCLabel l <$> f e

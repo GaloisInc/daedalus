@@ -700,10 +700,6 @@ compilePExpr env expr0 args = go expr0
           do v <- go e
              compileExpr (addValMaybe m_var v env) e'
 
-        TCGetByte s ->
-          do r <- pByte erng
-             pure $! mbSkip s (vByte r)
-
         TCMatch s e ->
           do b <- pMatch1 erng (compilePredicateExpr env e)
              return $! mbSkip s (vByte b)

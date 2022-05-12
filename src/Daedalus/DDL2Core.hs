@@ -192,9 +192,6 @@ fromGrammar gram =
     TC.TCLabel t g ->
       Annot (SrcAnnot t) <$> fromGrammar g
 
-    TC.TCGetByte sem ->
-      pure (Match (fromSem sem) (MatchByte SetAny))
-
     TC.TCMatch sem c ->
       do p <- fromClass c
          pure (Match (fromSem sem) (MatchByte p))

@@ -780,8 +780,6 @@ hsGrammar env tc =
                          (hsGrammar env m2)
 
      TCLabel t e -> "RTS.pEnter" `Ap` hsText t `Ap` hsGrammar env e
-     TCGetByte s -> optSkip s "RTS.uint8"
-                    ("RTS.pByte" `Ap` erng)
 
      TCMatch s c -> optSkip s "RTS.uint8"
                     ("RTS.pMatch1" `Ap` erng `Ap` hsByteClass env c)
