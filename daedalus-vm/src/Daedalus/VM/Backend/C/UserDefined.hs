@@ -32,7 +32,7 @@ cTypeGroup allTypes rec =
                         , generateMethods GenPublic GenUnboxed d
                         )
 
-          TBitdata univ def -> ( vcat' [ cBitdata d univ def
+          TBitdata univ def -> ( vcat' [ cBitdata allTypes d univ def
                                        , decShow GenPublic d
                                        , decShowJS GenPublic d
                                        ]

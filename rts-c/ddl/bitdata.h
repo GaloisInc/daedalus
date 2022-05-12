@@ -32,5 +32,8 @@ int compare(Bitdata<n> x, Bitdata<n> y) {
   return compare(x.toBits(),y.toBits());
 }
 
+template<class... Ts> struct cases : Ts... { using Ts::operator()...; };
+template<class... Ts> cases(Ts...) -> cases<Ts...>;
+
 }
 #endif
