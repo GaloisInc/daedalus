@@ -3,7 +3,7 @@ def Main = block
   END;
 
 def $ws = 0 | 9 | 12 | 32 | '\n' | '\r'
-def WS = Match1 $ws
+def WS = $ws
 
 def Token P = block
   $$ = P
@@ -29,12 +29,12 @@ def Natural = block
   ^ for (val = 0; d in ds) (addDigit val d)
 
 def Digit = block
-  @d = Match1 ('0' .. '9')
+  @d = $['0' .. '9']
   ^ d - '0'
 
 def addDigit val d = 10 * val + (d as uint 64)
 
 def LookaheadNotWS = block
   @curr = GetStream
-  ( @Match1 (! $ws) | END )
+  ( @$[! $ws] | END )
   SetStream curr

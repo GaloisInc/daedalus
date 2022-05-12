@@ -19,7 +19,7 @@ def DateDefaultSpaces = DefaultSpaces 8 PartialDate
 
 def Im = Match "IM"
 
-def IID1 = Many 10 (AlphaNum <| Match1 ('_' | ' '))
+def IID1 = Many 10 (AlphaNum <| $['_' | ' '])
 
 def IDaTim = PartialDateTime
 
@@ -47,81 +47,77 @@ def NRows = PosNumber 8
 
 def NCols = PosNumber 8
 
-def PVType = Choose1 {
-  integer = @(PadMatch 3 ' ' "INT") ;
-  bilevel = @(PadMatch 3 ' ' "B") ;
-  signed = @(PadMatch 3 ' ' "SI") ;
-  real = @(PadMatch 3 ' ' "R") ;
-  complex = @(PadMatch 3 ' ' "C") ;
-}
+def PVType = First
+  integer = @PadMatch 3 ' ' "INT"
+  bilevel = @PadMatch 3 ' ' "B"
+  signed  = @PadMatch 3 ' ' "SI"
+  real    = @PadMatch 3 ' ' "R"
+  complex = @PadMatch 3 ' ' "C"
 
-def IRep = Choose1 {
-  monochrome = @(PadMatch 8 ' ' "MONO") ;
-  rgb = @(PadMatch 8 ' ' "RGB") ;
-  rgblut = @(PadMatch 8 ' ' "RGB/LUT") ;
-  multi = @(PadMatch 8 ' ' "MULTI") ;
-  nodisplay = @(PadMatch 8 ' ' "NODISPLY") ;
-  cartesian = @(PadMatch 8 ' ' "NVECTOR") ;
-  polar = @(PadMatch 8 ' ' "POLAR") ;
-  sar = @(PadMatch 8 ' ' "VPH") ;
-  itur = @(PadMatch 8 ' ' "YCbCr601") ;
-}
+def IRep = First
+  monochrome  = PadMatch 8 ' ' "MONO"
+  rgb         = PadMatch 8 ' ' "RGB"
+  rgblut      = PadMatch 8 ' ' "RGB/LUT"
+  multi       = PadMatch 8 ' ' "MULTI"
+  nodisplay   = PadMatch 8 ' ' "NODISPLY"
+  cartesian   = PadMatch 8 ' ' "NVECTOR"
+  polar       = PadMatch 8 ' ' "POLAR"
+  sar         = PadMatch 8 ' ' "VPH"
+  itur        = PadMatch 8 ' ' "YCbCr601"
 
-def ICat = Choose1 {
-  visible = @(PadMatch 8 ' ' "VIS") ;
-  sideLooking = @(PadMatch 8 ' ' "SL") ;
-  thermalInfrared = @(PadMatch 8 ' ' "TI") ;
-  forwardLooking = @(PadMatch 8 ' ' "FL") ;
-  radar = @(PadMatch 8 ' ' "RD") ;
-  electroOptical = @(PadMatch 8 ' ' "EO") ;
-  optical = @(PadMatch 8 ' ' "OP") ;
-  highResolution = @(PadMatch 8 ' ' "HR") ;
-  hyperSpectral = @(PadMatch 8 ' ' "HS") ;
-  colorPhoto = @(PadMatch 8 ' ' "CP") ;
-  blackWhitePhoto = @(PadMatch 8 ' ' "BP") ;
-  synthApertureRadar = @(PadMatch 8 ' ' "SAR") ;
-  sarRadioHologram = @(PadMatch 8 ' ' "SARIQ") ;
-  infrared = @(PadMatch 8 ' ' "IR") ;
-  multiSpectral = @(PadMatch 8 ' ' "MS") ;
-  fingerprints = @(PadMatch 8 ' ' "FP") ;
-  mri = @(PadMatch 8 ' ' "MRI") ;
-  xray = @(PadMatch 8 ' ' "XRAY") ;
-  catScans = @(PadMatch 8 ' ' "CAT") ;
-  video = @(PadMatch 8 ' ' "VD") ;
-  barometric = @(PadMatch 8 ' ' "BARO") ;
-  waterCurrent = @(PadMatch 8 ' ' "CURRENT") ;
-  waterDepth = @(PadMatch 8 ' ' "DEPTH") ;
-  airWind = @(PadMatch 8 ' ' "WIND") ;
+def ICat = First
+  visible             = @PadMatch 8 ' ' "VIS"
+  sideLooking         = @PadMatch 8 ' ' "SL"
+  thermalInfrared     = @PadMatch 8 ' ' "TI"
+  forwardLooking      = @PadMatch 8 ' ' "FL"
+  radar               = @PadMatch 8 ' ' "RD"
+  electroOptical      = @PadMatch 8 ' ' "EO"
+  optical             = @PadMatch 8 ' ' "OP"
+  highResolution      = @PadMatch 8 ' ' "HR"
+  hyperSpectral       = @PadMatch 8 ' ' "HS"
+  colorPhoto          = @PadMatch 8 ' ' "CP"
+  blackWhitePhoto     = @PadMatch 8 ' ' "BP"
+  synthApertureRadar  = @PadMatch 8 ' ' "SAR"
+  sarRadioHologram    = @PadMatch 8 ' ' "SARIQ"
+  infrared            = @PadMatch 8 ' ' "IR"
+  multiSpectral       = @PadMatch 8 ' ' "MS"
+  fingerprints        = @PadMatch 8 ' ' "FP"
+  mri                 = @PadMatch 8 ' ' "MRI"
+  xray                = @PadMatch 8 ' ' "XRAY"
+  catScans            = @PadMatch 8 ' ' "CAT"
+  video               = @PadMatch 8 ' ' "VD"
+  barometric          = @PadMatch 8 ' ' "BARO"
+  waterCurrent        = @PadMatch 8 ' ' "CURRENT"
+  waterDepth          = @PadMatch 8 ' ' "DEPTH"
+  airWind             = @PadMatch 8 ' ' "WIND"
   -- geographic products:
-  rasterMap = @(PadMatch 8 ' ' "MAP") ;
-  colorPatch = @(PadMatch 8 ' ' "PAT") ;
-  legends = @(PadMatch 8 ' ' "LEG") ;
-  elevationModel = @(PadMatch 8 ' ' "DTEM") ;
-  otherMatrix = @(PadMatch 8 ' ' "MATR") ;
-  locationGrid = @(PadMatch 8 ' ' "LOCG") ;
-}
+  rasterMap           = @PadMatch 8 ' ' "MAP"
+  colorPatch          = @PadMatch 8 ' ' "PAT"
+  legends             = @PadMatch 8 ' ' "LEG"
+  elevationModel      = @PadMatch 8 ' ' "DTEM"
+  otherMatrix         = @PadMatch 8 ' ' "MATR"
+  locationGrid        = @PadMatch 8 ' ' "LOCG"
 
 def ABPP = BoundedNum 2 1 96
 
-def PJust = Choose1 {
-  leftJust = @Match1 'L' ;
-  rightJust = @Match1 'R' ;
-}
+def PJust = First
+  leftJust  = @$['L']
+  rightJust = @$['R']
 
 def ICords = DefaultSpace (
-  Choose1 {
-    utm = @Match1 'U' ;
-    northernhemi = @Match1 'N' ;
-    southernhemi = @Match1 'S' ;
-    geographic = @Match1 'G' ;
-    decimal = @Match1 'D' ;
-  })
+  First
+    utm           = @$['U']
+    northernhemi  = @$['N']
+    southernhemi  = @$['S']
+    geographic    = @$['G']
+    decimal       = @$['D']
+  )
 
 def LatDeg = block
   sign = Sign
   @whole_digs = Many 2 Digit
   whole = ^ numBase 10 whole_digs
-  Match1 '.'
+  $['.']
   @frac_digs = Many 3 Digit
   frac = ^ numBase 10 frac_digs
   Guard (whole < 90 || ((whole == 90) && (frac == 0)))
@@ -131,24 +127,22 @@ def LongDeg = block
   sign = Sign
   @whole_digs = Many 3 Digit
   whole = ^ numBase 10 whole_digs
-  Match1 '.'
+  $['.']
   @frac_digs = Many 3 Digit
   frac = ^ numBase 10 frac_digs
   Guard (whole < 180 || ((whole == 180) && (frac == 0)))
 
 def Latitude = block
   digs = PadMany 6 ' ' Numeral
-  hemi = Choose1 {
-      north = @Match1 'N' ;
-      south = @Match1 'S' ;
-    }
+  hemi = First
+           north = @$['N']
+           south = @$['S']
 
 def Longitude = block
   digs = PadMany 7 ' ' Numeral
-  hemi = Choose1 {
-      east = @Match1 'E' ;
-      west = @Match1 'W' ;
-    }
+  hemi = First
+           east = @$['E']
+           west = @$['W']
 
 def LatLong = block
   lat = Latitude
@@ -166,11 +160,11 @@ def PlainUtm = block
   easting = Many 6 Numeral
   northing = Many 7 Numeral
 
-def OmitIO lb ub = Match1 (
+def OmitIO lb ub = $[
   lb .. 'H'
 | 'J' .. 'N'
 | 'P' .. ub
-)
+]
 
 def MGRS = block
   zone_num = Many 2 Digit
@@ -215,7 +209,7 @@ def OrdLong left right =
      )
    )
 
-def IGeoLo = Choose1 {
+def IGeoLo = First
   decimal_degs = {
     lat0 = LatDeg ;
     long0 = LongDeg ;
@@ -229,77 +223,68 @@ def IGeoLo = Choose1 {
     EqLat lat2 lat3 ;
     OrdLong long0 long1 ;
     OrdLong long3 long2
-  } ;
-  lat_long = Many 4 LatLong ;
-  mgrs = Many 4 MGRS ;
+    }
+  lat_long = Many 4 LatLong
+  mgrs = Many 4 MGRS
   plain_utm = Many 4 PlainUtm
-}
 
 def NICom = Digit as! uint 64
 
 def IComn n = Many n (Many 80 Byte)
 
-def IC = Choose1 {
-  c1 = @Match "C1" ;
-  c3 = @Match "C3" ;
-  c4 = @Match "C4" ;
-  c5 = @Match "C5" ;
-  c6 = @Match "C6" ;
-  c7 = @Match "C7" ;
-  c8 = @Match "C8" ;
-  i1 = @Match "I1" ;
-  m1 = @Match "M1" ;
-  m3 = @Match "M3" ;
-  m4 = @Match "M4" ;
-  m5 = @Match "M5" ;
-  m6 = @Match "M6" ;
-  m7 = @Match "M7" ;
-  m8 = @Match "M8" ;
-  nc = @Match "NC" ;
-  nm = @Match "NM" ;
-}
+def IC = First
+  c1 = @Match "C1"
+  c3 = @Match "C3"
+  c4 = @Match "C4"
+  c5 = @Match "C5"
+  c6 = @Match "C6"
+  c7 = @Match "C7"
+  c8 = @Match "C8"
+  i1 = @Match "I1"
+  m1 = @Match "M1"
+  m3 = @Match "M3"
+  m4 = @Match "M4"
+  m5 = @Match "M5"
+  m6 = @Match "M6"
+  m7 = @Match "M7"
+  m8 = @Match "M8"
+  nc = @Match "NC"
+  nm = @Match "NM"
 
-def ComRat (ic : IC) = Choose1 {
+def ComRat (ic : IC) = First
+
   dim_coding =
-    case ic of {
+    case ic of
       c1, m1 ->
-        Choose1 {
-          oned = @(PadMatch 4 ' ' "1D") ;
-          twods = @(PadMatch 4 ' ' "2DS") ;
-          twodh = @(PadMatch 4 ' ' "2DH") ;
-        } ;
-    };
+        First
+          oned  = @(PadMatch 4 ' ' "1D")
+          twods = @(PadMatch 4 ' ' "2DS")
+          twodh = @(PadMatch 4 ' ' "2DH")
 
   quant_tables =
-    case ic of {
+    case ic of
       c3, c5, i1, m3, m5 ->
-        { Match1 '0' ;
-          img_data_type = BoundedDigit 0 4;
-          Match1 '.' ;
-          quality_level = BoundedDigit 0 5;
-          case ic of {
-            c5, m5 ->
-              Guard (quality_level == 0);
-            c3, i1, m3 -> {};
-          }
-        };
-    };
+        block
+          $['0']
+          img_data_type = BoundedDigit 0 4
+          $['.']
+          quality_level = BoundedDigit 0 5
+          case ic of
+            c5, m5     -> Guard (quality_level == 0)
+            c3, i1, m3 -> {}
 
   bits_per_pixel =
-    case ic of {
+    case ic of
       c4, m4 ->
-        { ones = Digit ;
-          Match1 '.' ;
-          tenths = Digit ;
+        block
+          ones = Digit
+          $['.']
+          tenths = Digit
           hudredths = Digit
-        } ;
-    };
 
   nominal =
-    case ic of {
+    case ic of
       c8, m8 -> Many 4 Byte
-    };
-}
 
 
 def NBands (irep : IRep) =
@@ -319,35 +304,34 @@ def NBands (irep : IRep) =
 
 def XBands n = BoundedNum 5 10 99999
 
-def IRepBandN = Choose1 {
-  lutBand = @(PadMatch 2 ' ' "LU") ;
-  red = @(PadMatch 2 ' ' "R") ;
-  green = @(PadMatch 2 ' ' "G") ;
-  blue = @(PadMatch 2 ' ' "B") ;
-  monoBand = @(PadMatch 2 ' ' "M") ;
-  luminance = @(PadMatch 2 ' ' "Y") ;
-  chrominanceBlue = @(PadMatch 2 ' ' "Cb") ;
-  chrominanceRed = @(PadMatch 2 ' ' "Cr") ;
-  default = @(Spaces 2) ;
-}
+def IRepBandN = First
+  lutBand         = @PadMatch 2 ' ' "LU"
+  red             = @PadMatch 2 ' ' "R"
+  green           = @PadMatch 2 ' ' "G"
+  blue            = @PadMatch 2 ' ' "B"
+  monoBand        = @PadMatch 2 ' ' "M"
+  luminance       = @PadMatch 2 ' ' "Y"
+  chrominanceBlue = @PadMatch 2 ' ' "Cb"
+  chrominanceRed  = @PadMatch 2 ' ' "Cr"
+  default         = @Spaces 2
 
-def ISubCatN = Choose1 { -- NOTE-MODERN: changed to `Choose1` to prevent overlapping of `default` and `userdef` with space `0x20`.
-  inphase = @(PadMatch 6 ' ' "I") ;
-  quadrature = @(PadMatch 6 ' ' "Q") ;
-  magnitude = @(PadMatch 6 ' ' "M") ;
-  phase = @(PadMatch 6 ' ' "P") ;
-  speed = @(PadMatch 6 ' ' "SPEED") ;
-  direct = @(PadMatch 6 ' ' "DIRECT") ;
-  easting = @(PadMatch 6 ' ' "CGX") ;
-  northing = @(PadMatch 6 ' ' "CGY") ;
-  longitude = @(PadMatch 6 ' ' "GGX") ;
-  latitude = @(PadMatch 6 ' ' "GGY") ;
-  waveLength = UnsignedNum 6 ;
-  default = @(Spaces 6) ;
-  userdef = Many 6 BCSA ;
-}
+-- NOTE-MODERN: changed to `First` to prevent overlapping of `default` and `userdef` with space `0x20`.
+def ISubCatN = First
+  inphase     = @PadMatch 6 ' ' "I"
+  quadrature  = @PadMatch 6 ' ' "Q"
+  magnitude   = @PadMatch 6 ' ' "M"
+  phase       = @PadMatch 6 ' ' "P"
+  speed       = @PadMatch 6 ' ' "SPEED"
+  direct      = @PadMatch 6 ' ' "DIRECT"
+  easting     = @PadMatch 6 ' ' "CGX"
+  northing    = @PadMatch 6 ' ' "CGY"
+  longitude   = @PadMatch 6 ' ' "GGX"
+  latitude    = @PadMatch 6 ' ' "GGY"
+  waveLength  = UnsignedNum 6
+  default     = @Spaces 6
+  userdef     = Many 6 BCSA
 
-def IFCN = Match1 'N'  -- other values reserved for future use
+def IFCN = $['N']  -- other values reserved for future use
 
 def ImFltN = Spaces 3 -- reserved for future use
 
@@ -355,17 +339,17 @@ def NELutN = BoundedPos 5 65536
 
 def LutdNM n = Many n Byte
 
-def ISync = Match1 '0' -- reserved for future use
+def ISync = $['0'] -- reserved for future use
 
-def IMode nbands = {
-  $$ = Choose1 {
-    blockMode = @Match1 'B' ;
-    pixel = @Match1 'P' ;
-    row = @Match1 'R' ;
-    seq = @Match1 'S' ;
-  } ;
-  Guard (nbands != 1) <| $$ is blockMode  -- NOTE-MODERN: Fix using <| to prevent multiple parse
-}
+def IMode nbands =
+  block
+    $$ = First
+            blockMode = @$['B']
+            pixel     = @$['P']
+            row       = @$['R']
+            seq       = @$['S']
+    Guard (nbands != 1) <| $$ is blockMode
+    -- NOTE-MODERN: Fix using <| to prevent multiple parse
 
 def NBPR = PosQuad
 
@@ -392,22 +376,22 @@ def IDLvl = BoundedNum 3 1 999
 
 def IALvl = AttachmentLvl
 
-def IMag = Choose1 {
-  fp = {
-    $$ = FixedPoint ;
-    @fplen = ^ (length $$.digs) + 1 + (length $$.radix) ;
-    -- DOC: why was this hard to refactor?
-    Guard (fplen <= 4) ;
-    Spaces (4 - fplen)
-  } ;
-  frac = {
-    Match1 '/' ;
-    $$ = Many (..3) Digit ;
-    @fplen = ^ (length $$) + 1 ;
-    Guard (fplen <= 4) ;
-    Spaces (4 - fplen)
-  }
-}
+def IMag = First
+  fp =
+    block
+      $$ = FixedPoint
+      let fplen = length $$.digs + 1 + length $$.radix
+      -- DOC: why was this hard to refactor?
+      Guard (fplen <= 4)
+      Spaces (4 - fplen)
+
+  frac =
+    block
+      $['/']
+      $$ = Many (..3) Digit
+      let fplen = length $$ + 1
+      Guard (fplen <= 4)
+      Spaces (4 - fplen)
 
 def UDIDL = LowerBoundedOrZero 5 3 as! uint 64
 
@@ -724,40 +708,36 @@ def ISHeader = {
   p_just = PJust ;
 
   icords = ICords ;
-  Choose1 {
-    igeolo = {
-      icords is actual ;
-      IGeoLo
-    } ;
-    empty = icords is default
-  };
+  mb_igeolo = First
+                igeolo = { icords is actual ; IGeoLo }
+                empty  = icords is default
+    ;
 
   nicom = NICom ;
   i_com_n = IComn nicom ;
 
   ic = IC ;
 
-  Choose1 {
-    comrat =
-      case ic of {
-        c1, c3, c4, c5, c6, c8, m1, m3, m4, m5, m8, i1 -> ComRat ic;
-      };
+  mb_comrat = First
+                comrat =
+                  case ic of {
+                    c1, c3, c4, c5, c6, c8, m1, m3, m4, m5, m8, i1 -> ComRat ic;
+                  };
 
-    empty =
-         ic is nc
-      <| ic is nm
-  } ;
+                empty =
+                     ic is nc
+                  <| ic is nm
+    ;
 
   nbands = NBands irep ;
 
-  xbands = Choose1 {
+  xbands = First
     def_xband = {
       Guard (nbands == 0) ;
       XBands nbands
-    } ;
+      }
     no_xband = Guard (nbands != 0)
-  } ;
-
+   ;
   @num_bands =
     { Guard (nbands != 0) ;
       ^ nbands }
@@ -782,14 +762,14 @@ def ISHeader = {
     -- check display params
     DispParams irep irepbandn nbands pvtype nlutsn ;
 
-    Choose1 {
-      luts = {
-        Guard (nlutsn > 0) ;
-        nelutn = NELutN ;
-        lutd_nm = LutdNM nlutsn ;
-      } ;
-      no_luts = Guard (nlutsn == 0)
-    }
+    mb_luts = First
+                luts = block
+                         Guard (nlutsn > 0)
+                         nelutn  = NELutN
+                         lutd_nm = LutdNM nlutsn
+
+                no_luts = Guard (nlutsn == 0)
+        ;
   } ;
 
   ISync ;
@@ -823,22 +803,21 @@ def ISHeader = {
   imag = IMag ;
 
   udidl = UDIDL ;
-  Choose1 {
-    uds = {
-      Guard (udidl > 0) ;
-      udofl = UDOfl ;
-      udid = UDID udidl
-    } ;
-    empty = Guard (udidl == 0)
-  } ;
+  mb_uds = First
+             uds = {
+               Guard (udidl > 0) ;
+               udofl = UDOfl ;
+               udid = UDID udidl
+               }
+             empty = Guard (udidl == 0)
+    ;
 
   ixshdl = IXShDL ;
-  Choose1 {
-    ixs = {
-      Guard (ixshdl > 0) ;
-      ixsofl = IXSOfl ;
-      ixshd = IXShD ixshdl
-    } ;
-    empty = Guard (ixshdl == 0)
-  }
+  mb_ixs = First
+             ixs = {
+               Guard (ixshdl > 0) ;
+               ixsofl = IXSOfl ;
+               ixshd = IXShD ixshdl
+               }
+             empty = Guard (ixshdl == 0)
 }

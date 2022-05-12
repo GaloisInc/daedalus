@@ -30,13 +30,13 @@ P033.A : Grammar P033.A =
 P033.Main : Grammar P033.Main =
   do (x : P033.A) <- P033.A
      (y : int) <- for ((r : int) = 0; (t : uint 8) in x.a)
-                    do (c : uint 8) <- GetByte
+                    do (c : uint 8) <- Match UInt8
                        ($$ : int) <- pure (((c as int) + r) + (t as int))
                        pure $$
      (t : int) <- pure (P033.f 1)
      (v : P033.A) <- P033.A
      (w : int) <- for ((r : int) = 0; (t : uint 8) in v.a)
-                    do (c : uint 8) <- GetByte
+                    do (c : uint 8) <- Match UInt8
                        ($$ : int) <- pure (((c as int) + r) + (t as int))
                        pure $$
      END
@@ -54,8 +54,8 @@ P033._A : Grammar {} =
 P033._Main : Grammar {} =
   do (x : P033.A) <- P033.A
      for ((r : {}) = {}; (t : uint 8) in x.a)
-       @GetByte
+       (@Match UInt8)
      (v : P033.A) <- P033.A
      for ((r : {}) = {}; (t : uint 8) in v.a)
-       @GetByte
+       (@Match UInt8)
      END

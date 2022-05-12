@@ -17,7 +17,7 @@ rec
 rec value
   T003.List : Grammar T003.List =
     Choose biased
-      { {- node -} do (_3 : T003.List0) <- do (head : uint 8) <- GetByte
+      { {- node -} do (_3 : T003.List0) <- do (head : uint 8) <- Match UInt8
                                               (tail : T003.List) <- T003.List
                                               pure {head = head,
                                                     tail = tail}
@@ -28,7 +28,7 @@ rec value
  
 T003._List : Grammar {} =
   Choose biased
-    { {- node -} do @GetByte
+    { {- node -} do @Match UInt8
                     T003.List
                     pure {}
     | {- nil -} pure {}

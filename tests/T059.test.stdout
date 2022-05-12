@@ -7,7 +7,7 @@ module DaedalusMain
 --- Rules:
  
 T059.F__14 : Grammar (uint 8) =
-  GetByte
+  Match UInt8
  
 T059.P1 : Grammar (uint 8) =
   T059.F__14
@@ -19,7 +19,7 @@ T059.P2 : Grammar (uint 8) =
   T059.F__13
  
 T059._F__12 : Grammar {} =
-  @GetByte
+  @Match UInt8
  
 T059._P1 : Grammar {} =
   T059._F__12

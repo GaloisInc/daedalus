@@ -3,10 +3,9 @@ def A = Choose
     ; y = Match "a"
     }
 
-def B = Choose1
-    { z = A
-    ; t = Match "a"
-    }
+def B = First
+  z = A
+  t = Match "a"
 
 
 def Main = { p = B; q = Match "bb"; END}

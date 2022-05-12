@@ -7,7 +7,7 @@ module T005
 --- Rules:
  
 T005.P : Grammar int =
-  do (x : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
      ($$ : int) <- pure (x as int)
      pure $$
  
@@ -18,7 +18,7 @@ T005.Num : Grammar int =
      pure $$
  
 T005._P : Grammar {} =
-  @GetByte
+  @Match UInt8
  
 T005._Num : Grammar {} =
   @Many[ 1 .. ] @Match ('0' .. '9')

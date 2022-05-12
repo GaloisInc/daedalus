@@ -27,10 +27,10 @@ def CIDToGIDMapRec (pos : uint 64) m = Default m
 
 def CIDMap = CIDToGIDMapRec (0 : uint 64) empty
 
-def CIDToGIDMap = Choose1 {
-  strm = WithReffedStreamBody CIDMap;
-  identity = DirectOrRef (NameToken "Identity");
-}
+def CIDToGIDMap = First
+  strm = WithReffedStreamBody CIDMap
+  identity = DirectOrRef (NameToken "Identity")
+
 
 def PartialCIDFont (ty: bool) (sty: maybe CIDFontType) (bf: maybe FontName)
   (sysInfo : maybe [ [ uint 8 ] -> Value ]) (fd: maybe Ref)

@@ -1,13 +1,13 @@
 -- test grammar Call
 
-def A = { Match1 'a'; Match1 'b'}
+def A = { $['a']; $['b'] }
 
-def B = { Match1 'b'; Match1 'c'}
+def B = { $['b']; $['c'] }
 
 def Main =
   { Choose
-    { x = { A ; Match1 'c' }            -- abc
-    ; y = { Match1 'a'; B; Match1 'd' } -- abcd
+    { x = { A ; $['c'] }            -- abc
+    ; y = { $['a']; B; $['d'] } -- abcd
     }
   ; END
   }

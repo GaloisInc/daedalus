@@ -16,10 +16,10 @@ type P014.Main = { x: P014.A
 --- Rules:
  
 P014.A : Grammar P014.A =
-  do (a : uint 8) <- GetByte
-     (b : uint 8) <- GetByte
-     (c : uint 8) <- GetByte
-     (d : [uint 8]) <- Many[] GetByte
+  do (a : uint 8) <- Match UInt8
+     (b : uint 8) <- Match UInt8
+     (c : uint 8) <- Match UInt8
+     (d : [uint 8]) <- Many[] Match UInt8
      pure {a = a,
            b = b,
            c = c,
@@ -36,10 +36,10 @@ P014.Main : Grammar P014.Main =
            y = y}
  
 P014._A : Grammar {} =
-  do @GetByte
-     @GetByte
-     @GetByte
-     @Many[] @GetByte
+  do @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     @Many[] @Match UInt8
  
 P014._Main : Grammar {} =
   do P014._A

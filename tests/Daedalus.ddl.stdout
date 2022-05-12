@@ -10,8 +10,8 @@ Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (?bigEndian :
   if ?bigEndian then a # b else b # a
  
 Daedalus.UInt16 (?bigEndian : bool) : Grammar (uint 16) =
-  do (_84 : uint 8) <- GetByte
-     (_85 : uint 8) <- GetByte
+  do (_84 : uint 8) <- Match UInt8
+     (_85 : uint 8) <- Match UInt8
      pure (Daedalus.joinWords 8 8 16 ?bigEndian _84 _85)
  
 Daedalus.UInt32 (?bigEndian : bool) : Grammar (uint 32) =
@@ -218,8 +218,8 @@ Daedalus.WithStream ?a0 (s : Stream) (P : Grammar ?a0) : Grammar ?a0 =
                             pure $$
  
 Daedalus._UInt16 : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
  
 Daedalus._UInt32 : Grammar {} =
   do Daedalus._UInt16

@@ -140,15 +140,15 @@ DTrans [
 **********************
 **** Extended LLA ****
 **********************
-("AbortClosureUnhandledAction",15)
+("AbortClosureUnhandledAction",16)
 ("AbortSlkCfgClassIsDynamic",2)
-("AbortSlkCfgExecution",4)
+("AbortSlkCfgExecution",6)
 ("Lookahead-0",2)
-("Lookahead-1",36)
+("Lookahead-1",38)
 ("Lookahead-2",6)
 ("abort-1",1)
 
-Total nb states: 66
+Total nb states: 71
 
 **********************
 ***** Strict LLA *****

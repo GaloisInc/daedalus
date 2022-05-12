@@ -126,7 +126,7 @@ def GenCMapScope nm P = {
 -- CMapScope: a definition in a scope
 def CMapScope P = GenCMapScope "" P
 
-def UnsignedDigit = Match1 ('0' .. '9') - '0' as uint 64
+def UnsignedDigit = $['0' .. '9'] - '0' as uint 64
 def UnsignedNatural = numBase 10 (Many (1..) UnsignedDigit)
 
 -- CMapDict: parse a dictionary
@@ -141,11 +141,11 @@ def CMapDict Key Val = CMapDefn {
 }
 
 -- keys in a CIDSystemInfo map
-def CIDSysInfoKey = Choose1 {
-  registry = Match "Registry";
-  ordering = Match "Ordering";
-  supplement = Match "Supplement";
-}
+def CIDSysInfoKey = First
+  registry = Match "Registry"
+  ordering = Match "Ordering"
+  supplement = Match "Supplement"
+
 
 -- values in a CIDSystemInfo map
 def CIDSysInfoVal (k : CIDSysInfoKey) = case k of
@@ -154,16 +154,16 @@ def CIDSysInfoVal (k : CIDSysInfoKey) = case k of
   supplement -> {| supplementVal = Number |}
 
 -- CMapKey: keys in the CMap
-def CMapKey = Choose1 {
-  cidSysInfo = Match "CIDSystemInfo";
-  cMapMatch = Match "CMapMatch";
-  cMapVersion = Match "CMapVersion";
-  cMapType = Match "CMapType";
-  cMapName = Match "CMapName";
-  uidOffset = Match "UIDOffset";
-  xuid = Match "XUID";
-  wMode = Match "WMode";
-}
+def CMapKey = First
+  cidSysInfo = Match "CIDSystemInfo"
+  cMapMatch = Match "CMapMatch"
+  cMapVersion = Match "CMapVersion"
+  cMapType = Match "CMapType"
+  cMapName = Match "CMapName"
+  uidOffset = Match "UIDOffset"
+  xuid = Match "XUID"
+  wMode = Match "WMode"
+
 
 -- CMapVal: values in the CMap
 def CMapVal (k : CMapKey) = case k of
@@ -181,16 +181,16 @@ def CMapVal (k : CMapKey) = case k of
 
 -- UnicodeSeq: a sequence of unicode characters
 def UnicodeSeq cc =
-  Choose1 {
+  First
     -- single unicode char:
-    singleUnicode= ParseCharacterCodes;
+    singleUnicode= ParseCharacterCodes
 
     -- multiple unicode chars:
     multipleUnicode=
       { @entries = numEntries cc as? uint 64;
         Between "[" "]" (Many entries (Token ParseCharacterCodes))
       }
-  }
+
 
 def UnicodeSeq_single = {
   @cc = ParseCharacterCodes;
@@ -227,16 +227,16 @@ def CodeSpaceMap CharCode Rng nm = SizedOp
                                      (append nm "range")
 
 -- CodeRangeOp: code range operations
-def CodeRangeOp CharCode = Choose1 {
-  cid    = CidRangeOp CharCode;
-  notDef = NotDefRangeOp CharCode;
+def CodeRangeOp CharCode = First
+  cid    = CidRangeOp CharCode
+  notDef = NotDefRangeOp CharCode
   bfrange= SizedOp (CodeRange CharCode)
                    UnicodeSeq
                   "bfrange";
   bfchar = SizedOp (SingletonRange CharCode)
                    (Const UnicodeSeq_single)
-                   "bfchar";
-}
+                   "bfchar"
+
 
 def SizedOp Domain Rng nm = {
   @size = Token(UnsignedNatural);
@@ -256,12 +256,12 @@ def CMapDictEntry : pair = CMapDefn {
   snd = Token (CMapVal fst);
 } 
 
-def PreRangeOp = Choose1 {
+def PreRangeOp = First
   useCMap = {
     Token Name;
     KW "usecmap";
-  }
-}
+    }
+
 
 -- FIXME: currently dead:
 -- DictAnd Code Ops: parse dictionary entries, code operations Code
@@ -381,10 +381,10 @@ def FontCode_CID = Between "<" ">" (numBase (256 : int) (Many (1..) HexByte))
 
 -- fontType: different types of fonts. Inherited from context of CMap.
 -- NOTE: warning: this grammar is actually never called, but there to define the type associated
-def FontType = Choose1 {
-  simpleFont = ^{};
-  cidFont = ^{};
-}
+def FontType = First
+  simpleFont = ^{}
+  cidFont = ^{}
+
 
 def SimpleFontType : FontType = {| simpleFont = {} |}
 

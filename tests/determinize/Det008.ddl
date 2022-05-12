@@ -2,6 +2,6 @@
 
 def Main = { T1; T2; T3; END }
 
-def T1 = {Match1 'a' ; (Match1  'a' <| Match1 'b') } <| {Match1 'a' ; Match1 'c'}
-def T2 = {Match1 'a' ; (Match1  'a' <| Match1 'b') } <| {Match1 'a' ; Match1 'b'}
-def T3 = {Match1 'a' ; (Match1  'a' <| Match1 'b') }  | {Match1 'a' ; Match1 'a'}
+def T1 = {$['a'] ; ($['a'] <| $['b']) } <| { $['a'] ; $['c'] }
+def T2 = {$['a'] ; ($['a'] <| $['b']) } <| { $['a'] ; $['b'] }
+def T3 = {$['a'] ; ($['a'] <| $['b']) }  | { $['a'] ; $['a'] }

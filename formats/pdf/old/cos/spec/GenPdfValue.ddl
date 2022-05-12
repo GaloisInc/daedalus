@@ -93,7 +93,7 @@ def GenPdfDict1 init Adder Final = {
 }
 
 -- OrRef P: parse a P, or a Ref
-def OrRef P = Choose1 {
-  direct = P;
-  pref = Token Ref;
-}
+def OrRef P = First
+  direct = P
+  pref = Token Ref
+

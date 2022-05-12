@@ -9,6 +9,6 @@ def Simple1 =
 def Simple2 =
      Match "abc"
   <| Match "bc"
-  <| { @x = Match1 'c' ; @y = Match "b"; ^ (concat [ [x], y]) }
+  <| { @x = $['c'] ; @y = Match "b"; ^ (concat [ [x], y]) }
 
 

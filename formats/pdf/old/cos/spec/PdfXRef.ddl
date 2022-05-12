@@ -95,10 +95,9 @@ def CrossRefSubSection = {
 def CrossRefEntry = {
   @num = NatN 10; $space;
   @gen = NatN 5;  $space;
-  $$   = Choose1 {
+  $$   = First
            inUse = UsedEntry num gen;
            free  = FreeEntry num gen;
-        };
 
    { $simpleWS;  $cr <| $lf }
     -- standard compliant:
@@ -108,15 +107,15 @@ def CrossRefEntry = {
     -- Extending the above to allow *commonly allowed* (qpdf, mutool) exuberances:
     -- (which allows the CrossRefEntry to possibly only have 19 bytes):
 
-    <| { $cr <| $lf ; Choose1{ $cr, $lf, ^0 }}
+    <| { $cr <| $lf ; $[ $cr | $lf ] <| 0 }
 }
 
 def UsedEntry (num : int) (gen : int) = {
-  Match1 'n'; offset = ^num; gen = ^gen;
+  $['n']; offset = ^num; gen = ^gen;
 }
 
 def FreeEntry (num : int) (gen : int) = {
-  Match1 'f'; obj = ^num; gen = ^gen;
+  $['f']; obj = ^num; gen = ^gen;
 }
 
 
@@ -180,12 +179,11 @@ def XRefObjTable (meta : XRefMeta) = {
 -- Section 7.5.8.3
 def XRefObjEntry (w : XRefFormat) = Chunk w.width {
   @ftype = XRefFieldWithDefault 1 w.b1;
-  Choose1 {
-    free       = { Guard (ftype == 0); XRefFree w };
-    inUse      = { Guard (ftype == 1); XRefOffset w };
-    compressed = { Guard (ftype == 2); XRefCompressed w };
+  First
+    free       = { Guard (ftype == 0); XRefFree w }
+    inUse      = { Guard (ftype == 1); XRefOffset w }
+    compressed = { Guard (ftype == 2); XRefCompressed w }
     null       = { Guard (ftype > 2); }
-  }
 }
 
 def XRefFieldWithDefault x n = { Guard (n == 0); ^ x } <| BEBytes n

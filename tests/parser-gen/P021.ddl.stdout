@@ -1,4 +1,4 @@
-[WARNING] ./P021.ddl:6:9--9:5:
+[WARNING] ./P021.ddl:5:9--8:5:
             Using unbiased choice may be inefficient.
 module P021
  

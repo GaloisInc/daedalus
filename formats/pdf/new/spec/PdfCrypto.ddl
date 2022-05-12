@@ -33,28 +33,31 @@ def EncryptionDict (enc : TrailerDictEncrypt) = {
   ciph = ChooseCiph edict encV; 
 } 
 
-def ChooseCiph edict v = Choose1 { 
-  v2RC4 = { 
+def ChooseCiph edict v = First
+  v2RC4 = {
     v == 2 is true; 
     @len = LookupNat "Length" edict; 
     len == 128 is true; 
-  }; 
+    }
+
   v4RC4 = { 
     v == 4 is true;
     @stmFname = V4stmFname edict; 
     stmFname == "V2" is true;
-  }; 
+    } 
+
   v4AES = { 
     v == 4 is true;
     @stmFname = V4stmFname edict; 
     stmFname == "AESV2" is true;
-  };
+    }
+
   v5AES = { 
     v == 5 is true;
     @stmFname = V4stmFname edict; 
     stmFname == "AESV3" is true;
-  }; 
-}
+    } 
+
 
 def V4stmFname (edict : [ [uint 8] -> Value ])= {
   @stmF = (Lookup "StmF" edict) is name; 

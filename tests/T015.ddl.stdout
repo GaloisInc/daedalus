@@ -7,9 +7,9 @@ module T015
 --- Rules:
  
 T015.Main : Grammar [uint 8] =
-  do (x : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
      ($$ : [uint 8]) <- pure (if (x == 'y') then "yes" else "no")
      pure $$
  
 T015._Main : Grammar {} =
-  @GetByte
+  @Match UInt8

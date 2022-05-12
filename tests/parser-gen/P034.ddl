@@ -1,12 +1,12 @@
 -- Test order of choose
 -- or not that useful test
 
-def CA = { Match1 'a' ; ^ "a" }
+def CA = { $['a'] ; ^ "a" }
 
-def CB = { Match1 'a' ; ^ "b" }
+def CB = { $['a'] ; ^ "b" }
 
 def Main = {
-    a = Match1 'a';
+    a = $['a'];
     t = Choose {
       x = CA ;
       y = CB

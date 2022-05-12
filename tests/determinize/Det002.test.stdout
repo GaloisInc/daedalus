@@ -29,9 +29,9 @@ proc Simple1() : [Word 8] =
        _ ->
          fail_sys @[Word 8]
  
--- ./Det002.ddl:9:1--12:63
+-- ./Det002.ddl:9:1--12:59
 proc Simple2() : [Word 8] =
-  -- ./Det002.ddl:10:6--12:63
+  -- ./Det002.ddl:10:6--12:59
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
@@ -46,14 +46,14 @@ proc Simple2() : [Word 8] =
          do match_ "c"
             pure "bc"
        99 ->
-         -- ./Det002.ddl:12:9--12:60
-         -- ./Det002.ddl:12:13--12:22
+         -- ./Det002.ddl:12:9--12:56
+         -- ./Det002.ddl:12:13--12:18
          do let x = 99 @(Word 8)
-            -- ./Det002.ddl:12:27--12:60
-            y <- -- ./Det002.ddl:12:31--12:39
+            -- ./Det002.ddl:12:23--12:56
+            y <- -- ./Det002.ddl:12:27--12:35
                  match "b"
-            -- ./Det002.ddl:12:42--12:60
-            -- ./Det002.ddl:12:42--12:60
+            -- ./Det002.ddl:12:38--12:56
+            -- ./Det002.ddl:12:38--12:56
             pure (concat [[x], y])
        _ ->
          fail_sys @[Word 8]

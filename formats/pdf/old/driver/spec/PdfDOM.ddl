@@ -43,10 +43,9 @@ def PdfPageTreeNode (self : Ref) (parent : maybe Ref) (v : Value) = {
   { @kids  = Lookup "Kids" d is array;
     for (s = {}; v in kids) {
       @kid = v is ref;
-      Choose1 {
-        { CheckRef "PageTreeNode" (PdfPageTreeNode kid (just self)) kid };
-        { CheckRef "PageObject"   (PdfPageObject             self)  kid };
-      }
+      First
+        { CheckRef "PageTreeNode" (PdfPageTreeNode kid (just self)) kid }
+        { CheckRef "PageObject"   (PdfPageObject             self)  kid }
     }
   };
 

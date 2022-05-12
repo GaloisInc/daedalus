@@ -268,12 +268,12 @@ DTrans [
 **** Extended LLA ****
 **********************
 ("AbortClosureInfiniteloop",2)
-("AbortDFAOverflowCfg",3)
+("AbortDFAOverflowCfg",4)
 ("Lookahead-1",1)
-("abort-1",14)
+("abort-1",25)
 ("abort-2",19)
 
-Total nb states: 39
+Total nb states: 51
 
 **********************
 ***** Strict LLA *****

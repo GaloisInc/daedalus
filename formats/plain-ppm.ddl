@@ -27,7 +27,7 @@ def RGB = {
 
 
 
-def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
+def WS = $[0 | 9 | 12 | 32 | '\n' | '\r']
 
 
 def Natural = {
@@ -36,7 +36,7 @@ def Natural = {
 }
 
 def Digit = {
-  @d = Match1 ('0' .. '9');
+  @d = $['0' .. '9'];
   ^ d - '0';
 }
 

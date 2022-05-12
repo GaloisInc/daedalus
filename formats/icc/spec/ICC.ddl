@@ -375,7 +375,7 @@ def Lut16Type =
     let o = number_of_output_channels as uint 64
     number_of_clut_grid_points = UInt8
     let g = number_of_clut_grid_points as uint 64
-    Match1 0x00
+    $[0x00]
     encoded_e_parameters = Many 9 (BEUInt32 as! sint 32)
     number_of_input_table_entries = BEUInt32
     let n = number_of_input_table_entries as uint 64

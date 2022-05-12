@@ -10,7 +10,7 @@ rec value
   D014.SkipTo ?a0 (P : Grammar ?a0) : Grammar ?a0 =
     Choose biased
       { P
-      | do @GetByte
+      | do @Match UInt8
            ($$ : ?a0) <- D014.SkipTo ?a0 P
            pure $$
       }
@@ -24,7 +24,7 @@ D014.Main : Grammar [uint 8] =
 D014._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
   Choose biased
     { _P
-    | do @GetByte
+    | do @Match UInt8
          D014.SkipTo ?a0 P
          pure {}
     }

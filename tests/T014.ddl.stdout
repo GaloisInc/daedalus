@@ -15,8 +15,8 @@ type T014.Main = { first: T014.TwoBytes
 --- Rules:
  
 T014.TwoBytes : Grammar T014.TwoBytes =
-  do (x : uint 8) <- GetByte
-     (y : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
+     (y : uint 8) <- Match UInt8
      pure {x = x,
            y = y}
  
@@ -29,8 +29,8 @@ T014.Main : Grammar T014.Main =
            eq = eq}
  
 T014._TwoBytes : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
  
 T014._Main : Grammar {} =
   do T014._TwoBytes

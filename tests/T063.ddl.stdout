@@ -7,12 +7,12 @@ module T063
 --- Rules:
  
 T063.Main : Grammar bool =
-  do (_2 : bool) <- do (_1 : uint 8) <- GetByte
+  do (_2 : bool) <- do (_1 : uint 8) <- Match UInt8
                        pure (_1 == 2)
-     if _2 then pure true else do (_3 : uint 8) <- GetByte
+     if _2 then pure true else do (_3 : uint 8) <- Match UInt8
                                   pure (_3 == 3)
  
 T063._Main : Grammar {} =
-  do (_2 : bool) <- do (_1 : uint 8) <- GetByte
+  do (_2 : bool) <- do (_1 : uint 8) <- Match UInt8
                        pure (_1 == 2)
-     if _2 then pure {} else @GetByte
+     if _2 then pure {} else @Match UInt8

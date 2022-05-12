@@ -19,7 +19,7 @@ def setMatrixOp (pa: Number) (pb: Number)
 }
 
 -- Text-positioning operators (Table 106)
-def TextPosOp = Choose1 { 
+def TextPosOp = First
   setTextMatrix = {
     $$ = setMatrixOp
       (Token Number)
@@ -29,8 +29,8 @@ def TextPosOp = Choose1 {
       (Token Number)
       (Token Number);
     KW "Tm";
-  };
-}
+    }
+
 
 def isZeroNumber n = n.num == 0
 

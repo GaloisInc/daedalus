@@ -1,1 +1,1 @@
-def Main = { $$ = Many (Match1 '0') ; END }
+def Main = { $$ = Many $['0'] ; END }
