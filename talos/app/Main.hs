@@ -51,7 +51,7 @@ doDumpCore opts = do
 doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
-  let absEnv = fromMaybe "vars" (optAnalysisKind opts)
+  let absEnv = fromMaybe "fields" (optAnalysisKind opts)
   summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) absEnv
   print summaryDoc
     
@@ -66,7 +66,7 @@ doSynthesis opts = do
                  else []
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
-      absEnv = fromMaybe "vars" (optAnalysisKind opts)
+      absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
   strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
             logOpt (optSeed opts) absEnv

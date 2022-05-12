@@ -103,7 +103,7 @@ instance AbsEnv ae => Merge (Domain ae) where
       go (gs : d1') d2 = go d1' (newgs : indep)
         where
           newgs = foldl merge gs dep
-          (dep, indep) = partition ((absEnvOverlaps `on` gsEnv) gs) d2
+          (indep, dep) = partition ((absEnvOverlaps `on` gsEnv) gs) d2
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?

@@ -131,7 +131,7 @@ instance FreeVars SLExpr where
 instance PP SLExpr where
   ppPrec n expr =
     case expr of
-      EHole ty       -> wrapIf (n > 0) $ "hole" <> ppPrec 1 ty
+      EHole ty       -> wrapIf (n > 0) $ "hole" <> parens (ppPrec 0 ty)
       SVar x -> pp x
       SPureLet x e1 e2 ->
         wrapIf (n > 0)
