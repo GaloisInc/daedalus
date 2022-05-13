@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DefaultSignatures #-}
 
 -- API for strategies, which say how to produce a path from a slice.
 
@@ -8,40 +11,40 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getParamSlice
+                            , summaries, getModule, getGFun -- , getParamSlice
                             , getFunDefs, getTypeDefs
-                            , getIEnv
+                            , getIEnv, slExprToExpr, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
                             ) where
 
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Trans.Maybe
-import System.Random
-import Data.Foldable (find)
-import qualified Data.Map as Map
-import Data.Map (Map)
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Control.Monad.Trans.Free  (FreeT)
+import           Control.Monad.Trans.Maybe
+import qualified Data.ByteString           as BS
+import           Data.Foldable             (find, foldl')
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Set                  (Set)
+import qualified Data.Set                  as Set
+import           System.Random
 
-import Daedalus.Core
-import Daedalus.GUID
-import Daedalus.Panic
-import Daedalus.PP
-import qualified Daedalus.Core.Semantics.Env as I
+import           Daedalus.Core
 import qualified Daedalus.Core.Semantics.Decl as I
+import qualified Daedalus.Core.Semantics.Env  as I
+import           Daedalus.GUID
+import           Daedalus.PP
+import           Daedalus.Panic
+import           Daedalus.Rec                 (forgetRecs)
 
-import Talos.SymExec.Path
-import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summaries, Summary(exportedDomain))
-import Talos.Analysis.Domain (domainInvariant, domainElement)
-
-import Talos.SymExec.SolverT (SolverT)
-import Talos.Analysis.EntangledVars (EntangledVars)
-import qualified Data.ByteString as BS
-import Data.Foldable (foldl')
-import Daedalus.Rec (forgetRecs)
-import Control.Monad.Trans.Free (FreeT)
-
+import           Talos.Analysis.Monad         (ExpSummaries, Summaries,
+                                               exportSummaries, ExpSummary (..))
+import qualified Talos.Analysis.SLExpr        as SLE
+import           Talos.Analysis.Slice
+import           Talos.SymExec.Path
+import           Talos.SymExec.SolverT        (SolverT)
+import Data.Maybe (catMaybes)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -62,10 +65,10 @@ data Strategy =
 -- -----------------------------------------------------------------------------
 -- Monad
 
-data StrategyMState =
+data StrategyMState  =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
-                 , stsSummaries :: Summaries
+                 , stsSummaries :: ExpSummaries 
                  , stsModule    :: Module
                  -- Derived from the module
                  , stsFunDefs   :: Map FName (Fun Expr)
@@ -73,9 +76,10 @@ data StrategyMState =
                  , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Summaries -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen ss md funDefs env0 nguid
+emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> StrategyMState
+emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs env0 nguid
   where
+    expss = exportSummaries ss
     env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
     tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
     funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
@@ -90,23 +94,46 @@ runStrategyM m st = runStateT (getStrategyM m) st
 -- -----------------------------------------------------------------------------
 -- State access
 
-summaries :: LiftStrategyM m => m Summaries
+summaries :: LiftStrategyM m => m ExpSummaries
 summaries = liftStrategy (StrategyM (gets stsSummaries))
 
-getParamSlice :: LiftStrategyM m => FName -> SummaryClass -> EntangledVars -> m Slice
-getParamSlice fn cl evs = do
-  ss <- summaries
+sliceToCallees :: Slice -> Set (FName, FInstId, Int)
+sliceToCallees = go
+  where
+    go sl = case sl of
+      SHole {}          -> mempty
+      SPure {}          -> mempty
+      SDo _ l r         -> go l <> go r
+      SMatch _m         -> mempty
+      SAssertion _e     -> mempty
+      SChoice cs        -> foldMap go cs
+      SCall cn          -> Set.map (\n -> (callName cn, callClass cn, n))
+                                   (Map.keysSet (callSlices cn))
+      SCase _ c         -> foldMap go c
+      SInverse {}       -> mempty -- No grammar calls
+
+callNodeToSlices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
+callNodeToSlices cn = do
+  -- FIXME: This is maybe less efficient dep on how GHC optimises
+  sequence [ mk args <$> callIdToSlice (callName cn, callClass cn, i)
+           | (i, args) <- Map.toList (callSlices cn)
+           ]
+    where
+      mk args (r, ps) = (r, Map.fromList $ catMaybes (zipWith (\a m_b -> (,) a <$> m_b) ps args))
+
+callIdToSlice :: LiftStrategyM m => (FName, FInstId, Int) -> m ((Bool, Slice), [Name])
+callIdToSlice (fn, fid, i) = do
+  ss <- summaries  
   let m_s = do
         summM <- Map.lookup fn ss
-        summ  <- Map.lookup cl summM
-
-        unless (domainInvariant (exportedDomain summ)) $
-          panic "Failed domain invariant" ["At " ++ showPP fn]
-
-        domainElement evs (exportedDomain summ)
+        summ  <- Map.lookup fid summM
+        -- FIXME: _ !! _ here throws an exception :/
+        pure  (esSlices summ !! i, esParams summ)
+        
   case m_s of
     Just sl -> pure sl
-    Nothing -> panic "Missing summary" [showPP fn, showPP cl, showPP evs]
+    Nothing -> panic "Missing summary" [showPP fn, showPP fid]
+
 
 getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
 getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
@@ -127,6 +154,39 @@ getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
 getIEnv :: LiftStrategyM m => m I.Env
 getIEnv = liftStrategy (StrategyM (gets stsIEnv))
 
+typeToInhabitant :: Map TName TDecl -> Type -> Expr
+typeToInhabitant tdecls = go
+  where
+    go ty = case ty of
+      TStream    -> arrayStream (byteArrayL "array") (byteArrayL mempty)
+      TUInt {}   -> intL 0 ty
+      TSInt {}   -> intL 0 ty
+      TInteger   -> intL 0 ty
+      TBool      -> boolL False
+      TUnit      -> unit
+      TArray (TUInt (TSize 8)) -> byteArrayL mempty
+      TArray t   -> arrayL t []
+      TMaybe t -> nothing t
+      TMap tk tv -> mapEmpty tk tv
+      TBuilder t -> newBuilder t
+      TIterator t -> newIterator (go t)
+      TUser ut     -> goUT ut
+      TParam _     -> panic "Saw a type param" []
+      TFloat       -> floatL 0 ty
+      TDouble      -> floatL 0 ty
+    goUT ut
+      | Just decl <- Map.lookup (utName ut) tdecls =
+          case tDef decl of
+            TStruct fs -> Struct ut [ (l, go ty) | (l, ty) <- fs ]
+            TUnion  ((l, ty) : _) -> inUnion ut l (go ty)
+            TUnion  _   -> panic "Empty union" [showPP ut]
+            TBitdata {} -> panic "Bitdata not yet supported" [showPP ut]
+      | otherwise = panic "Unknown user type " [showPP ut]
+
+slExprToExpr :: LiftStrategyM m => SLE.SLExpr -> m Expr
+slExprToExpr sl = do
+  tds <- getTypeDefs
+  pure (SLE.slExprToExpr (typeToInhabitant tds) sl)
 
 -- -----------------------------------------------------------------------------
 -- Random values
@@ -157,7 +217,7 @@ typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
 typeToRandomInhabitant ty = do
   tdecls <- getTypeDefs
   typeToRandomInhabitant' tdecls ty
-  
+
 typeToRandomInhabitant' :: (LiftStrategyM m) => Map TName TDecl -> Type -> m Expr
 typeToRandomInhabitant' tdecls targetTy = go targetTy
   where
@@ -198,13 +258,13 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
         ks <- replicateM len (go tk)
         vs <- replicateM len (go tv)
         pure $ foldl' (\m (k, v) -> mapInsert m k v) (mapEmpty tk tv) (zip ks vs)
-        
+
       TBuilder t -> do
         let maxLength = 100
         len <- randR (0, maxLength)
         vs <- replicateM len (go t)
         pure $ foldl' emit (newBuilder t) vs
-        
+
       TIterator _t -> unimplemented
       TUser ut     -> goUT ut
       TParam _     -> panic "Saw a type param" []
@@ -220,7 +280,7 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
             TBitdata {} -> unimplemented  -- FIXME
 
       | otherwise = panic "Unknown user type " [showPP ut]
-      
+
     unimplemented = panic "Unimplemented" [showPP targetTy]
 
 -- -----------------------------------------------------------------------------
@@ -229,23 +289,20 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 class Monad m => LiftStrategyM m where
   liftStrategy :: StrategyM a -> m a
 
+    
 instance LiftStrategyM StrategyM where
   liftStrategy = id
 
 instance LiftStrategyM m => LiftStrategyM (StateT s m) where
-  liftStrategy m = lift (liftStrategy m)
-
+  liftStrategy = lift . liftStrategy  
 instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
-  liftStrategy m = lift (liftStrategy m)
-
+  liftStrategy = lift . liftStrategy    
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
-  liftStrategy m = lift (liftStrategy m)
-
+  liftStrategy = lift . liftStrategy    
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
-  liftStrategy m = lift (liftStrategy m)
-
+  liftStrategy = lift . liftStrategy    
 instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
-  liftStrategy m = lift (liftStrategy m)
+  liftStrategy = lift . liftStrategy  
 
 -- -----------------------------------------------------------------------------
 -- Instances

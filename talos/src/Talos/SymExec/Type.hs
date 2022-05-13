@@ -72,6 +72,7 @@ tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [],
     sflds = case td of
               TStruct flds -> [(typeNameToCtor name, map mkOneS flds) ]
               TUnion flds  -> map mkOneU flds
+              TBitdata {} -> panic "Bitdata is curtently unsupported" []
     mkOneS (l, t) = (lblToFld l, symExecTy t)
     mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
@@ -103,6 +104,8 @@ symExecTy = go
         TUser (UserType { utName = n, utNumArgs = [], utTyArgs = [] }) -> S.const (symExecTName n)
         TUser _ut       -> panic "Saw type with arguments" [showPP ty']
         TParam _x       -> panic "Saw type variable" [showPP ty']
+        TFloat          -> panic "Saw a float" []
+        TDouble         -> panic "Saw a double" []
 
 typeDefault :: Type -> SExpr
 typeDefault = go
@@ -128,3 +131,5 @@ typeDefault = go
                S.const (typeNameToDefault n)
         TUser {}        -> unimplemented
         TParam {}       -> unimplemented
+        TFloat          -> panic "Saw a float" []
+        TDouble         -> panic "Saw a double" []

@@ -433,7 +433,7 @@ operators <code class="docutils literal notranslate"><span class="pre">&lt;|</sp
 <p>As usual, this concept is best demonstrated by an example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad</span> <span class="k">=</span>
   <span class="k">First</span>
-    <span class="n">good</span> <span class="k">=</span> <span class="n">Match1</span> `<span class="n">G</span>`
+    <span class="n">good</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;G&#39;</span>
     <span class="n">bad</span>  <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
 </pre></div>
 </div>
@@ -493,7 +493,7 @@ sequence, stopping only when the given parser first fails. As a simple example:<
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="k">$$</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;0&#39;</span> <span class="p">}</span>
 </pre></div>
 </div>
-<p>This parser will match any number of <code class="docutils literal notranslate"><span class="pre">7</span></code> followed by a <code class="docutils literal notranslate"><span class="pre">'0'</span></code> e.g.
+<p>This parser will match any number of 7s followed by a 0, e.g.
 <code class="docutils literal notranslate"><span class="pre">&quot;0&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;70&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;770&quot;</span></code>, etc. The semantic value returned by the above
 parser is an array of all the <a href="#id1"><span class="problematic" id="id2">``</span></a>’7’<a href="#id3"><span class="problematic" id="id4">``</span></a>s that were parsed.</p>
 <p>Be cautious when using this unbounded form of <code class="docutils literal notranslate"><span class="pre">Many</span></code>! It parses inputs

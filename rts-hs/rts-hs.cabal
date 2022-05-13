@@ -26,6 +26,7 @@ library
                        RTS.Input,
                        RTS.Base,
                        RTS.ByteRanges,
+                       RTS.Iterator,
                        RTS.JSON
   build-depends:       base >=4.13,
                        vector,

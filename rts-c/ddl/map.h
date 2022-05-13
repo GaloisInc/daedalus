@@ -10,8 +10,6 @@
 #include <ddl/boxed.h>
 #include <ddl/maybe.h>
 
-#include <optional>
-
 namespace DDL {
 
 template <typename Key, typename Value>
@@ -248,25 +246,26 @@ class Map : HasRefs {
       return os;
     }
 
-    static std::optional<unsigned> valid(Node const* n) {
+    // Returns depth on success, 0 on failure
+    static unsigned valid(Node const* n) {
       // Invariant 1: No red node has a red parent
       if (Node::is_red(n) && (Node::is_red(n->left) || Node::is_red(n->right))) {
-        return {};
+        return 0;
       }
 
       // Invariant 2: Every path from the root to an empty
       // node contains the same number of black nodes.
       if (n == nullptr) {
-        return {1}; // empty nodes are black
+        return 1; // empty nodes are black
       }
 
       auto l = Node::valid(n->left);
       auto r = Node::valid(n->right);
 
       // Both children should be valid subtrees of the same black depth
-      if (!l || l != r) return {};
+      if (l == 0 || l != r) return 0;
 
-      return Node::is_black(n) ? std::optional<unsigned>{*l + 1} : l;
+      return Node::is_black(n) ? l+1 : l;
     }
 
   } *tree;
@@ -393,7 +392,7 @@ public:
   // for debugging
   void dump() { Node::dump(0,tree); debugNL(); }
 
-  bool valid() const { return Node::valid(tree).has_value(); }
+  bool valid() const { return Node::valid(tree) > 0; }
 
   friend
   // borrow m

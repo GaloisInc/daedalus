@@ -13,14 +13,16 @@ import qualified Data.Map as Map
 import Daedalus.PP (showPP)
 import Talos.Strategy.Monad (stratName, Strategy, emptyStrategyMState, runStrategyM)
 import Data.Foldable (find, forM_)
-import Talos.Analysis.Monad (Summary(pathRootMap), Summaries)
+import Talos.Analysis.Monad (Summaries, ExpSummary, domain)
 import qualified SimpleSMT as SMT
 import Daedalus.GUID (GUID)
 import Daedalus.Core (Module, FName)
-import Talos.Analysis.Slice (SummaryClass)
+import Talos.Analysis.Slice (SummaryClass, FInstId)
 import Data.Map (Map)
 import Talos.SymExec.SolverT (emptySolverState)
 import Criterion.Main
+import Talos.Analysis.AbsEnv (AbsEnvTy(AbsEnvTy))
+import Talos.Analysis.Domain (closedElements)
 
 -- This will load a ddl file, and benchmark the given strategies on the slices.
 -- FIXME: maybe generate the whole doc as well?
@@ -39,10 +41,10 @@ data Bench = Bench
 
 benches :: [Bench]
 benches = [ Bench { bname = "NITF Header"
-                  , ddlFile = "nitf/nitf-simple/nitf_header.ddl"
-                  , invFile = Just "nitf/nitf-simple/nitf_inverses.ddl"
+                  , ddlFile = "formats/nitf/nitf-simple/nitf_header.ddl"
+                  , invFile = Nothing -- Just "nitf/nitf-simple/nitf_inverses.ddl"
                   , entry   = "Header"
-                  , strategies = ["symbolic-dfs", "symbolic-bfs"]
+                  , strategies = ["symbolic-rand-dfs", "symbolic-bfs"]
                   , bseeds = Left 1
                   }
           ]
@@ -59,19 +61,19 @@ z3Args = ["-in", "-smt2"]
 -- We create a new benchmark for each slice in the program.  We need
 -- to analyze the program for each inv file (and no inv file).
 
-mkBenchmarks :: SMT.Solver -> [Int] -> Summaries -> Module -> GUID -> [Strategy] ->
-                FName -> Map SummaryClass Summary -> Benchmark
+mkBenchmarks :: SMT.Solver -> [Int] -> Summaries ae -> Module -> GUID -> [Strategy] ->
+                FName -> Map FInstId (A.Summary ae) -> Benchmark
 mkBenchmarks solv seeds summaries md nguid strats fn clM =
   bgroup (showPP fn) [ bgroup (showPP cl)
-                       (concat [ goSl n fset sl
-                               | (n, sls) <- Map.toList (pathRootMap summary)
-                               , (fset, sl) <- sls
+                       (concat [ goSl n i sl
+                               | (n, sls) <- Map.toList (closedElements (domain summary))
+                               , (i, sl) <- zip [(0::Int)..] sls
                                ])
                      | (cl, summary) <- Map.toList clM
                      ]
   where
-    goSl n fset sl =
-      [ bench (showPP n ++ "/" ++ showPP fset ++ "/" ++ stratName strat {- ++ "/" ++ show seed -})
+    goSl n i sl =
+      [ bench (showPP n ++ "/" ++ showPP i ++ "/" ++ stratName strat {- ++ "/" ++ show seed -})
               (benchSl seed strat sl)
       | seed <- seeds, strat <- strats]
 
@@ -101,9 +103,15 @@ benchToBenchmark b = do
     -- FIXME: claggy 
     strats = mapMaybe (\n -> find (\s -> (stratName s) == n) allStrategies) (strategies b)
 
+    absEnv = "vars"
+
     goInv seeds m_inv' = bgroup (invN m_inv') <$> do
       (_mainRule, md, nguid) <- runDaedalus (ddlFile b) m_inv' (Just $ entry b)
-      let (summaries, nguid') = A.summarise md nguid
+      AbsEnvTy p <- case lookup absEnv A.absEnvTys of
+        Just x -> pure x
+        _      -> error ("Unknown abstract env " ++ absEnv)
+      
+      let (summaries, nguid') = A.summarise p md nguid
       -- This would be better done before each benchmark, but we dont have NFData for Solver
       solv <- startSolver
       pure (map (uncurry (mkBenchmarks solv seeds summaries md nguid' strats))

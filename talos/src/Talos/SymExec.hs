@@ -13,7 +13,7 @@
 
 -- | Symbolically execute a fragment of DDL
 module Talos.SymExec ( solverSynth
-                     , symExecTy, symExecTDecl, symExecSummaries, symExecSummary
+                     , symExecTy, symExecTDecl -- , symExecSummaries, symExecSummary
                      ) where
 
 
@@ -159,48 +159,48 @@ defineSMTFunDefs s (MutRec sfds) = S.defineFunsRec s defs
   where
     defs = map (\sfd -> (sfdName sfd, sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
   
--- This could be more efficient, but we generate all the bodies of the
--- SMT terms and run the SCC analysis to get recursive groupings, then
--- send them to the solver.
-symExecSummaries :: Module -> Summaries -> SymExecM ()
-symExecSummaries md allSummaries = do
-  mapM_ symExecTDecl orderedTys -- FIXME: filter by need
-  gdefs <- Map.foldMapWithKey (\fn -> foldMap (symExecSummary fn)) allSummaries
-  let pureRoots   = foldMap sfdPureDeps gdefs
-      allPureFuns = calcPureDeps md pureRoots
-      fdefs       = foldMap (mkOneF allPureFuns [] symExecV) (mFFuns md)
-      bdefs       = foldMap (mkOneF allPureFuns byteArg (flip symExecByteSet byteV)) (mBFuns md)
-      rFDefs      = topoOrder (\sfd -> (sfdName sfd, getDeps sfd)) (gdefs ++ fdefs ++ bdefs)
-  withSolver $ \s -> liftIO $ mapM_ (defineSMTFunDefs s) rFDefs
-  where
-    -- FIXME: figure out rec tys
-    orderedTys   = forgetRecs (mTypes md)
-    getDeps sfd  = sfdDeps sfd <> (Set.map fnameToSMTName (sfdPureDeps sfd))
+-- -- This could be more efficient, but we generate all the bodies of the
+-- -- SMT terms and run the SCC analysis to get recursive groupings, then
+-- -- send them to the solver.
+-- symExecSummaries :: Module -> Summaries -> SymExecM ()
+-- symExecSummaries md allSummaries = do
+--   mapM_ symExecTDecl orderedTys -- FIXME: filter by need
+--   gdefs <- Map.foldMapWithKey (\fn -> foldMap (symExecSummary fn)) allSummaries
+--   let pureRoots   = foldMap sfdPureDeps gdefs
+--       allPureFuns = calcPureDeps md pureRoots
+--       fdefs       = foldMap (mkOneF allPureFuns [] symExecV) (mFFuns md)
+--       bdefs       = foldMap (mkOneF allPureFuns byteArg (flip symExecByteSet byteV)) (mBFuns md)
+--       rFDefs      = topoOrder (\sfd -> (sfdName sfd, getDeps sfd)) (gdefs ++ fdefs ++ bdefs)
+--   withSolver $ \s -> liftIO $ mapM_ (defineSMTFunDefs s) rFDefs
+--   where
+--     -- FIXME: figure out rec tys
+--     orderedTys   = forgetRecs (mTypes md)
+--     getDeps sfd  = sfdDeps sfd <> (Set.map fnameToSMTName (sfdPureDeps sfd))
 
-    mkOneF allFs extraArgs sexec f
-      | fName f `Set.member` allFs = [symExecPureFun sexec extraArgs f]
-      | otherwise                  = []
+--     mkOneF allFs extraArgs sexec f
+--       | fName f `Set.member` allFs = [symExecPureFun sexec extraArgs f]
+--       | otherwise                  = []
 
-    -- Byte value for byteset functions
+--     -- Byte value for byteset functions
 
 
--- Turn a summary into a SMT formula (+ associated types)
--- FIXME: probably doesn't need to be monadic, the move to Core means we don't introduce aux. definitions.
-symExecSummary :: FName -> Summary -> SymExecM [SMTFunDef]
-symExecSummary fn summary = do
-  -- Send the roots to the solver
-  rootFuns <- Map.foldMapWithKey (\root sl -> go (ProgramVar root) (mempty, sl)) (pathRootMap summary)
-  -- Send the argument domain slices to the solver
-  argFuns  <- Map.foldMapWithKey go (explodeDomain (exportedDomain summary))
-  pure (rootFuns ++ argFuns)
-  where
-    cl = summaryClass summary
-    go ev (evs, sl) = do
-      let predN     = evPredicateN cl fn ev
-          ty | ev == ResultVar = fnameType fn
-             | otherwise       = TUnit -- no return value
-          frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
-      (: []) <$> sliceToFun predN ty frees sl
+-- -- Turn a summary into a SMT formula (+ associated types)
+-- -- FIXME: probably doesn't need to be monadic, the move to Core means we don't introduce aux. definitions.
+-- symExecSummary :: FName -> Summary -> SymExecM [SMTFunDef]
+-- symExecSummary fn summary = do
+--   -- Send the roots to the solver
+--   rootFuns <- Map.foldMapWithKey (\root sl -> go (ProgramVar root) (mempty, sl)) (pathRootMap summary)
+--   -- Send the argument domain slices to the solver
+--   argFuns  <- Map.foldMapWithKey go (explodeDomain (exportedDomain summary))
+--   pure (rootFuns ++ argFuns)
+--   where
+--     cl = summaryClass summary
+--     go ev (evs, sl) = do
+--       let predN     = evPredicateN cl fn ev
+--           ty | ev == ResultVar = fnameType fn
+--              | otherwise       = TUnit -- no return value
+--           frees     = [ v | ProgramVar v <- Set.toList (getEntangledVars evs) ]
+--       (: []) <$> sliceToFun predN ty frees sl
 
 mkPredicateN :: SummaryClass -> Name -> String
 mkPredicateN cl root = "Rel-" ++ nameToSMTNameWithClass cl root

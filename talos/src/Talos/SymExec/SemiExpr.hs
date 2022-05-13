@@ -567,7 +567,8 @@ valueToSExpr tys ty v =
       | TUser ut <- ty
       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
-
+      | ty == TUnit -> sUnit
+      
     V.VArray vs | TArray elty <- ty ->
       let sVals     = map (go elty) (Vector.toList vs)
           emptyArr = sArrayL (sEmptyL (symExecTy elty) (typeDefault elty)) -- FIXME, a bit gross?

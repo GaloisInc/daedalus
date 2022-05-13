@@ -160,3 +160,6 @@ cUsingT x t = cStmt ("using" <+> x <+> "=" <+> t)
 
 cUnreachable :: CStmt
 cUnreachable = "__builtin_unreachable();"
+
+cTemplate :: [Doc] -> Doc -> Doc
+cTemplate typeArgs body = cInst "template" typeArgs $$ body

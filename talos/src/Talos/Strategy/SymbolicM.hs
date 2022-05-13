@@ -1,25 +1,26 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.SymbolicM where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
-import           Data.Map                (Map)
-import qualified Data.Map                as Map
-import           SimpleSMT               (SExpr)
+import           Data.Map               (Map)
+import qualified Data.Map               as Map
+import           SimpleSMT              (SExpr)
 
-import           Daedalus.Core           (Name, Typed (..))
-import           Daedalus.Core.Type      (typeOf)
+import           Daedalus.Core      (Name, Typed (..))
+import           Daedalus.Core.Type (typeOf)
 
 import           Talos.Strategy.Monad
-import           Talos.Strategy.SearchT  (SearchT)
-import qualified Talos.Strategy.SearchT as ST
+import           Talos.Strategy.SearchT    (SearchT)
+import qualified Talos.Strategy.SearchT    as ST
+import           Talos.Strategy.SearchTree
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiValue
-import           Talos.SymExec.SolverT   (SolverT)
-import qualified Talos.SymExec.SolverT   as Solv
-import Talos.Strategy.SearchTree
+import           Talos.SymExec.SolverT     (SolverT)
+import qualified Talos.SymExec.SolverT     as Solv
 
 
 -- =============================================================================
@@ -44,7 +45,10 @@ emptySymbolicEnv = mempty
 
 newtype SymbolicM a =
   SymbolicM { _getSymbolicM :: ReaderT SymbolicEnv (SearchT (SolverT StrategyM)) a }
-  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadReader SymbolicEnv)
+  deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv)
+
+instance LiftStrategyM SymbolicM where
+  liftStrategy m = SymbolicM (liftStrategy m)
 
 runSymbolicM :: SearchStrat ->
                 SymbolicM SelectedPath ->
