@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Help &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -78,6 +79,7 @@
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#case">Case</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#commit">Commit</a></li>
 </ul>
 </li>
@@ -101,6 +103,7 @@
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#builders">Builders</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
@@ -109,6 +112,49 @@
 <li class="toctree-l1"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/getting-started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -135,14 +181,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="help">
+  <section id="help">
 <h1>Help<a class="headerlink" href="#help" title="Permalink to this headline"></a></h1>
 <p>To see a list of options:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
 </pre></div>
 </div>
-</div>
-<div class="section" id="check-a-specification">
+</section>
+<section id="check-a-specification">
 <h1>Check a Specification<a class="headerlink" href="#check-a-specification" title="Permalink to this headline"></a></h1>
 <p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --show-types MyParserSpec.ddl
@@ -157,14 +203,14 @@
 </pre></div>
 </div>
 <p>This resembles a C type declaration as follows:</p>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span> <span class="n">C</span><span class="o">&gt;</span> <span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span> <span class="n">A</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">B</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">...);</span>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">C</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">B</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w"></span>
 </pre></div>
 </div>
 <p>The types themselves may be simple types such as integers or arrays, but they
 often have the form <code class="docutils literal notranslate"><span class="pre">parser</span> <span class="pre">of</span> <span class="pre">&lt;type</span> <span class="pre">A&gt;</span></code>. This indicates that the parameter or
 result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
-</div>
-<div class="section" id="run-the-interpreter">
+</section>
+<section id="run-the-interpreter">
 <h1>Run the Interpreter<a class="headerlink" href="#run-the-interpreter" title="Permalink to this headline"></a></h1>
 <p>To run interpret a specification on a particular input:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --interp<span class="o">=</span>input.txt
@@ -177,8 +223,8 @@ in the corresponding formats.</p>
 <p class="admonition-title">Todo</p>
 <p>Document the JSON schema</p>
 </div>
-</div>
-<div class="section" id="compile-to-haskell">
+</section>
+<section id="compile-to-haskell">
 <h1>Compile to Haskell<a class="headerlink" href="#compile-to-haskell" title="Permalink to this headline"></a></h1>
 <p>To compile a DaeDaLus parser specification to Haskell:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-hs
@@ -188,8 +234,8 @@ in the corresponding formats.</p>
 parsers and functions defined in the specification.   To use the generated
 code you’d have to integrate it with a Haskell project and also use
 the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
-</div>
-<div class="section" id="compile-to-c">
+</section>
+<section id="compile-to-c">
 <h1>Compile to C++<a class="headerlink" href="#compile-to-c" title="Permalink to this headline"></a></h1>
 <p>To compile a DaeDaLus package specification C++ 17:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus MyParserSpec.ddl --compile-c++ --out-dir<span class="o">=</span>some_dir_name
@@ -199,7 +245,7 @@ the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></
 a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
 The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
 generate Doxygen documentation.</p>
-</div>
+</section>
 
 
            </div>

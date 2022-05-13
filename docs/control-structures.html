@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Control Structures &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -112,6 +113,49 @@
 <li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/getting-started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
+</ul>
+</li>
+</ul>
 
         </div>
       </div>
@@ -137,9 +181,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="control-structures">
+  <section id="control-structures">
 <h1>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline"></a></h1>
-<div class="section" id="if-then-else">
+<section id="if-then-else">
 <h2>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline"></a></h2>
 <p>Booleans may be used to choose between one of two parsers:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
@@ -152,15 +196,15 @@
 <p>The parser above parses a decimal digit and if it is larger than 5
 it will try to match <code class="docutils literal notranslate"><span class="pre">'X'</span></code> from the input, otherwise it will succeed
 with semantic value 7.</p>
-</div>
-<div class="section" id="guards">
+</section>
+<section id="guards">
 <h2>Guards<a class="headerlink" href="#guards" title="Permalink to this headline"></a></h2>
 <p>Guards provide one way to examine a semantic value, and their general form is:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="n">expression</span> <span class="k">is</span> <span class="n">shape</span>
 </pre></div>
 </div>
 <p>A guard is a parser that will succeed if the expression has the required shape.</p>
-<div class="section" id="boolean-guards">
+<section id="boolean-guards">
 <h3>Boolean Guards<a class="headerlink" href="#boolean-guards" title="Permalink to this headline"></a></h3>
 <p>Perhaps the most common guard is on boolean semantic values,
 which may be used to control whether parsing should continue. For example,
@@ -179,8 +223,8 @@ parsing (on the given alternative) only for digits larger than 5.</p>
 succeeds without consuming input if <code class="docutils literal notranslate"><span class="pre">p</span></code> holds, and fails otherwise.
 Similarly, <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">is</span> <span class="pre">false</span></code> is a parser that would succeed only
 if <code class="docutils literal notranslate"><span class="pre">p</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-</div>
-<div class="section" id="guards-on-maybe">
+</section>
+<section id="guards-on-maybe">
 <h3>Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code><a class="headerlink" href="#guards-on-maybe" title="Permalink to this headline"></a></h3>
 <p>The type <code class="docutils literal notranslate"><span class="pre">maybe</span></code> also supports guards, with two shapes:
 <code class="docutils literal notranslate"><span class="pre">just</span></code> and <code class="docutils literal notranslate"><span class="pre">nothing</span></code>.  For example <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">just</span></code> is a parser that will
@@ -188,8 +232,8 @@ succeed only if <code class="docutils literal notranslate"><span class="pre">e</
 case the result of the parser would be the value <code class="docutils literal notranslate"><span class="pre">x</span></code>.  Guards that have
 no interesting result (e.g., <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">true</span></code>) simply return the trivial
 value <code class="docutils literal notranslate"><span class="pre">{}</span></code>.</p>
-</div>
-<div class="section" id="guards-on-tagged-unions">
+</section>
+<section id="guards-on-tagged-unions">
 <h3>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this headline"></a></h3>
 <p>The same notation may be used to examine values of user-defined
 union types (see <a class="reference internal" href="parsers.html#tagged-unions"><span class="std std-ref">Tagged Unions</span></a>)</p>
@@ -209,9 +253,9 @@ union types (see <a class="reference internal" href="parsers.html#tagged-unions"
       <span class="k">^</span> <span class="s">&quot;Failure!&quot;</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="case">
+</section>
+</section>
+<section id="case">
 <h2>Case<a class="headerlink" href="#case" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">case</span></code> construct provides an alternative method for examining semantic
 values. The body of a case expression consists of a list of matches with the
@@ -250,8 +294,8 @@ total.</p>
 <p class="admonition-title">Todo</p>
 <p>It should be true that guards are just syntactic sugar for case</p>
 </div>
-</div>
-<div class="section" id="for-loops">
+</section>
+<section id="for-loops">
 <span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
@@ -286,8 +330,8 @@ loop is a parser which fails when the value is less than the key:</p>
   <span class="n">k</span> <span class="o">&lt;=</span> <span class="n">v</span> <span class="k">is</span> <span class="l">true</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="traversing-with-map">
+</section>
+<section id="traversing-with-map">
 <h2>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
 element of a sequence, resulting in a sequence of results. For example, the following code
@@ -314,8 +358,8 @@ sequence indexes and values:</p>
     <span class="n">something</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">x</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="many-loops">
+</section>
+<section id="many-loops">
 <h2><code class="docutils literal notranslate"><span class="pre">many</span></code> loops<a class="headerlink" href="#many-loops" title="Permalink to this headline"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">many</span></code> loops are similar to <code class="docutils literal notranslate"><span class="pre">for</span></code> loops and the <code class="docutils literal notranslate"><span class="pre">Many</span></code> combinator.</p>
 <blockquote>
@@ -338,8 +382,8 @@ that the loop repeats just enough times to make the parser succeed.</p>
 <p>It is quite easy to write inefficient or ambiguous parser when using
 <code class="docutils literal notranslate"><span class="pre">many?</span></code> so it should be avoided, if possible.</p>
 </div>
-</div>
-<div class="section" id="commit">
+</section>
+<section id="commit">
 <h2>Commit<a class="headerlink" href="#commit" title="Permalink to this headline"></a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -359,8 +403,8 @@ reaching the alternative branch.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">try</span></code> construct converts commit failure into parser failure.  A
 commit failure will propagate until it hits an enclosing <code class="docutils literal notranslate"><span class="pre">try</span></code>
 construct, or until it escapes the top-level definition.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>

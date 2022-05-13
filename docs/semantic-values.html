@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Semantic Values &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -112,6 +113,49 @@
 <li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/getting-started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
+</ul>
+</li>
+</ul>
 
         </div>
       </div>
@@ -137,14 +181,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="semantic-values">
+  <section id="semantic-values">
 <h1>Semantic Values<a class="headerlink" href="#semantic-values" title="Permalink to this headline"></a></h1>
 <p>If successful, a parser produces a semantic value, which describes the
 input in some way useful to the application invoking the parser.
 In addition, semantic values may be used to control how other parts of the
 input are to be parsed.  DaeDaLus has a number of built-in semantic values
 types, and allows for user-defined record and union types.</p>
-<div class="section" id="booleans">
+<section id="booleans">
 <h2>Booleans<a class="headerlink" href="#booleans" title="Permalink to this headline"></a></h2>
 <p>The type <code class="docutils literal notranslate"><span class="pre">bool</span></code> classifies the usual boolean values <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
 <p>The operator <code class="docutils literal notranslate"><span class="pre">!</span></code> may be used to negate a boolean value.
@@ -154,8 +198,8 @@ respectively.</p>
 with <code class="docutils literal notranslate"><span class="pre">false</span> <span class="pre">&lt;</span> <span class="pre">true</span></code>.</p>
 <p>Decisions on a boolean may be made either using <a class="reference internal" href="control-structures.html#if-then-else"><span class="std std-ref">If-then-else</span></a>, by
 using <a class="reference internal" href="control-structures.html#guards"><span class="std std-ref">Guards</span></a>, or by using <a class="reference internal" href="control-structures.html#case"><span class="std std-ref">Case</span></a>.</p>
-</div>
-<div class="section" id="numeric-types">
+</section>
+<section id="numeric-types">
 <h2>Numeric Types<a class="headerlink" href="#numeric-types" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>, the latter two being families of types indexed by a number.
@@ -163,24 +207,24 @@ The type <code class="docutils literal notranslate"><span class="pre">int</span>
 The <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> classify unsigned numbers that can be represented using <code class="docutils literal notranslate"><span class="pre">N</span></code>
 bits and <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> is for signed numbers that can be represented
 in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits.</p>
-<div class="section" id="numeric-literals">
+<section id="numeric-literals">
 <h3>Numeric Literals<a class="headerlink" href="#numeric-literals" title="Permalink to this headline"></a></h3>
 <p>Literals of the numeric types may written either using decimal or hexadecimal
 notation (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> or <code class="docutils literal notranslate"><span class="pre">0xA</span></code>).  The type of a literal can be inferred
 from the context (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> can be used as both <code class="docutils literal notranslate"><span class="pre">int</span></code> a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
-</div>
-<div class="section" id="comparisons">
+</section>
+<section id="comparisons">
 <h3>Comparisons<a class="headerlink" href="#comparisons" title="Permalink to this headline"></a></h3>
 <p>Numeric types can also be compared for equality, using <code class="docutils literal notranslate"><span class="pre">==</span></code> and ordering
 using <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>.</p>
-</div>
-<div class="section" id="basic-arithmetic">
+</section>
+<section id="basic-arithmetic">
 <h3>Basic Arithmetic<a class="headerlink" href="#basic-arithmetic" title="Permalink to this headline"></a></h3>
 <p>Numeric types support basic arithmetic: addition, subtraction,
 multiplication, division, and modulus using the usual operators
 <code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, <code class="docutils literal notranslate"><span class="pre">/</span></code>, and <code class="docutils literal notranslate"><span class="pre">%</span></code>.</p>
-</div>
-<div class="section" id="bitwise-operations">
+</section>
+<section id="bitwise-operations">
 <h3>Bitwise Operations<a class="headerlink" href="#bitwise-operations" title="Permalink to this headline"></a></h3>
 <p>DaeDaLus also supports shift operations <code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;&gt;</span></code>.
 These operations are overloaded and can be used on all numeric types,
@@ -201,9 +245,9 @@ The result of <code class="docutils literal notranslate"><span class="pre">x</sp
 <code class="docutils literal notranslate"><span class="pre">x</span></code> in the more significant bits, and <code class="docutils literal notranslate"><span class="pre">y</span></code> in the less significant bits.
 The result of <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">&lt;#</span> <span class="pre">y</span></code> is a bitvector of type <code class="docutils literal notranslate"><span class="pre">A</span></code> that contains
 <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> but truncated to the <code class="docutils literal notranslate"><span class="pre">A</span></code> less significant bits.</p>
-</div>
-</div>
-<div class="section" id="maybe-type">
+</section>
+</section>
+<section id="maybe-type">
 <h2><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type<a class="headerlink" href="#maybe-type" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports the special polymorphic type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">A</span></code>, which has possible
 values <code class="docutils literal notranslate"><span class="pre">nothing</span></code> and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, for some value, <code class="docutils literal notranslate"><span class="pre">x</span></code> of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
@@ -216,8 +260,8 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </div>
 <p>To examine values of the <code class="docutils literal notranslate"><span class="pre">maybe</span></code> type you may use
 <a class="reference internal" href="control-structures.html#guards"><span class="std std-ref">Guards</span></a> or <a class="reference internal" href="control-structures.html#case"><span class="std std-ref">Case</span></a>.</p>
-</div>
-<div class="section" id="arrays">
+</section>
+<section id="arrays">
 <h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline"></a></h2>
 <p>The type of arrays containg elements of type <code class="docutils literal notranslate"><span class="pre">T</span></code> is <code class="docutils literal notranslate"><span class="pre">[T]</span></code>.</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- Array literals</span>
@@ -234,8 +278,8 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </pre></div>
 </div>
 <p>To visit all elements in array you may use a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
-</div>
-<div class="section" id="association-maps">
+</section>
+<section id="association-maps">
 <h2>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this headline"></a></h2>
 <p>The type of association maps with keys of type <code class="docutils literal notranslate"><span class="pre">K</span></code> and elements of type
 <code class="docutils literal notranslate"><span class="pre">T</span></code> is <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">K</span> <span class="pre">-&gt;</span> <span class="pre">T</span> <span class="pre">]</span></code>.</p>
@@ -260,8 +304,8 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </div>
 <p>To visit all elements of an association map you may use a
 <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
-</div>
-<div class="section" id="builders">
+</section>
+<section id="builders">
 <h2>Builders<a class="headerlink" href="#builders" title="Permalink to this headline"></a></h2>
 <p>A <code class="docutils literal notranslate"><span class="pre">builder</span></code> is a datastructure that helps build arrays.
 To build an array, start with the empty builder <code class="docutils literal notranslate"><span class="pre">builder</span></code> and use
@@ -282,8 +326,8 @@ added, you may use <code class="docutils literal notranslate"><span class="pre">
 <span class="n">build</span> <span class="p">(</span><span class="n">b</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="p">[</span><span class="n">?a</span><span class="p">]</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
