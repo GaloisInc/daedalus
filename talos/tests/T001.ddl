@@ -1,1 +1,1 @@
-def Main = Match1 'A'
+def Main = $['A']

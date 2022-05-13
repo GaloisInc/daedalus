@@ -1,5 +1,5 @@
 
 
-def Main = Many (Match1 ('a' .. 'z'))
+def Main = Many $['a' .. 'z']
 
 

@@ -5,7 +5,7 @@ def Natural = {
 }
 
 def Digit = {
-  @d = Match1 ('0' .. '9');
+  @d = $['0' .. '9'];
   ^ d - '0';
 }
 
