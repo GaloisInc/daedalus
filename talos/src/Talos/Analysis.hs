@@ -36,7 +36,7 @@ import           Talos.Analysis.VarAbsEnv (varAbsEnvTy)
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
 
 
--- import Debug.Trace (traceM)
+import Debug.Trace (traceM)
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -169,7 +169,7 @@ summariseCall preds fn args
           -- We need to now substitute the actuals for the params in
           -- summary, and merge the results (the substitution may have
           -- introduced duplicates, so we need to do a pointwise merge)
-          let argsMap     = Map.fromList $ zip vargs ps
+          let argsMap     = Map.fromList $ zip ps vargs
               argsFor env = zipWith (\param arg -> arg <$ absProj param env) ps vargs
               mkCallNode i gs =
                 CallNode { callClass        = fid
@@ -183,9 +183,10 @@ summariseCall preds fn args
                              , gsSlice = SCall (mkCallNode i gs)
                              }
               res = domainFromElements $ zipWith mkCall [0..] (elements dom)
-          -- traceM ("Call result from " ++ showPP fn' ++ " to " ++ showPP fn ++
-          --         " for " ++ showPP cl ++
-          --          "\n" ++ show (nest 4 (pp res)))
+          -- traceM ("Call result to " ++ showPP fn ++
+          --         " for " ++ showPP cl ++ "\n" ++
+          --         show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
+          --         show (nest 4 (pp res)))
           pure res
   | otherwise = panic "Saw non-Var arg" []
 
@@ -454,6 +455,8 @@ summariseBind preds x lhs rhs = do
       -- There are the elements which do not care about x.
       indepLHSD = mapSlices (\sl -> SDo x sl SHole) lhsD'
       indepRHSD = mapSlices (SDo x SHole) rhsD'
+      final     = indepLHSD `merge` indepRHSD `merge` domainFromElements els
+      
   -- fn <- currentDeclName
   -- when (showPP fn == "Main") $
   -- traceM ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
@@ -461,10 +464,10 @@ summariseBind preds x lhs rhs = do
   --         "\n (result'? " ++ show (not $ null preds') ++ ")" ++
   --         "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
   --         "\n" ++
-  --         show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++ "\n els " ++
-  --         show (nest 4 $ bullets (map pp els)))
+  --         show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
+  --         show (hang "final" 4 (pp final)))
 
-  pure (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
+  pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
 -- diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
 -- diagonalise el xs f =

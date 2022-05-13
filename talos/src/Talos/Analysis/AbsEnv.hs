@@ -73,7 +73,11 @@ instance AbsEnvPointwise p => AbsEnv (LiftAbsEnv p) where
     in (,) (LiftAbsEnv m') <$> m_r
   absInverse n e e' = absPredInverse n e e'
   absEnvOverlaps (LiftAbsEnv m1) (LiftAbsEnv m2) = Map.disjoint m1 m2
-  absSubstEnv subst (LiftAbsEnv m) = LiftAbsEnv $ Map.compose m subst
+  absSubstEnv subst = mapLiftAbsEnv (Map.mapKeysWith (<>) keyf)
+    where
+      keyf k | Just k' <- Map.lookup k subst = k'
+             | otherwise = panic "Missing key" [showPP k]
+      
   absTop  = LiftAbsEnv Map.empty
 
 instance PP p => PP (LiftAbsEnv p) where
