@@ -13,14 +13,14 @@ Character classes may be named using definitions like this:
 
 A character class may be used as a parser which matches a single byte,
 using the construct ``$[ CHAR_CLASS ]``.   Named character classes,
-such as ``$x`` or ``$any`` may be used directly as byte parser
-(i.e., writing ``$[ $x ]`` is the same as just writing ``$x``).
+such as ``$x`` or ``$any`` may be used directly as a byte parser
+(i.e.,
+writing ``$[ $x ]`` is the same as just writing ``$x`` in a parser context).
 
 
 +-----------------+-------------------------------------------------------+
-| ``0``           | Match exactly ``0``                                   |
-+-----------------+-------------------------------------------------------+
-| ``'a'``         | Match exactly ``'a'`` (i.e., 97)                      |
+| *byte literal*  | Match the literal exactly.                            |
+|                 | For example ``0``, ``'a'``, ``0xFF``, ``0b11111111``  |
 +-----------------+-------------------------------------------------------+
 | ``"abc"``       | Match one of ``'a'``, ``'b'``, or ``'c'``             |
 +-----------------+-------------------------------------------------------+
@@ -34,9 +34,11 @@ such as ``$x`` or ``$any`` may be used directly as byte parser
 +-----------------+-------------------------------------------------------+
 | ``.. '9'``      | Match bytes less than or equal to ``'9'``             |
 +-----------------+-------------------------------------------------------+
-| ``'0' ..``      | Match bytes greater than or equal to ``'1'``          |
+| ``'0' ..``      | Match bytes greater than or equal to ``'0'``          |
 +-----------------+-------------------------------------------------------+
 | ``$x | $y``     | Match byte that either match ``$x`` or ``$y``         |
++-----------------+-------------------------------------------------------+
+| ``$x - $y``     | Match bytes that are in ``$x`` but not in ``$y``      |
 +-----------------+-------------------------------------------------------+
 | ``! $x``        | Match bytes that do not match chararcter class ``$x`` |
 +-----------------+-------------------------------------------------------+

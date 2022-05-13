@@ -453,7 +453,6 @@ inferExpr expr =
                     do unify tBool (e,t)
                        pure (exprAt expr (TCUniOp Not e1), tBool)
 
-        -- XXX: We don't seem to have surface syntax for this?
         Neg ->
           liftValAppPure expr [e] \ ~[(e1,t)] ->
           do addConstraint expr (Arith t)
@@ -466,18 +465,7 @@ inferExpr expr =
                pure (exprAt expr (TCUniOp ArrayLength e1), tSize)
 
         Concat ->
-          do ctxt <- getContext
-             case ctxt of
-               AClass ->
-                 do (e1,t) <- inContext AValue (inferExpr e)
-                    promoteValueToSet =<< concatVal e1 t
-
-               _ -> liftValAppPure expr [e] \ ~[(e1,t)] -> concatVal e1 t
-
-          where
-          concatVal :: TC SourceRange Value -> Type ->
-                       TypeM ctx (TC SourceRange Value,Type)
-          concatVal e1 t =
+          liftValAppPure expr [e] \ ~[(e1,t)] ->
             do a <- newTVar e KValue
                unify (tArray (tArray a)) (e,t)
                pure (exprAt expr (TCUniOp Concat e1), tArray a)
@@ -604,7 +592,15 @@ inferExpr expr =
                     $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
         Add   -> num2 Arith
-        Sub   -> num2 Arith
+        Sub   -> do ctx <- getContext
+                    case ctx of
+                      AClass ->
+                        do (a,t1) <- inferExpr e1
+                           (b,t2) <- inferExpr e2
+                           unify (a,t1) (b,t2)
+                           pure (exprAt expr (TCSetDiff a b), t1)
+                      _      -> num2 Arith
+
         Mul   -> num2 Arith
         Div   -> num2 Arith
         Mod   -> num2 Integral
