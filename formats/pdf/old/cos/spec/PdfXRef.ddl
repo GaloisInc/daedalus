@@ -96,8 +96,9 @@ def CrossRefEntry = {
   @num = NatN 10; $space;
   @gen = NatN 5;  $space;
   $$   = First
-           inUse = UsedEntry num gen;
-           free  = FreeEntry num gen;
+           inUse = UsedEntry num gen
+           free  = FreeEntry num gen
+  ;
 
    { $simpleWS;  $cr <| $lf }
     -- standard compliant:
