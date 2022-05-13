@@ -302,7 +302,48 @@ cUnboxedSum vis tdecl = vcat (theClass : decFunctions vis tdecl)
       , "/* @name Memory Management */"
       , "///@{" ]
    ++ [ copyMethodSig, freeMethodSig ]
+   ++ [ "///@}"
+       , ""
+      , "/* @name Variant dispatch */"
+      , "///@{" ]
+   ++ cSumPats tdecl fields
+   ++ [cSumCaseDecl]
+   ++ [ "///@}" ]
 
+cSumPats :: TDecl -> [(Label, Type)] -> [CDecl]
+cSumPats td fs =
+  [
+    cUsingT (cPatSingleton l) (cInst "DDL::Pat" [cSumTagT td, cSumTagV (tName td) l])
+  | (l,_) <- fs
+  ]
+
+cPatSingleton :: Label -> CIdent
+cPatSingleton l = "Pat_" <> cLabel l
+
+cUnboxedSumSwitch :: GenVis -> TDecl -> [(Label, Type)] -> CDecl
+cUnboxedSumSwitch vis tdecl fs =
+  cTemplate ["typename Cases"] $
+  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
+    vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
+      , nest 2 $ vcat
+            [ "case" <+> cSumTagV (tName tdecl) l <.> colon
+              $$ nest 2 (cReturn (cCall "cases" [cCallCon (cPatSingleton l) [], cCall (selName GenBorrow l) []]))
+            | (l,_) <- fs
+            ]
+      , "}"
+      ]
+  ]
+cBoxedSumSwitch :: GenVis -> TDecl -> CDecl
+cBoxedSumSwitch vis tdecl =
+  cTemplate ["typename Cases"] $
+  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
+    cReturn (cCallMethod (cCallMethod "ptr" "getValue" []) "sum_switch" ["cases"])
+  ]
+
+cSumCaseDecl :: CDecl
+cSumCaseDecl =
+  cTemplate ["typename Cases"] $
+  cDeclareFun "auto" "sum_switch" ["Cases&& cases"];
 
 -- | Class signature for a boxed sum
 cBoxedSum :: TDecl -> CDecl
@@ -338,7 +379,13 @@ cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
        , "/** @name Memory Management */"
        , "///@{" ]
     ++ [ copyMethodSig, freeMethodSig ]
-
+    ++ [ "///@}"
+       , ""
+       , "/** @name Variant dispatch */"
+       , "///@{" ]
+    ++ cSumPats tdecl (getFields tdecl)
+    ++ [cSumCaseDecl]
+    ++ [ "///@}"]
 
 --------------------------------------------------------------------------------
 -- Method definitions
@@ -380,7 +427,17 @@ generateMethods vis boxed ty =
     , defCmpOp "<=" vis ty
     , defCmpOp ">=" vis ty
     ] ++
-    [defShow Map.empty vis ty, defShowJS Map.empty vis ty]
+    [defShow Map.empty vis ty, defShowJS Map.empty vis ty] ++
+    defSwitch vis boxed ty
+
+defSwitch :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defSwitch vis boxed ty =
+  case tDef ty of
+    TUnion fs ->
+      case boxed of
+        GenBoxed -> [cBoxedSumSwitch vis ty]
+        GenUnboxed -> [cUnboxedSumSwitch vis ty fs]
+    _ -> []
 
 defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =

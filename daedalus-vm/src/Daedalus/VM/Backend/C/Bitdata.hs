@@ -69,7 +69,7 @@ defBDUnionCase allTys univ lts =
   cTemplate ["typename Cases"] $
   cDefineFun "auto" "bd_switch" ["Cases&& cases"] [
     bdCase False allTys univ "(*this)" [
-      (t, cReturn (cCall "cases" [cCall (selName GenOwn l) []]))
+      (t, cReturn (cCall "cases" [cCall (selName GenBorrow l) []]))
       | (l,t) <- lts
     ]
   ]
