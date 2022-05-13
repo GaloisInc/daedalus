@@ -304,7 +304,7 @@ As usual, this concept is best demonstrated by an example:
 
     def GoodOrBad =
       First
-        good = Match1 `G`
+        good = Match1 'G'
         bad  = Match1 'B'
 
 This parser returns a semantic value of a new tagged sum type named
@@ -371,8 +371,8 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
     { $$ = Many (Match1 '7'); Match1 '0' }
 
-This parser will match any number of ``'7'`` followed by a ``'0'`` e.g.
-``'0'``, ``"70"``, ``770``, etc. The semantic value returned by the above
+This parser will match any number of 7s followed by a 0, e.g.
+``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
 parser is an array of all the ``'7'``s that were parsed.
 
 Be cautious when using this unbounded form of ``Many``! It parses inputs
