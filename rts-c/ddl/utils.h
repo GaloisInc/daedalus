@@ -24,6 +24,12 @@ bool parseOne
   return true;
 }
 
+template<typename T, T tag>
+struct Pat {};
+
+template<class... Ts> struct cases : Ts... { using Ts::operator()...; };
+template<class... Ts> cases(Ts...) -> cases<Ts...>;
+
 }
 
 #endif

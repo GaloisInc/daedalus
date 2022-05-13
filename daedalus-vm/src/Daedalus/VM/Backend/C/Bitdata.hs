@@ -16,8 +16,8 @@ import Daedalus.VM.Backend.C.Types
 
 
 -- XXX: generate documentation
-cBitdata :: TDecl -> BDD.Pat -> BitdataDef -> Doc
-cBitdata ty univ def =
+cBitdata :: Map TName TDecl -> TDecl -> BDD.Pat -> BitdataDef -> Doc
+cBitdata allTys ty univ def =
   cNamespace nsUser
     [ "class" <+> cTyName <+>
                     ": public" <+> cInst (nsDDL .:: "Bitdata") [w] <+> "{"
@@ -42,7 +42,8 @@ cBitdata ty univ def =
     : case def of
         BDStruct fs -> defBDStructCon w fs : mapMaybe defBDSel fs
         BDUnion  fs -> map defBDUnionCon fs ++
-                       map defBDUnionSel fs
+                       map defBDUnionSel fs ++
+                       [defBDUnionCase allTys univ fs]
 
 
   fromBits = "static"
@@ -63,6 +64,15 @@ defBDUnionSel (l,t) =
   cDefineFun (cSemType t) (selName GenOwn l) []
     [ cReturn (cCall (cSemType t .:: "fromBits") [ cCall "toBits" [] ]) ]
 
+defBDUnionCase :: Map TName TDecl -> BDD.Pat -> [(Label,Type)] -> CDecl
+defBDUnionCase allTys univ lts =
+  cTemplate ["typename Cases"] $
+  cDefineFun "auto" "bd_switch" ["Cases&& cases"] [
+    bdCase False allTys univ "(*this)" [
+      (t, cReturn (cCall "cases" [cCall (selName GenBorrow l) []]))
+      | (l,t) <- lts
+    ]
+  ]
 
 -- assumes fields are sorted
 defBDStructCon :: CExpr -> [BDField] -> CDecl
