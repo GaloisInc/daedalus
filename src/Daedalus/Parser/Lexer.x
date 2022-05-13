@@ -43,7 +43,7 @@ $ws         = [\0\9\10\13\32]
 @octLiteral = 0 [oO] $octDigit $octDigit*
 @binLiteral = 0 [bB] $binDigit $binDigit*
 
-@esc        = \\ (@natural | \\ | \' | " | n | t | r | [xX] $hexDigit $hexDigit* )
+@esc        = \\ (@natural | \\ | \' | " | n | t | r | & | [xX] $hexDigit $hexDigit* )
 @byte       = \' ($anybyte # [\\] | @esc) \'
 @bytes      = \" ($anybyte # [\"\\] | @esc)* \"
 
@@ -264,6 +264,7 @@ checkBytes :: String -> Either String [Word8]
 checkBytes xs =
   case xs of
     [] -> Right []
+    '\\':'&':ys -> checkBytes ys
     _  -> do (c,cs) <- unEsc xs
              rest <- checkBytes cs
              pure (c:rest)
