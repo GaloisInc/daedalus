@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, ScopedTypeVariables, BlockArguments #-}
+{-# Language ScopedTypeVariables #-}
 {-# Language ImplicitParams #-}
 {-# Language GADTs #-}
 module Main where
@@ -30,6 +30,7 @@ import Daedalus.SourceRange
 import Daedalus.Core(checkModule)
 
 import Daedalus.Driver
+import Daedalus.DriverHS
 
 import qualified RTS.ParserAPI as RTS
 import qualified RTS.Input as RTS
@@ -116,7 +117,9 @@ handleOptions opts
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
-       let mainRule = (mm,"Main")
+       let mainRule = (mm, case optEntries opts of
+                             e : _ -> Text.pack e
+                             _     -> "Main")
 
        case optCommand opts of
 
@@ -304,6 +307,11 @@ generateHS opts mainMod allMods =
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
+     cfg <- case hsoptFile hsopts of
+              Nothing -> pure  (const dfltCfg)
+              Just f  -> ddlIO (moduleConfigsFromFile dfltCfg f)
+
+     let saveModule = saveHS (optOutDir opts) cfg
      mapM_ saveModule allMods
      when makeExe $ ddlIO
        do let outD = fromJust (optOutDir opts)
@@ -330,13 +338,23 @@ generateHS opts mainMod allMods =
                        (substTemplate vars cabal_template)
 
   where
-  saveModule = saveHS (optOutDir opts) cfg
-  cfg = CompilerCfg
-          { cPrims      = Map.empty -- Don't support prims
-          , cParserType = "Parser"
-          , cImports    = [Import "RTS.Parser" Unqualified]
-          , cQualNames  = UseQualNames
-          }
+  hsopts = optHS opts
+
+  imps = [ Import a case b of
+                      Nothing -> Unqualified
+                      Just m  -> QualifyAs m
+         | (a,b) <- hsoptImports hsopts ]
+
+  primMap = Map.fromList
+              [ (primName m x, aps (Var p)) | (m,x,p) <- hsoptPrims hsopts ]
+
+  dfltCfg =
+    CompilerCfg
+      { cPrims      = primMap
+      , cParserType = Var <$> hsoptMonad hsopts
+      , cImports    = imps
+      , cQualNames  = UseQualNames
+      }
 
 
 

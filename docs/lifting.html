@@ -78,6 +78,7 @@
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#case">Case</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#commit">Commit</a></li>
 </ul>
 </li>
@@ -101,6 +102,7 @@
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#builders">Builders</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
@@ -137,9 +139,68 @@
              
   <div class="section" id="implicit-lifting">
 <h1>Implicit Lifting<a class="headerlink" href="#implicit-lifting" title="Permalink to this headline"></a></h1>
-<div class="admonition-todo admonition" id="id1">
-<p class="admonition-title">Todo</p>
-<p>This section needs to be written</p>
+<p>At its core, DaeDaLus has three semantics categories:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>semantic values (names start with a lower case letter),</p></li>
+<li><p>character classes (names start with <code class="docutils literal notranslate"><span class="pre">$</span></code>), and</p></li>
+<li><p>parsers (names start with an upper case letter).</p></li>
+</ul>
+</div></blockquote>
+<p>Various language constructs have expectations about the kinds of entities
+they would be used with.  For example:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>the operator <code class="docutils literal notranslate"><span class="pre">+</span></code> expects two semantic values;</p></li>
+<li><p>the construct <code class="docutils literal notranslate"><span class="pre">Match1</span></code> expects a character class;</p></li>
+<li><p>the construct <code class="docutils literal notranslate"><span class="pre">Many</span></code> expects a parser.</p></li>
+</ul>
+</div></blockquote>
+<p>DaeDaLus allows more flexible expressions where language constructs and
+declarations may be used with arguments that do not exactly match the expected
+categories, subject to the following conversions:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 22%" />
+<col style="width: 53%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>From</p></td>
+<td><p>Context</p></td>
+<td><p>Effect</p></td>
+</tr>
+<tr class="row-even"><td><p>Value <code class="docutils literal notranslate"><span class="pre">x</span></code></p></td>
+<td><p>Char Class</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[x]</span></code>  singleton char class</p></td>
+</tr>
+<tr class="row-odd"><td><p>Value <code class="docutils literal notranslate"><span class="pre">x</span></code></p></td>
+<td><p>Parser</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">x</span></code>  succeed with the value</p></td>
+</tr>
+<tr class="row-even"><td><p>Char Class <code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
+<td><p>Value</p></td>
+<td><p>Not allowed</p></td>
+</tr>
+<tr class="row-odd"><td><p>Char Class <code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
+<td><p>Parser</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">$x</span></code> match the char class</p></td>
+</tr>
+</tbody>
+</table>
+<p>In addition to these conversions, DaeDaLus also allows using parsers in
+contexts where semantic values are expected, as long as the overall expression
+was already a parser.  For example, while <code class="docutils literal notranslate"><span class="pre">+</span></code> normally expects two semantic
+values, we also allow expressions like <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">+</span> <span class="pre">Q</span></code> where <code class="docutils literal notranslate"><span class="pre">+</span></code> is used with two
+<em>parsers</em> as arguments.</p>
+<p>The meaning of such expressions is that we first execute the parsers
+in left-to-right order, and then apply the function to their <em>results</em>.
+For example, <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">+</span> <span class="pre">Q</span></code> is exactly equivalent to the following parser:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="n">P</span>
+  <span class="k">let</span> <span class="n">y</span> <span class="k">=</span> <span class="n">Q</span>
+  <span class="k">^</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
 </div>
 </div>
 

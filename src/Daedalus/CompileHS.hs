@@ -27,7 +27,7 @@ import Daedalus.Compile.Config
 data Env = Env
   { envTParser    :: Term
   , envCurMod     :: ModuleName
-  , envExtern     :: Map Name Term
+  , envExtern     :: Map Name ([Term] -> Term)
   , envQualNames  :: UseQual
   , envTypes      :: !(Map TCTyName TCTyDecl)
   }
@@ -522,8 +522,20 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                 case nameScopedIdent tcDeclName of
                   ModScope "Debug" "Trace" ->
                     hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
-                  _ -> hasType (hsType env t)
-                              (lkpInEnv "envExtern" (envExtern env) tcDeclName)
+                  ModScope _ f -> hasType (hsType env t)
+                    let ps = map (hsParam env) tcDeclParams
+                        p  = case Map.lookup tcDeclName (envExtern env) of
+                              Just ter -> ter
+                              Nothing ->
+                                aps $
+                                  hsValName
+                                    env { envQualNames = UseQualNames }
+                                    NameUse
+                                    tcDeclName
+                                      { nameScopedIdent = ModScope "Extern" f }
+                    in p ps
+
+                  _ -> panic "hsTCDecl" ["Unexpected name", show tcDeclName]
 
              Defined e ->
                case tcDeclCtxt of
@@ -1195,6 +1207,10 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
                  ]
   , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
+                 case cParserType of
+                   Nothing -> [ Import "RTS.Parser" (QualifyAs "RTS") ]
+                   _       -> []
+                  ++
                  [ Import (hsIdentMod i) Qualified
                             | i <- map thingValue tcModuleImports
                  ] ++
@@ -1216,10 +1232,11 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   }
   where
   env = Env { envCurMod  = tcModuleName
-            , envTParser = cParserType
+            , envTParser = case cParserType of
+                             Nothing -> "RTS.Parser"
+                             Just t  -> t
             , envExtern  = cPrims
             , envQualNames = cQualNames
             , envTypes = allTys
             }
-
 

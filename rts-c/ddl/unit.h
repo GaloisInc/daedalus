@@ -16,6 +16,13 @@ struct Unit : public Value {
   static bool isValid(UInt<bitWidth> x)  { return true; }
 };
 
+inline bool operator==(Unit, Unit) { return true; }
+inline bool operator!=(Unit, Unit) { return false; }
+inline bool operator<=(Unit, Unit) { return true; }
+inline bool operator>=(Unit, Unit) { return true; }
+inline bool operator<(Unit, Unit) { return false; }
+inline bool operator>(Unit, Unit) { return false; }
+
 inline
 std::ostream& operator<<(std::ostream& os, Unit x) {
   return os << "{}";

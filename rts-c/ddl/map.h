@@ -82,10 +82,10 @@ class Map : HasRefs {
     }
 
     // borrow n
-    static bool is_black(Node *n) { return n == nullptr || n->color == black; }
+    static bool is_black(Node const* n) { return n == nullptr || n->color == black; }
 
     // borrow n
-    static bool is_red(Node *n)   { return !is_black(n); }
+    static bool is_red(Node const* n)   { return !is_black(n); }
 
 
 
@@ -104,7 +104,7 @@ class Map : HasRefs {
       debugVal((void*)n); debug(" ");
       debug(n->color == red ? "R" : "B");
       debug("("); debugVal(n->ref_count); debug(") ");
-      debug("Key:"); debugNL(n->key);
+      debug("Key:"); debugVal(n->key); debug(" Val:"); debugValNL(n->value);
       dump(tab + 2, n->right);
     }
 
@@ -123,23 +123,28 @@ class Map : HasRefs {
 
 
 
-    // assumes the k is not in the tree
     // owns k, owns v, owns n
     // returns an owned *unique* node (i.e, node with ref_count == 1)
     static Node* ins(Key k, Value v, Node * n) {
       if (n == nullptr) return new Node(red, nullptr, k, v, nullptr);
 
-      if (k      < n->key) return setRebalanceLeft (n, ins(k,v,n->left));
-      if (n->key < k)      return setRebalanceRight(n, ins(k,v,n->right));
-      else {
-        Node *res = makeCopy(n);
-        if constexpr (hasRefs<Value>()) n->value.free();
-        n->value = v;
-        return res;
+      n = Node::makeCopy(n); // make n unique
+
+      if (k < n->key) {
+        return setRebalanceLeft(n, ins(k,v,n->left));
       }
+
+      if (n->key < k) {
+        return setRebalanceRight(n, ins(k,v,n->right));
+      }
+
+      if constexpr (hasRefs<Key>()) k.free();
+      if constexpr (hasRefs<Value>()) n->value.free();
+      n->value = v;
+      return n;
     }
 
-    // owns non-null n, owns unique non-null newLeft
+    // owns unique non-null n, owns unique non-null newLeft
     // returns an owned non-null unique node
     static
     Node* setRebalanceLeft(Node *n, Node *newLeft) {
@@ -153,7 +158,7 @@ class Map : HasRefs {
           Node* l = makeCopy(sub2);
           l->color = black;
 
-          Node* r = makeCopy(n);
+          Node* r = n;
           r->color = black;
           r->left  = newLeft->right;
 
@@ -168,7 +173,7 @@ class Map : HasRefs {
           newLeft->color = black;
           newLeft->right = sub2->left;
 
-          Node *r     = makeCopy(n);
+          Node *r     = n;
           r->color    = black;
           r->left     = sub2->right;
 
@@ -180,12 +185,13 @@ class Map : HasRefs {
 
       }
 
-      Node *res = makeCopy(n);
+      Node *res = n;
       res->left = newLeft;
       return res;
     }
 
-
+    // owns unique non-null n, owns unique non-null newRight
+    // returns an owned non-null unique node
     static
     Node* setRebalanceRight(Node *n, Node *newRight) {
 
@@ -194,7 +200,7 @@ class Map : HasRefs {
         // right-left
         Node *sub2 = newRight->left;
         if (is_red(sub2)) {
-          Node *l  = makeCopy(n);
+          Node *l  = n;
           l->color = black;
           l->right = sub2->left;
 
@@ -210,7 +216,7 @@ class Map : HasRefs {
         // right-right
         sub2 = newRight->right;
         if (is_red(sub2)) {
-          Node *l = makeCopy(n);
+          Node *l = n;
           l->color = black;
           l->right = newRight->left;
 
@@ -223,7 +229,7 @@ class Map : HasRefs {
         }
       }
 
-      Node *res = makeCopy(n);
+      Node *res = n;
       res->right = newRight;
       return res;
     }
@@ -240,7 +246,27 @@ class Map : HasRefs {
       return os;
     }
 
+    // Returns depth on success, 0 on failure
+    static unsigned valid(Node const* n) {
+      // Invariant 1: No red node has a red parent
+      if (Node::is_red(n) && (Node::is_red(n->left) || Node::is_red(n->right))) {
+        return 0;
+      }
 
+      // Invariant 2: Every path from the root to an empty
+      // node contains the same number of black nodes.
+      if (n == nullptr) {
+        return 1; // empty nodes are black
+      }
+
+      auto l = Node::valid(n->left);
+      auto r = Node::valid(n->right);
+
+      // Both children should be valid subtrees of the same black depth
+      if (l == 0 || l != r) return 0;
+
+      return Node::is_black(n) ? l+1 : l;
+    }
 
   } *tree;
 
@@ -366,6 +392,8 @@ public:
   // for debugging
   void dump() { Node::dump(0,tree); debugNL(); }
 
+  bool valid() const { return Node::valid(tree) > 0; }
+
   friend
   // borrow m
   std::ostream& operator << (std::ostream &os, Map m) {
@@ -399,7 +427,9 @@ int compare(Map<Key,Value> m1, Map<Key,Value> m2) {
     it1 = it1.next();
     it2 = it2.next();
   }
-  result = it1.done() ? !it2.done() : -1;
+
+  result = it1.done() && it2.done() ? 0
+         : it1.done() ? -1 : 1;
 
 end:
   it1.free();

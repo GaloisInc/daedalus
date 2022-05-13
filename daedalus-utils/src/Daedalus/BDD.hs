@@ -1,5 +1,5 @@
 -- Copied from hobbit
-{-# Language DeriveGeneric, DeriveAnyClass #-}
+{-# Language DeriveGeneric, DeriveAnyClass, DeriveLift #-}
 module Daedalus.BDD where
 
 import GHC.Generics (Generic)
@@ -8,11 +8,12 @@ import Daedalus.Panic(panic)
 import Data.Bits(testBit)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- Ordered binary decision diagrams --------------------------------------------
 type Var            = Int
 data BDD            = F | T | ITE Var BDD BDD
-                      deriving (Eq,Show,NFData,Generic)
+                      deriving (Eq,Show,NFData,Generic,TH.Lift)
 
 
 simp :: [(Var,Bool)] -> BDD -> BDD
@@ -47,7 +48,7 @@ type Width          = Int
 
 -- A `Pat` describes the set of bit-vectors that will match a pattern.
 data Pat            = Pat { width :: Width, bdd :: BDD }
-                      deriving (Eq,Generic,NFData)
+                      deriving (Eq,Generic,NFData,TH.Lift)
 
 -- | A wild-card patterns (the whole set)
 pWild              :: Width -> Pat

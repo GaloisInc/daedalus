@@ -17,13 +17,6 @@ module Daedalus.Driver
   , ddlGetFNameMaybe
   , ddlGetFName
 
-    -- * Compiling to Haskell from TC
-  , saveHS
-  , saveHSCustomWriteFile
-  , writeOnlyIfChanged
-  , CompilerCfg(..)
-  , UseQual(..)
-
     -- * Various ASTs
   , ModulePhase(..)
   , astParse
@@ -36,6 +29,7 @@ module Daedalus.Driver
   , Pass(..)
   , phasePass
   , passParse
+  , parseModuleFromText
   , passResolve
   , passTC
   , passDeadVal
@@ -57,6 +51,9 @@ module Daedalus.Driver
   , ddlGet
   , ddlUpdate_
   , ddlSetState
+
+    -- ** State accessors
+  , moduleSourcePath
 
     -- * Updating state externally
   , recordTCModule
@@ -83,6 +80,7 @@ module Daedalus.Driver
   , ddlIO
   ) where
 
+import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
@@ -91,8 +89,6 @@ import Control.Monad(msum,foldM,forM,forM_,unless)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
 import qualified System.IO as IO
-import System.FilePath((</>),addExtension)
-import System.Directory(createDirectoryIfMissing,doesFileExist)
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
@@ -105,7 +101,8 @@ import Daedalus.Pass
 import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
-import Daedalus.Parser(prettyParseError, ParseError, parseFromFile)
+import Daedalus.Parser
+          (prettyParseError, ParseError, parseFromFile, parseFromTextAt)
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
@@ -114,9 +111,6 @@ import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Specialise(specialise)
-import qualified Daedalus.CompileHS      as HS
-import Daedalus.Compile.Config
-import qualified Daedalus.Compile.LangHS as HS
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
@@ -308,6 +302,10 @@ defaultState = State
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   }
+
+
+moduleSourcePath :: ModuleName -> State -> Maybe FilePath
+moduleSourcePath m = Map.lookup m . moduleFiles
 
 
 data ModulePhase =
@@ -512,6 +510,17 @@ parseModuleFromFile n file =
         s { moduleFiles   = Map.insert n file (moduleFiles s)
           , loadedModules = Map.insert n m (loadedModules s)
           }
+
+
+parseModuleFromText :: ModuleName -> SourcePos -> Text -> Daedalus ()
+parseModuleFromText n loc txt =
+  do let mb = parseFromTextAt loc n txt
+     m <- case mb of
+            Left err -> ddlThrow (AParseError err)
+            Right m -> pure (ParsedModule m)
+     ddlUpdate_ \s -> s { loadedModules = Map.insert n m (loadedModules s) }
+
+
 
 -- | just parse a single module
 parseModule :: ModuleName -> Daedalus ()
@@ -846,50 +855,5 @@ passVM m =
          | otherwise -> panic "passVM" [ "Unexpected module phase"
                                        , show (phasePass ph) ]
 
-
---------------------------------------------------------------------------------
-
--- | Save Haskell for the given module.
--- Assumes that the module is in one of the `astTC` phases.
--- Does not do the dependencies.
--- Does not affect the state.
-saveHS ::
-  Maybe FilePath {- ^ Directory to save things in. -} ->
-  CompilerCfg ->
-  ModuleName ->
-  Daedalus ()
-saveHS = saveHSCustomWriteFile writeFile
-
-
--- | Save Haskell for the given module.: parameterized over writeFile
-saveHSCustomWriteFile ::
-  (FilePath -> String -> IO ()) ->
-  Maybe FilePath {- ^ Directory to save things in. -} ->
-  CompilerCfg ->
-  ModuleName ->
-  Daedalus ()
-saveHSCustomWriteFile writeFile' mb cfg m =
-  do ast <- ddlGetAST m astTC
-     tdefs <- ddlGet declaredTypes
-     let hs = HS.hsModule cfg tdefs ast
-     case mb of
-       Nothing  -> ddlPrint (pp hs)
-       Just dir ->
-         ddlIO
-         do createDirectoryIfMissing True dir
-            let file = addExtension (dir </> HS.hsModName hs) "hs"
-            writeFile' file (show (pp hs))
-
-writeOnlyIfChanged :: FilePath -> String -> IO ()
-writeOnlyIfChanged file cont =
-  do have <- doesFileExist file
-     if not have
-       then writeFile file cont
-       else do h <- IO.openFile file IO.ReadMode
-               s <- IO.hGetContents h
-               if s == cont
-                 then IO.hClose h
-                 else do IO.hClose h
-                         writeFile file cont
 
 
