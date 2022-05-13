@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 
 module Talos.Strategy.DFST (DFST, runDFST, onBacktrack) where
 
@@ -24,7 +25,7 @@ data DFSTContext r m a =
   DFSTContext { dfsCont :: a -> m r -> m r
               , dfsFail :: m r
               }
-
+  
 newtype DFST r m a = DFST { getDFST :: DFSTContext r m a -> m r }
 
 runDFST :: DFST r m a -> (a -> m r) -> m r -> m r

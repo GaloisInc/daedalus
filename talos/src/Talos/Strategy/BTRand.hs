@@ -3,31 +3,26 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) where
 
-import Control.Monad.Reader
+import           Control.Applicative
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Control.Monad.Trans.Maybe
+import qualified Data.ByteString                 as BS
+import           Data.List                       (foldl', foldl1', partition)
+import qualified Data.Map                        as Map
 
-import Control.Applicative
-import Control.Monad.Trans.Maybe
-import Control.Monad.State
-import qualified Data.ByteString as BS
-import Data.List (foldl', foldl1', partition)
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
-import Daedalus.Panic
-import qualified Daedalus.Value as I
-
-import Daedalus.Core hiding (streamOffset)
+import           Daedalus.Core                   hiding (streamOffset)
+import qualified Daedalus.Core.Semantics.Env     as I
+import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
-import qualified Daedalus.Core.Semantics.Expr as I
-import qualified Daedalus.Core.Semantics.Env as I
+import           Daedalus.Core.Type              (typeOf)
+import qualified Daedalus.Value                  as I
 
-import Talos.Analysis.EntangledVars 
-import Talos.Analysis.Slice
-import Talos.SymExec.Path
-import Talos.Strategy.Monad
-import Talos.Strategy.DFST
-import Talos.Analysis.Projection (projectE)
-import Daedalus.Core.Type (typeOf)
+import           Talos.Analysis.Merge
+import           Talos.Analysis.Slice
+import           Talos.Strategy.DFST
+import           Talos.Strategy.Monad
+import           Talos.SymExec.Path
 
 
 -- ----------------------------------------------------------------------------------------
@@ -107,19 +102,14 @@ stratSlice ptag = go
   where
     go sl = 
       case sl of
-        SDontCare n sl' -> onSlice (dontCare n) <$> go sl'
-        SDo m_x lsl rsl -> do
+        SHole -> pure (uncPath I.vUnit)
+        SPure sle -> do
+          e <- slExprToExpr sle
+          uncPath <$> synthesiseExpr e
+
+        SDo x lsl rsl -> do
           (v, lpath)  <- go lsl
-          onSlice (pathNode (SelectedDo lpath)) <$> bindInMaybe m_x v (go rsl)
-          
-        SUnconstrained  -> pure (I.vUnit, Unconstrained)
-        SLeaf sl'        -> onSlice (flip pathNode Unconstrained) <$> goLeaf sl'
-        
-    goLeaf sl =
-      case sl of
-        SPure fset e -> do
-          v <- synthesiseExpr (projectE (const Nothing) fset e) -- We can have partial values
-          pure (uncPath v)
+          onSlice (SelectedDo lpath) <$> bindIn x v (go rsl)
 
         SMatch bset -> do
           env <- ask
@@ -129,16 +119,10 @@ stratSlice ptag = go
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
           -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
-          pure (I.vUInt 8 (fromIntegral b), SelectedBytes ptag (BS.singleton b))
-
-        -- SMatch (MatchBytes e) -> do
-        --   v <- synthesiseExpr e
-        --   let bs = I.valueToByteString v
-        --   pure (v, SelectedMatch ptag bs)
-
-        -- SMatch {} -> unimplemented
+          pure (I.vUInt 8 (fromIntegral b)
+               , SelectedBytes ptag (BS.singleton b))
           
-        SAssertion (GuardAssertion e) -> do
+        SAssertion e -> do
           b <- I.valueToBool <$> synthesiseExpr e
           guard b
           pure (uncPath I.vUnit)
@@ -148,7 +132,7 @@ stratSlice ptag = go
           -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
           onSlice (SelectedChoice i) <$> go sl'
 
-        SCall cn -> ask >>= stratCallNode ptag cn
+        SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> do
           env <- ask
@@ -158,7 +142,7 @@ stratSlice ptag = go
         SInverse n ifn p -> do
           let tryOne = do
                 v <- synthesiseExpr =<< typeToRandomInhabitant (typeOf n)
-                bindInMaybe (Just n) v $ do
+                bindIn n v $ do
                   b <- I.valueToBool <$> synthesiseExpr p
                   guard b
                   bs <- synthesiseExpr ifn
@@ -166,8 +150,8 @@ stratSlice ptag = go
               tryMany = tryOne <|> tryMany -- FIXME: this might run forever.
           tryMany 
 
-    uncPath v = (v, SelectedDo Unconstrained)
-          
+    uncPath :: I.Value -> (I.Value, SelectedPath)
+    uncPath v = (v, SelectedHole)
     onSlice f = \(a, sl') -> (a, f sl')
 
     -- unimplemented = panic "Unimplemented" []
@@ -181,28 +165,24 @@ stratSlice ptag = go
 -- Merging all slices could introduce spurious internal backtracking,
 -- although it is not clear whether that is an issue or not.
 
-stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode -> I.Env -> 
-                 ReaderT I.Env m (I.Value, SelectedNode)
-stratCallNode ptag CallNode { callName = fn, callClass = cl, callAllArgs = allArgs, callPaths = paths } env = do
-  (_, nonRes) <- unzip <$> mapM doOne asserts
+stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode FInstId -> 
+                 ReaderT I.Env m (I.Value, SelectedPath)
+stratCallNode ptag cn = do
+  env <- ask
+  (sls, argNameMaps) <- unzip <$> callNodeToSlices cn
+  let argNameMap = mconcat argNameMaps
+      env' = env { I.vEnv = Map.compose (I.vEnv env) argNameMap }
+      (results0, asserts0) = partition fst sls
+      results = map snd results0
+      asserts = map snd asserts0
+  (_rvs, nonRes) <- unzip <$> mapM (doOne env') asserts  
   (v, res)    <- case results of
-    [] -> pure (I.vUnit, Unconstrained)
-    _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
-             let evs = mconcat results
-             local (const (evsToEnv evs)) (stratSlice ptag sl)
+    [] -> pure (I.vUnit, SelectedHole)
+    _  -> doOne env' (foldl1' merge results)
 
-  pure (v, SelectedCall cl (foldl' merge res nonRes))
+  pure (v, SelectedCall (callClass cn) (foldl' merge res nonRes))
   where
-    -- This works because 'ResultVar' is < than all over basevars
-    (results, asserts) = partition hasResultVar (Set.toList paths)
-        
-    doOne evs = do
-      sl <- getParamSlice fn cl evs
-      local (const (evsToEnv evs)) (stratSlice ptag sl)
-
-    -- we rely on laziness to avoid errors in computing values with free variables
-    allArgsV     = flip I.eval env <$> allArgs
-    evsToEnv evs = env { I.vEnv = Map.restrictKeys allArgsV (programVars evs) }
+    doOne env' = local (const env') . stratSlice ptag
 
 -- ----------------------------------------------------------------------------------------
 -- Strategy helpers
@@ -216,9 +196,8 @@ choose bs = do
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
 
-bindInMaybe :: Monad m => Maybe Name -> I.Value -> ReaderT I.Env m a -> ReaderT I.Env m a
-bindInMaybe Nothing  _ m = m
-bindInMaybe (Just x) v m = local upd m
+bindIn :: Monad m => Name -> I.Value -> ReaderT I.Env m a -> ReaderT I.Env m a
+bindIn x v m = local upd m
   where
     upd e = e { I.vEnv = Map.insert x v (I.vEnv e) }
 

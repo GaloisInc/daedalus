@@ -28,7 +28,8 @@ data Options =
           , optMode :: Mode
           , optDDLEntry   :: Maybe String
           , optStrategy  :: Maybe String
-          , optInvFile    :: Maybe FilePath          
+          , optInvFile    :: Maybe FilePath
+          , optAnalysisKind :: Maybe String
           , optDDLInput  :: FilePath
           }
 
@@ -132,6 +133,15 @@ strategyOpt = strOption
     <> help "The synthesis strategy to use"
     )
 
+-- FIXME: lookup available types of analysis and use that
+analysisKindOpt :: Parser String
+analysisKindOpt = strOption
+    ( long "analysis"
+    <> short 'a'
+    <> metavar "ANALYSIS-NAME"
+    <> help "The slicing analysis to use"
+    )
+
 options :: Parser Options
 options = Options <$> solverOpt
                   <*> optional logfileOpt
@@ -146,6 +156,7 @@ options = Options <$> solverOpt
                   <*> optional entryOpt
                   <*> optional strategyOpt
                   <*> optional invFileOpt
+                  <*> optional analysisKindOpt
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

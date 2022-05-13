@@ -30,34 +30,38 @@ library
                      , Talos.SymExec.Expr
                      , Talos.SymExec.Funs
                      , Talos.SymExec.SemiExpr
-                     , Talos.SymExec.SemiValue                     
-                     , Talos.SymExec.Type                
+                     , Talos.SymExec.SemiValue
+                     , Talos.SymExec.Type
                      , Talos.SymExec.Path
-                     
+
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
+                     , Talos.Analysis.AbsEnv
+                     , Talos.Analysis.VarAbsEnv
+                     , Talos.Analysis.FieldAbsEnv
+                     , Talos.Analysis.Eqv
+                     , Talos.Analysis.Merge
                      , Talos.Analysis.Domain
-                     , Talos.Analysis.Fixpoint                     
+                     , Talos.Analysis.Fixpoint
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
-                     , Talos.Analysis.EntangledVars
-                     , Talos.Analysis.Projection
-                     
+                     , Talos.Analysis.SLExpr
+
                      , Talos.Strategy
                      , Talos.Strategy.Monad
                      , Talos.Strategy.DFST
                      , Talos.Strategy.SearchTree
-                     , Talos.Strategy.SearchT                     
+                     , Talos.Strategy.SearchT
                      , Talos.Strategy.SymbolicM
-                     
+
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
                      -- , Talos.Strategy.BackwardSymbolic
-                     
+
                      , Talos.Synthesis
 
                      , Talos.Passes
-                                 
+
                      , Talos
                      -- , Machine
   build-depends:       base
@@ -70,7 +74,7 @@ library
                      , vector
                      , parameterized-utils
                      , mtl
-                     , containers
+                     , containers >= 0.6.4
                      , bytestring
                      , simple-smt >= 0.9.6
                      , io-streams
@@ -168,8 +172,8 @@ executable talos-bench
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
 
-  
-  
+
+
 -- executable talos-machine
 --   main-is:             Main.hs
 --   other-modules:       CommandLine

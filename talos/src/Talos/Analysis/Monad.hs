@@ -1,62 +1,67 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 {-# LANGUAGE TupleSections #-}
-module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, PathRootMap, makeDeclInvs
-                            , Summary (..), Summaries, IterM, AnalysisState(..)
+module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs, currentDeclName
+                            , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
+                            , ExpSummary(..), ExpSummaries, exportSummaries
+                            , calcFixpoint
                             , module Export) where
 
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromJust, mapMaybe)
-import qualified Data.Text                    as Text
+import           Data.Map.Strict         (Map)
+import qualified Data.Map.Strict         as Map
+import           Data.Maybe              (fromJust, mapMaybe)
+import qualified Data.Text               as Text
 
 import           Daedalus.Core
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
+import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
-import           Talos.Analysis.EntangledVars
-import           Talos.Analysis.Slice
+import           Talos.Analysis.Fixpoint as Export (addSummary, 
+                                                    currentSummaryClass,
+                                                    lookupSummary)
 import qualified Talos.Analysis.Fixpoint as F
-import Talos.Analysis.Fixpoint as Export (currentDeclName, currentSummaryClass
-                                         , lookupSummary, addSummary, calcFixpoint)
+import           Talos.Analysis.Slice
+import Debug.Trace (trace, traceM)
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
-type PathRootMap =  Map Name [(FieldSet, Slice)]
+-- type PathRootMap =  Map Name [(FieldSet, Slice)]
+
+type SummaryClass' ae = SummaryClass (AbsPred ae)
 
 -- This is the summarisation for a given class for a given function
-data Summary =
-  Summary { exportedDomain   :: Domain
-          -- ^ If this is a function result summary, this will contain
-          -- an entry for ResultVar, including any params entangled
-          -- with the result.
-          , pathRootMap :: PathRootMap
+data Summary ae =
+  Summary { domain      :: Domain ae
           -- Essentially a copy of the params in the decl.
           , params      :: [Name]
-          , summaryClass :: SummaryClass
+          , fInstId     :: FInstId
           }
 
-type Summaries    = Map FName (Map SummaryClass Summary)
+emptySummary :: FInstId -> Summary ae
+emptySummary = Summary emptyDomain []
+
+type Summaries ae = Map FName (Map FInstId (Summary ae))
 
 --------------------------------------------------------------------------------
 -- Instances
 
-explodePathRootMap :: PathRootMap -> [ (Name, FieldSet, Slice) ]
-explodePathRootMap m =
-  [ (n, fs, sl) | (n, m') <- Map.toList m, (fs, sl) <- m' ]
+-- explodePathRootMap :: PathRootMap -> [ (Name, FieldSet, Slice) ]
+-- explodePathRootMap m =
+--   [ (n, fs, sl) | (n, m') <- Map.toList m, (fs, sl) <- m' ]
 
-instance PP Summary where
-  pp s = bullets [ "exported" <+> pp (exportedDomain s)
-                 , "internal" <+> vcat (map pp_el (explodePathRootMap (pathRootMap s)))
-                 ]
-    where
-      pp_el (n, fs, sl)
-        | fs == emptyFieldSet = pp n <> " => " <> pp sl
-        | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl
+-- instance PP Summary where
+--   pp s = bullets [ "exported" <+> pp (exportedDomain s)
+--                  , "internal" <+> vcat (map pp_el (explodePathRootMap (pathRootMap s)))
+--                  ]
+--     where
+--       pp_el (n, fs, sl)
+--         | fs == emptyFieldSet = pp n <> " => " <> pp sl
+--         | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl
 
 --------------------------------------------------------------------------------
 -- Monad and state
@@ -67,21 +72,33 @@ instance PP Summary where
 -- name may appear multiole times if multiple (different) summaries
 -- are requested.
 
-data AnalysisState = AnalysisState
+data AnalysisState p = AnalysisState
   { declInvs  :: Map FName (Name -> [Expr] -> (Expr, Expr))
+  , summaryToInst :: Map (SummaryClass p) FInstId
+  , instToSummary :: Map FInstId (SummaryClass p)
+  , nextFInstId   :: Int
   , nextGUID  :: GUID
   }
 
 -- We want assertions for all decls as the base case for calls is to
 -- use 'Assertion although we may not always require them (if every
 -- call to a function uses the result in a relevant way)
-initState :: [Fun Grammar] -> [Fun Expr] -> GUID -> AnalysisState
+initState :: [Fun Grammar] -> [Fun Expr] -> GUID -> AnalysisState ae
 initState decls funs nguid = AnalysisState
   { declInvs    = makeDeclInvs decls funs
-  , nextGUID    = nguid
+  , summaryToInst = Map.singleton Assertions assertionsFID
+  , instToSummary = Map.singleton assertionsFID Assertions
+  , nextFInstId   = assnId + 1
+  , nextGUID      = nguid
   }
-
-type IterM = F.FixpointM FName SummaryClass Summary AnalysisState
+  where
+    FInstId assnId = assertionsFID
+  
+newtype IterM ae a = IterM
+  {
+    getIterM :: F.FixpointM FName FInstId (Summary ae) (AnalysisState (AbsPred ae)) a
+  }
+  deriving (Functor, Applicative, Monad)
 
 --------------------------------------------------------------------------------
 -- Inverses
@@ -128,18 +145,85 @@ makeDeclInvs decls funs = Map.fromList fnsWithInvs
 --------------------------------------------------------------------------------
 -- low-level IterM primitives
 
-instance HasGUID IterM where
-  guidState f = F.fixpointState (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
+instance HasGUID (IterM ae) where
+  guidState f = IterM $ F.fixpointState (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
 
-getDeclInv :: FName -> IterM (Maybe (Name -> [Expr] -> (Expr, Expr)))
-getDeclInv n = F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
+getDeclInv :: FName -> IterM ae (Maybe (Name -> [Expr] -> (Expr, Expr)))
+getDeclInv n = IterM $ F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
+
+getAllocInstId :: Ord (AbsPred ae) => SummaryClass' ae -> IterM ae FInstId
+getAllocInstId cl = IterM $ F.fixpointState go
+  where
+    go st
+      | Just fid <- Map.lookup cl (summaryToInst st) = (fid, st)
+      | otherwise = mk st
+
+    mk st =
+      let fid = FInstId (nextFInstId st)
+          st' =  st { nextFInstId = nextFInstId st + 1
+                    , summaryToInst = Map.insert cl fid (summaryToInst st)
+                    , instToSummary = Map.insert fid cl (instToSummary st)
+                    }
+      in (fid, st')
+
+getSummaryClass :: FInstId -> IterM ae (SummaryClass' ae)
+getSummaryClass fid = IterM $ F.fixpointState go
+  where
+    go st
+      | Just cl <- Map.lookup fid (instToSummary st) = (cl, st)
+      | otherwise = panic "Missing inst id." []
 
 -- Gets the precondition for a given decl.  This may update the worklist and revdeps
-requestSummary :: FName -> SummaryClass -> IterM Summary
+requestSummary :: AbsEnv ae => FName -> SummaryClass' ae -> IterM ae (Summary ae)
 requestSummary nm cl = do
-  m_summary <- F.requestSummary nm cl
+  fid <- getAllocInstId cl
+  m_summary <- IterM $ F.requestSummary nm fid
   case m_summary of
-    Nothing -> -- It is OK to return Nothing for the result var
-      pure $ Summary mempty mempty mempty cl
+    Nothing -> pure $ emptySummary fid
     Just s  -> pure s
+
+calcFixpoint :: (AbsEnv ae, Ord (AbsPred ae)) =>
+                (FName -> SummaryClass' ae -> FInstId -> IterM ae (Summary ae)) ->
+                F.Worklist FName FInstId ->
+                AnalysisState (AbsPred ae) -> (AnalysisState (AbsPred ae), Summaries ae)
+calcFixpoint m wl = F.calcFixpoint seqv go wl
+  where
+    go n fid = getIterM $ do
+      cl <- getSummaryClass fid
+      m n cl fid
+    seqv oldS newS = domainEqv (domain oldS) (domain newS)
+    
+currentDeclName :: IterM ae FName
+currentDeclName = IterM F.currentDeclName
+
+--------------------------------------------------------------------------------
+-- Exporting
+
+-- We rename the summary class everywhere to be essentially an Int, so
+-- we don't have to carry the information around into the synthesis pass.
+
+data ExpSummary = ExpSummary
+  { esSlices         :: [(Bool, Slice)]
+  , esInternalSlices :: Map Name [Slice]
+  , esParams         :: [Name]
+  }
+
+type ExpSummaries = Map FName (Map FInstId ExpSummary)
+
+exportSummary :: Summary ae -> ExpSummary
+exportSummary s = ExpSummary
+  { esSlices         = map expGS (elements (domain s))
+  , esInternalSlices = closedElements (domain s)
+  , esParams         = params s
+  }
+  where
+    expGS gs = (not (null (gsPred gs)), gsSlice gs) 
+
+exportSummaries :: Summaries ae -> ExpSummaries
+exportSummaries = fmap (fmap exportSummary)
+
+
+
+instance AbsEnv ae => PP (Summary ae) where
+  pp s = pp (domain s)
 
