@@ -13,7 +13,7 @@ def Intent = First
 def LineStyle = $['0' .. '2']
 
 -- General Graphics State operators (Tables 51, 57)
-def GraphscsStateOp = First
+def GraphicsStateOp = First
   pushState = @(KW "q")
   restoreState = @(KW "Q")
   concatMatrix = {
@@ -58,4 +58,3 @@ def GraphscsStateOp = First
     dictName = Token Name ;
     KW "gs" ;
     }
-}

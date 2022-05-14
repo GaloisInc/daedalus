@@ -17,7 +17,7 @@ import StdEncoding
 import SymbolEncoding
 import ZapfDingbatsEncoding
 
-def EncodsngRepr = First
+def EncodingRepr = First
   predefEnc = (Token (GenName PredefEncodingName))
   encDict = EncodingP
 
