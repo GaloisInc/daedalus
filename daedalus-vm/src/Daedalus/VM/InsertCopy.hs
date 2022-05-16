@@ -228,6 +228,8 @@ instance DoSubst Instr where
       NoteFail e      -> NoteFail (doSubst x v e)
       Let y e         -> Let y (doSubst x v e)
       Free xs         -> Free (Set.delete (LocalVar x) (Set.delete v xs))
+      PushDebug{}     -> i
+      PopDebug{}      -> i
 
 instance DoSubst CInstr where
   doSubst x v ci =
@@ -438,6 +440,8 @@ doInstr instr =
     NoteFail {}     -> emit instr -- borrows
     Let {}          -> emit instr
     Free {}         -> emit instr
+    PushDebug{}     -> emit instr
+    PopDebug{}      -> emit instr
 
   where
   owned f e =

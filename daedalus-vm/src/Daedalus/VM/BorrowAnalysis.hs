@@ -104,6 +104,8 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       NoteFail e      -> NoteFail (annE mp e)
       Let x e         -> Let x (annE mp e)
       Free xs         -> Free (Set.map (annV mp) xs)
+      PushDebug{}     -> i
+      PopDebug{}      -> i
 
   annTerm mp t =
     case t of
@@ -393,6 +395,8 @@ modeI i =
     NoteFail e               -> [ Borrowed `ifRefs` e ]
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
     Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
+    PushDebug{}              -> []
+    PopDebug{}               -> []
 
 
 modePrimName :: PrimName -> [Ownership]

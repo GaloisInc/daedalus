@@ -8,6 +8,7 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import           Data.Word(Word32,Word64)
 import           Data.Int(Int32,Int64)
 import           Data.Maybe(maybeToList,fromMaybe)
@@ -395,7 +396,7 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
               [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
               , cStmt (cCallMethod "out_input" "free" [])
               ]
-              [ cAssign "error.offset" (cCallMethod "p" "getFailOffset" [])]
+              [ cAssign "error" (cCallMethod "p" "getParseError" [])]
          ]
 
 
@@ -581,6 +582,8 @@ cBlockStmt :: (Copies,CurBlock) => Instr -> CStmt
 cBlockStmt cInstr =
   case cInstr of
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
+    PushDebug x     -> cStmt (cCall "p.pushDebug" [ cString (Text.unpack x) ])
+    PopDebug        -> cStmt (cCall "p.popDebug"  [])
     Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
                            o = parens (parens(t) <.> "out")
                        in cStmt (cCall (o <.> "->push_back") [ cExpr e ])

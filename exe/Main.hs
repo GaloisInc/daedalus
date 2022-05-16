@@ -55,6 +55,7 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Compile.Monad as VM
 
 import CommandLine
 import Templates

@@ -29,21 +29,21 @@ moduleToProgram ms =
   captureAnalysis
   Program { pModules = map loopAnalysis ms }
 
-compileModule :: Src.Module -> Module
-compileModule m =
+compileModule :: DebugMode -> Src.Module -> Module
+compileModule dm m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
-         , mFuns  = map compileFFun (Src.mFFuns m)
-                 ++ map compileGFun (Src.mGFuns m)
+         , mFuns  = map (compileFFun dm) (Src.mFFuns m)
+                 ++ map (compileGFun dm) (Src.mGFuns m)
          }
 
 inpArg :: BA
 inpArg = BA 0 (TSem Src.TStream) Borrowed
 
 compileSomeFun ::
-  Bool -> (a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
-compileSomeFun isPure doBody fun =
+  Bool -> DebugMode -> (a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
+compileSomeFun isPure dm doBody fun =
   let xs         = Src.fParams fun
       name       = Src.fName fun
 
@@ -65,7 +65,7 @@ compileSomeFun isPure doBody fun =
                Src.Def e    ->
                  VMDef
                    let body   = foldr setInp (doBody e) inpArgs
-                       (l,ls) = runC lab (Src.typeOf name)
+                       (l,ls) = runC lab (Src.typeOf name) dm
                                          (foldr getArgC body (zip xs args))
                    in VMFBody { vmfEntry = l
                               , vmfBlocks = Map.adjust addArgs l ls
@@ -87,8 +87,8 @@ compileSomeFun isPure doBody fun =
             , vmfIsEntry = Src.fIsEntry fun
             }
 
-compileFFun :: Src.Fun Src.Expr -> VMFun
-compileFFun = compileSomeFun True \e -> compileE e Nothing
+compileFFun :: DebugMode -> Src.Fun Src.Expr -> VMFun
+compileFFun dm = compileSomeFun True dm \e -> compileE e Nothing
 
-compileGFun :: Src.Fun Src.Grammar -> VMFun
-compileGFun = compileSomeFun False (\e -> compile e ret)
+compileGFun :: DebugMode -> Src.Fun Src.Grammar -> VMFun
+compileGFun dm = compileSomeFun False dm (\e -> compile e ret)

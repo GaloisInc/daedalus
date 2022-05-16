@@ -17,6 +17,8 @@ defines instr =
     NoteFail _      -> []
     Free {}         -> []
     Let v _         -> [v]
+    PushDebug{}     -> []
+    PopDebug{}      -> []
 
 defineSet :: Instr -> Set BV
 defineSet = Set.fromList . defines
@@ -96,4 +98,5 @@ instance FreeVars Instr where
       NoteFail e      -> freeVars' e
       Free xs         -> freeVars' xs
       Let _ e         -> freeVars' e
-
+      PushDebug{}     -> id
+      PopDebug{}      -> id

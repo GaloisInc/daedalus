@@ -19,11 +19,14 @@ import Daedalus.VM.BlockBuilder
 -- | The compiler monad
 newtype C a = C (StaticR -> StaticS -> (a,StaticS))
 
+data DebugMode = DebugStack | NoDebug
+  deriving (Eq, Ord, Read, Show)
 
 data StaticR = StaticR
-  { curFun  :: Text               -- ^ for generating more readable label/names
-  , vEnv    :: Map Src.Name FV    -- ^ Compiled expressions
-  , curTy   :: VMT                -- ^ Type of the result we are producing
+  { curFun    :: Text             -- ^ for generating more readable label/names
+  , vEnv      :: Map Src.Name FV  -- ^ Compiled expressions
+  , curTy     :: VMT              -- ^ Type of the result we are producing
+  , debugMode :: DebugMode        -- ^ Emit debug stack push and pop operations
   }
 
 data StaticS = StaticS
@@ -46,13 +49,15 @@ instance Monad C where
 runC ::
   Text ->
   Src.Type ->
+  DebugMode ->
   C (BlockBuilder Void) ->
   (Label, Map Label Block)
 
-runC f ty (C m) =
+runC f ty dm (C m) =
   let (b,info) = m   StaticR { curFun = f
                              , vEnv   = Map.empty
                              , curTy  = TSem ty
+                             , debugMode = dm
                              }
                      StaticS { cLabel = 0
                              , cLocal = 0
@@ -74,6 +79,8 @@ getCurTy = staticR curTy
 setCurTy :: VMT -> C a -> C a
 setCurTy t (C m) = C \r s -> m r { curTy = t } s
 
+getDebugging :: C Bool
+getDebugging = staticR (\e -> debugMode e == DebugStack)
 
 lookupN :: Src.Name -> C (BlockBuilder E)
 lookupN n =

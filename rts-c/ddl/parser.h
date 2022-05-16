@@ -16,18 +16,24 @@ typedef size_t ThreadId;
 struct ParseError {
   // XXX: more info (stream information, some description)
   Size offset;
+  std::vector<char const*> debugs;
 };
 
 class ParserState {
 
   Size                  fail_offset;    // largest, only makes sense if we fail
+  std::vector<char const*> fail_debugs;
+
   ListStack             stack;
   std::vector<Thread>   suspended;
+  std::vector<char const*> debugs;
 
 public:
   ParserState() : fail_offset(0) {}
 
-  Size getFailOffset() { return fail_offset; }
+  ParseError getParseError() {
+    return {fail_offset, fail_debugs};
+  }
 
   // All alternatives failed.   Free the stack and return the
   // offset of the best error we computed.
@@ -44,6 +50,8 @@ public:
   // For debug
   void say(const char *msg) { debugLine(msg); }
 
+  void pushDebug(char const* msg) { debugs.push_back(msg); }
+  void popDebug() { debugs.pop_back(); }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
@@ -55,7 +63,10 @@ public:
   // could result in confusing error locations.
   void noteFail(Input input) {
     Size offset = input.getOffset();
-    if (offset > fail_offset) fail_offset = offset;
+    if (offset > fail_offset) {
+      fail_offset = offset;
+      fail_debugs = debugs;
+    }
   }
 
   // Function calls
