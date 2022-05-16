@@ -198,6 +198,8 @@ mergeBlocks front back =
                           [] -> Nothing
                           ys -> Just (Free (Set.fromList ys))
       Let x e        -> Just $ Let (renBV x) (renE e)
+      PushDebug{}    -> Just i
+      PopDebug       -> Just i
 
 
   renC c =

@@ -85,6 +85,9 @@ data Instr =
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
 
+  | PushDebug Text
+  | PopDebug
+
 -- | Instructions that jump
 data CInstr =
     Jump JumpPoint
@@ -185,6 +188,8 @@ iArgs i =
 
     Let _ e           -> [e]
     Free _            -> []       -- XXX: these could be just owned args
+    PushDebug{}       -> []
+    PopDebug          -> []
 
 pAllBlocks :: Program -> [Block]
 pAllBlocks p =
@@ -295,6 +300,8 @@ instance PP Instr where
       NoteFail v       -> ppFun "noteFail" [pp v]
       Free x           -> "free" <+> commaSep (map pp (Set.toList x))
       Let x v          -> ppBinder x <+> "=" <+> "copy" <+> pp v
+      PopDebug         -> "popDebug"
+      PushDebug txt    -> ppFun "pushDebug" [ text (show txt) ]
 
 instance PP CInstr where
   pp cintsr =

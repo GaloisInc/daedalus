@@ -5,6 +5,7 @@
 {-# HLINT ignore "Use const" #-}
 module Daedalus.VM.Compile.Grammar where
 
+import qualified Data.Text as Text
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
 import Control.Monad(forM)
@@ -19,7 +20,7 @@ import Daedalus.VM
 import Daedalus.VM.BlockBuilder
 import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.Expr
-
+import Daedalus.PP ( PP(pp) )
 
 compile :: Src.Grammar -> WhatNext -> C (BlockBuilder Void)
 compile expr next0 =
@@ -52,8 +53,22 @@ compile expr next0 =
       case a of
         Src.NoFail -> compile e next { onNo = Nothing }
         -- XXX
-        Src.SrcAnnot _ann -> compile e next    -- XXX:
-        Src.SrcRange ann -> compile e next    -- XXX:
+        Src.SrcAnnot ann ->
+          do d <- getDebugging
+             if d then do
+               next' <- addPops next
+               stuff <- compile e next'
+               pure (stmt_ (PushDebug ann) >> stuff)
+             else
+               compile e next
+        Src.SrcRange ann ->
+          do d <- getDebugging
+             if d then do
+               next' <- addPops next
+               stuff <- compile e next'
+               pure (stmt_ (PushDebug (Text.pack (show (pp ann)))) >> stuff)
+             else
+               compile e next
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next
@@ -205,4 +220,15 @@ sharedYes next =
     Just c  -> do l <- label1 c
                   pure next { onYes = Just \v -> jump (l v) }
 
+addPops :: WhatNext -> C WhatNext
+addPops next =
+  do y <- case onYes next of
+            Just k  -> pure (\e -> stmt_ PopDebug >> k e)
+            Nothing -> do l <- label1 $ \e -> do stmt_ PopDebug >> getInput >>= \i -> term (ReturnYes e i)
+                          pure (jump . l)
+     n <- case onNo next of
+            Just k  -> pure (stmt_ PopDebug >> k)
+            Nothing -> do l <- label0 NormalBlock $ do stmt_ PopDebug >> term ReturnNo
+                          pure (jump l)
+     pure Next{ onYes = Just y, onNo = Just n}
 

@@ -133,6 +133,8 @@ checkI loc ro i count =
   in
   case i of
     Say _           -> checkArgs []
+    PushDebug {}    -> checkArgs []
+    PopDebug  {}    -> checkArgs []
     Output e        -> checkArgs [e]
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
