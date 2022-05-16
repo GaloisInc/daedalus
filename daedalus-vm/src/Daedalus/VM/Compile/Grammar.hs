@@ -5,10 +5,13 @@
 {-# HLINT ignore "Use const" #-}
 module Daedalus.VM.Compile.Grammar where
 
+
+import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
 import Control.Monad(forM)
+import qualified Data.Map as Map
 
 import Daedalus.Panic(panic)
 
@@ -21,6 +24,10 @@ import Daedalus.VM.Compile.BlockBuilder
 import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.Expr
 import Daedalus.PP ( PP(pp) )
+
+
+ppText :: PP a => a -> Text
+ppText = Text.pack . show . pp
 
 compile :: Src.Grammar -> WhatNext -> C (BlockBuilder Void)
 compile expr next0 =
@@ -171,18 +178,35 @@ compile expr next0 =
 
 
     Src.Call f es ->
-      do doCall <-
+      do dbg <- getDebugMode
+         let dbgEnter =
+                case dbg of
+                  NoDebug -> pure ()
+                  DebugStack fs ->
+                    stmt_ (PushDebug case Map.lookup f fs of
+                                       Just rng -> ppText rng
+                                       Nothing  -> ppText f)
+
+
+
+         doCall <-
            case (onNo next, onYes next) of
              (Nothing,Nothing) -> pure \vs ->
-                do i <- getInput
+                do case dbg of
+                     NoDebug -> pure ()
+                     DebugStack {} ->
+                       do stmt_ PopDebug
+                          dbgEnter
+
+                   i <- getInput
                    term $ TailCall f Unknown (i:vs)
 
              _ ->
-
                do noL  <- retNo (nextNo next)
                   yesL <- retYes \v -> nextYes next v
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
+                                 dbgEnter
                                  i <- getInput
                                  term $ Call f Unknown cloNo cloYes (i:vs)
 
