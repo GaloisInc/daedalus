@@ -7,8 +7,8 @@ def Gram1 =
   <| { Match "a"; Gram3}
 
 def Gram2 =
-   Match1 'b'
+   $['b']
 
 def Gram3 =
-  Match1 'c'
+  $['c']
 

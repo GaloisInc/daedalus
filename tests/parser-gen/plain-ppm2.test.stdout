@@ -1,4 +1,4 @@
-[WARNING] ./plain-ppm2.ddl:39:5--39:25:
+[WARNING] ./plain-ppm2.ddl:39:5--39:19:
             Using unbiased choice may be inefficient.
 **********************************
 ***** Strict LLA Transitions *****

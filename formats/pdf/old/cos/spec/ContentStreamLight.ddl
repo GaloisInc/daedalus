@@ -18,18 +18,18 @@ import TextStateOp
 import Unicode
 
 -- ContentStreamOp: an operation in a content stream
-def ContentStreamOp = Choose1 {
-  textStateOp = TextStateOp; -- text state operators outside of object
-  graphicsStateOp = GraphicsStateOp;
-  colourOp = ColourOp;
-  markedPoint = MarkContentPoint;
-  markedSeq = MarkedContentSeqOp;
-}
+def ContentStreamOp = First
+  textStateOp = TextStateOp -- text state operators outside of object
+  graphicsStateOp = GraphicsStateOp
+  colourOp = ColourOp
+  markedPoint = MarkContentPoint
+  markedSeq = MarkedContentSeqOp
 
-def ContentStreamObj = Choose1 {
+
+def ContentStreamObj = First
   textObj = [] : [ TextOp ]
-; csOp = ContentStreamOp
-}
+  csOp = ContentStreamOp
+ 
 
 def CSTextObj (tobj : [ TextOp ]) : ContentStreamObj = {|
   textObj = tobj

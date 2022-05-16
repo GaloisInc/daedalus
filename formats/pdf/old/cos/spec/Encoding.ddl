@@ -16,11 +16,11 @@ import WinEncoding
 -- Character encodings (Sec. 9.6.5)
 
 -- Names of pre-defined encodings:
-def PredefEncodingName = Choose1 {
-  macRoman = @(Match "MacRomanEncoding");
-  macExpert = @(Match "MacExpertEncoding");
-  winAnsi = @(Match "WinAnsiEncoding");
-}
+def PredefEncodingName = First
+  macRoman = @(Match "MacRomanEncoding")
+  macExpert = @(Match "MacExpertEncoding")
+  winAnsi = @(Match "WinAnsiEncoding")
+
 
 -- PredefEncoding: the encodings for each special encoding
 def PredefEncoding (encNm : PredefEncodingName) =

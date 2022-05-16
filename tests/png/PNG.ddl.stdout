@@ -25,12 +25,12 @@ PNG.Header : Grammar {} =
                0x0a]
  
 PNG.BE : Grammar (uint 32) =
-  do (_30 : uint 24) <- do (_28 : uint 16) <- do (_26 : uint 8) <- GetByte
-                                                 (_27 : uint 8) <- GetByte
+  do (_30 : uint 24) <- do (_28 : uint 16) <- do (_26 : uint 8) <- Match UInt8
+                                                 (_27 : uint 8) <- Match UInt8
                                                  pure (_26 # _27)
-                           (_29 : uint 8) <- GetByte
+                           (_29 : uint 8) <- Match UInt8
                            pure (_28 # _29)
-     (_31 : uint 8) <- GetByte
+     (_31 : uint 8) <- Match UInt8
      pure (_30 # _31)
  
 PNG.Length : Grammar (uint 64) =
@@ -60,7 +60,7 @@ PNG.crc (input : [uint 8]) : uint 32 =
 PNG.Chunk : Grammar PNG.Chunk =
   do (len : uint 64) <- PNG.Length
      (chunk_type : [uint 8]) <- PNG.Type
-     (contents : [uint 8]) <- Many[len] GetByte
+     (contents : [uint 8]) <- Many[len] Match UInt8
      (crcField : uint 32) <- PNG.CRC
      (crcCheck : uint 32) <- pure (PNG.crc (concat [chunk_type,
                                                     contents]))
@@ -86,10 +86,10 @@ PNG.Main : Grammar [PNG.Chunk] =
      pure $$
  
 PNG._BE : Grammar {} =
-  do do do @GetByte
-           @GetByte
-        @GetByte
-     @GetByte
+  do do do @Match UInt8
+           @Match UInt8
+        @Match UInt8
+     @Match UInt8
  
 PNG._Length : Grammar {} =
   PNG._BE
@@ -103,7 +103,7 @@ PNG._Type : Grammar {} =
 PNG._Chunk : Grammar {} =
   do (len : uint 64) <- PNG.Length
      PNG._Type
-     @Many[len] @GetByte
+     @Many[len] @Match UInt8
      PNG._CRC
  
 PNG._Main : Grammar {} =

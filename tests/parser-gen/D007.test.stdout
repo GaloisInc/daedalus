@@ -5,7 +5,7 @@ Stack:
     Main callsite __START__
     _A callsite Main (13,13)-(13,13)
     Many (Between (-,-), *)
-Start: _A (4,5)-(4,28)
+Start: _A (4,5)-(4,22)
 SlkCfg{ q:10, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(7),]
@@ -44,7 +44,7 @@ Stack:
     Main callsite __START__
     _B callsite Main (14,13)-(14,13)
     Many (Between (-,-), *)
-Start: _B (8,5)-(8,28)
+Start: _B (8,5)-(8,22)
 SlkCfg{ q:26, ctrl:[?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(21),]

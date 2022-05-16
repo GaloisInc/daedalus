@@ -644,12 +644,7 @@ evalVExpr gbl expr ctrl out =
         TCArray lste _ty ->
           let lev = map (\ ex -> eval env ex) lste
           in Interp.VArray (Vector.fromList lev)
-        TCArrayLength e1 ->
-          let ev = eval env e1
-          in
-          case ev of
-            Interp.VArray v -> Interp.VUInt 64 (fromIntegral $ length v)
-            _ -> error "should be an array"
+
         TCCase e1 lpat defaultp ->
           loop (NonEmpty.toList lpat)
 

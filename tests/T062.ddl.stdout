@@ -7,9 +7,9 @@ module T062
 --- Rules:
  
 T062.Main : Grammar bool =
-  do (x : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
      ($$ : bool) <- pure (if (x == 2) then true else if (x == 3) then x == 4 else false)
      pure $$
  
 T062._Main : Grammar {} =
-  @GetByte
+  @Match UInt8

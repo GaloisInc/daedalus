@@ -158,7 +158,6 @@ data TCF :: HS -> Ctx -> HS where
    -- This is just a tag for error reporting.
    TCLabel      :: Text -> TC a Grammar -> TCF a Grammar
 
-   TCGetByte    :: WithSem -> TCF a Grammar
    TCMatch      :: WithSem -> TC a Class -> TCF a Grammar
    TCMatchBytes :: WithSem -> TC a Value -> TCF a Grammar
 
@@ -181,7 +180,6 @@ data TCF :: HS -> Ctx -> HS where
    TCMapInsert  :: WithSem -> TC a Value -> TC a Value -> TC a Value -> TCF a Grammar
 
    -- Array operations
-   TCArrayLength :: TC a Value -> TCF a Value
    TCArrayIndex  :: WithSem -> TC a Value -> TC a Value -> TCF a Grammar -- Partial
 
    -- coercion
@@ -473,7 +471,6 @@ instance PP (TCF a k) where
 
       TCLabel l p    -> "{-" <+> pp l <+> "-}" <+> ppPrec n p
 
-      TCGetByte s    -> annotKW' s "GetByte"
       TCMatch s b    -> wrapIf (n > 0) (annotKW' s "Match" <+> ppPrec 1 b)
 
       TCMatchBytes s b -> wrapIf (n > 0)
@@ -487,9 +484,6 @@ instance PP (TCF a k) where
                                 <+> ppPrec 1 k <+> ppPrec 1 v <+> ppPrec 1 m)
       TCMapLookup s k m ->
           wrapIf (n > 0) (annotKW' s "Lookup" <+> ppPrec 1 k <+> ppPrec 1 m)
-
-      TCArrayLength e ->
-          wrapIf (n > 0) ("Length" <+> ppPrec 1 e)
 
       TCArrayIndex s v ix ->
           wrapIf (n > 0) (annotKW' s "Index" <+> ppPrec 1 v <+> ppPrec 1 ix)
@@ -1013,8 +1007,6 @@ instance TypeOf (TCF a k) where
 
       TCLabel _ e     -> typeOf e
 
-      TCGetByte s     -> tGrammar (mbTy s tByte)
-
       TCMatch s _     -> tGrammar (mbTy s tByte)
       TCMatchBytes s _-> tGrammar (mbTy s (tArray tByte))
       TCEnd           -> tGrammar tUnit
@@ -1025,7 +1017,6 @@ instance TypeOf (TCF a k) where
       TCMapLookup s _ m   -> let Type (TMap _ vt) = typeOf m
                              in tGrammar (mbTy s vt)
 
-      TCArrayLength _    -> tSize
       TCArrayIndex s e _ -> let Type (TArray t) = typeOf e
                             in tGrammar (mbTy s t)
 
@@ -1059,6 +1050,7 @@ instance TypeOf (TCF a k) where
         case op of
           Not    -> tBool
           Neg    -> typeOf e
+          ArrayLength -> tSize
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e

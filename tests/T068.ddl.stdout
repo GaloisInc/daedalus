@@ -14,13 +14,13 @@ type T068.Main = Choose { B: T068.Nested
 --- Rules:
  
 T068.Nested : Grammar T068.Nested =
-  do (x : uint 8) <- GetByte
-     (y : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
+     (y : uint 8) <- Match UInt8
      pure {x = x,
            y = y}
  
 T068.Main : Grammar T068.Main =
-  do (tag : uint 8) <- GetByte
+  do (tag : uint 8) <- Match UInt8
      ($$ : T068.Main) <- case tag is
                            { 0x01 -> {- case branch  0x01 -} pure {A: {}}
                            ; 0x02 -> {- case branch  0x02 -} do (_6 : T068.Nested) <- T068.Nested
@@ -29,11 +29,11 @@ T068.Main : Grammar T068.Main =
      pure $$
  
 T068._Nested : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
  
 T068._Main : Grammar {} =
-  do (tag : uint 8) <- GetByte
+  do (tag : uint 8) <- Match UInt8
      case tag is
        { 0x01 -> {- case branch  0x01 -} pure {}
        ; 0x02 -> {- case branch  0x02 -} T068._Nested

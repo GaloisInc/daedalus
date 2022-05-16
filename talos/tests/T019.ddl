@@ -3,10 +3,10 @@
 def Main = {
   r = Choose {
     left  = { 
-      x = Match1 ('a'..'z'); 
-      y = Match1 ('a'..'z'); 
+      x = $['a'..'z']; 
+      y = $['a'..'z']; 
     };
-    right = { a = Match1 ('a'..'z') };
+    right = { a = $['a'..'z'] };
   };
   Choose {
     first  = { 

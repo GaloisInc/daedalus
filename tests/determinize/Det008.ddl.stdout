@@ -1,4 +1,4 @@
-[WARNING] ./Det008.ddl:7:10--7:81:
+[WARNING] ./Det008.ddl:7:10--7:62:
             Using unbiased choice may be inefficient.
 module Det008
  

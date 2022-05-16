@@ -126,7 +126,6 @@ instance Unify (TCF a k) where
            u2' <- variableCheck x x' u2
            mergeUnifiers u1 u2'
 
-      ( TCGetByte s         , TCGetByte s'    ) | s == s' -> pure emptyUnifier
       ( TCMatch s b         , TCMatch s' b'   ) | s == s' -> unify b b'
 
       ( TCMatchBytes s b    , TCMatchBytes s' b' ) | s == s' -> unify b b'

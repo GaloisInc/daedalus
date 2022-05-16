@@ -47,7 +47,7 @@ D022.todo.Marker (x : uint 8) : Grammar [uint 8] =
  
 D022.todo.SomeMarker (front : uint 4) : Grammar (uint 4) =
   do @Match {0xFF}
-     (tag : uint 8) <- GetByte
+     (tag : uint 8) <- Match UInt8
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
      case upper == front is
        { true -> pure {}
@@ -56,8 +56,8 @@ D022.todo.SomeMarker (front : uint 4) : Grammar (uint 4) =
      pure $$
  
 D022.todo.BE16 : Grammar (uint 16) =
-  do (_65 : uint 8) <- GetByte
-     (_66 : uint 8) <- GetByte
+  do (_65 : uint 8) <- Match UInt8
+     (_66 : uint 8) <- Match UInt8
      pure (_65 # _66)
  
 D022.todo.NonZero ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar ?a0 =
@@ -102,7 +102,7 @@ D022.todo._Marker (x : uint 8) : Grammar {} =
  
 D022.todo.COM : Grammar [uint 8] =
   do D022.todo._Marker 0xFE
-     ($$ : [uint 8]) <- D022.todo.Payload [uint 8] (Many[] GetByte)
+     ($$ : [uint 8]) <- D022.todo.Payload [uint 8] (Many[] Match UInt8)
      pure $$
  
 D022.todo.APP ?a0 (x : uint 4) (P : Grammar ?a0) : Grammar ?a0 =
@@ -111,21 +111,21 @@ D022.todo.APP ?a0 (x : uint 4) (P : Grammar ?a0) : Grammar ?a0 =
      pure $$
  
 D022.todo.FrameComponent : Grammar D022.todo.FrameComponent =
-  do (identifier : uint 8) <- GetByte
-     (samplingFactors : uint 8) <- GetByte
+  do (identifier : uint 8) <- Match UInt8
+     (samplingFactors : uint 8) <- Match UInt8
      (hoizontalSampling : uint 4) <- pure (samplingFactors >> 4 as uint 4)
      (verticalSampling : uint 4) <- pure (samplingFactors as uint 4)
-     (quantTableSel : uint 8) <- GetByte
+     (quantTableSel : uint 8) <- Match UInt8
      pure {identifier = identifier,
            hoizontalSampling = hoizontalSampling,
            verticalSampling = verticalSampling,
            quantTableSel = quantTableSel}
  
 D022.todo.SOFPayload : Grammar D022.todo.SOFPayload =
-  D022.todo.Payload D022.todo.SOFPayload do (samplePrecision : uint 8) <- GetByte
+  D022.todo.Payload D022.todo.SOFPayload do (samplePrecision : uint 8) <- Match UInt8
                                             (numberOfLines : uint 16) <- D022.todo.BE16
                                             (numberOfSamplesPerLine : uint 16) <- D022.todo.BE16
-                                            (comNumber : uint 64) <- do (_72 : uint 8) <- GetByte
+                                            (comNumber : uint 64) <- do (_72 : uint 8) <- Match UInt8
                                                                         pure (_72 as uint 64)
                                             (components : [D022.todo.FrameComponent]) <- Many[comNumber] D022.todo.FrameComponent
                                             pure {samplePrecision = samplePrecision,
@@ -148,8 +148,8 @@ D022.todo.DRI : Grammar (uint 16) =
      pure $$
  
 D022.todo.SOSComponent : Grammar D022.todo.SOSComponent =
-  do (id : uint 8) <- GetByte
-     (table : uint 8) <- GetByte
+  do (id : uint 8) <- Match UInt8
+     (table : uint 8) <- Match UInt8
      (acTable : uint 4) <- pure (table as uint 4)
      (dcTable : uint 4) <- pure (table >> 4 as uint 4)
      pure {id = id,
@@ -157,11 +157,11 @@ D022.todo.SOSComponent : Grammar D022.todo.SOSComponent =
            dcTable = dcTable}
  
 D022.todo.SOSHeader : Grammar D022.todo.SOSHeader =
-  do (componentNum : uint 8) <- GetByte
+  do (componentNum : uint 8) <- Match UInt8
      (components : [D022.todo.SOSComponent]) <- Many[componentNum as uint 64] D022.todo.SOSComponent
-     (ss : uint 8) <- GetByte
-     (se : uint 8) <- GetByte
-     (a : uint 8) <- GetByte
+     (ss : uint 8) <- Match UInt8
+     (se : uint 8) <- Match UInt8
+     (a : uint 8) <- Match UInt8
      (ah : uint 4) <- pure (a >> 4 as uint 4)
      (al : uint 4) <- pure (a as uint 4)
      pure {components = components,
@@ -239,11 +239,11 @@ D022.todo._Payload ?a0 (_P : Grammar {}) : Grammar {} =
  
 D022.todo._COM : Grammar {} =
   do D022.todo._Marker 0xFE
-     D022.todo._Payload [uint 8] (@Many[] @GetByte)
+     D022.todo._Payload [uint 8] (@Many[] @Match UInt8)
  
 D022.todo._BE16 : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
  
 D022.todo._DRI : Grammar {} =
   do D022.todo._Marker 0xDD
@@ -267,7 +267,7 @@ D022.todo.Main : Grammar {} =
  
 D022.todo._SomeMarker (front : uint 4) : Grammar {} =
   do @Match {0xFF}
-     (tag : uint 8) <- GetByte
+     (tag : uint 8) <- Match UInt8
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
      case upper == front is
        { true -> pure {}
@@ -284,15 +284,15 @@ D022.todo._APP ?a0 (x : uint 4) (_P : Grammar {}) : Grammar {} =
      D022.todo._Payload ?a0 _P
  
 D022.todo._FrameComponent : Grammar {} =
-  do @GetByte
-     @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
+     @Match UInt8
  
 D022.todo._SOFPayload : Grammar {} =
-  D022.todo._Payload D022.todo.SOFPayload do @GetByte
+  D022.todo._Payload D022.todo.SOFPayload do @Match UInt8
                                              D022.todo._BE16
                                              D022.todo._BE16
-                                             (comNumber : uint 64) <- do (_72 : uint 8) <- GetByte
+                                             (comNumber : uint 64) <- do (_72 : uint 8) <- Match UInt8
                                                                          pure (_72 as uint 64)
                                              @Many[comNumber] D022.todo._FrameComponent
  
@@ -304,15 +304,15 @@ D022.todo._SomeSOF : Grammar {} =
      D022.todo._SOFPayload
  
 D022.todo._SOSComponent : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
  
 D022.todo._SOSHeader : Grammar {} =
-  do (componentNum : uint 8) <- GetByte
+  do (componentNum : uint 8) <- Match UInt8
      @Many[componentNum as uint 64] D022.todo._SOSComponent
-     @GetByte
-     @GetByte
-     @GetByte
+     @Match UInt8
+     @Match UInt8
+     @Match UInt8
  
 D022.todo._EntropyEncodedByte : Grammar {} =
   Choose biased

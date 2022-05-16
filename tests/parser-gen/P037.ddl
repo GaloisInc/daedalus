@@ -2,5 +2,5 @@
 
 def Main = {
   SetStream (arrayStream "hello" [ 3 ]);
-  Match1 3
+  $[3]
 }

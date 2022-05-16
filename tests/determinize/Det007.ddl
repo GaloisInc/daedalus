@@ -2,10 +2,10 @@
 
 def Main = { Test1; Test2; Test3; Test4; END }
 
-def A = Match1 'a'
-def B = Match1 'b'
-def C = Match1 'c'
-def D = Match1 'd'
+def A = $['a']
+def B = $['b']
+def C = $['c']
+def D = $['d']
 
 def Test1 = ({A ; B} | B) <| A
 

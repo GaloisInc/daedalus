@@ -2,7 +2,7 @@
 
 
 def A x =
-  @Match1 x
+  @$[x]
 
 def Main =
   { A 97 -- 'a'

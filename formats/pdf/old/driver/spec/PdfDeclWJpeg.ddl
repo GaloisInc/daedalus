@@ -11,10 +11,10 @@ def TopDecl = {
   Match "endobj";
 }
 
-def TopDeclDef (val : Value) = Choose1 {
-  stream = Stream val;
+def TopDeclDef (val : Value) = First
+  stream = Stream val
   value  = ^ val
-}
+
 
 def Stream (val : Value) = {
   header = val is dict;
@@ -162,7 +162,7 @@ def FilterParam param =
 def Decrypt (body : stream) 
             : stream 
 
-def ApplyFilter (f : Filter) (body : stream) = Choose1 {
+def ApplyFilter (f : Filter) (body : stream) = First
 
   ok = {
     Guard (f.name == "FlateDecode");
@@ -177,7 +177,7 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
                 params.bpc
                 params.columns
                 body;
-  };
+    }
 
   ok = {
     Guard (f.name == "LZWDecode"); 
@@ -192,19 +192,19 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
               params.columns
               params.earlychange
               body;
-  }; 
+    }
 
   ok = {
     Guard (f.name == "ASCIIHexDecode");
     commit;
     ASCIIHexDecode body;
-  }; 
+    }
 
   ok = {
     Guard (f.name == "ASCII85Decode");
     commit;
     ASCII85Decode body;
-  }; 
+    }
 
   ok = { 
     Guard (f.name == "DCTDecode");
@@ -212,12 +212,12 @@ def ApplyFilter (f : Filter) (body : stream) = Choose1 {
     commit;
     WithStream body Jpeg;
     ^ body
-  };
+    }
 
   -- | ... others ...
   unsupported = { f.param is nothing; ^ f.name }
              <| ^ concat [ f.name, " (with params)" ]
-}
+
 
 -- XXX: some more checking (e.g., predictor 1 does not support the other ps)
 def FlateDecodeParams (params : maybe [ [uint 8] -> Value ]) =

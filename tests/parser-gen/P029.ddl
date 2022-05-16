@@ -3,10 +3,10 @@
 def Inner =
   Choose
   { x = Match ""
-  ; y = { @u = Match1 'a'; @v = A; @w = Match1 'b'}
-  ; z = { @u = Match1 'c'; @v = A; @w = Match1 'd'}
+  ; y = { @u = $['a']; @v = A; @w = $['b']}
+  ; z = { @u = $['c']; @v = A; @w = $['d']}
   }
 
-def A = {@op = Match1 '<'; @m = Inner; @cl = Match1 '>'}
+def A = {@op = $['<']; @m = Inner; @cl = $['>']}
 
 def Main = {x = A; END}

@@ -18,7 +18,7 @@ type T049.TD = { obj: T049.TDDef
  
 T049.V : Grammar T049.V =
   Choose biased
-    { {- num -} do (_9 : uint 8) <- GetByte
+    { {- num -} do (_9 : uint 8) <- Match UInt8
                    pure {num: _9}
     | {- null -} do (_10 : {}) <- pure {}
                     pure {null: _10}
@@ -47,7 +47,7 @@ T049.TD : Grammar T049.TD =
  
 T049._V : Grammar {} =
   Choose biased
-    { {- num -} @GetByte
+    { {- num -} @Match UInt8
     | {- null -} pure {}
     }
  

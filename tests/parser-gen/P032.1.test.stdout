@@ -1,6 +1,6 @@
-[WARNING] ./P032.ddl:30:5--33:5:
+[WARNING] ./P032.ddl:29:5--32:5:
             Using unbiased choice may be inefficient.
-[WARNING] ./P032.ddl:23:3--26:3:
+[WARNING] ./P032.ddl:22:3--25:3:
             Using unbiased choice may be inefficient.
 --- Found 1 results:
 { }

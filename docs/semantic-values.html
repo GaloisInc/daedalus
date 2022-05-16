@@ -101,8 +101,9 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#array-builders">Array Builders</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#association-maps">Association Maps</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#builders">Builders</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#streams">Streams</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
@@ -235,6 +236,28 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </div>
 <p>To visit all elements in array you may use a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
 </div>
+<div class="section" id="array-builders">
+<h2>Array Builders<a class="headerlink" href="#array-builders" title="Permalink to this headline"></a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">builder</span></code> is a datastructure that helps build arrays.
+To build an array, start with the empty builder <code class="docutils literal notranslate"><span class="pre">builder</span></code> and use
+<code class="docutils literal notranslate"><span class="pre">emit</span></code> to add elements to the builder.  Once all elements have been
+added, you may use <code class="docutils literal notranslate"><span class="pre">build</span></code> to convert the <code class="docutils literal notranslate"><span class="pre">builder</span></code> to an array.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- empty builder</span>
+<span class="k">builder</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+
+<span class="k">emit</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+
+<span class="c">-- Add an array of element to the end of the builder</span>
+<span class="k">emitArray</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="p">[</span><span class="n">?a</span><span class="p">])</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+
+<span class="c">-- Add a builder at the end of another builder</span>
+<span class="k">emitBuilder</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+
+<span class="c">-- Turn a builder into an array</span>
+<span class="n">build</span> <span class="p">(</span><span class="n">b</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="p">[</span><span class="n">?a</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="association-maps">
 <h2>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this headline"></a></h2>
 <p>The type of association maps with keys of type <code class="docutils literal notranslate"><span class="pre">K</span></code> and elements of type
@@ -261,25 +284,27 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 <p>To visit all elements of an association map you may use a
 <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
 </div>
-<div class="section" id="builders">
-<h2>Builders<a class="headerlink" href="#builders" title="Permalink to this headline"></a></h2>
-<p>A <code class="docutils literal notranslate"><span class="pre">builder</span></code> is a datastructure that helps build arrays.
-To build an array, start with the empty builder <code class="docutils literal notranslate"><span class="pre">builder</span></code> and use
-<code class="docutils literal notranslate"><span class="pre">emit</span></code> to add elements to the builder.  Once all elements have been
-added, you may use <code class="docutils literal notranslate"><span class="pre">build</span></code> to convert the <code class="docutils literal notranslate"><span class="pre">builder</span></code> to an array.</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- empty builder</span>
-<span class="k">builder</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+<div class="section" id="streams">
+<h2>Streams<a class="headerlink" href="#streams" title="Permalink to this headline"></a></h2>
+<p>The type <code class="docutils literal notranslate"><span class="pre">stream</span></code> is for values representing streams of data that
+can be parserd by a parser.   See <a class="reference internal" href="streams.html#stream-manipulation"><span class="std std-ref">Stream Manipulation</span></a> for more examples
+of how to manipualte the parser’s stream.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- Get the current stream for the parser</span>
+<span class="k">GetStream</span> <span class="p">:</span> <span class="k">stream</span>
 
-<span class="k">emit</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+<span class="c">-- Restrict a stream to the fist `n` bytes.</span>
+<span class="c">-- Will fail if the stream does not have enough bytes</span>
+<span class="k">Take</span> <span class="p">(</span><span class="n">n</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span> <span class="p">(</span><span class="n">s</span> <span class="p">:</span> <span class="k">stream</span><span class="p">)</span> <span class="p">:</span> <span class="k">stream</span>
 
-<span class="c">-- Add an array of element to the end of the builder</span>
-<span class="k">emitArray</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="p">[</span><span class="n">?a</span><span class="p">])</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+<span class="c">-- Advance a stream by `n` bytes.</span>
+<span class="c">-- Will fail if the stream does not have enough bytes</span>
+<span class="k">Drop</span> <span class="p">(</span><span class="n">n</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span> <span class="p">(</span><span class="n">s</span> <span class="p">:</span> <span class="k">stream</span><span class="p">)</span> <span class="p">:</span> <span class="k">stream</span>
 
-<span class="c">-- Add a builder at the end of another builder</span>
-<span class="k">emitBuilder</span> <span class="p">(</span><span class="n">front</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">(</span><span class="n">back</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span>
+<span class="c">-- Make a stream with the given name and bytes to parser</span>
+<span class="k">arrayStream</span> <span class="p">(</span><span class="n">name</span> <span class="p">:</span> <span class="p">[</span><span class="k">uint</span> <span class="m">8</span><span class="p">])</span> <span class="p">(</span><span class="n">data</span> <span class="p">:</span> <span class="p">[</span><span class="k">uint</span> <span class="m">8</span><span class="p">])</span> <span class="p">:</span> <span class="k">stream</span>
 
-<span class="c">-- Turn a builder into an array</span>
-<span class="n">build</span> <span class="p">(</span><span class="n">b</span> <span class="p">:</span> <span class="k">builder</span> <span class="n">?a</span><span class="p">)</span> <span class="p">:</span> <span class="p">[</span><span class="n">?a</span><span class="p">]</span>
+<span class="c">-- Get the bytes associates with a stream as an array</span>
+<span class="k">bytesOfStream</span> <span class="p">(</span><span class="n">s</span> <span class="p">:</span> <span class="k">stream</span><span class="p">)</span> <span class="p">:</span> <span class="p">[</span><span class="k">uint</span> <span class="m">8</span><span class="p">]</span>
 </pre></div>
 </div>
 </div>

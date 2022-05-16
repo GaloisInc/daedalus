@@ -641,6 +641,7 @@ hsValue env tc =
         Neg               -> "RTS.neg" `Ap` hsValue env v
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
+        ArrayLength       -> "Vector.length" `Ap` hsValue env v
         WordToFloat       -> "RTS.wordToFloat" `Ap` hsValue env v
         WordToDouble      -> "RTS.wordToDouble" `Ap` hsValue env v
         IsNaN             -> "HS.isNaN" `Ap` hsValue env v
@@ -665,7 +666,6 @@ hsValue env tc =
     TCFor lp -> evalFor env lp
 
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
-    TCArrayLength e -> "Vector.length" `Ap` hsValue env e
 
     TCCase e as d -> hsCase hsValue err env e as d
       where err = "HS.error" `Ap` Raw (describeAlts as)
@@ -780,8 +780,6 @@ hsGrammar env tc =
                          (hsGrammar env m2)
 
      TCLabel t e -> "RTS.pEnter" `Ap` hsText t `Ap` hsGrammar env e
-     TCGetByte s -> optSkip s "RTS.uint8"
-                    ("RTS.pByte" `Ap` erng)
 
      TCMatch s c -> optSkip s "RTS.uint8"
                     ("RTS.pMatch1" `Ap` erng `Ap` hsByteClass env c)

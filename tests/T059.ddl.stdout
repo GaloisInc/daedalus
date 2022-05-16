@@ -21,13 +21,13 @@ import T059_A
 --- Rules:
  
 T059.P1 : Grammar (uint 8) =
-  T059_A.F (uint 8) GetByte
+  T059_A.F (uint 8) (Match UInt8)
  
 T059.P2 : Grammar (uint 8) =
   T059_A.F (uint 8) T059.P1
  
 T059._P1 : Grammar {} =
-  T059_A._F (uint 8) @GetByte
+  T059_A._F (uint 8) (@Match UInt8)
  
 T059.Main : Grammar (uint 8) =
   do T059._P1

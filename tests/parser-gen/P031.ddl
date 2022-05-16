@@ -1,13 +1,13 @@
 {- Check the Map grammar operator -}
 
 def A =
-    { x = Many (Match1 'a')
+    { x = Many $['a']
     ; y = map (z in x)
-          { @t = Match1 'b'
+          { @t = $['b']
           ; ^ 'c'
           }
     ; z = map (x in y)
-          { @t = Match1 'd'
+          { @t = $['d']
           ; ^ x
           }
     }

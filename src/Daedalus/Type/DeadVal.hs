@@ -282,7 +282,6 @@ mbSem tc =
       do (m',i) <- mbSem m
          pure (exprAt tc (TCLabel l m'),i)
 
-    TCGetByte {}      -> pure (tc, tcFree tc)
     TCMatch {}        -> pure (tc, tcFree tc)
     TCMatchBytes {}   -> pure (tc, tcFree tc)
     TCEnd             -> pure (tc, tcFree tc)
@@ -376,7 +375,6 @@ noSem' tc =
        do (m',i) <- noSem' m
           pure (exprAt tc (TCLabel l m'), i)
 
-     TCGetByte _      -> pure (exprAt tc (TCGetByte NoSem),   mempty)
      TCMatch _ c      -> pure (exprAt tc (TCMatch   NoSem c), tcFree c)
      TCMatchBytes _ v -> pure (exprAt tc (TCMatchBytes NoSem v), tcFree v)
 

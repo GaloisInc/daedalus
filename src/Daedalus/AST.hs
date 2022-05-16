@@ -273,7 +273,6 @@ data ExprF e =
   | EBuilder -- ^ empty builder value
 
   -- Array operations
-  | EArrayLength !e
   | EArrayIndex  !e !e  -- x[y], partial so a grammar
 
   | EPure !e
@@ -329,6 +328,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
   deriving (Show, Eq, Lift)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
+           | ArrayLength
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
@@ -529,6 +529,7 @@ instance PP UniOp where
       Not    -> "!"
       Neg    -> "-"
       Concat -> "concat"
+      ArrayLength -> "length"
       BitwiseComplement -> "~"
       WordToFloat     -> "wordToFloat"
       WordToDouble    -> "wordToDouble"

@@ -11,7 +11,7 @@ def Chunk n P =  {
 }
 
 def PadWSpaces n P =
-  Chunk n {$$ = P; Many (Match1 ' '); END}
+  Chunk n {$$ = P; Many $[' ']; END}
 
 def Main =
   { @a = Choose

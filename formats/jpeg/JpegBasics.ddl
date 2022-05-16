@@ -21,7 +21,7 @@ def Segment =
     segmentEnd   = Offset
 
 def SegmentBody =
-  Choose1
+  First
     comment = COM
     dri     = DRI
     sof     = SomeSOF
@@ -30,7 +30,7 @@ def SegmentBody =
     dqt     = DQT
     dht     = DHT
     rst     = SomeRST
-    extra   = @(UInt8 (!0xFF)) -- unexpected data
+    extra   = @$[!0xFF] -- unexpected data
 
 
 
@@ -41,7 +41,7 @@ def Marker x = Match [ 0xFF, x ]
 -- For families of markers, such as APP or SOF
 def SomeMarker (front : uint 4) =
   block
-    UInt8 0xFF
+    $[0xFF]
     let tag   = UInt8
     let upper = (tag >> 4) as! uint 4
     upper == front is true
@@ -72,7 +72,7 @@ def APP (x : uint 4) P =
     Payload P
 
 -- Application specific, uninterpreted
-def SomeAPP = Choose1
+def SomeAPP = First
   jfif  = JFIF_APP0
   exif  = Exif_APP1
   other = UnknownApp
@@ -167,7 +167,7 @@ def QT =
     number   = info as! uint 4
     let precision = info as! uint 4
     data =
-      Choose1
+      First
         bit8  = { precision == 0 is true; Many 64 UInt8; }
         bit16 = { precision == 1 is true; Many 64 BE16;  }
 
@@ -182,14 +182,14 @@ def SomeRST =
     ($$ < 8) is true
 
 def EntropyEncodedEntry =
-  Choose1
+  First
     restart = SomeRST
     bytes   = Many (1..) EntropyEncodedByte
 
 def EntropyEncodedByte =
-  Choose1
-    block $$ = UInt8 0xFF; UInt8 0x00
-    UInt8 (!0xFF)
+  First
+    block $$ = $[0xFF]; $[0x00]
+    $[ !0xFF ]
 
 
 
@@ -215,10 +215,10 @@ def RGB = {
 }
 
 def DensityUnits =
-  Choose1
-    NoUnits     = Match1 0
-    Inches      = Match1 1
-    Centimeters = Match1 2
+  First
+    NoUnits     = @$[0]
+    Inches      = @$[1]
+    Centimeters = @$[2]
   <| Fail "Invalid density unit"
 
 
@@ -239,7 +239,7 @@ def TIFFHeader = block
   start = Word32 e
   start == 8 is true      -- assume first comes right after
 
-def Endian = Choose1
+def Endian = First
   LE = @Match "II"
   BE = @Match "MM"
 
@@ -249,7 +249,7 @@ def IFD e =
     entries      = Many entryNum (IFDEntry e)
     next         = Word32 e
 
-def IFDEntry e = Choose1
+def IFDEntry e = First
   imageWidth  = NumericTag e 0x100
   imageHeight = NumericTag e 0x101
   -- bits per sample

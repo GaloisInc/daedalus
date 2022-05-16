@@ -5,14 +5,14 @@ def Unit = ^{}
 
 def IgnoreResult P : {} = {P; ^{}}
 
-def Void = Choose1 { }
+def Void = Fail "Void"
 
-def FoldMany P acc = Choose1 {
+def FoldMany P acc = First
   { @acc0 = P acc;
     FoldMany P acc0
-  };
+    }
   ^ acc
-}
+
 
 def Const P x = P
 

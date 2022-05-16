@@ -78,6 +78,7 @@
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#case">Case</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html#commit">Commit</a></li>
 </ul>
 </li>
@@ -101,6 +102,7 @@
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#builders">Builders</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
@@ -137,10 +139,58 @@
              
   <div class="section" id="character-classes">
 <span id="id1"></span><h1>Character Classes<a class="headerlink" href="#character-classes" title="Permalink to this headline"></a></h1>
-<div class="admonition-todo admonition" id="id2">
-<p class="admonition-title">Todo</p>
-<p>This section needs to be written</p>
+<p>A “character” class describes a set of bytes.</p>
+<p>Character classes may be named using definitions like this:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">$x</span> <span class="k">=</span> <span class="n">CHAR</span>_<span class="n">CLASS</span>
+</pre></div>
 </div>
+<p>A character class may be used as a parser which matches a single byte,
+using the construct <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">CHAR_CLASS</span> <span class="pre">]</span></code>.   Named character classes,
+such as <code class="docutils literal notranslate"><span class="pre">$x</span></code> or <code class="docutils literal notranslate"><span class="pre">$any</span></code> may be used directly as a byte parser
+(i.e.,
+writing <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">$x</span> <span class="pre">]</span></code> is the same as just writing <code class="docutils literal notranslate"><span class="pre">$x</span></code> in a parser context).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 76%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><em>byte literal</em></p></td>
+<td><p>Match the literal exactly.
+For example <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">'a'</span></code>, <code class="docutils literal notranslate"><span class="pre">0xFF</span></code>, <code class="docutils literal notranslate"><span class="pre">0b11111111</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&quot;abc&quot;</span></code></p></td>
+<td><p>Match one of <code class="docutils literal notranslate"><span class="pre">'a'</span></code>, <code class="docutils literal notranslate"><span class="pre">'b'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'c'</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">x</span></code></p></td>
+<td><p>Match the byte corresponding to the value of <code class="docutils literal notranslate"><span class="pre">x</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
+<td><p>Match any byte matched by character class <code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">$any</span></code></p></td>
+<td><p>Match any byte</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span></code></p></td>
+<td><p>Match bytes in the given range, inclusive</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">..</span> <span class="pre">'9'</span></code></p></td>
+<td><p>Match bytes less than or equal to <code class="docutils literal notranslate"><span class="pre">'9'</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">'0'</span> <span class="pre">..</span></code></p></td>
+<td><p>Match bytes greater than or equal to <code class="docutils literal notranslate"><span class="pre">'0'</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">$x</span> <span class="pre">|</span> <span class="pre">$y</span></code></p></td>
+<td><p>Match byte that either match <code class="docutils literal notranslate"><span class="pre">$x</span></code> or <code class="docutils literal notranslate"><span class="pre">$y</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">$x</span> <span class="pre">-</span> <span class="pre">$y</span></code></p></td>
+<td><p>Match bytes that are in <code class="docutils literal notranslate"><span class="pre">$x</span></code> but not in <code class="docutils literal notranslate"><span class="pre">$y</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">!</span> <span class="pre">$x</span></code></p></td>
+<td><p>Match bytes that do not match chararcter class <code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
+</tr>
+</tbody>
+</table>
 </div>
 
 

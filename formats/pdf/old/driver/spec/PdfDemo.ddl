@@ -103,15 +103,15 @@ def safeSafetyInfo = safetyInfo false false
 def ValueIsSafe (v : Value) =
   case v of
     dict  d   -> -- Check to see whether it contains a JS action
-                 Choose1 {
-                    When  (DictIsAction "JavaScript" d) (safetyInfo true false);
-                    When  (DictIsAction "URI" d) (safetyInfo false true);
+                 First
+                    When  (DictIsAction "JavaScript" d) (safetyInfo true false)
+                    When  (DictIsAction "URI" d) (safetyInfo false true)
                     (for (acc = safeSafetyInfo; v in d) {
                         @r = ValueIsSafe v;
                         ^ mergeSafetyInfo acc r;
                         }
-                    )
-                 }
+                      )
+
     array arr -> for (acc = safeSafetyInfo; v in arr) {
                    @r = ValueIsSafe v;
                    ^ mergeSafetyInfo acc r;

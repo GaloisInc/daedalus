@@ -10,11 +10,11 @@ type P010.Main = { x: uint 8
 --- Rules:
  
 P010.Main : Grammar P010.Main =
-  do (x : uint 8) <- GetByte
-     (y : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
+     (y : uint 8) <- Match UInt8
      pure {x = x,
            y = y}
  
 P010._Main : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8

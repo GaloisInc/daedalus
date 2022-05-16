@@ -9,8 +9,8 @@ import bin_expr_lib
 
 -- Atom: numeric constants and variables
 def Atom = Choose {
-  const = Some (Match1 ('0' .. '9')) ;
-  var = Some (Match1 ('a' .. 'z')) ;
+  const = Some $['0' .. '9'];
+  var = Some $['a' .. 'z'];
 }
 
 -- Opcode: the binary opcodes
@@ -33,19 +33,19 @@ def Div : Opcode = {| div = ^{} |}
 
 -- Op: parse an operand, return its left and right binding strengths:
 def Op = 
-  { Match1 '+' ;
+  { $['+'] ;
     { opcode = Plus ;
       left_bp = ^ (1 : int);
       right_bp = ^ (2 : int) } } |
-  { Match1 '-' ;
+  { $['-'] ;
     { opcode = Minus ;
       left_bp = ^ (1 : int);
       right_bp = ^ (2 : int) } } |
-  { Match1 '*' ;
+  { $['*'] ;
     { opcode = Mult ;
       left_bp = ^ (3 : int);
       right_bp = ^ (4 : int) } } |
-  { Match1 '/' ;
+  { $['/'] ;
     { opcode = Div ;
       left_bp = ^ (3 : int);
       right_bp = ^ (4 : int) } } 

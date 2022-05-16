@@ -28,9 +28,9 @@ def FDT = DateTime
 
 def FTITLE = Many 80 ECSA
 
-def FSCLAS = Match1 ('T' | 'S' | 'C' | 'R' | 'U')
+def FSCLAS = $['T' | 'S' | 'C' | 'R' | 'U']
 
-def Digraph = Many (1..) (Match1 ('A'..'Z'))
+def Digraph = Many (1..) $['A'..'Z']
 
 -- TODO: Field must contain valid codes per FIPS PUB 10-4, "XN", or "  "
 -- TODO: Field must be set if any of the following are set: FSCODE,
@@ -38,14 +38,13 @@ def Digraph = Many (1..) (Match1 ('A'..'Z'))
 --       FSCAUT, FSCRSN, FSSRDT, and FSCTLN
 def FSCLSY = Digraph <| Match "  "
 
-def DigraphSeq = Choose1 {
+def DigraphSeq = First
   { @d = Digraph;
-    @ds = Many { Match1 ' '; $$ = Digraph};
-    Many (Match1 ' ');
+    @ds = Many { $[' ']; $$ = Digraph};
+    Many $[' '];
     END;
-    ^ just (concat [ [d], ds ]) };
-  {Many (Match1 ' '); END; ^ nothing};
-}
+    ^ just (concat [ [d], ds ]) }
+  {Many $[' ']; END; ^ nothing}
 
 
 -- def FSCODE = Many 11 ' ' -- Chunk 11 DigraphSeq
@@ -58,26 +57,25 @@ def FSCTLH = Digraph <| Match "  "
 def FSREL = Chunk 20 DigraphSeq
 
 -- Unclear how to pad single characters here...
-def FSDCTP = Choose1 {
-  dd = @Match "DD" ;
-  de = @Match "DE" ;
-  gd = @Match "GD" ;
-  ge = @Match "GE" ;
-  o  = @Match "O " ;
-  x  = @Match "X " ;
-  none = @Match "  " ;
-}
+def FSDCTP = First
+  dd   = @Match "DD"
+  de   = @Match "DE"
+  gd   = @Match "GD"
+  ge   = @Match "GE"
+  o    = @Match "O "
+  x    = @Match "X "
+  none = @Match "  "
 
 -- TODO Add proper date parsing
 def Date2 = Many 8 ECSA
 
 -- padding again
 def FSDCXM =
-  [ Match1 ' '; Match1 ' '; Match1 'X'; Match1 ('1' .. '8') ] <|
-  [ Match1 'X'; Match1 ('1' .. '8'); Match1 ' '; Match1 ' ' ] <|
-  [ Match1 'X'; Match1 '2'; Match1 '5'; Match1 ('1' .. '9') ]
+  [ $[' ']; $[' '];        $['X']; $['1' .. '8'] ] <|
+  [ $['X']; $['1' .. '8']; $[' ']; $[' ']        ] <|
+  [ $['X']; $['2'];        $['5']; $['1' .. '9'] ]
 
-def FSDG = Match1 ('S' | 'C' | 'R')
+def FSDG = $['S' | 'C' | 'R']
 
 def FSDGDT = Many 8 ECSA
 
@@ -88,33 +86,33 @@ def FS_declass =
     declass_type = FSDCTP
     fsdcdt =
       { declass_type is dd; CallMeMaybe Date2 } <|
-      { Many 8 (Match1 ' '); ^ nothing }
+      { Many 8 $[' ']; ^ nothing }
     fsdcxm =
       { declass_type is x; @f = FSDCXM; ^ just f} <|
-      { Many 4 (Match1 ' '); ^ nothing }
+      { Many 4 $[' ']; ^ nothing }
     fsdg =
       { declass_type is gd <| declass_type is ge;
         @f = FSDG; ^ just f} <|
-      { Match1 ' '; ^ nothing }
+      { $[' ']; ^ nothing }
     fsdgdt =
       { declass_type is gd; @d = Date2; ^ just d} <|
-      { Many 8 (Match1 ' '); ^ nothing }
+      { Many 8 $[' ']; ^ nothing }
     fscltx =
       { declass_type is de <| declass_type is ge;
         CallMeMaybe (@Many 43 ECSA) } <|
-      { Many 43 (Match1 ' '); ^ nothing }
+      { Many 43 $[' ']; ^ nothing }
 
 
 def FSC_auth =
     { CallMeMaybe {
-        auth_type = Match1 ('O' | 'D' | 'M');
+        auth_type = $['O' | 'D' | 'M'];
         auth = Many 40 ECSA;
       }
     }
   <|
-    { Match1 ' '; Many 40 ECSA; ^ nothing}
+    { $[' ']; Many 40 ECSA; ^ nothing}
 
-def FSCRSN = Match1 ('A' .. 'G' | ' ')
+def FSCRSN = $['A' .. 'G' | ' ']
 
 def FSSRDT = Many 8 ECSA
 
@@ -129,20 +127,18 @@ def ENCRYP = BCSN
 -- The nonstandard_utf8 case is a magic sequence that isn't defined in the
 -- NITF standard, but is handled in the Hammer parser
 def FBKGC =
-  Choose1 {
-    nonstandard_utf8 = Many 3 {Match [0xef; 0xbf; 0xbd]; ^ 0xbd} : [uint 8]; -- XXX: This seems wrong.
-    normal = Many 3 (Match1 (0x00 .. 0xFF));
-  }
+  First
+    nonstandard_utf8 = Many 3 {Match [0xef; 0xbf; 0xbd]; ^ 0xbd} : [uint 8] -- XXX: This seems wrong.
+    normal = Many 3 $[0x00 .. 0xFF]
 
 def ONAME = Many 24 ECSA
 
 def OPHONE = Many 18 ECSA
 
-def FL = Choose1 {
-  unknown_length = Many 12 (Match1 '9');
+def FL = First
+  unknown_length = Many 12 $['9']
   -- TODO put interval bounds here:
-  file_length = UnsignedNum 12 ;
-}
+  file_length = UnsignedNum 12
 
 def HL = UnsignedNum 6
 
@@ -184,14 +180,13 @@ def ResExtLens =
 
 def UDHDL = Many 5 BCSN
 
-def UserData = Choose1 {
-  none = { Match "00000"; ^ {} } ;
+def UserData = First
+  none = { Match "00000"; ^ {} }
   udhd = {
     @l = UnsignedNum 5 as! uint 64;
     overflow = Many 3 BCSN;
     data = Many (l - 3) UInt8;
-  };
-}
+    }
 
 
 {-- Main header parser --}

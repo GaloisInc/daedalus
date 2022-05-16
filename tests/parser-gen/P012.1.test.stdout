@@ -1,12 +1,3 @@
---- Found 1 results:
-{ x: { a: 'a'
-     , b: 'b'
-     , c: 'c'
-     , d: 'd'
-     , e: 'e'
-     , f: 'f'
-     }
-, vor: 'c'
-, vand: '`'
-, vxor: 3[8]
-}
+TODO: TC (TCAnnot {tcAnnot = (SourceRange {sourceFrom = SourcePos {sourceIndex = 72, sourceLine = 5, sourceColumn = 16, sourceFile = "./P012.ddl"}, sourceTo = SourcePos {sourceIndex = 76, sourceLine = 5, sourceColumn = 20, sourceFile = "./P012.ddl"}},Annot {annotStates = [], annotContx = Nothing}), tcAnnotExpr = TCSetAny})
+CallStack (from HasCallStack):
+  error, called at src/Daedalus/ParserGen/Action.hs:808:10 in daedalus-0.1.0.0-inplace:Daedalus.ParserGen.Action

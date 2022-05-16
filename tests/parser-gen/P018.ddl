@@ -3,8 +3,8 @@
 
 def length1 (w: [uint 8]) : int = for (r = 0; s in w) (r + 1)
 
-def Word = { $$ = Many (Match1 ('a'..'z')) ;
-             @b = Match1 ' ' ;
+def Word = { $$ = Many $['a'..'z'];
+             @b = $[' '] ;
            }
 
 def Assert p = p is true

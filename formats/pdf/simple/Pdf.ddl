@@ -24,10 +24,9 @@ def ObjDecl = {
   KW "endobj";
 }
 
-def TopDeclDef (val : Value) = Choose1 {
-  stream = Stream val;
+def TopDeclDef (val : Value) = First
+  stream = Stream val
   value  = ^ val
-}
 
 def Stream (val : Value) = {
   header = val is dict;
@@ -59,19 +58,19 @@ def CrossRefSubSection = {
 def CrossRefEntry = {
   @num = NatN 10; $simpleWS;
   @gen = NatN 5;  $simpleWS;
-  $$   = Choose1 {
-           inUse = UsedEntry num gen;
-           free  = FreeEntry num gen;
-        };
+  $$   = First
+           inUse = UsedEntry num gen
+           free  = FreeEntry num gen
+  ;
   { $simpleWS; $cr <| $lf } <| { $cr; $lf };
 }
 
 def UsedEntry (num : uint 64) (gen : uint 64) = {
-  Match1 'n'; offset = num; gen = gen;
+  $['n']; offset = num; gen = gen;
 }
 
 def FreeEntry (num : uint 64) (gen : uint 64) = {
-  Match1 'f'; obj = num; gen = gen;
+  $['f']; obj = num; gen = gen;
 }
 
 def NatN n = { @ds = Many n Digit; numBase 10 ds as? uint 64 }

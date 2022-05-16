@@ -78,7 +78,6 @@ instance TraverseTypes (TCF a k) where
 
       TCLabel l e     -> TCLabel l <$> traverseTypes f e
 
-      TCGetByte {}    -> pure expr
       TCMatch s e     -> TCMatch s <$> traverseTypes f e
       TCMatchBytes s e -> TCMatchBytes s <$> traverseTypes f e
 
@@ -94,7 +93,6 @@ instance TraverseTypes (TCF a k) where
       TCMapLookup s k m -> TCMapLookup s <$> traverseTypes f k
                                          <*> traverseTypes f m
 
-      TCArrayLength e   -> TCArrayLength <$> traverseTypes f e
       TCArrayIndex s e ix -> TCArrayIndex s <$> traverseTypes f e
                                             <*> traverseTypes f ix
 
@@ -296,7 +294,6 @@ traverseTCF f = go
         TCDo  x e1 e2 -> TCDo x <$> f e1 <*> f e2
         TCLet x e1 e2 -> TCLet x <$> f e1 <*> f e2
 
-        TCGetByte x    -> pure (TCGetByte x)
         TCMatch s b    -> TCMatch s <$> f b
 
         TCLabel l e    -> TCLabel l <$> f e
@@ -315,7 +312,6 @@ traverseTCF f = go
         TCMapLookup s k m -> TCMapLookup s <$> f k <*> f m
 
         -- Arrays
-        TCArrayLength e -> TCArrayLength <$> f e
         TCArrayIndex s e ix -> TCArrayIndex s <$> f e <*> f ix
 
         -- Coercions

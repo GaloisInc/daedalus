@@ -23,37 +23,37 @@ def numBase (base : uint 64) (ds : [ uint 8 ]) =
 -- parsers:
 
 -- Force the parser to backtrack
-def MyFail = { Choose1 {}; }
+def MyFail = Fail "error"
 
-def Etx = Match1 4
+def Etx = $[4]
 
 {-- Character sets --}
 
 -- BCS character set
-def BCS = Match1 (0x20 .. 0x7E | 0x0C | 0x0D)
-def BCSA = Match1 (0x20 .. 0x7E )
-def BCSN = Match1 (0x30 .. 0x39 | 0x2B | 0x2D )
+def BCS = $[0x20 .. 0x7E | 0x0C | 0x0D]
+def BCSA = $[0x20 .. 0x7E ]
+def BCSN = $[0x30 .. 0x39 | 0x2B | 0x2D]
 
 -- ECS character set
 -- TODO: work out error handling if deprecated ECS codes are used
 def ECS = BCS
 def ECSA = BCSA
 
-def LowerCase = Match1 ('a' .. 'z')
+def LowerCase = $['a' .. 'z']
 
-def UpperCase = Match1 ('A' .. 'Z')
+def UpperCase = $['A' .. 'Z']
 
 def Alpha = UpperCase <| LowerCase
 
-def Numeral = Match1 ('0' .. '9')
+def Numeral = $['0' .. '9']
 
-def Sign = Match1 ('+' | '-')
+def Sign = $['+' | '-']
 
 def Digit = { @d = Numeral ; ^ d - '0' }
 
 def FixedPoint = block
   digs = Many Digit
-  Match1 '.'
+  $['.']
   radix = Many Digit
 
 
@@ -66,14 +66,13 @@ def UnsignedNum digs =
 
 def NegNum digs =
   block
-    Match1 '-'
+    $['-']
     @n = UnsignedNum digs
     ^ 0 - n
 
-def SignedNum digs = Choose1 {
-  pos = UnsignedNum (digs + 1) ;
+def SignedNum digs = First
+  pos = UnsignedNum (digs + 1)
   neg = NegNum digs
-}
 
 def BoundedNum digs lb ub =
   block
@@ -105,14 +104,14 @@ def LowerBoundedOrZero digs lb =
     Guard ($$ == 0 || lb <= $$)
 
 
-def Pos = Match1 ('1' .. '9')
+def Pos = $['1' .. '9']
 
 def AlphaNum = Alpha <| Numeral
 
 -- TODO: replace with specific BCS classes
-def Byte = Match1 (0 .. 255)
+def Byte = $[0 .. 255]
 
-def Spaces (n : uint 64) = Many n (Match1 ' ')
+def Spaces (n : uint 64) = Many n $[' ']
 
 -- def PadWSpaces n P =
 --   Chunk n {$$ = P; Many (Match1 ' '); END}
@@ -122,26 +121,27 @@ def Spaces (n : uint 64) = Many n (Match1 ' ')
 --     concat [ arr, map (x in rangeUp 1 (n - length arr)) pad ]
 
 def PadMatch n pad arr =
-  { @Match arr; @Many (n - length arr) (Match1 pad) }
+  block
+    @Match arr
+    @Many (n - length arr) $[pad]
 
 -- FIXME: this assumes P consumes exactly 1 char
 def PadMany n pad P =
   block
     $$ = Many (..n) P
-    Many (n - length $$) (Match1 pad)
+    Many (n - length $$) $[pad]
 
-def DefaultByte D P = Choose1 {
-  actual = P ;
-  default = @D ;
-}
+def DefaultByte D P = First
+  actual = P
+  default = @D
 
-def DefaultSpace P = DefaultByte (Match1 ' ') P
+def DefaultSpace P = DefaultByte $[' '] P
 
 -- TODO: rename
-def OrBytes n b P = Choose1 { -- NOTE-MODERN: changed to `Choose1` to prevent multiple parses when overlapping
-  actual = P ;
-  default = @(Many n (Match b))
-}
+-- NOTE-MODERN: changed to `First` to prevent multiple parses when overlapping
+def OrBytes n b P = First
+  actual = P
+  default = @Many n (Match b)
 
 def DefaultSpaces n P = OrBytes n " " P
 
@@ -297,105 +297,101 @@ def OrdDate (d0 : Date) (d1 : Date) =
     PartialOrdDate d0val d1val
 
 -- security classifications:
-def SecClas = Choose1 { -- NOTE-MODERN: non-overlapping
-  topsecret = @Match1 'T' ;
-  secret = @Match1 'S' ;
-  confidential = @Match1 'C' ;
-  restricted = @Match1 'R' ;
-  unclassified = @Match1 'U' ;
-}
+def SecClas = First -- NOTE-MODERN: non-overlapping
+  topsecret     = @$['T']
+  secret        = @$['S']
+  confidential  = @$['C']
+  restricted    = @$['R']
+  unclassified  = @$['U']
 
 def CountryCode = Many 2 AlphaNum
 
 -- ClSy: classification system
 def ClSy = DefaultSpaces 2 (
-  Choose1 { -- NOTE-MODERN: explicitly `Choose1` to prevent overlapping
-    nato = @Match "XN" ;
-    country = CountryCode ;
-  })
+  First -- NOTE-MODERN: explicitly `First` to prevent overlapping
+    nato    = @Match "XN"
+    country = CountryCode
+  )
 
 -- CodeWords: a space-separated sequence of codewords
 def CodeWords = DefaultSpaces 11 {
   first = SecCtrlMarking ;
   rest = Many (..3) {
-    Match1 ' ' ;
+    $[' '] ;
     SecCtrlMarking
   } ;
   Spaces (11 - (2 + 3 * length rest))
 }
 
 -- Security control markings: translated from Table A-4:
-def SecCtrlMarking = Choose1 { -- NOTE-MODERN: non-overlapping, at least not on JITC
-  atomal = @Match "AT" ;
-  cndwdi = @Match "CN" ;
-  copyright = @Match "PX" ;
-  cosmic = @Match "CS" ;
-  crypto = @Match "CR" ;
-  efto = @Match "TX" ;
-  formrestData = @Match "RF" ;
-  fouo = @Match "FO" ;
-  generalService = @Match "GS" ;
-  limOffUse = @Match "LU" ;
-  limdis = @Match "DS" ;
-  nato = @Match "NS" ;
-  noContract = @Match "NC" ;
-  noncompartment = @Match "NT" ;
-  orcon = @Match "OR" ;
-  personalData = @Match "IN" ;
-  propin = @Match "PI" ;
-  restrictedData = @Match "RD" ;
-  sao = @Match "SA" ;
-  sao1 = @Match "SL" ;
-  sao2 = @Match "HA" ;
-  sao3 = @Match "HB" ;
-  saoSi2 = @Match "SK" ;
-  saoSi3 = @Match "HC" ;
-  saoSi4 = @Match "HD" ;
-  siop = @Match "SH" ;
-  siopEsi = @Match "SE" ;
-  specialControl = @Match "SC" ;
-  specialIntel = @Match "SI" ;
-  usOnly = @Match "UO" ;
-  warningNotice = @Match "WN" ;
-  wnintel = @Match "WI" ;
-}
+def SecCtrlMarking = First -- NOTE-MODERN: non-overlapping, at least not on JITC
+  atomal            = @Match "AT"
+  cndwdi            = @Match "CN"
+  copyright         = @Match "PX"
+  cosmic            = @Match "CS"
+  crypto            = @Match "CR"
+  efto              = @Match "TX"
+  formrestData      = @Match "RF"
+  fouo              = @Match "FO"
+  generalService    = @Match "GS"
+  limOffUse         = @Match "LU"
+  limdis            = @Match "DS"
+  nato              = @Match "NS"
+  noContract        = @Match "NC"
+  noncompartment    = @Match "NT"
+  orcon             = @Match "OR"
+  personalData      = @Match "IN"
+  propin            = @Match "PI"
+  restrictedData    = @Match "RD"
+  sao               = @Match "SA"
+  sao1              = @Match "SL"
+  sao2              = @Match "HA"
+  sao3              = @Match "HB"
+  saoSi2            = @Match "SK"
+  saoSi3            = @Match "HC"
+  saoSi4            = @Match "HD"
+  siop              = @Match "SH"
+  siopEsi           = @Match "SE"
+  specialControl    = @Match "SC"
+  specialIntel      = @Match "SI"
+  usOnly            = @Match "UO"
+  warningNotice     = @Match "WN"
+  wnintel           = @Match "WI"
 
 def CtlHandling = DefaultSpaces 2 SecCtrlMarking
 
-def Release = Many 20 (UpperCase <| Match1 ' ')
+def Release = Many 20 (UpperCase <| $[' '])
 
-def DeclassificationType = Choose1 { -- NOTE-MODERN: non-overlapping
-  date = @Match "DD" ;
-  event = @Match "DE" ;
-  datelv = @Match "GD" ;
-  eventlv = @Match "GE" ;
-  oadr = @Match "O " ;
-  exempt = @Match "X " ;
-  none = @(Spaces 2)
-}
+-- NOTE-MODERN: non-overlapping
+def DeclassificationType = First
+  date      = @Match "DD"
+  event     = @Match "DE"
+  datelv    = @Match "GD"
+  eventlv   = @Match "GE"
+  oadr      = @Match "O "
+  exempt    = @Match "X "
+  none      = @Spaces 2
 
 def Declassification = {
   dctp = DeclassificationType ;
-  dcdt = Choose1 { -- NOTE-MODERN: nonoverlapping
-    decldate = {
-      case dctp of {
-        date, datelv -> Date;
-      }
-    } ;
-    nodate = {
-      case dctp of {
-        event,
-        eventlv,
-        oadr,
-        exempt,
-        none -> Spaces 8
-      }
-    }
-  } ;
-  dxcm = Choose1 { -- NOTE-MODERN: nonoverlapping
+
+  -- NOTE-MODERN: nonoverlapping
+  dcdt = First
+
+    decldate =
+      case dctp of
+        date, datelv -> Date
+
+    nodate =
+      case dctp of
+        event, eventlv, oadr, exempt, none -> Spaces 8
+  ;
+
+  -- NOTE-MODERN: nonoverlapping
+  dxcm = First
     reason = {
       dctp is exempt ;
-      Match1 'X' ;
+      $['X'] ;
       $$ = PadMany 3 ' ' Digit;
       @v = ^ for (val = 0; d in $$)
                  (val * 10 + (d as uint 64));
@@ -404,81 +400,72 @@ def Declassification = {
         (1   <= v && v <= 8) ||
         (251 <= v && v <= 259)
       )
-    } ;
+      }
+
     notexempt =
-      case dctp of {
-        date,
-        event,
-        datelv,
-        eventlv,
-        oadr,
-        none -> Spaces 4 ;
-      } ;
-  } ;
-  dg = Choose1 { -- NOTE-MODERN: nonoverlapping
-    actual = {
-      case dctp of {
+      case dctp of
+        date, event, datelv, eventlv, oadr, none -> Spaces 4
+
+  ;
+
+  -- NOTE-MODERN: nonoverlapping
+  dg = First
+    actual =
+      case dctp of
         datelv, eventlv ->
           DefaultSpace (
-            Choose1 { -- NOTE-MODERN: nonoverlapping
-              secret = @Match1 'S' ;
-              confidential = @Match1 'C' ;
-              restricted = @Match1 'R' ;
-            });
-      }
-    } ;
+            -- NOTE-MODERN: nonoverlapping
+            First
+              secret       = @$['S']
+              confidential = @$['C']
+              restricted   = @$['R']
+          )
+
     none =
-      case dctp of {
-        date,
-        event,
-        oadr,
-        exempt,
-        none -> Spaces 1 ;
-      } ;
-  } ;
-  dgdt = Choose1 { -- NOTE-MODERN: nonoverlapping
-    hasdgdt = {
-      dctp is datelv ;
-      Date
-    } ;
+      case dctp of
+        date, event, oadr, exempt, none -> Spaces 1
+
+  ;
+
+  -- NOTE-MODERN: nonoverlapping
+  dgdt = First
+    hasdgdt = { dctp is datelv ; Date }
     nodgdt =
-      case dctp of {
-        date,
-        event,
-        eventlv,
-        oadr,
-        exempt,
-        none -> Spaces 8 ;
-      } ;
-  } ;
-  cltx = Choose1 { -- NOTE-MODERN: fixed to `Choose1` bc overlapping on SPACE char
+      case dctp of
+        date, event, eventlv, oadr, exempt, none -> Spaces 8
+
+  ;
+
+  -- NOTE-MODERN: fixed to `First` bc overlapping on SPACE char
+  cltx = First
     hascltx =
-      case dctp of {
+      case dctp of
         datelv, eventlv -> Many 43 ECSA
-      } ;
-    nocltx = Spaces 43 ;
-  }
+    nocltx = Spaces 43
 }
 
 -- authority type:
 def ClassificationAuthority = block
+
   authtp = DefaultSpace (
-    Choose1 { -- NOTE-MODERN: nonoverlapping
-      original = @Match1 'O' ;
-      derivative = @Match1 'D' ;
-      multiple = @Match1 'M' ;
-    })
+    First -- NOTE-MODERN: nonoverlapping
+      original    = @$['O']
+      derivative  = @$['D']
+      multiple =   @$['M']
+    )
+
   auth = Many 40 ECSA
+
   crsn = DefaultSpace (
-    Choose1 { -- NOTE-MODERN: nonoverlapping
-      clsrsnA = @Match1 'A' ;
-      clsrsnB = @Match1 'B' ;
-      clsrsnC = @Match1 'C' ;
-      clsrsnD = @Match1 'D' ;
-      clsrsnE = @Match1 'E' ;
-      clsrsnF = @Match1 'F' ;
-      clsrsnG = @Match1 'G' ;
-    })
+    First -- NOTE-MODERN: nonoverlapping
+      clsrsnA = @$['A']
+      clsrsnB = @$['B']
+      clsrsnC = @$['C']
+      clsrsnD = @$['D']
+      clsrsnE = @$['E']
+      clsrsnF = @$['F']
+      clsrsnG = @$['G']
+    )
 
 def Security =
   block
@@ -496,7 +483,7 @@ def CommonSubheader =
     clauth = ClassificationAuthority
     sec = Security
 
-def Encryp = Match1 '0'
+def Encryp = $['0']
 
 def AttachmentLvl = UpperBounded 3 998
 

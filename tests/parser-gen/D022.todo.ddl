@@ -5,7 +5,7 @@ def Marker x = Match [ 0xFF, x ]
 -- For families of markers, such as APP or SOF
 def SomeMarker (front : uint 4) =
   block
-    UInt8 0xFF
+    $[0xFF]
     let tag   = UInt8
     let upper = (tag >> 4) as! uint 4
     upper == front is true
@@ -111,27 +111,27 @@ def SomeRST =
     ($$ < 8) is true
 
 def EntropyEncodedEntry =
-  --Choose1
+  --First
   --  restart = SomeRST
   --  bytes   = Many (1..) EntropyEncodedByte
     Many (1..) EntropyEncodedByte
 
 def EntropyEncodedByte =
-  Choose1
-    block $$ = UInt8 0xFF; UInt8 0x00
-    UInt8 (!0xFF)
+  First
+    block $$ = $[0xFF]; $[0x00]
+    $[!0xFF]
 
 
 def Segment =
-  Choose1
-    comment = COM;
-    dri     = DRI;
-    -- sof     = SomeSOF;
-    -- sos     = SOS;
-    -- app     = SomeAPP;
-    -- dqt     = DQT;
-    -- dht     = DHT;
-    -- rst     = SomeRST;
+  First
+    comment = COM
+    dri     = DRI
+    -- sof     = SomeSOF
+    -- sos     = SOS
+    -- app     = SomeAPP
+    -- dqt     = DQT
+    -- dht     = DHT
+    -- rst     = SomeRST
 
 def SomeJpeg = block SOI; $$ = Many Segment; EOI
 

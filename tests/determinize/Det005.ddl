@@ -8,7 +8,7 @@ def $simpleWS             = 0 | 9 | 12 | 32
 
 def SimpleEOL             = { $cr; $lf } <| $lf
 def EOL                   = SimpleEOL <| $cr
-def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
+def Comment               = { Match "%"; Many $[! ($lf | $cr)]; EOL }
 def AnyWS                 = $simpleWS <| Comment <| EOL
 
 

@@ -3,7 +3,7 @@
 Stack:
     *
     Main callsite __START__
-Start: Main (5,33)-(5,43)
+Start: Main (5,27)-(5,32)
 SlkCfg{ q:42, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
   ( [(17),]
@@ -15,7 +15,7 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-Start: Main (6,33)-(6,43)
+Start: Main (6,27)-(6,32)
 SlkCfg{ q:18, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
   ( [(17),]

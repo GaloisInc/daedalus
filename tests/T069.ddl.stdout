@@ -14,13 +14,13 @@ type T069.Main = { one: T069.Example
 --- Rules:
  
 T069.Word16 (?be : bool) : Grammar (uint 16) =
-  do (b1 : uint 8) <- GetByte
-     (b2 : uint 8) <- GetByte
+  do (b1 : uint 8) <- Match UInt8
+     (b2 : uint 8) <- Match UInt8
      ($$ : uint 16) <- if ?be then pure (b1 # b2) else pure (b2 # b1)
      pure $$
  
 T069.Example : Grammar T069.Example =
-  do (?be : bool) <- do (_12 : uint 8) <- GetByte
+  do (?be : bool) <- do (_12 : uint 8) <- Match UInt8
                         pure (_12 == 0)
      (x : uint 16) <- T069.Word16 ?be
      (y : uint 16) <- T069.Word16 ?be
@@ -44,12 +44,12 @@ T069.Main : Grammar T069.Main =
            two = two}
  
 T069._Word16 (?be : bool) : Grammar {} =
-  do @GetByte
-     @GetByte
+  do @Match UInt8
+     @Match UInt8
      if ?be then pure {} else pure {}
  
 T069._Example : Grammar {} =
-  do (?be : bool) <- do (_12 : uint 8) <- GetByte
+  do (?be : bool) <- do (_12 : uint 8) <- Match UInt8
                         pure (_12 == 0)
      T069._Word16 ?be
      T069._Word16 ?be

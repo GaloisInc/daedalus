@@ -2,35 +2,35 @@
 import PdfValue
 
 -- ContentProps: properties for a content stream object
-def ContentProps = Choose1 {
+def ContentProps = First
   inline = Dict
-; nm = Name  -- TODO: lookup in resource dict
-}
+  nm = Name  -- TODO: lookup in resource dict
+
 
 -- Marked-content operators (Table 320)
-def MarkContentPoint = Choose1 {
+def MarkContentPoint = First
   defineMarkedContent = {
     $$ = Token Name;
     KW "MP";
-  }
-; defMarkedContentPoint = {
+    }
+  defMarkedContentPoint = {
     tag = Token Name;
     props = Token ContentProps;
     KW "DP";
-  }
-}
+    }
 
-def BeginMarkedSeq = Choose1 {
+
+def BeginMarkedSeq = First
   bmc = {
     $$ = Token Name;
     KW "BMC"
-  }
-; bdc = {
+    }
+  bdc = {
     tag = Token Name;
     props = Token ContentProps ;
     KW "BDC" ;
-  }
-}
+    }
+
 
 def EndMarkedSeq = @(KW "EMC")
 
@@ -40,7 +40,7 @@ def MarkedContentSeq P = {
   EndMarkedSeq;
 }
 
-def MarkedContentSeqOp = Choose1 {
+def MarkedContentSeqOp = First
   beginSeq = BeginMarkedSeq
-; endSeq = EndMarkedSeq
-}
+  endSeq = EndMarkedSeq
+

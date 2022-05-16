@@ -1,14 +1,14 @@
-[WARNING] ./Det001.ddl:12:5--13:14:
+[WARNING] ./Det001.ddl:12:5--13:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:12:5--14:14:
+[WARNING] ./Det001.ddl:12:5--14:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:12:5--15:14:
+[WARNING] ./Det001.ddl:12:5--15:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--7:14:
+[WARNING] ./Det001.ddl:6:5--7:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--8:14:
+[WARNING] ./Det001.ddl:6:5--8:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--9:14:
+[WARNING] ./Det001.ddl:6:5--9:10:
             Using unbiased choice may be inefficient.
 module Det001
  

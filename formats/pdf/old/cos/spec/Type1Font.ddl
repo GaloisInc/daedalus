@@ -17,10 +17,10 @@ import StdEncoding
 import SymbolEncoding
 import ZapfDingbatsEncoding
 
-def EncodingRepr = Choose1 {
-  predefEnc = (Token (GenName PredefEncodingName));
-  encDict = EncodingP;
-}
+def EncodingRepr = First
+  predefEnc = (Token (GenName PredefEncodingName))
+  encDict = EncodingP
+
 
 -- partialType1Font: partial definition of a Type1 font
 def partialType1Font (com : partialCommonFont) (pChars : partialCharSet)
@@ -102,10 +102,10 @@ def type1NonStdDesc (nm : [ uint 8 ]) (cs : CharSet) = {
 }
 
 -- Type1FontDesc: a font descriptor for Type1 fonts
-def Type1FontDesc (std : StandardFont) (cs : CharSet) = Choose1 {
+def Type1FontDesc (std : StandardFont) (cs : CharSet) = First
   stdDesc = type1StdDesc std (just cs)
-; nonStdDesc = type1NonStdDesc [ ] cs
-}
+  nonStdDesc = type1NonStdDesc [ ] cs
+
 
 def mkType1StdDesc std cs : Type1FontDesc = {|
   stdDesc = type1StdDesc std cs
@@ -155,7 +155,7 @@ def Type1FontP = GenPdfDict1
 -- Multiple master fonts (Sec. 9.6.2.3)
 def MMFontP = GenPdfDict1
   initType1Font
-  (ExtendType1Font mmTypeSym (When (Match1 '_') ' ')) -- sub underscore w space
+  (ExtendType1Font mmTypeSym (When $['_'] ' ')) -- sub underscore w space
   (Type1Font mmTypeSym)
 
 def LatinEnc (font : Type1Font) =

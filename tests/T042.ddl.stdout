@@ -22,7 +22,7 @@ type T042.Ex6 = { x: uint 8
 --- Rules:
  
 T042.Ex6 : Grammar T042.Ex6 =
-  do (x : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
      (y : bool) <- pure true
      pure {x = x,
            y = y}
@@ -64,7 +64,7 @@ T042.Ex5 : Grammar {} =
      pure $$
  
 T042._Ex6 : Grammar {} =
-  @GetByte
+  @Match UInt8
  
 T042._Main : Grammar {} =
   T042._Ex6

@@ -97,7 +97,7 @@ import Daedalus.Parser.Monad
   'of'        { Lexeme { lexemeRange = $$, lexemeToken = KWOf } }
   'int'       { Lexeme { lexemeRange = $$, lexemeToken = KWInt } }
   'uint'      { Lexeme { lexemeRange = $$, lexemeToken = KWUInt } }
-  '$uint'     { Lexeme { lexemeRange = $$, lexemeToken = KWDollarUInt } }
+  '$any'      { Lexeme { lexemeRange = $$, lexemeToken = KWDollarAny } }
   'sint'      { Lexeme { lexemeRange = $$, lexemeToken = KWSInt } }
   'float'     { Lexeme { lexemeRange = $$, lexemeToken = KWFloat } }
   'double'    { Lexeme { lexemeRange = $$, lexemeToken = KWDouble } }
@@ -105,7 +105,6 @@ import Daedalus.Parser.Monad
   'maybe'     { Lexeme { lexemeRange = $$, lexemeToken = KWMaybe } }
   'stream'    { Lexeme { lexemeRange = $$, lexemeToken = KWStream } }
   'Choose'    { Lexeme { lexemeRange = $$, lexemeToken = KWChoose } }
-  'Choose1'   { Lexeme { lexemeRange = $$, lexemeToken = KWChoose1 } }
   'First'     { Lexeme { lexemeRange = $$, lexemeToken = KWFirst } }
   'Accept'    { Lexeme { lexemeRange = $$, lexemeToken = KWAccept } }
   'block'     { Lexeme { lexemeRange = $$, lexemeToken = KWblock } }
@@ -119,7 +118,6 @@ import Daedalus.Parser.Monad
   'Fail'      { Lexeme { lexemeRange = $$, lexemeToken = KWFail } }
   'UInt8'     { Lexeme { lexemeRange = $$, lexemeToken = KWUInt8 } }
   'Match'     { Lexeme { lexemeRange = $$, lexemeToken = KWMatch } }
-  'Match1'    { Lexeme { lexemeRange = $$, lexemeToken = KWMatch1 } }
   'try'       { Lexeme { lexemeRange = $$, lexemeToken = KWTry } }
   'if'        { Lexeme { lexemeRange = $$, lexemeToken = KWIf } }
   'then'      { Lexeme { lexemeRange = $$, lexemeToken = KWThen } }
@@ -305,12 +303,10 @@ label                                    :: { Located Label }
   | 'maybe'                                 { mkLabel ($1, "maybe") }
   | 'stream'                                { mkLabel ($1, "stream") }
   | 'Choose'                                { mkLabel ($1, "Choose") }
-  | 'Choose1'                               { mkLabel ($1, "Choose1") }
   | 'Optional'                              { mkLabel ($1, "Optional") }
   | 'Many'                                  { mkLabel ($1, "Many") }
   | 'many'                                  { mkLabel ($1, "many") }
   | 'Match'                                 { mkLabel ($1, "Match") }
-  | 'Match1'                                { mkLabel ($1, "Match1") }
   | 'UInt8'                                 { mkLabel ($1, "UInt8") }
   | 'if'                                    { mkLabel ($1, "if") }
   | 'then'                                  { mkLabel ($1, "then") }
@@ -439,8 +435,6 @@ call_expr                                :: { Expr }
   | 'Optional?' aexpr                       { at ($1,$2)
                                                  (EOptional Backtrack $2) }
   | 'Match' aexpr                           { at ($1,$2) (EMatch $2) }
-  | 'Match1' aexpr                          { at ($1,$2) (EMatch1 $2) }
-  | 'UInt8' aexpr                           { at ($1,$2) (EMatch1 $2) }
   | manyKW aexpr                            { mkMany $1 Nothing $2 }
   | manyKW aexpr aexpr                      { mkMany $1 (Just $2) $3 }
 
@@ -458,7 +452,7 @@ call_expr                                :: { Expr }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
   | 'Take' aexpr aexpr                      { at ($1,$2) (EStreamLen $2 $3) }
   | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
-  | 'length' aexpr                          { at ($1,$2) (EArrayLength $2)  }
+  | 'length' aexpr                          { at ($1,$2) (EUniOp ArrayLength $2)}
   | 'Index' aexpr aexpr                     { at ($1,$2) (EArrayIndex $2 $3) }
   | 'emit' aexpr aexpr                      { at ($1,$2) (EBinOp BuilderEmit $2 $3) }
   | 'emitArray' aexpr aexpr                 { at ($1,$2) (EBinOp BuilderEmitArray $2 $3) }
@@ -492,10 +486,10 @@ call_expr                                :: { Expr }
 aexpr                                    :: { Expr }
   : literal                                 { at (fst $1) (ELiteral (snd $1)) }
   | 'pi'                                    { at $1 (ELiteral LPi) }
-  | 'UInt8'                                 { at $1      EAnyByte }
+  | '$any'                                  { at $1 EAnyByte }
   | 'Accept'                                { mkAccept $1 }
-  | '$uint' NUMBER                          {% mkUInt $1 $2 }
 
+  | 'UInt8'                                 { at $1 (EMatch1 (at $1 EAnyByte)) }
   | '$' '[' separated(expr, commaOrSemi) ']'{ at ($1,$4) (EMatch1
                                               (at ($2,$4) (EArray $3))) }
 
@@ -555,7 +549,6 @@ virtSep                                  :: { () }
 
 chooseKW                                 :: { Located Commit }
   : 'Choose'                                { loc $1 Backtrack }
-  | 'Choose1'                               { loc $1 Commit }
 
 manyKW                                   :: { Located Commit }
   : 'Many'                                  { loc $1 Commit }

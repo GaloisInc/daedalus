@@ -142,6 +142,7 @@ evalUniOp op =
   case op of
     Not               -> vNot
     Neg               -> partial . vNeg
+    ArrayLength       -> vArrayLength
     Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
     WordToFloat       -> vWordToFloat
@@ -397,7 +398,6 @@ compilePureExpr env = go
         TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
 
         TCMapEmpty _    -> VMap Map.empty
-        TCArrayLength e -> vArrayLength (go e)
 
         TCCase e alts def ->
           evalCase
@@ -699,10 +699,6 @@ compilePExpr env expr0 args = go expr0
         TCDo m_var e e' ->
           do v <- go e
              compileExpr (addValMaybe m_var v env) e'
-
-        TCGetByte s ->
-          do r <- pByte erng
-             pure $! mbSkip s (vByte r)
 
         TCMatch s e ->
           do b <- pMatch1 erng (compilePredicateExpr env e)

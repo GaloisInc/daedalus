@@ -80,13 +80,13 @@ def CrossRefEntry =
 
 def UsedEntry (num : int) (gen : int) =
   block
-    Match1 'n'
+    $['n']
     offset = num
     gen    = gen
 
 def FreeEntry (num : int) (gen : int) =
   block
-    Match1 'f'
+    $['f']
     obj = num
     gen = gen
 
