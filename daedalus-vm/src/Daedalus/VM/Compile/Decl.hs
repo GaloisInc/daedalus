@@ -29,8 +29,8 @@ moduleToProgram ms =
   captureAnalysis
   Program { pModules = map loopAnalysis ms }
 
-compileModule :: DebugMode () -> Src.Module -> Module
-compileModule dm0 m =
+compileModule :: Bool -> Src.Module -> Module
+compileModule useDebug m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
@@ -38,7 +38,7 @@ compileModule dm0 m =
                  ++ map (compileGFun dm) (Src.mGFuns m)
          }
   where
-  dm        = const fi <$> dm0
+  dm        = if useDebug then DebugStack fi else NoDebug
   fi        = Map.fromList (concatMap getInfo (Src.mFFuns m) ++
                             concatMap getInfo (Src.mGFuns m))
   getInfo f = [ (Src.fName f, r) | Src.SrcRange r <- Src.fAnnot f ]
@@ -49,7 +49,7 @@ inpArg = BA 0 (TSem Src.TStream) Borrowed
 
 compileSomeFun ::
   Bool ->
-  DebugMode AllFunInfo ->
+  DebugMode ->
   (a -> C (BlockBuilder Void)) -> Src.Fun a -> VMFun
 compileSomeFun isPure dm doBody fun =
   let xs         = Src.fParams fun
@@ -95,8 +95,8 @@ compileSomeFun isPure dm doBody fun =
             , vmfIsEntry = Src.fIsEntry fun
             }
 
-compileFFun :: DebugMode AllFunInfo -> Src.Fun Src.Expr -> VMFun
+compileFFun :: DebugMode -> Src.Fun Src.Expr -> VMFun
 compileFFun dm = compileSomeFun True dm \e -> compileE e Nothing
 
-compileGFun :: DebugMode AllFunInfo -> Src.Fun Src.Grammar -> VMFun
+compileGFun :: DebugMode -> Src.Fun Src.Grammar -> VMFun
 compileGFun dm = compileSomeFun False dm (\e -> compile e ret)
