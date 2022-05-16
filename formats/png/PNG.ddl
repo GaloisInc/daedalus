@@ -1,6 +1,7 @@
 {-|
   Name: PNG
-  Description: This is an implementation of the Portable Network Graphics (PNG) specification as described at https://www.w3.org/TR/2003/REC-PNG-20031110/
+  Description: This is an implementation of the Portable Network Graphics (PNG)
+  specification as described at https://www.w3.org/TR/2003/REC-PNG-20031110/
   Maintainer     : Olivier Savary Belanger <olivier@galois.com>
   Stability      : provisional
   Note: We focus on the PNG datastream description (Section 11)
@@ -36,15 +37,15 @@ def UTCTime =
     second = $[0 .. 60]
 
 -- Redefinition of Many with maybes
-def OMany (omin:maybe (uint 64)) (omax:maybe (uint 64)) P = 
+def OMany (omin:maybe (uint 64)) (omax:maybe (uint 64)) P =
   case omin of
     nothing -> case omax of
                  nothing -> Many P
-		 just max -> Many (..max) P
+                 just max -> Many (..max) P
     just min -> case omax of
                   nothing -> Many (min..) P
                   just max -> Many (min..max) P
-    
+
 -- '\n'
 def NullChar = $[0]
 
@@ -56,7 +57,7 @@ def NTString (omin:maybe (uint 64)) (omax:maybe (uint 64)) =
   block
     $$ = OMany omin omax NonNullChar
     NullChar
-    
+
 
 --------------------------------------------------------------------------------
 -- Chunk Definitions
