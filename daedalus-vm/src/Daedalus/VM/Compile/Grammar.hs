@@ -9,8 +9,7 @@ module Daedalus.VM.Compile.Grammar where
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Void(Void)
-import Data.Maybe(fromMaybe)
-import Control.Monad(forM)
+import Control.Monad(forM,when)
 import qualified Data.Map as Map
 
 import Daedalus.Panic(panic)
@@ -37,24 +36,26 @@ compile expr next0 =
   case expr of
 
     Src.Pure e ->
-      compileE e $ Just $ nextYes next
+      do yesK <- nextYes next
+         compileE e (Just yesK)
 
     -- XXX: Don't ignore the errors
     Src.Fail _ _ _ ->
-      pure
-        do i <- getInput
-           stmt_ (NoteFail i)
-           nextNo next
+      do noK <- nextNo next
+         pure
+           do i <- getInput
+              stmt_ (NoteFail i)
+              noK
 
     Src.GetStream ->
-      pure
-        do v <- getInput
-           nextYes next v
+      do yesK <- nextYes next
+         pure (yesK =<< getInput)
 
     Src.SetStream e ->
-      compileE e $ Just \v ->
-        do setInput v
-           nextYes next EUnit
+      do yesK <- nextYes next
+         compileE e $ Just \v ->
+           do setInput v
+              yesK EUnit
 
     Src.Annot a e ->
       case a of
@@ -141,12 +142,13 @@ compile expr next0 =
          leftFailed <- newLocal (TSem Src.TBool)
          l          <- newLocal (TSem Src.TStream)
 
+         noK   <- nextNo next'
          qCode <-
             do finished <-
                  label0 NormalBlock $ term Yield
 
                bothFailed <-
-                 label0 NormalBlock $ nextNo next'
+                 label0 NormalBlock noK
 
                compile q next'
                  { onNo  = Just do v <- getLocal leftFailed
@@ -179,34 +181,29 @@ compile expr next0 =
 
     Src.Call f es ->
       do dbg <- getDebugMode
-         let dbgEnter =
+         let dbgEnter how =
                 case dbg of
                   NoDebug -> pure ()
                   DebugStack fs ->
-                    stmt_ (PushDebug case Map.lookup f fs of
-                                       Just rng -> ppText rng
-                                       Nothing  -> ppText f)
+                    stmt_ (PushDebug how case Map.lookup f fs of
+                                           Just rng -> ppText rng
+                                           Nothing  -> ppText f)
 
 
 
          doCall <-
            case (onNo next, onYes next) of
              (Nothing,Nothing) -> pure \vs ->
-                do case dbg of
-                     NoDebug -> pure ()
-                     DebugStack {} ->
-                       do stmt_ PopDebug
-                          dbgEnter
-
+                do dbgEnter DebugTailCall
                    i <- getInput
                    term $ TailCall f Unknown (i:vs)
 
              _ ->
-               do noL  <- retNo (nextNo next)
-                  yesL <- retYes \v -> nextYes next v
+               do noL  <- retNo  =<< nextNo next
+                  yesL <- retYes =<< nextYes next
                   pure \vs -> do cloNo  <- noL
                                  cloYes <- yesL
-                                 dbgEnter
+                                 dbgEnter DebugCall
                                  i <- getInput
                                  term $ Call f Unknown cloNo cloYes (i:vs)
 
@@ -221,16 +218,24 @@ data WhatNext = Next { onNo  :: Maybe (BlockBuilder Void)
                      , onYes :: Maybe (E -> BlockBuilder Void)
                      }
 
-nextNo :: WhatNext -> BlockBuilder Void
-nextNo = fromMaybe (term ReturnNo) . onNo
+nextNo :: WhatNext -> C (BlockBuilder Void)
+nextNo next =
+  case onNo next of
+    Just noK -> pure noK
+    Nothing  ->
+      do dbg <- isDebugging
+         pure do when dbg (stmt_ PopDebug)
+                 term ReturnNo
 
-nextYes :: WhatNext -> E -> BlockBuilder Void
-nextYes next res =
+nextYes :: WhatNext -> C (E -> BlockBuilder Void)
+nextYes next =
   case onYes next of
-    Just k  -> k res
+    Just k  -> pure k
     Nothing ->
-      do i <- getInput
-         term (ReturnYes res i)
+      do dbg <- isDebugging
+         pure \res -> do when dbg (stmt_ PopDebug)
+                         i <- getInput
+                         term (ReturnYes res i)
 
 ret :: WhatNext
 ret = Next { onNo = Nothing, onYes = Nothing }
@@ -249,6 +254,7 @@ sharedYes next =
     Just c  -> do l <- label1 c
                   pure next { onYes = Just \v -> jump (l v) }
 
+{-
 addPops :: WhatNext -> C WhatNext
 addPops next =
   do y <- case onYes next of
@@ -257,7 +263,8 @@ addPops next =
                           pure (jump . l)
      n <- case onNo next of
             Just k  -> pure (stmt_ PopDebug >> k)
-            Nothing -> do l <- label0 NormalBlock $ do stmt_ PopDebug >> term ReturnNo
+            Nothing -> do l <- label0 NormalBlock
+                                  do stmt_ PopDebugterm ReturnNo
                           pure (jump l)
      pure Next{ onYes = Just y, onNo = Just n}
-
+-}

@@ -1,4 +1,4 @@
-{-# Language BlockArguments, DeriveFunctor #-}
+{-# Language BlockArguments #-}
 module Daedalus.VM.Compile.Monad where
 
 import Data.Map(Map)
@@ -20,8 +20,12 @@ import Daedalus.VM.Compile.BlockBuilder
 -- | The compiler monad
 newtype C a = C (StaticR -> StaticS -> (a,StaticS))
 
-data DebugMode a = DebugStack a | NoDebug
-  deriving (Eq, Ord, Read, Show, Functor)
+data DebugMode = DebugStack AllFunInfo | NoDebug
+
+instance Show DebugMode where
+  show d = case d of
+             DebugStack {} -> "DebugStack"
+             NoDebug       -> "NoDebug"
 
 type AllFunInfo = Map Src.FName SourceRange
 
@@ -29,7 +33,7 @@ data StaticR = StaticR
   { curFun    :: Text             -- ^ for generating more readable label/names
   , vEnv      :: Map Src.Name FV  -- ^ Compiled expressions
   , curTy     :: VMT              -- ^ Type of the result we are producing
-  , debugMode :: DebugMode AllFunInfo
+  , debugMode :: DebugMode
     -- ^ Emit debug stack push and pop operations
   }
 
@@ -54,7 +58,7 @@ instance Monad C where
 runC ::
   Text ->
   Src.Type ->
-  DebugMode AllFunInfo ->
+  DebugMode ->
   C (BlockBuilder Void) ->
   (Label, Map Label Block)
 
@@ -84,7 +88,7 @@ getCurTy = staticR curTy
 setCurTy :: VMT -> C a -> C a
 setCurTy t (C m) = C \r s -> m r { curTy = t } s
 
-getDebugMode :: C (DebugMode AllFunInfo)
+getDebugMode :: C DebugMode
 getDebugMode = staticR debugMode
 
 isDebugging :: C Bool

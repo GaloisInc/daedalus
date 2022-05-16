@@ -123,7 +123,6 @@ import qualified Daedalus.Core.Determinize as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
-import Daedalus.VM.Compile.Monad (DebugMode(..))
 import Daedalus.PrettyError(prettyError)
 
 
@@ -288,7 +287,7 @@ data State = State
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
   
-  , debugMode :: DebugMode
+  , debugMode :: Bool
   }
 
 
@@ -305,7 +304,7 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
-  , debugMode           = NoDebug
+  , debugMode           = False
   }
 
 
@@ -479,7 +478,7 @@ optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 optWarnings :: DDLOpt (TypeWarning -> Bool)
 optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
 
-optDebugMode :: DDLOpt DebugMode
+optDebugMode :: DDLOpt Bool
 optDebugMode = DDLOpt debugMode \a s -> s { debugMode = a }
 
 --------------------------------------------------------------------------------

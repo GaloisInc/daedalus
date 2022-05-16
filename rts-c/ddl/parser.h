@@ -8,40 +8,32 @@
 #include <ddl/debug.h>
 #include <ddl/input.h>
 #include <ddl/stack.h>
+#include <ddl/parse_error.h>
 
 namespace DDL {
 
 typedef size_t ThreadId;
 
-struct ParseError {
-  // XXX: more info (stream information, some description)
-  Size offset;
-  std::vector<char const*> debugs;
-};
-
 class ParserState {
 
-  Size                  fail_offset;    // largest, only makes sense if we fail
-  std::vector<char const*> fail_debugs;
+  ParseError error; // best error so far. Only makes sense if we fail
 
-  ListStack             stack;
-  std::vector<Thread>   suspended;
-  std::vector<char const*> debugs;
+  ListStack           stack;
+  std::vector<Thread> suspended;
+  ParserContextStack  debugs;
 
 public:
-  ParserState() : fail_offset(0) {}
+  ParserState() {}
 
-  ParseError getParseError() {
-    return {fail_offset, fail_debugs};
-  }
+  ParseError getParseError() { return error; }
 
-  // All alternatives failed.   Free the stack and return the
-  // offset of the best error we computed.
-  Size finalYield() {
+  // All alternatives failed.
+  // Free the stack and return the best error we know about.
+  ParseError finalYield() {
     debugLine("final yield");
     debugVal(stack);
     stack.free();
-    return fail_offset;
+    return error;
   }
 
 
@@ -50,8 +42,10 @@ public:
   // For debug
   void say(const char *msg) { debugLine(msg); }
 
-  void pushDebug(char const* msg) { debugs.push_back(msg); }
-  void popDebug() { debugs.pop_back(); }
+  void pushDebug(char const* msg, bool tail = false) {
+    if (tail) debugs.tailCallFun(msg); else debugs.callFun(msg);
+  }
+  void popDebug() { debugs.popFun(); }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
@@ -63,9 +57,9 @@ public:
   // could result in confusing error locations.
   void noteFail(Input input) {
     Size offset = input.getOffset();
-    if (offset > fail_offset) {
-      fail_offset = offset;
-      fail_debugs = debugs;
+    if (offset >= error.offset) {
+      error.offset = offset;
+      error.debugs = debugs;
     }
   }
 
@@ -89,7 +83,7 @@ public:
     debug("spawning thread "); debugValNL(id);
     stack.copy();
     debugVal(stack);
-    suspended.push_back(Thread(c,stack));
+    suspended.push_back(Thread(c,stack,debugs));
     return id;
   }
 
@@ -116,6 +110,8 @@ public:
 
     debugLine("new stack");
     debugVal(stack);
+
+    debugs = t.debug;
 
     return stack.retAddr();
   }

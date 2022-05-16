@@ -73,6 +73,8 @@ data ReturnHow =
   | RetNo Captures      -- ^ parser, failure, is it a capturing parser
     deriving (Eq,Show)
 
+data DebugCall = DebugCall | DebugTailCall
+
 -- | Instructions
 data Instr =
     Say String
@@ -85,7 +87,7 @@ data Instr =
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
 
-  | PushDebug Text
+  | PushDebug DebugCall Text
   | PopDebug
 
 -- | Instructions that jump
@@ -301,7 +303,13 @@ instance PP Instr where
       Free x           -> "free" <+> commaSep (map pp (Set.toList x))
       Let x v          -> ppBinder x <+> "=" <+> "copy" <+> pp v
       PopDebug         -> "popDebug"
-      PushDebug txt    -> ppFun "pushDebug" [ text (show txt) ]
+      PushDebug how txt -> ppFun "pushDebug" [ pp how, text (show txt) ]
+
+instance PP DebugCall where
+  pp x =
+    case x of
+      DebugTailCall -> ".tailCall"
+      DebugCall     -> ".call"
 
 instance PP CInstr where
   pp cintsr =

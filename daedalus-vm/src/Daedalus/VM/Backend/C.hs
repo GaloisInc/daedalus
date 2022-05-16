@@ -582,7 +582,10 @@ cBlockStmt :: (Copies,CurBlock) => Instr -> CStmt
 cBlockStmt cInstr =
   case cInstr of
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
-    PushDebug x     -> cStmt (cCall "p.pushDebug" [ cString (Text.unpack x) ])
+    PushDebug how x -> cStmt (cCall "p.pushDebug" [ cString (Text.unpack x), tl ])
+      where tl = case how of
+                   DebugTailCall -> "true"
+                   DebugCall     -> "false"
     PopDebug        -> cStmt (cCall "p.popDebug"  [])
     Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
                            o = parens (parens(t) <.> "out")
@@ -950,7 +953,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ cAssign "err.offset" "p.finalYield()", "return;" ]
+          [ cAssign "err" "p.finalYield()", "return;" ]
       ]
 
     ReturnNo ->

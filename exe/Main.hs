@@ -55,7 +55,6 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
-import qualified Daedalus.VM.Compile.Monad as VM
 
 import CommandLine
 import Templates
@@ -251,7 +250,8 @@ doToCore opts mm =
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
-  do _ <- doToCore opts mm
+  do ddlSetOpt optDebugMode True
+     _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
      let addMM = VM.addCopyIs . VM.doBorrowAnalysis
