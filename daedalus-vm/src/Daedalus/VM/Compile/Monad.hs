@@ -12,7 +12,7 @@ import Daedalus.Panic
 
 import qualified Daedalus.Core as Src
 import Daedalus.VM
-import Daedalus.VM.BlockBuilder
+import Daedalus.VM.Compile.BlockBuilder
 
 
 

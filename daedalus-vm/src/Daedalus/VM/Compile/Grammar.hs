@@ -17,7 +17,7 @@ import qualified Daedalus.Core.Type as Src
 import qualified Daedalus.Core.Effect as Src
 
 import Daedalus.VM
-import Daedalus.VM.BlockBuilder
+import Daedalus.VM.Compile.BlockBuilder
 import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.Expr
 import Daedalus.PP ( PP(pp) )
@@ -52,6 +52,10 @@ compile expr next0 =
     Src.Annot a e ->
       case a of
         Src.NoFail -> compile e next { onNo = Nothing }
+        Src.SrcAnnot {} -> compile e next
+        Src.SrcRange {} -> compile e next
+
+{-
         -- XXX
         Src.SrcAnnot ann ->
           do d <- getDebugging
@@ -69,6 +73,7 @@ compile expr next0 =
                pure (stmt_ (PushDebug (Text.pack (show (pp ann)))) >> stuff)
              else
                compile e next
+-}
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next

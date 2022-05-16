@@ -17,7 +17,6 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:
     Daedalus.VM
-    Daedalus.VM.BlockBuilder
     Daedalus.VM.InlineBlock
     Daedalus.VM.FreeVars
     Daedalus.VM.FindLoops
@@ -27,6 +26,7 @@ library
     Daedalus.VM.InsertCopy
     Daedalus.VM.RefCountSane
     Daedalus.VM.Compile.Monad
+    Daedalus.VM.Compile.BlockBuilder
     Daedalus.VM.Compile.Grammar
     Daedalus.VM.Compile.Expr
     Daedalus.VM.Compile.Decl

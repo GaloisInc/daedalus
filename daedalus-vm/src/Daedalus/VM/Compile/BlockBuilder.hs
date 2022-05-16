@@ -1,6 +1,6 @@
 {-# Language BlockArguments #-}
 {-# Language EmptyCase #-}
-module Daedalus.VM.BlockBuilder where
+module Daedalus.VM.Compile.BlockBuilder where
 
 import Data.Map(Map)
 import Data.Maybe(isJust,maybeToList)
