@@ -26,12 +26,12 @@ import           Daedalus.Panic
 import           Daedalus.Rec
 
 -- import Talos.Strategy.Monad
-import           Talos.Analysis.SLExpr
 import           Talos.Analysis.Slice
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 import           Talos.SymExec.Expr (symExecExpr, symExecByteSet)
+import Talos.Analysis.Exported (ExpSlice)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -80,7 +80,7 @@ funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
     
 -- FIXME: maybe calculate some of this once in StrategyM.
 -- FIXME: filter by knownFNames here instead of in SolverT 
-defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> ExpSlice -> SolverT m ()
 defineSliceFunDefs md sl = do
   fdefs <- sequence $ foldMap (mkOneF [] symExecExpr) (mFFuns md)
   bdefs <- sequence $ foldMap (mkOneF byteArg (symExecByteSet byteV)) (mBFuns md)  
@@ -145,7 +145,7 @@ exprToPolyFuns = go
 byteSetToPolyFuns :: ByteSet -> Set PolyFun
 byteSetToPolyFuns = ebFoldMapChildrenB exprToPolyFuns byteSetToPolyFuns
 
-defineSlicePolyFuns :: (MonadIO m, HasGUID m) => Slice -> SolverT m ()
+defineSlicePolyFuns :: (MonadIO m, HasGUID m) => ExpSlice -> SolverT m ()
 defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
   where
     polys = go sl
@@ -153,7 +153,7 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SHole             -> mempty
       -- We turns an SLExpr into an Expr, replacing Holes with Units.
       -- This is a bit gross, but should be OK for this purpose.
-      SPure v           -> exprToPolyFuns (slExprToExpr (const unit) v)
+      SPure e           -> exprToPolyFuns e
       SDo _m_x l r      -> go l <> go r
       SMatch m          -> byteSetToPolyFuns m
       SAssertion  e     -> exprToPolyFuns e

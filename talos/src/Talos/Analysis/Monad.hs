@@ -5,7 +5,6 @@
 {-# LANGUAGE TupleSections #-}
 module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs, currentDeclName
                             , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
-                            , ExpSummary(..), ExpSummaries, exportSummaries
                             , calcFixpoint
                             , module Export) where
 
@@ -26,7 +25,7 @@ import           Talos.Analysis.Fixpoint as Export (addSummary,
                                                     lookupSummary)
 import qualified Talos.Analysis.Fixpoint as F
 import           Talos.Analysis.Slice
-import Debug.Trace (trace, traceM)
+-- import Debug.Trace (trace, traceM)
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
@@ -41,6 +40,7 @@ data Summary ae =
           , params      :: [Name]
           , fInstId     :: FInstId
           }
+
 
 emptySummary :: FInstId -> Summary ae
 emptySummary = Summary emptyDomain []
@@ -62,6 +62,8 @@ type Summaries ae = Map FName (Map FInstId (Summary ae))
 --       pp_el (n, fs, sl)
 --         | fs == emptyFieldSet = pp n <> " => " <> pp sl
 --         | otherwise           = pp n <> "." <> pp fs <> " => " <> pp sl
+
+
 
 --------------------------------------------------------------------------------
 -- Monad and state
@@ -195,34 +197,6 @@ calcFixpoint m wl = F.calcFixpoint seqv go wl
     
 currentDeclName :: IterM ae FName
 currentDeclName = IterM F.currentDeclName
-
---------------------------------------------------------------------------------
--- Exporting
-
--- We rename the summary class everywhere to be essentially an Int, so
--- we don't have to carry the information around into the synthesis pass.
-
-data ExpSummary = ExpSummary
-  { esSlices         :: [(Bool, Slice)]
-  , esInternalSlices :: Map Name [Slice]
-  , esParams         :: [Name]
-  }
-
-type ExpSummaries = Map FName (Map FInstId ExpSummary)
-
-exportSummary :: Summary ae -> ExpSummary
-exportSummary s = ExpSummary
-  { esSlices         = map expGS (elements (domain s))
-  , esInternalSlices = closedElements (domain s)
-  , esParams         = params s
-  }
-  where
-    expGS gs = (not (null (gsPred gs)), gsSlice gs) 
-
-exportSummaries :: Summaries ae -> ExpSummaries
-exportSummaries = fmap (fmap exportSummary)
-
-
 
 instance AbsEnv ae => PP (Summary ae) where
   pp s = pp (domain s)

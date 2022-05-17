@@ -2,32 +2,30 @@
 
 module Talos.Strategy (allStrategies, runStrategies, runStrategy) where
 
-import System.IO (hFlush, stdout)
-import Control.Exception (evaluate)
-import Control.Monad.IO.Class
-import Data.Maybe (isNothing)
-import Text.Printf
+import           Control.DeepSeq         (force)
+import           Control.Exception       (evaluate)
+import           Control.Monad.IO.Class
+import           Data.Maybe              (isNothing)
+import           System.Clock            (Clock (MonotonicRaw), diffTimeSpec,
+                                          getTime, toNanoSecs)
+import           System.IO               (hFlush, stdout)
+import           Text.Printf
 
-import Control.DeepSeq (force)
-import System.Clock (Clock(MonotonicRaw), getTime, diffTimeSpec, toNanoSecs)
+import           Daedalus.Core
+import           Daedalus.PP
 
-import Daedalus.PP
-
-import Talos.Analysis.Slice
-import Talos.SymExec.SolverT (SolverState, runSolverT)
-import Talos.SymExec.Path
-import Talos.Strategy.Monad (Strategy(..), StratFun(..), LiftStrategyM(..), StrategyM {-, timeStrategy -})
--- strategies
-import Talos.Strategy.BTRand
-import Talos.Strategy.Symbolic (symbolicStrats)
--- import Talos.Strategy.BackwardSymbolic (backwardSymbolicStrat)
-
-import Daedalus.Core
+import           Talos.Analysis.Exported (ExpSlice)
+import           Talos.Strategy.BTRand
+import           Talos.Strategy.Monad    (LiftStrategyM (..), StratFun (..),
+                                          Strategy (..), StrategyM)
+import           Talos.Strategy.Symbolic (symbolicStrats)
+import           Talos.SymExec.Path
+import           Talos.SymExec.SolverT   (SolverState, runSolverT)
 
 allStrategies :: [Strategy]
 allStrategies = [ randRestart, randMaybeT, randDFS ] ++ symbolicStrats {- , backwardSymbolicStrat -}
 
-runStrategy :: SolverState -> Strategy -> ProvenanceTag -> Slice ->
+runStrategy :: SolverState -> Strategy -> ProvenanceTag -> ExpSlice ->
                StrategyM (Maybe SelectedPath, SolverState)
 runStrategy solvSt strat ptag sl =
   case stratFun strat of
@@ -35,7 +33,7 @@ runStrategy solvSt strat ptag sl =
     SolverStrat f -> runSolverT (f ptag sl) solvSt
 
 -- Returns the result and wall-clock time (in ns)
-timeStrategy :: SolverState -> Strategy -> ProvenanceTag -> Slice -> StrategyM ((Maybe SelectedPath, Integer), SolverState)
+timeStrategy :: SolverState -> Strategy -> ProvenanceTag -> ExpSlice -> StrategyM ((Maybe SelectedPath, Integer), SolverState)
 timeStrategy solvSt strat ptag sl = do
   start         <- liftIO $ getTime MonotonicRaw
   (rv, solvSt') <- runStrategy solvSt strat ptag sl
@@ -43,7 +41,7 @@ timeStrategy solvSt strat ptag sl = do
   end           <- liftIO $ getTime MonotonicRaw
   pure ((rv', toNanoSecs (diffTimeSpec end start)), solvSt')
 
-runStrategies :: LiftStrategyM m => SolverState -> [Strategy] -> ProvenanceTag -> FName -> Name -> Slice ->
+runStrategies :: LiftStrategyM m => SolverState -> [Strategy] -> ProvenanceTag -> FName -> Name -> ExpSlice ->
                  m (Maybe SelectedPath, SolverState)
 runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
   where

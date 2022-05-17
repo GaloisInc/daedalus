@@ -1,28 +1,35 @@
 
 module Main where
 
-import           System.Random (randomIO, mkStdGen)
+import           Control.Monad           (replicateM, void)
+import           Data.Foldable           (find, forM_)
+import           Data.Map                (Map)
+import qualified Data.Map                as Map
+import           Data.Maybe              (isJust, mapMaybe)
+import qualified SimpleSMT               as SMT
+import           System.Random           (mkStdGen, randomIO)
 
-import Criterion
-import Control.Monad (replicateM, void)
-import Data.Maybe (mapMaybe, isJust)
-import Talos (runDaedalus)
-import qualified Talos.Analysis as A
-import Talos.Strategy (runStrategy, allStrategies)
-import qualified Data.Map as Map
-import Daedalus.PP (showPP)
-import Talos.Strategy.Monad (stratName, Strategy, emptyStrategyMState, runStrategyM)
-import Data.Foldable (find, forM_)
-import Talos.Analysis.Monad (Summaries, ExpSummary, domain)
-import qualified SimpleSMT as SMT
-import Daedalus.GUID (GUID)
-import Daedalus.Core (Module, FName)
-import Talos.Analysis.Slice (SummaryClass, FInstId)
-import Data.Map (Map)
-import Talos.SymExec.SolverT (emptySolverState)
-import Criterion.Main
-import Talos.Analysis.AbsEnv (AbsEnvTy(AbsEnvTy))
-import Talos.Analysis.Domain (closedElements)
+
+import           Daedalus.Core           (FName, Module (mTypes), TDecl (tName))
+import           Daedalus.GUID           (GUID)
+import           Daedalus.PP             (showPP)
+import           Daedalus.Rec            (forgetRecs)
+
+import           Talos                   (runDaedalus)
+import qualified Talos.Analysis          as A
+import           Talos.Analysis.AbsEnv   (AbsEnvTy (AbsEnvTy))
+import           Talos.Analysis.Exported (ExpSummary, esRootSlices,
+                                          exportSummaries)
+import           Talos.Analysis.Monad    (Summaries)
+import           Talos.Analysis.Slice    (FInstId)
+import           Talos.Strategy          (allStrategies, runStrategy)
+import           Talos.Strategy.Monad    (Strategy, emptyStrategyMState,
+                                          runStrategyM, stratName)
+import           Talos.SymExec.SolverT   (emptySolverState)
+
+import           Criterion
+import           Criterion.Main
+
 
 -- This will load a ddl file, and benchmark the given strategies on the slices.
 -- FIXME: maybe generate the whole doc as well?
@@ -62,14 +69,14 @@ z3Args = ["-in", "-smt2"]
 -- to analyze the program for each inv file (and no inv file).
 
 mkBenchmarks :: SMT.Solver -> [Int] -> Summaries ae -> Module -> GUID -> [Strategy] ->
-                FName -> Map FInstId (A.Summary ae) -> Benchmark
+                FName -> Map FInstId ExpSummary -> Benchmark
 mkBenchmarks solv seeds summaries md nguid strats fn clM =
   bgroup (showPP fn) [ bgroup (showPP cl)
                        (concat [ goSl n i sl
-                               | (n, sls) <- Map.toList (closedElements (domain summary))
+                               | (n, sls) <- Map.toList slM
                                , (i, sl) <- zip [(0::Int)..] sls
                                ])
-                     | (cl, summary) <- Map.toList clM
+                     | (cl, slM) <- Map.toList clM
                      ]
   where
     goSl n i sl =
@@ -110,12 +117,15 @@ benchToBenchmark b = do
       AbsEnvTy p <- case lookup absEnv A.absEnvTys of
         Just x -> pure x
         _      -> error ("Unknown abstract env " ++ absEnv)
-      
-      let (summaries, nguid') = A.summarise p md nguid
+
+      let sm@(summaries, _) = A.summarise p md nguid
+          tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
+          (expSummaries, nguid') = exportSummaries tyDefs sm
+          
       -- This would be better done before each benchmark, but we dont have NFData for Solver
       solv <- startSolver
       pure (map (uncurry (mkBenchmarks solv seeds summaries md nguid' strats))
-             (Map.toList summaries))
+             (Map.toList (esRootSlices expSummaries)))
 
     startSolver = do
       solver <- SMT.newSolver backend z3Args Nothing

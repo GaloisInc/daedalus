@@ -5,44 +5,41 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.Symbolic (symbolicStrats) where
 
-import Control.Monad.Reader
-
+import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.ByteString              as BS
-import           Data.List                    (foldl', foldl1', partition)
 import qualified Data.Map                     as Map
 import qualified Data.Set                     as Set
-
 import           Data.Word                    (Word8)
-
-import           Daedalus.PP                  hiding (empty)
-import           Daedalus.Panic
 
 import           Daedalus.Core                hiding (streamOffset)
 import           Daedalus.Core.Free           (freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
+import           Daedalus.PP                  hiding (empty)
+import           Daedalus.Panic
 import qualified Daedalus.Value               as I
 
 import qualified SimpleSMT                    as S
 
-import           Talos.Analysis.Merge      (merge)
+import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
+                                               sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM
-import           Talos.SymExec.Expr        (symExecCaseAlts)
-import           Talos.SymExec.Funs        (defineSliceFunDefs,
-                                            defineSlicePolyFuns)
-import           Talos.SymExec.ModelParser (evalModelP, pByte, pValue)
+import           Talos.SymExec.Expr           (symExecCaseAlts)
+import           Talos.SymExec.Funs           (defineSliceFunDefs,
+                                               defineSlicePolyFuns)
+import           Talos.SymExec.ModelParser    (evalModelP, pByte, pValue)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
-import           Talos.SymExec.SemiValue   as SE
-import           Talos.SymExec.SolverT     (SolverT, declareName, declareSymbol,
-                                            reset, scoped)
-import qualified Talos.SymExec.SolverT     as Solv hiding (getName)
+import           Talos.SymExec.SemiValue      as SE
+import           Talos.SymExec.SolverT        (SolverT, declareName,
+                                               declareSymbol, reset, scoped)
+import qualified Talos.SymExec.SolverT        as Solv hiding (getName)
 import           Talos.SymExec.StdLib
-import           Talos.SymExec.Type        (defineSliceTypeDefs, symExecTy)
+import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -64,7 +61,7 @@ symbolicStrats = map mkOne strats
 -- FIXME: define all types etc. eagerly
 symbolicFun :: SearchStrat ->
                ProvenanceTag ->
-               Slice ->
+               ExpSlice ->
                SolverT StrategyM (Maybe SelectedPath)
 symbolicFun sstrat ptag sl = do
   -- defined referenced types/functions
@@ -83,18 +80,16 @@ symbolicFun sstrat ptag sl = do
     inSolver pathM
 
 -- We need to get types etc for called slices (including root slice)
-sliceToDeps :: (Monad m, LiftStrategyM m) => Slice -> m [Slice]
-sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
+sliceToDeps :: (Monad m, LiftStrategyM m) => ExpSlice -> m [ExpSlice]
+sliceToDeps sl = go Set.empty (sliceToCallees sl) [sl]
   where
-    go seen new
+    go seen new acc
       | Just (n, rest) <- Set.minView new = do
-          sl' <- getOne n
+          sl' <- getSlice n
           let new' = sliceToCallees sl' `Set.difference` seen
-          go (Set.insert n seen) (new' `Set.union` rest)
+          go (Set.insert n seen) (new' `Set.union` rest) (sl' : acc)
 
-    go seen _ = mapM getOne (Set.toList seen)
-
-    getOne i = snd . fst <$> callIdToSlice i
+    go _ _ acc = pure acc
 
 -- We return the symbolic value (which may contain bound variables, so
 -- those have to be all at the top level) and a computation for
@@ -105,7 +100,7 @@ sliceToDeps sl = (:) sl <$> go Set.empty (sliceToCallees sl)
 
 type ResultFun = SolverT StrategyM 
 
-stratSlice :: ProvenanceTag -> Slice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
+stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
 stratSlice ptag = go
   where
     go sl =  do
@@ -113,10 +108,7 @@ stratSlice ptag = go
       case sl of
         SHole -> pure (uncPath vUnit)
         
-        SPure sle -> do
-          -- FIXME: we could use the solver's defaults as well.
-          e <- slExprToExpr sle
-          uncPath <$> synthesiseExpr e
+        SPure e -> uncPath <$> synthesiseExpr e
           
         SDo x lsl rsl -> do
           (v, lpath)  <- go lsl
@@ -189,7 +181,7 @@ onSlice :: (ResultFun a -> ResultFun b) ->
 onSlice f = \(a, sl') -> (a, f sl')
 
 -- FIXME: maybe name e?
-stratCase :: ProvenanceTag -> Case Slice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
+stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
 stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
@@ -223,23 +215,14 @@ stratCase ptag cs = do
 --     doOne env' = local (const env') . stratSlice ptag
 
 -- FIXME: this is copied from BTRand
-stratCallNode :: ProvenanceTag -> CallNode FInstId ->
+stratCallNode :: ProvenanceTag -> ExpCallNode ->
                  SymbolicM (SemiSExpr, ResultFun SelectedPath)
 stratCallNode ptag cn = do
   env <- ask
-  (sls, argNameMaps) <- unzip <$> callNodeToSlices cn
-  let argNameMap = mconcat argNameMaps
-      env' = Map.compose env argNameMap
-      (results0, asserts0) = partition fst sls
-      results = map snd results0
-      asserts = map snd asserts0
-  (_rvs, nonRes) <- unzip <$> mapM (doOne env') asserts
-  (v, res)    <- case results of
-    [] -> pure (vUnit, pure SelectedHole)
-    _  -> doOne env' (foldl1' merge results)
-  pure (v, SelectedCall (callClass cn) <$> (foldl' merge <$> res <*> sequence nonRes))
-  where
-    doOne env' = local (const env') . stratSlice ptag
+  let env' = Map.compose env (ecnParamMap cn)
+  sl <- getSlice (ecnSliceId cn)
+  (v, res) <- local (const env') (stratSlice ptag sl)
+  pure (v, SelectedCall (ecnIdx cn) <$> res)
   
   -- -- define all arguments.  We need to evaluate the args in the
   -- -- current env, as in recursive calls we will have shadowing (in the SolverT env.)

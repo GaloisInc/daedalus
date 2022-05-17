@@ -22,9 +22,9 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 -- import Talos.Strategy.Monad
-import           Talos.Analysis.Slice
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
+import Talos.Analysis.Exported (ExpSlice)
   
 symExecTName :: TName -> String
 symExecTName = tnameToSMTName
@@ -54,7 +54,7 @@ tranclTypeDefs md roots0 = go [] roots0 (reverse (mTypes md))
 
 
 -- we already have recs and it is ordered, so we don't need to calculate a fixpoint
-sliceToSMTTypeDefs :: Module -> Slice -> [Rec SMTTypeDef]
+sliceToSMTTypeDefs :: Module -> ExpSlice -> [Rec SMTTypeDef]
 sliceToSMTTypeDefs md = tranclTypeDefs md . freeTCons
 
 tdeclToSMTTypeDef :: TDecl -> SMTTypeDef      
@@ -77,7 +77,7 @@ tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [],
     mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
       
-defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> ExpSlice -> SolverT m ()
 defineSliceTypeDefs md sl = mapM_ defineSMTTypeDefs (sliceToSMTTypeDefs md sl)
 
 symExecTy :: Type -> SExpr

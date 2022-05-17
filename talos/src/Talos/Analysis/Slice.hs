@@ -9,11 +9,9 @@ module Talos.Analysis.Slice
   ( FInstId(..)
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
-  , CallNode(..), Slice(..)
+  , Slice'(..)
   ) where
 
-import           Data.Map      (Map)
-import qualified Data.Map      as Map
 import           Data.Set      (Set)
 import qualified Data.Set      as Set
 
@@ -27,7 +25,6 @@ import Daedalus.Core
 import Daedalus.Core.Free
 import Daedalus.Core.TraverseUserTypes
 
-import Talos.Analysis.SLExpr
 import Talos.Analysis.Eqv
 import Talos.Analysis.Merge
 
@@ -92,34 +89,21 @@ summaryClassFromPreds ps = Result (Set.fromList ps)
 -- F will generate slices for 'x', 'y', and the result, but at Q we
 -- entangle 'x' and 'y' through 'a'
 
-data CallNode cl =
-  CallNode { callClass        :: cl
-           , callName         :: FName
-           -- ^ The called function
-           , callSlices      :: Map Int [Maybe Name]
-           -- ^ The slices that we use --- if the args are disjoint
-           -- this will be a singleton map for this slice, but we
-           -- might need to merge, hence we have multiple.  The map
-           -- just allows us to merge easily.
-           --           , callArgs        :: [Name]
-           }
-  deriving (Generic, NFData)
-
 -- This is a variant of Grammar from Core
-data Slice =
+data Slice' cn sle =
     SHole -- Type
-  | SPure SLExpr
+  | SPure sle
   --  | GetStream
   --  | SetStream Expr
   
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SDo Name Slice Slice
+  | SDo Name (Slice' cn sle) (Slice' cn sle)
   --  | Let Name Expr Grammar
-  | SChoice [Slice] -- This gives better probabilities than nested Ors
-  | SCall (CallNode FInstId) 
-  | SCase Bool (Case Slice)
+  | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
+  | SCall cn 
+  | SCase Bool (Case (Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
@@ -159,7 +143,7 @@ data Slice =
 -- Thus, for some cases, the presence of a node is enough to return
 -- True (e.g. for Assertion)
 
-instance Eqv Slice where
+instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
   eqv l r =
     case (l, r) of
       (SHole {}, SHole {}) -> True
@@ -176,23 +160,7 @@ instance Eqv Slice where
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
-instance Eqv p => Eqv (CallNode p) where
-  eqv CallNode { callClass = cl1, callSlices = paths1 }
-      CallNode { callClass = cl2, callSlices = paths2 } =
-    -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
-    cl1 `eqv` cl2 && paths1 == paths2
-
-instance Eq p => Merge (CallNode p) where
-  merge cn@CallNode { callClass = cl1, callSlices = sls1}
-           CallNode { callClass = cl2, callSlices = sls2 }
-    | cl1 /= cl2 = panic "Saw different function classes" []
-    -- FIXME: check that the sets don't overlap
-    | otherwise =
-      -- trace ("Merging " ++ showPP cn ++ " and " ++ showPP cn') $
-      -- Note: it is OK to use as the maps are disjoint
-      cn { callSlices = Map.union sls1 sls2 }
-
-instance Merge Slice where
+instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
   merge l r =
     case (l, r) of
       (SHole {}, _)                  -> r
@@ -214,7 +182,7 @@ instance Merge Slice where
 --
 --  Used for getting deps for the SMT solver defs.
 
-instance FreeVars Slice where
+instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
   freeVars sl =
     case sl of
       SHole {}       -> mempty
@@ -241,9 +209,6 @@ instance FreeVars Slice where
       -- FIXME: what about other usages of this function?
       SInverse _ _f p -> {- freeFVars f <> -} freeFVars p 
 
-instance FreeVars (CallNode p) where
-  freeVars cn  = foldMap freeVars (Map.elems (callSlices cn))
-  freeFVars cn = Set.singleton (callName cn) 
 
 -- -----------------------------------------------------------------------------
 -- FreeTCons
@@ -252,7 +217,7 @@ instance FreeVars (CallNode p) where
 --                         (UserType -> f UserType) -> Map a b -> f (Map a b)
 -- traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
 
-instance TraverseUserTypes Slice where
+instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Slice' cn sle) where
   traverseUserTypes f sl =
     case sl of
       SHole            -> pure SHole
@@ -267,10 +232,6 @@ instance TraverseUserTypes Slice where
       SCase b c        -> SCase b <$> traverseUserTypes f c
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
-instance TraverseUserTypes (CallNode p) where
-  traverseUserTypes f cn  =
-    (\n' -> cn { callName = n' }) <$> traverseUserTypes f (callName cn)
-
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
   traverseUserTypes _f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
@@ -278,19 +239,11 @@ instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) wher
 --------------------------------------------------------------------------------
 -- PP Instances
 -- instance PP CallInstance where
---   ppPrec n (CallInstance { callParams = ps, callSlice = sl }) =
+--   ppPrec n (CallInstance { callParams = ps, callSlice' = sl }) =
 --     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
-
-instance PP p => PP (CallNode p) where
-  ppPrec n CallNode { callName = fname, callClass = cl, callSlices = sls } =
-    wrapIf (n > 0) $ (pp fname <> parens (pp cl))
-    <+> vcat (map (\(n', vs) -> brackets (pp n') <> parens (commaSep (map ppA vs))) (Map.toList sls))
-    where
-      ppA Nothing = "_"
-      ppA (Just v) = pp v
     
 -- c.f. PP Grammar
-instance PP Slice where
+instance (PP cn, PP sle) => PP (Slice' cn sle) where
   pp sl =
     case sl of
       SHole          -> "□"
@@ -304,7 +257,7 @@ instance PP Slice where
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
       
-ppStmts' :: Slice -> Doc
+ppStmts' :: (PP cn, PP sle) => Slice' cn sle -> Doc
 ppStmts' sl =
   case sl of
     SDo x g1 g2 -> pp x <+> "<-" <+> pp g1 $$ ppStmts' g2

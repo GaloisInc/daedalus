@@ -46,6 +46,7 @@ library
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.SLExpr
+                     , Talos.Analysis.Exported
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad

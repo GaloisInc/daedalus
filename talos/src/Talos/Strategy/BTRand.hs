@@ -8,7 +8,6 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString                 as BS
-import           Data.List                       (foldl', foldl1', partition)
 import qualified Data.Map                        as Map
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -18,8 +17,8 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.Core.Type              (typeOf)
 import qualified Daedalus.Value                  as I
 
-import           Talos.Analysis.Merge
 import           Talos.Analysis.Slice
+import           Talos.Analysis.Exported (ExpSlice, ExpCallNode(..))
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
@@ -35,7 +34,7 @@ randDFS =
            , stratFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
            }
   where
-    go :: ProvenanceTag -> Slice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
+    go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
     go ptag sl = mkStrategyFun ptag sl
 
 -- ----------------------------------------------------------------------------------------
@@ -51,7 +50,7 @@ randRestart =
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randRestartStrat :: ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath)
 randRestartStrat ptag sl = go restartBound
   where
     go 0 = pure Nothing
@@ -74,7 +73,7 @@ randMaybeT =
            , stratFun   = SimpleStrat randMaybeStrat
            }
 
-randMaybeStrat :: ProvenanceTag -> Slice -> StrategyM (Maybe SelectedPath)
+randMaybeStrat :: ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath)
 randMaybeStrat ptag sl = go restartBound
   where
     go 0 = pure Nothing
@@ -91,21 +90,19 @@ randMaybeStrat ptag sl = go restartBound
 -- Main functions
              
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
-mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice -> m SelectedPath
+mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice -> m SelectedPath
 mkStrategyFun ptag sl = do
   env0 <- getIEnv -- for pure function implementations
   snd <$> runReaderT (stratSlice ptag sl) env0 
 
-stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> Slice
+stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice
            -> ReaderT I.Env m (I.Value, SelectedPath)
 stratSlice ptag = go
   where
     go sl = 
       case sl of
         SHole -> pure (uncPath I.vUnit)
-        SPure sle -> do
-          e <- slExprToExpr sle
-          uncPath <$> synthesiseExpr e
+        SPure e -> uncPath <$> synthesiseExpr e
 
         SDo x lsl rsl -> do
           (v, lpath)  <- go lsl
@@ -165,24 +162,14 @@ stratSlice ptag = go
 -- Merging all slices could introduce spurious internal backtracking,
 -- although it is not clear whether that is an issue or not.
 
-stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode FInstId -> 
+stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpCallNode -> 
                  ReaderT I.Env m (I.Value, SelectedPath)
 stratCallNode ptag cn = do
   env <- ask
-  (sls, argNameMaps) <- unzip <$> callNodeToSlices cn
-  let argNameMap = mconcat argNameMaps
-      env' = env { I.vEnv = Map.compose (I.vEnv env) argNameMap }
-      (results0, asserts0) = partition fst sls
-      results = map snd results0
-      asserts = map snd asserts0
-  (_rvs, nonRes) <- unzip <$> mapM (doOne env') asserts  
-  (v, res)    <- case results of
-    [] -> pure (I.vUnit, SelectedHole)
-    _  -> doOne env' (foldl1' merge results)
-
-  pure (v, SelectedCall (callClass cn) (foldl' merge res nonRes))
-  where
-    doOne env' = local (const env') . stratSlice ptag
+  let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
+  sl <- getSlice (ecnSliceId cn)
+  (v, res) <- local (const env') (stratSlice ptag sl)
+  pure (v, SelectedCall (ecnIdx cn) res)
 
 -- ----------------------------------------------------------------------------------------
 -- Strategy helpers

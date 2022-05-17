@@ -46,7 +46,7 @@ import           RTS.ParserAPI                   (Result (..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
 import           Talos.Analysis.Merge            (merge)
-import           Talos.Analysis.Monad            (ExpSummary (..))
+import           Talos.Analysis.Exported         (ExpSummary (..), ExpSlice, esRootSlices)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
@@ -80,7 +80,7 @@ emptyStream = Stream 0 Nothing
 data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
-                         , pathSetRoots :: Map Name [Slice]
+                         , pathSetRoots :: Map Name [ExpSlice]
                          , currentClass :: FInstId
                          , currentFName :: FName
                          }
@@ -294,12 +294,12 @@ mbPure _     v = pure v
 synthesiseDecl :: SelectedPath -> FInstId -> Fun Grammar -> [Expr] -> SynthesisM Value
 synthesiseDecl fp fid Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
-  summary <- flip (Map.!) fid . flip (Map.!) fName <$> summaries
+  roots <- flip (Map.!) fid . flip (Map.!) fName . esRootSlices <$> summaries
   -- Add definitions for the function parameters, mapping to the
   -- actuals.  We also set the path root map for the duration of this
   -- function from the results discovered during analysis.
   let addPs e = foldl (\e' (k, v) -> addVal k v e') e (zip fParams args')
-      setEnv e = e { pathSetRoots = esInternalSlices summary
+      setEnv e = e { pathSetRoots = roots
                    , currentClass = fid
                    , currentFName = fName
                    }

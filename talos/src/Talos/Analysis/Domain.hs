@@ -1,4 +1,4 @@
-{-# LANGUAGE KindSignatures, GADTs #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies, FlexibleContexts, StandaloneDeriving, UndecidableInstances #-}
@@ -10,21 +10,26 @@
 
 module Talos.Analysis.Domain where
 
-import           Control.DeepSeq       (NFData)
-import           Data.Either           (partitionEithers)
-import           Data.Function         (on)
-import           Data.List             (foldl1', partition)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           GHC.Generics          (Generic)
 
-import           Daedalus.Core         (Name)
-import           Daedalus.Panic
+import           Control.DeepSeq                 (NFData)
+import           Data.Either                     (partitionEithers)
+import           Data.Function                   (on)
+import           Data.List                       (foldl1', partition)
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import qualified Data.Set                        as Set
+import           GHC.Generics                    (Generic)
+
+import           Daedalus.Core                   (FName, Name)
+import           Daedalus.Core.Free              (FreeVars (..))
+import           Daedalus.Core.TraverseUserTypes
 import           Daedalus.PP
+import           Daedalus.Panic
 
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Eqv
 import           Talos.Analysis.Merge
+import           Talos.Analysis.SLExpr           (SLExpr)
 import           Talos.Analysis.Slice
 
 --------------------------------------------------------------------------------
@@ -260,6 +265,58 @@ mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
 
 -- domainInvariant :: Domain -> Bool
 -- domainInvariant dom = all (\(evs, _sl) -> evs /= mempty) (elements dom)
+
+--------------------------------------------------------------------------------
+-- Internal slices (used during analysis)
+
+data CallNode =
+  CallNode { callClass        :: FInstId
+           , callName         :: FName
+           -- ^ The called function
+           , callSlices      :: Map Int [Maybe Name]
+           -- ^ The slices that we use --- if the args are disjoint
+           -- this will be a singleton map for this slice, but we
+           -- might need to merge, hence we have multiple.  The map
+           -- just allows us to merge easily.
+           --           , callArgs        :: [Name]
+           }
+  deriving (Generic, NFData)
+
+instance Eqv CallNode where
+  eqv CallNode { callClass = cl1, callSlices = paths1 }
+      CallNode { callClass = cl2, callSlices = paths2 } =
+    -- trace ("Eqv " ++ showPP cn ++ " and " ++ showPP cn') $
+    cl1 `eqv` cl2 && paths1 == paths2
+
+instance Merge CallNode where
+  merge cn@CallNode { callClass = cl1, callSlices = sls1}
+           CallNode { callClass = cl2, callSlices = sls2 }
+    | cl1 /= cl2 = panic "Saw different function classes" []
+    -- FIXME: check that the sets don't overlap
+    | otherwise =
+      -- trace ("Merging " ++ showPP cn ++ " and " ++ showPP cn') $
+      -- Note: it is OK to use as the maps are disjoint
+      cn { callSlices = Map.union sls1 sls2 }
+
+instance FreeVars CallNode where
+  freeVars cn  = foldMap freeVars (Map.elems (callSlices cn))
+  freeFVars cn = Set.singleton (callName cn)
+
+instance TraverseUserTypes CallNode where
+  traverseUserTypes f cn  =
+    (\n' sls' -> cn { callName = n', callSlices = sls' })
+       <$> traverseUserTypes f (callName cn)
+       <*> traverse (traverse (traverseUserTypes f)) (callSlices cn)
+
+instance PP CallNode where
+  ppPrec n CallNode { callName = fname, callClass = cl, callSlices = sls } =
+    wrapIf (n > 0) $ (pp fname <> parens (pp cl))
+    <+> vcat (map (\(n', vs) -> brackets (pp n') <> parens (commaSep (map ppA vs))) (Map.toList sls))
+    where
+      ppA Nothing = "_"
+      ppA (Just v) = pp v
+
+type Slice = Slice' CallNode SLExpr
 
 --------------------------------------------------------------------------------
 -- Class instances
