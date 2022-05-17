@@ -13,25 +13,27 @@ module Talos.Analysis.Exported
   , sliceToCallees
   ) where
 
-import           Data.Map                        (Map)
-import qualified Data.Map                        as Map
-import           Data.Set                        (Set)
-import qualified Data.Set                        as Set
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
 import           Data.Maybe                      (catMaybes)
+import           Data.Monoid                     (Any (..))
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
                                                   Name, TDecl, TName)
-import           Daedalus.Core.Subst             (Subst, substitute)
 import           Daedalus.Core.Basics            (freshName)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
+import           Daedalus.Core.Subst             (Subst, substitute)
 import           Daedalus.Core.TraverseUserTypes
 import           Daedalus.GUID                   (GUID, HasGUID, guidState,
                                                   mkGUIDState')
+import           Daedalus.PP
 import           Daedalus.Panic                  (panic)
-import Daedalus.Rec (topoOrder, Rec(..))
+import           Daedalus.Rec                    (Rec (..), topoOrder)
 
 import           Talos.Analysis.Domain           (CallNode (..), Domain, Slice,
                                                   closedElements, elements,
@@ -40,7 +42,6 @@ import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (Summaries, Summary (..))
 import           Talos.Analysis.SLExpr           (slExprToExpr')
 import           Talos.Analysis.Slice            (FInstId, Slice' (..))
-import Daedalus.PP
 
 --------------------------------------------------------------------------------
 -- Types
@@ -60,8 +61,11 @@ type ExpSummary = Map Name [ExpSlice]
 data ExpSummaries = ExpSummaries
   { esRootSlices     :: Map FName (Map FInstId ExpSummary)
   , esFunctionSlices :: Map SliceId ExpSlice
+  -- These possibly don't belong here (maybe in StrategyM?)
   , esRecs           :: Map SliceId (Set SliceId)
   -- ^ For each recursive slice, this gives the SCC it belongs to.
+  , esRecVars        :: Set Name
+  -- ^ These variables contain a recursive call.
   }
 
 --------------------------------------------------------------------------------
@@ -91,6 +95,35 @@ makeEsRecs sls =
   where
     recs = topoOrder edges (Map.toList sls)
     edges (sid, sl) = (sid, sliceToCallees sl)
+
+makeEsRecVars :: Map SliceId ExpSlice -> Map SliceId (Set SliceId) -> Set Name
+makeEsRecVars slm = Map.foldMapWithKey go
+  where
+    go sid recs | Just sl <- Map.lookup sid slm = sliceToRecVars recs sl
+    go _   _ = panic "Missing slice" []
+
+-- | Gives the set of variables which are bound to grammars which may
+-- call recursively
+sliceToRecVars :: Set SliceId -> ExpSlice -> Set Name
+sliceToRecVars recs = snd . go
+  where
+    go :: ExpSlice -> (Any, Set Name)
+    go sl = case sl of
+      SHole    -> mempty
+      SPure {} -> mempty
+      SDo x l r ->
+        let (l_rec, ls) = go l
+            (r_rec, rs) = go r
+        in ( l_rec <> r_rec
+           , ls <> rs <> (if getAny l_rec then Set.singleton x else mempty)
+           )
+           
+      SMatch {}  -> mempty
+      SChoice cs -> foldMap go cs
+      SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
+      SCase _ cs -> foldMap go cs
+      SAssertion {} -> mempty
+      SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
 -- Monad
@@ -178,8 +211,11 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
     expSumms = ExpSummaries
       { esRootSlices     = roots
       , esFunctionSlices = slices st'
-      , esRecs           = makeEsRecs (slices st')
+      , esRecs           = recs
+      , esRecVars        = makeEsRecVars (slices st') recs 
       }
+
+    recs = makeEsRecs (slices st')
 
     (roots, st') = runExpM go st0
     st0 = ExpState { seenNames      = mempty
