@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <functional>
 #include <vector>
+#include <string_view>
 
 #include <ddl/debug.h>
 #include <ddl/list.h>
@@ -124,11 +125,11 @@ public:
   }
 
   // Borrows this
-  Size size() { return ptr == nullptr ? 0 : ptr->size; }
+  Size size() const { return ptr == nullptr ? 0 : ptr->size; }
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
-  T borrowElement(Size i) { return ptr->data[i.rep()]; }
+  T borrowElement(Size i) const { return ptr->data[i.rep()]; }
 
   // Borrows this
   // Returns an owned copy of the element.
@@ -143,9 +144,30 @@ public:
   }
 
 
-  T* borrowData() {
+  T* borrowData() const {
     return (T*)&ptr->data;
   }
+
+  std::string_view borrowBytes() const { return borrowBytes(Size(0),size()); }
+
+  std::string_view borrowBytes(Size from) const {
+    return borrowBytes(from, size().decrementedBy(from));
+  }
+
+  // Get a view of the bytes starting at given offset and of the given length.
+  std::string_view borrowBytes(Size from, Size len) const {
+    static_assert( std::is_same_v<T, UInt<8>>
+                || std::is_same_v<T, uint8_t>
+                || std::is_same_v<T, char>
+                 , "borrowBytes works only for UInt<8>, uint8_t, and char");
+    assert(from.incrementedBy(len) <= size());
+    return std::string_view( reinterpret_cast<char const*>(borrowData()) +
+                             from.rep()
+                           , len.rep()
+                           );
+  }
+
+
 
 
 

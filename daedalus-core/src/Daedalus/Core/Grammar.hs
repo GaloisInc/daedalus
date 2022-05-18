@@ -176,6 +176,12 @@ collectChildren f = fst . childrenG (\g -> (f g, g))
 --------------------------------------------------------------------------------
 
 
+instance PP ErrorSource where
+  pp err =
+    case err of
+      ErrorFromUser   -> ".user_error"
+      ErrorFromSystem -> ".system_error"
+
 instance PP Grammar where
   pp gram =
     case gram of

@@ -35,16 +35,18 @@ public:
     : name(name), bytes(bytes), offset(Size{0}), last_offset(bytes.size()) {}
 
   // Borrows arguments (i.e., we copy them)
+  // Note that the 0 terminators are NOT stored in the input
   Input (const char *nm, const char *by)
-    : name(Array<UInt<8>>((UInt<8>*)nm, Size::from(strlen(nm) + 1)))
-    , bytes(Array<UInt<8>>((UInt<8>*)by, Size::from(strlen(by) + 1)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, Size::from(strlen(nm))))
+    , bytes(Array<UInt<8>>((UInt<8>*)by, Size::from(strlen(by))))
     , offset(Size{0})
     , last_offset(bytes.size())
   {}
 
   // Borrows arguments (i.e., we copy them)
+  // Note that the 0 terminator on the name is NOT stored in the input
   Input(const char *nm, const char *by, Size len)
-    : name(Array<UInt<8>>((UInt<8>*)nm, Size::from(strlen(nm) + 1)))
+    : name(Array<UInt<8>>((UInt<8>*)nm, Size::from(strlen(nm))))
     , bytes(Array<UInt<8>>((UInt<8>*)by, len))
     , offset(Size{0})
     , last_offset(len)
@@ -70,9 +72,9 @@ public:
 
 
   // borrow this
-  Size    getOffset() { return offset; }
-  Size    length()    { return Size{last_offset.rep() - offset.rep()}; }
-  bool    isEmpty()   { return last_offset == offset; }
+  Size    getOffset() const { return offset; }
+  Size    length()    const { return Size{last_offset.rep() - offset.rep()}; }
+  bool    isEmpty()   const { return last_offset == offset; }
 
   // borrow this, Assumes: !isEmpty()
   UInt<8> iHead()   { return bytes[offset]; }
@@ -144,7 +146,6 @@ public:
     return compare(x.name,y.name);
   }
 
-  char* borrowBytes() { return (char*) bytes.borrowData() + offset.rep(); }
 
   Array<UInt<8>> getByteArray() {
     if (offset == 0) {
@@ -155,9 +156,12 @@ public:
     return Array{bytes.borrowData() + off, bytes.size().rep() - off};
   }
 
-  Array<UInt<8>> borrowName() { return name; }
-  Array<UInt<8>> getName() { name.copy(); return name; }
-  char* borrowNameBytes() { return (char*) name.borrowData(); }
+  Array<UInt<8>> getName()          { name.copy(); return name; }
+  Array<UInt<8>> borrowName() const { return name; }
+  std::string_view borrowNameBytes() const { return name.borrowBytes(); }
+  std::string_view borrowBytes() const {
+    return bytes.borrowBytes(offset, last_offset.decrementedBy(offset));
+  }
 };
 
 

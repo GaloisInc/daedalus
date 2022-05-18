@@ -20,7 +20,7 @@ import Daedalus.VM.Compile.BlockBuilder
 -- | The compiler monad
 newtype C a = C (StaticR -> StaticS -> (a,StaticS))
 
-data DebugMode = DebugStack AllFunInfo | NoDebug
+data DebugMode = DebugStack AllFunInfo [Src.Annot] | NoDebug
 
 instance Show DebugMode where
   show d = case d of
@@ -97,6 +97,13 @@ isDebugging =
      pure case m of
             NoDebug       -> False
             DebugStack {} -> True
+
+withAnnot :: Src.Annot -> C a -> C a
+withAnnot ann (C m) = C \r s -> case debugMode r of
+                                  NoDebug -> m r s
+                                  DebugStack fi as ->
+                                    m r { debugMode = DebugStack fi (ann:as) } s
+
 
 lookupN :: Src.Name -> C (BlockBuilder E)
 lookupN n =

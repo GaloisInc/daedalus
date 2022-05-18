@@ -225,7 +225,7 @@ instance DoSubst Instr where
       Notify e        -> Notify (doSubst  x v e)
       CallPrim y p es -> CallPrim y p (doSubst x v es)
       Spawn y l       -> Spawn y (doSubst x v l)
-      NoteFail e      -> NoteFail (doSubst x v e)
+      NoteFail er loc inp m -> NoteFail er loc (doSubst x v inp) (doSubst x v m)
       Let y e         -> Let y (doSubst x v e)
       Free xs         -> Free (Set.delete (LocalVar x) (Set.delete v xs))
       PushDebug{}     -> i

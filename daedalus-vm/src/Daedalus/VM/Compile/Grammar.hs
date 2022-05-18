@@ -39,13 +39,28 @@ compile expr next0 =
       do yesK <- nextYes next
          compileE e (Just yesK)
 
-    -- XXX: Don't ignore the errors
-    Src.Fail _ _ _ ->
+    Src.Fail errSrc _ty mbExpr ->
       do noK <- nextNo next
-         pure
-           do i <- getInput
-              stmt_ (NoteFail i)
-              noK
+         dbg <- getDebugMode
+         let shAnnot a = case a of
+                           Src.SrcAnnot txt -> Text.unpack txt
+                           Src.SrcRange r   -> show (pp r)
+                           _                -> ""
+
+             errLoc = case dbg of
+                        NoDebug -> ""
+                        DebugStack _ ls ->
+                          case ls of
+                            a : _ -> shAnnot a
+                            _ -> ""
+         let code msg = do i <- getInput
+                           stmt_ (NoteFail errSrc errLoc i msg)
+                           noK
+         case mbExpr of
+           Nothing ->
+             do let ty = TSem (Src.TArray (Src.TUInt (Src.TSize 8)))
+                pure (code =<< stmt ty \v -> CallPrim v (ByteArray "") [])
+           Just e -> compileE e (Just code)
 
     Src.GetStream ->
       do yesK <- nextYes next
@@ -59,29 +74,9 @@ compile expr next0 =
 
     Src.Annot a e ->
       case a of
-        Src.NoFail -> compile e next { onNo = Nothing }
-        Src.SrcAnnot {} -> compile e next
-        Src.SrcRange {} -> compile e next
-
-{-
-        -- XXX
-        Src.SrcAnnot ann ->
-          do d <- getDebugging
-             if d then do
-               next' <- addPops next
-               stuff <- compile e next'
-               pure (stmt_ (PushDebug ann) >> stuff)
-             else
-               compile e next
-        Src.SrcRange ann ->
-          do d <- getDebugging
-             if d then do
-               next' <- addPops next
-               stuff <- compile e next'
-               pure (stmt_ (PushDebug (Text.pack (show (pp ann)))) >> stuff)
-             else
-               compile e next
--}
+        Src.NoFail      -> compile e next { onNo = Nothing }
+        Src.SrcAnnot {} -> withAnnot a (compile e next)
+        Src.SrcRange {} -> withAnnot a (compile e next)
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next
@@ -184,7 +179,7 @@ compile expr next0 =
          let dbgEnter how =
                 case dbg of
                   NoDebug -> pure ()
-                  DebugStack fs ->
+                  DebugStack fs _ ->
                     stmt_ (PushDebug how case Map.lookup f fs of
                                            Just rng -> ppText rng
                                            Nothing  -> ppText f)

@@ -139,7 +139,7 @@ checkI loc ro i count =
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
     Spawn x l -> newVar (LocalVar x) <$> checkJP loc ro (==ThreadBlock) l count
-    NoteFail e      -> checkArgs [e]
+    NoteFail _ _ ei em -> checkArgs [ei,em]
 
     Let x e ->
       case eIsVar e of
