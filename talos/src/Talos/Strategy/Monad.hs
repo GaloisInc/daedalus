@@ -97,7 +97,7 @@ getSlice :: LiftStrategyM m => SliceId -> m ExpSlice
 getSlice sid = do
   ss <- summaries
   case Map.lookup sid (esFunctionSlices ss) of
-    Nothing -> panic "Missing SliceId" []
+    Nothing -> panic "Missing SliceId" [showPP sid]
     Just sl -> pure sl
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]

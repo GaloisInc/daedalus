@@ -47,7 +47,7 @@ import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 symbolicStrats :: [Strategy]
 symbolicStrats = map mkOne strats
   where
-    strats = [("dfs", dfs), ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart) ]
+    strats = [("dfs", dfs)]--, ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart) ]
     mkOne :: (Doc, SearchStrat) -> Strategy
     mkOne (name, sstrat) = 
       Strategy { stratName  = "symbolic-" ++ show name
@@ -98,8 +98,6 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) [sl]
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-type ResultFun = SolverT StrategyM 
-
 stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
 stratSlice ptag = go
   where
@@ -111,9 +109,9 @@ stratSlice ptag = go
         SPure e -> uncPath <$> synthesiseExpr e
           
         SDo x lsl rsl -> do
-          (v, lpath)  <- go lsl
-          -- bind name
-          onSlice (\rpath -> SelectedDo <$> lpath <*> rpath) <$> bindNameIn x v (go rsl)
+          bindNameIn x (go lsl)
+            (\lpath -> do
+                onSlice (\rpath -> SelectedDo <$> lpath <*> rpath) <$> go rsl)
 
         SMatch bset -> do
           bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
@@ -186,7 +184,7 @@ stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
     DidMatch i sl -> onSlice (fmap (SelectedCase i)) <$> stratSlice ptag sl
-    NoMatch  -> backtrack -- just backtrack, no cases matched
+    NoMatch  -> backtrack (Set.empty) -- just backtrack, no cases matched
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
       (i, (p, sl)) <- choose (enumerate ps)
@@ -268,15 +266,15 @@ check = do
   r <- inSolver Solv.check
   case r of
     S.Sat     -> pure ()
-    S.Unsat   -> backtrack
-    S.Unknown -> backtrack
+    S.Unsat   -> backtrack Set.empty
+    S.Unknown -> backtrack Set.empty
 
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
     VOther p -> inSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
-    VValue (I.VBool False) -> backtrack
+    VValue (I.VBool False) -> backtrack Set.empty
     _ -> panic "Malformed boolean" [show sv]
 
 

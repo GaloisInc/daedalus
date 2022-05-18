@@ -1,5 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.SymbolicM where
@@ -9,19 +11,49 @@ import           Control.Monad.Reader
 import           Data.Map               (Map)
 import qualified Data.Map               as Map
 import           SimpleSMT              (SExpr)
+import qualified Data.Set                     as Set
+import Data.Set (Set)
 
 import           Daedalus.Core      (Name, Typed (..))
 import           Daedalus.Core.Type (typeOf)
 
 import           Talos.Strategy.Monad
-import           Talos.Strategy.SearchT    (SearchT)
-import qualified Talos.Strategy.SearchT    as ST
+-- import           Talos.Strategy.SearchT    (SearchT)
+-- import qualified Talos.Strategy.SearchT    as ST
 import           Talos.Strategy.SearchTree
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiValue
 import           Talos.SymExec.SolverT     (SolverT)
 import qualified Talos.SymExec.SolverT     as Solv
 
+import           Control.Monad.Trans.Free
+import Talos.SymExec.SemiExpr (SemiSExpr)
+ 
+--------------------------------------------------------------------------------
+-- The free monad for searching
+
+-- c.f. https://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
+
+data ThreadF m r next =
+  Choose [next]
+  | Bind Name (m r) (r -> next)
+  | Backtrack (Set Name)
+  deriving (Functor)
+
+newtype SearchT r m a = SearchT { getSearchT :: FreeT (ThreadF (SearchT r m) r) m a}
+  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM)
+
+instance MonadTrans (SearchT r) where
+  lift = SearchT . lift
+
+chooseST :: Monad m => [a] -> SearchT r m a
+chooseST xs = SearchT $ liftF (Choose xs)
+
+backtrackST :: Monad m => Set Name -> SearchT r m a
+backtrackST = SearchT . liftF . Backtrack
+
+bindST :: Monad m => Name -> SearchT r m r -> (r -> a) -> SearchT r m a
+bindST n lhs rhs = SearchT $ liftF (Bind n lhs rhs)
 
 -- =============================================================================
 -- Symbolic monad
@@ -39,12 +71,14 @@ import qualified Talos.SymExec.SolverT     as Solv
 
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
+type ResultFun = SolverT StrategyM 
+type SearchT'  = SearchT (SemiSExpr, ResultFun SelectedPath) (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv
 emptySymbolicEnv = mempty
 
 newtype SymbolicM a =
-  SymbolicM { _getSymbolicM :: ReaderT SymbolicEnv (SearchT (SolverT StrategyM)) a }
+  SymbolicM { _getSymbolicM :: ReaderT SymbolicEnv SearchT' a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv)
 
 instance LiftStrategyM SymbolicM where
@@ -58,9 +92,14 @@ runSymbolicM sstrat (SymbolicM m) = runSearchStrat sstrat (runReaderT m emptySym
 --------------------------------------------------------------------------------
 -- Names
 
-bindNameIn :: Name -> SemiValue (Typed SExpr) -> SymbolicM a -> SymbolicM a
-bindNameIn n v (SymbolicM m) = SymbolicM $ local (Map.insert n v) m
-
+bindNameIn :: Name -> SymbolicM (SemiValue (Typed SExpr), ResultFun SelectedPath)
+           -> (ResultFun SelectedPath -> SymbolicM a) -> SymbolicM a
+bindNameIn n (SymbolicM m) m' = join (SymbolicM res)
+  where
+    res = do
+      e <- ask
+      lift $ bindST n (runReaderT m e) (\(v, cp) -> local (Map.insert n v) (m' cp))
+ 
 getName :: Name -> SymbolicM (SemiValue (Typed SExpr))
 getName n = SymbolicM $ do
   m_local <- asks (Map.lookup n)
@@ -75,47 +114,62 @@ getName n = SymbolicM $ do
 choose :: [a] -> SymbolicM a
 choose bs = do
   sctxt <- inSolver Solv.getContext
-  a <- SymbolicM (lift $ ST.choose bs)
+  a <- SymbolicM (lift $ chooseST bs)
   inSolver (Solv.restoreContext sctxt)
   pure a
   
-backtrack :: SymbolicM a
-backtrack = SymbolicM (lift ST.backtrack)
+backtrack :: Set Name -> SymbolicM a
+backtrack xs = SymbolicM (lift (backtrackST xs))
 
 --------------------------------------------------------------------------------
 -- Search strtegies
 
-newtype SearchStrat = SearchStrat { runSearchStrat :: ST.SearchStrat (SolverT StrategyM) }
+newtype SearchStrat = SearchStrat
+  { runSearchStrat :: forall r. SearchT' r -> SolverT StrategyM (Maybe r) }
 
-dfs, bfs, randDFS, randRestart :: SearchStrat
-dfs = SearchStrat ST.dfs
-bfs = SearchStrat ST.bfs
 
-randDFS = SearchStrat $ ST.tree ch bt
+dfs :: SearchStrat
+dfs = SearchStrat $ \m -> go [m]
   where
-    ch :: forall n m. LiftStrategyM m => Location n () -> m (Location n ())
-    ch loc =
-      case locBranches loc of
-        0 -> pure loc
-        n -> do
-          i <- randR (0, n - 1)
-          ch (tryMove (downward i) loc)
-      
-    bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
-    bt loc = traverse ch (forgetGoUp loc)
+    go :: forall r. [SearchT' r] -> SolverT StrategyM (Maybe r)
+    go [] = pure Nothing
+    go (x : xs) = do
+      r <- runFreeT (getSearchT x)
+      case r of
+        Free (Choose xs')     -> go (map SearchT xs' ++ xs)
+        Free (Backtrack {})   -> go xs
+        Free (Bind n lhs rhs) -> go ((lhs >>= SearchT . rhs) : xs)
+        Pure res              -> pure (Just res)
 
-randRestart = SearchStrat $ ST.tree ch bt
-  where
-    ch :: forall n m. LiftStrategyM m => Location n () -> m (Location n ())
-    ch loc =
-      case locBranches loc of
-        0 -> pure loc
-        n -> do
-          i <- randR (0, n - 1)
-          ch (tryMove (downward i) loc)
+-- dfs, bfs, randDFS, randRestart :: SearchStrat
+-- dfs = SearchStrat ST.dfs
+-- bfs = SearchStrat ST.bfs
+
+-- randDFS = SearchStrat $ ST.tree ch bt
+--   where
+--     ch :: forall n m. LiftStrategyM m => Location n () -> m (Location n ())
+--     ch loc =
+--       case locBranches loc of
+--         0 -> pure loc
+--         n -> do
+--           i <- randR (0, n - 1)
+--           ch (tryMove (downward i) loc)
       
-    bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
-    bt loc = traverse (ch . maximally upward) (forgetGoUp loc)
+--     bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
+--     bt loc = traverse ch (forgetGoUp loc)
+
+-- randRestart = SearchStrat $ ST.tree ch bt
+--   where
+--     ch :: forall n m. LiftStrategyM m => Location n () -> m (Location n ())
+--     ch loc =
+--       case locBranches loc of
+--         0 -> pure loc
+--         n -> do
+--           i <- randR (0, n - 1)
+--           ch (tryMove (downward i) loc)
+      
+--     bt :: forall n m. LiftStrategyM m => Location n () -> m (Maybe (Location n ()))
+--     bt loc = traverse (ch . maximally upward) (forgetGoUp loc)
 
 --------------------------------------------------------------------------------
 -- Utilities

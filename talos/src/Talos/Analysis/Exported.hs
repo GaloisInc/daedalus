@@ -42,6 +42,7 @@ import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (Summaries, Summary (..))
 import           Talos.Analysis.SLExpr           (slExprToExpr')
 import           Talos.Analysis.Slice            (FInstId, Slice' (..))
+import Debug.Trace (traceM)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -184,7 +185,9 @@ getAllocSliceId wle = do
   let (m_old, sm') = Map.insertLookupWithKey (\_k _new old -> old) wle nsl sm
   case m_old of
     Nothing -> do
-      modify (\s -> s { sliceMap = sm', nextSliceId = nextSliceId s + 1 })
+      modify (\s -> s { sliceMap = sm'
+                      , worklist = Set.insert wle (worklist s)
+                      , nextSliceId = nextSliceId s + 1 })
       pure nsl
     Just nsl' -> pure nsl'
 
@@ -297,7 +300,6 @@ exportCallNode cn = do
       paramMap = foldMap mk (callSlices cn)
 
   sid <- getAllocSliceId (callName cn, callClass cn, ixs)
-
   pure (ExpCallNode { ecnName = callName cn
                     , ecnIdx  = callClass cn
                     , ecnSliceId  = sid
