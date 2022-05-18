@@ -103,7 +103,7 @@ struct ParseError {
     if (newIsSys == is_system_error) {
       Size offset    = input->getOffset();
       Size newOffset = newInput.getOffset();
-      if (newOffset <= offset) return;
+      if (newOffset < offset) return;
     }
 
     // We found a better error.

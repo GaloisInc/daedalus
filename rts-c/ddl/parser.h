@@ -17,7 +17,7 @@ typedef size_t ThreadId;
 
 class ParserState {
 
-  std::optional<ParseError> error;
+  ParseError error;
 
   ListStack           stack;
   std::vector<Thread> suspended;
@@ -26,10 +26,12 @@ class ParserState {
 public:
   ParserState() {}
 
-  ParseError getParseError() { return *error; }
+  ParseError getParseError() { return error; }
 
-  // All alternatives failed.
+  // There are no more alternatives to consider.
   // Free the stack and return the best error we know about.
+  // Note that if no errors occurer, the "error" woudl be just
+  // the default error.
   ParseError finalYield() {
     debugLine("final yield");
     debugVal(stack);
@@ -54,12 +56,7 @@ public:
 
   // Borrows input and msg
   void noteFail(bool is_sys, char const *loc, Input input, Array<UInt<8>> msg) {
-    if (error.has_value()) error->improve(is_sys,loc,input,msg,debugs);
-    else {
-      input.copy();
-      msg.copy();
-      error = ParseError(is_sys,loc,input,msg,debugs);
-    }
+    error.improve(is_sys,loc,input,msg,debugs);
   }
 
   // Function calls
