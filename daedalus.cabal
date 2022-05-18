@@ -40,7 +40,6 @@ library
                        Daedalus.Quote,
                        Daedalus.Parser,
                        Daedalus.AST,
-                       Daedalus.Test,
                        Daedalus.Module,
                        Daedalus.Scope,
                        Daedalus.ExportRuleRanges,
