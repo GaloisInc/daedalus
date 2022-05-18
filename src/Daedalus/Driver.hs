@@ -93,7 +93,7 @@ import qualified System.IO as IO
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon)
+import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon,backticks,bullets)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 
@@ -111,6 +111,7 @@ import Daedalus.Type.Monad(TypeError, runMTypeM, TCConfig(..), TypeWarning)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
+import Daedalus.Type.Pretty(ppRuleType)
 import Daedalus.Specialise(specialise)
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
@@ -725,6 +726,7 @@ passSpecialize tgt roots =
           ddlThrow (ADriverError
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
+     mapM_ checkMono (forgetRecs decls)
      r <- ddlRunPass (specialise rootNames decls)
      case r of
        Left err  -> ddlThrow (ASpecializeError err)
@@ -741,6 +743,22 @@ passSpecialize tgt roots =
                                                       (SpecializedModule mo)
                                                       (loadedModules s)
                                }
+
+  where
+  checkMono decl =
+    case tcDeclTyParams decl of
+      [] -> pure ()
+      _  -> ddlThrow (ADriverError (show msg))
+    where
+    msg = vcat
+            [ "[Error] Entries need a fixed type but" <+>
+                  backticks (pp (tcDeclName decl)) <+> "is polymorphic:"
+            , nest 2 $ bullets
+                [ "Type:" $$ nest 2 (ppRuleType (declTypeOf decl))
+                , "You may use a type signature to restrict the type."
+                ]
+            ]
+
 
 
 -- | (6) Convert the given module to core.  For the moment, the module
