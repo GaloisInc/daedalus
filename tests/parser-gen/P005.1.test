@@ -1,3 +1,4 @@
+run
 P005.ddl
 --gen
---interp=inputs/P005.1.inp
+--input=inputs/P005.1.inp

@@ -1,2 +1,3 @@
+run
 ../../formats/plain-ppm.ddl
---interp=inputs/02.ppm
+--input=inputs/02.ppm

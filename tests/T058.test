@@ -1,2 +1,3 @@
---interp=T058.ddl
+run
 T058.ddl
+--input=T058.ddl

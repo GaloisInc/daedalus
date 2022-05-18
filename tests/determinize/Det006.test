@@ -1,3 +1,4 @@
+dump
 Det006.ddl
---dump-core
+--core
 --determinize

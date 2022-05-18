@@ -1,2 +1,3 @@
+run
 T012.ddl
---interp=T012.input.1
+--input=T012.input.1

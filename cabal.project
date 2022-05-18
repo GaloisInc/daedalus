@@ -15,7 +15,12 @@ packages:
 
 constraints:
   utf8-string < 1.0.2
-  
+
+source-repository-package
+    type: git
+    location: https://github.com/yav/simple-get-opt
+    tag: fc8c05119ddfe4ce7b3f7db7d918ef2be92b6565
+
 -- Required for semantic tokens
 -- source-repository-package
 --     type: git

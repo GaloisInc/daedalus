@@ -1,4 +1,5 @@
+run
 Det003.ddl
 --core
 --determinize
---interp=inputs/Det003.1.inp
+--input=inputs/Det003.1.inp
