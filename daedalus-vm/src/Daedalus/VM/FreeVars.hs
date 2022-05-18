@@ -14,7 +14,7 @@ defines instr =
     Notify {}       -> []
     CallPrim v _ _  -> [v]
     Spawn v _       -> [v]
-    NoteFail _      -> []
+    NoteFail {}     -> []
     Free {}         -> []
     Let v _         -> [v]
     PushDebug{}     -> []
@@ -95,7 +95,7 @@ instance FreeVars Instr where
       Notify e        -> freeVars' e
       CallPrim _ _ es -> freeVars' es
       Spawn _ l       -> freeVars' l
-      NoteFail e      -> freeVars' e
+      NoteFail _ _ i m -> freeVars' (i,m)
       Free xs         -> freeVars' xs
       Let _ e         -> freeVars' e
       PushDebug{}     -> id

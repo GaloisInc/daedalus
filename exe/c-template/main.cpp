@@ -92,6 +92,8 @@ int main(int argc, char* argv[]) {
   }
 
   if (resultNum == 0) {
+    cout << err;
+#if 0
     cout << "{ \"error\": \"\", \"offset\": " << err.offset;
     cout << ", \"stack\":\n  [ ";
     auto first = true;
@@ -109,6 +111,7 @@ int main(int argc, char* argv[]) {
       cout << "}\n";
     }
     cout << "  ]\n}" << endl;
+#endif
     return 1;
   }
 

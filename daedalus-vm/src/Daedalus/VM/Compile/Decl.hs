@@ -38,7 +38,7 @@ compileModule useDebug m =
                  ++ map (compileGFun dm) (Src.mGFuns m)
          }
   where
-  dm        = if useDebug then DebugStack fi else NoDebug
+  dm        = if useDebug then DebugStack fi [] else NoDebug
   fi        = Map.fromList (concatMap getInfo (Src.mFFuns m) ++
                             concatMap getInfo (Src.mGFuns m))
   getInfo f = [ (Src.fName f, r) | Src.SrcRange r <- Src.fAnnot f ]

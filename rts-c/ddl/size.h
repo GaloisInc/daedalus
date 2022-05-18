@@ -36,14 +36,16 @@ public:
   bool operator >= (Size x) const { return rep() >= x.rep(); }
 
   // mutatations
-  void incrementBy(Size x) { value += x.rep(); }
-  void increment()         { incrementBy(Size{1}); }
-  void decrement()         { value -= 1; }
+  void incrementBy(Size x) { value += x.rep(); } // XXX: assert
+  void decrementBy(Size x) { assert(value >= x.rep()); value -= x.rep(); }
+  void increment()         { incrementBy(Size(1)); }
+  void decrement()         { decrementBy(Size(1)); }
 
   // immutable
-  Size incrementedBy(Size x) const { return Size{value + x.rep()}; }
-  Size incremented()         const { return incrementedBy(Size{1}); }
-  Size decremented()         const { return Size{value - 1 }; }
+  Size incrementedBy(Size x) const { Size y(value); y.incrementBy(x); return y; }
+  Size decrementedBy(Size x) const { Size y(value); y.decrementBy(x); return y; }
+  Size incremented()         const { return incrementedBy(Size(1)); }
+  Size decremented()         const { return decrementedBy(Size(1)); }
 };
 
 

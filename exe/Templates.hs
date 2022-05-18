@@ -10,13 +10,11 @@ import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as Build
 import Data.FileEmbed
 
-
 c_template_files :: [(FilePath,ByteString)]
 c_template_files = $(embedDir "exe/c-template")
 
 hs_template_files :: [(FilePath,ByteString)]
 hs_template_files = $(embedDir "exe/hs-template")
-
 
 html_files :: [(FilePath,ByteString)]
 html_files = $(embedDir "exe/html-template")

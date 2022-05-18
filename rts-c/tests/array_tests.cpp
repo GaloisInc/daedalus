@@ -2,7 +2,6 @@
 #include <ddl/array.h>
 
 #include <string>
-#include <ranges>
 
 #include "comparisons.hpp"
 
@@ -58,7 +57,6 @@ TEST(Arrays, Builders) {
     a.free();
 }
 
-
 TEST(Arrays, SharedBuilders) {
     DDL::Builder<DDL::UInt<8>> b;
 
@@ -81,3 +79,16 @@ TEST(Arrays, SharedBuilders) {
     a.free();
     a1.free();
 }
+
+
+TEST(Arrays, BorrowBytes) {
+  char const *str ="abcd";
+  auto len        = strlen(str);
+  DDL::Array<DDL::UInt<8>> a{97,98,99,100};
+  EXPECT_EQ(a.borrowBytes(),    std::string_view(str,len));
+  EXPECT_EQ(a.borrowBytes(2),   std::string_view(str+2,len-2));
+  EXPECT_EQ(a.borrowBytes(2,1), std::string_view(str+2,1));
+  a.free();
+}
+
+

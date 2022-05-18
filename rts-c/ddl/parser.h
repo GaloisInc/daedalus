@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <optional>
 
 #include <ddl/debug.h>
 #include <ddl/input.h>
@@ -16,7 +17,7 @@ typedef size_t ThreadId;
 
 class ParserState {
 
-  ParseError error; // best error so far. Only makes sense if we fail
+  std::optional<ParseError> error;
 
   ListStack           stack;
   std::vector<Thread> suspended;
@@ -25,7 +26,7 @@ class ParserState {
 public:
   ParserState() {}
 
-  ParseError getParseError() { return error; }
+  ParseError getParseError() { return *error; }
 
   // All alternatives failed.
   // Free the stack and return the best error we know about.
@@ -33,7 +34,7 @@ public:
     debugLine("final yield");
     debugVal(stack);
     stack.free();
-    return error;
+    return getParseError();
   }
 
 
@@ -51,15 +52,13 @@ public:
   // Assumes: valid id (i.e., thread has not been resumed)
   void notify(ThreadId id) { suspended[id].notify(); }
 
-  // Set the "furtherest fail" location.
-  // XXX: This is not quite right because, in principle, the failures
-  // may be in different inputs.  For the moment, we ignore this, which
-  // could result in confusing error locations.
-  void noteFail(Input input) {
-    Size offset = input.getOffset();
-    if (offset >= error.offset) {
-      error.offset = offset;
-      error.debugs = debugs;
+  // Borrows input and msg
+  void noteFail(bool is_sys, char const *loc, Input input, Array<UInt<8>> msg) {
+    if (error.has_value()) error->improve(is_sys,loc,input,msg,debugs);
+    else {
+      input.copy();
+      msg.copy();
+      error = ParseError(is_sys,loc,input,msg,debugs);
     }
   }
 

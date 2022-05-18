@@ -591,7 +591,11 @@ cBlockStmt cInstr =
                            o = parens (parens(t) <.> "out")
                        in cStmt (cCall (o <.> "->push_back") [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
-    NoteFail e      -> cStmt (cCall "p.noteFail" [ cExpr e ])
+    NoteFail err loc i m ->
+      cStmt (cCall "p.noteFail" [ sys, cString loc, cExpr i, cExpr m ])
+      where sys = case err of
+                    Src.ErrorFromSystem -> "true"
+                    Src.ErrorFromUser   -> "false"
     Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
       where clo = "new" <+> cCall (cThreadClassName (map getType (jArgs l)))
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
