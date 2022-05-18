@@ -179,12 +179,14 @@ compile expr next0 =
          let dbgEnter how =
                 case dbg of
                   NoDebug -> pure ()
-                  DebugStack fs _ ->
-                    stmt_ (PushDebug how case Map.lookup f fs of
-                                           Just rng -> ppText rng
-                                           Nothing  -> ppText f)
+                  DebugStack fs as ->
+                    do let r = case [ rn | Src.SrcRange rn <- as ] of
+                                 [] -> case Map.lookup f fs of
+                                         Just rng -> ppText rng
+                                         Nothing  -> ppText f
+                                 rn : _ -> ppText rn
 
-
+                       stmt_ (PushDebug how r)
 
          doCall <-
            case (onNo next, onYes next) of
@@ -249,17 +251,3 @@ sharedYes next =
     Just c  -> do l <- label1 c
                   pure next { onYes = Just \v -> jump (l v) }
 
-{-
-addPops :: WhatNext -> C WhatNext
-addPops next =
-  do y <- case onYes next of
-            Just k  -> pure (\e -> stmt_ PopDebug >> k e)
-            Nothing -> do l <- label1 $ \e -> do stmt_ PopDebug >> getInput >>= \i -> term (ReturnYes e i)
-                          pure (jump . l)
-     n <- case onNo next of
-            Just k  -> pure (stmt_ PopDebug >> k)
-            Nothing -> do l <- label0 NormalBlock
-                                  do stmt_ PopDebugterm ReturnNo
-                          pure (jump l)
-     pure Next{ onYes = Just y, onNo = Just n}
--}
