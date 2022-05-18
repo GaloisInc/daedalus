@@ -38,14 +38,17 @@ data Options = Options
   , showHelp  :: Bool
   } deriving Show
 
+defaults :: Options
+defaults = Options { inputs = []
+                   , outDir = defaultOutDir
+                   , solver = Nothing
+                   , showHelp = False
+                   }
+
+
 options :: OptSpec Options
-options = OptSpec
-  { progDefaults = Options { inputs = []
-                           , outDir = defaultOutDir
-                           , solver = Nothing
-                           , showHelp = False
-                           }
-  , progOptions =
+options = optSpec
+  { progOptions =
       [ Option [] ["out-dir"]
         "Save test output in this directory"
         $ ReqArg "DIR" $ \s o -> Right o { outDir = s }
@@ -65,7 +68,7 @@ options = OptSpec
 
 main :: IO ()
 main =
-  do opts <- getOpts options
+  do opts <- getOpts defaults options
      when (showHelp opts) $
         do dumpUsage options
            exitFailure
