@@ -726,7 +726,7 @@ passSpecialize tgt roots =
           ddlThrow (ADriverError
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
-     mapM_ checkMono (forgetRecs decls)
+     mapM_ (checkMono rootNames) (forgetRecs decls)
      r <- ddlRunPass (specialise rootNames decls)
      case r of
        Left err  -> ddlThrow (ASpecializeError err)
@@ -745,10 +745,12 @@ passSpecialize tgt roots =
                                }
 
   where
-  checkMono decl =
-    case tcDeclTyParams decl of
-      [] -> pure ()
-      _  -> ddlThrow (ADriverError (show msg))
+  checkMono rootNames decl
+    | not (tcDeclName decl `elem` rootNames) = pure ()
+    | otherwise =
+      case tcDeclTyParams decl of
+        [] -> pure ()
+        _  -> ddlThrow (ADriverError (show msg))
     where
     msg = vcat
             [ "[Error] Entries need a fixed type but" <+>
