@@ -45,7 +45,7 @@ desugarMatch s mat =
     MatchEnd ->
       do i <- freshNameSys TStream
          b <- freshNameSys TBool
-         let msg = byteArrayL "Leftover input"
+         let msg = byteArrayL "Unexpected leftover input"
          pure $ Do i GetStream
               $ Let b (isEmptyStream (Var i))
               $ coreIf b
@@ -58,7 +58,7 @@ desugarMatch s mat =
          x <- freshNameSys bytes
          b <- freshNameSys TBool
 
-         let msg = eConcat (arrayL bytes [ byteArrayL "Expected ", e ])
+         let msg = eConcat (arrayL bytes [ byteArrayL "Expected " , e ])
              advance = SetStream (eDrop (arrayLen (Var x)) (Var i))
              (t,ok) = case s of
                        SemNo  -> (TUnit,advance)
@@ -76,7 +76,7 @@ desugarMatch s mat =
          x <- freshNameSys byte
          p <- freshNameSys TBool
          p' <- freshNameSys TBool
-         
+
          pv <- desugarByteSet b (Var x)
          let msgNoByte = byteArrayL "Unexpected end of input"
              msgBadByte = byteArrayL "Byte does not match specification"
