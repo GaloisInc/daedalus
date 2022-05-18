@@ -121,7 +121,7 @@ compileHaskell ddl =
      callProcess' "cp" ["template_cabal_project", root </> "cabal.project"]
      callProcess' "cabal"
         [ "run", "-v0", "exe:daedalus", "--"
-        , "--compile-hs", "--out-dir=" ++ build, ddl
+        , "compile-hs", "--out-dir=" ++ build, ddl
         ]
      callProcessIn_ build "cabal" ["build"]
      callProcessIn_ build "rm" ["-f", "parser"]
@@ -135,7 +135,7 @@ compileCPP ddl =
      createDirectoryIfMissing True build
      callProcess' "cabal"
         [ "run", "-v0", "exe:daedalus", "--"
-        , "--compile-c++", "--out-dir=" ++ build, ddl
+        , "compile-c++", "--out-dir=" ++ build, ddl
         ]
      callProcess' "make" [ "-C", build, "parser" ]
 
@@ -152,16 +152,16 @@ runWith be ddl mbInput =
      let file = outputFileFor be ddl mbInput
      createDirectoryIfMissing True (takeDirectory file)
      let interp = [ "run", "-v0", "exe:daedalus", "--"
-                  , "--json", "--no-warn-unbiased"
+                  , "--no-warn-unbiased", "run", "--json"
                   ]
      save file =<<
         case be of
 
           InterpDaedalus ->
-            readProcessWithExitCode "cabal" (interp ++ [ ddl, inp ]) ""
+            readProcessWithExitCode "cabal" (interp ++ [ ddl ] ++ inp) ""
 
           InterpCore ->
-            readProcessWithExitCode "cabal" (interp ++ ["--core", ddl, inp ]) ""
+            readProcessWithExitCode "cabal" (interp ++ ["--core", ddl] ++ inp) ""
 
           CompileHaskell ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
@@ -174,8 +174,8 @@ runWith be ddl mbInput =
                                     ""
   where
   inp = case mbInput of
-          Nothing    -> "--run"
-          Just input -> "--interp=" ++ input
+          Nothing    -> []
+          Just input -> ["--input=" ++ input]
 
   save f (_,o,_) = writeFile f o
 
