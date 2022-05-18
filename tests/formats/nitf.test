@@ -1,2 +1,3 @@
+run
 ../../formats/nitf/nitf_main.ddl
---interp=/dev/null
+--input=/dev/null

@@ -1,3 +1,4 @@
+run
 P024.ddl
 --gen
---interp=inputs/P024.1.inp
+--input=inputs/P024.1.inp

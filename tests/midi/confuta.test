@@ -1,2 +1,3 @@
+run
 ../../formats/midi.ddl
---interp=inputs/confuta.midi
+--input=inputs/confuta.midi

@@ -1,2 +1,3 @@
+run
 PNG.ddl
---interp=inputs/01.png
+--input=inputs/01.png

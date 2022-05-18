@@ -1,3 +1,4 @@
+run
 D027.ddl
---interp=inputs/D027.1.inp
---gen-metrics
+--input=inputs/D027.1.inp
+--gen=metrics

@@ -41,7 +41,6 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import Daedalus.CompileHS(hsIdentMod)
-import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypes)
@@ -96,11 +95,6 @@ configure opts =
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
-  | DumpRuleRanges <- optCommand opts =
-    do mm   <- ddlPassFromFile passResolve (optParserDDL opts)
-       mods <- mapM (`ddlGetAST` astParse) =<< ddlBasis mm
-       ddlPutStrLn (Export.jsModules mods)
-       ddlIO exitSuccess
 
   | DumpRaw <- optCommand opts =
     do mm   <- ddlPassFromFile passParse (optParserDDL opts)
@@ -171,7 +165,6 @@ handleOptions opts
                --   prog <- normalizedDecls
                --   ddlIO (interpPGen inp prog)
 
-         DumpRuleRanges -> error "Bug: DumpRuleRanges"
          DumpRaw -> error "Bug: DumpRaw"
          DumpTypes -> error "Bug: DumpTypes"
          JStoHTML -> error "Bug: JStoHTML"

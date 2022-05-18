@@ -1,3 +1,4 @@
+run
 D018.ddl
 --gen
---interp=inputs/D018.1.inp
+--input=inputs/D018.1.inp
