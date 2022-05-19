@@ -31,7 +31,7 @@ itoList xs =
 -- A simple list monad, where we don't e.g. interleave on alternatives
 newtype Parser a =
   Parser { runP ::
-           [String]         {- context stack -} ->
+           [Annot]          {- context stack -} ->
            Input            {- the input we are parsing -} ->
            Maybe ParseError {- last error if we got here by backtracking -} ->
            Res a

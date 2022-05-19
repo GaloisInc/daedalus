@@ -4,6 +4,7 @@ module RTS.JSON
   , jsonToBytes
   , jsNull
   , jsText
+  , jsString
   , jsArray
   , jsObject
   , jsTagged
@@ -11,6 +12,9 @@ module RTS.JSON
   ) where
 
 import Data.ByteString(ByteString)
+import Data.Text(Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Map (Map)
@@ -31,6 +35,9 @@ class ToJSON a where
 instance ToJSON Integer where
   toJSON = JSON . integerDec
 
+instance ToJSON Int where
+  toJSON = toJSON . toInteger
+
 instance ToJSON Float where
   toJSON = JSON . string7 . show
 
@@ -42,6 +49,9 @@ instance ToJSON Bool where
 
 instance ToJSON () where
   toJSON _ = jsObject []
+
+instance ToJSON Text where
+  toJSON = jsText . Text.encodeUtf8
 
 -- This is DDL specific
 instance (ToJSON a) => ToJSON (Maybe a) where
@@ -70,6 +80,9 @@ jsObject xs = JSON ("{" <> mconcat (intersperse "," fs) <> "}")
 -- | A shortcur for a common encoding of sum types
 jsTagged :: ByteString -> JSON -> JSON
 jsTagged t v = jsObject [ (t, v) ]
+
+jsString :: String -> JSON
+jsString = toJSON . Text.pack
 
 jsText :: ByteString -> JSON
 jsText x = coerce (char7 '"' <> escaped x <> char7 '"')

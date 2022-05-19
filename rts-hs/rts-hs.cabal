@@ -33,6 +33,7 @@ library
                        vector-builder,
                        containers,
                        bytestring,
+                       text,
                        pretty
   ghc-options:         -O2 -Wall
   default-language:    Haskell2010

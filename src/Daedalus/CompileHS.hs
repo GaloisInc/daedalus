@@ -721,9 +721,6 @@ hsBitdataStruct env ty con fs =
 hsLabelT :: Label -> Term
 hsLabelT = Raw
 
-hsRange :: SourceRange -> Term
-hsRange x = Raw (prettySourceRange x)
-
 hsText :: Text -> Term
 hsText = Raw
 
@@ -756,6 +753,13 @@ hsCommit cmt = case cmt of
                  Backtrack -> "(RTS.|||)"
 
 
+hsRange :: SourceRange -> Term
+hsRange rng = "RTS.SourceRange" `Ap` pos (sourceFrom rng)
+                                `Ap` pos (sourceTo rng)
+  where
+  pos x = "RTS.SourcePos" `Ap` Raw (sourceFile x) `Ap`
+                               Raw (sourceLine x) `Ap`
+                               Raw (sourceColumn x)
 
 hsGrammar :: Env -> TC SourceRange Grammar -> Term
 hsGrammar env tc =
@@ -779,7 +783,8 @@ hsGrammar env tc =
        | otherwise -> Do (hsTCName env <$> mb) (hsGrammar env m1)
                          (hsGrammar env m2)
 
-     TCLabel t e -> "RTS.pEnter" `Ap` hsText t `Ap` hsGrammar env e
+     TCLabel t e ->
+        "RTS.pEnter" `Ap` ("RTS.TextAnnot" `Ap` hsText t) `Ap` hsGrammar env e
 
      TCMatch s c -> optSkip s "RTS.uint8"
                     ("RTS.pMatch1" `Ap` erng `Ap` hsByteClass env c)
