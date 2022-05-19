@@ -20,7 +20,7 @@ import PdfMonad.Transformer
 lzwDecode :: PdfParser m => 
     Integer -> Integer -> Integer -> Integer -> Integer -> Input -> m Input 
 lzwDecode predi colors bpc cols early inp =
-  -- pError FromUser "LZW.lzwDecode" "LZW not supported yet"
+  -- pError' FromUser [] "LZW not supported yet"
   do lzwres <- lzwDecompress (inputBytes inp)
      bs <- unPredict predi colors bpc cols lzwres
      pure (newInput name bs) 
@@ -33,13 +33,13 @@ unPredict predi colors bpc columns bs
   | predi == 1 = pure bs
   | predi == 12 && colors == 1 && bpc == 8 = pngUp columns bs
 
-  | otherwise = pError FromUser "unPredict" "Unsupported predictor algorithm."
+  | otherwise = pError' FromUser [] "Unsupported predictor algorithm."
 
 pngUp :: PdfParser m => Integer -> B.ByteString -> m B.ByteString
 pngUp columns bs =
   case uncons rows of
     Just (start,rows') -> pure (B.concat (scanl adder start rows'))
-    Nothing            -> pError FromUser "pngUp" "malformed PNG UP stream"
+    Nothing            -> pError' FromUser [] "malformed PNG UP stream"
                               --- XXX: better error?
 
   where
@@ -184,7 +184,7 @@ decompressKeys [] = pure []
 decompressKeys (k:keys) = 
     do first <- case M.lookup k initialDecodeTable of 
                 Just key -> pure key 
-                Nothing  -> pError FromUser "decompressKeys" 
+                Nothing  -> pError' FromUser []
                   "Ill-formed LZW stream: first key is not in initial dictionary."
        pure (first : decompressKeys' initialDecodeTable keys first) 
 

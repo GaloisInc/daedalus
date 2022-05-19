@@ -17,7 +17,7 @@ ascii85Decode :: PdfParser m => Input -> m Input
 ascii85Decode inp = 
   case a85Decode (inputBytes inp) of 
     Just bs -> pure (newInput name bs)
-    Nothing -> pError FromUser "ASCII85.ascii85Decode" "Unknown error"  
+    Nothing -> pError' FromUser [] "ASCII85.ascii85Decode"
   where
   name = C.pack ("ASCII85" ++ show (inputOffset inp))
 

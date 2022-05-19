@@ -853,7 +853,7 @@ hsGrammar env tc =
      TCCall f ts as ->
         case typeOf f of
           Type (TGrammar {}) ->
-            "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
+            "RTS.pEnter" `Ap` ("RTS.RngAnnot" `Ap` erng)
                          `Ap` hsApp env f ts as
           _ -> hsApp env f ts as
 

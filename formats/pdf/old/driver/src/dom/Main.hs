@@ -53,7 +53,7 @@ import CommandLine
 
 main :: IO ()
 main =
-  do opts <- getOpts options
+  do opts <- getOpts defaults options
      file <- case files opts of
                []  -> reportUsageError options ["No file to process."]
                [f] -> pure f
