@@ -12,9 +12,10 @@ import RTS.Numeric(intToSize)
 import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
                     , pError', ParseErrorSource(..)
                     )
+import qualified RTS.ParserAPI as RTS
 
-import Daedalus.PP(pp)
 import Daedalus.Value
+import Daedalus.SourceRange(SourceRange(..),SourcePos(..))
 
 import Daedalus.Core
 import Daedalus.Core.Semantics.Expr
@@ -61,11 +62,22 @@ evalG gram env =
     Annot a g ->
       case a of
         NoFail     -> evalG g env
-        SrcAnnot t -> pEnter (Text.unpack t) (evalG g env)
-        SrcRange r -> pEnter (show (pp r))   (evalG g env)
+        SrcAnnot t -> pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
+        SrcRange r -> pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
 
     GCase c ->
       evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
+
+toRtsRange :: SourceRange -> RTS.SourceRange
+toRtsRange rng = RTS.SourceRange { RTS.srcFrom = toRtsPos (sourceFrom rng)
+                                 , RTS.srcTo   = toRtsPos (sourceTo rng)
+                                 }
+
+toRtsPos :: SourcePos -> RTS.SourcePos
+toRtsPos s = RTS.SourcePos { RTS.srcName = Text.unpack (sourceFile s)
+                           , RTS.srcLine = sourceLine s
+                           , RTS.srcCol  = sourceColumn s
+                           }
 
 evalMatch :: Sem -> Match -> Env -> Parser Value
 evalMatch sem mat env =
