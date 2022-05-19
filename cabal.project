@@ -12,6 +12,7 @@ packages:
   daedalus-language-server/
   -- daedalus-language-server/deps/lsp/lsp
   -- daedalus-language-server/deps/lsp/lsp-types
+  out/
 
 constraints:
   utf8-string < 1.0.2

@@ -86,7 +86,7 @@ class BasicParser m => PdfParser m where
 instance BasicParser m => PdfParser (PdfT m) where
   resolving r (P m) = P \RO {..} s ->
     if r `Set.member` roResolving
-      then liftS s $ pError FromSystem "PdfMonad.resolving" "Reference cycle"
+      then liftS s $ pError' FromSystem [] "Reference cycle"
       else m RO { roResolving = Set.insert r roResolving, .. } s
 
   extendObjIndex prevInFileObjMap (P m) = P \RO{..} ->
@@ -107,7 +107,7 @@ instance BasicParser m => PdfParser (PdfT m) where
     case Map.lookup r (rwValidated s) of
       Nothing -> pure (False,s)
       Just b1 | b == b1 -> pure (True,s)
-              | otherwise -> pError FromSystem "IsValidate" msg
+              | otherwise -> pError' FromSystem [] msg
         where
         msg = "Reference R:" ++ show (refObj r) ++ ":" ++
               show (refGen r) ++ " used at multiple types " ++

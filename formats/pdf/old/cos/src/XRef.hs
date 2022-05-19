@@ -123,7 +123,7 @@ parseXRefsVersion1 inp off0 =
     do oix <- getObjIndex
        case mbRoot of
          Just r -> return (oix, r)
-         Nothing -> pError FromUser "parseXRefsVersion1.go" "Missing document root."
+         Nothing -> pError' FromUser [] "Missing document root."
 
   go mbRoot (Just offset) prevSet =
     -- precondition: offset `member` prevSet
@@ -135,8 +135,7 @@ parseXRefsVersion1 inp off0 =
            case refSec of
              CrossRef_oldXref x -> goWith mbRoot x prevSet
              CrossRef_newXref x -> goWith mbRoot x prevSet
-      Nothing -> pError FromUser "parseXRefsVersion1.go"
-                  ("Offset out of bounds: " ++ show offset)
+      Nothing -> pError' FromUser [] ("Offset out of bounds: " ++ show offset)
 
   goWith :: ( VecElem s
             , HasField "trailer" x TrailerDict
@@ -150,12 +149,11 @@ parseXRefsVersion1 inp off0 =
            Nothing -> pure Nothing
            Just i ->
               case toInt i of
-                Nothing  -> pError FromUser "parseXRefsVersion1.goWith(1)"
-                                            "Prev offset too large."
+                Nothing  -> pError' FromUser [] "Prev offset too large."
                 Just off -> do
                             -- ensure no infinite loop of incremental updates
                             when (off `IntSet.member` prevSet) $
-                              pError FromUser "goWith"
+                              pError' FromUser []
                                 $ unwords[ "recursive incremental updates:"
                                          , "adding", show off, "to", show prevSet]
                             pure (Just $ intToSize off)
@@ -166,7 +164,7 @@ parseXRefsVersion1 inp off0 =
                       (toList (getField @"xref" x))
        let entries = Map.unions tabs
        unless (Map.size entries == sum (map Map.size tabs))
-         (pError FromUser "parseXRefsVersion1.goWith(2)" "Duplicate entries in xref section")
+         (pError' FromUser [] "Duplicate entries in xref section")
 
        let prevSet' = case prevOffset of
                         Nothing -> prevSet
@@ -180,7 +178,7 @@ parseXRefsVersion1 inp off0 =
 
 pErrorIfFail :: Possibly a -> Parser a
 pErrorIfFail = \case
-                 Left ss -> pError FromUser "" (unlines ss)
+                 Left ss -> pError' FromUser [] (unlines ss)
                  Right a -> return a
 
 ---- common code for V1 and V2 -----------------------------------------------

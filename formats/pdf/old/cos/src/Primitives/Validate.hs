@@ -23,7 +23,7 @@ toRef :: PdfParser parser => Integer -> Integer -> parser R
 toRef obj gen =
   case (toInt obj, toInt gen) of
     (Just o, Just g) -> pure R { refObj = o, refGen = g }
-    _ -> pError FromUser "primNeedsValidation" $
+    _ -> pError' FromUser [] $
             "Invalid reference R:" ++ show obj ++ ":" ++ show gen
       -- XXX: location?
 

@@ -27,18 +27,20 @@ data Settings = Settings
   , files       :: [FilePath]
   }
 
-options :: OptSpec Settings
-options = OptSpec
-  { progDefaults =
-      Settings
-        { command     = Validate  -- FIXME: remove or change default
-        , object      = -1    -- means show trailer
-        , generation  = 0
-        , password    = C.empty 
-        , files       = []
-        }
+defaults :: Settings
+defaults =
+  Settings
+    { command     = Validate  -- FIXME: remove or change default
+    , object      = -1    -- means show trailer
+    , generation  = 0
+    , password    = C.empty 
+    , files       = []
+    }
 
-  , progOptions =
+
+options :: OptSpec Settings
+options = optSpec
+  { progOptions =
       [ Option [] ["xrefs"]
         "List the cross-reference table."
         $ NoArg $ \s -> Right s { command = ListXRefs }

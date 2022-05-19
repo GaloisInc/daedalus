@@ -25,7 +25,7 @@ resolveImpl pTop pCompressed obj gen =
                      cur <- pPeek
                      case advanceBy (intToSize o) inp of
                        Just inp1 -> pSetInput inp1
-                       Nothing   -> pError FromUser "resolveImpl"
+                       Nothing   -> pError' FromUser []
                          $ unlines [ "Object offset out of file"
                                    , unwords ["Object:", show oi, show gi, "R" ]
                                    , "Offset: " ++ show o
@@ -41,5 +41,5 @@ resolveImpl pTop pCompressed obj gen =
   where
   toInt' x = case toInt x of
                Just i -> pure i
-               Nothing -> pError FromUser "resolveImpl" "Number is too large"
+               Nothing -> pError' FromUser [] "Number is too large"
 
