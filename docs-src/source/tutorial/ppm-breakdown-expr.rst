@@ -181,3 +181,197 @@ Finally, there are two ways to look up a key in a map: The function version,
 ``just v`` if it is. Like with insertion, if you'd rather trigger a failure
 when lookup fails, you can use the parser version: ``Lookup k m``, which
 returns the element itself rather than wrapping it in a ``maybe``.
+
+Control Strucutres
+------------------
+
+With a solid understanding of the types of values we have available, it's now
+time to see how they're used to control parser behaviors (and fill in all the
+gaps we left above!)
+
+``if ... then ... else``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can use a ``bool`` value to control which of two parsers runs. This is not
+used in the PPM example, but here is a simple example that parses an ``'A'`` if
+the first parsed digit is less than 5, and ``'B'`` otherwise:
+
+.. code-block:: DaeDaLus
+
+    @i = Match1 ('0' .. '9')
+    if (i - '0') < 5
+      then Match1 'A'
+      else Match1 'B'
+
+Guarding
+^^^^^^^^
+
+When writing a complex parser, it is often useful to confirm that the 'shape'
+of some value we've parsed from input is correct; this is the job of a *guard*.
+
+Guards are parsers that succeed when a given expression has a given shape. They
+can be used with ``bool``s, ``maybe`` values, and generic tagged sums built
+from alternatives parsers.
+
+An example comes from the PPM example:
+
+.. code-block:: DaeDaLus
+
+    def PPM = {
+      Match "P";
+      @version = Token Natural;
+      version == 3 is true;
+      width  = Token Natural;
+      height = Token Natural;
+      maxVal = Token Natural;
+      data   = Many height (Many width RGB);
+    }
+
+Here, the line ``version == 3 is true`` is a guard. No input is consumed at
+this line, but if the expression does not evaluate to true, it triggers a parse
+failure.
+
+If ``e`` is a ``maybe``-typed value, we can use the guards ``e is just`` or
+``e is nothing``. The same pattern works for user-defined tagged sums that
+arise from parsing alternatives using biased/unbiased choice.
+
+``case ... of ...``
+^^^^^^^^^^^^^^^^^^^
+
+A more generic way to inspect a semantic value, in particular a tagged sum, is
+the *pattern-matching* structure, ``case ... of ...``.
+
+In general, a ``case`` expression looks like:
+
+.. code-block:: DaeDaLus
+
+    case e of
+      p1 -> b1
+      p2 -> b2
+      ...
+
+Where ``e`` is an expression, and the ``p``s are *patterns*. The patterns are
+checked in order, and the first that matches the shape of ``e`` has its body
+evaluated.
+
+Here's an example that uses something like the ``GoodOrBad`` type from earlier:
+
+.. code-block:: DaeDaLus
+
+    block
+      @res = Choose
+               good = Match1 'G'
+               bad  = Match1 'B'
+      case res of
+        good -> ^ "Good!"
+        bad  -> ^ "Bad!"
+
+If the variants of our tagged sum have arguments, our patterns may give these
+arguments names so that they may be used in the body.
+
+Finally, there is a special pattern, ``_``, which can be used as a final
+"catch-all" case when you don't care what is matched. This should always be
+used as the last pattern, or else anything below it will never run!
+
+.. warning::
+
+    Remember: Patterns are checked in order, so be careful to consider that
+    when writing complex pattern-matches with ``case``!
+
+    Additionally, if your patterns don't cover all possibilities, note that
+    failure and backtracking will occur for the uncovered cases. Some languages
+    make sure all patterns are covered, but DaeDaLus isn't one of them!
+
+Loops
+^^^^^
+
+``for ...``
+"""""""""""
+
+To visit all elements of an array or dictionary, DaeDaLus provides an unusual
+form of the familiar ``for`` loop.
+
+It's best to demonstrate this with an example, taken from the PPM spec:
+
+.. code-block:: DaeDaLus
+
+    def Natural = {
+      @ds = Many (1..) Digit;
+      ^ for (val = 0; d in ds) (addDigit val d);
+    }
+
+In the ``for`` loop, we declare a variable ``val`` which acts as an accumulator
+value - the value of the body of the loop is what this variable is updated to
+after each iteration, and the final value of the entire loop is the final value
+of this variable.
+
+Following this declaration is ``d in ds``, which introduces a variable ``d`` to
+take on each value in the collection. If ``ds`` is the array ``[1, 2, 3]``,
+during the first iteration ``d`` will be 1, during the second it will be 2, and
+so on.
+
+Finally, after these declarations, is the loop body. As stated: The value of
+this body is what the variable ``val`` takes on each iteration.
+
+Let's break down the PPM example to make this behavior crystal clear. Note that
+the function ``addDigit val d`` computes ``10 * val + d``, which is a common
+pattern to accumulate parsed digits into a single numerical value.
+
+Let's say for the sake of example that ``ds = [1, 2, 3]``. During the first
+iteration, ``val = 0`` and ``d = 1``. So, after this iteration, we can think of
+evaluation as proceeding by computing the value of this new loop:
+
+.. code-block:: DaeDaLus
+
+    for (val = 1; d in [2, 3]) (addDigit val d)
+
+``val`` is 1 since the previous iteration's body computed ``addDigit 0 1``.
+The body of this new loop is, then: ``addDigit 1 2 = 10 * 1 + 2 = 12``.
+So, moving to the next iteration, we have:
+
+.. code-block:: DaeDaLus
+
+    for (val = 12; d in [3]) (addDigit val d)
+
+Which, continuing in the same way, gives a body of
+``addDigit 12 3 = 12 * 10 + 3 = 123``. So finally we have:
+
+.. code-block:: DaeDaLus
+
+    for (val = 123; d in []) (addDigit val d)
+
+Since the list is empty, the body is not evaluated again, as there's nothing to
+bind ``d`` to. So, we're done! We return this final value of ``val``, namely
+``123``.
+
+If you also need access to the index (or key if iterating over a dictionary),
+you can use this form:
+
+.. code-block:: DaeDaLus
+
+    for (val = 0; i,x in xs) ...
+
+``map ...``
+"""""""""""
+
+If rather than accumulating you wish to *transform* a sequence of elements, you
+can use the ``map`` construct. It is syntactically similar to ``for``, except
+no accumulation variable is bound:
+
+.. code-block:: DaeDaLus
+
+    map (x in xs) ...
+
+The returned collection is of equal size to that being mapped over, and each
+element is given by the value of the body for the corresponding element in the
+original collection.
+
+As with ``for``, you can also bind a variable to the index/key:
+
+.. code-block:: DaeDaLus
+
+    map (i,x in xs) ...
+
+With this, we've covered all of the essential types of values and control-flow
+structures. There are a few others for more specialized use-cases; you can check
+out the :ref:`control structures` section of the main user guide.
