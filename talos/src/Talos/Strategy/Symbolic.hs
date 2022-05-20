@@ -108,7 +108,7 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) [sl]
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM (SemiSExpr, PathBuilder)
+stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM Result
 stratSlice ptag = go
   where
     go sl =  do
@@ -178,7 +178,7 @@ stratSlice ptag = go
     -- unimplemented sl = panic "Unimplemented" [showPP sl]
 
 -- FIXME: maybe name e?
-stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM (SemiSExpr, PathBuilder)
+stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
 stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
@@ -213,7 +213,7 @@ stratCase ptag cs = do
 
 -- FIXME: this is copied from BTRand
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
-                 SymbolicM (SemiSExpr, PathBuilder)
+                 SymbolicM Result
 stratCallNode ptag cn = do
   env <- ask
   let env' = Map.compose env (ecnParamMap cn)

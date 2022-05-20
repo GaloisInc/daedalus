@@ -29,9 +29,11 @@ import qualified Talos.SymExec.SolverT    as Solv
 
 -- c.f. https://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
 
+type Result = (SemiSExpr, PathBuilder)
+
 data ThreadF next =
   Choose [next]
-  | Bind Name SymbolicEnv (SymbolicM Solution) (Solution -> next)
+  | Bind Name SymbolicEnv (SymbolicM Result) (Result -> next)
   | Backtrack (Set Name)
   deriving (Functor)
 
@@ -44,8 +46,8 @@ chooseST xs = SearchT $ liftF (Choose xs)
 backtrackST :: Monad m => Set Name -> SearchT m a
 backtrackST = SearchT . liftF . Backtrack
 
-bindST :: Monad m => Name -> SymbolicEnv -> SymbolicM Solution ->
-          (Solution -> a) -> SearchT m a
+bindST :: Monad m => Name -> SymbolicEnv -> SymbolicM Result ->
+          (Result -> a) -> SearchT m a
 bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 
 -- =============================================================================
@@ -61,12 +63,6 @@ bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 --  * A StrategyM
 
 -- Records local definitions
-
-data Solution = Solution
-  { sValue   :: SemiSExpr
-  , sPath    :: PathBuilder
-  , sContext :: Solv.SolverContext 
-  }
 
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
@@ -97,18 +93,13 @@ runSymbolicM sstrat (SymbolicM m) = do
 --------------------------------------------------------------------------------
 -- Names
 
-bindNameIn :: Name -> SymbolicM (SemiSExpr, PathBuilder)
+bindNameIn :: Name -> SymbolicM Result
            -> (PathBuilder -> SymbolicM a) -> SymbolicM a
 bindNameIn n lhs rhs = join (SymbolicM res)
   where
     res = do
       e <- ask
-      let lhs' = do
-            (v, p) <- lhs
-            ctx <- inSolver Solv.getContext
-            pure (Solution { sValue = v, sPath = p, sContext = ctx})
-            
-      lift $ bindST n e lhs' (\s -> local (Map.insert n (sValue s)) (rhs (sPath s)))
+      lift $ bindST n e lhs (\(v, pb) -> local (Map.insert n v) (rhs pb))
  
 getName :: Name -> SymbolicM (SemiValue (Typed SExpr))
 getName n = SymbolicM $ do
