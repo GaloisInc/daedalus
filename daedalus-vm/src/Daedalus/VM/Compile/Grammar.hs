@@ -183,10 +183,10 @@ compile expr next0 =
                     do let r = case [ rn | Src.SrcRange rn <- as ] of
                                  [] -> case Map.lookup f fs of
                                          Just rng -> ppText rng
-                                         Nothing  -> ppText f
+                                         Nothing  -> ""
                                  rn : _ -> ppText rn
 
-                       stmt_ (PushDebug how r)
+                       stmt_ (PushDebug how (r <> ":" <> ppText f))
 
          doCall <-
            case (onNo next, onYes next) of

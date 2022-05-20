@@ -191,7 +191,7 @@ instance PP TName where
 instance PP FName where
   pp f = case fnameText f of
            Nothing -> "_F" <.> pp (fnameId f)
-           Just t  -> pp t
+           Just t  -> pp t -- <.> "_" <.> pp (fnameId f)
 
 
 instance PP Name where

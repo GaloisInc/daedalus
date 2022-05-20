@@ -3,10 +3,7 @@
 module Daedalus.VM.Compile.Decl where
 
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 import Data.Void(Void)
-
-import Daedalus.PP(pp)
 
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
@@ -73,14 +70,12 @@ compileSomeFun isPure dm doBody fun =
                Src.Def e    ->
                  VMDef
                    let body   = foldr setInp (doBody e) inpArgs
-                       (l,ls) = runC lab (Src.typeOf name) dm
+                       (l,ls) = runC name (Src.typeOf name) dm
                                          (foldr getArgC body (zip xs args))
                    in VMFBody { vmfEntry = l
                               , vmfBlocks = Map.adjust addArgs l ls
                               }
                Src.External -> VMExtern (inpArgs ++ args)
-
-      lab = Text.pack $ show $ pp name
 
       addArgs b = b { blockArgs = inpArgs ++ args }
 

@@ -102,7 +102,8 @@ addSpecRequest modName nm ts newPs args = do
   where
     freshDeclName guid  =
       nm { nameScopedIdent = case nameScopedIdent nm of
-             ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show (pp guid)))
+             ModScope _ n -> ModScope modName n -- (n <> "__" <> T.pack (show (pp guid)))
+             -- ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show (pp guid)))
              _            -> panic "Expected ModScope" []
          , nameID = guid
          }

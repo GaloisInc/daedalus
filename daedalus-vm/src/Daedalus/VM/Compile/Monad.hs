@@ -1,4 +1,4 @@
-{-# Language BlockArguments #-}
+{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.Compile.Monad where
 
 import Data.Map(Map)
@@ -6,6 +6,8 @@ import qualified Data.Map as Map
 import Data.Void(Void)
 import Control.Monad(liftM,ap,when)
 import Data.Text(Text)
+import qualified Data.Text as Text
+import Data.Maybe(fromMaybe)
 
 import Daedalus.PP
 import Daedalus.SourceRange
@@ -30,7 +32,7 @@ instance Show DebugMode where
 type AllFunInfo = Map Src.FName SourceRange
 
 data StaticR = StaticR
-  { curFun    :: Text             -- ^ for generating more readable label/names
+  { curFun    :: Src.FName        -- ^ for generating more readable label/names
   , vEnv      :: Map Src.Name FV  -- ^ Compiled expressions
   , curTy     :: VMT              -- ^ Type of the result we are producing
   , debugMode :: DebugMode
@@ -56,7 +58,7 @@ instance Monad C where
 
 
 runC ::
-  Text ->
+  Src.FName ->
   Src.Type ->
   DebugMode ->
   C (BlockBuilder Void) ->
@@ -72,11 +74,16 @@ runC f ty dm (C m) =
                              , cLocal = 0
                              , cLabels = Map.empty
                              }
-      l = Label f (cLabel info)
+      l = Label (labelText f) (cLabel info)
       (bl,inp,extra) = buildBlock l NormalBlock [] \ ~[] -> b
   in case extra of
        [] | not inp -> (l, Map.insert l bl (cLabels info))
        _  -> panic "runC" ["Undefined input/locals?"]
+
+labelText :: Src.FName -> Text
+labelText f = txt <> Text.pack (show (Src.fnameId f))
+  where
+  txt = fromMaybe "_" (Src.fnameText f)
 
 
 staticR :: (StaticR -> a) -> C a
@@ -121,7 +128,7 @@ newBlock ::
   BlockType -> [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, Bool, [FV])
 newBlock bty tys def = C \r s ->
   let l              = cLabel s
-      lab            = Label (curFun r) l
+      lab            = Label (labelText (curFun r)) l
       (b,inp,extra)  = buildBlock lab bty tys def
 
   in ( (lab, inp, extra)
