@@ -14,7 +14,7 @@ import           SimpleSMT              (SExpr)
 import qualified Data.Set                     as Set
 import Data.Set (Set)
 
-import           Daedalus.Core      (Name, Typed (..))
+import           Daedalus.Core      (Name, Typed (..), Expr)
 import           Daedalus.Core.Type (typeOf)
 
 import           Talos.Strategy.Monad
@@ -67,16 +67,20 @@ bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 
 -- Records local definitions
 
-
 data Solution = Solution
   { sValue   :: SemiSExpr
-  , sPath    :: ResultFun SelectedPath
+  , sPath    :: PathBuilder
   , sContext :: Solv.SolverContext 
   }
 
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
-type ResultFun = SolverT StrategyM 
+
+data SolverResult =
+  ByteResult SemiSExpr
+  | InverseResult SymbolicEnv Expr -- The env. includes the result var.
+
+type PathBuilder = SelectedPathF SolverResult
 type SearchT'  = SearchT (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv
@@ -98,8 +102,8 @@ runSymbolicM sstrat (SymbolicM m) = do
 --------------------------------------------------------------------------------
 -- Names
 
-bindNameIn :: Name -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
-           -> (ResultFun SelectedPath -> SymbolicM a) -> SymbolicM a
+bindNameIn :: Name -> SymbolicM (SemiSExpr, PathBuilder)
+           -> (PathBuilder -> SymbolicM a) -> SymbolicM a
 bindNameIn n lhs rhs = join (SymbolicM res)
   where
     res = do

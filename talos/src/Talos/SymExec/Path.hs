@@ -1,6 +1,8 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 -- Path set analysis
 
@@ -21,15 +23,17 @@ import Talos.Analysis.Merge (Merge(..))
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
-data SelectedPath = 
+data SelectedPathF a = 
     SelectedHole 
-  | SelectedBytes ProvenanceTag ByteString
+  | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo SelectedPath SelectedPath
-  | SelectedChoice Int SelectedPath
-  | SelectedCall FInstId SelectedPath
-  | SelectedCase Int SelectedPath
-  deriving (Generic, NFData)
+  | SelectedDo (SelectedPathF a) (SelectedPathF a)
+  | SelectedChoice Int (SelectedPathF a)
+  | SelectedCall FInstId (SelectedPathF a)
+  | SelectedCase Int (SelectedPathF a)
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
+
+type SelectedPath = SelectedPathF ByteString
 
 -- -- isXs, mainly because we don't always have equality over nodes
 -- isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
@@ -132,7 +136,7 @@ firstSolverProvenance = 2
 
 
 -- FIXME: too general probably
-instance Merge SelectedPath where
+instance Merge (SelectedPathF a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -149,7 +153,7 @@ instance Merge SelectedPath where
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       _ -> panic "BUG: merging non-mergeable nodes" []
 
-instance PP SelectedPath where
+instance PP a => PP (SelectedPathF a) where
   ppPrec n p =
     case p of
       SelectedHole       -> "[]"
@@ -159,7 +163,7 @@ instance PP SelectedPath where
       SelectedCase   n'  sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
 
-ppStmts' :: SelectedPath -> Doc
+ppStmts' :: PP a => SelectedPathF a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2
