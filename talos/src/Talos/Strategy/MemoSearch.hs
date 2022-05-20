@@ -7,41 +7,35 @@
 
 module Talos.Strategy.MemoSearch where
 
-import Data.Maybe (maybe)
+import           Control.Lens
+import           Control.Monad.Reader           (runReaderT)
 import           Control.Monad.State
 import           Control.Monad.Trans.Free
-import           Data.Map                  (Map)
-import qualified Data.Map                  as Map
-import qualified Data.Map.Merge.Lazy       as Map
+import           Control.Monad.Trans.Writer.CPS
+import           Data.Foldable                  (foldlM)
+import           Data.Functor                   (($>))
+import           Data.Generics.Product          (field)
+import           Data.Map                       (Map)
+import qualified Data.Map                       as Map
+import qualified Data.Map.Merge.Lazy            as Map
+import           Data.Monoid                    (First (First), getFirst)
+import           Data.Set                       (Set)
+import           GHC.Generics                   (Generic)
+import           SimpleSMT                      (SExpr)
+import qualified SimpleSMT                      as SMT
 
-import qualified Data.Set                     as Set
-import Data.Set (Set)
+import           Daedalus.Core                  (Name, Typed (..))
+import           Daedalus.Panic                 (panic)
+import           Daedalus.PP                    (showPP)
 
-import           Daedalus.Core             (Name, Typed(..))
-
-import           Talos.Strategy.Monad      (StrategyM, LiftStrategyM, isRecVar)
-import           Talos.Strategy.SearchTree (Location, SearchTree)
-import qualified Talos.Strategy.SearchTree as ST
+import           Talos.Strategy.Monad           (LiftStrategyM, StrategyM,
+                                                 isRecVar)
+import           Talos.Strategy.SearchTree      (Location, SearchTree)
+import qualified Talos.Strategy.SearchTree      as ST
 import           Talos.Strategy.SymbolicM
-import           Talos.SymExec.Path        (SelectedPath)
-import           Talos.SymExec.SemiExpr    (SemiSExpr)
-import           Talos.SymExec.SolverT     (SolverContext, SolverT, SMTVar, freshSymbol)
-import Daedalus.Panic (panic)
-import Control.Monad.Reader (runReaderT)
-import Data.Functor (($>))
-import Control.Lens
-import GHC.Generics (Generic)
-import Data.Generics.Product (field)
-import Talos.SymExec.SemiValue (SemiValue(..))
-import SimpleSMT (SExpr)
-import qualified SimpleSMT as SMT
-
-import Data.Function (on)
-import Data.Foldable (foldlM)
-import Daedalus.Core (Typed)
-import Control.Monad.Trans.Writer.CPS
-import Data.Monoid (First(First), getFirst)
-import Daedalus.PP (showPP)
+import           Talos.SymExec.SemiExpr         (SemiSExpr)
+import           Talos.SymExec.SemiValue        (SemiValue (..))
+import           Talos.SymExec.SolverT          (SMTVar, SolverT, freshSymbol)
 
 --------------------------------------------------------------------------------
 -- Memoization
