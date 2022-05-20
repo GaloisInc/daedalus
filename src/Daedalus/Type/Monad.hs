@@ -200,6 +200,7 @@ instance MTCMonad MTypeM where
                              Name { nameScopedIdent = Local txt
                                   , nameContext     = ctx
                                   , nameRange       = range r
+                                  , namePublic      = False
                                   , nameID          = n
                                   }
                          , tcType = ty

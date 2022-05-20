@@ -32,6 +32,7 @@ data Name = forall ctx.
   Name { nameScopedIdent :: ScopedIdent
        , nameContext     :: Context ctx
        , nameRange       :: SourceRange
+       , namePublic      :: !Bool
        , nameID          :: !GUID
        }
 
@@ -51,7 +52,7 @@ isLocalName n =
     _        -> False
 
 primName' :: Text -> Text -> Context c -> Name
-primName' m x c = Name (ModScope m x) c synthetic invalidGUID
+primName' m x c = Name (ModScope m x) c synthetic True invalidGUID
 
 primName :: Text -> Text -> Name
 primName m x = case Text.uncons x of

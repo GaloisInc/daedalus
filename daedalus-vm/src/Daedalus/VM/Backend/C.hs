@@ -322,9 +322,7 @@ cCaptureEntryDef n fun =
 
 
   name = vmfName fun
-  nameText = case Src.fnameText name of
-               Just txt -> "__" <> txt
-               Nothing  -> panic "cCaptureEntryDef" [ "No name" ]
+  nameText = "__" <> Src.fnameText name <> Text.pack (show (Src.fnameId name))
 
   ty   = TSem (Src.fnameType name)
   def  = case vmfDef fun of

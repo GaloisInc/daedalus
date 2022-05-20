@@ -747,7 +747,7 @@ doLoopG ann lp =
             let lab = case cmt of
                         Backtrack -> "many?"
                         Commit    -> "many"
-            f     <- newFName lab ty
+            f     <- newFName False lab ty
 
             let def = do lhs <- do r1 <- newLocal ty
                                    pure (Do r1 g (Pure (just (Var r1))))
@@ -840,7 +840,7 @@ foldLoopG lab ann colT ty vs0 sVar initS keyVar elVar colE g =
                            Nothing -> id
                            Just k  -> Let k e
 
-     f <- newFName lab ty
+     f <- newFName False lab ty
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
      defFunG ann f (sVar : i : vs)
@@ -882,7 +882,7 @@ maybeParse cmt ty p yes no =
 
 pSkipMany :: [Annot] -> Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany ann cmt vs p =
-  do f <- newFName "Many" TUnit
+  do f <- newFName False "Many" TUnit
      let es = map Var vs
      skipBody <- maybeSkip cmt p (Call f es) (Pure unit)
      defFunG ann f vs skipBody
@@ -891,7 +891,7 @@ pSkipMany ann cmt vs p =
 pParseMany ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseMany ann cmt ty vs be p =
-  do f <- newFName "Many" (TBuilder ty)
+  do f <- newFName False "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal (TBuilder ty)
      let xe = Var x
@@ -902,7 +902,7 @@ pParseMany ann cmt ty vs be p =
 
 pSkipExactlyMany :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipExactlyMany ann _cmt vs tgt p =
-  do f <- newFName "Many" TUnit
+  do f <- newFName False "Many" TUnit
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
@@ -920,7 +920,7 @@ pSkipExactlyMany ann _cmt vs tgt p =
 pParseExactlyMany ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseExactlyMany ann _cmt ty vs tgt p =
-  do f <- newFName "Many" (TBuilder ty)
+  do f <- newFName False "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
      b <- newLocal (TBuilder ty)
@@ -942,7 +942,7 @@ pParseExactlyMany ann _cmt ty vs tgt p =
 
 pSkipAtMost :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipAtMost ann cmt vs tgt p =
-  do f <- newFName "Many" sizeType
+  do f <- newFName False "Many" sizeType
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
@@ -954,7 +954,7 @@ pSkipAtMost ann cmt vs tgt p =
 pParseAtMost ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
 pParseAtMost ann cmt ty vs tgt be p =
-  do f <- newFName "Many" (TBuilder ty)
+  do f <- newFName False "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
      bv <- newLocal (TBuilder ty)
@@ -1252,7 +1252,7 @@ foldLoop lab ann colT ty vs0 sVar initS keyVar elVar colE g =
                            Nothing -> id
                            Just k  -> PureLet k e
 
-     f <- newFName lab ty
+     f <- newFName False lab ty
      i <- newLocal (TIterator colT)
      defFunF ann f (sVar : i : vs)
        =<< doIf (iteratorDone (Var i))
@@ -1495,7 +1495,7 @@ fromFDefName x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromFDefName" ["Not a top-level name"]
-     addTopName x =<< newFName lab =<< fromTypeM t
+     addTopName x =<< newFName True lab =<< fromTypeM t
 
 
 -- | Add translated name
@@ -1504,7 +1504,7 @@ fromCDefName x =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromCDefName" ["Not a top-level name"]
-     addTopName x =<< newFName lab TBool
+     addTopName x =<< newFName True lab TBool
 
 
 -- | Add translated name
@@ -1513,7 +1513,7 @@ fromGDefName x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
-     addTopName x =<< newFName lab =<< fromGTypeM t
+     addTopName x =<< newFName True lab =<< fromGTypeM t
 
 
 fromArg :: TC.Arg TC.SourceRange -> M Expr
@@ -1771,13 +1771,14 @@ scopedIdent n = M $ sets \s ->
 addTopName :: TC.Name -> FName -> M ()
 addTopName x f = M $ sets_ \s -> s { topNames = Map.insert x f (topNames s) }
 
-newFName :: Text -> Type -> M FName
-newFName lab ty = M
+newFName :: Bool -> Text -> Type -> M FName
+newFName pub lab ty = M
   do r <- ask
      freshFName
        FName { fnameId   = invalidGUID
              , fnameType = ty
-             , fnameText = Just lab
+             , fnameText = lab
+             , fnamePublic = pub
              , fnameMod  = curMod r
              }
 

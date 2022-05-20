@@ -7,7 +7,6 @@
 module Daedalus.Specialise.Monad where
 
 import MonadLib
-import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -105,6 +104,7 @@ addSpecRequest modName nm ts newPs args = do
              ModScope _ n -> ModScope modName n -- (n <> "__" <> T.pack (show (pp guid)))
              -- ModScope _ n -> ModScope modName (n <> "__" <> T.pack (show (pp guid)))
              _            -> panic "Expected ModScope" []
+         , namePublic = False
          , nameID = guid
          }
 

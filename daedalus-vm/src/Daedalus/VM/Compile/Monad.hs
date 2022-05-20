@@ -7,7 +7,6 @@ import Data.Void(Void)
 import Control.Monad(liftM,ap,when)
 import Data.Text(Text)
 import qualified Data.Text as Text
-import Data.Maybe(fromMaybe)
 
 import Daedalus.PP
 import Daedalus.SourceRange
@@ -81,9 +80,7 @@ runC f ty dm (C m) =
        _  -> panic "runC" ["Undefined input/locals?"]
 
 labelText :: Src.FName -> Text
-labelText f = txt <> Text.pack (show (Src.fnameId f))
-  where
-  txt = fromMaybe "_" (Src.fnameText f)
+labelText f = Src.fnameText f <> Text.pack (show (Src.fnameId f))
 
 
 staticR :: (StaticR -> a) -> C a
