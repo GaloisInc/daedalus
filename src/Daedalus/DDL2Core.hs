@@ -744,7 +744,10 @@ doLoopG ann lp =
             let free = Set.toList (Set.delete sVar (freeVars g))
                 es   = map Var free
 
-            f     <- newGName ty
+            let lab = case cmt of
+                        Backtrack -> "many?"
+                        Commit    -> "many"
+            f     <- newFName lab ty
 
             let def = do lhs <- do r1 <- newLocal ty
                                    pure (Do r1 g (Pure (just (Var r1))))
@@ -770,6 +773,7 @@ doLoopG ann lp =
             let free = freeVars g
             ty       <- fromGTypeM $ TC.loopType lp
             foldLoopG
+              "for"
               ann
               colT ty (Set.toList free)
               (snd sVar) initS
@@ -788,6 +792,7 @@ doLoopG ann lp =
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoopG
+                           "map"
                            ann
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
@@ -804,7 +809,7 @@ doLoopG ann lp =
                  newEl <- newLocal tv
                  g <- doBody elVar keyVar
                  let free = freeVars g
-                 foldLoopG ann colT ty (Set.toList free)
+                 foldLoopG "map" ann colT ty (Set.toList free)
                    sVar (mapEmpty tk tv)
                    (snd <$> keyVar) (snd elVar) colE
                    \i -> Do newEl g
@@ -816,6 +821,7 @@ doLoopG ann lp =
 
 
 foldLoopG ::
+  Text               {- ^ Label for funciton -} ->
   [Annot]            {- ^ Locaiton information -} ->
   Type               {- ^ Collection type -} ->
   Type               {- ^ Result type -} ->
@@ -827,14 +833,14 @@ foldLoopG ::
   Expr               {- ^ Collection to fold -} ->
   (Expr -> Grammar)  {- ^ Loop body, parameterized by iterator -} ->
   M Grammar
-foldLoopG ann colT ty vs0 sVar initS keyVar elVar colE g =
+foldLoopG lab ann colT ty vs0 sVar initS keyVar elVar colE g =
   do let vs  = vs0 \\ (maybeToList keyVar ++ [sVar,elVar])
          es  = map Var vs
          maybeAddKey e = case keyVar of
                            Nothing -> id
                            Just k  -> Let k e
 
-     f <- newGName ty
+     f <- newFName lab ty
      i <- newLocal (TIterator colT)
      nextS <- newLocal ty
      defFunG ann f (sVar : i : vs)
@@ -876,7 +882,7 @@ maybeParse cmt ty p yes no =
 
 pSkipMany :: [Annot] -> Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany ann cmt vs p =
-  do f <- newGName TUnit
+  do f <- newFName "Many" TUnit
      let es = map Var vs
      skipBody <- maybeSkip cmt p (Call f es) (Pure unit)
      defFunG ann f vs skipBody
@@ -885,7 +891,7 @@ pSkipMany ann cmt vs p =
 pParseMany ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseMany ann cmt ty vs be p =
-  do f <- newGName (TBuilder ty)
+  do f <- newFName "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal (TBuilder ty)
      let xe = Var x
@@ -896,7 +902,7 @@ pParseMany ann cmt ty vs be p =
 
 pSkipExactlyMany :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipExactlyMany ann _cmt vs tgt p =
-  do f <- newGName TUnit
+  do f <- newFName "Many" TUnit
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
@@ -914,7 +920,7 @@ pSkipExactlyMany ann _cmt vs tgt p =
 pParseExactlyMany ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseExactlyMany ann _cmt ty vs tgt p =
-  do f <- newGName (TBuilder ty)
+  do f <- newFName "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
      b <- newLocal (TBuilder ty)
@@ -936,7 +942,7 @@ pParseExactlyMany ann _cmt ty vs tgt p =
 
 pSkipAtMost :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipAtMost ann cmt vs tgt p =
-  do f <- newGName sizeType
+  do f <- newFName "Many" sizeType
      let es = map Var vs
      x <- newLocal sizeType
      let xe = Var x
@@ -948,7 +954,7 @@ pSkipAtMost ann cmt vs tgt p =
 pParseAtMost ::
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
 pParseAtMost ann cmt ty vs tgt be p =
-  do f <- newGName (TBuilder ty)
+  do f <- newFName "Many" (TBuilder ty)
      let es = map Var vs
      x <- newLocal sizeType
      bv <- newLocal (TBuilder ty)
@@ -1185,6 +1191,7 @@ doLoop ann lp =
             let free = freeVars g
             ty       <- fromTypeM $ TC.loopType lp
             foldLoop
+              "for"
               ann
               colT ty (Set.toList free)
               (snd sVar) initS
@@ -1202,6 +1209,7 @@ doLoop ann lp =
                 let free = freeVars g
                 let ty = TBuilder elTy
                 step1 <- foldLoop
+                           "map"
                            ann
                            colT ty (Set.toList free)
                            sVar (newBuilder elTy)
@@ -1214,7 +1222,7 @@ doLoop ann lp =
              do sVar <- newLocal ty
                 g <- doBody elVar keyVar
                 let free = freeVars g
-                foldLoop ann colT ty (Set.toList free)
+                foldLoop "map" ann colT ty (Set.toList free)
                   sVar (mapEmpty tk tv)
                   (snd <$> keyVar) (snd elVar) colE
                   \i -> mapInsert (Var sVar) (iteratorKey i) g
@@ -1225,6 +1233,7 @@ doLoop ann lp =
 
 
 foldLoop ::
+  Text               {- ^ Label for function -} ->
   [Annot]            {- ^ Location information -} ->
   Type               {- ^ Collection type -} ->
   Type               {- ^ Result type -} ->
@@ -1236,14 +1245,14 @@ foldLoop ::
   Expr               {- ^ Collection to fold -} ->
   (Expr -> Expr)     {- ^ Loop body, parameterized by iterator -} ->
   M Expr
-foldLoop ann colT ty vs0 sVar initS keyVar elVar colE g =
+foldLoop lab ann colT ty vs0 sVar initS keyVar elVar colE g =
   do let vs  = vs0 \\ (maybeToList keyVar ++ [sVar,elVar])
          es  = map Var vs
          maybeAddKey e = case keyVar of
                            Nothing -> id
                            Just k  -> PureLet k e
 
-     f <- newFName' Nothing ty
+     f <- newFName lab ty
      i <- newLocal (TIterator colT)
      defFunF ann f (sVar : i : vs)
        =<< doIf (iteratorDone (Var i))
@@ -1486,7 +1495,7 @@ fromFDefName x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromFDefName" ["Not a top-level name"]
-     addTopName x =<< newFName' (Just lab) =<< fromTypeM t
+     addTopName x =<< newFName lab =<< fromTypeM t
 
 
 -- | Add translated name
@@ -1495,7 +1504,7 @@ fromCDefName x =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromCDefName" ["Not a top-level name"]
-     addTopName x =<< newFName' (Just lab) TBool
+     addTopName x =<< newFName lab TBool
 
 
 -- | Add translated name
@@ -1504,7 +1513,7 @@ fromGDefName x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
-     addTopName x =<< newFName' (Just lab) =<< fromGTypeM t
+     addTopName x =<< newFName lab =<< fromGTypeM t
 
 
 fromArg :: TC.Arg TC.SourceRange -> M Expr
@@ -1762,17 +1771,14 @@ scopedIdent n = M $ sets \s ->
 addTopName :: TC.Name -> FName -> M ()
 addTopName x f = M $ sets_ \s -> s { topNames = Map.insert x f (topNames s) }
 
-newGName :: Type -> M FName
-newGName = newFName' Nothing
-
-newFName' :: Maybe Text -> Type -> M FName
-newFName' mb ty = M
+newFName :: Text -> Type -> M FName
+newFName lab ty = M
   do r <- ask
      freshFName
-       FName { fnameId = invalidGUID
+       FName { fnameId   = invalidGUID
              , fnameType = ty
-             , fnameText = mb
-             , fnameMod = curMod r
+             , fnameText = Just lab
+             , fnameMod  = curMod r
              }
 
 

@@ -236,7 +236,7 @@ checkJP loc ro typeOk jp count =
   case Map.lookup (jLabel jp) (roBlocks ro) of
     Just bl ->
       case blockType bl of
-        t | not (typeOk t) -> Left ["Unexpecte block type: " ++ showPP t]
+        t | not (typeOk t) -> Left ["Unexpected block type: " ++ showPP t]
           | otherwise -> check (extraArgs t)
       where
       sig     = map getOwnership (blockArgs bl)
