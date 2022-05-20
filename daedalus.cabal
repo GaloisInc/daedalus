@@ -42,7 +42,6 @@ library
                        Daedalus.AST,
                        Daedalus.Module,
                        Daedalus.Scope,
-                       Daedalus.ExportRuleRanges,
                        Daedalus.Interp,
                        Daedalus.Specialise,
                        Daedalus.CompileHS,
