@@ -117,7 +117,7 @@ data Typed a = Typed
   { typedType :: Type
   , typedThing :: a
   }
-  deriving (Eq,Ord,Generic,NFData)
+  deriving (Eq,Ord,Functor,Generic,NFData)
 
 instance Show a => Show (Typed a) where
   show = show . typedThing

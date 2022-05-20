@@ -12,7 +12,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
                             , summaries, getModule, getGFun, getSlice -- , getParamSlice
-                            , getFunDefs, getTypeDefs
+                            , getFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
@@ -26,6 +26,7 @@ import qualified Data.ByteString              as BS
 import           Data.Foldable                (find, foldl')
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import qualified Data.Set                     as Set
 import           System.Random
 
 import           Daedalus.Core
@@ -36,8 +37,8 @@ import           Daedalus.PP
 import           Daedalus.Panic
 import           Daedalus.Rec                 (forgetRecs)
 
-import           Talos.Analysis.Monad         (Summaries)
 import           Talos.Analysis.Exported
+import           Talos.Analysis.Monad         (Summaries)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
 
@@ -99,6 +100,10 @@ getSlice sid = do
   case Map.lookup sid (esFunctionSlices ss) of
     Nothing -> panic "Missing SliceId" [showPP sid]
     Just sl -> pure sl
+
+isRecVar :: LiftStrategyM m => Name -> m Bool
+isRecVar n = do
+  liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
 -- callNodeToSlices cn = do

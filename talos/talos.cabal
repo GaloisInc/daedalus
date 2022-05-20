@@ -57,6 +57,7 @@ library
 
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
+                     , Talos.Strategy.MemoSearch                     
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis

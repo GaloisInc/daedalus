@@ -14,7 +14,7 @@ module Talos.SymExec.SolverT (
   nameToSMTName, fnameToSMTName, tnameToSMTName,
   getName,
   SolverState,
-  withSolver,
+  withSolver, SMTVar,
   -- assert, declare, check,
   solverOp, solverState,
   getValue,
@@ -34,9 +34,11 @@ module Talos.SymExec.SolverT (
 
   ) where
 
-import Control.Lens
 import           Control.Applicative
+import           Control.Lens
 import           Control.Monad.State
+import           Data.Foldable         (for_)
+import           Data.Function         (on)
 import           Data.Functor          (($>))
 import           Data.Generics.Product (field)
 import           Data.Map              (Map)
@@ -44,20 +46,20 @@ import qualified Data.Map              as Map
 import           Data.Set              (Set)
 import qualified Data.Set              as Set
 import           Data.Text             (Text)
+import           GHC.Generics          (Generic)
 import           SimpleSMT             (SExpr, Solver)
 import qualified SimpleSMT             as S
 
-import           Daedalus.Core  hiding (freshName)
-import qualified Daedalus.Core  as C
+import           Daedalus.Core         hiding (freshName)
+import qualified Daedalus.Core         as C
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.SymExec.StdLib
-import GHC.Generics (Generic)
-import Data.Foldable (for_)
-import Data.Function (on)
 -- import Text.Printf (printf)
+
+type SMTVar = String
 
 -- The name of a polymorphic function (map lookup, map insertion, etc)
 data PolyFun = PMapLookup SExpr SExpr -- kt vt
@@ -67,15 +69,15 @@ data PolyFun = PMapLookup SExpr SExpr -- kt vt
 
 data QueuedCommand =
   QCAssert SExpr
-  | QCDeclare String SExpr
-  | QCDefine  String SExpr SExpr
+  | QCDeclare SMTVar SExpr
+  | QCDefine  SMTVar SExpr SExpr
 
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
 data SolverFrame = SolverFrame
   { frId        :: !Int -- ^ The index of the choice which led to this frame
   , frCommands   :: ![QueuedCommand]
-  , frBoundNames :: !(Map Name String)
+  , frBoundNames :: !(Map Name SMTVar)
   -- ^ May include names bound in closed scopes, to allow for
   --
   -- def P = { x = { $$ = UInt8; $$ > 10 }, ...}
@@ -101,7 +103,7 @@ data SolverState = SolverState
     -- These have to be defined at the top level (before we start pushing etc.)
   , ssKnownTypes :: !(Set TName)
   , ssKnownFuns  :: !(Set FName)
-  , ssKnownPolys :: !(Map PolyFun String)
+  , ssKnownPolys :: !(Map PolyFun SMTVar)
 
   , ssFrames          :: ![SolverFrame]
   , ssNFlushedFrames  :: !Int
@@ -256,7 +258,7 @@ reset = do
   solverOp (\s -> S.ackCommand s (S.app (S.const "reset") []))
   solverOp makeStdLib
 
-bindName :: Name -> String -> SolverFrame -> SolverFrame
+bindName :: Name -> SMTVar -> SolverFrame -> SolverFrame
 bindName k v = field @"frBoundNames" %~ Map.insert k v
 
 lookupName :: Name -> SolverFrame -> Maybe SExpr
@@ -301,16 +303,16 @@ getValue v = do
 -- -----------------------------------------------------------------------------
 -- Names
 
-stringToSMTName :: Text -> GUID -> String
+stringToSMTName :: Text -> GUID -> SMTVar
 stringToSMTName n g = show (pp n <> "@" <> pp g)
 
-nameToSMTName :: Name -> String
+nameToSMTName :: Name -> SMTVar
 nameToSMTName n = stringToSMTName (maybe "_N" id (nameText n)) (nameId n)
 
-fnameToSMTName :: FName -> String
+fnameToSMTName :: FName -> SMTVar
 fnameToSMTName n = stringToSMTName (maybe "_F" id (fnameText n)) (fnameId n)
 
-tnameToSMTName :: TName -> String
+tnameToSMTName :: TName -> SMTVar
 tnameToSMTName n = stringToSMTName (tnameText n) (tnameId n)
 
 -- symExecName :: Name -> SExpr
@@ -336,7 +338,7 @@ getPolyFun pf = do
     Just s  -> pure (S.const s)
     Nothing -> panic "Missing polyfun" [show pf]
 
-freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m String
+freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m SMTVar
 freshSymbol pfx = do
   guid <- lift getNextGUID
   pure (stringToSMTName pfx guid)
@@ -347,7 +349,7 @@ declareSymbol pfx ty = do
   queueSolverOp (QCDeclare sym ty)
   pure (S.const sym)
 
-freshName :: (Monad m, HasGUID m) => Name -> SolverT m String
+freshName :: (Monad m, HasGUID m) => Name -> SolverT m SMTVar
 freshName n = do
   n' <- lift (C.freshName n)
   let ns = nameToSMTName n'
@@ -408,7 +410,7 @@ data SMTTypeDef =
              , stdBody :: [(String, [(String, SExpr)])]
              }
 
-typeNameToDefault :: TName -> String
+typeNameToDefault :: TName -> SMTVar
 typeNameToDefault n = "default-" ++ tnameToSMTName n
 
 -- FIXME: merge into simple-smt
@@ -478,7 +480,7 @@ defineSMTTypeDefs (MutRec stds) = onState (field @"ssKnownTypes") $ \known -> do
 -- Functions
 
 data SMTFunDef = SMTFunDef { sfdName :: FName
-                           , sfdArgs :: [(String, SExpr)]
+                           , sfdArgs :: [(SMTVar, SExpr)]
                            , sfdRet  :: SExpr
                            , sfdBody :: SExpr
                            , sfdPureDeps :: Set FName

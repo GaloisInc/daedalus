@@ -34,26 +34,24 @@ import Talos.SymExec.SemiExpr (SemiSExpr)
 
 -- c.f. https://www.haskellforall.com/2013/06/from-zero-to-cooperative-threads-in-33.html
 
-data ThreadF m r next =
+data ThreadF next =
   Choose [next]
-  | Bind Name (m r) (r -> next)
+  | Bind Name SymbolicEnv (SymbolicM Solution) (Solution -> next)
   | Backtrack (Set Name)
   deriving (Functor)
 
-newtype SearchT r m a = SearchT { getSearchT :: FreeT (ThreadF (SearchT r m) r) m a}
-  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM)
+newtype SearchT m a = SearchT { getSearchT :: FreeT ThreadF m a }
+  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadTrans)
 
-instance MonadTrans (SearchT r) where
-  lift = SearchT . lift
-
-chooseST :: Monad m => [a] -> SearchT r m a
+chooseST :: Monad m => [a] -> SearchT m a
 chooseST xs = SearchT $ liftF (Choose xs)
 
-backtrackST :: Monad m => Set Name -> SearchT r m a
+backtrackST :: Monad m => Set Name -> SearchT m a
 backtrackST = SearchT . liftF . Backtrack
 
-bindST :: Monad m => Name -> SearchT r m r -> (r -> a) -> SearchT r m a
-bindST n lhs rhs = SearchT $ liftF (Bind n lhs rhs)
+bindST :: Monad m => Name -> SymbolicEnv -> SymbolicM Solution ->
+          (Solution -> a) -> SearchT m a
+bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 
 -- =============================================================================
 -- Symbolic monad
@@ -69,16 +67,23 @@ bindST n lhs rhs = SearchT $ liftF (Bind n lhs rhs)
 
 -- Records local definitions
 
+
+data Solution = Solution
+  { sValue   :: SemiSExpr
+  , sPath    :: ResultFun SelectedPath
+  , sContext :: Solv.SolverContext 
+  }
+
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
 type ResultFun = SolverT StrategyM 
-type SearchT'  = SearchT (SemiSExpr, ResultFun SelectedPath) (SolverT StrategyM)
+type SearchT'  = SearchT (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv
 emptySymbolicEnv = mempty
 
 newtype SymbolicM a =
-  SymbolicM { _getSymbolicM :: ReaderT SymbolicEnv SearchT' a }
+  SymbolicM { getSymbolicM :: ReaderT SymbolicEnv SearchT' a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv)
 
 instance LiftStrategyM SymbolicM where
@@ -87,18 +92,24 @@ instance LiftStrategyM SymbolicM where
 runSymbolicM :: SearchStrat ->
                 SymbolicM SelectedPath ->
                 SolverT StrategyM (Maybe SelectedPath)
-runSymbolicM sstrat (SymbolicM m) = runSearchStrat sstrat (runReaderT m emptySymbolicEnv)
-
+runSymbolicM sstrat (SymbolicM m) = do
+  runSearchStrat sstrat (runReaderT m emptySymbolicEnv)
+  
 --------------------------------------------------------------------------------
 -- Names
 
-bindNameIn :: Name -> SymbolicM (SemiValue (Typed SExpr), ResultFun SelectedPath)
+bindNameIn :: Name -> SymbolicM (SemiSExpr, ResultFun SelectedPath)
            -> (ResultFun SelectedPath -> SymbolicM a) -> SymbolicM a
-bindNameIn n (SymbolicM m) m' = join (SymbolicM res)
+bindNameIn n lhs rhs = join (SymbolicM res)
   where
     res = do
       e <- ask
-      lift $ bindST n (runReaderT m e) (\(v, cp) -> local (Map.insert n v) (m' cp))
+      let lhs' = do
+            (v, p) <- lhs
+            ctx <- inSolver Solv.getContext
+            pure (Solution { sValue = v, sPath = p, sContext = ctx})
+            
+      lift $ bindST n e lhs' (\s -> local (Map.insert n (sValue s)) (rhs (sPath s)))
  
 getName :: Name -> SymbolicM (SemiValue (Typed SExpr))
 getName n = SymbolicM $ do
@@ -125,8 +136,7 @@ backtrack xs = SymbolicM (lift (backtrackST xs))
 -- Search strtegies
 
 newtype SearchStrat = SearchStrat
-  { runSearchStrat :: forall r. SearchT' r -> SolverT StrategyM (Maybe r) }
-
+  { runSearchStrat :: SearchT' SelectedPath -> SolverT StrategyM (Maybe SelectedPath) }
 
 dfs :: SearchStrat
 dfs = SearchStrat $ \m -> go [m]
@@ -136,9 +146,9 @@ dfs = SearchStrat $ \m -> go [m]
     go (x : xs) = do
       r <- runFreeT (getSearchT x)
       case r of
-        Free (Choose xs')     -> go (map SearchT xs' ++ xs)
-        Free (Backtrack {})   -> go xs
-        Free (Bind n lhs rhs) -> go ((lhs >>= SearchT . rhs) : xs)
+        Free (Choose xs')       -> go (map SearchT xs' ++ xs)
+        Free (Backtrack {})     -> go xs
+        Free (Bind n e lhs rhs) -> go ((runReaderT (getSymbolicM lhs) e >>= SearchT . rhs) : xs)
         Pure res              -> pure (Just res)
 
 -- dfs, bfs, randDFS, randRestart :: SearchStrat
