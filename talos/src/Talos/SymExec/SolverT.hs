@@ -19,7 +19,7 @@ module Talos.SymExec.SolverT (
   solverOp, solverState,
   getValue,
   -- * Context management
-  SolverContext, getContext, restoreContext, scoped,
+  SolverContext, getContext, restoreContext, freshContext, scoped,
   -- * Functions
   SMTFunDef(..), defineSMTFunDefs,
   -- * SMT Polymorphic functions
@@ -29,7 +29,7 @@ module Talos.SymExec.SolverT (
   typeNameToDefault,
   -- * Context management
   modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
-  freshName, freshSymbol, defineName, declareName, declareSymbol, knownFNames,
+  freshName, freshSymbol, defineName, declareName, declareSymbol, declareFreshSymbol, knownFNames,
   reset, assert, check
 
   ) where
@@ -168,7 +168,6 @@ modifyCurrentFrame f = overCurrentFrame (\s -> pure ((), f s))
 --       solverOp (\s -> S.popMany s (fromIntegral $ length fs))
 --       SolverT (modify (\s -> s { frames = [], currentFrame = topF, pendingPushes = 0 }))
 
-
 execQueuedCommand :: MonadIO m => QueuedCommand -> SolverT m ()
 execQueuedCommand qc =
   solverOp $ \s ->
@@ -208,6 +207,12 @@ pushFrame force = do
   when (force || not (nullSolverFrame cf)) $ do
     SolverT $ field @"ssFrames" <>= [cf]
     resetCurrentFrame
+
+freshContext :: MonadIO m => SolverT m ()
+freshContext = do
+  -- This represents the global namespace, it needs to be there so we don't overpop.
+  -- FIXME: a hack :(
+  restoreContext $ SolverContext [ emptySolverFrame 0 ]
   
 getContext :: MonadIO m => SolverT m SolverContext
 getContext = do
@@ -226,11 +231,15 @@ scoped m = do
         -- actually pushed, so we can safely pop in restoreContext.
   m
 
+freshSolverFrame :: Monad m => SolverT m SolverFrame
+freshSolverFrame =  emptySolverFrame <$> SolverT (field @"ssNextFrameID" <<+= 1)
+
 resetCurrentFrame :: Monad m => SolverT m ()
-resetCurrentFrame = SolverT $ do
-  fid <- field @"ssNextFrameID" <<+= 1  
-  field @"ssCurrentFrame"     .= emptySolverFrame fid
-  field @"ssNCurrentFlushed"  .= 0
+resetCurrentFrame = do
+  frame <- freshSolverFrame
+  SolverT $ do
+    field @"ssCurrentFrame"     .= frame
+    field @"ssNCurrentFlushed"  .= 0
 
 restoreContext :: MonadIO m => SolverContext -> SolverT m ()
 restoreContext (SolverContext fs) = do
@@ -278,7 +287,7 @@ withSolver f = do
 solverOp :: MonadIO m => (Solver -> IO a) -> SolverT m a
 solverOp f = withSolver (liftIO . f)
 
-queueSolverOp :: MonadIO m => QueuedCommand -> SolverT m ()
+queueSolverOp :: Monad m => QueuedCommand -> SolverT m ()
 queueSolverOp qc = 
   modifyCurrentFrame (field @"frCommands" <>~ [qc])
 
@@ -343,7 +352,11 @@ freshSymbol pfx = do
   guid <- lift getNextGUID
   pure (stringToSMTName pfx guid)
 
-declareSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
+-- Declare a symbol we have previously generated with freshSymbol
+declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
+declareFreshSymbol sym ty = queueSolverOp (QCDeclare sym ty)
+
+declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
 declareSymbol pfx ty = do
   sym <- freshSymbol pfx
   queueSolverOp (QCDeclare sym ty)

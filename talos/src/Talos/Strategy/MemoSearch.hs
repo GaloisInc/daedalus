@@ -18,7 +18,7 @@ import           Data.Generics.Product          (field)
 import           Data.Map                       (Map)
 import qualified Data.Map                       as Map
 import qualified Data.Map.Merge.Lazy            as Map
-import           Data.Monoid                    (First (First), getFirst)
+import           Data.Monoid                    (First (First), getFirst, Ap (Ap), getAp)
 import           Data.Set                       (Set)
 import           GHC.Generics                   (Generic)
 import           SimpleSMT                      (SExpr)
@@ -35,7 +35,9 @@ import qualified Talos.Strategy.SearchTree      as ST
 import           Talos.Strategy.SymbolicM
 import           Talos.SymExec.SemiExpr         (SemiSExpr)
 import           Talos.SymExec.SemiValue        (SemiValue (..))
-import           Talos.SymExec.SolverT          (SMTVar, SolverT, freshSymbol)
+import           Talos.SymExec.SolverT          (SMTVar, SolverT, freshSymbol, declareFreshSymbol, freshContext)
+import Talos.SymExec.Type (symExecTy)
+import Data.Maybe (maybeToList)
 
 --------------------------------------------------------------------------------
 -- Memoization
@@ -175,7 +177,8 @@ unifySemiSExprs orig new = do
 unifyEnvs :: SolutionEnv -> SymbolicEnv -> Maybe Unifier
 unifyEnvs s1 s2 = doMerge s1 s2 >>= mergeUnifierss . Map.elems
   where
-    doMerge = Map.mergeA panicOnMissing Map.dropMissing (Map.zipWithAMatched (\_k -> unifySemiSExprs))
+    doMerge = Map.mergeA panicOnMissing Map.dropMissing
+                (Map.zipWithAMatched (\_k -> unifySemiSExprs))
     panicOnMissing = Map.mapMissing (\k _ -> panic "Missing key" [showPP k])
     
 --------------------------------------------------------------------------------
@@ -188,7 +191,6 @@ type SolutionEnv = Map Name (SemiValue SMTVar)
 -- unified by t, where t contains SMT variables.
 data MemoInstance = MemoInstance
   { miVarShape   :: SolutionEnv
-  , miVars       :: [Typed SMTVar]
   , miSolutions  :: [Solution]
   , miUnexplored :: Maybe Location'
   }
@@ -207,16 +209,20 @@ addMemoInstance :: Name -> SymbolicEnv -> SymbolicM Solution ->
 addMemoInstance n e m = do
   fvs   <- gets ((Map.! n) . frees)
   (sole, vmap) <- runWriterT (traverse nameSExprs (Map.restrictKeys e fvs))
-  let vars = [ se { typedThing = n' } | (n', se) <- Map.toList vmap ]
+  let declVars = [ declareFreshSymbol n' (symExecTy (typedType se))
+                 | (n', se) <- Map.toList vmap]
+      initContext = inSolver (freshContext >> sequence_ declVars)
       -- turn a SolutionEnv into a SymbolicEnv
       e'   = fmap (fmap (fmap SMT.const)) sole
-      m'   = runReaderT (getSymbolicM m) e'
+      -- We reset the context and declare the new variables
+      m'   = runReaderT (getSymbolicM (initContext >> m)) e'
       mi   = MemoInstance { miVarShape  = fmap (fmap typedThing) sole
-                          , miVars      = vars
                           , miSolutions = []
                           , miUnexplored = Just (ST.empty m')
                           }
   m_old <- field @"memos" %%= Map.insertLookupWithKey (\_ -> flip (<>)) n [mi]
+  -- We return the index of the new MemoInstance, which is at the end
+  -- of any existing instances.
   pure (maybe 0 length m_old, typedThing <$> vmap)
 
 findMemoInstance :: Name -> SymbolicEnv -> MemoM (Maybe (MemoIdx, Unifier))
@@ -232,6 +238,45 @@ memoIdx n e m = do
     Just r  -> pure r
     Nothing -> addMemoInstance n e m
 
+-- This is the main worker: we want to generate another solution.
+memoGen :: MemoInstance -> MemoM (Maybe Solution, MemoInstance)
+memoGen mi 
+  | Just loc <- miUnexplored mi = do
+      m_res <- memoLocation loc
+      let m_soln = fst <$> m_res
+          m_loc  = snd <$> m_res
+      let mi' = mi { miUnexplored = m_loc
+                   , miSolutions  = miSolutions mi <> maybeToList m_soln
+                   }
+      pure (m_soln, mi')
+      
+  | otherwise = pure (Nothing, mi)
+
+-- Gets another solution, may do a whole bunch of work to find it.
+-- FIXME: parameterise by no. attempts?
+nextSolution :: SearchTag -> MemoM (Maybe (SearchTag, SearchT' Solution))
+nextSolution tag =
+  case tag of
+    FixedTag -> pure Nothing
+    MemoTag n idx u nseen m -> do
+      let mk soln = (MemoTag n idx u (nseen + 1) m, m soln)
+          
+      m_mi <- preuse (field @"memos" . ix n . ix idx)
+      let mi = case m_mi of
+            Nothing -> panic "Missing MemoInstance" []
+            Just r  -> r
+      m_soln <- case miSolutions mi ^? ix nseen of
+        Just soln -> pure (Just soln)
+        Nothing   -> do
+          (r, mi') <- memoGen mi
+          field @"memos" . ix n . ix idx .= mi'
+          pure r          
+      pure $ mk <$> m_soln
+      
+    NestTag n loc m -> do
+      let mk (soln, loc') = (NestTag n loc' m, m soln)
+      fmap mk <$> memoLocation loc
+    
 --------------------------------------------------------------------------------
 -- Backtracking policy
 
@@ -252,7 +297,7 @@ memoBacktrack :: Bool -> Location' -> MemoM (Maybe Location')
 memoBacktrack wasFail loc = do
   bts <- gets policy
   btsBacktrack bts wasFail loc
-      
+        
 --------------------------------------------------------------------------------
 -- Monad and State
 
@@ -290,17 +335,17 @@ memoSearch = SearchStrat $ go . ST.empty
   where
     go = undefined
 
-memoSearchTree :: Location' ->
-                  MemoM (Maybe Solution, Maybe Location')
-memoSearchTree loc = m_go =<< memoBacktrack True loc
+memoLocation :: Location' ->
+                MemoM (Maybe (Solution, Location'))
+memoLocation loc = m_go =<< memoBacktrack True loc
   where
-    m_go = maybe (pure (Nothing, Nothing)) go
+    m_go = maybe (pure Nothing) go
 
     -- Just check that we arrived at an unexplored loc.
     go loc' | ST.Unexplored m <- ST.locTree loc' = next loc' m
             | otherwise = panic "Expecting to be at an unexplored node" []
 
-    next :: Location' -> SearchT' Solution -> MemoM (Maybe Solution, Maybe Location')
+    next :: Location' -> SearchT' Solution -> MemoM (Maybe (Solution, Location'))
     next loc' m = do
       r <- MemoM . lift $ runFreeT (getSearchT m)
       case r of
@@ -320,4 +365,4 @@ memoSearchTree loc = m_go =<< memoBacktrack True loc
               pure (MemoTag n i u 0 rhs')
           
           go =<< memoChoose (ST.replaceUnexplored tag [] loc')
-        Pure s -> pure (Just s, Just loc')
+        Pure s -> pure (Just (s, loc'))

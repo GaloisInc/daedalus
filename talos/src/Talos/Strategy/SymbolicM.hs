@@ -8,27 +8,22 @@ module Talos.Strategy.SymbolicM where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
-import           Data.Map               (Map)
-import qualified Data.Map               as Map
-import           SimpleSMT              (SExpr)
-import qualified Data.Set                     as Set
-import Data.Set (Set)
+import           Control.Monad.Trans.Free
+import           Data.Map                 (Map)
+import qualified Data.Map                 as Map
+import           Data.Set                 (Set)
+import           SimpleSMT                (SExpr)
 
-import           Daedalus.Core      (Name, Typed (..), Expr)
-import           Daedalus.Core.Type (typeOf)
+import           Daedalus.Core            (Expr, Name, Typed (..))
+import           Daedalus.Core.Type       (typeOf)
 
 import           Talos.Strategy.Monad
--- import           Talos.Strategy.SearchT    (SearchT)
--- import qualified Talos.Strategy.SearchT    as ST
-import           Talos.Strategy.SearchTree
 import           Talos.SymExec.Path
+import           Talos.SymExec.SemiExpr   (SemiSExpr)
 import           Talos.SymExec.SemiValue
-import           Talos.SymExec.SolverT     (SolverT)
-import qualified Talos.SymExec.SolverT     as Solv
+import           Talos.SymExec.SolverT    (SolverT)
+import qualified Talos.SymExec.SolverT    as Solv
 
-import           Control.Monad.Trans.Free
-import Talos.SymExec.SemiExpr (SemiSExpr)
- 
 --------------------------------------------------------------------------------
 -- The free monad for searching
 
