@@ -788,6 +788,7 @@ mkName :: Context ctx -> (SourceRange, Text) -> Name
 mkName ctx x = Name { nameScopedIdent = Unknown (snd x)
                     , nameContext     = ctx
                     , nameRange       = fst x 
+                    , namePublic      = True
                     , nameID          = invalidGUID }
 
 mkIP :: Context ctx -> (SourceRange, Text) -> IPName
