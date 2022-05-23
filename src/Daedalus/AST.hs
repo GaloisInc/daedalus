@@ -111,8 +111,12 @@ instance Ord Name where
     | otherwise = compare (nameID x) (nameID y)
 
 instance PP Name where
-  pp = pp . nameScopedIdent
-
+  pp x =
+    case nameScopedIdent x of
+      ModScope f i
+        | not (namePublic x) ->
+          pp (ModScope f (i <> "_" <> Text.pack (guidString (nameID x))))
+      i -> pp i
 
 -- Name for an implcit parameter.  Note that these are not resolvd like
 -- normal names as they are effectively global.
