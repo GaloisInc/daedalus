@@ -51,6 +51,7 @@ data Options =
           , optHS        :: OptsHS
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
+          , optErrorStacks :: Bool
 
           , optParams :: [String]
           }
@@ -75,6 +76,7 @@ defaultOptions =
           , optNoWarnUnbiased = False
           , optHS        = noOptsHS
           , optParams    = []
+          , optErrorStacks = True
           }
 
 
@@ -294,6 +296,9 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+      , Option [] ["no-error-stack"]
+        "Do not generate a grammar stack trace on error."
+        $ NoArg \o -> Right o { optErrorStacks = False }
       ] ++
       coreOptions ++
       [ helpOption

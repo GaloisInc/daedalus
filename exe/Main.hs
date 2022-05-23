@@ -243,7 +243,7 @@ doToCore opts mm =
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
-  do ddlSetOpt optDebugMode True
+  do ddlSetOpt optDebugMode (optErrorStacks opts)
      _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
