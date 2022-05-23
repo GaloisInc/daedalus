@@ -11,6 +11,6 @@ P037.Main : Grammar (uint 8) =
      ($$ : uint 8) <- Match {3}
      pure $$
  
-P037._Main : Grammar {} =
+P037.Main_2 : Grammar {} =
   do SetStream (arrayStream "hello" [3])
      @Match {3}

@@ -58,6 +58,7 @@ proc Simple2() : [Word 8] =
        _ ->
          fail_sys @[Word 8]
  
+-- entry pont
 -- ./Det002.ddl:3:1--3:40
 proc Main() : Main =
   -- ./Det002.ddl:3:14--3:40

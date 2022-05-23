@@ -61,40 +61,40 @@ P027.UnsignedNumber : Grammar P027.UnsignedNumber =
                y = y}
     }
  
-P027._Digit : Grammar {} =
+P027.Digit_31 : Grammar {} =
   @Match ('0' .. '9')
  
-P027._Frac : Grammar {} =
+P027.Frac_32 : Grammar {} =
   do @MatchBytes "."
-     @Many[] P027._Digit
+     @Many[] P027.Digit_31
  
-P027._NoFrac ?a0 (Literal -42 ?a0) : Grammar {} =
+P027.NoFrac_33 ?a0 (Literal -42 ?a0) : Grammar {} =
   @MatchBytes ""
  
-P027._Continue : Grammar {} =
+P027.Continue_34 : Grammar {} =
   Choose biased
-    { P027._Frac
-    | P027._NoFrac int
+    { P027.Frac_32
+    | P027.NoFrac_33 int
     }
  
-P027._Natural : Grammar {} =
-  @Many[ 1 .. ] P027._Digit
+P027.Natural_35 : Grammar {} =
+  @Many[ 1 .. ] P027.Digit_31
  
-P027._UnsignedNumber : Grammar {} =
+P027.UnsignedNumber_36 : Grammar {} =
   Choose fair
-    { do P027._Natural
-         P027._Continue
+    { do P027.Natural_35
+         P027.Continue_34
     | do @MatchBytes ""
          @Match {'.'}
-         P027._Natural
+         P027.Natural_35
     }
  
 P027.Main : Grammar P027.Main =
-  do (x : [[uint 8]]) <- Many[] do P027._UnsignedNumber
+  do (x : [[uint 8]]) <- Many[] do P027.UnsignedNumber_36
                                    ($$ : [uint 8]) <- MatchBytes " "
                                    pure $$
      pure {x = x}
  
-P027._Main : Grammar {} =
-  @Many[] do P027._UnsignedNumber
+P027.Main_37 : Grammar {} =
+  @Many[] do P027.UnsignedNumber_36
              @MatchBytes " "

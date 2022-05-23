@@ -24,11 +24,11 @@ T022.Y : Grammar (uint 8) =
 T022.Z : Grammar (uint 8) =
   Match (!T022.$z)
  
-T022._X : Grammar {} =
+T022.X_6 : Grammar {} =
   @Match (!T022.$x)
  
-T022._Y : Grammar {} =
+T022.Y_7 : Grammar {} =
   @Match (!T022.$y)
  
-T022._Z : Grammar {} =
+T022.Z_8 : Grammar {} =
   @Match (!T022.$z)

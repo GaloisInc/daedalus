@@ -17,12 +17,12 @@ D019.Main : Grammar {} =
      ($$ : {}) <- D019.A
      pure $$
  
-D019._A : Grammar {} =
+D019.A_3 : Grammar {} =
   Choose biased
     { @MatchBytes "b"
     | Fail "Its not b"
     }
  
-D019._Main : Grammar {} =
+D019.Main_4 : Grammar {} =
   do @MatchBytes "a"
-     D019._A
+     D019.A_3

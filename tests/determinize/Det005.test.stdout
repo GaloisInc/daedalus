@@ -16,7 +16,7 @@ byteset $lf() : Bool =
   { 10 @(Word 8) }
  
 -- ./Det005.ddl:11:42--11:62
-proc _F24() : () =
+proc Many_24() : () =
   do _x25 <- try
                do -- ./Det005.ddl:11:47--11:62
                   match1_ !($lf() | $cr())
@@ -25,12 +25,12 @@ proc _F24() : () =
                pure False
      case _x25 of
        True ->
-         _F24()
+         Many_24()
        False ->
          pure ()
  
 -- ./Det005.ddl:9:1--9:47
-proc _SimpleEOL() : () =
+proc SimpleEOL_19() : () =
   -- ./Det005.ddl:9:29--9:47
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
@@ -46,7 +46,7 @@ proc _SimpleEOL() : () =
          fail_sys @()
  
 -- ./Det005.ddl:10:1--10:44
-proc _EOL() : () =
+proc EOL_20() : () =
   -- ./Det005.ddl:10:29--10:44
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -71,18 +71,18 @@ proc _EOL() : () =
          fail_sys @()
  
 -- ./Det005.ddl:11:1--11:69
-proc _Comment() : () =
+proc Comment_21() : () =
   -- ./Det005.ddl:11:31--11:67
   do -- ./Det005.ddl:11:31--11:39
      match_ "%"
      -- ./Det005.ddl:11:42--11:67
      -- ./Det005.ddl:11:42--11:62
-     _F24()
+     Many_24()
      -- ./Det005.ddl:11:65--11:67
-     _EOL()
+     EOL_20()
  
 -- ./Det005.ddl:12:1--12:55
-proc _AnyWS() : () =
+proc AnyWS_22() : () =
   -- ./Det005.ddl:12:29--12:55
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -129,17 +129,18 @@ proc _AnyWS() : () =
          -- ./Det005.ddl:11:31--11:67
          -- ./Det005.ddl:11:42--11:67
          do -- ./Det005.ddl:11:42--11:62
-            _F24()
+            Many_24()
             -- ./Det005.ddl:11:65--11:67
-            _EOL()
+            EOL_20()
        _ ->
          fail_sys @()
  
+-- entry pont
 -- ./Det005.ddl:3:1--3:26
 proc Main() : () =
   -- ./Det005.ddl:3:14--3:24
   do -- ./Det005.ddl:3:14--3:18
-     _AnyWS()
+     AnyWS_22()
      -- ./Det005.ddl:3:22--3:24
      -- ./Det005.ddl:3:22--3:24
      matchEnd

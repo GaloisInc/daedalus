@@ -30,12 +30,12 @@ P018.NotAssert (p : bool) : Grammar {} =
     { false -> pure {}
     }
  
-P018._Assert (p : bool) : Grammar {} =
+P018.Assert_17 (p : bool) : Grammar {} =
   case p is
     { true -> pure {}
     }
  
-P018._NotAssert (p : bool) : Grammar {} =
+P018.NotAssert_19 (p : bool) : Grammar {} =
   case p is
     { false -> pure {}
     }
@@ -44,24 +44,24 @@ P018.Main : Grammar P018.Main =
   do (w1 : [uint 8]) <- P018.Word
      (w2 : [uint 8]) <- P018.Word
      @MatchBytes "||| "
-     P018._Assert ((P018.length1 w1) == (P018.length1 w2))
+     P018.Assert_17 ((P018.length1 w1) == (P018.length1 w2))
      (w3 : [uint 8]) <- P018.Word
      (w4 : [uint 8]) <- P018.Word
-     P018._NotAssert ((P018.length1 w3) == (P018.length1 w4))
+     P018.NotAssert_19 ((P018.length1 w3) == (P018.length1 w4))
      pure {w1 = w1,
            w2 = w2,
            w3 = w3,
            w4 = w4}
  
-P018._Word : Grammar {} =
+P018.Word_16 : Grammar {} =
   do @Many[] @Match ('a' .. 'z')
      @Match {' '}
  
-P018._Main : Grammar {} =
+P018.Main_21 : Grammar {} =
   do (w1 : [uint 8]) <- P018.Word
      (w2 : [uint 8]) <- P018.Word
      @MatchBytes "||| "
-     P018._Assert ((P018.length1 w1) == (P018.length1 w2))
+     P018.Assert_17 ((P018.length1 w1) == (P018.length1 w2))
      (w3 : [uint 8]) <- P018.Word
      (w4 : [uint 8]) <- P018.Word
-     P018._NotAssert ((P018.length1 w3) == (P018.length1 w4))
+     P018.NotAssert_19 ((P018.length1 w3) == (P018.length1 w4))

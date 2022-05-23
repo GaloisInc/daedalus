@@ -13,5 +13,5 @@ T013.Y : Grammar [uint 8] =
   do (_2 : uint 8) <- Match {T013.x}
      pure [_2]
  
-T013._Y : Grammar {} =
+T013.Y_3 : Grammar {} =
   @Match {T013.x}

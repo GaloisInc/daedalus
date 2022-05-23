@@ -16,7 +16,7 @@ rec value
                    pure {A: _1}
       }
  
-T002._F : Grammar {} =
+T002.F_2 : Grammar {} =
   Choose biased
     { {- A -} do T002.F
                  pure {}

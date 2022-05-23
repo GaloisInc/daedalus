@@ -45,28 +45,28 @@ T049.TD : Grammar T049.TD =
   do (obj : T049.TDDef) <- T049.TDDef
      pure {obj = obj}
  
-T049._V : Grammar {} =
+T049.V_15 : Grammar {} =
   Choose biased
     { {- num -} @Match UInt8
     | {- null -} pure {}
     }
  
-T049._TD : Grammar {} =
+T049.TD_16 : Grammar {} =
   do T049.TDDef
      pure {}
  
-T049._ResolveDeclRef (x : int) : Grammar {} =
+T049.ResolveDeclRef_17 (x : int) : Grammar {} =
   do T049.ResolveDeclRef x
      pure {}
  
-T049._ResolveRef (x : int) : Grammar {} =
+T049.ResolveRef_19 (x : int) : Grammar {} =
   do (p : T049.TD) <- T049.ResolveDeclRef x
      case p.obj is
        { {| value = _12 |} -> pure {}
        }
  
-T049._TDDef : Grammar {} =
+T049.TDDef_22 : Grammar {} =
   Choose biased
-    { {- stream -} T049._ResolveRef 0
-    | {- value -} T049._V
+    { {- stream -} T049.ResolveRef_19 0
+    | {- value -} T049.V_15
     }

@@ -81,7 +81,7 @@ Det001.Main : Grammar Det001.Main =
            z = z,
            t = t}
  
-Det001._Simple1 : Grammar {} =
+Det001.Simple1_13 : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -93,7 +93,7 @@ Det001._Simple1 : Grammar {} =
     | @Match {'d'}
     }
  
-Det001._SimpleNot1 : Grammar {} =
+Det001.SimpleNot1_14 : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -105,7 +105,7 @@ Det001._SimpleNot1 : Grammar {} =
     | @Match {'g'}
     }
  
-Det001._Simple2 : Grammar {} =
+Det001.Simple2_15 : Grammar {} =
   Choose biased
     { Choose biased
         { @Match {'A'}
@@ -114,7 +114,7 @@ Det001._Simple2 : Grammar {} =
     | @Match {'C'}
     }
  
-Det001._Simple3 : Grammar {} =
+Det001.Simple3_16 : Grammar {} =
   Choose biased
     { Choose biased
         { do @Match {'a'}
@@ -125,8 +125,8 @@ Det001._Simple3 : Grammar {} =
          @Match {'b'}
     }
  
-Det001._Main : Grammar {} =
-  do Det001._Simple1
-     Det001._SimpleNot1
-     Det001._Simple2
-     Det001._Simple3
+Det001.Main_17 : Grammar {} =
+  do Det001.Simple1_13
+     Det001.SimpleNot1_14
+     Det001.Simple2_15
+     Det001.Simple3_16

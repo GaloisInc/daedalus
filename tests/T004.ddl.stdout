@@ -26,9 +26,9 @@ rec value
                      pure {nil: _5}
       }
  
-T004._Repeat ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
+T004.Repeat_6 ?a0 (P : Grammar ?a0) (P : Grammar {}) : Grammar {} =
   Choose biased
-    { {- cons -} do _P
+    { {- cons -} do P
                     T004.Repeat ?a0 P
                     pure {}
     | {- nil -} pure {}

@@ -15,11 +15,11 @@ T056.F (open : [uint 8]) : Grammar [uint 8] =
 T056.Main : Grammar [uint 8] =
   T056.F "A"
  
-T056._I ?a0 (_P : Grammar {}) : Grammar {} =
-  _P
+T056.I_5 ?a0 (P : Grammar {}) : Grammar {} =
+  P
  
-T056._F (open : [uint 8]) : Grammar {} =
-  T056._I [uint 8] (@MatchBytes open)
+T056.F_8 (open : [uint 8]) : Grammar {} =
+  T056.I_5 [uint 8] (@MatchBytes open)
  
-T056._Main : Grammar {} =
-  T056._F "A"
+T056.Main_10 : Grammar {} =
+  T056.F_8 "A"

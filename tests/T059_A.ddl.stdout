@@ -9,5 +9,5 @@ module T059_A
 T059_A.F ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   P
  
-T059_A._F ?a0 (_P : Grammar {}) : Grammar {} =
-  _P
+T059_A.F_2 ?a0 (P : Grammar {}) : Grammar {} =
+  P

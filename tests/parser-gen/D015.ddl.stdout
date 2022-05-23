@@ -10,12 +10,12 @@ type D015.PPM = { width: int
  
 --- Rules:
  
-D015._WS : Grammar {} =
+D015.WS_27 : Grammar {} =
   @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 D015.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] D015._WS
+     @Many[ 1 .. ] D015.WS_27
      pure $$
  
 D015.Digit : Grammar (uint 8) =
@@ -59,29 +59,29 @@ D015.Main : Grammar D015.PPM =
 D015.WS : Grammar (uint 8) =
   Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
-D015._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[ 1 .. ] D015._WS
+D015.Token_28 ?a0 (P : Grammar {}) : Grammar {} =
+  do P
+     @Many[ 1 .. ] D015.WS_27
  
-D015._Digit : Grammar {} =
+D015.Digit_31 : Grammar {} =
   @Match ('0' .. '9')
  
-D015._Natural : Grammar {} =
-  @Many[ 1 .. ] D015._Digit
+D015.Natural_32 : Grammar {} =
+  @Many[ 1 .. ] D015.Digit_31
  
-D015._Natural3 : Grammar {} =
-  @Many[ 3 .. ] D015._Digit
+D015.Natural3_33 : Grammar {} =
+  @Many[ 3 .. ] D015.Digit_31
  
-D015._PPM : Grammar {} =
+D015.PPM_34 : Grammar {} =
   do @MatchBytes "P"
      (version : int) <- D015.Token int D015.Natural
      case version == 3 is
        { true -> pure {}
        }
-     D015._Token int D015._Natural
-     D015._Token int D015._Natural
-     D015._Token int D015._Natural3
+     D015.Token_28 int D015.Natural_32
+     D015.Token_28 int D015.Natural_32
+     D015.Token_28 int D015.Natural3_33
  
-D015._Main : Grammar {} =
-  do D015._PPM
+D015.Main_36 : Grammar {} =
+  do D015.PPM_34
      END

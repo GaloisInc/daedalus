@@ -19,7 +19,7 @@ array-index.Main : Grammar array-index.Main =
      pure {arr = arr,
            val_at_1 = val_at_1}
  
-array-index._Main : Grammar {} =
+array-index.Main_3 : Grammar {} =
   do (arr : [int]) <- pure [1,
                             2,
                             4,

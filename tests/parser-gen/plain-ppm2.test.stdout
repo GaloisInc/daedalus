@@ -7,9 +7,9 @@ Stack:
     *
     Main callsite __START__
     PPM callsite Main (2,8)-(2,10)
-    Token__45 callsite PPM (15,14)-(15,26)
+    Token callsite PPM (15,14)-(15,26)
     Many (Between (1,-), *)
-Start: Token__45 (10,3)-(10,15)
+Start: Token (10,3)-(10,15)
 SlkCfg{ q:100, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 AbortClosureUnhandledAction
 
@@ -18,8 +18,8 @@ Stack:
     *
     Main callsite __START__
     PPM callsite Main (2,8)-(2,10)
-    Token__45 callsite PPM (15,14)-(15,26)
-    Natural callsite Token__45 (9,8)-(9,8)
+    Token callsite PPM (15,14)-(15,26)
+    Natural callsite Token (9,8)-(9,8)
     Many (Between (1,-), *)
 Start: Natural (28,9)-(28,24)
 SlkCfg{ q:32, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
@@ -104,9 +104,9 @@ Stack:
     *
     Main callsite __START__
     PPM callsite Main (2,8)-(2,10)
-    Token__45 callsite PPM (15,14)-(15,26)
+    Token callsite PPM (15,14)-(15,26)
     Many (Between (1,-), *)
-Start: Token__45 (10,3)-(10,15)
+Start: Token (10,3)-(10,15)
 SlkCfg{ q:100, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 AbortClosureUnhandledAction
 

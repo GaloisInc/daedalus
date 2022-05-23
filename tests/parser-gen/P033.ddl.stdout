@@ -46,12 +46,12 @@ P033.Main : Grammar P033.Main =
            v = v,
            w = w}
  
-P033._A : Grammar {} =
+P033.A_21 : Grammar {} =
   do @Match {'<'}
      @Many[] @Match P033.$digit
      @Match {'>'}
  
-P033._Main : Grammar {} =
+P033.Main_22 : Grammar {} =
   do (x : P033.A) <- P033.A
      for ((r : {}) = {}; (t : uint 8) in x.a)
        (@Match UInt8)

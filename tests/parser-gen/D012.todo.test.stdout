@@ -1,10 +1,10 @@
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (11,11)-(11,23)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (11,11)-(11,23)
     Many (Between (1,-), *)
-Start: _Token__29 (7,3)-(7,15)
+Start: Token (7,3)-(7,15)
 SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(13),]
@@ -20,11 +20,11 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (11,11)-(11,23)
-    _Natural callsite _Token__29 (6,8)-(6,8)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (11,11)-(11,23)
+    Natural callsite Token (6,8)-(6,8)
     Many (Between (1,-), *)
-Start: _Natural (23,9)-(23,24)
+Start: Natural (23,9)-(23,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(24),]
@@ -40,10 +40,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (12,11)-(12,23)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (12,11)-(12,23)
     Many (Between (1,-), *)
-Start: _Token__29 (7,3)-(7,15)
+Start: Token (7,3)-(7,15)
 SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(13),]
@@ -59,11 +59,11 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (12,11)-(12,23)
-    _Natural callsite _Token__29 (6,8)-(6,8)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (12,11)-(12,23)
+    Natural callsite Token (6,8)-(6,8)
     Many (Between (1,-), *)
-Start: _Natural (23,9)-(23,24)
+Start: Natural (23,9)-(23,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(24),]
@@ -79,10 +79,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (13,11)-(13,23)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (13,11)-(13,23)
     Many (Between (1,-), *)
-Start: _Token__29 (7,3)-(7,15)
+Start: Token (7,3)-(7,15)
 SlkCfg{ q:44, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(13),]
@@ -98,11 +98,11 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _RGB callsite Main (37,5)-(37,7)
-    _Token__29 callsite _RGB (13,11)-(13,23)
-    _Natural callsite _Token__29 (6,8)-(6,8)
+    RGB callsite Main (37,5)-(37,7)
+    Token callsite RGB (13,11)-(13,23)
+    Natural callsite Token (6,8)-(6,8)
     Many (Between (1,-), *)
-Start: _Natural (23,9)-(23,24)
+Start: Natural (23,9)-(23,24)
 SlkCfg{ q:22, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(24),]

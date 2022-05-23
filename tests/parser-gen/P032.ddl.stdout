@@ -45,12 +45,12 @@ P032.Grp1 : Grammar [uint 8] =
         }
     }
  
-P032._B : Grammar {} =
+P032.B_25 : Grammar {} =
   @Match {'b'}
  
 P032.Grp2 : Grammar [uint 8] =
   Choose biased
-    { do P032._B
+    { do P032.B_25
          Commit
            do ($$ : [uint 8]) <- P032.C
               pure $$
@@ -59,64 +59,64 @@ P032.Grp2 : Grammar [uint 8] =
  
 P032.Grp3 : Grammar [uint 8] =
   Choose fair
-    { do P032._B
+    { do P032.B_25
          ($$ : [uint 8]) <- P032.C
          pure $$
-    | do P032._B
+    | do P032.B_25
          ($$ : [uint 8]) <- P032.D
          pure $$
     }
  
-P032._A : Grammar {} =
+P032.A_24 : Grammar {} =
   @Match {'a'}
  
-P032._AB : Grammar {} =
+P032.AB_28 : Grammar {} =
   do @Match {'a'}
      @Match {'b'}
  
-P032._Grp1 : Grammar {} =
+P032.Grp1_29 : Grammar {} =
   Choose biased
-    { P032._B
+    { P032.B_25
     | Choose biased
-        { P032._A
-        | P032._AB
+        { P032.A_24
+        | P032.AB_28
         }
     }
  
-P032._C : Grammar {} =
+P032.C_26 : Grammar {} =
   @Match {'c'}
  
-P032._Grp2 : Grammar {} =
+P032.Grp2_30 : Grammar {} =
   Choose biased
-    { do P032._B
-         Commit P032._C
-    | P032._B
+    { do P032.B_25
+         Commit P032.C_26
+    | P032.B_25
     }
  
-P032._D : Grammar {} =
+P032.D_27 : Grammar {} =
   @Match {'d'}
  
-P032._Grp3 : Grammar {} =
+P032.Grp3_31 : Grammar {} =
   Choose fair
-    { do P032._B
-         P032._C
-    | do P032._B
-         P032._D
+    { do P032.B_25
+         P032.C_26
+    | do P032.B_25
+         P032.D_27
     }
  
 P032.Main : Grammar {} =
-  do P032._Grp1
+  do P032.Grp1_29
      Choose fair
-       { P032._Grp2
-       | P032._Grp3
+       { P032.Grp2_30
+       | P032.Grp3_31
        }
      ($$ : {}) <- END
      pure $$
  
-P032._Main : Grammar {} =
-  do P032._Grp1
+P032.Main_32 : Grammar {} =
+  do P032.Grp1_29
      Choose fair
-       { P032._Grp2
-       | P032._Grp3
+       { P032.Grp2_30
+       | P032.Grp3_31
        }
      END

@@ -123,31 +123,31 @@ T044.F (i : T044.A) : Grammar (uint 8) =
     { {| x = _36 |} -> pure _36
     }
  
-T044._A : Grammar {} =
+T044.A_37 : Grammar {} =
   Choose biased
     { {- x -} @Match {1}
     | {- y -} @Match {2}
     }
  
-T044._B : Grammar {} =
+T044.B_38 : Grammar {} =
   Choose biased
     { {- x -} @Match {3}
     | {- y -} @Match {4}
     }
  
-T044._C : Grammar {} =
+T044.C_39 : Grammar {} =
   Choose biased
     { {- x -} @Match {1}
     | {- y -} @Match {2}
     }
  
-T044._D : Grammar {} =
+T044.D_40 : Grammar {} =
   Choose biased
     { {- x -} @Match {1}
     | {- y -} @Match {2}
     }
  
-T044._E : Grammar {} =
+T044.E_41 : Grammar {} =
   Choose biased
     { {- x -} Choose biased
                 { {- x -} @Match {1}
@@ -159,7 +159,7 @@ T044._E : Grammar {} =
                 }
     }
  
-T044._F (i : T044.A) : Grammar {} =
+T044.F_42 (i : T044.A) : Grammar {} =
   case i is
     { {| x = _36 |} -> pure {}
     }

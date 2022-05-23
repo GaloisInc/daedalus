@@ -45,5 +45,5 @@ T052.Main : Grammar T052.Main =
            k = k,
            l = l}
  
-T052._Main : Grammar {} =
+T052.Main_13 : Grammar {} =
   pure {}

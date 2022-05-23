@@ -49,24 +49,24 @@ P023.Main : Grammar P023.Main =
                q = q}
     }
  
-P023._A : Grammar {} =
+P023.A_11 : Grammar {} =
   Choose fair
     { {- x -} @MatchBytes "ab"
     | {- y -} @MatchBytes "a"
     }
  
-P023._B : Grammar {} =
+P023.B_12 : Grammar {} =
   Choose biased
-    { {- z -} P023._A
+    { {- z -} P023.A_11
     | {- t -} @MatchBytes "a"
     }
  
-P023._Main : Grammar {} =
+P023.Main_13 : Grammar {} =
   Choose biased
-    { do P023._B
+    { do P023.B_12
          @MatchBytes "bb"
          END
-    | do P023._B
+    | do P023.B_12
          @MatchBytes "bb"
          END
     }

@@ -23,13 +23,13 @@ T067.Main : Grammar T067.X =
                  pure {x: _4}
     }
  
-T067._X : Grammar {} =
+T067.X_5 : Grammar {} =
   Choose biased
     { {- x -} @Match UInt8
     | {- y -} @Match UInt8
     }
  
-T067._Main : Grammar {} =
+T067.Main_6 : Grammar {} =
   Choose biased
     { {- x -} @Match UInt8
     }

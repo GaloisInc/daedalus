@@ -33,24 +33,24 @@ T045.F : Grammar Stream =
      ($$ : Stream) <- StreamLen 10 xs
      pure $$
  
-T045._G ?a0 (x : Maybe ?a0) : Grammar {} =
+T045.G_22 ?a0 (x : Maybe ?a0) : Grammar {} =
   case x is
     { just _20 -> pure {}
     }
  
-T045._A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
+T045.A_24 ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
   @Insert k v mp
  
-T045._B ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
+T045.B_28 ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
   @Lookup k mp
  
-T045._D : Grammar {} =
+T045.D_31 : Grammar {} =
   @(287 AS uint 8)
  
-T045._E ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Traversable ?a0) : Grammar {} =
+T045.E_32 ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a1) (HasKey ?a0 ?a2) (HasElement ?a0 ?a3) (Traversable ?a0) : Grammar {} =
   pure {}
  
-T045._F : Grammar {} =
+T045.F_33 : Grammar {} =
   do (xs : Stream) <- CurrentStream
      @StreamLen 10 xs
      pure {}

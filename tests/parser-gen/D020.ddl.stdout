@@ -9,16 +9,16 @@ module D020
 D020.A (x : uint 8) : Grammar {} =
   @Match {x}
  
-D020._A (x : uint 8) : Grammar {} =
+D020.A_4 (x : uint 8) : Grammar {} =
   @Match {x}
  
 D020.Main : Grammar {} =
-  do D020._A 97
-     D020._A 98
+  do D020.A_4 97
+     D020.A_4 98
      ($$ : {}) <- END
      pure $$
  
-D020._Main : Grammar {} =
-  do D020._A 97
-     D020._A 98
+D020.Main_6 : Grammar {} =
+  do D020.A_4 97
+     D020.A_4 98
      END

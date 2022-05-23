@@ -30,13 +30,13 @@ case-simple2.Main : Grammar case-simple2.Main =
      pure {p = p,
            tag = tag}
  
-case-simple2._P : Grammar {} =
+case-simple2.P_6 : Grammar {} =
   Choose biased
     { {- c1 -} @MatchBytes "a"
     | {- c2 -} @MatchBytes "b"
     }
  
-case-simple2._Main : Grammar {} =
+case-simple2.Main_7 : Grammar {} =
   do (p : case-simple2.P) <- case-simple2.P
      case p is
        { {| c1 = _ |} -> {- case branch  {| c1 = _ |} -} pure {}

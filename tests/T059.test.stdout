@@ -6,25 +6,25 @@ module DaedalusMain
  
 --- Rules:
  
-T059.F__14 : Grammar (uint 8) =
+T059.F_14 : Grammar (uint 8) =
   Match UInt8
  
 T059.P1 : Grammar (uint 8) =
-  T059.F__14
+  T059.F_14
  
-T059.F__13 : Grammar (uint 8) =
+T059.F_13 : Grammar (uint 8) =
   T059.P1
  
 T059.P2 : Grammar (uint 8) =
-  T059.F__13
+  T059.F_13
  
-T059._F__12 : Grammar {} =
+T059.F_12 : Grammar {} =
   @Match UInt8
  
-T059._P1 : Grammar {} =
-  T059._F__12
+T059.P1_9 : Grammar {} =
+  T059.F_12
  
 T059.Main : Grammar (uint 8) =
-  do T059._P1
+  do T059.P1_9
      ($$ : uint 8) <- T059.P2
      pure $$

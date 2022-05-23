@@ -22,5 +22,5 @@ T037.Main : Grammar T037.Main =
            t_xor = t_xor,
            t_comp = t_comp}
  
-T037._Main : Grammar {} =
+T037.Main_6 : Grammar {} =
   pure {}

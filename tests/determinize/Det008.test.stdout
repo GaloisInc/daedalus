@@ -6,7 +6,7 @@ module DaedalusMain where
 -------------
  
 -- ./Det008.ddl:5:1--5:62
-proc _T1() : () =
+proc T1_15() : () =
   -- ./Det008.ddl:5:10--5:62
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
@@ -34,7 +34,7 @@ proc _T1() : () =
          fail_sys @()
  
 -- ./Det008.ddl:6:1--6:62
-proc _T2() : () =
+proc T2_16() : () =
   -- ./Det008.ddl:6:10--6:62
   -- DETERMINIZE 2
   do _x0 <- match1 { ... }
@@ -64,7 +64,7 @@ proc _T2() : () =
          fail_sys @()
  
 -- ./Det008.ddl:7:1--7:62
-proc _T3() : () =
+proc T3_17() : () =
   -- ./Det008.ddl:7:10--7:62
   -- DETERMINIZE 2
   do _x0 <- match1 { ... }
@@ -93,17 +93,18 @@ proc _T3() : () =
        _ ->
          fail_sys @()
  
+-- entry pont
 -- ./Det008.ddl:3:1--3:30
 proc Main() : () =
   -- ./Det008.ddl:3:14--3:28
   do -- ./Det008.ddl:3:14--3:15
-     _T1()
+     T1_15()
      -- ./Det008.ddl:3:18--3:28
      -- ./Det008.ddl:3:18--3:19
-     _T2()
+     T2_16()
      -- ./Det008.ddl:3:22--3:28
      -- ./Det008.ddl:3:22--3:23
-     _T3()
+     T3_17()
      -- ./Det008.ddl:3:26--3:28
      -- ./Det008.ddl:3:26--3:28
      matchEnd

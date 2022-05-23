@@ -48,19 +48,19 @@ Number.HexDigit : Grammar int =
         }
     }
  
-Number._Digit : Grammar {} =
+Number.Digit_28 : Grammar {} =
   @Match ('0' .. '9')
  
-Number._Natural : Grammar {} =
-  @Many[ 1 .. ] Number._Digit
+Number.Natural_29 : Grammar {} =
+  @Many[ 1 .. ] Number.Digit_28
  
-Number._Frac ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
+Number.Frac_30 ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
   do @Match {'.'}
-     @Many[ n .. ] Number._Digit
+     @Many[ n .. ] Number.Digit_28
  
-Number._HexDigit : Grammar {} =
+Number.HexDigit_32 : Grammar {} =
   Choose biased
-    { Number._Digit
+    { Number.Digit_28
     | Choose biased
         { @Match ('a' .. 'f')
         | @Match ('A' .. 'F')
@@ -78,5 +78,5 @@ import Number
 T016.Main : Grammar int =
   Number.Natural
  
-T016._Main : Grammar {} =
-  Number._Natural
+T016.Main_33 : Grammar {} =
+  Number.Natural_29

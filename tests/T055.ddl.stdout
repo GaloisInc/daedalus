@@ -15,11 +15,11 @@ T055.Default ?a0 (a : ?a0) (P : Grammar ?a0) : Grammar ?a0 =
 T055.Main : Grammar (uint 8) =
   T055.Default (uint 8) 'a' (Match {'b'})
  
-T055._Default ?a0 (_P : Grammar {}) : Grammar {} =
+T055.Default_4 ?a0 (P : Grammar {}) : Grammar {} =
   Choose biased
-    { _P
+    { P
     | pure {}
     }
  
-T055._Main : Grammar {} =
-  T055._Default (uint 8) (@Match {'b'})
+T055.Main_7 : Grammar {} =
+  T055.Default_4 (uint 8) (@Match {'b'})
