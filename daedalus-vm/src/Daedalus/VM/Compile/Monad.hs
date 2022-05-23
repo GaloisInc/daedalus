@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 
 import Daedalus.PP
 import Daedalus.SourceRange
+import Daedalus.GUID(guidString)
 import Daedalus.Panic
 
 import qualified Daedalus.Core as Src
@@ -80,7 +81,7 @@ runC f ty dm (C m) =
        _  -> panic "runC" ["Undefined input/locals?"]
 
 labelText :: Src.FName -> Text
-labelText f = Src.fnameText f <> Text.pack (show (Src.fnameId f))
+labelText f = Src.fnameText f <> Text.pack (guidString (Src.fnameId f))
 
 
 staticR :: (StaticR -> a) -> C a

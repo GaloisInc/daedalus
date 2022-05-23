@@ -127,13 +127,10 @@ newMParam r x = NFM \ro s ->
     else pure ( mkDo r Nothing (exprAt r (TCVar x)) (noSemPure r)
               , s)
 
--- FIXME: refresh
-modifyName :: Ident -> Ident
-modifyName i = "_" <> i
-
 erasedGrmName :: HasGUID m => Name -> m (TCName Grammar)
 erasedGrmName n = do
-  newName <- deriveNameWith modifyName n
+  newName' <- deriveName n
+  let newName = newName' { namePublic = False }
   pure TCName { tcNameCtx = AGrammar
               , tcType    = tGrammar tUnit
               , tcName    = newName

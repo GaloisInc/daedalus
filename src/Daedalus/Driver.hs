@@ -709,7 +709,10 @@ passSpecialize tgt roots =
          -- FIXME: this ignores GUIDs
          findRootNames m = [ tcDeclName d
                            | d <- forgetRecs (tcModuleDecls m)
-                           , nameScopedIdent (tcDeclName d) `elem` rootIds ]
+                           , let nm = tcDeclName d
+                           , namePublic nm
+                           , nameScopedIdent nm `elem` rootIds
+                           ]
 
      allDecls <- forM allMods \m ->
                     do mo <- ddlGetAST m astTC

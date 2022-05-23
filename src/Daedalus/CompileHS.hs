@@ -16,6 +16,7 @@ import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID(guidString)
 import Daedalus.Panic
 import qualified Daedalus.BDD as BDD
 
@@ -98,8 +99,12 @@ nameUse env use nm baseName =
     ModScope m i
       | NameUse <- use,
         UseQualNames <- envQualNames env,
-        m /= envCurMod env -> hsIdentMod m ++ "." ++ baseName i
-      | otherwise          -> baseName i
+        m /= envCurMod env -> hsIdentMod m ++ "." ++ txt
+      | otherwise          -> txt
+        where
+        txt = if namePublic nm
+               then baseName i
+               else baseName (i <> "_" <> Text.pack (guidString (nameID nm)))
     Local i   -> baseName i
     Unknown s -> panic "newTyName" ["Unexpected name", show s ]
 
