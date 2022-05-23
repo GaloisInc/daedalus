@@ -54,19 +54,19 @@ Det003.Main : Grammar Det003.Main =
            y = y,
            z = z}
  
-Det003._Gram1 : Grammar {} =
+Det003.Gram1_7 : Grammar {} =
   Choose biased
     { @MatchBytes "abc"
     | @MatchBytes "abde"
     }
  
-Det003._Gram2 : Grammar {} =
+Det003.Gram2_8 : Grammar {} =
   Choose biased
     { @MatchBytes "abc"
     | @MatchBytes "abde"
     }
  
-Det003._Gram3 : Grammar {} =
+Det003.Gram3_9 : Grammar {} =
   Choose biased
     { Choose biased
         { Choose biased
@@ -90,7 +90,7 @@ Det003._Gram3 : Grammar {} =
     | @MatchBytes "111 HHHHH"
     }
  
-Det003._Main : Grammar {} =
-  do Det003._Gram1
-     Det003._Gram2
-     Det003._Gram3
+Det003.Main_10 : Grammar {} =
+  do Det003.Gram1_7
+     Det003.Gram2_8
+     Det003.Gram3_9

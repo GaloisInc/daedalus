@@ -51,17 +51,17 @@ P019.Main : Grammar P019.Main =
            w4 = w4,
            w6 = w6}
  
-P019._Word1 : Grammar {} =
+P019.Word1_16 : Grammar {} =
   do @Match {'y'}
      @Match {'x'}
  
-P019._Word : Grammar {} =
+P019.Word_17 : Grammar {} =
   Choose fair
-    { {- a -} P019._Word1
-    | {- b -} P019._Word1
+    { {- a -} P019.Word1_16
+    | {- b -} P019.Word1_16
     }
  
-P019._Main : Grammar {} =
+P019.Main_18 : Grammar {} =
   do (w1 : P019.Word) <- P019.Word
      (w2 : P019.Word) <- P019.Word
      (w3 : P019.Word1) <- case w1 is

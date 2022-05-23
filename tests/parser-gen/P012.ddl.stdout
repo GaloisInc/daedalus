@@ -43,7 +43,7 @@ P012.Main : Grammar P012.Main =
            vand = vand,
            vxor = vxor}
  
-P012._Length : Grammar {} =
+P012.Length_12 : Grammar {} =
   do @Match UInt8
      @Match UInt8
      @Match UInt8
@@ -51,5 +51,5 @@ P012._Length : Grammar {} =
      @Match UInt8
      @Match UInt8
  
-P012._Main : Grammar {} =
-  P012._Length
+P012.Main_13 : Grammar {} =
+  P012.Length_12

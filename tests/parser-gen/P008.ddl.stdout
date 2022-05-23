@@ -18,6 +18,6 @@ P008.Main : Grammar P008.Main =
      pure {x = x,
            y = y}
  
-P008._Main : Grammar {} =
+P008.Main_4 : Grammar {} =
   do @Match P008.$letter
      @Match P008.$letter

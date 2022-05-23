@@ -45,25 +45,25 @@ T050.Main : Grammar T050.Main =
      pure {x1 = x1,
            x2 = x2}
  
-T050._V ?a0 (Coerce dynamic ?a0 int) (Literal 1 ?a0) : Grammar {} =
+T050.V_16 ?a0 (Coerce dynamic ?a0 int) (Literal 1 ?a0) : Grammar {} =
   Choose biased
     { {- number -} @(1 AS int)
     | {- other -} @MatchBytes "X"
     }
  
-T050._Default ?a0 (_P : Grammar {}) : Grammar {} =
+T050.Default_17 ?a0 (P : Grammar {}) : Grammar {} =
   Choose biased
-    { _P
+    { P
     | pure {}
     }
  
-T050._LookupInt (arr : [T050.V]) (i : uint 64) : Grammar {} =
-  T050._Default int do (n : T050.V) <- Index arr i
-                       Commit
-                         (case n is
-                            { {| number = _15 |} -> pure {}
-                            })
+T050.LookupInt_20 (arr : [T050.V]) (i : uint 64) : Grammar {} =
+  T050.Default_17 int do (n : T050.V) <- Index arr i
+                         Commit
+                           (case n is
+                              { {| number = _15 |} -> pure {}
+                              })
  
-T050._Main : Grammar {} =
-  do T050._LookupInt T050.arr 0
-     T050._LookupInt T050.arr 2
+T050.Main_24 : Grammar {} =
+  do T050.LookupInt_20 T050.arr 0
+     T050.LookupInt_20 T050.arr 2

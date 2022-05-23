@@ -30,29 +30,29 @@ P038.Block2 : Grammar [uint 8] =
     | MatchBytes "RANDOM"
     }
  
-P038._Block1 : Grammar {} =
+P038.Block1_10 : Grammar {} =
   Choose biased
     { @MatchBytes "a"
     | @MatchBytes "a"
     }
  
-P038._Block3 : Grammar {} =
+P038.Block3_11 : Grammar {} =
   do Choose fair
        { @MatchBytes "acd"
        | @MatchBytes "ac"
        }
      @MatchBytes "d"
  
-P038._Block2 : Grammar {} =
+P038.Block2_12 : Grammar {} =
   Choose biased
-    { P038._Block3
+    { P038.Block3_11
     | @MatchBytes "RANDOM"
     }
  
 P038.Main : Grammar {} =
   Choose biased
-    { do P038._Block1
-         P038._Block2
+    { do P038.Block1_10
+         P038.Block2_12
          @MatchBytes "e"
          ($$ : {}) <- END
          pure $$
@@ -61,10 +61,10 @@ P038.Main : Grammar {} =
          pure $$
     }
  
-P038._Main : Grammar {} =
+P038.Main_13 : Grammar {} =
   Choose biased
-    { do P038._Block1
-         P038._Block2
+    { do P038.Block1_10
+         P038.Block2_12
          @MatchBytes "e"
          END
     | do @MatchBytes "aacdde"

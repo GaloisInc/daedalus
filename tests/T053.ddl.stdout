@@ -37,10 +37,10 @@ T053.Throw : Grammar int =
 T053.Check ?a0 (P : Grammar ?a0) : Grammar (Maybe ?a0) =
   Optional (Try P)
  
-T053._Ok : Grammar {} =
+T053.Ok_20 : Grammar {} =
   pure {}
  
-T053._PFail : Grammar {} =
+T053.PFail_21 : Grammar {} =
   Fail "Erro"
  
 T053.Main : Grammar T053.Main =
@@ -69,9 +69,9 @@ T053.Main : Grammar T053.Main =
                                            | T053.Ok 1
                                            }
      (ex7 : Maybe int) <- T053.Check int Choose biased
-                                           { do T053._Ok
+                                           { do T053.Ok_20
                                                 Commit
-                                                  do T053._PFail
+                                                  do T053.PFail_21
                                                      ($$ : int) <- T053.Ok 2
                                                      pure $$
                                            | T053.Ok 3
@@ -95,53 +95,53 @@ T053.Main : Grammar T053.Main =
            ex7 = ex7,
            ex8 = ex8}
  
-T053._Throw : Grammar {} =
-  Commit T053._PFail
+T053.Throw_22 : Grammar {} =
+  Commit T053.PFail_21
  
-T053._Check ?a0 (_P : Grammar {}) : Grammar {} =
+T053.Check_23 ?a0 (P : Grammar {}) : Grammar {} =
   Choose biased
-    { Try _P
+    { Try P
     | pure {}
     }
  
-T053._Main : Grammar {} =
-  do T053._Check int Choose biased
-                       { T053._Throw
-                       | T053._Ok
-                       }
-     T053._Check int Choose biased
-                       { T053._Ok
-                       | T053._Throw
-                       }
-     T053._Check int Choose fair
-                       { T053._Throw
-                       | T053._Ok
-                       }
-     T053._Check int Choose fair
-                       { T053._Ok
-                       | T053._Throw
-                       }
-     T053._Check int Choose biased
-                       { Try T053._Throw
-                       | T053._Ok
-                       }
-     T053._Check int Choose fair
-                       { Try T053._Throw
-                       | T053._Ok
-                       }
-     T053._Check int Choose biased
-                       { do T053._Ok
-                            Commit
-                              do T053._PFail
-                                 T053._Ok
-                       | T053._Ok
-                       }
-     T053._Check {} do (x : int) <- Choose fair
-                                      { Commit
-                                          do ($$ : int) <- T053.Ok 1
-                                             pure $$
-                                      | T053.Ok 2
-                                      }
-                       case x == 2 is
-                         { true -> pure {}
+T053.Main_26 : Grammar {} =
+  do T053.Check_23 int Choose biased
+                         { T053.Throw_22
+                         | T053.Ok_20
                          }
+     T053.Check_23 int Choose biased
+                         { T053.Ok_20
+                         | T053.Throw_22
+                         }
+     T053.Check_23 int Choose fair
+                         { T053.Throw_22
+                         | T053.Ok_20
+                         }
+     T053.Check_23 int Choose fair
+                         { T053.Ok_20
+                         | T053.Throw_22
+                         }
+     T053.Check_23 int Choose biased
+                         { Try T053.Throw_22
+                         | T053.Ok_20
+                         }
+     T053.Check_23 int Choose fair
+                         { Try T053.Throw_22
+                         | T053.Ok_20
+                         }
+     T053.Check_23 int Choose biased
+                         { do T053.Ok_20
+                              Commit
+                                do T053.PFail_21
+                                   T053.Ok_20
+                         | T053.Ok_20
+                         }
+     T053.Check_23 {} do (x : int) <- Choose fair
+                                        { Commit
+                                            do ($$ : int) <- T053.Ok 1
+                                               pure $$
+                                        | T053.Ok 2
+                                        }
+                         case x == 2 is
+                           { true -> pure {}
+                           }

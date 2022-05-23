@@ -39,20 +39,20 @@ T009.S : Grammar (uint 8) =
                         }
      pure $$
  
-T009._P : Grammar {} =
+T009.P_13 : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-T009._Q : Grammar {} =
-  T009._P
+T009.Q_14 : Grammar {} =
+  T009.P_13
  
-T009._R : Grammar {} =
+T009.R_15 : Grammar {} =
   Choose biased
     { {- a -} @Match UInt8
     | {- b -} pure {}
     }
  
-T009._S : Grammar {} =
+T009.S_16 : Grammar {} =
   do (u : T009.R) <- T009.R
      case u is
        { {| a = _12 |} -> pure {}

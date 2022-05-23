@@ -18,10 +18,10 @@ type P029.Main = { x: {}
 rec value
   P029.A : Grammar {} =
     do @Match {'<'}
-       P029._Inner
+       P029.Inner_16
        @Match {'>'}
    
-  P029._Inner : Grammar {} =
+  P029.Inner_16 : Grammar {} =
     Choose fair
       { {- x -} @MatchBytes ""
       | {- y -} do @Match {'a'}
@@ -51,11 +51,11 @@ P029.Main : Grammar P029.Main =
      END
      pure {x = x}
  
-P029._A : Grammar {} =
+P029.A_17 : Grammar {} =
   do @Match {'<'}
-     P029._Inner
+     P029.Inner_16
      @Match {'>'}
  
-P029._Main : Grammar {} =
-  do P029._A
+P029.Main_18 : Grammar {} =
+  do P029.A_17
      END

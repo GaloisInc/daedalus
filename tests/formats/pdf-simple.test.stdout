@@ -70,52 +70,52 @@ PdfValue.AnyWS : Grammar (uint 8) =
     | PdfValue.EOL
     }
  
-PdfValue._SimpleEOL : Grammar {} =
+PdfValue.SimpleEOL_219 : Grammar {} =
   Choose biased
     { do @Match PdfValue.$cr
          @Match PdfValue.$lf
     | @Match PdfValue.$lf
     }
  
-PdfValue._EOL : Grammar {} =
+PdfValue.EOL_220 : Grammar {} =
   Choose biased
-    { PdfValue._SimpleEOL
+    { PdfValue.SimpleEOL_219
     | @Match PdfValue.$cr
     }
  
-PdfValue._Comment : Grammar {} =
+PdfValue.Comment_221 : Grammar {} =
   do @MatchBytes "%"
      @Many[] @Match (!(PdfValue.$lf | PdfValue.$cr))
-     PdfValue._EOL
+     PdfValue.EOL_220
  
-PdfValue._AnyWS : Grammar {} =
+PdfValue.AnyWS_222 : Grammar {} =
   Choose biased
     { Choose biased
         { @Match PdfValue.$simpleWS
-        | PdfValue._Comment
+        | PdfValue.Comment_221
         }
-    | PdfValue._EOL
+    | PdfValue.EOL_220
     }
  
 PdfValue.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[] PdfValue._AnyWS
+     @Many[] PdfValue.AnyWS_222
      pure $$
  
-PdfValue._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[] PdfValue._AnyWS
+PdfValue.Token_223 ?a0 (P : Grammar {}) : Grammar {} =
+  do P
+     @Many[] PdfValue.AnyWS_222
  
 PdfValue.KW (x : [uint 8]) : Grammar {} =
-  PdfValue._Token [uint 8] (@MatchBytes x)
+  PdfValue.Token_223 [uint 8] (@MatchBytes x)
  
-PdfValue._KW (x : [uint 8]) : Grammar {} =
-  PdfValue._Token [uint 8] (@MatchBytes x)
+PdfValue.KW_226 (x : [uint 8]) : Grammar {} =
+  PdfValue.Token_223 [uint 8] (@MatchBytes x)
  
 PdfValue.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
-  do PdfValue._KW open
+  do PdfValue.KW_226 open
      ($$ : ?a0) <- P
-     PdfValue._KW close
+     PdfValue.KW_226 close
      pure $$
  
 PdfValue.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
@@ -226,13 +226,13 @@ PdfValue.HexDigit : Grammar int =
         }
     }
  
-PdfValue._Guard (p : bool) : Grammar {} =
+PdfValue.Guard_239 (p : bool) : Grammar {} =
   case p is
     { true -> pure {}
     }
  
 PdfValue.NumberAsNat (x : PdfValue.Number) : Grammar int =
-  do PdfValue._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
+  do PdfValue.Guard_239 (if (0 <= (x.num)) then (x.exp) == 0 else false)
      ($$ : int) <- pure (x.num)
      pure $$
  
@@ -301,7 +301,7 @@ PdfValue.String : Grammar [uint 8] =
   do @Match {'('}
      ($$ : [uint 8]) <- PdfValue.StringChars 16
      @Match {')'}
-     @Many[] PdfValue._AnyWS
+     @Many[] PdfValue.AnyWS_222
      pure $$
  
 PdfValue.HexStringNum2 : Grammar (uint 8) =
@@ -331,7 +331,7 @@ PdfValue.NameEsc : Grammar (uint 8) =
      ($$ : uint 8) <- do (_190 : int) <- do (_189 : [int]) <- Many[2] PdfValue.HexDigit
                                             pure (PdfValue.numBase [int] (uint 64) int 16 _189)
                          pure (_190 as uint 8)
-     PdfValue._Guard (0 < $$)
+     PdfValue.Guard_239 (0 < $$)
      pure $$
  
 PdfValue.NameChar : Grammar (uint 8) =
@@ -351,7 +351,7 @@ PdfValue.Null : Grammar {} =
 PdfValue.Ref : Grammar PdfValue.Ref =
   do (obj : int) <- PdfValue.Token int PdfValue.Natural
      (gen : int) <- PdfValue.Token int PdfValue.Natural
-     PdfValue._KW "R"
+     PdfValue.KW_226 "R"
      pure {obj = obj,
            gen = gen}
  
@@ -406,102 +406,102 @@ PdfValue.NatValue (v : PdfValue.Value) : Grammar int =
 PdfValue.nullValue : PdfValue.Value =
   {null: {}}
  
-PdfValue._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
-  do PdfValue._KW open
-     _P
-     PdfValue._KW close
+PdfValue.Between_228 ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar {}) : Grammar {} =
+  do PdfValue.KW_226 open
+     P
+     PdfValue.KW_226 close
  
-PdfValue._Only ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
+PdfValue.Only_233 ?a0 (P : Grammar {}) : Grammar {} =
+  do P
      END
  
-PdfValue._When ?a0 ?a1 (_P : Grammar {}) : Grammar {} =
-  _P
+PdfValue.When_236 ?a0 ?a1 (P : Grammar {}) : Grammar {} =
+  P
  
-PdfValue._Bool : Grammar {} =
+PdfValue.Bool_241 : Grammar {} =
   Choose biased
-    { PdfValue._When bool {} (PdfValue._KW "true")
-    | PdfValue._When bool {} (PdfValue._KW "false")
+    { PdfValue.When_236 bool {} (PdfValue.KW_226 "true")
+    | PdfValue.When_236 bool {} (PdfValue.KW_226 "false")
     }
  
-PdfValue._Sign : Grammar {} =
+PdfValue.Sign_242 : Grammar {} =
   Choose biased
     { {- neg -} @MatchBytes "-"
     | {- pos -} @MatchBytes "+"
     | {- pos -} pure {}
     }
  
-PdfValue._Digit : Grammar {} =
+PdfValue.Digit_243 : Grammar {} =
   @Match ('0' .. '9')
  
-PdfValue._Natural : Grammar {} =
-  @Many[ 1 .. ] PdfValue._Digit
+PdfValue.Natural_244 : Grammar {} =
+  @Many[ 1 .. ] PdfValue.Digit_243
  
-PdfValue._Number : Grammar {} =
-  PdfValue._Token PdfValue.Number do (sign : PdfValue.Sign) <- PdfValue.Sign
-                                     do PdfValue.UnsignedNumber
-                                        pure {}
-                                     case sign is
-                                       { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
-                                       ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
-                                       }
+PdfValue.Number_245 : Grammar {} =
+  PdfValue.Token_223 PdfValue.Number do (sign : PdfValue.Sign) <- PdfValue.Sign
+                                        do PdfValue.UnsignedNumber
+                                           pure {}
+                                        case sign is
+                                          { {| pos = _ |} -> {- case branch  {| pos = _ |} -} pure {}
+                                          ; {| neg = _ |} -> {- case branch  {| neg = _ |} -} pure {}
+                                          }
  
-PdfValue._Frac (n : uint 64) : Grammar {} =
+PdfValue.Frac_247 (n : uint 64) : Grammar {} =
   do @MatchBytes "."
-     @Many[ n .. ] PdfValue._Digit
+     @Many[ n .. ] PdfValue.Digit_243
  
-PdfValue._UnsignedLeadDigits : Grammar {} =
-  do PdfValue._Natural
+PdfValue.UnsignedLeadDigits_249 : Grammar {} =
+  do PdfValue.Natural_244
      Choose biased
-       { PdfValue._Frac 0
+       { PdfValue.Frac_247 0
        | pure {}
        }
  
-PdfValue._UnsignedNumber : Grammar {} =
+PdfValue.UnsignedNumber_250 : Grammar {} =
   Choose biased
-    { PdfValue._UnsignedLeadDigits
-    | PdfValue._Frac 1
+    { PdfValue.UnsignedLeadDigits_249
+    | PdfValue.Frac_247 1
     }
  
-PdfValue._OctDigit : Grammar {} =
+PdfValue.OctDigit_251 : Grammar {} =
   @Match ('0' .. '7')
  
-PdfValue._HexDigit : Grammar {} =
+PdfValue.HexDigit_252 : Grammar {} =
   Choose biased
-    { PdfValue._Digit
+    { PdfValue.Digit_243
     | Choose biased
         { @Match ('a' .. 'f')
         | @Match ('A' .. 'F')
         }
     }
  
-PdfValue._NumberAsNat (x : PdfValue.Number) : Grammar {} =
-  PdfValue._Guard (if (0 <= (x.num)) then (x.exp) == 0 else false)
+PdfValue.NumberAsNat_253 (x : PdfValue.Number) : Grammar {} =
+  PdfValue.Guard_239 (if (0 <= (x.num)) then (x.exp) == 0 else false)
  
-PdfValue._StringNumEsc : Grammar {} =
-  @Many[ 1 .. 3 ] PdfValue._OctDigit
+PdfValue.StringNumEsc_255 : Grammar {} =
+  @Many[ 1 .. 3 ] PdfValue.OctDigit_251
  
-PdfValue._StringEsc : Grammar {} =
+PdfValue.StringEsc_256 : Grammar {} =
   do @MatchBytes "\\"
      Choose biased
-       { PdfValue._When [uint 8] [uint 8] (@MatchBytes "n")
+       { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "n")
        | Choose biased
-           { PdfValue._When [uint 8] [uint 8] (@MatchBytes "r")
+           { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "r")
            | Choose biased
-               { PdfValue._When [uint 8] [uint 8] (@MatchBytes "t")
+               { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "t")
                | Choose biased
-                   { PdfValue._When [uint 8] [uint 8] (@MatchBytes "b")
+                   { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "b")
                    | Choose biased
-                       { PdfValue._When [uint 8] [uint 8] (@MatchBytes "f")
+                       { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "f")
                        | Choose biased
-                           { PdfValue._When [uint 8] [uint 8] (@MatchBytes "(")
+                           { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "(")
                            | Choose biased
-                               { PdfValue._When [uint 8] [uint 8] (@MatchBytes ")")
+                               { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes ")")
                                | Choose biased
-                                   { PdfValue._When [uint 8] [uint 8] (@MatchBytes "\\")
+                                   { PdfValue.When_236 [uint 8] [uint 8] (@MatchBytes "\\")
                                    | Choose biased
-                                       { PdfValue._When [uint 8] (uint 8) PdfValue._EOL
-                                       | PdfValue._StringNumEsc
+                                       { PdfValue.When_236 [uint 8] (uint 8) PdfValue.EOL_220
+                                       | PdfValue.StringNumEsc_255
                                        }
                                    }
                                }
@@ -512,73 +512,73 @@ PdfValue._StringEsc : Grammar {} =
            }
        }
  
-PdfValue._StringChars (lim : uint 64) : Grammar {} =
+PdfValue.StringChars_257 (lim : uint 64) : Grammar {} =
   @Many[] do PdfValue.StringChunk lim
              pure {}
  
-PdfValue._StringInParens (lim : uint 64) : Grammar {} =
+PdfValue.StringInParens_259 (lim : uint 64) : Grammar {} =
   if (lim == 0) then Fail "String nesting limit exceeded" else do @MatchBytes "("
-                                                                  PdfValue._StringChars (lim - 1)
+                                                                  PdfValue.StringChars_257 (lim - 1)
                                                                   @MatchBytes ")"
  
-PdfValue._StringChunk (lim : uint 64) : Grammar {} =
+PdfValue.StringChunk_261 (lim : uint 64) : Grammar {} =
   Choose biased
     { Choose biased
-        { PdfValue._StringInParens lim
-        | PdfValue._StringEsc
+        { PdfValue.StringInParens_259 lim
+        | PdfValue.StringEsc_256
         }
     | @Many[ 1 .. ] @Match (!"\\()")
     }
  
-PdfValue._String : Grammar {} =
+PdfValue.String_263 : Grammar {} =
   do @Match {'('}
-     PdfValue._StringChars 16
+     PdfValue.StringChars_257 16
      @Match {')'}
-     @Many[] PdfValue._AnyWS
+     @Many[] PdfValue.AnyWS_222
  
-PdfValue._HexStringNum2 : Grammar {} =
-  @Many[2] PdfValue._Token int PdfValue._HexDigit
+PdfValue.HexStringNum2_264 : Grammar {} =
+  @Many[2] PdfValue.Token_223 int PdfValue.HexDigit_252
  
-PdfValue._HexStringNum1 : Grammar {} =
-  PdfValue._Token int PdfValue._HexDigit
+PdfValue.HexStringNum1_265 : Grammar {} =
+  PdfValue.Token_223 int PdfValue.HexDigit_252
  
-PdfValue._HexString : Grammar {} =
-  PdfValue._Between [uint 8] "<" ">" do @Many[] PdfValue._HexStringNum2
-                                        Choose biased
-                                          { PdfValue._HexStringNum1
-                                          | pure {}
-                                          }
+PdfValue.HexString_266 : Grammar {} =
+  PdfValue.Between_228 [uint 8] "<" ">" do @Many[] PdfValue.HexStringNum2_264
+                                           Choose biased
+                                             { PdfValue.HexStringNum1_265
+                                             | pure {}
+                                             }
  
-PdfValue._NameEsc : Grammar {} =
+PdfValue.NameEsc_267 : Grammar {} =
   do @MatchBytes "#"
      ($$ : uint 8) <- do (_190 : int) <- do (_189 : [int]) <- Many[2] PdfValue.HexDigit
                                             pure (PdfValue.numBase [int] (uint 64) int 16 _189)
                          pure (_190 as uint 8)
-     PdfValue._Guard (0 < $$)
+     PdfValue.Guard_239 (0 < $$)
  
-PdfValue._NameChar : Grammar {} =
+PdfValue.NameChar_271 : Grammar {} =
   Choose biased
     { @Match (!"\NUL\t\n\f\r ()<>[]{}/%#")
-    | PdfValue._NameEsc
+    | PdfValue.NameEsc_267
     }
  
-PdfValue._Name : Grammar {} =
-  PdfValue._Token [uint 8] do @MatchBytes "/"
-                              @Many[] PdfValue._NameChar
+PdfValue.Name_272 : Grammar {} =
+  PdfValue.Token_223 [uint 8] do @MatchBytes "/"
+                                 @Many[] PdfValue.NameChar_271
  
-PdfValue._Null : Grammar {} =
-  PdfValue._KW "null"
+PdfValue.Null_273 : Grammar {} =
+  PdfValue.KW_226 "null"
  
-PdfValue._Ref : Grammar {} =
-  do PdfValue._Token int PdfValue._Natural
-     PdfValue._Token int PdfValue._Natural
-     PdfValue._KW "R"
+PdfValue.Ref_274 : Grammar {} =
+  do PdfValue.Token_223 int PdfValue.Natural_244
+     PdfValue.Token_223 int PdfValue.Natural_244
+     PdfValue.KW_226 "R"
  
-PdfValue._Array (lim : uint 64) : Grammar {} =
-  PdfValue._Between [PdfValue.Value] "[" "]" (@Many[] do PdfValue.Value lim
-                                                         pure {})
+PdfValue.Array_275 (lim : uint 64) : Grammar {} =
+  PdfValue.Between_228 [PdfValue.Value] "[" "]" (@Many[] do PdfValue.Value lim
+                                                            pure {})
  
-PdfValue._Dict (lim : uint 64) : Grammar {} =
+PdfValue.Dict_277 (lim : uint 64) : Grammar {} =
   do (ents : [PdfValue.Dict0]) <- PdfValue.Between [PdfValue.Dict0] "<<" ">>" (Many[] do (key : [uint 8]) <- PdfValue.Name
                                                                                          (value : PdfValue.Value) <- PdfValue.Value lim
                                                                                          pure {key = key,
@@ -587,30 +587,30 @@ PdfValue._Dict (lim : uint 64) : Grammar {} =
        (Insert (e.key) (e.value) d)
      pure {}
  
-PdfValue._Value (lim : uint 64) : Grammar {} =
+PdfValue.Value_284 (lim : uint 64) : Grammar {} =
   if (lim == 0) then Fail "Exceeded value nesting depth" else Choose biased
-                                                                { {- null -} PdfValue._Null
-                                                                | {- bool -} PdfValue._Bool
-                                                                | {- ref -} PdfValue._Ref
-                                                                | {- name -} PdfValue._Name
-                                                                | {- string -} PdfValue._String
-                                                                | {- string -} PdfValue._HexString
-                                                                | {- number -} PdfValue._Number
-                                                                | {- array -} PdfValue._Array (lim - 1)
-                                                                | {- dict -} PdfValue._Dict (lim - 1)
+                                                                { {- null -} PdfValue.Null_273
+                                                                | {- bool -} PdfValue.Bool_241
+                                                                | {- ref -} PdfValue.Ref_274
+                                                                | {- name -} PdfValue.Name_272
+                                                                | {- string -} PdfValue.String_263
+                                                                | {- string -} PdfValue.HexString_266
+                                                                | {- number -} PdfValue.Number_245
+                                                                | {- array -} PdfValue.Array_275 (lim - 1)
+                                                                | {- dict -} PdfValue.Dict_277 (lim - 1)
                                                                 }
  
-PdfValue._PdfDict : Grammar {} =
-  PdfValue._Dict 32
+PdfValue.PdfDict_286 : Grammar {} =
+  PdfValue.Dict_277 32
  
-PdfValue._PdfValue : Grammar {} =
-  PdfValue._Value 32
+PdfValue.PdfValue_287 : Grammar {} =
+  PdfValue.Value_284 32
  
-PdfValue._NatValue (v : PdfValue.Value) : Grammar {} =
+PdfValue.NatValue_288 (v : PdfValue.Value) : Grammar {} =
   do (n : PdfValue.Number) <- case v is
                                 { {| number = _202 |} -> pure _202
                                 }
-     PdfValue._NumberAsNat n
+     PdfValue.NumberAsNat_253 n
 module Pdf
  
 --- Imports:
@@ -679,7 +679,7 @@ Pdf.Stream (val : PdfValue.Value) : Grammar Pdf.Stream =
                                                  { {| dict = _206 |} -> pure _206
                                                  }
      @MatchBytes "stream"
-     PdfValue._SimpleEOL
+     PdfValue.SimpleEOL_219
      (start : Stream) <- CurrentStream
      (len : uint 64) <- Pdf.CountTo (uint 64) {} (PdfValue.KW "endstream") 0
      (body : Stream) <- StreamLen len start
@@ -697,16 +697,16 @@ Pdf.TopDeclDef (val : PdfValue.Value) : Grammar Pdf.TopDeclDef =
 Pdf.ObjDecl : Grammar Pdf.ObjDecl =
   do (id : int) <- PdfValue.Token int PdfValue.Natural
      (gen : int) <- PdfValue.Token int PdfValue.Natural
-     PdfValue._KW "obj"
+     PdfValue.KW_226 "obj"
      (val : PdfValue.Value) <- PdfValue.PdfValue
      (obj : Pdf.TopDeclDef) <- Pdf.TopDeclDef val
-     PdfValue._KW "endobj"
+     PdfValue.KW_226 "endobj"
      pure {id = id,
            gen = gen,
            obj = obj}
  
 Pdf.Trailer : Grammar (Map [uint 8] PdfValue.Value) =
-  do PdfValue._KW "trailer"
+  do PdfValue.KW_226 "trailer"
      ($$ : Map [uint 8] PdfValue.Value) <- PdfValue.PdfDict
      pure $$
  
@@ -761,7 +761,7 @@ Pdf.CrossRefSubSection : Grammar Pdf.CrossRefSubSection =
  
 Pdf.CrossRefSection : Grammar Pdf.CrossRefSection =
   do (offset : uint 64) <- Offset
-     PdfValue._KW "xref"
+     PdfValue.KW_226 "xref"
      (entries : [Pdf.CrossRefSubSection]) <- Many[ 1 .. ] Pdf.CrossRefSubSection
      pure {offset = offset,
            entries = entries}
@@ -771,11 +771,11 @@ Pdf.PdfChunk : Grammar Pdf.PdfChunk =
      (xref : Pdf.CrossRefSection) <- Pdf.CrossRefSection
      (trailer : Map [uint 8] PdfValue.Value) <- Pdf.Trailer
      @MatchBytes "startxref"
-     PdfValue._EOL
+     PdfValue.EOL_220
      (declaredStartXref : int) <- do ($$ : int) <- PdfValue.Natural
-                                     PdfValue._EOL
+                                     PdfValue.EOL_220
                                      pure $$
-     PdfValue._KW "%%EOF"
+     PdfValue.KW_226 "%%EOF"
      pure {objects = objects,
            xref = xref,
            trailer = trailer,
@@ -802,65 +802,65 @@ Pdf.Main : Grammar Pdf.Main =
                                                                             ($$ : PdfValue.Number) <- PdfValue.Number
                                                                             pure $$
                             (chunks : [Pdf.PdfChunk]) <- Many[] Pdf.PdfChunk
-                            @Many[] PdfValue._AnyWS
+                            @Many[] PdfValue.AnyWS_222
                             pure {version = version,
                                   chunks = chunks}
  
-Pdf._CountTo ?a0 ?a1 (Literal 1 ?a0) (Arith ?a0) (P : Grammar ?a1) (count : ?a0) (_P : Grammar {}) : Grammar {} =
+Pdf.CountTo_291 ?a0 ?a1 (Literal 1 ?a0) (Arith ?a0) (P : Grammar ?a1) (count : ?a0) (P : Grammar {}) : Grammar {} =
   Choose biased
-    { _P
+    { P
     | do @Match UInt8
          Pdf.CountTo ?a0 ?a1 P (count + 1)
          pure {}
     }
  
-Pdf._Stream (val : PdfValue.Value) : Grammar {} =
+Pdf.Stream_296 (val : PdfValue.Value) : Grammar {} =
   do case val is
        { {| dict = _206 |} -> pure {}
        }
      @MatchBytes "stream"
-     PdfValue._SimpleEOL
+     PdfValue.SimpleEOL_219
      (start : Stream) <- CurrentStream
      (len : uint 64) <- Pdf.CountTo (uint 64) {} (PdfValue.KW "endstream") 0
      @StreamLen len start
      pure {}
  
-Pdf._TopDeclDef (val : PdfValue.Value) : Grammar {} =
+Pdf.TopDeclDef_300 (val : PdfValue.Value) : Grammar {} =
   Choose biased
-    { {- stream -} Pdf._Stream val
+    { {- stream -} Pdf.Stream_296 val
     | {- value -} pure {}
     }
  
-Pdf._ObjDecl : Grammar {} =
-  do PdfValue._Token int PdfValue._Natural
-     PdfValue._Token int PdfValue._Natural
-     PdfValue._KW "obj"
+Pdf.ObjDecl_302 : Grammar {} =
+  do PdfValue.Token_223 int PdfValue.Natural_244
+     PdfValue.Token_223 int PdfValue.Natural_244
+     PdfValue.KW_226 "obj"
      (val : PdfValue.Value) <- PdfValue.PdfValue
-     Pdf._TopDeclDef val
-     PdfValue._KW "endobj"
+     Pdf.TopDeclDef_300 val
+     PdfValue.KW_226 "endobj"
  
-Pdf._Trailer : Grammar {} =
-  do PdfValue._KW "trailer"
-     PdfValue._PdfDict
+Pdf.Trailer_304 : Grammar {} =
+  do PdfValue.KW_226 "trailer"
+     PdfValue.PdfDict_286
  
-Pdf._UsedEntry : Grammar {} =
+Pdf.UsedEntry_305 : Grammar {} =
   @Match {'n'}
  
-Pdf._FreeEntry : Grammar {} =
+Pdf.FreeEntry_306 : Grammar {} =
   @Match {'f'}
  
-Pdf._NatN (n : uint 64) : Grammar {} =
+Pdf.NatN_307 (n : uint 64) : Grammar {} =
   do (ds : [int]) <- Many[n] PdfValue.Digit
      @(PdfValue.numBase [int] (uint 64) int 10 ds AS uint 64)
  
-Pdf._CrossRefEntry : Grammar {} =
-  do Pdf._NatN 10
+Pdf.CrossRefEntry_310 : Grammar {} =
+  do Pdf.NatN_307 10
      @Match PdfValue.$simpleWS
-     Pdf._NatN 5
+     Pdf.NatN_307 5
      @Match PdfValue.$simpleWS
      Choose biased
-       { {- inUse -} Pdf._UsedEntry
-       | {- free -} Pdf._FreeEntry
+       { {- inUse -} Pdf.UsedEntry_305
+       | {- free -} Pdf.FreeEntry_306
        }
      Choose biased
        { do @Match PdfValue.$simpleWS
@@ -872,29 +872,29 @@ Pdf._CrossRefEntry : Grammar {} =
             @Match PdfValue.$lf
        }
  
-Pdf._CrossRefSubSection : Grammar {} =
-  do PdfValue._Token int PdfValue._Natural
+Pdf.CrossRefSubSection_311 : Grammar {} =
+  do PdfValue.Token_223 int PdfValue.Natural_244
      (num : uint 64) <- do (_215 : int) <- PdfValue.Token int PdfValue.Natural
                            _215 AS uint 64
-     @Many[num] Pdf._CrossRefEntry
+     @Many[num] Pdf.CrossRefEntry_310
  
-Pdf._CrossRefSection : Grammar {} =
-  do PdfValue._KW "xref"
-     @Many[ 1 .. ] Pdf._CrossRefSubSection
+Pdf.CrossRefSection_314 : Grammar {} =
+  do PdfValue.KW_226 "xref"
+     @Many[ 1 .. ] Pdf.CrossRefSubSection_311
  
-Pdf._PdfChunk : Grammar {} =
-  do @Many[] Pdf._ObjDecl
-     Pdf._CrossRefSection
-     Pdf._Trailer
+Pdf.PdfChunk_315 : Grammar {} =
+  do @Many[] Pdf.ObjDecl_302
+     Pdf.CrossRefSection_314
+     Pdf.Trailer_304
      @MatchBytes "startxref"
-     PdfValue._EOL
-     do PdfValue._Natural
-        PdfValue._EOL
-     PdfValue._KW "%%EOF"
+     PdfValue.EOL_220
+     do PdfValue.Natural_244
+        PdfValue.EOL_220
+     PdfValue.KW_226 "%%EOF"
  
-Pdf._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
+Pdf.SkipTo_316 ?a0 (P : Grammar ?a0) (P : Grammar {}) : Grammar {} =
   do (_217 : bool) <- Choose biased
-                        { do _P
+                        { do P
                              ($$ : bool) <- pure true
                              pure $$
                         | pure false
@@ -905,10 +905,10 @@ Pdf._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
                                               Pdf.SkipTo ?a0 P
        }
  
-Pdf._Main : Grammar {} =
-  PdfValue._Only Pdf.Main do Pdf._SkipTo PdfValue.Number do @MatchBytes "%PDF-"
-                                                            ($$ : PdfValue.Number) <- PdfValue.Number
-                                                            pure $$ do @MatchBytes "%PDF-"
-                                                                       PdfValue._Number
-                             @Many[] Pdf._PdfChunk
-                             @Many[] PdfValue._AnyWS
+Pdf.Main_322 : Grammar {} =
+  PdfValue.Only_233 Pdf.Main do Pdf.SkipTo_316 PdfValue.Number do @MatchBytes "%PDF-"
+                                                                  ($$ : PdfValue.Number) <- PdfValue.Number
+                                                                  pure $$ do @MatchBytes "%PDF-"
+                                                                             PdfValue.Number_245
+                                @Many[] Pdf.PdfChunk_315
+                                @Many[] PdfValue.AnyWS_222

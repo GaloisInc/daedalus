@@ -55,5 +55,5 @@ T071.Main : Grammar T071.Main =
      pure {x = x,
            y = y}
  
-T071._Main : Grammar {} =
+T071.Main_9 : Grammar {} =
   @(0 AS T071.B)

@@ -19,27 +19,27 @@ D007.B : Grammar [uint 8] =
   do ($$ : [uint 8]) <- Many[] Match ('f' .. 't')
      pure $$
  
-D007._A : Grammar {} =
+D007.A_11 : Grammar {} =
   @Many[] @Match ('a' .. 'm')
  
-D007._B : Grammar {} =
+D007.B_12 : Grammar {} =
   @Many[] @Match ('f' .. 't')
  
 D007.Main : Grammar {} =
   do Choose fair
-       { {- x -} do D007._A
+       { {- x -} do D007.A_11
                     @MatchBytes "c"
-       | {- y -} do D007._B
+       | {- y -} do D007.B_12
                     @MatchBytes "d"
        }
      ($$ : {}) <- END
      pure $$
  
-D007._Main : Grammar {} =
+D007.Main_13 : Grammar {} =
   do Choose fair
-       { {- x -} do D007._A
+       { {- x -} do D007.A_11
                     @MatchBytes "c"
-       | {- y -} do D007._B
+       | {- y -} do D007.B_12
                     @MatchBytes "d"
        }
      END

@@ -8,5 +8,5 @@ module Debug
  
 Debug.Trace (s : [uint 8]) : Grammar {}
  
-Debug._Trace (s : [uint 8]) : Grammar {} =
+Debug.Trace_2 (s : [uint 8]) : Grammar {} =
   Debug.Trace s

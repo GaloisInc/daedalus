@@ -52,53 +52,53 @@ P025.AnyWS : Grammar (uint 8) =
     | P025.EOL
     }
  
-P025._SimpleEOL : Grammar {} =
+P025.SimpleEOL_21 : Grammar {} =
   Choose fair
     { do @Match P025.$cr
          @Match P025.$lf
     | @Match P025.$lf
     }
  
-P025._EOL : Grammar {} =
+P025.EOL_22 : Grammar {} =
   Choose biased
-    { P025._SimpleEOL
+    { P025.SimpleEOL_21
     | @Match P025.$cr
     }
  
-P025._Comment : Grammar {} =
+P025.Comment_23 : Grammar {} =
   do @MatchBytes "%"
      @Many[] @Match (!(P025.$lf | P025.$cr))
-     P025._EOL
+     P025.EOL_22
  
-P025._AnyWS : Grammar {} =
+P025.AnyWS_24 : Grammar {} =
   Choose fair
     { Choose fair
         { @Match P025.$simpleWS
-        | P025._Comment
+        | P025.Comment_23
         }
-    | P025._EOL
+    | P025.EOL_22
     }
  
 P025.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] P025._AnyWS
+     @Many[ 1 .. ] P025.AnyWS_24
      pure $$
  
-P025._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[ 1 .. ] P025._AnyWS
+P025.Token_25 ?a0 (P : Grammar {}) : Grammar {} =
+  do P
+     @Many[ 1 .. ] P025.AnyWS_24
  
 P025.KW ?a0 (P : Grammar ?a0) : Grammar {} =
-  P025._Token ?a0 do P
-                     pure {}
+  P025.Token_25 ?a0 do P
+                       pure {}
  
-P025._KW ?a0 (_P : Grammar {}) : Grammar {} =
-  P025._Token ?a0 _P
+P025.KW_28 ?a0 (P : Grammar {}) : Grammar {} =
+  P025.Token_25 ?a0 P
  
 P025.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
-  do P025._KW [uint 8] (@MatchBytes open)
+  do P025.KW_28 [uint 8] (@MatchBytes open)
      ($$ : ?a0) <- P
-     P025._KW [uint 8] (@MatchBytes close)
+     P025.KW_28 [uint 8] (@MatchBytes close)
      pure $$
  
 P025.Main : Grammar P025.Main =
@@ -106,11 +106,11 @@ P025.Main : Grammar P025.Main =
      END
      pure {x = x}
  
-P025._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
-  do P025._KW [uint 8] (@MatchBytes open)
-     _P
-     P025._KW [uint 8] (@MatchBytes close)
+P025.Between_31 ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar {}) : Grammar {} =
+  do P025.KW_28 [uint 8] (@MatchBytes open)
+     P
+     P025.KW_28 [uint 8] (@MatchBytes close)
  
-P025._Main : Grammar {} =
-  do @Many[] P025._Token [uint 8] (@Many[] @Match ('a' .. 'z'))
+P025.Main_36 : Grammar {} =
+  do @Many[] P025.Token_25 [uint 8] (@Many[] @Match ('a' .. 'z'))
      END

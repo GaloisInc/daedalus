@@ -6,8 +6,8 @@ module DaedalusMain
  
 --- Rules:
  
-T054.z__3 : uint 64 =
+T054.z_3 : uint 64 =
   1
  
 T054.Main : Grammar [uint 8] =
-  Many[T054.z__3] Match {'a'}
+  Many[T054.z_3] Match {'a'}

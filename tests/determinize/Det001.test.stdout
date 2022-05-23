@@ -119,6 +119,7 @@ proc Simple3() : Word 8 =
        _ ->
          fail_sys @(Word 8)
  
+-- entry pont
 -- ./Det001.ddl:3:1--3:69
 proc Main() : Main =
   -- ./Det001.ddl:3:14--3:69

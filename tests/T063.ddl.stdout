@@ -12,7 +12,7 @@ T063.Main : Grammar bool =
      if _2 then pure true else do (_3 : uint 8) <- Match UInt8
                                   pure (_3 == 3)
  
-T063._Main : Grammar {} =
+T063.Main_4 : Grammar {} =
   do (_2 : bool) <- do (_1 : uint 8) <- Match UInt8
                        pure (_1 == 2)
      if _2 then pure {} else @Match UInt8

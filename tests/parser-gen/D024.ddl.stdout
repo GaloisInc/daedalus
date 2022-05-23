@@ -18,12 +18,12 @@ D024.Main : Grammar (uint 8) =
   do ($$ : uint 8) <- D024.A
      pure $$
  
-D024._A : Grammar {} =
+D024.A_4 : Grammar {} =
   Choose biased
     { do @Match {0xFF}
          @Match {0x00}
     | @Match (!{0xFF})
     }
  
-D024._Main : Grammar {} =
-  D024._A
+D024.Main_5 : Grammar {} =
+  D024.A_4

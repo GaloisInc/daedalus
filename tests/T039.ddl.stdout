@@ -6,16 +6,16 @@ module T039
  
 --- Rules:
  
-T039._Block ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+T039.Block_9 ?a0 (n : uint 64) (P : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      do (_6 : Stream) <- StreamLen n s
         SetStream _6
-     _P
+     P
      (_7 : Stream) <- StreamOff n s
      SetStream _7
  
 T039.Main : Grammar [uint 8] =
-  do T039._Block [uint 8] 5 (@MatchBytes "hi")
+  do T039.Block_9 [uint 8] 5 (@MatchBytes "hi")
      ($$ : [uint 8]) <- MatchBytes "there"
      pure $$
  
@@ -28,6 +28,6 @@ T039.Block ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
         SetStream _7
      pure $$
  
-T039._Main : Grammar {} =
-  do T039._Block [uint 8] 5 (@MatchBytes "hi")
+T039.Main_16 : Grammar {} =
+  do T039.Block_9 [uint 8] 5 (@MatchBytes "hi")
      @MatchBytes "there"

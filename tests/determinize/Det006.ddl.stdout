@@ -16,7 +16,7 @@ type Det006.T = Choose { reset_controllers: {}
  
 --- Rules:
  
-Det006._T : Grammar {} =
+Det006.T_13 : Grammar {} =
   Choose biased
     { {- all_sound_off -} @MatchBytes [0x78,
                                        0x00]
@@ -39,7 +39,7 @@ Det006._T : Grammar {} =
     }
  
 Det006.Main : Grammar {} =
-  do Det006._T
+  do Det006.T_13
      ($$ : {}) <- END
      pure $$
  
@@ -75,6 +75,6 @@ Det006.T : Grammar Det006.T =
                        pure {poly_on: _11}
     }
  
-Det006._Main : Grammar {} =
-  do Det006._T
+Det006.Main_14 : Grammar {} =
+  do Det006.T_13
      END

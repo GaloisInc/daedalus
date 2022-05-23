@@ -37,16 +37,16 @@ P034.Main : Grammar P034.Main =
      pure {a = a,
            t = t}
  
-P034._CA : Grammar {} =
+P034.CA_9 : Grammar {} =
   @Match {'a'}
  
-P034._CB : Grammar {} =
+P034.CB_10 : Grammar {} =
   @Match {'a'}
  
-P034._Main : Grammar {} =
+P034.Main_11 : Grammar {} =
   do @Match {'a'}
      Choose fair
-       { {- x -} P034._CA
-       | {- y -} P034._CB
+       { {- x -} P034.CA_9
+       | {- y -} P034.CB_10
        }
      END

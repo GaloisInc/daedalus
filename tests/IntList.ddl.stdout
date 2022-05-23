@@ -48,19 +48,19 @@ Number.HexDigit : Grammar int =
         }
     }
  
-Number._Digit : Grammar {} =
+Number.Digit_36 : Grammar {} =
   @Match ('0' .. '9')
  
-Number._Natural : Grammar {} =
-  @Many[ 1 .. ] Number._Digit
+Number.Natural_37 : Grammar {} =
+  @Many[ 1 .. ] Number.Digit_36
  
-Number._Frac ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
+Number.Frac_38 ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
   do @Match {'.'}
-     @Many[ n .. ] Number._Digit
+     @Many[ n .. ] Number.Digit_36
  
-Number._HexDigit : Grammar {} =
+Number.HexDigit_40 : Grammar {} =
   Choose biased
-    { Number._Digit
+    { Number.Digit_36
     | Choose biased
         { @Match ('a' .. 'f')
         | @Match ('A' .. 'F')
@@ -86,12 +86,12 @@ rec
 IntList.WS : Grammar {} =
   @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
-IntList._WS : Grammar {} =
+IntList.WS_41 : Grammar {} =
   @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] IntList._WS
+     @Many[ 1 .. ] IntList.WS_41
      pure $$
  
 rec value
@@ -106,13 +106,13 @@ rec value
                      pure {nil: _35}
       }
  
-IntList._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[ 1 .. ] IntList._WS
+IntList.Token_42 ?a0 (P : Grammar {}) : Grammar {} =
+  do P
+     @Many[ 1 .. ] IntList.WS_41
  
-IntList._IntList : Grammar {} =
+IntList.IntList_45 : Grammar {} =
   Choose biased
-    { {- cons -} do IntList._Token int Number._Natural
+    { {- cons -} do IntList.Token_42 int Number.Natural_37
                     IntList.IntList
                     pure {}
     | {- nil -} pure {}

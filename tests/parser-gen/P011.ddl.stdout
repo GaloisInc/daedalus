@@ -26,12 +26,12 @@ P011.Main : Grammar P011.Main =
            y = y,
            z = z}
  
-P011._Length : Grammar {} =
+P011.Length_10 : Grammar {} =
   do @Match UInt8
      @Match UInt8
      @Match UInt8
      @Match UInt8
  
-P011._Main : Grammar {} =
-  do P011._Length
+P011.Main_11 : Grammar {} =
+  do P011.Length_10
      @Match UInt8

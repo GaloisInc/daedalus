@@ -29,14 +29,14 @@ T007.SignWithCase : Grammar {} =
     | pure {}
     }
  
-T007._Sign : Grammar {} =
+T007.Sign_6 : Grammar {} =
   Choose biased
     { {- pos -} @Match {'+'}
     | {- neg -} @Match {'-'}
     | {- pos -} pure {}
     }
  
-T007._SignWithCase : Grammar {} =
+T007.SignWithCase_7 : Grammar {} =
   Choose biased
     { do (_5 : uint 8) <- Match UInt8
          case _5 is

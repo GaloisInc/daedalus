@@ -21,16 +21,16 @@ D014.AString : Grammar [uint 8] =
 D014.Main : Grammar [uint 8] =
   D014.SkipTo [uint 8] D014.AString
  
-D014._SkipTo ?a0 (P : Grammar ?a0) (_P : Grammar {}) : Grammar {} =
+D014.SkipTo_5 ?a0 (P : Grammar ?a0) (P : Grammar {}) : Grammar {} =
   Choose biased
-    { _P
+    { P
     | do @Match UInt8
          D014.SkipTo ?a0 P
          pure {}
     }
  
-D014._AString : Grammar {} =
+D014.AString_9 : Grammar {} =
   @MatchBytes "a"
  
-D014._Main : Grammar {} =
-  D014._SkipTo [uint 8] D014.AString D014._AString
+D014.Main_10 : Grammar {} =
+  D014.SkipTo_5 [uint 8] D014.AString D014.AString_9

@@ -15,24 +15,24 @@ D006.A : Grammar [[uint 8]] =
   do ($$ : [[uint 8]]) <- Many[] MatchBytes "a"
      pure $$
  
-D006._A : Grammar {} =
+D006.A_9 : Grammar {} =
   @Many[] @MatchBytes "a"
  
 D006.Main : Grammar {} =
   do Choose fair
-       { {- x -} do D006._A
+       { {- x -} do D006.A_9
                     @MatchBytes "c"
-       | {- y -} do D006._A
+       | {- y -} do D006.A_9
                     @MatchBytes "d"
        }
      ($$ : {}) <- END
      pure $$
  
-D006._Main : Grammar {} =
+D006.Main_10 : Grammar {} =
   do Choose fair
-       { {- x -} do D006._A
+       { {- x -} do D006.A_9
                     @MatchBytes "c"
-       | {- y -} do D006._A
+       | {- y -} do D006.A_9
                     @MatchBytes "d"
        }
      END

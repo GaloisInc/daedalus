@@ -17,7 +17,7 @@ T029.Main : Grammar T029.Main =
                  pure {y: _2}
     }
  
-T029._Main : Grammar {} =
+T029.Main_3 : Grammar {} =
   Choose biased
     { {- x -} @Match {'a'}
     | {- y -} @Match {'a'}

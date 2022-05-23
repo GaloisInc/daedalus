@@ -19,5 +19,5 @@ array-length.Main : Grammar array-length.Main =
      pure {arr = arr,
            len = len}
  
-array-length._Main : Grammar {} =
+array-length.Main_3 : Grammar {} =
   pure {}

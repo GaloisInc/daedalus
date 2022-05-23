@@ -20,5 +20,5 @@ T073.Main : Grammar (uint 8) =
                          pure (T073.f _6)
      pure (T073.g _7)
  
-T073._Main : Grammar {} =
+T073.Main_8 : Grammar {} =
   @Match T073.$x

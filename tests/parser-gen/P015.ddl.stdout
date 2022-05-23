@@ -26,8 +26,8 @@ P015.Main : Grammar P015.Main =
      pure {x = x,
            y = y}
  
-P015._A : Grammar {} =
+P015.A_9 : Grammar {} =
   @Match UInt8
  
-P015._Main : Grammar {} =
-  P015._A
+P015.Main_10 : Grammar {} =
+  P015.A_9

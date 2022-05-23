@@ -43,27 +43,27 @@ T069.Main : Grammar T069.Main =
      pure {one = one,
            two = two}
  
-T069._Word16 (?be : bool) : Grammar {} =
+T069.Word16_13 (?be : bool) : Grammar {} =
   do @Match UInt8
      @Match UInt8
      if ?be then pure {} else pure {}
  
-T069._Example : Grammar {} =
+T069.Example_15 : Grammar {} =
   do (?be : bool) <- do (_12 : uint 8) <- Match UInt8
                         pure (_12 == 0)
-     T069._Word16 ?be
-     T069._Word16 ?be
+     T069.Word16_13 ?be
+     T069.Word16_13 ?be
  
-T069._Main : Grammar {} =
+T069.Main_18 : Grammar {} =
   do SetStream (arrayStream "array" [1,
                                      1,
                                      0,
                                      1,
                                      0])
-     T069._Example
+     T069.Example_15
      SetStream (arrayStream "array" [0,
                                      1,
                                      0,
                                      1,
                                      0])
-     T069._Example
+     T069.Example_15
