@@ -106,7 +106,7 @@ in directory `parser_dir`, run the command
 
 .. code-block:: bash
 
-   daedalus format.ddl --compile-c++ --out-dir=parser_dir
+   daedalus compile-c++ format.ddl --out-dir=parser_dir
 
 As a result, `parser_dir` will contain an implementation of the
 parser, with header file `parser_dir/main_parser.h` and and procedure
