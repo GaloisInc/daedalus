@@ -164,7 +164,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, TopThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl;
+            User::TopDecl decl{};
             bool success = arg.getDecl(topinput->get(), &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
@@ -174,7 +174,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, StreamThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl;
+            User::TopDecl decl{};
             bool success = arg.getDecl(refid, &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);

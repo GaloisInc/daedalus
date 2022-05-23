@@ -91,15 +91,15 @@ addDeclName TC.TCDecl { .. } =
   case tcDeclCtxt of
     TC.AValue   ->
       case tcDeclDef of
-        TC.ExternDecl t -> fromFDefName tcDeclName t
-        TC.Defined v    -> fromFDefName tcDeclName (TC.typeOf v)
+        TC.ExternDecl t -> fromFDefName True tcDeclName t
+        TC.Defined v    -> fromFDefName False tcDeclName (TC.typeOf v)
 
-    TC.AClass -> fromCDefName tcDeclName
+    TC.AClass -> fromCDefName False tcDeclName
 
     TC.AGrammar ->
       case tcDeclDef of
-        TC.ExternDecl t -> fromGDefName tcDeclName t
-        TC.Defined v    -> fromGDefName tcDeclName (TC.typeOf v)
+        TC.ExternDecl t -> fromGDefName True tcDeclName t
+        TC.Defined v    -> fromGDefName False tcDeclName (TC.typeOf v)
 
 
 sysErr :: Type -> String -> Grammar
@@ -1490,30 +1490,30 @@ fromGName x = topName (TC.tcName x)
 
 
 -- | Add translated name
-fromFDefName :: TC.Name -> TC.Type -> M ()
-fromFDefName x t =
+fromFDefName :: Bool -> TC.Name -> TC.Type -> M ()
+fromFDefName isExtern x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromFDefName" ["Not a top-level name"]
-     addTopName x =<< newFName (TC.namePublic x) lab =<< fromTypeM t
+     addTopName x =<< newFName (isExtern || TC.namePublic x) lab =<< fromTypeM t
 
 
 -- | Add translated name
-fromCDefName :: TC.Name -> M ()
-fromCDefName x =
+fromCDefName :: Bool -> TC.Name -> M ()
+fromCDefName isExtern x =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromCDefName" ["Not a top-level name"]
-     addTopName x =<< newFName (TC.namePublic x) lab TBool
+     addTopName x =<< newFName (isExtern || TC.namePublic x) lab TBool
 
 
 -- | Add translated name
-fromGDefName :: TC.Name -> TC.Type -> M ()
-fromGDefName x t =
+fromGDefName :: Bool -> TC.Name -> TC.Type -> M ()
+fromGDefName isExtern x t =
   do let lab = case TC.nameScopedIdent x of
                  TC.ModScope _ i -> i
                  _ -> panic "fromGDefName" ["Not a top-level name"]
-     addTopName x =<< newFName (TC.namePublic x) lab =<< fromGTypeM t
+     addTopName x =<< newFName (isExtern || TC.namePublic x) lab =<< fromGTypeM t
 
 
 fromArg :: TC.Arg TC.SourceRange -> M Expr
