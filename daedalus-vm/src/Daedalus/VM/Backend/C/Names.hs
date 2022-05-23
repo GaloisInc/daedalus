@@ -163,8 +163,10 @@ selName own l = pref <.> "_" <.> cLabel l
 
 cFNameWithPref :: Text -> FName -> CIdent
 cFNameWithPref pref f =
-  escText (pref <> Src.fnameText f <> "_" <>
-                                        Text.pack (guidString (Src.fnameId f)))
+  escText (if Src.fnamePublic f
+             then stem
+             else stem <> "_" <> Text.pack (guidString (Src.fnameId f)))
+  where stem = pref <> Src.fnameText f
 
 cFName :: FName -> CIdent
 cFName = cFNameWithPref "parser_"

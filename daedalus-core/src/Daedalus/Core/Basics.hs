@@ -43,7 +43,7 @@ data TFlav = TFlavStruct
 data FName = FName
   { fnameId         :: GUID
   , fnameText       :: Text
-  , fnamePublic     :: !Bool    -- ^ True, if this is a synthehtic name.
+  , fnamePublic     :: !Bool
   , fnameType       :: Type
   , fnameMod        :: MName
   }
