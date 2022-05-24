@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# Language OverloadedStrings #-}
-{-# Language GeneralizedNewtypeDeriving #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.Symbolic (symbolicStrats) where
@@ -28,6 +27,7 @@ import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM
+import           Talos.Strategy.MemoSearch    (memoSearch, randRestartPolicy, randDFSPolicy)
 import           Talos.SymExec.Expr           (symExecCaseAlts)
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
@@ -47,7 +47,11 @@ import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 symbolicStrats :: [Strategy]
 symbolicStrats = map mkOne strats
   where
-    strats = [("dfs", dfs)]--, ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart) ]
+    --, ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart)    
+    strats = [ ("dfs", dfs)
+             , ("memo-rand-restart", memoSearch randRestartPolicy)
+             , ("memo-rand-dfs",     memoSearch randDFSPolicy)
+             ]
     mkOne :: (Doc, SearchStrat) -> Strategy
     mkOne (name, sstrat) = 
       Strategy { stratName  = "symbolic-" ++ show name
@@ -74,14 +78,14 @@ symbolicFun sstrat ptag sl = do
     defineSlicePolyFuns sl'    
     defineSliceFunDefs md sl'
     
-  scoped $ runSymbolicM sstrat $ do
-    (_, path) <- stratSlice ptag sl
-    check -- FIXME: only required if there was no recent 'check' command
-    inSolver (buildPath path)
+  scoped $ do
+    m_res <- runSymbolicM sstrat slAndDeps (stratSlice ptag sl <* check)
+    traverse (buildPath . snd) m_res
 
 buildPath :: PathBuilder -> SolverT StrategyM SelectedPath
 buildPath = traverse resolveResult
   where
+    resolveResult :: SolverResult -> SolverT StrategyM BS.ByteString
     resolveResult (ByteResult b) = BS.singleton <$> byteModel b
     resolveResult (InverseResult env ifn) = do
       venv <- traverse valueModel env
@@ -134,11 +138,11 @@ stratSlice ptag = go
         -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
         -- SMatch {} -> unimplemented sl
 
-        SAssertion e -> do
-          se <- synthesiseExpr e
-          assert se
-          check
-          pure (uncPath vUnit)
+        -- SAssertion e -> do
+        --   se <- synthesiseExpr e
+        --   assert se
+        --   check
+        --   pure (uncPath vUnit)
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking

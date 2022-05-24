@@ -119,10 +119,10 @@ stratSlice ptag = go
           pure (I.vUInt 8 (fromIntegral b)
                , SelectedBytes ptag (BS.singleton b))
           
-        SAssertion e -> do
-          b <- I.valueToBool <$> synthesiseExpr e
-          guard b
-          pure (uncPath I.vUnit)
+        -- SAssertion e -> do
+        --   b <- I.valueToBool <$> synthesiseExpr e
+        --   guard b
+        --   pure (uncPath I.vUnit)
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking

@@ -80,7 +80,7 @@ sliceToCallees = go
       SPure {}          -> mempty
       SDo _ l r         -> go l <> go r
       SMatch _m         -> mempty
-      SAssertion _e     -> mempty
+--      SAssertion _e     -> mempty
       SChoice cs        -> foldMap go cs
       SCall cn          -> Set.singleton (ecnSliceId cn)
       SCase _ c         -> foldMap go c
@@ -123,7 +123,7 @@ sliceToRecVars recs = snd . go
       SChoice cs -> foldMap go cs
       SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
       SCase _ cs -> foldMap go cs
-      SAssertion {} -> mempty
+--      SAssertion {} -> mempty
       SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ exportSlice = go
           x' <- asks (Map.findWithDefault x x)
           pure (SCase t (Case x' cs'))
 
-        SAssertion e   -> SAssertion <$> doSubst e
+--        SAssertion e   -> SAssertion <$> doSubst e
         SInverse n f p -> do
           n' <- refreshName n
           substNameIn n n' (SInverse n' <$> doSubst f <*> doSubst p)

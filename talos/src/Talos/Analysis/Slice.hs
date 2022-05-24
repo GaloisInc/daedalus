@@ -107,7 +107,7 @@ data Slice' cn sle =
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
-  | SAssertion Expr -- FIXME: this is inferred from e.g. case x of True -> ...
+  -- | SAssertion Expr -- FIXME: this is inferred from e.g. case x of True -> ...
   | SInverse Name Expr Expr
   -- ^ We have an inverse for this statement; this constructor has a
   -- name for the result (considered bound in this term only), the
@@ -156,7 +156,7 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
-      (SAssertion {}, SAssertion {}) -> True      
+--      (SAssertion {}, SAssertion {}) -> True      
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -169,7 +169,7 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SDo x1 slL1 slR1, SDo _x2 slL2 slR2) ->
         SDo x1 (merge slL1 slL2) (merge slR1 slR2)
       (SMatch {}, SMatch {})         -> l
-      (SAssertion {}, SAssertion {}) -> l
+--      (SAssertion {}, SAssertion {}) -> l
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
@@ -192,7 +192,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
-      SAssertion e   -> freeVars e      
+--      SAssertion e   -> freeVars e      
       SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
 
   freeFVars sl =
@@ -201,7 +201,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SDo _x l r     -> freeFVars l `Set.union` freeFVars r
       SPure v        -> freeFVars v
       SMatch m       -> freeFVars m
-      SAssertion e   -> freeFVars e
+--      SAssertion e   -> freeFVars e
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
@@ -226,7 +226,7 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
                                <*> traverseUserTypes f l
                                <*> traverseUserTypes f r      
       SMatch m         -> SMatch <$> traverseUserTypes f m
-      SAssertion e     -> SAssertion <$> traverseUserTypes f e
+--      SAssertion e     -> SAssertion <$> traverseUserTypes f e
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
@@ -253,7 +253,7 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
-      SAssertion e   -> "assert" <+> ppPrec 1 e
+--      SAssertion e   -> "assert" <+> ppPrec 1 e
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
       

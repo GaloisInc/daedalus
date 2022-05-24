@@ -19,7 +19,10 @@ module Talos.SymExec.SolverT (
   solverOp, solverState,
   getValue,
   -- * Context management
-  SolverContext, getContext, restoreContext, freshContext, scoped,
+  SolverContext, SolverFrame, getContext, restoreContext,
+  freshContext, collapseContext, extendContext, instantiateSolverFrame,
+  substSExpr,
+  scoped,
   -- * Functions
   SMTFunDef(..), defineSMTFunDefs,
   -- * SMT Polymorphic functions
@@ -28,7 +31,7 @@ module Talos.SymExec.SolverT (
   SMTTypeDef(..), defineSMTTypeDefs,
   typeNameToDefault,
   -- * Context management
-  modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
+  -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, freshSymbol, defineName, declareName, declareSymbol, declareFreshSymbol, knownFNames,
   reset, assert, check
 
@@ -57,6 +60,7 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.SymExec.StdLib
+import Data.Maybe (catMaybes)
 -- import Text.Printf (printf)
 
 type SMTVar = String
@@ -77,7 +81,7 @@ data QueuedCommand =
 data SolverFrame = SolverFrame
   { frId        :: !Int -- ^ The index of the choice which led to this frame
   , frCommands   :: ![QueuedCommand]
-  , frBoundNames :: !(Map Name SMTVar)
+  -- , frBoundNames :: !(Map Name SMTVar)
   -- ^ May include names bound in closed scopes, to allow for
   --
   -- def P = { x = { $$ = UInt8; $$ > 10 }, ...}
@@ -90,13 +94,13 @@ emptySolverFrame :: Int -> SolverFrame
 emptySolverFrame i = SolverFrame
   { frId = i
   , frCommands = mempty
-  , frBoundNames = mempty
+  --  , frBoundNames = mempty
   }
 
 nullSolverFrame :: SolverFrame -> Bool
-nullSolverFrame fr = Map.null (frBoundNames fr) && null (frCommands fr)
+nullSolverFrame fr = {- Map.null (frBoundNames fr) && -} null (frCommands fr)
 
-newtype SolverContext = SolverContext { _getSolverContext :: [SolverFrame] }
+newtype SolverContext = SolverContext { getSolverContext :: [SolverFrame] }
 
 data SolverState = SolverState
   { solver       :: !Solver
@@ -208,11 +212,17 @@ pushFrame force = do
     SolverT $ field @"ssFrames" <>= [cf]
     resetCurrentFrame
 
-freshContext :: MonadIO m => SolverT m ()
-freshContext = do
-  -- This represents the global namespace, it needs to be there so we don't overpop.
-  -- FIXME: a hack :(
-  restoreContext $ SolverContext [ emptySolverFrame 0 ]
+--------------------------------------------------------------------------------
+-- Exported context/frame management
+
+freshContext :: Monad m => [(SMTVar, SExpr)] -> SolverT m SolverContext
+freshContext decls = do
+  fr <- freshSolverFrame
+  let fr' = fr { frCommands = map (uncurry QCDeclare) decls }
+      -- This represents the global namespace, it needs to be there so
+      -- we don't overpop.  FIXME: a hack :(  
+      baseFrame = emptySolverFrame 0
+  pure (SolverContext [baseFrame, fr'])
   
 getContext :: MonadIO m => SolverT m SolverContext
 getContext = do
@@ -222,24 +232,71 @@ getContext = do
   pushFrame False
   SolverContext <$> SolverT (gets ssFrames)
 
--- We always have a common frame representing the global frame.  It is
--- common to all contexts, so should never be popped.
-scoped :: MonadIO m => SolverT m a -> SolverT m a
-scoped m = do
-  pushFrame True
-  flush -- This ensures we always have at least 1 frame which is
-        -- actually pushed, so we can safely pop in restoreContext.
-  m
+-- instantiateFrame :: Map SMTVar SExpr -> SolverFrame -> SolverT m SolverFrame
 
-freshSolverFrame :: Monad m => SolverT m SolverFrame
-freshSolverFrame =  emptySolverFrame <$> SolverT (field @"ssNextFrameID" <<+= 1)
+extendContext :: SolverContext -> SolverFrame -> SolverContext
+extendContext sc sf
+  | nullSolverFrame sf = sc
+  | otherwise          = SolverContext ( getSolverContext sc <> [sf])
 
-resetCurrentFrame :: Monad m => SolverT m ()
-resetCurrentFrame = do
-  frame <- freshSolverFrame
-  SolverT $ do
-    field @"ssCurrentFrame"     .= frame
-    field @"ssNCurrentFlushed"  .= 0
+collapseContext :: Monad m => SolverContext -> SolverT m SolverFrame
+collapseContext (SolverContext fs)
+  -- kind of a hack, we should ignore empty frames in extendContexet
+  | null fs'   = pure (emptySolverFrame 0)
+  | [f] <- fs' = pure f
+  | otherwise  = do
+      fr <- freshSolverFrame
+      pure (fr { frCommands = foldMap frCommands fs' })
+  where
+    fs' = filter (not . nullSolverFrame) fs
+
+-- | This makes all the variables in the solver frame fresh, so that
+-- we can use it multiple times.
+instantiateSolverFrame :: (Monad m, HasGUID m) =>
+                          Map SMTVar SExpr -> SolverFrame ->
+                          SolverT m (SolverFrame, Map SMTVar SExpr)
+instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
+  fr <- freshSolverFrame
+  (cs', e) <- runStateT (catMaybes <$> mapM go cs) baseEnv
+  pure (fr { frCommands = cs' }, e)
+  where
+    go :: (Monad m, HasGUID m) => QueuedCommand ->
+          StateT (Map SMTVar SExpr) (SolverT m) (Maybe QueuedCommand)
+    go c = do
+      e <- get
+      case c of
+        QCAssert se      -> pure $ Just $ QCAssert (substSExpr e se)
+        QCDeclare v ty
+          | v `Map.member` e -> pure Nothing
+          | otherwise        -> do
+              sym <- freshFor v
+              pure $ Just $ QCDeclare sym ty
+              
+        QCDefine v ty se
+          -- Probably doesn't happen
+          | Just se' <- Map.lookup v e -> pure $ Just $ QCAssert (S.eq se' se)
+          | otherwise  ->  do
+              sym <- freshFor v
+              let se' = substSExpr e se
+              pure $ Just $ QCDefine sym ty se'
+
+    freshFor :: (Monad m, HasGUID m) => String -> StateT (Map SMTVar SExpr) (SolverT m) String
+    freshFor sym = do
+      -- c.f. freshSymbol
+      guid <- lift getNextGUID
+      let sym' = stringToSMTName (symPfx sym) guid
+      modify (Map.insert sym (S.const sym'))
+      pure sym'
+
+    symPfx = takeWhile (/= '@') 
+
+substSExpr :: Map SMTVar SExpr -> SExpr -> SExpr
+substSExpr s = go
+  where
+    go se@(S.Atom a)
+      | Just e <- Map.lookup a s = e
+      | otherwise = se
+    go (S.List ls) = S.List (map go ls)
 
 restoreContext :: MonadIO m => SolverContext -> SolverT m ()
 restoreContext (SolverContext fs) = do
@@ -260,6 +317,27 @@ restoreContext (SolverContext fs) = do
     
   solverOp S.push -- FIXME: This feels wrong here.
   resetCurrentFrame
+
+--------------------------------------------------------------------------------
+
+-- We always have a common frame representing the global frame.  It is
+-- common to all contexts, so should never be popped.
+scoped :: MonadIO m => SolverT m a -> SolverT m a
+scoped m = do
+  pushFrame True
+  flush -- This ensures we always have at least 1 frame which is
+        -- actually pushed, so we can safely pop in restoreContext.
+  m
+
+freshSolverFrame :: Monad m => SolverT m SolverFrame
+freshSolverFrame =  emptySolverFrame <$> SolverT (field @"ssNextFrameID" <<+= 1)
+
+resetCurrentFrame :: Monad m => SolverT m ()
+resetCurrentFrame = do
+  frame <- freshSolverFrame
+  SolverT $ do
+    field @"ssCurrentFrame"     .= frame
+    field @"ssNCurrentFlushed"  .= 0
   
 reset :: MonadIO m => SolverT m ()
 reset = do
@@ -267,11 +345,11 @@ reset = do
   solverOp (\s -> S.ackCommand s (S.app (S.const "reset") []))
   solverOp makeStdLib
 
-bindName :: Name -> SMTVar -> SolverFrame -> SolverFrame
-bindName k v = field @"frBoundNames" %~ Map.insert k v
+-- bindName :: Name -> SMTVar -> SolverFrame -> SolverFrame
+-- bindName k v = field @"frBoundNames" %~ Map.insert k v
 
-lookupName :: Name -> SolverFrame -> Maybe SExpr
-lookupName k = fmap S.const . Map.lookup k . frBoundNames
+-- lookupName :: Name -> SolverFrame -> Maybe SExpr
+-- lookupName k = fmap S.const . Map.lookup k . frBoundNames
 
 newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
@@ -312,33 +390,31 @@ getValue v = do
 -- -----------------------------------------------------------------------------
 -- Names
 
-stringToSMTName :: Text -> GUID -> SMTVar
-stringToSMTName n g = show (pp n <> "@" <> pp g)
+stringToSMTName :: String -> GUID -> SMTVar
+stringToSMTName n g = n ++ "@" ++ showPP g
+
+textToSMTName :: Text -> GUID -> SMTVar
+textToSMTName n = stringToSMTName (showPP n)
 
 nameToSMTName :: Name -> SMTVar
-nameToSMTName n = stringToSMTName (maybe "_N" id (nameText n)) (nameId n)
+nameToSMTName n = textToSMTName (maybe "_N" id (nameText n)) (nameId n)
 
 fnameToSMTName :: FName -> SMTVar
-fnameToSMTName n = stringToSMTName (maybe "_F" id (fnameText n)) (fnameId n)
+fnameToSMTName n = textToSMTName (maybe "_F" id (fnameText n)) (fnameId n)
 
 tnameToSMTName :: TName -> SMTVar
-tnameToSMTName n = stringToSMTName (tnameText n) (tnameId n)
-
--- symExecName :: Name -> SExpr
--- symExecName =  S.const . nameToSMTName
-
--- symExecFName :: FName -> SExpr
--- symExecFName =  S.const . fnameToSMTName
+tnameToSMTName n = textToSMTName (tnameText n) (tnameId n)
 
 knownFNames :: Monad m => SolverT m (Set FName)
 knownFNames = SolverT $ gets ssKnownFuns
 
 getName :: Monad m => Name -> SolverT m SExpr
 getName n = do
-  m_s <- inCurrentFrame (pure . lookupName n)
-  case m_s of
-    Just s -> pure s
-    Nothing -> panic "Missing name" [showPP n]
+  panic "getName" [showPP n]
+  -- m_s <- inCurrentFrame (pure . lookupName n)
+  -- case m_s of
+  --   Just s -> pure s
+  --   Nothing -> panic "Missing name" [showPP n]
 
 getPolyFun :: Monad m => PolyFun -> SolverT m SExpr
 getPolyFun pf = do
@@ -350,7 +426,7 @@ getPolyFun pf = do
 freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m SMTVar
 freshSymbol pfx = do
   guid <- lift getNextGUID
-  pure (stringToSMTName pfx guid)
+  pure (textToSMTName pfx guid)
 
 -- Declare a symbol we have previously generated with freshSymbol
 declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
@@ -366,18 +442,18 @@ freshName :: (Monad m, HasGUID m) => Name -> SolverT m SMTVar
 freshName n = do
   n' <- lift (C.freshName n)
   let ns = nameToSMTName n'
-  modifyCurrentFrame (bindName n ns)
+  -- modifyCurrentFrame (bindName n ns)
   pure ns
 
 -- FIXME: we could convert the type here
 -- gives a name a value, returns the fresh name
-defineName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
+defineName :: (Monad m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
 defineName n ty v = do
   n' <- freshName n
   queueSolverOp (QCDefine n' ty v)
   pure (S.const n')
 
-declareName :: (MonadIO m, HasGUID m) => Name -> SExpr -> SolverT m SExpr
+declareName :: (Monad m, HasGUID m) => Name -> SExpr -> SolverT m SExpr
 declareName n ty = do
   n' <- freshName n
   queueSolverOp (QCDeclare n' ty)
@@ -540,10 +616,6 @@ defineSMTPolyFun pf = onState (field @"ssKnownPolys") $ \polys -> do
 instance MonadTrans SolverT where
   lift m = SolverT (lift m)
 
-instance (Monad m, HasGUID m) => HasGUID (SolverT m) where
-  guidState f = lift (guidState f)
-
-
 -- instance Alternative m => Alternative (SolverT m) where
 
 
@@ -559,5 +631,6 @@ instance PP QueuedCommand where
 instance PP SolverFrame where
   pp sf =
     hang ("index" <> pp (frId sf)) 2 (bullets (map pp (frCommands sf))) 
-      
-  
+       
+instance (Monad m, HasGUID m) => HasGUID (SolverT m) where
+  guidState f = lift (guidState f)

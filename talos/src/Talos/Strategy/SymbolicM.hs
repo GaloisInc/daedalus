@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.SymbolicM where
@@ -17,6 +19,7 @@ import           SimpleSMT                (SExpr)
 import           Daedalus.Core            (Expr, Name, Typed (..))
 import           Daedalus.Core.Type       (typeOf)
 
+import           Talos.Analysis.Exported  (ExpSlice)
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr   (SemiSExpr)
@@ -67,9 +70,13 @@ bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
 
-data SolverResult =
-  ByteResult SemiSExpr
-  | InverseResult SymbolicEnv Expr -- The env. includes the result var.
+data SolverResultF a =
+  ByteResult a
+  | InverseResult (Map Name a) Expr -- The env. includes the result var.
+  deriving (Functor, Foldable, Traversable)
+
+-- Just so we can get fmap/traverse/etc.
+type SolverResult = SolverResultF SemiSExpr
 
 type PathBuilder = SelectedPathF SolverResult
 type SearchT'  = SearchT (SolverT StrategyM)
@@ -85,10 +92,12 @@ instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
 
 runSymbolicM :: SearchStrat ->
-                SymbolicM SelectedPath ->
-                SolverT StrategyM (Maybe SelectedPath)
-runSymbolicM sstrat (SymbolicM m) = do
-  runSearchStrat sstrat (runReaderT m emptySymbolicEnv)
+                -- | Slices for pre-run analysis
+                [ExpSlice] ->
+                SymbolicM Result ->
+                SolverT StrategyM (Maybe Result)
+runSymbolicM sstrat sls (SymbolicM m) = do
+  runSearchStrat sstrat sls (runReaderT m emptySymbolicEnv)
   
 --------------------------------------------------------------------------------
 -- Names
@@ -111,13 +120,8 @@ getName n = SymbolicM $ do
 --------------------------------------------------------------------------------
 -- Search operaations
 
--- -- Backtracking choice + random permutation
 choose :: [a] -> SymbolicM a
-choose bs = do
-  sctxt <- inSolver Solv.getContext
-  a <- SymbolicM (lift $ chooseST bs)
-  inSolver (Solv.restoreContext sctxt)
-  pure a
+choose bs = SymbolicM (lift (chooseST bs))
   
 backtrack :: Set Name -> SymbolicM a
 backtrack xs = SymbolicM (lift (backtrackST xs))
@@ -125,21 +129,33 @@ backtrack xs = SymbolicM (lift (backtrackST xs))
 --------------------------------------------------------------------------------
 -- Search strtegies
 
+-- Note the search strat is responsible for doing solver context mgmt.
+
 newtype SearchStrat = SearchStrat
-  { runSearchStrat :: SearchT' SelectedPath -> SolverT StrategyM (Maybe SelectedPath) }
+  { runSearchStrat :: [ExpSlice] -> SearchT' Result ->
+                      SolverT StrategyM (Maybe Result) }
 
 dfs :: SearchStrat
-dfs = SearchStrat $ \m -> go [m]
+dfs = SearchStrat $ \_ m -> do
+  sc <- Solv.getContext
+  go [(sc, m)]
   where
-    go :: forall r. [SearchT' r] -> SolverT StrategyM (Maybe r)
+    go :: forall r. [(Solv.SolverContext, SearchT' r)] ->
+          SolverT StrategyM (Maybe r)
     go [] = pure Nothing
-    go (x : xs) = do
+    go ((sc, x) : xs) = do
+      Solv.restoreContext sc
       r <- runFreeT (getSearchT x)
       case r of
-        Free (Choose xs')       -> go (map SearchT xs' ++ xs)
+        Free (Choose xs') -> do
+          sc' <- Solv.getContext
+          go (map ((,) sc' . SearchT) xs' ++ xs)
         Free (Backtrack {})     -> go xs
-        Free (Bind n e lhs rhs) -> go ((runReaderT (getSymbolicM lhs) e >>= SearchT . rhs) : xs)
-        Pure res              -> pure (Just res)
+        Free (Bind _n e lhs rhs) -> do
+          sc' <- Solv.getContext
+          let m' = runReaderT (getSymbolicM lhs) e >>= SearchT . rhs
+          go ((sc', m') : xs)
+        Pure res -> pure (Just res)
 
 -- dfs, bfs, randDFS, randRestart :: SearchStrat
 -- dfs = SearchStrat ST.dfs
