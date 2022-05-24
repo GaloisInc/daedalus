@@ -484,7 +484,9 @@ memoLocation loc = m_go =<< memoReenter loc
           let ms' = map ((,) sc' . SearchT) ms
           m_go =<< memoChoose (ST.replaceUnexplored FixedTag ms' loc')
   
-        Free Backtrack {} -> m_go =<< memoBacktrack loc'
+        Free Backtrack {} ->
+          m_go =<< maybe (pure Nothing) memoBacktrack (ST.forgetGoUp loc')
+
         Free (Bind n e lhs rhs) -> do
           -- We can't memo nodes with recursive calls as we would need
           -- search strats to be reentrant.
