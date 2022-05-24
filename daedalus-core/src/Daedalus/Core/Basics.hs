@@ -99,7 +99,9 @@ data UserType = UserType
 newtype TParam = TP Int
   deriving (Eq,Ord,Generic,NFData)
 
-data Case k = Case Name [(Pattern,k)]
+data Case k = Case { caseVar  :: Name
+                   , casePats :: [(Pattern,k)]
+                   }
   deriving (Functor,Foldable,Traversable,Generic,NFData)
 
 data Pattern =
