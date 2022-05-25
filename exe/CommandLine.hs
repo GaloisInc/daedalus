@@ -18,6 +18,7 @@ import SimpleGetOpt
 
 data Command =
     DumpRaw
+  | DumpResolve
   | DumpTC
   | DumpTypes
   | DumpSpec
@@ -204,6 +205,10 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                  "Dump parsed AST"
                  $ simpleCommand DumpRaw
 
+               , Option [] ["resolved"]
+                 "Dump name-resolved AST"
+                 $ simpleCommand DumpResolve
+
                , Option [] ["tc"]
                  "Dump type-checked AST"
                  $ simpleCommand DumpTC
@@ -386,6 +391,7 @@ impliedOptions opts0 =
     _ ->
       case optCommand opts of
         DumpRaw         -> opts
+        DumpResolve     -> opts
         DumpTC          -> opts
         DumpTypes       -> opts
         DumpSpec        -> opts
