@@ -47,6 +47,7 @@ import qualified Talos.SymExec.SemiValue as SV
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
+import GHC.Stack (HasCallStack)
 
 
 -- FIXME: move
@@ -142,11 +143,12 @@ semiSExprToSExpr tys ty sv =
     goStruct (l, e) (l', ty') | l == l' = go ty' e
     goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
 
-semiExecName :: (HasGUID m, Monad m) => Name -> SemiSolverM m SemiSExpr
+semiExecName :: (HasGUID m, Monad m, HasCallStack) =>
+                Name -> SemiSolverM m SemiSExpr
 semiExecName n = do
   m_local <- asks (Map.lookup n . localBoundNames)
   case m_local of
-    Nothing -> lift (vSExpr (typeOf n) <$> getName n)
+    Nothing -> panic "Missing name" [showPP n]
     Just r  -> pure r
 
 bindNameIn :: Monad m => Name -> SemiSExpr -> SemiSolverM m a -> SemiSolverM m a
@@ -193,7 +195,7 @@ matches' v pat =
 
 data SymbolicCaseResult a = TooSymbolic | NoMatch | DidMatch Int a
 
-semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a) =>
+semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a, HasCallStack) =>
                 Case a -> SemiSolverM m (SymbolicCaseResult a)
 semiExecCase c@(Case y pats) = do
   ve <- semiExecName y
@@ -231,18 +233,18 @@ runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
 runSemiSolverM funs lenv env m =
   runReaderT m (SemiSolverEnv lenv env funs)
 
-
-semiExecExpr :: (HasGUID m, Monad m, MonadIO m) => Expr -> SemiSolverM m SemiSExpr
+semiExecExpr :: (HasGUID m, Monad m, MonadIO m, HasCallStack) =>
+                Expr -> SemiSolverM m SemiSExpr
 semiExecExpr expr =
   case expr of
     Var n          -> semiExecName n
     PureLet n e e' -> do
-      ve  <- go e
-      bindNameIn n ve (go e') -- Maybe we should generate a let?
+      ve  <- semiExecExpr e
+      bindNameIn n ve (semiExecExpr e') -- Maybe we should generate a let?
 
     Struct _ut ctors -> do
       let (ls, es) = unzip ctors
-      sves <- mapM go es
+      sves <- mapM semiExecExpr es
       pure (VStruct (zip ls sves))
 
     ECase cs -> do
@@ -250,17 +252,23 @@ semiExecExpr expr =
       case m_e of
         -- can't determine match, just return a sexpr
         TooSymbolic   -> symExec expr
-        DidMatch _ e' -> go e'
+        DidMatch _ e' -> semiExecExpr e'
         -- Shouldn't happen in pure code
         NoMatch -> panic "No match" []
         
     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
-    Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< go e
-    Ap2 op e1 e2 -> join (semiExecOp2 op rty (typeOf e1) (typeOf e2) <$> go e1 <*> go e2)
-    Ap3 op e1 e2 e3 -> join (semiExecOp3 op rty (typeOf e1) <$> go e1 <*> go e2 <*> go e3)
-    ApN opN vs     -> semiExecOpN opN rty =<< mapM go vs
+    Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
+    Ap2 op e1 e2 ->
+      join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
+            <$> semiExecExpr e1
+            <*> semiExecExpr e2)
+    Ap3 op e1 e2 e3 ->
+      join (semiExecOp3 op rty (typeOf e1)
+             <$> semiExecExpr e1
+             <*> semiExecExpr e2
+             <*> semiExecExpr e3)
+    ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
   where
-    go = semiExecExpr
     rty = typeOf expr
     
 -- Might be able to just use the value instead of requiring t

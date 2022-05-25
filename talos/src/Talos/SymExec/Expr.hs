@@ -46,7 +46,7 @@ symExecName n = do
   m_sx <- asks (Map.lookup n)
   case m_sx of
     Just r  -> pure r
-    Nothing -> lift (getName n)
+    Nothing -> panic "Missing name" [showPP n]
 
 -- This is probably overkill for lets, but it is safer (we probably don't need to freshName)
 bindNameFreshIn :: (Monad m, HasGUID m) => Name -> SymExecM m a -> SymExecM m (String, a)

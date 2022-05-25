@@ -12,7 +12,7 @@ module Talos.SymExec.SolverT (
   -- * Solver interaction monad
   SolverT, runSolverT, mapSolverT, emptySolverState,
   nameToSMTName, fnameToSMTName, tnameToSMTName,
-  getName,
+  -- getName,
   SolverState,
   withSolver, SMTVar,
   -- assert, declare, check,
@@ -144,34 +144,6 @@ overCurrentFrame f = do
 modifyCurrentFrame :: Monad m => (SolverFrame -> SolverFrame) -> SolverT m ()
 modifyCurrentFrame f = overCurrentFrame (\s -> pure ((), f s))
 
--- push :: MonadIO m => SolverT m ()
--- push = do
---   -- We push lazily
---   SolverT (modify (\s -> s { pendingPushes = pendingPushes s + 1 }))
---   -- solverOp S.push
-
--- pop :: MonadIO m => SolverT m ()
--- pop = do
---   n <- SolverT $ gets pendingPushes
---   if n > 0
---     then SolverT (modify (\s -> s { pendingPushes = pendingPushes s - 1 }))
---     else do
---     fs <- SolverT (gets frames)
---     case fs of
---       [] -> panic "Attempted to pop past top of solver stack" []
---       (f : fs') -> do
---         SolverT (modify (\s -> s { currentFrame = f, frames = fs' }))
---         solverOp S.pop
-
--- popAll :: MonadIO m => SolverT m ()
--- popAll = do
---   fs <- SolverT (gets frames)
---   case reverse fs of
---     [] -> pure () -- do nothing
---     (topF : _rest) -> do
---       solverOp (\s -> S.popMany s (fromIntegral $ length fs))
---       SolverT (modify (\s -> s { frames = [], currentFrame = topF, pendingPushes = 0 }))
-
 execQueuedCommand :: MonadIO m => QueuedCommand -> SolverT m ()
 execQueuedCommand qc =
   solverOp $ \s ->
@@ -202,13 +174,13 @@ pushFrame :: MonadIO m => Bool -> SolverT m ()
 pushFrame force = do
   s <- SolverT get
   let cf = ssCurrentFrame s
-  -- If we have partially executed some commands, execute the rest
-  when (ssNCurrentFlushed s > 0) $ do
-    flush
-    solverOp S.push -- FIXME: This feels wrong here.
-    SolverT $ field @"ssNFlushedFrames" += 1
-      
-  when (force || not (nullSolverFrame cf)) $ do
+  when (force || not (nullSolverFrame cf)) $ do  
+    -- If we have partially executed some commands, execute the rest
+    when (ssNCurrentFlushed s > 0) $ do
+      flush
+      solverOp S.push -- FIXME: This feels wrong here.
+      SolverT $ field @"ssNFlushedFrames" += 1
+
     SolverT $ field @"ssFrames" <>= [cf]
     resetCurrentFrame
 
@@ -226,9 +198,8 @@ freshContext decls = do
   
 getContext :: MonadIO m => SolverT m SolverContext
 getContext = do
-  -- This is a bit odd, but it is always OK to push additional frames
-  -- (from a correctness POV) as we disassociate push/pop with
-  -- backtracking
+  -- We need to save the current frame as extending it later will
+  -- break the invariant that equal frame ids is equal contents.
   pushFrame False
   SolverContext <$> SolverT (gets ssFrames)
 
@@ -466,19 +437,6 @@ solverState f = do
   SolverT (put s')
   pure a
 
--- -- Execute the monadic action and clean up the scope and state when it
--- -- completes.
--- scoped :: MonadIO m => SolverT m a -> SolverT m a
--- scoped m = do
---   st0  <- SolverT get
---   SolverT (put (st0 { frames = [] }))
---   push
---   r <- m
---   popAll
---   -- We could just reuse st0, but this avoids issues if we change the state type.
---   SolverT (modify (\s -> s { frames = frames st0 })) 
---   pure r
-
 runSolverT :: SolverT m a -> SolverState -> m (a, SolverState)
 runSolverT (SolverT m) s = runStateT m s
 
@@ -631,6 +589,9 @@ instance PP QueuedCommand where
 instance PP SolverFrame where
   pp sf =
     hang ("index" <> pp (frId sf)) 2 (bullets (map pp (frCommands sf))) 
-       
+
+instance PP SolverContext where
+  pp (SolverContext fs) = bullets (map pp fs)
+    
 instance (Monad m, HasGUID m) => HasGUID (SolverT m) where
   guidState f = lift (guidState f)

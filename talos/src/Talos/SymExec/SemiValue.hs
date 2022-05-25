@@ -1,14 +1,15 @@
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- A Value with (possibly) some symbolic contents
 
 module Talos.SymExec.SemiValue where
 
-import qualified Data.Vector as Vector
+import qualified Data.Map       as Map
+import qualified Data.Vector    as Vector
 
-import qualified Daedalus.Value  as V
-import Daedalus.Panic
-import qualified Data.Map as Map
+import           Daedalus.PP
+import qualified Daedalus.Value as V
 
 -- import Talos.Analysis.Demands
 -- import qualified Data.Map as Map
@@ -132,3 +133,22 @@ fromList = VSequence
 --         _ -> False
     
           
+instance PP a => PP (SemiValue a) where
+  ppPrec n val =
+    case val of
+      VValue v -> pp v
+      VOther v -> pp v
+      VUnionElem lbl v -> braces (pp lbl <.> colon <+> pp v)
+      VStruct xs      -> block "{" "," "}" (map ppF xs)
+        where ppF (x,t) = pp x <.> colon <+> pp t
+
+      VSequence _ vs ->  block "[" "," "]" (map pp vs)
+
+      VMaybe v   -> case v of
+                      Nothing -> "Nothing"
+                      Just v' -> wrapIf (n > 0) ("Just" <+> ppPrec 1 v')
+      VMap m -> block "{|" ", " "|}" [ ppPrec 1 k <+> "->" <+> ppPrec 1 v | (k,v) <- m ]
+
+      VIterator vs -> block "[iterator|" ",        " "|]"
+                             [ pp x <+> "->" <+> pp y | (x,y) <- vs ]
+

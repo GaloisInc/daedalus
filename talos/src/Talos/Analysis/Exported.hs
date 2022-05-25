@@ -23,7 +23,7 @@ import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
-                                                  Name, TDecl, TName)
+                                                  Name, TDecl, TName, nameId)
 import           Daedalus.Core.Basics            (freshName)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
@@ -42,7 +42,6 @@ import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (Summaries, Summary (..))
 import           Talos.Analysis.SLExpr           (slExprToExpr')
 import           Talos.Analysis.Slice            (FInstId, Slice' (..))
-import Debug.Trace (traceM)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -293,11 +292,13 @@ exportSlice = go
 
 exportCallNode :: CallNode -> ExpM ae ExpCallNode
 exportCallNode cn = do
+  subst <- ask
   Summary { params = ps } <- getSummary (callName cn) (callClass cn)
   let ixs = Map.keysSet (callSlices cn)
       -- Collect param map
       mk  = Map.fromList . catMaybes . zipWith (fmap . (,)) ps
-      paramMap = foldMap mk (callSlices cn)
+      doSubst n = Map.findWithDefault n n subst
+      paramMap = doSubst <$> foldMap mk (callSlices cn)
 
   sid <- getAllocSliceId (callName cn, callClass cn, ixs)
   pure (ExpCallNode { ecnName = callName cn
@@ -325,8 +326,11 @@ instance FreeVars ExpCallNode where
 
 -- Probably should only be used for debugging.
 instance PP ExpCallNode where
-  pp cn = pp (ecnName cn) <> "." <> pp (ecnIdx cn) <> "." <> pp (ecnSliceId cn)
-
+  pp cn = pp (ecnName cn) <> "." <> pp (ecnIdx cn) <> "." <> pp (ecnSliceId cn) <> ppM (ecnParamMap cn)
+    where
+      ppM m = block "{" ", " "}" [ ppN k <> " -> " <> ppN v
+                                 | (k,v) <- Map.toList m ]
+      ppN n = ppPrec 1 n <> parens (pp (nameId n))
 
 
 

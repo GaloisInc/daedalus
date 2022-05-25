@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -14,9 +15,9 @@ import           Control.Monad.Trans.Free
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
 import           Data.Set                 (Set)
-import           SimpleSMT                (SExpr)
+import           SimpleSMT                (SExpr, ppSExpr)
 
-import           Daedalus.Core            (Expr, Name, Typed (..))
+import           Daedalus.Core            (Expr, Name, Typed (..), nameId)
 import           Daedalus.Core.Type       (typeOf)
 
 import           Talos.Analysis.Exported  (ExpSlice)
@@ -26,6 +27,8 @@ import           Talos.SymExec.SemiExpr   (SemiSExpr)
 import           Talos.SymExec.SemiValue
 import           Talos.SymExec.SolverT    (SolverT)
 import qualified Talos.SymExec.SolverT    as Solv
+import Daedalus.PP
+import Daedalus.Panic (panic)
 
 --------------------------------------------------------------------------------
 -- The free monad for searching
@@ -69,6 +72,13 @@ bindST n e lhs rhs = SearchT $ liftF (Bind n e lhs rhs)
 
 -- FIXME: this type is repeated from SemiExpr
 type SymbolicEnv = Map Name (SemiValue (Typed SExpr))
+
+ppSymbolicEnv :: SymbolicEnv -> Doc
+ppSymbolicEnv e =
+  block "{" ", " "}" [ ppN k <+> "->" <+> ppPrec 1 (text . flip ppSExpr ""  . typedThing <$> v)
+                     | (k,v) <- Map.toList e ]
+  where
+    ppN n = ppPrec 1 n <> parens (pp (nameId n))
 
 data SolverResultF a =
   ByteResult a
@@ -114,7 +124,7 @@ getName :: Name -> SymbolicM (SemiValue (Typed SExpr))
 getName n = SymbolicM $ do
   m_local <- asks (Map.lookup n)
   case m_local of
-    Nothing -> lift (lift (VOther . Typed (typeOf n) <$> Solv.getName n))
+    Nothing -> panic "Missing variable" [showPP n]
     Just r  -> pure r
 
 --------------------------------------------------------------------------------

@@ -56,6 +56,9 @@ class PP t where
   pp = ppPrec 0
 
 
+instance PP Doc where
+  pp = id
+
 instance PP Text where
   pp = text . Text.unpack
 

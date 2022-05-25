@@ -29,12 +29,12 @@ import           Data.Set                       (Set)
 import qualified Data.Set                       as Set
 
 import           GHC.Generics                   (Generic)
-import           SimpleSMT                      (SExpr)
+import           SimpleSMT                      (SExpr, ppSExpr)
 import qualified SimpleSMT                      as SMT
 
 import           Daedalus.Core                  (Name, Typed (..), caseVar)
 import           Daedalus.Core.Free             (freeVars)
-import           Daedalus.PP                    (showPP)
+import           Daedalus.PP                    (showPP, pp, hang, bullets, text, Doc)
 import           Daedalus.Panic                 (panic)
 
 import           Talos.Analysis.Exported        (ExpSlice)
@@ -256,6 +256,10 @@ nameSExprs = traverse nameOne
       tell (Map.singleton sym se)
       pure (se {typedThing = sym})
 
+ppUnifier :: Unifier -> Doc
+ppUnifier m = bullets [ text k <> " -> " <> text (ppSExpr v "")
+                      | (k, v) <- Map.toList m ]
+
 addMemoInstance :: Name -> SymbolicEnv -> SymbolicM Result ->
                    MemoM (MemoIdx, Unifier)
 addMemoInstance n e m = do
@@ -271,10 +275,15 @@ addMemoInstance n e m = do
                           , miSolutions = []
                           , miUnexplored = Just (ST.empty (sc, m'))
                           }
+      u = typedThing <$> vmap
+      
+  -- liftIO $ print (hang ("Add memo instance for " <> pp n) 4 (pp sc))
+  -- liftIO $ print (hang "Unifier" 4 (ppUnifier u))
+             
   m_old <- field @"memos" %%= Map.insertLookupWithKey (\_ -> flip (<>)) n [mi]
   -- We return the index of the new MemoInstance, which is at the end
   -- of any existing instances.
-  pure (maybe 0 length m_old, typedThing <$> vmap)
+  pure (maybe 0 length m_old, u)
 
 findMemoInstance :: Name -> SymbolicEnv -> MemoM (Maybe (MemoIdx, Unifier))
 findMemoInstance n e = uses (field @"memos" . at n) (go =<<)
@@ -337,12 +346,15 @@ nextSolution tag =
           -- with other instances.  We also instantiate the unifier
           -- we got from matching the memoinst. env.
           (fr', u') <- inSolver $ instantiateSolverFrame u (sCtxFrame soln)
+          -- liftIO $ print (hang ("Found memo instance for " <> pp n) 4 (bullets [pp sc, pp (sCtxFrame soln), pp fr']))
+          
           -- We need to instantiate all the vars in the path as well.
           -- fmaps because: 
           --   PathBuilderF (SemiValue (Typed <here>))
           let path' = fmap (fmap (fmap (substSExpr u'))) <$> sPath soln
+              v'    = fmap (substSExpr u') <$> sValue soln
               sc'   = extendContext sc fr'
-          pure (tag', Just (sc', m (sValue soln, path')))
+          pure (tag', Just (sc', m (v', path')))
 
     NestTag _n Nothing _m -> pure (tag, Nothing)
     NestTag n (Just loc) m -> do
@@ -502,6 +514,9 @@ memoLocation loc = m_go =<< memoReenter loc
           pure $ NestTag n (Just $ ST.empty (sc', m)) rhs'
       | otherwise = do
           (i, u) <- memoIdx n e lhs
+          -- liftIO $ print (hang "Post memoIdx" 4
+          --                  (bullets [ ppSymbolicEnv e, ppUnifier u, pp sc' ]))
+                   
           pure (MemoTag n i 0 u sc' rhs')
 
 

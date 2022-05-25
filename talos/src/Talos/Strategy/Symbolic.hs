@@ -37,7 +37,7 @@ import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
                                                declareSymbol, reset, scoped)
-import qualified Talos.SymExec.SolverT        as Solv hiding (getName)
+import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 
@@ -157,25 +157,26 @@ stratSlice ptag = go
 
         SInverse n ifn p -> do
           n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
-          pe <- synthesiseExpr p
-          assert pe
-          check -- FIXME: necessary?
+          local (Map.insert n n') $ do
+            pe <- synthesiseExpr p
+            assert pe
+            check -- FIXME: necessary?
 
-          -- Once we have a model, we need to convert all the free
-          -- variables in the inverse function expression into values,
-          -- and then call the inverse function in the _interpreter_.
-          -- Note that n is free in ifn.
-          -- 
-          -- We could also have the solver execute the function for
-          -- us.
-          --
-          -- We need to resolve any locally bound variables before we
-          -- return the path constructor.
+            -- Once we have a model, we need to convert all the free
+            -- variables in the inverse function expression into values,
+            -- and then call the inverse function in the _interpreter_.
+            -- Note that n is free in ifn.
+            -- 
+            -- We could also have the solver execute the function for
+            -- us.
+            --
+            -- We need to resolve any locally bound variables before we
+            -- return the path constructor.
 
-          let fvM = Map.fromSet id $ freeVars ifn
-          -- Resolve all Names (to semisexprs and solver names)
-          venv <- traverse getName fvM
-          pure (n', SelectedBytes ptag (InverseResult venv ifn))
+            let fvM = Map.fromSet id $ freeVars ifn
+            -- Resolve all Names (to semisexprs and solver names)
+            venv <- traverse getName fvM
+            pure (n', SelectedBytes ptag (InverseResult venv ifn))
 
     uncPath v = (v, SelectedHole)
     
@@ -195,26 +196,6 @@ stratCase ptag cs = do
       check
       second (SelectedCase i) <$> stratSlice ptag sl
 
--- -- Synthesise for each call
--- stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> CallNode FInstId -> 
---                  ReaderT I.Env m (I.Value, SelectedPath)
--- stratCallNode ptag cn = do
---   env <- ask
---   (sls, argNameMaps) <- unzip <$> callNodeToSlices cn
---   let argNameMap = mconcat argNameMaps
---       env' = env { I.vEnv = Map.compose (I.vEnv env) argNameMap }
---       (results0, asserts0) = partition fst sls
---       results = map snd results0
---       asserts = map snd asserts0
---   (_rvs, nonRes) <- unzip <$> mapM (doOne env') asserts  
---   (v, res)    <- case results of
---     [] -> pure (I.vUnit, SelectedHole)
---     _  -> doOne env' (foldl1' merge results)
-
---   pure (v, SelectedCall (callClass cn) (foldl' merge res nonRes))
---   where
---     doOne env' = local (const env') . stratSlice ptag
-
 -- FIXME: this is copied from BTRand
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
                  SymbolicM Result
@@ -224,29 +205,6 @@ stratCallNode ptag cn = do
   sl <- getSlice (ecnSliceId cn)
   second (SelectedCall (ecnIdx cn)) <$> local (const env') (stratSlice ptag sl)
   
-  -- -- define all arguments.  We need to evaluate the args in the
-  -- -- current env, as in recursive calls we will have shadowing (in the SolverT env.)
-  -- allUsedArgsV <- traverse synthesiseExpr allUsedArgs
-  -- let binds = Map.toList allUsedArgsV
-  -- flip (foldr (uncurry bindNameIn)) binds $ do
-  --   (_, nonRes) <- unzip <$> mapM doOne asserts
-  --   (v, res)    <- case results of
-  --     [] -> pure (vUnit, pure Unconstrained)
-  --     _  -> do sl <- foldl1' merge <$> mapM (getParamSlice fn cl) results -- merge slices
-  --              stratSlice ptag sl
-
-  --   pure (v, SelectedCall cl <$> (foldl' merge <$> res <*> sequence nonRes))
-  -- where
-  --   -- This works because 'ResultVar' is < than all over basevars
-  --   (results, asserts) = partition hasResultVar (Set.toList paths)
-  --   doOne ev = do
-  --     sl <- getParamSlice fn cl ev
-  --     stratSlice ptag sl
-
-  --   -- FIXME: do this as a post-processing step after analysis, once and for all?
-  --   allUsedParams = foldMap programVars paths
-  --   allUsedArgs   = Map.restrictKeys allArgs allUsedParams
-
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers
 
@@ -258,7 +216,8 @@ liftSemiSolverM m = do
   inSolver (runSemiSolverM funs lenv env m)  
 
 synthesiseExpr :: Expr -> SymbolicM SemiSExpr
-synthesiseExpr = liftSemiSolverM . semiExecExpr
+synthesiseExpr e = do
+  liftSemiSolverM . semiExecExpr $ e
 
 synthesiseByteSet :: ByteSet -> SemiSExpr -> SymbolicM SemiSExpr
 synthesiseByteSet bs = liftSemiSolverM . semiExecByteSet bs
