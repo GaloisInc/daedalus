@@ -101,6 +101,11 @@ handleOptions opts
        mo <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
+  | DumpResolve <- optCommand opts =
+    do mm <- ddlPassFromFile passResolve (optParserDDL opts)
+       mo <- ddlGetAST mm astParse
+       ddlPrint (ppDoc mo)
+
   | DumpTypes <- optCommand opts =
     do mm  <- ddlPassFromFile passTC (optParserDDL opts)
        mo  <- ddlGetAST mm astTC
@@ -166,6 +171,7 @@ handleOptions opts
                --   ddlIO (interpPGen inp prog)
 
          DumpRaw -> error "Bug: DumpRaw"
+         DumpResolve -> error "Bug: DumpResolve"
          DumpTypes -> error "Bug: DumpTypes"
          JStoHTML -> error "Bug: JStoHTML"
 
