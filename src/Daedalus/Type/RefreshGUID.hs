@@ -10,6 +10,7 @@ module Daedalus.Type.RefreshGUID (refreshDecl) where
 
 import MonadLib
 
+import Daedalus.Panic(panic)
 import Daedalus.GUID
 import Daedalus.Pass
 
@@ -108,11 +109,17 @@ instance RefreshGUID (TC a k) where
                      Nothing  -> texpr -- FIXME: this is an error?
                      Just tcf -> tcf
 
+          TCCall f ts as
+            | isLocalName (tcName f) ->
+              do subst <- ask
+                 case lookupSubst f subst of
+                   Just (TCVar f1) ->
+                              TCCall f1 ts <$> traverse (traverseArg go) as
+                   _ -> panic "refresh TCCall" ["Missing names"]
+
           TCDo (Just x) e1 e2 -> do
             e1' <- go e1
             withVar x $ \x' -> TCDo (Just x') e1' <$> go e2
-
-          -- TCCall f ts as -> TCCall f ts <$> (traverse (traverseArg go) as)
 
           -- HERE
           TCFor lp -> TCFor <$> goLoop lp
