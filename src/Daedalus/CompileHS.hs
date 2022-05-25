@@ -104,8 +104,8 @@ nameUse env use nm baseName =
         where
         txt = if namePublic nm
                then baseName i
-               else baseName (i <> "_" <> Text.pack (guidString (nameID nm)))
-    Local i   -> baseName (i <> "_" <> Text.pack (guidString (nameID nm)))
+               else baseName i ++ "_" ++ guidString (nameID nm)
+    Local i   -> baseName i ++ "_" ++ guidString (nameID nm)
     Unknown s -> panic "newTyName" ["Unexpected name", show s ]
 
 hsTyName :: Env -> NameStyle -> TCTyName -> Term
