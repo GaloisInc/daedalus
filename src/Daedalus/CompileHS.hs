@@ -518,17 +518,28 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                     }
   def = declare Fun
           { funNS = ValueFun
-          , funLHS = nm `aps` map (hsParam env) tcDeclParams
+          , funLHS = nm `aps` map doParam tcDeclParams
           , funDef = defRHS
           }
+
+  doParam p =
+    case tcDeclDef of
+      ExternDecl {} ->
+        case p of
+          ValParam TCName { .. } ->
+              hasType (hsType env tcType)
+                      (Var (Text.unpack (nameScopeAsLocal tcName)))
+          _ -> panic "doParam" ["Not a value parmaeter."]
+      _ -> hsParam env p
 
   defRHS = case tcDeclDef of
              ExternDecl t ->
                 case nameScopedIdent tcDeclName of
                   ModScope "Debug" "Trace" ->
-                    hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
+                    hasType (hsType env t) $
+                      foldl Ap "RTS.pTrace" (map doParam tcDeclParams)
                   ModScope _ f -> hasType (hsType env t)
-                    let ps = map (hsParam env) tcDeclParams
+                    let ps = map doParam tcDeclParams
                         p  = case Map.lookup tcDeclName (envExtern env) of
                               Just ter -> ter
                               Nothing ->
