@@ -512,7 +512,12 @@ hsParam env p =
 hsTCDecl :: Env -> TCDecl SourceRange -> [Decl]
 hsTCDecl env d@TCDecl { .. } = [sig,def]
   where
-  nm  = hsValName env NameDecl tcDeclName
+  nm  = hsValName env NameDecl
+        case tcDeclDef of
+          ExternDecl {} -> tcDeclName { namePublic = True }
+          _ -> tcDeclName
+
+
   sig = declare Sig { sigName = [nm]
                     , sigType = hsPolyRule env (declTypeOf d)
                     }
@@ -548,7 +553,8 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                                     env { envQualNames = UseQualNames }
                                     NameUse
                                     tcDeclName
-                                      { nameScopedIdent = ModScope "Extern" f }
+                                      { nameScopedIdent = ModScope "Extern" f
+                                      , namePublic = True }
                     in p ps
 
                   _ -> panic "hsTCDecl" ["Unexpected name", show tcDeclName]
