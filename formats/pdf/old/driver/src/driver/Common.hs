@@ -8,7 +8,7 @@ import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
                  , hPutStr, hPutStrLn, hFlush, hSetEncoding, utf8)
 
-import RTS.ParserAPI(ParseError(..),peOffset)
+import RTS.ParserAPI(ParseError(..),peOffset,ppAnnot)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
@@ -27,7 +27,7 @@ ppParserError :: ParseError -> Doc
 ppParserError pe = vcat $
   [ "byte offset:" <+> int (peOffset pe)
   , "error:" <+> text (peMsg pe)
-  , "call stack:" $$ nest 2 (vcat [ text x | x <- peStack pe ])
+  , "call stack:" $$ nest 2 (vcat [ ppAnnot x | x <- peStack pe ])
   ]
 
 
