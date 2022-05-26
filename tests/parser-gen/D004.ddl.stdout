@@ -25,7 +25,7 @@ D004.Main : Grammar D004.Main =
      END
      pure $$
  
-D004.Main_6 : Grammar {} =
+D004.Main_ : Grammar {} =
   do Choose fair
        { {- x -} do @Match ('0' .. '7')
                     @Match ('a' .. 'y')

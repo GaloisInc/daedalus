@@ -42,12 +42,12 @@ T046.Main : Grammar T046.Main =
            a3 = a3,
            a4 = a4}
  
-T046.ExampleMap_19 : Grammar {} =
+T046.ExampleMap_ : Grammar {} =
   do for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in [5,
                                                                         6,
                                                                         7])
        (Insert k x s)
      pure {}
  
-T046.Main_23 : Grammar {} =
-  T046.ExampleMap_19
+T046.Main_ : Grammar {} =
+  T046.ExampleMap_

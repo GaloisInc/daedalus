@@ -17,7 +17,7 @@ T025.Main : Grammar T025.Main =
      pure {r = r,
            vr = vr}
  
-T025.Main_5 : Grammar {} =
+T025.Main_ : Grammar {} =
   do (k : uint 8) <- Match UInt8
      (v : uint 8) <- Match UInt8
      (r : Map (uint 8) (uint 8)) <- Insert k v empty

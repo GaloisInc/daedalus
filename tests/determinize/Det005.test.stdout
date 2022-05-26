@@ -30,7 +30,7 @@ proc Many_24() : () =
          pure ()
  
 -- ./Det005.ddl:9:1--9:47
-proc SimpleEOL_19() : () =
+proc SimpleEOL_() : () =
   -- ./Det005.ddl:9:29--9:47
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
@@ -46,7 +46,7 @@ proc SimpleEOL_19() : () =
          fail_sys @()
  
 -- ./Det005.ddl:10:1--10:44
-proc EOL_20() : () =
+proc EOL_() : () =
   -- ./Det005.ddl:10:29--10:44
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -71,7 +71,7 @@ proc EOL_20() : () =
          fail_sys @()
  
 -- ./Det005.ddl:11:1--11:69
-proc Comment_21() : () =
+proc Comment_() : () =
   -- ./Det005.ddl:11:31--11:67
   do -- ./Det005.ddl:11:31--11:39
      match_ "%"
@@ -79,10 +79,10 @@ proc Comment_21() : () =
      -- ./Det005.ddl:11:42--11:62
      Many_24()
      -- ./Det005.ddl:11:65--11:67
-     EOL_20()
+     EOL_()
  
 -- ./Det005.ddl:12:1--12:55
-proc AnyWS_22() : () =
+proc AnyWS_() : () =
   -- ./Det005.ddl:12:29--12:55
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -131,7 +131,7 @@ proc AnyWS_22() : () =
          do -- ./Det005.ddl:11:42--11:62
             Many_24()
             -- ./Det005.ddl:11:65--11:67
-            EOL_20()
+            EOL_()
        _ ->
          fail_sys @()
  
@@ -140,7 +140,7 @@ proc AnyWS_22() : () =
 proc Main() : () =
   -- ./Det005.ddl:3:14--3:24
   do -- ./Det005.ddl:3:14--3:18
-     AnyWS_22()
+     AnyWS_()
      -- ./Det005.ddl:3:22--3:24
      -- ./Det005.ddl:3:22--3:24
      matchEnd

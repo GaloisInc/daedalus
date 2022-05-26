@@ -4,12 +4,12 @@
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    COM callsite Segment (127,15)-(127,17)
-    Payload callsite COM (44,5)-(44,23)
-    BE16 callsite Payload (23,16)-(23,19)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    COM_ callsite Segment_ (127,15)-(127,17)
+    Payload_ callsite COM_ (44,5)-(44,23)
+    BE16 callsite Payload_ (23,16)-(23,19)
 Start: BE16 (14,20)-(14,24)
 SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 AbortClosureUnhandledAction
@@ -18,11 +18,11 @@ AbortClosureUnhandledAction
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    COM callsite Segment (127,15)-(127,17)
-Start: COM (44,5)-(44,23)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    COM_ callsite Segment_ (127,15)-(127,17)
+Start: COM_ (44,5)-(44,23)
 SlkCfg{ q:158, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(17),]
@@ -34,12 +34,12 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    DRI callsite Segment (128,15)-(128,17)
-    Payload callsite DRI (81,5)-(81,16)
-    BE16 callsite Payload (23,16)-(23,19)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    DRI_ callsite Segment_ (128,15)-(128,17)
+    Payload_ callsite DRI_ (81,5)-(81,16)
+    BE16 callsite Payload_ (23,16)-(23,19)
 Start: BE16 (14,20)-(14,24)
 SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 AbortClosureUnhandledAction
@@ -48,11 +48,11 @@ AbortClosureUnhandledAction
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    DRI callsite Segment (128,15)-(128,17)
-Start: DRI (81,5)-(81,16)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    DRI_ callsite Segment_ (128,15)-(128,17)
+Start: DRI_ (81,5)-(81,16)
 SlkCfg{ q:268, ctrl:[?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(17),]
@@ -64,9 +64,9 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-Start: SomeJpeg (136,32)-(136,43)
+Start: SomeJpeg_ (136,32)-(136,43)
 SlkCfg{ q:306, ctrl:[?, ?, ?, *], sem:[?, ?, ], inp:--- }
 DTrans [
   ( [(18),(18),(16),]
@@ -91,10 +91,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
-    SOI callsite SomeJpeg (136,22)-(136,24)
-    Marker callsite SOI (35,11)-(35,21)
-Start: Marker (3,16)-(3,32)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
+    SOI_ callsite SomeJpeg_ (136,22)-(136,24)
+    Marker_ callsite SOI_ (35,11)-(35,21)
+Start: Marker_ (3,16)-(3,32)
 SlkCfg{ q:24, ctrl:[?, ?, ?, ?, *], sem:[], inp:--- }
 DTrans [
   ( [(17),]
@@ -166,12 +166,12 @@ Warning: LL(*) failures:
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    COM callsite Segment (127,15)-(127,17)
-    Payload callsite COM (44,5)-(44,23)
-    BE16 callsite Payload (23,16)-(23,19)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    COM_ callsite Segment_ (127,15)-(127,17)
+    Payload_ callsite COM_ (44,5)-(44,23)
+    BE16 callsite Payload_ (23,16)-(23,19)
 Start: BE16 (14,20)-(14,24)
 SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 AbortClosureUnhandledAction
@@ -180,12 +180,12 @@ AbortClosureUnhandledAction
 Stack:
     *
     Main callsite __START__
-    SomeJpeg callsite Main (138,18)-(138,25)
+    SomeJpeg_ callsite Main (138,18)-(138,25)
     Many (Between (-,-), *)
-    Segment callsite SomeJpeg (136,37)-(136,43)
-    DRI callsite Segment (128,15)-(128,17)
-    Payload callsite DRI (81,5)-(81,16)
-    BE16 callsite Payload (23,16)-(23,19)
+    Segment_ callsite SomeJpeg_ (136,37)-(136,43)
+    DRI_ callsite Segment_ (128,15)-(128,17)
+    Payload_ callsite DRI_ (81,5)-(81,16)
+    BE16 callsite Payload_ (23,16)-(23,19)
 Start: BE16 (14,20)-(14,24)
 SlkCfg{ q:10, ctrl:[?, ?, ?, ?, ?, ?, ?, *], sem:[?, ], inp:--- }
 AbortClosureUnhandledAction

@@ -20,7 +20,7 @@ D023.Main : Grammar D023.Main =
      END
      pure {y = y}
  
-D023.Main_6 : Grammar {} =
+D023.Main_ : Grammar {} =
   do (x : uint 64) <- do (_3 : uint 8) <- Match UInt8
                          pure (_3 as uint 64)
      (y : Stream) <- CurrentStream

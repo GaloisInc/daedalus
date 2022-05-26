@@ -19,7 +19,7 @@ array-index-oob.Main : Grammar array-index-oob.Main =
      pure {arr = arr,
            val_at_1 = val_at_1}
  
-array-index-oob.Main_3 : Grammar {} =
+array-index-oob.Main_ : Grammar {} =
   do (arr : [int]) <- pure [1,
                             2,
                             4,

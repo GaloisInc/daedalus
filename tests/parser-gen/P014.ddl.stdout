@@ -35,12 +35,12 @@ P014.Main : Grammar P014.Main =
      pure {x = x,
            y = y}
  
-P014.A_8 : Grammar {} =
+P014.A_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
      @Match UInt8
      @Many[] @Match UInt8
  
-P014.Main_9 : Grammar {} =
-  do P014.A_8
+P014.Main_ : Grammar {} =
+  do P014.A_
      END

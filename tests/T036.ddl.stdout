@@ -34,5 +34,5 @@ T036.Main : Grammar T036.Main =
            ans3 = ans3,
            ans4 = ans4}
  
-T036.Main_12 : Grammar {} =
+T036.Main_ : Grammar {} =
   pure {}

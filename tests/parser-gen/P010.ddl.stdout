@@ -15,6 +15,6 @@ P010.Main : Grammar P010.Main =
      pure {x = x,
            y = y}
  
-P010.Main_3 : Grammar {} =
+P010.Main_ : Grammar {} =
   do @Match UInt8
      @Match UInt8

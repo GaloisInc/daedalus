@@ -16,7 +16,7 @@ type T =
 -------------
  
 -- ./Det006.ddl:5:1--15:1
-proc T_16() : () =
+proc T_() : () =
   -- ./Det006.ddl:5:9--15:1
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
@@ -80,7 +80,7 @@ proc T_16() : () =
 proc Main() : () =
   -- ./Det006.ddl:3:14--3:19
   do -- ./Det006.ddl:3:14--3:14
-     T_16()
+     T_()
      -- ./Det006.ddl:3:17--3:19
      -- ./Det006.ddl:3:17--3:19
      matchEnd

@@ -28,7 +28,7 @@ T010.P ?a0 : Grammar (T010.P ?a0) =
                  pure {C: _8}
     }
  
-T010.P_9 ?a0 : Grammar {} =
+T010.P_ ?a0 : Grammar {} =
   Choose fair
     { {- A -} Fail "Error"
     | {- B -} @MatchBytes "B"

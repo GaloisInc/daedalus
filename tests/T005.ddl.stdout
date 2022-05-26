@@ -17,8 +17,8 @@ T005.Num : Grammar int =
                            ((val * 10) + (d as int)))
      pure $$
  
-T005.P_8 : Grammar {} =
+T005.P_ : Grammar {} =
   @Match UInt8
  
-T005.Num_9 : Grammar {} =
+T005.Num_ : Grammar {} =
   @Many[ 1 .. ] @Match ('0' .. '9')

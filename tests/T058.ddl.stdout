@@ -11,6 +11,6 @@ T058.Main : Grammar (uint 8) =
      ($$ : uint 8) <- Match {'A'}
      pure $$
  
-T058.Main_2 : Grammar {} =
+T058.Main_ : Grammar {} =
   do SetStream (arrayStream "array" ['A'])
      @Match {'A'}

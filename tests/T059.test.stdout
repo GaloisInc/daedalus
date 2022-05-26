@@ -18,13 +18,13 @@ T059.F_13 : Grammar (uint 8) =
 T059.P2 : Grammar (uint 8) =
   T059.F_13
  
-T059.F_12 : Grammar {} =
+T059.F__12 : Grammar {} =
   @Match UInt8
  
-T059.P1_9 : Grammar {} =
-  T059.F_12
+T059.P1_ : Grammar {} =
+  T059.F__12
  
 T059.Main : Grammar (uint 8) =
-  do T059.P1_9
+  do T059.P1_
      ($$ : uint 8) <- T059.P2
      pure $$

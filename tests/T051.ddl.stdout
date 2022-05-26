@@ -81,12 +81,12 @@ T051.Main : Grammar T051.Main =
            g = g,
            h = h}
  
-T051.Mp_35 : Grammar {} =
+T051.Mp_ : Grammar {} =
   do for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in T051.xs)
        (Insert k x s)
      pure {}
  
-T051.Main_39 : Grammar {} =
+T051.Main_ : Grammar {} =
   do do map ((x : int) in T051.xs)
           (pure (x + 1))
         pure {}

@@ -32,7 +32,7 @@ P031.Main : Grammar P031.Main =
      END
      pure {res = res}
  
-P031.A_12 : Grammar {} =
+P031.A_ : Grammar {} =
   do (x : [uint 8]) <- Many[] Match {'a'}
      (y : [uint 8]) <- map ((z : uint 8) in x)
                          do @Match {'b'}
@@ -44,6 +44,6 @@ P031.A_12 : Grammar {} =
           pure $$
      pure {}
  
-P031.Main_19 : Grammar {} =
-  do P031.A_12
+P031.Main_ : Grammar {} =
+  do P031.A_
      END

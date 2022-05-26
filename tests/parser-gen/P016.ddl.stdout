@@ -32,11 +32,11 @@ P016.Main : Grammar P016.Main =
            y = y,
            z = z}
  
-P016.A_12 : Grammar {} =
+P016.A_ : Grammar {} =
   do @Many[] @Match P016.$digit
      @Match {'|'}
  
-P016.Main_13 : Grammar {} =
+P016.Main_ : Grammar {} =
   do (x : P016.A) <- P016.A
      for ((r : {}) = {}; (b : uint 8) in x.a)
        (@Match UInt8)

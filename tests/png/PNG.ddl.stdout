@@ -69,7 +69,7 @@ PNG.Chunk : Grammar PNG.Chunk =
            crcField = crcField,
            crcCheck = crcCheck}
  
-PNG.Header_33 : Grammar {} =
+PNG.Header_ : Grammar {} =
   @MatchBytes [0x89,
                0x50,
                0x4e,
@@ -80,33 +80,33 @@ PNG.Header_33 : Grammar {} =
                0x0a]
  
 PNG.Main : Grammar [PNG.Chunk] =
-  do PNG.Header_33
+  do PNG.Header_
      ($$ : [PNG.Chunk]) <- Many[] PNG.Chunk
      END
      pure $$
  
-PNG.BE_34 : Grammar {} =
+PNG.BE_ : Grammar {} =
   do do do @Match UInt8
            @Match UInt8
         @Match UInt8
      @Match UInt8
  
-PNG.Length_35 : Grammar {} =
-  PNG.BE_34
+PNG.Length_ : Grammar {} =
+  PNG.BE_
  
-PNG.CRC_36 : Grammar {} =
-  PNG.BE_34
+PNG.CRC_ : Grammar {} =
+  PNG.BE_
  
-PNG.Type_37 : Grammar {} =
+PNG.Type_ : Grammar {} =
   @Many[4] @Match PNG.$letter
  
-PNG.Chunk_38 : Grammar {} =
+PNG.Chunk_ : Grammar {} =
   do (len : uint 64) <- PNG.Length
-     PNG.Type_37
+     PNG.Type_
      @Many[len] @Match UInt8
-     PNG.CRC_36
+     PNG.CRC_
  
-PNG.Main_40 : Grammar {} =
-  do PNG.Header_33
-     @Many[] PNG.Chunk_38
+PNG.Main_ : Grammar {} =
+  do PNG.Header_
+     @Many[] PNG.Chunk_
      END

@@ -63,34 +63,34 @@ T042.Ex5 : Grammar {} =
                     }
      pure $$
  
-T042.Ex6_20 : Grammar {} =
+T042.Ex6_ : Grammar {} =
   @Match UInt8
  
-T042.Main_21 : Grammar {} =
-  T042.Ex6_20
+T042.Main_ : Grammar {} =
+  T042.Ex6_
  
-T042.Ex1_22 : Grammar {} =
+T042.Ex1_ : Grammar {} =
   Choose fair
     { {- A -} pure {}
     | {- B -} pure {}
     }
  
-T042.T_23 ?a0 : Grammar {} =
+T042.T_ ?a0 : Grammar {} =
   Choose fair
     { {- A -} pure {}
     | {- B -} pure {}
     }
  
-T042.Ex2_24 : Grammar {} =
-  T042.T_23 (uint 8)
+T042.Ex2_ : Grammar {} =
+  T042.T_ (uint 8)
  
-T042.Ex3_25 : Grammar {} =
+T042.Ex3_ : Grammar {} =
   do (x : T042.T (uint 8)) <- T042.Ex2
      case x is
        { {| A = _17 |} -> pure {}
        }
  
-T042.Ex5_27 : Grammar {} =
+T042.Ex5_ : Grammar {} =
   do (x : T042.Ex1) <- T042.Ex1
      case x is
        { {| B = _19 |} -> pure {}

@@ -36,17 +36,17 @@ D010.CanDisambiguate : Grammar D010.CanDisambiguate =
                  pure {y: _15}
     }
  
-D010.Chunk_22 ?a0 (n : uint 64) (P : Grammar {}) : Grammar {} =
+D010.Chunk_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
      SetStream this
-     P
+     P_
      SetStream next
  
 D010.ShouldAbortWithIncompatibleInput : Grammar D010.ShouldAbortWithIncompatibleInput =
   Choose fair
-    { {- x -} do (_18 : [uint 8]) <- do D010.Chunk_22 [uint 8] 1 (@MatchBytes "a")
+    { {- x -} do (_18 : [uint 8]) <- do D010.Chunk_ [uint 8] 1 (@MatchBytes "a")
                                         ($$ : [uint 8]) <- MatchBytes "b"
                                         pure $$
                  pure {x: _18}
@@ -55,26 +55,26 @@ D010.ShouldAbortWithIncompatibleInput : Grammar D010.ShouldAbortWithIncompatible
                  pure {y: _20}
     }
  
-D010.CanDisambiguate_29 : Grammar {} =
+D010.CanDisambiguate_ : Grammar {} =
   Choose fair
-    { {- x -} D010.Chunk_22 [uint 8] 2 (@MatchBytes "ab")
-    | {- y -} D010.Chunk_22 [uint 8] 2 (@MatchBytes "ac")
+    { {- x -} D010.Chunk_ [uint 8] 2 (@MatchBytes "ab")
+    | {- y -} D010.Chunk_ [uint 8] 2 (@MatchBytes "ac")
     }
  
-D010.ShouldAbortWithIncompatibleInput_30 : Grammar {} =
+D010.ShouldAbortWithIncompatibleInput_ : Grammar {} =
   Choose fair
-    { {- x -} do D010.Chunk_22 [uint 8] 1 (@MatchBytes "a")
+    { {- x -} do D010.Chunk_ [uint 8] 1 (@MatchBytes "a")
                  @MatchBytes "b"
-    | {- y -} D010.Chunk_22 [uint 8] 2 (@MatchBytes "ac")
+    | {- y -} D010.Chunk_ [uint 8] 2 (@MatchBytes "ac")
     }
  
 D010.Main : Grammar {} =
-  do D010.CanDisambiguate_29
-     D010.ShouldAbortWithIncompatibleInput_30
+  do D010.CanDisambiguate_
+     D010.ShouldAbortWithIncompatibleInput_
      ($$ : {}) <- END
      pure $$
  
-D010.Main_31 : Grammar {} =
-  do D010.CanDisambiguate_29
-     D010.ShouldAbortWithIncompatibleInput_30
+D010.Main_ : Grammar {} =
+  do D010.CanDisambiguate_
+     D010.ShouldAbortWithIncompatibleInput_
      END

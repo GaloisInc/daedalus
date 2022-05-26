@@ -28,13 +28,13 @@ T068.Main : Grammar T068.Main =
                            }
      pure $$
  
-T068.Nested_7 : Grammar {} =
+T068.Nested_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-T068.Main_8 : Grammar {} =
+T068.Main_ : Grammar {} =
   do (tag : uint 8) <- Match UInt8
      case tag is
        { 0x01 -> {- case branch  0x01 -} pure {}
-       ; 0x02 -> {- case branch  0x02 -} T068.Nested_7
+       ; 0x02 -> {- case branch  0x02 -} T068.Nested_
        }

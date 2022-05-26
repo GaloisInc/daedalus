@@ -11,6 +11,6 @@ T021.Main : Grammar {} =
      ($$ : {}) <- END
      pure $$
  
-T021.Main_2 : Grammar {} =
+T021.Main_ : Grammar {} =
   do @Many[] @Match {'0'}
      END
