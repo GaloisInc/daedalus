@@ -8,7 +8,7 @@ module Det008
  
 --- Rules:
  
-Det008.T1_11 : Grammar {} =
+Det008.T1_ : Grammar {} =
   Choose biased
     { do @Match {'a'}
          Choose biased
@@ -19,7 +19,7 @@ Det008.T1_11 : Grammar {} =
          @Match {'c'}
     }
  
-Det008.T2_12 : Grammar {} =
+Det008.T2_ : Grammar {} =
   Choose biased
     { do @Match {'a'}
          Choose biased
@@ -30,7 +30,7 @@ Det008.T2_12 : Grammar {} =
          @Match {'b'}
     }
  
-Det008.T3_13 : Grammar {} =
+Det008.T3_ : Grammar {} =
   Choose fair
     { do @Match {'a'}
          Choose biased
@@ -42,9 +42,9 @@ Det008.T3_13 : Grammar {} =
     }
  
 Det008.Main : Grammar {} =
-  do Det008.T1_11
-     Det008.T2_12
-     Det008.T3_13
+  do Det008.T1_
+     Det008.T2_
+     Det008.T3_
      ($$ : {}) <- END
      pure $$
  
@@ -87,8 +87,8 @@ Det008.T3 : Grammar (uint 8) =
          pure $$
     }
  
-Det008.Main_14 : Grammar {} =
-  do Det008.T1_11
-     Det008.T2_12
-     Det008.T3_13
+Det008.Main_ : Grammar {} =
+  do Det008.T1_
+     Det008.T2_
+     Det008.T3_
      END

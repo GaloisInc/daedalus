@@ -33,14 +33,14 @@ P017.Main : Grammar P017.Main =
            y = y,
            z = z}
  
-P017.Word_12 : Grammar {} =
+P017.Word_ : Grammar {} =
   do @Many[] @Match ('a' .. 'z')
      @Match {' '}
  
-P017.A_13 : Grammar {} =
-  @Many[] P017.Word_12
+P017.A_ : Grammar {} =
+  @Many[] P017.Word_
  
-P017.Main_14 : Grammar {} =
+P017.Main_ : Grammar {} =
   do (x : P017.A) <- P017.A
      (y : Map [uint 8] [uint 8]) <- for ((r : Map [uint 8] [uint 8]) = empty; (s : [uint 8]) in x.lst)
                                       do ($$ : Map [uint 8] [uint 8]) <- Insert s s r

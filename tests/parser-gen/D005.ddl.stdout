@@ -21,31 +21,31 @@ D005.B : Grammar (uint 8) =
      ($$ : uint 8) <- Match {'c'}
      pure $$
  
-D005.A_10 : Grammar {} =
+D005.A_ : Grammar {} =
   do @Match {'a'}
      @Match {'b'}
  
-D005.B_11 : Grammar {} =
+D005.B_ : Grammar {} =
   do @Match {'b'}
      @Match {'c'}
  
 D005.Main : Grammar {} =
   do Choose fair
-       { {- x -} do D005.A_10
+       { {- x -} do D005.A_
                     @Match {'c'}
        | {- y -} do @Match {'a'}
-                    D005.B_11
+                    D005.B_
                     @Match {'d'}
        }
      ($$ : {}) <- END
      pure $$
  
-D005.Main_12 : Grammar {} =
+D005.Main_ : Grammar {} =
   do Choose fair
-       { {- x -} do D005.A_10
+       { {- x -} do D005.A_
                     @Match {'c'}
        | {- y -} do @Match {'a'}
-                    D005.B_11
+                    D005.B_
                     @Match {'d'}
        }
      END

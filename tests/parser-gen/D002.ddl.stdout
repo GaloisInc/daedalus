@@ -29,7 +29,7 @@ D002.Main : Grammar {} =
      ($$ : {}) <- END
      pure $$
  
-D002.Main_8 : Grammar {} =
+D002.Main_ : Grammar {} =
   do Choose fair
        { {- x -} @MatchBytes "ab"
        | {- y -} @MatchBytes "ac"

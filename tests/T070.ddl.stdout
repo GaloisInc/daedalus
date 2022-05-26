@@ -26,16 +26,16 @@ T070.L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Tr
                      (pure true)
      pure $$
  
-T070.Main_15 ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Arith ?a0) : Grammar {} =
+T070.Main_ ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Arith ?a0) : Grammar {} =
   pure {}
  
-T070.P_16 ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar {} =
+T070.P_ ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar {} =
   @(x AS int)
  
-T070.J_18 ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
+T070.J_ ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
   pure {}
  
-T070.L_19 ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
+T070.L_ ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
   do map ((i : ?a2) in x)
        (pure true)
      pure {}

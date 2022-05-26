@@ -12,8 +12,8 @@ T075.P : Grammar (uint 8) =
 T075.Main : Grammar (uint 8) =
   pure 2
  
-T075.P_2 : Grammar {} =
+T075.P_ : Grammar {} =
   @Match UInt8
  
-T075.Main_3 : Grammar {} =
+T075.Main_ : Grammar {} =
   pure {}

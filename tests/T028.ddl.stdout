@@ -12,7 +12,7 @@ T028.Main : Grammar [uint 8] =
      END
      pure $$
  
-T028.Main_2 : Grammar {} =
+T028.Main_ : Grammar {} =
   do @MatchBytes "Hello"
      @Many[] @Match UInt8
      END

@@ -96,17 +96,17 @@ D022.todo.EOI : Grammar [uint 8] =
     | Fail "Missing End-of-Image"
     }
  
-D022.todo.Marker_77 (x : uint 8) : Grammar {} =
+D022.todo.Marker_ (x : uint 8) : Grammar {} =
   @MatchBytes [0xFF,
                x]
  
 D022.todo.COM : Grammar [uint 8] =
-  do D022.todo.Marker_77 0xFE
+  do D022.todo.Marker_ 0xFE
      ($$ : [uint 8]) <- D022.todo.Payload [uint 8] (Many[] Match UInt8)
      pure $$
  
 D022.todo.APP ?a0 (x : uint 4) (P : Grammar ?a0) : Grammar ?a0 =
-  do D022.todo.Marker_77 (0xE # x)
+  do D022.todo.Marker_ (0xE # x)
      ($$ : ?a0) <- D022.todo.Payload ?a0 P
      pure $$
  
@@ -143,7 +143,7 @@ D022.todo.SomeSOF : Grammar D022.todo.SomeSOF =
            data = data}
  
 D022.todo.DRI : Grammar (uint 16) =
-  do D022.todo.Marker_77 0xDD
+  do D022.todo.Marker_ 0xDD
      ($$ : uint 16) <- D022.todo.Payload (uint 16) D022.todo.BE16
      pure $$
  
@@ -182,7 +182,7 @@ D022.todo.EntropyEncodedEntry : Grammar [uint 8] =
   Many[ 1 .. ] D022.todo.EntropyEncodedByte
  
 D022.todo.SOS : Grammar D022.todo.SOS =
-  do D022.todo.Marker_77 0xDA
+  do D022.todo.Marker_ 0xDA
      (header : D022.todo.SOSHeader) <- D022.todo.Payload D022.todo.SOSHeader D022.todo.SOSHeader
      (data : [[uint 8]]) <- Many[] D022.todo.EntropyEncodedEntry
      pure {header = header,
@@ -203,25 +203,25 @@ D022.todo.Segment : Grammar D022.todo.Segment =
                    pure {dri: _75}
     }
  
-D022.todo.SOI_96 : Grammar {} =
+D022.todo.SOI_ : Grammar {} =
   Choose biased
-    { D022.todo.Marker_77 0xD8
+    { D022.todo.Marker_ 0xD8
     | Fail "Missing Start-of-Image"
     }
  
-D022.todo.EOI_97 : Grammar {} =
+D022.todo.EOI_ : Grammar {} =
   Choose biased
-    { D022.todo.Marker_77 0xD9
+    { D022.todo.Marker_ 0xD9
     | Fail "Missing End-of-Image"
     }
  
 D022.todo.SomeJpeg : Grammar [D022.todo.Segment] =
-  do D022.todo.SOI_96
+  do D022.todo.SOI_
      ($$ : [D022.todo.Segment]) <- Many[] D022.todo.Segment
-     D022.todo.EOI_97
+     D022.todo.EOI_
      pure $$
  
-D022.todo.Payload_87 ?a0 (P : Grammar {}) : Grammar {} =
+D022.todo.Payload_ ?a0 (P_ : Grammar {}) : Grammar {} =
   do (size : uint 64) <- do (_67 : uint 16) <- D022.todo.BE16
                             pure (_67 as uint 64)
      case 2 <= size is
@@ -232,40 +232,40 @@ D022.todo.Payload_87 ?a0 (P : Grammar {}) : Grammar {} =
      @StreamLen len here
      do (_68 : Stream) <- StreamLen len here
         SetStream _68
-     P
+     P_
      END
      (_69 : Stream) <- StreamOff len here
      SetStream _69
  
-D022.todo.COM_98 : Grammar {} =
-  do D022.todo.Marker_77 0xFE
-     D022.todo.Payload_87 [uint 8] (@Many[] @Match UInt8)
+D022.todo.COM_ : Grammar {} =
+  do D022.todo.Marker_ 0xFE
+     D022.todo.Payload_ [uint 8] (@Many[] @Match UInt8)
  
-D022.todo.BE16_83 : Grammar {} =
+D022.todo.BE16_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-D022.todo.DRI_109 : Grammar {} =
-  do D022.todo.Marker_77 0xDD
-     D022.todo.Payload_87 (uint 16) D022.todo.BE16_83
+D022.todo.DRI_ : Grammar {} =
+  do D022.todo.Marker_ 0xDD
+     D022.todo.Payload_ (uint 16) D022.todo.BE16_
  
-D022.todo.Segment_118 : Grammar {} =
+D022.todo.Segment_ : Grammar {} =
   Choose biased
-    { {- comment -} D022.todo.COM_98
-    | {- dri -} D022.todo.DRI_109
+    { {- comment -} D022.todo.COM_
+    | {- dri -} D022.todo.DRI_
     }
  
-D022.todo.SomeJpeg_119 : Grammar {} =
-  do D022.todo.SOI_96
-     @Many[] D022.todo.Segment_118
-     D022.todo.EOI_97
+D022.todo.SomeJpeg_ : Grammar {} =
+  do D022.todo.SOI_
+     @Many[] D022.todo.Segment_
+     D022.todo.EOI_
  
 D022.todo.Main : Grammar {} =
-  do D022.todo.SomeJpeg_119
+  do D022.todo.SomeJpeg_
      ($$ : {}) <- END
      pure $$
  
-D022.todo.SomeMarker_79 (front : uint 4) : Grammar {} =
+D022.todo.SomeMarker_ (front : uint 4) : Grammar {} =
   do @Match {0xFF}
      (tag : uint 8) <- Match UInt8
      (upper : uint 4) <- pure (tag >> 4 as uint 4)
@@ -273,68 +273,68 @@ D022.todo.SomeMarker_79 (front : uint 4) : Grammar {} =
        { true -> pure {}
        }
  
-D022.todo.NonZero_84 ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar {} =
+D022.todo.NonZero_ ?a0 (Literal 0 ?a0) (P : Grammar ?a0) : Grammar {} =
   do ($$ : ?a0) <- P
      case 0 < $$ is
        { true -> pure {}
        }
  
-D022.todo.APP_99 ?a0 (x : uint 4) (P : Grammar {}) : Grammar {} =
-  do D022.todo.Marker_77 (0xE # x)
-     D022.todo.Payload_87 ?a0 P
+D022.todo.APP_ ?a0 (x : uint 4) (P_ : Grammar {}) : Grammar {} =
+  do D022.todo.Marker_ (0xE # x)
+     D022.todo.Payload_ ?a0 P_
  
-D022.todo.FrameComponent_103 : Grammar {} =
+D022.todo.FrameComponent_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
      @Match UInt8
  
-D022.todo.SOFPayload_104 : Grammar {} =
-  D022.todo.Payload_87 D022.todo.SOFPayload do @Match UInt8
-                                               D022.todo.BE16_83
-                                               D022.todo.BE16_83
-                                               (comNumber : uint 64) <- do (_72 : uint 8) <- Match UInt8
-                                                                           pure (_72 as uint 64)
-                                               @Many[comNumber] D022.todo.FrameComponent_103
+D022.todo.SOFPayload_ : Grammar {} =
+  D022.todo.Payload_ D022.todo.SOFPayload do @Match UInt8
+                                             D022.todo.BE16_
+                                             D022.todo.BE16_
+                                             (comNumber : uint 64) <- do (_72 : uint 8) <- Match UInt8
+                                                                         pure (_72 as uint 64)
+                                             @Many[comNumber] D022.todo.FrameComponent_
  
-D022.todo.SomeSOF_107 : Grammar {} =
+D022.todo.SomeSOF_ : Grammar {} =
   do (sof : uint 4) <- D022.todo.SomeMarker 0xC
      case sof == 4 is
        { false -> pure {}
        }
-     D022.todo.SOFPayload_104
+     D022.todo.SOFPayload_
  
-D022.todo.SOSComponent_110 : Grammar {} =
+D022.todo.SOSComponent_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-D022.todo.SOSHeader_111 : Grammar {} =
+D022.todo.SOSHeader_ : Grammar {} =
   do (componentNum : uint 8) <- Match UInt8
-     @Many[componentNum as uint 64] D022.todo.SOSComponent_110
+     @Many[componentNum as uint 64] D022.todo.SOSComponent_
      @Match UInt8
      @Match UInt8
      @Match UInt8
  
-D022.todo.EntropyEncodedByte_113 : Grammar {} =
+D022.todo.EntropyEncodedByte_ : Grammar {} =
   Choose biased
     { do @Match {0xFF}
          @Match {0x00}
     | @Match (!{0xFF})
     }
  
-D022.todo.EntropyEncodedEntry_114 : Grammar {} =
-  @Many[ 1 .. ] D022.todo.EntropyEncodedByte_113
+D022.todo.EntropyEncodedEntry_ : Grammar {} =
+  @Many[ 1 .. ] D022.todo.EntropyEncodedByte_
  
-D022.todo.SOS_115 : Grammar {} =
-  do D022.todo.Marker_77 0xDA
-     D022.todo.Payload_87 D022.todo.SOSHeader D022.todo.SOSHeader_111
-     @Many[] D022.todo.EntropyEncodedEntry_114
+D022.todo.SOS_ : Grammar {} =
+  do D022.todo.Marker_ 0xDA
+     D022.todo.Payload_ D022.todo.SOSHeader D022.todo.SOSHeader_
+     @Many[] D022.todo.EntropyEncodedEntry_
  
-D022.todo.SomeRST_116 : Grammar {} =
+D022.todo.SomeRST_ : Grammar {} =
   do ($$ : uint 4) <- D022.todo.SomeMarker 0xD
      case $$ < 8 is
        { true -> pure {}
        }
  
-D022.todo.Main_120 : Grammar {} =
-  do D022.todo.SomeJpeg_119
+D022.todo.Main_ : Grammar {} =
+  do D022.todo.SomeJpeg_
      END

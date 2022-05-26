@@ -15,7 +15,7 @@ D021.Main : Grammar D021.Main =
      END
      pure {t = t}
  
-D021.Main_4 : Grammar {} =
+D021.Main_ : Grammar {} =
   do (y : uint 8) <- Match UInt8
      (x : uint 8) <- Match UInt8
      @Many[x as uint 64] @Many[y as uint 64] @MatchBytes "abc"

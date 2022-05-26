@@ -68,53 +68,53 @@ P026.AnyWS : Grammar (uint 8) =
     | P026.EOL
     }
  
-P026.SimpleEOL_66 : Grammar {} =
+P026.SimpleEOL_ : Grammar {} =
   Choose fair
     { do @Match P026.$cr
          @Match P026.$lf
     | @Match P026.$lf
     }
  
-P026.EOL_67 : Grammar {} =
+P026.EOL_ : Grammar {} =
   Choose biased
-    { P026.SimpleEOL_66
+    { P026.SimpleEOL_
     | @Match P026.$cr
     }
  
-P026.Comment_68 : Grammar {} =
+P026.Comment_ : Grammar {} =
   do @MatchBytes "%"
      @Many[] @Match (!(P026.$lf | P026.$cr))
-     P026.EOL_67
+     P026.EOL_
  
-P026.AnyWS_69 : Grammar {} =
+P026.AnyWS_ : Grammar {} =
   Choose fair
     { Choose fair
         { @Match P026.$simpleWS
-        | P026.Comment_68
+        | P026.Comment_
         }
-    | P026.EOL_67
+    | P026.EOL_
     }
  
 P026.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[] P026.AnyWS_69
+     @Many[] P026.AnyWS_
      pure $$
  
-P026.Token_70 ?a0 (P : Grammar {}) : Grammar {} =
-  do P
-     @Many[] P026.AnyWS_69
+P026.Token_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
+     @Many[] P026.AnyWS_
  
 P026.KW ?a0 (P : Grammar ?a0) : Grammar {} =
-  P026.Token_70 ?a0 do P
-                       pure {}
+  P026.Token_ ?a0 do P
+                     pure {}
  
-P026.KW_73 ?a0 (P : Grammar {}) : Grammar {} =
-  P026.Token_70 ?a0 P
+P026.KW_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  P026.Token_ ?a0 P_
  
 P026.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
-  do P026.KW_73 [uint 8] (@MatchBytes open)
+  do P026.KW_ [uint 8] (@MatchBytes open)
      ($$ : ?a0) <- P
-     P026.KW_73 [uint 8] (@MatchBytes close)
+     P026.KW_ [uint 8] (@MatchBytes close)
      pure $$
  
 P026.numBase ?a0 ?a1 ?a2 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (base : ?a2) (ds : ?a0) : ?a2 =
@@ -201,16 +201,16 @@ P026.Main : Grammar P026.Main =
      END
      pure {x = x}
  
-P026.Between_76 ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar {}) : Grammar {} =
-  do P026.KW_73 [uint 8] (@MatchBytes open)
-     P
-     P026.KW_73 [uint 8] (@MatchBytes close)
+P026.Between_ ?a0 (open : [uint 8]) (close : [uint 8]) (P_ : Grammar {}) : Grammar {} =
+  do P026.KW_ [uint 8] (@MatchBytes open)
+     P_
+     P026.KW_ [uint 8] (@MatchBytes close)
  
-P026.Only_81 ?a0 (P : Grammar {}) : Grammar {} =
-  do P
+P026.Only_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
      END
  
-P026.Sign_84 : Grammar {} =
+P026.Sign_ : Grammar {} =
   Choose fair
     { {- pos -} Choose fair
                   { @MatchBytes "+"
@@ -219,39 +219,39 @@ P026.Sign_84 : Grammar {} =
     | {- neg -} @MatchBytes "-"
     }
  
-P026.Digit_85 : Grammar {} =
+P026.Digit_ : Grammar {} =
   @Match ('0' .. '9')
  
-P026.Natural_86 : Grammar {} =
-  @Many[ 1 .. ] P026.Digit_85
+P026.Natural_ : Grammar {} =
+  @Many[ 1 .. ] P026.Digit_
  
-P026.Number_87 : Grammar {} =
-  P026.Token_70 P026.Number do (sign : P026.Sign) <- P026.Sign
-                               do P026.UnsignedNumber
-                                  pure {}
-                               Choose fair
-                                 { case sign is
-                                     { {| pos = _59 |} -> pure {}
-                                     }
-                                 | case sign is
-                                     { {| neg = _61 |} -> pure {}
-                                     }
-                                 }
+P026.Number_ : Grammar {} =
+  P026.Token_ P026.Number do (sign : P026.Sign) <- P026.Sign
+                             do P026.UnsignedNumber
+                                pure {}
+                             Choose fair
+                               { case sign is
+                                   { {| pos = _59 |} -> pure {}
+                                   }
+                               | case sign is
+                                   { {| neg = _61 |} -> pure {}
+                                   }
+                               }
  
-P026.Frac_89 (n : uint 64) : Grammar {} =
+P026.Frac_ (n : uint 64) : Grammar {} =
   do @MatchBytes "."
-     @Many[ n .. ] P026.Digit_85
+     @Many[ n .. ] P026.Digit_
  
-P026.UnsignedNumber_91 : Grammar {} =
+P026.UnsignedNumber_ : Grammar {} =
   Choose fair
-    { do P026.Natural_86
+    { do P026.Natural_
          Choose biased
-           { P026.Frac_89 0
+           { P026.Frac_ 0
            | pure {}
            }
-    | P026.Frac_89 1
+    | P026.Frac_ 1
     }
  
-P026.Main_92 : Grammar {} =
-  do @Many[] P026.Number_87
+P026.Main_ : Grammar {} =
+  do @Many[] P026.Number_
      END

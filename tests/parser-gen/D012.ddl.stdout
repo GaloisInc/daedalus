@@ -10,12 +10,12 @@ type D012.RGB = { red: int
  
 --- Rules:
  
-D012.WS_21 : Grammar {} =
+D012.WS_ : Grammar {} =
   @Match {0}
  
 D012.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] D012.WS_21
+     @Many[ 1 .. ] D012.WS_
      pure $$
  
 D012.Digit : Grammar (uint 8) =
@@ -43,26 +43,26 @@ D012.RGB : Grammar D012.RGB =
 D012.WS : Grammar (uint 8) =
   Match {0}
  
-D012.Token_22 ?a0 (P : Grammar {}) : Grammar {} =
-  do P
-     @Many[ 1 .. ] D012.WS_21
+D012.Token_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
+     @Many[ 1 .. ] D012.WS_
  
-D012.Digit_25 : Grammar {} =
+D012.Digit_ : Grammar {} =
   @Match ('0' .. '9')
  
-D012.Natural_26 : Grammar {} =
-  @Many[ 1 .. ] D012.Digit_25
+D012.Natural_ : Grammar {} =
+  @Many[ 1 .. ] D012.Digit_
  
-D012.RGB_27 : Grammar {} =
-  do D012.Token_22 int D012.Natural_26
-     D012.Token_22 int D012.Natural_26
-     D012.Token_22 int D012.Natural_26
+D012.RGB_ : Grammar {} =
+  do D012.Token_ int D012.Natural_
+     D012.Token_ int D012.Natural_
+     D012.Token_ int D012.Natural_
  
 D012.Main : Grammar {} =
-  do D012.RGB_27
+  do D012.RGB_
      ($$ : {}) <- END
      pure $$
  
-D012.Main_28 : Grammar {} =
-  do D012.RGB_27
+D012.Main_ : Grammar {} =
+  do D012.RGB_
      END

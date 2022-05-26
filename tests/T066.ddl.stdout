@@ -23,7 +23,7 @@ T066.Main : Grammar T066.Main =
         }
     }
  
-T066.Main_4 : Grammar {} =
+T066.Main_ : Grammar {} =
   Choose biased
     { Choose biased
         { {- x -} @Match UInt8

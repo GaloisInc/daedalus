@@ -11,5 +11,5 @@ T062.Main : Grammar bool =
      ($$ : bool) <- pure (if (x == 2) then true else if (x == 3) then x == 4 else false)
      pure $$
  
-T062.Main_3 : Grammar {} =
+T062.Main_ : Grammar {} =
   @Match UInt8

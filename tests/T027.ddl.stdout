@@ -11,5 +11,5 @@ module T027
 T027.Main : Grammar [uint 8] =
   Many?[] Match ('0' .. '9')
  
-T027.Main_1 : Grammar {} =
+T027.Main_ : Grammar {} =
   @Many?[] @Match ('0' .. '9')

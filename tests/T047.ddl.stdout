@@ -23,8 +23,8 @@ T047.Main : Grammar T047.Main =
      pure {a1 = a1,
            a2 = a2}
  
-T047.A_9 : Grammar {} =
+T047.A_ : Grammar {} =
   pure {}
  
-T047.Main_10 : Grammar {} =
-  T047.A_9
+T047.Main_ : Grammar {} =
+  T047.A_

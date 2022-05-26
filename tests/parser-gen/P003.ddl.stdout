@@ -11,6 +11,6 @@ P003.Main : Grammar [uint 8] =
      END
      pure $$
  
-P003.Main_2 : Grammar {} =
+P003.Main_ : Grammar {} =
   do @Many[ 2 .. ] @Match {'0'}
      END

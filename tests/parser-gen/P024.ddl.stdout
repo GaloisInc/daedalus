@@ -59,26 +59,26 @@ P024.Main : Grammar P024.Main =
      pure {p = p,
            q = q}
  
-P024.A_14 : Grammar {} =
+P024.A_ : Grammar {} =
   Choose biased
     { {- a -} @MatchBytes "a"
     | {- b -} @MatchBytes "a"
     }
  
-P024.B_15 : Grammar {} =
-  do P024.A_14
+P024.B_ : Grammar {} =
+  do P024.A_
      Choose biased
        { {- c -} @MatchBytes "a"
        | {- d -} @MatchBytes "a"
        }
  
-P024.C_16 : Grammar {} =
+P024.C_ : Grammar {} =
   Choose biased
-    { {- z -} P024.B_15
+    { {- z -} P024.B_
     | {- t -} @MatchBytes "a"
     }
  
-P024.Main_17 : Grammar {} =
-  do P024.C_16
+P024.Main_ : Grammar {} =
+  do P024.C_
      @MatchBytes "b"
      END

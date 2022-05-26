@@ -12,5 +12,5 @@ T033.Main : Grammar (uint 8) =
                               ((v * 10) + (d - '0')))
      pure $$
  
-T033.Main_5 : Grammar {} =
+T033.Main_ : Grammar {} =
   @Many[ 1 .. ] @Match ('0' .. '9')

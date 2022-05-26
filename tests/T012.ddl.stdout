@@ -15,5 +15,5 @@ T012.$x : ByteClass =
 T012.Main : Grammar (uint 8) =
   Match T012.$x
  
-T012.Main_3 : Grammar {} =
+T012.Main_ : Grammar {} =
   @Match T012.$x

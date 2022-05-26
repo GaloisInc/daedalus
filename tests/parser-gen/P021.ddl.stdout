@@ -42,19 +42,19 @@ P021.Main : Grammar P021.Main =
      pure {p = p,
            x = x}
  
-P021.A_9 : Grammar {} =
+P021.A_ : Grammar {} =
   Choose biased
     { {- x -} @MatchBytes "a"
     | {- y -} @MatchBytes "a"
     }
  
-P021.B_10 : Grammar {} =
+P021.B_ : Grammar {} =
   Choose fair
     { {- z -} @MatchBytes "a"
     | {- t -} @MatchBytes "a"
     }
  
-P021.Main_11 : Grammar {} =
-  do P021.B_10
-     @Many[] P021.A_9
+P021.Main_ : Grammar {} =
+  do P021.B_
+     @Many[] P021.A_
      END

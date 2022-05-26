@@ -191,7 +191,7 @@ Daedalus.Skip (n : uint 64) : Grammar {} =
   do (_142 : Stream) <- CurrentStream
      Daedalus.SetStreamAt n _142
  
-Daedalus.SetStreamAt_186 (n : uint 64) (s : Stream) : Grammar {} =
+Daedalus.SetStreamAt_ (n : uint 64) (s : Stream) : Grammar {} =
   do (_141 : Stream) <- StreamOff n s
      SetStream _141
  
@@ -200,7 +200,7 @@ Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
      do (_143 : Stream) <- StreamLen n s
         SetStream _143
      ($$ : ?a0) <- P
-     Daedalus.SetStreamAt_186 n s
+     Daedalus.SetStreamAt_ n s
      pure $$
  
 Daedalus.Bytes (n : uint 64) : Grammar Stream =
@@ -217,131 +217,131 @@ Daedalus.WithStream ?a0 (s : Stream) (P : Grammar ?a0) : Grammar ?a0 =
                             ($$ : ?a0) <- P
                             pure $$
  
-Daedalus.UInt16_145 : Grammar {} =
+Daedalus.UInt16_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-Daedalus.UInt32_146 : Grammar {} =
-  do Daedalus.UInt16_145
-     Daedalus.UInt16_145
+Daedalus.UInt32_ : Grammar {} =
+  do Daedalus.UInt16_
+     Daedalus.UInt16_
  
-Daedalus.UInt64_147 : Grammar {} =
-  do Daedalus.UInt32_146
-     Daedalus.UInt32_146
+Daedalus.UInt64_ : Grammar {} =
+  do Daedalus.UInt32_
+     Daedalus.UInt32_
  
-Daedalus.SInt16_148 : Grammar {} =
-  Daedalus.UInt16_145
+Daedalus.SInt16_ : Grammar {} =
+  Daedalus.UInt16_
  
-Daedalus.SInt32_149 : Grammar {} =
-  Daedalus.UInt32_146
+Daedalus.SInt32_ : Grammar {} =
+  Daedalus.UInt32_
  
-Daedalus.SInt64_150 : Grammar {} =
-  Daedalus.UInt64_147
+Daedalus.SInt64_ : Grammar {} =
+  Daedalus.UInt64_
  
-Daedalus.HalfFloat_151 : Grammar {} =
-  Daedalus.UInt16_145
+Daedalus.HalfFloat_ : Grammar {} =
+  Daedalus.UInt16_
  
-Daedalus.Float_152 : Grammar {} =
-  Daedalus.UInt32_146
+Daedalus.Float_ : Grammar {} =
+  Daedalus.UInt32_
  
-Daedalus.Double_153 : Grammar {} =
-  Daedalus.UInt64_147
+Daedalus.Double_ : Grammar {} =
+  Daedalus.UInt64_
  
-Daedalus.BEUInt16_154 : Grammar {} =
-  Daedalus.UInt16_145
+Daedalus.BEUInt16_ : Grammar {} =
+  Daedalus.UInt16_
  
-Daedalus.BEUInt32_155 : Grammar {} =
-  Daedalus.UInt32_146
+Daedalus.BEUInt32_ : Grammar {} =
+  Daedalus.UInt32_
  
-Daedalus.BEUInt64_156 : Grammar {} =
-  Daedalus.UInt64_147
+Daedalus.BEUInt64_ : Grammar {} =
+  Daedalus.UInt64_
  
-Daedalus.BESInt16_157 : Grammar {} =
-  Daedalus.SInt16_148
+Daedalus.BESInt16_ : Grammar {} =
+  Daedalus.SInt16_
  
-Daedalus.BESInt32_158 : Grammar {} =
-  Daedalus.SInt32_149
+Daedalus.BESInt32_ : Grammar {} =
+  Daedalus.SInt32_
  
-Daedalus.BESInt64_159 : Grammar {} =
-  Daedalus.SInt64_150
+Daedalus.BESInt64_ : Grammar {} =
+  Daedalus.SInt64_
  
-Daedalus.BEHalfFloat_160 : Grammar {} =
-  Daedalus.HalfFloat_151
+Daedalus.BEHalfFloat_ : Grammar {} =
+  Daedalus.HalfFloat_
  
-Daedalus.BEFloat_161 : Grammar {} =
-  Daedalus.Float_152
+Daedalus.BEFloat_ : Grammar {} =
+  Daedalus.Float_
  
-Daedalus.BEDouble_162 : Grammar {} =
-  Daedalus.Double_153
+Daedalus.BEDouble_ : Grammar {} =
+  Daedalus.Double_
  
-Daedalus.LEUInt16_163 : Grammar {} =
-  Daedalus.UInt16_145
+Daedalus.LEUInt16_ : Grammar {} =
+  Daedalus.UInt16_
  
-Daedalus.LEUInt32_164 : Grammar {} =
-  Daedalus.UInt32_146
+Daedalus.LEUInt32_ : Grammar {} =
+  Daedalus.UInt32_
  
-Daedalus.LEUInt64_165 : Grammar {} =
-  Daedalus.UInt64_147
+Daedalus.LEUInt64_ : Grammar {} =
+  Daedalus.UInt64_
  
-Daedalus.LESInt16_166 : Grammar {} =
-  Daedalus.SInt16_148
+Daedalus.LESInt16_ : Grammar {} =
+  Daedalus.SInt16_
  
-Daedalus.LESInt32_167 : Grammar {} =
-  Daedalus.SInt32_149
+Daedalus.LESInt32_ : Grammar {} =
+  Daedalus.SInt32_
  
-Daedalus.LESInt64_168 : Grammar {} =
-  Daedalus.SInt64_150
+Daedalus.LESInt64_ : Grammar {} =
+  Daedalus.SInt64_
  
-Daedalus.LEHalfFloat_169 : Grammar {} =
-  Daedalus.HalfFloat_151
+Daedalus.LEHalfFloat_ : Grammar {} =
+  Daedalus.HalfFloat_
  
-Daedalus.LEFloat_170 : Grammar {} =
-  Daedalus.Float_152
+Daedalus.LEFloat_ : Grammar {} =
+  Daedalus.Float_
  
-Daedalus.LEDouble_171 : Grammar {} =
-  Daedalus.Double_153
+Daedalus.LEDouble_ : Grammar {} =
+  Daedalus.Double_
  
-Daedalus.Guard_172 (b : bool) : Grammar {} =
+Daedalus.Guard_ (b : bool) : Grammar {} =
   case b is
     { true -> pure {}
     }
  
-Daedalus.GuardMsg_174 (p : bool) (s : [uint 8]) : Grammar {} =
+Daedalus.GuardMsg_ (p : bool) (s : [uint 8]) : Grammar {} =
   if p then pure {} else Fail (concat ["Guard failed: ",
                                        s])
  
-Daedalus.When_177 ?a0 ?a1 (P : Grammar {}) : Grammar {} =
-  P
+Daedalus.When_ ?a0 ?a1 (P_ : Grammar {}) : Grammar {} =
+  P_
  
-Daedalus.Default_180 ?a0 (P : Grammar {}) : Grammar {} =
+Daedalus.Default_ ?a0 (P_ : Grammar {}) : Grammar {} =
   Choose biased
-    { P
+    { P_
     | pure {}
     }
  
-Daedalus.Only_183 ?a0 (P : Grammar {}) : Grammar {} =
-  do P
+Daedalus.Only_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
      END
  
-Daedalus.Skip_190 (n : uint 64) : Grammar {} =
+Daedalus.Skip_ (n : uint 64) : Grammar {} =
   do (_142 : Stream) <- CurrentStream
-     Daedalus.SetStreamAt_186 n _142
+     Daedalus.SetStreamAt_ n _142
  
-Daedalus.Chunk_193 ?a0 (n : uint 64) (P : Grammar {}) : Grammar {} =
+Daedalus.Chunk_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
      do (_143 : Stream) <- StreamLen n s
         SetStream _143
-     P
-     Daedalus.SetStreamAt_186 n s
+     P_
+     Daedalus.SetStreamAt_ n s
  
-Daedalus.Bytes_199 (n : uint 64) : Grammar {} =
-  Daedalus.Chunk_193 Stream n (pure {})
+Daedalus.Bytes_ (n : uint 64) : Grammar {} =
+  Daedalus.Chunk_ Stream n (pure {})
  
-Daedalus.LookAhead_201 ?a0 (P : Grammar {}) : Grammar {} =
+Daedalus.LookAhead_ ?a0 (P_ : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
-     P
+     P_
      SetStream s
  
-Daedalus.WithStream_205 ?a0 (s : Stream) (P : Grammar {}) : Grammar {} =
-  Daedalus.LookAhead_201 ?a0 do SetStream s
-                                P
+Daedalus.WithStream_ ?a0 (s : Stream) (P_ : Grammar {}) : Grammar {} =
+  Daedalus.LookAhead_ ?a0 do SetStream s
+                             P_

@@ -28,10 +28,10 @@ T014.Main : Grammar T014.Main =
            second = second,
            eq = eq}
  
-T014.TwoBytes_7 : Grammar {} =
+T014.TwoBytes_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-T014.Main_8 : Grammar {} =
-  do T014.TwoBytes_7
-     T014.TwoBytes_7
+T014.Main_ : Grammar {} =
+  do T014.TwoBytes_
+     T014.TwoBytes_

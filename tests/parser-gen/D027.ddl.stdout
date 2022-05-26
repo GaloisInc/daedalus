@@ -26,7 +26,7 @@ D027.B : Grammar {} =
      ($$ : {}) <- SetStream next
      pure $$
  
-D027.A_14 : Grammar {} =
+D027.A_ : Grammar {} =
   do (x : Stream) <- CurrentStream
      (this : Stream) <- StreamLen 2 x
      (next : Stream) <- StreamOff 2 x
@@ -34,7 +34,7 @@ D027.A_14 : Grammar {} =
      @MatchBytes "aad"
      SetStream next
  
-D027.B_18 : Grammar {} =
+D027.B_ : Grammar {} =
   do (x : Stream) <- CurrentStream
      (this : Stream) <- StreamLen 2 x
      (next : Stream) <- StreamOff 2 x
@@ -44,15 +44,15 @@ D027.B_18 : Grammar {} =
  
 D027.Main : Grammar {} =
   do Choose fair
-       { D027.A_14
-       | D027.B_18
+       { D027.A_
+       | D027.B_
        }
      ($$ : {}) <- END
      pure $$
  
-D027.Main_22 : Grammar {} =
+D027.Main_ : Grammar {} =
   do Choose fair
-       { D027.A_14
-       | D027.B_18
+       { D027.A_
+       | D027.B_
        }
      END

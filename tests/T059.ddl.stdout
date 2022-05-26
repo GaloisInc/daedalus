@@ -9,8 +9,8 @@ module T059_A
 T059_A.F ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   P
  
-T059_A.F_6 ?a0 (P : Grammar {}) : Grammar {} =
-  P
+T059_A.F_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  P_
 module T059
  
 --- Imports:
@@ -26,17 +26,17 @@ T059.P1 : Grammar (uint 8) =
 T059.P2 : Grammar (uint 8) =
   T059_A.F (uint 8) T059.P1
  
-T059.P1_9 : Grammar {} =
-  T059_A.F_6 (uint 8) (@Match UInt8)
+T059.P1_ : Grammar {} =
+  T059_A.F_ (uint 8) (@Match UInt8)
  
 T059.Main : Grammar (uint 8) =
-  do T059.P1_9
+  do T059.P1_
      ($$ : uint 8) <- T059.P2
      pure $$
  
-T059.P2_10 : Grammar {} =
-  T059_A.F_6 (uint 8) T059.P1_9
+T059.P2_ : Grammar {} =
+  T059_A.F_ (uint 8) T059.P1_
  
-T059.Main_11 : Grammar {} =
-  do T059.P1_9
-     T059.P2_10
+T059.Main_ : Grammar {} =
+  do T059.P1_
+     T059.P2_

@@ -13,8 +13,8 @@ P005.Main : Grammar [{}] =
   do ($$ : [{}]) <- Many[ 4 .. 5 ] P005.NT
      pure $$
  
-P005.NT_3 : Grammar {} =
+P005.NT_ : Grammar {} =
   @Match ('0' .. '7')
  
-P005.Main_4 : Grammar {} =
-  @Many[ 4 .. 5 ] P005.NT_3
+P005.Main_ : Grammar {} =
+  @Many[ 4 .. 5 ] P005.NT_

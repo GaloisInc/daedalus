@@ -18,7 +18,7 @@ T060.Main : Grammar T060.Main =
                           }
      pure {ex1 = ex1}
  
-T060.Main_3 : Grammar {} =
+T060.Main_ : Grammar {} =
   do SetStream (arrayStream "array" [1,
                                      2])
      (_2 : uint 8) <- Match UInt8

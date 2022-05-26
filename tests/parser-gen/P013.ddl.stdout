@@ -22,8 +22,8 @@ P013.Main : Grammar P013.Main =
            a = a,
            b = b}
  
-P013.A_6 : Grammar {} =
+P013.A_ : Grammar {} =
   @Match UInt8
  
-P013.Main_7 : Grammar {} =
-  P013.A_6
+P013.Main_ : Grammar {} =
+  P013.A_

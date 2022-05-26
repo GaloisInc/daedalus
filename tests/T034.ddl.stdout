@@ -12,6 +12,6 @@ T034.Main : Grammar [[uint 8]] =
      pure [_1,
            _2]
  
-T034.Main_3 : Grammar {} =
+T034.Main_ : Grammar {} =
   do @MatchBytes "hello"
      @MatchBytes "world"

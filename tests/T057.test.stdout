@@ -6,12 +6,12 @@ module DaedalusMain
  
 --- Rules:
  
-T057.I_14 (x : [uint 8]) : Grammar {} =
+T057.I__14 (x : [uint 8]) : Grammar {} =
   @MatchBytes x
  
 T057.F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
-  do T057.I_14 x
-     ($$ : {}) <- T057.I_14 y
+  do T057.I__14 x
+     ($$ : {}) <- T057.I__14 y
      pure $$
  
 T057.Main : Grammar {} =

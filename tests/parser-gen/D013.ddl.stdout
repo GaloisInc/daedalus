@@ -37,7 +37,7 @@ D013.Main : Grammar D013.Main =
      pure {a = a,
            b = b}
  
-D013.Main_8 : Grammar {} =
+D013.Main_ : Grammar {} =
   do Choose biased
        { {- x1 -} @Match {'a'}
        | {- x2 -} @Match {'a'}

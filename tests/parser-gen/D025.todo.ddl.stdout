@@ -14,7 +14,7 @@ D025.todo.A : Grammar (uint 8) =
     | Match (!{'a'})
     }
  
-D025.todo.A_4 : Grammar {} =
+D025.todo.A_ : Grammar {} =
   Choose biased
     { do @Match {'a'}
          @Match {'b'}
@@ -22,14 +22,14 @@ D025.todo.A_4 : Grammar {} =
     }
  
 D025.todo.Main : Grammar {} =
-  do @Many[] D025.todo.A_4
+  do @Many[] D025.todo.A_
      @Match {'a'}
      @Match {'b'}
      ($$ : {}) <- END
      pure $$
  
-D025.todo.Main_5 : Grammar {} =
-  do @Many[] D025.todo.A_4
+D025.todo.Main_ : Grammar {} =
+  do @Many[] D025.todo.A_
      @Match {'a'}
      @Match {'b'}
      END

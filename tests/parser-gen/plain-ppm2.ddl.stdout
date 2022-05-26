@@ -21,10 +21,10 @@ type plain-ppm2.PPM = { width: uint 64
 plain-ppm2.$ws : ByteClass =
   (((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'}
  
-plain-ppm2.WS_31 : Grammar {} =
+plain-ppm2.WS_ : Grammar {} =
   @Match plain-ppm2.$ws
  
-plain-ppm2.LookaheadNotWS_32 : Grammar {} =
+plain-ppm2.LookaheadNotWS_ : Grammar {} =
   do (curr : Stream) <- CurrentStream
      Choose fair
        { @Match (!plain-ppm2.$ws)
@@ -34,8 +34,8 @@ plain-ppm2.LookaheadNotWS_32 : Grammar {} =
  
 plain-ppm2.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] plain-ppm2.WS_31
-     plain-ppm2.LookaheadNotWS_32
+     @Many[ 1 .. ] plain-ppm2.WS_
+     plain-ppm2.LookaheadNotWS_
      pure $$
  
 plain-ppm2.Digit : Grammar (uint 8) =
@@ -92,23 +92,23 @@ plain-ppm2.LookaheadNotWS : Grammar {} =
      ($$ : {}) <- SetStream curr
      pure $$
  
-plain-ppm2.Token_34 ?a0 (P : Grammar {}) : Grammar {} =
-  do P
-     @Many[ 1 .. ] plain-ppm2.WS_31
-     plain-ppm2.LookaheadNotWS_32
+plain-ppm2.Token_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
+     @Many[ 1 .. ] plain-ppm2.WS_
+     plain-ppm2.LookaheadNotWS_
  
-plain-ppm2.Digit_37 : Grammar {} =
+plain-ppm2.Digit_ : Grammar {} =
   @Match ('0' .. '9')
  
-plain-ppm2.Natural_38 : Grammar {} =
-  @Many[ 1 .. ] plain-ppm2.Digit_37
+plain-ppm2.Natural_ : Grammar {} =
+  @Many[ 1 .. ] plain-ppm2.Digit_
  
-plain-ppm2.RGB_39 : Grammar {} =
-  do plain-ppm2.Token_34 (uint 64) plain-ppm2.Natural_38
-     plain-ppm2.Token_34 (uint 64) plain-ppm2.Natural_38
-     plain-ppm2.Token_34 (uint 64) plain-ppm2.Natural_38
+plain-ppm2.RGB_ : Grammar {} =
+  do plain-ppm2.Token_ (uint 64) plain-ppm2.Natural_
+     plain-ppm2.Token_ (uint 64) plain-ppm2.Natural_
+     plain-ppm2.Token_ (uint 64) plain-ppm2.Natural_
  
-plain-ppm2.PPM_40 : Grammar {} =
+plain-ppm2.PPM_ : Grammar {} =
   do @MatchBytes "P"
      (version : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      case version == 3 is
@@ -116,9 +116,9 @@ plain-ppm2.PPM_40 : Grammar {} =
        }
      (width : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
      (height : uint 64) <- plain-ppm2.Token (uint 64) plain-ppm2.Natural
-     plain-ppm2.Token_34 (uint 64) plain-ppm2.Natural_38
-     @Many[height] @Many[width] plain-ppm2.RGB_39
+     plain-ppm2.Token_ (uint 64) plain-ppm2.Natural_
+     @Many[height] @Many[width] plain-ppm2.RGB_
  
-plain-ppm2.Main_44 : Grammar {} =
-  do plain-ppm2.PPM_40
+plain-ppm2.Main_ : Grammar {} =
+  do plain-ppm2.PPM_
      END

@@ -21,12 +21,12 @@ P007.Main : Grammar P007.Main =
      pure {x = x,
            y = y}
  
-P007.NT1_5 : Grammar {} =
+P007.NT1_ : Grammar {} =
   @Match ('0' .. '7')
  
-P007.NT2_6 : Grammar {} =
+P007.NT2_ : Grammar {} =
   @Match ('8' .. '9')
  
-P007.Main_7 : Grammar {} =
-  do P007.NT1_5
-     P007.NT2_6
+P007.Main_ : Grammar {} =
+  do P007.NT1_
+     P007.NT2_

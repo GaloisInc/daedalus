@@ -6,17 +6,17 @@ module DaedalusMain where
 -------------
  
 -- ./Det007.ddl:5:1--5:14
-proc A_24() : () =
+proc A_() : () =
   -- ./Det007.ddl:5:9--5:14
   match1_ { 97 @(Word 8) }
  
 -- ./Det007.ddl:6:1--6:14
-proc B_25() : () =
+proc B_() : () =
   -- ./Det007.ddl:6:9--6:14
   match1_ { 98 @(Word 8) }
  
 -- ./Det007.ddl:10:1--10:30
-proc Test1_26() : () =
+proc Test1_() : () =
   -- ./Det007.ddl:10:14--10:30
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -27,7 +27,7 @@ proc Test1_26() : () =
            -- ./Det007.ddl:10:14--10:24
            -- ./Det007.ddl:10:15--10:19
            -- ./Det007.ddl:10:19--10:19
-           B_25()
+           B_()
          orelse
            -- ./Det007.ddl:10:30--10:30
            -- ./Det007.ddl:5:9--5:14
@@ -41,7 +41,7 @@ proc Test1_26() : () =
          fail_sys @()
  
 -- ./Det007.ddl:12:1--12:30
-proc Test2_27() : () =
+proc Test2_() : () =
   -- ./Det007.ddl:12:14--12:30
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -52,7 +52,7 @@ proc Test2_27() : () =
              -- ./Det007.ddl:12:14--12:25
              -- ./Det007.ddl:12:15--12:19
              -- ./Det007.ddl:12:19--12:19
-             B_25()
+             B_()
            fork
              -- ./Det007.ddl:12:30--12:30
              -- ./Det007.ddl:5:9--5:14
@@ -66,17 +66,17 @@ proc Test2_27() : () =
          fail_sys @()
  
 -- ./Det007.ddl:7:1--7:14
-proc C_28() : () =
+proc C_() : () =
   -- ./Det007.ddl:7:9--7:14
   match1_ { 99 @(Word 8) }
  
 -- ./Det007.ddl:8:1--8:14
-proc D_29() : () =
+proc D_() : () =
   -- ./Det007.ddl:8:9--8:14
   match1_ { 100 @(Word 8) }
  
 -- ./Det007.ddl:14:1--14:44
-proc Test3_30() : () =
+proc Test3_() : () =
   -- ./Det007.ddl:14:14--14:44
   -- DETERMINIZE 2
   do _x0 <- match1 { ... }
@@ -96,7 +96,7 @@ proc Test3_30() : () =
                   -- ./Det007.ddl:14:25--14:32
                   -- ./Det007.ddl:14:29--14:32
                   -- ./Det007.ddl:14:32--14:32
-                  C_28()
+                  C_()
               100 ->
                 -- ./Det007.ddl:14:39--14:43
                 -- ./Det007.ddl:14:43--14:43
@@ -108,11 +108,11 @@ proc Test3_30() : () =
          fail_sys @()
  
 -- ./Det007.ddl:16:1--16:23
-proc Test4_31() : () =
+proc Test4_() : () =
   -- ./Det007.ddl:16:14--16:23
   try
     -- ./Det007.ddl:16:15--16:15
-    A_24()
+    A_()
   orelse
     -- ./Det007.ddl:16:20--16:23
     pure ()
@@ -122,16 +122,16 @@ proc Test4_31() : () =
 proc Main() : () =
   -- ./Det007.ddl:3:14--3:44
   do -- ./Det007.ddl:3:14--3:18
-     Test1_26()
+     Test1_()
      -- ./Det007.ddl:3:21--3:44
      -- ./Det007.ddl:3:21--3:25
-     Test2_27()
+     Test2_()
      -- ./Det007.ddl:3:28--3:44
      -- ./Det007.ddl:3:28--3:32
-     Test3_30()
+     Test3_()
      -- ./Det007.ddl:3:35--3:44
      -- ./Det007.ddl:3:35--3:39
-     Test4_31()
+     Test4_()
      -- ./Det007.ddl:3:42--3:44
      -- ./Det007.ddl:3:42--3:44
      matchEnd

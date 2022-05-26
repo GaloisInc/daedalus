@@ -139,7 +139,7 @@ MavNumerics.LowBits : Grammar (uint 8) =
      ($$ : uint 8) <- pure (~ hb)
      pure $$
  
-MavNumerics.Guard_270 (p : bool) : Grammar {} =
+MavNumerics.Guard_ (p : bool) : Grammar {} =
   case p is
     { true -> pure {}
     }
@@ -160,20 +160,20 @@ MavNumerics.Float : Grammar MavNumerics.Float =
      (mant : uint 23) <- pure (((dig1 .&. lbs as uint 23) << 16) .|. (mantissaLow as uint 23))
      (exp : uint 8) <- pure (((dig0 .&. lbs) << 1) .|. ((dig1 .&. hb) >> 7))
      ($$ : MavNumerics.Float) <- Choose biased
-                                   { {- zero -} do (_177 : {}) <- do MavNumerics.Guard_270 (exp == 0)
+                                   { {- zero -} do (_177 : {}) <- do MavNumerics.Guard_ (exp == 0)
                                                                      ($$ : {}) <- MavNumerics.Guard (mant == 0)
                                                                      pure $$
                                                    pure {zero: _177}
-                                   | {- denormalized -} do (_179 : uint 23) <- do MavNumerics.Guard_270 (exp == 0)
+                                   | {- denormalized -} do (_179 : uint 23) <- do MavNumerics.Guard_ (exp == 0)
                                                                                   ($$ : uint 23) <- pure mant
                                                                                   pure $$
                                                            pure {denormalized: _179}
-                                   | {- infty -} do (_181 : MavNumerics.Float1) <- do MavNumerics.Guard_270 (exp == 0xFF)
-                                                                                      MavNumerics.Guard_270 (mant == 0)
+                                   | {- infty -} do (_181 : MavNumerics.Float1) <- do MavNumerics.Guard_ (exp == 0xFF)
+                                                                                      MavNumerics.Guard_ (mant == 0)
                                                                                       ($$ : MavNumerics.Float1) <- pure isPos
                                                                                       pure $$
                                                     pure {infty: _181}
-                                   | {- nan -} do (_183 : {}) <- do MavNumerics.Guard_270 (exp == 0xFF)
+                                   | {- nan -} do (_183 : {}) <- do MavNumerics.Guard_ (exp == 0xFF)
                                                                     ($$ : {}) <- MavNumerics.Guard (mant != 0)
                                                                     pure $$
                                                   pure {nan: _183}
@@ -232,7 +232,7 @@ MavNumerics.InclusiveFractional (f : MavNumerics.Float) : Grammar MavNumerics.In
                                                  | {- inclusiveFrac -} do (_202 : MavNumerics.InclusiveFractional0) <- do (nnNum : MavNumerics.NonNegFloat0) <- case nnf is
                                                                                                                                                                   { {| nonNegNumber = _201 |} -> pure _201
                                                                                                                                                                   }
-                                                                                                                          MavNumerics.Guard_270 ((nnNum.nnExponent) < 0)
+                                                                                                                          MavNumerics.Guard_ ((nnNum.nnExponent) < 0)
                                                                                                                           (incMantissa : uint 23) <- pure (nnNum.nnMantissa)
                                                                                                                           (incExponent : int) <- pure (nnNum.nnExponent)
                                                                                                                           pure {incMantissa = incMantissa,
@@ -241,7 +241,7 @@ MavNumerics.InclusiveFractional (f : MavNumerics.Float) : Grammar MavNumerics.In
                                                  | {- inclusiveOne -} do (_205 : {}) <- do (n : MavNumerics.NonNegFloat0) <- case nnf is
                                                                                                                                { {| nonNegNumber = _203 |} -> pure _203
                                                                                                                                }
-                                                                                           MavNumerics.Guard_270 ((n.nnMantissa) == 0)
+                                                                                           MavNumerics.Guard_ ((n.nnMantissa) == 0)
                                                                                            ($$ : {}) <- MavNumerics.Guard ((n.nnExponent) == 0)
                                                                                            pure $$
                                                                          pure {inclusiveOne: _205}
@@ -250,8 +250,8 @@ MavNumerics.InclusiveFractional (f : MavNumerics.Float) : Grammar MavNumerics.In
  
 MavNumerics.Sub60 : Grammar int =
   do ($$ : int) <- MavNumerics.Natural 2
-     MavNumerics.Guard_270 (0 <= $$)
-     MavNumerics.Guard_270 ($$ <= 59)
+     MavNumerics.Guard_ (0 <= $$)
+     MavNumerics.Guard_ ($$ <= 59)
      pure $$
  
 MavNumerics.GeoCoord : Grammar MavNumerics.GeoCoord =
@@ -271,49 +271,49 @@ MavNumerics.Lat : Grammar MavNumerics.GeoCoord =
 MavNumerics.Long : Grammar MavNumerics.GeoCoord =
   MavNumerics.GeoCoord
  
-MavNumerics.Bool_272 : Grammar {} =
+MavNumerics.Bool_ : Grammar {} =
   Choose biased
     { @Match {'0'}
     | @Match {'1'}
     }
  
-MavNumerics.UInt16_273 : Grammar {} =
+MavNumerics.UInt16_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
  
-MavNumerics.HighBit_274 : Grammar {} =
+MavNumerics.HighBit_ : Grammar {} =
   pure {}
  
-MavNumerics.Int8_275 : Grammar {} =
+MavNumerics.Int8_ : Grammar {} =
   do @Match UInt8
-     MavNumerics.HighBit_274
-     MavNumerics.HighBit_274
+     MavNumerics.HighBit_
+     MavNumerics.HighBit_
  
-MavNumerics.Int24_276 : Grammar {} =
-  do @Match UInt8
-     @Match UInt8
-     @Match UInt8
-     MavNumerics.HighBit_274
-     MavNumerics.HighBit_274
- 
-MavNumerics.Int32_277 : Grammar {} =
+MavNumerics.Int24_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
      @Match UInt8
-     @Match UInt8
-     MavNumerics.HighBit_274
-     MavNumerics.HighBit_274
+     MavNumerics.HighBit_
+     MavNumerics.HighBit_
  
-MavNumerics.Digit_278 : Grammar {} =
+MavNumerics.Int32_ : Grammar {} =
+  do @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     MavNumerics.HighBit_
+     MavNumerics.HighBit_
+ 
+MavNumerics.Digit_ : Grammar {} =
   @Match ('0' .. '9')
  
-MavNumerics.Natural_279 (numDigs : uint 64) : Grammar {} =
-  @Many[numDigs] MavNumerics.Digit_278
+MavNumerics.Natural_ (numDigs : uint 64) : Grammar {} =
+  @Many[numDigs] MavNumerics.Digit_
  
-MavNumerics.LowBits_281 : Grammar {} =
-  MavNumerics.HighBit_274
+MavNumerics.LowBits_ : Grammar {} =
+  MavNumerics.HighBit_
  
-MavNumerics.Float_282 : Grammar {} =
+MavNumerics.Float_ : Grammar {} =
   do (dig0 : uint 8) <- Match UInt8
      (dig1 : uint 8) <- Match UInt8
      (mantissaLow : uint 16) <- MavNumerics.UInt16
@@ -326,17 +326,17 @@ MavNumerics.Float_282 : Grammar {} =
      (mant : uint 23) <- pure (((dig1 .&. lbs as uint 23) << 16) .|. (mantissaLow as uint 23))
      (exp : uint 8) <- pure (((dig0 .&. lbs) << 1) .|. ((dig1 .&. hb) >> 7))
      Choose biased
-       { {- zero -} do MavNumerics.Guard_270 (exp == 0)
-                       MavNumerics.Guard_270 (mant == 0)
-       | {- denormalized -} MavNumerics.Guard_270 (exp == 0)
-       | {- infty -} do MavNumerics.Guard_270 (exp == 0xFF)
-                        MavNumerics.Guard_270 (mant == 0)
-       | {- nan -} do MavNumerics.Guard_270 (exp == 0xFF)
-                      MavNumerics.Guard_270 (mant != 0)
+       { {- zero -} do MavNumerics.Guard_ (exp == 0)
+                       MavNumerics.Guard_ (mant == 0)
+       | {- denormalized -} MavNumerics.Guard_ (exp == 0)
+       | {- infty -} do MavNumerics.Guard_ (exp == 0xFF)
+                        MavNumerics.Guard_ (mant == 0)
+       | {- nan -} do MavNumerics.Guard_ (exp == 0xFF)
+                      MavNumerics.Guard_ (mant != 0)
        | {- number -} pure {}
        }
  
-MavNumerics.NonNegFloat_290 (f : MavNumerics.Float) : Grammar {} =
+MavNumerics.NonNegFloat_ (f : MavNumerics.Float) : Grammar {} =
   Choose biased
     { {- nonNegZero -} case f is
                          { {| zero = _185 |} -> pure {}
@@ -358,7 +358,7 @@ MavNumerics.NonNegFloat_290 (f : MavNumerics.Float) : Grammar {} =
                               }
     }
  
-MavNumerics.InclusiveFractional_294 (f : MavNumerics.Float) : Grammar {} =
+MavNumerics.InclusiveFractional_ (f : MavNumerics.Float) : Grammar {} =
   do (nnf : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat f
      Choose biased
        { {- inclusiveZero -} case nnf is
@@ -370,31 +370,31 @@ MavNumerics.InclusiveFractional_294 (f : MavNumerics.Float) : Grammar {} =
        | {- inclusiveFrac -} do (nnNum : MavNumerics.NonNegFloat0) <- case nnf is
                                                                         { {| nonNegNumber = _201 |} -> pure _201
                                                                         }
-                                MavNumerics.Guard_270 ((nnNum.nnExponent) < 0)
+                                MavNumerics.Guard_ ((nnNum.nnExponent) < 0)
        | {- inclusiveOne -} do (n : MavNumerics.NonNegFloat0) <- case nnf is
                                                                    { {| nonNegNumber = _203 |} -> pure _203
                                                                    }
-                               MavNumerics.Guard_270 ((n.nnMantissa) == 0)
-                               MavNumerics.Guard_270 ((n.nnExponent) == 0)
+                               MavNumerics.Guard_ ((n.nnMantissa) == 0)
+                               MavNumerics.Guard_ ((n.nnExponent) == 0)
        }
  
-MavNumerics.Sub60_299 : Grammar {} =
+MavNumerics.Sub60_ : Grammar {} =
   do ($$ : int) <- MavNumerics.Natural 2
-     MavNumerics.Guard_270 (0 <= $$)
-     MavNumerics.Guard_270 ($$ <= 59)
+     MavNumerics.Guard_ (0 <= $$)
+     MavNumerics.Guard_ ($$ <= 59)
  
-MavNumerics.GeoCoord_301 : Grammar {} =
-  do MavNumerics.Natural_279 3
+MavNumerics.GeoCoord_ : Grammar {} =
+  do MavNumerics.Natural_ 3
      @Match {'.'}
-     MavNumerics.Sub60_299
-     MavNumerics.Sub60_299
-     MavNumerics.Natural_279 2
+     MavNumerics.Sub60_
+     MavNumerics.Sub60_
+     MavNumerics.Natural_ 2
  
-MavNumerics.Lat_302 : Grammar {} =
-  MavNumerics.GeoCoord_301
+MavNumerics.Lat_ : Grammar {} =
+  MavNumerics.GeoCoord_
  
-MavNumerics.Long_303 : Grammar {} =
-  MavNumerics.GeoCoord_301
+MavNumerics.Long_ : Grammar {} =
+  MavNumerics.GeoCoord_
 module MavEnums
  
 --- Imports:
@@ -596,7 +596,7 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
                                                                 case n.sign is
                                                                   { {| pos = _231 |} -> pure {}
                                                                   }
-                                                                MavNumerics.Guard_270 ((n.exponent) == 0)
+                                                                MavNumerics.Guard_ ((n.exponent) == 0)
                                                                 ($$ : {}) <- MavNumerics.Guard ((n.mantissa) == 1)
                                                                 pure $$
                                               pure {precisionLandModeOpportunistic: _233}
@@ -606,7 +606,7 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
                                                            case n.sign is
                                                              { {| pos = _235 |} -> pure {}
                                                              }
-                                                           MavNumerics.Guard_270 ((n.exponent) == 0)
+                                                           MavNumerics.Guard_ ((n.exponent) == 0)
                                                            ($$ : {}) <- MavNumerics.Guard ((n.mantissa) == 2)
                                                            pure $$
                                          pure {precisionLandModeRequired: _237}
@@ -615,7 +615,7 @@ MavEnums.PrecisionLandMode (f : MavNumerics.Float) : Grammar MavEnums.PrecisionL
 MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a1) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a2) (HasStruct ?a0 x ?a3) (HasStruct ?a0 y ?a4) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar (MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5) =
   do (cmd : uint 16) <- MavNumerics.UInt16
      ($$ : MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5) <- Choose biased
-                                                         { {- mavCmdNavWaypoint -} do (_239 : MavEnums.MavCmd0 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 16)
+                                                         { {- mavCmdNavWaypoint -} do (_239 : MavEnums.MavCmd0 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 16)
                                                                                                                                           (hold : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
                                                                                                                                           (acceptRadius : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param2)
                                                                                                                                           (passRadius : ?a1) <- pure (params.param3)
@@ -627,7 +627,7 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
                                                                                                                                                 yaw = yaw,
                                                                                                                                                 position = position}
                                                                                       pure {mavCmdNavWaypoint: _239}
-                                                         | {- mavCmdNavLoiterUnlim -} do (_240 : MavEnums.MavCmd1 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 17)
+                                                         | {- mavCmdNavLoiterUnlim -} do (_240 : MavEnums.MavCmd1 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 17)
                                                                                                                                              (radius : ?a1) <- pure (params.param3)
                                                                                                                                              (yaw : ?a2) <- pure (params.param4)
                                                                                                                                              (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
@@ -635,7 +635,7 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
                                                                                                                                                    yaw = yaw,
                                                                                                                                                    position = position}
                                                                                          pure {mavCmdNavLoiterUnlim: _240}
-                                                         | {- mavCmdNavLoiterTurns -} do (_241 : MavEnums.MavCmd2 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 18)
+                                                         | {- mavCmdNavLoiterTurns -} do (_241 : MavEnums.MavCmd2 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 18)
                                                                                                                                              (turns : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
                                                                                                                                              (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
                                                                                                                                              (radius : ?a1) <- pure (params.param3)
@@ -647,7 +647,7 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
                                                                                                                                                    xtrackLoc = xtrackLoc,
                                                                                                                                                    position = position}
                                                                                          pure {mavCmdNavLoiterTurns: _241}
-                                                         | {- mavCmdNavLoiterTime -} do (_242 : MavEnums.MavCmd3 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 19)
+                                                         | {- mavCmdNavLoiterTime -} do (_242 : MavEnums.MavCmd3 ?a1 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 19)
                                                                                                                                             (time : MavNumerics.NonNegFloat) <- MavNumerics.NonNegFloat (params.param1)
                                                                                                                                             (headingRequired : MavNumerics.InclusiveFractional) <- MavNumerics.InclusiveFractional (params.param2)
                                                                                                                                             (radius : ?a1) <- pure (params.param3)
@@ -661,7 +661,7 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
                                                                                         pure {mavCmdNavLoiterTime: _242}
                                                          | {- mavCmdNavReturnToLaunch -} do (_243 : {}) <- MavNumerics.Guard (cmd == 20)
                                                                                             pure {mavCmdNavReturnToLaunch: _243}
-                                                         | {- mavCmdNavLand -} do (_244 : MavEnums.MavCmd4 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 21)
+                                                         | {- mavCmdNavLand -} do (_244 : MavEnums.MavCmd4 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 21)
                                                                                                                                   (abortAlt : MavNumerics.Float) <- pure (params.param1)
                                                                                                                                   (landMode : MavEnums.PrecisionLandMode) <- MavEnums.PrecisionLandMode (params.param2)
                                                                                                                                   (yawAngle : ?a2) <- pure (params.param4)
@@ -671,7 +671,7 @@ MavEnums.MavCmd ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float)
                                                                                                                                         yawAngle = yawAngle,
                                                                                                                                         position = position}
                                                                                   pure {mavCmdNavLand: _244}
-                                                         | {- mavCmdNavTakeoff -} do (_245 : MavEnums.MavCmd5 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_270 (cmd == 22)
+                                                         | {- mavCmdNavTakeoff -} do (_245 : MavEnums.MavCmd5 ?a2 ?a3 ?a4 ?a5) <- do MavNumerics.Guard_ (cmd == 22)
                                                                                                                                      (pitch : MavNumerics.Float) <- pure (params.param1)
                                                                                                                                      (yaw : ?a2) <- pure (params.param4)
                                                                                                                                      (position : MavEnums.Position ?a3 ?a4 ?a5) <- MavEnums.Position ?a0 ?a3 ?a4 ?a5 params
@@ -732,7 +732,7 @@ MavEnums.MavMissionResult : Grammar MavEnums.MavMissionResult =
                                             pure {mavMissionOperationCancelled: _266}
     }
  
-MavEnums.MavFrame_304 : Grammar {} =
+MavEnums.MavFrame_ : Grammar {} =
   Choose biased
     { {- mavFrameGlobal -} @Match {0}
     | {- mavFrameLocalNed -} @Match {1}
@@ -758,19 +758,19 @@ MavEnums.MavFrame_304 : Grammar {} =
     | {- mavFrameLocalFlu -} @Match {21}
     }
  
-MavEnums.CmdParams_305 : Grammar {} =
-  do MavNumerics.Float_282
-     MavNumerics.Float_282
-     MavNumerics.Float_282
-     MavNumerics.Float_282
-     MavNumerics.Int32_277
-     MavNumerics.Int32_277
-     MavNumerics.Float_282
+MavEnums.CmdParams_ : Grammar {} =
+  do MavNumerics.Float_
+     MavNumerics.Float_
+     MavNumerics.Float_
+     MavNumerics.Float_
+     MavNumerics.Int32_
+     MavNumerics.Int32_
+     MavNumerics.Float_
  
-MavEnums.Position_306 ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a2) (HasStruct ?a0 z ?a3) : Grammar {} =
+MavEnums.Position_ ?a0 ?a1 ?a2 ?a3 (HasStruct ?a0 x ?a1) (HasStruct ?a0 y ?a2) (HasStruct ?a0 z ?a3) : Grammar {} =
   pure {}
  
-MavEnums.PrecisionLandMode_307 (f : MavNumerics.Float) : Grammar {} =
+MavEnums.PrecisionLandMode_ (f : MavNumerics.Float) : Grammar {} =
   Choose biased
     { {- precisionLandModeDisabled -} case f is
                                         { {| zero = _228 |} -> pure {}
@@ -781,45 +781,45 @@ MavEnums.PrecisionLandMode_307 (f : MavNumerics.Float) : Grammar {} =
                                               case n.sign is
                                                 { {| pos = _231 |} -> pure {}
                                                 }
-                                              MavNumerics.Guard_270 ((n.exponent) == 0)
-                                              MavNumerics.Guard_270 ((n.mantissa) == 1)
+                                              MavNumerics.Guard_ ((n.exponent) == 0)
+                                              MavNumerics.Guard_ ((n.mantissa) == 1)
     | {- precisionLandModeRequired -} do (n : MavNumerics.Float2) <- case f is
                                                                        { {| number = _234 |} -> pure _234
                                                                        }
                                          case n.sign is
                                            { {| pos = _235 |} -> pure {}
                                            }
-                                         MavNumerics.Guard_270 ((n.exponent) == 0)
-                                         MavNumerics.Guard_270 ((n.mantissa) == 2)
+                                         MavNumerics.Guard_ ((n.exponent) == 0)
+                                         MavNumerics.Guard_ ((n.mantissa) == 2)
     }
  
-MavEnums.MavCmd_311 ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a1) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a2) (HasStruct ?a0 x ?a3) (HasStruct ?a0 y ?a4) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar {} =
+MavEnums.MavCmd_ ?a0 ?a1 ?a2 ?a3 ?a4 ?a5 (HasStruct ?a0 param2 MavNumerics.Float) (HasStruct ?a0 param3 ?a1) (HasStruct ?a0 param1 MavNumerics.Float) (HasStruct ?a0 param4 ?a2) (HasStruct ?a0 x ?a3) (HasStruct ?a0 y ?a4) (HasStruct ?a0 z ?a5) (params : ?a0) : Grammar {} =
   do (cmd : uint 16) <- MavNumerics.UInt16
      Choose biased
-       { {- mavCmdNavWaypoint -} do MavNumerics.Guard_270 (cmd == 16)
-                                    MavNumerics.NonNegFloat_290 (params.param1)
-                                    MavNumerics.NonNegFloat_290 (params.param2)
-                                    MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
-       | {- mavCmdNavLoiterUnlim -} do MavNumerics.Guard_270 (cmd == 17)
-                                       MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
-       | {- mavCmdNavLoiterTurns -} do MavNumerics.Guard_270 (cmd == 18)
-                                       MavNumerics.NonNegFloat_290 (params.param1)
-                                       MavNumerics.InclusiveFractional_294 (params.param2)
-                                       MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
-       | {- mavCmdNavLoiterTime -} do MavNumerics.Guard_270 (cmd == 19)
-                                      MavNumerics.NonNegFloat_290 (params.param1)
-                                      MavNumerics.InclusiveFractional_294 (params.param2)
-                                      MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
-       | {- mavCmdNavReturnToLaunch -} MavNumerics.Guard_270 (cmd == 20)
-       | {- mavCmdNavLand -} do MavNumerics.Guard_270 (cmd == 21)
-                                MavEnums.PrecisionLandMode_307 (params.param2)
-                                MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
-       | {- mavCmdNavTakeoff -} do MavNumerics.Guard_270 (cmd == 22)
-                                   MavEnums.Position_306 ?a0 ?a3 ?a4 ?a5
+       { {- mavCmdNavWaypoint -} do MavNumerics.Guard_ (cmd == 16)
+                                    MavNumerics.NonNegFloat_ (params.param1)
+                                    MavNumerics.NonNegFloat_ (params.param2)
+                                    MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
+       | {- mavCmdNavLoiterUnlim -} do MavNumerics.Guard_ (cmd == 17)
+                                       MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
+       | {- mavCmdNavLoiterTurns -} do MavNumerics.Guard_ (cmd == 18)
+                                       MavNumerics.NonNegFloat_ (params.param1)
+                                       MavNumerics.InclusiveFractional_ (params.param2)
+                                       MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
+       | {- mavCmdNavLoiterTime -} do MavNumerics.Guard_ (cmd == 19)
+                                      MavNumerics.NonNegFloat_ (params.param1)
+                                      MavNumerics.InclusiveFractional_ (params.param2)
+                                      MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
+       | {- mavCmdNavReturnToLaunch -} MavNumerics.Guard_ (cmd == 20)
+       | {- mavCmdNavLand -} do MavNumerics.Guard_ (cmd == 21)
+                                MavEnums.PrecisionLandMode_ (params.param2)
+                                MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
+       | {- mavCmdNavTakeoff -} do MavNumerics.Guard_ (cmd == 22)
+                                   MavEnums.Position_ ?a0 ?a3 ?a4 ?a5
        | {- mavCmdSome -} pure {}
        }
  
-MavEnums.MavMissionType_314 : Grammar {} =
+MavEnums.MavMissionType_ : Grammar {} =
   Choose biased
     { {- mavMissionTypeMission -} @Match {0}
     | {- mavMissionTypeFence -} @Match {1}
@@ -827,7 +827,7 @@ MavEnums.MavMissionType_314 : Grammar {} =
     | {- mavMissionTypeAll -} @Match {255}
     }
  
-MavEnums.MavMissionResult_315 : Grammar {} =
+MavEnums.MavMissionResult_ : Grammar {} =
   Choose biased
     { {- mavMissionAccepted -} @Match {0}
     | {- mavMissionError -} @Match {1}
@@ -884,16 +884,16 @@ MissionItemInt.MissionItemInt : Grammar MissionItemInt.MissionItemInt =
            current = current,
            mission_type = mission_type}
  
-MissionItemInt.MissionItemInt_316 : Grammar {} =
+MissionItemInt.MissionItemInt_ : Grammar {} =
   do (params : MavEnums.CmdParams) <- MavEnums.CmdParams
-     MavNumerics.UInt16_273
-     MavEnums.MavCmd_311 MavEnums.CmdParams MavNumerics.Float MavNumerics.Float int int MavNumerics.Float params
-     MavNumerics.UInt16_273
+     MavNumerics.UInt16_
+     MavEnums.MavCmd_ MavEnums.CmdParams MavNumerics.Float MavNumerics.Float int int MavNumerics.Float params
+     MavNumerics.UInt16_
      @Match UInt8
      @Match UInt8
-     MavEnums.MavFrame_304
-     MavNumerics.Bool_272
-     MavEnums.MavMissionType_314
+     MavEnums.MavFrame_
+     MavNumerics.Bool_
+     MavEnums.MavMissionType_
 module MissionCount
  
 --- Imports:
@@ -919,11 +919,11 @@ MissionCount.MissionCount : Grammar MissionCount.MissionCount =
            count = count,
            mission_type = mission_type}
  
-MissionCount.MissionCount_318 : Grammar {} =
+MissionCount.MissionCount_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
-     MavNumerics.UInt16_273
-     MavEnums.MavMissionType_314
+     MavNumerics.UInt16_
+     MavEnums.MavMissionType_
 module MissionAck
  
 --- Imports:
@@ -949,11 +949,11 @@ MissionAck.MissionAck : Grammar MissionAck.MissionAck =
            result = result,
            mission_type = mission_type}
  
-MissionAck.MissionAck_319 : Grammar {} =
+MissionAck.MissionAck_ : Grammar {} =
   do @Match UInt8
      @Match UInt8
-     MavEnums.MavMissionResult_315
-     MavEnums.MavMissionType_314
+     MavEnums.MavMissionResult_
+     MavEnums.MavMissionType_
 module Main
  
 --- Imports:
@@ -981,10 +981,10 @@ Main.Main : Grammar [Main.Main0] =
             @Match {'\n'}
             pure $$
  
-Main.Main_320 : Grammar {} =
+Main.Main_ : Grammar {} =
   @Many[] do Choose biased
-               { {- ack -} MissionAck.MissionAck_319
-               | {- count -} MissionCount.MissionCount_318
-               | {- itemInt -} MissionItemInt.MissionItemInt_316
+               { {- ack -} MissionAck.MissionAck_
+               | {- count -} MissionCount.MissionCount_
+               | {- itemInt -} MissionItemInt.MissionItemInt_
                }
              @Match {'\n'}
