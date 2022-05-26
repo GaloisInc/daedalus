@@ -102,7 +102,7 @@ runNoFunM changePs r (NFM m) = m RO { roChangeParams = changePs
                                     , roMatchFuns = r
                                     }
                                  RW { matchArgs = Map.empty }
-                               
+
 instance HasGUID NoFunM where
   guidState f = NFM \_ rw -> (,) <$> guidState f <*> pure rw
 
@@ -129,8 +129,9 @@ newMParam r x = NFM \ro s ->
 
 erasedGrmName :: HasGUID m => Name -> m (TCName Grammar)
 erasedGrmName n = do
-  newName' <- deriveName n
-  let newName = newName' { namePublic = False }
+  newName <- deriveNameWith (<> "_") n
+  {- matcher is public, if original is, which is why we need a differet text name.
+    we need this to make "modular parsers" work -}
   pure TCName { tcNameCtx = AGrammar
               , tcType    = tGrammar tUnit
               , tcName    = newName
