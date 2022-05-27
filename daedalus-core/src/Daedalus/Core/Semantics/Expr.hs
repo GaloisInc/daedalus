@@ -15,6 +15,7 @@ import qualified Data.ByteString as BS
 import Data.Maybe(isJust)
 import Data.List(foldl')
 import qualified Data.Text as Text
+import Data.Map (Map)
 
 import Daedalus.Range(integerToInt)
 import Daedalus.Panic(panic)
@@ -28,6 +29,7 @@ import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import qualified Daedalus.Core.Decl as Decl
 import Daedalus.Core.Type(typeOf,bdUniverse)
+import Daedalus.Core.Decl( TDecl )
 
 import Daedalus.Core.Semantics.Env
 
@@ -44,7 +46,7 @@ eval expr env =
     Struct t fs ->
       let fvs = [ seq v (f,v) | (f,e) <- fs, let v = eval e env ]
       in
-      case evalType env (TUser t) of
+      case evalType (tEnv env) (TUser t) of
         TVBDStruct bd -> VBDStruct bd (bdStruct bd fvs)
         _             -> vStruct fvs
 
@@ -52,7 +54,7 @@ eval expr env =
       where err = panic "eval" [ "Pattern match failure in semantic value" ]
 
     Ap0 op          -> partial (evalOp0 op)
-    Ap1 op e        -> evalOp1 env op (typeOf e) (eval e env)
+    Ap1 op e        -> evalOp1 (tEnv env) op (typeOf e) (eval e env)
     Ap2 op e1 e2    -> evalOp2 op (eval e1 env) (eval e2 env)
     Ap3 op e1 e2 e3 -> evalOp3 op (eval e1 env) (eval e2 env) (eval e3 env)
     ApN op es       -> evalOpN op (evalArgs es env) env
@@ -142,7 +144,7 @@ evalOp0 op =
 
 --------------------------------------------------------------------------------
 
-evalType :: Env -> Type -> TValue
+evalType :: Map TName TDecl -> Type -> TValue
 evalType env ty =
   case ty of
     TStream       -> TVOther
@@ -203,7 +205,7 @@ evalType env ty =
 
   tBDUnion nm univ fs =
     let mp = Map.fromList
-              [ (l, (evalType env t,bdUniverse (tEnv env) t)) | (l,t) <- fs ]
+              [ (l, (evalType env t,bdUniverse env t)) | (l,t) <- fs ]
         name = tnameText nm
     in
     TVBDUnion BDUnion
@@ -227,7 +229,7 @@ evalType env ty =
 
 
 
-evalOp1 :: Env -> Op1 -> Type -> Value -> Value
+evalOp1 :: Map TName TDecl -> Op1 -> Type -> Value -> Value
 evalOp1 env op ty v = case op of
   CoerceTo t    -> partial (fst (vCoerceTo (evalType env t) v))
 

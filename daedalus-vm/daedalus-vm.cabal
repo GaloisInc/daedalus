@@ -40,6 +40,7 @@ library
     Daedalus.VM.Backend.C.UserDefined
     Daedalus.VM.Backend.C.Bitdata
     Daedalus.VM.Backend.C.Call
+    Daedalus.VM.Semantics
 
   build-depends:
     base >=4.13 && <4.17,
@@ -48,7 +49,9 @@ library
     bytestring,
     pretty,
     daedalus-utils,
-    daedalus-core
+    daedalus-core,
+    daedalus-value,
+    transformers
 
   ghc-options: -Wall -Wno-incomplete-uni-patterns
 

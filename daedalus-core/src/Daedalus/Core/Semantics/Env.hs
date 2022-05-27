@@ -81,9 +81,9 @@ lookupBFun f env =
 defBFuns :: Map FName ([Value] -> Word8 -> Bool) -> Env -> Env
 defBFuns fs env = env { bEnv = Map.union fs (bEnv env) }
 
-lookupType :: TName -> Env -> TDecl
+lookupType :: TName -> Map TName TDecl -> TDecl
 lookupType t env =
-  case Map.lookup t (tEnv env) of
+  case Map.lookup t env of
     Just d -> d
     Nothing -> panic "lookupType" [ "Undefined type", show (pp t) ]
 

@@ -54,6 +54,7 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Semantics as VM
 
 import CommandLine
 import Templates
@@ -162,6 +163,8 @@ handleOptions opts
 
              UseCore -> interpCore opts mm inp
 
+             UseVM -> interpVM opts mm inp
+
              UsePGen flagMetrics ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -182,6 +185,7 @@ handleOptions opts
            case optBackend opts of
              UseInterp -> generateCPP opts mm
              UseCore   -> generateCPP opts mm
+             UseVM     -> generateCPP opts mm
              UsePGen _ ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -214,6 +218,12 @@ interpCore opts mm inpMb =
      -- XXX: html, etc
      ddlIO $ forM_ ents \ent ->
                   print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+
+interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
+interpVM opts mm inpMb =
+ do r <- doToVM opts mm
+    inp  <- ddlIO (RTS.newInputFromFile inpMb)
+    ddlPrint (VM.moduleToValues (head (VM.pModules r)) [VStream inp])
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
