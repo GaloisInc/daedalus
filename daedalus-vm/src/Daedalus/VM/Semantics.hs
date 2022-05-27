@@ -263,7 +263,7 @@ semJumpChoice (JumpCase jc) v =
     Nothing -> panic "semJumpChoice" ["incomplete patterns"]
   where
     match =
-     do p <- valuePattern (trace (show (pp v, [(pp k, pp x) | (k,x) <- Map.assocs jc])) v)
+     do p <- valuePattern v
         Map.lookup p jc
 
 valuePattern :: V.Value -> Maybe Pattern
