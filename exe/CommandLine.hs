@@ -32,7 +32,7 @@ data Command =
   | JStoHTML
   | ShowHelp
 
-data Backend = UseInterp | UseCore | UsePGen Bool
+data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
@@ -188,6 +188,10 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
               , Option [] ["core"]
                 "Use the Core interpreter"
                 $ NoArg \o -> Right o { optBackend = UseCore }
+
+              , Option [] ["vm"]
+                "Use the VM interpreter"
+                $ NoArg \o -> Right o { optBackend = UseVM }
 
               ] ++ coreOptions ++
               [ helpOption
