@@ -223,7 +223,12 @@ interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
-    ddlPrint (VM.moduleToValues (head (VM.pModules r)) [VStream inp])
+    let entries = VM.semModule (head (VM.pModules r))
+    let ?useJS = optShowJS opts
+    for_ (Map.elems entries) \impl ->
+      for_ (VM.resultToValues (impl [VStream inp])) \v ->
+        ddlPrint (dumpInterpVal v)
+    
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
