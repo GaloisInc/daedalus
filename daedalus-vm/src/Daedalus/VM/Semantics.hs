@@ -99,6 +99,9 @@ yield = M . cont
 yield_ :: (Result -> Result) -> M ()
 yield_ f = M (cont \k -> f (k ()))
 
+callWithCC :: ((a -> Result) -> M a) -> M a
+callWithCC f = yield \k -> runM (f k) k
+
 abort :: Result -> M a
 abort = M . cont . const
 
@@ -170,7 +173,7 @@ data FrameResult
 semVMFDef :: DeclEnv => Src.FName -> VMFDef -> [V.Value] -> M FrameResult
 semVMFDef fn def args =
   case def of
-    VMDef body -> yield \k -> let ?kFrame = k in runM (semLabel (vmfEntry body) args) k
+    VMDef body -> semLabel (vmfEntry body) args
     VMExtern{} ->
      do r <- yield (External fn args)
         pure case r of
@@ -180,21 +183,19 @@ semVMFDef fn def args =
 semFName :: DeclEnv => FName -> [V.Value] -> M FrameResult
 semFName fn = semVMFDef fn (?fDecls Map.! fn)
 
-type Frame = (DeclEnv, ?kFrame :: FrameResult -> Result)
-
-semLabel :: Frame => Label -> [V.Value] -> M FrameResult
+semLabel :: DeclEnv => Label -> [V.Value] -> M FrameResult
 semLabel label = semBlock (?lDecls Map.! label)
 
-semBlock :: Frame => Block -> [V.Value] -> M FrameResult
-semBlock block args =
- do env <- foldM semInstr (newEnv (blockArgs block) args) (blockInstrs block)
+semBlock :: DeclEnv => Block -> [V.Value] -> M FrameResult
+semBlock block args = callWithCC \k ->
+ do env <- foldM (semInstr k) (newEnv (blockArgs block) args) (blockInstrs block)
     semCInstr env (blockTerm block)
 
-semJumpPoint :: Frame => Env -> JumpPoint -> [V.Value] -> M FrameResult
+semJumpPoint :: DeclEnv => Env -> JumpPoint -> [V.Value] -> M FrameResult
 semJumpPoint env jp xs =
   semLabel (jLabel jp) (xs <> (semE env <$> jArgs jp))
 
-semCInstr :: Frame => Env -> CInstr -> M FrameResult
+semCInstr :: DeclEnv => Env -> CInstr -> M FrameResult
 semCInstr env term =
   let next = semJumpPoint env in
   case term of
@@ -224,8 +225,8 @@ semCInstr env term =
           No      -> next jpN []
           Pure{}  -> panic "semCInstr" ["parser returned pure result"]
 
-semInstr :: Frame => Env -> Instr -> M Env
-semInstr env = \case
+semInstr :: DeclEnv => (FrameResult -> Result) -> Env -> Instr -> M Env
+semInstr kFrame env = \case
   Say str -> env <$ yield_ (SayResult str)
 
   Output{} -> panic "semInstr" ["unexpected output instruction"]
@@ -237,7 +238,7 @@ semInstr env = \case
       pure (extendEnv bv r env)
 
   Spawn bv c ->
-   do r <- yield (SpawnResult \flag -> runM (semJumpPoint env c [V.VBool flag]) ?kFrame)
+   do r <- yield (SpawnResult \flag -> runM (semJumpPoint env c [V.VBool flag]) kFrame)
       pure (extendEnv bv (vThreadId r) env)
 
   NoteFail errorSource text msg input ->
