@@ -226,8 +226,8 @@ interpVM opts mm inpMb =
     let entries = VM.semModule (head (VM.pModules r))
     let ?useJS = optShowJS opts
     for_ (Map.elems entries) \impl ->
-      for_ (VM.resultToValues (impl [VStream inp])) \v ->
-        ddlPrint (dumpInterpVal v)
+        ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
+
     
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]

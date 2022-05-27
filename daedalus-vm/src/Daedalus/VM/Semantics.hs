@@ -1,18 +1,9 @@
 {-# Language BlockArguments, LambdaCase, ImportQualifiedPost, GeneralizedNewtypeDeriving, ParallelListComp, ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Semantics where
 
-import Daedalus.Core qualified as Src
-
 import Control.Applicative ((<|>))
 import Control.Monad.Trans.Cont (Cont, cont, runCont)
 import Control.Monad (foldM)
-import Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, evalOp3)
-import Daedalus.Core.Semantics.Expr qualified as Src
-import Daedalus.Panic ( panic )
-import Daedalus.Rec ( forgetRecs )
-import Daedalus.Value qualified as V
-import Daedalus.VM
-import Daedalus.PP (pp)
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
 import Data.IntSet (IntSet)
@@ -22,6 +13,15 @@ import Data.Map qualified as Map
 import Data.Text (Text)
 import Debug.Trace (trace)
 import GHC.Float (double2Float)
+
+import Daedalus.Core qualified as Src
+import Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, evalOp3)
+import Daedalus.Core.Semantics.Expr qualified as Src
+import Daedalus.Panic (panic)
+import Daedalus.Rec (forgetRecs)
+import Daedalus.Value qualified as V
+import Daedalus.VM
+import Daedalus.PP (pp)
 
 -----------------------------------------------------------------------
 
@@ -94,7 +94,7 @@ newtype M a = M (Cont Result a)
   deriving (Functor, Applicative, Monad)
 
 yield :: ((a -> Result) -> Result) -> M a
-yield f = M (cont f)
+yield = M . cont
 
 yield_ :: (Result -> Result) -> M ()
 yield_ f = M (cont \k -> f (k ()))
@@ -151,14 +151,15 @@ semModule m =
       ?fDecls = Map.fromList [(vmfName f, vmfDef f) | f <- mFuns m]
       ?lDecls = Map.unions [vmfBlocks body | f <- mFuns m, VMDef body <- [vmfDef f]]
   in Map.fromList [
-    (fn, \args -> runM (semVMFDef fn def args) k)
+    (fn, \args -> runM (semVMFDef fn def args) endThread)
     | f <- mFuns m, vmfIsEntry f, let fn = vmfName f, def <- [vmfDef f]
   ]
 
   where
-    k (Yes x _) = Success x
-    k No        = Failure
-    k (Pure x)  = Success x
+    endThread = \case
+      Yes x _ -> Success x
+      No      -> Failure
+      Pure x  -> Success x
 
 -- | Result of running a single VM function
 data FrameResult
@@ -169,7 +170,7 @@ data FrameResult
 semVMFDef :: DeclEnv => Src.FName -> VMFDef -> [V.Value] -> M FrameResult
 semVMFDef fn def args =
   case def of
-    VMDef body -> yield \k -> let ?kFrame = k in runM (semVMFBody body args) k
+    VMDef body -> yield \k -> let ?kFrame = k in runM (semLabel (vmfEntry body) args) k
     VMExtern{} ->
      do r <- yield (External fn args)
         pure case r of
@@ -188,9 +189,6 @@ semBlock :: Frame => Block -> [V.Value] -> M FrameResult
 semBlock block args =
  do env <- foldM semInstr (newEnv (blockArgs block) args) (blockInstrs block)
     semCInstr env (blockTerm block)
-
-semVMFBody :: Frame => VMFBody -> [V.Value] -> M FrameResult
-semVMFBody = semLabel . vmfEntry
 
 semJumpPoint :: Frame => Env -> JumpPoint -> [V.Value] -> M FrameResult
 semJumpPoint env jp xs =
@@ -265,7 +263,7 @@ semJumpChoice (JumpCase jc) v =
     Nothing -> panic "semJumpChoice" ["incomplete patterns"]
   where
     match =
-     do p <- valuePattern v
+     do p <- valuePattern (trace (show (pp v, [(pp k, pp x) | (k,x) <- Map.assocs jc])) v)
         Map.lookup p jc
 
 valuePattern :: V.Value -> Maybe Pattern
@@ -274,6 +272,8 @@ valuePattern = \case
   V.VMaybe Nothing -> Just PNothing
   V.VMaybe Just{}  -> Just PJust
   V.VInteger i     -> Just (PNum i)
+  V.VSInt _ i      -> Just (PNum i)
+  V.VUInt _ i      -> Just (PNum i)
   V.VUnionElem l _ -> Just (PCon l)
   V.VBDUnion bdu rep
     | l:_ <- [l | l <- V.bduCases bdu, V.bduMatches bdu l rep] -> Just (PCon l)

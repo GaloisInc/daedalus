@@ -110,6 +110,7 @@ compileWith be ddl =
      case be of
        InterpDaedalus -> pure ()
        InterpCore     -> pure ()
+       InterpVM       -> pure ()
        CompileHaskell -> compileHaskell ddl
        CompileCPP     -> compileCPP ddl
 
@@ -162,6 +163,9 @@ runWith be ddl mbInput =
 
           InterpCore ->
             readProcessWithExitCode "cabal" (interp ++ ["--core", ddl] ++ inp) ""
+
+          InterpVM ->
+            readProcessWithExitCode "cabal" (interp ++ ["--vm", ddl] ++ inp) ""
 
           CompileHaskell ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
@@ -324,6 +328,7 @@ outputDir = "output"
 
 data Backend = InterpDaedalus
              | InterpCore
+             | InterpVM
              | CompileHaskell
              | CompileCPP
                deriving (Eq,Ord,Enum,Bounded,Show,Read)
