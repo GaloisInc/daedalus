@@ -1,25 +1,25 @@
-{-# Language BlockArguments, LambdaCase, ImportQualifiedPost, GeneralizedNewtypeDeriving, ParallelListComp, ImplicitParams, ConstraintKinds #-}
+{-# Language BlockArguments, LambdaCase, GeneralizedNewtypeDeriving, ParallelListComp, ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Semantics where
 
 import Control.Applicative ((<|>))
 import Control.Monad.Trans.Cont (Cont, cont, runCont)
 import Control.Monad (foldM)
 import Data.IntMap (IntMap)
-import Data.IntMap qualified as IntMap
+import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
-import Data.IntSet qualified as IntSet
+import qualified Data.IntSet as IntSet
 import Data.Map (Map)
-import Data.Map qualified as Map
+import qualified Data.Map as Map
 import Data.Text (Text)
 import Debug.Trace (trace)
 import GHC.Float (double2Float)
 
-import Daedalus.Core qualified as Src
+import qualified Daedalus.Core as Src
 import Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, evalOp3)
-import Daedalus.Core.Semantics.Expr qualified as Src
+import qualified Daedalus.Core.Semantics.Expr as Src
 import Daedalus.Panic (panic)
 import Daedalus.Rec (forgetRecs)
-import Daedalus.Value qualified as V
+import qualified Daedalus.Value as V
 import Daedalus.VM
 import Daedalus.PP (pp)
 
