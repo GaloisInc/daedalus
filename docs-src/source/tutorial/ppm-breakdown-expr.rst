@@ -383,6 +383,91 @@ As with ``for``, you can also bind a variable to the index/key:
 
     map (i,x in xs) ...
 
+More on Types
+-------------
+
+Annotating Types
+^^^^^^^^^^^^^^^^
+
+So far, we've only mentioned types at all in the context of alternatives
+parsers - specifically, to be able to define two parsers that return exactly
+the same type of data, overriding the default behavior of introducing a new
+type with the same name as the parser. In that case, we used a *type
+annotation* to specify the type an expression should have.
+
+We can in fact annotate types in this way anywhere we have an expression - in
+general, we write ``e : t`` to mean that expression ``e`` should have type
+``t``.
+
+.. note::
+
+    We recommend that all top-level declarations have type annotations, as types
+    can act as an excellent form of documentation in addition to comments. Other
+    type annotations can be used, but are (mostly) unnecessary due to type
+    inference.
+
+    Note that there is a significant difference between these two declarations:
+
+    .. code-block:: DaeDaLus
+
+      def x = 1 : uint 8
+      def y : uint 8 = 1
+
+    The first declaration assigns the value of the annotated expression
+    ``1 : uint 8`` the name ``x``, the second says that the name ``y``
+    ought to have the type ``uint 8`` - in other words, this latter form is
+    what we mean by annotating the type of a top-level declaration.
+
+    If a declaration has parameters, they may have their types annotated - in
+    this case, we surround the parameter and its type with parentheses, like
+    so:
+
+    .. code-block:: DaeDaLus
+
+      def P (Q : uint 8) = R
+
+Unknown Types
+^^^^^^^^^^^^^
+
+We can also name types without being explicit about what they are. We write
+*type variables* with a ``?`` followed by a name, which is typically a
+lowercase letter. For example: The type ``maybe ?a`` can be used to annotate
+an expression for which we want the type to be ``maybe`` of *something*.
+
+.. warning::
+
+  Unfortunately, in DaeDaLus, the naming scheme described for unknown types is
+  reused for another unrelated feature: implicit parameters. We'll say more
+  about implicit parameters when discussing the standard library in a later
+  section.
+
+Type Coercion
+^^^^^^^^^^^^^
+
+As you'll often find, it is useful to be able to convert a semantic value of
+some type (usually numerical) into a semantic value of a different type. This
+will be particularly crucial to developing a solid understanding of the
+``bitdata`` construction, which will be explained as part of the extended
+exercise that follows.
+
+DaeDaLus provides three ways to coerce one type into another:
+
+* ``e as T`` checks statically that the type ``T`` has enough bits to
+  losslessly represent the value of ``e``, and performs the conversion if this
+  is the case (failing at compile-time otherwise)
+* ``e as! T`` always succeeds, but it is *not* lossless: if the original value
+  fits in the size of ``T``, the behavior is the same as ``e as T``; otherwise,
+  behavior is implementation dependent
+* ``e as? T`` performs a *run-time* check that the conversion doesn't lose
+  information; if that check succeeds, the behavior is the same as ``e as T``.
+  Otherwise, coercion fails, and backtracking occurs
+
+.. note::
+
+  Pay attention to that final description! From it, we can deduce that
+  ``e as? T`` is *not* an expression like the other two coercion forms - it is
+  a parser, since it can fail and trigger backtracking.
+
 With this, we've covered all of the essential types of values and control-flow
 structures. There are a few others for more specialized use-cases; you can check
 out the :ref:`control structures` section of the main user guide for details on
