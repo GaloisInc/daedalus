@@ -373,7 +373,7 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
 This parser will match any number of 7s followed by a 0, e.g.
 ``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
-parser is an array of all the ``'7'``s that were parsed.
+parser is an array of all the 7s that were parsed.
 
 Be cautious when using this unbounded form of ``Many``! It parses inputs
 maximally, so it's possible to accidentally create a parser that never
