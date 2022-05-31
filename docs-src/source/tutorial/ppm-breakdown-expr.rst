@@ -18,7 +18,7 @@ of data are available by default. It's about time we do that!
 ``bool``
 ^^^^^^^^
 
-We've already mentioned the sum type ``bool``; it has precisely two values,
+We've already mentioned the sum type ``bool``: it has precisely two values,
 ``true`` and ``false``. We can 'flip' a ``bool`` using the unary ``!``
 operator. For example: If ``x`` is a ``bool`` that is ``true``, then ``!x`` is
 ``false``.
@@ -67,13 +67,17 @@ And comparison operations:
 All numeric types also support bit-shifting operations ``<<`` and ``>>``; the
 output type matches the input type, and the shift amount is a ``uint 64``.
 
+.. todo
+
+    Are right-shifts arithmetic or logical for signed types?
+
 Finally, the family of ``uint N`` types support bitwise operations, as these
-types can also be interpreted as bitvectors (very useful for binary
+types can also be interpreted as bitvectors (which is very useful for binary
 specifications.) These are:
 
 * Complement (``~``), which flips every bit
 * Exclusive-or (``.^.``), which combines two same-sized bitvectors using the
-  usual logical XOR operation on each pair of bits
+  usual logical 'xor' operation on each pair of bits
 * Bitwise-or (``.|.``), which combines two same-sized bitvectors using the
   usual logical 'or' operation on each pair of bits
 * Bitwise-and (``.&.``), which combines two same-sized bitvectors using the
@@ -121,7 +125,7 @@ The string literals we have seen are *also* array literals. For example,
 Besides the ``Many`` parser and the array sequencing syntactic sugar, there is
 also the ``Index a i`` parser. This might seem like an odd one - typically,
 accessing array elements wouldn't be considered 'parsing', after all. Indeed,
-this being a parser is a clever trick to representing failure to index into an
+this being a parser is a clever trick to represent failure to index into an
 array, when using an index that's out of bounds. Think of ``Index a i`` the
 same as ``a[i]`` in other languages.
 
@@ -163,7 +167,7 @@ particularly useful when parsing formats that map names to other structures.
 In DaeDaLus, the type of such an *association map* is written ``[K -> T]``,
 where ``K`` is the key type and ``T`` is the element type. There is no literal
 syntax for association maps - they must be built incrementally using a set of
-functions or parsers.
+functions and parsers.
 
 First, ``empty`` returns a new, empty association map. Like ``[]``, this is a
 polymorphic value that will take on a type appropriate for the context in which
@@ -176,7 +180,7 @@ the original mapping.
 If instead you'd like for failure to occur when a key is already defined, you
 can instead use the parser version: ``Insert k v m``.
 
-Finally, there are two ways to look up a key in a map: The function version,
+Finally, there are two ways to look up a key in a map. The function version,
 ``lookup k m``, returns ``nothing`` if the key ``k`` is not defined, and
 ``just v`` if it is. Like with insertion, if you'd rather trigger a failure
 when lookup fails, you can use the parser version: ``Lookup k m``, which
@@ -250,7 +254,7 @@ In general, a ``case`` expression looks like:
       p2 -> b2
       ...
 
-Where ``e`` is an expression, and the ``p``s are *patterns*. The patterns are
+Where ``e`` is an expression, and the ``pi``s are *patterns*. The patterns are
 checked in order, and the first that matches the shape of ``e`` has its body
 evaluated.
 
@@ -267,7 +271,14 @@ Here's an example that uses something like the ``GoodOrBad`` type from earlier:
         bad  -> ^ "Bad!"
 
 If the variants of our tagged sum have arguments, our patterns may give these
-arguments names so that they may be used in the body.
+arguments names so that they may be used in the body. If ``m`` is a ``maybe``
+value, for example, we might have a pattern match that looks like this:
+
+.. code-block:: DaeDaLus
+
+    case m of
+      just x  -> ... something using x ...
+      nothing -> ...
 
 Finally, there is a special pattern, ``_``, which can be used as a final
 "catch-all" case when you don't care what is matched. This should always be
@@ -326,7 +337,7 @@ evaluation as proceeding by computing the value of this new loop:
     for (val = 1; d in [2, 3]) (addDigit val d)
 
 ``val`` is 1 since the previous iteration's body computed ``addDigit 0 1``.
-The body of this new loop is, then: ``addDigit 1 2 = 10 * 1 + 2 = 12``.
+The body of this new loop is, then, ``addDigit 1 2 = 10 * 1 + 2 = 12``.
 So, moving to the next iteration, we have:
 
 .. code-block:: DaeDaLus
@@ -374,4 +385,5 @@ As with ``for``, you can also bind a variable to the index/key:
 
 With this, we've covered all of the essential types of values and control-flow
 structures. There are a few others for more specialized use-cases; you can check
-out the :ref:`control structures` section of the main user guide.
+out the :ref:`control structures` section of the main user guide for details on
+how to use these features.
