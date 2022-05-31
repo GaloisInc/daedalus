@@ -38,3 +38,4 @@ This allows for a clear, yet precise, specification of many binary formats.
   tutorial/ppm-breakdown-parse
   tutorial/ppm-breakdown-comb
   tutorial/ppm-breakdown-expr
+  tutorial/extended-ex-intro
