@@ -267,7 +267,7 @@ semiExecExpr expr =
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp1 op _rty ty (VValue v) =
   do env <- asks interpEnv
-     pure $ VValue (evalOp1 env op ty v)
+     pure $ VValue (evalOp1 (I.tEnv env) op ty v)
 -- These operations are lazy in the value, so we can produce concrete
 -- values even though we have symbolic arguments
 semiExecOp1 EJust _rty _ty sv = pure (VMaybe (Just sv))
