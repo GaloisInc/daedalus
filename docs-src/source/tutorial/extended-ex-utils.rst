@@ -20,4 +20,138 @@ should be:
 This will load all of the standard library features covered in the previous
 section, which you'll start using right away.
 
+Domain-Specific Parser Names
+----------------------------
 
+For total clarity in code, it is often useful to give new names to things that
+are otherwise quite generic (e.g. to represent lengths, we may be using
+floating-point numbers - but the type name ``length`` is more informative than
+``float``, so we might want to *alias* these names.)
+
+In PNG, there are a number of examples of this being useful - unsigned 32-bit
+words are used for a number of very different components.
+
+**Exercise 1:** Define two parsers, ``Length`` and ``Crc``, that each parse a
+big-endian, 32-bit, unsigned integer.
+
+.. dropdown:: Hint
+    :color: info
+
+    You may want to review the section
+    :ref:`aside: the daedalus standard library` if you're not sure how to deal
+    with the endianness.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def Length = BEUInt32
+        def Crc = BEUInt32
+
+**Exercise 2:** There are a couple of places in the PNG specification where we
+have 1-bit *flags*, indicating whether some option is enabled or not. Write a
+parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def FLAG = Match1 (0 | 1)
+
+    Alternatively, we could have used a *character class* and the alternative
+    syntax for ``Match1`` to write this very succinctly:
+
+    .. code-block:: DaeDaLus
+
+        def FLAG = $[0 .. 1]
+
+    For brevity, we'll prefer this syntax in the other provided solutions.
+
+Null-terminated Strings
+-----------------------
+
+A *null-terminated string* is an array of characters terminated with the null
+character (ASCII codepoint ``0``). These are also known as **C strings**, as
+this is the representation used in that language's standard string manipulation
+library.
+
+PNG makes use of null-terminated strings in a few places, so we need to be able
+to parse them. In particular, we need to be able to parse both strings within a
+specific range of sizes *and* strings of unbounded length.
+
+**Exercise 1:** Define a parser, ``NullChar``, that parses the ASCII null byte.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def NullChar = $[0]
+
+**Exercise 2:** Define a parser, ``NonNullChar``, that parses one non-null
+ASCII byte.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def NonNullChar = $[1 .. 255]
+
+**Exercise 3 (Challenging):** Define a parser, ``OMany``, that behaves like
+``Many``, but takes the integer arguments as ``maybe`` values. Your parser
+should satisfy the following laws:
+
+* ``OMany nothing nothing       P = Many P``
+* ``OMany nothing (just max)    P = Many (..max) P``
+* ``OMany (just min) nothing    P = Many (min..) P``
+* ``OMany (just min) (just max) P = Many (min..max) P``
+
+.. dropdown:: Hint
+    :color: info
+
+    The above equations are the hard part! Your job is to write the 'glue' to
+    bring it all together.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def OMany (omin : maybe (uint 64)) (omax : maybe (uint 64)) P =
+          case omin of
+            nothing  -> case omax of
+                          nothing  -> Many P
+                          just max -> Many (..max) P
+            just min -> case omax of
+                          nothing  -> Many (min..) P
+                          just max -> Many (min..max) P
+
+    Note that the right-hand sides of each case arm is the right-hand side of
+    one of the laws - this form of algebraic specification is very useful when
+    writing functional code, as all that was left at the end was writing the
+    appropriate pattern-matching code to cover the cases of our laws.
+
+
+**Exercise 4 (Challenging):** Define a parser, ``NTString``, that parses a
+null-terminated string between ``min`` and ``max`` characters in length, if
+bounds are provided (i.e. the bounds should be ``maybe`` values.) The null
+character should not be included in the character count.
+
+.. dropdown:: Hint
+    :color: info
+
+    The ``OMany`` parser you wrote in the previous exercise should be extremely
+    helpful.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def NTString (omin : maybe (uint 64)) (omax : maybe (uint 64)) =
+          block
+            $$ = OMany omin omax NonNullChar
+            NullChar
