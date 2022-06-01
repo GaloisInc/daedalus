@@ -27,6 +27,8 @@ import Daedalus.Core.Grammar
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
 
+import Daedalus.Panic (panic)
+
 determinizeModule :: Module -> Module
 determinizeModule m  =
   let newGram = map (fmap (detGram m)) (mGFuns m) in
@@ -40,11 +42,11 @@ detGram modl gram = go gram
            OrUnbiased {} -> determinize modl g
            _             -> mapChildrenG go g
 
-getGrammarDef :: Module -> FName -> Maybe Grammar
-getGrammarDef modl name =
+getGrammar :: Module -> FName -> Maybe Grammar
+getGrammar modl name =
   goGetGrammar (mGFuns modl)
   where
-  goGetGrammar [] = error "cannot find grammar"
+  goGetGrammar [] = panic "getGrammar" ["Unable to get grammar"]
   goGetGrammar ( Fun {fName = n1, fDef = fdef} : rest ) =
     if fnameId n1 == fnameId name
     then case fdef of
@@ -52,11 +54,11 @@ getGrammarDef modl name =
            External -> Nothing
     else goGetGrammar rest
 
-getByteSetDef :: Module -> FName -> Maybe ByteSet
-getByteSetDef modl name =
+getByteSet :: Module -> FName -> Maybe ByteSet
+getByteSet modl name =
   goGetByteSet (mBFuns modl)
   where
-  goGetByteSet [] = error "cannot find byteset"
+  goGetByteSet [] = panic "getByteSet" ["cannot find byteset"]
   goGetByteSet ( Fun {fName = n1, fDef = fdef} : rest ) =
     if fnameId n1 == fnameId name
     then case fdef of
@@ -116,8 +118,8 @@ moveLeft (ZipNode {focus = foc, path = pth}) =
     Do name g1 g2 -> ZipNode { focus = g1, path = mkPathGrammar (ZDo name g2) pth }
     Annot ann g1  -> ZipNode { focus = g1, path = mkPathGrammar (ZAnnot ann) pth }
     Let name e g1 -> ZipNode { focus = g1, path = mkPathGrammar (ZLet name e) pth }
-    _ -> error "should not happen"
-moveLeft (ZipLeaf {}) = error "should not happen"
+    _ -> panic "moveLeft" [ "broken invariant, unexpected case" ]
+moveLeft (ZipLeaf {}) = panic "moveLeft" [ "broken invariant, unexpected case" ]
 
 goUpRight :: ZipGrammar -> Maybe ZipGrammar
 goUpRight (ZipNode {focus = foc, path = pth}) =
@@ -139,8 +141,8 @@ goUpRight (ZipNode {focus = foc, path = pth}) =
       goUpRight (mkZipGrammar (Let name e foc) z)
     (ZOrBiased : _) -> Nothing
     (ZOrUnbiased : _) -> Nothing
-    _  -> error "case not handled"
-goUpRight (ZipLeaf{}) = error "cannot be a leaf"
+    _  -> panic "goUpRight" [ "broken invariant, unexpected case" ]
+goUpRight (ZipLeaf{}) = panic "goUpRight" [ "broken invariant, unexpected case" ]
 
 
 goNextLeaf :: Integer -> ZipGrammar -> Maybe ZipGrammar
@@ -164,7 +166,7 @@ goNextLeaf _c (ZipLeaf{ zmatch = zm@(ZMatchBytes (_, rest) orig), path = fpth@(Z
       SemNo ->
         let newBuilt = Pure (Ap0 Unit) in
         goUpRight (mkZipGrammar newBuilt pth)
-goNextLeaf _ _ = error "Should not happen"
+goNextLeaf _ _ = panic "goNextLeaf" [ "broken invariant, on structure Zipped grammar" ]
 
 buildUp :: ZipGrammar -> Grammar
 buildUp (ZipNode {focus = built, path = pth}) =
@@ -191,8 +193,8 @@ buildUp (ZipNode {focus = built, path = pth}) =
       buildUp (mkZipGrammar built z)
     (ZOrUnbiased : z) ->
       buildUp (mkZipGrammar built z)
-    _  -> error "case not handled"
-buildUp (ZipLeaf {}) = error "broken invariant"
+    _  -> panic "buildUp" [ "broken invariant, should not happen on this case" ]
+buildUp (ZipLeaf {}) = panic "buildUp" [ "broken invariant, should not happen on a leaf" ]
 
 {- END of Zipped Grammar -}
 
@@ -230,7 +232,7 @@ fromByteSetToSet modl bs =
         s2 <- go bs2
         Just (Set.union s1 s2)
       (SetCall name []) -> do
-        s1 <- getByteSetDef modl name
+        s1 <- getByteSet modl name
         go s1
       _      -> Nothing
 
@@ -270,6 +272,8 @@ data GC a =
   | GOne  a
   | GMany a
 
+-- This function eliminates the dead branches and wraps the result into a type that
+-- indicates how many branches are alive.
 garbageCollect :: AltTree (Either z ()) -> GC (AltTree z)
 garbageCollect t = case t of
   AltLeaf e -> case e of
@@ -296,25 +300,11 @@ garbageCollect t = case t of
       (GMany a, GOne b)  -> GMany (AltUnbiased a b)
       (GMany a, GMany b) -> GMany (AltUnbiased a b)
 
-extractOne :: AltTree ZipGrammar -> Maybe ZipGrammar
+-- This function is supposed to be called after `garbageCollect`
+extractOne :: AltTree ZipGrammar -> ZipGrammar
 extractOne t = case t of
-  AltLeaf z -> Just z
-  AltBiased t1 t2 ->
-    let a1 = extractOne t1
-        a2 = extractOne t2 in
-    case (a1, a2) of
-      (Nothing, Nothing) -> Nothing
-      (Just z, Nothing) -> Just z
-      (Nothing, Just z) -> Just z
-      _ -> error "broken invariant"
-  AltUnbiased t1 t2 ->
-    let a1 = extractOne t1
-        a2 = extractOne t2 in
-    case (a1, a2) of
-      (Nothing, Nothing) -> Nothing
-      (Just z, Nothing) -> Just z
-      (Nothing, Just z) -> Just z
-      _ -> error "broken invariant"
+  AltLeaf z -> z
+  _ -> panic "extractOne" [ "broken invariant, should be called with only one option left in tree" ]
 
 
 deriveOneByte :: Module -> ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
@@ -328,23 +318,23 @@ deriveOneByte modl gram =
       Do_ {}   -> deriveGo (moveLeft gr)
       Do  {}   -> deriveGo (moveLeft gr)
       Let {}   -> deriveGo (moveLeft gr)
+      Annot {} -> deriveGo (moveLeft gr)
       Match {} -> case deriveMatch gr of -- fmap (\ x -> [x]) $ deriveMatch gr
         Nothing -> Nothing
         Just c ->  Just (AltLeaf c)
-      Annot {} -> deriveGo (moveLeft gr)
       Call name []  ->
-        case getGrammarDef modl name of
+        case getGrammar modl name of
           Nothing -> Nothing
           Just gram1 -> deriveGo (gr {focus = gram1 })
       OrBiased g1 g2 ->
-        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased  pth })
-            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased  pth }) in
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased pth })
+            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased pth }) in
         case (g1', g2') of
           (Nothing, _) -> Nothing
           (_, Nothing) -> Nothing
           (Just a1, Just a2) -> Just (AltBiased a1 a2)
       OrUnbiased g1 g2 ->
-        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased  pth })
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased pth })
             g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrUnbiased pth }) in
         case (g1', g2') of
           (Nothing, _) -> Nothing
@@ -353,7 +343,7 @@ deriveOneByte modl gram =
       _        -> Nothing
   deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
     case zm of
-      ZMatchByte _          -> error "TODO should move up"
+      ZMatchByte _  -> error "TODO should move up"
       ZMatchBytes (prev, next) orig ->
         case uncons next of
           Nothing -> error "TODO should move up"
@@ -374,7 +364,8 @@ deriveOneByte modl gram =
       ZAnnot an  -> deriveUp (ZipNode (Annot an g) ks)
       ZOrBiased   -> Nothing
       ZOrUnbiased -> Nothing
-  deriveUp (ZipLeaf {}) = error "broken invariant"
+  deriveUp (ZipLeaf {}) = panic "deriveUp" [ "broken invariant, unexpected case" ]
+
 
   convArrayToByteString :: [Expr] -> ByteString
   convArrayToByteString lst =
@@ -383,8 +374,8 @@ deriveOneByte modl gram =
     f (Ap0 (IntL n (TUInt (TSize 8)))) =
       if 0 <= n && n <= 255
       then fromInteger n
-      else error "error converting Integer to Word8"
-    f _ = error "error converting Expr to Word8"
+      else panic "convArrayToByteString" [ "Integer not in 8 bits" ]
+    f _ = panic "convArrayToByteString" [ "Broken invariant, unexpected input" ]
 
   deriveMatch :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
   deriveMatch (ZipNode { focus = Match sem match, path = pth}) =
@@ -398,7 +389,7 @@ deriveOneByte modl gram =
         case b of
           Ap0 (ByteArrayL bs) ->
             case uncons bs of
-              Nothing -> error "TODO should move up"
+              Nothing -> panic "deriveMatch" [ "unexpected uncons on empty bytestring" ]
               Just (w, rest) ->
                 Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           Ap1 ArrayLen _ -> Nothing
@@ -407,12 +398,12 @@ deriveOneByte modl gram =
           ApN (ArrayL (TUInt (TSize 8))) arr  ->
             let bs = convArrayToByteString arr in
             case uncons bs of
-              Nothing -> error "TODO should move up"
+              Nothing -> panic "deriveMatch" [ "Broken invariant, uncons empty bytestring" ]
               Just (w, rest) ->
                 Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           _ -> Nothing
       _ -> Nothing -- TODO: replace this with an error, or look into it
-  deriveMatch _ = error "function should be applied to Match"
+  deriveMatch _ = panic "deriveMatch" [ "Broken invariant, unexpected case" ]
 
 {- END of AltTree -}
 
@@ -463,8 +454,8 @@ getDepth der =
   where
   go d =
     case d of
-      DerivStart {} -> error "getDepth on starting derivation"
-      DerivUnResolved {} -> error "getDepth on not Resolved"
+      DerivStart {} -> panic "getDepth" [ "Broken invariant, unexpected case" ]
+      DerivUnResolved {} -> panic "getDepth" [ "Broken invariant, unexpected case" ]
       DerivResolved lst ->
         foldr
         (\ (_a, r) b -> max b (case r of
@@ -517,9 +508,8 @@ determinize modl grammar =
           case g of
             GZero  -> return (c, YesResolvedZero)
             GOne t ->
-              case extractOne t of
-                Nothing -> error "broken Invariant"
-                Just z -> return (c, YesResolvedOne z)
+              let z = extractOne t in
+              return (c, YesResolvedOne z)
             GMany t ->
               let mepsAlt = mapAlt (\ z -> fmap (\ x -> AltLeaf x) (goNextLeaf c z)) t in -- epsilon transition
               case mepsAlt of
@@ -547,7 +537,7 @@ determinize modl grammar =
 
   deriveOneByteOnAltTree :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
   deriveOneByteOnAltTree t =
-    mapAlt (deriveOneByte modl)  t
+    mapAlt (deriveOneByte modl) t
 
   {-
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
@@ -603,8 +593,10 @@ determinize modl grammar =
       translateToCase ty guid1 der
 
   translateToCase :: Type -> GUID -> Deriv -> Grammar
-  translateToCase _ _ (DerivStart {})         = error "impossible"
-  translateToCase _ _ (DerivUnResolved {})    = error "impossible"
+  translateToCase _ _ (DerivStart {})         =
+    panic "translateToCase" [ "Broken invariant, unexpected case" ]
+  translateToCase _ _ (DerivUnResolved {})    =
+    panic "translateToCase" [ "Broken invariant, unexpected case" ]
   translateToCase ty guid (DerivResolved lst) =
     translateList ty guid lst
 
