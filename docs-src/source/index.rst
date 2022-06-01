@@ -41,3 +41,4 @@ This allows for a clear, yet precise, specification of many binary formats.
   tutorial/extended-ex-intro
   tutorial/extended-ex-parsers
   tutorial/extended-ex-stdlib
+  tutorial/extended-ex-utils
