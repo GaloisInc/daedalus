@@ -155,3 +155,78 @@ character should not be included in the character count.
           block
             $$ = OMany omin omax NonNullChar
             NullChar
+
+Common Structures
+-----------------
+
+Time and RGB color are both critical parts of the PNG specification; the latter
+is obvious given this is an image format, but the former is perhaps a little
+surprising: By the format's definition, PNG chunks can carry last-modified time
+data.
+
+**Exercise 1:** Define a parser ``RGB`` that consumes three bytes and returns
+them in a structure with fields ``red``, ``green``, and ``blue``. The parsed
+bytes should be assigned to those fields in that order (i.e. ``red`` is the
+first byte, ``green`` the second, and ``blue`` the third.)
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def RGB =
+          block
+            red   = UInt8
+            green = UInt8
+            blue  = UInt8
+
+    While the order of fields in a structure doesn't matter in general, when
+    writing DaeDaLus specifications, we must be sure to write the fields in the
+    order in which things will be parsed. If there is a clearer order to write
+    the structure itself in, you can feel free to use the de-sugared form of
+    sequence parsing discussed in an earlier section.
+
+**Exercise 2:** The time format used by PNG is given by this table:
+
+.. list-table:: PNG Time Stamps
+    :header-rows: 1
+
+    * - Year
+      - Month
+      - Day
+      - Hour
+      - Minute
+      - Second
+    * - 2 bytes
+      - 1 byte (1 - 12)
+      - 1 byte (1 - 31)
+      - 1 byte (0 - 23)
+      - 1 byte (0 - 59)
+      - 1 byte (0 - 60)
+
+Write a parser ``UTCTime`` that produces a structure with these fields with the
+given value constraints. The order of columns in the table is the order the
+fields should be parsed, and the year should be parsed in big-endian order.
+
+.. dropdown:: Hint
+    :color: info
+
+    Remember that you can use the syntax ``$[n .. m]`` to parse one byte with
+    a value between ``n`` and ``m``, inclusive.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def UTCTime =
+          block
+            year   = BEUInt16
+            month  = $[1 .. 12]
+            day    = $[1 .. 31]
+            hour   = $[0 .. 23]
+            minute = $[0 .. 59]
+            second = $[0 .. 60]
+
+    In case you're wondering why the ``second`` field allows for a value of 60:
+    It's to allow for leap-seconds, according to the PNG specification!
