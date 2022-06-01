@@ -31,7 +31,7 @@ floating-point numbers - but the type name ``length`` is more informative than
 In PNG, there are a number of examples of this being useful - unsigned 32-bit
 words are used for a number of very different components.
 
-**Exercise 1:** Define two parsers, ``Length`` and ``Crc``, that each parse a
+**Exercise:** Define two parsers, ``Length`` and ``Crc``, that each parse a
 big-endian, 32-bit, unsigned integer.
 
 .. dropdown:: Hint
@@ -49,7 +49,7 @@ big-endian, 32-bit, unsigned integer.
         def Length = BEUInt32
         def Crc = BEUInt32
 
-**Exercise 2:** There are a couple of places in the PNG specification where we
+**Exercise:** There are a couple of places in the PNG specification where we
 have 1-bit *flags*, indicating whether some option is enabled or not. Write a
 parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
 
@@ -81,7 +81,7 @@ PNG makes use of null-terminated strings in a few places, so we need to be able
 to parse them. In particular, we need to be able to parse both strings within a
 specific range of sizes *and* strings of unbounded length.
 
-**Exercise 1:** Define a parser, ``NullChar``, that parses the ASCII null byte.
+**Exercise:** Define a parser, ``NullChar``, that parses the ASCII null byte.
 
 .. dropdown:: Solution
     :color: warning
@@ -90,7 +90,7 @@ specific range of sizes *and* strings of unbounded length.
 
         def NullChar = $[0]
 
-**Exercise 2:** Define a parser, ``NonNullChar``, that parses one non-null
+**Exercise:** Define a parser, ``NonNullChar``, that parses one non-null
 ASCII byte.
 
 .. dropdown:: Solution
@@ -100,7 +100,7 @@ ASCII byte.
 
         def NonNullChar = $[1 .. 255]
 
-**Exercise 3 (Challenging):** Define a parser, ``OMany``, that behaves like
+**Exercise (Challenging):** Define a parser, ``OMany``, that behaves like
 ``Many``, but takes the integer arguments as ``maybe`` values. Your parser
 should satisfy the following laws:
 
@@ -135,7 +135,7 @@ should satisfy the following laws:
     appropriate pattern-matching code to cover the cases of our laws.
 
 
-**Exercise 4 (Challenging):** Define a parser, ``NTString``, that parses a
+**Exercise (Challenging):** Define a parser, ``NTString``, that parses a
 null-terminated string between ``min`` and ``max`` characters in length, if
 bounds are provided (i.e. the bounds should be ``maybe`` values.) The null
 character should not be included in the character count.
@@ -164,7 +164,7 @@ is obvious given this is an image format, but the former is perhaps a little
 surprising: By the format's definition, PNG chunks can carry last-modified time
 data.
 
-**Exercise 1:** Define a parser ``RGB`` that consumes three bytes and returns
+**Exercise:** Define a parser ``RGB`` that consumes three bytes and returns
 them in a structure with fields ``red``, ``green``, and ``blue``. The parsed
 bytes should be assigned to those fields in that order (i.e. ``red`` is the
 first byte, ``green`` the second, and ``blue`` the third.)
@@ -186,7 +186,7 @@ first byte, ``green`` the second, and ``blue`` the third.)
     the structure itself in, you can feel free to use the de-sugared form of
     sequence parsing discussed in an earlier section.
 
-**Exercise 2:** The time format used by PNG is given by this table:
+**Exercise:** The time format used by PNG is given by this table:
 
 .. list-table:: PNG Time Stamps
     :header-rows: 1
