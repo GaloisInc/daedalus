@@ -123,6 +123,32 @@ The type of arrays containg elements of type ``T`` is ``[T]``.
 To visit all elements in array you may use a ``for`` loop :ref:`for_loops`.
 
 
+Array Builders
+--------------
+
+A ``builder`` is a datastructure that helps build arrays.
+To build an array, start with the empty builder ``builder`` and use
+``emit`` to add elements to the builder.  Once all elements have been
+added, you may use ``build`` to convert the ``builder`` to an array.
+
+.. code-block:: DaeDaLus
+
+  -- empty builder
+  builder : builder ?a
+
+  emit (front : builder ?a) (back : ?a) : builder ?a
+
+  -- Add an array of element to the end of the builder
+  emitArray (front : builder ?a) (back : [?a]) : builder ?a
+
+  -- Add a builder at the end of another builder
+  emitBuilder (front : builder ?a) (back : builder ?a) : builder ?a
+
+  -- Turn a builder into an array
+  build (b : builder ?a) : [?a]
+
+
+
 Association Maps
 ----------------
 
@@ -153,31 +179,31 @@ To visit all elements of an association map you may use a
 ``for`` loop :ref:`for_loops`.
 
 
+Streams
+-------
 
-
-Builders
---------
-
-A ``builder`` is a datastructure that helps build arrays.
-To build an array, start with the empty builder ``builder`` and use
-``emit`` to add elements to the builder.  Once all elements have been
-added, you may use ``build`` to convert the ``builder`` to an array.
+The type ``stream`` is for values representing streams of data that
+can be parserd by a parser.   See :ref:`stream_manipulation` for more examples
+of how to manipualte the parser's stream.
 
 .. code-block:: DaeDaLus
 
-  -- empty builder
-  builder : builder ?a
+  -- Get the current stream for the parser
+  GetStream : stream
 
-  emit (front : builder ?a) (back : ?a) : builder ?a
+  -- Restrict a stream to the fist `n` bytes.
+  -- Will fail if the stream does not have enough bytes
+  Take (n : uint 64) (s : stream) : stream
 
-  -- Add an array of element to the end of the builder
-  emitArray (front : builder ?a) (back : [?a]) : builder ?a
+  -- Advance a stream by `n` bytes.
+  -- Will fail if the stream does not have enough bytes
+  Drop (n : uint 64) (s : stream) : stream
 
-  -- Add a builder at the end of another builder
-  emitBuilder (front : builder ?a) (back : builder ?a) : builder ?a
+  -- Make a stream with the given name and bytes to parser
+  arrayStream (name : [uint 8]) (data : [uint 8]) : stream
 
-  -- Turn a builder into an array
-  build (b : builder ?a) : [?a]
+  -- Get the bytes associates with a stream as an array
+  bytesOfStream (s : stream) : [uint 8]
 
 
 

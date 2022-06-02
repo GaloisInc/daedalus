@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parsers &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -16,7 +14,6 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/design-tabs.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -115,123 +112,6 @@
 <li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/getting-started.html">Getting Started</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html">Breaking down PPM: Expressions and Control Flow</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#built-in-semantic-values">Built-In Semantic Values</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#bool"><code class="docutils literal notranslate"><span class="pre">bool</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#numerics">Numerics</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#maybe"><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#t"><code class="docutils literal notranslate"><span class="pre">[T]</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#array-builders">Array Builders</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#control-strucutres">Control Strucutres</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#guarding">Guarding</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#loops">Loops</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#for"><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#map"><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#more-on-types">More on Types</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#annotating-types">Annotating Types</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#unknown-types">Unknown Types</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#type-coercion">Type Coercion</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-intro.html">Extended Exercise: The PNG Format</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#endianness">Endianness</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#floating-point-numbers">Floating-Point Numbers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#guarding-and-consuming-everything">Guarding and Consuming Everything</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#manipulating-input-streams">Manipulating Input Streams</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-utils.html">Extended Exercise: Defining Helpful Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#domain-specific-parser-names">Domain-Specific Parser Names</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#null-terminated-strings">Null-terminated Strings</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#common-structures">Common Structures</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-chunks.html">Extended Exercise: PNG Chunks</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#introducing-bitdata">Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunk-types">PNG Chunk Types</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunk-data">PNG Chunk Data</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#plte">PLTE</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#idat">IDAT</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#trns">tRNS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#chrm">cHRM</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#gama">gAMA</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#iccp">iCCP</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#sbit">sBIT</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#srgb">sRGB</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#text">tEXt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#ztxt">zTXt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#itxt">iTXt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#bkgd">bKGD</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#hist">hIST</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#phys">pHYs</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#splt">sPLT</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#time">tIME</a></li>
-<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#generic-chunk-data-parsing">Generic Chunk Data Parsing</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunks">PNG Chunks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#header-trailer">Header / Trailer</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#full-png">Full PNG</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#conclusion">Conclusion</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-solution.html">Extended Exercise: Full Solution</a></li>
-</ul>
 
         </div>
       </div>
@@ -257,18 +137,18 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="parsers">
+  <div class="section" id="parsers">
 <h1>Parsers<a class="headerlink" href="#parsers" title="Permalink to this headline"></a></h1>
-<section id="primitive-parsers">
+<div class="section" id="primitive-parsers">
 <h2>Primitive Parsers<a class="headerlink" href="#primitive-parsers" title="Permalink to this headline"></a></h2>
-<p><strong>Any Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> extracts a single byte from the input.
-It fails if there are no bytes left in the input.  If successful, it constructs
-a value of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.</p>
 <p><strong>Specific Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">set</span> <span class="pre">]</span></code> matches a single byte that
 belongs to the set of bytes described by <em>set</em>.
 For example, <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span> <span class="pre">]</span></code> matches any bytes in the range 48 (<code class="docutils literal notranslate"><span class="pre">'0'</span></code>)
 through 57 (<code class="docutils literal notranslate"><span class="pre">'9'</span></code>) inclusive.  See <a class="reference internal" href="character-classes.html#character-classes"><span class="std std-ref">Character Classes</span></a> for deatails
 on how to write sets of bytes.</p>
+<p><strong>Any Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> extracts a single byte from the input.
+It fails if there are no bytes left in the input.  If successful, it constructs
+a value of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.  This is equivalent to writing <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">$any</span> <span class="pre">]</span></code>.</p>
 <p><strong>Specific Byte Sequence.</strong> The parser <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">bytes</span></code> matches the byte
 sequence <em>bytes</em> in the current input. The resulting semantic value is an
 array of bytes, <code class="docutils literal notranslate"><span class="pre">[uint</span> <span class="pre">8]</span></code>, corresponding to the matched bytes.
@@ -284,7 +164,8 @@ not consume any input and always succeeds with the given result.  To do
 so prefix the semantic value with the operator <code class="docutils literal notranslate"><span class="pre">^</span></code>.  Thus, <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">'A'</span></code> is
 a parser that always succeeds and produces byte <code class="docutils literal notranslate"><span class="pre">'A'</span></code> as a result.
 The parser <code class="docutils literal notranslate"><span class="pre">Accept</span></code> may be used to match the empty string without
-constructing an interesting semantic value.  It is equivalent to <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">{}</span></code>.</p>
+constructing an interesting semantic value.  It is equivalent to <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">{}</span></code>.
+In many cases, one may omit the <code class="docutils literal notranslate"><span class="pre">^</span></code> operator because of <a class="reference internal" href="lifting.html#implicit-lifting"><span class="std std-ref">Implicit Lifting</span></a>.</p>
 <p><strong>Explicit Failure</strong> The <code class="docutils literal notranslate"><span class="pre">Fail</span></code> construct will always fail.  This
 parser is parameterized by an optional location, along with an error
 message.</p>
@@ -299,10 +180,10 @@ message.</p>
 <span class="k">def</span> <span class="n">GiveUp</span>      <span class="k">=</span> <span class="n">Fail</span> <span class="s">&quot;I give up&quot;</span>  <span class="c">-- (none)    Failure with message &quot;I give up&quot;</span>
 </pre></div>
 </div>
-</section>
-<section id="sequencing-parsers">
+</div>
+<div class="section" id="sequencing-parsers">
 <h2>Sequencing Parsers<a class="headerlink" href="#sequencing-parsers" title="Permalink to this headline"></a></h2>
-<section id="basic-sequencing">
+<div class="section" id="basic-sequencing">
 <h3>Basic Sequencing<a class="headerlink" href="#basic-sequencing" title="Permalink to this headline"></a></h3>
 <p>Multiple parsers may be executed one after the other,
 by listing them either between <code class="docutils literal notranslate"><span class="pre">{</span></code> and <code class="docutils literal notranslate"><span class="pre">}</span></code> or between <code class="docutils literal notranslate"><span class="pre">[</span></code> and <code class="docutils literal notranslate"><span class="pre">]</span></code>,
@@ -344,8 +225,8 @@ equivalent to the previous two:</p>
     <span class="k">Match</span> <span class="s">&quot;B&quot;</span>
 </pre></div>
 </div>
-</section>
-<section id="explicit-result">
+</div>
+<div class="section" id="explicit-result">
 <h3>Explicit Result<a class="headerlink" href="#explicit-result" title="Permalink to this headline"></a></h3>
 <p>A <code class="docutils literal notranslate"><span class="pre">block</span></code> or <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced group of parsers may
 return the result from any member of the group instead of the last one.
@@ -360,8 +241,8 @@ For example:</p>
 </div>
 <p>In the example above, the semantic value produce by <code class="docutils literal notranslate"><span class="pre">ReturnMiddle</span></code> is that
 produced by <code class="docutils literal notranslate"><span class="pre">Q</span></code>.</p>
-</section>
-<section id="local-variables">
+</div>
+<div class="section" id="local-variables">
 <h3>Local Variables<a class="headerlink" href="#local-variables" title="Permalink to this headline"></a></h3>
 <p>It is also possible to combine the results of some
 of the <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced parsers by using <em>local variables</em> and the
@@ -380,8 +261,8 @@ and <code class="docutils literal notranslate"><span class="pre">y</span></code>
 of the sequence is the result of the last parser, which does not consume
 any input, but only constructs a semantic value by adding <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>
 together.</p>
-</section>
-<section id="structure-sequence">
+</div>
+<div class="section" id="structure-sequence">
 <h3>Structure Sequence<a class="headerlink" href="#structure-sequence" title="Permalink to this headline"></a></h3>
 <p>It is also possible to return results from more than
 one of the parsers in a <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced group.  To do so give names
@@ -423,8 +304,8 @@ example, here is an equivalent way to define the same parser:</p>
     <span class="n">y</span> <span class="k">=</span> <span class="k">^</span> <span class="n">x</span> <span class="o">+</span> <span class="n">z</span>
 </pre></div>
 </div>
-</section>
-<section id="syntactic-sugar">
+</div>
+<div class="section" id="syntactic-sugar">
 <h3>Syntactic Sugar<a class="headerlink" href="#syntactic-sugar" title="Permalink to this headline"></a></h3>
 <p>A number of the constructs described in this section are
 may be thought of as simply syntactic sugar for using local variables.
@@ -451,11 +332,11 @@ Here are some examples:</p>
 </tr>
 </tbody>
 </table>
-</section>
-</section>
-<section id="parsing-alternatives">
+</div>
+</div>
+<div class="section" id="parsing-alternatives">
 <h2>Parsing Alternatives<a class="headerlink" href="#parsing-alternatives" title="Permalink to this headline"></a></h2>
-<section id="biased-choice">
+<div class="section" id="biased-choice">
 <h3>Biased Choice<a class="headerlink" href="#biased-choice" title="Permalink to this headline"></a></h3>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code>.   This parser succeeds if <em>either</em> <code class="docutils literal notranslate"><span class="pre">P</span></code> <em>or</em> <code class="docutils literal notranslate"><span class="pre">Q</span></code>
@@ -485,8 +366,8 @@ byte <code class="docutils literal notranslate"><span class="pre">B</span></code
 </ul>
 </dd>
 </dl>
-</section>
-<section id="unbiased-choice">
+</div>
+<div class="section" id="unbiased-choice">
 <h3>Unbiased Choice<a class="headerlink" href="#unbiased-choice" title="Permalink to this headline"></a></h3>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser``P | Q``.  This parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code>
@@ -506,8 +387,8 @@ to match a prefix of the input to succeed.</p>
 <p>Parser <code class="docutils literal notranslate"><span class="pre">U2</span></code> accepts inputs starting with either <code class="docutils literal notranslate"><span class="pre">&quot;AB&quot;</span></code> (by using the
 left alternative of <code class="docutils literal notranslate"><span class="pre">U1</span></code>) or starting with <code class="docutils literal notranslate"><span class="pre">&quot;B&quot;</span></code> (by using the right
 alternative of <code class="docutils literal notranslate"><span class="pre">U1</span></code>).  No inputs are ambiguous in this case.</p>
-</section>
-<section id="alternative-syntax">
+</div>
+<div class="section" id="alternative-syntax">
 <h3>Alternative Syntax<a class="headerlink" href="#alternative-syntax" title="Permalink to this headline"></a></h3>
 <p>Given multiple parsers <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, … we can use the <code class="docutils literal notranslate"><span class="pre">Choose</span></code> keyword
 for unbiased choice and <code class="docutils literal notranslate"><span class="pre">First</span></code> for biased choice.  These constructs
@@ -532,8 +413,8 @@ some examples:</p>
       <span class="s">&quot;The second one is here&quot;</span>
 </pre></div>
 </div>
-</section>
-<section id="tagged-unions">
+</div>
+<div class="section" id="tagged-unions">
 <h3>Tagged Unions<a class="headerlink" href="#tagged-unions" title="Permalink to this headline"></a></h3>
 <p>DaeDaLus supports a variation on <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">First</span></code>
 that can be used to construct tagged unions, which is useful if
@@ -593,9 +474,9 @@ of type <code class="docutils literal notranslate"><span class="pre">BorG</span>
 second alternative because all alternatives in (untagged) <code class="docutils literal notranslate"><span class="pre">Choose</span></code> have
 the same type, so DaeDaLus can infer that we are also making a value of
 type <code class="docutils literal notranslate"><span class="pre">BorG</span></code>.</p>
-</section>
-</section>
-<section id="repetition">
+</div>
+</div>
+<div class="section" id="repetition">
 <h2>Repetition<a class="headerlink" href="#repetition" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">Many</span></code> construct allows the same parser to be run multiple times
 in sequence on an incoming data stream, and it returns an array containing
@@ -630,8 +511,8 @@ code will never succeed:</p>
 meaning that the following <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">'7'</span> <span class="pre">]</span></code> will always fail. This may be difficult
 to spot in situations where two more complex parsers are run in sequence,
 the first of which contains an unbounded call to <code class="docutils literal notranslate"><span class="pre">Many</span></code>.</p>
-</section>
-</section>
+</div>
+</div>
 
 
            </div>
