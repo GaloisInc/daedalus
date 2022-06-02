@@ -204,25 +204,27 @@ as field names (so, make sure these parsers all produce structures.)
 .. dropdown:: Solution
     :color: warning
 
-    def TRNSData0 =
-      block
-        grey_sample_value = BEUInt16
+    .. code-block:: DaeDaLus
 
-    def TRNSData2 =
-      block
-        red_sample_value   = BEUInt16
-        blue_sample_value  = BEUInt16
-        green_sample_value = BEUInt16
+        def TRNSData0 =
+          block
+            grey_sample_value = BEUInt16
 
-    def TRNSData3 =
-      block
-        alpha_for_palette = Many UInt8
+        def TRNSData2 =
+          block
+            red_sample_value   = BEUInt16
+            blue_sample_value  = BEUInt16
+            green_sample_value = BEUInt16
+
+        def TRNSData3 =
+          block
+            alpha_for_palette = Many UInt8
 
 **Exercise:** Now, define a parser ``TRNSChunkData`` that takes a single
-argument, sig, and uses the ``colour_type`` field of that argument to produce
-an appropriate value; you can use pattern-matching and integer literals for
-this. In all other cases, the parser should fail with a message indicating that
-the transparency chunk cannot appear for any other color mode.
+argument, ``sig``, and uses the ``colour_type`` field of that argument to
+produce an appropriate value; you can use pattern-matching and integer literals
+for this. In all other cases, the parser should fail with a message indicating
+that the transparency chunk cannot appear for any other color mode.
 
 .. dropdown:: Hint
     :color: info
@@ -318,4 +320,583 @@ the three fields described above.
             compression_method = UInt8
             compressed_profile = Many UInt8
 
+sBIT
+^^^^
 
+The significant bits chunk allows lossless data recovery even if the sample
+depth isn't supported by PNG. The supported color modes each have a number of
+significant bits to store that allows this to be done.
+
+Like the transparency chunk described above, the significant bits chunk behaves
+differently depending on the PNG color mode being used.
+
+In mode 0, the significant bits data is a single byte which we call
+``significant_greyscale_bits``.
+
+In modes 2 and 3, the data is stored in three bytes, respectively called
+``significant_red_bits``, ``significant_green_bits``, and
+``significant_blue_bits``.
+
+In mode 4, there are two bytes: ``significant_greyscale_bits`` and
+``significant_alpha_bits``.
+
+Finally, in mode 6, there are four bytes: ``significant_red_bits``,
+``significant_green_bits``, ``significant_blue_bits``, and
+``significant_alpha_bits``.
+
+**Exercise:** Define four parsers, ``SBITData0``, ``SBITData2or3``,
+``SBITData4``, and ``SBITData6``, that carry the data as described above. Name
+the fields using the names we provided (so make sure all parsers return
+structures).
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SBITData0 =
+          block
+            significant_greyscale_bits = UInt8
+
+        def SBITData2or3 =
+          block
+            significant_red_bits   = UInt8
+            significant_green_bits = UInt8
+            significant_blue_bits  = UInt8
+
+        def SBITData4 =
+          block
+            significant_greyscale_bits = UInt8
+            significant_alpha_bits     = UInt8
+
+        def SBITData6 =
+          block
+            significant_red_bits   = UInt8
+            significant_green_bits = UInt8
+            significant_blue_bits  = UInt8
+            significant_alpha_bits = UInt8
+
+**Exercise:** Now, define a parser ``SBITChunkData`` that takes a single
+argument, ``sig``, and uses the ``colour_type`` field of that argument to
+produce an appropriate value; you can use pattern-matching and integer literals
+for this. You can ignore all other color modes.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SBITChunkData sig =
+          case sig.colour_type of
+            0 -> {| sbit_colour_type_0 = SBITData0 |}
+            2 -> {| sbit_colour_type_2 = SBITData2or3 |}
+            3 -> {| sbit_colour_type_3 = SBITData2or3 |}
+            4 -> {| sbit_colour_type_4 = SBITData4 |}
+            6 -> {| sbit_colour_type_6 = SBITData6 |}
+
+sRGB
+^^^^
+
+The standard RGB color space chunk defines a *rendering intent*, defined by the
+ICC. It contains one byte, which is a value between 0 and 3 (inclusive) giving
+the intent.
+
+**Exercise:** Define a parser, ``SRGBChunkData``, that parses a structure with
+a single field, ``rendering_intent``, from exactly one byte with a value
+between 0 and 3 (inclusive).
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SRGBChunkData =
+          block
+            rendering_intent = $[0 .. 3]
+
+tEXt
+^^^^
+
+PNG provides textual data blocks to store information associated with images,
+such as descriptions and copyright notices. There are three types of textual
+chunk, the most basic of which is the tEXt chunk we'll define first.
+
+The standard tEXt chunk is comprised of two pieces of data: a null-terminated
+string giving a keyword (some of which are recognized by the PNG specification)
+and zero or more bytes giving the text associated with the keyword. Note that
+this character string (the data following the keyword) is *not*
+null-terminated.
+
+**Exercise:** Define a parser ``TEXTChunkData`` that returns a structure with
+two fields, ``keyword`` and ``text_string``. ``keyword`` should be a
+null-terminated string between 1 and 79 characters in length, and
+``text_string`` should be an arbitrarily large number of bytes.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def TEXTChunkData =
+          block
+            keyword     = NTString (just 1) (just 79)
+            text_string = Many UInt8
+
+zTXt
+^^^^
+
+The zTXt chunk is semantically the same as tEXt, but with compressed data - it
+is recommended for use with large blocks of text.
+
+**Exercise:** Define a parser ``ZTXTChunkData`` that returns a structure with
+three fields: ``keyword``, ``compression_method``, and
+``compressed_text_datastream``. The first and last of these are exactly as they
+were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def ZTXTChunkData =
+          block
+            keyword                    = NTString (just 1) (just 79)
+            compression_method         = UInt8
+            compressed_text_datastream = Many UInt8
+
+iTXt
+^^^^
+
+The final type of textual data chunk is iTXt, which is used for international
+text. It consists of the following fields:
+
+* ``keyword``: Exactly the same as the previous two chunk types
+* ``compression_flag``: A ``FLAG`` indicating whether the text data is
+  compressed
+* ``compression_method``: The same as in zTXt
+* ``language_tag``: An arbitrarily long null-terminated string indicating the
+  language used for the text
+* ``translated_keyword``: An arbitrarily long null-terminated string giving the
+  translation of the keyword into the language of the text
+* ``text``: The text data, given in the same way as both tEXt and zTXt
+
+**Exercise:** Define a parser ``ITXTChunkData`` that returns a structure with
+the six fields as described above.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def ITXTChunkData =
+          block
+            keyword = NTString (just 1) (just 79)
+            compression_flag = FLAG
+            compression_method = UInt8
+            language_tag = NTString nothing nothing
+            translated_keyword = NTString nothing nothing
+            text = Many UInt8
+
+bKGD
+^^^^
+
+The background color chunk specifies the default background color to present
+the image against. Different color modes use different data in this chunk to
+achieve the specified effects.
+
+For color modes 0 and 4, a single two-byte value ``greyscale`` controls the
+background color.
+
+For modes 2 and 6, three two-byte values, ``red``, ``green``, and ``blue`` are
+used for the background color.
+
+Finally, for color mode 3, a single byte, ``palette_index``, is used. You do
+not need to check that this index is within range for the palette provided.
+
+**Exercise:** Define three parsers, ``BKGDData0or4``, ``BKGDData2or6``, and
+``BKGDData3`` that return structures with the fields described above.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def BKGDData0or4 =
+          block
+            greyscale = BEUInt16
+
+        def BKGDData2or6 =
+          block
+            red   = BEUInt16
+            green = BEUInt16
+            blue  = BEUInt16
+
+        def BKGDData3 =
+          block
+            palette_index = UInt8
+
+**Exercise:** Now, define a parser ``BKGDChunkData`` that takes a single
+argument, ``sig``, and uses the ``colour_type`` field of that argument to
+prouce an appropriate value; you can use pattern-matching and integer literals
+for this. You can ignore all other color modes.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def BKGDChunkData sig =
+          case sig.colour_type of
+            0 -> {| bkgd_colour_type_0 = BKGDData0or4 |}
+            4 -> {| bkgd_colour_type_4 = BKGDData0or4 |}
+            2 -> {| bkgd_colour_type_2 = BKGDData2or6 |}
+            6 -> {| bkgd_colour_type_6 = BKGDData2or6 |}
+            3 -> {| bkgd_colour_type_3 = BKGDData3 |}
+
+hIST
+^^^^
+
+The image histogram chunk gives approximate usage frequencies for all colors in
+the palette. Each frequency is a big-endian two-byte integer.
+
+**Exercise:** Define a parser ``HISTChunkData`` that returns a structure with a
+single field, ``frequencies``, which is an array of frequencies as described
+above. Don't worry about checking that the correct number of frequencies are
+provided.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def HISTChunkData =
+          block
+            frequencies = Many BEUInt16
+
+pHYs
+^^^^
+
+The physical pixel dimensions chunk describes the intended aspect ratio for
+image display. It's comprised of:
+
+* ``pixels_per_unit_x_axis``, a 4-byte unsigned integer
+* ``pixels_per_unit_y_axis``, another 4-byte unsigned integer
+* ``unit_specifier``, a ``FLAG`` deciding whether to use unitless aspect ratio
+  or specify actual size
+
+**Exercise:** Define a parser ``PHYSChunkData`` that returns a structure with
+the fields as described above.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def PHYSChunkData =
+          block
+            pixels_per_unit_x_axis = BEUInt32
+            pixels_per_unit_y_axis = BEUInt32
+            unit_specifier         = FLAG
+
+sPLT
+^^^^
+
+The suggested palette chunk is fairly complex semantically - if you want to
+know the gnarly details, we once again point you to the full PNG specification
+linked earlier in this section. As it turns out, it is also likely the most
+challenging exercise on this page!
+
+The chunk consists of the following data:
+
+* ``palette_name``, a null-terminated string between 1 and 79 characters in
+  length
+* ``sample_depth``, a single byte that *must* be either 8 or 16
+* ``palette``, a series of 6 or 10 byte structures depending on the sample
+  depth. In both cases, the data are:
+
+  * ``red``
+  * ``green``
+  * ``blue``
+  * ``alpha``
+  * ``frequency``
+
+  In all cases, the ``frequency`` is given by a 2-byte unsigned integer.
+  If the sample depth is 8, the other four samples are one byte; if it is
+  16, they are two bytes (this is where we get a total of 6 or 10, since
+  the ``frequency`` is always given in two bytes.)
+
+Put in higher-level terms: We now need to define a data-dependent parser, as
+the sample depth will control how we parse the remaining bytes in hte input.
+
+Let's build this up one small step at a time.
+
+**Exercise:** Define two parsers, ``SPLTSample8`` and ``SPLTSample16``, that
+parse the five sample values as described above.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SPLTSample8 =
+          block
+            red       = UInt8
+            green     = UInt8
+            blue      = UInt8
+            alpha     = UInt8
+            frequency = BEUInt16
+
+        def SPLTSample16 =
+          block
+            red       = BEUInt16
+            green     = BEUInt16
+            blue      = BEUInt16
+            alpha     = BEUInt16
+            frequency = BEUInt16
+
+**Exercise:** Using the two parsers you just defined, define a new parser
+``SPLTSample`` that takes a single argument, ``depth : uint 8``, and decides
+which to use. The result should be a tagged sum with two variants named
+``splt_sample_depth_8`` and ``splt_sample_depth_16``. You do not need to write
+anything to handle sample depths other than 8 and 16.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SPLTSample (depth : uint 8) =
+          case depth of
+            8  -> {| splt_sample_depth_8  = SPLTSample8  |}
+            16 -> {| splt_sample_depth_16 = SPLTSample16 |}
+
+**Exercise (Challenging):** Finally, define a parser ``SPLTChunkData`` that
+returns a structure containing fields ``palette_name``, ``sample_depth``, and
+``palette`` as described earlier.
+
+.. dropdown:: Hint
+    :color: info
+
+    Remember that you can parse alternatives using the operators ``<|`` and
+    ``|`` - the former is for biased choice, the latter for unbiased.
+
+    Also remember that DaeDaLus allows for data-dependent parsing: If you store
+    the result of running a parser in a local variable or structure field, you
+    may use that value later in the sequence.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def SPLTChunkData =
+          block
+            palette_name = NTString (just 1) (just 79)
+            sample_depth = $[8] <| $[16]
+            palette = Many (SPLTSample sample_depth)
+
+tIME
+^^^^
+
+With that tricky one out of the way, there's only one chunk type left, and it's
+very straightforward: The tIME chunk carries along the last-modified time for
+the image.
+
+**Exercise:** For consistency with our other chunk parser naming, define a
+'new' parser ``TIMEChunkData`` that returns a ``UTCTime``.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def TIMEChunkData = UTCTime
+
+Generic Chunk Data Parsing
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now that we know how to parse each type of chunk, we want to combine all of
+those possibilities into a single tagged sum type, so that we will be able to
+parse many chunks in sequence. To do this, we'll use pattern-matching on the
+``bitdata`` we defined earlier and all of the parsers defined so far in this
+section.
+
+**Exercise:** Write a parser ``ChunkData`` that takes two arguments, ``sig``
+and ``type : ChunkType``, and produces a tagged sum covering all possible
+chunk types defined by the ``type`` parameter. The tags should be named,
+for example, ``plte_data`` for the ``plte`` case.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def ChunkData sig (type : ChunkType) =
+          case type of
+            plte -> {| plte_data = PLTEChunkData     |}
+            idat -> {| idat_data = IDATChunkData     |}
+            trns -> {| trns_data = TRNSChunkData sig |}
+            chrm -> {| chrm_data = CHRMChunkData     |}
+            gama -> {| gama_data = GAMAChunkData     |}
+            iccp -> {| iccp_data = ICCPChunkData     |}
+            sbit -> {| sbit_data = SBITChunkData sig |}
+            srgb -> {| srgb_data = SRGBChunkData     |}
+            text -> {| text_data = TEXTChunkData     |}
+            itxt -> {| itxt_data = ITXTChunkData     |}
+            ztxt -> {| ztxt_data = ZTXTChunkData     |}
+            bkgd -> {| bkgd_data = BKGDChunkData sig |}
+            hist -> {| hist_data = HISTChunkData     |}
+            phys -> {| phys_data = PHYSChunkData     |}
+            splt -> {| splt_data = SPLTChunkData     |}
+            time -> {| time_data = TIMEChunkData     |}
+
+PNG Chunks
+----------
+
+Now that we can successfully parse any type of chunk data, we need only add in
+the metadata necessary for a complete chunk. A complete PNG chunk consists of
+the chunks length (as a 4-byte integer), the type of the chunk (which we need
+to interpret as a ``ChunkType``), the chunk data, and a CRC value.
+
+**Exercise:** Define a parser ``PNGChunk`` that takes a single argument,
+``sig``, and returns a structure with the following fields:
+
+* ``type``, an instance of ``bitdata ChunkType``
+* ``data``, a ``ChunkData`` that results from parsing exactly as many bytes as
+  specified by the length (which must be parsed before ``type`` but does not
+  need to be stored in the resulting structure)
+* ``crc``, a ``Crc``
+
+.. dropdown:: Hint
+    :color: info
+
+    1. Remember that you use a ``bitdata`` by coercing a parsed value - take
+       care to use the appropriate coercion method!
+    2. To make sure a particular number of bytes are consumed, recall the
+       ``Chunk`` parser in the standard library. Be careful - this expects a
+       ``uint 64`` argument for the number of bytes to parse!
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def PNGChunk sig =
+          block
+            @len = Length as uint 64
+            type = BEUint32 as? ChunkType
+            data = Chunk len (ChunkData sig type)
+            crc  = Crc
+
+Header / Trailer
+----------------
+
+Two special chunks we haven't discussed are the *header* and *trailer* for PNG.
+These are, respectively, the first and last chunks in a PNG datastream. The
+``sig`` parameter we've left undiscussed is, in fact, the data in the header.
+
+Like the ``PNGChunk`` variants, these will both need a length, type, and crc
+field. Since they always have the same length (13 and 0 bytes respectively), we
+can hardcode these fields in our parsers. Note that the length, type, and crc
+fields do not count towards the length of the chunk.
+
+The header chunk additionally contains the following fields:
+
+* ``width``, a 4-byte unsigned integer giving the width of the image
+* ``height``, a 4-byte unsigned integer giving the height of the image
+* ``bit_depth``, a single byte giving the number of bits per sample
+* ``colour_type``, a single byte that defines the image type. This must be
+  one of 0, 2, 3, 4, or 6
+* ``compression_method``, a single byte giving the compression method
+* ``filter_method``, a single byte indicating the preprocessing method applied
+  before compression
+* ``interlace_method``, a single byte indicating transmission order of image
+  data
+
+**Exercise:** Define a parser ``IHDRChunk`` that returns a structure with the
+above-described fields. The type identifier for the header chunk is the four
+bytes ``73``, ``72``, ``68``, and ``82``.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def IHDRChunk =
+          block
+            Match [0, 0, 0, 13]
+            Match [73, 72, 68, 82]
+            width              = BEUint32
+            height             = BEUInt32
+            bit_depth          = UInt8
+            colour_type        = UInt8
+            compression_method = UInt8
+            filter_method      = UInt8
+            interlace_method   = UInt8
+            crc                = Crc
+
+**Exercise:** Define a parser ``IENDChunk`` that returns a structure matching
+the description above. The type identifier for the trailer chunk is the four
+bytes ``73``, ``69``, ``78``, and ``68``.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def IENDChunk =
+          block
+            Match [0, 0, 0, 0]
+            Match [73, 69, 78, 68]
+            crc = Crc
+
+Full PNG
+--------
+
+The home stretch! We have almost all of the components needed to parse full PNG
+images now. The only thing missing is the PNG header, a byte sequence that
+starts every PNG image ever encoded:
+
+.. code-block:: DaeDaLus
+
+    def PNGHeader = Match [137, 80, 78, 71, 13, 10, 26, 10]
+
+With this here is your final exercise:
+
+**Exercise:** Write the ``Main`` parser to parse a full PNG image. That is:
+The PNG header, the signature/header chunk, the data chunks, and finally the
+trailer chunk. Make sure ``Main`` is defined so that it only succeeds if it
+consumes the entire input.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def Main =
+          block
+            PNGHeader
+            sig = IHDRChunk
+            chunks = Many (PNGChunk sig)
+            IENDChunk
+            END
+
+Conclusion
+----------
+
+Congratulations on making it through! The full PNG specification can be foud on
+the following page; you'll be pleasantly surprised at how short it is compared
+to the PNG specification it's based on.
+
+Note that in a few places (as the exercises note), we fail to do some of the
+validation included in the specifciation; in fact, there are a number of places
+where we purposefully left out the restrictions for simplicity (e.g. the
+``bit_depth`` field only has a few allowed values, and these values are also
+constrained by the ``colour_type``.) As discussed, it is often better to leave
+these more complex validations for post-parsing stages of your applications,
+such as type-checking and other static analysis. Where it was natural, we built
+the specification's restrictions into our parser to catch problems early.
+
+You're encouraged to read over the rest of the DaeDaLus user guide, which has
+some extra detail on concepts we covered (and some more advanced topics we did
+not cover.)
