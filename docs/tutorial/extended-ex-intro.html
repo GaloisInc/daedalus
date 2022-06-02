@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Breaking Down the PPM Specification &mdash; Daedalus 0.1 documentation</title>
+  <title>Extended Exercise: The PNG Format &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Breaking down PPM: Declarations" href="ppm-breakdown-decl.html" />
-    <link rel="prev" title="Getting Started" href="getting-started.html" /> 
+    <link rel="next" title="Aside: What To (Not) Do While Parsing" href="extended-ex-parsers.html" />
+    <link rel="prev" title="Breaking down PPM: Expressions and Control Flow" href="ppm-breakdown-expr.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -128,7 +128,7 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -186,7 +186,7 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="extended-ex-intro.html">Extended Exercise: The PNG Format</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Extended Exercise: The PNG Format</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#endianness">Endianness</a></li>
@@ -247,9 +247,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Breaking Down the PPM Specification</li>
+      <li>Extended Exercise: The PNG Format</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/tutorial/ppm-breakdown.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorial/extended-ex-intro.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -257,66 +257,39 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="breaking-down-the-ppm-specification">
-<h1>Breaking Down the PPM Specification<a class="headerlink" href="#breaking-down-the-ppm-specification" title="Permalink to this headline"></a></h1>
-<p>In <a class="reference internal" href="getting-started.html#getting-started"><span class="std std-ref">Getting Started</span></a>, we presented this DaeDaLus specification for the PPM
-ASCII image format:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span><span class="p">;</span>
-  <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">Match</span> <span class="s">&quot;P&quot;</span><span class="p">;</span>
-  <span class="k">@</span><span class="n">version</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">version</span> <span class="k">==</span> <span class="m">3</span> <span class="k">is</span> <span class="l">true</span><span class="p">;</span>
-  <span class="n">width</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">height</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">maxVal</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">data</span>   <span class="k">=</span> <span class="k">Many</span> <span class="n">height</span> <span class="p">(</span><span class="k">Many</span> <span class="n">width</span> <span class="n">RGB</span><span class="p">);</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="n">red</span>   <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">ds</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">Digit</span><span class="p">;</span>
-  <span class="k">^</span> <span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="n">ds</span><span class="p">)</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">);</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">);</span>
-  <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span> <span class="k">=</span>
-  <span class="m">10</span> <span class="o">*</span> <span class="n">val</span> <span class="o">+</span> <span class="p">(</span><span class="n">d</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>The following sections will break down this specification in order to introduce
-the core features of DaeDaLus, including declarations, parsing primitives,
-parser combinators, and some of the facilities for constructing semantic values
-that match the structure of the data we’re writing layout specifications for.
-After reading this section, you should be prepared to write all kinds of data
-layouts effortlessly.</p>
+  <section id="extended-exercise-the-png-format">
+<h1>Extended Exercise: The PNG Format<a class="headerlink" href="#extended-exercise-the-png-format" title="Permalink to this headline"></a></h1>
+<p>As mentioned very early in the tutorial, DaeDaLus is very good for both text
+and binary format specification. We’re going to make a big jump in difficulty
+to explore the binary format parsing features DaeDaLus has, while also giving
+significant practice with the other features already introduced.</p>
+<p>The format we’ll be specifying is PNG, the Portable Network Graphics image
+format, which provides lossless raster-graphics compression; an improvement on
+the widely used Graphics Interchange Format (GIF).</p>
+<p>Now, the PNG specification is quite long, so we won’t be implementing it in its
+entirety - in particular, we’re mainly focused on the structure of PNG
+<em>chunks</em>, and do not validate the order/number of chunks other than the header
+and end. Furthermore, we do not perform any of the typical CRC validation, a
+criticial error detection/correction system that contributes to the reliability
+of PNG.</p>
+<p>Before diving into the exercises, we’ll first have a brief aside on the
+high-level guiding principles one should have in mind when deciding what to
+include in the parsing stage of a format-processing application - this will
+directly address some of the things we’re “leaving out” of the DaeDaLus PNG
+specification.</p>
+<p>In addition, we’ll need some of the definitions from the DaeDaLus standard
+library, which we did not use at all in the PPM specification - briefly,
+this library (which is all implemented in DaeDaLus itself, with some features
+not covered in this tutorial) provides a number of convenient types for
+handling binary formats in particular.</p>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="getting-started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ppm-breakdown-decl.html" class="btn btn-neutral float-right" title="Breaking down PPM: Declarations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ppm-breakdown-expr.html" class="btn btn-neutral float-left" title="Breaking down PPM: Expressions and Control Flow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="extended-ex-parsers.html" class="btn btn-neutral float-right" title="Aside: What To (Not) Do While Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

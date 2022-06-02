@@ -7,6 +7,7 @@
   <title>Implicit Parameters &mdash; Daedalus 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -15,6 +16,7 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/design-tabs.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -155,6 +157,80 @@
 <li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html">Breaking down PPM: Expressions and Control Flow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#built-in-semantic-values">Built-In Semantic Values</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#bool"><code class="docutils literal notranslate"><span class="pre">bool</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#numerics">Numerics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#maybe"><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#t"><code class="docutils literal notranslate"><span class="pre">[T]</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#array-builders">Array Builders</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#control-strucutres">Control Strucutres</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#guarding">Guarding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#loops">Loops</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#for"><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#map"><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#more-on-types">More on Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#annotating-types">Annotating Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#unknown-types">Unknown Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/ppm-breakdown-expr.html#type-coercion">Type Coercion</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-intro.html">Extended Exercise: The PNG Format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#endianness">Endianness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#floating-point-numbers">Floating-Point Numbers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#guarding-and-consuming-everything">Guarding and Consuming Everything</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-stdlib.html#manipulating-input-streams">Manipulating Input Streams</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-utils.html">Extended Exercise: Defining Helpful Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#domain-specific-parser-names">Domain-Specific Parser Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#null-terminated-strings">Null-terminated Strings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-utils.html#common-structures">Common Structures</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-chunks.html">Extended Exercise: PNG Chunks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#introducing-bitdata">Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunk-types">PNG Chunk Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunk-data">PNG Chunk Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#plte">PLTE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#idat">IDAT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#trns">tRNS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#chrm">cHRM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#gama">gAMA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#iccp">iCCP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#sbit">sBIT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#srgb">sRGB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#text">tEXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#ztxt">zTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#itxt">iTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#bkgd">bKGD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#hist">hIST</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#phys">pHYs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#splt">sPLT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#time">tIME</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tutorial/extended-ex-chunks.html#generic-chunk-data-parsing">Generic Chunk Data Parsing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#png-chunks">PNG Chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#header-trailer">Header / Trailer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#full-png">Full PNG</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial/extended-ex-chunks.html#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial/extended-ex-solution.html">Extended Exercise: Full Solution</a></li>
 </ul>
 
         </div>

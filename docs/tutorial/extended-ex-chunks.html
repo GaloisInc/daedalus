@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extended Exercise: PNG Chunks &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Extended Exercise: Full Solution" href="extended-ex-solution.html" />
+    <link rel="prev" title="Extended Exercise: Defining Helpful Utilities" href="extended-ex-utils.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Using the Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html">Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#check-a-specification">Check a Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#run-the-interpreter">Run the Interpreter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#compile-to-haskell">Compile to Haskell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#compile-to-c">Compile to C++</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Language</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../declarations.html">Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parsers.html">Parsers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#primitive-parsers">Primitive Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#sequencing-parsers">Sequencing Parsers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#basic-sequencing">Basic Sequencing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#explicit-result">Explicit Result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#local-variables">Local Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#structure-sequence">Structure Sequence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#syntactic-sugar">Syntactic Sugar</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#parsing-alternatives">Parsing Alternatives</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#biased-choice">Biased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#unbiased-choice">Unbiased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#alternative-syntax">Alternative Syntax</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#tagged-unions">Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#repetition">Repetition</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../control-structures.html">Control Structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#if-then-else">If-then-else</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#guards">Guards</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#boolean-guards">Boolean Guards</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#guards-on-maybe">Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#guards-on-tagged-unions">Guards on Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#case">Case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#commit">Commit</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../types.html">Type Annotations and Coercions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-an-expression">Annotating an Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-the-result-of-a-declaration">Annotating the Result of a Declaration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-a-parameter">Annotating a Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#naming-unknown-types">Naming Unknown Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#coercions">Coercions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semantic-values.html">Semantic Values</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#booleans">Booleans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#numeric-types">Numeric Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#numeric-literals">Numeric Literals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#comparisons">Comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#bitwise-operations">Bitwise Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#builders">Builders</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../streams.html">Stream Manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../character-classes.html">Character Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../external.html">External Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../bitdata.html">Bitdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-expr.html">Breaking down PPM: Expressions and Control Flow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#built-in-semantic-values">Built-In Semantic Values</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#bool"><code class="docutils literal notranslate"><span class="pre">bool</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#numerics">Numerics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#maybe"><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#t"><code class="docutils literal notranslate"><span class="pre">[T]</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#array-builders">Array Builders</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#control-strucutres">Control Strucutres</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#guarding">Guarding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#loops">Loops</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ppm-breakdown-expr.html#for"><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ppm-breakdown-expr.html#map"><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#more-on-types">More on Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#annotating-types">Annotating Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#unknown-types">Unknown Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#type-coercion">Type Coercion</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-intro.html">Extended Exercise: The PNG Format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#endianness">Endianness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#floating-point-numbers">Floating-Point Numbers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#guarding-and-consuming-everything">Guarding and Consuming Everything</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#manipulating-input-streams">Manipulating Input Streams</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-utils.html">Extended Exercise: Defining Helpful Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#domain-specific-parser-names">Domain-Specific Parser Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#null-terminated-strings">Null-terminated Strings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#common-structures">Common Structures</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Extended Exercise: PNG Chunks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introducing-bitdata">Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#png-chunk-types">PNG Chunk Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#png-chunk-data">PNG Chunk Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#plte">PLTE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#idat">IDAT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#trns">tRNS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chrm">cHRM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gama">gAMA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#iccp">iCCP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sbit">sBIT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#srgb">sRGB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#text">tEXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ztxt">zTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#itxt">iTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bkgd">bKGD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hist">hIST</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phys">pHYs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#splt">sPLT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#time">tIME</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generic-chunk-data-parsing">Generic Chunk Data Parsing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#png-chunks">PNG Chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#header-trailer">Header / Trailer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-png">Full PNG</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-solution.html">Extended Exercise: Full Solution</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Extended Exercise: PNG Chunks</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorial/extended-ex-chunks.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="extended-exercise-png-chunks">
+<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this headline"></a></h1>
+<p>Now, we’ll use our utilities and more of the knowledge we’ve developed to build
+up parsers for PNG chunks themselves, culminating in a top-level parser that
+can consume full PNG images. This is a very long section - take it as slow as
+you need, and don’t worry if you need to peek at the solutions as you go!</p>
+<p>The central consideration for us will be the <em>chunk type</em> - in PNG, these types
+are given by special 4-byte sequences identifying what kind of data is carried
+by a chunk. You can’t guess these sequences; they’re given explicitly in the
+PNG specification.</p>
+<p>Unfortunately, with our current toolkit, there isn’t a nice way to capture
+these kinds of alternatives - tagged sums are close, but not sufficient on
+their own.</p>
+<section id="introducing-bitdata">
+<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this headline"></a></h2>
+<p>DaeDaLus offers a solution: <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>. In general, a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> specifies
+how bytes should be broken into groups of bits, which are <em>then</em> combined into
+a tagged sum.</p>
+<p>Here is a small example of using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to inspect the first nybble of a
+byte:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">bitdata</span> <span class="n">ChooseOption</span> <span class="k">where</span>
+  <span class="n">opt1</span> <span class="k">=</span> <span class="m">0x0</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">4</span>
+  <span class="n">opt2</span> <span class="k">=</span> <span class="m">0x1</span>
+
+<span class="k">bitdata</span> <span class="n">OptionData</span> <span class="k">where</span>
+  <span class="n">OptionData</span> <span class="k">=</span> <span class="p">{</span> <span class="n">opt</span> <span class="p">:</span> <span class="n">ChooseOption</span><span class="p">,</span> <span class="n">val</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">4</span> <span class="p">}</span>
+
+<span class="p">...</span>
+
+<span class="k">block</span>
+  <span class="k">let</span> <span class="n">odata</span> <span class="k">=</span> <span class="k">UInt8</span> <span class="k">as</span><span class="n">?</span> <span class="n">OptionData</span>
+  <span class="k">case</span> <span class="n">odat</span> <span class="k">of</span>
+    <span class="n">OptionData</span> <span class="n">x</span> <span class="k">-&gt;</span>
+      <span class="k">case</span> <span class="n">x</span><span class="p">.</span><span class="n">opt</span> <span class="k">of</span>
+        <span class="n">opt1</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="n">x</span><span class="p">.</span><span class="n">val</span>
+        _    <span class="k">-&gt;</span> <span class="n">Fail</span> <span class="s">&quot;Wrong option!&quot;</span>
+</pre></div>
+</div>
+<p>Note that we write <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">...</span> <span class="pre">where</span> <span class="pre">...</span></code> to introduce a new bitdata.
+Furthermore, note that <code class="docutils literal notranslate"><span class="pre">ChooseOption</span></code> and <code class="docutils literal notranslate"><span class="pre">OptionData</span></code> are <em>not</em> parsers!
+A <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, in essence, only introduces a type that can be used in
+coercions - it doesn’t do anything else at all until we use something like
+<code class="docutils literal notranslate"><span class="pre">as?</span></code>. Once we’ve done that, however, we can take advantage of all the tools
+available for breaking down tagged sums, such as pattern-matching.</p>
+<p>Note also here that, to access the fields of a structure, we can use the <code class="docutils literal notranslate"><span class="pre">.</span></code>
+accessor notation. In the <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">OptionData</span></code>, we have only one variant that
+has two fields, each of length 4 bits.</p>
+<p>The type annotations in this example are necessary, otherwise DaeDaLus would
+not know where to place the boundary between <code class="docutils literal notranslate"><span class="pre">opt</span></code> and <code class="docutils literal notranslate"><span class="pre">val</span></code>; there are
+lots of ways to split a byte into two chunks!</p>
+</section>
+<section id="png-chunk-types">
+<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this headline"></a></h2>
+<p>To get your feet wet with <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, you’ll first define one that specifies
+the different type tags that a PNG chunk can carry.</p>
+<p>Every type tag is a 32-bit unsigned integer consisting of four bytes. The following
+table gives the four bytes for each type. Don’t worry about what the tag names
+mean; if you’re curious, you can check the PNG specification for details, but
+we won’t need that information for parsing:</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">PNG Chunk Types</span><a class="headerlink" href="#id1" title="Permalink to this table"></a></caption>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>plte</p></td>
+<td><p>80 76 84 69</p></td>
+</tr>
+<tr class="row-even"><td><p>idat</p></td>
+<td><p>73 68 65 84</p></td>
+</tr>
+<tr class="row-odd"><td><p>trns</p></td>
+<td><p>116 82 78 83</p></td>
+</tr>
+<tr class="row-even"><td><p>chrm</p></td>
+<td><p>99 72 82 77</p></td>
+</tr>
+<tr class="row-odd"><td><p>gama</p></td>
+<td><p>103 65 77 65</p></td>
+</tr>
+<tr class="row-even"><td><p>iccp</p></td>
+<td><p>105 67 67 80</p></td>
+</tr>
+<tr class="row-odd"><td><p>sbit</p></td>
+<td><p>115 66 73 84</p></td>
+</tr>
+<tr class="row-even"><td><p>srgb</p></td>
+<td><p>115 82 71 66</p></td>
+</tr>
+<tr class="row-odd"><td><p>text</p></td>
+<td><p>116 69 88 116</p></td>
+</tr>
+<tr class="row-even"><td><p>itxt</p></td>
+<td><p>105 84 88 116</p></td>
+</tr>
+<tr class="row-odd"><td><p>ztxt</p></td>
+<td><p>122 84 88 116</p></td>
+</tr>
+<tr class="row-even"><td><p>bkgd</p></td>
+<td><p>98 75 71 68</p></td>
+</tr>
+<tr class="row-odd"><td><p>hist</p></td>
+<td><p>104 73 83 84</p></td>
+</tr>
+<tr class="row-even"><td><p>phys</p></td>
+<td><p>112 72 89 115</p></td>
+</tr>
+<tr class="row-odd"><td><p>splt</p></td>
+<td><p>115 80 76 84</p></td>
+</tr>
+<tr class="row-even"><td><p>time</p></td>
+<td><p>116 73 77 69</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Exercise:</strong> Write a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> called <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code> with 16 variants (one
+for each name in the above table.) Name the variants using the names in the
+table, and be sure to specify the type of each byte (use <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.)</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">bitdata</span> <span class="n">ChunkType</span> <span class="k">where</span>
+  <span class="n">plte</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">80</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">76</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">69</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">idat</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">73</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">68</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">65</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">trns</span> <span class="k">=</span> <span class="p">{</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">82</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">78</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">83</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">chrm</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">99</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">72</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">82</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">77</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">gama</span> <span class="k">=</span> <span class="p">{</span> <span class="m">103</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">65</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">77</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">65</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">iccp</span> <span class="k">=</span> <span class="p">{</span> <span class="m">105</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">67</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">67</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">80</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">sbit</span> <span class="k">=</span> <span class="p">{</span> <span class="m">115</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">66</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">73</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">srgb</span> <span class="k">=</span> <span class="p">{</span> <span class="m">115</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">82</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">71</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">66</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">text</span> <span class="k">=</span> <span class="p">{</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">69</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">88</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">itxt</span> <span class="k">=</span> <span class="p">{</span> <span class="m">105</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">88</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">ztxt</span> <span class="k">=</span> <span class="p">{</span> <span class="m">122</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">88</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">bkgd</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">98</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">75</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">71</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">68</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">hist</span> <span class="k">=</span> <span class="p">{</span> <span class="m">104</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">73</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">83</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">phys</span> <span class="k">=</span> <span class="p">{</span> <span class="m">112</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">72</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">89</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span> <span class="m">115</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">splt</span> <span class="k">=</span> <span class="p">{</span> <span class="m">115</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">80</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">76</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">time</span> <span class="k">=</span> <span class="p">{</span> <span class="m">116</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">73</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">77</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">,</span>  <span class="m">69</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="png-chunk-data">
+<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this headline"></a></h2>
+<p>Now, you’ll build parsers for each type of chunk data. We’ll then combine those
+into a single <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> parser, which will allow us to parse any type of
+chunk with a single parser, and more importantly, parse many chunks in
+sequence.</p>
+<section id="plte">
+<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this headline"></a></h3>
+<p>The PLTE chunk contains between 1 and 256 palette entries, which are simply RGB
+structures as we defined in the section
+<a class="reference internal" href="extended-ex-utils.html#extended-exercise-defining-helpful-utilities"><span class="std std-ref">Extended Exercise: Defining Helpful Utilities</span></a>.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">PLTEChunkData</span></code> that parses between 1 and 256
+<code class="docutils literal notranslate"><span class="pre">RGB</span></code> structures.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PLTEChunkData</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..</span><span class="m">256</span><span class="p">)</span> <span class="n">RGB</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="idat">
+<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this headline"></a></h3>
+<p>The IDAT chunk contains image data as output by the PNG compression algorithm;
+it consists merely of a bunch of bytes.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">IDATChunkData</span></code> that parses any number of bytes.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IDATChunkData</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="trns">
+<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this headline"></a></h3>
+<p>Transparency chunks are significantly more complex than the others we’ve looked
+at so far, in that they have a different data shape depending on data provided
+in the PNG <em>signature</em> that we have not defined yet. We’ll delay full
+discussion of that until later; for now, all that matters is that the signature
+is a structure with a field named <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>, which we can patterm-match
+on to guide value construction for different PNG modes.</p>
+<p>Transparency data is valid for <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> values 0, 2, and 3 - any other
+value should cause transparency data parsing to fail.</p>
+<p>In the case of mode 0, the transparency data is a single big-endian 2-byte
+value which we will call <code class="docutils literal notranslate"><span class="pre">grey_sample_value</span></code>.</p>
+<p>In mode 2, the transparency data is a sequence of three big-endian 2-byte
+values which we call <code class="docutils literal notranslate"><span class="pre">red_sample_value</span></code>, <code class="docutils literal notranslate"><span class="pre">blue_sample_value</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">green_sample_value</span></code>. This is the order the values should be parsed.</p>
+<p>Finally, in mode 3, there is a sequence of bytes, one for each entry in the
+PLTE chunk (so, between 1 and 256.) You are not required to check that there
+are an appropriate number of bytes - in fact, you should not put bounds on how
+many are parsed. We call these bytes <code class="docutils literal notranslate"><span class="pre">alpha_for_palette</span></code>.</p>
+<p><strong>Exercise:</strong> Define three parsers, <code class="docutils literal notranslate"><span class="pre">TRNSData0</span></code>, <code class="docutils literal notranslate"><span class="pre">TRNSData2</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">TRNSData3</span></code>, that carry the data as described above. Use the names provided
+as field names (so, make sure these parsers all produce structures.)</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TRNSData0</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">grey</span>_<span class="n">sample</span>_<span class="n">value</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+
+<span class="k">def</span> <span class="n">TRNSData2</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">red</span>_<span class="n">sample</span>_<span class="n">value</span>   <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">blue</span>_<span class="n">sample</span>_<span class="n">value</span>  <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">green</span>_<span class="n">sample</span>_<span class="n">value</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+
+<span class="k">def</span> <span class="n">TRNSData3</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">alpha</span>_<span class="n">for</span>_<span class="n">palette</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise:</strong> Now, define a parser <code class="docutils literal notranslate"><span class="pre">TRNSChunkData</span></code> that takes a single
+argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument to
+produce an appropriate value; you can use pattern-matching and integer literals
+for this. In all other cases, the parser should fail with a message indicating
+that the transparency chunk cannot appear for any other color mode.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
+Hint<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Remember that you can return values of a tagged sum using the special
+‘barbed wire’ brackets, <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">tag</span> <span class="pre">=</span> <span class="pre">...</span> <span class="pre">|}</span></code>.</p>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TRNSChunkData</span> <span class="n">sig</span> <span class="k">=</span>
+  <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
+    <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">trns</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">TRNSData0</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">2</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">trns</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">2</span> <span class="k">=</span> <span class="n">TRNSData2</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">3</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">trns</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">3</span> <span class="k">=</span> <span class="n">TRNSData3</span> <span class="k">|</span><span class="p">}</span>
+    _ <span class="k">-&gt;</span> <span class="n">Fail</span> <span class="s">&quot;tRNS chunk shall not appear for other colour types&quot;</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="chrm">
+<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this headline"></a></h3>
+<p>The chromaticities / white point chunk is eight big-endian 4-byte values:
+<code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> respectively for the white point, red, green, and blue.
+You should use the names <code class="docutils literal notranslate"><span class="pre">white_point_x</span></code>, <code class="docutils literal notranslate"><span class="pre">white_point_y</span></code>, <code class="docutils literal notranslate"><span class="pre">red_x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">red_y</span></code>, <code class="docutils literal notranslate"><span class="pre">green_x</span></code>, <code class="docutils literal notranslate"><span class="pre">green_y</span></code>, <code class="docutils literal notranslate"><span class="pre">blue_x</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue_y</span></code> for these
+fields in the next exercise.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">CHRMChunkData</span></code> that parses the fields
+described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">CHRMChunkData</span> <span class="n">sig</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">white</span>_<span class="n">point</span>_<span class="n">x</span> <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">white</span>_<span class="n">point</span>_<span class="n">y</span> <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">red</span>_<span class="n">x</span>         <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">red</span>_<span class="n">y</span>         <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">green</span>_<span class="n">x</span>       <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">green</span>_<span class="n">y</span>       <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">blue</span>_<span class="n">x</span>        <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">blue</span>_<span class="n">y</span>        <span class="k">=</span> <span class="n">BEUInt32</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="gama">
+<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this headline"></a></h3>
+<p>The gamma chunk relates image samples to desired output intensity. It is simply
+a big-endian 4-byte integer.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">GAMAChunkData</span></code> that parses a single field,
+<code class="docutils literal notranslate"><span class="pre">image_gamma</span></code>, as specified in the above description.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GAMAChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">image</span>_<span class="n">gamma</span> <span class="k">=</span> <span class="n">BEUInt32</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="iccp">
+<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this headline"></a></h3>
+<p>The embedded ICC profile chunk contains information related to the
+International Color Consortium. It consists of three fields:</p>
+<ol class="arabic simple">
+<li><p>A null-terminated string between 1 and 79 characters in length, which we
+call <code class="docutils literal notranslate"><span class="pre">profile_name</span></code></p></li>
+<li><p>A byte defining the <code class="docutils literal notranslate"><span class="pre">compression_method</span></code></p></li>
+<li><p>Many bytes giving the <code class="docutils literal notranslate"><span class="pre">compressed_profile</span></code></p></li>
+</ol>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ICCPChunkData</span></code> that parses a structure with
+the three fields described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
+Hint<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Remember the null-terminated string parser we built previously!</p>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ICCPChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">profile</span>_<span class="n">name</span>       <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
+    <span class="n">compression</span>_<span class="n">method</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">compressed</span>_<span class="n">profile</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="sbit">
+<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this headline"></a></h3>
+<p>The significant bits chunk allows lossless data recovery even if the sample
+depth isn’t supported by PNG. The supported color modes each have a number of
+significant bits to store that allows this to be done.</p>
+<p>Like the transparency chunk described above, the significant bits chunk behaves
+differently depending on the PNG color mode being used.</p>
+<p>In mode 0, the significant bits data is a single byte which we call
+<code class="docutils literal notranslate"><span class="pre">significant_greyscale_bits</span></code>.</p>
+<p>In modes 2 and 3, the data is stored in three bytes, respectively called
+<code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>, <code class="docutils literal notranslate"><span class="pre">significant_green_bits</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">significant_blue_bits</span></code>.</p>
+<p>In mode 4, there are two bytes: <code class="docutils literal notranslate"><span class="pre">significant_greyscale_bits</span></code> and
+<code class="docutils literal notranslate"><span class="pre">significant_alpha_bits</span></code>.</p>
+<p>Finally, in mode 6, there are four bytes: <code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>,
+<code class="docutils literal notranslate"><span class="pre">significant_green_bits</span></code>, <code class="docutils literal notranslate"><span class="pre">significant_blue_bits</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">significant_alpha_bits</span></code>.</p>
+<p><strong>Exercise:</strong> Define four parsers, <code class="docutils literal notranslate"><span class="pre">SBITData0</span></code>, <code class="docutils literal notranslate"><span class="pre">SBITData2or3</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SBITData4</span></code>, and <code class="docutils literal notranslate"><span class="pre">SBITData6</span></code>, that carry the data as described above. Name
+the fields using the names we provided (so make sure all parsers return
+structures).</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SBITData0</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">significant</span>_<span class="n">greyscale</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
+
+<span class="k">def</span> <span class="n">SBITData2or3</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">significant</span>_<span class="n">red</span>_<span class="n">bits</span>   <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">green</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">blue</span>_<span class="n">bits</span>  <span class="k">=</span> <span class="k">UInt8</span>
+
+<span class="k">def</span> <span class="n">SBITData4</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">significant</span>_<span class="n">greyscale</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">alpha</span>_<span class="n">bits</span>     <span class="k">=</span> <span class="k">UInt8</span>
+
+<span class="k">def</span> <span class="n">SBITData6</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">significant</span>_<span class="n">red</span>_<span class="n">bits</span>   <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">green</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">blue</span>_<span class="n">bits</span>  <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">significant</span>_<span class="n">alpha</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise:</strong> Now, define a parser <code class="docutils literal notranslate"><span class="pre">SBITChunkData</span></code> that takes a single
+argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument to
+produce an appropriate value; you can use pattern-matching and integer literals
+for this. You can ignore all other color modes.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SBITChunkData</span> <span class="n">sig</span> <span class="k">=</span>
+  <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
+    <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">SBITData0</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">2</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">2</span> <span class="k">=</span> <span class="n">SBITData2or3</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">3</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">3</span> <span class="k">=</span> <span class="n">SBITData2or3</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">4</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">4</span> <span class="k">=</span> <span class="n">SBITData4</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">6</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">6</span> <span class="k">=</span> <span class="n">SBITData6</span> <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="srgb">
+<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this headline"></a></h3>
+<p>The standard RGB color space chunk defines a <em>rendering intent</em>, defined by the
+ICC. It contains one byte, which is a value between 0 and 3 (inclusive) giving
+the intent.</p>
+<p><strong>Exercise:</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">SRGBChunkData</span></code>, that parses a structure with
+a single field, <code class="docutils literal notranslate"><span class="pre">rendering_intent</span></code>, from exactly one byte with a value
+between 0 and 3 (inclusive).</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SRGBChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">rendering</span>_<span class="n">intent</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">3</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="text">
+<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this headline"></a></h3>
+<p>PNG provides textual data blocks to store information associated with images,
+such as descriptions and copyright notices. There are three types of textual
+chunk, the most basic of which is the tEXt chunk we’ll define first.</p>
+<p>The standard tEXt chunk is comprised of two pieces of data: a null-terminated
+string giving a keyword (some of which are recognized by the PNG specification)
+and zero or more bytes giving the text associated with the keyword. Note that
+this character string (the data following the keyword) is <em>not</em>
+null-terminated.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code> that returns a structure with
+two fields, <code class="docutils literal notranslate"><span class="pre">keyword</span></code> and <code class="docutils literal notranslate"><span class="pre">text_string</span></code>. <code class="docutils literal notranslate"><span class="pre">keyword</span></code> should be a
+null-terminated string between 1 and 79 characters in length, and
+<code class="docutils literal notranslate"><span class="pre">text_string</span></code> should be an arbitrarily large number of bytes.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TEXTChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">keyword</span>     <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
+    <span class="n">text</span>_<span class="n">string</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="ztxt">
+<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this headline"></a></h3>
+<p>The zTXt chunk is semantically the same as tEXt, but with compressed data - it
+is recommended for use with large blocks of text.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ZTXTChunkData</span></code> that returns a structure with
+three fields: <code class="docutils literal notranslate"><span class="pre">keyword</span></code>, <code class="docutils literal notranslate"><span class="pre">compression_method</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">compressed_text_datastream</span></code>. The first and last of these are exactly as they
+were for <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code>, and <code class="docutils literal notranslate"><span class="pre">compression_method</span></code> is a single byte.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ZTXTChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">keyword</span>                    <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
+    <span class="n">compression</span>_<span class="n">method</span>         <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">compressed</span>_<span class="n">text</span>_<span class="n">datastream</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="itxt">
+<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this headline"></a></h3>
+<p>The final type of textual data chunk is iTXt, which is used for international
+text. It consists of the following fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">keyword</span></code>: Exactly the same as the previous two chunk types</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compression_flag</span></code>: A <code class="docutils literal notranslate"><span class="pre">FLAG</span></code> indicating whether the text data is
+compressed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compression_method</span></code>: The same as in zTXt</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">language_tag</span></code>: An arbitrarily long null-terminated string indicating the
+language used for the text</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">translated_keyword</span></code>: An arbitrarily long null-terminated string giving the
+translation of the keyword into the language of the text</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">text</span></code>: The text data, given in the same way as both tEXt and zTXt</p></li>
+</ul>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ITXTChunkData</span></code> that returns a structure with
+the six fields as described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ITXTChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">keyword</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
+    <span class="n">compression</span>_<span class="n">flag</span> <span class="k">=</span> <span class="n">FLAG</span>
+    <span class="n">compression</span>_<span class="n">method</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">language</span>_<span class="n">tag</span> <span class="k">=</span> <span class="n">NTString</span> <span class="l">nothing</span> <span class="l">nothing</span>
+    <span class="n">translated</span>_<span class="n">keyword</span> <span class="k">=</span> <span class="n">NTString</span> <span class="l">nothing</span> <span class="l">nothing</span>
+    <span class="n">text</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="bkgd">
+<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this headline"></a></h3>
+<p>The background color chunk specifies the default background color to present
+the image against. Different color modes use different data in this chunk to
+achieve the specified effects.</p>
+<p>For color modes 0 and 4, a single two-byte value <code class="docutils literal notranslate"><span class="pre">greyscale</span></code> controls the
+background color.</p>
+<p>For modes 2 and 6, three two-byte values, <code class="docutils literal notranslate"><span class="pre">red</span></code>, <code class="docutils literal notranslate"><span class="pre">green</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue</span></code> are
+used for the background color.</p>
+<p>Finally, for color mode 3, a single byte, <code class="docutils literal notranslate"><span class="pre">palette_index</span></code>, is used. You do
+not need to check that this index is within range for the palette provided.</p>
+<p><strong>Exercise:</strong> Define three parsers, <code class="docutils literal notranslate"><span class="pre">BKGDData0or4</span></code>, <code class="docutils literal notranslate"><span class="pre">BKGDData2or6</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">BKGDData3</span></code> that return structures with the fields described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">BKGDData0or4</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">greyscale</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+
+<span class="k">def</span> <span class="n">BKGDData2or6</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">red</span>   <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">green</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">blue</span>  <span class="k">=</span> <span class="n">BEUInt16</span>
+
+<span class="k">def</span> <span class="n">BKGDData3</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">palette</span>_<span class="n">index</span> <span class="k">=</span> <span class="k">UInt8</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise:</strong> Now, define a parser <code class="docutils literal notranslate"><span class="pre">BKGDChunkData</span></code> that takes a single
+argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument to
+prouce an appropriate value; you can use pattern-matching and integer literals
+for this. You can ignore all other color modes.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">BKGDChunkData</span> <span class="n">sig</span> <span class="k">=</span>
+  <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
+    <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">BKGDData0or4</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">4</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">4</span> <span class="k">=</span> <span class="n">BKGDData0or4</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">2</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">2</span> <span class="k">=</span> <span class="n">BKGDData2or6</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">6</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">6</span> <span class="k">=</span> <span class="n">BKGDData2or6</span> <span class="k">|</span><span class="p">}</span>
+    <span class="m">3</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">3</span> <span class="k">=</span> <span class="n">BKGDData3</span> <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="hist">
+<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this headline"></a></h3>
+<p>The image histogram chunk gives approximate usage frequencies for all colors in
+the palette. Each frequency is a big-endian two-byte integer.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">HISTChunkData</span></code> that returns a structure with a
+single field, <code class="docutils literal notranslate"><span class="pre">frequencies</span></code>, which is an array of frequencies as described
+above. Don’t worry about checking that the correct number of frequencies are
+provided.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">HISTChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">frequencies</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">BEUInt16</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="phys">
+<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this headline"></a></h3>
+<p>The physical pixel dimensions chunk describes the intended aspect ratio for
+image display. It’s comprised of:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pixels_per_unit_x_axis</span></code>, a 4-byte unsigned integer</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pixels_per_unit_y_axis</span></code>, another 4-byte unsigned integer</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">unit_specifier</span></code>, a <code class="docutils literal notranslate"><span class="pre">FLAG</span></code> deciding whether to use unitless aspect ratio
+or specify actual size</p></li>
+</ul>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">PHYSChunkData</span></code> that returns a structure with
+the fields as described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PHYSChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">pixels</span>_<span class="n">per</span>_<span class="n">unit</span>_<span class="n">x</span>_<span class="n">axis</span> <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">pixels</span>_<span class="n">per</span>_<span class="n">unit</span>_<span class="n">y</span>_<span class="n">axis</span> <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">unit</span>_<span class="n">specifier</span>         <span class="k">=</span> <span class="n">FLAG</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="splt">
+<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this headline"></a></h3>
+<p>The suggested palette chunk is fairly complex semantically - if you want to
+know the gnarly details, we once again point you to the full PNG specification
+linked earlier in this section. As it turns out, it is also likely the most
+challenging exercise on this page!</p>
+<p>The chunk consists of the following data:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">palette_name</span></code>, a null-terminated string between 1 and 79 characters in
+length</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sample_depth</span></code>, a single byte that <em>must</em> be either 8 or 16</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">palette</span></code>, a series of 6 or 10 byte structures depending on the sample
+depth. In both cases, the data are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">red</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">green</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blue</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frequency</span></code></p></li>
+</ul>
+<p>In all cases, the <code class="docutils literal notranslate"><span class="pre">frequency</span></code> is given by a 2-byte unsigned integer.
+If the sample depth is 8, the other four samples are one byte; if it is
+16, they are two bytes (this is where we get a total of 6 or 10, since
+the <code class="docutils literal notranslate"><span class="pre">frequency</span></code> is always given in two bytes.)</p>
+</li>
+</ul>
+<p>Put in higher-level terms: We now need to define a data-dependent parser, as
+the sample depth will control how we parse the remaining bytes in hte input.</p>
+<p>Let’s build this up one small step at a time.</p>
+<p><strong>Exercise:</strong> Define two parsers, <code class="docutils literal notranslate"><span class="pre">SPLTSample8</span></code> and <code class="docutils literal notranslate"><span class="pre">SPLTSample16</span></code>, that
+parse the five sample values as described above.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTSample8</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">red</span>       <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">green</span>     <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">blue</span>      <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">alpha</span>     <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">frequency</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+
+<span class="k">def</span> <span class="n">SPLTSample16</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">red</span>       <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">green</span>     <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">blue</span>      <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">alpha</span>     <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">frequency</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise:</strong> Using the two parsers you just defined, define a new parser
+<code class="docutils literal notranslate"><span class="pre">SPLTSample</span></code> that takes a single argument, <code class="docutils literal notranslate"><span class="pre">depth</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">8</span></code>, and decides
+which to use. The result should be a tagged sum with two variants named
+<code class="docutils literal notranslate"><span class="pre">splt_sample_depth_8</span></code> and <code class="docutils literal notranslate"><span class="pre">splt_sample_depth_16</span></code>. You do not need to write
+anything to handle sample depths other than 8 and 16.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTSample</span> <span class="p">(</span><span class="n">depth</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">)</span> <span class="k">=</span>
+  <span class="k">case</span> <span class="n">depth</span> <span class="k">of</span>
+    <span class="m">8</span>  <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">splt</span>_<span class="n">sample</span>_<span class="n">depth</span>_<span class="m">8</span>  <span class="k">=</span> <span class="n">SPLTSample8</span>  <span class="k">|</span><span class="p">}</span>
+    <span class="m">16</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">splt</span>_<span class="n">sample</span>_<span class="n">depth</span>_<span class="m">16</span> <span class="k">=</span> <span class="n">SPLTSample16</span> <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise (Challenging):</strong> Finally, define a parser <code class="docutils literal notranslate"><span class="pre">SPLTChunkData</span></code> that
+returns a structure containing fields <code class="docutils literal notranslate"><span class="pre">palette_name</span></code>, <code class="docutils literal notranslate"><span class="pre">sample_depth</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">palette</span></code> as described earlier.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
+Hint<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Remember that you can parse alternatives using the operators <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> and
+<code class="docutils literal notranslate"><span class="pre">|</span></code> - the former is for biased choice, the latter for unbiased.</p>
+<p class="sd-card-text">Also remember that DaeDaLus allows for data-dependent parsing: If you store
+the result of running a parser in a local variable or structure field, you
+may use that value later in the sequence.</p>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTChunkData</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">palette</span>_<span class="n">name</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
+    <span class="n">sample</span>_<span class="n">depth</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">8</span><span class="p">]</span> <span class="k">&lt;|</span> <span class="n">$</span><span class="p">[</span><span class="m">16</span><span class="p">]</span>
+    <span class="n">palette</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">SPLTSample</span> <span class="n">sample</span>_<span class="n">depth</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="time">
+<h3>tIME<a class="headerlink" href="#time" title="Permalink to this headline"></a></h3>
+<p>With that tricky one out of the way, there’s only one chunk type left, and it’s
+very straightforward: The tIME chunk carries along the last-modified time for
+the image.</p>
+<p><strong>Exercise:</strong> For consistency with our other chunk parser naming, define a
+‘new’ parser <code class="docutils literal notranslate"><span class="pre">TIMEChunkData</span></code> that returns a <code class="docutils literal notranslate"><span class="pre">UTCTime</span></code>.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TIMEChunkData</span> <span class="k">=</span> <span class="n">UTCTime</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="generic-chunk-data-parsing">
+<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this headline"></a></h3>
+<p>Now that we know how to parse each type of chunk, we want to combine all of
+those possibilities into a single tagged sum type, so that we will be able to
+parse many chunks in sequence. To do this, we’ll use pattern-matching on the
+<code class="docutils literal notranslate"><span class="pre">bitdata</span></code> we defined earlier and all of the parsers defined so far in this
+section.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> that takes two arguments, <code class="docutils literal notranslate"><span class="pre">sig</span></code>
+and <code class="docutils literal notranslate"><span class="pre">type</span> <span class="pre">:</span> <span class="pre">ChunkType</span></code>, and produces a tagged sum covering all possible
+chunk types defined by the <code class="docutils literal notranslate"><span class="pre">type</span></code> parameter. The tags should be named,
+for example, <code class="docutils literal notranslate"><span class="pre">plte_data</span></code> for the <code class="docutils literal notranslate"><span class="pre">plte</span></code> case.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ChunkData</span> <span class="n">sig</span> <span class="p">(</span><span class="n">type</span> <span class="p">:</span> <span class="n">ChunkType</span><span class="p">)</span> <span class="k">=</span>
+  <span class="k">case</span> <span class="n">type</span> <span class="k">of</span>
+    <span class="n">plte</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">plte</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">PLTEChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">idat</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">idat</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">IDATChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">trns</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">trns</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">TRNSChunkData</span> <span class="n">sig</span> <span class="k">|</span><span class="p">}</span>
+    <span class="n">chrm</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">chrm</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">CHRMChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">gama</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">gama</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">GAMAChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">iccp</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">iccp</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">ICCPChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">sbit</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">SBITChunkData</span> <span class="n">sig</span> <span class="k">|</span><span class="p">}</span>
+    <span class="n">srgb</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">srgb</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">SRGBChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">text</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">text</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">TEXTChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">itxt</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">itxt</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">ITXTChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">ztxt</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">ztxt</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">ZTXTChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">bkgd</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">BKGDChunkData</span> <span class="n">sig</span> <span class="k">|</span><span class="p">}</span>
+    <span class="n">hist</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">hist</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">HISTChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">phys</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">phys</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">PHYSChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">splt</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">splt</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">SPLTChunkData</span>     <span class="k">|</span><span class="p">}</span>
+    <span class="n">time</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">time</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">TIMEChunkData</span>     <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+</section>
+<section id="png-chunks">
+<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this headline"></a></h2>
+<p>Now that we can successfully parse any type of chunk data, we need only add in
+the metadata necessary for a complete chunk. A complete PNG chunk consists of
+the chunks length (as a 4-byte integer), the type of the chunk (which we need
+to interpret as a <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code>), the chunk data, and a CRC value.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">PNGChunk</span></code> that takes a single argument,
+<code class="docutils literal notranslate"><span class="pre">sig</span></code>, and returns a structure with the following fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>, an instance of <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">ChunkType</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>, a <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> that results from parsing exactly as many bytes as
+specified by the length (which must be parsed before <code class="docutils literal notranslate"><span class="pre">type</span></code> but does not
+need to be stored in the resulting structure)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">crc</span></code>, a <code class="docutils literal notranslate"><span class="pre">Crc</span></code></p></li>
+</ul>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
+Hint<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<ol class="arabic simple">
+<li><p class="sd-card-text">Remember that you use a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> by coercing a parsed value - take
+care to use the appropriate coercion method!</p></li>
+<li><p class="sd-card-text">To make sure a particular number of bytes are consumed, recall the
+<code class="docutils literal notranslate"><span class="pre">Chunk</span></code> parser in the standard library. Be careful - this expects a
+<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code> argument for the number of bytes to parse!</p></li>
+</ol>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PNGChunk</span> <span class="n">sig</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">@</span><span class="n">len</span> <span class="k">=</span> <span class="n">Length</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span>
+    <span class="n">type</span> <span class="k">=</span> <span class="n">BEUint32</span> <span class="k">as</span><span class="n">?</span> <span class="n">ChunkType</span>
+    <span class="n">data</span> <span class="k">=</span> <span class="n">Chunk</span> <span class="n">len</span> <span class="p">(</span><span class="n">ChunkData</span> <span class="n">sig</span> <span class="n">type</span><span class="p">)</span>
+    <span class="n">crc</span>  <span class="k">=</span> <span class="n">Crc</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="header-trailer">
+<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this headline"></a></h2>
+<p>Two special chunks we haven’t discussed are the <em>header</em> and <em>trailer</em> for PNG.
+These are, respectively, the first and last chunks in a PNG datastream. The
+<code class="docutils literal notranslate"><span class="pre">sig</span></code> parameter we’ve left undiscussed is, in fact, the data in the header.</p>
+<p>Like the <code class="docutils literal notranslate"><span class="pre">PNGChunk</span></code> variants, these will both need a length, type, and crc
+field. Since they always have the same length (13 and 0 bytes respectively), we
+can hardcode these fields in our parsers. Note that the length, type, and crc
+fields do not count towards the length of the chunk.</p>
+<p>The header chunk additionally contains the following fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">width</span></code>, a 4-byte unsigned integer giving the width of the image</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">height</span></code>, a 4-byte unsigned integer giving the height of the image</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bit_depth</span></code>, a single byte giving the number of bits per sample</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">colour_type</span></code>, a single byte that defines the image type. This must be
+one of 0, 2, 3, 4, or 6</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compression_method</span></code>, a single byte giving the compression method</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filter_method</span></code>, a single byte indicating the preprocessing method applied
+before compression</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">interlace_method</span></code>, a single byte indicating transmission order of image
+data</p></li>
+</ul>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">IHDRChunk</span></code> that returns a structure with the
+above-described fields. The type identifier for the header chunk is the four
+bytes <code class="docutils literal notranslate"><span class="pre">73</span></code>, <code class="docutils literal notranslate"><span class="pre">72</span></code>, <code class="docutils literal notranslate"><span class="pre">68</span></code>, and <code class="docutils literal notranslate"><span class="pre">82</span></code>.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IHDRChunk</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">Match</span> <span class="p">[</span><span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">13</span><span class="p">]</span>
+    <span class="k">Match</span> <span class="p">[</span><span class="m">73</span><span class="p">,</span> <span class="m">72</span><span class="p">,</span> <span class="m">68</span><span class="p">,</span> <span class="m">82</span><span class="p">]</span>
+    <span class="n">width</span>              <span class="k">=</span> <span class="n">BEUint32</span>
+    <span class="n">height</span>             <span class="k">=</span> <span class="n">BEUInt32</span>
+    <span class="n">bit</span>_<span class="n">depth</span>          <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">colour</span>_<span class="n">type</span>        <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">compression</span>_<span class="n">method</span> <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">filter</span>_<span class="n">method</span>      <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">interlace</span>_<span class="n">method</span>   <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">crc</span>                <span class="k">=</span> <span class="n">Crc</span>
+</pre></div>
+</div>
+</div>
+</details><p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">IENDChunk</span></code> that returns a structure matching
+the description above. The type identifier for the trailer chunk is the four
+bytes <code class="docutils literal notranslate"><span class="pre">73</span></code>, <code class="docutils literal notranslate"><span class="pre">69</span></code>, <code class="docutils literal notranslate"><span class="pre">78</span></code>, and <code class="docutils literal notranslate"><span class="pre">68</span></code>.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IENDChunk</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">Match</span> <span class="p">[</span><span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">,</span> <span class="m">0</span><span class="p">]</span>
+    <span class="k">Match</span> <span class="p">[</span><span class="m">73</span><span class="p">,</span> <span class="m">69</span><span class="p">,</span> <span class="m">78</span><span class="p">,</span> <span class="m">68</span><span class="p">]</span>
+    <span class="n">crc</span> <span class="k">=</span> <span class="n">Crc</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="full-png">
+<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this headline"></a></h2>
+<p>The home stretch! We have almost all of the components needed to parse full PNG
+images now. The only thing missing is the PNG header, a byte sequence that
+starts every PNG image ever encoded:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PNGHeader</span> <span class="k">=</span> <span class="k">Match</span> <span class="p">[</span><span class="m">137</span><span class="p">,</span> <span class="m">80</span><span class="p">,</span> <span class="m">78</span><span class="p">,</span> <span class="m">71</span><span class="p">,</span> <span class="m">13</span><span class="p">,</span> <span class="m">10</span><span class="p">,</span> <span class="m">26</span><span class="p">,</span> <span class="m">10</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>With this here is your final exercise:</p>
+<p><strong>Exercise:</strong> Write the <code class="docutils literal notranslate"><span class="pre">Main</span></code> parser to parse a full PNG image. That is:
+The PNG header, the signature/header chunk, the data chunks, and finally the
+trailer chunk. Make sure <code class="docutils literal notranslate"><span class="pre">Main</span></code> is defined so that it only succeeds if it
+consumes the entire input.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
+Solution<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="n">PNGHeader</span>
+    <span class="n">sig</span> <span class="k">=</span> <span class="n">IHDRChunk</span>
+    <span class="n">chunks</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">PNGChunk</span> <span class="n">sig</span><span class="p">)</span>
+    <span class="n">IENDChunk</span>
+    <span class="k">END</span>
+</pre></div>
+</div>
+</div>
+</details></section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline"></a></h2>
+<p>Congratulations on making it through! The full PNG specification can be foud on
+the following page; you’ll be pleasantly surprised at how short it is compared
+to the PNG specification it’s based on.</p>
+<p>Note that in a few places (as the exercises note), we fail to do some of the
+validation included in the specifciation; in fact, there are a number of places
+where we purposefully left out the restrictions for simplicity (e.g. the
+<code class="docutils literal notranslate"><span class="pre">bit_depth</span></code> field only has a few allowed values, and these values are also
+constrained by the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>.) As discussed, it is often better to leave
+these more complex validations for post-parsing stages of your applications,
+such as type-checking and other static analysis. Where it was natural, we built
+the specification’s restrictions into our parser to catch problems early.</p>
+<p>You’re encouraged to read over the rest of the DaeDaLus user guide, which has
+some extra detail on concepts we covered (and some more advanced topics we did
+not cover.)</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="extended-ex-utils.html" class="btn btn-neutral float-left" title="Extended Exercise: Defining Helpful Utilities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="extended-ex-solution.html" class="btn btn-neutral float-right" title="Extended Exercise: Full Solution" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(false);
+      });
+  </script> 
+
+</body>
+</html>
