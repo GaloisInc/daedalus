@@ -13,7 +13,7 @@ import Data.Word(Word8)
 import Data.ByteString(ByteString, uncons, null, pack)
 import Data.Foldable(foldl')
 
---import Daedalus.Panic(panic)
+import Daedalus.Panic (panic)
 -- import Daedalus.PP(pp)
 import Daedalus.GUID(GUID, firstValidGUID, succGUID)
 
@@ -26,8 +26,6 @@ import Daedalus.Core.Grammar
     , mapChildrenG, gBinAnnotate )
 import Daedalus.Core.Basics
 import Daedalus.Core.Type (typeOf)
-
-import Daedalus.Panic (panic)
 
 determinizeModule :: Module -> Module
 determinizeModule m  =
@@ -121,93 +119,92 @@ moveLeft (ZipNode {focus = foc, path = pth}) =
     _ -> panic "moveLeft" [ "broken invariant, unexpected case" ]
 moveLeft (ZipLeaf {}) = panic "moveLeft" [ "broken invariant, unexpected case" ]
 
-goUpRight :: ZipGrammar -> Maybe ZipGrammar
-goUpRight (ZipNode {focus = foc, path = pth}) =
+moveUp :: ZipGrammar -> Grammar
+moveUp (ZipNode {focus = built, path = pth}) =
+  case pth of
+    [] -> built
+    (ZDo_ g2 : z) ->
+      let newBuilt = Do_ built g2 in
+      moveUp (mkZipGrammar newBuilt z)
+    (ZDo_2 g1 : z) ->
+      let newBuilt = Do_ g1 built in
+      moveUp (mkZipGrammar newBuilt z)
+    (ZDo name g2 : z) ->
+      let newBuilt = Do name built g2 in
+      moveUp (mkZipGrammar newBuilt z)
+    (ZDo2 name g1 : z) ->
+      let newBuilt = Do name g1 built in
+      moveUp (mkZipGrammar newBuilt z)
+    (ZLet name e : z) ->
+      let newBuilt = Let name e built in
+      moveUp (mkZipGrammar newBuilt z)
+    (ZAnnot ann : z) ->
+      moveUp (mkZipGrammar (Annot ann built) z)
+    (ZOrBiased : z) ->
+      moveUp (mkZipGrammar built z)
+    (ZOrUnbiased : z) ->
+      moveUp (mkZipGrammar built z)
+    _  -> panic "moveUp" [ "broken invariant, should not happen on this case" ]
+moveUp (ZipLeaf {}) = panic "moveUp" [ "broken invariant, should not happen on a leaf" ]
+
+findUpRight :: ZipGrammar -> Maybe ZipGrammar
+findUpRight (ZipNode {focus = foc, path = pth}) =
   case pth of
     [] -> Nothing
     (ZDo_ g2 : z) ->
       let newPath = ZDo_2 foc : z in
       Just (mkZipGrammar g2 newPath)
     (ZDo_2 g1 : z) ->
-      goUpRight (mkZipGrammar (Do_ g1 foc) z)
+      findUpRight (mkZipGrammar (Do_ g1 foc) z)
     (ZDo name g2 : z) ->
       let newPath = ZDo2 name foc : z in
       Just (mkZipGrammar g2 newPath)
     (ZDo2 name g1 : z) ->
-      goUpRight (mkZipGrammar (Do name g1 foc) z)
+      findUpRight (mkZipGrammar (Do name g1 foc) z)
     (ZAnnot ann : z) ->
-      goUpRight (mkZipGrammar (Annot ann foc) z)
+      findUpRight (mkZipGrammar (Annot ann foc) z)
     (ZLet name e : z) ->
-      goUpRight (mkZipGrammar (Let name e foc) z)
-    (ZOrBiased : _) -> Nothing
+      findUpRight (mkZipGrammar (Let name e foc) z)
+    (ZOrBiased : _)   -> Nothing
     (ZOrUnbiased : _) -> Nothing
-    _  -> panic "goUpRight" [ "broken invariant, unexpected case" ]
-goUpRight (ZipLeaf{}) = panic "goUpRight" [ "broken invariant, unexpected case" ]
+    _  -> panic "findUpRight" [ "broken invariant, unexpected case" ]
+findUpRight (ZipLeaf{}) = panic "findUpRight" [ "broken invariant, unexpected case" ]
 
 
-goNextLeaf :: Integer -> ZipGrammar -> Maybe ZipGrammar
-goNextLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
+findNextLeaf :: Integer -> ZipGrammar -> Maybe ZipGrammar
+findNextLeaf c (ZipLeaf { zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
   case sem of
     SemYes ->
       let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
-      goUpRight (mkZipGrammar newBuilt pth)
+      findUpRight (mkZipGrammar newBuilt pth)
     SemNo ->
       let newBuilt = Pure (Ap0 Unit) in
-      goUpRight (mkZipGrammar newBuilt pth)
-goNextLeaf _c (ZipLeaf{ zmatch = zm@(ZMatchBytes (_, rest) orig), path = fpth@(ZMatch sem : pth)}) =
+      findUpRight (mkZipGrammar newBuilt pth)
+findNextLeaf _c zg@(ZipLeaf{ zmatch = (ZMatchBytes (_, rest) orig), path = (ZMatch sem : pth)}) =
   if not (Data.ByteString.null rest)
-  then Just $ ZipLeaf {zmatch = zm, path = fpth }
+  then Just $ zg
   else
     case sem of
       SemYes ->
-        let pureMatch = Pure (Ap0 (ByteArrayL orig))
-        in
-        goUpRight (mkZipGrammar pureMatch pth)
+        let pureMatch = Pure (Ap0 (ByteArrayL orig)) in
+        findUpRight (mkZipGrammar pureMatch pth)
       SemNo ->
         let newBuilt = Pure (Ap0 Unit) in
-        goUpRight (mkZipGrammar newBuilt pth)
-goNextLeaf _ _ = panic "goNextLeaf" [ "broken invariant, on structure Zipped grammar" ]
-
-buildUp :: ZipGrammar -> Grammar
-buildUp (ZipNode {focus = built, path = pth}) =
-  case pth of
-    [] -> built
-    (ZDo_ g2 : z) ->
-      let newBuilt = Do_ built g2 in
-      buildUp (mkZipGrammar newBuilt z)
-    (ZDo_2 g1 : z) ->
-      let newBuilt = Do_ g1 built in
-      buildUp (mkZipGrammar newBuilt z)
-    (ZDo name g2 : z) ->
-      let newBuilt = Do name built g2 in
-      buildUp (mkZipGrammar newBuilt z)
-    (ZDo2 name g1 : z) ->
-      let newBuilt = Do name g1 built in
-      buildUp (mkZipGrammar newBuilt z)
-    (ZLet name e : z) ->
-      let newBuilt = Let name e built in
-      buildUp (mkZipGrammar newBuilt z)
-    (ZAnnot ann : z) ->
-      buildUp (mkZipGrammar (Annot ann built) z)
-    (ZOrBiased : z) ->
-      buildUp (mkZipGrammar built z)
-    (ZOrUnbiased : z) ->
-      buildUp (mkZipGrammar built z)
-    _  -> panic "buildUp" [ "broken invariant, should not happen on this case" ]
-buildUp (ZipLeaf {}) = panic "buildUp" [ "broken invariant, should not happen on a leaf" ]
+        findUpRight (mkZipGrammar newBuilt pth)
+findNextLeaf _ _ = panic "findNextLeaf" [ "broken invariant, on structure Zipped grammar" ]
 
 buildLeaf :: Integer -> ZipGrammar -> Grammar
 buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
   case sem of
     SemYes ->
       let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
-      buildUp (mkZipGrammar newBuilt pth)
+      moveUp (mkZipGrammar newBuilt pth)
     SemNo ->
       let newBuilt = Pure (Ap0 Unit) in
-        buildUp (mkZipGrammar newBuilt pth)
+        moveUp (mkZipGrammar newBuilt pth)
 buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes (zpast, rest) orig, path = ZMatch sem : pth}) =
   if not (c == (toInteger $ head zpast))
-  then error "broken invariant"
+  then panic "buildLeaf" [ "Broken invariant, character mismatch" ]
   else
     let pureMatch = Pure (Ap0 (ByteArrayL orig)) in
     if Data.ByteString.null rest
@@ -215,20 +212,20 @@ buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes (zpast, rest) orig, path = ZMatch sem
       case sem of
         SemYes ->
           let newBuilt = pureMatch in
-          buildUp (mkZipGrammar newBuilt pth)
+          moveUp (mkZipGrammar newBuilt pth)
         SemNo ->
           let newBuilt = Pure (Ap0 Unit) in
-          buildUp (mkZipGrammar newBuilt pth)
+          moveUp (mkZipGrammar newBuilt pth)
     else
       let matchRest = Match SemNo (MatchBytes (Ap0 (ByteArrayL rest))) in
       case sem of
         SemYes ->
           let newBuilt = Do_ matchRest pureMatch in
-          buildUp (mkZipGrammar newBuilt pth)
+          moveUp (mkZipGrammar newBuilt pth)
         SemNo ->
           let newBuilt = matchRest in
-          buildUp (mkZipGrammar newBuilt pth)
-buildLeaf _ _ = error "Should not happen"
+          moveUp (mkZipGrammar newBuilt pth)
+buildLeaf _ _ = panic "buildLeaf" [ "Broken invariant, unexpected case" ]
 
 {- END of Zipped Grammar -}
 
@@ -377,19 +374,19 @@ deriveOneByte modl gram =
       _        -> Nothing
   deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
     case zm of
-      ZMatchByte _  -> error "TODO should move up"
+      ZMatchByte _  -> panic "deriveGo" [ "Borken invariant, unexpected case" ]
       ZMatchBytes (prev, next) orig ->
         case uncons next of
-          Nothing -> error "TODO should move up"
+          Nothing -> panic "deriveGo" [ "Borken invariant, unexpected case" ]
           Just (w, rest) ->
             Just $ AltLeaf (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
-      ZMatchEnd -> error "TODO END"
+      ZMatchEnd -> panic "deriveGo" [ "Borken invariant, unhandled case END" ]
 
   deriveUp :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
   deriveUp (ZipNode {focus = g, path = pth}) = case pth of
-    [] -> error "" -- TODO AltDone gr
+    [] -> Nothing
     k : ks -> case k of
-      ZMatch _   -> error "broken invariant"
+      ZMatch _   -> panic "deriveUp" [ "Broken invariant, unexpected match" ]
       ZDo_ g2    -> deriveGo (ZipNode g2 (ZDo_2 g : ks))
       ZDo_2 g1   -> deriveUp (ZipNode (Do_ g1 g) ks)
       ZDo na g2  -> deriveGo (ZipNode g2 (ZDo2 na g : ks))
@@ -436,7 +433,7 @@ deriveOneByte modl gram =
               Just (w, rest) ->
                 Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           _ -> Nothing
-      _ -> Nothing -- TODO: replace this with an error, or look into it
+      _ -> Nothing
   deriveMatch _ = panic "deriveMatch" [ "Broken invariant, unexpected case" ]
 
 {- END of AltTree -}
@@ -549,7 +546,7 @@ determinize modl grammar =
               let z = extractOne t in
               return (c, YesResolvedOne z)
             GMany t ->
-              let mepsAlt = mapAlt (\ z -> fmap (\ x -> AltLeaf x) (goNextLeaf c z)) t in -- epsilon transition
+              let mepsAlt = mapAlt (\ z -> fmap (\ x -> AltLeaf x) (findNextLeaf c z)) t in -- epsilon transition
               case mepsAlt of
                 Nothing -> return (c, YesResolvedMany t) -- stop deriving
                 Just epsAlt ->
@@ -666,7 +663,7 @@ determinize modl grammar =
       let mtres = go t in
       case mtres of
         Just tres -> tres
-        Nothing -> error "broken invariant"
+        Nothing -> panic "buildOr" [ "Broken invariant, expected existing branch" ]
       where
       go tr =
         let ann = SrcAnnot $ Data.Text.pack ("OR RECONSTRUCTION") in
