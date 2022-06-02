@@ -175,4 +175,147 @@ it consists merely of a bunch of bytes.
 tRNS
 ^^^^
 
+Transparency chunks are significantly more complex than the others we've looked
+at so far, in that they have a different data shape depending on data provided
+in the PNG *signature* that we have not defined yet. We'll delay full
+discussion of that until later; for now, all that matters is that the signature
+is a structure with a field named ``colour_type``, which we can patterm-match
+on to guide value construction for different PNG modes.
+
+Transparency data is valid for ``colour_type`` values 0, 2, and 3 - any other
+value should cause transparency data parsing to fail.
+
+In the case of mode 0, the transparency data is a single big-endian 2-byte
+value which we will call ``grey_sample_value``.
+
+In mode 2, the transparency data is a sequence of three big-endian 2-byte
+values which we call ``red_sample_value``, ``blue_sample_value``, and
+``green_sample_value``. This is the order the values should be parsed.
+
+Finally, in mode 3, there is a sequence of bytes, one for each entry in the
+PLTE chunk (so, between 1 and 256.) You are not required to check that there
+are an appropriate number of bytes - in fact, you should not put bounds on how
+many are parsed. We call these bytes ``alpha_for_palette``.
+
+**Exercise:** Define three parsers, ``TRNSData0``, ``TRNSData2``, and
+``TRNSData3``, that carry the data as described above. Use the names provided
+as field names (so, make sure these parsers all produce structures.)
+
+.. dropdown:: Solution
+    :color: warning
+
+    def TRNSData0 =
+      block
+        grey_sample_value = BEUInt16
+
+    def TRNSData2 =
+      block
+        red_sample_value   = BEUInt16
+        blue_sample_value  = BEUInt16
+        green_sample_value = BEUInt16
+
+    def TRNSData3 =
+      block
+        alpha_for_palette = Many UInt8
+
+**Exercise:** Now, define a parser ``TRNSChunkData`` that takes a single
+argument, sig, and uses the ``colour_type`` field of that argument to produce
+an appropriate value; you can use pattern-matching and integer literals for
+this. In all other cases, the parser should fail with a message indicating that
+the transparency chunk cannot appear for any other color mode.
+
+.. dropdown:: Hint
+    :color: info
+
+    Remember that you can return values of a tagged sum using the special
+    'barbed wire' brackets, ``{| tag = ... |}``.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def TRNSChunkData sig =
+          case sig.colour_type of
+            0 -> {| trns_colour_type_0 = TRNSData0 |}
+            2 -> {| trns_colour_type_2 = TRNSData2 |}
+            3 -> {| trns_colour_type_3 = TRNSData3 |}
+            _ -> Fail "tRNS chunk shall not appear for other colour types"
+
+cHRM
+^^^^
+
+The chromaticities / white point chunk is eight big-endian 4-byte values:
+``x`` and ``y`` respectively for the white point, red, green, and blue.
+You should use the names ``white_point_x``, ``white_point_y``, ``red_x``,
+``red_y``, ``green_x``, ``green_y``, ``blue_x``, and ``blue_y`` for these
+fields in the next exercise.
+
+**Exercise:** Define a parser ``CHRMChunkData`` that parses the fields
+described above.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def CHRMChunkData sig =
+          block
+            white_point_x = BEUInt32
+            white_point_y = BEUInt32
+            red_x         = BEUInt32
+            red_y         = BEUInt32
+            green_x       = BEUInt32
+            green_y       = BEUInt32
+            blue_x        = BEUInt32
+            blue_y        = BEUInt32
+
+gAMA
+^^^^
+
+The gamma chunk relates image samples to desired output intensity. It is simply
+a big-endian 4-byte integer.
+
+**Exercise:** Define a parser ``GAMAChunkData`` that parses a single field,
+``image_gamma``, as specified in the above description.
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+      def GAMAChunkData =
+        block
+          image_gamma = BEUInt32
+
+iCCP
+^^^^
+
+The embedded ICC profile chunk contains information related to the
+International Color Consortium. It consists of three fields:
+
+1. A null-terminated string between 1 and 79 characters in length, which we
+   call ``profile_name``
+2. A byte defining the ``compression_method``
+3. Many bytes giving the ``compressed_profile``
+
+**Exercise:** Define a parser ``ICCPChunkData`` that parses a structure with
+the three fields described above.
+
+.. dropdown:: Hint
+    :color: info
+
+    Remember the null-terminated string parser we built previously!
+
+.. dropdown:: Solution
+    :color: warning
+
+    .. code-block:: DaeDaLus
+
+        def ICCPChunkData =
+          block
+            profile_name       = NTString (just 1) (just 79)
+            compression_method = UInt8
+            compressed_profile = Many UInt8
+
 
