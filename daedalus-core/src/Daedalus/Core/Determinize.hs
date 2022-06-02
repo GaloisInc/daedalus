@@ -93,31 +93,31 @@ data ZGrammar =
   | ZOrBiased
   | ZOrUnbiased
 
-type PathGrammar = [ ZGrammar ]
+type ZPath = [ ZGrammar ]
 
 data ZipGrammar =
-    ZipNode { focus :: Grammar, path :: PathGrammar }
-  | ZipLeaf { zmatch :: ZMatch, path :: PathGrammar }
+    ZipNode { focus :: Grammar, path :: ZPath }
+  | ZipLeaf { zmatch :: ZMatch, path :: ZPath }
 
-emptyPathGrammar :: PathGrammar
-emptyPathGrammar = []
+emptyZPath :: ZPath
+emptyZPath = []
 
-mkPathGrammar :: ZGrammar -> PathGrammar -> PathGrammar
-mkPathGrammar n z = n : z
+mkZPath :: ZGrammar -> ZPath -> ZPath
+mkZPath n z = n : z
 
 initZipGrammar :: Grammar -> ZipGrammar
-initZipGrammar gram = ZipNode {focus = gram, path = emptyPathGrammar}
+initZipGrammar gram = ZipNode {focus = gram, path = emptyZPath}
 
-mkZipGrammar :: Grammar -> PathGrammar -> ZipGrammar
+mkZipGrammar :: Grammar -> ZPath -> ZipGrammar
 mkZipGrammar g p = ZipNode g p
 
 moveLeft :: ZipGrammar -> ZipGrammar
 moveLeft (ZipNode {focus = foc, path = pth}) =
   case foc of
-    Do_ g1 g2     -> ZipNode { focus = g1, path = mkPathGrammar (ZDo_ g2) pth }
-    Do name g1 g2 -> ZipNode { focus = g1, path = mkPathGrammar (ZDo name g2) pth }
-    Annot ann g1  -> ZipNode { focus = g1, path = mkPathGrammar (ZAnnot ann) pth }
-    Let name e g1 -> ZipNode { focus = g1, path = mkPathGrammar (ZLet name e) pth }
+    Do_ g1 g2     -> ZipNode { focus = g1, path = mkZPath (ZDo_ g2) pth }
+    Do name g1 g2 -> ZipNode { focus = g1, path = mkZPath (ZDo name g2) pth }
+    Annot ann g1  -> ZipNode { focus = g1, path = mkZPath (ZAnnot ann) pth }
+    Let name e g1 -> ZipNode { focus = g1, path = mkZPath (ZLet name e) pth }
     _ -> panic "moveLeft" [ "broken invariant, unexpected case" ]
 moveLeft (ZipLeaf {}) = panic "moveLeft" [ "broken invariant, unexpected case" ]
 
@@ -195,6 +195,40 @@ buildUp (ZipNode {focus = built, path = pth}) =
       buildUp (mkZipGrammar built z)
     _  -> panic "buildUp" [ "broken invariant, should not happen on this case" ]
 buildUp (ZipLeaf {}) = panic "buildUp" [ "broken invariant, should not happen on a leaf" ]
+
+buildLeaf :: Integer -> ZipGrammar -> Grammar
+buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
+  case sem of
+    SemYes ->
+      let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
+      buildUp (mkZipGrammar newBuilt pth)
+    SemNo ->
+      let newBuilt = Pure (Ap0 Unit) in
+        buildUp (mkZipGrammar newBuilt pth)
+buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes (zpast, rest) orig, path = ZMatch sem : pth}) =
+  if not (c == (toInteger $ head zpast))
+  then error "broken invariant"
+  else
+    let pureMatch = Pure (Ap0 (ByteArrayL orig)) in
+    if Data.ByteString.null rest
+    then
+      case sem of
+        SemYes ->
+          let newBuilt = pureMatch in
+          buildUp (mkZipGrammar newBuilt pth)
+        SemNo ->
+          let newBuilt = Pure (Ap0 Unit) in
+          buildUp (mkZipGrammar newBuilt pth)
+    else
+      let matchRest = Match SemNo (MatchBytes (Ap0 (ByteArrayL rest))) in
+      case sem of
+        SemYes ->
+          let newBuilt = Do_ matchRest pureMatch in
+          buildUp (mkZipGrammar newBuilt pth)
+        SemNo ->
+          let newBuilt = matchRest in
+          buildUp (mkZipGrammar newBuilt pth)
+buildLeaf _ _ = error "Should not happen"
 
 {- END of Zipped Grammar -}
 
@@ -327,15 +361,15 @@ deriveOneByte modl gram =
           Nothing -> Nothing
           Just gram1 -> deriveGo (gr {focus = gram1 })
       OrBiased g1 g2 ->
-        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrBiased pth })
-            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrBiased pth }) in
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkZPath ZOrBiased pth })
+            g2' = deriveGo (ZipNode { focus = g2, path = mkZPath ZOrBiased pth }) in
         case (g1', g2') of
           (Nothing, _) -> Nothing
           (_, Nothing) -> Nothing
           (Just a1, Just a2) -> Just (AltBiased a1 a2)
       OrUnbiased g1 g2 ->
-        let g1' = deriveGo (ZipNode { focus = g1, path = mkPathGrammar ZOrUnbiased pth })
-            g2' = deriveGo (ZipNode { focus = g2, path = mkPathGrammar ZOrUnbiased pth }) in
+        let g1' = deriveGo (ZipNode { focus = g1, path = mkZPath ZOrUnbiased pth })
+            g2' = deriveGo (ZipNode { focus = g2, path = mkZPath ZOrUnbiased pth }) in
         case (g1', g2') of
           (Nothing, _) -> Nothing
           (_, Nothing) -> Nothing
@@ -379,7 +413,7 @@ deriveOneByte modl gram =
 
   deriveMatch :: ZipGrammar -> Maybe (CharSet, ZipGrammar)
   deriveMatch (ZipNode { focus = Match sem match, path = pth}) =
-    let newPath = mkPathGrammar (ZMatch sem) pth in
+    let newPath = mkZPath (ZMatch sem) pth in
     case match of
       MatchByte b ->
         do s <- fromByteSetToSet modl b
@@ -492,6 +526,10 @@ determinize modl grammar =
   applyCharToAltTree c t =
     fmap (\ (cset, z) -> if memberCharSet c cset then Left z else Right ()) t
 
+  deriveOneByteOnAltTree :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
+  deriveOneByteOnAltTree t =
+    mapAlt (deriveOneByte modl) t
+
   stepDerivFactor :: AltTree (ZipGrammar) -> Maybe Deriv
   stepDerivFactor t =
     do tStep <- deriveOneByteOnAltTree t
@@ -534,10 +572,6 @@ determinize modl grammar =
                  return (c, NoResolved n)
         )
       return $ DerivResolved der
-
-  deriveOneByteOnAltTree :: AltTree ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
-  deriveOneByteOnAltTree t =
-    mapAlt (deriveOneByte modl) t
 
   {-
   factorize :: [(Set Integer, ZipGrammar)] -> [(Set Integer, [ZipGrammar])]
@@ -656,41 +690,4 @@ determinize modl grammar =
               (Nothing, Just _) -> a2
               (Just b1, Just b2) ->
                 Just (Annot ann (gBinAnnotate OrUnbiased b1 b2))
-
-
-
-    -- TODO: is this not redundant with goNextLeaf ????
-    buildLeaf :: Integer -> ZipGrammar -> Grammar
-    buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
-      case sem of
-        SemYes ->
-          let newBuilt = Pure (Ap0 (IntL c (TUInt (TSize 8)))) in
-          buildUp (mkZipGrammar newBuilt pth)
-        SemNo ->
-          let newBuilt = Pure (Ap0 Unit) in
-           buildUp (mkZipGrammar newBuilt pth)
-    buildLeaf c (ZipLeaf{ zmatch = ZMatchBytes (zpast, rest) orig, path = ZMatch sem : pth}) =
-      if not (c == (toInteger $ head zpast))
-      then error "broken invariant"
-      else
-        let pureMatch = Pure (Ap0 (ByteArrayL orig)) in
-        if Data.ByteString.null rest
-        then
-          case sem of
-            SemYes ->
-              let newBuilt = pureMatch in
-              buildUp (mkZipGrammar newBuilt pth)
-            SemNo ->
-              let newBuilt = Pure (Ap0 Unit) in
-              buildUp (mkZipGrammar newBuilt pth)
-        else
-          let matchRest = Match SemNo (MatchBytes (Ap0 (ByteArrayL rest))) in
-          case sem of
-            SemYes ->
-              let newBuilt = Do_ matchRest pureMatch in
-              buildUp (mkZipGrammar newBuilt pth)
-            SemNo ->
-              let newBuilt = matchRest in
-              buildUp (mkZipGrammar newBuilt pth)
-    buildLeaf _ _ = error "Should not happen"
 
