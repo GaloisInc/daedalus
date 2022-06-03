@@ -20,6 +20,7 @@ module Talos.Strategy.SearchTree
   , leftmostUnexplored
   -- Construct/destruct/general manipulation
   , empty
+  , fromTree
   , rezip
   , replaceUnexplored
   , forgetGoUp
@@ -95,7 +96,10 @@ leftmostUnexplored = maximally (downward 0)
 -- Conversion to/from trees
 
 empty :: m -> Location m a
-empty m = Location { locCtx = Top, locTree = Unexplored m }
+empty = fromTree . Unexplored
+
+fromTree :: SearchTree a m -> Location a m
+fromTree t = Location { locCtx = Top, locTree = t }
 
 rezip :: Location a m -> SearchTree a m
 rezip = locTree . maximally upward
@@ -113,7 +117,8 @@ replaceUnexplored a new l = l { locTree = Node a (map Unexplored new) }
 forgetGoUp :: Location m a -> Maybe (Location m a)
 forgetGoUp = go . locCtx
   where
-    go (CNode _a [] c []) = go c
+    -- We allow empty choices.
+    -- go (CNode _a [] c []) = go c
     go (CNode  a l  c r) =
       Just (Location { locCtx = c, locTree = Node a (l ++ r) })
     go _ = Nothing

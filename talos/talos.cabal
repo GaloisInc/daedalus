@@ -46,6 +46,7 @@ library
                      , Talos.Analysis.Monad
                      , Talos.Analysis.Slice
                      , Talos.Analysis.SLExpr
+                     , Talos.Analysis.Exported
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
@@ -56,6 +57,7 @@ library
 
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
+                     , Talos.Strategy.MemoSearch                     
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis

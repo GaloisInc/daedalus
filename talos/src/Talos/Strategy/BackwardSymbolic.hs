@@ -146,11 +146,11 @@ stratSlice ptag = go
         -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
         -- SMatch {} -> unimplemented sl
 
-        SAssertion (GuardAssertion e) -> do
-          se <- synthesiseExpr e
-          solverOp (assert se)
-          check
-          pure uncPath
+        -- SAssertion (GuardAssertion e) -> do
+        --   se <- synthesiseExpr e
+        --   solverOp (assert se)
+        --   check
+        --   pure uncPath
 
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking

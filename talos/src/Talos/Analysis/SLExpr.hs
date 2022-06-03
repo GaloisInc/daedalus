@@ -2,26 +2,35 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-module Talos.Analysis.SLExpr where
+module Talos.Analysis.SLExpr (SLExpr(..), exprToSLExpr, slExprToExpr, slExprToExpr') where
 
 -- This module is for sliced expressions, essentially Expr + holes
-import           Control.DeepSeq                 (NFData)
-import qualified Data.Set                        as Set
-import           GHC.Generics                    (Generic)
+import           Control.DeepSeq (NFData)
+import           Data.Map        (Map)
+import qualified Data.Map        as Map
+import qualified Data.Set        as Set
+import           GHC.Generics    (Generic)
 
 
 import           Daedalus.Core                   (Case, Expr (..), Label, Name,
                                                   Op0, Op1, Op2, Op3, OpN (..),
-                                                  PPHow (..), UserType, ppOp2,
-                                                  ppOp3, ppTApp)
-import           Daedalus.Core.Basics            (Type)
+                                                  PPHow (..), SizeType (TSize),
+                                                  TDecl (tDef), TDef (..),
+                                                  TName, Type (..),
+                                                  UserType (utName), arrayL,
+                                                  arrayStream, boolL,
+                                                  byteArrayL, floatL, inUnion,
+                                                  intL, mapEmpty, newBuilder,
+                                                  newIterator, nothing, ppOp2,
+                                                  ppOp3, ppTApp, unit)
 import           Daedalus.Core.Free              (FreeVars (..))
 import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
 import           Daedalus.PP
-import           Daedalus.Panic
+import           Daedalus.Panic                  (panic)
 
-import Talos.Analysis.Eqv
-import Talos.Analysis.Merge
+import           Talos.Analysis.Eqv              (Eqv (..))
+import           Talos.Analysis.Merge            (Merge (..))
+
 
 -- Expressions with a hole
 data SLExpr =
@@ -68,6 +77,39 @@ exprToSLExpr expr =
     ApN op es       -> SApN op (map go es)
   where
     go = exprToSLExpr
+
+
+slExprToExpr' :: Map TName TDecl -> SLExpr -> Expr
+slExprToExpr' tys = slExprToExpr (typeToInhabitant tys)
+
+typeToInhabitant :: Map TName TDecl -> Type -> Expr
+typeToInhabitant tdecls = go
+  where
+    go ty = case ty of
+      TStream    -> arrayStream (byteArrayL "array") (byteArrayL mempty)
+      TUInt {}   -> intL 0 ty
+      TSInt {}   -> intL 0 ty
+      TInteger   -> intL 0 ty
+      TBool      -> boolL False
+      TUnit      -> unit
+      TArray (TUInt (TSize 8)) -> byteArrayL mempty
+      TArray t   -> arrayL t []
+      TMaybe t -> nothing t
+      TMap tk tv -> mapEmpty tk tv
+      TBuilder t -> newBuilder t
+      TIterator t -> newIterator (go t)
+      TUser ut     -> goUT ut
+      TParam _     -> panic "Saw a type param" []
+      TFloat       -> floatL 0 ty
+      TDouble      -> floatL 0 ty
+    goUT ut
+      | Just decl <- Map.lookup (utName ut) tdecls =
+          case tDef decl of
+            TStruct fs -> Struct ut [ (l, go ty) | (l, ty) <- fs ]
+            TUnion  ((l, ty) : _) -> inUnion ut l (go ty)
+            TUnion  _   -> panic "Empty union" [showPP ut]
+            TBitdata {} -> panic "Bitdata not yet supported" [showPP ut]
+      | otherwise = panic "Unknown user type " [showPP ut]
   
 
 --------------------------------------------------------------------------------

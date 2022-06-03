@@ -26,12 +26,12 @@ import           Daedalus.Panic
 import           Daedalus.Rec
 
 -- import Talos.Strategy.Monad
-import           Talos.Analysis.SLExpr
 import           Talos.Analysis.Slice
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 import           Talos.SymExec.Expr (symExecExpr, symExecByteSet)
+import Talos.Analysis.Exported (ExpSlice)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -57,30 +57,30 @@ calcPureDeps md roots = go roots roots
     mkOne :: FreeVars e => Fun e -> (FName, Set FName)
     mkOne f = (fName f, freeFVars f)
 
--- We don't share code with sliceToFun as they are substantially different
-funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e) => (e -> SolverT m SExpr) -> [(String, SExpr)] -> Fun e ->
+funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e, HasGUID m) =>
+               (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
+               [(String, SExpr)] -> Fun e ->
                SolverT m SMTFunDef
 funToFunDef _ _ Fun { fDef = External } =
   panic "Saw an external function" []
 
 funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
-  -- FIXME: this should be local to the body, not the context, and we
-  -- can't really push as it would forget the defn. when popped
-  mapM_ (\n -> modifyCurrentFrame (bindName n (nameToSMTName n))) (fParams f)
-  b <- sexec body
+  args <- mapM freshName (fParams f)
+  let args' = zip args (map (symExecTy . nameType) (fParams f)) ++ extraArgs
+      e     = Map.fromList (zip (fParams f) (map S.const args))
+  b <- runReaderT (sexec body) e
   pure SMTFunDef { sfdName = fName f
-                 , sfdArgs = args
+                 , sfdArgs = args'
                  , sfdRet  = symExecTy (fnameType (fName f))
                  , sfdBody = b
                  , sfdPureDeps = freeFVars f
                  , sfdTyDeps   = freeTCons f
                  }
-  where
-    args = map (\n -> (nameToSMTName n, symExecTy (nameType n))) (fParams f) ++ extraArgs -- For bytesets
     
 -- FIXME: maybe calculate some of this once in StrategyM.
 -- FIXME: filter by knownFNames here instead of in SolverT 
-defineSliceFunDefs :: (MonadIO m, HasGUID m) => Module -> Slice -> SolverT m ()
+defineSliceFunDefs :: (MonadIO m, HasGUID m, HasGUID m) =>
+                      Module -> ExpSlice -> SolverT m ()
 defineSliceFunDefs md sl = do
   fdefs <- sequence $ foldMap (mkOneF [] symExecExpr) (mFFuns md)
   bdefs <- sequence $ foldMap (mkOneF byteArg (symExecByteSet byteV)) (mBFuns md)  
@@ -98,14 +98,13 @@ defineSliceFunDefs md sl = do
     byteV        = S.const byteN
     byteArg      = [(byteN, tByte)]
 
-    mkOneF :: (Monad m, FreeVars e, TraverseUserTypes e) =>
-              [(String, SExpr)] -> (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
+    mkOneF :: (Monad m, FreeVars e, TraverseUserTypes e, HasGUID m) =>
+              [(String, SExpr)] ->
+              (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
               Fun e -> [SolverT m SMTFunDef]
     mkOneF extraArgs sexec f
-      | fName f `Set.member` allFs =
-          [funToFunDef (\x -> runReaderT (sexec x) mempty) extraArgs f]
+      | fName f `Set.member` allFs = [funToFunDef sexec extraArgs f]
       | otherwise                  = []
-
 
     -- ppS :: PP a => Set a -> Doc
     -- ppS  = braces . commaSep . map pp . Set.toList
@@ -145,7 +144,7 @@ exprToPolyFuns = go
 byteSetToPolyFuns :: ByteSet -> Set PolyFun
 byteSetToPolyFuns = ebFoldMapChildrenB exprToPolyFuns byteSetToPolyFuns
 
-defineSlicePolyFuns :: (MonadIO m, HasGUID m) => Slice -> SolverT m ()
+defineSlicePolyFuns :: (MonadIO m, HasGUID m) => ExpSlice -> SolverT m ()
 defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
   where
     polys = go sl
@@ -153,10 +152,10 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SHole             -> mempty
       -- We turns an SLExpr into an Expr, replacing Holes with Units.
       -- This is a bit gross, but should be OK for this purpose.
-      SPure v           -> exprToPolyFuns (slExprToExpr (const unit) v)
+      SPure e           -> exprToPolyFuns e
       SDo _m_x l r      -> go l <> go r
       SMatch m          -> byteSetToPolyFuns m
-      SAssertion  e     -> exprToPolyFuns e
+--      SAssertion  e     -> exprToPolyFuns e
       SChoice cs        -> foldMap go cs
       SCall {}          -> mempty
       SCase _ c         -> foldMap go c

@@ -100,7 +100,9 @@ data UserType = UserType
 newtype TParam = TP Int
   deriving (Eq,Ord,Generic,NFData)
 
-data Case k = Case Name [(Pattern,k)]
+data Case k = Case { caseVar  :: Name
+                   , casePats :: [(Pattern,k)]
+                   }
   deriving (Functor,Foldable,Traversable,Generic,NFData)
 
 data Pattern =
@@ -118,7 +120,7 @@ data Typed a = Typed
   { typedType :: Type
   , typedThing :: a
   }
-  deriving (Eq,Ord,Generic,NFData)
+  deriving (Eq,Ord,Functor,Generic,NFData)
 
 instance Show a => Show (Typed a) where
   show = show . typedThing
