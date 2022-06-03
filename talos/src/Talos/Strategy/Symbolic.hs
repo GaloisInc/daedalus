@@ -188,7 +188,7 @@ stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
   case m_alt of
     DidMatch i sl -> second (SelectedCase i) <$> stratSlice ptag sl
-    NoMatch  -> backtrack Set.empty -- just backtrack, no cases matched
+    NoMatch  -> backtrack (CaseFailed Set.empty) -- just backtrack, no cases matched
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
       (i, (p, sl)) <- choose (enumerate ps)
@@ -227,17 +227,16 @@ check = do
   r <- inSolver Solv.check
   case r of
     S.Sat     -> pure ()
-    S.Unsat   -> backtrack Set.empty
-    S.Unknown -> backtrack Set.empty
+    S.Unsat   -> backtrack UnsatQuery
+    S.Unknown -> backtrack UnsatQuery
 
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
     VOther p -> inSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
-    VValue (I.VBool False) -> backtrack Set.empty
+    VValue (I.VBool False) -> backtrack (CaseFailed Set.empty)
     _ -> panic "Malformed boolean" [show sv]
-
 
 -- ----------------------------------------------------------------------------------------
 -- Utils

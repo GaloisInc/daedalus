@@ -37,10 +37,14 @@ import Daedalus.Panic (panic)
 
 type Result = (SemiSExpr, PathBuilder)
 
+data BacktrackReason =
+  CaseFailed (Set Name)
+  | UnsatQuery 
+
 data ThreadF next =
   Choose [next]
   | Bind Name SymbolicEnv (SymbolicM Result) (Result -> next)
-  | Backtrack (Set Name)
+  | Backtrack BacktrackReason
   deriving (Functor)
 
 newtype SearchT m a = SearchT { getSearchT :: FreeT ThreadF m a }
@@ -49,7 +53,7 @@ newtype SearchT m a = SearchT { getSearchT :: FreeT ThreadF m a }
 chooseST :: Monad m => [a] -> SearchT m a
 chooseST xs = SearchT $ liftF (Choose xs)
 
-backtrackST :: Monad m => Set Name -> SearchT m a
+backtrackST :: Monad m => BacktrackReason -> SearchT m a
 backtrackST = SearchT . liftF . Backtrack
 
 bindST :: Monad m => Name -> SymbolicEnv -> SymbolicM Result ->
@@ -133,7 +137,7 @@ getName n = SymbolicM $ do
 choose :: [a] -> SymbolicM a
 choose bs = SymbolicM (lift (chooseST bs))
   
-backtrack :: Set Name -> SymbolicM a
+backtrack :: BacktrackReason -> SymbolicM a
 backtrack xs = SymbolicM (lift (backtrackST xs))
 
 --------------------------------------------------------------------------------
