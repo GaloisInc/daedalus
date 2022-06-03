@@ -37,10 +37,10 @@ T053.Throw : Grammar int =
 T053.Check ?a0 (P : Grammar ?a0) : Grammar (Maybe ?a0) =
   Optional (Try P)
  
-T053._Ok : Grammar {} =
+T053.Ok_ : Grammar {} =
   pure {}
  
-T053._PFail : Grammar {} =
+T053.PFail_ : Grammar {} =
   Fail "Erro"
  
 T053.Main : Grammar T053.Main =
@@ -69,9 +69,9 @@ T053.Main : Grammar T053.Main =
                                            | T053.Ok 1
                                            }
      (ex7 : Maybe int) <- T053.Check int Choose biased
-                                           { do T053._Ok
+                                           { do T053.Ok_
                                                 Commit
-                                                  do T053._PFail
+                                                  do T053.PFail_
                                                      ($$ : int) <- T053.Ok 2
                                                      pure $$
                                            | T053.Ok 3
@@ -95,48 +95,48 @@ T053.Main : Grammar T053.Main =
            ex7 = ex7,
            ex8 = ex8}
  
-T053._Throw : Grammar {} =
-  Commit T053._PFail
+T053.Throw_ : Grammar {} =
+  Commit T053.PFail_
  
-T053._Check ?a0 (_P : Grammar {}) : Grammar {} =
+T053.Check_ ?a0 (P_ : Grammar {}) : Grammar {} =
   Choose biased
-    { Try _P
+    { Try P_
     | pure {}
     }
  
-T053._Main : Grammar {} =
-  do T053._Check int Choose biased
-                       { T053._Throw
-                       | T053._Ok
+T053.Main_ : Grammar {} =
+  do T053.Check_ int Choose biased
+                       { T053.Throw_
+                       | T053.Ok_
                        }
-     T053._Check int Choose biased
-                       { T053._Ok
-                       | T053._Throw
+     T053.Check_ int Choose biased
+                       { T053.Ok_
+                       | T053.Throw_
                        }
-     T053._Check int Choose fair
-                       { T053._Throw
-                       | T053._Ok
+     T053.Check_ int Choose fair
+                       { T053.Throw_
+                       | T053.Ok_
                        }
-     T053._Check int Choose fair
-                       { T053._Ok
-                       | T053._Throw
+     T053.Check_ int Choose fair
+                       { T053.Ok_
+                       | T053.Throw_
                        }
-     T053._Check int Choose biased
-                       { Try T053._Throw
-                       | T053._Ok
+     T053.Check_ int Choose biased
+                       { Try T053.Throw_
+                       | T053.Ok_
                        }
-     T053._Check int Choose fair
-                       { Try T053._Throw
-                       | T053._Ok
+     T053.Check_ int Choose fair
+                       { Try T053.Throw_
+                       | T053.Ok_
                        }
-     T053._Check int Choose biased
-                       { do T053._Ok
+     T053.Check_ int Choose biased
+                       { do T053.Ok_
                             Commit
-                              do T053._PFail
-                                 T053._Ok
-                       | T053._Ok
+                              do T053.PFail_
+                                 T053.Ok_
+                       | T053.Ok_
                        }
-     T053._Check {} do (x : int) <- Choose fair
+     T053.Check_ {} do (x : int) <- Choose fair
                                       { Commit
                                           do ($$ : int) <- T053.Ok 1
                                              pure $$

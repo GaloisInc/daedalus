@@ -3,10 +3,10 @@
 Stack:
     *
     Main callsite __START__
-    _PadWSpaces__30 callsite Main (18,11)-(18,36)
-    _Chunk__35 callsite _PadWSpaces__30 (14,3)-(14,42)
+    PadWSpaces_ callsite Main (18,11)-(18,36)
+    Chunk_ callsite PadWSpaces_ (14,3)-(14,36)
     Many (Between (-,-), *)
-Start: _Chunk__35 (14,20)-(14,35)
+Start: Chunk_ (14,20)-(14,30)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
   ( [(7),]
@@ -22,10 +22,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _PadWSpaces__30 callsite Main (18,11)-(18,36)
-    _Chunk__35 callsite _PadWSpaces__30 (14,3)-(14,42)
+    PadWSpaces_ callsite Main (18,11)-(18,36)
+    Chunk_ callsite PadWSpaces_ (14,3)-(14,36)
     Many (Between (-,-), *)
-Start: _Chunk__35 (14,20)-(14,35)
+Start: Chunk_ (14,20)-(14,30)
 SlkCfg{ q:38, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
   ( []
@@ -41,10 +41,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _PadWSpaces__31 callsite Main (19,11)-(19,36)
-    _Chunk__34 callsite _PadWSpaces__31 (14,3)-(14,42)
+    PadWSpaces_ callsite Main (19,11)-(19,36)
+    Chunk_ callsite PadWSpaces_ (14,3)-(14,36)
     Many (Between (-,-), *)
-Start: _Chunk__34 (14,20)-(14,35)
+Start: Chunk_ (14,20)-(14,30)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[2..3] }
 DTrans [
   ( [(7),]
@@ -60,10 +60,10 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-    _PadWSpaces__31 callsite Main (19,11)-(19,36)
-    _Chunk__34 callsite _PadWSpaces__31 (14,3)-(14,42)
+    PadWSpaces_ callsite Main (19,11)-(19,36)
+    Chunk_ callsite PadWSpaces_ (14,3)-(14,36)
     Many (Between (-,-), *)
-Start: _Chunk__34 (14,20)-(14,35)
+Start: Chunk_ (14,20)-(14,30)
 SlkCfg{ q:110, ctrl:[?, ?, ?, ?, *], sem:[?, ?, ?, ], inp:---[3..3] }
 DTrans [
   ( []

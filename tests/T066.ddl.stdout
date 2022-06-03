@@ -12,24 +12,24 @@ type T066.Main = Choose { y: uint 8
 T066.Main : Grammar T066.Main =
   Choose biased
     { Choose biased
-        { {- x -} do (_1 : uint 8) <- GetByte
+        { {- x -} do (_1 : uint 8) <- Match UInt8
                      pure {x: _1}
-        | {- y -} do (_2 : uint 8) <- GetByte
+        | {- y -} do (_2 : uint 8) <- Match UInt8
                      pure {y: _2}
         }
     | Choose biased
-        { {- x -} do (_3 : uint 8) <- GetByte
+        { {- x -} do (_3 : uint 8) <- Match UInt8
                      pure {x: _3}
         }
     }
  
-T066._Main : Grammar {} =
+T066.Main_ : Grammar {} =
   Choose biased
     { Choose biased
-        { {- x -} @GetByte
-        | {- y -} @GetByte
+        { {- x -} @Match UInt8
+        | {- y -} @Match UInt8
         }
     | Choose biased
-        { {- x -} @GetByte
+        { {- x -} @Match UInt8
         }
     }

@@ -30,13 +30,13 @@ case-union2.Main : Grammar case-union2.Main =
      pure {p = p,
            tag = tag}
  
-case-union2._P : Grammar {} =
+case-union2.P_ : Grammar {} =
   Choose biased
     { {- c1 -} @MatchBytes "a"
     | {- c2 -} @MatchBytes "b"
     }
  
-case-union2._Main : Grammar {} =
+case-union2.Main_ : Grammar {} =
   do (p : case-union2.P) <- case-union2.P
      case p is
        { {| c1 = x |},

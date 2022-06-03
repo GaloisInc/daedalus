@@ -138,7 +138,7 @@
            <div itemprop="articleBody">
              
   <div class="section" id="implicit-lifting">
-<h1>Implicit Lifting<a class="headerlink" href="#implicit-lifting" title="Permalink to this headline"></a></h1>
+<span id="id1"></span><h1>Implicit Lifting<a class="headerlink" href="#implicit-lifting" title="Permalink to this headline"></a></h1>
 <p>At its core, DaeDaLus has three semantics categories:</p>
 <blockquote>
 <div><ul class="simple">
@@ -152,7 +152,7 @@ they would be used with.  For example:</p>
 <blockquote>
 <div><ul class="simple">
 <li><p>the operator <code class="docutils literal notranslate"><span class="pre">+</span></code> expects two semantic values;</p></li>
-<li><p>the construct <code class="docutils literal notranslate"><span class="pre">Match1</span></code> expects a character class;</p></li>
+<li><p>the construct <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">]</span></code> expects a character class;</p></li>
 <li><p>the construct <code class="docutils literal notranslate"><span class="pre">Many</span></code> expects a parser.</p></li>
 </ul>
 </div></blockquote>
@@ -184,7 +184,7 @@ categories, subject to the following conversions:</p>
 </tr>
 <tr class="row-odd"><td><p>Char Class <code class="docutils literal notranslate"><span class="pre">$x</span></code></p></td>
 <td><p>Parser</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">$x</span></code> match the char class</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">$x</span> <span class="pre">]</span></code> match the char class</p></td>
 </tr>
 </tbody>
 </table>

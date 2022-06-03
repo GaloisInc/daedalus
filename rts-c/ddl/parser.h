@@ -4,38 +4,39 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <optional>
 
 #include <ddl/debug.h>
 #include <ddl/input.h>
 #include <ddl/stack.h>
+#include <ddl/parse_error.h>
 
 namespace DDL {
 
 typedef size_t ThreadId;
 
-struct ParseError {
-  // XXX: more info (stream information, some description)
-  Size offset;
-};
-
 class ParserState {
 
-  Size                  fail_offset;    // largest, only makes sense if we fail
-  ListStack             stack;
-  std::vector<Thread>   suspended;
+  ParseError error;
+
+  ListStack           stack;
+  std::vector<Thread> suspended;
+  ParserContextStack  debugs;
 
 public:
-  ParserState() : fail_offset(0) {}
+  ParserState() {}
 
-  Size getFailOffset() { return fail_offset; }
+  ParseError getParseError() { return error; }
 
-  // All alternatives failed.   Free the stack and return the
-  // offset of the best error we computed.
-  Size finalYield() {
+  // There are no more alternatives to consider.
+  // Free the stack and return the best error we know about.
+  // Note that if no errors occurer, the "error" woudl be just
+  // the default error.
+  ParseError finalYield() {
     debugLine("final yield");
     debugVal(stack);
     stack.free();
-    return fail_offset;
+    return getParseError();
   }
 
 
@@ -44,18 +45,18 @@ public:
   // For debug
   void say(const char *msg) { debugLine(msg); }
 
+  void pushDebug(char const* msg, bool tail = false) {
+    if (tail) debugs.tailCallFun(msg); else debugs.callFun(msg);
+  }
+  void popDebug() { debugs.popFun(); }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
   void notify(ThreadId id) { suspended[id].notify(); }
 
-  // Set the "furtherest fail" location.
-  // XXX: This is not quite right because, in principle, the failures
-  // may be in different inputs.  For the moment, we ignore this, which
-  // could result in confusing error locations.
-  void noteFail(Input input) {
-    Size offset = input.getOffset();
-    if (offset > fail_offset) fail_offset = offset;
+  // Borrows input and msg
+  void noteFail(bool is_sys, char const *loc, Input input, Array<UInt<8>> msg) {
+    error.improve(is_sys,loc,input,msg,debugs);
   }
 
   // Function calls
@@ -78,7 +79,7 @@ public:
     debug("spawning thread "); debugValNL(id);
     stack.copy();
     debugVal(stack);
-    suspended.push_back(Thread(c,stack));
+    suspended.push_back(Thread(c,stack,debugs));
     return id;
   }
 
@@ -105,6 +106,8 @@ public:
 
     debugLine("new stack");
     debugVal(stack);
+
+    debugs = t.debug;
 
     return stack.retAddr();
   }

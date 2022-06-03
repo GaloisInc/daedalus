@@ -6,11 +6,11 @@ module DaedalusMain
  
 --- Rules:
  
-T056.I__11 (open : [uint 8]) : Grammar [uint 8] =
+T056.I_11 (open : [uint 8]) : Grammar [uint 8] =
   MatchBytes open
  
 T056.F (open : [uint 8]) : Grammar [uint 8] =
-  T056.I__11 open
+  T056.I_11 open
  
 T056.Main : Grammar [uint 8] =
   T056.F "A"

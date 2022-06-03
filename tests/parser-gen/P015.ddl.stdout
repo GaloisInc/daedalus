@@ -17,7 +17,7 @@ P015.myfun (m : int) : int =
   (P015.mygauss m) + 42
  
 P015.A : Grammar (uint 8) =
-  do ($$ : uint 8) <- GetByte
+  do ($$ : uint 8) <- Match UInt8
      pure $$
  
 P015.Main : Grammar P015.Main =
@@ -26,8 +26,8 @@ P015.Main : Grammar P015.Main =
      pure {x = x,
            y = y}
  
-P015._A : Grammar {} =
-  @GetByte
+P015.A_ : Grammar {} =
+  @Match UInt8
  
-P015._Main : Grammar {} =
-  P015._A
+P015.Main_ : Grammar {} =
+  P015.A_

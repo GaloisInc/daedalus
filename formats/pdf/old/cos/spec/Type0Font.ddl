@@ -11,10 +11,10 @@ import CMap
 import FontCommon
 import FontDesc
 
-def Type0Encoding = Choose1 {
-  preDef = DirectOrRef (Token Name);
-  cmap = CMapRef SimpleFontType; -- TODO: use Sec. 9.7.6.2
-}
+def Type0Encoding = First
+  preDef = DirectOrRef (Token Name)
+  cmap = CMapRef SimpleFontType -- TODO: use Sec. 9.7.6.2
+
 
 def PreDefEncoding (s : [ uint 8 ]) : Type0Encoding = {|
   preDef = s

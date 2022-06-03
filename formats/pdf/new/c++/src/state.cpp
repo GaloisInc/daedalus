@@ -35,8 +35,7 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
 
     if (results.size() != 1) {
         for (auto &&x : results) { x.free(); }
-        std::cerr << "ERROR: PARSE ERROR " << input.borrowNameBytes()
-                                  << " at " << error.offset << std::endl;
+        std::cerr << "ERROR: PARSE ERROR\n" << error << std::endl;
         input.free();
         return false;
     }
@@ -165,7 +164,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, TopThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl;
+            User::TopDecl decl{};
             bool success = arg.getDecl(topinput->get(), &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
@@ -175,7 +174,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, StreamThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl;
+            User::TopDecl decl{};
             bool success = arg.getDecl(refid, &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
@@ -382,6 +381,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
         for (auto &&x : crossRefs) {
             x.free();
         }
+        std::cout << error;
         throw XrefException("Unable to parse xrefs");
     }
 
@@ -438,12 +438,12 @@ size_t findPdfStart(size_t len, char const* bytes) {
 // Owns input
 void ReferenceTable::process_pdf(DDL::Input input)
 {
-    auto start = findPdfStart(input.length().value, input.borrowBytes());
+    auto start = findPdfStart(input.length().value, input.borrowBytes().data());
     input.iDropMut(start);
 
     references.topinput = DDL::Owned(input);
 
-    auto end = findPdfEnd(input.length().rep(), input.borrowBytes());
+    auto end = findPdfEnd(input.length().rep(), input.borrowBytes().data());
     if (end == not_found) {
         throw XrefException("End of pdf not found");
     }

@@ -9,29 +9,29 @@ module T026
 T026.WS : Grammar {} =
   @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
-T026._WS : Grammar {} =
+T026.WS_ : Grammar {} =
   @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
  
 T026.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] T026._WS
+     @Many[ 1 .. ] T026.WS_
      pure $$
  
-T026._Token ?a0 (_P : Grammar {}) : Grammar {} =
-  do _P
-     @Many[ 1 .. ] T026._WS
+T026.Token_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do P_
+     @Many[ 1 .. ] T026.WS_
  
 T026.KW ?a0 (P : Grammar ?a0) : Grammar {} =
-  T026._Token ?a0 do P
+  T026.Token_ ?a0 do P
                      pure {}
  
-T026._KW ?a0 (_P : Grammar {}) : Grammar {} =
-  T026._Token ?a0 _P
+T026.KW_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  T026.Token_ ?a0 P_
  
 T026.Between ?a0 (open : [uint 8]) (close : [uint 8]) (P : Grammar ?a0) : Grammar ?a0 =
-  do T026._KW [uint 8] (@MatchBytes open)
+  do T026.KW_ [uint 8] (@MatchBytes open)
      ($$ : ?a0) <- P
-     T026._KW [uint 8] (@MatchBytes close)
+     T026.KW_ [uint 8] (@MatchBytes close)
      pure $$
  
 T026.Symbol : Grammar [uint 8] =
@@ -50,15 +50,15 @@ rec value
 T026.Main : Grammar (Map [uint 8] [uint 8]) =
   T026.Between (Map [uint 8] [uint 8]) "<<" ">>" (T026.MkDict empty)
  
-T026._Between ?a0 (open : [uint 8]) (close : [uint 8]) (_P : Grammar {}) : Grammar {} =
-  do T026._KW [uint 8] (@MatchBytes open)
-     _P
-     T026._KW [uint 8] (@MatchBytes close)
+T026.Between_ ?a0 (open : [uint 8]) (close : [uint 8]) (P_ : Grammar {}) : Grammar {} =
+  do T026.KW_ [uint 8] (@MatchBytes open)
+     P_
+     T026.KW_ [uint 8] (@MatchBytes close)
  
-T026._Symbol : Grammar {} =
-  T026._Token [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
+T026.Symbol_ : Grammar {} =
+  T026.Token_ [uint 8] (@Many[ 1 .. ] @Match ('a' .. 'z'))
  
-T026._MkDict (m : Map [uint 8] [uint 8]) : Grammar {} =
+T026.MkDict_ (m : Map [uint 8] [uint 8]) : Grammar {} =
   Choose biased
     { do (_17 : Map [uint 8] [uint 8]) <- do (_15 : [uint 8]) <- T026.Symbol
                                              (_16 : [uint 8]) <- T026.Symbol
@@ -68,5 +68,5 @@ T026._MkDict (m : Map [uint 8] [uint 8]) : Grammar {} =
     | pure {}
     }
  
-T026._Main : Grammar {} =
-  T026._Between (Map [uint 8] [uint 8]) "<<" ">>" (T026._MkDict empty)
+T026.Main_ : Grammar {} =
+  T026.Between_ (Map [uint 8] [uint 8]) "<<" ">>" (T026.MkDict_ empty)

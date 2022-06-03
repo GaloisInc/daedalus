@@ -11,7 +11,7 @@ def addDigit val d  = 10 * val + d
 
 def Digit =
   block
-    let d = Match1 ('0' .. '9')
+    let d = $['0' .. '9']
     (d - '0') as int
 
 def HexDigit  =

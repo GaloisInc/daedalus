@@ -86,47 +86,47 @@ P036.Main : Grammar P036.Main =
      pure {x = x,
            y = y}
  
-P036._A : Grammar {} =
+P036.A_ : Grammar {} =
   Choose fair
     { {- x -} pure {}
     | {- y -} pure {}
     }
  
-P036._Case1 : Grammar {} =
+P036.Case1_ : Grammar {} =
   do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
      @Insert "x" 'b' u
  
-P036._Case2 : Grammar {} =
+P036.Case2_ : Grammar {} =
   do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
      @Lookup "y" u
  
-P036._Case3 : Grammar {} =
+P036.Case3_ : Grammar {} =
   @Insert "y" 'a' empty
  
-P036._Case4 : Grammar {} =
+P036.Case4_ : Grammar {} =
   do (u : Map [uint 8] (uint 8)) <- Insert "x" 'a' empty
      (v : {}) <- @Lookup "x" u
      case v == {} is
        { true -> pure {}
        }
  
-P036._Main : Grammar {} =
+P036.Main_ : Grammar {} =
   do (x : uint 8) <- Match ('0' .. '9')
      Choose biased
        { {- c1 -} do case x == '1' is
                        { true -> pure {}
                        }
-                     P036._Case1
+                     P036.Case1_
        | {- c2 -} do case x == '2' is
                        { true -> pure {}
                        }
-                     P036._Case2
+                     P036.Case2_
        | {- c3 -} do case x == '3' is
                        { true -> pure {}
                        }
-                     P036._Case3
+                     P036.Case3_
        | {- c4 -} do case x == '4' is
                        { true -> pure {}
                        }
-                     P036._Case4
+                     P036.Case4_
        }

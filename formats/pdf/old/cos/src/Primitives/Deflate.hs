@@ -24,7 +24,7 @@ flateDecode predi colors bpc cols inp =
     Right a -> do bs <- unPredict predi colors bpc cols a
                   pure (newInput name bs)
                   -- XXX: better indicattion of where these bytes came from.
-    Left err -> trace "WARNING: deflate is failing" $ pError FromUser "Deflate.flateDecode" (show err)
+    Left err -> trace "WARNING: deflate is failing" $ pError' FromUser [] (show err)
   where name = C.pack ("FlateDecode" ++ show (inputOffset inp))
 
 strictDecompress :: B.ByteString -> Either DecompressError B.ByteString
@@ -38,13 +38,13 @@ unPredict :: PdfParser m => Integer -> Integer -> Integer -> Integer ->
 unPredict predi colors bpc columns bs
   | predi == 1 = pure bs
   | predi == 12 && colors == 1 && bpc == 8 = pngUp columns bs
-  | otherwise = pError FromUser "unPredict" "Unsupported predictor algorithm."
+  | otherwise = pError' FromUser [] "Unsupported predictor algorithm."
 
 pngUp :: PdfParser m => Integer -> B.ByteString -> m B.ByteString
 pngUp columns bs =
   case uncons rows of
     Just (start,rows') -> pure (B.concat (scanl adder start rows'))
-    Nothing            -> pError FromUser "pngUp" "malformed PNG UP stream"
+    Nothing            -> pError' FromUser [] "malformed PNG UP stream"
                               --- XXX: better error?
 
   where

@@ -41,7 +41,6 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import Daedalus.CompileHS(hsIdentMod)
-import qualified Daedalus.ExportRuleRanges as Export
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypes)
@@ -55,6 +54,7 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Semantics as VM
 
 import CommandLine
 import Templates
@@ -96,14 +96,14 @@ configure opts =
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
-  | DumpRuleRanges <- optCommand opts =
-    do mm   <- ddlPassFromFile passResolve (optParserDDL opts)
-       mods <- mapM (`ddlGetAST` astParse) =<< ddlBasis mm
-       ddlPutStrLn (Export.jsModules mods)
-       ddlIO exitSuccess
 
   | DumpRaw <- optCommand opts =
     do mm   <- ddlPassFromFile passParse (optParserDDL opts)
+       mo <- ddlGetAST mm astParse
+       ddlPrint (ppDoc mo)
+
+  | DumpResolve <- optCommand opts =
+    do mm <- ddlPassFromFile passResolve (optParserDDL opts)
        mo <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
@@ -163,6 +163,8 @@ handleOptions opts
 
              UseCore -> interpCore opts mm inp
 
+             UseVM -> interpVM opts mm inp
+
              UsePGen flagMetrics ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -171,8 +173,8 @@ handleOptions opts
                --   prog <- normalizedDecls
                --   ddlIO (interpPGen inp prog)
 
-         DumpRuleRanges -> error "Bug: DumpRuleRanges"
          DumpRaw -> error "Bug: DumpRaw"
+         DumpResolve -> error "Bug: DumpResolve"
          DumpTypes -> error "Bug: DumpTypes"
          JStoHTML -> error "Bug: JStoHTML"
 
@@ -183,6 +185,7 @@ handleOptions opts
            case optBackend opts of
              UseInterp -> generateCPP opts mm
              UseCore   -> generateCPP opts mm
+             UseVM     -> generateCPP opts mm
              UsePGen _ ->
                do passSpecialize specMod [mainRule]
                   prog <- ddlGetAST specMod astTC
@@ -215,6 +218,17 @@ interpCore opts mm inpMb =
      -- XXX: html, etc
      ddlIO $ forM_ ents \ent ->
                   print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+
+interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
+interpVM opts mm inpMb =
+ do r <- doToVM opts mm
+    inp  <- ddlIO (RTS.newInputFromFile inpMb)
+    let entries = VM.semModule (head (VM.pModules r))
+    let ?useJS = optShowJS opts
+    for_ (Map.elems entries) \impl ->
+        ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
+
+    
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -250,7 +264,8 @@ doToCore opts mm =
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
-  do _ <- doToCore opts mm
+  do ddlSetOpt optDebugMode (optErrorStacks opts)
+     _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
      let addMM = VM.addCopyIs . VM.doBorrowAnalysis

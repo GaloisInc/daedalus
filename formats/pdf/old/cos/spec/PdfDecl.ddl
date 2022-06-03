@@ -17,10 +17,10 @@ def TopDecl = {
   Match "endobj";
 }
 
-def TopDeclDef (val : Value) = Choose1 {
-  stream = Stream val;
+def TopDeclDef (val : Value) = First
+  stream = Stream val
   value  = ^ val
-}
+
 
 def ObjStream (s : Stream) = block
   let h = s.header
@@ -91,10 +91,10 @@ def SkipBytes n = Chunk n {}
 -- Resolving references to streams
 
 -- NOTE: warning: this grammar is actually never called, but defined here to declare the type associated
-def ObjStart (s : stream) = Choose1 {
+def ObjStart (s : stream) = First
   inInput = s
-; inObjStream = s
-}
+  inObjStream = s
+
 
 -- WrapGetStream: local wrapper to GetStream, used for primitive
 def WrapGetStream : ObjStart = {|

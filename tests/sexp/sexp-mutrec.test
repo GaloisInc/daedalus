@@ -1,2 +1,3 @@
+run
 ../../formats/sexp-mutrec.ddl
---interp=sexp-mutrec.sexp
+--input=sexp-mutrec.sexp

@@ -11,7 +11,7 @@ type P013.Main = { x: uint 8
 --- Rules:
  
 P013.A : Grammar (uint 8) =
-  do ($$ : uint 8) <- GetByte
+  do ($$ : uint 8) <- Match UInt8
      pure $$
  
 P013.Main : Grammar P013.Main =
@@ -22,8 +22,8 @@ P013.Main : Grammar P013.Main =
            a = a,
            b = b}
  
-P013._A : Grammar {} =
-  @GetByte
+P013.A_ : Grammar {} =
+  @Match UInt8
  
-P013._Main : Grammar {} =
-  P013._A
+P013.Main_ : Grammar {} =
+  P013.A_

@@ -19,7 +19,6 @@ layout tokIn = go False [] (error "Last token") tokIn
     case lexemeToken t of
       KWOf | nonBrace      -> True
       KWChoose | nonBrace  -> True
-      KWChoose1 | nonBrace -> True
       KWFirst              -> True
       KWblock              -> True
       KWWhere              -> True

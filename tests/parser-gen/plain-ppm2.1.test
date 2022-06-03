@@ -1,3 +1,4 @@
+run
 plain-ppm2.ddl
---interp=../ppm/inputs/01.ppm
---gen-metrics
+--input=../ppm/inputs/01.ppm
+--gen=metrics

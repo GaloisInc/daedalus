@@ -15,22 +15,22 @@ byteset $cr() : Bool =
 byteset $lf() : Bool =
   { 10 @(Word 8) }
  
--- ./Det005.ddl:11:42--11:67
-proc _F24() : () =
+-- ./Det005.ddl:11:42--11:62
+proc Many_24() : () =
   do _x25 <- try
-               do -- ./Det005.ddl:11:48--11:67
+               do -- ./Det005.ddl:11:47--11:62
                   match1_ !($lf() | $cr())
                   pure True
              orelse
                pure False
      case _x25 of
        True ->
-         _F24()
+         Many_24()
        False ->
          pure ()
  
 -- ./Det005.ddl:9:1--9:47
-proc _SimpleEOL() : () =
+proc SimpleEOL_() : () =
   -- ./Det005.ddl:9:29--9:47
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
@@ -46,7 +46,7 @@ proc _SimpleEOL() : () =
          fail_sys @()
  
 -- ./Det005.ddl:10:1--10:44
-proc _EOL() : () =
+proc EOL_() : () =
   -- ./Det005.ddl:10:29--10:44
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -70,19 +70,19 @@ proc _EOL() : () =
        _ ->
          fail_sys @()
  
--- ./Det005.ddl:11:1--11:77
-proc _Comment() : () =
-  -- ./Det005.ddl:11:31--11:75
+-- ./Det005.ddl:11:1--11:69
+proc Comment_() : () =
+  -- ./Det005.ddl:11:31--11:67
   do -- ./Det005.ddl:11:31--11:39
      match_ "%"
-     -- ./Det005.ddl:11:42--11:75
      -- ./Det005.ddl:11:42--11:67
-     _F24()
-     -- ./Det005.ddl:11:73--11:75
-     _EOL()
+     -- ./Det005.ddl:11:42--11:62
+     Many_24()
+     -- ./Det005.ddl:11:65--11:67
+     EOL_()
  
 -- ./Det005.ddl:12:1--12:55
-proc _AnyWS() : () =
+proc AnyWS_() : () =
   -- ./Det005.ddl:12:29--12:55
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
@@ -126,20 +126,21 @@ proc _AnyWS() : () =
        37 ->
          -- ./Det005.ddl:12:29--12:48
          -- ./Det005.ddl:12:42--12:48
-         -- ./Det005.ddl:11:31--11:75
-         -- ./Det005.ddl:11:42--11:75
-         do -- ./Det005.ddl:11:42--11:67
-            _F24()
-            -- ./Det005.ddl:11:73--11:75
-            _EOL()
+         -- ./Det005.ddl:11:31--11:67
+         -- ./Det005.ddl:11:42--11:67
+         do -- ./Det005.ddl:11:42--11:62
+            Many_24()
+            -- ./Det005.ddl:11:65--11:67
+            EOL_()
        _ ->
          fail_sys @()
  
+-- entry pont
 -- ./Det005.ddl:3:1--3:26
 proc Main() : () =
   -- ./Det005.ddl:3:14--3:24
   do -- ./Det005.ddl:3:14--3:18
-     _AnyWS()
+     AnyWS_()
      -- ./Det005.ddl:3:22--3:24
      -- ./Det005.ddl:3:22--3:24
      matchEnd

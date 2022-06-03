@@ -1,6 +1,6 @@
-[WARNING] ./P032.ddl:30:5--33:5:
+[WARNING] ./P032.ddl:29:5--32:5:
             Using unbiased choice may be inefficient.
-[WARNING] ./P032.ddl:23:3--26:3:
+[WARNING] ./P032.ddl:22:3--25:3:
             Using unbiased choice may be inefficient.
 module P032
  
@@ -45,12 +45,12 @@ P032.Grp1 : Grammar [uint 8] =
         }
     }
  
-P032._B : Grammar {} =
+P032.B_ : Grammar {} =
   @Match {'b'}
  
 P032.Grp2 : Grammar [uint 8] =
   Choose biased
-    { do P032._B
+    { do P032.B_
          Commit
            do ($$ : [uint 8]) <- P032.C
               pure $$
@@ -59,64 +59,64 @@ P032.Grp2 : Grammar [uint 8] =
  
 P032.Grp3 : Grammar [uint 8] =
   Choose fair
-    { do P032._B
+    { do P032.B_
          ($$ : [uint 8]) <- P032.C
          pure $$
-    | do P032._B
+    | do P032.B_
          ($$ : [uint 8]) <- P032.D
          pure $$
     }
  
-P032._A : Grammar {} =
+P032.A_ : Grammar {} =
   @Match {'a'}
  
-P032._AB : Grammar {} =
+P032.AB_ : Grammar {} =
   do @Match {'a'}
      @Match {'b'}
  
-P032._Grp1 : Grammar {} =
+P032.Grp1_ : Grammar {} =
   Choose biased
-    { P032._B
+    { P032.B_
     | Choose biased
-        { P032._A
-        | P032._AB
+        { P032.A_
+        | P032.AB_
         }
     }
  
-P032._C : Grammar {} =
+P032.C_ : Grammar {} =
   @Match {'c'}
  
-P032._Grp2 : Grammar {} =
+P032.Grp2_ : Grammar {} =
   Choose biased
-    { do P032._B
-         Commit P032._C
-    | P032._B
+    { do P032.B_
+         Commit P032.C_
+    | P032.B_
     }
  
-P032._D : Grammar {} =
+P032.D_ : Grammar {} =
   @Match {'d'}
  
-P032._Grp3 : Grammar {} =
+P032.Grp3_ : Grammar {} =
   Choose fair
-    { do P032._B
-         P032._C
-    | do P032._B
-         P032._D
+    { do P032.B_
+         P032.C_
+    | do P032.B_
+         P032.D_
     }
  
 P032.Main : Grammar {} =
-  do P032._Grp1
+  do P032.Grp1_
      Choose fair
-       { P032._Grp2
-       | P032._Grp3
+       { P032.Grp2_
+       | P032.Grp3_
        }
      ($$ : {}) <- END
      pure $$
  
-P032._Main : Grammar {} =
-  do P032._Grp1
+P032.Main_ : Grammar {} =
+  do P032.Grp1_
      Choose fair
-       { P032._Grp2
-       | P032._Grp3
+       { P032.Grp2_
+       | P032.Grp3_
        }
      END

@@ -23,9 +23,9 @@ import Type1Font
 import Type3Font
 import Unicode
 
-def MacroOp = Choose1 {
-  mvNextLineStart = KW "T*";
-}
+def MacroOp = First
+  mvNextLineStart = KW "T*"
+
 
 def FontEffect (szFont : maybe sizedFont) x = {
   fst = szFont;
@@ -58,18 +58,18 @@ def FontOpEffect (resrcs : ResourceDict) (szFont : maybe sizedFont) = FontEffect
 def TestsizedFont = sizedFont (MkType1Font Type1FontStub) (intNumber 12)
 
 -- TextOp: an operation that can occur in a text object
-def TextOp (mayF : maybe sizedFont) = Choose1 {
+def TextOp (mayF : maybe sizedFont) = First
   -- all text operands are mutually exclusive
-  textShowOp = TextShowOp (mayF is just);
-  textStateOp = TextStateOp;
-  textPosOp = TextPosOp;
-  textGraphicsStateOp = GraphicsStateOp;
-  textColourOp = ColourOp;
-  textMarkedPoint = MarkContentPoint;
-  textMarkedSeq = MarkedContentSeqOp;
+  textShowOp = TextShowOp (mayF is just)
+  textStateOp = TextStateOp
+  textPosOp = TextPosOp
+  textGraphicsStateOp = GraphicsStateOp
+  textColourOp = ColourOp
+  textMarkedPoint = MarkContentPoint
+  textMarkedSeq = MarkedContentSeqOp
   -- TODO: refine to parse well-nested sequences
-  macroOp = MacroOp;
-}
+  macroOp = MacroOp
+
 
 def MvNextLineStart : MacroOp = {| mvNextLineStart = { } |}
 
@@ -86,28 +86,31 @@ def MvNextLineShow (f : sizedFont) (s : [uint 8]) : [ TextOp ] = [
 ]
 
 -- TextOpP: parses a text opcode into a sequence of text operations
-def TextOpP (f : maybe sizedFont) : [ TextOp ] = Choose1 {
+def TextOpP (f : maybe sizedFont) : [ TextOp ] = First
   -- parse an actual text operation:
   [ TextOp f ]
   -- text operations that are basically macros over other
   -- operations. TD operations: (Table 106)
-; { @tx = Token Number;
+  { @tx = Token Number;
     @ty = Token Number;
     KW "Td"; -- Table 106
     [ {| textPosOp = MvNextLineWOffset tx ty |} ]
-  }
-; { @tx = Token Number;
+    }
+
+  { @tx = Token Number;
     @ty = Token Number;
     KW "TD"; -- Table 106
     [ {| textStateOp = setLeadingOp ty |}
     , {| textPosOp = MvNextLineWOffset tx ty |}
     ]
-  }
-; { @s = Token String;
+    }
+
+  { @s = Token String;
     KW "'"; -- Table 107
     MvNextLineShow (f is just) s
-  }
-; { @aw = Token Number;
+    }
+
+  { @aw = Token Number;
     @ac = Token Number;
     @s = Token String;
     KW "\""; -- Table 107
@@ -116,8 +119,8 @@ def TextOpP (f : maybe sizedFont) : [ TextOp ] = Choose1 {
       , {| textStateOp = setCharSpaceOp ac |}
       ]
       (MvNextLineShow (f is just) s)
-  }
-}
+    }
+
 
 -- TextObj: a text object
 def TextObj (rd: ResourceDict) (f : maybe sizedFont) : FontEffect = 

@@ -154,8 +154,8 @@ instance PP ParseError where
           , "offset:" <+> pp (inputOffset inp)
           , "message:" <+> ppStr (peMsg err)
           , "grammar:" <+> "[" <+>
-                  hsep (punctuate comma (map ppStr (peGrammar err))) <+> "]"
-          , "context:" $$ nest 2 (ppBlock "[" "]" (map ppStr (peStack err)))
+                  hsep (punctuate comma (map ppSourceRange (peGrammar err))) <+> "]"
+          , "context:" $$ nest 2 (ppBlock "[" "]" (map ppAnnot (peStack err)))
           ]
     where
     inp = peInput err

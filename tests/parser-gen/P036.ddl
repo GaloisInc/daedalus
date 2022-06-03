@@ -34,19 +34,11 @@ def Case4 =
   }
 
 def Main =
-  { x = Match1 ('0'..'9')
-  ; y = Choose1
-      { c1 = { x == '1' is true
-        ; Case1
-        }
-      ; c2 = { x == '2' is true
-        ; Case2
-        }
-      ; c3 = { x == '3' is true
-        ; Case3
-        }
-      ; c4 = { x == '4' is true
-        ; Case4
-        }
-      }
+  { x = $['0'..'9']
+  ; y = First
+          c1 = { x == '1' is true; Case1 }
+          c2 = { x == '2' is true; Case2 }
+          c3 = { x == '3' is true; Case3 }
+          c4 = { x == '4' is true; Case4 }
+
   }

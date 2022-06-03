@@ -364,14 +364,15 @@ getValue v = do
 stringToSMTName :: String -> GUID -> SMTVar
 stringToSMTName n g = n ++ "@" ++ showPP g
 
+
 textToSMTName :: Text -> GUID -> SMTVar
 textToSMTName n = stringToSMTName (showPP n)
 
+fnameToSMTName :: FName -> String
+fnameToSMTName n = textToSMTName (fnameText n) (fnameId n)
+
 nameToSMTName :: Name -> SMTVar
 nameToSMTName n = textToSMTName (maybe "_N" id (nameText n)) (nameId n)
-
-fnameToSMTName :: FName -> SMTVar
-fnameToSMTName n = textToSMTName (maybe "_F" id (fnameText n)) (fnameId n)
 
 tnameToSMTName :: TName -> SMTVar
 tnameToSMTName n = textToSMTName (tnameText n) (tnameId n)

@@ -43,7 +43,7 @@ $ws         = [\0\9\10\13\32]
 @octLiteral = 0 [oO] $octDigit $octDigit*
 @binLiteral = 0 [bB] $binDigit $binDigit*
 
-@esc        = \\ (@natural | \\ | \' | " | n | t | r | [xX] $hexDigit $hexDigit* )
+@esc        = \\ (@natural | \\ | \' | " | n | t | r | & | [xX] $hexDigit $hexDigit* )
 @byte       = \' ($anybyte # [\\] | @esc) \'
 @bytes      = \" ($anybyte # [\"\\] | @esc)* \"
 
@@ -135,7 +135,6 @@ $ws+        ;
 "let"       { lexeme KWlet }
 
 "Choose"    { lexeme KWChoose }
-"Choose1"   { lexeme KWChoose1 }
 "First"     { lexeme KWFirst }
 "Accept"    { lexeme KWAccept }
 "Optional"  { lexeme KWOptional }
@@ -145,9 +144,8 @@ $ws+        ;
 "many"      { lexeme KWmany }
 "many?"     { lexeme KWmanyQuestion }
 "UInt8"     { lexeme KWUInt8 }
-"$uint"     { lexeme KWDollarUInt }
+"$any"      { lexeme KWDollarAny }
 "Match"     { lexeme KWMatch }
-"Match1"    { lexeme KWMatch1 }
 "END"       { lexeme KWEND }
 "commit"    { lexeme KWCOMMIT }
 "Fail"      { lexeme KWFail }
@@ -266,6 +264,7 @@ checkBytes :: String -> Either String [Word8]
 checkBytes xs =
   case xs of
     [] -> Right []
+    '\\':'&':ys -> checkBytes ys
     _  -> do (c,cs) <- unEsc xs
              rest <- checkBytes cs
              pure (c:rest)

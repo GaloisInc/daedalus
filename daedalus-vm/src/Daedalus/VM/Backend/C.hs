@@ -8,6 +8,7 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import           Data.Word(Word32,Word64)
 import           Data.Int(Int32,Int64)
 import           Data.Maybe(maybeToList,fromMaybe)
@@ -321,9 +322,7 @@ cCaptureEntryDef n fun =
 
 
   name = vmfName fun
-  nameText = case Src.fnameText name of
-               Just txt -> "__" <> txt
-               Nothing  -> panic "cCaptureEntryDef" [ "No name" ]
+  nameText = "__" <> Src.fnameText name <> Text.pack (show (Src.fnameId name))
 
   ty   = TSem (Src.fnameType name)
   def  = case vmfDef fun of
@@ -395,7 +394,7 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
               [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
               , cStmt (cCallMethod "out_input" "free" [])
               ]
-              [ cAssign "error.offset" (cCallMethod "p" "getFailOffset" [])]
+              [ cAssign "error" (cCallMethod "p" "getParseError" [])]
          ]
 
 
@@ -581,11 +580,20 @@ cBlockStmt :: (Copies,CurBlock) => Instr -> CStmt
 cBlockStmt cInstr =
   case cInstr of
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
+    PushDebug how x -> cStmt (cCall "p.pushDebug" [ cString (Text.unpack x), tl ])
+      where tl = case how of
+                   DebugTailCall -> "true"
+                   DebugCall     -> "false"
+    PopDebug        -> cStmt (cCall "p.popDebug"  [])
     Output e        -> let t = cPtrT (cInst "std::vector" [ cType (getType e) ])
                            o = parens (parens(t) <.> "out")
                        in cStmt (cCall (o <.> "->push_back") [ cExpr e ])
     Notify e        -> cStmt (cCall "p.notify"   [ cExpr e ])
-    NoteFail e      -> cStmt (cCall "p.noteFail" [ cExpr e ])
+    NoteFail err loc i m ->
+      cStmt (cCall "p.noteFail" [ sys, cString loc, cExpr i, cExpr m ])
+      where sys = case err of
+                    Src.ErrorFromSystem -> "true"
+                    Src.ErrorFromUser   -> "false"
     Spawn x l       -> cVarDecl x (cCall "p.spawn" [clo])
       where clo = "new" <+> cCall (cThreadClassName (map getType (jArgs l)))
                     ("&&" <.> cBlockLabel (jLabel l) : map cExpr (jArgs l))
@@ -947,7 +955,7 @@ cTermStmt ccInstr =
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
-          [ cAssign "err.offset" "p.finalYield()", "return;" ]
+          [ cAssign "err" "p.finalYield()", "return;" ]
       ]
 
     ReturnNo ->

@@ -1,14 +1,14 @@
-[WARNING] ./Det001.ddl:12:5--13:14:
+[WARNING] ./Det001.ddl:12:5--13:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:12:5--14:14:
+[WARNING] ./Det001.ddl:12:5--14:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:12:5--15:14:
+[WARNING] ./Det001.ddl:12:5--15:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--7:14:
+[WARNING] ./Det001.ddl:6:5--7:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--8:14:
+[WARNING] ./Det001.ddl:6:5--8:10:
             Using unbiased choice may be inefficient.
-[WARNING] ./Det001.ddl:6:5--9:14:
+[WARNING] ./Det001.ddl:6:5--9:10:
             Using unbiased choice may be inefficient.
 module Det001
  
@@ -81,7 +81,7 @@ Det001.Main : Grammar Det001.Main =
            z = z,
            t = t}
  
-Det001._Simple1 : Grammar {} =
+Det001.Simple1_ : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -93,7 +93,7 @@ Det001._Simple1 : Grammar {} =
     | @Match {'d'}
     }
  
-Det001._SimpleNot1 : Grammar {} =
+Det001.SimpleNot1_ : Grammar {} =
   Choose fair
     { Choose fair
         { Choose fair
@@ -105,7 +105,7 @@ Det001._SimpleNot1 : Grammar {} =
     | @Match {'g'}
     }
  
-Det001._Simple2 : Grammar {} =
+Det001.Simple2_ : Grammar {} =
   Choose biased
     { Choose biased
         { @Match {'A'}
@@ -114,7 +114,7 @@ Det001._Simple2 : Grammar {} =
     | @Match {'C'}
     }
  
-Det001._Simple3 : Grammar {} =
+Det001.Simple3_ : Grammar {} =
   Choose biased
     { Choose biased
         { do @Match {'a'}
@@ -125,8 +125,8 @@ Det001._Simple3 : Grammar {} =
          @Match {'b'}
     }
  
-Det001._Main : Grammar {} =
-  do Det001._Simple1
-     Det001._SimpleNot1
-     Det001._Simple2
-     Det001._Simple3
+Det001.Main_ : Grammar {} =
+  do Det001.Simple1_
+     Det001.SimpleNot1_
+     Det001.Simple2_
+     Det001.Simple3_

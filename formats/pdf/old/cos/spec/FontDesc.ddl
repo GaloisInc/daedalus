@@ -7,23 +7,23 @@ import GenPdfValue
 import PdfValue
 import PdfDecl
 
-def CIDFontType = Choose1 {
-  cidFontType0 = @(Match "CIDFontType0");
-  cidFontType2 = @(Match "CIDFontType2");
-}
+def CIDFontType = First
+  cidFontType0 = @(Match "CIDFontType0")
+  cidFontType2 = @(Match "CIDFontType2")
+
 
 def cidFontType0Sym : CIDFontType = {| cidFontType0 = {} |}
 def cidFontType2Sym : CIDFontType = {| cidFontType2 = {} |}
 
 -- FontSubty: the subtypes of fonts
-def FontSubty = Choose1 {
-  cidTy = CIDFontType;
-  fontTy0 = @(Match "Type0");
-  fontTy1 = @(Match "Type1");
-  fontTy3 = @(Match "Type3");
-  fontMM = @(Match "MMType1");
-  fontTrueType = @(Match "TrueType");
-}
+def FontSubty = First
+  cidTy = CIDFontType
+  fontTy0 = @(Match "Type0")
+  fontTy1 = @(Match "Type1")
+  fontTy3 = @(Match "Type3")
+  fontMM = @(Match "MMType1")
+  fontTrueType = @(Match "TrueType")
+
 
 def cidTypeSym (pty : CIDFontType) : FontSubty = {| cidTy = pty |}
 def type0Sym : FontSubty = {| fontTy0 = {} |}
@@ -34,22 +34,22 @@ def trueTypeSym : FontSubty = {| fontTrueType = {} |}
 
 -- the 14 standard fonts
 -- KEY: prefix order of choices is critical
-def StandardFont = Choose1 {
+def StandardFont = First
   courierBoldOblique = @(Match "Courier-BoldOblique")
-; courierBold = @(Match "Courier-Bold")
-; courierOblique = @(Match "Courier-Oblique")
-; courier = @(Match "Courier")
-; helveticaBoldOblique = @(Match "Helvetica-BoldOblique")
-; helveticaBold = @(Match "Helvetica-Bold")
-; helveticaOblique = @(Match "Helvetica-Oblique")
-; helvetica = @(Match "Helvetica")
-; symbol = @(Match "Symbol")
-; timesBoldItalic = @(Match "Times-BoldItalic")
-; timesBold = @(Match "Times-Bold")
-; timesItalic = @(Match "Times-Italic")
-; timesRoman = @(Match "Times-Roman")
-; zapfDingbats = @(Match "ZapfDingbats")
-}
+  courierBold = @(Match "Courier-Bold")
+  courierOblique = @(Match "Courier-Oblique")
+  courier = @(Match "Courier")
+  helveticaBoldOblique = @(Match "Helvetica-BoldOblique")
+  helveticaBold = @(Match "Helvetica-Bold")
+  helveticaOblique = @(Match "Helvetica-Oblique")
+  helvetica = @(Match "Helvetica")
+  symbol = @(Match "Symbol")
+  timesBoldItalic = @(Match "Times-BoldItalic")
+  timesBold = @(Match "Times-Bold")
+  timesItalic = @(Match "Times-Italic")
+  timesRoman = @(Match "Times-Roman")
+  zapfDingbats = @(Match "ZapfDingbats")
+
 
 def helveticaNm : StandardFont = {| helvetica = {} |}
 
@@ -61,16 +61,16 @@ def stdFontIsLatin (f : StandardFont) : bool = case f of {
 
 -- Base fonts: the 14 standards and everything else
 -- TODO: reenable:
---def FontName (Subst : uint 8) = Choose1 {
+--def FontName (Subst : uint 8) = First
 def FontName = {
   @nameChars = Many NameChar;
-  Choose1 {
+  First
     -- DBG:
-    standard = helveticaNm;
+    standard = helveticaNm
 --    standard = WithStream (arrayStream nameChars nameChars) (Only StandardFont);
     nonStandard = nameChars
-  }
 }
+
 
 def FontName0 : FontName = {| nonStandard = Many NameChar |}
 

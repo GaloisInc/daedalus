@@ -1,4 +1,4 @@
-[WARNING] ./P021.ddl:6:9--9:5:
+[WARNING] ./P021.ddl:5:9--8:5:
             Using unbiased choice may be inefficient.
 module P021
  
@@ -42,19 +42,19 @@ P021.Main : Grammar P021.Main =
      pure {p = p,
            x = x}
  
-P021._A : Grammar {} =
+P021.A_ : Grammar {} =
   Choose biased
     { {- x -} @MatchBytes "a"
     | {- y -} @MatchBytes "a"
     }
  
-P021._B : Grammar {} =
+P021.B_ : Grammar {} =
   Choose fair
     { {- z -} @MatchBytes "a"
     | {- t -} @MatchBytes "a"
     }
  
-P021._Main : Grammar {} =
-  do P021._B
-     @Many[] P021._A
+P021.Main_ : Grammar {} =
+  do P021.B_
+     @Many[] P021.A_
      END

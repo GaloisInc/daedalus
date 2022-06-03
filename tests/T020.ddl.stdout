@@ -11,5 +11,5 @@ T020.Main : Grammar [uint 8] =
                                 "World"]
      pure (concat _1)
  
-T020._Main : Grammar {} =
+T020.Main_ : Grammar {} =
   pure {}

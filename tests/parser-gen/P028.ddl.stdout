@@ -27,14 +27,14 @@ P028.Main : Grammar P028.Main =
   do (x : P028.A) <- P028.A
      pure {x = x}
  
-P028._A : Grammar {} =
+P028.A_ : Grammar {} =
   Choose biased
     { {- a -} @Many[] @Match {'a'}
     | {- b -} @Many[] @Match {'a'}
     }
  
-P028._B : Grammar {} =
+P028.B_ : Grammar {} =
   @Many[] @Match {'a'}
  
-P028._Main : Grammar {} =
-  P028._A
+P028.Main_ : Grammar {} =
+  P028.A_

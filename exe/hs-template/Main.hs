@@ -24,11 +24,7 @@ main =
      BS8.putStrLn $
       JS.jsonToBytes
         case runParser pMain input of
-          NoResults err ->
-             JS.jsObject [ ("error"
-                         , JS.jsText (Text.encodeUtf8 (Text.pack (peMsg err))))
-                         , ("offset", JS.toJSON (toInteger (peOffset err)))
-                         ]
+          NoResults err -> JS.toJSON err
           Results rs -> JS.jsArray
                        $ map JS.toJSON
                        $ NE.toList rs

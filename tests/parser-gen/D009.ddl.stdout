@@ -26,30 +26,30 @@ D009.PadWSpaces ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
                       END
                       pure $$
  
-D009._Chunk ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
+D009.Chunk_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
   do (cur : Stream) <- CurrentStream
      (this : Stream) <- StreamLen n cur
      (next : Stream) <- StreamOff n cur
      SetStream this
-     _P
+     P_
      SetStream next
  
-D009._PadWSpaces ?a0 (n : uint 64) (_P : Grammar {}) : Grammar {} =
-  D009._Chunk ?a0 n do _P
+D009.PadWSpaces_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
+  D009.Chunk_ ?a0 n do P_
                        @Many[] @Match {' '}
                        END
  
 D009.Main : Grammar {} =
   do Choose fair
-       { {- x -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ab")
-       | {- y -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ac")
+       { {- x -} D009.PadWSpaces_ [uint 8] 3 (@MatchBytes "ab")
+       | {- y -} D009.PadWSpaces_ [uint 8] 3 (@MatchBytes "ac")
        }
      ($$ : {}) <- END
      pure $$
  
-D009._Main : Grammar {} =
+D009.Main_ : Grammar {} =
   do Choose fair
-       { {- x -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ab")
-       | {- y -} D009._PadWSpaces [uint 8] 3 (@MatchBytes "ac")
+       { {- x -} D009.PadWSpaces_ [uint 8] 3 (@MatchBytes "ab")
+       | {- y -} D009.PadWSpaces_ [uint 8] 3 (@MatchBytes "ac")
        }
      END

@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include <ddl/boxed.h>
+#include <ddl/parse_error.h>
 
 namespace DDL {
 
@@ -120,9 +121,13 @@ struct ThreadClosure : public Closure {
 struct Thread {
   ThreadClosure *closure;
   ListStack stack;
+  ParserContextStack debug;
 
 public:
-  Thread(ThreadClosure *c, const ListStack s) : closure(c), stack(s) {}
+  Thread( ThreadClosure *c
+        , const ListStack s
+        , ParserContextStack dbg
+        ) : closure(c), stack(s), debug(dbg) {}
   void notify() { closure->notify(); }
 
 };

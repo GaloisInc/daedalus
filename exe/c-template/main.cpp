@@ -92,7 +92,26 @@ int main(int argc, char* argv[]) {
   }
 
   if (resultNum == 0) {
-    cout << "{ \"error\": \"\", \"offset\": " << err.offset << "}" << endl;
+    cout << err;
+#if 0
+    cout << "{ \"error\": \"\", \"offset\": " << err.offset;
+    cout << ", \"stack\":\n  [ ";
+    auto first = true;
+    for ( auto && x : err.debugs ) {
+      if (first) { first = false; } else cout << "  , ";
+      cout << "{ \"current\": \"" << x.get_cur() << "\"";
+      if (!x.get_history().empty()) {
+        cout << ", \"history\": [";
+        auto first_history = true;
+        for ( auto &&h : x.get_history() ) {
+          if (first_history) { first_history = false; } else cout << ", ";
+          cout << "[ \"" << h.first << "\", " << h.second << "]";
+        }
+      }
+      cout << "}\n";
+    }
+    cout << "  ]\n}" << endl;
+#endif
     return 1;
   }
 

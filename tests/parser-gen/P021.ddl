@@ -1,7 +1,6 @@
-def A = Choose1
-    { x = Match "a"
-    ; y = Match "a"
-    }
+def A = First
+    x = Match "a"
+    y = Match "a"
 
 def B = Choose
     { z = Match "a"

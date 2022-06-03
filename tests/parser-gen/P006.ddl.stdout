@@ -25,15 +25,15 @@ P006.Main : Grammar P006.Main =
      pure {x = x,
            y = y}
  
-P006._NT1 : Grammar {} =
+P006.NT1_ : Grammar {} =
   @Match ('0' .. '7')
  
-P006._NT2 : Grammar {} =
+P006.NT2_ : Grammar {} =
   do @Match {'('}
      @Match {'{'}
      @Match {'}'}
      @Match {')'}
  
-P006._Main : Grammar {} =
-  do @Many[ 4 .. 5 ] P006._NT1
-     @Many[2] P006._NT2
+P006.Main_ : Grammar {} =
+  do @Many[ 4 .. 5 ] P006.NT1_
+     @Many[2] P006.NT2_

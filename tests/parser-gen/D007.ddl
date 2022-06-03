@@ -1,11 +1,11 @@
 -- testing the * of LL(*) on an example involving character intervals.
 
 def A =
-  { Many (Match1 ('a' .. 'm'))
+  { Many $['a' .. 'm']
   }
 
 def B =
-  { Many (Match1 ('f' .. 't'))
+  { Many $['f' .. 't']
   }
 
 def Main =

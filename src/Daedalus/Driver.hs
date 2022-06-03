@@ -65,6 +65,7 @@ module Daedalus.Driver
   , optOutHandle
   , optSearchPath
   , optWarnings
+  , optDebugMode
 
     -- * Output
   , ddlPutStr
@@ -92,7 +93,7 @@ import qualified System.IO as IO
 import MonadLib (StateT, runM, sets_, set, get, inBase, lift, runStateT)
 
 import Daedalus.SourceRange
-import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon)
+import Daedalus.PP(pp,vcat,(<+>),nest,($$),colon,backticks,bullets)
 import Daedalus.Panic(panic)
 import Daedalus.Rec(forgetRecs)
 
@@ -110,6 +111,7 @@ import Daedalus.Type.Monad(TypeError, runMTypeM, TCConfig(..), TypeWarning)
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
+import Daedalus.Type.Pretty(ppRuleType)
 import Daedalus.Specialise(specialise)
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
@@ -285,6 +287,8 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
+  
+  , debugMode :: Bool
   }
 
 
@@ -301,6 +305,7 @@ defaultState = State
   , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
+  , debugMode           = False
   }
 
 
@@ -474,7 +479,8 @@ optOutHandle = DDLOpt outHandle \a s -> s { outHandle = a }
 optWarnings :: DDLOpt (TypeWarning -> Bool)
 optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
 
-
+optDebugMode :: DDLOpt Bool
+optDebugMode = DDLOpt debugMode \a s -> s { debugMode = a }
 
 --------------------------------------------------------------------------------
 -- Names
@@ -604,8 +610,8 @@ analyzeDeadVal m =
 convertToVM :: Core.Module -> Daedalus ()
 convertToVM m =
   do m1 <- ddlRunPass (Core.noMatch m)
-     let vm = VM.compileModule m1
      ddlUpdate_ \s ->
+        let vm = VM.compileModule (debugMode s) m1 in
         s { loadedModules = Map.insert (fromMName (VM.mName vm)) (VMModule vm)
                                        (loadedModules s)
           }
@@ -703,7 +709,10 @@ passSpecialize tgt roots =
          -- FIXME: this ignores GUIDs
          findRootNames m = [ tcDeclName d
                            | d <- forgetRecs (tcModuleDecls m)
-                           , nameScopedIdent (tcDeclName d) `elem` rootIds ]
+                           , let nm = tcDeclName d
+                           , namePublic nm
+                           , nameScopedIdent nm `elem` rootIds
+                           ]
 
      allDecls <- forM allMods \m ->
                     do mo <- ddlGetAST m astTC
@@ -720,6 +729,7 @@ passSpecialize tgt roots =
           ddlThrow (ADriverError
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
+     mapM_ (checkMono rootNames) (forgetRecs decls)
      r <- ddlRunPass (specialise rootNames decls)
      case r of
        Left err  -> ddlThrow (ASpecializeError err)
@@ -736,6 +746,24 @@ passSpecialize tgt roots =
                                                       (SpecializedModule mo)
                                                       (loadedModules s)
                                }
+
+  where
+  checkMono rootNames decl
+    | not (tcDeclName decl `elem` rootNames) = pure ()
+    | otherwise =
+      case tcDeclTyParams decl of
+        [] -> pure ()
+        _  -> ddlThrow (ADriverError (show msg))
+    where
+    msg = vcat
+            [ "[Error] Entries need a fixed type but" <+>
+                  backticks (pp (tcDeclName decl)) <+> "is polymorphic:"
+            , nest 2 $ bullets
+                [ "Type:" $$ nest 2 (ppRuleType (declTypeOf decl))
+                , "You may use a type signature to restrict the type."
+                ]
+            ]
+
 
 
 -- | (6) Convert the given module to core.  For the moment, the module

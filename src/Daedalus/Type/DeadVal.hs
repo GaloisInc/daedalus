@@ -102,7 +102,7 @@ runNoFunM changePs r (NFM m) = m RO { roChangeParams = changePs
                                     , roMatchFuns = r
                                     }
                                  RW { matchArgs = Map.empty }
-                               
+
 instance HasGUID NoFunM where
   guidState f = NFM \_ rw -> (,) <$> guidState f <*> pure rw
 
@@ -127,13 +127,11 @@ newMParam r x = NFM \ro s ->
     else pure ( mkDo r Nothing (exprAt r (TCVar x)) (noSemPure r)
               , s)
 
--- FIXME: refresh
-modifyName :: Ident -> Ident
-modifyName i = "_" <> i
-
 erasedGrmName :: HasGUID m => Name -> m (TCName Grammar)
 erasedGrmName n = do
-  newName <- deriveNameWith modifyName n
+  newName <- deriveNameWith (<> "_") n
+  {- matcher is public, if original is, which is why we need a differet text name.
+    we need this to make "modular parsers" work -}
   pure TCName { tcNameCtx = AGrammar
               , tcType    = tGrammar tUnit
               , tcName    = newName
@@ -282,7 +280,6 @@ mbSem tc =
       do (m',i) <- mbSem m
          pure (exprAt tc (TCLabel l m'),i)
 
-    TCGetByte {}      -> pure (tc, tcFree tc)
     TCMatch {}        -> pure (tc, tcFree tc)
     TCMatchBytes {}   -> pure (tc, tcFree tc)
     TCEnd             -> pure (tc, tcFree tc)
@@ -376,7 +373,6 @@ noSem' tc =
        do (m',i) <- noSem' m
           pure (exprAt tc (TCLabel l m'), i)
 
-     TCGetByte _      -> pure (exprAt tc (TCGetByte NoSem),   mempty)
      TCMatch _ c      -> pure (exprAt tc (TCMatch   NoSem c), tcFree c)
      TCMatchBytes _ v -> pure (exprAt tc (TCMatchBytes NoSem v), tcFree v)
 

@@ -4,7 +4,7 @@ def $simpleWS             = 0 | 9 | 12 | 32
 
 def SimpleEOL             = { $cr; $lf } | $lf
 def EOL                   = SimpleEOL <| $cr
-def Comment               = { Match "%"; Many (Match1 (! ($lf | $cr))); EOL }
+def Comment               = { Match "%"; Many $[! ($lf | $cr)]; EOL }
 def AnyWS                 = $simpleWS <|
                             Comment <|
                             EOL
@@ -44,11 +44,11 @@ def Number = Token {
   }
 }
 
-def Sign = Choose1 {
-  neg = @Match "-";
-  pos = @Match "+";
-  pos = {};
-}
+def Sign = First
+  neg = @Match "-"
+  pos = @Match "+"
+  pos = {}
+
 
 def UnsignedNumber = UnsignedLeadDigits <| Frac 1 { num = 0, exp = 0 }
 
@@ -69,14 +69,13 @@ def Frac n (w : Number) : Number = {
           { num = 10 * val.num + d; exp = val.exp - 1 }
 }
 
-def OctDigit  = Match1 ('0' .. '7') - '0' as int
-def Digit     = Match1 ('0' .. '9') - '0' as int
+def OctDigit  = $['0' .. '7'] - '0' as int
+def Digit     = $['0' .. '9'] - '0' as int
 def HexDigit  =
-  Choose1 {
+  First
     Digit;
-    10 + Match1 ('a' .. 'f') - 'a' as int;
-    10 + Match1 ('A' .. 'F') - 'A' as int;
-  }
+    10 + $['a' .. 'f'] - 'a' as int;
+    10 + $['A' .. 'F'] - 'A' as int;
 
 def NumberAsNat (x : Number) = { Guard (x.num >= 0 && x.exp == 0); ^ x.num }
 --------------------------------------------------------------------------------
@@ -92,7 +91,7 @@ def StringChars = concat (Many StringChunk)
 def StringChunk =
     StringInParens
   | StringEsc
-  | Many (1..) (Match1 (! "\\()"))
+  | Many (1..) $[! "\\()"]
 
 def StringInParens = concat [ Match "(", StringChars, Match ")"]
 
@@ -133,7 +132,7 @@ def HexStringNum1 = 16 * Token HexDigit as! uint 8
 
 def Name     = Token { Match "/"; Many NameChar }
 
-def NameChar = Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
+def NameChar = $[!"\0\9\10\12\13\32()<>[]{}/%#"]
             <| NameEsc
 
 def NameEsc  = {
@@ -171,17 +170,16 @@ def Ref = {
 -- Objects ---------------------------------------------------------------------
 
 def Value =
-  Choose1 {
-    null    = Null;
-    bool    = Bool;
-    ref     = Ref;      -- This must come before number, as they overlap
-    name    = Name;
-    string  = String;
-    string  = HexString;
-    number  = Number;
-    array   = Array;
-    dict    = Dict;
-  }
+  First
+    null    = Null
+    bool    = Bool
+    ref     = Ref      -- This must come before number, as they overlap
+    name    = Name
+    string  = String
+    string  = HexString
+    number  = Number
+    array   = Array
+    dict    = Dict
 
 
 

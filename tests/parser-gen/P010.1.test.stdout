@@ -1,4 +1,3 @@
---- Found 1 results:
-{ x: 'a'
-, y: 'b'
-}
+TODO: TC (TCAnnot {tcAnnot = (SourceRange {sourceFrom = SourcePos {sourceIndex = 38, sourceLine = 4, sourceColumn = 18, sourceFile = "./P010.ddl"}, sourceTo = SourcePos {sourceIndex = 42, sourceLine = 4, sourceColumn = 22, sourceFile = "./P010.ddl"}},Annot {annotStates = [], annotContx = Nothing}), tcAnnotExpr = TCSetAny})
+CallStack (from HasCallStack):
+  error, called at src/Daedalus/ParserGen/Action.hs:808:10 in daedalus-0.1.0.0-inplace:Daedalus.ParserGen.Action

@@ -11,35 +11,28 @@ import DisplayInfo
 def AppParser0 (qos: [Parameter]) = {
     -- get the type name from the parameter list
     @tyNameMaybe = for (tyNmMaybe = nothing; p in qos) (
-      Choose1 {
-        { @nm = p.val is typeNameVal;
-          ^just nm;
-        };
-        ^tyNmMaybe;
-      }
+          just (p.val is typeNameVal) <| tyNmMaybe
     );
 
     -- run the parser for the typename
-    Choose1 {
+    First
       hasTyName = {
         @tyName = tyNameMaybe is just;
-        Choose1 {
+        First
           fileDataMessage = {
             Guard (tyName == "FileData::FileInfo");
             FileData_FileInfo_Top;
-          };
+            }
           displayInfoMessage = {
             Guard (tyName == "DisplayInfoData::DisplayInfo");
             DisplayInfoData_DisplayInfo_Top;
-          };
+            }
           notSubscribed = {
             Guard (tyName != "FileData::FileInfo" &&
                    tyName != "DisplayInfoData::DisplayInfo");
-          };
-        };
-      };
+            }
+        }
       noTyName = tyNameMaybe is nothing;
-    };
 }
 
 def AppParser x = ^{}

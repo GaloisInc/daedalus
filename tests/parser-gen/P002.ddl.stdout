@@ -11,6 +11,6 @@ P002.Main : Grammar (uint 8) =
      @Match {'0'}
      pure $$
  
-P002._Main : Grammar {} =
+P002.Main_ : Grammar {} =
   do @Match {'0'}
      @Match {'0'}

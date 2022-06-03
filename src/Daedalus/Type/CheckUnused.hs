@@ -37,7 +37,6 @@ checkTC triv tc =
 
     TCLabel _ g -> checkTC triv g
 
-    TCGetByte {}    -> okLeaf
     TCMatch {}      -> okLeaf
     TCMatchBytes {} -> okLeaf
 

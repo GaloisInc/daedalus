@@ -25,12 +25,12 @@ P020.Main : Grammar P020.Main =
      END
      pure {x = x}
  
-P020._Digit : Grammar {} =
+P020.Digit_ : Grammar {} =
   @Match ('0' .. '9')
  
-P020._Natural : Grammar {} =
-  @Many[ 1 .. ] P020._Digit
+P020.Natural_ : Grammar {} =
+  @Many[ 1 .. ] P020.Digit_
  
-P020._Main : Grammar {} =
-  do P020._Natural
+P020.Main_ : Grammar {} =
+  do P020.Natural_
      END

@@ -6,7 +6,7 @@
 Stack:
     *
     Main callsite __START__
-Start: Main (5,33)-(5,48)
+Start: Main (5,27)-(5,37)
 SlkCfg{ q:42, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
   ( [(17),]
@@ -18,7 +18,7 @@ DTrans [
 Stack:
     *
     Main callsite __START__
-Start: Main (6,33)-(6,48)
+Start: Main (6,27)-(6,37)
 SlkCfg{ q:18, ctrl:[?, *], sem:[?, ?, ?, ], inp:--- }
 DTrans [
   ( [(17),]
@@ -141,10 +141,10 @@ DTrans [
   -  
      *
      Main callsite __START__
-     MATCH: Main (5,33)-(5,48)
+     MATCH: Main (5,27)-(5,37)
   -  
      *
      Main callsite __START__
-     MATCH: Main (6,33)-(6,48)
+     MATCH: Main (6,27)-(6,37)
 ********  input witness  ********
 3-7x-y

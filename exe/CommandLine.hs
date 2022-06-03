@@ -8,19 +8,20 @@ module CommandLine ( Command(..)
                    ) where
 
 import Data.Text(Text)
+import Data.List(intercalate)
 import Data.String(fromString)
-import Control.Monad(when)
 import Control.Exception(throwIO)
+import System.Environment(getArgs)
 import System.FilePath(takeExtension)
 import System.Exit(exitSuccess)
 import SimpleGetOpt
 
 data Command =
     DumpRaw
+  | DumpResolve
   | DumpTC
   | DumpTypes
   | DumpSpec
-  | DumpRuleRanges
   | DumpCore
   | DumpVM
   | DumpGraph Bool
@@ -31,7 +32,7 @@ data Command =
   | JStoHTML
   | ShowHelp
 
-data Backend = UseInterp | UseCore | UsePGen Bool
+data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
@@ -51,8 +52,37 @@ data Options =
           , optHS        :: OptsHS
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
+          , optErrorStacks :: Bool
+
+          , optParams :: [String]
           }
 
+defaultOptions :: Options
+defaultOptions =
+  Options { optCommand   = DumpTC
+          , optParserDDL = ""
+          , optBackend   = UseInterp
+          , optEntries   = []
+          , optForceUTF8 = True
+          , optShowJS    = False
+          , optShowHTML  = False
+          , optInline    = False
+          , optInlineThis = []
+          , optStripFail = False
+          , optSpecTys   = False
+          , optCheckCore = True
+          , optDeterminize = False
+          , optOutDir    = Nothing
+          , optNoWarnUnbiasedFront = False
+          , optNoWarnUnbiased = False
+          , optHS        = noOptsHS
+          , optParams    = []
+          , optErrorStacks = True
+          }
+
+
+
+--------------------------------------------------------------------------------
 data OptsHS =
   OptsHS
     { hsoptMonad   :: Maybe String
@@ -75,127 +105,184 @@ reqOptHS :: (String -> OptsHS -> Either String OptsHS) ->
 reqOptHS f s o =
   do o1 <- f s (optHS o)
      pure o { optHS = o1 }
+--------------------------------------------------------------------------------
 
 
-simpleCommand :: Command -> ArgDescr Options
-simpleCommand x = NoArg \o -> Right o { optCommand = x }
+
+--------------------------------------------------------------------------------
+type CommandSpec = (Options -> Options, OptSpec Options)
+
+commands :: [(String,CommandSpec)]
+commands =
+  [ ("run",           cmdRunOptions)
+  , ("show-types",    cmdShowTypesOptions)
+  , ("compile-hs",    cmdCompileHSOptions)
+  , ("compile-c++",   cmdCompileCPPOptions)
+  , ("json-to-html",  cmdJsonToHtmlOptions)
+  , ("dump",          cmdDumpOptions)
+  ]
 
 options :: OptSpec Options
 options = OptSpec
-  { progDefaults = Options { optCommand   = DumpTC
-                           , optParserDDL = ""
-                           , optBackend   = UseInterp
-                           , optEntries   = []
-                           , optForceUTF8 = True
-                           , optShowJS    = False
-                           , optShowHTML  = False
-                           , optInline    = False
-                           , optInlineThis = []
-                           , optStripFail = False
-                           , optSpecTys   = False
-                           , optCheckCore = True
-                           , optDeterminize = False
-                           , optOutDir    = Nothing
-                           , optNoWarnUnbiasedFront = False
-                           , optNoWarnUnbiased = False
-                           , optHS        = noOptsHS
-                           }
+  { progArgOrder = RequireOrder
+  , progDescription =
+    [ "The DaeDaLus specification processor."
+    , "To see command specific flags pass `--help` to the command."
+    ]
   , progOptions =
-      [ Option ['s'] ["spec"]
-        "Dump specialised type-checked AST"
-        $ simpleCommand DumpSpec
-
-      , Option ['t'] ["dump-tc"]
-        "Dump type-checked AST"
-        $ simpleCommand DumpTC
-
-      , Option [] ["show-types"]
-        "List declarations with their types"
-        $ simpleCommand DumpTypes
-
-      , Option ['r'] ["dump-raw"]
-        "Dump parsed AST"
-        $ simpleCommand DumpRaw
-
-      , Option [] ["dump-core"]
-        "Dump core AST"
-       $ simpleCommand DumpCore
-
-      , Option [] ["dump-vm"]
-        "Dump VM AST"
-       $ simpleCommand DumpVM
-
-      , Option [] ["dump-vm-graph"]
-        "Dump VM AST"
-       $ OptArg "FUN|BLOCK" \s o ->
-         Right o { optCommand = DumpGraph (s == Just "FUN") }
-
-      , Option [] ["dump-gen"]
-        "Dump parser-generator automaton-based parser"
-       $ simpleCommand DumpGen
-
-      , Option ['i'] ["interp"]
-        "Parse this file"
-        $ ReqArg "FILE" \s o -> Right o { optCommand = Interp (Just s) }
-
-      , Option [] ["run"]
-        "Run a parser with empty input"
-        $ NoArg \o -> Right o { optCommand = Interp Nothing }
-
-      , Option [] ["json"]
-        "Show semantics values as JSON."
-        $ NoArg \o -> Right o { optShowJS = True }
-
-      , Option [] ["html"]
-        "Show semantics values as HTML."
-        $ NoArg \o -> Right o { optShowJS = True, optShowHTML = True }
-
-      , Option [] ["json-to-html"]
-        "Render externally produced JSON as HTML."
-        $ NoArg \o -> Right o { optCommand = JStoHTML }
-
-      , Option ['g'] ["gen"]
-        "Use parser-generator backend when interpreting"
-        $ NoArg \o -> Right o { optBackend = UsePGen False}
-
-      , Option [] ["core"]
-        "Use the Core interpreter"
-        $ NoArg \o -> Right o { optBackend = UseCore }
-
-      , Option [] ["no-core-check"]
-        "Do not validate Core"
-        $ NoArg \o -> Right o { optCheckCore = False }
-
-      , Option [] ["gen-metrics"]
-        "Use parser-generator backend when interpreting and print metrics"
-        $ NoArg \o -> Right o { optBackend = UsePGen True}
-
-      , Option [] ["no-utf8"]
-        "Use the locale settings instead of using UTF8 for output."
+      [ Option [] ["no-utf8"]
+        "Use the locale settings instead of UTF8 for output."
        $ NoArg \o -> Right o { optForceUTF8 = False }
 
-      , Option [] ["compile-hs"]
-        "Generate Haskell code."
-        $ NoArg \o -> Right o { optCommand = CompileHS }
+      , Option [] ["no-warn-unbiased"]
+        "Do not warn about uses of unbiased choice."
+        $ NoArg \s -> Right s { optNoWarnUnbiased = True }
 
-      , Option [] ["hs-config"]
-        "Configuraiton file to use for Haskell compilation"
+      , helpOption
+      ]
+
+  , progParamDocs = [ (r, intercalate "\n" (progDescription h))
+                    | (r,(_,h)) <- commands ]
+
+  , progParams = \s o -> Right o { optParams = s : optParams o }
+  }
+
+
+
+
+cmdShowTypesOptions :: CommandSpec
+cmdShowTypesOptions = (\o -> o { optCommand = DumpTypes }, opts)
+  where
+  opts = optWithDDL
+          { progDescription = [ "Show the types of the definitions in a file." ]
+          , progOptions = [ helpOption ]
+          }
+
+cmdRunOptions :: CommandSpec
+cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
+  where
+  opts = optWithDDL
+          { progDescription = [ "Run the interpreter." ]
+
+          , progOptions =
+              [ Option ['i'] ["input"]
+                "Parse this file"
+                $ ReqArg "FILE" \s o -> Right o { optCommand = Interp (Just s) }
+
+              , Option [] ["json"]
+                "Show semantics values as JSON."
+                $ NoArg \o -> Right o { optShowJS = True }
+
+              , Option [] ["html"]
+                "Show semantics values as HTML."
+                $ NoArg \o -> Right o { optShowJS = True, optShowHTML = True }
+
+             , Option [] ["gen"]
+                "Use the parser-generator interpreting"
+                $ OptArg "metrics" \s o ->
+                  case s of
+                    Nothing -> Right o { optBackend = UsePGen False}
+                    Just "metrics" -> Right o { optBackend = UsePGen True }
+                    Just _ -> Left "Invalid setting for `gen`, expected `metrics`"
+
+              , Option [] ["core"]
+                "Use the Core interpreter"
+                $ NoArg \o -> Right o { optBackend = UseCore }
+
+              , Option [] ["vm"]
+                "Use the VM interpreter"
+                $ NoArg \o -> Right o { optBackend = UseVM }
+
+              ] ++ coreOptions ++
+              [ helpOption
+              ]
+          }
+
+cmdDumpOptions :: CommandSpec
+cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
+  where
+  opts = optWithDDL
+           { progDescription = [ "Dump an intermediate compiler representation." ]
+
+           , progOptions =
+               [ Option [] ["parsed"]
+                 "Dump parsed AST"
+                 $ simpleCommand DumpRaw
+
+               , Option [] ["resolved"]
+                 "Dump name-resolved AST"
+                 $ simpleCommand DumpResolve
+
+               , Option [] ["tc"]
+                 "Dump type-checked AST"
+                 $ simpleCommand DumpTC
+
+               , Option [] ["spec"]
+                 "Dump specialised type-checked AST"
+                 $ simpleCommand DumpSpec
+
+               , Option [] ["core"]
+                 "Dump core AST"
+                $ simpleCommand DumpCore
+
+               , Option [] ["vm"]
+                 "Dump VM AST"
+                $ simpleCommand DumpVM
+
+               , Option [] ["vm-graph"]
+                 "Dump VM AST"
+                $ OptArg "FUN|BLOCK" \s o ->
+                  Right o { optCommand = DumpGraph (s == Just "FUN") }
+
+               , Option [] ["gen"]
+                 "Dump parser-generator automaton-based parser"
+                $ simpleCommand DumpGen
+               ] ++
+               coreOptions ++
+               [ helpOption
+               ]
+           }
+
+cmdJsonToHtmlOptions :: CommandSpec
+cmdJsonToHtmlOptions = (\o -> o { optCommand = JStoHTML }, opts)
+  where
+  opts = optSpec
+          { progDescription = [ "Render externally produced JSON as HTML." ]
+          , progOptions =
+              [ helpOption
+              ]
+          , progParamDocs = [ ("FILE", "The JSON file to process.") ]
+          , progParams    = \s o -> Right o { optParserDDL = s }
+          }
+
+cmdCompileHSOptions :: CommandSpec
+cmdCompileHSOptions = (\o -> o { optCommand = CompileHS }, opts)
+  where
+  opts = optWithDDL
+    { progDescription = [ "Generate Haskell code." ]
+    , progOptions =
+      [ Option [] ["out-dir"]
+        "Save output in this directory."
+        $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["config"]
+        "Read compiler configuraiton from this file."
         $ ReqArg "FILE"
         $ reqOptHS \s o ->
           Right o { hsoptFile = Just s }
 
-      , Option [] ["hs-monad"]
+      , Option [] ["monad"]
         "Use this parser monad (default `Parser`)."
         $ ReqArg "[QUAL.]NAME"
         $ reqOptHS \s o -> Right o { hsoptMonad = Just s }
 
-      , Option [] ["hs-import"]
+      , Option [] ["import"]
         "Add this import to all generated Haskell modules."
         $ ReqArg "MODULE[:QUAL]"
         $ reqOptHS \s o ->
           Right o { hsoptImports = colonSplit s : hsoptImports o }
 
-      , Option [] ["hs-prim"]
+      , Option [] ["prim"]
         "Define an external Haskell primitive."
         $ ReqArg "MODULE:PRIM_NAME:EXTERNAL_NAME"
         $ reqOptHS \s o ->
@@ -205,90 +292,98 @@ options = OptSpec
             _ -> Left
               "Invalid primitve, expected: MODULE:PRIM_NAME:EXTERNAL_NAME"
 
-      , Option [] ["compile-c++"]
-        "Generate C++ code"
-        $ NoArg \o -> Right o { optCommand = CompileCPP }
+      , helpOption
+      ]
+    }
 
-      , Option [] ["inline"]
-        "Do aggressive inlining on Core"
-        $ NoArg \o -> Right o { optInline = True }
-
-      , Option [] ["inline-this"]
-        "Inline this decl"
-        $ ReqArg "[MODULE.]NAME" \s o ->
-          Right o { optInline = True, optInlineThis = s : optInlineThis o }
-
-      , Option [] ["strip-fail"]
-        "Strip failure nodes in Core"
-        $ NoArg \o -> Right o { optStripFail = True }
-
-      , Option [] ["spec-types"]
-        "Specialise types"
-        $ NoArg \o -> Right o { optSpecTys = True }
-
-      , Option [] ["determinize"]
-        "Determinize core"
-        $ NoArg \o -> Right o { optDeterminize = True }
-
-      , Option [] ["entry"]
-        "Generate a library containg this parser."
-        $ ReqArg "[MODULE.]NAME"
-          \s o -> Right o { optEntries = s : optEntries o }
-
-      , Option [] ["rule-ranges"]
-        "Output the file ranges of all rules in the input"
-        $ NoArg \o -> Right o { optCommand = DumpRuleRanges }
-
-      , Option [] ["out-dir"]
+cmdCompileCPPOptions :: CommandSpec
+cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
+  where
+  opts = optWithDDL
+    { progDescription = [ "Generate C++ code" ]
+    , progOptions =
+      [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
-
-      , Option [] ["no-warn-unbiased"]
-        "Do not warn about uses of unbiased choice."
-        $ NoArg \s -> Right s { optNoWarnUnbiased = True }
-
-      , Option ['h'] ["help"]
-        "Show this help"
-        $ simpleCommand ShowHelp
+      , Option [] ["no-error-stack"]
+        "Do not generate a grammar stack trace on error."
+        $ NoArg \o -> Right o { optErrorStacks = False }
+      ] ++
+      coreOptions ++
+      [ helpOption
       ]
+    }
 
-  , progParamDocs =
-      [ ("FILE", "The DDL specification to process.") ]
+coreOptions :: [OptDescr Options]
+coreOptions =
+  [ Option [] ["entry"]
+    "Generate a library containg this parser."
+    $ ReqArg "[MODULE.]NAME"
+      \s o -> Right o { optEntries = s : optEntries o }
 
-  , progParams = \s o -> Right o { optParserDDL = s }
-  }
+  , Option [] ["determinize"]
+    "Determinize core"
+    $ NoArg \o -> Right o { optDeterminize = True }
 
-colonSplit :: String -> (String, Maybe String)
-colonSplit a =
-  case break (== ':') a of
-    (xs,ys) -> (xs, case ys of
-                      _ : more -> Just more
-                      _        -> Nothing)
+  , Option [] ["inline"]
+    "Do aggressive inlining on Core"
+    $ NoArg \o -> Right o { optInline = True }
 
-colonSplitText :: String -> (Text, Maybe String)
-colonSplitText a = (fromString x, xs)
-  where (x,xs) = colonSplit a
+  , Option [] ["inline-this"]
+    "Inline this decl"
+    $ ReqArg "[MODULE.]NAME" \s o ->
+      Right o { optInline = True, optInlineThis = s : optInlineThis o }
+
+  , Option [] ["strip-fail"]
+    "Strip failure nodes in Core"
+    $ NoArg \o -> Right o { optStripFail = True }
+
+  , Option [] ["spec-types"]
+    "Specialise types"
+    $ NoArg \o -> Right o { optSpecTys = True }
+
+  , Option [] ["no-core-check"]
+    "Do not validate Core"
+    $ NoArg \o -> Right o { optCheckCore = False }
+  ]
 
 
+
+--------------------------------------------------------------------------------
+
+dispatchCommand :: Options -> IO Options
+dispatchCommand opts =
+  impliedOptions <$>
+  case reverse (optParams opts) of
+    p : ps | Just spec <- lookup p commands -> cmdMaybeHelp opts spec ps
+    [file] | takeExtension file == ".test" -> getOptionsFromFile file
+           | otherwise -> cmdMaybeHelp opts cmdDumpOptions [file]
+    _ -> dumpUsage options >> exitSuccess
+
+
+cmdMaybeHelp :: Options -> CommandSpec -> [String] -> IO Options
+cmdMaybeHelp dflt (updDflt, spec) args =
+  do opts <- case getOptsFrom (updDflt dflt) spec args of
+               Left (GetOptException err) -> reportUsageError spec err
+               Right a  -> pure a
+     case optCommand opts of
+       ShowHelp ->
+         do dumpUsage spec
+            exitSuccess
+       _ -> pure opts
 
 getOptions :: IO Options
-getOptions =
-  do opts <- getOpts options
-     case optCommand opts of
-       ShowHelp -> dumpUsage options >> exitSuccess
-       JStoHTML -> pure (impliedOptions opts)
-       _ | let file = optParserDDL opts
-         , takeExtension file == ".test" -> getOptionsFromFile file
-         | otherwise ->
-            do when (null (optParserDDL opts)) (dumpUsage options)
-               pure (impliedOptions opts)
+getOptions = getOptions' =<< getArgs
+
+getOptions' :: [String] -> IO Options
+getOptions' args =
+  do opts <- cmdMaybeHelp defaultOptions (id,options) args
+     dispatchCommand opts
 
 getOptionsFromFile :: FilePath -> IO Options
 getOptionsFromFile file =
   do inp <- readFile file
-     case getOptsFrom options (lines inp) of
-       Left err   -> throwIO err
-       Right opts -> pure (impliedOptions opts)
+     getOptions' (lines inp)
 
 throwOptError :: [String] -> IO a
 throwOptError err = throwIO (GetOptException err)
@@ -300,10 +395,10 @@ impliedOptions opts0 =
     _ ->
       case optCommand opts of
         DumpRaw         -> opts
+        DumpResolve     -> opts
         DumpTC          -> opts
         DumpTypes       -> opts
         DumpSpec        -> opts
-        DumpRuleRanges  -> opts
         DumpCore        -> noTCUnbiased
         DumpVM          -> noTCUnbiased
         DumpGraph {}    -> opts
@@ -319,3 +414,43 @@ impliedOptions opts0 =
           then opts0 { optNoWarnUnbiasedFront = True }
           else opts0
   noTCUnbiased = opts { optNoWarnUnbiasedFront = True }
+
+
+
+--------------------------------------------------------------------------------
+
+
+
+
+--------------------------------------------------------------------------------
+-- Utilities
+
+simpleCommand :: Command -> ArgDescr Options
+simpleCommand x = NoArg \o -> Right o { optCommand = x }
+
+helpOption :: OptDescr Options
+helpOption =
+  Option ['h'] ["help"]
+  "Show this help"
+  $ simpleCommand ShowHelp
+
+optWithDDL :: OptSpec Options
+optWithDDL = optSpec
+  { progParamDocs = [ ("FILE", "The DDL specification to process.") ]
+  , progParams    = \s o -> Right o { optParserDDL = s }
+  }
+
+colonSplitText :: String -> (Text, Maybe String)
+colonSplitText a = (fromString x, xs)
+  where (x,xs) = colonSplit a
+
+colonSplit :: String -> (String, Maybe String)
+colonSplit a =
+  case break (== ':') a of
+    (xs,ys) -> (xs, case ys of
+                      _ : more -> Just more
+                      _        -> Nothing)
+
+
+
+

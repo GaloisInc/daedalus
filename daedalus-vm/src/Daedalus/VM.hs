@@ -73,6 +73,8 @@ data ReturnHow =
   | RetNo Captures      -- ^ parser, failure, is it a capturing parser
     deriving (Eq,Show)
 
+data DebugCall = DebugCall | DebugTailCall
+
 -- | Instructions
 data Instr =
     Say String
@@ -80,10 +82,13 @@ data Instr =
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
   | Spawn BV Closure
-  | NoteFail E
+  | NoteFail Src.ErrorSource String E E    -- ^ input, message
 
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
+
+  | PushDebug DebugCall Text
+  | PopDebug
 
 -- | Instructions that jump
 data CInstr =
@@ -181,10 +186,12 @@ iArgs i =
     Notify e          -> [e]
     CallPrim _ _ es   -> es
     Spawn _ j         -> jArgs j
-    NoteFail e        -> [e]
+    NoteFail _ _ ei em -> [ei,em]
 
     Let _ e           -> [e]
     Free _            -> []       -- XXX: these could be just owned args
+    PushDebug{}       -> []
+    PopDebug          -> []
 
 pAllBlocks :: Program -> [Block]
 pAllBlocks p =
@@ -292,9 +299,18 @@ instance PP Instr where
       Say x            -> ppFun "say" [text (show x)]
       Output v         -> ppFun "output" [ pp v ]
       Notify v         -> ppFun "notify" [ pp v ]
-      NoteFail v       -> ppFun "noteFail" [pp v]
+      NoteFail src loc v m ->
+                          ppFun "noteFail" [pp src, text (show loc), pp v, pp m]
       Free x           -> "free" <+> commaSep (map pp (Set.toList x))
       Let x v          -> ppBinder x <+> "=" <+> "copy" <+> pp v
+      PopDebug         -> "popDebug"
+      PushDebug how txt -> ppFun "pushDebug" [ pp how, text (show txt) ]
+
+instance PP DebugCall where
+  pp x =
+    case x of
+      DebugTailCall -> ".tailCall"
+      DebugCall     -> ".call"
 
 instance PP CInstr where
   pp cintsr =

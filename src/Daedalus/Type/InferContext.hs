@@ -20,7 +20,7 @@ inferContext expr =
     EStruct fs   -> AValue `grammarIf` map inferStructField fs
     EArray es    -> AValue `grammarIf` map inferContext es
 
-    EChoiceU {}           -> Some AGrammar    -- XXX: This is wrong due to "or" to be fixed soon
+    EChoiceU {}           -> Some AGrammar
     EChoiceT {}           -> Some AGrammar
     EApp Name { .. } []   -> Some nameContext
 
@@ -50,7 +50,6 @@ inferContext expr =
     EMapInsert {}   -> Some AGrammar
     EMapLookup {}   -> Some AGrammar
 
-    EArrayLength e  -> inferContext e
     EArrayIndex {}  -> Some AGrammar
 
     EPure {}        -> Some AGrammar

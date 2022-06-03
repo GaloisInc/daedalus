@@ -37,13 +37,13 @@ Det002.Main : Grammar Det002.Main =
      pure {x = x,
            y = y}
  
-Det002._Simple1 : Grammar {} =
+Det002.Simple1_ : Grammar {} =
   Choose biased
     { @MatchBytes "ab"
     | @MatchBytes "bcde"
     }
  
-Det002._Simple2 : Grammar {} =
+Det002.Simple2_ : Grammar {} =
   Choose biased
     { Choose biased
         { @MatchBytes "abc"
@@ -53,6 +53,6 @@ Det002._Simple2 : Grammar {} =
          @MatchBytes "b"
     }
  
-Det002._Main : Grammar {} =
-  do Det002._Simple1
-     Det002._Simple2
+Det002.Main_ : Grammar {} =
+  do Det002.Simple1_
+     Det002.Simple2_

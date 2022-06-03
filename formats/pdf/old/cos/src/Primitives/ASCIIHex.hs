@@ -15,7 +15,7 @@ asciiHexDecode :: PdfParser m => Input -> m Input
 asciiHexDecode inp =
   case hexDecode (inputBytes inp) of 
     Just bs -> pure (newInput name bs)
-    Nothing -> pError FromUser "ASCIIHex.asciiHexDecode" "Unknown error" 
+    Nothing -> pError' FromUser [] "ASCIIHex.asciiHexDecode"
   where name = C.pack ("ASCII" ++ show (inputOffset inp))
 
 -- XXX: thread errors through here properly 

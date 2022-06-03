@@ -110,8 +110,8 @@ def LongDouble = { @w1 = LE64;  @w2 = LE64;  ^ w1 } -- Not fully supported
 def String = {
     @PadTo 4;
     @len = Uint32; -- Note: length includes string terminator byte
-    $$ = Many (len as uint64 - 1) UInt8;
-    Match1 0x0; -- String terminator
+    $$ = Many (len as uint 64 - 1) UInt8;
+    $[0x0]; -- String terminator
 }
 def WString = {
     @PadTo 4;

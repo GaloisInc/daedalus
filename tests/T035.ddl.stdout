@@ -7,11 +7,11 @@ module T035
 --- Rules:
  
 T035.Main : Grammar (uint 16) =
-  do (x : uint 8) <- GetByte
-     (y : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
+     (y : uint 8) <- Match UInt8
      ($$ : uint 16) <- pure (x # y)
      pure $$
  
-T035._Main : Grammar {} =
-  do @GetByte
-     @GetByte
+T035.Main_ : Grammar {} =
+  do @Match UInt8
+     @Match UInt8

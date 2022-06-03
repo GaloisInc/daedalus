@@ -16,6 +16,6 @@ P009.Main : Grammar P009.Main =
      END
      pure {x = x}
  
-P009._Main : Grammar {} =
+P009.Main_ : Grammar {} =
   do @Many[] @Match P009.$letter
      END

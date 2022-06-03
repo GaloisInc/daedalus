@@ -15,9 +15,9 @@ array-length.Main : Grammar array-length.Main =
                             4,
                             5,
                             6]
-     (len : uint 64) <- pure (Length arr)
+     (len : uint 64) <- pure (length arr)
      pure {arr = arr,
            len = len}
  
-array-length._Main : Grammar {} =
+array-length.Main_ : Grammar {} =
   pure {}

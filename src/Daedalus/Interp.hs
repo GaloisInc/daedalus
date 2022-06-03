@@ -142,6 +142,7 @@ evalUniOp op =
   case op of
     Not               -> vNot
     Neg               -> partial . vNeg
+    ArrayLength       -> vArrayLength
     Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
     WordToFloat       -> vWordToFloat
@@ -397,7 +398,6 @@ compilePureExpr env = go
         TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
 
         TCMapEmpty _    -> VMap Map.empty
-        TCArrayLength e -> vArrayLength (go e)
 
         TCCase e alts def ->
           evalCase
@@ -676,12 +676,24 @@ mbSkip s v = case s of
 compileExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> Parser Value
 compileExpr env expr = compilePExpr env expr []
 
+compileSourceRange :: AST.SourceRange -> RTS.SourceRange
+compileSourceRange rng =
+  RTS.SourceRange { RTS.srcFrom = toRtsPos (sourceFrom rng)
+                  , RTS.srcTo   = toRtsPos (sourceTo rng)
+                  }
+  where
+  toRtsPos s = RTS.SourcePos { RTS.srcName = Text.unpack (sourceFile s)
+                             , RTS.srcLine = sourceLine s
+                             , RTS.srcCol  = sourceColumn s
+                             }
+
+
 compilePExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> PParser Value
 compilePExpr env expr0 args = go expr0
   where
     go :: TC a K.Grammar -> Parser Value
     go expr =
-      let erng = prettySourceRangeLong (range expr)
+      let erng = compileSourceRange (range expr)
           alt c = case c of
                     Commit   -> (<||)
                     Backtrack -> (|||)
@@ -699,10 +711,6 @@ compilePExpr env expr0 args = go expr0
         TCDo m_var e e' ->
           do v <- go e
              compileExpr (addValMaybe m_var v env) e'
-
-        TCGetByte s ->
-          do r <- pByte erng
-             pure $! mbSkip s (vByte r)
 
         TCMatch s e ->
           do b <- pMatch1 erng (compilePredicateExpr env e)
@@ -742,7 +750,7 @@ compilePExpr env expr0 args = go expr0
 
 
 
-        TCLabel l p -> pEnter (Text.unpack l) (go p)
+        TCLabel l p -> pEnter (TextAnnot (Text.unpack l)) (go p)
 
         TCMapInsert s ke ve me ->
           case vMapLookup kv mv of
@@ -838,10 +846,10 @@ compilePExpr env expr0 args = go expr0
                                  RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
-        TCCall x ts es -> pEnter (show lab) (invoke rule env ts es args)
+        TCCall x ts es -> pEnter (RngAnnot erng)
+                                 (invoke rule env ts es args)
           where
           f   = tcName x
-          lab = text erng <.> colon <+> pp x
 
           rule
             | isLocalName f =

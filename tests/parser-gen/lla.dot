@@ -1,0 +1,46 @@
+// copy this to lla.dot and run
+// dot -Tpdf lla.dot > lla.pdf 
+digraph G { size="8,5"; rankdir="LR";
+N_1_1 [shape=record, label="q1"];
+N_1_1 -> N_1_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="P"];
+N_1_2_Reg1_NotAmbiguous [shape=record, label="q154"];
+N_1_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_1_2_Reg1_NotAmbiguous -> N_1_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_2_1 [shape=record, label="q154"];
+N_2_1 -> N_2_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="0-9"];
+N_2_2_Reg1_NotAmbiguous [shape=record, label="q32"];
+N_2_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_2_2_Reg1_NotAmbiguous -> N_2_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="x0"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="x9"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="xa"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="xc"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="xd"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_2_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="x20"];
+N_3_2_Reg1_NotAmbiguous [shape=record, label="q100"];
+N_3_2NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_2_Reg1_NotAmbiguous -> N_3_2NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_3_1 -> N_3_1_Reg1_NotAmbiguous[fontsize = 20, fontname = courrier, label="0-9"];
+N_3_1_Reg1_NotAmbiguous [shape=record, label="q32"];
+N_3_1NotAmbiguous [shape=box,style=filled,color=".5 .5 1.0"];
+N_3_1_Reg1_NotAmbiguous -> N_3_1NotAmbiguous[style=dotted,arrowhead=odiamond]
+N_4_1 [shape=record, label="q100"];
+N_4_1AbortClosureUnhandledAction [shape=box,style=filled,color=".1 0.2 1."];
+N_4_1 -> N_4_1AbortClosureUnhandledAction [arrowhead=odiamond]
+}
+// dot -Tpdf lla.dot > lla.pdf 

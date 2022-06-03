@@ -9,20 +9,20 @@ module T057
 T057.I ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   P
  
-T057._I ?a0 (_P : Grammar {}) : Grammar {} =
-  _P
+T057.I_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  P_
  
 T057.F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
-  do T057._I [uint 8] (@MatchBytes x)
-     ($$ : {}) <- T057._I [uint 8] (@MatchBytes y)
+  do T057.I_ [uint 8] (@MatchBytes x)
+     ($$ : {}) <- T057.I_ [uint 8] (@MatchBytes y)
      pure $$
  
 T057.Main : Grammar {} =
   T057.F "[" "]"
  
-T057._F (x : [uint 8]) (y : [uint 8]) : Grammar {} =
-  do T057._I [uint 8] (@MatchBytes x)
-     T057._I [uint 8] (@MatchBytes y)
+T057.F_ (x : [uint 8]) (y : [uint 8]) : Grammar {} =
+  do T057.I_ [uint 8] (@MatchBytes x)
+     T057.I_ [uint 8] (@MatchBytes y)
  
-T057._Main : Grammar {} =
-  T057._F "[" "]"
+T057.Main_ : Grammar {} =
+  T057.F_ "[" "]"

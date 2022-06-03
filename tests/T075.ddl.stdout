@@ -7,13 +7,13 @@ module T075
 --- Rules:
  
 T075.P : Grammar (uint 8) =
-  GetByte
+  Match UInt8
  
 T075.Main : Grammar (uint 8) =
   pure 2
  
-T075._P : Grammar {} =
-  @GetByte
+T075.P_ : Grammar {} =
+  @Match UInt8
  
-T075._Main : Grammar {} =
+T075.Main_ : Grammar {} =
   pure {}

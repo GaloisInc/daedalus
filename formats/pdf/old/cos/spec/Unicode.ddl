@@ -11,16 +11,16 @@ import PdfValue
 -- sequence of UTF16_BE unicode values
 
 def ParseHexUTF16_BE : [uint 32] =
-  Choose1 {
+  First
     {@x1 = HexWord16;
      if x1 < 0xD800 || x1 > 0xDFFF
        then concat [[x1], ParseHexUTF16_BE]
        else { @x2 = HexWord16
             , concat [[chr2 x1 x2], ParseHexUTF16_BE]
             }
-    };
+      }
     {^ []}
-  }
+
 
 def chr2 (a : uint 32) (b : uint 32) : uint 32 =
   (a << 10) + b + surrogate_offset
@@ -54,12 +54,12 @@ def NonASCIIByte = {
 def UTF8 (bs1 : bytes1)
   (bs2 : bytes2)
   (bs3 : bytes3)
-  (bs4 : bytes4) = Choose1 {
-  utf81 = bs1;
-  utf82 = bs2;
-  utf83 = bs3;
-  utf84 = bs4; -- TODO: refine to check byte values, if needed
-}
+  (bs4 : bytes4) = First
+                     utf81 = bs1
+                     utf82 = bs2
+                     utf83 = bs3
+                     utf84 = bs4 -- TODO: refine to check byte values, if needed
+
 
 def mkUTF81 (bs : bytes1) : UTF8 = {|
   utf81 = bs

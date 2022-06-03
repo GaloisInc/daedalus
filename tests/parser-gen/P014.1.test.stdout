@@ -1,8 +1,3 @@
---- Found 1 results:
-{ x: { a: 'a'
-     , b: 'b'
-     , c: 'c'
-     , d: "aaaaaaaaa"
-     }
-, y: "aaaaaaaaaacb"
-}
+TODO: TC (TCAnnot {tcAnnot = (SourceRange {sourceFrom = SourcePos {sourceIndex = 52, sourceLine = 6, sourceColumn = 11, sourceFile = "./P014.ddl"}, sourceTo = SourcePos {sourceIndex = 56, sourceLine = 6, sourceColumn = 15, sourceFile = "./P014.ddl"}},Annot {annotStates = [], annotContx = Nothing}), tcAnnotExpr = TCSetAny})
+CallStack (from HasCallStack):
+  error, called at src/Daedalus/ParserGen/Action.hs:808:10 in daedalus-0.1.0.0-inplace:Daedalus.ParserGen.Action

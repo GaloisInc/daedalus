@@ -453,25 +453,19 @@ inferExpr expr =
                     do unify tBool (e,t)
                        pure (exprAt expr (TCUniOp Not e1), tBool)
 
-        -- XXX: We don't seem to have surface syntax for this?
         Neg ->
           liftValAppPure expr [e] \ ~[(e1,t)] ->
           do addConstraint expr (Arith t)
              pure (exprAt expr (TCUniOp Neg e1), t)
 
+        ArrayLength ->
+          liftValAppPure expr [e] \ ~[(e1,et)] ->
+            do vt <- newTVar e KValue
+               unify (tArray vt) (e, et)
+               pure (exprAt expr (TCUniOp ArrayLength e1), tSize)
+
         Concat ->
-          do ctxt <- getContext
-             case ctxt of
-               AClass ->
-                 do (e1,t) <- inContext AValue (inferExpr e)
-                    promoteValueToSet =<< concatVal e1 t
-
-               _ -> liftValAppPure expr [e] \ ~[(e1,t)] -> concatVal e1 t
-
-          where
-          concatVal :: TC SourceRange Value -> Type ->
-                       TypeM ctx (TC SourceRange Value,Type)
-          concatVal e1 t =
+          liftValAppPure expr [e] \ ~[(e1,t)] ->
             do a <- newTVar e KValue
                unify (tArray (tArray a)) (e,t)
                pure (exprAt expr (TCUniOp Concat e1), tArray a)
@@ -598,7 +592,15 @@ inferExpr expr =
                     $ EIf e1 e2 (pExprAt expr (ELiteral (LBool False)))
 
         Add   -> num2 Arith
-        Sub   -> num2 Arith
+        Sub   -> do ctx <- getContext
+                    case ctx of
+                      AClass ->
+                        do (a,t1) <- inferExpr e1
+                           (b,t2) <- inferExpr e2
+                           unify (a,t1) (b,t2)
+                           pure (exprAt expr (TCSetDiff a b), t1)
+                      _      -> num2 Arith
+
         Mul   -> num2 Arith
         Div   -> num2 Arith
         Mod   -> num2 Integral
@@ -790,12 +792,6 @@ inferExpr expr =
                    mapM_ (unify t) res
                    pure (exprAt expr (TCArray (map fst res) t), tArray t)
 
-    EArrayLength e ->
-      liftValAppPure expr [e] \ ~[(e1,et)] ->
-      do vt <- newTVar e KValue
-         unify (tArray vt) (e, et)
-         pure (exprAt expr (TCArrayLength e1), tSize)
-
     EArrayIndex e ix ->
       grammarOnly expr $
       liftApp [e,ix] \ ~[(e1,et), (ix1,ixt)] ->
@@ -899,10 +895,11 @@ inferExpr expr =
 
     EAnyByte ->
       do ctxt <- getContext
+         let anyC = exprAt expr TCSetAny
          case ctxt of
            AValue   -> reportError expr "Invalid semantic value."
-           AClass   -> pure (exprAt expr TCSetAny, tByteClass)
-           AGrammar -> pure (exprAt expr (TCGetByte YesSem), tGrammar tByte)
+           AClass   -> pure (anyC, tByteClass)
+           AGrammar -> pure (exprAt expr (TCMatch YesSem anyC), tGrammar tByte)
 
     EOptional cmt e ->
       grammarOnly expr

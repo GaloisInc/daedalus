@@ -12,8 +12,8 @@ T032.X : Grammar {} =
 T032.Y : Grammar [{}] =
   Many[] T032.X
  
-T032._X : Grammar {} =
+T032.X_ : Grammar {} =
   @Match ({0} | {1})
  
-T032._Y : Grammar {} =
-  @Many[] T032._X
+T032.Y_ : Grammar {} =
+  @Many[] T032.X_

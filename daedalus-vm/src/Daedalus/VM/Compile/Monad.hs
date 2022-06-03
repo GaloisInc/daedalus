@@ -1,4 +1,4 @@
-{-# Language BlockArguments #-}
+{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.Compile.Monad where
 
 import Data.Map(Map)
@@ -6,25 +6,39 @@ import qualified Data.Map as Map
 import Data.Void(Void)
 import Control.Monad(liftM,ap,when)
 import Data.Text(Text)
+import qualified Data.Text as Text
 
 import Daedalus.PP
+import Daedalus.SourceRange
+import Daedalus.GUID(guidString)
 import Daedalus.Panic
 
 import qualified Daedalus.Core as Src
 import Daedalus.VM
-import Daedalus.VM.BlockBuilder
+import Daedalus.VM.Compile.BlockBuilder
 
 
 
 -- | The compiler monad
 newtype C a = C (StaticR -> StaticS -> (a,StaticS))
 
+data DebugMode = DebugStack AllFunInfo [Src.Annot] | NoDebug
+
+instance Show DebugMode where
+  show d = case d of
+             DebugStack {} -> "DebugStack"
+             NoDebug       -> "NoDebug"
+
+type AllFunInfo = Map Src.FName SourceRange
 
 data StaticR = StaticR
-  { curFun  :: Text               -- ^ for generating more readable label/names
-  , vEnv    :: Map Src.Name FV    -- ^ Compiled expressions
-  , curTy   :: VMT                -- ^ Type of the result we are producing
+  { curFun    :: Src.FName        -- ^ for generating more readable label/names
+  , vEnv      :: Map Src.Name FV  -- ^ Compiled expressions
+  , curTy     :: VMT              -- ^ Type of the result we are producing
+  , debugMode :: DebugMode
+    -- ^ Emit debug stack push and pop operations
   }
+
 
 data StaticS = StaticS
   { cLabel    :: Int              -- ^ For generating labels
@@ -44,25 +58,30 @@ instance Monad C where
 
 
 runC ::
-  Text ->
+  Src.FName ->
   Src.Type ->
+  DebugMode ->
   C (BlockBuilder Void) ->
   (Label, Map Label Block)
 
-runC f ty (C m) =
+runC f ty dm (C m) =
   let (b,info) = m   StaticR { curFun = f
                              , vEnv   = Map.empty
                              , curTy  = TSem ty
+                             , debugMode = dm
                              }
                      StaticS { cLabel = 0
                              , cLocal = 0
                              , cLabels = Map.empty
                              }
-      l = Label f (cLabel info)
+      l = Label (labelText f) (cLabel info)
       (bl,inp,extra) = buildBlock l NormalBlock [] \ ~[] -> b
   in case extra of
        [] | not inp -> (l, Map.insert l bl (cLabels info))
        _  -> panic "runC" ["Undefined input/locals?"]
+
+labelText :: Src.FName -> Text
+labelText f = Src.fnameText f <> Text.pack (guidString (Src.fnameId f))
 
 
 staticR :: (StaticR -> a) -> C a
@@ -73,6 +92,22 @@ getCurTy = staticR curTy
 
 setCurTy :: VMT -> C a -> C a
 setCurTy t (C m) = C \r s -> m r { curTy = t } s
+
+getDebugMode :: C DebugMode
+getDebugMode = staticR debugMode
+
+isDebugging :: C Bool
+isDebugging =
+  do m <- getDebugMode
+     pure case m of
+            NoDebug       -> False
+            DebugStack {} -> True
+
+withAnnot :: Src.Annot -> C a -> C a
+withAnnot ann (C m) = C \r s -> case debugMode r of
+                                  NoDebug -> m r s
+                                  DebugStack fi as ->
+                                    m r { debugMode = DebugStack fi (ann:as) } s
 
 
 lookupN :: Src.Name -> C (BlockBuilder E)
@@ -91,7 +126,7 @@ newBlock ::
   BlockType -> [VMT] -> ([E] -> BlockBuilder Void) -> C (Label, Bool, [FV])
 newBlock bty tys def = C \r s ->
   let l              = cLabel s
-      lab            = Label (curFun r) l
+      lab            = Label (labelText (curFun r)) l
       (b,inp,extra)  = buildBlock lab bty tys def
 
   in ( (lab, inp, extra)

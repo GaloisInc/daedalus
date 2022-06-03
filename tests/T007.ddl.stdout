@@ -21,7 +21,7 @@ T007.Sign : Grammar T007.Sign =
  
 T007.SignWithCase : Grammar {} =
   Choose biased
-    { do (_5 : uint 8) <- GetByte
+    { do (_5 : uint 8) <- Match UInt8
          case _5 is
            { '+' -> {- case branch  '+' -} pure {}
            ; '-' -> {- case branch  '-' -} pure {}
@@ -29,16 +29,16 @@ T007.SignWithCase : Grammar {} =
     | pure {}
     }
  
-T007._Sign : Grammar {} =
+T007.Sign_ : Grammar {} =
   Choose biased
     { {- pos -} @Match {'+'}
     | {- neg -} @Match {'-'}
     | {- pos -} pure {}
     }
  
-T007._SignWithCase : Grammar {} =
+T007.SignWithCase_ : Grammar {} =
   Choose biased
-    { do (_5 : uint 8) <- GetByte
+    { do (_5 : uint 8) <- Match UInt8
          case _5 is
            { '+' -> {- case branch  '+' -} pure {}
            ; '-' -> {- case branch  '-' -} pure {}

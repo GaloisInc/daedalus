@@ -2,12 +2,11 @@ import nitf_lib
 
 def SY = Match "SY"
 
-def SFmt = Match1 'C'
+def SFmt = $['C']
 
-def GraphicColor = Choose1 {
-  color = Match1 'C' ;
-  mono = Match1 'M'
-}
+def GraphicColor = First
+  color = $['C']
+  mono = $['M']
 
 def GraphicHeader = block
   SY
@@ -39,21 +38,18 @@ def GraphicHeader = block
   sres2 = UnsignedNum 2
 
   -- TODO: refactor this into other subheaders
-  sxshdl = Choose1 { -- NOTE-MODERN: nonoverlapping
-      notre = @(IsNum 5 0) ;
-      taggedrec = BoundedNum 5 3 9741
-    }
+  sxshdl = First -- NOTE-MODERN: nonoverlapping
+             notre = @(IsNum 5 0)
+             taggedrec = BoundedNum 5 3 9741
 
-  xssofl = Choose1 { -- NOTE-MODERN: This may overlap!!!
-      nooverflow = IsNum 3 0 ;
-      desseq = PosNumber 3 ;
-      omitted = sxshdl is notre ;
-    }
+  xssofl = First -- NOTE-MODERN: This may overlap!!!
+      nooverflow = IsNum 3 0
+      desseq = PosNumber 3
+      omitted = sxshdl is notre
 
-  sxshd = Choose1 { -- NOTE-MODERN: This may overlap!!!
+  sxshd = First -- NOTE-MODERN: This may overlap!!!
       tre = {
         seq = sxshdl is taggedrec ;
         Many (seq as! uint 64) Byte
-      } ;
+        }
       ommitted = sxshdl is notre
-    }

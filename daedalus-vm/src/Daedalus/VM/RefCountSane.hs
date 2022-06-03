@@ -133,11 +133,13 @@ checkI loc ro i count =
   in
   case i of
     Say _           -> checkArgs []
+    PushDebug {}    -> checkArgs []
+    PopDebug  {}    -> checkArgs []
     Output e        -> checkArgs [e]
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
     Spawn x l -> newVar (LocalVar x) <$> checkJP loc ro (==ThreadBlock) l count
-    NoteFail e      -> checkArgs [e]
+    NoteFail _ _ ei em -> checkArgs [ei,em]
 
     Let x e ->
       case eIsVar e of
@@ -234,7 +236,7 @@ checkJP loc ro typeOk jp count =
   case Map.lookup (jLabel jp) (roBlocks ro) of
     Just bl ->
       case blockType bl of
-        t | not (typeOk t) -> Left ["Unexpecte block type: " ++ showPP t]
+        t | not (typeOk t) -> Left ["Unexpected block type: " ++ showPP t]
           | otherwise -> check (extraArgs t)
       where
       sig     = map getOwnership (blockArgs bl)

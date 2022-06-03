@@ -15,35 +15,35 @@ Det005.$cr : ByteClass =
 Det005.$lf : ByteClass =
   {10}
  
-Det005._SimpleEOL : Grammar {} =
+Det005.SimpleEOL_ : Grammar {} =
   Choose biased
     { do @Match Det005.$cr
          @Match Det005.$lf
     | @Match Det005.$lf
     }
  
-Det005._EOL : Grammar {} =
+Det005.EOL_ : Grammar {} =
   Choose biased
-    { Det005._SimpleEOL
+    { Det005.SimpleEOL_
     | @Match Det005.$cr
     }
  
-Det005._Comment : Grammar {} =
+Det005.Comment_ : Grammar {} =
   do @MatchBytes "%"
      @Many[] @Match (!(Det005.$lf | Det005.$cr))
-     Det005._EOL
+     Det005.EOL_
  
-Det005._AnyWS : Grammar {} =
+Det005.AnyWS_ : Grammar {} =
   Choose biased
     { Choose biased
         { @Match Det005.$simpleWS
-        | Det005._Comment
+        | Det005.Comment_
         }
-    | Det005._EOL
+    | Det005.EOL_
     }
  
 Det005.Main : Grammar {} =
-  do Det005._AnyWS
+  do Det005.AnyWS_
      ($$ : {}) <- END
      pure $$
  
@@ -76,6 +76,6 @@ Det005.AnyWS : Grammar (uint 8) =
     | Det005.EOL
     }
  
-Det005._Main : Grammar {} =
-  do Det005._AnyWS
+Det005.Main_ : Grammar {} =
+  do Det005.AnyWS_
      END

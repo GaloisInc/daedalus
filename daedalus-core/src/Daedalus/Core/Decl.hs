@@ -101,13 +101,15 @@ instance PP Module where
 
 
 instance (DefKW e, PP e) => PP (Fun e) where
-  pp f = annot $$
+  pp f = isEnt $$
+         annot $$
          kw <+> pp (fName f)
        <.> parens (commaSep (map ppP (fParams f)))
        <+> ":" <+> pp (fnameType (fName f)) <+> "="
         $$ nest 2 (pp (fDef f))
     where ppP x = pp x <+> ":" <+> pp (nameType x)
           kw = defKW (fDef f)
+          isEnt = if fIsEntry f then "-- entry pont" else empty
           annot = case fAnnot f of
                     [] -> empty
                     as -> hsep ("--" : map pp as)

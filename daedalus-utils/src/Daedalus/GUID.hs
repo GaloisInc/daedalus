@@ -7,6 +7,7 @@ module Daedalus.GUID (GUID
                      , getNextGUID
                      , mkGUIDState
                      , mkGUIDState'
+                     , guidString
                      , HasGUID(..)
                      , FreshM, runFresh, runFreshIn
                      ) where
@@ -24,6 +25,9 @@ newtype GUID = GUID { getGUID :: Int }
 
 instance PP GUID where
   pp (GUID n) = int n
+
+guidString :: GUID -> String
+guidString = show . getGUID
 
 -- Used before we have resolved scope
 invalidGUID :: GUID

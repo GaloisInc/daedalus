@@ -9,7 +9,7 @@ type D023.Main = { y: Stream
 --- Rules:
  
 D023.Main : Grammar D023.Main =
-  do (x : uint 64) <- do (_3 : uint 8) <- GetByte
+  do (x : uint 64) <- do (_3 : uint 8) <- Match UInt8
                          pure (_3 as uint 64)
      (y : Stream) <- CurrentStream
      do (_4 : Stream) <- StreamLen x y
@@ -20,8 +20,8 @@ D023.Main : Grammar D023.Main =
      END
      pure {y = y}
  
-D023._Main : Grammar {} =
-  do (x : uint 64) <- do (_3 : uint 8) <- GetByte
+D023.Main_ : Grammar {} =
+  do (x : uint 64) <- do (_3 : uint 8) <- Match UInt8
                          pure (_3 as uint 64)
      (y : Stream) <- CurrentStream
      do (_4 : Stream) <- StreamLen x y

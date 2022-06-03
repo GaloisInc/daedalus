@@ -193,7 +193,7 @@ bool parser_Decrypt
         std::string output;
         if (!aes_cbc_decryption(
               EVP_aes_128_cbc(),
-              body.borrowBytes(),
+              body.borrowBytes().data(),
               body.length().value,
               reinterpret_cast<char const*>(key.data()),
               output)
@@ -212,7 +212,7 @@ bool parser_Decrypt
         std::string output;
         if (!aes_cbc_decryption(
               EVP_aes_256_cbc(),
-              body.borrowBytes(),
+              body.borrowBytes().data(),
               body.length().value,
               reinterpret_cast<char const*>(references.getEncryptionContext()->key.data()),
               output)
@@ -274,7 +274,7 @@ bool parser_FlateDecode
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     strm.avail_in = body.length().value;
-    strm.next_in = reinterpret_cast<unsigned char *>(bodyRef->borrowBytes());
+    strm.next_in = const_cast<unsigned char *>(reinterpret_cast<unsigned char const *>(bodyRef->borrowBytes().data()));
     
     if (Z_OK != inflateInit(&strm)) {
       std::cerr << "INFO: inflate failed Z NOT OK" << std::endl;
@@ -350,7 +350,7 @@ bool parser_LZWDecode
   auto bodyRef = DDL::Owned(body);
 
   try {
-    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes()), bodyRef->length().value);
+    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes().data()), bodyRef->length().value);
 
     if (!unpredict(
         predictor.asSize().value,
@@ -397,7 +397,7 @@ bool parser_ASCIIHexDecode
 
   std::vector<unsigned char> buffer;
   
-  if (ASCIIHexDecode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
+  if (ASCIIHexDecode(bodyRef->borrowBytes().data(), bodyRef->length().value, buffer)) {
     *result = DDL::Input("asciihex", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
     return true;
@@ -420,7 +420,7 @@ bool parser_ASCII85Decode
 
   std::vector<uint8_t> buffer;
 
-  if (ASCII85Decode(bodyRef->borrowBytes(), bodyRef->length().value, buffer)) {
+  if (ASCII85Decode(bodyRef->borrowBytes().data(), bodyRef->length().value, buffer)) {
     *result = DDL::Input("ascii85", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
     return true;

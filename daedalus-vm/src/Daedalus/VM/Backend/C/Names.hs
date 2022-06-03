@@ -9,6 +9,7 @@ import Data.Char(isAlphaNum,isAscii)
 import Numeric(showHex)
 
 import Daedalus.PP
+import Daedalus.GUID(guidString)
 
 import Daedalus.VM
 import qualified Daedalus.Core as Src
@@ -130,8 +131,14 @@ escDoc = escString . show
 escText :: Text -> Doc
 escText = escString . Text.unpack
 
+escText' :: Text -> Text
+escText' = Text.pack . escString' . Text.unpack
+
 escString :: String -> Doc
-escString = text . concatMap esc
+escString = text . escString'
+
+escString' :: String -> String
+escString' = concatMap esc
   where
   esc c
     | c == 'z'                              = "zz"
@@ -153,14 +160,23 @@ selName own l = pref <.> "_" <.> cLabel l
                  GenOwn    -> "get"
 
 
-cFName :: FName -> CIdent
-cFName f = escDoc ("parser_" <.> pp f)
 
+cFNameWithPref :: Text -> FName -> CIdent
+cFNameWithPref pref f =
+  escText (if Src.fnamePublic f
+             then stem
+             else stem <> "_" <> Text.pack (guidString (Src.fnameId f)))
+  where stem = pref <> Src.fnameText f
+
+cFName :: FName -> CIdent
+cFName = cFNameWithPref "parser_"
+
+-- | This is the initializer function for global variables
 cFNameInit :: FName -> CIdent
-cFNameInit f = escDoc ("init_" <.> pp f)
+cFNameInit = cFNameWithPref "init_"
 
 cFEntryName :: FName -> CIdent
-cFEntryName f = escDoc ("parse" <.> pp f)
+cFEntryName f = escText ("parse" <> Src.fnameText f)
 
 
 

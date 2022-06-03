@@ -3,7 +3,7 @@
    SelJust
 -}
 
-def Word1 = { y = Match1 'y'; x = Match1 'x' }
+def Word1 = { y = $['y']; x = $['x'] }
 
 def Word = Choose { a = Word1; b = Word1; }
 

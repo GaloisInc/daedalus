@@ -24,20 +24,20 @@ P016.A : Grammar P016.A =
 P016.Main : Grammar P016.Main =
   do (x : P016.A) <- P016.A
      (y : int) <- for ((r : int) = 0; (b : uint 8) in x.a)
-                    do (c : uint 8) <- GetByte
+                    do (c : uint 8) <- Match UInt8
                        ($$ : int) <- pure ((c as int) + r)
                        pure $$
-     (z : uint 8) <- GetByte
+     (z : uint 8) <- Match UInt8
      pure {x = x,
            y = y,
            z = z}
  
-P016._A : Grammar {} =
+P016.A_ : Grammar {} =
   do @Many[] @Match P016.$digit
      @Match {'|'}
  
-P016._Main : Grammar {} =
+P016.Main_ : Grammar {} =
   do (x : P016.A) <- P016.A
      for ((r : {}) = {}; (b : uint 8) in x.a)
-       @GetByte
-     @GetByte
+       (@Match UInt8)
+     @Match UInt8

@@ -11,7 +11,7 @@ def BE = UInt8 # UInt8 # UInt8 # UInt8
 
 def Length = BE as uint 64
 def CRC    = BE
-def Type   = Many 4 (Match1 $letter)
+def Type   = Many 4 $letter
 
 def Chunk = {
   @len     = Length;

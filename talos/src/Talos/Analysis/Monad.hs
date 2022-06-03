@@ -107,12 +107,16 @@ newtype IterM ae a = IterM
 
 -- For now, if we have a function invert_Foo then we call that an inverse
 -- for Foo, and similarly for pred_Foo.  This ignores modules.
+-- XXX: The mappings here are quite iffy as they are done by name (text)
+-- and those are not unique (e.g., specializations and matching functions
+-- all have the same text name (but different guids).
+
 makeDeclInvs :: [Fun Grammar] -> [Fun Expr] -> Map FName (Name -> [Expr] -> (Expr, Expr))
 makeDeclInvs decls funs = Map.fromList fnsWithInvs
   where
     fnsWithInvs = [ (fName fn, \resN args -> (mkCall fn ifn resN args, mkPred fn t resN args))
                   | fn <- decls
-                  , Just t <- [fnameText (fName fn)]
+                  , let t = fnameText (fName fn)
                   , Just ifn <- [Map.lookup t inverses]
                   ]
 
@@ -142,7 +146,7 @@ makeDeclInvs decls funs = Map.fromList fnsWithInvs
 
     mapByPfx pfx = Map.fromList (mapMaybe (\f -> (, f) <$> isPfx pfx (fName f)) funs)
 
-    isPfx pfx fn = Text.stripPrefix pfx =<< fnameText fn
+    isPfx pfx fn = Text.stripPrefix pfx (fnameText fn)
 
 --------------------------------------------------------------------------------
 -- low-level IterM primitives

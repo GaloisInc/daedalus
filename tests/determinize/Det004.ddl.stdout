@@ -34,21 +34,21 @@ Det004.Main : Grammar Det004.Main =
            y = y,
            z = z}
  
-Det004._Gram2 : Grammar {} =
+Det004.Gram2_ : Grammar {} =
   @Match {'b'}
  
-Det004._Gram3 : Grammar {} =
+Det004.Gram3_ : Grammar {} =
   @Match {'c'}
  
-Det004._Gram1 : Grammar {} =
+Det004.Gram1_ : Grammar {} =
   Choose biased
     { do @MatchBytes "a"
-         Det004._Gram2
+         Det004.Gram2_
     | do @MatchBytes "a"
-         Det004._Gram3
+         Det004.Gram3_
     }
  
-Det004._Main : Grammar {} =
-  do Det004._Gram1
-     Det004._Gram2
-     Det004._Gram3
+Det004.Main_ : Grammar {} =
+  do Det004.Gram1_
+     Det004.Gram2_
+     Det004.Gram3_

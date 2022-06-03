@@ -5,7 +5,7 @@ def P a b = {
 }
 
 def Main = {
-    x = Match1 ('a'..'z');
-    y = Match1 ('a'..'z');
+    x = $['a'..'z'];
+    y = $['a'..'z'];
     P x y;
 }

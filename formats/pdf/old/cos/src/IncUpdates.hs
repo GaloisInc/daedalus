@@ -559,8 +559,7 @@ getObjectRanges inp iu =
 parseObjectAt :: Input -> Int -> Parser (Range, TopDecl)
 parseObjectAt inp offsetStart =
   case advanceBy (intToSize offsetStart) inp of
-    Nothing -> pError FromUser "parseObjectAt"
-                ("Offset out of bounds: " ++ show offsetStart)
+    Nothing -> pError' FromUser [] ("Offset out of bounds: " ++ show offsetStart)
     Just i ->
       do pSetInput i
          td <- pTopDecl

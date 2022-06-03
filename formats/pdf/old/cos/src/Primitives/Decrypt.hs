@@ -38,16 +38,16 @@ applyCipherAES :: PdfParser m =>
                -> m B.ByteString
 applyCipherAES ctx inp = 
   if B.length (inputBytes inp) `mod` 16 /= 0 -- XXX: maybe try to recover by padding out with zeroes? 
-  then pError FromUser "Decrypt.decrypt" $ 
+  then pError' FromUser [] $ 
         ("Length of encrypted data must be a multiple of block size (16). Actual length: "
           ++ (show $ B.length (inputBytes inp))) 
   else case ciph of 
     Y.CryptoFailed err -> 
-      pError FromUser "Decrypt.decrypt" (show err) 
+      pError' FromUser [] (show err) 
     Y.CryptoPassed ci -> 
       case Y.makeIV hd of 
         Nothing -> 
-          pError FromUser "Decrypt.decrypt" "Could not construct AES initial vector" 
+          pError' FromUser [] "Could not construct AES initial vector" 
         Just iv -> stripPadding $ Y.cbcDecrypt ci iv dat 
   where 
     objKey = makeObjKey128 ctx True 
@@ -107,10 +107,10 @@ makeFileKey pwd opwd perm fileid =
 stripPadding :: PdfParser m => B.ByteString -> m B.ByteString 
 stripPadding input =  
     if B.length input < 32 then 
-        pError FromUser "Decrypt.decrypt" "Bad encrypted data length"
+        pError' FromUser [] "Bad encrypted data length"
     else   
     if padsize > 16 || not padWF then 
-      pError FromUser "Decrypt.decrypt" "Bad padding in decrypted data. This is usually caused by an incorrect document password" 
+      pError' FromUser [] "Bad padding in decrypted data. This is usually caused by an incorrect document password" 
     else pure res 
   where 
     padsize = fromIntegral (B.last input) 

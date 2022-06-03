@@ -9,32 +9,32 @@ import TextEffect
 import FontDict
 
 -- Text state operators (Table 103)
-def TextStateOp = Choose1 { -- operations are mutually exclusive
+def TextStateOp = First -- operations are mutually exclusive
   setCharSpace = {
     $$ = Token Number;
     KW "Tc"
-  };
+    }
   setWordSpace = {
     $$ = Token Number;
     KW "Tw"
-  };
+    }
   setScale = {
     $$ = Token Number;
     KW "Tz"
-  };
+    }
   setLeading = {
     $$ = Token Number;
     KW "TL"
-  };
+    }
   setRenderingMode = {
     $$ = Token Number; 
     KW "Tr"
-  };
+    }
   setRise = {
     $$ = Token Number;
     KW "Ts"
-  }
-}
+    }
+
 
 def setCharSpaceOp (x : Number) : TextStateOp = {| setCharSpace = x |}
 

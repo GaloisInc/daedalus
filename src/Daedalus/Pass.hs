@@ -55,10 +55,10 @@ runPassM' st m = runM (getPassM m) st
 -- Name
 
 freshName :: HasGUID m => ModuleName -> Ident -> Context c -> m Name
-freshName m x c = Name (ModScope m x) c synthetic <$> getNextGUID
+freshName m x c = Name (ModScope m x) c synthetic True <$> getNextGUID
 
 freshLocalName :: HasGUID m => Ident -> Context c -> m Name
-freshLocalName x c = Name (Local x) c synthetic <$> getNextGUID
+freshLocalName x c = Name (Local x) c synthetic False <$> getNextGUID
 
 deriveName :: HasGUID m => Name -> m Name
 deriveName x = do

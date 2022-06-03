@@ -9,5 +9,5 @@ module T018_I1
 T018_I1.Dup : Grammar [uint 8] =
   MatchBytes "Dup"
  
-T018_I1._Dup : Grammar {} =
+T018_I1.Dup_ : Grammar {} =
   @MatchBytes "Dup"

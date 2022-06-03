@@ -1,9 +1,8 @@
 def Guard p = p is true
 
-def Bool = Choose1 {
-  { @Match1 '0' ; ^false };
-  { @Match1 '1' ; ^true };
-}
+def Bool = First
+  { @$['0'] ; ^false }
+  { @$['1'] ; ^true }
 
 -- UInt16: two-byte unsigned integer
 def UInt16 = {
@@ -40,7 +39,7 @@ def Int32 = {
   -- TODO: update docs on bitwise operand symbols
 }
 
-def Digit = Match1 ('0' .. '9') - '0' as int
+def Digit = $['0' .. '9'] - '0' as int
 
 def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
@@ -61,75 +60,56 @@ def Float = {
   -- define sign bit, mantissa, and exponent:
   @hb = HighBit;
   @signBit = ^(dig0 .&. hb);
-  @isPos = Choose1 {
-    pos = signBit == 0;
-    neg = ^{};
-  };
+  @isPos = First
+             pos = signBit == 0
+             neg = ^{}
+           ;
   @lbs = LowBits;
   @mant = ^(((dig1 .&. lbs as uint 23) << 16) .|. (mantissaLow as uint 23));
   @exp = ^(((dig0 .&. lbs) << 1) .|. ((dig1 .&. hb) >> 7));
 
   -- check for special values:
-  Choose1 {
-    zero = {
-      Guard (exp == 0);
-      Guard (mant == 0)
-    };
-    denormalized = {
-      Guard (exp == 0);
-      ^ mant
-    };
-    infty = {
-      Guard (exp == 0xFF);
-      Guard (mant == 0);
-      ^isPos
-    };
-    nan = {
-      Guard (exp == 0xFF);
-      Guard (mant != 0)
-    };
-    number = {
-      sign = isPos;
-      mantissa = ^mant;
-      exponent = ^((exp as int) - 127);
-    };
-  }
+  First
+    zero = { Guard (exp == 0); Guard (mant == 0) }
+    denormalized = { Guard (exp == 0); ^ mant }
+    infty = { Guard (exp == 0xFF); Guard (mant == 0); ^isPos }
+    nan = { Guard (exp == 0xFF); Guard (mant != 0) }
+    number = { sign = isPos; mantissa = ^mant; exponent = ^((exp as int) - 127); }
+
 }
 
 -- NonNegFloat f: coerce f into a non-negative number:
-def NonNegFloat (f : Float) = Choose1 {
-  nonNegZero = f is zero;
-  nonNegDenorm = f is denormalized;
+def NonNegFloat (f : Float) = First
+  nonNegZero = f is zero
+  nonNegDenorm = f is denormalized
   nonNegInfty = {
     @s = f is infty;
     s is pos
-  };
+    }
   nonNegNumber = {
     @n = f is number;
     n.sign is pos;
     nnMantissa = ^n.mantissa;
     nnExponent = ^n.exponent;
-  };
-}
+    }
 
 -- InclusiveFractional f: coerce f into a value in 0 <= n <= 1
 def InclusiveFractional f = {
   @nnf = NonNegFloat f;
-  Choose1 {
-    inclusiveZero = nnf is nonNegZero;
-    inclusiveDenorm = nnf is nonNegDenorm;
+  First
+    inclusiveZero = nnf is nonNegZero
+    inclusiveDenorm = nnf is nonNegDenorm
     inclusiveFrac = {
       @nnNum = nnf is nonNegNumber;
       Guard (nnNum.nnExponent < 0);
       incMantissa = nnNum.nnMantissa;
       incExponent = nnNum.nnExponent;
-    };
+      }
     inclusiveOne = {
       @n = nnf is nonNegNumber;
       Guard (n.nnMantissa == 0);
       Guard (n.nnExponent == 0)
-    };
-  }
+      }
 }
 
 def Sub60 = {
@@ -141,7 +121,7 @@ def Sub60 = {
 -- GeoCoord: a geographic coordinate
 def GeoCoord = {
   degs = Natural 3;
-  Match1 '.';
+  $['.'];
   mins = Sub60;
   secs = Sub60;
   decSecs = Natural 2;

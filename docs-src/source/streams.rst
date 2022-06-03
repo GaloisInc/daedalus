@@ -1,3 +1,5 @@
+.. _stream_manipulation:
+
 Stream Manipulation
 ===================
 

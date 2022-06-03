@@ -14,5 +14,5 @@ T031.Main : Grammar T031.Main =
                             pure {gen = gen}
      pure $$
  
-T031._Main : Grammar {} =
+T031.Main_ : Grammar {} =
   @Match {'b'}

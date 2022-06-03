@@ -1,7 +1,7 @@
 -- Unrolled version of T011.ddl 
 
-def Big = Match1 ('A' .. 'Z') 
-def Little = Match1 ('a' .. 'z') 
+def Big = $['A' .. 'Z'] 
+def Little = $['a' .. 'z'] 
 
 def T = { 
     $$ = Big | Little;

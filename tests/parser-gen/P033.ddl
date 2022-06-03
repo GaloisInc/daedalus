@@ -4,7 +4,7 @@ def $digit = '0'..'9'
 
 def f (x : int) = x
 
-def A = { @bef = Match1 '<'; a = Many $digit; @after = Match1 '>' }
+def A = { @bef = $['<']; a = Many $digit; @after = $['>'] }
 
 {-
 def B x =

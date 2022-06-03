@@ -11,6 +11,8 @@ import Data.ByteString(ByteString)
 import Numeric(showHex)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Text.PrettyPrint hiding ((<>))
 import qualified Text.PrettyPrint as PP
 
@@ -18,6 +20,7 @@ import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
 import RTS.Input
 import qualified RTS.Vector as Vector
+import RTS.JSON
 
 import Debug.Trace(traceM)
 
@@ -34,7 +37,14 @@ instance Functor Result where
 
 
 --------------------------------------------------------------------------------
-type SourceRange = String
+data SourceRange = SourceRange
+  { srcFrom, srcTo :: SourcePos
+  } deriving Show
+
+data SourcePos = SourcePos { srcName :: String, srcLine, srcCol :: Int }
+  deriving Show
+
+
 --------------------------------------------------------------------------------
 
 
@@ -93,7 +103,7 @@ showByte x
 
 --------------------------------------------------------------------------------
 data ParseError = PE { peInput   :: !Input
-                     , peStack   :: ![String]
+                     , peStack   :: ![Annot]
                      , peGrammar :: ![SourceRange]
                      , peMsg     :: !String
                      , peSource  :: !ParseErrorSource
@@ -133,19 +143,36 @@ instance Semigroup ParseError where
 joinErr :: ParseError -> ParseError -> ParseError
 joinErr = (<>)
 
+ppSourceRange :: SourceRange -> Doc
+ppSourceRange r =
+  hcat [ posLong (srcFrom r), "--"
+       , if srcName (srcFrom r) == srcName (srcTo r)
+          then posShort (srcTo r)
+          else posLong (srcTo r)
+       ]
+  where
+  posShort p = hcat [ int (srcLine p), ":", int (srcCol p) ]
+  posLong p = hcat [ text (srcName p), ":", int (srcLine p), ":", int (srcCol p) ]
+
+ppAnnot :: Annot -> Doc
+ppAnnot ann =
+  case ann of
+    RngAnnot r    -> ppSourceRange r
+    TextAnnot txt -> text txt
+
 ppParseError :: ParseError -> Doc
 ppParseError pe@PE { .. } =
   brackets ("offset:" <+> int (peOffset pe)) $$
   nest 2 (bullets
            [ text peMsg, gram
-           , "context:" $$ nest 2 (bullets (reverse (map text peStack)))
+           , "context:" $$ nest 2 (bullets (reverse (map ppAnnot peStack)))
            ]
          )
     $$ more
   where
   gram = case peGrammar of
            [] -> empty
-           _  -> "see grammar at:" <+> commaSep (map text peGrammar)
+           _  -> "see grammar at:" <+> commaSep (map ppSourceRange peGrammar)
   more = case peMore of
            Nothing -> empty
            Just err -> ppParseError err
@@ -155,22 +182,33 @@ ppParseError pe@PE { .. } =
   bullets ds  = vcat (map buletItem ds)
   commaSep ds = hsep (punctuate comma ds)
 
+instance ToJSON ParseError where
+  toJSON pe =
+    jsObject
+      [ ("error", jsString (peMsg pe))
+      , ("offset", toJSON (inputOffset (peInput pe)))
+      , ("grammar", toJSON (peGrammar pe))
+      , ("stack", toJSON (peStack pe))
+      ]
+
+instance ToJSON SourceRange where
+  toJSON p = jsObject [ ("from", toJSON (srcFrom p)), ("to", toJSON (srcTo p)) ]
+
+instance ToJSON SourcePos where
+  toJSON p =
+    jsObject [ ("file", jsString (srcName p))
+             , ("line", toJSON (srcLine p))
+             , ("col", toJSON (srcCol p))
+             ]
+
+instance ToJSON Annot where
+  toJSON ann =
+    case ann of
+      TextAnnot a -> jsString a
+      RngAnnot a  -> toJSON a
+
 errorToJS :: ParseError -> Doc
-errorToJS pe@PE { .. } =
-  jsBlock "{" "," "}"
-    [ jsField ("error" :: String) (jsStr peMsg)
-    , jsField ("offset" :: String) (jsNum (peOffset pe))
-    ]
-  where
-  jsField x y = jsStr x PP.<> colon <+> y
-  jsStr x = text (show x)
-  jsNum x = text (show x)
-  jsBlock open separ close ds =
-    case ds of
-      []  -> open PP.<> close
-      [d] -> open <+> d <+> close
-      _   -> vcat $ [ s <+> d | (s,d) <- zip (open : repeat separ) ds ] ++
-                    [ close ]
+errorToJS = text . Text.unpack . Text.decodeUtf8 . jsonToBytes . toJSON
 
 
 --------------------------------------------------------------------------------
@@ -182,8 +220,8 @@ class Monad p => BasicParser p where
   (<||)     :: p a -> p a -> p a
   pFail     :: ParseError -> p a
   pByte     :: SourceRange -> p Word8
-  pEnter    :: String -> p a -> p a
-  pStack    :: p [String]
+  pEnter    :: Annot -> p a -> p a
+  pStack    :: p [Annot]
   pPeek     :: p Input
   pSetInput :: Input -> p ()
   pErrorMode :: ErrorMode -> p a -> p a
@@ -191,6 +229,11 @@ class Monad p => BasicParser p where
   pOffset   :: p (UInt 64)
   pEnd      :: SourceRange -> p ()     -- are we at the end
   pMatch1   :: SourceRange -> ClassVal -> p Word8
+
+
+data Annot = RngAnnot SourceRange
+           | TextAnnot String
+             deriving Show
 
 
 pTrace :: BasicParser p => Vector (UInt 8) -> p ()

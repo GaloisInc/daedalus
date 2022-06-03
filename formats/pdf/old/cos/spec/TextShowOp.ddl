@@ -9,22 +9,22 @@ import TextEffect
 import Unicode
 
 -- TJOper: operands in a use of TJ
-def TJOper = Choose1 {
-  shownString = String;
-  hexBytes = HexString;
-  adjustNum = Number;
-}
+def TJOper = First
+  shownString = String
+  hexBytes = HexString
+  adjustNum = Number
 
-def TextShowOper = Choose1 { -- operations are mutually exclusive:
+
+def TextShowOper = First -- operations are mutually exclusive:
   showString = {
     $$ = Token (String <| HexString)  ;
     KW "Tj" 
-  };
+    }
   showManyStrings = {
     $$ = GenArray TJOper;
     KW "TJ"
-  };
-}
+    }
+
 
 -- Text-showing operators (Table 107)
 def TextShowOp (f : ?sizedFont) = {

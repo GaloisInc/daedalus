@@ -163,7 +163,7 @@ def Name =
       $['/']
       Many NameChar
 
-def NameChar =   Match1 (!"\0\9\10\12\13\32()<>[]{}/%#")
+def NameChar =   $[!"\0\9\10\12\13\32()<>[]{}/%#"]
               <| NameEsc
 
 def NameEsc  =

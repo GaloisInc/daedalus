@@ -37,7 +37,7 @@ T040.Main : Grammar T040.Main =
            e = e,
            f = f}
  
-T040._Main : Grammar {} =
+T040.Main_ : Grammar {} =
   do (d : Maybe bool) <- pure (just true)
      Choose biased
        { case d is

@@ -1,2 +1,2 @@
 
-def Main = Match1 ('0' .. '9') 
+def Main = $['0' .. '9']

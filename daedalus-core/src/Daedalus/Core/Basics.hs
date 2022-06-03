@@ -42,7 +42,8 @@ data TFlav = TFlavStruct
 -- | Names of top-level functions
 data FName = FName
   { fnameId         :: GUID
-  , fnameText       :: Maybe Text
+  , fnameText       :: Text
+  , fnamePublic     :: !Bool
   , fnameType       :: Type
   , fnameMod        :: MName
   }
@@ -191,10 +192,9 @@ instance PP TName where
   pp t = pp (tnameText t) <.> maybe empty pp (tnameAnon t)
 
 instance PP FName where
-  pp f = case fnameText f of
-           Nothing -> "_F" <.> pp (fnameId f)
-           Just t  -> pp t
-
+  pp f
+    | fnamePublic f = pp (fnameText f)
+    | otherwise     = pp (fnameText f) <.> "_" <.> pp (fnameId f)
 
 instance PP Name where
   pp n = case nameText n of

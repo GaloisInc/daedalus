@@ -32,12 +32,12 @@ def D =
 def E =
   First
     x = First
-          x = Match1 1
-          y = Match1 2
+          x = $[1]
+          y = $[2]
         : ?local
     y = First
-          x = Match1 1
-          y = Match1 3
+          x = $[1]
+          y = $[3]
         : ?local
 
 def F (i : A) = i is x

@@ -1,4 +1,4 @@
-[WARNING] ./Det001.ddl:12:5--14:14:
+[WARNING] ./Det001.ddl:12:5--14:10:
   Using unbiased choice may be inefficient.
 module DaedalusMain where
  
@@ -12,113 +12,114 @@ type Main =
  
 -------------
  
--- ./Det001.ddl:5:1--9:14
+-- ./Det001.ddl:5:1--9:10
 proc Simple1() : Word 8 =
-  -- ./Det001.ddl:6:5--9:14
+  -- ./Det001.ddl:6:5--9:10
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
-         -- ./Det001.ddl:6:5--8:14
-         -- ./Det001.ddl:6:5--7:14
-         -- ./Det001.ddl:6:5--6:14
+         -- ./Det001.ddl:6:5--8:10
+         -- ./Det001.ddl:6:5--7:10
+         -- ./Det001.ddl:6:5--6:10
          pure (97 @(Word 8))
        98 ->
-         -- ./Det001.ddl:6:5--8:14
-         -- ./Det001.ddl:6:5--7:14
-         -- ./Det001.ddl:7:5--7:14
+         -- ./Det001.ddl:6:5--8:10
+         -- ./Det001.ddl:6:5--7:10
+         -- ./Det001.ddl:7:5--7:10
          pure (98 @(Word 8))
        99 ->
-         -- ./Det001.ddl:6:5--8:14
-         -- ./Det001.ddl:8:5--8:14
+         -- ./Det001.ddl:6:5--8:10
+         -- ./Det001.ddl:8:5--8:10
          pure (99 @(Word 8))
        100 ->
-         -- ./Det001.ddl:9:5--9:14
+         -- ./Det001.ddl:9:5--9:10
          pure (100 @(Word 8))
        _ ->
          fail_sys @(Word 8)
  
--- ./Det001.ddl:11:1--15:14
+-- ./Det001.ddl:11:1--15:10
 proc SimpleNot1() : Word 8 =
-  -- ./Det001.ddl:12:5--15:14
+  -- ./Det001.ddl:12:5--15:10
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
      case _x0 of
        101 ->
-         -- ./Det001.ddl:12:5--14:14
-         -- ./Det001.ddl:12:5--13:14
-         -- ./Det001.ddl:12:5--12:14
+         -- ./Det001.ddl:12:5--14:10
+         -- ./Det001.ddl:12:5--13:10
+         -- ./Det001.ddl:12:5--12:10
          pure (101 @(Word 8))
        102 ->
          -- OR RECONSTRUCTION
-         -- ./Det001.ddl:12:5--14:14
+         -- ./Det001.ddl:12:5--14:10
            fork
-             -- ./Det001.ddl:12:5--13:14
-             -- ./Det001.ddl:13:5--13:14
+             -- ./Det001.ddl:12:5--13:10
+             -- ./Det001.ddl:13:5--13:10
              pure (102 @(Word 8))
            fork
-             -- ./Det001.ddl:14:5--14:14
+             -- ./Det001.ddl:14:5--14:10
              pure (102 @(Word 8))
        103 ->
-         -- ./Det001.ddl:15:5--15:14
+         -- ./Det001.ddl:15:5--15:10
          pure (103 @(Word 8))
        _ ->
          fail_sys @(Word 8)
  
--- ./Det001.ddl:17:1--20:16
+-- ./Det001.ddl:17:1--20:12
 proc Simple2() : () =
-  -- ./Det001.ddl:18:6--20:16
+  -- ./Det001.ddl:18:6--20:12
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        65 ->
-         -- ./Det001.ddl:18:6--19:16
-         -- ./Det001.ddl:18:7--18:16
+         -- ./Det001.ddl:18:6--19:12
+         -- ./Det001.ddl:18:7--18:12
          pure ()
        66 ->
-         -- ./Det001.ddl:18:6--19:16
-         -- ./Det001.ddl:19:7--19:16
+         -- ./Det001.ddl:18:6--19:12
+         -- ./Det001.ddl:19:7--19:12
          pure ()
        67 ->
-         -- ./Det001.ddl:20:7--20:16
+         -- ./Det001.ddl:20:7--20:12
          pure ()
        _ ->
          fail_sys @()
  
--- ./Det001.ddl:22:1--25:47
+-- ./Det001.ddl:22:1--25:39
 proc Simple3() : Word 8 =
-  -- ./Det001.ddl:23:6--25:47
+  -- ./Det001.ddl:23:6--25:39
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
        97 ->
-         -- ./Det001.ddl:23:6--24:15
-         -- ./Det001.ddl:23:9--23:41
-         -- ./Det001.ddl:23:13--23:22
+         -- ./Det001.ddl:23:6--24:11
+         -- ./Det001.ddl:23:9--23:33
+         -- ./Det001.ddl:23:13--23:18
          do let x = 97 @(Word 8)
-            -- ./Det001.ddl:23:26--23:41
-            -- ./Det001.ddl:23:27--23:36
+            -- ./Det001.ddl:23:22--23:33
+            -- ./Det001.ddl:23:23--23:28
             match1_ { 98 @(Word 8) }
-            -- ./Det001.ddl:23:39--23:41
-            -- ./Det001.ddl:23:39--23:41
+            -- ./Det001.ddl:23:31--23:33
+            -- ./Det001.ddl:23:31--23:33
             pure x
        98 ->
-         -- ./Det001.ddl:23:6--24:15
-         -- ./Det001.ddl:24:6--24:15
+         -- ./Det001.ddl:23:6--24:11
+         -- ./Det001.ddl:24:6--24:11
          pure (98 @(Word 8))
        99 ->
-         -- ./Det001.ddl:25:9--25:45
-         -- ./Det001.ddl:25:13--25:22
+         -- ./Det001.ddl:25:9--25:37
+         -- ./Det001.ddl:25:13--25:18
          do let x = 99 @(Word 8)
-            -- ./Det001.ddl:25:26--25:45
-            -- ./Det001.ddl:25:27--25:36
+            -- ./Det001.ddl:25:22--25:37
+            -- ./Det001.ddl:25:23--25:28
             match1_ { 98 @(Word 8) }
-            -- ./Det001.ddl:25:39--25:45
-            -- ./Det001.ddl:25:39--25:45
+            -- ./Det001.ddl:25:31--25:37
+            -- ./Det001.ddl:25:31--25:37
             pure (x + x)
        _ ->
          fail_sys @(Word 8)
  
+-- entry pont
 -- ./Det001.ddl:3:1--3:69
 proc Main() : Main =
   -- ./Det001.ddl:3:14--3:69

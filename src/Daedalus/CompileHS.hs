@@ -16,6 +16,7 @@ import qualified Data.List.NonEmpty as NE
 
 import Daedalus.SourceRange
 import Daedalus.PP
+import Daedalus.GUID(guidString)
 import Daedalus.Panic
 import qualified Daedalus.BDD as BDD
 
@@ -98,9 +99,13 @@ nameUse env use nm baseName =
     ModScope m i
       | NameUse <- use,
         UseQualNames <- envQualNames env,
-        m /= envCurMod env -> hsIdentMod m ++ "." ++ baseName i
-      | otherwise          -> baseName i
-    Local i   -> baseName i
+        m /= envCurMod env -> hsIdentMod m ++ "." ++ txt
+      | otherwise          -> txt
+        where
+        txt = if namePublic nm
+               then baseName i
+               else baseName i ++ "_" ++ guidString (nameID nm)
+    Local i   -> baseName i ++ "_" ++ guidString (nameID nm)
     Unknown s -> panic "newTyName" ["Unexpected name", show s ]
 
 hsTyName :: Env -> NameStyle -> TCTyName -> Term
@@ -507,23 +512,39 @@ hsParam env p =
 hsTCDecl :: Env -> TCDecl SourceRange -> [Decl]
 hsTCDecl env d@TCDecl { .. } = [sig,def]
   where
-  nm  = hsValName env NameDecl tcDeclName
+  nm  = hsValName env NameDecl
+        case tcDeclDef of
+          ExternDecl {} -> tcDeclName { namePublic = True }
+          _ -> tcDeclName
+
+
   sig = declare Sig { sigName = [nm]
                     , sigType = hsPolyRule env (declTypeOf d)
                     }
   def = declare Fun
           { funNS = ValueFun
-          , funLHS = nm `aps` map (hsParam env) tcDeclParams
+          , funLHS = nm `aps` map doParam tcDeclParams
           , funDef = defRHS
           }
+
+  doParam p =
+    case tcDeclDef of
+      ExternDecl {} ->
+        case p of
+          ValParam TCName { .. } ->
+              hasType (hsType env tcType)
+                      (Var (Text.unpack (nameScopeAsLocal tcName)))
+          _ -> panic "doParam" ["Not a value parmaeter."]
+      _ -> hsParam env p
 
   defRHS = case tcDeclDef of
              ExternDecl t ->
                 case nameScopedIdent tcDeclName of
                   ModScope "Debug" "Trace" ->
-                    hasType (hsType env t) ("RTS.pTrace" `Ap` "message")
+                    hasType (hsType env t) $
+                      foldl Ap "RTS.pTrace" (map doParam tcDeclParams)
                   ModScope _ f -> hasType (hsType env t)
-                    let ps = map (hsParam env) tcDeclParams
+                    let ps = map doParam tcDeclParams
                         p  = case Map.lookup tcDeclName (envExtern env) of
                               Just ter -> ter
                               Nothing ->
@@ -532,7 +553,8 @@ hsTCDecl env d@TCDecl { .. } = [sig,def]
                                     env { envQualNames = UseQualNames }
                                     NameUse
                                     tcDeclName
-                                      { nameScopedIdent = ModScope "Extern" f }
+                                      { nameScopedIdent = ModScope "Extern" f
+                                      , namePublic = True }
                     in p ps
 
                   _ -> panic "hsTCDecl" ["Unexpected name", show tcDeclName]
@@ -641,6 +663,7 @@ hsValue env tc =
         Neg               -> "RTS.neg" `Ap` hsValue env v
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
+        ArrayLength       -> "Vector.length" `Ap` hsValue env v
         WordToFloat       -> "RTS.wordToFloat" `Ap` hsValue env v
         WordToDouble      -> "RTS.wordToDouble" `Ap` hsValue env v
         IsNaN             -> "HS.isNaN" `Ap` hsValue env v
@@ -665,7 +688,6 @@ hsValue env tc =
     TCFor lp -> evalFor env lp
 
     TCMapEmpty t -> hasType (hsType env t) "Map.empty"
-    TCArrayLength e -> "Vector.length" `Ap` hsValue env e
 
     TCCase e as d -> hsCase hsValue err env e as d
       where err = "HS.error" `Ap` Raw (describeAlts as)
@@ -721,9 +743,6 @@ hsBitdataStruct env ty con fs =
 hsLabelT :: Label -> Term
 hsLabelT = Raw
 
-hsRange :: SourceRange -> Term
-hsRange x = Raw (prettySourceRange x)
-
 hsText :: Text -> Term
 hsText = Raw
 
@@ -756,6 +775,13 @@ hsCommit cmt = case cmt of
                  Backtrack -> "(RTS.|||)"
 
 
+hsRange :: SourceRange -> Term
+hsRange rng = "RTS.SourceRange" `Ap` pos (sourceFrom rng)
+                                `Ap` pos (sourceTo rng)
+  where
+  pos x = "RTS.SourcePos" `Ap` Raw (sourceFile x) `Ap`
+                               Raw (sourceLine x) `Ap`
+                               Raw (sourceColumn x)
 
 hsGrammar :: Env -> TC SourceRange Grammar -> Term
 hsGrammar env tc =
@@ -779,9 +805,8 @@ hsGrammar env tc =
        | otherwise -> Do (hsTCName env <$> mb) (hsGrammar env m1)
                          (hsGrammar env m2)
 
-     TCLabel t e -> "RTS.pEnter" `Ap` hsText t `Ap` hsGrammar env e
-     TCGetByte s -> optSkip s "RTS.uint8"
-                    ("RTS.pByte" `Ap` erng)
+     TCLabel t e ->
+        "RTS.pEnter" `Ap` ("RTS.TextAnnot" `Ap` hsText t) `Ap` hsGrammar env e
 
      TCMatch s c -> optSkip s "RTS.uint8"
                     ("RTS.pMatch1" `Ap` erng `Ap` hsByteClass env c)
@@ -850,7 +875,7 @@ hsGrammar env tc =
      TCCall f ts as ->
         case typeOf f of
           Type (TGrammar {}) ->
-            "RTS.pEnter" `Ap` hsText (Text.pack (show (pp f)))
+            "RTS.pEnter" `Ap` ("RTS.RngAnnot" `Ap` erng)
                          `Ap` hsApp env f ts as
           _ -> hsApp env f ts as
 

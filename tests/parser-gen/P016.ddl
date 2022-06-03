@@ -3,7 +3,7 @@
 -}
 def $digit = '0'..'9'
 
-def A = { a = Many $digit; @b = Match1 '|' }
+def A = { a = Many $digit; @b = $['|'] }
 
 def Main = { x = A ;
              y = for (r = 0; b in x.a)

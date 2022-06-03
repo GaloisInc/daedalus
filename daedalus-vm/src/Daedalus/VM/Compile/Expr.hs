@@ -13,7 +13,7 @@ import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
 
 import Daedalus.VM
-import Daedalus.VM.BlockBuilder
+import Daedalus.VM.Compile.BlockBuilder
 import Daedalus.VM.Compile.Monad
 import Daedalus.VM.Compile.StrPat
 

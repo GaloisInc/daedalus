@@ -14,8 +14,8 @@ type T009.R = Choose { b: {}
 --- Rules:
  
 T009.P : Grammar T009.P =
-  do (x : uint 8) <- GetByte
-     (y : uint 8) <- GetByte
+  do (x : uint 8) <- Match UInt8
+     (y : uint 8) <- Match UInt8
      pure {x = x,
            y = y}
  
@@ -26,7 +26,7 @@ T009.Q : Grammar (uint 8) =
  
 T009.R : Grammar T009.R =
   Choose biased
-    { {- a -} do (_10 : uint 8) <- GetByte
+    { {- a -} do (_10 : uint 8) <- Match UInt8
                  pure {a: _10}
     | {- b -} do (_11 : {}) <- pure {}
                  pure {b: _11}
@@ -39,20 +39,20 @@ T009.S : Grammar (uint 8) =
                         }
      pure $$
  
-T009._P : Grammar {} =
-  do @GetByte
-     @GetByte
+T009.P_ : Grammar {} =
+  do @Match UInt8
+     @Match UInt8
  
-T009._Q : Grammar {} =
-  T009._P
+T009.Q_ : Grammar {} =
+  T009.P_
  
-T009._R : Grammar {} =
+T009.R_ : Grammar {} =
   Choose biased
-    { {- a -} @GetByte
+    { {- a -} @Match UInt8
     | {- b -} pure {}
     }
  
-T009._S : Grammar {} =
+T009.S_ : Grammar {} =
   do (u : T009.R) <- T009.R
      case u is
        { {| a = _12 |} -> pure {}

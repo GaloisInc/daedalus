@@ -20,12 +20,12 @@ type P012.Main = { x: P012.Length
 --- Rules:
  
 P012.Length : Grammar P012.Length =
-  do (a : uint 8) <- GetByte
-     (b : uint 8) <- GetByte
-     (c : uint 8) <- GetByte
-     (d : uint 8) <- GetByte
-     (e : uint 8) <- GetByte
-     (f : uint 8) <- GetByte
+  do (a : uint 8) <- Match UInt8
+     (b : uint 8) <- Match UInt8
+     (c : uint 8) <- Match UInt8
+     (d : uint 8) <- Match UInt8
+     (e : uint 8) <- Match UInt8
+     (f : uint 8) <- Match UInt8
      pure {a = a,
            b = b,
            c = c,
@@ -43,13 +43,13 @@ P012.Main : Grammar P012.Main =
            vand = vand,
            vxor = vxor}
  
-P012._Length : Grammar {} =
-  do @GetByte
-     @GetByte
-     @GetByte
-     @GetByte
-     @GetByte
-     @GetByte
+P012.Length_ : Grammar {} =
+  do @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     @Match UInt8
+     @Match UInt8
  
-P012._Main : Grammar {} =
-  P012._Length
+P012.Main_ : Grammar {} =
+  P012.Length_

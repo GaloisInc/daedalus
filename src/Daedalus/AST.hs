@@ -32,6 +32,7 @@ data Name = forall ctx.
   Name { nameScopedIdent :: ScopedIdent
        , nameContext     :: Context ctx
        , nameRange       :: SourceRange
+       , namePublic      :: !Bool
        , nameID          :: !GUID
        }
 
@@ -51,7 +52,7 @@ isLocalName n =
     _        -> False
 
 primName' :: Text -> Text -> Context c -> Name
-primName' m x c = Name (ModScope m x) c synthetic invalidGUID
+primName' m x c = Name (ModScope m x) c synthetic True invalidGUID
 
 primName :: Text -> Text -> Name
 primName m x = case Text.uncons x of
@@ -110,8 +111,12 @@ instance Ord Name where
     | otherwise = compare (nameID x) (nameID y)
 
 instance PP Name where
-  pp = pp . nameScopedIdent
-
+  pp x =
+    case nameScopedIdent x of
+      ModScope f i
+        | not (namePublic x) ->
+          pp (ModScope f (i <> "_" <> Text.pack (guidString (nameID x))))
+      i -> pp i
 
 -- Name for an implcit parameter.  Note that these are not resolvd like
 -- normal names as they are effectively global.
@@ -273,7 +278,6 @@ data ExprF e =
   | EBuilder -- ^ empty builder value
 
   -- Array operations
-  | EArrayLength !e
   | EArrayIndex  !e !e  -- x[y], partial so a grammar
 
   | EPure !e
@@ -329,6 +333,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
   deriving (Show, Eq, Lift)
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
+           | ArrayLength
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
@@ -529,6 +534,7 @@ instance PP UniOp where
       Not    -> "!"
       Neg    -> "-"
       Concat -> "concat"
+      ArrayLength -> "length"
       BitwiseComplement -> "~"
       WordToFloat     -> "wordToFloat"
       WordToDouble    -> "wordToDouble"

@@ -5,15 +5,15 @@ Parsers
 Primitive Parsers
 -----------------
 
-**Any Byte.** The parser ``UInt8`` extracts a single byte from the input.
-It fails if there are no bytes left in the input.  If successful, it constructs
-a value of type ``uint 8``.
-
 **Specific Byte.** The parser ``$[ set ]`` matches a single byte that
 belongs to the set of bytes described by *set*.
 For example, ``$[ '0' .. '9' ]`` matches any bytes in the range 48 (``'0'``)
 through 57 (``'9'``) inclusive.  See :ref:`character_classes` for deatails
 on how to write sets of bytes.  
+
+**Any Byte.** The parser ``UInt8`` extracts a single byte from the input.
+It fails if there are no bytes left in the input.  If successful, it constructs
+a value of type ``uint 8``.  This is equivalent to writing ``$[ $any ]``.
 
 **Specific Byte Sequence.** The parser ``Match bytes`` matches the byte
 sequence *bytes* in the current input. The resulting semantic value is an
@@ -33,6 +33,7 @@ so prefix the semantic value with the operator ``^``.  Thus, ``^ 'A'`` is
 a parser that always succeeds and produces byte ``'A'`` as a result.
 The parser ``Accept`` may be used to match the empty string without
 constructing an interesting semantic value.  It is equivalent to ``^ {}``.
+In many cases, one may omit the ``^`` operator because of :ref:`implicit_lifting`.
 
 
 **Explicit Failure** The ``Fail`` construct will always fail.  This

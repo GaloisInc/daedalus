@@ -193,11 +193,13 @@ mergeBlocks front back =
       Say s          -> Just $ Say s
       Output e       -> Just $ Output (renE e)
       Notify e       -> Just $ Notify (renE e)
-      NoteFail e     -> Just $ NoteFail (renE e)
+      NoteFail err loc ei em -> Just $ NoteFail err loc (renE ei) (renE em)
       Free xs        -> case mapMaybe renV (Set.toList xs) of
                           [] -> Nothing
                           ys -> Just (Free (Set.fromList ys))
       Let x e        -> Just $ Let (renBV x) (renE e)
+      PushDebug{}    -> Just i
+      PopDebug       -> Just i
 
 
   renC c =

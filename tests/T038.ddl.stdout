@@ -18,8 +18,8 @@ T038.Main : Grammar T038.Main =
      pure {a = a,
            b = b}
  
-T038._Foo : Grammar {} =
+T038.Foo_ : Grammar {} =
   pure {}
  
-T038._Main : Grammar {} =
-  T038._Foo
+T038.Main_ : Grammar {} =
+  T038.Foo_

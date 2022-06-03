@@ -101,9 +101,11 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       Notify e        -> Notify (annE mp e)
       CallPrim x p es -> CallPrim x p (map (annE mp) es)
       Spawn x l       -> Spawn x (annClo mp l)
-      NoteFail e      -> NoteFail (annE mp e)
+      NoteFail err loc ei em  -> NoteFail err loc (annE mp ei) (annE mp em)
       Let x e         -> Let x (annE mp e)
       Free xs         -> Free (Set.map (annV mp) xs)
+      PushDebug{}     -> i
+      PopDebug{}      -> i
 
   annTerm mp t =
     case t of
@@ -390,9 +392,11 @@ modeI i =
     Notify _                 -> [ Unmanaged ]
     CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
     Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
-    NoteFail e               -> [ Borrowed `ifRefs` e ]
+    NoteFail {}              -> [ Borrowed, Borrowed ]
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
     Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
+    PushDebug{}              -> []
+    PopDebug{}               -> []
 
 
 modePrimName :: PrimName -> [Ownership]

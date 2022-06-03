@@ -2,7 +2,7 @@ Stack:
     *
     Main callsite __START__
     A callsite Main (11,5)-(11,5)
-Start: A (5,29)-(5,38)
+Start: A (5,26)-(5,32)
 SlkCfg{ q:16, ctrl:[?, ?, *], sem:[?, ], inp:--- }
 DTrans [
   ( [(18),]

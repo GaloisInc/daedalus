@@ -57,10 +57,10 @@ DTrans [
   -  
      *
      Main callsite __START__
-     MATCH: Main (5,14)-(5,23)
+     MATCH: Main (5,14)-(5,19)
   -  
      *
      Main callsite __START__
-     MATCH: Main (6,14)-(6,23)
+     MATCH: Main (6,14)-(6,19)
 ********  input witness  ********
 a
