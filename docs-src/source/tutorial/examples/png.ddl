@@ -7,7 +7,6 @@ def Crc = BEUInt32
 
 def FLAG = $[0 .. 1]
 
-
 def NullChar    = $[0]
 def NonNullChar = $[1 .. 255]
 
@@ -15,7 +14,7 @@ def OMany (omin:maybe (uint 64)) (omax:maybe (uint 64)) P =
   case omin of
     nothing  -> case omax of
                   nothing  -> Many P
-		          just max -> Many (..max) P
+                  just max -> Many (..max) P
     just min -> case omax of
                   nothing  -> Many (min..) P
                   just max -> Many (min..max) P
@@ -39,7 +38,6 @@ def UTCTime =
     hour = $[0 .. 23]
     minute = $[0 .. 59]
     second = $[0 .. 60]
-
 
 -- Chunks / PNG
 
