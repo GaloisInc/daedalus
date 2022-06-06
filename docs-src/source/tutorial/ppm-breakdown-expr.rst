@@ -136,8 +136,8 @@ function that takes an array as argument and returns its length as a
 In order to visit and use every element in an array, you can use a ``for``
 loop, which we'll talk about in a later section.
 
-Array Builders
-^^^^^^^^^^^^^^
+Builders for Arrays
+^^^^^^^^^^^^^^^^^^^
 
 You may have noticed that there is no way to build arrays incrementally with
 the tools outlined above. To address this, there is a special 'builder' type
