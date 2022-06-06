@@ -1,6 +1,6 @@
 def Main =
   block
-    $$ = PPM;
+    $$ = PPM
 
 def Token P =
   block
