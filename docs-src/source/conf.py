@@ -44,6 +44,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
+    'sphinx_design',
     'sphinx_rtd_theme',
 ]
 

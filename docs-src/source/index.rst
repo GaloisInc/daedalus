@@ -28,3 +28,19 @@ This allows for a clear, yet precise, specification of many binary formats.
   lifting
   implicit-parameters
 
+.. toctree::
+  :maxdepth: 5
+  :caption: Daedalus Tutorial
+
+  tutorial/getting-started
+  tutorial/ppm-breakdown
+  tutorial/ppm-breakdown-decl
+  tutorial/ppm-breakdown-parse
+  tutorial/ppm-breakdown-comb
+  tutorial/ppm-breakdown-expr
+  tutorial/extended-ex-intro
+  tutorial/extended-ex-parsers
+  tutorial/extended-ex-stdlib
+  tutorial/extended-ex-utils
+  tutorial/extended-ex-chunks
+  tutorial/extended-ex-solution
