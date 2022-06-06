@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extended Exercise: The PNG Format &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Aside: What To (Not) Do While Parsing" href="extended-ex-parsers.html" />
+    <link rel="prev" title="Breaking down PPM: Expressions and Control Flow" href="ppm-breakdown-expr.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Using the Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html">Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#check-a-specification">Check a Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#run-the-interpreter">Run the Interpreter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#compile-to-haskell">Compile to Haskell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../using-daedalus.html#compile-to-c">Compile to C++</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Language</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../declarations.html">Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parsers.html">Parsers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#primitive-parsers">Primitive Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#sequencing-parsers">Sequencing Parsers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#basic-sequencing">Basic Sequencing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#explicit-result">Explicit Result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#local-variables">Local Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#structure-sequence">Structure Sequence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#syntactic-sugar">Syntactic Sugar</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#parsing-alternatives">Parsing Alternatives</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#biased-choice">Biased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#unbiased-choice">Unbiased Choice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#alternative-syntax">Alternative Syntax</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../parsers.html#tagged-unions">Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../parsers.html#repetition">Repetition</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../control-structures.html">Control Structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#if-then-else">If-then-else</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#guards">Guards</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#boolean-guards">Boolean Guards</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#guards-on-maybe">Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../control-structures.html#guards-on-tagged-unions">Guards on Tagged Unions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#case">Case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#for-loops"><code class="docutils literal notranslate"><span class="pre">for</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#traversing-with-map">Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#many-loops"><code class="docutils literal notranslate"><span class="pre">many</span></code> loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../control-structures.html#commit">Commit</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../types.html">Type Annotations and Coercions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-an-expression">Annotating an Expression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-the-result-of-a-declaration">Annotating the Result of a Declaration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#annotating-a-parameter">Annotating a Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#naming-unknown-types">Naming Unknown Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../types.html#coercions">Coercions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semantic-values.html">Semantic Values</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#booleans">Booleans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#numeric-types">Numeric Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#numeric-literals">Numeric Literals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#comparisons">Comparisons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semantic-values.html#bitwise-operations">Bitwise Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#array-builders">Array Builders</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#association-maps">Association Maps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semantic-values.html#streams">Streams</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../streams.html">Stream Manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../character-classes.html">Character Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../external.html">External Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../bitdata.html">Bitdata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Daedalus Tutorial</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting-started.html#a-daedalus-ppm-specification">A DaeDaLus PPM Specification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-comb.html">Breaking down PPM: Parser Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#standard-sequencing">Standard Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#array-sequencing">Array Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#structure-sequencing">Structure Sequencing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#de-sugaring-nonstandard-structure-sequences">De-Sugaring Nonstandard Structure Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#parsing-alternates">Parsing Alternates</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#biased-choice-parsing">Biased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-comb.html#tagged-sum-types">Tagged Sum Types</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-comb.html#repeating-parsers">Repeating Parsers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-expr.html">Breaking down PPM: Expressions and Control Flow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#built-in-semantic-values">Built-In Semantic Values</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#bool"><code class="docutils literal notranslate"><span class="pre">bool</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#numerics">Numerics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#maybe"><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#t"><code class="docutils literal notranslate"><span class="pre">[T]</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#builders-for-arrays">Builders for Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#control-strucutres">Control Strucutres</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#guarding">Guarding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#loops">Loops</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ppm-breakdown-expr.html#for"><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ppm-breakdown-expr.html#map"><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#more-on-types">More on Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#annotating-types">Annotating Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#unknown-types">Unknown Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#type-coercion">Type Coercion</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Extended Exercise: The PNG Format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#endianness">Endianness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#floating-point-numbers">Floating-Point Numbers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#guarding-and-consuming-everything">Guarding and Consuming Everything</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html#manipulating-input-streams">Manipulating Input Streams</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-utils.html">Extended Exercise: Defining Helpful Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#domain-specific-parser-names">Domain-Specific Parser Names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#null-terminated-strings">Null-terminated Strings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html#common-structures">Common Structures</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-chunks.html">Extended Exercise: PNG Chunks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#introducing-bitdata">Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#png-chunk-types">PNG Chunk Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#png-chunk-data">PNG Chunk Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#plte">PLTE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#idat">IDAT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#trns">tRNS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#chrm">cHRM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#gama">gAMA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#iccp">iCCP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#sbit">sBIT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#srgb">sRGB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#text">tEXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#ztxt">zTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#itxt">iTXt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#bkgd">bKGD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#hist">hIST</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#phys">pHYs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#splt">sPLT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#time">tIME</a></li>
+<li class="toctree-l3"><a class="reference internal" href="extended-ex-chunks.html#generic-chunk-data-parsing">Generic Chunk Data Parsing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#png-chunks">PNG Chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#header-trailer">Header / Trailer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#full-png">Full PNG</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extended-ex-solution.html">Extended Exercise: Full Solution</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Extended Exercise: The PNG Format</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorial/extended-ex-intro.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="extended-exercise-the-png-format">
+<h1>Extended Exercise: The PNG Format<a class="headerlink" href="#extended-exercise-the-png-format" title="Permalink to this headline"></a></h1>
+<p>As mentioned very early in the tutorial, DaeDaLus is very good for both text
+and binary format specification. We’re going to make a big jump in difficulty
+to explore the binary format parsing features DaeDaLus has, while also giving
+significant practice with the other features already introduced.</p>
+<p>The format we’ll be specifying is PNG, the Portable Network Graphics image
+format, which provides lossless raster-graphics compression; an improvement on
+the widely used Graphics Interchange Format (GIF).</p>
+<p>Now, the PNG specification is quite long, so we won’t be implementing it in its
+entirety - in particular, we’re mainly focused on the structure of PNG
+<em>chunks</em>, and do not validate the order/number of chunks other than the header
+and end. Furthermore, we do not perform any of the typical CRC validation, a
+criticial error detection/correction system that contributes to the reliability
+of PNG.</p>
+<p>Before diving into the exercises, we’ll first have a brief aside on the
+high-level guiding principles one should have in mind when deciding what to
+include in the parsing stage of a format-processing application - this will
+directly address some of the things we’re “leaving out” of the DaeDaLus PNG
+specification.</p>
+<p>In addition, we’ll need some of the definitions from the DaeDaLus standard
+library, which we did not use at all in the PPM specification - briefly,
+this library (which is all implemented in DaeDaLus itself, with some features
+not covered in this tutorial) provides a number of convenient types for
+handling binary formats in particular.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ppm-breakdown-expr.html" class="btn btn-neutral float-left" title="Breaking down PPM: Expressions and Control Flow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="extended-ex-parsers.html" class="btn btn-neutral float-right" title="Aside: What To (Not) Do While Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(false);
+      });
+  </script> 
+
+</body>
+</html>
