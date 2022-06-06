@@ -109,6 +109,7 @@ initZipGrammar gram = ZipNode {focus = gram, path = emptyZPath}
 mkZipGrammar :: Grammar -> ZPath -> ZipGrammar
 mkZipGrammar g p = ZipNode g p
 
+-- moves one step left
 moveLeft :: ZipGrammar -> ZipGrammar
 moveLeft (ZipNode {focus = foc, path = pth}) =
   case foc of
@@ -119,6 +120,7 @@ moveLeft (ZipNode {focus = foc, path = pth}) =
     _ -> panic "moveLeft" [ "broken invariant, unexpected case" ]
 moveLeft (ZipLeaf {}) = panic "moveLeft" [ "broken invariant, unexpected case" ]
 
+-- moves all the way up to the root of the Grammar
 moveUp :: ZipGrammar -> Grammar
 moveUp (ZipNode {focus = built, path = pth}) =
   case pth of
@@ -147,6 +149,7 @@ moveUp (ZipNode {focus = built, path = pth}) =
     _  -> panic "moveUp" [ "broken invariant, should not happen on this case" ]
 moveUp (ZipLeaf {}) = panic "moveUp" [ "broken invariant, should not happen on a leaf" ]
 
+-- moves up until it can finds a spot to the left
 findUpRight :: ZipGrammar -> Maybe ZipGrammar
 findUpRight (ZipNode {focus = foc, path = pth}) =
   case pth of
@@ -170,7 +173,7 @@ findUpRight (ZipNode {focus = foc, path = pth}) =
     _  -> panic "findUpRight" [ "broken invariant, unexpected case" ]
 findUpRight (ZipLeaf{}) = panic "findUpRight" [ "broken invariant, unexpected case" ]
 
-
+-- TODO: change name, it actually build the leaf and moves up right
 findNextLeaf :: Integer -> ZipGrammar -> Maybe ZipGrammar
 findNextLeaf c (ZipLeaf { zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
   case sem of
@@ -193,6 +196,7 @@ findNextLeaf _c zg@(ZipLeaf{ zmatch = (ZMatchBytes (_, rest) orig), path = (ZMat
         findUpRight (mkZipGrammar newBuilt pth)
 findNextLeaf _ _ = panic "findNextLeaf" [ "broken invariant, on structure Zipped grammar" ]
 
+--
 buildLeaf :: Integer -> ZipGrammar -> Grammar
 buildLeaf c (ZipLeaf{ zmatch = ZMatchByte _, path = ZMatch sem : pth}) =
   case sem of
@@ -374,13 +378,13 @@ deriveOneByte modl gram =
       _        -> Nothing
   deriveGo (ZipLeaf {zmatch = zm, path = pth}) =
     case zm of
-      ZMatchByte _  -> panic "deriveGo" [ "Borken invariant, unexpected case" ]
+      ZMatchByte _  -> panic "deriveGo" [ "Broken invariant, unexpected case" ]
       ZMatchBytes (prev, next) orig ->
         case uncons next of
-          Nothing -> panic "deriveGo" [ "Borken invariant, unexpected case" ]
+          Nothing -> panic "deriveGo" [ "Broken invariant, unexpected case" ]
           Just (w, rest) ->
             Just $ AltLeaf (CWord8 w, ZipLeaf { zmatch = ZMatchBytes (w : prev, rest) orig, path = pth})
-      ZMatchEnd -> panic "deriveGo" [ "Borken invariant, unhandled case END" ]
+      ZMatchEnd -> panic "deriveGo" [ "Broken invariant, unhandled case END" ]
 
   deriveUp :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
   deriveUp (ZipNode {focus = g, path = pth}) = case pth of
@@ -420,7 +424,7 @@ deriveOneByte modl gram =
         case b of
           Ap0 (ByteArrayL bs) ->
             case uncons bs of
-              Nothing -> panic "deriveMatch" [ "unexpected uncons on empty bytestring" ]
+              Nothing -> Nothing
               Just (w, rest) ->
                 Just (CWord8 w, ZipLeaf { zmatch = ZMatchBytes ([w], rest) bs, path = newPath})
           Ap1 ArrayLen _ -> Nothing
@@ -556,13 +560,12 @@ determinize modl grammar =
                     Just derLst -> return (c, NoResolved derLst)
       )
     return $ DerivResolved der
-
   mapStep (DerivResolved opts) = do
       der <- forM opts
         (\ x@(c, l) ->
           case l of
-            YesResolvedZero  -> Just x
-            YesResolvedOne _ -> Just x
+            YesResolvedZero   -> Just x
+            YesResolvedOne _  -> Just x
             YesResolvedMany _ -> Just x
             NoResolved d ->
               do n <- mapStep d
