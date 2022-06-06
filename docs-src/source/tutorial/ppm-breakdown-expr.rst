@@ -202,7 +202,7 @@ the first parsed digit is less than 5, and ``'B'`` otherwise:
 
 .. code-block:: DaeDaLus
 
-    @i = Match1 ('0' .. '9')
+    let i = Match1 ('0' .. '9')
     if (i - '0') < 5
       then Match1 'A'
       else Match1 'B'
@@ -219,17 +219,10 @@ from alternatives parsers.
 
 An example comes from the PPM example:
 
-.. code-block:: DaeDaLus
-
-    def PPM = {
-      Match "P";
-      @version = Token Natural;
-      version == 3 is true;
-      width  = Token Natural;
-      height = Token Natural;
-      maxVal = Token Natural;
-      data   = Many height (Many width RGB);
-    }
+.. literalinclude:: examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :lineno-start: 10
+    :lines: 10-18
 
 Here, the line ``version == 3 is true`` is a guard. No input is consumed at
 this line, but if the expression does not evaluate to true, it triggers a parse
@@ -281,11 +274,13 @@ value, for example, we might have a pattern match that looks like this:
       nothing -> ...
 
 Finally, there is a special pattern, ``_``, which can be used as a final
-"catch-all" case when you don't care what is matched. This should always be
-used as the last pattern, or else anything below it will never run!
+"catch-all" case when you don't care what is matched.
 
 .. warning::
+    The catch-all pattern should always be used as the last pattern, or else
+    anything below it will never run!
 
+.. warning::
     Remember: Patterns are checked in order, so be careful to consider that
     when writing complex pattern-matches with ``case``!
 
@@ -304,12 +299,10 @@ form of the familiar ``for`` loop.
 
 It's best to demonstrate this with an example, taken from the PPM spec:
 
-.. code-block:: DaeDaLus
-
-    def Natural = {
-      @ds = Many (1..) Digit;
-      ^ for (val = 0; d in ds) (addDigit val d);
-    }
+.. literalinclude:: examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :lineno-start: 28
+    :lines: 28-31
 
 In the ``for`` loop, we declare a variable ``val`` which acts as an accumulator
 value - the value of the body of the loop is what this variable is updated to
@@ -437,9 +430,9 @@ an expression for which we want the type to be ``maybe`` of *something*.
 .. warning::
 
   Unfortunately, in DaeDaLus, the naming scheme described for unknown types is
-  reused for another unrelated feature: implicit parameters. We'll say more
-  about implicit parameters when discussing the standard library in a later
-  section.
+  reused for another unrelated feature: implicit parameters. This tutorial does
+  not cover implicit parameters, but you can read :ref:`implicit parameters` in
+  the user guide for more detail on this feature.
 
 Type Coercion
 ^^^^^^^^^^^^^

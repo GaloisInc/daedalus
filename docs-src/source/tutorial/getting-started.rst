@@ -123,6 +123,7 @@ represented in this PPM format.) Here it is:
 
 .. literalinclude:: examples/plain-ppm.ddl
     :language: DaeDaLus
+    :linenos:
 
 You may notice that this specification does not perform any *validation* of the
 image data -- later, we'll discuss the pros and cons of including validation in
