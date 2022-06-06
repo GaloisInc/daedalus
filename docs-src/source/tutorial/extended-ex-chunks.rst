@@ -112,25 +112,10 @@ table, and be sure to specify the type of each byte (use ``uint 8``.)
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        bitdata ChunkType where
-          plte = {  80 : uint 8,  76 : uint 8,  84 : uint 8,  69 : uint 8 }
-          idat = {  73 : uint 8,  68 : uint 8,  65 : uint 8,  84 : uint 8 }
-          trns = { 116 : uint 8,  82 : uint 8,  78 : uint 8,  83 : uint 8 }
-          chrm = {  99 : uint 8,  72 : uint 8,  82 : uint 8,  77 : uint 8 }
-          gama = { 103 : uint 8,  65 : uint 8,  77 : uint 8,  65 : uint 8 }
-          iccp = { 105 : uint 8,  67 : uint 8,  67 : uint 8,  80 : uint 8 }
-          sbit = { 115 : uint 8,  66 : uint 8,  73 : uint 8,  84 : uint 8 }
-          srgb = { 115 : uint 8,  82 : uint 8,  71 : uint 8,  66 : uint 8 }
-          text = { 116 : uint 8,  69 : uint 8,  88 : uint 8, 116 : uint 8 }
-          itxt = { 105 : uint 8,  84 : uint 8,  88 : uint 8, 116 : uint 8 }
-          ztxt = { 122 : uint 8,  84 : uint 8,  88 : uint 8, 116 : uint 8 }
-          bkgd = {  98 : uint 8,  75 : uint 8,  71 : uint 8,  68 : uint 8 }
-          hist = { 104 : uint 8,  73 : uint 8,  83 : uint 8,  84 : uint 8 }
-          phys = { 112 : uint 8,  72 : uint 8,  89 : uint 8, 115 : uint 8 }
-          splt = { 115 : uint 8,  80 : uint 8,  76 : uint 8,  84 : uint 8 }
-          time = { 116 : uint 8,  73 : uint 8,  77 : uint 8,  69 : uint 8 }
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 44
+        :lines: 44-60
 
 PNG Chunk Data
 --------------
@@ -153,9 +138,10 @@ structures as we defined in the section
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def PLTEChunkData = Many (1..256) RGB
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 81
+        :lines: 81
 
 IDAT
 ^^^^
@@ -168,9 +154,10 @@ it consists merely of a bunch of bytes.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def IDATChunkData = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 83
+        :lines: 83
 
 tRNS
 ^^^^
@@ -204,21 +191,10 @@ as field names (so, make sure these parsers all produce structures.)
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def TRNSData0 =
-          block
-            grey_sample_value = BEUInt16
-
-        def TRNSData2 =
-          block
-            red_sample_value   = BEUInt16
-            blue_sample_value  = BEUInt16
-            green_sample_value = BEUInt16
-
-        def TRNSData3 =
-          block
-            alpha_for_palette = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 92
+        :lines: 92-104
 
 **Exercise:** Now, define a parser ``TRNSChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -235,14 +211,10 @@ that the transparency chunk cannot appear for any other color mode.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def TRNSChunkData sig =
-          case sig.colour_type of
-            0 -> {| trns_colour_type_0 = TRNSData0 |}
-            2 -> {| trns_colour_type_2 = TRNSData2 |}
-            3 -> {| trns_colour_type_3 = TRNSData3 |}
-            _ -> Fail "tRNS chunk shall not appear for other colour types"
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 85
+        :lines: 85-90
 
 cHRM
 ^^^^
