@@ -231,18 +231,10 @@ described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def CHRMChunkData sig =
-          block
-            white_point_x = BEUInt32
-            white_point_y = BEUInt32
-            red_x         = BEUInt32
-            red_y         = BEUInt32
-            green_x       = BEUInt32
-            green_y       = BEUInt32
-            blue_x        = BEUInt32
-            blue_y        = BEUInt32
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 106
+        :lines: 106-115
 
 gAMA
 ^^^^
@@ -256,11 +248,10 @@ a big-endian 4-byte integer.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-      def GAMAChunkData =
-        block
-          image_gamma = BEUInt32
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 117
+        :lines: 117-119
 
 iCCP
 ^^^^
@@ -284,13 +275,10 @@ the three fields described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def ICCPChunkData =
-          block
-            profile_name       = NTString (just 1) (just 79)
-            compression_method = UInt8
-            compressed_profile = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 121
+        :lines: 121-125
 
 sBIT
 ^^^^
@@ -324,29 +312,10 @@ structures).
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SBITData0 =
-          block
-            significant_greyscale_bits = UInt8
-
-        def SBITData2or3 =
-          block
-            significant_red_bits   = UInt8
-            significant_green_bits = UInt8
-            significant_blue_bits  = UInt8
-
-        def SBITData4 =
-          block
-            significant_greyscale_bits = UInt8
-            significant_alpha_bits     = UInt8
-
-        def SBITData6 =
-          block
-            significant_red_bits   = UInt8
-            significant_green_bits = UInt8
-            significant_blue_bits  = UInt8
-            significant_alpha_bits = UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 135
+        :lines: 135-155
 
 **Exercise:** Now, define a parser ``SBITChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -356,15 +325,10 @@ for this. You can ignore all other color modes.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SBITChunkData sig =
-          case sig.colour_type of
-            0 -> {| sbit_colour_type_0 = SBITData0 |}
-            2 -> {| sbit_colour_type_2 = SBITData2or3 |}
-            3 -> {| sbit_colour_type_3 = SBITData2or3 |}
-            4 -> {| sbit_colour_type_4 = SBITData4 |}
-            6 -> {| sbit_colour_type_6 = SBITData6 |}
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 127
+        :lines: 127-133
 
 sRGB
 ^^^^
@@ -380,11 +344,10 @@ between 0 and 3 (inclusive).
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SRGBChunkData =
-          block
-            rendering_intent = $[0 .. 3]
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 157
+        :lines: 157-159
 
 tEXt
 ^^^^
@@ -407,12 +370,10 @@ null-terminated string between 1 and 79 characters in length, and
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def TEXTChunkData =
-          block
-            keyword     = NTString (just 1) (just 79)
-            text_string = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 161
+        :lines: 161-164
 
 zTXt
 ^^^^
@@ -428,13 +389,10 @@ were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def ZTXTChunkData =
-          block
-            keyword                    = NTString (just 1) (just 79)
-            compression_method         = UInt8
-            compressed_text_datastream = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 166
+        :lines: 166-170
 
 iTXt
 ^^^^
@@ -458,16 +416,10 @@ the six fields as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def ITXTChunkData =
-          block
-            keyword = NTString (just 1) (just 79)
-            compression_flag = FLAG
-            compression_method = UInt8
-            language_tag = NTString nothing nothing
-            translated_keyword = NTString nothing nothing
-            text = Many UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 172
+        :lines: 172-179
 
 bKGD
 ^^^^
@@ -491,21 +443,10 @@ not need to check that this index is within range for the palette provided.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def BKGDData0or4 =
-          block
-            greyscale = BEUInt16
-
-        def BKGDData2or6 =
-          block
-            red   = BEUInt16
-            green = BEUInt16
-            blue  = BEUInt16
-
-        def BKGDData3 =
-          block
-            palette_index = UInt8
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 189
+        :lines: 189-201
 
 **Exercise:** Now, define a parser ``BKGDChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -515,15 +456,10 @@ for this. You can ignore all other color modes.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def BKGDChunkData sig =
-          case sig.colour_type of
-            0 -> {| bkgd_colour_type_0 = BKGDData0or4 |}
-            4 -> {| bkgd_colour_type_4 = BKGDData0or4 |}
-            2 -> {| bkgd_colour_type_2 = BKGDData2or6 |}
-            6 -> {| bkgd_colour_type_6 = BKGDData2or6 |}
-            3 -> {| bkgd_colour_type_3 = BKGDData3 |}
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 181
+        :lines: 181-187
 
 hIST
 ^^^^
@@ -539,11 +475,10 @@ provided.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def HISTChunkData =
-          block
-            frequencies = Many BEUInt16
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 203
+        :lines: 203-205
 
 pHYs
 ^^^^
@@ -562,13 +497,10 @@ the fields as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def PHYSChunkData =
-          block
-            pixels_per_unit_x_axis = BEUInt32
-            pixels_per_unit_y_axis = BEUInt32
-            unit_specifier         = FLAG
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 207
+        :lines: 207-211
 
 sPLT
 ^^^^
@@ -608,23 +540,10 @@ parse the five sample values as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SPLTSample8 =
-          block
-            red       = UInt8
-            green     = UInt8
-            blue      = UInt8
-            alpha     = UInt8
-            frequency = BEUInt16
-
-        def SPLTSample16 =
-          block
-            red       = BEUInt16
-            green     = BEUInt16
-            blue      = BEUInt16
-            alpha     = BEUInt16
-            frequency = BEUInt16
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 224
+        :lines: 224-238
 
 **Exercise:** Using the two parsers you just defined, define a new parser
 ``SPLTSample`` that takes a single argument, ``depth : uint 8``, and decides
@@ -635,12 +554,10 @@ anything to handle sample depths other than 8 and 16.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SPLTSample (depth : uint 8) =
-          case depth of
-            8  -> {| splt_sample_depth_8  = SPLTSample8  |}
-            16 -> {| splt_sample_depth_16 = SPLTSample16 |}
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 219
+        :lines: 219-222
 
 **Exercise (Challenging):** Finally, define a parser ``SPLTChunkData`` that
 returns a structure containing fields ``palette_name``, ``sample_depth``, and
@@ -659,13 +576,10 @@ returns a structure containing fields ``palette_name``, ``sample_depth``, and
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def SPLTChunkData =
-          block
-            palette_name = NTString (just 1) (just 79)
-            sample_depth = $[8] <| $[16]
-            palette = Many (SPLTSample sample_depth)
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 213
+        :lines: 213-217
 
 tIME
 ^^^^
@@ -680,9 +594,10 @@ the image.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def TIMEChunkData = UTCTime
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 240
+        :lines: 240
 
 Generic Chunk Data Parsing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -701,26 +616,10 @@ for example, ``plte_data`` for the ``plte`` case.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def ChunkData sig (type : ChunkType) =
-          case type of
-            plte -> {| plte_data = PLTEChunkData     |}
-            idat -> {| idat_data = IDATChunkData     |}
-            trns -> {| trns_data = TRNSChunkData sig |}
-            chrm -> {| chrm_data = CHRMChunkData     |}
-            gama -> {| gama_data = GAMAChunkData     |}
-            iccp -> {| iccp_data = ICCPChunkData     |}
-            sbit -> {| sbit_data = SBITChunkData sig |}
-            srgb -> {| srgb_data = SRGBChunkData     |}
-            text -> {| text_data = TEXTChunkData     |}
-            itxt -> {| itxt_data = ITXTChunkData     |}
-            ztxt -> {| ztxt_data = ZTXTChunkData     |}
-            bkgd -> {| bkgd_data = BKGDChunkData sig |}
-            hist -> {| hist_data = HISTChunkData     |}
-            phys -> {| phys_data = PHYSChunkData     |}
-            splt -> {| splt_data = SPLTChunkData     |}
-            time -> {| time_data = TIMEChunkData     |}
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 62
+        :lines: 62-79
 
 PNG Chunks
 ----------
@@ -751,14 +650,10 @@ to interpret as a ``ChunkType``), the chunk data, and a CRC value.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def PNGChunk sig =
-          block
-            @len = Length as uint 64
-            type = BEUint32 as? ChunkType
-            data = Chunk len (ChunkData sig type)
-            crc  = Crc
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 242
+        :lines: 242-247
 
 Header / Trailer
 ----------------
@@ -792,20 +687,10 @@ bytes ``73``, ``72``, ``68``, and ``82``.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def IHDRChunk =
-          block
-            Match [0, 0, 0, 13]
-            Match [73, 72, 68, 82]
-            width              = BEUint32
-            height             = BEUInt32
-            bit_depth          = UInt8
-            colour_type        = UInt8
-            compression_method = UInt8
-            filter_method      = UInt8
-            interlace_method   = UInt8
-            crc                = Crc
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 249
+        :lines: 249-260
 
 **Exercise:** Define a parser ``IENDChunk`` that returns a structure matching
 the description above. The type identifier for the trailer chunk is the four
@@ -814,13 +699,10 @@ bytes ``73``, ``69``, ``78``, and ``68``.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def IENDChunk =
-          block
-            Match [0, 0, 0, 0]
-            Match [73, 69, 78, 68]
-            crc = Crc
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 262
+        :lines: 262-266
 
 Full PNG
 --------
@@ -829,9 +711,10 @@ The home stretch! We have almost all of the components needed to parse full PNG
 images now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:
 
-.. code-block:: DaeDaLus
-
-    def PNGHeader = Match [137, 80, 78, 71, 13, 10, 26, 10]
+.. literalinclude:: examples/png.ddl
+    :language: DaeDaLus
+    :lineno-start: 268
+    :lines: 268-269
 
 With this here is your final exercise:
 
@@ -843,15 +726,10 @@ consumes the entire input.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def Main =
-          block
-            PNGHeader
-            sig = IHDRChunk
-            chunks = Many (PNGChunk sig)
-            IENDChunk
-            END
+    .. literalinclude:: examples/png.ddl
+        :language: DaeDaLus
+        :lineno-start: 271
+        :lines: 271-277
 
 Conclusion
 ----------
