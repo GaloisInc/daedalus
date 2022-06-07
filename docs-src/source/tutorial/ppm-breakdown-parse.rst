@@ -26,7 +26,7 @@ given set of bytes. We can specify inclusive ranges of bytes, such as
 ``'0' .. '9'``, or we can specify the set elements explicitly, as in this
 example from the PPM specification:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 26
     :lines: 26
@@ -84,7 +84,7 @@ value returned by the ``END`` parser) - DaeDaLus also provides the synonym
 The idea here is best shown by example. Consider the declaration of the
 ``Digit`` parser:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 33
     :lines: 33-36

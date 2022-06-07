@@ -219,7 +219,7 @@ from alternatives parsers.
 
 An example comes from the PPM example:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 10
     :lines: 10-18
@@ -299,7 +299,7 @@ form of the familiar ``for`` loop.
 
 It's best to demonstrate this with an example, taken from the PPM spec:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 28
     :lines: 28-31

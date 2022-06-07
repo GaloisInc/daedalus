@@ -3,7 +3,7 @@ Breaking down PPM: Declarations
 
 Starting from the very beginning of the PPM specification, we have:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :linenos:
     :lines: 1-3
@@ -69,7 +69,7 @@ Parameterized Declarations
 The next declaration in the PPM specfication shows that a declaration may be
 *parameterized*:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 5
     :lines: 5-8

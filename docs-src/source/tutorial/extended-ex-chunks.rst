@@ -112,7 +112,7 @@ table, and be sure to specify the type of each byte (use ``uint 8``.)
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 44
         :lines: 44-60
@@ -138,7 +138,7 @@ structures as we defined in the section
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 81
         :lines: 81
@@ -154,7 +154,7 @@ it consists merely of a bunch of bytes.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 83
         :lines: 83
@@ -191,7 +191,7 @@ as field names (so, make sure these parsers all produce structures.)
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 92
         :lines: 92-104
@@ -211,7 +211,7 @@ that the transparency chunk cannot appear for any other color mode.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 85
         :lines: 85-90
@@ -231,7 +231,7 @@ described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 106
         :lines: 106-115
@@ -248,7 +248,7 @@ a big-endian 4-byte integer.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 117
         :lines: 117-119
@@ -275,7 +275,7 @@ the three fields described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 121
         :lines: 121-125
@@ -312,7 +312,7 @@ structures).
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 135
         :lines: 135-155
@@ -325,7 +325,7 @@ for this. You can ignore all other color modes.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 127
         :lines: 127-133
@@ -344,7 +344,7 @@ between 0 and 3 (inclusive).
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 157
         :lines: 157-159
@@ -370,7 +370,7 @@ null-terminated string between 1 and 79 characters in length, and
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 161
         :lines: 161-164
@@ -389,7 +389,7 @@ were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 166
         :lines: 166-170
@@ -416,7 +416,7 @@ the six fields as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 172
         :lines: 172-179
@@ -443,7 +443,7 @@ not need to check that this index is within range for the palette provided.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 189
         :lines: 189-201
@@ -456,7 +456,7 @@ for this. You can ignore all other color modes.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 181
         :lines: 181-187
@@ -475,7 +475,7 @@ provided.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 203
         :lines: 203-205
@@ -497,7 +497,7 @@ the fields as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 207
         :lines: 207-211
@@ -540,7 +540,7 @@ parse the five sample values as described above.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 224
         :lines: 224-238
@@ -554,7 +554,7 @@ anything to handle sample depths other than 8 and 16.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 219
         :lines: 219-222
@@ -576,7 +576,7 @@ returns a structure containing fields ``palette_name``, ``sample_depth``, and
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 213
         :lines: 213-217
@@ -594,7 +594,7 @@ the image.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 240
         :lines: 240
@@ -616,7 +616,7 @@ for example, ``plte_data`` for the ``plte`` case.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 62
         :lines: 62-79
@@ -650,7 +650,7 @@ to interpret as a ``ChunkType``), the chunk data, and a CRC value.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 242
         :lines: 242-247
@@ -687,7 +687,7 @@ bytes ``73``, ``72``, ``68``, and ``82``.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 249
         :lines: 249-260
@@ -699,7 +699,7 @@ bytes ``73``, ``69``, ``78``, and ``68``.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 262
         :lines: 262-266
@@ -711,7 +711,7 @@ The home stretch! We have almost all of the components needed to parse full PNG
 images now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:
 
-.. literalinclude:: examples/png.ddl
+.. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
     :lineno-start: 268
     :lines: 268-269
@@ -726,7 +726,7 @@ consumes the entire input.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 271
         :lines: 271-277

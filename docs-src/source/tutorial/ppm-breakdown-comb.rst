@@ -14,7 +14,7 @@ we write sequenced parsers by surrounding them with curly braces (``{ ... }``)
 and separating the parsers with semicolons. We've already seen this in the
 ``Token`` parser:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 5
     :lines: 5-8
@@ -99,7 +99,7 @@ is defined by a corresponding parser. This idea is best shown by example.
 In the PPM specification, we have the following declaration for a parser
 (pop quiz: how do we know it's a parser?) called ``RGB``:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :lineno-start: 20
     :lines: 20-24
@@ -137,7 +137,7 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
     prefix the assignment with the keyword ``let`` (or the symbol ``@``). We've
     already seen an example of this in the ``Digit`` parser:
 
-    .. literalinclude:: examples/plain-ppm.ddl
+    .. literalinclude:: ../examples/plain-ppm.ddl
         :language: DaeDaLus
         :lineno-start: 33
         :lines: 33-36

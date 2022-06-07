@@ -121,7 +121,7 @@ may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
 represented in this PPM format.) Here it is:
 
-.. literalinclude:: examples/plain-ppm.ddl
+.. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
     :linenos:
 

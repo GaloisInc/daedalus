@@ -13,7 +13,7 @@ First of all, fire up your favorite text editor, and create a new file named
 line of your file, after any comments you wish to add to introduce the module,
 should be:
 
-.. literalinclude:: examples/png.ddl
+.. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
     :lineno-start: 1
     :lines: 1
@@ -45,7 +45,7 @@ big-endian, 32-bit, unsigned integer.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 5
         :lines: 5-6
@@ -64,7 +64,7 @@ parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
     Alternatively, we could have used a *character class* and the alternative
     syntax for ``Match1`` to write this very succinctly:
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 8
         :lines: 8
@@ -88,7 +88,7 @@ specific range of sizes *and* strings of unbounded length.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 10
         :lines: 10
@@ -99,7 +99,7 @@ ASCII byte.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 11
         :lines: 11
@@ -122,7 +122,7 @@ should satisfy the following *laws*:
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 13
         :lines: 13-20
@@ -146,7 +146,7 @@ character should not be included in the character count.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 22
         :lines: 22-25
@@ -167,7 +167,7 @@ first byte, ``green`` the second, and ``blue`` the third.)
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 27
         :lines: 27-31
@@ -209,7 +209,7 @@ fields should be parsed, and the year should be parsed in big-endian order.
 .. dropdown:: Solution
     :color: warning
 
-    .. literalinclude:: examples/png.ddl
+    .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
         :lineno-start: 33
         :lines: 33-40
