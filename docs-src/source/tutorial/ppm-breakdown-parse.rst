@@ -26,9 +26,10 @@ given set of bytes. We can specify inclusive ranges of bytes, such as
 ``'0' .. '9'``, or we can specify the set elements explicitly, as in this
 example from the PPM specification:
 
-.. code-block:: DaeDaLus
-
-    def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_WS
+    :end-before: -- END PPM_WS
 
 .. note::
     Use ``Match1 ...`` when you need to parse one of a finite set of bytes.
@@ -83,12 +84,11 @@ value returned by the ``END`` parser) - DaeDaLus also provides the synonym
 The idea here is best shown by example. Consider the declaration of the
 ``Digit`` parser:
 
-.. code-block:: DaeDaLus
-
-    def Digit = {
-      @d = Match1 ('0' .. '9');
-      ^ d - '0';
-    }
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_DIGIT
+    :end-before: -- END PPM_DIGIT
+    :emphasize-lines: 4
 
 Parsers can only be combined with other parsers - so, to transform the ASCII
 byte we read with ``Match1`` into the actual digit it represents, we must

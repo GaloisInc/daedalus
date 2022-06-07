@@ -13,9 +13,10 @@ First of all, fire up your favorite text editor, and create a new file named
 line of your file, after any comments you wish to add to introduce the module,
 should be:
 
-.. code-block:: DaeDaLus
-
-    import Daedalus
+.. literalinclude:: ../examples/png.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PNG_IMPORT
+    :end-before: -- END PNG_IMPORT
 
 This will load all of the standard library features covered in the previous
 section, which you'll start using right away.
@@ -44,10 +45,10 @@ big-endian, 32-bit, unsigned integer.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def Length = BEUInt32
-        def Crc = BEUInt32
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_LC
+        :end-before: -- END PNG_LC
 
 **Exercise:** There are a couple of places in the PNG specification where we
 have 1-bit *flags*, indicating whether some option is enabled or not. Write a
@@ -63,9 +64,10 @@ parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
     Alternatively, we could have used a *character class* and the alternative
     syntax for ``Match1`` to write this very succinctly:
 
-    .. code-block:: DaeDaLus
-
-        def FLAG = $[0 .. 1]
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_FLAG
+        :end-before: -- END PNG_FLAG
 
     For brevity, we'll prefer this syntax in the other provided solutions.
 
@@ -86,9 +88,10 @@ specific range of sizes *and* strings of unbounded length.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def NullChar = $[0]
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_NC
+        :end-before: -- END PNG_NC
 
 **Exercise:** Define a parser, ``NonNullChar``, that parses one non-null
 ASCII byte.
@@ -96,13 +99,14 @@ ASCII byte.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def NonNullChar = $[1 .. 255]
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_NNC
+        :end-before: -- END PNG_NNC
 
 **Exercise (Challenging):** Define a parser, ``OMany``, that behaves like
 ``Many``, but takes the integer arguments as ``maybe`` values. Your parser
-should satisfy the following laws:
+should satisfy the following *laws*:
 
 * ``OMany nothing nothing       P = Many P``
 * ``OMany nothing (just max)    P = Many (..max) P``
@@ -118,22 +122,15 @@ should satisfy the following laws:
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def OMany (omin : maybe (uint 64)) (omax : maybe (uint 64)) P =
-          case omin of
-            nothing  -> case omax of
-                          nothing  -> Many P
-                          just max -> Many (..max) P
-            just min -> case omax of
-                          nothing  -> Many (min..) P
-                          just max -> Many (min..max) P
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_OMANY
+        :end-before: -- END PNG_OMANY
 
     Note that the right-hand sides of each case arm is the right-hand side of
     one of the laws - this form of algebraic specification is very useful when
     writing functional code, as all that was left at the end was writing the
     appropriate pattern-matching code to cover the cases of our laws.
-
 
 **Exercise (Challenging):** Define a parser, ``NTString``, that parses a
 null-terminated string between ``min`` and ``max`` characters in length, if
@@ -149,12 +146,10 @@ character should not be included in the character count.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def NTString (omin : maybe (uint 64)) (omax : maybe (uint 64)) =
-          block
-            $$ = OMany omin omax NonNullChar
-            NullChar
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_NT
+        :end-before: -- END PNG_NT
 
 Common Structures
 -----------------
@@ -172,13 +167,10 @@ first byte, ``green`` the second, and ``blue`` the third.)
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def RGB =
-          block
-            red   = UInt8
-            green = UInt8
-            blue  = UInt8
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_RGB
+        :end-before: -- END PNG_RGB
 
     While the order of fields in a structure doesn't matter in general, when
     writing DaeDaLus specifications, we must be sure to write the fields in the
@@ -217,16 +209,10 @@ fields should be parsed, and the year should be parsed in big-endian order.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def UTCTime =
-          block
-            year   = BEUInt16
-            month  = $[1 .. 12]
-            day    = $[1 .. 31]
-            hour   = $[0 .. 23]
-            minute = $[0 .. 59]
-            second = $[0 .. 60]
+    .. literalinclude:: ../examples/png.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PNG_UTC
+        :end-before: -- END PNG_UTC
 
     In case you're wondering why the ``second`` field allows for a value of 60:
     It's to allow for leap-seconds, according to the PNG specification!

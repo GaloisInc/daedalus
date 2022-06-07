@@ -3,11 +3,11 @@ Breaking down PPM: Declarations
 
 Starting from the very beginning of the PPM specification, we have:
 
-.. code-block:: DaeDaLus
-
-    def Main = {
-      $$ = PPM;
-    }
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_MAIN
+    :end-before: -- END PPM_MAIN
+    :emphasize-lines: 1
 
 This is a *declaration* for the name ``Main``. Declarations in general are
 indicated by the keyword ``def``, followed by the name being declared,
@@ -22,7 +22,7 @@ indicates to the DaeDaLus interpreter and backend that this is the entry point
 of the parser being defined. All layout specifications must declare a ``Main``
 symbol.
 
-.. warning::
+.. note::
 
     In DaeDaLus, declarations behave differently from what you might be used to
     if you are unfamiliar with pure functional programming. In such languages,
@@ -70,12 +70,11 @@ Parameterized Declarations
 The next declaration in the PPM specfication shows that a declaration may be
 *parameterized*:
 
-.. code-block:: DaeDaLus
-
-    def Token P = {
-      $$ = P;
-      Many (1..) WS;
-    }
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_TOKEN
+    :end-before: -- END PPM_TOKEN
+    :emphasize-lines: 1
 
 Parameter names follow the same rules outlined above: Uppercase names indicate
 parser parameters, lowercase names indicate semantic value parameters, and

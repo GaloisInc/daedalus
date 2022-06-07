@@ -21,4 +21,8 @@ github:
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
+	rm -rf build/downloads
+	rm -f build/examples.tar.gz
+	python3 build_examples.py
+	tar czf build/examples.tar.gz -C build/downloads/source examples
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
