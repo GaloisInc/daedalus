@@ -67,6 +67,16 @@ The DaeDaLus repository ships with a major Emacs mode definition and syntax
 highlighters for both Vim and VSCode. Please see your editor's documentation
 for details on how to install these extra features.
 
+Downloading The Sample Specifications
+-------------------------------------
+
+For convenience, the two full specifications we look at in this tutorial, for
+the PPM and PNG image formats, are provided as
+:download:`a compressed TAR <../../build/examples.tar.gz>`. You should
+follow along with the ``plain-ppm.ddl`` specification for the first part, and
+fill out the ``png-template.ddl`` as you complete the exercises. ``png.ddl``
+is the full solution to all the PNG exercises.
+
 Your First DaeDaLus Specification
 ---------------------------------
 
