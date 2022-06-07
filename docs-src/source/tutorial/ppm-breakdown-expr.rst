@@ -217,12 +217,13 @@ Guards are parsers that succeed when a given expression has a given shape. They
 can be used with ``bool``s, ``maybe`` values, and generic tagged sums built
 from alternatives parsers.
 
-An example comes from the PPM example:
+An example comes from the PPM specification:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 10
-    :lines: 10-18
+    :start-after: -- BEGIN PPM_PPM
+    :end-before: -- END PPM_PPM
+    :emphasize-lines: 5
 
 Here, the line ``version == 3 is true`` is a guard. No input is consumed at
 this line, but if the expression does not evaluate to true, it triggers a parse
@@ -301,8 +302,9 @@ It's best to demonstrate this with an example, taken from the PPM spec:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 28
-    :lines: 28-31
+    :start-after: -- BEGIN PPM_NATURAL
+    :end-before: -- END PPM_NATURAL
+    :emphasize-lines: 4
 
 In the ``for`` loop, we declare a variable ``val`` which acts as an accumulator
 value - the value of the body of the loop is what this variable is updated to

@@ -5,8 +5,9 @@ Starting from the very beginning of the PPM specification, we have:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :linenos:
-    :lines: 1-3
+    :start-after: -- BEGIN PPM_MAIN
+    :end-before: -- END PPM_MAIN
+    :emphasize-lines: 1
 
 This is a *declaration* for the name ``Main``. Declarations in general are
 indicated by the keyword ``def``, followed by the name being declared,
@@ -71,8 +72,9 @@ The next declaration in the PPM specfication shows that a declaration may be
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 5
-    :lines: 5-8
+    :start-after: -- BEGIN PPM_TOKEN
+    :end-before: -- END PPM_TOKEN
+    :emphasize-lines: 1
 
 Parameter names follow the same rules outlined above: Uppercase names indicate
 parser parameters, lowercase names indicate semantic value parameters, and

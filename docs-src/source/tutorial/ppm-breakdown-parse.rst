@@ -28,8 +28,8 @@ example from the PPM specification:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 26
-    :lines: 26
+    :start-after: -- BEGIN PPM_WS
+    :end-before: -- END PPM_WS
 
 .. note::
     Use ``Match1 ...`` when you need to parse one of a finite set of bytes.
@@ -86,8 +86,9 @@ The idea here is best shown by example. Consider the declaration of the
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 33
-    :lines: 33-36
+    :start-after: -- BEGIN PPM_DIGIT
+    :end-before: -- END PPM_DIGIT
+    :emphasize-lines: 4
 
 Parsers can only be combined with other parsers - so, to transform the ASCII
 byte we read with ``Match1`` into the actual digit it represents, we must

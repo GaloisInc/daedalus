@@ -10,19 +10,17 @@ Standard Sequencing
 -------------------
 
 First and foremost, we need a way to run one parser after another. In DaeDaLus,
-we write sequenced parsers by surrounding them with curly braces (``{ ... }``)
-and separating the parsers with semicolons. We've already seen this in the
-``Token`` parser:
+we write sequenced parsers by writing the keyword ``block`` and, on the
+following lines, writing each parser we want to run, one parser per line. We've
+already seen this in the ``Token`` parser:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 5
-    :lines: 5-8
+    :start-after: -- BEGIN PPM_TOKEN
+    :end-before: -- END PPM_TOKEN
 
 This says "run the parser ``P``, then run the parser ``Many (1..) WS``." If
 either of these were to fail, the entire sequence would fail.
-
-
 
 By default, when we use parser sequencing, the result of the last parser in the
 sequence is what will be returned. We can subvert this default, as in the
@@ -101,8 +99,9 @@ In the PPM specification, we have the following declaration for a parser
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
-    :lineno-start: 20
-    :lines: 20-24
+    :start-after: -- BEGIN PPM_RGB
+    :end-before: -- END PPM_RGB
+    :emphasize-lines: 3-5
 
 Note here that, rather than simply sequencing three parsers, we are storing the
 result of each in a variable. Doing so in this way means that the semantic
@@ -139,15 +138,15 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
 
     .. literalinclude:: ../examples/plain-ppm.ddl
         :language: DaeDaLus
-        :lineno-start: 33
-        :lines: 33-36
+        :start-after: -- BEGIN PPM_DIGIT
+        :end-before: -- END PPM_DIGIT
 
     Here, the result of the parser ``Match1 ('0' .. '9')`` is stored in a local
     variable ``d``, which we later use in a lifted semantic value to return the
     value of the digit itself.
 
     Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
-    creating a local variable, *not* the field of a structure!
+    creating a local variable, *not* a field of a structure!
 
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
