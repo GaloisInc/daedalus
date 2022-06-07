@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Breaking Down the PPM Specification" href="ppm-breakdown.html" />
+    <link rel="next" title="Breaking down PPM: Declarations" href="ppm-breakdown-decl.html" />
     <link rel="prev" title="Implicit Parameters" href="../implicit-parameters.html" /> 
 </head>
 
@@ -121,6 +121,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -315,6 +315,15 @@ will overwrite the existing versions of the executable installed on the system.<
 highlighters for both Vim and VSCode. Please see your editor’s documentation
 for details on how to install these extra features.</p>
 </section>
+<section id="downloading-the-sample-specifications">
+<h2>Downloading The Sample Specifications<a class="headerlink" href="#downloading-the-sample-specifications" title="Permalink to this headline"></a></h2>
+<p>For convenience, the two full specifications we look at in this tutorial, for
+the PPM and PNG image formats, are provided as
+<a class="reference download internal" download="" href="../_downloads/4c10b86d006ccb8b895d6a35b2000872/examples.tar.gz"><code class="xref download docutils literal notranslate"><span class="pre">a</span> <span class="pre">compressed</span> <span class="pre">TAR</span></code></a>. You should
+follow along with the <code class="docutils literal notranslate"><span class="pre">plain-ppm.ddl</span></code> specification for the first part, and
+fill out the <code class="docutils literal notranslate"><span class="pre">png-template.ddl</span></code> as you complete the exercises. <code class="docutils literal notranslate"><span class="pre">png.ddl</span></code>
+is the full solution to all the PNG exercises.</p>
+</section>
 <section id="your-first-daedalus-specification">
 <h2>Your First DaeDaLus Specification<a class="headerlink" href="#your-first-daedalus-specification" title="Permalink to this headline"></a></h2>
 <p>In order to give a feel for what DaeDaLus specifications look like, we now
@@ -362,46 +371,45 @@ now.</p>
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
 represented in this PPM format.) Here it is:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span><span class="p">;</span>
-  <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">Match</span> <span class="s">&quot;P&quot;</span><span class="p">;</span>
-  <span class="k">@</span><span class="n">version</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">version</span> <span class="k">==</span> <span class="m">3</span> <span class="k">is</span> <span class="l">true</span><span class="p">;</span>
-  <span class="n">width</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">height</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">maxVal</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">data</span>   <span class="k">=</span> <span class="k">Many</span> <span class="n">height</span> <span class="p">(</span><span class="k">Many</span> <span class="n">width</span> <span class="n">RGB</span><span class="p">);</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="n">red</span>   <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">ds</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">Digit</span><span class="p">;</span>
-  <span class="k">^</span> <span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="n">ds</span><span class="p">)</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">);</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">);</span>
-  <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">def</span> <span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span> <span class="k">=</span>
-  <span class="m">10</span> <span class="o">*</span> <span class="n">val</span> <span class="o">+</span> <span class="p">(</span><span class="n">d</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
+<span class="linenos"> 2</span>  <span class="k">block</span>
+<span class="linenos"> 3</span>    <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span>
+<span class="linenos"> 6</span>  <span class="k">block</span>
+<span class="linenos"> 7</span>    <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span>
+<span class="linenos"> 8</span>    <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span>
+<span class="linenos">11</span>  <span class="k">block</span>
+<span class="linenos">12</span>    <span class="k">Match</span> <span class="s">&quot;P&quot;</span>
+<span class="linenos">13</span>    <span class="k">let</span> <span class="n">version</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">14</span>    <span class="n">version</span> <span class="k">==</span> <span class="m">3</span> <span class="k">is</span> <span class="l">true</span>
+<span class="linenos">15</span>    <span class="n">width</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">16</span>    <span class="n">height</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">17</span>    <span class="n">maxVal</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">18</span>    <span class="n">data</span>   <span class="k">=</span> <span class="k">Many</span> <span class="n">height</span> <span class="p">(</span><span class="k">Many</span> <span class="n">width</span> <span class="n">RGB</span><span class="p">)</span>
+<span class="linenos">19</span>
+<span class="linenos">20</span><span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span>
+<span class="linenos">21</span>  <span class="k">block</span>
+<span class="linenos">22</span>    <span class="n">red</span>   <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">23</span>    <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">24</span>    <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="linenos">25</span>
+<span class="linenos">26</span><span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">)</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span><span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span>
+<span class="linenos">29</span>  <span class="k">block</span>
+<span class="linenos">30</span>    <span class="k">let</span> <span class="n">ds</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">Digit</span>
+<span class="linenos">31</span>    <span class="k">^</span> <span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="n">ds</span><span class="p">)</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">)</span>
+<span class="linenos">32</span>
+<span class="linenos">33</span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
+<span class="linenos">34</span>  <span class="k">block</span>
+<span class="linenos">35</span>    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+<span class="linenos">36</span>    <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
+<span class="linenos">37</span>
+<span class="linenos">38</span><span class="k">def</span> <span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span> <span class="k">=</span>
+<span class="linenos">39</span>  <span class="m">10</span> <span class="o">*</span> <span class="n">val</span> <span class="o">+</span> <span class="p">(</span><span class="n">d</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You may notice that this specification does not perform any <em>validation</em> of the
@@ -419,7 +427,7 @@ specifications.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../implicit-parameters.html" class="btn btn-neutral float-left" title="Implicit Parameters" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ppm-breakdown.html" class="btn btn-neutral float-right" title="Breaking Down the PPM Specification" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ppm-breakdown-decl.html" class="btn btn-neutral float-right" title="Breaking down PPM: Declarations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

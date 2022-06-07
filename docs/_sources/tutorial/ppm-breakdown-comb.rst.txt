@@ -10,31 +10,28 @@ Standard Sequencing
 -------------------
 
 First and foremost, we need a way to run one parser after another. In DaeDaLus,
-we write sequenced parsers by surrounding them with curly braces (``{ ... }``)
-and separating the parsers with semicolons. We've already seen this in the
-``Token`` parser:
+we write sequenced parsers by writing the keyword ``block`` and, on the
+following lines, writing each parser we want to run, one parser per line. We've
+already seen this in the ``Token`` parser:
 
-.. code-block:: DaeDaLus
-
-    def Token P = {
-      $$ = P;
-      Many (1..) WS;
-    }
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_TOKEN
+    :end-before: -- END PPM_TOKEN
 
 This says "run the parser ``P``, then run the parser ``Many (1..) WS``." If
 either of these were to fail, the entire sequence would fail.
 
-By default, when we use ``{ ... }`` for parser sequencing, the result of the
-last parser in the sequence is what will be returned. We can subvert this
-default, as in the ``Token`` example, using the special variable ``$$``:
-Assigning to this variable in a sequence means "return this as the result
-of the whole sequence" - as we'll see later, this is simply *syntactic sugar*
-for a more verbose construction with exactly the same behavior.
+By default, when we use parser sequencing, the result of the last parser in the
+sequence is what will be returned. We can subvert this default, as in the
+``Token`` example, using the special variable ``$$``: Assigning to this
+variable in a sequence means "return this as the result of the whole
+sequence" - as we'll see later, this is simply *syntactic sugar* for a more
+verbose construction with exactly the same behavior.
 
-.. warning::
+.. note::
     There is another way of writing sequenced parsers in DaeDaLus that you may
-    see sometimes that relies on whitespace-sensitivity / code layout, in much
-    the same way as the Python programming language.
+    see sometimes that does not rely on whitespace-sensitivity/code layout.
 
     Consider the two following declarations:
 
@@ -46,10 +43,12 @@ for a more verbose construction with exactly the same behavior.
             Match "A"
             Match "B"
 
-    We can use layout instead of braces/semicolons using the ``block`` keyword.
-    All of the parsers we are sequencing must be aligned on the same column,
-    and any text that is indented beyond this column belongs to the
-    corresponding (preceding) parser. To demonstrate:
+    We can use braces/semicolons instead of layout which uses the ``block``
+    keyword.
+
+    Note that when using layout, all of the parsers we are sequencing must be
+    aligned on the same column, and any text that is indented beyond this
+    column belongs to the corresponding (preceding) parser. To demonstrate:
 
     .. code-block:: DaeDaLus
 
@@ -59,8 +58,10 @@ for a more verbose construction with exactly the same behavior.
               "A"
             Match "B"
 
-    Which behaves the same as both of the previous parsers. Neither style is
-    preferred by the language; use what's comfortable for you!
+    Which behaves the same as both of the previous parsers. We recommend using
+    layout for more complex parsers, and braces/semicolons for short parsers
+    that fit on a single line. These aren't rules, though; use what's
+    comfortable for you!
 
 Array Sequencing
 ----------------
@@ -96,13 +97,11 @@ is defined by a corresponding parser. This idea is best shown by example.
 In the PPM specification, we have the following declaration for a parser
 (pop quiz: how do we know it's a parser?) called ``RGB``:
 
-.. code-block:: DaeDaLus
-
-    def RGB = {
-      red   = Token Natural;
-      green = Token Natural;
-      blue  = Token Natural;
-    }
+.. literalinclude:: ../examples/plain-ppm.ddl
+    :language: DaeDaLus
+    :start-after: -- BEGIN PPM_RGB
+    :end-before: -- END PPM_RGB
+    :emphasize-lines: 3-5
 
 Note here that, rather than simply sequencing three parsers, we are storing the
 result of each in a variable. Doing so in this way means that the semantic
@@ -137,19 +136,17 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
     prefix the assignment with the keyword ``let`` (or the symbol ``@``). We've
     already seen an example of this in the ``Digit`` parser:
 
-    .. code-block::
-
-        def Digit = {
-          @d = Match1 ('0' .. '9');
-          ^ d - '0';
-        }
+    .. literalinclude:: ../examples/plain-ppm.ddl
+        :language: DaeDaLus
+        :start-after: -- BEGIN PPM_DIGIT
+        :end-before: -- END PPM_DIGIT
 
     Here, the result of the parser ``Match1 ('0' .. '9')`` is stored in a local
     variable ``d``, which we later use in a lifted semantic value to return the
     value of the digit itself.
 
     Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
-    creating a local variable, *not* the field of a structure!
+    creating a local variable, *not* a field of a structure!
 
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
@@ -369,7 +366,7 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
 .. code-block:: DaeDaLus
 
-    { $$ = Many (Match1 '7'); Match1 '0' }
+    def P = { $$ = Many (Match1 '7'); Match1 '0' }
 
 This parser will match any number of 7s followed by a 0, e.g.
 ``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
@@ -381,7 +378,7 @@ succeeds, e.g.:
 
 .. code-block:: DaeDaLus
 
-    { Many (Match1 '7'); Match1 '7' }
+    def P = { Many (Match1 '7'); Match1 '7' }
 
 When we know that we are only parsing a particular number of things (or even
 that there is a lower or upper bound on the number of things), we can provide

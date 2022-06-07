@@ -121,6 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -425,7 +425,7 @@ gaps we left above!)</p>
 <p>We can use a <code class="docutils literal notranslate"><span class="pre">bool</span></code> value to control which of two parsers runs. This is not
 used in the PPM example, but here is a simple example that parses an <code class="docutils literal notranslate"><span class="pre">'A'</span></code> if
 the first parsed digit is less than 5, and <code class="docutils literal notranslate"><span class="pre">'B'</span></code> otherwise:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">@</span><span class="n">i</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="m">5</span>
   <span class="k">then</span> <span class="n">Match1</span> <span class="s">&#39;A&#39;</span>
   <span class="k">else</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
@@ -439,16 +439,16 @@ of some value we’ve parsed from input is correct; this is the job of a <em>gua
 <p>Guards are parsers that succeed when a given expression has a given shape. They
 can be used with <code class="docutils literal notranslate"><span class="pre">bool``s,</span> <span class="pre">``maybe</span></code> values, and generic tagged sums built
 from alternatives parsers.</p>
-<p>An example comes from the PPM example:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">Match</span> <span class="s">&quot;P&quot;</span><span class="p">;</span>
-  <span class="k">@</span><span class="n">version</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">version</span> <span class="k">==</span> <span class="m">3</span> <span class="k">is</span> <span class="l">true</span><span class="p">;</span>
-  <span class="n">width</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">height</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">maxVal</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">data</span>   <span class="k">=</span> <span class="k">Many</span> <span class="n">height</span> <span class="p">(</span><span class="k">Many</span> <span class="n">width</span> <span class="n">RGB</span><span class="p">);</span>
-<span class="p">}</span>
+<p>An example comes from the PPM specification:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">Match</span> <span class="s">&quot;P&quot;</span>
+    <span class="k">let</span> <span class="n">version</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+<span class="hll">    <span class="n">version</span> <span class="k">==</span> <span class="m">3</span> <span class="k">is</span> <span class="l">true</span>
+</span>    <span class="n">width</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+    <span class="n">height</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+    <span class="n">maxVal</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+    <span class="n">data</span>   <span class="k">=</span> <span class="k">Many</span> <span class="n">height</span> <span class="p">(</span><span class="k">Many</span> <span class="n">width</span> <span class="n">RGB</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Here, the line <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">==</span> <span class="pre">3</span> <span class="pre">is</span> <span class="pre">true</span></code> is a guard. No input is consumed at
@@ -491,8 +491,12 @@ value, for example, we might have a pattern match that looks like this:</p>
 </pre></div>
 </div>
 <p>Finally, there is a special pattern, <code class="docutils literal notranslate"><span class="pre">_</span></code>, which can be used as a final
-“catch-all” case when you don’t care what is matched. This should always be
-used as the last pattern, or else anything below it will never run!</p>
+“catch-all” case when you don’t care what is matched.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The catch-all pattern should always be used as the last pattern, or else
+anything below it will never run!</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Remember: Patterns are checked in order, so be careful to consider that
@@ -509,11 +513,11 @@ make sure all patterns are covered, but DaeDaLus isn’t one of them!</p>
 <p>To visit all elements of an array or dictionary, DaeDaLus provides an unusual
 form of the familiar <code class="docutils literal notranslate"><span class="pre">for</span></code> loop.</p>
 <p>It’s best to demonstrate this with an example, taken from the PPM spec:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">ds</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">Digit</span><span class="p">;</span>
-  <span class="k">^</span> <span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="n">ds</span><span class="p">)</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">);</span>
-<span class="p">}</span>
-</pre></div>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">let</span> <span class="n">ds</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">Digit</span>
+<span class="hll">    <span class="k">^</span> <span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="n">ds</span><span class="p">)</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">)</span>
+</span></pre></div>
 </div>
 <p>In the <code class="docutils literal notranslate"><span class="pre">for</span></code> loop, we declare a variable <code class="docutils literal notranslate"><span class="pre">val</span></code> which acts as an accumulator
 value - the value of the body of the loop is what this variable is updated to
@@ -616,9 +620,9 @@ an expression for which we want the type to be <code class="docutils literal not
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Unfortunately, in DaeDaLus, the naming scheme described for unknown types is
-reused for another unrelated feature: implicit parameters. We’ll say more
-about implicit parameters when discussing the standard library in a later
-section.</p>
+reused for another unrelated feature: implicit parameters. This tutorial does
+not cover implicit parameters, but you can read <a class="reference internal" href="../implicit-parameters.html#implicit-parameters"><span class="std std-ref">Implicit Parameters</span></a> in
+the user guide for more detail on this feature.</p>
 </div>
 </section>
 <section id="type-coercion">

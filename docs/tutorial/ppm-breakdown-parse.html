@@ -121,6 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -334,11 +334,11 @@ value returned by the <code class="docutils literal notranslate"><span class="pr
 <code class="docutils literal notranslate"><span class="pre">Accept</span></code> for this trivially-succeeding parser, for more readability.</p>
 <p>The idea here is best shown by example. Consider the declaration of the
 <code class="docutils literal notranslate"><span class="pre">Digit</span></code> parser:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">@</span><span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">);</span>
-  <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+<span class="hll">    <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
+</span></pre></div>
 </div>
 <p>Parsers can only be combined with other parsers - so, to transform the ASCII
 byte we read with <code class="docutils literal notranslate"><span class="pre">Match1</span></code> into the actual digit it represents, we must

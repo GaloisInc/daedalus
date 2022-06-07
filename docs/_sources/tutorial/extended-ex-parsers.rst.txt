@@ -39,7 +39,7 @@ science and engineering, it comes down to tradeoffs.
 
 Put another way: the additional checking you do while parsing, if any, will
 depend on your needs. A good rule of thumb is: If it's cheap to check something
-while parsing, and doesn't require overly-complex logic, go ahead and check: A
+while parsing, and doesn't require overly-complex logic, go ahead and check. A
 great example came from the PPM example where we used a guard to guarantee that
 the magic number parsed was the exactly correct value. Another great example,
 from the other side: The CRC check on PNG is fairly involved math, so should be

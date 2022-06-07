@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Breaking down PPM: Primitive Parsing" href="ppm-breakdown-parse.html" />
-    <link rel="prev" title="Breaking Down the PPM Specification" href="ppm-breakdown.html" /> 
+    <link rel="prev" title="Getting Started" href="getting-started.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -121,6 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#parameterized-declarations">Parameterized Declarations</a></li>
@@ -261,9 +261,9 @@
   <section id="breaking-down-ppm-declarations">
 <h1>Breaking down PPM: Declarations<a class="headerlink" href="#breaking-down-ppm-declarations" title="Permalink to this headline"></a></h1>
 <p>Starting from the very beginning of the PPM specification, we have:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span><span class="p">;</span>
-<span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
+</span>  <span class="k">block</span>
+    <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span>
 </pre></div>
 </div>
 <p>This is a <em>declaration</em> for the name <code class="docutils literal notranslate"><span class="pre">Main</span></code>. Declarations in general are
@@ -277,8 +277,8 @@ more often than it is written.) In this particular case, the name <code class="d
 indicates to the DaeDaLus interpreter and backend that this is the entry point
 of the parser being defined. All layout specifications must declare a <code class="docutils literal notranslate"><span class="pre">Main</span></code>
 symbol.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>In DaeDaLus, declarations behave differently from what you might be used to
 if you are unfamiliar with pure functional programming. In such languages,
 variables are <em>immutable</em>: Once defined, they cannot be re-defined. While
@@ -319,10 +319,10 @@ future!</p>
 <h2>Parameterized Declarations<a class="headerlink" href="#parameterized-declarations" title="Permalink to this headline"></a></h2>
 <p>The next declaration in the PPM specfication shows that a declaration may be
 <em>parameterized</em>:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span><span class="p">;</span>
-  <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span><span class="p">;</span>
-<span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span>
+</span>  <span class="k">block</span>
+    <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span>
+    <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span>
 </pre></div>
 </div>
 <p>Parameter names follow the same rules outlined above: Uppercase names indicate
@@ -342,7 +342,7 @@ parsing libraries, you’re well on your way to being a productive DaeDaLus user
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ppm-breakdown.html" class="btn btn-neutral float-left" title="Breaking Down the PPM Specification" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="getting-started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="ppm-breakdown-parse.html" class="btn btn-neutral float-right" title="Breaking down PPM: Primitive Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

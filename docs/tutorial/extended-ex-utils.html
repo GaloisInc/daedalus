@@ -121,6 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -346,7 +346,7 @@ Solution<div class="sd-summary-down docutils">
 <div class="sd-summary-up docutils">
 <svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
 </summary><div class="sd-summary-content sd-card-body docutils">
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">NullChar</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span><span class="p">]</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">NullChar</span>    <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span><span class="p">]</span>
 </pre></div>
 </div>
 </div>
@@ -365,7 +365,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details><p><strong>Exercise (Challenging):</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">OMany</span></code>, that behaves like
 <code class="docutils literal notranslate"><span class="pre">Many</span></code>, but takes the integer arguments as <code class="docutils literal notranslate"><span class="pre">maybe</span></code> values. Your parser
-should satisfy the following laws:</p>
+should satisfy the following <em>laws</em>:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">OMany</span> <span class="pre">nothing</span> <span class="pre">nothing</span>&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">P</span> <span class="pre">=</span> <span class="pre">Many</span> <span class="pre">P</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">OMany</span> <span class="pre">nothing</span> <span class="pre">(just</span> <span class="pre">max)</span>&#160;&#160;&#160; <span class="pre">P</span> <span class="pre">=</span> <span class="pre">Many</span> <span class="pre">(..max)</span> <span class="pre">P</span></code></p></li>
@@ -389,7 +389,7 @@ Solution<div class="sd-summary-down docutils">
 <div class="sd-summary-up docutils">
 <svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
 </summary><div class="sd-summary-content sd-card-body docutils">
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">OMany</span> <span class="p">(</span><span class="n">omin</span> <span class="p">:</span> <span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="p">(</span><span class="n">omax</span> <span class="p">:</span> <span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="n">P</span> <span class="k">=</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">OMany</span> <span class="p">(</span><span class="n">omin</span><span class="p">:</span><span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="p">(</span><span class="n">omax</span><span class="p">:</span><span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="n">P</span> <span class="k">=</span>
   <span class="k">case</span> <span class="n">omin</span> <span class="k">of</span>
     <span class="l">nothing</span>  <span class="k">-&gt;</span> <span class="k">case</span> <span class="n">omax</span> <span class="k">of</span>
                   <span class="l">nothing</span>  <span class="k">-&gt;</span> <span class="k">Many</span> <span class="n">P</span>
@@ -425,7 +425,7 @@ Solution<div class="sd-summary-down docutils">
 <div class="sd-summary-up docutils">
 <svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
 </summary><div class="sd-summary-content sd-card-body docutils">
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">NTString</span> <span class="p">(</span><span class="n">omin</span> <span class="p">:</span> <span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="p">(</span><span class="n">omax</span> <span class="p">:</span> <span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="k">=</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">NTString</span> <span class="p">(</span><span class="n">omin</span><span class="p">:</span><span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="p">(</span><span class="n">omax</span><span class="p">:</span><span class="k">maybe</span> <span class="p">(</span><span class="k">uint</span> <span class="m">64</span><span class="p">))</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="k">$$</span> <span class="k">=</span> <span class="n">OMany</span> <span class="n">omin</span> <span class="n">omax</span> <span class="n">NonNullChar</span>
     <span class="n">NullChar</span>
@@ -452,9 +452,9 @@ Solution<div class="sd-summary-down docutils">
 </summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span>
   <span class="k">block</span>
-    <span class="n">red</span>   <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">red</span> <span class="k">=</span> <span class="k">UInt8</span>
     <span class="n">green</span> <span class="k">=</span> <span class="k">UInt8</span>
-    <span class="n">blue</span>  <span class="k">=</span> <span class="k">UInt8</span>
+    <span class="n">blue</span> <span class="k">=</span> <span class="k">UInt8</span>
 </pre></div>
 </div>
 <p class="sd-card-text">While the order of fields in a structure doesn’t matter in general, when
@@ -515,10 +515,10 @@ Solution<div class="sd-summary-down docutils">
 </summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">UTCTime</span> <span class="k">=</span>
   <span class="k">block</span>
-    <span class="n">year</span>   <span class="k">=</span> <span class="n">BEUInt16</span>
-    <span class="n">month</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">1</span> <span class="p">..</span> <span class="m">12</span><span class="p">]</span>
-    <span class="n">day</span>    <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">1</span> <span class="p">..</span> <span class="m">31</span><span class="p">]</span>
-    <span class="n">hour</span>   <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">23</span><span class="p">]</span>
+    <span class="n">year</span> <span class="k">=</span> <span class="n">BEUInt16</span>
+    <span class="n">month</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">1</span> <span class="p">..</span> <span class="m">12</span><span class="p">]</span>
+    <span class="n">day</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">1</span> <span class="p">..</span> <span class="m">31</span><span class="p">]</span>
+    <span class="n">hour</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">23</span><span class="p">]</span>
     <span class="n">minute</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">59</span><span class="p">]</span>
     <span class="n">second</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">60</span><span class="p">]</span>
 </pre></div>

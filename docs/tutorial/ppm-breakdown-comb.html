@@ -121,6 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#the-portable-pixmap-format">The Portable PixMap Format</a></li>
 <li class="toctree-l3"><a class="reference internal" href="getting-started.html#an-example-ppm-image">An Example PPM Image</a></li>
@@ -129,7 +130,6 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="ppm-breakdown.html">Breaking Down the PPM Specification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#deducing-types-from-names">Deducing Types From Names</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html#parameterized-declarations">Parameterized Declarations</a></li>
@@ -267,28 +267,27 @@ collection of parsers.</p>
 <section id="standard-sequencing">
 <h2>Standard Sequencing<a class="headerlink" href="#standard-sequencing" title="Permalink to this headline"></a></h2>
 <p>First and foremost, we need a way to run one parser after another. In DaeDaLus,
-we write sequenced parsers by surrounding them with curly braces (<code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code>)
-and separating the parsers with semicolons. We’ve already seen this in the
-<code class="docutils literal notranslate"><span class="pre">Token</span></code> parser:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span><span class="p">;</span>
-  <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span><span class="p">;</span>
-<span class="p">}</span>
+we write sequenced parsers by writing the keyword <code class="docutils literal notranslate"><span class="pre">block</span></code> and, on the
+following lines, writing each parser we want to run, one parser per line. We’ve
+already seen this in the <code class="docutils literal notranslate"><span class="pre">Token</span></code> parser:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">$$</span> <span class="k">=</span> <span class="n">P</span>
+    <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..)</span> <span class="n">WS</span>
 </pre></div>
 </div>
 <p>This says “run the parser <code class="docutils literal notranslate"><span class="pre">P</span></code>, then run the parser <code class="docutils literal notranslate"><span class="pre">Many</span> <span class="pre">(1..)</span> <span class="pre">WS</span></code>.” If
 either of these were to fail, the entire sequence would fail.</p>
-<p>By default, when we use <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code> for parser sequencing, the result of the
-last parser in the sequence is what will be returned. We can subvert this
-default, as in the <code class="docutils literal notranslate"><span class="pre">Token</span></code> example, using the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>:
-Assigning to this variable in a sequence means “return this as the result
-of the whole sequence” - as we’ll see later, this is simply <em>syntactic sugar</em>
-for a more verbose construction with exactly the same behavior.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
+<p>By default, when we use parser sequencing, the result of the last parser in the
+sequence is what will be returned. We can subvert this default, as in the
+<code class="docutils literal notranslate"><span class="pre">Token</span></code> example, using the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>: Assigning to this
+variable in a sequence means “return this as the result of the whole
+sequence” - as we’ll see later, this is simply <em>syntactic sugar</em> for a more
+verbose construction with exactly the same behavior.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>There is another way of writing sequenced parsers in DaeDaLus that you may
-see sometimes that relies on whitespace-sensitivity / code layout, in much
-the same way as the Python programming language.</p>
+see sometimes that does not rely on whitespace-sensitivity/code layout.</p>
 <p>Consider the two following declarations:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">UseBraces</span> <span class="k">=</span> <span class="p">{</span> <span class="k">Match</span> <span class="s">&quot;A&quot;</span><span class="p">;</span> <span class="k">Match</span> <span class="s">&quot;B&quot;</span> <span class="p">}</span>
 <span class="k">def</span> <span class="n">UseLayout</span> <span class="k">=</span>
@@ -297,10 +296,11 @@ the same way as the Python programming language.</p>
     <span class="k">Match</span> <span class="s">&quot;B&quot;</span>
 </pre></div>
 </div>
-<p>We can use layout instead of braces/semicolons using the <code class="docutils literal notranslate"><span class="pre">block</span></code> keyword.
-All of the parsers we are sequencing must be aligned on the same column,
-and any text that is indented beyond this column belongs to the
-corresponding (preceding) parser. To demonstrate:</p>
+<p>We can use braces/semicolons instead of layout which uses the <code class="docutils literal notranslate"><span class="pre">block</span></code>
+keyword.</p>
+<p>Note that when using layout, all of the parsers we are sequencing must be
+aligned on the same column, and any text that is indented beyond this
+column belongs to the corresponding (preceding) parser. To demonstrate:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">UseLayout2</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="k">Match</span>
@@ -308,8 +308,10 @@ corresponding (preceding) parser. To demonstrate:</p>
     <span class="k">Match</span> <span class="s">&quot;B&quot;</span>
 </pre></div>
 </div>
-<p>Which behaves the same as both of the previous parsers. Neither style is
-preferred by the language; use what’s comfortable for you!</p>
+<p>Which behaves the same as both of the previous parsers. We recommend using
+layout for more complex parsers, and braces/semicolons for short parsers
+that fit on a single line. These aren’t rules, though; use what’s
+comfortable for you!</p>
 </div>
 </section>
 <section id="array-sequencing">
@@ -341,12 +343,12 @@ typically using some kind of “field access” notation.</p>
 is defined by a corresponding parser. This idea is best shown by example.</p>
 <p>In the PPM specification, we have the following declaration for a parser
 (pop quiz: how do we know it’s a parser?) called <code class="docutils literal notranslate"><span class="pre">RGB</span></code>:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span> <span class="p">{</span>
-  <span class="n">red</span>   <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-  <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">RGB</span> <span class="k">=</span>
+  <span class="k">block</span>
+<span class="hll">    <span class="n">red</span>   <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+</span><span class="hll">    <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+</span><span class="hll">    <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
+</span></pre></div>
 </div>
 <p>Note here that, rather than simply sequencing three parsers, we are storing the
 result of each in a variable. Doing so in this way means that the semantic
@@ -375,17 +377,17 @@ we don’t want to write down more than once.</p>
 <p>To introduce a local variable that won’t be turned into a structure field,
 prefix the assignment with the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code> (or the symbol <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>). We’ve
 already seen an example of this in the <code class="docutils literal notranslate"><span class="pre">Digit</span></code> parser:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">Digit</span> <span class="o">=</span> <span class="p">{</span>
-  <span class="nd">@d</span> <span class="o">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span> <span class="o">..</span> <span class="s1">&#39;9&#39;</span><span class="p">);</span>
-  <span class="o">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s1">&#39;0&#39;</span><span class="p">;</span>
-<span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+    <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
 </pre></div>
 </div>
 <p>Here, the result of the parser <code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">('0'</span> <span class="pre">..</span> <span class="pre">'9')</span></code> is stored in a local
 variable <code class="docutils literal notranslate"><span class="pre">d</span></code>, which we later use in a lifted semantic value to return the
 value of the digit itself.</p>
 <p>Remember: If we prefix the assignment with <code class="docutils literal notranslate"><span class="pre">let</span></code> or <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, we’re <em>just</em>
-creating a local variable, <em>not</em> the field of a structure!</p>
+creating a local variable, <em>not</em> a field of a structure!</p>
 </div>
 </section>
 <section id="de-sugaring-nonstandard-structure-sequences">
@@ -568,7 +570,7 @@ number of times?</p>
 <p>If we need to parse the same thing multiple times, we can use the <code class="docutils literal notranslate"><span class="pre">Many</span></code>
 parser combinator. In its most basic form, it can parse an arbitrarily long
 sequence, stopping only when the given parser first fails. As a simple example:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="k">$$</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;0&#39;</span> <span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">$$</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;0&#39;</span> <span class="p">}</span>
 </pre></div>
 </div>
 <p>This parser will match any number of 7s followed by a 0, e.g.
@@ -577,7 +579,7 @@ parser is an array of all the 7s that were parsed.</p>
 <p>Be cautious when using this unbounded form of <code class="docutils literal notranslate"><span class="pre">Many</span></code>! It parses inputs
 maximally, so it’s possible to accidentally create a parser that never
 succeeds, e.g.:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;7&#39;</span> <span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;7&#39;</span> <span class="p">}</span>
 </pre></div>
 </div>
 <p>When we know that we are only parsing a particular number of things (or even
