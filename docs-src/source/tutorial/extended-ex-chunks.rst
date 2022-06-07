@@ -114,8 +114,8 @@ table, and be sure to specify the type of each byte (use ``uint 8``.)
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 44
-        :lines: 44-60
+        :start-after: -- BEGIN PNG_CT
+        :end-before: -- END PNG_CT
 
 PNG Chunk Data
 --------------
@@ -140,8 +140,8 @@ structures as we defined in the section
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 81
-        :lines: 81
+        :start-after: -- BEGIN PNG_PLTE
+        :end-before: -- END PNG_PLTE
 
 IDAT
 ^^^^
@@ -156,8 +156,8 @@ it consists merely of a bunch of bytes.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 83
-        :lines: 83
+        :start-after: -- BEGIN PNG_IDAT
+        :end-before: -- END PNG_IDAT
 
 tRNS
 ^^^^
@@ -193,8 +193,8 @@ as field names (so, make sure these parsers all produce structures.)
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 92
-        :lines: 92-104
+        :start-after: -- BEGIN PNG_TD
+        :end-before: -- END PNG_TD
 
 **Exercise:** Now, define a parser ``TRNSChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -213,8 +213,8 @@ that the transparency chunk cannot appear for any other color mode.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 85
-        :lines: 85-90
+        :start-after: -- BEGIN PNG_TRNS
+        :end-before: -- END PNG_TRNS
 
 cHRM
 ^^^^
@@ -233,8 +233,8 @@ described above.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 106
-        :lines: 106-115
+        :start-after: -- BEGIN PNG_CHRM
+        :end-before: -- END PNG_CHRM
 
 gAMA
 ^^^^
@@ -250,8 +250,8 @@ a big-endian 4-byte integer.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 117
-        :lines: 117-119
+        :start-after: -- BEGIN PNG_GAMA
+        :end-before: -- END PNG_GAMA
 
 iCCP
 ^^^^
@@ -277,8 +277,8 @@ the three fields described above.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 121
-        :lines: 121-125
+        :start-after: -- BEGIN PNG_ICCP
+        :end-before: -- END PNG_ICCP
 
 sBIT
 ^^^^
@@ -314,8 +314,8 @@ structures).
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 135
-        :lines: 135-155
+        :start-after: -- BEGIN PNG_SD
+        :end-before: -- END PNG_SD
 
 **Exercise:** Now, define a parser ``SBITChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -327,8 +327,8 @@ for this. You can ignore all other color modes.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 127
-        :lines: 127-133
+        :start-after: -- BEGIN PNG_SBIT
+        :end-before: -- END PNG_SBIT
 
 sRGB
 ^^^^
@@ -346,8 +346,8 @@ between 0 and 3 (inclusive).
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 157
-        :lines: 157-159
+        :start-after: -- BEGIN PNG_SRGB
+        :end-before: -- END PNG_SRGB
 
 tEXt
 ^^^^
@@ -372,8 +372,8 @@ null-terminated string between 1 and 79 characters in length, and
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 161
-        :lines: 161-164
+        :start-after: -- BEGIN PNG_TEXT
+        :end-before: -- END PNG_TEXT
 
 zTXt
 ^^^^
@@ -391,8 +391,8 @@ were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 166
-        :lines: 166-170
+        :start-after: -- BEGIN PNG_ZTXT
+        :end-before: -- END PNG_ZTXT
 
 iTXt
 ^^^^
@@ -418,8 +418,8 @@ the six fields as described above.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 172
-        :lines: 172-179
+        :start-after: -- BEGIN PNG_ITXT
+        :end-before: -- END PNG_ITXT
 
 bKGD
 ^^^^
@@ -445,8 +445,8 @@ not need to check that this index is within range for the palette provided.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 189
-        :lines: 189-201
+        :start-after: -- BEGIN PNG_BD
+        :end-before: -- END PNG_BD
 
 **Exercise:** Now, define a parser ``BKGDChunkData`` that takes a single
 argument, ``sig``, and uses the ``colour_type`` field of that argument to
@@ -458,8 +458,8 @@ for this. You can ignore all other color modes.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 181
-        :lines: 181-187
+        :start-after: -- BEGIN PNG_BKGD
+        :end-before: -- END PNG_BKGD
 
 hIST
 ^^^^
@@ -477,8 +477,8 @@ provided.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 203
-        :lines: 203-205
+        :start-after: -- BEGIN PNG_HIST
+        :end-before: -- END PNG_HIST
 
 pHYs
 ^^^^
@@ -499,8 +499,8 @@ the fields as described above.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 207
-        :lines: 207-211
+        :start-after: -- BEGIN PNG_PHYS
+        :end-before: -- END PNG_PHYS
 
 sPLT
 ^^^^
@@ -542,8 +542,8 @@ parse the five sample values as described above.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 224
-        :lines: 224-238
+        :start-after: -- BEGIN PNG_SAMPLE
+        :end-before: -- END PNG_SAMPLE
 
 **Exercise:** Using the two parsers you just defined, define a new parser
 ``SPLTSample`` that takes a single argument, ``depth : uint 8``, and decides
@@ -556,8 +556,8 @@ anything to handle sample depths other than 8 and 16.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 219
-        :lines: 219-222
+        :start-after: -- BEGIN PNG_SS
+        :end-before: -- END PNG_SS
 
 **Exercise (Challenging):** Finally, define a parser ``SPLTChunkData`` that
 returns a structure containing fields ``palette_name``, ``sample_depth``, and
@@ -578,8 +578,8 @@ returns a structure containing fields ``palette_name``, ``sample_depth``, and
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 213
-        :lines: 213-217
+        :start-after: -- BEGIN PNG_SPLT
+        :end-before: -- END PNG_SPLT
 
 tIME
 ^^^^
@@ -596,8 +596,8 @@ the image.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 240
-        :lines: 240
+        :start-after: -- BEGIN PNG_TIME
+        :end-before: -- END PNG_TIME
 
 Generic Chunk Data Parsing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -618,8 +618,8 @@ for example, ``plte_data`` for the ``plte`` case.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 62
-        :lines: 62-79
+        :start-after: -- BEGIN PNG_CD
+        :end-before: -- END PNG_CD
 
 PNG Chunks
 ----------
@@ -652,8 +652,8 @@ to interpret as a ``ChunkType``), the chunk data, and a CRC value.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 242
-        :lines: 242-247
+        :start-after: -- BEGIN PNG_CHUNK
+        :end-before: -- END PNG_CHUNK
 
 Header / Trailer
 ----------------
@@ -689,8 +689,8 @@ bytes ``73``, ``72``, ``68``, and ``82``.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 249
-        :lines: 249-260
+        :start-after: -- BEGIN PNG_IHDR
+        :end-before: -- END PNG_IHDR
 
 **Exercise:** Define a parser ``IENDChunk`` that returns a structure matching
 the description above. The type identifier for the trailer chunk is the four
@@ -701,8 +701,8 @@ bytes ``73``, ``69``, ``78``, and ``68``.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 262
-        :lines: 262-266
+        :start-after: -- BEGIN PNG_IEND
+        :end-before: -- END PNG_IEND
 
 Full PNG
 --------
@@ -713,8 +713,8 @@ starts every PNG image ever encoded:
 
 .. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
-    :lineno-start: 268
-    :lines: 268-269
+    :start-after: -- BEGIN PNG_HEADER
+    :end-before: -- END PNG_HEADER
 
 With this here is your final exercise:
 
@@ -728,8 +728,8 @@ consumes the entire input.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 271
-        :lines: 271-277
+        :start-after: -- BEGIN PNG_MAIN
+        :end-before: -- END PNG_MAIN
 
 Conclusion
 ----------

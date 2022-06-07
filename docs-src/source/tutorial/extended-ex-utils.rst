@@ -15,8 +15,8 @@ should be:
 
 .. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
-    :lineno-start: 1
-    :lines: 1
+    :start-after: -- BEGIN PNG_IMPORT
+    :end-before: -- END PNG_IMPORT
 
 This will load all of the standard library features covered in the previous
 section, which you'll start using right away.
@@ -47,8 +47,8 @@ big-endian, 32-bit, unsigned integer.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 5
-        :lines: 5-6
+        :start-after: -- BEGIN PNG_LC
+        :end-before: -- END PNG_LC
 
 **Exercise:** There are a couple of places in the PNG specification where we
 have 1-bit *flags*, indicating whether some option is enabled or not. Write a
@@ -66,8 +66,8 @@ parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 8
-        :lines: 8
+        :start-after: -- BEGIN PNG_FLAG
+        :end-before: -- END PNG_FLAG
 
     For brevity, we'll prefer this syntax in the other provided solutions.
 
@@ -90,8 +90,8 @@ specific range of sizes *and* strings of unbounded length.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 10
-        :lines: 10
+        :start-after: -- BEGIN PNG_NC
+        :end-before: -- END PNG_NC
 
 **Exercise:** Define a parser, ``NonNullChar``, that parses one non-null
 ASCII byte.
@@ -101,8 +101,8 @@ ASCII byte.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 11
-        :lines: 11
+        :start-after: -- BEGIN PNG_NNC
+        :end-before: -- END PNG_NNC
 
 **Exercise (Challenging):** Define a parser, ``OMany``, that behaves like
 ``Many``, but takes the integer arguments as ``maybe`` values. Your parser
@@ -124,8 +124,8 @@ should satisfy the following *laws*:
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 13
-        :lines: 13-20
+        :start-after: -- BEGIN PNG_OMANY
+        :end-before: -- END PNG_OMANY
 
     Note that the right-hand sides of each case arm is the right-hand side of
     one of the laws - this form of algebraic specification is very useful when
@@ -148,8 +148,8 @@ character should not be included in the character count.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 22
-        :lines: 22-25
+        :start-after: -- BEGIN PNG_NT
+        :end-before: -- END PNG_NT
 
 Common Structures
 -----------------
@@ -169,8 +169,8 @@ first byte, ``green`` the second, and ``blue`` the third.)
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 27
-        :lines: 27-31
+        :start-after: -- BEGIN PNG_RGB
+        :end-before: -- END PNG_RGB
 
     While the order of fields in a structure doesn't matter in general, when
     writing DaeDaLus specifications, we must be sure to write the fields in the
@@ -211,8 +211,8 @@ fields should be parsed, and the year should be parsed in big-endian order.
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
-        :lineno-start: 33
-        :lines: 33-40
+        :start-after: -- BEGIN PNG_UTC
+        :end-before: -- END PNG_UTC
 
     In case you're wondering why the ``second`` field allows for a value of 60:
     It's to allow for leap-seconds, according to the PNG specification!
