@@ -4,6 +4,7 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.Symbolic (symbolicStrats) where
 
+import Control.Lens (over, _3, view)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
@@ -14,7 +15,7 @@ import           Data.Word                    (Word8)
 import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (streamOffset)
-import           Daedalus.Core.Free           (freeVars)
+import           Daedalus.Core.Free           (freeVars, FreeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
@@ -23,7 +24,7 @@ import           Daedalus.Panic
 import qualified Daedalus.Value               as I
 
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
-                                               sliceToCallees)
+                                               sliceToCallees, SliceId)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM
@@ -40,6 +41,9 @@ import           Talos.SymExec.SolverT        (SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
+import Daedalus.Rec (topoOrder, forgetRecs)
+import Data.Foldable (fold)
+import Data.Set (Set)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -53,7 +57,7 @@ symbolicStrats = map mkOne strats
              , ("memo-rand-dfs",     memoSearch randDFSPolicy)
              ]
     mkOne :: (Doc, SearchStrat) -> Strategy
-    mkOne (name, sstrat) = 
+    mkOne (name, sstrat) =
       Strategy { stratName  = "symbolic-" ++ show name
                , stratDescr = "Symbolic execution (" <> name <> ")"
                , stratFun   = SolverStrat (symbolicFun sstrat)
@@ -72,15 +76,19 @@ symbolicFun sstrat ptag sl = do
   reset -- FIXME
 
   md <- getModule
-  slAndDeps <- sliceToDeps sl
+  deps <- sliceToDeps sl
+  let slAndDeps = map snd deps ++ [sl]
+
   forM_ slAndDeps $ \sl' -> do
-    defineSliceTypeDefs md sl'    
-    defineSlicePolyFuns sl'    
+    defineSliceTypeDefs md sl'
+    defineSlicePolyFuns sl'
     defineSliceFunDefs md sl'
-    
+
+  -- FIXME: this should be calculated once, along with how it is used by e.g. memoSearch
   scoped $ do
-    m_res <- runSymbolicM sstrat slAndDeps (stratSlice ptag sl <* check)
-    traverse (buildPath . snd) m_res
+    let topoDeps = topoOrder (second sliceToCallees) deps
+    m_res <- runSymbolicM sstrat (sl, topoDeps) (stratSlice ptag sl <* check)
+    traverse (buildPath . view _3) m_res
 
 buildPath :: PathBuilder -> SolverT StrategyM SelectedPath
 buildPath = traverse resolveResult
@@ -94,14 +102,14 @@ buildPath = traverse resolveResult
       pure (I.valueToByteString (I.eval ifn ienv'))
 
 -- We need to get types etc for called slices (including root slice)
-sliceToDeps :: (Monad m, LiftStrategyM m) => ExpSlice -> m [ExpSlice]
-sliceToDeps sl = go Set.empty (sliceToCallees sl) [sl]
+sliceToDeps :: (Monad m, LiftStrategyM m) => ExpSlice -> m [(SliceId, ExpSlice)]
+sliceToDeps sl = go Set.empty (sliceToCallees sl) []
   where
     go seen new acc
       | Just (n, rest) <- Set.minView new = do
           sl' <- getSlice n
           let new' = sliceToCallees sl' `Set.difference` seen
-          go (Set.insert n seen) (new' `Set.union` rest) (sl' : acc)
+          go (Set.insert n seen) (new' `Set.union` rest) ((n, sl') : acc)
 
     go _ _ acc = pure acc
 
@@ -112,31 +120,44 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) [sl]
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
+choiceIdsFor :: FreeVars v => v -> SymbolicM (Set ChoiceId)
+choiceIdsFor v = do
+  e_cids <- fold <$> mapM getNameDeps (Set.toList (freeVars v))
+  path_cids <- getPathDeps
+  pure (e_cids <> path_cids)
+
 stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM Result
 stratSlice ptag = go
   where
     go sl =  do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
-        SHole -> pure (uncPath vUnit)
-        
-        SPure e -> uncPath <$> synthesiseExpr e
-          
+        SHole -> pure (vUnit, mempty, SelectedHole)
+
+        SPure e -> do
+          -- We could do this a lot more efficiently if we calculated
+          -- as we go, for example.
+          cids <- choiceIdsFor e          
+          let mk v = (v, cids, SelectedHole)
+          mk <$> synthesiseExpr e
+
         SDo x lsl rsl -> do
           bindNameIn x (go lsl)
-            (\lpath -> second (SelectedDo lpath) <$> go rsl)
+            (\lpath -> over _3 (SelectedDo lpath) <$> go rsl)
 
+        -- FIXME: we could pick concrete values here if we are willing
+        -- to branch and have a concrete bset.
         SMatch bset -> do
           bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
           bassn <- synthesiseByteSet bset bname
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
           assert bassn
-          -- inSolver check -- required?          
-          pure (bname, SelectedBytes ptag (ByteResult bname))
+          -- inSolver check -- required?
 
-        -- SMatch (MatchBytes _e) -> unimplemented sl -- should probably not happen?
-        -- SMatch {} -> unimplemented sl
+          -- FIXME: Probably not needed?  Only if we case over a byte ...
+          cids <- choiceIdsFor bset
+          pure (bname, cids, SelectedBytes ptag (ByteResult bname))
 
         -- SAssertion e -> do
         --   se <- synthesiseExpr e
@@ -145,11 +166,12 @@ stratSlice ptag = go
         --   pure (uncPath vUnit)
 
         SChoice sls -> do
-          (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
+          (cid, (i, sl')) <- choose (enumerate sls) -- select a choice, backtracking
           -- liftIO (putStrLn ("Chose " ++ show i ++ " " ++ showPP sl'))
           -- e <- ask
-          -- liftIO (print [ (pp n, v) | (n, v) <- Map.toList e] )          
-          second (SelectedChoice i) <$> go sl'
+          -- liftIO (print [ (pp n, v) | (n, v) <- Map.toList e] )
+          enterPathNode (Set.singleton cid) $
+            over _3 (SelectedChoice i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 
@@ -157,7 +179,7 @@ stratSlice ptag = go
 
         SInverse n ifn p -> do
           n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
-          local (Map.insert n n') $ do
+          primBindName n n' mempty $ do
             pe <- synthesiseExpr p
             assert pe
             check -- FIXME: necessary?
@@ -176,44 +198,34 @@ stratSlice ptag = go
             let fvM = Map.fromSet id $ freeVars ifn
             -- Resolve all Names (to semisexprs and solver names)
             venv <- traverse getName fvM
-            pure (n', SelectedBytes ptag (InverseResult venv ifn))
-
-    uncPath v = (v, SelectedHole)
-    
-    -- unimplemented sl = panic "Unimplemented" [showPP sl]
+            cids <- choiceIdsFor p
+            pure (n', cids, SelectedBytes ptag (InverseResult venv ifn))
 
 -- FIXME: maybe name e?
 stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
 stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
+  cids <- getNameDeps (caseVar cs)
   case m_alt of
-    DidMatch i sl -> second (SelectedCase i) <$> stratSlice ptag sl
-    NoMatch  -> backtrack (CaseFailed Set.empty) -- just backtrack, no cases matched
+    DidMatch i sl -> over _3 (SelectedCase i) <$> enterPathNode cids (stratSlice ptag sl)
+    NoMatch  -> backtrack (ConcreteFailure cids) -- just backtrack, no cases matched
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
-      (i, (p, sl)) <- choose (enumerate ps)
-      assert (vSExpr TBool p)
-      check
-      second (SelectedCase i) <$> stratSlice ptag sl
+      (cid, (i, (p, sl))) <- choose (enumerate ps)
+      enterPathNode (Set.singleton cid) $ do
+        assert (vSExpr TBool p)
+        check
+        over _3 (SelectedCase i) <$> stratSlice ptag sl
 
 -- FIXME: this is copied from BTRand
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
                  SymbolicM Result
 stratCallNode ptag cn = do
-  env <- ask
-  let env' = Map.compose env (ecnParamMap cn)
   sl <- getSlice (ecnSliceId cn)
-  second (SelectedCall (ecnIdx cn)) <$> local (const env') (stratSlice ptag sl)
-  
+  over _3 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
+
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers
-
-liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
-liftSemiSolverM m = do
-  funs <- getFunDefs
-  lenv <- ask
-  env  <- getIEnv  
-  inSolver (runSemiSolverM funs lenv env m)  
 
 synthesiseExpr :: Expr -> SymbolicM SemiSExpr
 synthesiseExpr e = do
@@ -235,7 +247,9 @@ assert sv =
   case sv of
     VOther p -> inSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
-    VValue (I.VBool False) -> backtrack (CaseFailed Set.empty)
+    -- FIXME: Set.empty is not quite right here, but this will usually
+    -- not get here anyway.
+    VValue (I.VBool False) -> backtrack (ConcreteFailure Set.empty)
     _ -> panic "Malformed boolean" [show sv]
 
 -- ----------------------------------------------------------------------------------------
