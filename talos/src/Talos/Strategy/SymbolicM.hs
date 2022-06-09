@@ -17,6 +17,7 @@ import           Data.Generics.Product    (field)
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
 import           Data.Set                 (Set)
+import qualified Data.Set                 as Set
 import           GHC.Generics             (Generic)
 import           SimpleSMT                (ppSExpr)
 
@@ -41,19 +42,21 @@ import qualified Talos.SymExec.SolverT    as Solv
 type Result = (SemiSExpr, Set ChoiceId, PathBuilder)
 
 data ThreadF next =
-  Choose ChoiceId [next]
+  Choose ChoiceId (Set ChoiceId) [next]
   | Bind Name SymbolicEnv (SymbolicM Result) (Result -> next)
-  | Backtrack BacktrackReason
+  | Backtrack BacktrackReason (Set ChoiceId)
   deriving (Functor)
 
 newtype SearchT m a = SearchT { getSearchT :: FreeT ThreadF m a }
   deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadTrans)
 
-chooseST :: Monad m => ChoiceId -> [a] -> SearchT m a
-chooseST cid xs = SearchT $ liftF (Choose cid xs)
+-- FIXME: maybe we should deal with the path to here differently, by
+-- making it explicit in the search tree for example.
+chooseST :: Monad m => ChoiceId -> Set ChoiceId -> [a] -> SearchT m a
+chooseST cid pathToHere xs = SearchT $ liftF (Choose cid pathToHere xs)
 
-backtrackST :: Monad m => BacktrackReason -> SearchT m a
-backtrackST = SearchT . liftF . Backtrack
+backtrackST :: Monad m => BacktrackReason -> Set ChoiceId -> SearchT m a
+backtrackST reason pathToFailure = SearchT (liftF (Backtrack reason pathToFailure))
 
 bindST :: Monad m => Name -> SymbolicEnv -> SymbolicM Result ->
           (Result -> a) -> SearchT m a
@@ -111,7 +114,7 @@ type ChoicePath = [Set ChoiceId]
 
 data BacktrackReason =
   ConcreteFailure (Set ChoiceId)
-  | UnsatQuery
+  | OtherFailure
 
 -- =============================================================================
 -- Symbolic monad
@@ -141,8 +144,15 @@ ppSymbolicEnv :: SymbolicEnv -> Doc
 ppSymbolicEnv e =
   block "{" ", " "}" [ ppN k <+> "->" <+> ppPrec 1 (text . flip ppSExpr ""  . typedThing <$> v)
                      | (k,v) <- Map.toList (sVarEnv e) ]
+  $+$
+  block "{" ", " "}" [ pp k <+> "->" <+> ppS v
+                     | (k,v) <- Map.toList (sVarDeps e) ]
+  
   where
     ppN n = ppPrec 1 n <> parens (pp (nameId n))
+
+    ppS :: Set ChoiceId -> Doc
+    ppS e = block "{" ", " "}" (map (pp . getChoiceId) (Set.toList e))
 
 data SolverResultF a =
   ByteResult a
@@ -165,8 +175,8 @@ newtype SymbolicM a =
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
 
-freshChoiceId :: HasGUID m => m ChoiceId
-freshChoiceId = ChoiceId <$> getNextGUID
+freshChoiceId :: LiftStrategyM m => m ChoiceId
+freshChoiceId = ChoiceId <$> liftStrategy getNextGUID
 
 runSymbolicM :: SearchStrat ->
                 -- | Slices for pre-run analysis
@@ -205,7 +215,9 @@ getNameDeps :: Name -> SymbolicM (Set ChoiceId)
 getNameDeps n = SymbolicM $ do
   m_deps <- asks (view (field @"sVarDeps" . at n))
   case m_deps of
-    Nothing -> panic "Missing variable" [showPP n]
+    Nothing -> do
+      e <- ask
+      panic "Missing variable" [showPP n, show (ppSymbolicEnv e) ]
     Just r  -> pure r
 
 getPathDeps :: SymbolicM (Set ChoiceId)
@@ -215,12 +227,16 @@ getPathDeps = SymbolicM $ asks (mconcat . sPath)
 -- Search operaations
 
 choose :: [a] -> SymbolicM (ChoiceId, a)
-choose bs = SymbolicM $ do
-  cid <- (lift . lift) freshChoiceId
-  (,) cid <$> lift (chooseST cid bs)
+choose bs = do
+  pathToHere <- getPathDeps
+  cid <- freshChoiceId
+  SymbolicM $ (,) cid <$> lift (chooseST cid pathToHere bs)
 
 backtrack :: BacktrackReason -> SymbolicM a
-backtrack xs = SymbolicM (lift (backtrackST xs))
+backtrack reason = do
+  pathToFailure <- getPathDeps
+  -- liftIO $ putStrLn "Backtracking ..."
+  SymbolicM (lift (backtrackST reason pathToFailure))
 
 enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 enterPathNode deps = local (over (field @"sPath") (deps :))
@@ -255,7 +271,7 @@ dfs = SearchStrat $ \_ -> next []
     next xs m = do
       r <- runFreeT (getSearchT m)
       case r of
-        Free (Choose _cid xs') -> do
+        Free (Choose _cid _pathToHere xs') -> do
           sc' <- Solv.getContext
           go (map ((,) sc' . SearchT) xs' ++ xs)
         Free (Backtrack {})     -> go xs

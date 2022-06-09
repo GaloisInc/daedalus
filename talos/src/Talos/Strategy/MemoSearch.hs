@@ -9,6 +9,7 @@ module Talos.Strategy.MemoSearch
   ( memoSearch
   , randRestartPolicy
   , randDFSPolicy
+  , randAccelDFSPolicy
   , BacktrackPolicy(..)
   ) where
 
@@ -17,13 +18,13 @@ import           Control.Monad.Reader           (runReaderT)
 import           Control.Monad.State
 import           Control.Monad.Trans.Free
 import           Control.Monad.Trans.Writer.CPS
-import           Data.Foldable                  (foldl', foldlM, toList)
+import           Data.Foldable                  (foldl', foldlM, toList, fold)
 import           Data.Functor                   (($>))
 import           Data.Generics.Product          (field)
 import           Data.Map                       (Map)
 import qualified Data.Map                       as Map
 import qualified Data.Map.Merge.Lazy            as Map
-import           Data.Maybe                     (maybeToList)
+import           Data.Maybe                     (maybeToList, fromMaybe)
 import           Data.Monoid                    (Any (Any), First (First),
                                                  getAny, getFirst)
 import           Data.Set                       (Set)
@@ -273,7 +274,9 @@ addMemoInstance n e m = do
   let -- turn a SolutionEnv into a SymbolicEnv (i.e., turn vars into sexprs)
       e'   = fmap (fmap (fmap SMT.const)) sole
       -- We run with the empty path, deps env.
-      env' = emptySymbolicEnv { sVarEnv = e' }
+      env' = emptySymbolicEnv { sVarEnv = e'
+                              -- All free vars have empty deps.
+                              , sVarDeps = Set.empty <$ e' }
       -- We reset the context and declare the new variables
       m'   = runReaderT (getSymbolicM m) env'
       mi   = MemoInstance { miVarShape  = fmap (fmap typedThing) sole
@@ -381,7 +384,8 @@ data BacktrackPolicy = BacktrackPolicy
   , btsReenter :: Location' -> MemoM (Maybe Location')
   -- ^ Called when we need to get more solutions from a memo'd var, in
   -- the parent of the last successful node.
-  , btsBacktrack :: Maybe BacktrackReason -> Location' -> MemoM (Maybe Location')
+  , btsBacktrack :: BacktrackReason -> Set ChoiceId ->
+                    Location' -> MemoM (Maybe Location')
   -- ^ Called when we need another solutino, in the parent of the last
   -- successful node.  If we just exhausted all the options, we pass
   -- Nothing as the reason.
@@ -392,10 +396,11 @@ memoChoose loc = do
   bts <- gets policy
   btsChoose bts loc
 
-memoBacktrack :: BacktrackReason -> Location' -> MemoM (Maybe Location')
-memoBacktrack reason loc = do
+memoBacktrack :: BacktrackReason -> Set ChoiceId -> Location' ->
+                 MemoM (Maybe Location')
+memoBacktrack reason pathToHere loc = do
   bts <- gets policy
-  btsBacktrack bts (Just reason) loc
+  btsBacktrack bts reason pathToHere loc
 
 memoReenter :: Location' -> MemoM (Maybe Location')
 memoReenter loc = do
@@ -414,12 +419,13 @@ data MemoTagInfo = MemoTagInfo
   { mtiName :: Name
   , mtiIdx  :: MemoIdx
   , mtiUnifier :: Unifier
+  , mtiDeps :: (BacktrackReason, Set ChoiceId)
   , mtiSolverContext :: SolverContext
   , mtiRHS :: Result -> SearchT' Result
   }
 
 data SearchTag =
-  FixedTag
+  FixedTag (Set ChoiceId)
   -- ^ The only choices are the ones we have seen
   | MemoTag MemoTagInfo Int
   -- ^ The tag info and no. solutions seen.
@@ -474,7 +480,7 @@ memoSearch :: BacktrackPolicy -> SearchStrat
 memoSearch bts = SearchStrat $ \sls@(rootSlice, deps) m -> do
   let fs = buildFreeMap (rootSlice : map snd (forgetRecs deps))
       sm = buildShouldMemo sls
-  liftIO $ print (hang "Should memo:" 4 (ppSetName sm))
+  -- liftIO $ print (hang "Should memo:" 4 (ppSetName sm))
 
   sc <- getContext
   fst <$> runMemoM fs sm bts (memoLocation (ST.empty (sc, m)))
@@ -512,24 +518,24 @@ memoLocation loc = m_go =<< memoReenter loc
     m_go = maybe (pure (Nothing, Nothing)) go
 
     -- Just check that we arrived at an unexplored loc.
-    go loc' | ST.Unexplored (sc, m) <- ST.locTree loc' = do
-                MemoM . lift $ restoreContext sc
-                next loc' m
-
-            | otherwise = panic "Expecting to be at an unexplored node" []
+    go loc'
+      | ST.Unexplored (sc, m) <- ST.locTree loc' = do
+          MemoM . lift $ restoreContext sc
+          next loc' m
+      | otherwise = panic "Expecting to be at an unexplored node" []
 
     next :: Location' -> SearchT' Result ->
             MemoM (Maybe Result, Maybe Location')
     next loc' m = do
       r <- MemoM . lift $ runFreeT (getSearchT m)
       case r of
-        Free (Choose cid ms) -> do
+        Free (Choose cid pathToHere ms) -> do
           sc' <- inSolver getContext
           let ms' = map ((,) sc' . SearchT) ms
-          m_go =<< memoChoose (ST.replaceUnexplored (cid, FixedTag) ms' loc')
+          m_go =<< memoChoose (ST.replaceUnexplored (cid, FixedTag pathToHere) ms' loc')
 
-        Free (Backtrack reason) ->
-          m_go =<< maybe (pure Nothing) (memoBacktrack reason) (ST.forgetGoUp loc')
+        Free (Backtrack reason pathToFailure) ->
+          m_go =<< maybe (pure Nothing) (memoBacktrack reason pathToFailure) (ST.forgetGoUp loc')
 
         Free (Bind n e lhs rhs) ->
           memoNodeMaybe loc' n e lhs (SearchT <$> rhs) =<< shouldMemo n
@@ -539,19 +545,31 @@ memoLocation loc = m_go =<< memoReenter loc
     memoNodeMaybe loc' n e lhs rhs' True = do
       (i, u) <- memoIdx n (sVarEnv e) lhs
       sc' <- inSolver getContext
+      deps <- mkDeps n e
       let mti = MemoTagInfo
             { mtiName = n
             , mtiIdx  = i
             , mtiUnifier = u
+            , mtiDeps = deps
             , mtiSolverContext = sc'
             , mtiRHS = rhs'
             }
           tag = MemoTag mti 0
-      cid <- MemoM . lift . lift $ freshChoiceId
+      cid <- freshChoiceId
       m_go =<< memoChoose (ST.replaceUnexplored (cid, tag) [] loc')
 
     memoNodeMaybe loc' _n e lhs rhs' False =
       next loc' (runReaderT (getSymbolicM lhs) e >>= rhs')
+
+    -- If we fail to find a solution in the memo'd slice, then there
+    -- is no solution there irrespective of the solver context, so we
+    -- can pick a different dep to get (maybe) a solution.
+
+    mkDeps :: Name -> SymbolicEnv -> MemoM (BacktrackReason, Set ChoiceId)
+    mkDeps n e = do
+      fvs   <- gets ((Map.! n) . frees)
+      pure (ConcreteFailure $ fold (Map.restrictKeys (sVarDeps e) fvs)
+           , mconcat (sPath e))
 
 --------------------------------------------------------------------------------
 -- Memoisation policy
@@ -640,7 +658,7 @@ randRestartPolicy :: BacktrackPolicy
 randRestartPolicy = BacktrackPolicy
   { btsChoose     = btChooseRand randRestartPolicy
   , btsReenter    = btReenterRestart randRestartPolicy
-  , btsBacktrack  = \_ -> btReenterRestart randRestartPolicy
+  , btsBacktrack  = \_ _ -> btReenterRestart randRestartPolicy
   }
 
 btReenterRestart :: BacktrackPolicy ->
@@ -659,8 +677,8 @@ btChooseRand :: BacktrackPolicy ->
                 Location' -> MemoM (Maybe Location')
 btChooseRand pol loc = case ST.locTree loc of
   ST.Unexplored {} -> pure (Just loc)
-  ST.Node (_cid, FixedTag) [] ->
-    maybe (pure Nothing) (btsBacktrack pol Nothing) (ST.forgetGoUp loc)
+  ST.Node (_cid, FixedTag pathToHere) [] ->
+    maybe (pure Nothing) (btsBacktrack pol OtherFailure pathToHere) (ST.forgetGoUp loc)
 
   ST.Node (cid, MemoTag mti nseen) [] -> do
     m_r <- nextSolution cid mti nseen
@@ -675,7 +693,9 @@ btChooseRand pol loc = case ST.locTree loc of
 
       -- No more solutions, we need to backtrack.
       -- FIXME: we could look at e.g. the free variables here to get the cids
-      Nothing -> maybe (pure Nothing) (btsBacktrack pol Nothing) (ST.forgetGoUp loc)
+      Nothing ->
+        let bt = uncurry (btsBacktrack pol) (mtiDeps mti)
+        in maybe (pure Nothing) bt (ST.forgetGoUp loc)
 
   -- Prefer existing solutions.
   ST.Node _ sts -> do
@@ -687,9 +707,43 @@ randDFSPolicy :: BacktrackPolicy
 randDFSPolicy = BacktrackPolicy
   { btsChoose     = btChooseRand randDFSPolicy
   , btsReenter    = btLocalBacktrack randDFSPolicy
-  , btsBacktrack  = \_ -> btLocalBacktrack randDFSPolicy
+  , btsBacktrack  = \_ _ -> btLocalBacktrack randDFSPolicy
   }
+
+-- Random DFS Accelerated
+randAccelDFSPolicy :: BacktrackPolicy
+randAccelDFSPolicy = BacktrackPolicy
+  { btsChoose     = btChooseRand randDFSPolicy
+  , btsReenter    = btLocalBacktrack randDFSPolicy
+  , btsBacktrack  = btAcceleratedBacktrack randDFSPolicy
+  }
+
 
 btLocalBacktrack :: BacktrackPolicy ->
                     Location' -> MemoM (Maybe Location')
 btLocalBacktrack = btFindUnexplored
+
+-- This takes into account the choices.
+btAcceleratedBacktrack :: BacktrackPolicy ->
+                          BacktrackReason -> Set ChoiceId ->
+                          Location' -> MemoM (Maybe Location')
+-- FIXME: could we do better here?
+btAcceleratedBacktrack pol OtherFailure _pathToFailure loc =
+  btLocalBacktrack pol loc
+
+-- There are a whole bunch of 
+btAcceleratedBacktrack pol (ConcreteFailure dataCids) pathToFailure loc =
+  go loc
+  where
+    cids = dataCids <> pathToFailure
+
+    -- We search backwards for the first CID that will change the
+    -- outcome.  Everything between there and the start can be
+    -- pruned as it is unsatisfiable.
+    go loc' =
+      case ST.locTree loc' of
+        ST.Unexplored {} -> pure (Just loc')
+        ST.Node (_cid, FixedTag {}) [] -> maybe (pure Nothing) go (ST.forgetGoUp loc')
+        ST.Node (cid, _tag) _ms
+          | cid `Set.member` cids -> btFindUnexplored pol loc'
+          | otherwise             -> maybe (pure Nothing) go (ST.forgetGoUp loc')

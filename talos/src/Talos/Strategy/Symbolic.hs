@@ -28,7 +28,7 @@ import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM
-import           Talos.Strategy.MemoSearch    (memoSearch, randRestartPolicy, randDFSPolicy)
+import           Talos.Strategy.MemoSearch    (memoSearch, randRestartPolicy, randDFSPolicy, randAccelDFSPolicy)
 import           Talos.SymExec.Expr           (symExecCaseAlts)
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
@@ -55,6 +55,7 @@ symbolicStrats = map mkOne strats
     strats = [ ("dfs", dfs)
              , ("memo-rand-restart", memoSearch randRestartPolicy)
              , ("memo-rand-dfs",     memoSearch randDFSPolicy)
+             , ("memo-rand-accel-dfs", memoSearch randAccelDFSPolicy)
              ]
     mkOne :: (Doc, SearchStrat) -> Strategy
     mkOne (name, sstrat) =
@@ -90,6 +91,7 @@ symbolicFun sstrat ptag sl = do
     m_res <- runSymbolicM sstrat (sl, topoDeps) (stratSlice ptag sl <* check)
     traverse (buildPath . view _3) m_res
 
+-- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: PathBuilder -> SolverT StrategyM SelectedPath
 buildPath = traverse resolveResult
   where
@@ -205,10 +207,17 @@ stratSlice ptag = go
 stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
 stratCase ptag cs = do
   m_alt <- liftSemiSolverM (semiExecCase cs)
-  cids <- getNameDeps (caseVar cs)
+  var_cids  <- getNameDeps (caseVar cs)
+  path_cids <- getPathDeps
+  let cids = var_cids <> path_cids
   case m_alt of
     DidMatch i sl -> over _3 (SelectedCase i) <$> enterPathNode cids (stratSlice ptag sl)
-    NoMatch  -> backtrack (ConcreteFailure cids) -- just backtrack, no cases matched
+    NoMatch  -> do
+      -- x <- fmap (text . flip S.ppSExpr "" . typedThing) <$> getName (caseVar cs)
+      -- liftIO $ print ("No match for " <> pp (caseVar cs) <> " = " <> pp x $$ pp cs)
+      
+      backtrack (ConcreteFailure cids) -- just backtrack, no cases matched
+      
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
       (cid, (i, (p, sl))) <- choose (enumerate ps)
@@ -221,6 +230,7 @@ stratCase ptag cs = do
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
                  SymbolicM Result
 stratCallNode ptag cn = do
+  -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
   over _3 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
 
@@ -239,8 +249,10 @@ check = do
   r <- inSolver Solv.check
   case r of
     S.Sat     -> pure ()
-    S.Unsat   -> backtrack UnsatQuery
-    S.Unknown -> backtrack UnsatQuery
+    S.Unsat   -> backtrack OtherFailure
+    S.Unknown -> do
+      -- liftIO $ putStrLn "**  Solver returned UNKNOWN **"
+      backtrack OtherFailure
 
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
