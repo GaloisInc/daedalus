@@ -9,6 +9,7 @@ module Talos.Strategy.MemoSearch
   ( memoSearch
   , randRestartPolicy
   , randDFSPolicy
+  , randAccelDFSPolicy
   , BacktrackPolicy(..)
   ) where
 
@@ -17,27 +18,31 @@ import           Control.Monad.Reader           (runReaderT)
 import           Control.Monad.State
 import           Control.Monad.Trans.Free
 import           Control.Monad.Trans.Writer.CPS
-import           Data.Foldable                  (foldlM, toList)
+import           Data.Foldable                  (foldl', foldlM, toList, fold)
 import           Data.Functor                   (($>))
 import           Data.Generics.Product          (field)
 import           Data.Map                       (Map)
 import qualified Data.Map                       as Map
 import qualified Data.Map.Merge.Lazy            as Map
-import           Data.Maybe                     (maybeToList)
-import           Data.Monoid                    (First (First), getFirst)
+import           Data.Maybe                     (maybeToList, fromMaybe)
+import           Data.Monoid                    (Any (Any), First (First),
+                                                 getAny, getFirst)
 import           Data.Set                       (Set)
 import qualified Data.Set                       as Set
-
 import           GHC.Generics                   (Generic)
 import           SimpleSMT                      (SExpr, ppSExpr)
 import qualified SimpleSMT                      as SMT
 
-import           Daedalus.Core                  (Name, Typed (..), caseVar)
+import           Daedalus.Core                  (Name, Typed (..), casePats,
+                                                 caseVar, nameId)
 import           Daedalus.Core.Free             (freeVars)
-import           Daedalus.PP                    (showPP, pp, hang, bullets, text, Doc)
+import           Daedalus.PP                    (Doc, block, bullets, hang,
+                                                 parens, pp, ppPrec, showPP,
+                                                 text)
 import           Daedalus.Panic                 (panic)
+import           Daedalus.Rec                   (Rec (..), forgetRecs)
 
-import           Talos.Analysis.Exported        (ExpSlice)
+import           Talos.Analysis.Exported        (ExpSlice, SliceId, ecnSliceId)
 import           Talos.Analysis.Slice           (Slice' (..))
 import           Talos.Strategy.Monad           (LiftStrategyM, StrategyM,
                                                  isRecVar, randR)
@@ -54,7 +59,6 @@ import           Talos.SymExec.SolverT          (SMTVar, SolverContext,
                                                  instantiateSolverFrame,
                                                  restoreContext, substSExpr)
 import           Talos.SymExec.Type             (symExecTy)
-
 
 --------------------------------------------------------------------------------
 -- Memoization
@@ -191,7 +195,7 @@ unifySemiSExprs orig new =
           (ks2, vs2) = unzip kvs2
       in join (mergeUnifiers <$> unifys ks1 ks2 <*> unifys vs1 vs2)
 
-unifyEnvs :: SolutionEnv -> SymbolicEnv -> Maybe Unifier
+unifyEnvs :: SolutionEnv -> SymVarEnv -> Maybe Unifier
 unifyEnvs s1 s2 = doMerge s1 s2 >>= mergeUnifierss . Map.elems
   where
     doMerge = Map.mergeA panicOnMissing Map.dropMissing
@@ -225,9 +229,9 @@ unifyEnvs s1 s2 = doMerge s1 s2 >>= mergeUnifierss . Map.elems
 -- the code _will_ set up the context.
 
 data Solution = Solution
-  { sValue    :: SemiSExpr
-  , sPath     :: PathBuilder
-  , sCtxFrame :: SolverFrame
+  { sValue        :: SemiSExpr
+  , sPathBuilder  :: PathBuilder
+  , sCtxFrame     :: SolverFrame
   }
 
 type SolutionEnv = Map Name (SemiValue SMTVar)
@@ -256,11 +260,11 @@ nameSExprs = traverse nameOne
       tell (Map.singleton sym se)
       pure (se {typedThing = sym})
 
-ppUnifier :: Unifier -> Doc
-ppUnifier m = bullets [ text k <> " -> " <> text (ppSExpr v "")
-                      | (k, v) <- Map.toList m ]
+_ppUnifier :: Unifier -> Doc
+_ppUnifier m = bullets [ text k <> " -> " <> text (ppSExpr v "")
+                       | (k, v) <- Map.toList m ]
 
-addMemoInstance :: Name -> SymbolicEnv -> SymbolicM Result ->
+addMemoInstance :: Name -> SymVarEnv -> SymbolicM Result ->
                    MemoM (MemoIdx, Unifier)
 addMemoInstance n e m = do
   fvs   <- gets ((Map.! n) . frees)
@@ -269,28 +273,32 @@ addMemoInstance n e m = do
   sc <- inSolver $ freshContext (Map.toList (symExecTy . typedType <$> vmap))
   let -- turn a SolutionEnv into a SymbolicEnv (i.e., turn vars into sexprs)
       e'   = fmap (fmap (fmap SMT.const)) sole
+      -- We run with the empty path, deps env.
+      env' = emptySymbolicEnv { sVarEnv = e'
+                              -- All free vars have empty deps.
+                              , sVarDeps = Set.empty <$ e' }
       -- We reset the context and declare the new variables
-      m'   = runReaderT (getSymbolicM m) e'
+      m'   = runReaderT (getSymbolicM m) env'
       mi   = MemoInstance { miVarShape  = fmap (fmap typedThing) sole
                           , miSolutions = []
                           , miUnexplored = Just (ST.empty (sc, m'))
                           }
       u = typedThing <$> vmap
-      
+
   -- liftIO $ print (hang ("Add memo instance for " <> pp n) 4 (pp sc))
   -- liftIO $ print (hang "Unifier" 4 (ppUnifier u))
-             
+
   m_old <- field @"memos" %%= Map.insertLookupWithKey (\_ -> flip (<>)) n [mi]
   -- We return the index of the new MemoInstance, which is at the end
   -- of any existing instances.
   pure (maybe 0 length m_old, u)
 
-findMemoInstance :: Name -> SymbolicEnv -> MemoM (Maybe (MemoIdx, Unifier))
+findMemoInstance :: Name -> SymVarEnv -> MemoM (Maybe (MemoIdx, Unifier))
 findMemoInstance n e = uses (field @"memos" . at n) (go =<<)
   where
     go = getFirst . ifoldMap (\i m -> First $ (,) i <$> unifyEnvs (miVarShape m) e)
 
-memoIdx :: Name -> SymbolicEnv -> SymbolicM Result ->
+memoIdx :: Name -> SymVarEnv -> SymbolicM Result ->
            MemoM (MemoIdx, Unifier)
 memoIdx n e m = do
   m_res <- findMemoInstance n e
@@ -303,12 +311,16 @@ memoGen :: MemoInstance -> MemoM (Maybe Solution, MemoInstance)
 memoGen mi
   | Just loc <- miUnexplored mi = do
       (m_r, m_loc) <- memoLocation loc
-      let mk_soln (r, p) = do
+
+      -- FIXME: for now we discard the cids, we don't keep a pointer
+      -- in Solution to where the solution came from if we want to use
+      -- the cids to generate more.
+      let mk_soln (r, _cids, p) = do
             fr <- inSolver (collapseContext =<< getContext)
             pure Solution
-              { sValue    = r
-              , sPath     = p
-              , sCtxFrame = fr
+              { sValue       = r
+              , sPathBuilder = p
+              , sCtxFrame    = fr
               }
       m_soln <- traverse mk_soln m_r
       let mi' = mi { miUnexplored = m_loc
@@ -321,48 +333,47 @@ memoGen mi
 -- Gets another solution, may do a whole bunch of work to find it.
 -- FIXME: parameterise by no. attempts?
 -- FIXME: who is responsible for doing the check?
-nextSolution :: SearchTag ->
-                MemoM (SearchTag, Maybe (SolverContext, SearchT' Result))
-nextSolution tag =
-  case tag of
-    FixedTag -> pure (tag, Nothing)
-    MemoTag n idx nseen u sc m -> do
-      m_mi <- preuse (field @"memos" . ix n . ix idx)
-      let mi = case m_mi of
-            Nothing -> panic "Missing MemoInstance" []
-            Just r  -> r
-      m_soln <- case miSolutions mi ^? ix nseen of
-        Just soln -> pure (Just soln)
-        Nothing   -> do
-          (r, mi') <- memoGen mi
-          field @"memos" . ix n . ix idx .= mi'
-          pure r
+nextSolution :: ChoiceId -> MemoTagInfo -> Int ->
+                MemoM (Maybe (SolverContext, SearchT' Result))
+nextSolution cid mti nseen = do
+  m_mi <- preuse (field @"memos" . ix (mtiName mti) . ix (mtiIdx mti))
+  let mi = case m_mi of
+        Nothing -> panic "Missing MemoInstance" []
+        Just r  -> r
+  m_soln <- case miSolutions mi ^? ix nseen of
+    Just soln -> pure (Just soln)
+    Nothing   -> do
+      (r, mi') <- memoGen mi
+      field @"memos" . ix (mtiName mti) . ix (mtiIdx mti) .= mi'
+      pure r
 
-      case m_soln of
-        Nothing -> pure (tag, Nothing)
-        Just soln -> do
-          let tag' = MemoTag n idx (nseen + 1) u sc m
-          -- Make all vars in the context fresh so we don't clash
-          -- with other instances.  We also instantiate the unifier
-          -- we got from matching the memoinst. env.
-          (fr', u') <- inSolver $ instantiateSolverFrame u (sCtxFrame soln)
-          -- liftIO $ print (hang ("Found memo instance for " <> pp n) 4 (bullets [pp sc, pp (sCtxFrame soln), pp fr']))
-          
-          -- We need to instantiate all the vars in the path as well.
-          -- fmaps because: 
-          --   PathBuilderF (SemiValue (Typed <here>))
-          let path' = fmap (fmap (fmap (substSExpr u'))) <$> sPath soln
-              v'    = fmap (substSExpr u') <$> sValue soln
-              sc'   = extendContext sc fr'
-          pure (tag', Just (sc', m (v', path')))
+  case m_soln of
+    Nothing -> pure Nothing
+    Just soln -> do
+      -- Make all vars in the context fresh so we don't clash
+      -- with other instances.  We also instantiate the unifier
+      -- we got from matching the memoinst. env.
+      (fr', u') <- inSolver $ instantiateSolverFrame (mtiUnifier mti) (sCtxFrame soln)
+      -- liftIO $ print (hang ("Found memo instance for " <> pp n) 4 (bullets [pp sc, pp (sCtxFrame soln), pp fr']))
 
-    NestTag _n Nothing _m -> pure (tag, Nothing)
-    NestTag n (Just loc) m -> do
-      sc <- inSolver getContext
-      (m_r, m_loc') <- memoLocation loc
-      let tag' = NestTag n m_loc' m
-          mk r = (sc, m r)          
-      pure (tag', mk <$> m_r)
+      -- We need to instantiate all the vars in the path as well.
+      -- fmaps because: 
+      --   PathBuilderF (SemiValue (Typed <here>))
+      let path' = fmap (fmap (fmap (substSExpr u'))) <$> sPathBuilder soln
+          v'    = fmap (substSExpr u') <$> sValue soln
+          sc'   = extendContext (mtiSolverContext mti) fr'
+          -- Note that to get another choice for n we need to look
+          -- at this node.
+          cids  = Set.singleton cid
+      pure (Just (sc', mtiRHS mti (v', cids, path')))
+
+    -- NestTag _n Nothing _m -> pure (tag, Nothing)
+    -- NestTag n (Just loc) m -> do
+    --   sc <- inSolver getContext
+    --   (m_r, m_loc') <- memoLocation loc
+    --   let tag' = NestTag n m_loc' m
+    --       mk r = (sc, m r)          
+    --   pure (tag', mk <$> m_r)
 
 --------------------------------------------------------------------------------
 -- Backtracking policy
@@ -373,9 +384,11 @@ data BacktrackPolicy = BacktrackPolicy
   , btsReenter :: Location' -> MemoM (Maybe Location')
   -- ^ Called when we need to get more solutions from a memo'd var, in
   -- the parent of the last successful node.
-  , btsBacktrack :: Location' -> MemoM (Maybe Location')
+  , btsBacktrack :: BacktrackReason -> Set ChoiceId ->
+                    Location' -> MemoM (Maybe Location')
   -- ^ Called when we need another solutino, in the parent of the last
-  -- successful node.
+  -- successful node.  If we just exhausted all the options, we pass
+  -- Nothing as the reason.
   }
 
 memoChoose :: Location' -> MemoM (Maybe Location')
@@ -383,16 +396,17 @@ memoChoose loc = do
   bts <- gets policy
   btsChoose bts loc
 
-memoBacktrack :: Location' -> MemoM (Maybe Location')
-memoBacktrack loc = do
+memoBacktrack :: BacktrackReason -> Set ChoiceId -> Location' ->
+                 MemoM (Maybe Location')
+memoBacktrack reason pathToHere loc = do
   bts <- gets policy
-  btsBacktrack bts loc
+  btsBacktrack bts reason pathToHere loc
 
 memoReenter :: Location' -> MemoM (Maybe Location')
 memoReenter loc = do
   bts <- gets policy
   btsReenter bts loc
-  
+
 --------------------------------------------------------------------------------
 -- Monad and State
 
@@ -401,26 +415,39 @@ memoReenter loc = do
 
 type MemoIdx = Int
 
+data MemoTagInfo = MemoTagInfo
+  { mtiName :: Name
+  , mtiIdx  :: MemoIdx
+  , mtiUnifier :: Unifier
+  , mtiDeps :: (BacktrackReason, Set ChoiceId)
+  , mtiSolverContext :: SolverContext
+  , mtiRHS :: Result -> SearchT' Result
+  }
+
 data SearchTag =
-  FixedTag
+  FixedTag (Set ChoiceId)
   -- ^ The only choices are the ones we have seen
-  | MemoTag Name MemoIdx Int Unifier SolverContext (Result -> SearchT' Result)
-  -- ^ The bound var, no. solutions we have seen, and the rest of the comp.
-  | NestTag Name (Maybe Location') (Result -> SearchT' Result)
-  -- ^ An inlined bind node, where the name is used for backtracking.
-  -- Doing it this way means we can't backtrack outside of the nested
-  -- node when exploring it (or at least, not easily).  The
-  -- SolverContext is the one that is inside the Location'
+  | MemoTag MemoTagInfo Int
+  -- ^ The tag info and no. solutions seen.
+
+  --  | NestTag Name (Maybe Location') (Result -> SearchT' Result)
+  -- -- ^ An inlined bind node, where the name is used for backtracking.
+  -- -- Doing it this way means we can't backtrack outside of the nested
+  -- -- node when exploring it (or at least, not easily).  The
+  -- -- SolverContext is the one that is inside the Location'
 
 -- type SearchTree' = SearchTree (SolverContext, SearchT' Result) SearchTag
-type Location'   = Location   (SolverContext, SearchT' Result) SearchTag
+type Location'   = Location   (SolverContext, SearchT' Result) (ChoiceId, SearchTag)
 
 data MemoState = MemoState
   { -- We could associate the SymbolidM here with the name, but we
     -- always have it when we need to extend memos (i.e., when we see
     -- a Bind).
     memos  :: Map Name [MemoInstance]
-  , frees  :: Map Name (Set Name)
+    -- Read only
+  , frees      :: Map Name (Set Name)
+  , shouldMemoVars :: Set Name
+    -- ^ These variables are complex enough that memoisation make sense.
   , policy :: BacktrackPolicy
   } deriving (Generic)
 
@@ -430,23 +457,33 @@ newtype MemoM a = MemoM { _getMemoM :: StateT MemoState (SolverT StrategyM) a }
 inSolver :: SolverT StrategyM a -> MemoM a
 inSolver = MemoM . lift
 
-runMemoM :: Map Name (Set Name) -> BacktrackPolicy -> MemoM a -> SolverT StrategyM a
-runMemoM fs bts (MemoM m) = evalStateT m st0
+runMemoM :: Map Name (Set Name) -> Set Name -> BacktrackPolicy -> MemoM a -> SolverT StrategyM a
+runMemoM fs sm bts (MemoM m) = evalStateT m st0
   where
     st0 = MemoState
       { memos = mempty
       , frees = fs
+      , shouldMemoVars = sm
       , policy = bts
       }
 
 --------------------------------------------------------------------------------
 -- Top-level entry point for the memo search strat.
 
+ppSetName :: Set Name -> Doc
+ppSetName e =
+  block "{" ", " "}" (map ppN (Set.toList e))
+  where
+    ppN n = ppPrec 1 n <> parens (pp (nameId n))
+
 memoSearch :: BacktrackPolicy -> SearchStrat
-memoSearch bts = SearchStrat $ \sls m -> do
-  let fs = buildFreeMap sls
+memoSearch bts = SearchStrat $ \sls@(rootSlice, deps) m -> do
+  let fs = buildFreeMap (rootSlice : map snd (forgetRecs deps))
+      sm = buildShouldMemo sls
+  -- liftIO $ print (hang "Should memo:" 4 (ppSetName sm))
+
   sc <- getContext
-  fst <$> runMemoM fs bts (memoLocation (ST.empty (sc, m)))
+  fst <$> runMemoM fs sm bts (memoLocation (ST.empty (sc, m)))
 
 buildFreeMap :: [ExpSlice] -> Map Name (Set Name)
 buildFreeMap = execWriter . mapM_ go
@@ -471,7 +508,7 @@ buildFreeMap = execWriter . mapM_ go
         -- slice deps. (it should only be used when turning a val into
         -- bytes later on).
         SInverse n _ifn p -> pure (Set.delete n (freeVars p))
-    
+
 -- FIXME: we don't really care that we have a Location', we could
 -- generalise and let the policy figure it out.
 memoLocation :: Location' ->
@@ -481,44 +518,126 @@ memoLocation loc = m_go =<< memoReenter loc
     m_go = maybe (pure (Nothing, Nothing)) go
 
     -- Just check that we arrived at an unexplored loc.
-    go loc' | ST.Unexplored r <- ST.locTree loc' = next loc' r
-            | otherwise = panic "Expecting to be at an unexplored node" []
+    go loc'
+      | ST.Unexplored (sc, m) <- ST.locTree loc' = do
+          MemoM . lift $ restoreContext sc
+          next loc' m
+      | otherwise = panic "Expecting to be at an unexplored node" []
 
-    next :: Location' -> (SolverContext, SearchT' Result) ->
+    next :: Location' -> SearchT' Result ->
             MemoM (Maybe Result, Maybe Location')
-    next loc' (sc, m) = do
-      r <- MemoM . lift $ do
-        restoreContext sc
-        runFreeT (getSearchT m)
+    next loc' m = do
+      r <- MemoM . lift $ runFreeT (getSearchT m)
       case r of
-        Free (Choose ms) -> do
+        Free (Choose cid pathToHere ms) -> do
           sc' <- inSolver getContext
           let ms' = map ((,) sc' . SearchT) ms
-          m_go =<< memoChoose (ST.replaceUnexplored FixedTag ms' loc')
-  
-        Free Backtrack {} ->
-          m_go =<< maybe (pure Nothing) memoBacktrack (ST.forgetGoUp loc')
+          m_go =<< memoChoose (ST.replaceUnexplored (cid, FixedTag pathToHere) ms' loc')
 
-        Free (Bind n e lhs rhs) -> do
-          -- We can't memo nodes with recursive calls as we would need
-          -- search strats to be reentrant.
-          isRec <- isRecVar n
-          let rhs' = SearchT <$> rhs
-          tag <- mkTag n e isRec lhs rhs' =<< inSolver getContext
-          m_go =<< memoChoose (ST.replaceUnexplored tag [] loc')
+        Free (Backtrack reason pathToFailure) ->
+          m_go =<< maybe (pure Nothing) (memoBacktrack reason pathToFailure) (ST.forgetGoUp loc')
+
+        Free (Bind n e lhs rhs) ->
+          memoNodeMaybe loc' n e lhs (SearchT <$> rhs) =<< shouldMemo n
+
         Pure r' -> pure (Just r', ST.forgetGoUp loc')
 
-    mkTag n e isRec lhs rhs' sc'
-      | isRec = do
-          let m = runReaderT (getSymbolicM lhs) e
-          pure $ NestTag n (Just $ ST.empty (sc', m)) rhs'
-      | otherwise = do
-          (i, u) <- memoIdx n e lhs
-          -- liftIO $ print (hang "Post memoIdx" 4
-          --                  (bullets [ ppSymbolicEnv e, ppUnifier u, pp sc' ]))
-                   
-          pure (MemoTag n i 0 u sc' rhs')
+    memoNodeMaybe loc' n e lhs rhs' True = do
+      (i, u) <- memoIdx n (sVarEnv e) lhs
+      sc' <- inSolver getContext
+      deps <- mkDeps n e
+      let mti = MemoTagInfo
+            { mtiName = n
+            , mtiIdx  = i
+            , mtiUnifier = u
+            , mtiDeps = deps
+            , mtiSolverContext = sc'
+            , mtiRHS = rhs'
+            }
+          tag = MemoTag mti 0
+      cid <- freshChoiceId
+      m_go =<< memoChoose (ST.replaceUnexplored (cid, tag) [] loc')
 
+    memoNodeMaybe loc' _n e lhs rhs' False =
+      next loc' (runReaderT (getSymbolicM lhs) e >>= rhs')
+
+    -- If we fail to find a solution in the memo'd slice, then there
+    -- is no solution there irrespective of the solver context, so we
+    -- can pick a different dep to get (maybe) a solution.
+
+    mkDeps :: Name -> SymbolicEnv -> MemoM (BacktrackReason, Set ChoiceId)
+    mkDeps n e = do
+      fvs   <- gets ((Map.! n) . frees)
+      pure (ConcreteFailure $ fold (Map.restrictKeys (sVarDeps e) fvs)
+           , mconcat (sPath e))
+
+--------------------------------------------------------------------------------
+-- Memoisation policy
+--
+-- Memoisation can be expensive, as we do a whole bunch of context
+-- manipulation.  If the lhs of a bind doesn't branch, then there is
+-- no real reason to memoize the bound variable, and so we try to
+-- determine if a slice never branches so we only memo 'interesting'
+-- slices.
+
+-- FIXME: we could deal with e.g. case by having each variable state
+-- under which circumstances the grammar doesn't branch, e.g. if we have
+--
+--   case x of
+--     A -> ...
+--     B -> ...
+--
+-- then if we know that the head of x is concrete, we can inline
+-- without missing memo opportunities.
+
+shouldMemo :: Name -> MemoM Bool
+shouldMemo n = do
+  isRec <- isRecVar n
+  memo  <- gets (Set.member n . shouldMemoVars)
+  pure (memo && not isRec)
+
+buildShouldMemo :: (ExpSlice, [ Rec (SliceId, ExpSlice) ]) -> Set Name
+buildShouldMemo (rootSlice, deps) =
+  snd (shouldMemoSlice trivialSlices rootSlice) <> depNames
+  where
+    (trivialSlices, depNames) = foldl' go mempty deps
+    go (ts, dns) (NonRec (sid, sl)) =
+      let (Any memo, dns') = shouldMemoSlice ts sl
+      in (if memo then ts else  Set.insert sid ts, dns <> dns')
+
+    -- FIXME: we just assume recursive functions are non-trivial and
+    -- so calls should be memo'd.
+    go (ts, dns) (MutRec recs) =
+      let (_, dns') = foldMap (shouldMemoSlice ts . snd) recs
+      in (ts, dns <> dns')
+
+-- c.f. Exported.sliceToRecVars
+shouldMemoSlice :: Set SliceId -> ExpSlice -> (Any, Set Name)
+shouldMemoSlice trivialSlices = go
+  where
+    go :: ExpSlice -> (Any, Set Name)
+    go sl = case sl of
+      SHole    -> mempty
+      SPure {} -> mempty
+      SDo x l r ->
+        let (l_br, ls) = go l
+            (r_br, rs) = go r
+        in ( l_br <> r_br
+           , ls <> rs <> (if getAny l_br then Set.singleton x else mempty)
+           )
+
+      SMatch {}  -> mempty
+      SChoice cs -> (Any True, snd (foldMap go cs))
+      SCall cn   -> (Any $ not (ecnSliceId cn `Set.member` trivialSlices), mempty)
+      -- We have some leeway with case: mostly it will be concrete, so
+      -- we could assume that it is deterministic; we could also
+      -- produce essentially a strictness analysis which says what we
+      -- need on the input for the slice to be deterministic; finally
+      -- we can treat it like choice, which is what we do here.
+      SCase _ cs
+        | length (casePats cs) <= 1 -> foldMap go cs
+        | otherwise -> (Any True, snd (foldMap go cs))
+      SInverse {} -> mempty
 
 --------------------------------------------------------------------------------
 -- Policies
@@ -539,7 +658,7 @@ randRestartPolicy :: BacktrackPolicy
 randRestartPolicy = BacktrackPolicy
   { btsChoose     = btChooseRand randRestartPolicy
   , btsReenter    = btReenterRestart randRestartPolicy
-  , btsBacktrack  = btReenterRestart randRestartPolicy
+  , btsBacktrack  = \_ _ -> btReenterRestart randRestartPolicy
   }
 
 btReenterRestart :: BacktrackPolicy ->
@@ -558,17 +677,26 @@ btChooseRand :: BacktrackPolicy ->
                 Location' -> MemoM (Maybe Location')
 btChooseRand pol loc = case ST.locTree loc of
   ST.Unexplored {} -> pure (Just loc)
-  ST.Node tag [] -> do
-    (tag', m_r) <- nextSolution tag
+  ST.Node (_cid, FixedTag pathToHere) [] ->
+    maybe (pure Nothing) (btsBacktrack pol OtherFailure pathToHere) (ST.forgetGoUp loc)
+
+  ST.Node (cid, MemoTag mti nseen) [] -> do
+    m_r <- nextSolution cid mti nseen
     case m_r of
       Just r -> do
+        -- FIXME: this seems to be the wrong place to be messing with
+        -- nseen etc.
+        let tag' = MemoTag mti (nseen + 1)
         -- FIXME: this is gross
-        let loc' = loc { ST.locTree = ST.Node tag' [ST.Unexplored r] }
+        let loc' = loc { ST.locTree = ST.Node (cid, tag') [ST.Unexplored r] }
         pure (ST.downward 0 loc')
 
       -- No more solutions, we need to backtrack.
-      Nothing -> maybe (pure Nothing) (btsBacktrack pol) (ST.forgetGoUp loc)
-            
+      -- FIXME: we could look at e.g. the free variables here to get the cids
+      Nothing ->
+        let bt = uncurry (btsBacktrack pol) (mtiDeps mti)
+        in maybe (pure Nothing) bt (ST.forgetGoUp loc)
+
   -- Prefer existing solutions.
   ST.Node _ sts -> do
     i <- randR (0, length sts - 1)
@@ -579,9 +707,43 @@ randDFSPolicy :: BacktrackPolicy
 randDFSPolicy = BacktrackPolicy
   { btsChoose     = btChooseRand randDFSPolicy
   , btsReenter    = btLocalBacktrack randDFSPolicy
-  , btsBacktrack  = btLocalBacktrack randDFSPolicy
+  , btsBacktrack  = \_ _ -> btLocalBacktrack randDFSPolicy
   }
+
+-- Random DFS Accelerated
+randAccelDFSPolicy :: BacktrackPolicy
+randAccelDFSPolicy = BacktrackPolicy
+  { btsChoose     = btChooseRand randDFSPolicy
+  , btsReenter    = btLocalBacktrack randDFSPolicy
+  , btsBacktrack  = btAcceleratedBacktrack randDFSPolicy
+  }
+
 
 btLocalBacktrack :: BacktrackPolicy ->
                     Location' -> MemoM (Maybe Location')
-btLocalBacktrack = btFindUnexplored 
+btLocalBacktrack = btFindUnexplored
+
+-- This takes into account the choices.
+btAcceleratedBacktrack :: BacktrackPolicy ->
+                          BacktrackReason -> Set ChoiceId ->
+                          Location' -> MemoM (Maybe Location')
+-- FIXME: could we do better here?
+btAcceleratedBacktrack pol OtherFailure _pathToFailure loc =
+  btLocalBacktrack pol loc
+
+-- There are a whole bunch of 
+btAcceleratedBacktrack pol (ConcreteFailure dataCids) pathToFailure loc =
+  go loc
+  where
+    cids = dataCids <> pathToFailure
+
+    -- We search backwards for the first CID that will change the
+    -- outcome.  Everything between there and the start can be
+    -- pruned as it is unsatisfiable.
+    go loc' =
+      case ST.locTree loc' of
+        ST.Unexplored {} -> pure (Just loc')
+        ST.Node (_cid, FixedTag {}) [] -> maybe (pure Nothing) go (ST.forgetGoUp loc')
+        ST.Node (cid, _tag) _ms
+          | cid `Set.member` cids -> btFindUnexplored pol loc'
+          | otherwise             -> maybe (pure Nothing) go (ST.forgetGoUp loc')
