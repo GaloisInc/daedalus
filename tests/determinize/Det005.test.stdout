@@ -35,13 +35,13 @@ proc SimpleEOL_() : () =
   -- DETERMINIZE 1 Fully
   do _x0 <- match1 { ... }
      case _x0 of
-       10 ->
-         -- ./Det005.ddl:9:45--9:47
-         pure ()
        13 ->
          -- ./Det005.ddl:9:31--9:38
          -- ./Det005.ddl:9:36--9:38
          match1_ $lf()
+       10 ->
+         -- ./Det005.ddl:9:45--9:47
+         pure ()
        _ ->
          fail_sys @()
  
@@ -51,11 +51,6 @@ proc EOL_() : () =
   -- DETERMINIZE 1
   do _x0 <- match1 { ... }
      case _x0 of
-       10 ->
-         -- ./Det005.ddl:10:29--10:37
-         -- ./Det005.ddl:9:29--9:47
-         -- ./Det005.ddl:9:45--9:47
-         pure ()
        13 ->
          -- OR RECONSTRUCTION
          try
@@ -67,6 +62,11 @@ proc EOL_() : () =
          orelse
            -- ./Det005.ddl:10:42--10:44
            pure ()
+       10 ->
+         -- ./Det005.ddl:10:29--10:37
+         -- ./Det005.ddl:9:29--9:47
+         -- ./Det005.ddl:9:45--9:47
+         pure ()
        _ ->
          fail_sys @()
  
@@ -95,30 +95,10 @@ proc AnyWS_() : () =
          -- ./Det005.ddl:12:29--12:48
          -- ./Det005.ddl:12:29--12:37
          pure ()
-       10 ->
-         -- ./Det005.ddl:12:53--12:55
-         -- ./Det005.ddl:10:29--10:44
-         -- ./Det005.ddl:10:29--10:37
-         -- ./Det005.ddl:9:29--9:47
-         -- ./Det005.ddl:9:45--9:47
-         pure ()
        12 ->
          -- ./Det005.ddl:12:29--12:48
          -- ./Det005.ddl:12:29--12:37
          pure ()
-       13 ->
-         -- OR RECONSTRUCTION
-         -- ./Det005.ddl:12:53--12:55
-         -- ./Det005.ddl:10:29--10:44
-         try
-           -- ./Det005.ddl:10:29--10:37
-           -- ./Det005.ddl:9:29--9:47
-           -- ./Det005.ddl:9:31--9:38
-           -- ./Det005.ddl:9:36--9:38
-           match1_ $lf()
-         orelse
-           -- ./Det005.ddl:10:42--10:44
-           pure ()
        32 ->
          -- ./Det005.ddl:12:29--12:48
          -- ./Det005.ddl:12:29--12:37
@@ -132,6 +112,26 @@ proc AnyWS_() : () =
             Many_24()
             -- ./Det005.ddl:11:65--11:67
             EOL_()
+       13 ->
+         -- OR RECONSTRUCTION
+         -- ./Det005.ddl:12:53--12:55
+         -- ./Det005.ddl:10:29--10:44
+         try
+           -- ./Det005.ddl:10:29--10:37
+           -- ./Det005.ddl:9:29--9:47
+           -- ./Det005.ddl:9:31--9:38
+           -- ./Det005.ddl:9:36--9:38
+           match1_ $lf()
+         orelse
+           -- ./Det005.ddl:10:42--10:44
+           pure ()
+       10 ->
+         -- ./Det005.ddl:12:53--12:55
+         -- ./Det005.ddl:10:29--10:44
+         -- ./Det005.ddl:10:29--10:37
+         -- ./Det005.ddl:9:29--9:47
+         -- ./Det005.ddl:9:45--9:47
+         pure ()
        _ ->
          fail_sys @()
  
