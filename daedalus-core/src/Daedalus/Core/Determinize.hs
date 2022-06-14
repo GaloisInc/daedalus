@@ -46,15 +46,15 @@ detGram modl gram = go gram
               Nothing -> OrUnbiased (go g1) (go g2)
            _             -> mapChildrenG go g
 
-getGrammar :: Module -> FName -> Maybe Grammar
+getGrammar :: Module -> FName -> Maybe (Grammar, [Name])
 getGrammar modl name =
   goGetGrammar (mGFuns modl)
   where
   goGetGrammar [] = panic "getGrammar" ["Unable to get grammar"]
-  goGetGrammar ( Fun {fName = n1, fDef = fdef} : rest ) =
+  goGetGrammar ( Fun {fName = n1, fDef = fdef, fParams = params} : rest ) =
     if fnameId n1 == fnameId name
     then case fdef of
-           Def g2 -> Just g2
+           Def g2 -> Just (g2, params)
            External -> Nothing
     else goGetGrammar rest
 
@@ -82,8 +82,10 @@ getByteSet modl name =
 {- Zipped Grammar -}
 data ZMatch =
     ZMatchByte ByteSet
-  | ZMatchBytes ([Word8], ByteString) ByteString -- the pair is the zipper of a ByteString
-                                                 -- the last ByteString is the original one in the grammar
+
+  -- the pair is the zipper of a ByteString
+  -- the last ByteString is the original one in the grammar
+  | ZMatchBytes ([Word8], ByteString) ByteString
   | ZMatchEnd
 
 data ZGrammar =
@@ -93,6 +95,7 @@ data ZGrammar =
   | ZDo Name Grammar
   | ZDo2 Name Grammar
   | ZLet Name Expr
+  | ZCall FName [Name] [Expr]
   | ZAnnot Annot
   | ZOrBiased
   | ZOrUnbiased
@@ -126,6 +129,15 @@ moveLeft (ZipNode {focus = foc, path = pth}) =
     _ -> panic "moveLeft" [ "broken invariant, unexpected case" ]
 moveLeft (ZipLeaf {}) = panic "moveLeft" [ "broken invariant, unexpected case" ]
 
+convertCall2Let :: Grammar -> [Name] -> [Expr] -> Grammar
+convertCall2Let g ps es =
+  case (ps, es) of
+    ([p], [e]) -> Annot (SrcAnnot $ Data.Text.pack ("DETCALL ")) $ Let p e g
+    (p:pps, e:ees) ->
+      let sube = convertCall2Let g pps ees in
+      Let p e sube
+    _ -> panic "convertCall2Let" ["Call has mismatched params/args"]
+
 -- moves all the way up to the root of the Grammar
 moveUp :: ZipGrammar -> Grammar
 moveUp (ZipNode {focus = built, path = pth}) =
@@ -146,6 +158,8 @@ moveUp (ZipNode {focus = built, path = pth}) =
     (ZLet name e : z) ->
       let newBuilt = Let name e built in
       moveUp (mkZipGrammar newBuilt z)
+    (ZCall _na params le : z) ->
+      moveUp (mkZipGrammar (convertCall2Let built params le) z)
     (ZAnnot ann : z) ->
       moveUp (mkZipGrammar (Annot ann built) z)
     (ZOrBiased : z) ->
@@ -355,18 +369,23 @@ deriveOneByte modl gram =
   deriveGo :: ZipGrammar -> Maybe (AltTree (CharSet, ZipGrammar))
   deriveGo gr@(ZipNode {focus = g, path = pth}) =
     case g of
-      Pure _ -> deriveUp gr
+      Pure _   -> deriveUp gr
       Do_ {}   -> deriveGo (moveLeft gr)
       Do  {}   -> deriveGo (moveLeft gr)
       Let {}   -> deriveGo (moveLeft gr)
       Annot {} -> deriveGo (moveLeft gr)
-      Match {} -> case deriveMatch gr of -- fmap (\ x -> [x]) $ deriveMatch gr
+      Match {} -> case deriveMatch gr of
         Nothing -> Nothing
         Just c ->  Just (AltLeaf c)
       Call name []  ->
         case getGrammar modl name of
           Nothing -> Nothing
-          Just gram1 -> deriveGo (gr {focus = gram1 })
+          Just (gram1, _) -> deriveGo (gr {focus = gram1 })
+      Call name args  ->
+        case getGrammar modl name of
+          Nothing -> Nothing
+          Just (gram1, params) ->
+            deriveGo (gr {focus = gram1, path = mkZPath (ZCall name params args) pth })
       OrBiased g1 g2 ->
         let g1' = deriveGo (ZipNode { focus = g1, path = mkZPath ZOrBiased pth })
             g2' = deriveGo (ZipNode { focus = g2, path = mkZPath ZOrBiased pth }) in
