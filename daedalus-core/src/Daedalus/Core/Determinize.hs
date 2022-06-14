@@ -4,6 +4,7 @@
 module Daedalus.Core.Determinize (determinizeModule) where
 
 -- import Debug.Trace(trace)
+-- import Daedalus.PP(pp, showPP)
 
 import Data.Text (pack)
 import Data.Set (Set)
@@ -14,7 +15,6 @@ import Data.ByteString(ByteString, uncons, null, pack)
 import Data.Foldable(foldl')
 
 import Daedalus.Panic (panic)
--- import Daedalus.PP(pp)
 import Daedalus.GUID(GUID, firstValidGUID, succGUID)
 
 import Daedalus.Core.Decl
@@ -36,8 +36,14 @@ detGram :: Module -> Grammar -> Grammar
 detGram modl gram = go gram
   where
   go g = case g of
-           OrBiased {}   -> determinize modl g
-           OrUnbiased {} -> determinize modl g
+           OrBiased g1 g2   ->
+            case determinize modl g of
+              Just g3 -> g3
+              Nothing -> OrBiased (go g1) (go g2)
+           OrUnbiased g1 g2 ->
+            case determinize modl g of
+              Just g3 -> g3
+              Nothing -> OrUnbiased (go g1) (go g2)
            _             -> mapChildrenG go g
 
 getGrammar :: Module -> FName -> Maybe Grammar
@@ -503,22 +509,31 @@ getDepth der =
 gLLkDEPTH :: Int
 gLLkDEPTH = 10
 
-determinize :: Module -> Grammar -> Grammar
+mkNameFromGUID :: GUID -> Name
+mkNameFromGUID guid =
+  Name {
+    nameId = guid,
+    nameText = Nothing,
+    nameType = TUInt (TSize 8)
+  }
+
+
+determinize :: Module -> Grammar -> Maybe Grammar
 determinize modl grammar =
   let ty = typeOf grammar in
-  repeatStep ty (DerivStart $ AltLeaf (initZipGrammar grammar)) 0
+  repeatStep ty (DerivStart $ (firstValidGUID, AltLeaf (initZipGrammar grammar))) 0
 
   where
-  repeatStep :: Type -> Deriv -> Int -> Grammar
+  repeatStep :: Type -> Deriv -> Int -> Maybe Grammar
   repeatStep ty der depth =
     if depth > gLLkDEPTH
-    then grammar
+    then Nothing
     else let mder1 = mapStep der in
       case mder1 of
-        Nothing -> grammar
+        Nothing -> Nothing
         Just der1 ->
           if checkUnambiguousOrDone der1
-          then translateToCaseDeriv ty der1
+          then Just $ translateToCaseDeriv ty der1
           else repeatStep ty der1 (depth + 1)
 
 
