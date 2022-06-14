@@ -709,38 +709,55 @@ determinize modl grammar =
     then
       Do name (Match SemYes (MatchByte SetAny))
         (let (allchar, g1) = head lst in
-          case g1 of
-            YesResolvedZero -> Fail ErrorFromSystem ty Nothing
-            YesResolvedOne zg -> buildLeaf (allchar, guid) zg
-            YesResolvedMany t ->
-              let newOr = buildOr (allchar, guid) t
-              in newOr
-            NoResolved der ->
-              let newG1 = translateToCase ty der
-              in newG1
-        )
+         buildSubGramMultiple allchar g1)
     else
-    Do name (Match SemYes (MatchByte SetAny))
-      (GCase (Case name
-        ((map
-            (\ (c, g1) ->
-                case g1 of
-                  YesResolvedZero -> (PNum c, Fail ErrorFromSystem ty Nothing)
-                  YesResolvedOne zg -> buildCase c zg
-                  YesResolvedMany t ->
-                    let newOr = buildOr (Set.singleton c, guid) t
-                    in (PNum c, newOr)
-                  NoResolved der ->
-                    let newG1 = translateToCase ty der
-                    in (PNum c, newG1))
-            -- This explodes the sharing into all the characters in the set
-            (concatMap (\ (s, r) -> map (\c -> (c, r)) (Set.toList s)) lst)
-          ) ++ [ (PAny, Fail ErrorFromSystem ty Nothing) ]
-        )))
+    if ((foldr (\ x accu -> x + accu) 0 (map (\ (s,_) -> Set.size s) lst)) == 256)
+    then
+      let maxpos = findMaxSet 0 0 0 lst in
+      let (lst1, lst2) = splitAt maxpos lst in
+      let (cmax, gmax) = head lst2 in
+      let lst3 = tail lst2 in
+      Do name (Match SemYes (MatchByte SetAny))
+        (GCase (Case name
+          ((map
+              (\ (c, g1) -> (PNum c, buildSubGramSingle c g1))
+              -- This explodes the sharing into all the characters in the set
+              (concatMap (\ (s, r) -> map (\c -> (c, r)) (Set.toList s)) (lst1 ++ lst3))
+            ) ++ [ (PAny, buildSubGramMultiple cmax gmax) ]
+          )))
+    else
+      Do name (Match SemYes (MatchByte SetAny))
+        (GCase (Case name
+          ((map
+              (\ (c, g1) ->(PNum c, buildSubGramSingle c g1))
+              -- This explodes the sharing into all the characters in the set
+              (concatMap (\ (s, r) -> map (\c -> (c, r)) (Set.toList s)) lst)
+            ) ++ [ (PAny, Fail ErrorFromSystem ty Nothing) ]
+          )))
 
     where
-    buildCase :: Integer -> ZipGrammar -> (Pattern, Grammar)
-    buildCase c g1 = (PNum c, buildLeaf (Set.singleton c, guid) g1)
+
+    buildSubGramSingle :: Integer -> Resolution -> Grammar
+    buildSubGramSingle c g1 =
+      case g1 of
+        YesResolvedZero   -> Fail ErrorFromSystem ty Nothing
+        YesResolvedOne zg -> buildLeaf (Set.singleton c, guid) zg
+        YesResolvedMany t -> buildOr (Set.singleton c, guid) t
+        NoResolved der    -> translateToCase ty der
+
+    buildSubGramMultiple :: Set Integer -> Resolution -> Grammar
+    buildSubGramMultiple allchar g1 =
+      case g1 of
+        YesResolvedZero   -> Fail ErrorFromSystem ty Nothing
+        YesResolvedOne zg -> buildLeaf (allchar, guid) zg
+        YesResolvedMany t -> buildOr (allchar, guid) t
+        NoResolved der    -> translateToCase ty der
+
+    findMaxSet :: Int -> Int -> Int -> [(Set Integer, Resolution)] -> Int
+    findMaxSet _    pos _  [] = pos
+    findMaxSet curr pos m ((s,_) : xs) =
+      let (pos1, m1) = if Set.size s > m then (curr, Set.size s) else (pos, m) in
+      findMaxSet (curr+1) pos1 m1 xs
 
     buildOr :: (Set Integer, GUID) -> AltTree (a, ZipGrammar) -> Grammar
     buildOr c t =
