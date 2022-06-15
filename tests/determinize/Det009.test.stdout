@@ -1,0 +1,447 @@
+module DaedalusMain where
+ 
+ 
+type Endian =
+  union
+    BE : ()
+    LE : ()
+ 
+type IFDUnknown =
+  struct
+    tag : Word 16
+    format : Word 64
+ 
+type IFDEntry =
+  union
+    unknown : IFDUnknown
+    samplesPerPixel : ()
+    rowsPerStrip : ()
+    photometricInterpretation : ()
+    imageWidth : ()
+    imageHeight : ()
+    compression : ()
+ 
+-------------
+ 
+-- ./Det009.ddl:47:1--52:3
+func jn_71(e : Endian, x : Word 8, y : Word 8) : Word 16 =
+  case e of
+    BE ->
+      x # y
+    LE ->
+      y # x
+ 
+-- ./Det009.ddl:7:1--11:3
+proc Endian() : Endian =
+  -- ./Det009.ddl:7:14--11:3
+  -- DETERMINIZE 1 Fully
+  do _x0 <- match1 { ... }
+     case _x0 of
+       73 ->
+         -- ./Det009.ddl:8:3--8:18
+         -- LE
+         -- ./Det009.ddl:8:3--8:18
+         do _26 <- -- ./Det009.ddl:8:9--8:18
+                   match_ "I"
+            -- ./Det009.ddl:8:3--8:18
+            pure (tag LE @Endian _26)
+       77 ->
+         -- ./Det009.ddl:9:3--9:18
+         -- BE
+         -- ./Det009.ddl:9:3--9:18
+         do _27 <- -- ./Det009.ddl:9:9--9:18
+                   match_ "M"
+            -- ./Det009.ddl:9:3--9:18
+            pure (tag BE @Endian _27)
+       _ ->
+         fail_sys @Endian
+ 
+-- ./Det009.ddl:52:1--52:31
+proc Word16_() : () =
+  -- ./Det009.ddl:52:21--52:31
+  do -- ./Det009.ddl:52:21--52:25
+     match1_ { ... }
+     -- ./Det009.ddl:52:27--52:31
+     match1_ { ... }
+ 
+-- ./Det009.ddl:28:1--37:3
+proc Unsgned(e : Endian) : () =
+  -- ./Det009.ddl:29:16--29:23
+  Word16_()
+ 
+-- ./Det009.ddl:52:1--52:31
+proc Word16(e : Endian) : Word 16 =
+  -- ./Det009.ddl:52:21--52:31
+  do _28 <- -- ./Det009.ddl:52:21--52:25
+            match1 { ... }
+     -- ./Det009.ddl:52:27--52:31
+     _29 <- -- ./Det009.ddl:52:27--52:31
+            match1 { ... }
+     -- ./Det009.ddl:52:16--52:31
+     pure jn_71(e, _28, _29)
+ 
+-- ./Det009.ddl:23:1--23:35
+proc Tag_(e : Endian, x : Word 16) : () =
+  -- ./Det009.ddl:23:15--23:35
+  -- ./Det009.ddl:23:15--23:27
+  do _30 <- -- ./Det009.ddl:23:15--23:22
+            Word16(e)
+     -- ./Det009.ddl:23:15--23:27
+     let _31 = _30 == x
+     -- ./Det009.ddl:23:15--23:35
+     case _31 of
+       True ->
+         -- ./Det009.ddl:23:15--23:35
+         pure ()
+       False ->
+         fail_sys @() "Pattern match failure"
+ 
+-- ./Det009.ddl:24:1--28:3
+proc NumericTag(e : Endian, x : Word 16) : () =
+  -- ./Det009.ddl:25:3--26:11
+  do -- ./Det009.ddl:25:3--25:9
+     Tag_(e, x)
+     -- ./Det009.ddl:26:3--26:11
+     -- ./Det009.ddl:26:3--26:11
+     Unsgned(e)
+ 
+-- ./Det009.ddl:37:1--47:3
+proc IFDUnknown(e : Endian) : IFDUnknown =
+  -- ./Det009.ddl:38:3--47:3
+  do tag <- -- ./Det009.ddl:38:12--38:19
+            Word16(e)
+     -- ./Det009.ddl:39:3--47:3
+     -- ./Det009.ddl:39:12--39:30
+     _33 <- -- ./Det009.ddl:39:12--39:19
+            Word16(e)
+     -- ./Det009.ddl:39:12--39:30
+     let format = cast @(Word 64) _33
+     -- ./Det009.ddl:37:20--47:3
+     pure IFDUnknown {tag = tag, format = format}
+ 
+-- ./Det009.ddl:11:1--23:3
+proc IFDEntry(e : Endian) : IFDEntry =
+  -- ./Det009.ddl:11:18--23:3
+  -- DETERMINIZE 2
+  do _x0 <- match1 { ... }
+     _x1 <- match1 { ... }
+     -- OR RECONSTRUCTION
+     try
+       -- ./Det009.ddl:12:3--12:34
+       -- imageWidth
+       -- ./Det009.ddl:12:3--12:34
+       do let e = e
+          let x = 256 @(Word 16)
+          let e = e
+          let x = x
+          let e = e
+          let _28 = _x0
+          let _29 = _x1
+          let _30 = jn_71(e, _28, _29)
+          let _31 = _30 == x
+          -- DETCALL 
+          -- ./Det009.ddl:12:17--12:34
+          -- ./Det009.ddl:25:3--26:11
+          -- ./Det009.ddl:23:15--23:27
+          -- ./Det009.ddl:23:15--23:27
+          -- ./Det009.ddl:23:15--23:35
+          -- ./Det009.ddl:25:3--25:9
+          -- DETCALL 
+          -- ./Det009.ddl:52:16--52:31
+          -- ./Det009.ddl:52:21--52:25
+          -- ./Det009.ddl:52:21--52:31
+          -- ./Det009.ddl:23:15--23:22
+          -- DETCALL 
+          -- ./Det009.ddl:52:27--52:31
+          -- ./Det009.ddl:52:27--52:31
+          -- ./Det009.ddl:23:15--23:35
+          case _31 of
+            True ->
+              -- ./Det009.ddl:23:15--23:35
+              pure ()
+            False ->
+              fail_sys @() "Pattern match failure"
+          _34 <- -- DETCALL 
+                 -- ./Det009.ddl:12:17--12:34
+                 -- ./Det009.ddl:25:3--26:11
+                 -- ./Det009.ddl:26:3--26:11
+                 -- ./Det009.ddl:26:3--26:11
+                 Unsgned(e)
+          -- ./Det009.ddl:12:3--12:34
+          pure (tag imageWidth @IFDEntry _34)
+     orelse
+       -- OR RECONSTRUCTION
+       else try
+         -- ./Det009.ddl:13:3--13:34
+         -- imageHeight
+         -- ./Det009.ddl:13:3--13:34
+         do let e = e
+            let x = 257 @(Word 16)
+            let e = e
+            let x = x
+            let e = e
+            let _28 = _x0
+            let _29 = _x1
+            let _30 = jn_71(e, _28, _29)
+            let _31 = _30 == x
+            -- DETCALL 
+            -- ./Det009.ddl:13:17--13:34
+            -- ./Det009.ddl:25:3--26:11
+            -- ./Det009.ddl:23:15--23:27
+            -- ./Det009.ddl:23:15--23:27
+            -- ./Det009.ddl:23:15--23:35
+            -- ./Det009.ddl:25:3--25:9
+            -- DETCALL 
+            -- ./Det009.ddl:52:16--52:31
+            -- ./Det009.ddl:52:21--52:25
+            -- ./Det009.ddl:52:21--52:31
+            -- ./Det009.ddl:23:15--23:22
+            -- DETCALL 
+            -- ./Det009.ddl:52:27--52:31
+            -- ./Det009.ddl:52:27--52:31
+            -- ./Det009.ddl:23:15--23:35
+            case _31 of
+              True ->
+                -- ./Det009.ddl:23:15--23:35
+                pure ()
+              False ->
+                fail_sys @() "Pattern match failure"
+            _35 <- -- DETCALL 
+                   -- ./Det009.ddl:13:17--13:34
+                   -- ./Det009.ddl:25:3--26:11
+                   -- ./Det009.ddl:26:3--26:11
+                   -- ./Det009.ddl:26:3--26:11
+                   Unsgned(e)
+            -- ./Det009.ddl:13:3--13:34
+            pure (tag imageHeight @IFDEntry _35)
+       orelse
+         -- OR RECONSTRUCTION
+         else try
+           -- ./Det009.ddl:15:3--15:34
+           -- compression
+           -- ./Det009.ddl:15:3--15:34
+           do let e = e
+              let x = 259 @(Word 16)
+              let e = e
+              let x = x
+              let e = e
+              let _28 = _x0
+              let _29 = _x1
+              let _30 = jn_71(e, _28, _29)
+              let _31 = _30 == x
+              -- DETCALL 
+              -- ./Det009.ddl:15:17--15:34
+              -- ./Det009.ddl:25:3--26:11
+              -- ./Det009.ddl:23:15--23:27
+              -- ./Det009.ddl:23:15--23:27
+              -- ./Det009.ddl:23:15--23:35
+              -- ./Det009.ddl:25:3--25:9
+              -- DETCALL 
+              -- ./Det009.ddl:52:16--52:31
+              -- ./Det009.ddl:52:21--52:25
+              -- ./Det009.ddl:52:21--52:31
+              -- ./Det009.ddl:23:15--23:22
+              -- DETCALL 
+              -- ./Det009.ddl:52:27--52:31
+              -- ./Det009.ddl:52:27--52:31
+              -- ./Det009.ddl:23:15--23:35
+              case _31 of
+                True ->
+                  -- ./Det009.ddl:23:15--23:35
+                  pure ()
+                False ->
+                  fail_sys @() "Pattern match failure"
+              _36 <- -- DETCALL 
+                     -- ./Det009.ddl:15:17--15:34
+                     -- ./Det009.ddl:25:3--26:11
+                     -- ./Det009.ddl:26:3--26:11
+                     -- ./Det009.ddl:26:3--26:11
+                     Unsgned(e)
+              -- ./Det009.ddl:15:3--15:34
+              pure (tag compression @IFDEntry _36)
+         orelse
+           -- OR RECONSTRUCTION
+           else try
+             -- ./Det009.ddl:16:3--16:48
+             -- photometricInterpretation
+             -- ./Det009.ddl:16:3--16:48
+             do let e = e
+                let x = 262 @(Word 16)
+                let e = e
+                let x = x
+                let e = e
+                let _28 = _x0
+                let _29 = _x1
+                let _30 = jn_71(e, _28, _29)
+                let _31 = _30 == x
+                -- DETCALL 
+                -- ./Det009.ddl:16:31--16:48
+                -- ./Det009.ddl:25:3--26:11
+                -- ./Det009.ddl:23:15--23:27
+                -- ./Det009.ddl:23:15--23:27
+                -- ./Det009.ddl:23:15--23:35
+                -- ./Det009.ddl:25:3--25:9
+                -- DETCALL 
+                -- ./Det009.ddl:52:16--52:31
+                -- ./Det009.ddl:52:21--52:25
+                -- ./Det009.ddl:52:21--52:31
+                -- ./Det009.ddl:23:15--23:22
+                -- DETCALL 
+                -- ./Det009.ddl:52:27--52:31
+                -- ./Det009.ddl:52:27--52:31
+                -- ./Det009.ddl:23:15--23:35
+                case _31 of
+                  True ->
+                    -- ./Det009.ddl:23:15--23:35
+                    pure ()
+                  False ->
+                    fail_sys @() "Pattern match failure"
+                _37 <- -- DETCALL 
+                       -- ./Det009.ddl:16:31--16:48
+                       -- ./Det009.ddl:25:3--26:11
+                       -- ./Det009.ddl:26:3--26:11
+                       -- ./Det009.ddl:26:3--26:11
+                       Unsgned(e)
+                -- ./Det009.ddl:16:3--16:48
+                pure (tag photometricInterpretation @IFDEntry _37)
+           orelse
+             -- OR RECONSTRUCTION
+             else try
+               -- ./Det009.ddl:18:3--18:38
+               -- samplesPerPixel
+               -- ./Det009.ddl:18:3--18:38
+               do let e = e
+                  let x = 277 @(Word 16)
+                  let e = e
+                  let x = x
+                  let e = e
+                  let _28 = _x0
+                  let _29 = _x1
+                  let _30 = jn_71(e, _28, _29)
+                  let _31 = _30 == x
+                  -- DETCALL 
+                  -- ./Det009.ddl:18:21--18:38
+                  -- ./Det009.ddl:25:3--26:11
+                  -- ./Det009.ddl:23:15--23:27
+                  -- ./Det009.ddl:23:15--23:27
+                  -- ./Det009.ddl:23:15--23:35
+                  -- ./Det009.ddl:25:3--25:9
+                  -- DETCALL 
+                  -- ./Det009.ddl:52:16--52:31
+                  -- ./Det009.ddl:52:21--52:25
+                  -- ./Det009.ddl:52:21--52:31
+                  -- ./Det009.ddl:23:15--23:22
+                  -- DETCALL 
+                  -- ./Det009.ddl:52:27--52:31
+                  -- ./Det009.ddl:52:27--52:31
+                  -- ./Det009.ddl:23:15--23:35
+                  case _31 of
+                    True ->
+                      -- ./Det009.ddl:23:15--23:35
+                      pure ()
+                    False ->
+                      fail_sys @() "Pattern match failure"
+                  _38 <- -- DETCALL 
+                         -- ./Det009.ddl:18:21--18:38
+                         -- ./Det009.ddl:25:3--26:11
+                         -- ./Det009.ddl:26:3--26:11
+                         -- ./Det009.ddl:26:3--26:11
+                         Unsgned(e)
+                  -- ./Det009.ddl:18:3--18:38
+                  pure (tag samplesPerPixel @IFDEntry _38)
+             orelse
+               -- OR RECONSTRUCTION
+               else try
+                 -- ./Det009.ddl:19:3--19:38
+                 -- rowsPerStrip
+                 -- ./Det009.ddl:19:3--19:38
+                 do let e = e
+                    let x = 278 @(Word 16)
+                    let e = e
+                    let x = x
+                    let e = e
+                    let _28 = _x0
+                    let _29 = _x1
+                    let _30 = jn_71(e, _28, _29)
+                    let _31 = _30 == x
+                    -- DETCALL 
+                    -- ./Det009.ddl:19:21--19:38
+                    -- ./Det009.ddl:25:3--26:11
+                    -- ./Det009.ddl:23:15--23:27
+                    -- ./Det009.ddl:23:15--23:27
+                    -- ./Det009.ddl:23:15--23:35
+                    -- ./Det009.ddl:25:3--25:9
+                    -- DETCALL 
+                    -- ./Det009.ddl:52:16--52:31
+                    -- ./Det009.ddl:52:21--52:25
+                    -- ./Det009.ddl:52:21--52:31
+                    -- ./Det009.ddl:23:15--23:22
+                    -- DETCALL 
+                    -- ./Det009.ddl:52:27--52:31
+                    -- ./Det009.ddl:52:27--52:31
+                    -- ./Det009.ddl:23:15--23:35
+                    case _31 of
+                      True ->
+                        -- ./Det009.ddl:23:15--23:35
+                        pure ()
+                      False ->
+                        fail_sys @() "Pattern match failure"
+                    _39 <- -- DETCALL 
+                           -- ./Det009.ddl:19:21--19:38
+                           -- ./Det009.ddl:25:3--26:11
+                           -- ./Det009.ddl:26:3--26:11
+                           -- ./Det009.ddl:26:3--26:11
+                           Unsgned(e)
+                    -- ./Det009.ddl:19:3--19:38
+                    pure (tag rowsPerStrip @IFDEntry _39)
+               orelse
+                 -- ./Det009.ddl:21:3--21:28
+                 -- unknown
+                 -- ./Det009.ddl:21:3--21:28
+                 do let e = e
+                    let e = e
+                    let _28 = _x0
+                    let _29 = _x1
+                    let tag = jn_71(e, _28, _29)
+                    _33 <- -- ./Det009.ddl:39:12--39:30
+                           -- ./Det009.ddl:39:3--47:3
+                           -- ./Det009.ddl:38:3--47:3
+                           -- ./Det009.ddl:21:17--21:28
+                           -- DETCALL 
+                           -- ./Det009.ddl:52:16--52:31
+                           -- ./Det009.ddl:52:21--52:25
+                           -- ./Det009.ddl:52:21--52:31
+                           -- ./Det009.ddl:38:12--38:19
+                           -- DETCALL 
+                           -- ./Det009.ddl:52:27--52:31
+                           -- ./Det009.ddl:52:27--52:31
+                           -- ./Det009.ddl:39:12--39:19
+                           Word16(e)
+                    let format = cast @(Word 64) _33
+                    -- ./Det009.ddl:37:20--47:3
+                    -- ./Det009.ddl:39:12--39:30
+                    -- ./Det009.ddl:39:3--47:3
+                    -- ./Det009.ddl:38:3--47:3
+                    -- ./Det009.ddl:21:17--21:28
+                    -- DETCALL 
+                    -- ./Det009.ddl:52:16--52:31
+                    -- ./Det009.ddl:52:21--52:25
+                    -- ./Det009.ddl:52:21--52:31
+                    -- ./Det009.ddl:38:12--38:19
+                    -- DETCALL 
+                    -- ./Det009.ddl:52:27--52:31
+                    -- ./Det009.ddl:52:27--52:31
+                    -- ./Det009.ddl:39:12--39:30
+                    let _40 = IFDUnknown {tag = tag, format = format}
+                    -- ./Det009.ddl:21:3--21:28
+                    pure (tag unknown @IFDEntry _40)
+ 
+-- entry pont
+-- ./Det009.ddl:3:1--7:3
+proc Main() : IFDEntry =
+  -- ./Det009.ddl:4:4--5:12
+  do e <- -- ./Det009.ddl:4:8--4:13
+          Endian()
+     -- ./Det009.ddl:5:3--5:12
+     -- ./Det009.ddl:5:3--5:12
+     IFDEntry(e)
