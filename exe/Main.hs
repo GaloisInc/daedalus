@@ -48,6 +48,8 @@ import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
 import qualified Daedalus.Core.Inline as Core
+import qualified Daedalus.Core.NoMatch as Core
+import qualified Daedalus.Core.X as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
@@ -134,6 +136,8 @@ handleOptions opts
          DumpCore ->
             do _ <- doToCore opts mm
                ddlPrint . pp =<< ddlGetAST specMod astCore
+
+         DumpRel -> dumpRel opts mm
 
          DumpVM -> ddlPrint . pp =<< doToVM opts mm
 
@@ -534,3 +538,11 @@ dumpHTML jsData = vcat
   Just trender = lookup "render.js" html_files
   bytes = text . BS8.unpack
 
+
+dumpRel ::  Options -> ModuleName -> Daedalus ()
+dumpRel opts mm =
+  do _    <- doToCore opts mm
+     m    <- ddlGetAST specMod astCore
+     m1   <- ddlRunPass (Core.noMatch m)
+     fs   <- ddlRunPass (Core.suceedsMod m1)
+     ddlPrint (vcat (map pp fs))

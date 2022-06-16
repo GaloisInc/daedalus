@@ -36,6 +36,7 @@ library
     Daedalus.Core.CheckFork,
     Daedalus.Core.SpecialiseType,
     Daedalus.Core.TH,
+    Daedalus.Core.X,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,
     Daedalus.Core.Semantics.Grammar,
