@@ -15,7 +15,7 @@ import qualified Data.Set                        as Set
 import           SimpleSMT                       (SExpr)
 import qualified SimpleSMT                       as S
 
-import           Daedalus.Core                   hiding (freshName)
+import           Daedalus.Core                   hiding (freshName, tByte)
 import           Daedalus.Core.Free
 import           Daedalus.GUID
 import           Daedalus.PP

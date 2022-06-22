@@ -14,7 +14,7 @@ import qualified Data.Set                     as Set
 import           Data.Word                    (Word8)
 import qualified SimpleSMT                    as S
 
-import           Daedalus.Core                hiding (streamOffset)
+import           Daedalus.Core                hiding (streamOffset, tByte)
 import           Daedalus.Core.Free           (freeVars, FreeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
