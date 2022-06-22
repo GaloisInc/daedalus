@@ -603,15 +603,6 @@ getUserTypeM ut =
 
 
 
-tWord :: Integer -> Type
-tWord w = TUInt (TSize w)
-
-tByte :: Type
-tByte = tWord 8
-
-
-
-
 typeError :: Doc -> [Doc] -> TCResult a
 typeError x xs = TC
   do ctx <- M.ask

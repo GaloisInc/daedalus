@@ -7,9 +7,12 @@ module RTS.Input
   , inputLength
   , inputTopBytes
   , inputByte
+  , inputHead
   , inputEmpty
   , limitLen
+  , inputTake
   , advanceBy
+  , inputDrop
   , arrayStream
   , newInput
   , newInputFromFile
@@ -101,6 +104,10 @@ inputByte Input { .. } =
           )
 {-# INLINE inputByte #-}
 
+inputHead :: Input -> Word8
+inputHead Input { .. } = BS.index inputAllBytes inputOffset
+{-# INLINE inputHead #-}
+
 -- | Is this input empty.
 inputEmpty :: Input -> Bool
 inputEmpty Input { .. } = inputOffset >= BS.length inputAllBytes
@@ -117,6 +124,11 @@ limitLen n' i =
      pure i { inputAllBytes = bs }
 {-# INLINE limitLen #-}
 
+inputTake :: UInt 64 -> Input -> Input
+inputTake n i = i { inputAllBytes = BS.take newLen (inputAllBytes i) }
+  where newLen = inputOffset i + sizeToInt n
+{-# INLINE inputTake #-}
+
 
 -- | Advance the input by the given number of bytes.
 -- Fails if we don't have enough bytes, although it is ok to
@@ -127,6 +139,10 @@ advanceBy n' i =
      guard (0 <= n && n <= inputLength i)
      pure i { inputOffset = inputOffset i + n }
 {-# INLINE advanceBy #-}
+
+inputDrop :: UInt 64 -> Input -> Input
+inputDrop n i = i { inputOffset = inputOffset i + sizeToInt n }
+{-# INLINE inputDrop #-}
 
 
 -- | Make an input using the given name and bytes.

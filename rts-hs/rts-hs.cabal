@@ -27,7 +27,8 @@ library
                        RTS.Base,
                        RTS.ByteRanges,
                        RTS.Iterator,
-                       RTS.JSON
+                       RTS.JSON,
+                       RTS.ParserVM
   build-depends:       base >=4.13,
                        vector,
                        vector-builder,

@@ -1,5 +1,5 @@
 {-# Language BlockArguments, OverloadedStrings, TemplateHaskell #-}
-module Daedalus.Quote (daedalus, daedalus_compiled) where
+module Daedalus.Quote (daedalus) where
 
 import Data.Text(Text)
 import qualified Data.Text as Text
@@ -21,7 +21,6 @@ import Daedalus.Panic(panic)
 import Daedalus.AST(ScopedIdent(..))
 import Daedalus.Type.AST(TCModule)
 import qualified Daedalus.Core as Core
-import qualified Daedalus.Core.TH as Core
 import qualified Daedalus.Driver as DDL
 import Daedalus.Interp(interp)
 
@@ -33,6 +32,7 @@ daedalus = QuasiQuoter
   , quoteExp  = nope "expression"
   }
 
+{-
 daedalus_compiled :: QuasiQuoter
 daedalus_compiled = QuasiQuoter
   { quotePat  = nope "pattern"
@@ -40,7 +40,7 @@ daedalus_compiled = QuasiQuoter
   , quoteType = nope "type"
   , quoteExp  = nope "expression"
   }
-
+-}
 
 
 nope :: String -> String -> Q a
@@ -104,13 +104,13 @@ doDecl str =
           , FunD nm [Clause [] (NormalB e) []]
           ]
 
+{-
 doDecl' :: String -> Q [Dec]
 doDecl' str =
   do (start, root, txt) <- getInput str
      ast <- liftIO (loadDDLCore start root txt
                       `catch` \e -> fail =<< DDL.prettyDaedalusError e)
      Core.compileModule ast
-
-
+-}
 
 

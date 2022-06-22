@@ -40,6 +40,7 @@ library
     Daedalus.VM.Backend.C.UserDefined
     Daedalus.VM.Backend.C.Bitdata
     Daedalus.VM.Backend.C.Call
+    Daedalus.VM.Backend.Haskell
     Daedalus.VM.Semantics
 
   build-depends:
@@ -51,6 +52,8 @@ library
     daedalus-utils,
     daedalus-core,
     daedalus-value,
+    template-haskell,
+    rts-hs,
     transformers
 
   ghc-options: -Wall -Wno-incomplete-uni-patterns

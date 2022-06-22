@@ -85,6 +85,15 @@ data Type =
   | TParam TParam         -- ^ Only in type declaraionts
     deriving (Eq,Ord,Generic,NFData)
 
+tWord :: Integer -> Type
+tWord w = TUInt (TSize w)
+
+tByte :: Type
+tByte = tWord 8
+
+tByteArray :: Type
+tByteArray = TArray tByte
+
 data SizeType =
     TSize Integer
   | TSizeParam TParam     -- ^ Only in type declarations

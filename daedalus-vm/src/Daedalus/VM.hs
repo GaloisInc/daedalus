@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import Data.Text(Text)
 import Data.ByteString(ByteString)
 
+import Daedalus.Panic(panic)
 import Daedalus.PP
 import Daedalus.Rec
 
@@ -242,6 +243,12 @@ instance GetOwnership VMVar where
 class HasType t where
   getType :: t -> VMT
 
+getSemType :: HasType t => t -> Src.Type
+getSemType t =
+  case getType t of
+    TSem a -> a
+    TThreadId -> panic "getSemType" [ "TThreadId" ]
+
 instance HasType BV where getType (BV _ t) = t
 instance HasType BA where getType (BA _ t _) = t
 instance HasType VMVar where
@@ -270,8 +277,8 @@ data PrimName =
   | Integer Integer
   | ByteArray ByteString
   | Op1 Src.Op1
-  | Op2 Src.Op2   -- Without `And` and `Or`
-  | Op3 Src.Op3   -- Without `PureIf`
+  | Op2 Src.Op2
+  | Op3 Src.Op3
   | OpN Src.OpN   -- Without `CallF`
 
 

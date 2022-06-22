@@ -26,6 +26,7 @@ module RTS.Vector
   , RTS.Vector.toList
 
   , (RTS.Vector.!?)
+  , (RTS.Vector.!)
   , RTS.Vector.rangeUp
   , RTS.Vector.rangeDown
 
@@ -180,6 +181,9 @@ toList (Vec xs) = readingList (vToList xs)
 (!?) :: VecElem a => Vector a -> UInt 64 -> Maybe a
 Vec xs !? i = reading <$> vLookup xs (sizeToInt i)
 
+(!) :: VecElem a => Vector a -> UInt 64 -> a
+Vec xs ! i = reading (vIndex xs (sizeToInt i))
+
 rangeUp :: (VecElem a, Ord a, Numeric a) => a -> a -> a -> Vector a
 rangeUp start stop step
   | step <= lit 0 = error "Non-positive step in `rangeUp`"
@@ -234,6 +238,7 @@ class VecImpl t where
   vIFoldM'    :: Monad m => (s -> Int -> ElemOf t -> m s) -> s -> t -> m s
   vToList     :: t -> [ElemOf t]
   vLookup     :: t -> Int -> Maybe (ElemOf t)
+  vIndex      :: t -> Int -> ElemOf t
 
   vVecBuilder :: t -> BuilderT t
   vOneBuilder :: f t -> ElemOf t -> BuilderT t
@@ -254,6 +259,7 @@ instance (U.Unbox a) => VecImpl (U.Vector a) where
   vFoldM'       = U.foldM'
   vToList       = U.toList
   vLookup       = (U.!?)
+  vIndex        = (U.!)
 
   vVecBuilder   = VB.vector
   vOneBuilder   = \_ -> VB.singleton
@@ -292,6 +298,7 @@ instance VecImpl (V.Vector a) where
   vFoldM'       = V.foldM'
   vToList       = V.toList
   vLookup       = (V.!?)
+  vIndex        = (V.!)
 
   vVecBuilder   = VB.vector
   vOneBuilder   = \_ -> VB.singleton
@@ -331,6 +338,7 @@ instance VecImpl ByteString where
   vIFoldl'    = bsIFoldl'
   vIFoldM'    = bsIFoldM'
   vLookup     = bsLookup
+  vIndex      = BS.index
 
   vVecBuilder = BS.byteString
   vOneBuilder = \_ -> BS.word8

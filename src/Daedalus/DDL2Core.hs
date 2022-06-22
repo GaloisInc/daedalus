@@ -32,7 +32,7 @@ import Daedalus.Pass(PassM)
 import qualified Daedalus.Type.AST as TC
 import Daedalus.Type.AST (Commit(..), WithSem(..))
 
-import Daedalus.Core
+import Daedalus.Core hiding (tByte)
 
 import Daedalus.Core.Free
 import Daedalus.Core.Type(typeOf,sizeType)
