@@ -3,26 +3,14 @@ module Daedalus.VM.Backend.Haskell where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.Maybe(fromJust)
-import qualified Data.Text as Text
 import qualified Language.Haskell.TH.Lib as TH
-import GHC.Records(getField)
 
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
-
-import qualified RTS          as RTS
-import qualified RTS.Input    as RTS
-import qualified RTS.Numeric  as RTS
-import qualified RTS.Vector   as RTS
-import qualified RTS.Iterator as RTS
 import qualified RTS.ParserVM as RTS
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
-import Daedalus.Core(Type(..),tByteArray,tWord)
 import qualified Daedalus.Core as Core
-import Daedalus.Core.Type(typeOf)
+import Daedalus.Core.TH.Names
 import Daedalus.Core.TH.Type
 import Daedalus.Core.TH.Ops
 import Daedalus.VM
@@ -91,10 +79,12 @@ compilePrim prim es =
   in
   case prim of
 
-    StructCon ut   -> undefined
+    StructCon ut ->
+      [| $(TH.appsE (TH.conE (structConName (Core.utName ut)) : args))
+         :: $(compileMonoType (Core.TUser ut)) |]
 
     NewBuilder t   -> compileOp0 (Core.NewBuilder t)
-    Integer i      -> compileOp0 (Core.IntL i TInteger)
+    Integer i      -> compileOp0 (Core.IntL i Core.TInteger)
     ByteArray bs   -> compileOp0 (Core.ByteArrayL bs)
 
     Op1 op1 ->
