@@ -21,6 +21,7 @@ import qualified RTS.ParserVM as RTS
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Core(Type(..),tByteArray,tWord)
+import qualified Daedalus.Core as Core
 import Daedalus.Core.Type(typeOf)
 import Daedalus.Core.TH.Type
 import Daedalus.Core.TH.Ops
@@ -68,12 +69,13 @@ type BlockEnv =
 compileE :: BlockEnv => E -> TH.ExpQ
 compileE expr =
   case expr of
-    EUnit         -> [| () |]
-    ENum i t      -> [| i :: $(compileMonoType t) |]
-    EBool b       -> [| b |]
-    EFloat d t    -> [| d :: $(compileMonoType t) |]
-    EMapEmpty k v -> [| mempty  :: $(compileMonoType (TMap k v)) |]
-    ENothing t    -> [| Nothing :: Maybe $(compileMonoType t) |]
+    EUnit         -> compileOp0 Core.Unit
+    ENum i t      -> compileOp0 (Core.IntL i t)
+    EBool b       -> compileOp0 (Core.BoolL b)
+    EFloat d t    -> compileOp0 (Core.FloatL d t)
+    EMapEmpty k v -> compileOp0 (Core.MapEmpty k v)
+    ENothing t    -> compileOp0 (Core.ENothing t)
+
     EBlockArg ba  ->
       case Map.lookup ba ?blockArgs of
         Just e -> e
@@ -91,12 +93,9 @@ compilePrim prim es =
 
     StructCon ut   -> undefined
 
-    NewBuilder t   -> [| RTS.emptyBuilder :: $(compileMonoType (TBuilder t)) |]
-
-    Integer i      -> [| i :: Integer |]
-
-    ByteArray bs   -> [| RTS.vecFromRep $lit :: $(compileMonoType tByteArray) |]
-      where lit = [| $(TH.litE (TH.stringL (BS8.unpack bs))) :: BS.ByteString |]
+    NewBuilder t   -> compileOp0 (Core.NewBuilder t)
+    Integer i      -> compileOp0 (Core.IntL i TInteger)
+    ByteArray bs   -> compileOp0 (Core.ByteArrayL bs)
 
     Op1 op1 ->
       case args of

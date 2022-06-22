@@ -3,6 +3,7 @@ module Daedalus.Core.TH.Ops where
 
 import qualified Data.Text as Text
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.List(sort)
 import qualified Data.Map as Map
 import qualified Language.Haskell.TH.Lib as TH
@@ -14,10 +15,36 @@ import qualified RTS.Vector   as RTS
 import qualified RTS.Iterator as RTS
 import qualified RTS.ParserVM as RTS
 
+import Daedalus.Panic(panic)
+
 import Daedalus.Core.Basics
-import Daedalus.Core.Expr
+import Daedalus.Core.Expr as Core
 import Daedalus.Core.TH.Names
 import Daedalus.Core.TH.Type
+
+compileOp0 :: Op0 -> TH.ExpQ
+compileOp0 op =
+  case op of
+    Unit            -> [| () |]
+    IntL i t ->
+      case t of
+        TUInt {}    -> [| RTS.UInt i  :: $(compileMonoType t) |]
+        TSInt {}    -> [| RTS.SInt i  :: $(compileMonoType t) |]
+        TInteger    -> [| i           :: $(compileMonoType t) |]
+        TFloat      -> [| i           :: $(compileMonoType t) |]
+        TDouble     -> [| i           :: $(compileMonoType t) |]
+        _           -> panic "compileOp0" ["Unexpected type"]
+
+    FloatL d t      -> [| d           :: $(compileMonoType t) |]
+    BoolL b         -> [| b |]
+
+    -- In GHC 9 bytestrings are liftable
+    ByteArrayL bs   -> [| RTS.vecFromRep $lit :: $(compileMonoType tByteArray) |]
+      where lit = [| $(TH.litE (TH.stringL (BS8.unpack bs))) :: BS.ByteString |]
+
+    NewBuilder t    -> [| RTS.emptyBuilder :: $(compileMonoType (TBuilder t)) |]
+    MapEmpty t1 t2  -> [| mempty           :: $(compileMonoType (TMap t1 t2)) |]
+    ENothing t      -> [| Nothing          :: $(compileMonoType (TMaybe t)) |]
 
 compileOp1 :: Op1 -> Type -> TH.ExpQ -> TH.ExpQ
 compileOp1 op1 argT e =
@@ -37,6 +64,7 @@ compileOp1 op1 argT e =
     BytesOfStream     -> [| RTS.vecFromRep (RTS.inputBytes $e)
                               :: $(compileMonoType tByteArray) |]
 
+    -- We could compile this ourselves in some way, but we leave to GHC for now
     OneOf bs          -> TH.caseE e (map alt opts ++ [dflt])
       where
       opts  = sort (BS.unpack bs)
