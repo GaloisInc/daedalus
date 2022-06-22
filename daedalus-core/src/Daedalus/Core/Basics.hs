@@ -34,7 +34,7 @@ data TName = TName
   deriving (Generic, NFData)
 
 -- | What "flavor of type" we have
-data TFlav = TFlavStruct
+data TFlav = TFlavStruct [Label]     -- ^ A struct with fields in this order
            | TFlavEnum  [Label]      -- ^ A sum type with no data
            | TFlavUnion [Label]      -- ^ A sum type with data
            deriving (Generic, NFData)

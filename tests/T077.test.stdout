@@ -1,0 +1,16 @@
+module DaedalusMain where
+ 
+ 
+type P =
+  struct
+    a : Word 8
+    b : [Word 8]
+ 
+.function Main
+  .root
+  .entry L_0_Main9
+  L_0_Main9(ra0o : Input): /* normal block */
+    r0 = "bb"()
+    r1 = newStruct @P(97 @(Word 8), r0)
+    popDebug
+    return(r1, ra0o)

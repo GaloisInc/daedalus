@@ -1671,7 +1671,7 @@ newTNameRec rec =
   doOne r d =
     let bd = isJust (TC.tctyBD d)
         flavor = case TC.tctyDef d of
-                   TC.TCTyStruct {} -> TFlavStruct
+                   TC.TCTyStruct _ fs -> TFlavStruct (map fst fs)
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
                      | otherwise -> TFlavUnion (map fst cs)
