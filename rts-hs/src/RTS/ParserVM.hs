@@ -14,27 +14,28 @@ import qualified RTS.ParserAPI as PAPI
 type DParser m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
-type CParser r m a  = YesCont r m a -> NoCont r m -> Code r m
+type CParser r m a  = NoCont r m -> YesCont r m a -> Code r m
 
-data Thread r m = Thread
-  { tId   :: Int
-  , tCode :: Bool -> Code r m
-  }
+type Thread r m     = Bool -> Code r m
 
 type Code r m       = ThreadState r m -> m (ThreadState r m)
-
 type YesCont r m a  = a -> RTS.Input -> Code r m
 type NoCont r m     = Code r m
 
 data ThreadState r m = ThreadState
-  { thrNextThreadId  :: !Int
-  , thrNotified      :: !IntSet
+  { thrNotified      :: !IntSet
   , thrStack         :: [Thread r m]
+  , thrThreadNum     :: !Int    -- ^ Number of live threads, used to assign ids.
   , thrResults       :: [r]
   , thrErrors        :: ParserErrorState
   }
 
 data ParserErrorState = ParserErrorState -- XXX
+
+thrUpdateErrors ::
+  (ParserErrorState -> ParserErrorState) -> ThreadState r m -> ThreadState r m
+thrUpdateErrors f s = s { thrErrors = f (thrErrors s) }
+
 
 vmNoteFail ::
   PAPI.ParseErrorSource ->
@@ -54,30 +55,35 @@ vmPushDebugCall = undefined
 vmPopDebug :: ParserErrorState -> ParserErrorState
 vmPopDebug = undefined
 
-vmOutput :: Applicative m => r -> Code r m
-vmOutput r = \s -> pure s { thrResults = r : thrResults s }
+vmOutput :: r -> ThreadState r m -> ThreadState r m
+vmOutput r s = s { thrResults = r : thrResults s }
 
-vmNotify :: Applicative m => Int -> Code r m
-vmNotify tid = \s -> pure s { thrNotified = Set.insert tid (thrNotified s) }
+vmNotify :: Int -> ThreadState r m -> ThreadState r m
+vmNotify tid s = s { thrNotified = Set.insert tid (thrNotified s) }
 
-topContinue :: Applicative m => Code r m
-topContinue s =
+vmSpawn :: (Bool -> Code r m) -> ThreadState r m -> (Int,ThreadState r m)
+vmSpawn code s = (tid, newS)
+  where
+  tid  = thrThreadNum s
+  newS = s { thrThreadNum = tid + 1
+           , thrStack = code : thrStack s
+           }
+
+vmIsNotified :: Int -> ThreadState r m -> Bool
+vmIsNotified tid s = tid `Set.member` thrNotified s
+
+vmYield :: Applicative m => Code r m
+vmYield s =
   case thrStack s of
     [] -> pure s
-    Thread tid code : more ->
-      let n  = tid `Set.member` thrNotified s
-          s1 = s { thrResults  = thrResults s
-                 , thrNotified = Set.delete tid (thrNotified s)
-                 , thrStack    = more
-                 }
-      in n `seq` code n s1
-
-topYesCont :: Applicative m => YesCont r m r
-topYesCont r _ = \s -> topContinue s { thrResults = r : thrResults s }
-
-topNoCont :: Applicative m => NoCont r m
-topNoCont = topContinue
-
-
+    code : more ->
+      let tid  = thrThreadNum s - 1
+          note = thrNotified s
+          n    = tid `Set.member` thrNotified s
+          s1   = s { thrThreadNum = tid
+                   , thrStack     = more
+                   , thrNotified  = if n then Set.delete tid note else note
+                   }
+      in code n s1
 
 

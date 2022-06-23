@@ -4,9 +4,7 @@ module Daedalus.VM.Backend.Haskell where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.Maybe(maybeToList)
 import qualified Language.Haskell.TH as TH
-import qualified Language.Haskell.TH.Lib as TH
 import qualified Data.Text as Text
 import Debug.Trace(trace)
 
@@ -22,7 +20,7 @@ import Daedalus.Core.TH.Ops
 import Daedalus.VM
 
 data Config = Config
-  { userMonad      :: TH.TypeQ
+  { userMonad      :: Maybe TH.TypeQ
   , userPrimitives :: Map FName ([TH.ExpQ] -> TH.ExpQ)
   }
 
@@ -34,35 +32,23 @@ funT args res = foldr addArg res args
 
 type HasConfig = (?config :: Config)
 
-userMonadT :: HasConfig => TH.TypeQ
-userMonadT = userMonad ?config
-
-codeT :: HasConfig => TH.TypeQ -> TH.TypeQ
-codeT r = [t| RTS.ThreadState $r $userMonadT |]
-
--- | The type of a capturing parser
-cParserT :: HasConfig => [TH.TypeQ] -> TH.TypeQ -> TH.TypeQ -> TH.TypeQ
-cParserT as b r = funT as [t| RTS.CParser $r $userMonadT $b |]
-
--- | The type of a block in a capturing parser
-cParserBlockT :: HasConfig => [TH.TypeQ] -> TH.TypeQ -> TH.TypeQ
-cParserBlockT as r = funT as (codeT r)
-
--- | The type of a non-capturing parser.
-dParserT :: HasConfig => [TH.TypeQ] -> TH.TypeQ -> TH.TypeQ
-dParserT as b = funT as [t| RTS.DParser $userMonadT $b |]
-
 
 --------------------------------------------------------------------------------
 
-type BlockEnv =
+
+
+--------------------------------------------------------------------------------
+type ExprEnv =
   ( ?blockArgs    :: Map BA TH.ExpQ     -- block arguments
   , ?localVars    :: Map BV TH.ExpQ     -- "copy" to be inlined
-  , ?errorState   :: Maybe TH.ExpQ      -- the error state, for parsers
   )
-  -- XXX: add thread state, for capturing parsers
 
-compileE :: BlockEnv => E -> TH.ExpQ
+addLocal :: ExprEnv => BV -> TH.ExpQ -> (ExprEnv => a) -> a
+addLocal x e k =
+  let ?localVars = Map.insert x e ?localVars
+  in k
+
+compileE :: ExprEnv => E -> TH.ExpQ
 compileE expr =
   case expr of
     EUnit         -> compileOp0 Core.Unit
@@ -76,12 +62,13 @@ compileE expr =
       case Map.lookup ba ?blockArgs of
         Just e -> e
         Nothing -> panic "compileE" ["Missing argument", show (pp ba)]
+
     EVar bv ->
       case Map.lookup bv ?localVars of
-        Just e -> e
+        Just e  -> e
         Nothing -> panic "compileE" ["Missing local variable", show (pp bv)]
 
-compilePrim :: BlockEnv => PrimName -> [E] -> TH.ExpQ
+compilePrim :: ExprEnv => PrimName -> [E] -> TH.ExpQ
 compilePrim prim es =
   let args = map compileE es
   in
@@ -115,32 +102,73 @@ compilePrim prim es =
       where doFun = panic "compileOpN" ["Unexpcetd function call"]
 --------------------------------------------------------------------------------
 
+
+
+--------------------------------------------------------------------------------
+data BlockTy = PureParser
+             | NonCapturingParser TH.ExpQ   -- error state
+             | CapturingParser
+                  TH.ExpQ   -- thread state
+                  TH.ExpQ   -- no cont
+                  TH.ExpQ   -- yes cont
+
+
+type BlockEnv =
+  ( HasConfig
+  , ExprEnv
+  , ?blockTy :: BlockTy
+  )
+
+stateArgs :: BlockEnv => [TH.ExpQ]
+stateArgs = case ?blockTy of
+              NonCapturingParser e  -> [e]
+              CapturingParser e _ _ -> [e]
+              PureParser            -> []
+
 getErrorState :: BlockEnv => TH.ExpQ
 getErrorState =
-  case ?errorState of
-    Just e  -> e
-    Nothing -> panic "getErrorState" ["Missing error state"]
-
-
+  case ?blockTy of
+    NonCapturingParser e    -> e
+    CapturingParser e _ _   -> [| RTS.thrErrors $e |]
+    PureParser              -> panic "getErrorState" ["Pure parser"]
 
 updErrorState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
 updErrorState k f =
-  let ?errorState = Just (f getErrorState)
+  let ?blockTy =
+        case ?blockTy of
+          NonCapturingParser e -> NonCapturingParser (f e)
+          CapturingParser e noK yesK ->
+            CapturingParser [| RTS.thrUpdateErrors $(f e) |] noK yesK
+          PureParser -> panic "updErrorState" ["Pure parser"]
   in k
+
+getThreadState :: BlockEnv => TH.ExpQ
+getThreadState =
+  case ?blockTy of
+    CapturingParser e _ _ -> e
+    _  -> panic "getThreadState" ["Not a capturing parser"]
+
+updThreadState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
+updThreadState k f =
+  let ?blockTy =
+        case ?blockTy of
+          CapturingParser e noK yesK -> CapturingParser (f e) noK yesK
+          _ -> panic "updThreadState" ["Not a capturing parser"]
+  in k
+
 
 compileInstr :: BlockEnv => Instr -> (BlockEnv => TH.ExpQ) -> TH.ExpQ
 compileInstr i k =
   case i of
+
     Say x -> [| trace x $k |]
 
     CallPrim x p es ->
       [| let v = $(compilePrim p es)
-         in $(let ?localVars = Map.insert x [| v |] ?localVars
-              in k)
+         in $(addLocal x [| v |] k)
       |]
 
-    Let x e -> let ?localVars = Map.insert x (compileE e) ?localVars
-               in k
+    Let x e -> addLocal x (compileE e) k
 
     Free {} -> k
 
@@ -167,21 +195,49 @@ compileInstr i k =
     PopDebug ->
       updErrorState k \s -> [| RTS.vmPopDebug $s |]
 
-    Spawn {} -> undefined
-    Output {} -> undefined
-    Notify {} -> undefined
+    Spawn x c -> [| case RTS.vmSpawn $code $getThreadState of
+                      (tid,s1) -> $( addLocal x [| tid |]
+                                   $ updThreadState k \_ -> [| s1 |]
+                                   )
+                 |]
 
--- XXX: user monad
-compileCInstrSimple :: BlockEnv => CInstr -> TH.ExpQ
-compileCInstrSimple cinstr =
+      where code = [| \n s -> $(doJump [ [| s |], [| n |] ] c) |]
+
+    Output e  -> updThreadState k \s -> [| RTS.vmOutput $(compileE e) $s |]
+    Notify e  -> updThreadState k \s -> [| RTS.vmNotify $(compileE e) $s |]
+
+
+-- XXX: strictness
+compileCInstr :: BlockEnv => CInstr -> TH.ExpQ
+compileCInstr cinstr =
   case cinstr of
-    ReturnNo          -> [| (Nothing, $getErrorState) |]
-    ReturnYes a inp   -> [| ( Just ($(compileE a), $(compileE inp))
-                            , $getErrorState
-                            )
-                          |]
     ReturnPure a      -> compileE a
-    Jump jp           -> doJump stateArgs jp
+
+    ReturnNo ->
+      case ?blockTy of
+        NonCapturingParser {} ->
+          let val = [| (Nothing, $getErrorState) |]
+          in case userMonad ?config of
+               Nothing -> val
+               Just {} -> [| pure $val |] -- do we need type sig here?
+
+        CapturingParser _ noK _ -> [| $noK $getThreadState |]
+        PureParser {} -> panic "compileCInstr" ["ReturnNo in pure"]
+
+    ReturnYes a inp ->
+      case ?blockTy of
+        NonCapturingParser {} ->
+          let val = [| ( Just ($(compileE a), $(compileE inp))
+                       , $getErrorState) |]
+          in case userMonad ?config of
+              Nothing -> val
+              Just {} -> [| pure $val |]
+
+        CapturingParser _ _ yesK -> [| $yesK $(compileE a) $(compileE inp)
+                                             $getThreadState |]
+        PureParser {} -> panic "compileCInstr" ["ReturnNo i  pure"]
+
+    Jump jp -> doJump stateArgs jp
 
     JumpIf e (JumpCase ch) -> TH.caseE (compileE e) alts
       where
@@ -201,40 +257,65 @@ compileCInstrSimple cinstr =
           Core.PNothing  -> TH.conP 'Nothing []
           Core.PJust     -> TH.conP 'Just [TH.wildP]
           Core.PNum i    -> TH.litP (TH.IntegerL i)
-          Core.PBytes {} -> panic "compileCInstrSimple" ["PBytes"]
+          Core.PBytes {} -> panic "compileCInstr" ["PBytes"]
           Core.PCon l    -> flip TH.recP []
                             case getSemType e of
                               Core.TUser ut -> unionConName (Core.utName ut) l
-                              _ -> panic "compileCInstrSimple" ["ConP not UserT"]
+                              _ -> panic "compileCInstr" ["ConP not UserT"]
           Core.PAny      -> TH.wildP
- 
 
 
-  -- Yield
+    Yield -> [| RTS.vmYield $getThreadState |]
 
-    -- force thunk?
     CallPure f jp es ->
-      doJump
-        (stateArgs ++ [ doCall f (map compileE es) ])
-        jp
+      doJump (stateArgs ++ [ doCall f (map compileE es) ]) jp
 
-    -- XXX: if the call is to external primitive needs to be monadic
-    Call f _cap no yes es ->
-      [| case $(doCall f (stateArgs ++ map compileE es)) of
-           (Nothing, s1)       -> $(doJump [ [|s1|] ] no)
-           (Just (a,inp), s1)  -> $(doJump [ [|s1|], [|a|], [|inp|] ] yes)
-      |]
+    Call f how no yes es ->
+      case how of
+        NoCapture ->
+          let call = doCall f (stateArgs ++ map compileE es)
+              next v =
+                [| case $v of
+                     (Nothing, s1) ->
+                        $(doJump [ [|s1|] ] no)
 
+                     (Just (a,inp), s1) ->
+                        $(doJump [ [|s1|], [|a|], [|inp|] ] yes)
+                |]
 
-    TailCall f _cap es -> doCall f (stateArgs ++ map compileE es)
+          in case userMonad ?config of
+                Nothing -> next call
+                Just _  -> [| do v <- $call
+                                 $(next [| v |]) |]
+
+        Capture ->
+          doCall f $
+            map compileE es ++
+            stateArgs ++
+            [ [| \s -> $(doJump [ [| s |] ] no) |]
+
+            , [| \val inp s ->
+                    $(doJump [ [| s |], [| val |], [| inp |] ] yes) |]
+            ]
+
+        Unknown -> panic "compileCInstr" ["Unknown call"]
+
+    TailCall f how es ->
+      case how of
+        NoCapture -> doCall f (map compileE es ++ stateArgs)
+        Capture ->
+          doCall f $
+            map compileE es ++
+            stateArgs ++
+            case ?blockTy of
+              CapturingParser _ no yes -> [ no, yes ]
+              _ -> panic "compileCInstr"
+                            [ "Call to capturing from non-capturing" ]
+        Unknown -> panic "compileCInstr" ["Unknown tail call"]
 
 
 labelName :: Label -> TH.Name
 labelName (Label txt n) = TH.mkName ('l' : Text.unpack txt ++ "_" ++ show n)
-
-
-stateArgs :: BlockEnv => [TH.ExpQ]
-stateArgs = maybeToList ?errorState
 
 doCall :: FName -> [TH.ExpQ] -> TH.ExpQ
 doCall f es = TH.appsE (TH.varE (fnameName f) : es)

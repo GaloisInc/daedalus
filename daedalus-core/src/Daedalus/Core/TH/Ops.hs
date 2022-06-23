@@ -13,7 +13,6 @@ import qualified RTS.Input    as RTS
 import qualified RTS.Numeric  as RTS
 import qualified RTS.Vector   as RTS
 import qualified RTS.Iterator as RTS
-import qualified RTS.ParserVM as RTS
 
 import Daedalus.Panic(panic)
 
