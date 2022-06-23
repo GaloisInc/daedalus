@@ -1,11 +1,17 @@
 {-# Language TemplateHaskell, ConstraintKinds, ImplicitParams #-}
+{-# Language RankNTypes, BlockArguments #-}
 module Daedalus.VM.Backend.Haskell where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Maybe(maybeToList)
+import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Lib as TH
+import qualified Data.Text as Text
+import Debug.Trace(trace)
 
 import qualified RTS.ParserVM as RTS
+import qualified RTS.ParserAPI as RTS
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
@@ -50,9 +56,11 @@ dParserT as b = funT as [t| RTS.DParser $userMonadT $b |]
 --------------------------------------------------------------------------------
 
 type BlockEnv =
-  ( ?blockArgs :: Map BA TH.ExpQ
-  , ?localVars :: Map BV TH.ExpQ
+  ( ?blockArgs    :: Map BA TH.ExpQ     -- block arguments
+  , ?localVars    :: Map BV TH.ExpQ     -- "copy" to be inlined
+  , ?errorState   :: Maybe TH.ExpQ      -- the error state, for parsers
   )
+  -- XXX: add thread state, for capturing parsers
 
 compileE :: BlockEnv => E -> TH.ExpQ
 compileE expr =
@@ -105,6 +113,139 @@ compilePrim prim es =
 
     OpN opN -> compileOpN doFun opN args
       where doFun = panic "compileOpN" ["Unexpcetd function call"]
+--------------------------------------------------------------------------------
+
+getErrorState :: BlockEnv => TH.ExpQ
+getErrorState =
+  case ?errorState of
+    Just e  -> e
+    Nothing -> panic "getErrorState" ["Missing error state"]
+
+
+
+updErrorState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
+updErrorState k f =
+  let ?errorState = Just (f getErrorState)
+  in k
+
+compileInstr :: BlockEnv => Instr -> (BlockEnv => TH.ExpQ) -> TH.ExpQ
+compileInstr i k =
+  case i of
+    Say x -> [| trace x $k |]
+
+    CallPrim x p es ->
+      [| let v = $(compilePrim p es)
+         in $(let ?localVars = Map.insert x [| v |] ?localVars
+              in k)
+      |]
+
+    Let x e -> let ?localVars = Map.insert x (compileE e) ?localVars
+               in k
+
+    Free {} -> k
+
+    NoteFail src loc inp msg ->
+      let txtLoc = Text.pack loc
+      in updErrorState k \s ->
+            [| RTS.vmNoteFail
+                 $(case src of
+                     Core.ErrorFromUser   -> [| RTS.FromUser   |]
+                     Core.ErrorFromSystem -> [| RTS.FromSystem |]
+                  )
+                  txtLoc
+                 $(compileE inp)
+                 $(compileE msg)
+                 $s
+            |]
+
+    PushDebug c t ->
+      updErrorState k \s ->
+         case c of
+           DebugCall     -> [| RTS.vmPushDebugCall t $s |]
+           DebugTailCall -> [| RTS.vmPushDebugTail t $s |]
+
+    PopDebug ->
+      updErrorState k \s -> [| RTS.vmPopDebug $s |]
+
+    Spawn {} -> undefined
+    Output {} -> undefined
+    Notify {} -> undefined
+
+-- XXX: user monad
+compileCInstrSimple :: BlockEnv => CInstr -> TH.ExpQ
+compileCInstrSimple cinstr =
+  case cinstr of
+    ReturnNo          -> [| (Nothing, $getErrorState) |]
+    ReturnYes a inp   -> [| ( Just ($(compileE a), $(compileE inp))
+                            , $getErrorState
+                            )
+                          |]
+    ReturnPure a      -> compileE a
+    Jump jp           -> doJump stateArgs jp
+
+    JumpIf e (JumpCase ch) -> TH.caseE (compileE e) alts
+      where
+      alts = map doAlt (Map.toList (Map.delete Core.PAny ch)) ++ dflt
+
+      dflt  = case Map.lookup Core.PAny ch of
+                Just r  -> [ doAlt (Core.PAny, r) ]
+                Nothing -> []
+
+      doAlt (p,rhs) =
+        TH.match (doPat p) (TH.normalB (doJump stateArgs (jumpTarget rhs))) []
+
+      -- XXX: bitdata
+      doPat p =
+        case p of
+          Core.PBool b   -> TH.conP (if b then 'True else 'False) []
+          Core.PNothing  -> TH.conP 'Nothing []
+          Core.PJust     -> TH.conP 'Just [TH.wildP]
+          Core.PNum i    -> TH.litP (TH.IntegerL i)
+          Core.PBytes {} -> panic "compileCInstrSimple" ["PBytes"]
+          Core.PCon l    -> flip TH.recP []
+                            case getSemType e of
+                              Core.TUser ut -> unionConName (Core.utName ut) l
+                              _ -> panic "compileCInstrSimple" ["ConP not UserT"]
+          Core.PAny      -> TH.wildP
+ 
+
+
+  -- Yield
+
+    -- force thunk?
+    CallPure f jp es ->
+      doJump
+        (stateArgs ++ [ doCall f (map compileE es) ])
+        jp
+
+    -- XXX: if the call is to external primitive needs to be monadic
+    Call f _cap no yes es ->
+      [| case $(doCall f (stateArgs ++ map compileE es)) of
+           (Nothing, s1)       -> $(doJump [ [|s1|] ] no)
+           (Just (a,inp), s1)  -> $(doJump [ [|s1|], [|a|], [|inp|] ] yes)
+      |]
+
+
+    TailCall f _cap es -> doCall f (stateArgs ++ map compileE es)
+
+
+labelName :: Label -> TH.Name
+labelName (Label txt n) = TH.mkName ('l' : Text.unpack txt ++ "_" ++ show n)
+
+
+stateArgs :: BlockEnv => [TH.ExpQ]
+stateArgs = maybeToList ?errorState
+
+doCall :: FName -> [TH.ExpQ] -> TH.ExpQ
+doCall f es = TH.appsE (TH.varE (fnameName f) : es)
+
+doJump :: BlockEnv => [TH.ExpQ] -> JumpPoint -> TH.ExpQ
+doJump extra jp =
+  TH.appsE ( TH.varE (labelName (jLabel jp))
+           : extra
+          ++ map compileE (jArgs jp)
+           )
+
 
 
 

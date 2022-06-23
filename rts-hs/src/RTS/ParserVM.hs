@@ -1,13 +1,17 @@
-{-# Language KindSignatures #-}
+{-# Language KindSignatures, DataKinds #-}
 module RTS.ParserVM where
 
+import Data.Text(Text)
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
 
-import RTS.Input
+import qualified RTS.Input as RTS
+import qualified RTS.Vector as RTS
+import qualified RTS.Numeric as RTS
+import qualified RTS.ParserAPI as PAPI
 
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
-type DParser m a    = ParserErrorState -> m (Maybe (a,Input), ParserErrorState)
+type DParser m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
 type CParser r m a  = YesCont r m a -> NoCont r m -> Code r m
@@ -19,7 +23,7 @@ data Thread r m = Thread
 
 type Code r m       = ThreadState r m -> m (ThreadState r m)
 
-type YesCont r m a  = a -> Input -> Code r m
+type YesCont r m a  = a -> RTS.Input -> Code r m
 type NoCont r m     = Code r m
 
 data ThreadState r m = ThreadState
@@ -30,7 +34,25 @@ data ThreadState r m = ThreadState
   , thrErrors        :: ParserErrorState
   }
 
-data ParserErrorState = ParserErrors
+data ParserErrorState = ParserErrorState -- XXX
+
+vmNoteFail ::
+  PAPI.ParseErrorSource ->
+  Text ->
+  RTS.Input ->
+  RTS.Vector (RTS.UInt 8) ->
+  ParserErrorState ->
+  ParserErrorState
+vmNoteFail = undefined
+
+vmPushDebugTail :: Text -> ParserErrorState -> ParserErrorState
+vmPushDebugTail = undefined
+
+vmPushDebugCall :: Text -> ParserErrorState -> ParserErrorState
+vmPushDebugCall = undefined
+
+vmPopDebug :: ParserErrorState -> ParserErrorState
+vmPopDebug = undefined
 
 vmOutput :: Applicative m => r -> Code r m
 vmOutput r = \s -> pure s { thrResults = r : thrResults s }
