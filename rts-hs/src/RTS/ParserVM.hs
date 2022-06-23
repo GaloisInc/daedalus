@@ -1,9 +1,10 @@
-{-# Language KindSignatures, DataKinds #-}
+{-# Language KindSignatures, DataKinds, RankNTypes #-}
 module RTS.ParserVM where
 
 import Data.Text(Text)
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
+import Data.Functor.Identity
 
 import qualified RTS.Input as RTS
 import qualified RTS.Vector as RTS
@@ -11,10 +12,16 @@ import qualified RTS.Numeric as RTS
 import qualified RTS.ParserAPI as PAPI
 
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
-type DParser m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
+-- No custom user monad
+type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
+
+-- | A direct parser.  Used for parsers that do not use unbiased chocie.
+type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
+
+type CParser a = CParserM Identity a
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
-type CParser r m a  = NoCont r m -> YesCont r m a -> Code r m
+type CParserM m a   = forall r. NoCont r m -> YesCont r m a -> Code r m
 
 type Thread r m     = Bool -> Code r m
 

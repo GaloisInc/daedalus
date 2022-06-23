@@ -1,6 +1,6 @@
 {-# Language TemplateHaskell, ConstraintKinds, ImplicitParams #-}
 {-# Language RankNTypes, BlockArguments #-}
-module Daedalus.VM.Backend.Haskell where
+module Daedalus.VM.Backend.Haskell (compileModule, Config(..)) where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -14,8 +14,10 @@ import qualified RTS.ParserAPI as RTS
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import qualified Daedalus.Core as Core
+import qualified Daedalus.Core.Type as Core
 import Daedalus.Core.TH.Names
 import Daedalus.Core.TH.Type
+import Daedalus.Core.TH.TypeDecls
 import Daedalus.Core.TH.Ops
 import Daedalus.VM
 
@@ -40,6 +42,15 @@ compileVMT vmt =
 
 
 --------------------------------------------------------------------------------
+compileModule :: Config -> Module -> TH.DecsQ
+compileModule cfg m =
+  do tys <- compileTDecls (mTypes m)
+     let ?config = cfg
+     fus <- mapM compileFun (mFuns m)
+     pure (tys ++ concat fus)
+
+
+--------------------------------------------------------------------------------
 
 compileFun :: HasConfig => VMFun -> TH.DecsQ
 compileFun fun =
@@ -58,10 +69,30 @@ compileFun fun =
      let def = compileDef (vmfName fun) funTy (vmfDef fun) (map snd args)
      decl <- TH.funD (fnameName (vmfName fun))
                   [ TH.clause (map fst args ++ contArgs) (TH.normalB def) [] ]
-    -- XXX: sig
-     pure [decl]
+     sig <- TH.sigD (fnameName (vmfName fun)) (funT srcTs resT)
+     pure [sig,decl]
 
   where
+  srcTs   = map (compileVMT . getType) srcArgs
+  valResT = compileMonoType (Core.typeOf (vmfName fun))
+  resT
+    | vmfPure fun = valResT
+    | otherwise =
+      case vmfCaptures fun of
+
+        NoCapture ->
+          case userMonad ?config of
+            Nothing -> [t| RTS.DParser $valResT |]
+            Just m  -> [t| RTS.DParserM $m $valResT |]
+
+        Capture ->
+          case userMonad ?config of
+            Nothing -> [t| RTS.CParser $valResT |]
+            Just m  -> [t| RTS.CParserM $m $valResT |]
+
+        Unknown -> panic "compileFun" ["Unknown"]
+
+
   srcArgs =
     case vmfDef fun of
       VMExtern bs -> bs
