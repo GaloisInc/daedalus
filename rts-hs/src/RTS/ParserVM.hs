@@ -86,4 +86,12 @@ vmYield s =
                    }
       in code n s1
 
+topNoK :: Applicative m => NoCont r m
+topNoK = vmYield
+
+topYesOneK :: Applicative m => YesCont r m r
+topYesOneK a _ s = pure (vmOutput a s)
+
+topYesAllK :: Applicative m => YesCont r m r
+topYesAllK a _ s = vmYield (vmOutput a s)
 
