@@ -39,7 +39,7 @@ import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
-import           Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, matches)
+import           Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, matches, partial, evalOp0)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
@@ -196,7 +196,7 @@ muxValueToList mk mv =
     _ -> Nothing
 
 gseToList :: GuardedSemiSExpr -> Maybe [GuardedSemiSExprs]
-gseToList = muxValueToList (singletonGuardedValues trueValueGuard . VValue)
+gseToList = muxValueToList (vValue trueValueGuard)
 
 -- -----------------------------------------------------------------------------
 -- Values
@@ -610,46 +610,41 @@ inSolver = lift . lift
 
 semiExecExpr :: (SemiCtxt m, HasCallStack) =>
                 Expr -> SemiSolverM m GuardedSemiSExprs
-semiExecExpr expr = undefined
---   case expr of
---     Var n          -> semiExecName n
---     PureLet n e e' -> do
---       ve  <- semiExecExpr e
---       bindNameIn n ve (semiExecExpr e') -- Maybe we should generate a let?
+semiExecExpr expr = 
+  case expr of
+    Var n          -> semiExecName n
+    PureLet n e e' -> do
+      ve  <- semiExecExpr e
+      bindNameIn n ve (semiExecExpr e') -- Maybe we should generate a let?
 
---     Struct _ut ctors -> do
---       let (ls, es) = unzip ctors
---       sves <- mapM semiExecExpr es
---       pure (VStruct (zip ls sves))
+    Struct _ut ctors -> do
+      let (ls, es) = unzip ctors
+      sves <- mapM semiExecExpr es
+      pure (singletonGuardedValues trueValueGuard $ VStruct (zip ls sves))
 
---     ECase cs -> do
---       m_e <- semiExecCase cs
---       case m_e of
---         -- can't determine match, just return a sexpr
---         TooSymbolic   -> symExec expr
---         DidMatch _ e' -> semiExecExpr e'
---         -- Shouldn't happen in pure code
---         NoMatch -> panic "No match" []
+    ECase cs -> do
+      (ms, _partialPred) <- semiExecCase cs
+      let mk1 (gs, e) = do
+            v <- semiExecExpr e
+            pure $ mapMaybe (\g -> refineGuardedSemiExprs g v) (NE.toList gs)
+      els <- concat <$> mapM mk1 ms
+      hoistMaybe (unionGuardedSemiExprs' els)
         
---     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
---     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
---     Ap2 op e1 e2 ->
---       join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
---             <$> semiExecExpr e1
---             <*> semiExecExpr e2)
---     Ap3 op e1 e2 e3 ->
---       join (semiExecOp3 op rty (typeOf e1)
---              <$> semiExecExpr e1
---              <*> semiExecExpr e2
---              <*> semiExecExpr e3)
---     ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
---   where
---     rty = typeOf expr
+    Ap0 op       -> pure (vValue trueValueGuard $ partial (evalOp0 op))
+    Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
+    Ap2 op e1 e2 ->
+      join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
+            <$> semiExecExpr e1
+            <*> semiExecExpr e2)
+    Ap3 op e1 e2 e3 ->
+      join (semiExecOp3 op rty (typeOf e1)
+             <$> semiExecExpr e1
+             <*> semiExecExpr e2
+             <*> semiExecExpr e3)
+    ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
+  where
+    rty = typeOf expr
     
--- Might be able to just use the value instead of requiring t
--- semiExecOp1 op _rty ty gvs =
---   do env <- asks interpEnv
---      pure $ singletonGuardedValues g $ VValue (evalOp1 (I.tEnv env) op ty v)
 semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
                GuardedSemiSExprs ->
                SemiSolverM m GuardedSemiSExprs
@@ -658,8 +653,6 @@ semiExecOp1 EJust _rty _ty gvs =
 
 semiExecOp1 (InUnion _ut l)  _rty _ty sv =
   pure . singletonGuardedValues trueValueGuard $ VUnionElem l sv
-
--- semiExecOp1 op rty  ty (VOther s) = lift (vSExpr rty <$> SE.symExecOp1 op ty (typedThing s))
 
 -- We do this component-wise
 semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
@@ -953,6 +946,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
             -> hoistMaybe (refineGuardedSemiExprs g (svs !! ix))
 
           -- FIXME: produce a n-way value (I doubt this case is very common)
+
           -- concrete spine, symbolic index.  We could either make the
           -- whole thing symbolic, or create a value for each value in
           -- the list and also constrain the index.
@@ -1037,25 +1031,37 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
         _ -> S.ite (S.eq symkv (guardedSemiSExprToSExpr tys kTy skv')) (f sel) rest
 
 
--- semiExecOp3 :: (Monad m, HasGUID m) => Op3 -> Type -> Type ->
---                SemiSExpr -> SemiSExpr -> SemiSExpr ->
---                SemiSolverM m SemiSExpr
--- semiExecOp3 op _rty _ty (VValue v1) (VValue v2) (VValue v3) = pure $ VValue (evalOp3 op v1 v2 v3)
--- semiExecOp3 op rty   ty (VOther v1) (VOther v2) (VOther v3) =
---   lift (vSExpr rty <$> SE.symExecOp3 op ty (typedThing v1) (typedThing v2) (typedThing v3))
--- semiExecOp3 MapInsert _rty _ty sv k v =
---   case sv of
---     VMap ms -> pure (VMap ((k, v) : ms))
---     VValue (V.VMap m) ->
---       -- FIXME: this picks an ordering
---       let ms = [ (VValue k', VValue v') | (k', v') <- Map.toList m ]
---       in pure (VMap ((k, v) : ms))
---     _ -> panic "Unimplemented" [showPP MapInsert, show sv]
+semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
+               GuardedSemiSExprs -> GuardedSemiSExprs -> GuardedSemiSExprs ->
+               SemiSolverM m GuardedSemiSExprs
 
--- semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
+-- We only need sv to be concrete here.
+semiExecOp3 MapInsert rty@(TMap kt vt) _ty gvs k v =
+  -- FIXME: this shouldn't fail, we gseCollect may be overkill
+  gseCollect (map go (guardedValues gvs))
+  where
+    go (g, sv)
+      | VMap els <- sv = pure $ singletonGuardedValues g (VMap ((k, v) : els))
+      -- FIXME: this picks an ordering
+      | VValue (V.VMap m) <- sv  = 
+          let ms = [ (vValue trueValueGuard k', vValue trueValueGuard v')
+                   | (k', v') <- Map.toList m ]
+          in pure $ singletonGuardedValues g (VMap ((k, v) : ms))
+      | VOther x <- sv = do
+          tys <- asks typeDefs
+          vSExpr g rty =<< inSolver (SE.symExecOp3 MapInsert rty (S.const x)
+                                      (guardedSemiSExprsToSExpr tys kt k)
+                                      (guardedSemiSExprsToSExpr tys vt v))
+      | otherwise = panic "BUG: unexpected value shape" []
 
--- semiExecOpN :: (Monad m, HasGUID m, MonadIO m) => OpN -> Type -> [SemiSExpr] ->
---                SemiSolverM m SemiSExpr
+-- RangeUp and RangeDown      
+semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
+
+semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
+               SemiSolverM m GuardedSemiSExprs
+semiExecOpN (ArrayL _ty) _rty vs =
+  pure (singletonGuardedValues trueValueGuard (VSequence vs))
+               
 -- semiExecOpN op rty vs
 --   | Just vs' <- mapM unValue vs = do
 --       env <- asks interpEnv
@@ -1068,16 +1074,17 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
 --     unOther (VOther v) = Just (typedThing v)
 --     unOther _ = Nothing
 
--- -- unfold body of function.
--- semiExecOpN (CallF fn) _rty vs = do
---   fdefs <- asks funDefs
---   let (ps, e) = case Map.lookup fn fdefs of
---         Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
---         _   -> panic "Missing function " [showPP fn]
+-- Unfold body of function.
 
---   foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
+-- FIXME: This may run into termination issues if the arguments aren't
+-- concrete enough (e.g. map over a symbolic array)
+semiExecOpN (CallF fn) _rty vs = do
+  fdefs <- asks funDefs
+  let (ps, e) = case Map.lookup fn fdefs of
+        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
+        _   -> panic "Missing function " [showPP fn]
 
--- semiExecOpN op _rty _vs = panic "Unimplemented" [showPP op]
+  foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
 
 -- -- -----------------------------------------------------------------------------
 -- -- Value -> SExpr
