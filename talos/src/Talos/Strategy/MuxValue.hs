@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
@@ -203,7 +204,7 @@ gseToList = muxValueToList (singletonGuardedValues trueValueGuard . VValue)
 vUnit :: GuardedSemiSExprs
 vUnit = singletonGuardedValues trueValueGuard $ VValue V.vUnit
 
-vSExpr :: ValueGuard -> Type -> SExpr -> SemiSolverM m GuardedSemiSExprs
+vSExpr :: SemiCtxt m => ValueGuard -> Type -> SExpr -> SemiSolverM m GuardedSemiSExprs
 vSExpr g ty se = do
   sx <- sexprAsSMTVar (symExecTy ty) se
   pure (singletonGuardedValues g (VOther sx))
@@ -360,7 +361,7 @@ guardedSemiSExprToSExpr tys ty sv =
       TIterator (TMap   _kt' _vt') -> panic "Unimplemented" []
       _ -> panic "Malformed iterator type" []
       
-    _ -> panic "Malformed value" [show sv, showPP ty]
+    _ -> panic "Malformed value" [showPP ty]
   where
     go = guardedSemiSExprsToSExpr tys
     goStruct (l, e) (l', ty') | l == l' = go ty' e
@@ -515,7 +516,7 @@ matches' ty v pat =
 -- much (we could e.g. throw away the non-matching values and then
 -- merge the environment at each join point, which might make the code
 -- more efficient?)
-semiExecCase :: HasCallStack =>
+semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
                 Case a ->
                 SemiSolverM m ( [ ( NonEmpty ValueGuard , a) ], [ (ValueGuard, SExpr) ] )
 semiExecCase (Case y pats) = do
@@ -528,12 +529,14 @@ semiExecCase (Case y pats) = do
     goV :: (ValueGuard, GuardedSemiSExpr) ->
            ( [ Maybe ValueGuard ], [(ValueGuard, SExpr)] )
     goV (g, VOther x) =
-      let ps = map (\p -> Set.singleton (True, p)) pats'
-          basePreds = map (\p -> SE.patternToPredicate ty p (S.const x)) pats'
+      let basePreds = map (\p -> SE.patternToPredicate ty p (S.const x)) pats'
           (m_any, assn)
-            | hasAny    = ([ Set.fromList [ (False, p) | p <- pats']] , [])
+            -- if we have a default case, the constraint is that none
+            -- of the above matched
+            | hasAny    = ([ Right (Set.fromList pats') ] , [])
             | otherwise = ([], [(g, S.orMany basePreds)])
-      in (map (\els -> valueGuardInsertCase x (ty, els) g) (ps ++ m_any), assn)
+          vgciFor c = ValueGuardCaseInfo { vgciType = ty, vgciConstraint = c }
+      in (map (\c -> valueGuardInsertCase x (vgciFor c) g) (map Left pats' ++ m_any), assn)
     goV (g, v) =
       let ms = map (matches' ty v) pats'
           noMatch = not (or ms)
@@ -567,9 +570,11 @@ data SemiSolverEnv = SemiSolverEnv
 typeDefs :: SemiSolverEnv -> Map TName TDecl
 typeDefs = I.tEnv . interpEnv
 
+type SemiCtxt m = (Monad m, MonadIO m, HasGUID m)
+
 type SemiSolverM m = MaybeT (ReaderT SemiSolverEnv (SolverT m))
 
-runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
+runSemiSolverM :: SemiCtxt m =>
                   Map FName (Fun Expr) ->
                   Map FName (Fun ByteSet) ->                  
                   Map Name GuardedSemiSExprs ->
@@ -578,32 +583,32 @@ runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
 runSemiSolverM funs bfuns lenv env m =
   runReaderT (runMaybeT m) (SemiSolverEnv lenv env funs bfuns)
 
-getMaybe :: SemiSolverM m a -> SemiSolverM m (Maybe a)
+getMaybe :: SemiCtxt m => SemiSolverM m a -> SemiSolverM m (Maybe a)
 getMaybe = lift . runMaybeT 
 
-putMaybe :: SemiSolverM m (Maybe a) -> SemiSolverM m a
+putMaybe :: SemiCtxt m => SemiSolverM m (Maybe a) -> SemiSolverM m a
 putMaybe m = hoistMaybe =<< m
 
-hoistMaybe :: Maybe a -> SemiSolverM m a
+hoistMaybe :: SemiCtxt m => Maybe a -> SemiSolverM m a
 hoistMaybe r = 
   case r of
     Nothing -> fail "Ignored"
     Just v  -> pure v
 
-collectMaybes :: [SemiSolverM m a] -> SemiSolverM m [a]
+collectMaybes :: SemiCtxt m => [SemiSolverM m a] -> SemiSolverM m [a]
 collectMaybes = fmap catMaybes . sequence . map getMaybe
 
-gseCollect :: [SemiSolverM m GuardedSemiSExprs] ->
+gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
               SemiSolverM m GuardedSemiSExprs
 gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unionGuardedSemiExprs'
 
-inSolver :: SolverT m a -> SemiSolverM m a
+inSolver :: SemiCtxt m => SolverT m a -> SemiSolverM m a
 inSolver = lift . lift
 
 --------------------------------------------------------------------------------
 -- Exprs
 
-semiExecExpr :: (HasGUID m, Monad m, MonadIO m, HasCallStack) =>
+semiExecExpr :: (SemiCtxt m, HasCallStack) =>
                 Expr -> SemiSolverM m GuardedSemiSExprs
 semiExecExpr expr = undefined
 --   case expr of
@@ -645,7 +650,7 @@ semiExecExpr expr = undefined
 -- semiExecOp1 op _rty ty gvs =
 --   do env <- asks interpEnv
 --      pure $ singletonGuardedValues g $ VValue (evalOp1 (I.tEnv env) op ty v)
-semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type ->
+semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
                GuardedSemiSExprs ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOp1 EJust _rty _ty gvs =
@@ -766,7 +771,7 @@ gseConcat g svs = unionGuardedSemiExprs' (mapMaybe mkOne combs)
 
     toL = gseToList
 
-sexprAsSMTVar :: SExpr -> SExpr -> SemiSolverM m SMTVar
+sexprAsSMTVar :: SemiCtxt m => SExpr -> SExpr -> SemiSolverM m SMTVar
 sexprAsSMTVar _ty (S.Atom x) = pure x
 sexprAsSMTVar ty e = inSolver (defineSymbol "named" ty e)
 
@@ -798,7 +803,7 @@ typeToElType ty =
 -- bAnd = scBinOp S.and id (const (VBool False))
 -- bOr  = scBinOp S.or (const (VBool True)) id
 
-bOpMany :: Bool -> ValueGuard -> 
+bOpMany :: SemiCtxt m => Bool -> ValueGuard -> 
            [GuardedSemiSExprs] ->
            SemiSolverM m GuardedSemiSExprs
 bOpMany opUnit g svs = gseCollect (map mkOne combs)
@@ -830,19 +835,19 @@ bOpMany opUnit g svs = gseCollect (map mkOne combs)
     op = if opUnit then S.andMany else S.orMany
     absorb = not opUnit
 
-bAndMany, bOrMany :: ValueGuard -> 
+bAndMany, bOrMany :: SemiCtxt m => ValueGuard -> 
                      [GuardedSemiSExprs] ->
                      SemiSolverM m GuardedSemiSExprs
 bAndMany = bOpMany True
 bOrMany  = bOpMany False
 
-semiExecEq, semiExecNEq :: (Monad m, HasGUID m) => Type ->
+semiExecEq, semiExecNEq :: SemiCtxt m => Type ->
                            GuardedSemiSExprs -> GuardedSemiSExprs ->
                            SemiSolverM m GuardedSemiSExprs
 semiExecEq  = semiExecEqNeq True
 semiExecNEq = semiExecEqNeq False
 
-semiExecEqNeq :: (Monad m, HasGUID m) => Bool -> Type ->
+semiExecEqNeq :: SemiCtxt m => Bool -> Type ->
                  GuardedSemiSExprs ->
                  GuardedSemiSExprs ->
                  SemiSolverM m GuardedSemiSExprs
@@ -901,7 +906,7 @@ semiExecEqNeq iseq ty gvs1 gvs2 =
              _             -> panic "Missing label" [showPP l]
       else panic "Label mismatch" [showPP l, showPP l']
     
-semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> Type -> Type ->
+semiExecOp2 :: SemiCtxt m => Op2 -> Type -> Type -> Type ->
                GuardedSemiSExprs -> GuardedSemiSExprs -> SemiSolverM m GuardedSemiSExprs
 -- semiExecOp2 op _rty _ty _ty' (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
 -- semiExecOp2 op rty   ty _ty' (VOther v1) (VOther v2) =
@@ -932,7 +937,6 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     -- Some of these are lazy so we don't eagerly convert to sexpr if
     -- only one side is a sexpr
     go g sv1 sv2 = do
-      let mk1 = pure . singletonGuardedValues g
       case op of
         IsPrefix -> unimplemented
         Drop     -> unimplemented
