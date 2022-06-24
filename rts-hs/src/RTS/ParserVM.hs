@@ -37,7 +37,18 @@ data ThreadState r m = ThreadState
   , thrErrors        :: ParserErrorState
   }
 
-data ParserErrorState = ParserErrorState -- XXX
+data ParserErrorState = ParserErrorState
+  { pesCallStack :: [[Text]]
+  , pesError     :: Maybe ParseError
+  }
+
+data ParseError = ParseError
+  { peSource :: PAPI.ParseErrorSource
+  , peLoc    :: Text
+  , peInput  :: RTS.Input
+  , peMsg    :: RTS.Vector (RTS.UInt 8)
+  , peStack  :: [[Text]]
+  }
 
 thrUpdateErrors ::
   (ParserErrorState -> ParserErrorState) -> ThreadState r m -> ThreadState r m
@@ -51,16 +62,40 @@ vmNoteFail ::
   RTS.Vector (RTS.UInt 8) ->
   ParserErrorState ->
   ParserErrorState
-vmNoteFail = undefined
+vmNoteFail ty loc inp msg s =
+  case pesError s of
+    Nothing -> s { pesError = Just newErr }
+    Just e  -> s { pesError = Just (improve e) }
+  where
+  newErr = ParseError
+             { peSource = ty
+             , peLoc    = loc
+             , peInput  = inp
+             , peMsg    = msg
+             , peStack  = pesCallStack s
+             }
+
+  improve old =
+    case (peSource old, ty) of
+      (PAPI.FromUser, PAPI.FromSystem) -> old
+      (PAPI.FromSystem, PAPI.FromUser) -> newErr
+      _ | RTS.inputOffset inp < RTS.inputOffset (peInput old) -> old
+        | otherwise -> newErr
+
 
 vmPushDebugTail :: Text -> ParserErrorState -> ParserErrorState
-vmPushDebugTail = undefined
+vmPushDebugTail t s =
+  case pesCallStack s of
+    xs : more -> s { pesCallStack = (t : xs) : more }
+    []        -> s { pesCallStack = [[t]] }
 
 vmPushDebugCall :: Text -> ParserErrorState -> ParserErrorState
-vmPushDebugCall = undefined
+vmPushDebugCall t s = s { pesCallStack = [t] : pesCallStack s }
 
 vmPopDebug :: ParserErrorState -> ParserErrorState
-vmPopDebug = undefined
+vmPopDebug s = case pesCallStack s of
+                _ : xs -> s { pesCallStack = xs }
+                _      -> s
 
 vmOutput :: r -> ThreadState r m -> ThreadState r m
 vmOutput r s = s { thrResults = r : thrResults s }

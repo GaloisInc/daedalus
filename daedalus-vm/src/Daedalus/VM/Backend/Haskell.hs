@@ -1,6 +1,10 @@
 {-# Language TemplateHaskell, ConstraintKinds, ImplicitParams #-}
 {-# Language RankNTypes, BlockArguments #-}
-module Daedalus.VM.Backend.Haskell (compileModule, Config(..)) where
+module Daedalus.VM.Backend.Haskell
+  ( compileModule
+  , Config(..)
+  , defaultConfig
+  ) where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -24,6 +28,12 @@ import Daedalus.VM
 data Config = Config
   { userMonad      :: Maybe TH.TypeQ
   , userPrimitives :: Map FName ([TH.ExpQ] -> TH.ExpQ)
+  }
+
+defaultConfig :: Config
+defaultConfig = Config
+  { userMonad = Nothing
+  , userPrimitives = mempty
   }
 
 -- | Make a function with the given list of arguments and result.
@@ -135,7 +145,7 @@ compileBlock ty b =
              $ compileCInstr (blockTerm b)
 
      TH.funD (labelName (blockName b))
-       [ TH.clause (sArgs ++ map fst args) (TH.normalB def) [] ]
+       [ TH.clause (map fst args ++ sArgs) (TH.normalB def) [] ]
 
 
 
