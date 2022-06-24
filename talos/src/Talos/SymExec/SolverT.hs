@@ -32,7 +32,8 @@ module Talos.SymExec.SolverT (
   typeNameToDefault,
   -- * Context management
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
-  freshName, freshSymbol, defineName, declareName, declareSymbol, declareFreshSymbol, knownFNames,
+  freshName, freshSymbol, defineName, declareName,
+  defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
   reset, assert, check
 
   ) where
@@ -46,6 +47,7 @@ import           Data.Functor          (($>))
 import           Data.Generics.Product (field)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
+import           Data.Maybe            (catMaybes)
 import           Data.Set              (Set)
 import qualified Data.Set              as Set
 import           Data.Text             (Text)
@@ -60,7 +62,7 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.SymExec.StdLib
-import Data.Maybe (catMaybes)
+
 -- import Text.Printf (printf)
 
 type SMTVar = String
@@ -416,6 +418,13 @@ freshName n = do
   let ns = nameToSMTName n'
   -- modifyCurrentFrame (bindName n ns)
   pure ns
+
+defineSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SExpr ->
+                SolverT m SMTVar
+defineSymbol pfx ty e = do
+  sym <- freshSymbol pfx
+  queueSolverOp (QCDefine sym ty e)
+  pure sym
 
 -- FIXME: we could convert the type here
 -- gives a name a value, returns the fresh name

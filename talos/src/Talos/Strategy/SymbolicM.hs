@@ -22,7 +22,7 @@ import           GHC.Generics             (Generic)
 import           SimpleSMT                (ppSExpr)
 
 import           Daedalus.Core            (Expr, Name, Typed (..), nameId)
-import           Daedalus.GUID            (GUID, HasGUID, getNextGUID)
+import           Daedalus.GUID            (GUID, getNextGUID)
 import           Daedalus.PP
 import           Daedalus.Panic           (panic)
 import           Daedalus.Rec             (Rec)
@@ -152,7 +152,7 @@ ppSymbolicEnv e =
     ppN n = ppPrec 1 n <> parens (pp (nameId n))
 
     ppS :: Set ChoiceId -> Doc
-    ppS e = block "{" ", " "}" (map (pp . getChoiceId) (Set.toList e))
+    ppS e' = block "{" ", " "}" (map (pp . getChoiceId) (Set.toList e'))
 
 data SolverResultF a =
   ByteResult a
@@ -162,7 +162,7 @@ data SolverResultF a =
 -- Just so we can get fmap/traverse/etc.
 type SolverResult = SolverResultF SemiSExpr
 
-type PathBuilder = SelectedPathF SolverResult
+type PathBuilder = SelectedPathF Identity Int SolverResult
 type SearchT'  = SearchT (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv
