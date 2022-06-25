@@ -404,7 +404,7 @@ compileCInstr cinstr =
     Call f how no yes es ->
       case how of
         NoCapture ->
-          let call = doCall f (stateArgs ++ map compileE es)
+          let call = doCall f (map compileE es ++ stateArgs)
               next v =
                 [| case $v of
                      (Nothing, s1) ->

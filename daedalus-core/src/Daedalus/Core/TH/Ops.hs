@@ -6,6 +6,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(sort)
 import qualified Data.Map as Map
+import Data.Maybe(fromJust)
 import qualified Language.Haskell.TH.Lib as TH
 
 import qualified RTS          as RTS

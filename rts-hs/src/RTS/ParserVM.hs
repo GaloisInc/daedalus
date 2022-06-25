@@ -5,6 +5,7 @@ import Data.Text(Text)
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
 import Data.Functor.Identity
+import Data.Coerce(coerce)
 
 import qualified RTS.Input as RTS
 import qualified RTS.Vector as RTS
@@ -18,6 +19,9 @@ type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
 type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
 
+
+-- | A continuation parser.  Used for parsers that use unbiased choice.
+-- No custom user monad
 type CParser a = CParserM Identity a
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
@@ -48,7 +52,7 @@ data ParseError = ParseError
   , peInput  :: RTS.Input
   , peMsg    :: RTS.Vector (RTS.UInt 8)
   , peStack  :: [[Text]]
-  }
+  } deriving Show
 
 thrUpdateErrors ::
   (ParserErrorState -> ParserErrorState) -> ThreadState r m -> ThreadState r m
@@ -128,6 +132,9 @@ vmYield s =
                    }
       in code n s1
 
+--------------------------------------------------------------------------------
+-- Running parsers
+
 topNoK :: Applicative m => NoCont r m
 topNoK = vmYield
 
@@ -136,4 +143,64 @@ topYesOneK a _ s = pure (vmOutput a s)
 
 topYesAllK :: Applicative m => YesCont r m r
 topYesAllK a _ s = vmYield (vmOutput a s)
+
+
+-- | Initial state for direct parsers.
+initParseErrorState :: ParserErrorState
+initParseErrorState = ParserErrorState
+  { pesCallStack = []
+  , pesError     = Nothing
+  }
+
+-- | Initial state for continuation parsers.
+initThreadState :: ThreadState r m
+initThreadState = ThreadState
+  { thrNotified   = Set.empty
+  , thrStack      = []
+  , thrThreadNum  = 0
+  , thrResults    = []
+  , thrErrors     = initParseErrorState
+  }
+
+
+runDParserM :: Functor m => DParserM m a -> m (Either ParseError a)
+runDParserM p = dparserToEither <$> p initParseErrorState
+
+runDParser :: DParser a -> Either ParseError a
+runDParser p = dparserToEither (p initParseErrorState)
+
+runCParserOne :: CParser a -> Either ParseError a
+runCParserOne p = coerce (runCParserOneM p)
+
+runCParserAll :: CParser a -> Either ParseError [a]
+runCParserAll p = coerce (runCParserAllM p)
+
+runCParserOneM :: Applicative m => CParserM m a -> m (Either ParseError a)
+runCParserOneM p = done <$> p topNoK topYesOneK initThreadState
+  where
+  done s = case thrResults s of
+            []    -> Left (doGetErr (thrErrors s))
+            r : _ -> Right r
+
+runCParserAllM :: Applicative m => CParserM m a -> m (Either ParseError [a])
+runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
+  where
+  done s = case thrResults s of
+             [] -> Left (doGetErr (thrErrors s))
+             rs -> Right rs
+
+--------------------------------------------------------------------------------
+dparserToEither :: (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError a
+dparserToEither (res,s) =
+  case res of
+    Nothing -> Left (doGetErr s)
+    Just (a,_) -> Right a
+
+
+doGetErr :: ParserErrorState -> ParseError
+doGetErr s = case pesError s of
+               Just e  -> e
+               Nothing -> error "doGetErr: Nothing"
+
+
 
