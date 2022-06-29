@@ -1,3 +1,4 @@
+{-# Language PatternSynonyms #-}
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns #-}
@@ -141,6 +142,8 @@ isSInt :: Type -> Maybe Integer
 isSInt (TSInt (TSize n)) = Just n
 isSInt _                 = Nothing
 
+pattern TByte :: Type
+pattern TByte = TUInt (TSize 8)
 
 --------------------------------------------------------------------------------
 freshTName :: HasGUID m => TName -> m TName
