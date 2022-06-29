@@ -1,4 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language OverloadedStrings #-}
 
 -- Symbolic but the only non-symbolic path choices are those in
@@ -7,42 +10,50 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic (pathSymbolicStrats) where
 
-import           Control.Lens                 (_2, _3, over, view)
+import           Control.Lens                 (_2, at, over, (.=))
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Control.Monad.Writer         (pass)
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
-import           Data.Foldable                (fold)
+import           Data.Generics.Product        (field)
+import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
-import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
+import qualified Data.Vector                  as Vector
 import           Data.Word                    (Word8)
+import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (streamOffset)
-import           Daedalus.Core.Free           (FreeVars, freeVars)
+import           Daedalus.Core.Free           (freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                  hiding (empty)
 import           Daedalus.Panic
-import           Daedalus.Rec                 (forgetRecs, topoOrder)
+import           Daedalus.Rec                 (topoOrder)
 import qualified Daedalus.Value               as I
 
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
                                                SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
+import           Talos.Strategy.MuxValue      (GuardedSemiSExpr,
+                                               GuardedSemiSExprs, MuxValue (..),
+                                               PathVar, ValueGuard (vgChoices),
+                                               ValueGuardCaseInfo (..), vUnit,
+                                               vgCases)
+import qualified Talos.Strategy.MuxValue      as MV
 import           Talos.Strategy.PathSymbolicM
-import           Talos.SymExec.Expr           (symExecCaseAlts)
+import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
-import           Talos.SymExec.ModelParser    (evalModelP, pByte, pValue)
+import           Talos.SymExec.ModelParser    (evalModelP, pByte, pNumber,
+                                               pValue)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SemiExpr
-import           Talos.SymExec.SemiValue      as SE
-import           Talos.SymExec.SolverT        (SolverT, declareName,
-                                               declareSymbol, reset, scoped)
+import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
+                                               declareSymbol, liftSolver, reset,
+                                               scoped)
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
@@ -79,24 +90,20 @@ symbolicFun ptag sl = do
     defineSlicePolyFuns sl'
     defineSliceFunDefs md sl'
 
-  -- FIXME: this should be calculated once, along with how it is used by e.g. memoSearch
+  -- FIXME: this should be calculated once, along with how it is used
+  -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (_, pbuilder) <- runSymbolicM (sl, topoDeps) (stratSlice ptag sl <* inSolver Solv.check)
-    buildPath pbuilder
-
--- FIXME: we could get all the sexps from the solver in a single query.
-buildPath :: PathBuilder -> SolverT StrategyM (Maybe SelectedPath)
-buildPath = undefined -- traverse resolveResult
-  -- where
-  --   resolveResult :: SolverResult -> SolverT StrategyM BS.ByteString
-  --   resolveResult (ByteResult b) = BS.singleton <$> byteModel b
-  --   resolveResult (InverseResult env ifn) = do
-  --     venv <- traverse valueModel env
-  --     ienv <- liftStrategy getIEnv -- for fun defns
-  --     let ienv' = ienv { I.vEnv = venv }
-  --     pure (I.valueToByteString (I.eval ifn ienv'))
-
+    (m_res, assns) <- runSymbolicM (sl, topoDeps) (stratSlice ptag sl)
+    let go (_, pb) = do
+          mapM_ Solv.assert assns
+          r <- Solv.check
+          case r of
+            S.Unsat   -> pure Nothing
+            S.Unknown -> pure Nothing
+            S.Sat -> Just <$> buildPath pb
+    join <$> traverse go m_res
+    
 -- We need to get types etc for called slices (including root slice)
 sliceToDeps :: (Monad m, LiftStrategyM m) => ExpSlice -> m [(SliceId, ExpSlice)]
 sliceToDeps sl = go Set.empty (sliceToCallees sl) []
@@ -135,37 +142,34 @@ stratSlice ptag = go
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.
         SMatch bset -> do
-          bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
-          bassn <- synthesiseByteSet bset bname
+          sym <- liftSolver (declareSymbol "b" tByte)
+          let bse = S.const sym
+              bv  = MV.vOther MV.trueValueGuard (Typed TByte sym)
+              
+          bassn <- synthesiseByteSet bset bse
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
-          assert bassn
-          -- inSolver check -- required?
+          assertSExpr bassn
+          -- liftSolver check -- required?
 
-          -- FIXME: Probably not needed?  Only if we case over a byte ...
-          pure (bname, SelectedBytes ptag (ByteResult bname))
-
-        -- SAssertion e -> do
-        --   se <- synthesiseExpr e
-        --   assert se
-        --   check
-        --   pure (uncPath vUnit)
+          pure (bv, SelectedBytes ptag (ByteResult sym))
 
         SChoice sls -> do
-          c <- freshPathVar (length sls)
-          let mk i sl' = extendPath (SPEChoose c i) (go sl')
-          (vs, paths) <- unzip <$> zipWithM mk [0..] sls
-          pure (undefined  , SelectedChoice c paths)
+          pv <- freshPathVar (length sls)
+          (vs, paths) <- unzip . concat <$> zipWithM (guardedChoice pv) [0..] (map go sls)
+          v <- hoistMaybe (MV.unionGuardedSemiExprs' vs)
+          pure (v, SelectedChoice (SymbolicPath pv paths))
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
+          n' <- MV.vSExpr MV.trueValueGuard (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' $ do
             pe <- synthesiseExpr p
-            assert pe
+            ienv <- getIEnv
+            assertSExpr (MV.guardedSemiSExprsToSExpr (I.tEnv ienv) TBool pe)
 
             -- Once we have a model, we need to convert all the free
             -- variables in the inverse function expression into values,
@@ -182,26 +186,49 @@ stratSlice ptag = go
             -- Resolve all Names (to semisexprs and solver names)
             venv <- traverse getName fvM
             pure (n', SelectedBytes ptag (InverseResult venv ifn))
-
+    
+-- This function runs the given monadic action under the current pathc
+-- extended with the give path condition.  In practice, it will run
+-- the action, collect any assertions, predicate them by the path
+-- condition, and also update the value.  If the computation fails,
+-- then the negated path condition will be asserted and 
+guardedChoice :: PathVar -> Int -> SymbolicM Result ->
+                 SymbolicM [(GuardedSemiSExprs, (Int, PathBuilder))]
+guardedChoice pv i m = pass $ do
+  m_r <- getMaybe m
+  case m_r of
+    -- Refining should always succeed.
+    Just (v, p)
+      | Just v' <- MV.refineGuardedSemiExprs g v -> pure ([(v', (i, p))], addImpl)
+    _ -> pure ([], const [S.not pathGuard])
+  where
+    g = MV.valueGuardExtendChoice pv i MV.trueValueGuard
+    pathGuard = MV.valueGuardToSExpr g
+    addImpl [] = []
+    addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
+    
 -- FIXME: maybe name e?
 stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
 stratCase ptag cs = do
-  m_alt <- liftSemiSolverM (semiExecCase cs)
-  case m_alt of
-    DidMatch i sl -> over _3 (SelectedCase) <$> enterPathNode (stratSlice ptag sl)
-    NoMatch  -> do
-      -- x <- fmap (text . flip S.ppSExpr "" . typedThing) <$> getName (caseVar cs)
-      -- liftIO $ print ("No match for " <> pp (caseVar cs) <> " = " <> pp x $$ pp cs)
+  (alts, pred) <- liftSemiSolverM (MV.semiExecCase cs)
+  undefined
+
+  
+  -- case m_alt of
+  --   DidMatch i sl -> over _3 (SelectedCase) <$> enterPathNode (stratSlice ptag sl)
+  --   NoMatch  -> do
+  --     -- x <- fmap (text . flip S.ppSExpr "" . typedThing) <$> getName (caseVar cs)
+  --     -- liftIO $ print ("No match for " <> pp (caseVar cs) <> " = " <> pp x $$ pp cs)
       
-      backtrack (ConcreteFailure cids) -- just backtrack, no cases matched
+  --     backtrack (ConcreteFailure cids) -- just backtrack, no cases matched
       
-    TooSymbolic -> do
-      ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
-      (cid, (i, (p, sl))) <- choose (enumerate ps)
-      enterPathNode (Set.singleton cid) $ do
-        assert (vSExpr TBool p)
-        check
-        over _3 (SelectedCase i) <$> stratSlice ptag sl
+  --   TooSymbolic -> do
+  --     ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
+  --     (cid, (i, (p, sl))) <- choose (enumerate ps)
+  --     enterPathNode (Set.singleton cid) $ do
+  --       assert (vSExpr TBool p)
+  --       check
+  --       over _3 (SelectedCase i) <$> stratSlice ptag sl
 
 -- FIXME: this is copied from BTRand
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
@@ -209,7 +236,7 @@ stratCallNode :: ProvenanceTag -> ExpCallNode ->
 stratCallNode ptag cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
-  over _3 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
+  over _2 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
 
 
 -- -----------------------------------------------------------------------------
@@ -222,14 +249,6 @@ stratCallNode ptag cn = do
 -- into an sexpr) so we can simplify e.g. field access.  In particular
 -- we would like to avoid having to use recursive functions in the
 -- solver, so we try to keep e.g. arrays in Haskell too.
---
--- For sum types, this gets tricky, so those are just converted to
--- sexprs (for now).  
-
-
-mergeValues :: [(SymPathElement, SemiSExpr)] -> SemiSExpr
-mergeValues [] = panic "Empty values" [] -- assert false?
-mergeValues vs = undefined
 
 -- Consider
 --
@@ -396,16 +415,16 @@ mergeValues vs = undefined
 -- 
 -- { RESULT = 'foo' }
 
-
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers
 
-synthesiseExpr :: Expr -> SymbolicM SemiSExpr
+synthesiseExpr :: Expr -> SymbolicM GuardedSemiSExprs
 synthesiseExpr e = do
-  liftSemiSolverM . semiExecExpr $ e
+  liftSemiSolverM . MV.semiExecExpr $ e
 
-synthesiseByteSet :: ByteSet -> SemiSExpr -> SymbolicM SemiSExpr
-synthesiseByteSet bs = liftSemiSolverM . semiExecByteSet bs
+-- Not a GuardedSemiSExprs here as there is no real need
+synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr
+synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
 
 -- ----------------------------------------------------------------------------------------
 -- Utils
@@ -415,29 +434,175 @@ enumerate t = evalState (traverse go t) 0
   where
     go a = state (\i -> ((i, a), i + 1))
 
--- THis all happens after we have finished, so we need to be a bit
--- careful about what is in scope (only thins in the current solver
--- frame, i.e., not do-bound variables.)
+-- This code uses the Monad instance for Maybe pretty heavily, sorry :/
 
-byteModel :: SemiSExpr -> SolverT StrategyM Word8
-byteModel (VOther symB) = do
-  sexp <- Solv.getValue (typedThing symB)
-  case evalModelP pByte sexp of
-    [] -> panic "No parse" []
-    b : _ -> pure b
--- probably shouldn't happen    
-byteModel sv = panic "Unimplemented" [show sv]
+data ModelParserState = ModelParserState
+  { mpsPathVars :: Map PathVar Int
+  , mpsBytes    :: Map SMTVar Word8
+  , mpsOthers   :: Map SMTVar I.Value
+  } deriving Generic
 
-valueModel :: SemiSExpr -> SolverT StrategyM I.Value
-valueModel (VValue v)    = pure v
-valueModel sv =
-  SE.toValue <$> traverse go sv
+-- FIXME: clag
+getByteVar :: SMTVar -> ModelParserM Word8
+getByteVar symB = do
+  m_i <- gets (Map.lookup symB . mpsBytes)
+  case m_i of
+    Just i -> pure i
+    Nothing -> do
+      sexp <- lift (Solv.getValue (S.const symB))
+      n <- case evalModelP pByte sexp of
+             []    -> panic "No parse" []
+             b : _ -> pure (fromIntegral b)
+      field @"mpsBytes" . at symB .= Just n
+      pure n
+
+getPathVar :: PathVar -> ModelParserM Int
+getPathVar pv = do
+  m_i <- gets (Map.lookup pv . mpsPathVars)
+  case m_i of
+    Just i -> pure i
+    Nothing -> do
+      sexp <- lift (Solv.getValue (MV.pathVarToSExpr pv))
+      n <- case evalModelP pNumber sexp of
+             []    -> panic "No parse" []
+             b : _ -> pure (fromIntegral b)
+      field @"mpsPathVars" . at pv .= Just n
+      pure n
+
+getValueVar :: Typed SMTVar -> ModelParserM I.Value
+getValueVar (Typed ty x) = do
+  m_v <- gets (Map.lookup x . mpsOthers)
+  case m_v of
+    Just v -> pure v
+    Nothing -> do
+      sexp <- lift (Solv.getValue (S.const x))
+      v <- case evalModelP (pValue ty) sexp of
+             []     -> panic "No parse" []
+             v' : _ -> pure v'
+      field @"mpsOthers" . at x .= Just v
+      pure v
+
+type ModelParserM a = StateT ModelParserState (SolverT StrategyM) a
+
+runModelParserM :: ModelParserM a -> SolverT StrategyM a
+runModelParserM = flip evalStateT (ModelParserState mempty mempty mempty)
+
+-- FIXME: we could get all the sexps from the solver in a single query.
+buildPath :: PathBuilder -> SolverT StrategyM SelectedPath
+buildPath = runModelParserM . go
   where
-    go tse = do
-      sexp <- Solv.getValue (typedThing tse)
-      case evalModelP (pValue (typedType tse)) sexp of
-        [] -> panic "No parse" []
-        v : _ -> pure v
+    go :: PathBuilder -> ModelParserM SelectedPath
+    go SelectedHole = pure SelectedHole
+    go (SelectedBytes ptag r) = SelectedBytes ptag <$> resolveResult r
+    go (SelectedDo l r) = SelectedDo <$> go l <*> go r
+    go (SelectedChoice pib) = SelectedChoice <$> buildPathIndex pib
+    go (SelectedCall i p) = SelectedCall i <$> go p
+    go (SelectedCase pib) = SelectedCase <$> buildPathIndex pib
+
+    buildPathIndex :: PathIndexBuilder PathBuilder ->
+                      ModelParserM (PathIndex SelectedPath)
+    buildPathIndex (ConcretePath i p) = PathIndex i <$> go p
+    buildPathIndex (SymbolicPath pv ps) = do
+      i <- getPathVar pv
+      let p = case lookup i ps of
+                Nothing  -> panic "Missing choice" []
+                Just p'  -> p'
+      PathIndex i <$> go p
+    
+    resolveResult :: SolverResult -> ModelParserM BS.ByteString
+    resolveResult (ByteResult b) = BS.singleton <$> getByteVar b
+    resolveResult (InverseResult env ifn) = do
+      -- FIXME: we should maybe make this lazy
+      m_venv <- sequence <$> traverse gsesModel env
+      case m_venv of
+        Nothing -> panic "Couldn't construct environment" []
+        Just venv -> do
+          ienv <- liftStrategy getIEnv -- for fun defns
+          let ienv' = ienv { I.vEnv = venv }
+          pure (I.valueToByteString (I.eval ifn ienv'))
+
+-- short-circuiting
+andM :: Monad m => [m Bool] -> m Bool
+andM [] = pure True
+andM (m : ms) = do
+  b <- m
+  if b then andM ms else pure False
+
+-- short-circuiting
+firstM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+firstM _f [] = pure Nothing
+firstM f (x : xs) = do
+  b <- f x
+  if b then pure (Just x) else firstM f xs
+
+vgciSatisfied :: ValueGuardCaseInfo -> I.Value -> Bool
+vgciSatisfied ValueGuardCaseInfo { vgciConstraint = Left p } v =
+  I.matches p v
+vgciSatisfied ValueGuardCaseInfo { vgciConstraint = Right ps } v =
+  not (any (flip I.matches v) (Set.toList ps))
+
+valueGuardModel :: ValueGuard -> ModelParserM Bool
+valueGuardModel vg = do
+  -- We try choices first as they are more likely to fail (?)  
+  choiceb <- andM [ (==) i <$> getPathVar pv
+                  | (pv, i) <- Map.toList (vgChoices vg) ]
+  if choiceb
+    then andM [ vgciModel x vgci
+              | (x, vgci) <- Map.toList (vgCases vg) ]
+    else pure False
+  where
+    vgciModel :: SMTVar -> ValueGuardCaseInfo -> ModelParserM Bool
+    vgciModel x vgci =
+      vgciSatisfied vgci <$> getValueVar (Typed (vgciType vgci) x)
+
+gseModel :: GuardedSemiSExpr -> ModelParserM (Maybe I.Value)
+gseModel gse =
+  case gse of
+    VValue v -> pure (Just v)
+    VOther x -> Just <$> getValueVar x
+    VUnionElem l gses -> fmap (I.VUnionElem l) <$> gsesModel gses
+    VStruct flds -> do
+      let (ls, gsess) = unzip flds
+      m_gsess <- sequence <$> mapM gsesModel gsess
+      pure (I.VStruct . zip ls <$> m_gsess)
+      
+    VSequence True gsess -> 
+      fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
+    VSequence False gsess -> 
+      fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
+      
+    VJust gses -> fmap (I.VMaybe . Just) <$> gsesModel gses
+    VMap els -> do
+      let (ks, vs) = unzip els
+      m_kvs <- sequence <$> mapM gsesModel ks
+      m_vvs <- sequence <$> mapM gsesModel ks
+      pure (I.VMap . Map.fromList <$> (zip <$> m_kvs <*> m_vvs))
+  
+  -- We support symbolic keys, so we can't use Map here
+    VIterator els -> do
+      let (ks, vs) = unzip els
+      m_kvs <- sequence <$> mapM gsesModel ks
+      m_vvs <- sequence <$> mapM gsesModel ks
+      pure (I.VIterator <$> (zip <$> m_kvs <*> m_vvs))
+
+gsesModel :: GuardedSemiSExprs -> ModelParserM (Maybe I.Value)
+gsesModel gses = join <$> (traverse (gseModel . snd) =<< firstM go els)
+  where
+    go = valueGuardModel . fst
+    els = MV.guardedValues gses
+
+-- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value
+-- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value
+
+-- valueModel (VValue v) = pure v
+-- valueModel sv =
+--   SE.toValue <$> traverse go sv
+--   where
+--     go tse = do
+--       sexp <- Solv.getValue (typedThing tse)
+--       case evalModelP (pValue (typedType tse)) sexp of
+--         [] -> panic "No parse" []
+--         v : _ -> pure v
 
 
 

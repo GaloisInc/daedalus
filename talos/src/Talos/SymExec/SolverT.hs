@@ -5,6 +5,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Defines the symbolic parser API.  This wraps the SimpleSMT API
 
@@ -34,29 +36,33 @@ module Talos.SymExec.SolverT (
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, freshSymbol, defineName, declareName,
   defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
-  reset, assert, check
-
+  reset, assert, check,
+  -- * Type Class
+  MonadSolver(..)
   ) where
 
 import           Control.Applicative
 import           Control.Lens
+import           Control.Monad.Reader      (ReaderT)
 import           Control.Monad.State
-import           Data.Foldable         (for_)
-import           Data.Function         (on)
-import           Data.Functor          (($>))
-import           Data.Generics.Product (field)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (catMaybes)
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
-import           Data.Text             (Text)
-import           GHC.Generics          (Generic)
-import           SimpleSMT             (SExpr, Solver)
-import qualified SimpleSMT             as S
+import           Control.Monad.Trans.Maybe (MaybeT)
+import           Control.Monad.Writer      (WriterT)
+import           Data.Foldable             (for_)
+import           Data.Function             (on)
+import           Data.Functor              (($>))
+import           Data.Generics.Product     (field)
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Maybe                (catMaybes)
+import           Data.Set                  (Set)
+import qualified Data.Set                  as Set
+import           Data.Text                 (Text)
+import           GHC.Generics              (Generic)
+import           SimpleSMT                 (SExpr, Solver)
+import qualified SimpleSMT                 as S
 
-import           Daedalus.Core         hiding (freshName)
-import qualified Daedalus.Core         as C
+import           Daedalus.Core             hiding (freshName)
+import qualified Daedalus.Core             as C
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
@@ -406,11 +412,11 @@ freshSymbol pfx = do
 declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
 declareFreshSymbol sym ty = queueSolverOp (QCDeclare sym ty)
 
-declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
+declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SMTVar
 declareSymbol pfx ty = do
   sym <- freshSymbol pfx
   queueSolverOp (QCDeclare sym ty)
-  pure (S.const sym)
+  pure sym
 
 freshName :: (Monad m, HasGUID m) => Name -> SolverT m SMTVar
 freshName n = do
@@ -577,6 +583,31 @@ defineSMTPolyFun pf = onState (field @"ssKnownPolys") $ \polys -> do
            PMapInsert kt vt -> do
              fnm <- freshSymbol "mapInsert"
              solverOp (\s' -> mkMapInsert s' fnm kt vt) $> Map.insert pf fnm polys
+
+
+-- -----------------------------------------------------------------------------
+-- Convenience class
+
+class (Monad m, MonadIO (BaseMonad m), HasGUID (BaseMonad m)) => MonadSolver m where
+  type BaseMonad m :: * -> *
+  liftSolver :: SolverT (BaseMonad m) a -> m a
+
+instance (Monad m, MonadIO m, HasGUID m) => MonadSolver (SolverT m) where
+  type BaseMonad (SolverT m) = m
+  liftSolver m = m
+  
+instance (Monad m, MonadSolver m) => MonadSolver (StateT s m) where
+  type BaseMonad (StateT s m) = BaseMonad m
+  liftSolver = lift . liftSolver  
+instance (Monad m, MonadSolver m) => MonadSolver (ReaderT s m) where
+  type BaseMonad (ReaderT s m) = BaseMonad m  
+  liftSolver = lift . liftSolver
+instance (Monoid w, Monad m,  MonadSolver m) => MonadSolver (WriterT w m) where
+  type BaseMonad (WriterT w m) = BaseMonad m
+  liftSolver = lift . liftSolver  
+instance (Monad m, MonadSolver m) => MonadSolver (MaybeT m) where
+  type BaseMonad (MaybeT m) = BaseMonad m
+  liftSolver = lift . liftSolver
 
 -- -----------------------------------------------------------------------------
 -- instances

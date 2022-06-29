@@ -5,28 +5,27 @@
 
 module Talos.SymExec.ModelParser
   ( ModelP, evalModelP
-  , pByte, pBytes, pMUnit, pIndexed, pSeq, pValue
+  , pByte, pNumber, pBytes, pMUnit, pIndexed, pSeq, pValue
   ) where
 
-import qualified Data.Vector as V
-import Control.Monad (ap, guard)
-import Control.Applicative
-import Data.List (foldl')
-import Data.Char (isDigit)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import Data.Map(Map)
-import qualified Data.Map as Map
+import           Control.Applicative
+import           Control.Monad       (ap, guard)
+import           Data.ByteString     (ByteString)
+import qualified Data.ByteString     as BS
+import           Data.Char           (isDigit)
+import           Data.List           (foldl')
+import           Data.Map            (Map)
+import qualified Data.Map            as Map
+import qualified Data.Vector         as V
+import           Data.Word
+import           SimpleSMT           (SExpr (..))
+import           Text.Read           (readMaybe)
 
-import Data.Word
-import Text.Read (readMaybe)
+import           Daedalus.Core
+import           Daedalus.PP         (showPP)
+import           Daedalus.Panic
+import qualified Daedalus.Value      as I
 
-import Daedalus.Panic
-
-import SimpleSMT (SExpr(..))
-import qualified Daedalus.Value as I
-import Daedalus.Core
-import Daedalus.PP (showPP)
 --------------------------------------------------------------------------------
 -- Model Combinators
 --

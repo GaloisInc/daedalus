@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.PathSymbolicM where
@@ -12,43 +13,47 @@ module Talos.Strategy.PathSymbolicM where
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
-import           Data.Generics.Product   (field)
-import           Data.Map                (Map)
-import qualified Data.Map                as Map
-import           GHC.Generics            (Generic)
-import           SimpleSMT               (ppSExpr)
-import qualified SimpleSMT               as SMT
+import           Control.Monad.Trans.Maybe   (MaybeT, runMaybeT)
+import           Data.Generics.Product       (field)
+import           Data.Map                    (Map)
+import qualified Data.Map                    as Map
+import           Data.Maybe                  (catMaybes)
+import           GHC.Generics                (Generic)
+import qualified SimpleSMT                   as SMT
+-- FIXME: use .CPS
+import           Control.Monad.Writer        (MonadWriter, WriterT, runWriterT,
+                                              tell)
 
-import           Daedalus.Core           (Expr, Name, Pattern, Type (TBool),
-                                          Typed (..), nameId)
+import           Daedalus.Core               (Expr, Name)
+import qualified Daedalus.Core.Semantics.Env as I
 import           Daedalus.PP
-import           Daedalus.Panic          (panic)
-import           Daedalus.Rec            (Rec)
-import qualified Daedalus.Value          as V
+import           Daedalus.Panic              (panic)
+import           Daedalus.Rec                (Rec)
 
-import           Talos.Analysis.Exported (ExpSlice, SliceId)
+import           Talos.Analysis.Exported     (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
+import           Talos.Strategy.MuxValue     (GuardedSemiSExprs,
+                                              PathVar (PathVar), SemiSolverM,
+                                              runSemiSolverM)
+import qualified Talos.Strategy.MuxValue     as MV
+import qualified Talos.SymExec.Expr          as SE
 import           Talos.SymExec.Path
--- import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM, runSemiSolverM)
-import           Talos.SymExec.SolverT   (SolverT)
-import qualified Talos.SymExec.SolverT   as Solv
--- import Talos.SymExec.SemiValue (SemiValue(..))
-import           Talos.SymExec.Expr      (patternToPredicate)
-
+import           Talos.SymExec.SolverT       (MonadSolver, SMTVar, SolverT,
+                                              liftSolver)
+import qualified Talos.SymExec.SolverT       as Solv
 
 
 -- =============================================================================
 -- (Path) Symbolic monad
 
-type GuardedSemiSExpr = GuardedValues SymPath SMT.SExpr
+type Result = (GuardedSemiSExprs, PathBuilder)
 
-type Result = (GuardedSemiSExpr, PathBuilder)
-
-type SymVarEnv = Map Name GuardedSemiSExpr
+type SymVarEnv = Map Name GuardedSemiSExprs
 
 data SymbolicEnv = SymbolicEnv
   { sVarEnv  :: SymVarEnv
-  , sPath    :: SymPath -- ^ Current path.
+  -- The path isn't required as we add it on post-facto
+  -- , sPath    :: ValueGuard -- ^ Current path.
   } deriving (Generic)
 
 -- ppSymbolicEnv :: SymbolicEnv -> Doc
@@ -58,22 +63,23 @@ data SymbolicEnv = SymbolicEnv
 --   where
 --     ppN n = ppPrec 1 n <> parens (pp (nameId n))
 
-data SolverResultF a =
-  ByteResult a
-  | InverseResult (Map Name a) Expr -- The env. includes the result var.
-  deriving (Functor, Foldable, Traversable)
+data SolverResult =
+  ByteResult SMTVar
+  | InverseResult (Map Name GuardedSemiSExprs) Expr -- The env. includes the result var.
 
--- Just so we can get fmap/traverse/etc.
-type SolverResult = SolverResultF SMT.SExpr
+data PathIndexBuilder a =
+  ConcretePath Int a
+  | SymbolicPath PathVar [(Int, a)] -- Not all paths are necessarily feasible.
 
-type PathBuilder = SelectedPathF [] SMT.SExpr SolverResult
+type PathBuilder = SelectedPathF PathIndexBuilder SolverResult
 
 emptySymbolicEnv :: SymbolicEnv
-emptySymbolicEnv = SymbolicEnv mempty mempty
+emptySymbolicEnv = SymbolicEnv mempty
 
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: ReaderT SymbolicEnv (SolverT StrategyM) a }
-  deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv)
+  SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  deriving (Applicative, Functor, Monad, MonadIO
+           , MonadReader SymbolicEnv, MonadWriter [SMT.SExpr], MonadSolver)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
@@ -81,8 +87,8 @@ instance LiftStrategyM SymbolicM where
 runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
                 SymbolicM Result ->
-                SolverT StrategyM Result
-runSymbolicM _sls (SymbolicM m) = runReaderT m emptySymbolicEnv
+                SolverT StrategyM (Maybe Result, [SMT.SExpr])
+runSymbolicM _sls (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) emptySymbolicEnv
 
 --------------------------------------------------------------------------------
 -- Names
@@ -91,42 +97,48 @@ bindNameIn :: Name -> SymbolicM Result
            -> (PathBuilder -> SymbolicM a) -> SymbolicM a
 bindNameIn n lhs rhs = lhs >>= \(v, p) -> primBindName n v (rhs p)
 
-primBindName :: Name -> GuardedSemiSExpr -> SymbolicM a -> SymbolicM a
+primBindName :: Name -> GuardedSemiSExprs -> SymbolicM a -> SymbolicM a
 primBindName n v = locally (field @"sVarEnv"  . at n) (const (Just v))
 
-getName :: Name -> SymbolicM GuardedSemiSExpr
+getName :: Name -> SymbolicM GuardedSemiSExprs
 getName n = SymbolicM $ do
   m_local <- asks (view (field @"sVarEnv" . at n))
   case m_local of
     Nothing -> panic "Missing variable" [showPP n]
     Just r  -> pure r
 
-type PathVar     = SMT.SExpr
-
 pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
-  sym <- inSolver $  Solv.declareSymbol "c" pathVarSort
-  assert (VOther (Typed TBool $ SMT.lt sym (SMT.int (fromIntegral bnd))))
-  pure sym
+  sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
+  assertSExpr $ SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd))
+  pure (PathVar sym)
 
-extendPath :: SymPathElement -> SymbolicM a -> SymbolicM a
-extendPath el = locally (field @"sPath") (el :)
-  
+-- extendPath ::  -> SymbolicM a -> SymbolicM a
+-- extendPath el = locally (field @"sPath") (el :)
+    
 --------------------------------------------------------------------------------
 -- Assertions
 
-assert :: GuardedSemiSExpr -> SymbolicM ()
-assert sv = do
-  pe <- asks (pathToSExpr . sPath)
-  case sv of
-    VOther p -> inSolver (Solv.assert (SMT.implies pe (typedThing p)))
-    VValue (V.VBool True) -> pure ()
-    -- If we assert false, we can't get here (negate path cond)
-    VValue (V.VBool False) -> inSolver (Solv.assert (SMT.not pe))
-    _ -> panic "Malformed boolean" [show sv]
+assertSExpr :: SMT.SExpr -> SymbolicM ()
+assertSExpr p = tell [p]
+  -- pe <- asks (valueGuardToSExpr . sPath)
+  -- inSolver (Solv.assert (SMT.implies pe p))
+  
+-- assert :: GuardedSemiSExprs -> SymbolicM ()
+-- assert sv = do
+--   pe <- asks (pathToSExpr . sPath)
+--   case sv of
+--     VOther p -> inSolver (Solv.assert (SMT.implies pe (typedThing p)))
+--     VValue (V.VBool True) -> pure ()
+--     -- If we assert false, we can't get here (negate path cond)
+--     VValue (V.VBool False) -> inSolver (Solv.assert (SMT.not pe))
+--     _ -> panic "Malformed boolean" [show sv]
+
+infeasible :: SymbolicM a
+infeasible = SymbolicM $ fail "UNUSED"
 
 --------------------------------------------------------------------------------
 -- Search operaations
@@ -146,51 +158,44 @@ assert sv = do
 -- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 -- enterPathNode deps = local (over (field @"sPath") (deps :))
 
--- enterFunction :: Map Name Name ->
---                  SymbolicM a -> SymbolicM a
--- enterFunction argMap = local upd
---   where
---     upd e = e { sVarEnv  = Map.compose (sVarEnv  e) argMap
---               , sVarDeps = Map.compose (sVarDeps e) argMap
---               }
+enterFunction :: Map Name Name ->
+                 SymbolicM a -> SymbolicM a
+enterFunction argMap = local upd
+  where
+    upd e = e { sVarEnv  = Map.compose (sVarEnv  e) argMap
+              }
 
 --------------------------------------------------------------------------------
 -- Utilities
 
-inSolver :: SolverT StrategyM a -> SymbolicM a
-inSolver = SymbolicM . lift 
+liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
+liftSemiSolverM m = do
+  funs <- getFunDefs
+  bfuns <- getBFunDefs
+  lenv <- asks sVarEnv
+  env  <- getIEnv
+  hoistMaybe =<< liftSolver (runSemiSolverM funs bfuns lenv env m)
 
--- liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
--- liftSemiSolverM m = do
---   funs <- getFunDefs
---   lenv <- asks sVarEnv
---   env  <- getIEnv
---   inSolver (runSemiSolverM funs lenv env m)
+liftSymExecM :: SE.SymExecM StrategyM a -> SymbolicM a
+liftSymExecM m = do
+  ienv  <- getIEnv
+  SymbolicM . lift . lift . withReaderT (envf (I.tEnv ienv)) $ m
+  where
+    -- FIXME: probably these should live outside MuxValue
+    envf tenv env = MV.envToSymEnv tenv (sVarEnv env)
 
+-- FIXME: copied from MuxValue
+getMaybe :: SymbolicM a -> SymbolicM (Maybe a)
+getMaybe = SymbolicM . lift . runMaybeT . getSymbolicM
 
---------------------------------------------------------------------------------
--- Values (move)
+putMaybe :: SymbolicM (Maybe a) -> SymbolicM a
+putMaybe m = hoistMaybe =<< m
 
-data GuardedValues p a = GuardedValues [ (p, MuxValue (GuardedValues p) a) ]
+hoistMaybe :: Maybe a -> SymbolicM a
+hoistMaybe r = 
+  case r of
+    Nothing -> SymbolicM $ fail "Ignored"
+    Just v  -> pure v
 
-
-data MuxValue f a =
-    VValue                 !V.Value
-  | VOther                 !a
-  | VUnionElem             !V.Label !(f a)
-  -- We don't need to support partial updates (e.g. x { foo = bar }
-  -- where x is symbolic) as Daedalus doesn't (yet) support updates.
-  | VStruct                ![(V.Label, f a)]
-
-  -- Bool is true if this is a builder, false if an array
-  | VSequence              !Bool ![f a]
-  | VMaybe                 !(Maybe (f a))
-
-  -- For iterators and maps
-  | VPair                  !(f a) !(f a)
-  
-  -- We support symbolic keys, so we can't use Map here
-
-  | VMap                   ![f a]
-  | VIterator              ![f a]
-    deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
+collectMaybes :: [SymbolicM a] -> SymbolicM [a]
+collectMaybes = fmap catMaybes . mapM getMaybe
