@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.SymbolicM where
@@ -31,7 +32,7 @@ import           Talos.Analysis.Exported  (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM, runSemiSolverM)
-import           Talos.SymExec.SolverT    (SolverT)
+import           Talos.SymExec.SolverT    (SolverT, MonadSolver)
 import qualified Talos.SymExec.SolverT    as Solv
 
 --------------------------------------------------------------------------------
@@ -48,7 +49,7 @@ data ThreadF next =
   deriving (Functor)
 
 newtype SearchT m a = SearchT { getSearchT :: FreeT ThreadF m a }
-  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadTrans)
+  deriving (Applicative, Functor, Monad, MonadIO, LiftStrategyM, MonadTrans, MonadSolver)
 
 -- FIXME: maybe we should deal with the path to here differently, by
 -- making it explicit in the search tree for example.
@@ -162,7 +163,7 @@ data SolverResultF a =
 -- Just so we can get fmap/traverse/etc.
 type SolverResult = SolverResultF SemiSExpr
 
-type PathBuilder = SelectedPathF Identity Int SolverResult
+type PathBuilder = SelectedPathF PathIndex Identity SolverResult
 type SearchT'  = SearchT (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv
@@ -170,7 +171,7 @@ emptySymbolicEnv = SymbolicEnv mempty mempty mempty
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: ReaderT SymbolicEnv SearchT' a }
-  deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv)
+  deriving (Applicative, Functor, Monad, MonadIO, MonadReader SymbolicEnv, MonadSolver)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)

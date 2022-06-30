@@ -45,6 +45,7 @@ import           Control.Applicative
 import           Control.Lens
 import           Control.Monad.Reader      (ReaderT)
 import           Control.Monad.State
+import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe (MaybeT)
 import           Control.Monad.Writer      (WriterT)
 import           Data.Foldable             (for_)
@@ -68,6 +69,7 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.SymExec.StdLib
+
 
 -- import Text.Printf (printf)
 
@@ -607,6 +609,9 @@ instance (Monoid w, Monad m,  MonadSolver m) => MonadSolver (WriterT w m) where
   liftSolver = lift . liftSolver  
 instance (Monad m, MonadSolver m) => MonadSolver (MaybeT m) where
   type BaseMonad (MaybeT m) = BaseMonad m
+  liftSolver = lift . liftSolver
+instance (Functor f, Monad m, MonadSolver m) => MonadSolver (FreeT f m) where
+  type BaseMonad (FreeT f m) = BaseMonad m
   liftSolver = lift . liftSolver
 
 -- -----------------------------------------------------------------------------

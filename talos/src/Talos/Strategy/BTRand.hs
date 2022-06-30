@@ -129,7 +129,7 @@ stratSlice ptag = go
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
           -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
-          onSlice (SelectedChoice i . Identity) <$> go sl'
+          onSlice (SelectedChoice . PathIndex i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 

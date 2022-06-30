@@ -8,27 +8,24 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
 
 module Talos.Strategy.MuxValue where
 
-import           Control.Lens                 (locally, over)
+import           Control.Lens                 (locally)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe    (MaybeT, runMaybeT)
-import           Data.Foldable                (foldlM)
-import           Data.Functor                 (($>))
 import           Data.Generics.Product        (field)
 import           Data.List                    (transpose)
 import           Data.List.NonEmpty           (NonEmpty (..), nonEmpty)
 import qualified Data.List.NonEmpty           as NE
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
-import qualified Data.Map.Merge.Lazy          as Map
 import           Data.Maybe                   (catMaybes, mapMaybe)
 import           Data.Semigroup               (sconcat)
-import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import qualified Data.Vector                  as Vector
 import           GHC.Generics                 (Generic)
@@ -39,7 +36,8 @@ import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
-import           Daedalus.Core.Semantics.Expr (evalOp1, evalOp2, matches, partial, evalOp0)
+import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
+                                               matches, partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
@@ -47,104 +45,14 @@ import           Daedalus.Panic
 import qualified Daedalus.Value.Type          as V
 
 -- import Talos.Strategy.Monad
+import           Talos.Strategy.PathCondition (PathCondition (..),
+                                               PathConditionCaseInfo (..))
+import qualified Talos.Strategy.PathCondition as PC
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 
---------------------------------------------------------------------------------
--- Value Guards
-
--- -- These are the things which cause branching
--- data SymPathElement =
---   SPEChoose PathVar Integer
---   | SPECase SMTVar  Type Pattern
-
--- pathToSExpr :: SymPath -> SExpr
--- pathToSExpr els = S.andMany (map go els)
---   where
---     go (SPEChoose v n)    = S.eq v (S.int n)
---     go (SPECase v ty pat) = SE.patternToPredicate ty pat v
-
--- -- in reverse order (most recent choice is the head)
--- type SymPath = [SymPathElement]
-
-newtype PathVar = PathVar SMTVar
-  deriving (Eq, Ord, Show)
-
-pathVarToSExpr :: PathVar -> SExpr
-pathVarToSExpr (PathVar v) = S.const v
-
-data ValueGuardCaseInfo = ValueGuardCaseInfo
-  { vgciType       :: Type
-  , vgciConstraint :: Either Pattern (Set Pattern)
-  } deriving (Generic)
-
-data ValueGuard = ValueGuard
-  { vgCases   :: Map SMTVar ValueGuardCaseInfo
-  -- ^ Case match path conditions.
-  , vgChoices :: Map PathVar Int
-  -- ^ We call these out separately as it is easy to figure out if the
-  -- conjunction of two guards is unsat.
-  } deriving (Generic)
-
-conjCases :: ValueGuardCaseInfo -> ValueGuardCaseInfo ->
-             Maybe ValueGuardCaseInfo
-conjCases ci1 ci2 =
-  case (vgciConstraint ci1, vgciConstraint ci2) of
-    (Left p1, Left p2)  -> guard (p1 == p2) $> ci1
-    (Left p, Right nps) -> guard (p `Set.notMember` nps) $> ci1
-    (Right nps, Left p) -> guard (p `Set.notMember` nps) $> ci2
-    (Right nps1, Right nps2) -> Just (ci1 { vgciConstraint = Right (Set.union nps1 nps2) })
-
--- | Conjoins two guards, returning Nothing if the result is unsat.
--- This is an optimisation, so an unsat guards may still be returned.
-conjValueGuard :: ValueGuard -> ValueGuard -> Maybe ValueGuard
-conjValueGuard vg1 vg2 =
-  ValueGuard <$> joinCases   (vgCases vg1) (vgCases vg2)
-             <*> joinChoices (vgChoices vg1) (vgChoices vg2)
-  where
-    joinCases =
-      Map.mergeA Map.preserveMissing Map.preserveMissing
-          (Map.zipWithAMatched (const conjCases))
-          
-    -- Copied from mergeUnifiers in MemoSearch.hs, should probably be a library thing.
-    joinChoices =
-      Map.mergeA Map.preserveMissing Map.preserveMissing
-          (Map.zipWithAMatched (\_k x y -> guard (x == y) $> x))
-
-valueGuardInsertCase :: SMTVar -> ValueGuardCaseInfo ->
-                        ValueGuard -> Maybe ValueGuard
-valueGuardInsertCase v els = conjValueGuard (ValueGuard (Map.singleton v els) mempty)
-
-valueGuardInsertChoice :: PathVar -> Int ->
-                          ValueGuard -> Maybe ValueGuard
-valueGuardInsertChoice v el =
-  conjValueGuard (ValueGuard mempty (Map.singleton v el))
-
-valueGuardExtendChoice :: PathVar -> Int ->
-                          ValueGuard -> ValueGuard
-valueGuardExtendChoice v el =
-  over (field @"vgChoices") (Map.insertWith (\_ _ -> panic "Duplicate key" []) v el)
-  
--- | The trivially satisfiable guard (i.e., unconstrained)
-trueValueGuard :: ValueGuard
-trueValueGuard = ValueGuard mempty mempty
-
-valueGuardToSExpr :: ValueGuard -> SExpr
-valueGuardToSExpr vg = S.andMany (cases ++ choices)
-  where
-    notf b = if b then id else S.not
-    cases = [ notf b (SE.patternToPredicate (vgciType vgci) p (S.const n))
-            | (n, vgci) <- Map.toList (vgCases vg)
-            , (b, p) <- either (\p -> [(True, p)])
-                               (map ((,) False) . Set.toList)
-                               (vgciConstraint vgci)
-            ]
-    choices = [ S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))
-              | (pv, i) <- Map.toList (vgChoices vg)
-              ]
-              
 --------------------------------------------------------------------------------
 -- GuardedValues
 
@@ -155,10 +63,10 @@ valueGuardToSExpr vg = S.andMany (cases ++ choices)
 -- not be the case if we have duplicates, or the same valye with
 -- different guards.
 newtype GuardedValues a = GuardedValues {
-  getGuardedValues :: NonEmpty (ValueGuard, GuardedValue a)
+  getGuardedValues :: NonEmpty (PathCondition, GuardedValue a)
   }
 
-guardedValues :: GuardedValues a -> [(ValueGuard, GuardedValue a)]
+guardedValues :: GuardedValues a -> [(PathCondition, GuardedValue a)]
 guardedValues = NE.toList . getGuardedValues
   
 type GuardedValue a = MuxValue GuardedValues a
@@ -188,8 +96,8 @@ data MuxValue f a =
 type GuardedSemiSExprs = GuardedValues (Typed SMTVar)
 type GuardedSemiSExpr  = GuardedValue  (Typed SMTVar)
 
-singletonGuardedValues :: ValueGuard -> GuardedSemiSExpr -> GuardedSemiSExprs
-singletonGuardedValues g gv = GuardedValues ((g, gv) :| [])
+singleton :: PathCondition -> GuardedSemiSExpr -> GuardedSemiSExprs
+singleton g gv = GuardedValues ((g, gv) :| [])
 
 muxValueToList :: (V.Value -> f a) -> MuxValue f a -> Maybe [f a]
 muxValueToList mk mv =
@@ -201,24 +109,24 @@ muxValueToList mk mv =
     _ -> Nothing
 
 gseToList :: GuardedSemiSExpr -> Maybe [GuardedSemiSExprs]
-gseToList = muxValueToList (vValue trueValueGuard)
+gseToList = muxValueToList (vValue mempty)
 
 -- -----------------------------------------------------------------------------
 -- Values
 
 vUnit :: GuardedSemiSExprs
-vUnit = singletonGuardedValues trueValueGuard $ VValue V.vUnit
+vUnit = singleton mempty $ VValue V.vUnit
 
-vOther :: ValueGuard -> Typed SMTVar -> GuardedSemiSExprs
-vOther g = singletonGuardedValues g . VOther 
+vOther :: PathCondition -> Typed SMTVar -> GuardedSemiSExprs
+vOther g = singleton g . VOther 
 
-vSExpr :: MonadSolver m => ValueGuard -> Type -> SExpr -> m GuardedSemiSExprs
+vSExpr :: MonadSolver m => PathCondition -> Type -> SExpr -> m GuardedSemiSExprs
 vSExpr g ty se = vOther g . Typed ty <$> sexprAsSMTVar (symExecTy ty) se
 
-vValue :: ValueGuard -> V.Value -> GuardedSemiSExprs
-vValue g = singletonGuardedValues g . VValue
+vValue :: PathCondition -> V.Value -> GuardedSemiSExprs
+vValue g = singleton g . VValue
 
-vBool :: ValueGuard -> Bool -> GuardedSemiSExprs
+vBool :: PathCondition -> Bool -> GuardedSemiSExprs
 vBool g = vValue g . V.VBool
 
 -- vFst :: GuardedSemiSExprs -> Maybe GuardedSemiSExprs
@@ -239,17 +147,19 @@ vBool g = vValue g . V.VBool
 pattern VNothing :: MuxValue f a
 pattern VNothing = VValue (V.VMaybe Nothing)
 
+refine :: PathCondition -> GuardedSemiSExprs -> Maybe GuardedSemiSExprs
+refine g gvs =
+  GuardedValues <$> nonEmpty [ (gr, v)
+                             | (g', v) <- guardedValues gvs
+                             , let gr = g <> g'
+                             , gr /= Infeasible
+                             ]
 
-refineGuardedSemiExprs :: ValueGuard -> GuardedSemiSExprs -> Maybe GuardedSemiSExprs
-refineGuardedSemiExprs g gvs =
-  GuardedValues <$> nonEmpty (catMaybes [ (, v) <$> conjValueGuard g g'
-                                        | (g', v) <- guardedValues gvs ])
+unions :: NonEmpty GuardedSemiSExprs -> GuardedSemiSExprs
+unions = GuardedValues . sconcat . fmap getGuardedValues
 
-unionGuardedSemiExprs :: NonEmpty GuardedSemiSExprs -> GuardedSemiSExprs
-unionGuardedSemiExprs = GuardedValues . sconcat . fmap getGuardedValues
-
-unionGuardedSemiExprs' :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
-unionGuardedSemiExprs' = fmap unionGuardedSemiExprs . nonEmpty
+unions' :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
+unions' = fmap unions . nonEmpty
 
 -- -----------------------------------------------------------------------------
 -- Byte sets
@@ -262,12 +172,12 @@ unionGuardedSemiExprs' = fmap unionGuardedSemiExprs . nonEmpty
 -- semiExecByteSet :: (HasGUID m, Monad m, MonadIO m) => ByteSet -> SExpr ->
 --                    SemiSolverM m GuardedSemiSExprs
 -- semiExecByteSet byteSet b =
---   vSExpr trueValueGuard TBool <$> symExecToSemiExec (SE.symExecByteSet b byteSet) -- go byteSet
+--   vSExpr mempty TBool <$> symExecToSemiExec (SE.symExecByteSet b byteSet) -- go byteSet
   -- where
   --   go bs = case bs of
-  --     SetAny         -> pure (vBool trueValueGuard True)
+  --     SetAny         -> pure (vBool mempty True)
   --     SetSingle e    -> semiExecEq byteT b =<<
-  --                         (vSExpr trueValueGuard TBool =<< semiExecExpr e)
+  --                         (vSExpr mempty TBool =<< semiExecExpr e)
   --     SetRange el eh -> conj <$> (flip (op2 Leq) (vSExpr b) =<< semiExecExpr el)
   --                                 <*> (op2 Leq (vSExpr b) =<< semiExecExpr eh)
   --     SetComplement bs' -> op1 Neg TBool =<< go bs'
@@ -309,24 +219,24 @@ symExecToSemiExec = lift . withReaderT envf
 symExecByteSet :: (HasGUID m, Monad m, MonadIO m) => ByteSet -> SExpr -> SemiSolverM m GuardedSemiSExprs
 symExecByteSet bs b = do
   se <- symExecToSemiExec (SE.symExecByteSet b bs)
-  vSExpr trueValueGuard TBool se
+  vSExpr mempty TBool se
 
 envToSymEnv :: Map TName TDecl -> Map Name GuardedSemiSExprs ->  Map Name SExpr
-envToSymEnv tenv = Map.mapWithKey (guardedSemiSExprsToSExpr tenv . nameType)
+envToSymEnv tenv = Map.mapWithKey (toSExpr tenv . nameType)
 
 -- ASSUME: one guard is true, so the negation of all but one entails
 -- the remaining guard.
-guardedSemiSExprsToSExpr :: Map TName TDecl -> Type ->
-                            GuardedSemiSExprs -> SExpr
-guardedSemiSExprsToSExpr tys ty gvs =
-  foldr (\(g', el') -> S.ite (valueGuardToSExpr g') (go el')) (go el) els
+toSExpr :: Map TName TDecl -> Type ->
+           GuardedSemiSExprs -> SExpr
+toSExpr tys ty gvs =
+  foldr (\(g', el') -> S.ite (PC.toSExpr g') (go el')) (go el) els
   where
-    go = guardedSemiSExprToSExpr tys ty
+    go = toSExpr1 tys ty
     (_g, el) :| els = getGuardedValues gvs
 
-guardedSemiSExprToSExpr :: Map TName TDecl -> Type ->
+toSExpr1 :: Map TName TDecl -> Type ->
                            GuardedSemiSExpr -> SExpr
-guardedSemiSExprToSExpr tys ty sv = 
+toSExpr1 tys ty sv = 
   case sv of
     VValue v -> valueToSExpr tys ty v
     VOther s -> S.const (typedThing s)
@@ -366,7 +276,7 @@ guardedSemiSExprToSExpr tys ty sv =
       
     _ -> panic "Malformed value" [showPP ty]
   where
-    go = guardedSemiSExprsToSExpr tys
+    go = toSExpr tys
     goStruct (l, e) (l', ty') | l == l' = go ty' e
     goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
 
@@ -404,8 +314,8 @@ bindNameIn n v =
 
 -- Stolen from Daedalus.Core.Semantics.Expr.  Returns Nothing if the
 -- pattern will naver match, otherwise Just (sideConds)
-matches' :: Type -> GuardedSemiSExpr -> Pattern -> Bool
-matches' ty v pat =
+matches' :: GuardedSemiSExpr -> Pattern -> Bool
+matches' v pat =
   case (pat, v) of
     (PAny, _) -> found
     (_, VValue v') -> matches pat v'
@@ -521,16 +431,16 @@ matches' ty v pat =
 -- more efficient?)
 semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
                 Case a ->
-                SemiSolverM m ( [ ( NonEmpty ValueGuard, a) ], [ (ValueGuard, SExpr) ] )
+                SemiSolverM m ( [ ( NonEmpty PathCondition, (Pattern, a)) ], [ (PathCondition, SExpr) ] )
 semiExecCase (Case y pats) = do
   els <- guardedValues <$> semiExecName y
   let (vgs, preds) = unzip (map goV els)
-      vgs_for_pats = map (nonEmpty . catMaybes) (transpose vgs)
-      allRes       = zipWith (\a -> fmap (, a)) (map snd pats) vgs_for_pats
+      vgs_for_pats = map (nonEmpty . filter PC.isFeasibleMaybe) (transpose vgs)
+      allRes       = zipWith (\a -> fmap (, a)) pats vgs_for_pats
   pure (catMaybes allRes, concat preds)
   where
-    goV :: (ValueGuard, GuardedSemiSExpr) ->
-           ( [ Maybe ValueGuard ], [(ValueGuard, SExpr)] )
+    goV :: (PathCondition, GuardedSemiSExpr) ->
+           ( [ PathCondition ], [(PathCondition, SExpr)] )
     goV (g, VOther x) =
       let basePreds = map (\p -> SE.patternToPredicate ty p (S.const (typedThing x))) pats'
           (m_any, assn)
@@ -538,10 +448,10 @@ semiExecCase (Case y pats) = do
             -- of the above matched
             | hasAny    = ([ Right (Set.fromList pats') ] , [])
             | otherwise = ([], [(g, S.orMany basePreds)])
-          vgciFor c = ValueGuardCaseInfo { vgciType = ty, vgciConstraint = c }
-      in (map (\c -> valueGuardInsertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
+          vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
+      in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
     goV (g, v) =
-      let ms = map (matches' ty v) pats'
+      let ms = map (matches' v) pats'
           noMatch = not (or ms)
           (m_any, assn)
             | hasAny && noMatch = ( [True], [] )
@@ -549,7 +459,7 @@ semiExecCase (Case y pats) = do
             | noMatch           = ( [], [(g, S.bool False)] )
             -- FIXME: do we need the (g, S.bool True) here?
             | otherwise         = ( [], [(g, S.bool True)] )
-      in ( [ guard b $> g | b <- ms ++ m_any], assn )
+      in ( [ if b then g else Infeasible | b <- ms ++ m_any], assn )
 
     -- ASSUME that a PAny is the last element
     pats'  = [ p | p <- map fst pats, p /= PAny ]
@@ -603,7 +513,7 @@ collectMaybes = fmap catMaybes . mapM getMaybe
 
 gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
               SemiSolverM m GuardedSemiSExprs
-gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unionGuardedSemiExprs'
+gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unions'
 
 --------------------------------------------------------------------------------
 -- Exprs
@@ -620,17 +530,17 @@ semiExecExpr expr =
     Struct _ut ctors -> do
       let (ls, es) = unzip ctors
       sves <- mapM semiExecExpr es
-      pure (singletonGuardedValues trueValueGuard $ VStruct (zip ls sves))
+      pure (singleton mempty $ VStruct (zip ls sves))
 
     ECase cs -> do
       (ms, _partialPred) <- semiExecCase cs
-      let mk1 (gs, e) = do
+      let mk1 (gs, (_pat, e)) = do
             v <- semiExecExpr e
-            pure $ mapMaybe (\g -> refineGuardedSemiExprs g v) (NE.toList gs)
+            pure $ mapMaybe (\g -> refine g v) (NE.toList gs)
       els <- concat <$> mapM mk1 ms
-      hoistMaybe (unionGuardedSemiExprs' els)
+      hoistMaybe (unions' els)
         
-    Ap0 op       -> pure (vValue trueValueGuard $ partial (evalOp0 op))
+    Ap0 op       -> pure (vValue mempty $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
     Ap2 op e1 e2 ->
       join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
@@ -649,15 +559,15 @@ semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
                GuardedSemiSExprs ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOp1 EJust _rty _ty gvs =
-  pure . singletonGuardedValues trueValueGuard $ VJust gvs
+  pure . singleton mempty $ VJust gvs
 
 semiExecOp1 (InUnion _ut l)  _rty _ty sv =
-  pure . singletonGuardedValues trueValueGuard $ VUnionElem l sv
+  pure . singleton mempty $ VUnionElem l sv
 
 -- We do this component-wise
-semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
+semiExecOp1 op _rty ty gvs = gseCollect (map go (guardedValues gvs))
   where
-    mk1 g = pure . singletonGuardedValues g
+    mk1 g = pure . singleton g
     toL = gseToList
     
     -- This function executes a for a single value, returning Nothing
@@ -677,13 +587,13 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       StreamLen     -> unimplemented
       ArrayLen
         | Just svs <- toL sv -> mk1 g $ VValue (V.vSize (toInteger (length svs)))
-      Concat | Just svs  <- toL sv -> hoistMaybe (gseConcat g svs)
+      Concat | Just svs  <- toL sv -> hoistMaybe (refine g =<< gseConcat svs)
       -- Just flip the 'isbuilder' flag
       FinishBuilder | VSequence {} <- sv -> mk1 g sv
       NewIterator
         | TArray {} <- ty
         , Just svs  <- toL sv ->
-          let ixs = map (vValue trueValueGuard . V.vSize) [0..]
+          let ixs = map (vValue mempty . V.vSize) [0..]
               els = zip ixs svs
           in mk1 g $ VIterator els
           
@@ -691,12 +601,12 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       IteratorDone | VIterator els <- sv -> pure (vBool g (null els))
       IteratorKey
         | VIterator ((k, _) : _) <- sv  ->
-            hoistMaybe (refineGuardedSemiExprs g k) -- FIXME: correct?
+            hoistMaybe (refine g k) -- FIXME: correct?
         | VIterator [] <- sv -> hoistMaybe Nothing
         
       IteratorVal
         | VIterator ((_, v) : _) <- sv ->
-            hoistMaybe (refineGuardedSemiExprs g v) -- FIXME: correct?
+            hoistMaybe (refine g v) -- FIXME: correct?
         | VIterator [] <- sv -> hoistMaybe Nothing 
             
       IteratorNext
@@ -706,12 +616,12 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       -- handled above.
       -- EJust -> mk1 g (VJust sv)
       FromJust
-        | VJust sv' <- sv -> hoistMaybe (refineGuardedSemiExprs g sv')
+        | VJust sv' <- sv -> hoistMaybe (refine g sv')
         | VNothing <- sv  -> hoistMaybe Nothing
   
       SelStruct _ty l
         | VStruct flds <- sv
-        , Just sv' <- lookup l flds -> hoistMaybe (refineGuardedSemiExprs g sv')
+        , Just sv' <- lookup l flds -> hoistMaybe (refine g sv')
         | VStruct _flds <- sv -> panic "Missing field" [showPP l]
   
       -- InUnion _ut l                     -> pure (VUnionElem l sv)
@@ -746,8 +656,8 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
     unimplemented = panic "semiEvalOp1: Unimplemented" [showPP op]
 
 -- | Concatentates a list of list-valued exprs
-gseConcat :: ValueGuard -> [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
-gseConcat g svs = unionGuardedSemiExprs' (mapMaybe mkOne combs)
+gseConcat :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
+gseConcat svs = unions' (mapMaybe mkOne combs)
   where
     elss = map guardedValues svs
     -- This is a sneaky way to get the list of products of the
@@ -755,12 +665,13 @@ gseConcat g svs = unionGuardedSemiExprs' (mapMaybe mkOne combs)
     combs = sequence elss
 
     doConcat els g'
-      | Just els' <- mapM toL els = singletonGuardedValues g' (VSequence False (concat els'))
+      | PC.isInfeasible g' = Nothing    
+      | Just els' <- mapM toL els = Just $ singleton g' (VSequence False (concat els'))
       | otherwise  = panic "UNIMPLEMENTED: saw symbolic list" []
     
     mkOne comb =
       let (gs, els) = unzip comb
-      in doConcat els <$> foldlM conjValueGuard g gs
+      in doConcat els (mconcat gs)
 
     toL = gseToList
 
@@ -796,7 +707,7 @@ typeToElType ty =
 -- bAnd = scBinOp S.and id (const (VBool False))
 -- bOr  = scBinOp S.or (const (VBool True)) id
 
-bOpMany :: SemiCtxt m => Bool -> ValueGuard -> 
+bOpMany :: SemiCtxt m => Bool -> PathCondition -> 
            [GuardedSemiSExprs] ->
            SemiSolverM m GuardedSemiSExprs
 bOpMany opUnit g svs = gseCollect (map mkOne combs)
@@ -806,20 +717,20 @@ bOpMany opUnit g svs = gseCollect (map mkOne combs)
     -- members.  This is potentially very expensive.
     combs = sequence elss
     
-    mkOne comb =
-      let (gs, els) = unzip comb
-      in go els =<< hoistMaybe (foldlM conjValueGuard g gs)
+    mkOne (unzip -> (gs, els)) = 
+      go els (mconcat (g : gs))
 
-    go els g' 
+    go els g'
+      | PC.isInfeasible g' = fail "Ignored"
       | any (isBool absorb) els = mkB g' absorb
       | otherwise = do
           tys <- asks typeDefs
           -- strip out units and convert to sexpr
-          let nonUnits = [ guardedSemiSExprToSExpr tys TBool sv
+          let nonUnits = [ toSExpr1 tys TBool sv
                          | sv <- els, not (isBool opUnit sv) ]
           if null nonUnits
             then mkB g' opUnit
-            else vSExpr g TBool (op nonUnits)
+            else vSExpr g' TBool (op nonUnits)
 
     mkB g' = pure . vBool g'
 
@@ -828,7 +739,7 @@ bOpMany opUnit g svs = gseCollect (map mkOne combs)
     op = if opUnit then S.andMany else S.orMany
     absorb = not opUnit
 
-bAndMany, bOrMany :: SemiCtxt m => ValueGuard -> 
+bAndMany, bOrMany :: SemiCtxt m => PathCondition -> 
                      [GuardedSemiSExprs] ->
                      SemiSolverM m GuardedSemiSExprs
 bAndMany = bOpMany True
@@ -848,7 +759,7 @@ semiExecEqNeq iseq ty gvs1 gvs2 =
   gseCollect [ go g sv1 sv2
              | (g1, sv1) <- guardedValues gvs1
              , (g2, sv2) <- guardedValues gvs2
-             , Just g    <- [ conjValueGuard g1 g2 ]
+             , let g = g1 <> g2, PC.isFeasibleMaybe g
              ]
   where
     go g sv1 sv2 = do
@@ -881,8 +792,8 @@ semiExecEqNeq iseq ty gvs1 gvs2 =
             
         _ -> do
           se <- liftSolver (SE.symExecOp2 op TBool
-                            (guardedSemiSExprToSExpr tys ty sv1)
-                            (guardedSemiSExprToSExpr tys ty sv2))
+                            (toSExpr1 tys ty sv1)
+                            (toSExpr1 tys ty sv2))
           vSExpr g TBool se
             
     toL = gseToList
@@ -920,12 +831,12 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
   gseCollect [ go g sv1 sv2
              | (g1, sv1) <- guardedValues gvs1
              , (g2, sv2) <- guardedValues gvs2
-             , Just g    <- [ conjValueGuard g1 g2 ]
+             , let g = g1 <> g2, PC.isFeasibleMaybe g
              ]
   where
     -- point-wise
     go g (VValue v1) (VValue v2) =
-      pure (singletonGuardedValues g (VValue (evalOp2 op v1 v2)))
+      pure (singleton g (VValue (evalOp2 op v1 v2)))
 
     -- Some of these are lazy so we don't eagerly convert to sexpr if
     -- only one side is a sexpr
@@ -943,7 +854,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
           -- concrete spine, concrete index
           | Just svs <- toL sv1
           , VValue v <- sv2, Just ix <- V.valueToIntSize v
-            -> hoistMaybe (refineGuardedSemiExprs g (svs !! ix))
+            -> hoistMaybe (refine g (svs !! ix))
 
           -- FIXME: produce a n-way value (I doubt this case is very common)
 
@@ -952,7 +863,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
           -- the list and also constrain the index.
           --  | Just svs <- toL sv1
           --  , VOther x <- sv2
-          --    -> hoistMaybe (refineGuardedSemiExprs g (svs !! ix))
+          --    -> hoistMaybe (refine g (svs !! ix))
             
         EmitArray   -> unimplemented
         EmitBuilder -> unimplemented
@@ -987,7 +898,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
         _ -> def g sv1 sv2
 
     -- sv1 is map, sv2 is key 
-    -- mapOp :: ValueGuard -> GuardedSemiSExpr -> GuardedSemiSExpr ->
+    -- mapOp :: PathCondition -> GuardedSemiSExpr -> GuardedSemiSExpr ->
     --          GuardedSemiSExpr -> (Type -> SExpr) -> (GuardedSemiSExprs -> GuardedSemiSExprs) ->
     --          (SExpr -> SExpr -> SExpr) -> SemiSolverM m GuardedSemiSExprs
 
@@ -995,15 +906,15 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     -- map guarded by the path expression to get there.
     mapOp g sv1 sv2 missing smissingf found sfound 
       -- -- Concrete case
-      -- | Just els <- toL sv1, VValue kv <- sv2
+      --  | Just els <- toL sv1, VValue kv <- sv2
       -- , Just res <- mapLookupV missing found kv els
       --   = pure res
       -- -- Expand into if-then-else.
-      -- | Just els <- toL sv1
+      --  | Just els <- toL sv1
       -- , TMap kt vt <- ty1 = do
       --     tys <- asks typeDefs
-      --     let symkv = guardedSemiSExprToSExpr tys kt sv2
-      --         mk    = sfound (symExecTy vt) . guardedSemiSExprToSExpr tys vt
+      --     let symkv = toSExpr1 tys kt sv2
+      --         mk    = sfound (symExecTy vt) . toSExpr1 tys vt
       --     vSExpr g rty (foldr (mapLookupS tys mk kt symkv sv2)
       --                         (smissingf vt)
       --                         els)
@@ -1012,8 +923,8 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     def g sv1 sv2 = do
       tys <- asks typeDefs
       vSExpr g rty =<< liftSolver (SE.symExecOp2 op ty1
-                                   (guardedSemiSExprToSExpr tys ty1 sv1)
-                                   (guardedSemiSExprToSExpr tys ty2 sv2))
+                                   (toSExpr1 tys ty1 sv1)
+                                   (toSExpr1 tys ty2 sv2))
 
     toL = gseToList
 
@@ -1028,7 +939,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
       case (skv, skv') of
         (VValue kv, VValue kv')
           -> if kv == kv' then f sel else rest
-        _ -> S.ite (S.eq symkv (guardedSemiSExprToSExpr tys kTy skv')) (f sel) rest
+        _ -> S.ite (S.eq symkv (toSExpr1 tys kTy skv')) (f sel) rest
 
 
 semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
@@ -1041,17 +952,17 @@ semiExecOp3 MapInsert rty@(TMap kt vt) _ty gvs k v =
   gseCollect (map go (guardedValues gvs))
   where
     go (g, sv)
-      | VMap els <- sv = pure $ singletonGuardedValues g (VMap ((k, v) : els))
+      | VMap els <- sv = pure $ singleton g (VMap ((k, v) : els))
       -- FIXME: this picks an ordering
       | VValue (V.VMap m) <- sv  = 
-          let ms = [ (vValue trueValueGuard k', vValue trueValueGuard v')
+          let ms = [ (vValue mempty k', vValue mempty v')
                    | (k', v') <- Map.toList m ]
-          in pure $ singletonGuardedValues g (VMap ((k, v) : ms))
+          in pure $ singleton g (VMap ((k, v) : ms))
       | VOther x <- sv = do
           tys <- asks typeDefs
           vSExpr g rty =<< liftSolver (SE.symExecOp3 MapInsert rty (S.const (typedThing x))
-                                       (guardedSemiSExprsToSExpr tys kt k)
-                                       (guardedSemiSExprsToSExpr tys vt v))
+                                       (toSExpr tys kt k)
+                                       (toSExpr tys vt v))
       | otherwise = panic "BUG: unexpected value shape" []
 
 -- RangeUp and RangeDown      
@@ -1060,7 +971,7 @@ semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOpN (ArrayL _ty) _rty vs =
-  pure (singletonGuardedValues trueValueGuard (VSequence False vs))
+  pure (singleton mempty (VSequence False vs))
                
 -- semiExecOpN op rty vs
 --   | Just vs' <- mapM unValue vs = do

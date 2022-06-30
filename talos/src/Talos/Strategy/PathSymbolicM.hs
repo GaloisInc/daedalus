@@ -13,34 +13,34 @@ module Talos.Strategy.PathSymbolicM where
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Maybe   (MaybeT, runMaybeT)
-import           Data.Generics.Product       (field)
-import           Data.Map                    (Map)
-import qualified Data.Map                    as Map
-import           Data.Maybe                  (catMaybes)
-import           GHC.Generics                (Generic)
-import qualified SimpleSMT                   as SMT
+import           Control.Monad.Trans.Maybe    (MaybeT, runMaybeT)
+import           Data.Generics.Product        (field)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Data.Maybe                   (catMaybes)
+import           GHC.Generics                 (Generic)
+import qualified SimpleSMT                    as SMT
 -- FIXME: use .CPS
-import           Control.Monad.Writer        (MonadWriter, WriterT, runWriterT,
-                                              tell)
+import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
+                                               tell)
 
-import           Daedalus.Core               (Expr, Name)
-import qualified Daedalus.Core.Semantics.Env as I
+import           Daedalus.Core                (Expr, Name, Pattern)
+import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.PP
-import           Daedalus.Panic              (panic)
-import           Daedalus.Rec                (Rec)
+import           Daedalus.Panic               (panic)
+import           Daedalus.Rec                 (Rec)
 
-import           Talos.Analysis.Exported     (ExpSlice, SliceId)
+import           Talos.Analysis.Exported      (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.MuxValue     (GuardedSemiSExprs,
-                                              PathVar (PathVar), SemiSolverM,
-                                              runSemiSolverM)
-import qualified Talos.Strategy.MuxValue     as MV
-import qualified Talos.SymExec.Expr          as SE
+import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
+                                               runSemiSolverM)
+import qualified Talos.Strategy.MuxValue      as MV
+import           Talos.Strategy.PathCondition (PathVar (..))
+import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT       (MonadSolver, SMTVar, SolverT,
-                                              liftSolver)
-import qualified Talos.SymExec.SolverT       as Solv
+import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
+                                               liftSolver)
+import qualified Talos.SymExec.SolverT        as Solv
 
 
 -- =============================================================================
@@ -67,11 +67,11 @@ data SolverResult =
   ByteResult SMTVar
   | InverseResult (Map Name GuardedSemiSExprs) Expr -- The env. includes the result var.
 
-data PathIndexBuilder a =
-  ConcretePath Int a
-  | SymbolicPath PathVar [(Int, a)] -- Not all paths are necessarily feasible.
+ -- Not all paths are necessarily feasible.
+data PathChoiceBuilder a = PathChoice PathVar           [(Int, a)]
+data PathCaseBuilder a   = PathCase   GuardedSemiSExprs [(Pattern, a)]
 
-type PathBuilder = SelectedPathF PathIndexBuilder SolverResult
+type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
 emptySymbolicEnv :: SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty

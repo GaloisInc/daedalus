@@ -415,7 +415,7 @@ synthesiseG (SelectedBytes prov bs) g = do
       
   pure (InterpValue res)
       
-synthesiseG (SelectedChoice n (Identity sp)) (Choice _biased gs)
+synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
 

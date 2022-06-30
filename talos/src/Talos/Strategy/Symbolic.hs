@@ -42,7 +42,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
-                                               declareSymbol, reset, scoped)
+                                               declareSymbol, reset, scoped, liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
@@ -156,7 +156,7 @@ stratSlice ptag = go
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.
         SMatch bset -> do
-          bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
+          bname <- vSExpr (TUInt (TSize 8)) . S.const <$> liftSolver (declareSymbol "b" tByte)
           bassn <- synthesiseByteSet bset bname
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
@@ -179,14 +179,14 @@ stratSlice ptag = go
           -- e <- ask
           -- liftIO (print [ (pp n, v) | (n, v) <- Map.toList e] )
           enterPathNode (Set.singleton cid) $
-            over _3 (SelectedChoice i . Identity) <$> go sl'
+            over _3 (SelectedChoice . PathIndex i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
+          n' <- vSExpr (typeOf n) <$> liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' mempty $ do
             pe <- synthesiseExpr p
             assert pe
@@ -252,7 +252,7 @@ synthesiseByteSet bs = liftSemiSolverM . semiExecByteSet bs
 
 check :: SymbolicM ()
 check = do
-  r <- inSolver Solv.check
+  r <- liftSolver Solv.check
   case r of
     S.Sat     -> pure ()
     S.Unsat   -> backtrack OtherFailure
@@ -263,7 +263,7 @@ check = do
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
-    VOther p -> inSolver (Solv.assert (typedThing p))
+    VOther p -> liftSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
     -- FIXME: Set.empty is not quite right here, but this will usually
     -- not get here anyway.

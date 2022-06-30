@@ -16,9 +16,13 @@ import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
+import           Data.Foldable                (find)
+import           Data.Functor.Identity        (Identity (Identity))
 import           Data.Generics.Product        (field)
+import           Data.List.NonEmpty           (NonEmpty)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import           Data.Maybe                   (catMaybes, mapMaybe)
 import qualified Data.Set                     as Set
 import qualified Data.Vector                  as Vector
 import           Data.Word                    (Word8)
@@ -34,16 +38,18 @@ import           Daedalus.Panic
 import           Daedalus.Rec                 (topoOrder)
 import qualified Daedalus.Value               as I
 
+import qualified Data.List.NonEmpty           as NE
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
                                                SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExpr,
                                                GuardedSemiSExprs, MuxValue (..),
-                                               PathVar, ValueGuard (vgChoices),
-                                               ValueGuardCaseInfo (..), vUnit,
-                                               vgCases)
+                                               vUnit)
 import qualified Talos.Strategy.MuxValue      as MV
+import           Talos.Strategy.PathCondition (PathCondition,
+                                               PathConditionCaseInfo, PathVar)
+import qualified Talos.Strategy.PathCondition as PC
 import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
@@ -144,7 +150,7 @@ stratSlice ptag = go
         SMatch bset -> do
           sym <- liftSolver (declareSymbol "b" tByte)
           let bse = S.const sym
-              bv  = MV.vOther MV.trueValueGuard (Typed TByte sym)
+              bv  = MV.vOther mempty (Typed TByte sym)
               
           bassn <- synthesiseByteSet bset bse
           -- This just constrains the byte, we expect it to be satisfiable
@@ -156,20 +162,20 @@ stratSlice ptag = go
 
         SChoice sls -> do
           pv <- freshPathVar (length sls)
-          (vs, paths) <- unzip . concat <$> zipWithM (guardedChoice pv) [0..] (map go sls)
-          v <- hoistMaybe (MV.unionGuardedSemiExprs' vs)
-          pure (v, SelectedChoice (SymbolicPath pv paths))
+          (vs, paths) <- unzip . catMaybes <$> zipWithM (guardedChoice pv) [0..] (map go sls)
+          v <- hoistMaybe (MV.unions' vs)
+          pure (v, SelectedChoice (PathChoice pv paths))
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- MV.vSExpr MV.trueValueGuard (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
+          n' <- MV.vSExpr mempty (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' $ do
             pe <- synthesiseExpr p
             ienv <- getIEnv
-            assertSExpr (MV.guardedSemiSExprsToSExpr (I.tEnv ienv) TBool pe)
+            assertSExpr (MV.toSExpr (I.tEnv ienv) TBool pe)
 
             -- Once we have a model, we need to convert all the free
             -- variables in the inverse function expression into values,
@@ -193,27 +199,69 @@ stratSlice ptag = go
 -- condition, and also update the value.  If the computation fails,
 -- then the negated path condition will be asserted and 
 guardedChoice :: PathVar -> Int -> SymbolicM Result ->
-                 SymbolicM [(GuardedSemiSExprs, (Int, PathBuilder))]
+                 SymbolicM (Maybe (GuardedSemiSExprs, (Int, PathBuilder)))
 guardedChoice pv i m = pass $ do
   m_r <- getMaybe m
-  case m_r of
-    -- Refining should always succeed.
-    Just (v, p)
-      | Just v' <- MV.refineGuardedSemiExprs g v -> pure ([(v', (i, p))], addImpl)
-    _ -> pure ([], const [S.not pathGuard])
+  pure $ case m_r of
+           -- Refining should always succeed.
+           Just (v, p)
+             | Just v' <- MV.refine g v -> (Just (v', (i, p)), addImpl)
+           _ -> (Nothing, const [S.not pathGuard])
   where
-    g = MV.valueGuardExtendChoice pv i MV.trueValueGuard
-    pathGuard = MV.valueGuardToSExpr g
+    g = PC.insertChoice pv i mempty
+    pathGuard = PC.toSExpr g
     addImpl [] = []
     addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
-    
--- FIXME: maybe name e?
+
+
+-- We represent disjunction by having multiple values; in this case,
+-- if we have matching values for the case alternative v1, v2, v3,
+-- with guards g1, g2, g3, then for each value returned by the RHS
+-- of the pattern we will combine with each g1, g2, g3 (to get 3
+-- sets of values) which we then union.  As a formula, we have
+--
+-- (ga, va) \/ (gb, vb) \/ ... = RHS
+-- return  (ga /\ g1, va) \/ (gb /\ g1, vb) \/ (gc /\ g1, vc)
+--      \/ (ga /\ g2, va) \/ (gb /\ g2, vb) \/ (gc /\ g2, vc)
+--      \/ ...
+--
+-- This can greatly increase the number of values
+
+-- FIXME: merge with the above?
+guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
+               SymbolicM (Maybe (GuardedSemiSExprs, (Pattern, PathBuilder)))
+guardedCase gs pat m = pass $ do
+  m_r <- getMaybe m
+  pure $ case m_r of
+           Just r  -> (mk r, addImpl)
+           Nothing -> (Nothing, const [S.not pathGuard])
+  where
+    mk (v, pb) = do
+      x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
+      pure (x, (pat, pb))
+      
+    pathGuard = S.orMany (map PC.toSExpr (NE.toList gs))
+    addImpl [] = []
+    addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
+
 stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
 stratCase ptag cs = do
-  (alts, pred) <- liftSemiSolverM (MV.semiExecCase cs)
-  undefined
-
-  
+  inv <- getName (caseVar cs)
+  (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
+  let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice ptag a)
+  (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
+  v <- hoistMaybe (MV.unions' vs)
+  -- preds here is a list [(PathCondition, SExpr)] where the PC is the
+  -- condition for the value, and the SExpr is a predicate on when
+  -- that value is enabled (matches some guard).  We require that at
+  -- least 1 alternative is enabled, so we assert the disjunction of
+  -- (g <-> s) for (g,s) in preds.  We could also assert the
+  -- conjunction of (g --> s), which doe snot assert that the guard
+  -- holds (only that the enabling predicate holds when that value is
+  -- enabled).
+  assertSExpr (S.orMany [ S.eq (PC.toSExpr g) s | (g, s) <- preds ])
+  pure (v, SelectedCase (PathCase inv paths))
+    
   -- case m_alt of
   --   DidMatch i sl -> over _3 (SelectedCase) <$> enterPathNode (stratSlice ptag sl)
   --   NoMatch  -> do
@@ -237,7 +285,6 @@ stratCallNode ptag cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
   over _2 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
-
 
 -- -----------------------------------------------------------------------------
 -- Merging values
@@ -462,7 +509,7 @@ getPathVar pv = do
   case m_i of
     Just i -> pure i
     Nothing -> do
-      sexp <- lift (Solv.getValue (MV.pathVarToSExpr pv))
+      sexp <- lift (Solv.getValue (PC.pathVarToSExpr pv))
       n <- case evalModelP pNumber sexp of
              []    -> panic "No parse" []
              b : _ -> pure (fromIntegral b)
@@ -495,19 +542,30 @@ buildPath = runModelParserM . go
     go SelectedHole = pure SelectedHole
     go (SelectedBytes ptag r) = SelectedBytes ptag <$> resolveResult r
     go (SelectedDo l r) = SelectedDo <$> go l <*> go r
-    go (SelectedChoice pib) = SelectedChoice <$> buildPathIndex pib
+    go (SelectedChoice pib) = SelectedChoice <$> buildPathChoice pib
     go (SelectedCall i p) = SelectedCall i <$> go p
-    go (SelectedCase pib) = SelectedCase <$> buildPathIndex pib
+    go (SelectedCase pib) = SelectedCase <$> buildPathCase pib
 
-    buildPathIndex :: PathIndexBuilder PathBuilder ->
-                      ModelParserM (PathIndex SelectedPath)
-    buildPathIndex (ConcretePath i p) = PathIndex i <$> go p
-    buildPathIndex (SymbolicPath pv ps) = do
+    buildPathChoice :: PathChoiceBuilder PathBuilder ->
+                       ModelParserM (PathIndex SelectedPath)
+    buildPathChoice (PathChoice pv ps) = do
       i <- getPathVar pv
       let p = case lookup i ps of
                 Nothing  -> panic "Missing choice" []
                 Just p'  -> p'
       PathIndex i <$> go p
+
+    buildPathCase :: PathCaseBuilder PathBuilder ->
+                     ModelParserM (Identity SelectedPath)
+    buildPathCase (PathCase gses ps) = do
+      m_v <- gsesModel gses
+      let v = case m_v of
+                Nothing  -> panic "Missing case value" []
+                Just v'  -> v'
+          p = case find (flip I.matches v . fst) ps of
+                Nothing -> panic "Missing case alt" []
+                Just (_, p') -> p'
+      Identity <$> go p
     
     resolveResult :: SolverResult -> ModelParserM BS.ByteString
     resolveResult (ByteResult b) = BS.singleton <$> getByteVar b
@@ -535,25 +593,20 @@ firstM f (x : xs) = do
   b <- f x
   if b then pure (Just x) else firstM f xs
 
-vgciSatisfied :: ValueGuardCaseInfo -> I.Value -> Bool
-vgciSatisfied ValueGuardCaseInfo { vgciConstraint = Left p } v =
-  I.matches p v
-vgciSatisfied ValueGuardCaseInfo { vgciConstraint = Right ps } v =
-  not (any (flip I.matches v) (Set.toList ps))
-
-valueGuardModel :: ValueGuard -> ModelParserM Bool
-valueGuardModel vg = do
+pathConditionModel :: PathCondition -> ModelParserM Bool
+pathConditionModel PC.Infeasible = pure False
+pathConditionModel (PC.FeasibleMaybe pci) = do
   -- We try choices first as they are more likely to fail (?)  
   choiceb <- andM [ (==) i <$> getPathVar pv
-                  | (pv, i) <- Map.toList (vgChoices vg) ]
+                  | (pv, i) <- Map.toList (PC.pcChoices pci) ]
   if choiceb
-    then andM [ vgciModel x vgci
-              | (x, vgci) <- Map.toList (vgCases vg) ]
+    then andM [ pcciModel x vgci
+              | (x, vgci) <- Map.toList (PC.pcCases pci) ]
     else pure False
   where
-    vgciModel :: SMTVar -> ValueGuardCaseInfo -> ModelParserM Bool
-    vgciModel x vgci =
-      vgciSatisfied vgci <$> getValueVar (Typed (vgciType vgci) x)
+    pcciModel :: SMTVar -> PathConditionCaseInfo -> ModelParserM Bool
+    pcciModel x vgci =
+      PC.pcciSatisfied vgci <$> getValueVar (Typed (PC.pcciType vgci) x)
 
 gseModel :: GuardedSemiSExpr -> ModelParserM (Maybe I.Value)
 gseModel gse =
@@ -575,20 +628,20 @@ gseModel gse =
     VMap els -> do
       let (ks, vs) = unzip els
       m_kvs <- sequence <$> mapM gsesModel ks
-      m_vvs <- sequence <$> mapM gsesModel ks
+      m_vvs <- sequence <$> mapM gsesModel vs
       pure (I.VMap . Map.fromList <$> (zip <$> m_kvs <*> m_vvs))
   
   -- We support symbolic keys, so we can't use Map here
     VIterator els -> do
       let (ks, vs) = unzip els
       m_kvs <- sequence <$> mapM gsesModel ks
-      m_vvs <- sequence <$> mapM gsesModel ks
+      m_vvs <- sequence <$> mapM gsesModel vs
       pure (I.VIterator <$> (zip <$> m_kvs <*> m_vvs))
 
 gsesModel :: GuardedSemiSExprs -> ModelParserM (Maybe I.Value)
 gsesModel gses = join <$> (traverse (gseModel . snd) =<< firstM go els)
   where
-    go = valueGuardModel . fst
+    go  = pathConditionModel . fst
     els = MV.guardedValues gses
 
 -- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value

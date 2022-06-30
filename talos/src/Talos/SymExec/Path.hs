@@ -4,16 +4,17 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- Path set analysis
 
 module Talos.SymExec.Path where
 
+import           Control.DeepSeq       (NFData)
 import           Data.ByteString       (ByteString)
+import           Data.Functor.Identity (Identity (Identity))
 import           Data.Map              (Map)
 import           GHC.Generics          (Generic)
-
- -- for benchmarking etc.
 
 import           Daedalus.PP
 import           Daedalus.Panic
@@ -24,18 +25,22 @@ import           Talos.Analysis.Slice  (FInstId)
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
-data SelectedPathF f a = 
+data SelectedPathF ch ca a = 
     SelectedHole 
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo (SelectedPathF f a) (SelectedPathF f a)
-  | SelectedChoice (f (SelectedPathF f a))
-  | SelectedCall FInstId (SelectedPathF f a)
-  | SelectedCase (f (SelectedPathF f a))
+  | SelectedDo (SelectedPathF ch ca a) (SelectedPathF ch ca a)
+  | SelectedChoice (ch (SelectedPathF ch ca a))
+  | SelectedCall FInstId (SelectedPathF ch ca a)
+  | SelectedCase (ca (SelectedPathF ch ca a))
   deriving (Functor, Foldable, Traversable, Generic)
 
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
-type SelectedPath = SelectedPathF PathIndex ByteString
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+type SelectedPath = SelectedPathF PathIndex Identity ByteString
+
+deriving instance NFData SelectedPath
 
 -- -- isXs, mainly because we don't always have equality over nodes
 -- isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
@@ -137,7 +142,7 @@ firstSolverProvenance = 2
 -- Instances
 
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex a) where
+instance Merge (SelectedPathF PathIndex Identity a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -145,16 +150,15 @@ instance Merge (SelectedPathF PathIndex a) where
       (SelectedChoice (PathIndex n1 sp1), SelectedChoice (PathIndex n2 sp2))
         | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
         | otherwise -> SelectedChoice (PathIndex n1 (merge sp1 sp2))
-      (SelectedCase (PathIndex n1 sp1), SelectedCase (PathIndex n2 sp2))
-        | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
-        | otherwise -> SelectedCase (PathIndex n1 (merge sp1 sp2))
+      (SelectedCase (Identity sp1), SelectedCase (Identity sp2))
+        -> SelectedCase (Identity (merge sp1 sp2))
       (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       _ -> panic "BUG: merging non-mergeable nodes" []
 
-instance (PP a) => PP (SelectedPathF PathIndex a) where
+instance (PP a) => PP (SelectedPathF PathIndex Identity a) where
   ppPrec n p =
     case p of
       SelectedHole       -> "[]"
@@ -162,10 +166,10 @@ instance (PP a) => PP (SelectedPathF PathIndex a) where
       SelectedDo {}      -> "do" <+> ppStmts' p
       SelectedChoice (PathIndex n' sp) ->
         wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
-      SelectedCase   (PathIndex _n' sp)  -> wrapIf (n > 0) $ "case" <+> ppPrec 1 sp
+      SelectedCase   (Identity sp)  -> wrapIf (n > 0) $ "case" <+> ppPrec 1 sp
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
 
-ppStmts' :: PP a => SelectedPathF PathIndex a -> Doc
+ppStmts' :: PP a => SelectedPathF PathIndex Identity a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2
