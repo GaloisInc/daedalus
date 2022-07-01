@@ -12,6 +12,7 @@ import qualified Language.Haskell.TH as TH
 import qualified Data.Text as Text
 import Debug.Trace(trace)
 
+import qualified Data.Functor.Identity as RTS
 import qualified RTS.ParserVM as RTS
 import qualified RTS.ParserAPI as RTS
 
@@ -64,43 +65,51 @@ compileModule cfg m =
 
 compileFun :: HasConfig => VMFun -> TH.DecsQ
 compileFun fun =
-  do args <- traverse newArg srcArgs
+  do args     <- traverse newArg srcArgs
+
      (funTy,contArgs) <-
         if vmfPure fun then pure (PureFun, []) else
         case vmfCaptures fun of
           NoCapture -> pure (NonCapturingParser (),[])
-          _ -> do noK  <- TH.newName "noK"
+          _ -> do rtyName  <- TH.newName "r"
+                  noK  <- TH.newName "noK"
                   yesK <- TH.newName "yesK"
                   let noP  = TH.varP noK
                       yesP = TH.varP yesK
-                  pure ( CapturingParser () (TH.varE noK) (TH.varE yesK)
+                  pure ( CapturingParser () rtyName (TH.varE noK) (TH.varE yesK)
                        , [ noP, yesP ]
                        )
      let def = compileDef (vmfName fun) funTy (vmfDef fun) (map snd args)
      decl <- TH.funD (fnameName (vmfName fun))
                   [ TH.clause (map fst args ++ contArgs) (TH.normalB def) [] ]
-     sig <- TH.sigD (fnameName (vmfName fun)) (funT srcTs resT)
+
+     sig <- TH.sigD (fnameName (vmfName fun)) (sigTy funTy)
      pure [sig,decl]
 
   where
   srcTs   = map (compileVMT . getType) srcArgs
   valResT = compileMonoType (Core.typeOf (vmfName fun))
-  resT
-    | vmfPure fun = valResT
-    | otherwise =
-      case vmfCaptures fun of
+  sigTy funTy =
 
-        NoCapture ->
-          case userMonad ?config of
-            Nothing -> [t| RTS.DParser $valResT |]
-            Just m  -> [t| RTS.DParserM $m $valResT |]
+    case funTy of
+      PureFun ->
+        funT srcTs
+        valResT
 
-        Capture ->
-          case userMonad ?config of
-            Nothing -> [t| RTS.CParser $valResT |]
-            Just m  -> [t| RTS.CParserM $m $valResT |]
+      NonCapturingParser {} ->
+        funT srcTs
+        case userMonad ?config of
+          Nothing -> [t| RTS.DParser $valResT |]
+          Just m  -> [t| RTS.DParserM $m $valResT |]
 
-        Unknown -> panic "compileFun" ["Unknown"]
+      CapturingParser _ rtyName _ _ ->
+        TH.forallT [TH.plainTV rtyName] (TH.cxt []) $
+        funT srcTs
+        case userMonad ?config of
+          Nothing -> [t| RTS.CParser $rty $valResT |]
+          Just m  -> [t| RTS.CParserM $rty $m $valResT |]
+        where rty = TH.varT rtyName
+
 
 
   srcArgs =
@@ -133,9 +142,12 @@ compileBlock ty b =
           NonCapturingParser {} ->
             do (spat,sexp) <- newArg' "s" [t| RTS.ParserErrorState |]
                pure (NonCapturingParser sexp, [ spat ])
-          CapturingParser _ noK yesK ->
-            do (spat,sexp) <- newArg' "s" [t| RTS.ThreadState |]
-               pure (CapturingParser sexp noK yesK, [ spat ])
+          CapturingParser _ rty noK yesK ->
+            do let m = case userMonad ?config of
+                         Nothing -> [t| RTS.Identity |]
+                         Just mt -> mt
+               (spat,sexp) <- newArg' "s" [t| RTS.ThreadState $(TH.varT rty) $m |]
+               pure (CapturingParser sexp rty noK yesK, [ spat ])
 
      let ?localVars = mempty
          ?blockArgs = Map.fromList (zip (blockArgs b) (map snd args))
@@ -235,6 +247,7 @@ data FunTy s =
     PureFun
   | NonCapturingParser s -- error state
   | CapturingParser s -- thread state
+                    TH.Name    -- the type of the "final" result of the parser
                     TH.ExpQ   -- no cont
                     TH.ExpQ   -- yes cont
 
@@ -247,38 +260,39 @@ type BlockEnv =
 
 stateArgs :: BlockEnv => [TH.ExpQ]
 stateArgs = case ?funTy of
-              NonCapturingParser e  -> [e]
-              CapturingParser e _ _ -> [e]
-              PureFun               -> []
+              NonCapturingParser e    -> [e]
+              CapturingParser e _ _ _ -> [e]
+              PureFun                 -> []
 
 getErrorState :: BlockEnv => TH.ExpQ
 getErrorState =
   case ?funTy of
-    NonCapturingParser e    -> e
-    CapturingParser e _ _   -> [| RTS.thrErrors $e |]
-    PureFun                 -> panic "getErrorState" ["Pure parser"]
+    NonCapturingParser e      -> e
+    CapturingParser e _ _ _   -> [| RTS.thrErrors $e |]
+    PureFun                   -> panic "getErrorState" ["Pure parser"]
 
 updErrorState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
 updErrorState k f =
   let ?funTy =
         case ?funTy of
           NonCapturingParser e -> NonCapturingParser (f e)
-          CapturingParser e noK yesK ->
-            CapturingParser [| RTS.thrUpdateErrors $(f e) |] noK yesK
+          CapturingParser e ty noK yesK ->
+            CapturingParser
+              [| RTS.thrUpdateErrors (\x -> $(f [|x|])) $e |] ty noK yesK
           PureFun -> panic "updErrorState" ["Pure parser"]
   in k
 
 getThreadState :: BlockEnv => TH.ExpQ
 getThreadState =
   case ?funTy of
-    CapturingParser e _ _ -> e
+    CapturingParser e _ _ _ -> e
     _  -> panic "getThreadState" ["Not a capturing parser"]
 
 updThreadState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
 updThreadState k f =
   let ?funTy =
         case ?funTy of
-          CapturingParser e noK yesK -> CapturingParser (f e) noK yesK
+          CapturingParser e ty noK yesK -> CapturingParser (f e) ty noK yesK
           _ -> panic "updThreadState" ["Not a capturing parser"]
   in k
 
@@ -352,7 +366,7 @@ compileCInstr cinstr =
                Nothing -> val
                Just {} -> [| pure $val |] -- do we need type sig here?
 
-        CapturingParser _ noK _ -> [| $noK $getThreadState |]
+        CapturingParser _ _ noK _ -> [| $noK $getThreadState |]
         PureFun {} -> panic "compileCInstr" ["ReturnNo in pure"]
 
     ReturnYes a inp ->
@@ -364,7 +378,7 @@ compileCInstr cinstr =
               Nothing -> val
               Just {} -> [| pure $val |]
 
-        CapturingParser _ _ yesK -> [| $yesK $(compileE a) $(compileE inp)
+        CapturingParser _ _ _ yesK -> [| $yesK $(compileE a) $(compileE inp)
                                              $getThreadState |]
         PureFun {} -> panic "compileCInstr" ["ReturnNo i  pure"]
 
@@ -422,12 +436,12 @@ compileCInstr cinstr =
         Capture ->
           doCall f $
             map compileE es ++
-            stateArgs ++
             [ [| \s -> $(doJump [] [ [| s |] ] no) |]
 
             , [| \val inp s ->
                     $(doJump [ [| val |], [| inp |] ] [[|s|]] yes) |]
-            ]
+            ] ++
+            stateArgs
 
         Unknown -> panic "compileCInstr" ["Unknown call"]
 
@@ -437,11 +451,11 @@ compileCInstr cinstr =
         Capture ->
           doCall f $
             map compileE es ++
-            stateArgs ++
             case ?funTy of
-              CapturingParser _ no yes -> [ no, yes ]
+              CapturingParser _ _ no yes -> [ no, yes ]
               _ -> panic "compileCInstr"
                             [ "Call to capturing from non-capturing" ]
+            ++ stateArgs
         Unknown -> panic "compileCInstr" ["Unknown tail call"]
 
 

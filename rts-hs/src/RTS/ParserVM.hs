@@ -22,10 +22,10 @@ type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
 -- No custom user monad
-type CParser a = CParserM Identity a
+type CParser r a    = CParserM r Identity a
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
-type CParserM m a   = forall r. NoCont r m -> YesCont r m a -> Code r m
+type CParserM r m a = NoCont r m -> YesCont r m a -> Code r m
 
 type Thread r m     = Bool -> Code r m
 
@@ -169,20 +169,20 @@ runDParserM p = dparserToEither <$> p initParseErrorState
 runDParser :: DParser a -> Either ParseError a
 runDParser p = dparserToEither (p initParseErrorState)
 
-runCParserOne :: CParser a -> Either ParseError a
+runCParserOne :: CParser a a -> Either ParseError a
 runCParserOne p = coerce (runCParserOneM p)
 
-runCParserAll :: CParser a -> Either ParseError [a]
+runCParserAll :: CParser a a -> Either ParseError [a]
 runCParserAll p = coerce (runCParserAllM p)
 
-runCParserOneM :: Applicative m => CParserM m a -> m (Either ParseError a)
+runCParserOneM :: Applicative m => CParserM a m a -> m (Either ParseError a)
 runCParserOneM p = done <$> p topNoK topYesOneK initThreadState
   where
   done s = case thrResults s of
             []    -> Left (doGetErr (thrErrors s))
             r : _ -> Right r
 
-runCParserAllM :: Applicative m => CParserM m a -> m (Either ParseError [a])
+runCParserAllM :: Applicative m => CParserM a m a -> m (Either ParseError [a])
 runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
   where
   done s = case thrResults s of
