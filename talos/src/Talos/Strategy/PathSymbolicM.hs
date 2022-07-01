@@ -113,7 +113,8 @@ pathVarSort = SMT.tInt
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
-  assertSExpr $ SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd))
+  assertSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
+                        (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
   pure (PathVar sym)
 
 -- extendPath ::  -> SymbolicM a -> SymbolicM a

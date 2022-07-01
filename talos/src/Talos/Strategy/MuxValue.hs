@@ -431,7 +431,8 @@ matches' v pat =
 -- more efficient?)
 semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
                 Case a ->
-                SemiSolverM m ( [ ( NonEmpty PathCondition, (Pattern, a)) ], [ (PathCondition, SExpr) ] )
+                SemiSolverM m ( [ ( NonEmpty PathCondition, (Pattern, a)) ]
+                              , [ (PathCondition, Maybe SExpr) ] )
 semiExecCase (Case y pats) = do
   els <- guardedValues <$> semiExecName y
   let (vgs, preds) = unzip (map goV els)
@@ -440,14 +441,14 @@ semiExecCase (Case y pats) = do
   pure (catMaybes allRes, concat preds)
   where
     goV :: (PathCondition, GuardedSemiSExpr) ->
-           ( [ PathCondition ], [(PathCondition, SExpr)] )
+           ( [ PathCondition ], [(PathCondition, Maybe SExpr)] )
     goV (g, VOther x) =
       let basePreds = map (\p -> SE.patternToPredicate ty p (S.const (typedThing x))) pats'
           (m_any, assn)
             -- if we have a default case, the constraint is that none
             -- of the above matched
             | hasAny    = ([ Right (Set.fromList pats') ] , [])
-            | otherwise = ([], [(g, S.orMany basePreds)])
+            | otherwise = ([], [(g, Just (S.orMany basePreds))])
           vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
       in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
     goV (g, v) =
@@ -456,9 +457,9 @@ semiExecCase (Case y pats) = do
           (m_any, assn)
             | hasAny && noMatch = ( [True], [] )
             | hasAny            = ( [False], [] )
-            | noMatch           = ( [], [(g, S.bool False)] )
+            | noMatch           = ( [], [(g, Just (S.bool False))] )
             -- FIXME: do we need the (g, S.bool True) here?
-            | otherwise         = ( [], [(g, S.bool True)] )
+            | otherwise         = ( [], [(g, Nothing)] )
       in ( [ if b then g else Infeasible | b <- ms ++ m_any], assn )
 
     -- ASSUME that a PAny is the last element
@@ -728,9 +729,10 @@ bOpMany opUnit g svs = gseCollect (map mkOne combs)
           -- strip out units and convert to sexpr
           let nonUnits = [ toSExpr1 tys TBool sv
                          | sv <- els, not (isBool opUnit sv) ]
-          if null nonUnits
-            then mkB g' opUnit
-            else vSExpr g' TBool (op nonUnits)
+          case nonUnits of
+            [] -> mkB g' opUnit
+            [el] -> vSExpr g' TBool el
+            _    -> vSExpr g' TBool (op nonUnits)
 
     mkB g' = pure . vBool g'
 
@@ -865,7 +867,9 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
           --  , VOther x <- sv2
           --    -> hoistMaybe (refine g (svs !! ix))
             
-        EmitArray   -> unimplemented
+        EmitArray
+          | Just bs   <- toL sv1
+          , Just arrs <- toL sv2 -> pure $ singleton g (VSequence True (bs ++ arrs))
         EmitBuilder -> unimplemented
 
         -- sv1 is map, sv2 is key

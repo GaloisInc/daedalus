@@ -10,7 +10,7 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic (pathSymbolicStrats) where
 
-import           Control.Lens                 (_2, at, over, (.=))
+import           Control.Lens                 (_2, at, over, (.=), _1, each)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -54,7 +54,7 @@ import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
-import           Talos.SymExec.ModelParser    (evalModelP, pByte, pNumber,
+import           Talos.SymExec.ModelParser    (evalModelP, pNumber,
                                                pValue)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
@@ -211,6 +211,7 @@ guardedChoice pv i m = pass $ do
     g = PC.insertChoice pv i mempty
     pathGuard = PC.toSExpr g
     addImpl [] = []
+    addImpl [sexpr] = [S.implies pathGuard sexpr]
     addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
 
 
@@ -241,7 +242,9 @@ guardedCase gs pat m = pass $ do
       pure (x, (pat, pb))
       
     pathGuard = S.orMany (map PC.toSExpr (NE.toList gs))
+    
     addImpl [] = []
+    addImpl [sexpr] = [S.implies pathGuard sexpr]
     addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
 
 stratCase :: ProvenanceTag -> Case ExpSlice -> SymbolicM Result
@@ -259,7 +262,15 @@ stratCase ptag cs = do
   -- conjunction of (g --> s), which doe snot assert that the guard
   -- holds (only that the enabling predicate holds when that value is
   -- enabled).
-  assertSExpr (S.orMany [ S.eq (PC.toSExpr g) s | (g, s) <- preds ])
+
+  -- FIXME: can we omit this if the case is total?
+  let preds' = over (each . _1) PC.toSExpr preds
+      oneEnabled = S.orMany (map fst preds')
+      patConstraints = S.andMany [ S.implies g c | (g, Just c) <- preds' ]
+      
+  assertSExpr oneEnabled
+  assertSExpr patConstraints
+  
   pure (v, SelectedCase (PathCase inv paths))
     
   -- case m_alt of
@@ -485,24 +496,14 @@ enumerate t = evalState (traverse go t) 0
 
 data ModelParserState = ModelParserState
   { mpsPathVars :: Map PathVar Int
-  , mpsBytes    :: Map SMTVar Word8
   , mpsOthers   :: Map SMTVar I.Value
   } deriving Generic
 
 -- FIXME: clag
 getByteVar :: SMTVar -> ModelParserM Word8
-getByteVar symB = do
-  m_i <- gets (Map.lookup symB . mpsBytes)
-  case m_i of
-    Just i -> pure i
-    Nothing -> do
-      sexp <- lift (Solv.getValue (S.const symB))
-      n <- case evalModelP pByte sexp of
-             []    -> panic "No parse" []
-             b : _ -> pure (fromIntegral b)
-      field @"mpsBytes" . at symB .= Just n
-      pure n
+getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
+      
 getPathVar :: PathVar -> ModelParserM Int
 getPathVar pv = do
   m_i <- gets (Map.lookup pv . mpsPathVars)
@@ -532,7 +533,7 @@ getValueVar (Typed ty x) = do
 type ModelParserM a = StateT ModelParserState (SolverT StrategyM) a
 
 runModelParserM :: ModelParserM a -> SolverT StrategyM a
-runModelParserM = flip evalStateT (ModelParserState mempty mempty mempty)
+runModelParserM = flip evalStateT (ModelParserState mempty mempty)
 
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: PathBuilder -> SolverT StrategyM SelectedPath
