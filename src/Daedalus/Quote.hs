@@ -1,19 +1,30 @@
 {-# Language BlockArguments, OverloadedStrings, TemplateHaskell #-}
-module Daedalus.Quote (daedalus, daedalus_compiled) where
+module Daedalus.Quote
+  ( daedalus
+  , ddl
+  , compileDDL
+  , compileDDLWith
+  , CompileConfing(..)
+  , defaultConfig
+  , namedPrim
+  ) where
 
 import Data.Text(Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import Data.ByteString(ByteString)
 import Control.Monad.IO.Class(liftIO)
-import Control.Exception(catch)
+import Control.Exception(try)
 import Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 
 import AlexTools(SourceRange,SourcePos(..))
 
 import RTS.ParserAPI(Result(..),ParseError)
+import qualified RTS.Numeric as RTS
 
 import Daedalus.Value(Value)
 
@@ -33,12 +44,13 @@ daedalus = QuasiQuoter
   , quoteExp  = nope "expression"
   }
 
-daedalus_compiled :: QuasiQuoter
-daedalus_compiled = QuasiQuoter
+ddl :: QuasiQuoter
+ddl = QuasiQuoter
   { quotePat  = nope "pattern"
-  , quoteDec  = doDecl'
+  , quoteDec  = nope "declaration"
   , quoteType = nope "type"
-  , quoteExp  = nope "expression"
+  , quoteExp  = \s -> do (a,b,c) <- getInput s
+                         [| (a,b,c) |]
   }
 
 nope :: String -> String -> Q a
@@ -89,8 +101,10 @@ getInput str =
 doDecl :: String -> Q [Dec]
 doDecl str =
   do (start, root, txt) <- getInput str
-     ast <- liftIO (loadDDL start txt
-                      `catch` \e -> fail =<< DDL.prettyDaedalusError e)
+     mbAST <- liftIO (try (loadDDL start txt))
+     ast <- case mbAST of
+              Left e -> fail =<< liftIO (DDL.prettyDaedalusError e)
+              Right a -> pure a
 
      e <- [| \b -> case interp [] "Main" b [ast] (ModScope "Main" root) of
                      NoResults err -> Left err
@@ -102,11 +116,46 @@ doDecl str =
           , FunD nm [Clause [] (NormalB e) []]
           ]
 
-doDecl' :: String -> Q [Dec]
-doDecl' str =
-  do (start, root, txt) <- getInput str
-     ast <- liftIO (DDL.daedalus (loadDDLVM start root txt)
-                      `catch` \e -> fail =<< DDL.prettyDaedalusError e)
-     VM.compileModule VM.defaultConfig ast
+data CompileConfing = CompileConfing
+  { userMonad :: Maybe TH.TypeQ
+  , userPrimitives :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
+  }
 
+defaultConfig :: CompileConfing
+defaultConfig = CompileConfing
+  { userMonad = Nothing
+  , userPrimitives = []
+  }
+
+
+compileDDL :: (SourcePos, String, Text) -> TH.DecsQ
+compileDDL = compileDDLWith defaultConfig
+
+compileDDLWith :: CompileConfing -> (SourcePos, String, Text) -> TH.DecsQ
+compileDDLWith cfg (start, root, txt) =
+  do mb <-
+        liftIO $ try $ DDL.daedalus
+           do ast <- loadDDLVM start root txt
+              let getPrim (x,c) =
+                    do mb <- DDL.ddlGetFNameMaybe "Main" x
+                       case mb of
+                         Nothing -> DDL.ddlThrow
+                            (DDL.ADriverError ("Unknown primitive: " <> show x))
+                         Just f  -> pure (f,c)
+              primMap <- Map.fromList <$> mapM getPrim (userPrimitives cfg)
+              pure (ast,primMap)
+
+     (ast,primMap) <- case mb of
+                        Left e  -> fail =<< liftIO (DDL.prettyDaedalusError e)
+                        Right a -> pure a
+
+     let c = VM.defaultConfig { VM.userMonad = userMonad cfg
+                              , VM.userPrimitives = primMap
+                              }
+
+
+     VM.compileModule c ast
+
+namedPrim :: TH.Name -> [TH.ExpQ] -> TH.ExpQ
+namedPrim f is = TH.appsE (TH.varE f : is)
 

@@ -19,6 +19,9 @@ type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
 type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
 
+liftD :: Functor m => m a -> RTS.Input -> DParserM m a
+liftD m i s = mk <$> m
+  where mk a = (Just (a,i), s)
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
 -- No custom user monad
@@ -57,7 +60,7 @@ data ParseError = ParseError
 thrUpdateErrors ::
   (ParserErrorState -> ParserErrorState) -> ThreadState r m -> ThreadState r m
 thrUpdateErrors f s = s { thrErrors = f (thrErrors s) }
-
+{-# INLINE thrUpdateErrors #-}
 
 vmNoteFail ::
   PAPI.ParseErrorSource ->
@@ -92,31 +95,38 @@ vmPushDebugTail t s =
   case pesCallStack s of
     xs : more -> s { pesCallStack = (t : xs) : more }
     []        -> s { pesCallStack = [[t]] }
+{-# INLINE vmPushDebugTail #-}
 
 vmPushDebugCall :: Text -> ParserErrorState -> ParserErrorState
 vmPushDebugCall t s = s { pesCallStack = [t] : pesCallStack s }
+{-# INLINE vmPushDebugCall #-}
 
 vmPopDebug :: ParserErrorState -> ParserErrorState
 vmPopDebug s = case pesCallStack s of
                 _ : xs -> s { pesCallStack = xs }
                 _      -> s
+{-# INLINE vmPopDebug #-}
 
 vmOutput :: r -> ThreadState r m -> ThreadState r m
 vmOutput r s = s { thrResults = r : thrResults s }
+{-# INLINE vmOutput #-}
 
 vmNotify :: Int -> ThreadState r m -> ThreadState r m
 vmNotify tid s = s { thrNotified = Set.insert tid (thrNotified s) }
+{-# INLINE vmNotify #-}
 
 vmSpawn :: (Bool -> Code r m) -> ThreadState r m -> (Int,ThreadState r m)
-vmSpawn code s = (tid, newS)
+vmSpawn code s = newS `seq` (tid, newS)
   where
   tid  = thrThreadNum s
   newS = s { thrThreadNum = tid + 1
            , thrStack = code : thrStack s
            }
+{-# INLINE vmSpawn #-}
 
 vmIsNotified :: Int -> ThreadState r m -> Bool
 vmIsNotified tid s = tid `Set.member` thrNotified s
+{-# INLINE vmIsNotified #-}
 
 vmYield :: Applicative m => Code r m
 vmYield s =
@@ -130,19 +140,22 @@ vmYield s =
                    , thrStack     = more
                    , thrNotified  = if n then Set.delete tid note else note
                    }
-      in code n s1
+      in code n $! s1
 
 --------------------------------------------------------------------------------
 -- Running parsers
 
 topNoK :: Applicative m => NoCont r m
 topNoK = vmYield
+{-# INLINE topNoK #-}
 
 topYesOneK :: Applicative m => YesCont r m r
-topYesOneK a _ s = pure (vmOutput a s)
+topYesOneK a _ s = pure $! vmOutput a s
+{-# INLINE topYesOneK #-}
 
 topYesAllK :: Applicative m => YesCont r m r
-topYesAllK a _ s = vmYield (vmOutput a s)
+topYesAllK a _ s = vmYield $! vmOutput a s
+{-# INLINE topYesAllK #-}
 
 
 -- | Initial state for direct parsers.
@@ -163,24 +176,24 @@ initThreadState = ThreadState
   }
 
 
-runDParserM :: Functor m => DParserM m a -> m (Either ParseError a)
+runDParserM :: Functor m => DParserM m a -> m (Either ParseError [a])
 runDParserM p = dparserToEither <$> p initParseErrorState
 
-runDParser :: DParser a -> Either ParseError a
+runDParser :: DParser a -> Either ParseError [a]
 runDParser p = dparserToEither (p initParseErrorState)
 
-runCParserOne :: CParser a a -> Either ParseError a
+runCParserOne :: CParser a a -> Either ParseError [a]
 runCParserOne p = coerce (runCParserOneM p)
 
 runCParserAll :: CParser a a -> Either ParseError [a]
 runCParserAll p = coerce (runCParserAllM p)
 
-runCParserOneM :: Applicative m => CParserM a m a -> m (Either ParseError a)
+runCParserOneM :: Applicative m => CParserM a m a -> m (Either ParseError [a])
 runCParserOneM p = done <$> p topNoK topYesOneK initThreadState
   where
   done s = case thrResults s of
             []    -> Left (doGetErr (thrErrors s))
-            r : _ -> Right r
+            r : _ -> Right [r]
 
 runCParserAllM :: Applicative m => CParserM a m a -> m (Either ParseError [a])
 runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
@@ -190,11 +203,12 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
              rs -> Right rs
 
 --------------------------------------------------------------------------------
-dparserToEither :: (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError a
+dparserToEither ::
+  (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError [a]
 dparserToEither (res,s) =
   case res of
     Nothing -> Left (doGetErr s)
-    Just (a,_) -> Right a
+    Just (a,_) -> Right [a]
 
 
 doGetErr :: ParserErrorState -> ParseError
