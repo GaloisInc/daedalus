@@ -66,6 +66,8 @@ data ExpSummaries = ExpSummaries
   -- ^ For each recursive slice, this gives the SCC it belongs to.
   , esRecVars        :: Set Name
   -- ^ These variables contain a recursive call.
+  -- , esBackEdges :: Map SliceId (Map SliceId (Set SliceId))
+  -- ^ Maps SCC entry point to the set of back edges in that group.
   }
 
 --------------------------------------------------------------------------------
@@ -101,6 +103,25 @@ makeEsRecVars slm = Map.foldMapWithKey go
   where
     go sid recs | Just sl <- Map.lookup sid slm = sliceToRecVars recs sl
     go _   _ = panic "Missing slice" []
+
+backEdgesForNode :: Map SliceId ExpSlice -> SliceId -> Set SliceId -> Map SliceId (Set SliceId)
+backEdgesForNode sls rootId sccs = evalState (go mempty rootId) mempty
+  where
+    go :: [SliceId] -> SliceId -> State (Set SliceId) (Map SliceId (Set SliceId))
+    go ancestors nodeId = do
+      seen <- get
+      put (Set.insert nodeId seen)
+      let node = sls Map.! nodeId
+          children = sliceToCallees node `Set.intersection` sccs
+          go1 childId
+            | childId `elem` ancestors = pure (Map.singleton nodeId (Set.singleton childId))
+            | childId `Set.member` seen = pure Map.empty
+            | otherwise = go (nodeId : ancestors) childId
+      
+      Map.unionsWith (<>) <$> mapM go1 (Set.toList children)
+
+makeEsBackEdges :: Map SliceId ExpSlice -> Map SliceId (Set SliceId) -> Map SliceId (Map SliceId (Set SliceId))
+makeEsBackEdges sls = Map.mapWithKey (backEdgesForNode sls)
 
 -- | Gives the set of variables which are bound to grammars which may
 -- call recursively
@@ -214,7 +235,8 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
       { esRootSlices     = roots
       , esFunctionSlices = slices st'
       , esRecs           = recs
-      , esRecVars        = makeEsRecVars (slices st') recs 
+      , esRecVars        = makeEsRecVars (slices st') recs
+--      , esBackEdges      = makeEsBackEdges (slices st') recs
       }
 
     recs = makeEsRecs (slices st')

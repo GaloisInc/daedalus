@@ -11,7 +11,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getSlice -- , getParamSlice
+                            , summaries, getModule, getGFun, getSlice, sccsFor -- , getParamSlice
                             , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
@@ -27,6 +27,7 @@ import qualified Data.ByteString              as BS
 import           Data.Foldable                (find, foldl')
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           System.Random
 
@@ -42,6 +43,7 @@ import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
+
 
 
 
@@ -108,6 +110,11 @@ getSlice sid = do
 isRecVar :: LiftStrategyM m => Name -> m Bool
 isRecVar n = do
   liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
+
+sccsFor :: LiftStrategyM m => SliceId -> m (Maybe (Set SliceId))
+sccsFor sid = do
+  liftStrategy (StrategyM (gets (Map.lookup sid . esRecs . stsSummaries)))
+
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
 -- callNodeToSlices cn = do

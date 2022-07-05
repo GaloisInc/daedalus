@@ -23,6 +23,7 @@ import qualified SimpleSMT                    as SMT
 -- FIXME: use .CPS
 import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
                                                tell)
+import           Data.Set                     (Set)
 
 import           Daedalus.Core                (Expr, Name, Pattern)
 import qualified Daedalus.Core.Semantics.Env  as I
@@ -43,6 +44,7 @@ import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
 import qualified Talos.SymExec.SolverT        as Solv
 
 
+
 -- =============================================================================
 -- (Path) Symbolic monad
 
@@ -51,7 +53,12 @@ type Result = (GuardedSemiSExprs, PathBuilder)
 type SymVarEnv = Map Name GuardedSemiSExprs
 
 data SymbolicEnv = SymbolicEnv
-  { sVarEnv  :: SymVarEnv
+  { sVarEnv     :: SymVarEnv
+  , sCurrentSCC :: Maybe (Set SliceId)
+  -- ^ The set of slices in the current SCC, if any
+  -- , sBackEdges :: [SliceId]
+  -- -- ^ All back edges from this function 
+  
   -- The path isn't required as we add it on post-facto
   -- , sPath    :: ValueGuard -- ^ Current path.
   } deriving (Generic)
@@ -68,13 +75,16 @@ data SolverResult =
   | InverseResult (Map Name GuardedSemiSExprs) Expr -- The env. includes the result var.
 
  -- Not all paths are necessarily feasible.
-data PathChoiceBuilder a = PathChoice PathVar           [(Int, a)]
+data PathChoiceBuilder a =
+    SymbolicChoice PathVar           [(Int, a)]
+  | ConcreteChoice Int               a
+
 data PathCaseBuilder a   = PathCase   GuardedSemiSExprs [(Pattern, a)]
 
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
 emptySymbolicEnv :: SymbolicEnv
-emptySymbolicEnv = SymbolicEnv mempty
+emptySymbolicEnv = SymbolicEnv mempty mempty
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -159,12 +169,15 @@ infeasible = SymbolicM $ fail "UNUSED"
 -- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 -- enterPathNode deps = local (over (field @"sPath") (deps :))
 
-enterFunction :: Map Name Name ->
+enterFunction :: SliceId -> Map Name Name -> 
                  SymbolicM a -> SymbolicM a
-enterFunction argMap = local upd
+enterFunction tgt argMap m = do
+  m_sccs <- sccsFor tgt
+  local (upd m_sccs) m
   where
-    upd e = e { sVarEnv  = Map.compose (sVarEnv  e) argMap
-              }
+    upd m_sccs e = e { sVarEnv  = Map.compose (sVarEnv e) argMap
+                     , sCurrentSCC = m_sccs
+                     }
 
 --------------------------------------------------------------------------------
 -- Utilities

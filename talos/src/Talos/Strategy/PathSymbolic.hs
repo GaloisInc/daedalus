@@ -10,7 +10,7 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic (pathSymbolicStrats) where
 
-import           Control.Lens                 (_2, at, over, (.=), _1, each)
+import           Control.Lens                 (_1, _2, at, each, over, (.=))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -23,6 +23,7 @@ import           Data.List.NonEmpty           (NonEmpty)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes, mapMaybe)
+import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import qualified Data.Vector                  as Vector
 import           Data.Word                    (Word8)
@@ -54,8 +55,7 @@ import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
-import           Talos.SymExec.ModelParser    (evalModelP, pNumber,
-                                               pValue)
+import           Talos.SymExec.ModelParser    (evalModelP, pNumber, pValue)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
                                                declareSymbol, liftSolver, reset,
@@ -63,6 +63,7 @@ import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
+
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -160,11 +161,7 @@ stratSlice ptag = go
 
           pure (bv, SelectedBytes ptag (ByteResult sym))
 
-        SChoice sls -> do
-          pv <- freshPathVar (length sls)
-          (vs, paths) <- unzip . catMaybes <$> zipWithM (guardedChoice pv) [0..] (map go sls)
-          v <- hoistMaybe (MV.unions' vs)
-          pure (v, SelectedChoice (PathChoice pv paths))
+        SChoice sls -> stratChoice ptag sls =<< asks sCurrentSCC
 
         SCall cn -> stratCallNode ptag cn
 
@@ -214,6 +211,23 @@ guardedChoice pv i m = pass $ do
     addImpl [sexpr] = [S.implies pathGuard sexpr]
     addImpl sexprs = [S.implies pathGuard (S.andMany sexprs)]
 
+-- FIXME: put ptag in env.
+stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
+stratChoice ptag sls (Just sccs)
+  | any hasRecCall sls = do
+      -- Just pick randomly if there is recursion.
+      (i, sl) <- randL (enumerate sls)
+      over _2 (SelectedChoice . ConcreteChoice i) <$> stratSlice ptag sl
+  where
+    hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
+    
+stratChoice ptag sls _ = do
+  pv <- freshPathVar (length sls)
+  (vs, paths) <-
+    unzip . catMaybes <$>
+    zipWithM (guardedChoice pv) [0..] (map (stratSlice ptag) sls)
+  v <- hoistMaybe (MV.unions' vs)
+  pure (v, SelectedChoice (SymbolicChoice pv paths))
 
 -- We represent disjunction by having multiple values; in this case,
 -- if we have matching values for the case alternative v1, v2, v3,
@@ -295,7 +309,8 @@ stratCallNode :: ProvenanceTag -> ExpCallNode ->
 stratCallNode ptag cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
-  over _2 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
+  over _2 (SelectedCall (ecnIdx cn))
+    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice ptag sl)
 
 -- -----------------------------------------------------------------------------
 -- Merging values
@@ -549,7 +564,8 @@ buildPath = runModelParserM . go
 
     buildPathChoice :: PathChoiceBuilder PathBuilder ->
                        ModelParserM (PathIndex SelectedPath)
-    buildPathChoice (PathChoice pv ps) = do
+    buildPathChoice (ConcreteChoice i p) = PathIndex i <$> go p
+    buildPathChoice (SymbolicChoice pv ps) = do
       i <- getPathVar pv
       let p = case lookup i ps of
                 Nothing  -> panic "Missing choice" []
