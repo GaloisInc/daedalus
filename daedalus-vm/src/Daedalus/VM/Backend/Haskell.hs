@@ -15,6 +15,7 @@ import Debug.Trace(trace)
 import qualified Data.Functor.Identity as RTS
 import qualified RTS.ParserVM as RTS
 import qualified RTS.ParserAPI as RTS
+import qualified RTS.Numeric as RTS
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
@@ -288,6 +289,20 @@ getThreadState =
     CapturingParser e _ _ _ -> e
     _  -> panic "getThreadState" ["Not a capturing parser"]
 
+withThrErrorState ::
+  BlockEnv => (TH.ExpQ -> (TH.ExpQ -> TH.ExpQ) -> TH.ExpQ) -> TH.ExpQ
+withThrErrorState k =
+  case ?funTy of
+    CapturingParser e t no yes ->
+      [| let s = $e
+         in $(let ?funTy = CapturingParser [|s|] t no yes
+              in k [|RTS.thrErrors s|]
+                   (\s1 -> [| RTS.thrUpdateErrors (const $s1) s |])
+             )
+      |]
+    _ -> panic "withThrErrorState" ["Not a capturing parser"]
+
+
 updThreadState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
 updThreadState k f =
   let ?funTy =
@@ -401,7 +416,14 @@ compileCInstr cinstr =
           Core.PBool b   -> TH.conP (if b then 'True else 'False) []
           Core.PNothing  -> TH.conP 'Nothing []
           Core.PJust     -> TH.conP 'Just [TH.wildP]
-          Core.PNum i    -> TH.litP (TH.IntegerL i)
+          Core.PNum i    -> let n = TH.litP (TH.IntegerL i)
+                            in case getSemType e of
+                                 Core.TInteger -> n
+                                 Core.TUInt {} -> TH.conP 'RTS.UInt [n]
+                                 Core.TSInt {} -> TH.conP 'RTS.SInt [n]
+                                 t -> panic "doPat"
+                                        ["Unexpected type for numeric pattern"
+                                        , show (pp t) ]
           Core.PBytes {} -> panic "compileCInstr" ["PBytes"]
           Core.PCon l    -> flip TH.recP []
                             case getSemType e of
@@ -418,20 +440,21 @@ compileCInstr cinstr =
     Call f how no yes es ->
       case how of
         NoCapture ->
-          let call = doCall f (map compileE es ++ stateArgs)
-              next v =
-                [| case $v of
-                     (Nothing, s1) ->
-                        $(doJump [] [ [|s1|] ] no)
+          case ?funTy of
 
-                     (Just (a,inp), s1) ->
-                        $(doJump [ [|a|], [|inp|] ] [[|s1|]] yes)
-                |]
+            NonCapturingParser {} ->
+              dToC (doCall f (map compileE es ++ stateArgs))
+                   (\s1     -> doJump []     [s1] no)
+                   (\a i s1 -> doJump [a, i] [s1] yes)
 
-          in case userMonad ?config of
-                Nothing -> next call
-                Just _  -> [| do v <- $call
-                                 $(next [| v |]) |]
+            CapturingParser {} ->
+              withThrErrorState \getS setS ->
+                dToC (doCall f (map compileE es ++ [getS]))
+                     (\s1     -> doJump []     [setS s1] no)
+                     (\a i s1 -> doJump [a, i] [setS s1] yes)
+
+            PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
+
 
         Capture ->
           doCall f $
@@ -447,7 +470,16 @@ compileCInstr cinstr =
 
     TailCall f how es ->
       case how of
-        NoCapture -> doCall f (map compileE es ++ stateArgs)
+        NoCapture ->
+          case ?funTy of
+            NonCapturingParser {} -> doCall f (map compileE es ++ stateArgs)
+            CapturingParser _ _ noK yesK ->
+              withThrErrorState \getS setS ->
+              dToC (doCall f (map compileE es ++ [getS]))
+                   (\s1 -> [| $noK $(setS s1) |])
+                   (\a i s1 -> [| $yesK $a $i $(setS s1) |])
+            PureFun -> panic "compileCInstr" ["Tail call parser from pure"]
+
         Capture ->
           doCall f $
             map compileE es ++
@@ -458,6 +490,25 @@ compileCInstr cinstr =
             ++ stateArgs
         Unknown -> panic "compileCInstr" ["Unknown tail call"]
 
+dToC :: HasConfig =>
+  TH.ExpQ ->
+  (TH.ExpQ -> TH.ExpQ) ->
+  (TH.ExpQ -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
+  TH.ExpQ
+dToC e no yes =
+  case userMonad ?config of
+    Nothing -> doCase e
+    Just _ ->
+      [| do v <- $e
+            $(doCase [|v|])
+      |]
+  where
+  doCase d =
+    [| case $d of
+         (Nothing,    s1) -> $(no                  [| s1 |])
+         (Just (a,i), s1) -> $(yes [| a |] [| i |] [| s1 |])
+    |]
+
 
 labelName :: Label -> TH.Name
 labelName (Label txt n) = TH.mkName ('l' : Text.unpack txt ++ "_" ++ show n)
@@ -465,7 +516,7 @@ labelName (Label txt n) = TH.mkName ('l' : Text.unpack txt ++ "_" ++ show n)
 doCall :: FName -> [TH.ExpQ] -> TH.ExpQ
 doCall f es = TH.appsE (TH.varE (fnameName f) : es)
 
-doJump :: BlockEnv => [TH.ExpQ] -> [TH.ExpQ] -> JumpPoint -> TH.ExpQ
+doJump :: ExprEnv => [TH.ExpQ] -> [TH.ExpQ] -> JumpPoint -> TH.ExpQ
 doJump before after jp =
   TH.appsE ( TH.varE (labelName (jLabel jp))
            : before
