@@ -11,7 +11,6 @@ module Daedalus.Quote
 
 import Data.Text(Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -24,7 +23,6 @@ import Language.Haskell.TH.Quote
 import AlexTools(SourceRange,SourcePos(..))
 
 import RTS.ParserAPI(Result(..),ParseError)
-import qualified RTS.Numeric as RTS
 
 import Daedalus.Value(Value)
 
@@ -38,23 +36,25 @@ import Daedalus.Interp(interp)
 
 daedalus :: QuasiQuoter
 daedalus = QuasiQuoter
-  { quotePat  = nope "pattern"
+  { quotePat  = bad "pattern"
   , quoteDec  = doDecl
-  , quoteType = nope "type"
-  , quoteExp  = nope "expression"
+  , quoteType = bad "type"
+  , quoteExp  = bad "expression"
   }
+  where bad = nope "daedalus"
 
 ddl :: QuasiQuoter
 ddl = QuasiQuoter
-  { quotePat  = nope "pattern"
-  , quoteDec  = nope "declaration"
-  , quoteType = nope "type"
+  { quotePat  = bad "pattern"
+  , quoteDec  = bad "declaration"
+  , quoteType = bad "type"
   , quoteExp  = \s -> do (a,b,c) <- getInput s
                          [| (a,b,c) |]
   }
+  where bad = nope "ddl"
 
-nope :: String -> String -> Q a
-nope thing = const (fail ("`daedalus` may not be used as a " ++ thing))
+nope :: String -> String -> String -> Q a
+nope th thing = const (fail ("`" ++ th ++ "` may not be used as a " ++ thing))
 
 
 loadDDL :: SourcePos -> Text -> IO (TCModule SourceRange)
