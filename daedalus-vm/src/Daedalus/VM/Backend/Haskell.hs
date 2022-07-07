@@ -413,14 +413,14 @@ compileCInstr cinstr =
       -- XXX: bitdata
       doPat p =
         case p of
-          Core.PBool b   -> TH.conP (if b then 'True else 'False) []
-          Core.PNothing  -> TH.conP 'Nothing []
-          Core.PJust     -> TH.conP 'Just [TH.wildP]
+          Core.PBool b   -> if b then [p| True |] else [p| False |]
+          Core.PNothing  -> [p| Nothing |]
+          Core.PJust     -> [p| Just {} |]
           Core.PNum i    -> let n = TH.litP (TH.IntegerL i)
                             in case getSemType e of
                                  Core.TInteger -> n
-                                 Core.TUInt {} -> TH.conP 'RTS.UInt [n]
-                                 Core.TSInt {} -> TH.conP 'RTS.SInt [n]
+                                 Core.TUInt {} -> [p| RTS.UInt $n |]
+                                 Core.TSInt {} -> [p| RTS.SInt $n |]
                                  t -> panic "doPat"
                                         ["Unexpected type for numeric pattern"
                                         , show (pp t) ]
@@ -429,7 +429,7 @@ compileCInstr cinstr =
                             case getSemType e of
                               Core.TUser ut -> unionConName (Core.utName ut) l
                               _ -> panic "compileCInstr" ["ConP not UserT"]
-          Core.PAny      -> TH.wildP
+          Core.PAny      -> [p| _ |]
 
 
     Yield -> [| RTS.vmYield $getThreadState |]
