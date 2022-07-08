@@ -6,6 +6,7 @@ import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
 import Data.Bits(testBit)
+import Data.Set (Set)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Language.Haskell.TH.Syntax as TH
@@ -195,8 +196,8 @@ showPat (Pat w f@(ITE v p q))
 
 
 data PatTest = PatTest
-  { patMask  :: Integer
-  , patValue :: Integer
+  { patMask  :: Integer     -- ^ Mask
+  , patValue :: Integer     -- ^ Expected value after masking
   , patWidth :: Width
   } deriving (Eq)
 
@@ -209,14 +210,19 @@ instance Show PatTest where
                 | i <- reverse (take w [0..])
                 ]
 
-groupTestsByMask :: [PatTest] -> Map Integer [Integer]
-groupTestsByMask = foldr cons Map.empty
-  where cons t = Map.insertWith (++) (patMask t) [patValue t]
+-- | The result groups each mask to the possible values.
+groupTestsByMask :: [PatTest] -> Map Integer (Set Integer)
+groupTestsByMask = fmap Map.keysSet . groupTestsByMask' . (`zip` repeat ())
 
+groupTestsByMask' :: [(PatTest,a)] -> Map Integer (Map Integer a)
+groupTestsByMask' = foldr cons Map.empty
+  where
+  cons (t,a) = Map.insertWith Map.union (patMask t) (Map.singleton (patValue t) a)
 
 noTest :: Width -> PatTest
 noTest w = PatTest { patMask = 0, patValue = 0, patWidth = w }
 
+-- | Extend test with a 1 in most significant position
 cons1 :: PatTest -> PatTest
 cons1 pt = PatTest { patMask  = patMask  pt + one
                    , patValue = patValue pt + one
@@ -225,6 +231,7 @@ cons1 pt = PatTest { patMask  = patMask  pt + one
   where
   one = 2^patWidth pt
 
+-- | Extend test with a 0 in most significant position
 cons0 :: PatTest -> PatTest
 cons0 pt = PatTest { patMask  = patMask  pt + one
                    , patValue = patValue pt
@@ -233,6 +240,7 @@ cons0 pt = PatTest { patMask  = patMask  pt + one
   where
   one = 2^patWidth pt
 
+-- | Extend test with a wild card in most significant position
 consW :: PatTest -> PatTest
 consW pt = PatTest { patMask  = patMask  pt
                    , patValue = patValue pt
@@ -313,5 +321,6 @@ goodPat (Pat n p)   = goodBDD n p
 bug :: String -> String -> a
 bug a b = panic a [b]
 
+--------------------------------------------------------------------------------
 
 

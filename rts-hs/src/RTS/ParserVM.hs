@@ -176,24 +176,24 @@ initThreadState = ThreadState
   }
 
 
-runDParserM :: Functor m => DParserM m a -> m (Either ParseError [a])
+runDParserM :: Functor m => DParserM m a -> m (Either ParseError a)
 runDParserM p = dparserToEither <$> p initParseErrorState
 
-runDParser :: DParser a -> Either ParseError [a]
+runDParser :: DParser a -> Either ParseError a
 runDParser p = dparserToEither (p initParseErrorState)
 
-runCParserOne :: CParser a a -> Either ParseError [a]
+runCParserOne :: CParser a a -> Either ParseError a
 runCParserOne p = coerce (runCParserOneM p)
 
 runCParserAll :: CParser a a -> Either ParseError [a]
 runCParserAll p = coerce (runCParserAllM p)
 
-runCParserOneM :: Applicative m => CParserM a m a -> m (Either ParseError [a])
+runCParserOneM :: Applicative m => CParserM a m a -> m (Either ParseError a)
 runCParserOneM p = done <$> p topNoK topYesOneK initThreadState
   where
   done s = case thrResults s of
-            []    -> Left (doGetErr (thrErrors s))
-            r : _ -> Right [r]
+             []    -> Left (doGetErr (thrErrors s))
+             r : _ -> Right r
 
 runCParserAllM :: Applicative m => CParserM a m a -> m (Either ParseError [a])
 runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
@@ -204,11 +204,11 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
 
 --------------------------------------------------------------------------------
 dparserToEither ::
-  (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError [a]
+  (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError a
 dparserToEither (res,s) =
   case res of
     Nothing -> Left (doGetErr s)
-    Just (a,_) -> Right [a]
+    Just (a,_) -> Right a
 
 
 doGetErr :: ParserErrorState -> ParseError

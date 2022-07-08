@@ -8,6 +8,7 @@ import Data.List(sort)
 import qualified Data.Map as Map
 import Data.Maybe(fromJust)
 import qualified Language.Haskell.TH.Lib as TH
+import GHC.Records(getField)
 
 import qualified RTS          as RTS
 import qualified RTS.Input    as RTS

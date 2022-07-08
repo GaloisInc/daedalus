@@ -6,6 +6,7 @@ module Daedalus.Core.TH.TypeDecls (compileTDecls) where
 import qualified Data.Text as Text
 import Data.Maybe(mapMaybe)
 import qualified Data.Map as Map
+import Data.Bits
 import qualified Data.Kind as K
 import qualified GHC.TypeNats as K
 import qualified GHC.Records as R
@@ -15,8 +16,10 @@ import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Datatype.TyVarBndr as TH
 
 import qualified RTS as RTS
+import qualified RTS.Numeric as RTS
 
 import Daedalus.Rec(Rec,recToList)
+import qualified Daedalus.BDD as BDD
 import Daedalus.Core.Basics
 import Daedalus.Core.Decl
 import Daedalus.Core.TH.Names
@@ -50,8 +53,9 @@ compileTDef ::
 compileTDef name asN asT def =
   do i  <- ddlInstance
      is <- case def of
-             TStruct fs -> compileStruct name allParams fs
-             TUnion  fs -> compileUnion  name allParams fs
+             TStruct fs   -> compileStruct name allParams fs
+             TUnion  fs   -> compileUnion  name allParams fs
+             TBitdata u d -> compileBitdata name u d
      pure (i : is)
 
 
@@ -162,5 +166,62 @@ compileUnion name as cons =
 
     in [d| instance R.HasField $(lab l) $(pure ty) $ft where
              getField = $def |]
+
+
+
+compileBitdata :: HasTypeParams => TName -> BDD.Pat -> BitdataDef -> TH.DecsQ
+compileBitdata name univ def =
+  do let tname = dataName name
+     let ty    = mkT tname []
+     let cname = structConName name
+
+     deriv <- standardDeriving    -- Hm, equality in the presence of wildcards?
+     repT  <- compileMonoType (tWord (toInteger (BDD.width univ)))
+     let con   = TH.NormalC cname [bangT repT]
+     let dataD = TH.NewtypeD [] tname [] Nothing con [deriv]
+
+     cvtInst <- [d| instance {-# OVERLAPPING #-}
+                      RTS.Convert $(pure repT) $(pure ty) where
+                      convert = $(TH.conE cname)
+
+                    instance {-# OVERLAPPING #-}
+                      RTS.Convert $(pure ty) $(pure repT) where
+                      convert $(TH.conP cname [[p| x |]]) = x
+                |]
+
+     hasIs <- case def of
+                BDStruct fs -> traverse (hasInstanceStruct ty cname) fs
+                BDUnion cs -> traverse (hasInstanceUnion ty repT) cs
+
+     pure (dataD : cvtInst ++ concat hasIs)
+
+  where
+
+  hasInstanceStruct ty cname f =
+    case bdFieldType f of
+      BDWild     -> pure []
+      BDTag {}   -> pure []
+      BDData l t ->
+        do ft <- compileMonoType t
+
+           x  <- TH.newName "x"
+           let p     = TH.conP cname [ [p| RTS.UInt $(TH.varP x) |] ]
+               lab   = TH.LitT (TH.StrTyLit (Text.unpack l))
+               amt   = bdOffset f
+               wt    = compileMonoType (tWord (toInteger (bdWidth f)))
+
+           [d| instance R.HasField $(pure lab) $(pure ty) $(pure ft) where
+                 getField $p = convert (
+                                 RTS.UInt (
+                                  fromIntegral ($(TH.varE x) `shiftR` amt))
+                                 :: $wt) |]
+
+
+  hasInstanceUnion ty repT (l,t) =
+    do let lty = TH.litT (TH.strTyLit (Text.unpack l))
+       [d| instance R.HasField $lty $(pure ty) $(compileMonoType t) where
+              getField x = convert (convert x :: $(pure repT)) |]
+
+
 
 

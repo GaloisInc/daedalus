@@ -1420,12 +1420,12 @@ bitdataValidator tdef = \e' ->
 
         doTests x = foldr (doTest x) (pure (boolL False)) (Map.toList tests)
 
-        doTest :: Name -> (Integer,[Integer]) -> M Expr -> M Expr
+        doTest :: Name -> (Integer, Set Integer) -> M Expr -> M Expr
         doTest e (mask,cases) orElseM =
           do orElse <- orElseM
              withVar (appMask mask (Var e)) \x ->
                 pure $ coreCase x
-                     $ [ (PNum c, boolL True) | c <- cases ] ++
+                     $ [ (PNum c, boolL True) | c <- Set.toList cases ] ++
                        [ (PAny, orElse) ]
 
     _ -> pure Nothing
