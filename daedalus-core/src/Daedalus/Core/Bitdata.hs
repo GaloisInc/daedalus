@@ -39,9 +39,16 @@ bdStructConBase = foldl setBits 0
       _       -> base
 
 
-bdCase :: HasTDecls => TName -> [(Label,a)] -> Map Integer (Map Integer a)
-bdCase t = BDD.groupTestsByMask' . BDD.patTestsAssumingInOrder univ . map doAlt
+bdCase ::
+  HasTDecls => TName -> [(Label,a)] -> Maybe a -> Map Integer (Map Integer a)
+bdCase t as dflt =
+  BDD.groupTestsByMask' (BDD.patTestsAssumingInOrder univ rhs)
   where
+  rhs = case dflt of
+          Nothing -> map doAlt as
+          Just a  -> map doAlt as ++ [ (univ, a) ]
+
+
   (univ,cons) = case tDef (getBD t) of
                   TBitdata u (BDUnion fs) -> (u,fs)
                   _ -> panic "bdCase" ["Not a bitdata union"]

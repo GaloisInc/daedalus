@@ -28,6 +28,8 @@ import Daedalus.Core.TH.Ops
 import qualified Daedalus.Core.Bitdata as BD
 import Daedalus.VM
 
+import Debug.Trace
+
 data Config = Config
   { userMonad      :: Maybe TH.TypeQ
   , userPrimitives :: Map FName ([TH.ExpQ] -> TH.ExpQ)
@@ -447,18 +449,30 @@ compileCInstr cinstr =
 
     Jump jp -> doJump [] stateArgs jp
 
-    JumpIf e (JumpCase ch) -> TH.caseE (compileE e) alts
+    JumpIf e (JumpCase ch)
+      | Core.TUser ut <- getSemType e
+      , let bdname = Core.utName ut, Core.tnameBD bdname -> doBDCase bdname
+      | otherwise -> TH.caseE (compileE e) $
+                        map doAlt rhss ++
+                        case mbDflt of
+                           Nothing -> []
+                           Just d  -> [mkAlt TH.wildP d]
+
       where
-      alts = map doAlt (Map.toList (Map.delete Core.PAny ch)) ++ dflt
+      (rhss1,mbDflt) =
+        case Map.lookup Core.PAny ch of
+          Nothing -> (Map.toList ch, Nothing)
+          Just d  -> (Map.toList (Map.delete Core.PAny ch), Just (toRHS d))
 
-      dflt  = case Map.lookup Core.PAny ch of
-                Just r  -> [ doAlt (Core.PAny, r) ]
-                Nothing -> []
+      toRHS j = TH.normalB (doJump [] stateArgs (jumpTarget j))
 
-      doAlt (p,rhs) =
-        TH.match (doPat p) (TH.normalB (doJump [] stateArgs (jumpTarget rhs))) []
+      rhss = [ (p, toRHS j) | (p,j) <- rhss1 ]
 
-      -- XXX: bitdata
+      numP  n       = TH.conP 'RTS.UInt [ TH.litP (TH.IntegerL n) ]
+      mkAlt p rhs   = TH.match p rhs []
+
+      doAlt (p,rhs) = mkAlt (doPat p) rhs
+
       doPat p =
         case p of
           Core.PBool b   -> if b then [p| True |] else [p| False |]
@@ -478,6 +492,32 @@ compileCInstr cinstr =
                               Core.TUser ut -> unionConName (Core.utName ut) l
                               _ -> panic "compileCInstr" ["ConP not UserT"]
           Core.PAny      -> [p| _ |]
+
+      doBDCase bdname =
+        let opts  = Map.toList $ BD.bdCase bdname
+                                    [ (l,r) | (Core.PCon l, r) <- rhss ]
+                                    mbDflt
+
+            doChoices val cs orElse =
+              TH.caseE val (
+                 [ mkAlt (numP i) rhs | (i,rhs) <- cs ] ++
+                 [ mkAlt TH.wildP (TH.normalB orElse) ]
+              )
+
+            doOpt :: TH.ExpQ -> (Integer, Map Integer (TH.Q (TH.Body))) ->
+                                TH.ExpQ -> TH.ExpQ
+            doOpt val (mask,choices) orElse =
+              let val' = if mask == 0 then val
+                                      else [| $val `RTS.bitAnd` UInt mask |]
+              in doChoices val' (Map.toList choices) orElse
+
+
+        in trace (show [ (i, Map.keys mp) | (i,mp) <- opts])
+           [| let x = RTS.toBits $(compileE e)
+              in $(foldr (doOpt [|x|]) [| error "Unreachable" |] opts)
+            |]
+
+
 
 
     Yield -> [| RTS.vmYield $getThreadState |]
