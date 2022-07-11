@@ -93,6 +93,8 @@ library
                        Daedalus.ParserGen.Runner,
                        Daedalus.ParserGen.Generate
 
+                       Test
+
   build-depends:       base,
                        array,
                        text >= 1.2.4,
@@ -117,7 +119,8 @@ library
                        daedalus-core,
                        daedalus-vm,
                        daedalus-value,
-                       rts-hs
+                       rts-hs,
+                       rts-vm-hs
 
 
 executable daedalus
@@ -131,6 +134,7 @@ executable daedalus
                        daedalus-value,
                        daedalus-vm,
                        rts-hs,
+                       rts-vm-hs,
                        pretty-hex >= 1.1,
                        ansi-terminal,
                        base,

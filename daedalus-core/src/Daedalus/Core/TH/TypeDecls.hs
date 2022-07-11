@@ -6,7 +6,6 @@ module Daedalus.Core.TH.TypeDecls (compileTDecls) where
 import qualified Data.Text as Text
 import Data.Maybe(mapMaybe)
 import qualified Data.Map as Map
-import Data.Bits
 import qualified Data.Kind as K
 import qualified GHC.TypeNats as K
 import qualified GHC.Records as R
@@ -15,8 +14,7 @@ import Language.Haskell.TH(Q)
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Datatype.TyVarBndr as TH
 
-import qualified RTS as RTS
-import qualified RTS.Numeric as RTS
+import qualified Daedalus.RTS as RTS
 
 import Daedalus.Rec(Rec,recToList)
 import qualified Daedalus.BDD as BDD
@@ -51,23 +49,12 @@ newTParam k p =
 compileTDef ::
   HasTypeParams => TName -> [TH.TyVarBndr] -> [TH.TyVarBndr] -> TDef -> TH.DecsQ
 compileTDef name asN asT def =
-  do i  <- ddlInstance
-     is <- case def of
-             TStruct fs   -> compileStruct name allParams fs
-             TUnion  fs   -> compileUnion  name allParams fs
-             TBitdata u d -> compileBitdata name u d
-     pure (i : is)
-
-
+  case def of
+    TStruct fs   -> compileStruct name allParams fs
+    TUnion  fs   -> compileUnion  name allParams fs
+    TBitdata u d -> compileBitdata name u d
   where
   allParams = asN ++ asT
-
-  ddlInstance =
-    do let ty     = mkT (dataName name) allParams
-           asmp x = [t| RTS.DDL $(TH.varT (TH.tvName x)) |]
-           asmps  = mapM asmp asT
-
-       TH.instanceD asmps [t| RTS.DDL $(pure ty) |] []
 
 
 
@@ -107,7 +94,10 @@ compileStruct name as fields =
 
      hasIs <- traverse (hasInstance ty cname fs) fs
 
-     pure (dataD : concat hasIs)
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id |]
+
+     pure (dataD : cvtIs ++ concat hasIs)
 
   where
   hasInstance ty cname fs (l,mb) =
@@ -145,10 +135,12 @@ compileUnion name as cons =
      deriv <- standardDeriving
      let tname = dataName name
      let dataD = TH.DataD [] tname as Nothing (map mkConD fs) [deriv]
+     let ty = mkT tname as
+     hasIs <- traverse (hasInstance ty) fs
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id |]
 
-     hasIs <- traverse (hasInstance (mkT tname as)) fs
-
-     pure (dataD : concat hasIs)
+     pure (dataD : cvtIs ++ concat hasIs)
 
   where
   lab l = pure (TH.LitT (TH.StrTyLit (Text.unpack l)))
@@ -165,8 +157,8 @@ compileUnion name as cons =
 
 
     in [d| instance R.HasField $(lab l) $(pure ty) $ft where
-             getField = $def |]
-
+             getField = $def
+        |]
 
 
 compileBitdata :: HasTypeParams => TName -> BDD.Pat -> BitdataDef -> TH.DecsQ
@@ -176,24 +168,25 @@ compileBitdata name univ def =
      let cname = structConName name
 
      deriv <- standardDeriving    -- Hm, equality in the presence of wildcards?
-     repT  <- compileMonoType (tWord (toInteger (BDD.width univ)))
+     let w = toInteger (BDD.width univ)
+     repT  <- compileMonoType (tWord w)
      let con   = TH.NormalC cname [bangT repT]
      let dataD = TH.NewtypeD [] tname [] Nothing con [deriv]
 
-     cvtInst <- [d| instance {-# OVERLAPPING #-}
-                      RTS.Convert $(pure repT) $(pure ty) where
-                      convert = $(TH.conE cname)
-
-                    instance {-# OVERLAPPING #-}
-                      RTS.Convert $(pure ty) $(pure repT) where
-                      convert $(TH.conP cname [[p| x |]]) = x
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id |]
+     bdInst <- [d| instance RTS.Bitdata $(pure ty) where
+                      type instance BDWidth $(pure ty) =
+                                            $(TH.litT (TH.numTyLit w))
+                      fromBits = $(TH.conE cname)
+                      toBits $(TH.conP cname [[p| x |]]) = x
                 |]
 
      hasIs <- case def of
                 BDStruct fs -> traverse (hasInstanceStruct ty cname) fs
-                BDUnion cs -> traverse (hasInstanceUnion ty repT) cs
+                BDUnion cs -> traverse (hasInstanceUnion ty) cs
 
-     pure (dataD : cvtInst ++ concat hasIs)
+     pure (dataD : cvtIs ++ bdInst ++ concat hasIs)
 
   where
 
@@ -205,23 +198,26 @@ compileBitdata name univ def =
         do ft <- compileMonoType t
 
            x  <- TH.newName "x"
-           let p     = TH.conP cname [ [p| RTS.UInt $(TH.varP x) |] ]
+           let p     = TH.conP cname [ TH.varP x ]
                lab   = TH.LitT (TH.StrTyLit (Text.unpack l))
                amt   = bdOffset f
                wt    = compileMonoType (tWord (toInteger (bdWidth f)))
 
            [d| instance R.HasField $(pure lab) $(pure ty) $(pure ft) where
-                 getField $p = convert (
-                                 RTS.UInt (
-                                  fromIntegral ($(TH.varE x) `shiftR` amt))
+                 getField $p = RTS.fromBits (
+                                 RTS.convert
+                                    ($(TH.varE x) `RTS.shiftr` RTS.UInt amt)
                                  :: $wt) |]
 
 
-  hasInstanceUnion ty repT (l,t) =
+  hasInstanceUnion ty (l,t) =
     do let lty = TH.litT (TH.strTyLit (Text.unpack l))
-       [d| instance R.HasField $lty $(pure ty) $(compileMonoType t) where
-              getField x = convert (convert x :: $(pure repT)) |]
+       ft <- compileMonoType t
+       [d| instance R.HasField $lty $(pure ty) $(pure ft) where
+              getField = RTS.fromBits . RTS.toBits
 
+           instance RTS.Convert $(pure ft) $(pure ty) where
+              convert = fromBits . toBits |]
 
 
 

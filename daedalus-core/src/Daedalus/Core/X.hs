@@ -11,13 +11,31 @@ import Daedalus.Core.Type(typeOf)
 
 
 data Prop = Expr :=: Expr
+          | Expr :/=: Expr
           | Prop :/\: Prop
           | Prop :\/: Prop
           | PFalse
           | PTrue
-          | Succeeds FName [Expr] Expr Expr Expr
-          | Fails FName [Expr] Expr
+          | Succeeds FName [Expr] Expr Expr Expr Bool
           | PCase (Case Prop)
+          | Forall Name Prop
+          | Exists Name Prop
+          | PLet Name Expr Prop
+
+pNot :: Prop -> Prop
+pNot prop =
+  case prop of
+    e1 :=: e2   -> e1 :/=: e2
+    e1 :/=: e2  -> e1 :=: e2
+    p1 :/\: p2  -> pNot p1 :\/: pNot p2
+    p1 :\/: p2  -> pNot p1 :/\: pNot p2
+    PFalse      -> PTrue
+    PTrue       -> PFalse
+    Succeeds f es a b c y -> Succeeds f es a b c (not y)
+    Forall x p  -> Exists x (pNot p)
+    Exists x p  -> Forall x (pNot p)
+    PCase c     -> PCase (fmap pNot c)
+    PLet x e p  -> PLet x e (pNot p)
 
 splitAnd :: Prop -> [Prop]
 splitAnd p0 = go p0 []
@@ -37,22 +55,56 @@ splitOr p0 = go p0 []
       PFalse     -> rest
       _          -> prop : rest
 
+splitForall :: Prop -> ([Name], Prop)
+splitForall p =
+  case p of
+    Forall x q -> let (ys,z) = splitForall q
+                  in (x:ys,z)
+    _          -> ([], p)
+
+splitExists :: Prop -> ([Name], Prop)
+splitExists p =
+  case p of
+    Exists x q -> let (ys,z) = splitExists q
+                  in (x:ys,z)
+    _          -> ([], p)
+
+
+
 instance PP Prop where
   pp prop =
     case prop of
       e1 :=: e2  -> pp e1 <+> "==" <+> pp e2
-      _ :/\: _   -> "and" $$ nest 2 (vcat (map pp (splitAnd prop)))
-      _ :\/: _   -> "or"  $$ nest 2 (vcat (map pp (splitOr prop)))
+      e1 :/=: e2 -> pp e1 <+> "/=" <+> pp e2
+      _ :/\: _   -> case splitAnd prop of
+                      []  -> "true"
+                      [p] -> pp p
+                      ps  -> "and" $$ nest 2 (vcat (map pp ps))
+      _ :\/: _   -> case splitOr prop of
+                      []  -> "false"
+                      [p] -> pp p
+                      ps  -> "or" $$ nest 2 (vcat (map pp ps))
       PFalse     -> "false"
       PTrue      -> "true"
 
-      Succeeds f es a b c -> "suceeds" <+> pp f <.> parens (commaSep (map pp es))
-                                <+> ppPrec 1 a <+> ppPrec 1 b <+> ppPrec 1 c
+      Forall {}  -> case splitForall prop of
+                      (xs,q) -> ("forall" <+> hsep (map pp  xs) <.> ".")
+                              $$ nest 2 (pp q)
 
-      Fails f es a -> "fails" <+> pp f <.> parens (commaSep (map pp es))
-                              <+> ppPrec 1 a
+      Exists {}  -> case splitExists prop of
+                      (xs,q) -> ("exists" <+> hsep (map pp  xs) <.> ".")
+                              $$ nest 2 (pp q)
+
+
+
+      Succeeds f es a b c y ->
+        kw <+> pp f <.> parens (commaSep (map pp es))
+           <+> ppPrec 1 a <+> ppPrec 1 b <+> ppPrec 1 c
+        where kw = if y then "succeeds" else "fails"
 
       PCase c -> pp c
+
+      PLet x e p -> "let" <+> pp x <+> "=" <+> pp e $$ nest 2 (pp p)
 
 
 instance DefKW Prop where
@@ -78,6 +130,18 @@ p1 /\ p2 = (:/\:) <$> p1 <*> p2
 (\/) :: Ctx m => m Prop -> m Prop -> m Prop
 p1 \/ p2 = (:\/:) <$> p1 <*> p2
 
+fAll :: Ctx m => Type -> (Expr -> m Prop) -> m Prop
+fAll t k =
+  do x <- freshName t
+     Forall x <$> k (Var x)
+
+exists :: Ctx m => Type -> (Expr -> m Prop) -> m Prop
+exists t k =
+  do x <- freshName t
+     Exists x <$> k (Var x)
+
+def :: Ctx m => Name -> Expr -> m Prop -> m Prop
+def x e k = PLet x e <$> k
 
 --------------------------------------------------------------------------------
 
@@ -122,15 +186,16 @@ succeeds gram before after result =
     Fail {}     -> assert PFalse
 
     Do_ g1 g2   ->
-      do mid <- freshExpr TStream
-         r   <- freshExpr (typeOf g1)
-         succeeds g1 before mid r /\ succeeds g2 mid after result
+      exists TStream     \mid ->
+      exists (typeOf g1) \r   ->
+        succeeds g1 before mid r /\ succeeds g2 mid after result
 
     Do x g1 g2 ->
-      do mid <- freshExpr TStream
-         succeeds g1 before mid (Var x) /\ succeeds g2 mid after result
+      exists TStream     \mid ->
+      exists (typeOf g1) \r ->
+      succeeds g1 before mid r /\ def x r (succeeds g2 mid after result)
 
-    Let x e g   -> assert (Var x :=: e) /\ succeeds g before after result
+    Let x e g  -> def x e (succeeds g before after result)
 
     OrBiased g1 g2 ->
       succeeds g1 before after result \/
@@ -142,59 +207,19 @@ succeeds gram before after result =
 
     Annot _ g -> succeeds g before after result
 
-    Call f es -> assert (Succeeds f es before after result)
+    Call f es -> assert (Succeeds f es before after result True)
 
     GCase c   -> succeedsCase c before after result
 
-
-
-
 fails :: Ctx m => Grammar -> Expr -> m Prop
-fails gram before =
-  case gram of
+fails g before =
+  fAll TStream \after ->
+  fAll (typeOf g) \result ->
+  pNot <$> succeeds g before after result
 
-    Pure {} -> assert PFalse
-
-    GetStream -> assert PFalse
-
-    SetStream {} -> assert PFalse
-
-    Match {} -> panic "fails" ["Match"]
-
-    Fail {} -> assert PTrue
-
-    Do_ g1 g2 ->
-      do mid <- freshExpr TStream
-         r   <- freshExpr (typeOf g1)
-         fails g1 before \/ (succeeds g1 before mid r /\ fails g2 mid)
-
-    Do x g1 g2 ->
-      do mid <- freshExpr TStream
-         fails g1 before \/ (succeeds g1 before mid (Var x) /\ fails g2 mid)
-
-    Let x e g -> assert (Var x :=: e) /\ fails g before
-
-    OrBiased g1 g2   -> fails g1 before /\ fails g2 before
-
-    OrUnbiased g1 g2 -> fails g1 before /\ fails g2 before
-
-    Annot _ g -> fails g before
-
-    Call f es -> assert (Fails f es before)
-
-    GCase c -> failsCase c before
 
 
 --------------------------------------------------------------------------------
-failsCase :: Ctx m => Case Grammar -> Expr -> m Prop
-failsCase c before =
-  do as <- mapM alt (casePats c)
-     pure (PCase c { casePats = as })
-  where
-  alt (p,k) =
-    do prop <- fails k before
-       pure (p,prop)
-
 succeedsCase :: Ctx m => Case Grammar -> Expr -> Expr -> Expr -> m Prop
 succeedsCase c before after result =
   do as <- mapM alt (casePats c)

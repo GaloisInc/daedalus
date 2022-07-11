@@ -5,16 +5,13 @@ import qualified Data.Text as Text
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(sort)
-import qualified Data.Map as Map
 import Data.Maybe(fromJust)
 import qualified Language.Haskell.TH.Lib as TH
 import GHC.Records(getField)
 
-import qualified RTS          as RTS
-import qualified RTS.Input    as RTS
-import qualified RTS.Numeric  as RTS
-import qualified RTS.Vector   as RTS
-import qualified RTS.Iterator as RTS
+import qualified Daedalus.RTS        as RTS
+import qualified Daedalus.RTS.Vector as RTS
+import qualified Daedalus.RTS.Map    as RTS
 
 import Daedalus.Panic(panic)
 
@@ -103,10 +100,13 @@ compileOp1 op1 argT e =
       where lab = TH.litT (TH.strTyLit (Text.unpack l))
 
     InUnion ut l ->
-      let con = TH.conE (unionConName (utName ut) l)
-      in case argT of
-           TUnit -> con
-           _     -> TH.appE con e
+      let nm = utName ut
+          con = TH.conE (unionConName nm l)
+      in if tnameBD nm
+           then [| RTS.convert $e :: $(TH.conT (dataName nm)) |]
+           else case argT of
+                  TUnit -> con
+                  _     -> TH.appE con e
 
     FromUnion t l     -> [| getField @($lab) $e :: $(compileMonoType t) |]
       where lab = TH.litT (TH.strTyLit (Text.unpack l))
@@ -153,8 +153,8 @@ compileOp2 op e1 e2 =
     EmitBuilder -> [| RTS.pushBackBuilder $e1 $e2 |]
 
     -- The map is the first argument.
-    MapLookup   -> [| Map.lookup $e2 $e1 |]
-    MapMember   -> [| Map.member $e2 $e1 |]
+    MapLookup   -> [| RTS.lookup $e2 $e1 |]
+    MapMember   -> [| RTS.member $e2 $e1 |]
 
     ArrayStream -> [| RTS.arrayStream $e1 $e2 |]
 
@@ -165,7 +165,7 @@ compileOp3 op e1 e2 e3 =
     RangeDown  -> [| RTS.rangeDown $e1 $e2 $e3 |]
 
     -- The map is the first argument
-    MapInsert  -> [| Map.insert $e2 $e3 $e1 |]
+    MapInsert  -> [| RTS.insert $e2 $e3 $e1 |]
 
 compileOpN :: (FName -> [TH.ExpQ] -> TH.ExpQ) -> OpN -> [TH.ExpQ] -> TH.ExpQ
 compileOpN call op es =

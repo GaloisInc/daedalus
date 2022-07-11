@@ -9,10 +9,9 @@ import qualified Data.Map as Map
 import Language.Haskell.TH (Q)
 import qualified Language.Haskell.TH as TH
 
-import qualified RTS as RTS
-import qualified RTS.Vector as RTS
-import qualified RTS.Map as RTS
-import qualified RTS.Iterator as RTS
+import qualified Daedalus.RTS as RTS
+import qualified Daedalus.RTS.Vector as RTS
+import qualified Daedalus.RTS.Map as RTS
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)

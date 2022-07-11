@@ -13,18 +13,19 @@ import qualified Data.Text as Text
 import Debug.Trace(trace)
 
 import qualified Data.Functor.Identity as RTS
-import qualified RTS.ParserVM as RTS
-import qualified RTS.ParserAPI as RTS
-import qualified RTS.Numeric as RTS
+import qualified Daedalus.RTS as RTS
 
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
+import Daedalus.Rec(forgetRecs)
+import qualified Daedalus.BDD as BDD
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Type as Core
 import Daedalus.Core.TH.Names
 import Daedalus.Core.TH.Type
 import Daedalus.Core.TH.TypeDecls
 import Daedalus.Core.TH.Ops
+import qualified Daedalus.Core.Bitdata as BD
 import Daedalus.VM
 
 data Config = Config
@@ -46,6 +47,8 @@ funT args res = foldr addArg res args
 
 type HasConfig = (?config :: Config)
 
+type HasTypes  = (?tdecls :: Map Core.TName Core.TDecl)
+
 compileVMT :: VMT -> TH.TypeQ
 compileVMT vmt =
   case vmt of
@@ -58,13 +61,14 @@ compileModule :: Config -> Module -> TH.DecsQ
 compileModule cfg m =
   do tys <- compileTDecls (mTypes m)
      let ?config = cfg
+     let ?tdecls = Map.fromList [ (Core.tName d, d) | d <- forgetRecs (mTypes m) ]
      fus <- mapM compileFun (mFuns m)
      pure (tys ++ concat fus)
 
 
 --------------------------------------------------------------------------------
 
-compileFun :: HasConfig => VMFun -> TH.DecsQ
+compileFun :: (HasConfig, HasTypes) => VMFun -> TH.DecsQ
 compileFun fun =
   do args     <- traverse newArg srcArgs
 
@@ -120,7 +124,8 @@ compileFun fun =
                    Just b -> blockArgs b
                    Nothing -> panic "compileFun" ["Missing entry"]
 
-compileDef :: HasConfig => FName -> FunTy () -> VMFDef -> [TH.ExpQ] -> TH.ExpQ
+compileDef ::
+  (HasConfig, HasTypes) => FName -> FunTy () -> VMFDef -> [TH.ExpQ] -> TH.ExpQ
 compileDef nm ty def args =
   case def of
     VMExtern {} ->
@@ -133,7 +138,7 @@ compileDef nm ty def args =
 
 
 
-compileBlock :: HasConfig => FunTy () -> Block -> TH.DecQ
+compileBlock :: (HasConfig, HasTypes) => FunTy () -> Block -> TH.DecQ
 compileBlock ty b =
   do args <- traverse newArg (blockArgs b)
 
@@ -207,15 +212,19 @@ compileE expr =
         Just e  -> e
         Nothing -> panic "compileE" ["Missing local variable", show (pp bv)]
 
-compilePrim :: ExprEnv => PrimName -> [E] -> TH.ExpQ
+compilePrim :: (HasTypes,ExprEnv) => PrimName -> [E] -> TH.ExpQ
 compilePrim prim es =
   let args = map compileE es
   in
   case prim of
 
-    StructCon ut ->
-      [| $(TH.appsE (TH.conE (structConName (Core.utName ut)) : args))
-         :: $(compileMonoType (Core.TUser ut)) |]
+    StructCon ut
+      | not (Core.tnameBD nm) ->
+          [| $(TH.appsE (TH.conE (structConName nm) : args)) |]
+
+      | otherwise -> mkBDCon nm args
+      where
+      nm = Core.utName ut
 
     NewBuilder t   -> compileOp0 (Core.NewBuilder t)
     Integer i      -> compileOp0 (Core.IntL i Core.TInteger)
@@ -239,6 +248,44 @@ compilePrim prim es =
 
     OpN opN -> compileOpN doFun opN args
       where doFun = panic "compileOpN" ["Unexpcetd function call"]
+
+mkBDCon :: HasTypes => Core.TName -> [TH.ExpQ] -> TH.ExpQ
+mkBDCon nm args =
+  [| RTS.fromBits ($val :: $(compileMonoType (Core.tWord (toInteger bw))))
+        :: $(TH.conT (dataName nm)) |]
+
+  where
+
+  val = case zipWith doF labs args of
+          [] -> [| RTS.UInt base |]
+          vs -> let allVs = if base == 0 then vs else [| RTS.UInt base |] : vs
+                in foldr1 (\a b -> [| RTS.bitOr $a $b |]) allVs
+
+  base = BD.bdStructConBase fs
+  Core.TFlavStruct labs = Core.tnameFlav nm
+
+  (bw,fs) = case Map.lookup nm ?tdecls of
+              Just d ->
+                 case Core.tDef d of
+                   Core.TBitdata w (Core.BDStruct fs') -> (BDD.width w, fs')
+                   _ -> bad "Not a bitdata struct"
+              Nothing -> bad "Misisng bitdata declaration"
+
+  fiMap = Map.fromList [ (l, (Core.bdOffset f, toInteger (Core.bdWidth f)))
+                       | f <- fs, Core.BDData l _ <- [Core.bdFieldType f] ]
+
+  doF l e =
+    case Map.lookup l fiMap of
+      Just (o,w) ->
+        [| RTS.convert (RTS.toBits $e :: $(compileMonoType (Core.tWord w)))
+             `RTS.shiftl` RTS.UInt o
+        |]
+      Nothing    -> bad ("Missing constructor " ++ show (pp l))
+
+
+  bad msg = panic "mkBDCon" [msg, "in bitdata " ++ show (pp nm)]
+
+
 --------------------------------------------------------------------------------
 
 
@@ -255,6 +302,7 @@ data FunTy s =
 
 type BlockEnv =
   ( HasConfig
+  , HasTypes
   , ExprEnv
   , ?funTy :: FunTy TH.ExpQ
   )

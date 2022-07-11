@@ -28,6 +28,7 @@ fnameName f =
   str  = Text.unpack (fnameText f)
   root = case str of
            a : as -> if isUpper a then 'p' : str else str
+           [] -> panic "fnameName" ["Empty function name"]
 
 -- XXX: do we need to do something for anon types?
 dataName :: TName -> TH.Name
