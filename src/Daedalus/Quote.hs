@@ -25,6 +25,7 @@ import Daedalus.AST(ScopedIdent(..))
 import Daedalus.Type.AST(TCModule)
 import qualified Daedalus.Driver as DDL
 import Daedalus.Interp(interp)
+import qualified Daedalus.TH.Compile as DDL(DDLText(..))
 
 daedalus :: QuasiQuoter
 daedalus = QuasiQuoter
@@ -40,8 +41,8 @@ ddl = QuasiQuoter
   { quotePat  = bad "pattern"
   , quoteDec  = bad "declaration"
   , quoteType = bad "type"
-  , quoteExp  = \s -> do (a,b,c) <- getInput s
-                         [| (a,b,c) |]
+  , quoteExp  = \s -> do (a,c) <- getInput' s
+                         [| DDL.Inline a c |]
   }
   where bad = nope "ddl"
 
@@ -56,6 +57,19 @@ loadDDL loc txt =
      DDL.parseModuleFromText mo loc txt
      DDL.ddlLoadModule mo
      DDL.ddlGetAST mo DDL.astTC
+
+getInput' :: String -> Q (SourcePos, Text)
+getInput' str =
+  do thloc <- TH.location
+     let loc = SourcePos { sourceIndex  = 0
+                         , sourceLine   = fst (TH.loc_start thloc)
+                         , sourceColumn = snd (TH.loc_start thloc) + 1
+                         , sourceFile   = Text.pack (TH.loc_filename thloc)
+                         }
+
+     pure (loc, Text.pack str)
+
+
 
 getInput :: String -> Q (SourcePos, String, Text)
 getInput str =

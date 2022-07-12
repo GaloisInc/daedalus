@@ -30,6 +30,7 @@ module Daedalus.Driver
   , phasePass
   , passParse
   , parseModuleFromText
+  , parseModuleFromFile
   , passResolve
   , passTC
   , passDeadVal
