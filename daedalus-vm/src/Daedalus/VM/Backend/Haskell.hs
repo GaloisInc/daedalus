@@ -464,12 +464,12 @@ compileCInstr cinstr =
           Nothing -> (Map.toList ch, Nothing)
           Just d  -> (Map.toList (Map.delete Core.PAny ch), Just (toRHS d))
 
-      toRHS j = TH.normalB (doJump [] stateArgs (jumpTarget j))
+      toRHS j = doJump [] stateArgs (jumpTarget j)
 
       rhss = [ (p, toRHS j) | (p,j) <- rhss1 ]
 
       numP  n       = TH.conP 'RTS.UInt [ TH.litP (TH.IntegerL n) ]
-      mkAlt p rhs   = TH.match p rhs []
+      mkAlt p rhs   = TH.match p (TH.normalB rhs) []
 
       doAlt (p,rhs) = mkAlt (doPat p) rhs
 
@@ -501,16 +501,18 @@ compileCInstr cinstr =
             doChoices val cs orElse =
               TH.caseE val (
                  [ mkAlt (numP i) rhs | (i,rhs) <- cs ] ++
-                 [ mkAlt TH.wildP (TH.normalB orElse) ]
+                 [ mkAlt TH.wildP orElse ]
               )
 
-            doOpt :: TH.ExpQ -> (Integer, [(Integer, TH.Q (TH.Body))]) ->
+            doOpt :: TH.ExpQ -> (Integer, [(Integer, TH.ExpQ)]) ->
                                 TH.ExpQ -> TH.ExpQ
-            doOpt val (mask,choices) orElse =
-              let val' = if mask == 0 then val
-                                      else [| $val `RTS.bitAnd` UInt mask |]
-              in doChoices val' choices orElse
-
+            doOpt val (mask,choices) orElse
+              | mask == 0 =
+                case lookup 0 choices of
+                  Just r -> r
+                  Nothing -> panic "doOpt" ["Nothing"]
+              | otherwise =
+                  doChoices [| $val `RTS.bitAnd` UInt mask |] choices orElse
 
         in [| let x = RTS.toBits $(compileE e)
               in $(foldr (doOpt [|x|]) [| error "Unreachable" |] opts)
