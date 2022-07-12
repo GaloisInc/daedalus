@@ -294,15 +294,13 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
                 let mkOrs = foldr1 (ApI "HS.||")
                     ok = mkOrs
                        $ map check
-                       $ Map.toList
                        $ BDD.groupTestsByMask ts
-                    check (m,vs') =
+                    check (m,vs) =
                       let masked
                             | m == (2^wi - 1) = aps "RTS.fromUInt" ["x"]
                             | otherwise =
                               ApI "HS..&." (aps "RTS.fromUInt" ["x"])
                                            (hsInteger m)
-                          vs = Set.toList vs'
                       in case vs of
                            [] -> panic "ConvertInstace" ["empty test"]
                            [v] -> ApI "HS.==" masked (hsInteger v)

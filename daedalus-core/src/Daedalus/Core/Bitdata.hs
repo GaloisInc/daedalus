@@ -40,7 +40,7 @@ bdStructConBase = foldl setBits 0
 
 
 bdCase ::
-  HasTDecls => TName -> [(Label,a)] -> Maybe a -> Map Integer (Map Integer a)
+  HasTDecls => TName -> [(Label,a)] -> Maybe a -> [(Integer, [(Integer,a)])]
 bdCase t as dflt =
   BDD.groupTestsByMask' (BDD.patTestsAssumingInOrder univ rhs)
   where

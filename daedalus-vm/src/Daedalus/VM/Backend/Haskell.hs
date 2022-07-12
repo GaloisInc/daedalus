@@ -494,9 +494,9 @@ compileCInstr cinstr =
           Core.PAny      -> [p| _ |]
 
       doBDCase bdname =
-        let opts  = Map.toList $ BD.bdCase bdname
-                                    [ (l,r) | (Core.PCon l, r) <- rhss ]
-                                    mbDflt
+        let opts  = BD.bdCase bdname
+                      [ (l,r) | (Core.PCon l, r) <- rhss ]
+                      mbDflt
 
             doChoices val cs orElse =
               TH.caseE val (
@@ -504,16 +504,15 @@ compileCInstr cinstr =
                  [ mkAlt TH.wildP (TH.normalB orElse) ]
               )
 
-            doOpt :: TH.ExpQ -> (Integer, Map Integer (TH.Q (TH.Body))) ->
+            doOpt :: TH.ExpQ -> (Integer, [(Integer, TH.Q (TH.Body))]) ->
                                 TH.ExpQ -> TH.ExpQ
             doOpt val (mask,choices) orElse =
               let val' = if mask == 0 then val
                                       else [| $val `RTS.bitAnd` UInt mask |]
-              in doChoices val' (Map.toList choices) orElse
+              in doChoices val' choices orElse
 
 
-        in trace (show [ (i, Map.keys mp) | (i,mp) <- opts])
-           [| let x = RTS.toBits $(compileE e)
+        in [| let x = RTS.toBits $(compileE e)
               in $(foldr (doOpt [|x|]) [| error "Unreachable" |] opts)
             |]
 

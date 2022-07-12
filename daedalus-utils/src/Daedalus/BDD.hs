@@ -6,9 +6,7 @@ import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
 import Data.Bits(testBit)
-import Data.Set (Set)
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.List(groupBy,sortBy)
 import qualified Language.Haskell.TH.Syntax as TH
 
 -- Ordered binary decision diagrams --------------------------------------------
@@ -211,13 +209,19 @@ instance Show PatTest where
                 ]
 
 -- | The result groups each mask to the possible values.
-groupTestsByMask :: [PatTest] -> Map Integer (Set Integer)
-groupTestsByMask = fmap Map.keysSet . groupTestsByMask' . (`zip` repeat ())
+groupTestsByMask :: [PatTest] -> [(Integer,[Integer])]
+groupTestsByMask xs =
+  [ (x, map fst y) | (x,y) <- groupTestsByMask' (zip xs (repeat ())) ]
 
-groupTestsByMask' :: [(PatTest,a)] -> Map Integer (Map Integer a)
-groupTestsByMask' = foldr cons Map.empty
+-- | Assumes the order of the tests is important.
+groupTestsByMask' :: [(PatTest,a)] -> [(Integer, [(Integer, a)])]
+groupTestsByMask' = map rearrange . groupBy sameMask
   where
-  cons (t,a) = Map.insertWith Map.union (patMask t) (Map.singleton (patValue t) a)
+  sameMask (s,_) (t,_) = patMask s == patMask t
+  cmpVal (s,_) (t,_)   = compare s t
+  rearrange xs         = ( patMask (fst (head xs))
+                         , sortBy cmpVal [ (patValue t, a) | (t,a) <- xs ]
+                         )
 
 noTest :: Width -> PatTest
 noTest w = PatTest { patMask = 0, patValue = 0, patWidth = w }
