@@ -50,6 +50,7 @@ library
                        Daedalus.Compile.ConfigParser,
                        Daedalus.Driver,
                        Daedalus.DriverHS,
+                       Daedalus.TH.Compile,
                        Daedalus.Pass,
                        Daedalus.Type,
                        Daedalus.Type.Pretty,
@@ -92,8 +93,6 @@ library
                        Daedalus.ParserGen.LL.LLA,
                        Daedalus.ParserGen.Runner,
                        Daedalus.ParserGen.Generate
-
-                       Test
 
   build-depends:       base,
                        array,
