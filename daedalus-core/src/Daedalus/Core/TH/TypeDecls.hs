@@ -174,19 +174,26 @@ compileBitdata name univ def =
      let dataD = TH.NewtypeD [] tname [] Nothing con [deriv]
 
      cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
-                    convert = id |]
-     bdInst <- [d| instance RTS.Bitdata $(pure ty) where
-                      type instance BDWidth $(pure ty) =
-                                            $(TH.litT (TH.numTyLit w))
-                      fromBits = $(TH.conE cname)
-                      toBits $(TH.conP cname [[p| x |]]) = x
+                    convert = id
+
+                  instance RTS.Bitdata $(pure ty) where
+                    type instance BDWidth $(pure ty) =
+                                          $(TH.litT (TH.numTyLit w))
+                    fromBits = $(TH.conE cname)
+                    toBits $(TH.conP cname [[p| x |]]) = x
+
+                  instance RTS.Convert $(pure ty) $(pure repT) where
+                    convert = toBits
+
+                  instance RTS.Convert $(pure repT) $(pure ty) where
+                    convert = fromBits
                 |]
 
      hasIs <- case def of
                 BDStruct fs -> traverse (hasInstanceStruct ty cname) fs
                 BDUnion cs -> traverse (hasInstanceUnion ty) cs
 
-     pure (dataD : cvtIs ++ bdInst ++ concat hasIs)
+     pure (dataD : cvtIs ++ concat hasIs)
 
   where
 
