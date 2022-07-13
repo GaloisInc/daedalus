@@ -12,6 +12,7 @@ import System.Directory(canonicalizePath)
 
 import Daedalus.SourceRange(SourcePos(..))
 
+import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Backend.Haskell as VM
 import qualified Daedalus.VM.Compile.Decl as VM (moduleToProgram)
@@ -80,8 +81,11 @@ loadDDLVM roots src =
      DDL.ddlLoadModule mo
 
      let specMod = "MainCore"
-     DDL.passSpecialize specMod [(mo, Text.pack root) | root <- roots ]
+     let rootPs = [(mo, Text.pack root) | root <- roots ]
+     DDL.passSpecialize specMod rootPs
      DDL.passCore specMod
+     -- rootFs <- mapM (uncurry DDL.ddlGetFName) rootPs
+     -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
      DDL.passNorm specMod
      DDL.passVM specMod
