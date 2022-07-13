@@ -176,7 +176,7 @@ newArg ba = newArg' (show (pp ba)) (compileVMT (getType ba))
 newArg' :: String -> TH.TypeQ -> TH.Q (TH.PatQ, TH.ExpQ)
 newArg' str ty =
   do nm <- TH.newName str
-     let pat  = TH.sigP (TH.varP nm) ty
+     let pat  = TH.sigP (TH.bangP (TH.varP nm)) ty
          expr = TH.varE nm
      pure (pat,expr)
 
