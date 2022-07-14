@@ -158,18 +158,22 @@ instance Merge (SelectedPathF PathIndex Identity a) where
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       _ -> panic "BUG: merging non-mergeable nodes" []
 
-instance (PP a) => PP (SelectedPathF PathIndex Identity a) where
-  ppPrec n p =
+instance ( Functor ch, PP (ch Doc)
+         , Functor ca, PP (ca Doc)
+         , PP a) => PP ( SelectedPathF ch ca a ) where
+  ppPrec n p = 
     case p of
-      SelectedHole       -> "[]"
+      SelectedHole       -> "□"
       SelectedBytes _ bs -> pp bs
       SelectedDo {}      -> "do" <+> ppStmts' p
-      SelectedChoice (PathIndex n' sp) ->
-        wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
-      SelectedCase   (Identity sp)  -> wrapIf (n > 0) $ "case" <+> ppPrec 1 sp
+      SelectedChoice ch ->
+          wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
+      SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
 
-ppStmts' :: PP a => SelectedPathF PathIndex Identity a -> Doc
+ppStmts' :: ( Functor ch, PP (ch Doc)
+            , Functor ca, PP (ca Doc)
+            , PP a) => SelectedPathF ch ca a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2

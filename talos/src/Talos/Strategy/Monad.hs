@@ -11,7 +11,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getSlice, sccsFor -- , getParamSlice
+                            , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
                             , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
@@ -114,6 +114,10 @@ isRecVar n = do
 sccsFor :: LiftStrategyM m => SliceId -> m (Maybe (Set SliceId))
 sccsFor sid = do
   liftStrategy (StrategyM (gets (Map.lookup sid . esRecs . stsSummaries)))
+
+backEdgesFor :: LiftStrategyM m => SliceId -> m (Map SliceId (Set SliceId))
+backEdgesFor entrySid = do
+  liftStrategy (StrategyM (gets (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)))
 
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]

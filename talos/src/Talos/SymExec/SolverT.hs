@@ -19,7 +19,7 @@ module Talos.SymExec.SolverT (
   withSolver, SMTVar,
   -- assert, declare, check,
   solverOp, solverState,
-  getValue,
+  getValue, getModel,
   -- * Context management
   SolverContext, SolverFrame, getContext, restoreContext,
   freshContext, collapseContext, extendContext, instantiateSolverFrame,
@@ -368,6 +368,10 @@ getValue v = do
                  , "  Result: " ++ S.showsSExpr res ""
                  ]) []
 
+-- Mainly for debugging
+getModel :: MonadIO m => SolverT m SExpr
+getModel = solverOp (\s -> S.command s $ S.List [S.const "get-model"])
+
 -- -----------------------------------------------------------------------------
 -- Names
 
@@ -389,14 +393,6 @@ tnameToSMTName n = textToSMTName (tnameText n) (tnameId n)
 
 knownFNames :: Monad m => SolverT m (Set FName)
 knownFNames = SolverT $ gets ssKnownFuns
-
-getName :: Monad m => Name -> SolverT m SExpr
-getName n = do
-  panic "getName" [showPP n]
-  -- m_s <- inCurrentFrame (pure . lookupName n)
-  -- case m_s of
-  --   Just s -> pure s
-  --   Nothing -> panic "Missing name" [showPP n]
 
 getPolyFun :: Monad m => PolyFun -> SolverT m SExpr
 getPolyFun pf = do

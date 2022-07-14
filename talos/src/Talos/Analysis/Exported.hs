@@ -66,7 +66,7 @@ data ExpSummaries = ExpSummaries
   -- ^ For each recursive slice, this gives the SCC it belongs to.
   , esRecVars        :: Set Name
   -- ^ These variables contain a recursive call.
-  -- , esBackEdges :: Map SliceId (Map SliceId (Set SliceId))
+  , esBackEdges :: Map SliceId (Map SliceId (Set SliceId))
   -- ^ Maps SCC entry point to the set of back edges in that group.
   }
 
@@ -235,8 +235,8 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
       { esRootSlices     = roots
       , esFunctionSlices = slices st'
       , esRecs           = recs
-      , esRecVars        = makeEsRecVars (slices st') recs
---      , esBackEdges      = makeEsBackEdges (slices st') recs
+      , esRecVars        = makeEsRecVars   (slices st') recs
+      , esBackEdges      = makeEsBackEdges (slices st') recs
       }
 
     recs = makeEsRecs (slices st')

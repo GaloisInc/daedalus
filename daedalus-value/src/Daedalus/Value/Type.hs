@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# Language OverloadedStrings, DataKinds #-}
 module Daedalus.Value.Type where
 
@@ -88,8 +89,11 @@ data TValue =
     deriving Show
 
 
+pattern VUnit :: Value
+pattern VUnit = VStruct []
+
 vUnit :: Value
-vUnit = VStruct []
+vUnit = VUnit
 
 vByte :: Word8 -> Value
 vByte x = VUInt 8 (fromIntegral x)

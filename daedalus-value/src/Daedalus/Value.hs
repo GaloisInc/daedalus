@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module Daedalus.Value
   ( -- * Value types
     Value(..)
@@ -17,6 +19,7 @@ module Daedalus.Value
 
     -- * Structs
   , vUnit
+  , pattern VUnit
   , vStruct
   , vStructLookup
 

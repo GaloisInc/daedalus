@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.PathSymbolicM where
@@ -25,7 +26,7 @@ import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
                                                tell)
 import           Data.Set                     (Set)
 
-import           Daedalus.Core                (Expr, Name, Pattern)
+import           Daedalus.Core                (Expr, Name, Pattern, typedThing)
 import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.PP
 import           Daedalus.Panic               (panic)
@@ -42,6 +43,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
                                                liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
+import qualified Data.Set as Set
 
 
 
@@ -56,8 +58,16 @@ data SymbolicEnv = SymbolicEnv
   { sVarEnv     :: SymVarEnv
   , sCurrentSCC :: Maybe (Set SliceId)
   -- ^ The set of slices in the current SCC, if any
-  -- , sBackEdges :: [SliceId]
-  -- -- ^ All back edges from this function 
+  , sBackEdges :: Map SliceId (Set SliceId)
+  -- ^ All back edges from the current SCC
+  , sSliceId :: Maybe SliceId
+  -- ^ Current slice
+
+  , sRecDepth :: Int
+  , sMaxRecDepth :: Maybe Int
+  
+  -- ^ Current recursive depth (basically the sum of all back edge
+  -- calls, irrespective of source/target).
   
   -- The path isn't required as we add it on post-facto
   -- , sPath    :: ValueGuard -- ^ Current path.
@@ -76,15 +86,19 @@ data SolverResult =
 
  -- Not all paths are necessarily feasible.
 data PathChoiceBuilder a =
-    SymbolicChoice PathVar           [(Int, a)]
+  SymbolicChoice   PathVar           [(Int, a)]
   | ConcreteChoice Int               a
+  deriving (Functor)
 
-data PathCaseBuilder a   = PathCase   GuardedSemiSExprs [(Pattern, a)]
+data PathCaseBuilder a   =
+  SymbolicCase   GuardedSemiSExprs [(Pattern, a)]
+  | ConcreteCase                   a
+  deriving (Functor)
 
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
-emptySymbolicEnv :: SymbolicEnv
-emptySymbolicEnv = SymbolicEnv mempty mempty
+emptySymbolicEnv :: Maybe Int -> SymbolicEnv
+emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -96,9 +110,10 @@ instance LiftStrategyM SymbolicM where
 
 runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
+                Maybe Int ->
                 SymbolicM Result ->
                 SolverT StrategyM (Maybe Result, [SMT.SExpr])
-runSymbolicM _sls (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) emptySymbolicEnv
+runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth)
 
 --------------------------------------------------------------------------------
 -- Names
@@ -169,15 +184,47 @@ infeasible = SymbolicM $ fail "UNUSED"
 -- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 -- enterPathNode deps = local (over (field @"sPath") (deps :))
 
+
+-- We have a number of cases here
+-- 1. Normal function call to non-rec. function
+-- 2. Normal function to recursive function
+-- 3. Non back-edge call in current SCC
+-- 4. Back-edge calls for which we might need to fail (if the depth is too great)
+
 enterFunction :: SliceId -> Map Name Name -> 
                  SymbolicM a -> SymbolicM a
 enterFunction tgt argMap m = do
-  m_sccs <- sccsFor tgt
-  local (upd m_sccs) m
+  env <- ask
+  let m_myId = sSliceId env
+      isBackEdge = maybe False (Set.member tgt) (flip Map.lookup (sBackEdges env) =<< m_myId)
+      belowMaxDepth = maybe True (sRecDepth env <) (sMaxRecDepth env)
+      tgtInSCC = maybe False (Set.member tgt) (sCurrentSCC env)
+  
+  if tgtInSCC
+    then sameSCC isBackEdge belowMaxDepth
+    else outsideSCC
   where
-    upd m_sccs e = e { sVarEnv  = Map.compose (sVarEnv e) argMap
-                     , sCurrentSCC = m_sccs
-                     }
+    -- Cases 1 and 2 above
+    outsideSCC = do
+      m_sccs <- sccsFor tgt
+      backEdges <- backEdgesFor tgt
+      let upd e = e { sCurrentSCC = m_sccs
+                    , sRecDepth   = 0
+                    , sBackEdges  = backEdges
+                    }
+      local upd m_with_args
+
+    -- Case 3
+    sameSCC False _ = m_with_args    
+    -- Case 4 back edge, beyond the max
+    sameSCC True False = infeasible
+    -- Case 4 back edge, allowed, so just increase depth
+    sameSCC True True = 
+      locally (field @"sRecDepth") (+ 1) m_with_args
+
+    m_with_args =
+      locally (field @"sSliceId") (const (Just tgt)) .
+      locally (field @"sVarEnv") (flip Map.compose argMap) $ m
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -213,3 +260,25 @@ hoistMaybe r =
 
 collectMaybes :: [SymbolicM a] -> SymbolicM [a]
 collectMaybes = fmap catMaybes . mapM getMaybe
+
+-- -----------------------------------------------------------------------------
+-- Instances
+
+instance PP (PathChoiceBuilder Doc) where
+  pp (SymbolicChoice pv ps) = pp pv <> ": " <> block "{" "," "}" (map pp1 ps)
+    where
+      pp1 (i, p) = pp i <+> "=" <+> p
+  pp (ConcreteChoice i p) = pp i <+> "=" <+> p
+
+
+instance PP (PathCaseBuilder Doc) where
+  pp (SymbolicCase gses ps) = block "[[" "," "]]" [ pp (text . typedThing <$> gses)
+                                                  , block "{" "," "}" (map pp1 ps) ]
+    where
+      pp1 (pat, p) = pp pat <+> "=" <+> p
+      
+  pp (ConcreteCase p) = p
+
+instance PP SolverResult where
+  pp (ByteResult v) = text v
+  pp (InverseResult _e _v) = "inv"

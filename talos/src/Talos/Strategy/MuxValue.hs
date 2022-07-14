@@ -9,6 +9,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
@@ -64,7 +66,7 @@ import           Talos.SymExec.Type
 -- different guards.
 newtype GuardedValues a = GuardedValues {
   getGuardedValues :: NonEmpty (PathCondition, GuardedValue a)
-  }
+  } deriving (Functor, Foldable, Traversable)
 
 guardedValues :: GuardedValues a -> [(PathCondition, GuardedValue a)]
 guardedValues = NE.toList . getGuardedValues
@@ -156,7 +158,8 @@ refine g gvs =
                              ]
 
 unions :: NonEmpty GuardedSemiSExprs -> GuardedSemiSExprs
-unions = GuardedValues . sconcat . fmap getGuardedValues
+unions ((GuardedValues ((_, VValue V.VUnit) :| _)) :| _) = vUnit
+unions xs = GuardedValues . sconcat . fmap getGuardedValues $ xs
 
 unions' :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
 unions' = fmap unions . nonEmpty
@@ -429,10 +432,14 @@ matches' v pat =
 -- much (we could e.g. throw away the non-matching values and then
 -- merge the environment at each join point, which might make the code
 -- more efficient?)
+
+data ValueMatchResult = NoMatch | YesMatch | SymbolicMatch SExpr
+  deriving (Eq, Ord, Show)
+
 semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
                 Case a ->
                 SemiSolverM m ( [ ( NonEmpty PathCondition, (Pattern, a)) ]
-                              , [ (PathCondition, Maybe SExpr) ] )
+                              , [ (PathCondition, ValueMatchResult) ] )
 semiExecCase (Case y pats) = do
   els <- guardedValues <$> semiExecName y
   let (vgs, preds) = unzip (map goV els)
@@ -441,25 +448,25 @@ semiExecCase (Case y pats) = do
   pure (catMaybes allRes, concat preds)
   where
     goV :: (PathCondition, GuardedSemiSExpr) ->
-           ( [ PathCondition ], [(PathCondition, Maybe SExpr)] )
+           ( [ PathCondition ], [(PathCondition, ValueMatchResult)] )
     goV (g, VOther x) =
       let basePreds = map (\p -> SE.patternToPredicate ty p (S.const (typedThing x))) pats'
           (m_any, assn)
             -- if we have a default case, the constraint is that none
             -- of the above matched
-            | hasAny    = ([ Right (Set.fromList pats') ] , [])
-            | otherwise = ([], [(g, Just (S.orMany basePreds))])
+            | hasAny    = ([ Right (Set.fromList pats') ] , [(g, YesMatch)])
+            | otherwise = ([], [(g, SymbolicMatch (orMany basePreds))])
           vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
       in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
     goV (g, v) =
       let ms = map (matches' v) pats'
           noMatch = not (or ms)
           (m_any, assn)
-            | hasAny && noMatch = ( [True], [] )
-            | hasAny            = ( [False], [] )
-            | noMatch           = ( [], [(g, Just (S.bool False))] )
-            -- FIXME: do we need the (g, S.bool True) here?
-            | otherwise         = ( [], [(g, Nothing)] )
+            | hasAny && noMatch = ( [True], [(g, YesMatch)] )
+            | hasAny            = ( [False], [(g, YesMatch)] )
+            | noMatch           = ( [], [(g, NoMatch)] )
+            -- FIXME: do we need the (g, YesMatch) here?
+            | otherwise         = ( [], [(g, YesMatch)] )
       in ( [ if b then g else Infeasible | b <- ms ++ m_any], assn )
 
     -- ASSUME that a PAny is the last element
@@ -566,7 +573,7 @@ semiExecOp1 (InUnion _ut l)  _rty _ty sv =
   pure . singleton mempty $ VUnionElem l sv
 
 -- We do this component-wise
-semiExecOp1 op _rty ty gvs = gseCollect (map go (guardedValues gvs))
+semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
   where
     mk1 g = pure . singleton g
     toL = gseToList
@@ -578,7 +585,7 @@ semiExecOp1 op _rty ty gvs = gseCollect (map go (guardedValues gvs))
     -- practice, this means that partial operations are guarded by a
     -- case.
     go (g, VOther x) =
-      vSExpr g ty =<< liftSolver (SE.symExecOp1 op ty (S.const (typedThing x)))
+      vSExpr g rty =<< liftSolver (SE.symExecOp1 op ty (S.const (typedThing x)))
   
     -- Value has a concrete head
     go (g, sv) = case op of
@@ -738,7 +745,7 @@ bOpMany opUnit g svs = gseCollect (map mkOne combs)
 
     isBool b (VValue (V.VBool b')) = b == b'
     isBool _ _ = False
-    op = if opUnit then S.andMany else S.orMany
+    op = if opUnit then andMany else orMany
     absorb = not opUnit
 
 bAndMany, bOrMany :: SemiCtxt m => PathCondition -> 
@@ -1082,6 +1089,20 @@ valueToSExpr tys ty v =
 
     unimplemented = panic "Unimplemented" [showPP v]
 
+
+-- ----------------------------------------------------------------------------------------
+-- Helpers
+
+orMany :: [SExpr] -> SExpr
+orMany [] = S.bool False
+orMany [x] = x
+orMany xs  = S.orMany xs
+
+andMany :: [SExpr] -> SExpr
+andMany [] = S.bool True
+andMany [x] = x
+andMany xs  = S.andMany xs
+
 -- -- -- Says whether a variable occurs in a SExpr, taking into account let binders.
 -- -- freeInSExpr :: String -> SExpr -> Bool
 -- -- freeInSExpr n = getAny . go
@@ -1099,3 +1120,31 @@ valueToSExpr tys ty v =
 
 -- -- freeInSemiSExpr :: String -> SemiSExpr -> Bool
 -- -- freeInSemiSExpr n = getAny . foldMap (Any . freeInSExpr n)
+
+-- -----------------------------------------------------------------------------
+-- Instances
+
+
+ppMuxValue :: (f a -> Doc) -> (a -> Doc) -> MuxValue f a -> Doc
+ppMuxValue ppF ppA val =
+  case val of
+    VValue v -> pp v
+    VOther v -> ppA v
+    VUnionElem lbl v -> braces (pp lbl <.> colon <+> ppF v)
+    VStruct xs      -> block "{" "," "}" (map ppFld xs)
+      where ppFld (x,t) = pp x <.> colon <+> ppF t
+
+    VSequence _ vs ->  block "[" "," "]" (map ppF vs)
+
+    VJust v   -> "Just" <+> ppF v
+    VMap m -> block "{|" ", " "|}" [ ppF k <+> "->" <+> ppF v | (k,v) <- m ]
+
+    VIterator vs -> block "[iterator|" ",        " "|]"
+                    [ ppF x <+> "->" <+> ppF y | (x,y) <- vs ]
+
+instance PP a => PP (GuardedValues a) where
+  pp gvs = block "∨{" ";" "}" [ pp g <+> "⊨" <+> pp v | (g, v) <- guardedValues gvs ]
+
+instance PP a => PP (GuardedValue a) where
+  pp = ppMuxValue pp pp
+
