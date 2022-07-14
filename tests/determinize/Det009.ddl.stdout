@@ -1,0 +1,139 @@
+module Det009
+ 
+--- Imports:
+ 
+--- Type defs:
+type Det009.Endian = Choose { BE: {}
+                            ; LE: {}
+                            }
+ 
+type Det009.IFDUnknown = { tag: uint 16
+                         ; format: uint 64
+                         }
+ 
+type Det009.IFDEntry = Choose { unknown: Det009.IFDUnknown
+                              ; samplesPerPixel: {}
+                              ; rowsPerStrip: {}
+                              ; photometricInterpretation: {}
+                              ; imageWidth: {}
+                              ; imageHeight: {}
+                              ; compression: {}
+                              }
+ 
+--- Rules:
+ 
+Det009.Endian : Grammar Det009.Endian =
+  Choose biased
+    { {- LE -} do (_26 : {}) <- @MatchBytes "II"
+                  pure {LE: _26}
+    | {- BE -} do (_27 : {}) <- @MatchBytes "MM"
+                  pure {BE: _27}
+    }
+ 
+Det009.Word16_ : Grammar {} =
+  do @Match UInt8
+     @Match UInt8
+ 
+Det009.Unsgned (e : Det009.Endian) : Grammar {} =
+  Det009.Word16_
+ 
+Det009.jn ?a0 ?a1 ?a2 (?a1 + ?a0 = ?a2) (?a0 + ?a1 = ?a2) (e : Det009.Endian) (x : uint ?a0) (y : uint ?a1) : uint ?a2 =
+  case e is
+    { {| BE = _ |} -> x # y
+    ; {| LE = _ |} -> y # x
+    }
+ 
+Det009.Word16 (e : Det009.Endian) : Grammar (uint 16) =
+  do (_28 : uint 8) <- Match UInt8
+     (_29 : uint 8) <- Match UInt8
+     pure (Det009.jn 8 8 16 e _28 _29)
+ 
+Det009.Tag_ (e : Det009.Endian) (x : uint 16) : Grammar {} =
+  do (_31 : bool) <- do (_30 : uint 16) <- Det009.Word16 e
+                        pure (_30 == x)
+     case _31 is
+       { true -> pure {}
+       }
+ 
+Det009.NumericTag (e : Det009.Endian) (x : uint 16) : Grammar {} =
+  do Det009.Tag_ e x
+     ($$ : {}) <- Det009.Unsgned e
+     pure $$
+ 
+Det009.IFDUnknown (e : Det009.Endian) : Grammar Det009.IFDUnknown =
+  do (tag : uint 16) <- Det009.Word16 e
+     (format : uint 64) <- do (_33 : uint 16) <- Det009.Word16 e
+                              pure (_33 as uint 64)
+     pure {tag = tag,
+           format = format}
+ 
+Det009.IFDEntry (e : Det009.Endian) : Grammar Det009.IFDEntry =
+  Choose biased
+    { {- imageWidth -} do (_34 : {}) <- Det009.NumericTag e 0x100
+                          pure {imageWidth: _34}
+    | {- imageHeight -} do (_35 : {}) <- Det009.NumericTag e 0x101
+                           pure {imageHeight: _35}
+    | {- compression -} do (_36 : {}) <- Det009.NumericTag e 0x103
+                           pure {compression: _36}
+    | {- photometricInterpretation -} do (_37 : {}) <- Det009.NumericTag e 0x106
+                                         pure {photometricInterpretation: _37}
+    | {- samplesPerPixel -} do (_38 : {}) <- Det009.NumericTag e 0x115
+                               pure {samplesPerPixel: _38}
+    | {- rowsPerStrip -} do (_39 : {}) <- Det009.NumericTag e 0x116
+                            pure {rowsPerStrip: _39}
+    | {- unknown -} do (_40 : Det009.IFDUnknown) <- Det009.IFDUnknown e
+                       pure {unknown: _40}
+    }
+ 
+Det009.Main : Grammar Det009.IFDEntry =
+  do (e : Det009.Endian) <- Det009.Endian
+     ($$ : Det009.IFDEntry) <- Det009.IFDEntry e
+     pure $$
+ 
+Det009.Tag (e : Det009.Endian) (x : uint 16) : Grammar {} =
+  do (_31 : bool) <- do (_30 : uint 16) <- Det009.Word16 e
+                        pure (_30 == x)
+     case _31 is
+       { true -> pure {}
+       }
+ 
+Det009.Word32 (e : Det009.Endian) : Grammar (uint 32) =
+  do (_42 : uint 16) <- Det009.Word16 e
+     (_43 : uint 16) <- Det009.Word16 e
+     pure (Det009.jn 16 16 32 e _42 _43)
+ 
+Det009.Endian_ : Grammar {} =
+  Choose biased
+    { {- LE -} @MatchBytes "II"
+    | {- BE -} @MatchBytes "MM"
+    }
+ 
+Det009.Unsgned_ : Grammar {} =
+  Det009.Word16_
+ 
+Det009.NumericTag_ (e : Det009.Endian) (x : uint 16) : Grammar {} =
+  do Det009.Tag_ e x
+     Det009.Unsgned_
+ 
+Det009.IFDUnknown_ : Grammar {} =
+  do Det009.Word16_
+     Det009.Word16_
+ 
+Det009.IFDEntry_ (e : Det009.Endian) : Grammar {} =
+  Choose biased
+    { {- imageWidth -} Det009.NumericTag_ e 0x100
+    | {- imageHeight -} Det009.NumericTag_ e 0x101
+    | {- compression -} Det009.NumericTag_ e 0x103
+    | {- photometricInterpretation -} Det009.NumericTag_ e 0x106
+    | {- samplesPerPixel -} Det009.NumericTag_ e 0x115
+    | {- rowsPerStrip -} Det009.NumericTag_ e 0x116
+    | {- unknown -} Det009.IFDUnknown_
+    }
+ 
+Det009.Main_ : Grammar {} =
+  do (e : Det009.Endian) <- Det009.Endian
+     Det009.IFDEntry_ e
+ 
+Det009.Word32_ : Grammar {} =
+  do Det009.Word16_
+     Det009.Word16_

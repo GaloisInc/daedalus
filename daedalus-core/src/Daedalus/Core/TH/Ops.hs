@@ -1,0 +1,149 @@
+{-# Language TemplateHaskell, TypeApplications #-}
+module Daedalus.Core.TH.Ops where
+
+import qualified Data.Text as Text
+import qualified Data.ByteString as BS
+import Data.List(sort)
+import qualified Data.Map as Map
+import qualified Language.Haskell.TH.Lib as TH
+
+import qualified RTS          as RTS
+import qualified RTS.Input    as RTS
+import qualified RTS.Numeric  as RTS
+import qualified RTS.Vector   as RTS
+import qualified RTS.Iterator as RTS
+import qualified RTS.ParserVM as RTS
+
+import Daedalus.Core.Basics
+import Daedalus.Core.Expr
+import Daedalus.Core.TH.Names
+import Daedalus.Core.TH.Type
+
+compileOp1 :: Op1 -> Type -> TH.ExpQ -> TH.ExpQ
+compileOp1 op1 argT e =
+  case op1 of
+    CoerceTo t        -> [| RTS.convert $e :: $(compileMonoType t) |]
+
+    IsEmptyStream     -> [| RTS.inputEmpty $e |]
+
+    Head              -> [| RTS.uint8 (RTS.inputHead $e) |]
+
+    StreamOffset      -> [| RTS.UInt (fromIntegral (RTS.inputOffset $e))
+                              :: $(compileMonoType (tWord 64)) |]
+
+    StreamLen         -> [| RTS.UInt (fromIntegral (RTS.inputLength $e))
+                              :: $(compileMonoType (tWord 64)) |]
+
+    BytesOfStream     -> [| RTS.vecFromRep (RTS.inputBytes $e)
+                              :: $(compileMonoType tByteArray) |]
+
+    OneOf bs          -> TH.caseE e (map alt opts ++ [dflt])
+      where
+      opts  = sort (BS.unpack bs)
+      alt b = let pat = TH.litP (TH.integerL (fromIntegral b))
+              in TH.match pat (TH.normalB [| True |]) []
+      dflt  = TH.match TH.wildP (TH.normalB [| False |]) []
+
+    Neg               -> [| RTS.neg $e |]
+
+    BitNot            -> [| RTS.bitCompl $e |]
+
+    Not               -> [| not $e |]
+
+    ArrayLen          -> [| RTS.length $e |]
+
+    Concat            -> [| RTS.concat $e |]
+
+    FinishBuilder     -> [| RTS.finishBuilder $e |]
+
+    NewIterator       -> [| RTS.newIterator $e |]
+
+    IteratorDone      -> [| RTS.iteratorDone $e |]
+
+    IteratorKey       -> [| RTS.iteratorKey $e |]
+
+    IteratorVal       -> [| RTS.iteratorVal $e |]
+
+    IteratorNext      -> [| RTS.iteratorNext $e |]
+
+    EJust             -> [| Just $e |]
+
+    FromJust          -> [| fromJust $e |]
+
+    SelStruct t l     -> [| getField @($lab) $e :: $(compileMonoType t) |]
+      where lab = TH.litT (TH.strTyLit (Text.unpack l))
+
+    InUnion ut l ->
+      let con = TH.conE (unionConName (utName ut) l)
+      in case argT of
+           TUnit -> con
+           _     -> TH.appE con e
+
+    FromUnion t l     -> [| getField @($lab) $e :: $(compileMonoType t) |]
+      where lab = TH.litT (TH.strTyLit (Text.unpack l))
+
+    WordToFloat       -> [| RTS.wordToFloat $e  |]
+    WordToDouble      -> [| RTS.wordToDouble $e |]
+    IsNaN             -> [| isNaN $e |]
+    IsInfinite        -> [| isInfinite $e |]
+    IsDenormalized    -> [| isDenormalized $e |]
+    IsNegativeZero    -> [| isNegativeZero $e |]
+
+
+compileOp2 :: Op2 -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ
+compileOp2 op e1 e2 =
+  case op of
+    IsPrefix    -> [| RTS.vecToRep $e1 `BS.isPrefixOf` RTS.inputBytes $e2 |]
+
+    Drop        -> [| RTS.inputDrop $e1 $e2 |]
+    Take        -> [| RTS.inputTake $e1 $e2 |]
+
+    Eq          -> [| $e1 == $e2 |]
+    NotEq       -> [| $e1 /= $e2 |]
+    Leq         -> [| $e1 <= $e2 |]
+    Lt          -> [| $e1 <  $e2 |]
+
+    Add         -> [| RTS.add $e1 $e2 |]
+    Sub         -> [| RTS.sub $e1 $e2 |]
+    Mul         -> [| RTS.mul $e1 $e2 |]
+    Div         -> [| RTS.div $e1 $e2 |]
+    Mod         -> [| RTS.mod $e1 $e2 |]
+
+    BitAnd      -> [| RTS.bitAnd $e1 $e2 |]
+    BitOr       -> [| RTS.bitOr  $e1 $e2 |]
+    BitXor      -> [| RTS.bitXor $e1 $e2 |]
+    Cat         -> [| RTS.cat    $e1 $e2 |]
+    LCat        -> [| RTS.lcat   $e1 $e2 |]
+    LShift      -> [| RTS.shiftl $e1 $e2 |]
+    RShift      -> [| RTS.shiftr $e1 $e2 |]
+
+    ArrayIndex  -> [| $e1 RTS.! $e2 |]
+
+    Emit        -> [| RTS.pushBack $e1 $e2 |]
+    EmitArray   -> [| RTS.pushBackVector $e1 $e2 |]
+    EmitBuilder -> [| RTS.pushBackBuilder $e1 $e2 |]
+
+    -- The map is the first argument.
+    MapLookup   -> [| Map.lookup $e2 $e1 |]
+    MapMember   -> [| Map.member $e2 $e1 |]
+
+    ArrayStream -> [| RTS.arrayStream $e1 $e2 |]
+
+compileOp3 :: Op3 -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ
+compileOp3 op e1 e2 e3 =
+  case op of
+    RangeUp    -> [| RTS.rangeUp $e1 $e2 $e3 |]
+    RangeDown  -> [| RTS.rangeDown $e1 $e2 $e3 |]
+
+    -- The map is the first argument
+    MapInsert  -> [| Map.insert $e2 $e3 $e1 |]
+
+compileOpN :: (FName -> [TH.ExpQ] -> TH.ExpQ) -> OpN -> [TH.ExpQ] -> TH.ExpQ
+compileOpN call op es =
+  case op of
+    ArrayL t -> [| RTS.fromList $(TH.listE es)
+                      :: $(compileMonoType (TArray t)) |]
+    CallF f  -> call f es
+
+
+

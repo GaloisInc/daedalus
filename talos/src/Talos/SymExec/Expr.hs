@@ -15,7 +15,7 @@ import qualified Data.Map                        as Map
 import           SimpleSMT                       (SExpr)
 import qualified SimpleSMT                       as S
 
-import           Daedalus.Core                   
+import           Daedalus.Core                   hiding (tByte)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP

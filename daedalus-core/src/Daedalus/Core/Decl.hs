@@ -6,10 +6,12 @@ module Daedalus.Core.Decl where
 
 import GHC.Generics          (Generic)
 import Control.DeepSeq       (NFData)
+import qualified Data.Map as Map
 
 import Daedalus.PP
 import Daedalus.Rec
 import qualified Daedalus.BDD as BDD
+import Daedalus.Panic(panic)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
@@ -83,6 +85,51 @@ data BDField = BDField
 
 data BDFieldType = BDWild | BDTag Integer | BDData Label Type
   deriving (Generic,NFData)
+
+
+
+
+-- | Get an instantiate version of a type.
+-- Assumes that the decla name and user type match.
+tyDeclsInst :: TDecl -> UserType -> TDef
+tyDeclsInst td orig =
+  case tDef td of
+    TStruct ls   -> TStruct (goLabeled ls)
+    TUnion  ls   -> TUnion  (goLabeled ls)
+    TBitdata b d -> TBitdata b d -- nothing to instnatiate here
+
+  where
+  nenv = Map.fromList (zip (tTParamKNumber td) (utNumArgs orig))
+  tenv = Map.fromList (zip (tTParamKValue  td) (utTyArgs orig))
+
+  goTy ty =
+    case ty of
+      TStream   -> ty
+      TUInt tsz -> TUInt (goSize tsz)
+      TSInt tsz -> TSInt (goSize tsz)
+      TInteger  -> ty
+      TBool     -> ty
+      TFloat    -> ty
+      TDouble   -> ty
+      TUnit     -> ty
+      TArray ty' -> TArray (goTy ty')
+      TMaybe ty' -> TMaybe (goTy ty')
+      TMap dTy rTy -> TMap (goTy dTy) (goTy rTy)
+      TBuilder ty' -> TBuilder (goTy ty')
+      TIterator ty' -> TIterator (goTy ty')
+      TUser ut      -> TUser (ut { utNumArgs = map goSize (utNumArgs ut)
+                                 , utTyArgs  = map goTy (utTyArgs ut)
+                                 })
+      TParam p
+        | Just ty' <- Map.lookup p tenv -> ty'
+        | otherwise -> panic "Missing type param" []
+
+  goSize (TSizeParam p) 
+    | Just n <- Map.lookup p nenv = n -- _should_ be a size? 
+    | otherwise = panic "Missing type param" []
+  goSize sz = sz
+
+  goLabeled = map (\(l, t) -> (l, goTy t))
 
 
 

@@ -24,6 +24,7 @@ data Command =
   | DumpSpec
   | DumpCore
   | DumpVM
+  | DumpRel
   | DumpGraph Bool
   | DumpGen
   | CompileHS
@@ -225,6 +226,10 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                  "Dump core AST"
                 $ simpleCommand DumpCore
 
+               , Option [] ["rel"]
+                 "Dump relational core"
+                $ simpleCommand DumpRel
+
                , Option [] ["vm"]
                  "Dump VM AST"
                 $ simpleCommand DumpVM
@@ -400,6 +405,7 @@ impliedOptions opts0 =
         DumpTypes       -> opts
         DumpSpec        -> opts
         DumpCore        -> noTCUnbiased
+        DumpRel         -> noTCUnbiased
         DumpVM          -> noTCUnbiased
         DumpGraph {}    -> opts
         DumpGen         -> opts
