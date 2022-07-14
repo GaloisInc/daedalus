@@ -48,7 +48,7 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe (MaybeT)
 import           Control.Monad.Writer      (WriterT)
-import           Data.Foldable             (for_)
+import           Data.Foldable             (for_, toList)
 import           Data.Function             (on)
 import           Data.Functor              (($>))
 import           Data.Generics.Product     (field)
@@ -61,6 +61,8 @@ import           Data.Text                 (Text)
 import           GHC.Generics              (Generic)
 import           SimpleSMT                 (SExpr, Solver)
 import qualified SimpleSMT                 as S
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 import           Daedalus.Core             hiding (freshName)
 import qualified Daedalus.Core             as C
@@ -90,7 +92,7 @@ data QueuedCommand =
 -- solver as push/pop are effectful.
 data SolverFrame = SolverFrame
   { frId        :: !Int -- ^ The index of the choice which led to this frame
-  , frCommands   :: ![QueuedCommand]
+  , frCommands   :: !(Seq QueuedCommand)
   -- , frBoundNames :: !(Map Name SMTVar)
   -- ^ May include names bound in closed scopes, to allow for
   --
@@ -172,7 +174,7 @@ flush = do
     solverOp S.push
 
   currentPending <- SolverT $ gets $ \s ->
-    drop (ssNCurrentFlushed s) (frCommands (ssCurrentFrame s))
+    Seq.drop (ssNCurrentFlushed s) (frCommands (ssCurrentFrame s))
 
   mapM_ execQueuedCommand currentPending
   SolverT . modify $ \s -> do
@@ -200,7 +202,7 @@ pushFrame force = do
 freshContext :: Monad m => [(SMTVar, SExpr)] -> SolverT m SolverContext
 freshContext decls = do
   fr <- freshSolverFrame
-  let fr' = fr { frCommands = map (uncurry QCDeclare) decls }
+  let fr' = fr { frCommands = Seq.fromList $ map (uncurry QCDeclare) decls }
       -- This represents the global namespace, it needs to be there so
       -- we don't overpop.  FIXME: a hack :(  
       baseFrame = emptySolverFrame 0
@@ -238,7 +240,7 @@ instantiateSolverFrame :: (Monad m, HasGUID m) =>
                           SolverT m (SolverFrame, Map SMTVar SExpr)
 instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
   fr <- freshSolverFrame
-  (cs', e) <- runStateT (catMaybes <$> mapM go cs) baseEnv
+  (cs', e) <- runStateT (Seq.fromList . catMaybes . toList <$> traverse go cs) baseEnv
   pure (fr { frCommands = cs' }, e)
   where
     go :: (Monad m, HasGUID m) => QueuedCommand ->
@@ -348,7 +350,7 @@ solverOp f = withSolver (liftIO . f)
 
 queueSolverOp :: Monad m => QueuedCommand -> SolverT m ()
 queueSolverOp qc = 
-  modifyCurrentFrame (field @"frCommands" <>~ [qc])
+  modifyCurrentFrame (field @"frCommands" %~ (Seq.|> qc))
 
 -- MonadIO would be enough here.
 assert :: MonadIO m => SExpr -> SolverT m ()
@@ -630,7 +632,7 @@ instance PP QueuedCommand where
 
 instance PP SolverFrame where
   pp sf =
-    hang ("index" <> pp (frId sf)) 2 (bullets (map pp (frCommands sf))) 
+    hang ("index" <> pp (frId sf)) 2 (bullets (map pp (toList $ frCommands sf))) 
 
 instance PP SolverContext where
   pp (SolverContext fs) = bullets (map pp fs)
