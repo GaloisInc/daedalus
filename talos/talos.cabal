@@ -54,9 +54,13 @@ library
                      , Talos.Strategy.SearchTree
                      , Talos.Strategy.SearchT
                      , Talos.Strategy.SymbolicM
+                     , Talos.Strategy.PathSymbolicM
+                     , Talos.Strategy.MuxValue                     
 
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
+                     , Talos.Strategy.PathSymbolic
+                     , Talos.Strategy.PathCondition                     
                      , Talos.Strategy.MemoSearch                     
                      -- , Talos.Strategy.BackwardSymbolic
 

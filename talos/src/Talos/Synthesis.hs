@@ -15,21 +15,17 @@ import           Control.Monad.State
 import           Data.ByteString                 (ByteString)
 import qualified Data.ByteString                 as BS
 import           Data.Foldable                   (find)
+import           Data.Functor.Identity           (Identity (Identity))
 import           Data.List                       (foldl')
 import qualified Data.List.NonEmpty              as NE
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
 import qualified Data.Set                        as Set
 import           Data.Word
+import           SimpleSMT                       (Solver)
 import           System.IO.Streams               (Generator, InputStream)
 import qualified System.IO.Streams               as Streams
 import           System.Random
-
--- To represent the partially constructed input
--- import qualified Data.IntervalMap as IMap
--- import Data.IntervalMap (IntervalMap)
-
-import           SimpleSMT                       (Solver)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
@@ -45,8 +41,8 @@ import           RTS.Parser                      (runParser)
 import           RTS.ParserAPI                   (Result (..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
+import           Talos.Analysis.Exported         (ExpSlice, esRootSlices)
 import           Talos.Analysis.Merge            (merge)
-import           Talos.Analysis.Exported         (ExpSummary (..), ExpSlice, esRootSlices)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
@@ -368,11 +364,6 @@ choosePath cp x = do
 -- arrayFromList :: [Value] -> Value
 -- arrayFromList = InterpValue . I.VArray . Vector.fromList . map assertInterpValue
 
--- -- FIXME: next 3 copied from Interp.hs
--- -- We can use VUInt instead of mkUInt here b/c we are coming from Word8
-byteStringToValue :: ByteString -> I.Value
-byteStringToValue = I.vByteString
-
 -- matchPatOneOf :: [TCPat] -> I.Value -> Maybe [(Name,I.Value)]
 -- matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
 
@@ -424,22 +415,16 @@ synthesiseG (SelectedBytes prov bs) g = do
       
   pure (InterpValue res)
       
-synthesiseG (SelectedChoice n sp) (Choice _biased gs)
+synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
 
-synthesiseG (SelectedCase n sp) (GCase cs@(Case y alts))
-  | n < length alts = do
-      v <- synthesiseV (Var y) -- FIXME: a bit gross, should just lookup the env
-      let (pat, g) = alts !! n
-      if I.matches pat (assertInterpValue v) -- sanity check prover result
-        then synthesiseG sp g
-        else do env <- projectEnvForM y
-                let ppOne (k, v') = pp k <+> "->" <+> pp v'
-                    ppM = block "{" "," "}" . map ppOne . Map.toList
-                panic "Failed to match pattern" [show n, showPP (assertInterpValue v), showPP cs, show (ppM (I.vEnv env))]
-  | otherwise = panic "No matching case" [show n, showPP cs]
-  
+synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
+  let v = Var (caseVar cs)
+  env <- projectEnvForM v
+  let base = panic "Failed to match pattern" [showPP cs]
+  I.evalCase (\g _ -> synthesiseG sp g) base cs env 
+
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
 synthesiseG p (Let x e rhs) = synthesiseG p (Do x (Pure e) rhs)

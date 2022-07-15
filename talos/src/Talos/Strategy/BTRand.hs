@@ -8,6 +8,7 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString                 as BS
+import           Data.Functor.Identity           (Identity (Identity))
 import qualified Data.Map                        as Map
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -17,11 +18,12 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.Core.Type              (typeOf)
 import qualified Daedalus.Value                  as I
 
+import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice)
 import           Talos.Analysis.Slice
-import           Talos.Analysis.Exported (ExpSlice, ExpCallNode(..))
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
+
 
 
 -- ----------------------------------------------------------------------------------------
@@ -119,21 +121,16 @@ stratSlice ptag = go
           pure (I.vUInt 8 (fromIntegral b)
                , SelectedBytes ptag (BS.singleton b))
           
-        -- SAssertion e -> do
-        --   b <- I.valueToBool <$> synthesiseExpr e
-        --   guard b
-        --   pure (uncPath I.vUnit)
-
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
           -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
-          onSlice (SelectedChoice i) <$> go sl'
+          onSlice (SelectedChoice . PathIndex i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> do
           env <- ask
-          I.evalCase (\(i, sl') _env -> onSlice (SelectedCase i) <$> go sl' ) mzero (enumerate c) env
+          I.evalCase (\(i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
 
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do

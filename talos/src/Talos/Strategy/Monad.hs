@@ -11,8 +11,8 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getSlice -- , getParamSlice
-                            , getFunDefs, getTypeDefs, isRecVar
+                            , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
+                            , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
@@ -22,10 +22,12 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Free     (FreeT)
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Writer         (WriterT)
 import qualified Data.ByteString              as BS
 import           Data.Foldable                (find, foldl')
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           System.Random
 
@@ -41,6 +43,8 @@ import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
+
+
 
 
 -- ----------------------------------------------------------------------------------------
@@ -69,17 +73,19 @@ data StrategyMState  =
                  , stsModule    :: Module
                  -- Derived from the module
                  , stsFunDefs   :: Map FName (Fun Expr)
+                 , stsBFunDefs  :: Map FName (Fun ByteSet)
                  , stsIEnv      :: I.Env
                  , stsNextGUID  :: GUID
                  }
 
 emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs env0 nguid'
+emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs bfunDefs env0 nguid'
   where
     (expss, nguid') = exportSummaries tyDefs (ss, nguid)
     env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
     tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
     funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
+    bfunDefs = Map.fromList [ (fName f, f) | f <- mBFuns md ]
 
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
@@ -104,6 +110,15 @@ getSlice sid = do
 isRecVar :: LiftStrategyM m => Name -> m Bool
 isRecVar n = do
   liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
+
+sccsFor :: LiftStrategyM m => SliceId -> m (Maybe (Set SliceId))
+sccsFor sid = do
+  liftStrategy (StrategyM (gets (Map.lookup sid . esRecs . stsSummaries)))
+
+backEdgesFor :: LiftStrategyM m => SliceId -> m (Map SliceId (Set SliceId))
+backEdgesFor entrySid = do
+  liftStrategy (StrategyM (gets (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)))
+
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
 -- callNodeToSlices cn = do
@@ -143,6 +158,9 @@ getTypeDefs = liftStrategy (StrategyM (gets (I.tEnv . stsIEnv)))
 
 getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
 getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
+
+getBFunDefs :: LiftStrategyM m => m (Map FName (Fun ByteSet))
+getBFunDefs = liftStrategy (StrategyM (gets stsBFunDefs))
 
 getIEnv :: LiftStrategyM m => m I.Env
 getIEnv = liftStrategy (StrategyM (gets stsIEnv))
@@ -256,6 +274,8 @@ instance LiftStrategyM m => LiftStrategyM (StateT s m) where
   liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
   liftStrategy = lift . liftStrategy
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (WriterT w m) where
+  liftStrategy = lift . liftStrategy  
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
   liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where

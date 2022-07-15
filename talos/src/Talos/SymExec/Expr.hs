@@ -132,7 +132,7 @@ symExecOp1 op ty =
 symExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> SExpr -> SExpr -> SolverT m SExpr
 
 -- Generic ops
-symExecOp2 Emit elTy         = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v2 v1
+symExecOp2 Emit (TBuilder elTy) = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v2 v1
 symExecOp2 Eq          _elTy = \v1 v2 -> pure $ S.eq v1 v2
 symExecOp2 NotEq       _elTy = \x y -> pure $ S.distinct [x, y]
 symExecOp2 MapLookup   (TMap kt vt) = \x y -> do
@@ -259,26 +259,29 @@ symExecCoerce fromT toT _v  =
 -- -----------------------------------------------------------------------------
 -- Expressions
 
--- Compile patterns to a list of predicates, one for each alternative
-symExecCaseAlts :: (Monad m, HasGUID m, MonadIO m) => Case a -> SymExecM m [(SExpr, a)]
-symExecCaseAlts (Case y alts) = do
-  se <- symExecName y
-  pure [ (patAssn se p, a) | (p, a) <- alts ]
+patternToPredicate :: Type -> Pattern -> SExpr -> SExpr
+patternToPredicate ty p se = case p of
+  PBytes _bs -> panic "FIXME" []
+  PBool b    -> if b then se else S.not se
+  PNothing   -> S.fun "is-Nothing" [se]
+  PJust      -> S.fun "is-Just" [se]
+  PNum n     -> S.eq se (mkLit n)
+  PCon l     -> S.fun ("is-" ++ labelToField tyName l) [se]
+  PAny       -> S.bool True
   where
-    patAssn se p = case p of
-      PBool b  -> if b then se else S.not se
-      PNothing -> S.fun "is-Nothing" [se]
-      PJust    -> S.fun "is-Just" [se]
-      PNum n   -> S.eq se (mkLit n)
-      PCon l   -> S.fun ("is-" ++ labelToField tyName l) [se]
-      PAny     -> S.bool True
-      
-    ty = typeOf y
     mkLit n = symExecOp0 (IntL n ty)
 
     tyName = case ty of
       TUser ut -> utName ut
       _        -> panic "Not a user type" [showPP ty]
+
+-- Compile patterns to a list of predicates, one for each alternative
+symExecCaseAlts :: (Monad m, HasGUID m, MonadIO m) => Case a -> SymExecM m [(SExpr, a)]
+symExecCaseAlts (Case y alts) = do
+  se <- symExecName y
+  pure [ (patternToPredicate ty p se, a) | (p, a) <- alts ]
+  where
+    ty = typeOf y
 
 symExecCase :: SymExec a -> SymExec (Case a)
 symExecCase symE c = do

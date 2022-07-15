@@ -3,37 +3,44 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- Path set analysis
 
 module Talos.SymExec.Path where
 
-import GHC.Generics (Generic)
-import Data.ByteString (ByteString)
-import Data.Map (Map)
+import           Control.DeepSeq       (NFData)
+import           Data.ByteString       (ByteString)
+import           Data.Functor.Identity (Identity (Identity))
+import           Data.Map              (Map)
+import           GHC.Generics          (Generic)
 
-import Control.DeepSeq -- for benchmarking etc.
+import           Daedalus.PP
+import           Daedalus.Panic
 
-import Daedalus.PP
-import Daedalus.Panic
-
-import Talos.Analysis.Slice (FInstId)
-import Talos.Analysis.Merge (Merge(..))
+import           Talos.Analysis.Merge  (Merge (..))
+import           Talos.Analysis.Slice  (FInstId)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
-data SelectedPathF a = 
+data SelectedPathF ch ca a = 
     SelectedHole 
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo (SelectedPathF a) (SelectedPathF a)
-  | SelectedChoice Int (SelectedPathF a)
-  | SelectedCall FInstId (SelectedPathF a)
-  | SelectedCase Int (SelectedPathF a)
-  deriving (Functor, Foldable, Traversable, Generic, NFData)
+  | SelectedDo (SelectedPathF ch ca a) (SelectedPathF ch ca a)
+  | SelectedChoice (ch (SelectedPathF ch ca a))
+  | SelectedCall FInstId (SelectedPathF ch ca a)
+  | SelectedCase (ca (SelectedPathF ch ca a))
+  deriving (Functor, Foldable, Traversable, Generic)
 
-type SelectedPath = SelectedPathF ByteString
+data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+type SelectedPath = SelectedPathF PathIndex Identity ByteString
+
+deriving instance NFData SelectedPath
 
 -- -- isXs, mainly because we don't always have equality over nodes
 -- isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
@@ -134,36 +141,39 @@ firstSolverProvenance = 2
 --------------------------------------------------------------------------------
 -- Instances
 
-
 -- FIXME: too general probably
-instance Merge (SelectedPathF a) where
+instance Merge (SelectedPathF PathIndex Identity a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
       (_, SelectedHole) -> psL
-      (SelectedChoice n1 sp1, SelectedChoice n2 sp2)
+      (SelectedChoice (PathIndex n1 sp1), SelectedChoice (PathIndex n2 sp2))
         | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
-        | otherwise -> SelectedChoice n1 (merge sp1 sp2)
-      (SelectedCase n1 sp1, SelectedCase n2 sp2)
-        | n1 /= n2  -> panic "BUG: Incompatible cases selected in merge" [show n1, show n2]
-        | otherwise -> SelectedCase n1 (merge sp1 sp2)
+        | otherwise -> SelectedChoice (PathIndex n1 (merge sp1 sp2))
+      (SelectedCase (Identity sp1), SelectedCase (Identity sp2))
+        -> SelectedCase (Identity (merge sp1 sp2))
       (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       _ -> panic "BUG: merging non-mergeable nodes" []
 
-instance PP a => PP (SelectedPathF a) where
-  ppPrec n p =
+instance ( Functor ch, PP (ch Doc)
+         , Functor ca, PP (ca Doc)
+         , PP a) => PP ( SelectedPathF ch ca a ) where
+  ppPrec n p = 
     case p of
-      SelectedHole       -> "[]"
+      SelectedHole       -> "□"
       SelectedBytes _ bs -> pp bs
       SelectedDo {}      -> "do" <+> ppStmts' p
-      SelectedChoice n'  sp  -> wrapIf (n > 0) $ "choice" <+> pp n' <+> ppPrec 1 sp
-      SelectedCase   n'  sp  -> wrapIf (n > 0) $ "case" <+> pp n' <+> ppPrec 1 sp
+      SelectedChoice ch ->
+          wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
+      SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
 
-ppStmts' :: PP a => SelectedPathF a -> Doc
+ppStmts' :: ( Functor ch, PP (ch Doc)
+            , Functor ca, PP (ca Doc)
+            , PP a) => SelectedPathF ch ca a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2

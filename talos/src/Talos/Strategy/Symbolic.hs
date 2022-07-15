@@ -4,12 +4,15 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.Symbolic (symbolicStrats) where
 
-import Control.Lens (over, _3, view)
+import           Control.Lens                 (_3, over, view)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
+import           Data.Foldable                (fold)
+import           Data.Functor.Identity        (Identity (Identity))
 import qualified Data.Map                     as Map
+import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           Data.Word                    (Word8)
 import qualified SimpleSMT                    as S
@@ -21,14 +24,16 @@ import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
 import           Daedalus.PP                  hiding (empty)
 import           Daedalus.Panic
+import           Daedalus.Rec                 (topoOrder)
 import qualified Daedalus.Value               as I
 
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
-                                               sliceToCallees, SliceId)
+                                               SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
+import           Talos.Strategy.MemoSearch    (memoSearch, randAccelDFSPolicy,
+                                               randDFSPolicy, randRestartPolicy)
 import           Talos.Strategy.Monad
 import           Talos.Strategy.SymbolicM
-import           Talos.Strategy.MemoSearch    (memoSearch, randRestartPolicy, randDFSPolicy, randAccelDFSPolicy)
 import           Talos.SymExec.Expr           (symExecCaseAlts)
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
@@ -37,13 +42,14 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
-                                               declareSymbol, reset, scoped)
+                                               declareSymbol, reset, scoped, liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
-import Daedalus.Rec (topoOrder, forgetRecs)
-import Data.Foldable (fold)
-import Data.Set (Set)
+
+
+
+
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -150,7 +156,7 @@ stratSlice ptag = go
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.
         SMatch bset -> do
-          bname <- vSExpr (TUInt (TSize 8)) <$> inSolver (declareSymbol "b" tByte)
+          bname <- vSExpr (TUInt (TSize 8)) . S.const <$> liftSolver (declareSymbol "b" tByte)
           bassn <- synthesiseByteSet bset bname
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
@@ -173,14 +179,14 @@ stratSlice ptag = go
           -- e <- ask
           -- liftIO (print [ (pp n, v) | (n, v) <- Map.toList e] )
           enterPathNode (Set.singleton cid) $
-            over _3 (SelectedChoice i) <$> go sl'
+            over _3 (SelectedChoice . PathIndex i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- vSExpr (typeOf n) <$> inSolver (declareName n (symExecTy (typeOf n)))
+          n' <- vSExpr (typeOf n) <$> liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' mempty $ do
             pe <- synthesiseExpr p
             assert pe
@@ -211,7 +217,7 @@ stratCase ptag cs = do
   path_cids <- getPathDeps
   let cids = var_cids <> path_cids
   case m_alt of
-    DidMatch i sl -> over _3 (SelectedCase i) <$> enterPathNode cids (stratSlice ptag sl)
+    DidMatch _i sl -> over _3 (SelectedCase . Identity) <$> enterPathNode cids (stratSlice ptag sl)
     NoMatch  -> do
       -- x <- fmap (text . flip S.ppSExpr "" . typedThing) <$> getName (caseVar cs)
       -- liftIO $ print ("No match for " <> pp (caseVar cs) <> " = " <> pp x $$ pp cs)
@@ -220,11 +226,11 @@ stratCase ptag cs = do
       
     TooSymbolic -> do
       ps <- liftSemiSolverM (symExecToSemiExec (symExecCaseAlts cs))
-      (cid, (i, (p, sl))) <- choose (enumerate ps)
+      (cid, (p, sl)) <- choose ps
       enterPathNode (Set.singleton cid) $ do
         assert (vSExpr TBool p)
         check
-        over _3 (SelectedCase i) <$> stratSlice ptag sl
+        over _3 (SelectedCase . Identity) <$> stratSlice ptag sl
 
 -- FIXME: this is copied from BTRand
 stratCallNode :: ProvenanceTag -> ExpCallNode ->
@@ -246,7 +252,7 @@ synthesiseByteSet bs = liftSemiSolverM . semiExecByteSet bs
 
 check :: SymbolicM ()
 check = do
-  r <- inSolver Solv.check
+  r <- liftSolver Solv.check
   case r of
     S.Sat     -> pure ()
     S.Unsat   -> backtrack OtherFailure
@@ -257,7 +263,7 @@ check = do
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
-    VOther p -> inSolver (Solv.assert (typedThing p))
+    VOther p -> liftSolver (Solv.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
     -- FIXME: Set.empty is not quite right here, but this will usually
     -- not get here anyway.

@@ -20,34 +20,34 @@ module Talos.SymExec.SemiExpr ( runSemiSolverM
 
 -- import Data.Map (Map)
 import           Control.Monad.Reader
-import           Data.Foldable                   (find)
-import           Data.Map                        (Map)
-import qualified Data.Map                        as Map
-import           Data.Maybe                      (isJust, isNothing)
-import qualified Data.Vector                     as Vector
+import           Data.Foldable                (find)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Data.Maybe                   (isJust, isNothing)
+import qualified Data.Vector                  as Vector
+import           GHC.Stack                    (HasCallStack)
+import           SimpleSMT                    (SExpr)
+import qualified SimpleSMT                    as S
 
-import           SimpleSMT                       (SExpr)
-import qualified SimpleSMT                       as S
-
-import           Daedalus.Core                   hiding (freshName)
-import qualified Daedalus.Core.Semantics.Env     as I
-import           Daedalus.Core.Semantics.Expr    (evalOp0, evalOp1, evalOp2,
-                                                  evalOp3, evalOpN, matches,
-                                                  partial)
+import           Daedalus.Core                hiding (freshName)
+import qualified Daedalus.Core.Semantics.Env  as I
+import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
+                                               evalOp3, evalOpN, matches,
+                                               partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
-import qualified Daedalus.Value.Type             as V
+import qualified Daedalus.Value.Type          as V
 
 -- import Talos.Strategy.Monad
-import qualified Talos.SymExec.Expr as SE
-import           Talos.SymExec.SemiValue (SemiValue (..))
-import qualified Talos.SymExec.SemiValue as SV
+import qualified Talos.SymExec.Expr           as SE
+import           Talos.SymExec.SemiValue      (SemiValue (..))
+import qualified Talos.SymExec.SemiValue      as SV
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-import GHC.Stack (HasCallStack)
+
 
 
 -- FIXME: move
@@ -362,9 +362,10 @@ bOpMany opUnit els
       tys <- asks typeDefs
       -- strip out units and
       let nonUnits = [ semiSExprToSExpr tys TBool sv | sv <- els, not (isBool opUnit sv) ]
-      if null nonUnits
-        then pure (VBool opUnit)
-        else pure (vSExpr TBool (op nonUnits))
+      case nonUnits of
+        [] -> pure (VBool opUnit)
+        [el] -> pure (vSExpr TBool el)
+        _    -> pure (vSExpr TBool (op nonUnits))
   where
     isBool b (VBool b') = b == b'
     isBool _ _ = False

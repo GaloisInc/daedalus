@@ -5,6 +5,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Defines the symbolic parser API.  This wraps the SimpleSMT API
 
@@ -17,7 +19,7 @@ module Talos.SymExec.SolverT (
   withSolver, SMTVar,
   -- assert, declare, check,
   solverOp, solverState,
-  getValue,
+  getValue, getModel,
   -- * Context management
   SolverContext, SolverFrame, getContext, restoreContext,
   freshContext, collapseContext, extendContext, instantiateSolverFrame,
@@ -32,35 +34,45 @@ module Talos.SymExec.SolverT (
   typeNameToDefault,
   -- * Context management
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
-  freshName, freshSymbol, defineName, declareName, declareSymbol, declareFreshSymbol, knownFNames,
-  reset, assert, check
-
+  freshName, freshSymbol, defineName, declareName,
+  defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
+  reset, assert, check,
+  -- * Type Class
+  MonadSolver(..)
   ) where
 
 import           Control.Applicative
 import           Control.Lens
+import           Control.Monad.Reader      (ReaderT)
 import           Control.Monad.State
-import           Data.Foldable         (for_)
-import           Data.Function         (on)
-import           Data.Functor          (($>))
-import           Data.Generics.Product (field)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
-import           Data.Text             (Text)
-import           GHC.Generics          (Generic)
-import           SimpleSMT             (SExpr, Solver)
-import qualified SimpleSMT             as S
+import           Control.Monad.Trans.Free  (FreeT)
+import           Control.Monad.Trans.Maybe (MaybeT)
+import           Control.Monad.Writer      (WriterT)
+import           Data.Foldable             (for_, toList)
+import           Data.Function             (on)
+import           Data.Functor              (($>))
+import           Data.Generics.Product     (field)
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Maybe                (catMaybes)
+import           Data.Set                  (Set)
+import qualified Data.Set                  as Set
+import           Data.Text                 (Text)
+import           GHC.Generics              (Generic)
+import           SimpleSMT                 (SExpr, Solver)
+import qualified SimpleSMT                 as S
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
-import           Daedalus.Core         hiding (freshName)
-import qualified Daedalus.Core         as C
+import           Daedalus.Core             hiding (freshName)
+import qualified Daedalus.Core             as C
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.SymExec.StdLib
-import Data.Maybe (catMaybes)
+
+
 -- import Text.Printf (printf)
 
 type SMTVar = String
@@ -80,7 +92,7 @@ data QueuedCommand =
 -- solver as push/pop are effectful.
 data SolverFrame = SolverFrame
   { frId        :: !Int -- ^ The index of the choice which led to this frame
-  , frCommands   :: ![QueuedCommand]
+  , frCommands   :: !(Seq QueuedCommand)
   -- , frBoundNames :: !(Map Name SMTVar)
   -- ^ May include names bound in closed scopes, to allow for
   --
@@ -162,7 +174,7 @@ flush = do
     solverOp S.push
 
   currentPending <- SolverT $ gets $ \s ->
-    drop (ssNCurrentFlushed s) (frCommands (ssCurrentFrame s))
+    Seq.drop (ssNCurrentFlushed s) (frCommands (ssCurrentFrame s))
 
   mapM_ execQueuedCommand currentPending
   SolverT . modify $ \s -> do
@@ -190,7 +202,7 @@ pushFrame force = do
 freshContext :: Monad m => [(SMTVar, SExpr)] -> SolverT m SolverContext
 freshContext decls = do
   fr <- freshSolverFrame
-  let fr' = fr { frCommands = map (uncurry QCDeclare) decls }
+  let fr' = fr { frCommands = Seq.fromList $ map (uncurry QCDeclare) decls }
       -- This represents the global namespace, it needs to be there so
       -- we don't overpop.  FIXME: a hack :(  
       baseFrame = emptySolverFrame 0
@@ -228,7 +240,7 @@ instantiateSolverFrame :: (Monad m, HasGUID m) =>
                           SolverT m (SolverFrame, Map SMTVar SExpr)
 instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
   fr <- freshSolverFrame
-  (cs', e) <- runStateT (catMaybes <$> mapM go cs) baseEnv
+  (cs', e) <- runStateT (Seq.fromList . catMaybes . toList <$> traverse go cs) baseEnv
   pure (fr { frCommands = cs' }, e)
   where
     go :: (Monad m, HasGUID m) => QueuedCommand ->
@@ -338,7 +350,7 @@ solverOp f = withSolver (liftIO . f)
 
 queueSolverOp :: Monad m => QueuedCommand -> SolverT m ()
 queueSolverOp qc = 
-  modifyCurrentFrame (field @"frCommands" <>~ [qc])
+  modifyCurrentFrame (field @"frCommands" %~ (Seq.|> qc))
 
 -- MonadIO would be enough here.
 assert :: MonadIO m => SExpr -> SolverT m ()
@@ -357,6 +369,10 @@ getValue v = do
                  , "  Exptected: a value"
                  , "  Result: " ++ S.showsSExpr res ""
                  ]) []
+
+-- Mainly for debugging
+getModel :: MonadIO m => SolverT m SExpr
+getModel = solverOp (\s -> S.command s $ S.List [S.const "get-model"])
 
 -- -----------------------------------------------------------------------------
 -- Names
@@ -380,14 +396,6 @@ tnameToSMTName n = textToSMTName (tnameText n) (tnameId n)
 knownFNames :: Monad m => SolverT m (Set FName)
 knownFNames = SolverT $ gets ssKnownFuns
 
-getName :: Monad m => Name -> SolverT m SExpr
-getName n = do
-  panic "getName" [showPP n]
-  -- m_s <- inCurrentFrame (pure . lookupName n)
-  -- case m_s of
-  --   Just s -> pure s
-  --   Nothing -> panic "Missing name" [showPP n]
-
 getPolyFun :: Monad m => PolyFun -> SolverT m SExpr
 getPolyFun pf = do
   m_s <- SolverT $ gets (Map.lookup pf . ssKnownPolys)
@@ -404,11 +412,11 @@ freshSymbol pfx = do
 declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
 declareFreshSymbol sym ty = queueSolverOp (QCDeclare sym ty)
 
-declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SExpr
+declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SMTVar
 declareSymbol pfx ty = do
   sym <- freshSymbol pfx
   queueSolverOp (QCDeclare sym ty)
-  pure (S.const sym)
+  pure sym
 
 freshName :: (Monad m, HasGUID m) => Name -> SolverT m SMTVar
 freshName n = do
@@ -416,6 +424,13 @@ freshName n = do
   let ns = nameToSMTName n'
   -- modifyCurrentFrame (bindName n ns)
   pure ns
+
+defineSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SExpr ->
+                SolverT m SMTVar
+defineSymbol pfx ty e = do
+  sym <- freshSymbol pfx
+  queueSolverOp (QCDefine sym ty e)
+  pure sym
 
 -- FIXME: we could convert the type here
 -- gives a name a value, returns the fresh name
@@ -569,6 +584,34 @@ defineSMTPolyFun pf = onState (field @"ssKnownPolys") $ \polys -> do
              fnm <- freshSymbol "mapInsert"
              solverOp (\s' -> mkMapInsert s' fnm kt vt) $> Map.insert pf fnm polys
 
+
+-- -----------------------------------------------------------------------------
+-- Convenience class
+
+class (Monad m, MonadIO (BaseMonad m), HasGUID (BaseMonad m)) => MonadSolver m where
+  type BaseMonad m :: * -> *
+  liftSolver :: SolverT (BaseMonad m) a -> m a
+
+instance (Monad m, MonadIO m, HasGUID m) => MonadSolver (SolverT m) where
+  type BaseMonad (SolverT m) = m
+  liftSolver m = m
+  
+instance (Monad m, MonadSolver m) => MonadSolver (StateT s m) where
+  type BaseMonad (StateT s m) = BaseMonad m
+  liftSolver = lift . liftSolver  
+instance (Monad m, MonadSolver m) => MonadSolver (ReaderT s m) where
+  type BaseMonad (ReaderT s m) = BaseMonad m  
+  liftSolver = lift . liftSolver
+instance (Monoid w, Monad m,  MonadSolver m) => MonadSolver (WriterT w m) where
+  type BaseMonad (WriterT w m) = BaseMonad m
+  liftSolver = lift . liftSolver  
+instance (Monad m, MonadSolver m) => MonadSolver (MaybeT m) where
+  type BaseMonad (MaybeT m) = BaseMonad m
+  liftSolver = lift . liftSolver
+instance (Functor f, Monad m, MonadSolver m) => MonadSolver (FreeT f m) where
+  type BaseMonad (FreeT f m) = BaseMonad m
+  liftSolver = lift . liftSolver
+
 -- -----------------------------------------------------------------------------
 -- instances
 
@@ -589,7 +632,7 @@ instance PP QueuedCommand where
 
 instance PP SolverFrame where
   pp sf =
-    hang ("index" <> pp (frId sf)) 2 (bullets (map pp (frCommands sf))) 
+    hang ("index" <> pp (frId sf)) 2 (bullets (map pp (toList $ frCommands sf))) 
 
 instance PP SolverContext where
   pp (SolverContext fs) = bullets (map pp fs)

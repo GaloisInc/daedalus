@@ -2,28 +2,29 @@
 
 module Talos.Strategy (allStrategies, runStrategies, runStrategy) where
 
-import           Control.DeepSeq         (force)
-import           Control.Exception       (evaluate)
+import           Control.DeepSeq             (force)
+import           Control.Exception           (evaluate)
 import           Control.Monad.IO.Class
-import           Data.Maybe              (isNothing)
-import           System.Clock            (Clock (MonotonicRaw), diffTimeSpec,
-                                          getTime, toNanoSecs)
-import           System.IO               (hFlush, stdout)
+import           Data.Maybe                  (isNothing)
+import           System.Clock                (Clock (MonotonicRaw),
+                                              diffTimeSpec, getTime, toNanoSecs)
+import           System.IO                   (hFlush, stdout)
 import           Text.Printf
 
 import           Daedalus.Core
 import           Daedalus.PP
 
-import           Talos.Analysis.Exported (ExpSlice)
+import           Talos.Analysis.Exported     (ExpSlice)
 import           Talos.Strategy.BTRand
-import           Talos.Strategy.Monad    (LiftStrategyM (..), StratFun (..),
-                                          Strategy (..), StrategyM)
-import           Talos.Strategy.Symbolic (symbolicStrats)
+import           Talos.Strategy.Monad        (LiftStrategyM (..), StratFun (..),
+                                              Strategy (..), StrategyM)
+import           Talos.Strategy.PathSymbolic (pathSymbolicStrats)
+import           Talos.Strategy.Symbolic     (symbolicStrats)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT   (SolverState, runSolverT)
+import           Talos.SymExec.SolverT       (SolverState, runSolverT)
 
 allStrategies :: [Strategy]
-allStrategies = [ randRestart, randMaybeT, randDFS ] ++ symbolicStrats {- , backwardSymbolicStrat -}
+allStrategies = [ randRestart, randMaybeT, randDFS ] ++ symbolicStrats ++  pathSymbolicStrats {- , backwardSymbolicStrat -}
 
 runStrategy :: SolverState -> Strategy -> ProvenanceTag -> ExpSlice ->
                StrategyM (Maybe SelectedPath, SolverState)
