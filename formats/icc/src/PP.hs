@@ -58,7 +58,7 @@ instance PP RTS.ParseError where
     vcat [ "ERROR at offset" <+> (loc <> colon)
          , nest 2 $ vcat [ text (RTS.peMsg x)
                          , "-- stack ---"
-                         , vcat (map text (RTS.peStack x))
+                         , vcat (map RTS.ppAnnot (RTS.peStack x))
                          ]
          ]
     where

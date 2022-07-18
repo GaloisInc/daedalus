@@ -40,7 +40,7 @@ compileDDL =
 
      ddlIO $ putStrLn "... but only creating/updating these Haskell files:"
      mapM_ (\m -> saveHSCustomWriteFile writeOnlyIfChanged
-                        (Just "src/spec") defaultCompilerCfg m) todo
+                        (Just "src/spec") (const mempty) m) todo
      ddlIO $ putStrLn "... daedalus done"
   `catch` \d -> putStrLn =<< prettyDaedalusError d
 
