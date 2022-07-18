@@ -41,6 +41,7 @@ import Daedalus.Interp
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS
 import Daedalus.CompileHS(hsIdentMod)
+import qualified Daedalus.TH.Compile as THC
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypes)
@@ -321,7 +322,12 @@ generateCPP opts mm =
             mapM_ save c_template_files
 
 generateHS :: Options -> ModuleName -> [ModuleName] -> Daedalus ()
-generateHS opts mainMod allMods =
+generateHS opts mainMod allMods
+  | hsoptCore hsopts =
+    let cfg = THC.defaultConfig -- XXX
+    in ddlIO $ THC.saveDDLWith cfg (THC.FromModule mainMod) (Just "out.hs") --XX
+
+  | otherwise =
   do let makeExe = null (optEntries opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError

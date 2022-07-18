@@ -50,6 +50,7 @@ library
                        Daedalus.Compile.ConfigParser,
                        Daedalus.Driver,
                        Daedalus.DriverHS,
+                       Daedalus.TH.Compile,
                        Daedalus.Pass,
                        Daedalus.Type,
                        Daedalus.Type.Pretty,
@@ -117,7 +118,8 @@ library
                        daedalus-core,
                        daedalus-vm,
                        daedalus-value,
-                       rts-hs
+                       rts-hs,
+                       rts-vm-hs
 
 
 executable daedalus
@@ -131,6 +133,7 @@ executable daedalus
                        daedalus-value,
                        daedalus-vm,
                        rts-hs,
+                       rts-vm-hs,
                        pretty-hex >= 1.1,
                        ansi-terminal,
                        base,

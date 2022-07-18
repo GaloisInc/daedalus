@@ -90,6 +90,7 @@ data OptsHS =
     , hsoptImports :: [ (String,Maybe String) ]   -- module as A
     , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
     , hsoptFile    :: Maybe FilePath
+    , hsoptCore    :: Bool
     }
 
 noOptsHS :: OptsHS
@@ -99,7 +100,14 @@ noOptsHS =
     , hsoptImports = []
     , hsoptPrims   = []
     , hsoptFile    = Nothing
+    , hsoptCore    = False
     }
+
+noOptHS :: (OptsHS -> Either String OptsHS) ->
+           Options -> Either String Options
+noOptHS f o =
+  do o1 <- f (optHS o)
+     pure o { optHS = o1 }
 
 reqOptHS :: (String -> OptsHS -> Either String OptsHS) ->
             String -> Options -> Either String Options
@@ -296,6 +304,10 @@ cmdCompileHSOptions = (\o -> o { optCommand = CompileHS }, opts)
                 Right o { hsoptPrims = (m, n, p) : hsoptPrims o }
             _ -> Left
               "Invalid primitve, expected: MODULE:PRIM_NAME:EXTERNAL_NAME"
+
+      , Option [] ["vm"]
+        "Use the VM backend (experimental)."
+        $ NoArg $ noOptHS \o -> pure o { hsoptCore = True }
 
       , helpOption
       ]

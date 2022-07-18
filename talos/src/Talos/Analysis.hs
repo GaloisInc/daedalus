@@ -241,7 +241,7 @@ caseIsTotal (Case e alts)
     hasDefault = any ((==) PAny . fst) alts
 
     nLabels ut = case tnameFlav (utName ut) of
-      TFlavStruct   -> panic "Unexpected struct" []
+      TFlavStruct {} -> panic "Unexpected struct" []
       TFlavUnion ls -> length ls
       TFlavEnum  ls -> length ls
 

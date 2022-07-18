@@ -14,9 +14,10 @@ import Language.Haskell.TH(Q)
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Datatype.TyVarBndr as TH
 
-import qualified RTS as RTS
+import qualified Daedalus.RTS as RTS
 
 import Daedalus.Rec(Rec,recToList)
+import qualified Daedalus.BDD as BDD
 import Daedalus.Core.Basics
 import Daedalus.Core.Decl
 import Daedalus.Core.TH.Names
@@ -48,22 +49,12 @@ newTParam k p =
 compileTDef ::
   HasTypeParams => TName -> [TH.TyVarBndr] -> [TH.TyVarBndr] -> TDef -> TH.DecsQ
 compileTDef name asN asT def =
-  do i  <- ddlInstance
-     is <- case def of
-             TStruct fs -> compileStruct name allParams fs
-             TUnion  fs -> compileUnion  name allParams fs
-     pure (i : is)
-
-
+  case def of
+    TStruct fs   -> compileStruct name allParams fs
+    TUnion  fs   -> compileUnion  name allParams fs
+    TBitdata u d -> compileBitdata name u d
   where
   allParams = asN ++ asT
-
-  ddlInstance =
-    do let ty     = mkT (dataName name) allParams
-           asmp x = [t| RTS.DDL $(TH.varT (TH.tvName x)) |]
-           asmps  = mapM asmp asT
-
-       TH.instanceD asmps [t| RTS.DDL $(pure ty) |] []
 
 
 
@@ -103,7 +94,10 @@ compileStruct name as fields =
 
      hasIs <- traverse (hasInstance ty cname fs) fs
 
-     pure (dataD : concat hasIs)
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id |]
+
+     pure (dataD : cvtIs ++ concat hasIs)
 
   where
   hasInstance ty cname fs (l,mb) =
@@ -141,10 +135,12 @@ compileUnion name as cons =
      deriv <- standardDeriving
      let tname = dataName name
      let dataD = TH.DataD [] tname as Nothing (map mkConD fs) [deriv]
+     let ty = mkT tname as
+     hasIs <- traverse (hasInstance ty) fs
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id |]
 
-     hasIs <- traverse (hasInstance (mkT tname as)) fs
-
-     pure (dataD : concat hasIs)
+     pure (dataD : cvtIs ++ concat hasIs)
 
   where
   lab l = pure (TH.LitT (TH.StrTyLit (Text.unpack l)))
@@ -161,6 +157,74 @@ compileUnion name as cons =
 
 
     in [d| instance R.HasField $(lab l) $(pure ty) $ft where
-             getField = $def |]
+             getField = $def
+        |]
+
+
+compileBitdata :: HasTypeParams => TName -> BDD.Pat -> BitdataDef -> TH.DecsQ
+compileBitdata name univ def =
+  do let tname = dataName name
+     let ty    = mkT tname []
+     let cname = structConName name
+
+     deriv <- standardDeriving    -- Hm, equality in the presence of wildcards?
+     let w = toInteger (BDD.width univ)
+     repT  <- compileMonoType (tWord w)
+     let con   = TH.NormalC cname [bangT repT]
+     let dataD = TH.NewtypeD [] tname [] Nothing con [deriv]
+
+     cvtIs <- [d| instance RTS.Convert $(pure ty) $(pure ty) where
+                    convert = id
+
+                  instance RTS.Bitdata $(pure ty) where
+                    type instance BDWidth $(pure ty) =
+                                          $(TH.litT (TH.numTyLit w))
+                    fromBits = $(TH.conE cname)
+                    toBits $(TH.conP cname [[p| x |]]) = x
+
+                  instance RTS.Convert $(pure ty) $(pure repT) where
+                    convert = toBits
+
+                  instance RTS.Convert $(pure repT) $(pure ty) where
+                    convert = fromBits
+                |]
+
+     hasIs <- case def of
+                BDStruct fs -> traverse (hasInstanceStruct ty cname) fs
+                BDUnion cs -> traverse (hasInstanceUnion ty) cs
+
+     pure (dataD : cvtIs ++ concat hasIs)
+
+  where
+
+  hasInstanceStruct ty cname f =
+    case bdFieldType f of
+      BDWild     -> pure []
+      BDTag {}   -> pure []
+      BDData l t ->
+        do ft <- compileMonoType t
+
+           x  <- TH.newName "x"
+           let p     = TH.conP cname [ TH.varP x ]
+               lab   = TH.LitT (TH.StrTyLit (Text.unpack l))
+               amt   = bdOffset f
+               wt    = compileMonoType (tWord (toInteger (bdWidth f)))
+
+           [d| instance R.HasField $(pure lab) $(pure ty) $(pure ft) where
+                 getField $p = RTS.fromBits (
+                                 RTS.convert
+                                    ($(TH.varE x) `RTS.shiftr` RTS.UInt amt)
+                                 :: $wt) |]
+
+
+  hasInstanceUnion ty (l,t) =
+    do let lty = TH.litT (TH.strTyLit (Text.unpack l))
+       ft <- compileMonoType t
+       [d| instance R.HasField $lty $(pure ty) $(pure ft) where
+              getField = RTS.fromBits . RTS.toBits
+
+           instance RTS.Convert $(pure ft) $(pure ty) where
+              convert = fromBits . toBits |]
+
 
 

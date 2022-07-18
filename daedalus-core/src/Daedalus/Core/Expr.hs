@@ -20,6 +20,8 @@ data Expr =
     Var Name
   | PureLet Name Expr Expr
   | Struct UserType [ (Label, Expr) ]
+    -- The order of these need NOT match the declaration
+
   | ECase (Case Expr)
 
   | Ap0 Op0

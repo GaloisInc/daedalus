@@ -139,7 +139,7 @@ def IDATChunkData sig = Many UInt8
 -- Ancillary chunks (Section 11.3)
 
 -- tRNS Transparency (Section 11.3.2.1)
-def TRNSChunkData sig =
+def TRNSChunkData (sig : IHDRChunk) =
   case sig.colour_type of
     0 -> {| trns_colour_type_0 = TRNSData0 |}
     2 -> {| trns_colour_type_2 = TRNSData2 |}
@@ -185,7 +185,7 @@ def ICCPChunkData sig =
     compressed_profile = Many UInt8
 
 -- sBIT Significant bits (Section 11.3.3.4)
-def SBITChunkData sig =
+def SBITChunkData (sig : IHDRChunk) =
     case sig.colour_type of
       0 -> {| sbit_colour_type_0 = SBITData0 |}
       2 -> {| sbit_colour_type_2 = SBITData2or3 |}
@@ -244,7 +244,7 @@ def ITXTChunkData sig =
     text = Many UInt8
 
 -- bKGD Background colour (Section 11.3.5.1)
-def BKGDChunkData sig =
+def BKGDChunkData (sig : IHDRChunk) =
   case sig.colour_type of
     0 -> {| bkgd_colour_type_0 = BKGDData0or4 |}
     4 -> {| bkgd_colour_type_4 = BKGDData0or4 |}

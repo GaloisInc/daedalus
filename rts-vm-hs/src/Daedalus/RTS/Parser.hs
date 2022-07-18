@@ -1,5 +1,4 @@
-{-# Language KindSignatures, DataKinds, RankNTypes #-}
-module RTS.ParserVM where
+module Daedalus.RTS.Parser where
 
 import Data.Text(Text)
 import Data.IntSet(IntSet)
@@ -7,10 +6,9 @@ import qualified Data.IntSet as Set
 import Data.Functor.Identity
 import Data.Coerce(coerce)
 
-import qualified RTS.Input as RTS
-import qualified RTS.Vector as RTS
-import qualified RTS.Numeric as RTS
-import qualified RTS.ParserAPI as PAPI
+import qualified Daedalus.RTS.Input as RTS
+import qualified Daedalus.RTS.Vector as RTS
+import qualified Daedalus.RTS.Numeric as RTS
 
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
 -- No custom user monad
@@ -49,8 +47,11 @@ data ParserErrorState = ParserErrorState
   , pesError     :: Maybe ParseError
   }
 
+data ParseErrorSource = FromUser | FromSystem
+  deriving Show
+
 data ParseError = ParseError
-  { peSource :: PAPI.ParseErrorSource
+  { peSource :: ParseErrorSource
   , peLoc    :: Text
   , peInput  :: RTS.Input
   , peMsg    :: RTS.Vector (RTS.UInt 8)
@@ -63,7 +64,7 @@ thrUpdateErrors f s = s { thrErrors = f (thrErrors s) }
 {-# INLINE thrUpdateErrors #-}
 
 vmNoteFail ::
-  PAPI.ParseErrorSource ->
+  ParseErrorSource ->
   Text ->
   RTS.Input ->
   RTS.Vector (RTS.UInt 8) ->
@@ -84,8 +85,8 @@ vmNoteFail ty loc inp msg s =
 
   improve old =
     case (peSource old, ty) of
-      (PAPI.FromUser, PAPI.FromSystem) -> old
-      (PAPI.FromSystem, PAPI.FromUser) -> newErr
+      (FromUser, FromSystem) -> old
+      (FromSystem, FromUser) -> newErr
       _ | RTS.inputOffset inp < RTS.inputOffset (peInput old) -> old
         | otherwise -> newErr
 

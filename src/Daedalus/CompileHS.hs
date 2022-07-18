@@ -294,7 +294,6 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
                 let mkOrs = foldr1 (ApI "HS.||")
                     ok = mkOrs
                        $ map check
-                       $ Map.toList
                        $ BDD.groupTestsByMask ts
                     check (m,vs) =
                       let masked

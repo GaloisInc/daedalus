@@ -83,11 +83,11 @@ data Instr =
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
   | Spawn BV Closure
-  | NoteFail Src.ErrorSource String E E    -- ^ input, message
 
   | Let BV E
   | Free (Set VMVar)  -- ^ variable cannot be used for the rest of the block
 
+  | NoteFail Src.ErrorSource String E E    -- ^ input, message
   | PushDebug DebugCall Text
   | PopDebug
 
@@ -105,6 +105,7 @@ data CInstr =
 
   | Call Src.FName Captures Closure Closure [E]
     -- The JumpPoints contain information about the return addresses.
+    -- The closures are: no, yes
 
   | TailCall Src.FName Captures [E]
     -- ^ Used for both grammars and exprs.

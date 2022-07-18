@@ -59,8 +59,14 @@ compileE expr k =
               b
 
     Src.Struct t fs ->
+      let labs = case Src.tnameFlav (Src.utName t) of
+                   Src.TFlavStruct ls -> ls
+                   _ -> panic "compileE" ["Not TStructFlav"]
+      in
       compileEs (map snd fs) \vs ->
-         do s <- stmt ty (\x -> CallPrim x (StructCon t) vs)
+         do let mp = Map.fromList (zip (map fst fs) vs)
+                args = [ mp Map.! l | l <- labs ]
+            s <- stmt ty (\x -> CallPrim x (StructCon t) args)
             continue k s
 
     Src.ECase (Src.Case x as) -> compileCase (Src.typeOf expr) x as k

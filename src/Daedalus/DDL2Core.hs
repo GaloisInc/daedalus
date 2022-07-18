@@ -1418,9 +1418,9 @@ bitdataValidator tdef = \e' ->
 
         tests = BDD.groupTestsByMask (BDD.patTests univ)
 
-        doTests x = foldr (doTest x) (pure (boolL False)) (Map.toList tests)
+        doTests x = foldr (doTest x) (pure (boolL False)) tests
 
-        doTest :: Name -> (Integer,[Integer]) -> M Expr -> M Expr
+        doTest :: Name -> (Integer, [Integer]) -> M Expr -> M Expr
         doTest e (mask,cases) orElseM =
           do orElse <- orElseM
              withVar (appMask mask (Var e)) \x ->
@@ -1671,7 +1671,7 @@ newTNameRec rec =
   doOne r d =
     let bd = isJust (TC.tctyBD d)
         flavor = case TC.tctyDef d of
-                   TC.TCTyStruct {} -> TFlavStruct
+                   TC.TCTyStruct _ fs -> TFlavStruct (map fst fs)
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
                      | otherwise -> TFlavUnion (map fst cs)

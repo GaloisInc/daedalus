@@ -1,0 +1,28 @@
+module T077
+ 
+--- Imports:
+ 
+--- Type defs:
+type T077.P = { a: uint 8
+              ; b: [uint 8]
+              }
+ 
+--- Rules:
+ 
+T077.P : Grammar T077.P =
+  do (a : uint 8) <- pure 'x'
+     (b : [uint 8]) <- Many[] Match UInt8
+     pure {a = a,
+           b = b}
+ 
+T077.Main : Grammar T077.P =
+  do (b : [uint 8]) <- pure "bb"
+     (a : uint 8) <- pure 'a'
+     pure {b = b,
+           a = a}
+ 
+T077.P_ : Grammar {} =
+  @Many[] @Match UInt8
+ 
+T077.Main_ : Grammar {} =
+  pure {}
