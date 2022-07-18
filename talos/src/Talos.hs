@@ -21,7 +21,7 @@ import           Data.List.Split              (splitWhen)
 import qualified Data.Map                     as Map
 import           Data.String                  (fromString)
 import           Data.Version
-import qualified SimpleSMT                    as SMT
+import qualified SimpleSMT.Text               as SMT
 import           System.Exit                  (exitFailure)
 import           System.IO                    (IOMode (..), hFlush, hPutStr,
                                                hPutStrLn, openFile, stderr,

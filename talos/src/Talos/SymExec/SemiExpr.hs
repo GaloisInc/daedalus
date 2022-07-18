@@ -26,8 +26,6 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (isJust, isNothing)
 import qualified Data.Vector                  as Vector
 import           GHC.Stack                    (HasCallStack)
-import           SimpleSMT                    (SExpr)
-import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
@@ -44,7 +42,8 @@ import qualified Daedalus.Value.Type          as V
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.SemiValue      (SemiValue (..))
 import qualified Talos.SymExec.SemiValue      as SV
-import           Talos.SymExec.SolverT
+import Talos.SymExec.SolverT (SExpr)
+import qualified Talos.SymExec.SolverT as S
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 

@@ -28,7 +28,6 @@ import qualified Data.Set                     as Set
 import qualified Data.Vector                  as Vector
 import           Data.Word                    (Word8)
 import           GHC.Generics                 (Generic)
-import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (streamOffset, tByte)
 import           Daedalus.Core.Free           (freeVars)
@@ -61,7 +60,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
                                                declareSymbol, liftSolver, reset,
                                                scoped)
-import qualified Talos.SymExec.SolverT        as Solv
+import qualified Talos.SymExec.SolverT        as S
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 import Daedalus.PP (showPP, pp, text, block)
@@ -103,10 +102,10 @@ symbolicFun ptag sl = do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 5) (stratSlice ptag sl)
+    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 20) (stratSlice ptag sl)
     let go (_, pb) = do
-          mapM_ Solv.assert assns
-          r <- Solv.check
+          mapM_ S.assert assns
+          r <- S.check
           -- liftIO $ print (pp pb)          
           case r of
             S.Unsat   -> pure Nothing
@@ -306,7 +305,8 @@ stratCase ptag total cs m_sccs = do
     enabledChecks preds
       --  | total     = pure ()
       -- FIXME: Is it OK to omit this if the case is total?      
-      | otherwise = do
+      --  | otherwise
+      = do
           let preds' = over (each . _1) PC.toSExpr preds
               patConstraints =
                 MV.andMany ([ S.implies g c | (g, SymbolicMatch c) <- preds' ]
@@ -316,7 +316,7 @@ stratCase ptag total cs m_sccs = do
                           [] -> do
                             inv <- getName (caseVar cs)
                             liftIO $ putStrLn ("No matches " ++ showPP cs ++ "\nValue\n"
-                                               ++ showPP (text . typedThing <$> inv)
+                                               ++ showPP (pp . typedThing <$> inv)
                                                ++ "\n" ++ show preds')
                             infeasible
                           ps -> pure (MV.orMany ps)
@@ -550,7 +550,7 @@ getPathVar pv = do
   case m_i of
     Just i -> pure i
     Nothing -> do
-      sexp <- lift (Solv.getValue (PC.pathVarToSExpr pv))
+      sexp <- lift (S.getValue (PC.pathVarToSExpr pv))
       n <- case evalModelP pNumber sexp of
              []    -> panic "No parse" []
              b : _ -> pure (fromIntegral b)
@@ -563,7 +563,7 @@ getValueVar (Typed ty x) = do
   case m_v of
     Just v -> pure v
     Nothing -> do
-      sexp <- lift (Solv.getValue (S.const x))
+      sexp <- lift (S.getValue (S.const x))
       v <- case evalModelP (pValue ty) sexp of
              []     -> panic "No parse" []
              v' : _ -> pure v'

@@ -20,7 +20,6 @@ import qualified Data.Map                 as Map
 import           Data.Set                 (Set)
 import qualified Data.Set                 as Set
 import           GHC.Generics             (Generic)
-import           SimpleSMT                (ppSExpr)
 
 import           Daedalus.Core            (Expr, Name, Typed (..), nameId)
 import           Daedalus.GUID            (GUID, getNextGUID)
@@ -32,7 +31,7 @@ import           Talos.Analysis.Exported  (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM, runSemiSolverM)
-import           Talos.SymExec.SolverT    (SolverT, MonadSolver)
+import           Talos.SymExec.SolverT    (SolverT, MonadSolver, ppSExpr)
 import qualified Talos.SymExec.SolverT    as Solv
 
 --------------------------------------------------------------------------------

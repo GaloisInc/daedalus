@@ -17,35 +17,30 @@ module Talos.SymExec ( solverSynth
                      ) where
 
 
-import Control.Monad.Reader
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Foldable (find, foldrM, fold)
+import           Control.Monad.Reader
+import           Data.Foldable                (find, fold, foldrM)
+import qualified Data.Map                     as Map
+import           Data.Set                     (Set)
+import qualified Data.Set                     as Set
 
 -- import qualified Data.Text as T
 
-import SimpleSMT (SExpr, Solver)
-import qualified SimpleSMT as S
+import           Daedalus.Core
+import           Daedalus.Core.Free
+import           Daedalus.Core.Type
+import           Daedalus.PP
+import           Daedalus.Panic
+import           Daedalus.Rec
 
-import Daedalus.Panic
-import Daedalus.PP
-import Daedalus.Rec
-
-import Daedalus.Core
-import Daedalus.Core.Free
-import Daedalus.Core.Type
-
-import Talos.SymExec.SolverT
-import Talos.SymExec.ModelParser
--- import Talos.SymExec.Core
-import Talos.SymExec.StdLib
-import Talos.SymExec.Path
-
-import Talos.Analysis.Domain
-import Talos.Analysis.EntangledVars
-import Talos.Analysis.Slice
-import Talos.Analysis.Monad (Summaries, Summary(..))
+import           Talos.Analysis.Domain
+import           Talos.Analysis.EntangledVars
+import           Talos.Analysis.Monad         (Summaries, Summary (..))
+import           Talos.Analysis.Slice
+import           Talos.SymExec.ModelParser
+import           Talos.SymExec.Path
+import qualified Talos.SymExec.SolverT        (SExpr, Solver)
+import qualified Talos.SymExec.SolverT        as S
+import           Talos.SymExec.StdLib
 
 --------------------------------------------------------------------------------
 -- Solver synthesis
@@ -639,7 +634,7 @@ symExecAssertion (GuardAssertion tc) = symExecV tc
 --   -- The collection (list in this case)
 --   accInit <- symExecV e accInitE
 --   col     <- symExecV e (loopCol loop)
-v
+
 --   pure (S.fun loopN (params ++ [ accInit, S.fun "get-list" [col] ]))
 
 --   where -- FIXME: copied from above

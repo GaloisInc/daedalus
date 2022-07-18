@@ -20,22 +20,23 @@ module Talos.Strategy.PathCondition
   , toSExpr
   ) where
 
-import           Talos.SymExec.SolverT (SMTVar)
-import SimpleSMT (SExpr)
-import qualified SimpleSMT as S
-import Daedalus.Core (Type, Pattern)
-import Data.Set (Set)
-import GHC.Generics (Generic)
-import Data.Map (Map)
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import qualified Data.Map.Merge.Strict as Map
-import Control.Monad (guard)
-import Data.Functor (($>))
-import qualified Talos.SymExec.Expr as SE
-import qualified Daedalus.Value as I
+import           Control.Monad                (guard)
+import           Data.Functor                 (($>))
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import qualified Data.Map.Merge.Strict        as Map
+import           Data.Set                     (Set)
+import qualified Data.Set                     as Set
+import           GHC.Generics                 (Generic)
+
+import           Daedalus.Core                (Pattern, Type)
 import qualified Daedalus.Core.Semantics.Expr as I
-import Daedalus.PP
+import           Daedalus.PP
+import qualified Daedalus.Value               as I
+
+import qualified Talos.SymExec.Expr           as SE
+import           Talos.SymExec.SolverT        (SMTVar, SExpr)
+import qualified Talos.SymExec.SolverT        as S
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -141,7 +142,7 @@ instance Monoid PathCondition where
   mempty = FeasibleMaybe (PathConditionInfo mempty mempty)
 
 instance PP PathVar where
-  pp = text . getPathVar
+  pp = pp . getPathVar
 
 instance PP PathConditionCaseInfo where
   pp PathConditionCaseInfo { pcciConstraint = Left c }   = "=" <+> pp c
@@ -152,7 +153,7 @@ instance PP PathConditionInfo where
   pp pci = "∧" <> block "{" ";" "}" (chEls ++ caseEls)
     where
       chEls   = [ pp v <+> "=" <+> pp i | (v, i) <- Map.toList (pcChoices pci) ]
-      caseEls = [ text v <+> pp c | (v, c) <- Map.toList (pcCases pci) ]
+      caseEls = [ pp v <+> pp c | (v, c) <- Map.toList (pcCases pci) ]
 
 instance PP PathCondition where
   pp Infeasible = "⊥"

@@ -13,9 +13,6 @@ import qualified Data.Map                        as Map
 import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 
-import           SimpleSMT                       (SExpr)
-import qualified SimpleSMT                       as S
-
 import           Daedalus.Core                   hiding (freshName, tByte)
 import           Daedalus.Core.Free
 import           Daedalus.Core.TraverseUserTypes
@@ -27,7 +24,9 @@ import           Daedalus.Rec
 
 -- import Talos.Strategy.Monad
 import           Talos.Analysis.Slice
-import           Talos.SymExec.SolverT
+import           Talos.SymExec.SolverT (SExpr, SolverT, SMTFunDef(..), SMTVar, PolyFun(..))
+import qualified Talos.SymExec.SolverT as S
+
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 import           Talos.SymExec.Expr (symExecExpr, symExecByteSet)
@@ -59,13 +58,13 @@ calcPureDeps md roots = go roots roots
 
 funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e, HasGUID m) =>
                (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
-               [(String, SExpr)] -> Fun e ->
+               [(SMTVar, SExpr)] -> Fun e ->
                SolverT m SMTFunDef
 funToFunDef _ _ Fun { fDef = External } =
   panic "Saw an external function" []
 
 funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do
-  args <- mapM freshName (fParams f)
+  args <- mapM S.freshName (fParams f)
   let args' = zip args (map (symExecTy . nameType) (fParams f)) ++ extraArgs
       e     = Map.fromList (zip (fParams f) (map S.const args))
   b <- runReaderT (sexec body) e
@@ -87,9 +86,9 @@ defineSliceFunDefs md sl = do
   let allDefs     = fdefs ++ bdefs
       rFDefs      = topoOrder (\sfd -> (sfdName sfd, sfdPureDeps sfd)) allDefs
 
-  forM_ allDefs $ mapM_ defineSMTTypeDefs . tranclTypeDefs md . sfdTyDeps
+  forM_ allDefs $ mapM_ S.defineSMTTypeDefs . tranclTypeDefs md . sfdTyDeps
     
-  mapM_ defineSMTFunDefs rFDefs
+  mapM_ S.defineSMTFunDefs rFDefs
   where
     roots = freeFVars sl -- includes grammar calls as well
     allFs = calcPureDeps md roots
@@ -99,7 +98,7 @@ defineSliceFunDefs md sl = do
     byteArg      = [(byteN, tByte)]
 
     mkOneF :: (Monad m, FreeVars e, TraverseUserTypes e, HasGUID m) =>
-              [(String, SExpr)] ->
+              [(SMTVar, SExpr)] ->
               (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
               Fun e -> [SolverT m SMTFunDef]
     mkOneF extraArgs sexec f
@@ -145,7 +144,7 @@ byteSetToPolyFuns :: ByteSet -> Set PolyFun
 byteSetToPolyFuns = ebFoldMapChildrenB exprToPolyFuns byteSetToPolyFuns
 
 defineSlicePolyFuns :: (MonadIO m, HasGUID m) => ExpSlice -> SolverT m ()
-defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
+defineSlicePolyFuns sl = mapM_ S.defineSMTPolyFun polys
   where
     polys = go sl
     go sl' = case sl' of

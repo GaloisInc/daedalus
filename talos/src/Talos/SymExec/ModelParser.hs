@@ -1,5 +1,6 @@
 {-# Language GADTs, ViewPatterns, RankNTypes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveFunctor #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- Parser combinators for reading back a model from the solver
 
@@ -18,13 +19,14 @@ import           Data.Map            (Map)
 import qualified Data.Map            as Map
 import qualified Data.Vector         as V
 import           Data.Word
-import           SimpleSMT           (SExpr (..))
 import           Text.Read           (readMaybe)
 
 import           Daedalus.Core
 import           Daedalus.PP         (showPP)
 import           Daedalus.Panic
 import qualified Daedalus.Value      as I
+
+import           Talos.SymExec.SolverT (SExpr (..), Atom)
 
 --------------------------------------------------------------------------------
 -- Model Combinators
@@ -63,7 +65,7 @@ pSeq pl pr = pSExpr $ do
 -- This is complicated by the fact that the solver returns
 -- non-normalised values, including references to other variable, etc.
 
-type VEnv = Map String SExpr
+type VEnv = Map Atom SExpr
 
 -- This is a bit hacky
 data ModelPState =
@@ -109,7 +111,7 @@ pRawHead = ModelP $ \st -> do
 
 -- Runs the parser p on the first element, taking care of let-related
 -- and 'as' annoyances
-pHead :: (String -> ModelP a) -> -- ^ This is the atom case, it is in ModelP as it can fail.
+pHead :: (Atom -> ModelP a) -> -- ^ This is the atom case, it is in ModelP as it can fail.
          ModelP a -> -- ^ THe list case 
          ModelP a
 pHead pA pS = do
@@ -130,10 +132,10 @@ pHead pA pS = do
     addBind env (List [ident -> Just v, e]) = Map.insert v e env
     addBind _    v = panic "handleLet unexpected let binding" [show v]
 
-pAtom :: ModelP String
+pAtom :: ModelP Atom
 pAtom = pHead pure empty
 
-pExact :: String -> ModelP ()
+pExact :: Atom -> ModelP ()
 pExact a = pAtom >>= guard . (==) a
 
 pSExpr :: ModelP a -> ModelP a
@@ -279,7 +281,7 @@ pValue ty0 = go ty0
 --------------------------------------------------------------------------------
 -- Helpers
 
-ident :: SExpr -> Maybe String
+ident :: SExpr -> Maybe Atom
 ident (Atom a) = Just a
 ident (List [ident -> Just "as", v, _]) = ident v
 ident _ = Nothing

@@ -12,17 +12,16 @@ import qualified Data.ByteString                 as BS
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
 
-import           SimpleSMT                       (SExpr)
-import qualified SimpleSMT                       as S
-
 import           Daedalus.Core                   hiding (tByte)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
--- import Talos.Strategy.Monad
-import           Talos.SymExec.SolverT hiding (freshName)
+import           Talos.SymExec.SolverT (SolverT, SMTVar, nameToSMTName, getPolyFun
+                                       , PolyFun (..), fnameToSMTName, SExpr)
+import qualified Talos.SymExec.SolverT as S
+                 
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 
@@ -49,7 +48,7 @@ symExecName n = do
     Nothing -> panic "Missing name" [showPP n]
 
 -- This is probably overkill for lets, but it is safer (we probably don't need to freshName)
-bindNameFreshIn :: (Monad m, HasGUID m) => Name -> SymExecM m a -> SymExecM m (String, a)
+bindNameFreshIn :: (Monad m, HasGUID m) => Name -> SymExecM m a -> SymExecM m (SMTVar, a)
 bindNameFreshIn n m = do
   n' <- lift (freshName n)
   let ns = nameToSMTName n'
@@ -120,7 +119,7 @@ symExecOp1 op ty =
       
       -- S.app (S.as (S.const (labelToField (utName ut) l)) (symExecTy ty)) . (: []) 
     
-    FromUnion _ l | TUser ut <- ty -> fun ("get-" ++ labelToField (utName ut) l)
+    FromUnion _ l | TUser ut <- ty -> fun ("get-" <> labelToField (utName ut) l)
     
     _ -> unimplemented -- shouldn't really happen, we should cover everything above
 
@@ -266,7 +265,7 @@ patternToPredicate ty p se = case p of
   PNothing   -> S.fun "is-Nothing" [se]
   PJust      -> S.fun "is-Just" [se]
   PNum n     -> S.eq se (mkLit n)
-  PCon l     -> S.fun ("is-" ++ labelToField tyName l) [se]
+  PCon l     -> S.fun ("is-" <> labelToField tyName l) [se]
   PAny       -> S.bool True
   where
     mkLit n = symExecOp0 (IntL n ty)

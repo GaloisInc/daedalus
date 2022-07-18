@@ -22,7 +22,6 @@ import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
 import qualified Data.Set                        as Set
 import           Data.Word
-import           SimpleSMT                       (Solver)
 import           System.IO.Streams               (Generator, InputStream)
 import qualified System.IO.Streams               as Streams
 import           System.Random
@@ -46,7 +45,7 @@ import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT           (SolverState, emptySolverState)
+import           Talos.SymExec.SolverT           (Solver, SolverState, emptySolverState)
 import           Talos.SymExec.StdLib
 
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))

@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 
 --------------------------------------------------------------------------------
 -- Types
@@ -9,31 +9,30 @@ module Talos.SymExec.Type where
 
 -- import Data.Map (Map)
 import           Control.Monad.Reader
-import           Data.Set                        (Set)
-import qualified Data.Set                        as Set
+import           Data.Set                (Set)
+import qualified Data.Set                as Set
 
-import           SimpleSMT                       (SExpr)
-import qualified SimpleSMT                       as S
-
-import           Daedalus.Core                   hiding (freshName, tByte)
+import           Daedalus.Core           hiding (freshName, tByte)
 import           Daedalus.Core.Free
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
--- import Talos.Strategy.Monad
-import           Talos.SymExec.SolverT
+import           Talos.Analysis.Exported (ExpSlice)
+import           Talos.SymExec.SolverT   (SMTTypeDef (..), SMTVar, SolverT,
+                                          defineSMTTypeDefs, tnameToSMTName,
+                                          typeNameToDefault, SExpr)
+import qualified Talos.SymExec.SolverT   as S
 import           Talos.SymExec.StdLib
-import Talos.Analysis.Exported (ExpSlice)
-  
-symExecTName :: TName -> String
+
+symExecTName :: TName -> SMTVar
 symExecTName = tnameToSMTName
 
-labelToField :: TName -> Label -> String
-labelToField n l = symExecTName n ++ "-" ++ show (pp l)
+labelToField :: TName -> Label -> SMTVar
+labelToField n l = symExecTName n <> "-" <> l
 
-typeNameToCtor :: TName -> String
-typeNameToCtor n = "mk-" ++ symExecTName n
+typeNameToCtor :: TName -> SMTVar
+typeNameToCtor n = "mk-" <> symExecTName n
 
 -- | Construct SMT solver datatype declaration based on DaeDaLus type
 -- declarations.
@@ -74,7 +73,7 @@ tdeclToSMTTypeDef TDecl { tName = name, tTParamKNumber = [], tTParamKValue = [],
               TUnion flds  -> map mkOneU flds
               TBitdata {} -> panic "Bitdata is curtently unsupported" []
     mkOneS (l, t) = (lblToFld l, symExecTy t)
-    mkOneU (l, t) = (lblToFld l, [ ("get-" ++ lblToFld l, symExecTy t) ])
+    mkOneU (l, t) = (lblToFld l, [ ("get-" <> lblToFld l, symExecTy t) ])
     lblToFld = labelToField name
       
 defineSliceTypeDefs :: (MonadIO m, HasGUID m) => Module -> ExpSlice -> SolverT m ()

@@ -15,7 +15,7 @@ import qualified Data.Map                     as Map
 import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           Data.Word                    (Word8)
-import qualified SimpleSMT                    as S
+
 
 import           Daedalus.Core                hiding (streamOffset, tByte)
 import           Daedalus.Core.Free           (freeVars, FreeVars)
@@ -43,7 +43,7 @@ import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
                                                declareSymbol, reset, scoped, liftSolver)
-import qualified Talos.SymExec.SolverT        as Solv
+import qualified Talos.SymExec.SolverT        as S
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 
@@ -252,7 +252,7 @@ synthesiseByteSet bs = liftSemiSolverM . semiExecByteSet bs
 
 check :: SymbolicM ()
 check = do
-  r <- liftSolver Solv.check
+  r <- liftSolver S.check
   case r of
     S.Sat     -> pure ()
     S.Unsat   -> backtrack OtherFailure
@@ -263,7 +263,7 @@ check = do
 assert :: SemiSExpr -> SymbolicM ()
 assert sv =
   case sv of
-    VOther p -> liftSolver (Solv.assert (typedThing p))
+    VOther p -> liftSolver (S.assert (typedThing p))
     VValue (I.VBool True) -> pure ()
     -- FIXME: Set.empty is not quite right here, but this will usually
     -- not get here anyway.
@@ -284,7 +284,7 @@ enumerate t = evalState (traverse go t) 0
 
 byteModel :: SemiSExpr -> SolverT StrategyM Word8
 byteModel (VOther symB) = do
-  sexp <- Solv.getValue (typedThing symB)
+  sexp <- S.getValue (typedThing symB)
   case evalModelP pByte sexp of
     [] -> panic "No parse" []
     b : _ -> pure b
@@ -297,7 +297,7 @@ valueModel sv =
   SE.toValue <$> traverse go sv
   where
     go tse = do
-      sexp <- Solv.getValue (typedThing tse)
+      sexp <- S.getValue (typedThing tse)
       case evalModelP (pValue (typedType tse)) sexp of
         [] -> panic "No parse" []
         v : _ -> pure v

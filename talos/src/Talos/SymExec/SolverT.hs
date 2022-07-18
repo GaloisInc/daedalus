@@ -38,9 +38,15 @@ module Talos.SymExec.SolverT (
   defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
   reset, assert, check,
   -- * Type Class
-  MonadSolver(..)
+  MonadSolver(..),
+
+  -- * Re-export SimpleSMT
+  module SimpleSMT.Text
   ) where
 
+-- Sort of gross so that we can re-export SimpleSMT
+import           Prelude hiding (not)
+import qualified Prelude as P
 import           Control.Applicative
 import           Control.Lens
 import           Control.Monad.Reader      (ReaderT)
@@ -58,9 +64,10 @@ import           Data.Maybe                (catMaybes)
 import           Data.Set                  (Set)
 import qualified Data.Set                  as Set
 import           Data.Text                 (Text)
+import qualified Data.Text                 as Text
 import           GHC.Generics              (Generic)
-import           SimpleSMT                 (SExpr, Solver)
-import qualified SimpleSMT                 as S
+import           SimpleSMT.Text            hiding (check, assert)
+import qualified SimpleSMT.Text            as S
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
@@ -75,7 +82,7 @@ import           Talos.SymExec.StdLib
 
 -- import Text.Printf (printf)
 
-type SMTVar = String
+type SMTVar = Atom
 
 -- The name of a polymorphic function (map lookup, map insertion, etc)
 data PolyFun = PMapLookup SExpr SExpr -- kt vt
@@ -186,7 +193,7 @@ pushFrame :: MonadIO m => Bool -> SolverT m ()
 pushFrame force = do
   s <- SolverT get
   let cf = ssCurrentFrame s
-  when (force || not (nullSolverFrame cf)) $ do  
+  when (force || P.not (nullSolverFrame cf)) $ do  
     -- If we have partially executed some commands, execute the rest
     when (ssNCurrentFlushed s > 0) $ do
       flush
@@ -231,7 +238,7 @@ collapseContext (SolverContext fs)
       fr <- freshSolverFrame
       pure (fr { frCommands = foldMap frCommands fs' })
   where
-    fs' = filter (not . nullSolverFrame) fs
+    fs' = filter (P.not . nullSolverFrame) fs
 
 -- | This makes all the variables in the solver frame fresh, so that
 -- we can use it multiple times.
@@ -263,15 +270,16 @@ instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
               let se' = substSExpr e se
               pure $ Just $ QCDefine sym ty se'
 
-    freshFor :: (Monad m, HasGUID m) => String -> StateT (Map SMTVar SExpr) (SolverT m) String
+    freshFor :: (Monad m, HasGUID m) =>
+                SMTVar -> StateT (Map SMTVar SExpr) (SolverT m) SMTVar
     freshFor sym = do
       -- c.f. freshSymbol
       guid <- lift getNextGUID
-      let sym' = stringToSMTName (symPfx sym) guid
+      let sym' = textToSMTName (symPfx sym) guid
       modify (Map.insert sym (S.const sym'))
       pure sym'
 
-    symPfx = takeWhile (/= '@') 
+    symPfx = Text.takeWhile (/= '@') 
 
 substSExpr :: Map SMTVar SExpr -> SExpr -> SExpr
 substSExpr s = go
@@ -377,14 +385,10 @@ getModel = solverOp (\s -> S.command s $ S.List [S.const "get-model"])
 -- -----------------------------------------------------------------------------
 -- Names
 
-stringToSMTName :: String -> GUID -> SMTVar
-stringToSMTName n g = n ++ "@" ++ showPP g
-
-
 textToSMTName :: Text -> GUID -> SMTVar
-textToSMTName n = stringToSMTName (showPP n)
+textToSMTName n g = n <> "@" <> Text.pack (showPP g)
 
-fnameToSMTName :: FName -> String
+fnameToSMTName :: FName -> SMTVar
 fnameToSMTName n = textToSMTName (fnameText n) (fnameId n)
 
 nameToSMTName :: Name -> SMTVar
@@ -470,16 +474,16 @@ onState l f = do
 
 data SMTTypeDef =
   SMTTypeDef { stdName :: TName
-             , stdBody :: [(String, [(String, SExpr)])]
+             , stdBody :: [(SMTVar, [(SMTVar, SExpr)])]
              }
 
 typeNameToDefault :: TName -> SMTVar
-typeNameToDefault n = "default-" ++ tnameToSMTName n
+typeNameToDefault n = "default-" <> tnameToSMTName n
 
 -- FIXME: merge into simple-smt
 
 -- Arguments are as for declareDatatype: (name, tparams, constructors)
-declareDatatypes :: Solver -> [ (String, [String], [(String, [(String, SExpr)])]) ] -> IO ()
+declareDatatypes :: Solver -> [ (SMTVar, [SMTVar], [(SMTVar, [(SMTVar, SExpr)])]) ] -> IO ()
 declareDatatypes s ts = S.ackCommand s (S.fun "declare-datatypes" [namesArities, decls])
   where
     namesArities = S.List (map nameArity ts)
@@ -512,7 +516,7 @@ defineSMTTypeDefs (NonRec std) = onState (field @"ssKnownTypes") $ \known -> do
     n' = tnameToSMTName (stdName std)
 
 defineSMTTypeDefs (MutRec stds) = onState (field @"ssKnownTypes") $ \known -> do
-  if not (Set.disjoint allNames known) -- if we define one we should have defined all
+  if P.not (Set.disjoint allNames known) -- if we define one we should have defined all
   then pure known
   else do solverOp (flip declareDatatypes defs)
           mapM_ defineDefaultType stds
@@ -559,7 +563,7 @@ defineSMTFunDefs (NonRec sfd) = onState (field @"ssKnownFuns") $ \funs ->
     doDef s = void $ S.defineFun s (fnameToSMTName (sfdName sfd)) (sfdArgs sfd) (sfdRet sfd) (sfdBody sfd)
 
 defineSMTFunDefs (MutRec sfds) = onState (field @"ssKnownFuns") $ \funs ->
-  if not (Set.disjoint allNames funs) -- if we define one we should have defined all
+  if P.not (Set.disjoint allNames funs) -- if we define one we should have defined all
   then pure funs
   else solverOp (flip S.defineFunsRec defs) $> Set.union allNames funs
   where
@@ -627,8 +631,8 @@ instance PP QueuedCommand where
   pp qc =
     case qc of
       QCAssert e      -> hang "assert" (length ("assert " :: String)) (vcat (map text (lines (S.ppSExpr e ""))))
-      QCDeclare v ty  -> "declare" <+> text v <+> text (S.ppSExpr ty "")
-      QCDefine v ty e -> "define" <+> text v <+> text (S.ppSExpr ty "") <+> text (S.ppSExpr e "")
+      QCDeclare v ty  -> "declare" <+> pp v <+> text (S.ppSExpr ty "")
+      QCDefine v ty e -> "define" <+> pp v <+> text (S.ppSExpr ty "") <+> text (S.ppSExpr e "")
 
 instance PP SolverFrame where
   pp sf =

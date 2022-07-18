@@ -33,9 +33,6 @@ import qualified Data.Vector                  as Vector
 import           GHC.Generics                 (Generic)
 import           GHC.Stack                    (HasCallStack)
 
-import           SimpleSMT                    (SExpr)
-import qualified SimpleSMT                    as S
-
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
@@ -51,7 +48,10 @@ import           Talos.Strategy.PathCondition (PathCondition (..),
                                                PathConditionCaseInfo (..))
 import qualified Talos.Strategy.PathCondition as PC
 import qualified Talos.SymExec.Expr           as SE
-import           Talos.SymExec.SolverT
+import           Talos.SymExec.SolverT (SExpr, SMTVar, MonadSolver(..), SolverT)
+import qualified Talos.SymExec.SolverT as S
+
+
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 
@@ -685,7 +685,7 @@ gseConcat svs = unions' (mapMaybe mkOne combs)
 
 sexprAsSMTVar :: MonadSolver m => SExpr -> SExpr -> m SMTVar
 sexprAsSMTVar _ty (S.Atom x) = pure x
-sexprAsSMTVar ty e = liftSolver (defineSymbol "named" ty e)
+sexprAsSMTVar ty e = liftSolver (S.defineSymbol "named" ty e)
 
 typeToElType :: Type -> Maybe Type
 typeToElType ty = 

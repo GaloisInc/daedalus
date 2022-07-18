@@ -20,7 +20,6 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes)
 import           GHC.Generics                 (Generic)
-import qualified SimpleSMT                    as SMT
 -- FIXME: use .CPS
 import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
                                                tell)
@@ -41,7 +40,7 @@ import           Talos.Strategy.PathCondition (PathVar (..))
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
-                                               liftSolver)
+                                               liftSolver, SExpr)
 import qualified Talos.SymExec.SolverT        as Solv
 import qualified Data.Set as Set
 
@@ -101,9 +100,9 @@ emptySymbolicEnv :: Maybe Int -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
 
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: MaybeT (WriterT [SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO
-           , MonadReader SymbolicEnv, MonadWriter [SMT.SExpr], MonadSolver)
+           , MonadReader SymbolicEnv, MonadWriter [SExpr], MonadSolver)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
@@ -112,7 +111,7 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
                 Maybe Int ->
                 SymbolicM Result ->
-                SolverT StrategyM (Maybe Result, [SMT.SExpr])
+                SolverT StrategyM (Maybe Result, [SExpr])
 runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth)
 
 --------------------------------------------------------------------------------
@@ -132,14 +131,14 @@ getName n = SymbolicM $ do
     Nothing -> panic "Missing variable" [showPP n]
     Just r  -> pure r
 
-pathVarSort :: SMT.SExpr
-pathVarSort = SMT.tInt
+pathVarSort :: SExpr
+pathVarSort = Solv.tInt
 
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
-  assertSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
-                        (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
+  assertSExpr $ Solv.and (Solv.leq (Solv.int 0) (Solv.const sym))
+                        (Solv.lt (Solv.const sym) (Solv.int (fromIntegral bnd)))
   pure (PathVar sym)
 
 -- extendPath ::  -> SymbolicM a -> SymbolicM a
@@ -148,10 +147,10 @@ freshPathVar bnd = do
 --------------------------------------------------------------------------------
 -- Assertions
 
-assertSExpr :: SMT.SExpr -> SymbolicM ()
+assertSExpr :: SExpr -> SymbolicM ()
 assertSExpr p = tell [p]
   -- pe <- asks (valueGuardToSExpr . sPath)
-  -- inSolver (Solv.assert (SMT.implies pe p))
+  -- inSolver (Solv.assert (Solv.implies pe p))
   
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do
@@ -272,7 +271,7 @@ instance PP (PathChoiceBuilder Doc) where
 
 
 instance PP (PathCaseBuilder Doc) where
-  pp (SymbolicCase gses ps) = block "[[" "," "]]" [ pp (text . typedThing <$> gses)
+  pp (SymbolicCase gses ps) = block "[[" "," "]]" [ pp (pp . typedThing <$> gses)
                                                   , block "{" "," "}" (map pp1 ps) ]
     where
       pp1 (pat, p) = pp pat <+> "=" <+> p
@@ -280,5 +279,5 @@ instance PP (PathCaseBuilder Doc) where
   pp (ConcreteCase p) = p
 
 instance PP SolverResult where
-  pp (ByteResult v) = text v
+  pp (ByteResult v) = pp v
   pp (InverseResult _e _v) = "inv"

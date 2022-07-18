@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 
 module Talos.SymExec.StdLib (
   makeStdLib,
@@ -71,8 +72,8 @@ module Talos.SymExec.StdLib (
 import Control.Monad (void)
 import Data.Word
 
-import SimpleSMT (SExpr, Solver, bvHex, bvBin)
-import qualified SimpleSMT as S
+import SimpleSMT.Text (SExpr, Solver, bvHex, bvBin)
+import qualified SimpleSMT.Text as S
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
 -- Should be run once
@@ -149,11 +150,11 @@ sUnit = S.const "unit"
 -- Helpers
 
 -- | Emit an SMT let expression
-mklet :: String -> SExpr -> SExpr -> SExpr
+mklet :: S.Atom -> SExpr -> SExpr -> SExpr
 mklet v e b = S.fun "let" [S.List [S.List [S.const v, e]], b]
 
 
-mklets :: [(String, SExpr)] -> SExpr -> SExpr
+mklets :: [(S.Atom, SExpr)] -> SExpr -> SExpr
 mklets [] b = b
 mklets xs b =
   S.fun "let" [S.List (map (\(v, e) -> S.List [S.const v, e]) xs), b]
@@ -226,7 +227,7 @@ sEmptyL ty def = sArrayWithLength ty (S.app (S.as (S.const "const") (S.tArray tS
 sSelectL :: SExpr -> SExpr -> SExpr
 sSelectL arr n = S.select (sArrayL arr) n
 
-letUnlessAtom :: String -> SExpr -> (SExpr -> SExpr) -> SExpr
+letUnlessAtom :: S.Atom -> SExpr -> (SExpr -> SExpr) -> SExpr
 letUnlessAtom _v x@(S.Atom _) f = f x
 letUnlessAtom v  x f = mklet v x (f (S.const v))
 
@@ -336,7 +337,7 @@ sMapEmpty kt vt = sNil (tTuple kt vt)
 -- (define-fun-rec BLookup ((m (Map BString BString)) (k BString)) (Maybe BString)
 --   (ite (= m (as nil (Map BString BString))) (as Nothing (Maybe BString)) (ite (= (fst (head m)) k) (Just (snd (head m))) (BLookup (tail m) k))))
 
-mkMapLookup :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapLookup :: MonadIO m => Solver -> S.Atom -> SExpr -> SExpr -> m ()
 mkMapLookup s fnm kt vt = do
   liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt)], tMaybe vt, body)]
   where
@@ -346,7 +347,7 @@ mkMapLookup s fnm kt vt = do
                  (sNothing vt)
                  (S.ite (S.eq k (sFst (sHead m))) (sJust vt (sSnd (sHead m))) (S.fun fnm [sTail m, k]))
 
-mkMapMember :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapMember :: MonadIO m => Solver -> S.Atom -> SExpr -> SExpr -> m ()
 mkMapMember s fnm kt vt = do
   liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt)], S.tBool , body)]
   where
@@ -356,7 +357,7 @@ mkMapMember s fnm kt vt = do
                  (S.bool False)
                  (S.ite (S.eq k (sFst (sHead m))) (S.bool True) (S.fun fnm [sTail m, k]))
 
-mkMapInsert :: MonadIO m => Solver -> String -> SExpr -> SExpr -> m ()
+mkMapInsert :: MonadIO m => Solver -> S.Atom -> SExpr -> SExpr -> m ()
 mkMapInsert s fnm kt vt = do
   liftIO $ S.defineFunsRec s [(fnm, [("m", tMap kt vt), ("k", kt), ("v", vt)], tMap kt vt, body)]
   where

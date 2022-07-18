@@ -30,8 +30,6 @@ import           Data.Monoid                    (Any (Any), First (First),
 import           Data.Set                       (Set)
 import qualified Data.Set                       as Set
 import           GHC.Generics                   (Generic)
-import           SimpleSMT                      (SExpr, ppSExpr)
-import qualified SimpleSMT                      as SMT
 
 import           Daedalus.Core                  (Name, Typed (..), casePats,
                                                  caseVar, nameId)
@@ -57,7 +55,10 @@ import           Talos.SymExec.SolverT          (SMTVar, SolverContext,
                                                  freshContext, freshSymbol,
                                                  getContext,
                                                  instantiateSolverFrame,
-                                                 restoreContext, substSExpr)
+                                                 restoreContext, substSExpr,
+                                                  SExpr, ppSExpr)
+import           Talos.SymExec.SolverT          as SMT
+                 
 import           Talos.SymExec.Type             (symExecTy)
 
 --------------------------------------------------------------------------------
@@ -261,7 +262,7 @@ nameSExprs = traverse nameOne
       pure (se {typedThing = sym})
 
 _ppUnifier :: Unifier -> Doc
-_ppUnifier m = bullets [ text k <> " -> " <> text (ppSExpr v "")
+_ppUnifier m = bullets [ pp k <> " -> " <> text (ppSExpr v "")
                        | (k, v) <- Map.toList m ]
 
 addMemoInstance :: Name -> SymVarEnv -> SymbolicM Result ->
