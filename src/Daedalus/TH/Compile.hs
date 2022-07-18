@@ -12,6 +12,7 @@ import System.Directory(canonicalizePath)
 
 import Daedalus.SourceRange(SourcePos(..))
 
+import Daedalus.AST(ModuleName)
 import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Backend.Haskell as VM
@@ -34,6 +35,7 @@ defaultConfig = CompileConfing
 
 data DDLText = Inline SourcePos Text
              | FromFile FilePath
+             | FromModule ModuleName -- assumes it's parsed
 
 compileDDL :: DDLText -> TH.DecsQ
 compileDDL = compileDDLWith defaultConfig
@@ -78,6 +80,7 @@ loadDDLVM roots src =
                do let mo = Text.pack (dropExtension (takeFileName f))
                   DDL.parseModuleFromFile mo f
                   pure mo
+             FromModule mo -> pure mo
      DDL.ddlLoadModule mo
 
      let specMod = "MainCore"
@@ -93,4 +96,10 @@ loadDDLVM roots src =
 
      pure $ head $ VM.pModules $ VM.moduleToProgram [m]
 
-
+saveDDLWith :: CompileConfing -> DDLText -> Maybe FilePath -> IO ()
+saveDDLWith cfg src mbfile =
+  do ds <- TH.runQ (compileDDLWith cfg src)
+     let txt = show (TH.ppr_list ds)
+     case mbfile of
+       Nothing   -> putStrLn txt
+       Just file -> writeFile file txt
