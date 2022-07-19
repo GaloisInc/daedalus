@@ -565,7 +565,7 @@ getValueVar (Typed ty x) = do
     Nothing -> do
       sexp <- lift (S.getValue (S.const x))
       v <- case evalModelP (pValue ty) sexp of
-             []     -> panic "No parse" []
+             []     -> panic "No parse" [S.ppSExpr sexp ""]
              v' : _ -> pure v'
       field @"mpsOthers" . at x .= Just v
       pure v
@@ -604,11 +604,11 @@ buildPath = runModelParserM . go
       m_v <- gsesModel gses
       v <- case m_v of
              Nothing  -> do
-               panic "Missing case value" [showPP (text . typedThing <$> gses)]
+               panic "Missing case value" [showPP (pp . typedThing <$> gses)]
              Just v'  -> pure v'      
       p <- case find (flip I.matches v . fst) ps of
              Nothing -> do
-               panic "Missing case alt" [showPP v, showPP (text . typedThing <$> gses)]
+               panic "Missing case alt" [showPP v, showPP (pp . typedThing <$> gses)]
              Just (_, p') -> pure p'
       Identity <$> go p
     

@@ -57,7 +57,7 @@ import           Talos.SymExec.SolverT          (SMTVar, SolverContext,
                                                  instantiateSolverFrame,
                                                  restoreContext, substSExpr,
                                                   SExpr, ppSExpr)
-import           Talos.SymExec.SolverT          as SMT
+import qualified Talos.SymExec.SolverT          as SMT
                  
 import           Talos.SymExec.Type             (symExecTy)
 

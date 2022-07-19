@@ -42,7 +42,7 @@ import qualified Daedalus.Value.Type          as V
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.SemiValue      (SemiValue (..))
 import qualified Talos.SymExec.SemiValue      as SV
-import Talos.SymExec.SolverT (SExpr)
+import Talos.SymExec.SolverT (SExpr, SolverT)
 import qualified Talos.SymExec.SolverT as S
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
@@ -178,6 +178,7 @@ matches' :: SemiSExpr -> Pattern ->  Maybe Bool
 matches' (VValue v) pat = Just (matches pat v)
 matches' v pat =
   case pat of
+    PBytes {} -> panic "FIXME: missing case" []
     PBool {} -> Nothing
 
     PNothing | VMaybe mb <- v -> Just (isNothing mb)
@@ -196,7 +197,7 @@ data SymbolicCaseResult a = TooSymbolic | NoMatch | DidMatch Int a
 
 semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a, HasCallStack) =>
                 Case a -> SemiSolverM m (SymbolicCaseResult a)
-semiExecCase c@(Case y pats) = do
+semiExecCase (Case y pats) = do
   ve <- semiExecName y
   -- we need to be careful not to match 'Any' if the others can't
   -- be determined.

@@ -1,3 +1,4 @@
+{-# Language OverloadedStrings #-}
 
 module Main where
 
@@ -6,7 +7,6 @@ import           Data.Foldable           (find, forM_)
 import           Data.Map                (Map)
 import qualified Data.Map                as Map
 import           Data.Maybe              (isJust, mapMaybe)
-import qualified SimpleSMT               as SMT
 import           System.Random           (mkStdGen, randomIO)
 
 
@@ -26,6 +26,8 @@ import           Talos.Strategy          (allStrategies, runStrategy)
 import           Talos.Strategy.Monad    (Strategy, emptyStrategyMState,
                                           runStrategyM, stratName)
 import           Talos.SymExec.SolverT   (emptySolverState)
+import qualified Talos.SymExec.SolverT   as SMT
+
 
 import           Criterion
 import           Criterion.Main
@@ -134,7 +136,7 @@ benchToBenchmark b = do
       -- z3VersionCheck solver
       -- Set options
       forM_ z3Opts $ \(opt, val) -> 
-        void $ SMT.setOptionMaybe solver (':' : opt) val
+        void $ SMT.setOptionMaybe solver (":" <> opt) val
 
       pure solver
 

@@ -26,7 +26,8 @@ import           Daedalus.PP         (showPP)
 import           Daedalus.Panic
 import qualified Daedalus.Value      as I
 
-import           Talos.SymExec.SolverT (SExpr (..), Atom)
+import           Talos.SymExec.SolverT (SExpr (..), Atom, sexprToVal)
+import qualified Talos.SymExec.SolverT as S
 
 --------------------------------------------------------------------------------
 -- Model Combinators
@@ -207,30 +208,11 @@ pArray count p = do
 --   (pExact "inl" *> l) <|> (pExact "inr" *> r)
 
 pNumber :: ModelP Integer
-pNumber = pAtom >>= go
+pNumber = pRawHead >>= isNumberV . sexprToVal
   where
-    go ('#' : 'x' : rest) = do
-      let str = "0x" ++ rest
-      case readMaybe str of
-        Nothing -> error ("Couldn't read " ++ show str)
-        Just v  -> pure v
-    go ('#' : 'b' : rest) = do
-      case binLit rest of
-        Nothing -> error ("Couldn't read " ++ show rest)
-        Just v  -> pure v
-    go ds | all isDigit ds = do
-      case readMaybe ds of
-        Nothing -> error ("Couldn't read " ++ show ds)
-        Just v  -> pure v
-    go _ = empty
-
-    -- copied from simple-smt
-    binLit cs = do ds <- mapM binDigit cs
-                   return $ sum $ zipWith (*) (reverse ds) powers2
-    powers2   = 1 : map (2 *) powers2
-    binDigit '0' = Just 0
-    binDigit '1' = Just 1
-    binDigit _   = Nothing
+    isNumberV (S.Int i) = pure i
+    isNumberV (S.Bits _ i) = pure i
+    isNumberV _ = empty
 
 pByte :: ModelP Word8
 pByte = fromIntegral <$> pNumber

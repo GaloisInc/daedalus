@@ -13,40 +13,37 @@ module Talos (
   ) where
 
 import           Control.Monad.State
-import           Data.ByteString              (ByteString)
-import           Data.IORef                   (modifyIORef', newIORef,
-                                               readIORef, writeIORef)
-import           Data.List                    (find)
-import           Data.List.Split              (splitWhen)
-import qualified Data.Map                     as Map
-import           Data.String                  (fromString)
-import           Data.Version
-import qualified SimpleSMT.Text               as SMT
-import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush, hPutStr,
-                                               hPutStrLn, openFile, stderr,
-                                               stdout)
-import           System.IO.Streams            (InputStream)
-import           Text.ParserCombinators.ReadP (readP_to_S)
-import qualified Text.ParserCombinators.ReadP as RP
-
-import           Daedalus.AST                 (nameScopeAsModScope)
+import           Daedalus.AST          (nameScopeAsModScope)
 import           Daedalus.Core
-import           Daedalus.Driver              hiding (State)
+import           Daedalus.Driver       hiding (State)
 import           Daedalus.GUID
 import           Daedalus.PP
-import           Daedalus.Rec                 (forgetRecs)
-import           Daedalus.Type.AST            (tcDeclName, tcModuleDecls)
-import           Daedalus.Value               (Value)
+import           Daedalus.Rec          (forgetRecs)
+import           Daedalus.Type.AST     (tcDeclName, tcModuleDecls)
+import           Daedalus.Value        (Value)
+import           Data.ByteString       (ByteString)
+import           Data.IORef            (modifyIORef', newIORef, readIORef,
+                                        writeIORef)
+import           Data.List             (find)
+import           Data.List.Split       (splitWhen)
+import qualified Data.Map              as Map
+import           Data.String           (fromString)
+import qualified Data.Text.Lazy        as Text
+import qualified Data.Text.Lazy.IO     as Text
+import           System.Exit           (exitFailure)
+import           System.IO             (IOMode (..), hFlush, hPutStrLn,
+                                        openFile, stderr, stdout)
+import           System.IO.Streams     (InputStream)
 
-import qualified Talos.Analysis               as A
-import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
-import           Talos.Analysis.Monad         (makeDeclInvs)
+import qualified Talos.Analysis        as A
+import           Talos.Analysis.AbsEnv (AbsEnvTy (AbsEnvTy))
+import           Talos.Analysis.Monad  (makeDeclInvs)
 import           Talos.Passes
 import           Talos.Strategy
 import           Talos.Strategy.Monad
-import           Talos.SymExec.Path           (ProvenanceMap)
-import qualified Talos.Synthesis              as T
+import           Talos.SymExec.Path    (ProvenanceMap)
+import qualified Talos.SymExec.SolverT as SMT
+import qualified Talos.Synthesis       as T
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -76,26 +73,26 @@ summarise inFile m_invFile m_entry absEnv = do
         bullets [ hang (pp fid) 2 (pp d)
                 | (fid, d) <- Map.toList m]
 
-_z3VersionCheck :: SMT.Solver -> IO ()
-_z3VersionCheck s = do
-  r <- SMT.command s (SMT.fun "get-info" [SMT.const ":name"])
-  case r of
-    SMT.List [ _, SMT.Atom name ]
-      | name == "\"Z3\"" -> pure ()
-      | otherwise -> errorExit ("Unsupported solver: " ++ name)
-    _ -> errorExit ("Unexpected solver response: " ++ SMT.showsSExpr r "")
+-- _z3VersionCheck :: SMT.Solver -> IO ()
+-- _z3VersionCheck s = do
+--   r <- SMT.command s (SMT.fun "get-info" [SMT.const ":name"])
+--   case r of
+--     SMT.List [ _, SMT.Atom name ]
+--       | name == "\"Z3\"" -> pure ()
+--       | otherwise -> errorExit ("Unsupported solver: " ++ name)
+--     _ -> errorExit ("Unexpected solver response: " ++ SMT.showsSExpr r "")
 
-  let versionP = RP.between (RP.char '"') (RP.char '"') parseVersion <* RP.eof
-  r' <- SMT.command s (SMT.fun "get-info" [SMT.const ":version"])
-  case r' of
-    SMT.List [ _, SMT.Atom version ] ->
-      case readP_to_S versionP version of
-        (v, _) : _ ->
-          if v < makeVersion [4,8,10]
-          then errorExit "Unsupported version of Z3: use 4.8.10 or later"
-          else pure ()
-        _ -> errorExit "Could not parse version"
-    _ -> errorExit ("Unexpected solver response: " ++ SMT.showsSExpr r' "")
+--   let versionP = RP.between (RP.char '"') (RP.char '"') parseVersion <* RP.eof
+--   r' <- SMT.command s (SMT.fun "get-info" [SMT.const ":version"])
+--   case r' of
+--     SMT.List [ _, SMT.Atom version ] ->
+--       case readP_to_S versionP version of
+--         (v, _) : _ ->
+--           if v < makeVersion [4,8,10]
+--           then errorExit "Unsupported version of Z3: use 4.8.10 or later"
+--           else pure ()
+--         _ -> errorExit "Could not parse version"
+--     _ -> errorExit ("Unexpected solver response: " ++ SMT.showsSExpr r' "")
 
 
 errorExit :: String -> IO b
@@ -110,7 +107,7 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe String       -- ^ Entry
            -> FilePath           -- ^ Backend solver executable
            -> [String]           -- ^ Solver args
-           -> [(String, String)] -- ^ Backend solver options
+           -> [(SMT.Atom, SMT.Atom)] -- ^ Backend solver options
            -> IO ()              -- ^ Backend solver init
            -> Maybe String       -- ^ Synthesis strategy 
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
@@ -133,8 +130,8 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
 
   -- Set options
   forM_ bOpts $ \(opt, val) -> do
-    r <- SMT.setOptionMaybe solver (':' : opt) val
-    unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
+    r <- SMT.setOptionMaybe solver (":" <> opt) val
+    unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ showPP opt)
 
   absty <- case lookup absEnv A.absEnvTys of
     Just x -> pure x
@@ -204,9 +201,9 @@ newFileLogger  m_f l  =
               when (cl >= l) m
 
          logMessage x = shouldLog $
-           do let ls = lines x
+           do let ls = Text.lines x
               t <- readIORef tab
-              hPutStr hdl $ unlines [ replicate t ' ' ++ l' | l' <- ls ]
+              Text.hPutStr hdl $ Text.unlines [ Text.replicate t " " <> l' | l' <- ls ]
               hFlush  hdl
 
          logTab   = shouldLog (modifyIORef' tab (+ 2))

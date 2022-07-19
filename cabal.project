@@ -9,6 +9,7 @@ packages:
   formats/pdf/old/driver/
   formats/icc/
   talos/
+  ../simple-smt/
   daedalus-language-server/
   -- daedalus-language-server/deps/lsp/lsp
   -- daedalus-language-server/deps/lsp/lsp-types
