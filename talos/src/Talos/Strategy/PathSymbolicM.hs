@@ -21,10 +21,10 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes)
 import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as SMT
--- FIXME: use .CPS
-import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
-                                               tell)
+import           Control.Monad.State         (MonadState, StateT, runStateT, modify, get, put, gets)
 import           Data.Set                     (Set)
+import           Data.Sequence                (Seq)
+import qualified Data.Sequence                as Seq
 
 import           Daedalus.Core                (Expr, Name, Pattern, typedThing)
 import qualified Daedalus.Core.Semantics.Env  as I
@@ -44,6 +44,7 @@ import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
                                                liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
 import qualified Data.Set as Set
+import Data.Foldable (toList)
 
 
 
@@ -101,9 +102,9 @@ emptySymbolicEnv :: Maybe Int -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
 
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: MaybeT (StateT (Seq SMT.SExpr) (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO
-           , MonadReader SymbolicEnv, MonadWriter [SMT.SExpr], MonadSolver)
+           , MonadReader SymbolicEnv, MonadState (Seq SMT.SExpr), MonadSolver)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
@@ -112,8 +113,8 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
                 Maybe Int ->
                 SymbolicM Result ->
-                SolverT StrategyM (Maybe Result, [SMT.SExpr])
-runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth)
+                SolverT StrategyM (Maybe Result, Seq SMT.SExpr)
+runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runStateT (runMaybeT m) mempty) (emptySymbolicEnv maxRecDepth)
 
 --------------------------------------------------------------------------------
 -- Names
@@ -148,8 +149,10 @@ freshPathVar bnd = do
 --------------------------------------------------------------------------------
 -- Assertions
 
+-- Doesn't add path
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr p = tell [p]
+assertSExpr p = modify (Seq.|> p)
+
   -- pe <- asks (valueGuardToSExpr . sPath)
   -- inSolver (Solv.assert (SMT.implies pe p))
   
@@ -184,6 +187,18 @@ infeasible = SymbolicM $ fail "UNUSED"
 -- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 -- enterPathNode deps = local (over (field @"sPath") (deps :))
 
+bracketAsserts :: SMT.SExpr -> SymbolicM a -> SymbolicM (Maybe a)
+bracketAsserts p m = do
+  asserts <- get
+  put mempty
+  m_r <- getMaybe m
+  new <- case m_r of
+           Just {} -> gets (SMT.implies p . MV.andMany . toList)
+           Nothing -> do
+             -- ignore any new assertions
+             pure (SMT.not p)
+  put (asserts Seq.|> new )
+  pure m_r
 
 -- We have a number of cases here
 -- 1. Normal function call to non-rec. function

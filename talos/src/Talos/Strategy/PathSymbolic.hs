@@ -65,6 +65,8 @@ import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 import Daedalus.PP (showPP, pp, text, block)
+import qualified Data.Sequence as Seq
+import Data.Foldable (toList)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -103,7 +105,7 @@ symbolicFun ptag sl = do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 5) (stratSlice ptag sl)
+    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 20) (stratSlice ptag sl)
     let go (_, pb) = do
           mapM_ Solv.assert assns
           r <- Solv.check
@@ -200,19 +202,14 @@ stratSlice ptag = go
 -- then the negated path condition will be asserted and 
 guardedChoice :: PathVar -> Int -> SymbolicM Result ->
                  SymbolicM (Maybe (GuardedSemiSExprs, (Int, PathBuilder)))
-guardedChoice pv i m = pass $ do
-  m_r <- getMaybe m
-  pure $ case m_r of
-           -- Refining should always succeed.
-           Just (v, p)
-             | Just v' <- MV.refine g v -> (Just (v', (i, p)), addImpl)
-           _ -> (Nothing, const [S.not pathGuard])
+guardedChoice pv i m = (>>= mk) <$> bracketAsserts pathGuard m
   where
+    mk (v, p) = do
+       v' <- MV.refine g v
+       pure (v', (i, p))
+
     g = PC.insertChoice pv i mempty
     pathGuard = PC.toSExpr g
-    addImpl [] = []
-    addImpl [sexpr] = [S.implies pathGuard sexpr]
-    addImpl sexprs = [S.implies pathGuard (MV.andMany sexprs)]
 
 -- FIXME: put ptag in env.
 stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
@@ -250,21 +247,17 @@ stratChoice ptag sls _ = do
 -- FIXME: merge with the above?
 guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
                SymbolicM (Maybe (GuardedSemiSExprs, (Pattern, PathBuilder)))
-guardedCase gs pat m = pass $ do
-  m_r <- getMaybe m
-  pure $ case m_r of
-           Just r  -> (mk r, addImpl)
-           Nothing -> (Nothing, const [S.not pathGuard])
+guardedCase gs pat m = (>>= mk) <$> bracketAsserts pathGuard m
   where
     mk (v, pb) = do
-      x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
+      x <- MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
       pure (x, (pat, pb))
       
     pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
-    
-    addImpl [] = []
-    addImpl [sexpr] = [S.implies pathGuard sexpr]
-    addImpl sexprs = [S.implies pathGuard (MV.andMany sexprs)]
+
+    -- addImpl [] = []
+    -- addImpl [sexpr] = [S.implies pathGuard sexpr]
+    -- addImpl sexprs = [S.implies pathGuard (MV.andMany sexprs)]
 
 stratCase :: ProvenanceTag -> Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
 stratCase ptag total cs m_sccs = do
