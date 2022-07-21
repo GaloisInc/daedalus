@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
 
 module Talos.Strategy.PathCondition
   ( -- * Path Variables
@@ -10,7 +12,7 @@ module Talos.Strategy.PathCondition
   , PathCondition(..)
   , PathConditionCaseInfo(..)
   -- * Operations
-  , insertCase, insertChoice
+  , singletonCase, singletonChoice, singletonSExpr
   -- * Predicates
   , isInfeasible
   , isFeasibleMaybe
@@ -18,24 +20,29 @@ module Talos.Strategy.PathCondition
   , pcciSatisfied
   -- * Converstion to SExpr
   , toSExpr
+  , name
   ) where
 
-import           Talos.SymExec.SolverT (SMTVar)
-import SimpleSMT (SExpr)
-import qualified SimpleSMT as S
-import Daedalus.Core (Type, Pattern)
-import Data.Set (Set)
-import GHC.Generics (Generic)
-import Data.Map (Map)
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import qualified Data.Map.Merge.Strict as Map
-import Control.Monad (guard)
-import Data.Functor (($>))
-import qualified Talos.SymExec.Expr as SE
-import qualified Daedalus.Value as I
+import           Control.Monad                (guard)
+import           Daedalus.Core                (Pattern, Type)
 import qualified Daedalus.Core.Semantics.Expr as I
-import Daedalus.PP
+import           Daedalus.PP
+import qualified Daedalus.Value               as I
+import           Data.Functor                 (($>))
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import qualified Data.Map.Merge.Strict        as Map
+import           Data.Set                     (Set)
+import qualified Data.Set                     as Set
+import           GHC.Generics                 (Generic)
+
+import           SimpleSMT                    (SExpr)
+import qualified SimpleSMT                    as S
+
+import qualified Talos.SymExec.Expr           as SE
+import           Talos.SymExec.SolverT        (SMTVar, defineSymbol, MonadSolver (..))
+import Control.Lens (traverseOf)
+import Data.Generics.Product (field)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -49,15 +56,18 @@ data PathConditionCaseInfo = PathConditionCaseInfo
   } deriving (Eq, Ord, Generic)
 
 data PathConditionInfo = PathConditionInfo
-  { pcCases   :: Map SMTVar PathConditionCaseInfo
+  { pcCases   :: !(Map SMTVar PathConditionCaseInfo)
   -- ^ Case match path conditions.
-  , pcChoices :: Map PathVar Int
+  , pcChoices :: !(Map PathVar Int)
   -- ^ We call these out separately as it is easy to figure out if the
   -- conjunction of two guards is unsat.
+  , pcPred    :: !SExpr
+  -- ^ The predicate for this path (the other fields can over-approximate)
   } deriving (Eq, Ord, Generic)
 
+-- FIXME: use False in pcPred so we don't need the sum here
 data PathCondition =
-  FeasibleMaybe PathConditionInfo
+  FeasibleMaybe {-# UNPACK #-} !PathConditionInfo
   | Infeasible
   deriving (Eq, Ord)
 
@@ -82,6 +92,7 @@ conjInfo :: PathConditionInfo -> PathConditionInfo -> Maybe PathConditionInfo
 conjInfo pc1 pc2 =
   PathConditionInfo <$> joinCases   (pcCases pc1) (pcCases pc2)
                     <*> joinChoices (pcChoices pc1) (pcChoices pc2)
+                    <*> pure (S.and (pcPred pc1) (pcPred pc2))
   where
     joinCases =
       Map.mergeA Map.preserveMissing Map.preserveMissing
@@ -92,32 +103,35 @@ conjInfo pc1 pc2 =
       Map.mergeA Map.preserveMissing Map.preserveMissing
           (Map.zipWithAMatched (\_k x y -> guard (x == y) $> x))
 
-insertCase :: SMTVar -> PathConditionCaseInfo ->
-              PathCondition -> PathCondition
-insertCase v els = (<>) (FeasibleMaybe (PathConditionInfo (Map.singleton v els) mempty))
+singletonCase :: SMTVar -> PathConditionCaseInfo -> PathCondition
+singletonCase v pcci = 
+  FeasibleMaybe (PathConditionInfo (Map.singleton v pcci) mempty p)
+  where
+    p = S.andMany [ notf b (SE.patternToPredicate (pcciType pcci) p' (S.const v))
+                  | (b, p') <- either (\q -> [(True, q)])
+                               (map ((,) False) . Set.toList)
+                               (pcciConstraint pcci)
+                  ]
+    notf b = if b then id else S.not
 
-insertChoice :: PathVar -> Int ->
-                PathCondition -> PathCondition
-insertChoice v el = (<>) (FeasibleMaybe (PathConditionInfo mempty (Map.singleton v el)))
+singletonChoice :: PathVar -> Int -> PathCondition
+singletonChoice v i =
+  FeasibleMaybe (PathConditionInfo mempty (Map.singleton v i)
+                  (S.eq (pathVarToSExpr v) (S.int (fromIntegral i))))
+
+singletonSExpr :: SExpr -> PathCondition
+singletonSExpr p = FeasibleMaybe (PathConditionInfo mempty mempty p)
 
 toSExpr :: PathCondition -> SExpr
 toSExpr Infeasible = S.bool False
-toSExpr (FeasibleMaybe pc)
-  | [el] <- allPreds = el
-  | otherwise = S.andMany allPreds
-  where
-    notf b = if b then id else S.not
-    allPreds = cases ++ choices
-    cases = [ notf b (SE.patternToPredicate (pcciType pcci) p (S.const n))
-            | (n, pcci) <- Map.toList (pcCases pc)
-            , (b, p) <- either (\p -> [(True, p)])
-                               (map ((,) False) . Set.toList)
-                               (pcciConstraint pcci)
-            ]
-    choices = [ S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))
-              | (pv, i) <- Map.toList (pcChoices pc)
-              ]
+toSExpr (FeasibleMaybe pc) = pcPred pc
 
+name :: MonadSolver m => PathCondition -> m PathCondition
+name Infeasible         = pure Infeasible
+name (FeasibleMaybe pc) =
+  FeasibleMaybe <$> traverseOf (field @"pcPred") def pc
+  where
+    def = liftSolver . fmap S.const . defineSymbol "pc" S.tBool
 
 -- -----------------------------------------------------------------------------
 -- Semantics
@@ -138,7 +152,7 @@ instance Semigroup PathCondition where
     maybe Infeasible FeasibleMaybe (conjInfo pc1 pc2)
 
 instance Monoid PathCondition where
-  mempty = FeasibleMaybe (PathConditionInfo mempty mempty)
+  mempty = FeasibleMaybe (PathConditionInfo mempty mempty (S.bool True))
 
 instance PP PathVar where
   pp = text . getPathVar

@@ -22,8 +22,9 @@ import           Data.Maybe                   (catMaybes)
 import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as SMT
 -- FIXME: use .CPS
+-- FIXME: use .CPS
 import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
-                                               tell)
+                                               tell, pass)
 import           Data.Set                     (Set)
 
 import           Daedalus.Core                (Expr, Name, Pattern, typedThing)
@@ -37,13 +38,14 @@ import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
                                                runSemiSolverM)
 import qualified Talos.Strategy.MuxValue      as MV
-import           Talos.Strategy.PathCondition (PathVar (..))
+import           Talos.Strategy.PathCondition (PathVar (..), PathCondition)
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
                                                liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
 import qualified Data.Set as Set
+import qualified Talos.Strategy.PathCondition as PC
 
 
 
@@ -56,6 +58,8 @@ type SymVarEnv = Map Name GuardedSemiSExprs
 
 data SymbolicEnv = SymbolicEnv
   { sVarEnv     :: SymVarEnv
+  , sPath    :: PathCondition -- ^ Current path.
+  
   , sCurrentSCC :: Maybe (Set SliceId)
   -- ^ The set of slices in the current SCC, if any
   , sBackEdges :: Map SliceId (Set SliceId)
@@ -69,8 +73,6 @@ data SymbolicEnv = SymbolicEnv
   -- ^ Current recursive depth (basically the sum of all back edge
   -- calls, irrespective of source/target).
   
-  -- The path isn't required as we add it on post-facto
-  -- , sPath    :: ValueGuard -- ^ Current path.
   } deriving (Generic)
 
 -- ppSymbolicEnv :: SymbolicEnv -> Doc
@@ -98,7 +100,7 @@ data PathCaseBuilder a   =
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
 emptySymbolicEnv :: Maybe Int -> SymbolicEnv
-emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
+emptySymbolicEnv = SymbolicEnv mempty mempty mempty mempty Nothing 0 
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -149,9 +151,9 @@ freshPathVar bnd = do
 -- Assertions
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr p = tell [p]
-  -- pe <- asks (valueGuardToSExpr . sPath)
-  -- inSolver (Solv.assert (SMT.implies pe p))
+assertSExpr p = do
+  g <- asks (PC.toSExpr . sPath)
+  tell [SMT.implies g p]
   
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do
@@ -184,6 +186,20 @@ infeasible = SymbolicM $ fail "UNUSED"
 -- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
 -- enterPathNode deps = local (over (field @"sPath") (deps :))
 
+bracketAsserts :: PathCondition -> SymbolicM a -> SymbolicM (Maybe a)
+bracketAsserts p m = do
+  path <- asks sPath
+  path' <- PC.name (path <> p)
+  let neg_pc = SMT.not (PC.toSExpr path')
+      m_with_pc = locally (field @"sPath") (const path') m      
+  pass $ do
+    m_r <- getMaybe m_with_pc
+    pure $ case m_r of
+             Just {}  -> (m_r, id)
+             -- If the path is infeasible for whatever reason, assert
+             -- the negation of the guard and forget any other
+             -- assertions.
+             Nothing -> (Nothing, const [neg_pc])
 
 -- We have a number of cases here
 -- 1. Normal function call to non-rec. function

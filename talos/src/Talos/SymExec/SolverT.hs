@@ -84,9 +84,9 @@ data PolyFun = PMapLookup SExpr SExpr -- kt vt
              deriving (Eq, Ord, Show)
 
 data QueuedCommand =
-  QCAssert SExpr
-  | QCDeclare SMTVar SExpr
-  | QCDefine  SMTVar SExpr SExpr
+  QCAssert !SExpr
+  | QCDeclare !SMTVar !SExpr
+  | QCDefine  !SMTVar !SExpr !SExpr
 
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
@@ -427,6 +427,7 @@ freshName n = do
 
 defineSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SExpr ->
                 SolverT m SMTVar
+defineSymbol _pfx _ty (S.Atom x) = pure x
 defineSymbol pfx ty e = do
   sym <- freshSymbol pfx
   queueSolverOp (QCDefine sym ty e)

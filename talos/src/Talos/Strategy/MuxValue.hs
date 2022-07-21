@@ -17,7 +17,7 @@
 
 module Talos.Strategy.MuxValue where
 
-import           Control.Lens                 (locally)
+import           Control.Lens                 (locally, _1, traverseOf, each)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Maybe    (MaybeT, runMaybeT)
 import           Data.Generics.Product        (field)
@@ -123,7 +123,8 @@ vOther :: PathCondition -> Typed SMTVar -> GuardedSemiSExprs
 vOther g = singleton g . VOther 
 
 vSExpr :: MonadSolver m => PathCondition -> Type -> SExpr -> m GuardedSemiSExprs
-vSExpr g ty se = vOther g . Typed ty <$> sexprAsSMTVar (symExecTy ty) se
+vSExpr g ty se =
+  vOther g . Typed ty <$> liftSolver (defineSymbol "named" (symExecTy ty) se)
 
 vValue :: PathCondition -> V.Value -> GuardedSemiSExprs
 vValue g = singleton g . VValue
@@ -238,7 +239,7 @@ toSExpr tys ty gvs =
     (_g, el) :| els = getGuardedValues gvs
 
 toSExpr1 :: Map TName TDecl -> Type ->
-                           GuardedSemiSExpr -> SExpr
+            GuardedSemiSExpr -> SExpr
 toSExpr1 tys ty sv = 
   case sv of
     VValue v -> valueToSExpr tys ty v
@@ -457,7 +458,7 @@ semiExecCase (Case y pats) = do
             | hasAny    = ([ Right (Set.fromList pats') ] , [(g, YesMatch)])
             | otherwise = ([], [(g, SymbolicMatch (orMany basePreds))])
           vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
-      in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
+      in (map (\c -> PC.singletonCase (typedThing x) (vgciFor c) <> g) (map Left pats' ++ m_any), assn)
     goV (g, v) =
       let ms = map (matches' v) pats'
           noMatch = not (or ms)
@@ -682,10 +683,6 @@ gseConcat svs = unions' (mapMaybe mkOne combs)
       in doConcat els (mconcat gs)
 
     toL = gseToList
-
-sexprAsSMTVar :: MonadSolver m => SExpr -> SExpr -> m SMTVar
-sexprAsSMTVar _ty (S.Atom x) = pure x
-sexprAsSMTVar ty e = liftSolver (defineSymbol "named" ty e)
 
 typeToElType :: Type -> Maybe Type
 typeToElType ty = 
@@ -1089,6 +1086,13 @@ valueToSExpr tys ty v =
 
     unimplemented = panic "Unimplemented" [showPP v]
 
+
+-- ----------------------------------------------------------------------------------------
+-- Utilities
+
+namePathConditions :: (MonadSolver m) => GuardedSemiSExprs -> m GuardedSemiSExprs
+namePathConditions (GuardedValues gses) =
+  GuardedValues <$> traverseOf (each . _1) PC.name gses
 
 -- ----------------------------------------------------------------------------------------
 -- Helpers

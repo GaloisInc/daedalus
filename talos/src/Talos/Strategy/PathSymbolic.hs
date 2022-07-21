@@ -10,7 +10,7 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic (pathSymbolicStrats) where
 
-import           Control.Lens                 (_1, _2, at, each, over, (.=))
+import           Control.Lens                 (_1, _2, _Just, at, each, over, (.=))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -19,7 +19,7 @@ import qualified Data.ByteString              as BS
 import           Data.Foldable                (find)
 import           Data.Functor.Identity        (Identity (Identity))
 import           Data.Generics.Product        (field)
-import           Data.List.NonEmpty           (NonEmpty)
+import           Data.List.NonEmpty           (NonEmpty( (:|) ))
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes, mapMaybe)
@@ -103,7 +103,7 @@ symbolicFun ptag sl = do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 5) (stratSlice ptag sl)
+    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 20) (stratSlice ptag sl)
     let go (_, pb) = do
           mapM_ Solv.assert assns
           r <- Solv.check
@@ -142,8 +142,10 @@ stratSlice ptag = go
         SHole -> pure (vUnit, SelectedHole)
 
         SPure e -> do
-          let mk v = (v, SelectedHole)
-          mk <$> synthesiseExpr e
+          path <- asks sPath
+          v <- MV.namePathConditions =<<
+                 putMaybe (MV.refine path <$> synthesiseExpr e)
+          pure (v, SelectedHole)
 
         SDo x lsl rsl -> do
           bindNameIn x (go lsl)
@@ -153,8 +155,9 @@ stratSlice ptag = go
         -- to branch and have a concrete bset.
         SMatch bset -> do
           sym <- liftSolver (declareSymbol "b" tByte)
+          path <- asks sPath
           let bse = S.const sym
-              bv  = MV.vOther mempty (Typed TByte sym)
+              bv  = MV.vOther path (Typed TByte sym)
               
           bassn <- synthesiseByteSet bset bse
           -- This just constrains the byte, we expect it to be satisfiable
@@ -171,7 +174,8 @@ stratSlice ptag = go
         SCase total c -> stratCase ptag total c Nothing -- =<< asks sCurrentSCC
 
         SInverse n ifn p -> do
-          n' <- MV.vSExpr mempty (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
+          path <- asks sPath
+          n' <- MV.vSExpr path (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' $ do
             pe <- synthesiseExpr p
             ienv <- getIEnv
@@ -200,19 +204,10 @@ stratSlice ptag = go
 -- then the negated path condition will be asserted and 
 guardedChoice :: PathVar -> Int -> SymbolicM Result ->
                  SymbolicM (Maybe (GuardedSemiSExprs, (Int, PathBuilder)))
-guardedChoice pv i m = pass $ do
-  m_r <- getMaybe m
-  pure $ case m_r of
-           -- Refining should always succeed.
-           Just (v, p)
-             | Just v' <- MV.refine g v -> (Just (v', (i, p)), addImpl)
-           _ -> (Nothing, const [S.not pathGuard])
+guardedChoice pv i m = add_i <$> bracketAsserts p m
   where
-    g = PC.insertChoice pv i mempty
-    pathGuard = PC.toSExpr g
-    addImpl [] = []
-    addImpl [sexpr] = [S.implies pathGuard sexpr]
-    addImpl sexprs = [S.implies pathGuard (MV.andMany sexprs)]
+    add_i = over (_Just . _2) ((,) i)
+    p = PC.singletonChoice pv i
 
 -- FIXME: put ptag in env.
 stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
@@ -229,7 +224,8 @@ stratChoice ptag sls _ = do
   (vs, paths) <-
     unzip . catMaybes <$>
     zipWithM (guardedChoice pv) [0..] (map (stratSlice ptag) sls)
-  v <- hoistMaybe (MV.unions' vs)
+  v <- MV.namePathConditions =<< hoistMaybe (MV.unions' vs)
+  
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
   --                 <> " ==> " <> pp (length (MV.guardedValues v)))
   pure (v, SelectedChoice (SymbolicChoice pv paths))
@@ -250,24 +246,21 @@ stratChoice ptag sls _ = do
 -- FIXME: merge with the above?
 guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
                SymbolicM (Maybe (GuardedSemiSExprs, (Pattern, PathBuilder)))
-guardedCase gs pat m = pass $ do
-  m_r <- getMaybe m
-  pure $ case m_r of
-           Just r  -> (mk r, addImpl)
-           Nothing -> (Nothing, const [S.not pathGuard])
+guardedCase pcs pat m = do
+  p' <- PC.name p
+  add_pat <$> bracketAsserts p' m
   where
-    mk (v, pb) = do
-      x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
-      pure (x, (pat, pb))
-      
-    pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
+    add_pat = over (_Just . _2) ((,) pat)
     
-    addImpl [] = []
-    addImpl [sexpr] = [S.implies pathGuard sexpr]
-    addImpl sexprs = [S.implies pathGuard (MV.andMany sexprs)]
-
+    p | pc :| [] <- pcs = pc
+      | otherwise       = justOrThem
+      
+    -- FIXME: this loses information we could use to prune more paths.
+    -- We don't have a nice way of representing disjunctions, so we have to 
+    justOrThem = PC.singletonSExpr $ MV.orMany (map PC.toSExpr (NE.toList pcs))
+                                      
 stratCase :: ProvenanceTag -> Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase ptag total cs m_sccs = do
+stratCase ptag _total cs m_sccs = do
   inv <- getName (caseVar cs)
   (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
   let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice ptag a)
@@ -284,7 +277,8 @@ stratCase ptag total cs m_sccs = do
 
     _ -> do
       (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
-      v <- hoistMaybe (MV.unions' vs)
+      v <- MV.namePathConditions =<< hoistMaybe (MV.unions' vs)
+      
       -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
       --                 <> " ==> " <> pp (length (MV.guardedValues v))
       --                 <> pp (text . typedThing <$> snd (head (MV.guardedValues v))))
