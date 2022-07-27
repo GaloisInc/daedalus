@@ -8,6 +8,7 @@ packages:
   rts-vm-hs/
   formats/pdf/old/cos/
   formats/pdf/old/driver/
+  formats/pdf/arlington-pdf-model/
   formats/icc/
   talos/
   daedalus-language-server/
