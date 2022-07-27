@@ -10,7 +10,6 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Language.Haskell.TH as TH
 import qualified Data.Text as Text
-import Debug.Trace(trace)
 
 import qualified Data.Functor.Identity as RTS
 import qualified Daedalus.RTS as RTS
@@ -174,11 +173,13 @@ newArg :: BA -> TH.Q (TH.PatQ, TH.ExpQ)
 newArg ba = newArg' (show (pp ba)) (compileVMT (getType ba))
 
 newArg' :: String -> TH.TypeQ -> TH.Q (TH.PatQ, TH.ExpQ)
-newArg' str ty =
+newArg' str' ty =
   do nm <- TH.newName str
      let pat  = TH.sigP (TH.bangP (TH.varP nm)) ty
          expr = TH.varE nm
      pure (pat,expr)
+  where
+  str = zEsc str'
 
 
 
@@ -600,7 +601,8 @@ dToC e no yes =
 
 
 labelName :: Label -> TH.Name
-labelName (Label txt n) = TH.mkName ('l' : Text.unpack txt ++ "_" ++ show n)
+labelName (Label txt n) =
+  TH.mkName ('l' : zEsc (Text.unpack txt) ++ "_" ++ show n)
 
 doCall :: FName -> [TH.ExpQ] -> TH.ExpQ
 doCall f es = TH.appsE (TH.varE (fnameName f) : es)

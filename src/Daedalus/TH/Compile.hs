@@ -91,6 +91,7 @@ loadDDLVM roots src =
      -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
      DDL.passNorm specMod
+     DDL.ddlSetOpt DDL.optDebugMode True
      DDL.passVM specMod
      m <- DDL.ddlGetAST specMod DDL.astVM
 

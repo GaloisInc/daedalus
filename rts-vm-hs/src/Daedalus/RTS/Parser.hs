@@ -1,10 +1,13 @@
 module Daedalus.RTS.Parser where
 
 import Data.Text(Text)
+import qualified Data.Text as Text
+import qualified Data.ByteString.Char8 as BS8
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
 import Data.Functor.Identity
 import Data.Coerce(coerce)
+import qualified Text.PrettyPrint as PP
 
 import qualified Daedalus.RTS.Input as RTS
 import qualified Daedalus.RTS.Vector as RTS
@@ -217,5 +220,24 @@ doGetErr s = case pesError s of
                Just e  -> e
                Nothing -> error "doGetErr: Nothing"
 
+
+--------------------------------------------------------------------------------
+
+ppParseError :: ParseError -> PP.Doc
+ppParseError pe =
+  PP.vcat
+    [ "Parse error at" PP.<+> PP.text (show (RTS.inputName inp))
+                       PP.<> ":" PP.<> PP.int (RTS.inputOffset inp) PP.<> ":"
+    , PP.nest 2 $ PP.vcat
+        [ PP.text (BS8.unpack (RTS.vecToRep (peMsg pe)))
+        , "Location:" PP.<+> ppText (peLoc pe)
+        , "Call stack:"
+        , PP.nest 2 $ PP.vcat $ map ppFun (peStack pe)
+        ]
+    ]
+  where
+  inp      = peInput pe
+  ppText t = PP.text (Text.unpack t)
+  ppFun xs = PP.hsep (map ppText xs)
 
 
