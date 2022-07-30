@@ -87,11 +87,12 @@ vmNoteFail ty loc inp msg s =
              }
 
   improve old =
-    case (peSource old, ty) of
-      (FromUser, FromSystem) -> old
-      (FromSystem, FromUser) -> newErr
-      _ | RTS.inputOffset inp < RTS.inputOffset (peInput old) -> old
-        | otherwise -> newErr
+    case compare (RTS.inputOffset inp) (RTS.inputOffset (peInput old)) of
+      LT -> old
+      GT -> newErr
+      EQ -> case (peSource old, ty) of
+              (FromUser, FromSystem) -> old
+              _ -> newErr
 
 
 vmPushDebugTail :: Text -> ParserErrorState -> ParserErrorState

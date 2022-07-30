@@ -13,7 +13,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Control.Monad(foldM)
 import Control.Exception(Exception(..), catch, throwIO)
-import System.FilePath((</>), dropExtension)
+import System.FilePath((</>), dropExtension, takeExtension)
 import System.Directory(getDirectoryContents,doesFileExist)
 import Text.PrettyPrint
 
@@ -43,7 +43,7 @@ loadPDFSpec dir =
   addType mp f =
     do let path = dir </> f
        yes <- doesFileExist path
-       if yes
+       if yes && takeExtension f == ".tsv"
           then do ct <- loadType path
                   let name = Text.pack (dropExtension f)
                   pure $! Map.insert name ct mp
