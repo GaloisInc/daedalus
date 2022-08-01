@@ -100,8 +100,6 @@ def IsInheritable : BoolExpr =
     {| TRUE = KW "Inheritable" |}
     BoolExpr
 
-def Test = Alts DefaultValue
-
 def DefaultValue =
   First
     Conditional = ConditionalDefaultCases
@@ -129,7 +127,7 @@ def ConditionalDefault =
 def PossibleValue =
   First
     Deprecated    = FnDeprecated PossibleValue
-    SinceVersion  = FnSinceVersion Term
+    SinceVersion  = FnSinceVersion PossibleValue
     Conditional   = ConditionalValue
     Value         = Term
     Wild          = KW "*"
@@ -200,15 +198,22 @@ def BoolAtomExpr : BoolExpr =
     {| IsAssociatedFile   = Fun0 "IsAssociatedFile" |}
     {| IsPDFTagged        = Fun0 "IsPDFTagged" |}
     {| IsEncryptedWrapper = Fun0 "IsEncryptedWrapper" |}
+    {| NoCycle            = Fun0 "NoCycle" |}
     {| PageContainsStructContentItems = Fun0 "PageContainsStructContentItems" |}
     {| ImageIsStructContentItem = Fun0 "ImageIsStructContentItem" |}
 
     {| IsPresent         = Fun1 "IsPresent" FieldName |}
+    {| IsPresentBool     = Fun1 "IsPresent" BoolExpr |}       -- ?
+    {| IsMeaningful      = Fun1 "IsMeaningful" BoolExpr |}    -- ?
+    {| IsRequired        = Fun1 "IsRequired" BoolExpr |}      -- ?
+
     {| InMap             = Fun1 "InMap" FieldName |}
     {| Contains          = Fun2 "Contains" Term Term |}
+    {| ArraySortAscending = Fun2 "ArraySortAscending" Term Term |}
 
     {| SinceVersion      = FnSinceVersion BoolExpr |}
     {| BeforeVersion     = FnBeforeVersion BoolExpr |}
+    {| AtVersion         = FnIsPDFVersion BoolExpr |}
     {| IsAtLeastVersion  = Fun1 "SinceVersion" Version |}
     {| IsBeforeVersion   = Fun1 "BeforeVersion" Version |}
     {| IsPDFVersion      = Fun1 "IsPDFVersion" Version |}
@@ -216,6 +221,12 @@ def BoolAtomExpr : BoolExpr =
     {| BitClear          = Fun1 "BitClear" Term |}
     {| BitsClear         = Fun2 "BitsClear" Term Term |}
     {| BitSet            = Fun1 "BitSet" Term |}
+    {| BitsSet           = Fun2 "BitsSet" Term Term |}
+
+    {| MustBeDirect      = Fun1 "MustBeDirect" FieldName |}
+    {| Ignore0           = Fun0 "Ignore" |}          -- ?
+    {| Ignore            = Fun1 "Ignore" BoolExpr |}          -- ?
+    {| IsLastInNumberFormatArray = Fun1 "IsLastInNumberFormatArray" Term |}
 
 
     -- This is actually a guarded term, and not a predicate,
@@ -272,18 +283,22 @@ def RepeatArray =
 
 def Term =
   First
-    {| add = BinOp "+" |}
-    {| sub = BinOp "- " |}
+    {| add = BinOp "+" TermProduct |}
+    {| sub = BinOp "- " TermProduct |}
         -- the space is to avoid conflict with names like a-b
-    {| mul = BinOp "*" |}  -- XXX: probably ambiguous with wild cards
-    {| mod = BinOp "mod" |}
+    TermProduct
+
+def TermProduct : Term =
+  First
+    {| mul = BinOp "*" TermAtom |}  -- XXX: ambiguous with wild cards?
+    {| mod = BinOp "mod" TermAtom |}
     TermAtom
 
-def BinOp op =
+def BinOp op P =
   block
-    lhs = TermAtom
+    lhs = P
     KW op
-    rhs = TermAtom
+    rhs = P
 
 def TermAtom : Term =
   First
@@ -295,8 +310,7 @@ def TermAtom : Term =
     {| ValueOf    = ValueOf |}
 
     {| Float      = Token FloatValue |}
-
-    {| Integer    = Token Integer |}    -- Must be aftre Float
+    {| Integer    = Token Integer |}    -- Must be after Float
 
     {| Bool       = { KW "true";  true } |}
     {| Bool       = { KW "false"; false } |}
@@ -328,12 +342,17 @@ def TermAtom : Term =
     {| RectWidth    = Fun1 "RectWidth"  Term |}
     {| RectHeight   = Fun1 "RectHeight" Term |}
     {| FileSize     = Fun0 "FileSize" |}
+    {| ArrayLengthField  = Fun1 "ArrayLength" FieldName |}
     {| ArrayLength  = Fun1 "ArrayLength" Term |}
+    {| PageProperty = Fun2 "PageProperty" Term FieldName |}
     {| StringLength = Fun1 "StringLength" Term |}
+    {| StreamLength = Fun1 "StreamLength" Term |}
 
     {| ImplementationDependent = Fun0 "ImplementationDependent" |}
+    {| NumberOfPages = Fun0 "NumberOfPages" |}
 
     {| Name = NameValue |} -- Needs to be after the functions and Integer
+
 
 --------------------------------------------------------------------------------
 -- Functions
