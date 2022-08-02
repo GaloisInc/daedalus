@@ -40,10 +40,9 @@ resolveModulePath (p : searchPaths) n =
   where
   root = p </> Text.unpack n
   attempt ext k =
-    do let p' = root </> ext
+    do let p' = root <.> ext
        yes <- doesFileExist p'
        if yes then pure (Just p') else k
-    
 
 pathToModuleName :: FilePath -> (FilePath, ModuleName)
 pathToModuleName f = (dir, Text.pack (dropExtension rest))
