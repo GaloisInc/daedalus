@@ -6,11 +6,6 @@ def Main =
     END
 
 
-def $alpha            = 'a' .. 'z' | 'A' .. 'Z'
-def $digit            = '0' .. '9'
-def $fieldSeparator   = '\t'
-def $recordTerminator = '\n'
-
 def Field =
   block
     key               = FreeText;                 $fieldSeparator
@@ -22,13 +17,12 @@ def Field =
     inheritable       = IsInheritable;            $fieldSeparator
     defaultValue      = Alts DefaultValue;        $fieldSeparator
     possibleValues    = MultiAlts PossibleValue;  $fieldSeparator
-    specialCase       = MultiAlts Check;          $fieldSeparator
+    specialCase       = MultiAlts SpecialCase;    $fieldSeparator
     link              = MultiAlts Link;           $fieldSeparator
     note              = FreeText;                 $recordTerminator
 
 def FreeText  = Many $[! ($fieldSeparator | $recordTerminator)]
 
-def FieldType = SepBy (KW ";") FieldTypeExpression
 
 def Bracketed P =
   block
@@ -44,17 +38,24 @@ def Alts P =
 def MultiAlts P =
   Optional (SepBy (KW ";") (Bracketed (Optional (SepBy (KW ",") P))))
 
+def Version =
+  block
+    major   = Natural
+    $['.']
+    minor   = Natural
+
+
+
+--------------------------------------------------------------------------------
+-- Field Type
+
+def FieldType = SepBy (KW ";") FieldTypeExpression
+
 def FieldTypeExpression =
   First
     TType       = PrimitiveType
     TSince      = FnSinceVersion PrimitiveType
     TDeprecated = FnDeprecated PrimitiveType
-
-def Version =
-  block
-    major   = Integer
-    $['.']
-    minor   = Integer
 
 def PrimitiveType =
   First
@@ -78,10 +79,17 @@ def PrimitiveType =
     TString      = @Match "string"
 
 
+--------------------------------------------------------------------------------
+-- Is this field required
+
 def IsRequired : BoolExpr =
   First
-    BoolExpr
     Fun1 "IsRequired" BoolExpr
+    BoolExpr
+
+
+--------------------------------------------------------------------------------
+-- Is this field direct
 
 {- This encode 3 possible values:
     * direct-only
@@ -95,15 +103,22 @@ def IsIndirect =
     IndirectIf = Fun1 "MustBeIndirect" BoolExpr
     IndirectIf = {| TRUE = KW "IndirectReference" |}
 
+--------------------------------------------------------------------------------
+-- Is Inheritable
+
 def IsInheritable : BoolExpr =
   First
     {| TRUE = KW "Inheritable" |}
     BoolExpr
 
+--------------------------------------------------------------------------------
+-- Default Valuess
+
 def DefaultValue =
   First
-    Conditional = ConditionalDefaultCases
-    Default     = Term
+    ImplementationDependent = Fun0 "ImplementationDependent"
+    Conditional             = ConditionalDefaultCases
+    Value                   = Term
 
 def ConditionalDefaultCases =
   First
@@ -124,11 +139,19 @@ def ConditionalDefault =
       value     = f.arg2
 
 
+--------------------------------------------------------------------------------
+-- Possible Values
+
+def Test = MultiAlts PossibleValue
+
 def PossibleValue =
   First
     Deprecated    = FnDeprecated PossibleValue
     SinceVersion  = FnSinceVersion PossibleValue
+    BeforeVersion = FnBeforeVersion PossibleValue
     Conditional   = ConditionalValue
+    Eval          = FnEval (SepBy (KW "&&") PossibleValue)
+    Constraint    = BoolExpr
     Value         = Term
     Wild          = KW "*"
 
@@ -137,6 +160,32 @@ def ConditionalValue =
     let f = Fun2 "RequiredValue" BoolExpr Term
     condition = f.arg1
     value     = f.arg2
+
+
+--------------------------------------------------------------------------------
+-- Special Checks
+
+def SpecialCase =
+  First
+    SinceVersion  = FnSinceVersion  SpecialCase
+    BeforeVersion = FnBeforeVersion SpecialCase
+    AtVersion     = FnIsPDFVersion  SpecialCase
+    Eval          = FnEval (SepBy (KW "&&") SpecialCase)
+    Ignore0       = Fun0 "Ignore"
+    Ignore        = Fun1 "Ignore" BoolExpr
+    IgnoreF       = Fun1 "Ignore" FieldName
+    Meaningful    = Fun1 "IsMeaningful" BoolExpr
+    NoCycle       = Fun0 "NoCycle"
+    NotPresentIf  = Fun1 "Not" (Fun1 "IsPresent" BoolExpr)
+    NotRequiredIf = Fun1 "Not" (Fun1 "IsRequired" BoolExpr)
+    MustbeDirect  = Fun1 "MustBeDirect" FieldName
+    Constraint    = BoolExpr
+
+
+
+
+--------------------------------------------------------------------------------
+-- Links
 
 def Link =
   First
@@ -147,12 +196,8 @@ def Link =
 
 def TypeName  = Many (1..) $[ $alpha, $digit, '_' ]
 
-def Check =
-  First
-    Check      = BoolExpr
-    Ignore     = Fun1 "Ignore" BoolExpr --??
-    IgnoreF    = Fun1 "Ignore" FieldName --??
-    Meaningful = Fun1 "IsMeaningful" BoolExpr
+
+
 
 --------------------------------------------------------------------------------
 -- Boolean Expressions
@@ -160,21 +205,9 @@ def Check =
 def BoolExpr =
   block
     First
-      {| OR  = BoolInfixExpr "||" |}
-      {| AND = BoolInfixExpr "&&" |}
+      {| OR  = SepBy2 (KW "||") BoolAtomExpr |}
+      {| AND = SepBy2 (KW "&&") BoolAtomExpr |}
       BoolAtomExpr
-
-def BoolInfixExpr kw =
-  block
-    let first  = emit builder BoolAtomExpr
-    let second = emit first (BoolInfixAtomExpr kw)
-    let rest   = many (s = second) (emit s (BoolInfixAtomExpr kw))
-    build rest
-
-def BoolInfixAtomExpr kw =
-  block
-    KW kw
-    BoolAtomExpr
 
 def BoolAtomExpr : BoolExpr =
   First
@@ -184,102 +217,50 @@ def BoolAtomExpr : BoolExpr =
       $$ = BoolExpr
       KW ")"
 
+    {| TRUE                       = KW "TRUE"  |}
+    {| FALSE                      = KW "FALSE" |}
+    {| NOT                        = Fun1 "Not" BoolExpr |}
 
-    {| TRUE  = KW "TRUE"  |}
-    {| FALSE = KW "FALSE" |}
-    {| NOT   = Fun1 "Not" BoolExpr |}
+    {| FontHasLatinChars          = Fun0 "FontHasLatinChars" |}
+    {| NotStandard14Font          = Fun0 "NotStandard14Font" |}
+    {| KeyNameIsColorant          = Fun0 "KeyNameIsColorant" |}
 
-    FnEval BoolExpr
-
-    {| FontHasLatinChars = Fun0 "FontHasLatinChars" |}
-    {| NotStandard14Font = Fun0 "NotStandard14Font" |}
-    {| KeyNameIsColorant = Fun0 "KeyNameIsColorant" |}
-
-    {| IsAssociatedFile   = Fun0 "IsAssociatedFile" |}
-    {| IsPDFTagged        = Fun0 "IsPDFTagged" |}
-    {| IsEncryptedWrapper = Fun0 "IsEncryptedWrapper" |}
-    {| NoCycle            = Fun0 "NoCycle" |}
+    {| IsAssociatedFile           = Fun0 "IsAssociatedFile" |}
+    {| IsPDFTagged                = Fun0 "IsPDFTagged" |}
+    {| IsEncryptedWrapper         = Fun0 "IsEncryptedWrapper" |}
     {| PageContainsStructContentItems = Fun0 "PageContainsStructContentItems" |}
-    {| ImageIsStructContentItem = Fun0 "ImageIsStructContentItem" |}
+    {| ImageIsStructContentItem   = Fun0 "ImageIsStructContentItem" |}
 
-    {| IsPresent         = Fun1 "IsPresent" FieldName |}
-    {| IsPresentBool     = Fun1 "IsPresent" BoolExpr |}       -- ?
-    {| IsMeaningful      = Fun1 "IsMeaningful" BoolExpr |}    -- ?
-    {| IsRequired        = Fun1 "IsRequired" BoolExpr |}      -- ?
+    {| IsPresent                  = Fun1 "IsPresent" FieldName |}
 
-    {| InMap             = Fun1 "InMap" FieldName |}
-    {| Contains          = Fun2 "Contains" Term Term |}
-    {| ArraySortAscending = Fun2 "ArraySortAscending" Term Term |}
+    {| InMap                      = Fun1 "InMap" FieldName |}
+    {| Contains                   = Fun2 "Contains" Term Term |}
+    {| ArraySortAscending         = Fun2 "ArraySortAscending" Term Term |}
 
-    {| SinceVersion      = FnSinceVersion BoolExpr |}
-    {| BeforeVersion     = FnBeforeVersion BoolExpr |}
-    {| AtVersion         = FnIsPDFVersion BoolExpr |}
-    {| IsAtLeastVersion  = Fun1 "SinceVersion" Version |}
-    {| IsBeforeVersion   = Fun1 "BeforeVersion" Version |}
-    {| IsPDFVersion      = Fun1 "IsPDFVersion" Version |}
+    {| SinceVersion               = FnSinceVersion BoolExpr |}
+    {| BeforeVersion              = FnBeforeVersion BoolExpr |}
+    {| AtVersion                  = FnIsPDFVersion BoolExpr |}
 
-    {| BitClear          = Fun1 "BitClear" Term |}
-    {| BitsClear         = Fun2 "BitsClear" Term Term |}
-    {| BitSet            = Fun1 "BitSet" Term |}
-    {| BitsSet           = Fun2 "BitsSet" Term Term |}
+    {| IsAtLeastVersion           = Fun1 "SinceVersion" Version |}
+    {| IsBeforeVersion            = Fun1 "BeforeVersion" Version |}
+    {| IsPDFVersion               = Fun1 "IsPDFVersion" Version |}
 
-    {| MustBeDirect      = Fun1 "MustBeDirect" FieldName |}
-    {| Ignore0           = Fun0 "Ignore" |}          -- ?
-    {| Ignore            = Fun1 "Ignore" BoolExpr |}          -- ?
-    {| IsLastInNumberFormatArray = Fun1 "IsLastInNumberFormatArray" Term |}
+    {| BitClear                   = Fun1 "BitClear" Term |}
+    {| BitsClear                  = Fun2 "BitsClear" Term Term |}
+    {| BitSet                     = Fun1 "BitSet" Term |}
+    {| BitsSet                    = Fun2 "BitsSet" Term Term |}
 
+    {| IsLastInNumberFormatArray  = Fun1 "IsLastInNumberFormatArray" Term |}
 
-    -- This is actually a guarded term, and not a predicate,
-    -- See rules for default values
-    {| ConditionalDefault =
-          block
-            let f = Fun2 "DefaultValue" BoolExpr Term
-            condition = f.arg1
-            value     = f.arg2
-          : ConditionalDefault
-          |}
+    {| EQ                         = BinOp "==" Term |}
+    {| NEQ                        = BinOp "!=" Term |}
+    {| LT                         = BinOp "<"  Term |}
+    {| GT                         = BinOp ">"  Term |}
+    {| LEQ                        = BinOp "<=" Term |}
+    {| GEQ                        = BinOp ">=" Term |}
 
-    {| EQ   = BinPred "==" |}
-    {| NEQ  = BinPred "!=" |}
-    {| LT   = BinPred "<"  |}
-    {| GT   = BinPred ">"  |}
-    {| LEQ  = BinPred "<=" |}
-    {| GEQ  = BinPred ">=" |}
-
-
-
-def BinPred op =
-  block
-    lhs = Term
-    KW op
-    rhs = Term
-
-
-def SimpleFieldName =
-  First
-    Number = Natural
-    Text   = NameValue
-    Wild   = $['*']
-
-def FieldName = SepBy (Match "::") SimpleFieldName
-
-def NameValue = Token (Many (1 .. ) $[ $alpha, $digit, '.', '_', '-'])
-
-def ValueOf =
-  block
-    qualifier = Optional { $$ = FieldName; Match "::" }
-    $['@']
-    field  = SimpleFieldName
-
-def RepeatArray =
-  block
-    KW "["
-    v1 = Term
-    v2 = Term
-    v1 == Term is true
-    v2 == Term is true
-    KW "..."
-    KW "]"
+--------------------------------------------------------------------------------
+-- Values
 
 def Term =
   First
@@ -290,15 +271,9 @@ def Term =
 
 def TermProduct : Term =
   First
-    {| mul = BinOp "*" TermAtom |}  -- XXX: ambiguous with wild cards?
+    {| mul = BinOp "*"   TermAtom |}
     {| mod = BinOp "mod" TermAtom |}
     TermAtom
-
-def BinOp op P =
-  block
-    lhs = P
-    KW op
-    rhs = P
 
 def TermAtom : Term =
   First
@@ -307,51 +282,92 @@ def TermAtom : Term =
       $$ = Term
       KW ")"
 
-    {| ValueOf    = ValueOf |}
+    {| ValueOf           = ValueOf |}
 
-    {| Float      = Token FloatValue |}
-    {| Integer    = Token Integer |}    -- Must be after Float
+    {| Float             = FloatValue |}
+    {| Integer           = IntegerValue |}    -- Must be after Float
+    {| String            = StringValue |}
+    {| Bool              = BoolValue |}
+    {| Null              = NullValue |}
+    {| Array             = ArrayValue |}
 
-    {| Bool       = { KW "true";  true } |}
-    {| Bool       = { KW "false"; false } |}
+    {| RectWidth         = Fun1 "RectWidth"  Term |}
+    {| RectHeight        = Fun1 "RectHeight" Term |}
+    {| FileSize          = Fun0 "FileSize" |}
+    {| ArrayLengthField  = Fun1 "ArrayLength" FieldName |}  -- ?
+    {| ArrayLength       = Fun1 "ArrayLength" Term |}
+    {| PageProperty      = Fun2 "PageProperty" Term FieldName |}
+    {| StringLength      = Fun1 "StringLength" Term |}
+    {| StreamLength      = Fun1 "StreamLength" Term |}
+    {| NumberOfPages     = Fun0 "NumberOfPages" |}
 
-    {| Null       = KW "null" |}
-
-    {| Array      = block
-                      KW "["
-                      $$ = Many Term
-                      KW "]"
-                  |}
-
-    -- XXX
-    {| Array      = block
-                      KW "["
-                      $$ = SepBy (KW ",") Term
-                      KW "]"
-                  |}
-
-    {| RepeatArray = RepeatArray |}
+    {| Name              = NameValue |}
+    -- Needs to be after the functions, float, integer, bool, null
 
 
-    {| String     = block
-                      $['\'']
-                      $$ = Many $[!'\'']
-                      KW "'"
-                  |}
+def Natural =
+  block
+    $$ = many (s = Digit) (10 * s + Digit)
+    -- can't be followed by a letter
+    case Optional $alpha of
+      just    -> Fail "Expected number, found identifier"
+      nothing -> Accept
 
-    {| RectWidth    = Fun1 "RectWidth"  Term |}
-    {| RectHeight   = Fun1 "RectHeight" Term |}
-    {| FileSize     = Fun0 "FileSize" |}
-    {| ArrayLengthField  = Fun1 "ArrayLength" FieldName |}
-    {| ArrayLength  = Fun1 "ArrayLength" Term |}
-    {| PageProperty = Fun2 "PageProperty" Term FieldName |}
-    {| StringLength = Fun1 "StringLength" Term |}
-    {| StreamLength = Fun1 "StreamLength" Term |}
+def IntegerValue =
+  Token
+    First
+      { $['-']; - Natural }
+      Natural
 
-    {| ImplementationDependent = Fun0 "ImplementationDependent" |}
-    {| NumberOfPages = Fun0 "NumberOfPages" |}
+{- Leave as text for now.  We could parse this as double
+but some of the literals (e.g. 1.2) are not exactly representable,
+so they might print funny, although likely not due to rounding. -}
+def FloatValue =
+  Token
+    block
+      whole = Many (1..) Digit
+      $['.']
+      frac  = Many (1..) Digit
 
-    {| Name = NameValue |} -- Needs to be after the functions and Integer
+def StringValue =
+  block
+    $['\'']
+    $$ = Many $[!'\'']
+    KW "'"
+
+def BoolValue =
+  First
+    { KW "true";  true }
+    { KW "false"; false }
+
+def NullValue = KW "null"
+
+def ArrayValue =
+  block
+    KW "["
+    $$ = Many Term
+    KW "]"
+
+def NameValue = Token (Many (1 .. ) $[ $alpha, $digit, '.', '_', '-'])
+
+
+--------------------------------------------------------------------------------
+-- Field Names
+
+def SimpleFieldName =
+  First
+    Text   = NameValue
+    Wild   = $['*']
+
+def FieldName = SepBy (Match "::") SimpleFieldName
+
+def ValueOf =
+  block
+    qualifier = Optional { $$ = FieldName; Match "::" }
+    $['@']
+    field  = SimpleFieldName
+
+
 
 
 --------------------------------------------------------------------------------
@@ -384,68 +400,53 @@ def Fun2 f Arg1 Arg2 =
     arg2 = Arg2
     KW ")"
 
-def FnSinceVersion Arg =
-  block
-    let f = Fun2 "SinceVersion" Version Arg
-    since = f.arg1
-    value = f.arg2
+def versioned (f : Fun2)  = { version = f.arg1, value = f.arg2 }
 
-def FnBeforeVersion Arg =
-  block
-    let f = Fun2 "BeforeVersion" Version Arg
-    before = f.arg1
-    value = f.arg2
+def FnSinceVersion Arg    = versioned (Fun2 "SinceVersion"  Version Arg)
+def FnBeforeVersion Arg   = versioned (Fun2 "BeforeVersion" Version Arg)
+def FnDeprecated Arg      = versioned (Fun2 "Deprecated"    Version Arg)
+def FnIsPDFVersion Arg    = versioned (Fun2 "IsPDFVersion"  Version Arg)
 
-def FnDeprecated Arg =
-  block
-    let f = Fun2 "Deprecated" Version Arg
-    deprecatedIn = f.arg1
-    value        = f.arg2
-
-def FnIsPDFVersion Arg =
-  block
-    let f = Fun2 "IsPDFVersion" Version Arg
-    version = f.arg1
-    value   = f.arg2
-
-def FnEval Arg = Fun1 "Eval" Arg
+def FnEval Arg            = Fun1 "Eval" Arg
 
 
 --------------------------------------------------------------------------------
+-- Lexical and Utilities
 
-def Digit   = $digit - '0' as int
+def $alpha            = 'a' .. 'z' | 'A' .. 'Z'
+def $digit            = '0' .. '9'
+def $fieldSeparator   = '\t'
+def $recordTerminator = '\n'
 
-def Natural =
-  block
-    $$ = many (s = Digit) (10 * s + Digit)
-    -- can't be followed my a letter
-    case Optional $alpha of
-      just    -> Fail "Expected number, found identifier"
-      nothing -> Accept
+def Digit             = $digit - '0' as int
 
-def Integer =
-  First
-    { $['-']; - Natural }
-    Natural
-
--- Leave as text for now
-def FloatValue =
-  block
-    whole = Many (1..) Digit
-    $['.']
-    frac  = Many (1..) Digit
-
-
--- One or more Q, separated by P
-def SepBy Sep Thing =
-  build (many (s = emit builder Thing) { Sep; emit s Thing })
-
+-- P followed by some optional space
 def Token P =
   block
     $$ = P
     Many $[' ']
 
+-- Match this string, followed by optional space
 def KW x = Token (@Match x)
+
+-- One or more Q, separated by P
+def SepBy Sep Thing =
+  build (many (s = emit builder Thing) { Sep; emit s Thing })
+
+-- Two or more Q, separated by P
+def SepBy2 Sep Thing =
+  block
+    let first  = emit builder Thing
+    let second = emit first { Sep; Thing }
+    let rest   = many (s = second) (emit s { Sep; Thing })
+    build rest
+
+-- | Binary infix operator
+def BinOp op P =
+  block
+    lhs = P
+    KW op
+    rhs = P
 
 
 
