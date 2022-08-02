@@ -1,10 +1,23 @@
+The Arlington PDF Model
+================================================================================
 
+This is a DaeDaLus speicfication of the grammar for the Arlington PDF Model.
+The most recent developments are available from Github:
+
+    https://github.com/pdf-association/arlington-pdf-model
+
+The model describes a collection of datatypes, each in a separate file.
+Each file 
+
+```
 def Main =
   block
-    Many $[! $recordTerminator]; $recordTerminator     -- Skip header
+    Many $[! $recordTerminator]; $recordTerminator -- Skip header
     $$ = Many Field
     END
 
+def $fieldSeparator   = '\t'
+def $recordTerminator = '\n'
 
 def Field =
   block
@@ -23,7 +36,6 @@ def Field =
 
 def FreeText  = Many $[! ($fieldSeparator | $recordTerminator)]
 
-
 def Bracketed P =
   block
     KW "["
@@ -37,18 +49,13 @@ def Alts P =
 
 def MultiAlts P =
   Optional (SepBy (KW ";") (Bracketed (Optional (SepBy (KW ",") P))))
-
-def Version =
-  block
-    major   = Natural
-    $['.']
-    minor   = Natural
+```
 
 
-
+Field Type
 --------------------------------------------------------------------------------
--- Field Type
 
+```
 def FieldType = SepBy (KW ";") FieldTypeExpression
 
 def FieldTypeExpression =
@@ -77,24 +84,28 @@ def PrimitiveType =
     TStringByte  = @Match "string-byte"
     TStringText  = @Match "string-text"
     TString      = @Match "string"
+```
 
-
+Required Fields
 --------------------------------------------------------------------------------
--- Is this field required
 
+```
 def IsRequired : BoolExpr =
   First
     Fun1 "IsRequired" BoolExpr
     BoolExpr
+```
 
-
+Direct Fields
 --------------------------------------------------------------------------------
--- Is this field direct
 
-{- This encode 3 possible values:
-    * direct-only
-    * indirect-only
-    * either -}
+This encode 3 possible values:
+
+  * direct-only
+  * indirect-only
+  * either
+
+```
 def IsIndirect =
   First
     IndirectIf = BoolExpr
@@ -102,18 +113,23 @@ def IsIndirect =
     DirectIf   = Fun1 "MustBeDirect" BoolExpr
     IndirectIf = Fun1 "MustBeIndirect" BoolExpr
     IndirectIf = {| TRUE = KW "IndirectReference" |}
+```
 
+
+Inheritable Fields
 --------------------------------------------------------------------------------
--- Is Inheritable
 
+```
 def IsInheritable : BoolExpr =
   First
     {| TRUE = KW "Inheritable" |}
     BoolExpr
+```
 
+Default Values
 --------------------------------------------------------------------------------
--- Default Valuess
 
+```
 def DefaultValue =
   First
     ImplementationDependent = Fun0 "ImplementationDependent"
@@ -137,13 +153,12 @@ def ConditionalDefault =
       let f = Fun2 "DefaultValue" BoolExpr Term
       condition = f.arg1
       value     = f.arg2
+```
 
-
+Possible Values
 --------------------------------------------------------------------------------
--- Possible Values
 
-def Test = MultiAlts PossibleValue
-
+```
 def PossibleValue =
   First
     Deprecated    = FnDeprecated PossibleValue
@@ -160,11 +175,12 @@ def ConditionalValue =
     let f = Fun2 "RequiredValue" BoolExpr Term
     condition = f.arg1
     value     = f.arg2
+```
 
-
+Special Checks
 --------------------------------------------------------------------------------
--- Special Checks
 
+```
 def SpecialCase =
   First
     SinceVersion  = FnSinceVersion  SpecialCase
@@ -180,13 +196,14 @@ def SpecialCase =
     NotRequiredIf = Fun1 "Not" (Fun1 "IsRequired" BoolExpr)
     MustbeDirect  = Fun1 "MustBeDirect" FieldName
     Constraint    = BoolExpr
+```
 
 
 
-
+Links
 --------------------------------------------------------------------------------
--- Links
 
+```
 def Link =
   First
     Deprecated    = FnDeprecated Link
@@ -195,13 +212,14 @@ def Link =
     Link          = TypeName
 
 def TypeName  = Many (1..) $[ $alpha, $digit, '_' ]
+```
 
 
 
-
+Boolean Expressions
 --------------------------------------------------------------------------------
--- Boolean Expressions
 
+```
 def BoolExpr =
   block
     First
@@ -258,10 +276,13 @@ def BoolAtomExpr : BoolExpr =
     {| GT                         = BinOp ">"  Term |}
     {| LEQ                        = BinOp "<=" Term |}
     {| GEQ                        = BinOp ">=" Term |}
+```
 
+
+Values
 --------------------------------------------------------------------------------
--- Values
 
+```
 def Term =
   First
     {| add = BinOp "+" TermProduct |}
@@ -350,10 +371,18 @@ def ArrayValue =
 
 def NameValue = Token (Many (1 .. ) $[ $alpha, $digit, '.', '_', '-'])
 
+def Version =
+  block
+    major   = Natural
+    $['.']
+    minor   = Natural
+```
 
+
+Field Names
 --------------------------------------------------------------------------------
--- Field Names
 
+```
 def SimpleFieldName =
   First
     Text   = NameValue
@@ -366,14 +395,15 @@ def ValueOf =
     qualifier = Optional { $$ = FieldName; Match "::" }
     $['@']
     field  = SimpleFieldName
+```
 
 
 
-
+Functions
 --------------------------------------------------------------------------------
--- Functions
 
 
+```
 def Fun0 f =
   block
     Match "fn:"
@@ -408,15 +438,14 @@ def FnDeprecated Arg      = versioned (Fun2 "Deprecated"    Version Arg)
 def FnIsPDFVersion Arg    = versioned (Fun2 "IsPDFVersion"  Version Arg)
 
 def FnEval Arg            = Fun1 "Eval" Arg
+```
 
-
+Lexical and Utilities
 --------------------------------------------------------------------------------
--- Lexical and Utilities
 
+```
 def $alpha            = 'a' .. 'z' | 'A' .. 'Z'
 def $digit            = '0' .. '9'
-def $fieldSeparator   = '\t'
-def $recordTerminator = '\n'
 
 def Digit             = $digit - '0' as int
 
@@ -447,7 +476,7 @@ def BinOp op P =
     lhs = P
     KW op
     rhs = P
-
+```
 
 
 

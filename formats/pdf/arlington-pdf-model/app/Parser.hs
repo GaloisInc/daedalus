@@ -15,7 +15,7 @@ import qualified Daedalus.RTS.Vector as RTS
 import Daedalus.TH.Compile
 
 
-compileDDL (FromFile "app/ArlingtonPDF.ddl")
+compileDDL (FromFile "app/ArlingtonPDF.md")
 
 parseType :: ByteString -> ByteString -> Either ParseError (Vector Field)
 parseType name bytes = RTS.vecToRep <$> runDParser (pMain (newInput name bytes))

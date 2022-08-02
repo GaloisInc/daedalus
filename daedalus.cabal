@@ -39,6 +39,7 @@ library
                        Daedalus.Parser.Grammar,
                        Daedalus.Quote,
                        Daedalus.Parser,
+                       Daedalus.Parser.Unlit,
                        Daedalus.AST,
                        Daedalus.Module,
                        Daedalus.Scope,
