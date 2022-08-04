@@ -21,7 +21,7 @@ maintainer:         iavor.diatchki@gmail.com
 -- category:
 extra-source-files:
   CHANGELOG.md
-  app/ArlingtonPDF.ddl
+  app/ArlingtonPDF.md
 
 executable arlington-pdf-model
     main-is:          Main.hs
