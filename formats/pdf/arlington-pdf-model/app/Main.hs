@@ -1,33 +1,46 @@
-{-# Language RecordWildCards, OverloadedStrings #-}
+
 module Main where
 
 import System.Environment(getArgs)
 import Data.Word(Word8)
-import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import Data.Vector(Vector)
 import qualified Data.Vector as Vector
-import Data.Map(Map)
 import qualified Data.Map as Map
 import Control.Monad(foldM)
-import Control.Exception(Exception(..), catch, throwIO)
+import Control.Exception(Exception(..), catch)
 import System.FilePath((</>), dropExtension, takeExtension)
 import System.Directory(getDirectoryContents,doesFileExist)
-import Text.PrettyPrint
 
 import qualified Daedalus.RTS as RTS
+
 import Parser
+import LinkUses
+import Graph
 
 
 
 main :: IO ()
 main =
   do dir : _ <- getArgs
-     ts      <- loadPDFSpec dir
-     print (pp ts)
+     spec <- loadPDFSpec dir
+     let us = linkUses spec
+     dumpDOT us
   `catch` \(ParseErrorException err) -> print (RTS.ppParseError err)
+
+
+
+dumpShapes :: LinkUses -> IO()
+dumpShapes us = mapM_ (\(x,y) -> putStrLn (Text.unpack x ++ ": " ++ show y)) tys
+  where tys = Map.toList (Map.keys <$> us)
+
+dumpDOT :: LinkUses -> IO ()
+dumpDOT us = putStrLn (dotGraph sc)
+  where
+  ug = usesToGraph us
+  sc = sccG ug
+
 
 printField :: Field -> IO ()
 printField = print
@@ -53,7 +66,7 @@ loadType :: FilePath -> IO CompositeType
 loadType f =
   do bs    <- BS.readFile f
      case parseType (BS8.pack f) bs of
-       Right es -> pure (CompositeType es)
+       Right ct -> pure ct
        Left err ->
          do print (RTS.ppParseError err)
             pure (CompositeType Vector.empty)
@@ -62,27 +75,4 @@ newtype ParseErrorException = ParseErrorException RTS.ParseError
   deriving Show
 
 instance Exception ParseErrorException
---------------------------------------------------------------------------------
-
-newtype PDFSpec       = PDFSpec (Map Text CompositeType)
-
-newtype CompositeType = CompositeType (Vector Field)
-  deriving Show
-
-
-class PP a where
-  pp :: a -> Doc
-
-instance PP Text where
-  pp = text . Text.unpack
-
-instance PP PDFSpec where
-  pp (PDFSpec mp) = vcat (map ppOne (Map.toList mp))
-    where ppOne (x,y) = hcat [pp x, ":"] $$ nest 2 (pp y) $$ " "
-
-instance PP CompositeType where
-  pp (CompositeType vs) = vcat (map pp (Vector.toList vs))
-
-instance PP Field where
-  pp = text . show
-
+-------------------------------------------------------------------------------

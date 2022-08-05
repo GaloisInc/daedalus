@@ -74,7 +74,7 @@ def Version =
 Field components may be annotated with version dependent information:
 
 ```
-def WithVersion P : Versioned =
+def WithVersion P =
   First
     Deprecated    = FnDeprecated (Versioned P)
     SinceVersion  = FnSinceVersion (Versioned P)
@@ -83,8 +83,8 @@ def WithVersion P : Versioned =
 
 def Versioned P =
   First
-    WithVersion P
-    {| Value = P |}
+    Versioned = WithVersion P
+    Value     = P
 ```
 
 
@@ -437,7 +437,7 @@ def Fun2 f Arg1 Arg2 =
     arg2 = Arg2
     KW ")"
 
-def versioned (f : Fun2)  = { version = f.arg1, value = f.arg2 }
+def versioned (f : Fun2)  = { version = f.arg1 : Version, value = f.arg2 }
 
 def FnSinceVersion Arg    = versioned (Fun2 "SinceVersion"  Version Arg)
 def FnBeforeVersion Arg   = versioned (Fun2 "BeforeVersion" Version Arg)

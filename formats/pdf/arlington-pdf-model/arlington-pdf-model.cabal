@@ -26,12 +26,18 @@ extra-source-files:
 executable arlington-pdf-model
     main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
     other-modules:
       Parser
+      PP
+      LinkUses
+      Graph
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    default-extensions:
+      BlockArguments
+      OverloadedStrings
+      DataKinds
+      TypeApplications
+
     build-depends:    base,
                       bytestring,
                       text,
@@ -40,6 +46,7 @@ executable arlington-pdf-model
                       containers,
                       filepath,
                       pretty,
+                      GraphSCC,
                       daedalus,
                       rts-vm-hs
     hs-source-dirs:   app
