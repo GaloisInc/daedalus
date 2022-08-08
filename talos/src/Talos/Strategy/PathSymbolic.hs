@@ -633,19 +633,23 @@ firstM f (x : xs) = do
   if b then pure (Just x) else firstM f xs
 
 pathConditionModel :: PathCondition -> ModelParserM Bool
-pathConditionModel PC.Infeasible = pure False
-pathConditionModel (PC.FeasibleMaybe pci) = do
-  -- We try choices first as they are more likely to fail (?)  
-  choiceb <- andM [ (==) i <$> getPathVar pv
-                  | (pv, i) <- Map.toList (PC.pcChoices pci) ]
-  if choiceb
-    then andM [ pcciModel x vgci
-              | (x, vgci) <- Map.toList (PC.pcCases pci) ]
-    else pure False
-  where
-    pcciModel :: SMTVar -> PathConditionCaseInfo -> ModelParserM Bool
-    pcciModel x vgci =
-      PC.pcciSatisfied vgci <$> getValueVar (Typed (PC.pcciType vgci) x)
+pathConditionModel pc =
+  (==) (S.bool True) <$> lift (Solv.getValue (PC.toSExpr pc))
+
+-- pathConditionModel :: PathCondition -> ModelParserM Bool
+-- pathConditionModel PC.Infeasible = pure False
+-- pathConditionModel (PC.FeasibleMaybe pci) = do
+--   -- We try choices first as they are more likely to fail (?)  
+--   choiceb <- andM [ (==) i <$> getPathVar pv
+--                   | (pv, i) <- Map.toList (PC.pcChoices pci) ]
+--   if choiceb
+--     then andM [ pcciModel x vgci
+--               | (x, vgci) <- Map.toList (PC.pcCases pci) ]
+--     else pure False
+--   where
+--     pcciModel :: SMTVar -> PathConditionCaseInfo -> ModelParserM Bool
+--     pcciModel x vgci =
+--       PC.pcciSatisfied vgci <$> getValueVar (Typed (PC.pcciType vgci) x)
 
 gseModel :: GuardedSemiSExpr -> ModelParserM (Maybe I.Value)
 gseModel gse =

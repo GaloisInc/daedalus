@@ -43,6 +43,9 @@ import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.SolverT        (SMTVar, defineSymbol, MonadSolver (..))
 import Control.Lens (traverseOf)
 import Data.Generics.Product (field)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+import Data.Foldable (toList)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -61,7 +64,7 @@ data PathConditionInfo = PathConditionInfo
   , pcChoices :: !(Map PathVar Int)
   -- ^ We call these out separately as it is easy to figure out if the
   -- conjunction of two guards is unsat.
-  , pcPred    :: !SExpr
+  , pcPred    :: !(Seq SExpr)
   -- ^ The predicate for this path (the other fields can over-approximate)
   } deriving (Eq, Ord, Generic)
 
@@ -92,7 +95,7 @@ conjInfo :: PathConditionInfo -> PathConditionInfo -> Maybe PathConditionInfo
 conjInfo pc1 pc2 =
   PathConditionInfo <$> joinCases   (pcCases pc1) (pcCases pc2)
                     <*> joinChoices (pcChoices pc1) (pcChoices pc2)
-                    <*> pure (S.and (pcPred pc1) (pcPred pc2))
+                    <*> pure (pcPred pc1 <> pcPred pc2)
   where
     joinCases =
       Map.mergeA Map.preserveMissing Map.preserveMissing
@@ -105,33 +108,43 @@ conjInfo pc1 pc2 =
 
 singletonCase :: SMTVar -> PathConditionCaseInfo -> PathCondition
 singletonCase v pcci = 
-  FeasibleMaybe (PathConditionInfo (Map.singleton v pcci) mempty p)
+  FeasibleMaybe (PathConditionInfo (Map.singleton v pcci) mempty (Seq.fromList ps))
   where
-    p = S.andMany [ notf b (SE.patternToPredicate (pcciType pcci) p' (S.const v))
-                  | (b, p') <- either (\q -> [(True, q)])
-                               (map ((,) False) . Set.toList)
-                               (pcciConstraint pcci)
-                  ]
+    ps = [ notf b (SE.patternToPredicate (pcciType pcci) p' (S.const v))
+         | (b, p') <- either (\q -> [(True, q)])
+                      (map ((,) False) . Set.toList)
+                      (pcciConstraint pcci)
+         ]
     notf b = if b then id else S.not
 
 singletonChoice :: PathVar -> Int -> PathCondition
 singletonChoice v i =
   FeasibleMaybe (PathConditionInfo mempty (Map.singleton v i)
-                  (S.eq (pathVarToSExpr v) (S.int (fromIntegral i))))
+                  (Seq.singleton $ S.eq (pathVarToSExpr v) (S.int (fromIntegral i))))
 
 singletonSExpr :: SExpr -> PathCondition
-singletonSExpr p = FeasibleMaybe (PathConditionInfo mempty mempty p)
+singletonSExpr p = FeasibleMaybe (PathConditionInfo mempty mempty (Seq.singleton p))
 
 toSExpr :: PathCondition -> SExpr
 toSExpr Infeasible = S.bool False
-toSExpr (FeasibleMaybe pc) = pcPred pc
+toSExpr (FeasibleMaybe pc) = andMany (pcPred pc)
+
+andMany :: Seq SExpr -> SExpr
+andMany = go . toList
+  where
+    go [] = S.bool True
+    go [b] = b
+    go bs =  S.andMany bs
 
 name :: MonadSolver m => PathCondition -> m PathCondition
 name Infeasible         = pure Infeasible
+-- > 3 makes z3/talos take forever
+name pc@(FeasibleMaybe pci) | Seq.length (pcPred pci) < 3 = pure pc
 name (FeasibleMaybe pc) =
   FeasibleMaybe <$> traverseOf (field @"pcPred") def pc
   where
-    def = liftSolver . fmap S.const . defineSymbol "pc" S.tBool
+    def ps = Seq.singleton . S.const <$>
+               liftSolver (defineSymbol "pc" S.tBool (andMany ps))
 
 -- -----------------------------------------------------------------------------
 -- Semantics
@@ -152,7 +165,7 @@ instance Semigroup PathCondition where
     maybe Infeasible FeasibleMaybe (conjInfo pc1 pc2)
 
 instance Monoid PathCondition where
-  mempty = FeasibleMaybe (PathConditionInfo mempty mempty (S.bool True))
+  mempty = FeasibleMaybe (PathConditionInfo mempty mempty mempty)
 
 instance PP PathVar where
   pp = text . getPathVar

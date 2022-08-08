@@ -53,7 +53,7 @@ runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
       ((m_r, ns), s') <- timeStrategy s strat ptag sl
       let dns = (fromIntegral ns :: Double)
       let resReport = if isNothing m_r then "failed" else "succeeded"
-      liftStrategy (liftIO (printf "%s (%.3fms)\n" resReport (dns  / 1000000)))
+      liftStrategy (liftIO (do { printf "%s (%.3fms)\n" resReport (dns  / 1000000); hFlush stdout } ))
       case m_r of
         Just {} -> pure (m_r, s')
         Nothing -> go s' strats
