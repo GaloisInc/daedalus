@@ -38,7 +38,7 @@ compileTDecl decl =
      let ?typeParams = Map.fromList (nTs ++ vTs)
      compileTDef (tName decl) nBs vBs (tDef decl)
 
-newTParam :: Q TH.Kind -> TParam -> Q (TH.TyVarBndr, (TParam, Q TH.Type))
+newTParam :: Q TH.Kind -> TParam -> Q (TH.DataParam, (TParam, Q TH.Type))
 newTParam k p =
   do name <- TH.newName "a"
      v    <- TH.kindedTV name <$> k
@@ -46,7 +46,7 @@ newTParam k p =
 
 
 compileTDef ::
-  HasTypeParams => TName -> [TH.TyVarBndr] -> [TH.TyVarBndr] -> TDef -> TH.DecsQ
+  HasTypeParams => TName -> [TH.DataParam] -> [TH.DataParam] -> TDef -> TH.DecsQ
 compileTDef name asN asT def =
   case def of
     TStruct fs   -> compileStruct name allParams fs
@@ -57,7 +57,7 @@ compileTDef name asN asT def =
 
 
 
-mkT :: TH.Name -> [TH.TyVarBndr] -> Q TH.Type
+mkT :: TH.Name -> [TH.DataParam] -> Q TH.Type
 mkT tname as = foldl TH.appT (TH.conT tname) (map (TH.varT . TH.tvName) as)
 
 
@@ -67,7 +67,7 @@ standardDeriving = TH.derivClause Nothing [ [t| Eq |], [t| Ord |], [t| Show |] ]
 
 
 compileStruct ::
-  HasTypeParams => TName -> [TH.TyVarBndr] -> [(Label,Type)] -> TH.DecsQ
+  HasTypeParams => TName -> [TH.DataParam] -> [(Label,Type)] -> TH.DecsQ
 compileStruct name as fields =
   do let fs = [ case srcT of
                   TUnit -> (l, Nothing)
@@ -115,7 +115,7 @@ compileStruct name as fields =
 
 
 compileUnion ::
-  HasTypeParams => TName -> [TH.TyVarBndr] -> [(Label,Type)] -> TH.DecsQ
+  HasTypeParams => TName -> [TH.DataParam] -> [(Label,Type)] -> TH.DecsQ
 compileUnion name as cons =
   do fs <- forM cons \(l,srcT) ->
              case srcT of

@@ -346,7 +346,7 @@ withThrErrorState k =
   case ?funTy of
     CapturingParser e t no yes ->
       [| let s = $e
-         in $(let ?funTy = CapturingParser [|s|] t no yes
+         in $(let ?funTy = CapturingParser ([|s|] :: TH.ExpQ) t no yes
               in k [|RTS.thrErrors s|]
                    (\s1 -> [| RTS.thrUpdateErrors (const $s1) s |])
              )

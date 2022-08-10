@@ -47,9 +47,10 @@ module Daedalus.TH
   , TH.sigP
   , TH.bangP
 
-  , TH.TyVarBndr
-  , TH.plainTV
-  , TH.kindedTV
+  , DataParam
+  , ForallParam
+  , plainTV
+  , kindedTV
   , tvName
 
   , TH.DecsQ
@@ -88,11 +89,6 @@ type BangType = (TH.Bang, TH.Type)
 bangT :: TH.Q TH.Type -> TH.Q BangType
 bangT t = TH.bangType (TH.bang TH.noSourceUnpackedness TH.noSourceStrictness) t
 
-tvName :: TH.TyVarBndr -> TH.Name
-tvName v =
-  case v of
-    TH.PlainTV x -> x
-    TH.KindedTV x _ -> x
 
 #if !MIN_VERSION_bytestring(0,11,2)
 
@@ -109,3 +105,42 @@ instance TH.Lift ByteString where
 
 #endif
 
+
+#if MIN_VERSION_template_haskell(2,17,0)
+type DataParam    = TH.TyVarBndr ()
+type ForallParam  = TH.TyVarBndr TH.Specificity
+
+tvName :: TH.TyVarBndr a -> TH.Name
+tvName v =
+  case v of
+    TH.PlainTV x _ -> x
+    TH.KindedTV x _ _ -> x
+
+class MkTyVarBndr a where
+  plainTV  :: TH.Name -> TH.TyVarBndr a
+  kindedTV :: TH.Name -> TH.Kind -> TH.TyVarBndr a
+
+instance MkTyVarBndr () where
+  plainTV = TH.plainTV
+  kindedTV = TH.kindedTV
+
+instance MkTyVarBndr TH.Specificity where
+  plainTV x    = TH.PlainTV x TH.inferredSpec
+  kindedTV x k = TH.KindedTV x TH.inferredSpec k
+
+#else
+type DataParam    = TH.TyVarBndr
+type ForallParam  = TH.TyVarBndr
+
+plainTV :: TH.Name -> TH.TyVarBndr
+plainTV = TH.plainTV
+
+kindedTV :: TH.Name -> TH.Kind -> TH.TyVarBndr
+kindedTV = TH.kindedTV
+
+tvName :: TH.TyVarBndr -> TH.Name
+tvName v =
+  case v of
+    TH.PlainTV x -> x
+    TH.KindedTV x _ -> x
+#endif
