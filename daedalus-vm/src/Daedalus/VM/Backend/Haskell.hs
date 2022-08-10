@@ -8,12 +8,12 @@ module Daedalus.VM.Backend.Haskell
 
 import Data.Map(Map)
 import qualified Data.Map as Map
-import qualified Language.Haskell.TH as TH
 import qualified Data.Text as Text
 
 import qualified Data.Functor.Identity as RTS
 import qualified Daedalus.RTS as RTS
 
+import qualified Daedalus.TH as TH
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Rec(forgetRecs)
@@ -457,7 +457,7 @@ compileCInstr cinstr =
                         map doAlt rhss ++
                         case mbDflt of
                            Nothing -> []
-                           Just d  -> [mkAlt TH.wildP d]
+                           Just d  -> [mkAlt [p| _ |] d ]
 
       where
       (rhss1,mbDflt) =
@@ -469,7 +469,7 @@ compileCInstr cinstr =
 
       rhss = [ (p, toRHS j) | (p,j) <- rhss1 ]
 
-      numP  n       = TH.conP 'RTS.UInt [ TH.litP (TH.IntegerL n) ]
+      numP  n       = TH.conP 'RTS.UInt [ TH.litP (TH.integerL n) ]
       mkAlt p rhs   = TH.match p (TH.normalB rhs) []
 
       doAlt (p,rhs) = mkAlt (doPat p) rhs
@@ -479,7 +479,7 @@ compileCInstr cinstr =
           Core.PBool b   -> if b then [p| True |] else [p| False |]
           Core.PNothing  -> [p| Nothing |]
           Core.PJust     -> [p| Just {} |]
-          Core.PNum i    -> let n = TH.litP (TH.IntegerL i)
+          Core.PNum i    -> let n = TH.litP (TH.integerL i)
                             in case getSemType e of
                                  Core.TInteger -> n
                                  Core.TUInt {} -> [p| RTS.UInt $n |]
@@ -502,7 +502,7 @@ compileCInstr cinstr =
             doChoices val cs orElse =
               TH.caseE val (
                  [ mkAlt (numP i) rhs | (i,rhs) <- cs ] ++
-                 [ mkAlt TH.wildP orElse ]
+                 [ mkAlt [p| _ |] orElse ]
               )
 
             doOpt :: TH.ExpQ -> (Integer, [(Integer, TH.ExpQ)]) ->

@@ -28,8 +28,8 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Classes -- OrdF
-import qualified Language.Haskell.TH.Syntax as TH
 
+import qualified Daedalus.TH as TH
 import Daedalus.SourceRange
 import Daedalus.Rec
 import qualified Daedalus.BDD as BDD

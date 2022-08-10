@@ -6,7 +6,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Data.List(sort)
 import Data.Maybe(fromJust)
-import qualified Language.Haskell.TH.Lib as TH
 import GHC.Records(getField)
 
 import qualified Daedalus.RTS        as RTS
@@ -15,6 +14,7 @@ import qualified Daedalus.RTS.Map    as RTS
 
 import Daedalus.Panic(panic)
 
+import qualified Daedalus.TH as TH
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr as Core
 import Daedalus.Core.TH.Names
@@ -68,7 +68,7 @@ compileOp1 op1 argT e =
       opts  = sort (BS.unpack bs)
       alt b = let pat = TH.litP (TH.integerL (fromIntegral b))
               in TH.match pat (TH.normalB [| True |]) []
-      dflt  = TH.match TH.wildP (TH.normalB [| False |]) []
+      dflt  = TH.match [p| _ |](TH.normalB [| False |]) []
 
     Neg               -> [| RTS.neg $e |]
 

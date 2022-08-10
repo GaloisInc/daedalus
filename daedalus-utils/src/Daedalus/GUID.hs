@@ -14,10 +14,10 @@ module Daedalus.GUID (GUID
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
-import qualified Language.Haskell.TH.Syntax as TH
 
 import MonadLib
 import Daedalus.PP
+import qualified Daedalus.TH as TH
 
 
 newtype GUID = GUID { getGUID :: Int }

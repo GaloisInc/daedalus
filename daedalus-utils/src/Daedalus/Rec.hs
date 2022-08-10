@@ -6,13 +6,15 @@ module Daedalus.Rec where
 
 import GHC.Generics          (Generic)
 import Control.DeepSeq       (NFData)
-import qualified Language.Haskell.TH.Syntax as TH
 
 import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.Graph(SCC(..))
 import Data.Graph.SCC(stronglyConnComp)
+
+import qualified Daedalus.TH as TH
 import Daedalus.PP
+
 
 data Rec a = NonRec a | MutRec [a]
   deriving (Show, Functor, Traversable, Foldable, Generic, NFData, TH.Lift)

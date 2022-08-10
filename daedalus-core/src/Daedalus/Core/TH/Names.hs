@@ -9,8 +9,8 @@ module Daedalus.Core.TH.Names
 
 import Data.Char(isUpper, isAlphaNum)
 import qualified Data.Text as Text
-import qualified Language.Haskell.TH as TH
 
+import qualified Daedalus.TH as TH
 import Daedalus.Panic(panic)
 import Daedalus.GUID(guidString)
 import Daedalus.Core.Basics

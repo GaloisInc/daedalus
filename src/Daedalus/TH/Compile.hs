@@ -5,12 +5,11 @@ import qualified Data.Text as Text
 import qualified Data.Map as Map
 import Control.Exception(try)
 import Control.Monad.IO.Class(liftIO)
-import qualified Language.Haskell.TH as TH
-import qualified Language.Haskell.TH.Syntax as TH
 import System.FilePath(takeFileName, dropExtension)
 import System.Directory(canonicalizePath)
 
 import Daedalus.SourceRange(SourcePos(..))
+import qualified Daedalus.TH as TH
 
 import Daedalus.AST(ModuleName)
 import qualified Daedalus.Core.Inline as Core
