@@ -322,22 +322,33 @@ cPatSingleton l = "Pat_" <> cLabel l
 
 cUnboxedSumSwitch :: GenVis -> TDecl -> [(Label, Type)] -> CDecl
 cUnboxedSumSwitch vis tdecl fs =
-  cTemplate ["typename Cases"] $
-  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
-    vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
-      , nest 2 $ vcat
-            [ "case" <+> cSumTagV (tName tdecl) l <.> colon
-              $$ nest 2 (cReturn (cCall "cases" [cCallCon (cPatSingleton l) [], cCall (selName GenBorrow l) []]))
-            | (l,_) <- fs
-            ]
-      , "}"
+  vcat
+    [ cTemplateDecl tdecl
+    , cTemplate ["typename Cases"] $
+      cDefineFun "auto" (cTypeNameUse vis tdecl .:: "sum_switch")
+                        ["Cases&& cases"] [
+        vcat
+          [ "switch" <+> parens (cCall "getTag" []) <+> "{"
+          , nest 2 $ vcat
+                [ "case" <+> cSumTagV (tName tdecl) l <.> colon
+                  $$ nest 2 (cReturn (cCall "cases" [cCallCon (cPatSingleton l) [], cCall (selName GenBorrow l) []]))
+                | (l,_) <- fs
+                ]
+          , "}"
+          ]
       ]
-  ]
+    ]
+
 cBoxedSumSwitch :: GenVis -> TDecl -> CDecl
 cBoxedSumSwitch vis tdecl =
-  cTemplate ["typename Cases"] $
-  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
-    cReturn (cCallMethod (cCallMethod "ptr" "getValue" []) "sum_switch" ["cases"])
+  vcat
+    [ cTemplateDecl tdecl
+    , cTemplate ["typename Cases"] $
+      cDefineFun "auto" (cTypeNameUse vis tdecl .:: "sum_switch")
+                        ["Cases&& cases"] [
+        cReturn (cCallMethod (cCallMethod "ptr" "getValue" [])
+                                                    "sum_switch" ["cases"])
+      ]
   ]
 
 cSumCaseDecl :: CDecl
