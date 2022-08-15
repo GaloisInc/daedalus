@@ -9,6 +9,7 @@ module Daedalus.VM.Backend.Haskell
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import Data.Maybe(catMaybes)
 
 import qualified Data.Functor.Identity as RTS
 import qualified Daedalus.RTS as RTS
@@ -223,11 +224,13 @@ compilePrim prim es =
 
     StructCon ut
       | not (Core.tnameBD nm) ->
-          [| $(TH.appsE (TH.conE (structConName nm) : args)) |]
+          [| $(TH.appsE (TH.conE (structConName nm) : sargs)) |]
 
       | otherwise -> mkBDCon nm args
       where
       nm = Core.utName ut
+      sargs    = catMaybes (zipWith keep es args)
+      keep e a = if getSemType e == Core.TUnit then Nothing else Just a
 
     NewBuilder t   -> compileOp0 (Core.NewBuilder t)
     Integer i      -> compileOp0 (Core.IntL i Core.TInteger)
@@ -236,7 +239,7 @@ compilePrim prim es =
     Op1 op1 ->
       case args of
         [e] -> compileOp1 op1 (getSemType (head es)) e
-        _   -> panic "compilePrim" ["Op1 arity mismatch"]
+        _   -> panic "compilePrim" ["Op1 arity mismatch", show (pp op1)]
 
 
     Op2 op2 ->
