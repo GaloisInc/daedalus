@@ -19,8 +19,12 @@ instance PP PDFSpec where
     where ppOne (x,y) = hcat [pp x, ":"] $$ nest 2 (pp y) $$ " "
 
 instance PP CompositeType where
-  pp (CompositeType vs) = vcat (map pp (Vector.toList vs))
+  pp t =
+    case t of
+      ArrayType vs      -> vcat (map pp (Vector.toList vs))
+      DictionaryType vs -> vcat (map pp (Vector.toList vs))
 
-instance PP Field where
+instance Show a => PP (Field a) where
   pp = text . show
+
 

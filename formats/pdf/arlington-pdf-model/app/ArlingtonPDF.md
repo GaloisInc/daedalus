@@ -9,22 +9,40 @@ The most recent developments for the model are available from Github:
     https://github.com/pdf-association/arlington-pdf-model
 
 The model describes a collection of datatypes, each in a separate file.
-Each file descibes the fields in the datastructure, using a tab-separated
-format:
+The datatypes provide details and additional constraits about
+PDF dictionaries and arrays in the PDF specification.
 
 ```
-def Main =
+def ArrayType      = Datatype ArrayKey
+def DictionaryType = Datatype DictionaryKey
+```
+
+The name of each file determines if it contains an array or dictionary based
+type:
+
+-------------------------------------- -----------------------------------------
+`ArrayOf*`, `*Array`, `*ColorSpace`    `ArrayType`
+*other file*                           `DictionaryType`
+-------------------------------------- -----------------------------------------
+
+
+The files follow a standard tab-separated format, starting with a header
+row followed by a sequence of records.  Each record contains information
+about a dictionary key or an array elemnt.
+
+```
+def Datatype KeyType =
   block
     Many $[! $recordTerminator]; $recordTerminator -- Skip header
-    $$ = Many Field
+    $$ = Many (Field KeyType)
     END
 
 def $fieldSeparator   = '\t'
 def $recordTerminator = '\n'
 
-def Field =
+def Field KeyType =
   block
-    key               = FreeText;                 $fieldSeparator
+    key               = KeyType;                  $fieldSeparator
     type              = ReqAlts PrimitiveType;    $fieldSeparator
     sinceVersion      = Version;                  $fieldSeparator
     deprecatedIn      = Optional Version;         $fieldSeparator
@@ -38,6 +56,25 @@ def Field =
     note              = FreeText;                 $recordTerminator
 ```
 
+
+Keys
+--------------------------------------------------------------------------------
+
+```
+def ArrayKey =
+  First
+    Wild = KW "*"
+    Cyclic =
+      block
+        $$ = Natural
+        KW "*"
+    Index = Token Natural
+
+def DictionaryKey =
+  First
+    Wild  = KW "*"
+    Name  = NameValue
+```
 
 Alternatives
 --------------------------------------------------------------------------------

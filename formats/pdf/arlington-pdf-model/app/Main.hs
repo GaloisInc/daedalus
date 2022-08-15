@@ -15,8 +15,9 @@ import System.Directory(getDirectoryContents,doesFileExist)
 
 import qualified Daedalus.RTS as RTS
 
+import PP
 import Parser
-import LinkUses
+-- import LinkUses
 import Graph
 
 
@@ -25,12 +26,15 @@ main :: IO ()
 main =
   do dir : _ <- getArgs
      spec <- loadPDFSpec dir
-     let us = linkUses spec
-     dumpDOT us
+     -- let us = linkUses spec
+     -- dumpDOT us
+     dumpSpec spec
   `catch` \(ParseErrorException err) -> print (RTS.ppParseError err)
 
+dumpSpec :: PDFSpec -> IO ()
+dumpSpec = print . pp
 
-
+{-
 dumpShapes :: LinkUses -> IO()
 dumpShapes us = mapM_ (\(x,y) -> putStrLn (Text.unpack x ++ ": " ++ show y)) tys
   where tys = Map.toList (Map.keys <$> us)
@@ -40,9 +44,9 @@ dumpDOT us = putStrLn (dotGraph sc)
   where
   ug = usesToGraph us
   sc = sccG ug
+-}
 
-
-printField :: Field -> IO ()
+printField :: Show a => Field a -> IO ()
 printField = print
 
 byte :: Char -> Word8
@@ -69,7 +73,7 @@ loadType f =
        Right ct -> pure ct
        Left err ->
          do print (RTS.ppParseError err)
-            pure (CompositeType Vector.empty)
+            pure (DictionaryType Vector.empty)
 
 newtype ParseErrorException = ParseErrorException RTS.ParseError
   deriving Show
