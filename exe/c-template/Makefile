@@ -1,6 +1,6 @@
 .PHONY: all
 
-all: parser docs
+all: parser
 
 CC=g++
 CPPFLAGS=-I.
