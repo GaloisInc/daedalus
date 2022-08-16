@@ -10,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,unless,forM_,forM)
-import Data.Maybe(fromMaybe,fromJust)
+import Data.Maybe(fromMaybe,fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -292,14 +292,15 @@ parseEntry mm x =
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
-  do let makeExe = null (optEntries opts)
+  do let makeExe = null (optEntries opts) && isNothing (optUserState opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
 
      prog <- doToVM opts mm
      let outFileRoot = "main_parser" -- XXX: parameterize on this
-         (hpp,cpp) = C.cProgram outFileRoot prog
+         userState = text <$> optUserState opts
+         (hpp,cpp) = C.cProgram outFileRoot userState prog
 
      ddlIO (saveFiles makeExe outFileRoot hpp cpp)
 

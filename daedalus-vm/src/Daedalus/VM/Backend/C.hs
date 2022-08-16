@@ -40,14 +40,13 @@ import Daedalus.VM.Backend.C.Call
 -- XXX: separate output and parser state(input/threads)
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
-cProgram :: String -> Program -> (Doc,Doc)
-cProgram fileNameRoot prog =
+cProgram :: String -> Maybe Doc -> Program -> (Doc,Doc)
+cProgram fileNameRoot userState prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
   where
   module_marker = text fileNameRoot <.> "_H"
-
 
   hpp = vcat $
           [ "#ifndef" <+> module_marker
@@ -68,7 +67,9 @@ cProgram fileNameRoot prog =
           , "#endif"
           ]
 
-  cpp = vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
+  cpp = let ?userState = userState
+        in
+        vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
                map (cFunSig Static) noPrims ++
@@ -86,16 +87,19 @@ cProgram fileNameRoot prog =
                       VMExtern {} -> True
                       VMDef {}    -> False
 
-  primSigs = case prims of
-               [] -> []
-               _  -> " "
-                   : "// --- External Primitives ---"
-                   : map (cFunSig Extern) prims
+  primSigs =
+    let ?userState = userState
+    in case prims of
+         [] -> []
+         _  -> " "
+             : "// --- External Primitives ---"
+             : map (cFunSig Extern) prims
 
   -- Non-capturing parsers
   noPrimDefs =
     let ?allFuns = allFunMap
         ?allTypes = allTypesMap
+        ?userState = userState
     in concatMap cFun noCapFun
 
 
@@ -104,11 +108,14 @@ cProgram fileNameRoot prog =
   (noCapRootSigs,noCapRootDefs) =
      let ?allFuns  = allFunMap
          ?allTypes = allTypesMap
+         ?userState = userState
      in unzip (map cNonCaptureRoot noCapRoots)
 
   -- Capturing roots
   capRoots                   = [ f | f <- capFuns, vmfIsEntry f ]
-  (capEnts,capBlocks)        = unzip (zipWith cCaptureEntryDef [0..] capRoots)
+  (capEnts,capBlocks)        =
+    let ?userState = userState
+    in unzip (zipWith cCaptureEntryDef [0..] capRoots)
   (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
   (capRootSigs,capRootDefs)  = unzip cEntFuns
   (capPrserSig,capParserDef,entTypeDef) =
@@ -116,6 +123,7 @@ cProgram fileNameRoot prog =
         ?allBlocks = allBlocks
         ?captures = Capture
         ?allTypes = allTypesMap
+        ?userState = userState
     in defineCaptureParser cEntTs cEntCode capFuns
 
 
@@ -159,6 +167,7 @@ includes =
        ]
 
 
+type UserState  = (?userState :: Maybe CType)
 type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
 type AllTypes   = (?allTypes  :: Map Src.TName Src.TDecl)
 type AllBlocks  = (?allBlocks :: Map Label Block)
@@ -167,18 +176,50 @@ type Copies     = (?copies    :: Map BV E)
 type CaptureFun = (?captures  :: Captures)
 
 
+--------------------------------------------------------------------------------
+-- The parser state type
 
+parserStateType :: UserState => CType
+parserStateType =
+  case ?userState of
+    Nothing -> "DDL::ParserState"
+    Just t  -> cInst "DDL::ParserStateUser" [t]
+
+userStateArgDecl :: UserState => [Doc]
+userStateArgDecl =
+  case ?userState of
+    Nothing -> []
+    Just t  -> [ t <+> "&userState" ]
+
+userStateArg :: UserState => [CExpr]
+userStateArg =
+  case ?userState of
+    Nothing -> []
+    Just _  -> ["userState"]
+
+
+-- Parser state is called `p`.
+-- User state, if any, is called `userState`
+declareParserState :: UserState => CStmt
+declareParserState =
+  case ?userState of
+    Nothing -> cDeclareVar parserStateType "p"
+    Just _  -> cDeclareConVar parserStateType "p" ["userState"]
 
 --------------------------------------------------------------------------------
 -- Parsers that need to capture the stack
 
-cCaptureParserSig :: Doc
+cCaptureParserSig :: UserState => Doc
 cCaptureParserSig =
   "static void" <+>
-  "parser(EntryArgs entry, DDL::ParseError &err, void* out)"
+  cCall "parser" ([ "EntryArgs entry" ] ++
+                  userStateArgDecl ++
+                  [ "DDL::ParseError &err"
+                  , "void* out"
+                  ])
 
 
-defineCaptureParser :: (AllFuns,AllTypes,AllBlocks,CaptureFun) =>
+defineCaptureParser :: (UserState,AllFuns,AllTypes,AllBlocks,CaptureFun) =>
   [CDecl] -> [CExpr -> CStmt] -> [VMFun] -> (CDecl, CDecl, CDecl)
 defineCaptureParser entTs ents capFuns
   | null ents   = (empty,empty,empty)
@@ -186,7 +227,7 @@ defineCaptureParser entTs ents capFuns
   where
   def = cCaptureParserSig <+> "{" $$ nest 2 (vcat body) $$ "}"
   body =
-    [ "DDL::ParserState p;"
+    [ declareParserState
     , "clang_bug_workaround: void *clang_bug = &&clang_bug_workaround;"
     , vcat (map cDeclareBlockParams (Map.elems ?allBlocks))
     , cDeclareRetVars capFuns
@@ -254,13 +295,16 @@ cDeclareClosures bs =
 --------------------------------------------------------------------------------
 -- Entry Points
 
-standardEntryArgs :: CType -> [Doc]
+standardEntryArgs :: UserState => CType -> [Doc]
 standardEntryArgs ty =
+  userStateArgDecl ++
   [ "DDL::ParseError &error"
   , cInst "std::vector" [ ty ] <+> "&results"
   ]
 
-cCaptureEntryFun :: Int -> Src.FName -> [VMT] -> (CDecl,CDecl)
+  where
+
+cCaptureEntryFun :: UserState => Int -> Src.FName -> [VMT] -> (CDecl,CDecl)
 cCaptureEntryFun n f as =
   (cStmt sig, sig <+> "{" $$ nest 2 body $$ "}")
   where
@@ -275,7 +319,8 @@ cCaptureEntryFun n f as =
               , "}"
               ]
   argVs = [ "." <.> capArgName i <+> "=" <+> a | (i,(_,a)) <- zip [0..] args ]
-  body = cStmt (cCall "parser" [ ent, "error", "&results" ])
+  body =
+    cStmt (cCall "parser" ([ ent ] ++ userStateArg ++ ["error", "&results" ]))
 
 
 cDeclareEntryArgs :: [CDecl] -> CDecl
@@ -291,7 +336,7 @@ capArgName i = "arg" <.> int i
 capEntryName :: Int -> CIdent
 capEntryName i = "entry" <.> int i
 
-cCaptureEntryDef ::
+cCaptureEntryDef :: UserState =>
   Int -> VMFun -> ((CExpr -> CStmt, (CDecl, CDecl), CDecl), Map Label Block)
 cCaptureEntryDef n fun =
   ( (call, cCaptureEntryFun n name argTs, entTyDecl)
@@ -365,7 +410,7 @@ cCaptureEntryDef n fun =
 
 
 -- Entry point for a non-capturing parser: siganture,defintiion
-cNonCaptureRoot :: (AllTypes,AllFuns) => VMFun -> (CDecl,CDecl)
+cNonCaptureRoot :: (UserState,AllTypes,AllFuns) => VMFun -> (CDecl,CDecl)
 cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
   where
   sig = "void" <+> cname <+>
@@ -387,7 +432,7 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
   call = cCall (cFName name)
                ([ "p", "&out_result", "&out_input" ] ++ map snd pargs)
 
-  body = [ cDeclareVar "DDL::ParserState" "p"
+  body = [ declareParserState
          , cDeclareVar ty "out_result"
          , cDeclareVar "DDL::Input" "out_input"
          , cIf call
@@ -413,7 +458,7 @@ delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
 
 data FunLinkage = Static | Extern
 
-cFunSig :: FunLinkage -> VMFun -> CDecl
+cFunSig :: UserState => FunLinkage -> VMFun -> CDecl
 cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
   where
   linkageStr =
@@ -429,11 +474,11 @@ cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
                ]
 
   retTy   = cSemType (Src.fnameType (vmfName fun))
-  retArgs = [ "DDL::ParserState&", cPtrT retTy, cPtrT (cSemType Src.TStream) ]
+  retArgs = [ cRefT parserStateType, cPtrT retTy, cPtrT (cSemType Src.TStream) ]
 
 
 
-cFun :: (AllTypes,AllFuns) => VMFun -> [CDecl]
+cFun :: (UserState,AllTypes,AllFuns) => VMFun -> [CDecl]
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> []
@@ -466,7 +511,7 @@ cFun fun =
                    ]
 
       retTy   = cSemType (Src.fnameType (vmfName fun))
-      retArgs = [ "DDL::ParserState& p"
+      retArgs = [ parserStateType <+> "&p"
                 , cPtrT retTy <+> cRetVarFun
                 , cPtrT (cSemType Src.TStream) <+> cRetInputFun
                 ]

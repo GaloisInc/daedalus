@@ -54,6 +54,7 @@ data Options =
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
           , optErrorStacks :: Bool
+          , optUserState :: Maybe String
 
           , optParams :: [String]
           }
@@ -79,6 +80,7 @@ defaultOptions =
           , optHS        = noOptsHS
           , optParams    = []
           , optErrorStacks = True
+          , optUserState = Nothing
           }
 
 
@@ -322,9 +324,14 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
       , Option [] ["no-error-stack"]
         "Do not generate a grammar stack trace on error."
         $ NoArg \o -> Right o { optErrorStacks = False }
+
+      , Option [] ["user-state"]
+        "Generate a parser using this type for custom user state"
+        $ ReqArg "STATE_TYPE" \s o -> Right o { optUserState = Just s }
       ] ++
       coreOptions ++
       [ helpOption
