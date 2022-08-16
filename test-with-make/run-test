@@ -1,0 +1,34 @@
+#!/bin/bash
+
+ERR=0
+
+function run() {
+  echo -n "$1 "
+  OUT=$(make --quiet -C "$1" 2>&1)
+  if [ $? == 0 ]; then
+    echo -n "[OK]"
+  else
+    echo "[FAIL]"
+    ERR=1
+  fi
+  echo "$OUT"
+}
+
+function clean() {
+  echo "Cleaning $1"
+  make --quiet -C $1 clean 2>&1 > /dev/null
+}
+
+
+if [ $# == 0 ]; then
+  for i in tests/*; do run $i; done
+else
+  if [ $1 == "clean" ]; then
+    shift
+    for i in tests/*; do clean $i; done;
+  else
+    for i in $*; do run $i; done
+  fi
+fi
+
+exit $ERR

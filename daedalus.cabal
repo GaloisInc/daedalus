@@ -194,3 +194,12 @@ test-suite daedalus-test-backends
                       process,
                       directory
 
+test-suite daedalus-test-makefile
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test-with-make
+  main-is:            TestSuite.hs
+  default-language:   Haskell2010
+  build-depends:      base,
+                      process,
+                      directory
+
