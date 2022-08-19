@@ -300,7 +300,8 @@ generateCPP opts mm =
      prog <- doToVM opts mm
      let outFileRoot = "main_parser" -- XXX: parameterize on this
          userState = text <$> optUserState opts
-         (hpp,cpp) = C.cProgram outFileRoot userState prog
+         (hpp,cpp) = C.cProgram outFileRoot userState
+                                                  (optExtraInclude opts) prog
 
      ddlIO (saveFiles makeExe outFileRoot hpp cpp)
 

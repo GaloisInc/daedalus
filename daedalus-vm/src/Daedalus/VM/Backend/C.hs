@@ -40,8 +40,8 @@ import Daedalus.VM.Backend.C.Call
 -- XXX: separate output and parser state(input/threads)
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
-cProgram :: String -> Maybe Doc -> Program -> (Doc,Doc)
-cProgram fileNameRoot userState prog =
+cProgram :: String -> Maybe Doc -> [String] -> Program -> (Doc,Doc)
+cProgram fileNameRoot userState extraIncludes prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
@@ -52,9 +52,9 @@ cProgram fileNameRoot userState prog =
           [ "#ifndef" <+> module_marker
           , "#define" <+> module_marker
           , " "
-          , includes
-          , " "
-          , let (ds,defs) = unzip (map (cTypeGroup allTypesMap) allTypes)
+          , includes ] ++
+          [ "#include <" <.> text x <.> ">" | x <- extraIncludes ] ++
+          [ let (ds,defs) = unzip (map (cTypeGroup allTypesMap) allTypes)
             in vcat' (ds ++ defs)
           , " "
           , "// --- Parsing Functions ---"

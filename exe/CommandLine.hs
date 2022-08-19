@@ -55,6 +55,7 @@ data Options =
           , optNoWarnUnbiased :: Bool
           , optErrorStacks :: Bool
           , optUserState :: Maybe String
+          , optExtraInclude :: [String]
 
           , optParams :: [String]
           }
@@ -81,6 +82,7 @@ defaultOptions =
           , optParams    = []
           , optErrorStacks = True
           , optUserState = Nothing
+          , optExtraInclude = []
           }
 
 
@@ -332,6 +334,11 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       , Option [] ["user-state"]
         "Generate a parser using this type for custom user state"
         $ ReqArg "STATE_TYPE" \s o -> Right o { optUserState = Just s }
+
+      , Option [] ["add-include"]
+        "Add #include<NAME> to generated files"
+        $ ReqArg "NAME"
+          \s o -> Right o { optExtraInclude = s : optExtraInclude o }
       ] ++
       coreOptions ++
       [ helpOption
