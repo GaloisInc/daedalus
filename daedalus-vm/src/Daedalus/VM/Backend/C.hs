@@ -53,7 +53,7 @@ cProgram fileNameRoot userState extraIncludes prog =
           , "#define" <+> module_marker
           , " "
           , includes ] ++
-          [ "#include <" <.> text x <.> ">" | x <- extraIncludes ] ++
+          [ "#include" <+> text x | x <- extraIncludes ] ++
           [ let (ds,defs) = unzip (map (cTypeGroup allTypesMap) allTypes)
             in vcat' (ds ++ defs)
           , " "

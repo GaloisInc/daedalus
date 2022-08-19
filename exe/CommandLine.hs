@@ -336,8 +336,8 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
         $ ReqArg "STATE_TYPE" \s o -> Right o { optUserState = Just s }
 
       , Option [] ["add-include"]
-        "Add #include<NAME> to generated files"
-        $ ReqArg "NAME"
+        "Add #include INCLUDE to generated files"
+        $ ReqArg "INCLUDE"
           \s o -> Right o { optExtraInclude = s : optExtraInclude o }
       ] ++
       coreOptions ++

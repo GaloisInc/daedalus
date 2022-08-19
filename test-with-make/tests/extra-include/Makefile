@@ -17,7 +17,7 @@ main_parser.cpp main_parser.h: test.ddl
 	  compile-c++ test.ddl \
 	    --entry=Main \
 	    --user-state=UserState \
-	    --add-include=userState.hpp
+	    --add-include='"userState.hpp"'
 
 parser: $(FILES)
 	$(CC) $(CPPFLAGS) $(CXXFLAGS) main_parser.cpp main.cpp prim.cpp $(LIBS)
