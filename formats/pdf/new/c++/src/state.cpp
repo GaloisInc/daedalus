@@ -18,7 +18,7 @@ TopThunk::TopThunk(uint64_t offset) : offset(offset) {}
 // Writes result on success
 // Returns true on success
 bool
-TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
+TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result)
 {
     if (offset > input.length().value) {
         input.free();
@@ -31,7 +31,7 @@ TopThunk::getDecl(DDL::Input input, User::TopDecl *result)
     std::vector<User::TopDecl> results;
 
     input.copy();
-    parseTopDecl(error, results, input);
+    parseTopDecl(refs, error, results, input);
 
     if (results.size() != 1) {
         for (auto &&x : results) { x.free(); }
@@ -54,10 +54,10 @@ StreamThunk::StreamThunk(uint64_t container, uint64_t index)
 : container(container), index(index) {}
 
 bool
-StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
+StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result)
 {
     DDL::Maybe<User::TopDecl> streamResult;
-    if (!references.resolve_reference(container, 0, &streamResult)) {
+    if (!refs.resolve_reference(container, 0, &streamResult)) {
         return false;
     }
 
@@ -77,10 +77,10 @@ StreamThunk::getDecl(uint64_t refid, User::TopDecl *result)
     // have to reparse them for every object?
     DDL::ParseError error;
     User::ObjStream objStream;
-    if (!DDL::parseOne(parseObjStream, error, &objStream,
+    if (!DDL::parseOneUser(parseObjStream, refs, error, &objStream,
        DDL::Input("ObjStream", ""), stream)) return false;
 
-    return DDL::parseOne(parseObjStreamEntry, error, result,
+    return DDL::parseOneUser(parseObjStreamEntry, refs, error, result,
                   DDL::Input("",""), objStream, DDL::UInt<64>(index));
 }
 
@@ -165,7 +165,7 @@ ReferenceTable::resolve_reference(
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
             User::TopDecl decl{};
-            bool success = arg.getDecl(topinput->get(), &decl);
+            bool success = arg.getDecl(*this, topinput->get(), &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
                 *result = decl;
@@ -175,7 +175,7 @@ ReferenceTable::resolve_reference(
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
             User::TopDecl decl{};
-            bool success = arg.getDecl(refid, &decl);
+            bool success = arg.getDecl(*this, refid, &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
                 *result = decl;
@@ -290,7 +290,7 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
         DDL::ParseError error;
         std::vector<User::EncryptionDict> results;
 
-        parseEncryptionDict(error, results, emptyInput, trailer.borrow_encrypt().getValue());
+        parseEncryptionDict(*this, error, results, emptyInput, trailer.borrow_encrypt().getValue());
         if (1 != results.size()) {
             for (auto && x : results) { x.free(); }
             throw XrefException("Bad encryption dictionary");
@@ -334,12 +334,12 @@ void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::I
                     // maximum generation number is 65,535
                     generation_type gen = isUse.borrow_gen().asSize().value;
 
-                    references.register_uncompressed_reference(refid, gen, offset);
+                    register_uncompressed_reference(refid, gen, offset);
                     break;
                 }
 
                 case DDL::Tag::CrossRefEntry::free: {
-                    references.unregister(entry.borrow_free().borrow_obj().asSize().value);
+                    unregister(entry.borrow_free().borrow_obj().asSize().value);
                     break;
                 }
             }
@@ -375,7 +375,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
     std::vector<User::CrossRef> crossRefs;
 
     input.copy();
-    parseCrossRef(error, crossRefs, input.iDrop(offset));
+    parseCrossRef(*this, error, crossRefs, input.iDrop(offset));
 
     if (crossRefs.size() != 1) {
         for (auto &&x : crossRefs) {
@@ -441,7 +441,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     auto start = findPdfStart(input.length().value, input.borrowBytes().data());
     input.iDropMut(start);
 
-    references.topinput = DDL::Owned(input);
+    topinput = DDL::Owned(input);
 
     auto end = findPdfEnd(input.length().rep(), input.borrowBytes().data());
     if (end == not_found) {
@@ -452,7 +452,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
     std::vector<DDL::UInt<64>> results;
 
     input.copy();
-    parsePdfEnd(error, results, input.iDrop(DDL::Size(end)));
+    parsePdfEnd(*this, error, results, input.iDrop(DDL::Size(end)));
 
     if (1 != results.size()) {
         for (auto && x : results) { x.free(); }
@@ -465,4 +465,3 @@ void ReferenceTable::process_pdf(DDL::Input input)
     process_xref(&visited, input, offset, true);
 }
 
-ReferenceTable references;

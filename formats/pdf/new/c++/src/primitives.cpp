@@ -18,7 +18,7 @@ std::u32string emittedCodepoints;
 
 
 bool parser_GetCharCode
-  ( DDL::ParserState& state
+  ( DDL::ParserStateUser<ReferenceTable>& state
   , DDL::SInt<32> *result
   , DDL::Input    *inputout
   , DDL::Input inputin // own
@@ -103,7 +103,7 @@ FAIL:
 }
 
 bool parser_EmitChar
-  ( DDL::ParserState& state
+  ( DDL::ParserStateUser<ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input *inputout
   , DDL::Input inputin
@@ -119,7 +119,7 @@ bool parser_EmitChar
 
 // owns inputin, message
 bool parser_Trace
-  ( DDL::ParserState& state
+  ( DDL::ParserStateUser<ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input* inputout
   , DDL::Input inputin
@@ -145,7 +145,7 @@ bool parser_Trace
 
 // owns input,ref
 bool parser_ResolveRef
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Maybe<User::TopDecl> *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -160,7 +160,8 @@ bool parser_ResolveRef
     ref.borrow_gen().exportI(gen);
     ref.free();
 
-    if (references.resolve_reference(refid, gen, result)) {
+    auto &refs = pstate.getUserState();
+    if (refs.resolve_reference(refid, gen, result)) {
       *out_input = input;
       return true;
     } else {
@@ -171,7 +172,7 @@ bool parser_ResolveRef
 
 // owns input body
 bool parser_Decrypt
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -179,15 +180,16 @@ bool parser_Decrypt
   , DDL::Input body
   ) {
 
-  if (references.getEncryptionContext().has_value()) {
-    auto const& e = *references.getEncryptionContext();
+  auto &refs = pstate.getUserState();
+  if (refs.getEncryptionContext().has_value()) {
+    auto const& e = *refs.getEncryptionContext();
     
     switch (e.cipher.borrow().getTag()) {
       case DDL::Tag::ChooseCiph::v4AES: {
         auto key = makeObjKey(
-          *references.getEncryptionContext(),
-          references.currentObjId,
-          references.currentGen,
+          *refs.getEncryptionContext(),
+          refs.currentObjId,
+          refs.currentGen,
           true);
 
         std::string output;
@@ -214,7 +216,7 @@ bool parser_Decrypt
               EVP_aes_256_cbc(),
               body.borrowBytes().data(),
               body.length().value,
-              reinterpret_cast<char const*>(references.getEncryptionContext()->key.data()),
+              reinterpret_cast<char const*>(refs.getEncryptionContext()->key.data()),
               output)
         ) {
           std::cerr << "INFO: Decryption has failed (v5AES)?" << std::endl;
@@ -232,8 +234,8 @@ bool parser_Decrypt
         std::cerr
           << "INFO: Encryption not implemented. "
           << "Object: "
-          << references.currentObjId << " "
-          << references.currentGen
+          << refs.currentObjId << " "
+          << refs.currentGen
           << ", cipher: " << e.cipher.borrow()
           << std::endl;
         input.free();
@@ -249,7 +251,7 @@ bool parser_Decrypt
 
 // owns input, predictor, colors, bpc, columns, body
 bool parser_FlateDecode
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -330,7 +332,7 @@ bool parser_FlateDecode
 
 // owns input predictor colors bpc column earlychange body
 bool parser_LZWDecode
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Input* result
   , DDL::Input* out_input
   , DDL::Input input
@@ -386,7 +388,7 @@ bool parser_LZWDecode
 
 // owns input,body
 bool parser_ASCIIHexDecode
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -409,7 +411,7 @@ bool parser_ASCIIHexDecode
 
 // owns input,body
 bool parser_ASCII85Decode
-  ( DDL::ParserState &pstate
+  ( DDL::ParserStateUser<ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input

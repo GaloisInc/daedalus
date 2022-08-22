@@ -25,13 +25,14 @@ bool inputFromFile(const char *file, DDL::Input *input)
 
 
 
-bool getGlyphMap(const char *file, DDL::ResultOf::parseStdEncodings *out) {
+// XXX: Tihs is a differen format and should not need the referneces
+bool getGlyphMap(ReferenceTable &refs, const char *file, DDL::ResultOf::parseStdEncodings *out) {
 
   DDL::Input input{"glyphmap.txt",(const char*)glyphmap_txt,glyphmap_txt_len};
 
   std::vector<DDL::ResultOf::parseStdEncodings> results;
   DDL::ParseError err;
-  parseStdEncodings(err,results,input);
+  parseStdEncodings(refs, err,results,input);
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
     std::cerr << "Unable to parse glyph file " << file << std::endl;
@@ -44,8 +45,8 @@ bool getGlyphMap(const char *file, DDL::ResultOf::parseStdEncodings *out) {
 
 
 
-void check_catalog(bool text) {
-  auto root = references.getRoot();
+void check_catalog(ReferenceTable &refs, bool text) {
+  auto root = refs.getRoot();
   if (!root.has_value()) { throw CatalogException("Missing root"); }
 
   std::vector<User::PdfCatalog> results;
@@ -56,12 +57,12 @@ void check_catalog(bool text) {
 
   if (text) {
     DDL::ResultOf::parseStdEncodings glyphs;
-    if (!getGlyphMap("glyphs.txt",&glyphs))
+    if (!getGlyphMap(refs, "glyphs.txt",&glyphs))
       throw CatalogException("Failed to parse glyph file.");
     mbglyphs = DDL::Maybe {glyphs};
   }
 
-  parsePdfCatalog(error,results,DDL::Input("empty",""),true,mbglyphs,root->get());
+  parsePdfCatalog(refs, error,results,DDL::Input("empty",""),true,mbglyphs,root->get());
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
@@ -71,7 +72,7 @@ void check_catalog(bool text) {
   if (text) {
 
     std::vector<DDL::ResultOf::parseTextInCatalog> chunks;
-    parseTextInCatalog(error,chunks,DDL::Input("empty",""),results[0]);
+    parseTextInCatalog(refs, error,chunks,DDL::Input("empty",""),results[0]);
   } else {
     // dbg << results[0] << std::endl;
     results[0].free();

@@ -6,7 +6,7 @@ public:
   const char *what() const throw () override { return msg; }
 };
 
-void check_catalog(bool text);
+void check_catalog(ReferenceTable &refs, bool text);
 
 
 bool inputFromFile(const char *file, DDL::Input *input);

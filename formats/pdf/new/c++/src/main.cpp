@@ -69,9 +69,11 @@ int main(int argc, char* argv[]) {
   bool reject = false;
   bool safe   = true;
 
+  ReferenceTable refs;
+
   try {
-    references.process_pdf(input);
-    check_catalog(text);
+    refs.process_pdf(input);
+    check_catalog(refs, text);
     if (text) {
       if (args.outputFile.empty()) {
         utf8(std::cout, emittedCodepoints);
@@ -84,12 +86,12 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    for (auto && [refid, val] : references.table) {
+    for (auto && [refid, val] : refs.table) {
       User::Ref ref;
       ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
       std::vector<DDL::Bool> results;
       DDL::ParseError error;
-      parseCheckRef(error, results, DDL::Input{"",""}, ref);
+      parseCheckRef(refs, error, results, DDL::Input{"",""}, ref);
       if (results.size() != 1) {
         std::cerr << "ERROR: [" << refid << "," << val.gen << "] Malformed\n";
         reject = true;

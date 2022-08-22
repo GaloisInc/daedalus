@@ -19,7 +19,7 @@ struct StreamThunk {
     uint64_t index;
     explicit StreamThunk(uint64_t container, uint64_t index);
 
-    bool getDecl(uint64_t refid, User::TopDecl *result);
+    bool getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result);
 };
 
 
@@ -33,7 +33,7 @@ public:
     // Borrows: this, input
     // Populates owned result
     // Returns true on success
-    bool getDecl(DDL::Input input, User::TopDecl *result);
+    bool getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result);
 };
 
 using oref = std::variant<
@@ -85,8 +85,6 @@ public:
     // owns input
     void process_pdf(DDL::Input);
 };
-
-extern ReferenceTable references;
 
 struct XrefException : public std::exception {
     const char * msg;

@@ -29,6 +29,8 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../spec/Catalog.ddl
   COMMAND cabal run exe:daedalus -v0 --
     compile-c++
+    --add-include='<declare_state.hpp>'
+    --user-state=ReferenceTable
     --inline-this=StandardEncodings.glyph
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
     --entry=PdfXRef.PdfEnd
@@ -58,6 +60,7 @@ add_executable(parser-test
 
 target_include_directories(parser-test
     PRIVATE
+        src
         ${CMAKE_CURRENT_BINARY_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../rts-c
 )
