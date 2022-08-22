@@ -10,7 +10,7 @@ template <typename T, typename... Args>
 inline
 bool parseOne
   ( void (*f)(DDL::ParseError&, std::vector<T>&, Args...)
-  , DDL::ParseError error
+  , DDL::ParseError& error
   , T* out
   , Args... args
   ) {
@@ -29,7 +29,7 @@ inline
 bool parseOneUser
   ( void (*f)(UserState&, DDL::ParseError&, std::vector<T>&, Args...)
   , UserState &ustate
-  , DDL::ParseError error
+  , DDL::ParseError& error
   , T* out
   , Args... args
   ) {
