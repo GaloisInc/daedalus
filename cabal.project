@@ -17,7 +17,9 @@ packages:
   -- out/
 
 constraints:
-  utf8-string < 1.0.2
+  utf8-string < 1.0.2,
+  entropy < 0.4.1.9
+  -- 0.4.1.9 seems to have a problem https://github.com/TomMD/entropy/issues/75
 
 source-repository-package
     type: git
