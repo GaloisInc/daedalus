@@ -11,8 +11,6 @@
 #include <ddl/owned.h>
 #include "encryption.hpp"
 
-class ReferenceTable;
-
 struct Blackhole {};
 
 // Unprocessed declaration inside an object stream
@@ -21,7 +19,7 @@ struct StreamThunk {
     uint64_t index;
     explicit StreamThunk(uint64_t container, uint64_t index);
 
-    bool getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result);
+    bool getDecl(uint64_t refid, User::TopDecl *result);
 };
 
 
@@ -35,7 +33,7 @@ public:
     // Borrows: this, input
     // Populates owned result
     // Returns true on success
-    bool getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result);
+    bool getDecl(DDL::Input input, User::TopDecl *result);
 };
 
 using oref = std::variant<
@@ -88,7 +86,7 @@ public:
     void process_pdf(DDL::Input);
 };
 
-// extern ReferenceTable references;
+extern ReferenceTable references;
 
 struct XrefException : public std::exception {
     const char * msg;
