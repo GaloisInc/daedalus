@@ -56,6 +56,7 @@ data Options =
           , optErrorStacks :: Bool
           , optUserState :: Maybe String
           , optExtraInclude :: [String]
+          , optFileRoot :: String
 
           , optParams :: [String]
           }
@@ -83,6 +84,7 @@ defaultOptions =
           , optErrorStacks = True
           , optUserState = Nothing
           , optExtraInclude = []
+          , optFileRoot = "main_parser"
           }
 
 
@@ -326,6 +328,10 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["file-root"]
+        "Output file template (default: main_parser)"
+        $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
 
       , Option [] ["no-error-stack"]
         "Do not generate a grammar stack trace on error."

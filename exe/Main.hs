@@ -298,7 +298,7 @@ generateCPP opts mm =
            [ "Generating a parser executable requires an output directory" ]
 
      prog <- doToVM opts mm
-     let outFileRoot = "main_parser" -- XXX: parameterize on this
+     let outFileRoot = optFileRoot opts
          userState = text <$> optUserState opts
          (hpp,cpp) = C.cProgram outFileRoot userState
                                                   (optExtraInclude opts) prog
