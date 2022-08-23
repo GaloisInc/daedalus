@@ -3,6 +3,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
 find_package(ZLIB REQUIRED)
 
+add_subdirectory(docs)
+
 
 add_custom_command(
   OUTPUT
