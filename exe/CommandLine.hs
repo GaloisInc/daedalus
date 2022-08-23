@@ -50,6 +50,7 @@ data Options =
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
+          , optOutDirHeaders :: Maybe FilePath
           , optHS        :: OptsHS
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
@@ -77,6 +78,7 @@ defaultOptions =
           , optCheckCore = True
           , optDeterminize = False
           , optOutDir    = Nothing
+          , optOutDirHeaders    = Nothing
           , optNoWarnUnbiasedFront = False
           , optNoWarnUnbiased = False
           , optHS        = noOptsHS
@@ -328,6 +330,10 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["out-dir-headers"]
+        "Save generated headers in this directory (defaults to `out-dir`)"
+        $ ReqArg "DIR" \s o -> Right o { optOutDirHeaders = Just s }
 
       , Option [] ["file-root"]
         "Output file template (default: main_parser)"

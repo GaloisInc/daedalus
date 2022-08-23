@@ -311,9 +311,14 @@ generateCPP opts mm =
                 Nothing -> pure "."
                 Just d  -> do createDirectoryIfMissing True d
                               pure d
+       hdir <- case optOutDirHeaders opts of
+                 Nothing -> pure dir
+                 Just d  -> do createDirectoryIfMissing True d
+                               pure d
 
        let root = dir </> outFileRoot
-       writeFile (addExtension root "h") (show hpp)
+           hroot = hdir </> outFileRoot
+       writeFile (addExtension hroot "h") (show hpp)
        writeFile (addExtension root "cpp") (show cpp)
 
        when makeExe
