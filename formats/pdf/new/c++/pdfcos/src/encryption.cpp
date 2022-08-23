@@ -7,8 +7,8 @@
 #include "cryptoerror.hpp"
 
 #include <ddl/integer.h>
-#include <pdfcos.h>
-#include <pdfcos/encryption.hpp>
+
+#include <pdfcos.hpp>
 
 std::vector<uint8_t> makeObjKey(
     EncryptionContext const& encCtx,

@@ -1,10 +1,14 @@
 #pragma once
+
 #include <string>
 #include <exception>
+
+#include <openssl/evp.h>
+
 #include <ddl/array.h>
 #include <ddl/owned.h>
-#include <pdfcos.h>
-#include <openssl/evp.h>
+
+#include <pdfcos.hpp>
 
 struct EncryptionException : public std::exception {
 

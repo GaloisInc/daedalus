@@ -6,10 +6,10 @@
 #include <unordered_set>
 #include <optional>
 
-#include <pdfcos.h>
 #include <ddl/input.h>
 #include <ddl/owned.h>
-#include <pdfcos/encryption.hpp>
+
+#include <pdfcos.hpp>
 
 struct Blackhole {};
 

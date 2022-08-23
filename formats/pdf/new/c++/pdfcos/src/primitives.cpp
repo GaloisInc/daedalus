@@ -10,10 +10,7 @@
 #include "lzw.hpp"
 #include "predictor.hpp"
 
-#include <pdfcos.h>
-#include "pdfcos/debug.hpp"
-#include "pdfcos/state.hpp"
-#include "pdfcos/encryption.hpp"
+#include <pdfcos.hpp>
 
 // owns inputin, message
 bool parser_Trace

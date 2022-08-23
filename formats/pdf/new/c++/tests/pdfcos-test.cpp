@@ -2,8 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <pdfcos.h>
-#include <pdfcos/state.hpp>
+#include <pdfcos.hpp>
 
 int main(int argc, char *argv[]) {
 
@@ -13,13 +12,13 @@ int main(int argc, char *argv[]) {
   }
 
   std::ifstream fin {argv[1], std::ios::in | std::ios::binary};
-  std::ostringstream sout;
 
   if (!fin.is_open()) {
     std::cerr << "Failed to open " << argv[1] << std::endl;
     return 1;
   }
 
+  std::ostringstream sout;
   sout << fin.rdbuf();
   std::string str = std::move(sout.str());
 

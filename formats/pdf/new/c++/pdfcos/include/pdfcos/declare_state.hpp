@@ -1,7 +1,4 @@
-#ifndef DECLARE_STATE_HPP
-#define DECLARE_STATE_HPP
+#pragma once
 
 class ReferenceTable;
 
-
-#endif

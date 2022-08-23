@@ -6,8 +6,8 @@ find_package(ZLIB REQUIRED)
 
 add_custom_command(
   OUTPUT
-    ${CMAKE_CURRENT_BINARY_DIR}/pdfcos.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos.h
+    ${CMAKE_CURRENT_BINARY_DIR}/types.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos/types.h
   DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/Daedalus.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfCos.ddl
@@ -19,8 +19,8 @@ add_custom_command(
     --add-include='<pdfcos/declare_state.hpp>'
     --user-state=ReferenceTable
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
-    --out-dir-headers=include
-    --file-root=pdfcos
+    --out-dir-headers=include/pdfcos
+    --file-root=types
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef
     --entry=PdfDecl.TopDecl
@@ -36,7 +36,7 @@ add_library(pdfcos
     src/primitives.cpp
     src/state.cpp
     src/encryption.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/pdfcos.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/types.cpp
 )
 
 
@@ -46,6 +46,13 @@ target_include_directories(pdfcos
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../rts-c
     include
 )
+
+target_include_directories(pdfcos
+  PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos
+)
+
+
 
 target_link_libraries(pdfcos
   PRIVATE

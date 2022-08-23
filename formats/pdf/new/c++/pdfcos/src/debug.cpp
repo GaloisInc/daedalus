@@ -1,4 +1,4 @@
-#include "pdfcos/debug.hpp"
+#include <pdfcos.hpp>
 
 #ifndef DEBUG
 

@@ -1,10 +1,10 @@
-#include "pdfcos/state.hpp"
-#include "pdfcos/debug.hpp"
-#include <ddl/utils.h>
-
 #include <algorithm>
 #include <cstring>
 #include <vector>
+
+#include <ddl/utils.h>
+
+#include <pdfcos.hpp>
 
 
 template<class> inline constexpr bool always_false_v = false;

@@ -1,5 +1,4 @@
-#ifndef DEBUG_HPP
-#define DEBUG_HPP
+#pragma once
 
 // #define DEBUG
 
@@ -9,5 +8,4 @@
 #else
 extern std::ostream dbg;
 
-#endif
 #endif
