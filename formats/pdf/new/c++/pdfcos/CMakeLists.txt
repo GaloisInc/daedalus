@@ -1,0 +1,58 @@
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
+find_package(ZLIB REQUIRED)
+
+
+add_custom_command(
+  OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/pdfcos.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos.h
+  DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/Daedalus.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfCos.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfDecl.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfXRef.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfValue.ddl
+  COMMAND cabal run exe:daedalus -v0 --
+    compile-c++
+    --add-include='<pdfcos/declare_state.hpp>'
+    --user-state=ReferenceTable
+    --out-dir=${CMAKE_CURRENT_BINARY_DIR}
+    --out-dir-headers=include
+    --file-root=pdfcos
+    --entry=PdfXRef.PdfEnd
+    --entry=PdfXRef.CrossRef
+    --entry=PdfDecl.TopDecl
+    --entry=PdfDecl.ObjStream
+    --entry=PdfDecl.ObjStreamEntry
+    --entry=PdfCrypto.EncryptionDict
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfCos.ddl
+  )
+
+add_library(pdfcos
+  STATIC
+    src/debug.cpp
+    src/primitives.cpp
+    src/state.cpp
+    src/encryption.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/pdfcos.cpp
+)
+
+
+target_include_directories(pdfcos
+  PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../rts-c
+    include
+)
+
+target_link_libraries(pdfcos
+  PRIVATE
+    PkgConfig::GMPXX
+    ZLIB::ZLIB
+    opensslxx
+    pdffilters
+)
+
+target_compile_options(pdfcos PRIVATE -O3)

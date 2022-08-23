@@ -14,6 +14,7 @@ find_package(ZLIB REQUIRED)
 
 add_subdirectory(filters)
 add_subdirectory(opensslxx)
+add_subdirectory(pdfcos)
 
 add_custom_command(
   OUTPUT
