@@ -65,7 +65,11 @@ target_include_directories(parser-test
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../rts-c
 )
 
-target_link_libraries(parser-test PRIVATE PkgConfig::GMPXX ZLIB::ZLIB opensslxx pdffilters)
+target_link_libraries(parser-test PRIVATE
+  PkgConfig::GMPXX
+  ZLIB::ZLIB
+  opensslxx
+  pdffilters)
 
 target_compile_options(parser-test PRIVATE -O3)
 # target_compile_options(parser-test PRIVATE -fsanitize=address -g3)
