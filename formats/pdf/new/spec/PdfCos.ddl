@@ -2,6 +2,5 @@
 
 import PdfXRef
 import PdfCrypto
-import Catalog
-import TextExtract
-import Validate
+import PdfDecl
+import PdfValue
