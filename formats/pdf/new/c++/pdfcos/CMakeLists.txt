@@ -5,7 +5,6 @@ find_package(ZLIB REQUIRED)
 
 add_subdirectory(docs)
 
-
 add_custom_command(
   OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/types.cpp
@@ -45,7 +44,6 @@ add_library(pdfcos
 target_include_directories(pdfcos
   PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../rts-c
     include
 )
 
@@ -62,6 +60,10 @@ target_link_libraries(pdfcos
     ZLIB::ZLIB
     opensslxx
     pdffilters
+)
+target_link_libraries(pdfcos
+  PUBLIC
+    ddl-rts
 )
 
 target_compile_options(pdfcos PRIVATE -O3)

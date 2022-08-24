@@ -14,7 +14,9 @@ find_package(ZLIB REQUIRED)
 
 add_subdirectory(filters)
 add_subdirectory(opensslxx)
+add_subdirectory(rts-c)
 add_subdirectory(pdfcos)
+add_subdirectory(tests)
 
 add_custom_command(
   OUTPUT
@@ -60,20 +62,21 @@ add_executable(parser-test
 )
 
 target_include_directories(parser-test
-    PRIVATE
-        src
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../rts-c
+  PRIVATE
+    src
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(parser-test PRIVATE
-  PkgConfig::GMPXX
-  ZLIB::ZLIB
-  opensslxx
-  pdffilters)
+target_link_libraries(parser-test
+  PRIVATE
+    PkgConfig::GMPXX
+    ZLIB::ZLIB
+    opensslxx
+    pdffilters
+    ddl-rts
+)
 
 target_compile_options(parser-test PRIVATE -O3)
 # target_compile_options(parser-test PRIVATE -fsanitize=address -g3)
 # target_link_options(parser-test PRIVATE -fsanitize=address)
 
-add_subdirectory(tests)
