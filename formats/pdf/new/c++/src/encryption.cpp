@@ -219,7 +219,7 @@ std::vector<uint8_t> makeFileKeyAlg2(
     return md;
 }
 
-EncryptionContext makeEncryptionContext(User::EncryptionDict dict) {
+EncryptionContext makeEncryptionContext(PdfCos::EncryptionDict dict) {
     auto encO = dict.borrow_encO();
     auto encP = dict.borrow_encP();
     auto id0 = dict.borrow_id0();

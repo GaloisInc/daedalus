@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     refs.process_pdf(input);
 
     for (auto && [refid, val] : refs.table) {
-      User::Ref ref;
+      PdfCos::Ref ref;
       ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
       std::cout << ref << std::endl;
       ref.free();

@@ -14,8 +14,8 @@ bool removePadding(std::string &str);
 
 struct EncryptionContext {
     std::vector<uint8_t> key;
-    DDL::Owned<User::ChooseCiph> cipher;
-    EncryptionContext(std::vector<uint8_t> key, User::ChooseCiph cipher)
+    DDL::Owned<PdfCos::ChooseCiph> cipher;
+    EncryptionContext(std::vector<uint8_t> key, PdfCos::ChooseCiph cipher)
     : key(key), cipher(borrowed(cipher)) {}
 };
 
@@ -33,7 +33,7 @@ std::vector<uint8_t> makeFileKeyAlg2(
     std::vector<uint8_t> const& password
 );
 
-EncryptionContext makeEncryptionContext(User::EncryptionDict dict);
+EncryptionContext makeEncryptionContext(PdfCos::EncryptionDict dict);
 
 bool aes_cbc_decryption(
     EVP_CIPHER const* alg,

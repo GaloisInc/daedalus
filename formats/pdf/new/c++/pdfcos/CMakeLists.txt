@@ -22,6 +22,7 @@ add_custom_command(
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
     --out-dir-headers=include/pdfcos
     --file-root=types
+    --user-namespace=PdfCos
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef
     --entry=PdfDecl.TopDecl

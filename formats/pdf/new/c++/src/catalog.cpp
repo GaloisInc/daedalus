@@ -49,7 +49,7 @@ void check_catalog(ReferenceTable &refs, bool text) {
   auto root = refs.getRoot();
   if (!root.has_value()) { throw CatalogException("Missing root"); }
 
-  std::vector<User::PdfCatalog> results;
+  std::vector<PdfCos::PdfCatalog> results;
   DDL::ParseError error;
 
 

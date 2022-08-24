@@ -22,7 +22,7 @@ bool parser_GetCharCode
   , DDL::SInt<32> *result
   , DDL::Input    *inputout
   , DDL::Input inputin // own
-  , User::cmap cmap //own
+  , PdfCos::cmap cmap //own
   ) {
 
   if (inputin.isEmpty()) {
@@ -146,11 +146,11 @@ bool parser_Trace
 // owns input,ref
 bool parser_ResolveRef
   ( DDL::ParserStateUser<ReferenceTable> &pstate
-  , DDL::Maybe<User::TopDecl> *result
+  , DDL::Maybe<PdfCos::TopDecl> *result
   , DDL::Input *out_input
   , DDL::Input input
 
-  , User::Ref ref
+  , PdfCos::Ref ref
   ) {
 
     uint64_t refid;

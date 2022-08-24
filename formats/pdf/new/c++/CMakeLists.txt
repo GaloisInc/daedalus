@@ -36,6 +36,7 @@ add_custom_command(
     --user-state=ReferenceTable
     --inline-this=StandardEncodings.glyph
     --out-dir=${CMAKE_CURRENT_BINARY_DIR}
+    --user-namespace=PdfCos
     --entry=PdfXRef.PdfEnd
     --entry=PdfXRef.CrossRef
     --entry=PdfDecl.TopDecl

@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
     }
 
     for (auto && [refid, val] : refs.table) {
-      User::Ref ref;
+      PdfCos::Ref ref;
       ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
       std::vector<DDL::Bool> results;
       DDL::ParseError error;

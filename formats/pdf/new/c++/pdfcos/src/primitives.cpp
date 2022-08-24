@@ -41,11 +41,11 @@ bool parser_Trace
 // owns input,ref
 bool parser_ResolveRef
   ( DDL::ParserStateUser<ReferenceTable> &pstate
-  , DDL::Maybe<User::TopDecl> *result
+  , DDL::Maybe<PdfCos::TopDecl> *result
   , DDL::Input *out_input
   , DDL::Input input
 
-  , User::Ref ref
+  , PdfCos::Ref ref
   ) {
 
     uint64_t refid;

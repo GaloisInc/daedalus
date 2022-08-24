@@ -18,7 +18,7 @@ TopThunk::TopThunk(uint64_t offset) : offset(offset) {}
 // Writes result on success
 // Returns true on success
 bool
-TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result)
+TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, PdfCos::TopDecl *result)
 {
     if (offset > input.length().value) {
         input.free();
@@ -28,7 +28,7 @@ TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result)
     input.iDropMut(offset);
 
     DDL::ParseError error;
-    std::vector<User::TopDecl> results;
+    std::vector<PdfCos::TopDecl> results;
 
     input.copy();
     parseTopDecl(refs, error, results, input);
@@ -42,7 +42,7 @@ TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result)
 
     input.free();
 
-    User::TopDecl topDecl = results[0];
+    PdfCos::TopDecl topDecl = results[0];
     results.clear();
 
     *result = topDecl;
@@ -54,9 +54,9 @@ StreamThunk::StreamThunk(uint64_t container, uint64_t index)
 : container(container), index(index) {}
 
 bool
-StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result)
+StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, PdfCos::TopDecl *result)
 {
-    DDL::Maybe<User::TopDecl> streamResult;
+    DDL::Maybe<PdfCos::TopDecl> streamResult;
     if (!refs.resolve_reference(container, 0, &streamResult)) {
         return false;
     }
@@ -76,7 +76,7 @@ StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result
     // XXX: Maybe we should cache the parsed ObjStreams so we don't
     // have to reparse them for every object?
     DDL::ParseError error;
-    User::ObjStream objStream;
+    PdfCos::ObjStream objStream;
     if (!DDL::parseOneUser(parseObjStream, refs, error, &objStream,
        DDL::Input("ObjStream", ""), stream)) return false;
 
@@ -86,7 +86,7 @@ StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result
 
 // Owns topDecl
 void
-ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl)
+ReferenceTable::register_topdecl(uint64_t refid, generation_type gen, PdfCos::TopDecl topDecl)
 {
     dbg << "NULL reference " << refid << std::endl;
     table.insert_or_assign(refid, ReferenceEntry{DDL::Owned(topDecl), gen});
@@ -140,12 +140,12 @@ public:
 
 bool
 ReferenceTable::resolve_reference(
-    uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result
+    uint64_t refid, generation_type gen, DDL::Maybe<PdfCos::TopDecl> *result
 ) {
     auto cursor = table.find(refid);
 
     if (cursor == std::end(table) || cursor->second.gen != gen) {
-        *result = DDL::Maybe<User::TopDecl>();
+        *result = DDL::Maybe<PdfCos::TopDecl>();
         return true;
     }
 
@@ -156,7 +156,7 @@ ReferenceTable::resolve_reference(
 
     return std::visit([refid, gen, this, cursor, result](auto&& arg) -> bool {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, DDL::Owned<User::TopDecl>>) {
+        if constexpr (std::is_same_v<T, DDL::Owned<PdfCos::TopDecl>>) {
             *result = arg.get();
             return true;
         } else if constexpr (std::is_same_v<T, Blackhole>) {
@@ -164,7 +164,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, TopThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl{};
+            PdfCos::TopDecl decl{};
             bool success = arg.getDecl(*this, topinput->get(), &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
@@ -174,7 +174,7 @@ ReferenceTable::resolve_reference(
         } else if constexpr (std::is_same_v<T, StreamThunk>) {
             ReferenceContext refCon{*this, refid, gen};
             cursor->second.value = Blackhole();
-            User::TopDecl decl{};
+            PdfCos::TopDecl decl{};
             bool success = arg.getDecl(*this, refid, &decl);
             if (success) {
                 cursor->second.value = borrowed(decl);
@@ -191,7 +191,7 @@ namespace {
 
 }
 
-void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, User::TrailerDict trailer)
+void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, PdfCos::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
         auto offset = DDL::Owned(DDL::integer_to_uint_maybe<8 * sizeof(size_t)>(trailer.borrow_prev().borrowValue()));
@@ -214,7 +214,7 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
     }
 }
 
-void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::XRefObjTable table, bool top)
+void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, PdfCos::XRefObjTable table, bool top)
 {
     auto xrefs = table.borrow_xref();
     process_trailer(visited, input, table.borrow_trailer());
@@ -261,9 +261,9 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
                 }
 
                 case DDL::Tag::XRefObjEntry::null: {
-                    User::TopDecl topDecl;
-                    User::TopDeclDef obj;
-                    User::Value value;
+                    PdfCos::TopDecl topDecl;
+                    PdfCos::TopDeclDef obj;
+                    PdfCos::Value value;
 
                     value.init_null();
                     obj.init_value(value);
@@ -283,12 +283,12 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
     }
 }
 
-void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
+void ReferenceTable::process_trailer_post(PdfCos::TrailerDict trailer)
 {
     if (trailer.borrow_encrypt().isJust()) {
         DDL::Input emptyInput("empty", "", DDL::Size(0));
         DDL::ParseError error;
-        std::vector<User::EncryptionDict> results;
+        std::vector<PdfCos::EncryptionDict> results;
 
         parseEncryptionDict(*this, error, results, emptyInput, trailer.borrow_encrypt().getValue());
         if (1 != results.size()) {
@@ -307,7 +307,7 @@ void ReferenceTable::process_trailer_post(User::TrailerDict trailer)
 }
 
 // Borrows input and old
-void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, User::CrossRefAndTrailer old, bool top)
+void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::Input input, PdfCos::CrossRefAndTrailer old, bool top)
 {
     process_trailer(visited, input, old.borrow_trailer());
 
@@ -359,7 +359,7 @@ ReferenceTable::getEncryptionContext() const
     return encCtx;
 }
 
-std::optional<DDL::Owned<User::Ref>> const&
+std::optional<DDL::Owned<PdfCos::Ref>> const&
 ReferenceTable::getRoot() const { return root; }
 
 
@@ -372,7 +372,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
     }
 
     DDL::ParseError error;
-    std::vector<User::CrossRef> crossRefs;
+    std::vector<PdfCos::CrossRef> crossRefs;
 
     input.copy();
     parseCrossRef(*this, error, crossRefs, input.iDrop(offset));

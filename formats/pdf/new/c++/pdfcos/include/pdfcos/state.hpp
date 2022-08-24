@@ -19,7 +19,7 @@ struct StreamThunk {
     uint64_t index;
     explicit StreamThunk(uint64_t container, uint64_t index);
 
-    bool getDecl(ReferenceTable &refs, uint64_t refid, User::TopDecl *result);
+    bool getDecl(ReferenceTable &refs, uint64_t refid, PdfCos::TopDecl *result);
 };
 
 
@@ -33,14 +33,14 @@ public:
     // Borrows: this, input
     // Populates owned result
     // Returns true on success
-    bool getDecl(ReferenceTable &refs, DDL::Input input, User::TopDecl *result);
+    bool getDecl(ReferenceTable &refs, DDL::Input input, PdfCos::TopDecl *result);
 };
 
 using oref = std::variant<
     Blackhole,                // we are currently processing this declaration
     TopThunk,                 // unprocessed, in the file
     StreamThunk,              // unprocessed, in an object stream
-    DDL::Owned<User::TopDecl> // processed
+    DDL::Owned<PdfCos::TopDecl> // processed
 >;
 
 using generation_type = uint16_t;
@@ -57,16 +57,16 @@ class ReferenceTable {
 private:
     std::optional<DDL::Owned<DDL::Input>> topinput;
     std::optional<EncryptionContext> encCtx;
-    std::optional<DDL::Owned<User::Ref>> root;
+    std::optional<DDL::Owned<PdfCos::Ref>> root;
 
     void process_xref(std::unordered_set<size_t>*, DDL::Input, DDL::Size, bool top);
-    void process_oldXRef(std::unordered_set<size_t>*, DDL::Input, User::CrossRefAndTrailer, bool top);
-    void process_newXRef(std::unordered_set<size_t>*, DDL::Input, User::XRefObjTable, bool top);
-    void process_trailer(std::unordered_set<size_t>*, DDL::Input, User::TrailerDict);
-    void process_trailer_post(User::TrailerDict);
+    void process_oldXRef(std::unordered_set<size_t>*, DDL::Input, PdfCos::CrossRefAndTrailer, bool top);
+    void process_newXRef(std::unordered_set<size_t>*, DDL::Input, PdfCos::XRefObjTable, bool top);
+    void process_trailer(std::unordered_set<size_t>*, DDL::Input, PdfCos::TrailerDict);
+    void process_trailer_post(PdfCos::TrailerDict);
     void register_uncompressed_reference(uint64_t refid, generation_type gen, uint64_t offset);
     void register_compressed_reference(uint64_t refid, uint64_t container, uint64_t index);
-    void register_topdecl(uint64_t refid, generation_type gen, User::TopDecl topDecl);
+    void register_topdecl(uint64_t refid, generation_type gen, PdfCos::TopDecl topDecl);
     void unregister(uint64_t refid);
 
 public: // temporarily public member
@@ -78,9 +78,9 @@ public: // temporarily public member
 public:
     std::optional<EncryptionContext> const& getEncryptionContext() const;
 
-    bool resolve_reference(uint64_t refid, generation_type gen, DDL::Maybe<User::TopDecl> *result);
+    bool resolve_reference(uint64_t refid, generation_type gen, DDL::Maybe<PdfCos::TopDecl> *result);
 
-    std::optional<DDL::Owned<User::Ref>> const& getRoot() const;
+    std::optional<DDL::Owned<PdfCos::Ref>> const& getRoot() const;
     
     // owns input
     void process_pdf(DDL::Input);
