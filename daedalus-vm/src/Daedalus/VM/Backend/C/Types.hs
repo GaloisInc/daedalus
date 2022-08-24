@@ -12,13 +12,13 @@ import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 
 
-cType :: VMT -> CType
+cType :: NSUser => VMT -> CType
 cType ty =
   case ty of
     TThreadId -> "DDL::ThreadId"
     TSem sty  -> cSemType sty
 
-cSemType :: Src.Type -> Doc
+cSemType :: NSUser => Src.Type -> Doc
 cSemType sty =
   case sty of
     Src.TStream     -> "DDL::Input"
@@ -49,7 +49,7 @@ cSizeType ty =
     Src.TSize n      -> integer n
     Src.TSizeParam x -> cTParam x -- in types
 
-cTUser :: Src.UserType -> CType
+cTUser :: NSUser => Src.UserType -> CType
 cTUser t = cTypeUse (cTNameUse GenPublic (Src.utName t))
                     (map cSizeType (Src.utNumArgs t))
                     (map cSemType (Src.utTyArgs t))

@@ -1,4 +1,5 @@
 {-# Language OverloadedStrings, BlockArguments #-}
+{-# Language ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)
@@ -19,8 +20,10 @@ import Daedalus.VM.Backend.C.Lang
 nsDDL :: Doc
 nsDDL = "DDL"
 
-nsUser :: Doc
-nsUser = "User"
+type NSUser = (?nsUser :: Doc)
+
+nsUser :: NSUser => Doc
+nsUser = ?nsUser
 
 nsPrivate :: Doc
 nsPrivate = "Private"
@@ -78,7 +81,7 @@ cTNameRoot t = case Src.tnameAnon t of
 
 
 -- | The name of the underlying type used by a boxed type.
-cTNameUse :: GenVis -> Src.TName -> CType
+cTNameUse :: NSUser => GenVis -> Src.TName -> CType
 cTNameUse vis x =
   case vis of
     GenPublic  -> nsUser .:: cTNameRoot x

@@ -16,7 +16,7 @@ import Daedalus.VM.Backend.C.Types
 
 
 -- XXX: generate documentation
-cBitdata :: Map TName TDecl -> TDecl -> BDD.Pat -> BitdataDef -> Doc
+cBitdata :: NSUser => Map TName TDecl -> TDecl -> BDD.Pat -> BitdataDef -> Doc
 cBitdata allTys ty univ def =
   cNamespace nsUser
     [ "class" <+> cTyName <+>
@@ -54,12 +54,12 @@ cBitdata allTys ty univ def =
   bdCon      = cDefineCon cTyName [ bdTy w <+> "x" ] [ (bdTy w, "x")   ] []
 
 
-defBDUnionCon :: (Label,Type) -> CDecl
+defBDUnionCon :: NSUser => (Label,Type) -> CDecl
 defBDUnionCon (l,t) =
   cDefineFun "void" (unionCon l) [ cSemType t <+> "x" ]
     [ cAssign "*this" (cCall "fromBits" [ cCallMethod "x" "toBits" []]) ]
 
-defBDUnionSel :: (Label,Type) -> CDecl
+defBDUnionSel :: NSUser => (Label,Type) -> CDecl
 defBDUnionSel (l,t) =
   cDefineFun (cSemType t) (selName GenOwn l) []
     [ cReturn (cCall (cSemType t .:: "fromBits") [ cCall "toBits" [] ]) ]
@@ -75,7 +75,7 @@ defBDUnionCase allTys univ lts =
   ]
 
 -- assumes fields are sorted
-defBDStructCon :: CExpr -> [BDField] -> CDecl
+defBDStructCon :: NSUser => CExpr -> [BDField] -> CDecl
 defBDStructCon w fs = cDefineFun "void" structCon args
                       [ cAssign "*this" (cCall "fromBits" [expr]) ]
   where
@@ -94,7 +94,7 @@ fToExpr f =
     BDData l _ -> cCallMethod (escText l) "toBits" []
 
 
-defBDSel :: BDField -> Maybe CDecl
+defBDSel :: NSUser => BDField -> Maybe CDecl
 defBDSel f =
   case bdFieldType f of
     BDData l t ->

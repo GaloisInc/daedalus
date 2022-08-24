@@ -300,7 +300,8 @@ generateCPP opts mm =
      prog <- doToVM opts mm
      let outFileRoot = optFileRoot opts
          userState = text <$> optUserState opts
-         (hpp,cpp) = C.cProgram outFileRoot userState
+         userNS = text (optUserNS opts)
+         (hpp,cpp) = C.cProgram outFileRoot userState userNS
                                                   (optExtraInclude opts) prog
 
      ddlIO (saveFiles makeExe outFileRoot hpp cpp)

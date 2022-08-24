@@ -40,15 +40,17 @@ import Daedalus.VM.Backend.C.Call
 -- XXX: separate output and parser state(input/threads)
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
-cProgram :: String -> Maybe Doc -> [String] -> Program -> (Doc,Doc)
-cProgram fileNameRoot userState extraIncludes prog =
+cProgram :: String -> Maybe Doc -> Doc -> [String] -> Program -> (Doc,Doc)
+cProgram fileNameRoot userState nsUserParam extraIncludes prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
   where
   module_marker = text fileNameRoot <.> "_H"
 
-  hpp = vcat $
+  hpp = let ?nsUser = nsUserParam
+        in
+        vcat $
           [ "#ifndef" <+> module_marker
           , "#define" <+> module_marker
           , " "
@@ -68,6 +70,7 @@ cProgram fileNameRoot userState extraIncludes prog =
           ]
 
   cpp = let ?userState = userState
+            ?nsUser = nsUserParam
         in
         vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
@@ -89,6 +92,7 @@ cProgram fileNameRoot userState extraIncludes prog =
 
   primSigs =
     let ?userState = userState
+        ?nsUser = nsUserParam
     in case prims of
          [] -> []
          _  -> " "
@@ -100,6 +104,7 @@ cProgram fileNameRoot userState extraIncludes prog =
     let ?allFuns = allFunMap
         ?allTypes = allTypesMap
         ?userState = userState
+        ?nsUser = nsUserParam
     in concatMap cFun noCapFun
 
 
@@ -109,12 +114,14 @@ cProgram fileNameRoot userState extraIncludes prog =
      let ?allFuns  = allFunMap
          ?allTypes = allTypesMap
          ?userState = userState
+         ?nsUser = nsUserParam
      in unzip (map cNonCaptureRoot noCapRoots)
 
   -- Capturing roots
   capRoots                   = [ f | f <- capFuns, vmfIsEntry f ]
   (capEnts,capBlocks)        =
     let ?userState = userState
+        ?nsUser = nsUserParam
     in unzip (zipWith cCaptureEntryDef [0..] capRoots)
   (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
   (capRootSigs,capRootDefs)  = unzip cEntFuns
@@ -124,6 +131,7 @@ cProgram fileNameRoot userState extraIncludes prog =
         ?captures = Capture
         ?allTypes = allTypesMap
         ?userState = userState
+        ?nsUser    = nsUserParam
     in defineCaptureParser cEntTs cEntCode capFuns
 
 
@@ -219,7 +227,8 @@ cCaptureParserSig =
                   ])
 
 
-defineCaptureParser :: (UserState,AllFuns,AllTypes,AllBlocks,CaptureFun) =>
+defineCaptureParser ::
+  (UserState,AllFuns,AllTypes,AllBlocks,CaptureFun,NSUser) =>
   [CDecl] -> [CExpr -> CStmt] -> [VMFun] -> (CDecl, CDecl, CDecl)
 defineCaptureParser entTs ents capFuns
   | null ents   = (empty,empty,empty)
@@ -242,7 +251,7 @@ defineCaptureParser entTs ents capFuns
 
 
 
-cDeclareBlockParams :: Block -> CStmt
+cDeclareBlockParams :: NSUser => Block -> CStmt
 cDeclareBlockParams b
   | null ps     = empty
   | otherwise   = vcat (header : ps)
@@ -254,7 +263,7 @@ cDeclareBlockParams b
 to just have 1 varaible per type.
 Alternatively, we could generate separate variables for each function.
 -}
-cDeclareRetVars :: [VMFun] -> CStmt
+cDeclareRetVars :: NSUser => [VMFun] -> CStmt
 cDeclareRetVars funs = vcat (header : retInp : stmts)
   where
   header  = "\n// Varaibles used to return values from functions"
@@ -265,7 +274,7 @@ cDeclareRetVars funs = vcat (header : retInp : stmts)
   retInp  = cDeclareVar (cSemType Src.TStream) cRetInput
 
 
-cDeclareClosures :: [Block] -> CStmt
+cDeclareClosures :: NSUser => [Block] -> CStmt
 cDeclareClosures bs =
     vcat' (header : map declareThr (Set.toList threadClos) ++
           map declareRet (Set.toList retClos))
@@ -304,7 +313,8 @@ standardEntryArgs ty =
 
   where
 
-cCaptureEntryFun :: UserState => Int -> Src.FName -> [VMT] -> (CDecl,CDecl)
+cCaptureEntryFun ::
+  (UserState,NSUser) => Int -> Src.FName -> [VMT] -> (CDecl,CDecl)
 cCaptureEntryFun n f as =
   (cStmt sig, sig <+> "{" $$ nest 2 body $$ "}")
   where
@@ -336,7 +346,7 @@ capArgName i = "arg" <.> int i
 capEntryName :: Int -> CIdent
 capEntryName i = "entry" <.> int i
 
-cCaptureEntryDef :: UserState =>
+cCaptureEntryDef :: (UserState,NSUser) =>
   Int -> VMFun -> ((CExpr -> CStmt, (CDecl, CDecl), CDecl), Map Label Block)
 cCaptureEntryDef n fun =
   ( (call, cCaptureEntryFun n name argTs, entTyDecl)
@@ -410,7 +420,7 @@ cCaptureEntryDef n fun =
 
 
 -- Entry point for a non-capturing parser: siganture,defintiion
-cNonCaptureRoot :: (UserState,AllTypes,AllFuns) => VMFun -> (CDecl,CDecl)
+cNonCaptureRoot :: (UserState,AllTypes,AllFuns,NSUser) => VMFun -> (CDecl,CDecl)
 cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
   where
   sig = "void" <+> cname <+>
@@ -445,7 +455,7 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
 
 
 -- Declare the result of an entry
-delcareEntryResults :: [VMFun] -> CDecl
+delcareEntryResults :: NSUser => [VMFun] -> CDecl
 delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
   where
   ty e = let n = vmfName e
@@ -458,7 +468,7 @@ delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
 
 data FunLinkage = Static | Extern
 
-cFunSig :: UserState => FunLinkage -> VMFun -> CDecl
+cFunSig :: (UserState,NSUser) => FunLinkage -> VMFun -> CDecl
 cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
   where
   linkageStr =
@@ -478,7 +488,7 @@ cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
 
 
 
-cFun :: (UserState,AllTypes,AllFuns) => VMFun -> [CDecl]
+cFun :: (UserState,AllTypes,AllFuns,NSUser) => VMFun -> [CDecl]
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> []
@@ -526,7 +536,7 @@ cFun fun =
                   : [ cBasicBlock b | b <- Map.elems (vmfBlocks d) ]
 
 
-cMemoValFun :: FName -> CDecl
+cMemoValFun :: NSUser => FName -> CDecl
 cMemoValFun f = cDefineFun retTy (cFName f) [] body
   where
   retTy  = cSemType (Src.fnameType f)
@@ -545,7 +555,7 @@ cMemoValFun f = cDefineFun retTy (cFName f) [] body
 --------------------------------------------------------------------------------
 
 
-cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun) => Block -> CStmt
+cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun,NSUser) => Block -> CStmt
 cBasicBlock b = "//" <+> text (show (blockType b))
              $$ cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
@@ -610,10 +620,10 @@ cBasicBlock b = "//" <+> text (show (blockType b))
 
 --------------------------------------------------------------------------------
 
-cVarDecl :: BV -> CExpr -> CStmt
+cVarDecl :: NSUser => BV -> CExpr -> CStmt
 cVarDecl v e = cStmt (cType (getType v) <+> cVarUse v <+> "=" <+> e)
 
-cVMVar :: (Copies, CurBlock) => VMVar -> CExpr
+cVMVar :: (Copies, CurBlock,NSUser) => VMVar -> CExpr
 cVMVar vmvar =
   case vmvar of
     ArgVar x   -> cArgUse ?curBlock x
@@ -621,7 +631,7 @@ cVMVar vmvar =
                     Just e  -> cExpr e
                     Nothing -> cVarUse x
 
-cBlockStmt :: (Copies,CurBlock) => Instr -> CStmt
+cBlockStmt :: (Copies,CurBlock,NSUser) => Instr -> CStmt
 cBlockStmt cInstr =
   case cInstr of
     Say x           -> cStmt (cCall "p.say"      [ cString x ])
@@ -672,7 +682,7 @@ cBlockStmt cInstr =
         OpN opN      -> cOpN x opN es
 
 
-cFree :: (CurBlock, Copies) => Set VMVar -> [CStmt]
+cFree :: (CurBlock, Copies, NSUser) => Set VMVar -> [CStmt]
 cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
            | x <- Set.toList xs
            , y <- freeVar' x
@@ -686,7 +696,7 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 
 
 
-cOp1 :: (Copies, CurBlock) => BV -> Src.Op1 -> [E] -> CStmt
+cOp1 :: (Copies, CurBlock, NSUser) => BV -> Src.Op1 -> [E] -> CStmt
 cOp1 x op1 ~[e'] =
   case op1 of
     Src.CoerceTo tgtT
@@ -866,7 +876,7 @@ sizeTo64 :: CExpr -> CExpr
 sizeTo64 e = cCallCon "DDL::UInt<64>" [ cCallMethod e "rep" [] ]
 
 
-cOp2 :: (Copies,CurBlock) => BV -> Src.Op2 -> [E] -> CDecl
+cOp2 :: (Copies,CurBlock,NSUser) => BV -> Src.Op2 -> [E] -> CDecl
 cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
@@ -913,7 +923,7 @@ cOp2 x op2 ~[e1',e2'] =
   e2   = cExpr e2'
 
 
-cOp3 :: (Copies,CurBlock) => BV -> Src.Op3 -> [E] -> CDecl
+cOp3 :: (Copies,CurBlock,NSUser) => BV -> Src.Op3 -> [E] -> CDecl
 cOp3 x op es =
   case op of
     Src.RangeUp   -> range "rangeUp"
@@ -926,7 +936,7 @@ cOp3 x op es =
 
 
 
-cOpN :: (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
+cOpN :: NSUser => (Copies,CurBlock) => BV -> Src.OpN -> [E] -> CDecl
 cOpN x op es =
   case op of
     Src.ArrayL t -> cVarDecl x (cCallCon con (map cExpr es))
@@ -940,7 +950,7 @@ cOpN x op es =
 --------------------------------------------------------------------------------
 
 
-cExpr :: (CurBlock,Copies) => E -> CExpr
+cExpr :: NSUser => (CurBlock,Copies) => E -> CExpr
 cExpr expr =
   case expr of
     EBlockArg x   -> cArgUse ?curBlock x
@@ -989,7 +999,8 @@ cExpr expr =
 
 --------------------------------------------------------------------------------
 
-cTermStmt :: (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+cTermStmt ::
+  (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, NSUser) =>
   CInstr -> [CStmt]
 cTermStmt ccInstr =
   case ccInstr of
@@ -1121,7 +1132,7 @@ cTermStmt ccInstr =
     in cStmt (cCall "p.push" ["new" <+> clo])
 
 
-cDoJump :: (Copies,CurBlock,CaptureFun) => Block -> [E] -> [CStmt]
+cDoJump :: (Copies,CurBlock,CaptureFun, NSUser) => Block -> [E] -> [CStmt]
 cDoJump b es =
   zipWith assignP as es ++ [ cGoto (cBlockLabel l) ]
   where
@@ -1130,14 +1141,15 @@ cDoJump b es =
   assignP ba e = cAssign (cArgUse b ba) (cExpr e)
 
 
-cJump :: (AllBlocks, CurBlock, Copies,CaptureFun) => JumpPoint -> [CStmt]
+cJump :: (AllBlocks, CurBlock, Copies,CaptureFun,NSUser) => JumpPoint -> [CStmt]
 cJump (JumpPoint l es) =
   case Map.lookup l ?allBlocks of
     Just b  -> cDoJump b es
     Nothing -> panic "cJump" [ "Missing block: " ++ show (pp l) ]
 
-cDoCase :: (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
-           E -> Map Pattern JumpWithFree -> [CStmt]
+cDoCase ::
+  (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, NSUser) =>
+  E -> Map Pattern JumpWithFree -> [CStmt]
 cDoCase e opts =
   case getType e of
     TSem Src.TBool ->
@@ -1238,7 +1250,7 @@ listToTree xs0 = go (length xs0) xs0
 
 
 compileBigInteITE ::
-  (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun) =>
+  (AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, NSUser) =>
   E -> Map Pattern JumpWithFree -> [CStmt]
 
 compileBigInteITE e alts = foldTree dflt mkOne mkIf opts

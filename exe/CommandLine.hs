@@ -58,6 +58,7 @@ data Options =
           , optUserState :: Maybe String
           , optExtraInclude :: [String]
           , optFileRoot :: String
+          , optUserNS :: String
 
           , optParams :: [String]
           }
@@ -87,6 +88,7 @@ defaultOptions =
           , optUserState = Nothing
           , optExtraInclude = []
           , optFileRoot = "main_parser"
+          , optUserNS = "User"
           }
 
 
@@ -338,6 +340,10 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       , Option [] ["file-root"]
         "Output file template (default: main_parser)"
         $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
+
+      , Option [] ["user-namespace"]
+        "Place type declarations in this namesapce (default: User)"
+        $ ReqArg "NAMESPACE" \s o -> Right o { optUserNS = s }
 
       , Option [] ["no-error-stack"]
         "Do not generate a grammar stack trace on error."
