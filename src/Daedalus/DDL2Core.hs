@@ -1392,6 +1392,7 @@ fromTCTyDecl td =
                 , tTParamKNumber = is
                 , tTParamKValue  = ts
                 , tDef           = f
+                , tExtern        = TC.tctyExtern td
                 }
   where
   tparam x = case TC.tvarKind x of

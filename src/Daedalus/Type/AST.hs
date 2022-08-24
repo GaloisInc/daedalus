@@ -309,6 +309,8 @@ data TCTyDecl   = TCTyDecl
                    , tctyBD     :: !(Maybe BDD.Pat)
                    -- ^ All possible value patterns for bitdata types.
                    , tctyDef    :: !TCTyDef
+                   , tctyExtern :: !Bool
+                     -- ^ Don't generate code for extern type decls.
                    } deriving (Show, Eq,TH.Lift)
 
 data TCTyName   = TCTyAnon !Name !Int
@@ -612,6 +614,7 @@ instance PP (TCModule a) where
 
 instance PP TCTyDecl where
   ppPrec _ d =
+    ppExtren $$
     ppBD $$
     "type" <+> pp (tctyName d)
            <+> hsep (map pp (tctyParams d)) <+> "=" <+> pp (tctyDef d)
@@ -620,6 +623,7 @@ instance PP TCTyDecl where
                    Just pat -> vcat $ "{- bitdata"
                                     : map text (lines (show pat))
                                    ++ [ "-}" ]
+          ppExtren = if tctyExtern d then "-- Extern" else mempty
 
 instance PP TCTyDef where
   ppPrec _ d =

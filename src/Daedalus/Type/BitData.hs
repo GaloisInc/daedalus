@@ -97,6 +97,7 @@ inferStruct name w (loc, fields) m_sz_tys =
                    , tctyParams  = []
                    , tctyBD      = Just (bdPat con)
                    , tctyDef     = TCTyStruct (Just con) fs
+                   , tctyExtern  = False
                    }
 
 mkFields :: BDD.Width -> [(Located P.BitDataField, (Type, BDD.Pat))] -> BDCon
@@ -225,6 +226,7 @@ inferBitData bd = runSTypeM . runTypeM (P.bdName bd) $ do
                              , tctyParams  = []
                              , tctyBD      = Just (BDD.pOrs width pats)
                              , tctyDef     = TCTyUnion tags
+                             , tctyExtern  = False
                              }
 
          pure (Map.fromList [ (tctyName d, d) | d <- decl : decls ])

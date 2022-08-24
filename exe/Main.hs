@@ -96,6 +96,7 @@ configure opts =
        ddlSetOpt optWarnings \w -> case w of
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
+     ddlSetOpt optExternalModules (optExternMods opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
@@ -232,8 +233,6 @@ interpVM opts mm inpMb =
     let ?useJS = optShowJS opts
     for_ (Map.elems entries) \impl ->
         ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
-
-    
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =

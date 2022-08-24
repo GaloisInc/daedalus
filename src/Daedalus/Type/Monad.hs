@@ -70,12 +70,18 @@ module Daedalus.Type.Monad
   , addConstraint
   , removeConstraints
 
+    -- * Misc
+  , isExternalName
+  , isExternalTyName
+
   ) where
 
 
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Control.Exception(Exception(..))
 import MonadLib hiding (Label)
@@ -142,6 +148,14 @@ class Monad m => MTCMonad m where
   getRuleEnv      :: m RuleEnv
   getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
   extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
+  isExternalName  :: Name -> m Bool
+
+isExternalTyName :: MTCMonad m => TCTyName -> m Bool
+isExternalTyName x =
+  isExternalName
+    case x of
+      TCTyAnon y _ -> y
+      TCTy y -> y
 
 
 reportDetailedError :: (MTCMonad m, HasRange a) => a -> Doc -> [Doc] -> m b
@@ -177,6 +191,8 @@ data TCConfig = TCConfig
   { tcConfTypes     :: !(Map TCTyName TCTyDecl)
   , tcConfDecls     :: !RuleEnv
   , tcConfWarn      :: !(TypeWarning -> Bool)
+  , tcConfExtrn     :: !(Set ModuleName)
+    -- ^ Types in these modules are considered to be external
   }
 
 -- XXX: maybe preserve something about the state?
@@ -217,6 +233,11 @@ instance MTCMonad MTypeM where
 
   getGlobTypeDefs = MTypeM (tcConfTypes <$> ask)
 
+  isExternalName n =
+    case nameScopedIdent n of
+      ModScope m _ -> MTypeM (asks ((m `Set.member`) . tcConfExtrn))
+      _ -> pure False
+
 extGlobTyDefs :: Map TCTyName TCTyDecl -> MTypeM a -> MTypeM a
 extGlobTyDefs mp (MTypeM m) = MTypeM $
   mapReader (\ro -> ro { tcConfTypes = Map.union mp (tcConfTypes ro) }) m
@@ -252,6 +273,7 @@ instance MTCMonad STypeM where
        (a,rw1) <- lift $ extEnvManyRules rs $ runStateT rw m
        set rw1
        pure a
+  isExternalName n = mType (isExternalName n)
 
 
 runSTypeM :: STypeM a -> MTypeM a
@@ -351,10 +373,12 @@ instance STCMonad STypeM where
 
   newTypeDef x def' =
     do def <- traverseTypes zonkT def'
+       ext <- isExternalTyName x
        let decl = TCTyDecl { tctyName = x
                            , tctyParams = []
                            , tctyBD = Nothing
                            , tctyDef = def
+                           , tctyExtern = ext
                            }
        STypeM $ sets_ $ \s -> s { sTypeDefs = Map.insert x decl (sTypeDefs s) }
 
@@ -468,6 +492,7 @@ instance MTCMonad (TypeM ctx) where
                $ extEnvManyRules rs $ runStateT rw $ runReaderT ro m
        set rw1
        pure a
+  isExternalName n = sType (isExternalName n)
 
 instance STCMonad (TypeM ctx) where
   getTypeSubst            = sType getTypeSubst

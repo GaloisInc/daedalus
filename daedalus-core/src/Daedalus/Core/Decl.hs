@@ -45,6 +45,7 @@ data TDecl = TDecl
   , tTParamKNumber :: [TParam]
   , tTParamKValue  :: [TParam]
   , tDef           :: TDef
+  , tExtern        :: !Bool -- ^ Don't generate code for extern decls
   }
   deriving (Generic,NFData)
 
@@ -170,10 +171,12 @@ instance PP e => PP (FunDef e) where
 
 instance PP TDecl where
   pp d =
+    extern $$
     "type" <+> pp (tName d)
            <+> hsep (map pp (tTParamKNumber d))
            <+> hsep (map pp (tTParamKValue d))
            <+> "=" $$ nest 2 (pp (tDef d))
+    where extern = if tExtern d then "-- extern" else mempty
 
 instance PP TDef where
   pp d =

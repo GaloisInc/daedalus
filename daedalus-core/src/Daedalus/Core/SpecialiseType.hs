@@ -114,6 +114,8 @@ instantiateTDecl orig new td =
         , tTParamKNumber = []
         , tTParamKValue  = []
         , tDef = tyDeclsInst td orig
+        , tExtern = tExtern td
+          -- XXX: Not sure what should happen here.
         }
 
 

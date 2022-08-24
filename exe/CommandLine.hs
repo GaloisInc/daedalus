@@ -8,8 +8,11 @@ module CommandLine ( Command(..)
                    ) where
 
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.List(intercalate)
 import Data.String(fromString)
+import Data.Set(Set)
+import qualified Data.Set as Set
 import Control.Exception(throwIO)
 import System.Environment(getArgs)
 import System.FilePath(takeExtension)
@@ -59,6 +62,7 @@ data Options =
           , optExtraInclude :: [String]
           , optFileRoot :: String
           , optUserNS :: String
+          , optExternMods :: Set Text
 
           , optParams :: [String]
           }
@@ -89,6 +93,7 @@ defaultOptions =
           , optExtraInclude = []
           , optFileRoot = "main_parser"
           , optUserNS = "User"
+          , optExternMods = Set.empty
           }
 
 
@@ -394,6 +399,12 @@ coreOptions =
   , Option [] ["no-core-check"]
     "Do not validate Core"
     $ NoArg \o -> Right o { optCheckCore = False }
+
+  , Option [] ["extern"]
+    "Do not generate definitions for the types in this module."
+    $ ReqArg "MODULE"
+      \s o -> Right o { optExternMods =
+                              Set.insert (Text.pack s) (optExternMods o) }
   ]
 
 

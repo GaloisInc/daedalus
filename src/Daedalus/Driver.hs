@@ -67,6 +67,7 @@ module Daedalus.Driver
   , optSearchPath
   , optWarnings
   , optDebugMode
+  , optExternalModules
 
     -- * Output
   , ddlPutStr
@@ -85,6 +86,8 @@ module Daedalus.Driver
 import Data.Text(Text)
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
 import Data.Maybe(fromMaybe)
 import Data.List(find)
 import Control.Monad(msum,foldM,forM,forM_,unless)
@@ -288,8 +291,10 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
-  
+
   , debugMode :: Bool
+
+  , externalModules :: Set ModuleName
   }
 
 
@@ -307,6 +312,7 @@ defaultState = State
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   , debugMode           = False
+  , externalModules     = Set.empty
   }
 
 
@@ -483,6 +489,9 @@ optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
 optDebugMode :: DDLOpt Bool
 optDebugMode = DDLOpt debugMode \a s -> s { debugMode = a }
 
+optExternalModules :: DDLOpt (Set ModuleName)
+optExternalModules = DDLOpt externalModules \a s -> s { externalModules = a }
+
 --------------------------------------------------------------------------------
 -- Names
 
@@ -582,9 +591,11 @@ tcModule m =
      tdefs <- ddlGet declaredTypes
      rtys  <- ddlGet ruleTypes
      warn  <- ddlGet useWarning
+     ext   <- ddlGet externalModules
      let tcConf = TCConfig { tcConfTypes = tdefs
                            , tcConfDecls = rtys
                            , tcConfWarn  = warn
+                           , tcConfExtrn = ext
                            }
      r <-  ddlRunPass (runMTypeM tcConf (inferRules m))
      case r of
