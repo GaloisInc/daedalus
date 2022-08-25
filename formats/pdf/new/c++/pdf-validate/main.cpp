@@ -2,7 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <ddl/utils.h>
 #include <pdfcos.hpp>
+#include <pdf-validate.h>
 
 int main(int argc, char *argv[]) {
 
@@ -30,6 +32,7 @@ int main(int argc, char *argv[]) {
 
   ReferenceTable refs;
 
+  input.copy();
   try {
     refs.process_pdf(input);
 
@@ -37,12 +40,21 @@ int main(int argc, char *argv[]) {
       PdfCos::Ref ref;
       ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
       std::cout << ref << std::endl;
-      ref.free();
+      DDL::ParseError err;
+      PdfCos::Value out;
+      input.copy();
+      if (parseOneUser(parseValidate,refs,err,&out,input,ref)) {
+        std::cout << out;
+        out.free();
+      } else {
+        std::cout << err << std::endl;
+      }
     }
 
   } catch (XrefException const& e) {
     std::cerr << "ERROR: [XRef] " << e.what() << std::endl;
   }
+  input.free();
 
   return 0;
 }

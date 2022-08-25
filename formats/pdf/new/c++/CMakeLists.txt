@@ -16,6 +16,7 @@ add_subdirectory(filters)
 add_subdirectory(opensslxx)
 add_subdirectory(rts-c)
 add_subdirectory(pdfcos)
+add_subdirectory(pdf-validate)
 add_subdirectory(tests)
 
 add_custom_command(
