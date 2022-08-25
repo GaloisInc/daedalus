@@ -65,6 +65,9 @@ data Options =
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
 
+          , optModulePath :: [String]
+            -- ^ Search for modules in these paths
+
           , optParams :: [String]
           }
 
@@ -95,6 +98,7 @@ defaultOptions =
           , optFileRoot = "main_parser"
           , optUserNS = defaultUserSpace
           , optExternMods = Map.empty
+          , optModulePath = []
           }
 
 defaultUserSpace :: String
@@ -164,6 +168,10 @@ options = OptSpec
       , Option [] ["no-warn-unbiased"]
         "Do not warn about uses of unbiased choice."
         $ NoArg \s -> Right s { optNoWarnUnbiased = True }
+
+      , Option [] ["path"]
+        "Add this to the search path for modules."
+        $ ReqArg "DIR" \s o -> Right o { optModulePath = s : optModulePath o }
 
       , helpOption
       ]

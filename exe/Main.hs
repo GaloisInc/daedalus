@@ -96,6 +96,7 @@ configure opts =
        ddlSetOpt optWarnings \w -> case w of
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
+     ddlSetOpt optSearchPath (optModulePath opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
