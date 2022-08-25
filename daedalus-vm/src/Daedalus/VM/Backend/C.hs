@@ -37,8 +37,6 @@ import Daedalus.VM.Backend.C.Call
   * assignment: for passing block parameters
 -}
 
--- XXX: separate output and parser state(input/threads)
-
 -- | Currently returns the content for @(.h,.cpp)@ files.
 cProgram :: String -> Maybe Doc -> Doc -> [String] -> Program -> (Doc,Doc)
 cProgram fileNameRoot userState nsUserParam extraIncludes prog =
@@ -46,13 +44,10 @@ cProgram fileNameRoot userState nsUserParam extraIncludes prog =
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
   where
-  module_marker = text fileNameRoot <.> "_H"
-
   hpp = let ?nsUser = nsUserParam
         in
         vcat $
-          [ "#ifndef" <+> module_marker
-          , "#define" <+> module_marker
+          [ "#pragma once"
           , " "
           , includes ] ++
           [ "#include" <+> text x | x <- extraIncludes ] ++
@@ -64,10 +59,7 @@ cProgram fileNameRoot userState nsUserParam extraIncludes prog =
           [ delcareEntryResults (noCapRoots ++ capRoots) ] ++
           primSigs ++
           noCapRootSigs ++
-          capRootSigs ++
-          [ ""
-          , "#endif"
-          ]
+          capRootSigs
 
   cpp = let ?userState = userState
             ?nsUser = nsUserParam
