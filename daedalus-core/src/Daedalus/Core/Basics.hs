@@ -31,6 +31,7 @@ data TName = TName
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
   , tnameBD   :: !Bool        -- ^ Is this a bitdata type
   , tnameFlav :: TFlav        -- ^ Some information about the type
+  , tnameExternal :: !Bool
   }
   deriving (Generic, NFData)
 

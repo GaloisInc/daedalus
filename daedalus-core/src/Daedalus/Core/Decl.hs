@@ -45,9 +45,11 @@ data TDecl = TDecl
   , tTParamKNumber :: [TParam]
   , tTParamKValue  :: [TParam]
   , tDef           :: TDef
-  , tExtern        :: !Bool -- ^ Don't generate code for extern decls
   }
   deriving (Generic,NFData)
+
+tExtern :: TDecl -> Bool
+tExtern = tnameExternal . tName
 
 data TDef =
     TStruct [(Label,Type)]

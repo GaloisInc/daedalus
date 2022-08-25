@@ -1392,7 +1392,6 @@ fromTCTyDecl td =
                 , tTParamKNumber = is
                 , tTParamKValue  = ts
                 , tDef           = f
-                , tExtern        = TC.tctyExtern td
                 }
   where
   tparam x = case TC.tvarKind x of
@@ -1676,10 +1675,11 @@ newTNameRec rec =
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
                      | otherwise -> TFlavUnion (map fst cs)
-    in newTName r bd flavor (TC.tctyName d)
+        isExt = TC.tctyExtern d
+    in newTName isExt r bd flavor (TC.tctyName d)
 
-newTName :: Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
-newTName isRec isBD flavor nm = M
+newTName :: Bool -> Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
+newTName isExt isRec isBD flavor nm = M
   do r <- ask
      let (l,anon) = case nm of
                       TC.TCTy a -> (a, Nothing)
@@ -1694,6 +1694,7 @@ newTName isRec isBD flavor nm = M
                   , tnameRec = isRec
                   , tnameBD = isBD
                   , tnameFlav = flavor
+                  , tnameExternal = isExt
                   }
      sets_ \s -> s { topTNames = Map.insert nm x (topTNames s) }
 
