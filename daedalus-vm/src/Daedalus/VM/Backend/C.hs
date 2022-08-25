@@ -32,14 +32,29 @@ import Daedalus.VM.Backend.C.Bitdata(bdCase,bdCaseDflt)
 import Daedalus.VM.Backend.C.Call
 
 
+data CCodeGenConfig = CCodeGenConfig
+  { cfgFileNameRoot :: String     -- ^ Use this to pick file names
+  , cfgUserState    :: Maybe Doc  -- ^ Generate code with custom user state
+  , cfgUserNS       :: Doc        -- ^ Place types in this namespace
+  , cfgExtraInclude :: [String]   -- ^ Add these includes to the header
+  }
+
+
 {- assumptions on all DDL types:
   * default constructors: for uninitialized block parameters
   * assignment: for passing block parameters
 -}
 
 -- | Currently returns the content for @(.h,.cpp)@ files.
-cProgram :: String -> Maybe Doc -> Doc -> [String] -> Program -> (Doc,Doc)
-cProgram fileNameRoot userState nsUserParam extraIncludes prog =
+cProgram :: CCodeGenConfig -> Program -> (Doc,Doc)
+cProgram
+  CCodeGenConfig
+    { cfgFileNameRoot = fileNameRoot
+    , cfgUserState    = userState
+    , cfgUserNS       = nsUserParam
+    , cfgExtraInclude = extraIncludes
+    }
+    prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err

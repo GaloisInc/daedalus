@@ -297,13 +297,15 @@ generateCPP opts mm =
            [ "Generating a parser executable requires an output directory" ]
 
      prog <- doToVM opts mm
-     let outFileRoot = optFileRoot opts
-         userState = text <$> optUserState opts
-         userNS = text (optUserNS opts)
-         (hpp,cpp) = C.cProgram outFileRoot userState userNS
-                                                  (optExtraInclude opts) prog
+     let ccfg = C.CCodeGenConfig
+                  { cfgFileNameRoot = optFileRoot opts
+                  , cfgUserState    = text <$> optUserState opts
+                  , cfgUserNS       = text (optUserNS opts)
+                  , cfgExtraInclude = optExtraInclude opts
+                  }
+         (hpp,cpp) = C.cProgram ccfg prog
 
-     ddlIO (saveFiles makeExe outFileRoot hpp cpp)
+     ddlIO (saveFiles makeExe (C.cfgFileNameRoot ccfg) hpp cpp)
 
   where
   saveFiles makeExe outFileRoot hpp cpp =
