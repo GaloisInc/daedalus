@@ -27,6 +27,7 @@ type NSUser = ( ?nsUser :: Doc
                 -- extrenal modules with corresponding namespace
               )
 
+-- | The namespace where we should put user definde type that are not external
 nsUser :: NSUser => Doc
 nsUser = ?nsUser
 
@@ -89,8 +90,10 @@ cTNameRoot t = case Src.tnameAnon t of
 cTNameUse :: NSUser => GenVis -> Src.TName -> CType
 cTNameUse vis x =
   case vis of
-    GenPublic  -> nsUser .:: cTNameRoot x
-    GenPrivate -> nsUser .:: nsPrivate .:: cTNameRoot x
+    GenPublic  -> ns .:: cTNameRoot x
+    GenPrivate -> ns .:: nsPrivate .:: cTNameRoot x
+  where
+  ns = Map.findWithDefault nsUser (Src.tnameMod x) ?nsExternal
 
 
 data GenVis = GenPublic | GenPrivate
