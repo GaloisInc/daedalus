@@ -15,4 +15,3 @@ int go(DDL::Input i) {
   }
 }
 
-int main(int argc, char *argv[]) { return mkMain(argc,argv,go); }

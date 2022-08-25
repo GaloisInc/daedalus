@@ -32,8 +32,9 @@ done:
   return result;
 }
 
+int go(DDL::Input);
 
-int mkMain(int argc, char* argv[], int (*go)(DDL::Input)) {
+int main(int argc, char* argv[]) {
 
   if (argc > 2) {
     cout << "Usage: " << argv[0] << " [FILE]" << endl;
@@ -58,3 +59,5 @@ int mkMain(int argc, char* argv[], int (*go)(DDL::Input)) {
 
   return go(i);
 }
+
+

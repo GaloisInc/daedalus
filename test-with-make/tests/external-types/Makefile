@@ -1,27 +1,25 @@
 .PHONY: run clean
 
-include ../../utils/Makefile
+include ./utils/Makefile
 
 run: parser
 	@./parser > output
 	@diff output expected
 
-FILES=ddl/*.h \
+FILES=./utils/ddl/*.h \
       P1/main_parser.h P1/main_parser.cpp \
       P2/main_parser.h P2/main_parser.cpp \
       ../../utils/mainWrapper.cpp
 
 P1/main_parser.cpp P1/main_parser.h: P1.ddl
 	mkdir -p P1
-	cabal run -v0  exe:daedalus --\
-	  compile-c++ P1.ddl \
+	./utils/daedalus compile-c++ P1.ddl \
 	    --entry=P1 \
 	    --out-dir=P1
 
 P2/main_parser.cpp P2/main_parser.h: P2.ddl
 	mkdir -p P2
-	cabal run -v0 exe:daedalus --\
-	  compile-c++ P2.ddl \
+	./utils/daedalus compile-c++ P2.ddl \
 	    --entry=P2 \
 	    --out-dir=P2 \
 	    --extern=P1 \
@@ -34,5 +32,4 @@ parser: $(FILES)
 	    $(LIBS)
 
 clean:
-	-rm parser output main_parser.cpp main_parser.h
-	-rm -rf P1 P2
+	-rm -rf parser output P1 P2

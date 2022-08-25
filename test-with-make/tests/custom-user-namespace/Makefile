@@ -1,19 +1,17 @@
 .PHONY: run clean
 
-include ../../utils/Makefile
+include ./utils/Makefile
 
 run: parser
 	@./parser > output
 	@diff output expected
 
-FILES=ddl/*.h main_parser.h main_parser.cpp main.cpp \
-          ../../utils/mainWrapper.cpp
+FILES=./utils/ddl/*.h main_parser.h main_parser.cpp main.cpp ./utils/mainWrapper.cpp
 
 main_parser.cpp main_parser.h: test.ddl
-	cabal run exe:daedalus --\
-	  compile-c++ test.ddl \
-	    --entry=Main \
-	    --user-namespace=Custom
+	./utils/daedalus compile-c++ test.ddl \
+	  --entry=Main \
+	  --user-namespace=Custom
 
 CPPFLAGS:=-Iinclude $(CPPFLAGS)
 
