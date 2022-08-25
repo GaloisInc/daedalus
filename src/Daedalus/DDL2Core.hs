@@ -1680,17 +1680,17 @@ newTNameRec rec =
 
 newTName :: Bool -> Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
 newTName isExt isRec isBD flavor nm = M
-  do r <- ask
-     let (l,anon) = case nm of
+  do let (l,anon) = case nm of
                       TC.TCTy a -> (a, Nothing)
                       TC.TCTyAnon a i -> (a, Just i)
+         (mo,txt) = case TC.nameScopedIdent l of
+                      TC.ModScope m t -> (m,t)
+                      _ -> panic "newTName" [ "Not a ModScope" ]
      x <- freshTName
             TName { tnameId = invalidGUID
-                  , tnameText = case TC.nameScopedIdent l of
-                                  TC.ModScope _ txt -> txt
-                                  _ -> panic "newTName" [ "Not a ModScope" ]
+                  , tnameText = txt
                   , tnameAnon = anon
-                  , tnameMod = curMod r
+                  , tnameMod = MName mo
                   , tnameRec = isRec
                   , tnameBD = isBD
                   , tnameFlav = flavor

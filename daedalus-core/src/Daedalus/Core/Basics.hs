@@ -27,6 +27,12 @@ data TName = TName
   { tnameId   :: GUID
   , tnameText :: Text
   , tnameMod  :: MName
+    {- ^ The module name where this was defined.
+         Note that after specialization everything
+         is placed in the same module, but this
+         referes to the *original* module where the
+         type was defined -}
+
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
   , tnameBD   :: !Bool        -- ^ Is this a bitdata type
