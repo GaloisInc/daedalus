@@ -23,7 +23,9 @@ import Daedalus.VM.Backend.C.Bitdata
 cTypeGroup :: NSUser => Map TName TDecl -> Rec TDecl -> (Doc,Doc)
 cTypeGroup allTypes rec =
     case rec of
-      NonRec d ->
+      NonRec d
+        | tExtern d -> (mempty,mempty)
+        | otherwise ->
         case tDef d of
           TStruct {} -> ( cUnboxedProd d
                         , generateMethods GenPublic GenUnboxed d
@@ -67,8 +69,7 @@ cTypeGroup allTypes rec =
         )
 
         where
-        (sums,prods) = orderRecGroup ds
-
+        (sums,prods) = orderRecGroup (filter (not . tExtern) ds)
 
 
 {- Note: Product types shouldn't be directly recursive as that would
