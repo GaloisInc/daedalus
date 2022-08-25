@@ -48,9 +48,6 @@ data TDecl = TDecl
   }
   deriving (Generic,NFData)
 
-tExtern :: TDecl -> Bool
-tExtern = tnameExternal . tName
-
 data TDef =
     TStruct [(Label,Type)]
   | TUnion  [(Label,Type)]
@@ -173,12 +170,10 @@ instance PP e => PP (FunDef e) where
 
 instance PP TDecl where
   pp d =
-    extern $$
     "type" <+> pp (tName d)
            <+> hsep (map pp (tTParamKNumber d))
            <+> hsep (map pp (tTParamKValue d))
            <+> "=" $$ nest 2 (pp (tDef d))
-    where extern = if tExtern d then "-- extern" else mempty
 
 instance PP TDef where
   pp d =

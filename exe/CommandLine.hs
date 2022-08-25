@@ -11,8 +11,8 @@ import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.List(intercalate)
 import Data.String(fromString)
-import Data.Set(Set)
-import qualified Data.Set as Set
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Control.Exception(throwIO)
 import System.Environment(getArgs)
 import System.FilePath(takeExtension)
@@ -62,7 +62,8 @@ data Options =
           , optExtraInclude :: [String]
           , optFileRoot :: String
           , optUserNS :: String
-          , optExternMods :: Set Text
+          , optExternMods :: Map Text String
+            -- ^ maps external module to namespace qualifier in generated code
 
           , optParams :: [String]
           }
@@ -92,10 +93,12 @@ defaultOptions =
           , optUserState = Nothing
           , optExtraInclude = []
           , optFileRoot = "main_parser"
-          , optUserNS = "User"
-          , optExternMods = Set.empty
+          , optUserNS = defaultUserSpace
+          , optExternMods = Map.empty
           }
 
+defaultUserSpace :: String
+defaultUserSpace = "User"
 
 
 --------------------------------------------------------------------------------
@@ -402,9 +405,13 @@ coreOptions =
 
   , Option [] ["extern"]
     "Do not generate definitions for the types in this module."
-    $ ReqArg "MODULE"
+    $ ReqArg "MODULE[:NAMESPACE]"
       \s o -> Right o { optExternMods =
-                              Set.insert (Text.pack s) (optExternMods o) }
+                          let (m,u) = case break (== ':') s of
+                                        (as,[]) -> (as, defaultUserSpace)
+                                        (as,_:bs) -> (as,bs)
+                          in Map.insert (Text.pack m) u (optExternMods o)
+                       }
   ]
 
 

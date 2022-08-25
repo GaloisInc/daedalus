@@ -96,7 +96,6 @@ configure opts =
        ddlSetOpt optWarnings \w -> case w of
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
-     ddlSetOpt optExternalModules (optExternMods opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
@@ -302,6 +301,7 @@ generateCPP opts mm =
                   , cfgUserState    = text <$> optUserState opts
                   , cfgUserNS       = text (optUserNS opts)
                   , cfgExtraInclude = optExtraInclude opts
+                  , cfgExternal     = optExternMods opts
                   }
          (hpp,cpp) = C.cProgram ccfg prog
 

@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, BlockArguments #-}
+{-# Language OverloadedStrings, BlockArguments, ImplicitParams #-}
 module Daedalus.VM.Backend.C.UserDefined where
 
 import qualified Data.Set as Set
@@ -24,7 +24,7 @@ cTypeGroup :: NSUser => Map TName TDecl -> Rec TDecl -> (Doc,Doc)
 cTypeGroup allTypes rec =
     case rec of
       NonRec d
-        | tExtern d -> (mempty,mempty)
+        | isExtern d -> (mempty,mempty)
         | otherwise ->
         case tDef d of
           TStruct {} -> ( cUnboxedProd d
@@ -69,8 +69,10 @@ cTypeGroup allTypes rec =
         )
 
         where
-        (sums,prods) = orderRecGroup (filter (not . tExtern) ds)
+        (sums,prods) = orderRecGroup (filter (not . isExtern) ds)
 
+  where
+  isExtern = (`Map.member` ?nsExternal) . tnameMod . tName
 
 {- Note: Product types shouldn't be directly recursive as that would
 require infinite values, which we do not support.   There may be recursive

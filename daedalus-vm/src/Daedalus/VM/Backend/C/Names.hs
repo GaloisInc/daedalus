@@ -6,6 +6,8 @@ import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Data.Char(isAlphaNum,isAscii)
 import Numeric(showHex)
 
@@ -20,7 +22,10 @@ import Daedalus.VM.Backend.C.Lang
 nsDDL :: Doc
 nsDDL = "DDL"
 
-type NSUser = (?nsUser :: Doc)
+type NSUser = ( ?nsUser :: Doc
+              , ?nsExternal :: Map Src.MName Doc
+                -- extrenal modules with corresponding namespace
+              )
 
 nsUser :: NSUser => Doc
 nsUser = ?nsUser

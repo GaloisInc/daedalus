@@ -107,14 +107,12 @@ checkTypeDecls r =
                          Struct -> TCTyStruct Nothing fs
                          Union  -> TCTyUnion [ (l, (t,Nothing)) | (l,t) <- fs ]
                  nm = TCTy (tyName td)
-             ext <- isExternalTyName nm
              pure (Map.singleton nm
                     TCTyDecl
                       { tctyName   = nm
                       , tctyParams = []
                       , tctyBD     = Nothing
                       , tctyDef    = def
-                      , tctyExtern = ext
                       })
         _ -> reportError (tyName td) "XXX: Type parameters in data declarations"
     MutRec ~(d:_) -> reportError (tyName d) "XXX: Recursive type declaration"

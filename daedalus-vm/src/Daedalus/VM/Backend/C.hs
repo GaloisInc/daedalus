@@ -8,6 +8,7 @@ import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import           Data.Text(Text)
 import qualified Data.Text as Text
 import           Data.Word(Word32,Word64)
 import           Data.Int(Int32,Int64)
@@ -37,6 +38,9 @@ data CCodeGenConfig = CCodeGenConfig
   , cfgUserState    :: Maybe Doc  -- ^ Generate code with custom user state
   , cfgUserNS       :: Doc        -- ^ Place types in this namespace
   , cfgExtraInclude :: [String]   -- ^ Add these includes to the header
+  , cfgExternal     :: Map Text String
+    -- ^ Maps external modules to the namespaces to use for the
+    -- types in them.
   }
 
 
@@ -53,13 +57,18 @@ cProgram
     , cfgUserState    = userState
     , cfgUserNS       = nsUserParam
     , cfgExtraInclude = extraIncludes
+    , cfgExternal     = ext
     }
     prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp)
     Just err -> panic "cProgram" err
   where
+  externalMap = Map.fromList [ (Src.MName x, text y) | (x,y) <- Map.toList ext ]
+
+
   hpp = let ?nsUser = nsUserParam
+            ?nsExternal = externalMap
         in
         vcat $
           [ "#pragma once"
@@ -78,6 +87,7 @@ cProgram
 
   cpp = let ?userState = userState
             ?nsUser = nsUserParam
+            ?nsExternal = externalMap
         in
         vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
@@ -100,6 +110,7 @@ cProgram
   primSigs =
     let ?userState = userState
         ?nsUser = nsUserParam
+        ?nsExternal = externalMap
     in case prims of
          [] -> []
          _  -> " "
@@ -112,6 +123,7 @@ cProgram
         ?allTypes = allTypesMap
         ?userState = userState
         ?nsUser = nsUserParam
+        ?nsExternal = externalMap
     in concatMap cFun noCapFun
 
 
@@ -122,6 +134,7 @@ cProgram
          ?allTypes = allTypesMap
          ?userState = userState
          ?nsUser = nsUserParam
+         ?nsExternal = externalMap
      in unzip (map cNonCaptureRoot noCapRoots)
 
   -- Capturing roots
@@ -129,6 +142,7 @@ cProgram
   (capEnts,capBlocks)        =
     let ?userState = userState
         ?nsUser = nsUserParam
+        ?nsExternal = externalMap
     in unzip (zipWith cCaptureEntryDef [0..] capRoots)
   (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
   (capRootSigs,capRootDefs)  = unzip cEntFuns
@@ -139,6 +153,7 @@ cProgram
         ?allTypes = allTypesMap
         ?userState = userState
         ?nsUser    = nsUserParam
+        ?nsExternal = externalMap
     in defineCaptureParser cEntTs cEntCode capFuns
 
 

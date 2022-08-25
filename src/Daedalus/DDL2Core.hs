@@ -1675,11 +1675,10 @@ newTNameRec rec =
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
                      | otherwise -> TFlavUnion (map fst cs)
-        isExt = TC.tctyExtern d
-    in newTName isExt r bd flavor (TC.tctyName d)
+    in newTName r bd flavor (TC.tctyName d)
 
-newTName :: Bool -> Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
-newTName isExt isRec isBD flavor nm = M
+newTName :: Bool -> Bool -> TFlav -> TC.TCTyName -> M ()
+newTName isRec isBD flavor nm = M
   do let (l,anon) = case nm of
                       TC.TCTy a -> (a, Nothing)
                       TC.TCTyAnon a i -> (a, Just i)
@@ -1694,7 +1693,6 @@ newTName isExt isRec isBD flavor nm = M
                   , tnameRec = isRec
                   , tnameBD = isBD
                   , tnameFlav = flavor
-                  , tnameExternal = isExt
                   }
      sets_ \s -> s { topTNames = Map.insert nm x (topTNames s) }
 
