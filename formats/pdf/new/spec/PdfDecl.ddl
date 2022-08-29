@@ -1,6 +1,6 @@
 import Daedalus
 import PdfValue
-import JpegBasics
+-- import JpegBasics
 import Debug
 
 -- ENTRY
