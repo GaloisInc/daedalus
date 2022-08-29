@@ -101,6 +101,7 @@ data Token =
   | KWThen
   | KWElse
   | KWImport
+  | KWExtern
   | KWAs
   | KWAsBang
   | KWAsQuestion

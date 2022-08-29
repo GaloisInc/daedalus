@@ -39,7 +39,8 @@ import Daedalus.Value
 import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
-import Daedalus.Compile.LangHS
+import Daedalus.Compile.LangHS hiding (Import(..))
+import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.TH.Compile as THC
 import Daedalus.Type.AST(TCModule(..))
@@ -375,9 +376,9 @@ generateHS opts mainMod allMods
   where
   hsopts = optHS opts
 
-  imps = [ Import a case b of
-                      Nothing -> Unqualified
-                      Just m  -> QualifyAs m
+  imps = [ HS.Import a case b of
+                         Nothing -> Unqualified
+                         Just m  -> QualifyAs m
          | (a,b) <- hsoptImports hsopts ]
 
   primMap = Map.fromList

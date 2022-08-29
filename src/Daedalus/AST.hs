@@ -149,10 +149,16 @@ instance HasRange IPName where
 
 
 data Module = Module { moduleName    :: ModuleName
-                     , moduleImports :: [Located ModuleName]
+                     , moduleImports :: [Import]
                      , moduleBitData :: [BitData] -- ordered
                      , moduleRules   :: [Rec TRule]
                      } deriving Show
+
+data Import = Import
+  { importRange  :: SourceRange
+  , importModule :: ModuleName
+  , importExtern :: Bool
+  } deriving (Show, TH.Lift)
 
 data TRule = DRule Rule | DType TypeDecl
   deriving Show
