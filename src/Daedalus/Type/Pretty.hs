@@ -18,22 +18,85 @@ import Daedalus.Type.AST
 
 
 ppTypes :: TCModule a -> Doc
-ppTypes m = vcat $ map ppD $ forgetRecs $ tcModuleDecls m
+ppTypes m =
+  vcat
+    [ "Types"
+    , text (replicate 80 '=')
+    , " "
+    , vcat $ map ppTD  $ forgetRecs $ tcModuleTypes m
+    , " "
+    , " "
+    , "Parsers and Semantic Values"
+    , text (replicate 80 '=')
+    , " "
+    , vcat $ map ppD   $ forgetRecs $ tcModuleDecls m
+    ]
+
+ppTD :: TCTyDecl -> Doc
+ppTD td =
+  vcat [ "def" <+> ppTypeName (tctyName td) <+>
+          hsep (map ppTP (tctyParams td)) <+> "="
+       , nest 2 (flav <+> thing)
+       , nest 4 (vcat cases)
+       , " "
+       ]
+  where
+  vs      = tyVarNames (tctyParams td)
+  ppTP x  = vs Map.! x
+
+  flav = case tctyBD td of
+          Just {} -> "bitdata"
+          Nothing -> mempty
+
+  thing = case tctyDef td of
+            TCTyStruct {} -> "struct"
+            TCTyUnion  {} -> "union"
+  cases =
+    let ?tpMap = vs
+    in case tctyDef td of
+         TCTyStruct bd cs ->
+           case bd of
+             Nothing -> map ppCase cs
+             Just bc -> map ppBDField (bdFields bc)
+         TCTyUnion as -> map ppCase [ (l,t) | (l,(t,_)) <- as ]
+
+  ppCase (l,t) = let ?tpMap = vs
+                 in pp l <.> colon <+> ppTy 0 t
+
+ppBDField :: (?tpMap :: Map TVar Doc) => BDField -> Doc
+ppBDField f =
+  case bdFieldType f of
+    BDWild -> "_" <+> ":" <+> w
+    BDTag n -> pp n <+> ":" <+> w
+    BDData l a -> pp l <.> ":" <+> ppTy 0 a
+
+  where
+  w = ppTy 0 (Type (TUInt (Type (TNum (fromIntegral (bdWidth f))))))
+
+
+ppTypeName :: TCTyName -> Doc
+ppTypeName n =
+  case n of
+    TCTy x       -> ppNM x
+    TCTyAnon x y -> ppNM x <.> int y
 
 
 -- | Pick a consistent set of nice names for type variables
-tyVarNames :: Poly a -> Map TVar Doc
-tyVarNames (Poly tys _ _) = Map.fromList (zip tys names)
+tyVarNames :: [TVar] -> Map TVar Doc
+tyVarNames tys = Map.fromList (zip tys names)
   where
   names = [ if v == 0 then char x else char x <> int v
           | v <- [ 0 .. ], x <- [ 'a' .. 'z' ] ]
+
+tyVarNamesPoly :: Poly a -> Map TVar Doc
+tyVarNamesPoly (Poly as _ _) = tyVarNames as
 
 ppNamedRuleType :: Name -> Poly RuleType -> Doc
 ppNamedRuleType nm r = ("def" <+> ppNM nm <.> colon) $$ nest 2 (ppRuleType r)
 
 ppRuleType :: Poly RuleType -> Doc
 ppRuleType r@(Poly _ ctrs ((implParams,explParams) :-> res)) =
-  let ?tpMap =  tyVarNames r
+  let ?tpMap =  tyVarNamesPoly r
   in vcat [ "for any type" <+> hsep (Map.elems ?tpMap) <.> colon
             | not (Map.null ?tpMap) ]
     $$ nest 2 (vcat (map ppCtr ctrs))
@@ -45,7 +108,7 @@ ppRuleType r@(Poly _ ctrs ((implParams,explParams) :-> res)) =
 
 ppTypeInContext :: Poly a -> Type -> Doc
 ppTypeInContext r t =
-  let ?tpMap = tyVarNames r
+  let ?tpMap = tyVarNamesPoly r
   in ppTy 0 t
 
 ppD :: TCDecl a -> Doc
