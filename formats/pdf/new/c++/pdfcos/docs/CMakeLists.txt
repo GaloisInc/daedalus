@@ -8,5 +8,4 @@ doxygen_add_docs(pdfcos-docs
   ${CMAKE_CURRENT_SOURCE_DIR}/../include
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/pdfcos
   ${CMAKE_CURRENT_BINARY_DIR}/../include/pdfcos
-  ALL
 )
