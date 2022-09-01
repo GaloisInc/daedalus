@@ -217,6 +217,8 @@ type CaptureFun = (?captures  :: Captures)
 -- | This identifies functions defined in external modules.
 -- We do this so we can issue a warning about them, as there would
 -- be multiple copies of the function generated.
+-- XXX: for the moment we only allow calling primitives from external
+-- libraries. We could also add suppot for using (ony non-capturing?) entries
 findExternFunsWithDef :: Set Src.MName -> [VMFun] -> [FName]
 findExternFunsWithDef ext = map vmfName . filter warn
   where
