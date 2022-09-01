@@ -48,6 +48,7 @@ fromModule mo =
 
 type UsesTypes = (?tyMap :: Map TName TDecl)
 type Ents      = (?ents  :: Set TC.Name)
+type CurMod    = (?curMod :: MName)
 
 fromDecls ::
   Ents =>
@@ -56,7 +57,6 @@ fromDecls ::
   [ Rec (TC.TCDecl TC.SourceRange) ] ->
   M Module
 fromDecls mo tdecls decls =
-  withModuleName mo $
   do mapM_ newTNameRec tdecls
      tds <- mapM fromTCTyDeclRec tdecls
 
@@ -66,9 +66,8 @@ fromDecls mo tdecls decls =
      (dffs,dbfs,dgfs) <- splitSomeFuns <$> mapM fromDecl ds
      (effs,egfs) <- removeNewFuns
 
-     m <- getCurModule
      pure
-       Module { mName   = m
+       Module { mName   = MName mo
               , mImports = []
               , mTypes  = tds
               , mFFuns  = effs ++ dffs
@@ -120,6 +119,7 @@ fromDecl decl@TC.TCDecl { .. }
     do xs0 <- mapM fromParam tcDeclParams
        let xs = map snd xs0
        f <- topName tcDeclName
+       let ?curMod = fnameMod f
        withSourceLocals xs0
          case tcDeclCtxt of
            TC.AValue   ->
@@ -167,7 +167,8 @@ fromDecl decl@TC.TCDecl { .. }
 
 
 
-fromGrammar :: UsesTypes => TC.TC TC.SourceRange TC.Grammar -> M Grammar
+fromGrammar ::
+  (CurMod,UsesTypes) => TC.TC TC.SourceRange TC.Grammar -> M Grammar
 fromGrammar gram =
   let annot = exprAnnot gram
   in
@@ -711,6 +712,7 @@ completeAlts d ps0 =
 -- Loops
 
 doLoopCol ::
+  CurMod =>
   TC.LoopCollection TC.SourceRange ->
   M ( Maybe (TC.TCName TC.Value, Name)
     , (TC.TCName TC.Value, Name)
@@ -728,7 +730,8 @@ doLoopCol col =
 
 
 doLoopG ::
-  UsesTypes => [Annot] -> TC.Loop TC.SourceRange TC.Grammar -> M Grammar
+  (CurMod,UsesTypes) =>
+  [Annot] -> TC.Loop TC.SourceRange TC.Grammar -> M Grammar
 doLoopG ann lp =
   do let doBody elVar keyVar = withSourceLocal elVar
                              $ maybe id withSourceLocal keyVar
@@ -821,6 +824,7 @@ doLoopG ann lp =
 
 
 foldLoopG ::
+  CurMod =>
   Text               {- ^ Label for funciton -} ->
   [Annot]            {- ^ Locaiton information -} ->
   Type               {- ^ Collection type -} ->
@@ -880,7 +884,7 @@ maybeParse cmt ty p yes no =
             _ ->
              orOp cmt (Do r p (yes (Var r))) no
 
-pSkipMany :: [Annot] -> Commit -> [Name] -> Grammar -> M Grammar
+pSkipMany :: CurMod => [Annot] -> Commit -> [Name] -> Grammar -> M Grammar
 pSkipMany ann cmt vs p =
   do f <- newFName False "Many" TUnit
      let es = map Var vs
@@ -889,7 +893,7 @@ pSkipMany ann cmt vs p =
      pure (Call f es)
 
 pParseMany ::
-  [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+  CurMod => [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseMany ann cmt ty vs be p =
   do f <- newFName False "Many" (TBuilder ty)
      let es = map Var vs
@@ -900,7 +904,8 @@ pParseMany ann cmt ty vs be p =
      defFunG ann f (x:vs) body
      pure $ Call f (be : es)
 
-pSkipExactlyMany :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipExactlyMany ::
+  CurMod => [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipExactlyMany ann _cmt vs tgt p =
   do f <- newFName False "Many" TUnit
      let es = map Var vs
@@ -918,7 +923,7 @@ pSkipExactlyMany ann _cmt vs tgt p =
 -- FIXME: we should evaluate tgt outside of the function if it is
 -- complex to avoid recomputing it.
 pParseExactlyMany ::
-  [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
+  CurMod => [Annot] -> Commit -> Type -> [Name] -> Expr -> Grammar -> M Grammar
 pParseExactlyMany ann _cmt ty vs tgt p =
   do f <- newFName False "Many" (TBuilder ty)
      let es = map Var vs
@@ -940,7 +945,8 @@ pParseExactlyMany ann _cmt ty vs tgt p =
      defFunG ann f (x : b : vs) =<< doIf (xe `lt` tgt) body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : es)
 
-pSkipAtMost :: [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
+pSkipAtMost ::
+  CurMod => [Annot] -> Commit -> [Name] -> Expr -> Grammar -> M Grammar
 pSkipAtMost ann cmt vs tgt p =
   do f <- newFName False "Many" sizeType
      let es = map Var vs
@@ -952,6 +958,7 @@ pSkipAtMost ann cmt vs tgt p =
      pure (Call f (intL 0 sizeType : es))
 
 pParseAtMost ::
+  CurMod =>
   [Annot] -> Commit -> Type -> [Name] -> Expr -> Expr -> Grammar -> M Grammar
 pParseAtMost ann cmt ty vs tgt be p =
   do f <- newFName False "Many" (TBuilder ty)
@@ -978,7 +985,7 @@ finishMany ty p = do
 --------------------------------------------------------------------------------
 
 
-fromClass :: TC.TC TC.SourceRange TC.Class -> M ByteSet
+fromClass :: CurMod => TC.TC TC.SourceRange TC.Class -> M ByteSet
 fromClass cla =
   case TC.texprValue cla of
     TC.TCSetAny          -> pure SetAny
@@ -1032,7 +1039,7 @@ fromClass cla =
 --------------------------------------------------------------------------------
 
 
-fromExpr :: TC.TC TC.SourceRange TC.Value -> M Expr
+fromExpr :: CurMod => TC.TC TC.SourceRange TC.Value -> M Expr
 fromExpr expr =
   case TC.texprValue expr of
     TC.TCLet x e1 e2 ->
@@ -1175,7 +1182,7 @@ fromExpr expr =
 
 
 
-doLoop :: [Annot] -> TC.Loop TC.SourceRange TC.Value -> M Expr
+doLoop :: CurMod => [Annot] -> TC.Loop TC.SourceRange TC.Value -> M Expr
 doLoop ann lp =
   do let doBody elVar keyVar = withSourceLocal elVar
                              $ maybe id withSourceLocal keyVar
@@ -1233,6 +1240,7 @@ doLoop ann lp =
 
 
 foldLoop ::
+  CurMod =>
   Text               {- ^ Label for function -} ->
   [Annot]            {- ^ Location information -} ->
   Type               {- ^ Collection type -} ->
@@ -1492,31 +1500,38 @@ fromGName x = topName (TC.tcName x)
 -- | Add translated name
 fromFDefName :: Bool -> TC.Name -> TC.Type -> M ()
 fromFDefName isExtern x t =
-  do let lab = case TC.nameScopedIdent x of
-                 TC.ModScope _ i -> i
-                 _ -> panic "fromFDefName" ["Not a top-level name"]
-     addTopName x =<< newFName (isExtern || TC.namePublic x) lab =<< fromTypeM t
+  do let (mo,lab) = case TC.nameScopedIdent x of
+                      TC.ModScope m i -> (m,i)
+                      _ -> panic "fromFDefName" ["Not a top-level name"]
+     let ?curMod = MName mo
+     addTopName x
+        =<< newFName (isExtern || TC.namePublic x) lab
+        =<< fromTypeM t
 
 
 -- | Add translated name
 fromCDefName :: Bool -> TC.Name -> M ()
 fromCDefName isExtern x =
-  do let lab = case TC.nameScopedIdent x of
-                 TC.ModScope _ i -> i
-                 _ -> panic "fromCDefName" ["Not a top-level name"]
+  do let (mo,lab) = case TC.nameScopedIdent x of
+                      TC.ModScope m i -> (m,i)
+                      _ -> panic "fromCDefName" ["Not a top-level name"]
+     let ?curMod = MName mo
      addTopName x =<< newFName (isExtern || TC.namePublic x) lab TBool
 
 
 -- | Add translated name
 fromGDefName :: Bool -> TC.Name -> TC.Type -> M ()
 fromGDefName isExtern x t =
-  do let lab = case TC.nameScopedIdent x of
-                 TC.ModScope _ i -> i
-                 _ -> panic "fromGDefName" ["Not a top-level name"]
-     addTopName x =<< newFName (isExtern || TC.namePublic x) lab =<< fromGTypeM t
+  do let (mo,lab) = case TC.nameScopedIdent x of
+                      TC.ModScope m i -> (m,i)
+                      _ -> panic "fromGDefName" ["Not a top-level name"]
+     let ?curMod = MName mo
+     addTopName x
+       =<< newFName (isExtern || TC.namePublic x) lab
+       =<< fromGTypeM t
 
 
-fromArg :: TC.Arg TC.SourceRange -> M Expr
+fromArg :: CurMod => TC.Arg TC.SourceRange -> M Expr
 fromArg a =
   case a of
     TC.ValArg e -> fromExpr e
@@ -1541,6 +1556,7 @@ fromParamE p e =
 
 
 fromManybeBound ::
+  CurMod =>
   TC.ManyBounds (TC.TC TC.SourceRange TC.Value) -> M (TC.ManyBounds Expr)
 fromManybeBound bnds =
   case bnds of
@@ -1614,7 +1630,6 @@ newtype M a = M (ReaderT R (StateT S PassM) a)
 
 data R = R
   { sourceLocals :: Map (TC.TCName TC.Value) Expr
-  , curMod       :: MName
   }
 
 data S = S
@@ -1637,23 +1652,13 @@ runToCore topT topN (M m) =
   do (a,s) <- runStateT s0 $ runReaderT r0 m
      pure (a, (topTNames s, topNames s))
   where
-  r0 = R { sourceLocals = Map.empty
-         , curMod       = MName "(no module)"
-         }
+  r0 = R { sourceLocals = Map.empty }
 
   s0 = S { newFFuns   = []
          , newGFuns   = []
          , topNames   = topN
          , topTNames  = topT
          }
-
---------------------------------------------------------------------------------
--- The current module
-withModuleName :: TC.ModuleName -> M a -> M a
-withModuleName n (M m) = M (mapReader (\r -> r { curMod = MName n }) m)
-
-getCurModule :: M MName
-getCurModule = M (curMod <$> ask)
 
 
 
@@ -1771,16 +1776,15 @@ scopedIdent n = M $ sets \s ->
 addTopName :: TC.Name -> FName -> M ()
 addTopName x f = M $ sets_ \s -> s { topNames = Map.insert x f (topNames s) }
 
-newFName :: Bool -> Text -> Type -> M FName
-newFName pub lab ty = M
-  do r <- ask
-     freshFName
-       FName { fnameId   = invalidGUID
-             , fnameType = ty
-             , fnameText = lab
-             , fnamePublic = pub
-             , fnameMod  = curMod r
-             }
+newFName :: CurMod => Bool -> Text -> Type -> M FName
+newFName pub lab ty = M $
+  freshFName
+    FName { fnameId   = invalidGUID
+          , fnameType = ty
+          , fnameText = lab
+          , fnamePublic = pub
+          , fnameMod  = ?curMod
+          }
 
 
 

@@ -305,8 +305,9 @@ generateCPP opts mm =
                   , cfgExtraInclude = optExtraInclude opts
                   , cfgExternal     = optExternMods opts
                   }
-         (hpp,cpp) = C.cProgram ccfg prog
+         (hpp,cpp,warns) = C.cProgram ccfg prog
 
+     mapM_ (\w -> ddlPrint ("[WARNING]" <+> w)) warns
      ddlIO (saveFiles makeExe (C.cfgFileNameRoot ccfg) hpp cpp)
 
   where

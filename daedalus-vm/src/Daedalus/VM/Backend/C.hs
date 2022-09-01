@@ -49,8 +49,8 @@ data CCodeGenConfig = CCodeGenConfig
   * assignment: for passing block parameters
 -}
 
--- | Currently returns the content for @(.h,.cpp)@ files.
-cProgram :: CCodeGenConfig -> Program -> (Doc,Doc)
+-- | Currently returns the content for @(.h,.cpp,warnings)@ files.
+cProgram :: CCodeGenConfig -> Program -> (Doc,Doc,[Doc])
 cProgram
   CCodeGenConfig
     { cfgFileNameRoot = fileNameRoot
@@ -61,10 +61,15 @@ cProgram
     }
     prog =
   case checkProgram prog of
-    Nothing  -> (hpp,cpp)
+    Nothing  -> (hpp,cpp,warns)
     Just err -> panic "cProgram" err
   where
   externalMap = Map.fromList [ (Src.MName x, text y) | (x,y) <- Map.toList ext ]
+
+  warns = [ "Using external definition" <+> backticks (pp w)
+          | m <- pModules prog
+          , w <- findExternFunsWithDef (Map.keysSet externalMap) (mFuns m)
+          ]
 
 
   hpp = let ?nsUser = nsUserParam
@@ -204,6 +209,22 @@ type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
 type CaptureFun = (?captures  :: Captures)
+
+
+
+--------------------------------------------------------------------------------
+
+-- | This identifies functions defined in external modules.
+-- We do this so we can issue a warning about them, as there would
+-- be multiple copies of the function generated.
+findExternFunsWithDef :: Set Src.MName -> [VMFun] -> [FName]
+findExternFunsWithDef ext = map vmfName . filter warn
+  where
+  warn fu = case vmfDef fu of
+               VMExtern {} -> False
+               VMDef {}    -> Src.fnameMod (vmfName fu) `Set.member` ext
+
+
 
 
 --------------------------------------------------------------------------------
