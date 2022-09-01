@@ -10,11 +10,11 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/types.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos/types.h
   DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/Daedalus.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfCos.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfDecl.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfXRef.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfValue.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/Daedalus.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfCos.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfDecl.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfXRef.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfValue.ddl
   COMMAND cabal run exe:daedalus -v0 --
     compile-c++
     --add-include='<pdfcos/declare_state.hpp>'
@@ -29,7 +29,7 @@ add_custom_command(
     --entry=PdfDecl.ObjStream
     --entry=PdfDecl.ObjStreamEntry
     --entry=PdfCrypto.EncryptionDict
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../spec/PdfCos.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfCos.ddl
   )
 
 add_library(pdfcos

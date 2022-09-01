@@ -6,7 +6,7 @@ add_custom_command(
   DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/validate.ddl
   COMMAND cabal run exe:daedalus --
-    --path=${CMAKE_CURRENT_SOURCE_DIR}/../../spec
+    --path=${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec
     compile-c++
     ${CMAKE_CURRENT_SOURCE_DIR}/validate.ddl
     --file-root=pdf-validate

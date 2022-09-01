@@ -1,7 +1,5 @@
 import Daedalus
 import PdfValue
--- import JpegBasics
-import Debug
 
 -- ENTRY
 def TopDecl =

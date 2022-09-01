@@ -24,14 +24,13 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/main_parser.h
   DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/Daedalus.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfAll.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfDecl.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfXRef.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfValue.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/TextExtract.ddl
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/Catalog.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec/Daedalus.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec/PdfAll.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec/TextExtract.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec/Catalog.ddl
   COMMAND cabal run exe:daedalus -v0 --
+    --path=${CMAKE_CURRENT_SOURCE_DIR}/../pdf-cos-spec
+    --path=${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec
     compile-c++
     --add-include='<declare_state.hpp>'
     --user-state=ReferenceTable
@@ -48,7 +47,7 @@ add_custom_command(
     --entry=Catalog.PdfCatalog
     --entry=Validate.CheckRef
     --entry=StandardEncodings.StdEncodings
-    ${CMAKE_CURRENT_SOURCE_DIR}/../spec/PdfAll.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../pdf-validate-spec/PdfAll.ddl
   )
 
 add_executable(parser-test

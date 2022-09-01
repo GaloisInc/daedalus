@@ -1,7 +1,6 @@
-import PdfDecl 
-import PdfValue 
-import PdfXRef 
-import Debug
+import PdfDecl
+import PdfValue
+import PdfXRef
 
 -- Encryption dictionary (Table 20 in S7.6.1) 
 def EncryptionDict (enc : TrailerDictEncrypt) = { 
