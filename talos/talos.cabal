@@ -61,7 +61,8 @@ library
                      , Talos.Strategy.Symbolic
                      , Talos.Strategy.PathSymbolic
                      , Talos.Strategy.PathCondition                     
-                     , Talos.Strategy.MemoSearch                     
+                     , Talos.Strategy.MemoSearch
+                     , Talos.Strategy.OptParser                     
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis

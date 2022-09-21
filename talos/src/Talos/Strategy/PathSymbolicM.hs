@@ -64,7 +64,7 @@ data SymbolicEnv = SymbolicEnv
   -- ^ Current slice
 
   , sRecDepth :: Int
-  , sMaxRecDepth :: Maybe Int
+  , sMaxRecDepth :: Int
   
   -- ^ Current recursive depth (basically the sum of all back edge
   -- calls, irrespective of source/target).
@@ -97,7 +97,7 @@ data PathCaseBuilder a   =
 
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
-emptySymbolicEnv :: Maybe Int -> SymbolicEnv
+emptySymbolicEnv :: Int -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
 
 newtype SymbolicM a =
@@ -110,7 +110,7 @@ instance LiftStrategyM SymbolicM where
 
 runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
-                Maybe Int ->
+                Int ->
                 SymbolicM Result ->
                 SolverT StrategyM (Maybe Result, [SMT.SExpr])
 runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth)
@@ -197,7 +197,7 @@ enterFunction tgt argMap m = do
   env <- ask
   let m_myId = sSliceId env
       isBackEdge = maybe False (Set.member tgt) (flip Map.lookup (sBackEdges env) =<< m_myId)
-      belowMaxDepth = maybe True (sRecDepth env <) (sMaxRecDepth env)
+      belowMaxDepth = sRecDepth env < sMaxRecDepth env
       tgtInSCC = maybe False (Set.member tgt) (sCurrentSCC env)
   
   if tgtInSCC

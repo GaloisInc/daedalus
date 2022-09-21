@@ -16,9 +16,8 @@ import           Control.Monad.State
 import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
                                                readIORef, writeIORef)
-import           Data.List                    (find)
-import           Data.List.Split              (splitWhen)
 import qualified Data.Map                     as Map
+import           Data.Maybe                  (fromMaybe)
 import           Data.String                  (fromString)
 import           Data.Version
 import qualified SimpleSMT                    as SMT
@@ -44,7 +43,7 @@ import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
 import           Talos.Passes
 import           Talos.Strategy
-import           Talos.Strategy.Monad
+import           Talos.Strategy.Monad         ()
 import           Talos.SymExec.Path           (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 
@@ -112,7 +111,7 @@ synthesise :: FilePath           -- ^ DDL file
            -> [String]           -- ^ Solver args
            -> [(String, String)] -- ^ Backend solver options
            -> IO ()              -- ^ Backend solver init
-           -> Maybe String       -- ^ Synthesis strategy 
+           -> Maybe [String]     -- ^ Synthesis strategies
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
            -> String             -- ^ Analysis abstract env.
@@ -140,19 +139,16 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
     Just x -> pure x
     _      -> errorExit ("Unknown abstract env " ++ absEnv)
 
+  let strats = fromMaybe ["pathsymb"] stratOpt
 
-  let strat = case stratOpt of
-             Nothing    -> allStrategies
-             Just "all" -> allStrategies
-             Just names  ->
-               let stratNames = (splitWhen (==',') names) in
-               let maybes = map (\n -> find (\s -> (stratName s) == n) allStrategies) stratNames in
-                 [x | Just x <- maybes]
+  stratInsts <- case parseStrategies strats of
+                  Left err -> errorExit err
+                  Right sis -> pure sis
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  T.synthesise m_seed nguid solver absty strat mainRule md
+  T.synthesise m_seed nguid solver absty stratInsts mainRule md
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type

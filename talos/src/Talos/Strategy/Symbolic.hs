@@ -1,24 +1,30 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.Symbolic (symbolicStrats) where
+module Talos.Strategy.Symbolic (symbolicStrat) where
 
 import           Control.Lens                 (_3, over, view)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
-import           Data.Foldable                (fold)
+import           Data.Foldable                (asum, fold)
+import           Data.Functor                 (($>))
 import           Data.Functor.Identity        (Identity (Identity))
+import           Data.Generics.Product        (field)
 import qualified Data.Map                     as Map
 import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           Data.Word                    (Word8)
+import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                hiding (streamOffset, tByte)
-import           Daedalus.Core.Free           (freeVars, FreeVars)
+import           Daedalus.Core.Free           (FreeVars, freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
@@ -33,6 +39,8 @@ import           Talos.Analysis.Slice
 import           Talos.Strategy.MemoSearch    (memoSearch, randAccelDFSPolicy,
                                                randDFSPolicy, randRestartPolicy)
 import           Talos.Strategy.Monad
+import           Talos.Strategy.OptParser     (Opt, parseOpts)
+import qualified Talos.Strategy.OptParser     as P
 import           Talos.Strategy.SymbolicM
 import           Talos.SymExec.Expr           (symExecCaseAlts)
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
@@ -42,43 +50,77 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
 import           Talos.SymExec.SolverT        (SolverT, declareName,
-                                               declareSymbol, reset, scoped, liftSolver)
+                                               declareSymbol, liftSolver, reset,
+                                               scoped)
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
 
-
-
-
-
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
-symbolicStrats :: [Strategy]
-symbolicStrats = map mkOne strats
+symbolicStrat:: Strategy
+symbolicStrat = Strategy
+  { stratName = name
+  , stratDescr = descr
+  , stratParse = mkinst
+  }
   where
+    name  = "randsymb"
+    descr = "Random symbolic execution"
+    
     --, ("bfs", bfs), ("rand-dfs", randDFS), ("rand-restart", randRestart)    
-    strats = [ ("dfs", dfs)
-             , ("memo-rand-restart", memoSearch randRestartPolicy)
-             , ("memo-rand-dfs",     memoSearch randDFSPolicy)
-             , ("memo-rand-accel-dfs", memoSearch randAccelDFSPolicy)
-             ]
-    mkOne :: (Doc, SearchStrat) -> Strategy
-    mkOne (name, sstrat) =
-      Strategy { stratName  = "symbolic-" ++ show name
-               , stratDescr = "Symbolic execution (" <> name <> ")"
-               , stratFun   = SolverStrat (symbolicFun sstrat)
-           }
 
+    -- strats = [ ("dfs", dfs)
+    --          , ("memo-rand-restart", memoSearch randRestartPolicy)
+    --          , ("memo-rand-dfs",     memoSearch randDFSPolicy)
+    --          , ("memo-rand-accel-dfs", memoSearch randAccelDFSPolicy)
+    --          ]
+    
+    -- mkOne :: (Doc, SearchStrat) -> Strategy
+    -- mkOne (name, sstrat) =
+    --   Strategy { stratName  = "symbolic-" ++ show name
+    --            , stratDescr =  (" <> name <> ")
+    --            , stratFun   = SolverStrat (symbolicFun sstrat)
+    --        }
+      
+    mkinst = do
+      c <- parseOpts configOpts defaultConfig
+      
+      pure StrategyInstance
+        { siName  = name
+        , siDescr = descr -- <> parens (text s)
+        , siFun   = SolverStrat (symbolicFun c)
+        }
+
+-- ----------------------------------------------------------------------------------------
+-- Configuration
+
+data Config = Config { cSearchStrat :: SearchStrat }
+  deriving (Generic)
+
+defaultConfig :: Config
+defaultConfig = Config { cSearchStrat = dfs }
+
+configOpts :: [Opt Config]
+configOpts = [P.option "strat" (field @"cSearchStrat") parseStrat ]
+  where
+    parseStrat =
+      asum [ P.tokenP "dfs"                 $> dfs 
+           , P.tokenP "memo-rand-restart"   $> memoSearch randRestartPolicy
+           , P.tokenP "memo-rand-dfs"       $> memoSearch randDFSPolicy
+           , P.tokenP "memo-rand-accel-dfs" $> memoSearch randAccelDFSPolicy
+           ]
+      
 -- ----------------------------------------------------------------------------------------
 -- Main functions
 
 -- FIXME: define all types etc. eagerly
-symbolicFun :: SearchStrat ->
+symbolicFun :: Config ->
                ProvenanceTag ->
                ExpSlice ->
                SolverT StrategyM (Maybe SelectedPath)
-symbolicFun sstrat ptag sl = do
+symbolicFun (Config sstrat) ptag sl = do
   -- defined referenced types/functions
   reset -- FIXME
 

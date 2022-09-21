@@ -27,7 +27,7 @@ data Options =
           -- Debugging options
           , optMode :: Mode
           , optDDLEntry   :: Maybe String
-          , optStrategy  :: Maybe String
+          , optStrategy   :: Maybe [String]
           , optInvFile    :: Maybe FilePath
           , optAnalysisKind :: Maybe String
           , optDDLInput  :: FilePath
@@ -154,7 +154,7 @@ options = Options <$> solverOpt
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt
-                  <*> optional strategyOpt
+                  <*> ((Just <$> some strategyOpt) <|> pure Nothing)
                   <*> optional invFileOpt
                   <*> optional analysisKindOpt
                   <*> argument str (metavar "FILE")

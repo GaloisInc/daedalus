@@ -63,7 +63,7 @@ doSynthesis opts = do
               ]
               ++ if optValidateModel opts
                  then [("model-validate", "true")]
-                 else []
+                  else []
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
       absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
