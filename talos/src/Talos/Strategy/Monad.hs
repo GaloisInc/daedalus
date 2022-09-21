@@ -7,6 +7,8 @@
 -- API for strategies, which say how to produce a path from a slice.
 
 module Talos.Strategy.Monad ( Strategy(..)
+                            , StrategyInstance(..)
+                            , parseStrategies
                             , StratFun(..)
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
@@ -43,25 +45,45 @@ import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
-
-
-
+import           Talos.Strategy.OptParser (Parser, runParser)
+import qualified Talos.Strategy.OptParser as P
+import Control.Monad.Except (throwError)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
-
--- FIXME: add: config (e.g. depth/max backtracks/etc.)
 
 -- Gives some flexibility in how they are run.
 data StratFun =
   SimpleStrat   (ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath))
   | SolverStrat (ProvenanceTag -> ExpSlice -> SolverT StrategyM (Maybe SelectedPath))
 
+data StrategyInstance = StrategyInstance
+  { siName  :: String
+  , siDescr :: Doc
+  , siFun   :: StratFun
+  }
+
 data Strategy =
   Strategy { stratName  :: String
            , stratDescr :: Doc
-           , stratFun   :: StratFun
+           , stratParse  :: Parser StrategyInstance
            }
+
+-- -----------------------------------------------------------------------------
+-- Parsing strategy descriptions
+
+parseStrategy :: [Strategy] -> Parser StrategyInstance
+parseStrategy strats = do
+  P.skipSpaces  
+  n <- P.nameP
+  P.skipSpaces
+  case find ((==) n . stratName) strats of
+    Nothing -> throwError ("Unknown strategy: '" ++ n ++ "'")
+    Just s  -> stratParse s
+
+parseStrategies :: [String] -> [Strategy] -> Either String [StrategyInstance]
+parseStrategies opts strats =
+  mapM (runParser (parseStrategy strats)) opts
 
 -- -----------------------------------------------------------------------------
 -- Monad

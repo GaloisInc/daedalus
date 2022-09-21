@@ -8,7 +8,7 @@
 -- recursive functions (i.e., we only unroll loops).
 
 -- FIXME: factor out commonalities with Symbolic.hs
-module Talos.Strategy.PathSymbolic (pathSymbolicStrats) where
+module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 import           Control.Lens                 (_1, _2, at, each, over, (.=))
 import           Control.Monad.Reader
@@ -64,29 +64,53 @@ import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
-import Daedalus.PP (showPP, pp, text, block)
+import Daedalus.PP (showPP, text)
+import Talos.Strategy.OptParser (parseOpts, Opt)
+import qualified Talos.Strategy.OptParser as P
 
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
-pathSymbolicStrats :: [Strategy]
-pathSymbolicStrats = strats
+pathSymbolicStrat :: Strategy
+pathSymbolicStrat = Strategy
+  { stratName  = name
+  , stratDescr = descr
+  , stratParse = mkinst
+  }
   where
-    strats = [ Strategy { stratName  = "pathsymb"
-                        , stratDescr = "Symbolic execution including non-recursive paths"
-                        , stratFun   = SolverStrat symbolicFun
-                        }
-             ]
+    name  = "pathsymb"
+    descr = "Symbolic execution including non-recursive paths"
+
+    mkinst = do
+      c <- parseOpts configOpts defaultConfig
+      pure StrategyInstance
+        { siName  = name
+        , siDescr = descr -- <> parens (text s)
+        , siFun   = SolverStrat (symbolicFun c)
+        }
+
+-- ----------------------------------------------------------------------------------------
+-- Configuration
+
+data Config = Config { cMaxRecDepth :: Int }
+  deriving (Generic)
+
+defaultConfig :: Config
+defaultConfig = Config 10
+
+configOpts :: [Opt Config]
+configOpts = [P.option "max-depth" (field @"cMaxRecDepth") P.intP ]
 
 -- ----------------------------------------------------------------------------------------
 -- Main functions
 
 -- FIXME: define all types etc. eagerly
-symbolicFun :: ProvenanceTag ->
+symbolicFun :: Config ->
+               ProvenanceTag ->
                ExpSlice ->
                SolverT StrategyM (Maybe SelectedPath)
-symbolicFun ptag sl = do
+symbolicFun config ptag sl = do
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -103,7 +127,7 @@ symbolicFun ptag sl = do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, assns) <- runSymbolicM (sl, topoDeps) (Just 5) (stratSlice ptag sl)
+    (m_res, assns) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (stratSlice ptag sl)
     let go (_, pb) = do
           mapM_ Solv.assert assns
           r <- Solv.check

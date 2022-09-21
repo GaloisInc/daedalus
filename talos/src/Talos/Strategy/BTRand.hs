@@ -24,18 +24,25 @@ import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
 
-
-
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
+-- FIXME: maybe unify these into a single parameterised strat 'rand backtrack=dfs ...'
 randDFS :: Strategy
 randDFS = 
-  Strategy { stratName  = "rand-dfs"
-           , stratDescr = "Simple depth-first random generation"
-           , stratFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+  Strategy { stratName  = name
+           , stratDescr = descr
+           , stratParse = pure inst
            }
   where
+    inst = StrategyInstance
+           { siName = name
+           , siDescr = descr
+           , siFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+           }
+    name  = "rand-dfs"
+    descr = "Simple depth-first random generation"
+    
     go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
     go ptag sl = mkStrategyFun ptag sl
 
@@ -44,10 +51,18 @@ randDFS =
 
 randRestart :: Strategy
 randRestart = 
-  Strategy { stratName  = "rand-restart"
-           , stratDescr = "Restart on failure with random selection"
-           , stratFun   = SimpleStrat randRestartStrat
+  Strategy { stratName  = name
+           , stratDescr = descr
+           , stratParse = pure inst
            }
+  where
+    inst = StrategyInstance
+           { siName = name
+           , siDescr = descr
+           , siFun   = SimpleStrat randRestartStrat
+           }
+    name  = "rand-restart"
+    descr = "Restart on failure with random selection"
 
 restartBound :: Int
 restartBound = 1000
@@ -70,10 +85,18 @@ randRestartStrat ptag sl = go restartBound
 
 randMaybeT :: Strategy
 randMaybeT = 
-  Strategy { stratName  = "rand-restart-local-bt"
-           , stratDescr = "Backtrack locally on failure, restart on (global) failure with random selection"
-           , stratFun   = SimpleStrat randMaybeStrat
+  Strategy { stratName  = name
+           , stratDescr = descr
+           , stratParse = pure inst
            }
+  where
+    inst = StrategyInstance
+           { siName = name
+           , siDescr = descr
+           , siFun   = SimpleStrat randMaybeStrat
+           }
+    name  = "rand-restart-local-bt"
+    descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
 randMaybeStrat :: ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath)
 randMaybeStrat ptag sl = go restartBound

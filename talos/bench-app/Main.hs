@@ -24,11 +24,12 @@ import           Talos.Analysis.Monad    (Summaries)
 import           Talos.Analysis.Slice    (FInstId)
 import           Talos.Strategy          (allStrategies, runStrategy)
 import           Talos.Strategy.Monad    (Strategy, emptyStrategyMState,
-                                          runStrategyM, stratName)
+                                          runStrategyM, stratName, StrategyInstance, siName)
 import           Talos.SymExec.SolverT   (emptySolverState)
 
 import           Criterion
 import           Criterion.Main
+import Talos.Strategy (parseStrategies)
 
 
 -- This will load a ddl file, and benchmark the given strategies on the slices.
@@ -68,7 +69,7 @@ z3Args = ["-in", "-smt2"]
 -- We create a new benchmark for each slice in the program.  We need
 -- to analyze the program for each inv file (and no inv file).
 
-mkBenchmarks :: SMT.Solver -> [Int] -> Summaries ae -> Module -> GUID -> [Strategy] ->
+mkBenchmarks :: SMT.Solver -> [Int] -> Summaries ae -> Module -> GUID -> [StrategyInstance] ->
                 FName -> Map FInstId ExpSummary -> Benchmark
 mkBenchmarks solv seeds summaries md nguid strats fn clM =
   bgroup (showPP fn) [ bgroup (showPP cl)
@@ -80,7 +81,7 @@ mkBenchmarks solv seeds summaries md nguid strats fn clM =
                      ]
   where
     goSl n i sl =
-      [ bench (showPP n ++ "/" ++ showPP i ++ "/" ++ stratName strat {- ++ "/" ++ show seed -})
+      [ bench (showPP n ++ "/" ++ showPP i ++ "/" ++ siName strat {- ++ "/" ++ show seed -})
               (benchSl seed strat sl)
       | seed <- seeds, strat <- strats]
 
@@ -107,10 +108,12 @@ benchToBenchmark b = do
       Nothing -> "no inverse"
       Just f  -> "inverse (" ++ f ++ ")"
 
-    -- FIXME: claggy 
-    strats = mapMaybe (\n -> find (\s -> (stratName s) == n) allStrategies) (strategies b)
-
     absEnv = "vars"
+
+    -- FIXME: claggy 
+    strats = case parseStrategies (strategies b) of
+               Left err -> error err
+               Right ss -> ss
 
     goInv seeds m_inv' = bgroup (invN m_inv') <$> do
       (_mainRule, md, nguid) <- runDaedalus (ddlFile b) m_inv' (Just $ entry b)
