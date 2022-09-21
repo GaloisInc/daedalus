@@ -288,7 +288,7 @@ data State = State
 
   , coreTypeNames :: Map TCTyName Core.TName
     -- ^ Map type names to core names.
-  
+
   , debugMode :: Bool
   }
 
@@ -385,8 +385,8 @@ astVM ph =
 astImports :: ModulePhase -> [ ModuleName ]
 astImports ph =
   fromMaybe [] $
-  msum [ map thingValue . moduleImports   <$> astParse ph
-       , map thingValue . tcModuleImports <$> astTC    ph
+  msum [ map importModule . moduleImports   <$> astParse ph
+       , map importModule . tcModuleImports <$> astTC    ph
        , map fromMName  . Core.mImports   <$> astCore  ph
        , map fromMName  . VM.mImports     <$> astVM    ph
        ]
@@ -667,7 +667,7 @@ passResolve m =
      case ph of
        ParsedModule ast ->
          do inProgress m
-            mapM_ (passResolve . thingValue) (moduleImports ast)
+            mapM_ (passResolve . importModule) (moduleImports ast)
             resolveModule ast
        _ -> pure ()
 
@@ -680,7 +680,7 @@ passTC m =
      case ph of
        ResolvedModule ast ->
          do inProgress m
-            mapM_ (passTC . thingValue) (moduleImports ast)
+            mapM_ (passTC . importModule) (moduleImports ast)
             tcModule ast
        _ -> pure ()
 

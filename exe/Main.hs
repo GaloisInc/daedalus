@@ -10,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,unless,forM_,forM)
-import Data.Maybe(fromMaybe,fromJust)
+import Data.Maybe(fromMaybe,fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -39,7 +39,8 @@ import Daedalus.Value
 import Daedalus.Interp
 
 import Daedalus.AST hiding (Value)
-import Daedalus.Compile.LangHS
+import Daedalus.Compile.LangHS hiding (Import(..))
+import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.TH.Compile as THC
 import Daedalus.Type.AST(TCModule(..))
@@ -96,6 +97,7 @@ configure opts =
        ddlSetOpt optWarnings \w -> case w of
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
+     ddlSetOpt optSearchPath (optModulePath opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
@@ -233,8 +235,6 @@ interpVM opts mm inpMb =
     for_ (Map.elems entries) \impl ->
         ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
 
-    
-
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
   do let entries = parseEntries opts mm
@@ -292,16 +292,23 @@ parseEntry mm x =
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
-  do let makeExe = null (optEntries opts)
+  do let makeExe = null (optEntries opts) && isNothing (optUserState opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
 
      prog <- doToVM opts mm
-     let outFileRoot = "main_parser" -- XXX: parameterize on this
-         (hpp,cpp) = C.cProgram outFileRoot prog
+     let ccfg = C.CCodeGenConfig
+                  { cfgFileNameRoot = optFileRoot opts
+                  , cfgUserState    = text <$> optUserState opts
+                  , cfgUserNS       = text (optUserNS opts)
+                  , cfgExtraInclude = optExtraInclude opts
+                  , cfgExternal     = optExternMods opts
+                  }
+         (hpp,cpp,warns) = C.cProgram ccfg prog
 
-     ddlIO (saveFiles makeExe outFileRoot hpp cpp)
+     mapM_ (\w -> ddlPrint ("[WARNING]" <+> w)) warns
+     ddlIO (saveFiles makeExe (C.cfgFileNameRoot ccfg) hpp cpp)
 
   where
   saveFiles makeExe outFileRoot hpp cpp =
@@ -309,9 +316,14 @@ generateCPP opts mm =
                 Nothing -> pure "."
                 Just d  -> do createDirectoryIfMissing True d
                               pure d
+       hdir <- case optOutDirHeaders opts of
+                 Nothing -> pure dir
+                 Just d  -> do createDirectoryIfMissing True d
+                               pure d
 
        let root = dir </> outFileRoot
-       writeFile (addExtension root "h") (show hpp)
+           hroot = hdir </> outFileRoot
+       writeFile (addExtension hroot "h") (show hpp)
        writeFile (addExtension root "cpp") (show cpp)
 
        when makeExe
@@ -365,9 +377,9 @@ generateHS opts mainMod allMods
   where
   hsopts = optHS opts
 
-  imps = [ Import a case b of
-                      Nothing -> Unqualified
-                      Just m  -> QualifyAs m
+  imps = [ HS.Import a case b of
+                         Nothing -> Unqualified
+                         Just m  -> QualifyAs m
          | (a,b) <- hsoptImports hsopts ]
 
   primMap = Map.fromList

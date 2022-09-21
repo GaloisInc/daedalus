@@ -21,7 +21,8 @@ import Daedalus.Panic
 import qualified Daedalus.BDD as BDD
 
 import Daedalus.Type.AST
-import Daedalus.Compile.LangHS
+import Daedalus.Compile.LangHS hiding (Import(..))
+import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.Compile.Config
 
 
@@ -1232,24 +1233,24 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
                  case cParserType of
-                   Nothing -> [ Import "RTS.Parser" (QualifyAs "RTS") ]
+                   Nothing -> [ HS.Import "RTS.Parser" (QualifyAs "RTS") ]
                    _       -> []
                   ++
-                 [ Import (hsIdentMod i) Qualified
-                            | i <- map thingValue tcModuleImports
+                 [ HS.Import (hsIdentMod i) Qualified
+                            | i <- map importModule tcModuleImports
                  ] ++
-                 [ Import "Prelude"       (QualifyAs "HS")
-                 , Import "GHC.TypeLits"  (QualifyAs "HS")
-                 , Import "GHC.Records"   (QualifyAs "HS")
-                 , Import "Data.Coerce"   (QualifyAs "HS")
-                 , Import "Data.Bits"     (QualifyAs "HS")
-                 , Import "Control.Monad" (QualifyAs "HS")
-                 , Import "RTS"           (QualifyAs "RTS")
-                 , Import "RTS.Input"     (QualifyAs "RTS")
-                 , Import "RTS.Map"       (QualifyAs "Map")
-                 , Import "RTS.Vector"    (QualifyAs "Vector")
-                 , Import "RTS.Numeric"   (QualifyAs "RTS")
-                 , Import "RTS.JSON"      (QualifyAs "RTS")
+                 [ HS.Import "Prelude"       (QualifyAs "HS")
+                 , HS.Import "GHC.TypeLits"  (QualifyAs "HS")
+                 , HS.Import "GHC.Records"   (QualifyAs "HS")
+                 , HS.Import "Data.Coerce"   (QualifyAs "HS")
+                 , HS.Import "Data.Bits"     (QualifyAs "HS")
+                 , HS.Import "Control.Monad" (QualifyAs "HS")
+                 , HS.Import "RTS"           (QualifyAs "RTS")
+                 , HS.Import "RTS.Input"     (QualifyAs "RTS")
+                 , HS.Import "RTS.Map"       (QualifyAs "Map")
+                 , HS.Import "RTS.Vector"    (QualifyAs "Vector")
+                 , HS.Import "RTS.Numeric"   (QualifyAs "RTS")
+                 , HS.Import "RTS.JSON"      (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)

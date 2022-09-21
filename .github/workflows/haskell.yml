@@ -72,6 +72,7 @@ jobs:
                    , { name: 'Talos', verb: 'test', noun: 'talos', flag: '' }
                    , { name: 'Daedalus', verb: 'test', noun: 'daedalus-tests', flag: '--test-show-details=streaming' }
                    , { name: 'Daedalus backends', verb: 'test', noun: 'daedalus-test-backends', flag: '--test-show-details=streaming' }
+                   , { name: 'Daedalus using make', verb: 'test', noun: 'daedalus-test-makefile', flag: '--test-show-details=streaming' }
                    ]
 
     steps:

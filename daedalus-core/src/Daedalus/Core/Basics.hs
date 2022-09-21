@@ -27,6 +27,12 @@ data TName = TName
   { tnameId   :: GUID
   , tnameText :: Text
   , tnameMod  :: MName
+    {- ^ The module name where this was defined.
+         Note that after specialization everything
+         is placed in the same module, but this
+         referes to the *original* module where the
+         type was defined -}
+
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
   , tnameRec  :: Bool         -- ^ Is this type part of a recursive group
   , tnameBD   :: !Bool        -- ^ Is this a bitdata type
@@ -47,6 +53,8 @@ data FName = FName
   , fnamePublic     :: !Bool
   , fnameType       :: Type
   , fnameMod        :: MName
+    -- ^ This is the module where the name was origially defined,
+    -- and might (probably will) be different from the Core module name
   }
   deriving (Generic, NFData)
 
@@ -205,8 +213,11 @@ instance PP TName where
 
 instance PP FName where
   pp f
-    | fnamePublic f = pp (fnameText f)
-    | otherwise     = pp (fnameText f) <.> "_" <.> pp (fnameId f)
+    | fnamePublic f = qu $ pp (fnameText f)
+    | otherwise     = qu $ pp (fnameText f) <.> "_" <.> pp (fnameId f)
+    where
+    -- qu a = pp (fnameMod f) <.> "." <.> a
+    qu = id
 
 instance PP Name where
   pp n = case nameText n of

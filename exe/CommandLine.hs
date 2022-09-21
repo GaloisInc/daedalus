@@ -8,8 +8,11 @@ module CommandLine ( Command(..)
                    ) where
 
 import Data.Text(Text)
+import qualified Data.Text as Text
 import Data.List(intercalate)
 import Data.String(fromString)
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Control.Exception(throwIO)
 import System.Environment(getArgs)
 import System.FilePath(takeExtension)
@@ -50,10 +53,20 @@ data Options =
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
+          , optOutDirHeaders :: Maybe FilePath
           , optHS        :: OptsHS
           , optNoWarnUnbiasedFront :: Bool
           , optNoWarnUnbiased :: Bool
           , optErrorStacks :: Bool
+          , optUserState :: Maybe String
+          , optExtraInclude :: [String]
+          , optFileRoot :: String
+          , optUserNS :: String
+          , optExternMods :: Map Text String
+            -- ^ maps external module to namespace qualifier in generated code
+
+          , optModulePath :: [String]
+            -- ^ Search for modules in these paths
 
           , optParams :: [String]
           }
@@ -74,13 +87,22 @@ defaultOptions =
           , optCheckCore = True
           , optDeterminize = False
           , optOutDir    = Nothing
+          , optOutDirHeaders    = Nothing
           , optNoWarnUnbiasedFront = False
           , optNoWarnUnbiased = False
           , optHS        = noOptsHS
           , optParams    = []
           , optErrorStacks = True
+          , optUserState = Nothing
+          , optExtraInclude = []
+          , optFileRoot = "main_parser"
+          , optUserNS = defaultUserSpace
+          , optExternMods = Map.empty
+          , optModulePath = []
           }
 
+defaultUserSpace :: String
+defaultUserSpace = "User"
 
 
 --------------------------------------------------------------------------------
@@ -146,6 +168,10 @@ options = OptSpec
       , Option [] ["no-warn-unbiased"]
         "Do not warn about uses of unbiased choice."
         $ NoArg \s -> Right s { optNoWarnUnbiased = True }
+
+      , Option [] ["path"]
+        "Add this to the search path for modules."
+        $ ReqArg "DIR" \s o -> Right o { optModulePath = s : optModulePath o }
 
       , helpOption
       ]
@@ -322,9 +348,31 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       [ Option [] ["out-dir"]
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["out-dir-headers"]
+        "Save generated headers in this directory (defaults to `out-dir`)"
+        $ ReqArg "DIR" \s o -> Right o { optOutDirHeaders = Just s }
+
+      , Option [] ["file-root"]
+        "Output file template (default: main_parser)"
+        $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
+
+      , Option [] ["user-namespace"]
+        "Place type declarations in this namesapce (default: User)"
+        $ ReqArg "NAMESPACE" \s o -> Right o { optUserNS = s }
+
       , Option [] ["no-error-stack"]
         "Do not generate a grammar stack trace on error."
         $ NoArg \o -> Right o { optErrorStacks = False }
+
+      , Option [] ["user-state"]
+        "Generate a parser using this type for custom user state"
+        $ ReqArg "STATE_TYPE" \s o -> Right o { optUserState = Just s }
+
+      , Option [] ["add-include"]
+        "Add #include INCLUDE to generated files"
+        $ ReqArg "INCLUDE"
+          \s o -> Right o { optExtraInclude = s : optExtraInclude o }
       ] ++
       coreOptions ++
       [ helpOption
@@ -362,6 +410,16 @@ coreOptions =
   , Option [] ["no-core-check"]
     "Do not validate Core"
     $ NoArg \o -> Right o { optCheckCore = False }
+
+  , Option [] ["extern"]
+    "Do not generate definitions for the types in this module."
+    $ ReqArg "MODULE[:NAMESPACE]"
+      \s o -> Right o { optExternMods =
+                          let (m,u) = case break (== ':') s of
+                                        (as,[]) -> (as, defaultUserSpace)
+                                        (as,_:bs) -> (as,bs)
+                          in Map.insert (Text.pack m) u (optExternMods o)
+                       }
   ]
 
 

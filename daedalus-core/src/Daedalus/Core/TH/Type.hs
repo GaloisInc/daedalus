@@ -6,13 +6,12 @@ module Daedalus.Core.TH.Type (compileMonoType, compileType, HasTypeParams) where
 import Data.Map(Map)
 import qualified Data.Map as Map
 
-import Language.Haskell.TH (Q)
-import qualified Language.Haskell.TH as TH
-
 import qualified Daedalus.RTS as RTS
 import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Map as RTS
 
+import Daedalus.TH(Q)
+import qualified Daedalus.TH as TH
 import Daedalus.Panic(panic)
 import Daedalus.PP(pp)
 import Daedalus.Core.Basics
@@ -52,7 +51,7 @@ compileSizeType ::
   (?typeParams :: Map TParam (Q TH.Type)) => SizeType -> Q TH.Type
 compileSizeType sz =
   case sz of
-    TSize n      -> pure (TH.LitT (TH.NumTyLit n))
+    TSize n      -> TH.litT (TH.numTyLit n)
     TSizeParam p -> compileTypeParam p
 
 compileTypeParam ::

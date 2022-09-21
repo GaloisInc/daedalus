@@ -13,6 +13,7 @@ import qualified Daedalus.RTS.Vector as RTS
 import Parser
 import Graph
 
+{-
 type LinkUses = Map Text (Map PrimitiveType (Set (Text,Text)))
 
 linkUses :: PDFSpec -> Map Text (Map PrimitiveType (Set (Text,Text)))
@@ -41,7 +42,7 @@ usesComposite typeN (CompositeType fs) us = foldr (usesField typeN) us fs
 
 data Use = Use
   { typeName  :: Text
-  , fieldName :: Text
+  , fieldName :: Either ArrayKey DictionaryKey
   , linkName  :: Text
   , usedAs    :: PrimitiveType
   }
@@ -94,5 +95,5 @@ forgetWithVersion x =
 
 forgetTversioned :: Tversioned (Versioned a) -> a
 forgetTversioned x = forgetVersioned (getField @"value" x)
-
+-}
 

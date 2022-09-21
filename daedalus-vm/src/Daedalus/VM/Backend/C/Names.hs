@@ -1,10 +1,13 @@
 {-# Language OverloadedStrings, BlockArguments #-}
+{-# Language ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Data.Char(isAlphaNum,isAscii)
 import Numeric(showHex)
 
@@ -19,8 +22,14 @@ import Daedalus.VM.Backend.C.Lang
 nsDDL :: Doc
 nsDDL = "DDL"
 
-nsUser :: Doc
-nsUser = "User"
+type NSUser = ( ?nsUser :: Doc
+              , ?nsExternal :: Map Src.MName Doc
+                -- extrenal modules with corresponding namespace
+              )
+
+-- | The namespace where we should put user definde type that are not external
+nsUser :: NSUser => Doc
+nsUser = ?nsUser
 
 nsPrivate :: Doc
 nsPrivate = "Private"
@@ -78,11 +87,13 @@ cTNameRoot t = case Src.tnameAnon t of
 
 
 -- | The name of the underlying type used by a boxed type.
-cTNameUse :: GenVis -> Src.TName -> CType
+cTNameUse :: NSUser => GenVis -> Src.TName -> CType
 cTNameUse vis x =
   case vis of
-    GenPublic  -> nsUser .:: cTNameRoot x
-    GenPrivate -> nsUser .:: nsPrivate .:: cTNameRoot x
+    GenPublic  -> ns .:: cTNameRoot x
+    GenPrivate -> ns .:: nsPrivate .:: cTNameRoot x
+  where
+  ns = Map.findWithDefault nsUser (Src.tnameMod x) ?nsExternal
 
 
 data GenVis = GenPublic | GenPrivate

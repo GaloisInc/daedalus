@@ -143,7 +143,6 @@ class Monad m => MTCMonad m where
   getGlobTypeDefs :: m (Map TCTyName TCTyDecl)
   extEnvManyRules :: [(Name,Poly RuleType)] -> m a -> m a
 
-
 reportDetailedError :: (MTCMonad m, HasRange a) => a -> Doc -> [Doc] -> m b
 reportDetailedError r d ds = reportError r (d $$ nest 2 (bullets ds))
 
@@ -252,7 +251,6 @@ instance MTCMonad STypeM where
        (a,rw1) <- lift $ extEnvManyRules rs $ runStateT rw m
        set rw1
        pure a
-
 
 runSTypeM :: STypeM a -> MTypeM a
 runSTypeM (STypeM m) = fst <$> runStateT rw m

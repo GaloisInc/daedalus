@@ -112,6 +112,7 @@ $ws+        ;
 "_"         { lexeme Underscore }
 
 "import"    { lexeme KWImport }
+"extern"    { lexeme KWExtern }
 "def"       { lexeme KWDef }
 "bitdata"   { lexeme KWBitData }
 "struct"    { lexeme KWstruct }

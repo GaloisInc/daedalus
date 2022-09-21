@@ -23,7 +23,7 @@ library
     Daedalus.Panic,
     Daedalus.BDD,
     Daedalus.GUID,
-    Daedalus.Compat
+    Daedalus.TH
 
   build-depends:
     base >=4.13 && <4.17,

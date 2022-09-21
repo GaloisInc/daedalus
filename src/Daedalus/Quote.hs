@@ -12,13 +12,13 @@ import qualified Data.List.NonEmpty as NE
 import Data.ByteString(ByteString)
 import Control.Monad.IO.Class(liftIO)
 import Control.Exception(try)
-import Language.Haskell.TH as TH
-import Language.Haskell.TH.Quote
 
 import AlexTools(SourceRange,SourcePos(..))
 
 import RTS.ParserAPI(Result(..),ParseError)
 
+import Daedalus.TH (Q, Dec, QuasiQuoter(..))
+import qualified Daedalus.TH as TH
 import Daedalus.Value(Value)
 
 import Daedalus.AST(ScopedIdent(..))
@@ -96,15 +96,15 @@ doDecl str =
               Left e -> fail =<< liftIO (DDL.prettyDaedalusError e)
               Right a -> pure a
 
-     e <- [| \b -> case interp [] "Main" b [ast] (ModScope "Main" root) of
-                     NoResults err -> Left err
-                     Results r     -> Right (NE.head r)
+     let e = [| \b -> case interp [] "Main" b [ast] (ModScope "Main" root) of
+                        NoResults err -> Left err
+                        Results r     -> Right (NE.head r)
            |]
-     let nm = mkName ("p" ++ root)
-     t <- [t| ByteString -> Either ParseError Value |]
-     pure [ SigD nm t
-          , FunD nm [Clause [] (NormalB e) []]
-          ]
+     let nm = TH.mkName ("p" ++ root)
+     let t = [t| ByteString -> Either ParseError Value |]
+     sequence [ TH.sigD nm t
+              , TH.funD nm [TH.clause [] (TH.normalB e) []]
+              ]
 
 namedPrim :: TH.Name -> [TH.ExpQ] -> TH.ExpQ
 namedPrim f is = TH.appsE (TH.varE f : is)

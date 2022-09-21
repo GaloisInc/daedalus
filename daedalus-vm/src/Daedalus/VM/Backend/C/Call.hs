@@ -11,7 +11,7 @@ import Daedalus.VM.Backend.C.Types
 
 
 
-cClosureClass :: CIdent -> CIdent -> [VMT] -> CStmt
+cClosureClass :: NSUser => CIdent -> CIdent -> [VMT] -> CStmt
 cClosureClass super thisTy tys = cStmt $ vcat
   [ "class" <+> thisTy <+> ": public" <+> super <+> " {"
   , nest 2 $ vcat attribs

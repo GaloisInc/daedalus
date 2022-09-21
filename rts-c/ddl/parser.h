@@ -114,6 +114,17 @@ public:
 
 };
 
+
+template <typename T>
+class ParserStateUser : public ParserState {
+  T &ustate;
+
+public:
+  ParserStateUser(T &ustate) : ustate(ustate) {}
+
+  T &getUserState() { return ustate; }
+};
+
 }
 
 #endif

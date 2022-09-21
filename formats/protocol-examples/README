@@ -1,0 +1,78 @@
+Overview
+========
+
+This directory contains examples that illustrate how to use the C++
+code generator, with particular emphasis on the problem of parsing
+a sequence of "packets".
+
+The directory contains four examples, numbered 0 through 3.
+All examples work with sample packets defined in `Common.ddl`,
+with `ExampleK.ddl` showing various ways to implement the "protocol".
+Examples 2 and 3 use the same Daedalus specification, they just differ
+in the generated C++ code.
+
+For illustration purposes we use a really simple protocol which requires
+to parse 2 packets of one type followed by one packet of another.
+The techniques should scale to considerably more complex protocols.
+
+C++ support code for the examples is in the `src` directory, while
+the `inputs` directory contains some sample packets for testing.
+
+The `Makefile` shows how to build the examples and run them.
+Build artifacts are placed in a subdirectory called `build`.
+Note that the `Makefile` assumes that `daedalus` is being run from
+the repository, and `daedalus` is already built.  The examples should
+work outside the Daedalus repository as well, with the following changes:
+
+  * replace `cabal exec daedalus` with just `daedalus` (or the path
+    to the `daedalus` binary)
+  * ensure that the current directory contains the Daedalus runtime system
+    for C++ (here this is implemented with the `ddl` link)
+
+
+Example 0
+=========
+
+This example illustrates the basics of the protocol without worrying
+about packets.  It simply parses two instances of the one packet followed
+by another packet from a *single* input source.  The intention is that this
+demonstrates the protocol, but it doesn't really solve the problem where
+the packets are delivered separately to the parser.
+
+
+Example 1
+=========
+
+This example shows how to define a Daedalus parser with a custom entry
+point.  This is useful if the application keeps track of the state of
+protocol, but it uses Daedalus to parse the individual packets.  Depending
+on the state of the protocol the application can call the appropriate
+Daedalus parser to process the next packet.
+
+This example also shows the Daedalus entry points may have parameters.
+In this case, we've implemented a simple `Packet` parser that's parameterized
+by a number---depending on the number we'll try to parse a different type
+of packet.  In this way, one has quite a lot of flexibility to move the
+decisions between Daedalus and the application.
+
+
+Example 2
+=========
+
+This example illustrates a way to write the parser entirely in Daedalus
+(as in `Example 0`), but be able to support packets that come from different
+sources (i.e., not a single input array).   The main idea is to extend
+Daedalus with a user-specified primitive that can get the bytes for the
+next packet.   This has the benefit that the parser is quite readable,
+but may require blocking or some other approach to deal with situations
+where the bytes for the next packet are not yet available.
+
+
+Example 3
+=========
+
+This example is a variation on `Example 2` which illustrates how to generate
+a Daedalus parser with a custom user state.  This improves on example 2
+because it avoids the need for declaring that user state as a global variable.
+
+

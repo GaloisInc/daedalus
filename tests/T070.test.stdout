@@ -1,4 +1,12 @@
 [WARNING] ./T070.ddl:7:3--7:10: Statement has no effect.
+Types
+================================================================================
+ 
+ 
+ 
+Parsers and Semantic Values
+================================================================================
+ 
 def Main:
   for any type a:
     `a` contains the number 1

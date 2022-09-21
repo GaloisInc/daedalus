@@ -124,6 +124,7 @@ import Daedalus.Parser.Monad
   'else'      { Lexeme { lexemeRange = $$, lexemeToken = KWElse } }
   'case'      { Lexeme { lexemeRange = $$, lexemeToken = KWCase } }
   'import'    { Lexeme { lexemeRange = $$, lexemeToken = KWImport } }
+  'extern'    { Lexeme { lexemeRange = $$, lexemeToken = KWExtern } }
   'as'        { Lexeme { lexemeRange = $$, lexemeToken = KWAs } }
   'as!'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsBang } }
   'as?'       { Lexeme { lexemeRange = $$, lexemeToken = KWAsQuestion } }
@@ -190,19 +191,21 @@ import Daedalus.Parser.Monad
 -- High Precedence
 %%
 
-module ::                                     { ([Located ModuleName], [Decl]) }
+module ::                                     { ([Import], [Decl]) }
   : imports decls                             { ($1, $2) }
 
-imports ::                                    { [Located ModuleName] }
+imports ::                                    { [Import] }
   : {- empty -}                               { [] }
   | imports import                            { $2 : $1 }
 
 -- This is a bit ugly, we could allow any sort of module name, but the
 -- lexer differentiates between upper- and lower-case initiated
 -- identifiers
-import ::                                     { Located ModuleName }
-  : 'import' BIGIDENT                         { Located (fst $2) (snd $2) }
-  | 'import' SMALLIDENT                       { Located (fst $2) (snd $2) }
+import ::                                     { Import }
+  : 'import' BIGIDENT                         { Import (fst $2) (snd $2) False }
+  | 'import' SMALLIDENT                       { Import (fst $2) (snd $2) False }
+  | 'import' 'extern' BIGIDENT                { Import (fst $3) (snd $3) True  }
+  | 'import' 'extern' SMALLIDENT              { Import (fst $3) (snd $3) True  }
 
 decls ::                                      { [Decl] }
   : listOf(decl)                              { $1 }
@@ -313,6 +316,7 @@ label                                    :: { Located Label }
   | 'else'                                  { mkLabel ($1, "else") }
   | 'case'                                  { mkLabel ($1, "case") }
   | 'import'                                { mkLabel ($1, "import") }
+  | 'extern'                                { mkLabel ($1, "extern") }
   | 'as'                                    { mkLabel ($1, "as") }
   | '$$'                                    { mkLabel ($1,"$$") }
   | 'END'                                   { mkLabel ($1,"END") }

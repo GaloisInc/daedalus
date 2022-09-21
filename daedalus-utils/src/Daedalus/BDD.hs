@@ -7,7 +7,7 @@ import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
 import Data.Bits(testBit)
 import Data.List(groupBy,sortBy)
-import qualified Language.Haskell.TH.Syntax as TH
+import qualified Daedalus.TH as TH
 
 -- Ordered binary decision diagrams --------------------------------------------
 type Var            = Int

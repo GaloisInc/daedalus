@@ -215,7 +215,7 @@ moduleScope m ms rs bds =
                StateT (Map Ident [Name]) Id (IdentClass, Name)
     matched k x y = sets_ (Map.insertWith (++) k [snd x, snd y]) $> x
 
-    imported = [ identScope (ms Map.! thingValue i) | i <- moduleImports m ]
+    imported = [ identScope (ms Map.! importModule i) | i <- moduleImports m ]
 
     -- Makes it easier to detect duplicates
     defs  = [ Map.singleton (nameScopeAsUnknown (ruleName r)) (IdentFun, n)

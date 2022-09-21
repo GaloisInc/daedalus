@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings, BlockArguments #-}
+{-# Language OverloadedStrings, BlockArguments, ImplicitParams #-}
 module Daedalus.VM.Backend.C.UserDefined where
 
 import qualified Data.Set as Set
@@ -20,10 +20,12 @@ import Daedalus.VM.Backend.C.Bitdata
 
 
 -- | Returns (declaration, methods)
-cTypeGroup :: Map TName TDecl -> Rec TDecl -> (Doc,Doc)
+cTypeGroup :: NSUser => Map TName TDecl -> Rec TDecl -> (Doc,Doc)
 cTypeGroup allTypes rec =
     case rec of
-      NonRec d ->
+      NonRec d
+        | isExtern d -> (mempty,mempty)
+        | otherwise ->
         case tDef d of
           TStruct {} -> ( cUnboxedProd d
                         , generateMethods GenPublic GenUnboxed d
@@ -67,9 +69,10 @@ cTypeGroup allTypes rec =
         )
 
         where
-        (sums,prods) = orderRecGroup ds
+        (sums,prods) = orderRecGroup (filter (not . isExtern) ds)
 
-
+  where
+  isExtern = (`Map.member` ?nsExternal) . tnameMod . tName
 
 {- Note: Product types shouldn't be directly recursive as that would
 require infinite values, which we do not support.   There may be recursive
@@ -106,13 +109,13 @@ orderRecGroup tds = (sums, forgetRecs (topoOrder deps prods))
   deps td = (tName td, freeTCons td `Set.difference` sumSet)
 
 
-cUserNS :: GenVis -> [Doc] -> Doc
+cUserNS :: NSUser => GenVis -> [Doc] -> Doc
 cUserNS vis = cNamespace nsUser
             . case vis of
                 GenPublic -> id
                 GenPrivate -> (:[]) . cNamespace nsPrivate
 
-cTypeDecl :: GenVis -> TDecl -> CDecl
+cTypeDecl :: NSUser => GenVis -> TDecl -> CDecl
 cTypeDecl vis ty = cUserNS vis [ cTypeDecl' ty <.> semi ]
 
 -- Note: this does not add the semi at the end, so we can reuse it in `Def`.
@@ -138,7 +141,7 @@ cTypeParams ty =
 
 
 -- Example: Node<T>
-cTypeNameUse :: GenVis -> TDecl -> CType
+cTypeNameUse :: NSUser => GenVis -> TDecl -> CType
 cTypeNameUse vis tdecl =
   cTypeUse (cTNameUse vis (tName tdecl))
            (map cTParam (tTParamKNumber tdecl))
@@ -157,11 +160,11 @@ freeMethodSig :: Doc
 freeMethodSig = cStmt ("void" <+> cCall "free" [])
 
 -- | Constructor for a product
-cProdCtr :: TDecl -> CStmt
+cProdCtr :: NSUser => TDecl -> CStmt
 cProdCtr tdecl = cStmt ("void" <+> cCall structCon params)
   where params = [ cSemType t | (_,t) <- getFields tdecl, t /= TUnit ]
 
-cProdSels :: TDecl -> [ CStmt ]
+cProdSels :: NSUser => TDecl -> [ CStmt ]
 cProdSels tdecl =
   [ cStmt (cSemType t <+> cCall nm []) | (f,t) <- getFields tdecl
                                        , pref  <- bor_own
@@ -172,7 +175,7 @@ cProdSels tdecl =
 
 
 -- | Signatures for getters of a sum
-cSumGetters :: TDecl -> [CStmt]
+cSumGetters :: NSUser => TDecl -> [CStmt]
 cSumGetters tdecl =
   [ cStmt (cSemType t <+> cCall (selName pref l) [])
   | (l,t) <- getFields tdecl
@@ -180,7 +183,7 @@ cSumGetters tdecl =
   ]
 
 -- | Signatures for constructors of a sum
-cSumCtrs :: TDecl -> [CStmt]
+cSumCtrs :: NSUser => TDecl -> [CStmt]
 cSumCtrs tdecl =
   [ cStmt ("void" <+> cCall (unionCon l)
                                     [ cSemType ty | ty <- [t], t /= TUnit ])
@@ -195,7 +198,7 @@ cSumCtrs tdecl =
 -- Unboxed Products
 
 -- | Interface definition for struct types
-cUnboxedProd :: TDecl -> CDecl
+cUnboxedProd :: NSUser => TDecl -> CDecl
 cUnboxedProd ty = vcat (theClass : decFunctions GenPublic ty)
   where
   theClass =
@@ -260,7 +263,7 @@ cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
 
 
 -- | Class signature for an unboxed sum
-cUnboxedSum :: GenVis -> TDecl -> CDecl
+cUnboxedSum :: NSUser => GenVis -> TDecl -> CDecl
 cUnboxedSum vis tdecl = vcat (theClass : decFunctions vis tdecl)
   where
   theClass =
@@ -320,24 +323,35 @@ cSumPats td fs =
 cPatSingleton :: Label -> CIdent
 cPatSingleton l = "Pat_" <> cLabel l
 
-cUnboxedSumSwitch :: GenVis -> TDecl -> [(Label, Type)] -> CDecl
+cUnboxedSumSwitch :: NSUser => GenVis -> TDecl -> [(Label, Type)] -> CDecl
 cUnboxedSumSwitch vis tdecl fs =
-  cTemplate ["typename Cases"] $
-  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
-    vcat [ "switch" <+> parens (cCall "getTag" []) <+> "{"
-      , nest 2 $ vcat
-            [ "case" <+> cSumTagV (tName tdecl) l <.> colon
-              $$ nest 2 (cReturn (cCall "cases" [cCallCon (cPatSingleton l) [], cCall (selName GenBorrow l) []]))
-            | (l,_) <- fs
-            ]
-      , "}"
+  vcat
+    [ cTemplateDecl tdecl
+    , cTemplate ["typename Cases"] $
+      cDefineFun "auto" (cTypeNameUse vis tdecl .:: "sum_switch")
+                        ["Cases&& cases"] [
+        vcat
+          [ "switch" <+> parens (cCall "getTag" []) <+> "{"
+          , nest 2 $ vcat
+                [ "case" <+> cSumTagV (tName tdecl) l <.> colon
+                  $$ nest 2 (cReturn (cCall "cases" [cCallCon (cPatSingleton l) [], cCall (selName GenBorrow l) []]))
+                | (l,_) <- fs
+                ]
+          , "}"
+          ]
       ]
-  ]
-cBoxedSumSwitch :: GenVis -> TDecl -> CDecl
+    ]
+
+cBoxedSumSwitch :: NSUser => GenVis -> TDecl -> CDecl
 cBoxedSumSwitch vis tdecl =
-  cTemplate ["typename Cases"] $
-  cDefineFun "auto" (cTNameUse vis (tName tdecl) .:: "sum_switch") ["Cases&& cases"] [
-    cReturn (cCallMethod (cCallMethod "ptr" "getValue" []) "sum_switch" ["cases"])
+  vcat
+    [ cTemplateDecl tdecl
+    , cTemplate ["typename Cases"] $
+      cDefineFun "auto" (cTypeNameUse vis tdecl .:: "sum_switch")
+                        ["Cases&& cases"] [
+        cReturn (cCallMethod (cCallMethod "ptr" "getValue" [])
+                                                    "sum_switch" ["cases"])
+      ]
   ]
 
 cSumCaseDecl :: CDecl
@@ -346,7 +360,7 @@ cSumCaseDecl =
   cDeclareFun "auto" "sum_switch" ["Cases&& cases"];
 
 -- | Class signature for a boxed sum
-cBoxedSum :: TDecl -> CDecl
+cBoxedSum :: NSUser => TDecl -> CDecl
 cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
   where
   theClass =
@@ -394,7 +408,7 @@ cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
 data GenBoxed = GenBoxed  | GenUnboxed
 
 
-decFunctions :: GenVis -> TDecl -> [CDecl]
+decFunctions :: NSUser => GenVis -> TDecl -> [CDecl]
 decFunctions vis ty =
   [ decCompare vis ty
   , decCmpOp "==" vis ty
@@ -409,7 +423,7 @@ decFunctions vis ty =
   ]
 
 
-generateMethods :: GenVis -> GenBoxed -> TDecl -> Doc
+generateMethods :: NSUser => GenVis -> GenBoxed -> TDecl -> Doc
 generateMethods vis boxed ty =
   vcat' $
     [ "// --- Methods for" <+> pp (tName ty) <+> "------------------"
@@ -430,7 +444,7 @@ generateMethods vis boxed ty =
     [defShow Map.empty vis ty, defShowJS Map.empty vis ty] ++
     defSwitch vis boxed ty
 
-defSwitch :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defSwitch :: NSUser => GenVis -> GenBoxed -> TDecl -> [CDecl]
 defSwitch vis boxed ty =
   case tDef ty of
     TUnion fs ->
@@ -439,7 +453,8 @@ defSwitch vis boxed ty =
         GenUnboxed -> [cUnboxedSumSwitch vis ty fs]
     _ -> []
 
-defMethod :: GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
+defMethod ::
+  NSUser => GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
 defMethod vis tdecl retT fun params def =
   vcat [ cTemplateDecl tdecl
        , "inline"
@@ -453,7 +468,7 @@ defMethod vis tdecl retT fun params def =
 --------------------------------------------------------------------------------
 -- Output
 
-decShow :: GenVis -> TDecl -> CDecl
+decShow :: NSUser => GenVis -> TDecl -> CDecl
 decShow vis tdecl =
   cUserNS vis
   [ cTemplateDecl tdecl
@@ -465,7 +480,7 @@ decShow vis tdecl =
 
 -- XXX: for boxed things we could delegate, but that would require
 -- friendship to access `ptr`
-defShow :: Map TName TDecl -> GenVis -> TDecl -> CDecl
+defShow :: NSUser => Map TName TDecl -> GenVis -> TDecl -> CDecl
 defShow allTypes vis tdecl =
   cUserNS vis
   [ cTemplateDecl tdecl
@@ -523,7 +538,7 @@ defShow allTypes vis tdecl =
 
 
 
-decShowJS :: GenVis -> TDecl -> CDecl
+decShowJS :: NSUser => GenVis -> TDecl -> CDecl
 decShowJS vis tdecl = 
   cNamespace nsDDL
    [ cTemplateDecl tdecl, "inline",
@@ -533,7 +548,7 @@ decShowJS vis tdecl =
   ty = cTypeNameUse vis tdecl
 
 -- | Show in ppshow friendly format
-defShowJS :: Map TName TDecl -> GenVis -> TDecl -> CDecl
+defShowJS :: NSUser => Map TName TDecl -> GenVis -> TDecl -> CDecl
 defShowJS allTypes vis tdecl =
   cNamespace nsDDL
     [ cTemplateDecl tdecl
@@ -601,7 +616,7 @@ defShowJS allTypes vis tdecl =
 --------------------------------------------------------------------------------
 -- Comparisons
 
-decCompare :: GenVis -> TDecl -> CDecl
+decCompare :: NSUser => GenVis -> TDecl -> CDecl
 decCompare vis tdecl =
   cNamespace nsDDL
     [ cTemplateDecl tdecl
@@ -610,7 +625,7 @@ decCompare vis tdecl =
   where
   ty = cTypeNameUse vis tdecl
 
-defCompare :: GenVis -> TDecl -> CDecl
+defCompare :: NSUser => GenVis -> TDecl -> CDecl
 defCompare vis tdecl =
   cNamespace nsDDL
     [ cTemplateDecl tdecl
@@ -653,7 +668,7 @@ defCompare vis tdecl =
 
       TBitdata {} -> [ "// XXX: define `compare` on bitdata" ]
 
-decCmpOp :: Doc -> GenVis -> TDecl -> CDecl
+decCmpOp :: NSUser => Doc -> GenVis -> TDecl -> CDecl
 decCmpOp op vis tdecl =
   cUserNS vis
   [ cTemplateDecl tdecl
@@ -662,7 +677,7 @@ decCmpOp op vis tdecl =
   ]
   where ty = cTypeNameUse vis tdecl
 
-defCmpOp :: Doc -> GenVis -> TDecl -> CStmt
+defCmpOp :: NSUser => Doc -> GenVis -> TDecl -> CStmt
 defCmpOp op vis tdecl =
   cUserNS vis
   [ cTemplateDecl tdecl
@@ -677,7 +692,7 @@ defCmpOp op vis tdecl =
 --------------------------------------------------------------------------------
 -- Construcotrs
 
-defCons :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defCons :: NSUser => GenVis -> GenBoxed -> TDecl -> [CDecl]
 defCons vis boxed tdecl =
   case tDef tdecl of
     TStruct {} -> [ defStructCon vis boxed tdecl ]
@@ -685,7 +700,7 @@ defCons vis boxed tdecl =
     TBitdata {} -> panic "defCons" ["bitdata"]
 
 
-defStructCon :: GenVis -> GenBoxed -> TDecl -> CDecl
+defStructCon :: NSUser => GenVis -> GenBoxed -> TDecl -> CDecl
 defStructCon vis boxed tdecl = defMethod vis tdecl "void" structCon params def
   where
   params = [ t <+> x | (t,x,_) <- fs ]
@@ -702,7 +717,7 @@ defStructCon vis boxed tdecl = defMethod vis tdecl "void" structCon params def
        , t /= TUnit
        ]
 
-defUnionCons :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defUnionCons :: NSUser => GenVis -> GenBoxed -> TDecl -> [CDecl]
 defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
   where
   defCon (l,t) n =
@@ -722,12 +737,12 @@ defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
 -- Selectors
 
 
-defSelectors :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defSelectors :: NSUser => GenVis -> GenBoxed -> TDecl -> [CDecl]
 defSelectors vis boxed tdecl =
   concatMap (defSelectorsOwn vis boxed tdecl) [GenBorrow,GenOwn]
 
 
-defGetTag :: GenVis -> GenBoxed -> TDecl -> [CDecl]
+defGetTag :: NSUser => GenVis -> GenBoxed -> TDecl -> [CDecl]
 defGetTag vis boxed tdecl =
   case tDef tdecl of
     TStruct {} -> []
@@ -741,7 +756,7 @@ defGetTag vis boxed tdecl =
     TBitdata {} -> ["// XXX: get tag for bitdata"]
 
 -- XXX: Maybe some selectors should return a reference?
-defSelectorsOwn :: GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
+defSelectorsOwn :: NSUser => GenVis -> GenBoxed -> TDecl -> GenOwn -> [CDecl]
 defSelectorsOwn vis boxed tdecl borrow =
   case tDef tdecl of
     TBitdata {} -> panic "defSelectorsOwn" [ "bitdata" ]
@@ -787,7 +802,7 @@ defSelectorsOwn vis boxed tdecl borrow =
 -- Copy & Free
 
 -- | Define a copy/free method for the given type
-defCopyFree :: GenVis -> GenBoxed -> Doc -> TDecl -> CDecl
+defCopyFree :: NSUser => GenVis -> GenBoxed -> Doc -> TDecl -> CDecl
 defCopyFree vis boxed fun tdecl =
   case tDef tdecl of
     TBitdata {} -> empty

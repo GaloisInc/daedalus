@@ -28,8 +28,8 @@ import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
 import Data.Parameterized.Classes -- OrdF
-import qualified Language.Haskell.TH.Syntax as TH
 
+import qualified Daedalus.TH as TH
 import Daedalus.SourceRange
 import Daedalus.Rec
 import qualified Daedalus.BDD as BDD
@@ -41,6 +41,7 @@ import Daedalus.AST as LocalAST
         , ModuleName
         , isLocalName
         , nameScopeAsLocal, Context(..), TypeF(..)
+        , Import(..)
         , Located(..), ScopedIdent(..), Value, Grammar, Class, Literal(..))
 
 import Daedalus.PP
@@ -309,6 +310,7 @@ data TCTyDecl   = TCTyDecl
                    , tctyBD     :: !(Maybe BDD.Pat)
                    -- ^ All possible value patterns for bitdata types.
                    , tctyDef    :: !TCTyDef
+                     -- ^ Don't generate code for extern type decls.
                    } deriving (Show, Eq,TH.Lift)
 
 data TCTyName   = TCTyAnon !Name !Int
@@ -357,7 +359,7 @@ data TCDeclDef a k = ExternDecl Type | Defined (TC a k)
 
 -- | A module consists of a collection of types and a collection of decls.
 data TCModule a = TCModule { tcModuleName    :: ModuleName
-                           , tcModuleImports :: [ Located ModuleName ]
+                           , tcModuleImports :: [ Import ]
                            , tcEntries       :: ![ Name ]
                            , tcModuleTypes   :: [ Rec TCTyDecl ]
                            , tcModuleDecls   :: [ Rec (TCDecl a) ]
@@ -601,7 +603,8 @@ instance PP (TCModule a) where
     vcat' [ "module" <+> pp (tcModuleName m)
           , "--- Imports:" $$
            vcat (map (\n -> "import" <+>
-               pp (thingValue n)) (tcModuleImports m))
+               (if importExtern n then "extern" else mempty) <+>
+               pp (importModule n)) (tcModuleImports m))
 
          , "--- Type defs:" $$
            vcat' (map pp (tcModuleTypes m))
