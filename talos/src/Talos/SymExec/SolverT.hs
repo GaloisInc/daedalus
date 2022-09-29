@@ -36,7 +36,7 @@ module Talos.SymExec.SolverT (
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, freshSymbol, defineName, declareName,
   defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
-  reset, assert, check,
+  reset, assert, check, flush,
   -- * Type Class
   MonadSolver(..)
   ) where
