@@ -108,7 +108,7 @@ emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0
 data SymbolicModel = SymbolicModel
   { smAsserts :: [SMT.SExpr]
   , smChoices :: Map PathVar ([SMT.SExpr], [Int])
-  , smCases   :: Map SymbolicCaseTag ([SMT.SExpr], [(NonEmpty PathCondition, Pattern)])
+  , smCases   :: Map SymbolicCaseTag (Name, [SMT.SExpr], [(NonEmpty PathCondition, Pattern)])
   } deriving Generic
 
 -- We should only ever combine disjoint sets, so we cheat here
@@ -175,9 +175,9 @@ recordChoice :: PathVar -> [Int] -> SymbolicM ()
 recordChoice pv ixs =
   tell (SymbolicModel mempty (Map.singleton pv (mempty, ixs)) mempty)
 
-recordCase :: SymbolicCaseTag -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
-recordCase stag rhss =
-  tell (SymbolicModel mempty mempty (Map.singleton stag (mempty, rhss)))
+recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
+recordCase stag n rhss =
+  tell (SymbolicModel mempty mempty (Map.singleton stag (n, mempty, rhss)))
 
 extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
 extendPath g = addGuard . addImpl
@@ -190,7 +190,7 @@ extendPath g = addGuard . addImpl
     -- Merge in the guard g with the path for the known choices/cases
     addGuard = 
       over (field @"smChoices") (fmap (_1 %~ (g :)))
-      . over (field @"smCases") (fmap (_1 %~ (g :)))
+      . over (field @"smCases") (fmap (_2 %~ (g :)))
 
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do

@@ -13,7 +13,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 import           Control.DeepSeq             (force)
 import           Control.Exception           (evaluate)
 
-import           Control.Lens                 (_1, _2, at, each, over, (.=), (%~), (<>~), (&), (.~), (%=), (+~))
+import           Control.Lens                 (_1, _2, _3, at, each, over, (.=), (%~), (<>~), (&), (.~), (%=), (+~), view, (^.))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -69,7 +69,7 @@ import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
-import Daedalus.PP (showPP, text)
+import Daedalus.PP (showPP, text, pp, commaSep, Doc, brackets)
 import Talos.Strategy.OptParser (parseOpts, Opt)
 import qualified Talos.Strategy.OptParser as P
 import Text.Printf (printf)
@@ -103,14 +103,20 @@ pathSymbolicStrat = Strategy
 -- ----------------------------------------------------------------------------------------
 -- Configuration
 
-data Config = Config { cMaxRecDepth :: Int }
+data Config = Config { cMaxRecDepth :: Int
+                     , cNModels :: Int
+                     , cMaxUnsat :: Maybe Int
+                     }
   deriving (Generic)
 
 defaultConfig :: Config
-defaultConfig = Config 10
+defaultConfig = Config 10 1 Nothing
 
 configOpts :: [Opt Config]
-configOpts = [P.option "max-depth" (field @"cMaxRecDepth") P.intP ]
+configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
+             , P.option "num-models" (field @"cNModels")     P.intP
+             , P.option "max-unsat"  (field @"cMaxUnsat")    (Just <$> P.intP)
+             ]
 
 -- ----------------------------------------------------------------------------------------
 -- Main functions
@@ -139,7 +145,7 @@ symbolicFun config ptag sl = do
     let topoDeps = topoOrder (second sliceToCallees) deps
     (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (stratSlice ptag sl)
     let go (_, pb) = do
-          rs <- buildPaths 10 1000 sm pb
+          rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           case rs of
             []    -> pure Nothing
             r : _ -> pure (Just r)
@@ -333,7 +339,7 @@ stratCase ptag total cs m_sccs = do
       -- enabled).
 
       enabledChecks preds
-      recordCase stag [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
+      recordCase stag (caseVar cs) [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
 
       pure (v, SelectedCase (SymbolicCase stag inv paths))
 
@@ -591,12 +597,12 @@ getPathVar pv = do
       field @"mpsMMS" %= updateStats n
       pure n
   where
+    -- bit gross doing this here ...
     updateStats n mms
-      | Just (path, idxs) <- Map.lookup pv (mmsChoices mms)
-      , n `elem` idxs =
-        let idxs' = delete n idxs
-            res | null idxs' = Nothing
-                | otherwise  = Just (path, idxs')
+      | Just chi <- Map.lookup pv (mmsChoices mms)
+      , n `notElem` mmschiSeen chi =
+        let res | length (mmschiSeen chi) + 1 == length (mmschiAllChoices chi) = Nothing
+                | otherwise  = Just (chi & field @"mmschiSeen" %~ (n :))
         in mms & field @"mmsChoices" . at pv .~ res
                & field @"mmsNovel" +~ 1
       | otherwise = mms & field @"mmsSeen" +~ 1
@@ -620,84 +626,125 @@ runModelParserM :: MultiModelState -> ModelParserM a -> SolverT StrategyM (a, Mu
 runModelParserM mms mp =
   (_2 %~ mpsMMS) <$> runStateT mp (ModelParserState mempty mempty mms)
 
+data MMSCaseInfo = MMSCaseInfo
+  { -- Read only
+    mmsciName    :: Name      -- ^ Name of the case var, for debugging
+  , mmsciAllPats :: [(S.SExpr, Pattern)] -- ^ All patterns (read only)
+  , mmsciPath    :: S.SExpr -- ^ Path to the case
+  -- Updated
+  , mmsciSeen    :: [Pattern] -- ^ Case alts we have already seen
+  } deriving Generic
+  
+data MMSChoiceInfo = MMSChoiceInfo
+  { -- Read only
+    mmschiAllChoices :: [Int] -- ^ All choices (read only)
+  , mmschiPath       :: S.SExpr -- ^ Path to the choice
+  -- Updated  
+  , mmschiSeen       :: [Int]     -- ^ Choice alts we have already seen
+  } deriving Generic
+  
 -- This contains all the choices we haven't yet seen.  It might be
 -- better to just negate the seen choices, but this is a bit simpler
 -- for now.
 data MultiModelState = MultiModelState
-  { mmsChoices :: Map PathVar ([S.SExpr], [Int])
-  , mmsCases   :: Map SymbolicCaseTag ([S.SExpr], [(NonEmpty PathCondition, Pattern)])
+  { mmsChoices :: Map PathVar MMSChoiceInfo
+  , mmsCases   :: Map SymbolicCaseTag MMSCaseInfo
   , mmsNovel   :: Int -- ^ For a run, how many novel choices/cases we saw.
   , mmsSeen    :: Int -- ^ For a run, how many seen choices/cases we saw.
   } deriving Generic
 
-nextChoice :: MultiModelState -> SolverT StrategyM (Maybe (MultiModelState, S.SExpr))
+-- This just picks one at a time, we could also focus on a particular (e.g.) choice until exhausted.
+nextChoice :: MultiModelState -> SolverT StrategyM (Maybe (S.SExpr, MultiModelState -> MultiModelState, Doc))
 nextChoice mms
   -- FIXME: just picks the first, we could be e.g. random
-  | Just ((pv, (path, idxs)), mmsC) <- Map.minViewWithKey (mmsChoices mms) = do
-      idx <- randL idxs
-      let idxs' = delete idx idxs
-          mmsC' | null idxs'  = mmsC
-                | otherwise   = Map.insert pv (path, idxs') mmsC
-          p = S.eq (pathVarToSExpr pv) (S.int (fromIntegral idx))
-
-      pure (Just (mms { mmsChoices = mmsC' }, MV.andMany (p : path)))
-  | Just ((stag, (path, pats)), mmsC) <- Map.minViewWithKey (mmsCases mms) = do
-      (vcond, pat) <- randL pats
-      let pats' = [ gpat | gpat <- pats, snd gpat /= pat ]
-          mmsC' | null pats'  = mmsC
-                | otherwise   = Map.insert stag (path, pats') mmsC
-          -- FIXME: duplicates the work done in guardedCase
-          p = MV.orMany (map PC.toSExpr (NE.toList vcond))
-      pure (Just (mms { mmsCases = mmsC' }, MV.andMany (p : path)))
+  | Just ((pv, chi), _mmsC) <- Map.minViewWithKey (mmsChoices mms) = do
+      let notSeen = S.distinct (pathVarToSExpr pv : map (S.int . fromIntegral) (mmschiSeen chi))
+          exhaust = over (field @"mmsChoices") (Map.delete pv)
+      pure (Just (MV.andMany [notSeen, mmschiPath chi]
+                 , exhaust
+                 , pp pv <> " in " <> brackets (commaSep [ pp i | i <- mmschiAllChoices chi, i `notElem` mmschiSeen chi])))
+  | Just ((stag, ci), _mmsC) <- Map.minViewWithKey (mmsCases mms) = do
+      let notSeen = S.not (MV.orMany [ p | (p, pat) <- mmsciAllPats ci, pat `elem` mmsciSeen ci ])
+          exhaust = over (field @"mmsCases") (Map.delete stag)
+          -- p = MV.orMany (map PC.toSExpr (NE.toList vcond))
+      pure (Just ( MV.andMany [notSeen, mmsciPath ci]
+                 , exhaust
+                 , pp (mmsciName ci) <> "." <> pp stag <> " in "
+                   <> brackets (commaSep [ pp pat | (_, pat) <- mmsciAllPats ci, pat `notElem` mmsciSeen ci])))  -- <> commaSep (map pp (mmsciSeen ci))))
   | otherwise = pure Nothing
 
 modelChoiceCount :: MultiModelState -> Int
-modelChoiceCount mms = length choices + length cases
+modelChoiceCount mms = choices + cases
   where
-    choices = concatMap snd $ Map.elems (mmsChoices mms)
-    cases   = concatMap snd $ Map.elems (mmsCases mms)
+    choices = sum $ [ length (mmschiAllChoices chi) - length (mmschiSeen chi)
+                    | chi <- Map.elems (mmsChoices mms)
+                    ]
+    cases   = sum $ [ length (mmsciAllPats ci) - length (mmsciSeen ci)
+                    | ci <- Map.elems (mmsCases mms)
+                    ]
 
-buildPaths :: Int -> Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
+
+symbolicModelToMMS :: SymbolicModel -> MultiModelState
+symbolicModelToMMS sm = MultiModelState
+  { mmsChoices = fmap mkCh (smChoices sm)
+  , mmsCases   = fmap mkCi (smCases   sm)
+  , mmsNovel   = 0
+  , mmsSeen    = 0
+  }
+  where
+    mkCh (paths, idxs) = MMSChoiceInfo
+      { mmschiAllChoices = idxs
+      , mmschiPath = MV.andMany paths
+      , mmschiSeen = []
+      }
+    mkCi (name, paths, pats) = MMSCaseInfo
+      { mmsciName    = name
+      , mmsciAllPats = over (each . _1) (MV.orMany . map PC.toSExpr . NE.toList) pats
+      , mmsciPath    = MV.andMany paths
+      , mmsciSeen    = []
+      }
+      
+buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
 buildPaths ntotal nfails sm pb = do
-  liftIO $ printf "\n\t%d choices and cases\n" (modelChoiceCount st0)
+  liftIO $ printf "\n\t%d choices and cases" (modelChoiceCount st0)
+  (_, tassert) <- timeIt $ do
+    mapM_ Solv.assert (smAsserts sm)
+    Solv.flush
+  liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
 
   Solv.getContext >>= go 0 st0 pb []
   where
-    st0 = MultiModelState { mmsChoices = smChoices sm
-                          , mmsCases   = smCases   sm
-                          , mmsNovel   = 0
-                          , mmsSeen    = 0
-                          }
+    st0 = symbolicModelToMMS sm
     go _nf _st _pb acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
-    go nf  _st _pb acc ctxt | nf == nfails         = acc <$ Solv.restoreContext ctxt
+    go nf  _st _pb acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
     go nf st pb acc ctxt = do
       Solv.restoreContext ctxt
       m_next <- nextChoice st
       case m_next of
         Nothing -> pure acc -- Done, although we could try for different byte values?
-        Just (st', assn) -> do
+        Just (assn, exhaust, descr) -> do
           (_, tassert) <- timeIt $ do
             Solv.assert assn
             Solv.flush
           (r, tcheck) <- timeIt Solv.check
-          -- liftIO $ print (pp pb)
-          liftIO $ printf "\tAssert time: %.3fms, Solve time: %.3fms"
+          liftIO $ printf "\t(%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
+                          (show descr) (modelChoiceCount st)
                           (fromInteger tassert / 1000000 :: Double)
                           (fromInteger tcheck / 1000000 :: Double)
           case r of
             S.Unsat   -> do
-              liftIO $ putStrLn "(unsat)"
-              go (nf + 1) st' pb acc ctxt
+              liftIO $ putStrLn " (unsat)"
+              go (nf + 1) (exhaust st) pb acc ctxt
             S.Unknown -> do
-              liftIO $ putStrLn "(unknown)"
-              go (nf + 1) st' pb acc ctxt
+              liftIO $ putStrLn " (unknown)"
+              go (nf + 1) (exhaust st) pb acc ctxt
             S.Sat     -> do
-              ((p, st''), tbuild) <- timeIt $ buildPath st' pb
+              ((p, st'), tbuild) <- timeIt $ buildPath st pb
               liftIO $ printf ", build time: %.3fms, novel: %d, reused: %d\n"
                 (fromInteger tbuild / 1000000 :: Double)
-                (mmsNovel st'') (mmsSeen st'')
+                (mmsNovel st') (mmsSeen st')
 
-              go nf st'' pb (p : acc) ctxt
+              go nf st' pb (p : acc) ctxt
 
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: MultiModelState -> PathBuilder ->
@@ -736,7 +783,9 @@ buildPath mms0 = runModelParserM mms . go
       let (pat, p) = case find (flip I.matches v . fst) ps of
             Nothing ->
               panic "Missing case alt" [showPP v
-                                       , showPP (text . typedThing <$> gses)]
+                                       , showPP (text . typedThing <$> gses)
+                                       , showPP (commaSep (map (pp . fst) ps))
+                                       ]
             Just r -> r
 
       field @"mpsMMS" %= updateCaseStats stag pat
@@ -745,11 +794,10 @@ buildPath mms0 = runModelParserM mms . go
 
     -- c.f. getPathVar
     updateCaseStats stag pat mms'
-      | Just (path, pats) <- Map.lookup stag (mmsCases mms')
-      , any ((==) pat . snd) pats =
-        let pats' = [ p | p <- pats, snd p /= pat ]
-            res | null pats' = Nothing
-                | otherwise  = Just (path, pats')
+      | Just ci <- Map.lookup stag (mmsCases mms')
+      , pat `notElem` mmsciSeen ci =
+        let res | length (mmsciSeen ci) + 1 == length (mmsciAllPats ci) = Nothing
+                | otherwise  = Just (ci & field @"mmsciSeen" %~ (pat :))
         in mms' & field @"mmsCases" . at stag .~ res
                 & field @"mmsNovel" +~ 1
       | otherwise = mms' & field @"mmsSeen" +~ 1
