@@ -20,6 +20,8 @@ module Daedalus.Interp
   , ParseError(..)
   , Result(..)
   , Input(..)
+  , InterpError(..)
+  , interpError
   -- For synthesis
   , compilePureExpr
   , compilePredicateExpr
@@ -34,6 +36,7 @@ module Daedalus.Interp
 
 import GHC.Float(double2Float)
 import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
+import Control.Exception(Exception(..), throw)
 
 import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
@@ -87,6 +90,53 @@ instance Show (Fun a) where
 
 type PParser a = [SomeVal] -> Parser a
 
+
+-- | We throw these exceptions for dynaimc errors encountered furing evaluation
+-- (e.g., division by 0)
+data InterpError = PartialValue String
+                 | PatternMatchFailure String
+                 | MultipleStartRules [ ScopedIdent ]
+                 | UnknownStartRule ScopedIdent
+                 | InvalidStartRule ScopedIdent
+                 | MissingExternal ScopedIdent
+  deriving (Show)
+
+ppInterpError :: InterpError -> Doc
+ppInterpError err =
+  case err of
+    PartialValue msg -> text msg
+    PatternMatchFailure msg -> text msg
+    MultipleStartRules rs ->
+      hang "Multiple start rules:" 2 (bullets (map pp rs))
+    UnknownStartRule r -> "Unknown start rule" <+> backticks (pp r)
+    InvalidStartRule r ->
+      vcat
+        [ hang
+            (vcat [ backticks (pp r) <+> "is not a valid start rule."
+                  , "The interpreter start rule should not have any:"
+                  ])
+            2
+            (bullets [ "type parameters"
+                     , "implicit parameters"
+                     , "explicit parameters" ])
+        , "You may use the `show-types` command to see the types of the parsers"
+        ]
+    MissingExternal x ->
+      hang
+        ("Tried to execute external declaration" <+> backticks (pp x))
+        2
+        (bullets
+          [ "The interpreter cannot execute externally defined parsers"
+          , "Only the the compiled backends may use external primiteves."
+          ])
+
+
+instance Exception InterpError where
+  displayException = show . ppInterpError
+
+interpError :: InterpError -> a
+interpError = throw
+
 -- -----------------------------------------------------------------------------
 -- Interpreting as a Haskell function
 
@@ -127,7 +177,7 @@ addValMaybe (Just x) v e = addVal x v e
 partial :: Partial a -> a
 partial val =
   case val of
-    Left err -> error err
+    Left err -> interpError (PartialValue err)
     Right a  -> a
 
 partial2 :: (Value -> Value -> Partial Value) -> Value -> Value -> Value
@@ -374,7 +424,10 @@ compilePureExpr env = go
             TVBDUnion bd -> VBDUnion bd (vToBits (go e))
             _ -> VUnionElem lbl (go e)
         TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
-                            Nothing -> error ("BUG: unknown value variable " ++ show (pp x))
+                            Nothing -> panic "compilePureExpr"
+                                          [ "unknown value variable"
+                                          , show (pp x)
+                                          ]
                             Just v  -> v
 
         TCUniOp op e1      -> evalUniOp op (go e1)
@@ -393,7 +446,10 @@ compilePureExpr env = go
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
             Just r  -> invoke r env ts es []
-            Nothing -> error $ "BUG: unknown grammar function " ++ show (pp x)
+            Nothing -> panic "compilePureExpr"
+                         [ "unknown grammar function"
+                         , show (pp x)
+                         ]
 
         TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
 
@@ -402,7 +458,7 @@ compilePureExpr env = go
         TCCase e alts def ->
           evalCase
             compilePureExpr
-            (error (describeAlts alts))
+            (interpError (PatternMatchFailure (describeAlts alts)))
             env e alts def
 
 evalLiteral :: Env -> Type -> Literal -> Value
@@ -636,13 +692,15 @@ compilePredicateExpr env = go
         TCVar x ->
           case Map.lookup (tcName x) (clsEnv env) of
             Just p -> p
-            Nothing -> error ("BUG: undefined class " ++ show x)
+            Nothing -> panic "compilePredicateExpr"
+                          [ "undefined class", show (pp x) ]
 
         TCFor {} -> panic "compilePredicateExpr" [ "TCFor" ]
         TCCall f ts as ->
           case Map.lookup (tcName f) (clsFun env) of
             Just p -> invoke p env ts as []
-            Nothing -> error ("BUG: undefined clas function " ++ show f)
+            Nothing -> panic "compilePredicateExpr"
+                        [ "undefined class function", show (pp f) ]
         TCSetAny -> RTS.bcAny
         TCSetSingle e ->
           RTS.bcSingle (UInt (valueToByte (compilePureExpr env e)))
@@ -868,7 +926,8 @@ compilePExpr env expr0 args = go expr0
         TCVar x ->
           case Map.lookup (tcName x) (gmrEnv env) of
             Just v  -> v args
-            Nothing -> error $ "BUG: unknown grammar variable " ++ show (pp x)
+            Nothing -> panic "compilePExpr" [ "unknown grammar variable"
+                                            , show (pp x) ]
 
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of
@@ -918,8 +977,8 @@ compileDecl prims env TCDecl { .. } =
             | ("Debug","Trace") <- K.nameScopeAsModScope tcDeclName ->
               FGrm (Fun \_ -> tracePrim)
 
-            | otherwise -> panic "compileDecl"
-              [ "No implementation for primitive: " ++ show (pp tcDeclName) ]
+            | otherwise ->
+                interpError (MissingExternal (nameScopedIdent tcDeclName))
 
       Defined d ->
         case tcDeclCtxt of
@@ -956,11 +1015,11 @@ compileDecl prims env TCDecl { .. } =
 
   newEnv targs args
     | length targs /= length tcDeclTyParams =
-      error ("BUG: not enough type arguments for " ++ show (pp tcDeclName)
-              ++ ". This usually indicates some expression in the program became polymorphic, "
-              ++ "which can be fixed by adding more type annotations.")
+      panic "compileDecl" [ "not enough type arguments for"
+                          , show (pp tcDeclName)
+                          ]
     | length args /= length tcDeclParams =
-      error ("BUG: not enough args for " ++ show tcDeclName)
+      panic "compileDecl" [ "not enough args for", show tcDeclName ]
     | otherwise =
       let withT = foldr addTyArg env (zip tcDeclTyParams targs)
       in foldr addArg withT (zip tcDeclParams args)
@@ -980,10 +1039,17 @@ compileDecls prims env decls = env'
     -- Tying the knot so that we get mutual recursion
     env' = foldr addDecl env (map (compileDecl prims env') decls)
 
-compile :: HasRange a =>
-          [ (Name, ([Value] -> Parser Value)) ]
-        -> [TCModule a] -> Env
-compile builtins prog = foldl (compileDecls prims) env0 allRules
+compile ::
+  HasRange a =>
+  ScopedIdent ->
+  [ (Name, ([Value] -> Parser Value)) ] ->
+  [TCModule a] ->
+  Env
+compile start builtins prog =
+  case Map.lookup start ruleMap of
+    Just ([],[]) -> foldl (compileDecls prims) env0 allRules
+    Just _ -> interpError (InvalidStartRule start)
+    Nothing -> interpError (UnknownStartRule start)
   where
     prims = Map.fromList [ (i, mkRule f) | (i, f) <- builtins ]
     someValToValue sv =
@@ -993,19 +1059,22 @@ compile builtins prog = foldl (compileDecls prims) env0 allRules
 
     mkRule f = FGrm $ Fun $ \_ svals -> f (map someValToValue svals)
 
+
     allRules   = map (forgetRecs . tcModuleDecls) prog
     allTyDecls = concatMap (forgetRecs . tcModuleTypes) prog
 
     env0     = emptyEnv { tyDecls = Map.fromList [ (tctyName d, d) | d <- allTyDecls ] }
+    ruleMap =
+      Map.fromList [ ( nameScopedIdent (tcDeclName x)
+                     , (tcDeclTyParams x, tcDeclParams x)
+                     ) | rs <- allRules, x <- rs ]
 
 interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    (rl : _)        -> P.runParser (rl [] (map VVal args))
-                       (newInput name bytes)
-    []              -> error ("Unknown start rule: " ++ show startName ++ ". Known rules: "
-                               ++ show [ nameScopedIdent x | (x, _) <- Map.toList (ruleEnv env) ] )
+    rl : _  -> P.runParser (rl [] (map VVal args)) (newInput name bytes)
+    [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
           ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
@@ -1013,7 +1082,7 @@ interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
 interp builtins nm bytes prog startName =
   interpCompiled nm bytes env startName []
   where
-    env = compile builtins prog
+    env = compile startName builtins prog
 
 interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
                                               IO (ByteString, Result Value)
