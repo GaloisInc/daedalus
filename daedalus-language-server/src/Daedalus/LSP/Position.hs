@@ -2,6 +2,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BlockArguments #-}
 
 -- ---------------------------------------------------------------------------------------
 -- Mapping positions to things
@@ -71,14 +72,15 @@ declToNames d@TCDecl { tcDeclName = n, tcDeclParams = ps, tcDeclDef = def } =
       TCDo (Just v) _ _ -> vdef v : goBody tc
       TCFor l ->
         case loopFlav l of
-          Fold v _ -> [vdef v]
-          _ -> []
-        ++ (vdef <$> maybeToList (loopKName l))
-        ++ [ vdef (loopElName l) ]
+          Fold v  _ c     -> vdef v : vDefCol c
+          LoopMany _ v _  -> [vdef v]
+          LoopMap c       -> vDefCol c
         ++ goBody tc
       TCCall v _ _      -> fuse v : goBody tc
       TCCase _ alts _ -> (vdef <$> foldMap altBinds alts) ++ goBody tc
       _ -> goBody tc
+
+    vDefCol c = maybeToList (vdef <$> lcKName c) ++ [ vdef (lcElName c) ]
 
     goBody = foldMapTC go
 
@@ -130,10 +132,25 @@ typeAtTC pos tc = do
     Some tc' : _ -> case texprValue tc' of
       TCDo (Just n) _ _ | positionInRange pos n  -> Just (typeOf n, range n)
       TCCall fn _ _     | positionInRange pos fn -> Just (typeOf fn, range fn) -- FIXME: this just returns the result type, not the fn type
-      TCFor Loop { loopFlav = Fold n _ } | positionInRange pos n  -> Just (typeOf n, range n)
-      TCFor Loop { loopKName = Just n  } | positionInRange pos n  -> Just (typeOf n, range n)
-      TCFor Loop { loopElName = n  }     | positionInRange pos n  -> Just (typeOf n, range n)
+
+      TCFor (loopFlav -> Fold n _ c)
+        | positionInRange pos n  -> Just (typeOf n, range n)
+        | Just yes <- colNames c -> Just yes
+
+      TCFor (loopFlav -> LoopMany _ n _)
+        | positionInRange pos n  -> Just (typeOf n, range n)
+
+      TCFor (loopFlav -> LoopMap c)
+        | Just yes <- colNames c -> Just yes
+
       _ -> Just (typeOf tc', range tc') -- Fallthough, at least return something.
+
+  where
+  colNames col = msum [ do guard (positionInRange pos x)
+                           pure (typeOf x, range x)
+                      | x <- maybeToList (lcKName col) ++ [lcElName col]
+                      ]
+
 
 exprTree :: TCDecl SourceRange -> Doc
 exprTree TCDecl { tcDeclDef = ExternDecl _  } = "external"
