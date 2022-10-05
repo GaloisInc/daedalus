@@ -2,6 +2,11 @@ This folder contains the sources for the Daedalus manual.
 
 The source for the manual is in `source/index.rst`.
 
+Prerequsits:
+
+    pip install sphinx_rtd_theme
+    pip install sphinx_design
+
 To build a PDF or html document use:
 
     make latexpdf
