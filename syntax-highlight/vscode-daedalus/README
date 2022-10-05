@@ -1,0 +1,35 @@
+This directory contains code to integrate the DaeDaLus LSP server
+with Visual Studio Code.
+
+Prerequisites
+-------------
+
+To build the extension you'll need `npm` and `libsecret-1-0`
+
+    apt-get update && apt-get install -y npm libsecret-1-0
+
+Building the Extension
+----------------------
+
+    npm install vsce && npm install && npm run package
+
+If this is successful you should now have a VSCode extension
+called `daedalus-0.0.1.vsix` in the current directory.
+
+Adding the Extension to VS Code
+-------------------------------
+
+  1. Open the "Extensions" pane (menu: View / Extensions)
+  2. From the `...` menu in "Extensions" select "Install from VSIX"
+  3. Navigate to the location of `daedalus-0.0.1.vsix` and select it
+  4. Make sure that the `daedalus-language-server` executable is in your path
+
+Test
+----
+
+To see the extension in action open a DaeDaLus specification (a `.ddl` file).
+VS Code should recognize the file as `Daedalus` (in the bottom status bar).
+You should get syntax highlighting for the file, and when you hover
+over expressions you should be able to see their type.
+
+
