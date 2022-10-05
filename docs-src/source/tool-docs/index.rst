@@ -1,3 +1,10 @@
+***************
+Using the Tools
+***************
+
+Here we show how to use various tools related to the DaeDaLus language.
+
+
 
 Help
 ====
