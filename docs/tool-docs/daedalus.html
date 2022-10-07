@@ -46,7 +46,12 @@
 <li class="toctree-l2"><a class="reference internal" href="#command-show-types">Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#command-run">Command <code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#command-compile-hs">Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#command-compile-c">Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-compile-c">Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#generated-files">Generated Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#flags">Flags</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#command-dump">Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
@@ -185,6 +190,18 @@ polymorphic) and it should not have any parameters, implicit or explicit.</p>
 <dd><p>Show the parsed semantic value rendered as HTML.</p>
 </dd></dl>
 
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--core</span></span></dt>
+<dd><p>Use the Core IR interpreter.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--vm</span></span></dt>
+<dd><p>Use the VM IR interpreter.</p>
+</dd></dl>
+
 </section>
 <section id="command-compile-hs">
 <h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this headline"></a></h1>
@@ -211,10 +228,196 @@ command will start using the new backend.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-c++ MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
-<p>This will generate a number of C++ files together with a <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> and
-a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
-The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
-generate Doxygen documentation.</p>
+<section id="generated-files">
+<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this headline"></a></h2>
+<dl class="simple">
+<dt>The compiled parser is in two files:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">main_parser.h</span></code> contains the interface to the generated parser, and</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">main_parser.cpp</span></code> contains the implementation of the parser.</p></li>
+</ul>
+</dd>
+</dl>
+<p>In addition, the DaeDaLus compiler may generate a sample executable driver
+and <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> illustrating how to build the parser and generate Doxygen
+documentation.  The sample executable expects that the compiled specification
+contains a parser named <code class="docutils literal notranslate"><span class="pre">Main</span></code> that has a fixed type and no parameters
+of any kind—if this is not the case, the sample driver will fail to compile.</p>
+<p>The sample executable driver will be generated when:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>there is no explicit <code class="docutils literal notranslate"><span class="pre">--entry</span></code> specified, and</p></li>
+<li><p>there is no custom user state <code class="docutils literal notranslate"><span class="pre">--user-state</span></code></p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="flags">
+<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this headline"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
+<dd><p>Save generated files in the given directory.
+The directory will be created if it does not exist.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--out-dir-header=DIRECTORY</span></span></dt>
+<dd><p>Save generated header files in the given directory.
+The directory will be created if it does not exist.
+If this is not specified, then the headers will be saved in
+<code class="docutils literal notranslate"><span class="pre">--out-dir</span></code></p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--file-root=STRING</span></span></dt>
+<dd><p>Use the given string for the names of the generated parser
+implementation and header.
+If not specified this will be <code class="docutils literal notranslate"><span class="pre">main_parser</span></code>.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--user-namespace=NAMESPACE</span></span></dt>
+<dd><p>Place generated type declarations in the given name space.
+Note that at present this applies only to generate types.
+Generated parser entry point always reside in the default namespace.
+If this is not specified, this will be <code class="docutils literal notranslate"><span class="pre">User</span></code></p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-error-stack</span></span></dt>
+<dd><p>Disable call stack tracking in errors.   Without this option,
+we generate code that leads to more detailed parse error messaged,
+at some runtime cost.   Adding this flag leads to less detailed
+parse errors, but some potential performance gain.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--user-state=SATE_TYPE</span></span></dt>
+<dd><p>Generate a parser where the parser’s state will be extended with
+some user state of the given type.  This is useful in certain situations
+(e.g., caching of data), but care needs to be taken that updates
+to this state make sense even when the parsers backtracks.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--add-include=INCLUDE</span></span></dt>
+<dd><p>Add an additoinal <cite>#include</cite> to the generated parser header file.
+Typically, this is used to support custom user state, or integration
+with an pre-compiled DaeDaLus parser.  The parameter should just contain
+the thing to be incuded (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;file.h&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&lt;file.h&gt;</span></code>).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--entry=[MODULE.]NAME</span></span></dt>
+<dd><p>Declare that the given parser is an entry point for the generated parser.
+Specifying an entry point will disable the genration of a sample driver
+executable.  The name of the C++ function corresponding to DaeDaLus
+declaration <code class="docutils literal notranslate"><span class="pre">F</span></code> is <code class="docutils literal notranslate"><span class="pre">parseF</span></code>.  The entry point should have a fixed
+type, but MAY have argument.</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Sample entry point for parser <code class="docutils literal notranslate"><span class="pre">Main</span></code> with no extra arguments,
+returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id2" title="Permalink to this code"></a></div>
+<div class="highlight-C++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">parseMain</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">ParseError</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span><span class="w"></span>
+<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">results</span><span class="w"></span>
+<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">Input</span><span class="w">      </span><span class="n">input</span><span class="w"></span>
+<span class="w">               </span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<p>If an extry point has arguments, they’ll come after the <code class="docutils literal notranslate"><span class="pre">input</span></code> argument.
+The entry point returns any parsed semantic values in the <code class="docutils literal notranslate"><span class="pre">results</span></code> vector,
+there could be multiple results if the grammar is ambiguous.  If there
+are no results (i.e., <code class="docutils literal notranslate"><span class="pre">results</span></code> is empty), then <code class="docutils literal notranslate"><span class="pre">error</span></code> will contain
+information about the parser error.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--inline</span></span></dt>
+<dd><p>Perform agressive inlinining—all parsers that can be inlined will be
+inlinined at each use site.  Sometimes this may improve performance, but
+sometimes it may reduce it, due to a significant increase in the size
+of the generate code.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--inlinine-this=[MODULE.]NAME</span></span></dt>
+<dd><p>Inline uses of a specific parser.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--extern=MODULE[:NAMESPACE]</span></span></dt>
+<dd><p>Do not generate declarations for the types declared in the given module.
+This is useful when interfacing with a pre-compiled DaeDaLus parser,
+which already contains declarations for the given types.  Often, this
+option will be comined with <code class="docutils literal notranslate"><span class="pre">add-include</span></code> to include the declarations
+of the already compiled code.  If a namespace is provided, then uses of
+types in the given module will be qualified with the given namespace.
+Otherwise, the default namespace <code class="docutils literal notranslate"><span class="pre">User</span></code> will be used.</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="command-dump">
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this headline"></a></h1>
+<p>This command is largely for debuging.  It shows the various IR structures
+of the DaeDaLus compiler.</p>
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--parsed</span></span></dt>
+<dd><p>Show the results of just parsing a specification.  This ensures that
+a specification is syntactically correct.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--resolved</span></span></dt>
+<dd><p>Show the results of name resultion.  This associates uses of names
+with their definitions.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--tc</span></span></dt>
+<dd><p>Show the results of type-checking.  This validates the specification
+and esnures that parsers are used correctly (e.g. have the correct
+number of arguments with the correct types).  The <code class="docutils literal notranslate"><span class="pre">dump</span></code> command
+will show this phase, unless another is specified.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--spec</span></span></dt>
+<dd><p>Show the IR after <em>specialization</em>.  Specialization eliminates
+polymorphism and parsers with other parsers as arguments.
+This works by generating custom instances of a parser
+(similar to C++ template expansion).  After this pahse,
+parsers are monomorphic and have only semantic values as parameters.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--core</span></span></dt>
+<dd><p>Show the Core IR representation.  A number of DaeDaLus constructs
+are desugared into simpler constructs.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--vm</span></span></dt>
+<dd><p>This is the lowest level IR, which is used to generate code.
+It is essentially a control flow graph in SSA form, except that
+instead of using “phi” blocks, basic blocks have parameters.</p>
+</dd></dl>
+
 </section>
 
 
