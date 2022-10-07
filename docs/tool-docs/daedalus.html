@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Help &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Language Reference" href="../user-guide/index.html" />
+    <link rel="prev" title="The Command-Line Tools" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">The Command-Line Tools</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-show-types">Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-run">Command <code class="docutils literal notranslate"><span class="pre">run</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-compile-hs">Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-compile-c">Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">The Command-Line Tools</a> &raquo;</li>
+      <li>Getting Help</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tool-docs/daedalus.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-help">
+<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this headline"></a></h1>
+<p>To see a list of available commands and options that apply to all commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
+</pre></div>
+</div>
+<p>To see a list of options for a specific command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus COMMAND --help
+</pre></div>
+</div>
+</section>
+<section id="command-show-types">
+<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this headline"></a></h1>
+<p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus show-types MyParserSpec.ddl
+</pre></div>
+</div>
+<p>The command prints information about the types and parsers defined by
+the given specification.  For example:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id1" title="Permalink to this code"></a></div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Types
+======
+
+def List a =
+  union
+    nil: {}
+    cons: NonEmptyList a
+
+def NonEmptyList a =
+  struct
+    head: a
+    tail: List a
+
+
+Parsers and Semantic Values
+===========================
+
+def List:
+  for any type a:
+  parameter: parser of a
+  defines: parser of List a
+
+def NonEmptyList:
+  for any type a:
+  parameter: parser of a
+  defines: parser of NonEmptyList a
+
+def Main:
+  defines: parser of List (uint 8)
+</pre></div>
+</div>
+</div>
+<p>The resulting types have the following form:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ParserName</span><span class="p">:</span>
+  <span class="n">parameter</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">A</span><span class="o">&gt;</span>
+  <span class="n">parameter</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">B</span><span class="o">&gt;</span>
+  <span class="p">...</span>
+  <span class="n">defines</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">type</span> <span class="n">C</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>This resembles a C type declaration as follows:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">C</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">B</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>The types themselves may be simple types such as integers or arrays, but they
+often have the form <code class="docutils literal notranslate"><span class="pre">parser</span> <span class="pre">of</span> <span class="pre">&lt;type</span> <span class="pre">A&gt;</span></code>. This indicates that the parameter or
+result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
+</section>
+<section id="command-run">
+<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this headline"></a></h1>
+<p>This command is used to run a DaeDaLus specification using the interpreter:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus run MyParserSpec.ddl --input<span class="o">=</span>input.txt
+</pre></div>
+</div>
+<p>This command will run the parser defined in <code class="docutils literal notranslate"><span class="pre">MyParserSpec.ddl</span></code> on the
+input from file <code class="docutils literal notranslate"><span class="pre">input.txt</span></code>.</p>
+<p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.</p>
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--input=FILE</span></span></dt>
+<dd><p>Specifies that the input for the parser should be read from the given file.
+If no <code class="docutils literal notranslate"><span class="pre">--input</span></code> is specified, then the interpreter will run with
+an empty input.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--entry=[MODULE.]NAME</span></span></dt>
+<dd><p>Specifies which parser defined by the specification should be executed.
+If no <code class="docutils literal notranslate"><span class="pre">--entry</span></code> is specified, then the interpreter will
+run the parser called <code class="docutils literal notranslate"><span class="pre">Main</span></code>.</p>
+<p>The entry parser should have a fixed type (i.e., it should not be
+polymorphic) and it should not have any parameters, implicit or explicit.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--json</span></span></dt>
+<dd><p>Show the parsed semantic valus using a JSON based format.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--html</span></span></dt>
+<dd><p>Show the parsed semantic value rendered as HTML.</p>
+</dd></dl>
+
+</section>
+<section id="command-compile-hs">
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this headline"></a></h1>
+<p>To compile a DaeDaLus parser specification to Haskell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-hs MyParserSpec.ddl
+</pre></div>
+</div>
+<p>The result is a Haskell module which contains definitions for the
+parsers and functions defined in the specification.</p>
+<p>To use the generated code you’d have to integrate it with a Haskell
+project and also use the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>At present the command <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code> uses the <em>old</em> Haskell backend which
+may go away in future.  To use the new backend, which is actively
+maintained, please use Template Haskell.   If there is deman, we may adapt
+the new backend to generate explcit Haskell files, in which case this
+command will start using the new backend.</p>
+</div>
+</section>
+<section id="command-compile-c">
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this headline"></a></h1>
+<p>To compile a DaeDaLus package specification C++:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-c++ MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
+</pre></div>
+</div>
+<p>This will generate a number of C++ files together with a <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> and
+a sample driver program in directory <code class="docutils literal notranslate"><span class="pre">some_dir_name</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> shows how to build the parser and has an option to
+generate Doxygen documentation.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="The Command-Line Tools" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../user-guide/index.html" class="btn btn-neutral float-right" title="Language Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
