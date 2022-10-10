@@ -10,10 +10,8 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
-import           Control.DeepSeq             (force)
-import           Control.Exception           (evaluate)
 
-import           Control.Lens                 (_1, _2, _3, at, each, over, (.=), (%~), (<>~), (&), (.~), (%=), (+~), view, (^.))
+import           Control.Lens                 (_1, _2, at, each, over, (.=), (%~), (&), (.~), (%=), (+~))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -74,9 +72,6 @@ import Talos.Strategy.OptParser (parseOpts, Opt)
 import qualified Talos.Strategy.OptParser as P
 import Text.Printf (printf)
 import Daedalus.GUID (getNextGUID)
-import Data.List (delete, deleteBy)
-import Data.Function (on)
-import Data.Functor (($>))
 
 
 -- ----------------------------------------------------------------------------------------
@@ -146,6 +141,7 @@ symbolicFun config ptag sl = do
     (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (stratSlice ptag sl)
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
+          liftIO $ printf "\tGenerated %d models " (length rs)
           case rs of
             []    -> pure Nothing
             r : _ -> pure (Just r)
@@ -305,7 +301,7 @@ guardedCase gs pat m = pass $ do
     notFeasible _ = mempty { smAsserts = [S.not pathGuard] }
 
 stratCase :: ProvenanceTag -> Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase ptag total cs m_sccs = do
+stratCase ptag _total cs m_sccs = do
   inv <- getName (caseVar cs)
   (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
   let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice ptag a)
@@ -705,19 +701,21 @@ symbolicModelToMMS sm = MultiModelState
       }
       
 buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
-buildPaths ntotal nfails sm pb = do
+buildPaths ntotal nfails sm pathb = do
   liftIO $ printf "\n\t%d choices and cases" (modelChoiceCount st0)
   (_, tassert) <- timeIt $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
   liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
 
-  Solv.getContext >>= go 0 st0 pb []
+  Solv.getContext >>= go 0 0 st0 pathb []
   where
     st0 = symbolicModelToMMS sm
-    go _nf _st _pb acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
-    go nf  _st _pb acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
-    go nf st pb acc ctxt = do
+    go :: Int -> Int -> MultiModelState -> PathBuilder -> [SelectedPath] -> Solv.SolverContext ->
+          SolverT StrategyM [SelectedPath]
+    go _na _nf _st _pb acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
+    go _na nf  _st _pb acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
+    go na nf st pb acc ctxt = do
       Solv.restoreContext ctxt
       m_next <- nextChoice st
       case m_next of
@@ -727,24 +725,25 @@ buildPaths ntotal nfails sm pb = do
             Solv.assert assn
             Solv.flush
           (r, tcheck) <- timeIt Solv.check
-          liftIO $ printf "\t(%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
+          liftIO $ printf "\t%d: (%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
+                          na
                           (show descr) (modelChoiceCount st)
                           (fromInteger tassert / 1000000 :: Double)
                           (fromInteger tcheck / 1000000 :: Double)
           case r of
             S.Unsat   -> do
               liftIO $ putStrLn " (unsat)"
-              go (nf + 1) (exhaust st) pb acc ctxt
+              go (na + 1) (nf + 1) (exhaust st) pb acc ctxt
             S.Unknown -> do
               liftIO $ putStrLn " (unknown)"
-              go (nf + 1) (exhaust st) pb acc ctxt
+              go (na + 1) (nf + 1) (exhaust st) pb acc ctxt
             S.Sat     -> do
               ((p, st'), tbuild) <- timeIt $ buildPath st pb
               liftIO $ printf ", build time: %.3fms, novel: %d, reused: %d\n"
                 (fromInteger tbuild / 1000000 :: Double)
                 (mmsNovel st') (mmsSeen st')
 
-              go nf st' pb (p : acc) ctxt
+              go (na + 1) nf st' pb (p : acc) ctxt
 
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: MultiModelState -> PathBuilder ->
