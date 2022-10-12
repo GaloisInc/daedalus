@@ -176,6 +176,8 @@ recordChoice pv ixs =
   tell (SymbolicModel mempty (Map.singleton pv (mempty, ixs)) mempty)
 
 recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
+-- If we have a _single_ rhs then we ignore the case (this happens with predicates)
+recordCase _stag _n [_rhs] = pure ()
 recordCase stag n rhss =
   tell (SymbolicModel mempty mempty (Map.singleton stag (n, mempty, rhss)))
 

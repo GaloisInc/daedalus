@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# Language OverloadedStrings #-}
 
 -- Symbolic but the only non-symbolic path choices are those in
@@ -699,23 +700,38 @@ symbolicModelToMMS sm = MultiModelState
       , mmsciPath    = MV.andMany paths
       , mmsciSeen    = []
       }
+
+nullMMS :: MultiModelState -> Bool
+nullMMS ms = Map.null (mmsCases ms) && Map.null (mmsChoices ms)
       
 buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
-buildPaths ntotal nfails sm pathb = do
+buildPaths ntotal nfails sm pb = do
   liftIO $ printf "\n\t%d choices and cases" (modelChoiceCount st0)
   (_, tassert) <- timeIt $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
   liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
 
-  Solv.getContext >>= go 0 0 st0 pathb []
+  if not (nullMMS st0)
+    then Solv.getContext >>= go 0 0 st0 []
+    else do
+      (r, tcheck) <- timeIt Solv.check
+      liftIO $ printf "\t(single): solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
+      check st0 r >>= \case
+        Left errReason -> do
+          liftIO $ printf " (%s)\n" errReason
+          pure []
+        Right (p, _st', tbuild) -> do
+          liftIO $ printf ", build time: %.3fms\n" (fromInteger tbuild / 1000000 :: Double)
+          pure [p]
+
   where
     st0 = symbolicModelToMMS sm
-    go :: Int -> Int -> MultiModelState -> PathBuilder -> [SelectedPath] -> Solv.SolverContext ->
+    go :: Int -> Int -> MultiModelState -> [SelectedPath] -> Solv.SolverContext ->
           SolverT StrategyM [SelectedPath]
-    go _na _nf _st _pb acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
-    go _na nf  _st _pb acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
-    go na nf st pb acc ctxt = do
+    go _na _nf _st acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
+    go _na nf  _st acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
+    go na nf st acc ctxt = do
       Solv.restoreContext ctxt
       m_next <- nextChoice st
       case m_next of
@@ -725,25 +741,33 @@ buildPaths ntotal nfails sm pathb = do
             Solv.assert assn
             Solv.flush
           (r, tcheck) <- timeIt Solv.check
+          
           liftIO $ printf "\t%d: (%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
                           na
                           (show descr) (modelChoiceCount st)
                           (fromInteger tassert / 1000000 :: Double)
                           (fromInteger tcheck / 1000000 :: Double)
-          case r of
-            S.Unsat   -> do
-              liftIO $ putStrLn " (unsat)"
-              go (na + 1) (nf + 1) (exhaust st) pb acc ctxt
-            S.Unknown -> do
-              liftIO $ putStrLn " (unknown)"
-              go (na + 1) (nf + 1) (exhaust st) pb acc ctxt
-            S.Sat     -> do
-              ((p, st'), tbuild) <- timeIt $ buildPath st pb
+          
+          check st r >>= \case
+            Left errReason -> do
+              liftIO $ printf " (%s)\n" errReason
+              go (na + 1) (nf + 1) (exhaust st) acc ctxt
+            Right (p, st', tbuild) -> do
               liftIO $ printf ", build time: %.3fms, novel: %d, reused: %d\n"
                 (fromInteger tbuild / 1000000 :: Double)
                 (mmsNovel st') (mmsSeen st')
+              go (na + 1) nf st' (p : acc) ctxt
+    check :: MultiModelState -> S.Result ->
+             SolverT StrategyM (Either String
+                                 (SelectedPath, MultiModelState, Integer))
+    check st r = do
+      case r of
+        S.Unsat   -> pure (Left "unsat")
+        S.Unknown -> pure (Left "unknown")
+        S.Sat     -> do
+          ((p, st'), tbuild) <- timeIt $ buildPath st pb
+          pure (Right (p, st', tbuild))
 
-              go (na + 1) nf st' pb (p : acc) ctxt
 
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: MultiModelState -> PathBuilder ->
