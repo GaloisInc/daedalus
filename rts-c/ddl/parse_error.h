@@ -10,6 +10,7 @@
 #include <ddl/owned.h>
 #include <ddl/boxed.h>
 #include <ddl/input.h>
+#include <ddl/json.h>
 
 namespace DDL {
 
@@ -115,45 +116,15 @@ struct ParseError {
 };
 
 static inline
-std::ostream& toJS(std::ostream &os, std::string_view const& str) {
-  const char hex[] = "0123456789abcdef";
-  os << "\"";
-  for (auto&& c : str) {
-    switch (c) {
-      case '"':  os << "\\\""; break;
-      case '\b': os << "\\b"; break;
-      case '\f': os << "\\f"; break;
-      case '\n': os << "\\n"; break;
-      case '\r': os << "\\r"; break;
-      case '\t': os << "\\t"; break;
-      case '\\': os << "\\\\"; break;
-      default:
-        if (32 <= c && c < 127) {
-          os << c;
-        } else {
-          auto v = c;
-          auto d1 = hex[v % 16]; v /= 16;
-          auto d2 = hex[v % 16]; v /= 16;
-          auto d3 = hex[v % 16]; v /= 16;
-          auto d4 = hex[v % 16];
-          os << "\\u" << d4 << d3 << d2 << d1;
-        }
-    }
-  }
-  os << "\"";
-  return os;
-}
-
-static inline
 std::ostream& toJS(std::ostream &os, ParseError const& err) {
   auto const &inp = err.input.borrow();
 
-  os << "{ \"error\": "; toJS(os,err.message.borrow().borrowBytes());
+  os << "{ \"error\": " << JS(err.message.borrow().borrowBytes());
   os << "\n, \"offset\": " << inp.getOffset();
-  os << "\n, \"context\": [\n";
+  os << "\n, \"context\":\n[";
   bool first = true;
   for (auto&& frame : err.debugs) {
-    if (!first) os << ", ";
+    if (!first) os << "\n, ";
     first = false;
 
     auto cur = frame.get_cur();
@@ -162,30 +133,32 @@ std::ostream& toJS(std::ostream &os, ParseError const& err) {
 
     os << "[ ";
 
-    os << "[ "; toJS(os, std::string_view{cur});
+    size_t n = 1;
     if (in_hist != h.end()) {
-      auto n = in_hist->second;
-      if (n > 1) os << ", " << (n+1);
+      n += in_hist->second;
     }
-    os << "]";
+    if (n > 1)
+      os << "[" << JS(std::string_view(cur)) << ", " << n << "]";
+    else
+      os << JS(std::string_view(cur));
 
     for (auto &&el : h) {
       if (el.first == cur) continue;
-      os << "\n, [ "; toJS(os,el.first);
-      if (el.second > 1) {
-        os << ", " << el.second;
-      }
-      os << " ]";
+      os << "\n, ";
+      if (el.second > 1)
+        os << "[" << JS(el.first) << ", " << el.second << "]";
+      else
+        os << JS(el.first);
     }
     os << "]";
   }
   os << "]";
 
   if (err.error_loc != nullptr && *err.error_loc != 0) {
-    os << "\n, \"location\": "; toJS(os,std::string_view{err.error_loc});
+    os << "\n, \"location\": " << JS(std::string_view(err.error_loc));
   }
-  os << "}";
-  return os;
+
+  return os << "}";
 }
 
 static inline

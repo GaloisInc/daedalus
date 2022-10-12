@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <ddl/float.h>
+#include <ddl/json.h>
 #include "main_parser.h"
 
 using namespace std;
@@ -85,9 +87,9 @@ int main(int argc, char* argv[]) {
 
   if (timed) {
     cout << "{ \"resultNum\": " << resultNum << endl;
-    cout << ", \"input_mb\": " << mb << endl;
-    cout << ", \"time_secs\": " << secs << endl;
-    cout << ", \"mb_s\": " << mb_s << endl;
+    cout << ", \"input_mb\": " << DDL::JS(mb) << endl;
+    cout << ", \"time_secs\": " << DDL::JS(secs) << endl;
+    cout << ", \"mb_s\": " << DDL::JS(mb_s) << endl;
     cout << ", \"results\": " << endl;
   }
 

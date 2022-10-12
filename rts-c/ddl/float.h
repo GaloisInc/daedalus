@@ -8,6 +8,7 @@
 #include <ddl/size.h>
 #include <ddl/value.h>
 #include <ddl/number.h>
+#include <ddl/json.h>
 
 namespace DDL {
 
@@ -68,14 +69,12 @@ inline int compare(Float x, Float y) {
 
 inline
 std::ostream& operator<<(std::ostream& os, Float x) {
-  os << x.getValue();
-  return os;
+  return os << x.getValue();
 }
 
 inline
 std::ostream& toJS(std::ostream& os, Float x) {
-  os << x.getValue();
-  return os;
+  return toJS(os,x.getValue());
 }
 
 
@@ -138,17 +137,14 @@ inline int compare(Double x, Double y) {
 }
 
 inline
-std::ostream& operator<<(std::ostream& os, Double x) {
-  os << x.getValue();
-  return os;
+std::ostream& toJS(std::ostream& os, Double x) {
+  return toJS(os, x.getValue());
 }
 
 inline
-std::ostream& toJS(std::ostream& os, Double x) {
-  os << x.getValue();
-  return os;
+std::ostream& operator<<(std::ostream& os, Double x) {
+  return os << x.getValue();
 }
-
 
 
 }
