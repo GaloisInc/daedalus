@@ -41,12 +41,12 @@ import           RTS.Parser                      (runParser)
 import           RTS.ParserAPI                   (Result (..), ppParseError)
 
 import           Talos.Analysis                  (summarise)
-import           Talos.Analysis.Exported         (ExpSlice, esRootSlices)
+import           Talos.Analysis.Exported         (esRootSlices, SliceId)
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT           (SolverState, emptySolverState)
+import           Talos.SymExec.SolverT           (emptySolverState)
 import           Talos.SymExec.StdLib
 
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
@@ -76,7 +76,7 @@ emptyStream = Stream 0 Nothing
 data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
-                         , pathSetRoots :: Map Name [ExpSlice]
+                         , pathSetRoots :: Map Name [SliceId]
                          , currentClass :: FInstId
                          , currentFName :: FName
                          }
@@ -130,8 +130,7 @@ data SynthesisMState =
                   , curStream :: Stream
                   , nextProvenance :: ProvenanceTag 
                   , provenances :: ProvenanceMap
-                  , stratlist :: [StrategyInstance]
-                  , solverState :: SolverState
+                  , modelCache :: ModelCache
                   }
 
 newtype SynthesisM a =
@@ -199,29 +198,29 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
 
   let sst0 = emptyStrategyMState gen allSummaries md nguid'
       solvSt0 = emptySolverState solv
+      mc0 = newModelCache strats solvSt0
       
   -- Init solver stdlib
   -- FIXME: probably move?
   makeStdLib solv 
 
-  Streams.fromGenerator (go sst0 solvSt0)
+  Streams.fromGenerator (go sst0 mc0)
   
   where
-    go :: StrategyMState -> SolverState -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go s0 solvSt = do
+    go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go s0 mc = do
       ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
-                                               (initState solvSt)) s0
+                                               (initState mc)) s0
                        
       Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go sts (solverState s)
+      go sts (modelCache s)
 
-    initState solvSt = 
+    initState mc = 
       SynthesisMState { seenBytes      = mempty
                       , curStream      = emptyStream
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
-                      , stratlist      = strats
-                      , solverState    = solvSt
+                      , modelCache     = mc
                       }
     
     Just rootDecl = find (\d -> fName d == root) allDecls
@@ -306,6 +305,7 @@ synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
 synthesiseCallG :: SelectedPath -> FName -> FInstId -> [Expr] -> SynthesisM Value
 synthesiseCallG fp n fid args = do
+  -- liftIO $ printf "Calling into %s\n" (showPP n)
   decl <- getGFun n
   synthesiseDecl fp fid decl args
 
@@ -325,21 +325,20 @@ choosePath cp x = do
     -- projections, just the slices as we will (re)construct the value for
     -- x when we pass the bytes through the interpreter. 
     Just sls -> do
-      solvSt <- SynthesisM $ gets solverState
-      go [] solvSt sls
+      mc <- SynthesisM $ gets modelCache
+      go [] mc sls
   where    
-    go acc solvSt [] = do
-      SynthesisM $ modify (\s -> s { solverState = solvSt })
+    go acc mc [] = do
+      SynthesisM $ modify (\s -> s { modelCache = mc })
       pure (foldl' merge cp acc)
       
-    go acc solvSt (sl : sls) = do
+    go acc mc (sl : sls) = do
       prov <- freshProvenanceTag
       fn   <- SynthesisM $ asks currentFName
-      strats <- SynthesisM $ gets stratlist
-      (m_cp, solvSt') <- runStrategies solvSt strats prov fn x sl
+      (m_cp, mc') <- findModel mc prov fn x sl
       case m_cp of
         Nothing -> panic "All strategies failed" []
-        Just sp -> go (sp : acc) solvSt' sls
+        Just sp -> go (sp : acc) mc' sls
         
       -- -- We have a path starting at this node, so we need to call the
       -- -- corresponding SMT function and process any generated model.      

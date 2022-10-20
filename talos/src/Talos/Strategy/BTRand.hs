@@ -38,7 +38,8 @@ randDFS =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = SimpleStrat $ \ptag sl -> runDFST (go ptag sl) (return . Just) (return Nothing)
+           , siFun   = \ptag sl -> trivialStratGen . lift $
+                                   runDFST (go ptag sl) (return . Just) (return Nothing)
            }
     name  = "rand-dfs"
     descr = "Simple depth-first random generation"
@@ -59,7 +60,7 @@ randRestart =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = SimpleStrat randRestartStrat
+           , siFun   = randRestartStrat
            }
     name  = "rand-restart"
     descr = "Restart on failure with random selection"
@@ -67,8 +68,8 @@ randRestart =
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath)
-randRestartStrat ptag sl = go restartBound
+randRestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
+randRestartStrat ptag sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -93,13 +94,13 @@ randMaybeT =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = SimpleStrat randMaybeStrat
+           , siFun   = randMaybeStrat
            }
     name  = "rand-restart-local-bt"
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
-randMaybeStrat :: ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath)
-randMaybeStrat ptag sl = go restartBound
+randMaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
+randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -153,7 +154,7 @@ stratSlice ptag = go
 
         SCase _ c -> do
           env <- ask
-          I.evalCase (\(i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
+          I.evalCase (\(_i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
 
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do

@@ -9,7 +9,7 @@
 module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyInstance(..)
                             , parseStrategies
-                            , StratFun(..)
+                            , StratFun, StratGen(..), trivialStratGen
                             , StrategyM, StrategyMState, emptyStrategyMState
                             , runStrategyM -- just type, not ctors
                             , LiftStrategyM (..)
@@ -20,17 +20,19 @@ module Talos.Strategy.Monad ( Strategy(..)
                             -- , timeStrategy
                             ) where
 
+import           Control.Monad.Except      (throwError)
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Control.Monad.Trans.Free     (FreeT)
+import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Writer         (WriterT)
-import qualified Data.ByteString              as BS
-import           Data.Foldable                (find, foldl')
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Set                     (Set)
-import qualified Data.Set                     as Set
+import           Control.Monad.Writer      (WriterT)
+import qualified Data.ByteString           as BS
+import           Data.Foldable             (find, foldl')
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Maybe                (maybeToList)
+import           Data.Set                  (Set)
+import qualified Data.Set                  as Set
 import           System.Random
 
 import           Daedalus.Core
@@ -47,15 +49,20 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P
-import Control.Monad.Except (throwError)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
 
 -- Gives some flexibility in how they are run.
-data StratFun =
-  SimpleStrat   (ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath))
-  | SolverStrat (ProvenanceTag -> ExpSlice -> SolverT StrategyM (Maybe SelectedPath))
+-- data StratFun =
+--   SimpleStrat   (ProvenanceTag -> ExpSlice -> StrategyM (Maybe SelectedPath))
+--   | SolverStrat (ProvenanceTag -> ExpSlice -> SolverT StrategyM (Maybe SelectedPath))
+
+
+-- Returns any new models, plus the option of getting more
+newtype StratGen = StratGen { getStratGen :: SolverT StrategyM ([SelectedPath], Maybe StratGen) }
+
+type StratFun = ProvenanceTag -> ExpSlice -> StratGen
 
 data StrategyInstance = StrategyInstance
   { siName  :: String
@@ -69,6 +76,10 @@ data Strategy =
            , stratParse  :: Parser StrategyInstance
            }
 
+-- FIXME: Temporary hack to get things working
+trivialStratGen :: SolverT StrategyM (Maybe SelectedPath) -> StratGen
+trivialStratGen g = StratGen $ (\m_r -> (maybeToList m_r, Nothing)) <$> g
+  
 -- -----------------------------------------------------------------------------
 -- Parsing strategy descriptions
 

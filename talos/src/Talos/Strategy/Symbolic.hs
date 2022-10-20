@@ -7,7 +7,7 @@
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.Symbolic (symbolicStrat) where
 
-import           Control.Lens                 (_3, over, view)
+import           Control.Lens                 (_3, over)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
@@ -28,7 +28,6 @@ import           Daedalus.Core.Free           (FreeVars, freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                  hiding (empty)
 import           Daedalus.Panic
 import           Daedalus.Rec                 (topoOrder)
 import qualified Daedalus.Value               as I
@@ -90,7 +89,7 @@ symbolicStrat = Strategy
       pure StrategyInstance
         { siName  = name
         , siDescr = descr -- <> parens (text s)
-        , siFun   = SolverStrat (symbolicFun c)
+        , siFun   = symbolicFun c
         }
 
 -- ----------------------------------------------------------------------------------------
@@ -119,8 +118,8 @@ configOpts = [P.option "strat" (field @"cSearchStrat") parseStrat ]
 symbolicFun :: Config ->
                ProvenanceTag ->
                ExpSlice ->
-               SolverT StrategyM (Maybe SelectedPath)
-symbolicFun (Config sstrat) ptag sl = do
+               StratGen
+symbolicFun (Config sstrat) ptag sl = StratGen $ do
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -137,7 +136,9 @@ symbolicFun (Config sstrat) ptag sl = do
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
     m_res <- runSymbolicM sstrat (sl, topoDeps) (stratSlice ptag sl <* check)
-    traverse (buildPath . view _3) m_res
+    case m_res of
+      Nothing         -> pure ([], Nothing)
+      Just (_, _, r)  -> (\m -> ([m], Nothing)) <$> buildPath r
 
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: PathBuilder -> SolverT StrategyM SelectedPath

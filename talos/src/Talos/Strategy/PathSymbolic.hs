@@ -12,7 +12,8 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                 (_1, _2, at, each, over, (.=), (%~), (&), (.~), (%=), (+~))
+import           Control.Lens                 (_1, _2, at, each, over, (%=),
+                                               (%~), (&), (+~), (.=), (.~))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass)
@@ -22,6 +23,7 @@ import           Data.Foldable                (find)
 import           Data.Functor.Identity        (Identity (Identity))
 import           Data.Generics.Product        (field)
 import           Data.List.NonEmpty           (NonEmpty)
+import qualified Data.List.NonEmpty           as NE
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes, mapMaybe)
@@ -31,30 +33,35 @@ import qualified Data.Vector                  as Vector
 import           Data.Word                    (Word8)
 import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as S
+import           System.IO                    (hFlush, stdout)
+import           Text.Printf                  (printf)
 
 import           Daedalus.Core                hiding (streamOffset, tByte)
 import           Daedalus.Core.Free           (freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
+import           Daedalus.GUID                (getNextGUID)
+import           Daedalus.PP                  (Doc, brackets, commaSep, pp,
+                                               showPP, text)
 import           Daedalus.Panic
 import           Daedalus.Rec                 (topoOrder)
 import           Daedalus.Time                (timeIt)
 import qualified Daedalus.Value               as I
 
-
-import qualified Data.List.NonEmpty           as NE
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
                                                SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExpr,
                                                GuardedSemiSExprs, MuxValue (..),
-                                               ValueMatchResult(..),
-                                               vUnit)
+                                               ValueMatchResult (..), vUnit)
 import qualified Talos.Strategy.MuxValue      as MV
+import           Talos.Strategy.OptParser     (Opt, parseOpts)
+import qualified Talos.Strategy.OptParser     as P
 import           Talos.Strategy.PathCondition (PathCondition,
-                                               PathConditionCaseInfo, PathVar, pathVarToSExpr)
+                                               PathConditionCaseInfo, PathVar,
+                                               pathVarToSExpr)
 import qualified Talos.Strategy.PathCondition as PC
 import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
@@ -68,11 +75,6 @@ import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
-import Daedalus.PP (showPP, text, pp, commaSep, Doc, brackets)
-import Talos.Strategy.OptParser (parseOpts, Opt)
-import qualified Talos.Strategy.OptParser as P
-import Text.Printf (printf)
-import Daedalus.GUID (getNextGUID)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -93,7 +95,7 @@ pathSymbolicStrat = Strategy
       pure StrategyInstance
         { siName  = name
         , siDescr = descr -- <> parens (text s)
-        , siFun   = SolverStrat (symbolicFun c)
+        , siFun   = symbolicFun c
         }
 
 -- ----------------------------------------------------------------------------------------
@@ -121,8 +123,8 @@ configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
 symbolicFun :: Config ->
                ProvenanceTag ->
                ExpSlice ->
-               SolverT StrategyM (Maybe SelectedPath)
-symbolicFun config ptag sl = do
+               StratGen
+symbolicFun config ptag sl = StratGen $ do
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -134,7 +136,7 @@ symbolicFun config ptag sl = do
     defineSliceTypeDefs md sl'
     defineSlicePolyFuns sl'
     defineSliceFunDefs md sl'
-
+    
   -- FIXME: this should be calculated once, along with how it is used
   -- by e.g. memoSearch
   scoped $ do
@@ -143,11 +145,12 @@ symbolicFun config ptag sl = do
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           liftIO $ printf "\tGenerated %d models " (length rs)
-          case rs of
-            []    -> pure Nothing
-            r : _ -> pure (Just r)
+          liftIO $ hFlush stdout
+          pure (rs, Nothing) -- FIXME: return a generator here.
 
-    join <$> traverse go m_res
+    case m_res of
+      Nothing -> pure ([], Nothing)
+      Just rs -> go rs
 
 -- We need to get types etc for called slices (including root slice)
 sliceToDeps :: (Monad m, LiftStrategyM m) => ExpSlice -> m [(SliceId, ExpSlice)]
