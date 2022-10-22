@@ -38,18 +38,4 @@ def GraphicHeader = block
   sres2 = UnsignedNum 2
 
   -- TODO: refactor this into other subheaders
-  sxshdl = First -- NOTE-MODERN: nonoverlapping
-             notre = @(IsNum 5 0)
-             taggedrec = BoundedNum 5 3 9741
-
-  xssofl = First -- NOTE-MODERN: This may overlap!!!
-      nooverflow = IsNum 3 0
-      desseq = PosNumber 3
-      omitted = sxshdl is notre
-
-  sxshd = First -- NOTE-MODERN: This may overlap!!!
-      tre = {
-        seq = sxshdl is taggedrec ;
-        Many (seq as! uint 64) Byte
-        }
-      ommitted = sxshdl is notre
+  sxshd = UserData 9741

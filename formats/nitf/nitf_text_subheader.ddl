@@ -12,9 +12,9 @@ def TxtFmt = First
   ecs   = @Match "UT1"
   u8s   = @Match "U8S"
 
-def TxShDL =
-     (IsNum 5 0)
-  <| (BoundedNum 5 3 9717)
+-- def TxShDL = First
+--   no_txshdl  = IsNum 5 0
+--   has_txshdl = BoundedNum 5 3 9717
 
 def TextHeader = block
   TE
@@ -29,10 +29,4 @@ def TextHeader = block
 
   txtfmt = TxtFmt
 
-  txshdl = TxShDL as! uint 64
-
-  mb_txsofl = First -- NOTE-MODERN: seems overlapping but apparently not harmful
-                txsofl  = UnsignedNum 3
-                omitted = Guard (txshdl == 0)
-
-  txshd = Many (txshdl - 3) BCSA
+  txshd = UserData 9717 -- BCSA

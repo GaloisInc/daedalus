@@ -29,6 +29,7 @@ def Main = {
     img_segments =
       map (imglens in h.li) {
         imgHeader = ISHeader ;
+	-- Guard (imglens.lish == imgHeader.bsize) ;
         CheckDateTime ldt imgHeader.idatim ;
 
         -- parse the bytes in the data segment

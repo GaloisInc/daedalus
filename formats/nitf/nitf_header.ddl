@@ -36,7 +36,7 @@ def Digraph = Many (1..) $['A'..'Z']
 -- TODO: Field must be set if any of the following are set: FSCODE,
 --       FSREL, FSDCTP, FSDCDT, FSDCXM, FSDG, FSDGDT, FSCLTX, FSCATP,
 --       FSCAUT, FSCRSN, FSSRDT, and FSCTLN
-def FSCLSY = Digraph <| Match "  "
+def FSCLSY = Many 2 ECSA <| Match "  "
 
 def DigraphSeq = First
   { @d = Digraph;
@@ -47,14 +47,14 @@ def DigraphSeq = First
   {Many $[' ']; END; ^ nothing}
 
 
--- def FSCODE = Many 11 ' ' -- Chunk 11 DigraphSeq
-def FSCODE = Chunk 11 DigraphSeq
+def FSCODE : maybe [Digraph] = { Many 11 $[' ']; ^ nothing } -- Chunk 11 DigraphSeq
+-- def FSCODE = Chunk 11 DigraphSeq
 
 
 def FSCTLH = Digraph <| Match "  "
 
--- def FSREL = Many 20 ' ' -- Chunk 20 DigraphSeq
-def FSREL = Chunk 20 DigraphSeq
+def FSREL : maybe [Digraph] = { Many 20 $[' ']; ^ nothing } -- Chunk 20 DigraphSeq
+-- def FSREL = Chunk 20 DigraphSeq
 
 -- Unclear how to pad single characters here...
 def FSDCTP = First
@@ -126,10 +126,13 @@ def ENCRYP = BCSN
 
 -- The nonstandard_utf8 case is a magic sequence that isn't defined in the
 -- NITF standard, but is handled in the Hammer parser
-def FBKGC =
-  First
-    nonstandard_utf8 = Many 3 {Match [0xef; 0xbf; 0xbd]; ^ 0xbd} : [uint 8] -- XXX: This seems wrong.
-    normal = Many 3 $[0x00 .. 0xFF]
+def FBKGC = block
+  r = UInt8
+  g = UInt8
+  b = UInt8
+  -- First
+  --   nonstandard_utf8 = Many 3 {Match [0xef; 0xbf; 0xbd]; ^ 0xbd} : [uint 8] -- XXX: This seems wrong.
+  --   normal = Many 3 $[0x00 .. 0xFF]
 
 def ONAME = Many 24 ECSA
 
@@ -170,8 +173,8 @@ def DataExtLens =
     ldsh = BoundedNum 4 200 9999
     ld = BoundedPos 9 999999999
 
-def LRESH = Many 4 BCSN
-def LRE = Many 7 BCSN
+-- def LRESH = Many 4 BCSN
+-- def LRE = Many 7 BCSN
 
 def ResExtLens =
   block
@@ -180,18 +183,10 @@ def ResExtLens =
 
 def UDHDL = Many 5 BCSN
 
-def UserData = First
-  none = { Match "00000"; ^ {} }
-  udhd = {
-    @l = UnsignedNum 5 as! uint 64;
-    overflow = Many 3 BCSN;
-    data = Many (l - 3) UInt8;
-    }
-
-
 {-- Main header parser --}
 
 def Header = block
+  @start = Offset
   FHDR
   fver = FVER
   clevel = CLEVEL
@@ -246,7 +241,54 @@ def Header = block
   @numres = UnsignedNum 3
   resextlens = Many (numres as! uint 64) ResExtLens
 
-  lre = Many (numres as! uint 64) [LRESH; LRE]
+  udhd = UserData 99999
+  xhd = UserData 99999
 
-  udhd = UserData
-  xhd = UserData
+  let bsize =
+      4 -- FHDR
+    + 5 -- FVER
+    + 2 -- CLEVEL
+    + 4 -- STYPE
+    + 10 -- OSTAID
+    + 14 -- FDT
+    + 80 -- FTITLE
+    + 1 -- FSCLAS
+    + 2 -- FSCLSY
+    + 11 -- FSCODE
+    + 2 -- FSCTLH
+    + 20 -- FSREL
+    + (2 + 8 -- fsdcdt
+         + 4 -- fsdcxe
+	 + 1 -- fsdg
+	 + 8 -- fsdgdt
+	 + 43 -- fscltx
+      ) -- FS_declass
+    + 41 -- FSC_auth
+    + 1 -- FSCRSN
+    + 8 -- FSSRDT
+    + 15 -- FSCTLN
+    + 5 -- FSCOP
+    + 5 -- FSCPYS
+    + 1 -- ENCRYP
+    + 3 -- FBKGC
+    + 24 -- ONAME
+    + 18 -- OPHONE
+    + 12 -- FL
+    + 6 -- HL
+    + 3 -- numi
+    + numi * 16
+    + 3 -- nums
+    + nums * 10
+    + 3 -- NUMX
+    + 3 -- numt
+    + numt * 9
+    + 3 -- numdes
+    + numdes * 13
+    + 3 -- numres
+    + numres * 11 -- resextlens
+    + bsize_UserData udhd
+    + bsize_UserData xhd
+
+  @end = Offset
+  -- Guard (hl == bsize)
+  -- Guard (bsize == (end - start))
