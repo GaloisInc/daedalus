@@ -23,6 +23,7 @@ data CompileConfing = CompileConfing
   { userMonad       :: Maybe TH.TypeQ
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
   , userEntries     :: [String]
+  , userSearchPaths  :: [FilePath] -- Relative to where cabal is invoked
   }
 
 defaultConfig :: CompileConfing
@@ -30,6 +31,7 @@ defaultConfig = CompileConfing
   { userMonad      = Nothing
   , userPrimitives = []
   , userEntries    = ["Main"]
+  , userSearchPaths = ["."]
   }
 
 data DDLText = Inline SourcePos Text
@@ -48,7 +50,7 @@ compileDDLWith cfg ddlText =
        _          -> pure ()
      mb <-
         liftIO $ try $ DDL.daedalus
-           do ast <- loadDDLVM (userEntries cfg) ddlText
+           do ast <- loadDDLVM (userSearchPaths cfg) (userEntries cfg) ddlText
               let getPrim (x,c) =
                     do mb <- DDL.ddlGetFNameMaybe "Main" x
                        case mb of
@@ -68,9 +70,10 @@ compileDDLWith cfg ddlText =
 
      VM.compileModule c ast
 
-loadDDLVM :: [String] -> DDLText -> DDL.Daedalus VM.Module
-loadDDLVM roots src =
-  do mo <- case src of
+loadDDLVM :: [FilePath] -> [String] -> DDLText -> DDL.Daedalus VM.Module
+loadDDLVM relSearchPath roots src =
+  do DDL.ddlSetOpt DDL.optSearchPath relSearchPath
+     mo <- case src of
              Inline loc txt ->
                do let mo = "Main"
                   DDL.parseModuleFromText mo loc txt
