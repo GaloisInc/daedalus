@@ -19,17 +19,19 @@ import qualified Daedalus.VM.Compile.Decl as VM (moduleToProgram)
 
 import qualified Daedalus.Driver as DDL
 
-data CompileConfing = CompileConfing
+data CompileConfig = CompileConfig
   { userMonad       :: Maybe TH.TypeQ
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
   , userEntries     :: [String]
+  , specPath        :: [FilePath]
   }
 
-defaultConfig :: CompileConfing
-defaultConfig = CompileConfing
+defaultConfig :: CompileConfig
+defaultConfig = CompileConfig
   { userMonad      = Nothing
   , userPrimitives = []
   , userEntries    = ["Main"]
+  , specPath       = ["."]
   }
 
 data DDLText = Inline SourcePos Text
@@ -39,7 +41,7 @@ data DDLText = Inline SourcePos Text
 compileDDL :: DDLText -> TH.DecsQ
 compileDDL = compileDDLWith defaultConfig
 
-compileDDLWith :: CompileConfing -> DDLText -> TH.DecsQ
+compileDDLWith :: CompileConfig -> DDLText -> TH.DecsQ
 compileDDLWith cfg ddlText =
   do case ddlText of
        FromFile f -> do f' <- liftIO (canonicalizePath f)
@@ -48,7 +50,8 @@ compileDDLWith cfg ddlText =
        _          -> pure ()
      mb <-
         liftIO $ try $ DDL.daedalus
-           do ast <- loadDDLVM (userEntries cfg) ddlText
+           do DDL.ddlSetOpt DDL.optSearchPath (specPath cfg)
+              ast <- loadDDLVM (userEntries cfg) ddlText
               let getPrim (x,c) =
                     do mb <- DDL.ddlGetFNameMaybe "Main" x
                        case mb of
@@ -96,7 +99,7 @@ loadDDLVM roots src =
 
      pure $ head $ VM.pModules $ VM.moduleToProgram [m]
 
-saveDDLWith :: CompileConfing -> DDLText -> Maybe FilePath -> IO ()
+saveDDLWith :: CompileConfig -> DDLText -> Maybe FilePath -> IO ()
 saveDDLWith cfg src mbfile =
   do ds <- TH.runQ (compileDDLWith cfg src)
      let txt = show (TH.ppr_list ds)
