@@ -571,7 +571,7 @@ compileCInstr cinstr =
               dToC (doCall f (map compileE es ++ [getS]))
                    (\s1 -> [| $noK $(setS s1) |])
                    (\a i s1 -> [| $yesK $a $i $(setS s1) |])
-            PureFun -> panic "compileCInstr" ["Tail call parser from pure"]
+            PureFun -> doCall f (map compileE es)
 
         Capture ->
           doCall f $
