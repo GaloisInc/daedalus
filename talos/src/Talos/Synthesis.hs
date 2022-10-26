@@ -251,6 +251,29 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
 
 -- We could also invoke the solver here.  This is a bit brute force
 synthesiseByteSet :: ByteSet -> SynthesisM Value
+synthesiseByteSet SetAny = do
+  b <- rand
+  addByte randomProvenance b 
+  pure (InterpValue $ I.vByte b)
+
+-- Special case for constants
+synthesiseByteSet (SetSingle (Ap0 (IntL bi _))) = do
+  let b = fromIntegral bi
+  addByte randomProvenance b 
+  pure (InterpValue $ I.vByte b)
+
+synthesiseByteSet (SetSingle expr) = do
+  e <- projectEnvForM expr
+  let b = I.valueToByte (I.eval expr e)
+  addByte randomProvenance b 
+  pure (InterpValue $ I.vByte b)
+
+-- Special case for concrete range
+synthesiseByteSet (SetRange (Ap0 (IntL bl _)) (Ap0 (IntL bh _))) = do
+  b <- randR (fromIntegral bl, fromIntegral bh)
+  addByte randomProvenance b 
+  pure (InterpValue $ I.vByte b)
+
 synthesiseByteSet bset = do
   e <- projectEnvForM bset
   let bs           = filter (I.evalByteSet bset e) [0 .. 255] -- FIXME!!
