@@ -24,6 +24,7 @@ data CompileConfig = CompileConfig
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
   , userEntries     :: [String]
   , specPath        :: [FilePath]
+  , nicerErrors     :: Bool
   }
 
 defaultConfig :: CompileConfig
@@ -32,6 +33,7 @@ defaultConfig = CompileConfig
   , userPrimitives = []
   , userEntries    = ["Main"]
   , specPath       = ["."]
+  , nicerErrors    = True
   }
 
 data DDLText = Inline SourcePos Text
@@ -45,13 +47,13 @@ compileDDLWith :: CompileConfig -> DDLText -> TH.DecsQ
 compileDDLWith cfg ddlText =
   do case ddlText of
        FromFile f -> do f' <- liftIO (canonicalizePath f)
-                        liftIO (print f')
+                        liftIO (putStrLn ("Compiling: " ++ show f'))
                         TH.addDependentFile f'
        _          -> pure ()
      mb <-
         liftIO $ try $ DDL.daedalus
            do DDL.ddlSetOpt DDL.optSearchPath (specPath cfg)
-              ast <- loadDDLVM (userEntries cfg) ddlText
+              ast <- loadDDLVM cfg ddlText
               let getPrim (x,c) =
                     do mb <- DDL.ddlGetFNameMaybe "Main" x
                        case mb of
@@ -71,9 +73,10 @@ compileDDLWith cfg ddlText =
 
      VM.compileModule c ast
 
-loadDDLVM :: [String] -> DDLText -> DDL.Daedalus VM.Module
-loadDDLVM roots src =
-  do mo <- case src of
+loadDDLVM :: CompileConfig -> DDLText -> DDL.Daedalus VM.Module
+loadDDLVM cfg src =
+  do let roots = userEntries cfg
+     mo <- case src of
              Inline loc txt ->
                do let mo = "Main"
                   DDL.parseModuleFromText mo loc txt
@@ -93,7 +96,7 @@ loadDDLVM roots src =
      -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
      DDL.passNorm specMod
-     DDL.ddlSetOpt DDL.optDebugMode False -- True
+     DDL.ddlSetOpt DDL.optDebugMode (nicerErrors cfg)
      DDL.passVM specMod
      m <- DDL.ddlGetAST specMod DDL.astVM
 
