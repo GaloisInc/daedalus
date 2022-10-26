@@ -12,6 +12,8 @@ import System.Environment(getArgs)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 
+import Text.Show.Pretty(pPrint)
+
 import Daedalus.TH.Compile
 import Daedalus.RTS.Parser(initParseErrorState,dparserToEither,ppParseError)
 import Daedalus.RTS.Input(newInput)
@@ -32,5 +34,5 @@ main =
                  result = dparserToEither (pMain input initParseErrorState)
              case result of
                Left err  -> print (ppParseError err)
-               Right val -> print val
+               Right val -> pPrint val
        _ -> putStrLn "Program requires exactly one file"
