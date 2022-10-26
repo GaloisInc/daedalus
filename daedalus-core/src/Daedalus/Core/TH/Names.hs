@@ -44,16 +44,22 @@ fnameName f =
                | otherwise -> str
              [] -> panic "fnameName" ["Empty function name"]
 
--- XXX: do we need to do something for anon types?
+
+tnameIdentText :: TName -> String
+tnameIdentText nm =
+  case tnameAnon nm of
+    Nothing -> root
+    Just n  -> root ++ "__" ++ show n
+  where
+  root = typeIdent (Text.unpack (tnameText nm))
+
 dataName :: TName -> TH.Name
-dataName = TH.mkName . typeIdent . Text.unpack . tnameText
+dataName = TH.mkName . tnameIdentText
 
 structConName :: TName -> TH.Name
 structConName = dataName
 
 unionConName :: TName -> Label -> TH.Name
-unionConName n l = TH.mkName (base ++ "_" ++ Text.unpack l)
-  where
-  base = typeIdent (Text.unpack (tnameText n))
+unionConName n l = TH.mkName (tnameIdentText n ++ "_" ++ Text.unpack l)
 
 
