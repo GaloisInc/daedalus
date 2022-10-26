@@ -11,11 +11,7 @@ def FHDR = Match "NITF"
 def FVER = Match "02.10"
 
 -- Valid values 01 .. 99
-def CLEVEL ={
-  @l = UnsignedNum 2;
-  Guard (l != 0);
-  ^l;
-}
+def CLEVEL = PosNumber 2
 
 def STYPE = Match "BF01"
 
@@ -51,7 +47,7 @@ def FSCODE : maybe [Digraph] = { Many 11 $[' ']; ^ nothing } -- Chunk 11 Digraph
 -- def FSCODE = Chunk 11 DigraphSeq
 
 
-def FSCTLH = Digraph <| Match "  "
+def FSCTLH = Many 2 ECSA <| Match "  "
 
 def FSREL : maybe [Digraph] = { Many 20 $[' ']; ^ nothing } -- Chunk 20 DigraphSeq
 -- def FSREL = Chunk 20 DigraphSeq
