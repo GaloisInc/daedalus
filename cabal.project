@@ -10,6 +10,7 @@ packages:
   formats/pdf/old/driver/
   formats/pdf/arlington-pdf-model/
   formats/icc/
+  formats/nitf/haskell/
   talos/
   daedalus-language-server/
   -- daedalus-language-server/deps/lsp/lsp
