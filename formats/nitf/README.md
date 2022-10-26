@@ -34,7 +34,7 @@ To test the DaeDaLus parser on the JITC sample files,
 # Generating the C++ NITF parser #
 
 ```
-cabal run daedalus -- nitf/nitf_main.ddl --compile-c++ --out-dir=nitf_cpp_parser
+cabal run daedalus -- compile-c++ nitf/nitf_main.ddl --out-dir=nitf_cpp_parser
 cd nitf_cpp_parser
 make parser
 ```
@@ -104,3 +104,4 @@ docker run -it \
 
 # modify regression.sh so that it runs the GDAL  parser
 ```
+
