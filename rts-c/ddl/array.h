@@ -145,6 +145,9 @@ public:
 
 
   T* borrowData() const {
+    if(ptr == nullptr) {
+      return nullptr;
+    }
     return (T*)&ptr->data;
   }
 
