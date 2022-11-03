@@ -20,7 +20,7 @@ common warnings
 executable nitf
     import:           warnings
     main-is:          Main.hs
-    build-depends:    base ^>=4.14.3.0,
+    build-depends:    base,
                       bytestring,
                       daedalus,
                       rts-vm-hs,
