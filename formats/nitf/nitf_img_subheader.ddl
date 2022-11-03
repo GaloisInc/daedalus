@@ -379,31 +379,17 @@ def IALvl = AttachmentLvl
 def IMag = First
   fp =
     block
-      $$ = FixedPoint
+      $$ = FixedPoint4
       let fplen = length $$.digs + 1 + length $$.radix
-      -- DOC: why was this hard to refactor?
-      Guard (fplen <= 4)
       Spaces (4 - fplen)
 
   frac =
     block
       $['/']
-      $$ = Many (..3) Digit
+      -- sjw: should this be non-zero?
+      $$ = Many (1..3) Digit
       let fplen = length $$ + 1
-      Guard (fplen <= 4)
       Spaces (4 - fplen)
-
-def UDIDL = LowerBoundedOrZero 5 3 as! uint 64
-
-def UDOfl = UnsignedNum 3
-
-def UDID n = Many (n - 3) Byte
-
-def IXShDL = LowerBoundedOrZero 5 3 as! uint 64
-
-def IXSOfl = UnsignedNum 3
-
-def IXShD n = Many (n - 3) Byte
 
 -- encoding of display-dependent parameters (Table A-2)
 def DispParams (irep : IRep) (irepband : IRepBandN) nbands (pvtype : PVType) nluts =
@@ -686,6 +672,7 @@ def CatParams (icat : ICat) (isubcat : ISubCatN) nbands (pvtype : PVType) nbpp a
 
 -- ISHeader: an image segment header
 def ISHeader = {
+  @start = Offset;
   Im ;
   iid1 = IID1 ;
   idatim = IDaTim ;
@@ -802,22 +789,53 @@ def ISHeader = {
   iloc = Location ;
   imag = IMag ;
 
-  udidl = UDIDL ;
-  mb_uds = First
-             uds = {
-               Guard (udidl > 0) ;
-               udofl = UDOfl ;
-               udid = UDID udidl
-               }
-             empty = Guard (udidl == 0)
-    ;
-
-  ixshdl = IXShDL ;
-  mb_ixs = First
-             ixs = {
-               Guard (ixshdl > 0) ;
-               ixsofl = IXSOfl ;
-               ixshd = IXShD ixshdl
-               }
-             empty = Guard (ixshdl == 0)
+  udid  = UserData 99999;
+  ixshd = UserData 99999;
+  @end = Offset;
+  let bsize_bandinfo =
+    for (sz = 0; bi in bandinfo) {
+    	sz + (2 + 6 + 1 + 3 + 1
+	      + (case bi.mb_luts of { luts _ -> 5 + bi.nlutsn; _ -> 0}))
+    };
+  let bsize_val =
+        2  -- Im ;
+      + 10 -- IID1 ;
+      + 14 -- IDaTim ;
+      + (10 + 5 + 2) -- tgt_id = TgtId ;
+      + 80  -- iid2 = IID2 ;
+      + bsize_CommonSubheader
+      + 1 -- Encryp ;
+      + 42 -- ISorce ;
+      + 8  -- NRows ;
+      + 8  -- NCols ;
+      + 3  -- PVType ;
+      + 8  -- IRep ;
+      + 8  -- ICat ;
+      + 2  -- ABPP ;
+      + 1  -- PJust ;
+      + 1  -- ICords ;
+      + (case mb_igeolo of { igeolo _ -> 60; _ -> 0 }) -- mb_igeolo
+      + 1  -- NICom ;
+      + ((nicom as! uint 64) * 80)  -- IComn nicom ;
+      + 2 -- IC
+      + (case mb_comrat of { comrat -> 4; _ -> 0 })
+      + 1 -- NBands irep ;
+      + (case xbands of { def_xband -> 5; _ -> 0 })
+      + bsize_bandinfo 
+      + 1 -- ISync ;
+      + 1 -- IMode nbands ;
+      + 4 --  NBPR ;
+      + 4 -- NBPC ;
+      + 4 -- NPPBH ;
+      + 4 -- NPPBV ;
+      + 2 -- NBPP abpp ic ;
+      + 3 -- IDLvl ;
+      + 3 -- IALvl ;
+      + 10 -- Location ;
+      + 4  -- IMag ;
+      + bsize_UserData udid
+      + bsize_UserData ixshd ;
+  bsize = ^ bsize_val;
+  -- Guard (bsize == (end - start))
+        
 }

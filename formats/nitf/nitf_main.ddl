@@ -29,6 +29,7 @@ def Main = {
     img_segments =
       map (imglens in h.li) {
         imgHeader = ISHeader ;
+	-- Guard (imglens.lish == imgHeader.bsize) ;
         CheckDateTime ldt imgHeader.idatim ;
 
         -- parse the bytes in the data segment
@@ -67,7 +68,7 @@ def Main = {
     -- parse each reserved-extension segment:
     reservedExt_segments =
       map (resextls in h.resextlens) {
-        resExtHeader = ResExtHeader ;
+        resExtHeader = ResExtHeader resextls.lresh;
 
         -- parse the bytes in the reserved extension data segment
         resExtData = Many (resextls.lre as! uint 64) Byte ;

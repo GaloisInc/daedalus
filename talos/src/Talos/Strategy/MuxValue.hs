@@ -445,29 +445,33 @@ semiExecCase (Case y pats) = do
   let (vgs, preds) = unzip (map goV els)
       vgs_for_pats = map (nonEmpty . filter PC.isFeasibleMaybe) (transpose vgs)
       allRes       = zipWith (\a -> fmap (, a)) pats vgs_for_pats
-  pure (catMaybes allRes, concat preds)
+  pure (catMaybes allRes, preds)
   where
+    -- This function returns, for a given value, a path-condition for
+    -- each pattern stating when that PC is enabled, and a predicate
+    -- for when some pattern matched.
     goV :: (PathCondition, GuardedSemiSExpr) ->
-           ( [ PathCondition ], [(PathCondition, ValueMatchResult)] )
+           ( [ PathCondition ], (PathCondition, ValueMatchResult) )
+    -- Symbolic case
     goV (g, VOther x) =
       let basePreds = map (\p -> SE.patternToPredicate ty p (S.const (typedThing x))) pats'
           (m_any, assn)
             -- if we have a default case, the constraint is that none
             -- of the above matched
-            | hasAny    = ([ Right (Set.fromList pats') ] , [(g, YesMatch)])
-            | otherwise = ([], [(g, SymbolicMatch (orMany basePreds))])
+            | hasAny    = ([ Right (Set.fromList pats') ] , YesMatch)
+            | otherwise = ([], SymbolicMatch (orMany basePreds))
           vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
-      in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), assn)
+      in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), (g, assn))
     goV (g, v) =
       let ms = map (matches' v) pats'
           noMatch = not (or ms)
           (m_any, assn)
-            | hasAny && noMatch = ( [True], [(g, YesMatch)] )
-            | hasAny            = ( [False], [(g, YesMatch)] )
-            | noMatch           = ( [], [(g, NoMatch)] )
+            | hasAny && noMatch = ( [True], YesMatch )
+            | hasAny            = ( [False], YesMatch )
+            | noMatch           = ( [], NoMatch )
             -- FIXME: do we need the (g, YesMatch) here?
-            | otherwise         = ( [], [(g, YesMatch)] )
-      in ( [ if b then g else Infeasible | b <- ms ++ m_any], assn )
+            | otherwise         = ( [], YesMatch )
+      in ( [ if b then g else Infeasible | b <- ms ++ m_any], (g, assn) )
 
     -- ASSUME that a PAny is the last element
     pats'  = [ p | p <- map fst pats, p /= PAny ]

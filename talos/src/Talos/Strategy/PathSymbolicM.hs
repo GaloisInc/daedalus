@@ -37,15 +37,15 @@ import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
                                                runSemiSolverM)
 import qualified Talos.Strategy.MuxValue      as MV
-import           Talos.Strategy.PathCondition (PathVar (..))
+import           Talos.Strategy.PathCondition (PathVar (..), PathCondition)
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
                                                liftSolver)
 import qualified Talos.SymExec.SolverT        as Solv
 import qualified Data.Set as Set
-
-
+import Daedalus.GUID (GUID)
+import Data.List.NonEmpty (NonEmpty)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -90,8 +90,11 @@ data PathChoiceBuilder a =
   | ConcreteChoice Int               a
   deriving (Functor)
 
+-- Used to tag cases so we can iterate through models
+type SymbolicCaseTag = GUID
+
 data PathCaseBuilder a   =
-  SymbolicCase   GuardedSemiSExprs [(Pattern, a)]
+  SymbolicCase   SymbolicCaseTag GuardedSemiSExprs [(Pattern, a)]
   | ConcreteCase                   a
   deriving (Functor)
 
@@ -100,10 +103,28 @@ type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 emptySymbolicEnv :: Int -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 
 
+-- We could figure this out from the generated parse tree, but this is
+-- (maybe?) clearer.
+data SymbolicModel = SymbolicModel
+  { smAsserts :: [SMT.SExpr]
+  , smChoices :: Map PathVar ([SMT.SExpr], [Int])
+  , smCases   :: Map SymbolicCaseTag (Name, [SMT.SExpr], [(NonEmpty PathCondition, Pattern)])
+  } deriving Generic
+
+-- We should only ever combine disjoint sets, so we cheat here
+instance Semigroup SymbolicModel where
+  sm1 <> sm2 = SymbolicModel
+    (smAsserts sm1 <> smAsserts sm2)
+    (smChoices sm1 <> smChoices sm2)
+    (smCases   sm1 <> smCases   sm2)
+
+instance Monoid SymbolicModel where
+  mempty = SymbolicModel mempty mempty mempty
+
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: MaybeT (WriterT [SMT.SExpr] (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO
-           , MonadReader SymbolicEnv, MonadWriter [SMT.SExpr], MonadSolver)
+           , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
@@ -112,7 +133,7 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
                 Int ->
                 SymbolicM Result ->
-                SolverT StrategyM (Maybe Result, [SMT.SExpr])
+                SolverT StrategyM (Maybe Result, SymbolicModel)
 runSymbolicM _sls maxRecDepth (SymbolicM m) = runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth)
 
 --------------------------------------------------------------------------------
@@ -141,18 +162,38 @@ freshPathVar bnd = do
   assertSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
                         (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
   pure (PathVar sym)
-
--- extendPath ::  -> SymbolicM a -> SymbolicM a
--- extendPath el = locally (field @"sPath") (el :)
     
 --------------------------------------------------------------------------------
 -- Assertions
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr p = tell [p]
+assertSExpr p = tell (SymbolicModel [p] mempty mempty)
   -- pe <- asks (valueGuardToSExpr . sPath)
   -- inSolver (Solv.assert (SMT.implies pe p))
-  
+
+recordChoice :: PathVar -> [Int] -> SymbolicM ()
+recordChoice pv ixs =
+  tell (SymbolicModel mempty (Map.singleton pv (mempty, ixs)) mempty)
+
+recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
+-- If we have a _single_ rhs then we ignore the case (this happens with predicates)
+recordCase _stag _n [_rhs] = pure ()
+recordCase stag n rhss =
+  tell (SymbolicModel mempty mempty (Map.singleton stag (n, mempty, rhss)))
+
+extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
+extendPath g = addGuard . addImpl
+  where
+    addImpl sm
+      | []      <- smAsserts sm = sm
+      | otherwise =
+        over (field @"smAsserts") (\ss -> [SMT.implies g (MV.andMany ss) ]) sm
+
+    -- Merge in the guard g with the path for the known choices/cases
+    addGuard = 
+      over (field @"smChoices") (fmap (_1 %~ (g :)))
+      . over (field @"smCases") (fmap (_2 %~ (g :)))
+
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do
 --   pe <- asks (pathToSExpr . sPath)
@@ -272,8 +313,10 @@ instance PP (PathChoiceBuilder Doc) where
 
 
 instance PP (PathCaseBuilder Doc) where
-  pp (SymbolicCase gses ps) = block "[[" "," "]]" [ pp (text . typedThing <$> gses)
-                                                  , block "{" "," "}" (map pp1 ps) ]
+  pp (SymbolicCase stag gses ps) =
+    pp stag <> ": " <>
+    block "[[" "," "]]" [ pp (text . typedThing <$> gses)
+                        , block "{" "," "}" (map pp1 ps) ]
     where
       pp1 (pat, p) = pp pat <+> "=" <+> p
       

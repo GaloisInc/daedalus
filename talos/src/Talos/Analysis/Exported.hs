@@ -1,6 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- During analysis it is handy to have call nodes track sets of
 -- slices, but afterwards we need to have call sites target a single
@@ -13,14 +16,18 @@ module Talos.Analysis.Exported
   , sliceToCallees
   ) where
 
+import           Control.Lens          (at, (.=))
+import           Control.Lens.Lens     ((<<+=))
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.Map                        (Map)
-import qualified Data.Map                        as Map
-import           Data.Maybe                      (catMaybes)
-import           Data.Monoid                     (Any (..))
-import           Data.Set                        (Set)
-import qualified Data.Set                        as Set
+import           Data.Generics.Product (field)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           Data.Maybe            (catMaybes)
+import           Data.Monoid           (Any (..))
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
+import           GHC.Generics          (Generic)
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
                                                   Name, TDecl, TName, nameId)
@@ -56,7 +63,7 @@ data ExpCallNode = ExpCallNode
 
 type ExpSlice = Slice' ExpCallNode Expr
 
-type ExpSummary = Map Name [ExpSlice]
+type ExpSummary = Map Name [SliceId]
 
 data ExpSummaries = ExpSummaries
   { esRootSlices     :: Map FName (Map FInstId ExpSummary)
@@ -173,7 +180,7 @@ data ExpState ae = ExpState
   -- Read only
   , summaries      :: Summaries ae
   , tyEnv          :: Map TName TDecl
-  }
+  } deriving Generic
 
 -- This is the rename map for making bound variables unique across slices.
 type ExpEnv = Map Name Name
@@ -211,6 +218,14 @@ getAllocSliceId wle = do
       pure nsl
     Just nsl' -> pure nsl'
 
+nameExpSlice :: ExpSlice -> Maybe SliceId -> ExpM ae SliceId
+nameExpSlice sl m_sid = do
+  sid <- case m_sid of
+           Nothing  -> SliceId <$> (field @"nextSliceId" <<+= 1)
+           Just sid -> pure sid
+  field @"slices" . at sid .= Just sl
+  pure sid
+  
 refreshName :: Name -> ExpM ae Name
 refreshName n = do
   seen <- gets (Set.member n . seenNames)
@@ -235,6 +250,7 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
       { esRootSlices     = roots
       , esFunctionSlices = slices st'
       , esRecs           = recs
+      -- These rely on root slices nnot being in SCCs
       , esRecVars        = makeEsRecVars   (slices st') recs
       , esBackEdges      = makeEsBackEdges (slices st') recs
       }
@@ -270,17 +286,15 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
     goFunSlice wle@(fn, fid, ixs) = do
       Summary { domain = ds } <- getSummary fn fid
       m_sid <- gets (Map.lookup wle . sliceMap)
-      let sid = case m_sid of
-                  Nothing -> panic "Missing slice id" []
-                  Just s  -> s
-      esl <- exportSlice (foldl1 merge [ gsSlice gs | (i, gs) <- zip [0..] (elements ds), i `Set.member` ixs ])
-      modify (\s -> s { slices = Map.insert sid esl (slices s) })
-
+      void $ exportSlice m_sid (foldl1 merge [ gsSlice gs | (i, gs) <- zip [0..] (elements ds), i `Set.member` ixs ])
+    
     goDom :: forall ae. Domain ae -> ExpM ae ExpSummary
-    goDom d = traverse (mapM exportSlice) (closedElements d)
+    goDom d = traverse (mapM (exportSlice Nothing)) (closedElements d)
 
-exportSlice :: Slice -> ExpM ae ExpSlice
-exportSlice = go
+exportSlice :: Maybe SliceId -> Slice -> ExpM ae SliceId
+exportSlice m_sid sl0 = do
+  esl <- go sl0
+  nameExpSlice esl m_sid
   where
     go sl =
       case sl of

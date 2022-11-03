@@ -51,11 +51,11 @@ def Sign = $['+' | '-']
 
 def Digit = { @d = Numeral ; ^ d - '0' }
 
-def FixedPoint = block
-  digs = Many Digit
+-- A (up to) 4 digit fixed point number (used in IMAG in IS).
+def FixedPoint4 = block
+  digs = Many (..3) Digit
   $['.']
-  radix = Many Digit
-
+  radix = Many (.. (3 - length digs)) Digit
 
 def UnsignedNum digs =
   block
@@ -483,6 +483,9 @@ def CommonSubheader =
     clauth = ClassificationAuthority
     sec = Security
 
+def bsize_CommonSubheader =
+  1 + 2 + 11 + 2 + 20 + 66 + 42 + 23
+
 def Encryp = $['0']
 
 def AttachmentLvl = UpperBounded 3 998
@@ -491,3 +494,23 @@ def Location =
   block
     row = SignedNum 4
     col = SignedNum 4
+
+-- Tagged Record Extension, Table A-7, pp 112
+def TRE = block
+  tag = Many 5 BCSA
+  l   = BoundedNum 5 1 99985
+  data = Many (l as! uint 64) UInt8 -- type depends on tag
+
+def UserData ub = First
+  none = { Match "00000"; ^ {} }
+  udhd = {
+    l = BoundedNum 5 3 ub as! uint 64;
+    overflow = Many 3 BCSN;
+    data = Many (l - 3) UInt8;
+    }
+
+def bsize_UserData (ud : UserData) =
+  case ud of
+    none   -> 5
+    udhd r -> 5 + r.l
+    

@@ -195,8 +195,10 @@ Customize the variable `daedalus-command' to change how it is invoked."
 	 (res (lsp-send-execute-command "run" args)))
     (display-buffer
      (with-current-buffer (get-buffer-create "*LSP Daedalus Results*")
-       (insert res)
        (special-mode)
+       (let ((inhibit-read-only t))
+	 (erase-buffer)
+	 (insert res))
        (current-buffer)))))
 			    
 (defun lsp-daedalus-watch (p) 
