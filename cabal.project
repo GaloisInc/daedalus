@@ -1,5 +1,6 @@
 packages:
   ./
+  daedalus-debug
   daedalus-utils/
   daedalus-core/
   daedalus-vm/

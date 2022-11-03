@@ -1,3 +1,4 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Bits where
 
 import Data.Bits
@@ -7,7 +8,8 @@ import Daedalus.Value.Utils
 import Daedalus.Value.Type
 
 vCat :: Value -> Value -> Value
-vCat a b =
+vCat =
+  tracedFun \a b ->
   case (a,b) of
     (VUInt m x, VUInt n y) -> vUInt (m + n) ((x `shiftL` fromIntegral n) .|. y)
     _ -> panic "vCat" [ "Invalid bit concatenation"
@@ -18,7 +20,13 @@ vCat a b =
 
 -- x <# y  ==   x * 2^n + y,   where y : uint n
 vLCat :: Value -> Value -> Partial Value
-vLCat a b =
+vLCat =
+  tracedFun \a b ->
+  let bad = panic "vLCat" [ "Invalid lcat"
+                          , "Operand 1: " ++ show a
+                          , "Operand 2: " ++ show b
+                          ]
+  in
   case b of
     VUInt w y ->
       let mk f i = f ((i `shiftL` w) .|. y)
@@ -30,11 +38,6 @@ vLCat a b =
         _          -> bad
 
     _ -> bad
-  where
-  bad = panic "vLCat" [ "Invalid lcat"
-                      , "Operand 1: " ++ show a
-                      , "Operand 2: " ++ show b
-                      ]
 
 vBitAnd :: Value -> Value -> Value
 vBitAnd = bitwise2 ".&." (.&.)

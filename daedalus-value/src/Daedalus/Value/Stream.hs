@@ -1,8 +1,10 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Stream where
 
 import RTS.Input
 import RTS.Numeric
 import Daedalus.Value.Type
+import Daedalus.Value.Utils
 
 vStreamFromArray :: Value -> Value -> Value
 vStreamFromArray a b = VStream (newInput nm bs)
@@ -10,25 +12,25 @@ vStreamFromArray a b = VStream (newInput nm bs)
         bs = valueToByteString b
 
 vBytesOfStream :: Value -> Value
-vBytesOfStream = vByteString . inputBytes . valueToStream
+vBytesOfStream = tracedFun (vByteString . inputBytes . valueToStream)
 
 vStreamOffset :: Value -> Value
-vStreamOffset = vSize . toInteger . inputOffset . valueToStream
+vStreamOffset = tracedFun (vSize . toInteger . inputOffset . valueToStream)
 
 vStreamLength :: Value -> Value
-vStreamLength = vSize . toInteger . inputLength . valueToStream
+vStreamLength = tracedFun (vSize . toInteger . inputLength . valueToStream)
 
 vStreamIsEmpty :: Value -> Value
-vStreamIsEmpty = VBool . inputEmpty . valueToStream
+vStreamIsEmpty = tracedFun (VBool . inputEmpty . valueToStream)
 
 vStreamHead :: Value -> Partial Value
-vStreamHead v =
+vStreamHead = tracedFun \v ->
   case inputByte (valueToStream v) of
     Just (w,_) -> pure (vByte w)
     Nothing    -> vErr "Head of empty list"
 
 vStreamTake :: Value -> Value -> Partial Value
-vStreamTake a b =
+vStreamTake = tracedFun \a b ->
   case valueToIntSize a of
     Nothing -> pure b
     Just x  ->
@@ -37,7 +39,9 @@ vStreamTake a b =
         Just i  -> pure (VStream i)
 
 vStreamDrop :: Value -> Value -> Partial Value
-vStreamDrop a b =
+vStreamDrop = tracedFun \a b ->
+  let notEnough = vErr "Not enough bytes in `Drop`"
+  in
   case valueToIntSize a of
     Nothing -> notEnough
     Just x  ->
@@ -45,6 +49,4 @@ vStreamDrop a b =
         Nothing -> notEnough
         Just i  -> pure (VStream i)
 
-  where
-  notEnough = vErr "Not enough bytes in `Drop`"
 

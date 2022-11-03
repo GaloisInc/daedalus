@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when,unless,forM_,forM)
+import Control.Monad(when,unless,forM)
 import Data.Maybe(fromMaybe,fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -32,8 +32,10 @@ import Daedalus.Core(checkModule)
 import Daedalus.Driver
 import Daedalus.DriverHS
 
-import qualified RTS.ParserAPI as RTS
+-- import qualified RTS.ParserTraced as RTS
 import qualified RTS.Input as RTS
+import qualified RTS.ParseError as RTS
+import qualified RTS.ParserAPI as RTS
 
 import Daedalus.Value
 import Daedalus.Interp
@@ -226,8 +228,11 @@ interpCore opts mm inpMb =
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
      let ?useJS = optShowJS opts
      -- XXX: html, etc
+     undefined
+{-
      ddlIO $ forM_ ents \ent ->
                   print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+-}
 
 interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
@@ -481,11 +486,13 @@ inputHack opts =
 
 
 
-dumpResult :: (?useJS :: Bool) => (a -> Doc) -> RTS.Result a -> Doc
+dumpResult :: (?useJS :: Bool) => (a -> Doc) -> Result a -> Doc
 dumpResult ppVal r =
   case r of
    RTS.NoResults err -> dumpErr err
-   RTS.Results as -> dumpValues ppVal (toList as)
+   RTS.Results as -> dumpValues ppVal' (toList as)
+  where
+  ppVal' (a,x) = ppVal a $$ "----" $$ RTS.ppITrace x
 
 dumpValues :: (?useJS :: Bool) => (a -> Doc) -> [a] -> Doc
 dumpValues ppVal as
@@ -495,13 +502,12 @@ dumpValues ppVal as
          , vcat' (map ppVal as)
          ]
 
-
 dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
 dumpInterpVal = if ?useJS then valueToJS else pp
 
 dumpErr :: (?useJS :: Bool) => ParseError -> Doc
 dumpErr err
-  | ?useJS = RTS.errorToJS err
+  | ?useJS = RTS.jsToDoc (parseErrorTrieToJSON err)
   | otherwise =
     vcat
       [ "--- Parse error: "

@@ -7,12 +7,10 @@ import Control.Monad(unless)
 import Data.Word(Word8)
 
 import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
-import RTS.Parser
 import RTS.Numeric(intToSize)
-import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
-                    , pError', ParseErrorSource(..)
-                    )
-import qualified RTS.ParserAPI as RTS
+import RTS.ParserTraced as RTS hiding (Fail)
+import RTS.ParseError (ParseErrorSource(..))
+import qualified RTS.ParseError as RTS
 
 import Daedalus.Value
 import Daedalus.SourceRange(SourceRange(..),SourcePos(..))

@@ -1,0 +1,293 @@
+{-# Language RecordWildCards, OverloadedStrings, BlockArguments #-}
+module RTS.ParseError where
+
+import Data.List(transpose)
+import System.FilePath
+import Data.Map(Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
+import qualified Data.Text.Encoding as Text
+import qualified Data.Text as Text
+import Control.Exception(Exception)
+import Data.Typeable(Typeable)
+import Text.PrettyPrint
+import Data.ByteString(ByteString)
+import Data.ByteString.Short(ShortByteString,fromShort)
+
+import RTS.Input
+import RTS.JSON
+
+data ParseErrorG s e =
+  PE { peInput   :: !Input
+     , peStack   :: ![e]
+     , peGrammar :: ![SourceRange]
+     , peMsg     :: !String
+     , peSource  :: !ParseErrorSource
+     , peMore    :: !(Maybe (ParseErrorG s e))
+     , peNumber  :: !Int
+     , peITrace  :: !s
+     } deriving Show
+
+data ParseErrorSource = FromUser | FromSystem
+  deriving Show
+
+peOffset :: ParseErrorG s a -> Int
+peOffset = inputOffset . peInput
+
+instance (Show s, Show e, Typeable s, Typeable e) => Exception (ParseErrorG s e)
+
+parseErrorToList :: ParseErrorG s e -> [ParseErrorG s e]
+parseErrorToList pe =
+  pe { peMore = Nothing } : maybe [] parseErrorToList (peMore pe)
+
+data ParseErrorTrie s e =
+  ParseErrorTrie (Maybe (ParseErrorG s e)) (Map e (ParseErrorTrie s e))
+
+emptyErrorTrie :: Ord e => ParseErrorTrie s e
+emptyErrorTrie = ParseErrorTrie Nothing mempty
+
+insertInErrorTrie ::
+  Ord e => [e] -> ParseErrorG s e -> ParseErrorTrie s e -> ParseErrorTrie s e
+insertInErrorTrie es err (ParseErrorTrie here there) =
+  case es of
+    [] ->
+      case here of
+        Nothing    -> ParseErrorTrie (Just err) there
+        Just other -> ParseErrorTrie (Just (mergeError err other)) there
+    e : more ->
+      let remote    = Map.findWithDefault emptyErrorTrie e there
+          newRemote = insertInErrorTrie more err remote
+      in ParseErrorTrie here (Map.insert e newRemote there)
+
+parseErrorToTrie :: Ord e => ParseErrorG s e -> ParseErrorTrie s e
+parseErrorToTrie = foldr insert emptyErrorTrie . parseErrorToList
+  where insert e = insertInErrorTrie (peStack e) e
+
+
+
+
+--------------------------------------------------------------------------------
+-- Source Locations
+--------------------------------------------------------------------------------
+
+data SourceRange = SourceRange
+  { srcFrom, srcTo :: SourcePos
+  } deriving (Show,Eq,Ord)
+
+data SourcePos = SourcePos { srcLine, srcCol :: Int, srcName :: String }
+  deriving (Show,Eq,Ord)
+
+
+class HasSourcePaths a where
+  getSourcePaths :: a -> Set FilePath
+  mapSourcePaths :: (FilePath -> FilePath) -> a -> a
+
+instance HasSourcePaths SourcePos where
+  getSourcePaths x   = Set.singleton (srcName x)
+  mapSourcePaths f x = x { srcName = f (srcName x) }
+
+instance HasSourcePaths SourceRange where
+  getSourcePaths x = getSourcePaths (srcFrom x, srcTo x)
+  mapSourcePaths f x = SourceRange { srcFrom = mapSourcePaths f (srcFrom x)
+                                   , srcTo   = mapSourcePaths f (srcTo x)
+                                   }
+
+instance (HasSourcePaths a, HasSourcePaths b) => HasSourcePaths (a,b) where
+  getSourcePaths (a,b) = Set.union (getSourcePaths a) (getSourcePaths b)
+  mapSourcePaths f (a,b) = (mapSourcePaths f a, mapSourcePaths f b)
+
+instance HasSourcePaths a => HasSourcePaths [a] where
+  getSourcePaths   = Set.unions . map getSourcePaths
+  mapSourcePaths f = fmap (mapSourcePaths f)
+
+instance HasSourcePaths a => HasSourcePaths (Maybe a) where
+  getSourcePaths   = maybe Set.empty getSourcePaths
+  mapSourcePaths f = fmap (mapSourcePaths f)
+
+instance HasSourcePaths e => HasSourcePaths (ParseErrorG s e) where
+  getSourcePaths err = getSourcePaths (peStack err, (peGrammar err, peMore err))
+  mapSourcePaths f err =
+    err { peStack   = mapSourcePaths f (peStack err)
+        , peGrammar = mapSourcePaths f (peGrammar err)
+        , peMore    = mapSourcePaths f (peMore err)
+        }
+
+normalizePaths :: HasSourcePaths a => a -> a
+normalizePaths e = mapSourcePaths (normalizePathFun (getSourcePaths e)) e
+
+normalizePathFun :: Set FilePath -> FilePath -> FilePath
+normalizePathFun ps = joinPath . drop common . splitDirectories
+  where
+  common = length $ takeWhile allSame
+                  $ transpose
+                  $ map splitDirectories
+                  $ Set.toList ps
+
+  len = Set.size ps
+  allSame xs =
+    length xs == len &&
+    case xs of
+      []       -> True
+      y : more -> all (== y) more
+
+
+--------------------------------------------------------------------------------
+-- Collected Inputs
+--------------------------------------------------------------------------------
+
+class HasInputs a where
+  getInputs :: a -> Map ShortByteString ByteString
+
+instance HasInputs () where
+  getInputs _ = Map.empty
+
+instance HasInputs a => HasInputs [a] where
+  getInputs = Map.unions . map getInputs
+
+instance HasInputs a => HasInputs (Maybe a) where
+  getInputs = maybe Map.empty getInputs
+
+instance HasInputs Input where
+  getInputs i = Map.singleton (inputName i) (inputTopBytes i)
+
+instance (HasInputs s, HasInputs e) => HasInputs (ParseErrorG s e) where
+  getInputs pe = Map.unions [ getInputs (peITrace pe)
+                            , getInputs (peStack pe)
+                            , getInputs (peMore pe)
+                            ]
+
+
+--------------------------------------------------------------------------------
+-- Merging errors
+--------------------------------------------------------------------------------
+
+instance Semigroup (ParseErrorG s e) where
+  -- (<>) = joinSingleError
+  (<>) = mergeError
+
+joinSingleError :: ParseErrorG s e -> ParseErrorG s e -> ParseErrorG s e
+joinSingleError p1 p2 = fst (preferFirst p1 p2)
+
+mergeError :: ParseErrorG s e -> ParseErrorG s e -> ParseErrorG s e
+mergeError p1 p2 = better { peMore = joinMb worse (peMore better) }
+  where
+  (better,worse) = preferFirst p1 p2
+  joinMb x y = Just (maybe x (mergeError x) y)
+
+-- | Given two error put the one we prefer in the first component of the result
+preferFirst ::
+  ParseErrorG s e -> ParseErrorG s e -> (ParseErrorG s e, ParseErrorG s e)
+preferFirst p1 p2 =
+  case (peSource p1, peSource p2) of
+    (FromUser,FromSystem) -> (p1, p2)
+    (FromSystem,FromUser) -> (p2, p1)
+    _ | peOffset p1 >= peOffset p2 -> (p1,p2)
+      | otherwise                  -> (p2,p1)
+
+
+
+
+
+
+-------------------------------------------------------------------------------
+-- Traces and Annotations
+--------------------------------------------------------------------------------
+
+class ToJSON a => IsAnnotation a where
+  ppAnnot          :: a -> Doc
+
+instance IsITrace () where
+  ppITrace _ = "(disabled)"
+
+  emptyITrace _ = ()
+  {-# INLINE emptyITrace #-}
+
+  unionITrace _ _ = ()
+  {-# INLINE unionITrace #-}
+
+  addITrace _ _ = ()
+  {-# INLINE addITrace #-}
+
+class ToJSON a => IsITrace a where
+  ppITrace    :: a -> Doc
+  emptyITrace :: Input -> a
+  unionITrace :: a -> a -> a
+  addITrace   :: Input -> a -> a
+
+
+
+-------------------------------------------------------------------------------
+-- Pretty Printing
+--------------------------------------------------------------------------------
+
+ppParseError :: (IsITrace s, IsAnnotation e) => ParseErrorG s e -> Doc
+ppParseError pe@PE { .. } =
+  brackets ("offset:" <+> int (peOffset pe)) $$
+  nest 2 (bullets
+           [ text peMsg, gram
+           , "context:" $$ nest 2 (bullets (reverse (map ppAnnot peStack)))
+           , "input trace:" $$ nest 2 (ppITrace peITrace)
+           ]
+         )
+    $$ more
+  where
+  gram = case peGrammar of
+           [] -> empty
+           _  -> "see grammar at:" <+> commaSep (map ppSourceRange peGrammar)
+  more = case peMore of
+           Nothing -> empty
+           Just err -> ppParseError err
+
+  bullet      = if True then "•" else "*"
+  buletItem d = bullet <+> d
+  bullets ds  = vcat (map buletItem ds)
+  commaSep ds = hsep (punctuate comma ds)
+
+ppSourceRange :: SourceRange -> Doc
+ppSourceRange r =
+  hcat [ posLong (srcFrom r), "--"
+       , if srcName (srcFrom r) == srcName (srcTo r)
+          then posShort (srcTo r)
+          else posLong (srcTo r)
+       ]
+  where
+  posShort p = hcat [ int (srcLine p), ":", int (srcCol p) ]
+  posLong p = hcat [ text (srcName p), ":", int (srcLine p), ":", int (srcCol p) ]
+
+
+--------------------------------------------------------------------------------
+-- JSON
+--------------------------------------------------------------------------------
+
+jsToDoc :: ToJSON a => a -> Doc
+jsToDoc = text . Text.unpack . Text.decodeUtf8 . jsonToBytes . toJSON
+
+instance (HasInputs s, HasInputs e, ToJSON s, ToJSON e) =>
+      ToJSON (ParseErrorG s e) where
+  toJSON pe =
+    jsObject
+      [ ("error",   jsString (peMsg pe))
+      , ("input",   toJSON (inputName (peInput pe)))
+      , ("offset",  toJSON (inputOffset (peInput pe)))
+      , ("grammar", toJSON (peGrammar pe))
+      , ("stack",   toJSON (peStack pe))
+      , ("trace",   toJSON (peITrace pe))
+      , ("inputs",  jsObject [ (fromShort k, jsText v)
+                             | (k,v) <- Map.toList (getInputs pe)
+                             ])
+      , ("more",   toJSON (peMore pe))
+      ]
+
+instance ToJSON SourceRange where
+  toJSON p = jsObject [ ("from", toJSON (srcFrom p)), ("to", toJSON (srcTo p)) ]
+
+instance ToJSON SourcePos where
+  toJSON p =
+    jsObject [ ("file", jsString (srcName p))
+             , ("line", toJSON (srcLine p))
+             , ("col", toJSON (srcCol p))
+             ]
+
+
+

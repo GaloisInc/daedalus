@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="view.css" />
+<script src="stringSet.js"></script>
+<script src="hex-view.js"></script>
+<script src="view.js"></script>
+<script src="scope.js"></script>
+<script src="tree.js"></script>
+<script src="error.js"></script>
+
+<script src="out.js"></script>
+<script src="err.js"></script>
+<script>
+function main() {
+  const f = renderFiles(files)
+  // renderError(f,errExample)
+  renderTree(f,errExample)
+
+}
+</script>
+</head>
+<body id="body" onload="main()">
+<div id="err-map" class="map-dom hidden"></div>
+<div id="left-pane">
+  <div id="left-header">
+    <button class="button" id="view-grammar">Grammar</button>
+    <button class="button" id="view-input">Input</button>
+    <div id="file-name">
+      <div id="source-name"></div>
+      <div id="input-name"></div>
+    </div>
+  </div>
+  <div id="file-pane">
+    <div id="source-pane"></div>
+    <div id="input-pane"></div>
+  </div>
+</div>
+<div id="right-pane">
+  <div id="error-pane"></div>
+  <div id="stack-pane"></div>
+  <div id="scope-pane"></div>
+</div>
+</body>
+</html>

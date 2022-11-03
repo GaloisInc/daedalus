@@ -1,7 +1,7 @@
 {-# Language RecordWildCards, DataKinds, RankNTypes, OverloadedStrings #-}
+{-# Language TypeFamilies #-}
 module RTS.ParserAPI (module RTS.ParserAPI, Input) where
 
-import Control.Exception
 import Control.Monad(when, unless, replicateM_)
 import Data.Word
 import Data.List.NonEmpty(NonEmpty(..))
@@ -11,41 +11,26 @@ import Data.ByteString(ByteString)
 import Numeric(showHex)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
-import Text.PrettyPrint hiding ((<>))
-import qualified Text.PrettyPrint as PP
 
 import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
 import RTS.Input
+import RTS.ParseError
 import qualified RTS.Vector as Vector
-import RTS.JSON
 
 import Debug.Trace(traceM)
 
 
-data Result a = NoResults ParseError
-              | Results (NonEmpty a)
-                deriving Show
+data ResultG s e a =
+    NoResults (ParseErrorG s e)
+  | Results (NonEmpty (a,s))
+    deriving Show
 
-instance Functor Result where
+instance Functor (ResultG s e) where
   fmap f r =
     case r of
       NoResults e -> NoResults e
-      Results xs  -> Results (f <$> xs)
-
-
---------------------------------------------------------------------------------
-data SourceRange = SourceRange
-  { srcFrom, srcTo :: SourcePos
-  } deriving Show
-
-data SourcePos = SourcePos { srcName :: String, srcLine, srcCol :: Int }
-  deriving Show
-
-
---------------------------------------------------------------------------------
+      Results xs  -> Results ((\(x,a) -> (f x,a)) <$> xs)
 
 
 data ErrorMode = Abort | Fail
@@ -100,128 +85,19 @@ showByte x
 
 
 
-
---------------------------------------------------------------------------------
-data ParseError = PE { peInput   :: !Input
-                     , peStack   :: ![Annot]
-                     , peGrammar :: ![SourceRange]
-                     , peMsg     :: !String
-                     , peSource  :: !ParseErrorSource
-                     , peMore    :: !(Maybe ParseError)
-                     } deriving Show
-
-peOffset :: ParseError -> Int
-peOffset = inputOffset . peInput
-
-data ParseErrorSource = FromUser | FromSystem
-  deriving Show
-
-instance Exception ParseError
-
-instance Semigroup ParseError where
-  p1 <> p2 =
-    case (peSource p1, peSource p2) of
-      (FromUser,FromSystem) -> p1
-      (FromSystem,FromUser) -> p2
-      _                     -> if peOffset p1 >= peOffset p2 then p1 else p2
-{-
-    | trace "COMBINNG"
-      trace (show (peSource p1, peMsg p1))
-      trace "WITH"
-      trace (show (peSource p2, peMsg p2))
-      False = undefined
-    | peOffset p1 < peOffset p2 = p2
-    | peOffset p2 < peOffset p1 = p1
-    | otherwise = case peMore p1 of
-                    Nothing -> p1 { peMore = Just p2 }
-                    Just p3 ->
-                      case peMore p2 of
-                        Nothing -> p2 { peMore = Just p1 }
-                        Just _  -> p1 { peMore = Just $! joinErr p3 p2 }
--}
-
-joinErr :: ParseError -> ParseError -> ParseError
-joinErr = (<>)
-
-ppSourceRange :: SourceRange -> Doc
-ppSourceRange r =
-  hcat [ posLong (srcFrom r), "--"
-       , if srcName (srcFrom r) == srcName (srcTo r)
-          then posShort (srcTo r)
-          else posLong (srcTo r)
-       ]
-  where
-  posShort p = hcat [ int (srcLine p), ":", int (srcCol p) ]
-  posLong p = hcat [ text (srcName p), ":", int (srcLine p), ":", int (srcCol p) ]
-
-ppAnnot :: Annot -> Doc
-ppAnnot ann =
-  case ann of
-    RngAnnot r    -> ppSourceRange r
-    TextAnnot txt -> text txt
-
-ppParseError :: ParseError -> Doc
-ppParseError pe@PE { .. } =
-  brackets ("offset:" <+> int (peOffset pe)) $$
-  nest 2 (bullets
-           [ text peMsg, gram
-           , "context:" $$ nest 2 (bullets (reverse (map ppAnnot peStack)))
-           ]
-         )
-    $$ more
-  where
-  gram = case peGrammar of
-           [] -> empty
-           _  -> "see grammar at:" <+> commaSep (map ppSourceRange peGrammar)
-  more = case peMore of
-           Nothing -> empty
-           Just err -> ppParseError err
-
-  bullet      = if True then "•" else "*"
-  buletItem d = bullet <+> d
-  bullets ds  = vcat (map buletItem ds)
-  commaSep ds = hsep (punctuate comma ds)
-
-instance ToJSON ParseError where
-  toJSON pe =
-    jsObject
-      [ ("error", jsString (peMsg pe))
-      , ("offset", toJSON (inputOffset (peInput pe)))
-      , ("grammar", toJSON (peGrammar pe))
-      , ("stack", toJSON (peStack pe))
-      ]
-
-instance ToJSON SourceRange where
-  toJSON p = jsObject [ ("from", toJSON (srcFrom p)), ("to", toJSON (srcTo p)) ]
-
-instance ToJSON SourcePos where
-  toJSON p =
-    jsObject [ ("file", jsString (srcName p))
-             , ("line", toJSON (srcLine p))
-             , ("col", toJSON (srcCol p))
-             ]
-
-instance ToJSON Annot where
-  toJSON ann =
-    case ann of
-      TextAnnot a -> jsString a
-      RngAnnot a  -> toJSON a
-
-errorToJS :: ParseError -> Doc
-errorToJS = text . Text.unpack . Text.decodeUtf8 . jsonToBytes . toJSON
-
-
---------------------------------------------------------------------------------
-
 --------------------------------------------------------------------------------
 
 class Monad p => BasicParser p where
+  type Annot p
+  type ITrace p
   (|||)     :: p a -> p a -> p a
   (<||)     :: p a -> p a -> p a
-  pFail     :: ParseError -> p a
+  pFail     :: ParseErrorG (ITrace p) (Annot p) -> p a
   pByte     :: SourceRange -> p Word8
-  pEnter    :: Annot -> p a -> p a
-  pStack    :: p [Annot]
+  pEnter    :: Annot p -> p a -> p a
+  pStack    :: p [Annot p]
+  pITrace   :: p (ITrace p)
+  pSetITrace  :: ITrace p -> p ()
   pPeek     :: p Input
   pSetInput :: Input -> p ()
   pErrorMode :: ErrorMode -> p a -> p a
@@ -229,12 +105,6 @@ class Monad p => BasicParser p where
   pOffset   :: p (UInt 64)
   pEnd      :: SourceRange -> p ()     -- are we at the end
   pMatch1   :: SourceRange -> ClassVal -> p Word8
-
-
-data Annot = RngAnnot SourceRange
-           | TextAnnot String
-             deriving Show
-
 
 pTrace :: BasicParser p => Vector (UInt 8) -> p ()
 pTrace msg =
@@ -261,12 +131,15 @@ pError' :: BasicParser p => ParseErrorSource -> [SourceRange] -> String -> p a
 pError' src rs m =
   do i <- pPeek
      s <- pStack
+     t <- pITrace
      pFail PE { peInput   = i
               , peStack   = s
               , peGrammar = rs
               , peMsg     = m
               , peSource  = src
               , peMore    = Nothing
+              , peNumber  = -1
+              , peITrace  = t
               }
 {-# INLINE pError' #-}
 
@@ -279,12 +152,15 @@ pErrorAt ::
   BasicParser p => ParseErrorSource -> [SourceRange] -> Input -> String -> p a
 pErrorAt src r inp m =
   do s <- pStack
+     t <- pITrace
      pFail PE { peInput   = inp
               , peStack   = s
               , peGrammar = r
               , peMsg     = m
               , peSource  = src
               , peMore    = Nothing
+              , peNumber  = -1
+              , peITrace  = t
               }
 {-# INLINE pErrorAt #-}
 

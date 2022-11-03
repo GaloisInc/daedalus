@@ -11,7 +11,7 @@ import qualified System.IO as IO
 
 import Daedalus.PP(pp)
 
-import RTS.ParserAPI(ppParseError)
+import RTS.ParseError(ppParseError)
 import Daedalus.AST(ModuleName)
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS

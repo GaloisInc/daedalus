@@ -15,8 +15,6 @@ import Control.Exception(try)
 
 import AlexTools(SourceRange,SourcePos(..))
 
-import RTS.ParserAPI(Result(..),ParseError)
-
 import Daedalus.TH (Q, Dec, QuasiQuoter(..))
 import qualified Daedalus.TH as TH
 import Daedalus.Value(Value)
@@ -24,7 +22,7 @@ import Daedalus.Value(Value)
 import Daedalus.AST(ScopedIdent(..))
 import Daedalus.Type.AST(TCModule)
 import qualified Daedalus.Driver as DDL
-import Daedalus.Interp(interp)
+import Daedalus.Interp(interp,ParseError,ResultG(..))
 import qualified Daedalus.TH.Compile as DDL(DDLText(..))
 
 daedalus :: QuasiQuoter
@@ -98,7 +96,7 @@ doDecl str =
 
      let e = [| \b -> case interp [] "Main" b [ast] (ModScope "Main" root) of
                         NoResults err -> Left err
-                        Results r     -> Right (NE.head r)
+                        Results r     -> Right (fst (NE.head r))
            |]
      let nm = TH.mkName ("p" ++ root)
      let t = [t| ByteString -> Either ParseError Value |]

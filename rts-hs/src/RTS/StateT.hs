@@ -2,7 +2,7 @@
 -- backtracked when the parser backtracks.
 -- It is just a standard state transformer: we implement it here to
 -- avoid dependency on an external library and orphan instances.
-{-# Language BlockArguments #-}
+{-# Language BlockArguments, TypeFamilies #-}
 module RTS.StateT
   ( StateT
   , runStateT
@@ -49,12 +49,16 @@ sets_ f = S \s -> let s1 = f s in s1 `seq` pure ((), s1)
 
 
 instance BasicParser m => BasicParser (StateT s m) where
+  type Annot (StateT s m)   = Annot m
+  type ITrace (StateT s m)  = ITrace m
   S m1 ||| S m2       = S \s -> m1 s ||| m2 s
   S m1 <|| S m2       = S \s -> m1 s <|| m2 s
   pFail e             = liftS (pFail e)
   pByte r             = liftS (pByte r)
   pEnter l (S m)      = S \s -> pEnter l (m s)
   pStack              = liftS pStack
+  pITrace             = liftS pITrace
+  pSetITrace i        = liftS (pSetITrace i)
   pPeek               = liftS pPeek
   pSetInput i         = liftS (pSetInput i)
   pErrorMode e (S m)  = S \s -> pErrorMode e (m s)

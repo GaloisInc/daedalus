@@ -157,8 +157,6 @@ executable daedalus
     RecordWildCards
 
 
-
-
 executable daedalus-run-test
   hs-source-dirs:     tests
   main-is:            RunUnitTests.hs

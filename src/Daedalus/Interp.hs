@@ -17,8 +17,8 @@ module Daedalus.Interp
   , evalType
   , emptyEnv
   , Value(..)
-  , ParseError(..)
-  , Result(..)
+  , ParseError, ParseErrorG(..)
+  , Result, ResultG(..)
   , Input(..)
   , InterpError(..)
   , interpError
@@ -32,6 +32,7 @@ module Daedalus.Interp
   , evalTriOp
   , setVals
   , vUnit
+  , parseErrorTrieToJSON
   ) where
 
 import GHC.Float(double2Float)
@@ -42,6 +43,7 @@ import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import Data.ByteString.Short(fromShort)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
@@ -49,6 +51,7 @@ import Data.List(foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
+import qualified Data.Set as Set
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -66,17 +69,120 @@ import qualified Daedalus.Type.AST as AST
 import Daedalus.Rec (forgetRecs)
 
 
-import RTS.ParserAPI
+import RTS.Parser as RTS
+import RTS.ParserAPI as RTS
+import RTS.InputTrace
+import RTS.JSON
 import RTS.Input
-import RTS.Parser as P
-import qualified RTS.ParserAPI as RTS
 import RTS.Vector(vecFromRep,vecToRep)
 import RTS.Numeric(UInt(..))
+import RTS.ParseError (ParseErrorG, ParseErrorSource(..), HasSourcePaths(..))
+import qualified RTS.ParseError as RTS
 import qualified RTS.Vector as RTS
 
 -- A rule can take either parsers or values as an argument, e.g.
 --
 -- F X y = many[y] X
+
+
+type Parser     = ParserG     InputTrace DebugAnnot
+type ParseError = ParseErrorG InputTrace DebugAnnot
+type Result     = ResultG     InputTrace DebugAnnot
+
+data DebugAnnot = TextAnnot Text
+                | CallAnnot CallSite
+                | ScopeAnnot (Map Name Value)
+                  deriving Show
+
+data CallSite = CallSite Name RTS.SourceRange Input
+  deriving (Show,Eq,Ord)
+
+
+
+pScope :: Env -> Parser a -> Parser a
+pScope env =
+  let venv = valEnv env
+  in if Map.null venv then id else pEnter (ScopeAnnot venv)
+
+instance RTS.IsAnnotation DebugAnnot where
+  ppAnnot ann =
+    case ann of
+      TextAnnot a     -> text (Text.unpack a)
+      CallAnnot (CallSite _x r _i) -> RTS.ppSourceRange r
+      ScopeAnnot p  -> "scope" $$ nest 2 (vcat ents)
+        where ents = [ pp x <+> "=" <+> valueToDoc v
+                     | (x,v) <- Map.toList p ]
+
+instance RTS.HasInputs DebugAnnot where
+  getInputs ann =
+    case ann of
+      TextAnnot {}  -> Map.empty
+      CallAnnot s   -> RTS.getInputs s
+      ScopeAnnot mp -> Map.unions (map RTS.getInputs (Map.elems mp))
+
+instance RTS.HasInputs CallSite where
+  getInputs (CallSite _ _ i) = Map.singleton (inputName i) (inputTopBytes i)
+
+instance HasSourcePaths SourceRange where
+  getSourcePaths x = getSourcePaths (sourceFrom x, sourceTo x)
+  mapSourcePaths f x =
+    SourceRange { sourceFrom = mapSourcePaths f (sourceFrom x)
+                , sourceTo   = mapSourcePaths f (sourceTo x)
+                }
+
+instance HasSourcePaths SourcePos where
+  getSourcePaths x = Set.singleton (Text.unpack (sourceFile x))
+  mapSourcePaths f x =
+    x { sourceFile = Text.pack (f (Text.unpack (sourceFile x))) }
+
+instance RTS.HasSourcePaths Name where
+  getSourcePaths = getSourcePaths . nameRange
+  mapSourcePaths f x = x { nameRange = mapSourcePaths f (nameRange x) }
+
+instance RTS.HasSourcePaths DebugAnnot where
+  getSourcePaths ann =
+    case ann of
+      TextAnnot {} -> Set.empty
+      CallAnnot s -> getSourcePaths s
+      ScopeAnnot mp -> getSourcePaths (Map.keys mp)
+  mapSourcePaths f ann =
+    case ann of
+      TextAnnot {} -> ann
+      CallAnnot s -> CallAnnot (mapSourcePaths f s)
+      ScopeAnnot mp -> ScopeAnnot (Map.mapKeys (mapSourcePaths f) mp)
+
+instance RTS.HasSourcePaths CallSite where
+  getSourcePaths (CallSite f r _) = getSourcePaths (f,r)
+  mapSourcePaths f (CallSite x r i) =
+    CallSite (mapSourcePaths f x) (mapSourcePaths f r) i
+
+instance ToJSON DebugAnnot where
+  toJSON ann =
+    case ann of
+      TextAnnot a   -> jsObject [ ("tag", jsString "label")
+                                , ("content", jsString (Text.unpack a))
+                                ]
+      CallAnnot cs ->
+        jsObject [ ("tag", jsString "call"), ("content", toJSON cs) ]
+
+      ScopeAnnot xs ->
+        jsObject [ ("tag", jsString "scope")
+                 ,  ("content",
+                        jsObject
+                          [ (encodeUtf8 (Text.pack (show (pp k))), toJSON v)
+                          | (k,v) <- Map.toList xs
+                          ])
+                 ]
+
+instance ToJSON CallSite where
+  toJSON (CallSite n r i) =
+    jsObject [ ("function", toJSON (Text.pack (show (pp n))))
+             , ("callsite", toJSON r)
+             , ("input", toJSON (inputName i))
+             , ("offset", toJSON (inputOffset i))
+             ]
+
+
 
 data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
 data SomeFun      = FVal (Fun Value)
@@ -85,10 +191,11 @@ data SomeFun      = FVal (Fun Value)
 newtype Fun a     = Fun ([TValue] -> [SomeVal] -> a)
 
 
+
 instance Show (Fun a) where
   show _ = "FunDecl"
 
-type PParser a = [SomeVal] -> Parser a
+type PParser a  = [SomeVal] -> Parser a
 
 
 -- | We throw these exceptions for dynaimc errors encountered furing evaluation
@@ -145,9 +252,9 @@ data Env = Env
   , funEnv  :: Map Name (Fun Value)
   , clsFun  :: Map Name (Fun ClassVal)
 
-  , valEnv  :: Map Name Value
-  , clsEnv  :: Map Name ClassVal
-  , gmrEnv  :: Map Name (PParser Value)
+  , valEnv   :: Map Name Value
+  , clsEnv   :: Map Name ClassVal
+  , gmrEnv   :: Map Name (PParser Value)
 
   , tyEnv   :: Map TVar TValue
     -- ^ Bindings for polymorphic type argumens
@@ -544,7 +651,7 @@ matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
 matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
 matchPat pat =
   case pat of
-    TCConPat _ l p    -> \v -> case v of
+    TCConPat _ l p    -> \v -> case unTrace v of
                                  VUnionElem l1 v1
                                    | l == l1 -> matchPat p v1
                                  VBDUnion t x
@@ -747,8 +854,23 @@ compileSourceRange rng =
 
 
 compilePExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> PParser Value
-compilePExpr env expr0 args = go expr0
+compilePExpr env expr0 args =
+  do (v,t) <- traceScope (go expr0)
+     pure (vTraced v t)
   where
+    addScope :: Parser x -> Parser x
+    addScope = pScope env
+
+    traceScope :: Parser x -> Parser (x,InputTrace)
+    traceScope p =
+      do i <- pITrace
+         inp <- pPeek
+         pSetITrace (RTS.emptyITrace inp)
+         a <- p
+         j <- pITrace
+         pSetITrace (RTS.unionITrace i j)
+         pure (a,j)
+
     go :: TC a K.Grammar -> Parser Value
     go expr =
       let erng = compileSourceRange (range expr)
@@ -758,6 +880,7 @@ compilePExpr env expr0 args = go expr0
       in
       case texprValue expr of
         TCFail mbM _ ->
+          addScope
           case mbMsg of
             Nothing  -> pError FromSystem erng "Parse error"
             Just msg -> pError FromUser erng msg
@@ -768,13 +891,14 @@ compilePExpr env expr0 args = go expr0
 
         TCDo m_var e e' ->
           do v <- go e
-             compileExpr (addValMaybe m_var v env) e'
+             let env' = addValMaybe m_var v env
+             compileExpr env' e'
 
         TCMatch s e ->
-          do b <- pMatch1 erng (compilePredicateExpr env e)
+          do b <- addScope (pMatch1 erng (compilePredicateExpr env e))
              return $! mbSkip s (vByte b)
 
-        TCEnd -> pEnd erng >> pure vUnit
+        TCEnd -> addScope (pEnd erng) >> pure vUnit
         TCOffset -> vStreamOffset . VStream <$> pPeek
 
         TCCurrentStream -> VStream <$> pPeek
@@ -785,7 +909,8 @@ compilePExpr env expr0 args = go expr0
         TCStreamLen sem n s ->
           case vStreamTake vn vs of
             Right v -> pure $ mbSkip sem v
-            Left _  -> pError FromSystem erng
+            Left _  -> addScope
+                     $ pError FromSystem erng
                              ("Not enough bytes: need " ++
                               show (valueToSize vn)
                               ++ ", have " ++
@@ -797,7 +922,8 @@ compilePExpr env expr0 args = go expr0
         TCStreamOff sem n s ->
           case vStreamDrop vn vs of
             Right v -> pure $ mbSkip sem v
-            Left _ -> pError FromSystem erng
+            Left _ -> addScope
+                    $ pError FromSystem erng
                              ("Offset out of bounds: offset " ++
                                show (valueToSize vn)
                              ++ ", have " ++
@@ -808,11 +934,12 @@ compilePExpr env expr0 args = go expr0
 
 
 
-        TCLabel l p -> pEnter (TextAnnot (Text.unpack l)) (go p)
+        TCLabel l p -> pEnter (TextAnnot l) (go p)
 
         TCMapInsert s ke ve me ->
           case vMapLookup kv mv of
             VMaybe (Just {}) ->
+              addScope $
               pError FromSystem erng ("duplicate key " ++ show (pp kv))
             _ -> pure $! mbSkip s (vMapInsert kv vv mv)
           where
@@ -823,7 +950,7 @@ compilePExpr env expr0 args = go expr0
         TCMapLookup s ke me ->
           case vMapLookup kv mv of
             VMaybe (Just a) -> pure $! mbSkip s a
-            _ -> pError FromSystem erng ("missing key " ++ show (pp kv))
+            _ -> addScope $ pError FromSystem erng ("missing key " ++ show (pp kv))
           where
           kv = compilePureExpr env ke
           mv = compilePureExpr env me
@@ -831,7 +958,7 @@ compilePExpr env expr0 args = go expr0
         TCArrayIndex s e ix ->
           case vArrayIndex v ixv of
             Right a  -> pure $! mbSkip s a
-            Left _   -> pError FromSystem erng
+            Left _   -> addScope $ pError FromSystem erng
                             ("index out of bounds " ++ showPP ixv)
           where
           v   = compilePureExpr env e
@@ -839,12 +966,12 @@ compilePExpr env expr0 args = go expr0
 
         TCMatchBytes s e  ->
           do let v  = compilePureExpr env e
-             _ <- pMatch erng (vecFromRep (valueToByteString v))
+             _ <- addScope $ pMatch erng (vecFromRep (valueToByteString v))
              pure $! mbSkip s v
 
         TCChoice c es _  ->
           case es of
-            [] -> pError FromSystem erng "empty choice"
+            [] -> addScope $ pError FromSystem erng "empty choice"
             _  -> foldr1 (alt c) (map go es)
 
         TCOptional c e   ->
@@ -852,7 +979,8 @@ compilePExpr env expr0 args = go expr0
 
         TCMany s _ (Exactly e) e' ->
           case valueToIntSize (compilePureExpr env e) of
-            Nothing -> pError FromSystem erng "Limit of `Many` is too large"
+            Nothing -> addScope
+                    $ pError FromSystem erng "Limit of `Many` is too large"
             Just v ->
               case s of
                 YesSem -> vArray <$> replicateM v p
@@ -864,7 +992,7 @@ compilePExpr env expr0 args = go expr0
                    forM mb \b ->
                      case valueToIntSize (compilePureExpr env b) of
                        Just a  -> pure (UInt (fromIntegral a))
-                       Nothing -> pError FromSystem erng
+                       Nothing -> addScope $ pError FromSystem erng
                                                 "Limit of `Many` is too large"
 
              let code   = go e
@@ -885,11 +1013,13 @@ compilePExpr env expr0 args = go expr0
                    NoSem  -> unit <$> RTS.pSkipMany (alt cmt) code'
 
                (Nothing, Just ub) ->
+                 addScope
                  case s of
                    YesSem -> vec  <$> RTS.pManyUpTo (alt cmt) ub code
                    NoSem  -> unit <$> RTS.pSkipManyUpTo (alt cmt) ub code'
 
                (Just lb,Nothing) ->
+                 addScope
                  case s of
                    YesSem -> vec <$> RTS.pMinLength erng lb
                                                      (RTS.pMany (alt cmt) code)
@@ -897,6 +1027,7 @@ compilePExpr env expr0 args = go expr0
                    NoSem  -> unit <$> RTS.pSkipAtLeast (alt cmt) lb code'
 
                (Just lb, Just ub) ->
+                 addScope
                  case s of
                    YesSem -> vec <$> RTS.pMinLength erng lb
                                              (RTS.pManyUpTo (alt cmt) ub code)
@@ -904,8 +1035,10 @@ compilePExpr env expr0 args = go expr0
                                  RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
-        TCCall x ts es -> pEnter (RngAnnot erng)
-                                 (invoke rule env ts es args)
+        TCCall x ts es -> addScope
+                        $ do i <- pPeek
+                             pEnter (CallAnnot (CallSite f erng i))
+                                    (invoke rule env ts es args)
           where
           f   = tcName x
 
@@ -937,7 +1070,8 @@ compilePExpr env expr0 args = go expr0
                      -- XXX: should it still be an error if the value is
                      -- skipped?
 
-                else pError FromSystem erng "value does not fit in target type"
+                else addScope
+                   $ pError FromSystem erng "value does not fit in target type"
 
         TCFor lp -> doLoop env  lp
 
@@ -952,8 +1086,9 @@ compilePExpr env expr0 args = go expr0
         TCCase e alts def ->
           evalCase
             compileExpr
-            (pError FromSystem erng (describeAlts alts))
+            (addScope (pError FromSystem erng (describeAlts alts)))
             env e alts def
+
 
 tracePrim :: [SomeVal] -> Parser Value
 tracePrim vs =
@@ -1069,11 +1204,12 @@ compile start builtins prog =
                      , (tcDeclTyParams x, tcDeclParams x)
                      ) | rs <- allRules, x <- rs ]
 
-interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
+interpCompiled ::
+  ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    rl : _  -> P.runParser (rl [] (map VVal args)) (newInput name bytes)
+    rl : _  -> runParser (rl [] (map VVal args)) (newInput name bytes)
     [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
 interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
@@ -1096,4 +1232,87 @@ interpFile input prog startName = do
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]
+
+
+
+
+--------------------------------------------------------------------------------
+
+data ErrorTrie = ErrorTrie (Maybe ParseError) (Map CallSite ErrorTrie)
+
+
+emptyErrorTrie :: ErrorTrie
+emptyErrorTrie = ErrorTrie Nothing mempty
+
+insertError :: [DebugAnnot] -> ParseError -> ErrorTrie -> ErrorTrie
+insertError path err (ErrorTrie here there) =
+  case path of
+    [] -> ErrorTrie newHere there
+      where
+      newHere =
+        case here of
+          Nothing -> Just err
+          Just other -> Just (err <> other)
+
+    e : more ->
+      case e of
+        TextAnnot {}  -> insertError more err (ErrorTrie here there)
+        ScopeAnnot {} -> insertError more err (ErrorTrie here there)
+        CallAnnot site ->
+          let remote = Map.findWithDefault emptyErrorTrie site there
+              newRemote = insertError more err remote
+          in ErrorTrie here (Map.insert site newRemote there)
+
+parseErrorToTrie :: ParseError -> ErrorTrie
+parseErrorToTrie = foldr insert emptyErrorTrie
+                 . zipWith addNum [ 0 .. ]
+                 . RTS.parseErrorToList
+  where
+  insert e t = insertError (reverse (RTS.peStack e)) e t
+  addNum n e = e { RTS.peNumber = n }
+
+parseErrorTrieToJSON :: ParseError -> JSON
+parseErrorTrieToJSON top =
+  jsObject
+    [ ("tree",    jsTrie (parseErrorToTrie top))
+    , ("inputs",  jsObject [ (fromShort k, jsText v)
+                           | (k,v) <- Map.toList (RTS.getInputs top)
+                           ])
+    ]
+  where
+  jsTrie (ErrorTrie here there) =
+    jsObject
+      [ ("errors", jsErrMb here)
+      , ("frames", jsMap there)
+      ]
+
+  jsMap mp =
+    jsArray
+      [ jsObject
+          [ ("frame",toJSON k)
+          , ("nest", jsTrie v)
+          ]
+      | (k,v) <- Map.toList mp ]
+
+  jsErrMb mb =
+    jsArray
+      case mb of
+        Nothing -> []
+        Just es -> [ jsErr e | e <- RTS.parseErrorToList es ]
+
+  jsErr pe =
+    jsObject
+      [ ("error",   jsString (RTS.peMsg pe))
+      , ("input",   toJSON (inputName (RTS.peInput pe)))
+      , ("offset",  toJSON (inputOffset (RTS.peInput pe)))
+      , ("grammar", toJSON (RTS.peGrammar pe))
+      , ("trace",   toJSON (RTS.peITrace pe))
+      , ("stack",   toJSON (RTS.peStack pe))
+      , ("number",  toJSON (RTS.peNumber pe))
+      ]
+
+
+
+
+
 

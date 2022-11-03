@@ -20,20 +20,24 @@ library
                        RTS.Numeric,
                        RTS.ParserAPI,
                        RTS.Parser,
+                       RTS.ParserTraced,
                        RTS.StateT,
                        RTS.Vector,
                        RTS.Map,
                        RTS.Input,
                        RTS.Base,
+                       RTS.ParseError,
                        RTS.ByteRanges,
                        RTS.Iterator,
                        RTS.JSON,
-                       RTS.ParserVM
+                       RTS.InputTrace,
+                       RTS.Annot
   build-depends:       base >=4.13,
                        vector,
                        vector-builder,
                        containers,
                        bytestring,
+                       filepath,
                        text,
                        pretty
   ghc-options:         -O2 -Wall

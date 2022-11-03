@@ -1,9 +1,10 @@
-{-# Language RankNTypes #-}
+{-# Language RankNTypes, BlockArguments #-}
 module Daedalus.Value.Arith (vAdd, vSub, vNeg, vMul, vDiv, vMod) where
 
 
 import Daedalus.Panic(panic)
 import Daedalus.Value.Type
+import Daedalus.Value.Utils
 
 vAdd :: Value -> Value -> Partial Value
 vAdd = numeric2 "+" (+)
@@ -22,7 +23,8 @@ vMul = numeric2 "*" (*)
 -- XXX: div/mod or quot/rem?
 
 vDiv :: Value -> Value -> Partial Value
-vDiv a b =
+vDiv =
+  tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> VInteger <$> f x y
     (VUInt n x,  VUInt n' y) | n == n' -> vUInt n <$> f x y
@@ -38,7 +40,8 @@ vDiv a b =
   f x y = if y == 0 then vErr "Division by 0" else pure (div x y)
 
 vMod :: Value -> Value -> Partial Value
-vMod a b =
+vMod =
+  tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> VInteger <$> f x y
     (VUInt n x,  VUInt n' y) | n == n' -> vUInt n <$> f x y
@@ -54,7 +57,8 @@ vMod a b =
 
 
 numeric1 :: String -> (forall a. Num a => a -> a) -> Value -> Partial Value
-numeric1 name f a =
+numeric1 name f =
+  tracedFun \a ->
   case a of
     VInteger x -> pure (VInteger (f x))
     VUInt n x  -> pure (vUInt n (f x))
@@ -67,7 +71,8 @@ numeric1 name f a =
                           ]
 numeric2 ::
   String -> (forall a. Num a => a -> a -> a) -> Value -> Value -> Partial Value
-numeric2 name f a b =
+numeric2 name f =
+  tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> pure (VInteger (f x y))
     (VUInt n x,  VUInt n' y) | n == n' -> pure (vUInt n (f x y))
@@ -79,6 +84,5 @@ numeric2 name f a b =
                           , "Operand 1: " ++ show a
                           , "Operand 2: " ++ show b
                           ]
-
 
 
