@@ -97,7 +97,7 @@ watchModule report reportMsg clientHandle sst nm = go mempty
       case canRunDecl nm newTCs of
         Right _ -> do
           let unsortedTcs = snd <$> Map.elems newTCs
-              tcs = forgetRecs $ topoOrder (\m -> (tcModuleName m, Set.fromList (map thingValue (tcModuleImports m)))) unsortedTcs
+              tcs = forgetRecs $ topoOrder (\m -> (tcModuleName m, Set.fromList (map importModule (tcModuleImports m)))) unsortedTcs
           
           (_, res) <- interpFile Nothing tcs (nameScopedIdent nm)
           -- For now we just return the pretty-printed value (we could also return the json)

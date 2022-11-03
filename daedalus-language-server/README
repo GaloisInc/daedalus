@@ -1,0 +1,5 @@
+This directory contains an LSP server for DaeDaLus.
+
+For instructions on how to use this server with VS Code, please look at
+the README in `syntax-highlight/vscode-daedalus`
+

@@ -21,7 +21,7 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 project = 'Daedalus'
-copyright = '2021, The Daedalus Team'
+copyright = '2022, The Daedalus Team'
 author = 'The Daedalus Team'
 
 # The short X.Y version
@@ -91,10 +91,11 @@ html_theme = 'sphinx_rtd_theme'
 
 
 html_theme_options = {
-    'collapse_navigation': False,
-    'sticky_navigation': False,
-    'titles_only': False
-    
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'titles_only': False,
+    'includehidden': True,
+    'navigation_depth': -1
 }
 
 

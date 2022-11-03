@@ -10,7 +10,7 @@
 #include <ddl/owned.h>
 #include <ddl/boxed.h>
 #include <ddl/input.h>
-#include <ddl/stack.h>
+#include <ddl/json.h>
 
 namespace DDL {
 
@@ -114,6 +114,52 @@ struct ParseError {
     debugs  = newDebugs;
   }
 };
+
+static inline
+std::ostream& toJS(std::ostream &os, ParseError const& err) {
+  auto const &inp = err.input.borrow();
+
+  os << "{ \"error\": " << JS(err.message.borrow().borrowBytes());
+  os << "\n, \"offset\": " << inp.getOffset();
+  os << "\n, \"context\":\n[";
+  bool first = true;
+  for (auto&& frame : err.debugs) {
+    if (!first) os << "\n, ";
+    first = false;
+
+    auto cur = frame.get_cur();
+    auto const& h = frame.get_history();
+    auto in_hist = h.find(cur);
+
+    os << "[ ";
+
+    size_t n = 1;
+    if (in_hist != h.end()) {
+      n += in_hist->second;
+    }
+    if (n > 1)
+      os << "[" << JS(std::string_view(cur)) << ", " << n << "]";
+    else
+      os << JS(std::string_view(cur));
+
+    for (auto &&el : h) {
+      if (el.first == cur) continue;
+      os << "\n, ";
+      if (el.second > 1)
+        os << "[" << JS(el.first) << ", " << el.second << "]";
+      else
+        os << JS(el.first);
+    }
+    os << "]";
+  }
+  os << "]";
+
+  if (err.error_loc != nullptr && *err.error_loc != 0) {
+    os << "\n, \"location\": " << JS(std::string_view(err.error_loc));
+  }
+
+  return os << "}";
+}
 
 static inline
 std::ostream& operator << (std::ostream &os, ParseError const& err) {

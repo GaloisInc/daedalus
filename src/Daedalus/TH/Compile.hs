@@ -19,19 +19,21 @@ import qualified Daedalus.VM.Compile.Decl as VM (moduleToProgram)
 
 import qualified Daedalus.Driver as DDL
 
-data CompileConfing = CompileConfing
+data CompileConfig = CompileConfig
   { userMonad       :: Maybe TH.TypeQ
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
   , userEntries     :: [String]
-  , userSearchPaths  :: [FilePath] -- Relative to where cabal is invoked
+  , specPath        :: [FilePath]
+  , nicerErrors     :: Bool
   }
 
-defaultConfig :: CompileConfing
-defaultConfig = CompileConfing
+defaultConfig :: CompileConfig
+defaultConfig = CompileConfig
   { userMonad      = Nothing
   , userPrimitives = []
   , userEntries    = ["Main"]
-  , userSearchPaths = ["."]
+  , specPath       = ["."]
+  , nicerErrors    = True
   }
 
 data DDLText = Inline SourcePos Text
@@ -41,16 +43,17 @@ data DDLText = Inline SourcePos Text
 compileDDL :: DDLText -> TH.DecsQ
 compileDDL = compileDDLWith defaultConfig
 
-compileDDLWith :: CompileConfing -> DDLText -> TH.DecsQ
+compileDDLWith :: CompileConfig -> DDLText -> TH.DecsQ
 compileDDLWith cfg ddlText =
   do case ddlText of
        FromFile f -> do f' <- liftIO (canonicalizePath f)
-                        liftIO (print f')
+                        liftIO (putStrLn ("Compiling: " ++ show f'))
                         TH.addDependentFile f'
        _          -> pure ()
      mb <-
         liftIO $ try $ DDL.daedalus
-           do ast <- loadDDLVM (userSearchPaths cfg) (userEntries cfg) ddlText
+           do DDL.ddlSetOpt DDL.optSearchPath (specPath cfg)
+              ast <- loadDDLVM cfg ddlText
               let getPrim (x,c) =
                     do mb <- DDL.ddlGetFNameMaybe "Main" x
                        case mb of
@@ -70,9 +73,9 @@ compileDDLWith cfg ddlText =
 
      VM.compileModule c ast
 
-loadDDLVM :: [FilePath] -> [String] -> DDLText -> DDL.Daedalus VM.Module
-loadDDLVM relSearchPath roots src =
-  do DDL.ddlSetOpt DDL.optSearchPath relSearchPath
+loadDDLVM :: CompileConfig -> DDLText -> DDL.Daedalus VM.Module
+loadDDLVM cfg src =
+  do let roots = userEntries cfg
      mo <- case src of
              Inline loc txt ->
                do let mo = "Main"
@@ -93,13 +96,13 @@ loadDDLVM relSearchPath roots src =
      -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
      DDL.passNorm specMod
-     DDL.ddlSetOpt DDL.optDebugMode False -- True
+     DDL.ddlSetOpt DDL.optDebugMode (nicerErrors cfg)
      DDL.passVM specMod
      m <- DDL.ddlGetAST specMod DDL.astVM
 
      pure $ head $ VM.pModules $ VM.moduleToProgram [m]
 
-saveDDLWith :: CompileConfing -> DDLText -> Maybe FilePath -> IO ()
+saveDDLWith :: CompileConfig -> DDLText -> Maybe FilePath -> IO ()
 saveDDLWith cfg src mbfile =
   do ds <- TH.runQ (compileDDLWith cfg src)
      let txt = show (TH.ppr_list ds)

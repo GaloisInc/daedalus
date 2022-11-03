@@ -58,6 +58,9 @@ jobs:
     - name: Build Talos
       run: cabal build --enable-tests exe:talos
 
+    - name: Build language server
+      run: cabal build daedalus-language-server
+
   # Run the tests in matrix.components, in parallel.
   tests:
     name: Test ${{ matrix.component.name }}

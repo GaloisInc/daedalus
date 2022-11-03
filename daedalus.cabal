@@ -139,7 +139,7 @@ executable daedalus
                        ansi-terminal,
                        base,
                        text >= 1.2.4,
-                       simple-get-opt >= 0.4,
+                       simple-get-opt >= 0.5,
                        bytestring,
                        containers,
                        filepath,

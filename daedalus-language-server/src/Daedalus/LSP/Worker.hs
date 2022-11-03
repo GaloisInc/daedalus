@@ -19,7 +19,6 @@ import           Control.Monad.Except
 import           Control.Monad.State
 import           Data.Either              (partitionEithers)
 import           Data.Foldable            (traverse_)
-import           Data.Functor
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
 import           Data.Set                 (Set)
@@ -29,7 +28,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.IO             as Text
 import           System.FilePath
 
-import           Daedalus.AST             (Module (..))
+import           Daedalus.AST             (Module (..), Import(..))
 import           Daedalus.Module          (pathToModuleName)
 import           Daedalus.PP              hiding ((<.>))
 import           Daedalus.Panic
@@ -190,7 +189,7 @@ statusAt l mn = do
 runIfNeeded :: forall a a'. Lens' ModuleState (PassStatus a) ->
                Lens' ModuleState (PassStatus a') ->
                (Bool -> ModuleState -> ModuleState) ->
-               (a' -> [Located ModuleName]) ->
+               (a' -> [Import]) ->
                (ModuleName -> ModuleSource -> a' -> [a] ->
                 WorkerM (Either [Diagnostic] a, [Diagnostic])) ->
                ModuleName ->
@@ -208,10 +207,13 @@ runIfNeeded l prevl cleanup deps doIt mn = do
     (Right m, Just mst) -> do
       let ms = mst ^. msSource
           imps = deps m
-          addLoc m' = over _Left (m' $>)
-          getStatus m' = over _2 (addLoc m') <$> statusAt l (thingValue m')
+          addLoc m' = over _Left (\a -> Located { thingRange = importRange m'
+                                                , thingValue = a
+                                                })
+          getStatus m' = over _2 (addLoc m') <$> statusAt l (importModule m')
 
       (depcs, e_depvs) <- unzip <$> traverse getStatus imps
+
       let rerun = or (cm : depcs) -- has any dep changed, or have we never run.
 
       case (rerun, partitionEithers e_depvs) of
@@ -301,7 +303,7 @@ parseAll = do
       runIfNeeded msParsedModule msTokens parsePostCleanup
                   (const []) parseModule mn
       (_, e_m) <- statusAt msParsedModule mn
-      let allImps = either (const mempty) (map thingValue . moduleImports) e_m
+      let allImps = either (const mempty) (map importModule . moduleImports) e_m
           rootDir = moduleSourceToDir ms
       newImps <- filterM (\mn' -> use (wsModules . to (Map.notMember mn'))) allImps
       -- Tokenize the new modules and add to state
@@ -332,7 +334,7 @@ recToEither (MutRec b) = Right b
 orderModules :: ModuleStates -> [Rec ModuleName]
 orderModules mods = map (fmap moduleName) $ topoOrder order parsed
   where
-    order m = (moduleName m, Set.fromList (map thingValue (moduleImports m)))
+    order m = (moduleName m, Set.fromList (map importModule (moduleImports m)))
     parsed  = [ m | ms <- Map.elems mods
                   , FinishedStatus m <- [ ms ^. msParsedModule . passStatus ] ]
     -- ordered = 
@@ -365,14 +367,14 @@ scopeAll = do
 
     cycleError mns mn = do
       let err = "Cyclic imports with " <> hsep (punctuate ", " (map pp mns))
-          diag lmn = makeDiagnosticText J.DsError (sourceRangeToRange (range lmn))
+          diag lmn = makeDiagnosticText J.DsError (sourceRangeToRange (importRange lmn))
                                         (Text.pack (show err))
       m_mst <- use (wsModules . at mn)
       case m_mst of
         -- should always trigger
         Just mst | FinishedStatus m <- mst ^. msParsedModule . passStatus -> do
                      let diags = [ diag mn' | mn' <- moduleImports m
-                                            , thingValue mn' `elem` mns ]
+                                            , importModule mn' `elem` mns ]
                      addDiagnostic (mst ^. msSource) diags
 
 

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Type Annotations and Coercions &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Semantic Values" href="semantic-values.html" />
+    <link rel="prev" title="Control Structures" href="control-structures.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html">Control Structures</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Type Annotations and Coercions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#annotating-an-expression">Annotating an Expression</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#annotating-the-result-of-a-declaration">Annotating the Result of a Declaration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#annotating-a-parameter">Annotating a Parameter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#naming-unknown-types">Naming Unknown Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#coercions">Coercions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html">Semantic Values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Language Reference</a> &raquo;</li>
+      <li>Type Annotations and Coercions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-guide/types.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="type-annotations-and-coercions">
+<h1>Type Annotations and Coercions<a class="headerlink" href="#type-annotations-and-coercions" title="Permalink to this headline"></a></h1>
+<p>DaeDaLus declarations and expressions may be annotated with explicit types,
+which is useful when type inference fails to infer the type of something,
+or to improve the readability of the specification.</p>
+<section id="annotating-an-expression">
+<h2>Annotating an Expression<a class="headerlink" href="#annotating-an-expression" title="Permalink to this headline"></a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">:</span> <span class="pre">t</span></code> to specify that expression <code class="docutils literal notranslate"><span class="pre">e</span></code> should have type <code class="docutils literal notranslate"><span class="pre">t</span></code>.
+For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">i</span>_<span class="n">am</span>_<span class="n">a</span>_<span class="n">byte</span> <span class="k">=</span> <span class="m">1</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span>
+</pre></div>
+</div>
+<p>Note that without the type annotation on the expression <code class="docutils literal notranslate"><span class="pre">1</span></code> the
+resulting declaration would be polymorphic because literals are overloaded
+and may be used at many different types.</p>
+</section>
+<section id="annotating-the-result-of-a-declaration">
+<h2>Annotating the Result of a Declaration<a class="headerlink" href="#annotating-the-result-of-a-declaration" title="Permalink to this headline"></a></h2>
+<p>To specify the result type of a declaration use <code class="docutils literal notranslate"><span class="pre">:</span> <span class="pre">t</span></code> after the name
+(or the parameters, if any) of the declaration like this:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">also</span>_<span class="n">byte</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="k">=</span> <span class="m">1</span>
+
+<span class="k">def</span> <span class="n">returns</span>_<span class="n">byte</span> <span class="n">x</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="k">=</span> <span class="n">x</span>
+</pre></div>
+</div>
+</section>
+<section id="annotating-a-parameter">
+<h2>Annotating a Parameter<a class="headerlink" href="#annotating-a-parameter" title="Permalink to this headline"></a></h2>
+<p>Parameters of declarations may also be annotated with a type:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Example</span> <span class="p">(</span><span class="n">P</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">)</span> <span class="k">=</span> <span class="n">P</span>
+</pre></div>
+</div>
+<p>The previous example specifies that parameter <code class="docutils literal notranslate"><span class="pre">P</span></code> is a parser that
+will construct a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code> semantic value.</p>
+</section>
+<section id="naming-unknown-types">
+<h2>Naming Unknown Types<a class="headerlink" href="#naming-unknown-types" title="Permalink to this headline"></a></h2>
+<p>Occasionally it is useful to name a type without specifying it explicitly.
+For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span> <span class="p">(</span><span class="n">x</span> <span class="p">:</span> <span class="k">maybe</span> <span class="n">?a</span><span class="p">)</span> <span class="k">=</span> <span class="m">1</span> <span class="p">:</span> <span class="n">?a</span>
+</pre></div>
+</div>
+<p>The type annotation <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> specifies that the input should be of type
+<code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> for <em>some</em> type <code class="docutils literal notranslate"><span class="pre">?a</span></code> that we can refer to
+using the name <code class="docutils literal notranslate"><span class="pre">?a</span></code>, as we do in the body.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The notation ?x is used for two unrelated features:  in types it refers
+to some unknown type, as in the previous example;  in parsers and value
+declarations it refers to <a class="reference internal" href="implicit-parameters.html#implicit-parameters"><span class="std std-ref">Implicit Parameters</span></a>.</p>
+</div>
+</section>
+<section id="coercions">
+<h2>Coercions<a class="headerlink" href="#coercions" title="Permalink to this headline"></a></h2>
+<p>Coercions provide a way to change a semantic value into the corresponding value
+of a different type. The general form is <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code>, which converts the value of
+expression <code class="docutils literal notranslate"><span class="pre">e</span></code> into type <code class="docutils literal notranslate"><span class="pre">T</span></code>. For example, the following code will parse
+a byte and pad the resulting value out to a 32-bit unsigned integer.</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
+  <span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="k">UInt8</span>
+  <span class="k">^</span> <span class="n">i</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">32</span>
+</pre></div>
+</div>
+<p>The base form <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> statically checks that the resulting type has
+enough bits to losslessly represent the original value. There are two other
+forms, <code class="docutils literal notranslate"><span class="pre">as!</span></code> and <code class="docutils literal notranslate"><span class="pre">as?</span></code> that can be used when this does not hold true
+statically:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as!</span> <span class="pre">T</span></code> is guaranteed to succeed, but may lose information.
+In the case that the original value fits into the target type, the behaviour
+coincides with the lossless version of <code class="docutils literal notranslate"><span class="pre">as</span></code>. Otherwise, behaviour is
+implementation dependent, but will attempt to do something reasonable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> performs a run-time check that the coercion will not lose
+information. If this holds, behaviour is identical to the lossless version of
+<code class="docutils literal notranslate"><span class="pre">as</span></code>. Otherwise, the coercion fails and backtracks.</p></li>
+</ul>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> are values, and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> is a parser.
+This is because <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> can fail and backtrack, which is only meaningful
+in parser expressions.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="control-structures.html" class="btn btn-neutral float-left" title="Control Structures" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="semantic-values.html" class="btn btn-neutral float-right" title="Semantic Values" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

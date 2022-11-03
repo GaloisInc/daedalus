@@ -123,12 +123,10 @@ tokenToSTT tok = flip (,) [] <$> typ
       BitwiseComplementT -> op
      
       KWChoose            -> kw
-      KWChoose1           -> kw
       KWblock             -> kw
       KWlet               -> kw
       KWTry               -> kw
       KWMatch             -> kw
-      KWMatch1            -> kw
       KWMany              -> kw
       KWManyQuestion      -> kw
       KWOptional          -> kw
@@ -165,7 +163,6 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWRangeUp           -> kw
       KWRangeDown         -> kw
       KWOffset            -> kw
-      KWDollarUInt        -> kw
       KWGetStream         -> kw
       KWSetStream         -> kw
       KWTake              -> kw

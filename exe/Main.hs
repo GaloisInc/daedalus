@@ -79,6 +79,10 @@ main =
 
        , Handler \e -> exitWith e
 
+       , Handler \e ->
+          do putStrLn ("[Error] " ++ displayException (e :: InterpError))
+             exitFailure
+
        , Handler \(SomeException e) ->
            do putStrLn (displayException e)
               exitFailure
@@ -104,12 +108,12 @@ handleOptions opts
 
   | DumpRaw <- optCommand opts =
     do mm   <- ddlPassFromFile passParse (optParserDDL opts)
-       mo <- ddlGetAST mm astParse
+       mo   <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
   | DumpResolve <- optCommand opts =
-    do mm <- ddlPassFromFile passResolve (optParserDDL opts)
-       mo <- ddlGetAST mm astParse
+    do mm       <- ddlPassFromFile passResolve (optParserDDL opts)
+       mo       <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
   | DumpTypes <- optCommand opts =
@@ -122,17 +126,15 @@ handleOptions opts
   | otherwise =
     do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
        allMods <- ddlBasis mm
-       let mainRule = (mm, case optEntries opts of
-                             e : _ -> Text.pack e
-                             _     -> "Main")
 
+       let mainRules = parseEntries opts mm
        case optCommand opts of
 
          DumpTC ->
            for_ allMods \m -> ddlPrint . pp =<< ddlGetAST m astTC
 
          DumpSpec ->
-           do passSpecialize specMod [mainRule]
+           do passSpecialize specMod mainRules
               mo <- ddlGetAST specMod astTC
               ddlPrint (pp mo)
 
@@ -151,9 +153,8 @@ handleOptions opts
 
 
          DumpGen ->
-           do passSpecialize specMod [mainRule]
+           do passSpecialize specMod mainRules
               prog <- ddlGetAST specMod astTC
-              -- prog <- normalizedDecls
               ddlIO (
                 do let aut = PGen.buildArrayAut [prog]
                    PGen.autToGraphviz aut
@@ -166,19 +167,16 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp opts inp prog mainRule)
+                  ddlIO (interpInterp opts inp prog mainRules)
 
              UseCore -> interpCore opts mm inp
 
              UseVM -> interpVM opts mm inp
 
              UsePGen flagMetrics ->
-               do passSpecialize specMod [mainRule]
+               do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
                   ddlIO (interpPGen (optShowJS opts) inp [prog] flagMetrics)
-               --do passSpecialize specMod [mainRule]
-               --   prog <- normalizedDecls
-               --   ddlIO (interpPGen inp prog)
 
          DumpRaw -> error "Bug: DumpRaw"
          DumpResolve -> error "Bug: DumpResolve"
@@ -194,7 +192,7 @@ handleOptions opts
              UseCore   -> generateCPP opts mm
              UseVM     -> generateCPP opts mm
              UsePGen _ ->
-               do passSpecialize specMod [mainRule]
+               do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
                   let outDir = fromMaybe "." $ optOutDir opts
                   compilePGen [prog] outDir
@@ -204,10 +202,13 @@ handleOptions opts
 
 
 interpInterp ::
-  Options -> Maybe FilePath -> [TCModule SourceRange] -> (ModuleName,Ident) ->
+  Options -> Maybe FilePath -> [TCModule SourceRange] -> [(ModuleName,Ident)] ->
     IO ()
-interpInterp opts inp prog (m,i) =
-  do (_,res) <- interpFile inp prog (ModScope m i)
+interpInterp opts inp prog ents =
+  do start <- case [ ModScope m i | (m,i) <- ents ] of
+                [ent] -> pure ent
+                es -> interpError (MultipleStartRules es)
+     (_,res) <- interpFile inp prog start
      let ?useJS = optShowJS opts
      let txt1   = dumpResult dumpInterpVal res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1

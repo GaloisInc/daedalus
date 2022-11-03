@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Implicit Parameters &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/design-tabs.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Implicit Lifting" href="lifting.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html">Control Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html">Type Annotations and Coercions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html">Semantic Values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Implicit Parameters</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Language Reference</a> &raquo;</li>
+      <li>Implicit Parameters</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-guide/implicit-parameters.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="implicit-parameters">
+<h1>Implicit Parameters<a class="headerlink" href="#implicit-parameters" title="Permalink to this headline"></a></h1>
+<p>An <em>implicit parameter</em> is a parameter that is automatically
+passed along by the system, which helps avoid clutter in specifications.
+In DaeDaLus, implicit parameters have names staring with <code class="docutils literal notranslate"><span class="pre">?</span></code>, for example
+<code class="docutils literal notranslate"><span class="pre">?bigendian</span></code>.</p>
+<p>Implicit parameters are useful in situations where the value of a parameter
+is set once for a given scope, and then the same parameter is just passed
+along with no changes to the “leaves” of the specification.   This is quite
+common in situations where some configuration options are read once, and then
+are just passed along for the rest of a parser.</p>
+<p>Here is an example of a function that uses an implicit parameter to concatenate
+two bit vectors one way or another:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">joinWords</span> <span class="n">a</span> <span class="n">b</span> <span class="k">=</span>
+  <span class="k">if</span> <span class="n">?bigendian</span>     <span class="c">-- ?bigendian is an implicit parameter</span>
+    <span class="k">then</span> <span class="n">a</span> <span class="o">#</span> <span class="n">b</span>
+    <span class="k">else</span> <span class="n">b</span> <span class="o">#</span> <span class="n">a</span>
+</pre></div>
+</div>
+<p>Parsers automatically inherit the implicit parameters needed by functions
+or parsers they use.  For example, here are two parsers that can be used
+to parse either big-endian or little-endian words, depending on the value
+of the implicit parameter <code class="docutils literal notranslate"><span class="pre">?bigendian</span></code>:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These parsers use <a class="reference internal" href="lifting.html#implicit-lifting"><span class="std std-ref">Implicit Lifting</span></a> to make them more readable</p>
+</div>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Word16</span> <span class="k">=</span> <span class="n">joinWords</span> <span class="k">UInt8</span> <span class="k">UInt8</span>
+<span class="k">def</span> <span class="n">Word32</span> <span class="k">=</span> <span class="n">joinWords</span> <span class="n">Word16</span> <span class="n">Word16</span>
+</pre></div>
+</div>
+<p>If a <code class="docutils literal notranslate"><span class="pre">block</span></code> provides a value for an implicit parameter, then all calls
+for the rest of the block will use that value for the parameter.  For example,
+<code class="docutils literal notranslate"><span class="pre">BEWord16</span></code> <em>does not</em> have an implicit parameter:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">BEWord16</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="k">let</span> <span class="n">?bigendian</span> <span class="k">=</span> <span class="l">true</span>
+    <span class="n">Word16</span>    <span class="c">-- `?bigendian` has the value `true`</span>
+</pre></div>
+</div>
+<p>It is possible to use different values for the same implicit parameter,
+as illustrated by the following example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Example</span> <span class="k">=</span>
+  <span class="k">block</span>
+    <span class="c">-- Just for testing, we set the input stream to a known value</span>
+    <span class="k">SetStream</span> <span class="p">(</span><span class="k">arrayStream</span> <span class="p">(</span><span class="k">concat</span> <span class="p">[</span> <span class="p">[</span><span class="m">0</span><span class="p">,</span><span class="m">1</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">1</span><span class="p">]</span>
+                                   <span class="p">,</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">1</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">0</span><span class="p">,</span><span class="m">0</span><span class="p">]</span> <span class="p">]))</span>
+
+    <span class="n">big</span> <span class="k">=</span>
+      <span class="c">-- Here we define the value of an implicit parameter</span>
+      <span class="c">-- in all uses for the rest of the block</span>
+      <span class="k">block</span>
+        <span class="k">let</span> <span class="n">?bigendian</span> <span class="k">=</span> <span class="l">true</span>
+        <span class="n">x</span> <span class="k">=</span> <span class="n">Word16</span>
+        <span class="n">y</span> <span class="k">=</span> <span class="n">Word32</span>
+    <span class="n">little</span> <span class="k">=</span>
+      <span class="c">-- This block uses a different value for the implicit parameter</span>
+      <span class="k">block</span>
+        <span class="k">let</span> <span class="n">?bigendian</span> <span class="k">=</span> <span class="l">false</span>
+        <span class="n">x</span> <span class="k">=</span> <span class="n">Word16</span>
+        <span class="n">y</span> <span class="k">=</span> <span class="n">Word32</span>
+</pre></div>
+</div>
+<p>Executing <code class="docutils literal notranslate"><span class="pre">Example</span></code> results in the following output:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">{</span> big: <span class="o">{</span> x: <span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
+       , y: <span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
+       <span class="o">}</span>
+, little: <span class="o">{</span> x: <span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
+          , y: <span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
+          <span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="lifting.html" class="btn btn-neutral float-left" title="Implicit Lifting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
