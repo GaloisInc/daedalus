@@ -136,9 +136,11 @@ represented in this PPM format). Here it is:
     :language: DaeDaLus
     :linenos:
 
-You may notice that this specification does not perform any *validation* of the
-image data -- later, we'll discuss the pros and cons of including validation in
-parsers, and some strategies for deciding whether or not that is best left to
-other parts of the application consuming the formatted data. For now, let's
-break down this example to understand the building blocks of parser
-specifications.
+Note that this specification only specifies the format's data layout
+and does not perform any validation of the image data (such as checking
+whether the color values don't exceed the declared maximum value).
+Later, we’ll discuss the pros and cons of including validation in
+parsers and some strategies for deciding whether or not that is best
+left to other parts of the application consuming the formatted data. For
+now, let’s break down this example to understand the building blocks
+of parser specifications.
