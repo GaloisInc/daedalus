@@ -5,26 +5,26 @@ Getting Started
 
 **DaeDaLus** is a domain-specific programming language for specifying
 *parsers*. It supports *data-dependent* parsing, meaning that the behavior of
-a parser can be effected by the *semantic values* parsed from other parts of
+a parser can be affected by the *semantic values* parsed from other parts of
 the input. This makes DaeDaLus extremely well-suited for the concise and
 precise specification of both text and binary formats.
 
-These parser specifications may be directly applied to inputs via the
+DaeDaLus parser specifications may be directly applied to inputs via the
 ``daedalus`` interpreter to produce serialized representations of the resulting
 semantic values, *or* the specifications may be compiled to either Haskell or
 C++ sources for parsers to be used in larger software ecosystems.
 
 .. note:: This tutorial assumes that you have a working knowledge of common
           programming concepts and are comfortable working at the command-line.
-          Familiarity with functional programming will be particularly helpful,
-          but is not a strict requirement - any concepts needed will be covered
+          Familiarity with functional programming will be particularly helpful
+          but is not a strict requirement; any concepts needed will be covered
           in the relevant sections.
 
 Installation
 ------------
 
-DaeDaLus currently has no binary releases available for installation, but can
-be easily built and installed from source.
+DaeDaLus currently has no binary releases available for installation,
+but it can be easily built and installed from source.
 
 Since DaeDaLus is implemented in Haskell, you will need a suitable Haskell
 environment; the easiest way to set this up is with
@@ -49,8 +49,7 @@ cloned, ``cd`` into the repository root and run:
 
 .. code-block:: bash
 
-    > cabal install exe:daedalus --installdir=DIR \
-                                 --overwrite-policy=always
+    > cabal install exe:daedalus --installdir=DIR --overwrite-policy=always
 
 This will build and install the executable ``daedalus``, placing links to the
 executable in the directory ``DIR``. We recommend setting this installation
@@ -129,7 +128,7 @@ A DaeDaLus PPM Specification
 Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
-represented in this PPM format.) Here it is:
+represented in this PPM format). Here it is:
 
 .. literalinclude:: ../../build/downloads/source/examples/plain-ppm.ddl
     :language: DaeDaLus
