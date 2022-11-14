@@ -62,9 +62,11 @@ will overwrite the existing versions of the executable installed on the system.
 DaeDaLus Syntax Highlighting / Editing Modes
 --------------------------------------------
 
-The DaeDaLus repository ships with a major Emacs mode definition and syntax
-highlighters for both Vim and VSCode. Please see your editor's documentation
-for details on how to install these extra features.
+The DaeDaLus repository ships with support for editing DaeDaLus
+specifications in a few popular editors. The files can be found in the
+``syntax-highlight`` subdirectory of the DaeDaLus repository. Please see
+your editor's documentation for details on how to install the files for
+your editor of choice.
 
 Downloading The Sample Specifications
 -------------------------------------
