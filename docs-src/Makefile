@@ -34,5 +34,5 @@ github:
 	cd .. && $(CABAL) build exe:daedalus
 	cd .. && for f in $$(find docs-src/build -name \*.ddl); do \
 		echo "Testing $$f with daedalus:" ; \
-		$(CABAL) exec daedalus $$f; \
+		$(CABAL) exec daedalus -- --path=lib/ $$f; \
 		done
