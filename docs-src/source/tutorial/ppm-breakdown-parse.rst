@@ -18,13 +18,13 @@ see examples of parsers that do.
 .. note::
     Use ``UInt8`` when you need to parse a single specific byte from input.
 
-``Match1 ...``
+``$[...]``
 --------------
 
-``Match1`` accepts a single byte of input that matches any of the bytes in a
-given set of bytes. We can specify inclusive ranges of bytes, such as
-``'0' .. '9'``, or we can specify the set elements explicitly, as in this
-example from the PPM specification:
+``$[...]`` accepts a single byte of input that matches any of the bytes
+in a given set of bytes. We can specify inclusive ranges of bytes, such
+as ``'0' .. '9'``, or we can specify the set elements explicitly, as in
+this example from the PPM specification:
 
 .. literalinclude:: ../examples/plain-ppm.ddl
     :language: DaeDaLus
@@ -32,7 +32,7 @@ example from the PPM specification:
     :end-before: -- END PPM_WS
 
 .. note::
-    Use ``Match1 ...`` when you need to parse one of a finite set of bytes.
+    Use ``$[...]`` when you need to parse one of a finite set of bytes.
 
 ``Match ...``
 -------------
@@ -47,7 +47,7 @@ expecting, e.g. ``Match [0x00, 0x01]`` which will match the two bytes 0 and 1.
 
 In the declaration for the parser ``PPM``, we use ``Match "P"`` to consume the
 first part of the aforementioned PPM "magic number"; we could have just as well
-used ``Match1 'P'`` here, but the meaning in this case is the same.
+used ``$['P']`` here, but the meaning in this case is the same.
 
 .. note::
     Use ``Match`` when you need to parse a sequnce of specific bytes.
@@ -91,7 +91,7 @@ The idea here is best shown by example. Consider the declaration of the
     :emphasize-lines: 4
 
 Parsers can only be combined with other parsers - so, to transform the ASCII
-byte we read with ``Match1`` into the actual digit it represents, we must
+byte we read with ``$[...]`` into the actual digit it represents, we must
 write a parser that returns that transformed value - this is exactly the use
 for ``^``, since we don't wish to read any additional input.
 

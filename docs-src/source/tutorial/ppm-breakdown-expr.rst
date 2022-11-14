@@ -202,10 +202,10 @@ the first parsed digit is less than 5, and ``'B'`` otherwise:
 
 .. code-block:: DaeDaLus
 
-    let i = Match1 ('0' .. '9')
+    let i = $['0' .. '9']
     if (i - '0') < 5
-      then Match1 'A'
-      else Match1 'B'
+      then $['A']
+      else $['B']
 
 Guarding
 ^^^^^^^^
@@ -258,8 +258,8 @@ Here's an example that uses something like the ``GoodOrBad`` type from earlier:
 
     block
       @res = Choose
-               good = Match1 'G'
-               bad  = Match1 'B'
+               good = $['G']
+               bad  = $['B']
       case res of
         good -> ^ "Good!"
         bad  -> ^ "Bad!"

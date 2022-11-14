@@ -57,12 +57,7 @@ parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
 .. dropdown:: Solution
     :color: warning
 
-    .. code-block:: DaeDaLus
-
-        def FLAG = Match1 (0 | 1)
-
-    Alternatively, we could have used a *character class* and the alternative
-    syntax for ``Match1`` to write this very succinctly:
+    We use a *character class* to write this very succinctly:
 
     .. literalinclude:: ../examples/png.ddl
         :language: DaeDaLus
