@@ -146,8 +146,8 @@ project and also use the ``rts-hs`` package.
 
   At present the command ``compile-hs`` uses the *old* Haskell backend which
   may go away in future.  To use the new backend, which is actively
-  maintained, please use Template Haskell.   If there is deman, we may adapt
-  the new backend to generate explcit Haskell files, in which case this
+  maintained, please use Template Haskell.   If there is demand, we may adapt
+  the new backend to generate explicit Haskell files, in which case this
   command will start using the new backend.
 
 
