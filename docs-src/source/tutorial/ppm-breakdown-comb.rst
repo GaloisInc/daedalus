@@ -212,7 +212,7 @@ Consider this contrived example:
 
 .. code-block:: DaeDaLus
 
-    def P = ($['A']) <| (^ 'B')
+    def P = $['A'] <| (^ 'B')
 
 ``P`` consumes a single byte, ``'A'``, and returns it, or it consumes nothing
 and returns the byte ``'B'`` (in the case that parsing a single ``'A'`` fails.)
@@ -233,7 +233,7 @@ If we take our biased choice example and replace ``<|`` with ``|``:
 
 .. code-block:: DaeDaLus
 
-    def P = ($['A']) | (^ 'B')
+    def P = $['A'] | (^ 'B')
 
 ``P`` is now ambiguous on inputs that start with ``'A'``, since it can consume
 either one or zero bytes - remember, DaeDaLus parsers in general only need to
@@ -366,7 +366,7 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
 .. code-block:: DaeDaLus
 
-    def P = { $$ = Many ($['7']); $['0'] }
+    def P = { $$ = Many $['7']; $['0'] }
 
 This parser will match any number of 7s followed by a 0, e.g.
 ``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
@@ -378,7 +378,7 @@ succeeds, e.g.:
 
 .. code-block:: DaeDaLus
 
-    def P = { Many ($['7']); $['7'] }
+    def P = { Many $['7']; $['7'] }
 
 When we know that we are only parsing a particular number of things (or even
 that there is a lower or upper bound on the number of things), we can provide
