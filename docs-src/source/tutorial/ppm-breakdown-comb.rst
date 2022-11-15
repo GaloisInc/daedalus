@@ -24,14 +24,14 @@ either of these were to fail, the entire sequence would fail.
 
 By default, when we use parser sequencing, the result of the last parser in the
 sequence is what will be returned. We can subvert this default, as in the
-``Token`` example, using the special variable ``$$``: Assigning to this
+``Token`` example, using the special variable ``$$``: assigning to this
 variable in a sequence means "return this as the result of the whole
-sequence" - as we'll see later, this is simply *syntactic sugar* for a more
+sequence." As we'll see later, this is simply *syntactic sugar* for a more
 verbose construction with exactly the same behavior.
 
 .. note::
     There is another way of writing sequenced parsers in DaeDaLus that you may
-    see sometimes that does not rely on whitespace-sensitivity/code layout.
+    see sometimes that does not rely on whitespace sensitivity or code layout.
 
     Consider the two following declarations:
 
@@ -58,10 +58,10 @@ verbose construction with exactly the same behavior.
               "A"
             Match "B"
 
-    Which behaves the same as both of the previous parsers. We recommend using
-    layout for more complex parsers, and braces/semicolons for short parsers
-    that fit on a single line. These aren't rules, though; use what's
-    comfortable for you!
+    The example above behaves the same as both of the previous parsers.
+    We recommend using layout for more complex parsers, and
+    braces/semicolons for short parsers that fit on a single line. These
+    aren't rules, though; use what's comfortable for you!
 
 Array Sequencing
 ----------------
@@ -70,7 +70,7 @@ We may also use square braces (``[ .. ]``) for sequencing parsers. When we use
 this notation, rather than returning a single result from one of the sequenced
 parsers, we return an array containing *all* of the results. Crucially, in this
 case, all of the parsers being sequenced must return the same type of semantic
-value, since array elements must all have the same type.
+value since array elements must all have the same type.
 
 .. warning::
     Remember: Arrays in DaeDaLus must contain only elements of the same type!
@@ -91,7 +91,7 @@ a ``Person`` record might contain a field ``name`` of type ``string``, and an
 for each field, and from a ``Person`` we may extract the values of each field,
 typically using some kind of "field access" notation.
 
-DaeDaLus also supports record types, though in a non-traditional way: A record
+DaeDaLus also supports record types, though in a non-traditional way: a record
 is defined by a corresponding parser. This idea is best shown by example.
 
 In the PPM specification, we have the following declaration for a parser
@@ -128,13 +128,13 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
 .. note::
 
     It is also possible to define *local variables* within a declaration
-    without causing a structure to be created - this can be useful when we want
+    without causing a structure to be created; this can be useful when we want
     to save parsing results for later, or have some complex semantic value that
     we don't want to write down more than once.
 
     To introduce a local variable that won't be turned into a structure field,
-    prefix the assignment with the keyword ``let`` (or the symbol ``@``). We've
-    already seen an example of this in the ``Digit`` parser:
+    prefix the assignment with the keyword ``let``. We've already seen an example
+    of this in the ``Digit`` parser:
 
     .. literalinclude:: ../examples/plain-ppm.ddl
         :language: DaeDaLus
@@ -142,16 +142,16 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
         :end-before: -- END PPM_DIGIT
 
     Here, the result of the parser ``$['0' .. '9']`` is stored in a local
-    variable ``d``, which we later use in a lifted semantic value to return the
+    variable ``d`` which we later use in a lifted semantic value to return the
     value of the digit itself.
 
-    Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
-    creating a local variable, *not* a field of a structure!
+    Remember: If we prefix the assignment with ``let``, we're *just* creating
+    a local variable, *not* a field of a structure!
 
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
 
-Let's pull back the curtain a bit: As it turns out, most of the constructs
+Let's pull back the curtain a bit: as it turns out, most of the constructs
 for sequencing we've looked at so far can be expressed using only local
 variables and standard sequencing!
 
@@ -162,11 +162,11 @@ and return the result of parser ``P``." Can we write this without using the
 special variable?
 
 Yes! All we need to do is store the result of ``P`` to refer to later, like
-so: ``{ @x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
+so: ``{ let x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
 variable ``x``, which we later lift using the primitive pure parser ``^``.
 
 Similarly, array sequencing of parsers, such as ``[ P; Q ]``, can be
-written: ``{ @x0 = P; @x1 = Q; ^ [x0, x1] }``. Note that, in both this and
+written: ``{ let x0 = P; let x1 = Q; ^ [x0, x1] }``. Note that, in both this and
 the previous case, the expanded forms require us to come up with more names
 for things. Arguably, naming is one of the hardest problems we face in
 computer science, so it's nice to be able to avoid coming up with new names
@@ -175,7 +175,7 @@ using the shorthand originally presented.
 Finally, even structure sequencing can be written this way, since we can
 construct structure semantic values using the primitive pure parser. If
 we have ``{ x = P; y = Q }``, this can also be written
-``{ @x = P; @y = Q; ^ { x = x, y = y } }``.
+``{ let x = P; let y = Q; ^ { x = x, y = y } }``.
 
 While we recommend using the shorthand, developing an understanding of what
 it actually means can make it more obvious when each construct is
@@ -321,10 +321,10 @@ the sum type.
         def GoodOrBad2 =
           First
             block
-              @x = $['G']
+              let x = $['G']
               ^ {| good = x |}
             block
-              @x = $['B']
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, because of the way DaeDaLus attempts to infer the types of these
@@ -342,10 +342,10 @@ the sum type.
         def GoodOrBad3 =
           First
             block
-              @x = $['G']
+              let x = $['G']
               ^ {| good = x |} : GoodOrBad
             block
-              @x = $['B']
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, since all branches of ``First`` and ``Choose`` parsers must have

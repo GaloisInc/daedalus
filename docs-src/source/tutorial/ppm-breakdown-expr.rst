@@ -257,9 +257,9 @@ Here's an example that uses something like the ``GoodOrBad`` type from earlier:
 .. code-block:: DaeDaLus
 
     block
-      @res = Choose
-               good = $['G']
-               bad  = $['B']
+      let res = Choose
+                  good = $['G']
+                  bad  = $['B']
       case res of
         good -> ^ "Good!"
         bad  -> ^ "Bad!"

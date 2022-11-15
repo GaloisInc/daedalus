@@ -5,26 +5,26 @@ Getting Started
 
 **DaeDaLus** is a domain-specific programming language for specifying
 *parsers*. It supports *data-dependent* parsing, meaning that the behavior of
-a parser can be effected by the *semantic values* parsed from other parts of
+a parser can be affected by the *semantic values* parsed from other parts of
 the input. This makes DaeDaLus extremely well-suited for the concise and
 precise specification of both text and binary formats.
 
-These parser specifications may be directly applied to inputs via the
+DaeDaLus parser specifications may be directly applied to inputs via the
 ``daedalus`` interpreter to produce serialized representations of the resulting
 semantic values, *or* the specifications may be compiled to either Haskell or
 C++ sources for parsers to be used in larger software ecosystems.
 
 .. note:: This tutorial assumes that you have a working knowledge of common
           programming concepts and are comfortable working at the command-line.
-          Familiarity with functional programming will be particularly helpful,
-          but is not a strict requirement - any concepts needed will be covered
+          Familiarity with functional programming will be particularly helpful
+          but is not a strict requirement; any concepts needed will be covered
           in the relevant sections.
 
 Installation
 ------------
 
-DaeDaLus currently has no binary releases available for installation, but can
-be easily built and installed from source.
+DaeDaLus currently has no binary releases available for installation,
+but it can be easily built and installed from source.
 
 Since DaeDaLus is implemented in Haskell, you will need a suitable Haskell
 environment; the easiest way to set this up is with
@@ -49,8 +49,7 @@ cloned, ``cd`` into the repository root and run:
 
 .. code-block:: bash
 
-    > cabal install exe:daedalus --installdir=DIR \
-                                 --overwrite-policy=always
+    > cabal install exe:daedalus --installdir=DIR --overwrite-policy=always
 
 This will build and install the executable ``daedalus``, placing links to the
 executable in the directory ``DIR``. We recommend setting this installation
@@ -63,9 +62,11 @@ will overwrite the existing versions of the executable installed on the system.
 DaeDaLus Syntax Highlighting / Editing Modes
 --------------------------------------------
 
-The DaeDaLus repository ships with a major Emacs mode definition and syntax
-highlighters for both Vim and VSCode. Please see your editor's documentation
-for details on how to install these extra features.
+The DaeDaLus repository ships with support for editing DaeDaLus
+specifications in a few popular editors. The files can be found in the
+``syntax-highlight`` subdirectory of the DaeDaLus repository. Please see
+your editor's documentation for details on how to install the files for
+your editor of choice.
 
 Downloading The Sample Specifications
 -------------------------------------
@@ -129,15 +130,17 @@ A DaeDaLus PPM Specification
 Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
-represented in this PPM format.) Here it is:
+represented in this PPM format). Here it is:
 
 .. literalinclude:: ../../build/downloads/source/examples/plain-ppm.ddl
     :language: DaeDaLus
     :linenos:
 
-You may notice that this specification does not perform any *validation* of the
-image data -- later, we'll discuss the pros and cons of including validation in
-parsers, and some strategies for deciding whether or not that is best left to
-other parts of the application consuming the formatted data. For now, let's
-break down this example to understand the building blocks of parser
-specifications.
+Note that this specification only specifies the format's data layout
+and does not perform any validation of the image data (such as checking
+whether the color values don't exceed the declared maximum value).
+Later, we’ll discuss the pros and cons of including validation in
+parsers and some strategies for deciding whether or not that is best
+left to other parts of the application consuming the formatted data. For
+now, let’s break down this example to understand the building blocks
+of parser specifications.

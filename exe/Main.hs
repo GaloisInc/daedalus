@@ -16,7 +16,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
-import System.IO(stdin,stdout,stderr,hSetEncoding,utf8)
+import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
 import System.Console.ANSI
 import Data.Traversable(for)
 import Data.Foldable(for_,toList)
@@ -71,20 +71,22 @@ main =
           hSetEncoding stderr utf8
           hSetEncoding stdin  utf8
 
+     let printError = hPutStrLn stderr
+
      daedalus (configure opts >> handleOptions opts)
        `catches`
        [ Handler \e ->
-           do putStrLn =<< prettyDaedalusError e
+           do printError =<< prettyDaedalusError e
               exitFailure
 
        , Handler \e -> exitWith e
 
        , Handler \e ->
-          do putStrLn ("[Error] " ++ displayException (e :: InterpError))
+          do printError ("[Error] " ++ displayException (e :: InterpError))
              exitFailure
 
        , Handler \(SomeException e) ->
-           do putStrLn (displayException e)
+           do printError (displayException e)
               exitFailure
        ]
 
