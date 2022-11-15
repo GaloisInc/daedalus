@@ -133,8 +133,8 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
     we don't want to write down more than once.
 
     To introduce a local variable that won't be turned into a structure field,
-    prefix the assignment with the keyword ``let`` (or the symbol ``@``). We've
-    already seen an example of this in the ``Digit`` parser:
+    prefix the assignment with the keyword ``let``. We've already seen an example
+    of this in the ``Digit`` parser:
 
     .. literalinclude:: ../examples/plain-ppm.ddl
         :language: DaeDaLus
@@ -145,8 +145,8 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
     variable ``d``, which we later use in a lifted semantic value to return the
     value of the digit itself.
 
-    Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
-    creating a local variable, *not* a field of a structure!
+    Remember: If we prefix the assignment with ``let``, we're *just* creating
+    a local variable, *not* a field of a structure!
 
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
@@ -162,11 +162,11 @@ and return the result of parser ``P``." Can we write this without using the
 special variable?
 
 Yes! All we need to do is store the result of ``P`` to refer to later, like
-so: ``{ @x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
+so: ``{ let x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
 variable ``x``, which we later lift using the primitive pure parser ``^``.
 
 Similarly, array sequencing of parsers, such as ``[ P; Q ]``, can be
-written: ``{ @x0 = P; @x1 = Q; ^ [x0, x1] }``. Note that, in both this and
+written: ``{ let x0 = P; let x1 = Q; ^ [x0, x1] }``. Note that, in both this and
 the previous case, the expanded forms require us to come up with more names
 for things. Arguably, naming is one of the hardest problems we face in
 computer science, so it's nice to be able to avoid coming up with new names
@@ -175,7 +175,7 @@ using the shorthand originally presented.
 Finally, even structure sequencing can be written this way, since we can
 construct structure semantic values using the primitive pure parser. If
 we have ``{ x = P; y = Q }``, this can also be written
-``{ @x = P; @y = Q; ^ { x = x, y = y } }``.
+``{ let x = P; let y = Q; ^ { x = x, y = y } }``.
 
 While we recommend using the shorthand, developing an understanding of what
 it actually means can make it more obvious when each construct is
@@ -321,10 +321,10 @@ the sum type.
         def GoodOrBad2 =
           First
             block
-              @x = Match1 'G'
+              let x = Match1 'G'
               ^ {| good = x |}
             block
-              @x = Match1 'B'
+              let x = Match1 'B'
               ^ {| bad = x |}
 
     Note that, because of the way DaeDaLus attempts to infer the types of these
@@ -342,10 +342,10 @@ the sum type.
         def GoodOrBad3 =
           First
             block
-              @x = Match1 'G'
+              let x = Match1 'G'
               ^ {| good = x |} : GoodOrBad
             block
-              @x = Match1 'B'
+              let x = Match1 'B'
               ^ {| bad = x |}
 
     Note that, since all branches of ``First`` and ``Choose`` parsers must have
