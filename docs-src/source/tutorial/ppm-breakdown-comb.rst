@@ -141,7 +141,7 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
         :start-after: -- BEGIN PPM_DIGIT
         :end-before: -- END PPM_DIGIT
 
-    Here, the result of the parser ``Match1 ('0' .. '9')`` is stored in a local
+    Here, the result of the parser ``$['0' .. '9']`` is stored in a local
     variable ``d`` which we later use in a lifted semantic value to return the
     value of the digit itself.
 
@@ -212,7 +212,7 @@ Consider this contrived example:
 
 .. code-block:: DaeDaLus
 
-    def P = (Match1 'A') <| (^ 'B')
+    def P = $['A'] <| (^ 'B')
 
 ``P`` consumes a single byte, ``'A'``, and returns it, or it consumes nothing
 and returns the byte ``'B'`` (in the case that parsing a single ``'A'`` fails.)
@@ -233,7 +233,7 @@ If we take our biased choice example and replace ``<|`` with ``|``:
 
 .. code-block:: DaeDaLus
 
-    def P = (Match1 'A') | (^ 'B')
+    def P = $['A'] | (^ 'B')
 
 ``P`` is now ambiguous on inputs that start with ``'A'``, since it can consume
 either one or zero bytes - remember, DaeDaLus parsers in general only need to
@@ -301,8 +301,8 @@ As usual, this concept is best demonstrated by an example:
 
     def GoodOrBad =
       First
-        good = Match1 'G'
-        bad  = Match1 'B'
+        good = $['G']
+        bad  = $['B']
 
 This parser returns a semantic value of a new tagged sum type named
 ``GoodOrBad``, which has two variants whose tags are ``good`` and ``bad``; this
@@ -321,10 +321,10 @@ the sum type.
         def GoodOrBad2 =
           First
             block
-              let x = Match1 'G'
+              let x = $['G']
               ^ {| good = x |}
             block
-              let x = Match1 'B'
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, because of the way DaeDaLus attempts to infer the types of these
@@ -342,10 +342,10 @@ the sum type.
         def GoodOrBad3 =
           First
             block
-              let x = Match1 'G'
+              let x = $['G']
               ^ {| good = x |} : GoodOrBad
             block
-              let x = Match1 'B'
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, since all branches of ``First`` and ``Choose`` parsers must have
@@ -366,7 +366,7 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
 .. code-block:: DaeDaLus
 
-    def P = { $$ = Many (Match1 '7'); Match1 '0' }
+    def P = { $$ = Many $['7']; $['0'] }
 
 This parser will match any number of 7s followed by a 0, e.g.
 ``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
@@ -378,7 +378,7 @@ succeeds, e.g.:
 
 .. code-block:: DaeDaLus
 
-    def P = { Many (Match1 '7'); Match1 '7' }
+    def P = { Many $['7']; $['7'] }
 
 When we know that we are only parsing a particular number of things (or even
 that there is a lower or upper bound on the number of things), we can provide

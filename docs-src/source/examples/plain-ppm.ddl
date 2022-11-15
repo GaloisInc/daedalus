@@ -32,7 +32,7 @@ def RGB =
 -- END PPM_RGB
 
 -- BEGIN PPM_WS
-def WS = Match1 (0 | 9 | 12 | 32 | '\n' | '\r')
+def WS = $[0 | 9 | 12 | 32 | '\n' | '\r']
 -- END PPM_WS
 
 -- BEGIN PPM_NATURAL
@@ -45,7 +45,7 @@ def Natural =
 -- BEGIN PPM_DIGIT
 def Digit =
   block
-    let d = Match1 ('0' .. '9')
+    let d = $['0' .. '9']
     ^ d - '0'
 -- END PPM_DIGIT
 
