@@ -59,6 +59,17 @@ assumes this setup for brevity. The ``--verwrite-policy=always`` flag will make
 sure that, if you clone a new version of ``daedalus``, this installation step
 will overwrite the existing versions of the executable installed on the system.
 
+The DaeDaLus Command-Line Interface
+-----------------------------------
+
+Once DaeDaLus has been compiled and installed, we recommend reading
+:ref:`The Command-Line Tools` section to become familiar with how to run
+the DaeDaLus tool. For the purposes of this tutorial, it will be helpful
+to be familiar with the ``show-types`` DaeDaLus command. This command
+is useful to get DaeDaLus to show you the types of the elements of your
+specification, both to check that your specification is valid and also
+to serve as a learning aid while going through the tutorial.
+
 DaeDaLus Syntax Highlighting / Editing Modes
 --------------------------------------------
 
