@@ -21,6 +21,7 @@ import System.Console.ANSI
 import Data.Traversable(for)
 import Data.Foldable(for_,toList)
 import Text.Show.Pretty (ppDoc)
+import SimpleGetOpt (GetOptException(..))
 
 import Hexdump
 
@@ -84,6 +85,11 @@ main =
        , Handler \e ->
           do printError ("[Error] " ++ displayException (e :: InterpError))
              exitFailure
+
+       , Handler \(GetOptException msgs) ->
+           do forM_ msgs $ \msg ->
+                  printError $ "Error: " ++ msg
+              exitFailure
 
        , Handler \(SomeException e) ->
            do printError (displayException e)
