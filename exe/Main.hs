@@ -108,25 +108,31 @@ configure opts =
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
 
-  | DumpRaw <- optCommand opts =
-    do mm   <- ddlPassFromFile passParse (optParserDDL opts)
+  | DumpRaw <- optCommand opts, Just path <- optParserDDL opts =
+    do mm   <- ddlPassFromFile passParse path
        mo   <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
-  | DumpResolve <- optCommand opts =
-    do mm       <- ddlPassFromFile passResolve (optParserDDL opts)
+  | DumpResolve <- optCommand opts, Just path <- optParserDDL opts =
+    do mm       <- ddlPassFromFile passResolve path
        mo       <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
-  | DumpTypes <- optCommand opts =
-    do mm  <- ddlPassFromFile passTC (optParserDDL opts)
+  | DumpTypes <- optCommand opts, Just path <- optParserDDL opts =
+    do mm  <- ddlPassFromFile passTC path
        mo  <- ddlGetAST mm astTC
        ddlPrint (ppTypes mo)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
   | otherwise =
-    do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
+    do path <- case optParserDDL opts of
+         Nothing -> do
+           ddlIO $ throwOptError
+             [ "Missing command-line argument: DDL input file" ]
+         Just p -> return p
+
+       mm <- ddlPassFromFile ddlLoadModule path
        allMods <- ddlBasis mm
 
        let mainRules = parseEntries opts mm
@@ -471,10 +477,10 @@ compilePGen moduls outDir =
 inputHack :: Options -> Options
 inputHack opts =
   case optCommand opts of
-    DumpTC | let f = optParserDDL opts
+    DumpTC | Just f <- optParserDDL opts
              , takeExtension f == ".input"
              , let xs = takeWhile (/= '.') (takeFileName f) ->
-               opts { optParserDDL = addExtension (takeDirectory f </> xs) "ddl"
+               opts { optParserDDL = Just $ addExtension (takeDirectory f </> xs) "ddl"
                     , optCommand = Interp (Just f)
                     }
     _ -> opts
@@ -532,10 +538,7 @@ jsToHTML :: Options -> Daedalus ()
 jsToHTML opts =
   ddlPrint . dumpHTML . text =<<
     ddlIO
-    if null (optParserDDL opts)
-      then getContents
-      else readFile (optParserDDL opts)
-
+    (maybe getContents readFile $ optParserDDL opts)
 
 dumpHTML :: Doc -> Doc
 dumpHTML jsData = vcat
