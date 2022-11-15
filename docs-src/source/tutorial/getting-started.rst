@@ -15,7 +15,7 @@ semantic values, *or* the specifications may be compiled to either Haskell or
 C++ sources for parsers to be used in larger software ecosystems.
 
 .. note:: This tutorial assumes that you have a working knowledge of common
-          programming concepts and are comfortable working at the command-line.
+          programming concepts and are comfortable working at the command line.
           Familiarity with functional programming will be particularly helpful
           but is not a strict requirement; any concepts needed will be covered
           in the relevant sections.
@@ -54,7 +54,7 @@ cloned, ``cd`` into the repository root and run:
 This will build and install the executable ``daedalus``, placing links to the
 executable in the directory ``DIR``. We recommend setting this installation
 directory to something on your ``PATH``, so that the interpreter can be invoked
-simply as ``daedalus`` at the command-line -- the remainder of this tutorial
+simply as ``daedalus`` at the command line -- the remainder of this tutorial
 assumes this setup for brevity. The ``--verwrite-policy=always`` flag will make
 sure that, if you clone a new version of ``daedalus``, this installation step
 will overwrite the existing versions of the executable installed on the system.
