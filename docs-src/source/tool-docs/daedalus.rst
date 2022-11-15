@@ -134,10 +134,10 @@ To compile a DaeDaLus parser specification to Haskell:
 
 .. code-block:: bash
 
-  daedalus compile-hs MyParserSpec.ddl
+  daedalus compile-hs MyParserSpec.ddl --out-dir=some_dir_name
 
-The result is a Haskell module which contains definitions for the
-parsers and functions defined in the specification.
+The result is a directory populated with a Haskell module containing
+definitions for the parsers and functions defined in the specification.
 
 To use the generated code you'd have to integrate it with a Haskell
 project and also use the ``rts-hs`` package.
