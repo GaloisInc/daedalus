@@ -104,8 +104,8 @@ This type comes with a special parser, ``Optional``. The parser ``Optional P``
 always succeeds: It returns ``just x`` if ``P`` succeeds and returns ``x``, and
 it returns ``nothing`` if ``P`` fails.
 
-Like ``bool``s, values of ``maybe`` type can be used in control flow via guards
-and pattern matching, which we'll discuss shortly.
+Like ``bool`` values, values of ``maybe`` type can be used in control
+flow via guards and pattern matching, which we'll discuss shortly.
 
 ``[T]``
 ^^^^^^^
@@ -213,9 +213,9 @@ Guarding
 When writing a complex parser, it is often useful to confirm that the 'shape'
 of some value we've parsed from input is correct; this is the job of a *guard*.
 
-Guards are parsers that succeed when a given expression has a given shape. They
-can be used with ``bool``s, ``maybe`` values, and generic tagged sums built
-from alternatives parsers.
+Guards are parsers that succeed when a given expression has a given
+shape. They can be used with ``bool`` and ``maybe`` values and generic
+tagged sums built from alternatives parsers.
 
 An example comes from the PPM specification:
 

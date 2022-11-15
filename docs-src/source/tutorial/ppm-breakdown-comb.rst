@@ -226,9 +226,9 @@ Unbiased Choice Parsing
 
 We can also construct the parser ``P | Q`` from two parsers ``P`` and ``Q``.
 Like biased choice, this parser succeeds if either ``P`` or ``Q`` succeed -
-However, when *both* succeed, it is *ambiguous*, and can parse inputs in more
-than one way. Typically, these ambiguities are handled by sequencing with other
-parsers.
+However, if *both* would succeed on the input, it is *ambiguous*, and
+can parse inputs in more than one way. Typically, these ambiguities are
+handled by sequencing with other parsers.
 
 If we take our biased choice example and replace ``<|`` with ``|``:
 
