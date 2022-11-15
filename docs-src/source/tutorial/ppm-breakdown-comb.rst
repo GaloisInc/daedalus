@@ -24,14 +24,14 @@ either of these were to fail, the entire sequence would fail.
 
 By default, when we use parser sequencing, the result of the last parser in the
 sequence is what will be returned. We can subvert this default, as in the
-``Token`` example, using the special variable ``$$``: Assigning to this
+``Token`` example, using the special variable ``$$``: assigning to this
 variable in a sequence means "return this as the result of the whole
-sequence" - as we'll see later, this is simply *syntactic sugar* for a more
+sequence." As we'll see later, this is simply *syntactic sugar* for a more
 verbose construction with exactly the same behavior.
 
 .. note::
     There is another way of writing sequenced parsers in DaeDaLus that you may
-    see sometimes that does not rely on whitespace-sensitivity/code layout.
+    see sometimes that does not rely on whitespace sensitivity or code layout.
 
     Consider the two following declarations:
 
@@ -58,10 +58,10 @@ verbose construction with exactly the same behavior.
               "A"
             Match "B"
 
-    Which behaves the same as both of the previous parsers. We recommend using
-    layout for more complex parsers, and braces/semicolons for short parsers
-    that fit on a single line. These aren't rules, though; use what's
-    comfortable for you!
+    The example above behaves the same as both of the previous parsers.
+    We recommend using layout for more complex parsers, and
+    braces/semicolons for short parsers that fit on a single line. These
+    aren't rules, though; use what's comfortable for you!
 
 Array Sequencing
 ----------------
@@ -70,7 +70,7 @@ We may also use square braces (``[ .. ]``) for sequencing parsers. When we use
 this notation, rather than returning a single result from one of the sequenced
 parsers, we return an array containing *all* of the results. Crucially, in this
 case, all of the parsers being sequenced must return the same type of semantic
-value, since array elements must all have the same type.
+value since array elements must all have the same type.
 
 .. warning::
     Remember: Arrays in DaeDaLus must contain only elements of the same type!
@@ -91,7 +91,7 @@ a ``Person`` record might contain a field ``name`` of type ``string``, and an
 for each field, and from a ``Person`` we may extract the values of each field,
 typically using some kind of "field access" notation.
 
-DaeDaLus also supports record types, though in a non-traditional way: A record
+DaeDaLus also supports record types, though in a non-traditional way: a record
 is defined by a corresponding parser. This idea is best shown by example.
 
 In the PPM specification, we have the following declaration for a parser
@@ -128,7 +128,7 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
 .. note::
 
     It is also possible to define *local variables* within a declaration
-    without causing a structure to be created - this can be useful when we want
+    without causing a structure to be created; this can be useful when we want
     to save parsing results for later, or have some complex semantic value that
     we don't want to write down more than once.
 
@@ -142,7 +142,7 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
         :end-before: -- END PPM_DIGIT
 
     Here, the result of the parser ``Match1 ('0' .. '9')`` is stored in a local
-    variable ``d``, which we later use in a lifted semantic value to return the
+    variable ``d`` which we later use in a lifted semantic value to return the
     value of the digit itself.
 
     Remember: If we prefix the assignment with ``let``, we're *just* creating
@@ -151,7 +151,7 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
 
-Let's pull back the curtain a bit: As it turns out, most of the constructs
+Let's pull back the curtain a bit: as it turns out, most of the constructs
 for sequencing we've looked at so far can be expressed using only local
 variables and standard sequencing!
 
