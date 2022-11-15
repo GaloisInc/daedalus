@@ -112,8 +112,7 @@ and generally 'jump around' in the input that we're processing.
 The standard library provides some convenient parsers to use these
 features in some common ways:
 
-* ``SetStreamAt n s`` sets the current stream to the ``n`` th byte of
-  the stream ``s``.
+* ``SetStreamAt n s`` advances the stream ``s`` by ``n`` bytes.
 * ``Skip n`` advances the current stream by ``n`` bytes.
 * ``Chunk n P`` parses ``n`` bytes from the current stream using ``P``.
   Importantly, ``P`` is not required to parse all of the bytes, but the
