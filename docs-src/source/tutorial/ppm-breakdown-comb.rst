@@ -202,11 +202,12 @@ will show off these features more concretely.
 Biased Choice Parsing
 ^^^^^^^^^^^^^^^^^^^^^
 
-If we have two parsers, ``P`` and ``Q``, we can construct the parser
-``P <| Q``. This new parser succeeds if either ``P`` or ``Q`` succeeds, and
-crucially, when *both* succeed, it behaves like ``P`` (the symbol should
-you of this.) Thought about another way: ``P <| Q`` tries to parse using
-``P``, and if this fails, it backtracks and tries parsing with ``Q``.
+If we have two parsers, ``P`` and ``Q``, we can construct the parser ``P
+<| Q``. This new parser succeeds if either ``P`` or ``Q`` succeeds, and
+crucially, even if *both* would succeed on the input, it behaves like
+``P`` since ``P`` takes precedence over ``Q``. Thought about another
+way: ``P <| Q`` tries to parse using ``P``, and if this fails, it
+backtracks and tries parsing with ``Q``.
 
 Consider this contrived example:
 
