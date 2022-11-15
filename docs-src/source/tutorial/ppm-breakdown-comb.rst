@@ -2,7 +2,7 @@ Breaking down PPM: Parser Combinators
 =====================================
 
 The primitives are critical to defining parsers, but aren't very interesting
-on their own - we need ways to sequence them, represent notions of choice,
+on their own; we need ways to sequence them, represent notions of choice,
 and deal with repetition. First, we look at the various ways to sequence a
 collection of parsers.
 
@@ -156,7 +156,7 @@ for sequencing we've looked at so far can be expressed using only local
 variables and standard sequencing!
 
 First, recall that the special variable ``$$`` allows us to control which
-parser's result is returned in a standard sequence - if we have
+parser's result is returned in a standard sequence. If we have
 ``{ $$ = P; Q }``, that means "run parser ``P``", then run parser ``Q``,
 and return the result of parser ``P``." Can we write this without using the
 special variable?
@@ -185,17 +185,17 @@ Parsing Alternates
 ------------------
 
 While it is great to be able to parse many things in sequence, most interesting
-formats require that we be able to parse one of a set of *alternatives* - as an
+formats require that we be able to parse one of a set of *alternatives*. As an
 example, in a programming language, there are typically many different forms of
 expression, and anywhere an expression is allowed, we must be able to
 successfully parse any of those different forms.
 
 DaeDaLus is unique in that it provides two ways of handling alternatives:
-*biased choice* and *unbiased choice* - many parsing libraries do not provide
+*biased choice* and *unbiased choice*. Many parsing libraries do not provide
 this flexibility. We'll now look at these alternatives (no pun intended), and
 some examples that demonstrate their differing behaviors.
 
-Note that our working PPM example does not use any alternative parsing - the
+Note that our working PPM example does not use any alternative parsing. The
 extended exercise following this section, to implement the PNG image format,
 will show off these features more concretely.
 
@@ -214,11 +214,11 @@ Consider this contrived example:
 
     def P = $['A'] <| (^ 'B')
 
-``P`` consumes a single byte, ``'A'``, and returns it, or it consumes nothing
-and returns the byte ``'B'`` (in the case that parsing a single ``'A'`` fails.)
-Important to note is that, on inputs starting with ``'A'``, ``P``'s behavior is
-unambiguous - it will always consume the ``'A'``, rather than consuming
-nothing.
+``P`` consumes a single byte, ``'A'``, and returns it, or it consumes
+nothing and returns the byte ``'B'`` (in the case that parsing a
+single ``'A'`` fails.) It's important to note that ``P``'s behavior is
+unambiguous on inputs starting with ``'A'``. It will always consume the
+``'A'`` rather than consuming nothing.
 
 Unbiased Choice Parsing
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -236,7 +236,7 @@ If we take our biased choice example and replace ``<|`` with ``|``:
     def P = $['A'] | (^ 'B')
 
 ``P`` is now ambiguous on inputs that start with ``'A'``, since it can consume
-either one or zero bytes - remember, DaeDaLus parsers in general only need to
+either one or zero bytes. Remember, DaeDaLus parsers in general only need to
 match a prefix of the input to succeed.
 
 There are many grammars that have intentional ambiguities, and this unbiased
@@ -267,7 +267,7 @@ choice facility in DaeDaLus allows us to express those formats with ease.
               "The second one is here"
 
     Again, the language does not prefer this style over the use of ``<|`` and
-    ``|`` - use whatever syntax is more comfortable for you. There is one major
+    ``|``; use whatever syntax is more comfortable for you. There is one major
     exception to this, which we'll address in the next section.
 
 Tagged Sum Types
@@ -275,7 +275,7 @@ Tagged Sum Types
 
 Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
-branches - but this is limiting! What if, for example, we're parsing a format
+branches, but this is limiting! What if, for example, we're parsing a format
 that allows strings or numbers to appear in the same place? As described so
 far, we can't handle this using biased or unbiased choice.
 
@@ -292,7 +292,7 @@ two variants, both of which are simply tags: ``true`` and ``false``.
 DaeDaLus allows us to return a tagged sum type using variations of the
 layout-based syntax described in the note above, similar to how we can
 build structures using parser sequencing. Note that we can't use the infix
-operators ``<|`` or ``|`` to accomplish this same goal - we *must* use
+operators ``<|`` or ``|`` to accomplish this same goal; we *must* use
 ``First`` and ``Choose``.
 
 As usual, this concept is best demonstrated by an example:
@@ -329,7 +329,7 @@ the sum type.
 
     Note that, because of the way DaeDaLus attempts to infer the types of these
     sum-typed values, this declaration will in fact create a *new* sum type
-    named ``GoodOrBad2`` - it is *not* interchangeable with the previous
+    named ``GoodOrBad2``. It is *not* interchangeable with the previous
     definition of ``GoodOrBad``, even though both types have essentially the
     same values.
 
@@ -349,13 +349,14 @@ the sum type.
               ^ {| bad = x |}
 
     Note that, since all branches of ``First`` and ``Choose`` parsers must have
-    the same type, we need only annotate the first branch's result - the type
+    the same type, we need only annotate the first branch's result. The type
     inferencer will take care of the rest.
 
 With this set of rich type-constructing mechanisms, you can go forth and create
-many interesting format specifications with DaeDaLus - but, what happens when
+many interesting format specifications with DaeDaLus. But, what happens when
 you need to parse many copies of the same thing in sequence, perhaps an unknown
-number of times?
+number of times? For that, we use parser repetition, which we describe in the
+next section.
 
 Repeating Parsers
 -----------------
@@ -393,7 +394,7 @@ e.g. ``Many (i ..) P``, which will succeed if ``P`` succeeds at least ``i``
 times.
 
 All we're missing now for a complete understanding of the PPM example is some
-control-flow mechanisms and expressions involving semantic values - if you're
+control-flow mechanisms and expressions involving semantic values. If you're
 already familiar with other programming languages, you can probably figure out
 what's going on with the ``for``-loops and integer expressions, but the
 following section will explain these features in more detail.
