@@ -10,10 +10,10 @@ any relevant information within the exercises themselves. If you want
 to write a full PNG implementation at some point, though, the full PNG
 specification has everything you'll need.
 
-First of all, fire up your favorite text editor and create a new file
-named ``png.ddl``. This is where you'll write the format specification.
-The first line of your file, after any comments you wish to add to
-introduce the module, should be:
+To begin, open your favorite text editor and create a new file named
+``png.ddl``. This is where you'll write the format specification. The
+first line of your file, after any comments you wish to add to introduce
+the module, should be:
 
 .. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
