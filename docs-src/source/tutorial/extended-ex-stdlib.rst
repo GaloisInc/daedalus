@@ -114,6 +114,8 @@ features in some common ways:
 
 * ``SetStreamAt n s`` advances the stream ``s`` by ``n`` bytes.
 * ``Skip n`` advances the current stream by ``n`` bytes.
+* ``Drop n s`` advances the specified stream ``s`` by ``n`` bytes,
+  effectively dropping input bytes.
 * ``Chunk n P`` parses ``n`` bytes from the current stream using ``P``.
   Importantly, ``P`` is not required to parse all of the bytes, but the
   stream will still be advanced all ``n`` bytes. To make sure ``P``
