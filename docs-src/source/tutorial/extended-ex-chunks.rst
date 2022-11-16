@@ -1,29 +1,31 @@
 Extended Exercise: PNG Chunks
 =============================
 
-Now, we'll use our utilities and more of the knowledge we've developed to build
-up parsers for PNG chunks themselves, culminating in a top-level parser that
-can consume full PNG images. This is a very long section - take it as slow as
-you need, and don't worry if you need to peek at the solutions as you go!
+Now, we'll use our utilities and more of the knowledge we've developed
+to build up parsers for PNG chunks themselves, culminating in a
+top-level parser that can consume full PNG images.
 
-The central consideration for us will be the *chunk type* - in PNG, these types
-are given by special 4-byte sequences identifying what kind of data is carried
-by a chunk. You can't guess these sequences; they're given explicitly in the
-PNG specification.
+The central consideration in this part of the tutorial will be the `PNG
+chunk type`_. In the PNG format, chunk types are given by special 4-byte
+sequences identifying the kind of data that is carried by the chunk.
+The possible chunk types are given explicitly in the PNG specification.
+PNG chunk types will require us to look at specific bits in the 4-byte
+sequence. Although tagged sums are close to sufficient for this purpose,
+they are not sufficient on their own. To handle chunk types properly,
+we'll need to be able to handle specific bit arrangements in the PNG
+data. The next section introduces ``bitdata``, a DaeDaLus feature that
+we'll use for this purpose.
 
-Unfortunately, with our current toolkit, there isn't a nice way to capture
-these kinds of alternatives - tagged sums are close, but not sufficient on
-their own.
+.. _PNG chunk type: http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html#Chunk-layout
 
 Introducing ``bitdata``
 -----------------------
 
-DaeDaLus offers a solution: ``bitdata``. In general, a ``bitdata`` specifies
-how bytes should be broken into groups of bits, which are *then* combined into
-a tagged sum.
+In general, a ``bitdata`` specifies how bytes should be broken into
+groups of bits, which are *then* combined into a tagged sum.
 
-Here is a small example of using ``bitdata`` to inspect the first nybble of a
-byte:
+Here is a small example of using ``bitdata`` to inspect the first nybble
+of a byte:
 
 .. code-block:: DaeDaLus
 
@@ -34,30 +36,49 @@ byte:
     bitdata OptionData where
       OptionData = { opt : ChooseOption, val : uint 4 }
 
-    ...
+We use the syntax ``bitdata ... where ...`` to declare a new
+bitdata type. In this example, we've declared two ``bitdata``
+types: ``ChooseOption`` and ``OptionData``. Notice that we've added
+a type annotation of ``uint 4`` to the ``opt1`` alternative for
+``ChooseOption``; since all alternatives in the ``bitdata`` must have
+the same time, this type annotation effectively assigns a type to
+``opt2`` as well as to ``opt1``.
+
+Despite having capitalized names, ``ChooseOption`` and ``OptionData``
+are *not* parsers. A ``bitdata`` declaration introduces a type that can
+only be used in conversions; it doesn't do anything else at all until we
+use something like ``as?``. When using a ``bitdata`` to coerce a value,
+it's important to know that a ``bitdata`` has a fixed bit endianness
+meaning that fields defined further to the left correspond to more
+significant (leftmost) bits. Endianness applies only to parsing; once a
+value has been parsed, we can use a ``bitdata`` to interpret the parsed
+value's bits. For example:
+
+.. code-block:: DaeDaLus
 
     block
       let odata = UInt8 as? OptionData
-      case odat of
+      case odata of
         OptionData x ->
           case x.opt of
             opt1 -> ^ x.val
             _    -> Fail "Wrong option!"
 
-Note that we write ``bitdata ... where ...`` to introduce a new bitdata.
-Furthermore, note that ``ChooseOption`` and ``OptionData`` are *not* parsers!
-A ``bitdata``, in essence, only introduces a type that can be used in
-coercions - it doesn't do anything else at all until we use something like
-``as?``. Once we've done that, however, we can take advantage of all the tools
-available for breaking down tagged sums, such as pattern-matching.
+We use the ``.`` accessor notation to access the fields of the
+``OptionData`` structure. In the bitdata ``OptionData``, we have one
+variant with two fields, ``opt`` and ``val``, each 4 bits in length.
+Those fields can be accessed with ``x.opt`` and ``x.val`` in this
+example.
 
-Note also here that, to access the fields of a structure, we can use the ``.``
-accessor notation. In the ``bitdata OptionData``, we have only one variant that
-has two fields, each of length 4 bits.
+A ``bitdata`` declaration can also specify specific numeric values. This
+allows us to match ``bitdata`` alternatives on a value only when the
+value's bits match that of the expected numeric value. For example:
 
-The type annotations in this example are necessary, otherwise DaeDaLus would
-not know where to place the boundary between ``opt`` and ``val``; there are
-lots of ways to split a byte into two chunks!
+.. code-block:: DaeDaLus
+
+    bitdata SpecificNums where
+      opt1 = { 55 : uint 8; 4: uint 8 }
+      opt2 = { 65 : uint 8; 9: uint 8 }
 
 PNG Chunk Types
 ---------------
