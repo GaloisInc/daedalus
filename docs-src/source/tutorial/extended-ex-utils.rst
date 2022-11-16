@@ -1,17 +1,19 @@
 Extended Exercise: Defining Helpful Utilities
 =============================================
 
-The layout specification for PNG chunks can be found
-`here <https://www.w3.org/TR/2003/REC-PNG-20031110/#11Chunks>`_ - you shouldn't
-actually need to read much of this document, as we'll present any relevant
-information within the exercises themselves. If you want to write a full PNG
-implementation at some point, though, this specification has everything you'll
-need.
+In this section we'll get started writing a
+DaeDaLus specification for `the PNG format
+<https://www.w3.org/TR/2003/REC-PNG-20031110/#11Chunks>`_. While you
+shouldn't need to read much of the PNG layout specification for this
+tutorial, we provide it as a reference. In this tutorial, we'll present
+any relevant information within the exercises themselves. If you want
+to write a full PNG implementation at some point, though, the full PNG
+specification has everything you'll need.
 
-First of all, fire up your favorite text editor, and create a new file named
-``png.ddl``. This is where you'll write the format specification - the first
-line of your file, after any comments you wish to add to introduce the module,
-should be:
+First of all, fire up your favorite text editor and create a new file
+named ``png.ddl``. This is where you'll write the format specification.
+The first line of your file, after any comments you wish to add to
+introduce the module, should be:
 
 .. literalinclude:: ../examples/png.ddl
     :language: DaeDaLus
@@ -24,13 +26,13 @@ section, which you'll start using right away.
 Domain-Specific Parser Names
 ----------------------------
 
-For total clarity in code, it is often useful to give new names to things that
-are otherwise quite generic (e.g. to represent lengths, we may be using
-floating-point numbers - but the type name ``length`` is more informative than
-``float``, so we might want to *alias* these names.)
-
-In PNG, there are a number of examples of this being useful - unsigned 32-bit
-words are used for a number of very different components.
+For total clarity in code, it is often useful to give new names to
+things that are otherwise quite generic (e.g. to represent lengths,
+we may be using floating-point numbers, but the type name ``length``
+is more informative than ``float``, so we might want to *alias* these
+names). In PNG, there are a number of examples of this being useful
+since unsigned 32-bit words are used for a number of very different
+components.
 
 **Exercise:** Define two parsers, ``Length`` and ``Crc``, that each parse a
 big-endian, 32-bit, unsigned integer.
@@ -69,16 +71,18 @@ parser ``FLAG`` that matches a byte that is ``0`` or ``1``.
 Null-terminated Strings
 -----------------------
 
-A *null-terminated string* is an array of characters terminated with the null
-character (ASCII codepoint ``0``). These are also known as **C strings**, as
-this is the representation used in that language's standard string manipulation
-library.
+A *null-terminated string* is an array of characters terminated with
+the null character (ASCII value ``0``). These are also known as **C
+strings** since this is the representation used in C's standard library
+string manipulation functions.
 
-PNG makes use of null-terminated strings in a few places, so we need to be able
-to parse them. In particular, we need to be able to parse both strings within a
-specific range of sizes *and* strings of unbounded length.
+PNG makes use of null-terminated strings in a few places, so we need
+to be able to parse them. In particular, we need to be able to parse
+strings within a specific range of sizes *and* strings of unbounded
+length.
 
-**Exercise:** Define a parser, ``NullChar``, that parses the ASCII null byte.
+**Exercise:** Define a parser, ``NullChar``, that parses the ASCII null
+byte.
 
 .. dropdown:: Solution
     :color: warning
@@ -122,15 +126,16 @@ should satisfy the following *laws*:
         :start-after: -- BEGIN PNG_OMANY
         :end-before: -- END PNG_OMANY
 
-    Note that the right-hand sides of each case arm is the right-hand side of
-    one of the laws - this form of algebraic specification is very useful when
-    writing functional code, as all that was left at the end was writing the
-    appropriate pattern-matching code to cover the cases of our laws.
+    Note that the right-hand sides of each case arm is the right-hand
+    side of one of the laws; this form of algebraic specification is
+    very useful when writing functional code, as all that is left
+    once we have established the laws is writing the appropriate
+    pattern-matching code to cover each one.
 
 **Exercise (Challenging):** Define a parser, ``NTString``, that parses a
-null-terminated string between ``min`` and ``max`` characters in length, if
-bounds are provided (i.e. the bounds should be ``maybe`` values.) The null
-character should not be included in the character count.
+null-terminated string between ``min`` and ``max`` characters in length,
+if bounds are provided (i.e. the bounds should be ``maybe`` values). The
+null character should not be included in the character count.
 
 .. dropdown:: Hint
     :color: info
@@ -149,15 +154,15 @@ character should not be included in the character count.
 Common Structures
 -----------------
 
-Time and RGB color are both critical parts of the PNG specification; the latter
-is obvious given this is an image format, but the former is perhaps a little
-surprising: By the format's definition, PNG chunks can carry last-modified time
-data.
+Time and RGB color values are both critical parts of the PNG
+specification. The latter shouldn't be surprising given that this is
+an image format, but the former is perhaps a little surprising: by the
+format's definition, PNG chunks can carry last-modified time data.
 
 **Exercise:** Define a parser ``RGB`` that consumes three bytes and returns
 them in a structure with fields ``red``, ``green``, and ``blue``. The parsed
 bytes should be assigned to those fields in that order (i.e. ``red`` is the
-first byte, ``green`` the second, and ``blue`` the third.)
+first byte, ``green`` the second, and ``blue`` the third).
 
 .. dropdown:: Solution
     :color: warning
@@ -191,9 +196,10 @@ first byte, ``green`` the second, and ``blue`` the third.)
       - 1 byte (0 - 59)
       - 1 byte (0 - 60)
 
-Write a parser ``UTCTime`` that produces a structure with these fields with the
-given value constraints. The order of columns in the table is the order the
-fields should be parsed, and the year should be parsed in big-endian order.
+Write a parser ``UTCTime`` that produces a structure with these fields
+with the given value constraints. The order of columns in the table is
+the order the fields should be parsed and the year should be parsed in
+big-endian order.
 
 .. dropdown:: Hint
     :color: info
@@ -210,4 +216,4 @@ fields should be parsed, and the year should be parsed in big-endian order.
         :end-before: -- END PNG_UTC
 
     In case you're wondering why the ``second`` field allows for a value of 60:
-    It's to allow for leap-seconds, according to the PNG specification!
+    It's to allow for leap-seconds, according to the PNG specification.
