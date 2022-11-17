@@ -286,9 +286,9 @@ value, for example, we might have a pattern match that looks like this:
 Finally, there is a special pattern, ``_``, which can be used as a final
 "catch-all" case when you don't care what is matched.
 
-.. warning::
-    The catch-all pattern should always be used as the last pattern, or else
-    anything below it will never run!
+The catch-all pattern may be omitted, and in fact ``case`` parsers can
+be partial, meaning that not all possibilities must be matched. If an
+input fails to match any of the alternatives, the parser fails.
 
 .. warning::
     Remember: Patterns are checked in order, so be careful to consider that
