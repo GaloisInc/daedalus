@@ -1,14 +1,13 @@
 Extended Exercise: The PNG Format
 =================================
 
-As mentioned very early in the tutorial, DaeDaLus is very good for both
-text and binary format specification. We're going to make a big jump in
-difficulty to explore the binary format parsing features DaeDaLus has
-while also giving significant practice with the other features already
-introduced.
-
-The format we'll be specifying is PNG, the Portable Network Graphics
-image format, which provides lossless raster-graphics compression.
+In previous sections of this tutorial we applied DaeDaLus to parsing the
+PPM text file format. In this section we'll apply DaeDaLus to a binary
+format to explore the binary format parsing features DaeDaLus has while
+also providing an opportunity to practice with the features that we
+already introduced. The format we'll be specifying is PNG, the Portable
+Network Graphics image format, which provides lossless raster-graphics
+compression.
 
 The PNG specification is quite long, so we won't be implementing it in
 its entirety in this exercise. In particular, we'll focus primarily
