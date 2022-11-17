@@ -478,8 +478,8 @@ structures. There are a few others for more specialized use cases; you
 can check out the :ref:`control structures` section of the main user
 guide for details on how to use these features.
 
-What follows is a "tutorial by immersion": you'll implement a much
-more complicated layout specification one step at a time, with any
-gaps in necessary knowledge filled in. The exercises are followed by
-solutions, so if you get stuck, you can skip ahead to those solutions
-for clarification.
+In :ref:`Extended Exercise: The PNG Format`, we'll work through the
+implementation of a much more complicated layout specification one step
+at a time, with any gaps in necessary knowledge filled in. The exercises
+are followed by solutions, so if you get stuck, you can skip ahead to
+those solutions for clarification.
