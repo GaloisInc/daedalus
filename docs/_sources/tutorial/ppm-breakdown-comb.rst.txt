@@ -2,7 +2,7 @@ Breaking down PPM: Parser Combinators
 =====================================
 
 The primitives are critical to defining parsers, but aren't very interesting
-on their own - we need ways to sequence them, represent notions of choice,
+on their own; we need ways to sequence them, represent notions of choice,
 and deal with repetition. First, we look at the various ways to sequence a
 collection of parsers.
 
@@ -24,14 +24,14 @@ either of these were to fail, the entire sequence would fail.
 
 By default, when we use parser sequencing, the result of the last parser in the
 sequence is what will be returned. We can subvert this default, as in the
-``Token`` example, using the special variable ``$$``: Assigning to this
+``Token`` example, using the special variable ``$$``: assigning to this
 variable in a sequence means "return this as the result of the whole
-sequence" - as we'll see later, this is simply *syntactic sugar* for a more
+sequence." As we'll see later, this is simply *syntactic sugar* for a more
 verbose construction with exactly the same behavior.
 
 .. note::
     There is another way of writing sequenced parsers in DaeDaLus that you may
-    see sometimes that does not rely on whitespace-sensitivity/code layout.
+    see sometimes that does not rely on whitespace sensitivity or code layout.
 
     Consider the two following declarations:
 
@@ -58,10 +58,10 @@ verbose construction with exactly the same behavior.
               "A"
             Match "B"
 
-    Which behaves the same as both of the previous parsers. We recommend using
-    layout for more complex parsers, and braces/semicolons for short parsers
-    that fit on a single line. These aren't rules, though; use what's
-    comfortable for you!
+    The example above behaves the same as both of the previous parsers.
+    We recommend using layout for more complex parsers, and
+    braces/semicolons for short parsers that fit on a single line. These
+    aren't rules, though; use what's comfortable for you!
 
 Array Sequencing
 ----------------
@@ -70,7 +70,7 @@ We may also use square braces (``[ .. ]``) for sequencing parsers. When we use
 this notation, rather than returning a single result from one of the sequenced
 parsers, we return an array containing *all* of the results. Crucially, in this
 case, all of the parsers being sequenced must return the same type of semantic
-value, since array elements must all have the same type.
+value since array elements must all have the same type.
 
 .. warning::
     Remember: Arrays in DaeDaLus must contain only elements of the same type!
@@ -91,7 +91,7 @@ a ``Person`` record might contain a field ``name`` of type ``string``, and an
 for each field, and from a ``Person`` we may extract the values of each field,
 typically using some kind of "field access" notation.
 
-DaeDaLus also supports record types, though in a non-traditional way: A record
+DaeDaLus also supports record types, though in a non-traditional way: a record
 is defined by a corresponding parser. This idea is best shown by example.
 
 In the PPM specification, we have the following declaration for a parser
@@ -128,45 +128,45 @@ where ``x`` is a byte we parse and ``y`` is that byte plus 17.
 .. note::
 
     It is also possible to define *local variables* within a declaration
-    without causing a structure to be created - this can be useful when we want
+    without causing a structure to be created; this can be useful when we want
     to save parsing results for later, or have some complex semantic value that
     we don't want to write down more than once.
 
     To introduce a local variable that won't be turned into a structure field,
-    prefix the assignment with the keyword ``let`` (or the symbol ``@``). We've
-    already seen an example of this in the ``Digit`` parser:
+    prefix the assignment with the keyword ``let``. We've already seen an example
+    of this in the ``Digit`` parser:
 
     .. literalinclude:: ../examples/plain-ppm.ddl
         :language: DaeDaLus
         :start-after: -- BEGIN PPM_DIGIT
         :end-before: -- END PPM_DIGIT
 
-    Here, the result of the parser ``Match1 ('0' .. '9')`` is stored in a local
-    variable ``d``, which we later use in a lifted semantic value to return the
+    Here, the result of the parser ``$['0' .. '9']`` is stored in a local
+    variable ``d`` which we later use in a lifted semantic value to return the
     value of the digit itself.
 
-    Remember: If we prefix the assignment with ``let`` or ``@``, we're *just*
-    creating a local variable, *not* a field of a structure!
+    Remember: If we prefix the assignment with ``let``, we're *just* creating
+    a local variable, *not* a field of a structure!
 
 De-Sugaring Nonstandard Structure Sequences
 -------------------------------------------
 
-Let's pull back the curtain a bit: As it turns out, most of the constructs
+Let's pull back the curtain a bit: as it turns out, most of the constructs
 for sequencing we've looked at so far can be expressed using only local
 variables and standard sequencing!
 
 First, recall that the special variable ``$$`` allows us to control which
-parser's result is returned in a standard sequence - if we have
+parser's result is returned in a standard sequence. If we have
 ``{ $$ = P; Q }``, that means "run parser ``P``", then run parser ``Q``,
 and return the result of parser ``P``." Can we write this without using the
 special variable?
 
 Yes! All we need to do is store the result of ``P`` to refer to later, like
-so: ``{ @x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
+so: ``{ let x = P; Q; ^ x }``. Here, we store the result of ``P`` in the local
 variable ``x``, which we later lift using the primitive pure parser ``^``.
 
 Similarly, array sequencing of parsers, such as ``[ P; Q ]``, can be
-written: ``{ @x0 = P; @x1 = Q; ^ [x0, x1] }``. Note that, in both this and
+written: ``{ let x0 = P; let x1 = Q; ^ [x0, x1] }``. Note that, in both this and
 the previous case, the expanded forms require us to come up with more names
 for things. Arguably, naming is one of the hardest problems we face in
 computer science, so it's nice to be able to avoid coming up with new names
@@ -175,7 +175,7 @@ using the shorthand originally presented.
 Finally, even structure sequencing can be written this way, since we can
 construct structure semantic values using the primitive pure parser. If
 we have ``{ x = P; y = Q }``, this can also be written
-``{ @x = P; @y = Q; ^ { x = x, y = y } }``.
+``{ let x = P; let y = Q; ^ { x = x, y = y } }``.
 
 While we recommend using the shorthand, developing an understanding of what
 it actually means can make it more obvious when each construct is
@@ -185,58 +185,59 @@ Parsing Alternates
 ------------------
 
 While it is great to be able to parse many things in sequence, most interesting
-formats require that we be able to parse one of a set of *alternatives* - as an
+formats require that we be able to parse one of a set of *alternatives*. As an
 example, in a programming language, there are typically many different forms of
 expression, and anywhere an expression is allowed, we must be able to
 successfully parse any of those different forms.
 
 DaeDaLus is unique in that it provides two ways of handling alternatives:
-*biased choice* and *unbiased choice* - many parsing libraries do not provide
+*biased choice* and *unbiased choice*. Many parsing libraries do not provide
 this flexibility. We'll now look at these alternatives (no pun intended), and
 some examples that demonstrate their differing behaviors.
 
-Note that our working PPM example does not use any alternative parsing - the
+Note that our working PPM example does not use any alternative parsing. The
 extended exercise following this section, to implement the PNG image format,
 will show off these features more concretely.
 
 Biased Choice Parsing
 ^^^^^^^^^^^^^^^^^^^^^
 
-If we have two parsers, ``P`` and ``Q``, we can construct the parser
-``P <| Q``. This new parser succeeds if either ``P`` or ``Q`` succeeds, and
-crucially, when *both* succeed, it behaves like ``P`` (the symbol should
-you of this.) Thought about another way: ``P <| Q`` tries to parse using
-``P``, and if this fails, it backtracks and tries parsing with ``Q``.
+If we have two parsers, ``P`` and ``Q``, we can construct the parser ``P
+<| Q``. This new parser succeeds if either ``P`` or ``Q`` succeeds, and
+crucially, even if *both* would succeed on the input, it behaves like
+``P`` since ``P`` takes precedence over ``Q``. Thought about another
+way: ``P <| Q`` tries to parse using ``P``, and if this fails, it
+backtracks and tries parsing with ``Q``.
 
 Consider this contrived example:
 
 .. code-block:: DaeDaLus
 
-    def P = (Match1 'A') <| (^ 'B')
+    def P = $['A'] <| (^ 'B')
 
-``P`` consumes a single byte, ``'A'``, and returns it, or it consumes nothing
-and returns the byte ``'B'`` (in the case that parsing a single ``'A'`` fails.)
-Important to note is that, on inputs starting with ``'A'``, ``P``'s behavior is
-unambiguous - it will always consume the ``'A'``, rather than consuming
-nothing.
+``P`` consumes a single byte, ``'A'``, and returns it, or it consumes
+nothing and returns the byte ``'B'`` (in the case that parsing a
+single ``'A'`` fails.) It's important to note that ``P``'s behavior is
+unambiguous on inputs starting with ``'A'``. It will always consume the
+``'A'`` rather than consuming nothing.
 
 Unbiased Choice Parsing
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 We can also construct the parser ``P | Q`` from two parsers ``P`` and ``Q``.
 Like biased choice, this parser succeeds if either ``P`` or ``Q`` succeed -
-However, when *both* succeed, it is *ambiguous*, and can parse inputs in more
-than one way. Typically, these ambiguities are handled by sequencing with other
-parsers.
+However, if *both* would succeed on the input, it is *ambiguous*, and
+can parse inputs in more than one way. Typically, these ambiguities are
+handled by sequencing with other parsers.
 
 If we take our biased choice example and replace ``<|`` with ``|``:
 
 .. code-block:: DaeDaLus
 
-    def P = (Match1 'A') | (^ 'B')
+    def P = $['A'] | (^ 'B')
 
 ``P`` is now ambiguous on inputs that start with ``'A'``, since it can consume
-either one or zero bytes - remember, DaeDaLus parsers in general only need to
+either one or zero bytes. Remember, DaeDaLus parsers in general only need to
 match a prefix of the input to succeed.
 
 There are many grammars that have intentional ambiguities, and this unbiased
@@ -267,7 +268,7 @@ choice facility in DaeDaLus allows us to express those formats with ease.
               "The second one is here"
 
     Again, the language does not prefer this style over the use of ``<|`` and
-    ``|`` - use whatever syntax is more comfortable for you. There is one major
+    ``|``; use whatever syntax is more comfortable for you. There is one major
     exception to this, which we'll address in the next section.
 
 Tagged Sum Types
@@ -275,7 +276,7 @@ Tagged Sum Types
 
 Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
-branches - but this is limiting! What if, for example, we're parsing a format
+branches, but this is limiting! What if, for example, we're parsing a format
 that allows strings or numbers to appear in the same place? As described so
 far, we can't handle this using biased or unbiased choice.
 
@@ -292,7 +293,7 @@ two variants, both of which are simply tags: ``true`` and ``false``.
 DaeDaLus allows us to return a tagged sum type using variations of the
 layout-based syntax described in the note above, similar to how we can
 build structures using parser sequencing. Note that we can't use the infix
-operators ``<|`` or ``|`` to accomplish this same goal - we *must* use
+operators ``<|`` or ``|`` to accomplish this same goal; we *must* use
 ``First`` and ``Choose``.
 
 As usual, this concept is best demonstrated by an example:
@@ -301,8 +302,8 @@ As usual, this concept is best demonstrated by an example:
 
     def GoodOrBad =
       First
-        good = Match1 'G'
-        bad  = Match1 'B'
+        good = $['G']
+        bad  = $['B']
 
 This parser returns a semantic value of a new tagged sum type named
 ``GoodOrBad``, which has two variants whose tags are ``good`` and ``bad``; this
@@ -321,15 +322,15 @@ the sum type.
         def GoodOrBad2 =
           First
             block
-              @x = Match1 'G'
+              let x = $['G']
               ^ {| good = x |}
             block
-              @x = Match1 'B'
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, because of the way DaeDaLus attempts to infer the types of these
     sum-typed values, this declaration will in fact create a *new* sum type
-    named ``GoodOrBad2`` - it is *not* interchangeable with the previous
+    named ``GoodOrBad2``. It is *not* interchangeable with the previous
     definition of ``GoodOrBad``, even though both types have essentially the
     same values.
 
@@ -342,20 +343,21 @@ the sum type.
         def GoodOrBad3 =
           First
             block
-              @x = Match1 'G'
+              let x = $['G']
               ^ {| good = x |} : GoodOrBad
             block
-              @x = Match1 'B'
+              let x = $['B']
               ^ {| bad = x |}
 
     Note that, since all branches of ``First`` and ``Choose`` parsers must have
-    the same type, we need only annotate the first branch's result - the type
+    the same type, we need only annotate the first branch's result. The type
     inferencer will take care of the rest.
 
 With this set of rich type-constructing mechanisms, you can go forth and create
-many interesting format specifications with DaeDaLus - but, what happens when
+many interesting format specifications with DaeDaLus. But, what happens when
 you need to parse many copies of the same thing in sequence, perhaps an unknown
-number of times?
+number of times? For that, we use parser repetition, which we describe in the
+next section.
 
 Repeating Parsers
 -----------------
@@ -366,7 +368,7 @@ sequence, stopping only when the given parser first fails. As a simple example:
 
 .. code-block:: DaeDaLus
 
-    def P = { $$ = Many (Match1 '7'); Match1 '0' }
+    def P = { $$ = Many $['7']; $['0'] }
 
 This parser will match any number of 7s followed by a 0, e.g.
 ``"0"``, ``"70"``, ``"770"``, etc. The semantic value returned by the above
@@ -378,7 +380,7 @@ succeeds, e.g.:
 
 .. code-block:: DaeDaLus
 
-    def P = { Many (Match1 '7'); Match1 '7' }
+    def P = { Many $['7']; $['7'] }
 
 When we know that we are only parsing a particular number of things (or even
 that there is a lower or upper bound on the number of things), we can provide
@@ -393,7 +395,7 @@ e.g. ``Many (i ..) P``, which will succeed if ``P`` succeeds at least ``i``
 times.
 
 All we're missing now for a complete understanding of the PPM example is some
-control-flow mechanisms and expressions involving semantic values - if you're
+control-flow mechanisms and expressions involving semantic values. If you're
 already familiar with other programming languages, you can probably figure out
 what's going on with the ``for``-loops and integer expressions, but the
 following section will explain these features in more detail.

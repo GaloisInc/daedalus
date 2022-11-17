@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -84,9 +86,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Breaking down PPM: Parser Combinators</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Breaking down PPM: Parser Combinators</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/ppm-breakdown-comb.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -97,13 +99,13 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-parser-combinators">
-<h1>Breaking down PPM: Parser Combinators<a class="headerlink" href="#breaking-down-ppm-parser-combinators" title="Permalink to this headline"></a></h1>
+<h1>Breaking down PPM: Parser Combinators<a class="headerlink" href="#breaking-down-ppm-parser-combinators" title="Permalink to this heading"></a></h1>
 <p>The primitives are critical to defining parsers, but aren’t very interesting
-on their own - we need ways to sequence them, represent notions of choice,
+on their own; we need ways to sequence them, represent notions of choice,
 and deal with repetition. First, we look at the various ways to sequence a
 collection of parsers.</p>
 <section id="standard-sequencing">
-<h2>Standard Sequencing<a class="headerlink" href="#standard-sequencing" title="Permalink to this headline"></a></h2>
+<h2>Standard Sequencing<a class="headerlink" href="#standard-sequencing" title="Permalink to this heading"></a></h2>
 <p>First and foremost, we need a way to run one parser after another. In DaeDaLus,
 we write sequenced parsers by writing the keyword <code class="docutils literal notranslate"><span class="pre">block</span></code> and, on the
 following lines, writing each parser we want to run, one parser per line. We’ve
@@ -118,14 +120,14 @@ already seen this in the <code class="docutils literal notranslate"><span class=
 either of these were to fail, the entire sequence would fail.</p>
 <p>By default, when we use parser sequencing, the result of the last parser in the
 sequence is what will be returned. We can subvert this default, as in the
-<code class="docutils literal notranslate"><span class="pre">Token</span></code> example, using the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>: Assigning to this
+<code class="docutils literal notranslate"><span class="pre">Token</span></code> example, using the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>: assigning to this
 variable in a sequence means “return this as the result of the whole
-sequence” - as we’ll see later, this is simply <em>syntactic sugar</em> for a more
+sequence.” As we’ll see later, this is simply <em>syntactic sugar</em> for a more
 verbose construction with exactly the same behavior.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>There is another way of writing sequenced parsers in DaeDaLus that you may
-see sometimes that does not rely on whitespace-sensitivity/code layout.</p>
+see sometimes that does not rely on whitespace sensitivity or code layout.</p>
 <p>Consider the two following declarations:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">UseBraces</span> <span class="k">=</span> <span class="p">{</span> <span class="k">Match</span> <span class="s">&quot;A&quot;</span><span class="p">;</span> <span class="k">Match</span> <span class="s">&quot;B&quot;</span> <span class="p">}</span>
 <span class="k">def</span> <span class="n">UseLayout</span> <span class="k">=</span>
@@ -146,19 +148,19 @@ column belongs to the corresponding (preceding) parser. To demonstrate:</p>
     <span class="k">Match</span> <span class="s">&quot;B&quot;</span>
 </pre></div>
 </div>
-<p>Which behaves the same as both of the previous parsers. We recommend using
-layout for more complex parsers, and braces/semicolons for short parsers
-that fit on a single line. These aren’t rules, though; use what’s
-comfortable for you!</p>
+<p>The example above behaves the same as both of the previous parsers.
+We recommend using layout for more complex parsers, and
+braces/semicolons for short parsers that fit on a single line. These
+aren’t rules, though; use what’s comfortable for you!</p>
 </div>
 </section>
 <section id="array-sequencing">
-<h2>Array Sequencing<a class="headerlink" href="#array-sequencing" title="Permalink to this headline"></a></h2>
+<h2>Array Sequencing<a class="headerlink" href="#array-sequencing" title="Permalink to this heading"></a></h2>
 <p>We may also use square braces (<code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">..</span> <span class="pre">]</span></code>) for sequencing parsers. When we use
 this notation, rather than returning a single result from one of the sequenced
 parsers, we return an array containing <em>all</em> of the results. Crucially, in this
 case, all of the parsers being sequenced must return the same type of semantic
-value, since array elements must all have the same type.</p>
+value since array elements must all have the same type.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Remember: Arrays in DaeDaLus must contain only elements of the same type!
@@ -167,7 +169,7 @@ structure sequencing.</p>
 </div>
 </section>
 <section id="structure-sequencing">
-<h2>Structure Sequencing<a class="headerlink" href="#structure-sequencing" title="Permalink to this headline"></a></h2>
+<h2>Structure Sequencing<a class="headerlink" href="#structure-sequencing" title="Permalink to this heading"></a></h2>
 <p>What if we need to keep the results of multiple parsers, but they return
 different types of semantic values? Neither standard nor array sequencing are
 sufficient, so we need something a bit fancier.</p>
@@ -177,7 +179,7 @@ a <code class="docutils literal notranslate"><span class="pre">Person</span></co
 <code class="docutils literal notranslate"><span class="pre">age</span></code> field of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>. We build a new <code class="docutils literal notranslate"><span class="pre">Person</span></code> by providing values
 for each field, and from a <code class="docutils literal notranslate"><span class="pre">Person</span></code> we may extract the values of each field,
 typically using some kind of “field access” notation.</p>
-<p>DaeDaLus also supports record types, though in a non-traditional way: A record
+<p>DaeDaLus also supports record types, though in a non-traditional way: a record
 is defined by a corresponding parser. This idea is best shown by example.</p>
 <p>In the PPM specification, we have the following declaration for a parser
 (pop quiz: how do we know it’s a parser?) called <code class="docutils literal notranslate"><span class="pre">RGB</span></code>:</p>
@@ -209,40 +211,40 @@ where <code class="docutils literal notranslate"><span class="pre">x</span></cod
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>It is also possible to define <em>local variables</em> within a declaration
-without causing a structure to be created - this can be useful when we want
+without causing a structure to be created; this can be useful when we want
 to save parsing results for later, or have some complex semantic value that
 we don’t want to write down more than once.</p>
 <p>To introduce a local variable that won’t be turned into a structure field,
-prefix the assignment with the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code> (or the symbol <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>). We’ve
-already seen an example of this in the <code class="docutils literal notranslate"><span class="pre">Digit</span></code> parser:</p>
+prefix the assignment with the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code>. We’ve already seen an example
+of this in the <code class="docutils literal notranslate"><span class="pre">Digit</span></code> parser:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
   <span class="k">block</span>
-    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">]</span>
     <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
 </pre></div>
 </div>
-<p>Here, the result of the parser <code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">('0'</span> <span class="pre">..</span> <span class="pre">'9')</span></code> is stored in a local
-variable <code class="docutils literal notranslate"><span class="pre">d</span></code>, which we later use in a lifted semantic value to return the
+<p>Here, the result of the parser <code class="docutils literal notranslate"><span class="pre">$['0'</span> <span class="pre">..</span> <span class="pre">'9']</span></code> is stored in a local
+variable <code class="docutils literal notranslate"><span class="pre">d</span></code> which we later use in a lifted semantic value to return the
 value of the digit itself.</p>
-<p>Remember: If we prefix the assignment with <code class="docutils literal notranslate"><span class="pre">let</span></code> or <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, we’re <em>just</em>
-creating a local variable, <em>not</em> a field of a structure!</p>
+<p>Remember: If we prefix the assignment with <code class="docutils literal notranslate"><span class="pre">let</span></code>, we’re <em>just</em> creating
+a local variable, <em>not</em> a field of a structure!</p>
 </div>
 </section>
 <section id="de-sugaring-nonstandard-structure-sequences">
-<h2>De-Sugaring Nonstandard Structure Sequences<a class="headerlink" href="#de-sugaring-nonstandard-structure-sequences" title="Permalink to this headline"></a></h2>
-<p>Let’s pull back the curtain a bit: As it turns out, most of the constructs
+<h2>De-Sugaring Nonstandard Structure Sequences<a class="headerlink" href="#de-sugaring-nonstandard-structure-sequences" title="Permalink to this heading"></a></h2>
+<p>Let’s pull back the curtain a bit: as it turns out, most of the constructs
 for sequencing we’ve looked at so far can be expressed using only local
 variables and standard sequencing!</p>
 <p>First, recall that the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code> allows us to control which
-parser’s result is returned in a standard sequence - if we have
+parser’s result is returned in a standard sequence. If we have
 <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">}</span></code>, that means “run parser <code class="docutils literal notranslate"><span class="pre">P</span></code>”, then run parser <code class="docutils literal notranslate"><span class="pre">Q</span></code>,
 and return the result of parser <code class="docutils literal notranslate"><span class="pre">P</span></code>.” Can we write this without using the
 special variable?</p>
 <p>Yes! All we need to do is store the result of <code class="docutils literal notranslate"><span class="pre">P</span></code> to refer to later, like
-so: <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">x</span> <span class="pre">}</span></code>. Here, we store the result of <code class="docutils literal notranslate"><span class="pre">P</span></code> in the local
+so: <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">x</span> <span class="pre">}</span></code>. Here, we store the result of <code class="docutils literal notranslate"><span class="pre">P</span></code> in the local
 variable <code class="docutils literal notranslate"><span class="pre">x</span></code>, which we later lift using the primitive pure parser <code class="docutils literal notranslate"><span class="pre">^</span></code>.</p>
 <p>Similarly, array sequencing of parsers, such as <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">P;</span> <span class="pre">Q</span> <span class="pre">]</span></code>, can be
-written: <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">&#64;x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,</span> <span class="pre">x1]</span> <span class="pre">}</span></code>. Note that, in both this and
+written: <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x0</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">x1</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">[x0,</span> <span class="pre">x1]</span> <span class="pre">}</span></code>. Note that, in both this and
 the previous case, the expanded forms require us to come up with more names
 for things. Arguably, naming is one of the hardest problems we face in
 computer science, so it’s nice to be able to avoid coming up with new names
@@ -250,55 +252,56 @@ using the shorthand originally presented.</p>
 <p>Finally, even structure sequencing can be written this way, since we can
 construct structure semantic values using the primitive pure parser. If
 we have <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">Q</span> <span class="pre">}</span></code>, this can also be written
-<code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&#64;x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">&#64;y</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x,</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">let</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">let</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">Q;</span> <span class="pre">^</span> <span class="pre">{</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x,</span> <span class="pre">y</span> <span class="pre">=</span> <span class="pre">y</span> <span class="pre">}</span> <span class="pre">}</span></code>.</p>
 <p>While we recommend using the shorthand, developing an understanding of what
 it actually means can make it more obvious when each construct is
 appropriate for your use-cases.</p>
 </section>
 <section id="parsing-alternates">
-<h2>Parsing Alternates<a class="headerlink" href="#parsing-alternates" title="Permalink to this headline"></a></h2>
+<h2>Parsing Alternates<a class="headerlink" href="#parsing-alternates" title="Permalink to this heading"></a></h2>
 <p>While it is great to be able to parse many things in sequence, most interesting
-formats require that we be able to parse one of a set of <em>alternatives</em> - as an
+formats require that we be able to parse one of a set of <em>alternatives</em>. As an
 example, in a programming language, there are typically many different forms of
 expression, and anywhere an expression is allowed, we must be able to
 successfully parse any of those different forms.</p>
 <p>DaeDaLus is unique in that it provides two ways of handling alternatives:
-<em>biased choice</em> and <em>unbiased choice</em> - many parsing libraries do not provide
+<em>biased choice</em> and <em>unbiased choice</em>. Many parsing libraries do not provide
 this flexibility. We’ll now look at these alternatives (no pun intended), and
 some examples that demonstrate their differing behaviors.</p>
-<p>Note that our working PPM example does not use any alternative parsing - the
+<p>Note that our working PPM example does not use any alternative parsing. The
 extended exercise following this section, to implement the PNG image format,
 will show off these features more concretely.</p>
 <section id="biased-choice-parsing">
-<h3>Biased Choice Parsing<a class="headerlink" href="#biased-choice-parsing" title="Permalink to this headline"></a></h3>
-<p>If we have two parsers, <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code>, we can construct the parser
-<code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code>. This new parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code> succeeds, and
-crucially, when <em>both</em> succeed, it behaves like <code class="docutils literal notranslate"><span class="pre">P</span></code> (the symbol should
-you of this.) Thought about another way: <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code> tries to parse using
-<code class="docutils literal notranslate"><span class="pre">P</span></code>, and if this fails, it backtracks and tries parsing with <code class="docutils literal notranslate"><span class="pre">Q</span></code>.</p>
+<h3>Biased Choice Parsing<a class="headerlink" href="#biased-choice-parsing" title="Permalink to this heading"></a></h3>
+<p>If we have two parsers, <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code>, we can construct the parser <code class="docutils literal notranslate"><span class="pre">P</span>
+<span class="pre">&lt;|</span> <span class="pre">Q</span></code>. This new parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code> succeeds, and
+crucially, even if <em>both</em> would succeed on the input, it behaves like
+<code class="docutils literal notranslate"><span class="pre">P</span></code> since <code class="docutils literal notranslate"><span class="pre">P</span></code> takes precedence over <code class="docutils literal notranslate"><span class="pre">Q</span></code>. Thought about another
+way: <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code> tries to parse using <code class="docutils literal notranslate"><span class="pre">P</span></code>, and if this fails, it
+backtracks and tries parsing with <code class="docutils literal notranslate"><span class="pre">Q</span></code>.</p>
 <p>Consider this contrived example:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;A&#39;</span><span class="p">)</span> <span class="k">&lt;|</span> <span class="p">(</span><span class="k">^</span> <span class="s">&#39;B&#39;</span><span class="p">)</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span> <span class="k">&lt;|</span> <span class="p">(</span><span class="k">^</span> <span class="s">&#39;B&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">P</span></code> consumes a single byte, <code class="docutils literal notranslate"><span class="pre">'A'</span></code>, and returns it, or it consumes nothing
-and returns the byte <code class="docutils literal notranslate"><span class="pre">'B'</span></code> (in the case that parsing a single <code class="docutils literal notranslate"><span class="pre">'A'</span></code> fails.)
-Important to note is that, on inputs starting with <code class="docutils literal notranslate"><span class="pre">'A'</span></code>, <code class="docutils literal notranslate"><span class="pre">P</span></code>’s behavior is
-unambiguous - it will always consume the <code class="docutils literal notranslate"><span class="pre">'A'</span></code>, rather than consuming
-nothing.</p>
+<p><code class="docutils literal notranslate"><span class="pre">P</span></code> consumes a single byte, <code class="docutils literal notranslate"><span class="pre">'A'</span></code>, and returns it, or it consumes
+nothing and returns the byte <code class="docutils literal notranslate"><span class="pre">'B'</span></code> (in the case that parsing a
+single <code class="docutils literal notranslate"><span class="pre">'A'</span></code> fails.) It’s important to note that <code class="docutils literal notranslate"><span class="pre">P</span></code>’s behavior is
+unambiguous on inputs starting with <code class="docutils literal notranslate"><span class="pre">'A'</span></code>. It will always consume the
+<code class="docutils literal notranslate"><span class="pre">'A'</span></code> rather than consuming nothing.</p>
 </section>
 <section id="unbiased-choice-parsing">
-<h3>Unbiased Choice Parsing<a class="headerlink" href="#unbiased-choice-parsing" title="Permalink to this headline"></a></h3>
+<h3>Unbiased Choice Parsing<a class="headerlink" href="#unbiased-choice-parsing" title="Permalink to this heading"></a></h3>
 <p>We can also construct the parser <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">|</span> <span class="pre">Q</span></code> from two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code>.
 Like biased choice, this parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code> succeed -
-However, when <em>both</em> succeed, it is <em>ambiguous</em>, and can parse inputs in more
-than one way. Typically, these ambiguities are handled by sequencing with other
-parsers.</p>
+However, if <em>both</em> would succeed on the input, it is <em>ambiguous</em>, and
+can parse inputs in more than one way. Typically, these ambiguities are
+handled by sequencing with other parsers.</p>
 <p>If we take our biased choice example and replace <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> with <code class="docutils literal notranslate"><span class="pre">|</span></code>:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;A&#39;</span><span class="p">)</span> <span class="k">|</span> <span class="p">(</span><span class="k">^</span> <span class="s">&#39;B&#39;</span><span class="p">)</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span> <span class="k">|</span> <span class="p">(</span><span class="k">^</span> <span class="s">&#39;B&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">P</span></code> is now ambiguous on inputs that start with <code class="docutils literal notranslate"><span class="pre">'A'</span></code>, since it can consume
-either one or zero bytes - remember, DaeDaLus parsers in general only need to
+either one or zero bytes. Remember, DaeDaLus parsers in general only need to
 match a prefix of the input to succeed.</p>
 <p>There are many grammars that have intentional ambiguities, and this unbiased
 choice facility in DaeDaLus allows us to express those formats with ease.</p>
@@ -325,15 +328,15 @@ and <code class="docutils literal notranslate"><span class="pre">Choose</span></
 </pre></div>
 </div>
 <p>Again, the language does not prefer this style over the use of <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> and
-<code class="docutils literal notranslate"><span class="pre">|</span></code> - use whatever syntax is more comfortable for you. There is one major
+<code class="docutils literal notranslate"><span class="pre">|</span></code>; use whatever syntax is more comfortable for you. There is one major
 exception to this, which we’ll address in the next section.</p>
 </div>
 </section>
 <section id="tagged-sum-types">
-<h3>Tagged Sum Types<a class="headerlink" href="#tagged-sum-types" title="Permalink to this headline"></a></h3>
+<h3>Tagged Sum Types<a class="headerlink" href="#tagged-sum-types" title="Permalink to this heading"></a></h3>
 <p>Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
-branches - but this is limiting! What if, for example, we’re parsing a format
+branches, but this is limiting! What if, for example, we’re parsing a format
 that allows strings or numbers to appear in the same place? As described so
 far, we can’t handle this using biased or unbiased choice.</p>
 <p>Enter <em>sum types</em>.</p>
@@ -346,13 +349,13 @@ two variants, both of which are simply tags: <code class="docutils literal notra
 <p>DaeDaLus allows us to return a tagged sum type using variations of the
 layout-based syntax described in the note above, similar to how we can
 build structures using parser sequencing. Note that we can’t use the infix
-operators <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> or <code class="docutils literal notranslate"><span class="pre">|</span></code> to accomplish this same goal - we <em>must</em> use
+operators <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> or <code class="docutils literal notranslate"><span class="pre">|</span></code> to accomplish this same goal; we <em>must</em> use
 <code class="docutils literal notranslate"><span class="pre">First</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose</span></code>.</p>
 <p>As usual, this concept is best demonstrated by an example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad</span> <span class="k">=</span>
   <span class="k">First</span>
-    <span class="n">good</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;G&#39;</span>
-    <span class="n">bad</span>  <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
+    <span class="n">good</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
+    <span class="n">bad</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>This parser returns a semantic value of a new tagged sum type named
@@ -368,16 +371,16 @@ explicitly, using a special “barbed wire” bracket:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad2</span> <span class="k">=</span>
   <span class="k">First</span>
     <span class="k">block</span>
-      <span class="k">@</span><span class="n">x</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;G&#39;</span>
+      <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
       <span class="k">^</span> <span class="p">{|</span> <span class="n">good</span> <span class="k">=</span> <span class="n">x</span> <span class="k">|</span><span class="p">}</span>
     <span class="k">block</span>
-      <span class="k">@</span><span class="n">x</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
+      <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
       <span class="k">^</span> <span class="p">{|</span> <span class="n">bad</span> <span class="k">=</span> <span class="n">x</span> <span class="k">|</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>Note that, because of the way DaeDaLus attempts to infer the types of these
 sum-typed values, this declaration will in fact create a <em>new</em> sum type
-named <code class="docutils literal notranslate"><span class="pre">GoodOrBad2</span></code> - it is <em>not</em> interchangeable with the previous
+named <code class="docutils literal notranslate"><span class="pre">GoodOrBad2</span></code>. It is <em>not</em> interchangeable with the previous
 definition of <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code>, even though both types have essentially the
 same values.</p>
 <p>If we wanted this new parser to return the same type of semantic value as
@@ -386,29 +389,30 @@ guide the type inferencer:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad3</span> <span class="k">=</span>
   <span class="k">First</span>
     <span class="k">block</span>
-      <span class="k">@</span><span class="n">x</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;G&#39;</span>
+      <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
       <span class="k">^</span> <span class="p">{|</span> <span class="n">good</span> <span class="k">=</span> <span class="n">x</span> <span class="k">|</span><span class="p">}</span> <span class="p">:</span> <span class="n">GoodOrBad</span>
     <span class="k">block</span>
-      <span class="k">@</span><span class="n">x</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
+      <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
       <span class="k">^</span> <span class="p">{|</span> <span class="n">bad</span> <span class="k">=</span> <span class="n">x</span> <span class="k">|</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>Note that, since all branches of <code class="docutils literal notranslate"><span class="pre">First</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose</span></code> parsers must have
-the same type, we need only annotate the first branch’s result - the type
+the same type, we need only annotate the first branch’s result. The type
 inferencer will take care of the rest.</p>
 </div>
 <p>With this set of rich type-constructing mechanisms, you can go forth and create
-many interesting format specifications with DaeDaLus - but, what happens when
+many interesting format specifications with DaeDaLus. But, what happens when
 you need to parse many copies of the same thing in sequence, perhaps an unknown
-number of times?</p>
+number of times? For that, we use parser repetition, which we describe in the
+next section.</p>
 </section>
 </section>
 <section id="repeating-parsers">
-<h2>Repeating Parsers<a class="headerlink" href="#repeating-parsers" title="Permalink to this headline"></a></h2>
+<h2>Repeating Parsers<a class="headerlink" href="#repeating-parsers" title="Permalink to this heading"></a></h2>
 <p>If we need to parse the same thing multiple times, we can use the <code class="docutils literal notranslate"><span class="pre">Many</span></code>
 parser combinator. In its most basic form, it can parse an arbitrarily long
 sequence, stopping only when the given parser first fails. As a simple example:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">$$</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;0&#39;</span> <span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">$$</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;7&#39;</span><span class="p">];</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;0&#39;</span><span class="p">]</span> <span class="p">}</span>
 </pre></div>
 </div>
 <p>This parser will match any number of 7s followed by a 0, e.g.
@@ -417,7 +421,7 @@ parser is an array of all the 7s that were parsed.</p>
 <p>Be cautious when using this unbounded form of <code class="docutils literal notranslate"><span class="pre">Many</span></code>! It parses inputs
 maximally, so it’s possible to accidentally create a parser that never
 succeeds, e.g.:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">Many</span> <span class="p">(</span><span class="n">Match1</span> <span class="s">&#39;7&#39;</span><span class="p">);</span> <span class="n">Match1</span> <span class="s">&#39;7&#39;</span> <span class="p">}</span>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="k">=</span> <span class="p">{</span> <span class="k">Many</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;7&#39;</span><span class="p">];</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;7&#39;</span><span class="p">]</span> <span class="p">}</span>
 </pre></div>
 </div>
 <p>When we know that we are only parsing a particular number of things (or even
@@ -432,7 +436,7 @@ at most <code class="docutils literal notranslate"><span class="pre">j</span></c
 e.g. <code class="docutils literal notranslate"><span class="pre">Many</span> <span class="pre">(i</span> <span class="pre">..)</span> <span class="pre">P</span></code>, which will succeed if <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds at least <code class="docutils literal notranslate"><span class="pre">i</span></code>
 times.</p>
 <p>All we’re missing now for a complete understanding of the PPM example is some
-control-flow mechanisms and expressions involving semantic values - if you’re
+control-flow mechanisms and expressions involving semantic values. If you’re
 already familiar with other programming languages, you can probably figure out
 what’s going on with the <code class="docutils literal notranslate"><span class="pre">for</span></code>-loops and integer expressions, but the
 following section will explain these features in more detail.</p>

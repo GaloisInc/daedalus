@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -55,7 +57,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#control-strucutres">Control Strucutres</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#control-structures">Control Structures</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#guarding">Guarding</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>
@@ -99,9 +101,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Breaking down PPM: Expressions and Control Flow</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Breaking down PPM: Expressions and Control Flow</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/ppm-breakdown-expr.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -112,45 +114,47 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-expressions-and-control-flow">
-<h1>Breaking down PPM: Expressions and Control Flow<a class="headerlink" href="#breaking-down-ppm-expressions-and-control-flow" title="Permalink to this headline"></a></h1>
+<h1>Breaking down PPM: Expressions and Control Flow<a class="headerlink" href="#breaking-down-ppm-expressions-and-control-flow" title="Permalink to this heading"></a></h1>
 <p>So far, we have introduced everything needed to understand the parsers defined
-in the PPM example - but there are still some loose ends when it comes to
+in the PPM example but there are still some loose ends when it comes to
 working with semantic values and control flow. This section will tie up those
-ends, and give you the tools encessary to add some logic to your own DaeDaLus
+ends and give you the tools necessary to add some logic to your own DaeDaLus
 specifications to enable more complex parsing and construction of semantic
 values.</p>
 <section id="built-in-semantic-values">
-<h2>Built-In Semantic Values<a class="headerlink" href="#built-in-semantic-values" title="Permalink to this headline"></a></h2>
-<p>We’ve already discussed how user-defined structure and sum types can be defined
-through parser specifications, but we haven’t spoken in detail about what sorts
-of data are available by default. It’s about time we do that!</p>
+<h2>Built-In Semantic Values<a class="headerlink" href="#built-in-semantic-values" title="Permalink to this heading"></a></h2>
+<p>We’ve already discussed how user-defined structure and sum types can be
+defined through parser specifications, but we haven’t spoken in detail
+about what sorts of data are available by default. It’s about time we do
+that!</p>
 <section id="bool">
-<h3><code class="docutils literal notranslate"><span class="pre">bool</span></code><a class="headerlink" href="#bool" title="Permalink to this headline"></a></h3>
-<p>We’ve already mentioned the sum type <code class="docutils literal notranslate"><span class="pre">bool</span></code>: it has precisely two values,
-<code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>. We can ‘flip’ a <code class="docutils literal notranslate"><span class="pre">bool</span></code> using the unary <code class="docutils literal notranslate"><span class="pre">!</span></code>
-operator. For example: If <code class="docutils literal notranslate"><span class="pre">x</span></code> is a <code class="docutils literal notranslate"><span class="pre">bool</span></code> that is <code class="docutils literal notranslate"><span class="pre">true</span></code>, then <code class="docutils literal notranslate"><span class="pre">!x</span></code> is
-<code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-<p>Two <code class="docutils literal notranslate"><span class="pre">bool</span></code> values can be combined using the operators <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span></code> and <code class="docutils literal notranslate"><span class="pre">||</span></code>,
-representing the usual logical notions of ‘and’ and ‘or’, respectively. It’s
-important to note that these are short-circuiting operators, meaning that the
-two arguments may not both be evaluated if the final value can be determined
-early.</p>
-<p>Finally, two <code class="docutils literal notranslate"><span class="pre">bool``s</span> <span class="pre">can</span> <span class="pre">be</span> <span class="pre">compared</span> <span class="pre">for</span> <span class="pre">equality</span> <span class="pre">with</span> <span class="pre">``==</span></code>, and perhaps
-strangely, are ordered according to <code class="docutils literal notranslate"><span class="pre">false</span> <span class="pre">&lt;</span> <span class="pre">true</span></code>.</p>
-<p>Later in this section, we’ll see the most common use of <code class="docutils literal notranslate"><span class="pre">bool``s</span> <span class="pre">for</span> <span class="pre">control</span>
-<span class="pre">flow</span> <span class="pre">via</span> <span class="pre">``if</span></code>, guards, and pattern matching.</p>
+<h3><code class="docutils literal notranslate"><span class="pre">bool</span></code><a class="headerlink" href="#bool" title="Permalink to this heading"></a></h3>
+<p>We’ve already mentioned the sum type <code class="docutils literal notranslate"><span class="pre">bool</span></code>: it has precisely two
+values, <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>. We can negate a <code class="docutils literal notranslate"><span class="pre">bool</span></code> using the unary
+<code class="docutils literal notranslate"><span class="pre">!</span></code> operator. For example: If <code class="docutils literal notranslate"><span class="pre">x</span></code> is a <code class="docutils literal notranslate"><span class="pre">bool</span></code> that is <code class="docutils literal notranslate"><span class="pre">true</span></code>,
+then <code class="docutils literal notranslate"><span class="pre">!x</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<p>Two <code class="docutils literal notranslate"><span class="pre">bool</span></code> values can be combined using the operators <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">||</span></code>, representing the usual logical notions of ‘and’ and ‘or’,
+respectively. It’s important to note that these are short-circuiting
+operators, meaning that their right-hand arguments will not be evaluated
+if their final values can be determined from the left-hand arguments
+only.</p>
+<p>Finally, two <code class="docutils literal notranslate"><span class="pre">bool</span></code> values can be compared for equality with <code class="docutils literal notranslate"><span class="pre">==</span></code>
+and are ordered according to <code class="docutils literal notranslate"><span class="pre">false</span> <span class="pre">&lt;</span> <span class="pre">true</span></code>.</p>
+<p>Later in this section, we’ll see the most common use of <code class="docutils literal notranslate"><span class="pre">bool</span></code> values
+for control flow via <code class="docutils literal notranslate"><span class="pre">if</span></code>, guards, and pattern matching.</p>
 </section>
 <section id="numerics">
-<h3>Numerics<a class="headerlink" href="#numerics" title="Permalink to this headline"></a></h3>
-<p>DaeDaLus supports unbounded integers with the type <code class="docutils literal notranslate"><span class="pre">int</span></code>, and has two
-<em>type families</em>, indexed by positive integers, to reprsent bounded integers.
+<h3>Numerics<a class="headerlink" href="#numerics" title="Permalink to this heading"></a></h3>
+<p>DaeDaLus supports unbounded integers with the type <code class="docutils literal notranslate"><span class="pre">int</span></code> and has two
+<em>type families</em>, indexed by positive integers, to represent bounded integers.
 Specifically, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> (which we’ve seen in a few examples) is the type of
 unsigned integers that can fit in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits, and <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> is the type of
 signed integers that can fit in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits.</p>
-<p>Numeric literals can be written in either decimal or hexadecimal notation, and
-will have an appropriate type inferred based on the context they’re used in.</p>
-<p>As you might expect, numeric types support the usual collection of arithmetic
-operations:</p>
+<p>Numeric literals can be written in either decimal or hexadecimal
+notation and will have an appropriate type inferred based on the context
+in which they’re used.</p>
+<p>Numeric types support the usual collection of arithmetic operations:</p>
 <ul class="simple">
 <li><p>Addition (<code class="docutils literal notranslate"><span class="pre">+</span></code>)</p></li>
 <li><p>Subtraction (<code class="docutils literal notranslate"><span class="pre">-</span></code>)</p></li>
@@ -167,51 +171,53 @@ operations:</p>
 <li><p>Greater-than or equal (<code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>)</p></li>
 </ul>
 <p>All numeric types also support bit-shifting operations <code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;&gt;</span></code>; the
-output type matches the input type, and the shift amount is a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code>.</p>
-<p>Finally, the family of <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> types support bitwise operations, as these
-types can also be interpreted as bitvectors (which is very useful for binary
-specifications.) These are:</p>
+output type matches the input type and the shift amount is a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code>.</p>
+<p>Finally, the family of <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> types support bitwise operations, as
+these types can also be interpreted as bit vectors (which is very useful
+for binary specifications). These are:</p>
 <ul class="simple">
-<li><p>Complement (<code class="docutils literal notranslate"><span class="pre">~</span></code>), which flips every bit</p></li>
-<li><p>Exclusive-or (<code class="docutils literal notranslate"><span class="pre">.^.</span></code>), which combines two same-sized bitvectors using the
-usual logical ‘xor’ operation on each pair of bits</p></li>
-<li><p>Bitwise-or (<code class="docutils literal notranslate"><span class="pre">.|.</span></code>), which combines two same-sized bitvectors using the
-usual logical ‘or’ operation on each pair of bits</p></li>
-<li><p>Bitwise-and (<code class="docutils literal notranslate"><span class="pre">.&amp;.</span></code>), which combines two same-sized bitvectors using the
-usual logical ‘and’ operation on each pair of bits</p></li>
-<li><p>Non-truncating append (<code class="docutils literal notranslate"><span class="pre">#</span></code>), which combines two bitvectors by appending the
-bits of the second to the bits of the first. That is, given two bitvectors,
-one of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> and another of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">M</span></code>, the result of <code class="docutils literal notranslate"><span class="pre">#</span></code>
-between the vectors is a new bitvector of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">(N</span> <span class="pre">+</span> <span class="pre">M)</span></code></p></li>
-<li><p>Truncating append (<code class="docutils literal notranslate"><span class="pre">&lt;#</span></code>) behaves like non-truncating append to combine two
-bitvectors of types <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> and <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">M</span></code>, except only the <code class="docutils literal notranslate"><span class="pre">N</span></code>
-least-significant bits are kept. The symbol used should remind you of the
-symbol used for biased choice when constructing parsers</p></li>
+<li><p>Complement (<code class="docutils literal notranslate"><span class="pre">~</span></code>), which flips every bit.</p></li>
+<li><p>Exclusive-or (<code class="docutils literal notranslate"><span class="pre">.^.</span></code>), which combines two same-sized bit vectors
+using the usual logical ‘xor’ operation on each pair of bits.</p></li>
+<li><p>Bitwise-or (<code class="docutils literal notranslate"><span class="pre">.|.</span></code>), which combines two same-sized bit vectors using
+the usual logical ‘or’ operation on each pair of bits.</p></li>
+<li><p>Bitwise-and (<code class="docutils literal notranslate"><span class="pre">.&amp;.</span></code>), which combines two same-sized bit vectors using
+the usual logical ‘and’ operation on each pair of bits.</p></li>
+<li><p>Non-truncating append (<code class="docutils literal notranslate"><span class="pre">#</span></code>), which combines two bit vectors by
+appending the bits of the second to the bits of the first. That is,
+given two bit vectors, one of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> and another of type
+<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">M</span></code>, the result of <code class="docutils literal notranslate"><span class="pre">#</span></code> between the vectors is a new bit
+vector of type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">(N</span> <span class="pre">+</span> <span class="pre">M)</span></code>.</p></li>
+<li><p>Truncating append (<code class="docutils literal notranslate"><span class="pre">&lt;#</span></code>) behaves like non-truncating append to
+combine two bit vectors of types <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> and <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">M</span></code>, except
+only the <code class="docutils literal notranslate"><span class="pre">N</span></code> least-significant bits are kept. The symbol used should
+remind you of the symbol used for biased choice when constructing
+parsers.</p></li>
 </ul>
 </section>
 <section id="maybe">
-<h3><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code><a class="headerlink" href="#maybe" title="Permalink to this headline"></a></h3>
-<p>The <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">T</span></code> type represents values of type <code class="docutils literal notranslate"><span class="pre">T</span></code>, with the possibility that
+<h3><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code><a class="headerlink" href="#maybe" title="Permalink to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">T</span></code> type represents values of type <code class="docutils literal notranslate"><span class="pre">T</span></code> with the possibility that
 such a value is missing. It is a built-in sum type with two variants:
 <code class="docutils literal notranslate"><span class="pre">nothing</span></code>, representing a ‘missing’ value, and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, where <code class="docutils literal notranslate"><span class="pre">x</span></code> is of
-type <code class="docutils literal notranslate"><span class="pre">T</span></code>. This type is very common in functional languages, provided as an
+type <code class="docutils literal notranslate"><span class="pre">T</span></code>. This type is very common in functional languages and is provided as an
 alternative to having something like a <code class="docutils literal notranslate"><span class="pre">NULL</span></code> value.</p>
 <p>This type comes with a special parser, <code class="docutils literal notranslate"><span class="pre">Optional</span></code>. The parser <code class="docutils literal notranslate"><span class="pre">Optional</span> <span class="pre">P</span></code>
 always succeeds: It returns <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code> if <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds and returns <code class="docutils literal notranslate"><span class="pre">x</span></code>, and
 it returns <code class="docutils literal notranslate"><span class="pre">nothing</span></code> if <code class="docutils literal notranslate"><span class="pre">P</span></code> fails.</p>
-<p>Like <code class="docutils literal notranslate"><span class="pre">bool``s,</span> <span class="pre">values</span> <span class="pre">of</span> <span class="pre">``maybe</span></code> type can be used in control flow via guards
-and pattern matching, which we’ll discuss shortly.</p>
+<p>Like <code class="docutils literal notranslate"><span class="pre">bool</span></code> values, values of <code class="docutils literal notranslate"><span class="pre">maybe</span></code> type can be used in control
+flow via guards and pattern matching, which we’ll discuss shortly.</p>
 </section>
 <section id="t">
-<h3><code class="docutils literal notranslate"><span class="pre">[T]</span></code><a class="headerlink" href="#t" title="Permalink to this headline"></a></h3>
-<p>We have also already seen arrays in earlier sections, and how they can be built
-through parser sequencing. We can also write array literals, however, using
-familiar square-bracket notation from other languages:</p>
+<h3><code class="docutils literal notranslate"><span class="pre">[T]</span></code><a class="headerlink" href="#t" title="Permalink to this heading"></a></h3>
+<p>We have also already seen arrays and how they can be built through
+parser sequencing. We can also write array literals using familiar
+square-bracket notation from other languages. For example:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">[]</span></code> is an empty array, which takes on the type appropriate to the context
-in which it’s used</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[]</span></code> is an empty array, which takes on the type appropriate to the
+context in which it’s used.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code> is a 3-element array of integers; again, the type will be
-dependent on the context the integer literals are used in</p></li>
+dependent on the context in which the integer literals are used.</p></li>
 </ul>
 <p>The string literals we have seen are <em>also</em> array literals. For example,
 <code class="docutils literal notranslate"><span class="pre">&quot;hello&quot;</span></code> is an array of 5 bytes.</p>
@@ -221,77 +227,79 @@ accessing array elements wouldn’t be considered ‘parsing’, after all. Inde
 this being a parser is a clever trick to represent failure to index into an
 array, when using an index that’s out of bounds. Think of <code class="docutils literal notranslate"><span class="pre">Index</span> <span class="pre">a</span> <span class="pre">i</span></code> the
 same as <code class="docutils literal notranslate"><span class="pre">a[i]</span></code> in other languages.</p>
-<p>More in line with typical programming, the <code class="docutils literal notranslate"><span class="pre">length</span></code> semantic value is a
-function that takes an array as argument and returns its length as a
-<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">length</span></code> semantic value is a function that takes an array as
+argument and returns its length as a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code>.</p>
 <p>In order to visit and use every element in an array, you can use a <code class="docutils literal notranslate"><span class="pre">for</span></code>
 loop, which we’ll talk about in a later section.</p>
 </section>
 <section id="builders-for-arrays">
-<h3>Builders for Arrays<a class="headerlink" href="#builders-for-arrays" title="Permalink to this headline"></a></h3>
-<p>You may have noticed that there is no way to build arrays incrementally with
-the tools outlined above. To address this, there is a special ‘builder’ type
-that allows one to incrementally add elements to a structure that can then be
-converted to an array.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">builder</span></code> function returns a new, empty builder. <code class="docutils literal notranslate"><span class="pre">emit</span> <span class="pre">b</span> <span class="pre">x</span></code> takes a
-builder of type <code class="docutils literal notranslate"><span class="pre">builder</span> <span class="pre">T</span></code> and a value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>, and adds that value
-to the back of the builder, returning the new builder.</p>
-<p>If instead you have an array you want to add to the back of a builder, you can
-use the <code class="docutils literal notranslate"><span class="pre">emitArray</span> <span class="pre">b</span> <span class="pre">xs</span></code> function, which adds all the elements in the array
-<code class="docutils literal notranslate"><span class="pre">xs</span></code> to the back of the builder <code class="docutils literal notranslate"><span class="pre">b</span></code>. Similarly, <code class="docutils literal notranslate"><span class="pre">emitBuilder</span> <span class="pre">b1</span> <span class="pre">b2</span></code> adds
-the builder <code class="docutils literal notranslate"><span class="pre">b2</span></code> to the back of <code class="docutils literal notranslate"><span class="pre">b1</span></code>.</p>
-<p>Once you’re done building, you can use <code class="docutils literal notranslate"><span class="pre">build</span> <span class="pre">b</span></code> to convert the builder <code class="docutils literal notranslate"><span class="pre">b</span></code>
-into an array to be used as usual. Unlike arrays, builders do not have a direct
-interface to lookup elements by index or compute length; they’re useless
-outside of incremental array construction.</p>
+<h3>Builders for Arrays<a class="headerlink" href="#builders-for-arrays" title="Permalink to this heading"></a></h3>
+<p>You may have noticed that there is no way to build arrays incrementally
+with the tools outlined above. To address this, there is a special
+‘builder’ type that allows one to add elements to a structure
+incrementally. That structure can then be converted to an array.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">builder</span></code> function returns a new, empty builder. <code class="docutils literal notranslate"><span class="pre">emit</span> <span class="pre">b</span> <span class="pre">x</span></code>
+takes a builder of type <code class="docutils literal notranslate"><span class="pre">builder</span> <span class="pre">T</span></code> and a value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>, and
+appends that value to the end of the builder, returning the new builder.</p>
+<p>If instead you have an array you want to add to the end of a builder,
+you can use the <code class="docutils literal notranslate"><span class="pre">emitArray</span> <span class="pre">b</span> <span class="pre">xs</span></code> function, which adds all the elements
+in the array <code class="docutils literal notranslate"><span class="pre">xs</span></code> to the end of the builder <code class="docutils literal notranslate"><span class="pre">b</span></code>. Similarly,
+<code class="docutils literal notranslate"><span class="pre">emitBuilder</span> <span class="pre">b1</span> <span class="pre">b2</span></code> adds the builder <code class="docutils literal notranslate"><span class="pre">b2</span></code> to the end of <code class="docutils literal notranslate"><span class="pre">b1</span></code>.</p>
+<p>Once you’re done building, you can use <code class="docutils literal notranslate"><span class="pre">build</span> <span class="pre">b</span></code> to convert the
+builder <code class="docutils literal notranslate"><span class="pre">b</span></code> into an array to be used as usual. Unlike arrays, builders
+do not have a direct interface to look up elements by index or compute
+length; they’re useless outside of incremental array construction.</p>
 </section>
 <section id="k-t">
-<h3><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code><a class="headerlink" href="#k-t" title="Permalink to this headline"></a></h3>
-<p>Sometimes, we wish to index by something other than integers - this is
-particularly useful when parsing formats that map names to other structures.</p>
-<p>In DaeDaLus, the type of such an <em>association map</em> is written <code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code>,
-where <code class="docutils literal notranslate"><span class="pre">K</span></code> is the key type and <code class="docutils literal notranslate"><span class="pre">T</span></code> is the element type. There is no literal
-syntax for association maps - they must be built incrementally using a set of
-functions and parsers.</p>
-<p>First, <code class="docutils literal notranslate"><span class="pre">empty</span></code> returns a new, empty association map. Like <code class="docutils literal notranslate"><span class="pre">[]</span></code>, this is a
-polymorphic value that will take on a type appropriate for the context in which
-it is used.</p>
-<p>The function <code class="docutils literal notranslate"><span class="pre">insert</span> <span class="pre">k</span> <span class="pre">v</span> <span class="pre">m</span></code> inserts the key/value pair <code class="docutils literal notranslate"><span class="pre">k/v</span></code> into the map
-<code class="docutils literal notranslate"><span class="pre">m</span></code>, returning a new map - if the key is already used, this function replaces
-the original mapping.</p>
-<p>If instead you’d like for failure to occur when a key is already defined, you
-can instead use the parser version: <code class="docutils literal notranslate"><span class="pre">Insert</span> <span class="pre">k</span> <span class="pre">v</span> <span class="pre">m</span></code>.</p>
-<p>Finally, there are two ways to look up a key in a map. The function version,
-<code class="docutils literal notranslate"><span class="pre">lookup</span> <span class="pre">k</span> <span class="pre">m</span></code>, returns <code class="docutils literal notranslate"><span class="pre">nothing</span></code> if the key <code class="docutils literal notranslate"><span class="pre">k</span></code> is not defined, and
-<code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">v</span></code> if it is. Like with insertion, if you’d rather trigger a failure
-when lookup fails, you can use the parser version: <code class="docutils literal notranslate"><span class="pre">Lookup</span> <span class="pre">k</span> <span class="pre">m</span></code>, which
-returns the element itself rather than wrapping it in a <code class="docutils literal notranslate"><span class="pre">maybe</span></code>.</p>
+<h3><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code><a class="headerlink" href="#k-t" title="Permalink to this heading"></a></h3>
+<p>Sometimes, we wish to index by something other than integers; this
+is particularly useful when parsing formats that map names to other
+structures.</p>
+<p>In DaeDaLus, the type of such an <em>association map</em> is written <code class="docutils literal notranslate"><span class="pre">[K</span>
+<span class="pre">-&gt;</span> <span class="pre">T]</span></code>, where <code class="docutils literal notranslate"><span class="pre">K</span></code> is the key type and <code class="docutils literal notranslate"><span class="pre">T</span></code> is the element type.
+There is no literal syntax for association maps; they must be built
+incrementally using a set of functions and parsers.</p>
+<p>First, <code class="docutils literal notranslate"><span class="pre">empty</span></code> returns a new, empty association map. Like <code class="docutils literal notranslate"><span class="pre">[]</span></code>, this
+is a polymorphic value that will take on a type appropriate for the
+context in which it is used.</p>
+<p>The function <code class="docutils literal notranslate"><span class="pre">insert</span> <span class="pre">k</span> <span class="pre">v</span> <span class="pre">m</span></code> inserts the key/value pair <code class="docutils literal notranslate"><span class="pre">k</span></code> / <code class="docutils literal notranslate"><span class="pre">v</span></code>
+into the map <code class="docutils literal notranslate"><span class="pre">m</span></code> and returns a new map. If the key <code class="docutils literal notranslate"><span class="pre">k</span></code> is already
+used in the map, this function replaces the original mapping with the
+new value <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<p>If instead you’d like for failure to occur when a key is already present
+in the map, use the parser version: <code class="docutils literal notranslate"><span class="pre">Insert</span> <span class="pre">k</span> <span class="pre">v</span> <span class="pre">m</span></code>.</p>
+<p>Finally, there are two ways to look up a key in a map. The function
+version, <code class="docutils literal notranslate"><span class="pre">lookup</span> <span class="pre">k</span> <span class="pre">m</span></code>, returns <code class="docutils literal notranslate"><span class="pre">nothing</span></code> if the key <code class="docutils literal notranslate"><span class="pre">k</span></code> is not
+present, and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">v</span></code> if it is. Like with insertion, if you’d rather
+trigger a failure when lookup fails, you can use the parser version,
+<code class="docutils literal notranslate"><span class="pre">Lookup</span> <span class="pre">k</span> <span class="pre">m</span></code>, which returns the element itself rather than wrapping it
+in a <code class="docutils literal notranslate"><span class="pre">maybe</span></code>.</p>
 </section>
 </section>
-<section id="control-strucutres">
-<h2>Control Strucutres<a class="headerlink" href="#control-strucutres" title="Permalink to this headline"></a></h2>
-<p>With a solid understanding of the types of values we have available, it’s now
-time to see how they’re used to control parser behaviors (and fill in all the
-gaps we left above!)</p>
+<section id="control-structures">
+<h2>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this heading"></a></h2>
+<p>With a solid understanding of the types of values we have available,
+it’s now time to see how they’re used to control parser behaviors.</p>
 <section id="if-then-else">
-<h3><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code><a class="headerlink" href="#if-then-else" title="Permalink to this headline"></a></h3>
-<p>We can use a <code class="docutils literal notranslate"><span class="pre">bool</span></code> value to control which of two parsers runs. This is not
-used in the PPM example, but here is a simple example that parses an <code class="docutils literal notranslate"><span class="pre">'A'</span></code> if
-the first parsed digit is less than 5, and <code class="docutils literal notranslate"><span class="pre">'B'</span></code> otherwise:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+<h3><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code><a class="headerlink" href="#if-then-else" title="Permalink to this heading"></a></h3>
+<p>We can use a <code class="docutils literal notranslate"><span class="pre">bool</span></code> value to control which of two parsers runs. This
+is not used in the PPM example, but here is a simple example that
+parses an <code class="docutils literal notranslate"><span class="pre">'A'</span></code> if the first parsed digit is less than 5, and <code class="docutils literal notranslate"><span class="pre">'B'</span></code>
+otherwise:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">]</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="m">5</span>
-  <span class="k">then</span> <span class="n">Match1</span> <span class="s">&#39;A&#39;</span>
-  <span class="k">else</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
+  <span class="k">then</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;A&#39;</span><span class="p">]</span>
+  <span class="k">else</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
 </section>
 <section id="guarding">
-<h3>Guarding<a class="headerlink" href="#guarding" title="Permalink to this headline"></a></h3>
+<h3>Guarding<a class="headerlink" href="#guarding" title="Permalink to this heading"></a></h3>
 <p>When writing a complex parser, it is often useful to confirm that the ‘shape’
 of some value we’ve parsed from input is correct; this is the job of a <em>guard</em>.</p>
-<p>Guards are parsers that succeed when a given expression has a given shape. They
-can be used with <code class="docutils literal notranslate"><span class="pre">bool``s,</span> <span class="pre">``maybe</span></code> values, and generic tagged sums built
-from alternatives parsers.</p>
+<p>Guards are parsers that succeed when a given expression has a given
+shape. They can be used with <code class="docutils literal notranslate"><span class="pre">bool</span></code> and <code class="docutils literal notranslate"><span class="pre">maybe</span></code> values and generic
+tagged sums built from alternatives parsers.</p>
 <p>An example comes from the PPM specification:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PPM</span> <span class="k">=</span>
   <span class="k">block</span>
@@ -305,16 +313,16 @@ from alternatives parsers.</p>
 </pre></div>
 </div>
 <p>Here, the line <code class="docutils literal notranslate"><span class="pre">version</span> <span class="pre">==</span> <span class="pre">3</span> <span class="pre">is</span> <span class="pre">true</span></code> is a guard. No input is consumed at
-this line, but if the expression does not evaluate to true, it triggers a parse
+this line, but if the expression does not evaluate to <code class="docutils literal notranslate"><span class="pre">true</span></code>, it triggers a parse
 failure.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">e</span></code> is a <code class="docutils literal notranslate"><span class="pre">maybe</span></code>-typed value, we can use the guards <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">just</span></code> or
 <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">nothing</span></code>. The same pattern works for user-defined tagged sums that
 arise from parsing alternatives using biased/unbiased choice.</p>
 </section>
 <section id="case-of">
-<h3><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code><a class="headerlink" href="#case-of" title="Permalink to this headline"></a></h3>
-<p>A more generic way to inspect a semantic value, in particular a tagged sum, is
-the <em>pattern-matching</em> structure, <code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code>.</p>
+<h3><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code><a class="headerlink" href="#case-of" title="Permalink to this heading"></a></h3>
+<p>A more generic way to inspect a semantic value – a tagged sum in
+particular – is the <em>pattern-matching</em> structure, <code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code>.</p>
 <p>In general, a <code class="docutils literal notranslate"><span class="pre">case</span></code> expression looks like:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="n">e</span> <span class="k">of</span>
   <span class="n">p1</span> <span class="k">-&gt;</span> <span class="n">b1</span>
@@ -322,14 +330,17 @@ the <em>pattern-matching</em> structure, <code class="docutils literal notransla
   <span class="p">...</span>
 </pre></div>
 </div>
-<p>Where <code class="docutils literal notranslate"><span class="pre">e</span></code> is an expression, and the <code class="docutils literal notranslate"><span class="pre">pi``s</span> <span class="pre">are</span> <span class="pre">*patterns*.</span> <span class="pre">The</span> <span class="pre">patterns</span> <span class="pre">are</span>
-<span class="pre">checked</span> <span class="pre">in</span> <span class="pre">order,</span> <span class="pre">and</span> <span class="pre">the</span> <span class="pre">first</span> <span class="pre">that</span> <span class="pre">matches</span> <span class="pre">the</span> <span class="pre">shape</span> <span class="pre">of</span> <span class="pre">``e</span></code> has its body
+<p>where <code class="docutils literal notranslate"><span class="pre">e</span></code> is an expression, and the <code class="docutils literal notranslate"><span class="pre">pN</span></code> syntactic elements are
+<em>patterns</em> and the <code class="docutils literal notranslate"><span class="pre">bN</span></code> syntactic elements are the respective <em>body</em>
+for each pattern. The patterns are checked in the order listed, topmost
+first, and the first that one matches the shape of <code class="docutils literal notranslate"><span class="pre">e</span></code> has its body
 evaluated.</p>
-<p>Here’s an example that uses something like the <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code> type from earlier:</p>
+<p>Here’s an example that uses something like the <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code> type from
+earlier:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
-  <span class="k">@</span><span class="n">res</span> <span class="k">=</span> <span class="k">Choose</span>
-           <span class="n">good</span> <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;G&#39;</span>
-           <span class="n">bad</span>  <span class="k">=</span> <span class="n">Match1</span> <span class="s">&#39;B&#39;</span>
+  <span class="k">let</span> <span class="n">res</span> <span class="k">=</span> <span class="k">Choose</span>
+              <span class="n">good</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
+              <span class="n">bad</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
   <span class="k">case</span> <span class="n">res</span> <span class="k">of</span>
     <span class="n">good</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="s">&quot;Good!&quot;</span>
     <span class="n">bad</span>  <span class="k">-&gt;</span> <span class="k">^</span> <span class="s">&quot;Bad!&quot;</span>
@@ -360,9 +371,9 @@ make sure all patterns are covered, but DaeDaLus isn’t one of them!</p>
 </div>
 </section>
 <section id="loops">
-<h3>Loops<a class="headerlink" href="#loops" title="Permalink to this headline"></a></h3>
+<h3>Loops<a class="headerlink" href="#loops" title="Permalink to this heading"></a></h3>
 <section id="for">
-<h4><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code><a class="headerlink" href="#for" title="Permalink to this headline"></a></h4>
+<h4><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code><a class="headerlink" href="#for" title="Permalink to this heading"></a></h4>
 <p>To visit all elements of an array or dictionary, DaeDaLus provides an unusual
 form of the familiar <code class="docutils literal notranslate"><span class="pre">for</span></code> loop.</p>
 <p>It’s best to demonstrate this with an example, taken from the PPM spec:</p>
@@ -373,18 +384,18 @@ form of the familiar <code class="docutils literal notranslate"><span class="pre
 </span></pre></div>
 </div>
 <p>In the <code class="docutils literal notranslate"><span class="pre">for</span></code> loop, we declare a variable <code class="docutils literal notranslate"><span class="pre">val</span></code> which acts as an accumulator
-value - the value of the body of the loop is what this variable is updated to
+value. The value of the body of the loop is what this variable is updated to
 after each iteration, and the final value of the entire loop is the final value
 of this variable.</p>
-<p>Following this declaration is <code class="docutils literal notranslate"><span class="pre">d</span> <span class="pre">in</span> <span class="pre">ds</span></code>, which introduces a variable <code class="docutils literal notranslate"><span class="pre">d</span></code> to
-take on each value in the collection. If <code class="docutils literal notranslate"><span class="pre">ds</span></code> is the array <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>,
-during the first iteration <code class="docutils literal notranslate"><span class="pre">d</span></code> will be 1, during the second it will be 2, and
-so on.</p>
-<p>Finally, after these declarations, is the loop body. As stated: The value of
-this body is what the variable <code class="docutils literal notranslate"><span class="pre">val</span></code> takes on each iteration.</p>
-<p>Let’s break down the PPM example to make this behavior crystal clear. Note that
-the function <code class="docutils literal notranslate"><span class="pre">addDigit</span> <span class="pre">val</span> <span class="pre">d</span></code> computes <code class="docutils literal notranslate"><span class="pre">10</span> <span class="pre">*</span> <span class="pre">val</span> <span class="pre">+</span> <span class="pre">d</span></code>, which is a common
-pattern to accumulate parsed digits into a single numerical value.</p>
+<p>Following this declaration is <code class="docutils literal notranslate"><span class="pre">d</span> <span class="pre">in</span> <span class="pre">ds</span></code>, which introduces a variable
+<code class="docutils literal notranslate"><span class="pre">d</span></code> to take on each value in the collection. If <code class="docutils literal notranslate"><span class="pre">ds</span></code> is the array
+<code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>, during the first iteration <code class="docutils literal notranslate"><span class="pre">d</span></code> will be <code class="docutils literal notranslate"><span class="pre">1</span></code>, during
+the second it will be <code class="docutils literal notranslate"><span class="pre">2</span></code>, and so on.</p>
+<p>Finally, after these declarations is the loop body. The value of this
+body is what the variable <code class="docutils literal notranslate"><span class="pre">val</span></code> takes on each iteration.</p>
+<p>Let’s break down the PPM example. Note that the function <code class="docutils literal notranslate"><span class="pre">addDigit</span> <span class="pre">val</span>
+<span class="pre">d</span></code> computes <code class="docutils literal notranslate"><span class="pre">10</span> <span class="pre">*</span> <span class="pre">val</span> <span class="pre">+</span> <span class="pre">d</span></code>, which is a common pattern to accumulate
+parsed digits into a single numerical value.</p>
 <p>Let’s say for the sake of example that <code class="docutils literal notranslate"><span class="pre">ds</span> <span class="pre">=</span> <span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>. During the first
 iteration, <code class="docutils literal notranslate"><span class="pre">val</span> <span class="pre">=</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">d</span> <span class="pre">=</span> <span class="pre">1</span></code>. So, after this iteration, we can think of
 evaluation as proceeding by computing the value of this new loop:</p>
@@ -392,7 +403,7 @@ evaluation as proceeding by computing the value of this new loop:</p>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">val</span></code> is 1 since the previous iteration’s body computed <code class="docutils literal notranslate"><span class="pre">addDigit</span> <span class="pre">0</span> <span class="pre">1</span></code>.
-The body of this new loop is, then, <code class="docutils literal notranslate"><span class="pre">addDigit</span> <span class="pre">1</span> <span class="pre">2</span> <span class="pre">=</span> <span class="pre">10</span> <span class="pre">*</span> <span class="pre">1</span> <span class="pre">+</span> <span class="pre">2</span> <span class="pre">=</span> <span class="pre">12</span></code>.
+The body of this new loop is <code class="docutils literal notranslate"><span class="pre">addDigit</span> <span class="pre">1</span> <span class="pre">2</span> <span class="pre">=</span> <span class="pre">10</span> <span class="pre">*</span> <span class="pre">1</span> <span class="pre">+</span> <span class="pre">2</span> <span class="pre">=</span> <span class="pre">12</span></code>.
 So, moving to the next iteration, we have:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">12</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="p">[</span><span class="m">3</span><span class="p">])</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">)</span>
 </pre></div>
@@ -402,9 +413,9 @@ So, moving to the next iteration, we have:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">123</span><span class="p">;</span> <span class="n">d</span> <span class="k">in</span> <span class="p">[])</span> <span class="p">(</span><span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Since the list is empty, the body is not evaluated again, as there’s nothing to
-bind <code class="docutils literal notranslate"><span class="pre">d</span></code> to. So, we’re done! We return this final value of <code class="docutils literal notranslate"><span class="pre">val</span></code>, namely
-<code class="docutils literal notranslate"><span class="pre">123</span></code>.</p>
+<p>Since the list is empty, the body is not evaluated again since there’s
+nothing to bind <code class="docutils literal notranslate"><span class="pre">d</span></code> to. The loop is thus finished and we return the
+final value of <code class="docutils literal notranslate"><span class="pre">val</span></code>, namely <code class="docutils literal notranslate"><span class="pre">123</span></code>.</p>
 <p>If you also need access to the index (or key if iterating over a dictionary),
 you can use this form:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">val</span> <span class="k">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span><span class="p">,</span><span class="n">x</span> <span class="k">in</span> <span class="n">xs</span><span class="p">)</span> <span class="p">...</span>
@@ -412,16 +423,16 @@ you can use this form:</p>
 </div>
 </section>
 <section id="map">
-<h4><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code><a class="headerlink" href="#map" title="Permalink to this headline"></a></h4>
-<p>If rather than accumulating you wish to <em>transform</em> a sequence of elements, you
-can use the <code class="docutils literal notranslate"><span class="pre">map</span></code> construct. It is syntactically similar to <code class="docutils literal notranslate"><span class="pre">for</span></code>, except
-no accumulation variable is bound:</p>
+<h4><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code><a class="headerlink" href="#map" title="Permalink to this heading"></a></h4>
+<p>If you wish to <em>transform</em> a sequence of elements, you can use the
+<code class="docutils literal notranslate"><span class="pre">map</span></code> construct. It is syntactically similar to <code class="docutils literal notranslate"><span class="pre">for</span></code> except that no
+accumulation variable is bound:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">map</span> <span class="p">(</span><span class="n">x</span> <span class="k">in</span> <span class="n">xs</span><span class="p">)</span> <span class="p">...</span>
 </pre></div>
 </div>
-<p>The returned collection is of equal size to that being mapped over, and each
-element is given by the value of the body for the corresponding element in the
-original collection.</p>
+<p>The returned collection is of equal size to the input collection (here
+<code class="docutils literal notranslate"><span class="pre">xs</span></code>) and each element in the new collection is given by the value of
+the body for the corresponding element in the input collection.</p>
 <p>As with <code class="docutils literal notranslate"><span class="pre">for</span></code>, you can also bind a variable to the index/key:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">map</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span> <span class="k">in</span> <span class="n">xs</span><span class="p">)</span> <span class="p">...</span>
 </pre></div>
@@ -430,23 +441,24 @@ original collection.</p>
 </section>
 </section>
 <section id="more-on-types">
-<h2>More on Types<a class="headerlink" href="#more-on-types" title="Permalink to this headline"></a></h2>
+<h2>More on Types<a class="headerlink" href="#more-on-types" title="Permalink to this heading"></a></h2>
 <section id="annotating-types">
-<h3>Annotating Types<a class="headerlink" href="#annotating-types" title="Permalink to this headline"></a></h3>
-<p>So far, we’ve only mentioned types at all in the context of alternatives
-parsers - specifically, to be able to define two parsers that return exactly
-the same type of data, overriding the default behavior of introducing a new
-type with the same name as the parser. In that case, we used a <em>type
-annotation</em> to specify the type an expression should have.</p>
-<p>We can in fact annotate types in this way anywhere we have an expression - in
-general, we write <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">:</span> <span class="pre">t</span></code> to mean that expression <code class="docutils literal notranslate"><span class="pre">e</span></code> should have type
-<code class="docutils literal notranslate"><span class="pre">t</span></code>.</p>
+<h3>Annotating Types<a class="headerlink" href="#annotating-types" title="Permalink to this heading"></a></h3>
+<p>So far, we’ve only mentioned types in the context of alternative
+parsers: specifically, to be able to define two parsers that return
+exactly the same type of data, overriding the default behavior of
+introducing a new type with the same name as the parser. In that case,
+we used a <em>type annotation</em> to specify the type an expression should
+have.</p>
+<p>We can annotate types in this way anywhere we have an expression; in
+general, we write <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">:</span> <span class="pre">t</span></code> to mean that expression <code class="docutils literal notranslate"><span class="pre">e</span></code> should have
+type <code class="docutils literal notranslate"><span class="pre">t</span></code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>We recommend that all top-level declarations have type annotations, as types
-can act as an excellent form of documentation in addition to comments. Other
-type annotations can be used, but are (mostly) unnecessary due to type
-inference.</p>
+<p>We recommend that all top-level declarations have type annotations,
+as types can act as an excellent form of documentation in addition
+to comments. Other type annotations can be used but are (mostly)
+unnecessary due to type inference.</p>
 <p>Note that there is a significant difference between these two declarations:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">x</span> <span class="k">=</span> <span class="m">1</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span>
 <span class="k">def</span> <span class="n">y</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="k">=</span> <span class="m">1</span>
@@ -454,18 +466,17 @@ inference.</p>
 </div>
 <p>The first declaration assigns the value of the annotated expression
 <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">8</span></code> the name <code class="docutils literal notranslate"><span class="pre">x</span></code>, the second says that the name <code class="docutils literal notranslate"><span class="pre">y</span></code>
-ought to have the type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code> - in other words, this latter form is
+ought to have the type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>; in other words, this latter form is
 what we mean by annotating the type of a top-level declaration.</p>
-<p>If a declaration has parameters, they may have their types annotated - in
-this case, we surround the parameter and its type with parentheses, like
-so:</p>
+<p>If a declaration has parameters, they may have their types annotated. In
+this case, we surround the parameter and its type with parentheses:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">P</span> <span class="p">(</span><span class="n">Q</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">)</span> <span class="k">=</span> <span class="n">R</span>
 </pre></div>
 </div>
 </div>
 </section>
 <section id="unknown-types">
-<h3>Unknown Types<a class="headerlink" href="#unknown-types" title="Permalink to this headline"></a></h3>
+<h3>Unknown Types<a class="headerlink" href="#unknown-types" title="Permalink to this heading"></a></h3>
 <p>We can also name types without being explicit about what they are. We write
 <em>type variables</em> with a <code class="docutils literal notranslate"><span class="pre">?</span></code> followed by a name, which is typically a
 lowercase letter. For example: The type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> can be used to annotate
@@ -479,38 +490,40 @@ the user guide for more detail on this feature.</p>
 </div>
 </section>
 <section id="type-coercion">
-<h3>Type Coercion<a class="headerlink" href="#type-coercion" title="Permalink to this headline"></a></h3>
-<p>As you’ll often find, it is useful to be able to convert a semantic value of
-some type (usually numerical) into a semantic value of a different type. This
-will be particularly crucial to developing a solid understanding of the
-<code class="docutils literal notranslate"><span class="pre">bitdata</span></code> construction, which will be explained as part of the extended
-exercise that follows.</p>
-<p>DaeDaLus provides three ways to coerce one type into another:</p>
+<h3>Type Coercion<a class="headerlink" href="#type-coercion" title="Permalink to this heading"></a></h3>
+<p>It is commonly useful to be able to convert a semantic value of some
+type (usually numerical) into a semantic value of a different type.
+This will be particularly crucial to developing a solid understanding
+of the <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> construction, which will be explained as part of the
+extended exercise that follows.</p>
+<p>DaeDaLus provides three ways to convert a value of one type into
+another:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> checks statically that the type <code class="docutils literal notranslate"><span class="pre">T</span></code> has enough bits to
-losslessly represent the value of <code class="docutils literal notranslate"><span class="pre">e</span></code>, and performs the conversion if this
-is the case (failing at compile-time otherwise)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as!</span> <span class="pre">T</span></code> always succeeds, but it is <em>not</em> lossless: if the original value
-fits in the size of <code class="docutils literal notranslate"><span class="pre">T</span></code>, the behavior is the same as <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code>; otherwise,
-behavior is implementation dependent</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> performs a <em>run-time</em> check that the conversion doesn’t lose
-information; if that check succeeds, the behavior is the same as <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code>.
-Otherwise, coercion fails, and backtracking occurs</p></li>
+losslessly represent the value of <code class="docutils literal notranslate"><span class="pre">e</span></code> and performs the conversion if
+this is the case (failing at compile-time otherwise).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as!</span> <span class="pre">T</span></code> always succeeds, but it is <em>not</em> lossless: if the original
+value fits in the size of <code class="docutils literal notranslate"><span class="pre">T</span></code>, the behavior is the same as <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span>
+<span class="pre">T</span></code>; otherwise, behavior is implementation-dependent.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> performs a <em>run-time</em> check that the conversion doesn’t
+lose information; if that check succeeds, the behavior is the same as
+<code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code>.  Otherwise, conversion fails and backtracking occurs.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Pay attention to that final description! From it, we can deduce that
 <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> is <em>not</em> an expression like the other two coercion forms - it is
-a parser, since it can fail and trigger backtracking.</p>
+a parser since it can fail and trigger backtracking.</p>
 </div>
-<p>With this, we’ve covered all of the essential types of values and control-flow
-structures. There are a few others for more specialized use-cases; you can check
-out the <a class="reference internal" href="../user-guide/control-structures.html#control-structures"><span class="std std-ref">Control Structures</span></a> section of the main user guide for details on
-how to use these features.</p>
-<p>What follows is a “tutorial by immersion” - you’ll implement a much more
-complicated layout specification one step at a time, with any gaps in necessary
-knowledge filled in. The exercises are followed by solutions, so if you get
-stuck, you can skip ahead to those solutions for clarification.</p>
+<p>We’ve now covered all of the essential types of values and control-flow
+structures. There are a few others for more specialized use cases; you
+can check out the <a class="reference internal" href="#control-structures"><span class="std std-ref">Control Structures</span></a> section of the main user
+guide for details on how to use these features.</p>
+<p>What follows is a “tutorial by immersion”: you’ll implement a much
+more complicated layout specification one step at a time, with any
+gaps in necessary knowledge filled in. The exercises are followed by
+solutions, so if you get stuck, you can skip ahead to those solutions
+for clarification.</p>
 </section>
 </section>
 </section>

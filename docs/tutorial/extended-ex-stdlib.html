@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -77,9 +79,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Aside: The DaeDaLus Standard Library</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Aside: The DaeDaLus Standard Library</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/extended-ex-stdlib.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,26 +92,32 @@
            <div itemprop="articleBody">
              
   <section id="aside-the-daedalus-standard-library">
-<h1>Aside: The DaeDaLus Standard Library<a class="headerlink" href="#aside-the-daedalus-standard-library" title="Permalink to this headline"></a></h1>
-<p>DaeDaLus, like most modern programming languages, ships with a standard library
-of useful parsers and functions. It is quite small, and written entirely in
-DaeDaLus itself. This brief section highlights some of the parsers provided,
-without digging deeply into their implementation. You’ll find this section
-useful while working on the extended PNG exercise, particularly for parsing
-multi-byte words with the correct endianness.</p>
+<h1>Aside: The DaeDaLus Standard Library<a class="headerlink" href="#aside-the-daedalus-standard-library" title="Permalink to this heading"></a></h1>
+<p>DaeDaLus, like most modern programming languages, ships with a standard
+library of useful parsers and functions. It is quite small and is
+written entirely in DaeDaLus itself. This section highlights some of
+the parsers provided without digging deeply into their implementation.
+You’ll find this section useful while working on the extended PNG
+exercise, particularly for parsing multi-byte words with the correct
+endianness.</p>
 <section id="endianness">
-<h2>Endianness<a class="headerlink" href="#endianness" title="Permalink to this headline"></a></h2>
-<p>When working with binary data, we must concern ourselves with <em>endianness</em> -
-the order of bytes within a multi-byte word of data. Many format specifications
-define an endianness for their bytes, and your machine’s architecture defines
-an endianness for, say, multi-byte integers.</p>
-<p>The DaeDaLus standard library provides a large handful of parsers that make
-working with such data convenient and easy. Names beginnning with <code class="docutils literal notranslate"><span class="pre">BE</span></code>
-parse big-endian words, names beginning with <code class="docutils literal notranslate"><span class="pre">LE</span></code> parse little-endian words.
-The parsers with names like <code class="docutils literal notranslate"><span class="pre">UInt16</span></code> and <code class="docutils literal notranslate"><span class="pre">SInt32</span></code> parse <em>either</em>
-big-endian or little-endian data, depending on the value of an <em>implicit
-parameter</em>. We haven’t discussed implicit parameters in this tutorial - for
-more detail about them, see <a class="reference internal" href="../user-guide/implicit-parameters.html#implicit-parameters"><span class="std std-ref">Implicit Parameters</span></a>.</p>
+<h2>Endianness<a class="headerlink" href="#endianness" title="Permalink to this heading"></a></h2>
+<p>When working with binary data, we must concern ourselves with
+<em>endianness</em>: the order of bytes within a multi-byte word of data.
+Many format specifications define an endianness for their bytes and
+your machine’s architecture defines an endianness for, say, multi-byte
+integers.</p>
+<p>The DaeDaLus standard library provides a number of parsers that
+make working with such data convenient and easy. We use some naming
+conventions to make the API easy to understand:</p>
+<ul class="simple">
+<li><p>Names beginnning with <code class="docutils literal notranslate"><span class="pre">BE</span></code> parse big-endian words.</p></li>
+<li><p>Names beginning with <code class="docutils literal notranslate"><span class="pre">LE</span></code> parse little-endian words.</p></li>
+<li><p>Parsers with names like <code class="docutils literal notranslate"><span class="pre">UInt16</span></code> and <code class="docutils literal notranslate"><span class="pre">SInt32</span></code> parse <em>either</em>
+big-endian or little-endian data, depending on the value of an
+<em>implicit parameter</em>. We haven’t discussed implicit parameters in this
+tutorial; for more detail about them, see <a class="reference internal" href="../user-guide/implicit-parameters.html#implicit-parameters"><span class="std std-ref">Implicit Parameters</span></a>.</p></li>
+</ul>
 <p>First, the unsigned/signed integer parsers that depend on the implicit
 parameter <code class="docutils literal notranslate"><span class="pre">?bigEndian</span></code>:</p>
 <ul class="simple">
@@ -120,7 +128,7 @@ parameter <code class="docutils literal notranslate"><span class="pre">?bigEndia
 <li><p><code class="docutils literal notranslate"><span class="pre">SInt32</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SInt64</span></code></p></li>
 </ul>
-<p>The always-big-endian variants:</p>
+<p>The big-endian variants are:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BEUInt16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BEUInt32</span></code></p></li>
@@ -129,7 +137,7 @@ parameter <code class="docutils literal notranslate"><span class="pre">?bigEndia
 <li><p><code class="docutils literal notranslate"><span class="pre">BESInt32</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BESInt64</span></code></p></li>
 </ul>
-<p>And the always-little-endian variants:</p>
+<p>The little-endian variants are:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">LEUInt16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LEUInt32</span></code></p></li>
@@ -140,67 +148,70 @@ parameter <code class="docutils literal notranslate"><span class="pre">?bigEndia
 </ul>
 </section>
 <section id="floating-point-numbers">
-<h2>Floating-Point Numbers<a class="headerlink" href="#floating-point-numbers" title="Permalink to this headline"></a></h2>
-<p>There are also parsers for floating-point data in the standard library, for
-16-, 32-, and 64-bit IEEE-754 standard floating-point numbers. Like with the
-integer parsers described above, there are variations that use implicit
-parameters, are always big-endian, and are always little-endian.</p>
-<p>First, those that depend on the implicit parameter:</p>
+<h2>Floating-Point Numbers<a class="headerlink" href="#floating-point-numbers" title="Permalink to this heading"></a></h2>
+<p>We also provide parsers for floating-point data in the standard library
+for 16-, 32-, and 64-bit IEEE-754 standard floating-point numbers.
+Like with the integer parsers described above, there are variations
+that use implicit parameters, are always big-endian, and are always
+little-endian.</p>
+<p>Those that depend on the implicit parameter are:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">HalfFloat</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Float</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Double</span></code></p></li>
 </ul>
-<p>The always-big-endian variants:</p>
+<p>The big-endian variants are:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">BEHalfFloat</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BEFloat</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">BEDouble</span></code></p></li>
 </ul>
-<p>And the always-little-endian variants:</p>
+<p>The little-endian variants are:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">LEHalfFloat</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LEFloat</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">LEDouble</span></code></p></li>
 </ul>
-<p>Because the PNG specification makes use of a particular endianness for its
-words, you’ll find many of these parsers useful while completing the exercises.</p>
+<p>Because the PNG specification makes use of a particular endianness for
+its words, you’ll find many of these parsers useful while completing the
+exercises.</p>
 </section>
 <section id="guarding-and-consuming-everything">
-<h2>Guarding and Consuming Everything<a class="headerlink" href="#guarding-and-consuming-everything" title="Permalink to this headline"></a></h2>
-<p>Two very simple parsers in the standard library mimic behavior we’ve already
-covered in earlier sections, but explicitly as named parsers.</p>
-<p>The parser <code class="docutils literal notranslate"><span class="pre">Guard</span> <span class="pre">b</span></code> (where <code class="docutils literal notranslate"><span class="pre">b</span></code> is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>) succeeds if <code class="docutils literal notranslate"><span class="pre">b</span></code> is
-<code class="docutils literal notranslate"><span class="pre">true</span></code> and fails otherwise; it’s equivalent to <code class="docutils literal notranslate"><span class="pre">b</span> <span class="pre">is</span> <span class="pre">true</span></code>.</p>
-<p>The parser <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">P</span></code> succeeds if <code class="docutils literal notranslate"><span class="pre">P</span></code> consumes all input. We can write this
-instead of the slightly more verbose sequence <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">END</span> <span class="pre">}</span></code>.</p>
+<h2>Guarding and Consuming Everything<a class="headerlink" href="#guarding-and-consuming-everything" title="Permalink to this heading"></a></h2>
+<p>The standard library also provides two parsers that mimic behavior we’ve
+already covered in earlier sections. The parser <code class="docutils literal notranslate"><span class="pre">Guard</span> <span class="pre">b</span></code> (where <code class="docutils literal notranslate"><span class="pre">b</span></code>
+is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>) succeeds if <code class="docutils literal notranslate"><span class="pre">b</span></code> is <code class="docutils literal notranslate"><span class="pre">true</span></code> and fails otherwise; it’s
+equivalent to <code class="docutils literal notranslate"><span class="pre">b</span> <span class="pre">is</span> <span class="pre">true</span></code>. The parser <code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">P</span></code> succeeds if <code class="docutils literal notranslate"><span class="pre">P</span></code>
+consumes all input. We can write this instead of the slightly more
+verbose sequence <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">END</span> <span class="pre">}</span></code>.</p>
 </section>
 <section id="manipulating-input-streams">
-<h2>Manipulating Input Streams<a class="headerlink" href="#manipulating-input-streams" title="Permalink to this headline"></a></h2>
-<p>Sometimes (but fortunately not too often), we need to control exactly where we
-are in the input stream manually. We can get the current stream using something
-like <code class="docutils literal notranslate"><span class="pre">let</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">GetStream</span></code> inside a parser block.</p>
-<p>We can also set the stream with <code class="docutils literal notranslate"><span class="pre">SetStream</span> <span class="pre">s</span></code>. We can use this to parse the
-same input more than once, parse fixed-size sub-streams, and generally ‘jump
-around’ in the input we’re processing.</p>
-<p>The standard library provides some convenient parsers to use these features
-in some common ways:</p>
+<h2>Manipulating Input Streams<a class="headerlink" href="#manipulating-input-streams" title="Permalink to this heading"></a></h2>
+<p>Sometimes, we need to control exactly where we are in the input stream
+manually. To work with the parser’s input stream, we must first get it
+using a special <code class="docutils literal notranslate"><span class="pre">GetStream</span></code> parser: <code class="docutils literal notranslate"><span class="pre">let</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">GetStream</span></code>.</p>
+<p>We can also set the input stream with <code class="docutils literal notranslate"><span class="pre">SetStream</span> <span class="pre">s</span></code>. We can use this
+to parse the same input more than once, parse fixed-size sub-streams,
+and generally ‘jump around’ in the input that we’re processing.</p>
+<p>The standard library provides some convenient parsers to use these
+features in some common ways:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">SetStreamAt</span> <span class="pre">n</span> <span class="pre">s</span></code> sets the current stream to the <code class="docutils literal notranslate"><span class="pre">n</span></code> th byte of <code class="docutils literal notranslate"><span class="pre">s</span></code>,
-which is some stream</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Skip</span> <span class="pre">n</span></code> advances the current stream <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Chunk</span> <span class="pre">n</span> <span class="pre">P</span></code> parses <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes using <code class="docutils literal notranslate"><span class="pre">P</span></code>. Importantly, <code class="docutils literal notranslate"><span class="pre">P</span></code> is not
-required to parse all of the bytes, but the stream will still be advanced all
-<code class="docutils literal notranslate"><span class="pre">n</span></code> bytes. To make sure <code class="docutils literal notranslate"><span class="pre">P</span></code> consumes all <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes, use
-<code class="docutils literal notranslate"><span class="pre">Chunk</span> <span class="pre">n</span> <span class="pre">(Only</span> <span class="pre">P)</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Bytes</span> <span class="pre">n</span></code> gets a chunk of <code class="docutils literal notranslate"><span class="pre">n</span></code> raw, unprocessed bytes</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">LookAhead</span> <span class="pre">P</span></code> parses using <code class="docutils literal notranslate"><span class="pre">P</span></code>, but resets the stream to the current
-position when <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SetStreamAt</span> <span class="pre">n</span> <span class="pre">s</span></code> advances the stream <code class="docutils literal notranslate"><span class="pre">s</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes, and sets
+the current stream to the resulting stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Skip</span> <span class="pre">n</span></code> advances the current stream by <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Drop</span> <span class="pre">n</span> <span class="pre">s</span></code> advances the specified stream <code class="docutils literal notranslate"><span class="pre">s</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes,
+effectively dropping input bytes, and returns the resulting stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Chunk</span> <span class="pre">n</span> <span class="pre">P</span></code> parses <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes from the current stream using <code class="docutils literal notranslate"><span class="pre">P</span></code>.
+Importantly, <code class="docutils literal notranslate"><span class="pre">P</span></code> is not required to parse all of the bytes, but the
+stream will still be advanced all <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes. To make sure <code class="docutils literal notranslate"><span class="pre">P</span></code>
+consumes all <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes, use <code class="docutils literal notranslate"><span class="pre">Chunk</span> <span class="pre">n</span> <span class="pre">(Only</span> <span class="pre">P)</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Bytes</span> <span class="pre">n</span></code> gets a chunk of <code class="docutils literal notranslate"><span class="pre">n</span></code> raw bytes from the input stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LookAhead</span> <span class="pre">P</span></code> parses using <code class="docutils literal notranslate"><span class="pre">P</span></code> but, once <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds, the
+current input stream position is reset to the position that it had
+prior to parsing <code class="docutils literal notranslate"><span class="pre">P</span></code>.</p></li>
 </ul>
-<p>And that’s all of the standard library, except for some helper functions that
-implement these parsers! In the following set of exercises, you’ll find these
-extremely helpful in writing parsers for the various components of the PNG
-format.</p>
+<p>In the following set of exercises, you’ll find these extremely helpful
+in writing parsers for the various components of the PNG format.</p>
 </section>
 </section>
 

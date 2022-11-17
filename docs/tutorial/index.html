@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -71,8 +73,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Tutorial</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Tutorial</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -83,11 +85,12 @@
            <div itemprop="articleBody">
              
   <section id="tutorial">
-<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline"></a></h1>
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html#the-daedalus-command-line-interface">The DaeDaLus Command-Line Interface</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
@@ -105,10 +108,10 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ppm-breakdown-parse.html">Breaking down PPM: Primitive Parsing</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">$[...]</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#id2"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-parse.html#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
 </ul>
 </li>
@@ -136,7 +139,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#k-t"><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#control-strucutres">Control Strucutres</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-expr.html#control-structures">Control Structures</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#if-then-else"><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#guarding">Guarding</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ppm-breakdown-expr.html#case-of"><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code></a></li>

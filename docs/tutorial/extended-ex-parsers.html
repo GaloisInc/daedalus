@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -71,9 +73,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Aside: What To (Not) Do While Parsing</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Aside: What To (Not) Do While Parsing</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/extended-ex-parsers.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -84,47 +86,50 @@
            <div itemprop="articleBody">
              
   <section id="aside-what-to-not-do-while-parsing">
-<h1>Aside: What To (Not) Do While Parsing<a class="headerlink" href="#aside-what-to-not-do-while-parsing" title="Permalink to this headline"></a></h1>
-<p>Any program that consumes input involves some kind of parsing, even if you
-wouldn’t typically think of them that way. Some input formats are so simple
-that we can easily write the logic needed to consume them without any fancy
-tools like DaeDaLus, and some are so complex that we might question exactly
-what the job of the parser is and should be.</p>
-<p>In general, the job of the parser is to consume an input stream and produce (a)
-data structure(s) that conform to the <em>actual</em> shape of the input (since the
-stream is likely a linear collection of characters or tokens.)</p>
-<p>Seems simple enough - but what if some invariants must hold true for the input,
-invariants depending on more complex logic than “this input has the right
-shape”?</p>
-<p>For example: In many programming languages, it is necessary to declare a name
-before it can be used (C and C++ are good examples of languages like this.)
-Should a parser for C be responsible for checking that any encountered name has
-previously been declared, or is this better left to a separate analysis once we
-know the program is syntactically valid?</p>
-<p>Another example: The official PNG specification requires that the number and
-order of chunks be checked. Are we wrong to not include this in our DaeDaLus
-specification?</p>
-<p>Answering these questions can often be a matter of taste: Another project from
+<h1>Aside: What To (Not) Do While Parsing<a class="headerlink" href="#aside-what-to-not-do-while-parsing" title="Permalink to this heading"></a></h1>
+<p>Any program that consumes input involves typically some kind of parsing.
+Some input formats are so simple that we can easily write the logic
+needed to consume them without advanced tools like DaeDaLus, and some
+are so complex that we might question exactly what the job of the parser
+is and should be.</p>
+<p>We take the position that the job of the parser is to consume an input
+stream and produce a data structure that conforms to the <em>actual</em> shape
+of the input. This may seem simple enough, but what if some invariants
+must hold true for the input, such as invariants depending on more
+complex logic than what is needed to merely parse the input?</p>
+<p>As an example, consider that in many programming languages, it is
+necessary to declare a name before it can be used (C and C++ are good
+examples of languages like this). We must then consider the question of
+whether a parser for C be responsible for checking that any encountered
+name has previously been declared, or whether that is better left to a
+separate analysis once we know the program is syntactically valid.</p>
+<p>Consider another example: the official PNG specification requires that
+the number and order of chunks be checked. Should this requirement be
+expressed in our DaeDaLus specification?</p>
+<p>Answering these questions can often be a matter of taste. Another project from
 Galois, <a class="reference external" href="https://github.com/GaloisInc/blocktorok">Blocktorok</a>, checks that
 user-defined names in that language’s schemas are defined before use while
 parsing. Other languages defer this check to after parsing, usually during
 type-checking or some other static analysis.</p>
-<p>This latter strategy is preferrable in the sense that concerns of the
-application are being separated more cleanly, but the former has the benefit of
-providing excellent error messages without needing to carry source information
-into later stages of the data processing. As with most problems in computer
-science and engineering, it comes down to tradeoffs.</p>
-<p>Put another way: the additional checking you do while parsing, if any, will
-depend on your needs. A good rule of thumb is: If it’s cheap to check something
-while parsing, and doesn’t require overly-complex logic, go ahead and check. A
-great example came from the PPM example where we used a guard to guarantee that
-the magic number parsed was the exactly correct value. Another great example,
-from the other side: The CRC check on PNG is fairly involved math, so should be
-performed once the image is known to be otherwise well-formed.</p>
+<p>This latter strategy is preferable in the sense that concerns of the
+application are being separated more cleanly, but the former has the
+benefit of providing excellent error messages without needing to carry
+source information into later stages of the data processing. As with
+most problems in computer science and engineering, it comes down to
+tradeoffs.</p>
+<p>To put this another way: the additional checking you do while parsing,
+if any, will depend on your needs. A good rule of thumb is that if
+it’s cheap to check something while parsing, and doesn’t require
+overly-complex logic, checking it at parse time may be appropriate. An
+example from the PPM specification is that where we used a guard to
+guarantee that the magic number parsed was the exactly correct value.
+An example of the opposite approach is that since the CRC check on PNG
+entails fairly involved math, the parser assumes that will be performed
+once the image is known to be otherwise well-formed.</p>
 <p>When writing your own specifications, be sure to be critical of these
-considerations - adding too much analysis to the parser itself can slow it down
-and make maintenance/updates dramatically more difficult to perform in the
-future.</p>
+considerations. Adding too much analysis to the parser itself can
+degrade performance make maintenance and updates more difficult or
+costly in the future.</p>
 </section>
 
 

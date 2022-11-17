@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -76,9 +78,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Extended Exercise: Defining Helpful Utilities</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Extended Exercise: Defining Helpful Utilities</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/extended-ex-utils.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -89,30 +91,32 @@
            <div itemprop="articleBody">
              
   <section id="extended-exercise-defining-helpful-utilities">
-<h1>Extended Exercise: Defining Helpful Utilities<a class="headerlink" href="#extended-exercise-defining-helpful-utilities" title="Permalink to this headline"></a></h1>
-<p>The layout specification for PNG chunks can be found
-<a class="reference external" href="https://www.w3.org/TR/2003/REC-PNG-20031110/#11Chunks">here</a> - you shouldn’t
-actually need to read much of this document, as we’ll present any relevant
-information within the exercises themselves. If you want to write a full PNG
-implementation at some point, though, this specification has everything you’ll
-need.</p>
-<p>First of all, fire up your favorite text editor, and create a new file named
-<code class="docutils literal notranslate"><span class="pre">png.ddl</span></code>. This is where you’ll write the format specification - the first
-line of your file, after any comments you wish to add to introduce the module,
-should be:</p>
+<h1>Extended Exercise: Defining Helpful Utilities<a class="headerlink" href="#extended-exercise-defining-helpful-utilities" title="Permalink to this heading"></a></h1>
+<p>In this section we’ll get started writing a
+DaeDaLus specification for <a class="reference external" href="https://www.w3.org/TR/2003/REC-PNG-20031110/#11Chunks">the PNG format</a>. While you
+shouldn’t need to read much of the PNG layout specification for this
+tutorial, we provide it as a reference. In this tutorial, we’ll present
+any relevant information within the exercises themselves. If you want
+to write a full PNG implementation at some point, though, the full PNG
+specification has everything you’ll need.</p>
+<p>To begin, open your favorite text editor and create a new file named
+<code class="docutils literal notranslate"><span class="pre">png.ddl</span></code>. This is where you’ll write the format specification. The
+first line of your file, after any comments you wish to add to introduce
+the module, should be:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="n">Daedalus</span>
 </pre></div>
 </div>
 <p>This will load all of the standard library features covered in the previous
 section, which you’ll start using right away.</p>
 <section id="domain-specific-parser-names">
-<h2>Domain-Specific Parser Names<a class="headerlink" href="#domain-specific-parser-names" title="Permalink to this headline"></a></h2>
-<p>For total clarity in code, it is often useful to give new names to things that
-are otherwise quite generic (e.g. to represent lengths, we may be using
-floating-point numbers - but the type name <code class="docutils literal notranslate"><span class="pre">length</span></code> is more informative than
-<code class="docutils literal notranslate"><span class="pre">float</span></code>, so we might want to <em>alias</em> these names.)</p>
-<p>In PNG, there are a number of examples of this being useful - unsigned 32-bit
-words are used for a number of very different components.</p>
+<h2>Domain-Specific Parser Names<a class="headerlink" href="#domain-specific-parser-names" title="Permalink to this heading"></a></h2>
+<p>For total clarity in code, it is often useful to give new names to
+things that are otherwise quite generic (e.g. to represent lengths,
+we may be using floating-point numbers, but the type name <code class="docutils literal notranslate"><span class="pre">length</span></code>
+is more informative than <code class="docutils literal notranslate"><span class="pre">float</span></code>, so we might want to <em>alias</em> these
+names). In PNG, there are a number of examples of this being useful
+since unsigned 32-bit words are used for a number of very different
+components.</p>
 <p><strong>Exercise:</strong> Define two parsers, <code class="docutils literal notranslate"><span class="pre">Length</span></code> and <code class="docutils literal notranslate"><span class="pre">Crc</span></code>, that each parse a
 big-endian, 32-bit, unsigned integer.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -148,11 +152,7 @@ Solution<div class="sd-summary-down docutils">
 <div class="sd-summary-up docutils">
 <svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
 </summary><div class="sd-summary-content sd-card-body docutils">
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">FLAG</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">1</span><span class="p">)</span>
-</pre></div>
-</div>
-<p class="sd-card-text">Alternatively, we could have used a <em>character class</em> and the alternative
-syntax for <code class="docutils literal notranslate"><span class="pre">Match1</span></code> to write this very succinctly:</p>
+<p class="sd-card-text">We use a <em>character class</em> to write this very succinctly:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">FLAG</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">1</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -160,15 +160,17 @@ syntax for <code class="docutils literal notranslate"><span class="pre">Match1</
 </div>
 </details></section>
 <section id="null-terminated-strings">
-<h2>Null-terminated Strings<a class="headerlink" href="#null-terminated-strings" title="Permalink to this headline"></a></h2>
-<p>A <em>null-terminated string</em> is an array of characters terminated with the null
-character (ASCII codepoint <code class="docutils literal notranslate"><span class="pre">0</span></code>). These are also known as <strong>C strings</strong>, as
-this is the representation used in that language’s standard string manipulation
-library.</p>
-<p>PNG makes use of null-terminated strings in a few places, so we need to be able
-to parse them. In particular, we need to be able to parse both strings within a
-specific range of sizes <em>and</em> strings of unbounded length.</p>
-<p><strong>Exercise:</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">NullChar</span></code>, that parses the ASCII null byte.</p>
+<h2>Null-terminated Strings<a class="headerlink" href="#null-terminated-strings" title="Permalink to this heading"></a></h2>
+<p>A <em>null-terminated string</em> is an array of characters terminated with
+the null character (ASCII value <code class="docutils literal notranslate"><span class="pre">0</span></code>). These are also known as <strong>C
+strings</strong> since this is the representation used in C’s standard library
+string manipulation functions.</p>
+<p>PNG makes use of null-terminated strings in a few places, so we need
+to be able to parse them. In particular, we need to be able to parse
+strings within a specific range of sizes <em>and</em> strings of unbounded
+length.</p>
+<p><strong>Exercise:</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">NullChar</span></code>, that parses the ASCII null
+byte.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -229,15 +231,16 @@ Solution<div class="sd-summary-down docutils">
                   <span class="l">just</span> <span class="n">max</span> <span class="k">-&gt;</span> <span class="k">Many</span> <span class="p">(</span><span class="n">min</span><span class="p">..</span><span class="n">max</span><span class="p">)</span> <span class="n">P</span>
 </pre></div>
 </div>
-<p class="sd-card-text">Note that the right-hand sides of each case arm is the right-hand side of
-one of the laws - this form of algebraic specification is very useful when
-writing functional code, as all that was left at the end was writing the
-appropriate pattern-matching code to cover the cases of our laws.</p>
+<p class="sd-card-text">Note that the right-hand sides of each case arm is the right-hand
+side of one of the laws; this form of algebraic specification is
+very useful when writing functional code, as all that is left
+once we have established the laws is writing the appropriate
+pattern-matching code to cover each one.</p>
 </div>
 </details><p><strong>Exercise (Challenging):</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">NTString</span></code>, that parses a
-null-terminated string between <code class="docutils literal notranslate"><span class="pre">min</span></code> and <code class="docutils literal notranslate"><span class="pre">max</span></code> characters in length, if
-bounds are provided (i.e. the bounds should be <code class="docutils literal notranslate"><span class="pre">maybe</span></code> values.) The null
-character should not be included in the character count.</p>
+null-terminated string between <code class="docutils literal notranslate"><span class="pre">min</span></code> and <code class="docutils literal notranslate"><span class="pre">max</span></code> characters in length,
+if bounds are provided (i.e. the bounds should be <code class="docutils literal notranslate"><span class="pre">maybe</span></code> values). The
+null character should not be included in the character count.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
 Hint<div class="sd-summary-down docutils">
@@ -264,15 +267,15 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="common-structures">
-<h2>Common Structures<a class="headerlink" href="#common-structures" title="Permalink to this headline"></a></h2>
-<p>Time and RGB color are both critical parts of the PNG specification; the latter
-is obvious given this is an image format, but the former is perhaps a little
-surprising: By the format’s definition, PNG chunks can carry last-modified time
-data.</p>
+<h2>Common Structures<a class="headerlink" href="#common-structures" title="Permalink to this heading"></a></h2>
+<p>Time and RGB color values are both critical parts of the PNG
+specification. The latter shouldn’t be surprising given that this is
+an image format, but the former is perhaps a little surprising: by the
+format’s definition, PNG chunks can carry last-modified time data.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">RGB</span></code> that consumes three bytes and returns
 them in a structure with fields <code class="docutils literal notranslate"><span class="pre">red</span></code>, <code class="docutils literal notranslate"><span class="pre">green</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue</span></code>. The parsed
 bytes should be assigned to those fields in that order (i.e. <code class="docutils literal notranslate"><span class="pre">red</span></code> is the
-first byte, <code class="docutils literal notranslate"><span class="pre">green</span></code> the second, and <code class="docutils literal notranslate"><span class="pre">blue</span></code> the third.)</p>
+first byte, <code class="docutils literal notranslate"><span class="pre">green</span></code> the second, and <code class="docutils literal notranslate"><span class="pre">blue</span></code> the third).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -323,9 +326,10 @@ sequence parsing discussed in an earlier section.</p>
 </tr>
 </tbody>
 </table>
-<p>Write a parser <code class="docutils literal notranslate"><span class="pre">UTCTime</span></code> that produces a structure with these fields with the
-given value constraints. The order of columns in the table is the order the
-fields should be parsed, and the year should be parsed in big-endian order.</p>
+<p>Write a parser <code class="docutils literal notranslate"><span class="pre">UTCTime</span></code> that produces a structure with these fields
+with the given value constraints. The order of columns in the table is
+the order the fields should be parsed and the year should be parsed in
+big-endian order.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
 Hint<div class="sd-summary-down docutils">
@@ -354,7 +358,7 @@ Solution<div class="sd-summary-down docutils">
 </pre></div>
 </div>
 <p class="sd-card-text">In case you’re wondering why the <code class="docutils literal notranslate"><span class="pre">second</span></code> field allows for a value of 60:
-It’s to allow for leap-seconds, according to the PNG specification!</p>
+It’s to allow for leap-seconds, according to the PNG specification.</p>
 </div>
 </details></section>
 </section>

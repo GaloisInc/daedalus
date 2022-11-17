@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -43,6 +45,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorial</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-daedalus-command-line-interface">The DaeDaLus Command-Line Interface</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#daedalus-syntax-highlighting-editing-modes">DaeDaLus Syntax Highlighting / Editing Modes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#downloading-the-sample-specifications">Downloading The Sample Specifications</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#your-first-daedalus-specification">Your First DaeDaLus Specification</a><ul>
@@ -82,9 +85,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Getting Started</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/getting-started.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -95,28 +98,28 @@
            <div itemprop="articleBody">
              
   <section id="getting-started">
-<span id="id1"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h1>
+<span id="id1"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this heading"></a></h1>
 <p><strong>DaeDaLus</strong> is a domain-specific programming language for specifying
 <em>parsers</em>. It supports <em>data-dependent</em> parsing, meaning that the behavior of
-a parser can be effected by the <em>semantic values</em> parsed from other parts of
+a parser can be affected by the <em>semantic values</em> parsed from other parts of
 the input. This makes DaeDaLus extremely well-suited for the concise and
 precise specification of both text and binary formats.</p>
-<p>These parser specifications may be directly applied to inputs via the
+<p>DaeDaLus parser specifications may be directly applied to inputs via the
 <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> interpreter to produce serialized representations of the resulting
 semantic values, <em>or</em> the specifications may be compiled to either Haskell or
 C++ sources for parsers to be used in larger software ecosystems.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This tutorial assumes that you have a working knowledge of common
-programming concepts and are comfortable working at the command-line.
-Familiarity with functional programming will be particularly helpful,
-but is not a strict requirement - any concepts needed will be covered
+programming concepts and are comfortable working at the command line.
+Familiarity with functional programming will be particularly helpful
+but is not a strict requirement; any concepts needed will be covered
 in the relevant sections.</p>
 </div>
 <section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h2>
-<p>DaeDaLus currently has no binary releases available for installation, but can
-be easily built and installed from source.</p>
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<p>DaeDaLus currently has no binary releases available for installation,
+but it can be easily built and installed from source.</p>
 <p>Since DaeDaLus is implemented in Haskell, you will need a suitable Haskell
 environment; the easiest way to set this up is with
 <a class="reference external" href="https://www.haskell.org/ghcup/">ghcup</a>. Simply follow the instructions on
@@ -133,26 +136,37 @@ default GHC and Cabal versions.</p>
 <p>With Haskell installed, clone
 <a class="reference external" href="https://github.com/GaloisInc/daedalus">the DaeDaLus repository</a>. Once
 cloned, <code class="docutils literal notranslate"><span class="pre">cd</span></code> into the repository root and run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt; cabal install exe:daedalus --installdir<span class="o">=</span>DIR <span class="se">\</span>
-                             --overwrite-policy<span class="o">=</span>always
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt; cabal install exe:daedalus --installdir<span class="o">=</span>DIR --overwrite-policy<span class="o">=</span>always
 </pre></div>
 </div>
 <p>This will build and install the executable <code class="docutils literal notranslate"><span class="pre">daedalus</span></code>, placing links to the
 executable in the directory <code class="docutils literal notranslate"><span class="pre">DIR</span></code>. We recommend setting this installation
 directory to something on your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, so that the interpreter can be invoked
-simply as <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> at the command-line – the remainder of this tutorial
+simply as <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> at the command line – the remainder of this tutorial
 assumes this setup for brevity. The <code class="docutils literal notranslate"><span class="pre">--verwrite-policy=always</span></code> flag will make
 sure that, if you clone a new version of <code class="docutils literal notranslate"><span class="pre">daedalus</span></code>, this installation step
 will overwrite the existing versions of the executable installed on the system.</p>
 </section>
+<section id="the-daedalus-command-line-interface">
+<h2>The DaeDaLus Command-Line Interface<a class="headerlink" href="#the-daedalus-command-line-interface" title="Permalink to this heading"></a></h2>
+<p>Once DaeDaLus has been compiled and installed, we recommend reading
+<a class="reference internal" href="../tool-docs/index.html#the-command-line-tools"><span class="std std-ref">The Command-Line Tools</span></a> section to become familiar with how to run
+the DaeDaLus tool. For the purposes of this tutorial, it will be helpful
+to be familiar with the <code class="docutils literal notranslate"><span class="pre">show-types</span></code> DaeDaLus command. This command
+is useful to get DaeDaLus to show you the types of the elements of your
+specification, both to check that your specification is valid and also
+to serve as a learning aid while going through the tutorial.</p>
+</section>
 <section id="daedalus-syntax-highlighting-editing-modes">
-<h2>DaeDaLus Syntax Highlighting / Editing Modes<a class="headerlink" href="#daedalus-syntax-highlighting-editing-modes" title="Permalink to this headline"></a></h2>
-<p>The DaeDaLus repository ships with a major Emacs mode definition and syntax
-highlighters for both Vim and VSCode. Please see your editor’s documentation
-for details on how to install these extra features.</p>
+<h2>DaeDaLus Syntax Highlighting / Editing Modes<a class="headerlink" href="#daedalus-syntax-highlighting-editing-modes" title="Permalink to this heading"></a></h2>
+<p>The DaeDaLus repository ships with support for editing DaeDaLus
+specifications in a few popular editors. The files can be found in the
+<code class="docutils literal notranslate"><span class="pre">syntax-highlight</span></code> subdirectory of the DaeDaLus repository. Please see
+your editor’s documentation for details on how to install the files for
+your editor of choice.</p>
 </section>
 <section id="downloading-the-sample-specifications">
-<h2>Downloading The Sample Specifications<a class="headerlink" href="#downloading-the-sample-specifications" title="Permalink to this headline"></a></h2>
+<h2>Downloading The Sample Specifications<a class="headerlink" href="#downloading-the-sample-specifications" title="Permalink to this heading"></a></h2>
 <p>For convenience, the two full specifications we look at in this tutorial, for
 the PPM and PNG image formats, are provided as
 <a class="reference download internal" download="" href="../_downloads/4c10b86d006ccb8b895d6a35b2000872/examples.tar.gz"><code class="xref download docutils literal notranslate"><span class="pre">a</span> <span class="pre">compressed</span> <span class="pre">TAR</span></code></a>. You should
@@ -161,13 +175,13 @@ fill out the <code class="docutils literal notranslate"><span class="pre">png-te
 is the full solution to all the PNG exercises.</p>
 </section>
 <section id="your-first-daedalus-specification">
-<h2>Your First DaeDaLus Specification<a class="headerlink" href="#your-first-daedalus-specification" title="Permalink to this headline"></a></h2>
+<h2>Your First DaeDaLus Specification<a class="headerlink" href="#your-first-daedalus-specification" title="Permalink to this heading"></a></h2>
 <p>In order to give a feel for what DaeDaLus specifications look like, we now
 present a well-known image format, PPM, and a DaeDaLus parser for it. This
 example will be broken down in detail in the following sections of the
 tutorial as a means of exploring the available language features.</p>
 <section id="the-portable-pixmap-format">
-<h3>The Portable PixMap Format<a class="headerlink" href="#the-portable-pixmap-format" title="Permalink to this headline"></a></h3>
+<h3>The Portable PixMap Format<a class="headerlink" href="#the-portable-pixmap-format" title="Permalink to this heading"></a></h3>
 <p>PPM is a simple image format designed to make exchange between different
 platforms easy. For the purposes of this introduction, we’ll be looking
 specifically at the ASCII PPM format, which describes color RGB images in a
@@ -182,7 +196,7 @@ human-readable format. Informally, this format consists of:</p>
 now.</p>
 </section>
 <section id="an-example-ppm-image">
-<h3>An Example PPM Image<a class="headerlink" href="#an-example-ppm-image" title="Permalink to this headline"></a></h3>
+<h3>An Example PPM Image<a class="headerlink" href="#an-example-ppm-image" title="Permalink to this heading"></a></h3>
 <p>Here is a small example of a PPM image:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">P3</span>
 <span class="mi">4</span> <span class="mi">4</span>
@@ -202,11 +216,11 @@ now.</p>
 </ol>
 </section>
 <section id="a-daedalus-ppm-specification">
-<h3>A DaeDaLus PPM Specification<a class="headerlink" href="#a-daedalus-ppm-specification" title="Permalink to this headline"></a></h3>
+<h3>A DaeDaLus PPM Specification<a class="headerlink" href="#a-daedalus-ppm-specification" title="Permalink to this heading"></a></h3>
 <p>Our goal now is to provide a DaeDaLus specification for this format, so that we
 may parse well-formed PPM values into semantic values for further processing in
 Haskell or C++ (you might imagine we are writing a program to transform images
-represented in this PPM format.) Here it is:</p>
+represented in this PPM format). Here it is:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
 <span class="linenos"> 2</span>  <span class="k">block</span>
 <span class="linenos"> 3</span>    <span class="k">$$</span> <span class="k">=</span> <span class="n">PPM</span>
@@ -232,7 +246,7 @@ represented in this PPM format.) Here it is:</p>
 <span class="linenos">23</span>    <span class="n">green</span> <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
 <span class="linenos">24</span>    <span class="n">blue</span>  <span class="k">=</span> <span class="n">Token</span> <span class="n">Natural</span>
 <span class="linenos">25</span>
-<span class="linenos">26</span><span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">)</span>
+<span class="linenos">26</span><span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">]</span>
 <span class="linenos">27</span>
 <span class="linenos">28</span><span class="k">def</span> <span class="n">Natural</span> <span class="k">=</span>
 <span class="linenos">29</span>  <span class="k">block</span>
@@ -241,19 +255,21 @@ represented in this PPM format.) Here it is:</p>
 <span class="linenos">32</span>
 <span class="linenos">33</span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
 <span class="linenos">34</span>  <span class="k">block</span>
-<span class="linenos">35</span>    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+<span class="linenos">35</span>    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">]</span>
 <span class="linenos">36</span>    <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
 <span class="linenos">37</span>
 <span class="linenos">38</span><span class="k">def</span> <span class="n">addDigit</span> <span class="n">val</span> <span class="n">d</span> <span class="k">=</span>
 <span class="linenos">39</span>  <span class="m">10</span> <span class="o">*</span> <span class="n">val</span> <span class="o">+</span> <span class="p">(</span><span class="n">d</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>You may notice that this specification does not perform any <em>validation</em> of the
-image data – later, we’ll discuss the pros and cons of including validation in
-parsers, and some strategies for deciding whether or not that is best left to
-other parts of the application consuming the formatted data. For now, let’s
-break down this example to understand the building blocks of parser
-specifications.</p>
+<p>Note that this specification only specifies the format’s data layout
+and does not perform any validation of the image data (such as checking
+whether the color values don’t exceed the declared maximum value).
+Later, we’ll discuss the pros and cons of including validation in
+parsers and some strategies for deciding whether or not that is best
+left to other parts of the application consuming the formatted data. For
+now, let’s break down this example to understand the building blocks
+of parser specifications.</p>
 </section>
 </section>
 </section>

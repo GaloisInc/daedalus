@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -75,9 +77,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Breaking down PPM: Declarations</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Breaking down PPM: Declarations</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/ppm-breakdown-decl.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -88,7 +90,7 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-declarations">
-<h1>Breaking down PPM: Declarations<a class="headerlink" href="#breaking-down-ppm-declarations" title="Permalink to this headline"></a></h1>
+<h1>Breaking down PPM: Declarations<a class="headerlink" href="#breaking-down-ppm-declarations" title="Permalink to this heading"></a></h1>
 <p>Starting from the very beginning of the PPM specification, we have:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
 </span>  <span class="k">block</span>
@@ -118,7 +120,7 @@ changing the meaning of the program or having to be concerned about changes
 to any global state.</p>
 </div>
 <section id="deducing-types-from-names">
-<h2>Deducing Types From Names<a class="headerlink" href="#deducing-types-from-names" title="Permalink to this headline"></a></h2>
+<h2>Deducing Types From Names<a class="headerlink" href="#deducing-types-from-names" title="Permalink to this heading"></a></h2>
 <p>Though it’s probably not obvious, there’s actually another piece of information
 we can deduce from this declaration: What type of entity <code class="docutils literal notranslate"><span class="pre">Main</span></code> refers to.</p>
 <p>In DaeDaLus, there are three sorts of entities that may be declared: <em>parsers</em>,
@@ -145,7 +147,7 @@ future!</p>
 </div>
 </section>
 <section id="parameterized-declarations">
-<h2>Parameterized Declarations<a class="headerlink" href="#parameterized-declarations" title="Permalink to this headline"></a></h2>
+<h2>Parameterized Declarations<a class="headerlink" href="#parameterized-declarations" title="Permalink to this heading"></a></h2>
 <p>The next declaration in the PPM specfication shows that a declaration may be
 <em>parameterized</em>:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span>

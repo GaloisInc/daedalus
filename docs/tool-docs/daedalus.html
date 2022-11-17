@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -70,9 +72,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">The Command-Line Tools</a> &raquo;</li>
-      <li>Getting Help</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">The Command-Line Tools</a></li>
+      <li class="breadcrumb-item active">Getting Help</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tool-docs/daedalus.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -83,7 +85,7 @@
            <div itemprop="articleBody">
              
   <section id="getting-help">
-<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this headline"></a></h1>
+<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this heading"></a></h1>
 <p>To see a list of available commands and options that apply to all commands:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
 </pre></div>
@@ -94,7 +96,7 @@
 </div>
 </section>
 <section id="command-show-types">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this headline"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this heading"></a></h1>
 <p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus show-types MyParserSpec.ddl
 </pre></div>
@@ -152,7 +154,7 @@ often have the form <code class="docutils literal notranslate"><span class="pre"
 result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
 </section>
 <section id="command-run">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this headline"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this heading"></a></h1>
 <p>This command is used to run a DaeDaLus specification using the interpreter:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus run MyParserSpec.ddl --input<span class="o">=</span>input.txt
 </pre></div>
@@ -204,32 +206,32 @@ polymorphic) and it should not have any parameters, implicit or explicit.</p>
 
 </section>
 <section id="command-compile-hs">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this heading"></a></h1>
 <p>To compile a DaeDaLus parser specification to Haskell:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-hs MyParserSpec.ddl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-hs MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
-<p>The result is a Haskell module which contains definitions for the
-parsers and functions defined in the specification.</p>
+<p>The result is a directory populated with a Haskell module containing
+definitions for the parsers and functions defined in the specification.</p>
 <p>To use the generated code you’d have to integrate it with a Haskell
 project and also use the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>At present the command <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code> uses the <em>old</em> Haskell backend which
 may go away in future.  To use the new backend, which is actively
-maintained, please use Template Haskell.   If there is deman, we may adapt
-the new backend to generate explcit Haskell files, in which case this
+maintained, please use Template Haskell.   If there is demand, we may adapt
+the new backend to generate explicit Haskell files, in which case this
 command will start using the new backend.</p>
 </div>
 </section>
 <section id="command-compile-c">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this heading"></a></h1>
 <p>To compile a DaeDaLus package specification C++:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-c++ MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
 <section id="generated-files">
-<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this headline"></a></h2>
+<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this heading"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is in two files:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">main_parser.h</span></code> contains the interface to the generated parser, and</p></li>
@@ -251,7 +253,7 @@ of any kind—if this is not the case, the sample driver will fail to compile.</
 </div></blockquote>
 </section>
 <section id="flags">
-<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this headline"></a></h2>
+<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
@@ -367,7 +369,7 @@ Otherwise, the default namespace <code class="docutils literal notranslate"><spa
 </section>
 </section>
 <section id="command-dump">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this heading"></a></h1>
 <p>This command is largely for debuging.  It shows the various IR structures
 of the DaeDaLus compiler.</p>
 <dl class="py data">

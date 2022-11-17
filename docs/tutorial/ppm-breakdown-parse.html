@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -45,10 +47,10 @@
 <li class="toctree-l2"><a class="reference internal" href="ppm-breakdown-decl.html">Breaking down PPM: Declarations</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Breaking down PPM: Primitive Parsing</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#uint8"><code class="docutils literal notranslate"><span class="pre">UInt8</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#match1"><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">$[...]</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#match"><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#end"><code class="docutils literal notranslate"><span class="pre">END</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#fail"><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code></a></li>
 </ul>
 </li>
@@ -79,9 +81,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Breaking down PPM: Primitive Parsing</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Breaking down PPM: Primitive Parsing</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/ppm-breakdown-parse.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -92,14 +94,14 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-primitive-parsing">
-<h1>Breaking down PPM: Primitive Parsing<a class="headerlink" href="#breaking-down-ppm-primitive-parsing" title="Permalink to this headline"></a></h1>
+<h1>Breaking down PPM: Primitive Parsing<a class="headerlink" href="#breaking-down-ppm-primitive-parsing" title="Permalink to this heading"></a></h1>
 <p>Before trying to move on to the other more complex parsers defined in this
 specification, it is going to be helpful to outline some of the primitive
 parsers made available in the DaeDaLus standard library, pointing to their uses
 in the PPM example where appropriate:</p>
 <section id="uint8">
-<h2><code class="docutils literal notranslate"><span class="pre">UInt8</span></code><a class="headerlink" href="#uint8" title="Permalink to this headline"></a></h2>
-<p>The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> accepts a single byte of input, failing if there are no
+<h2><code class="docutils literal notranslate"><span class="pre">UInt8</span></code><a class="headerlink" href="#uint8" title="Permalink to this heading"></a></h2>
+<p>The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> parses a single byte of input, failing if there are no
 bytes left to consume. When it succeeds, it constructs a semantic value of
 type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>. The PPM example doesn’t use this parser, but later we will
 see examples of parsers that do.</p>
@@ -108,75 +110,75 @@ see examples of parsers that do.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> when you need to parse a single specific byte from input.</p>
 </div>
 </section>
-<section id="match1">
-<h2><code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code><a class="headerlink" href="#match1" title="Permalink to this headline"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">Match1</span></code> accepts a single byte of input that matches any of the bytes in a
-given set of bytes. We can specify inclusive ranges of bytes, such as
-<code class="docutils literal notranslate"><span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span></code>, or we can specify the set elements explicitly, as in this
-example from the PPM specification:</p>
-<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">)</span>
+<section id="id1">
+<h2><code class="docutils literal notranslate"><span class="pre">$[...]</span></code><a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">$[...]</span></code> parses a single byte of input that matches any of the
+bytes specified by the content in the square brackets. We can specify
+inclusive ranges of bytes, such as <code class="docutils literal notranslate"><span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span></code>, or we can specify the
+set elements explicitly, as in this example from the PPM specification:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">WS</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="k">|</span> <span class="m">9</span> <span class="k">|</span> <span class="m">12</span> <span class="k">|</span> <span class="m">32</span> <span class="k">|</span> <span class="s">&#39;\n&#39;</span> <span class="k">|</span> <span class="s">&#39;\r&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Use <code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">...</span></code> when you need to parse one of a finite set of bytes.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">$[...]</span></code> when you need to parse one of a finite set of bytes.</p>
 </div>
 </section>
 <section id="match">
-<h2><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code><a class="headerlink" href="#match" title="Permalink to this headline"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">Match</span></code> accepts a particular sequence of bytes in the input, returning a
-semantic value that is an array of bytes
-(whose type is written <code class="docutils literal notranslate"><span class="pre">[uint</span> <span class="pre">8]</span></code>.) As an example, we can write
-<code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">&quot;keyword&quot;</span></code> to match exactly those bytes corresponding to the string
-<code class="docutils literal notranslate"><span class="pre">&quot;keyword&quot;</span></code>. We can also utilize this parser when working with binary
-formats, where we may find it useful to precisely specify the bytes we’re
-expecting, e.g. <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">[0x00,</span> <span class="pre">0x01]</span></code> which will match the two bytes 0 and 1.</p>
+<h2><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code><a class="headerlink" href="#match" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Match</span></code> parses a particular sequence of bytes in the input, returning
+a semantic value that is an array of bytes (whose type is written
+<code class="docutils literal notranslate"><span class="pre">[uint</span> <span class="pre">8]</span></code>.) As an example, we can write <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">&quot;keyword&quot;</span></code> to match
+exactly those bytes corresponding to the string <code class="docutils literal notranslate"><span class="pre">&quot;keyword&quot;</span></code>. We can
+also utilize this parser when working with binary formats, where we may
+find it useful to precisely specify the bytes we’re expecting, e.g.
+<code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">[0x00,</span> <span class="pre">0x01]</span></code> which will match the two bytes <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p>
 <p>In the declaration for the parser <code class="docutils literal notranslate"><span class="pre">PPM</span></code>, we use <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">&quot;P&quot;</span></code> to consume the
 first part of the aforementioned PPM “magic number”; we could have just as well
-used <code class="docutils literal notranslate"><span class="pre">Match1</span> <span class="pre">'P'</span></code> here, but the meaning in this case is the same.</p>
+used <code class="docutils literal notranslate"><span class="pre">$['P']</span></code> here, but the meaning in this case is the same.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Use <code class="docutils literal notranslate"><span class="pre">Match</span></code> when you need to parse a sequnce of specific bytes.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">Match</span></code> when you need to parse a specific sequence of bytes.</p>
 </div>
 </section>
 <section id="end">
-<h2><code class="docutils literal notranslate"><span class="pre">END</span></code><a class="headerlink" href="#end" title="Permalink to this headline"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">END</span></code><a class="headerlink" href="#end" title="Permalink to this heading"></a></h2>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">END</span></code> succeeds only if there is no additional input to be
-consumed. It results in the ‘trivial’ semantic value <code class="docutils literal notranslate"><span class="pre">{}</span></code>. Typically, a
-DaeDaLus parser happily succeeds consuming only a <em>prefix</em> of the input, but
-adding <code class="docutils literal notranslate"><span class="pre">END</span></code> to the end of our parsing sequence means we must consume the
-entire input in order to succeed.</p>
+consumed. It results in the ‘trivial’ semantic value <code class="docutils literal notranslate"><span class="pre">{}</span></code>. Typically,
+a DaeDaLus parser succeeds consuming only a <em>prefix</em> of the input, but
+adding <code class="docutils literal notranslate"><span class="pre">END</span></code> to the end of our parsing sequence means we must consume
+the entire input in order to succeed.</p>
 <p>The PPM specification does not use the <code class="docutils literal notranslate"><span class="pre">END</span></code> parser, so in fact, the
-generated parser will consume any input prefixed by a well-formed ASCII PPM -
-depending on the use-case, this may or may not be desirable.</p>
+generated parser will consume any input prefixed by a well-formed ASCII
+PPM; depending on the use-case, this may or may not be desirable.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">END</span></code> when you want to guarantee full inputs are consumed.</p>
 </div>
 </section>
-<section id="id1">
-<h2><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code><a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<section id="id2">
+<h2><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code><a class="headerlink" href="#id2" title="Permalink to this heading"></a></h2>
 <p>It is sometimes convenient to ‘lift’ a semantic value into a parser that
-consumes no input and always succeeds, returning that same semantic value -
+consumes no input and always succeeds, returning that same semantic value;
 this is an important part of how data-dependent parsing works in DaeDaLus.
 We can accomplish this by placing a <code class="docutils literal notranslate"><span class="pre">^</span></code> before any semantic value. For
-´example: <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">'A'</span></code> is a parser that consumes no input and always succeeds,
+example, <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">'A'</span></code> is a parser that consumes no input and always succeeds,
 producing the byte <code class="docutils literal notranslate"><span class="pre">'A'</span></code> as a result. If we want to consume no input <em>and</em>
 return nothing interesting, we may write <code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">{}</span></code> (the same ‘trivial’ semantic
-value returned by the <code class="docutils literal notranslate"><span class="pre">END</span></code> parser) - DaeDaLus also provides the synonym
-<code class="docutils literal notranslate"><span class="pre">Accept</span></code> for this trivially-succeeding parser, for more readability.</p>
+value returned by the <code class="docutils literal notranslate"><span class="pre">END</span></code> parser); DaeDaLus also provides the synonym
+<code class="docutils literal notranslate"><span class="pre">Accept</span></code> for this trivially-succeeding parser for more readability.</p>
 <p>The idea here is best shown by example. Consider the declaration of the
 <code class="docutils literal notranslate"><span class="pre">Digit</span></code> parser:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Digit</span> <span class="k">=</span>
   <span class="k">block</span>
-    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">Match1</span> <span class="p">(</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">)</span>
+    <span class="k">let</span> <span class="n">d</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;0&#39;</span> <span class="p">..</span> <span class="s">&#39;9&#39;</span><span class="p">]</span>
 <span class="hll">    <span class="k">^</span> <span class="n">d</span> <span class="o">-</span> <span class="s">&#39;0&#39;</span>
 </span></pre></div>
 </div>
-<p>Parsers can only be combined with other parsers - so, to transform the ASCII
-byte we read with <code class="docutils literal notranslate"><span class="pre">Match1</span></code> into the actual digit it represents, we must
-write a parser that returns that transformed value - this is exactly the use
-for <code class="docutils literal notranslate"><span class="pre">^</span></code>, since we don’t wish to read any additional input.</p>
+<p>Parsers can only be combined with other parsers, so to transform the ASCII
+byte we read with <code class="docutils literal notranslate"><span class="pre">$[...]</span></code> into the actual digit it represents, we must
+write a parser that returns that transformed value. This is exactly the use
+for <code class="docutils literal notranslate"><span class="pre">^</span></code> since we don’t wish to read any additional input.</p>
 <p>Parsers defined with <code class="docutils literal notranslate"><span class="pre">^</span></code> are called ‘pure’, because they do not consume any
 input (that is, they don’t alter the internal parsing state in any way.) We’ll
 see many more examples of this in the other formats we study.</p>
@@ -187,10 +189,10 @@ input.</p>
 </div>
 </section>
 <section id="fail">
-<h2><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code><a class="headerlink" href="#fail" title="Permalink to this headline"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code><a class="headerlink" href="#fail" title="Permalink to this heading"></a></h2>
 <p>We can trigger a failure with the <code class="docutils literal notranslate"><span class="pre">Fail</span></code> parser, which <em>always</em> fails.
 Optionally, we can provide a message to this parser which will be printed as
-part of the triggered failure - this is how you may indicate to users of your
+part of the triggered failure; this is how you may indicate to users of your
 specifications what exactly went wrong while trying to parse.</p>
 <p>The PPM example does not make use of the <code class="docutils literal notranslate"><span class="pre">Fail</span></code> parser; it is mostly useful
 when performing <em>validation</em> of parsed data, which is often better left to

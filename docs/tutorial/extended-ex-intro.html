@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -71,9 +73,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Extended Exercise: The PNG Format</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Extended Exercise: The PNG Format</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/extended-ex-intro.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -84,30 +86,30 @@
            <div itemprop="articleBody">
              
   <section id="extended-exercise-the-png-format">
-<h1>Extended Exercise: The PNG Format<a class="headerlink" href="#extended-exercise-the-png-format" title="Permalink to this headline"></a></h1>
-<p>As mentioned very early in the tutorial, DaeDaLus is very good for both text
-and binary format specification. We’re going to make a big jump in difficulty
-to explore the binary format parsing features DaeDaLus has, while also giving
-significant practice with the other features already introduced.</p>
-<p>The format we’ll be specifying is PNG, the Portable Network Graphics image
-format, which provides lossless raster-graphics compression; an improvement on
-the widely used Graphics Interchange Format (GIF).</p>
-<p>Now, the PNG specification is quite long, so we won’t be implementing it in its
-entirety - in particular, we’re mainly focused on the structure of PNG
-<em>chunks</em>, and do not validate the order/number of chunks other than the header
-and end. Furthermore, we do not perform any of the typical CRC validation, a
-criticial error detection/correction system that contributes to the reliability
-of PNG.</p>
+<h1>Extended Exercise: The PNG Format<a class="headerlink" href="#extended-exercise-the-png-format" title="Permalink to this heading"></a></h1>
+<p>As mentioned very early in the tutorial, DaeDaLus is very good for both
+text and binary format specification. We’re going to make a big jump in
+difficulty to explore the binary format parsing features DaeDaLus has
+while also giving significant practice with the other features already
+introduced.</p>
+<p>The format we’ll be specifying is PNG, the Portable Network Graphics
+image format, which provides lossless raster-graphics compression.</p>
+<p>The PNG specification is quite long, so we won’t be implementing it in
+its entirety in this exercise. In particular, we’ll focus primarily
+on the structure of PNG <em>chunks</em> and we will not validate the order
+or number of chunks other than the header and end. Furthermore, we
+will not perform any of the typical CRC validation, a criticial error
+detection/correction system that contributes to the reliability of PNG.</p>
 <p>Before diving into the exercises, we’ll first have a brief aside on the
-high-level guiding principles one should have in mind when deciding what to
-include in the parsing stage of a format-processing application - this will
-directly address some of the things we’re “leaving out” of the DaeDaLus PNG
-specification.</p>
-<p>In addition, we’ll need some of the definitions from the DaeDaLus standard
-library, which we did not use at all in the PPM specification - briefly,
-this library (which is all implemented in DaeDaLus itself, with some features
-not covered in this tutorial) provides a number of convenient types for
-handling binary formats in particular.</p>
+high-level guiding principles one should have in mind when deciding what
+to include in the parsing stage of a format-processing application.
+This will directly address some of the things we’re omitting from the
+DaeDaLus PNG specification.</p>
+<p>In addition, we’ll need some of the definitions from the DaeDaLus
+standard library, which we did not use at all in the PPM specification.
+This library (which is all implemented in DaeDaLus itself, with some
+features not covered in this tutorial) provides a number of convenient
+types for handling binary formats in particular.</p>
 </section>
 
 

@@ -15,7 +15,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -99,9 +101,9 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="index.html">Tutorial</a> &raquo;</li>
-      <li>Extended Exercise: PNG Chunks</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
+      <li class="breadcrumb-item active">Extended Exercise: PNG Chunks</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorial/extended-ex-chunks.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -112,64 +114,82 @@
            <div itemprop="articleBody">
              
   <section id="extended-exercise-png-chunks">
-<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this headline"></a></h1>
-<p>Now, we’ll use our utilities and more of the knowledge we’ve developed to build
-up parsers for PNG chunks themselves, culminating in a top-level parser that
-can consume full PNG images. This is a very long section - take it as slow as
-you need, and don’t worry if you need to peek at the solutions as you go!</p>
-<p>The central consideration for us will be the <em>chunk type</em> - in PNG, these types
-are given by special 4-byte sequences identifying what kind of data is carried
-by a chunk. You can’t guess these sequences; they’re given explicitly in the
-PNG specification.</p>
-<p>Unfortunately, with our current toolkit, there isn’t a nice way to capture
-these kinds of alternatives - tagged sums are close, but not sufficient on
-their own.</p>
+<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this heading"></a></h1>
+<p>Now, we’ll use our utilities and more of the knowledge we’ve developed
+to build up parsers for PNG chunks themselves, culminating in a
+top-level parser that can consume full PNG images.</p>
+<p>The central consideration in this part of the tutorial will be the <a class="reference external" href="http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html#Chunk-layout">PNG
+chunk type</a>. In the PNG format, chunk types are given by special 4-byte
+sequences identifying the kind of data that is carried by the chunk.
+The possible chunk types are given explicitly in the PNG specification.
+PNG chunk types will require us to look at specific bits in the 4-byte
+sequence. Although tagged sums are close to sufficient for this purpose,
+they are not sufficient on their own. To handle chunk types properly,
+we’ll need to be able to handle specific bit arrangements in the PNG
+data. The next section introduces <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, a DaeDaLus feature that
+we’ll use for this purpose.</p>
 <section id="introducing-bitdata">
-<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this headline"></a></h2>
-<p>DaeDaLus offers a solution: <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>. In general, a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> specifies
-how bytes should be broken into groups of bits, which are <em>then</em> combined into
-a tagged sum.</p>
-<p>Here is a small example of using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to inspect the first nybble of a
-byte:</p>
+<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this heading"></a></h2>
+<p>In general, a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> specifies how bytes should be broken into
+groups of bits, which are <em>then</em> combined into a tagged sum.</p>
+<p>Here is a small example of using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to inspect the first nybble
+of a byte:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">bitdata</span> <span class="n">ChooseOption</span> <span class="k">where</span>
   <span class="n">opt1</span> <span class="k">=</span> <span class="m">0x0</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">4</span>
   <span class="n">opt2</span> <span class="k">=</span> <span class="m">0x1</span>
 
 <span class="k">bitdata</span> <span class="n">OptionData</span> <span class="k">where</span>
   <span class="n">OptionData</span> <span class="k">=</span> <span class="p">{</span> <span class="n">opt</span> <span class="p">:</span> <span class="n">ChooseOption</span><span class="p">,</span> <span class="n">val</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">4</span> <span class="p">}</span>
-
-<span class="p">...</span>
-
-<span class="k">block</span>
+</pre></div>
+</div>
+<p>We use the syntax <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">...</span> <span class="pre">where</span> <span class="pre">...</span></code> to declare a new
+bitdata type. In this example, we’ve declared two <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>
+types: <code class="docutils literal notranslate"><span class="pre">ChooseOption</span></code> and <code class="docutils literal notranslate"><span class="pre">OptionData</span></code>. Notice that we’ve added
+a type annotation of <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">4</span></code> to the <code class="docutils literal notranslate"><span class="pre">opt1</span></code> alternative for
+<code class="docutils literal notranslate"><span class="pre">ChooseOption</span></code>; since all alternatives in the <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> must have
+the same time, this type annotation effectively assigns a type to
+<code class="docutils literal notranslate"><span class="pre">opt2</span></code> as well as to <code class="docutils literal notranslate"><span class="pre">opt1</span></code>.</p>
+<p>Despite having capitalized names, <code class="docutils literal notranslate"><span class="pre">ChooseOption</span></code> and <code class="docutils literal notranslate"><span class="pre">OptionData</span></code>
+are <em>not</em> parsers. A <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> declaration introduces a type that can
+only be used in conversions; it doesn’t do anything else at all until we
+use something like <code class="docutils literal notranslate"><span class="pre">as?</span></code>. When using a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to coerce a value,
+it’s important to know that a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> has a fixed bit endianness
+meaning that fields defined further to the left correspond to more
+significant (leftmost) bits. Endianness applies only to parsing; once a
+value has been parsed, we can use a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to interpret the parsed
+value’s bits. For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
   <span class="k">let</span> <span class="n">odata</span> <span class="k">=</span> <span class="k">UInt8</span> <span class="k">as</span><span class="n">?</span> <span class="n">OptionData</span>
-  <span class="k">case</span> <span class="n">odat</span> <span class="k">of</span>
+  <span class="k">case</span> <span class="n">odata</span> <span class="k">of</span>
     <span class="n">OptionData</span> <span class="n">x</span> <span class="k">-&gt;</span>
       <span class="k">case</span> <span class="n">x</span><span class="p">.</span><span class="n">opt</span> <span class="k">of</span>
         <span class="n">opt1</span> <span class="k">-&gt;</span> <span class="k">^</span> <span class="n">x</span><span class="p">.</span><span class="n">val</span>
         _    <span class="k">-&gt;</span> <span class="n">Fail</span> <span class="s">&quot;Wrong option!&quot;</span>
 </pre></div>
 </div>
-<p>Note that we write <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">...</span> <span class="pre">where</span> <span class="pre">...</span></code> to introduce a new bitdata.
-Furthermore, note that <code class="docutils literal notranslate"><span class="pre">ChooseOption</span></code> and <code class="docutils literal notranslate"><span class="pre">OptionData</span></code> are <em>not</em> parsers!
-A <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, in essence, only introduces a type that can be used in
-coercions - it doesn’t do anything else at all until we use something like
-<code class="docutils literal notranslate"><span class="pre">as?</span></code>. Once we’ve done that, however, we can take advantage of all the tools
-available for breaking down tagged sums, such as pattern-matching.</p>
-<p>Note also here that, to access the fields of a structure, we can use the <code class="docutils literal notranslate"><span class="pre">.</span></code>
-accessor notation. In the <code class="docutils literal notranslate"><span class="pre">bitdata</span> <span class="pre">OptionData</span></code>, we have only one variant that
-has two fields, each of length 4 bits.</p>
-<p>The type annotations in this example are necessary, otherwise DaeDaLus would
-not know where to place the boundary between <code class="docutils literal notranslate"><span class="pre">opt</span></code> and <code class="docutils literal notranslate"><span class="pre">val</span></code>; there are
-lots of ways to split a byte into two chunks!</p>
+<p>We use the <code class="docutils literal notranslate"><span class="pre">.</span></code> accessor notation to access the fields of the
+<code class="docutils literal notranslate"><span class="pre">OptionData</span></code> structure. In the bitdata <code class="docutils literal notranslate"><span class="pre">OptionData</span></code>, we have one
+variant with two fields, <code class="docutils literal notranslate"><span class="pre">opt</span></code> and <code class="docutils literal notranslate"><span class="pre">val</span></code>, each 4 bits in length.
+Those fields can be accessed with <code class="docutils literal notranslate"><span class="pre">x.opt</span></code> and <code class="docutils literal notranslate"><span class="pre">x.val</span></code> in this
+example.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> declaration can also specify specific numeric values. This
+allows us to match <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> alternatives on a value only when the
+value’s bits match that of the expected numeric value. For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">bitdata</span> <span class="n">SpecificNums</span> <span class="k">where</span>
+  <span class="n">opt1</span> <span class="k">=</span> <span class="p">{</span> <span class="m">55</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">;</span> <span class="m">4</span><span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+  <span class="n">opt2</span> <span class="k">=</span> <span class="p">{</span> <span class="m">65</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">;</span> <span class="m">9</span><span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
+</pre></div>
+</div>
 </section>
 <section id="png-chunk-types">
-<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this headline"></a></h2>
-<p>To get your feet wet with <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, you’ll first define one that specifies
-the different type tags that a PNG chunk can carry.</p>
-<p>Every type tag is a 32-bit unsigned integer consisting of four bytes. The following
-table gives the four bytes for each type. Don’t worry about what the tag names
-mean; if you’re curious, you can check the PNG specification for details, but
-we won’t need that information for parsing:</p>
+<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this heading"></a></h2>
+<p>To get started using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, you’ll first declare one that
+specifies the different type tags that a PNG chunk can carry.</p>
+<p>Every type tag is a 32-bit unsigned integer consisting of four bytes.
+The following table gives the four bytes for each type. Don’t worry
+about what the tag names mean; if you’re curious, you can check the
+PNG specification for details, but we won’t need that information for
+parsing.</p>
 <table class="docutils align-default" id="id1">
 <caption><span class="caption-text">PNG Chunk Types</span><a class="headerlink" href="#id1" title="Permalink to this table"></a></caption>
 <colgroup>
@@ -227,9 +247,10 @@ we won’t need that information for parsing:</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Exercise:</strong> Write a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> called <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code> with 16 variants (one
-for each name in the above table.) Name the variants using the names in the
-table, and be sure to specify the type of each byte (use <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.)</p>
+<p><strong>Exercise:</strong> Write a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> called <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code> with 16 variants
+(one for each name in the above table). Name the variants using the
+names in the table, and be sure to specify the type of each byte (use
+<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -259,18 +280,18 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="png-chunk-data">
-<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this headline"></a></h2>
-<p>Now, you’ll build parsers for each type of chunk data. We’ll then combine those
-into a single <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> parser, which will allow us to parse any type of
-chunk with a single parser, and more importantly, parse many chunks in
-sequence.</p>
+<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this heading"></a></h2>
+<p>Now, we’ll build parsers for each type of chunk data. We’ll then combine
+those into a single <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> parser, which will allow us to parse
+any type of chunk with a single parser and, more importantly, parse many
+chunks in sequence.</p>
 <section id="plte">
-<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this headline"></a></h3>
-<p>The PLTE chunk contains between 1 and 256 palette entries, which are simply RGB
-structures as we defined in the section
+<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this heading"></a></h3>
+<p>The PLTE chunk contains between 1 and 256 palette entries, which are
+simply RGB structures as we defined in the section
 <a class="reference internal" href="extended-ex-utils.html#extended-exercise-defining-helpful-utilities"><span class="std std-ref">Extended Exercise: Defining Helpful Utilities</span></a>.</p>
-<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">PLTEChunkData</span></code> that parses between 1 and 256
-<code class="docutils literal notranslate"><span class="pre">RGB</span></code> structures.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">PLTEChunkData</span></code> that parses between 1 and
+256 <code class="docutils literal notranslate"><span class="pre">RGB</span></code> structures.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -284,10 +305,11 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="idat">
-<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this headline"></a></h3>
-<p>The IDAT chunk contains image data as output by the PNG compression algorithm;
-it consists merely of a bunch of bytes.</p>
-<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">IDATChunkData</span></code> that parses any number of bytes.</p>
+<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this heading"></a></h3>
+<p>The IDAT chunk contains image data as output by the PNG compression
+algorithm; it consists merely of a bunch of bytes.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">IDATChunkData</span></code> that parses any number of
+bytes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -301,27 +323,31 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="trns">
-<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this headline"></a></h3>
-<p>Transparency chunks are significantly more complex than the others we’ve looked
-at so far, in that they have a different data shape depending on data provided
-in the PNG <em>signature</em> that we have not defined yet. We’ll delay full
-discussion of that until later; for now, all that matters is that the signature
-is a structure with a field named <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>, which we can patterm-match
-on to guide value construction for different PNG modes.</p>
-<p>Transparency data is valid for <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> values 0, 2, and 3 - any other
-value should cause transparency data parsing to fail.</p>
-<p>In the case of mode 0, the transparency data is a single big-endian 2-byte
-value which we will call <code class="docutils literal notranslate"><span class="pre">grey_sample_value</span></code>.</p>
-<p>In mode 2, the transparency data is a sequence of three big-endian 2-byte
-values which we call <code class="docutils literal notranslate"><span class="pre">red_sample_value</span></code>, <code class="docutils literal notranslate"><span class="pre">blue_sample_value</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">green_sample_value</span></code>. This is the order the values should be parsed.</p>
-<p>Finally, in mode 3, there is a sequence of bytes, one for each entry in the
-PLTE chunk (so, between 1 and 256.) You are not required to check that there
-are an appropriate number of bytes - in fact, you should not put bounds on how
-many are parsed. We call these bytes <code class="docutils literal notranslate"><span class="pre">alpha_for_palette</span></code>.</p>
-<p><strong>Exercise:</strong> Define three parsers, <code class="docutils literal notranslate"><span class="pre">TRNSData0</span></code>, <code class="docutils literal notranslate"><span class="pre">TRNSData2</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">TRNSData3</span></code>, that carry the data as described above. Use the names provided
-as field names (so, make sure these parsers all produce structures.)</p>
+<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this heading"></a></h3>
+<p>Transparency chunks are significantly more complex than the others we’ve
+looked at so far in that they have a different data shape depending on
+data provided in the PNG <em>signature</em> that we have not yet defined. We’ll
+delay full discussion of that until later; for now, all that matters is
+that the signature is a structure with a field named <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>
+that we can pattern-match on in order to guide value construction for
+different PNG modes.</p>
+<p>Transparency data is valid for <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> values <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">3</span></code>; any other value should cause transparency data parsing to fail.</p>
+<p>In the case of mode <code class="docutils literal notranslate"><span class="pre">0</span></code>, the transparency data is a single big-endian
+2-byte value which we will call <code class="docutils literal notranslate"><span class="pre">grey_sample_value</span></code>.</p>
+<p>In mode <code class="docutils literal notranslate"><span class="pre">2</span></code>, the transparency data is a sequence of three big-endian
+2-byte values which we call <code class="docutils literal notranslate"><span class="pre">red_sample_value</span></code>, <code class="docutils literal notranslate"><span class="pre">blue_sample_value</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">green_sample_value</span></code>, respectively. This is the order in which the
+values should be parsed.</p>
+<p>Finally, in mode <code class="docutils literal notranslate"><span class="pre">3</span></code>, there is a sequence of bytes, one for each
+entry in the PLTE chunk (so, between 1 and 256). You are not required
+to check that there are an appropriate number of bytes; in fact, you
+should not put bounds on how many are parsed. We call these bytes
+<code class="docutils literal notranslate"><span class="pre">alpha_for_palette</span></code>.</p>
+<p><strong>Exercise:</strong> Define three parsers, <code class="docutils literal notranslate"><span class="pre">TRNSData0</span></code>, <code class="docutils literal notranslate"><span class="pre">TRNSData2</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">TRNSData3</span></code>, that carry the data as described above. Use the
+names provided as field names (so, make sure these parsers all produce
+structures).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -346,10 +372,11 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </div>
 </details><p><strong>Exercise:</strong> Now, define a parser <code class="docutils literal notranslate"><span class="pre">TRNSChunkData</span></code> that takes a single
-argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument to
-produce an appropriate value; you can use pattern-matching and integer literals
-for this. In all other cases, the parser should fail with a message indicating
-that the transparency chunk cannot appear for any other color mode.</p>
+argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument
+to produce an appropriate value; you can use pattern-matching and
+integer literals for this. In all other cases, the parser should fail
+with a message indicating that the transparency chunk cannot appear for
+any other color mode.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
 Hint<div class="sd-summary-down docutils">
@@ -378,12 +405,12 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="chrm">
-<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this headline"></a></h3>
-<p>The chromaticities / white point chunk is eight big-endian 4-byte values:
-<code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> respectively for the white point, red, green, and blue.
-You should use the names <code class="docutils literal notranslate"><span class="pre">white_point_x</span></code>, <code class="docutils literal notranslate"><span class="pre">white_point_y</span></code>, <code class="docutils literal notranslate"><span class="pre">red_x</span></code>,
-<code class="docutils literal notranslate"><span class="pre">red_y</span></code>, <code class="docutils literal notranslate"><span class="pre">green_x</span></code>, <code class="docutils literal notranslate"><span class="pre">green_y</span></code>, <code class="docutils literal notranslate"><span class="pre">blue_x</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue_y</span></code> for these
-fields in the next exercise.</p>
+<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this heading"></a></h3>
+<p>The chromaticities and white point chunk is made of eight big-endian
+4-byte values: <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> respectively for each of the white point,
+red, green, and blue. You should use the names <code class="docutils literal notranslate"><span class="pre">white_point_x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">white_point_y</span></code>, <code class="docutils literal notranslate"><span class="pre">red_x</span></code>, <code class="docutils literal notranslate"><span class="pre">red_y</span></code>, <code class="docutils literal notranslate"><span class="pre">green_x</span></code>, <code class="docutils literal notranslate"><span class="pre">green_y</span></code>,
+<code class="docutils literal notranslate"><span class="pre">blue_x</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue_y</span></code> for these fields in the next exercise.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">CHRMChunkData</span></code> that parses the fields
 described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -408,9 +435,9 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="gama">
-<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this headline"></a></h3>
-<p>The gamma chunk relates image samples to desired output intensity. It is simply
-a big-endian 4-byte integer.</p>
+<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this heading"></a></h3>
+<p>The gamma chunk relates image samples to desired output intensity. It is
+simply a big-endian 4-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">GAMAChunkData</span></code> that parses a single field,
 <code class="docutils literal notranslate"><span class="pre">image_gamma</span></code>, as specified in the above description.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -428,7 +455,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="iccp">
-<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this headline"></a></h3>
+<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this heading"></a></h3>
 <p>The embedded ICC profile chunk contains information related to the
 International Color Consortium. It consists of three fields:</p>
 <ol class="arabic simple">
@@ -465,20 +492,20 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="sbit">
-<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this headline"></a></h3>
-<p>The significant bits chunk allows lossless data recovery even if the sample
-depth isn’t supported by PNG. The supported color modes each have a number of
-significant bits to store that allows this to be done.</p>
-<p>Like the transparency chunk described above, the significant bits chunk behaves
-differently depending on the PNG color mode being used.</p>
-<p>In mode 0, the significant bits data is a single byte which we call
+<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this heading"></a></h3>
+<p>The significant bits chunk allows lossless data recovery even if the
+sample depth isn’t supported by PNG. The supported color modes each have
+a number of significant bits to store that allows this to be done.</p>
+<p>Like the transparency chunk described above, the significant bits chunk
+behaves differently depending on the PNG color mode being used.</p>
+<p>In mode <code class="docutils literal notranslate"><span class="pre">0</span></code>, the significant bits data is a single byte which we call
 <code class="docutils literal notranslate"><span class="pre">significant_greyscale_bits</span></code>.</p>
-<p>In modes 2 and 3, the data is stored in three bytes, respectively called
-<code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>, <code class="docutils literal notranslate"><span class="pre">significant_green_bits</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">significant_blue_bits</span></code>.</p>
-<p>In mode 4, there are two bytes: <code class="docutils literal notranslate"><span class="pre">significant_greyscale_bits</span></code> and
+<p>In modes <code class="docutils literal notranslate"><span class="pre">2</span></code> and <code class="docutils literal notranslate"><span class="pre">3</span></code>, the data is stored in three bytes,
+called <code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>, <code class="docutils literal notranslate"><span class="pre">significant_green_bits</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">significant_blue_bits</span></code>, respectively.</p>
+<p>In mode <code class="docutils literal notranslate"><span class="pre">4</span></code>, there are two bytes: <code class="docutils literal notranslate"><span class="pre">significant_greyscale_bits</span></code> and
 <code class="docutils literal notranslate"><span class="pre">significant_alpha_bits</span></code>.</p>
-<p>Finally, in mode 6, there are four bytes: <code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>,
+<p>Finally, in mode <code class="docutils literal notranslate"><span class="pre">6</span></code>, there are four bytes: <code class="docutils literal notranslate"><span class="pre">significant_red_bits</span></code>,
 <code class="docutils literal notranslate"><span class="pre">significant_green_bits</span></code>, <code class="docutils literal notranslate"><span class="pre">significant_blue_bits</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">significant_alpha_bits</span></code>.</p>
 <p><strong>Exercise:</strong> Define four parsers, <code class="docutils literal notranslate"><span class="pre">SBITData0</span></code>, <code class="docutils literal notranslate"><span class="pre">SBITData2or3</span></code>,
@@ -517,9 +544,9 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </div>
 </details><p><strong>Exercise:</strong> Now, define a parser <code class="docutils literal notranslate"><span class="pre">SBITChunkData</span></code> that takes a single
-argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument to
-produce an appropriate value; you can use pattern-matching and integer literals
-for this. You can ignore all other color modes.</p>
+argument, <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and uses the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code> field of that argument
+to produce an appropriate value; you can use pattern-matching and
+integer literals for this. You can ignore all other color modes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -539,10 +566,10 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="srgb">
-<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this headline"></a></h3>
-<p>The standard RGB color space chunk defines a <em>rendering intent</em>, defined by the
-ICC. It contains one byte, which is a value between 0 and 3 (inclusive) giving
-the intent.</p>
+<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this heading"></a></h3>
+<p>The standard RGB color space chunk defines a <em>rendering intent</em>, defined
+by the ICC. It contains one byte, which is a value between 0 and 3
+(inclusive) giving the intent.</p>
 <p><strong>Exercise:</strong> Define a parser, <code class="docutils literal notranslate"><span class="pre">SRGBChunkData</span></code>, that parses a structure with
 a single field, <code class="docutils literal notranslate"><span class="pre">rendering_intent</span></code>, from exactly one byte with a value
 between 0 and 3 (inclusive).</p>
@@ -561,19 +588,21 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="text">
-<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this headline"></a></h3>
-<p>PNG provides textual data blocks to store information associated with images,
-such as descriptions and copyright notices. There are three types of textual
-chunk, the most basic of which is the tEXt chunk we’ll define first.</p>
-<p>The standard tEXt chunk is comprised of two pieces of data: a null-terminated
-string giving a keyword (some of which are recognized by the PNG specification)
-and zero or more bytes giving the text associated with the keyword. Note that
-this character string (the data following the keyword) is <em>not</em>
-null-terminated.</p>
-<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code> that returns a structure with
-two fields, <code class="docutils literal notranslate"><span class="pre">keyword</span></code> and <code class="docutils literal notranslate"><span class="pre">text_string</span></code>. <code class="docutils literal notranslate"><span class="pre">keyword</span></code> should be a
-null-terminated string between 1 and 79 characters in length, and
-<code class="docutils literal notranslate"><span class="pre">text_string</span></code> should be an arbitrarily large number of bytes.</p>
+<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this heading"></a></h3>
+<p>PNG provides textual data blocks to store information associated with
+images such as descriptions and copyright notices. There are three types
+of textual chunk, the most basic of which is the tEXt chunk we’ll define
+first.</p>
+<p>The standard tEXt chunk is comprised of two pieces of data: a
+null-terminated string giving a keyword (some of which are recognized by
+the PNG specification) and zero or more bytes giving the text associated
+with the keyword. Note that this character string (the data following
+the keyword) is <em>not</em> null-terminated.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code> that returns a structure
+with two fields, <code class="docutils literal notranslate"><span class="pre">keyword</span></code> and <code class="docutils literal notranslate"><span class="pre">text_string</span></code>. The <code class="docutils literal notranslate"><span class="pre">keyword</span></code> field
+should be a null-terminated string between 1 and 79 characters in length
+and <code class="docutils literal notranslate"><span class="pre">text_string</span></code> field should be an arbitrarily large number of
+bytes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -590,13 +619,14 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="ztxt">
-<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this headline"></a></h3>
-<p>The zTXt chunk is semantically the same as tEXt, but with compressed data - it
-is recommended for use with large blocks of text.</p>
-<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ZTXTChunkData</span></code> that returns a structure with
-three fields: <code class="docutils literal notranslate"><span class="pre">keyword</span></code>, <code class="docutils literal notranslate"><span class="pre">compression_method</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">compressed_text_datastream</span></code>. The first and last of these are exactly as they
-were for <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code>, and <code class="docutils literal notranslate"><span class="pre">compression_method</span></code> is a single byte.</p>
+<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this heading"></a></h3>
+<p>The zTXt chunk is semantically the same as tEXt, but with compressed
+data; it is recommended for use with large blocks of text.</p>
+<p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ZTXTChunkData</span></code> that returns a
+structure with three fields: <code class="docutils literal notranslate"><span class="pre">keyword</span></code>, <code class="docutils literal notranslate"><span class="pre">compression_method</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">compressed_text_datastream</span></code>. The first and last of these are exactly
+as they were for <code class="docutils literal notranslate"><span class="pre">TEXTChunkData</span></code>, and <code class="docutils literal notranslate"><span class="pre">compression_method</span></code> is a
+single byte.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -614,9 +644,9 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="itxt">
-<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this headline"></a></h3>
-<p>The final type of textual data chunk is iTXt, which is used for international
-text. It consists of the following fields:</p>
+<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this heading"></a></h3>
+<p>The final type of textual data chunk is iTXt. This chunk type is used
+for international text. It consists of the following fields:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">keyword</span></code>: Exactly the same as the previous two chunk types</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">compression_flag</span></code>: A <code class="docutils literal notranslate"><span class="pre">FLAG</span></code> indicating whether the text data is
@@ -650,16 +680,17 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="bkgd">
-<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this headline"></a></h3>
-<p>The background color chunk specifies the default background color to present
-the image against. Different color modes use different data in this chunk to
-achieve the specified effects.</p>
-<p>For color modes 0 and 4, a single two-byte value <code class="docutils literal notranslate"><span class="pre">greyscale</span></code> controls the
-background color.</p>
-<p>For modes 2 and 6, three two-byte values, <code class="docutils literal notranslate"><span class="pre">red</span></code>, <code class="docutils literal notranslate"><span class="pre">green</span></code>, and <code class="docutils literal notranslate"><span class="pre">blue</span></code> are
-used for the background color.</p>
-<p>Finally, for color mode 3, a single byte, <code class="docutils literal notranslate"><span class="pre">palette_index</span></code>, is used. You do
-not need to check that this index is within range for the palette provided.</p>
+<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this heading"></a></h3>
+<p>The background color chunk specifies the default background color
+against which to present the image. Different color modes use different
+data in this chunk to achieve the specified effects.</p>
+<p>For color modes <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">4</span></code>, a single two-byte value <code class="docutils literal notranslate"><span class="pre">greyscale</span></code>
+controls the background color.</p>
+<p>For modes <code class="docutils literal notranslate"><span class="pre">2</span></code> and <code class="docutils literal notranslate"><span class="pre">6</span></code>, three two-byte values, <code class="docutils literal notranslate"><span class="pre">red</span></code>, <code class="docutils literal notranslate"><span class="pre">green</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">blue</span></code> are used for the background color.</p>
+<p>Finally, for color mode <code class="docutils literal notranslate"><span class="pre">3</span></code>, a single byte, <code class="docutils literal notranslate"><span class="pre">palette_index</span></code>, is
+used. You do not need to check that this index is within range for the
+palette provided.</p>
 <p><strong>Exercise:</strong> Define three parsers, <code class="docutils literal notranslate"><span class="pre">BKGDData0or4</span></code>, <code class="docutils literal notranslate"><span class="pre">BKGDData2or6</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">BKGDData3</span></code> that return structures with the fields described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -708,9 +739,9 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="hist">
-<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this headline"></a></h3>
-<p>The image histogram chunk gives approximate usage frequencies for all colors in
-the palette. Each frequency is a big-endian two-byte integer.</p>
+<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this heading"></a></h3>
+<p>The image histogram chunk gives approximate usage frequencies for all
+colors in the palette. Each frequency is a big-endian two-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">HISTChunkData</span></code> that returns a structure with a
 single field, <code class="docutils literal notranslate"><span class="pre">frequencies</span></code>, which is an array of frequencies as described
 above. Don’t worry about checking that the correct number of frequencies are
@@ -730,13 +761,13 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="phys">
-<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this headline"></a></h3>
+<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this heading"></a></h3>
 <p>The physical pixel dimensions chunk describes the intended aspect ratio for
 image display. It’s comprised of:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">pixels_per_unit_x_axis</span></code>, a 4-byte unsigned integer</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pixels_per_unit_y_axis</span></code>, another 4-byte unsigned integer</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">unit_specifier</span></code>, a <code class="docutils literal notranslate"><span class="pre">FLAG</span></code> deciding whether to use unitless aspect ratio
+<li><p><code class="docutils literal notranslate"><span class="pre">unit_specifier</span></code>, a <code class="docutils literal notranslate"><span class="pre">FLAG</span></code> indicating whether to use unitless aspect ratio
 or specify actual size</p></li>
 </ul>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">PHYSChunkData</span></code> that returns a structure with
@@ -758,11 +789,11 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="splt">
-<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this headline"></a></h3>
-<p>The suggested palette chunk is fairly complex semantically - if you want to
-know the gnarly details, we once again point you to the full PNG specification
-linked earlier in this section. As it turns out, it is also likely the most
-challenging exercise on this page!</p>
+<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this heading"></a></h3>
+<p>The suggested palette chunk is semantically fairly complex; if you
+want to know the details, we once again refer you to the full PNG
+specification linked earlier in this section. As it turns out, it is
+also likely the most challenging exercise on this page!</p>
 <p>The chunk consists of the following data:</p>
 <ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">palette_name</span></code>, a null-terminated string between 1 and 79 characters in
@@ -780,11 +811,12 @@ depth. In both cases, the data are:</p>
 <p>In all cases, the <code class="docutils literal notranslate"><span class="pre">frequency</span></code> is given by a 2-byte unsigned integer.
 If the sample depth is 8, the other four samples are one byte; if it is
 16, they are two bytes (this is where we get a total of 6 or 10, since
-the <code class="docutils literal notranslate"><span class="pre">frequency</span></code> is always given in two bytes.)</p>
+the <code class="docutils literal notranslate"><span class="pre">frequency</span></code> is always given in two bytes).</p>
 </li>
 </ul>
-<p>Put in higher-level terms: We now need to define a data-dependent parser, as
-the sample depth will control how we parse the remaining bytes in hte input.</p>
+<p>To put this in higher-level terms, we now need to define a
+data-dependent parser since the sample depth will control how we parse
+the remaining bytes in the input.</p>
 <p>Let’s build this up one small step at a time.</p>
 <p><strong>Exercise:</strong> Define two parsers, <code class="docutils literal notranslate"><span class="pre">SPLTSample8</span></code> and <code class="docutils literal notranslate"><span class="pre">SPLTSample16</span></code>, that
 parse the five sample values as described above.</p>
@@ -865,10 +897,10 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="time">
-<h3>tIME<a class="headerlink" href="#time" title="Permalink to this headline"></a></h3>
-<p>With that tricky one out of the way, there’s only one chunk type left, and it’s
-very straightforward: The tIME chunk carries along the last-modified time for
-the image.</p>
+<h3>tIME<a class="headerlink" href="#time" title="Permalink to this heading"></a></h3>
+<p>With that tricky one out of the way, there’s only one chunk type left,
+and it’s very straightforward: the last one left is the tIME chunk that
+carries along the last-modified time for the image.</p>
 <p><strong>Exercise:</strong> For consistency with our other chunk parser naming, define a
 ‘new’ parser <code class="docutils literal notranslate"><span class="pre">TIMEChunkData</span></code> that returns a <code class="docutils literal notranslate"><span class="pre">UTCTime</span></code>.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -884,16 +916,16 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="generic-chunk-data-parsing">
-<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this headline"></a></h3>
-<p>Now that we know how to parse each type of chunk, we want to combine all of
-those possibilities into a single tagged sum type, so that we will be able to
-parse many chunks in sequence. To do this, we’ll use pattern-matching on the
-<code class="docutils literal notranslate"><span class="pre">bitdata</span></code> we defined earlier and all of the parsers defined so far in this
-section.</p>
-<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> that takes two arguments, <code class="docutils literal notranslate"><span class="pre">sig</span></code>
-and <code class="docutils literal notranslate"><span class="pre">type</span> <span class="pre">:</span> <span class="pre">ChunkType</span></code>, and produces a tagged sum covering all possible
-chunk types defined by the <code class="docutils literal notranslate"><span class="pre">type</span></code> parameter. The tags should be named,
-for example, <code class="docutils literal notranslate"><span class="pre">plte_data</span></code> for the <code class="docutils literal notranslate"><span class="pre">plte</span></code> case.</p>
+<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this heading"></a></h3>
+<p>Now that we know how to parse each type of chunk, we’ll combine all
+of those possibilities into a single tagged sum type so that we will
+be able to parse many chunks in sequence. To do this, we’ll use
+pattern-matching on the <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> we defined earlier and all of the
+parsers defined so far in this section.</p>
+<p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> that takes two arguments,
+<code class="docutils literal notranslate"><span class="pre">sig</span></code> and <code class="docutils literal notranslate"><span class="pre">type</span> <span class="pre">:</span> <span class="pre">ChunkType</span></code>, and produces a tagged sum covering all
+possible chunk types defined by the <code class="docutils literal notranslate"><span class="pre">type</span></code> parameter. The tags should
+be named, for example, <code class="docutils literal notranslate"><span class="pre">plte_data</span></code> for the <code class="docutils literal notranslate"><span class="pre">plte</span></code> case.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
 Solution<div class="sd-summary-down docutils">
@@ -925,11 +957,12 @@ Solution<div class="sd-summary-down docutils">
 </details></section>
 </section>
 <section id="png-chunks">
-<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this headline"></a></h2>
-<p>Now that we can successfully parse any type of chunk data, we need only add in
-the metadata necessary for a complete chunk. A complete PNG chunk consists of
-the chunks length (as a 4-byte integer), the type of the chunk (which we need
-to interpret as a <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code>), the chunk data, and a CRC value.</p>
+<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this heading"></a></h2>
+<p>Now that we can successfully parse any type of chunk data, we need only
+add in the metadata necessary for a complete chunk. A complete PNG chunk
+consists of the chunk’s length (as a 4-byte integer), the type of the
+chunk (which we need to interpret as a <code class="docutils literal notranslate"><span class="pre">ChunkType</span></code>), the chunk data,
+and a CRC value.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">PNGChunk</span></code> that takes a single argument,
 <code class="docutils literal notranslate"><span class="pre">sig</span></code>, and returns a structure with the following fields:</p>
 <ul class="simple">
@@ -947,11 +980,11 @@ Hint<div class="sd-summary-down docutils">
 <svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
 </summary><div class="sd-summary-content sd-card-body docutils">
 <ol class="arabic simple">
-<li><p class="sd-card-text">Remember that you use a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> by coercing a parsed value - take
+<li><p class="sd-card-text">Remember that you use a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> by coercing a parsed value; take
 care to use the appropriate coercion method!</p></li>
 <li><p class="sd-card-text">To make sure a particular number of bytes are consumed, recall the
-<code class="docutils literal notranslate"><span class="pre">Chunk</span></code> parser in the standard library. Be careful - this expects a
-<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code> argument for the number of bytes to parse!</p></li>
+<code class="docutils literal notranslate"><span class="pre">Chunk</span></code> parser in the standard library. Note that this expects a
+<code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">64</span></code> argument for the number of bytes to parse.</p></li>
 </ol>
 </div>
 </details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
@@ -972,14 +1005,15 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="header-trailer">
-<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this headline"></a></h2>
-<p>Two special chunks we haven’t discussed are the <em>header</em> and <em>trailer</em> for PNG.
-These are, respectively, the first and last chunks in a PNG datastream. The
-<code class="docutils literal notranslate"><span class="pre">sig</span></code> parameter we’ve left undiscussed is, in fact, the data in the header.</p>
-<p>Like the <code class="docutils literal notranslate"><span class="pre">PNGChunk</span></code> variants, these will both need a length, type, and crc
-field. Since they always have the same length (13 and 0 bytes respectively), we
-can hardcode these fields in our parsers. Note that the length, type, and crc
-fields do not count towards the length of the chunk.</p>
+<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this heading"></a></h2>
+<p>Two special chunks we haven’t discussed are the <em>header</em> and <em>trailer</em>
+for PNG. These are the first and last chunks in a PNG datastream. The
+<code class="docutils literal notranslate"><span class="pre">sig</span></code> parameter we’ve left undiscussed is the data in the header.</p>
+<p>Like the <code class="docutils literal notranslate"><span class="pre">PNGChunk</span></code> variants, these will both need length, type, and
+CRC fields. Since they always have the same length (13 and 0 bytes
+respectively), we can hardcode these fields in our parsers. Note that
+the length, type, and CRC fields do not count towards the length of the
+chunk.</p>
 <p>The header chunk additionally contains the following fields:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">width</span></code>, a 4-byte unsigned integer giving the width of the image</p></li>
@@ -1038,9 +1072,9 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="full-png">
-<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this headline"></a></h2>
-<p>The home stretch! We have almost all of the components needed to parse full PNG
-images now. The only thing missing is the PNG header, a byte sequence that
+<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this heading"></a></h2>
+<p>We have almost all of the components needed to parse full PNG images
+now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PNGHeader</span> <span class="k">=</span>
   <span class="k">Match</span> <span class="p">[</span> <span class="m">137</span><span class="p">;</span> <span class="m">80</span><span class="p">;</span> <span class="m">78</span><span class="p">;</span> <span class="m">71</span><span class="p">;</span> <span class="m">13</span><span class="p">;</span> <span class="m">10</span><span class="p">;</span> <span class="m">26</span><span class="p">;</span> <span class="m">10</span><span class="p">]</span>
@@ -1070,21 +1104,23 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="conclusion">
-<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline"></a></h2>
-<p>Congratulations on making it through! The full PNG specification can be foud on
-the following page; you’ll be pleasantly surprised at how short it is compared
-to the PNG specification it’s based on.</p>
-<p>Note that in a few places (as the exercises note), we fail to do some of the
-validation included in the specifciation; in fact, there are a number of places
-where we purposefully left out the restrictions for simplicity (e.g. the
-<code class="docutils literal notranslate"><span class="pre">bit_depth</span></code> field only has a few allowed values, and these values are also
-constrained by the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>.) As discussed, it is often better to leave
-these more complex validations for post-parsing stages of your applications,
-such as type-checking and other static analysis. Where it was natural, we built
-the specification’s restrictions into our parser to catch problems early.</p>
-<p>You’re encouraged to read over the rest of the DaeDaLus user guide, which has
-some extra detail on concepts we covered (and some more advanced topics we did
-not cover.)</p>
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this heading"></a></h2>
+<p>Congratulations on making it through! The full PNG specification can be
+found on the following page; notice how DaeDaLus has made it possible to
+write such a short specification compared to the PNG specification upon
+which it is based.</p>
+<p>Note that in a few places (as the exercises note), we fail to do some
+of the validation included in the specification; in fact, there are a
+number of places where we deliberately left out the restrictions for
+simplicity (e.g. the <code class="docutils literal notranslate"><span class="pre">bit_depth</span></code> field only has a few allowed values,
+and these values are also constrained by the <code class="docutils literal notranslate"><span class="pre">colour_type</span></code>). As
+discussed, it is often better to leave such validations for post-parsing
+stages of your applications, such as type-checking and other static
+analysis. Where it was natural to do so, we built the specification’s
+restrictions into our parser to catch problems early.</p>
+<p>We recommend reading over the rest of the DaeDaLus user guide, which has
+some extra detail on concepts we covered (and some more advanced topics
+we skipped).</p>
 </section>
 </section>
 
