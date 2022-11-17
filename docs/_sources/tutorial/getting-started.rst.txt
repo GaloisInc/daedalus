@@ -51,13 +51,14 @@ cloned, ``cd`` into the repository root and run:
 
     > cabal install exe:daedalus --installdir=DIR --overwrite-policy=always
 
-This will build and install the executable ``daedalus``, placing links to the
-executable in the directory ``DIR``. We recommend setting this installation
-directory to something on your ``PATH``, so that the interpreter can be invoked
-simply as ``daedalus`` at the command line -- the remainder of this tutorial
-assumes this setup for brevity. The ``--verwrite-policy=always`` flag will make
-sure that, if you clone a new version of ``daedalus``, this installation step
-will overwrite the existing versions of the executable installed on the system.
+This will build and install the executable ``daedalus``, placing links
+to the executable in the directory ``DIR``. We recommend setting this
+installation directory to something on your ``PATH``, so that the
+interpreter can be invoked simply as ``daedalus`` at the command line
+-- the remainder of this tutorial assumes this setup for brevity. The
+``--overwrite-policy=always`` flag will make sure that, if you clone a
+new version of ``daedalus``, this installation step will overwrite the
+existing versions of the executable installed on the system.
 
 The DaeDaLus Command-Line Interface
 -----------------------------------
