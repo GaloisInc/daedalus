@@ -22,7 +22,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Extended Exercise: The PNG Format" href="extended-ex-intro.html" />
+    <link rel="next" title="Validation in Parsing" href="extended-ex-parsers.html" />
     <link rel="prev" title="Breaking down PPM: Parser Combinators" href="ppm-breakdown-comb.html" /> 
 </head>
 
@@ -76,9 +76,9 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-parsers.html">Validation in Parsing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extended-ex-intro.html">Extended Exercise: The PNG Format</a></li>
-<li class="toctree-l2"><a class="reference internal" href="extended-ex-parsers.html">Aside: What To (Not) Do While Parsing</a></li>
-<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html">Aside: The DaeDaLus Standard Library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extended-ex-stdlib.html">The DaeDaLus Standard Library</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extended-ex-utils.html">Extended Exercise: Defining Helpful Utilities</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extended-ex-chunks.html">Extended Exercise: PNG Chunks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="extended-ex-solution.html">Extended Exercise: Full Solution</a></li>
@@ -356,11 +356,9 @@ value, for example, we might have a pattern match that looks like this:</p>
 </div>
 <p>Finally, there is a special pattern, <code class="docutils literal notranslate"><span class="pre">_</span></code>, which can be used as a final
 “catch-all” case when you don’t care what is matched.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The catch-all pattern should always be used as the last pattern, or else
-anything below it will never run!</p>
-</div>
+<p>The catch-all pattern may be omitted, and in fact <code class="docutils literal notranslate"><span class="pre">case</span></code> parsers can
+be partial, meaning that not all possibilities must be matched. If an
+input fails to match any of the alternatives, the parser fails.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Remember: Patterns are checked in order, so be careful to consider that
@@ -519,11 +517,11 @@ a parser since it can fail and trigger backtracking.</p>
 structures. There are a few others for more specialized use cases; you
 can check out the <a class="reference internal" href="#control-structures"><span class="std std-ref">Control Structures</span></a> section of the main user
 guide for details on how to use these features.</p>
-<p>What follows is a “tutorial by immersion”: you’ll implement a much
-more complicated layout specification one step at a time, with any
-gaps in necessary knowledge filled in. The exercises are followed by
-solutions, so if you get stuck, you can skip ahead to those solutions
-for clarification.</p>
+<p>In <a class="reference internal" href="extended-ex-intro.html#extended-exercise-the-png-format"><span class="std std-ref">Extended Exercise: The PNG Format</span></a>, we’ll work through the
+implementation of a much more complicated layout specification one step
+at a time, with any gaps in necessary knowledge filled in. The exercises
+are followed by solutions, so if you get stuck, you can skip ahead to
+those solutions for clarification.</p>
 </section>
 </section>
 </section>
@@ -533,7 +531,7 @@ for clarification.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ppm-breakdown-comb.html" class="btn btn-neutral float-left" title="Breaking down PPM: Parser Combinators" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="extended-ex-intro.html" class="btn btn-neutral float-right" title="Extended Exercise: The PNG Format" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="extended-ex-parsers.html" class="btn btn-neutral float-right" title="Validation in Parsing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

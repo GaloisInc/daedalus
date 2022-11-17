@@ -10,8 +10,8 @@ Tutorial
   ppm-breakdown-parse
   ppm-breakdown-comb
   ppm-breakdown-expr
-  extended-ex-intro
   extended-ex-parsers
+  extended-ex-intro
   extended-ex-stdlib
   extended-ex-utils
   extended-ex-chunks

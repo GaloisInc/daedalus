@@ -286,9 +286,9 @@ value, for example, we might have a pattern match that looks like this:
 Finally, there is a special pattern, ``_``, which can be used as a final
 "catch-all" case when you don't care what is matched.
 
-.. warning::
-    The catch-all pattern should always be used as the last pattern, or else
-    anything below it will never run!
+The catch-all pattern may be omitted, and in fact ``case`` parsers can
+be partial, meaning that not all possibilities must be matched. If an
+input fails to match any of the alternatives, the parser fails.
 
 .. warning::
     Remember: Patterns are checked in order, so be careful to consider that
@@ -478,8 +478,8 @@ structures. There are a few others for more specialized use cases; you
 can check out the :ref:`control structures` section of the main user
 guide for details on how to use these features.
 
-What follows is a "tutorial by immersion": you'll implement a much
-more complicated layout specification one step at a time, with any
-gaps in necessary knowledge filled in. The exercises are followed by
-solutions, so if you get stuck, you can skip ahead to those solutions
-for clarification.
+In :ref:`Extended Exercise: The PNG Format`, we'll work through the
+implementation of a much more complicated layout specification one step
+at a time, with any gaps in necessary knowledge filled in. The exercises
+are followed by solutions, so if you get stuck, you can skip ahead to
+those solutions for clarification.

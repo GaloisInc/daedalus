@@ -1,7 +1,7 @@
-Aside: The DaeDaLus Standard Library
-====================================
+The DaeDaLus Standard Library
+=============================
 
-DaeDaLus, like most modern programming languages, ships with a standard
+Like most modern programming languages, DaeDaLus ships with a standard
 library of useful parsers and functions. It is quite small and is
 written entirely in DaeDaLus itself. This section highlights some of
 the parsers provided without digging deeply into their implementation.
