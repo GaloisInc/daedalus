@@ -83,13 +83,14 @@ value's bits match that of the expected numeric value. For example:
 PNG Chunk Types
 ---------------
 
-To get your feet wet with ``bitdata``, you'll first define one that specifies
-the different type tags that a PNG chunk can carry.
+To get started using ``bitdata``, you'll first declare one that
+specifies the different type tags that a PNG chunk can carry.
 
-Every type tag is a 32-bit unsigned integer consisting of four bytes. The following
-table gives the four bytes for each type. Don't worry about what the tag names
-mean; if you're curious, you can check the PNG specification for details, but
-we won't need that information for parsing:
+Every type tag is a 32-bit unsigned integer consisting of four bytes.
+The following table gives the four bytes for each type. Don't worry
+about what the tag names mean; if you're curious, you can check the
+PNG specification for details, but we won't need that information for
+parsing.
 
 .. list-table:: PNG Chunk Types
 
@@ -126,9 +127,10 @@ we won't need that information for parsing:
     * - time
       - 116 73 77 69
 
-**Exercise:** Write a ``bitdata`` called ``ChunkType`` with 16 variants (one
-for each name in the above table.) Name the variants using the names in the
-table, and be sure to specify the type of each byte (use ``uint 8``.)
+**Exercise:** Write a ``bitdata`` called ``ChunkType`` with 16 variants
+(one for each name in the above table). Name the variants using the
+names in the table, and be sure to specify the type of each byte (use
+``uint 8``).
 
 .. dropdown:: Solution
     :color: warning
@@ -141,20 +143,20 @@ table, and be sure to specify the type of each byte (use ``uint 8``.)
 PNG Chunk Data
 --------------
 
-Now, you'll build parsers for each type of chunk data. We'll then combine those
-into a single ``ChunkData`` parser, which will allow us to parse any type of
-chunk with a single parser, and more importantly, parse many chunks in
-sequence.
+Now, we'll build parsers for each type of chunk data. We'll then combine
+those into a single ``ChunkData`` parser, which will allow us to parse
+any type of chunk with a single parser and, more importantly, parse many
+chunks in sequence.
 
 PLTE
 ^^^^
 
-The PLTE chunk contains between 1 and 256 palette entries, which are simply RGB
-structures as we defined in the section
+The PLTE chunk contains between 1 and 256 palette entries, which are
+simply RGB structures as we defined in the section
 :ref:`extended exercise: defining helpful utilities`.
 
-**Exercise:** Write a parser ``PLTEChunkData`` that parses between 1 and 256
-``RGB`` structures.
+**Exercise:** Write a parser ``PLTEChunkData`` that parses between 1 and
+256 ``RGB`` structures.
 
 .. dropdown:: Solution
     :color: warning
@@ -167,10 +169,11 @@ structures as we defined in the section
 IDAT
 ^^^^
 
-The IDAT chunk contains image data as output by the PNG compression algorithm;
-it consists merely of a bunch of bytes.
+The IDAT chunk contains image data as output by the PNG compression
+algorithm; it consists merely of a bunch of bytes.
 
-**Exercise:** Write a parser ``IDATChunkData`` that parses any number of bytes.
+**Exercise:** Write a parser ``IDATChunkData`` that parses any number of
+bytes.
 
 .. dropdown:: Solution
     :color: warning
@@ -183,31 +186,35 @@ it consists merely of a bunch of bytes.
 tRNS
 ^^^^
 
-Transparency chunks are significantly more complex than the others we've looked
-at so far, in that they have a different data shape depending on data provided
-in the PNG *signature* that we have not defined yet. We'll delay full
-discussion of that until later; for now, all that matters is that the signature
-is a structure with a field named ``colour_type``, which we can patterm-match
-on to guide value construction for different PNG modes.
+Transparency chunks are significantly more complex than the others we've
+looked at so far in that they have a different data shape depending on
+data provided in the PNG *signature* that we have not yet defined. We'll
+delay full discussion of that until later; for now, all that matters is
+that the signature is a structure with a field named ``colour_type``
+that we can pattern-match on in order to guide value construction for
+different PNG modes.
 
-Transparency data is valid for ``colour_type`` values 0, 2, and 3 - any other
-value should cause transparency data parsing to fail.
+Transparency data is valid for ``colour_type`` values ``0``, ``2``, and
+``3``; any other value should cause transparency data parsing to fail.
 
-In the case of mode 0, the transparency data is a single big-endian 2-byte
-value which we will call ``grey_sample_value``.
+In the case of mode ``0``, the transparency data is a single big-endian
+2-byte value which we will call ``grey_sample_value``.
 
-In mode 2, the transparency data is a sequence of three big-endian 2-byte
-values which we call ``red_sample_value``, ``blue_sample_value``, and
-``green_sample_value``. This is the order the values should be parsed.
+In mode ``2``, the transparency data is a sequence of three big-endian
+2-byte values which we call ``red_sample_value``, ``blue_sample_value``,
+and ``green_sample_value``, respectively. This is the order in which the
+values should be parsed.
 
-Finally, in mode 3, there is a sequence of bytes, one for each entry in the
-PLTE chunk (so, between 1 and 256.) You are not required to check that there
-are an appropriate number of bytes - in fact, you should not put bounds on how
-many are parsed. We call these bytes ``alpha_for_palette``.
+Finally, in mode ``3``, there is a sequence of bytes, one for each
+entry in the PLTE chunk (so, between 1 and 256). You are not required
+to check that there are an appropriate number of bytes; in fact, you
+should not put bounds on how many are parsed. We call these bytes
+``alpha_for_palette``.
 
-**Exercise:** Define three parsers, ``TRNSData0``, ``TRNSData2``, and
-``TRNSData3``, that carry the data as described above. Use the names provided
-as field names (so, make sure these parsers all produce structures.)
+**Exercise:** Define three parsers, ``TRNSData0``, ``TRNSData2``,
+and ``TRNSData3``, that carry the data as described above. Use the
+names provided as field names (so, make sure these parsers all produce
+structures).
 
 .. dropdown:: Solution
     :color: warning
@@ -218,10 +225,11 @@ as field names (so, make sure these parsers all produce structures.)
         :end-before: -- END PNG_TD
 
 **Exercise:** Now, define a parser ``TRNSChunkData`` that takes a single
-argument, ``sig``, and uses the ``colour_type`` field of that argument to
-produce an appropriate value; you can use pattern-matching and integer literals
-for this. In all other cases, the parser should fail with a message indicating
-that the transparency chunk cannot appear for any other color mode.
+argument, ``sig``, and uses the ``colour_type`` field of that argument
+to produce an appropriate value; you can use pattern-matching and
+integer literals for this. In all other cases, the parser should fail
+with a message indicating that the transparency chunk cannot appear for
+any other color mode.
 
 .. dropdown:: Hint
     :color: info
@@ -240,11 +248,11 @@ that the transparency chunk cannot appear for any other color mode.
 cHRM
 ^^^^
 
-The chromaticities / white point chunk is eight big-endian 4-byte values:
-``x`` and ``y`` respectively for the white point, red, green, and blue.
-You should use the names ``white_point_x``, ``white_point_y``, ``red_x``,
-``red_y``, ``green_x``, ``green_y``, ``blue_x``, and ``blue_y`` for these
-fields in the next exercise.
+The chromaticities and white point chunk is made of eight big-endian
+4-byte values: ``x`` and ``y`` respectively for each of the white point,
+red, green, and blue. You should use the names ``white_point_x``,
+``white_point_y``, ``red_x``, ``red_y``, ``green_x``, ``green_y``,
+``blue_x``, and ``blue_y`` for these fields in the next exercise.
 
 **Exercise:** Define a parser ``CHRMChunkData`` that parses the fields
 described above.
@@ -260,8 +268,8 @@ described above.
 gAMA
 ^^^^
 
-The gamma chunk relates image samples to desired output intensity. It is simply
-a big-endian 4-byte integer.
+The gamma chunk relates image samples to desired output intensity. It is
+simply a big-endian 4-byte integer.
 
 **Exercise:** Define a parser ``GAMAChunkData`` that parses a single field,
 ``image_gamma``, as specified in the above description.
@@ -304,24 +312,24 @@ the three fields described above.
 sBIT
 ^^^^
 
-The significant bits chunk allows lossless data recovery even if the sample
-depth isn't supported by PNG. The supported color modes each have a number of
-significant bits to store that allows this to be done.
+The significant bits chunk allows lossless data recovery even if the
+sample depth isn't supported by PNG. The supported color modes each have
+a number of significant bits to store that allows this to be done.
 
-Like the transparency chunk described above, the significant bits chunk behaves
-differently depending on the PNG color mode being used.
+Like the transparency chunk described above, the significant bits chunk
+behaves differently depending on the PNG color mode being used.
 
-In mode 0, the significant bits data is a single byte which we call
+In mode ``0``, the significant bits data is a single byte which we call
 ``significant_greyscale_bits``.
 
-In modes 2 and 3, the data is stored in three bytes, respectively called
-``significant_red_bits``, ``significant_green_bits``, and
-``significant_blue_bits``.
+In modes ``2`` and ``3``, the data is stored in three bytes,
+called ``significant_red_bits``, ``significant_green_bits``, and
+``significant_blue_bits``, respectively.
 
-In mode 4, there are two bytes: ``significant_greyscale_bits`` and
+In mode ``4``, there are two bytes: ``significant_greyscale_bits`` and
 ``significant_alpha_bits``.
 
-Finally, in mode 6, there are four bytes: ``significant_red_bits``,
+Finally, in mode ``6``, there are four bytes: ``significant_red_bits``,
 ``significant_green_bits``, ``significant_blue_bits``, and
 ``significant_alpha_bits``.
 
@@ -339,9 +347,9 @@ structures).
         :end-before: -- END PNG_SD
 
 **Exercise:** Now, define a parser ``SBITChunkData`` that takes a single
-argument, ``sig``, and uses the ``colour_type`` field of that argument to
-produce an appropriate value; you can use pattern-matching and integer literals
-for this. You can ignore all other color modes.
+argument, ``sig``, and uses the ``colour_type`` field of that argument
+to produce an appropriate value; you can use pattern-matching and
+integer literals for this. You can ignore all other color modes.
 
 .. dropdown:: Solution
     :color: warning
@@ -354,9 +362,9 @@ for this. You can ignore all other color modes.
 sRGB
 ^^^^
 
-The standard RGB color space chunk defines a *rendering intent*, defined by the
-ICC. It contains one byte, which is a value between 0 and 3 (inclusive) giving
-the intent.
+The standard RGB color space chunk defines a *rendering intent*, defined
+by the ICC. It contains one byte, which is a value between 0 and 3
+(inclusive) giving the intent.
 
 **Exercise:** Define a parser, ``SRGBChunkData``, that parses a structure with
 a single field, ``rendering_intent``, from exactly one byte with a value
@@ -373,20 +381,22 @@ between 0 and 3 (inclusive).
 tEXt
 ^^^^
 
-PNG provides textual data blocks to store information associated with images,
-such as descriptions and copyright notices. There are three types of textual
-chunk, the most basic of which is the tEXt chunk we'll define first.
+PNG provides textual data blocks to store information associated with
+images such as descriptions and copyright notices. There are three types
+of textual chunk, the most basic of which is the tEXt chunk we'll define
+first.
 
-The standard tEXt chunk is comprised of two pieces of data: a null-terminated
-string giving a keyword (some of which are recognized by the PNG specification)
-and zero or more bytes giving the text associated with the keyword. Note that
-this character string (the data following the keyword) is *not*
-null-terminated.
+The standard tEXt chunk is comprised of two pieces of data: a
+null-terminated string giving a keyword (some of which are recognized by
+the PNG specification) and zero or more bytes giving the text associated
+with the keyword. Note that this character string (the data following
+the keyword) is *not* null-terminated.
 
-**Exercise:** Define a parser ``TEXTChunkData`` that returns a structure with
-two fields, ``keyword`` and ``text_string``. ``keyword`` should be a
-null-terminated string between 1 and 79 characters in length, and
-``text_string`` should be an arbitrarily large number of bytes.
+**Exercise:** Define a parser ``TEXTChunkData`` that returns a structure
+with two fields, ``keyword`` and ``text_string``. The ``keyword`` field
+should be a null-terminated string between 1 and 79 characters in length
+and ``text_string`` field should be an arbitrarily large number of
+bytes.
 
 .. dropdown:: Solution
     :color: warning
@@ -399,13 +409,14 @@ null-terminated string between 1 and 79 characters in length, and
 zTXt
 ^^^^
 
-The zTXt chunk is semantically the same as tEXt, but with compressed data - it
-is recommended for use with large blocks of text.
+The zTXt chunk is semantically the same as tEXt, but with compressed
+data; it is recommended for use with large blocks of text.
 
-**Exercise:** Define a parser ``ZTXTChunkData`` that returns a structure with
-three fields: ``keyword``, ``compression_method``, and
-``compressed_text_datastream``. The first and last of these are exactly as they
-were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
+**Exercise:** Define a parser ``ZTXTChunkData`` that returns a
+structure with three fields: ``keyword``, ``compression_method``, and
+``compressed_text_datastream``. The first and last of these are exactly
+as they were for ``TEXTChunkData``, and ``compression_method`` is a
+single byte.
 
 .. dropdown:: Solution
     :color: warning
@@ -418,8 +429,8 @@ were for ``TEXTChunkData``, and ``compression_method`` is a single byte.
 iTXt
 ^^^^
 
-The final type of textual data chunk is iTXt, which is used for international
-text. It consists of the following fields:
+The final type of textual data chunk is iTXt. This chunk type is used
+for international text. It consists of the following fields:
 
 * ``keyword``: Exactly the same as the previous two chunk types
 * ``compression_flag``: A ``FLAG`` indicating whether the text data is
@@ -445,18 +456,19 @@ the six fields as described above.
 bKGD
 ^^^^
 
-The background color chunk specifies the default background color to present
-the image against. Different color modes use different data in this chunk to
-achieve the specified effects.
+The background color chunk specifies the default background color
+against which to present the image. Different color modes use different
+data in this chunk to achieve the specified effects.
 
-For color modes 0 and 4, a single two-byte value ``greyscale`` controls the
-background color.
+For color modes ``0`` and ``4``, a single two-byte value ``greyscale``
+controls the background color.
 
-For modes 2 and 6, three two-byte values, ``red``, ``green``, and ``blue`` are
-used for the background color.
+For modes ``2`` and ``6``, three two-byte values, ``red``, ``green``,
+and ``blue`` are used for the background color.
 
-Finally, for color mode 3, a single byte, ``palette_index``, is used. You do
-not need to check that this index is within range for the palette provided.
+Finally, for color mode ``3``, a single byte, ``palette_index``, is
+used. You do not need to check that this index is within range for the
+palette provided.
 
 **Exercise:** Define three parsers, ``BKGDData0or4``, ``BKGDData2or6``, and
 ``BKGDData3`` that return structures with the fields described above.
@@ -485,8 +497,8 @@ for this. You can ignore all other color modes.
 hIST
 ^^^^
 
-The image histogram chunk gives approximate usage frequencies for all colors in
-the palette. Each frequency is a big-endian two-byte integer.
+The image histogram chunk gives approximate usage frequencies for all
+colors in the palette. Each frequency is a big-endian two-byte integer.
 
 **Exercise:** Define a parser ``HISTChunkData`` that returns a structure with a
 single field, ``frequencies``, which is an array of frequencies as described
@@ -509,7 +521,7 @@ image display. It's comprised of:
 
 * ``pixels_per_unit_x_axis``, a 4-byte unsigned integer
 * ``pixels_per_unit_y_axis``, another 4-byte unsigned integer
-* ``unit_specifier``, a ``FLAG`` deciding whether to use unitless aspect ratio
+* ``unit_specifier``, a ``FLAG`` indicating whether to use unitless aspect ratio
   or specify actual size
 
 **Exercise:** Define a parser ``PHYSChunkData`` that returns a structure with
@@ -526,10 +538,10 @@ the fields as described above.
 sPLT
 ^^^^
 
-The suggested palette chunk is fairly complex semantically - if you want to
-know the gnarly details, we once again point you to the full PNG specification
-linked earlier in this section. As it turns out, it is also likely the most
-challenging exercise on this page!
+The suggested palette chunk is semantically fairly complex; if you
+want to know the details, we once again refer you to the full PNG
+specification linked earlier in this section. As it turns out, it is
+also likely the most challenging exercise on this page!
 
 The chunk consists of the following data:
 
@@ -548,10 +560,11 @@ The chunk consists of the following data:
   In all cases, the ``frequency`` is given by a 2-byte unsigned integer.
   If the sample depth is 8, the other four samples are one byte; if it is
   16, they are two bytes (this is where we get a total of 6 or 10, since
-  the ``frequency`` is always given in two bytes.)
+  the ``frequency`` is always given in two bytes).
 
-Put in higher-level terms: We now need to define a data-dependent parser, as
-the sample depth will control how we parse the remaining bytes in hte input.
+To put this in higher-level terms, we now need to define a
+data-dependent parser since the sample depth will control how we parse
+the remaining bytes in the input.
 
 Let's build this up one small step at a time.
 
@@ -605,9 +618,9 @@ returns a structure containing fields ``palette_name``, ``sample_depth``, and
 tIME
 ^^^^
 
-With that tricky one out of the way, there's only one chunk type left, and it's
-very straightforward: The tIME chunk carries along the last-modified time for
-the image.
+With that tricky one out of the way, there's only one chunk type left,
+and it's very straightforward: the last one left is the tIME chunk that
+carries along the last-modified time for the image.
 
 **Exercise:** For consistency with our other chunk parser naming, define a
 'new' parser ``TIMEChunkData`` that returns a ``UTCTime``.
@@ -623,16 +636,16 @@ the image.
 Generic Chunk Data Parsing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now that we know how to parse each type of chunk, we want to combine all of
-those possibilities into a single tagged sum type, so that we will be able to
-parse many chunks in sequence. To do this, we'll use pattern-matching on the
-``bitdata`` we defined earlier and all of the parsers defined so far in this
-section.
+Now that we know how to parse each type of chunk, we'll combine all
+of those possibilities into a single tagged sum type so that we will
+be able to parse many chunks in sequence. To do this, we'll use
+pattern-matching on the ``bitdata`` we defined earlier and all of the
+parsers defined so far in this section.
 
-**Exercise:** Write a parser ``ChunkData`` that takes two arguments, ``sig``
-and ``type : ChunkType``, and produces a tagged sum covering all possible
-chunk types defined by the ``type`` parameter. The tags should be named,
-for example, ``plte_data`` for the ``plte`` case.
+**Exercise:** Write a parser ``ChunkData`` that takes two arguments,
+``sig`` and ``type : ChunkType``, and produces a tagged sum covering all
+possible chunk types defined by the ``type`` parameter. The tags should
+be named, for example, ``plte_data`` for the ``plte`` case.
 
 .. dropdown:: Solution
     :color: warning
@@ -645,10 +658,11 @@ for example, ``plte_data`` for the ``plte`` case.
 PNG Chunks
 ----------
 
-Now that we can successfully parse any type of chunk data, we need only add in
-the metadata necessary for a complete chunk. A complete PNG chunk consists of
-the chunks length (as a 4-byte integer), the type of the chunk (which we need
-to interpret as a ``ChunkType``), the chunk data, and a CRC value.
+Now that we can successfully parse any type of chunk data, we need only
+add in the metadata necessary for a complete chunk. A complete PNG chunk
+consists of the chunk's length (as a 4-byte integer), the type of the
+chunk (which we need to interpret as a ``ChunkType``), the chunk data,
+and a CRC value.
 
 **Exercise:** Define a parser ``PNGChunk`` that takes a single argument,
 ``sig``, and returns a structure with the following fields:
@@ -662,11 +676,11 @@ to interpret as a ``ChunkType``), the chunk data, and a CRC value.
 .. dropdown:: Hint
     :color: info
 
-    1. Remember that you use a ``bitdata`` by coercing a parsed value - take
+    1. Remember that you use a ``bitdata`` by coercing a parsed value; take
        care to use the appropriate coercion method!
     2. To make sure a particular number of bytes are consumed, recall the
-       ``Chunk`` parser in the standard library. Be careful - this expects a
-       ``uint 64`` argument for the number of bytes to parse!
+       ``Chunk`` parser in the standard library. Note that this expects a
+       ``uint 64`` argument for the number of bytes to parse.
 
 .. dropdown:: Solution
     :color: warning
@@ -679,14 +693,15 @@ to interpret as a ``ChunkType``), the chunk data, and a CRC value.
 Header / Trailer
 ----------------
 
-Two special chunks we haven't discussed are the *header* and *trailer* for PNG.
-These are, respectively, the first and last chunks in a PNG datastream. The
-``sig`` parameter we've left undiscussed is, in fact, the data in the header.
+Two special chunks we haven't discussed are the *header* and *trailer*
+for PNG. These are the first and last chunks in a PNG datastream. The
+``sig`` parameter we've left undiscussed is the data in the header.
 
-Like the ``PNGChunk`` variants, these will both need a length, type, and crc
-field. Since they always have the same length (13 and 0 bytes respectively), we
-can hardcode these fields in our parsers. Note that the length, type, and crc
-fields do not count towards the length of the chunk.
+Like the ``PNGChunk`` variants, these will both need length, type, and
+CRC fields. Since they always have the same length (13 and 0 bytes
+respectively), we can hardcode these fields in our parsers. Note that
+the length, type, and CRC fields do not count towards the length of the
+chunk.
 
 The header chunk additionally contains the following fields:
 
@@ -728,8 +743,8 @@ bytes ``73``, ``69``, ``78``, and ``68``.
 Full PNG
 --------
 
-The home stretch! We have almost all of the components needed to parse full PNG
-images now. The only thing missing is the PNG header, a byte sequence that
+We have almost all of the components needed to parse full PNG images
+now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:
 
 .. literalinclude:: ../examples/png.ddl
@@ -755,19 +770,21 @@ consumes the entire input.
 Conclusion
 ----------
 
-Congratulations on making it through! The full PNG specification can be foud on
-the following page; you'll be pleasantly surprised at how short it is compared
-to the PNG specification it's based on.
+Congratulations on making it through! The full PNG specification can be
+found on the following page; notice how DaeDaLus has made it possible to
+write such a short specification compared to the PNG specification upon
+which it is based.
 
-Note that in a few places (as the exercises note), we fail to do some of the
-validation included in the specifciation; in fact, there are a number of places
-where we purposefully left out the restrictions for simplicity (e.g. the
-``bit_depth`` field only has a few allowed values, and these values are also
-constrained by the ``colour_type``.) As discussed, it is often better to leave
-these more complex validations for post-parsing stages of your applications,
-such as type-checking and other static analysis. Where it was natural, we built
-the specification's restrictions into our parser to catch problems early.
+Note that in a few places (as the exercises note), we fail to do some
+of the validation included in the specification; in fact, there are a
+number of places where we deliberately left out the restrictions for
+simplicity (e.g. the ``bit_depth`` field only has a few allowed values,
+and these values are also constrained by the ``colour_type``). As
+discussed, it is often better to leave such validations for post-parsing
+stages of your applications, such as type-checking and other static
+analysis. Where it was natural to do so, we built the specification's
+restrictions into our parser to catch problems early.
 
-You're encouraged to read over the rest of the DaeDaLus user guide, which has
-some extra detail on concepts we covered (and some more advanced topics we did
-not cover.)
+We recommend reading over the rest of the DaeDaLus user guide, which has
+some extra detail on concepts we covered (and some more advanced topics
+we skipped).
