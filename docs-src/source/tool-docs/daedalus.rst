@@ -95,6 +95,9 @@ input from file ``input.txt``.
 
 If successful, the resulting semantic value will be shown on ``stdout``.
 
+Flags
+-----
+
 .. data:: --input=FILE
 
   Specifies that the input for the parser should be read from the given file.
@@ -138,9 +141,10 @@ To compile a DaeDaLus parser specification to Haskell:
 
 The result is a directory populated with a Haskell module containing
 definitions for the parsers and functions defined in the specification.
-
-To use the generated code you'd have to integrate it with a Haskell
-project and also use the ``rts-hs`` package.
+In addition, the DaeDaLus compiler will generate a sample executable
+driver and Cabal package description for easy prototyping. To use the
+generated code you'll have to compile it with the ``rts-hs`` package
+provided in this distribution.
 
 .. warning::
 
@@ -149,8 +153,6 @@ project and also use the ``rts-hs`` package.
   maintained, please use Template Haskell.   If there is demand, we may adapt
   the new backend to generate explicit Haskell files, in which case this
   command will start using the new backend.
-
-
 
 Command: ``compile-c++``
 ========================
@@ -168,7 +170,7 @@ The compiled parser is in two files:
   * ``main_parser.h`` contains the interface to the generated parser, and
   * ``main_parser.cpp`` contains the implementation of the parser.
 
-In addition, the DaeDaLus compiler may generate a sample executable driver
+In addition, the DaeDaLus compiler will generate a sample executable driver
 and ``Makefile`` illustrating how to build the parser and generate Doxygen
 documentation.  The sample executable expects that the compiled specification
 contains a parser named ``Main`` that has a fixed type and no parameters
@@ -277,8 +279,8 @@ Flags
 Command: ``dump``
 =================
 
-This command is largely for debuging.  It shows the various IR structures
-of the DaeDaLus compiler.
+It shows the various IR structures of the DaeDaLus compiler. This
+command is largely for debugging.
 
 .. data:: --parsed
 
@@ -315,18 +317,3 @@ of the DaeDaLus compiler.
   This is the lowest level IR, which is used to generate code.
   It is essentially a control flow graph in SSA form, except that
   instead of using "phi" blocks, basic blocks have parameters.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
