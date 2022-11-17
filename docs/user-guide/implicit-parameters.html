@@ -109,7 +109,7 @@ to parse either big-endian or little-endian words, depending on the value
 of the implicit parameter <code class="docutils literal notranslate"><span class="pre">?bigendian</span></code>:</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>These parsers use <a class="reference internal" href="lifting.html#implicit-lifting"><span class="std std-ref">Implicit Lifting</span></a> to make them more readable</p>
+<p>These parsers use <a class="reference internal" href="lifting.html#implicit-lifting"><span class="std std-ref">Implicit Lifting</span></a> to make them more readable.</p>
 </div>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Word16</span> <span class="k">=</span> <span class="n">joinWords</span> <span class="k">UInt8</span> <span class="k">UInt8</span>
 <span class="k">def</span> <span class="n">Word32</span> <span class="k">=</span> <span class="n">joinWords</span> <span class="n">Word16</span> <span class="n">Word16</span>

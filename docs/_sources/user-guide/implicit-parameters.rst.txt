@@ -28,7 +28,7 @@ to parse either big-endian or little-endian words, depending on the value
 of the implicit parameter ``?bigendian``:
 
 .. note::
-  These parsers use :ref:`Implicit Lifting` to make them more readable
+  These parsers use :ref:`Implicit Lifting` to make them more readable.
 
 
 .. code-block:: DaeDaLus
