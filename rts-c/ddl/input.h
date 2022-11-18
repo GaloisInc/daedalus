@@ -2,6 +2,7 @@
 #define DDL_INPUT_H
 
 #include <cstdint>
+#include <cassert>
 #include <string.h>
 
 #include <ddl/debug.h>
@@ -82,12 +83,12 @@ public:
   // Advance current location
   // Mutates
   // Assumes: n <= length()
-  void    iDropMut(Size n)     { offset.incrementBy(n); }
+  void    iDropMut(Size n)     { assert(n <= length()); offset.incrementBy(n); }
 
   // Restrict amount of input
   // Mutates
   // Assumes: n <= length()
-  void    iTakeMut(Size n)     { last_offset = offset.incrementedBy(n); }
+  void    iTakeMut(Size n)     { assert(n <= length()); last_offset = offset.incrementedBy(n); }
 
   // Advance current location
   // Assumes: n <= length()
