@@ -53,7 +53,7 @@ target_include_directories(pdfcos
     ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos
 )
 
-
+find_package(OpenSSL REQUIRED)
 
 target_link_libraries(pdfcos
   PRIVATE
@@ -65,6 +65,7 @@ target_link_libraries(pdfcos
 target_link_libraries(pdfcos
   PUBLIC
     ddl-rts
+    OpenSSL::Crypto
 )
 
 target_compile_options(pdfcos PRIVATE -O3)
