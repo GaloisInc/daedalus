@@ -191,6 +191,7 @@ namespace {
 
 }
 
+// Borrows input
 void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::Input input, PdfCos::TrailerDict trailer)
 {
     if (trailer.borrow_prev().isJust()) {
@@ -214,6 +215,7 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
     }
 }
 
+// Borrows input
 void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::Input input, PdfCos::XRefObjTable table, bool top)
 {
     auto xrefs = table.borrow_xref();
@@ -374,6 +376,10 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
     DDL::ParseError error;
     std::vector<PdfCos::CrossRef> crossRefs;
 
+    if (offset > input.length()) {
+        throw XrefException("Invalid XRef offset");
+    }
+
     input.copy();
     parseCrossRef(*this, error, crossRefs, input.iDrop(offset));
 
@@ -431,7 +437,6 @@ size_t findPdfStart(size_t len, char const* bytes) {
     if (NULL == found) {
         throw XrefException("Start of PDF not found");
     }
-
     return found - bytes;
 }
 
