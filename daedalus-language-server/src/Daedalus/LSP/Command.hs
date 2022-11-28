@@ -25,7 +25,6 @@ import           Language.LSP.Server          (sendNotification)
 import qualified Language.LSP.Types           as J
 import qualified Language.LSP.Types.Lens      as J
 
-
 import qualified Daedalus.LSP.Command.Debug   as C
 import qualified Daedalus.LSP.Command.Regions as C
 import qualified Daedalus.LSP.Command.Run     as C
@@ -49,7 +48,7 @@ instance CanInvoke CommandImpl where
 instance ToJSON a => CanInvoke (ServerM (Either J.ResponseError a)) where
   invoke m  [] = Right (fmap toJSON <$> m)
   invoke _  _ = Left "Expecting empty args"
-  
+
 instance (FromJSON a, CanInvoke b) => CanInvoke (a -> b) where
   invoke f (j : js) =
     case fromJSON j of
@@ -86,7 +85,7 @@ positionToRegions doc pos = do
     case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> Left $ J.ResponseError J.ParseError "Missing module" Nothing
       Just (m, _, _)  -> Right $ C.positionToRegions pos m
-  
+
 runModule :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
 runModule doc pos = do
   sst <- ask
@@ -104,7 +103,7 @@ watchModule doc pos clientHandle = do
     Left err -> pure (Left err)
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
       Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
-      Just (m, _, _)  -> go m 
+      Just (m, _, _)  -> go m
   where
     go :: TCModule SourceRange -> ServerM (Either J.ResponseError WatcherTag)
     go m | Just d <- declAtPos pos m = do
@@ -118,9 +117,9 @@ watchModule doc pos clientHandle = do
         let next = maybe 0 (1 +) $ fst <$> Map.lookupMax wmap
         modifyTVar (watchers sst) (Map.insert next a)
         pure (Right next)
-        
+
     go _ = pure $ Left $ J.ResponseError J.ParseError "No decl at position" Nothing
-      
+
 -- We don't bother telling the client if the watcher doesn't exist
 cancelWatchModule :: WatcherTag -> ServerM (Either J.ResponseError ())
 cancelWatchModule tag = do
@@ -129,12 +128,12 @@ cancelWatchModule tag = do
   m_a <- liftIO $ atomically $ stateTVar (watchers sst) (Map.updateLookupWithKey (\_ _ -> Nothing) tag)
   liftIO $ traverse_ cancel m_a
   pure (Right ())
-  
+
 -- pure $ Left $ J.ResponseError J.ParseError "Cannot determine decl" Nothing
 
 debugSupportedPasses :: ServerM (Either J.ResponseError [A.Value])
 debugSupportedPasses = pure (Right (map A.String C.passNames))
-    
+
 -- Debugging functions
 debugPass :: J.TextDocumentIdentifier -> J.Position -> Text -> ServerM (Either J.ResponseError (Maybe A.Value))
 debugPass doc pos passN = do
@@ -158,7 +157,7 @@ debugDumpModuleInfo = do
         NotStarted -> "not started"
         ErrorStatus -> "error"
         FinishedStatus {} -> "finished"
-        
+
     go (mn, st) =
       pp mn $$ nest 4
         (bullets [ "Parse: " <> ppStatus msParsedModule st

@@ -57,7 +57,7 @@ run = flip E.catches handlers $ do
       , doInitialize = \env _ -> do
           sst <- emptyServerState env
           void $ forkIO (reactor rin)
-          void $ forkIO (worker sst)  
+          void $ forkIO (worker sst)
           pure (Right sst)
       , staticHandlers = lspHandlers rin
       , interpretHandler = \sst -> Iso (runServerM sst) liftIO
@@ -65,7 +65,7 @@ run = flip E.catches handlers $ do
       }
 
   flip E.finally finalProc $ do
-    setupLogger Nothing ["reactor", "worker"] DEBUG
+    setupLogger (Just "/tmp/lsp-log.txt") ["reactor", "worker"] DEBUG
     runServer serverDefinition
 
   where
@@ -133,7 +133,7 @@ handle = mconcat
   , notificationHandler J.STextDocumentDidOpen $ \msg -> do
     let doc  = msg ^. J.params . J.textDocument
         uri = doc ^. J.uri . to J.toNormalizedUri
-        
+
     sst <- ask
     liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc
 
@@ -168,7 +168,7 @@ handle = mconcat
                          . to J.toNormalizedUri
           pos = params ^. J.position
       definition responder uri pos
-  
+
   , requestHandler J.STextDocumentRename $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
       let params = req ^. J.params
@@ -187,8 +187,8 @@ handle = mconcat
           uri  = params ^. to (J._textDocument :: J.SemanticTokensParams -> J.TextDocumentIdentifier)
                          . J.uri
                          . to J.toNormalizedUri
-                         
-      semanticTokens responder Nothing uri 
+
+      semanticTokens responder Nothing uri
 
   , requestHandler J.STextDocumentSemanticTokensRange $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/range request"
@@ -197,9 +197,9 @@ handle = mconcat
                          . J.uri
                          . to J.toNormalizedUri
           r    = params ^. to (J._range :: J.SemanticTokensRangeParams -> J.Range)
-                         
-      semanticTokens responder (Just r) uri 
-      
+
+      semanticTokens responder (Just r) uri
+
       -- -- Replace some text at the position with what the user entered
       -- let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
       --     tde = J.TextDocumentEdit vdoc (J.List [edit])
@@ -213,10 +213,10 @@ handle = mconcat
                       . J.uri
                       . to J.toNormalizedUri
           pos = req ^. J.params . J.position
-          
+
       liftIO $ debugM "reactor.handle" ("Processing a textDocument/hover request " ++ show uri ++ " at " ++ show pos)
       hover responder uri pos
-      
+
   , requestHandler J.STextDocumentDocumentHighlight $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/documentHighlight request"
       let uri  = req ^. J.params
@@ -267,6 +267,6 @@ handle = mconcat
               Left err -> liftIO $ debugM "reactor.handle" ("Request failed: " ++ show err)
               _ -> pure ()
             responder res
-      
+
       executeCommand resp' cmd args
   ]

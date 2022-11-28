@@ -29,10 +29,10 @@ semanticTokens m_range m_caps ms = do
         Nothing -> def -- Just guess?
         Just caps -> J.SemanticTokensLegend (caps ^. J.tokenTypes)
                                             (caps ^. JL.tokenModifiers)
-  
+
   case J.makeSemanticTokens legend (mapMaybe lexemeToSemanticToken toks') of
     Left err -> panic "makeSemanticTokens" [Text.unpack err]
-    Right r  -> pure r 
+    Right r  -> pure r
 
 lexemeToSemanticToken :: Lexeme Token -> Maybe J.SemanticTokenAbsolute
 lexemeToSemanticToken lexeme = uncurry (J.SemanticTokenAbsolute l c (fromIntegral len)) <$> tokenToSTT (lexemeToken lexeme)
@@ -58,7 +58,7 @@ tokenToSTT tok = flip (,) [] <$> typ
     str = Just J.SttString
     op  = Just J.SttOperator
     kw  = Just J.SttKeyword
-    
+
     typ = case tok of
       BigIdent    -> var
       SmallIdent  -> var
@@ -69,8 +69,8 @@ tokenToSTT tok = flip (,) [] <$> typ
       Number {}   -> num
       Bytes  {}   -> str
       Byte   {}   -> num
-     
-      -- OpenBrace  
+
+      -- OpenBrace
       -- CloseBrace
       -- OpenBraceBar
       -- CloseBraceBar
@@ -80,15 +80,15 @@ tokenToSTT tok = flip (,) [] <$> typ
       -- CloseBracket
       -- OpenTri
       -- CloseTri
-     
+
       -- VOpen | VSemi | VClose    -- inserted via layout
-     
+
       -- Semi
       -- Colon
       -- Dot
       -- DotDot
       -- Comma
-      
+
       AtSign       -> op
       Equals       -> op
       DoubleEquals -> op
@@ -116,12 +116,12 @@ tokenToSTT tok = flip (,) [] <$> typ
       ShiftR       -> op
       RightArrow   -> op
       Underscore   -> var
-     
+
       BitwiseAndT        -> op
       BitwiseOrT         -> op
       BitwiseXorT        -> op
       BitwiseComplementT -> op
-     
+
       KWChoose            -> kw
       KWblock             -> kw
       KWlet               -> kw
@@ -174,11 +174,9 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWFail              -> kw
       KWCase              -> kw
       KWBitData           -> kw
-      KWWhere             -> kw  
-     
+      KWWhere             -> kw
+
       _ -> Nothing
-      
-      
 
 -- | Returns true if r is inside (maybe partially) r'
 inRange :: J.Range -> J.Range -> Bool
