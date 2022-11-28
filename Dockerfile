@@ -1,4 +1,4 @@
-FROM haskell:8.8.3
+FROM --platform=linux/amd64 haskell:8.8.3
   
 COPY . /daedalus
 WORKDIR /daedalus
