@@ -27,9 +27,15 @@ RUN cabal install exe:daedalus-language-server
 WORKDIR syntax-highlight/vscode-daedalus/
 
 RUN apt-get update && apt-get install -y libsecret-1-0
+
+# Note that these steps install Node from the upstream PPA rather than
+# using the version provided by the Ubuntu image, which is too old.
+# Using the older version results in a build failure when building the
+# VScode extension.
 RUN curl -sL https://deb.nodesource.com/setup_19.x -o nodesource_setup.sh
 RUN bash nodesource_setup.sh
 RUN apt-get install -y nodejs
+
 RUN npm install vsce && npm install && npm run package
 
 # Second image: the actual distribution image containing the user-facing
