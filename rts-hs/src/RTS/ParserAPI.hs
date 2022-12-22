@@ -111,6 +111,18 @@ pTrace msg =
   do off <- pOffset
      traceM (show off ++ ": " ++ BS8.unpack (Vector.vecToRep msg))
 
+traceScope :: (BasicParser p, s ~ ITrace p, IsITrace s) => p v -> p (v,s)
+traceScope p =
+  do i   <- pITrace
+     inp <- pPeek
+     pSetITrace (emptyITrace inp)
+     a <- p
+     j <- pITrace
+     pSetITrace (unionITrace i j)
+     pure (a,j)
+
+
+
 pMatch :: BasicParser p => SourceRange -> Vector (UInt 8) -> p (Vector (UInt 8))
 pMatch = \r bs ->
   do let check _i b =

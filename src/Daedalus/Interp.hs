@@ -97,8 +97,6 @@ data DebugAnnot = TextAnnot Text
 data CallSite = CallSite Name RTS.SourceRange Input
   deriving (Show,Eq,Ord)
 
-
-
 pScope :: Env -> Parser a -> Parser a
 pScope env =
   let venv = valEnv env
@@ -860,16 +858,6 @@ compilePExpr env expr0 args =
   where
     addScope :: Parser x -> Parser x
     addScope = pScope env
-
-    traceScope :: Parser x -> Parser (x,InputTrace)
-    traceScope p =
-      do i <- pITrace
-         inp <- pPeek
-         pSetITrace (RTS.emptyITrace inp)
-         a <- p
-         j <- pITrace
-         pSetITrace (RTS.unionITrace i j)
-         pure (a,j)
 
     go :: TC a K.Grammar -> Parser Value
     go expr =
