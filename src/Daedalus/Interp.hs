@@ -36,14 +36,12 @@ module Daedalus.Interp
   ) where
 
 import GHC.Float(double2Float)
-import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
-import Control.Exception(Exception(..), throw)
+import Control.Monad (replicateM,replicateM_,void,guard,msum,forM)
 
 import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import Data.ByteString.Short(fromShort)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
@@ -51,7 +49,6 @@ import Data.List(foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
-import qualified Data.Set as Set
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -71,226 +68,79 @@ import Daedalus.Rec (forgetRecs)
 
 import RTS.Parser as RTS
 import RTS.ParserAPI as RTS
-import RTS.InputTrace
-import RTS.JSON
 import RTS.Input
 import RTS.Vector(vecFromRep,vecToRep)
 import RTS.Numeric(UInt(..))
-import RTS.ParseError (ParseErrorG, ParseErrorSource(..), HasSourcePaths(..))
+import RTS.ParseError (ParseErrorG, ParseErrorSource(..))
 import qualified RTS.ParseError as RTS
 import qualified RTS.Vector as RTS
 
--- A rule can take either parsers or values as an argument, e.g.
---
--- F X y = many[y] X
+import Daedalus.Interp.Error
+import Daedalus.Interp.DebugAnnot
+import Daedalus.Interp.Env
+import Daedalus.Interp.Loop
+import Daedalus.Interp.ErrorTrie
 
 
-type Parser     = ParserG     InputTrace DebugAnnot
-type ParseError = ParseErrorG InputTrace DebugAnnot
-type Result     = ResultG     InputTrace DebugAnnot
-
-data DebugAnnot = TextAnnot Text
-                | CallAnnot CallSite
-                | ScopeAnnot (Map Name Value)
-                  deriving Show
-
-data CallSite = CallSite Name RTS.SourceRange Input
-  deriving (Show,Eq,Ord)
-
-pScope :: Env -> Parser a -> Parser a
-pScope env =
-  let venv = valEnv env
-  in if Map.null venv then id else pEnter (ScopeAnnot venv)
-
-instance RTS.IsAnnotation DebugAnnot where
-  ppAnnot ann =
-    case ann of
-      TextAnnot a     -> text (Text.unpack a)
-      CallAnnot (CallSite _x r _i) -> RTS.ppSourceRange r
-      ScopeAnnot p  -> "scope" $$ nest 2 (vcat ents)
-        where ents = [ pp x <+> "=" <+> valueToDoc v
-                     | (x,v) <- Map.toList p ]
-
-instance RTS.HasInputs DebugAnnot where
-  getInputs ann =
-    case ann of
-      TextAnnot {}  -> Map.empty
-      CallAnnot s   -> RTS.getInputs s
-      ScopeAnnot mp -> Map.unions (map RTS.getInputs (Map.elems mp))
-
-instance RTS.HasInputs CallSite where
-  getInputs (CallSite _ _ i) = Map.singleton (inputName i) (inputTopBytes i)
-
-instance HasSourcePaths SourceRange where
-  getSourcePaths x = getSourcePaths (sourceFrom x, sourceTo x)
-  mapSourcePaths f x =
-    SourceRange { sourceFrom = mapSourcePaths f (sourceFrom x)
-                , sourceTo   = mapSourcePaths f (sourceTo x)
-                }
-
-instance HasSourcePaths SourcePos where
-  getSourcePaths x = Set.singleton (Text.unpack (sourceFile x))
-  mapSourcePaths f x =
-    x { sourceFile = Text.pack (f (Text.unpack (sourceFile x))) }
-
-instance RTS.HasSourcePaths Name where
-  getSourcePaths = getSourcePaths . nameRange
-  mapSourcePaths f x = x { nameRange = mapSourcePaths f (nameRange x) }
-
-instance RTS.HasSourcePaths DebugAnnot where
-  getSourcePaths ann =
-    case ann of
-      TextAnnot {} -> Set.empty
-      CallAnnot s -> getSourcePaths s
-      ScopeAnnot mp -> getSourcePaths (Map.keys mp)
-  mapSourcePaths f ann =
-    case ann of
-      TextAnnot {} -> ann
-      CallAnnot s -> CallAnnot (mapSourcePaths f s)
-      ScopeAnnot mp -> ScopeAnnot (Map.mapKeys (mapSourcePaths f) mp)
-
-instance RTS.HasSourcePaths CallSite where
-  getSourcePaths (CallSite f r _) = getSourcePaths (f,r)
-  mapSourcePaths f (CallSite x r i) =
-    CallSite (mapSourcePaths f x) (mapSourcePaths f r) i
-
-instance ToJSON DebugAnnot where
-  toJSON ann =
-    case ann of
-      TextAnnot a   -> jsObject [ ("tag", jsString "label")
-                                , ("content", jsString (Text.unpack a))
-                                ]
-      CallAnnot cs ->
-        jsObject [ ("tag", jsString "call"), ("content", toJSON cs) ]
-
-      ScopeAnnot xs ->
-        jsObject [ ("tag", jsString "scope")
-                 ,  ("content",
-                        jsObject
-                          [ (encodeUtf8 (Text.pack (show (pp k))), toJSON v)
-                          | (k,v) <- Map.toList xs
-                          ])
-                 ]
-
-instance ToJSON CallSite where
-  toJSON (CallSite n r i) =
-    jsObject [ ("function", toJSON (Text.pack (show (pp n))))
-             , ("callsite", toJSON r)
-             , ("input", toJSON (inputName i))
-             , ("offset", toJSON (inputOffset i))
-             ]
-
-
-
-data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
-data SomeFun      = FVal (Fun Value)
-                  | FClass (Fun ClassVal)
-                  | FGrm (Fun (Parser Value))
-newtype Fun a     = Fun ([TValue] -> [SomeVal] -> a)
-
-
-
-instance Show (Fun a) where
-  show _ = "FunDecl"
-
-type PParser a  = [SomeVal] -> Parser a
-
-
--- | We throw these exceptions for dynaimc errors encountered furing evaluation
--- (e.g., division by 0)
-data InterpError = PartialValue String
-                 | PatternMatchFailure String
-                 | MultipleStartRules [ ScopedIdent ]
-                 | UnknownStartRule ScopedIdent
-                 | InvalidStartRule ScopedIdent
-                 | MissingExternal ScopedIdent
-  deriving (Show)
-
-ppInterpError :: InterpError -> Doc
-ppInterpError err =
-  case err of
-    PartialValue msg -> text msg
-    PatternMatchFailure msg -> text msg
-    MultipleStartRules rs ->
-      hang "Multiple start rules:" 2 (bullets (map pp rs))
-    UnknownStartRule r -> "Unknown start rule" <+> backticks (pp r)
-    InvalidStartRule r ->
-      vcat
-        [ hang
-            (vcat [ backticks (pp r) <+> "is not a valid start rule."
-                  , "The interpreter start rule should not have any:"
-                  ])
-            2
-            (bullets [ "type parameters"
-                     , "implicit parameters"
-                     , "explicit parameters" ])
-        , "You may use the `show-types` command to see the types of the parsers"
-        ]
-    MissingExternal x ->
-      hang
-        ("Tried to execute external declaration" <+> backticks (pp x))
-        2
-        (bullets
-          [ "The interpreter cannot execute externally defined parsers"
-          , "Only the the compiled backends may use external primiteves."
-          ])
-
-
-instance Exception InterpError where
-  displayException = show . ppInterpError
-
-interpError :: InterpError -> a
-interpError = throw
-
--- -----------------------------------------------------------------------------
--- Interpreting as a Haskell function
-
-data Env = Env
-  { ruleEnv :: Map Name (Fun (Parser Value))
-  , funEnv  :: Map Name (Fun Value)
-  , clsFun  :: Map Name (Fun ClassVal)
-
-  , valEnv   :: Map Name Value
-  , clsEnv   :: Map Name ClassVal
-  , gmrEnv   :: Map Name (PParser Value)
-
-  , tyEnv   :: Map TVar TValue
-    -- ^ Bindings for polymorphic type argumens
-  , tyDecls :: Map TCTyName TCTyDecl
-    -- ^ Used for bitdata (for coercion)
-  }
-
-type Prims = Map Name SomeFun
-
-emptyEnv :: Env
-emptyEnv = Env Map.empty Map.empty Map.empty
-               Map.empty Map.empty Map.empty
-               Map.empty Map.empty
-
-setVals :: Map Name Value -> Env -> Env
-setVals vs env = env { valEnv = vs }
-
-addVal :: TCName K.Value -> Value -> Env -> Env
-addVal x v env = env { valEnv = Map.insert (tcName x) v (valEnv env) }
-
-addValMaybe :: Maybe (TCName K.Value) -> Value -> Env -> Env
-addValMaybe Nothing  _ e = e
-addValMaybe (Just x) v e = addVal x v e
 
 --------------------------------------------------------------------------------
+-- Operators
+--------------------------------------------------------------------------------
 
-partial :: Partial a -> a
-partial val =
-  case val of
-    Left err -> interpError (PartialValue err)
-    Right a  -> a
 
-partial2 :: (Value -> Value -> Partial Value) -> Value -> Value -> Value
-partial2 f = \x y -> partial (f x y)
+evalLiteral :: Env -> Type -> Literal -> Value
+evalLiteral env t l =
+  case l of
+    LNumber n _ ->
+      case tval of
+        TVInteger     -> VInteger n
+        TVUInt s      -> vUInt s n
+        TVSInt s      -> partial (vSInt s n)
+        TVFloat       -> vFloat (fromIntegral n)
+        TVDouble      -> vDouble (fromIntegral n)
+        TVNum {}      -> panic "compilePureExpr" ["Kind error"]
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
+        TVArray       -> bad
+        TVMap         -> bad
+        TVOther       -> bad
 
-partial3 :: (Value -> Value -> Value -> Partial Value) ->
-            Value -> Value -> Value -> Value
-partial3 f = \x y z -> partial (f x y z)
+    LBool b           -> VBool b
+    LByte w _         -> vByte w
+    LBytes bs         -> vByteString bs
+    LFloating d       ->
+      case tval of
+        TVFloat       -> vFloat (double2Float d)
+        TVDouble      -> vDouble d
+        TVInteger {}  -> bad
+        TVUInt {}     -> bad
+        TVSInt {}     -> bad
+        TVNum {}      -> bad
+        TVArray       -> bad
+        TVMap         -> bad
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
+        TVOther       -> bad
+
+    LPi ->
+      case tval of
+        TVFloat       -> vFloatPi
+        TVDouble      -> vDoublePi
+        TVInteger {}  -> bad
+        TVUInt {}     -> bad
+        TVSInt {}     -> bad
+        TVNum {}      -> bad
+        TVArray       -> bad
+        TVMap         -> bad
+        TVBDStruct {} -> bad
+        TVBDUnion {}  -> bad
+        TVOther       -> bad
+
+  where
+  bad  = panic "evalLiteral" [ "unexpected literal", "Type: " ++ show (pp t) ]
+  tval = evalType env t
+
+
 
 evalUniOp :: UniOp -> Value -> Value
 evalUniOp op =
@@ -343,85 +193,18 @@ evalBinOp op =
     LogicOr     -> panic "evalBinOp" ["LogicOr"]
 
 
-
-
 evalTriOp :: TriOp -> Value -> Value -> Value -> Value
 evalTriOp op =
   case op of
     RangeUp     -> partial3 vRangeUp
     RangeDown   -> partial3 vRangeDown
     MapDoInsert -> vMapInsert
+--------------------------------------------------------------------------------
 
 
 --------------------------------------------------------------------------------
--- Generic utilities for evaluating loops
-
-type family ResultFor a where
-  ResultFor K.Value   = Value
-  ResultFor K.Grammar = Parser Value
-
-data LoopEval col k = LoopEval
-  { unboxCol  :: Value -> col
-  , loopNoKey :: (Value -> Value          -> ResultFor k) ->
-                  Value -> col -> ResultFor k
-  , loopKey   :: (Value -> Value -> Value -> ResultFor k) ->
-                  Value -> col -> ResultFor k
-
-  , mapNoKey  :: (Value          -> ResultFor k) -> col -> ResultFor k
-  , mapKey    :: (Value -> Value -> ResultFor k) -> col -> ResultFor k
-  }
-
-loopOverArray :: LoopEval (Vector.Vector Value) K.Value
-loopOverArray =
-  LoopEval
-    { unboxCol  = valueToVector
-    , mapNoKey  = \f -> VArray . Vector.map f
-    , mapKey    = \f -> VArray . Vector.imap (stepKeyMap f)
-    , loopNoKey = \f s -> Vector.foldl' f s
-    , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
-    }
-  where
-  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-loopOverArrayM :: LoopEval (Vector.Vector Value) K.Grammar
-loopOverArrayM =
-  LoopEval
-    { unboxCol  = valueToVector
-    , loopNoKey = \f s -> Vector.foldM'           f  s
-    , loopKey   = \f s -> Vector.ifoldM' (stepKey f) s
-    , mapNoKey  = \f   -> fmap VArray . Vector.mapM f
-    , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
-    }
-  where
-  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-loopOverMap :: LoopEval (Map Value Value) K.Value
-loopOverMap =
-  LoopEval
-    { unboxCol  = valueToMap
-    , loopNoKey = \f s -> Map.foldl' f s
-    , loopKey   = \f s -> Map.foldlWithKey' f s
-    , mapNoKey  = \f -> VMap . Map.map f
-    , mapKey    = \f -> VMap . Map.mapWithKey f
-    }
-
-loopOverMapM :: LoopEval (Map Value Value) K.Grammar
-loopOverMapM =
-  LoopEval
-    { unboxCol  = valueToMap
-    , loopNoKey = \f s -> foldM (stepNoKey f) s . Map.toList
-    , loopKey   = \f s -> foldM (stepKey   f) s . Map.toList
-    , mapNoKey  = \f -> fmap VMap . traverse f
-    , mapKey    = \f -> fmap VMap . Map.traverseWithKey f
-    }
-  where
-  stepNoKey f = \sV (_  ,elV)-> f sV    elV
-  stepKey f   = \sV (kV,elV) -> f sV kV elV
-
-
-
+-- Loops
+--------------------------------------------------------------------------------
 
 class EvalLoopBody k where
   evalLoopBody  :: HasRange a => Env -> TC a k -> ResultFor k
@@ -438,8 +221,6 @@ instance EvalLoopBody K.Grammar where
   arrayLoop    = loopOverArrayM
   mapLoop      = loopOverMapM
 
-
-
 loopOver ::
   EvalLoopBody k => f k -> Env -> LoopCollection a ->
   (forall col. LoopEval col k -> ResultFor k) -> ResultFor k
@@ -448,6 +229,8 @@ loopOver _ env col k =
     TVArray -> k arrayLoop
     TVMap   -> k mapLoop
     t       -> panic "loopOver" [ "Unexpected loop type", show (pp t) ]
+
+
 
 doLoop :: (HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
 doLoop env lp =
@@ -506,118 +289,10 @@ doLoop env lp =
   bodyVal extEnv = evalLoopBody (extEnv env) (loopBody lp)
 --------------------------------------------------------------------------------
 
--- Handles expr with kind KValue
-compilePureExpr :: HasRange a => Env -> TC a K.Value -> Value
-compilePureExpr env = go
-  where
-    go expr =
-      case texprValue expr of
 
-        TCLiteral l t  -> evalLiteral env t l
-        TCNothing _    -> VMaybe Nothing
-        TCBuilder _    -> VBuilder []
-        TCJust e       -> VMaybe (Just (go e))
-
-        TCStruct fs t  ->
-          let vs = [ (n,go e) | (n,e) <- fs ]
-          in case evalType env t of
-               TVBDStruct bd -> VBDStruct bd (bdStruct bd vs)
-               _             -> vStruct vs
-        TCArray     es _ -> VArray (Vector.fromList $ map go es)
-        TCIn lbl e t ->
-          case evalType env t of
-            TVBDUnion bd -> VBDUnion bd (vToBits (go e))
-            _ -> VUnionElem lbl (go e)
-        TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
-                            Nothing -> panic "compilePureExpr"
-                                          [ "unknown value variable"
-                                          , show (pp x)
-                                          ]
-                            Just v  -> v
-
-        TCUniOp op e1      -> evalUniOp op (go e1)
-        TCBinOp op e1 e2 _ -> evalBinOp op (go e1) (go e2)
-        TCTriOp op e1 e2 e3 _ -> evalTriOp op (go e1) (go e2) (go e3)
-
-        TCLet x e1 e2 ->
-          compilePureExpr (addVal x (compilePureExpr env e1) env) e2
-
-        TCFor lp -> doLoop env lp
-
-        TCIf be te fe  -> go (if valueToBool (go be) then te else fe)
-
-        TCSelStruct e n _ -> vStructLookup (go e) n
-
-        TCCall x ts es  ->
-          case Map.lookup (tcName x) (funEnv env) of
-            Just r  -> invoke r env ts es []
-            Nothing -> panic "compilePureExpr"
-                         [ "unknown grammar function"
-                         , show (pp x)
-                         ]
-
-        TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
-
-        TCMapEmpty _    -> VMap Map.empty
-
-        TCCase e alts def ->
-          evalCase
-            compilePureExpr
-            (interpError (PatternMatchFailure (describeAlts alts)))
-            env e alts def
-
-evalLiteral :: Env -> Type -> Literal -> Value
-evalLiteral env t l =
-  case l of
-    LNumber n _ ->
-      case tval of
-        TVInteger     -> VInteger n
-        TVUInt s      -> vUInt s n
-        TVSInt s      -> partial (vSInt s n)
-        TVFloat       -> vFloat (fromIntegral n)
-        TVDouble      -> vDouble (fromIntegral n)
-        TVNum {}      -> panic "compilePureExpr" ["Kind error"]
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVOther       -> bad
-
-    LBool b           -> VBool b
-    LByte w _         -> vByte w
-    LBytes bs         -> vByteString bs
-    LFloating d       ->
-      case tval of
-        TVFloat       -> vFloat (double2Float d)
-        TVDouble      -> vDouble d
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-    LPi ->
-      case tval of
-        TVFloat       -> vFloatPi
-        TVDouble      -> vDoublePi
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-  where
-  bad  = panic "evalLiteral" [ "unexpected literal", "Type: " ++ show (pp t) ]
-  tval = evalType env t
-
+--------------------------------------------------------------------------------
+-- Case expressions
+--------------------------------------------------------------------------------
 
 evalCase ::
   HasRange a =>
@@ -670,7 +345,13 @@ matchPat pat =
                                  Just _  -> Nothing
     TCVarPat x        -> \v -> Just [(x,v)]
     TCWildPat {}      -> \_ -> Just []
+--------------------------------------------------------------------------------
 
+
+
+--------------------------------------------------------------------------------
+-- Calling things
+--------------------------------------------------------------------------------
 
 invoke :: HasRange ann => Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
 invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
@@ -680,6 +361,12 @@ invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
                ValArg e -> VVal (compilePureExpr env e)
                ClassArg e -> VClass (compilePredicateExpr env e)
                GrammarArg e -> VGrm (compilePExpr env e)
+
+
+
+--------------------------------------------------------------------------------
+-- Evaluating Types
+--------------------------------------------------------------------------------
 
 evalType :: Env -> Type -> TValue
 evalType env ty =
@@ -786,6 +473,69 @@ evalBitdataType env name u def =
         case lookup l fs of
           Just fv -> fv
           Nothing -> panic "outField" ["Missing field value", showPP l ]
+--------------------------------------------------------------------------------
+
+
+
+-- Handles expr with kind KValue
+compilePureExpr :: HasRange a => Env -> TC a K.Value -> Value
+compilePureExpr env = go
+  where
+    go expr =
+      case texprValue expr of
+
+        TCLiteral l t  -> evalLiteral env t l
+        TCNothing _    -> VMaybe Nothing
+        TCBuilder _    -> VBuilder []
+        TCJust e       -> VMaybe (Just (go e))
+
+        TCStruct fs t  ->
+          let vs = [ (n,go e) | (n,e) <- fs ]
+          in case evalType env t of
+               TVBDStruct bd -> VBDStruct bd (bdStruct bd vs)
+               _             -> vStruct vs
+        TCArray     es _ -> VArray (Vector.fromList $ map go es)
+        TCIn lbl e t ->
+          case evalType env t of
+            TVBDUnion bd -> VBDUnion bd (vToBits (go e))
+            _ -> VUnionElem lbl (go e)
+        TCVar x        -> case Map.lookup (tcName x) (valEnv env) of
+                            Nothing -> panic "compilePureExpr"
+                                          [ "unknown value variable"
+                                          , show (pp x)
+                                          ]
+                            Just v  -> v
+
+        TCUniOp op e1      -> evalUniOp op (go e1)
+        TCBinOp op e1 e2 _ -> evalBinOp op (go e1) (go e2)
+        TCTriOp op e1 e2 e3 _ -> evalTriOp op (go e1) (go e2) (go e3)
+
+        TCLet x e1 e2 ->
+          compilePureExpr (addVal x (compilePureExpr env e1) env) e2
+
+        TCFor lp -> doLoop env lp
+
+        TCIf be te fe  -> go (if valueToBool (go be) then te else fe)
+
+        TCSelStruct e n _ -> vStructLookup (go e) n
+
+        TCCall x ts es  ->
+          case Map.lookup (tcName x) (funEnv env) of
+            Just r  -> invoke r env ts es []
+            Nothing -> panic "compilePureExpr"
+                         [ "unknown grammar function"
+                         , show (pp x)
+                         ]
+
+        TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
+
+        TCMapEmpty _    -> VMap Map.empty
+
+        TCCase e alts def ->
+          evalCase
+            compilePureExpr
+            (interpError (PatternMatchFailure (describeAlts alts)))
+            env e alts def
 
 
 
@@ -1220,85 +970,6 @@ interpFile input prog startName = do
   return (bytes, interp builtins nm bytes prog startName)
   where
   builtins = [ ]
-
-
-
-
---------------------------------------------------------------------------------
-
-data ErrorTrie = ErrorTrie (Maybe ParseError) (Map CallSite ErrorTrie)
-
-
-emptyErrorTrie :: ErrorTrie
-emptyErrorTrie = ErrorTrie Nothing mempty
-
-insertError :: [DebugAnnot] -> ParseError -> ErrorTrie -> ErrorTrie
-insertError path err (ErrorTrie here there) =
-  case path of
-    [] -> ErrorTrie newHere there
-      where
-      newHere =
-        case here of
-          Nothing -> Just err
-          Just other -> Just (err <> other)
-
-    e : more ->
-      case e of
-        TextAnnot {}  -> insertError more err (ErrorTrie here there)
-        ScopeAnnot {} -> insertError more err (ErrorTrie here there)
-        CallAnnot site ->
-          let remote = Map.findWithDefault emptyErrorTrie site there
-              newRemote = insertError more err remote
-          in ErrorTrie here (Map.insert site newRemote there)
-
-parseErrorToTrie :: ParseError -> ErrorTrie
-parseErrorToTrie = foldr insert emptyErrorTrie
-                 . zipWith addNum [ 0 .. ]
-                 . RTS.parseErrorToList
-  where
-  insert e t = insertError (reverse (RTS.peStack e)) e t
-  addNum n e = e { RTS.peNumber = n }
-
-parseErrorTrieToJSON :: ParseError -> JSON
-parseErrorTrieToJSON top =
-  jsObject
-    [ ("tree",    jsTrie (parseErrorToTrie top))
-    , ("inputs",  jsObject [ (fromShort k, jsText v)
-                           | (k,v) <- Map.toList (RTS.getInputs top)
-                           ])
-    ]
-  where
-  jsTrie (ErrorTrie here there) =
-    jsObject
-      [ ("errors", jsErrMb here)
-      , ("frames", jsMap there)
-      ]
-
-  jsMap mp =
-    jsArray
-      [ jsObject
-          [ ("frame",toJSON k)
-          , ("nest", jsTrie v)
-          ]
-      | (k,v) <- Map.toList mp ]
-
-  jsErrMb mb =
-    jsArray
-      case mb of
-        Nothing -> []
-        Just es -> [ jsErr e | e <- RTS.parseErrorToList es ]
-
-  jsErr pe =
-    jsObject
-      [ ("error",   jsString (RTS.peMsg pe))
-      , ("input",   toJSON (inputName (RTS.peInput pe)))
-      , ("offset",  toJSON (inputOffset (RTS.peInput pe)))
-      , ("grammar", toJSON (RTS.peGrammar pe))
-      , ("trace",   toJSON (RTS.peITrace pe))
-      , ("stack",   toJSON (RTS.peStack pe))
-      , ("number",  toJSON (RTS.peNumber pe))
-      ]
-
 
 
 
