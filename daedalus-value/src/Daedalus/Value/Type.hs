@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# Language OverloadedStrings, DataKinds #-}
 module Daedalus.Value.Type where
 
@@ -94,9 +94,11 @@ data TValue =
     deriving Show
 
 
--- XXX: VTraced
 pattern VUnit :: Value
-pattern VUnit = VStruct []
+pattern
+  VUnit <- (unTrace -> VStruct [])
+  where
+  VUnit = VStruct []
 
 vUnit :: Value
 vUnit = VUnit
