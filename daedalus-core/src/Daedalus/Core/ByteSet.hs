@@ -26,6 +26,8 @@ data ByteSet =
   | SetLet Name Expr ByteSet
   | SetCall FName [Expr]
   | SetCase (Case ByteSet)
+
+  | SetLoop (LoopMorphism ByteSet)
   deriving (Generic,NFData)
 
 instance CoreSyn ByteSet where
@@ -49,6 +51,7 @@ ebChildrenB ef bf bs =
     SetLet n e b -> SetLet n <$> ef e <*> bf b
     SetCall fn es -> SetCall fn <$> traverse ef es
     SetCase cs -> SetCase <$> traverse bf cs
+    SetLoop lm -> SetLoop <$> morphismE ef bf lm
 
 ebMapChildrenB :: (Expr -> Expr) -> (ByteSet -> ByteSet) -> ByteSet -> ByteSet
 ebMapChildrenB ef bf bs = g1
@@ -71,6 +74,6 @@ instance PP ByteSet where
       SetCall f es -> pp f <.> parens (commaSep (map pp es))
       SetCase e -> pp e
       SetLet x e k -> "let" <+> pp x <+> "=" <+> pp e $$ "in" <+> pp k
-
+      SetLoop lm -> pp lm 
     where
     wrap x = if n > x then parens else id

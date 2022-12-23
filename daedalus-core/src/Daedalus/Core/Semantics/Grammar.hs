@@ -1,25 +1,28 @@
 module Daedalus.Core.Semantics.Grammar where
 
-import qualified Data.Text as Text
-import Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
-import Control.Monad(unless)
-import Data.Word(Word8)
+import           Control.Monad                (unless)
+import           Data.ByteString              as BS
+import qualified Data.ByteString.Char8        as BS8
+import qualified Data.Text                    as Text
+import           Data.Word                    (Word8)
 
-import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
-import RTS.Parser
-import RTS.Numeric(intToSize)
-import RTS.ParserAPI( pPeek,pSetInput,(<||), (|||), pEnter
-                    , pError', ParseErrorSource(..)
-                    )
-import qualified RTS.ParserAPI as RTS
-
-import Daedalus.Value
-import Daedalus.SourceRange(SourceRange(..),SourcePos(..))
-
-import Daedalus.Core
-import Daedalus.Core.Semantics.Expr
-import Daedalus.Core.Semantics.Env
+import           Daedalus.Core
+import           Daedalus.Core.Semantics.Env
+import           Daedalus.Core.Semantics.Expr
+import           Daedalus.Panic               (panic)
+import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..),
+                                               synthetic)
+import           Daedalus.Value
+import           RTS.Input                    (advanceBy, inputByte, inputBytes,
+                                               inputEmpty)
+import           RTS.Numeric                  (intToSize)
+import           RTS.Parser
+import           RTS.ParserAPI                (ParseErrorSource (..), pEnter,
+                                               pError', pPeek, pSetInput, (<||),
+                                               (|||))
+import qualified RTS.ParserAPI                as RTS
+import           RTS.Vector                   (vecToRep)
+import qualified RTS.Vector                   as RTS
 
 evalG :: Grammar -> Env -> Parser Value
 evalG gram env =
@@ -67,6 +70,26 @@ evalG gram env =
 
     GCase c ->
       evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
+
+    Loop lc -> case lc of
+      ManyLoop s b l m_u g -> do
+        let mkR :: RTS.Vector Value -> Value
+            mkR = case s of
+                    SemNo  -> \_ -> vUnit
+                    SemYes -> VArray . vecToRep
+            getSz e = intToSize (fromInteger (valueToSize (eval e env)))
+            doIt = maybe (RTS.pMany (alt b)) (RTS.pManyUpTo (alt b) . getSz) m_u
+            -- FIXME (synthetic)
+        mkR <$> RTS.pMinLength (toRtsRange synthetic) (getSz l) (doIt (evalG g env))
+      RepeatLoop b n e g   -> loop b n g (eval e env)
+      MorphismLoop lm      -> evalLoopMorphism lm evalG env
+    where
+      -- c.f. Interp.hs, LoopMany case
+      alt b = if b then (<||) else (|||)
+      loop b n g v =
+        do mb <- alt b (Just <$> evalG g (defLocal n v env)) (pure Nothing)
+           maybe (pure v) (loop b n g) mb
+      
 
 toRtsRange :: SourceRange -> RTS.SourceRange
 toRtsRange rng = RTS.SourceRange { RTS.srcFrom = toRtsPos (sourceFrom rng)
@@ -130,5 +153,5 @@ evalByteSet bs env =
     SetLet x e b -> evalByteSet b $! defLocal x (eval e env) env
     SetCall f es -> lookupBFun f env [ eval e env | e <- es ]
     SetCase b    -> evalCase evalByteSet (const False) b env
-
+    SetLoop _lm  -> panic "evalByteSet" [ "Saw a SetLoop" ]
 

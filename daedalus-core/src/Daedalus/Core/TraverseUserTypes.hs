@@ -123,6 +123,16 @@ instance TraverseUserTypes Grammar where
                            <*> traverseUserTypes f args
       Annot a g'  -> Annot a <$> traverseUserTypes f g'
       GCase c     -> GCase <$> traverseUserTypes f c
+      Loop lc -> Loop <$> case lc of
+        ManyLoop s b l m_h g ->
+          ManyLoop s b <$> traverseUserTypes f l
+                       <*> traverseUserTypes f m_h
+                       <*> traverseUserTypes f g
+        RepeatLoop b n e g   ->
+          RepeatLoop b <$> traverseUserTypes f n
+                       <*> traverseUserTypes f e
+                       <*> traverseUserTypes f g
+        MorphismLoop lm  -> MorphismLoop <$> traverseUserTypes f lm
 
 instance TraverseUserTypes ByteSet where
   traverseUserTypes f bs =
@@ -142,7 +152,8 @@ instance TraverseUserTypes ByteSet where
       SetCall fn es            -> SetCall <$> traverseUserTypes f fn
                                           <*> traverseUserTypes f es
       SetCase c                -> SetCase <$> traverseUserTypes f c
-
+      SetLoop lm               -> SetLoop <$> traverseUserTypes f lm
+      
 instance TraverseUserTypes Expr where
   traverseUserTypes f e =
     case e of
@@ -154,6 +165,8 @@ instance TraverseUserTypes Expr where
                                   <*> traverse (\(l, e') -> (,) l
                                   <$> traverseUserTypes f e') ls
       ECase c          -> ECase   <$> traverseUserTypes f c
+
+      ELoop lm         -> ELoop <$> traverseUserTypes f lm
 
       Ap0 op0          -> Ap0 <$> traverseUserTypes f op0
       Ap1 op1 e'       -> Ap1 <$> traverseUserTypes f op1
@@ -229,3 +242,13 @@ instance TraverseUserTypes BDFieldType where
       BDTag n    -> pure (BDTag n)
       BDData l t -> BDData l <$> traverseUserTypes f t
 
+instance TraverseUserTypes a => TraverseUserTypes (LoopMorphism a) where
+  traverseUserTypes f lm = case lm of
+    FoldMorphism s e lc b -> 
+      FoldMorphism s <$> traverseUserTypes f e <*> goLC lc <*> traverseUserTypes f b
+    MapMorphism lc b ->
+      MapMorphism <$> goLC lc <*> traverseUserTypes f  b
+    where
+      goLC lc = LoopCollection <$> traverseUserTypes f (lcKName lc)
+                               <*> traverseUserTypes f (lcElName lc)
+                               <*> traverseUserTypes f (lcCol lc)

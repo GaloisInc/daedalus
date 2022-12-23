@@ -70,6 +70,7 @@ compileE expr k =
             continue k s
 
     Src.ECase (Src.Case x as) -> compileCase (Src.typeOf expr) x as k
+    Src.ELoop {} -> panic "compileE" ["Saw a ELoop"]
 
     Src.Ap0 op          -> compileOp0 op ty k
     Src.Ap1 op e        -> compileOp1 op ty e k

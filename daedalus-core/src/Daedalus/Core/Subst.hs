@@ -38,35 +38,27 @@ instance Subst Expr where
       Var x -> fromMaybe expr <$> shouldSubst x
 
       PureLet x e1 e2 -> letLike PureLet x e1 e2
-
-      Struct ut fs -> Struct ut <$> mapM substField fs
-        where substField (a,b) = (,) a <$> subst b
-
       ECase c         -> substCase PureLet ECase c
-
-      Ap0 {}          -> pure expr
-      Ap1 op e        -> Ap1 op <$> subst e
-      Ap2 op e1 e2    -> Ap2 op <$> subst e1 <*> subst e2
-      Ap3 op e1 e2 e3 -> Ap3 op <$> subst e1 <*> subst e2 <*> subst e3
-      ApN op es       -> ApN op <$> mapM subst es
+      ELoop lm        -> ELoop <$> substLoopMorphism lm 
+      _               -> childrenE subst expr
 
 instance Subst Grammar where
   subst grammar =
     case grammar of
-      Pure e              -> Pure <$> subst e
-      GetStream           -> pure grammar
-      SetStream e         -> SetStream <$> subst e
-      Match s m           -> Match s <$> subst m
-      Fail er t mbE       -> Fail er t <$> traverse subst mbE
-      Do_ g1 g2           -> Do_ <$> subst g1 <*> subst g2
       Do  x g1 g2         -> letLike Do x g1 g2
       Let x e g           -> letLike Let x e g
-      OrBiased g1 g2      -> OrBiased <$> subst g1 <*> subst g2
-      OrUnbiased g1 g2    -> OrUnbiased <$> subst g1 <*> subst g2
-      Call f es           -> Call f <$> traverse subst es
-      Annot a g           -> Annot a <$> subst g
       GCase c             -> substCase Let GCase c
-
+      Loop lc             -> Loop <$> case lc of
+        ManyLoop s b l m_u g -> do
+          ManyLoop s b <$> subst l <*> traverse subst m_u <*> subst g
+        RepeatLoop b n e g -> do
+          e' <- subst e
+          (n', g') <- bound n (subst g)
+          pure (RepeatLoop b n' e' g')
+        MorphismLoop lm -> MorphismLoop <$> substLoopMorphism lm
+        
+      _ -> gebChildrenG subst subst subst grammar
+      
 instance Subst Match where
   subst mat =
     case mat of
@@ -86,7 +78,8 @@ instance Subst ByteSet where
       SetCall f es          -> SetCall f <$> traverse subst es
       SetCase e             -> substCase SetLet SetCase e
       SetLet x e s          -> letLike SetLet x e s
-
+      SetLoop lm            -> SetLoop <$> substLoopMorphism lm
+      
 substCase :: (Subst e, HasGUID m) => (Name -> Expr -> e -> e) -> (Case e -> e) ->
              Case e -> SubstM m e
 substCase mklet mk cs = do
@@ -106,7 +99,24 @@ letLike f x a b =
      (y,b') <- bound x (subst b)
      pure (f y a' b')
 
-
+substLoopMorphism :: (Subst a, Monad m, HasGUID m) => LoopMorphism a -> SubstM m (LoopMorphism a)
+substLoopMorphism lm =
+  case lm of
+    FoldMorphism s e lc b -> do
+      e' <- subst e
+      goLC (FoldMorphism s e') lc b
+    MapMorphism lc b -> goLC MapMorphism lc b
+  where
+    goLC f lc b = do
+      col' <- subst (lcCol lc)
+      let rest = case lcKName lc of
+            Nothing -> (,) Nothing <$> subst b
+            Just k  -> do
+              (k', b') <- bound k (subst b)
+              pure (Just k', b')
+      (el', (m_k', b')) <- bound (lcElName lc) rest
+      pure (f (LoopCollection m_k' el' col') b')
+  
 
 --------------------------------------------------------------------------------
 -- Monad to keep track of name capture etc
@@ -126,7 +136,7 @@ newName :: HasGUID m => Name -> SubstM m Name
 newName x = SubstM $ lift $ freshName x
 
 captures :: Monad m => Name -> SubstM m Bool
-captures x = SubstM $ ((x `Set.member`) . avoid) <$> ask
+captures x = SubstM $ (x `Set.member`) . avoid <$> ask
 
 shouldSubst :: Monad m => Name -> SubstM m (Maybe Expr)
 shouldSubst x = SubstM $ Map.lookup x . theSubst <$> ask

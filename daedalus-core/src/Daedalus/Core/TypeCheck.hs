@@ -4,21 +4,22 @@
 -- | Validate types, for sanity.
 module Daedalus.Core.TypeCheck where
 
-import Data.Map(Map)
-import qualified Data.Map as Map
-import Data.List(sort,group)
-import Data.Functor(($>))
-import Control.Monad(zipWithM_,when,forM,forM_)
-import qualified MonadLib as M
+import           Control.Monad         (forM, forM_, when, zipWithM_)
+import           Data.Functor          (($>))
+import           Data.List             (group, sort)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import qualified MonadLib              as M
 
-import Daedalus.PP
-import Daedalus.Rec(forgetRecs)
-import Daedalus.Core.Basics
-import Daedalus.Core.Expr
-import Daedalus.Core.Decl
-import Daedalus.Core.Grammar
-import Daedalus.Core.ByteSet
-import Daedalus.Core.Type
+import           Daedalus.Core.Basics
+import           Daedalus.Core.ByteSet
+import           Daedalus.Core.Decl
+import           Daedalus.Core.Expr
+import           Daedalus.Core.Grammar
+import           Daedalus.Core.Type
+import           Daedalus.PP
+import           Daedalus.Panic        (panic)
+import           Daedalus.Rec          (forgetRecs)
 
 checkModule :: Module -> Maybe TypeError
 checkModule m =
@@ -111,7 +112,23 @@ checkGrammar gram env =
 
     GCase c -> checkCase checkGrammar c env
 
-
+    Loop lc -> case lc of
+      ManyLoop s _b l m_u g -> do
+        inContext "Many lower" $ typeIs (tWord 64) =<< checkExpr l env
+        case m_u of
+          Nothing -> pure ()
+          Just u -> inContext "Many upper" $ typeIs sizeType =<< checkExpr u env
+        t <- inContext "Many body" $ checkGrammar g env
+        case s of
+          SemNo  -> pure TUnit
+          SemYes -> pure (TArray t)
+          
+      RepeatLoop _b n e g -> do
+        t <- inContext "many expr" $ checkExpr e env
+        inContext "many body" $ checkGrammar g (extEnv n t env)
+        
+      MorphismLoop lm -> checkMorphism checkGrammar lm env
+      
 checkMatch :: (TEnv,BEnv,FEnv) => Match -> Env -> TCResult Type
 checkMatch ma env =
   case ma of
@@ -158,7 +175,8 @@ checkByteSet bs env =
          checkCall ?benv f ts
 
     SetCase c -> checkCase checkByteSet c env
-
+    SetLoop lm -> checkMorphism checkByteSet lm env
+      
 checkVar :: Name -> Env -> TCResult Type
 checkVar x env =
   let t1 = typeOf x
@@ -211,7 +229,7 @@ checkExpr expr env =
          pure (TUser ut)
 
     ECase c -> checkCase checkExpr c env
-
+    ELoop lm -> checkMorphism checkExpr lm env 
     Ap0 op0 ->
       inContext (pp op0) $
        checkOp0 op0
@@ -524,7 +542,30 @@ checkCall fenv f args =
       suff n = if n == 1 then "argument" else "arguments"
     Nothing -> typeError "Undefined function" [ "Name:" <+> pp f ]
 
-
+checkMorphism :: (FEnv,TEnv) => (a -> Env -> TCResult Type) -> 
+                 LoopMorphism a -> Env -> TCResult Type
+checkMorphism chk lm env = case lm of
+  FoldMorphism s e lc b -> do
+    t_e <- inContext "for expr" $ checkExpr e env
+    (env', _) <- lcEnv lc
+    t_b <- inContext "for body" $ chk b (extEnv s t_e env')
+    typeIs t_b t_e -- check result of body is the same as s
+    pure t_b
+    
+  MapMorphism lc b -> do
+    (env', colTy) <- lcEnv lc
+    t_b <- inContext "for body" $ chk b env'
+    pure $ case colTy of
+      TArray _  -> TArray t_b
+      TMap kt _ -> TMap kt t_b
+      _ -> panic "Impossible" ["Collection type is invalid"]
+      
+  where
+    lcEnv lc = do
+      t <- inContext "loop collection" $ checkExpr (lcCol lc) env
+      (kt, vt) <- supportsIterator t 
+      let kenv = maybe env (\kn -> extEnv kn kt env) (lcKName lc)
+      pure (extEnv (lcElName lc) vt kenv, t)
 
 --------------------------------------------------------------------------------
 
