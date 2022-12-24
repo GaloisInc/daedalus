@@ -13,6 +13,7 @@ packages:
   formats/nitf/haskell/
   talos/
   daedalus-language-server/
+  cabal-pack/
   -- daedalus-language-server/deps/lsp/lsp
   -- daedalus-language-server/deps/lsp/lsp-types
   -- out/
