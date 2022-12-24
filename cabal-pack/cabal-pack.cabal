@@ -16,7 +16,7 @@ executable cabal-pack
     import:           warnings
     main-is:          Main.hs
     build-depends:
-      base ^>=4.14.3.0,
+      base,
       containers,
       directory,
       text,
