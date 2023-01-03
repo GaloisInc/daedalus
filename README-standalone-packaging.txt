@@ -1,4 +1,4 @@
-This file contains instructions on how to build setup DaeDaLus so that
+This file contains instructions on how to setup DaeDaLus so that
 it can be built in an environment with no access to the internet.
 
 1. Determine External Dependencies
@@ -50,9 +50,9 @@ These steps may be performed in a build environment, that does
 not require external access.  We assume that build environment has
 `ghc-8.10.7` and `cabal-3.8.1.0` already installed.
 
-    # Create a file named `cabal.project.local` with this content:
-    # This file should be located in the root directory of the sources
-    # where there already is a file called `cabal.project`
+    # Create a file named `cabal.project.local` in the root directory of
+    # the sources---same location as `cabal.project`.
+    # The file should contain the following:
 
     packages:
       external/*/*.cabal
