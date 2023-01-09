@@ -1,3 +1,3 @@
-This is a wrapper around cabal-plan that allows listing and downloading
+This is a wrapper around `cabal-plan` that allows listing and downloading
 the external packages that were used to build a project.  It is convenient
 for creating completely self-contained source distributions.

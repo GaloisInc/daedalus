@@ -1,13 +1,16 @@
 {-# Language ImplicitParams, OverloadedStrings, BlockArguments #-}
 module Main where
 
+import Control.Exception
 import Data.Maybe
 import qualified Data.Text as Text
 import qualified Data.Map as Map
+import Data.Set(Set)
 import qualified Data.Set as Set
 import Control.Monad
 import System.Directory
-import System.Process
+import System.FilePath
+import System.Process.Typed
 import System.Exit
 import SimpleGetOpt
 import Cabal.Plan
@@ -20,21 +23,36 @@ main =
           exitSuccess
      plan <- findAndDecodePlanJson (ProjectRelativeToDir (optProject opts))
      let ?plan = plan
-     let us  = chooseTargets (optTargets opts)
-         ds  = transDeps us
-         gs  = mapMaybe onlyGlobal ds
+
+     -- all packages in the project
+     let allPs = Set.toList
+               $ Set.fromList
+               $ extPacks
+               $ Map.elems
+               $ pjUnits plan
+
+         us    = chooseTargets (optTargets opts)  -- interesting targets
+         ds    = transDeps us                     -- taregt's dependencies
+         gs    = extPacks ds                      -- packages for deps
      case optDownloadPath opts of
-       Nothing  -> mapM_ ppU gs
-       Just dir -> mapM_ (download dir) gs
+       Nothing  -> mapM_ ppP gs
+       Just dir ->
+         do putStrLn "Downloading..."
+            createDirectoryIfMissing True dir
+            let src = Set.fromList gs
+            mapM_ (download src dir) allPs
+  where
+  extPacks = map uPId . mapMaybe onlyExternal
 
-onlyGlobal :: Unit -> Maybe Unit
-onlyGlobal u =
+
+onlyExternal :: Unit -> Maybe Unit
+onlyExternal u =
   case uType u of
-    UnitTypeGlobal -> Just u
-    _              -> Nothing
+    UnitTypeGlobal  -> Just u
+    _               -> Nothing
 
-ppU :: Unit -> IO ()
-ppU u = putStrLn (Text.unpack (dispPkgId (uPId u)))
+ppP :: PkgId -> IO ()
+ppP p = putStrLn (Text.unpack (dispPkgId p))
 
 --------------------------------------------------------------------------------
 -- Options
@@ -111,18 +129,46 @@ chooseTargets tgts =
 parseTarget :: String -> Either String Target
 parseTarget txt
   | pref == "exe:" = pure (Target Nothing Nothing (CompNameExe (Text.pack exe)))
+  | pref == "lib"  = pure (Target Nothing Nothing CompNameLib)
   | otherwise = Left "At present we only support exe:name componenets"
   where
   (pref,exe) = splitAt 4 txt
 
 --------------------------------------------------------------------------------
-download :: FilePath -> Unit -> IO ()
-download dir u =
-  do let pid = uPId u
+
+{- Download the source code for a package.  Some packages are *project*
+dependencies rather than dependencies of our executable.
+For those ones we delete everything but the cabal file, as the source code
+is not actually used, but the cabal file is needed for configuration.
+-}
+download :: Set PkgId -> FilePath -> PkgId -> IO ()
+download srcPkg dir0 pid =
+  do let file    = Text.unpack (dispPkgId pid)
+         needSrc = pid `Set.member` srcPkg
+         dir     = if needSrc then dir0 else dir0 </> "cfg"
+
      createDirectoryIfMissing True dir
-     let file = Text.unpack (dispPkgId pid)
-     putStrLn file
-     callProcess "cabal" ["get",  "--destdir=" ++ dir, file]
+     let pkgDir = dir </> file
+
+     exists <- doesDirectoryExist pkgDir
+
+     putStrLn $
+        unwords [ if exists then "[EXISTS]" else
+                  if needSrc then "[SRC   ]" else "[CFG   ]"
+                , file
+                ]
+     unless exists $
+       do let cfg = setStdout nullStream
+                  $ setStderr nullStream
+                  $ proc "cabal" ["get",  "--destdir=" ++ dir, file]
+          runProcess_ cfg
+             `catch` \e@SomeException {} -> print e
+          unless needSrc
+            do fs <- listDirectory pkgDir
+               forM_ fs \f ->
+                 if takeExtension f == ".cabal"
+                   then pure ()
+                   else removePathForcibly (pkgDir </> f)
 
 --------------------------------------------------------------------------------
 getUnit :: (?plan :: PlanJson) => UnitId -> Unit

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cabal build --disable-tests --disable-benchmarks exe:daedalus
+mkdir bin
+cp $(cabal exec which daedalus) ./bin/

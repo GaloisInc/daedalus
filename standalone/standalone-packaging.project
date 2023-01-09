@@ -1,0 +1,14 @@
+packages:
+  ./
+  daedalus-utils/
+  daedalus-core/
+  daedalus-vm/
+  daedalus-value/
+  rts-hs/
+  rts-vm-hs/
+  extern/cfg/*/*.cabal
+  extern/*/*.cabal
+
+constraints:
+  utf8-string < 1.0.2,
+  entropy >= 0.4.1.10

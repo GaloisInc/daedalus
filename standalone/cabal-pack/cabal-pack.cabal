@@ -19,8 +19,9 @@ executable cabal-pack
       base,
       containers,
       directory,
+      filepath,
       text,
-      process,
+      typed-process,
       cabal-plan,
       simple-get-opt
 
