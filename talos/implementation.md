@@ -16,8 +16,8 @@ Text to Core
 The majority of the translation from the text file into Core is
 implemented as part of Daedalus, leaving us with a [Core module](../daedalus-core/src/Daedalus/Core/Decl.hs).
 
-Talos ([performs](src/Talos.hs)) a number of standard and specific
-Core to Core passes ([Talos.Passes](src/Talos/Passes.hs)), namely
+Talos [performs](src/Talos.hs) a number of standard and specific
+Core to Core passes ([Talos.Passes]), namely
 
 * Fail propagation (making cases partial)
 * Polymorphic type monomorphisation
@@ -34,22 +34,16 @@ argument on success, so we just use the argument directly).
 Slicing
 -------
 
-Briefly, the
-([Talos.Analysis.Exported](src/Talos/Analysis/Exported.hs)) module
-contains the data structures used by the synthesis phase of Talos,
-using definitions from
-([Talos.Analysis.Slice](src/Talos/Analysis/Slice.hs)).  The below
-notes on the implementation of slicing is not required to use the
-results.
+Briefly, the [Talos.Analysis.Exported][] module contains the data
+structures used by the synthesis phase of Talos, using definitions
+from [Talos.Analysis.Slice][] The below notes on the implementation of
+slicing is not required to use the results.
 
-The slicing phase lives under
-([Talos.Analysis](src/Talos/Analysis.hs)).  The aim of the slicing
-phase is to decompose the input grammar into a collection of
-independent slices (defined in
-([Talos.Analysis.Slice](src/Talos/Analysis/Slice.hs)), along with
-sliced expressions in
-([Talos.Analysis.SLExpr](src/Talos/Analysis/SLExpr.hs))).  A slice is,
-in essence, a grammar where some nodes have been replaced by holes.
+The slicing phase lives under [Talos.Analysis][].  The aim of the
+slicing phase is to decompose the input grammar into a collection of
+independent slices (defined in [Talos.Analysis.Slice][], along with
+sliced expressions in [Talos.Analysis.SLExpr][]).  A slice is, in
+essence, a grammar where some nodes have been replaced by holes.
 Slices are independent if each choice in the input grammar (i.e., byte
 values and grammar alternatives) occurs in exactly one slice (or no
 slice if the choice cannot impact the feasibility of synthesis).
@@ -57,29 +51,28 @@ Slices are also closed, in the sense that all (parts of) variables
 used in the grammar are defined in the grammar.
 
 The slicing process has two phases, firstly a fixpoint is constructed;
-and secondly, the fixpoint is _exported_
-([Talos.Analysis.Exported](src/Talos/Analysis/Exported.hs)).  The
-export process simplifies the representation of slices from that used
-in the fixpoint construction, including replacing holes in expressions
-by default values (which should never actually be examined), and
-forgetting which abstract environment (see below) was used (to avoid carrying
-around the class in the remainder of Talos).
+and secondly, the fixpoint is _exported_ [Talos.Analysis.Exported][].
+The export process simplifies the representation of slices from that
+used in the fixpoint construction, including replacing holes in
+expressions by default values (which should never actually be
+examined), and forgetting which abstract environment (see below) was
+used (to avoid carrying around the class in the remainder of Talos).
 
 The slicing algorithm is abstract in the way in which the grammar is
 analyzed; the abstraction is in
-([Talos.Analysis.AbsEnv](src/Talos/Analysis/AbsEnv.hs)).  Briefly, an
+[Talos.Analysis.AbsEnv][].  Briefly, an
 _abstract environment_ relates variables with _abstract predicates_,
 and has a precondition operation which calculates the
 abstract environment required for an expression to satisfy an abstract predicate.  
 
 The two main abstract environments are the whole-variable environment
-(([Talos.Analysis.VarAbsEnv](src/Talos/Analysis/VarAbsEnv.hs))) 
+([Talos.Analysis.VarAbsEnv][]) 
 and the field-sensitive abstract environment 
-(([Talos.Analysis.FieldAbsEnv](src/Talos/Analysis/FieldAbsEnv.hs))).  
-The whole-variable abstract predicate carries no information (we want the whole
-variable), and the abstract environment is equivalent to a set of
-variables --- the abstract precondition operation then just calculates
-the set of free variables.
+([Talos.Analysis.FieldAbsEnv][]).  
+The whole-variable abstract predicate carries no information (we want
+the whole variable), and the abstract environment is equivalent to a
+set of variables --- the abstract precondition operation then just
+calculates the set of free variables.
 
 The field-sensitive abstract predicate projects a subset of the fields
 in a struct, including nested fields for fields with structure type.
@@ -91,16 +84,16 @@ the free variables are used in an expression.
 <!-- failing construct (i.e., a case) is reached:  -->
 
 The slicing algorithm uses the following auxiliary modules
-  * ([Talos.Analysis.Eqv](src/Talos/Analysis/Eqv.hs)): notions of equivalence used to determine if a fixpoint has been reached;
-  * ([Talos.Analysis.Merge](src/Talos/Analysis/Merge.hs)): merging is used to combine slices when they are discovered to be non-independent (i.e., rely on the same choice);
-  * ([Talos.Analysis.Domain](src/Talos/Analysis/Domain.hs)): the domain over which the slicing algorithm operates, containing the in-progress slices for the current grammar function;
-  * ([Talos.Analysis.Fixpoint](src/Talos/Analysis/Fixpoint.hs)): a naive algorithm for constructing the fixpoint for the slicing algorithm
-  * ([Talos.Analysis.Monad](src/Talos/Analysis/Monad.hs)): the monad containing the state for slicing, mostly this builds on Talos.Analysis.Fixpoint.
+  * [Talos.Analysis.Eqv][]: notions of equivalence used to determine if a fixpoint has been reached;
+  * [Talos.Analysis.Merge][]: merging is used to combine slices when they are discovered to be non-independent (i.e., rely on the same choice);
+  * [Talos.Analysis.Domain][]: the domain over which the slicing algorithm operates, containing the in-progress slices for the current grammar function;
+  * [Talos.Analysis.Fixpoint][]: a naive algorithm for constructing the fixpoint for the slicing algorithm
+  * [Talos.Analysis.Monad][]: the monad containing the state for slicing, mostly this builds on Talos.Analysis.Fixpoint.
   
 Non-dependent Document Generation
 ---------------------------------
 
-The outer synthesis loop is in [Talos.Synthesis] 
+The outer synthesis loop is in [Talos.Synthesis][].  
 
 
 Slice Model Generation
@@ -108,7 +101,6 @@ Slice Model Generation
 
 Symbolic Execution
 ------------------
- 
 
 [Talos.SymExec.SolverT]: src/Talos/SymExec/SolverT.hs
 [Talos.SymExec.StdLib]: src/Talos/SymExec/StdLib.hs
