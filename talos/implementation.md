@@ -95,12 +95,51 @@ Non-dependent Document Generation
 
 The outer synthesis loop is in [Talos.Synthesis][].  
 
-
 Slice Model Generation
 ----------------------
 
+A model for a slice is a path ([Talos.SymExec.Path][]), which can be
+thought of as a parse tree with holes (corresponding to the holes in
+the slice).  The path tells the outer synthesis loop about decisions
+that were made during slice synthesis (i.e., choices and bytes which
+occur in the slice).
+
+The main modules are:
+  * [Talos.Strategy][]: Strategy execution and utils (timing etc.)  
+  * [Talos.Strategy.Monad][]: Core monad for strategies (random numners, Core definitions, etc)
+  * [Talos.Strategy.PathSymbolic][]: Current main symbolic strategy (pathsymb)
+  * [Talos.Strategy.PathSymbolicM][]: Monad and aux types for the pathsymb strat
+  * [Talos.Strategy.BTRand][]: Random selection with backtracking strategy.
+  * [Talos.Strategy.Symbolic][]: Experimental symbolic strategy (probably should be deprecated)
+  * [Talos.Strategy.SymbolicM][]: Monad for the symbolic strat
+  
+Modules for pathsymb:    
+  * [Talos.Strategy.PathCondition][]: Path condition guards for the
+    pathsymb strat, corresponding to sets of choices in the slice
+  * [Talos.Strategy.MuxValue][]: Symbolic values used in pathsymb.
+    The basic idea is that values in the symbolic execution are sets
+    of values, each value being guarded by a path condition.
+  
+with helper modules:
+  * [Talos.Strategy.MemoSearch][]: A memoising search procedure (used by symbolic strat)
+  * [Talos.Strategy.OptParser][]: An option parser for strat arguments
+  * [Talos.Strategy.DFST][]: A DFS monad transformer
+  * [Talos.Strategy.SearchTree][]: An explicit representation of search trees
+
 Symbolic Execution
 ------------------
+
+These modules are involved in talking to the solver:
+  * [Talos.SymExec.SolverT][]: Solver support with support for context management
+  * [Talos.SymExec.StdLib][]: Support SMTLIB definitions
+  * [Talos.SymExec.ModelParser][]: Reading back models from SMTLIB
+  * [Talos.SymExec.Expr][]: Symbolic execution of expressions 
+  * [Talos.SymExec.Funs][]: Define functions in SMT from Core functions
+  * [Talos.SymExec.SemiValue][]: Values with non-value leaves
+  * [Talos.SymExec.SemiExpr][]: SemiValue with SExpr leaves
+  * [Talos.SymExec.Type][]: Converting type to SMT types
+
+<!-- Definitions of refs -->
 
 [Talos.SymExec.SolverT]: src/Talos/SymExec/SolverT.hs
 [Talos.SymExec.StdLib]: src/Talos/SymExec/StdLib.hs
