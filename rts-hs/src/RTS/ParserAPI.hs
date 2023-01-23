@@ -102,9 +102,33 @@ class Monad p => BasicParser p where
   pSetInput :: Input -> p ()
   pErrorMode :: ErrorMode -> p a -> p a
 
-  pOffset   :: p (UInt 64)
-  pEnd      :: SourceRange -> p ()     -- are we at the end
-  pMatch1   :: SourceRange -> ClassVal -> p Word8
+-- | Are we at the end
+pEnd :: BasicParser p => SourceRange -> p ()
+pEnd r =
+  do inp <- pPeek
+     case inputByte inp of
+       Nothing -> pure ()
+       Just (_,_) -> pErrorAt FromSystem [r] inp "unexpected left over input"
+{-# INLINE pEnd #-}
+
+
+-- | Get the current location in the input
+pOffset :: BasicParser p => p (UInt 64)
+pOffset = intToSize . inputOffset <$> pPeek
+{-# INLINE pOffset #-}
+
+-- | Check if a byte satisfies a predicate
+pMatch1 :: BasicParser p => SourceRange -> ClassVal -> p Word8
+pMatch1 erng (ClassVal p str) =
+  do inp <- pPeek
+     b   <- pByte erng
+     unless (p b)
+       $ pErrorAt FromSystem [erng] inp
+       $ unwords ["byte", showByte b, "does not match", str]
+     pure b
+{-# INLINE pMatch1 #-}
+
+
 
 pTrace :: BasicParser p => Vector (UInt 8) -> p ()
 pTrace msg =

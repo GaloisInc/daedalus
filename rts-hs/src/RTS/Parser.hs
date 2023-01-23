@@ -6,7 +6,6 @@ import Control.Monad
 import Data.List.NonEmpty(NonEmpty(..))
 
 import RTS.Input
-import RTS.Numeric(intToSize)
 import RTS.ParseError
 import RTS.ParserAPI
 
@@ -261,29 +260,6 @@ instance IsITrace s => BasicParser (ParserG s e) where
   -- Failure
   pFail e = Parser \_ _ _ err -> NoResFail (mergeMb LT err e)
   {-# INLINE pFail #-}
-
-  -- Match the end of the input
-  pEnd r =
-    do inp <- pPeek
-       case inputByte inp of
-         Nothing -> pure ()
-         Just (_,_) -> pErrorAt FromSystem [r] inp "unexpected left over input"
-  {-# INLINE pEnd #-}
-
-  -- Get the current location in the input
-  pOffset = intToSize . inputOffset <$> pPeek
-  {-# INLINE pOffset #-}
-
-  -- Check if a byte satisfies a predicate
-  pMatch1 erng (ClassVal p str) =
-    do inp <- pPeek
-       b   <- pByte erng
-       unless (p b)
-         $ pErrorAt FromSystem [erng] inp
-         $ unwords ["byte", showByte b, "does not match", str]
-       pure b
-  {-# INLINE pMatch1 #-}
-
 
   -- Switch the error mode
   pErrorMode em (Parser p) = Parser \env s inp err ->

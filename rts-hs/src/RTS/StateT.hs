@@ -63,9 +63,3 @@ instance BasicParser m => BasicParser (StateT s m) where
   pSetInput i         = liftS (pSetInput i)
   pErrorMode e (S m)  = S \s -> pErrorMode e (m s)
 
-  pOffset             = liftS pOffset
-  pEnd r              = liftS (pEnd r)
-  pMatch1 x y         = liftS (pMatch1 x y)
-
-
-
