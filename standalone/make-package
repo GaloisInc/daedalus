@@ -1,0 +1,30 @@
+#!/bin/bash
+
+DIR=daedalus-standalone
+
+# Build the whole project.  This computes dependencies, and ensures that
+# everything works.  To fix a specific version for the packages, one can
+# use `cabal-freeze`
+cabal build all
+
+mkdir -p "$DIR"
+
+# Download external packages
+cabal exec cabal-pack exe:daedalus -- --download="$DIR/extern"
+
+# Copy configuration and a helpful build script
+cp standalone/standalone-packaging.project "$DIR/cabal.project"
+cp standalone/build                        "$DIR/"
+
+# Copy daedalus source
+cp -r daedalus.cabal \
+      daedalus-utils \
+      daedalus-value \
+      daedalus-vm \
+      daedalus-core \
+      src \
+      rts-c \
+      rts-hs \
+      rts-vm-hs \
+      $DIR
+

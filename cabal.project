@@ -14,24 +14,8 @@ packages:
   formats/nitf/haskell/
   talos/
   daedalus-language-server/
-  -- daedalus-language-server/deps/lsp/lsp
-  -- daedalus-language-server/deps/lsp/lsp-types
-  -- out/
+  standalone/cabal-pack/
 
 constraints:
   utf8-string < 1.0.2,
   entropy >= 0.4.1.10
-  -- 0.4.1.9 seems to have a problem https://github.com/TomMD/entropy/issues/75
-
--- Required for semantic tokens
--- source-repository-package
---     type: git
---     location: https://github.com/haskell/lsp
---     tag: 6af22068b22051a6e8c9964bc179f8f02ee3bf77
---     subdir: lsp
-
--- source-repository-package
---     type: git
---     location: https://github.com/haskell/lsp
---     tag: 6af22068b22051a6e8c9964bc179f8f02ee3bf77
---     subdir: lsp-types    
