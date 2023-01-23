@@ -27,7 +27,6 @@ library
                        RTS.Input,
                        RTS.Base,
                        RTS.ParseError,
-                       RTS.ByteRanges,
                        RTS.Iterator,
                        RTS.JSON,
                        RTS.InputTrace,
