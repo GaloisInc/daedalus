@@ -13,12 +13,18 @@ import RTS.JSON
 import RTS.Input
 import RTS.ParseError
 
+{- | A collection of annotated byte sequences.
+This maps each input name to the bytes in the input, and a collection
+of ranges on those bytes.
+
+Assumes that inputs will have non-overlapping names.
+-}
 data InputTrace = IT (Map ShortByteString Ranges)
   deriving Show
 
 data Ranges = Ranges
-  { rRanges :: ![Range]
-  , rBytes  :: !ByteString
+  { rRanges :: ![Range]         -- ^ Ranges
+  , rBytes  :: !ByteString      -- ^ Bytes of input
   } deriving Show
 
 instance IsITrace InputTrace where
