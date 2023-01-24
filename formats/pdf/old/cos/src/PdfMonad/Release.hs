@@ -1,13 +1,14 @@
 {-# Language GeneralizedNewtypeDeriving, ConstraintKinds, KindSignatures #-}
 {-# Language RankNTypes #-}
 {-# Language DataKinds #-}
+{-# Language UndecidableInstances #-}
 module PdfMonad.Release (Parser, runParser, DbgMode, pdfMain) where
 
 import Data.Foldable(toList)
 import Data.Kind(Constraint)
 
 import PdfMonad.Transformer as T
-import qualified RTS.Parser as RTS
+import qualified RTS.ParserUntraced as RTS
 
 
 type DbgMode = () :: Constraint
@@ -21,8 +22,8 @@ runParser objMap ec (P m) i =
             NoResults err -> ParseErr err
             Results ans ->
               case toList ans of
-                [a] -> ParseOk a
-                xs  -> ParseAmbig xs
+                [(a,_)] -> ParseOk a
+                xs  -> ParseAmbig (map fst xs)
   where
   res = RTS.runParser (runPdfT i objMap ec m) i
 

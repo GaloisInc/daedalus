@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 
 import RTS.Numeric(toInt,intToSize,UInt)
 import RTS.Input
+import RTS.ParseError
 import PdfMonad.Transformer
 
 resolveImpl :: PdfParser parser => parser a

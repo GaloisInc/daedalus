@@ -8,15 +8,20 @@ module Daedalus.DriverHS
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing,doesFileExist)
 import qualified System.IO as IO
+import Text.PrettyPrint(Doc)
 
 import Daedalus.PP(pp)
 
-import RTS.ParseError(ppParseError)
+import qualified RTS.ParseError as RTS (ppParseError)
+import qualified RTS.ParserUntraced as RTS
 import Daedalus.AST(ModuleName)
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsModule)
 import Daedalus.Driver
+
+ppParseError :: RTS.ParseError -> Doc
+ppParseError = RTS.ppParseError
 
 
 -- | Save Haskell for the given module.

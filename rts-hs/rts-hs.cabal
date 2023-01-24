@@ -21,6 +21,7 @@ library
                        RTS.ParserAPI,
                        RTS.Parser,
                        RTS.ParserTraced,
+                       RTS.ParserUntraced,
                        RTS.StateT,
                        RTS.Vector,
                        RTS.Map,

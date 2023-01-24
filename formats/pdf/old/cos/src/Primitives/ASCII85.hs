@@ -7,6 +7,7 @@ import Data.Word
 import Data.Char (ord) 
 
 import RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

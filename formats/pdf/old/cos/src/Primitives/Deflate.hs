@@ -12,6 +12,7 @@ import Codec.Compression.Zlib(decompress)
 import Codec.Compression.Zlib.Internal(DecompressError(..))
 
 import RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

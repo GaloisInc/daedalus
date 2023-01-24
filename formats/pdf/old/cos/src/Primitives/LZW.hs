@@ -13,6 +13,7 @@ import System.IO.Unsafe(unsafePerformIO)
 import Control.Exception(evaluate,try)
 
 import RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

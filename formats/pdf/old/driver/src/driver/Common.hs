@@ -8,7 +8,9 @@ import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
                  , hPutStr, hPutStrLn, hFlush, hSetEncoding, utf8)
 
-import RTS.ParserAPI(ParseError(..),peOffset,ppAnnot)
+import RTS.ParserAPI
+import RTS.ParserUntraced
+import RTS.ParseError(ParseErrorG(..),peOffset,ppAnnot)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))

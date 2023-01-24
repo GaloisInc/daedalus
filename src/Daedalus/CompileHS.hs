@@ -779,9 +779,9 @@ hsRange :: SourceRange -> Term
 hsRange rng = "RTS.SourceRange" `Ap` pos (sourceFrom rng)
                                 `Ap` pos (sourceTo rng)
   where
-  pos x = "RTS.SourcePos" `Ap` Raw (sourceFile x) `Ap`
-                               Raw (sourceLine x) `Ap`
-                               Raw (sourceColumn x)
+  pos x = "RTS.SourcePos" `Ap` Raw (sourceLine x) `Ap`
+                               Raw (sourceColumn x) `Ap`
+                               Raw (sourceFile x)
 
 hsGrammar :: Env -> TC SourceRange Grammar -> Term
 hsGrammar env tc =
@@ -1233,7 +1233,7 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
                  case cParserType of
-                   Nothing -> [ HS.Import "RTS.Parser" (QualifyAs "RTS") ]
+                   Nothing -> [ HS.Import "RTS.ParserUntraced" (QualifyAs "RTS") ]
                    _       -> []
                   ++
                  [ HS.Import (hsIdentMod i) Qualified
@@ -1251,6 +1251,8 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
                  , HS.Import "RTS.Vector"    (QualifyAs "Vector")
                  , HS.Import "RTS.Numeric"   (QualifyAs "RTS")
                  , HS.Import "RTS.JSON"      (QualifyAs "RTS")
+                 , HS.Import "RTS.ParseError" (QualifyAs "RTS")
+                 , HS.Import "RTS.Annot" (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)

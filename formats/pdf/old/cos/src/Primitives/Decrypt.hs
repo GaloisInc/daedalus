@@ -15,6 +15,7 @@ import Crypto.Error as Y
 import Data.Serialize as S 
 
 import RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

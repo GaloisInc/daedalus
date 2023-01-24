@@ -38,10 +38,10 @@ import Daedalus.Panic
 import RTS.Vector(Vector,toList,VecElem)
 import RTS.Numeric
 import RTS.Input(advanceBy)
+import RTS.ParseError
 
 import PdfMonad
 import PdfParser
-import PdfValue(pManyWS)
 
 import Possibly
 import PdfPP

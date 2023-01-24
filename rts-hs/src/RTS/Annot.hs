@@ -35,5 +35,8 @@ instance ToJSON Annotation where
       TextAnnot a -> jsString a
       RngAnnot a  -> toJSON a
 
+instance HasInputs Annotation where
+  getInputs = const mempty
+
 
 

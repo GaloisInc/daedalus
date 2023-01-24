@@ -21,6 +21,8 @@ import Control.Exception(evaluate,try,throwIO)
 import RTS.Numeric(intToSize, fromUInt,sizeToInt)
 import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
 import RTS.Input
+import RTS.ParserUntraced(ParseError)
+import RTS.ParseError
 
 import Data.Char(isDigit)
 

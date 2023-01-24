@@ -3,6 +3,7 @@ module Primitives.Validate where
 
 import qualified RTS.Vector as V
 import RTS.Numeric
+import RTS.ParseError
 
 import PdfMonad.Transformer
 
