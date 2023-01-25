@@ -172,30 +172,11 @@ preferFirst p1 p2 =
 
 
 -------------------------------------------------------------------------------
--- Traces and Annotations
+-- Annotations
 --------------------------------------------------------------------------------
 
 class ToJSON a => IsAnnotation a where
   ppAnnot          :: a -> Doc
-
-instance IsITrace () where
-  ppITrace _ = "(disabled)"
-
-  emptyITrace _ = ()
-  {-# INLINE emptyITrace #-}
-
-  unionITrace _ _ = ()
-  {-# INLINE unionITrace #-}
-
-  addITrace _ _ = ()
-  {-# INLINE addITrace #-}
-
-class ToJSON a => IsITrace a where
-  ppITrace    :: a -> Doc
-  emptyITrace :: Input -> a
-  unionITrace :: a -> a -> a
-  addITrace   :: Input -> a -> a
-
 
 
 --------------------------------------------------------------------------------
