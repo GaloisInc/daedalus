@@ -35,17 +35,13 @@ module Daedalus.Interp
   , parseErrorTrieToJSON
   ) where
 
-import GHC.Float(double2Float)
 import Control.Monad (replicateM,replicateM_,void,guard,msum,forM)
 
-import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
-import Data.List(foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
@@ -56,7 +52,6 @@ import qualified Data.Vector as Vector
 import Daedalus.SourceRange
 import Daedalus.PP hiding (empty)
 import Daedalus.Panic
-import qualified Daedalus.BDD as BDD
 
 import Daedalus.Value
 
@@ -80,126 +75,11 @@ import Daedalus.Interp.DebugAnnot
 import Daedalus.Interp.Env
 import Daedalus.Interp.Loop
 import Daedalus.Interp.ErrorTrie
+import Daedalus.Interp.Operators
+import Daedalus.Interp.Type
 
 
 
---------------------------------------------------------------------------------
--- Operators
---------------------------------------------------------------------------------
-
-
-evalLiteral :: Env -> Type -> Literal -> Value
-evalLiteral env t l =
-  case l of
-    LNumber n _ ->
-      case tval of
-        TVInteger     -> VInteger n
-        TVUInt s      -> vUInt s n
-        TVSInt s      -> partial (vSInt s n)
-        TVFloat       -> vFloat (fromIntegral n)
-        TVDouble      -> vDouble (fromIntegral n)
-        TVNum {}      -> panic "compilePureExpr" ["Kind error"]
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVOther       -> bad
-
-    LBool b           -> VBool b
-    LByte w _         -> vByte w
-    LBytes bs         -> vByteString bs
-    LFloating d       ->
-      case tval of
-        TVFloat       -> vFloat (double2Float d)
-        TVDouble      -> vDouble d
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-    LPi ->
-      case tval of
-        TVFloat       -> vFloatPi
-        TVDouble      -> vDoublePi
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-  where
-  bad  = panic "evalLiteral" [ "unexpected literal", "Type: " ++ show (pp t) ]
-  tval = evalType env t
-
-
-
-evalUniOp :: UniOp -> Value -> Value
-evalUniOp op =
-  case op of
-    Not               -> vNot
-    Neg               -> partial . vNeg
-    ArrayLength       -> vArrayLength
-    Concat            -> vArrayConcat
-    BitwiseComplement -> vComplement
-    WordToFloat       -> vWordToFloat
-    WordToDouble      -> vWordToDouble
-    IsNaN             -> vIsNaN
-    IsInfinite        -> vIsInfinite
-    IsDenormalized    -> vIsDenormalized
-    IsNegativeZero    -> vIsNegativeZero
-    BytesOfStream     -> vBytesOfStream
-    BuilderBuild      -> vFinishBuilder
-
-
-
-evalBinOp :: BinOp -> Value -> Value -> Value
-evalBinOp op =
-  case op of
-    Add         -> partial2 vAdd
-    Sub         -> partial2 vSub
-    Mul         -> partial2 vMul
-    Div         -> partial2 vDiv
-    Mod         -> partial2 vMod
-
-    Lt          -> vLt
-    Leq         -> vLeq
-    Eq          -> vEq
-    NotEq       -> vNeq
-
-    Cat         -> vCat
-    LCat        -> partial2 vLCat
-    LShift      -> partial2 vShiftL
-    RShift      -> partial2 vShiftR
-    BitwiseAnd  -> vBitAnd
-    BitwiseOr   -> vBitOr
-    BitwiseXor  -> vBitXor
-
-    ArrayStream -> vStreamFromArray
-    LookupMap   -> vMapLookup
-
-    BuilderEmit        -> vEmit
-    BuilderEmitArray   -> vEmitArray
-    BuilderEmitBuilder -> vEmitBuilder
-    LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
-    LogicOr     -> panic "evalBinOp" ["LogicOr"]
-
-
-evalTriOp :: TriOp -> Value -> Value -> Value -> Value
-evalTriOp op =
-  case op of
-    RangeUp     -> partial3 vRangeUp
-    RangeDown   -> partial3 vRangeDown
-    MapDoInsert -> vMapInsert
---------------------------------------------------------------------------------
 
 
 --------------------------------------------------------------------------------
@@ -363,117 +243,6 @@ invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
                GrammarArg e -> VGrm (compilePExpr env e)
 
 
-
---------------------------------------------------------------------------------
--- Evaluating Types
---------------------------------------------------------------------------------
-
-evalType :: Env -> Type -> TValue
-evalType env ty =
-  case ty of
-    TVar x -> lkpTy x
-    TCon c []
-      | Just decl <- Map.lookup c (tyDecls env)
-      , let name = Text.pack (show (pp (tctyName decl)))
-      , Just u <- tctyBD decl -> evalBitdataType env name u (tctyDef decl)
-    TCon {} -> TVOther
-    Type t0 ->
-      case t0 of
-        TGrammar _ -> TVOther
-        TFun _ _   -> TVOther
-        TStream    -> TVOther
-        TByteClass -> TVOther
-        TNum n     -> TVNum (fromIntegral n) -- wrong for very large sizes.
-        TUInt t    -> TVUInt (tvInt t)
-        TSInt t    -> TVSInt (tvInt t)
-        TInteger   -> TVInteger
-        TMap {}    -> TVMap
-        TArray {}  -> TVArray
-        TBool      -> TVOther
-        TFloat     -> TVFloat
-        TDouble    -> TVDouble
-        TUnit      -> TVOther
-        TMaybe {}  -> TVOther
-        TBuilder {}-> TVOther
-
-  where
-  lkpTy x = case Map.lookup x (tyEnv env) of
-              Just tv -> tv
-              Nothing -> panic "evalType"
-                            [ "undefined type vairalbe"
-                            , show (pp x)
-                            ]
-
-  tvInt t = case evalType env t of
-              TVNum n -> n
-              it      -> panic "evalType.tvInt" [ "Expected a number"
-                                                , "Got: " ++ show (pp it)
-                                                ]
-
--- XXX: This reavaluates types over and over againg.  It might be
--- better to evalute bitdata types in the environment once instead,
--- and store them in the environemtn.
-evalBitdataType :: Env -> Text -> BDD.Pat -> TCTyDef -> TValue
-evalBitdataType env name u def =
-  case def of
-
-    TCTyStruct ~(Just bd) _ ->
-      let fs = AST.bdFields bd
-      in
-      TVBDStruct BDStruct
-        { bdName = name
-        , bdWidth  = BDD.width u
-        , bdGetField =
-            let mp =
-                  Map.fromList
-                    [ (l, inField (AST.bdOffset f) ty)
-                    | f <- fs
-                    , AST.BDData l ty <- [AST.bdFieldType f]
-                    ]
-            in \l -> case Map.lookup l mp of
-                       Just v  -> v
-                       Nothing -> panic "evalBitdataType"
-                                    [ "Missing field: " ++ showPP l ]
-        , bdStruct   = \fvs -> foldl' (outField fvs) 0 (AST.bdFields bd)
-        , bdValid    = BDD.willMatch u
-        , bdFields   = [ l | AST.BDData l _ <- map AST.bdFieldType fs ]
-        }
-
-    TCTyUnion fs ->
-      let mp = Map.fromList [ (l, (evalType env t,p)) | (l,(t,Just p)) <- fs ]
-      in
-      TVBDUnion BDUnion
-        { bduName  = name
-        , bduWidth = BDD.width u
-        , bduValid = BDD.willMatch u
-        , bduGet   =
-          \l -> case Map.lookup l mp of
-                  Just (t,_) -> vFromBits t
-                  Nothing -> panic ("bduGet@" ++ Text.unpack name)
-                                   ["Unknown constructor: " ++ showPP l]
-        , bduMatches =
-          \l -> BDD.willMatch
-                case Map.lookup l mp of
-                  Just (_,p) -> p
-                  Nothing -> panic ("bduMatches@" ++ Text.unpack name)
-                                   ["Unknown constructor: " ++ showPP l]
-        , bduCases = map fst fs
-        }
-
-
-  where
-  inField off t = \i -> vFromBits (evalType env t) (i `shiftR` off)
-  outField fs w f =
-    shiftL w (AST.bdWidth f) .|.
-    case AST.bdFieldType f of
-      AST.BDWild  -> 0
-      AST.BDTag n -> n
-      AST.BDData l _ ->
-        vToBits
-        case lookup l fs of
-          Just fv -> fv
-          Nothing -> panic "outField" ["Missing field value", showPP l ]
---------------------------------------------------------------------------------
 
 
 

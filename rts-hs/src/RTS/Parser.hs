@@ -158,6 +158,7 @@ mergeMbMb cfg dep mb1 mb2 =
 
 --------------------------------------------------------------------------------
 -- Monad / Sequencing
+--------------------------------------------------------------------------------
 
 -- | Given a parser result and a continuation, compute a new parser results.
 joinRes ::
@@ -172,7 +173,6 @@ joinRes cfg xs0 k =
     Res a t i mb      -> k a t i mb
     MultiRes a t i more mb ->
       joinIList cfg (\v t2 j -> k v t2 j mb) (k a t i mb) more
-
 {-# INLINE joinRes #-}
 
 -- | Add a list of alternative successes to a parser result.
@@ -210,6 +210,7 @@ runParser p cfg i =
     NoResFail  e          -> NoResults (normalizePaths e)
     Res a t _ _           -> Results ((a,t) :| [])
     MultiRes a t _ more _ -> Results ((a,t) :| itoList more)
+{-# INLINE runParser #-}
 
 
 --------------------------------------------------------------------------------
