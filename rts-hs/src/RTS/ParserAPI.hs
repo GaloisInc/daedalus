@@ -15,18 +15,19 @@ import qualified Data.ByteString.Char8 as BS8
 import RTS.Numeric
 import RTS.Vector(Vector,VecElem)
 import RTS.Input
+import RTS.InputTrace
 import RTS.ParseError
 import qualified RTS.Vector as Vector
 
 import Debug.Trace(traceM)
 
 
-data ResultG s e a =
-    NoResults (ParseErrorG s e)
-  | Results (NonEmpty (a,s))
+data ResultG e a =
+    NoResults (ParseErrorG e)
+  | Results (NonEmpty (a,InputTrace))
     deriving Show
 
-instance Functor (ResultG s e) where
+instance Functor (ResultG e) where
   fmap f r =
     case r of
       NoResults e -> NoResults e
@@ -89,15 +90,14 @@ showByte x
 
 class Monad p => BasicParser p where
   type Annot p
-  type ITrace p
   (|||)     :: p a -> p a -> p a
   (<||)     :: p a -> p a -> p a
-  pFail     :: ParseErrorG (ITrace p) (Annot p) -> p a
+  pFail     :: ParseErrorG (Annot p) -> p a
   pByte     :: SourceRange -> p Word8
   pEnter    :: Annot p -> p a -> p a
   pStack    :: p [Annot p]
-  pITrace   :: p (ITrace p)
-  pSetITrace  :: ITrace p -> p ()
+  pITrace   :: p InputTrace
+  pSetITrace :: InputTrace -> p ()
   pPeek     :: p Input
   pSetInput :: Input -> p ()
   pErrorMode :: ErrorMode -> p a -> p a
@@ -135,14 +135,13 @@ pTrace msg =
   do off <- pOffset
      traceM (show off ++ ": " ++ BS8.unpack (Vector.vecToRep msg))
 
-traceScope :: (BasicParser p, s ~ ITrace p, IsITrace s) => p v -> p (v,s)
+traceScope :: BasicParser p => p v -> p (v,InputTrace)
 traceScope p =
   do i   <- pITrace
-     inp <- pPeek
-     pSetITrace (emptyITrace inp)
+     pSetITrace emptyInputTrace
      a <- p
      j <- pITrace
-     pSetITrace (unionITrace i j)
+     pSetITrace (unionInputTrace i j)
      pure (a,j)
 
 

@@ -50,7 +50,6 @@ sets_ f = S \s -> let s1 = f s in s1 `seq` pure ((), s1)
 
 instance BasicParser m => BasicParser (StateT s m) where
   type Annot (StateT s m)   = Annot m
-  type ITrace (StateT s m)  = ITrace m
   S m1 ||| S m2       = S \s -> m1 s ||| m2 s
   S m1 <|| S m2       = S \s -> m1 s <|| m2 s
   pFail e             = liftS (pFail e)

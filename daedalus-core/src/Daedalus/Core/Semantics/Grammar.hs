@@ -8,14 +8,16 @@ import Data.Word(Word8)
 
 import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
 import RTS.Numeric(intToSize)
-import RTS.ParserTraced as RTS hiding (Fail)
 import RTS.ParseError (ParseErrorSource(..))
 import qualified RTS.ParseError as RTS
+import qualified RTS.Annot as RTS
+import qualified RTS.ParserAPI as RTS
 
 import Daedalus.Value
 import Daedalus.SourceRange(SourceRange(..),SourcePos(..))
 
 import Daedalus.Core
+import Daedalus.Core.Semantics.Parser
 import Daedalus.Core.Semantics.Expr
 import Daedalus.Core.Semantics.Env
 
@@ -25,16 +27,16 @@ evalG gram env =
     Pure e    -> pure $! eval e env
 
     GetStream ->
-      do v <- pPeek
+      do v <- RTS.pPeek
          pure $! VStream v
 
     SetStream e ->
-      do pSetInput $! valueToStream $ eval e env
+      do RTS.pSetInput $! valueToStream $ eval e env
          pure vUnit
 
     Match s m -> evalMatch s m env
 
-    Fail src _ mbMsg -> pError' dsrc [] msg
+    Fail src _ mbMsg -> RTS.pError' dsrc [] msg
       where
       dsrc = case src of
                ErrorFromUser   -> FromUser
@@ -54,17 +56,17 @@ evalG gram env =
     Let x e g ->
       evalG g $! defLocal x (eval e env) env
 
-    OrBiased g1 g2   -> evalG g1 env <|| evalG g2 env
-    OrUnbiased g1 g2 -> evalG g1 env ||| evalG g2 env
+    OrBiased g1 g2   -> evalG g1 env RTS.<|| evalG g2 env
+    OrUnbiased g1 g2 -> evalG g1 env RTS.||| evalG g2 env
     Call f es -> lookupGFun f env $! evalArgs es env
     Annot a g ->
       case a of
         NoFail     -> evalG g env
-        SrcAnnot t -> pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
-        SrcRange r -> pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
+        SrcAnnot t -> RTS.pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
+        SrcRange r -> RTS.pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
 
     GCase c ->
-      evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
+      evalCase evalG (RTS.pError' FromSystem [] "Pattern match failure") c env
 
 toRtsRange :: SourceRange -> RTS.SourceRange
 toRtsRange rng = RTS.SourceRange { RTS.srcFrom = toRtsPos (sourceFrom rng)
@@ -82,33 +84,33 @@ evalMatch sem mat env =
   case mat of
 
     MatchEnd ->
-      do i <- pPeek
-         unless (inputEmpty i) (pError' FromSystem [] "left over input")
+      do i <- RTS.pPeek
+         unless (inputEmpty i) (RTS.pError' FromSystem [] "left over input")
          pure vUnit
 
     MatchBytes e ->
-      do i <- pPeek
+      do i <- RTS.pPeek
          let v  = eval e env
              bs = valueToByteString v
              ok = bs `BS8.isPrefixOf` inputBytes i
-         unless ok (pError' FromSystem [] "match failed")
+         unless ok (RTS.pError' FromSystem [] "match failed")
          let Just i1 = advanceBy (intToSize (BS.length bs)) i
-         pSetInput $! i1
+         RTS.pSetInput $! i1
          case sem of
            SemNo  -> pure vUnit
            SemYes -> pure v
 
     MatchByte b ->
-      do i <- pPeek
+      do i <- RTS.pPeek
          case inputByte i of
            Just (w,i1) ->
              if evalByteSet b env w
-                then do pSetInput $! i1
+                then do RTS.pSetInput $! i1
                         case sem of
                           SemNo  -> pure vUnit
                           SemYes -> pure (vByte w)
-                else pError' FromSystem [] "byte does not match spec"
-           Nothing -> pError' FromSystem [] "unexpected end of file"
+                else RTS.pError' FromSystem [] "byte does not match spec"
+           Nothing -> RTS.pError' FromSystem [] "unexpected end of file"
 
 
 

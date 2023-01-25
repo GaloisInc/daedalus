@@ -71,7 +71,7 @@ import RTS.ParserAPI as RTS
 import RTS.Input
 import RTS.Vector(vecFromRep,vecToRep)
 import RTS.Numeric(UInt(..))
-import RTS.ParseError (ParseErrorG, ParseErrorSource(..))
+import RTS.ParseError (ParseErrorG, ParseErrorSource(..),ErrorStyle)
 import qualified RTS.ParseError as RTS
 import qualified RTS.Vector as RTS
 
@@ -943,31 +943,34 @@ compile start builtins prog =
                      ) | rs <- allRules, x <- rs ]
 
 interpCompiled ::
+  ErrorStyle ->
   ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
-interpCompiled name bytes env startName args =
+interpCompiled cfg name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    rl : _  -> runParser (rl [] (map VVal args)) (newInput name bytes)
+    rl : _  -> runParser (rl [] (map VVal args)) cfg (newInput name bytes)
     [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
-interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
+interp :: HasRange a => ErrorStyle -> [ (Name, ([Value] -> Parser Value)) ] ->
           ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
           Result Value
-interp builtins nm bytes prog startName =
-  interpCompiled nm bytes env startName []
+interp cfg builtins nm bytes prog startName =
+  interpCompiled cfg nm bytes env startName []
   where
     env = compile startName builtins prog
 
-interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
+interpFile ::
+  HasRange a =>
+  ErrorStyle -> Maybe FilePath -> [TCModule a] -> ScopedIdent ->
                                               IO (ByteString, Result Value)
-interpFile input prog startName = do
+interpFile cfg input prog startName = do
   (nm,bytes) <- case input of
                   Nothing  -> pure ("(empty)", BS.empty)
                   Just "-" -> do bs <- BS.getContents
                                  pure ("(stdin)", bs)
                   Just f   -> do bs <- BS.readFile f
                                  pure (encodeUtf8 (Text.pack f), bs)
-  return (bytes, interp builtins nm bytes prog startName)
+  return (bytes, interp cfg builtins nm bytes prog startName)
   where
   builtins = [ ]
 

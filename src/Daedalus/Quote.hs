@@ -15,6 +15,8 @@ import Control.Exception(try)
 
 import AlexTools(SourceRange,SourcePos(..))
 
+import RTS.ParseError(ErrorStyle(SingleError))
+
 import Daedalus.TH (Q, Dec, QuasiQuoter(..))
 import qualified Daedalus.TH as TH
 import Daedalus.Value(Value)
@@ -94,7 +96,7 @@ doDecl str =
               Left e -> fail =<< liftIO (DDL.prettyDaedalusError e)
               Right a -> pure a
 
-     let e = [| \b -> case interp [] "Main" b [ast] (ModScope "Main" root) of
+     let e = [| \b -> case interp SingleError [] "Main" b [ast] (ModScope "Main" root) of
                         NoResults err -> Left err
                         Results r     -> Right (fst (NE.head r))
            |]

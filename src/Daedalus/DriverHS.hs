@@ -2,7 +2,6 @@
 module Daedalus.DriverHS
   ( module Daedalus.DriverHS
   , module Daedalus.Compile.Config
-  , ppParseError
   ) where
 
 import System.FilePath((</>),addExtension)
@@ -12,15 +11,15 @@ import Text.PrettyPrint(Doc)
 
 import Daedalus.PP(pp)
 
-import qualified RTS.ParseError as RTS (ppParseError)
-import qualified RTS.ParserUntraced as RTS
+import qualified RTS.ParseError as RTS
+import qualified RTS.Annot as RTS
 import Daedalus.AST(ModuleName)
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsModule)
 import Daedalus.Driver
 
-ppParseError :: RTS.ParseError -> Doc
+ppParseError :: RTS.ParseErrorG RTS.Annotation -> Doc
 ppParseError = RTS.ppParseError
 
 

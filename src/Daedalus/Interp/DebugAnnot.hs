@@ -7,6 +7,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import RTS.HasInputs
 import RTS.ParseError
 import RTS.JSON
 import RTS.Input

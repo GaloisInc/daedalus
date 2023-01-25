@@ -41,6 +41,7 @@ library
     Daedalus.Core.TH.TypeDecls,
     Daedalus.Core.TH.Ops,
     Daedalus.Core.X,
+    Daedalus.Core.Semantics.Parser,
     Daedalus.Core.Semantics.Env,
     Daedalus.Core.Semantics.Expr,
     Daedalus.Core.Semantics.Grammar,

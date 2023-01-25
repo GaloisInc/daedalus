@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import Data.ByteString.Short(fromShort)
 
 import qualified RTS.ParseError as RTS
+import qualified RTS.HasInputs as RTS
 import RTS.Input
 import RTS.JSON
 

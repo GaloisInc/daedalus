@@ -4,6 +4,7 @@ import Text.PrettyPrint
 import qualified Data.Set as Set
 
 import RTS.JSON
+import RTS.HasInputs
 import RTS.ParseError
 
 

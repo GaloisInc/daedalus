@@ -7,12 +7,12 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Word(Word8)
 
-import RTS.ParserTraced as RTS
 import Daedalus.Value
 
 import Daedalus.Panic(panic)
 import Daedalus.PP (pp, hsep, punctuate)
 import Daedalus.Core(Name,FName,TName,TDecl)
+import Daedalus.Core.Semantics.Parser
 
 data Env = Env
   { vEnv    :: Map Name Value

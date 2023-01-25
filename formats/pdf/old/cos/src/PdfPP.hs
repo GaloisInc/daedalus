@@ -20,9 +20,9 @@ import RTS.Vector(Vector)
 import qualified RTS.Vector as Vector
 import RTS.Numeric(UInt)
 import RTS.Input
-import RTS.ParserUntraced(ParseError)
 import RTS.ParseError
 import PdfMonad
+import PdfMonad.Transformer
 import PdfDecl
 import PdfValue(Value(..), Ref(..), Number(..))
 import PdfXRef(TrailerDict)

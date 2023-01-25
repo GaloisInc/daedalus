@@ -23,8 +23,8 @@ import Daedalus.PP hiding (empty)
 import Daedalus.Range
 import Daedalus.Panic(panic)
 import RTS.Input(Input(..),inputName,inputOffset,inputLength)
-import RTS.InputTrace(InputTrace)
-import RTS.ParseError(unionITrace,HasInputs(..))
+import RTS.HasInputs(HasInputs(..))
+import RTS.InputTrace(InputTrace,unionInputTrace)
 import RTS.JSON
 
 -- | Value universe
@@ -151,7 +151,7 @@ vFromBits t i =
 vTraced :: Value -> InputTrace -> Value
 vTraced v i =
   case v of
-    VTraced v1 i1 -> VTraced v1 (unionITrace i i1)
+    VTraced v1 i1 -> VTraced v1 (unionInputTrace i i1)
     _             -> VTraced v i
 
 -- | Add the traces in the list to the given value

@@ -1,5 +1,11 @@
 {-# Language OverloadedStrings #-}
-module RTS.InputTrace (InputTrace) where
+module RTS.InputTrace 
+  ( InputTrace
+  , ppInputTrace
+  , emptyInputTrace
+  , unionInputTrace
+  , addInputTrace
+  ) where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -10,8 +16,8 @@ import qualified Data.ByteString.Short as BSS
 import Text.PrettyPrint
 import RTS.JSON
 
+import RTS.HasInputs
 import RTS.Input
-import RTS.ParseError
 
 {- | A collection of annotated byte sequences.
 This maps each input name to the bytes in the input, and a collection
@@ -26,12 +32,6 @@ data Ranges = Ranges
   { rRanges :: ![Range]         -- ^ Ranges
   , rBytes  :: !ByteString      -- ^ Bytes of input
   } deriving Show
-
-instance IsITrace InputTrace where
-  emptyITrace = const emptyInputTrace
-  addITrace   = addInputTrace
-  unionITrace = unionInputTrace
-  ppITrace    = ppInputTrace
 
 instance HasInputs InputTrace where
   getInputs (IT mp) = rBytes <$> mp

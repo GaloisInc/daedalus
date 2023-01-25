@@ -1233,7 +1233,7 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   , hsGHC = [ "-Wno-unused-imports" ]
   , hsImports  = cImports ++
                  case cParserType of
-                   Nothing -> [ HS.Import "RTS.ParserUntraced" (QualifyAs "RTS") ]
+                   Nothing -> [ HS.Import "RTS.Parser" (QualifyAs "RTS") ]
                    _       -> []
                   ++
                  [ HS.Import (hsIdentMod i) Qualified
@@ -1260,7 +1260,7 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   where
   env = Env { envCurMod  = tcModuleName
             , envTParser = case cParserType of
-                             Nothing -> "RTS.Parser"
+                             Nothing -> "RTS.ParserG RTS.Annotation"
                              Just t  -> t
             , envExtern  = cPrims
             , envQualNames = cQualNames

@@ -6,16 +6,15 @@ import qualified Data.Map as Map
 import RTS.ParseError
 import RTS.Parser
 import RTS.ParserAPI
-import RTS.InputTrace
 
 import qualified Daedalus.AST as K
 import Daedalus.Type.AST(TVar,TCTyName, TCTyDecl,TCName, Name, tcName)
 import Daedalus.Value
 import Daedalus.Interp.DebugAnnot
 
-type Parser     = ParserG     InputTrace DebugAnnot
-type ParseError = ParseErrorG InputTrace DebugAnnot
-type Result     = ResultG     InputTrace DebugAnnot
+type Parser     = ParserG     DebugAnnot
+type ParseError = ParseErrorG DebugAnnot
+type Result     = ResultG     DebugAnnot
 
 data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
 data SomeFun      = FVal (Fun Value)

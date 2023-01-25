@@ -12,43 +12,48 @@ import qualified Data.Text as Text
 import Control.Exception(Exception)
 import Data.Typeable(Typeable)
 import Text.PrettyPrint
-import Data.ByteString(ByteString)
-import Data.ByteString.Short(ShortByteString,fromShort)
+import Data.ByteString.Short(fromShort)
 
+import RTS.HasInputs
 import RTS.Input
+import RTS.InputTrace
 import RTS.JSON
 
-data ParseErrorG s e =
+data ParseErrorG e =
   PE { peInput   :: !Input
      , peStack   :: ![e]
      , peGrammar :: ![SourceRange]
      , peMsg     :: !String
      , peSource  :: !ParseErrorSource
-     , peMore    :: !(Maybe (ParseErrorG s e))
+     , peMore    :: !(Maybe (ParseErrorG e))
      , peNumber  :: !Int
-     , peITrace  :: !s
+     , peITrace  :: !InputTrace
      } deriving Show
 
 data ParseErrorSource = FromUser | FromSystem
   deriving Show
 
-peOffset :: ParseErrorG s a -> Int
+-- | Do we want to report only one or multiple errors.
+data ErrorStyle = SingleError | MultiError
+
+peOffset :: ParseErrorG a -> Int
 peOffset = inputOffset . peInput
 
-instance (Show s, Show e, Typeable s, Typeable e) => Exception (ParseErrorG s e)
+instance (Show e, Typeable e) => Exception (ParseErrorG e)
 
-parseErrorToList :: ParseErrorG s e -> [ParseErrorG s e]
+parseErrorToList :: ParseErrorG e -> [ParseErrorG e]
 parseErrorToList pe =
   pe { peMore = Nothing } : maybe [] parseErrorToList (peMore pe)
 
-data ParseErrorTrie s e =
-  ParseErrorTrie (Maybe (ParseErrorG s e)) (Map e (ParseErrorTrie s e))
+data ParseErrorTrie e =
+  ParseErrorTrie (Maybe (ParseErrorG e)) (Map e (ParseErrorTrie e))
 
-emptyErrorTrie :: Ord e => ParseErrorTrie s e
+emptyErrorTrie :: Ord e => ParseErrorTrie e
 emptyErrorTrie = ParseErrorTrie Nothing mempty
 
 insertInErrorTrie ::
-  Ord e => [e] -> ParseErrorG s e -> ParseErrorTrie s e -> ParseErrorTrie s e
+  Ord e =>
+  [e] -> ParseErrorG e -> ParseErrorTrie e -> ParseErrorTrie e
 insertInErrorTrie es err (ParseErrorTrie here there) =
   case es of
     [] ->
@@ -60,7 +65,7 @@ insertInErrorTrie es err (ParseErrorTrie here there) =
           newRemote = insertInErrorTrie more err remote
       in ParseErrorTrie here (Map.insert e newRemote there)
 
-parseErrorToTrie :: Ord e => ParseErrorG s e -> ParseErrorTrie s e
+parseErrorToTrie :: Ord e => ParseErrorG e -> ParseErrorTrie e
 parseErrorToTrie = foldr insert emptyErrorTrie . parseErrorToList
   where insert e = insertInErrorTrie (peStack e) e
 
@@ -105,7 +110,7 @@ instance HasSourcePaths a => HasSourcePaths (Maybe a) where
   getSourcePaths   = maybe Set.empty getSourcePaths
   mapSourcePaths f = fmap (mapSourcePaths f)
 
-instance HasSourcePaths e => HasSourcePaths (ParseErrorG s e) where
+instance HasSourcePaths e => HasSourcePaths (ParseErrorG e) where
   getSourcePaths err = getSourcePaths (peStack err, (peGrammar err, peMore err))
   mapSourcePaths f err =
     err { peStack   = mapSourcePaths f (peStack err)
@@ -131,27 +136,7 @@ normalizePathFun ps = joinPath . drop common . splitDirectories
       []       -> True
       y : more -> all (== y) more
 
-
---------------------------------------------------------------------------------
--- Collected Inputs
---------------------------------------------------------------------------------
-
-class HasInputs a where
-  getInputs :: a -> Map ShortByteString ByteString
-
-instance HasInputs () where
-  getInputs _ = Map.empty
-
-instance HasInputs a => HasInputs [a] where
-  getInputs = Map.unions . map getInputs
-
-instance HasInputs a => HasInputs (Maybe a) where
-  getInputs = maybe Map.empty getInputs
-
-instance HasInputs Input where
-  getInputs i = Map.singleton (inputName i) (inputTopBytes i)
-
-instance (HasInputs s, HasInputs e) => HasInputs (ParseErrorG s e) where
+instance (HasInputs e) => HasInputs (ParseErrorG e) where
   getInputs pe = Map.unions [ getInputs (peITrace pe)
                             , getInputs (peStack pe)
                             , getInputs (peMore pe)
@@ -162,14 +147,14 @@ instance (HasInputs s, HasInputs e) => HasInputs (ParseErrorG s e) where
 -- Merging errors
 --------------------------------------------------------------------------------
 
-instance Semigroup (ParseErrorG s e) where
+instance Semigroup (ParseErrorG e) where
   -- (<>) = joinSingleError
   (<>) = mergeError
 
-joinSingleError :: ParseErrorG s e -> ParseErrorG s e -> ParseErrorG s e
+joinSingleError :: ParseErrorG e -> ParseErrorG e -> ParseErrorG e
 joinSingleError p1 p2 = fst (preferFirst p1 p2)
 
-mergeError :: ParseErrorG s e -> ParseErrorG s e -> ParseErrorG s e
+mergeError :: ParseErrorG e -> ParseErrorG e -> ParseErrorG e
 mergeError p1 p2 = better { peMore = joinMb worse (peMore better) }
   where
   (better,worse) = preferFirst p1 p2
@@ -177,7 +162,7 @@ mergeError p1 p2 = better { peMore = joinMb worse (peMore better) }
 
 -- | Given two error put the one we prefer in the first component of the result
 preferFirst ::
-  ParseErrorG s e -> ParseErrorG s e -> (ParseErrorG s e, ParseErrorG s e)
+  ParseErrorG e -> ParseErrorG e -> (ParseErrorG e, ParseErrorG e)
 preferFirst p1 p2 =
   case (peSource p1, peSource p2) of
     (FromUser,FromSystem) -> (p1, p2)
@@ -217,17 +202,17 @@ class ToJSON a => IsITrace a where
 
 
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Pretty Printing
 --------------------------------------------------------------------------------
 
-ppParseError :: (IsITrace s, IsAnnotation e) => ParseErrorG s e -> Doc
+ppParseError :: (IsAnnotation e) => ParseErrorG e -> Doc
 ppParseError pe@PE { .. } =
   brackets ("offset:" <+> int (peOffset pe)) $$
   nest 2 (bullets
            [ text peMsg, gram
            , "context:" $$ nest 2 (bullets (reverse (map ppAnnot peStack)))
-           , "input trace:" $$ nest 2 (ppITrace peITrace)
+           , "input trace:" $$ nest 2 (ppInputTrace peITrace)
            ]
          )
     $$ more
@@ -263,8 +248,7 @@ ppSourceRange r =
 jsToDoc :: ToJSON a => a -> Doc
 jsToDoc = text . Text.unpack . Text.decodeUtf8 . jsonToBytes . toJSON
 
-instance (HasInputs s, HasInputs e, ToJSON s, ToJSON e) =>
-      ToJSON (ParseErrorG s e) where
+instance (HasInputs e, ToJSON e) => ToJSON (ParseErrorG e) where
   toJSON pe =
     jsObject
       [ ("error",   jsString (peMsg pe))

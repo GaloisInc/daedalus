@@ -20,8 +20,6 @@ library
                        RTS.Numeric,
                        RTS.ParserAPI,
                        RTS.Parser,
-                       RTS.ParserTraced,
-                       RTS.ParserUntraced,
                        RTS.StateT,
                        RTS.Vector,
                        RTS.Map,
@@ -31,6 +29,7 @@ library
                        RTS.Iterator,
                        RTS.JSON,
                        RTS.InputTrace,
+                       RTS.HasInputs,
                        RTS.Annot
   build-depends:       base >=4.13,
                        vector,

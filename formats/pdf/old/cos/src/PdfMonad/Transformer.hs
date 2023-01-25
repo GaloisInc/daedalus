@@ -7,6 +7,7 @@ module PdfMonad.Transformer
   , Cipher(..)
   , EncContext(..) 
   , doM
+  , ParseError
   , module RTS.ParserAPI
   ) where
 
@@ -18,8 +19,8 @@ import qualified Data.Map as Map
 import Control.Monad(liftM,ap)
 import Data.Word (Word32)
 
-import RTS.ParserUntraced
 import RTS.ParseError
+import RTS.Annot
 import RTS.ParserAPI
 import RTS.Numeric
 
@@ -61,6 +62,8 @@ data RW = RW
 data PdfResult a = ParseOk a
                  | ParseAmbig [a]
                  | ParseErr ParseError
+
+type ParseError = ParseErrorG Annotation
 
 runPdfT :: Functor m => Input -> ObjIndex -> Maybe EncContext -> PdfT m a -> m a
 runPdfT inp objMap ec (P m) = fst <$> m ro rw
@@ -152,7 +155,6 @@ liftS s m = do a <- m
 {-# INLINE liftS #-}
 
 instance BasicParser m => BasicParser (PdfT m) where
-  type ITrace (PdfT m) = ITrace m
   type Annot (PdfT m) = Annot m
 
   P m ||| P n     = P \ro s -> m ro s ||| n ro s
@@ -163,6 +165,8 @@ instance BasicParser m => BasicParser (PdfT m) where
   pStack          = doM pStack
   pPeek           = doM pPeek
   pSetInput i     = doM (pSetInput i)
+  pITrace         = doM pITrace
+  pSetITrace x    = doM (pSetITrace x)
 
   pErrorMode e (P m) = P \ro s -> pErrorMode e (m ro s)
 
