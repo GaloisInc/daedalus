@@ -11,7 +11,7 @@ import RTS.ParserAPI
 import RTS.InputTrace
 
 
-{- | The type of a parsers.
+{- | The type of parsers.
 
   * `s` is custom parser state used to track input used by the parser.
   * `e` is a context frame used to keep track of the call stack during parsing.
@@ -122,13 +122,20 @@ merge ::
   ParseErrorG e -> ParseErrorG e -> ParseErrorG e
 merge cfg dep e1 e2 =
   case dep of
-    EQ -> e1 <> e2
-    LT -> app e1 e2
-    GT -> app e2 e1
+    EQ -> case cfg of
+            SingleError -> joinSingleError e1 e2
+            MultiError  -> mergeError e1 e2
+    LT -> case cfg of
+            SingleError -> e1
+            MultiError  -> app e1 e2
+    GT -> case cfg of
+            SingleError -> e2
+            MultiError  -> app e2 e1
   where
-  app xs ys = case peMore xs of
-                Nothing -> xs { peMore = Just ys }
-                Just zs -> xs { peMore = Just (app zs ys) }
+  app xs ys =
+    case peMore xs of
+      Nothing -> xs { peMore = Just ys }
+      Just zs -> xs { peMore = Just (app zs ys) }
 
 -- | Merge a potential error with an error
 mergeMb ::

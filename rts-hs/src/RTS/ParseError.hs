@@ -147,10 +147,6 @@ instance (HasInputs e) => HasInputs (ParseErrorG e) where
 -- Merging errors
 --------------------------------------------------------------------------------
 
-instance Semigroup (ParseErrorG e) where
-  -- (<>) = joinSingleError
-  (<>) = mergeError
-
 joinSingleError :: ParseErrorG e -> ParseErrorG e -> ParseErrorG e
 joinSingleError p1 p2 = fst (preferFirst p1 p2)
 
@@ -160,7 +156,7 @@ mergeError p1 p2 = better { peMore = joinMb worse (peMore better) }
   (better,worse) = preferFirst p1 p2
   joinMb x y = Just (maybe x (mergeError x) y)
 
--- | Given two error put the one we prefer in the first component of the result
+-- | Given two errors put the one we prefer in the first component of the result
 preferFirst ::
   ParseErrorG e -> ParseErrorG e -> (ParseErrorG e, ParseErrorG e)
 preferFirst p1 p2 =

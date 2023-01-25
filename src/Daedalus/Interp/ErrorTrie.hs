@@ -26,7 +26,7 @@ insertError path err (ErrorTrie here there) =
       newHere =
         case here of
           Nothing -> Just err
-          Just other -> Just (err <> other)
+          Just other -> Just (RTS.mergeError err other)
 
     e : more ->
       case e of
