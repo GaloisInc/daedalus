@@ -212,7 +212,8 @@ interpInterp opts inp prog ents =
   do start <- case [ ModScope m i | (m,i) <- ents ] of
                 [ent] -> pure ent
                 es -> interpError (MultipleStartRules es)
-     (_,res) <- interpFile RTS.SingleError inp prog start
+     let cfg = defaultInterpConfig -- XXX: get from Options
+     (_,res) <- interpFile cfg inp prog start
      let ?useJS = optShowJS opts
      let txt1   = dumpResult dumpInterpVal res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1

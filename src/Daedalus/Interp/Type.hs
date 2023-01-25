@@ -122,6 +122,5 @@ evalBitdataType env name u def =
         case lookup l fs of
           Just fv -> fv
           Nothing -> panic "outField" ["Missing field value", showPP l ]
---------------------------------------------------------------------------------
 
 

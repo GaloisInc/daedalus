@@ -10,6 +10,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ConstraintKinds #-}
 -- An interpreter for the typed AST
 module Daedalus.Interp
   ( interp, interpFile
@@ -22,6 +24,7 @@ module Daedalus.Interp
   , Input(..)
   , InterpError(..)
   , interpError
+  , InterpConfing(..), defaultInterpConfig
   -- For synthesis
   , compilePureExpr
   , compilePredicateExpr
@@ -66,10 +69,11 @@ import RTS.ParserAPI as RTS
 import RTS.Input
 import RTS.Vector(vecFromRep,vecToRep)
 import RTS.Numeric(UInt(..))
-import RTS.ParseError (ParseErrorG, ParseErrorSource(..),ErrorStyle)
+import RTS.ParseError (ParseErrorG, ParseErrorSource(..))
 import qualified RTS.ParseError as RTS
 import qualified RTS.Vector as RTS
 
+import Daedalus.Interp.Config
 import Daedalus.Interp.Error
 import Daedalus.Interp.DebugAnnot
 import Daedalus.Interp.Env
@@ -78,7 +82,7 @@ import Daedalus.Interp.ErrorTrie
 import Daedalus.Interp.Operators
 import Daedalus.Interp.Type
 
-
+type CfgCtxt = (?cfg :: InterpConfing)
 
 
 
@@ -87,7 +91,7 @@ import Daedalus.Interp.Type
 --------------------------------------------------------------------------------
 
 class EvalLoopBody k where
-  evalLoopBody  :: HasRange a => Env -> TC a k -> ResultFor k
+  evalLoopBody  :: (CfgCtxt,HasRange a) => Env -> TC a k -> ResultFor k
   arrayLoop     :: LoopEval (Vector.Vector Value) k
   mapLoop       :: LoopEval (Map Value Value) k
 
@@ -112,7 +116,7 @@ loopOver _ env col k =
 
 
 
-doLoop :: (HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
+doLoop :: (CfgCtxt,HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
 doLoop env lp =
   case loopFlav lp of
 
@@ -175,7 +179,7 @@ doLoop env lp =
 --------------------------------------------------------------------------------
 
 evalCase ::
-  HasRange a =>
+  (CfgCtxt,HasRange a) =>
   (Env -> TC a k -> val) ->
   val ->
   Env ->
@@ -233,7 +237,9 @@ matchPat pat =
 -- Calling things
 --------------------------------------------------------------------------------
 
-invoke :: HasRange ann => Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
+invoke ::
+  (CfgCtxt, HasRange ann) =>
+  Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
 invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
   where
   ts1 = map (evalType env) ts
@@ -247,7 +253,7 @@ invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
 
 
 -- Handles expr with kind KValue
-compilePureExpr :: HasRange a => Env -> TC a K.Value -> Value
+compilePureExpr :: (CfgCtxt,HasRange a) => Env -> TC a K.Value -> Value
 compilePureExpr env = go
   where
     go expr =
@@ -308,7 +314,7 @@ compilePureExpr env = go
 
 
 
-compilePredicateExpr :: HasRange a => Env -> TC a K.Class -> ClassVal
+compilePredicateExpr :: (CfgCtxt,HasRange a) => Env -> TC a K.Class -> ClassVal
 compilePredicateExpr env = go
   where
     go expr =
@@ -355,7 +361,8 @@ mbSkip s v = case s of
                NoSem  -> vUnit
                YesSem -> v
 
-compileExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> Parser Value
+compileExpr ::
+  forall a. (CfgCtxt, HasRange a) => Env -> TC a K.Grammar -> Parser Value
 compileExpr env expr = compilePExpr env expr []
 
 compileSourceRange :: AST.SourceRange -> RTS.SourceRange
@@ -370,13 +377,20 @@ compileSourceRange rng =
                              }
 
 
-compilePExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> PParser Value
-compilePExpr env expr0 args =
-  do (v,t) <- traceScope (go expr0)
-     pure (vTraced v t)
+compilePExpr ::
+  forall a. (CfgCtxt, HasRange a) =>
+  Env -> TC a K.Grammar -> PParser Value
+compilePExpr env expr0 args
+  | tracedValues ?cfg =
+    do (v,t) <- traceScope (go expr0)
+       pure (vTraced v t)
+  | otherwise = go expr0
+
   where
     addScope :: Parser x -> Parser x
-    addScope = pScope env
+    addScope
+      | detailedCallstack ?cfg = pScope env
+      | otherwise              = id
 
     go :: TC a K.Grammar -> Parser Value
     go expr =
@@ -607,7 +621,8 @@ tracePrim vs =
 
 
 -- Decl has already been added to Env if required
-compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
+compileDecl ::
+  (CfgCtxt, HasRange a) => Prims -> Env -> TCDecl a -> (Name, SomeFun)
 compileDecl prims env TCDecl { .. } =
   ( tcDeclName
   , case tcDeclDef of
@@ -669,7 +684,7 @@ compileDecl prims env TCDecl { .. } =
 
 
 -- decls are mutually recursive (maybe)
-compileDecls :: HasRange a => Prims -> Env -> [TCDecl a] -> Env
+compileDecls :: (CfgCtxt,HasRange a) => Prims -> Env -> [TCDecl a] -> Env
 compileDecls prims env decls = env'
   where
     addDecl (x,d) e =
@@ -682,7 +697,7 @@ compileDecls prims env decls = env'
     env' = foldr addDecl env (map (compileDecl prims env') decls)
 
 compile ::
-  HasRange a =>
+  (CfgCtxt,HasRange a )=>
   ScopedIdent ->
   [ (Name, ([Value] -> Parser Value)) ] ->
   [TCModule a] ->
@@ -712,26 +727,32 @@ compile start builtins prog =
                      ) | rs <- allRules, x <- rs ]
 
 interpCompiled ::
-  ErrorStyle ->
+  InterpConfing ->
   ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
 interpCompiled cfg name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    rl : _  -> runParser (rl [] (map VVal args)) cfg (newInput name bytes)
+    rl : _  -> runParser (rl [] (map VVal args)) errCfg (newInput name bytes)
+      where errCfg = if multiErrors cfg then RTS.SingleError else RTS.MultiError
+
     [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
-interp :: HasRange a => ErrorStyle -> [ (Name, ([Value] -> Parser Value)) ] ->
-          ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
-          Result Value
+interp ::
+  HasRange a =>
+  InterpConfing ->
+  [ (Name, ([Value] -> Parser Value)) ] ->
+  ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
+  Result Value
 interp cfg builtins nm bytes prog startName =
   interpCompiled cfg nm bytes env startName []
   where
-    env = compile startName builtins prog
+    env = let ?cfg = cfg
+          in compile startName builtins prog
 
 interpFile ::
   HasRange a =>
-  ErrorStyle -> Maybe FilePath -> [TCModule a] -> ScopedIdent ->
-                                              IO (ByteString, Result Value)
+  InterpConfing ->
+  Maybe FilePath -> [TCModule a] -> ScopedIdent -> IO (ByteString, Result Value)
 interpFile cfg input prog startName = do
   (nm,bytes) <- case input of
                   Nothing  -> pure ("(empty)", BS.empty)

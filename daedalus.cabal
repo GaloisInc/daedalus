@@ -51,6 +51,7 @@ library
                        Daedalus.Interp.Loop,
                        Daedalus.Interp.Type,
                        Daedalus.Interp.ErrorTrie,
+                       Daedalus.Interp.Config,
                        Daedalus.Specialise,
                        Daedalus.CompileHS,
                        Daedalus.Compile.LangHS,
