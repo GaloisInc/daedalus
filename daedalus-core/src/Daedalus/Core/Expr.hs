@@ -9,13 +9,14 @@ import           Control.Applicative   (Const (..))
 import           Control.DeepSeq       (NFData)
 import           Data.ByteString       (ByteString)
 import           Data.Functor.Identity (Identity (..))
+import           Data.Maybe            (maybeToList)
 import           GHC.Generics          (Generic)
 
 import           Daedalus.PP
 import           Daedalus.Panic        (panic)
 
 import           Daedalus.Core.Basics
-import Data.Maybe (maybeToList)
+
 
 data Expr =
     Var Name
