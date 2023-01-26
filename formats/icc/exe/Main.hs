@@ -7,7 +7,7 @@ import Text.PrettyPrint(vcat)
 import RTS.Parser(ParserG,runParser)
 import RTS(ResultG(..))
 import RTS.ParseError
-import RTS.Input(newInputFromFile)
+import Daedalus.RTS.Input(newInputFromFile)
 import RTS.Annot(Annotation)
 
 import qualified Parser

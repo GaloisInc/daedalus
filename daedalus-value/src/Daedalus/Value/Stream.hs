@@ -1,8 +1,8 @@
 {-# Language BlockArguments #-}
 module Daedalus.Value.Stream where
 
-import RTS.Input
-import RTS.Numeric
+import Daedalus.RTS.Input
+import Daedalus.RTS.Numeric
 import Daedalus.Value.Type
 import Daedalus.Value.Utils
 

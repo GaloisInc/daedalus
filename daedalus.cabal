@@ -128,7 +128,7 @@ library
                        daedalus-vm,
                        daedalus-value,
                        rts-hs,
-                       rts-vm-hs
+                       rts-hs-data
 
 
 executable daedalus
@@ -142,7 +142,7 @@ executable daedalus
                        daedalus-value,
                        daedalus-vm,
                        rts-hs,
-                       rts-vm-hs,
+                       rts-hs-data,
                        pretty-hex >= 1.1,
                        ansi-terminal,
                        base,

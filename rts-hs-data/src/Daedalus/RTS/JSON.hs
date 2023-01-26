@@ -11,6 +11,7 @@ module Daedalus.RTS.JSON
   ) where
 
 import Data.ByteString(ByteString)
+import Data.ByteString.Short(fromShort,ShortByteString)
 import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -31,17 +32,22 @@ jsonToBytes = LBS.toStrict . toLazyByteString . coerce
 class ToJSON a where
   toJSON :: a -> JSON
 
+instance ToJSON JSON where
+  toJSON = id
+
 instance ToJSON Integer where
   toJSON = JSON . integerDec
 
 instance ToJSON Int where
   toJSON = toJSON . toInteger
 
+
+
 instance ToJSON Float where
-  toJSON = JSON . string7 . show
+  toJSON = jsFloating
 
 instance ToJSON Double where
-  toJSON = JSON . string7 . show
+  toJSON = jsFloating
 
 instance ToJSON Bool where
   toJSON b = JSON (if b then "true" else "false")
@@ -52,11 +58,14 @@ instance ToJSON () where
 instance ToJSON Text where
   toJSON = jsText . Text.encodeUtf8
 
+instance ToJSON ShortByteString where
+  toJSON = jsText . fromShort
+
 -- This is DDL specific
 instance (ToJSON a) => ToJSON (Maybe a) where
   toJSON a = case a of
                Nothing -> jsNull
-               Just v  -> jsTagged "$null" (toJSON v)
+               Just v  -> jsTagged "$just" (toJSON v)
 
 -- This is DDL specific
 instance (ToJSON a, ToJSON b) => ToJSON (Map a b) where
@@ -65,6 +74,9 @@ instance (ToJSON a, ToJSON b) => ToJSON (Map a b) where
 
 instance (ToJSON a) => ToJSON [a] where
   toJSON = jsArray . map toJSON
+
+instance (ToJSON a, ToJSON b) => ToJSON (a,b) where
+  toJSON (a,b) = jsArray [ toJSON a, toJSON b ]
 
 jsNull :: JSON
 jsNull = JSON "null"
@@ -82,6 +94,12 @@ jsTagged t v = jsObject [ (t, v) ]
 
 jsString :: String -> JSON
 jsString = toJSON . Text.pack
+
+jsFloating :: (Show a, RealFloat a) => a -> JSON
+jsFloating x
+  | isInfinite x = jsTagged "$$inf" jsNull
+  | isNaN x      = jsTagged "$$nan" jsNull
+  | otherwise    = JSON (string7 (show x))
 
 jsText :: ByteString -> JSON
 jsText x = coerce (char7 '"' <> escaped x <> char7 '"')

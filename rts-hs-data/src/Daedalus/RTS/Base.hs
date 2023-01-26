@@ -1,8 +1,4 @@
-{-# Language DataKinds, KindSignatures, ConstraintKinds, FlexibleContexts #-}
-{-# Language MultiParamTypeClasses #-}
-{-# Language TypeFamilies #-}
-{-# Language ScopedTypeVariables #-}
-module RTS.Base where
+module Daedalus.RTS.Base where
 
 import GHC.TypeLits(Symbol)
 import Control.Monad(foldM)
@@ -13,8 +9,15 @@ import Data.Functor.Identity(Identity(..))
 
 import GHC.Records(HasField)
 
+
 type HasStruct s (l::Symbol) a = HasField l s a
 type HasUnion  s (l::Symbol) a = HasField l s (Maybe a)
+
+
+
+
+--------------------------------------------------------------------------------
+-- Looping classes for old Haskell code generator
 
 class IsLoop t where
   loopFold    ::            (s ->              ElType t ->   s) -> s -> t ->   s
@@ -28,13 +31,21 @@ type family KeyType t
 type ColElType c e  = ElType c ~ e
 type ColKeyType c e = KeyType c ~ e
 
-type instance ElType Integer = Integer
-type instance KeyType Integer = Integer
+-- Basically "Traversable"
+class IsMapLoop s t where
+  loopMap   ::            (             ElType s -> ElType t) -> s -> t
+  loopIMap  ::            (KeyType s -> ElType s -> ElType t) -> s -> t
+  loopMapM  :: Monad m => (             ElType s -> m (ElType t)) -> s -> m t
+  loopIMapM :: Monad m => (KeyType s -> ElType s -> m (ElType t)) -> s -> m t
+
+
+
+--------------------------------------------------------------------------------
+-- Instances for `Map`.
+-- These are hererahter than in Daedalus.RTS.Map to avoid orphan instancse
 
 type instance ElType (Map k v) = v
 type instance KeyType (Map k v) = k
-
-
 
 instance IsLoop (Map k v) where
   loopFold        = Map.foldl'
@@ -49,13 +60,6 @@ instance IsLoop (Map k v) where
   {-# INLINE loopIFoldM #-}
 
 
-
--- Basically "Traversable"
-class IsMapLoop s t where
-  loopMap   ::            (             ElType s -> ElType t) -> s -> t
-  loopIMap  ::            (KeyType s -> ElType s -> ElType t) -> s -> t
-  loopMapM  :: Monad m => (             ElType s -> m (ElType t)) -> s -> m t
-  loopIMapM :: Monad m => (KeyType s -> ElType s -> m (ElType t)) -> s -> m t
 
 
 instance (k ~ k1) => IsMapLoop (Map k a) (Map k1 b) where

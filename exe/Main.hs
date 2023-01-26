@@ -32,8 +32,7 @@ import Daedalus.Core(checkModule)
 import Daedalus.Driver
 import Daedalus.DriverHS
 
--- import qualified RTS.ParserTraced as RTS
-import qualified RTS.Input as RTS
+import qualified Daedalus.RTS.Input as RTS
 import qualified RTS.ParseError as RTS
 import qualified RTS.ParserAPI as RTS
 
@@ -212,7 +211,9 @@ interpInterp opts inp prog ents =
   do start <- case [ ModScope m i | (m,i) <- ents ] of
                 [ent] -> pure ent
                 es -> interpError (MultipleStartRules es)
-     let cfg = defaultInterpConfig -- XXX: get from Options
+     let cfg = if optDetailedErrors opts
+                  then detailedErrorsConfig
+                  else defaultInterpConfig
      (_,res) <- interpFile cfg inp prog start
      let ?useJS = optShowJS opts
      let txt1   = dumpResult dumpInterpVal res

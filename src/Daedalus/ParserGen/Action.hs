@@ -51,9 +51,9 @@ import qualified Daedalus.Value as Interp
 import qualified Daedalus.Interp as Interp
 
 import Daedalus.Type.AST
-import RTS.Numeric(intToSize)
-import RTS.Input(Input(..))
-import qualified RTS.Input as Input
+import Daedalus.RTS.Numeric(intToSize)
+import Daedalus.RTS.Input(Input(..))
+import qualified Daedalus.RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr, showName)
 

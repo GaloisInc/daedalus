@@ -35,9 +35,9 @@ import           Text.PrettyPrint
 
 -- local:
 import Daedalus.Panic 
-import RTS.Vector(Vector,toList,VecElem)
-import RTS.Numeric
-import RTS.Input(advanceBy)
+import Daedalus.RTS.Vector(Vector,toList,VecElem)
+import Daedalus.RTS.Numeric
+import Daedalus.RTS.Input(advanceBy)
 import RTS.ParseError
 
 import PdfMonad

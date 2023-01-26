@@ -7,9 +7,9 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import Data.Text.Encoding(encodeUtf8)
 import qualified Data.List.NonEmpty as NE
-import RTS.Input(newInput)
+import Daedalus.RTS.Input(newInput)
 import RTS.Parser(runParser)
-import qualified RTS.JSON as JS
+import qualified Daedalus.RTS.JSON as JS
 import qualified RTS.ParseError as RTS
 import RTS
 

@@ -18,10 +18,9 @@ import Control.Monad(when)
 import Control.Monad.IO.Class(MonadIO(..))
 import Control.Exception(evaluate,try,throwIO)
 
-import RTS.Numeric(intToSize, fromUInt,sizeToInt)
-import RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
-import RTS.Input
-import RTS.ParserUntraced(ParseError)
+import Daedalus.RTS.Numeric(intToSize, fromUInt,sizeToInt)
+import Daedalus.RTS.Vector(vecFromRep,vecToString,vecToRep,toList)
+import Daedalus.RTS.Input
 import RTS.ParseError
 
 import Data.Char(isDigit)

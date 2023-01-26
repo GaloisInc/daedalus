@@ -22,7 +22,7 @@ import Data.Word (Word32)
 import RTS.ParseError
 import RTS.Annot
 import RTS.ParserAPI
-import RTS.Numeric
+import Daedalus.RTS.Numeric
 
 
 data R = R { refObj :: {-# UNPACK #-} !Int

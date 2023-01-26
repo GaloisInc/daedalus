@@ -36,9 +36,10 @@ import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 import qualified Daedalus.Value                  as I
-import           RTS.Input                       (newInput)
+import           Daedalus.RTS.Input              (newInput)
 import           RTS.Parser                      (runParser)
-import           RTS.ParserAPI                   (Result (..), ppParseError)
+import           RTS.ParserAPI                   (ResultG (..))
+import           RTS.ParseError (ppParseError,ErrorStyle(SingleError))
 
 import           Talos.Analysis                  (summarise)
 import           Talos.Analysis.Exported         (esRootSlices, SliceId)
@@ -431,9 +432,9 @@ synthesiseG (SelectedBytes prov bs) g = do
   env <- projectEnvForM g
 
   let inp = newInput "<synthesised bytes>" bs
-      res = case runParser (I.evalG g env) inp of
+      res = case runParser (I.evalG g env) SingleError inp of
         NoResults e -> panic "No results" [ show (ppParseError e) ]
-        Results  rs -> NE.head rs -- FIXME: this is maybe a little suspicious
+        Results  rs -> fst (NE.head rs) -- FIXME: this is maybe a little suspicious
       
   pure (InterpValue res)
       

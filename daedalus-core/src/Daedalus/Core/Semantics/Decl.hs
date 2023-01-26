@@ -13,8 +13,8 @@ import Daedalus.Panic(panic)
 import Daedalus.Value
 
 import RTS.ParseError(ErrorStyle(SingleError))
-import RTS.Input
 import qualified RTS.Parser as RTS
+import Daedalus.RTS.Input
 
 import Daedalus.Core
 import Daedalus.Core.Free

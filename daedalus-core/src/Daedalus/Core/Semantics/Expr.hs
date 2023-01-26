@@ -23,7 +23,7 @@ import qualified Daedalus.BDD as BDD
 
 import Daedalus.PP(showPP)
 import Daedalus.Value
-import RTS.Input (inputBytes)
+import Daedalus.RTS.Input (inputBytes)
 
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr

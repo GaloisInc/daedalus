@@ -6,6 +6,7 @@ packages:
   daedalus-vm/
   daedalus-value/
   rts-hs/
+  rts-hs-data/
   rts-vm-hs/
   formats/pdf/old/cos/
   formats/pdf/old/driver/

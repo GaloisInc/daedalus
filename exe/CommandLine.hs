@@ -68,6 +68,10 @@ data Options =
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
 
+          , optDetailedErrors :: Bool
+            -- ^ Should we produce very detailed error messages
+            -- We could break that up into more options.
+
           , optParams :: [String]
           }
 
@@ -99,6 +103,7 @@ defaultOptions =
           , optUserNS = defaultUserSpace
           , optExternMods = Map.empty
           , optModulePath = []
+          , optDetailedErrors = False
           }
 
 defaultUserSpace :: String
@@ -207,6 +212,10 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
               , Option [] ["json"]
                 "Show semantics values as JSON."
                 $ NoArg \o -> Right o { optShowJS = True }
+
+              , Option [] ["detailed-errors"]
+                "Show a lot of information in error messages"
+                $ NoArg \o -> Right o { optDetailedErrors = True }
 
               , Option [] ["html"]
                 "Show semantics values as HTML."

@@ -19,7 +19,7 @@ import MonadLib hiding (Label)
 import qualified Data.Vector as V
 
 
-import RTS.Input (inputBytes)
+import Daedalus.RTS.Input (inputBytes)
 import Daedalus.Core
 import Daedalus.Core.TypeCheck (getUserType)
 import Daedalus.Core.Semantics.Env

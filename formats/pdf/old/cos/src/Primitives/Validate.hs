@@ -1,8 +1,8 @@
 {-# Language BlockArguments, DataKinds, ViewPatterns #-}
 module Primitives.Validate where
 
-import qualified RTS.Vector as V
-import RTS.Numeric
+import qualified Daedalus.RTS.Vector as V
+import Daedalus.RTS.Numeric
 import RTS.ParseError
 
 import PdfMonad.Transformer

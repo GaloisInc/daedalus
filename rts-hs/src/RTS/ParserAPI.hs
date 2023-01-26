@@ -12,12 +12,12 @@ import Numeric(showHex)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 
-import RTS.Numeric
-import RTS.Vector(Vector,VecElem)
-import RTS.Input
-import RTS.InputTrace
+import Daedalus.RTS.Numeric
+import Daedalus.RTS.Vector(Vector,VecElem)
+import Daedalus.RTS.Input
+import qualified Daedalus.RTS.Vector as Vector
+import Daedalus.RTS.InputTrace
 import RTS.ParseError
-import qualified RTS.Vector as Vector
 
 import Debug.Trace(traceM)
 

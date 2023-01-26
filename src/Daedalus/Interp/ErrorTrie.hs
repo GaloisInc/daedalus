@@ -5,9 +5,9 @@ import qualified Data.Map as Map
 import Data.ByteString.Short(fromShort)
 
 import qualified RTS.ParseError as RTS
-import qualified RTS.HasInputs as RTS
-import RTS.Input
-import RTS.JSON
+import qualified Daedalus.RTS.HasInputs as RTS
+import Daedalus.RTS.Input
+import Daedalus.RTS.JSON
 
 import Daedalus.Interp.DebugAnnot
 import Daedalus.Interp.Env

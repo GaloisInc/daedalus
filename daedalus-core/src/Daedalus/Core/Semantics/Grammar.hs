@@ -6,8 +6,8 @@ import qualified Data.ByteString.Char8 as BS8
 import Control.Monad(unless)
 import Data.Word(Word8)
 
-import RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
-import RTS.Numeric(intToSize)
+import Daedalus.RTS.Input(advanceBy, inputEmpty, inputByte, inputBytes)
+import Daedalus.RTS.Numeric(intToSize)
 import RTS.ParseError (ParseErrorSource(..))
 import qualified RTS.ParseError as RTS
 import qualified RTS.Annot as RTS

@@ -24,7 +24,7 @@ import qualified Data.List as List
 import qualified Data.Array.IArray as Array
 import System.IO
 
-import qualified RTS.Input as Input
+import qualified Daedalus.RTS.Input as Input
 
 import Daedalus.ParserGen.Action (State, isInputAction, isActivateFrameAction, isBoundSetup)
 import Daedalus.ParserGen.Aut (Aut(..), Choice(..), stateToString, getMaxState)

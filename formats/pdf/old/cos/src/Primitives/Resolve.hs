@@ -3,8 +3,8 @@ module Primitives.Resolve where
 
 import qualified Data.Map as Map
 
-import RTS.Numeric(toInt,intToSize,UInt)
-import RTS.Input
+import Daedalus.RTS.Numeric(toInt,intToSize,UInt)
+import Daedalus.RTS.Input
 import RTS.ParseError
 import PdfMonad.Transformer
 

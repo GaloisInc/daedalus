@@ -1,5 +1,4 @@
-{-# Language OverloadedStrings #-}
-module RTS.InputTrace 
+module Daedalus.RTS.InputTrace 
   ( InputTrace
   , ppInputTrace
   , emptyInputTrace
@@ -14,10 +13,11 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Short(ShortByteString)
 import qualified Data.ByteString.Short as BSS
 import Text.PrettyPrint
-import RTS.JSON
 
-import RTS.HasInputs
-import RTS.Input
+import Daedalus.RTS.HasInputs
+import Daedalus.RTS.JSON
+import Daedalus.RTS.Input
+
 
 {- | A collection of annotated byte sequences.
 This maps each input name to the bytes in the input, and a collection

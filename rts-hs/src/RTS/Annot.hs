@@ -3,8 +3,8 @@ module RTS.Annot where
 import Text.PrettyPrint
 import qualified Data.Set as Set
 
-import RTS.JSON
-import RTS.HasInputs
+import Daedalus.RTS.JSON
+import Daedalus.RTS.HasInputs
 import RTS.ParseError
 
 

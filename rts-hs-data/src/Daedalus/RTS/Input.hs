@@ -1,5 +1,4 @@
-{-# Language DataKinds, RecordWildCards, OverloadedStrings #-}
-module RTS.Input
+module Daedalus.RTS.Input
   ( Input
   , inputName
   , inputOffset
@@ -28,11 +27,11 @@ import Data.Word(Word8)
 import Control.Monad(guard)
 import Numeric(showHex)
 
-import RTS.JSON
-import RTS.HasInputs
-import RTS.Numeric(UInt,sizeToInt)
-import RTS.Vector(Vector)
-import qualified RTS.Vector as Vector
+import Daedalus.RTS.HasInputs
+import Daedalus.RTS.JSON
+import Daedalus.RTS.Numeric(UInt,sizeToInt)
+import Daedalus.RTS.Vector(Vector)
+import qualified Daedalus.RTS.Vector as Vector
 
 -- | This is the representation of a stream.
 data Input = Input
@@ -171,7 +170,6 @@ newInputFromFile mb =
     Just file ->
       do bs <- BS.readFile file
          pure (newInput (BS8.pack file) bs)
-
 
 instance HasInputs Input where
   getInputs i = Map.singleton (inputName i) (inputTopBytes i)

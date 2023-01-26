@@ -78,6 +78,7 @@ library
                      , daedalus-core
                      , random
                      , rts-hs
+                     , rts-hs-data
                      , vector
                      , parameterized-utils
                      , mtl

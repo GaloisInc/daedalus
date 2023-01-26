@@ -5,10 +5,10 @@ module RTS.Parser (ParserG, runParser) where
 import Control.Monad
 import Data.List.NonEmpty(NonEmpty(..))
 
-import RTS.Input
+import Daedalus.RTS.Input
+import Daedalus.RTS.InputTrace
 import RTS.ParseError
 import RTS.ParserAPI
-import RTS.InputTrace
 
 
 {- | The type of parsers.

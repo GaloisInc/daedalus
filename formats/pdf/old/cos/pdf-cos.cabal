@@ -170,6 +170,7 @@ library
     pretty,
     range-set-list,
     rts-hs,
+    rts-hs-data,
     text,
     zlib
 

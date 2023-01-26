@@ -22,10 +22,10 @@ import Numeric(showHex)
 import Daedalus.PP hiding (empty)
 import Daedalus.Range
 import Daedalus.Panic(panic)
-import RTS.Input(Input(..),inputName,inputOffset,inputLength)
-import RTS.HasInputs(HasInputs(..))
-import RTS.InputTrace(InputTrace,unionInputTrace)
-import RTS.JSON
+import Daedalus.RTS.Input(Input(..),inputName,inputOffset,inputLength)
+import Daedalus.RTS.HasInputs(HasInputs(..))
+import Daedalus.RTS.InputTrace(InputTrace,unionInputTrace)
+import Daedalus.RTS.JSON
 
 -- | Value universe
 data Value =

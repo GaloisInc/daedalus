@@ -1,4 +1,4 @@
-module RTS.HasInputs where
+module Daedalus.RTS.HasInputs where
 
 import Data.Map(Map)
 import qualified Data.Map as Map

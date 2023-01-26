@@ -14,10 +14,10 @@ import Data.Typeable(Typeable)
 import Text.PrettyPrint
 import Data.ByteString.Short(fromShort)
 
-import RTS.HasInputs
-import RTS.Input
-import RTS.InputTrace
-import RTS.JSON
+import Daedalus.RTS.HasInputs
+import Daedalus.RTS.InputTrace
+import Daedalus.RTS.Input
+import Daedalus.RTS.JSON
 
 data ParseErrorG e =
   PE { peInput   :: !Input

@@ -58,6 +58,7 @@ library
     parameterized-utils,
     bv-sized >= 1.0.1,
     rts-hs,
+    rts-hs-data,
     rts-vm-hs,
     monadLib,
     template-haskell,

@@ -24,7 +24,7 @@ module Daedalus.Interp
   , Input(..)
   , InterpError(..)
   , interpError
-  , InterpConfing(..), defaultInterpConfig
+  , InterpConfing(..), defaultInterpConfig, detailedErrorsConfig
   -- For synthesis
   , compilePureExpr
   , compilePredicateExpr
@@ -66,12 +66,12 @@ import Daedalus.Rec (forgetRecs)
 
 import RTS.Parser as RTS
 import RTS.ParserAPI as RTS
-import RTS.Input
-import RTS.Vector(vecFromRep,vecToRep)
-import RTS.Numeric(UInt(..))
+import Daedalus.RTS.Input
+import Daedalus.RTS.Vector(vecFromRep,vecToRep)
+import qualified Daedalus.RTS.Vector as RTS
+import Daedalus.RTS.Numeric(UInt(..))
 import RTS.ParseError (ParseErrorG, ParseErrorSource(..))
 import qualified RTS.ParseError as RTS
-import qualified RTS.Vector as RTS
 
 import Daedalus.Interp.Config
 import Daedalus.Interp.Error

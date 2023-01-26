@@ -16,10 +16,10 @@ import qualified Data.ByteString.Base64 as Base64
 import Text.PrettyPrint
 import Data.Char
 
-import RTS.Vector(Vector)
-import qualified RTS.Vector as Vector
-import RTS.Numeric(UInt)
-import RTS.Input
+import Daedalus.RTS.Vector(Vector)
+import qualified Daedalus.RTS.Vector as Vector
+import Daedalus.RTS.Numeric(UInt)
+import Daedalus.RTS.Input
 import RTS.ParseError
 import PdfMonad
 import PdfMonad.Transformer

@@ -7,10 +7,10 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import RTS.HasInputs
+import Daedalus.RTS.HasInputs
+import Daedalus.RTS.JSON
+import Daedalus.RTS.Input
 import RTS.ParseError
-import RTS.JSON
-import RTS.Input
 
 import qualified Daedalus.SourceRange as Src
 import Daedalus.PP
