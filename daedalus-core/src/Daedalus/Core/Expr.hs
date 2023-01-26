@@ -15,6 +15,7 @@ import           Daedalus.PP
 import           Daedalus.Panic        (panic)
 
 import           Daedalus.Core.Basics
+import Data.Maybe (maybeToList)
 
 data Expr =
     Var Name
@@ -30,7 +31,7 @@ data Expr =
   | Ap2 Op2 Expr Expr
   | Ap3 Op3 Expr Expr Expr
   | ApN OpN [Expr]
-  deriving (Generic,NFData)
+  deriving (Generic,NFData,Eq)
 
 data Op0 =
     Unit
@@ -73,7 +74,7 @@ data Op1 =
   | IsInfinite
   | IsDenormalized
   | IsNegativeZero
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data Op2 =
     IsPrefix
@@ -107,24 +108,24 @@ data Op2 =
   | MapMember
 
   | ArrayStream
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data Op3 =
     RangeUp
   | RangeDown
   | MapInsert
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data OpN =
     ArrayL Type
   | CallF FName
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 -- folds and maps
 data LoopMorphism e =
   FoldMorphism Name Expr LoopCollection e  -- for (s = e; ... in ...) ...
   | MapMorphism LoopCollection e           -- map (... in ...) ...
-  deriving (Functor, Generic, NFData)
+  deriving (Functor, Generic, NFData, Eq)
 
 morphismBody :: LoopMorphism a -> a
 morphismBody (FoldMorphism _ _ _ a) = a
@@ -145,7 +146,10 @@ data LoopCollection = LoopCollection
   { lcKName   :: Maybe Name
   , lcElName  :: Name
   , lcCol     :: Expr
-  } deriving (Generic,NFData)
+  } deriving (Generic, NFData, Eq)
+
+loopCollectionBinders :: LoopCollection -> [Name]
+loopCollectionBinders lc = lcElName lc : maybeToList (lcKName lc)
 
 --------------------------------------------------------------------------------
 -- Traversals

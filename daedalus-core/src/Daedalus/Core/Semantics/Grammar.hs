@@ -153,5 +153,5 @@ evalByteSet bs env =
     SetLet x e b -> evalByteSet b $! defLocal x (eval e env) env
     SetCall f es -> lookupBFun f env [ eval e env | e <- es ]
     SetCase b    -> evalCase evalByteSet (const False) b env
-    SetLoop _lm  -> panic "evalByteSet" [ "Saw a SetLoop" ]
+
 

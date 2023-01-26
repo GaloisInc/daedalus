@@ -264,9 +264,10 @@ fromGrammar gram =
       do ge <- fromGrammar g
          -- ty   <- fromGTypeM (TC.typeOf g)
          cbnd <- traverse fromExpr bnd
-         let mk l m_u = pure (Loop (ManyLoop (fromSem sem) (cmt == Commit) l m_u ge))
+         let mk l m_u =
+               pure (Loop (ManyLoop (fromSem sem) (cmt == Commit) l m_u ge))
          case cbnd of
-           TC.Exactly e -> withVar e \x -> mk (Var x) (Just (Var x))
+           TC.Exactly e -> withNamedExpr e \e' -> mk e' (Just e')
            TC.Between Nothing m_u  -> mk (intL 0 sizeType) m_u
            TC.Between (Just l) m_u -> mk l m_u
 
@@ -1198,6 +1199,15 @@ withVar e k =
     Var x -> k x
     _     -> do x <- newLocal (typeOf e)
                 coreLet x e <$> k x
+
+-- Used to name expressions when they may be duplicated.
+withNamedExpr :: CoreSyn t => Expr -> (Expr -> M t) -> M t
+withNamedExpr e k =
+  case e of
+    -- We don't name constants
+    Ap0 {} -> k e
+    -- ... otherwise we do (Vars are handled in withVar)
+    _      -> withVar e (k . Var)
 
 doCase :: CoreSyn t => Expr -> (Name -> M [(Pattern, t)]) -> M t
 doCase e mkAlts =

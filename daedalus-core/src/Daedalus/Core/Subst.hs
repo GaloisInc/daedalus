@@ -78,7 +78,6 @@ instance Subst ByteSet where
       SetCall f es          -> SetCall f <$> traverse subst es
       SetCase e             -> substCase SetLet SetCase e
       SetLet x e s          -> letLike SetLet x e s
-      SetLoop lm            -> SetLoop <$> substLoopMorphism lm
       
 substCase :: (Subst e, HasGUID m) => (Name -> Expr -> e -> e) -> (Case e -> e) ->
              Case e -> SubstM m e

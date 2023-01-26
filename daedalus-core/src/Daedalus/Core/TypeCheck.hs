@@ -175,7 +175,6 @@ checkByteSet bs env =
          checkCall ?benv f ts
 
     SetCase c -> checkCase checkByteSet c env
-    SetLoop lm -> checkMorphism checkByteSet lm env
       
 checkVar :: Name -> Env -> TCResult Type
 checkVar x env =

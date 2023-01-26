@@ -1,8 +1,7 @@
-module Daedalus.Core.Rename (Rename, rename) where
+module Daedalus.Core.Rename (Rename, rename, renameIgnoring) where
 
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
-import           Data.Maybe            (maybeToList)
 import           Data.Set              (Set)
 import qualified Data.Set              as Set
 
@@ -18,8 +17,11 @@ type Renaming = Map Name Name
 
 -- | Remame _free_ variables in a term, retuning the renaming.
 rename :: (HasGUID m, Rename t) => t -> m (t, Renaming)
-rename t = do
-  runStateT mempty (runReaderT Set.empty (doRename t))
+rename = renameIgnoring []
+
+renameIgnoring :: (HasGUID m, Rename t) => [Name] -> t -> m (t, Renaming)
+renameIgnoring ns t = do
+  runStateT mempty (runReaderT (Set.fromList ns) (doRename t))
 
 type RenameM m a = ReaderT (Set Name) (StateT Renaming m) a
   
@@ -101,7 +103,7 @@ instance Rename e => Rename (LoopMorphism e) where
     MapMorphism lc b -> goLC MapMorphism lc (doRename b)      
     where
       goLC f lc b = do
-        let bnds = lcElName lc : maybeToList (lcKName lc)
+        let bnds = loopCollectionBinders lc
             mklc e = lc { lcCol = e }         
         f <$> (mklc <$> doRename (lcCol lc))
           <*> boundsIn bnds b

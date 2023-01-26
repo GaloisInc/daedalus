@@ -152,7 +152,6 @@ instance TraverseUserTypes ByteSet where
       SetCall fn es            -> SetCall <$> traverseUserTypes f fn
                                           <*> traverseUserTypes f es
       SetCase c                -> SetCase <$> traverseUserTypes f c
-      SetLoop lm               -> SetLoop <$> traverseUserTypes f lm
       
 instance TraverseUserTypes Expr where
   traverseUserTypes f e =

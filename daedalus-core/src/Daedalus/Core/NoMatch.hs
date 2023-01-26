@@ -6,8 +6,6 @@ import Control.Monad (join)
 import Daedalus.GUID(HasGUID)
 import Daedalus.Core
 import Daedalus.Core.Type(sizeType)
-import Daedalus.Panic (panic)
-
 
 noMatch :: HasGUID m => Module -> m Module
 noMatch mo =
@@ -117,5 +115,4 @@ desugarByteSet bs b =
     SetLet x e y -> PureLet x e <$> desugarByteSet y b -- assumes no capture
     SetCall f es -> pure (callF f (b:es))
     SetCase cs -> ECase <$> traverse (flip desugarByteSet b) cs
-    SetLoop {} -> panic "desugarByteSet" ["Saw a SetLoop"]
 
