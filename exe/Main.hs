@@ -32,12 +32,16 @@ import Daedalus.Core(checkModule)
 import Daedalus.Driver
 import Daedalus.DriverHS
 
+import qualified Daedalus.RTS.HasInputs as RTS
+import qualified Daedalus.RTS.JSON as RTS
 import qualified Daedalus.RTS.Input as RTS
+import qualified RTS.Annot as RTS
 import qualified RTS.ParseError as RTS
 import qualified RTS.ParserAPI as RTS
 
 import Daedalus.Value
 import Daedalus.Interp
+import Daedalus.Interp.DebugAnnot
 
 import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS hiding (Import(..))
@@ -179,7 +183,7 @@ handleOptions opts
              UsePGen flagMetrics ->
                do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
-                  ddlIO (interpPGen (optShowJS opts) inp [prog] flagMetrics)
+                  ddlIO (interpPGen opts inp [prog] flagMetrics)
 
          DumpRaw -> error "Bug: DumpRaw"
          DumpResolve -> error "Bug: DumpResolve"
@@ -215,7 +219,7 @@ interpInterp opts inp prog ents =
                   then detailedErrorsConfig
                   else defaultInterpConfig
      (_,res) <- interpFile cfg inp prog start
-     let ?useJS = optShowJS opts
+     let ?opts = opts
      let txt1   = dumpResult dumpInterpVal res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1
      print txt2
@@ -228,7 +232,7 @@ interpCore opts mm inpMb =
   do ents <- doToCore opts mm
      env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
-     let ?useJS = optShowJS opts
+     let ?opts = opts
      ddlIO $ forM_ ents \ent ->
                print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
 
@@ -237,7 +241,7 @@ interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
     let entries = VM.semModule (head (VM.pModules r))
-    let ?useJS = optShowJS opts
+    let ?opts = opts
     for_ (Map.elems entries) \impl ->
         ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
 
@@ -402,9 +406,9 @@ generateHS opts mainMod allMods
 
 
 
-interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
-interpPGen useJS inp moduls flagMetrics =
-  do let ?useJS = useJS
+interpPGen :: Options -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
+interpPGen opts inp moduls flagMetrics =
+  do let ?opts = opts
      let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
@@ -485,28 +489,31 @@ inputHack opts =
 
 
 dumpResult ::
-  (?useJS :: Bool, RTS.IsAnnotation e) => (a -> Doc) -> ResultG e a -> Doc
+  (?opts :: Options, GroupedErr e) => (a -> Doc) -> ResultG e a -> Doc
 dumpResult ppVal r =
   case r of
      RTS.NoResults err -> dumpErr err
      RTS.Results as -> dumpValues ppVal' (toList as)
   where
-  ppVal' (a,x) = ppVal a -- $$ "----" $$ RTS.ppITrace x
+  ppVal' (a,x) = ppVal a -- $$ "----" $$ RTS.ppInputTrace x
 
-dumpValues :: (?useJS :: Bool) => (a -> Doc) -> [a] -> Doc
+dumpValues :: (?opts :: Options) => (a -> Doc) -> [a] -> Doc
 dumpValues ppVal as
-  | ?useJS = brackets (vcat $ punctuate comma $ map ppVal as)
+  | optShowJS ?opts = brackets (vcat $ punctuate comma $ map ppVal as)
   | otherwise =
     vcat [ "--- Found" <+> int (length as) <+> "results:"
          , vcat' (map ppVal as)
          ]
 
-dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
-dumpInterpVal = if ?useJS then valueToJS else pp
+dumpInterpVal :: (?opts :: Options) => Value -> Doc
+dumpInterpVal = if optShowJS ?opts then valueToJS else pp
 
-dumpErr :: (?useJS :: Bool, RTS.IsAnnotation e) => ParseErrorG e -> Doc
+dumpErr ::
+  (?opts :: Options, GroupedErr e) =>
+  ParseErrorG e -> Doc
 dumpErr err
-  -- | ?useJS = RTS.jsToDoc (parseErrorTrieToJSON err)
+  | optDetailedErrors ?opts = RTS.jsToDoc (jsGrouped err)
+  | optShowJS ?opts = RTS.jsToDoc (RTS.toJSON err)
   | otherwise =
     vcat
       [ "--- Parse error: "
@@ -531,6 +538,15 @@ dumpErr err
                    , transformByte =
                       wrapRange startErr endErr
                                 errLoc errLoc }
+
+class (RTS.HasInputs e, RTS.IsAnnotation e) => GroupedErr e where
+  jsGrouped :: ParseErrorG e -> RTS.JSON
+
+instance GroupedErr DebugAnnot where
+  jsGrouped = parseErrorTrieToJSON
+
+instance GroupedErr RTS.Annotation where
+  jsGrouped = RTS.toJSON
 
 
 jsToHTML :: Options -> Daedalus ()
