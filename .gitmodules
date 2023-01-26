@@ -1,0 +1,3 @@
+[submodule "what4"]
+	path = what4
+	url = git@github.com:GaloisInc/what4.git
