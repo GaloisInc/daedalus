@@ -68,9 +68,11 @@ data Options =
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
 
-          , optDetailedErrors :: Bool
+          , optDetailedErrors :: Maybe FilePath
             -- ^ Should we produce very detailed error messages
             -- We could break that up into more options.
+            -- 'Nothing' means no detailed errors, `Just` contains
+            -- the directory where we should save stuff
 
           , optParams :: [String]
           }
@@ -103,7 +105,7 @@ defaultOptions =
           , optUserNS = defaultUserSpace
           , optExternMods = Map.empty
           , optModulePath = []
-          , optDetailedErrors = False
+          , optDetailedErrors = Nothing
           }
 
 defaultUserSpace :: String
@@ -215,7 +217,7 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
 
               , Option [] ["detailed-errors"]
                 "Show a lot of information in error messages"
-                $ NoArg \o -> Right o { optDetailedErrors = True }
+                $ ReqArg "DIR" \d o -> Right o { optDetailedErrors = Just d }
 
               , Option [] ["html"]
                 "Show semantics values as HTML."

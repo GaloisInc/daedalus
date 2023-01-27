@@ -166,7 +166,8 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp opts inp prog mainRules)
+                  srcFiles <- Map.elems <$> ddlGet modulePaths
+                  ddlIO (interpInterp opts srcFiles inp prog mainRules)
 
              UseCore -> interpCore opts mm inp
 
@@ -196,15 +197,19 @@ handleOptions opts
 
 
 interpInterp ::
-  Options -> Maybe FilePath -> [TCModule SourceRange] -> [(ModuleName,Ident)] ->
-    IO ()
-interpInterp opts inp prog ents =
+  Options    {- ^ Options -} ->
+  [FilePath] {- ^ Source files, for detailed errors -} ->
+  Maybe FilePath {- ^ Input file -} ->
+  [TCModule SourceRange] {- ^ Parsed source files -} ->
+  [(ModuleName,Ident)] {- ^ Entry points -} ->
+  IO ()
+interpInterp opts srcFiles inp prog ents =
   do start <- case [ ModScope m i | (m,i) <- ents ] of
                 [ent] -> pure ent
                 es -> interpError (MultipleStartRules es)
-     let cfg = if optDetailedErrors opts
-                  then detailedErrorsConfig
-                  else defaultInterpConfig
+     let cfg = case optDetailedErrors opts of
+                 Just _  -> detailedErrorsConfig
+                 Nothing -> defaultInterpConfig
      (_,res) <- interpFile cfg inp prog start
      let ?opts = opts
      let txt1   = dumpResult dumpInterpVal res
@@ -212,7 +217,12 @@ interpInterp opts inp prog ents =
      print txt2
      case res of
        Results {}   -> exitSuccess
-       NoResults {} -> exitFailure
+       NoResults err ->
+          do let ?opts = opts
+             saveDetailedError srcFiles err
+             exitFailure
+
+     -- srcs <- ddlGet modulePaths
 
 interpCore :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpCore opts mm inpMb =

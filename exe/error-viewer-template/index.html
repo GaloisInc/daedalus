@@ -8,14 +8,13 @@
 <script src="scope.js"></script>
 <script src="tree.js"></script>
 <script src="error.js"></script>
-
-<script src="out.js"></script>
-<script src="err.js"></script>
+<script src="source_files.js"></script>
+<script src="parse_error.js"></script>
 <script>
 function main() {
   const f = renderFiles(files)
   // renderError(f,errExample)
-  renderTree(f,errExample)
+  renderTree(f,parseError)
 
 }
 </script>

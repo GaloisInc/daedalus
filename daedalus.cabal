@@ -19,6 +19,9 @@ extra-source-files:
   exe/html-template/style.css
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
+  exe/error-viewer-template/*.js
+  exe/error-viewer-template/*.html
+  exe/error-viewer-template/*.css
   rts-c/ddl/*.h
 
 library
@@ -154,7 +157,8 @@ executable daedalus
                        filepath,
                        directory,
                        pretty-show,
-                       file-embed >= 0.0.13
+                       file-embed >= 0.0.13,
+                       alex-tools
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2 -Wno-incomplete-uni-patterns
