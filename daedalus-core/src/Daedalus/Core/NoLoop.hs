@@ -252,14 +252,14 @@ pParseMany cmt ty be p =
 pSkipExactlyMany :: Bool -> Expr -> Grammar -> M Grammar
 pSkipExactlyMany _cmt tgt p =
   do f <- newFName "Many" TUnit
-     (p', nameMap) <- rename p
+     ((tgt', p'), nameMap) <- rename (tgt, p)
      let (anames, args) = unzip (Map.toList nameMap)
      x <- newLocal sizeType
      let xe = Var x
      let body = Do_ (OrBiased p' (sysErr TUnit "insufficient element occurances"))
                     (Call f (add xe (intL 1 sizeType) : map Var args))
 
-     defGFun f (x : args) =<< doIf (xe `lt` tgt) body (Pure unit)
+     defGFun f (x : args) =<< doIf (xe `lt` tgt') body (Pure unit)
      pure $ Call f (intL 0 sizeType : map Var anames)
 
 -- | Produces a function which returns a builder
@@ -269,7 +269,7 @@ pSkipExactlyMany _cmt tgt p =
 pParseExactlyMany :: Commit -> Type -> Expr -> Grammar -> M Grammar
 pParseExactlyMany _cmt ty tgt p =
   do f <- newFName "Many" (TBuilder ty)
-     (p', nameMap) <- rename p
+     ((tgt', p'), nameMap) <- rename (tgt, p)
      let (anames, args) = unzip (Map.toList nameMap)
      x <- newLocal sizeType
      b <- newLocal (TBuilder ty)
@@ -286,25 +286,25 @@ pParseExactlyMany _cmt ty tgt p =
                               : emit be re
                               : map Var args))
 
-     defGFun  f (x : b : args) =<< doIf (xe `lt` tgt) body (Pure be)
+     defGFun  f (x : b : args) =<< doIf (xe `lt` tgt') body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : map Var anames)
 
 pSkipAtMost :: Commit -> Expr -> Grammar -> M Grammar
 pSkipAtMost cmt tgt p =
   do f <- newFName "Many" sizeType
-     (p', nameMap) <- rename p
+     ((tgt', p'), nameMap) <- rename (tgt, p)
      let (anames, args) = unzip (Map.toList nameMap)
      x <- newLocal sizeType
      let xe = Var x
      skipBody <- maybeSkip cmt p' (Call f (add xe (intL 1 sizeType) : map Var args))
                                   (Pure xe)
-     defGFun f (x:args) =<< doIf (xe `lt` tgt) skipBody (Pure xe)
+     defGFun f (x:args) =<< doIf (xe `lt` tgt') skipBody (Pure xe)
      pure (Call f (intL 0 sizeType : map Var anames))
 
 pParseAtMost :: Commit -> Type -> Expr -> Expr -> Grammar -> M Grammar
 pParseAtMost cmt ty tgt be p =
   do f <- newFName "Many" (TBuilder ty)
-     (p', nameMap) <- rename p
+     ((tgt', p'), nameMap) <- rename (tgt, p)
      let (anames, args) = unzip (Map.toList nameMap)
      x <- newLocal sizeType
      bv <- newLocal (TBuilder ty)
@@ -317,7 +317,7 @@ pParseAtMost cmt ty tgt be p =
                               : map Var args))
                 (Pure bve)
 
-     defGFun f (x : bv : args) =<< doIf (xe `lt` tgt) body (Pure bve)
+     defGFun f (x : bv : args) =<< doIf (xe `lt` tgt') body (Pure bve)
      pure $ Call f (intL 0 sizeType : be : map Var anames)
 
 finishMany :: Type -> Grammar -> M Grammar

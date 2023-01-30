@@ -35,6 +35,9 @@ boundIn x = boundsIn [x]
 class Rename t where
   doRename :: HasGUID m => t -> RenameM m t
 
+instance (Rename a, Rename b) => Rename (a, b) where
+  doRename (a, b) = (,) <$> doRename a <*> doRename b
+
 instance Rename Name where
   doRename n = do
     bound <- asks (n `Set.member`)
