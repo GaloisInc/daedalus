@@ -2,9 +2,14 @@ import Utils
 import Lexemes
 
 -- Reference:
---	https://datatracker.ietf.org/doc/html/rfc3986#appendix-A
+--    https://datatracker.ietf.org/doc/html/rfc3986
 
 
+-- NOTE: Currently we don't do an URI normalization, except for
+-- expanding the :: in IPv6
+
+
+-- ENTRY
 def URI_absolute_URI =
   block
     scheme = URI_scheme
@@ -51,10 +56,11 @@ def URI_authority =
     user_info = Optional { $$ = URI_userinfo; $['@'] }
     host      = URI_host
     port =
-      Optional
+      First
         block
           $[':']
-          Many DigitNum   -- XXX: turn to number? But how big?
+          Many DigitNum  -- XXX: Maybe turn into a number, but what size?
+        []
 
 def URI_userinfo =
   Many 
@@ -155,9 +161,7 @@ def URI_IPv6address =
                         stop  = count == 7
 
           -- End in ::
-          if front.count == back.count
-            then @$[':']
-            else Accept
+          When (front.count == back.count) $[':']
 
           -- Only :: is not OK
           let zeros = 8 - back.count

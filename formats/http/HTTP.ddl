@@ -1,38 +1,105 @@
--- See: https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
+-- HTTP 1.1
+-- Reference: https://datatracker.ietf.org/doc/html/rfc9112#appendix-A
 
-def $alpha 	= 0x41 .. 0x5A | 0x61 .. 0x7A | 'A' .. 'Z' | 'a' .. 'z'
-def $digit 	= '0' .. '9'
-def $hexdig	= $digit | 'A' .. 'F'
-
-def $dquote	= '"'
-def $sp		= 0x32
-def $vchar      = 0x21 .. 0x7E
-def $obs_text   = 0x80 .. 0xFF
-def $octet      = $any
-
-def $htab       = 0x09
-def $ctl   	= 0x00 .. 0x1f | 0x7F
-def $cr	   	= 0x0D
-def $lf	   	= 0x0A
-def CRLF   	= @{ $cr; $lf }
+import Utils
+import Lexemes
+import URI
 
 
-def HTTPVersion =
+def HTTP_message =
+  block
+    start = HTTP_start_line
+    CRLF
+    fields = Many { HTTP_field_line; CRLF }
+    CRLF
+    body = GetStream
+
+def HTTP_start_line =
+  First
+    Status  = HTTP_status
+    Request = HTTP_request
+
+def HTTP_version =
   block
     Match "HTTP/"
-    major = $digit - '0'
+    major = DigitNum
     $['.']
-    minor = $digit - '0'
+    minor = DigitNum
+
+def HTTP_status =
+  block
+    version = HTTP_version
+    $sp
+    status_code = Many 3 DigitNum
+    $sp
+    reason = Many $[ $htab | $sp | $vchar | $obs_text ]
+
+def HTTP_request =
+  block
+    method = HTTP_token
+    $sp
+    target = HTTP_request_target
+    $sp
+    version = HTTP_version
+
+def HTTP_request_target =
+  First
+    AbsoluteURI = URI_absolute_URI
+    Origin      = HTTP_origin_form
+    Authority   = HTTP_authority_form
+    Asterisk    = @$['*']
+
+def HTTP_authority_form =
+  block
+    host  = URI_host
+    $[':']
+    post  = Many DigitNum
+
+def HTTP_origin_form =
+  block
+    path  = Many (1..) { $['/']; URI_segment }
+    query = Optional { $['?']; URI_query }
 
 
-def RequestLine =
-   block
-      method = Method
-      $sp
-      target = RequestTarget
-      $sp
-      version = HTTPVersion
+def HTTP_field_line =
+  block
+    name = HTTP_token
+    $[':']
+    HTTP_OWS
+    value =
+      block
+        let start = GetStream
+        Take HTTP_field_content start
 
-def Method 	  = Many $[!$sp] -- XXX
-def RequestTarget = Many $[!$sp] -- XXX
+def HTTP_field_content =
+  many (count = 0)
+    block
+      let n = HTTP_OWS
+      $http_field_vchar
+      count + n + 1
+
+
+
+
+--------------------------------------------------------------------------------
+-- HTTP Lexical Considerations
+
+-- Returns how many white spaces were skipped
+def HTTP_OWS   = Count $[ $sp | $htab]
+def HTTP_token = Many (1..) $http_tchar
+
+
+def $http_field_vchar = $vchar | $obs_text
+
+def $http_tchar = 
+  '!'  | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '.' |
+   '^' | '_' | '`' | '|' | '~' | $digit | $alpha
+
+
+
+def Main =
+  block
+    SetStream (arrayStream "hello world  a   ")
+    HTTP_field_content
+
 
