@@ -45,31 +45,6 @@ parseErrorToList :: ParseErrorG e -> [ParseErrorG e]
 parseErrorToList pe =
   pe { peMore = Nothing } : maybe [] parseErrorToList (peMore pe)
 
-data ParseErrorTrie e =
-  ParseErrorTrie (Maybe (ParseErrorG e)) (Map e (ParseErrorTrie e))
-
-emptyErrorTrie :: Ord e => ParseErrorTrie e
-emptyErrorTrie = ParseErrorTrie Nothing mempty
-
-insertInErrorTrie ::
-  Ord e =>
-  [e] -> ParseErrorG e -> ParseErrorTrie e -> ParseErrorTrie e
-insertInErrorTrie es err (ParseErrorTrie here there) =
-  case es of
-    [] ->
-      case here of
-        Nothing    -> ParseErrorTrie (Just err) there
-        Just other -> ParseErrorTrie (Just (mergeError err other)) there
-    e : more ->
-      let remote    = Map.findWithDefault emptyErrorTrie e there
-          newRemote = insertInErrorTrie more err remote
-      in ParseErrorTrie here (Map.insert e newRemote there)
-
-parseErrorToTrie :: Ord e => ParseErrorG e -> ParseErrorTrie e
-parseErrorToTrie = foldr insert emptyErrorTrie . parseErrorToList
-  where insert e = insertInErrorTrie (peStack e) e
-
-
 
 
 --------------------------------------------------------------------------------
