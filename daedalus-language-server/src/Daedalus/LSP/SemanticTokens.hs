@@ -117,9 +117,6 @@ tokenToSTT tok = flip (,) [] <$> typ
       RightArrow   -> op
       Underscore   -> var
 
-      BitwiseAndT        -> op
-      BitwiseOrT         -> op
-      BitwiseXorT        -> op
       BitwiseComplementT -> op
 
       KWChoose            -> kw
