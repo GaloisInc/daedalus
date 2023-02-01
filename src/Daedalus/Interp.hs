@@ -733,7 +733,7 @@ interpCompiled cfg name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
     rl : _  -> runParser (rl [] (map VVal args)) errCfg (newInput name bytes)
-      where errCfg = if multiErrors cfg then RTS.SingleError else RTS.MultiError
+      where errCfg = if multiErrors cfg then RTS.MultiError else RTS.SingleError
 
     [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
