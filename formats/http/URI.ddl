@@ -4,9 +4,11 @@ import Lexemes
 -- Reference:
 --    https://datatracker.ietf.org/doc/html/rfc3986
 
-
--- NOTE: Currently we don't do an URI normalization, except for
--- expanding the :: in IPv6
+-- This parser does limited URI normalization
+--  * We expand IPv6 addresses
+--  * We expand % encoded characters
+--  * URI scheme is normalize to lower case
+--  * URI host is normalize to lower case
 
 
 -- ENTRY
@@ -20,9 +22,8 @@ def URI_absolute_URI =
     path      = it.path
     query     = Optional { $['?']; URI_query }
 
-def URI_scheme = ManyStart $alpha $[$alpha | $digit | '+' | '-' | '.']
-
-
+def URI_scheme = ManyStart AlphaNoCaseLower
+                           (AlphaNoCaseLower <| $[ $digit | '+' | '-' | '.'])
 
 def URI_hier_part =
   First
@@ -74,7 +75,7 @@ def URI_host =
   First
     IPLiteral = URI_IP_Literal
     IPv4      = URI_IPv4address
-    Named     = URI_reg_name
+    Named     = URI_reg_name_no_case
 
 
 def URI_pct_encoded =
@@ -82,10 +83,10 @@ def URI_pct_encoded =
     $['%']
     16 * HexDigNum + HexDigNum
 
-def URI_reg_name =
+def URI_reg_name_no_case =
   Many 
     First
-      $uri_unreserved
+      URI_unreserved_no_case
       URI_pct_encoded
       $uri_sub_delims
 
@@ -219,7 +220,9 @@ def URI_dec_octet =
 --------------------------------------------------------------------------------
 -- URI specifix lexical definitions
 
-def $uri_unreserved   = $alpha | $digit | '-' | '.' | '_' | '~'
+def $uri_unreserved         = $alpha | $digit | '-' | '.' | '_' | '~'
+def URI_unreserved_no_case  = AlphaNoCaseLower
+                           <| $[ $digit | '-' | '.' | '_' | '~' ]
 
 def $uri_sub_delims   = '!' | '$' | '&' | '\'' | '(' | ')'
                       | '*' | '+' | ',' | ';'  | '='

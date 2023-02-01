@@ -18,6 +18,9 @@ def $lf	   	    = 0x0A
 def CRLF   	    = @{ $cr; $lf }
 
 
+-- Case insensitive alpha character, normlaized to lower case.
+def AlphaNoCaseLower = $['a' .. 'z'] <| ($['A' .. 'Z'] + 32)
+
 -- Convert a known textual base 10 digit to its numeric value
 def Decimal x = x - '0' : uint 8
 

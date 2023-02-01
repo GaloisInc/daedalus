@@ -5,19 +5,19 @@ import Utils
 import Lexemes
 import URI
 
+-- ENTRY
+def HTTP_request = HTTP_message HTTP_request_line
 
-def HTTP_message =
+-- ENTRY
+def HTTP_status  = HTTP_message HTTP_status_line
+
+def HTTP_message StartLine =
   block
-    start = HTTP_start_line
+    start = StartLine
     CRLF
     fields = Many { HTTP_field_line; CRLF }
     CRLF
     body = GetStream
-
-def HTTP_start_line =
-  First
-    Status  = HTTP_status
-    Request = HTTP_request
 
 def HTTP_version =
   block
@@ -26,7 +26,7 @@ def HTTP_version =
     $['.']
     minor = DigitNum
 
-def HTTP_status =
+def HTTP_status_line =
   block
     version = HTTP_version
     $sp
@@ -34,7 +34,7 @@ def HTTP_status =
     $sp
     reason = Many $[ $htab | $sp | $vchar | $obs_text ]
 
-def HTTP_request =
+def HTTP_request_line =
   block
     method = HTTP_token
     $sp
@@ -44,16 +44,16 @@ def HTTP_request =
 
 def HTTP_request_target =
   First
-    AbsoluteURI = URI_absolute_URI
-    Origin      = HTTP_origin_form
-    Authority   = HTTP_authority_form
-    Asterisk    = @$['*']
+    AbsoluteURI = URI_absolute_URI        -- old style and for proxies
+    Origin      = HTTP_origin_form        -- normal request
+    Authority   = HTTP_authority_form     -- only in CONNECT
+    Asterisk    = @$['*']                 -- only in OPTIONS
 
 def HTTP_authority_form =
   block
     host  = URI_host
     $[':']
-    post  = Many DigitNum
+    port  = Many DigitNum
 
 def HTTP_origin_form =
   block
