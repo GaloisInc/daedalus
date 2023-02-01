@@ -250,6 +250,7 @@ pParseMany cmt ty be p =
      pure $ Call f (be : map Var anames)
 
 pSkipExactlyMany :: Bool -> Expr -> Grammar -> M Grammar
+pSkipExactlyMany _cmt (Ap0 (IntL 0 _)) _ = pure (Pure unit)
 pSkipExactlyMany _cmt tgt p =
   do f <- newFName "Many" TUnit
      ((tgt', p'), nameMap) <- rename (tgt, p)
@@ -267,6 +268,7 @@ pSkipExactlyMany _cmt tgt p =
 -- FIXME: we should evaluate tgt outside of the function if it is
 -- complex to avoid recomputing it.
 pParseExactlyMany :: Commit -> Type -> Expr -> Grammar -> M Grammar
+pParseExactlyMany _cmt ty (Ap0 (IntL 0 _)) _ = pure (Pure (newBuilder ty))
 pParseExactlyMany _cmt ty tgt p =
   do f <- newFName "Many" (TBuilder ty)
      ((tgt', p'), nameMap) <- rename (tgt, p)
