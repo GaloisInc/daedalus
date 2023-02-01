@@ -3,7 +3,6 @@ module RTS.ParseError where
 
 import Data.List(transpose)
 import System.FilePath
-import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -190,7 +189,10 @@ ppSourceRange r =
        ]
   where
   posShort p = hcat [ int (srcLine p), ":", int (srcCol p) ]
-  posLong p = hcat [ text (srcName p), ":", int (srcLine p), ":", int (srcCol p) ]
+  posLong p
+    | null (srcName p) = hcat [ int (srcLine p), ":", int (srcCol p) ]
+    | otherwise =
+      hcat [ text (srcName p), ":", int (srcLine p), ":", int (srcCol p) ]
 
 
 --------------------------------------------------------------------------------
