@@ -867,7 +867,13 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
           -- concrete spine, concrete index
           | Just svs <- toL sv1
           , VValue v <- sv2, Just ix <- V.valueToIntSize v
-            -> hoistMaybe (refine g (svs !! ix))
+            -> if ix < length svs
+               then hoistMaybe (refine g (svs !! ix))
+               else hoistMaybe Nothing -- index out of bounds, should
+                                       -- be impossible in practice
+                                       -- but we see it here as path
+                                       -- merging is an over-approx of
+                                       -- feasible paths.
 
           -- FIXME: produce a n-way value (I doubt this case is very common)
 
