@@ -103,6 +103,7 @@ def URI_IPvFuture =
   block
     $['v']
     version = Many (1..) HexDigNum
+    $['.']
     data    = Many (1..) $[ $uri_unreserved | $uri_sub_delims | ':' ]
 
 
