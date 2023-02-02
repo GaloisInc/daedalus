@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# Language OverloadedStrings #-}
+-- | This module desugars looping constructs into recursive functions.
 module Daedalus.Core.NoLoop (noLoop) where
 
 
@@ -23,15 +24,17 @@ newtype M a = M (State S a)
   deriving (Functor,Applicative,Monad)
 
 data S = S
-  { newFFuns  :: [Fun Expr]
-  , newGFuns  :: [Fun Grammar]
-  , curMod    :: MName
-  , nextGUID  :: GUID -- easier than carrying around a type var for the inner monad. 
+  { newFFuns  :: [Fun Expr]       -- ^ Generated pure functions
+  , newGFuns  :: [Fun Grammar]    -- ^ Generated parsing functions
+  , curMod    :: MName            -- ^ Current module (doesn't change)
+  , nextGUID  :: GUID
+    -- ^ used for name generation
   }
 
 instance HasGUID M where
   guidState f = M $ mkGUIDState nextGUID (\g' s -> s { nextGUID = g'}) f
 
+-- | Run a translation
 run :: HasGUID m => M a -> m (a, [Fun Grammar] , [Fun Expr])
 run (M m) = guidState go
   where
@@ -40,6 +43,7 @@ run (M m) = guidState go
       let (r, s) = runState (initS g) m
       in ((r, newGFuns s, newFFuns s), nextGUID s)
 
+-- | Process the body of a function
 inFun :: (a -> M a) -> Fun a -> M (Fun a)
 inFun go f = case fDef f of
   Def b    -> do
@@ -52,7 +56,8 @@ inFun go f = case fDef f of
     -- mod names isn't an issue
     setMName = M $ sets_ (\s -> s { curMod = fnameMod (fName f) })
 
--- BEGIN Copied from DDL2Core
+-- | Make a fresh name derived from the optionally given name,
+-- and with the given type
 newName :: Maybe Text -> Type -> M Name
 newName mb t =
   freshName Name { nameId = invalidGUID, nameType = t, nameText = mb }
@@ -61,6 +66,8 @@ newName mb t =
 newLocal :: Type -> M Name
 newLocal = newName Nothing
 
+-- | Ensure that an expression is in variable form.
+-- If it is not already, then we name the expression.
 withVar :: CoreSyn t => Expr -> (Name -> M t) -> M t
 withVar e k =
   case e of
@@ -68,7 +75,7 @@ withVar e k =
     _     -> do x <- newLocal (typeOf e)
                 coreLet x e <$> k x
 
--- Used to name expressions when they may be duplicated.
+-- | Used to name expressions when they may be duplicated.
 withNamedExpr :: CoreSyn t => Expr -> (Expr -> M t) -> M t
 withNamedExpr e k =
   case e of
@@ -77,22 +84,21 @@ withNamedExpr e k =
     -- ... otherwise we do (Vars are handled in withVar)
     _      -> withVar e (k . Var)
 
+-- | Construct a choice expression for the given backtracking strategy.
 orOp :: Backtrack -> Grammar -> Grammar -> Grammar
 orOp cmt = case cmt of
              Eager -> OrBiased
-             Lazy   -> OrUnbiased
+             Lazy  -> OrUnbiased
 
+-- | Report an error with the given message.  This is a "system" error
+-- in the sense that we synthesiszed it (i.e., it is not a user specified
+-- error message)
 sysErr :: Type -> String -> Grammar
 sysErr t msg = Fail ErrorFromSystem t (Just (byteArrayL (BS8.pack msg)))
 
 doIf :: CoreSyn t => Expr -> t -> t -> M t
 doIf e g1 g2 = withVar e \x -> pure (coreIf x g1 g2)
 
--- END Copied from DDL2Core
-
--- newGFun :: Text -> [Name] -> [Exor] -> (FName -> [Expr] -> M Grammar)
---         -> M Grammar
--- newGFun name frees inits mk = do
 
 newFName :: Text -> Type -> M FName
 newFName lab ty = do
@@ -154,10 +160,10 @@ noLoopE e =
      case e' of
        ELoop lm -> noLoopMorphism lm defFFun id coreLet
        _ -> pure e'
-  
+
 noLoopB :: ByteSet -> M ByteSet
 noLoopB = ebChildrenB noLoopE noLoopB
-     
+
 noLoopG :: Grammar -> M Grammar
 noLoopG g =
   do g1 <- gebChildrenG noLoopG noLoopE noLoopB g
@@ -173,34 +179,40 @@ noLoopG g =
 -- FIXME: we could treat a lower bound of 0 specially here
 noManyLoop :: Sem -> Backtrack -> Expr -> Maybe Expr ->
               Grammar -> M Grammar
-noManyLoop s cmt l m_u p = case (m_u, s) of
-  (Nothing, _) ->
-    do p' <- nameGrammar "ManyBody" p
-       case s of
-         SemNo -> Do_ <$> pSkipExactlyMany cmt l p'
-                      <*> pSkipMany cmt p'
-         SemYes -> do
-           b <- newLocal (TBuilder ty)
-           p1 <- pParseExactlyMany cmt ty l p'
-           p2 <- pParseMany cmt ty (Var b) p'
-           finishMany ty (Do b p1 p2)
+noManyLoop s cmt l m_u p =
+  case (m_u, s) of
 
-  -- Exact
-  (Just u, SemNo) | l == u -> pSkipExactlyMany cmt l p
-  (Just u, SemYes) | l == u -> pParseExactlyMany cmt ty l p
-                               >>= finishMany ty
-  (Just u, _) ->
-    withNamedExpr l \le -> withNamedExpr u \ue ->
-      doIf (ue `lt` le) (sysErr (TArray ty) "Empty bounds") =<<
-        do p' <- nameGrammar "ManyBody" p
-           case s of
-             SemNo -> Do_ <$> pSkipExactlyMany cmt le p'
-                          <*> pSkipAtMost cmt (ue `sub` le) p'
-             SemYes -> do
-               b <- newLocal (TBuilder ty)
-               p1 <- pParseExactlyMany cmt ty le p'
-               p2 <- pParseAtMost cmt ty (ue `sub` le) (Var b) p'
-               finishMany ty (Do b p1 p2)
+    -- No upper bound
+    (Nothing, _) ->
+      do p' <- nameGrammar "ManyBody" p
+         case s of
+           SemNo -> Do_ <$> pSkipExactlyMany cmt l p'
+                        <*> pSkipMany cmt p'
+           SemYes -> do
+             b <- newLocal (TBuilder ty)
+             p1 <- pParseExactlyMany cmt ty l p'
+             p2 <- pParseMany cmt ty (Var b) p'
+             finishMany ty (Do b p1 p2)
+
+    -- Exact
+    (Just u, SemNo)  | l == u -> pSkipExactlyMany cmt l p
+    (Just u, SemYes) | l == u -> pParseExactlyMany cmt ty l p
+                                 >>= finishMany ty
+    (Just u, _) ->
+      withNamedExpr l \le ->
+      withNamedExpr u \ue ->
+        doIf (ue `lt` le)
+             (sysErr (TArray ty) "Empty bounds")
+             =<<
+             do p' <- nameGrammar "ManyBody" p
+                case s of
+                  SemNo -> Do_ <$> pSkipExactlyMany cmt le p'
+                               <*> pSkipAtMost cmt (ue `sub` le) p'
+                  SemYes -> do
+                    b <- newLocal (TBuilder ty)
+                    p1 <- pParseExactlyMany cmt ty le p'
+                    p2 <- pParseAtMost cmt ty (ue `sub` le) (Var b) p'
+                    finishMany ty (Do b p1 p2)
   where
     ty = typeOf p
 

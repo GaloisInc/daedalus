@@ -31,19 +31,19 @@ data Grammar =
   | Loop (LoopClass Grammar)
   deriving (Generic,NFData)
 
--- | Types of loops we support, namely Many, many, for, map
-data LoopClass a =
-    ManyLoop Sem Backtrack Expr (Maybe Expr) a
+-- | Types of loops we support.
+data LoopClass body =
+    ManyLoop Sem Backtrack Expr (Maybe Expr) body
     -- ^ `Many`
 
-  | RepeatLoop Backtrack Name Expr a
+  | RepeatLoop Backtrack Name Expr body
     -- ^ `many`
 
-  | MorphismLoop (LoopMorphism a)
+  | MorphismLoop (LoopMorphism body)
     -- ^ `for`, `map`
   deriving (Functor, Generic, NFData)
 
-loopClassBody :: LoopClass a -> a
+loopClassBody :: LoopClass body -> body
 loopClassBody lc = case lc of
   ManyLoop _ _ _ _ g -> g
   RepeatLoop _ _ _ g -> g
