@@ -10,7 +10,6 @@ import Lexemes
 --  * URI scheme is normalize to lower case
 --  * URI host is normalize to lower case
 
-
 -- ENTRY
 def URI_absolute_URI =
   block
@@ -84,7 +83,7 @@ def URI_pct_encoded =
     16 * HexDigNum + HexDigNum
 
 def URI_reg_name_no_case =
-  Many 
+  Many
     First
       URI_unreserved_no_case
       URI_pct_encoded
@@ -201,16 +200,13 @@ def URI_IPv4address : [ uint 8 ] =
     $['.']
     let d = URI_dec_octet
     [ a, b, c, d ]
-    
+
 def URI_dec_octet =
   block
     let ds = Many (1 .. 3) DigitNum
 
     -- No leading 0
-    case length ds of
-      3 -> Index ds 2 > 0 is true
-      2 -> Index ds 1 > 0 is true
-      _ -> Accept
+    (length ds == 1 || Index ds 0 > 0) is true
 
     -- No more than 255
     let val = for (s = 0; d in ds) (10 * s + (d as uint 16))
