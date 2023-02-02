@@ -75,30 +75,30 @@ joinRes2 cfg xs ys =
     NoResFail es1 ->
       case ys of
         NoResAbort {}         -> ys
-        NoResFail es2         -> NoResFail (merge cfg EQ es1 es2)
-        Res a t i mb          -> Res a t i (Just $! mergeMb cfg LT mb es1)
+        NoResFail es2         -> NoResFail (merge cfg es1 es2)
+        Res a t i mb          -> Res a t i (Just $! mergeMb cfg mb es1)
         MultiRes a t i is mb  ->
-          MultiRes a t i is (Just $! mergeMb cfg LT mb es1)
+          MultiRes a t i is (Just $! mergeMb cfg mb es1)
 
     Res a t1 i mb ->
       case ys of
         NoResAbort {}           -> ys
-        NoResFail es            -> Res a t1 i (Just $! mergeMb cfg LT mb es)
+        NoResFail es            -> Res a t1 i (Just $! mergeMb cfg mb es)
         Res b t2 j mb1          -> MultiRes a t1 i (ICons b t2 j INil)
-                                                   (mergeMbMb cfg EQ mb mb1)
+                                                   (mergeMbMb cfg mb mb1)
         MultiRes b t2 j ps mb1 ->
-          MultiRes a t1 i (ICons b t2 j ps) (mergeMbMb cfg EQ mb mb1)
+          MultiRes a t1 i (ICons b t2 j ps) (mergeMbMb cfg mb mb1)
 
     MultiRes a t1 i ps mb ->
       case ys of
         NoResAbort _    -> ys
-        NoResFail es    -> MultiRes a t1 i ps (Just $! mergeMb cfg LT mb es)
+        NoResFail es    -> MultiRes a t1 i ps (Just $! mergeMb cfg mb es)
         Res b t2 j mb1  -> MultiRes a t1 i (ICons b t2 j ps)
-                                           (mergeMbMb cfg EQ mb mb1) -- reorders
+                                           (mergeMbMb cfg mb mb1) -- reorders
 
         MultiRes b t2 j qs mb1 -> MultiRes a t1 i
                                   (ICons b t2 j (iappend ps qs))
-                                  (mergeMbMb cfg EQ mb mb1)          -- reorders
+                                  (mergeMbMb cfg mb mb1)          -- reorders
 
 
 -- | Append extra results.
@@ -118,43 +118,29 @@ itoList xs =
 -- | Merge two parse errors.  The ordering specifies which of the errors
 -- we should prefer (the "smaller" one)
 merge ::
-  ErrorStyle -> Ordering ->
+  ErrorStyle ->
   ParseErrorG e -> ParseErrorG e -> ParseErrorG e
-merge cfg dep e1 e2 =
-  case dep of
-    EQ -> case cfg of
-            SingleError -> joinSingleError e1 e2
-            MultiError  -> mergeError e1 e2
-    LT -> case cfg of
-            SingleError -> e1
-            MultiError  -> app e1 e2
-    GT -> case cfg of
-            SingleError -> e2
-            MultiError  -> app e2 e1
-  where
-  app xs ys =
-    case peMore xs of
-      Nothing -> xs { peMore = Just ys }
-      Just zs -> xs { peMore = Just (app zs ys) }
+merge cfg e1 e2 =
+  case cfg of
+    SingleError -> joinSingleError e1 e2
+    MultiError  -> mergeError e1 e2
 
 -- | Merge a potential error with an error
 mergeMb ::
-  ErrorStyle ->
-  Ordering -> Maybe (ParseErrorG e) -> ParseErrorG e -> ParseErrorG e
-mergeMb cfg dep mb e =
+  ErrorStyle -> Maybe (ParseErrorG e) -> ParseErrorG e -> ParseErrorG e
+mergeMb cfg mb e =
   case mb of
     Nothing -> e
-    Just e1 -> merge cfg dep e1 e
+    Just e1 -> merge cfg e1 e
 
 -- | Merge two potential errors
 mergeMbMb ::
   ErrorStyle ->
-  Ordering ->
   Maybe (ParseErrorG e) -> Maybe (ParseErrorG e) -> Maybe (ParseErrorG e)
-mergeMbMb cfg dep mb1 mb2 =
+mergeMbMb cfg mb1 mb2 =
   case mb1 of
     Nothing -> mb2
-    Just e  -> Just $! mergeMb cfg dep mb2 e
+    Just e  -> Just $! mergeMb cfg mb2 e
 
 --------------------------------------------------------------------------------
 -- Monad / Sequencing
@@ -206,8 +192,8 @@ runParser ::
   ParserG e a -> ErrorStyle -> Input -> ResultG e a
 runParser p cfg i =
   case runP p cfg [] emptyInputTrace i Nothing of
-    NoResAbort e          -> NoResults (normalizePaths e)
-    NoResFail  e          -> NoResults (normalizePaths e)
+    NoResAbort e          -> NoResults (orderMultiError (normalizePaths e))
+    NoResFail  e          -> NoResults (orderMultiError (normalizePaths e))
     Res a t _ _           -> Results ((a,t) :| [])
     MultiRes a t _ more _ -> Results ((a,t) :| itoList more)
 {-# INLINE runParser #-}
@@ -226,13 +212,13 @@ instance BasicParser (ParserG e) where
       case inputByte inp of
         Just (x,newInp) -> Res x (addInputTrace inp s) newInp err
         Nothing         -> NoResFail
-                           $ mergeMb cfg LT err
+                           $ mergeMb cfg err
                              PE { peInput   = inp
                                 , peGrammar = [rng]
                                 , peMsg     = msg
                                 , peSource  = FromSystem
                                 , peStack   = env
-                                , peMore    = Nothing
+                                , peMore    = []
                                 , peNumber  = -1
                                 , peITrace  = s
                                 }
@@ -281,7 +267,7 @@ instance BasicParser (ParserG e) where
   {-# INLINE (|||) #-}
 
   -- Failure
-  pFail e = Parser \cfg _ _ _ err -> NoResFail (mergeMb cfg LT err e)
+  pFail e = Parser \cfg _ _ _ err -> NoResFail (mergeMb cfg err e)
   {-# INLINE pFail #-}
 
   -- Switch the error mode

@@ -172,7 +172,7 @@ pError' src rs m =
               , peGrammar = rs
               , peMsg     = m
               , peSource  = src
-              , peMore    = Nothing
+              , peMore    = []
               , peNumber  = -1
               , peITrace  = t
               }
@@ -193,7 +193,7 @@ pErrorAt src r inp m =
               , peGrammar = r
               , peMsg     = m
               , peSource  = src
-              , peMore    = Nothing
+              , peMore    = []
               , peNumber  = -1
               , peITrace  = t
               }

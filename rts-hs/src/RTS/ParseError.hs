@@ -1,7 +1,7 @@
 {-# Language RecordWildCards, OverloadedStrings, BlockArguments #-}
 module RTS.ParseError where
 
-import Data.List(transpose)
+import Data.List(transpose,sortBy)
 import System.FilePath
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -24,7 +24,7 @@ data ParseErrorG e =
      , peGrammar :: ![SourceRange]
      , peMsg     :: !String
      , peSource  :: !ParseErrorSource
-     , peMore    :: !(Maybe (ParseErrorG e))
+     , peMore    :: ![ParseErrorG e]
      , peNumber  :: !Int
      , peITrace  :: !InputTrace
      } deriving Show
@@ -40,9 +40,11 @@ peOffset = inputOffset . peInput
 
 instance (Show e, Typeable e) => Exception (ParseErrorG e)
 
+-- | Collect all errors, sorted by "niceness"
 parseErrorToList :: ParseErrorG e -> [ParseErrorG e]
-parseErrorToList pe =
-  pe { peMore = Nothing } : maybe [] parseErrorToList (peMore pe)
+parseErrorToList = sortBy compareParseErrors . cvt
+  where
+  cvt pe = pe { peMore = [] } : concatMap cvt (peMore pe)
 
 
 
@@ -124,24 +126,34 @@ instance (HasInputs e) => HasInputs (ParseErrorG e) where
 joinSingleError :: ParseErrorG e -> ParseErrorG e -> ParseErrorG e
 joinSingleError p1 p2 = fst (preferFirst p1 p2)
 
+-- | Just store all errors without consideration for which one is better.
 mergeError :: ParseErrorG e -> ParseErrorG e -> ParseErrorG e
-mergeError p1 p2 = better { peMore = joinMb worse (peMore better) }
-  where
-  (better,worse) = preferFirst p1 p2
-  joinMb x y = Just (maybe x (mergeError x) y)
+mergeError p1 p2 = p1 { peMore = p2 : peMore p1 }
+
+orderMultiError :: ParseErrorG e -> ParseErrorG e
+orderMultiError pe =
+  case parseErrorToList pe of
+    x : xs -> x { peMore = xs }
+    []     -> error "orderMultiError: No error!"
+
+-- | "Better" errors are "smaller"
+compareParseErrors :: ParseErrorG e -> ParseErrorG e -> Ordering
+compareParseErrors p1 p2 =
+  case (peSource p1, peSource p2) of
+    (FromUser,FromSystem) -> LT
+    (FromSystem,FromUser) -> GT
+    _ -> case compare (peOffset p1) (peOffset p2) of
+           LT -> GT
+           EQ -> EQ
+           GT -> LT
 
 -- | Given two errors put the one we prefer in the first component of the result
 preferFirst ::
   ParseErrorG e -> ParseErrorG e -> (ParseErrorG e, ParseErrorG e)
 preferFirst p1 p2 =
-  case (peSource p1, peSource p2) of
-    (FromUser,FromSystem) -> (p1, p2)
-    (FromSystem,FromUser) -> (p2, p1)
-    _ | peOffset p1 >= peOffset p2 -> (p1,p2)
-      | otherwise                  -> (p2,p1)
-
-
-
+  case compareParseErrors p1 p2 of
+    GT -> (p2,p1)
+    _  -> (p1,p2)
 
 
 
@@ -158,7 +170,10 @@ class ToJSON a => IsAnnotation a where
 --------------------------------------------------------------------------------
 
 ppParseError :: (IsAnnotation e) => ParseErrorG e -> Doc
-ppParseError pe@PE { .. } =
+ppParseError = vcat . map ppParseError1 . parseErrorToList
+
+ppParseError1 :: (IsAnnotation e) => ParseErrorG e -> Doc
+ppParseError1 pe@PE { .. } =
   brackets ("offset:" <+> int (peOffset pe)) $$
   nest 2 (bullets
            [ text peMsg, gram
@@ -166,14 +181,10 @@ ppParseError pe@PE { .. } =
            , "input trace:" $$ nest 2 (ppInputTrace peITrace)
            ]
          )
-    $$ more
   where
   gram = case peGrammar of
            [] -> empty
            _  -> "see grammar at:" <+> commaSep (map ppSourceRange peGrammar)
-  more = case peMore of
-           Nothing -> empty
-           Just err -> ppParseError err
 
   bullet      = if True then "•" else "*"
   buletItem d = bullet <+> d
