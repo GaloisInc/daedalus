@@ -79,10 +79,40 @@ def HTTP_field_content =
       count + n + 1
 
 
+--------------------------------------------------------------------------------
+-- Field Values
+--------------------------------------------------------------------------------
+
+def HTTP_quoted_string =
+  block
+    $dquote
+    $$ = Many ( $[$htab | $sp | 0x21 | 0x23 .. 0x5B | 0x5D .. 0x7E | $obs_text]
+             <| HTTP_quoted_pair
+              )
+    $dquote
+
+def HTTP_quoted_pair =
+  block
+    $['\\']
+    $[ $htab | $sp | $vchar | $obs_text ]
+
+def HTTP_comment =
+  block
+    $['(']
+    Many ( @ $[ $htab | $sp | 0x21 .. 0x27 | 0x2A .. 0x5B | 0x5D .. 0x7E
+                                                               | $obs_text ]
+        <| @HTTP_quoted_pair
+        <| HTTP_comment
+         )
+    $[')']
+    Accept
+
+def $http_ctext = $htab | $sp | 0x21 .. 0x27 | 0x2A .. 0x5
 
 
 --------------------------------------------------------------------------------
 -- HTTP Lexical Considerations
+--------------------------------------------------------------------------------
 
 -- Returns how many white spaces were skipped
 def HTTP_OWS   = Count $[ $sp | $htab]
@@ -94,12 +124,5 @@ def $http_field_vchar = $vchar | $obs_text
 def $http_tchar = 
   '!'  | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '.' |
    '^' | '_' | '`' | '|' | '~' | $digit | $alpha
-
-
-
-def Main =
-  block
-    SetStream (arrayStream "hello world  a   ")
-    HTTP_field_content
 
 
