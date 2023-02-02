@@ -6,22 +6,23 @@ import qualified Data.ByteString.Char8        as BS8
 import qualified Data.Text                    as Text
 import           Data.Word                    (Word8)
 
+import           Daedalus.Value
+
+import qualified Daedalus.RTS.Input           as RTS
+import qualified Daedalus.RTS.Numeric         as RTS
+import qualified Daedalus.RTS.Vector          as RTS
+
+import qualified RTS.Annot                    as RTS
+import qualified RTS.ParseError               as RTS
+import qualified RTS.ParserAPI                as RTS
+
 import           Daedalus.Core
+import           Daedalus.Core.Semantics.Parser
 import           Daedalus.Core.Semantics.Env
 import           Daedalus.Core.Semantics.Expr
 import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..),
                                                synthetic)
-import           Daedalus.Value
-import           RTS.Input                    (advanceBy, inputByte, inputBytes,
-                                               inputEmpty)
-import           RTS.Numeric                  (intToSize)
-import           RTS.Parser
-import           RTS.ParserAPI                (ParseErrorSource (..), pEnter,
-                                               pError', pPeek, pSetInput, (<||),
-                                               (|||))
-import qualified RTS.ParserAPI                as RTS
-import           RTS.Vector                   (vecToRep)
-import qualified RTS.Vector                   as RTS
+
 
 evalG :: Grammar -> Env -> Parser Value
 evalG gram env =
@@ -29,20 +30,20 @@ evalG gram env =
     Pure e    -> pure $! eval e env
 
     GetStream ->
-      do v <- pPeek
+      do v <- RTS.pPeek
          pure $! VStream v
 
     SetStream e ->
-      do pSetInput $! valueToStream $ eval e env
+      do RTS.pSetInput $! valueToStream $ eval e env
          pure vUnit
 
     Match s m -> evalMatch s m env
 
-    Fail src _ mbMsg -> pError' dsrc [] msg
+    Fail src _ mbMsg -> RTS.pError' dsrc [] msg
       where
       dsrc = case src of
-               ErrorFromUser   -> FromUser
-               ErrorFromSystem -> FromSystem
+               ErrorFromUser   -> RTS.FromUser
+               ErrorFromSystem -> RTS.FromSystem
       msg  = case mbMsg of
                Nothing -> "Parse error"
                Just e  -> BS8.unpack (valueToByteString (eval e env))
@@ -58,25 +59,25 @@ evalG gram env =
     Let x e g ->
       evalG g $! defLocal x (eval e env) env
 
-    OrBiased g1 g2   -> evalG g1 env <|| evalG g2 env
-    OrUnbiased g1 g2 -> evalG g1 env ||| evalG g2 env
+    OrBiased g1 g2   -> evalG g1 env RTS.<|| evalG g2 env
+    OrUnbiased g1 g2 -> evalG g1 env RTS.||| evalG g2 env
     Call f es -> lookupGFun f env $! evalArgs es env
     Annot a g ->
       case a of
         NoFail     -> evalG g env
-        SrcAnnot t -> pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
-        SrcRange r -> pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
+        SrcAnnot t -> RTS.pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
+        SrcRange r -> RTS.pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
 
     GCase c ->
-      evalCase evalG (pError' FromSystem [] "Pattern match failure") c env
+      evalCase evalG (RTS.pError' RTS.FromSystem [] "Pattern match failure") c env
 
     Loop lc -> case lc of
       ManyLoop s b l m_u g -> do
         let mkR :: RTS.Vector Value -> Value
             mkR = case s of
                     SemNo  -> \_ -> vUnit
-                    SemYes -> VArray . vecToRep
-            getSz e = intToSize (fromInteger (valueToSize (eval e env)))
+                    SemYes -> VArray . RTS.vecToRep
+            getSz e = RTS.intToSize (fromInteger (valueToSize (eval e env)))
             doIt = maybe (RTS.pMany (alt b)) (RTS.pManyUpTo (alt b) . getSz) m_u
             -- FIXME (synthetic)
         mkR <$> RTS.pMinLength (toRtsRange synthetic) (getSz l) (doIt (evalG g env))
@@ -85,8 +86,8 @@ evalG gram env =
     where
       -- c.f. Interp.hs, LoopMany case
       alt b = case b of
-                Eager -> (<||)
-                Lazy  -> (|||)
+                Eager -> (RTS.<||)
+                Lazy  -> (RTS.|||)
       loop b n g v =
         do mb <- alt b (Just <$> evalG g (defLocal n v env)) (pure Nothing)
            maybe (pure v) (loop b n g) mb
@@ -108,33 +109,33 @@ evalMatch sem mat env =
   case mat of
 
     MatchEnd ->
-      do i <- pPeek
-         unless (inputEmpty i) (pError' FromSystem [] "left over input")
+      do i <- RTS.pPeek
+         unless (RTS.inputEmpty i) (RTS.pError' RTS.FromSystem [] "left over input")
          pure vUnit
 
     MatchBytes e ->
-      do i <- pPeek
+      do i <- RTS.pPeek
          let v  = eval e env
              bs = valueToByteString v
-             ok = bs `BS8.isPrefixOf` inputBytes i
-         unless ok (pError' FromSystem [] "match failed")
-         let Just i1 = advanceBy (intToSize (BS.length bs)) i
-         pSetInput $! i1
+             ok = bs `BS8.isPrefixOf` RTS.inputBytes i
+         unless ok (RTS.pError' RTS.FromSystem [] "match failed")
+         let Just i1 = RTS.advanceBy (RTS.intToSize (BS.length bs)) i
+         RTS.pSetInput $! i1
          case sem of
            SemNo  -> pure vUnit
            SemYes -> pure v
 
     MatchByte b ->
-      do i <- pPeek
-         case inputByte i of
+      do i <- RTS.pPeek
+         case RTS.inputByte i of
            Just (w,i1) ->
              if evalByteSet b env w
-                then do pSetInput $! i1
+                then do RTS.pSetInput $! i1
                         case sem of
                           SemNo  -> pure vUnit
                           SemYes -> pure (vByte w)
-                else pError' FromSystem [] "byte does not match spec"
-           Nothing -> pError' FromSystem [] "unexpected end of file"
+                else RTS.pError' RTS.FromSystem [] "byte does not match spec"
+           Nothing -> RTS.pError' RTS.FromSystem [] "unexpected end of file"
 
 
 

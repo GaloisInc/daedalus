@@ -3,7 +3,7 @@
 {-# Language MonoLocalBinds #-}
 module RTS
   ( Numeric(..), Arith(..), UInt, SInt, SizeType, uint8
-  , Bitdata(..)
+  , R.Bitdata(..)
   , fromUInt, fromSInt
   , shiftl, shiftr, lcat, cat
   , Literal
@@ -23,11 +23,12 @@ module RTS
 import Data.Map(Map)
 import GHC.Float
 
-import RTS.Base
-import RTS.Numeric
-import RTS.Vector
-import RTS.Input
+import Daedalus.RTS.Base
+import Daedalus.RTS.Numeric
+import Daedalus.RTS.Vector
+import Daedalus.RTS.Input
 import RTS.ParserAPI
+import qualified Daedalus.RTS.Convert as R
 
 class Convert a b where
   convert :: a -> b
@@ -40,11 +41,11 @@ instance {-# OVERLAPPING #-} Convert a a where
   {-# INLINE convertMaybe #-}
 
 instance {-# OVERLAPPING #-} Convert Float Double where
-  convert = float2Double
+  convert = R.convert
   convertMaybe = Just . float2Double
 
 instance {-# OVERLAPPING #-} Convert Double Float where
-  convert = double2Float
+  convert = R.convert
   convertMaybe x
     | isNaN x || float2Double y == x = Just y
     | otherwise                      = Nothing
@@ -52,52 +53,52 @@ instance {-# OVERLAPPING #-} Convert Double Float where
 
 
 instance {-# OVERLAPPING #-} Convert Integer Float where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Float where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Float where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} Convert Integer Double where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (UInt n) Double where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert (SInt n) Double where
-  convert      = cvtHsNum
+  convert      = R.convert
   convertMaybe = cvtNumToFloatingMaybe
 
 
 instance {-# OVERLAPPING #-} Convert Double Integer where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert Double (UInt n) where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert Double (SInt n) where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 instance {-# OVERLAPPING #-} Convert Float Integer where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert Float (UInt n) where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 instance {-# OVERLAPPING #-} SizeType n => Convert Float (SInt n) where
-  convert = cvtFloatingToNum
+  convert = R.convert
   convertMaybe = cvtFloatingToNumMaybe
 
 

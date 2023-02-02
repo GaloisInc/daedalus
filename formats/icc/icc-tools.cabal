@@ -50,7 +50,8 @@ library
     text,
     containers,
     pretty,
-    rts-hs
+    rts-hs,
+    rts-hs-data
 
 executable icc
   default-language:     Haskell2010
@@ -60,6 +61,7 @@ executable icc
     base,
     pretty,
     rts-hs,
+    rts-hs-data,
     icc-tools
 
 executable icc-gen

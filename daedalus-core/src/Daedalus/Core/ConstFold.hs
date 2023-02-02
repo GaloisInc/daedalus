@@ -19,7 +19,7 @@ import MonadLib hiding (Label)
 import qualified Data.Vector as V
 
 
-import RTS.Input (inputBytes)
+import Daedalus.RTS.Input (inputBytes)
 import Daedalus.Core
 import Daedalus.Core.TypeCheck (getUserType)
 import Daedalus.Core.Semantics.Env
@@ -158,6 +158,7 @@ userTypeToStruct tenv ut =
 valueToExpr :: TEnv -> Type -> Value -> Expr
 valueToExpr tenv ty v =
   case v of
+    VTraced v1 _ -> valueToExpr tenv ty v1
     VUInt _n i -> Ap0 $ IntL i ty
     VSInt _n i -> Ap0 $ IntL i ty
     VInteger i -> Ap0 $ IntL i TInteger  -- check ty?

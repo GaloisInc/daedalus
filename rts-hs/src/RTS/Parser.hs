@@ -1,197 +1,278 @@
 {-# LANGUAGE BlockArguments, RecordWildCards #-}
-module RTS.Parser (Parser, runParser) where
+{-# LANGUAGE TypeFamilies #-}
+module RTS.Parser (ParserG, runParser) where
 
 import Control.Monad
 import Data.List.NonEmpty(NonEmpty(..))
 
-import RTS.Input
-import RTS.Numeric(intToSize)
+import Daedalus.RTS.Input
+import Daedalus.RTS.InputTrace
+import RTS.ParseError
 import RTS.ParserAPI
 
 
-data IList a = ICons a {-# UNPACK #-} !Input (IList a)
+{- | The type of parsers.
+
+  * `s` is custom parser state used to track input used by the parser.
+  * `e` is a context frame used to keep track of the call stack during parsing.
+  * `a` is the type of semantic value produced by the parser.
+-}
+
+newtype ParserG e a = Parser
+  { runP ::
+     ErrorStyle              {- single or multiple errors -} ->
+     [e]                     {- context stack -} ->
+     InputTrace              {- state -} ->
+     Input                   {- the input we are parsing -} ->
+     Maybe (ParseErrorG e)   {- last error if we got here by backtracking -} ->
+     Res e a
+  }
+
+
+
+
+--------------------------------------------------------------------------------
+-- Parser Results
+--------------------------------------------------------------------------------
+
+-- | The result of parsing something.
+data Res e a =
+
+    NoResAbort !(ParseErrorG e)
+    -- ^ Abort parsing, with this error
+
+  | NoResFail  !(ParseErrorG e)
+    -- ^ Parse error, with the given error
+
+  | Res a !InputTrace{-# UNPACK #-} !Input !(Maybe (ParseErrorG e))
+    -- ^ A successful result.
+    -- If this carries a parse error,
+    -- then we succeeded after another branch failed (biased choice).
+
+  | MultiRes a !InputTrace {-# UNPACK #-} !Input (IList a)
+                                                      !(Maybe (ParseErrorG e))
+    -- ^ Multiple successful results.
+    -- If this carries a parse error,
+    -- then we succeeded after another branch failed (biased choice).
+
+
+{- | Additional results, in the case of multiple parses.
+     Isomorphic to `[(a,s,Input)]`
+-}
+data IList a = ICons a !InputTrace {-# UNPACK #-} !Input (IList a)
              | INil
 
-iappend :: IList a -> IList a -> IList a
-iappend xs ys =
-  case xs of
-    INil -> ys
-    ICons a i zs -> ICons a i (iappend zs ys)
 
-itoList :: IList a -> [a]
-itoList xs =
-  case xs of
-    INil -> []
-    ICons a _ bs -> a : itoList bs
+--------------------------------------------------------------------------------
+-- Merging the results of multiple parsers.
 
-
-
-
-
--- A simple list monad, where we don't e.g. interleave on alternatives
-newtype Parser a =
-  Parser { runP ::
-           [Annot]          {- context stack -} ->
-           Input            {- the input we are parsing -} ->
-           Maybe ParseError {- last error if we got here by backtracking -} ->
-           Res a
-         }
-
-data Res a = NoResAbort !ParseError
-           | NoResFail  !ParseError
-           | Res a {-# UNPACK #-} !Input !(Maybe ParseError)
-           | MultiRes a {-# UNPACK #-} !Input (IList a) !(Maybe ParseError)
-
-
-joinRes2 :: Res a -> Res a -> Res a
-joinRes2 xs ys =
+-- | Join the results of two parsers (unbiased choice)
+joinRes2 :: ErrorStyle -> Res e a -> Res e a -> Res e a
+joinRes2 cfg xs ys =
   case xs of
     NoResAbort _ -> xs
 
     NoResFail es1 ->
       case ys of
-        NoResAbort {}      -> ys
-        NoResFail es2      -> NoResFail (merge es1 es2)
-        Res a i mb         -> Res a i (Just $! mergeMb mb es1)
-        MultiRes a i is mb -> MultiRes a i is (Just $! mergeMb mb es1)
+        NoResAbort {}         -> ys
+        NoResFail es2         -> NoResFail (merge cfg es1 es2)
+        Res a t i mb          -> Res a t i (Just $! mergeMb cfg mb es1)
+        MultiRes a t i is mb  ->
+          MultiRes a t i is (Just $! mergeMb cfg mb es1)
 
-    Res a i mb ->
+    Res a t1 i mb ->
       case ys of
-        NoResAbort {}       -> ys
-        NoResFail es        -> Res a i (Just $! mergeMb mb es)
-        Res b j mb1         -> MultiRes a i (ICons b j INil) (mergeMbMb mb mb1)
-        MultiRes b j ps mb1 -> MultiRes a i (ICons b j ps) (mergeMbMb mb mb1)
+        NoResAbort {}           -> ys
+        NoResFail es            -> Res a t1 i (Just $! mergeMb cfg mb es)
+        Res b t2 j mb1          -> MultiRes a t1 i (ICons b t2 j INil)
+                                                   (mergeMbMb cfg mb mb1)
+        MultiRes b t2 j ps mb1 ->
+          MultiRes a t1 i (ICons b t2 j ps) (mergeMbMb cfg mb mb1)
 
-    MultiRes a i ps mb ->
+    MultiRes a t1 i ps mb ->
       case ys of
         NoResAbort _    -> ys
-        NoResFail es    -> MultiRes a i ps (Just $! mergeMb mb es)
-        Res b j mb1     -> MultiRes a i (ICons b j ps) (mergeMbMb mb mb1)
-                                                                -- reorders
-        MultiRes b j qs mb1 -> MultiRes a i
-                                  (ICons b j (iappend ps qs))
-                                  (mergeMbMb mb mb1)          -- reorders
+        NoResFail es    -> MultiRes a t1 i ps (Just $! mergeMb cfg mb es)
+        Res b t2 j mb1  -> MultiRes a t1 i (ICons b t2 j ps)
+                                           (mergeMbMb cfg mb mb1) -- reorders
 
-merge :: ParseError -> ParseError -> ParseError
-merge e1 e2 = e1 <> e2
+        MultiRes b t2 j qs mb1 -> MultiRes a t1 i
+                                  (ICons b t2 j (iappend ps qs))
+                                  (mergeMbMb cfg mb mb1)          -- reorders
 
-mergeMb :: Maybe ParseError -> ParseError -> ParseError
-mergeMb mb e = case mb of
-                 Nothing -> e
-                 Just e1 -> merge e1 e
 
-mergeMbMb :: Maybe ParseError -> Maybe ParseError -> Maybe ParseError
-mergeMbMb mb1 mb2 =
+-- | Append extra results.
+iappend :: IList a -> IList a -> IList a
+iappend xs ys =
+  case xs of
+    INil           -> ys
+    ICons a t i zs -> ICons a t i (iappend zs ys)
+
+-- | Convert extra result to a list, ignoring the inputs.
+itoList :: IList a -> [(a,InputTrace)]
+itoList xs =
+  case xs of
+    INil           -> []
+    ICons a t _ bs -> (a,t) : itoList bs
+
+-- | Merge two parse errors.  The ordering specifies which of the errors
+-- we should prefer (the "smaller" one)
+merge ::
+  ErrorStyle ->
+  ParseErrorG e -> ParseErrorG e -> ParseErrorG e
+merge cfg e1 e2 =
+  case cfg of
+    SingleError -> joinSingleError e1 e2
+    MultiError  -> mergeError e1 e2
+
+-- | Merge a potential error with an error
+mergeMb ::
+  ErrorStyle -> Maybe (ParseErrorG e) -> ParseErrorG e -> ParseErrorG e
+mergeMb cfg mb e =
+  case mb of
+    Nothing -> e
+    Just e1 -> merge cfg e1 e
+
+-- | Merge two potential errors
+mergeMbMb ::
+  ErrorStyle ->
+  Maybe (ParseErrorG e) -> Maybe (ParseErrorG e) -> Maybe (ParseErrorG e)
+mergeMbMb cfg mb1 mb2 =
   case mb1 of
     Nothing -> mb2
-    Just e  -> Just $! mergeMb mb2 e
+    Just e  -> Just $! mergeMb cfg mb2 e
 
+--------------------------------------------------------------------------------
+-- Monad / Sequencing
+--------------------------------------------------------------------------------
 
-joinRes :: Res a -> (a -> Input -> Maybe ParseError -> Res b) -> Res b
-joinRes xs0 k =
+-- | Given a parser result and a continuation, compute a new parser results.
+joinRes ::
+  ErrorStyle ->
+  Res e a ->
+  (a -> InputTrace -> Input -> Maybe (ParseErrorG e) -> Res e b) ->
+  Res e b
+joinRes cfg xs0 k =
   case xs0 of
     NoResAbort e      -> NoResAbort e
     NoResFail  e      -> NoResFail e
-    Res a i mb        -> k a i mb
-    MultiRes a i more mb -> joinIList (\v j -> k v j mb) (k a i mb) more
+    Res a t i mb      -> k a t i mb
+    MultiRes a t i more mb ->
+      joinIList cfg (\v t2 j -> k v t2 j mb) (k a t i mb) more
 {-# INLINE joinRes #-}
 
-joinIList :: (a -> Input -> Res b) -> Res b -> IList a -> Res b
-joinIList k done xs =
+-- | Add a list of alternative successes to a parser result.
+joinIList ::
+  ErrorStyle ->
+  (a -> InputTrace -> Input -> Res e b) -> Res e b -> IList a -> Res e b
+joinIList cfg k done xs =
   case xs of
-    INil         -> done
-    ICons a i ys -> joinRes2 done (joinIList k (k a i) ys)
+    INil           -> done
+    ICons a t i ys -> joinRes2 cfg done (joinIList cfg k (k a t i) ys)
 
-instance Functor Parser where
+instance Functor (ParserG e) where
   fmap = liftM
   {-# INLINE fmap #-}
 
-instance Applicative Parser where
-  pure v = Parser \_ bs err -> Res v bs err
+instance Applicative (ParserG e) where
+  pure v = Parser \_ _env s i err -> Res v s i err
   (<*>)  = ap
   {-# INLINE pure #-}
   {-# INLINE (<*>) #-}
 
-instance Monad Parser where
+instance Monad (ParserG e) where
   Parser p >>= f =
-    Parser \cs bs err -> joinRes (p cs bs err) \a newI err1 ->
-                         runP (f a) cs newI err1
+    Parser \cfg env s i err ->
+      joinRes cfg (p cfg env s i err) \a newS newI newErr ->
+      runP (f a) cfg env newS newI newErr
   {-# INLINE (>>=) #-}
 
-runParser :: Parser a -> Input -> Result a
-runParser p i = case runP p [] i Nothing of
-                  NoResAbort e        -> NoResults e
-                  NoResFail  e        -> NoResults e
-                  Res a _ _           -> Results (a :| [])
-                  MultiRes a _ more _ -> Results (a :| itoList more)
+runParser ::
+  (HasSourcePaths e) =>
+  ParserG e a -> ErrorStyle -> Input -> ResultG e a
+runParser p cfg i =
+  case runP p cfg [] emptyInputTrace i Nothing of
+    NoResAbort e          -> NoResults (orderMultiError (normalizePaths e))
+    NoResFail  e          -> NoResults (orderMultiError (normalizePaths e))
+    Res a t _ _           -> Results ((a,t) :| [])
+    MultiRes a t _ more _ -> Results ((a,t) :| itoList more)
+{-# INLINE runParser #-}
 
-instance BasicParser Parser where
+
+--------------------------------------------------------------------------------
+-- Parser operations
+--------------------------------------------------------------------------------
+
+instance BasicParser (ParserG e) where
+  type Annot  (ParserG e) = e
+
+  -- Get a byte from the input, if any.  Records byte access in the state.
   pByte rng =
-    Parser \cs inp err ->
+    Parser \cfg env s inp err ->
       case inputByte inp of
-        Just (x,xs) -> Res x xs err
-        Nothing     -> NoResFail
-                           $ mergeMb err
-                             PE { peInput = inp
-                                , peGrammar =  [rng]
-                                , peMsg =  msg
-                                , peSource = FromSystem
-                                , peStack = cs
-                                , peMore = Nothing
+        Just (x,newInp) -> Res x (addInputTrace inp s) newInp err
+        Nothing         -> NoResFail
+                           $ mergeMb cfg err
+                             PE { peInput   = inp
+                                , peGrammar = [rng]
+                                , peMsg     = msg
+                                , peSource  = FromSystem
+                                , peStack   = env
+                                , peMore    = []
+                                , peNumber  = -1
+                                , peITrace  = s
                                 }
           where msg = "unexpected end of input"
 
-  pPeek = Parser \_ i err -> Res i i err
+  -- Get the parser input.  Note that this allows decisions on the input
+  -- that would not be automatically recorded in the trace.
+  pPeek = Parser \_ _ s i err -> Res i s i err
   {-# INLINE pPeek #-}
 
-  pSetInput i = Parser \_ _ err -> Res () i err
+  -- Set the parser input
+  pSetInput i = Parser \_ _ s _ err -> Res () s i err
   {-# INLINE pSetInput #-}
 
-  pEnter x p = Parser \cs inp err -> runP p (x:cs) inp err
+  -- Enter a new context frame
+  pEnter x p = Parser \cfg env s inp err -> runP p cfg (x:env) s inp err
   {-# INLINE pEnter #-}
 
-  pStack     = Parser \cs inp err -> Res cs inp err
+  -- Get the current context
+  pStack     = Parser \_ env s inp err -> Res env s inp err
   {-# INLINE pStack #-}
 
-  p <|| q = Parser \cs inp err ->
-             case runP p cs inp err of
-               NoResAbort e       -> NoResAbort e
-               NoResFail err1     -> runP q cs inp (Just err1)
-               Res a i mb         -> Res a i mb
-               MultiRes a i is mb -> MultiRes a i is mb
+  -- Get the current trace state
+  pITrace = Parser \_ _ s inp err -> Res s s inp err
+  {-# INLINE pITrace #-}
+
+  -- Set the current trace state
+  pSetITrace s = Parser \_ _ _ inp err -> Res () s inp err
+  {-# INLINE pSetITrace #-}
+
+  -- Biased choice
+  p <|| q = Parser \cfg env s inp err ->
+             case runP p cfg env s inp err of
+               NoResAbort newErr  -> NoResAbort newErr
+               NoResFail newErr   -> runP q cfg env s inp (Just newErr)
+               Res a newS newInp mb          -> Res a newS newInp mb
+               MultiRes a newS newI newIs mb -> MultiRes a newS newI newIs mb
   {-# INLINE (<||) #-}
 
-  p ||| q = Parser \cs inp err ->
-              runP p cs inp err `joinRes2` runP q cs inp err
+  -- Unbiased choice
+  p ||| q = Parser \cfg env s inp err ->
+              joinRes2
+                 cfg
+                 (runP p cfg env s inp err)
+                 (runP q cfg env s inp err)
   {-# INLINE (|||) #-}
 
-  pFail e = Parser \_ _ err -> NoResFail $ let Just x = (mergeMbMb (Just e) err)
-                                           in x
-                                          -- prefer the current error
+  -- Failure
+  pFail e = Parser \cfg _ _ _ err -> NoResFail (mergeMb cfg err e)
   {-# INLINE pFail #-}
 
-  pEnd r =
-    do inp <- pPeek
-       case inputByte inp of
-         Nothing -> pure ()
-         Just (_,_) -> pErrorAt FromSystem [r] inp "unexpected left over input"
-  {-# INLINE pEnd #-}
-
-  pOffset = intToSize . inputOffset <$> pPeek
-  {-# INLINE pOffset #-}
-
-  pMatch1 erng (ClassVal p str) =
-    do inp <- pPeek
-       b   <- pByte erng
-       unless (p b)
-         $ pErrorAt FromSystem [erng] inp
-         $ unwords ["byte", showByte b, "does not match", str]
-       pure b
-  {-# INLINE pMatch1 #-}
-
-
-  pErrorMode em (Parser p) = Parser \cs inp err ->
-                             case p cs inp err of
+  -- Switch the error mode
+  pErrorMode em (Parser p) = Parser \cfg env s inp err ->
+                             case p cfg env s inp err of
                                NoResAbort msg -> newErr msg
                                NoResFail  msg -> newErr msg
                                x              -> x

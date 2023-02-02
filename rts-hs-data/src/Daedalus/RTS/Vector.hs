@@ -1,34 +1,27 @@
-{-# Language DataKinds #-}
-{-# Language TypeFamilies, UndecidableInstances #-}
-{-# Language FlexibleContexts, FlexibleInstances #-}
-{-# Language StandaloneDeriving #-}
-{-# Language ConstraintKinds #-}
-{-# Language MultiParamTypeClasses #-}
-{-# Language ScopedTypeVariables #-}
-module RTS.Vector
-  ( RTS.Vector.Vector
-  , RTS.Vector.VecElem
+module Daedalus.RTS.Vector
+  ( Daedalus.RTS.Vector.Vector
+  , Daedalus.RTS.Vector.VecElem
 
-  , RTS.Vector.length
+  , Daedalus.RTS.Vector.length
 
-  , RTS.Vector.empty
-  , RTS.Vector.fromList
-  , RTS.Vector.unfoldrM
-  , RTS.Vector.replicateM
-  , RTS.Vector.concat
+  , Daedalus.RTS.Vector.empty
+  , Daedalus.RTS.Vector.fromList
+  , Daedalus.RTS.Vector.unfoldrM
+  , Daedalus.RTS.Vector.replicateM
+  , Daedalus.RTS.Vector.concat
 
-  , RTS.Vector.VecOf
-  , RTS.Vector.vecToRep
-  , RTS.Vector.vecFromRep
-  , RTS.Vector.vecToString
+  , Daedalus.RTS.Vector.VecOf
+  , Daedalus.RTS.Vector.vecToRep
+  , Daedalus.RTS.Vector.vecFromRep
+  , Daedalus.RTS.Vector.vecToString
 
-  , RTS.Vector.imapM_
-  , RTS.Vector.toList
+  , Daedalus.RTS.Vector.imapM_
+  , Daedalus.RTS.Vector.toList
 
-  , (RTS.Vector.!?)
-  , (RTS.Vector.!)
-  , RTS.Vector.rangeUp
-  , RTS.Vector.rangeDown
+  , (Daedalus.RTS.Vector.!?)
+  , (Daedalus.RTS.Vector.!)
+  , Daedalus.RTS.Vector.rangeUp
+  , Daedalus.RTS.Vector.rangeDown
 
   , Builder
   , emptyBuilder
@@ -53,9 +46,10 @@ import Data.Int
 import Data.Coerce(coerce)
 import Data.List(unfoldr)
 
-import RTS.JSON
-import RTS.Numeric
-import RTS.Base
+import Daedalus.RTS.Base
+import Daedalus.RTS.JSON
+import Daedalus.RTS.Numeric
+import Daedalus.RTS.Base
 
 
 vecToRep :: Vector a -> VecOf a
@@ -69,6 +63,7 @@ vecFromRep = Vec
 vecToString :: Vector (UInt 8) -> String
 vecToString = BS8.unpack . vecToRep
 {-# INLINE vecToString #-}
+
 
 --------------------------------------------------------------------------------
 

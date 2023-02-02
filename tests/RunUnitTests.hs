@@ -109,7 +109,12 @@ fileToTest file =
 
 
 
-data TestResult = Ok | Fail (Maybe SomeException) deriving (Show)
+data TestResult = Ok
+                | Fail Err
+                  deriving Show
+
+data Err = Diff FilePath FilePath | Except SomeException
+           deriving Show
 
 summarize :: [TestResult] -> IO ()
 summarize rs =
@@ -117,7 +122,7 @@ summarize rs =
                         , "of", show tot, "tests."
                         ]
      if bad == 0 then exitSuccess else exitFailure
-  where bad = length [ () | Fail _ <- rs ]
+  where bad = length [ () | Fail {} <- rs ]
         tot = length rs
 
 
@@ -135,26 +140,36 @@ runTest odir file =
      (_exit,out,err) <- BS.readCreateProcessWithExitCode cp BS.empty
      BS.writeFile stdFile out
      BS.writeFile errFile err
-     expect <- BS.readFile goldFile
-     return (if out == expect then Ok else Fail Nothing)
+     ok1 <- check stdGoldFile stdFile out
+     case ok1 of
+       Ok -> check errGoldFile errFile err
+       _  -> pure ok1
 
-   `catch` \e -> pure (Fail (Just e))
+   `catch` \e -> pure (Fail (Except e))
   )
 
   where
   stdFile = odir </> file <.> "stdout"
   errFile = odir </> file <.> "stderr"
-  goldFile = file <.> "stdout"
+  stdGoldFile = file <.> "stdout"
+  errGoldFile = file <.> "stderr"
+
+  check g s out =
+    do yes <- doesFileExist g
+       if yes
+          then do expect <- BS.readFile g
+                  pure (if out == expect then Ok else Fail (Diff g s))
+          else pure Ok
 
   done m =
     do x <- m
        case x of
          Ok -> putStrLn " [Ok]"
-         Fail e -> do putStrLn " [Fail]"
-                      case e of
-                        Nothing -> pure ()
-                        Just x  -> putStrLn ("*** " ++ show x)
-                      putStrLn $ unwords
-                                [ "***", "meld", show goldFile, show stdFile ]
+         Fail err ->
+           do putStrLn " [Fail]"
+              case err of
+               Diff g s -> putStrLn $ unwords
+                             [ "***", "meld", show g, show s ]
+               Except e -> putStrLn ("*** " ++ show x)
        pure x
 

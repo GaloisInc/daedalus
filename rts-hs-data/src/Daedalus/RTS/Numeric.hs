@@ -1,55 +1,43 @@
-{-# Language TypeFamilies, DataKinds, TypeOperators #-}
-{-# Language UndecidableInstances #-}
-{-# Language FlexibleContexts, FlexibleInstances #-}
-{-# Language ConstraintKinds #-}
-{-# Language StandaloneDeriving #-}
-{-# Language MultiParamTypeClasses #-}
-module RTS.Numeric
-  ( UInt(..)
-  , SInt(..)
+module Daedalus.RTS.Numeric
+  ( UInt(..), UIntRep
+  , SInt(..), SIntRep
   , Numeric(..)
   , Arith(..)
   , Literal
   , SizeType
-  , uint8
-  , sint8
+
+
+    -- * Conversions
+  , fromUInt, uint8, toUInt
+  , fromSInt, sint8, toSInt
   , cvtNum
-  , cvtHsNum
+
+    -- ** Checked
   , cvtNumToFloatingMaybe
-  , cvtFloatingToNum
   , cvtFloatingToNumMaybe
-  , cvtU
   , cvtNumMaybe
 
-  , Bitdata(..)
+    -- ** Floating
+  , wordToFloat, floatToWord
+  , wordToDouble, doubleToWord
 
-  , shiftl, shiftr, cat, lcat
-
-  , Size(..)
-  , SizeOf
-
-  , UIntRep, fromUInt
-  , SIntRep, fromSInt
-
+    -- ** Sizes
   , intToSize
   , sizeToInt
   , toInt
 
-  , wordToFloat
-  , wordToDouble
+    -- * Bit operations
+  , shiftl, shiftr, cat, lcat
   ) where
 
 import GHC.TypeNats
 import GHC.Float
-import Control.Monad(foldM)
 import Data.Kind(Constraint)
 import Data.Word
 import Data.Int
 import Data.Bits
-import Data.List(foldl',unfoldr)
 
-import RTS.Base
-import RTS.JSON
+import Daedalus.RTS.JSON
 
 
 data {-kind-} Size = S8 | S16 | S32 | S64 | SBig
@@ -108,16 +96,26 @@ fromUInt :: UInt n -> UIntRep n
 fromUInt (UInt x) = x
 {-# INLINE fromUInt #-}
 
+toUInt :: SizeType n => UIntRep n -> UInt n
+toUInt x = normU (UInt x)
+{-# INLINE toUInt #-}
+
 fromSInt :: SInt n -> SIntRep n
 fromSInt (SInt x) = x
 {-# INLINE fromSInt #-}
+
+toSInt :: SizeType n => SIntRep n -> SInt n
+toSInt x = normS (SInt x)
+{-# INLINE toSInt #-}
 
 
 --------------------------------------------------------------------------------
 
 type Supports c n  = (c (UIntRep n) :: Constraint, c (SIntRep n))
 
+-- Constraints used for normalizing values
 type NormCtrs n    = (KnownNat n, Supports Bits n, Supports Integral n)
+
 type SizeTypeDef n = ( NormCtrs n
                      , NormU n (SizeOf n)
                      , NormS n (SizeOf n)
@@ -143,20 +141,6 @@ instance {-# OVERLAPPING #-} NormU 64 'S64 where normU = id
 
 instance (NormCtrs w, SizeOf w ~ s) => NormU w s where
   normU n@(UInt w) = UInt (mask n w)
-
-type CvtU a b = (SizeType a, SizeType b, CvtU' a b (a <=? b))
-
-class (extending ~ (a <=? b)) => CvtU' a b (extending :: Bool) where
-  cvtU' :: UInt a -> UInt b
-
-instance ((a <=? b) ~ 'True, SizeType a, SizeType b) => CvtU' a b 'True where
-  cvtU' (UInt x) = UInt (fromIntegral x)
-
-instance ((a <=? b) ~ 'False, SizeType a, SizeType b) => CvtU' a b 'False where
-  cvtU' (UInt x) = normU (UInt (fromIntegral x))
-
-cvtU :: CvtU x y => UInt x -> UInt y
-cvtU = cvtU'
 
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
 mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
@@ -341,19 +325,12 @@ deriving instance SizeType n => Ord  (SInt n)
 
 --------------------------------------------------------------------------------
 
-cvtNum :: (Numeric a, Arith b) => a -> b
-cvtNum = lit . asInt
 
 cvtNumMaybe :: (Numeric a, Numeric b) => a -> Maybe b
 cvtNumMaybe a = if asInt b == ia then Just b else Nothing
   where
   ia = asInt a
   b  = lit ia
-
--- Number to Floating
--- XXX: these can be more effecient
-cvtHsNum :: (Numeric a, Num b) => a -> b
-cvtHsNum = fromInteger . asInt
 
 -- Number to Floating Maybe.
 -- XXX: these can be more effecient
@@ -365,21 +342,17 @@ cvtNumToFloatingMaybe x
   r = toRational (asInt x)
   y = fromRational r
 
-cvtFloatingToNum :: (RealFloat a, Numeric b) => a -> b
-cvtFloatingToNum x
-  | isNaN x      = error "Cannot cast NaN"
-  | isInfinite x = error "Cannot cast Inf"
-  | otherwise    = lit (truncate x)
-
 cvtFloatingToNumMaybe :: (RealFloat a, Numeric b) => a -> Maybe b
 cvtFloatingToNumMaybe x
   | isNaN x      = Nothing
   | isInfinite x = Nothing
-  | otherwise    = if cvtHsNum y == x then Just y else Nothing
+  | otherwise    = if fromInteger (asInt y) == x then Just y else Nothing
     where y = lit (truncate x)
 
 
 
+cvtNum :: (Numeric a, Arith b) => a -> b
+cvtNum = lit . asInt
 
 
 lcat :: (Numeric a, SizeType n) => a -> UInt n -> a
@@ -388,8 +361,6 @@ lcat x y = shiftl' x (thisWidth y) `bitOr` cvtNum y
 cat :: (SizeType m, SizeType n, SizeType (m+n)) =>
   UInt m -> UInt n -> UInt (m+n)
 cat x y = cvtNum x `lcat` y
-
-
 
 shiftl :: Numeric t => t -> UInt 64 -> t
 shiftl t x = shiftl' t (sizeToInt x)
@@ -416,82 +387,27 @@ toInt n
 
 --------------------------------------------------------------------------------
 
-type instance ElType  (UInt n) = UInt n
-type instance KeyType (UInt n) = UInt n
-
-instance SizeType n => IsLoop (UInt n) where
-
-  loopFold  f s lim = foldl' f s (rngU lim)
-  loopFoldM f s lim = foldM f s (rngU lim)
-  loopIFold f s lim = foldl' f' s (rngU lim)
-     where f' s' i = f s' i i
-  loopIFoldM f s lim = foldM f' s (rngU lim)
-     where f' s' i = f s' i i
-
-unsafeIncU :: SizeType n => UInt n -> UInt n
-unsafeIncU (UInt x) = UInt (x + 1)
-{-# INLINE unsafeIncU #-}
-
-rngU :: SizeType n => UInt n -> [UInt n]
-rngU lim = unfoldr step (lit 0)
-  where step n = if n < lim then Just (n, unsafeIncU n) else Nothing
-{-# INLINE rngU #-}
-
-
---------------------------------------------------------------------------------
-
 wordToFloat :: UInt 32 -> Float
 wordToFloat x = castWord32ToFloat (fromUInt x)
 {-# INLINE wordToFloat #-}
+
+floatToWord :: Float -> UInt 32
+floatToWord = UInt . castFloatToWord32
+{-# INLINE floatToWord #-}
 
 wordToDouble :: UInt 64 -> Double
 wordToDouble x = castWord64ToDouble (fromUInt x)
 {-# INLINE wordToDouble #-}
 
+doubleToWord :: Double -> UInt 64
+doubleToWord = UInt . castDoubleToWord64
+{-# INLINE doubleToWord #-}
+
 
 --------------------------------------------------------------------------------
 
-class Bitdata t where
-  type family BDWidth t :: Nat
-  bdToRep   :: SizeType (BDWidth t) => t -> UInt (BDWidth t)
-  bdFromRep :: SizeType (BDWidth t) => UInt (BDWidth t) -> t
 
-instance Bitdata () where
-  type instance BDWidth () = 0
-  bdToRep _   = UInt 0
-  bdFromRep _ = ()
-  {-# INLINE bdToRep #-}
-  {-# INLINE bdFromRep #-}
-
-instance Bitdata (UInt n) where
-  type instance BDWidth (UInt n) = n
-  bdToRep   = id
-  bdFromRep = id
-  {-# INLINE bdToRep #-}
-  {-# INLINE bdFromRep #-}
-
-instance Bitdata (SInt n) where
-  type instance BDWidth (SInt n) = n
-  bdToRep = cvtNum
-  bdFromRep = cvtNum
-  {-# INLINE bdToRep #-}
-  {-# INLINE bdFromRep #-}
-
-instance Bitdata Float where
-  type instance BDWidth Float = 32
-  bdToRep x  = UInt (castFloatToWord32 x)
-  bdFromRep  = wordToFloat
-  {-# INLINE bdToRep #-}
-  {-# INLINE bdFromRep #-}
-
-instance Bitdata Double where
-  type instance BDWidth Double = 64
-  bdToRep x  = UInt (castDoubleToWord64 x)
-  bdFromRep  = wordToDouble
-  {-# INLINE bdToRep #-}
-  {-# INLINE bdFromRep #-}
-
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 instance SizeType n => ToJSON (UInt n) where
   toJSON = toJSON . asInt

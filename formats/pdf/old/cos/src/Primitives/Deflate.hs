@@ -11,7 +11,8 @@ import Control.Exception(evaluate,try)
 import Codec.Compression.Zlib(decompress)
 import Codec.Compression.Zlib.Internal(DecompressError(..))
 
-import RTS.Input
+import Daedalus.RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

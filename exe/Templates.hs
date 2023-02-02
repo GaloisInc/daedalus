@@ -19,6 +19,9 @@ hs_template_files = $(embedDir "exe/hs-template")
 html_files :: [(FilePath,ByteString)]
 html_files = $(embedDir "exe/html-template")
 
+error_viewer_files :: [(FilePath,ByteString)]
+error_viewer_files = $(embedDir "exe/error-viewer-template")
+
 substTemplate :: Map ByteString ByteString -> ByteString -> ByteString
 substTemplate vars = Lazy.toStrict . Build.toLazyByteString . substBuilder vars
 

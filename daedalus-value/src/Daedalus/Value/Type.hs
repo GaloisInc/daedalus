@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# Language OverloadedStrings, DataKinds #-}
 module Daedalus.Value.Type where
 
@@ -6,6 +6,7 @@ import GHC.Float
 
 import Data.Text(Text)
 import qualified Data.Text as Text
+import Data.Text.Encoding(encodeUtf8)
 import Data.Vector(Vector)
 import qualified Data.Vector as Vector
 import Data.Map.Strict(Map)
@@ -21,7 +22,10 @@ import Numeric(showHex)
 import Daedalus.PP hiding (empty)
 import Daedalus.Range
 import Daedalus.Panic(panic)
-import RTS.Input(Input(..),inputName,inputOffset,inputLength)
+import Daedalus.RTS.Input(Input(..),inputName,inputOffset,inputLength)
+import Daedalus.RTS.HasInputs(HasInputs(..))
+import Daedalus.RTS.InputTrace(InputTrace,unionInputTrace)
+import Daedalus.RTS.JSON
 
 -- | Value universe
 data Value =
@@ -41,6 +45,7 @@ data Value =
   | VStream                !Input
   | VBuilder               ![Value]   -- array builder
   | VIterator              ![(Value,Value)]
+  | VTraced                !Value !InputTrace
     deriving Show
 
 data BDStruct = BDStruct
@@ -90,7 +95,10 @@ data TValue =
 
 
 pattern VUnit :: Value
-pattern VUnit = VStruct []
+pattern
+  VUnit <- (unTrace -> VStruct [])
+  where
+  VUnit = VStruct []
 
 vUnit :: Value
 vUnit = VUnit
@@ -140,25 +148,68 @@ vFromBits t i =
   where
   clampTo w j = mod j (snd (uintRange w) + 1)
 
+vTraced :: Value -> InputTrace -> Value
+vTraced v i =
+  case v of
+    VTraced v1 i1 -> VTraced v1 (unionInputTrace i i1)
+    _             -> VTraced v i
+
+-- | Add the traces in the list to the given value
+vAddTrace :: [Value] -> Value -> Value
+vAddTrace vs v0 = foldr add v0 vs
+  where
+  add v val =
+    case v of
+      VTraced _ i -> vTraced val i
+      _           -> val
+
+--------------------------------------------------------------------------------
+-- Dynamic checks on values
+
+unTrace :: Value -> Value
+unTrace v0 =
+  case v0 of
+    VTraced v _ -> v
+    _           -> v0
+
+instance HasInputs Value where
+  getInputs val =
+    case val of
+      VUInt {} -> mempty
+      VSInt {} -> mempty
+      VInteger {} -> mempty
+      VBool  {} -> mempty
+      VFloat {} -> mempty
+      VDouble {} -> mempty
+      VUnionElem _ v -> getInputs v
+      VStruct fs -> foldMap (getInputs . snd) fs
+      VBDStruct {} -> mempty
+      VBDUnion  {} -> mempty
+      VArray vs -> foldMap getInputs vs
+      VMaybe v -> getInputs v
+      VMap mp -> mconcat [ getInputs x <> getInputs y | (x,y) <- Map.toList mp ]
+      VStream i -> getInputs i
+      VBuilder vs -> foldMap getInputs vs
+      VIterator vs -> mconcat [ getInputs x <> getInputs y | (x,y) <- vs ]
+      VTraced v i -> getInputs v <> getInputs i
+
+
 vToBits :: Value -> Integer
 vToBits v =
-  case v of
+  case unTrace v of
     VUInt _ i     -> i
     VSInt _ i     -> i
     VBDStruct _ i -> i
     VBDUnion  _ i -> i
     VFloat f      -> toInteger (castFloatToWord32 f)
     VDouble f     -> toInteger (castDoubleToWord64 f)
-    _             -> panic "vFromBits" [ "Value cannot be converted to bits"
-                                       , showPP v ]
-
---------------------------------------------------------------------------------
--- Dynamic checks on values
+    _             -> panic "vToBits" [ "Value cannot be converted to bits"
+                                     , showPP v ]
 
 -- | Extract the value out of a numeric type
 valueToIntegral :: Value -> Integer
 valueToIntegral val =
-  case val of
+  case unTrace val of
     VInteger i -> i
     VUInt _ i  -> i
     VSInt _ i  -> i
@@ -166,25 +217,25 @@ valueToIntegral val =
 
 valueToBool :: Value -> Bool
 valueToBool val =
-  case val of
+  case unTrace val of
     VBool b -> b
     _       -> panic "valueToBool" [ "Not a boolean", show val ]
 
 valueToMaybe :: Value -> Maybe Value
 valueToMaybe val =
-  case val of
+  case unTrace val of
     VMaybe mb -> mb
     _         -> panic "ValueToMaybe" [ "Not a maybe", show val ]
 
 valueToByte :: Value -> Word8
 valueToByte val =
-  case val of
+  case unTrace val of
     VUInt 8 b -> fromInteger b
     _         -> panic "valueToByte" [ "Not a byte", show val ]
 
 valueToVector :: Value -> Vector Value
 valueToVector v =
- case v of
+ case unTrace v of
    VArray vs -> vs
    _         -> panic "valueToVector" [ "Not a vector", show v ]
 
@@ -193,7 +244,7 @@ valueToList = Vector.toList . valueToVector
 
 valueToStruct :: Value -> [(Label,Value)]
 valueToStruct v =
-  case v of
+  case unTrace v of
     VStruct fs -> fs
     _          -> panic "valueToStruct" [ "Not a struct", show v ]
 
@@ -202,13 +253,13 @@ valueToStructMap = Map.fromList . valueToStruct
 
 valueToUnion :: Value -> (Label,Value)
 valueToUnion v =
-  case v of
+  case unTrace v of
     VUnionElem l e -> (l,e)
     _              -> panic "valueToUnion" [ "Not a union", show v ]
 
 valueToByteString :: Value -> ByteString
 valueToByteString v =
-  case v of
+  case unTrace v of
     VArray vs -> BS.pack (map valueToByte (Vector.toList vs))
     _         -> panic "valueToByteString" [ "Not a bytesring", show v ]
 
@@ -217,31 +268,31 @@ valueToString = BS8.unpack . valueToByteString
 
 valueToMap :: Value -> Map Value Value
 valueToMap v =
-  case v of
+  case unTrace v of
     VMap m -> m
     _      -> panic "valueToMap" [ "Not a map", show v ]
 
 valueToStream :: Value -> Input
 valueToStream v =
-  case v of
+  case unTrace v of
     VStream i -> i
     _         -> panic "valueToStream" [ "Not a stream", show v ]
 
 valueToBuilder :: Value -> [Value]
 valueToBuilder v =
-  case v of
+  case unTrace v of
     VBuilder xs -> xs
     _           -> panic "valueToBuilder" [ "Not a builder", show v ]
 
 valueToIterator :: Value -> [(Value,Value)]
 valueToIterator v =
-  case v of
+  case unTrace v of
     VIterator xs -> xs
     _            -> panic "valueToIterator" [ "Not an iterator", show v ]
 
 valueToSize :: Value -> Integer
 valueToSize v =
-  case v of
+  case unTrace v of
     VUInt 64 i -> i
     _          -> panic "valueToSize" [ "Not a size", show v ]
 
@@ -256,6 +307,9 @@ valueToIntSize = integerToInt . valueToSize
 vCompare :: Value -> Value -> Ordering
 vCompare a b =
   case (a,b) of
+    (VTraced v1 _, v2)                      -> compare v1 v2
+    (v1, VTraced v2 _)                      -> compare v1 v2
+
     (VUInt n x,      VUInt n' y)            -> compare (n,x) (n',y)
     (VUInt _ _,      _)                     -> LT
     (_,              VUInt _ _)             -> GT
@@ -355,6 +409,7 @@ ppRawBD w i = "0x" <.> padding <.> text txt <.> brackets (int w)
 instance PP Value where
   ppPrec n val =
     case val of
+      VTraced v _ -> ppPrec n v
       VUInt 8 x
         | isAscii c && isPrint c -> quotes (char (chr (fromInteger x)))
           where c = toEnum (fromInteger x)
@@ -404,6 +459,56 @@ instance PP Value where
       VBuilder vs -> block "[builder|" ",       " "|]" (map pp vs)
       VIterator vs -> block "[iterator|" ",        " "|]"
                              [ pp x <+> "->" <+> pp y | (x,y) <- vs ]
+
+
+instance ToJSON Value where
+  toJSON val =
+    case val of
+      VUInt _ n  -> toJSON n
+      VSInt _ n  -> toJSON n
+      VInteger n -> toJSON n
+      VBool b    -> toJSON b
+      VFloat f   -> toJSON f
+      VDouble f  -> toJSON f
+      VUnionElem l v -> tagged l v
+      VStruct vs -> jsObject [ (encodeUtf8 k, toJSON v) | (k,v) <- vs ]
+
+      VBDStruct t x ->
+        jsObject [ (encodeUtf8 l, toJSON (bdGetField t l x))
+                 | l <- bdFields t ]
+
+      VBDUnion t x -> tagged tag v
+        where
+        views = [ (l, bduGet t l x)
+                | l <- bduCases t, bduMatches t l x ]
+        (tag,v) = case views of
+                    g : _ -> g
+                    []    -> panic "ToJSON"
+                              [ "Invalid value"
+                              , "bitdata: " ++ Text.unpack (bduName t)
+                              , "value: " ++ show x
+                              ]
+
+      VArray vs -> toJSON (Vector.toList vs)
+      VMap mp   -> toJSON mp
+      VMaybe mb -> toJSON mb
+
+      VStream inp -> tagged "$input"
+                   $ jsObject [ ("name", toJSON (inputName inp))
+                              , ("start", toJSON (inputOffset inp))
+                              , ("length", toJSON (inputLength inp))
+                              ]
+
+      VBuilder xs  -> tagged "$builder" xs
+      VIterator xs -> tagged "$iterator" xs
+
+      VTraced v i  -> tagged "$traced"
+                    $ jsObject [ ("value", toJSON v)
+                               , ("trace", toJSON i)
+                               ]
+
+    where
+    tagged t v = jsTagged (encodeUtf8 ("$" <> t)) (toJSON v)
 
 
 -- | Render a value as JSON
@@ -462,6 +567,7 @@ valueToJS val =
 
     VBuilder xs -> tagged "$$builder" $ jsBlock "[" "," "]" (map valueToJS xs)
     VIterator xs -> tagged "$$iterator" $ jsBlock "[" "," "]" (map pair xs)
+    VTraced v _ -> valueToJS v -- XXX?
 
   where
   pair (a,b) = "[" <+> valueToJS a <.> "," <+> valueToJS b <+> "]"

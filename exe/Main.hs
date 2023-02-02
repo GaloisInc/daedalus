@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when,unless,forM_,forM)
+import Control.Monad(when,unless,forM,forM_)
 import Data.Maybe(fromMaybe,fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -17,12 +17,9 @@ import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
-import System.Console.ANSI
 import Data.Traversable(for)
-import Data.Foldable(for_,toList)
+import Data.Foldable(for_)
 import Text.Show.Pretty (ppDoc)
-
-import Hexdump
 
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
@@ -32,8 +29,7 @@ import Daedalus.Core(checkModule)
 import Daedalus.Driver
 import Daedalus.DriverHS
 
-import qualified RTS.ParserAPI as RTS
-import qualified RTS.Input as RTS
+import qualified Daedalus.RTS.Input as RTS
 
 import Daedalus.Value
 import Daedalus.Interp
@@ -61,6 +57,7 @@ import qualified Daedalus.VM.Backend.C as C
 import qualified Daedalus.VM.Semantics as VM
 
 import CommandLine
+import Results
 import Templates
 
 main :: IO ()
@@ -169,7 +166,8 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp opts inp prog mainRules)
+                  srcFiles <- Map.elems <$> ddlGet modulePaths
+                  ddlIO (interpInterp opts srcFiles inp prog mainRules)
 
              UseCore -> interpCore opts mm inp
 
@@ -178,12 +176,7 @@ handleOptions opts
              UsePGen flagMetrics ->
                do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
-                  ddlIO (interpPGen (optShowJS opts) inp [prog] flagMetrics)
-
-         DumpRaw -> error "Bug: DumpRaw"
-         DumpResolve -> error "Bug: DumpResolve"
-         DumpTypes -> error "Bug: DumpTypes"
-         JStoHTML -> error "Bug: JStoHTML"
+                  ddlIO (interpPGen opts inp [prog] flagMetrics)
 
          CompileHS -> generateHS opts mm allMods
 
@@ -204,37 +197,48 @@ handleOptions opts
 
 
 interpInterp ::
-  Options -> Maybe FilePath -> [TCModule SourceRange] -> [(ModuleName,Ident)] ->
-    IO ()
-interpInterp opts inp prog ents =
+  Options    {- ^ Options -} ->
+  [FilePath] {- ^ Source files, for detailed errors -} ->
+  Maybe FilePath {- ^ Input file -} ->
+  [TCModule SourceRange] {- ^ Parsed source files -} ->
+  [(ModuleName,Ident)] {- ^ Entry points -} ->
+  IO ()
+interpInterp opts srcFiles inp prog ents =
   do start <- case [ ModScope m i | (m,i) <- ents ] of
                 [ent] -> pure ent
                 es -> interpError (MultipleStartRules es)
-     (_,res) <- interpFile inp prog start
-     let ?useJS = optShowJS opts
+     let cfg = case optDetailedErrors opts of
+                 Just _  -> detailedErrorsConfig
+                 Nothing -> defaultInterpConfig
+     (_,res) <- interpFile cfg inp prog start
+     let ?opts = opts
      let txt1   = dumpResult dumpInterpVal res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1
      print txt2
      case res of
        Results {}   -> exitSuccess
-       NoResults {} -> exitFailure
+       NoResults err ->
+          do let ?opts = opts
+             saveDetailedError srcFiles err
+             exitFailure
+
+     -- srcs <- ddlGet modulePaths
 
 interpCore :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpCore opts mm inpMb =
   do ents <- doToCore opts mm
      env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
-     let ?useJS = optShowJS opts
-     -- XXX: html, etc
+     let ?opts = opts
      ddlIO $ forM_ ents \ent ->
-                  print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+               print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
 
 interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
     let entries = VM.semModule (head (VM.pModules r))
-    let ?useJS = optShowJS opts
+    let ?opts = opts
     for_ (Map.elems entries) \impl ->
         ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
 
@@ -400,9 +404,9 @@ generateHS opts mainMod allMods
 
 
 
-interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
-interpPGen useJS inp moduls flagMetrics =
-  do let ?useJS = useJS
+interpPGen :: Options -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
+interpPGen opts inp moduls flagMetrics =
+  do let ?opts = opts
      let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
@@ -481,52 +485,6 @@ inputHack opts =
     _ -> opts
 
 
-
-dumpResult :: (?useJS :: Bool) => (a -> Doc) -> RTS.Result a -> Doc
-dumpResult ppVal r =
-  case r of
-   RTS.NoResults err -> dumpErr err
-   RTS.Results as -> dumpValues ppVal (toList as)
-
-dumpValues :: (?useJS :: Bool) => (a -> Doc) -> [a] -> Doc
-dumpValues ppVal as
-  | ?useJS = brackets (vcat $ punctuate comma $ map ppVal as)
-  | otherwise =
-    vcat [ "--- Found" <+> int (length as) <+> "results:"
-         , vcat' (map ppVal as)
-         ]
-
-
-dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
-dumpInterpVal = if ?useJS then valueToJS else pp
-
-dumpErr :: (?useJS :: Bool) => ParseError -> Doc
-dumpErr err
-  | ?useJS = RTS.errorToJS err
-  | otherwise =
-    vcat
-      [ "--- Parse error: "
-      , text (show (RTS.ppParseError err))
-      , "File context:"
-      , text (prettyHexCfg cfg ctx)
-      ]
-  where
-  ctxtAmt = 32
-  bs      = RTS.inputTopBytes (RTS.peInput err)
-  errLoc  = RTS.peOffset err
-  start = max 0 (errLoc - ctxtAmt)
-  end   = errLoc + 10
-  len   = end - start
-  ctx = BS.take len (BS.drop start bs)
-  startErr =
-     setSGRCode [ SetConsoleIntensity
-                  BoldIntensity
-                , SetColor Foreground Vivid Red ]
-  endErr = setSGRCode [ Reset ]
-  cfg = defaultCfg { startByte = start
-                   , transformByte =
-                      wrapRange startErr endErr
-                                errLoc errLoc }
 
 
 jsToHTML :: Options -> Daedalus ()

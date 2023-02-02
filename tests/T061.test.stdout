@@ -1,1 +1,1 @@
-{"error":"Pattern match failure, expected one of:\n  1 | 2\n","offset":1,"grammar":[{"from":{"file":"./T061.ddl","line":4,"col":11},"to":{"file":"./T061.ddl","line":7,"col":1}}],"stack":[]}
+{"error":"Pattern match failure, expected one of:\n  1 | 2\n","input":"array","offset":1,"grammar":[{"from":{"file":"","line":4,"col":11},"to":{"file":"","line":7,"col":1}}],"stack":[],"trace":[{"input":"array","ranges":[[0,0]]}],"inputs":{"array":"\u0003\u0002"},"more":[]}

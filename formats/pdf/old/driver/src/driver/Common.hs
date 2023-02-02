@@ -8,7 +8,8 @@ import System.Exit (exitFailure)
 import System.IO (Handle, IOMode(..), openFile, stdout, stderr
                  , hPutStr, hPutStrLn, hFlush, hSetEncoding, utf8)
 
-import RTS.ParserAPI(ParseError(..),peOffset,ppAnnot)
+import RTS.Annot
+import RTS.ParseError(ParseErrorG(..),peOffset,ppAnnot)
 import CommandLine
 import Control.Monad.State
 import Text.PrettyPrint hiding ((<>))
@@ -23,7 +24,7 @@ data ReportCode =
   | RInfo
 
 -- XXX: now we have more info and can print a much nicer error
-ppParserError :: ParseError -> Doc
+ppParserError :: ParseErrorG Annotation -> Doc
 ppParserError pe = vcat $
   [ "byte offset:" <+> int (peOffset pe)
   , "error:" <+> text (peMsg pe)

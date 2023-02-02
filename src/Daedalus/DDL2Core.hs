@@ -887,7 +887,7 @@ fromExpr expr =
            TC.LookupMap    -> pure $ mapLookup e2 e1
            TC.BuilderEmit        -> pure $ emit e1 e2
            TC.BuilderEmitArray   -> pure $ emitArray e1 e2
-           TC.BuilderEmitBuilder -> pure $ emitArray e1 e2
+           TC.BuilderEmitBuilder -> pure $ emitBuilder e1 e2
 
     TC.TCTriOp op v1 v2 v3 _ ->
       do e1 <- fromExpr v1

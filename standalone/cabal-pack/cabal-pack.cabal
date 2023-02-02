@@ -1,0 +1,29 @@
+cabal-version:      3.0
+name:               cabal-pack
+version:            0.1.0.0
+license:            ISC
+license-file:       LICENSE
+author:             Iavor Diatchki
+maintainer:         iavor.diatchki@gmail.com
+category:           Development
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+executable cabal-pack
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:
+      base,
+      containers,
+      directory,
+      filepath,
+      text,
+      typed-process,
+      cabal-plan,
+      simple-get-opt
+
+    hs-source-dirs:   app
+    default-language: Haskell2010

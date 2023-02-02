@@ -19,6 +19,9 @@ extra-source-files:
   exe/html-template/style.css
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
+  exe/error-viewer-template/*.js
+  exe/error-viewer-template/*.html
+  exe/error-viewer-template/*.css
   rts-c/ddl/*.h
 
 library
@@ -44,6 +47,14 @@ library
                        Daedalus.Module,
                        Daedalus.Scope,
                        Daedalus.Interp,
+                       Daedalus.Interp.Operators,
+                       Daedalus.Interp.DebugAnnot,
+                       Daedalus.Interp.Error,
+                       Daedalus.Interp.Env,
+                       Daedalus.Interp.Loop,
+                       Daedalus.Interp.Type,
+                       Daedalus.Interp.ErrorTrie,
+                       Daedalus.Interp.Config,
                        Daedalus.Specialise,
                        Daedalus.CompileHS,
                        Daedalus.Compile.LangHS,
@@ -120,12 +131,13 @@ library
                        daedalus-vm,
                        daedalus-value,
                        rts-hs,
-                       rts-vm-hs
+                       rts-hs-data
 
 
 executable daedalus
   main-is:             Main.hs
   other-modules:       CommandLine,
+                       Results,
                        Templates
 
   build-depends:       daedalus,
@@ -134,7 +146,7 @@ executable daedalus
                        daedalus-value,
                        daedalus-vm,
                        rts-hs,
-                       rts-vm-hs,
+                       rts-hs-data,
                        pretty-hex >= 1.1,
                        ansi-terminal,
                        base,
@@ -145,7 +157,8 @@ executable daedalus
                        filepath,
                        directory,
                        pretty-show,
-                       file-embed >= 0.0.13
+                       file-embed >= 0.0.13,
+                       alex-tools
 
   hs-source-dirs:      exe
   ghc-options:         -Wall -O2 -Wno-incomplete-uni-patterns
@@ -155,8 +168,6 @@ executable daedalus
     BlockArguments,
     OverloadedStrings,
     RecordWildCards
-
-
 
 
 executable daedalus-run-test

@@ -273,8 +273,8 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
         , instHead    = aps "RTS.Bitdata" [ ty ]
         , instMethods =
           [ Fun TypeFun (aps "BDWidth"  [ ty ]) (hsInteger wi)
-          , Fun ValueFun "bdToRep" "HS.coerce"
-          , Fun ValueFun "bdFromRep" "HS.coerce"
+          , Fun ValueFun "toBits" "HS.coerce"
+          , Fun ValueFun "fromBits" "HS.coerce"
           ]
         }
 
@@ -372,8 +372,8 @@ hsTyDeclDefBD env univ me@TCTyDecl { .. } = ([con], insts)
               , instHead     = aps "HS.HasField" [ hsText l, ty, hsType env t ]
               , instMethods =
                 [ Fun ValueFun (aps "getField" [aps conName ["x"]])
-                               (aps "RTS.bdFromRep"
-                                  [ aps "RTS.cvtU" [doShift "x" (bdOffset fi)]])
+                               (aps "RTS.fromBits"
+                                  [ aps "RTSC.cvtU" [doShift "x" (bdOffset fi)]])
                 ]
               }
         | fi <- bdFields bd, BDData l t <- [ bdFieldType fi ]
@@ -612,7 +612,7 @@ hsValue env tc =
           | Just decl <- Map.lookup c (envTypes env)
           , Just _    <- tctyBD decl ->
             hasType (hsType env t)
-              (aps "RTS.bdFromRep" [ aps "RTS.bdToRep" [ hsValue env v ] ])
+              (aps "RTS.fromBits" [ aps "RTS.toBits" [ hsValue env v ] ])
           | otherwise -> hsUniConName env NameUse c l `Ap` hsValue env v
         _ -> panic "hsValue" ["Unexpected type in `TCIn`"]
 
@@ -723,7 +723,7 @@ hsBitdataStruct env ty con fs =
   case map doCon (bdFields con) of
     [] -> bv 0 0
     vs -> hasType (hsType env ty)
-        $ aps "RTS.bdFromRep" [ foldl1 (\a b -> aps "RTS.cat" [a,b]) vs ]
+        $ aps "RTS.fromBits" [ foldl1 (\a b -> aps "RTS.cat" [a,b]) vs ]
 
   where
   bv w i = hasType (hsType env (tUInt (tNum (toInteger w))))
@@ -734,7 +734,7 @@ hsBitdataStruct env ty con fs =
       BDWild     -> bv (bdWidth f) 0
       BDTag n    -> bv (bdWidth f) n
       BDData l _ -> case lookup l fs of
-                      Just v  -> aps "RTS.bdToRep" [v]
+                      Just v  -> aps "RTS.toBits" [v]
                       Nothing -> panic "hsBitdataStruct"
                                   [ "Missing field", showPP l ]
 
@@ -779,9 +779,9 @@ hsRange :: SourceRange -> Term
 hsRange rng = "RTS.SourceRange" `Ap` pos (sourceFrom rng)
                                 `Ap` pos (sourceTo rng)
   where
-  pos x = "RTS.SourcePos" `Ap` Raw (sourceFile x) `Ap`
-                               Raw (sourceLine x) `Ap`
-                               Raw (sourceColumn x)
+  pos x = "RTS.SourcePos" `Ap` Raw (sourceLine x) `Ap`
+                               Raw (sourceColumn x) `Ap`
+                               Raw (sourceFile x)
 
 hsGrammar :: Env -> TC SourceRange Grammar -> Term
 hsGrammar env tc =
@@ -1014,7 +1014,7 @@ hsBitdataCase' ::
 
 hsBitdataCase' ty ifFail env e alts mbD =
   aps (Lam [aps "RTS.UInt" [caseValName]] actualCase)
-      [ aps "RTS.bdToRep" [e] ]
+      [ aps "RTS.toBits" [e] ]
   where
   caseValName = "caseVal" :: Term
   actualCase = foldr doCase finalCase tests
@@ -1051,7 +1051,7 @@ hsBitdataCase' ty ifFail env e alts mbD =
   hsAlt n = let (xs,_,rhs) = alts !! n
             in aps (Lam (map fst xs) rhs)
                    [ ApI "::"
-                      (aps "RTS.bdFromRep" [ aps "RTS.UInt" [caseValName] ])
+                      (aps "RTS.fromBits" [ aps "RTS.UInt" [caseValName] ])
                       (hsType env t)
                    | (_,t) <- xs ]
             -- XXX: if we added struct patterns this would have to
@@ -1246,11 +1246,14 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
                  , HS.Import "Data.Bits"     (QualifyAs "HS")
                  , HS.Import "Control.Monad" (QualifyAs "HS")
                  , HS.Import "RTS"           (QualifyAs "RTS")
-                 , HS.Import "RTS.Input"     (QualifyAs "RTS")
-                 , HS.Import "RTS.Map"       (QualifyAs "Map")
-                 , HS.Import "RTS.Vector"    (QualifyAs "Vector")
-                 , HS.Import "RTS.Numeric"   (QualifyAs "RTS")
-                 , HS.Import "RTS.JSON"      (QualifyAs "RTS")
+                 , HS.Import "Daedalus.RTS.Input"     (QualifyAs "RTS")
+                 , HS.Import "Daedalus.RTS.Map"       (QualifyAs "Map")
+                 , HS.Import "Daedalus.RTS.Vector"    (QualifyAs "Vector")
+                 , HS.Import "Daedalus.RTS.Numeric"   (QualifyAs "RTS")
+                 , HS.Import "Daedalus.RTS.JSON"      (QualifyAs "RTS")
+                 , HS.Import "Daedalus.RTS.Convert"   (QualifyAs "RTSC")
+                 , HS.Import "RTS.ParseError" (QualifyAs "RTS")
+                 , HS.Import "RTS.Annot" (QualifyAs "RTS")
                  ]
   , hsDecls = concatMap (hsTyDecl env) (concatMap recToList tcModuleTypes) ++
               concatMap (hsTCDecl env) (concatMap recToList tcModuleDecls)
@@ -1258,7 +1261,7 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
   where
   env = Env { envCurMod  = tcModuleName
             , envTParser = case cParserType of
-                             Nothing -> "RTS.Parser"
+                             Nothing -> "RTS.ParserG RTS.Annotation"
                              Just t  -> t
             , envExtern  = cPrims
             , envQualNames = cQualNames

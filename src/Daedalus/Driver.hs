@@ -56,6 +56,7 @@ module Daedalus.Driver
 
     -- ** State accessors
   , moduleSourcePath
+  , modulePaths
 
     -- * Updating state externally
   , recordTCModule
@@ -314,6 +315,10 @@ defaultState = State
 
 moduleSourcePath :: ModuleName -> State -> Maybe FilePath
 moduleSourcePath m = Map.lookup m . moduleFiles
+
+-- | Get the pats for all loaded modules
+modulePaths :: State -> Map ModuleName FilePath
+modulePaths = moduleFiles
 
 
 data ModulePhase =

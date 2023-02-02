@@ -17,6 +17,7 @@ module Daedalus.RTS.Input
   , newInputFromFile
   ) where
 
+import qualified Data.Map as Map
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
@@ -26,6 +27,7 @@ import Data.Word(Word8)
 import Control.Monad(guard)
 import Numeric(showHex)
 
+import Daedalus.RTS.HasInputs
 import Daedalus.RTS.JSON
 import Daedalus.RTS.Numeric(UInt,sizeToInt)
 import Daedalus.RTS.Vector(Vector)
@@ -169,6 +171,8 @@ newInputFromFile mb =
       do bs <- BS.readFile file
          pure (newInput (BS8.pack file) bs)
 
+instance HasInputs Input where
+  getInputs i = Map.singleton (inputName i) (inputTopBytes i)
 
 instance ToJSON Input where
   toJSON inp =

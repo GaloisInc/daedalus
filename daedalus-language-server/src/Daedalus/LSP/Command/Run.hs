@@ -23,11 +23,12 @@ import qualified Language.LSP.Types          as J
 import           System.Log.Logger           (debugM)
 
 import           Daedalus.AST                (nameScopeAsModScope)
-import           Daedalus.Interp             (interpFile)
+import           Daedalus.Interp             (interpFile,defaultInterpConfig)
 import           Daedalus.PP
 import           Daedalus.Rec                (forgetRecs, topoOrder)
 import           Daedalus.Type.AST
 import qualified RTS.ParserAPI               as RTS
+import qualified RTS.ParseError              as RTS
 
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position
@@ -70,11 +71,12 @@ runModule pos sst m = do
     
   where
     runIt ms d = do
-      (_, res) <- interpFile Nothing ms (nameScopedIdent (tcDeclName d))
+      (_, res) <- interpFile defaultInterpConfig
+                          Nothing ms (nameScopedIdent (tcDeclName d))
       -- For now we just return the pretty-printed value (we could also return the json)
       let msg = case res of
             RTS.NoResults err -> show (RTS.ppParseError err)
-            RTS.Results as    -> showPP (NE.head as) -- FIXME
+            RTS.Results as    -> showPP (fst (NE.head as)) -- FIXME
       pure (Just $ A.String (Text.pack msg))
 
 -- | Watches a module (and deps.) and reruns the given function when
@@ -99,11 +101,11 @@ watchModule report reportMsg clientHandle sst nm = go mempty
           let unsortedTcs = snd <$> Map.elems newTCs
               tcs = forgetRecs $ topoOrder (\m -> (tcModuleName m, Set.fromList (map importModule (tcModuleImports m)))) unsortedTcs
           
-          (_, res) <- interpFile Nothing tcs (nameScopedIdent nm)
+          (_, res) <- interpFile defaultInterpConfig Nothing tcs (nameScopedIdent nm)
           -- For now we just return the pretty-printed value (we could also return the json)
           let resStr = case res of
                 RTS.NoResults err -> show (RTS.ppParseError err)
-                RTS.Results as    -> showPP (NE.head as) -- FIXME
+                RTS.Results as    -> showPP (fst (NE.head as)) -- FIXME
               msg = A.object ["clientHandle" .= clientHandle, "result" .= A.String (Text.pack resStr)]
           report msg
         Left err -> reportMsg (J.ShowMessageParams J.MtWarning (Text.pack $ "Declaration " ++ showPP nm ++ " cannot be run: " ++ err))

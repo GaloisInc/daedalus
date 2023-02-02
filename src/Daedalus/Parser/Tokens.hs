@@ -61,9 +61,6 @@ data Token =
   | RightArrow
   | Underscore
 
-  | BitwiseAndT
-  | BitwiseOrT
-  | BitwiseXorT
   | BitwiseComplementT
 
   | KWstruct

@@ -31,7 +31,7 @@ import           Daedalus.PP                 (showPP)
 import           Daedalus.Panic              (panic)
 import           Daedalus.Range              (integerToInt)
 import           Daedalus.Value
-import           RTS.Input                   (inputBytes)
+import           Daedalus.RTS.Input                   (inputBytes)
 
 
 eval :: Expr -> Env -> Value

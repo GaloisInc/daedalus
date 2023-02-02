@@ -7,10 +7,15 @@ import Daedalus.PP(showPP)
 import Daedalus.Range(uintRange,sintRange,inRange)
 import Daedalus.Value.Type
 
+
 -- | The second value in the result indicates if the coercion is exact
 vCoerceTo :: TValue -> Value -> (Partial Value,Bool)
 vCoerceTo tgt v =
   case v of
+
+    VTraced v1 i ->
+      case vCoerceTo tgt v1 of
+        (pv,ex) -> (fmap (`vTraced` i) pv, ex)
 
     VUInt _ n ->
       case tgt of

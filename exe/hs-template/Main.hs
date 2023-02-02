@@ -7,9 +7,10 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import Data.Text.Encoding(encodeUtf8)
 import qualified Data.List.NonEmpty as NE
-import RTS.Input(newInput)
+import Daedalus.RTS.Input(newInput)
 import RTS.Parser(runParser)
-import qualified RTS.JSON as JS
+import qualified Daedalus.RTS.JSON as JS
+import qualified RTS.ParseError as RTS
 import RTS
 
 main :: IO ()
@@ -23,10 +24,10 @@ main =
      let input = newInput (encodeUtf8 (Text.pack nm)) bs
      BS8.putStrLn $
       JS.jsonToBytes
-        case runParser pMain input of
+        case runParser pMain RTS.SingleError input of
           NoResults err -> JS.toJSON err
           Results rs -> JS.jsArray
-                       $ map JS.toJSON
+                       $ map (JS.toJSON . fst)
                        $ NE.toList rs
 
 

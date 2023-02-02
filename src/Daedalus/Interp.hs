@@ -10,6 +10,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ConstraintKinds #-}
 -- An interpreter for the typed AST
 module Daedalus.Interp
   ( interp, interpFile
@@ -17,11 +19,12 @@ module Daedalus.Interp
   , evalType
   , emptyEnv
   , Value(..)
-  , ParseError(..)
-  , Result(..)
+  , ParseError, ParseErrorG(..)
+  , Result, ResultG(..)
   , Input(..)
   , InterpError(..)
   , interpError
+  , InterpConfing(..), defaultInterpConfig, detailedErrorsConfig
   -- For synthesis
   , compilePureExpr
   , compilePredicateExpr
@@ -32,20 +35,16 @@ module Daedalus.Interp
   , evalTriOp
   , setVals
   , vUnit
+  , parseErrorTrieToJSON
   ) where
 
-import GHC.Float(double2Float)
-import Control.Monad (replicateM,foldM,replicateM_,void,guard,msum,forM)
-import Control.Exception(Exception(..), throw)
+import Control.Monad (replicateM,replicateM_,void,guard,msum,forM)
 
-import Data.Bits (shiftR,shiftL,(.|.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
-import Data.List(foldl')
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 
@@ -56,7 +55,6 @@ import qualified Data.Vector as Vector
 import Daedalus.SourceRange
 import Daedalus.PP hiding (empty)
 import Daedalus.Panic
-import qualified Daedalus.BDD as BDD
 
 import Daedalus.Value
 
@@ -66,260 +64,34 @@ import qualified Daedalus.Type.AST as AST
 import Daedalus.Rec (forgetRecs)
 
 
-import RTS.ParserAPI
-import RTS.Input
-import RTS.Parser as P
-import qualified RTS.ParserAPI as RTS
-import RTS.Vector(vecFromRep,vecToRep)
-import RTS.Numeric(UInt(..))
-import qualified RTS.Vector as RTS
+import RTS.Parser as RTS
+import RTS.ParserAPI as RTS
+import Daedalus.RTS.Input
+import Daedalus.RTS.Vector(vecFromRep,vecToRep)
+import qualified Daedalus.RTS.Vector as RTS
+import Daedalus.RTS.Numeric(UInt(..))
+import RTS.ParseError (ParseErrorG, ParseErrorSource(..))
+import qualified RTS.ParseError as RTS
 
--- A rule can take either parsers or values as an argument, e.g.
---
--- F X y = many[y] X
+import Daedalus.Interp.Config
+import Daedalus.Interp.Error
+import Daedalus.Interp.DebugAnnot
+import Daedalus.Interp.Env
+import Daedalus.Interp.Loop
+import Daedalus.Interp.ErrorTrie
+import Daedalus.Interp.Operators
+import Daedalus.Interp.Type
 
-data SomeVal      = VVal Value | VClass ClassVal | VGrm (PParser Value)
-data SomeFun      = FVal (Fun Value)
-                  | FClass (Fun ClassVal)
-                  | FGrm (Fun (Parser Value))
-newtype Fun a     = Fun ([TValue] -> [SomeVal] -> a)
+type CfgCtxt = (?cfg :: InterpConfing)
 
-
-instance Show (Fun a) where
-  show _ = "FunDecl"
-
-type PParser a = [SomeVal] -> Parser a
-
-
--- | We throw these exceptions for dynaimc errors encountered furing evaluation
--- (e.g., division by 0)
-data InterpError = PartialValue String
-                 | PatternMatchFailure String
-                 | MultipleStartRules [ ScopedIdent ]
-                 | UnknownStartRule ScopedIdent
-                 | InvalidStartRule ScopedIdent
-                 | MissingExternal ScopedIdent
-  deriving (Show)
-
-ppInterpError :: InterpError -> Doc
-ppInterpError err =
-  case err of
-    PartialValue msg -> text msg
-    PatternMatchFailure msg -> text msg
-    MultipleStartRules rs ->
-      hang "Multiple start rules:" 2 (bullets (map pp rs))
-    UnknownStartRule r -> "Unknown start rule" <+> backticks (pp r)
-    InvalidStartRule r ->
-      vcat
-        [ hang
-            (vcat [ backticks (pp r) <+> "is not a valid start rule."
-                  , "The interpreter start rule should not have any:"
-                  ])
-            2
-            (bullets [ "type parameters"
-                     , "implicit parameters"
-                     , "explicit parameters" ])
-        , "You may use the `show-types` command to see the types of the parsers"
-        ]
-    MissingExternal x ->
-      hang
-        ("Tried to execute external declaration" <+> backticks (pp x))
-        2
-        (bullets
-          [ "The interpreter cannot execute externally defined parsers"
-          , "Only the the compiled backends may use external primiteves."
-          ])
-
-
-instance Exception InterpError where
-  displayException = show . ppInterpError
-
-interpError :: InterpError -> a
-interpError = throw
-
--- -----------------------------------------------------------------------------
--- Interpreting as a Haskell function
-
-data Env = Env
-  { ruleEnv :: Map Name (Fun (Parser Value))
-  , funEnv  :: Map Name (Fun Value)
-  , clsFun  :: Map Name (Fun ClassVal)
-
-  , valEnv  :: Map Name Value
-  , clsEnv  :: Map Name ClassVal
-  , gmrEnv  :: Map Name (PParser Value)
-
-  , tyEnv   :: Map TVar TValue
-    -- ^ Bindings for polymorphic type argumens
-  , tyDecls :: Map TCTyName TCTyDecl
-    -- ^ Used for bitdata (for coercion)
-  }
-
-type Prims = Map Name SomeFun
-
-emptyEnv :: Env
-emptyEnv = Env Map.empty Map.empty Map.empty
-               Map.empty Map.empty Map.empty
-               Map.empty Map.empty
-
-setVals :: Map Name Value -> Env -> Env
-setVals vs env = env { valEnv = vs }
-
-addVal :: TCName K.Value -> Value -> Env -> Env
-addVal x v env = env { valEnv = Map.insert (tcName x) v (valEnv env) }
-
-addValMaybe :: Maybe (TCName K.Value) -> Value -> Env -> Env
-addValMaybe Nothing  _ e = e
-addValMaybe (Just x) v e = addVal x v e
-
---------------------------------------------------------------------------------
-
-partial :: Partial a -> a
-partial val =
-  case val of
-    Left err -> interpError (PartialValue err)
-    Right a  -> a
-
-partial2 :: (Value -> Value -> Partial Value) -> Value -> Value -> Value
-partial2 f = \x y -> partial (f x y)
-
-partial3 :: (Value -> Value -> Value -> Partial Value) ->
-            Value -> Value -> Value -> Value
-partial3 f = \x y z -> partial (f x y z)
-
-evalUniOp :: UniOp -> Value -> Value
-evalUniOp op =
-  case op of
-    Not               -> vNot
-    Neg               -> partial . vNeg
-    ArrayLength       -> vArrayLength
-    Concat            -> vArrayConcat
-    BitwiseComplement -> vComplement
-    WordToFloat       -> vWordToFloat
-    WordToDouble      -> vWordToDouble
-    IsNaN             -> vIsNaN
-    IsInfinite        -> vIsInfinite
-    IsDenormalized    -> vIsDenormalized
-    IsNegativeZero    -> vIsNegativeZero
-    BytesOfStream     -> vBytesOfStream
-    BuilderBuild      -> vFinishBuilder
-
-
-
-evalBinOp :: BinOp -> Value -> Value -> Value
-evalBinOp op =
-  case op of
-    Add         -> partial2 vAdd
-    Sub         -> partial2 vSub
-    Mul         -> partial2 vMul
-    Div         -> partial2 vDiv
-    Mod         -> partial2 vMod
-
-    Lt          -> vLt
-    Leq         -> vLeq
-    Eq          -> vEq
-    NotEq       -> vNeq
-
-    Cat         -> vCat
-    LCat        -> partial2 vLCat
-    LShift      -> partial2 vShiftL
-    RShift      -> partial2 vShiftR
-    BitwiseAnd  -> vBitAnd
-    BitwiseOr   -> vBitOr
-    BitwiseXor  -> vBitXor
-
-    ArrayStream -> vStreamFromArray
-    LookupMap   -> vMapLookup
-
-    BuilderEmit        -> vEmit
-    BuilderEmitArray   -> vEmitArray
-    BuilderEmitBuilder -> vEmitBuilder
-    LogicAnd    -> panic "evalBinOp" ["LogicAnd"]
-    LogicOr     -> panic "evalBinOp" ["LogicOr"]
-
-
-
-
-evalTriOp :: TriOp -> Value -> Value -> Value -> Value
-evalTriOp op =
-  case op of
-    RangeUp     -> partial3 vRangeUp
-    RangeDown   -> partial3 vRangeDown
-    MapDoInsert -> vMapInsert
 
 
 --------------------------------------------------------------------------------
--- Generic utilities for evaluating loops
-
-type family ResultFor a where
-  ResultFor K.Value   = Value
-  ResultFor K.Grammar = Parser Value
-
-data LoopEval col k = LoopEval
-  { unboxCol  :: Value -> col
-  , loopNoKey :: (Value -> Value          -> ResultFor k) ->
-                  Value -> col -> ResultFor k
-  , loopKey   :: (Value -> Value -> Value -> ResultFor k) ->
-                  Value -> col -> ResultFor k
-
-  , mapNoKey  :: (Value          -> ResultFor k) -> col -> ResultFor k
-  , mapKey    :: (Value -> Value -> ResultFor k) -> col -> ResultFor k
-  }
-
-loopOverArray :: LoopEval (Vector.Vector Value) K.Value
-loopOverArray =
-  LoopEval
-    { unboxCol  = valueToVector
-    , mapNoKey  = \f -> VArray . Vector.map f
-    , mapKey    = \f -> VArray . Vector.imap (stepKeyMap f)
-    , loopNoKey = \f s -> Vector.foldl' f s
-    , loopKey   = \f s -> Vector.ifoldl' (stepKey f) s
-    }
-  where
-  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-loopOverArrayM :: LoopEval (Vector.Vector Value) K.Grammar
-loopOverArrayM =
-  LoopEval
-    { unboxCol  = valueToVector
-    , loopNoKey = \f s -> Vector.foldM'           f  s
-    , loopKey   = \f s -> Vector.ifoldM' (stepKey f) s
-    , mapNoKey  = \f   -> fmap VArray . Vector.mapM f
-    , mapKey    = \f   -> fmap VArray . Vector.imapM (stepKeyMap f)
-    }
-  where
-  stepKey f    = \sV kV elV -> f sV (vSize (toInteger kV)) elV
-  stepKeyMap f = \   kV elV -> f    (vSize (toInteger kV)) elV
-
-loopOverMap :: LoopEval (Map Value Value) K.Value
-loopOverMap =
-  LoopEval
-    { unboxCol  = valueToMap
-    , loopNoKey = \f s -> Map.foldl' f s
-    , loopKey   = \f s -> Map.foldlWithKey' f s
-    , mapNoKey  = \f -> VMap . Map.map f
-    , mapKey    = \f -> VMap . Map.mapWithKey f
-    }
-
-loopOverMapM :: LoopEval (Map Value Value) K.Grammar
-loopOverMapM =
-  LoopEval
-    { unboxCol  = valueToMap
-    , loopNoKey = \f s -> foldM (stepNoKey f) s . Map.toList
-    , loopKey   = \f s -> foldM (stepKey   f) s . Map.toList
-    , mapNoKey  = \f -> fmap VMap . traverse f
-    , mapKey    = \f -> fmap VMap . Map.traverseWithKey f
-    }
-  where
-  stepNoKey f = \sV (_  ,elV)-> f sV    elV
-  stepKey f   = \sV (kV,elV) -> f sV kV elV
-
-
-
+-- Loops
+--------------------------------------------------------------------------------
 
 class EvalLoopBody k where
-  evalLoopBody  :: HasRange a => Env -> TC a k -> ResultFor k
+  evalLoopBody  :: (CfgCtxt,HasRange a) => Env -> TC a k -> ResultFor k
   arrayLoop     :: LoopEval (Vector.Vector Value) k
   mapLoop       :: LoopEval (Map Value Value) k
 
@@ -333,8 +105,6 @@ instance EvalLoopBody K.Grammar where
   arrayLoop    = loopOverArrayM
   mapLoop      = loopOverMapM
 
-
-
 loopOver ::
   EvalLoopBody k => f k -> Env -> LoopCollection a ->
   (forall col. LoopEval col k -> ResultFor k) -> ResultFor k
@@ -344,7 +114,9 @@ loopOver _ env col k =
     TVMap   -> k mapLoop
     t       -> panic "loopOver" [ "Unexpected loop type", show (pp t) ]
 
-doLoop :: (HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
+
+
+doLoop :: (CfgCtxt,HasRange a, EvalLoopBody k) => Env -> Loop a k -> ResultFor k
 doLoop env lp =
   case loopFlav lp of
 
@@ -401,8 +173,87 @@ doLoop env lp =
   bodyVal extEnv = evalLoopBody (extEnv env) (loopBody lp)
 --------------------------------------------------------------------------------
 
+
+--------------------------------------------------------------------------------
+-- Case expressions
+--------------------------------------------------------------------------------
+
+evalCase ::
+  (CfgCtxt,HasRange a) =>
+  (Env -> TC a k -> val) ->
+  val ->
+  Env ->
+  TC a K.Value ->
+  NonEmpty (TCAlt a k) ->
+  Maybe (TC a k) ->
+  val
+evalCase eval ifFail env e alts def =
+  let v = compilePureExpr env e
+  in case msum (NE.map (tryAlt eval env v) alts) of
+       Just res -> res
+       Nothing ->
+         case def of
+           Just d  -> eval env d
+           Nothing -> ifFail
+
+tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
+tryAlt eval env v (TCAlt ps e) =
+  do binds <- matchPatOneOf ps v
+     let newEnv = foldr (uncurry addVal) env binds
+     pure (eval newEnv e)
+
+matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
+matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
+
+matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
+matchPat pat =
+  case pat of
+    TCConPat _ l p    -> \v -> case unTrace v of
+                                 VUnionElem l1 v1
+                                   | l == l1 -> matchPat p v1
+                                 VBDUnion t x
+                                   | bduMatches t l x ->
+                                     matchPat p (bduGet t l x)
+                                 _ -> Nothing
+    TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
+                                  pure []
+    TCStrPat bs       -> \v -> do guard (valueToByteString v == bs)
+                                  pure []
+    TCBoolPat b       -> \v -> do guard (valueToBool v == b)
+                                  pure []
+    TCJustPat p       -> \v -> case valueToMaybe v of
+                                 Nothing -> Nothing
+                                 Just v1 -> matchPat p v1
+    TCNothingPat {}   -> \v -> case valueToMaybe v of
+                                 Nothing -> Just []
+                                 Just _  -> Nothing
+    TCVarPat x        -> \v -> Just [(x,v)]
+    TCWildPat {}      -> \_ -> Just []
+--------------------------------------------------------------------------------
+
+
+
+--------------------------------------------------------------------------------
+-- Calling things
+--------------------------------------------------------------------------------
+
+invoke ::
+  (CfgCtxt, HasRange ann) =>
+  Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
+invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
+  where
+  ts1 = map (evalType env) ts
+  valArg a = case a of
+               ValArg e -> VVal (compilePureExpr env e)
+               ClassArg e -> VClass (compilePredicateExpr env e)
+               GrammarArg e -> VGrm (compilePExpr env e)
+
+
+
+
+
 -- Handles expr with kind KValue
-compilePureExpr :: HasRange a => Env -> TC a K.Value -> Value
+compilePureExpr :: (CfgCtxt,HasRange a) => Env -> TC a K.Value -> Value
 compilePureExpr env = go
   where
     go expr =
@@ -461,230 +312,9 @@ compilePureExpr env = go
             (interpError (PatternMatchFailure (describeAlts alts)))
             env e alts def
 
-evalLiteral :: Env -> Type -> Literal -> Value
-evalLiteral env t l =
-  case l of
-    LNumber n _ ->
-      case tval of
-        TVInteger     -> VInteger n
-        TVUInt s      -> vUInt s n
-        TVSInt s      -> partial (vSInt s n)
-        TVFloat       -> vFloat (fromIntegral n)
-        TVDouble      -> vDouble (fromIntegral n)
-        TVNum {}      -> panic "compilePureExpr" ["Kind error"]
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVOther       -> bad
-
-    LBool b           -> VBool b
-    LByte w _         -> vByte w
-    LBytes bs         -> vByteString bs
-    LFloating d       ->
-      case tval of
-        TVFloat       -> vFloat (double2Float d)
-        TVDouble      -> vDouble d
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-    LPi ->
-      case tval of
-        TVFloat       -> vFloatPi
-        TVDouble      -> vDoublePi
-        TVInteger {}  -> bad
-        TVUInt {}     -> bad
-        TVSInt {}     -> bad
-        TVNum {}      -> bad
-        TVArray       -> bad
-        TVMap         -> bad
-        TVBDStruct {} -> bad
-        TVBDUnion {}  -> bad
-        TVOther       -> bad
-
-  where
-  bad  = panic "evalLiteral" [ "unexpected literal", "Type: " ++ show (pp t) ]
-  tval = evalType env t
 
 
-evalCase ::
-  HasRange a =>
-  (Env -> TC a k -> val) ->
-  val ->
-  Env ->
-  TC a K.Value ->
-  NonEmpty (TCAlt a k) ->
-  Maybe (TC a k) ->
-  val
-evalCase eval ifFail env e alts def =
-  let v = compilePureExpr env e
-  in case msum (NE.map (tryAlt eval env v) alts) of
-       Just res -> res
-       Nothing ->
-         case def of
-           Just d  -> eval env d
-           Nothing -> ifFail
-
-tryAlt :: (Env -> TC a k -> val) -> Env -> Value -> TCAlt a k -> Maybe val
-tryAlt eval env v (TCAlt ps e) =
-  do binds <- matchPatOneOf ps v
-     let newEnv = foldr (uncurry addVal) env binds
-     pure (eval newEnv e)
-
-matchPatOneOf :: [TCPat] -> Value -> Maybe [(TCName K.Value,Value)]
-matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
-
-matchPat :: TCPat -> Value -> Maybe [(TCName K.Value,Value)]
-matchPat pat =
-  case pat of
-    TCConPat _ l p    -> \v -> case v of
-                                 VUnionElem l1 v1
-                                   | l == l1 -> matchPat p v1
-                                 VBDUnion t x
-                                   | bduMatches t l x ->
-                                     matchPat p (bduGet t l x)
-                                 _ -> Nothing
-    TCNumPat _ i _    -> \v -> do guard (valueToIntegral v == i)
-                                  pure []
-    TCStrPat bs       -> \v -> do guard (valueToByteString v == bs)
-                                  pure []
-    TCBoolPat b       -> \v -> do guard (valueToBool v == b)
-                                  pure []
-    TCJustPat p       -> \v -> case valueToMaybe v of
-                                 Nothing -> Nothing
-                                 Just v1 -> matchPat p v1
-    TCNothingPat {}   -> \v -> case valueToMaybe v of
-                                 Nothing -> Just []
-                                 Just _  -> Nothing
-    TCVarPat x        -> \v -> Just [(x,v)]
-    TCWildPat {}      -> \_ -> Just []
-
-
-invoke :: HasRange ann => Fun a -> Env -> [Type] -> [Arg ann] -> [SomeVal] -> a
-invoke (Fun f) env ts as cloAs = f ts1 (map valArg as ++ cloAs)
-  where
-  ts1 = map (evalType env) ts
-  valArg a = case a of
-               ValArg e -> VVal (compilePureExpr env e)
-               ClassArg e -> VClass (compilePredicateExpr env e)
-               GrammarArg e -> VGrm (compilePExpr env e)
-
-evalType :: Env -> Type -> TValue
-evalType env ty =
-  case ty of
-    TVar x -> lkpTy x
-    TCon c []
-      | Just decl <- Map.lookup c (tyDecls env)
-      , let name = Text.pack (show (pp (tctyName decl)))
-      , Just u <- tctyBD decl -> evalBitdataType env name u (tctyDef decl)
-    TCon {} -> TVOther
-    Type t0 ->
-      case t0 of
-        TGrammar _ -> TVOther
-        TFun _ _   -> TVOther
-        TStream    -> TVOther
-        TByteClass -> TVOther
-        TNum n     -> TVNum (fromIntegral n) -- wrong for very large sizes.
-        TUInt t    -> TVUInt (tvInt t)
-        TSInt t    -> TVSInt (tvInt t)
-        TInteger   -> TVInteger
-        TMap {}    -> TVMap
-        TArray {}  -> TVArray
-        TBool      -> TVOther
-        TFloat     -> TVFloat
-        TDouble    -> TVDouble
-        TUnit      -> TVOther
-        TMaybe {}  -> TVOther
-        TBuilder {}-> TVOther
-
-  where
-  lkpTy x = case Map.lookup x (tyEnv env) of
-              Just tv -> tv
-              Nothing -> panic "evalType"
-                            [ "undefined type vairalbe"
-                            , show (pp x)
-                            ]
-
-  tvInt t = case evalType env t of
-              TVNum n -> n
-              it      -> panic "evalType.tvInt" [ "Expected a number"
-                                                , "Got: " ++ show (pp it)
-                                                ]
-
--- XXX: This reavaluates types over and over againg.  It might be
--- better to evalute bitdata types in the environment once instead,
--- and store them in the environemtn.
-evalBitdataType :: Env -> Text -> BDD.Pat -> TCTyDef -> TValue
-evalBitdataType env name u def =
-  case def of
-
-    TCTyStruct ~(Just bd) _ ->
-      let fs = AST.bdFields bd
-      in
-      TVBDStruct BDStruct
-        { bdName = name
-        , bdWidth  = BDD.width u
-        , bdGetField =
-            let mp =
-                  Map.fromList
-                    [ (l, inField (AST.bdOffset f) ty)
-                    | f <- fs
-                    , AST.BDData l ty <- [AST.bdFieldType f]
-                    ]
-            in \l -> case Map.lookup l mp of
-                       Just v  -> v
-                       Nothing -> panic "evalBitdataType"
-                                    [ "Missing field: " ++ showPP l ]
-        , bdStruct   = \fvs -> foldl' (outField fvs) 0 (AST.bdFields bd)
-        , bdValid    = BDD.willMatch u
-        , bdFields   = [ l | AST.BDData l _ <- map AST.bdFieldType fs ]
-        }
-
-    TCTyUnion fs ->
-      let mp = Map.fromList [ (l, (evalType env t,p)) | (l,(t,Just p)) <- fs ]
-      in
-      TVBDUnion BDUnion
-        { bduName  = name
-        , bduWidth = BDD.width u
-        , bduValid = BDD.willMatch u
-        , bduGet   =
-          \l -> case Map.lookup l mp of
-                  Just (t,_) -> vFromBits t
-                  Nothing -> panic ("bduGet@" ++ Text.unpack name)
-                                   ["Unknown constructor: " ++ showPP l]
-        , bduMatches =
-          \l -> BDD.willMatch
-                case Map.lookup l mp of
-                  Just (_,p) -> p
-                  Nothing -> panic ("bduMatches@" ++ Text.unpack name)
-                                   ["Unknown constructor: " ++ showPP l]
-        , bduCases = map fst fs
-        }
-
-
-  where
-  inField off t = \i -> vFromBits (evalType env t) (i `shiftR` off)
-  outField fs w f =
-    shiftL w (AST.bdWidth f) .|.
-    case AST.bdFieldType f of
-      AST.BDWild  -> 0
-      AST.BDTag n -> n
-      AST.BDData l _ ->
-        vToBits
-        case lookup l fs of
-          Just fv -> fv
-          Nothing -> panic "outField" ["Missing field value", showPP l ]
-
-
-
-compilePredicateExpr :: HasRange a => Env -> TC a K.Class -> ClassVal
+compilePredicateExpr :: (CfgCtxt,HasRange a) => Env -> TC a K.Class -> ClassVal
 compilePredicateExpr env = go
   where
     go expr =
@@ -731,7 +361,8 @@ mbSkip s v = case s of
                NoSem  -> vUnit
                YesSem -> v
 
-compileExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> Parser Value
+compileExpr ::
+  forall a. (CfgCtxt, HasRange a) => Env -> TC a K.Grammar -> Parser Value
 compileExpr env expr = compilePExpr env expr []
 
 compileSourceRange :: AST.SourceRange -> RTS.SourceRange
@@ -746,9 +377,21 @@ compileSourceRange rng =
                              }
 
 
-compilePExpr :: forall a. HasRange a => Env -> TC a K.Grammar -> PParser Value
-compilePExpr env expr0 args = go expr0
+compilePExpr ::
+  forall a. (CfgCtxt, HasRange a) =>
+  Env -> TC a K.Grammar -> PParser Value
+compilePExpr env expr0 args
+  | tracedValues ?cfg =
+    do (v,t) <- traceScope (go expr0)
+       pure (vTraced v t)
+  | otherwise = go expr0
+
   where
+    addScope :: Parser x -> Parser x
+    addScope
+      | detailedCallstack ?cfg = pScope env
+      | otherwise              = id
+
     go :: TC a K.Grammar -> Parser Value
     go expr =
       let erng = compileSourceRange (range expr)
@@ -758,6 +401,7 @@ compilePExpr env expr0 args = go expr0
       in
       case texprValue expr of
         TCFail mbM _ ->
+          addScope
           case mbMsg of
             Nothing  -> pError FromSystem erng "Parse error"
             Just msg -> pError FromUser erng msg
@@ -768,13 +412,14 @@ compilePExpr env expr0 args = go expr0
 
         TCDo m_var e e' ->
           do v <- go e
-             compileExpr (addValMaybe m_var v env) e'
+             let env' = addValMaybe m_var v env
+             compileExpr env' e'
 
         TCMatch s e ->
-          do b <- pMatch1 erng (compilePredicateExpr env e)
+          do b <- addScope (pMatch1 erng (compilePredicateExpr env e))
              return $! mbSkip s (vByte b)
 
-        TCEnd -> pEnd erng >> pure vUnit
+        TCEnd -> addScope (pEnd erng) >> pure vUnit
         TCOffset -> vStreamOffset . VStream <$> pPeek
 
         TCCurrentStream -> VStream <$> pPeek
@@ -785,7 +430,8 @@ compilePExpr env expr0 args = go expr0
         TCStreamLen sem n s ->
           case vStreamTake vn vs of
             Right v -> pure $ mbSkip sem v
-            Left _  -> pError FromSystem erng
+            Left _  -> addScope
+                     $ pError FromSystem erng
                              ("Not enough bytes: need " ++
                               show (valueToSize vn)
                               ++ ", have " ++
@@ -797,7 +443,8 @@ compilePExpr env expr0 args = go expr0
         TCStreamOff sem n s ->
           case vStreamDrop vn vs of
             Right v -> pure $ mbSkip sem v
-            Left _ -> pError FromSystem erng
+            Left _ -> addScope
+                    $ pError FromSystem erng
                              ("Offset out of bounds: offset " ++
                                show (valueToSize vn)
                              ++ ", have " ++
@@ -808,11 +455,12 @@ compilePExpr env expr0 args = go expr0
 
 
 
-        TCLabel l p -> pEnter (TextAnnot (Text.unpack l)) (go p)
+        TCLabel l p -> pEnter (TextAnnot l) (go p)
 
         TCMapInsert s ke ve me ->
           case vMapLookup kv mv of
             VMaybe (Just {}) ->
+              addScope $
               pError FromSystem erng ("duplicate key " ++ show (pp kv))
             _ -> pure $! mbSkip s (vMapInsert kv vv mv)
           where
@@ -823,7 +471,7 @@ compilePExpr env expr0 args = go expr0
         TCMapLookup s ke me ->
           case vMapLookup kv mv of
             VMaybe (Just a) -> pure $! mbSkip s a
-            _ -> pError FromSystem erng ("missing key " ++ show (pp kv))
+            _ -> addScope $ pError FromSystem erng ("missing key " ++ show (pp kv))
           where
           kv = compilePureExpr env ke
           mv = compilePureExpr env me
@@ -831,7 +479,7 @@ compilePExpr env expr0 args = go expr0
         TCArrayIndex s e ix ->
           case vArrayIndex v ixv of
             Right a  -> pure $! mbSkip s a
-            Left _   -> pError FromSystem erng
+            Left _   -> addScope $ pError FromSystem erng
                             ("index out of bounds " ++ showPP ixv)
           where
           v   = compilePureExpr env e
@@ -839,12 +487,12 @@ compilePExpr env expr0 args = go expr0
 
         TCMatchBytes s e  ->
           do let v  = compilePureExpr env e
-             _ <- pMatch erng (vecFromRep (valueToByteString v))
+             _ <- addScope $ pMatch erng (vecFromRep (valueToByteString v))
              pure $! mbSkip s v
 
         TCChoice c es _  ->
           case es of
-            [] -> pError FromSystem erng "empty choice"
+            [] -> addScope $ pError FromSystem erng "empty choice"
             _  -> foldr1 (alt c) (map go es)
 
         TCOptional c e   ->
@@ -852,7 +500,8 @@ compilePExpr env expr0 args = go expr0
 
         TCMany s _ (Exactly e) e' ->
           case valueToIntSize (compilePureExpr env e) of
-            Nothing -> pError FromSystem erng "Limit of `Many` is too large"
+            Nothing -> addScope
+                    $ pError FromSystem erng "Limit of `Many` is too large"
             Just v ->
               case s of
                 YesSem -> vArray <$> replicateM v p
@@ -864,7 +513,7 @@ compilePExpr env expr0 args = go expr0
                    forM mb \b ->
                      case valueToIntSize (compilePureExpr env b) of
                        Just a  -> pure (UInt (fromIntegral a))
-                       Nothing -> pError FromSystem erng
+                       Nothing -> addScope $ pError FromSystem erng
                                                 "Limit of `Many` is too large"
 
              let code   = go e
@@ -885,11 +534,13 @@ compilePExpr env expr0 args = go expr0
                    NoSem  -> unit <$> RTS.pSkipMany (alt cmt) code'
 
                (Nothing, Just ub) ->
+                 addScope
                  case s of
                    YesSem -> vec  <$> RTS.pManyUpTo (alt cmt) ub code
                    NoSem  -> unit <$> RTS.pSkipManyUpTo (alt cmt) ub code'
 
                (Just lb,Nothing) ->
+                 addScope
                  case s of
                    YesSem -> vec <$> RTS.pMinLength erng lb
                                                      (RTS.pMany (alt cmt) code)
@@ -897,6 +548,7 @@ compilePExpr env expr0 args = go expr0
                    NoSem  -> unit <$> RTS.pSkipAtLeast (alt cmt) lb code'
 
                (Just lb, Just ub) ->
+                 addScope
                  case s of
                    YesSem -> vec <$> RTS.pMinLength erng lb
                                              (RTS.pManyUpTo (alt cmt) ub code)
@@ -904,8 +556,10 @@ compilePExpr env expr0 args = go expr0
                                  RTS.pSkipWithBounds erng (alt cmt) lb ub code'
 
 
-        TCCall x ts es -> pEnter (RngAnnot erng)
-                                 (invoke rule env ts es args)
+        TCCall x ts es -> addScope
+                        $ do i <- pPeek
+                             pEnter (CallAnnot (CallSite f erng i))
+                                    (invoke rule env ts es args)
           where
           f   = tcName x
 
@@ -937,7 +591,8 @@ compilePExpr env expr0 args = go expr0
                      -- XXX: should it still be an error if the value is
                      -- skipped?
 
-                else pError FromSystem erng "value does not fit in target type"
+                else addScope
+                   $ pError FromSystem erng "value does not fit in target type"
 
         TCFor lp -> doLoop env  lp
 
@@ -952,8 +607,9 @@ compilePExpr env expr0 args = go expr0
         TCCase e alts def ->
           evalCase
             compileExpr
-            (pError FromSystem erng (describeAlts alts))
+            (addScope (pError FromSystem erng (describeAlts alts)))
             env e alts def
+
 
 tracePrim :: [SomeVal] -> Parser Value
 tracePrim vs =
@@ -965,7 +621,8 @@ tracePrim vs =
 
 
 -- Decl has already been added to Env if required
-compileDecl :: HasRange a => Prims -> Env -> TCDecl a -> (Name, SomeFun)
+compileDecl ::
+  (CfgCtxt, HasRange a) => Prims -> Env -> TCDecl a -> (Name, SomeFun)
 compileDecl prims env TCDecl { .. } =
   ( tcDeclName
   , case tcDeclDef of
@@ -1027,7 +684,7 @@ compileDecl prims env TCDecl { .. } =
 
 
 -- decls are mutually recursive (maybe)
-compileDecls :: HasRange a => Prims -> Env -> [TCDecl a] -> Env
+compileDecls :: (CfgCtxt,HasRange a) => Prims -> Env -> [TCDecl a] -> Env
 compileDecls prims env decls = env'
   where
     addDecl (x,d) e =
@@ -1040,7 +697,7 @@ compileDecls prims env decls = env'
     env' = foldr addDecl env (map (compileDecl prims env') decls)
 
 compile ::
-  HasRange a =>
+  (CfgCtxt,HasRange a )=>
   ScopedIdent ->
   [ (Name, ([Value] -> Parser Value)) ] ->
   [TCModule a] ->
@@ -1069,31 +726,45 @@ compile start builtins prog =
                      , (tcDeclTyParams x, tcDeclParams x)
                      ) | rs <- allRules, x <- rs ]
 
-interpCompiled :: ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
-interpCompiled name bytes env startName args =
+interpCompiled ::
+  InterpConfing ->
+  ByteString -> ByteString -> Env -> ScopedIdent -> [Value] -> Result Value
+interpCompiled cfg name bytes env startName args =
   case [ rl | (x, Fun rl) <- Map.toList (ruleEnv env)
             , nameScopedIdent x == startName] of
-    rl : _  -> P.runParser (rl [] (map VVal args)) (newInput name bytes)
+    rl : _  -> runParser (rl [] (map VVal args)) errCfg (newInput name bytes)
+      where errCfg = if multiErrors cfg then RTS.MultiError else RTS.SingleError
+
     [] -> panic "interpCompiled" [ "Missing statr rule", show (pp startName) ]
 
-interp :: HasRange a => [ (Name, ([Value] -> Parser Value)) ] ->
-          ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
-          Result Value
-interp builtins nm bytes prog startName =
-  interpCompiled nm bytes env startName []
+interp ::
+  HasRange a =>
+  InterpConfing ->
+  [ (Name, ([Value] -> Parser Value)) ] ->
+  ByteString -> ByteString -> [TCModule a] -> ScopedIdent ->
+  Result Value
+interp cfg builtins nm bytes prog startName =
+  interpCompiled cfg nm bytes env startName []
   where
-    env = compile startName builtins prog
+    env = let ?cfg = cfg
+          in compile startName builtins prog
 
-interpFile :: HasRange a => Maybe FilePath -> [TCModule a] -> ScopedIdent ->
-                                              IO (ByteString, Result Value)
-interpFile input prog startName = do
+interpFile ::
+  HasRange a =>
+  InterpConfing ->
+  Maybe FilePath -> [TCModule a] -> ScopedIdent -> IO (ByteString, Result Value)
+interpFile cfg input prog startName = do
   (nm,bytes) <- case input of
                   Nothing  -> pure ("(empty)", BS.empty)
                   Just "-" -> do bs <- BS.getContents
                                  pure ("(stdin)", bs)
                   Just f   -> do bs <- BS.readFile f
                                  pure (encodeUtf8 (Text.pack f), bs)
-  return (bytes, interp builtins nm bytes prog startName)
+  return (bytes, interp cfg builtins nm bytes prog startName)
   where
   builtins = [ ]
+
+
+
+
 

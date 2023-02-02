@@ -1,3 +1,4 @@
 packages: ../../../rts-hs
+packages: ../../../rts-hs-data
 optional-packages: */*.cabal
 

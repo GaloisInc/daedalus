@@ -2,7 +2,7 @@ module Daedalus.ParserGen.Cfg where
 
 import qualified Data.ByteString as BS
 
-import RTS.Input(newInput, inputBytes)
+import Daedalus.RTS.Input(newInput, inputBytes)
 
 import Daedalus.ParserGen.Action (InputData, ControlData, SemanticData, State, isEmptyControlData, showCallStackDebug, showSemanticData)
 import Daedalus.ParserGen.Aut (Aut, initialState, isAcceptingState)

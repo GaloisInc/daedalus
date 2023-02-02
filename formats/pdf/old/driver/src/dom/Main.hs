@@ -17,9 +17,9 @@ import           Text.PrettyPrint
 import           SimpleGetOpt
 
 -- daedalus:
-import RTS.Input(newInput,inputBytes)
-import RTS.Vector(vecFromRep,vecToRep,toList) 
-import RTS.Numeric
+import Daedalus.RTS.Input(newInput,inputBytes)
+import Daedalus.RTS.Vector(vecFromRep,vecToRep,toList) 
+import Daedalus.RTS.Numeric
 
 import qualified XRef
 import XRef( findStartXRef
