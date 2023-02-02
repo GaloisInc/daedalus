@@ -9,7 +9,6 @@ import           Data.Word                    (Word8)
 import           Daedalus.Core
 import           Daedalus.Core.Semantics.Env
 import           Daedalus.Core.Semantics.Expr
-import           Daedalus.Panic               (panic)
 import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..),
                                                synthetic)
 import           Daedalus.Value
@@ -85,11 +84,13 @@ evalG gram env =
       MorphismLoop lm      -> evalLoopMorphism lm evalG env
     where
       -- c.f. Interp.hs, LoopMany case
-      alt b = if b then (<||) else (|||)
+      alt b = case b of
+                Eager -> (<||)
+                Lazy  -> (|||)
       loop b n g v =
         do mb <- alt b (Just <$> evalG g (defLocal n v env)) (pure Nothing)
            maybe (pure v) (loop b n g) mb
-      
+
 
 toRtsRange :: SourceRange -> RTS.SourceRange
 toRtsRange rng = RTS.SourceRange { RTS.srcFrom = toRtsPos (sourceFrom rng)

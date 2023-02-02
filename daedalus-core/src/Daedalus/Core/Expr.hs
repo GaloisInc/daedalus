@@ -122,10 +122,14 @@ data OpN =
   | CallF FName
   deriving (Eq, Generic,NFData)
 
--- folds and maps
+-- | folds and maps
 data LoopMorphism e =
-  FoldMorphism Name Expr LoopCollection e  -- for (s = e; ... in ...) ...
-  | MapMorphism LoopCollection e           -- map (... in ...) ...
+    FoldMorphism Name Expr LoopCollection e
+    -- ^ for (s = e; ... in ...) ...
+
+  | MapMorphism LoopCollection e
+    -- ^ map (... in ...) ...
+
   deriving (Functor, Generic, NFData, Eq)
 
 morphismBody :: LoopMorphism a -> a
@@ -141,12 +145,11 @@ morphismE ef af lm = case lm of
   where
     goLC lc = LoopCollection (lcKName lc) (lcElName lc) <$> ef (lcCol lc)
 
--- Used for maps and folds in both Expr and Grammar,
--- c.f. Daedalus.Type.AST.LoopCollection
+-- | This specifies how traverse collections in loop.
 data LoopCollection = LoopCollection
-  { lcKName   :: Maybe Name
-  , lcElName  :: Name
-  , lcCol     :: Expr
+  { lcKName   :: Maybe Name       -- ^ Should we bind the keys of the collection
+  , lcElName  :: Name             -- ^ The name of the value in the collection
+  , lcCol     :: Expr             -- ^ The expression for the coolection
   } deriving (Generic, NFData, Eq)
 
 loopCollectionBinders :: LoopCollection -> [Name]

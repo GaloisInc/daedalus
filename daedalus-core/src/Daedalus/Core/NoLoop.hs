@@ -19,8 +19,6 @@ import qualified Data.ByteString.Char8 as BS8
 -- -----------------------------------------------------------------------------
 -- Monad
 
-type Commit = Bool
-
 newtype M a = M (State S a)
   deriving (Functor,Applicative,Monad)
 
@@ -79,8 +77,10 @@ withNamedExpr e k =
     -- ... otherwise we do (Vars are handled in withVar)
     _      -> withVar e (k . Var)
 
-orOp :: Commit -> Grammar -> Grammar -> Grammar
-orOp cmt = if cmt then OrBiased else OrUnbiased
+orOp :: Backtrack -> Grammar -> Grammar -> Grammar
+orOp cmt = case cmt of
+             Eager -> OrBiased
+             Lazy   -> OrUnbiased
 
 sysErr :: Type -> String -> Grammar
 sysErr t msg = Fail ErrorFromSystem t (Just (byteArrayL (BS8.pack msg)))
@@ -171,7 +171,7 @@ noLoopG g =
 -- Many
 
 -- FIXME: we could treat a lower bound of 0 specially here
-noManyLoop :: Sem -> Commit -> Expr -> Maybe Expr ->
+noManyLoop :: Sem -> Backtrack -> Expr -> Maybe Expr ->
               Grammar -> M Grammar
 noManyLoop s cmt l m_u p = case (m_u, s) of
   (Nothing, _) ->
@@ -204,31 +204,35 @@ noManyLoop s cmt l m_u p = case (m_u, s) of
   where
     ty = typeOf p
 
-maybeSkip :: Commit -> Grammar -> Grammar -> Grammar -> M Grammar
+maybeSkip :: Backtrack -> Grammar -> Grammar -> Grammar -> M Grammar
 maybeSkip cmt p yes no =
   do r <- newLocal TBool
-     pure if cmt
-          then Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
-                  $ coreIf r yes no
-          else orOp cmt (Do_ p yes) no
+     pure
+       case cmt of
+         Eager ->
+            Do r (OrBiased (Do_ p (Pure (boolL True))) (Pure (boolL False)))
+            $ coreIf r yes no
+         Lazy -> orOp cmt (Do_ p yes) no
 
 
 maybeParse ::
-  Commit -> Type -> Grammar -> (Expr -> Grammar) -> Grammar -> M Grammar
+  Backtrack -> Type -> Grammar -> (Expr -> Grammar) -> Grammar -> M Grammar
 maybeParse cmt ty p yes no =
   do r   <- newLocal ty
      rMb <- newLocal (TMaybe ty)
-     pure if cmt
-          then Do rMb (OrBiased (Do r p (Pure (just (Var r))))
+     pure
+       case cmt of
+         Eager ->
+            Do rMb (OrBiased (Do r p (Pure (just (Var r))))
                                 (Pure (nothing ty)))
-                $ GCase
-                $ Case rMb
-                    [ (PJust,    yes (eFromJust (Var rMb)))
-                    , (PNothing, no)
-                    ]
-          else orOp cmt (Do r p (yes (Var r))) no
+            $ GCase
+            $ Case rMb
+                [ (PJust,    yes (eFromJust (Var rMb)))
+                , (PNothing, no)
+                ]
+         Lazy -> orOp cmt (Do r p (yes (Var r))) no
 
-pSkipMany :: Commit -> Grammar -> M Grammar
+pSkipMany :: Backtrack -> Grammar -> M Grammar
 pSkipMany cmt p =
   do f <- newFName "Many" TUnit
      (p', nameMap) <- rename p
@@ -237,7 +241,7 @@ pSkipMany cmt p =
      defGFun f args skipBody
      pure (Call f (map Var anames))
 
-pParseMany :: Commit -> Type -> Expr -> Grammar -> M Grammar
+pParseMany :: Backtrack -> Type -> Expr -> Grammar -> M Grammar
 pParseMany cmt ty be p =
   do f <- newFName "Many" (TBuilder ty)
      (p', nameMap) <- rename p
@@ -249,7 +253,7 @@ pParseMany cmt ty be p =
      defGFun f (x:args) body
      pure $ Call f (be : map Var anames)
 
-pSkipExactlyMany :: Bool -> Expr -> Grammar -> M Grammar
+pSkipExactlyMany :: Backtrack -> Expr -> Grammar -> M Grammar
 pSkipExactlyMany _cmt (Ap0 (IntL 0 _)) _ = pure (Pure unit)
 pSkipExactlyMany _cmt tgt p =
   do f <- newFName "Many" TUnit
@@ -267,7 +271,7 @@ pSkipExactlyMany _cmt tgt p =
 
 -- FIXME: we should evaluate tgt outside of the function if it is
 -- complex to avoid recomputing it.
-pParseExactlyMany :: Commit -> Type -> Expr -> Grammar -> M Grammar
+pParseExactlyMany :: Backtrack -> Type -> Expr -> Grammar -> M Grammar
 pParseExactlyMany _cmt ty (Ap0 (IntL 0 _)) _ = pure (Pure (newBuilder ty))
 pParseExactlyMany _cmt ty tgt p =
   do f <- newFName "Many" (TBuilder ty)
@@ -291,7 +295,7 @@ pParseExactlyMany _cmt ty tgt p =
      defGFun  f (x : b : args) =<< doIf (xe `lt` tgt') body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : map Var anames)
 
-pSkipAtMost :: Commit -> Expr -> Grammar -> M Grammar
+pSkipAtMost :: Backtrack -> Expr -> Grammar -> M Grammar
 pSkipAtMost cmt tgt p =
   do f <- newFName "Many" sizeType
      ((tgt', p'), nameMap) <- rename (tgt, p)
@@ -303,7 +307,7 @@ pSkipAtMost cmt tgt p =
      defGFun f (x:args) =<< doIf (xe `lt` tgt') skipBody (Pure xe)
      pure (Call f (intL 0 sizeType : map Var anames))
 
-pParseAtMost :: Commit -> Type -> Expr -> Expr -> Grammar -> M Grammar
+pParseAtMost :: Backtrack -> Type -> Expr -> Expr -> Grammar -> M Grammar
 pParseAtMost cmt ty tgt be p =
   do f <- newFName "Many" (TBuilder ty)
      ((tgt', p'), nameMap) <- rename (tgt, p)
@@ -330,11 +334,13 @@ finishMany ty p = do
 -- -----------------------------------------------------------------------------
 -- Repeat
 
-noRepeatLoop :: Commit -> Name -> Expr -> Grammar -> M Grammar
+noRepeatLoop :: Backtrack -> Name -> Expr -> Grammar -> M Grammar
 noRepeatLoop cmt x e p =
   do (p', nameMap) <- renameIgnoring [x] p
      let (anames, args) = unzip (Map.toList nameMap)
-     let lab = if cmt then "many" else "many?"
+     let lab = case cmt of
+                 Eager -> "many"
+                 Lazy  -> "many?"
      f     <- newFName lab ty
      let def = do lhs <- do r1 <- newLocal ty
                             pure (Do r1 p' (Pure (just (Var r1))))

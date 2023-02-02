@@ -265,7 +265,7 @@ fromGrammar gram =
          -- ty   <- fromGTypeM (TC.typeOf g)
          cbnd <- traverse fromExpr bnd
          let mk l m_u =
-               pure (Loop (ManyLoop (fromSem sem) (cmt == Commit) l m_u ge))
+               pure (Loop (ManyLoop (fromSem sem) (fromCommit cmt) l m_u ge))
          case cbnd of
            TC.Exactly e -> withNamedExpr e \e' -> mk e' (Just e')
            TC.Between Nothing m_u  -> mk (intL 0 sizeType) m_u
@@ -359,6 +359,12 @@ fromSem :: WithSem -> Sem
 fromSem sem = case sem of
                 NoSem -> SemNo
                 YesSem -> SemYes
+
+fromCommit :: Commit -> Backtrack
+fromCommit c =
+  case c of
+    Commit    -> Eager
+    Backtrack -> Lazy
 
 
 needsCoerceCheck :: UsesTypes => Type -> Name -> M (Maybe Expr)
@@ -691,7 +697,7 @@ doLoopG lp =
      Loop <$> case TC.loopFlav lp of
        TC.LoopMany cmt x s ->
          do v@(_,sVar)  <- fromName x
-            RepeatLoop (cmt == Commit) sVar
+            RepeatLoop (fromCommit cmt) sVar
               <$> fromExpr s
               <*> doBody [v]
 

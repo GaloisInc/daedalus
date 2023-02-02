@@ -33,10 +33,14 @@ data Grammar =
 
 -- | Types of loops we support, namely Many, many, for, map
 data LoopClass a =
-  -- Many from DDL, lower bound (0 if none given) and optional upper bound.  Bool is whether it is biased or not.
-  ManyLoop Sem Bool Expr (Maybe Expr) a
-  | RepeatLoop Bool Name Expr a
+    ManyLoop Sem Backtrack Expr (Maybe Expr) a
+    -- ^ `Many`
+
+  | RepeatLoop Backtrack Name Expr a
+    -- ^ `many`
+
   | MorphismLoop (LoopMorphism a)
+    -- ^ `for`, `map`
   deriving (Functor, Generic, NFData)
 
 loopClassBody :: LoopClass a -> a
@@ -54,6 +58,12 @@ data Match =
 
 data Sem = SemNo | SemYes
   deriving (Generic,NFData)
+
+-- | Specifies the backtracking strategy for a component.
+data Backtrack =
+    Eager -- ^ Consume as much input as possible
+  | Lazy  -- ^ Consume as much input as needed
+    deriving (Generic,NFData)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
   deriving (Generic,NFData)
@@ -235,8 +245,10 @@ instance PP Grammar where
           "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
         MorphismLoop lm  -> pp lm
     where
-      ppBiased b = if b then "" else "?"
-        
+      ppBiased b = case b of
+                     Eager -> ""
+                     Lazy  -> "?"
+
 ppMatch :: Sem -> Match -> Doc
 ppMatch s mat =
   case mat of
