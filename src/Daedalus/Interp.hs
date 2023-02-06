@@ -335,7 +335,10 @@ compilePredicateExpr env = go
         TCSetSingle e ->
           RTS.bcSingle (UInt (valueToByte (compilePureExpr env e)))
         TCSetComplement e -> RTS.bcComplement (go e)
-        TCSetUnion es -> foldr RTS.bcUnion RTS.bcNone (map go es)
+        TCSetUnion es ->
+          case es of
+            [] -> RTS.bcNone
+            _  -> foldr1 RTS.bcUnion (map go es)
 
         TCSetOneOf bs -> RTS.bcByteString bs
         TCSetDiff e1 e2 -> RTS.bcDiff (go e1) (go e2)
