@@ -30,7 +30,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: '9.2.5'
-        cabal-version: '3.4'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2
@@ -104,7 +104,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: '9.2.5'
-        cabal-version: '3.4'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2
@@ -144,7 +144,7 @@ jobs:
       id: setup-haskell
       with:
         ghc-version: '9.2.5'
-        cabal-version: '3.4'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2
