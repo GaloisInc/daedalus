@@ -43,7 +43,9 @@ canFail gram =
           PBool x : PBool y : _ | x /= y  -> False
 
           _ : ys                          -> partial ys
-
+    -- Overly pessimistic as Many (0..) can't fail
+    Loop lc -> canFail (loopClassBody lc)
+    
 -- | Cache analysis results in annotation nodes
 annotate :: (FName -> [Expr] -> Grammar) -> Grammar -> Grammar
 annotate annCall = annot
@@ -67,6 +69,7 @@ annotate annCall = annot
       OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
       OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
       GCase (Case e alts) -> GCase (Case e [ (p,annot g1) | (p,g1) <- alts ])
+      Loop lc           -> Loop (annot <$> lc)
 
   annNoFail g = case g of
 

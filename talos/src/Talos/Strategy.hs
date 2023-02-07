@@ -24,7 +24,7 @@ import           Daedalus.Time (timeIt)
 import           Talos.Analysis.Exported     (ExpSlice, SliceId)
 import           Talos.Strategy.BTRand
 import           Talos.Strategy.Monad        (LiftStrategyM (..), StratGen(..),
-                                              Strategy (..), StrategyM, StrategyInstance (siFun), siName, getSlice)
+                                              Strategy (..), StrategyM, StrategyInstance (siFun), siName, getSlice, logMessage)
 import           Talos.Strategy.PathSymbolic (pathSymbolicStrat)
 import           Talos.Strategy.Symbolic     (symbolicStrat)
 import           Talos.SymExec.Path
@@ -57,11 +57,11 @@ runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
     -- FIXME: There is probably a nicer way of doing this
     go s [] = pure ([], Nothing, s)
     go s (strat : strats) = do
-      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ siName strat ++ " at " ++ showPP fn ++ "." ++ showPP x ++ " ... "; hFlush stdout }))
+      logMessage 1 $ "Trying strategy " ++ siName strat ++ " at " ++ showPP fn ++ "." ++ showPP x ++ " ... "
       ((r, m_gen, s'), ns) <- timeStrategy s strat ptag sl
       let dns = (fromIntegral ns :: Double)
       let resReport = if null r then "failed" else "succeeded"
-      liftStrategy (liftIO (printf "%s (%.3fms)\n" resReport (dns  / 1000000)))
+      logMessage 1 $ printf "%s (%.3fms)\n" resReport (dns  / 1000000)
       if null r
         then go s' strats
         else pure (r, m_gen, s')
@@ -85,7 +85,7 @@ data ModelCacheEntry = ModelCacheEntry
 
 data ModelCache = ModelCache
   { mcCache :: Map SliceId ModelCacheEntry
-  , mcStratInstances :: [StrategyInstance]
+  , mcStratInstances :: [StrategyInstance] -- ^ Read only
   , mcSolverState :: SolverState
   } deriving Generic
 

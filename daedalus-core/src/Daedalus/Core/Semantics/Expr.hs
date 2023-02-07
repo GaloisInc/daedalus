@@ -9,29 +9,29 @@ module Daedalus.Core.Semantics.Expr where
 
 import GHC.Float(double2Float)
 
-import Data.Bits(shiftR, shiftL, (.|.))
-import qualified Data.Map as Map
-import qualified Data.ByteString as BS
-import Data.Maybe(isJust)
-import Data.List(foldl')
-import qualified Data.Text as Text
-import Data.Map (Map)
+import           Data.Bits                   (shiftL, shiftR, (.|.))
+import qualified Data.ByteString             as BS
+import           Data.Foldable               (foldlM, toList)
+import           Data.Functor.Identity       (Identity (Identity), runIdentity)
+import           Data.List                   (foldl')
+import           Data.Map                    (Map)
+import qualified Data.Map                    as Map
+import           Data.Maybe                  (isJust)
+import qualified Data.Text                   as Text
+import qualified Data.Vector                 as Vector
 
-import Daedalus.Range(integerToInt)
-import Daedalus.Panic(panic)
-import qualified Daedalus.BDD as BDD
-
-import Daedalus.PP(showPP)
-import Daedalus.Value
-import Daedalus.RTS.Input (inputBytes)
-
-import Daedalus.Core.Basics
-import Daedalus.Core.Expr
-import qualified Daedalus.Core.Decl as Decl
-import Daedalus.Core.Type(typeOf,bdUniverse)
-import Daedalus.Core.Decl( TDecl )
-
-import Daedalus.Core.Semantics.Env
+import qualified Daedalus.BDD                as BDD
+import           Daedalus.Core.Basics
+import           Daedalus.Core.Decl          (TDecl)
+import qualified Daedalus.Core.Decl          as Decl
+import           Daedalus.Core.Expr
+import           Daedalus.Core.Semantics.Env
+import           Daedalus.Core.Type          (bdUniverse, typeOf)
+import           Daedalus.PP                 (showPP)
+import           Daedalus.Panic              (panic)
+import           Daedalus.Range              (integerToInt)
+import           Daedalus.Value
+import           Daedalus.RTS.Input                   (inputBytes)
 
 
 eval :: Expr -> Env -> Value
@@ -52,6 +52,9 @@ eval expr env =
 
     ECase c -> evalCase eval err c env
       where err = panic "eval" [ "Pattern match failure in semantic value" ]
+
+    ELoop lm        ->
+      runIdentity (evalLoopMorphism lm (\e env' -> Identity (eval e env')) env)
 
     Ap0 op          -> partial (evalOp0 op)
     Ap1 op e        -> evalOp1 (tEnv env) op (typeOf e) (eval e env)
@@ -288,21 +291,21 @@ evalOp2 op v1 v2 = case op of
   IsPrefix ->
     VBool $ valueToByteString v1 `BS.isPrefixOf`
                    inputBytes (valueToStream v2)
- 
+
   Drop -> partial (vStreamDrop v1 v2)
   Take -> partial (vStreamTake v1 v2)
- 
+
   Eq       -> vEq  v1 v2
   NotEq    -> vNeq v1 v2
   Leq      -> vLeq v1 v2
   Lt       -> vLt  v1 v2
- 
+
   Add      -> partial (vAdd v1 v2)
   Sub      -> partial (vSub v1 v2)
   Mul      -> partial (vMul v1 v2)
   Div      -> partial (vDiv v1 v2)
   Mod      -> partial (vMod v1 v2)
- 
+
   BitAnd   -> vBitAnd v1 v2
   BitOr    -> vBitOr  v1 v2
   BitXor   -> vBitXor v1 v2
@@ -310,21 +313,21 @@ evalOp2 op v1 v2 = case op of
   LCat     -> partial (vLCat   v1 v2)
   LShift   -> partial (vShiftL v1 v2)
   RShift   -> partial (vShiftR v1 v2)
- 
+
   -- array is 1st
   ArrayIndex -> partial (vArrayIndex v1 v2)
- 
+
   -- builder is 1st
   Emit        -> vEmit v1 v2
   EmitArray   -> vEmitArray v1 v2
   EmitBuilder -> vEmitBuilder v1 v2
- 
+
   -- map is 1st
   MapLookup -> vMapLookup v2 v1
- 
+
   -- map is 1st
   MapMember -> vMapMember v2 v1
- 
+
   ArrayStream -> vStreamFromArray v1 v2
 
 --------------------------------------------------------------------------------
@@ -334,7 +337,7 @@ evalOp3 op v1 v2 v3 = case op of
   RangeUp   -> partial (vRangeUp v1 v2 v3)
   RangeDown -> partial (vRangeDown v1 v2 v3)
   MapInsert -> vMapInsert v2 v3 v1
-  
+
 --------------------------------------------------------------------------------
 
 evalOpN :: OpN -> [Value] -> Env -> Value
@@ -344,4 +347,30 @@ evalOpN op vs env =
     CallF f  -> case vs of
                   [] -> lookupConst f env
                   _  -> lookupFun f env vs
+
+--------------------------------------------------------------------------------
+
+evalLoopMorphism :: Monad m => LoopMorphism a -> (a -> Env -> m Value) -> Env -> m Value
+evalLoopMorphism lm evalA env =
+  case lm of
+    FoldMorphism s e lc b -> do
+      let e_v   = eval e env
+          (els, bindIn, _mk) = goLC lc
+          goOne acc el = evalA b (bindIn el (defLocal s acc env))
+      foldlM goOne e_v els
+    MapMorphism lc b -> do
+      let (els, bindIn, mk) = goLC lc
+          goOne el = (,) (fst el) <$> evalA b (bindIn el env)
+      mk <$> traverse goOne els
+  where
+    goLC lc =
+      let k_bind = maybe (const id) defLocal (lcKName lc)
+          bindIn (kv, ev) = k_bind kv . defLocal (lcElName lc) ev
+          (els, mk) = case eval (lcCol lc) env of
+            VArray vs -> ( zip (map vSize [0..]) (toList vs)
+                         , VArray . Vector.fromList . map snd
+                         )
+            VMap m     -> ( Map.toList m, VMap . Map.fromList )
+            _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
+      in (els, bindIn, mk)
 

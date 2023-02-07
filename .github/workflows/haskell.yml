@@ -29,8 +29,8 @@ jobs:
       uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
-        ghc-version: '8.8.3'
-        cabal-version: '3.4'
+        ghc-version: '9.2.5'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2
@@ -103,8 +103,8 @@ jobs:
       uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
-        ghc-version: '8.8.3'
-        cabal-version: '3.4'
+        ghc-version: '9.2.5'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2
@@ -143,8 +143,8 @@ jobs:
       uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
-        ghc-version: '8.8.3'
-        cabal-version: '3.4'
+        ghc-version: '9.2.5'
+        cabal-version: '3.6'
 
     - name: Cache
       uses: actions/cache@v2

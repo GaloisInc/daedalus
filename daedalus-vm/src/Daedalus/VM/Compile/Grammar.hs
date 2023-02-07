@@ -207,7 +207,7 @@ compile expr next0 =
          compileEs es \vs -> doCall vs
 
     Src.Match {} -> panic "compile" [ "Match was not desugared" ]
-
+    Src.Loop {}  -> panic "compile" [ "Loop was not desugared" ]
 
 --------------------------------------------------------------------------------
 

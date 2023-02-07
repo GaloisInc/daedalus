@@ -126,7 +126,34 @@ def WithStream s P =
       P
 
 
+--------------------------------------------------------------------------------
+-- Writing Tests
 
+-- Succeeds if the given parser accepts a prefix of the input.
+def TestAcceptsPrefix Parser input =
+  @ WithStream (arrayStream input) Parser
 
+-- Succeeds if the given parser accepts a the entire input.
+def TestAccepts Parser input = TestAcceptsPrefix (Only Parser) input
 
+-- Succeeds if the given parser can extract the expected values from
+-- a prefix of the input.
+def TestParsesPrefix Parser input expected =
+  WithStream (arrayStream input)
+    block
+      let result = Parser
+      result == expected is true
 
+-- Succeeds if the given parser can extract the expected values by
+-- consuming the entire input.
+def TestParses Parser input expected =
+  TestParsesPrefix (Only Parser) input expected
+
+-- Succeeds if the given parser will not accept any prefix of the input.
+def TestFailsPrefix Parser input =
+  case Optional (TestAcceptsPrefix Parser input) of
+    just    -> Fail "unexpected success"
+    nothing -> Accept
+
+-- Succeeds if the given parser will not accept the entire input.
+def TestFails Parser input = TestFailsPrefix (Only Parser) input

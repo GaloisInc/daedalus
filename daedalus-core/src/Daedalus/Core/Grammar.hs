@@ -1,13 +1,13 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns, PatternSynonyms #-}
-{-# Language DeriveGeneric, DeriveAnyClass #-}
+{-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor #-}
 
 module Daedalus.Core.Grammar where
 
 import GHC.Generics          (Generic)
 import Control.DeepSeq       (NFData)
-
 import Data.Functor.Identity(Identity(..))
+import Data.Functor.Const (Const(Const))
 
 import Daedalus.PP
 import Daedalus.Core.Basics
@@ -28,7 +28,26 @@ data Grammar =
   | Call FName [Expr]
   | Annot Annot Grammar
   | GCase (Case Grammar)
+  | Loop (LoopClass Grammar)
   deriving (Generic,NFData)
+
+-- | Types of loops we support.
+data LoopClass body =
+    ManyLoop Sem Backtrack Expr (Maybe Expr) body
+    -- ^ `Many`
+
+  | RepeatLoop Backtrack Name Expr body
+    -- ^ `many`
+
+  | MorphismLoop (LoopMorphism body)
+    -- ^ `for`, `map`
+  deriving (Functor, Generic, NFData)
+
+loopClassBody :: LoopClass body -> body
+loopClassBody lc = case lc of
+  ManyLoop _ _ _ _ g -> g
+  RepeatLoop _ _ _ g -> g
+  MorphismLoop lm    -> morphismBody lm
 
 -- | Implicit input manipulation
 data Match =
@@ -39,6 +58,12 @@ data Match =
 
 data Sem = SemNo | SemYes
   deriving (Generic,NFData)
+
+-- | Specifies the backtracking strategy for a component.
+data Backtrack =
+    Eager -- ^ Consume as much input as possible
+  | Lazy  -- ^ Consume as much input as needed
+    deriving (Generic,NFData)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
   deriving (Generic,NFData)
@@ -156,6 +181,10 @@ gebChildrenG gf ef bf gram =
     Call fn args      -> Call fn <$> traverse ef args
     Annot a g         -> Annot a <$> gf g
     GCase cs          -> GCase <$> traverse gf cs
+    Loop lc           -> Loop <$> case lc of
+      ManyLoop s b l m_h g -> ManyLoop s b <$> ef l <*> traverse ef m_h <*> gf g
+      RepeatLoop b n e g   -> RepeatLoop b n <$> ef e <*> gf g
+      MorphismLoop lm      -> MorphismLoop <$> morphismE ef gf lm
 
 gebMapChildrenG :: (Grammar -> Grammar) -> (Expr -> Expr) -> (ByteSet -> ByteSet) ->
                    Grammar -> Grammar
@@ -170,8 +199,14 @@ mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
 mapChildrenG f g = g1
   where Identity g1 = childrenG (Identity . f) g
 
+foldMapChildrenG :: Monoid m => (Grammar -> m) -> (Expr -> m) -> (ByteSet -> m) ->
+                    Grammar -> m
+foldMapChildrenG gf ef bf g = m
+  where Const m = gebChildrenG (Const . gf) (Const . ef) (Const . bf) g
+
 collectChildren :: Monoid a => (Grammar -> a) -> Grammar -> a
 collectChildren f = fst . childrenG (\g -> (f g, g))
+
 
 --------------------------------------------------------------------------------
 
@@ -202,6 +237,17 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
+      Loop lc        -> case lc of
+        ManyLoop s b l m_h g ->
+          "Many" <.> ppBiased b <.> ppSemSuff s <+>
+          parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+        RepeatLoop b n e g   ->
+          "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+        MorphismLoop lm  -> pp lm
+    where
+      ppBiased b = case b of
+                     Eager -> ""
+                     Lazy  -> "?"
 
 ppMatch :: Sem -> Match -> Doc
 ppMatch s mat =

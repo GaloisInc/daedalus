@@ -69,7 +69,7 @@ doSynthesis opts = do
       absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
   strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts) absEnv
+            logOpt (optSeed opts) absEnv (optVerbosity opts)
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines

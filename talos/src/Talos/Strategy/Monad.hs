@@ -18,6 +18,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
+                            , logMessage
                             ) where
 
 import           Control.Monad.Except      (throwError)
@@ -49,6 +50,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P
+import System.IO (hFlush, stdout)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -102,6 +104,7 @@ parseStrategies opts strats =
 data StrategyMState  =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
+                 , stsVerbosity :: Int
                  , stsSummaries :: ExpSummaries
                  , stsModule    :: Module
                  -- Derived from the module
@@ -111,8 +114,9 @@ data StrategyMState  =
                  , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs bfunDefs env0 nguid'
+emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> Int -> StrategyMState
+emptyStrategyMState gen ss md nguid verbosity =
+  StrategyMState gen verbosity expss md funDefs bfunDefs env0 nguid' 
   where
     (expss, nguid') = exportSummaries tyDefs (ss, nguid)
     env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
@@ -292,6 +296,16 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
       | otherwise = panic "Unknown user type " [showPP ut]
 
     unimplemented = panic "Unimplemented" [showPP targetTy]
+
+-- -----------------------------------------------------------------------------
+-- Printing verbosely
+
+logMessage :: LiftStrategyM m => Int -> String -> m ()
+logMessage lvl s = liftStrategy $ do
+  v <- StrategyM (gets stsVerbosity)
+  if lvl > v
+    then pure ()
+    else liftIO (putStr s >> hFlush stdout)
 
 -- -----------------------------------------------------------------------------
 -- Class

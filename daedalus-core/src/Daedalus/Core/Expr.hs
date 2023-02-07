@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
-{-# Language DeriveGeneric, DeriveAnyClass #-}
+{-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor #-}
 
 module Daedalus.Core.Expr where
 
@@ -9,12 +9,14 @@ import           Control.Applicative   (Const (..))
 import           Control.DeepSeq       (NFData)
 import           Data.ByteString       (ByteString)
 import           Data.Functor.Identity (Identity (..))
+import           Data.Maybe            (maybeToList)
 import           GHC.Generics          (Generic)
 
 import           Daedalus.PP
 import           Daedalus.Panic        (panic)
 
 import           Daedalus.Core.Basics
+
 
 data Expr =
     Var Name
@@ -23,13 +25,14 @@ data Expr =
     -- The order of these need NOT match the declaration
 
   | ECase (Case Expr)
+  | ELoop (LoopMorphism Expr)
 
   | Ap0 Op0
   | Ap1 Op1 Expr
   | Ap2 Op2 Expr Expr
   | Ap3 Op3 Expr Expr Expr
   | ApN OpN [Expr]
-  deriving (Generic,NFData)
+  deriving (Generic,NFData,Eq)
 
 data Op0 =
     Unit
@@ -72,7 +75,7 @@ data Op1 =
   | IsInfinite
   | IsDenormalized
   | IsNegativeZero
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data Op2 =
     IsPrefix
@@ -106,19 +109,51 @@ data Op2 =
   | MapMember
 
   | ArrayStream
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data Op3 =
     RangeUp
   | RangeDown
   | MapInsert
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
 data OpN =
     ArrayL Type
   | CallF FName
-  deriving (Generic,NFData)
+  deriving (Eq, Generic,NFData)
 
+-- | folds and maps
+data LoopMorphism e =
+    FoldMorphism Name Expr LoopCollection e
+    -- ^ for (s = e; ... in ...) ...
+
+  | MapMorphism LoopCollection e
+    -- ^ map (... in ...) ...
+
+  deriving (Functor, Generic, NFData, Eq)
+
+morphismBody :: LoopMorphism a -> a
+morphismBody (FoldMorphism _ _ _ a) = a
+morphismBody (MapMorphism      _ a) = a
+
+morphismE :: Applicative f => (Expr -> f Expr) -> (a -> f a) ->
+             LoopMorphism a -> f (LoopMorphism a)
+morphismE ef af lm = case lm of
+  FoldMorphism s e lc b -> 
+    FoldMorphism s <$> ef e <*> goLC lc <*> af b
+  MapMorphism lc b -> MapMorphism <$> goLC lc <*> af b
+  where
+    goLC lc = LoopCollection (lcKName lc) (lcElName lc) <$> ef (lcCol lc)
+
+-- | This specifies how traverse collections in loop.
+data LoopCollection = LoopCollection
+  { lcKName   :: Maybe Name       -- ^ Should we bind the keys of the collection
+  , lcElName  :: Name             -- ^ The name of the value in the collection
+  , lcCol     :: Expr             -- ^ The expression for the coolection
+  } deriving (Generic, NFData, Eq)
+
+loopCollectionBinders :: LoopCollection -> [Name]
+loopCollectionBinders lc = lcElName lc : maybeToList (lcKName lc)
 
 --------------------------------------------------------------------------------
 -- Traversals
@@ -131,12 +166,12 @@ childrenE f expr =
     PureLet n e1 e2 -> PureLet n <$> f e1 <*> f e2
     Struct ut flds  -> Struct ut <$> traverse (\(fld,e) -> (,) fld <$> f e) flds
     ECase cs        -> ECase <$> traverse f cs
+    ELoop lm        -> ELoop <$> morphismE f f lm
     Ap0 {} -> pure expr
     Ap1 op1 e  -> Ap1 op1 <$> f e
     Ap2 op2 e1 e2 -> Ap2 op2 <$> f e1 <*> f e2
     Ap3 op3 e1 e2 e3 -> Ap3 op3 <$> f e1 <*> f e2 <*> f e3
     ApN opN es -> ApN opN <$> traverse f es
-
 
 mapChildrenE :: (Expr -> Expr) -> Expr -> Expr
 mapChildrenE f e = e1
@@ -315,6 +350,7 @@ instance PP Expr where
         where ppF (l,e) = pp l <+> "=" <+> pp e
 
       ECase c -> pp c
+      ELoop l -> pp l
 
       Ap0 op   -> ppPrec n op
 
@@ -467,6 +503,21 @@ instance PP OpN where
     case op of
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
+
+instance PP e => PP (LoopMorphism e) where
+  ppPrec n lp = wrapIf (n > 0) $
+    kw <+> parens hdr $$ nest 2 (ppPrec 1 body)
+    where
+    (kw, hdr, body) =
+      case lp of
+        FoldMorphism x e c b -> ("for", pp x <+> "=" <+> pp e <.> semi <+> pp c, b)
+        MapMorphism c b   -> ("map", pp c, b)
       
+instance PP LoopCollection where
+  ppPrec _ lp = ppK <+> pp (lcElName lp) <+> "in" <+> pp (lcCol lp)
+    where
+    ppK = case lcKName lp of
+            Nothing -> empty
+            Just k  -> pp k <.> comma
 
 

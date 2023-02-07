@@ -1,0 +1,163 @@
+
+* Core walkthrough
+
+** Operation
+
+1. Run Daedalus
+2. Slice
+3. Outer loop, calling ...
+4. ... strategies
+  
+** Concepts
+
+   - Entangled :: wrt variables: when the choice of a variable impacts
+     the valid choices for another variable
+
+
+** [[file:~/galois/safedocs/daedalus/daedalus-core/src/Daedalus/Core/Grammar.hs::data Grammar =][Grammar]] and [[file:~/galois/safedocs/daedalus/daedalus-core/src/Daedalus/Core/Expr.hs::data Expr =][Expr]]
+
+   Core data-structures targeted by Daedalus front-end, and used by
+Talos.  We assume (it should be true) that variable binders are
+unique, if only the GUID part of the Name.  This means we can use
+variables as node identifiers in the AST (e.g. have a Map Name t)
+
+** Synthesis outer loop
+
+   The synthesis is syntax-directed: we follow the syntax of the
+grammar to synthesise bytes until we hit a variable which starts a
+slice --- part of the synthesis state is a map from variable to slice.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Synthesis.hs::synthesiseG SelectedHole][synthesisG random mode]]
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/SymExec/Path.hs::data SelectedPathF ch ca a =][SelectdPath]]
+
+     This type is how we record decisions that were made when solving
+     slices (a SelectedPath is a model for a slice).  Essentially
+     tells which decisions to make.  It is strongly (structurally)
+     related to grammars (fills in bytes and choices).
+
+     When a slice is solved, the result (a SelectedPath) is merged
+     into any path we have from previous slice solving.  The path is
+     inspected in synthesiseG, and is initially SelectedHole, o.e., we
+     have made no choices/constraints on future choices.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Synthesis.hs::synthesiseG ::][Worker for Grammar (synthesiseG)]]
+        
+** Slices
+
+   A slice is a fragment of a grammer, by 'fragment' I mean a grammar
+   where some nodes in the ast are replaced by 'holes'.  A slice
+   occurs when a grammar is partial: all bits of the grammar which
+   impact the partiality are in the slice, the idea being that the
+   slice contains all the information needed to synthesise the (bits
+   of) the variables bound in the slice.
+
+*** Example
+    
+   As an example, consider
+
+   block
+     a = A
+     x = P
+     y = Q
+     z = R
+     a < x is true
+     y > 0 is true
+
+   becomes:
+
+   - 'slice starting at a'
+
+   block
+     a = A
+     x = P
+     y = HOLE
+     z = HOLE
+     a < x is true
+     HOLE
+
+   - 'slice starting at y'
+
+   block
+     a = HOLE
+     x = HOLE
+     y = Q
+     z = HOLE
+     HOLE
+     y > 0 is true
+
+   with 'z' no being used in a partial way.
+
+*** Notes
+   
+   We won't talk about how we generate a slice, it is enough to know
+   that slices are
+
+   - closed :: contain all information needed to synthesise the bytes
+     in the slice
+   - independent :: slices can be synthesised without worrying about
+     other slices
+   - composable :: two slices can be merged into a new slice; the sum of
+     all slices is the dependent part of the grammar (the remnants
+     always succeeed)
+
+   Note tha SelectedPaths are also composable; merging paths should
+   result in a model for the merged slices.  Because slices are
+   independent, a choice occurs in at most 1 model, so merging of
+   models (and slices) is trivial, and is just hole-plugging.
+   
+   Slices can be at the field level, so a struct-typed variable may
+   have mutiple slices, one for each field that is a dependency.  One
+   further wrinkle is that slicing depends on how things are used, and
+   so there is an additional FInstId which is used to tell the
+   synthesis which function summary to use.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Analysis/Slice.hs::data Slice' cn sle =][Slice definition]]
+
+     This is what the strategies have to solve, it is parametric in
+     how calls are represented, and how expressions are represented.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Analysis/Exported.hs::type ExpSlice = Slice' ExpCallNode Expr][Instantiation of Slice']]
+
+     This is how slices are used outside of the slicing algorithm
+     (hence 'exported' --- all the slicing-specific annotations etc
+     get removed).
+     
+** Strategies
+
+   A strategy is a way of solving a slice: it is a function from ExpSlices to SelectedPaths.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Strategy.hs::findModel ::][Running Strategies]]
+
+   There is a bit of infrastructure for running strategies, including
+   timing etc.  Strategies can generate many models (it is more
+   efficient to ask for multiple models from the solver) so we run the
+   strategy once and consult the cache when we next see that slice.
+
+   The simplest strategy is the random selection with backtracking
+   strategy, which is made a bit mode complicated by abstracting over
+   the method of backtracking.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Strategy/BTRand.hs::stratSlice ::][Random strat]]
+   
+   We mainly use the PathSymbolic strategy, which constructs a big
+   solver model along with a parametric SelectedPath, by which I mean
+   a SelectedPath where the decisions are solver variables.  The
+   solver model is then used to instantiate the parametrict
+   SelectedPath.
+
+   - [[file:~/galois/safedocs/daedalus/talos/src/Talos/Strategy/PathSymbolic.hs::pathSymbolicStrat :: Strategy][Path symbolic strategy]]
+
+   This strategy is made (much mode) complicated as we avoid having
+   non-product types in the solver.  We can discuss this if there is
+   time/interest.
+   
+   
+     
+
+     
+
+
+   
+   
+   

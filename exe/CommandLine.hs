@@ -49,6 +49,7 @@ data Options =
           , optInline    :: Bool
           , optInlineThis :: [String]
           , optStripFail :: Bool
+          , optNoLoops :: Bool          
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
@@ -89,6 +90,7 @@ defaultOptions =
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
+          , optNoLoops = False          
           , optSpecTys   = False
           , optCheckCore = True
           , optDeterminize = False
@@ -235,6 +237,7 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
                 "Use the Core interpreter"
                 $ NoArg \o -> Right o { optBackend = UseCore }
 
+              
               , Option [] ["vm"]
                 "Use the VM interpreter"
                 $ NoArg \o -> Right o { optBackend = UseVM }
@@ -270,7 +273,7 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                , Option [] ["core"]
                  "Dump core AST"
                 $ simpleCommand DumpCore
-
+               
                , Option [] ["rel"]
                  "Dump relational core"
                 $ simpleCommand DumpRel
@@ -414,6 +417,10 @@ coreOptions =
     "Strip failure nodes in Core"
     $ NoArg \o -> Right o { optStripFail = True }
 
+  , Option [] ["no-loops"]
+    "Remove loops in Core"
+    $ NoArg \o -> Right o { optNoLoops = True }
+  
   , Option [] ["spec-types"]
     "Specialise types"
     $ NoArg \o -> Right o { optSpecTys = True }

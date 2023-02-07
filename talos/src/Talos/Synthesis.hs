@@ -176,9 +176,9 @@ freshProvenanceTag = do
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> Module 
+synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> Module -> Int
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
+synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
   let (allSummaries, nguid') = summarise p md nguid
   
   -- We do this in one giant step to deal with recursion and deps on
@@ -194,10 +194,10 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
 
   -- Generate a seed if none has been given to us.
   seed    <- maybe randomIO pure m_seed
-  putStrLn ("Using random seed " ++ show seed)
+  -- putStrLn ("Using random seed " ++ show seed)  
   let gen = mkStdGen seed
 
-  let sst0 = emptyStrategyMState gen allSummaries md nguid'
+  let sst0 = emptyStrategyMState gen allSummaries md nguid' verbosity
       solvSt0 = emptySolverState solv
       mc0 = newModelCache strats solvSt0
       

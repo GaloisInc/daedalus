@@ -257,6 +257,7 @@ doToCore opts mm =
              _  -> passInline Core.Only fs specMod
            checkCore "Inline"
 
+     when (optNoLoops opts || optDeterminize opts) (passNoLoops specMod >> checkCore "NoLoops")
      when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
      when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")

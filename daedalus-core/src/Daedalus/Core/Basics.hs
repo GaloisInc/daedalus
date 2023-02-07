@@ -121,7 +121,7 @@ newtype TParam = TP Int
 data Case k = Case { caseVar  :: Name
                    , casePats :: [(Pattern,k)]
                    }
-  deriving (Functor,Foldable,Traversable,Generic,NFData)
+  deriving (Functor,Foldable,Traversable,Generic,NFData,Eq)
 
 data Pattern =
     PBool Bool

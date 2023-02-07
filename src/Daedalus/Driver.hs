@@ -34,6 +34,7 @@ module Daedalus.Driver
   , passResolve
   , passTC
   , passDeadVal
+  , passNoLoops
   , passSpecialize
   , passCore
   , passInline
@@ -119,6 +120,7 @@ import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
+import qualified Daedalus.Core.NoLoop as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
@@ -615,9 +617,10 @@ analyzeDeadVal m =
 
 convertToVM :: Core.Module -> Daedalus ()
 convertToVM m =
-  do m1 <- ddlRunPass (Core.noMatch m)
+  do m1 <- ddlRunPass (Core.noLoop m)
+     m2 <- ddlRunPass (Core.noMatch m1)
      ddlUpdate_ \s ->
-        let vm = VM.compileModule (debugMode s) m1 in
+        let vm = VM.compileModule (debugMode s) m2 in
         s { loadedModules = Map.insert (fromMName (VM.mName vm)) (VMModule vm)
                                        (loadedModules s)
           }
@@ -820,6 +823,15 @@ passStripFail m =
                         (loadedModules s) }
        _ -> panic "passInline" ["Module is not in Core form"]
 
+passNoLoops :: ModuleName -> Daedalus ()
+passNoLoops m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModue ast ->         
+         do i <- ddlRunPass (Core.noLoop ast)
+            ddlUpdate_ \s ->
+              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
+       _ -> panic "passInline" ["Module is not in Core form"]
 
 passSpecTys :: ModuleName -> Daedalus ()
 passSpecTys m =
