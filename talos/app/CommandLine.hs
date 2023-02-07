@@ -30,6 +30,7 @@ data Options =
           , optStrategy   :: Maybe [String]
           , optInvFile    :: Maybe FilePath
           , optAnalysisKind :: Maybe String
+          , optVerbosity :: Int
           , optDDLInput  :: FilePath
           }
 
@@ -142,6 +143,14 @@ analysisKindOpt = strOption
     <> help "The slicing analysis to use"
     )
 
+
+-- FIXME: lookup available types of analysis and use that
+verbosityOpt :: Parser ()
+verbosityOpt = flag' ()
+   ( long "verbose"
+     <> short 'v'
+     <> help "Verbosity level (can be used multiple times)" )
+
 options :: Parser Options
 options = Options <$> solverOpt
                   <*> optional logfileOpt
@@ -157,6 +166,7 @@ options = Options <$> solverOpt
                   <*> ((Just <$> some strategyOpt) <|> pure Nothing)
                   <*> optional invFileOpt
                   <*> optional analysisKindOpt
+                  <*> (length <$> many verbosityOpt)
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

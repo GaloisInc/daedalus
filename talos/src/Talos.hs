@@ -115,8 +115,9 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe (Int, Maybe FilePath) -- ^ Logging options
            -> Maybe Int          -- ^ Random seed
            -> String             -- ^ Analysis abstract env.
+           -> Int                -- ^ Verbosity
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed absEnv = do
+synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed absEnv verbosity = do
   (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
   -- SMT init
@@ -148,7 +149,7 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
   bInit
-  T.synthesise m_seed nguid solver absty stratInsts mainRule md
+  T.synthesise m_seed nguid solver absty stratInsts mainRule md verbosity
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type
