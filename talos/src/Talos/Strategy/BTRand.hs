@@ -1,3 +1,6 @@
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
@@ -7,9 +10,11 @@ import           Control.Applicative
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import qualified Data.ByteString                 as BS
-import           Data.Functor.Identity           (Identity (Identity))
-import qualified Data.Map                        as Map
+import qualified Data.ByteString           as BS
+import           Data.Functor.Identity     (Identity (Identity))
+import           Data.Generics.Product     (field)
+import qualified Data.Map                  as Map
+import           GHC.Generics              (Generic)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import qualified Daedalus.Core.Semantics.Env     as I
@@ -22,7 +27,10 @@ import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
+import           Talos.Strategy.OptParser        (Opt, parseOpts)
+import qualified Talos.Strategy.OptParser        as P
 import           Talos.SymExec.Path
+
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -32,20 +40,50 @@ randDFS :: Strategy
 randDFS = 
   Strategy { stratName  = name
            , stratDescr = descr
-           , stratParse = pure inst
+           , stratParse = mkinst           
            }
-  where
-    inst = StrategyInstance
-           { siName = name
-           , siDescr = descr
-           , siFun   = \ptag sl -> trivialStratGen . lift $
-                                   runDFST (go ptag sl) (return . Just) (return Nothing)
-           }
+  where    
     name  = "rand-dfs"
     descr = "Simple depth-first random generation"
     
-    go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
-    go ptag sl = mkStrategyFun ptag sl
+    mkinst = do
+      c <- parseOpts configOpts defaultConfig
+      pure StrategyInstance
+        { siName  = name
+        , siDescr = descr -- <> parens (text s)
+        , siFun   = mkgen c
+        }
+
+    mkgen c = \ptag sl -> StratGen $ lift $ do
+      rs <- go (cNModels c) [] ptag sl
+      pure (rs, Nothing)
+
+    -- FXME: this should share state (e.g. pruned search space)
+    go 0 acc _ptag _sl  = pure acc
+    go n acc ptag sl = do
+      m_r <- runDFST (goOne ptag sl) (return . Just) (return Nothing)
+      case m_r of
+        Nothing -> pure acc
+        Just r  -> go (n - 1) (r : acc) ptag sl
+        
+    goOne :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
+    goOne ptag sl = mkStrategyFun ptag sl
+
+-- ----------------------------------------------------------------------------------------
+-- Configuration
+
+data Config = Config { cNModels :: Int
+                     }
+  deriving (Generic)
+
+defaultConfig :: Config
+defaultConfig = Config 10 
+
+configOpts :: [Opt Config]
+configOpts = [ P.option "num-models" (field @"cNModels")     P.intP
+             ]
+
+
 
 -- ----------------------------------------------------------------------------------------
 -- Restarting strat (restart-on-failure)

@@ -85,7 +85,7 @@ data ModelCacheEntry = ModelCacheEntry
 
 data ModelCache = ModelCache
   { mcCache :: Map SliceId ModelCacheEntry
-  , mcStratInstances :: [StrategyInstance]
+  , mcStratInstances :: [StrategyInstance] -- ^ Read only
   , mcSolverState :: SolverState
   } deriving Generic
 
