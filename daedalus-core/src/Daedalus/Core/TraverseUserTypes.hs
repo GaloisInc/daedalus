@@ -241,7 +241,8 @@ instance TraverseUserTypes BDFieldType where
       BDTag n    -> pure (BDTag n)
       BDData l t -> BDData l <$> traverseUserTypes f t
 
-instance TraverseUserTypes a => TraverseUserTypes (LoopMorphism a) where
+instance (TraverseUserTypes a, TraverseUserTypes b) =>
+         TraverseUserTypes (LoopMorphism' a b) where
   traverseUserTypes f lm = case lm of
     FoldMorphism s e lc b -> 
       FoldMorphism s <$> traverseUserTypes f e <*> goLC lc <*> traverseUserTypes f b

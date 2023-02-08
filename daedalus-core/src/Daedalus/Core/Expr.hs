@@ -123,21 +123,23 @@ data OpN =
   deriving (Eq, Generic,NFData)
 
 -- | folds and maps
-data LoopMorphism e =
-    FoldMorphism Name Expr LoopCollection e
+data LoopMorphism' e body =
+    FoldMorphism Name e (LoopCollection' e) body
     -- ^ for (s = e; ... in ...) ...
 
-  | MapMorphism LoopCollection e
+  | MapMorphism (LoopCollection' e) body
     -- ^ map (... in ...) ...
 
   deriving (Functor, Generic, NFData, Eq)
 
-morphismBody :: LoopMorphism a -> a
+type LoopMorphism = LoopMorphism' Expr
+
+morphismBody :: LoopMorphism' e a -> a
 morphismBody (FoldMorphism _ _ _ a) = a
 morphismBody (MapMorphism      _ a) = a
 
-morphismE :: Applicative f => (Expr -> f Expr) -> (a -> f a) ->
-             LoopMorphism a -> f (LoopMorphism a)
+morphismE :: Applicative f => (e -> f e) -> (a -> f a) ->
+             LoopMorphism' e a -> f (LoopMorphism' e a)
 morphismE ef af lm = case lm of
   FoldMorphism s e lc b -> 
     FoldMorphism s <$> ef e <*> goLC lc <*> af b
@@ -146,13 +148,15 @@ morphismE ef af lm = case lm of
     goLC lc = LoopCollection (lcKName lc) (lcElName lc) <$> ef (lcCol lc)
 
 -- | This specifies how traverse collections in loop.
-data LoopCollection = LoopCollection
+data LoopCollection' e = LoopCollection
   { lcKName   :: Maybe Name       -- ^ Should we bind the keys of the collection
   , lcElName  :: Name             -- ^ The name of the value in the collection
-  , lcCol     :: Expr             -- ^ The expression for the coolection
+  , lcCol     :: e             -- ^ The expression for the coolection
   } deriving (Generic, NFData, Eq)
 
-loopCollectionBinders :: LoopCollection -> [Name]
+type LoopCollection = LoopCollection' Expr
+
+loopCollectionBinders :: LoopCollection' e -> [Name]
 loopCollectionBinders lc = lcElName lc : maybeToList (lcKName lc)
 
 --------------------------------------------------------------------------------
@@ -504,7 +508,7 @@ instance PP OpN where
       ArrayL _ -> parens ("arrayLit")
       CallF f  -> parens ("call" <+> pp f)
 
-instance PP e => PP (LoopMorphism e) where
+instance (PP e, PP b) => PP (LoopMorphism' e b) where
   ppPrec n lp = wrapIf (n > 0) $
     kw <+> parens hdr $$ nest 2 (ppPrec 1 body)
     where
@@ -513,7 +517,7 @@ instance PP e => PP (LoopMorphism e) where
         FoldMorphism x e c b -> ("for", pp x <+> "=" <+> pp e <.> semi <+> pp c, b)
         MapMorphism c b   -> ("map", pp c, b)
       
-instance PP LoopCollection where
+instance PP e => PP (LoopCollection' e) where
   ppPrec _ lp = ppK <+> pp (lcElName lp) <+> "in" <+> pp (lcCol lp)
     where
     ppK = case lcKName lp of

@@ -100,7 +100,7 @@ instance FreeVars e => FreeVars (Maybe e) where
   freeVars  = maybe mempty freeVars
   freeFVars = maybe mempty freeFVars
 
-instance FreeVars e => FreeVars (LoopMorphism e) where
+instance (FreeVars e, FreeVars b) => FreeVars (LoopMorphism' e b) where
   freeVars m = case m of
     FoldMorphism n e lc b -> 
       freeVars e <> freeVars (lcCol lc) <>
