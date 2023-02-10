@@ -273,7 +273,7 @@ typeToRepr ::
   W4SolverT sym m (Some (W4.BaseTypeRepr))
 typeToRepr v = go v
   where
-    go :: I.Type -> m (Some (W4.BaseTypeRepr))
+    go :: I.Type -> W4SolverT sym m (Some (W4.BaseTypeRepr))
     go (I.TUInt n) = do
       Some nr <- liftMaybe $ sizeToRepr n
       W4.LeqProof <- liftMaybe $ W4.isPosNat nr

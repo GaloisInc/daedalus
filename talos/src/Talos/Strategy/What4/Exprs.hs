@@ -1,6 +1,7 @@
 {-# Language GADTs #-}
 {-# Language DataKinds #-}
 {-# Language TypeApplications #-}
+{-# Language RankNTypes #-}
 
 module Talos.Strategy.What4.Exprs(
     toWhat4Expr
@@ -63,7 +64,7 @@ withBoundVars (nm : nms) f = withSym $ \sym -> do
 
 
 
-mkSymFn :: SymM sym m => Fun Expr -> m (SomeSymFn sym)
+mkSymFn :: Fun Expr -> W4SolverT sym m (SomeSymFn sym)
 mkSymFn fn = withSym $ \sym -> do
   let ret_raw = fnameType (fName fn)
   Some ret <- typeToRepr ret_raw
@@ -80,9 +81,8 @@ mkSymFn fn = withSym $ \sym -> do
     nm = W4.safeSymbol (T.unpack (fnameText (fName fn)))
 
 lookupFn ::
-  SymM sym m => 
   FName -> 
-  m (SomeSymFn sym, Fun Expr)
+  W4SolverT sym m (SomeSymFn sym, Fun Expr)
 lookupFn nm = withFNameCache nm $ do
   defs <- getFunDefs
   case Map.lookup nm defs of
@@ -128,7 +128,7 @@ bsToBV sym (w8 : ws) = do
 
 -- Core translation
 
-toWhat4Expr :: SymM sym m => I.Type -> W4.BaseTypeRepr tp -> Expr -> m (W4.SymExpr sym tp)
+toWhat4Expr :: I.Type -> W4.BaseTypeRepr tp -> Expr -> W4SolverT sym m (W4.SymExpr sym tp)
 toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
   -- Core
   (_, Var nm) -> do
@@ -219,7 +219,7 @@ toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
       _ -> panic "Mismatched function return type" [showPP e]
   _ -> panic "Unsupported type" [showPP e]
 
-unionFields :: SymM sym m => I.Type -> m ([(Label,Type)])
+unionFields :: I.Type -> W4SolverT sym m ([(Label,Type)])
 unionFields t@(TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
   tdefs <- getTypeDefs
   case Map.lookup (utName ut) tdefs of
@@ -230,10 +230,9 @@ unionFields t@(TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
 unionFields t = panic "unionFields: unexpected type" [showPP t]
 
 toWhat4ExprList ::
-  SymM sym m =>
   Ctx.Assignment W4.BaseTypeRepr tps -> 
   [(Expr, Type)] -> 
-  m (Ctx.Assignment (W4.SymExpr sym) tps)
+  W4SolverT sym m (Ctx.Assignment (W4.SymExpr sym) tps)
 toWhat4ExprList Ctx.Empty [] = return Ctx.Empty
 toWhat4ExprList (tps Ctx.:> tp) ((e, t_raw) : exprs) = do
   e' <- toWhat4Expr t_raw tp e
@@ -242,12 +241,11 @@ toWhat4ExprList (tps Ctx.:> tp) ((e, t_raw) : exprs) = do
 toWhat4ExprList _ _ = panic "toWhat4ExprList: mismatch" []
 
 matchesPat ::
-  SymM sym m =>
   W4.BaseTypeRepr tp_body ->
   I.Type ->
   W4.SymExpr sym tp -> 
   (Pattern, Expr) -> 
-  m (W4.Pred sym, W4.SymExpr sym tp_body)
+  W4SolverT sym m (W4.Pred sym, W4.SymExpr sym tp_body)
 matchesPat tp_body tp_raw e (pat, body) = withSym $ \sym -> do
   bodyE <- toWhat4Expr tp_raw tp_body body
   p <- case (W4.exprType e, pat) of

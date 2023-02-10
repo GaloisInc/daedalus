@@ -17,7 +17,7 @@
 {-# Language LambdaCase #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
-module Talos.Strategy.What4Sym (randDFS, randRestart, randMaybeT, mkStrategyFun) where
+module Talos.Strategy.What4Sym (what4DFS, what4Restart, what4MaybeT, mkStrategyFun) where
 
 import           Control.Applicative
 import           Control.Monad.Reader
@@ -83,8 +83,8 @@ mkInitEnv = do
 -- Backtracking random strats
 
 -- FIXME: maybe unify these into a single parameterised strat 'rand backtrack=dfs ...'
-randDFS :: Strategy
-randDFS = 
+what4DFS :: Strategy
+what4DFS = 
   Strategy { stratName  = name
            , stratDescr = descr
            , stratParse = pure inst
@@ -96,7 +96,7 @@ randDFS =
            , siFun   = \ptag sl -> trivialStratGen . lift $ 
                                      runDFST (go ptag sl) (return . Just) (return Nothing)
            }
-    name  = "rand-dfs"
+    name  = "whatFour-dfs"
     descr = "Simple depth-first random generation"
     
     go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
@@ -105,8 +105,8 @@ randDFS =
 -- ----------------------------------------------------------------------------------------
 -- Restarting strat (restart-on-failure)
 
-randRestart :: Strategy
-randRestart = 
+what4Restart :: Strategy
+what4Restart = 
   Strategy { stratName  = name
            , stratDescr = descr
            , stratParse = pure inst
@@ -115,16 +115,16 @@ randRestart =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = randRestartStrat
+           , siFun   = what4RestartStrat
            }
-    name  = "rand-restart"
+    name  = "whatFour-restart"
     descr = "Restart on failure with random selection"
 
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randRestartStrat ptag sl = trivialStratGen . lift $ go restartBound
+what4RestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
+what4RestartStrat ptag sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -144,8 +144,8 @@ instance MonadIO m => MonadIO (RestartT r m) where
 -- ----------------------------------------------------------------------------------------
 -- Local backtracking, restart
 
-randMaybeT :: Strategy
-randMaybeT = 
+what4MaybeT :: Strategy
+what4MaybeT = 
   Strategy { stratName  = name
            , stratDescr = descr
            , stratParse = pure inst
@@ -154,13 +154,13 @@ randMaybeT =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = randMaybeStrat
+           , siFun   = what4MaybeStrat
            }
-    name  = "rand-restart-local-bt"
+    name  = "what4-restart-local-bt"
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
-randMaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randMaybeStrat ptag sl = trivialStratGen . lift $ do
+what4MaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
+what4MaybeStrat ptag sl = trivialStratGen . lift $ do
   go restartBound
   where
     go 0 = pure Nothing
@@ -215,10 +215,11 @@ stratSlice ptag = go
           env <- ask
           -- Run the predicate over all bytes.
           -- FIXME: Too brute force? We could probably be smarter
+          liftStrategy (liftIO $ putStrLn ("From byteset " ++ show (pp bset)))
           let bs = filter (I.evalByteSet bset env) [0 .. 255]
           guard (bs /= [])
           b <- choose bs -- select a byte from the set, backtracking
-          -- liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
+          liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
           pure (I.vUInt 8 (fromIntegral b)
                , SelectedBytes ptag (BS.singleton b))
           
@@ -237,6 +238,7 @@ stratSlice ptag = go
         SInverse n ifn p -> do
           let tryOne = do
                 v <- synthesiseExpr =<< typeToRandomInhabitant (I.typeOf n)
+                liftStrategy (liftIO $ putStrLn ("Trying value.. " ++ show (pp v)))
                 bindIn n v $ do
                   b <- I.valueToBool <$> synthesiseExpr p
                   guard b
