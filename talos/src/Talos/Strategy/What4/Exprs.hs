@@ -40,19 +40,18 @@ nameToSymbol nm = case nameText nm of
   Just nm' -> W4.safeSymbol (T.unpack nm')
   Nothing -> W4.emptySymbol
 
-nameToRepr :: SymM sym m => Name -> m (Some (W4.BaseTypeRepr))
+nameToRepr :: Name -> W4SolverT sym m (Some (W4.BaseTypeRepr))
 nameToRepr nm = typeToRepr (nameType nm)
 
-nameToVar :: SymM sym m => Name -> m (Some (W4.BoundVar sym))
+nameToVar :: Name -> W4SolverT sym m (Some (W4.BoundVar sym))
 nameToVar nm = withSym $ \sym -> do
   Some repr <- nameToRepr nm
   Some <$> (liftIO $ W4.freshBoundVar sym (nameToSymbol nm) repr)
 
 withBoundVars ::
-  SymM sym m => 
   [Name] -> 
-  m a ->
-  m (Some (Ctx.Assignment (W4.BoundVar sym)), a)
+  W4SolverT sym m a ->
+  W4SolverT sym m (Some (Ctx.Assignment (W4.BoundVar sym)), a)
 withBoundVars [] f = do
   a <- f
   return (Some Ctx.empty, a)

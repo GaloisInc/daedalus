@@ -62,7 +62,12 @@ library
                      , Talos.Strategy.PathSymbolic
                      , Talos.Strategy.PathCondition                     
                      , Talos.Strategy.MemoSearch
-                     , Talos.Strategy.OptParser                     
+                     , Talos.Strategy.OptParser
+
+                     , Talos.Strategy.What4.Exprs
+                     , Talos.Strategy.What4.Types
+                     , Talos.Strategy.What4.SymM
+                     , Talos.Strategy.What4Sym
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis

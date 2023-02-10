@@ -14,6 +14,7 @@
 {-# Language UndecidableInstances #-}
 {-# Language FlexibleInstances #-}
 {-# Language MultiParamTypeClasses #-}
+{-# Language LambdaCase #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.What4Sym (randDFS, randRestart, randMaybeT, mkStrategyFun) where
@@ -28,7 +29,9 @@ import qualified Data.Map                        as Map
 import qualified Data.IORef as IO
 
 import qualified What4.Interface                 as W4
+import qualified What4.Expr                      as WE
 import           Data.Parameterized.NatRepr
+import qualified Data.Parameterized.Nonce as N
 
 import           Daedalus.Core                   hiding (streamOffset)
 import qualified Daedalus.Core.Semantics.Env     as I
@@ -48,7 +51,33 @@ import           Talos.SymExec.Path
 import           Talos.Strategy.What4.Exprs
 import           Talos.Strategy.What4.Types
 import           Talos.Strategy.What4.SymM
+import Data.Parameterized.Some
+import qualified System.IO.Unsafe as IO
 
+withFreshSolver ::
+  MonadIO m =>
+  (forall sym. W4.IsSymExprBuilder sym => sym -> m a) -> m a
+withFreshSolver f = do
+  Some gen <- liftIO N.newIONonceGenerator
+  sym <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
+  liftIO $ WE.startCaching sym
+  f sym
+
+-- | Just needed to avoid re-initializing the builder, until we have a place to keep it
+-- in the SolverT monad. This is a bit gross to expose here though, but it's needed to keep
+-- some of the caches around.
+singletonEnv_ref :: IO.IORef (Maybe SomeW4SolverEnv)
+singletonEnv_ref = IO.unsafePerformIO (IO.newIORef Nothing)
+
+mkInitEnv :: MonadIO m => m (SomeW4SolverEnv)
+mkInitEnv = do
+  (liftIO $ IO.readIORef singletonEnv_ref) >>= \case
+    Just env -> return env
+    Nothing -> do
+      env <- withFreshSolver initSomeW4SolverEnv
+      liftIO $ IO.atomicModifyIORef' singletonEnv_ref $ \case
+        Just env' -> (Just env', env')
+        Nothing -> (Just env, env)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -64,8 +93,8 @@ randDFS =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = \ptag sl -> trivialStratGen . lift $
-                                   runDFST (go ptag sl) (return . Just) (return Nothing)
+           , siFun   = \ptag sl -> trivialStratGen . lift $ 
+                                     runDFST (go ptag sl) (return . Just) (return Nothing)
            }
     name  = "rand-dfs"
     descr = "Simple depth-first random generation"
@@ -107,6 +136,11 @@ randRestartStrat ptag sl = trivialStratGen . lift $ go restartBound
     once :: StrategyM (Maybe SelectedPath)
     once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)
 
+instance MonadIO m => MonadIO (RestartT r m) where
+  liftIO f = RestartT $ \ctxt -> do
+    a <- liftIO f
+    randCont ctxt a
+
 -- ----------------------------------------------------------------------------------------
 -- Local backtracking, restart
 
@@ -126,7 +160,8 @@ randMaybeT =
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
 randMaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
+randMaybeStrat ptag sl = trivialStratGen . lift $ do
+  go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -140,63 +175,31 @@ randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
   
 -- ----------------------------------------------------------------------------------------
 
-
-data NameEnv sym = NameEnv (Map.Map Name (Some (W4.SymExpr sym)))
-
-type FnEnv sym = Map.Map FName (SomeSymFn sym, Fun Expr)
-
-data W4StratEnv sym = W4.IsSymExprBuilder sym => W4StratEnv { sym_ :: sym, varEnv :: I.Env, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym) }
-
-newtype W4StratT_ sym m a = W4StratT { unW4StratM :: ReaderT (W4StratEnv sym) m a }
-  deriving (Applicative, Functor, Monad, MonadIO, MonadReader (W4StratEnv sym), MonadTrans, LiftStrategyM)
-
-instance Monad m => MonadFail (W4StratT_ sym m) where
-  fail msg = panic "W4StratT Failure" [msg]
-
-instance (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m) => SymM sym (W4StratT_ sym m) where
-  withSym f = do
-    W4StratEnv{} <- ask
-    sym <- asks sym_
-    f sym
-  -- FIXME: TODO
-  bindVarIn _ _ _ = error "FIXME: TODO"
-
-  getVar nm = do
-    NameEnv env <- asks nameEnv
-    case Map.lookup nm env of
-      Just se -> return se
-      Nothing -> panic "Unbound variable" [showPP nm]
-
-  liftMaybe (Just a) = return a
-  liftMaybe Nothing = panic "liftMaybe" []
-
-  withFNameCache fname f = do
-    ref <- asks fnCache
-    cache <- liftIO $ IO.readIORef ref
-    case Map.lookup fname cache of
-      Just a -> return a
-      Nothing -> do
-        a <- f
-        liftIO $ IO.modifyIORef' ref (Map.insert fname a)
-        return a
-
-type W4StratT sym m a = (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m) => W4StratT_ sym m a
-
-liftReaderT :: ReaderT I.Env m a -> W4StratT sym m a
-liftReaderT f = do
-  venv <- asks varEnv
-  lift $ runReaderT f venv
-
 -- TODO: use W4StratT
 
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
-mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice -> m SelectedPath
+mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpSlice -> m SelectedPath
 mkStrategyFun ptag sl = do
   env0 <- getIEnv -- for pure function implementations
-  snd <$> runReaderT (stratSlice ptag sl) env0 
+  solverEnv0 <- mkInitEnv -- cached to keep same expression builder
+  snd <$> runW4StratT solverEnv0 env0 (stratSlice ptag sl)
+
+newtype W4StratT m a = W4StratT (ReaderT I.Env (SomeW4SolverT m) a)
+  deriving (Applicative, Functor, Monad, MonadIO, MonadReader I.Env, LiftStrategyM, Alternative, MonadPlus)
+
+instance MonadTrans W4StratT where
+  lift f = W4StratT $ lift $ lift f
+
+runW4StratT :: 
+  MonadIO m =>
+  SomeW4SolverEnv ->
+  I.Env ->
+  W4StratT m a -> 
+  m a
+runW4StratT solverEnv env (W4StratT f) = runSomeW4Solver solverEnv (runReaderT f env)
 
 stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice
-           -> ReaderT I.Env m (I.Value, SelectedPath)
+           -> W4StratT m (I.Value, SelectedPath)
 stratSlice ptag = go
   where
     go sl = 
@@ -258,7 +261,7 @@ stratSlice ptag = go
 -- although it is not clear whether that is an issue or not.
 
 stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpCallNode -> 
-                 ReaderT I.Env m (I.Value, SelectedPath)
+                 W4StratT m (I.Value, SelectedPath)
 stratCallNode ptag cn = do
   env <- ask
   let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
@@ -278,12 +281,12 @@ choose bs = do
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
 
-bindIn :: Monad m => Name -> I.Value -> ReaderT I.Env m a -> ReaderT I.Env m a
+bindIn :: Monad m => Name -> I.Value -> W4StratT m a -> W4StratT m a
 bindIn x v m = local upd m
   where
     upd e = e { I.vEnv = Map.insert x v (I.vEnv e) }
 
-synthesiseExpr :: Monad m => Expr -> ReaderT I.Env m I.Value
+synthesiseExpr :: Monad m => Expr -> W4StratT m I.Value
 synthesiseExpr e = I.eval e <$> ask
 
 -- ----------------------------------------------------------------------------------------

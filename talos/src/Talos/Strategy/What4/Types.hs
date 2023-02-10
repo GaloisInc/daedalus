@@ -269,9 +269,8 @@ sizeToRepr (I.TSizeParam{}) = Nothing
 
 typeToRepr ::
   forall sym m.
-  SymM sym m =>
   I.Type -> 
-  m (Some (W4.BaseTypeRepr))
+  W4SolverT sym m (Some (W4.BaseTypeRepr))
 typeToRepr v = go v
   where
     go :: I.Type -> m (Some (W4.BaseTypeRepr))
@@ -297,10 +296,10 @@ typeToRepr v = go v
       lookupTName (utName ut)
     go _ = panic "typeToRepr: unsupported type" [showPP v]
 
-mkFlds :: SymM sym m => [(Label, Type)] -> m (Some (Ctx.Assignment W4.BaseTypeRepr))
+mkFlds :: [(Label, Type)] -> W4SolverT sym m (Some (Ctx.Assignment W4.BaseTypeRepr))
 mkFlds lbls = Ctx.fromList <$> mapM (\(_,t) -> typeToRepr t) lbls
 
-lookupTName :: SymM sym m => TName -> m (Some (W4.BaseTypeRepr))
+lookupTName :: TName -> W4SolverT sym m (Some (W4.BaseTypeRepr))
 lookupTName nm = do
   tdefs <- getTypeDefs
   case Map.lookup nm tdefs of
@@ -312,11 +311,10 @@ lookupTName nm = do
     _ -> panic "lookupTName: missing type" [showPP nm]
   
 getFieldIndex ::
-  SymM sym m => 
   [(Label, Type)] -> 
   Ctx.Size tps ->
   Label -> 
-  m (Some (Ctx.Index tps), Type)
+  W4SolverT sym m (Some (Ctx.Index tps), Type)
 getFieldIndex ((lbl,t):lbls) sz lblCheck = case Ctx.viewSize sz of
   Ctx.IncSize sz' -> case lbl == lblCheck of
     True -> return $ (Some (Ctx.lastIndex sz), t)
