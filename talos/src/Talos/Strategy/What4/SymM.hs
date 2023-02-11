@@ -19,9 +19,8 @@ module Talos.Strategy.What4.SymM(
  , W4SolverT
  , W4SolverEnv
  , SomeW4SolverEnv
- , mkSomeW4SolverEnv
- , initSomeW4SolverEnv
  , asSomeSolver
+ , withSomeSolverEnv
  , runSomeW4Solver
  , withSym
  , bindVarIn
@@ -30,24 +29,31 @@ module Talos.Strategy.What4.SymM(
  , withFNameCache
 ) where
 
+import           Control.Applicative (Alternative)
+import           Control.Monad.Reader
 import           Control.Monad.IO.Class
+import qualified System.IO.Unsafe                as IO
+
+import qualified Data.IORef                      as IO
+import qualified Data.Map                        as Map
+
 import           Data.Parameterized.Some
+import           Data.Parameterized.Classes
+import qualified Data.Parameterized.Nonce        as N
 
 import qualified What4.Interface                 as W4
+import qualified What4.ProgramLoc                as W4
+import qualified What4.Expr                      as WE
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Panic
 import           Daedalus.PP
 
 import           Talos.Strategy.Monad
-import Data.Parameterized.Classes
-import qualified What4.ProgramLoc as W4
-import qualified Data.IORef as IO
-import qualified Data.Map as Map
-import Control.Monad.Reader
+import           Talos.Strategy.What4.Solver
+
 import Unsafe.Coerce (unsafeCoerce)
-import qualified System.IO.Unsafe as IO
-import Control.Applicative (Alternative)
+import Control.Monad.Catch
 
 
 data SomeSymFn sym = forall args ret. SomeSymFn (W4.SymFn sym args ret)
@@ -58,7 +64,31 @@ type FnEnv sym = Map.Map FName (SomeSymFn sym, Fun Expr)
 
 -- This could also do a better job of having context-sensitive expression caches, which would cut
 -- down translation time, depending on how much it ends up dominating time of the strategy
-data W4SolverEnv sym = W4.IsSymExprBuilder sym => W4SolverEnv { sym_ :: sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym) }
+data W4SolverEnv sym = W4.IsSymExprBuilder sym => W4SolverEnv { solver :: SolverSym sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym) }
+
+withInitEnv :: 
+  (MonadIO m, MonadMask m) =>
+  (forall sym. W4SolverEnv sym -> m a) -> m a
+withInitEnv f = do
+  Some gen <- liftIO N.newIONonceGenerator
+  sym <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
+  liftIO $ WE.startCaching sym
+  withOnlineSolver Yices Nothing sym $ \bak -> do
+    let ssym = SolverSym sym bak
+    fnCacheRef <- liftIO $ IO.newIORef mempty
+    f (W4SolverEnv ssym mempty fnCacheRef)
+
+withSymEnv :: W4SolverEnv sym -> (W4.IsSymExprBuilder sym => sym -> a) -> a
+withSymEnv (W4SolverEnv (SolverSym sym _) _ _) f = f sym
+
+
+withSomeSolverEnv ::
+  (MonadIO m, MonadMask m) =>
+  (SomeW4SolverEnv -> m a) -> m a
+withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \sym -> do
+  Refl <- liftIO $ initSym sym
+  f (SomeW4SolverEnv env)
+
 
 newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: ReaderT (W4SolverEnv sym) m a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader (W4SolverEnv sym), 
@@ -102,22 +132,6 @@ newtype SomeW4SolverT m a = SomeW4SolverT (W4SolverT_ Sym m a)
 
 newtype SomeW4SolverEnv = SomeW4SolverEnv (W4SolverEnv Sym)
 
-initW4SolverEnv ::
-  W4.IsSymExprBuilder sym =>
-  sym ->
-  IO (W4SolverEnv sym)
-initW4SolverEnv sym = do
-  fnCacheRef <- IO.newIORef mempty
-  return $ W4SolverEnv sym mempty fnCacheRef
-
-mkSomeW4SolverEnv :: 
-  W4.IsSymExprBuilder sym =>
-  W4SolverEnv sym ->
-  IO (SomeW4SolverEnv)
-mkSomeW4SolverEnv env = do
-  Refl <- initSym (sym_ env)
-  return $ SomeW4SolverEnv env
-
 asSomeSolver ::
   (forall sym. W4SolverT_ sym m a) ->
   SomeW4SolverT m a
@@ -130,21 +144,10 @@ runSomeW4Solver ::
   m a
 runSomeW4Solver (SomeW4SolverEnv env) (SomeW4SolverT (W4SolverT_ f)) = runReaderT f env
 
-initSomeW4SolverEnv ::
-  W4.IsSymExprBuilder sym =>
-  MonadIO m =>
-  sym ->
-  m SomeW4SolverEnv
-initSomeW4SolverEnv sym = do
-  env <- liftIO $ initW4SolverEnv sym
-  liftIO $ mkSomeW4SolverEnv env
-
-
-withSym :: Monad m => (sym -> W4SolverT_ sym m a) -> W4SolverT_ sym m a
+withSym :: Monad m => (W4.IsSymExprBuilder sym => sym -> W4SolverT_ sym m a) -> W4SolverT_ sym m a
 withSym f = do
-  W4SolverEnv{} <- ask
-  sym <- asks sym_
-  f sym
+  env <- ask
+  withSymEnv env f
 
 bindVarIn :: Monad m => Name -> W4.SymExpr sym tp -> W4SolverT_ sym m a -> W4SolverT_ sym m a
 bindVarIn nm e f = local (\env -> env { nameEnv = Map.insert nm (Some e) (nameEnv env)}) f

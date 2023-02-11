@@ -67,6 +67,7 @@ library
                      , Talos.Strategy.What4.Exprs
                      , Talos.Strategy.What4.Types
                      , Talos.Strategy.What4.SymM
+                     , Talos.Strategy.What4.Solver
                      , Talos.Strategy.What4Sym
                      -- , Talos.Strategy.BackwardSymbolic
 
@@ -88,6 +89,7 @@ library
                      , parameterized-utils
                      , mtl
                      , containers >= 0.6.4
+                     , exceptions
                      , bytestring
                      , simple-smt >= 0.9.6
                      , io-streams
@@ -102,6 +104,7 @@ library
                      , lens
                      , free
                      , what4
+                     , crucible
 
 executable talos
   main-is:             Main.hs

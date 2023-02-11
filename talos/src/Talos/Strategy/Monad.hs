@@ -49,6 +49,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P
+import Control.Monad.Catch
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -122,7 +123,7 @@ emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs bfunD
 
 newtype StrategyM a =
   StrategyM { getStrategyM :: StateT StrategyMState IO a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadThrow, MonadCatch, MonadMask)
 
 runStrategyM :: StrategyM a -> StrategyMState -> IO (a, StrategyMState)
 runStrategyM m st = runStateT (getStrategyM m) st

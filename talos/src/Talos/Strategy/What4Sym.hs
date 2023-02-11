@@ -54,30 +54,6 @@ import           Talos.Strategy.What4.SymM
 import Data.Parameterized.Some
 import qualified System.IO.Unsafe as IO
 
-withFreshSolver ::
-  MonadIO m =>
-  (forall sym. W4.IsSymExprBuilder sym => sym -> m a) -> m a
-withFreshSolver f = do
-  Some gen <- liftIO N.newIONonceGenerator
-  sym <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
-  liftIO $ WE.startCaching sym
-  f sym
-
--- | Just needed to avoid re-initializing the builder, until we have a place to keep it
--- in the SolverT monad. This is a bit gross to expose here though, but it's needed to keep
--- some of the caches around.
-singletonEnv_ref :: IO.IORef (Maybe SomeW4SolverEnv)
-singletonEnv_ref = IO.unsafePerformIO (IO.newIORef Nothing)
-
-mkInitEnv :: MonadIO m => m (SomeW4SolverEnv)
-mkInitEnv = do
-  (liftIO $ IO.readIORef singletonEnv_ref) >>= \case
-    Just env -> return env
-    Nothing -> do
-      env <- withFreshSolver initSomeW4SolverEnv
-      liftIO $ IO.atomicModifyIORef' singletonEnv_ref $ \case
-        Just env' -> (Just env', env')
-        Nothing -> (Just env, env)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -93,14 +69,15 @@ what4DFS =
     inst = StrategyInstance
            { siName = name
            , siDescr = descr
-           , siFun   = \ptag sl -> trivialStratGen . lift $ 
-                                     runDFST (go ptag sl) (return . Just) (return Nothing)
+           , siFun   = \ptag sl -> trivialStratGen . lift $ do
+                                     withSomeSolverEnv $ \solverEnv0 -> 
+                                       runDFST (go solverEnv0 ptag sl) (return . Just) (return Nothing)
            }
     name  = "whatFour-dfs"
     descr = "Simple depth-first random generation"
     
-    go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
-    go ptag sl = mkStrategyFun ptag sl
+    go :: SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
+    go solverEnv0 ptag sl = mkStrategyFun solverEnv0 ptag sl
 
 -- ----------------------------------------------------------------------------------------
 -- Restarting strat (restart-on-failure)
@@ -124,17 +101,19 @@ restartBound :: Int
 restartBound = 1000
 
 what4RestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
-what4RestartStrat ptag sl = trivialStratGen . lift $ go restartBound
+what4RestartStrat ptag sl = trivialStratGen . lift $ do
+  withSomeSolverEnv $ \solverEnv0 -> 
+    go solverEnv0 restartBound
   where
-    go 0 = pure Nothing
-    go n = do
-      m_p <- once
+    go _ 0 = pure Nothing
+    go solverEnv0 n = do
+      m_p <- once solverEnv0
       case m_p of
         Just {} -> pure m_p
-        Nothing -> go (n - 1)
+        Nothing -> go solverEnv0 (n - 1)
     
-    once :: StrategyM (Maybe SelectedPath)
-    once = runRestartT (mkStrategyFun ptag sl) (return . Just) (return Nothing)
+    once :: SomeW4SolverEnv -> StrategyM (Maybe SelectedPath)
+    once solverEnv0 = runRestartT (mkStrategyFun solverEnv0 ptag sl) (return . Just) (return Nothing)
 
 instance MonadIO m => MonadIO (RestartT r m) where
   liftIO f = RestartT $ \ctxt -> do
@@ -161,27 +140,26 @@ what4MaybeT =
 
 what4MaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
 what4MaybeStrat ptag sl = trivialStratGen . lift $ do
-  go restartBound
+  withSomeSolverEnv $ \solverEnv0 -> go solverEnv0 restartBound
   where
-    go 0 = pure Nothing
-    go n = do
-      m_p <- once
+    go _ 0 = pure Nothing
+    go solverEnv0 n = do
+      m_p <- once solverEnv0
       case m_p of
         Just {} -> pure m_p
-        Nothing -> go (n - 1)
+        Nothing -> go solverEnv0 (n - 1)
     
-    once :: StrategyM (Maybe SelectedPath)
-    once = runMaybeT (mkStrategyFun ptag sl)
+    once :: SomeW4SolverEnv -> StrategyM (Maybe SelectedPath)
+    once solverEnv0 = runMaybeT (mkStrategyFun solverEnv0 ptag sl)
   
 -- ----------------------------------------------------------------------------------------
 
 -- TODO: use W4StratT
 
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
-mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpSlice -> m SelectedPath
-mkStrategyFun ptag sl = do
+mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m) => SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> m SelectedPath
+mkStrategyFun solverEnv0 ptag sl = do
   env0 <- getIEnv -- for pure function implementations
-  solverEnv0 <- mkInitEnv -- cached to keep same expression builder
   snd <$> runW4StratT solverEnv0 env0 (stratSlice ptag sl)
 
 newtype W4StratT m a = W4StratT (ReaderT I.Env (SomeW4SolverT m) a)
@@ -198,7 +176,12 @@ runW4StratT ::
   m a
 runW4StratT solverEnv env (W4StratT f) = runSomeW4Solver solverEnv (runReaderT f env)
 
-stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice
+liftSolver ::
+  Monad m =>
+  (forall sym. W4.IsSymExprBuilder sym => W4SolverT_ sym m a) -> W4StratT m a
+liftSolver f = W4StratT (ReaderT (\_ -> asSomeSolver (withSym $ \_ -> f)))
+
+stratSlice :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpSlice
            -> W4StratT m (I.Value, SelectedPath)
 stratSlice ptag = go
   where
@@ -237,6 +220,10 @@ stratSlice ptag = go
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do
           let tryOne = do
+                liftSolver $ do
+                  p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
+                  liftIO $ putStrLn ("Synthesized pred.. " ++ show (W4.printSymExpr p_sym))
+                  return ()
                 v <- synthesiseExpr =<< typeToRandomInhabitant (I.typeOf n)
                 liftStrategy (liftIO $ putStrLn ("Trying value.. " ++ show (pp v)))
                 bindIn n v $ do
@@ -262,7 +249,7 @@ stratSlice ptag = go
 -- Merging all slices could introduce spurious internal backtracking,
 -- although it is not clear whether that is an issue or not.
 
-stratCallNode :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpCallNode -> 
+stratCallNode :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpCallNode -> 
                  W4StratT m (I.Value, SelectedPath)
 stratCallNode ptag cn = do
   env <- ask
