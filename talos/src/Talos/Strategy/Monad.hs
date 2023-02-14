@@ -34,6 +34,9 @@ import qualified Data.Map                  as Map
 import           Data.Maybe                (maybeToList)
 import           Data.Set                  (Set)
 import qualified Data.Set                  as Set
+import qualified Data.Vector               as V
+import qualified Data.Vector.Mutable       as V
+import           System.IO                 (hFlush, stdout)
 import           System.Random
 
 import           Daedalus.Core
@@ -50,7 +53,6 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P
-import System.IO (hFlush, stdout)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -219,13 +221,26 @@ randL :: LiftStrategyM m => [a] -> m a
 randL [] = panic "randL: empty list" []
 randL vs = (!!) vs <$> randR (0, length vs - 1)
 
-randPermute :: LiftStrategyM m => [a] -> m [a]
-randPermute = go
+
+
+-- | Randomly shuffle a list
+--   /O(N)/
+--
+--  c.f. https://wiki.haskell.org/Random_shuffle
+shuffle :: [a] -> StrategyM [a]
+shuffle xs = do
+  ar <- liftStrategy . liftIO $ V.thaw (V.fromList xs)
+  forM [0..n-1] $ \i -> do
+    j <- randR (i,n-1)
+    vi <- liftIO $ V.read ar i
+    vj <- liftIO $ V.read ar j
+    liftIO $ V.write ar j vi
+    return vj
   where
-    go [] = pure []
-    go xs = do idx <- randR (0, length xs - 1)
-               let (pfx, x : sfx) = splitAt idx xs
-               (:) x <$> go (pfx ++ sfx)
+    n = length xs
+  
+randPermute :: LiftStrategyM m => [a] -> m [a]
+randPermute = liftStrategy . shuffle
 
 typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
 typeToRandomInhabitant ty = do
