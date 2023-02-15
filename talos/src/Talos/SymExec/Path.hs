@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving, ParallelListComp #-}
 
 -- Path set analysis
 
@@ -21,59 +21,123 @@ import           Daedalus.Panic
 
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
+import Data.List (transpose)
+import qualified Data.Map as Map
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
+-- This datastructure handles the cases like:
+--
+-- def F = block
+--   xs = Many Q <| pure [1, 2, 3]
+--   for (x in xs) R
+--
+-- where choosing for xs means also choosing for the 'for' loop,
+-- noting that the Many is nested.  In this case, we mau get a path like
+--
+-- Do ( Choose[0](Many [ (Q1, [R1]), (Q2, [R2]), ...] [ (0, PCNode PCTarget) ]
+--    (SelectedLoop SelectedHole)
+--
+-- where we don't fill in the Hole until the Many is filled in.
+
+data SelectedManyF ch ca a = SelectedManyF
+  {
+    -- | The possible paths in a Many, one list entry per Many
+    -- iteration.  The second element is the following grammar nodes
+    -- that depend on the Many.
+    smPaths   :: [ (SelectedPathF ch ca a, [SelectedPathF ch ca a]) ]
+    -- | The cursors for the subsequent nodes, depth is for Do nodes
+    -- only, and we have on entry here for each element in the second
+    -- entry of smPaths.
+  , smCursors :: [ (Int, PathCursor) ]
+  }
+  deriving (Functor, Foldable, Traversable, Generic)
+
 data SelectedPathF ch ca a = 
-    SelectedHole 
+    SelectedHole
+    -- | Placeholder for cursors, shouldn't really appear when we see
+    -- the grammar node.
+  | SelectedNode (SelectedPathF ch ca a)
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
   | SelectedDo (SelectedPathF ch ca a) (SelectedPathF ch ca a)
   | SelectedChoice (ch (SelectedPathF ch ca a))
   | SelectedCall FInstId (SelectedPathF ch ca a)
   | SelectedCase (ca (SelectedPathF ch ca a))
+  -- | For Many nodes, we have one element for each merged node (i.e.,
+  -- slice) --- merging two of these nodes just appends the lists.
+  -- The first argument is the (possible) size of the generated list,
+  -- if it is known, the second argument can be any size (i.e. we
+  -- should pick a random number until we get the count we want).
+  | SelectedMany (Maybe Int) [SelectedManyF ch ca a]
+  | SelectedLoop [SelectedPathF ch ca a]
   deriving (Functor, Foldable, Traversable, Generic)
 
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
 type SelectedPath = SelectedPathF PathIndex Identity ByteString
+type SelectedMany = SelectedManyF PathIndex Identity ByteString
 
 deriving instance NFData SelectedPath
+deriving instance NFData SelectedMany
 
--- -- isXs, mainly because we don't always have equality over nodes
--- isUnconstrained, isDontCare, isPathNode :: SelectedPath -> Bool
--- isUnconstrained Unconstrained = True
--- isUnconstrained _             = False
+-- | THis is a path inside a SelectedPath to a particlar node, c.f. Zippers
+data PathCursor =
+  PCTarget
+  | PCDoLeft PathCursor
+  | PCDoRight PathCursor
+  | PCNode PathCursor
+  deriving (Generic, NFData)
 
--- isDontCare (DontCare {}) = True
--- isDontCare _             = False
+fillCursorTarget :: PathCursor -> [SelectedPath] -> SelectedPath
+fillCursorTarget pc els = go pc
+  where
+    go p = case p of
+      PCTarget -> SelectedLoop els
+      PCDoLeft  p' -> SelectedDo (go p') SelectedHole
+      PCDoRight p' -> SelectedDo SelectedHole (go p')
+      PCNode p'    -> SelectedNode (go p')
 
--- isPathNode (PathNode {}) = True
--- isPathNode _             = False
+fillManyTargets :: SelectedMany -> Map Int SelectedPath
+fillManyTargets sm = Map.fromListWith merge els
+  where
+    els = [ (depth, fillCursorTarget pc sps)
+          | (depth, pc) <- smCursors sm
+          | sps <- transpose $ map snd (smPaths sm)
+          ]
+    
+-- | This handles the lazy merge of Many elements.  This allows
+-- decoupling e.g. the count of elements from the synthesis of the elements. 
+selectedMany :: [SelectedMany] -> ([SelectedPath], Map Int SelectedPath)
+selectedMany ms
+  | not (same (map (length . smPaths) ms)) = panic "BUG: selectedMany needs to agree on count" []
+  | otherwise = (mps, tgts)
+  where
+    same [] = True
+    same (x : xs) = all (== x) xs
 
+    -- Merge the elements
+    mps  = map (foldl1 merge) $ transpose $ map (map fst . smPaths) ms
+    tgts = Map.unionsWith merge (map fillManyTargets ms)
+
+-- | Refines the RHS continuations based on the results of a call to selectedMany    
+applyManyTargets :: Map Int SelectedPath -> [SelectedPath] -> [SelectedPath]
+applyManyTargets tgts = go 0 (Map.toList tgts) 
+  where
+    go _here [] stack = stack
+    go here ((depth, p) : rest) (frame : stack)
+      | depth == here = merge frame p : go (here + 1) rest stack
+    go here ps (frame : stack) = frame : go (here + 1) ps stack
+    go _    (_ : _) [] = panic "BUG: mismatched Many target/Do stack" []
+           
 splitPath :: SelectedPath -> (SelectedPath, SelectedPath)
 splitPath cp =
   case cp of
     SelectedDo l r -> (l, r)
     SelectedHole   -> (SelectedHole, SelectedHole)
     _ -> panic "splitPath: saw a non-{Do,Hole}" []
-
--- --------------------------------------------------------------------------------
--- -- smart constructors
-
--- -- smart constructor for dontCares.
--- dontCare :: Int -> SelectedPath -> SelectedPath
--- dontCare 0 ps = ps
--- dontCare  n (DontCare m ps)   = DontCare (n + m) ps
--- dontCare _n Unconstrained = Unconstrained
--- dontCare n  ps = DontCare n ps
-
--- pathNode :: SelectedNode -> SelectedPath ->  SelectedPath
--- pathNode (SelectedDo Unconstrained) rhs = dontCare 1 rhs
--- pathNode n rhs = PathNode n rhs
-
 
 --------------------------------------------------------------------------------
 -- Provenances

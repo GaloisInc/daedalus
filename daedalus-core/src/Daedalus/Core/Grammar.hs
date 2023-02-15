@@ -32,16 +32,18 @@ data Grammar =
   deriving (Generic,NFData)
 
 -- | Types of loops we support.
-data LoopClass body =
-    ManyLoop Sem Backtrack Expr (Maybe Expr) body
+data LoopClass' e body =
+    ManyLoop Sem Backtrack e (Maybe e) body
     -- ^ `Many`
 
-  | RepeatLoop Backtrack Name Expr body
+  | RepeatLoop Backtrack Name e body
     -- ^ `many`
 
-  | MorphismLoop (LoopMorphism body)
+  | MorphismLoop (LoopMorphism' e body)
     -- ^ `for`, `map`
   deriving (Functor, Generic, NFData)
+
+type LoopClass = LoopClass' Expr
 
 loopClassBody :: LoopClass body -> body
 loopClassBody lc = case lc of
@@ -237,13 +239,17 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
-      Loop lc        -> case lc of
-        ManyLoop s b l m_h g ->
-          "Many" <.> ppBiased b <.> ppSemSuff s <+>
-          parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
-        RepeatLoop b n e g   ->
-          "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
-        MorphismLoop lm  -> pp lm
+      Loop lc        -> pp lc
+
+instance (PP e, PP b) => PP (LoopClass' e b) where
+  pp lc =
+    case lc of
+      ManyLoop s b l m_h g ->
+        "Many" <.> ppBiased b <.> ppSemSuff s <+>
+        parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+      RepeatLoop b n e g   ->
+        "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+      MorphismLoop lm  -> pp lm    
     where
       ppBiased b = case b of
                      Eager -> ""

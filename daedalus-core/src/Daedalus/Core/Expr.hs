@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
 {-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor #-}
@@ -152,7 +153,7 @@ data LoopCollection' e = LoopCollection
   { lcKName   :: Maybe Name       -- ^ Should we bind the keys of the collection
   , lcElName  :: Name             -- ^ The name of the value in the collection
   , lcCol     :: e             -- ^ The expression for the coolection
-  } deriving (Generic, NFData, Eq)
+  } deriving (Generic, NFData, Eq, Functor, Foldable, Traversable)
 
 type LoopCollection = LoopCollection' Expr
 

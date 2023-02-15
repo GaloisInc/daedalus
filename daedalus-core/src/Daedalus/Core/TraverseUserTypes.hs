@@ -123,16 +123,22 @@ instance TraverseUserTypes Grammar where
                            <*> traverseUserTypes f args
       Annot a g'  -> Annot a <$> traverseUserTypes f g'
       GCase c     -> GCase <$> traverseUserTypes f c
-      Loop lc -> Loop <$> case lc of
-        ManyLoop s b l m_h g ->
-          ManyLoop s b <$> traverseUserTypes f l
-                       <*> traverseUserTypes f m_h
-                       <*> traverseUserTypes f g
-        RepeatLoop b n e g   ->
-          RepeatLoop b <$> traverseUserTypes f n
-                       <*> traverseUserTypes f e
-                       <*> traverseUserTypes f g
-        MorphismLoop lm  -> MorphismLoop <$> traverseUserTypes f lm
+      Loop lc -> Loop <$> traverseUserTypes f lc
+        
+instance (TraverseUserTypes e, TraverseUserTypes b) =>
+         TraverseUserTypes (LoopClass' e b) where
+  traverseUserTypes f lc = 
+    case lc of
+       ManyLoop s b l m_h g ->
+         ManyLoop s b <$> traverseUserTypes f l
+                      <*> traverseUserTypes f m_h
+                      <*> traverseUserTypes f g
+       RepeatLoop b n e g   ->
+         RepeatLoop b <$> traverseUserTypes f n
+                      <*> traverseUserTypes f e
+                      <*> traverseUserTypes f g
+       MorphismLoop lm  -> MorphismLoop <$> traverseUserTypes f lm
+ 
 
 instance TraverseUserTypes ByteSet where
   traverseUserTypes f bs =

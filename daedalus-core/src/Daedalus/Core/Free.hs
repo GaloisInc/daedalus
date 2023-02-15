@@ -51,10 +51,7 @@ instance FreeVars Grammar where
       Do  x g1 g2       -> freeVars g1 `Set.union` Set.delete x (freeVars g2)
       Let x e g         -> freeVars e  `Set.union` Set.delete x (freeVars g)
       GCase c           -> freeVars c
-      Loop lc           -> case lc of
-        ManyLoop _ _ l m_u b -> freeVars l <> freeVars m_u <> freeVars b
-        RepeatLoop _ n e b   -> freeVars e <> Set.delete n (freeVars b)
-        MorphismLoop lm      -> freeVars lm
+      Loop lc           -> freeVars lc 
       _ -> dflt
     where
       dflt = foldMapChildrenG freeVars freeVars freeVars gram
@@ -63,6 +60,19 @@ instance FreeVars Grammar where
     case gram of
       Call f es         -> Set.insert f (freeFVars es)
       _ -> foldMapChildrenG freeFVars freeFVars freeFVars gram
+
+instance (FreeVars e, FreeVars b) =>  FreeVars (LoopClass' e b) where
+  freeVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeVars l <> freeVars m_u <> freeVars b
+      RepeatLoop _ n e b   -> freeVars e <> Set.delete n (freeVars b)
+      MorphismLoop lm      -> freeVars lm    
+
+  freeFVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeFVars l <> freeFVars m_u <> freeFVars b
+      RepeatLoop _ _ e b   -> freeFVars e <> freeFVars b
+      MorphismLoop lm      -> freeFVars lm    
       
 instance FreeVars ByteSet where
   freeVars bs = 
