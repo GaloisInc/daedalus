@@ -2,10 +2,13 @@
 {-# Language DataKinds #-}
 {-# Language TypeApplications #-}
 {-# Language RankNTypes #-}
+{-# Language TypeOperators #-}
 
 module Talos.Strategy.What4.Exprs(
     toWhat4Expr
+  , evalByteSet
   , valueToConcrete
+  , groundToValue
 ) where
 
 import           Control.Monad.IO.Class
@@ -33,6 +36,7 @@ import           Talos.Strategy.Monad
 import           Talos.Strategy.What4.SymM
 import           Talos.Strategy.What4.Types
 import Control.Monad
+import qualified What4.Expr.GroundEval as W4
 
 
 
@@ -141,11 +145,8 @@ toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
     e1Sym <- toWhat4Expr (nameType nm) t1 e1
     bindVarIn nm e1Sym $ toWhat4Expr t_raw t e2
   (_, ECase c) -> do
-    let var = I.caseVar c
-    Some e' <- getVar var
-    cases <- mapM (\x -> matchesPat t t_raw e' x) (I.casePats c)
     fallthrough <- liftIO $ W4.freshConstant sym W4.emptySymbol t
-    liftIO $ foldM (\x (p,body) -> W4.baseTypeIte sym p body x) fallthrough cases
+    evalCase c (\x y z -> matchesPat x y z) (\e_ -> toWhat4Expr t_raw t e_) fallthrough
   -- FIXME: missing Struct
   -- Ap0
   (W4.BaseStructRepr Ctx.Empty, Ap0 Unit) -> liftIO $ W4.mkStruct sym Ctx.empty
@@ -219,6 +220,64 @@ toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
       _ -> panic "Mismatched function return type" [showPP e]
   _ -> panic "Unsupported type" [showPP e]
 
+evalByteSet :: ByteSet -> W4.SymExpr sym (W4.BaseBVType 8) -> W4SolverT sym m (W4.Pred sym)
+evalByteSet bs bv = withSym $ \sym -> do
+  let mk_bv e = toWhat4Expr (I.TUInt (I.TSize 8)) (W4.BaseBVRepr (knownNat @8)) e
+  case bs of
+    SetAny -> return $ W4.truePred sym
+    SetSingle e -> do
+      e_sym <- mk_bv e
+      liftIO $ W4.isEq sym e_sym bv
+    SetRange lo hi -> do
+      lo_sym <- mk_bv lo
+      hi_sym <- mk_bv hi
+      lo_p  <- liftIO $ W4.bvUle sym lo_sym bv
+      hi_p  <- liftIO $ W4.bvUle sym bv hi_sym
+      liftIO $ W4.andPred sym lo_p hi_p
+    SetComplement bs' -> do
+      p <- evalByteSet bs' bv
+      liftIO $ W4.notPred sym p
+    SetUnion bs1 bs2 -> do
+      p1 <- evalByteSet bs1 bv
+      p2 <- evalByteSet bs2 bv
+      liftIO $ W4.orPred sym p1 p2
+    SetIntersection bs1 bs2 -> do
+      p1 <- evalByteSet bs1 bv
+      p2 <- evalByteSet bs2 bv
+      liftIO $ W4.andPred sym p1 p2
+    SetLet x e b -> do
+      (Some t1) <- typeToRepr (nameType x)
+      e1Sym <- toWhat4Expr (nameType x) t1 e
+      bindVarIn x e1Sym $ evalByteSet b bv
+    SetCall f args -> do
+      (SomeSymFn fn, e) <- lookupFn f
+      let argTs = map I.typeOf args
+      case testEquality (W4.fnReturnType fn) W4.BaseBoolRepr of
+        Just Refl | length argTs == length args -> do
+          let args_typs = zip args argTs
+          args' <- toWhat4ExprList (W4.fnArgTypes fn) args_typs
+          liftIO $ W4.applySymFn sym fn args'
+        _ -> panic "Mismatched function return type" [showPP e]
+    SetCase b ->
+      evalCase b (\x y z -> matchesPat x y z) (\bs_ -> evalByteSet bs_ bv) (W4.falsePred sym)
+
+evalCase ::
+  Case a ->
+  (forall var_tp. I.Type -> Pattern -> W4.SymExpr sym var_tp -> W4SolverT_ sym m (W4.Pred sym)) ->
+  (a -> W4SolverT_ sym m (W4.SymExpr sym tp)) ->
+  W4.SymExpr sym tp ->
+  W4SolverT sym m (W4.SymExpr sym tp)
+evalCase c eval_pat eval_case fallthrough = withSym $ \sym -> do
+  let var = I.caseVar c
+  Some e' <- getVar var
+  foldM (\x (pat,body_raw) -> do
+    matches <- eval_pat (nameType var) pat e'
+    body <- eval_case body_raw
+    liftIO $ W4.baseTypeIte sym matches body x) fallthrough (I.casePats c)
+
+-- byteSetToWhat4 :: ByteSet -> W4SolverT sym m (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseBVType 8) W4.BaseBoolType)
+-- liftIO $ W4.definedFn sym W4.emptySymbol (Ctx.empty Ctx.:> bv_var) body W4.UnfoldConcrete
+
 unionFields :: I.Type -> W4SolverT sym m ([(Label,Type)])
 unionFields t@(TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
   tdefs <- getTypeDefs
@@ -241,14 +300,12 @@ toWhat4ExprList (tps Ctx.:> tp) ((e, t_raw) : exprs) = do
 toWhat4ExprList _ _ = panic "toWhat4ExprList: mismatch" []
 
 matchesPat ::
-  W4.BaseTypeRepr tp_body ->
   I.Type ->
+  Pattern -> 
   W4.SymExpr sym tp -> 
-  (Pattern, Expr) -> 
-  W4SolverT sym m (W4.Pred sym, W4.SymExpr sym tp_body)
-matchesPat tp_body tp_raw e (pat, body) = withSym $ \sym -> do
-  bodyE <- toWhat4Expr tp_raw tp_body body
-  p <- case (W4.exprType e, pat) of
+  W4SolverT sym m (W4.Pred sym)
+matchesPat tp_raw pat e = withSym $ \sym -> do
+  case (W4.exprType e, pat) of
     (W4.BaseBoolRepr, PBool True) -> return e
     (W4.BaseBoolRepr, PBool False) -> liftIO $ W4.notPred sym e
     (BaseMaybeRepr{}, PNothing) -> do
@@ -272,7 +329,11 @@ matchesPat tp_body tp_raw e (pat, body) = withSym $ \sym -> do
       snd <$> (liftIO $ getBaseUnion sym e idx)
     (_, PAny) -> return $ W4.truePred sym
     _ -> panic "Unsupported pattern/expression combination" []
-  return (p, bodyE)
+
+groundToValue :: W4.BaseTypeRepr tp -> W4.GroundValue tp -> W4SolverT sym m (I.Value)
+groundToValue tp gv = case tp of
+  W4.BaseIntegerRepr -> return $ I.VInteger gv
+  _ -> panic "Unsupported ground value" [show tp]
 
 -- concrete values
 valueToConcrete :: W4.BaseTypeRepr tp -> I.Value -> Maybe (W4.ConcreteVal tp)

@@ -26,7 +26,7 @@ import           Talos.Strategy.BTRand
 import           Talos.Strategy.Monad        (LiftStrategyM (..), StratGen(..),
                                               Strategy (..), StrategyM, StrategyInstance (siFun), siName, getSlice)
 import           Talos.Strategy.PathSymbolic (pathSymbolicStrat)
-import           Talos.Strategy.What4Sym (what4Restart)
+import           Talos.Strategy.What4Sym (what4Restart,what4DFS)
 import           Talos.Strategy.Symbolic     (symbolicStrat)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT       (SolverState, runSolverT)
@@ -34,7 +34,7 @@ import qualified Talos.Strategy.Monad as M
 
 
 allStrategies :: [Strategy]
-allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat, symbolicStrat, what4Restart] {- , backwardSymbolicStrat -}
+allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat, symbolicStrat, what4Restart, what4DFS] {- , backwardSymbolicStrat -}
 
 parseStrategies :: [String] -> Either String [StrategyInstance]
 parseStrategies ss = M.parseStrategies ss allStrategies

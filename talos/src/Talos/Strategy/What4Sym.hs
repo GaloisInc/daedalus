@@ -51,8 +51,14 @@ import           Talos.SymExec.Path
 import           Talos.Strategy.What4.Exprs
 import           Talos.Strategy.What4.Types
 import           Talos.Strategy.What4.SymM
+import           Talos.Strategy.What4.Solver
+
 import Data.Parameterized.Some
 import qualified System.IO.Unsafe as IO
+import qualified What4.SatResult as W4R
+import Data.Maybe
+import Control.Monad.Catch
+import Data.Parameterized.Vector
 
 
 -- ----------------------------------------------------------------------------------------
@@ -157,45 +163,89 @@ what4MaybeStrat ptag sl = trivialStratGen . lift $ do
 -- TODO: use W4StratT
 
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
-mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m) => SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> m SelectedPath
-mkStrategyFun solverEnv0 ptag sl = do
+mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m, MonadMask m, MonadCatch m, MonadThrow m) => SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> m SelectedPath
+mkStrategyFun (SomeW4SolverEnv solverEnv0) ptag sl = do
   env0 <- getIEnv -- for pure function implementations
   snd <$> runW4StratT solverEnv0 env0 (stratSlice ptag sl)
 
-newtype W4StratT m a = W4StratT (ReaderT I.Env (SomeW4SolverT m) a)
+newtype W4StratT_ sym m a = W4StratT_ (ReaderT I.Env (W4SolverT_ sym m) a)
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader I.Env, LiftStrategyM, Alternative, MonadPlus)
 
-instance MonadTrans W4StratT where
-  lift f = W4StratT $ lift $ lift f
+instance MonadTrans (W4StratT_ sym) where
+  lift f = W4StratT_ $ lift $ lift f
+
+instance MonadIO m => MonadFail (W4StratT_ sym m) where
+  fail msg = liftIO $ fail msg
+
+instance (MonadIO m, MonadCatch m, MonadThrow m, MonadMask m) => SolverM sym (W4StratT_ sym m) where
+  getSolverSym = lift $ getSolverSym
+
+type W4StratT sym m a = 
+  (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m, MonadMask m, MonadThrow m, MonadCatch m, MonadPlus m) => W4StratT_ sym m a
+
 
 runW4StratT :: 
   MonadIO m =>
-  SomeW4SolverEnv ->
+  W4SolverEnv sym ->
   I.Env ->
-  W4StratT m a -> 
+  W4StratT_ sym m a -> 
   m a
-runW4StratT solverEnv env (W4StratT f) = runSomeW4Solver solverEnv (runReaderT f env)
+runW4StratT solverEnv env (W4StratT_ f) = runW4Solver solverEnv (runReaderT f env)
 
 liftSolver ::
   Monad m =>
-  (forall sym. W4.IsSymExprBuilder sym => W4SolverT_ sym m a) -> W4StratT m a
-liftSolver f = W4StratT (ReaderT (\_ -> asSomeSolver (withSym $ \_ -> f)))
+  W4SolverT_ sym m a -> W4StratT_ sym m a
+liftSolver f = W4StratT_ $ lift f
 
-stratSlice :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpSlice
-           -> W4StratT m (I.Value, SelectedPath)
+
+
+
+type SymbolicPath sym = SelectedPathF (SymbolicPathChoice sym) (SymbolicPathCase sym) (SymbolicResult sym)
+
+-- FIXME: is the int actually redundant here?
+data SymbolicPathChoice sym a =
+    forall n. SymbolicPath (SymbolicChoice sym n (Int, a))
+  | ConcreteChoice Int a
+
+data SymbolicPathCase sym a =
+  forall n. SymbolicCase (SymbolicVector sym n (Pattern, a))
+  | ConcreteCase a
+
+newtype SymbolicResult sym = SymbolicResult (W4.SymExpr sym (W4.BaseBVType 8))
+
+-- type SelectedPath = SelectedPathF PathIndex Identity ByteString
+
+-- data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
+--  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+stratSlice :: 
+  forall sym m.
+  ProvenanceTag -> ExpSlice ->
+  W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
 stratSlice ptag = go
   where
+    go :: ExpSlice -> W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
     go sl = 
       case sl of
-        SHole -> pure (uncPath I.vUnit)
-        SPure e -> uncPath <$> synthesiseExpr e
+        SHole -> go (SPure (Ap0 Unit))
+        SPure e -> do
+          Some e_sym <- synthesiseExpr e
+          let (e', path) = uncPath e_sym
+          return (Some e', path)
 
         SDo x lsl rsl -> do
-          (v, lpath)  <- go lsl
+          liftStrategy (liftIO $ putStrLn ("Do: lsl " ++ show (pp lsl)))
+          liftStrategy (liftIO $ putStrLn ("Do: rsl " ++ show (pp rsl)))
+          (Some v, lpath)  <- go lsl
+          liftStrategy (liftIO $ putStrLn ("Do: lsl v " ++ show (pp v)))
+          --liftStrategy (liftIO $ putStrLn ("Do: lsl path " ++ show (pp lpath)))
           onSlice (SelectedDo lpath) <$> bindIn x v (go rsl)
 
-        SMatch bset -> do
-          env <- ask
+        SMatch bset -> liftSolver $ withSym $ \sym -> do
+          b <- liftIO $ W4.freshConstant sym W4.emptySymbol (W4.BaseBVRepr (knownNat @8))
+          p <- evalByteSet bset b
+          
+
           -- Run the predicate over all bytes.
           -- FIXME: Too brute force? We could probably be smarter
           liftStrategy (liftIO $ putStrLn ("From byteset " ++ show (pp bset)))
@@ -208,33 +258,44 @@ stratSlice ptag = go
           
         SChoice sls -> do
           (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
-          -- liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
+          liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
+          liftIO $ putStrLn ("Checking case" ++ show (pp sl'))
           onSlice (SelectedChoice . PathIndex i) <$> go sl'
 
         SCall cn -> stratCallNode ptag cn
 
         SCase _ c -> do
           env <- ask
+          liftIO $ putStrLn ("Checking case" ++ show (pp c))
           I.evalCase (\(_i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
 
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do
-          let tryOne = do
-                liftSolver $ do
-                  p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
-                  liftIO $ putStrLn ("Synthesized pred.. " ++ show (W4.printSymExpr p_sym))
-                  return ()
-                v <- synthesiseExpr =<< typeToRandomInhabitant (I.typeOf n)
+          let
+             tryOne = do
+                v <- liftSolver $ withSym $ \sym -> do
+                  Some n_T_repr <- typeToRepr (I.typeOf n)
+                  n_sym <- liftIO $ W4.freshConstant sym W4.emptySymbol n_T_repr
+                  bindVarIn n n_sym $ do
+                    p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
+                    liftIO $ putStrLn ("Synthesized pred.. " ++ show (W4.printSymExpr p_sym))
+                    checkSat p_sym $ \case
+                      W4R.Sat fn -> do
+                        n_ground <- execGroundFn fn n_sym
+                        groundToValue n_T_repr n_ground
+                      W4R.Unsat{} -> mzero
+                      W4R.Unknown{} -> mzero
                 liftStrategy (liftIO $ putStrLn ("Trying value.. " ++ show (pp v)))
                 bindIn n v $ do
                   b <- I.valueToBool <$> synthesiseExpr p
                   guard b
+                  liftStrategy (liftIO $ putStrLn ("Value satisfies guard"))
                   bs <- synthesiseExpr ifn
+                  liftStrategy (liftIO $ putStrLn ("Input:" ++ show (pp bs)))
                   pure (v, SelectedBytes ptag (I.valueToByteString bs))
-              tryMany = tryOne <|> tryMany -- FIXME: this might run forever.
-          tryMany 
+          tryOne 
 
-    uncPath :: I.Value -> (I.Value, SelectedPath)
+    uncPath :: forall tp. W4.SymExpr sym tp -> (W4.SymExpr sym tp, SymbolicPath sym)
     uncPath v = (v, SelectedHole)
     onSlice f = \(a, sl') -> (a, f sl')
 
@@ -250,7 +311,7 @@ stratSlice ptag = go
 -- although it is not clear whether that is an issue or not.
 
 stratCallNode :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpCallNode -> 
-                 W4StratT m (I.Value, SelectedPath)
+                 W4StratT sym m (I.Value, SymbolicPath sym)
 stratCallNode ptag cn = do
   env <- ask
   let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
@@ -270,13 +331,15 @@ choose bs = do
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
 
-bindIn :: Monad m => Name -> I.Value -> W4StratT m a -> W4StratT m a
-bindIn x v m = local upd m
-  where
-    upd e = e { I.vEnv = Map.insert x v (I.vEnv e) }
+bindIn :: Name -> W4.SymExpr sym tp -> W4StratT_ sym m a -> W4StratT_ sym m a
+bindIn x v (W4StratT_ (ReaderT m)) = W4StratT_ (ReaderT (\env -> bindVarIn x v (m env)))
 
-synthesiseExpr :: Monad m => Expr -> W4StratT m I.Value
-synthesiseExpr e = I.eval e <$> ask
+synthesiseExpr :: Expr -> W4StratT sym m (Some (W4.SymExpr sym))
+synthesiseExpr e = liftSolver $ do
+  let t = I.typeOf e
+  Some t_repr <- typeToRepr t
+  e_sym <- toWhat4Expr t t_repr e
+  return $ Some e_sym
 
 -- ----------------------------------------------------------------------------------------
 -- Utils
@@ -339,14 +402,35 @@ instance MonadTrans (RestartT r) where
   
 instance LiftStrategyM m => LiftStrategyM (RestartT r m) where
   liftStrategy m = lift (liftStrategy m)
-    
 
 
+instance MonadThrow m => MonadThrow (RestartT r m) where
+    throwM e = lift $ throwM e
 
+instance MonadCatch m => MonadCatch (RestartT r m) where
+  catch (RestartT f) hndl = RestartT $ \ctxt ->
+    catch (f ctxt) (\e -> getRestartT (hndl e) ctxt )
 
+liftRestartT ::
+  (forall a. m a -> m a) ->
+  RestartT r m b -> 
+  RestartT r m b
+liftRestartT f g = RestartT $ \ctxt -> f (getRestartT g ctxt)
 
-        
-        
+instance MonadMask m => MonadMask (RestartT r m) where
+  mask f = RestartT $ \ctxt -> mask (\g -> getRestartT (f (liftRestartT g)) ctxt)
+  uninterruptibleMask f = RestartT $ \ctxt -> uninterruptibleMask (\g -> getRestartT (f (liftRestartT g)) ctxt)
+  -- FIXME: this isn't great because it doesn't defer to the underlying mask instance, but it's
+  -- very unclear how to do that here
+  generalBracket acquire release act = do
+    a <- acquire
+    result <- catch (act a >>= \c -> return $ ExitCaseSuccess c) (\e -> return $ ExitCaseException e)
+    release_result <- release a result
+    case result of
+      ExitCaseSuccess c -> return (c, release_result)
+      ExitCaseException e -> throwM e
+      ExitCaseAbort -> RestartT randEscape        
+
         
 
           

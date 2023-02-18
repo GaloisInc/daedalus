@@ -105,6 +105,7 @@ library
                      , free
                      , what4
                      , crucible
+                     , indexed-traversable
 
 executable talos
   main-is:             Main.hs

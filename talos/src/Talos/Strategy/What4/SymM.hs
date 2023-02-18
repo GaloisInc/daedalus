@@ -11,17 +11,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Talos.Strategy.What4.SymM(
    SomeSymFn(..)
- , SomeW4SolverT
  , W4SolverT_
  , W4SolverT
  , W4SolverEnv
- , SomeW4SolverEnv
- , asSomeSolver
+ , SomeW4SolverEnv(..)
  , withSomeSolverEnv
- , runSomeW4Solver
+ , runW4Solver
  , withSym
  , bindVarIn
  , getVar
@@ -54,6 +53,7 @@ import           Talos.Strategy.What4.Solver
 
 import Unsafe.Coerce (unsafeCoerce)
 import Control.Monad.Catch
+import qualified Data.Kind as DK
 
 
 data SomeSymFn sym = forall args ret. SomeSymFn (W4.SymFn sym args ret)
@@ -85,24 +85,28 @@ withSymEnv (W4SolverEnv (SolverSym sym _) _ _) f = f sym
 withSomeSolverEnv ::
   (MonadIO m, MonadMask m) =>
   (SomeW4SolverEnv -> m a) -> m a
-withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \sym -> do
-  Refl <- liftIO $ initSym sym
+withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \sym ->
   f (SomeW4SolverEnv env)
-
 
 newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: ReaderT (W4SolverEnv sym) m a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader (W4SolverEnv sym), 
-            MonadTrans, LiftStrategyM, Alternative, MonadPlus
+            MonadTrans, LiftStrategyM, Alternative, MonadPlus, MonadCatch, MonadThrow, MonadMask
           )
+
+instance (MonadIO m, MonadCatch m, MonadThrow m, MonadMask m) => SolverM sym (W4SolverT_ sym m) where
+  getSolverSym = asks solver
 
 type W4SolverT sym m a = (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m) => W4SolverT_ sym m a
 
 instance MonadIO m => MonadFail (W4SolverT_ sym m) where
   fail msg = liftIO $ fail msg
 
--- Opaque newtype that stands for our top-level expression builder
+-- Opaque type that stands for our top-level expression builder
 -- This is never exported, since the interface abstracts it away (see: 'asSomeSolver')
-data Sym
+-- FIXME: unused currently
+
+type Sym = SymOf SomeSym
+type family SymOf t :: DK.Type
 
 unsafeCoerceToSym :: W4.IsSymExprBuilder sym => sym -> (sym :~: Sym)
 unsafeCoerceToSym _ = unsafeCoerce Refl
@@ -127,27 +131,14 @@ initSym sym1 = do
       Nothing -> fail "attempted to initialize Sym to different builder"
     Nothing -> return $ unsafeCoerceToSym sym1
 
-newtype SomeW4SolverT m a = SomeW4SolverT (W4SolverT_ Sym m a)
-  deriving (Applicative, Functor, Monad, MonadIO, MonadTrans, LiftStrategyM, Alternative, MonadPlus)
+data SomeW4SolverEnv = forall sym. W4.IsSymExprBuilder sym => SomeW4SolverEnv (W4SolverEnv sym)
 
-newtype SomeW4SolverEnv = SomeW4SolverEnv (W4SolverEnv Sym)
-
-asSomeSolver ::
-  (forall sym. W4SolverT_ sym m a) ->
-  SomeW4SolverT m a
-asSomeSolver f = SomeW4SolverT f
-
-runSomeW4Solver ::
+runW4Solver ::
   MonadIO m =>
-  SomeW4SolverEnv ->
-  SomeW4SolverT m a -> 
+  W4SolverEnv sym ->
+  W4SolverT_ sym m a ->
   m a
-runSomeW4Solver (SomeW4SolverEnv env) (SomeW4SolverT (W4SolverT_ f)) = runReaderT f env
-
-withSym :: Monad m => (W4.IsSymExprBuilder sym => sym -> W4SolverT_ sym m a) -> W4SolverT_ sym m a
-withSym f = do
-  env <- ask
-  withSymEnv env f
+runW4Solver env (W4SolverT_ f) = runReaderT f env
 
 bindVarIn :: Monad m => Name -> W4.SymExpr sym tp -> W4SolverT_ sym m a -> W4SolverT_ sym m a
 bindVarIn nm e f = local (\env -> env { nameEnv = Map.insert nm (Some e) (nameEnv env)}) f

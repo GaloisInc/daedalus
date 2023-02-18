@@ -10,11 +10,13 @@
 module Talos.Strategy.What4.Solver (
     Solver(..)
   , solverAdapter
+  , withSym
   , withOnlineSolver
   , SolverSym(..)
   , SolverM(..)
   , withAssumption
   , checkSat
+  , SymGroundEvalFn
   , execGroundFn
   ) where
 
@@ -90,6 +92,11 @@ data SolverSym sym where
 class (MonadIO m, MonadCatch m, MonadMask m) => SolverM sym m | m -> sym where
   getSolverSym :: m (SolverSym sym)
 
+withSym :: SolverM sym m => (WI.IsSymExprBuilder sym => sym ->  m a) -> m a
+withSym f = do
+  SolverSym sym _ <- getSolverSym
+  f sym
+
 withOnlineBackend ::
   SolverM sym m =>
   (forall scope st fs solver. 
@@ -138,7 +145,7 @@ data SymGroundEvalFn sym where
   SymGroundEvalFn :: W4G.GroundEvalFn scope -> SymGroundEvalFn (WE.ExprBuilder scope solver fs)
 
 execGroundFn ::
-  SolverM sym m =>
+  MonadIO m =>
   SymGroundEvalFn sym  ->
   WI.SymExpr sym tp ->
   m (W4G.GroundValue tp)
@@ -158,25 +165,49 @@ checkSat p f = checkSatisfiableWithModel p f >>= \case
   Left err -> throwM err
   Right a -> return a
 
+-- | Brackets the given computation with the appropriate setup and
+-- teardown of the solver state in order to check the satisfiability
+-- of the given predicate. Within the given continuation, the model is
+-- valid and can be queried.
 checkSatisfiableWithModel ::
   SolverM sym m =>
   WI.Pred sym ->
   (W4R.SatResult (SymGroundEvalFn sym) () -> m a) ->
   m (Either SomeException a)
 checkSatisfiableWithModel p k = withOnlineBackend $ \bak -> do
-  st <-  liftIO $ CB.saveAssumptionState bak
-  mres <- withSolverProcess $ \sp -> do
-    WPO.push sp
-    W4.assume (WPO.solverConn sp) p
-    tryJust filterAsync $ do
-      res <- WPO.checkAndGetModel sp "checkSatisfiableWithModel"
-      W4R.traverseSatResult (\r' -> pure $ SymGroundEvalFn r') pure res
-  case mres of
-    Left err -> do
-      _ <- liftIO $ tryJust filterAsync (CBO.restoreSolverState bak st)
-      withSolverProcess $ \_ -> do
-        liftIO $ CBO.restoreSolverState bak st
-        return $ Left err
-    Right res -> do
-      fmap Right $ k res `finally`
-        (catchJust filterAsync (withSolverProcess $ \sp -> WPO.pop sp) (\_ -> withSolverProcess $ \_ -> CBO.restoreSolverState bak st))
+  (_, r) <- generalBracket
+    (do
+      st <- liftIO $ CB.saveAssumptionState bak
+      withSolverProcess $ \sp -> do
+        WPO.push sp
+        W4.assume (WPO.solverConn sp) p
+        return st)
+    (\st exitCase -> case exitCase of
+        ExitCaseSuccess (Right res) -> do
+          (catchJust filterAsync (withSolverProcess $ \sp -> WPO.pop sp) 
+            (\_ ->  withSolverProcess $ \_ -> CBO.restoreSolverState bak st))
+          return $ ExitCaseSuccess res
+        _ -> do
+          _ <- liftIO $ tryJust filterAsync (CBO.restoreSolverState bak st)
+          withSolverProcess $ \_ -> do
+            liftIO $ CBO.restoreSolverState bak st
+          case exitCase of
+            -- solver execution threw an error, contination was not run
+            ExitCaseSuccess (Left e) -> return $ ExitCaseException e
+            -- continuation was attempted, but threw an error
+            ExitCaseException e -> return $ ExitCaseException e
+            -- monad-specific abort condition
+            ExitCaseAbort -> return ExitCaseAbort)
+    (\_st -> do
+      mres <- tryJust filterAsync $ withSolverProcess $ \sp -> do
+        res <- WPO.checkAndGetModel sp "checkSatisfiableWithModel"
+        W4R.traverseSatResult (\r' -> pure $ SymGroundEvalFn r') pure res
+      case mres of
+        Left e -> return $ Left e
+        Right a -> Right <$> k a)
+  case r of
+    ExitCaseSuccess a -> return $ Right a
+    ExitCaseException e -> return $ Left e
+    -- This is a bit weird, but we expect the abort to be handled by
+    -- the generalBracket implementation
+    ExitCaseAbort -> liftIO $ fail "Unexpected abort"

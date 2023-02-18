@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Talos.Strategy.DFST (DFST, runDFST, onBacktrack) where
 
@@ -7,6 +8,7 @@ import Control.Monad.Trans
 import Control.Applicative
 
 import Talos.Strategy.Monad
+import Control.Monad.Catch
 
 -- =============================================================================
 -- DFS monad transformer
@@ -77,11 +79,43 @@ instance MonadIO m => MonadIO (DFST r m) where
 instance LiftStrategyM m => LiftStrategyM (DFST r m) where
   liftStrategy m = lift (liftStrategy m)
     
-    
 
+instance MonadThrow m => MonadThrow (DFST r m) where
+    throwM e = lift $ throwM e
 
+instance MonadCatch m => MonadCatch (DFST r m) where
+  catch (DFST f) hndl = DFST $ \ctxt ->
+    catch (f ctxt) (\e -> getDFST (hndl e) ctxt )
 
+liftDFST ::
+  (forall a. m a -> m a) ->
+  DFST r m b -> 
+  DFST r m b
+liftDFST f g = DFST $ \ctxt -> f (getDFST g ctxt)
 
+-- FIXME: the intent here is to define a function that executes the inner function
+-- but skips the first backtracking result
+skip :: DFST r m a -> DFST r m a
+skip f = DFST $ \ctxt ->
+  let ctxt' = ctxt { dfsCont = \_ _ -> dfsFail ctxt}
+  in getDFST f ctxt'
+
+instance MonadMask m => MonadMask (DFST r m) where
+  mask f = DFST $ \ctxt -> mask (\g -> getDFST (f (liftDFST g)) ctxt)
+  uninterruptibleMask f = DFST $ \ctxt -> uninterruptibleMask (\g -> getDFST (f (liftDFST g)) ctxt)
+  -- FIXME: this isn't great because it doesn't defer to the underlying mask instance, but it's
+  -- very unclear how to do that here
+  generalBracket acquire release act = 
+    let go act_ = do
+          a <- acquire
+          result <- onBacktrack (catch (act_ a >>= \c -> return $ ExitCaseSuccess c) (\e -> return $ ExitCaseException e)) (return ExitCaseAbort)
+          release_result <- release a result
+          case result of
+            ExitCaseSuccess c -> return (c, release_result)
+            ExitCaseException e -> throwM e
+            ExitCaseAbort -> DFST dfsFail
+        go_next act_ = go act_ -- <|> go (\a -> skip (act_ a))
+    in go_next act
 
         
         

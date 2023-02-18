@@ -34,7 +34,14 @@ module Talos.Strategy.What4.Types(
   , lookupTName
   , getFieldIndex
   , mkFlds
-
+  , SymbolicVector
+  , mkSymbolicVector
+  , getSymbolicVector
+  , groundSymbolicVector
+  , SymbolicChoice
+  , mkSymbolicChoice
+  , getSymbolicChoice
+  , groundSymbolicChoice
 ) where
 
 import qualified Data.BitVector.Sized as BVS
@@ -43,6 +50,7 @@ import qualified Data.Map                        as Map
 import           Data.Parameterized.NatRepr
 import qualified Data.Parameterized.Context      as Ctx
 import           Data.Parameterized.Some
+import           Data.Parameterized.Fin
 import qualified What4.Interface                 as W4
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -52,6 +60,132 @@ import           Daedalus.PP
 import           Talos.Strategy.Monad
 
 import           Talos.Strategy.What4.SymM
+import           Talos.Strategy.What4.Solver
+
+import GHC.Num.Integer (integerLog2)
+import Data.Functor.WithIndex (FunctorWithIndex(imap))
+import Control.Monad.IO.Class
+import Data.Parameterized.Vector as V
+import Control.Monad.Trans.State
+import Control.Monad.Trans
+import Control.Monad.State.Class
+import Control.Monad (foldM)
+import GHC.Base (Nat)
+
+------------------------------------------------------------
+-- Helper symbolic datatypes
+
+-- | A container for 'n' values each with an associated predicate
+data SymbolicVector sym (n :: Nat) a = 
+  1 <= n => SymbolicVector (W4.SymExpr sym (W4.BaseBVType n))  (V.Vector n a)
+
+mkSymbolicVector ::
+  forall sym m k a.
+  (Monad m, MonadIO m, 1 <= k) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  NatRepr k ->
+  (forall n. (n + 1 <= k) => W4.NatRepr n -> m (W4.Pred sym, a)) ->
+  m (SymbolicVector sym k a)
+mkSymbolicVector sym k f = do
+  Refl <- return $ W4.minusPlusCancel k (knownNat @1)
+  (v :: V.Vector k (W4.Pred sym, a)) <- V.generateM (W4.decNat k) $ \(n :: W4.NatRepr n) -> do
+    let (n_leq_k :: W4.LeqProof n (k-1)) = W4.leqProof n (W4.decNat k)
+    W4.LeqProof <- return $ W4.leqAdd2 n_leq_k (W4.leqRefl (knownNat @1))
+    f n
+  W4.LeqProof <- return $ W4.addPrefixIsLeq k (knownNat @1)
+  let 
+    acts :: [W4.SymExpr sym (W4.BaseBVType k) -> m (W4.SymExpr sym (W4.BaseBVType k))]
+    acts = natForEach (knownNat @0) (W4.decNat k) $ \(n :: W4.NatRepr n) bv -> do
+        let (n_leq_k :: W4.LeqProof n (k-1)) = W4.leqProof n (W4.decNat k)
+        W4.LeqProof <- return $ W4.leqAdd2 n_leq_k (W4.leqProof (knownNat @1) (knownNat @1))
+        let (p, _) = V.elemAt n v
+        liftIO $ W4.bvSet sym bv (natValue n) p
+  zero <- liftIO $ W4.bvLit sym k (BVS.mkBV k 0)
+  bv <- foldM (\bv act -> act bv) zero acts 
+  return $ SymbolicVector bv (fmap snd v)
+
+getSymbolicVector ::
+  forall sym m k n a.
+  (Monad m, MonadIO m, (k+1) <= n) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  NatRepr k ->
+  SymbolicVector sym n a ->
+  m (W4.Pred sym, a)
+getSymbolicVector sym k (SymbolicVector bv v) = do
+  p <- liftIO $ W4.testBitBV sym (natValue k) bv
+  let val = V.elemAt k v
+  return (p, val)
+
+groundSymbolicVector ::
+  forall sym m n a.
+  (Monad m, MonadIO m) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  SymGroundEvalFn sym ->
+  SymbolicVector sym n a ->
+  m (Vector n (Maybe a))
+groundSymbolicVector _sym fn (SymbolicVector bv v) = do
+  bv_ground <- execGroundFn fn bv
+  return $ imap (\nf a -> viewFin (\n ->
+    case BVS.testBit n bv_ground of
+      True -> Just a
+      False -> Nothing) nf
+    ) v
+
+newtype SymbolicChoice sym (n :: Nat) a = SymbolicChoice (SymbolicVector sym n a)
+
+mkSymbolicChoice ::
+  forall sym m k a.
+  (Monad m, MonadIO m) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  W4.SymExpr sym (W4.BaseBVType k) {- interpreted as an integer that selects the value. Wraps around. -} ->
+  (forall n. (n + 1 <= k) => W4.NatRepr n -> m a) ->
+  m (SymbolicChoice sym k a)
+mkSymbolicChoice sym bv_shift f | W4.BaseBVRepr k <- W4.exprType bv_shift = do
+  Refl <- return $ W4.minusPlusCancel k (knownNat @1)
+  (v :: V.Vector k a) <- V.generateM (W4.decNat k) $ \(n :: W4.NatRepr n) -> do
+    let (n_leq_k :: W4.LeqProof n (k-1)) = W4.leqProof n (W4.decNat k)
+    W4.LeqProof <- return $ W4.leqAdd2 n_leq_k (W4.leqRefl (knownNat @1))
+    f n
+  W4.LeqProof <- return $ W4.addPrefixIsLeq k (knownNat @1)
+  one <- liftIO $ W4.bvLit sym k (BVS.mkBV k 1)
+  -- we use rotate to wrap around if the given number is too large, so we
+  -- necessarily always have one selection
+  bv <- liftIO $ W4.bvRol sym one bv_shift
+  return $ SymbolicChoice $ SymbolicVector bv v
+
+-- | Returns the value at 'k' along with a predicate that is true if 'k' is the choice
+getSymbolicChoice ::
+  forall sym m k n a.
+  (Monad m, MonadIO m, k + 1 <= n) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  NatRepr k ->
+  SymbolicChoice sym n a ->
+  m (W4.Pred sym, a)
+getSymbolicChoice sym k (SymbolicChoice sv) = getSymbolicVector sym k sv
+
+-- | Returns the single result that is chosen in the given model
+groundSymbolicChoice ::
+  forall sym m n a.
+  (Monad m, MonadIO m) =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  SymGroundEvalFn sym ->
+  SymbolicChoice sym n a ->
+  m a
+groundSymbolicChoice _sym fn (SymbolicChoice (SymbolicVector bv v)) | W4.BaseBVRepr n <- W4.exprType bv = do
+  bv_ground <- execGroundFn fn bv
+  -- the invariant of SymbolicChoice is that exactly one bit is set in the
+  -- bitvector, so this should return a non-zero index into the vector
+  let index = integerLog2 (BVS.asUnsigned bv_ground)
+  case W4.someNat index of
+    Just (Some k) | Just W4.LeqProof <- W4.testLeq (W4.incNat k) n -> do
+      return $ V.elemAt k v
+    _ -> liftIO $ fail $ "groundSymbolicChoice: impossible result:" ++ show index
 
 ------------------------------------------------------------
 -- Daedalus types encoded as What4 types
