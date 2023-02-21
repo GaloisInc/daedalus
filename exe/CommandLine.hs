@@ -40,7 +40,7 @@ data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
-          , optParserDDL :: FilePath
+          , optParserDDL :: Maybe FilePath
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
@@ -81,7 +81,7 @@ data Options =
 defaultOptions :: Options
 defaultOptions =
   Options { optCommand   = DumpTC
-          , optParserDDL = ""
+          , optParserDDL = Nothing
           , optBackend   = UseInterp
           , optEntries   = []
           , optForceUTF8 = True
@@ -305,7 +305,7 @@ cmdJsonToHtmlOptions = (\o -> o { optCommand = JStoHTML }, opts)
               [ helpOption
               ]
           , progParamDocs = [ ("FILE", "The JSON file to process.") ]
-          , progParams    = \s o -> Right o { optParserDDL = s }
+          , progParams    = \s o -> Right o { optParserDDL = Just s }
           }
 
 cmdCompileHSOptions :: CommandSpec
@@ -531,7 +531,7 @@ helpOption =
 optWithDDL :: OptSpec Options
 optWithDDL = optSpec
   { progParamDocs = [ ("FILE", "The DDL specification to process.") ]
-  , progParams    = \s o -> Right o { optParserDDL = s }
+  , progParams    = \s o -> Right o { optParserDDL = Just s }
   }
 
 colonSplitText :: String -> (Text, Maybe String)
