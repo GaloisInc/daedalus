@@ -46,6 +46,9 @@ def HTTP_request_target =
   First
     AbsoluteURI = URI_absolute_URI        -- old style and for proxies
     Origin      = HTTP_origin_form        -- normal request
+
+    -- NOTE: should the following two cases be factored out and used
+    -- only when the request method is the appropriate method?
     Authority   = HTTP_authority_form     -- only in CONNECT
     Asterisk    = @$['*']                 -- only in OPTIONS
 
