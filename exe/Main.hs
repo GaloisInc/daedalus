@@ -20,6 +20,7 @@ import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
 import Data.Traversable(for)
 import Data.Foldable(for_)
 import Text.Show.Pretty (ppDoc)
+import SimpleGetOpt (GetOptException(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
@@ -81,6 +82,11 @@ main =
        , Handler \e ->
           do printError ("[Error] " ++ displayException (e :: InterpError))
              exitFailure
+
+       , Handler \(GetOptException msgs) ->
+           do forM_ msgs $ \msg ->
+                  printError $ "Error: " ++ msg
+              exitFailure
 
        , Handler \(SomeException e) ->
            do printError (displayException e)
