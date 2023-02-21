@@ -20,7 +20,7 @@ Building the Daedalus Interpreter
 ---------------------------------
 
 The Daedalus interpreter, called ``daedalus`` is a good way to experiment
-with, and learn the Daedlus language.  To build and install the interpreter
+with, and learn the Daedalus language.  To build and install the interpreter
 you may use the command:
 
 .. code-block:: bash
@@ -28,7 +28,7 @@ you may use the command:
     cabal install exe:daedalus --installdir=DIR \
                                --overwrite-policy=always
 
-This instructs ``cabal`` to build Daedlus and place a link to the binary
+This instructs ``cabal`` to build Daedalus and place a link to the binary
 in directory ``DIR``.  The flag ``--overwrite-policy`` is optional and
 instructs ``cabal`` to overwite existing links with the same name.
 
@@ -61,11 +61,10 @@ files for common editors.
 More about the Daedalus Language
 ---------------------------------
 
-The documentation for ``Daedlus`` is not yet complete, but you may read
-more about the language in the 
-`user guide`_.  The ``tests`` directory
-contains numerous small examples of ``Daedlus`` specifications, of particular
-interest might be subdirectories ``ppm`` (PPM image format),
+The documentation for Daedalus is not yet complete, but you may read
+more about the language in the `user guide`_. The ``tests`` directory
+contains numerous small examples of Daedalus specifications, of
+particular interest might be subdirectories ``ppm`` (PPM image format),
 ``sexp`` (S-expressions) and ``midi`` (MIDI messages).
 
 .. _`user guide`: https://galoisinc.github.io/daedalus/
