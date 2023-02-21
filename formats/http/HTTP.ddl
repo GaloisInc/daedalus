@@ -36,7 +36,7 @@ def HTTP_status_line =
 
 def HTTP_request_line =
   block
-    method = HTTP_token
+    method = HTTP_method
     $sp
     target = HTTP_request_target
     $sp
@@ -60,6 +60,16 @@ def HTTP_origin_form =
     path  = Many (1..) { $['/']; URI_segment }
     query = Optional { $['?']; URI_query }
 
+def HTTP_method =
+  First
+    GET     = @Match "GET"
+    HEAD    = @Match "HEAD"
+    POST    = @Match "POST"
+    PUT     = @Match "PUT"
+    DELETE  = @Match "DELETE"
+    CONNECT = @Match "CONNECT"
+    OPTIONS = @Match "OPTIONS"
+    TRACE   = @Match "TRACE"
 
 def HTTP_field_line =
   block
