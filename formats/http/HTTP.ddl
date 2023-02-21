@@ -15,7 +15,7 @@ def HTTP_message StartLine =
   block
     start = StartLine
     CRLF
-    fields = Many { let l = HTTP_field_line; CRLF; l }
+    fields = Many { $$ = HTTP_field_line; CRLF }
     CRLF
     body = GetStream
 
