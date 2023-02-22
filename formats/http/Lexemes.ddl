@@ -27,6 +27,10 @@ def Decimal x = x - '0' : uint 8
 -- Base 10 digit, in its numerical value (e.g., '1' -> 1)
 def DigitNum = Decimal $digit
 
+-- Base 10 positive number n >= 0 (e.g., '123' is parsed as 123)
+def PositiveNum64: uint 64 =
+  many (v = 0) { let d = DigitNum; ^ v * 10 + (d as uint 64) }
+
 -- Base 16 digit, in its numerical value (e.g., 'b' -> 11)
 def HexDigNum =
   First

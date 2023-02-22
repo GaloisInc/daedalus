@@ -74,15 +74,94 @@ def HTTP_method =
     OPTIONS = @Match "OPTIONS"
     TRACE   = @Match "TRACE"
 
-def HTTP_field_line =
+--------------------------------------------------------------------------------
+-- Field (Header) parsing
+--------------------------------------------------------------------------------
+
+def Field_name =
+  block
+    -- Header names must start with an ASCII letter and can include
+    -- letters, digits, or '-' characters.
+    let head = CaseInsensitiveAlpha
+    let tail = Many
+                 First
+                   CaseInsensitiveAlpha
+                   $['-']
+                   $digit
+
+    build (emitArray (emit builder head) tail)
+
+-- Given a parser P and a separator parser Sep, parse and return a
+-- sequence of one or more instances of P separated by Sep.
+def SepBy1 P Sep =
+  block
+    let a = many (buf = emit builder P) { Sep; let next = P; emit buf next }
+    build a
+
+-- ABNF:
+-- Transfer-Encoding = [ transfer-coding *( OWS "," OWS transfer-coding ) ]
+def Transfer_Encoding_List =
+  SepBy1 Transfer_coding_entry { HTTP_OWS; $[',']; HTTP_OWS }
+
+-- ABNF:
+-- transfer-coding    = token *( OWS ";" OWS transfer-parameter )
+def Transfer_coding_entry =
+  block
+    -- Coding names are case-insensitive, despite the ABNF using 'token'
+    -- as is used elsewhere:
+    -- https://www.rfc-editor.org/rfc/rfc9112#section-7-2
+    type = HTTP_token_ci
+    params = Many
+      block
+        HTTP_OWS
+        $[';']
+        HTTP_OWS
+        Transfer_parameter
+
+-- ABNF:
+-- transfer-parameter = token BWS "=" BWS ( token / quoted-string )
+def Transfer_parameter =
   block
     name = HTTP_token
+    HTTP_OWS
+    $['=']
+    HTTP_OWS
+    value = First
+      Token = HTTP_token
+      QuotedString = HTTP_quoted_string
+
+-- Parse an HTTP header. We specifically parse Content-Length and
+-- Transfer-Encoding for use elsewhere in the parser; all other headers
+-- are represented as Header { ... }.
+def HTTP_field_line =
+  block
+    let name = Field_name
     $[':']
     HTTP_OWS
-    value =
-      block
-        let start = GetStream
-        Take HTTP_field_content start
+
+    First
+      Transfer_Encoding =
+        block
+          if (name == "transfer-encoding")
+            then block
+              encodings = Transfer_Encoding_List
+            else Fail "Not a transfer-encoding header"
+
+      -- NOTE: the HTTP specification says that there is no upper limit
+      -- on the value of Content-Length. We limit it to 64 bits here out
+      -- of practicality.
+      Content_Length =
+        block
+          if (name == "content-length")
+            then block
+              value = PositiveNum64
+            else Fail "Not a content-length header"
+
+      Header =
+        block
+          header_name = name
+          let start = GetStream
+          value = Take HTTP_field_content start
 
 def HTTP_field_content =
   many (count = 0)
@@ -130,7 +209,22 @@ def $http_ctext = $htab | $sp | 0x21 .. 0x27 | 0x2A .. 0x5
 -- Returns how many white spaces were skipped
 def HTTP_OWS   = Count $[ $sp | $htab]
 def HTTP_token = Many (1..) $http_tchar
+def HTTP_token_ci = Many (1..) CaseInsensitiveAlpha
 
+-- Utilities to help parse header names case-insensitively while also
+-- normalizing them to lowercase so we can check for specific headers in
+-- the parser.
+def LowerCaseAlpha = $['a' .. 'z']
+
+def UpperCaseAlphaToLower =
+  block
+    let l = $['A' .. 'Z']
+    ^ l + ('a' - 'A')
+
+def CaseInsensitiveAlpha =
+  First
+    LowerCaseAlpha
+    UpperCaseAlphaToLower
 
 def $http_field_vchar = $vchar | $obs_text
 
