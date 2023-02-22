@@ -137,5 +137,3 @@ def $http_field_vchar = $vchar | $obs_text
 def $http_tchar = 
   '!'  | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '.' |
    '^' | '_' | '`' | '|' | '~' | $digit | $alpha
-
-
