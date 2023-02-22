@@ -15,7 +15,7 @@ def $htab     = 0x09
 def $ctl      = 0x00 .. 0x1F | 0x7F
 def $cr       = 0x0D
 def $lf       = 0x0A
-def CRLF      = @{ Optional $cr; $lf }
+def CRLF      = @{ $cr; $lf }
 
 
 -- Case insensitive alpha character, normlaized to lower case.
