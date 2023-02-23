@@ -82,8 +82,7 @@ def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- 'chunked' is last in the encoding list.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
-            let last = Index h.encodings (length h.encodings - 1)
-            if last.type == "chunked"
+            if h.chunked
               then ^ {| chunked |}
               -- Otherwise, if Transfer-Encoding is specified and
               -- 'chunked' is not its last entry, then the message
@@ -111,9 +110,6 @@ def HTTP_message_body_u =
 -- Parse an HTTP message body based on the specified body type. See
 -- BodyChunk for relevant ABNF.
 def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
-  -- NOTE: the HTTP specification indicates that we ought to remove
-  -- 'chunked' from the Transfer-Encoding list once we parse the
-  -- request's chunks. We aren't doing that yet.
   case ty of
     chunked ->
       block
@@ -327,7 +323,20 @@ def HTTP_field_line =
         block
           (field_name == "transfer-encoding") is true
           commit
-          encodings = Transfer_Encoding_List
+
+          let encodings = Transfer_Encoding_List
+          let last = Last encodings
+
+          chunked = (last.type == "chunked")
+
+          -- If the outermost encoding is chunked, remove it from the
+          -- encoding list since we're going to decode the chunks.
+          --
+          -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1-3
+          -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.2-3
+          encodings = if chunked
+                        then Init encodings
+                        else encodings
 
       -- NOTE: the HTTP specification says that there is no upper limit
       -- on the value of Content-Length. We limit it to 64 bits here out
@@ -360,6 +369,19 @@ def HTTP_field_line =
           let field_len = HTTP_field_content
           value = bytesOfStream (Take field_len cur)
           SetStream (Drop field_len cur)
+
+def Last a =
+  Index a (length a - 1)
+
+def Init a =
+  block
+    let l = length a
+    let result = for (b = builder; i, e in a)
+      block
+        if i < l - 1
+          then emit b e
+          else b
+    build result
 
 def HTTP_field_content =
   many (count = 0)
