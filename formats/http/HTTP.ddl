@@ -51,11 +51,9 @@ def HTTP_body_type_u =
 -- (See 6.3, bullet 4.)
 --
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
-def HTTP_body_type (fields : [HTTP_field_line]) =
+def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
   block
-    let none = {| normal_len = 0 |} : HTTP_body_type_u
-
-    for (result = none; f in fields)
+    for (result = {| normal_len = 0 |}; f in fields)
       case f: HTTP_field_line of
         Header _ -> ^ result
 
