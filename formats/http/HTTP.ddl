@@ -73,6 +73,10 @@ def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.2
             read_all -> ^ result
 
+            -- If a valid Content-Length header field is present without
+            -- Transfer-Encoding, its decimal value defines the expected
+            -- message body length in octets.
+            --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.6
             normal_len _ -> ^ {| normal_len = h.value |}
 
