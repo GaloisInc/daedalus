@@ -357,12 +357,12 @@ def HTTP_field_line =
           -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
           value =
             block
-              let n1 = MaybeQuoted PositiveNum64
-              let rest = Many { HTTP_OWS; $[',']; HTTP_OWS; MaybeQuoted PositiveNum64 }
-              for (result = n1; val in rest)
+              let values = SepBy1 (MaybeQuoted PositiveNum64) { HTTP_OWS; $[',']; HTTP_OWS }
+              let first = Head values
+              for (result = first; val in values)
                 block
-                  (val == n1) is true
-                  ^ n1
+                  (val == first) is true
+                  ^ first
 
       Header =
         block
@@ -374,6 +374,9 @@ def HTTP_field_line =
 
 def Last a =
   Index a (length a - 1)
+
+def Head a =
+  Index a 0
 
 def Init a =
   block
