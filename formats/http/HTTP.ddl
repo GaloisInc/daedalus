@@ -137,7 +137,11 @@ def BodyChunk =
     CRLF
 
     -- We forbid zero-sized chunks here because parsing the last chunk
-    -- is slightly different and is done above in HTTP_message_body.
+    -- is slightly different and is done above in HTTP_message_body. The
+    -- zero-sized last chunk also ends in a CRLF, but the difference
+    -- between a zero-sized last chunk and a preceding chunk is that the
+    -- last chunk has an optional list of headers in between the size
+    -- and the CRLF.
     size > 0 is true
 
     contents = Many size $any
