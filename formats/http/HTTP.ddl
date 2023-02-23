@@ -289,17 +289,10 @@ def HTTP_field_line =
       Header =
         block
           name = field_name
-          let cur = GetStream
-          let field_len = HTTP_field_content
-          value = Take field_len cur
-          SetStream (Drop field_len cur)
+          value = HTTP_field_content
 
 def HTTP_field_content =
-  many (count = 0)
-    block
-      let n = HTTP_OWS
-      $http_field_vchar
-      count + n + 1
+  Many { HTTP_OWS; $http_field_vchar }
 
 --------------------------------------------------------------------------------
 -- Field Values
