@@ -82,10 +82,6 @@ def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
 
         Transfer_Encoding h ->
           block
-            -- The spec says we should only treat the body as chunked if
-            -- 'chunked' is last in the encoding list.
-            --
-            -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
             if h.chunked
               then ^ {| chunked |}
               -- Otherwise, if Transfer-Encoding is specified and
@@ -333,9 +329,11 @@ def HTTP_field_line =
 
           chunked = (last.type == "chunked")
 
-          -- If the outermost encoding is chunked, remove it from the
+          -- The spec says we should only treat the body as chunked if
+          -- 'chunked' is last in the encoding list. Remove it from the
           -- encoding list since we're going to decode the chunks.
           --
+          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.1
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1-3
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.2-3
           encodings = if chunked
