@@ -36,13 +36,15 @@ def HTTP_body_type_u =
 -- header is present, then the body should be treated as an octet
 -- sequence of length specified by Content-Length.
 --
--- If neither header is present, the message length is considered to
--- be zero (see https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
--- for this case). NOTE: this is only true for requests; for responses,
--- a missing explicitly-specified length indicates that the length is
--- obtained by receiving all octets until the connection is closed. This
--- does not account for that case yet, and will need to
--- account for it once we support parsing responses. (See
+-- If neither header is present, or if Transfer-Encoding
+-- is specified and 'chunked' is not its last entry,
+-- then the message length is considered to be zero (see
+-- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7 for this
+-- case). NOTE: for responses, a missing explicitly-specified length
+-- and a missing last 'chunked' entry in the encoding list indicates
+-- that the length is obtained by receiving all octets until the
+-- connection is closed. This does not account for that case yet, and
+-- will need to account for it once we support parsing responses. (See
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
 --
 -- Note that this implementation does not treat the *order* of the
