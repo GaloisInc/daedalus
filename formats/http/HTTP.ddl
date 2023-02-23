@@ -294,6 +294,7 @@ def HTTP_field_line =
       Transfer_Encoding =
         block
           (field_name == "transfer-encoding") is true
+          commit
           encodings = Transfer_Encoding_List
 
       -- NOTE: the HTTP specification says that there is no upper limit
@@ -302,6 +303,7 @@ def HTTP_field_line =
       Content_Length =
         block
           (field_name == "content-length") is true
+          commit
           -- NOTE: the specification permits all header values to be
           -- either tokens or quoted strings. This only works in the
           -- token case; we should also support a quoted number here as
