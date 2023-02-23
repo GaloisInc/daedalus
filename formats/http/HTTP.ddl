@@ -20,6 +20,29 @@ def HTTP_message StartLine =
     let ty = HTTP_body_type fields
     body = HTTP_message_body ty
 
+-- Given a list of fields (headers), determine the message body type:
+--
+-- If the Transfer-Encoding header is present and includes 'chunked',
+-- the body type is chunked and should be parsed accordingly. If
+-- the Transfer-Encoding header is absent and the Content-Length
+-- header is present, then the body should be treated as an octet
+-- sequence of length specified by Content-Length.
+--
+-- If neither header is present, the message length is considered to
+-- be zero (see https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
+-- for this case). NOTE: this is only true for requests; for responses,
+-- a missing explicitly-specified length indicates that the length is
+-- obtained by receiving all octets until the connection is closed. This
+-- does not account for that case yet, and will need to
+-- account for it once we support parsing responses. (See
+-- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
+--
+-- Note that this implementation does not treat the *order* of the
+-- transfer encodings to be signficant; the spec says that chunked
+-- should be last in the list, and this only checks for list membership.
+-- (See 6.3, bullet 4.)
+--
+-- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
 def HTTP_body_type (fields : [HTTP_field_line]) =
   block
     let none = { chunked = false; len = 0 }
@@ -30,8 +53,8 @@ def HTTP_body_type (fields : [HTTP_field_line]) =
 
         Content_Length h ->
           -- Chunked encoding takes precedence over Content-Length, so
-          -- only store the length if we haven't already found a chunked
-          -- encoding header.
+          -- only store the length in the result if we haven't already
+          -- found a chunked encoding header.
           if result.chunked
             then ^ result
             else ^ { chunked = false; len = h.value }
