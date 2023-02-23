@@ -96,7 +96,7 @@ def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
         let chunks = Many BodyChunk
 
         -- last-chunk:
-        $['0']; CRLF
+        Many (1..) $['0']; CRLF
 
         -- trailer fields:
         let trailer_fields = Many { $$ = HTTP_field_line; CRLF }
