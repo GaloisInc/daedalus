@@ -82,13 +82,7 @@ def HTTP_message_body (ty: HTTP_body_type) =
 
     Normal = block
       ty.chunked is false
-      body = TakeNum ty.len
-
-def TakeNum n =
-  block
-    let cur = GetStream
-    $$ = Take n cur
-    SetStream (Drop n cur)
+      body = Many ty.len $any
 
 def BodyChunk =
   block
@@ -100,7 +94,7 @@ def BodyChunk =
     -- is slightly different and is done above in HTTP_message_body.
     size > 0 is true
 
-    contents = TakeNum size
+    contents = Many size $any
     CRLF
 
 -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1
