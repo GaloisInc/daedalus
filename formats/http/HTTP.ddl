@@ -237,7 +237,7 @@ def Transfer_coding_entry =
     -- Coding names are case-insensitive, despite the ABNF using 'token'
     -- as is used elsewhere:
     -- https://www.rfc-editor.org/rfc/rfc9112#section-7-2
-    type = HTTP_token_ci
+    type = HTTP_word_ci
     params = Many
       block
         HTTP_OWS
@@ -331,7 +331,7 @@ def $http_ctext = $htab | $sp | 0x21 .. 0x27 | 0x2A .. 0x5
 -- Returns how many white spaces were skipped
 def HTTP_OWS   = Count $[ $sp | $htab]
 def HTTP_token = Many (1..) $http_tchar
-def HTTP_token_ci = Many (1..) CaseInsensitiveAlpha
+def HTTP_word_ci = Many (1..) CaseInsensitiveAlpha
 
 -- Utilities to help parse header names case-insensitively while also
 -- normalizing them to lowercase so we can check for specific headers in
