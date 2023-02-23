@@ -330,6 +330,8 @@ def $http_ctext = $htab | $sp | 0x21 .. 0x27 | 0x2A .. 0x5
 
 -- Returns how many white spaces were skipped
 def HTTP_OWS   = Count $[ $sp | $htab]
+
+-- Token parsers
 def HTTP_token = Many (1..) $http_tchar
 def HTTP_word_ci = Many (1..) CaseInsensitiveAlpha
 
