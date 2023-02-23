@@ -20,6 +20,14 @@ def HTTP_message StartLine =
     let ty = HTTP_body_type fields
     body = HTTP_message_body ty
 
+-- The types of HTTP message bodies.
+def HTTP_body_type_u =
+  union
+    -- The body is transfer-encoded 'chunked'
+    chunked: { }
+    -- The body is a byte sequence of the specified length
+    normal_len: uint 64
+
 -- Given a list of fields (headers), determine the message body type:
 --
 -- If the Transfer-Encoding header is present and includes 'chunked',
@@ -45,7 +53,7 @@ def HTTP_message StartLine =
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
 def HTTP_body_type (fields : [HTTP_field_line]) =
   block
-    let none = { chunked = false; len = 0 }
+    let none = {| normal_len = 0 |} : HTTP_body_type_u
 
     for (result = none; f in fields)
       case f: HTTP_field_line of
@@ -55,41 +63,53 @@ def HTTP_body_type (fields : [HTTP_field_line]) =
           -- Chunked encoding takes precedence over Content-Length, so
           -- only store the length in the result if we haven't already
           -- found a chunked encoding header.
-          if result.chunked
-            then ^ result
-            else ^ { chunked = false; len = h.value }
+          case result of
+            chunked _ -> ^ result
+            normal_len _ -> ^ {| normal_len = h.value |}
 
         Transfer_Encoding h ->
           for (result2 = result; entry in h.encodings)
             if (entry.type == "chunked")
-              then ^ { chunked = true; len = 0 }
+              then ^ {| chunked |}
               else ^ result2
+
+def HTTP_message_chunked_s =
+  struct
+    chunks: [BodyChunk]
+    trailer_fields: [HTTP_field_line]
+
+def HTTP_message_body_u =
+  union
+    chunked: HTTP_message_chunked_s
+    bytes: [uint 8]
 
 -- Parse an HTTP message body based on the specified body type. See
 -- BodyChunk for relevant ABNF.
-def HTTP_message_body (ty: HTTP_body_type) =
-  First
-    -- NOTE: the HTTP specification indicates that we ought to remove
-    -- 'chunked' from the Transfer-Encoding list once we parse the
-    -- request's chunks. We aren't doing that yet.
-    Chunked = block
-      ty.chunked is true
+def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
+  -- NOTE: the HTTP specification indicates that we ought to remove
+  -- 'chunked' from the Transfer-Encoding list once we parse the
+  -- request's chunks. We aren't doing that yet.
+  case ty of
+    chunked ->
+      block
+        -- content chunks:
+        let chunks = Many BodyChunk
 
-      -- content chunks:
-      chunks = Many BodyChunk
+        -- last-chunk:
+        $['0']; CRLF
 
-      -- last-chunk:
-      $['0']; CRLF
+        -- trailer fields:
+        let trailer_fields = Many { $$ = HTTP_field_line; CRLF }
 
-      -- trailer fields:
-      trailer_fields = Many { $$ = HTTP_field_line; CRLF }
+        -- Final required CRLF
+        CRLF
 
-      -- Final required CRLF
-      CRLF
+        ^ {| chunked = { chunks = chunks, trailer_fields = trailer_fields } |}
 
-    Normal = block
-      ty.chunked is false
-      body = Many ty.len $any
+    normal_len len ->
+      block
+        let body = Many len $any
+        ^ {| bytes = body |}
 
 -- Parse a single chunk in a message body that has Transfer-Encoding:
 -- chunked.
