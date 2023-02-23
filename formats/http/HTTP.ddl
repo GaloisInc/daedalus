@@ -308,6 +308,13 @@ def HTTP_field_line =
           -- well.
           --
           -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
+          --
+          -- NOTE 2: the specification also states that a Content-Length
+          -- header is valid if it is a comma-separated list of numbers,
+          -- all of which take the same value. We do not yet handle that
+          -- case.
+          --
+          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
           value = PositiveNum64
 
       Header =
