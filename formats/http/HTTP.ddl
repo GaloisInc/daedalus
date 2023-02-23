@@ -340,15 +340,14 @@ def HTTP_field_content =
 -- Field Values
 --------------------------------------------------------------------------------
 
-def HTTP_quoted_string =
-  block
-    $dquote
-    $$ = Many ( $[$htab | $sp | 0x21 | 0x23 .. 0x5B | 0x5D .. 0x7E | $obs_text]
-             <| HTTP_quoted_pair
-              )
-    $dquote
-
 def Quoted P = { $dquote; $$ = P; $dquote }
+
+def HTTP_quoted_string = Quoted HTTP_string
+
+def HTTP_string =
+  Many ( $[$htab | $sp | 0x21 | 0x23 .. 0x5B | 0x5D .. 0x7E | $obs_text]
+      <| HTTP_quoted_pair
+       )
 
 def MaybeQuoted P =
   First
