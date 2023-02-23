@@ -259,9 +259,11 @@ def Transfer_Encoding_List =
 def Transfer_coding_entry =
   block
     -- Coding names are case-insensitive, despite the ABNF using 'token'
-    -- as is used elsewhere:
+    -- as is used elsewhere, so we use the case-insensitive normalizing
+    -- token parser here instead.
+    --
     -- https://www.rfc-editor.org/rfc/rfc9112#section-7-2
-    type = HTTP_word_ci
+    type = HTTP_token_ci
     params = Many
       block
         HTTP_OWS
@@ -381,7 +383,13 @@ def HTTP_OWS   = Count $[ $sp | $htab]
 
 -- Token parsers
 def HTTP_token = Many (1..) $http_tchar
-def HTTP_word_ci = Many (1..) CaseInsensitiveAlpha
+
+-- Parse a token, but normalize its alphabetic characters to lowercase.
+def HTTP_token_ci =
+  Many (1..)
+    First
+      $http_tchar_noalpha
+      CaseInsensitiveAlpha
 
 -- Utilities to help parse header names case-insensitively while also
 -- normalizing them to lowercase so we can check for specific headers in
@@ -400,6 +408,8 @@ def CaseInsensitiveAlpha =
 
 def $http_field_vchar = $vchar | $obs_text
 
-def $http_tchar = 
+def $http_tchar = $http_tchar_noalpha | $alpha
+
+def $http_tchar_noalpha =
   '!'  | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '.' |
-   '^' | '_' | '`' | '|' | '~' | $digit | $alpha
+   '^' | '_' | '`' | '|' | '~' | $digit
