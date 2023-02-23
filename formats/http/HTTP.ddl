@@ -27,51 +27,70 @@ def HTTP_body_type_u =
     chunked: { }
     -- The body is a byte sequence of the specified length
     normal_len: uint 64
+    -- The body is of indeterminate length and should be consumed until
+    -- the connection is closed (i.e. until the input is exhausted)
+    read_all: { }
 
 -- Given a list of fields (headers), determine the message body type:
 --
--- If the Transfer-Encoding header is present and includes 'chunked',
--- the body type is chunked and should be parsed accordingly. If
--- the Transfer-Encoding header is absent and the Content-Length
--- header is present, then the body should be treated as an octet
--- sequence of length specified by Content-Length.
+-- If the Transfer-Encoding header is present and includes 'chunked'
+-- as its last entry, the body type is chunked and should be parsed
+-- accordingly. If the Transfer-Encoding header is absent and the
+-- Content-Length header is present, then the body should be treated as
+-- an octet sequence of length specified by Content-Length. Otherwise
+-- the body is of indeterminate length.
 --
--- If neither header is present, or if Transfer-Encoding
--- is specified and 'chunked' is not its last entry,
--- then the message length is considered to be zero (see
--- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7 for this
--- case). NOTE: for responses, a missing explicitly-specified length
--- and a missing last 'chunked' entry in the encoding list indicates
+-- NOTE: for responses, a missing explicitly-specified length and
+-- a missing last 'chunked' entry in the encoding list indicates
 -- that the length is obtained by receiving all octets until the
 -- connection is closed. This does not account for that case yet, and
 -- will need to account for it once we support parsing responses. (See
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
---
--- Note that this implementation does not treat the *order* of the
--- transfer encodings to be signficant; the spec says that chunked
--- should be last in the list, and this only checks for list membership.
--- (See 6.3, bullet 4.)
---
--- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
 def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
   block
+    -- If neither Content-Length nor Transfer-Encoding is present, the
+    -- length is assumed to be exactly zero, thus the initialization for
+    -- this loop starts with normal_len.
     for (result = {| normal_len = 0 |}; f in fields)
       case f: HTTP_field_line of
         Header _ -> ^ result
 
         Content_Length h ->
-          -- Chunked encoding takes precedence over Content-Length, so
-          -- only store the length in the result if we haven't already
-          -- found a chunked encoding header.
           case result of
+            -- Chunked encoding takes precedence over Content-Length, so
+            -- only store the length in the result if we haven't already
+            -- found a chunked encoding header.
+            --
+            -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.1
             chunked _ -> ^ result
+
+            -- The read_all case means we found a Transfer-Encoding
+            -- header that didn't have 'chunked' as its last entry, in
+            -- which case we are required to consume all of the data
+            -- found after the request headers and will ignore the
+            -- Content-Length header.
+            --
+            -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.2
+            read_all -> ^ result
+
+            -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.6
             normal_len _ -> ^ {| normal_len = h.value |}
 
         Transfer_Encoding h ->
-          for (result2 = result; entry in h.encodings)
-            if (entry.type == "chunked")
+          block
+            -- The spec says we should only treat the body as chunked if
+            -- 'chunked' is last in the encoding list.
+            --
+            -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.3
+            let last = Index h.encodings (length h.encodings - 1)
+            if last.type == "chunked"
               then ^ {| chunked |}
-              else ^ result2
+              -- Otherwise, if Transfer-Encoding is specified and
+              -- 'chunked' is not its last entry, then the message
+              -- length is indeterminate.
+              --
+              -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
+              else ^ {| read_all |}
 
 def HTTP_message_chunked_s =
   struct
@@ -80,8 +99,14 @@ def HTTP_message_chunked_s =
 
 def HTTP_message_body_u =
   union
+    -- The chunks parsed from the body.
     chunked: HTTP_message_chunked_s
+
+    -- The array of bytes containing the body.
     bytes: [uint 8]
+
+    -- The stream containing the body.
+    remaining: stream
 
 -- Parse an HTTP message body based on the specified body type. See
 -- BodyChunk for relevant ABNF.
@@ -110,6 +135,11 @@ def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
       block
         let body = Many len $any
         ^ {| bytes = body |}
+
+    read_all ->
+      block
+        let s = GetStream
+        ^ {| remaining = s |}
 
 -- Parse a single chunk in a message body that has Transfer-Encoding:
 -- chunked.
