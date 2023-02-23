@@ -28,11 +28,12 @@ function parse {
     local entry=$1
     local input_file=$2
 
+    args="run $SPEC --entry=$entry -i $input_file"
     if in_path daedalus
     then
-        daedalus run $SPEC --entry=$entry -i $input_file
+        daedalus $args
     else
-        cabal new-run daedalus -- run $SPEC --entry=$entry -i $input_file
+        cabal new-run daedalus -- $args
     fi
 }
 
