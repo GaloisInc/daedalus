@@ -262,14 +262,14 @@ def Transfer_parameter =
 -- are represented as Header { ... }.
 def HTTP_field_line =
   block
-    let name = Field_name
+    let field_name = Field_name
     $[':']
     HTTP_OWS
 
     First
       Transfer_Encoding =
         block
-          (name == "transfer-encoding") is true
+          (field_name == "transfer-encoding") is true
           encodings = Transfer_Encoding_List
 
       -- NOTE: the HTTP specification says that there is no upper limit
@@ -277,7 +277,7 @@ def HTTP_field_line =
       -- of practicality.
       Content_Length =
         block
-          (name == "content-length") is true
+          (field_name == "content-length") is true
           -- NOTE: the specification permits all header values to be
           -- either tokens or quoted strings. This only works in the
           -- token case; we should also support a quoted number here as
@@ -288,7 +288,7 @@ def HTTP_field_line =
 
       Header =
         block
-          header_name = name
+          name = field_name
           let cur = GetStream
           let field_len = HTTP_field_content
           value = Take field_len cur
