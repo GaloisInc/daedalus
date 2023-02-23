@@ -65,24 +65,8 @@ def HTTP_body_type (fields : [HTTP_field_line]) =
               then ^ { chunked = true; len = 0 }
               else ^ result2
 
--- ABNF for chunked encoding:
---
--- chunked-body   = *chunk
---                  last-chunk
---                  trailer-section
---                  CRLF
---
--- chunk          = chunk-size [ chunk-ext ] CRLF
---                  chunk-data CRLF
--- chunk-size     = 1*HEXDIG
--- last-chunk     = 1*("0") [ chunk-ext ] CRLF
---
--- chunk-data     = 1*OCTET ; a sequence of chunk-size octets
--- chunk-ext      = *( BWS ";" BWS chunk-ext-name
---                     [ BWS "=" BWS chunk-ext-val ] )
---
--- chunk-ext-name = token
--- chunk-ext-val  = token / quoted-string
+-- Parse an HTTP message body based on the specified body type. See
+-- BodyChunk for relevant ABNF.
 def HTTP_message_body (ty: HTTP_body_type) =
   First
     -- NOTE: the HTTP specification indicates that we ought to remove
@@ -107,6 +91,27 @@ def HTTP_message_body (ty: HTTP_body_type) =
       ty.chunked is false
       body = Many ty.len $any
 
+-- Parse a single chunk in a message body that has Transfer-Encoding:
+-- chunked.
+--
+-- Relevant ABNF for chunked encoding:
+--
+-- chunked-body   = *chunk
+--                  last-chunk
+--                  trailer-section
+--                  CRLF
+--
+-- chunk          = chunk-size [ chunk-ext ] CRLF
+--                  chunk-data CRLF
+-- chunk-size     = 1*HEXDIG
+-- last-chunk     = 1*("0") [ chunk-ext ] CRLF
+--
+-- chunk-data     = 1*OCTET ; a sequence of chunk-size octets
+-- chunk-ext      = *( BWS ";" BWS chunk-ext-name
+--                     [ BWS "=" BWS chunk-ext-val ] )
+--
+-- chunk-ext-name = token
+-- chunk-ext-val  = token / quoted-string
 def BodyChunk =
   block
     size = ChunkSize
@@ -120,6 +125,8 @@ def BodyChunk =
     contents = Many size $any
     CRLF
 
+-- Parse a chunk extension.
+--
 -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1
 def ChunkExtension =
   block
@@ -136,6 +143,7 @@ def ChunkExtension =
           Token = HTTP_token
           QuotedString = HTTP_quoted_string
 
+-- Parse a chunked body chunk size.
 def ChunkSize = HexNumber
 
 def HTTP_version =
@@ -270,6 +278,12 @@ def HTTP_field_line =
       Content_Length =
         block
           (name == "content-length") is true
+          -- NOTE: the specification permits all header values to be
+          -- either tokens or quoted strings. This only works in the
+          -- token case; we should also support a quoted number here as
+          -- well.
+          --
+          -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
           value = PositiveNum64
 
       Header =
