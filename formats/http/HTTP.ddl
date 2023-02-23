@@ -291,7 +291,7 @@ def HTTP_field_line =
           name = field_name
           let cur = GetStream
           let field_len = HTTP_field_content
-          value = Take field_len cur
+          value = bytesOfStream (Take field_len cur)
           SetStream (Drop field_len cur)
 
 def HTTP_field_content =
