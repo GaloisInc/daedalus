@@ -305,19 +305,21 @@ def HTTP_field_line =
           (field_name == "content-length") is true
           commit
           -- NOTE: the specification permits all header values to be
-          -- either tokens or quoted strings. This only works in the
-          -- token case; we should also support a quoted number here as
-          -- well.
+          -- either tokens or quoted strings. This handles both. The
+          -- specification also states that a Content-Length header is
+          -- valid if it is a comma-separated list of numbers, all of
+          -- which take the same value. We also handle that case here.
           --
           -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
-          --
-          -- NOTE 2: the specification also states that a Content-Length
-          -- header is valid if it is a comma-separated list of numbers,
-          -- all of which take the same value. We do not yet handle that
-          -- case.
-          --
           -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
-          value = PositiveNum64
+          value =
+            block
+              let n1 = MaybeQuoted PositiveNum64
+              let rest = Many { HTTP_OWS; $[',']; HTTP_OWS; MaybeQuoted PositiveNum64 }
+              for (result = n1; val in rest)
+                block
+                  (val == n1) is true
+                  ^ n1
 
       Header =
         block
@@ -345,6 +347,13 @@ def HTTP_quoted_string =
              <| HTTP_quoted_pair
               )
     $dquote
+
+def Quoted P = { $dquote; $$ = P; $dquote }
+
+def MaybeQuoted P =
+  First
+    Quoted P
+    P
 
 def HTTP_quoted_pair =
   block
