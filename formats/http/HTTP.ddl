@@ -17,7 +17,109 @@ def HTTP_message StartLine =
     CRLF
     fields = Many { $$ = HTTP_field_line; CRLF }
     CRLF
-    body = GetStream
+    let ty = HTTP_body_type fields
+    body = HTTP_message_body ty
+
+def HTTP_body_type (fields : [HTTP_field_line]) =
+  block
+    let none = { chunked = false; len = 0 }
+
+    for (result = none; f in fields)
+      case f: HTTP_field_line of
+        Header _ -> ^ result
+
+        Content_Length h ->
+          -- Chunked encoding takes precedence over Content-Length, so
+          -- only store the length if we haven't already found a chunked
+          -- encoding header.
+          if result.chunked
+            then ^ result
+            else ^ { chunked = false; len = h.value }
+
+        Transfer_Encoding h ->
+          for (result2 = result; entry in h.encodings)
+            if (entry.type == "chunked")
+              then ^ { chunked = true; len = 0 }
+              else ^ result2
+
+-- ABNF for chunked encoding:
+--
+-- chunked-body   = *chunk
+--                  last-chunk
+--                  trailer-section
+--                  CRLF
+--
+-- chunk          = chunk-size [ chunk-ext ] CRLF
+--                  chunk-data CRLF
+-- chunk-size     = 1*HEXDIG
+-- last-chunk     = 1*("0") [ chunk-ext ] CRLF
+--
+-- chunk-data     = 1*OCTET ; a sequence of chunk-size octets
+-- chunk-ext      = *( BWS ";" BWS chunk-ext-name
+--                     [ BWS "=" BWS chunk-ext-val ] )
+--
+-- chunk-ext-name = token
+-- chunk-ext-val  = token / quoted-string
+def HTTP_message_body (ty: HTTP_body_type) =
+  First
+    -- NOTE: the HTTP specification indicates that we ought to remove
+    -- 'chunked' from the Transfer-Encoding list once we parse the
+    -- request's chunks. We aren't doing that yet.
+    Chunked = block
+      ty.chunked is true
+
+      -- content chunks:
+      chunks = Many BodyChunk
+
+      -- last-chunk:
+      $['0']; CRLF
+
+      -- trailer fields:
+      trailer_fields = Many { $$ = HTTP_field_line; CRLF }
+
+      -- Final required CRLF
+      CRLF
+
+    Normal = block
+      ty.chunked is false
+      body = TakeNum ty.len
+
+def TakeNum n =
+  block
+    let cur = GetStream
+    $$ = Take n cur
+    SetStream (Drop n cur)
+
+def BodyChunk =
+  block
+    size = ChunkSize
+    extensions = Many ChunkExtension
+    CRLF
+
+    -- We forbid zero-sized chunks here because parsing the last chunk
+    -- is slightly different and is done above in HTTP_message_body.
+    size > 0 is true
+
+    contents = TakeNum size
+    CRLF
+
+-- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1
+def ChunkExtension =
+  block
+    HTTP_OWS
+    $[';']
+    HTTP_OWS
+    name = HTTP_token
+    value =
+      Optional block
+        HTTP_OWS
+        $['=']
+        HTTP_OWS
+        First
+          Token = HTTP_token
+          QuotedString = HTTP_quoted_string
+
+def ChunkSize = HexNumber
 
 def HTTP_version =
   block

@@ -31,6 +31,10 @@ def DigitNum = Decimal $digit
 def PositiveNum64: uint 64 =
   many (v = 0) { let d = DigitNum; ^ v * 10 + (d as uint 64) }
 
+-- Base 16 positive number n >= 0 with no 0x prefix, 64 bits
+def HexNumber: uint 64 =
+  many (v = 0) { let d = HexDigNum; ^ v * 16 + (d as uint 64) }
+
 -- Base 16 digit, in its numerical value (e.g., 'b' -> 11)
 def HexDigNum =
   First
