@@ -1,0 +1,33 @@
+--- Found 1 results:
+{ start: { method: {POST: { }}
+         , target: {Origin: { path: [ "search"
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, fields: [ {Header: { name: "host"
+                     , value: "normal-website.com"
+                     }}
+          , {Header: { name: "content-type"
+                     , value: "application/x-www-form-urlencoded"
+                     }}
+          , {Content_Length: { value: 123[64]
+                             }}
+          , {Transfer_Encoding: { chunked: F
+                                , encodings: [ { type: "encoding1"
+                                               , params: [ ]
+                                               }
+                                             , { type: "chunked"
+                                               , params: [ ]
+                                               }
+                                             , { type: "encoding2"
+                                               , params: [ ]
+                                               }
+                                             ]
+                                }}
+          ]
+, body: {remaining: Stream { off  = 165, len  = 7, name = "tests/inputs/get_request_unknown_length.txt"}}
+}

@@ -1,0 +1,52 @@
+--- Found 1 results:
+{ start: { method: {POST: { }}
+         , target: {Origin: { path: [ "search"
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, fields: [ {Header: { name: "host"
+                     , value: "normal-website.com"
+                     }}
+          , {Header: { name: "content-type"
+                     , value: "application/x-www-form-urlencoded"
+                     }}
+          , {Content_Length: { value: 123456[64]
+                             }}
+          , {Transfer_Encoding: { chunked: T
+                                , encodings: [ { type: "gzip"
+                                               , params: [ ]
+                                               }
+                                             ]
+                                }}
+          ]
+, body: {chunked: { chunks: [ { size: 11[64]
+                              , extensions: [ { name: "x"
+                                              , value: Nothing
+                                              }
+                                            ]
+                              , contents: "q=smuggling"
+                              }
+                            , { size: 6[64]
+                              , extensions: [ { name: "y"
+                                              , value: Just {Token: "z"}
+                                              }
+                                            , { name: "foo"
+                                              , value: Nothing
+                                              }
+                                            , { name: "bar"
+                                              , value: Just {QuotedString: "baz"}
+                                              }
+                                            ]
+                              , contents: "foobar"
+                              }
+                            ]
+                  , trailer_fields: [ {Header: { name: "x-trailing-header"
+                                               , value: "stuff"
+                                               }}
+                                    ]
+                  }}
+}
