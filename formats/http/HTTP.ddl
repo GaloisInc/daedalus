@@ -244,20 +244,16 @@ def HTTP_field_line =
     First
       Transfer_Encoding =
         block
-          if (name == "transfer-encoding")
-            then block
-              encodings = Transfer_Encoding_List
-            else Fail "Not a transfer-encoding header"
+          (name == "transfer-encoding") is true
+          encodings = Transfer_Encoding_List
 
       -- NOTE: the HTTP specification says that there is no upper limit
       -- on the value of Content-Length. We limit it to 64 bits here out
       -- of practicality.
       Content_Length =
         block
-          if (name == "content-length")
-            then block
-              value = PositiveNum64
-            else Fail "Not a content-length header"
+          (name == "content-length") is true
+          value = PositiveNum64
 
       Header =
         block
