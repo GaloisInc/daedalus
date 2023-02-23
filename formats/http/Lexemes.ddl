@@ -20,7 +20,6 @@ def $lf       = 0x0A
 -- ensure that manually-edited files have these line endings is a pain.
 def CRLF      = @{ Optional $cr; $lf }
 
-
 -- Case insensitive alpha character, normlaized to lower case.
 def AlphaNoCaseLower = $['a' .. 'z'] <| ($['A' .. 'Z'] + 32)
 
