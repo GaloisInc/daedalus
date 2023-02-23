@@ -262,8 +262,10 @@ def HTTP_field_line =
       Header =
         block
           header_name = name
-          let start = GetStream
-          value = Take HTTP_field_content start
+          let cur = GetStream
+          let field_len = HTTP_field_content
+          value = Take field_len cur
+          SetStream (Drop field_len cur)
 
 def HTTP_field_content =
   many (count = 0)
