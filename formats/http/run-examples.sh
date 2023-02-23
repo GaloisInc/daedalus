@@ -38,7 +38,14 @@ function parse {
 
 cd $HERE/../..
 
-for request_file in $HERE/examples/*_request.txt
+FILES="$*"
+
+if [ -z "$FILES" ]
+then
+    FILES=$HERE/examples/*_request*.txt
+fi
+
+for request_file in $FILES
 do
     echo ${request_file}:
     parse HTTP_request $request_file
