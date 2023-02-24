@@ -82,7 +82,7 @@ function run_test_case {
 cd $HERE
 FILES=tests/inputs/*_request*.txt
 
-DAEDALUS=$(find_daedalus || true)
+DAEDALUS=$(find_daedalus)
 
 if [ -z "$DAEDALUS" ]
 then
