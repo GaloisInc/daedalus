@@ -7,14 +7,12 @@
 # that the 'ghc' in the PATH is the one that 'cabal' will use to build
 # daedalus.
 #
-# This script runs the parser against all of the test case files
-# in the tests/inputs/ subdirectory and compares each with the
-# respectively-named expected output file in tests/outputs/. This
-# runner only supports expected passes; expected failures are not
-# supported, but it would be easy to add by changing the output file
-# naming convention to indicate whether the test was expected to succeed
-# (and thus contain a valid parse output) or fail (and thus contain a
-# daedalus error).
+# This script runs the parser against all of the test case files in
+# the tests/requests/inputs/ subdirectory and compares each with the
+# respectively-named expected output file in tests/requests/outputs/.
+# This runner supports expected passes and expected failures simply by
+# way of having daedalus success and failure output being captured in
+# the expected output files.
 #
 # Note that while it's ordinarily good practice to use set -e, it is
 # deliberately skipped in this script because many intermediate steps
@@ -61,23 +59,14 @@ function run_test_case {
     then
         tmpfile=$(mktemp)
 
-        # Daedalus exits zero on success, in which case we want to diff
-        # the output against the expected output. But if it fails (e.g.
-        # due to a parse error) then we want to just emit that output
-        # without diffing.
-        if $DAEDALUS $args > ${tmpfile}
+        $DAEDALUS $args > ${tmpfile}
+
+        if diff --color $output_file $tmpfile
         then
-            if diff --color $output_file $tmpfile
-            then
-                echo "  PASS      match: $output_file"
-                return 0
-            else
-                echo "  FAIL      mismatch: $output_file"
-                return 1
-            fi
+            echo "  PASS      match: $output_file"
+            return 0
         else
-            echo "  FAIL. Expected valid output, got:"
-            cat $tmpfile
+            echo "  FAIL      mismatch: $output_file"
             return 1
         fi
 
