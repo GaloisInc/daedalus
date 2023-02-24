@@ -7,7 +7,12 @@
 #
 # This script runs the parser against all of the test case files
 # in the tests/inputs/ subdirectory and compares each with the
-# respectively-named expected output file in tests/outputs/.
+# respectively-named expected output file in tests/outputs/. This
+# runner only supports expected passes; expected failures are not
+# supported, but it would be easy to add by changing the output file
+# naming convention to indicate whether the test was expected to succeed
+# (and thus contain a valid parse output) or fail (and thus contain a
+# daedalus error).
 
 HERE=$(cd `dirname $0`; pwd)
 
