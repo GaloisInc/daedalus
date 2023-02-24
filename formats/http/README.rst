@@ -10,8 +10,8 @@ used to build the parser.
 The HTTP 1.1 parser entry points are declared in ``HTTP-1.1.ddl``. They
 are:
 
- * ``HTTP_request`` - for parsing request messages
- * ``HTTP_status`` - for parsing response messages
+* ``HTTP_request`` - for parsing request messages
+* ``HTTP_status`` - for parsing response messages
 
 Running the tests
 -----------------
