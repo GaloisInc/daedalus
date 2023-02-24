@@ -28,7 +28,7 @@ HERE=$(cd `dirname $0`; pwd)
 ROOT=$HERE/../../
 
 # The spec we want to use to parse the inputs.
-SPEC=$HERE/HTTP.ddl
+SPEC=$HERE/HTTP-1.1.ddl
 
 # in_path <PROG>; exit code is zero if the specified program is found in
 # the PATH. Produces no output.
