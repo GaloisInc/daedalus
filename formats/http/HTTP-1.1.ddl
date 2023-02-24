@@ -207,7 +207,7 @@ def HTTP_status_line =
   block
     version = HTTP_version
     $sp
-    status_code = Many 3 DigitNum
+    status_code = StatusCode
     $sp
     reason = Many $[ $htab | $sp | $vchar | $obs_text ]
 
@@ -446,6 +446,13 @@ def HTTP_token_ci =
     First
       $http_tchar_noalpha
       CaseInsensitiveAlpha
+
+def StatusCode =
+  block
+    let d1 = DigitNum
+    let d2 = DigitNum
+    let d3 = DigitNum
+    ^ (d1 * 100 + d2 * 10 + d3)
 
 -- Utilities to help parse header names case-insensitively while also
 -- normalizing them to lowercase so we can check for specific headers in

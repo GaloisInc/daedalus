@@ -7,12 +7,12 @@
 # that the 'ghc' in the PATH is the one that 'cabal' will use to build
 # daedalus.
 #
-# This script runs the parser against all of the test case files in
-# the tests/requests/inputs/ subdirectory and compares each with the
-# respectively-named expected output file in tests/requests/outputs/.
-# This runner supports expected passes and expected failures simply by
-# way of having daedalus success and failure output being captured in
-# the expected output files.
+# This script runs the parser against all of the test case files
+# in the tests/{requests,responses}/inputs/ subdirectory and
+# compares each with the respectively-named expected output file in
+# tests/{requests,responses}/outputs/. This runner supports expected
+# passes and expected failures simply by way of having daedalus success
+# and failure output being captured in the expected output files.
 #
 # Note that while it's ordinarily good practice to use set -e, it is
 # deliberately skipped in this script because many intermediate steps
@@ -97,7 +97,8 @@ num_failures=0
 num_successes=0
 
 cd $HERE
-REQUEST_FILES=tests/requests/inputs/*_request*.txt
+
+REQUEST_FILES=tests/requests/inputs/*.txt
 
 for request_file in $REQUEST_FILES
 do
@@ -106,6 +107,20 @@ do
 
     echo ${request_file}:
     run_test_case HTTP_request $request_file $output_file
+    num_failures=$((num_failures + $?))
+    num_successes=$((num_successes + (1 - $?)))
+    echo
+done
+
+RESPONSE_FILES=tests/responses/inputs/*.txt
+
+for response_file in $RESPONSE_FILES
+do
+    filename=$(basename $response_file)
+    output_file="tests/responses/outputs/${filename}"
+
+    echo ${response_file}:
+    run_test_case HTTP_status $response_file $output_file
     num_failures=$((num_failures + $?))
     num_successes=$((num_successes + (1 - $?)))
     echo
