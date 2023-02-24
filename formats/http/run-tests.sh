@@ -13,6 +13,12 @@
 # naming convention to indicate whether the test was expected to succeed
 # (and thus contain a valid parse output) or fail (and thus contain a
 # daedalus error).
+#
+# Note that while it's ordinarily good practice to use set -e, it is
+# deliberately skipped in this script because many intermediate steps
+# need to be allowed to fail so we can continue running tests and
+# collect the number of failures. Doing so with set -e is annoying to
+# get right, so this script is carefully written to cope without it.
 
 HERE=$(cd `dirname $0`; pwd)
 
