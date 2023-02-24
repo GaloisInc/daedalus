@@ -1,0 +1,23 @@
+--- Found 1 results:
+{ start: { method: {GET: { }}
+         , target: {Origin: { path: [ [ ]
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, fields: [ {Header: { name: "host"
+                     , value: "vulnerable-website.com"
+                     }}
+          , {Content_Length: { value: 13[64]
+                             }}
+          , {Transfer_Encoding: { chunked: T
+                                , encodings: [ ]
+                                }}
+          ]
+, body: {chunked: { chunks: [ ]
+                  , trailer_fields: [ ]
+                  }}
+}

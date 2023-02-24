@@ -1,0 +1,24 @@
+--- Found 1 results:
+{ start: { method: {GET: { }}
+         , target: {Origin: { path: [ [ ]
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, fields: [ {Header: { name: "host"
+                     , value: "vulnerable-website.com"
+                     }}
+          , {Content_Length: { value: 1[64]
+                             }}
+          , {Transfer_Encoding: { chunked: F
+                                , encodings: [ { type: "xchunked"
+                                               , params: [ ]
+                                               }
+                                             ]
+                                }}
+          ]
+, body: {remaining: Stream { off  = 91, len  = 12, name = "tests/requests/inputs/get_request_invalid_transfer_encoding_1.txt"}}
+}

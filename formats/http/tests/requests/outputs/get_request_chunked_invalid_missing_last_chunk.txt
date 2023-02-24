@@ -1,0 +1,23 @@
+--- Parse error: 
+[offset: 218]
+  • byte 'X' does not match between '0' and '9'
+  • see grammar at: Lexemes.ddl:30:24--30:29
+  • context:
+      • HTTP-1.1.ddl:9:20--9:49
+      • HTTP-1.1.ddl:21:12--21:31
+      • case branch  {| chunked = _ |}
+      • HTTP-1.1.ddl:117:27--117:35
+      • HTTP-1.1.ddl:163:12--163:20
+      • HTTP-1.1.ddl:197:17--197:25
+      • Lexemes.ddl:38:26--38:34
+      • Lexemes.ddl:43:5--43:12
+  • input trace:
+      tests/requests/inputs/get_request_chunked_invalid_missing_last_chunk.txt
+        0--218
+File context:
+Length: 42 (0x2a) bytes
+00b0:                                   67 0a  36 3b 20 79             g.6; y
+00c0:   3d 7a 3b 20  66 6f 6f 3b  20 62 61 72  3d 22 62 61   =z; foo; bar="ba
+00d0:   7a 22 0a 66  6f 6f 62 61  72 0a [1;91m58[0m 2d  54 72 61 69   z".foobar.[1;91mX[0m-Trai
+00e0:   6c 69 6e 67                                          ling
+
