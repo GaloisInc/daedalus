@@ -38,5 +38,7 @@ Adding new test cases can be done as follows:
   ``tests/requests/inputs/``.
 * Run ``run-tests.sh`` to save the output of the test in
   ``tests/requests/outputs/``.
-* Check that the output is as expected.
+* Check that the output is as expected; this means checking on whether
+  the generated output file contains either a successful parse tree OR a
+  ``daedalus`` error message.
 * Add the input and output files to Git with ``git add`` and commit.
