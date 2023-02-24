@@ -78,6 +78,28 @@ function run_test_case {
     fi
 }
 
+# run_test_group <TESTS_DIR>  <ENTRY_POINT>
+#
+# Run all test cases in the specified directory using the specified
+# $SPEC entry point. Mutates two global counters: num_failures and
+# num_successes.
+function run_test_group {
+    local test_case_dir=$1
+    local entry_point=$2
+
+    for file in $test_case_dir/inputs/*.txt
+    do
+        filename=$(basename $file)
+        output_file="$test_case_dir/outputs/${filename}"
+
+        echo ${file}:
+        run_test_case $entry_point $file $output_file
+        num_failures=$((num_failures + $?))
+        num_successes=$((num_successes + (1 - $?)))
+        echo
+    done
+}
+
 DAEDALUS=$(find_daedalus)
 
 if [ -z "$DAEDALUS" ]
@@ -98,33 +120,8 @@ num_successes=0
 
 cd $HERE
 
-REQUEST_FILES=tests/requests/inputs/*.txt
-
-for request_file in $REQUEST_FILES
-do
-    filename=$(basename $request_file)
-    output_file="tests/requests/outputs/${filename}"
-
-    echo ${request_file}:
-    run_test_case HTTP_request $request_file $output_file
-    num_failures=$((num_failures + $?))
-    num_successes=$((num_successes + (1 - $?)))
-    echo
-done
-
-RESPONSE_FILES=tests/responses/inputs/*.txt
-
-for response_file in $RESPONSE_FILES
-do
-    filename=$(basename $response_file)
-    output_file="tests/responses/outputs/${filename}"
-
-    echo ${response_file}:
-    run_test_case HTTP_status $response_file $output_file
-    num_failures=$((num_failures + $?))
-    num_successes=$((num_successes + (1 - $?)))
-    echo
-done
+run_test_group tests/requests HTTP_request
+run_test_group tests/responses HTTP_status
 
 echo "$num_successes tests passed, $num_failures tests failed."
 
