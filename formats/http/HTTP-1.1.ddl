@@ -6,18 +6,18 @@ import Lexemes
 import URI
 
 -- ENTRY
-def HTTP_request = HTTP_message HTTP_request_line
+def HTTP_request = HTTP_message false HTTP_request_line
 
 -- ENTRY
-def HTTP_status  = HTTP_message HTTP_status_line
+def HTTP_status  = HTTP_message true HTTP_status_line
 
-def HTTP_message StartLine =
+def HTTP_message is_response StartLine =
   block
     start = StartLine
     CRLF
     fields = Many { $$ = HTTP_field_line; CRLF }
     CRLF
-    let ty = HTTP_body_type fields
+    let ty = HTTP_body_type is_response fields
     body = HTTP_message_body ty
 
 -- The types of HTTP message bodies.
@@ -40,18 +40,15 @@ def HTTP_body_type_u =
 -- an octet sequence of length specified by Content-Length. Otherwise
 -- the body is of indeterminate length.
 --
--- NOTE: for responses, a missing explicitly-specified length and
--- a missing last 'chunked' entry in the encoding list indicates
--- that the length is obtained by receiving all octets until the
--- connection is closed. This does not account for that case yet, and
--- will need to account for it once we support parsing responses. (See
+-- is_response should be true if the body is a reponse message body.
+-- For responses, a missing explicitly-specified Content-Length
+-- and a missing last 'chunked' entry in the Transfer-Encoding
+-- encoding list indicates that the length is obtained by
+-- receiving all octets until the connection is closed. (See
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
-def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
+def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
   block
-    -- If neither Content-Length nor Transfer-Encoding is present, the
-    -- length is assumed to be exactly zero, thus the initialization for
-    -- this loop starts with normal_len.
-    for (result = {| normal_len = 0 |}; f in fields)
+    let maybe_result = for (result = nothing; f in fields)
       case f: HTTP_field_line of
         Header _ -> ^ result
 
@@ -62,7 +59,7 @@ def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- found a chunked encoding header.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.1
-            chunked _ -> ^ result
+            just chunked -> ^ result
 
             -- The read_all case means we found a Transfer-Encoding
             -- header that didn't have 'chunked' as its last entry, in
@@ -71,25 +68,36 @@ def HTTP_body_type (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- Content-Length header.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.2
-            read_all -> ^ result
+            just read_all -> ^ result
 
             -- If a valid Content-Length header field is present without
             -- Transfer-Encoding, its decimal value defines the expected
             -- message body length in octets.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.6
-            normal_len _ -> ^ {| normal_len = h.value |}
+            _ -> ^ just {| normal_len = h.value |}
 
         Transfer_Encoding h ->
           block
             if h.chunked
-              then ^ {| chunked |}
+              then ^ just {| chunked |}
               -- Otherwise, if Transfer-Encoding is specified and
               -- 'chunked' is not its last entry, then the message
               -- length is indeterminate.
               --
               -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
-              else ^ {| read_all |}
+              else ^ just {| read_all |}
+
+    case maybe_result of
+      just r -> ^ r
+      -- If neither Content-Length nor Transfer-Encoding is present:
+      -- * the length is assumed to be exactly zero if the message is a
+      --   request (thus normal_len is used).
+      -- * the length is indeterminate if the message is a response
+      --   (thus read_all is used).
+      nothing -> if is_response
+                   then {| read_all |}
+                   else {| normal_len = 0 |}
 
 def HTTP_message_chunked_s =
   struct
