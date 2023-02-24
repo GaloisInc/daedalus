@@ -19,13 +19,13 @@ Running the tests
 The test suite is run by running ``run-tests.sh``. The test suite works
 as follows:
 
-* Files in ``tests/inputs/`` are parsed with Daedalus using the
-  ``HTTP_request`` entry point. For each input file, the Daedalus output
-  is compared to an expected output file in ``tests/outputs/`` by the
-  same name as the input file. If a test's output differs from its
-  expected output, it is considered a failure and the test suite runner
-  script reports it accordingly. If a test results in a Daedalus error,
-  the error is reported to the console.
+* Files in ``tests/inputs/`` with ``_request`` in their name are parsed
+  with Daedalus using the ``HTTP_request`` entry point. For each input
+  file, the Daedalus output is compared to an expected output file in
+  ``tests/outputs/`` by the same name as the input file. If a test's
+  output differs from its expected output, it is considered a failure
+  and the test suite runner script reports it accordingly. If a test
+  results in a Daedalus error, the error is reported to the console.
 * If a file in ``tests/inputs/`` has no corresponding file in
   ``tests/outputs/``, the test runner script will save the Daedalus
   output to that path. Future test suite runs will then compare the
