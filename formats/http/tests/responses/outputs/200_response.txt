@@ -2,7 +2,7 @@
 { start: { version: { major: 1[8]
                     , minor: 1[8]
                     }
-         , status_code: "\STX\NUL\NUL"
+         , status_code: 200[8]
          , reason: "OK"
          }
 , fields: [ {Header: { name: "date"
