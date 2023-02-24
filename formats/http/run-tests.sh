@@ -9,9 +9,12 @@
 # in the tests/inputs/ subdirectory and compares each with the
 # respectively-named expected output file in tests/outputs/.
 
-set -e
-
 HERE=$(cd `dirname $0`; pwd)
+
+# The repo root relative to this script's location.
+ROOT=$HERE/../../
+
+# The spec we want to use to parse the inputs.
 SPEC=$HERE/HTTP.ddl
 
 # in_path <PROG>; exit code is zero if the specified program is found in
@@ -24,20 +27,14 @@ function in_path {
 # Echo the path to the daedalus binary, either in the PATH or in
 # dist-newstyle in the repo root.
 function find_daedalus {
-    if in_path daedalus
-    then
-        which daedalus
-    else
+    which daedalus || {
         ghc_ver=$(ghc --version | awk '{ print $NF }')
-        root=$HERE/../../
-        find $root/dist-newstyle -type f -name daedalus | grep $ghc_ver
-    fi
+        find $ROOT/dist-newstyle -type f -name daedalus 2>/dev/null | grep $ghc_ver
+    }
 }
 
 # parse <ENTRY> <PATH>; run Daedalus using the spec configured in
-# $SPEC using the entry point ENTRY on the specified input file. Uses
-# daedalus from the PATH if possible; otherwise it uses daedalus from
-# dist-newstyle at the root of the repo.
+# $SPEC using the entry point ENTRY on the specified input file.
 function run_test_case {
     local entry=$1
     local input_file=$2
@@ -45,35 +42,57 @@ function run_test_case {
 
     args="run $SPEC --entry=$entry -i $input_file"
 
-    cmd=$(find_daedalus)
-
-    if [ -z "$cmd" ]
-    then
-        echo "Error: could not find daedalus in the PATH or in dist-newstyle/ in the repo."
-        exit 1
-    fi
-
     if [ -f "${output_file}" ]
     then
         tmpfile=$(mktemp)
-        $cmd $args > ${tmpfile}
 
-        if diff --color $output_file $tmpfile
+        # Daedalus exits zero on success, in which case we want to diff
+        # the output against the expected output. But if it fails (e.g.
+        # due to a parse error) then we want to just emit that output
+        # without diffing.
+        if $DAEDALUS $args > ${tmpfile}
         then
-            echo "  PASSED; output matches $output_file"
+            if diff --color $output_file $tmpfile
+            then
+                echo "  PASS      match: $output_file"
+                return 0
+            else
+                echo "  FAIL      mismatch: $output_file"
+                return 1
+            fi
         else
-            echo "  FAILED; did not match output in $output_file"
+            echo "  FAIL. Expected valid output, got:"
+            cat $tmpfile
+            return 1
         fi
 
         rm $tmpfile
     else
         echo "  Generated new expected output at ${output_file}"
-        $cmd $args > ${output_file}
+        $DAEDALUS $args > ${output_file}
+        return 0
     fi
 }
 
 cd $HERE
 FILES=tests/inputs/*_request*.txt
+
+DAEDALUS=$(find_daedalus || true)
+
+if [ -z "$DAEDALUS" ]
+then
+    echo "Error: could not find daedalus in the PATH or in dist-newstyle/ in the repo."
+    exit 1
+fi
+
+# Canonicalize the path and remove relative path segments
+DAEDALUS=$(readlink -f $DAEDALUS)
+
+echo "Using daedalus at:"
+echo "  $DAEDALUS"
+echo
+
+num_failures=0
 
 for request_file in $FILES
 do
@@ -82,5 +101,15 @@ do
 
     echo ${request_file}:
     run_test_case HTTP_request $request_file $output_file
+    num_failures=$((num_failures + $?))
     echo
 done
+
+if [ $num_failures -gt 0 ]
+then
+    echo "$num_failures failure(s)"
+else
+    echo "All tests passed."
+fi
+
+exit $num_failures
