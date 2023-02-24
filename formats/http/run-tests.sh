@@ -94,6 +94,7 @@ echo "  $DAEDALUS"
 echo
 
 num_failures=0
+num_successes=0
 
 cd $HERE
 REQUEST_FILES=tests/requests/inputs/*_request*.txt
@@ -106,14 +107,10 @@ do
     echo ${request_file}:
     run_test_case HTTP_request $request_file $output_file
     num_failures=$((num_failures + $?))
+    num_successes=$((num_successes + (1 - $?)))
     echo
 done
 
-if [ $num_failures -gt 0 ]
-then
-    echo "$num_failures failure(s)"
-else
-    echo "All tests passed."
-fi
+echo "$num_successes tests passed, $num_failures tests failed."
 
 exit $num_failures
