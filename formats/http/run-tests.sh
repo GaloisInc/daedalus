@@ -89,9 +89,6 @@ function run_test_case {
     fi
 }
 
-cd $HERE
-FILES=tests/inputs/*_request*.txt
-
 DAEDALUS=$(find_daedalus)
 
 if [ -z "$DAEDALUS" ]
@@ -109,10 +106,13 @@ echo
 
 num_failures=0
 
-for request_file in $FILES
+cd $HERE
+REQUEST_FILES=tests/requests/inputs/*_request*.txt
+
+for request_file in $REQUEST_FILES
 do
     filename=$(basename $request_file)
-    output_file="tests/outputs/${filename}"
+    output_file="tests/requests/outputs/${filename}"
 
     echo ${request_file}:
     run_test_case HTTP_request $request_file $output_file
