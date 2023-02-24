@@ -3,7 +3,9 @@
 # Run the Daedalus tool to parse test cases using the HTTP spec and
 # compare them to expected outputs. This attempts to use daedalus
 # in the PATH; if it cannot be found there, daedalus is sought in
-# dist-newstyle/ at the root of this repository.
+# dist-newstyle/ at the root of this repository. This script assumes
+# that the 'ghc' in the PATH is the one that 'cabal' will use to build
+# daedalus.
 #
 # This script runs the parser against all of the test case files
 # in the tests/inputs/ subdirectory and compares each with the
