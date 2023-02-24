@@ -78,10 +78,11 @@ function run_test_case {
     fi
 }
 
-# run_test_group <TESTS_DIR>  <ENTRY_POINT>
+# run_test_group <TESTS_DIR> <ENTRY_POINT>
 #
 # Run all test cases in the specified directory using the specified
-# $SPEC entry point. Mutates two global counters: num_failures and
+# $SPEC entry point. Expects a test directory with subdirectories
+# inputs/ and outputs/. Mutates two global counters: num_failures and
 # num_successes.
 function run_test_group {
     local test_case_dir=$1
