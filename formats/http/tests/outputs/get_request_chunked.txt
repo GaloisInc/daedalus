@@ -18,7 +18,10 @@
                              }}
           , {Transfer_Encoding: { chunked: T
                                 , encodings: [ { type: "gzip"
-                                               , params: [ ]
+                                               , params: [ { name: "x"
+                                                           , value: {Token: "y"}
+                                                           }
+                                                         ]
                                                }
                                              ]
                                 }}
