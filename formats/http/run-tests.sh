@@ -44,8 +44,10 @@ function find_daedalus {
     }
 }
 
-# parse <ENTRY> <PATH>; run Daedalus using the spec configured in
-# $SPEC using the entry point ENTRY on the specified input file.
+# parse <ENTRY> <INPUT_PATH> <EXPECTED_OUTPUT_PATH>; run Daedalus using
+# the spec configured in $SPEC using the entry point ENTRY on the
+# specified input file and compare the results to the contents of the
+# specified expected output file.
 function run_test_case {
     local entry=$1
     local input_file=$2
