@@ -273,14 +273,11 @@ def Field_name =
   block
     -- Header names must start with an ASCII letter and can include
     -- letters, digits, or '-' characters.
-    let head = CaseInsensitiveAlpha
-    let tail = Many
-                 First
-                   CaseInsensitiveAlpha
-                   $['-']
-                   $digit
-
-    build (emitArray (emit builder head) tail)
+    let head = $alpha
+    let tail = Many $[ $alpha | '-' | $digit ]
+    let result = concat [[head], tail]
+    ^ map (c in result)
+        toLower c
 
 -- Given a parser P and a separator parser Sep, parse and return a
 -- sequence of one or more instances of P separated by Sep.
@@ -459,7 +456,7 @@ def HTTP_token_ci =
   Many (1..)
     First
       $http_tchar_noalpha
-      CaseInsensitiveAlpha
+      toLower $alpha
 
 def StatusCode =
   block
@@ -468,20 +465,10 @@ def StatusCode =
     let d3 = DigitNum
     ^ (d1 * 100 + d2 * 10 + d3)
 
--- Utilities to help parse header names case-insensitively while also
--- normalizing them to lowercase so we can check for specific headers in
--- the parser.
-def LowerCaseAlpha = $['a' .. 'z']
-
-def UpperCaseAlphaToLower =
-  block
-    let l = $['A' .. 'Z']
-    ^ l + ('a' - 'A')
-
-def CaseInsensitiveAlpha =
-  First
-    LowerCaseAlpha
-    UpperCaseAlphaToLower
+def toLower c =
+  if c >= 'A' && c <= 'Z'
+    then c + ('a' - 'A')
+    else c
 
 def $http_field_vchar = $vchar | $obs_text
 
