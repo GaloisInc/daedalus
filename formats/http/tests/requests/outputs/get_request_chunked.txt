@@ -14,9 +14,8 @@
           , {Header: { name: "content-type"
                      , value: "application/x-www-form-urlencoded"
                      }}
-          , {Content_Length: { value: 123456[64]
-                             }}
-          , {Transfer_Encoding: { chunked: T
+          , {Content_Length: 123456[64]}
+          , {Transfer_Encoding: { is_chunked: T
                                 , encodings: [ { type: "gzip"
                                                , params: [ { name: "x"
                                                            , value: {Token: "y"}

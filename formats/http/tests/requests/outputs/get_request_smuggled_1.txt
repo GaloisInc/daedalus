@@ -11,9 +11,8 @@
 , fields: [ {Header: { name: "host"
                      , value: "vulnerable-website.com"
                      }}
-          , {Content_Length: { value: 13[64]
-                             }}
-          , {Transfer_Encoding: { chunked: T
+          , {Content_Length: 13[64]}
+          , {Transfer_Encoding: { is_chunked: T
                                 , encodings: [ ]
                                 }}
           ]

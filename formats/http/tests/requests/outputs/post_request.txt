@@ -18,8 +18,7 @@
           , {Header: { name: "content-type"
                      , value: "application/x-www-form-urlencoded"
                      }}
-          , {Content_Length: { value: 49[64]
-                             }}
+          , {Content_Length: 49[64]}
           , {Header: { name: "accept-language"
                      , value: "en-us"
                      }}

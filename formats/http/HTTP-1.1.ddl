@@ -62,13 +62,13 @@ def HTTP_body_type_u =
 -- encoding list indicates that the length is obtained by
 -- receiving all octets until the connection is closed. (See
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
-def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
+def HTTP_body_type is_response (fields : [HTTP_field_line_u]): HTTP_body_type_u =
   block
     let maybe_result = for (result = nothing; f in fields)
-      case f: HTTP_field_line of
+      case f: HTTP_field_line_u of
         Header _ -> ^ result
 
-        Content_Length h ->
+        Content_Length l ->
           case result of
             -- Chunked encoding takes precedence over Content-Length, so
             -- only store the length in the result if we haven't already
@@ -91,11 +91,11 @@ def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- message body length in octets.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.6
-            _ -> ^ just {| ty_normal_len = h.value |}
+            _ -> ^ just {| ty_normal_len = l |}
 
         Transfer_Encoding h ->
           block
-            if h.chunked
+            if h.is_chunked
               then ^ just {| ty_chunked |}
               -- Otherwise, if Transfer-Encoding is specified and
               -- 'chunked' is not its last entry, then the message
@@ -118,7 +118,7 @@ def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
 def HTTP_message_chunked_s =
   struct
     chunks: [BodyChunk]
-    trailer_fields: [HTTP_field_line]
+    trailer_fields: [HTTP_field_line_u]
 
 def HTTP_message_body_u =
   union
@@ -330,23 +330,40 @@ def Transfer_parameter =
       Token = HTTP_token
       QuotedString = HTTP_quoted_string
 
+def Transfer_Encoding_field_s =
+  struct
+    is_chunked: bool
+    encodings: [Transfer_coding_entry]
+
+def Header_s =
+  struct
+    name: [uint 8]
+    value: [uint 8]
+
+def HTTP_field_line_u =
+  union
+    Transfer_Encoding: Transfer_Encoding_field_s
+    Content_Length: uint 64
+    Header: Header_s
+
 -- Parse an HTTP header. We specifically parse Content-Length and
 -- Transfer-Encoding for use elsewhere in the parser; all other headers
 -- are represented as Header { ... }.
-def HTTP_field_line =
+def HTTP_field_line: HTTP_field_line_u =
   block
     let field_name = Field_name
     $[':']
     HTTP_OWS
 
-    First
-      Transfer_Encoding =
+    case field_name of
+      "transfer-encoding" ->
         block
-          (field_name == "transfer-encoding") is true
-          commit
-
           let encodings = Transfer_Encoding_List
           let last = Last encodings
+          let chunked = last.type == "chunked"
+          let init_encodings = if chunked
+                                 then Init encodings
+                                 else encodings
 
           -- The spec says we should only treat the body as chunked if
           -- 'chunked' is last in the encoding list. Remove it from the
@@ -355,42 +372,39 @@ def HTTP_field_line =
           -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.1
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1-3
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.2-3
-          chunked = (last.type == "chunked")
-          encodings = if chunked
-                        then Init encodings
-                        else encodings
+          ^ {| Transfer_Encoding = { is_chunked = chunked,
+                                     encodings = init_encodings }
+             |}
 
-      -- NOTE: the HTTP specification says that there is no upper limit
-      -- on the value of Content-Length. We limit it to 64 bits here out
-      -- of practicality.
-      Content_Length =
-        block
-          (field_name == "content-length") is true
-          commit
-          -- NOTE: the specification permits all header values to be
-          -- either tokens or quoted strings. This handles both. The
-          -- specification also states that a Content-Length header is
-          -- valid if it is a comma-separated list of numbers, all of
-          -- which take the same value. We also handle that case here.
-          --
-          -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
-          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
-          value =
-            block
-              let values = SepBy1 (MaybeQuoted PositiveNum64) { HTTP_OWS; $[',']; HTTP_OWS }
-              let first = Head values
-              for (result = first; val in values)
-                block
-                  (val == first) is true
-                  ^ first
+      "content-length" ->
+         -- NOTE: the HTTP specification says that there is no upper
+         -- limit on the value of Content-Length. We limit it to 64 bits
+         -- here out of practicality.
+         --
+         -- NOTE: the specification permits all header values to be
+         -- either tokens or quoted strings. This handles both. The
+         -- specification also states that a Content-Length header is
+         -- valid if it is a comma-separated list of numbers, all of
+         -- which take the same value. We also handle that case here.
+         --
+         -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
+         -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
+         block
+           let values = SepBy1 (MaybeQuoted PositiveNum64) { HTTP_OWS; $[',']; HTTP_OWS }
+           let first = Head values
+           let checked = for (result = first; val in values)
+                           block
+                             (val == first) is true
+                             ^ first
+           ^ {| Content_Length = checked |}
 
-      Header =
+      _ ->
         block
-          name = field_name
           let cur = GetStream
           let field_len = HTTP_field_content
-          value = bytesOfStream (Take field_len cur)
+          let value = bytesOfStream (Take field_len cur)
           SetStream (Drop field_len cur)
+          ^ {| Header = { name = field_name, value = value } |}
 
 -- Get the last element of a list.
 def Last (a: [?a]): ?a =

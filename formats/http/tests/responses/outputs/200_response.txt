@@ -8,8 +8,7 @@
 , fields: [ {Header: { name: "date"
                      , value: "Thu, 09 Dec 2004 12:07:48 GMT"
                      }}
-          , {Content_Length: { value: 5[64]
-                             }}
+          , {Content_Length: 5[64]}
           ]
 , body: {bytes: "abcd\n"}
 }

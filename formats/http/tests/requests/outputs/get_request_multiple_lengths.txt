@@ -20,8 +20,7 @@
           , {Header: { name: "accept-encoding"
                      , value: "gzip, deflate"
                      }}
-          , {Content_Length: { value: 5[64]
-                             }}
+          , {Content_Length: 5[64]}
           , {Header: { name: "connection"
                      , value: "Keep-Alive"
                      }}
