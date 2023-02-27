@@ -5,7 +5,7 @@
   • context:
       • 13:20--13:55
       • 27:12--27:31
-      • case branch  {| normal_len = len |}
+      • case branch  {| ty_normal_len = len |}
   • input trace:
       tests/requests/inputs/get_request_invalid_content_length.txt
         0--203

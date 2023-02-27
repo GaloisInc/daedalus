@@ -30,12 +30,12 @@ def HTTP_message is_response StartLine =
 def HTTP_body_type_u =
   union
     -- The body is transfer-encoded 'chunked'
-    chunked: { }
+    ty_chunked: { }
     -- The body is a byte sequence of the explicitly-specified length
-    normal_len: uint 64
+    ty_normal_len: uint 64
     -- The body is of indeterminate length and should be consumed until
     -- the connection is closed (i.e. until the input is exhausted)
-    read_all: { }
+    ty_read_all: { }
 
 -- Given a list of fields (headers), determine the message body type:
 --
@@ -81,18 +81,18 @@ def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
             -- message body length in octets.
             --
             -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.6
-            _ -> ^ just {| normal_len = h.value |}
+            _ -> ^ just {| ty_normal_len = h.value |}
 
         Transfer_Encoding h ->
           block
             if h.chunked
-              then ^ just {| chunked |}
+              then ^ just {| ty_chunked |}
               -- Otherwise, if Transfer-Encoding is specified and
               -- 'chunked' is not its last entry, then the message
               -- length is indeterminate.
               --
               -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.7
-              else ^ just {| read_all |}
+              else ^ just {| ty_read_all |}
 
     case maybe_result of
       just r -> ^ r
@@ -102,8 +102,8 @@ def HTTP_body_type is_response (fields : [HTTP_field_line]): HTTP_body_type_u =
       -- * the length is indeterminate if the message is a response
       --   (thus read_all is used).
       nothing -> if is_response
-                   then {| read_all |}
-                   else {| normal_len = 0 |}
+                   then {| ty_read_all |}
+                   else {| ty_normal_len = 0 |}
 
 def HTTP_message_chunked_s =
   struct
@@ -125,7 +125,7 @@ def HTTP_message_body_u =
 -- BodyChunk for relevant ABNF.
 def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
   case ty of
-    chunked ->
+    ty_chunked ->
       block
         -- content chunks:
         let chunks = Many BodyChunk
@@ -141,12 +141,12 @@ def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
 
         ^ {| chunked = { chunks = chunks, trailer_fields = trailer_fields } |}
 
-    normal_len len ->
+    ty_normal_len len ->
       block
         let body = Many len $any
         ^ {| bytes = body |}
 
-    read_all ->
+    ty_read_all ->
       block
         let s = GetStream
         ^ {| remaining = s |}

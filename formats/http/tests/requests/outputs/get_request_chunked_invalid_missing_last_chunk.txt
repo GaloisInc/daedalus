@@ -5,7 +5,7 @@
   • context:
       • HTTP-1.1.ddl:13:20--13:55
       • HTTP-1.1.ddl:27:12--27:31
-      • case branch  {| chunked = _ |}
+      • case branch  {| ty_chunked = _ |}
       • HTTP-1.1.ddl:131:27--131:35
       • HTTP-1.1.ddl:177:12--177:20
       • HTTP-1.1.ddl:211:17--211:25
