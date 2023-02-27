@@ -5,11 +5,17 @@ import Utils
 import Lexemes
 import URI
 
--- ENTRY
+--------------------------------------------------------------------------------
+-- Entry points
+--------------------------------------------------------------------------------
+
+-- Request parser
 def HTTP_request = HTTP_message false HTTP_request_line
 
--- ENTRY
-def HTTP_status  = HTTP_message true HTTP_status_line
+-- Response parser
+def HTTP_status = HTTP_message true HTTP_status_line
+
+--------------------------------------------------------------------------------
 
 def HTTP_message is_response StartLine =
   block
