@@ -17,6 +17,16 @@ def HTTP_status = HTTP_message true HTTP_status_line
 
 --------------------------------------------------------------------------------
 
+-- Parse an HTTP message.
+--
+-- is_response is true if a response is being parsed, or false if not.
+-- StartLine is the parser for the first line up to (but not including)
+-- the first CRLF.
+--
+-- Note: we do not use END at the end of this parser both to ease
+-- testing in development and also to make this parser more cooperative
+-- with calling parsers which may want to decide what to do with
+-- leftover input.
 def HTTP_message is_response StartLine =
   block
     start = StartLine
