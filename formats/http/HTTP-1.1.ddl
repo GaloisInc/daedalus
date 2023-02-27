@@ -31,7 +31,7 @@ def HTTP_body_type_u =
   union
     -- The body is transfer-encoded 'chunked'
     chunked: { }
-    -- The body is a byte sequence of the specified length
+    -- The body is a byte sequence of the explicitly-specified length
     normal_len: uint 64
     -- The body is of indeterminate length and should be consumed until
     -- the connection is closed (i.e. until the input is exhausted)
