@@ -361,17 +361,18 @@ def HTTP_field_line: HTTP_field_line_u =
           let encodings = Transfer_Encoding_List
           let last = Last encodings
           let chunked = last.type == "chunked"
-          let init_encodings = if chunked
-                                 then Init encodings
-                                 else encodings
 
           -- The spec says we should only treat the body as chunked if
           -- 'chunked' is last in the encoding list. Remove it from the
           -- encoding list since we're going to decode the chunks.
-          --
+          -- References:
           -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.4.1
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.1-3
           -- https://www.rfc-editor.org/rfc/rfc9112#section-7.1.2-3
+          let init_encodings = if chunked
+                                 then Init encodings
+                                 else encodings
+
           ^ {| Transfer_Encoding = { is_chunked = chunked,
                                      encodings = init_encodings }
              |}
