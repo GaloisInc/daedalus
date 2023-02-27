@@ -9,5 +9,5 @@
                      , value: "Thu, 09 Dec 2004 12:07:48 GMT"
                      }}
           ]
-, body: {remaining: Stream { off  = 53, len  = 5, name = "tests/responses/inputs/200_response_indeterminate.txt"}}
+, body: {remaining: "abcd\n"}
 }

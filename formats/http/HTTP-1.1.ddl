@@ -118,8 +118,8 @@ def HTTP_message_body_u =
     -- The array of bytes containing the body.
     bytes: [uint 8]
 
-    -- The stream containing the body.
-    remaining: stream
+    -- All remaining bytes in the input.
+    remaining: [uint 8]
 
 -- Parse an HTTP message body based on the specified body type. See
 -- BodyChunk for relevant ABNF.
@@ -148,8 +148,8 @@ def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
 
     ty_read_all ->
       block
-        let s = GetStream
-        ^ {| remaining = s |}
+        let bs = Many $any
+        ^ {| remaining = bs |}
 
 -- Parse a single chunk in a message body that has Transfer-Encoding:
 -- chunked.

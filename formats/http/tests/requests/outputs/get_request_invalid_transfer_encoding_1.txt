@@ -20,5 +20,5 @@
                                              ]
                                 }}
           ]
-, body: {remaining: Stream { off  = 91, len  = 12, name = "tests/requests/inputs/get_request_invalid_transfer_encoding_1.txt"}}
+, body: {remaining: "0\n\nSMUGGLED\n"}
 }

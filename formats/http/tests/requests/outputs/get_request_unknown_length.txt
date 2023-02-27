@@ -29,5 +29,5 @@
                                              ]
                                 }}
           ]
-, body: {remaining: Stream { off  = 165, len  = 7, name = "tests/requests/inputs/get_request_unknown_length.txt"}}
+, body: {remaining: "things\n"}
 }
