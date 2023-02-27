@@ -8,23 +8,27 @@
                     , minor: 1[8]
                     }
          }
-, fields: [ {Header: { name: "host"
-                     , value: "normal-website.com"
-                     }}
-          , {Header: { name: "content-type"
-                     , value: "application/x-www-form-urlencoded"
-                     }}
-          , {Content_Length: 123456[64]}
-          , {Transfer_Encoding: { is_chunked: T
-                                , encodings: [ { type: "gzip"
-                                               , params: [ { name: "x"
-                                                           , value: {Token: "y"}
-                                                           }
-                                                         ]
-                                               }
-                                             ]
-                                }}
-          ]
+, field_info: { fields: [ {Header: { name: "host"
+                                   , value: "normal-website.com"
+                                   }}
+                        , {Header: { name: "content-type"
+                                   , value: "application/x-www-form-urlencoded"
+                                   }}
+                        , {Content_Length: 123456[64]}
+                        , {Transfer_Encoding: { is_chunked: T
+                                              , encodings: [ { type: "gzip"
+                                                             , params: [ { name: "x"
+                                                                         , value: {Token: "y"}
+                                                                         }
+                                                                       ]
+                                                             }
+                                                           ]
+                                              }}
+                        ]
+              , chunked: T
+              , explicit_length: Just 123456[64]
+              , encoded: T
+              }
 , body: {chunked: { chunks: [ { size: 11[64]
                               , extensions: [ { name: "x"
                                               , value: Nothing

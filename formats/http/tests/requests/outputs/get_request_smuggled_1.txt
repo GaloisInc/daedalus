@@ -8,14 +8,18 @@
                     , minor: 1[8]
                     }
          }
-, fields: [ {Header: { name: "host"
-                     , value: "vulnerable-website.com"
-                     }}
-          , {Content_Length: 13[64]}
-          , {Transfer_Encoding: { is_chunked: T
-                                , encodings: [ ]
-                                }}
-          ]
+, field_info: { fields: [ {Header: { name: "host"
+                                   , value: "vulnerable-website.com"
+                                   }}
+                        , {Content_Length: 13[64]}
+                        , {Transfer_Encoding: { is_chunked: T
+                                              , encodings: [ ]
+                                              }}
+                        ]
+              , chunked: T
+              , explicit_length: Just 13[64]
+              , encoded: T
+              }
 , body: {chunked: { chunks: [ ]
                   , trailer_fields: [ ]
                   }}

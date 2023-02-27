@@ -8,22 +8,26 @@
                     , minor: 1[8]
                     }
          }
-, fields: [ {Header: { name: "user-agent"
-                     , value: "Mozilla/4.0 (compatible; MSIE5.01; Windows NT)"
-                     }}
-          , {Header: { name: "host"
-                     , value: "www.example.com"
-                     }}
-          , {Header: { name: "accept-language"
-                     , value: "en-us"
-                     }}
-          , {Header: { name: "accept-encoding"
-                     , value: "gzip, deflate"
-                     }}
-          , {Content_Length: 5[64]}
-          , {Header: { name: "connection"
-                     , value: "Keep-Alive"
-                     }}
-          ]
+, field_info: { fields: [ {Header: { name: "user-agent"
+                                   , value: "Mozilla/4.0 (compatible; MSIE5.01; Windows NT)"
+                                   }}
+                        , {Header: { name: "host"
+                                   , value: "www.example.com"
+                                   }}
+                        , {Header: { name: "accept-language"
+                                   , value: "en-us"
+                                   }}
+                        , {Header: { name: "accept-encoding"
+                                   , value: "gzip, deflate"
+                                   }}
+                        , {Content_Length: 5[64]}
+                        , {Header: { name: "connection"
+                                   , value: "Keep-Alive"
+                                   }}
+                        ]
+              , chunked: F
+              , explicit_length: Just 5[64]
+              , encoded: F
+              }
 , body: {bytes: "abcde"}
 }

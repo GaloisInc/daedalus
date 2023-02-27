@@ -5,10 +5,14 @@
          , status_code: 200[8]
          , reason: "OK"
          }
-, fields: [ {Header: { name: "date"
-                     , value: "Thu, 09 Dec 2004 12:07:48 GMT"
-                     }}
-          , {Content_Length: 5[64]}
-          ]
+, field_info: { fields: [ {Header: { name: "date"
+                                   , value: "Thu, 09 Dec 2004 12:07:48 GMT"
+                                   }}
+                        , {Content_Length: 5[64]}
+                        ]
+              , chunked: F
+              , explicit_length: Just 5[64]
+              , encoded: F
+              }
 , body: {bytes: "abcd\n"}
 }
