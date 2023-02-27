@@ -382,13 +382,16 @@ def HTTP_field_line =
           value = bytesOfStream (Take field_len cur)
           SetStream (Drop field_len cur)
 
-def Last a =
+-- Get the last element of a list.
+def Last (a: [?a]): ?a =
   Index a (length a - 1)
 
-def Head a =
+-- Get the first element of a list.
+def Head (a: [?a]): ?a =
   Index a 0
 
-def Init a =
+-- Get all but the last element of a list.
+def Init (a: [?a]): [?a] =
   block
     let l = length a
     let result = for (b = builder; i, e in a)
