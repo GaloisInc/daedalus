@@ -1,5 +1,9 @@
--- HTTP 1.1
--- Reference: https://datatracker.ietf.org/doc/html/rfc9112#appendix-A
+-- HTTP 1.1 message parser
+--
+-- Primary reference: https://www.rfc-editor.org/rfc/rfc9112
+--
+-- Specific section and paragraph links to RFC 9112 are provided below
+-- where appropriate.
 
 import Utils
 import Lexemes
