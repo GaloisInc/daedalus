@@ -60,10 +60,10 @@ def HTTP_body_type_u =
 -- preserved in order with possible duplication in the 'fields' field.
 def HTTP_field_info =
   block
-    fields = Many { $$ = HTTP_field_line; CRLF }
+    fields = Many { $$ = HTTP_field; CRLF }
 
     let result = for (result = { chunked = false, encoded = false, len = nothing }; f in fields)
-      case f: HTTP_field_line_u of
+      case f: HTTP_field_u of
         Header _ -> ^ result
 
         Content_Length l ->
@@ -110,7 +110,7 @@ def HTTP_body_type is_response (field_info: HTTP_field_info): HTTP_body_type_u =
 def HTTP_message_chunked_s =
   struct
     chunks: [BodyChunk]
-    trailer_fields: [HTTP_field_line_u]
+    trailer_fields: [HTTP_field_u]
 
 def HTTP_message_body_u =
   union
@@ -136,7 +136,7 @@ def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
         Many (1..) $['0']; CRLF
 
         -- trailer fields:
-        let trailer_fields = Many { $$ = HTTP_field_line; CRLF }
+        let trailer_fields = Many { $$ = HTTP_field; CRLF }
 
         -- Final required CRLF
         CRLF
@@ -332,7 +332,7 @@ def Header_s =
     name: [uint 8]
     value: [uint 8]
 
-def HTTP_field_line_u =
+def HTTP_field_u =
   union
     Transfer_Encoding: Transfer_Encoding_field_s
     Content_Length: uint 64
@@ -341,7 +341,7 @@ def HTTP_field_line_u =
 -- Parse an HTTP header. We specifically parse Content-Length and
 -- Transfer-Encoding for use elsewhere in the parser; all other headers
 -- are represented as Header { ... }.
-def HTTP_field_line: HTTP_field_line_u =
+def HTTP_field: HTTP_field_u =
   block
     let field_name = Field_name
     $[':']
