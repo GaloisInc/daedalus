@@ -8,12 +8,12 @@
                     , minor: 1[8]
                     }
          }
-, field_info: { fields: [ {Header: { name: "host"
-                                   , value: "normal-website.com"
-                                   }}
-                        , {Header: { name: "content-type"
-                                   , value: "application/x-www-form-urlencoded"
-                                   }}
+, field_info: { fields: [ {Field: { name: "host"
+                                  , value: "normal-website.com"
+                                  }}
+                        , {Field: { name: "content-type"
+                                  , value: "application/x-www-form-urlencoded"
+                                  }}
                         , {Content_Length: 123456[64]}
                         , {Transfer_Encoding: { is_chunked: T
                                               , encodings: [ { type: "gzip"
@@ -50,9 +50,9 @@
                               , contents: "foobar"
                               }
                             ]
-                  , trailer_fields: [ {Header: { name: "x-trailing-header"
-                                               , value: "stuff"
-                                               }}
+                  , trailer_fields: [ {Field: { name: "x-trailing-header"
+                                              , value: "stuff"
+                                              }}
                                     ]
                   }}
 }

@@ -64,7 +64,7 @@ def HTTP_field_info =
 
     let result = for (result = { chunked = false, encoded = false, len = nothing }; f in fields)
       case f: HTTP_field_u of
-        Header _ -> ^ result
+        Field _ -> ^ result
 
         Content_Length l ->
           ^ { chunked = result.chunked, encoded = result.encoded, len = just l }
@@ -78,12 +78,12 @@ def HTTP_field_info =
 
 -- Determine the message body type from the message's fields.
 --
--- If the Transfer-Encoding header is present and includes 'chunked'
+-- If the Transfer-Encoding field is present and includes 'chunked'
 -- as its last entry, the body type is chunked and should be parsed
 -- accordingly. If the body is not chunked but has some other encoding,
 -- the body length is indeterminate and should be consumed in its
--- entirety. If the Transfer-Encoding header is absent and the
--- Content-Length header is present, then the body should be treated as
+-- entirety. If the Transfer-Encoding field is absent and the
+-- Content-Length field is present, then the body should be treated as
 -- an octet sequence of length specified by Content-Length. Otherwise
 -- the body is of indeterminate length.
 --
@@ -273,7 +273,7 @@ def HTTP_method =
 
 def Field_name =
   block
-    -- Header names must start with an ASCII letter and can include
+    -- Field names must start with an ASCII letter and can include
     -- letters, digits, or '-' characters.
     let head = $alpha
     let tail = Many $[ $alpha | '-' | $digit ]
@@ -336,11 +336,11 @@ def HTTP_field_u =
   union
     Transfer_Encoding: Transfer_Encoding_field_s
     Content_Length: uint 64
-    Header: Header_s
+    Field: Header_s
 
--- Parse an HTTP header. We specifically parse Content-Length and
--- Transfer-Encoding for use elsewhere in the parser; all other headers
--- are represented as Header { ... }.
+-- Parse an HTTP field (header). We specifically parse Content-Length
+-- and Transfer-Encoding for use elsewhere in the parser; all other
+-- headers are represented as Field { ... }.
 def HTTP_field: HTTP_field_u =
   block
     let field_name = Field_name
@@ -374,9 +374,9 @@ def HTTP_field: HTTP_field_u =
          -- limit on the value of Content-Length. We limit it to 64 bits
          -- here out of practicality.
          --
-         -- NOTE: the specification permits all header values to be
+         -- NOTE: the specification permits all field values to be
          -- either tokens or quoted strings. This handles both. The
-         -- specification also states that a Content-Length header is
+         -- specification also states that a Content-Length field is
          -- valid if it is a comma-separated list of numbers, all of
          -- which take the same value. We also handle that case here.
          --
@@ -397,7 +397,7 @@ def HTTP_field: HTTP_field_u =
           let field_len = HTTP_field_content
           let value = bytesOfStream (Take field_len cur)
           SetStream (Drop field_len cur)
-          ^ {| Header = { name = field_name, value = value } |}
+          ^ {| Field = { name = field_name, value = value } |}
 
 -- Get the last element of a list.
 def Last (a: [?a]): ?a =

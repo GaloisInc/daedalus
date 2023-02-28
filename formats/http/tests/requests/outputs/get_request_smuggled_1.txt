@@ -8,9 +8,9 @@
                     , minor: 1[8]
                     }
          }
-, field_info: { fields: [ {Header: { name: "host"
-                                   , value: "vulnerable-website.com"
-                                   }}
+, field_info: { fields: [ {Field: { name: "host"
+                                  , value: "vulnerable-website.com"
+                                  }}
                         , {Content_Length: 13[64]}
                         , {Transfer_Encoding: { is_chunked: T
                                               , encodings: [ ]
