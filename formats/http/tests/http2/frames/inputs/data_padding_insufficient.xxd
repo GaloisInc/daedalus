@@ -1,4 +1,4 @@
-00000000: 0000 12                               // Header: length: 13 bytes
+00000000: 0000 12                               // Header: length: 18 bytes
 00000003: 00                                    // Header: frame type: data
 00000004: 08                                    // Data frame flags: padding enabled
 00000005: faaa cafe                             // Reserved bit (must be ignored) + Stream Identifier
