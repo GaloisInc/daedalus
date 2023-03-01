@@ -12,7 +12,7 @@
       • Lexemes.ddl:38:26--38:34
       • Lexemes.ddl:43:5--43:12
   • input trace:
-      tests/requests/inputs/get_request_chunked_invalid_missing_last_chunk.txt
+      tests/http1/requests/inputs/get_request_chunked_invalid_missing_last_chunk.txt
         0--218
 File context:
 Length: 42 (0x2a) bytes

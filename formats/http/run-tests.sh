@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Run the Daedalus tool to parse test cases using the HTTP spec and
-# compare them to expected outputs. This attempts to use daedalus
-# in the PATH; if it cannot be found there, daedalus is sought in
-# dist-newstyle/ at the root of this repository. This script assumes
+# Run the Daedalus tool to parse test cases using the HTTP specs in this
+# directory and compare them to expected outputs. This attempts to use
+# daedalus in the PATH; if it cannot be found there, daedalus is sought
+# in dist-newstyle/ at the root of this repository. This script assumes
 # that the 'ghc' in the PATH is the one that 'cabal' will use to build
 # daedalus.
 #
@@ -25,9 +25,6 @@ HERE=$(cd `dirname $0`; pwd)
 # The repo root relative to this script's location.
 ROOT=$HERE/../../
 
-# The spec we want to use to parse the inputs.
-SPEC=$HERE/HTTP-1.1.ddl
-
 # in_path <PROG>; exit code is zero if the specified program is found in
 # the PATH. Produces no output.
 function in_path {
@@ -44,16 +41,17 @@ function find_daedalus {
     }
 }
 
-# parse <ENTRY> <INPUT_PATH> <EXPECTED_OUTPUT_PATH>; run Daedalus using
-# the spec configured in $SPEC using the entry point ENTRY on the
-# specified input file and compare the results to the contents of the
-# specified expected output file.
+# parse <SPEC> <ENTRY> <INPUT_PATH> <EXPECTED_OUTPUT_PATH>; run Daedalus
+# using the specified spec using the entry point ENTRY on the specified
+# input file and compare the results to the contents of the specified
+# expected output file.
 function run_test_case {
-    local entry=$1
-    local input_file=$2
-    local output_file=$3
+    local spec=$1
+    local entry=$2
+    local input_file=$3
+    local output_file=$4
 
-    args="run $SPEC --entry=$entry -i $input_file"
+    args="run $spec --entry=$entry -i $input_file"
 
     if [ -f "${output_file}" ]
     then
@@ -78,15 +76,16 @@ function run_test_case {
     fi
 }
 
-# run_test_group <TESTS_DIR> <ENTRY_POINT>
+# run_test_group <SPEC> <TESTS_DIR> <ENTRY_POINT>
 #
 # Run all test cases in the specified directory using the specified
-# $SPEC entry point. Expects a test directory with subdirectories
+# spec entry point. Expects a test directory with subdirectories
 # inputs/ and outputs/. Mutates two global counters: num_failures and
 # num_successes.
 function run_test_group {
-    local test_case_dir=$1
-    local entry_point=$2
+    local spec=$1
+    local test_case_dir=$2
+    local entry_point=$3
 
     for file in $test_case_dir/inputs/*.txt
     do
@@ -94,7 +93,7 @@ function run_test_group {
         output_file="$test_case_dir/outputs/${filename}"
 
         echo ${file}:
-        run_test_case $entry_point $file $output_file
+        run_test_case $spec $entry_point $file $output_file
         num_failures=$((num_failures + $?))
         num_successes=$((num_successes + (1 - $?)))
         echo
@@ -121,8 +120,9 @@ num_successes=0
 
 cd $HERE
 
-run_test_group tests/requests HTTP_request
-run_test_group tests/responses HTTP_status
+HTTP_1_SPEC=$HERE/HTTP-1.1.ddl
+run_test_group $HTTP_1_SPEC tests/http1/requests HTTP_request
+run_test_group $HTTP_1_SPEC tests/http1/responses HTTP_status
 
 echo "$num_successes tests passed, $num_failures tests failed."
 
