@@ -59,12 +59,14 @@ def Frame_Type =
 
 -- Defined settings identifiers
 -- https://www.rfc-editor.org/rfc/rfc9113#name-defined-settings
-def SETTINGS_HEADER_TABLE_SIZE      = $[0x01] as uint 16
-def SETTINGS_ENABLE_PUSH            = $[0x02] as uint 16
-def SETTINGS_MAX_CONCURRENT_STREAMS = $[0x03] as uint 16
-def SETTINGS_INITIAL_WINDOW_SIZE    = $[0x04] as uint 16
-def SETTINGS_MAX_FRAME_SIZE         = $[0x05] as uint 16
-def SETTINGS_MAX_HEADER_LIST_SIZE   = $[0x06] as uint 16
+def Settings_Identifier =
+  First
+    SETTINGS_HEADER_TABLE_SIZE      = $[0x01] as uint 16
+    SETTINGS_ENABLE_PUSH            = $[0x02] as uint 16
+    SETTINGS_MAX_CONCURRENT_STREAMS = $[0x03] as uint 16
+    SETTINGS_INITIAL_WINDOW_SIZE    = $[0x04] as uint 16
+    SETTINGS_MAX_FRAME_SIZE         = $[0x05] as uint 16
+    SETTINGS_MAX_HEADER_LIST_SIZE   = $[0x06] as uint 16
 
 --------------------------------------------------------------------------------
 -- Utilities
