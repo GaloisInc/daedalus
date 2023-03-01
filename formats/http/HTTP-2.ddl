@@ -48,9 +48,10 @@ def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
         -- The data frame payload is the total frame length (len) minus
         -- the padding field byte (if any) minus the padding bytes
         -- themselves (if the padding field was present).
-        let padding_byte = if padding_amt > 0
-                            then 1
-                            else 0
+        let padding_byte = case info.flags of
+                             Flags fs -> if fs.padded == 1
+                                           then 1
+                                           else 0
         let data_len = (len as uint 64) - (padding_amt as uint 64) - padding_byte
 
         -- Read the data frame body.
