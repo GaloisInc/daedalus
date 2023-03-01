@@ -7,6 +7,9 @@
 # that the 'ghc' in the PATH is the one that 'cabal' will use to build
 # daedalus.
 #
+# This script requires that "xxd" is installed in the PATH and that the
+# version of GHC that cabal used to build daedalus is also in the PATH.
+#
 # For HTTP 1.1, this script runs the parser against all of the test case
 # files in the tests/http1/{requests,responses}/inputs/ subdirectory
 # and compares each with the respectively-named expected output file
