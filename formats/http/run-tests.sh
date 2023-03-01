@@ -45,7 +45,7 @@ function in_path {
 }
 
 function ghc_version {
-    ghc --version | awk '{ print $NF }'
+    ghc --version 2>/dev/null | awk '{ print $NF }'
 }
 
 # Echo the path to the daedalus binary, either in the PATH or in
@@ -53,7 +53,10 @@ function ghc_version {
 function find_daedalus {
     which daedalus || {
         ghc_ver=$(ghc_version)
-        find $ROOT/dist-newstyle -type f -name daedalus 2>/dev/null | grep $ghc_ver
+        if [ ! -z "$ghc_ver" ]
+        then
+            find $ROOT/dist-newstyle -type f -name daedalus 2>/dev/null | grep $ghc_ver
+        fi
     }
 }
 
@@ -145,6 +148,12 @@ function run_test_group {
         echo
     done
 }
+
+if [ -z "$(ghc_version)" ]
+then
+    echo "Error: 'ghc' not found in the PATH, exiting"
+    exit 1
+fi
 
 DAEDALUS=$(find_daedalus)
 
