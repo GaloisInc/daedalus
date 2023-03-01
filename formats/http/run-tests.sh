@@ -166,7 +166,7 @@ then
     exit 1
 fi
 
-if ! which xxd 2>/dev/null >/dev/null
+if ! in_path xxd
 then
     echo "Error: 'xxd' not in the PATH; xxd is required to run the test suite.'"
     exit 1
