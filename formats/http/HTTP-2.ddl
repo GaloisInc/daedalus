@@ -1,4 +1,4 @@
--- HTTP 2 message parser
+-- HTTP 2 frame parser
 --
 -- Unsupported features:
 -- * Protocol extensions (https://www.rfc-editor.org/rfc/rfc9113#section-5.5)
