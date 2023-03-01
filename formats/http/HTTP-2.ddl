@@ -3,25 +3,15 @@
 -- Unsupported features:
 -- * Protocol extensions (https://www.rfc-editor.org/rfc/rfc9113#section-5.5)
 
-def HTTP2_frame =
-  block
-    header = Frame_Header
-    body = Many (header.len as! uint 64) $any
-
 -- Frame header:
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-format
-def Frame_Header =
+def HTTP2_frame =
   block
     -- Length (24 bits)
     len = UInt24
 
-    -- Type (8 bits)
+    -- Type (8 bits) and flags (8 bits)
     type = Frame_Type
-
-    -- Flags (8 bits)
-    -- TODO: parse the flags along with the frame type so they can be in
-    -- the same structure?
-    flags = UInt8
 
     -- Reserved (1 bit)
     -- Stream Identifier (31 bits)
@@ -31,22 +21,79 @@ def Frame_Header =
     --
     -- https://www.rfc-editor.org/rfc/rfc9113#section-4.1-4.8.1
     let packed_ident = UInt32
-    ident = packed_ident as! uint 31
+    stream_identifier = packed_ident as! uint 31
+
+    body = HTTP2_frame_body len type
+
+def DataFrameBody_s =
+  struct
+    body: [uint 8]
+    padding: uint 8
+
+def HTTP2_frame_body_u =
+  union
+    DataFrameBody: DataFrameBody_s
+
+def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
+  case ty of
+    F_DATA info ->
+      block
+        -- Optional padding field: if the field is present in the flags,
+        -- we consume it now.
+        let padding_amt = case info.flags of
+                            Flags fs -> if fs.padded == 1
+                                          then UInt8
+                                          else ^ 0
+
+        -- The data frame payload is the total frame length (len) minus
+        -- the padding field byte (if any) minus the padding bytes
+        -- themselves (if the padding field was present).
+        let padding_byte = if padding_amt > 0
+                            then 1
+                            else 0
+        let data_len = (len as uint 64) - (padding_amt as uint 64) - padding_byte
+
+        -- Read the data frame body.
+        let body = Many (data_len as! uint 64) $any
+        $$ = {| DataFrameBody = { body = body, padding = padding_amt } |}
+
+        -- Now consume and discard the padding bytes.
+        Many (padding_amt as uint 64) $any
+
+-- Data frame flags:
+-- Unused Flags (4)
+-- PADDED Flag (1)
+-- Unused Flags (2)
+-- END_STREAM Flag (1)
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#name-data
+bitdata DataFrameFlags where
+  Flags = { unused1: uint 4,
+            padded: uint 1,
+            unused2: uint 2,
+            end_stream: uint 1
+          }
 
 -- Frame types
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-definitions
 def Frame_Type =
   First
-    F_DATA          = $[0x00]
-    F_HEADERS       = $[0x01]
-    F_PRIORITY      = $[0x02]
-    F_RST_STREAM    = $[0x03]
-    F_SETTINGS      = $[0x04]
-    F_PUSH_PROMISE  = $[0x05]
-    F_PING          = $[0x06]
-    F_GOAWAY        = $[0x07]
-    F_WINDOW_UPDATE = $[0x08]
-    F_CONTINUATION  = $[0x09]
+    F_DATA = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-data
+      -- Frame type: data
+      $[0x00]
+      -- Flags:
+      flags = UInt8 as? DataFrameFlags
+
+    -- F_HEADERS = $[0x01]
+    -- F_PRIORITY = $[0x02]
+    -- F_RST_STREAM = $[0x03]
+    -- F_SETTINGS = $[0x04]
+    -- F_PUSH_PROMISE = $[0x05]
+    -- F_PING = $[0x06]
+    -- F_GOAWAY = $[0x07]
+    -- F_WINDOW_UPDATE = $[0x08]
+    -- F_CONTINUATION = $[0x09]
 
 -- GOAWAY / RST_STREAM error codes
 -- https://www.rfc-editor.org/rfc/rfc9113#name-error-codes
