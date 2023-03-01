@@ -2,10 +2,10 @@ HTTP Parser
 ===========
 
 This directory contains a Daedalus specification for parsing HTTP 1.1
-messages and a test suite for testing the parser on a corpus of inputs.
-The parser specification includes reference links to various HTTP
-specifications and ABNF grammar fragments that express the requirements
-used to build the parser.
+messages and HTTP 2 frames and a test suite for testing the parser on
+a corpus of inputs for each version of HTTP. The parser specifications
+include reference links to various HTTP specifications and ABNF grammar
+fragments that express the requirements used to build the parsers.
 
 The HTTP 1.1 parser entry points are declared in ``HTTP-1.1.ddl``. They
 are:
@@ -13,34 +13,50 @@ are:
 * ``HTTP_request`` - for parsing request messages
 * ``HTTP_status`` - for parsing response messages
 
+The HTTP 2 parser's entry point, ``HTTP2_frame``, is declared in
+``HTTP-2.ddl``.
+
 Running the tests
 -----------------
 
 The test suite is run by running ``run-tests.sh``. The test suite runner
-runs on test cases from two directories:
+runs on test cases from three directories:
 
 * ``tests/http1/requests/`` for testing parsing of HTTP 1.1 request
   messages
-* ``tests/http1/responses/`` for testing parsing of HTTP 1.1 response
+* ``tests/http1/responses/`` for testing parsing of text HTTP 1.1 response
   messages
+* ``tests/http2/frames/`` for testing parsing of HTTP 2 frames
 
 Each test case directory has two subdirectories: ``inputs`` and
-``outputs``. Each file in an ``inputs`` subdirectory is a test case that
-is parsed by Daedalus; each file in ``outputs`` is a file with the same
-name as a test case giving the expected Daedalus output when parsing the
-corresponding input file.
+``outputs``. Each file in an ``inputs`` subdirectory is a test case
+input file. Each file in ``outputs``, which should be tracked in
+revision control, is a file with the same name as a test case giving the
+expected Daedalus output when parsing the corresponding input file.
 
 The test suite works as follows:
 
 * Files in an input directory (e.g. ``tests/http1/requests/inputs/``)
-  are parsed with Daedalus using the associated entry point
-  (e.g. ``HTTP_request``). For each input file, the Daedalus
-  output is compared to an expected output file (e.g. in
-  ``tests/http1/requests/outputs/``) by the same name as the input file.
-  If a test's output differs from its expected output, it is considered
-  a failure and the test suite runner script reports it accordingly.
-  If a test results in a Daedalus error, the error is reported to the
-  console.
+  are parsed with Daedalus using the associated entry point (e.g.
+  ``HTTP_request``).
+
+  * For HTTP 1.1, the input file must be a file with ``.txt`` extension
+    and must contain a single HTTP 1.1 request or response (depending on
+    the input directory).
+  * For HTTP 2, the input file must be a file with ``.xxd`` extension
+    and must contain an ``xxd``-encoded HTTP 2 frame. This allows easer
+    user editing of test cases than editing binary files directly, and
+    ``.xxd`` files can be equipped with comments to help explain what
+    the test case is expected to contain. The test suite runner will
+    automatically generate a binary file from the ``.xxd`` encoding and
+    pass the binary file to Daedalus for parsing.
+
+  For each input file, the Daedalus output is compared to an expected
+  output file (e.g. in ``tests/http1/requests/outputs/``) by the same
+  name as the input file. If a test's output differs from its expected
+  output, it is considered a failure and the test suite runner script
+  reports it accordingly. If a test results in a Daedalus error, the
+  error is reported to the console.
 * If an input file has no corresponding file, the test runner script
   will save the Daedalus output to the output file path. Future test
   suite runs will then compare the Daedalus output to the generated
@@ -48,8 +64,9 @@ The test suite works as follows:
 
 Adding new test cases can be done as follows:
 
-* Create a new test input file (e.g. an HTTP request in
-  ``tests/http1/requests/inputs/``)
+* Create a new test input file (e.g. a text HTTP 1.1 request in
+  ``tests/http1/requests/inputs/new_request.txt`` or a binary HTTP 2
+  frame in ``tests/http2/frames/inputs/new_frame.xxd``)
 * Run ``run-tests.sh`` to save the output of the test (e.g. to a file in
   ``tests/http1/requests/outputs/``)
 * Check that the output is as expected; this means checking on whether
