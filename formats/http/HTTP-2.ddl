@@ -25,14 +25,14 @@ def HTTP2_frame =
 
     body = HTTP2_frame_body len type
 
-def DataFrameBody_s =
+def Data_Frame_Body_s =
   struct
     body: [uint 8]
     padding: uint 8
 
 def HTTP2_frame_body_u =
   union
-    DataFrameBody: DataFrameBody_s
+    Data_Frame_Body: Data_Frame_Body_s
 
 def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -55,7 +55,7 @@ def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
 
         -- Read the data frame body.
         let body = Many (data_len as! uint 64) $any
-        $$ = {| DataFrameBody = { body = body, padding = padding_amt } |}
+        $$ = {| Data_Frame_Body = { body = body, padding = padding_amt } |}
 
         -- Now consume and discard the padding bytes.
         Many (padding_amt as uint 64) $any
@@ -67,7 +67,7 @@ def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
 -- END_STREAM Flag (1)
 --
 -- https://www.rfc-editor.org/rfc/rfc9113#name-data
-bitdata DataFrameFlags where
+bitdata Data_Frame_Flags where
   Flags = { unused1: uint 4,
             padded: uint 1,
             unused2: uint 2,
@@ -83,7 +83,7 @@ def Frame_Type =
       -- Frame type: data
       $[0x00]
       -- Flags:
-      flags = UInt8 as? DataFrameFlags
+      flags = UInt8 as? Data_Frame_Flags
 
     -- F_HEADERS = $[0x01]
     -- F_PRIORITY = $[0x02]

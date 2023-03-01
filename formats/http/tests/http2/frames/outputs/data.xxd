@@ -9,7 +9,7 @@
                                       }}
                  }}
 , stream_identifier: 2058013438[31]
-, body: {DataFrameBody: { body: "hello, world!"
-                        , padding: 0[8]
-                        }}
+, body: {Data_Frame_Body: { body: "hello, world!"
+                          , padding: 0[8]
+                          }}
 }
