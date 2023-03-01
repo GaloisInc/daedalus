@@ -32,11 +32,15 @@ function in_path {
     which $cmd 2>&1 >/dev/null
 }
 
+function ghc_version {
+    ghc --version | awk '{ print $NF }'
+}
+
 # Echo the path to the daedalus binary, either in the PATH or in
 # dist-newstyle in the repo root.
 function find_daedalus {
     which daedalus || {
-        ghc_ver=$(ghc --version | awk '{ print $NF }')
+        ghc_ver=$(ghc_version)
         find $ROOT/dist-newstyle -type f -name daedalus 2>/dev/null | grep $ghc_ver
     }
 }
@@ -104,7 +108,7 @@ DAEDALUS=$(find_daedalus)
 
 if [ -z "$DAEDALUS" ]
 then
-    echo "Error: could not find daedalus in the PATH or in dist-newstyle/ in the repo."
+    echo "Error: could not find daedalus in the PATH or in dist-newstyle/ in the repo for GHC version $(ghc_version)."
     exit 1
 fi
 
