@@ -140,7 +140,12 @@ function run_test_group {
         local input_file=$file
         if [ $binary -eq 1 ]
         then
-            input_file=$(mktemp)
+            # It's critical that we always re-use the same input file
+            # path here so that paths included in error messages match
+            # the expected output. (Previously this created a temp file
+            # for each test case but that mean the paths changed with
+            # every run, which breaks this.)
+            input_file=/tmp/input_file.bin
             xxd -r $file > $input_file
         fi
 
