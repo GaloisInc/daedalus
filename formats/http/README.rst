@@ -19,8 +19,10 @@ Running the tests
 The test suite is run by running ``run-tests.sh``. The test suite runner
 runs on test cases from two directories:
 
-* ``tests/requests/`` for testing parsing of HTTP request messages
-* ``tests/responses/`` for testing parsing of HTTP response messages
+* ``tests/http1/requests/`` for testing parsing of HTTP 1.1 request
+  messages
+* ``tests/http1/responses/`` for testing parsing of HTTP 1.1 response
+  messages
 
 Each test case directory has two subdirectories: ``inputs`` and
 ``outputs``. Each file in an ``inputs`` subdirectory is a test case that
@@ -30,12 +32,12 @@ corresponding input file.
 
 The test suite works as follows:
 
-* Files in an input directory (e.g. ``tests/requests/inputs/``) are
-  parsed with Daedalus using the associated entry point
+* Files in an input directory (e.g. ``tests/http1/requests/inputs/``)
+  are parsed with Daedalus using the associated entry point
   (e.g. ``HTTP_request``). For each input file, the Daedalus
   output is compared to an expected output file (e.g. in
-  ``tests/requests/outputs/``) by the same name as the input file. If
-  a test's output differs from its expected output, it is considered
+  ``tests/http1/requests/outputs/``) by the same name as the input file.
+  If a test's output differs from its expected output, it is considered
   a failure and the test suite runner script reports it accordingly.
   If a test results in a Daedalus error, the error is reported to the
   console.
@@ -47,9 +49,9 @@ The test suite works as follows:
 Adding new test cases can be done as follows:
 
 * Create a new test input file (e.g. an HTTP request in
-  ``tests/requests/inputs/``)
+  ``tests/http1/requests/inputs/``)
 * Run ``run-tests.sh`` to save the output of the test (e.g. to a file in
-  ``tests/requests/outputs/``)
+  ``tests/http1/requests/outputs/``)
 * Check that the output is as expected; this means checking on whether
   the generated output file contains either a successful parse tree OR a
   ``daedalus`` error message.
