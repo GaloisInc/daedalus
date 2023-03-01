@@ -163,6 +163,12 @@ then
     exit 1
 fi
 
+if ! which xxd 2>/dev/null >/dev/null
+then
+    echo "Error: 'xxd' not in the PATH; xxd is required to run the test suite.'"
+    exit 1
+fi
+
 # Canonicalize the path and remove relative path segments
 DAEDALUS=$(readlink -f $DAEDALUS)
 
