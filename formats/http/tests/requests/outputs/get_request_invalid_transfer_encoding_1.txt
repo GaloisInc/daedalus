@@ -1,0 +1,27 @@
+--- Found 1 results:
+{ start: { method: {GET: { }}
+         , target: {Origin: { path: [ [ ]
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, field_info: { fields: [ {Field: { name: "host"
+                                  , value: "vulnerable-website.com"
+                                  }}
+                        , {Content_Length: 1[64]}
+                        , {Transfer_Encoding: { is_chunked: F
+                                              , encodings: [ { type: "xchunked"
+                                                             , params: [ ]
+                                                             }
+                                                           ]
+                                              }}
+                        ]
+              , chunked: F
+              , explicit_length: Just 1[64]
+              , encoded: T
+              }
+, body: {remaining: "0\n\nSMUGGLED\n"}
+}

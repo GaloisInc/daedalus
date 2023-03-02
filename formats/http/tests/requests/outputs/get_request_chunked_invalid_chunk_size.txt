@@ -1,0 +1,22 @@
+--- Parse error: 
+[offset: 147]
+  • byte 'x' does not match between '0' and '9'
+  • see grammar at: Lexemes.ddl:30:24--30:29
+  • context:
+      • HTTP-1.1.ddl:17:20--17:55
+      • HTTP-1.1.ddl:41:12--41:31
+      • case branch  {| ty_chunked = _ |}
+      • HTTP-1.1.ddl:137:27--137:35
+      • HTTP-1.1.ddl:183:12--183:20
+      • HTTP-1.1.ddl:217:17--217:25
+      • Lexemes.ddl:38:26--38:34
+      • Lexemes.ddl:43:5--43:12
+  • input trace:
+      tests/requests/inputs/get_request_chunked_invalid_chunk_size.txt
+        0--147
+File context:
+Length: 42 (0x2a) bytes
+0070:            35  36 0a 54 72  61 6e 73 66  65 72 2d 45      56.Transfer-E
+0080:   6e 63 6f 64  69 6e 67 3a  20 63 68 75  6e 6b 65 64   ncoding: chunked
+0090:   0a 0a 30 [1;91m78[0m  62 3b 20 78  0a 71 3d 73  6d   ..0[1;91mx[0mb; x.q=sm
+

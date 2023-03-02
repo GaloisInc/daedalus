@@ -1,0 +1,17 @@
+--- Found 1 results:
+{ start: { version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         , status_code: 200[8]
+         , reason: "OK"
+         }
+, field_info: { fields: [ {Field: { name: "date"
+                                  , value: "Thu, 09 Dec 2004 12:07:48 GMT"
+                                  }}
+                        ]
+              , chunked: F
+              , explicit_length: Nothing
+              , encoded: F
+              }
+, body: {remaining: "abcd\n"}
+}
