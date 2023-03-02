@@ -19,6 +19,7 @@ import           Daedalus.PP
 
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Eqv    (Eqv)
+import           Talos.Analysis.Merge  (Merge (..), MergeAsMonoid (..))
 import           Talos.Analysis.SLExpr (SLExpr (..), exprToSLExpr, slExprToExpr)
 
 fieldAbsEnvTy :: AbsEnvTy
@@ -30,8 +31,19 @@ data FieldProj = Whole | FieldProj (Map Label FieldProj)
 instance NFData FieldProj -- default
 instance Eqv FieldProj -- default
 
+instance Merge FieldProj where
+  Whole `merge` _ = Whole
+  _ `merge` Whole = Whole
+  FieldProj m `merge` FieldProj m' = FieldProj $ merge m m'
+
+instance AbsEnvPred FieldProj where
+  absPredTop = Whole
+  absPredOverlaps Whole _ = True
+  absPredOverlaps _ Whole = True
+  absPredOverlaps (FieldProj m1) (FieldProj m2) = mapPredOverlaps m1 m2
+
 newtype FieldAbsEnv = FieldAbsEnv (LiftAbsEnv FieldProj)
-  deriving (Semigroup, Eqv, PP, AbsEnv)
+  deriving (Merge, Eqv, PP, AbsEnv)
 
 instance AbsEnvPointwise FieldProj where
   absPredPre p e   =
@@ -42,9 +54,8 @@ instance AbsEnvPointwise FieldProj where
     in (exprToAbsEnv e', sle)
   absPredGuard     = exprToAbsEnv
   absPredByteSet _ = byteSetToAbsEnv
-  absPredTop       = Whole
   absPredInverse n e1 e2 =
-    mapLiftAbsEnv (Map.delete n) (exprToAbsEnv e1 <> exprToAbsEnv e2)
+    mapLiftAbsEnv (Map.delete n) (exprToAbsEnv e1 `merge` exprToAbsEnv e2)
 
 explodeFieldProj :: FieldProj -> [ [Label] ]
 explodeFieldProj Whole = [ [] ]
@@ -81,12 +92,12 @@ projectE (FieldProj fp) expr = go expr
       PureLet n e' e'' -> SPureLet n (exprToSLExpr e') (go e'')
       Struct ut flds   -> SStruct ut (projectStruct fp flds)
       ECase cs       -> SECase (go <$> cs)
+      ELoop lm       -> SELoop 
       Ap0 {}         -> exprToSLExpr e
       Ap1 {}         -> exprToSLExpr e
       Ap2 {}         -> exprToSLExpr e
       Ap3 {}         -> exprToSLExpr e
       ApN {}         -> exprToSLExpr e
-
 
 exprToProj :: Expr -> Maybe (Name, FieldProj)
 exprToProj = go
@@ -107,7 +118,7 @@ letLikeToAbsEnv n e m@(LiftAbsEnv e'_env)
   | Just (n', n'_fp) <- exprToProj e
   , (Just n_fp, e_env_no_n') <- Map.updateLookupWithKey (\_ _ -> Nothing) n e'_env
   = LiftAbsEnv $ Map.insert n' (composeFieldProj n_fp n'_fp) e_env_no_n'
-  | otherwise =  exprToAbsEnv e <> mapLiftAbsEnv (Map.delete n) m
+  | otherwise =  exprToAbsEnv e `merge` mapLiftAbsEnv (Map.delete n) m
 
 exprToAbsEnv :: Expr -> LiftAbsEnv FieldProj
 exprToAbsEnv = go
@@ -116,20 +127,27 @@ exprToAbsEnv = go
       | Just (n, fp) <- exprToProj expr = LiftAbsEnv (Map.singleton n fp)
     -- special case for let x = a.b.c in y x, FWIW
     go (PureLet n e e')     = letLikeToAbsEnv n e (go e')
-    go (ECase c@(Case x _)) = mapLiftAbsEnv (Map.insert x Whole) (foldMap go c)
-    go expr = foldMapChildrenE go expr
+    go (ECase c@(Case x _)) =
+      mapLiftAbsEnv (Map.insert x Whole) (unwrap (foldMap (wrap . go) c))
+    go expr = unwrap (foldMapChildrenE (wrap . go) expr)
+
+    -- Allows us to reuse Foldable things, although we assert we don't
+    -- get an empty thing.
+    wrap   = MergeAsMonoid
+    unwrap = getMergeAsMonoid
 
 byteSetToAbsEnv :: ByteSet -> LiftAbsEnv FieldProj
 byteSetToAbsEnv = go
   where
     go (SetLet n e b)         = letLikeToAbsEnv n e (go b)
-    go (SetCase c@(Case x _)) = mapLiftAbsEnv (Map.insert x Whole) (foldMap go c)
-    go b = ebFoldMapChildrenB exprToAbsEnv go b
+    go (SetCase c@(Case x _)) =
+      mapLiftAbsEnv (Map.insert x Whole) (unwrap (foldMap (wrap . go) c))
+    go b = unwrap (ebFoldMapChildrenB (wrap . exprToAbsEnv) (wrap . go) b)
+
+    -- Allows us to reuse Foldable things, although we assert we don't
+    -- get an empty thing.
+    wrap   = MergeAsMonoid
+    unwrap = getMergeAsMonoid
 
 --------------------------------------------------------------------------------
 -- Instances
-
-instance Semigroup FieldProj where
-  Whole <> _ = Whole
-  _ <> Whole = Whole
-  FieldProj m <> FieldProj m' = FieldProj $ Map.unionWith (<>) m m'

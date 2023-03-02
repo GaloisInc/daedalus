@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- Path set analysis
 
@@ -9,24 +9,24 @@ module Talos.Analysis.Slice
   ( FInstId(..)
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
-  , Slice'(..)
+  , Slice'(..), Structural(..)
   ) where
 
-import           Data.Set      (Set)
-import qualified Data.Set      as Set
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
 
-import Control.DeepSeq (NFData)
-import GHC.Generics (Generic)
+import           Control.DeepSeq                 (NFData)
+import           GHC.Generics                    (Generic)
 
-import Daedalus.PP
-import Daedalus.Panic
+import           Daedalus.PP
+import           Daedalus.Panic
 
-import Daedalus.Core
-import Daedalus.Core.Free
-import Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core
+import           Daedalus.Core.Free
+import           Daedalus.Core.TraverseUserTypes
 
-import Talos.Analysis.Eqv
-import Talos.Analysis.Merge
+import           Talos.Analysis.Eqv
+import           Talos.Analysis.Merge
 
 -- import Debug.Trace
 
@@ -95,15 +95,18 @@ data Slice' cn sle =
   | SPure sle
   --  | GetStream
   --  | SetStream Expr
-  
+
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
   | SDo Name (Slice' cn sle) (Slice' cn sle)
   --  | Let Name Expr Grammar
   | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
-  | SCall cn 
+  | SCall cn
   | SCase Bool (Case (Slice' cn sle))
+  
+  -- Having 'Structural' here is a bit of a hack
+  | SLoop (LoopClass' sle (Structural, Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
@@ -133,6 +136,12 @@ data Slice' cn sle =
 -- [\result >> 24 as uint 8, \result >> 16 as uint 8, \result >> 8 as uint 8, \result as uint 8 ]
 -- when constructing the path (i.e., when getting bytes).
 
+
+-- | This is for loops -- a loop slice is structural if the structure
+-- is important (i.e., the order/number of elements).
+data Structural = Structural | StructureInvariant
+  deriving (Eq, Ord, Generic, NFData)
+
 --------------------------------------------------------------------------------
 -- Domain Instances
 
@@ -149,14 +158,14 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SHole {}, SHole {}) -> True
       (SHole {}, _)         -> False
       (_       , SHole {}) -> False
-      
+
       (SPure e, SPure e')  -> eqv e e' -- FIXME: needed?
       (SMatch {}, SMatch {}) -> True
       (SDo _ l1 r1, SDo _ l2 r2)  -> (l1, r1) `eqv` (l2, r2)
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
---      (SAssertion {}, SAssertion {}) -> True      
+      (SLoop lb, SLoop lb')          -> lb `eqv` lb'
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -173,14 +182,24 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
+      (SLoop lc, SLoop lc')          -> SLoop (merge lc lc')
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
+
+instance Eqv Structural where -- default
+instance Merge Structural where
+  StructureInvariant `merge` StructureInvariant = StructureInvariant
+  _ `merge` _ = Structural
 
 --------------------------------------------------------------------------------
 -- Free instances
 --
 --  Used for getting deps for the SMT solver defs.
+
+instance FreeVars Structural where
+  freeVars = mempty
+  freeFVars = mempty
 
 instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
   freeVars sl =
@@ -192,7 +211,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
---      SAssertion e   -> freeVars e      
+      SLoop lc       -> freeVars lc
       SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
 
   freeFVars sl =
@@ -201,21 +220,19 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SDo _x l r     -> freeFVars l `Set.union` freeFVars r
       SPure v        -> freeFVars v
       SMatch m       -> freeFVars m
---      SAssertion e   -> freeFVars e
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
+      SLoop lc       -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
-      SInverse _ _f p -> {- freeFVars f <> -} freeFVars p 
-
+      SInverse _ _f p -> {- freeFVars f <> -} freeFVars p
 
 -- -----------------------------------------------------------------------------
 -- FreeTCons
 
--- traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applicative f) =>
---                         (UserType -> f UserType) -> Map a b -> f (Map a b)
--- traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
+instance TraverseUserTypes Structural where
+  traverseUserTypes _f s = pure s
 
 instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Slice' cn sle) where
   traverseUserTypes f sl =
@@ -224,12 +241,13 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
       SPure v          -> SPure <$> traverseUserTypes f v
       SDo x l r        -> SDo  <$> traverseUserTypes f x
                                <*> traverseUserTypes f l
-                               <*> traverseUserTypes f r      
+                               <*> traverseUserTypes f r
       SMatch m         -> SMatch <$> traverseUserTypes f m
 --      SAssertion e     -> SAssertion <$> traverseUserTypes f e
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
+      SLoop lc         -> SLoop <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
@@ -241,7 +259,7 @@ instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) wher
 -- instance PP CallInstance where
 --   ppPrec n (CallInstance { callParams = ps, callSlice' = sl }) =
 --     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
-    
+
 -- c.f. PP Grammar
 instance (PP cn, PP sle) => PP (Slice' cn sle) where
   pp sl =
@@ -253,10 +271,10 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
---      SAssertion e   -> "assert" <+> ppPrec 1 e
+      SLoop lc       -> pp (snd <$> lc) -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
-      
+
 ppStmts' :: (PP cn, PP sle) => Slice' cn sle -> Doc
 ppStmts' sl =
   case sl of

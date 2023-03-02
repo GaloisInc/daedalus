@@ -47,7 +47,7 @@ data GuardedSlice ae = GuardedSlice
 
 instance AbsEnv ae => Merge (GuardedSlice ae) where
   merge gs gs' = GuardedSlice
-    { gsEnv  = gsEnv gs <> gsEnv gs'
+    { gsEnv  = gsEnv gs `merge` gsEnv gs'
     , gsPred = gsPred gs <> gsPred gs'
     , gsSlice = merge (gsSlice gs) (gsSlice gs')
     }
@@ -65,7 +65,7 @@ mapGuardedSlice f gs = gs { gsSlice = f (gsSlice gs) }
 bindGuardedSlice :: AbsEnv ae => Name ->
                     GuardedSlice ae -> GuardedSlice ae -> GuardedSlice ae
 bindGuardedSlice x lhs rhs = GuardedSlice
-  { gsEnv = gsEnv lhs <> gsEnv rhs
+  { gsEnv = gsEnv lhs `merge` gsEnv rhs
   , gsPred = gsPred rhs
   , gsSlice = SDo x (gsSlice lhs) (gsSlice rhs)
   }
@@ -108,7 +108,7 @@ instance AbsEnv ae => Merge (Domain ae) where
       go (gs : d1') d2 = go d1' (newgs : indep)
         where
           newgs = foldl merge gs dep
-          (indep, dep) = partition ((absEnvOverlaps `on` gsEnv) gs) d2
+          (dep, indep) = partition ((absEnvOverlaps `on` gsEnv) gs) d2
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?
@@ -128,29 +128,21 @@ singletonDomain gs
   -- closed, otherwise it gets put in elements.
   --
   -- A non-result element with a null environment must start with SDo
-  | closedGuardedSlice gs, SDo x _ _ <- gsSlice gs =
-      Domain { elements = [], closedElements = Map.singleton x [gsSlice gs] }
+  | closedGuardedSlice gs, SDo x _ _ <- gsSlice gs = mkSingleton x
 
+  -- We ensure that any other binding site (e.g. in loops) that may be
+  -- the root of a slice binds a variable, so that variable will then
+  -- be the root.
   | closedGuardedSlice gs = panic "Expecting a slice headed by a SDo" [showPP gs]
   | otherwise = Domain { elements = [gs], closedElements = Map.empty }
+  where
+    mkSingleton x =
+      Domain { elements = [], closedElements = Map.singleton x [gsSlice gs] }
 
 -- | Constructs a domain from the possibly-overlapping elements.
 domainFromElements :: AbsEnv ae => [GuardedSlice ae] -> Domain ae
 domainFromElements []  = emptyDomain
 domainFromElements els = foldl1 merge (map singletonDomain els)
-
--- singletonResultDomain :: GuardedSlice ae -> Domain ae
--- singletonResultDomain el = Domain
---   { elements = []
---   , closedElements = Map.empty
---   , resultElement = Just el
---   }
-
--- instance Monoid Domain where
---   mempty = emptyDomain
-
--- dontCareD :: Int -> Domain -> Domain
--- dontCareD n d = Domain [ (evs, sDontCare n fp) | (evs, fp) <- elements d ]
 
 nullDomain :: Domain ae -> Bool
 nullDomain (Domain [] ce) = Map.null ce
@@ -160,35 +152,9 @@ closedDomain :: Domain ae -> Bool
 closedDomain (Domain [] _) = True
 closedDomain _             = False
 
--- mapDomain :: (EntangledVars -> Slice -> Slice) -> Domain -> Domain
--- mapDomain f = Domain . map (\(x, y) -> (x, f x y)) . elements
-
-
--- substResultInDomain :: EntangledVar -> Domain -> Domain
--- substResultInDomain x d =
---   case splitOnVarWith isResult d of
---     (Nothing, _) -> d
---     (Just (evs, sl), d') ->
---       singletonDomain (substEntangledVars (\ev -> Set.singleton $ if isResult ev then x else ev) evs, sl)
---       <> d'
---     where
---       isResult (ResultVar {}) = True
---       isResult _              = False
-
 squashDomain :: AbsEnv ae => Domain ae -> Domain ae
 squashDomain d@(Domain { elements = []}) = d
 squashDomain d = d { elements = [ foldl1' merge (elements d) ] }
-
--- domainEqv :: Domain ae -> Domain ae -> Bool
--- domainEqv dL dR = go (elements dL) (elements dR)
---   where
---     go [] [] = True
---     go [] _  = False
---     go ((els, ps) : d1') d2 =
---       case partition ((==) els . fst) d2 of
---         ([], _)           -> False
---         ([(_, ps')], d2') -> eqv ps ps' && go d1' d2'
---         _ -> panic "Malformed domain" []
 
 -- This is maybe too strict, as we require that the order of elements is the same.
 domainEqv :: AbsEnv ae => Domain ae -> Domain ae -> Bool
@@ -196,75 +162,43 @@ domainEqv dL dR =
   elements dL `eqv` elements dR &&
   eqv (closedElements dL) (closedElements dR)
 
--- Turns a domain into a map from a representative entangle var to the
--- entangled vars and FPS.
--- explodeDomain :: Domain -> [(EntangledVars, Slice)]
--- explodeDomain d = elements d
-
 --------------------------------------------------------------------------------
 -- Helpers
 
--- Look up exactly the variable passed in (i.e., we don't check if it
--- is covered by another variable)
--- lookupVar :: EntangledVar -> Domain -> Maybe (EntangledVars, Slice)
--- lookupVar n ds = Map.lookup n (explodeDomain ds)
+-- | Removes `x` the given slice, returning `Right` if `x` isn't
+-- constrained, `Left` otherwise.
+partitionSliceForVar :: AbsEnv ae => Name -> GuardedSlice ae ->
+                        Either (GuardedSlice ae, AbsPred ae) (GuardedSlice ae)
+partitionSliceForVar x gs =
+  case absProj x (gsEnv gs) of
+    Nothing      -> Right gs
+    Just (e, p)  -> Left (gs { gsEnv = e }, p)
 
--- domainElement :: EntangledVars -> Domain -> Maybe Slice
--- domainElement evs d = lookup evs (elements d)
-
---  | If this returns [] then the variable isn't mapped; it can also
--- return [emptyFieldSet] which means we care about all the children
--- (or it is not a struct)
-
--- domainFileSets :: BaseEntangledVar -> Domain -> [FieldSet]
--- domainFileSets bv ds = mapMaybe (lookupBaseEV bv . fst) (elements ds)
-
--- Removes bv from the domain, returning any slices rooted at bv
-
+-- | Removes `x` from the domain, returning any slices mentioning x
+-- and the domain less those slices
 partitionDomainForVar :: AbsEnv ae => Name ->
                          Domain ae ->
                          ( [ (GuardedSlice ae, AbsPred ae) ], Domain ae )
 partitionDomainForVar x d = ( matching, d' )
   where
-    (matching, nonMatching) = partitionEithers (map part (elements d))
-    part gs = case absProj x (gsEnv gs) of
-      Nothing      -> Right gs
-      Just (e, p)  -> Left (gs { gsEnv = e }, p)
-
+    (matching, nonMatching) = partitionEithers (map (partitionSliceForVar x) (elements d))
     d' = d { elements = nonMatching }
 
 partitionDomainForResult :: AbsEnv ae =>
+                            ([AbsPred ae] -> Bool) ->
                             Domain ae ->
                             ( [ GuardedSlice ae ], Domain ae )
-partitionDomainForResult d = ( matching, d' )
+partitionDomainForResult f d = ( matching, d' )
   where
-    (nonMatching, matching) = partition (null . gsPred) (elements d)
+    (matching, nonMatching) = partition (f . gsPred) (elements d)
     d' = d { elements = nonMatching }
 
 -- Maps over non-closed slices
 mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae
 mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
 
--- splitRemoveVar :: BaseEntangledVar -> Domain -> ([(FieldSet, Slice)], Domain)
--- splitRemoveVar bv ds = (nin, Domain nout)
---   where
---     (nin, nout) =
---       partitionEithers [ case m_fs of
---                            Just fset | nullEntangledVars evs'-> Left  (fset, sl)
---                            _                                 -> Right (evs', sl)
---                        | (evs, sl) <- elements ds
---                        , let (m_fs, evs') = deleteBaseEV bv evs
---                        ]
-
--- doesn't merge
--- primAddDomainElement :: (EntangledVars, Slice) -> Domain -> Domain
--- primAddDomainElement d ds = Domain (d : elements ds)
-
 --------------------------------------------------------------------------------
 -- Debugging etc.
-
--- domainInvariant :: Domain -> Bool
--- domainInvariant dom = all (\(evs, _sl) -> evs /= mempty) (elements dom)
 
 --------------------------------------------------------------------------------
 -- Internal slices (used during analysis)

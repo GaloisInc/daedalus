@@ -25,6 +25,11 @@ instance FreeVars a => FreeVars [a] where
   freeVars = Set.unions . map freeVars
   freeFVars = Set.unions . map freeFVars
 
+instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
+  freeVars (a, b)  = freeVars a `Set.union` freeVars b
+  freeFVars (a, b) = freeFVars a `Set.union` freeFVars b
+
+
 instance FreeVars Name where
   freeVars = Set.singleton
   freeFVars _ = mempty

@@ -22,7 +22,7 @@ import           Daedalus.Core                   (Case, Expr (..), Label, Name,
                                                   byteArrayL, floatL, inUnion,
                                                   intL, mapEmpty, newBuilder,
                                                   newIterator, nothing, ppOp2,
-                                                  ppOp3, ppTApp, unit)
+                                                  ppOp3, ppTApp, unit, mapMorphismE)
 import           Daedalus.Core.Free              (FreeVars (..))
 import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
 import           Daedalus.PP
@@ -30,7 +30,7 @@ import           Daedalus.Panic                  (panic)
 
 import           Talos.Analysis.Eqv              (Eqv (..))
 import           Talos.Analysis.Merge            (Merge (..))
-
+import Daedalus.Core.Expr (LoopMorphism')
 
 -- Expressions with a hole
 data SLExpr =
@@ -38,7 +38,8 @@ data SLExpr =
   | SPureLet Name SLExpr SLExpr
   | SStruct UserType [ (Label, SLExpr) ]
   | SECase (Case SLExpr)
-
+  | SELoop (LoopMorphism' SLExpr SLExpr)
+  
   | SAp0 Op0
   | SAp1 Op1 SLExpr
   | SAp2 Op2 SLExpr SLExpr
@@ -54,6 +55,7 @@ slExprToExpr dflt sl =
     SPureLet n e e'  -> PureLet n (go e) (go e') 
     SStruct ut flds  -> Struct ut [ (l, go e) | (l, e) <- flds ]
     SECase c         -> ECase (go <$> c)
+    SELoop lm        -> ELoop (mapMorphismE go go lm)
     SAp0 op          -> Ap0 op
     SAp1 op e        -> Ap1 op (go e)
     SAp2 op e1 e2    -> Ap2 op (go e1) (go e2)
@@ -70,6 +72,7 @@ exprToSLExpr expr =
     PureLet n e e'  -> SPureLet n (go e) (go e') 
     Struct ut flds  -> SStruct ut [ (l, go e) | (l, e) <- flds ]
     ECase c         -> SECase (go <$> c)
+    ELoop lm        -> SELoop (mapMorphismE go go lm)
     Ap0 op          -> SAp0 op
     Ap1 op e        -> SAp1 op (go e)
     Ap2 op e1 e2    -> SAp2 op (go e1) (go e2)
@@ -77,7 +80,6 @@ exprToSLExpr expr =
     ApN op es       -> SApN op (map go es)
   where
     go = exprToSLExpr
-
 
 slExprToExpr' :: Map TName TDecl -> SLExpr -> Expr
 slExprToExpr' tys = slExprToExpr (typeToInhabitant tys)
@@ -127,7 +129,7 @@ instance TraverseUserTypes SLExpr where
                                    <*> traverse (\(l, e') -> (,) l
                                        <$> traverseUserTypes f e') ls
       SECase c          -> SECase   <$> traverseUserTypes f c
-
+      SELoop lm         -> SELoop   <$> traverseUserTypes f lm
       SAp0 op0          -> SAp0 <$> traverseUserTypes f op0
       SAp1 op1 e'       -> SAp1 <$> traverseUserTypes f op1
                                 <*> traverseUserTypes f e'
@@ -147,6 +149,7 @@ instance FreeVars SLExpr where
       SPureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
       SStruct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
       SECase e         -> freeVars e
+      SELoop lm        -> freeVars lm
       SAp0 _           -> Set.empty
       SAp1 _ e         -> freeVars e
       SAp2 _ e1 e2     -> freeVars [e1,e2]
@@ -160,6 +163,8 @@ instance FreeVars SLExpr where
       SPureLet _ e1 e2 -> freeFVars [e1,e2]
       SStruct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
       SECase e         -> freeFVars e
+      SELoop lm        -> freeFVars lm
+      
       SAp0 _           -> Set.empty
       SAp1 _ e         -> freeFVars e
       SAp2 _ e1 e2     -> freeFVars [e1,e2]
@@ -183,7 +188,8 @@ instance PP SLExpr where
       SStruct t fs -> ppPrec 1 t <+> braces (commaSep (map ppF fs))
         where ppF (l,e) = pp l <+> "=" <+> pp e
 
-      SECase c -> pp c
+      SECase c  -> pp c
+      SELoop lm -> pp lm
 
       SAp0 op   -> ppPrec n op
 

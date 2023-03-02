@@ -18,6 +18,7 @@ import Talos.Analysis.Eqv (Eqv)
 import Data.Proxy (Proxy(Proxy))
 import Talos.Analysis.SLExpr (exprToSLExpr)
 import Daedalus.PP
+import Talos.Analysis.Merge (Merge(..))
 
 varAbsEnvTy :: AbsEnvTy
 varAbsEnvTy = AbsEnvTy (Proxy @VarAbsEnv)
@@ -27,9 +28,15 @@ data Whole = Whole
   deriving (Eq, Ord)
 
 instance Eqv Whole -- default
+instance Merge Whole where
+  merge _ _ = Whole
+
+instance AbsEnvPred Whole where
+  absPredTop = Whole
+  absPredOverlaps _ _ = True
 
 newtype VarAbsEnv = VarAbsEnv (LiftAbsEnv Whole)
-  deriving (Eqv, PP, Semigroup, AbsEnv)
+  deriving (Eqv, PP, Merge, AbsEnv)
 
 freeToAbsEnv :: FreeVars a => a -> Map Name Whole
 freeToAbsEnv = Map.fromSet (const Whole) . freeVars
@@ -38,14 +45,10 @@ instance AbsEnvPointwise Whole where
   absPredPre _ e   = (LiftAbsEnv (freeToAbsEnv e), exprToSLExpr e)
   absPredGuard     = LiftAbsEnv . freeToAbsEnv
   absPredByteSet _ = LiftAbsEnv .freeToAbsEnv
-  absPredTop       = Whole
   absPredInverse n e1 e2 =
     LiftAbsEnv $ Map.delete n $
       Map.union (freeToAbsEnv e1) (freeToAbsEnv e2)
 
 instance PP Whole where
   pp _ = "Whole"
-
-instance Semigroup Whole where
-  _ <> _ = Whole
 

@@ -139,14 +139,18 @@ morphismBody :: LoopMorphism' e a -> a
 morphismBody (FoldMorphism _ _ _ a) = a
 morphismBody (MapMorphism      _ a) = a
 
-morphismE :: Applicative f => (e -> f e) -> (a -> f a) ->
-             LoopMorphism' e a -> f (LoopMorphism' e a)
+morphismE :: Applicative f => (e -> f e') -> (a -> f a') ->
+             LoopMorphism' e a -> f (LoopMorphism' e' a')
 morphismE ef af lm = case lm of
   FoldMorphism s e lc b -> 
     FoldMorphism s <$> ef e <*> goLC lc <*> af b
   MapMorphism lc b -> MapMorphism <$> goLC lc <*> af b
   where
     goLC lc = LoopCollection (lcKName lc) (lcElName lc) <$> ef (lcCol lc)
+
+mapMorphismE :: (e -> e') -> (a -> a') ->
+                LoopMorphism' e a -> LoopMorphism' e' a'
+mapMorphismE ef af lm = runIdentity (morphismE (Identity . ef) (Identity . af) lm)
 
 -- | This specifies how traverse collections in loop.
 data LoopCollection' e = LoopCollection
