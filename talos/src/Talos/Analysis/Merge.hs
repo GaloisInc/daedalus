@@ -9,6 +9,7 @@ import           Daedalus.Core         (Case (..), LoopClass' (..),
                                         LoopCollection' (..),
                                         LoopMorphism' (..))
 import           Daedalus.Panic        (panic)
+import Data.List (partition)
 
 -- Merging
 --
@@ -73,3 +74,17 @@ instance (Merge e, Merge b) => Merge (LoopMorphism' e b) where
 
 instance Merge e => Merge (LoopCollection' e) where
   merge l r = l { lcCol = merge (lcCol l) (lcCol r) }
+
+
+-- -----------------------------------------------------------------------------
+-- Helper functions
+
+-- | Merge two lists of non-overlapping elements
+mergeOverlapping :: Merge p => (p -> p -> Bool) -> [p] -> [p] -> [p]
+mergeOverlapping ovlf = go
+  where
+    go [] d2 = d2
+    go (d : d1) d2 = go d1 (newds : indep)
+      where
+        newds = foldl merge d dep
+        (dep, indep) = partition (ovlf d) d2

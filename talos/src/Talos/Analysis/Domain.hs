@@ -100,16 +100,11 @@ deriving instance (NFData (AbsPred ae), NFData ae) => NFData (Domain ae)
 
 instance AbsEnv ae => Merge (Domain ae) where
   merge dL dR = Domain
-    { elements       = go (elements dL) (elements dR)
+    { elements       = mergeOverlapping overlaps (elements dL) (elements dR)
     , closedElements = Map.unionWith (<>) (closedElements dL) (closedElements dR)
     }
     where
-      go [] d2 = d2
-      -- d might overlap with multiple elements from d2 (but none from d1') 
-      go (gs : d1') d2 = go d1' (newgs : indep)
-        where
-          newgs = foldl merge gs dep
-          (dep, indep) = partition ((absEnvOverlaps `on` gsEnv) gs) d2
+      overlaps = absEnvOverlaps `on` gsEnv
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?

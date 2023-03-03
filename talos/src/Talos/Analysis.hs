@@ -35,7 +35,7 @@ import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
-import           Talos.Analysis.Merge       (Merge, merge)
+import           Talos.Analysis.Merge       (Merge, merge, mergeOverlapping)
 import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
@@ -670,16 +670,13 @@ summariseLoop preds lcl =
       
       let (matching, gD') = partitionDomainForVar x gD
           deps = map snd matching
-          ps' = absPredsJoin ps deps
+          ps' = mergeOverlapping absPredOverlaps deps ps
           
       -- looks expensive, although the lists should be pretty short.
       if all (\p -> any (`absPredEntails` p) ps) deps
         then pure (matching, gD') -- fixpoint reached
         else repeatFixpoint x g ps'
-
-    -- absPredsJoin :: [AbsPred ae] -> [AbsPred ae] -> [AbsPred ae]
-    absPredsJoin = undefined
-
+      
 -- -----------------------------------------------------------------------------
 -- Special patterns
 
