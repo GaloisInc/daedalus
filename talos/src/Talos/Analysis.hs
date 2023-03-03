@@ -16,10 +16,13 @@ module Talos.Analysis ( summarise
                       -- FIXME: move
                       ) where
 
-import qualified Data.Map                 as Map
-import           Data.Monoid              (All (All))
-import qualified Data.Set                 as Set
-import Control.Lens (over, _1, _2)
+import           Control.Lens               (_1, _2, over, view)
+import           Control.Monad              (when)
+import           Data.List                  (partition)
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (isNothing)
+import           Data.Monoid                (All (All))
+import qualified Data.Set                   as Set
 
 import           Daedalus.Core
 import           Daedalus.Core.Type
@@ -28,21 +31,15 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 
-import           Data.Proxy               (Proxy)
+import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
-import           Talos.Analysis.Merge     (merge)
-import           Talos.Analysis.Monad
-import           Talos.Analysis.Slice
-import           Talos.Analysis.VarAbsEnv (varAbsEnvTy)
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
-
-
-import Debug.Trace (traceM)
-import Talos.Analysis.SLExpr (SLExpr (EHole))
-import Data.List (partition)
-import Control.Monad (when, unless)
-import Data.Maybe (maybeToList)
+import           Talos.Analysis.Merge       (Merge, merge)
+import           Talos.Analysis.Monad
+import           Talos.Analysis.SLExpr      (SLExpr (EHole))
+import           Talos.Analysis.Slice
+import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -150,6 +147,9 @@ exprAsVar :: Expr -> Maybe Name
 exprAsVar (Var n) = Just n
 exprAsVar _       = Nothing
 
+mergePreds :: Merge p => [p] -> Maybe p
+mergePreds ps = foldl merge Nothing (Just <$> ps)
+
 summariseCall :: AbsEnv ae => [AbsPred ae] -> FName -> [Expr] ->
                  SummariseM ae (Domain ae)
 summariseCall preds fn args
@@ -164,7 +164,7 @@ summariseCall preds fn args
            let (ifn, pfn) = f n args
            let gs = GuardedSlice
                  { gsEnv   = absInverse n ifn pfn
-                 , gsPred  = preds
+                 , gsPred  = mergePreds preds
                  , gsSlice = SInverse n ifn pfn
                  }
            pure (singletonDomain gs)
@@ -264,14 +264,14 @@ collapseDoms _preds _mk [] = emptyDomain
 collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
   where
     (envs, sls, doms) = unzip3 (map (asSingleton . squashDomain) branchDs)
-    gs' = GuardedSlice { gsEnv   = foldl1 (<>) envs
-                       , gsPred  = preds
+    gs' = GuardedSlice { gsEnv   = foldl1 merge envs
+                       , gsPred  = mergePreds preds
                        , gsSlice = mk sls
                        }
 
 asSingleton :: AbsEnv ae => Domain ae -> (ae, Slice, Domain ae)
 asSingleton dom
-  | null (elements dom)  = (mempty, SHole, dom)
+  | null (elements dom)  = (absEmptyEnv, SHole, dom)
   | [gs] <- elements dom = (gsEnv gs, gsSlice gs, dom { elements = [] })
   | otherwise = panic "Saw non-singleton domain" [] -- [show (pp dom)]
 
@@ -293,7 +293,7 @@ summariseCase preds cs = do
         newDoms  = (\(_, _, d ) -> d) <$> squashed
         gs'      =
           GuardedSlice { gsEnv   = newEnv
-                       , gsPred  = preds
+                       , gsPred  = mergePreds preds
                        , gsSlice = SCase total newCase
                        }
 
@@ -354,7 +354,7 @@ summariseG preds tc =
   case tc of
     -- When preds == [] this is emptyDomain
     Pure e -> pure $ domainFromElements
-      [ GuardedSlice { gsEnv = env, gsPred = [p], gsSlice = SPure e'}
+      [ GuardedSlice { gsEnv = env, gsPred = Just p, gsSlice = SPure e'}
       | (env, p, e') <- summariseExpr preds e
       ]
 
@@ -362,7 +362,7 @@ summariseG preds tc =
     SetStream {} -> unimplemented
     Match _ (MatchByte bset) -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = absByteSet p bset
-                     , gsPred = [p]
+                     , gsPred = Just p
                      , gsSlice = SMatch bset}
       | p <- preds ]
     Match {}
@@ -419,13 +419,14 @@ summariseBind preds x lhs rhs = do
       preds'            = map snd matching
   lhsD <- summariseG preds' lhs
 
-  let (lhsMatching, lhsD') = partitionDomainForResult (not . null) lhsD
+  let (lhsMatching, lhsD') = partitionDomainForResult (const True) lhsD
       -- For each element of lhsMatching we find the corresponding
       -- rhs(s) from matching, merge if there are multiple, and the
       -- bind them all together.
       --
       -- gsFor gets the rhs(s) for a particular result lhs
-      gsFor gs = [ gs' | (gs', p) <- matching, absPredEntails (gsPred gs) p ]
+      gsFor gs = [ gs' | (gs', p) <- matching,
+                   maybe True (`absPredEntails` p) (gsPred gs) ]
 
       els = [ bindGuardedSlice x gs gs'
             | gs <- lhsMatching
@@ -453,36 +454,34 @@ summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
 summariseMany preds sem bt lb m_ub g = do
-  elsD <- summariseG elpreds g
+  elsD <- summariseG (map absPredListElement preds) g
 
-  -- We need to now map the elpreds we used out list predicates) back
-  -- into preds, and wrap the slices in a SLoop . ManyLpop.  We also
-  -- need to add the sliced bounds to the structural slice (if any).
+  -- We need to now map the elpreds we used (from the list predicates)
+  -- back into preds, and wrap the slices in a SLoop . ManyLpop.  We
+  -- also need to add the sliced bounds to the structural slice (if
+  -- any).
 
-  let (matching, nonResD) = partitionDomainForResult (not . null) elsD
+  let (matching, nonResD) = partitionDomainForResult (const True) elsD
       nonResD' = mapSlices wrapInvariantSlice nonResD
 
-      -- We use `elem` here over absPredEntails as we should have an
-      -- exact match (c.f. the post-cond for summariseG).  There
-      -- should be a 1-1 mapping from gsPred into preds.
-      updPreds ps = [ p | p <- preds, absPredListElement p `elem` ps ]
-      updGS gs = gs { gsPred = updPreds (gsPred gs) }
+      updPreds p = mergePreds [ p | p' <- preds, absPredEntails p p' ]
+      updGS gs = gs { gsPred = updPreds =<< gsPred gs }
       matching' = map updGS matching
 
-      (structurals, invs) = partition (any absPredIsStructural . gsPred) matching'
-      -- length should be <= 1
-      structurals' = map mkStructural structurals
-      invs'        = map mkInvariant invs
+      (stgss, nsgss) = partition (maybe False absPredIsStructural . gsPred) matching'
+      -- length stgss should be <= 1
+      stgss' = map mkStructural stgss
+      nsgss' = map mkInvariant  nsgss
 
-  when (length structurals' > 1) $ panic "BUG: Saw multiple structural loop slices" []
-  pure (domainFromElements (structurals' ++ invs') `merge` nonResD')
+  when (length stgss' > 1) $ panic "BUG: Saw multiple structural loop slices" []
+  pure (domainFromElements (stgss ++ nsgss') `merge` nonResD')
   where
     mkLoop lb' m_ub' str sl = SLoop (ManyLoop sem bt lb' m_ub' (str, sl))
 
     -- Used to construct the Structural slice, if any
     mkStructural gs =
       let (envlb, slb) = absPre absPredTop lb
-          m_env_ub = absPredTop absPredTop <$> m_ub
+          m_env_ub = absPre absPredTop <$> m_ub
           envub = maybe absEmptyEnv fst m_env_ub
           m_sub = snd <$> m_env_ub
           boundsEnv = envlb `merge` envub
@@ -490,23 +489,18 @@ summariseMany preds sem bt lb m_ub g = do
             , gsSlice = mkLoop slb m_sub Structural (gsSlice gs)
             }
 
+    mkInvariant gs = gs { gsSlice = wrapInvariantSlice (gsSlice gs) }
+
     -- Wraps a body slice in the SLoop (ManyLoop ...)
     wrapInvariantSlice sl =
       let boundsHole = EHole sizeType
       in mkLoop boundsHole (boundsHole <$ m_ub) StructureInvariant sl
 
-    mkInvariant gs = gs { gsSlice = wrapInvariantSlice (gsSlice gs) }
-
-    -- The preds we get here should be disjoint             
-    -- absDestListPred :: AbsPred ae -> (AbsPred ae, Bool)
-    absDestListPred = undefined
-    elpreds = map (fst . absDestListPred) preds
-
 summariseLoop :: AbsEnv ae =>
                  [AbsPred ae] -> LoopClass Grammar ->
                  SummariseM ae (Domain ae)
-summariseLoop preds lc =
-  case lc of
+summariseLoop preds lcl =
+  case lcl of
     ManyLoop sem bt lb m_ub g -> summariseMany preds sem bt lb m_ub g
 
     -- For repeat we nned to find a predicate P s.t.
@@ -550,140 +544,91 @@ summariseLoop preds lc =
       --  * matching are the slices that have a dep. on n
       --  * preds' is the (>= preds) predicate invariants for the loop
       --  * gD is the domain without matching
-      (matching,tstgss, m_stP', nsgss, nspreds', gD) <- repeatFixpoint n g m_stP nspreds
-
+      (gss, gD) <- gssFixpoint n g preds
+      
       let mkSlice e' str g' = SLoop (RepeatLoop bt n e' (str, g'))
           eHole = EHole (typeOf n)
+          mkGS (gs, m_p) =
+            let (enve, sle) = absPre' (typeOf n) m_p e
+                str | Just True <- absPredIsStructural <$> m_p = Structural
+                    | otherwise = StructureInvariant                    
+            in gs { gsEnv   = gsEnv gs `merge` enve
+                  , gsSlice = mkSlice sle str (gsSlice gs)
+                  }
+          gD' = mapSlices (mkSlice eHole StructureInvariant) gD
 
-      case () of
-        -- Nothing interesting to do here.
-        _ | nullDomain gD && null preds' -> pure emptyDomain
+      -- In the trivial case this returns emptyDomain
+      pure $ domainFromElements (map mkGS gss) `merge` gD'
 
-        -- No dep. on the accumulator, so we can stitch together
-        -- arbitrarily. This also entails preds == [] and matching == []
-        _ | null preds' -> do
-              unless (null preds) $ panic "BUG: non-empty preds" []
-              unless (null matching) $ panic "BUG: non-empty matching" []
-
-              pure (mapSlices (mkSlice eHole StructureInvariant) gD)
-
-        -- Otherwise we have a loop which depends on the accumulator
-        -- and initial element, so we will need to squash the
-        -- structural elements of the domain into a single slice so
-        -- during synthesis we agree on the number of iterations
-        -- required (the non-result slices can be left unsquashed as
-        -- they don't depend on the number of iterations).  
-        _ -> do
-          
-          -- FIXME: we could just check for entailment of pred'?  This
-          -- will also capture output-only slices.
-          let (matchingPost, gD') = partitionDomainForResult (not . null) gD
-          when (null matching) $ panic "BUG: empty matching" []
-          let pred' = foldl1 merge preds'
-              matchingGS = foldl1 merge matching
-              (enve, sle) = absPre pred' e
-
-              -- non-result slices
-              gD' = mapSlices (mkSlice eHole StructureInvariant) gD
-              
-              gs = matchingGS { gsEnv = enve `merge` gsEnv matchingGS
-                              , gsSlice = mkSlice sle Structural (gsSlice matchingGS)
-                              }
-
-          pure (singletonDomain gs `merge` gD')
-
-    -- Similar for Reapeat above, with the additional use of elements.
+    -- Similar for Repeat above, with the additional use of elements.
     MorphismLoop (FoldMorphism n e lc g) -> do
-      (matching, gD) <- calcFixpoint n g preds
+      (gss, gD) <- gssFixpoint n g preds
       
       let mkSlice e' lc' str g' =
             SLoop (MorphismLoop (FoldMorphism n e' lc' (str, g')))
+                 
+          (gssNoPred, gD') = domainElements gD
+          gss' = map (, Nothing) gssNoPred ++ gss
+      
+          mkGS (gs, m_p) =
+            let (envlc, lc', elgs, str) =
+                  summariseLC lc (absPredIsStructural <$> m_p) gs 
+                (enve, sle)   = absPre' (typeOf n) m_p e
+            in (elgs { gsEnv   = gsEnv gs `merge` envlc `merge` enve
+                     , gsSlice = mkSlice sle lc' str (gsSlice gs)
+                     }
+               , str == Structural)
+      
+          (strgss, nsgss) = partition snd (map mkGS gss')
+          gss'' = case strgss of
+                    [] -> map fst nsgss
+                    (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
             
-          eHole  = EHole (typeOf n)
-          lcHole = lc { lcCol = EHole (typeOf (lcCol lc)) }
+      -- In the trivial case this returns emptyDomain
+      pure $ domainFromElements gss'' `merge` gD'
+
+    MorphismLoop (MapMorphism lc g) -> do
+      gD <- summariseG (map absPredListElement preds) g
+      
+      let mkSlice lc' str g' = SLoop (MorphismLoop (MapMorphism lc' (str, g')))
+          (gss, gD') = domainElements gD
           
-      case () of
-        _ | nullDomain gD && null matching -> pure emptyDomain
-
-        -- Otherwise we have a loop which depends on the accumulator
-        -- and initial element, so we will need to squash the
-        -- structural elements of the domain into a single slice so
-        -- during synthesis we agree on the number of iterations
-        -- required (the non-result slices can be left unsquashed as
-        -- they don't depend on the number of iterations).  
-        _ -> do
-          let (structurals, invs) = partition (any absPredIsStructural . gsPred) matching
-              
-              (enve, sle) = absPre pred' e
-
-              -- non-result slices
-              gD' = mapSlices (mkSlice eHole StructureInvariant) gD
-              
-              gs = matchingGS { gsEnv = enve `merge` gsEnv matchingGS
-                              , gsSlice = mkSlice sle Structural (gsSlice matchingGS)
-                              }
-          undefined
+          mkGS gs =
+            let (envlc, lc', elgs, str) =
+                  summariseLC lc (absPredIsStructural <$> gsPred gs) gs 
+            in (elgs { gsEnv   = gsEnv gs `merge` envlc
+                     , gsSlice = mkSlice lc' str (gsSlice gs)
+                     }
+               , str == Structural)
           
-        --   pure (singletonDomain gs `merge` gD')
-          
-        --     else do
-        --     let (envs, _, sls) = unzip3 (summariseExpr preds' e)
-
-        --         (env, sl, remainder) = asSingleton (squashDomain gD)
-
-        --         gs =  GuardedSlice { gsEnv = foldl (<>) env envs
-        --                            , gsPred = preds -- use original preds
-        --                            , gsSlice = SLoop (MorphismLoop (FoldMorphism s sle sl))
-        --                            }
-
-        --     pure (singletonDomain gs `merge` remainder)
-
-    MorphismLoop (MapMorphism lc g) -> undefined
+          (strgss, nsgss) = partition snd (map mkGS gss)
+          gss' = case strgss of
+                   [] -> map fst nsgss
+                   (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
+                   
+      pure $ domainFromElements gss' `merge` gD'
 
   where
-    summariseLC gss gD lc = undefined
-      
-      -- These depend on the key or accum., so they need to be squashed
-      -- let gssWithKs
-      --       | Just k <- lcKName lc =
-      --           [ either (Left . (, m_el)) (Right . (, m_el)) (partitionSliceForVar k gs)
-      --           | (gs, m_el) <- matchingEl'
-      --           ]
-      --       | otherwise = map Right matchingEl'
+    absPre' ty m_p e = maybe (absEmptyEnv, EHole ty) (flip absPre e) m_p
+    partitionSlice x gs =
+      either (over _2 Just) (, Nothing) (partitionSliceForVar x gs)
+    
+    summariseLC lc m_isStr gs =
+      (envlc , lc {lcCol = sllc}, elgs, str)
+      where
+        (kgs, m_kp)
+          | Just k <- lcKName lc = partitionSlice k gs
+          | otherwise = (gs, Nothing)
+        (elgs, m_elp) = partitionSlice (lcElName lc) kgs
+                
+        str | Just True <- m_isStr = Structural
+            -- FIXME: is this necessarily the case for dictionaries?
+            | Just _ <- m_kp = Structural
+            | otherwise = StructureInvariant                    
 
-
-
-
-      --   (matchingEl, elD) = partitionDomainForVar (lcElName lc) gD
-      --     gssEl = map (either (over _2 Just) (, Nothing)
-      --                  . partitionSliceForVar (lcElName lc)) gss
-
-      --     matchingEl' = gssEl ++ map (over _2 Just) matchingEl
-      --     matchingElK
-      --       | Just k <- lcKName lc =
-      --           [ either (Left . (, m_el)) (Right . (, m_el)) (partitionSliceForVar k gs)
-      --           | (gs, m_el) <- matchingEl'
-      --           ]
-      --       | otherwise = map Right matchingEl'
-
-          
-            
-      --     -- matchingK don't mention el
-      --     (matchingK, kD) = maybe ([], elD) (flip partitionDomainForVar elD) (lcKName lc)
-      --     gssWithPreds  = [ (gs, Nothing, Just p) | (gs, p) <- matchingK ] ++ matchingElK
-      
-          
-          
-      -- case typeOf e of
-      --   TArray elTy -> do
-
-      --     undefined
-
-
-
-      --   TMap kTy vTy -> undefined
-      --   _ -> panic "BUG: non collection type in loop collection" []
-
+        m_lcp | str == StructureInvariant, isNothing m_elp, isNothing m_kp = Nothing
+              | otherwise = Just $ absPredCollection (typeOf (lcCol lc)) str m_kp m_elp
+        (envlc, sllc) = absPre' (typeOf (lcCol lc)) m_lcp (lcCol lc)
 
     -- There are 3 types of slices we care about here:
     --  * sources: establish some p in ps, no dep. on x
@@ -693,27 +638,31 @@ summariseLoop preds lc =
     -- Generally we want to find gslices s.t.
     --  1. all deps on x are entailed by post-cond; and
     --  2. at most 1 slice with structural deps.
-    --
-    -- although (2) can be constructed by merging.
-    calcFixpoint x g ps = do
+    gssFixpoint x g ps = do
       (matching, gD) <- repeatFixpoint x g ps
-      let (justPost, gD') = partitionDomainForResult (not . null) gD
-      pure (mergeForDeps matching justPost, gD')
-      
-    -- Invariant: at most one gsPreds entails any predicate in the
-    -- worklist.
+      let (justPost, gD') = partitionDomainForResult (const True) gD
+      let gss = mergeForDeps (map (\(gs, p) -> (gs, p, p)) matching) ( (, Nothing) <$> justPost)
+          (strgss, nsgss) = partition (maybe False absPredIsStructural . snd) gss
+      pure $ case strgss of
+               [] -> (nsgss, gD')
+               _ -> (foldl1 merge strgss : nsgss, gD')
+
+    -- First argument are those which depend on x, as (gs, dep, post),
+    -- second arg. is those which have their precond (if any)
+    -- resolved.  Invariant: at most one gsPreds entails any predicate
+    -- in the worklist.
     mergeForDeps [] acc = acc
-    mergeForDeps ((gs, p) : rest) acc =
-      let gsEntails = flip absPredEntails p . gsPred 
+    mergeForDeps ((gs, depp, p) : rest) acc =
+      let gsEntails = maybe False (`absPredEntails` p) . gsPred
           -- length inrest + length inacc <= 1.  If inrest and inacc
           -- are both empty, then the predicate should be entailed by
           -- gs.
-          (inrest, outrest) = partition (gsEntails . fst) rest
-          (inacc, outacc)   = partition gsEntails acc
+          (inrest, outrest) = partition (gsEntails . view _1) rest
+          (inacc, outacc)   = partition (gsEntails . view _1) acc
           -- If a gs in rest matches, we merge in the slices and
           -- re-add it to the wl using the matching predicate.
-          rest' = [(gs `merge` gs', p') | (gs', p') <- inrest ] ++ outrest
-          acc'  = [ gs `merge` gs' | gs' <- inacc ] ++ outacc
+          rest' = [(gs `merge` gs', merge depp depp', p') | (gs', depp', p') <- inrest ] ++ outrest
+          acc'  = [(gs `merge` gs', merge (Just depp) m_p) | (gs', m_p) <- inacc ] ++ outacc
       in mergeForDeps rest' acc'
                       
     repeatFixpoint x g ps = do
@@ -723,12 +672,10 @@ summariseLoop preds lc =
           deps = map snd matching
           ps' = absPredsJoin ps deps
           
-      if all (absPredEntails ps) deps
+      -- looks expensive, although the lists should be pretty short.
+      if all (\p -> any (`absPredEntails` p) ps) deps
         then pure (matching, gD') -- fixpoint reached
         else repeatFixpoint x g ps'
-
-    -- absListPred :: AbsPred ae -> (AbsPred ae, Bool)
-    absDestListPred = undefined
 
     -- absPredsJoin :: [AbsPred ae] -> [AbsPred ae] -> [AbsPred ae]
     absPredsJoin = undefined
@@ -736,8 +683,8 @@ summariseLoop preds lc =
 -- -----------------------------------------------------------------------------
 -- Special patterns
 
-pattern GuardP :: Expr -> Grammar -> Grammar
-pattern GuardP e g <- (caseIsGuard -> Just (e, g))
+-- pattern GuardP :: Expr -> Grammar -> Grammar
+-- pattern GuardP e g <- (caseIsGuard -> Just (e, g))
 
 -- Attempts to catch things ike
 --
@@ -745,15 +692,15 @@ pattern GuardP e g <- (caseIsGuard -> Just (e, g))
 --   True  -> ...
 --   False -> Fail ...
 
-caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
-caseIsGuard (GCase (Case x cs)) =
-  case cs of
-    -- FIXME: Annot
-    [(PBool b, g), (_, Fail {})]       -> mk b g
-    [(PBool _, Fail {}), (PBool b, g)] -> mk b g
-    [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g
-    [(PBool b, g)]                     -> mk b g
-    _ -> Nothing
-  where
-    mk b g = Just (if b then Var x else eNot (Var x), g)
-caseIsGuard _ = Nothing
+-- caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
+-- caseIsGuard (GCase (Case x cs)) =
+--   case cs of
+--     -- FIXME: Annot
+--     [(PBool b, g), (_, Fail {})]       -> mk b g
+--     [(PBool _, Fail {}), (PBool b, g)] -> mk b g
+--     [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g
+--     [(PBool b, g)]                     -> mk b g
+--     _ -> Nothing
+--   where
+--     mk b g = Just (if b then Var x else eNot (Var x), g)
+-- caseIsGuard _ = Nothing

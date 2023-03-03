@@ -31,13 +31,14 @@ import           Talos.Analysis.Eqv
 import           Talos.Analysis.Merge
 import           Talos.Analysis.SLExpr           (SLExpr)
 import           Talos.Analysis.Slice
+import Data.Maybe (isNothing)
 
 --------------------------------------------------------------------------------
 -- Domains
 
 data GuardedSlice ae = GuardedSlice
   { gsEnv   :: ae
-  , gsPred  :: [AbsPred ae]
+  , gsPred  :: Maybe (AbsPred ae)
   -- ^ The predicate(s) used to generate the result in this slice.  If
   -- non-empty, this slice returns a value (i.e., the last grammar
   -- isn't a hole or a non-result call)
@@ -48,7 +49,7 @@ data GuardedSlice ae = GuardedSlice
 instance AbsEnv ae => Merge (GuardedSlice ae) where
   merge gs gs' = GuardedSlice
     { gsEnv  = gsEnv gs `merge` gsEnv gs'
-    , gsPred = gsPred gs <> gsPred gs'
+    , gsPred = gsPred gs `merge` gsPred gs'
     , gsSlice = merge (gsSlice gs) (gsSlice gs')
     }
 
@@ -73,7 +74,7 @@ bindGuardedSlice x lhs rhs = GuardedSlice
 -- A guarded slice is closed if it is not a result slice, and it has
 -- no free variables.  We use absNullEnv as a proxy for empty free vars.
 closedGuardedSlice :: AbsEnv ae => GuardedSlice ae -> Bool
-closedGuardedSlice gs = null (gsPred gs) && absNullEnv (gsEnv gs)
+closedGuardedSlice gs = isNothing (gsPred gs) && absNullEnv (gsEnv gs)
 
 deriving instance (NFData (AbsPred ae), NFData ae) => NFData (GuardedSlice ae)
 
@@ -141,8 +142,7 @@ singletonDomain gs
 
 -- | Constructs a domain from the possibly-overlapping elements.
 domainFromElements :: AbsEnv ae => [GuardedSlice ae] -> Domain ae
-domainFromElements []  = emptyDomain
-domainFromElements els = foldl1 merge (map singletonDomain els)
+domainFromElements = foldl merge emptyDomain . map singletonDomain
 
 nullDomain :: Domain ae -> Bool
 nullDomain (Domain [] ce) = Map.null ce
@@ -185,17 +185,20 @@ partitionDomainForVar x d = ( matching, d' )
     d' = d { elements = nonMatching }
 
 partitionDomainForResult :: AbsEnv ae =>
-                            ([AbsPred ae] -> Bool) ->
+                            (AbsPred ae -> Bool) ->
                             Domain ae ->
                             ( [ GuardedSlice ae ], Domain ae )
 partitionDomainForResult f d = ( matching, d' )
   where
-    (matching, nonMatching) = partition (f . gsPred) (elements d)
+    (matching, nonMatching) = partition (maybe False f . gsPred) (elements d)
     d' = d { elements = nonMatching }
 
 -- Maps over non-closed slices
 mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae
 mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }
+
+domainElements :: Domain ae -> ([GuardedSlice ae], Domain ae)
+domainElements d = (elements d, d { elements = [] })
 
 --------------------------------------------------------------------------------
 -- Debugging etc.
@@ -257,7 +260,7 @@ type Slice = Slice' CallNode SLExpr
 
 instance AbsEnv ae => PP (GuardedSlice ae) where
   pp gs = vcat [ pp (gsEnv gs)
-               , "For" <+> brackets (commaSep $ map pp (gsPred gs))
+               , "For" <+> brackets (maybe " (non-result) " pp (gsPred gs))
                , pp (gsSlice gs)  ]
 
 instance AbsEnv ae => PP (Domain ae) where

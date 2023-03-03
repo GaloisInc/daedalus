@@ -7,7 +7,7 @@
 
 module Talos.Analysis.AbsEnv where
 
-import           Daedalus.Core         (ByteSet, Case (..), Expr, Name)
+import           Daedalus.Core         (ByteSet, Case (..), Expr, Name, Type)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Proxy            (Proxy)
@@ -18,6 +18,7 @@ import           Daedalus.Panic        (panic)
 import           Talos.Analysis.Eqv
 import           Talos.Analysis.SLExpr (SLExpr)
 import Talos.Analysis.Merge (Merge(..), HasEmpty(..))
+import Talos.Analysis.Slice (Structural)
 
 --------------------------------------------------------------------------------
 -- Abstract Environments
@@ -27,7 +28,7 @@ import Talos.Analysis.Merge (Merge(..), HasEmpty(..))
 class (Ord p, PP p, Merge p) => AbsEnvPred p where
   absPredTop :: p -- absPredTop `merge` p == absPredTop
   absPredOverlaps :: p -> p -> Bool
-  absPredEntails :: [p] -> p -> Bool
+  absPredEntails  :: p -> p -> Bool
 
   -- | Does this predicate depend on the structure of the computation?
   -- Mainly useful for sequences where the predicate may be invariant
@@ -36,7 +37,8 @@ class (Ord p, PP p, Merge p) => AbsEnvPred p where
 
   -- | Get an element predicate, given a predicate of list type
   absPredListElement :: p -> p
-
+  absPredCollection :: Type -> Structural -> Maybe p -> Maybe p -> p
+  
 class (AbsEnvPred (AbsPred ae), Eqv ae, PP ae, Merge ae) => AbsEnv ae where
   type AbsPred ae
   -- (\forall x. absProj x ae = Nothing) --> absNullEnv ae
