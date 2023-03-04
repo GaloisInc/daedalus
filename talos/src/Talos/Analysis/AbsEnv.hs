@@ -45,7 +45,6 @@ class (AbsEnvPred (AbsPred ae), Eqv ae, PP ae, Merge ae) => AbsEnv ae where
   absNullEnv     :: ae -> Bool
   absEmptyEnv    :: ae
   absPre         :: AbsPred ae -> Expr -> (ae, SLExpr)
-  absGuard       :: Expr -> ae
   -- | This is used to refine the branches of case statements. The
   -- result is the abstract environment for the new case node.
   absCase        :: Case ae -> ae
@@ -76,7 +75,6 @@ instance Eqv p => Eqv (LiftAbsEnv p) where
 -- predicate level and lift them to maps.
 class (Eqv p, AbsEnvPred p, PP p, Merge p) => AbsEnvPointwise p where
   absPredPre     :: p -> Expr -> (LiftAbsEnv p, SLExpr)
-  absPredGuard   :: Expr -> LiftAbsEnv p
   absPredByteSet :: p -> ByteSet -> LiftAbsEnv p
   absPredInverse :: Name -> Expr -> Expr -> LiftAbsEnv p
 
@@ -85,7 +83,6 @@ instance AbsEnvPointwise p => AbsEnv (LiftAbsEnv p) where
   absNullEnv     = Map.null . getLiftAbsEnv
   absEmptyEnv    = LiftAbsEnv Map.empty 
   absPre p e     = absPredPre p e
-  absGuard       = absPredGuard
   absCase (Case _x [])     = panic "Empty case" []
   -- FIXME: this overapproximates by assuming we want all of x
   absCase c@(Case x _alts) =
@@ -110,6 +107,13 @@ instance PP p => PP (LiftAbsEnv p) where
 
 instance Merge p => Merge (LiftAbsEnv p) where
   LiftAbsEnv m `merge` LiftAbsEnv m' = LiftAbsEnv $ merge m m'
+
+instance Merge p => Semigroup (LiftAbsEnv p) where
+  (<>) = merge
+
+-- Useful, although a bit abstraction brekaing.
+instance Merge p => Monoid (LiftAbsEnv p) where
+  mempty = LiftAbsEnv Map.empty
 
 instance HasEmpty (LiftAbsEnv p) where
   empty = LiftAbsEnv Map.empty

@@ -35,6 +35,11 @@ instance AbsEnvPred Whole where
   absPredTop = Whole
   absPredOverlaps _ _ = True
 
+  absPredEntails _ _ = True
+  absPredIsStructural _ = True
+  absPredListElement _ = Whole
+  absPredCollection _ _ _ _ = Whole
+  
 newtype VarAbsEnv = VarAbsEnv (LiftAbsEnv Whole)
   deriving (Eqv, PP, Merge, AbsEnv)
 
@@ -43,8 +48,7 @@ freeToAbsEnv = Map.fromSet (const Whole) . freeVars
 
 instance AbsEnvPointwise Whole where
   absPredPre _ e   = (LiftAbsEnv (freeToAbsEnv e), exprToSLExpr e)
-  absPredGuard     = LiftAbsEnv . freeToAbsEnv
-  absPredByteSet _ = LiftAbsEnv .freeToAbsEnv
+  absPredByteSet _ = LiftAbsEnv . freeToAbsEnv
   absPredInverse n e1 e2 =
     LiftAbsEnv $ Map.delete n $
       Map.union (freeToAbsEnv e1) (freeToAbsEnv e2)
