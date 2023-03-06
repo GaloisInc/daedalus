@@ -1,0 +1,29 @@
+--- Found 1 results:
+{ len: 42[24]
+, type: {F_SETTINGS: { flags: 0x00[8]
+                                {Flags: 0x00[8]
+                                          { unused: 0[7]
+                                          , ack: 0[1]
+                                          }}
+                     }}
+, stream_identifier: 2091895550[31]
+, body: {Settings_Frame_Body: [ { identifier: {SETTINGS_HEADER_TABLE_SIZE: { }}
+                                , value: 1[32]
+                                }
+                              , { identifier: {SETTINGS_ENABLE_PUSH: { }}
+                                , value: 2[32]
+                                }
+                              , { identifier: {SETTINGS_MAX_CONCURRENT_STREAMS: { }}
+                                , value: 3[32]
+                                }
+                              , { identifier: {SETTINGS_INITIAL_WINDOW_SIZE: { }}
+                                , value: 4[32]
+                                }
+                              , { identifier: {SETTINGS_MAX_FRAME_SIZE: { }}
+                                , value: 5[32]
+                                }
+                              , { identifier: {SETTINGS_MAX_HEADER_LIST_SIZE: { }}
+                                , value: 6[32]
+                                }
+                              ]}
+}

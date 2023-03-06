@@ -58,6 +58,7 @@ def HTTP2_frame_body_u =
     Priority_Frame_Body: Priority_Frame_Body_s
     Goaway_Frame_Body: Goaway_Frame_Body_s
     Window_Update_Frame_Body: Window_Update_Frame_Body_s
+    Settings_Frame_Body: [Setting_s]
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -95,6 +96,18 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
         let opaque_data = Many 8 $any
         ^ {| Ping_Frame_Body = opaque_data |}
+
+    F_SETTINGS ->
+      block
+        -- Each setting is made of a two-byte identifier followed by a
+        -- four-byte value. We require that the frame body length be
+        -- exactly a multiple of this size.
+        len % 6 == 0 is true
+
+        let num_settings = (len as uint 64) / 6
+        let rawSettings = Many num_settings Setting
+        let settings = catMaybes rawSettings
+        ^ {| Settings_Frame_Body = settings |}
 
     F_RST_STREAM ->
       block
@@ -164,6 +177,28 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
                                    error_code = error_code,
                                    debug_data = debug_data } |}
 
+def catMaybes (values: [maybe ?a]): [?a] =
+  block
+    let b = for (b = builder; mv in values)
+      case mv of
+        just v -> emit b v
+        nothing -> b
+    build b
+
+def Setting_s =
+  struct
+    identifier: Settings_Identifier
+    value: uint 32
+
+def Setting: maybe Setting_s =
+  First
+    block
+      let s = block
+        identifier = Settings_Identifier
+        value = UInt32
+      ^ just s
+    ^ nothing
+
 -- Data frame flags:
 -- Unused Flags (4)
 -- PADDED Flag (1)
@@ -189,6 +224,16 @@ bitdata Priority_info where
 --
 -- https://www.rfc-editor.org/rfc/rfc9113#name-ping
 bitdata Ping_Frame_Flags where
+  Flags = { unused: uint 7,
+            ack: uint 1
+          }
+
+-- Settings frame flags:
+-- Unused Flags (7)
+-- ACK Flag (1)
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#name-settings-format
+bitdata Settings_Frame_Flags where
   Flags = { unused: uint 7,
             ack: uint 1
           }
@@ -220,7 +265,13 @@ def Frame_Type =
       -- Flags: no flags specified by the RST_STREAM frame
       @UInt8
 
-    -- F_SETTINGS = $[0x04]
+    F_SETTINGS = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-settings-format
+      -- Frame type: settings
+      $[0x04]
+      -- Flags:
+      flags = UInt8 as? Settings_Frame_Flags
+
     -- F_PUSH_PROMISE = $[0x05]
 
     F_PING = block
