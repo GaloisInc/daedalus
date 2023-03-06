@@ -1,0 +1,9 @@
+--- Found 1 results:
+{ len: 21[24]
+, type: {F_GOAWAY: { }}
+, stream_identifier: 2059198192[31]
+, body: {Goaway_Frame_Body: { last_stream_id: 2112867070[31]
+                            , error_code: {CONNECT_ERROR: { }}
+                            , debug_data: "\SOH\STX\ETX\EOT\ENQ\ACK\a\b\t\n\v\f\r"
+                            }}
+}

@@ -30,12 +30,19 @@ def Data_Frame_Body_s =
     body: [uint 8]
     padding: uint 8
 
+def Goaway_Frame_Body_s =
+  struct
+    last_stream_id: uint 31
+    error_code: Error_Code
+    debug_data: [uint 8]
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
     Ping_Frame_Body: [uint 8]
+    Goaway_Frame_Body: Goaway_Frame_Body_s
 
-def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
+def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
     F_DATA info ->
       block
@@ -71,6 +78,24 @@ def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
         let opaque_data = Many 8 $any
         ^ {| Ping_Frame_Body = opaque_data |}
+
+    F_GOAWAY ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-goaway-frame-format
+        -- Reserved (1),
+        -- Last-Stream-ID (31),
+        -- Error Code (32),
+        -- Additional Debug Data (..),
+        let packed_last_stream_id = UInt32
+        let last_stream_id = packed_last_stream_id as! uint 31
+        let error_code = Error_Code
+        -- Subtract stream ID and error code bytes from frame length to
+        -- get debug data length
+        let debug_data_len = len - 8
+        let debug_data = Many (debug_data_len as uint 64) $any
+        ^ {| Goaway_Frame_Body = { last_stream_id = last_stream_id,
+                                   error_code = error_code,
+                                   debug_data = debug_data } |}
 
 -- Data frame flags:
 -- Unused Flags (4)
@@ -120,12 +145,42 @@ def Frame_Type =
       -- Flags:
       flags = UInt8 as? Ping_Frame_Flags
 
-    -- F_GOAWAY = $[0x07]
+    F_GOAWAY = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-goaway
+      -- Frame type: goaway
+      $[0x07]
+      -- Flags: no flags specified by the GOAWAY frame
+      @UInt8
+
     -- F_WINDOW_UPDATE = $[0x08]
     -- F_CONTINUATION = $[0x09]
 
 -- GOAWAY / RST_STREAM error codes
 -- https://www.rfc-editor.org/rfc/rfc9113#name-error-codes
+def Error_Code =
+  First
+    NO_ERROR            = @Match [0x0, 0x0, 0x0, 0x00]
+    PROTOCOL_ERROR      = @Match [0x0, 0x0, 0x0, 0x01]
+    INTERNAL_ERROR      = @Match [0x0, 0x0, 0x0, 0x02]
+    FLOW_CONTROL_ERROR  = @Match [0x0, 0x0, 0x0, 0x03]
+    SETTINGS_TIMEOUT    = @Match [0x0, 0x0, 0x0, 0x04]
+    STREAM_CLOSED       = @Match [0x0, 0x0, 0x0, 0x05]
+    FRAME_SIZE_ERROR    = @Match [0x0, 0x0, 0x0, 0x06]
+    REFUSED_STREAM      = @Match [0x0, 0x0, 0x0, 0x07]
+    CANCEL              = @Match [0x0, 0x0, 0x0, 0x08]
+    COMPRESSION_ERROR   = @Match [0x0, 0x0, 0x0, 0x09]
+    CONNECT_ERROR       = @Match [0x0, 0x0, 0x0, 0x0a]
+    ENHANCE_YOUR_CALM   = @Match [0x0, 0x0, 0x0, 0x0b]
+    INADEQUATE_SECURITY = @Match [0x0, 0x0, 0x0, 0x0c]
+    HTTP_1_1_REQUIRED   = @Match [0x0, 0x0, 0x0, 0x0d]
+
+    -- This fall-through case is specified as a possibility that should
+    -- trigger no special behavior. We have this case here to be
+    -- permissive and indicate clearly that the parsed error code is not
+    -- defined.
+    --
+    -- https://www.rfc-editor.org/rfc/rfc9113#section-7-5
+    UNKNOWN_ERROR = Many 4 $any
 
 -- DATA frame flags
 -- https://www.rfc-editor.org/rfc/rfc9113#section-6.1-6
