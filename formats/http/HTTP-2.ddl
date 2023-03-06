@@ -46,6 +46,10 @@ def Priority_Frame_Body_s =
     stream_dependency: uint 31
     weight: uint 8
 
+def Window_Update_Frame_Body_s =
+  struct
+    window_size_increment: uint 31
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
@@ -53,6 +57,7 @@ def HTTP2_frame_body_u =
     Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
     Priority_Frame_Body: Priority_Frame_Body_s
     Goaway_Frame_Body: Goaway_Frame_Body_s
+    Window_Update_Frame_Body: Window_Update_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -124,6 +129,22 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
             ^ {| Priority_Frame_Body = { exclusive = dat.exclusive,
                                          stream_dependency = dat.stream_dependency,
                                          weight = weight } |}
+
+    F_WINDOW_UPDATE ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-window_update-frame-format
+        -- Reserved (1),
+        -- Window size increment (31),
+        --
+        -- Note that as with F_PING, we do not check the length here
+        -- since that is an application concern. We only guard against
+        -- it being too small to avoid parsing bytes ambiguously.
+        len >= 4 is true
+
+        let packed_increment = UInt32
+        let increment = packed_increment as! uint 31
+
+        ^ {| Window_Update_Frame_Body = { window_size_increment = increment } |}
 
     F_GOAWAY ->
       block
@@ -216,7 +237,13 @@ def Frame_Type =
       -- Flags: no flags specified by the GOAWAY frame
       @UInt8
 
-    -- F_WINDOW_UPDATE = $[0x08]
+    F_WINDOW_UPDATE = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-window_update
+      -- Frame type: window update
+      $[0x08]
+      -- Flags: no flags specified by the window update frame
+      @UInt8
+
     -- F_CONTINUATION = $[0x09]
 
 -- GOAWAY / RST_STREAM error codes
