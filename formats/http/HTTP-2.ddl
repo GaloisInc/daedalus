@@ -36,10 +36,15 @@ def Goaway_Frame_Body_s =
     error_code: Error_Code
     debug_data: [uint 8]
 
+def Rst_Stream_Frame_Body_s =
+  struct
+    error_code: Error_Code
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
     Ping_Frame_Body: [uint 8]
+    Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
     Goaway_Frame_Body: Goaway_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
@@ -78,6 +83,20 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
         let opaque_data = Many 8 $any
         ^ {| Ping_Frame_Body = opaque_data |}
+
+    F_RST_STREAM ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-rst_stream-frame-format
+        -- Error Code (32)
+        --
+        -- Note that as with F_PING, we do not check the length here
+        -- since that is an application concern. We only guard against
+        -- it being too small to avoid parsing bytes ambiguously.
+        --
+        -- https://www.rfc-editor.org/rfc/rfc9113#section-6.4-8
+        len >= 4 is true
+        let error_code = Error_Code
+        ^ {| Rst_Stream_Frame_Body = { error_code = error_code } |}
 
     F_GOAWAY ->
       block
@@ -134,7 +153,14 @@ def Frame_Type =
 
     -- F_HEADERS = $[0x01]
     -- F_PRIORITY = $[0x02]
-    -- F_RST_STREAM = $[0x03]
+
+    F_RST_STREAM = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-rst_stream
+      -- Frame type: RST_STREAM
+      $[0x03]
+      -- Flags: no flags specified by the RST_STREAM frame
+      @UInt8
+
     -- F_SETTINGS = $[0x04]
     -- F_PUSH_PROMISE = $[0x05]
 
