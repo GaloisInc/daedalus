@@ -50,6 +50,10 @@ def Window_Update_Frame_Body_s =
   struct
     window_size_increment: uint 31
 
+def Continuation_Frame_Body_s =
+  struct
+    field_block_fragment: [uint 8]
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
@@ -59,6 +63,7 @@ def HTTP2_frame_body_u =
     Goaway_Frame_Body: Goaway_Frame_Body_s
     Window_Update_Frame_Body: Window_Update_Frame_Body_s
     Settings_Frame_Body: [Setting_s]
+    Continuation_Frame_Body: Continuation_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -143,6 +148,12 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
             ^ {| Priority_Frame_Body = { exclusive = dat.exclusive,
                                          stream_dependency = dat.stream_dependency,
                                          weight = weight } |}
+
+    F_CONTINUATION ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-continuation-frame-format
+        let frag = Many (len as uint 64) $any
+        ^ {| Continuation_Frame_Body = { field_block_fragment = frag } |}
 
     F_WINDOW_UPDATE ->
       block
@@ -231,6 +242,16 @@ bitdata Settings_Frame_Flags where
             ack: uint 1
           }
 
+-- Continuation frame flags
+-- Unused Flags (5),
+-- END_HEADERS Flag (1),
+-- Unused Flags (2),
+bitdata Continuation_Frame_Flags where
+  Flags = { unused1: uint 5,
+            end_headers: uint 1,
+            unused2: uint 2
+          }
+
 -- Frame types
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-definitions
 def Frame_Type =
@@ -288,7 +309,12 @@ def Frame_Type =
       -- Flags: no flags specified by the window update frame
       @UInt8
 
-    -- F_CONTINUATION = $[0x09]
+    F_CONTINUATION = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-continuation
+      -- Frame type: continuation
+      $[0x09]
+      -- Flags: continuation frame flags
+      flags = UInt8 as? Continuation_Frame_Flags
 
 -- GOAWAY / RST_STREAM error codes
 -- https://www.rfc-editor.org/rfc/rfc9113#name-error-codes
