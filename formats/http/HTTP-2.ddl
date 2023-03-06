@@ -178,14 +178,6 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
                                    error_code = error_code,
                                    debug_data = debug_data } |}
 
-def catMaybes (values: [maybe ?a]): [?a] =
-  block
-    let b = for (b = builder; mv in values)
-      case mv of
-        just v -> emit b v
-        nothing -> b
-    build b
-
 def Setting_s =
   struct
     identifier: Settings_Identifier
@@ -357,3 +349,13 @@ def UInt32: uint 32 =
     let b2 = UInt8
     let b3 = UInt8
     ^ (b0 # b1 # b2 # b3)
+
+-- Given a list of 'maybe' values, return a list of only the values
+-- found in 'just'.
+def catMaybes (values: [maybe ?a]): [?a] =
+  block
+    let b = for (b = builder; mv in values)
+      case mv of
+        just v -> emit b v
+        nothing -> b
+    build b
