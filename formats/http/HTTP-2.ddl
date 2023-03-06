@@ -183,6 +183,13 @@ def Setting_s =
     identifier: Settings_Identifier
     value: uint 32
 
+-- Setting parses a setting if the setting's identifier is known. In
+-- that case 'just' is returned. Otherwise 'nothing' is returned. This
+-- silent dropping of unrecognized settings, rather than an explicit
+-- capture for the application to inspect, is done because the spec says
+-- we MUST ignore settings that we don't know about:
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#section-6.5.2-3
 def Setting: maybe Setting_s =
   First
     block
