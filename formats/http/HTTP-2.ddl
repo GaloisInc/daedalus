@@ -40,11 +40,18 @@ def Rst_Stream_Frame_Body_s =
   struct
     error_code: Error_Code
 
+def Priority_Frame_Body_s =
+  struct
+    exclusive: uint 1
+    stream_dependency: uint 31
+    weight: uint 8
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
     Ping_Frame_Body: [uint 8]
     Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
+    Priority_Frame_Body: Priority_Frame_Body_s
     Goaway_Frame_Body: Goaway_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
@@ -98,6 +105,26 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         let error_code = Error_Code
         ^ {| Rst_Stream_Frame_Body = { error_code = error_code } |}
 
+    F_PRIORITY ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-priority-frame-format
+        -- Exclusive (1),
+        -- Stream Dependency (31),
+        -- Weight (8),
+        --
+        -- Note that as with F_PING, we do not check the length here
+        -- since that is an application concern. We only guard against
+        -- it being too small to avoid parsing bytes ambiguously.
+        len >= 5 is true
+
+        let info = UInt32 as? Priority_info
+        let weight = $any
+        case info of
+          Info dat ->
+            ^ {| Priority_Frame_Body = { exclusive = dat.exclusive,
+                                         stream_dependency = dat.stream_dependency,
+                                         weight = weight } |}
+
     F_GOAWAY ->
       block
         -- https://www.rfc-editor.org/rfc/rfc9113#name-goaway-frame-format
@@ -130,6 +157,11 @@ bitdata Data_Frame_Flags where
             end_stream: uint 1
           }
 
+bitdata Priority_info where
+  Info = { exclusive: uint 1,
+           stream_dependency: uint 31
+         }
+
 -- Ping frame flags:
 -- Unused Flags (7)
 -- ACK Flag (1)
@@ -152,7 +184,13 @@ def Frame_Type =
       flags = UInt8 as? Data_Frame_Flags
 
     -- F_HEADERS = $[0x01]
-    -- F_PRIORITY = $[0x02]
+
+    F_PRIORITY = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-priority
+      -- Frame type: PRIORITY
+      $[0x02]
+      -- Flags: no flags specified by the PRIORITY frame
+      @UInt8
 
     F_RST_STREAM = block
       -- https://www.rfc-editor.org/rfc/rfc9113#name-rst_stream
