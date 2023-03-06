@@ -178,11 +178,6 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
                                    error_code = error_code,
                                    debug_data = debug_data } |}
 
-def Setting_s =
-  struct
-    identifier: Settings_Identifier
-    value: uint 32
-
 -- Setting parses a setting if the setting's identifier is known. In
 -- that case 'just' is returned. Otherwise 'nothing' is returned. This
 -- silent dropping of unrecognized settings, rather than an explicit
@@ -190,14 +185,12 @@ def Setting_s =
 -- we MUST ignore settings that we don't know about:
 --
 -- https://www.rfc-editor.org/rfc/rfc9113#section-6.5.2-3
-def Setting: maybe Setting_s =
-  First
-    block
-      let s = block
-        identifier = Settings_Identifier
-        value = UInt32
-      ^ just s
-    ^ nothing
+def Setting = Maybe Setting_s
+
+def Setting_s =
+  block
+    identifier = Settings_Identifier
+    value = UInt32
 
 -- Data frame flags:
 -- Unused Flags (4)
@@ -366,3 +359,12 @@ def catMaybes (values: [maybe ?a]): [?a] =
         just v -> emit b v
         nothing -> b
     build b
+
+-- Given a parser, return just if the parser succeeded, or nothing if
+-- not.
+def Maybe P =
+  First
+    block
+      let value = P
+      ^ just value
+    ^ nothing
