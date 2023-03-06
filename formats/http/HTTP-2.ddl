@@ -33,6 +33,7 @@ def Data_Frame_Body_s =
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
+    Ping_Frame_Body: [uint 8]
 
 def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -61,6 +62,16 @@ def HTTP2_frame_body len (ty: Frame_Type): HTTP2_frame_body_u =
         -- Now consume and discard the padding bytes.
         Many (padding_amt as uint 64) $any
 
+    F_PING info ->
+      block
+        -- Note that we ignore the length here, as specified. It is up
+        -- to the application to respond with an error if the length is
+        -- not 8.
+        --
+        -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
+        let opaque_data = Many 8 $any
+        ^ {| Ping_Frame_Body = opaque_data |}
+
 -- Data frame flags:
 -- Unused Flags (4)
 -- PADDED Flag (1)
@@ -73,6 +84,16 @@ bitdata Data_Frame_Flags where
             padded: uint 1,
             unused2: uint 2,
             end_stream: uint 1
+          }
+
+-- Ping frame flags:
+-- Unused Flags (7)
+-- ACK Flag (1)
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#name-ping
+bitdata Ping_Frame_Flags where
+  Flags = { unused: uint 7,
+            ack: uint 1
           }
 
 -- Frame types
@@ -91,7 +112,14 @@ def Frame_Type =
     -- F_RST_STREAM = $[0x03]
     -- F_SETTINGS = $[0x04]
     -- F_PUSH_PROMISE = $[0x05]
-    -- F_PING = $[0x06]
+
+    F_PING = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-ping
+      -- Frame type: ping
+      $[0x06]
+      -- Flags:
+      flags = UInt8 as? Ping_Frame_Flags
+
     -- F_GOAWAY = $[0x07]
     -- F_WINDOW_UPDATE = $[0x08]
     -- F_CONTINUATION = $[0x09]
