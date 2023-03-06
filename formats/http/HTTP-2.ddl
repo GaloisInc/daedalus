@@ -54,6 +54,12 @@ def Continuation_Frame_Body_s =
   struct
     field_block_fragment: [uint 8]
 
+def Push_Promise_Frame_Body_s =
+  struct
+    field_block_fragment: [uint 8]
+    padding: uint 8
+    promised_stream_id: uint 31
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
@@ -64,6 +70,7 @@ def HTTP2_frame_body_u =
     Window_Update_Frame_Body: Window_Update_Frame_Body_s
     Settings_Frame_Body: [Setting_s]
     Continuation_Frame_Body: Continuation_Frame_Body_s
+    Push_Promise_Frame_Body: Push_Promise_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -101,6 +108,42 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
         let opaque_data = Many 8 $any
         ^ {| Ping_Frame_Body = opaque_data |}
+
+    F_PUSH_PROMISE info ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-push_promise-frame-format
+        --
+        -- Optional padding field: if the field is present in the flags,
+        -- we consume it now.
+        let padding_amt = case info.flags of
+                            Flags fs -> if fs.padded == 1
+                                          then UInt8
+                                          else ^ 0
+
+        -- Next, parse:
+        -- Reserved (1),
+        -- Promised Stream ID (31),
+        let packed_stream_id = UInt32
+        let promised_stream_id = packed_stream_id as! uint 31
+
+        -- The field block fragment size is the total frame length (len)
+        -- minus the padding field byte (if any) minus the promised
+        -- stream ID (4 bytes) and padding bytes themselves (if the
+        -- padding field was present).
+        let padding_byte = case info.flags of
+                             Flags fs -> if fs.padded == 1
+                                           then 1
+                                           else 0
+        let field_block_len = (len as uint 64) - padding_byte - 4 - (padding_amt as uint 64)
+
+        -- Read the field block fragment.
+        let frag = Many field_block_len $any
+        $$ = {| Push_Promise_Frame_Body = { field_block_fragment = frag,
+                                            padding = padding_amt,
+                                            promised_stream_id = promised_stream_id } |}
+
+        -- Now consume and discard the padding bytes.
+        Many (padding_amt as uint 64) $any
 
     F_SETTINGS ->
       block
@@ -252,6 +295,21 @@ bitdata Continuation_Frame_Flags where
             unused2: uint 2
           }
 
+-- Push promise frame flags
+--
+-- Unused Flags (4),
+-- PADDED Flag (1),
+-- END_HEADERS Flag (1),
+-- Unused Flags (2),
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#name-push_promise-frame-format
+bitdata Push_Promise_Frame_Flags where
+  Flags = { unused1: uint 4,
+            padded: uint 1,
+            end_headers: uint 1,
+            unused2: uint 2
+          }
+
 -- Frame types
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-definitions
 def Frame_Type =
@@ -286,7 +344,12 @@ def Frame_Type =
       -- Flags:
       flags = UInt8 as? Settings_Frame_Flags
 
-    -- F_PUSH_PROMISE = $[0x05]
+    F_PUSH_PROMISE = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-push_promise
+      -- Frame type: push promise
+      $[0x05]
+      -- Flags:
+      flags = UInt8 as? Push_Promise_Frame_Flags
 
     F_PING = block
       -- https://www.rfc-editor.org/rfc/rfc9113#name-ping

@@ -1,0 +1,6 @@
+00000000: 0000 07                               // Header: length: 8 bytes
+00000003: 05                                    // Header: frame type: push_promise
+00000004: 04                                    // Push promise frame flags (no padding, end_headers set)
+00000005: ffac face                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: fcaf cafe                             // Push_promise frame payload: reserved (1) + promised stream ID (31)
+0000000d: 6865 6c6c                             // Push_promise frame payload: field block fragment data
