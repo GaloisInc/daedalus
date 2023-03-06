@@ -99,9 +99,10 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
 
     F_SETTINGS ->
       block
-        -- Each setting is made of a two-byte identifier followed by a
-        -- four-byte value. We require that the frame body length be
-        -- exactly a multiple of this size.
+        -- In a settings frame, each of the (zero or more) settings is
+        -- made of a two-byte identifier followed by a four-byte value.
+        -- We require that the frame body length be exactly a multiple
+        -- of this size.
         len % 6 == 0 is true
 
         let num_settings = (len as uint 64) / 6
