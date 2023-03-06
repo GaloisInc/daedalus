@@ -246,9 +246,6 @@ def Error_Code =
     -- https://www.rfc-editor.org/rfc/rfc9113#section-7-5
     UNKNOWN_ERROR = Many 4 $any
 
--- DATA frame flags
--- https://www.rfc-editor.org/rfc/rfc9113#section-6.1-6
-
 -- HEADERS frame flags
 -- https://www.rfc-editor.org/rfc/rfc9113#name-headers
 
