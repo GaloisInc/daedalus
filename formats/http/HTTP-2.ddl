@@ -60,6 +60,18 @@ def Push_Promise_Frame_Body_s =
     padding: uint 8
     promised_stream_id: uint 31
 
+def Headers_Priority_Info_s =
+  struct
+    exclusive: uint 1
+    stream_dependency: uint 31
+    weight: uint 8
+
+def Headers_Frame_Body_s =
+  struct
+    field_block_fragment: [uint 8]
+    padding: uint 8
+    priority_info: maybe Headers_Priority_Info_s
+
 def HTTP2_frame_body_u =
   union
     Data_Frame_Body: Data_Frame_Body_s
@@ -71,6 +83,7 @@ def HTTP2_frame_body_u =
     Settings_Frame_Body: [Setting_s]
     Continuation_Frame_Body: Continuation_Frame_Body_s
     Push_Promise_Frame_Body: Push_Promise_Frame_Body_s
+    Headers_Frame_Body: Headers_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
@@ -95,6 +108,56 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- Read the data frame body.
         let body = Many (data_len as! uint 64) $any
         $$ = {| Data_Frame_Body = { body = body, padding = padding_amt } |}
+
+        -- Now consume and discard the padding bytes.
+        Many (padding_amt as uint 64) $any
+
+    F_HEADERS info ->
+      block
+        -- https://www.rfc-editor.org/rfc/rfc9113#name-headers-frame-format
+
+        -- [Pad Length(8)]
+        let padding_amt = case info.flags of
+                            Flags fs -> if fs.padded == 1
+                                          then UInt8
+                                          else ^ 0
+
+        -- Next, parse the following only if the PRIORITY flag is set:
+        -- [Exclusive (1)],
+        -- [Stream Dependency (31)],
+        -- [Weight (8)],
+        let priority_set = case info.flags of
+                             Flags fs -> ^ fs.priority == 1
+
+        let extra_info = if !priority_set
+                           then nothing
+                           else block
+                             let packed_info = UInt32
+                             let info = packed_info as? Headers_frame_info
+                             let weight = $any
+                             case info of
+                               Info i ->
+                                 ^ just { exclusive = i.exclusive,
+                                          stream_dependency = i.stream_dependency,
+                                          weight = weight }
+
+        -- The field block fragment size is the total frame length (len)
+        -- minus the above optional field bytes (if any) and padding
+        -- bytes themselves (if the padding field was present).
+        let padding_byte = case info.flags of
+                             Flags fs -> if fs.padded == 1
+                                           then 1
+                                           else 0
+        let info_bytes = if priority_set
+                           then 5
+                           else 0
+        let field_block_len = (len as uint 64) - padding_byte - info_bytes - (padding_amt as uint 64)
+
+        -- Read the field block fragment.
+        let frag = Many field_block_len $any
+        $$ = {| Headers_Frame_Body = { field_block_fragment = frag,
+                                       padding = padding_amt,
+                                       priority_info = extra_info } |}
 
         -- Now consume and discard the padding bytes.
         Many (padding_amt as uint 64) $any
@@ -265,6 +328,11 @@ bitdata Priority_info where
            stream_dependency: uint 31
          }
 
+bitdata Headers_frame_info where
+  Info = { exclusive: uint 1,
+           stream_dependency: uint 31
+         }
+
 -- Ping frame flags:
 -- Unused Flags (7)
 -- ACK Flag (1)
@@ -310,6 +378,27 @@ bitdata Push_Promise_Frame_Flags where
             unused2: uint 2
           }
 
+-- Headers frame flags
+--
+-- Unused Flags (2),
+-- PRIORITY Flag (1),
+-- Unused Flag (1),
+-- PADDED Flag (1),
+-- END_HEADERS Flag (1),
+-- Unused Flag (1),
+-- END_STREAM Flag (1),
+--
+-- https://www.rfc-editor.org/rfc/rfc9113#name-headers-frame-format
+bitdata Headers_Frame_Flags where
+  Flags = { unused1: uint 2,
+            priority: uint 1,
+            unused2: uint 1,
+            padded: uint 1,
+            end_headers: uint 1,
+            unused3: uint 1,
+            end_stream: uint 1,
+          }
+
 -- Frame types
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-definitions
 def Frame_Type =
@@ -321,7 +410,12 @@ def Frame_Type =
       -- Flags:
       flags = UInt8 as? Data_Frame_Flags
 
-    -- F_HEADERS = $[0x01]
+    F_HEADERS = block
+      -- https://www.rfc-editor.org/rfc/rfc9113#name-headers
+      -- Frame type: headers
+      $[0x01]
+      -- Flags:
+      flags = UInt8 as? Headers_Frame_Flags
 
     F_PRIORITY = block
       -- https://www.rfc-editor.org/rfc/rfc9113#name-priority
