@@ -4,7 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Talos.Analysis.FieldAbsEnv where
+module Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy) where
 
 import           Control.DeepSeq       (NFData)
 import           Data.Bifunctor        (second)
@@ -81,62 +81,6 @@ instance PP FieldProj where
 -- -----------------------------------------------------------------------------
 -- Expression level analysis
 --
--- Calculate the EVs used in an expression relative to a given
--- projection (field set) on the result.  We can always just return
--- freeVars for the argument, but the hope is that we can do a bit
--- better.
-
--- projectStruct :: Map Label FieldProj -> [(Label, Expr)] -> [(Label, SLExpr)]
--- projectStruct fp = map go
---   where
---     go (l, e) = case Map.lookup l fp of
---       Nothing  -> (l, EHole (typeOf e))
---       Just fp' -> (l, projectE fp'  e)
-
--- -- This function is pretty simple at the moment --- it just projects
--- -- out of structs (and under e.g. let and case)
--- projectE :: FieldProj -> Expr -> SLExpr
--- projectE Whole          expr = exprToSLExpr expr
--- projectE (FieldProj fp) expr = go expr
---   where
---     go e = case e of
---       Var {}           -> exprToSLExpr e
---       PureLet n e' e'' -> SPureLet n (exprToSLExpr e') (go e'')
---       Struct ut flds   -> SStruct ut (projectStruct fp flds)
---       ECase cs       -> SECase (go <$> cs)
---       ELoop (FoldMorphism n e lc b) ->
---         let (fp' = exprFixpoint 
---       -- This case shouldn't happen here as we should only have Whole
---       -- for lists, but this should be correct in any case.
---       ELoop (MapMorphism lc b) ->        
---         SELoop (MapMorphism (lc { lcCol = exprToSLExpr (lcCol lc)})
---                             (exprToSLExpr b))           
---       Ap0 {}         -> exprToSLExpr e
---       Ap1 {}         -> exprToSLExpr e
---       Ap2 {}         -> exprToSLExpr e
---       Ap3 {}         -> exprToSLExpr e
---       ApN {}         -> exprToSLExpr e
-
-exprToProj :: Expr -> Maybe (Name, FieldProj)
-exprToProj = go
-  where
-    go (Var n) = Just (n, Whole)
-    go (Ap1 (SelStruct _ l) e) = second (FieldProj . Map.singleton l) <$> go e
-    go _ = Nothing
-
--- | composeFieldProj d.e.f a.b.c  = a.b.c.d.e.f
-composeFieldProj :: FieldProj -> FieldProj -> FieldProj
-composeFieldProj inner = go
-  where
-    go Whole = inner
-    go (FieldProj m) = FieldProj (go <$> m)
-
--- letLikeToAbsEnv :: Name -> Expr -> LiftAbsEnv FieldProj -> LiftAbsEnv FieldProj
--- letLikeToAbsEnv n e m@(LiftAbsEnv e'_env)
---   | Just (n', n'_fp) <- exprToProj e
---   , (Just n_fp, e_env_no_n') <- Map.updateLookupWithKey (\_ _ -> Nothing) n e'_env
---   = LiftAbsEnv $ Map.insert n' (composeFieldProj n_fp n'_fp) e_env_no_n'
---   | otherwise =  exprToAbsEnv e `merge` mapLiftAbsEnv (Map.delete n) m
 
 -- The impl here sometimes uses the ((,) a) instance of Applicative
 -- (and a is a Monoid).  Pretty cool, pretty obscure.
