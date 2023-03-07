@@ -166,9 +166,13 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
       block
         -- Note that we ignore the length here, as specified. It is up
         -- to the application to respond with an error if the length is
-        -- not 8.
+        -- not 8. We do, however, ensure that the length is at least
+        -- 8 to avoid parsing bytes beyond the expected extent of the
+        -- frame.
         --
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
+        len >= 8 is true
+
         let opaque_data = Many 8 $any
         ^ {| Ping_Frame_Body = opaque_data |}
 
