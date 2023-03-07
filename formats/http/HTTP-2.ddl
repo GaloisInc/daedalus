@@ -74,16 +74,16 @@ def Headers_Frame_Body_s =
 
 def HTTP2_frame_body_u =
   union
-    Data_Frame_Body: Data_Frame_Body_s
-    Ping_Frame_Body: [uint 8]
-    Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
-    Priority_Frame_Body: Priority_Frame_Body_s
-    Goaway_Frame_Body: Goaway_Frame_Body_s
-    Window_Update_Frame_Body: Window_Update_Frame_Body_s
-    Settings_Frame_Body: [Setting_s]
     Continuation_Frame_Body: Continuation_Frame_Body_s
-    Push_Promise_Frame_Body: Push_Promise_Frame_Body_s
+    Data_Frame_Body: Data_Frame_Body_s
+    Goaway_Frame_Body: Goaway_Frame_Body_s
     Headers_Frame_Body: Headers_Frame_Body_s
+    Ping_Frame_Body: [uint 8]
+    Priority_Frame_Body: Priority_Frame_Body_s
+    Push_Promise_Frame_Body: Push_Promise_Frame_Body_s
+    Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
+    Settings_Frame_Body: [Setting_s]
+    Window_Update_Frame_Body: Window_Update_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
   case ty of
