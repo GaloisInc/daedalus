@@ -541,7 +541,5 @@ def catMaybes (values: [maybe ?a]): [?a] =
 -- not.
 def Maybe P =
   First
-    block
-      let value = P
-      ^ just value
+    just P
     ^ nothing
