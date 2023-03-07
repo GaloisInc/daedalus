@@ -13,6 +13,7 @@ import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
 import           Data.Maybe            (fromMaybe)
 import           Data.Proxy            (Proxy (Proxy))
+import qualified Data.Set              as Set
 import           GHC.Generics          (Generic)
 
 import           Daedalus.Core
@@ -24,11 +25,10 @@ import           Talos.Analysis.Eqv    (Eqv)
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.SLExpr (SLExpr (..))
 
-
 fieldAbsEnvTy :: AbsEnvTy
 fieldAbsEnvTy = AbsEnvTy (Proxy @FieldAbsEnv)
 
-data FieldProj = Whole | FieldProj (Map Label FieldProj)
+data FieldProj = Whole | FieldProj [Label] (Map Label FieldProj)
   deriving (Ord, Eq, Show, Generic)
 
 instance NFData FieldProj -- default
@@ -37,18 +37,24 @@ instance Eqv FieldProj -- default
 instance Merge FieldProj where
   Whole `merge` _ = Whole
   _ `merge` Whole = Whole
-  FieldProj m `merge` FieldProj m' = FieldProj $ merge m m'
+
+  -- FIXME: push the set of labels into the type.
+  FieldProj ls m1 `merge` FieldProj _ls m2
+    | all (== Whole) m, Map.keysSet m == Set.fromList ls = Whole
+    | otherwise = FieldProj ls m
+    where
+      m = merge m1 m2
 
 instance AbsEnvPred FieldProj where
   absPredTop = Whole
   absPredOverlaps Whole _ = True
   absPredOverlaps _ Whole = True
-  absPredOverlaps (FieldProj m1) (FieldProj m2) = mapPredOverlaps m1 m2
+  absPredOverlaps (FieldProj _ m1) (FieldProj _ m2) = mapPredOverlaps m1 m2
 
   absPredEntails Whole _ = True
   -- probably, unless we have the whole record?
   absPredEntails (FieldProj {}) Whole = False
-  absPredEntails (FieldProj m1) (FieldProj m2) =
+  absPredEntails (FieldProj _ m1) (FieldProj _ m2) =
     and (Map.merge Map.dropMissing {- in m1 not m2 -}
                    (Map.mapMissing (\_ _ -> False)) {- in m2 not m1 -}
                    (Map.zipWithMatched (const absPredEntails)) {- in both -}
@@ -71,7 +77,7 @@ instance AbsEnvPointwise FieldProj where
 
 explodeFieldProj :: FieldProj -> [ [Label] ]
 explodeFieldProj Whole = [ [] ]
-explodeFieldProj (FieldProj m) =
+explodeFieldProj (FieldProj _ m) =
   [ l : ls | (l, fs') <- Map.toList m, ls <- explodeFieldProj fs' ]
 
 instance PP FieldProj where
@@ -95,8 +101,8 @@ exprToAbsEnv fp expr =
       in (merge env' enve, SPureLet n sle sle')
     Struct ut flds   ->
       let mk = case fp of
-            Whole        -> \_l e -> go Whole e
-            FieldProj m -> \l  e ->
+            Whole         -> \_l e -> go Whole e
+            FieldProj _ m -> \l  e ->
               maybe (absEmptyEnv, EHole (typeOf e))
                     (flip go e) (Map.lookup l m)
           mk' (l, e) = (,) l <$> mk l e
@@ -107,7 +113,7 @@ exprToAbsEnv fp expr =
       let (env, fp', slb) = exprFixpoint n b fp
           (enve, sle) = go fp' e
           (lcenv, sllc) = go Whole (lcCol lc)
-          lc' = lc {lcCol = sllc }          
+          lc' = lc {lcCol = sllc }
       in (env `merge` enve `merge` lcenv
          , SELoop (FoldMorphism n sle lc' slb)
          )
@@ -126,11 +132,12 @@ exprToAbsEnv fp expr =
           benvNoElK =
             maybe benvNoEl fst (flip absProj benvNoEl =<< lcKName lc)
       in (merge lcenv benvNoElK, SELoop (MapMorphism lc' bsl))
-          
+
         -- Apart from SelStruct, none of the below are interesting (should be Whole)
     Ap0 op         -> (absEmptyEnv, SAp0 op)
-    Ap1 (SelStruct ty l) e ->
-      SAp1 (SelStruct ty l) <$> go (FieldProj $ Map.singleton l fp) e
+    Ap1 (SelStruct ty l) e
+      | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- ty ->
+        SAp1 (SelStruct ty l) <$> go (FieldProj ls $ Map.singleton l fp) e
     Ap1 op e        -> SAp1 op <$> go Whole e
     Ap2 op e1 e2    -> SAp2 op <$> go Whole e1 <*> go Whole e2
     Ap3 op e1 e2 e3 -> SAp3 op <$> go Whole e1 <*> go Whole e2 <*> go Whole e3
@@ -149,7 +156,7 @@ exprToAbsEnv fp expr =
 
 -- FIXME: a bit simplistic.
 byteSetToAbsEnv :: ByteSet -> LiftAbsEnv FieldProj
-byteSetToAbsEnv = ebFoldMapChildrenB (fst . exprToAbsEnv Whole) byteSetToAbsEnv 
+byteSetToAbsEnv = ebFoldMapChildrenB (fst . exprToAbsEnv Whole) byteSetToAbsEnv
 
 --------------------------------------------------------------------------------
 -- Instances
