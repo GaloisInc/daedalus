@@ -73,3 +73,39 @@ Adding new test cases can be done as follows:
   the generated output file contains either a successful parse tree OR a
   ``daedalus`` error message.
 * Add the input and output files to Git with ``git add`` and commit.
+
+Status and Next Steps
+=====================
+
+HTTP 1.1 Parser
+---------------
+
+The HTTP 1.1 parser provided in this directory supports HTTP 1.1
+requests and responses and parses message bodies with and without the
+``chunked`` transfer encoding.
+
+HTTP 2 Parser
+-------------
+
+The HTTP 2 parser provided in this directory parses all binary HTTP
+frames specified in the HTTP 2 specification. Some next steps for future
+work are:
+
+* Support multi-frame parsing by parsing server and client connection
+  prefaces as described in Section 3.4 of the HTTP 2 specification. At
+  the time of this writing, the parser only parses individual frames
+  and does not parse any other expected connection traffic such as the
+  connection preface octet sequences.
+
+* Support concatenation of field blocks spanning multiple HTTP 2 frames.
+  At the time of this writing, the parser parses frames that include
+  field block fragments but provides the fragments as octet sequences
+  and leaves concatenation up to the calling application.
+
+* Support decompression of HPACK-compressed field blocks. At the time
+  of this writing, the parser provides no support for decompressing
+  HPACK-compressed field blocks.
+
+* Support protocol extensions. At the time of this writing, the parser
+  is not designed specifically to permit extensibility along the lines
+  of what is specified in section 5.5 of the HTTP 2 specification.
