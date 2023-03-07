@@ -1,8 +1,8 @@
-HTTP Parser
-===========
+HTTP Parsers
+============
 
-This directory contains a Daedalus specification for parsing HTTP 1.1
-messages and HTTP 2 frames and a test suite for testing the parser on
+This directory contains Daedalus specifications for parsing HTTP 1.1
+messages and HTTP 2 frames and a test suite for testing the parsers on
 a corpus of inputs for each version of HTTP. The parser specifications
 include reference links to various HTTP specifications and ABNF grammar
 fragments that express the requirements used to build the parsers.
