@@ -92,17 +92,14 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- Optional padding field: if the field is present in the flags,
         -- we consume it now.
         let padding_amt = case info.flags of
-                            Flags fs -> if fs.padded == 1
-                                          then UInt8
-                                          else ^ 0
+                            Flags fs -> if fs.padded == 1 then UInt8 else ^ 0
 
         -- The data frame payload is the total frame length (len) minus
         -- the padding field byte (if any) minus the padding bytes
         -- themselves (if the padding field was present).
         let padding_byte = case info.flags of
-                             Flags fs -> if fs.padded == 1
-                                           then 1
-                                           else 0
+                             Flags fs -> if fs.padded == 1 then 1 else 0
+
         let data_len = (len as uint 64) - (padding_amt as uint 64) - padding_byte
 
         -- Read the data frame body.
@@ -118,9 +115,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
 
         -- [Pad Length(8)]
         let padding_amt = case info.flags of
-                            Flags fs -> if fs.padded == 1
-                                          then UInt8
-                                          else ^ 0
+                            Flags fs -> if fs.padded == 1 then UInt8 else ^ 0
 
         -- Next, parse the following only if the PRIORITY flag is set:
         -- [Exclusive (1)],
@@ -145,12 +140,10 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- minus the above optional field bytes (if any) and padding
         -- bytes themselves (if the padding field was present).
         let padding_byte = case info.flags of
-                             Flags fs -> if fs.padded == 1
-                                           then 1
-                                           else 0
-        let info_bytes = if priority_set
-                           then 5
-                           else 0
+                             Flags fs -> if fs.padded == 1 then 1 else 0
+
+        let info_bytes = if priority_set then 5 else 0
+
         let field_block_len = (len as uint 64) - padding_byte - info_bytes - (padding_amt as uint 64)
 
         -- Read the field block fragment.
@@ -183,9 +176,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- Optional padding field: if the field is present in the flags,
         -- we consume it now.
         let padding_amt = case info.flags of
-                            Flags fs -> if fs.padded == 1
-                                          then UInt8
-                                          else ^ 0
+                            Flags fs -> if fs.padded == 1 then UInt8 else ^ 0
 
         -- Next, parse:
         -- Reserved (1),
@@ -198,9 +189,8 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- stream ID (4 bytes) and padding bytes themselves (if the
         -- padding field was present).
         let padding_byte = case info.flags of
-                             Flags fs -> if fs.padded == 1
-                                           then 1
-                                           else 0
+                             Flags fs -> if fs.padded == 1 then 1 else 0
+
         let field_block_len = (len as uint 64) - padding_byte - 4 - (padding_amt as uint 64)
 
         -- Read the field block fragment.
