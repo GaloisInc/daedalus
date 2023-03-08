@@ -14,6 +14,6 @@ The following should work
 $ mkdir out
 $ docker build -t nitf-talos https://raw.githubusercontent.com/GaloisInc/daedalus/wip/talos-nitf-docker/nitf-talos/Dockerfile
 ...
-$ docker run --rm -it -v $(pwd)/out/:/nitf-out nitf-talos run_talos.sh 10 
+$ docker run --rm -it -v $(pwd)/out/:/nitf-out nitf-talos ./run_talos.sh 10 
 $ ls out
 ```
