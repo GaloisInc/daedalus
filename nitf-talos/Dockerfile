@@ -40,4 +40,4 @@ ENV PATH="/usr/local/bin/:${PATH}"
 
 RUN apt-get update && apt-get install -y git libnuma1 z3
 
-WORKDIR /
+WORKDIR /nitf
