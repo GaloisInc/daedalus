@@ -39,6 +39,7 @@ library
                      , Talos.Analysis.AbsEnv
                      , Talos.Analysis.VarAbsEnv
                      , Talos.Analysis.FieldAbsEnv
+                     , Talos.Analysis.FLAbsEnv                     
                      , Talos.Analysis.Eqv
                      , Talos.Analysis.Merge
                      , Talos.Analysis.Domain

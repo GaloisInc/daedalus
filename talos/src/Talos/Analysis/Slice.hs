@@ -140,7 +140,7 @@ data Slice' cn sle =
 -- | This is for loops -- a loop slice is structural if the structure
 -- is important (i.e., the order/number of elements).
 data Structural = Structural | StructureInvariant
-  deriving (Eq, Ord, Generic, NFData)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 --------------------------------------------------------------------------------
 -- Domain Instances

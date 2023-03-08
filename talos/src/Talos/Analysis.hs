@@ -16,11 +16,10 @@ module Talos.Analysis ( summarise
                       -- FIXME: move
                       ) where
 
-import           Control.Lens               (_1, _2, over, view)
+import           Control.Lens               (_1, view)
 import           Control.Monad              (when)
 import           Data.List                  (partition)
 import qualified Data.Map                   as Map
-import           Data.Maybe                 (isNothing)
 import           Data.Monoid                (All (All))
 import qualified Data.Set                   as Set
 
@@ -40,6 +39,7 @@ import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
+import Data.Maybe (mapMaybe)
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -454,7 +454,7 @@ summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
 summariseMany preds sem bt lb m_ub g = do
-  elsD <- summariseG (map absPredListElement preds) g
+  elsD <- summariseG (mapMaybe absPredListElement preds) g
 
   -- We need to now map the elpreds we used (from the list predicates)
   -- back into preds, and wrap the slices in a SLoop . ManyLpop.  We
@@ -571,15 +571,16 @@ summariseLoop preds lcl =
           gss' = map (, Nothing) gssNoPred ++ gss
       
           mkGS (gs, m_p) =
-            let (envlc, lc', elgs, str) =
-                  summariseLC lc (absPredIsStructural <$> m_p) gs 
-                (enve, sle)   = absPre' (typeOf n) m_p e
-            in (elgs { gsEnv   = gsEnv gs `merge` envlc `merge` enve
+            let (elgs, lc', str) =
+                  summariseLC lc (maybe StructureInvariant absPredStructural m_p) gs
+                  
+                (enve, sle)   = absPre' (typeOf n) (gsPred elgs) e
+            in (elgs { gsEnv   = gsEnv gs `merge` enve
                      , gsSlice = mkSlice sle lc' str (gsSlice gs)
                      }
-               , str == Structural)
+               , str)
       
-          (strgss, nsgss) = partition snd (map mkGS gss')
+          (strgss, nsgss) = partition ((==) Structural . snd) (map mkGS gss')
           gss'' = case strgss of
                     [] -> map fst nsgss
                     (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
@@ -588,20 +589,17 @@ summariseLoop preds lcl =
       pure $ domainFromElements gss'' `merge` gD'
 
     MorphismLoop (MapMorphism lc g) -> do
-      gD <- summariseG (map absPredListElement preds) g
+      gD <- summariseG (mapMaybe absPredListElement preds) g
       
       let mkSlice lc' str g' = SLoop (MorphismLoop (MapMorphism lc' (str, g')))
           (gss, gD') = domainElements gD
           
           mkGS gs =
-            let (envlc, lc', elgs, str) =
-                  summariseLC lc (absPredIsStructural <$> gsPred gs) gs 
-            in (elgs { gsEnv   = gsEnv gs `merge` envlc
-                     , gsSlice = mkSlice lc' str (gsSlice gs)
-                     }
-               , str == Structural)
+            let (elgs, lc', str) =
+                  summariseLC lc (maybe StructureInvariant absPredStructural (gsPred gs)) gs 
+            in (elgs { gsSlice = mkSlice lc' str (gsSlice gs) }, str)
           
-          (strgss, nsgss) = partition snd (map mkGS gss)
+          (strgss, nsgss) = partition ((==) Structural . snd) (map mkGS gss)
           gss' = case strgss of
                    [] -> map fst nsgss
                    (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
@@ -610,25 +608,10 @@ summariseLoop preds lcl =
 
   where
     absPre' ty m_p e = maybe (absEmptyEnv, EHole ty) (flip absPre e) m_p
-    partitionSlice x gs =
-      either (over _2 Just) (, Nothing) (partitionSliceForVar x gs)
     
-    summariseLC lc m_isStr gs =
-      (envlc , lc {lcCol = sllc}, elgs, str)
+    summariseLC lc str gs = (gs { gsEnv = env }, lc', str')
       where
-        (kgs, m_kp)
-          | Just k <- lcKName lc = partitionSlice k gs
-          | otherwise = (gs, Nothing)
-        (elgs, m_elp) = partitionSlice (lcElName lc) kgs
-                
-        str | Just True <- m_isStr = Structural
-            -- FIXME: is this necessarily the case for dictionaries?
-            | Just _ <- m_kp = Structural
-            | otherwise = StructureInvariant                    
-
-        m_lcp | str == StructureInvariant, isNothing m_elp, isNothing m_kp = Nothing
-              | otherwise = Just $ absPredCollection (typeOf (lcCol lc)) str m_kp m_elp
-        (envlc, sllc) = absPre' (typeOf (lcCol lc)) m_lcp (lcCol lc)
+        (env, lc', str') = projectForLoopCollection str (gsEnv gs) lc
 
     -- There are 3 types of slices we care about here:
     --  * sources: establish some p in ps, no dep. on x

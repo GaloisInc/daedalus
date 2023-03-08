@@ -7,18 +7,20 @@
 
 module Talos.Analysis.AbsEnv where
 
-import           Daedalus.Core         (ByteSet, Case (..), Expr, Name, Type)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Proxy            (Proxy)
 
 import           Daedalus.PP
 import           Daedalus.Panic        (panic)
+import           Daedalus.Core         (ByteSet, Case (..), Expr, Name, Type, LoopCollection'(..))
 
 import           Talos.Analysis.Eqv
-import           Talos.Analysis.SLExpr (SLExpr)
+import           Talos.Analysis.SLExpr (SLExpr(EHole))
 import Talos.Analysis.Merge (Merge(..), HasEmpty(..))
-import Talos.Analysis.Slice (Structural)
+import Talos.Analysis.Slice (Structural(..))
+import Daedalus.Core.Type (typeOf)
+import Data.Bifunctor (second)
 
 --------------------------------------------------------------------------------
 -- Abstract Environments
@@ -33,11 +35,11 @@ class (Ord p, PP p, Merge p) => AbsEnvPred p where
   -- | Does this predicate depend on the structure of the computation?
   -- Mainly useful for sequences where the predicate may be invariant
   -- in the length and arrangement of elements
-  absPredIsStructural :: p -> Bool
+  absPredStructural :: p -> Structural
 
   -- | Get an element predicate, given a predicate of list type
-  absPredListElement :: p -> p
-  absPredCollection :: Type -> Structural -> Maybe p -> Maybe p -> p
+  absPredListElement :: p -> Maybe p
+  absPredCollection :: Type -> Structural -> Maybe p -> Maybe p -> Maybe p
   
 class (AbsEnvPred (AbsPred ae), Eqv ae, PP ae, Merge ae) => AbsEnv ae where
   type AbsPred ae
@@ -60,6 +62,9 @@ data AbsEnvTy = forall ae. AbsEnv ae => AbsEnvTy (Proxy ae)
 newtype LiftAbsEnv p = LiftAbsEnv { getLiftAbsEnv :: Map Name p }
   deriving (Functor)
 
+-- -----------------------------------------------------------------------------
+-- Helpers
+
 mapLiftAbsEnv :: (Map Name p -> Map Name p) -> (LiftAbsEnv p -> LiftAbsEnv p)
 mapLiftAbsEnv f (LiftAbsEnv m) = LiftAbsEnv (f m)
 
@@ -67,6 +72,27 @@ mapLiftAbsEnv f (LiftAbsEnv m) = LiftAbsEnv (f m)
 mapPredOverlaps :: (Ord k, AbsEnvPred p) => Map k p -> Map k p -> Bool
 mapPredOverlaps m1 m2 = 
   any (uncurry absPredOverlaps) (Map.intersectionWith (,) m1 m2)
+
+projectForLoopCollection :: AbsEnv ae => Structural -> ae -> LoopCollection' Expr ->
+                            (ae, LoopCollection' SLExpr, Structural)
+projectForLoopCollection useStr env lc =
+  ( kenv `merge` lcenv , lc {lcCol = sllc }
+  , maybe StructureInvariant absPredStructural m_lcp)
+  where
+    (elenv, m_elp) = projectMaybe (lcElName lc) env
+    (kenv, m_kp)   = maybe (elenv, Nothing) (flip projectMaybe elenv) (lcKName lc)
+
+    m_lcp = absPredCollection ty useStr m_kp m_elp
+    (lcenv, sllc) = maybe (absEmptyEnv, EHole ty) (flip absPre (lcCol lc)) m_lcp
+    
+    projectMaybe x env' = maybe (env', Nothing) (second Just) (absProj x env')
+    ty = typeOf (lcCol lc)
+
+absPredIsStructural :: AbsEnvPred p => p -> Bool
+absPredIsStructural = (==) Structural . absPredStructural
+  
+-- -----------------------------------------------------------------------------
+-- Instances
 
 instance Eqv p => Eqv (LiftAbsEnv p) where
   eqv (LiftAbsEnv m1) (LiftAbsEnv m2) = eqv m1 m2

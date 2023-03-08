@@ -19,6 +19,7 @@ import Data.Proxy (Proxy(Proxy))
 import Talos.Analysis.SLExpr (exprToSLExpr)
 import Daedalus.PP
 import Talos.Analysis.Merge (Merge(..))
+import Talos.Analysis.Slice (Structural(..))
 
 varAbsEnvTy :: AbsEnvTy
 varAbsEnvTy = AbsEnvTy (Proxy @VarAbsEnv)
@@ -36,9 +37,10 @@ instance AbsEnvPred Whole where
   absPredOverlaps _ _ = True
 
   absPredEntails _ _ = True
-  absPredIsStructural _ = True
-  absPredListElement _ = Whole
-  absPredCollection _ _ _ _ = Whole
+  absPredStructural _ = Structural
+  absPredListElement _ = Just Whole
+  absPredCollection _ StructureInvariant Nothing Nothing = Nothing
+  absPredCollection _ _                  _       _       = Just Whole
   
 newtype VarAbsEnv = VarAbsEnv (LiftAbsEnv Whole)
   deriving (Eqv, PP, Merge, AbsEnv)
