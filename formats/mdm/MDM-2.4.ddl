@@ -63,12 +63,12 @@ def MDM_Type (raw_ack_byte: uint 8) =
     -- Parse the message type octet followed by the number of messages
     -- octet, which has a fixed value corresponding to each message
     -- type.
-    Type_VRT               = @Match [0x1, 0x1]
-    Type_TimeOfDay         = @Match [0x3, 0x1]
-    Type_SignalPortUserID  = @Match [0x4, 0x1]
-    Type_HealthStatus      = @Match [0x5, 0x1]
-    Type_Command           = @Match [0x6, 0x1]
-    Type_SwitchGroupUserID = @Match [0x7, 0x1]
+    Type_VRT                  = @Match [0x1, 0x1]
+    Type_Time_Of_Day          = @Match [0x3, 0x1]
+    Type_Signal_Port_User_ID  = @Match [0x4, 0x1]
+    Type_Health_Status        = @Match [0x5, 0x1]
+    Type_Command              = @Match [0x6, 0x1]
+    Type_Switch_Group_User_ID = @Match [0x7, 0x1]
 
     Type_Acknowledgement = block
       @Match [0x2, 0x0]
@@ -113,14 +113,14 @@ def MDM_Body (ty: MDM_Type) =
       ^ {| Body_Acknowledgement = { } |}
 
     -- See 6.3.3: MDM Time of Day Message (Type 3) Specification
-    Type_TimeOfDay ->
+    Type_Time_Of_Day ->
       {| Body_TimeOfDay = UInt32 |}
 
     -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
     -- Type_SignalPortUserID ->
 
     -- See 6.3.5: MDM Health Message (Type 5) Specification
-    Type_HealthStatus ->
+    Type_Health_Status ->
       block
         let f1 = UInt32 as? Health_Status_Field_1
         let f2 = UInt32 as? Health_Status_Field_2
@@ -188,16 +188,15 @@ bitdata Parameter_Condition where
 
 def MDM_Body_u =
   union
-    -- TODO: use snake_case for these to be consistent? Same for Type_*.
     Body_Acknowledgement: {}
-    Body_TimeOfDay: uint 32
-    -- Body_SignalPortUserID:
-    Body_HealthStatus: Body_HealthStatus_s
+    Body_Time_Of_Day: uint 32
+    -- Body_Signal_Port_User_ID:
+    Body_Health_Status: Body_Health_Status_s
     -- Body_Command:
-    -- Body_SwitchGroupUserID:
+    -- Body_Switch_Group_User_ID:
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification
-def Body_HealthStatus_s =
+def Body_Health_Status_s =
   struct
     status_field_1: Health_Status_Field_1
     status_field_2: Health_Status_Field_2
