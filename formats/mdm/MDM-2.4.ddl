@@ -127,7 +127,14 @@ def MDM_Body (ty: MDM_Type) =
         ^ {| Body_Health_Status = { status_field_1 = f1, status_field_2 = f2 } |}
 
     -- See 6.3.6: MDM Command Message (Type 6) Specification
-    -- Type_Command ->
+    Type_Command ->
+      block
+        let command_field = UInt32 as? Command_Command_Field
+        let configuration_field = UInt32
+        let waveform_op_field = UInt32
+        ^ {| Body_Command = { command = command_field,
+                              configuration = configuration_field,
+                              waveform_operation = waveform_op_field } |}
 
     -- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
     -- Type_Switch_Group_UserID ->
@@ -186,13 +193,41 @@ bitdata Parameter_Condition where
   PC_Reset_Required = 0x400: uint 16
   PC_Normal         = 0x800: uint 16
 
+-- See 6.3.6: MDM Command Message (Type 6) Specification, Command Field
+-- Format
+bitdata Command_Command_Field where
+  Command = { port_id: uint 7, command: Command_Value }
+
+-- See 6.3.6: MDM Command Message (Type 6) Specification, Command Field
+-- Format
+bitdata Command_Value where
+  C_Not_Present      = 0x0: uint 25
+  C_Operate          = 0x1: uint 25
+  C_Standby          = 0x2: uint 25
+  C_Transmit_Inhibit = 0x4: uint 25
+  C_Power_On         = 0x8: uint 25
+  C_Shut_Down        = 0x10: uint 25
+  C_Restart          = 0x20: uint 25
+  C_Maintenance_Mode = 0x40: uint 25
+  C_Zeroize          = 0x80: uint 25
+  C_Sanitize         = 0x100: uint 25
+  C_Fault            = 0x200: uint 25
+  C_Run_BIT          = 0x400: uint 25
+
+-- See 6.3.6: MDM Command Message (Type 6) Specification
+def Body_Command_s =
+  struct
+    command: Command_Command_Field
+    configuration: uint 32
+    waveform_operation: uint 32
+
 def MDM_Body_u =
   union
     Body_Acknowledgement: {}
     Body_Time_Of_Day: uint 32
     -- Body_Signal_Port_User_ID:
     Body_Health_Status: Body_Health_Status_s
-    -- Body_Command:
+    Body_Command: Body_Command_s
     -- Body_Switch_Group_User_ID:
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification
