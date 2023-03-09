@@ -11,7 +11,7 @@ def Main = MDM
 def MDM =
   block
     header = MDM_Header
-    -- body = MDM_Body
+    body = MDM_Body header.type
 
 -- See: 6.1.2.1, MDM Header
 def MDM_Header =
