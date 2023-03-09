@@ -117,7 +117,64 @@ def MDM_Body (ty: MDM_Type) =
       {| Body_Time_Of_Day = UInt32 |}
 
     -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
-    -- Type_Signal_Port_User_ID ->
+    Type_Signal_Port_User_ID ->
+      block
+        let signal_port_resource_id = UInt16 as? Identifier_Triple
+        let user_id = UInt16 as? Identifier_Triple
+
+        let user_ml2b_command_ip_address_field_1 = UInt32
+        let user_ml2b_command_ip_address_field_2 = UInt32
+        let user_ml2b_command_ip_address_field_3 = UInt32
+        let user_ml2b_command_ip_address_field_4 = UInt32
+
+        let user_ml2b_command_mac_3_to_6 = UInt32
+        let user_ml2b_command_mac_1_2 = UInt16
+        let user_ml2b_command_mac =
+          user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
+        let user_ml2b_command_udp_port = UInt16
+
+        let user_ml2b_signal_data_ip_address_field_1 = UInt32
+        let user_ml2b_signal_data_ip_address_field_2 = UInt32
+        let user_ml2b_signal_data_ip_address_field_3 = UInt32
+        let user_ml2b_signal_data_ip_address_field_4 = UInt32
+        let user_ml2b_signal_data_mac_3_to_6 = UInt32
+        let user_ml2b_signal_data_mac_1_2 = UInt16
+        let user_ml2b_signal_data_mac =
+          user_ml2b_signal_data_mac_1_2 # user_ml2b_signal_data_mac_3_to_6
+        let user_ml2b_signal_data_udp_port = UInt16
+
+        let user_ml2b_context_ip_address_field_1 = UInt32
+        let user_ml2b_context_ip_address_field_2 = UInt32
+        let user_ml2b_context_ip_address_field_3 = UInt32
+        let user_ml2b_context_ip_address_field_4 = UInt32
+        let user_ml2b_context_mac_3_to_6 = UInt32
+        let user_ml2b_context_mac_1_2 = UInt16
+        let user_ml2b_context_mac =
+          user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
+        let user_ml2b_context_udp_port = UInt16
+
+        ^ {| Body_Signal_Port_User_ID = {
+             signal_port_resource_id = signal_port_resource_id,
+             user_id = user_id,
+             user_ml2b_command_ip_address_field_1 = user_ml2b_command_ip_address_field_1,
+             user_ml2b_command_ip_address_field_2 = user_ml2b_command_ip_address_field_2,
+             user_ml2b_command_ip_address_field_3 = user_ml2b_command_ip_address_field_3,
+             user_ml2b_command_ip_address_field_4 = user_ml2b_command_ip_address_field_4,
+             user_ml2b_command_mac = user_ml2b_command_mac,
+             user_ml2b_command_udp_port = user_ml2b_command_udp_port,
+             user_ml2b_signal_data_ip_address_field_1 = user_ml2b_signal_data_ip_address_field_1,
+             user_ml2b_signal_data_ip_address_field_2 = user_ml2b_signal_data_ip_address_field_2,
+             user_ml2b_signal_data_ip_address_field_3 = user_ml2b_signal_data_ip_address_field_3,
+             user_ml2b_signal_data_ip_address_field_4 = user_ml2b_signal_data_ip_address_field_4,
+             user_ml2b_signal_data_mac = user_ml2b_signal_data_mac,
+             user_ml2b_signal_data_udp_port = user_ml2b_signal_data_udp_port,
+             user_ml2b_context_ip_address_field_1 = user_ml2b_context_ip_address_field_1,
+             user_ml2b_context_ip_address_field_2 = user_ml2b_context_ip_address_field_2,
+             user_ml2b_context_ip_address_field_3 = user_ml2b_context_ip_address_field_3,
+             user_ml2b_context_ip_address_field_4 = user_ml2b_context_ip_address_field_4,
+             user_ml2b_context_mac = user_ml2b_context_mac,
+             user_ml2b_context_udp_port = user_ml2b_context_udp_port
+             } |}
 
     -- See 6.3.5: MDM Health Message (Type 5) Specification
     Type_Health_Status ->
@@ -221,11 +278,55 @@ def Body_Command_s =
     configuration: uint 32
     waveform_operation: uint 32
 
+-- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
+def Body_Signal_Port_User_ID_s =
+  struct
+    signal_port_resource_id: Identifier_Triple
+    user_id: Identifier_Triple
+
+    user_ml2b_command_ip_address_field_1: uint 32
+    user_ml2b_command_ip_address_field_2: uint 32
+    user_ml2b_command_ip_address_field_3: uint 32
+    user_ml2b_command_ip_address_field_4: uint 32
+    user_ml2b_command_mac: uint 48
+    user_ml2b_command_udp_port: uint 32
+
+    user_ml2b_signal_data_ip_address_field_1: uint 32
+    user_ml2b_signal_data_ip_address_field_2: uint 32
+    user_ml2b_signal_data_ip_address_field_3: uint 32
+    user_ml2b_signal_data_ip_address_field_4: uint 32
+    user_ml2b_signal_data_mac: uint 48
+    user_ml2b_signal_data_udp_port: uint 32
+
+    user_ml2b_context_ip_address_field_1: uint 32
+    user_ml2b_context_ip_address_field_2: uint 32
+    user_ml2b_context_ip_address_field_3: uint 32
+    user_ml2b_context_ip_address_field_4: uint 32
+    user_ml2b_context_mac: uint 48
+    user_ml2b_context_udp_port: uint 16
+
+-- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
+bitdata Identifier_Triple where
+  Field = { type: uint 3,
+            device_id: ID_Device_Type,
+            signal_port_id: uint 7 }
+
+-- See 6.3.1.2.4: VRT Stream ID, ID-Device Types table
+bitdata ID_Device_Type where
+  -- Other
+  DTy_OTH = 0x0: uint 6
+  -- MORA Radiohead
+  DTy_RHD = 0x1: uint 6
+  -- MORA RF Conditioning and Distribution
+  DTy_RCD = 0x2: uint 6
+  -- MORA Software Defined Radio
+  DTy_SDR = 0x3: uint 6
+
 def MDM_Body_u =
   union
     Body_Acknowledgement: {}
     Body_Time_Of_Day: uint 32
-    -- Body_Signal_Port_User_ID:
+    Body_Signal_Port_User_ID: Body_Signal_Port_User_ID_s
     Body_Health_Status: Body_Health_Status_s
     Body_Command: Body_Command_s
     -- Body_Switch_Group_User_ID:
