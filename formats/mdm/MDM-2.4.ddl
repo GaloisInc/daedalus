@@ -383,6 +383,8 @@ bitdata ID_Device_Type where
   -- MORA Software Defined Radio
   DTy_SDR = 0x3: uint 6
 
+-- All possible message body structures corresponding to supported
+-- message types.
 def MDM_Body_u =
   union
     Body_Acknowledgement: {}
