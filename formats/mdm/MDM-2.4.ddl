@@ -114,23 +114,23 @@ def MDM_Body (ty: MDM_Type) =
 
     -- See 6.3.3: MDM Time of Day Message (Type 3) Specification
     Type_Time_Of_Day ->
-      {| Body_TimeOfDay = UInt32 |}
+      {| Body_Time_Of_Day = UInt32 |}
 
     -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
-    -- Type_SignalPortUserID ->
+    -- Type_Signal_Port_User_ID ->
 
     -- See 6.3.5: MDM Health Message (Type 5) Specification
     Type_Health_Status ->
       block
         let f1 = UInt32 as? Health_Status_Field_1
         let f2 = UInt32 as? Health_Status_Field_2
-        ^ {| Body_HealthStatus = { status_field_1 = f1, status_field_2 = f2 } |}
+        ^ {| Body_Health_Status = { status_field_1 = f1, status_field_2 = f2 } |}
 
     -- See 6.3.6: MDM Command Message (Type 6) Specification
     -- Type_Command ->
 
     -- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
-    -- Type_SwitchGroupUserID ->
+    -- Type_Switch_Group_UserID ->
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #1 Format
