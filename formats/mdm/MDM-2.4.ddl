@@ -330,14 +330,14 @@ def Body_Signal_Port_User_ID_s =
     user_ml2b_command_ip_address_field_3: uint 32
     user_ml2b_command_ip_address_field_4: uint 32
     user_ml2b_command_mac: uint 48
-    user_ml2b_command_udp_port: uint 32
+    user_ml2b_command_udp_port: uint 16
 
     user_ml2b_signal_data_ip_address_field_1: uint 32
     user_ml2b_signal_data_ip_address_field_2: uint 32
     user_ml2b_signal_data_ip_address_field_3: uint 32
     user_ml2b_signal_data_ip_address_field_4: uint 32
     user_ml2b_signal_data_mac: uint 48
-    user_ml2b_signal_data_udp_port: uint 32
+    user_ml2b_signal_data_udp_port: uint 16
 
     user_ml2b_context_ip_address_field_1: uint 32
     user_ml2b_context_ip_address_field_2: uint 32
@@ -357,7 +357,7 @@ def Body_Switch_Group_User_ID_s =
     user_ml2b_command_ip_address_field_3: uint 32
     user_ml2b_command_ip_address_field_4: uint 32
     user_ml2b_command_mac: uint 48
-    user_ml2b_command_udp_port: uint 32
+    user_ml2b_command_udp_port: uint 16
 
     user_ml2b_context_ip_address_field_1: uint 32
     user_ml2b_context_ip_address_field_2: uint 32
