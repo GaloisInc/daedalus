@@ -105,7 +105,8 @@ bitdata MDM_Ack_Response_Value where
 def MDM_Body (ty: MDM_Type) =
   case ty of
     Type_VRT ->
-      Fail "VRT messages not yet supported"
+      -- See 6.3.1.2.1: VRT Message Format
+      VRT_Message
 
     -- See 6.3.2: MDM Acknowledgement Message (Type 2) Specification
     -- Acknowledgement messages have no body.
@@ -395,6 +396,7 @@ bitdata ID_Device_Type where
 -- message types.
 def MDM_Body_u =
   union
+    Body_VRT: {}
     Body_Acknowledgement: {}
     Body_Time_Of_Day: uint 32
     Body_Signal_Port_User_ID: Body_Signal_Port_User_ID_s
