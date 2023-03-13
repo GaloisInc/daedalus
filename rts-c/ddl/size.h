@@ -42,8 +42,8 @@ public:
   void decrement()         { decrementBy(Size(1)); }
 
   // immutable
-  Size incrementedBy(Size x) const { Size y(value); y.incrementBy(x); return y; }
-  Size decrementedBy(Size x) const { Size y(value); y.decrementBy(x); return y; }
+  Size incrementedBy(Size x) const { Size y(value); y.incrementBy(x); return y;}
+  Size decrementedBy(Size x) const { Size y(value); y.decrementBy(x); return y;}
   Size incremented()         const { return incrementedBy(Size(1)); }
   Size decremented()         const { return decrementedBy(Size(1)); }
 };
