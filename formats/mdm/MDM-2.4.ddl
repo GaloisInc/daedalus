@@ -6,6 +6,8 @@
 -- 2021. Where appropriate, the parser will make references to chapters
 -- and sections in the aforementioned document.
 
+import Daedalus
+
 def Main = MDM
 
 def MDM =
@@ -30,7 +32,7 @@ def MDM_Header =
     version = MDM_Version
 
     -- See 6.1.2.1.4: MDM Sequence number
-    sequence_number = UInt16
+    sequence_number = BEUInt16
     
     -- See 6.1.2.1.5: ML2B interface ID
     ml2b_interface_id = ML2B_Interface_id
@@ -48,8 +50,8 @@ def MDM_Version =
 -- See 6.1.2.1.5: ML2B interface ID
 def ML2B_Interface_id =
   block
-    origination_id = UInt16
-    destination_id = UInt16
+    origination_id = BEUInt16
+    destination_id = BEUInt16
 
 -- Parse the message type followed by the number of messages field. This
 -- returns only the type since the number of messages is always implied
@@ -115,7 +117,7 @@ def MDM_Body (ty: MDM_Type) =
 
     -- See 6.3.3: MDM Time of Day Message (Type 3) Specification
     Type_Time_Of_Day ->
-      {| Body_Time_Of_Day = UInt32 |}
+      {| Body_Time_Of_Day = BEUInt32 |}
 
     -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
     Type_Signal_Port_User_ID ->
@@ -124,16 +126,16 @@ def MDM_Body (ty: MDM_Type) =
     -- See 6.3.5: MDM Health Message (Type 5) Specification
     Type_Health_Status ->
       block
-        let f1 = UInt32 as? Health_Status_Field_1
-        let f2 = UInt32 as? Health_Status_Field_2
+        let f1 = BEUInt32 as? Health_Status_Field_1
+        let f2 = BEUInt32 as? Health_Status_Field_2
         ^ {| Body_Health_Status = { status_field_1 = f1, status_field_2 = f2 } |}
 
     -- See 6.3.6: MDM Command Message (Type 6) Specification
     Type_Command ->
       block
-        let command_field = UInt32 as? Command_Command_Field
-        let configuration_field = UInt32
-        let waveform_op_field = UInt32
+        let command_field = BEUInt32 as? Command_Command_Field
+        let configuration_field = BEUInt32
+        let waveform_op_field = BEUInt32
         ^ {| Body_Command = { command = command_field,
                               configuration = configuration_field,
                               waveform_operation = waveform_op_field } |}
@@ -142,32 +144,142 @@ def MDM_Body (ty: MDM_Type) =
     Type_Switch_Group_User_ID ->
       Parse_Body_Switch_Group_User_ID
 
+-- See 6.3.1.2.1: VRT Message Format
+def VRT_Message: MDM_Body_u =
+  block
+    VRT_Prologue
+    -- VRT_Packet_Payload -- M
+    -- VRT_Trailer -- Packet dependent
+
+    ^ {| Body_VRT = { } |}
+
+-- See 6.3.1.2.2: VRT Prologue
+def VRT_Prologue =
+  block
+    header = VRT_Packet_Header
+    stream_identifier = VRT_Stream_Identifier
+
+    -- The Class Identifier is present if and only if the "C" bit of the
+    -- header is set.
+    class_id = case header of
+                 Header fields ->
+                   if fields.c_bit == 1
+                     then just VRT_Class_Identifier
+                     else nothing
+
+    -- Each timestamp field is present if and only if the appropriate
+    -- header indicator is present.
+    timestamp_int = case header of
+                      Header fields ->
+                        case fields.tsi of
+                          No_Int_Field -> nothing
+                          _ -> just BEUInt32
+
+    timestamp_frac = case header of
+                      Header fields ->
+                        case fields.tsf of
+                          No_Frac_Field -> nothing
+                          _ -> just BEUInt64
+
+    -- TODO: use:
+    -- VRT_Packet_Body header
+
+-- Parse the VRT packet body, including the packet-specific prologue,
+-- payload, and trailer, as appropriate to the packet type.
+def VRT_Packet_Body (header: VRT_Packet_Header) =
+  block
+    -- TODO: the MORA spec elides many details from the Vita 49.*
+    -- specification(s) that are needed to fully parse the message body
+    -- and trailer.
+    Fail "VRT packet body parsing not implemented"
+
+def VRT_Packet_Header =
+  BEUInt32 as? VRT_Packet_Header_bits
+
+def VRT_Class_Identifier =
+  BEUInt64 as? VRT_Class_Identifier_bits
+
+bitdata VRT_Information_Class_Code_ID where
+  M = 0x4d: uint 8
+
+bitdata VRT_Information_Class_Code where
+  ICC = { id: VRT_Information_Class_Code_ID,
+          version_maj: uint 4,
+          version_min: uint 4,
+        }
+
+bitdata VRT_Packet_Class_Code where
+  Packet_Class = { reserved: uint 12,
+                   packet_type: VRT_Packet_Type,
+                 }
+
+bitdata VRT_Class_Identifier_bits where
+  Class_ID = { pad_bit_count: uint 5,
+               reserved: uint 3,
+               org_unique_identifier: uint 24,
+               information_class_code: VRT_Information_Class_Code,
+               packet_class_code: VRT_Packet_Class_Code,
+             }
+
+-- See 6.3.1.2.4: VRT Stream ID
+def VRT_Stream_Identifier =
+  block
+    resource_id = BEUInt16 as? Identifier_Triple
+    subport_id = BEUInt16
+
+-- See 6.3.1.2.3: VRT Packet Header Field
+bitdata VRT_Packet_Header_bits where
+  Header = { type: VRT_Packet_Type,
+             c_bit: uint 1,
+             indicators: uint 3,
+             tsi: Timestamp_Int_Status,
+             tsf: Timestamp_Frac_Status,
+             packet_count: uint 4,
+             packet_size_words: uint 16
+           }
+
+-- See 6.3.1.2.3: VRT Packet Header Field
+bitdata Timestamp_Int_Status where
+  No_Int_Field = 0x0: uint 2
+  UTC_Relative = 0x1: uint 2
+
+-- See 6.3.1.2.3: VRT Packet Header Field
+bitdata Timestamp_Frac_Status where
+  No_Frac_Field         = 0x0: uint 2
+  Real_Time_Picoseconds = 0x2: uint 2
+
+-- See 6.3.1.2.3: VRT Packet Header Field
+bitdata VRT_Packet_Type where
+  Signal_Data_Packet_w_Stream_ID = 0x1: uint 4
+  Context_Packet                 = 0x4: uint 4
+  Command_Packet                 = 0x6: uint 4
+
 -- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
 def Parse_Body_Switch_Group_User_ID: MDM_Body_u =
   block
-    let signal_port_resource_id = UInt16 as? Identifier_Triple
-    let user_id = UInt16 as? Identifier_Triple
+    let signal_port_resource_id = BEUInt16 as? Identifier_Triple
+    let user_id = BEUInt16 as? Identifier_Triple
 
-    let user_ml2b_command_ip_address_field_1 = UInt32
-    let user_ml2b_command_ip_address_field_2 = UInt32
-    let user_ml2b_command_ip_address_field_3 = UInt32
-    let user_ml2b_command_ip_address_field_4 = UInt32
+    let user_ml2b_command_ip_address_field_1 = BEUInt32
+    let user_ml2b_command_ip_address_field_2 = BEUInt32
+    let user_ml2b_command_ip_address_field_3 = BEUInt32
+    let user_ml2b_command_ip_address_field_4 = BEUInt32
 
-    let user_ml2b_command_mac_3_to_6 = UInt32
-    let user_ml2b_command_mac_1_2 = UInt16
+    let user_ml2b_command_mac_3_to_6 = BEUInt32
+    let user_ml2b_command_mac_1_2 = BEUInt16
     let user_ml2b_command_mac =
       user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
-    let user_ml2b_command_udp_port = UInt16
+    let user_ml2b_command_udp_port = BEUInt16
 
-    let user_ml2b_context_ip_address_field_1 = UInt32
-    let user_ml2b_context_ip_address_field_2 = UInt32
-    let user_ml2b_context_ip_address_field_3 = UInt32
-    let user_ml2b_context_ip_address_field_4 = UInt32
-    let user_ml2b_context_mac_3_to_6 = UInt32
-    let user_ml2b_context_mac_1_2 = UInt16
+    let user_ml2b_context_ip_address_field_1 = BEUInt32
+    let user_ml2b_context_ip_address_field_2 = BEUInt32
+    let user_ml2b_context_ip_address_field_3 = BEUInt32
+    let user_ml2b_context_ip_address_field_4 = BEUInt32
+    let user_ml2b_context_mac_3_to_6 = BEUInt32
+    let user_ml2b_context_mac_1_2 = BEUInt16
     let user_ml2b_context_mac =
       user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
-    let user_ml2b_context_udp_port = UInt16
+    let user_ml2b_context_udp_port = BEUInt16
 
     ^ {| Body_Switch_Group_User_ID = {
          signal_port_resource_id = signal_port_resource_id,
@@ -189,39 +301,39 @@ def Parse_Body_Switch_Group_User_ID: MDM_Body_u =
 -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
 def Parse_Body_Signal_Port_User_ID: MDM_Body_u =
  block
-   let signal_port_resource_id = UInt16 as? Identifier_Triple
-   let user_id = UInt16 as? Identifier_Triple
+   let signal_port_resource_id = BEUInt16 as? Identifier_Triple
+   let user_id = BEUInt16 as? Identifier_Triple
 
-   let user_ml2b_command_ip_address_field_1 = UInt32
-   let user_ml2b_command_ip_address_field_2 = UInt32
-   let user_ml2b_command_ip_address_field_3 = UInt32
-   let user_ml2b_command_ip_address_field_4 = UInt32
+   let user_ml2b_command_ip_address_field_1 = BEUInt32
+   let user_ml2b_command_ip_address_field_2 = BEUInt32
+   let user_ml2b_command_ip_address_field_3 = BEUInt32
+   let user_ml2b_command_ip_address_field_4 = BEUInt32
 
-   let user_ml2b_command_mac_3_to_6 = UInt32
-   let user_ml2b_command_mac_1_2 = UInt16
+   let user_ml2b_command_mac_3_to_6 = BEUInt32
+   let user_ml2b_command_mac_1_2 = BEUInt16
    let user_ml2b_command_mac =
      user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
-   let user_ml2b_command_udp_port = UInt16
+   let user_ml2b_command_udp_port = BEUInt16
 
-   let user_ml2b_signal_data_ip_address_field_1 = UInt32
-   let user_ml2b_signal_data_ip_address_field_2 = UInt32
-   let user_ml2b_signal_data_ip_address_field_3 = UInt32
-   let user_ml2b_signal_data_ip_address_field_4 = UInt32
-   let user_ml2b_signal_data_mac_3_to_6 = UInt32
-   let user_ml2b_signal_data_mac_1_2 = UInt16
+   let user_ml2b_signal_data_ip_address_field_1 = BEUInt32
+   let user_ml2b_signal_data_ip_address_field_2 = BEUInt32
+   let user_ml2b_signal_data_ip_address_field_3 = BEUInt32
+   let user_ml2b_signal_data_ip_address_field_4 = BEUInt32
+   let user_ml2b_signal_data_mac_3_to_6 = BEUInt32
+   let user_ml2b_signal_data_mac_1_2 = BEUInt16
    let user_ml2b_signal_data_mac =
      user_ml2b_signal_data_mac_1_2 # user_ml2b_signal_data_mac_3_to_6
-   let user_ml2b_signal_data_udp_port = UInt16
+   let user_ml2b_signal_data_udp_port = BEUInt16
 
-   let user_ml2b_context_ip_address_field_1 = UInt32
-   let user_ml2b_context_ip_address_field_2 = UInt32
-   let user_ml2b_context_ip_address_field_3 = UInt32
-   let user_ml2b_context_ip_address_field_4 = UInt32
-   let user_ml2b_context_mac_3_to_6 = UInt32
-   let user_ml2b_context_mac_1_2 = UInt16
+   let user_ml2b_context_ip_address_field_1 = BEUInt32
+   let user_ml2b_context_ip_address_field_2 = BEUInt32
+   let user_ml2b_context_ip_address_field_3 = BEUInt32
+   let user_ml2b_context_ip_address_field_4 = BEUInt32
+   let user_ml2b_context_mac_3_to_6 = BEUInt32
+   let user_ml2b_context_mac_1_2 = BEUInt16
    let user_ml2b_context_mac =
      user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
-   let user_ml2b_context_udp_port = UInt16
+   let user_ml2b_context_udp_port = BEUInt16
 
    ^ {| Body_Signal_Port_User_ID = {
         signal_port_resource_id = signal_port_resource_id,
@@ -409,21 +521,3 @@ def Body_Health_Status_s =
   struct
     status_field_1: Health_Status_Field_1
     status_field_2: Health_Status_Field_2
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
-
-def UInt16: uint 16 =
-  block
-    let b0 = UInt8
-    let b1 = UInt8
-    ^ (b0 # b1)
-
-def UInt32: uint 32 =
-  block
-    let b0 = UInt8
-    let b1 = UInt8
-    let b2 = UInt8
-    let b3 = UInt8
-    ^ (b0 # b1 # b2 # b3)
