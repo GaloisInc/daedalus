@@ -139,47 +139,51 @@ def MDM_Body (ty: MDM_Type) =
 
     -- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
     Type_Switch_Group_User_ID ->
-      block
-        let signal_port_resource_id = UInt16 as? Identifier_Triple
-        let user_id = UInt16 as? Identifier_Triple
+      Parse_Body_Switch_Group_User_ID
 
-        let user_ml2b_command_ip_address_field_1 = UInt32
-        let user_ml2b_command_ip_address_field_2 = UInt32
-        let user_ml2b_command_ip_address_field_3 = UInt32
-        let user_ml2b_command_ip_address_field_4 = UInt32
+-- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
+def Parse_Body_Switch_Group_User_ID: MDM_Body_u =
+  block
+    let signal_port_resource_id = UInt16 as? Identifier_Triple
+    let user_id = UInt16 as? Identifier_Triple
 
-        let user_ml2b_command_mac_3_to_6 = UInt32
-        let user_ml2b_command_mac_1_2 = UInt16
-        let user_ml2b_command_mac =
-          user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
-        let user_ml2b_command_udp_port = UInt16
+    let user_ml2b_command_ip_address_field_1 = UInt32
+    let user_ml2b_command_ip_address_field_2 = UInt32
+    let user_ml2b_command_ip_address_field_3 = UInt32
+    let user_ml2b_command_ip_address_field_4 = UInt32
 
-        let user_ml2b_context_ip_address_field_1 = UInt32
-        let user_ml2b_context_ip_address_field_2 = UInt32
-        let user_ml2b_context_ip_address_field_3 = UInt32
-        let user_ml2b_context_ip_address_field_4 = UInt32
-        let user_ml2b_context_mac_3_to_6 = UInt32
-        let user_ml2b_context_mac_1_2 = UInt16
-        let user_ml2b_context_mac =
-          user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
-        let user_ml2b_context_udp_port = UInt16
+    let user_ml2b_command_mac_3_to_6 = UInt32
+    let user_ml2b_command_mac_1_2 = UInt16
+    let user_ml2b_command_mac =
+      user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
+    let user_ml2b_command_udp_port = UInt16
 
-        ^ {| Body_Switch_Group_User_ID = {
-             signal_port_resource_id = signal_port_resource_id,
-             user_id = user_id,
-             user_ml2b_command_ip_address_field_1 = user_ml2b_command_ip_address_field_1,
-             user_ml2b_command_ip_address_field_2 = user_ml2b_command_ip_address_field_2,
-             user_ml2b_command_ip_address_field_3 = user_ml2b_command_ip_address_field_3,
-             user_ml2b_command_ip_address_field_4 = user_ml2b_command_ip_address_field_4,
-             user_ml2b_command_mac = user_ml2b_command_mac,
-             user_ml2b_command_udp_port = user_ml2b_command_udp_port,
-             user_ml2b_context_ip_address_field_1 = user_ml2b_context_ip_address_field_1,
-             user_ml2b_context_ip_address_field_2 = user_ml2b_context_ip_address_field_2,
-             user_ml2b_context_ip_address_field_3 = user_ml2b_context_ip_address_field_3,
-             user_ml2b_context_ip_address_field_4 = user_ml2b_context_ip_address_field_4,
-             user_ml2b_context_mac = user_ml2b_context_mac,
-             user_ml2b_context_udp_port = user_ml2b_context_udp_port
-             } |}
+    let user_ml2b_context_ip_address_field_1 = UInt32
+    let user_ml2b_context_ip_address_field_2 = UInt32
+    let user_ml2b_context_ip_address_field_3 = UInt32
+    let user_ml2b_context_ip_address_field_4 = UInt32
+    let user_ml2b_context_mac_3_to_6 = UInt32
+    let user_ml2b_context_mac_1_2 = UInt16
+    let user_ml2b_context_mac =
+      user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
+    let user_ml2b_context_udp_port = UInt16
+
+    ^ {| Body_Switch_Group_User_ID = {
+         signal_port_resource_id = signal_port_resource_id,
+         user_id = user_id,
+         user_ml2b_command_ip_address_field_1 = user_ml2b_command_ip_address_field_1,
+         user_ml2b_command_ip_address_field_2 = user_ml2b_command_ip_address_field_2,
+         user_ml2b_command_ip_address_field_3 = user_ml2b_command_ip_address_field_3,
+         user_ml2b_command_ip_address_field_4 = user_ml2b_command_ip_address_field_4,
+         user_ml2b_command_mac = user_ml2b_command_mac,
+         user_ml2b_command_udp_port = user_ml2b_command_udp_port,
+         user_ml2b_context_ip_address_field_1 = user_ml2b_context_ip_address_field_1,
+         user_ml2b_context_ip_address_field_2 = user_ml2b_context_ip_address_field_2,
+         user_ml2b_context_ip_address_field_3 = user_ml2b_context_ip_address_field_3,
+         user_ml2b_context_ip_address_field_4 = user_ml2b_context_ip_address_field_4,
+         user_ml2b_context_mac = user_ml2b_context_mac,
+         user_ml2b_context_udp_port = user_ml2b_context_udp_port
+         } |}
 
 -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
 def Parse_Body_Signal_Port_User_ID: MDM_Body_u =
