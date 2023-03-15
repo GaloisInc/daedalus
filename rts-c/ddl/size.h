@@ -28,6 +28,9 @@ public:
 
   size_t rep() const { return value; }
 
+  static inline
+  Size maxValue() { return Size{std::numeric_limits<size_t>::max()}; }
+
   bool operator == (Size x) const { return rep() == x.rep(); }
   bool operator != (Size x) const { return rep() != x.rep(); }
   bool operator <  (Size x) const { return rep() <  x.rep(); }
