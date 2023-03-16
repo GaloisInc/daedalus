@@ -1,15 +1,21 @@
 --- Parse error: 
-[offset: 9]
-  • Pattern match failure, expected True
-  • see grammar at: 204:9--204:28
+[offset: 20]
+  • unexpected end of input
+  • see grammar at: Daedalus.ddl:6:37--6:41
   • context:
-      • 28:12--28:36
+      • HTTP-2.ddl:28:12--28:36
       • case branch  {| F_SETTINGS = _ |}
+      • HTTP-2.ddl:197:32--197:73
+      • HTTP-2.ddl:197:56--197:73
+      • HTTP-2.ddl:197:67--197:73
+      • HTTP-2.ddl:279:13--279:20
+      • Daedalus.ddl:19:50--19:55
+      • Daedalus.ddl:7:38--7:43
   • input trace:
       /tmp/input_file.bin
-        0--8
+        0--19
 File context:
-Length: 19 (0x13) bytes
-0000:   00 00 0b 04  00 fc af ca  fe [1;91m00[0m 01 00  00 00 01 00   .........[1;91m.[0m......
-0010:   02 00 00                                             ...
+Length: 21 (0x15) bytes
+0000:   00 00 0b 04  00 fc af ca  fe 00 01 00  00 00 01 00   ................
+0010:   02 00 00 00  [1;91m02[0m                           ....[1;91m.[0m
 

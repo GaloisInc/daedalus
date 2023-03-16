@@ -24,5 +24,8 @@
                               , { identifier: {SETTINGS_MAX_HEADER_LIST_SIZE: { }}
                                 , value: 6[32]
                                 }
+                              , { identifier: {SETTINGS_UNKNOWN: "\NUL\a"}
+                                , value: 7[32]
+                                }
                               ]}
 }

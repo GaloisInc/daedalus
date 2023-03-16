@@ -84,7 +84,7 @@ def HTTP2_frame_body_u =
     Priority_Frame_Body: Priority_Frame_Body_s
     Push_Promise_Frame_Body: Push_Promise_Frame_Body_s
     Rst_Stream_Frame_Body: Rst_Stream_Frame_Body_s
-    Settings_Frame_Body: [Setting_s]
+    Settings_Frame_Body: [Setting]
     Window_Update_Frame_Body: Window_Update_Frame_Body_s
 
 def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
@@ -194,17 +194,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         Many (padding_amt as uint 64) $any
 
     F_SETTINGS ->
-      block
-        -- In a settings frame, each of the (zero or more) settings is
-        -- made of a two-byte identifier followed by a four-byte value.
-        -- We require that the frame body length be exactly a multiple
-        -- of this size.
-        len % 6 == 0 is true
-
-        let num_settings = (len as uint 64) / 6
-        let rawSettings = Many num_settings Setting
-        let settings = catMaybes rawSettings
-        ^ {| Settings_Frame_Body = settings |}
+      {| Settings_Frame_Body = Chunk (len as uint 64) (Only (Many Setting)) |}
 
     F_RST_STREAM ->
       block
@@ -278,16 +268,12 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
                                    error_code = error_code,
                                    debug_data = debug_data } |}
 
--- Setting parses a setting if the setting's identifier is known. In
--- that case 'just' is returned. Otherwise 'nothing' is returned. This
--- silent dropping of unrecognized settings, rather than an explicit
--- capture for the application to inspect, is done because the spec says
--- we MUST ignore settings that we don't know about:
+-- Setting parses a setting. If the setting's identifier is known, it
+-- is parsed with a specific SETTINGS_ value. Otherwise it is given the
+-- SETTINGS_UNKNOWN value and must be ignored by the application.
 --
 -- https://www.rfc-editor.org/rfc/rfc9113#section-6.5.2-3
-def Setting = Maybe Setting_s
-
-def Setting_s =
+def Setting =
   block
     identifier = Settings_Identifier
     value = BEUInt32
@@ -488,6 +474,7 @@ def Settings_Identifier =
     SETTINGS_INITIAL_WINDOW_SIZE    = @Match [0x0, 0x04]
     SETTINGS_MAX_FRAME_SIZE         = @Match [0x0, 0x05]
     SETTINGS_MAX_HEADER_LIST_SIZE   = @Match [0x0, 0x06]
+    SETTINGS_UNKNOWN                = Many 2 $any
 
 --------------------------------------------------------------------------------
 -- Utilities
