@@ -1,0 +1,4 @@
+00000000: 0000 00                               // Header: length: 0 bytes
+00000003: 04                                    // Header: frame type: settings
+00000004: 01                                    // Settings frame flags (with ack)
+00000005: fcaf cafe                             // Reserved bit (must be ignored) + Stream Identifier

@@ -1,0 +1,5 @@
+00000000: 0000 08                               // Header: length: 8 bytes
+00000003: 06                                    // Header: frame type: ping
+00000004: 00                                    // Ping frame flags (no ack)
+00000005: 0000 0000                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: 6865 6c6c 6f2c 2077                   // Ping frame payload (opaque data)

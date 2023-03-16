@@ -13,7 +13,7 @@
       • HTTP-1.1.ddl:312:9--312:16
       • HTTP-1.1.ddl:473:18--473:38
   • input trace:
-      tests/requests/inputs/get_request_chunked_invalid_header.txt
+      tests/http1/requests/inputs/get_request_chunked_invalid_header.txt
         0--145
 File context:
 Length: 42 (0x2a) bytes

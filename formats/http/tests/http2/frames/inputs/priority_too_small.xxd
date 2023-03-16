@@ -1,0 +1,6 @@
+00000000: 0000 03                               // Header: length: 3 bytes (too small)
+00000003: 02                                    // Header: frame type: priority
+00000004: 00                                    // Priority frame flags (unused)
+00000005: fcaf cafe                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: ffac face                             // Priority frame payload: exclusive bit + stream dependency
+0000000d: ca                                    // Priority frame payload: weight

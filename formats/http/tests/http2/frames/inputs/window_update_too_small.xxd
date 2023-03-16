@@ -1,0 +1,5 @@
+00000000: 0000 03                               // Header: length: 3 bytes (too small)
+00000003: 08                                    // Header: frame type: window update
+00000004: 00                                    // Window update frame flags (unused)
+00000005: fcaf cafe                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: ffac face                             // Window update frame payload: reserved (1) + increment (31)

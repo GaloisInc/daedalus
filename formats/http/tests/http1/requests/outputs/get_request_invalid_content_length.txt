@@ -7,7 +7,7 @@
       • 41:12--41:31
       • case branch  {| ty_normal_len = len |}
   • input trace:
-      tests/requests/inputs/get_request_invalid_content_length.txt
+      tests/http1/requests/inputs/get_request_invalid_content_length.txt
         0--203
 File context:
 Length: 32 (0x20) bytes
