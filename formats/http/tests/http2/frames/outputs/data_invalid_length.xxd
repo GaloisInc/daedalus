@@ -1,9 +1,9 @@
 --- Parse error: 
 [offset: 9]
   • unexpected end of input
-  • see grammar at: 94:58--94:62
+  • see grammar at: 96:58--96:62
   • context:
-      • 26:12--26:36
+      • 28:12--28:36
       • case branch  {| F_DATA = info |}
   • input trace:
       /tmp/input_file.bin

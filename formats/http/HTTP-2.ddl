@@ -3,6 +3,8 @@
 -- Unsupported features:
 -- * Protocol extensions (https://www.rfc-editor.org/rfc/rfc9113#section-5.5)
 
+import Daedalus
+
 -- Frame header:
 -- https://www.rfc-editor.org/rfc/rfc9113#name-frame-format
 def HTTP2_frame =
@@ -20,7 +22,7 @@ def HTTP2_frame =
     -- Reserved bit which we ignore here.
     --
     -- https://www.rfc-editor.org/rfc/rfc9113#section-4.1-4.8.1
-    let packed_ident = UInt32
+    let packed_ident = BEUInt32
     stream_identifier = packed_ident as! uint 31
 
     body = HTTP2_frame_body len type
@@ -123,7 +125,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         let extra_info = if !priority_set
                            then nothing
                            else block
-                             let info = UInt32 as? Headers_frame_info
+                             let info = BEUInt32 as? Headers_frame_info
                              let weight = $any
                              ^ just { exclusive = info.exclusive,
                                       stream_dependency = info.stream_dependency,
@@ -171,7 +173,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- Next, parse:
         -- Reserved (1),
         -- Promised Stream ID (31),
-        let packed_stream_id = UInt32
+        let packed_stream_id = BEUInt32
         let promised_stream_id = packed_stream_id as! uint 31
 
         -- The field block fragment size is the total frame length (len)
@@ -230,7 +232,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- it being too small to avoid parsing bytes ambiguously.
         len >= 5 is true
 
-        let info = UInt32 as? Priority_info
+        let info = BEUInt32 as? Priority_info
         let weight = $any
         ^ {| Priority_Frame_Body = { exclusive = info.exclusive,
                                      stream_dependency = info.stream_dependency,
@@ -253,7 +255,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- it being too small to avoid parsing bytes ambiguously.
         len >= 4 is true
 
-        let packed_increment = UInt32
+        let packed_increment = BEUInt32
         let increment = packed_increment as! uint 31
 
         ^ {| Window_Update_Frame_Body = { window_size_increment = increment } |}
@@ -265,7 +267,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- Last-Stream-ID (31),
         -- Error Code (32),
         -- Additional Debug Data (..),
-        let packed_last_stream_id = UInt32
+        let packed_last_stream_id = BEUInt32
         let last_stream_id = packed_last_stream_id as! uint 31
         let error_code = Error_Code
         -- Subtract stream ID and error code bytes from frame length to
@@ -288,7 +290,7 @@ def Setting = Maybe Setting_s
 def Setting_s =
   block
     identifier = Settings_Identifier
-    value = UInt32
+    value = BEUInt32
 
 -- Data frame flags:
 -- Unused Flags (4)
@@ -497,14 +499,6 @@ def UInt24: uint 24 =
     let b1 = UInt8
     let b2 = UInt8
     ^ (b0 # b1 # b2)
-
-def UInt32: uint 32 =
-  block
-    let b0 = UInt8
-    let b1 = UInt8
-    let b2 = UInt8
-    let b3 = UInt8
-    ^ (b0 # b1 # b2 # b3)
 
 -- Given a list of 'maybe' values, return a list of only the values
 -- found in 'just'.

@@ -1,9 +1,9 @@
 --- Parse error: 
 [offset: 9]
   • Pattern match failure, expected True
-  • see grammar at: 233:9--233:24
+  • see grammar at: 235:9--235:24
   • context:
-      • 26:12--26:36
+      • 28:12--28:36
       • case branch  {| F_PRIORITY = _ |}
   • input trace:
       /tmp/input_file.bin
