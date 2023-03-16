@@ -122,13 +122,12 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- [Stream Dependency (31)],
         -- [Weight (8)],
         let priority_set = case info.flags of
-                             Flags fs -> ^ fs.priority == 1
+                             Flags fs -> fs.priority == 1
 
         let extra_info = if !priority_set
                            then nothing
                            else block
-                             let packed_info = UInt32
-                             let info = packed_info as? Headers_frame_info
+                             let info = UInt32 as? Headers_frame_info
                              let weight = $any
                              case info of
                                Info i ->
@@ -166,8 +165,7 @@ def HTTP2_frame_body (len: uint 24) (ty: Frame_Type): HTTP2_frame_body_u =
         -- https://www.rfc-editor.org/rfc/rfc9113#section-6.7-9
         len >= 8 is true
 
-        let opaque_data = Many 8 $any
-        ^ {| Ping_Frame_Body = opaque_data |}
+        {| Ping_Frame_Body = Many 8 $any |}
 
     F_PUSH_PROMISE info ->
       block
