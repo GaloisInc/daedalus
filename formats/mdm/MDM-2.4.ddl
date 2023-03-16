@@ -108,7 +108,8 @@ def MDM_Body (ty: MDM_Type) =
   case ty of
     Type_VRT ->
       -- See 6.3.1.2.1: VRT Message Format
-      VRT_Message
+      -- VRT_Message
+      Fail "VRT message parsing not implemented"
 
     -- See 6.3.2: MDM Acknowledgement Message (Type 2) Specification
     -- Acknowledgement messages have no body.
