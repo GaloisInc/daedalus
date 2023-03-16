@@ -1,10 +1,9 @@
 --- Found 1 results:
 { len: 8[24]
 , type: {F_PING: { flags: 0x01[8]
-                            {Flags: 0x01[8]
-                                      { unused: 0[7]
-                                      , ack: 1[1]
-                                      }}
+                            { unused: 0[7]
+                            , ack: 1[1]
+                            }
                  }}
 , stream_identifier: 0[31]
 , body: {Ping_Frame_Body: "hello, w"}

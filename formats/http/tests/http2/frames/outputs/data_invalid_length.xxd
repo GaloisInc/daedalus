@@ -1,11 +1,10 @@
 --- Parse error: 
 [offset: 9]
   • unexpected end of input
-  • see grammar at: 95:64--95:68
+  • see grammar at: 94:58--94:62
   • context:
       • 26:12--26:36
       • case branch  {| F_DATA = info |}
-      • case branch  {| Flags = fs |}
   • input trace:
       /tmp/input_file.bin
         0--8

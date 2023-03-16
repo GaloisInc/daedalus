@@ -1,11 +1,11 @@
 --- Parse error: 
 [offset: 12]
   • unexpected end of input
-  • see grammar at: 474:28--474:54
+  • see grammar at: 455:28--455:54
   • context:
       • 26:12--26:36
       • case branch  {| F_RST_STREAM = _ |}
-      • 229:26--229:35
+      • 220:26--220:35
       • NO_ERROR
   • input trace:
       /tmp/input_file.bin

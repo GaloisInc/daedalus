@@ -1,12 +1,11 @@
 --- Found 1 results:
 { len: 7[24]
 , type: {F_PUSH_PROMISE: { flags: 0x04[8]
-                                    {Flags: 0x04[8]
-                                              { unused1: 0[4]
-                                              , padded: 0[1]
-                                              , end_headers: 1[1]
-                                              , unused2: 0[2]
-                                              }}
+                                    { unused1: 0[4]
+                                    , padded: 0[1]
+                                    , end_headers: 1[1]
+                                    , unused2: 0[2]
+                                    }
                          }}
 , stream_identifier: 2142042830[31]
 , body: {Push_Promise_Frame_Body: { field_block_fragment: "hel"
