@@ -486,20 +486,3 @@ def UInt24: uint 24 =
     let b1 = UInt8
     let b2 = UInt8
     ^ (b0 # b1 # b2)
-
--- Given a list of 'maybe' values, return a list of only the values
--- found in 'just'.
-def catMaybes (values: [maybe ?a]): [?a] =
-  block
-    let b = for (b = builder; mv in values)
-      case mv of
-        just v -> emit b v
-        nothing -> b
-    build b
-
--- Given a parser, return just if the parser succeeded, or nothing if
--- not.
-def Maybe P =
-  First
-    just P
-    ^ nothing
