@@ -78,7 +78,7 @@ public:
   bool    isEmpty()   const { return last_offset == offset; }
 
   // borrow this, Assumes: !isEmpty()
-  UInt<8> iHead()   { return bytes[offset]; }
+  UInt<8> iHead() const { return bytes[offset]; }
 
   // Advance current location
   // Mutates
