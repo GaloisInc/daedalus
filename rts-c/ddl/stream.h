@@ -10,13 +10,13 @@
 
 namespace DDL {
 
-using DefaultDel = std::default_delete<const char[]>;
+using DefaultDeleter = std::default_delete<const char[]>;
 
 template <typename Del>
 class Stream;
 
 // The data source for a stream
-template <typename Del = DefaultDel>
+template <typename Del = DefaultDeleter>
 class StreamData : HasRefs {
 
   class Chunk: Del, HasRefs {
@@ -168,7 +168,7 @@ public:
 
 
 
-template <typename Del = DefaultDel>
+template <typename Del = DefaultDeleter>
 class Stream : HasRefs {
 
   StreamData<Del> front;  // Front of the stream (not null).
@@ -256,7 +256,6 @@ public:
     offset.incrementBy(n);
     max_size.decrementBy(n);
   }
-
 
   void takeMut(Size n) {
     if (n >= max_size) return;
