@@ -161,25 +161,19 @@ def VRT_Prologue =
 
     -- The Class Identifier is present if and only if the "C" bit of the
     -- header is set.
-    class_id = case header of
-                 Header fields ->
-                   if fields.c_bit == 1
-                     then just VRT_Class_Identifier
-                     else nothing
+    class_id = if header.c_bit == 1
+                 then just VRT_Class_Identifier
+                 else nothing
 
     -- Each timestamp field is present if and only if the appropriate
     -- header indicator is present.
-    timestamp_int = case header of
-                      Header fields ->
-                        case fields.tsi of
-                          No_Int_Field -> nothing
-                          _ -> just BEUInt32
+    timestamp_int = case header.tsi of
+                      No_Int_Field -> nothing
+                      _ -> just BEUInt32
 
-    timestamp_frac = case header of
-                      Header fields ->
-                        case fields.tsf of
-                          No_Frac_Field -> nothing
-                          _ -> just BEUInt64
+    timestamp_frac = case header.tsf of
+                       No_Frac_Field -> nothing
+                       _ -> just BEUInt64
 
     -- TODO: use:
     -- VRT_Packet_Body header
@@ -203,23 +197,20 @@ bitdata VRT_Information_Class_Code_ID where
   M = 0x4d: uint 8
 
 bitdata VRT_Information_Class_Code where
-  ICC = { id: VRT_Information_Class_Code_ID,
-          version_maj: uint 4,
-          version_min: uint 4,
-        }
+  id: VRT_Information_Class_Code_ID
+  version_maj: uint 4
+  version_min: uint 4
 
 bitdata VRT_Packet_Class_Code where
-  Packet_Class = { reserved: uint 12,
-                   packet_type: VRT_Packet_Type,
-                 }
+  reserved: uint 12
+  packet_type: VRT_Packet_Type
 
 bitdata VRT_Class_Identifier_bits where
-  Class_ID = { pad_bit_count: uint 5,
-               reserved: uint 3,
-               org_unique_identifier: uint 24,
-               information_class_code: VRT_Information_Class_Code,
-               packet_class_code: VRT_Packet_Class_Code,
-             }
+  pad_bit_count: uint 5
+  reserved: uint 3
+  org_unique_identifier: uint 24
+  information_class_code: VRT_Information_Class_Code
+  packet_class_code: VRT_Packet_Class_Code
 
 -- See 6.3.1.2.4: VRT Stream ID
 def VRT_Stream_Identifier =
@@ -229,14 +220,13 @@ def VRT_Stream_Identifier =
 
 -- See 6.3.1.2.3: VRT Packet Header Field
 bitdata VRT_Packet_Header_bits where
-  Header = { type: VRT_Packet_Type,
-             c_bit: uint 1,
-             indicators: uint 3,
-             tsi: Timestamp_Int_Status,
-             tsf: Timestamp_Frac_Status,
-             packet_count: uint 4,
-             packet_size_words: uint 16
-           }
+  type: VRT_Packet_Type
+  c_bit: uint 1
+  indicators: uint 3
+  tsi: Timestamp_Int_Status
+  tsf: Timestamp_Frac_Status
+  packet_count: uint 4
+  packet_size_words: uint 16
 
 -- See 6.3.1.2.3: VRT Packet Header Field
 bitdata Timestamp_Int_Status where
@@ -361,9 +351,9 @@ def Parse_Body_Signal_Port_User_ID: MDM_Body_u =
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #1 Format
 bitdata Health_Status_Field_1 where
-  Field1 = { alert_type: Alert_Type,
-             port_id: uint 7,
-             operational_parameter: Operational_Parameter }
+  alert_type: Alert_Type
+  port_id: uint 7
+  operational_parameter: Operational_Parameter
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #1 Format
@@ -392,8 +382,8 @@ bitdata Alert_Type where
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #2 Format
 bitdata Health_Status_Field_2 where
-  Field2 = { operational_state: uint 16,
-             parameter_condition: Parameter_Condition }
+  operational_state: uint 16
+  parameter_condition: Parameter_Condition
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #2 Format
@@ -415,7 +405,8 @@ bitdata Parameter_Condition where
 -- See 6.3.6: MDM Command Message (Type 6) Specification, Command Field
 -- Format
 bitdata Command_Command_Field where
-  Command = { port_id: uint 7, command: Command_Value }
+  port_id: uint 7
+  command: Command_Value
 
 -- See 6.3.6: MDM Command Message (Type 6) Specification, Command Field
 -- Format
@@ -489,9 +480,9 @@ def Body_Switch_Group_User_ID_s =
 
 -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
 bitdata Identifier_Triple where
-  Field = { type: uint 3,
-            device_id: ID_Device_Type,
-            signal_port_id: uint 7 }
+  type: uint 3
+  device_id: ID_Device_Type
+  signal_port_id: uint 7
 
 -- See 6.3.1.2.4: VRT Stream ID, ID-Device Types table
 bitdata ID_Device_Type where
