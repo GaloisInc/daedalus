@@ -185,13 +185,36 @@ class Stream : HasRefs {
 
   Size max_size;
 
-  void make_empty() {
+  void makeEmpty() {
     chunk_offset = getOffset();
     front.free();
     front = StreamData(true);
     offset = 0;
     chunk_size = 0;
     max_size = 0;
+  }
+
+
+  void skipDropped() {
+
+    if (chunk_size == 0 && !front.isTerminal()) {
+      chunk_size = front.getChunkSize();
+      if (chunk_size > max_size) chunk_size = max_size;
+    }
+
+    while (!front.isTerminal() && offset >= chunk_size) {
+      offset.decrementBy(chunk_size);
+      chunk_offset.incrementBy(chunk_size);
+      front.nextChunkMut();
+      chunk_size = front.getChunkSize();
+    }
+
+    if (front.isTerminal()) {
+      if (!front.isThunk()) max_size = 0;
+      return;
+    }
+
+    if (chunk_size > max_size) chunk_size = max_size;
   }
 
 public:
@@ -223,27 +246,8 @@ public:
     if (offset < chunk_size) return true;  // common case
     if (isEmpty()) return false;
 
-    if (chunk_size == 0 && !front.isTerminal()) {
-      chunk_size = front.getChunkSize();
-      if (chunk_size > max_size) chunk_size = max_size;
-      if (offset < chunk_size) return true;
-    }
-
-    while (!front.isTerminal() && offset >= chunk_size) {
-      std::cout << "!";
-      offset.decrementBy(chunk_size);
-      chunk_offset.incrementBy(chunk_size);
-      front.nextChunkMut();
-      chunk_size = front.getChunkSize();
-    }
-
-    if (front.isTerminal()) {
-      if (!front.isThunk()) max_size = 0;
-      return false;
-    }
-    if (chunk_size > max_size) chunk_size = max_size;
-
-    return true;
+    skipDropped();
+    return offset < chunk_size;
   }
 
   // Return the front element of the stream
@@ -252,15 +256,16 @@ public:
 
   // Advance the current offset by this much.
   void dropMut(Size n) {
-    if (n >= max_size) { make_empty(); return; }
+    if (n >= max_size) { makeEmpty(); return; }
     offset.incrementBy(n);
     max_size.decrementBy(n);
+    skipDropped();
   }
 
   void takeMut(Size n) {
     if (n >= max_size) return;
     max_size = n;
-    if (max_size == 0) { make_empty(); return; }
+    if (max_size == 0) { makeEmpty(); return; }
   }
 
 
