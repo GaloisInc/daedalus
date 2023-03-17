@@ -18,7 +18,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
-                            , logMessage
+                            , logMessage, logMessage'
                             ) where
 
 import           Control.Monad.Except      (throwError)
@@ -315,12 +315,15 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 -- -----------------------------------------------------------------------------
 -- Printing verbosely
 
+logMessage' :: (Monad m, MonadIO m) => Int -> Int -> String -> m ()
+logMessage' v lvl s
+  | lvl > v = liftIO (putStr s >> hFlush stdout)
+  | otherwise = pure ()
+
 logMessage :: LiftStrategyM m => Int -> String -> m ()
 logMessage lvl s = liftStrategy $ do
   v <- StrategyM (gets stsVerbosity)
-  if lvl > v
-    then pure ()
-    else liftIO (putStr s >> hFlush stdout)
+  logMessage' v lvl s
 
 -- -----------------------------------------------------------------------------
 -- Class

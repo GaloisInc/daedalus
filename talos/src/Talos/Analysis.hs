@@ -44,9 +44,10 @@ import Data.Maybe (mapMaybe)
 --------------------------------------------------------------------------------
 -- Top level function
 
+-- FIXME: do something nicer with messages
 summarise :: AbsEnv ae =>
-             Proxy ae -> Module -> GUID -> (Summaries ae, GUID)
-summarise _ md nguid = (summaries, nextGUID s')
+             Proxy ae -> Module -> GUID -> (Summaries ae, [(Int, String)], GUID)
+summarise _ md nguid = (summaries, reverse (loggedMessages s'), nextGUID s')
   where
     -- FIXME: need to rename bound vars to avoid clashing in synthesis
     (s', summaries) = calcFixpoint doOne wl0 s0
@@ -472,9 +473,10 @@ summariseMany preds sem bt lb m_ub g = do
       -- length stgss should be <= 1
       stgss' = map mkStructural stgss
       nsgss' = map mkInvariant  nsgss
-
+      resD   = domainFromElements (stgss ++ nsgss') `merge` nonResD'
   when (length stgss' > 1) $ panic "BUG: Saw multiple structural loop slices" []
-  pure (domainFromElements (stgss ++ nsgss') `merge` nonResD')
+
+  pure resD
   where
     mkLoop lb' m_ub' str sl = SLoop (ManyLoop sem bt lb' m_ub' (str, sl))
 

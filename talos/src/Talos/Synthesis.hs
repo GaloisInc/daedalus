@@ -211,7 +211,10 @@ overDoRHSs f = SynthesisM $ modify (\s -> s { doRHSStack = f (doRHSStack s) })
 synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> Module -> Int
            -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
 synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
-  let (allSummaries, nguid') = summarise p md nguid
+  let (allSummaries, msgs, nguid') = summarise p md nguid
+
+  -- Log messages fron summarise
+  mapM_ (uncurry (logMessage' verbosity)) msgs
   
   -- We do this in one giant step to deal with recursion and deps on
   -- pure functions.

@@ -43,7 +43,7 @@ import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
 import           Talos.Passes
 import           Talos.Strategy
-import           Talos.Strategy.Monad         ()
+import           Talos.Strategy.Monad         (logMessage')
 import           Talos.SymExec.Path           (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 
@@ -54,9 +54,9 @@ import qualified Talos.Synthesis              as T
 -- instance HasGUID FreshGUIDM where
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
-summarise :: FilePath -> Maybe FilePath -> Maybe String -> String
-          -> IO Doc
-summarise inFile m_invFile m_entry absEnv = do
+summarise :: FilePath -> Maybe FilePath -> Maybe String -> Int -> String ->
+             IO Doc
+summarise inFile m_invFile m_entry verbosity absEnv = do
   (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
 
   AbsEnvTy p <- case lookup absEnv A.absEnvTys of
@@ -67,7 +67,10 @@ summarise inFile m_invFile m_entry absEnv = do
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
   putStrLn "Slices"
-  let (summs, _) = A.summarise p md nguid
+  let (summs, msgs, _) = A.summarise p md nguid
+  
+  -- Log all messages
+  mapM_ (uncurry (logMessage' verbosity)) msgs
   pure (bullets (map goF (Map.toList summs)))
   where
     goF (fn, m) =

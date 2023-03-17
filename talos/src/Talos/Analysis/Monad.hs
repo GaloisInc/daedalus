@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections #-}
 module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs, currentDeclName
                             , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
-                            , calcFixpoint
+                            , calcFixpoint, logMessage
                             , module Export) where
 
 import           Data.Map.Strict         (Map)
@@ -79,6 +79,7 @@ data AnalysisState p = AnalysisState
   , summaryToInst :: Map (SummaryClass p) FInstId
   , instToSummary :: Map FInstId (SummaryClass p)
   , nextFInstId   :: Int
+  , loggedMessages :: [(Int, String)]  
   , nextGUID  :: GUID
   }
 
@@ -91,6 +92,7 @@ initState decls funs nguid = AnalysisState
   , summaryToInst = Map.singleton Assertions assertionsFID
   , instToSummary = Map.singleton assertionsFID Assertions
   , nextFInstId   = assnId + 1
+  , loggedMessages = []
   , nextGUID      = nguid
   }
   where
@@ -202,6 +204,14 @@ calcFixpoint m wl = F.calcFixpoint seqv go wl
 currentDeclName :: IterM ae FName
 currentDeclName = IterM F.currentDeclName
 
+logMessage :: Int -> String -> IterM ae ()
+logMessage priority msg = IterM $ F.fixpointState go
+  where
+    go st =
+      ((), st { loggedMessages = (priority, msg) : loggedMessages st })
+
 instance AbsEnv ae => PP (Summary ae) where
   pp s = pp (domain s)
+
+
 

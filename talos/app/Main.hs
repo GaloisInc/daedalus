@@ -52,7 +52,7 @@ doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
   let absEnv = fromMaybe "fields" (optAnalysisKind opts)
-  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) absEnv
+  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optVerbosity opts) absEnv
   print summaryDoc
     
 doSynthesis :: Options -> IO ()
