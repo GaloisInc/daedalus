@@ -451,6 +451,14 @@ summariseBind preds x lhs rhs = do
 
   pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
+
+squashDomain' :: AbsEnv ae => String -> Domain ae -> SummariseM ae (Domain ae)
+squashDomain' msg d = do
+  when (nelems > 1) $ logMessage 1 (msg ++ ": Merging " ++ show nelems ++ " elements")
+  pure (squashDomain d)
+  where
+    nelems = length (elements d)
+
 summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
@@ -465,7 +473,8 @@ summariseMany preds sem bt lb m_ub g = do
   let (matching, nonResD) = partitionDomainForResult (const True) elsD
       nonResD' = mapSlices wrapInvariantSlice nonResD
 
-      updPreds p = mergePreds [ p | p' <- preds, absPredEntails p p' ]
+      updPreds p = mergePreds [ p' | p' <- preds,                                
+                                maybe False (absPredEntails p) (absPredListElement p') ]
       updGS gs = gs { gsPred = updPreds =<< gsPred gs }
       matching' = map updGS matching
 
@@ -476,7 +485,8 @@ summariseMany preds sem bt lb m_ub g = do
       resD   = domainFromElements (stgss ++ nsgss') `merge` nonResD'
   when (length stgss' > 1) $ panic "BUG: Saw multiple structural loop slices" []
 
-  pure resD
+  -- We have to squash as we don't yet support disjunctive domains.
+  squashDomain' "summariseMany" resD
   where
     mkLoop lb' m_ub' str sl = SLoop (ManyLoop sem bt lb' m_ub' (str, sl))
 
@@ -560,7 +570,8 @@ summariseLoop preds lcl =
           gD' = mapSlices (mkSlice eHole StructureInvariant) gD
 
       -- In the trivial case this returns emptyDomain
-      pure $ domainFromElements (map mkGS gss) `merge` gD'
+      -- We squash as we don't support disjunctive slicing.
+      squashDomain' "RepearLoop" $ domainFromElements (map mkGS gss) `merge` gD'
 
     -- Similar for Repeat above, with the additional use of elements.
     MorphismLoop (FoldMorphism n e lc g) -> do
@@ -588,7 +599,8 @@ summariseLoop preds lcl =
                     (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
             
       -- In the trivial case this returns emptyDomain
-      pure $ domainFromElements gss'' `merge` gD'
+      -- We squash as we don't support disjunctive slicing.      
+      squashDomain' "FoldMorphism" $ domainFromElements gss'' `merge` gD'
 
     MorphismLoop (MapMorphism lc g) -> do
       gD <- summariseG (mapMaybe absPredListElement preds) g
@@ -606,8 +618,8 @@ summariseLoop preds lcl =
                    [] -> map fst nsgss
                    (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
                    
-      pure $ domainFromElements gss' `merge` gD'
-
+      -- We squash as we don't support disjunctive slicing.
+      squashDomain' "MapMorphism" $ domainFromElements gss' `merge` gD'
   where
     absPre' ty m_p e = maybe (absEmptyEnv, EHole ty) (flip absPre e) m_p
     
