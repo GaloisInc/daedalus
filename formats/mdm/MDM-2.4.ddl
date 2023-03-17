@@ -65,15 +65,15 @@ def MDM_Type (raw_ack_byte: uint 8) =
     -- Parse the message type octet followed by the number of messages
     -- octet, which has a fixed value corresponding to each message
     -- type.
-    Type_VRT                  = @Match [0x1, 0x1]
-    Type_Time_Of_Day          = @Match [0x3, 0x1]
-    Type_Signal_Port_User_ID  = @Match [0x4, 0x1]
-    Type_Health_Status        = @Match [0x5, 0x1]
-    Type_Command              = @Match [0x6, 0x1]
-    Type_Switch_Group_User_ID = @Match [0x7, 0x1]
+    Type_VRT                  = @Match [0x0, 0x1, 0x0, 0x1]
+    Type_Time_Of_Day          = @Match [0x0, 0x3, 0x0, 0x1]
+    Type_Signal_Port_User_ID  = @Match [0x0, 0x4, 0x0, 0x1]
+    Type_Health_Status        = @Match [0x0, 0x5, 0x0, 0x1]
+    Type_Command              = @Match [0x0, 0x6, 0x0, 0x1]
+    Type_Switch_Group_User_ID = @Match [0x0, 0x7, 0x0, 0x1]
 
     Type_Acknowledgement = block
-      @Match [0x2, 0x0]
+      @Match [0x0, 0x2, 0x0, 0x0]
       -- See 6.3.2: MDM Acknowledgement Message (Type 2) Specification
       --
       -- In the Acknowledge messge type, the "ack" octet parsed in the
