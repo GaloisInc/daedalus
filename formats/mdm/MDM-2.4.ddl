@@ -20,7 +20,7 @@ def MDM_Header =
   block
     -- See 6.1.2.1.1, MDM Preamble
     -- "MDM"
-    $[0x4d, 0x44, 0x4d]
+    Match [0x4d, 0x44, 0x4d]
 
     -- Ack octet, multiple meanings.
     --
