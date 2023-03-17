@@ -13,6 +13,7 @@
 {-# Language PolyKinds #-}
 {-# Language UndecidableInstances #-}
 {-# Language MultiParamTypeClasses #-}
+{-# Language MultiParamTypeClasses #-}
 
 module Talos.Strategy.What4.Types(
   -- BaseMaybe
@@ -29,6 +30,19 @@ module Talos.Strategy.What4.Types(
   , mkBaseUnion
   , getBaseUnion
   , muxBaseUnion
+  , ArrayIndexType
+  , ArrayIndex
+  , ArrayLenType
+  , ArrayLen
+  , pattern ArrayLenRepr
+  , pattern ArrayIndexRepr
+  , singletonArrayLen
+  , mkConcreteArrayLen
+  , asConcreteArrayLen
+  , arrayLenPrefix
+  , concatArrays
+  , arrayLenSize
+  , concreteArrayIndex
   -- interpreting Daedalus types
   , typeToRepr
   , lookupTName
@@ -42,6 +56,7 @@ module Talos.Strategy.What4.Types(
   , mkSymbolicChoice
   , getSymbolicChoice
   , groundSymbolicChoice
+  , vectorToList
 ) where
 
 import qualified Data.BitVector.Sized as BVS
@@ -52,6 +67,8 @@ import qualified Data.Parameterized.Context      as Ctx
 import           Data.Parameterized.Some
 import           Data.Parameterized.Fin
 import qualified What4.Interface                 as W4
+import qualified What4.Concrete                  as W4
+import qualified What4.Expr.ArrayUpdateMap       as AUM
 
 import           Daedalus.Core                   hiding (streamOffset)
 import qualified Daedalus.Core.Basics              as I
@@ -65,11 +82,12 @@ import           Talos.Strategy.What4.Solver
 import GHC.Num.Integer (integerLog2)
 import Data.Functor.WithIndex (FunctorWithIndex(imap))
 import Control.Monad.IO.Class
-import Data.Parameterized.Vector as V
+import Data.Parameterized.Vector (Vector)
+import qualified Data.Parameterized.Vector as V
 import Control.Monad.Trans.State
 import Control.Monad.Trans
 import Control.Monad.State.Class
-import Control.Monad (foldM)
+import Control.Monad (foldM, forM)
 import GHC.Base (Nat)
 
 ------------------------------------------------------------
@@ -78,6 +96,9 @@ import GHC.Base (Nat)
 -- | A container for 'n' values each with an associated predicate
 data SymbolicVector sym (n :: Nat) a = 
   1 <= n => SymbolicVector (W4.SymExpr sym (W4.BaseBVType n))  (V.Vector n a)
+
+instance Functor (SymbolicVector sym n) where
+  fmap f (SymbolicVector e v) = SymbolicVector e (fmap f v)
 
 mkSymbolicVector ::
   forall sym m k a.
@@ -105,18 +126,25 @@ mkSymbolicVector sym k f = do
   bv <- foldM (\bv act -> act bv) zero acts 
   return $ SymbolicVector bv (fmap snd v)
 
+vectorToList ::
+  Vector n a -> (a,[a])
+vectorToList v = let (v':vs) = V.toList v in (v',vs)
+
 getSymbolicVector ::
-  forall sym m k n a.
-  (Monad m, MonadIO m, (k+1) <= n) =>
+  forall sym m n a.
+  (Monad m, MonadIO m) =>
   W4.IsSymExprBuilder sym =>
   sym ->
-  NatRepr k ->
   SymbolicVector sym n a ->
-  m (W4.Pred sym, a)
-getSymbolicVector sym k (SymbolicVector bv v) = do
-  p <- liftIO $ W4.testBitBV sym (natValue k) bv
-  let val = V.elemAt k v
-  return (p, val)
+  m (Vector n (W4.Pred sym, a))
+getSymbolicVector sym (SymbolicVector bv v) | W4.BaseBVRepr n <- W4.exprType bv = do
+  Refl <- return $ W4.minusPlusCancel n (knownNat @1)
+  V.generateM (W4.decNat n) $ \(k :: W4.NatRepr k) ->do
+    let (k_leq_n :: W4.LeqProof k (n-1)) = W4.leqProof k (W4.decNat n)
+    W4.LeqProof <- return $ W4.leqAdd2 k_leq_n (W4.leqRefl (knownNat @1))
+    p <- liftIO $ W4.testBitBV sym (natValue k) bv
+    let val = V.elemAt k v
+    return $ (p, val)
 
 groundSymbolicVector ::
   forall sym m n a.
@@ -135,6 +163,7 @@ groundSymbolicVector _sym fn (SymbolicVector bv v) = do
     ) v
 
 newtype SymbolicChoice sym (n :: Nat) a = SymbolicChoice (SymbolicVector sym n a)
+  deriving Functor
 
 mkSymbolicChoice ::
   forall sym m k a.
@@ -159,14 +188,16 @@ mkSymbolicChoice sym bv_shift f | W4.BaseBVRepr k <- W4.exprType bv_shift = do
 
 -- | Returns the value at 'k' along with a predicate that is true if 'k' is the choice
 getSymbolicChoice ::
-  forall sym m k n a.
-  (Monad m, MonadIO m, k + 1 <= n) =>
+  forall sym m k a.
+  (Monad m, MonadIO m) =>
   W4.IsSymExprBuilder sym =>
   sym ->
-  NatRepr k ->
-  SymbolicChoice sym n a ->
-  m (W4.Pred sym, a)
-getSymbolicChoice sym k (SymbolicChoice sv) = getSymbolicVector sym k sv
+  (W4.Pred sym -> a -> a -> m a) ->
+  SymbolicChoice sym k a ->
+  m a
+getSymbolicChoice sym mux (SymbolicChoice sv) = do
+  ((_, firstChoice),choices) <- vectorToList <$> getSymbolicVector sym sv
+  foldM (\b' (p, a) -> mux p a b') firstChoice choices
 
 -- | Returns the single result that is chosen in the given model
 groundSymbolicChoice ::
@@ -395,6 +426,104 @@ muxBaseUnion sym p uT uF = do
   W4.mkStruct sym (vls Ctx.:> structIdx)
 
 
+-- Array type
+
+-- an integer-indexed array combined with a known length
+type ArrayIndexType = W4.BaseBVType 64
+type ArrayIndex sym = W4.SymExpr sym ArrayIndexType
+
+type ArrayLenType tp = W4.BaseStructType (Ctx.EmptyCtx Ctx.::> (W4.BaseArrayType (Ctx.EmptyCtx Ctx.::> ArrayIndexType) tp) Ctx.::> ArrayIndexType)
+type ArrayLen sym tp = W4.SymExpr sym (ArrayLenType tp)
+
+singletonArrayLen ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  W4.SymExpr sym tp ->
+  IO (ArrayLen sym tp)
+singletonArrayLen sym e = mkConcreteArrayLen sym (W4.exprType e) [e]
+
+
+mkConcreteArrayLen ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  W4.BaseTypeRepr tp ->
+  [W4.SymExpr sym tp] ->
+  IO (ArrayLen sym tp)
+mkConcreteArrayLen sym repr vals = do
+  let idxrepr = Ctx.singleton ArrayIndexRepr
+  let mkidx i = Ctx.singleton (W4.BVIndexLit (knownNat @64) (BVS.mkBV (knownNat @64) i))
+  let aum = AUM.fromAscList repr (map (\(i,v) -> (mkidx i, v)) (zip [0..] vals))
+  empty_e <- W4.freshConstant sym W4.emptySymbol repr
+  arr <- liftIO $ W4.arrayFromMap sym idxrepr aum empty_e
+  len_bv <- W4.bvLit sym (knownNat @64) $ BVS.mkBV (knownNat @64) (fromIntegral (length vals))
+  liftIO $ W4.mkStruct sym (Ctx.empty Ctx.:> arr Ctx.:> len_bv)
+
+arrayLenPrefix ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  Integer ->
+  ArrayLen sym tp ->
+  IO ([W4.SymExpr sym tp])
+arrayLenPrefix sym n arr = do
+  arr' <- W4.structField sym arr Ctx.i1of2
+  forM [0..n] $ \i -> do
+    i_bv <- W4.bvLit sym (knownNat @64) $ BVS.mkBV (knownNat @64) i
+    W4.arrayLookup sym arr' (Ctx.singleton i_bv)  
+
+asConcreteArrayLen ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  ArrayLen sym tp ->
+  IO (Maybe ([W4.SymExpr sym tp]))
+asConcreteArrayLen sym arr = do
+  sz <- arrayLenSize sym arr
+  case concreteArrayIndex sym sz of
+    Just n -> Just <$> arrayLenPrefix sym n arr 
+    Nothing -> return Nothing
+
+arrayLenSize ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  ArrayLen sym tp ->
+  IO (ArrayIndex sym)
+arrayLenSize sym arr = W4.structField sym arr Ctx.i2of2
+
+concreteArrayIndex ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  ArrayIndex sym ->
+  Maybe Integer
+concreteArrayIndex _sym idx = case W4.asConcrete idx of
+  Just (W4.ConcreteBV _ bv) -> Just (BVS.asUnsigned bv)
+  _ -> Nothing
+
+
+concatArrays ::
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  ArrayLen sym tp ->
+  ArrayLen sym tp ->
+  IO (ArrayLen sym tp)
+concatArrays sym arrL arrR = do
+  arrL' <- W4.structField sym arrL Ctx.i1of2
+  arrL_len <- W4.structField sym arrL Ctx.i2of2
+  arrR' <- W4.structField sym arrR Ctx.i1of2
+  arrR_len <- W4.structField sym arrR Ctx.i2of2
+  zero <- W4.bvLit sym knownNat (BVS.mkBV knownNat 0)
+  arr_result <- W4.arrayCopy sym arrL' arrL_len arrR' zero arrR_len
+  len_result <- W4.bvAdd sym arrL_len arrR_len
+  W4.mkStruct sym (Ctx.empty Ctx.:> arr_result Ctx.:> len_result)
+
+pattern ArrayIndexRepr :: forall tp_outer. () => (tp_outer ~ ArrayIndexType) => W4.BaseTypeRepr tp_outer
+pattern ArrayIndexRepr <- 
+  (((\x -> case x of { W4.BaseBVRepr w | Just Refl <- W4.testEquality w (knownNat @64) -> Just Refl; _ -> Nothing })) -> 
+    Just (Refl :: tp_outer :~: ArrayIndexType)) where
+  ArrayIndexRepr = W4.BaseBVRepr (knownNat @64)
+
+pattern ArrayLenRepr :: () => (tp_outer ~ ArrayLenType tp_inner) => W4.BaseTypeRepr tp_inner -> W4.BaseTypeRepr tp_outer
+pattern ArrayLenRepr x = W4.BaseStructRepr (Ctx.Empty Ctx.:> (W4.BaseArrayRepr (Ctx.Empty Ctx.:> ArrayIndexRepr) x) Ctx.:> ArrayIndexRepr)
+
+
 -- Resolving types
 
 sizeToRepr :: I.SizeType -> Maybe (Some (W4.NatRepr))
@@ -426,9 +555,12 @@ typeToRepr v = go v
       Some rkey <- go tkey
       Some rvalue <- go tvalue
       return $ (Some (W4.BaseArrayRepr (Ctx.Empty Ctx.:> rkey) rvalue))
+    go (TArray tvalue) = do
+      Some rvalue <- go tvalue
+      return $ (Some (ArrayLenRepr rvalue))
     go (TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
       lookupTName (utName ut)
-    go _ = panic "typeToRepr: unsupported type" [showPP v]
+    go t = panic "typeToRepr: unsupported type" [showPP v, showPP t]
 
 mkFlds :: [(Label, Type)] -> W4SolverT sym m (Some (Ctx.Assignment W4.BaseTypeRepr))
 mkFlds lbls = Ctx.fromList <$> mapM (\(_,t) -> typeToRepr t) lbls

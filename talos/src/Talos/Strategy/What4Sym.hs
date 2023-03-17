@@ -27,6 +27,7 @@ import qualified Data.ByteString                 as BS
 import           Data.Functor.Identity           (Identity (Identity))
 import qualified Data.Map                        as Map
 import qualified Data.IORef as IO
+import qualified Data.BitVector.Sized            as BVS
 
 import qualified What4.Interface                 as W4
 import qualified What4.Expr                      as WE
@@ -54,11 +55,12 @@ import           Talos.Strategy.What4.SymM
 import           Talos.Strategy.What4.Solver
 
 import Data.Parameterized.Some
+import qualified Data.Parameterized.Vector as V
 import qualified System.IO.Unsafe as IO
 import qualified What4.SatResult as W4R
 import Data.Maybe
 import Control.Monad.Catch
-import Data.Parameterized.Vector
+import Control.Monad.Writer.Class
 
 
 -- ----------------------------------------------------------------------------------------
@@ -166,19 +168,9 @@ what4MaybeStrat ptag sl = trivialStratGen . lift $ do
 mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m, MonadMask m, MonadCatch m, MonadThrow m) => SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> m SelectedPath
 mkStrategyFun (SomeW4SolverEnv solverEnv0) ptag sl = do
   env0 <- getIEnv -- for pure function implementations
-  snd <$> runW4StratT solverEnv0 env0 (stratSlice ptag sl)
+  fst <$> runW4StratT solverEnv0 env0 (stratSliceConcrete ptag sl)
 
-newtype W4StratT_ sym m a = W4StratT_ (ReaderT I.Env (W4SolverT_ sym m) a)
-  deriving (Applicative, Functor, Monad, MonadIO, MonadReader I.Env, LiftStrategyM, Alternative, MonadPlus)
-
-instance MonadTrans (W4StratT_ sym) where
-  lift f = W4StratT_ $ lift $ lift f
-
-instance MonadIO m => MonadFail (W4StratT_ sym m) where
-  fail msg = liftIO $ fail msg
-
-instance (MonadIO m, MonadCatch m, MonadThrow m, MonadMask m) => SolverM sym (W4StratT_ sym m) where
-  getSolverSym = lift $ getSolverSym
+type W4StratT_ sym m a = W4SolverT_ sym (ReaderT I.Env m) a
 
 type W4StratT sym m a = 
   (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m, MonadMask m, MonadThrow m, MonadCatch m, MonadPlus m) => W4StratT_ sym m a
@@ -189,35 +181,80 @@ runW4StratT ::
   W4SolverEnv sym ->
   I.Env ->
   W4StratT_ sym m a -> 
-  m a
-runW4StratT solverEnv env (W4StratT_ f) = runW4Solver solverEnv (runReaderT f env)
-
-liftSolver ::
-  Monad m =>
-  W4SolverT_ sym m a -> W4StratT_ sym m a
-liftSolver f = W4StratT_ $ lift f
-
-
+  m (a, W4.Pred sym)
+runW4StratT solverEnv env f = runReaderT (runW4Solver solverEnv f) env
 
 
 type SymbolicPath sym = SelectedPathF (SymbolicPathChoice sym) (SymbolicPathCase sym) (SymbolicResult sym)
 
--- FIXME: is the int actually redundant here?
+getConcretePath ::
+  SymGroundEvalFn sym ->
+  SymbolicPath sym ->
+  W4StratT sym m (SelectedPath)
+getConcretePath fn p = case p of
+  SelectedHole -> return SelectedHole
+  SelectedBytes ptag result_sym -> do
+    result_conc <- groundSymbolicResult fn result_sym
+    return $ SelectedBytes ptag result_conc
+  SelectedDo f1 f2 -> SelectedDo <$> getConcretePath fn f1 <*> getConcretePath fn f2
+  SelectedChoice (ConcreteChoice i p') ->
+    SelectedChoice <$> (PathIndex i <$> getConcretePath fn p')
+  SelectedChoice (SymbolicPath symChoice) -> withSym $ \sym -> do
+    (i, p') <- groundSymbolicChoice sym fn symChoice
+    conc_path <- getConcretePath fn p'
+    return $ SelectedChoice (PathIndex i conc_path)
+  SelectedCall finst p' -> 
+    SelectedCall <$> pure finst <*> getConcretePath fn p'
+  SelectedCase (ConcreteCase p') -> do
+    conc_p' <- getConcretePath fn p'
+    return $ SelectedCase (return conc_p')
+  SelectedCase (SymbolicCase symCase) -> withSym $ \sym -> do
+    paths <- (mapMaybe id . V.toList) <$> groundSymbolicVector sym fn symCase
+    path <- choose paths
+    conc_p' <- getConcretePath fn path
+    return $ SelectedCase (return conc_p')
+
 data SymbolicPathChoice sym a =
     forall n. SymbolicPath (SymbolicChoice sym n (Int, a))
   | ConcreteChoice Int a
 
 data SymbolicPathCase sym a =
-  forall n. SymbolicCase (SymbolicVector sym n (Pattern, a))
+  forall n. SymbolicCase (SymbolicVector sym n a)
   | ConcreteCase a
 
-newtype SymbolicResult sym = SymbolicResult (W4.SymExpr sym (W4.BaseBVType 8))
+newtype SymbolicResult sym = SymbolicResult (ArrayLen sym (W4.BaseBVType 8))
+
+groundSymbolicResult ::
+  SymGroundEvalFn sym ->
+  SymbolicResult sym ->
+  W4StratT sym m BS.ByteString
+groundSymbolicResult fn (SymbolicResult arr) = withSym $ \sym -> do
+  sz <- liftIO $ arrayLenSize sym arr
+  sz_conc <- BVS.asUnsigned <$> execGroundFn fn sz
+  bytes_sym <- liftIO $ arrayLenPrefix sym sz_conc arr
+  bytes_conc <- mapM (execGroundFn fn) bytes_sym
+  let ws = concat $ map (fromJust . BVS.asBytesBE (knownNat @8)) bytes_conc
+  return $ BS.pack ws
 
 -- type SelectedPath = SelectedPathF PathIndex Identity ByteString
 
 -- data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
 --  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
+
+
+stratSliceConcrete ::
+  forall sym m.
+  ProvenanceTag -> ExpSlice ->
+  W4StratT sym m SelectedPath
+stratSliceConcrete ptag sl = do
+  senv <- ask
+  env <- lift ask
+  ((_, path), asm) <- lift $ runW4StratT senv env (stratSlice ptag sl)
+  checkSat asm $ \case
+    W4R.Sat fn -> getConcretePath fn path
+    _ -> mzero
+    
 stratSlice :: 
   forall sym m.
   ProvenanceTag -> ExpSlice ->
@@ -237,63 +274,59 @@ stratSlice ptag = go
           liftStrategy (liftIO $ putStrLn ("Do: lsl " ++ show (pp lsl)))
           liftStrategy (liftIO $ putStrLn ("Do: rsl " ++ show (pp rsl)))
           (Some v, lpath)  <- go lsl
-          liftStrategy (liftIO $ putStrLn ("Do: lsl v " ++ show (pp v)))
+          --liftStrategy (liftIO $ putStrLn ("Do: lsl v " ++ show (pp v)))
           --liftStrategy (liftIO $ putStrLn ("Do: lsl path " ++ show (pp lpath)))
-          onSlice (SelectedDo lpath) <$> bindIn x v (go rsl)
+          onSlice (SelectedDo lpath) <$> bindVarIn x v (go rsl)
 
-        SMatch bset -> liftSolver $ withSym $ \sym -> do
+        SMatch bset -> withSym $ \sym -> do
           b <- liftIO $ W4.freshConstant sym W4.emptySymbol (W4.BaseBVRepr (knownNat @8))
           p <- evalByteSet bset b
-          
+          addAssumption p
+          byte <- liftIO $ singletonArrayLen sym b
+          return (Some b, SelectedBytes ptag (SymbolicResult byte))
 
-          -- Run the predicate over all bytes.
-          -- FIXME: Too brute force? We could probably be smarter
-          liftStrategy (liftIO $ putStrLn ("From byteset " ++ show (pp bset)))
-          let bs = filter (I.evalByteSet bset env) [0 .. 255]
-          guard (bs /= [])
-          b <- choose bs -- select a byte from the set, backtracking
-          liftStrategy (liftIO $ putStrLn ("Chose byte " ++ show b))
-          pure (I.vUInt 8 (fromIntegral b)
-               , SelectedBytes ptag (BS.singleton b))
-          
-        SChoice sls -> do
-          (i, sl') <- choose (enumerate sls) -- select a choice, backtracking
-          liftStrategy (liftIO $ putStrLn ("Chose choice " ++ show i))
-          liftIO $ putStrLn ("Checking case" ++ show (pp sl'))
-          onSlice (SelectedChoice . PathIndex i) <$> go sl'
+        SChoice sls -> withSym $ \sym -> do
+          case someNat (length sls) of
+            Just (Some k) | Just LeqProof <- W4.isPosNat k -> do
+              b <- liftIO $ W4.freshConstant sym W4.emptySymbol (W4.BaseBVRepr k)
+              choice <- mkSymbolicChoice sym b $ \n -> do
+                let (i :: Int) = fromIntegral (intValue n)
+                let sl' = sls !! i
+                (e,p') <- go sl'
+                return (i, (e,p'))
+              val <- getSymbolicChoice sym muxExprs (fmap (fst . snd) choice)
+              return $ (val, SelectedChoice (SymbolicPath (fmap (\(i,(_,p')) -> (i, p')) choice)))
+            _ -> panic "Empty choice" []
 
         SCall cn -> stratCallNode ptag cn
 
-        SCase _ c -> do
-          env <- ask
-          liftIO $ putStrLn ("Checking case" ++ show (pp c))
-          I.evalCase (\(_i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
+        SCase _ c -> withSym $ \sym -> do
+          let var = I.caseVar c
+          Some e' <- getVar var
+          case someNat (length (casePats c)) of
+            Just (Some k) | Just LeqProof <- W4.isPosNat k -> do
+              v <- mkSymbolicVector sym k $ \n -> do
+                let (i :: Int) = fromIntegral (intValue n)
+                let (pat,case_) = casePats c !! i
+                p <- matchesPat (I.nameType var) pat e'
+                (e_body,path) <- go case_
+                return $ (p, (e_body,path))
+              -- TODO: add extra case for Any pattern that negates other cases
+              ((fpred, (e_body, _)),vs) <- vectorToList <$> getSymbolicVector sym v
+              somePred <- foldM (\p' (p,_) -> liftIO $ W4.orPred sym p p') fpred vs
+              addAssumption somePred
+              val <- foldM (\e1 (p,(e2,_)) -> muxExprs p e1 e2) e_body vs
+              return $ (val, SelectedCase (SymbolicCase (fmap snd v)))
+            _ -> panic "Unexpected empty case:" [showPP c]
 
-        -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
-        SInverse n ifn p -> do
-          let
-             tryOne = do
-                v <- liftSolver $ withSym $ \sym -> do
-                  Some n_T_repr <- typeToRepr (I.typeOf n)
-                  n_sym <- liftIO $ W4.freshConstant sym W4.emptySymbol n_T_repr
-                  bindVarIn n n_sym $ do
-                    p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
-                    liftIO $ putStrLn ("Synthesized pred.. " ++ show (W4.printSymExpr p_sym))
-                    checkSat p_sym $ \case
-                      W4R.Sat fn -> do
-                        n_ground <- execGroundFn fn n_sym
-                        groundToValue n_T_repr n_ground
-                      W4R.Unsat{} -> mzero
-                      W4R.Unknown{} -> mzero
-                liftStrategy (liftIO $ putStrLn ("Trying value.. " ++ show (pp v)))
-                bindIn n v $ do
-                  b <- I.valueToBool <$> synthesiseExpr p
-                  guard b
-                  liftStrategy (liftIO $ putStrLn ("Value satisfies guard"))
-                  bs <- synthesiseExpr ifn
-                  liftStrategy (liftIO $ putStrLn ("Input:" ++ show (pp bs)))
-                  pure (v, SelectedBytes ptag (I.valueToByteString bs))
-          tryOne 
+        SInverse n ifn p -> withSym $ \sym -> do
+          Some n_T_repr <- typeToRepr (I.typeOf n)
+          n_sym <- liftIO $ W4.freshConstant sym W4.emptySymbol n_T_repr
+          bindVarIn n n_sym $ do
+            p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
+            addAssumption p_sym
+            ifn_sym <- toWhat4Expr (TArray (I.TUInt (I.TSize 8))) (ArrayLenRepr (W4.BaseBVRepr (knownNat @8))) ifn
+            return (Some n_sym, SelectedBytes ptag (SymbolicResult ifn_sym))
 
     uncPath :: forall tp. W4.SymExpr sym tp -> (W4.SymExpr sym tp, SymbolicPath sym)
     uncPath v = (v, SelectedHole)
@@ -311,13 +344,14 @@ stratSlice ptag = go
 -- although it is not clear whether that is an issue or not.
 
 stratCallNode :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpCallNode -> 
-                 W4StratT sym m (I.Value, SymbolicPath sym)
+                 W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
 stratCallNode ptag cn = do
-  env <- ask
+  env <- lift $ ask
   let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
   sl <- getSlice (ecnSliceId cn)
-  (v, res) <- local (const env') (stratSlice ptag sl)
-  pure (v, SelectedCall (ecnIdx cn) res)
+  return $ error ""
+  -- (v, res) <- local (const env') (stratSlice ptag sl)
+  -- pure (v, SelectedCall (ecnIdx cn) res)
 
 -- ----------------------------------------------------------------------------------------
 -- Strategy helpers
@@ -331,11 +365,8 @@ choose bs = do
 -- ----------------------------------------------------------------------------------------
 -- Environment helpers
 
-bindIn :: Name -> W4.SymExpr sym tp -> W4StratT_ sym m a -> W4StratT_ sym m a
-bindIn x v (W4StratT_ (ReaderT m)) = W4StratT_ (ReaderT (\env -> bindVarIn x v (m env)))
-
 synthesiseExpr :: Expr -> W4StratT sym m (Some (W4.SymExpr sym))
-synthesiseExpr e = liftSolver $ do
+synthesiseExpr e = do
   let t = I.typeOf e
   Some t_repr <- typeToRepr t
   e_sym <- toWhat4Expr t t_repr e

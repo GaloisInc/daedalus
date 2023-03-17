@@ -26,6 +26,9 @@ module Talos.Strategy.What4.SymM(
  , getVar
  , liftMaybe
  , withFNameCache
+ , withLocalFunction
+ , addAssumption
+ , collapseAssumptions
 ) where
 
 import           Control.Applicative (Alternative)
@@ -54,9 +57,16 @@ import           Talos.Strategy.What4.Solver
 import Unsafe.Coerce (unsafeCoerce)
 import Control.Monad.Catch
 import qualified Data.Kind as DK
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Control.Monad.Trans.Writer (WriterT, runWriterT)
+import Control.Monad.Writer.Class
 
 
-data SomeSymFn sym = forall args ret. SomeSymFn (W4.SymFn sym args ret)
+data SomeSymFn sym = forall args ret. SomeSymFn
+  { someSymFn :: W4.SymFn sym args ret
+  , someSymFnAsms :: W4.SymFn sym args W4.BaseBoolType
+  }
 
 type NameEnv sym = Map.Map Name (Some (W4.SymExpr sym))
 
@@ -64,7 +74,10 @@ type FnEnv sym = Map.Map FName (SomeSymFn sym, Fun Expr)
 
 -- This could also do a better job of having context-sensitive expression caches, which would cut
 -- down translation time, depending on how much it ends up dominating time of the strategy
-data W4SolverEnv sym = W4.IsSymExprBuilder sym => W4SolverEnv { solver :: SolverSym sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym) }
+data W4SolverEnv sym = W4.IsSymExprBuilder sym => 
+  W4SolverEnv { solver :: SolverSym sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym),
+                local_fns :: Map.Map FName (SomeSymFn sym, Fun Expr)
+              }
 
 withInitEnv :: 
   (MonadIO m, MonadMask m) =>
@@ -76,27 +89,46 @@ withInitEnv f = do
   withOnlineSolver Yices Nothing sym $ \bak -> do
     let ssym = SolverSym sym bak
     fnCacheRef <- liftIO $ IO.newIORef mempty
-    f (W4SolverEnv ssym mempty fnCacheRef)
+    f (W4SolverEnv ssym mempty fnCacheRef mempty)
 
 withSymEnv :: W4SolverEnv sym -> (W4.IsSymExprBuilder sym => sym -> a) -> a
-withSymEnv (W4SolverEnv (SolverSym sym _) _ _) f = f sym
+withSymEnv (W4SolverEnv (SolverSym sym _) _ _ _) f = f sym
 
 
 withSomeSolverEnv ::
   (MonadIO m, MonadMask m) =>
   (SomeW4SolverEnv -> m a) -> m a
-withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \sym ->
+withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \_sym ->
   f (SomeW4SolverEnv env)
 
-newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: ReaderT (W4SolverEnv sym) m a }
+data Assumption sym = OrdF (W4.SymExpr sym) => Assumption (W4.Pred sym)
+
+instance Eq (Assumption sym) where
+  (Assumption p1) == (Assumption p2) = case testEquality p1 p2 of
+    Just Refl -> True
+    _ -> False
+
+instance Ord (Assumption sym) where
+  compare (Assumption p1) (Assumption p2) = toOrdering (compareF p1 p2)
+
+newtype Assumptions sym = Assumptions (Set (Assumption sym))
+  deriving (Monoid, Semigroup)
+
+newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: WriterT (Assumptions sym) (ReaderT (W4SolverEnv sym) m) a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader (W4SolverEnv sym), 
-            MonadTrans, LiftStrategyM, Alternative, MonadPlus, MonadCatch, MonadThrow, MonadMask
+            LiftStrategyM, Alternative, MonadPlus, MonadCatch, MonadThrow, MonadMask,
+            MonadWriter (Assumptions sym)
           )
+
+instance MonadTrans (W4SolverT_ sym) where
+  lift m = W4SolverT_(lift $ lift m)
 
 instance (MonadIO m, MonadCatch m, MonadThrow m, MonadMask m) => SolverM sym (W4SolverT_ sym m) where
   getSolverSym = asks solver
 
-type W4SolverT sym m a = (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m) => W4SolverT_ sym m a
+type W4SolverT sym m a = 
+  (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m, MonadMask m, MonadCatch m, MonadThrow m) => 
+    W4SolverT_ sym m a
 
 instance MonadIO m => MonadFail (W4SolverT_ sym m) where
   fail msg = liftIO $ fail msg
@@ -137,8 +169,25 @@ runW4Solver ::
   MonadIO m =>
   W4SolverEnv sym ->
   W4SolverT_ sym m a ->
-  m a
-runW4Solver env (W4SolverT_ f) = runReaderT f env
+  m (a, W4.Pred sym)
+runW4Solver env (W4SolverT_ f) = do
+  (a, asms) <- runReaderT (runWriterT f) env
+  p <- withSymEnv env $ \sym -> collapseAssumptions sym asms
+  return (a, p)
+
+addAssumption ::
+  W4.Pred sym ->
+  W4SolverT sym m ()
+addAssumption p = tell (Assumptions (Set.singleton (Assumption p)))
+
+collapseAssumptions ::
+  MonadIO m =>
+  W4.IsSymExprBuilder sym =>
+  sym ->
+  Assumptions sym ->
+  m (W4.Pred sym)
+collapseAssumptions sym (Assumptions asms) =
+  foldM (\a (Assumption b) -> liftIO (W4.andPred sym a b)) (W4.truePred sym) asms
 
 bindVarIn :: Monad m => Name -> W4.SymExpr sym tp -> W4SolverT_ sym m a -> W4SolverT_ sym m a
 bindVarIn nm e f = local (\env -> env { nameEnv = Map.insert nm (Some e) (nameEnv env)}) f
@@ -154,16 +203,24 @@ liftMaybe :: Monad m => Maybe a -> W4SolverT_ sym m a
 liftMaybe (Just a) = return a
 liftMaybe Nothing = panic "liftMaybe" []
 
+-- | withLocalFunction overrides the result of 'withFNameCache'
+withLocalFunction :: Monad m => FName -> SomeSymFn sym -> Fun Expr -> W4SolverT_ sym m a -> W4SolverT_ sym m a
+withLocalFunction fname fn fne f = local (\env -> env { local_fns = Map.insert fname (fn,fne) (local_fns env )}) f
+
 withFNameCache :: MonadIO m => FName -> W4SolverT_ sym m (SomeSymFn sym, Fun Expr) -> W4SolverT_ sym m (SomeSymFn sym, Fun Expr)
 withFNameCache fname f = do
-  ref <- asks fnCache
-  cache <- liftIO $ IO.readIORef ref
-  case Map.lookup fname cache of
+  locals <- asks local_fns
+  case Map.lookup fname locals of
     Just a -> return a
     Nothing -> do
-      a <- f
-      liftIO $ IO.modifyIORef' ref (Map.insert fname a)
-      return a
+      ref <- asks fnCache
+      cache <- liftIO $ IO.readIORef ref
+      case Map.lookup fname cache of
+        Just a -> return a
+        Nothing -> do
+          a <- f
+          liftIO $ IO.modifyIORef' ref (Map.insert fname a)
+          return a
 
 -- | Hack to check if both expression builders are the same.
 --   If they have the same IO reference to control the "current" program location
