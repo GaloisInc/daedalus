@@ -33,7 +33,7 @@ def MDM_Header =
 
     -- See 6.1.2.1.4: MDM Sequence number
     sequence_number = BEUInt16
-    
+
     -- See 6.1.2.1.5: ML2B interface ID
     ml2b_interface_id = ML2B_Interface_id
 
