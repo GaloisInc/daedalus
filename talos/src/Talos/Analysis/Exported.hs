@@ -16,21 +16,24 @@ module Talos.Analysis.Exported
   , sliceToCallees
   ) where
 
-import           Control.Lens          (at, (.=))
-import           Control.Lens.Lens     ((<<+=))
+import           Control.Lens                    (at, (.=))
+import           Control.Lens.Lens               ((<<+=))
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.Generics.Product (field)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (catMaybes)
-import           Data.Monoid           (Any (..))
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
-import           GHC.Generics          (Generic)
+import           Data.Generics.Product           (field)
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (catMaybes)
+import           Data.Monoid                     (Any (..))
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
+import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
-                                                  Name, TDecl, TName, nameId)
+                                                  LoopClass' (..),
+                                                  LoopMorphism' (..), Name,
+                                                  TDecl, TName, loopClassBody,
+                                                  nameId, LoopCollection'(..))
 import           Daedalus.Core.Basics            (freshName)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
@@ -92,6 +95,7 @@ sliceToCallees = go
       SChoice cs        -> foldMap go cs
       SCall cn          -> Set.singleton (ecnSliceId cn)
       SCase _ c         -> foldMap go c
+      SLoop _ lc        -> go (loopClassBody lc)
       SInverse {}       -> mempty -- No grammar calls
 
 makeEsRecs :: Map SliceId ExpSlice ->  Map SliceId (Set SliceId)
@@ -150,7 +154,7 @@ sliceToRecVars recs = snd . go
       SChoice cs -> foldMap go cs
       SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
       SCase _ cs -> foldMap go cs
---      SAssertion {} -> mempty
+      SLoop _ lc  -> go (loopClassBody lc)
       SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
@@ -299,9 +303,7 @@ exportSlice m_sid sl0 = do
     go sl =
       case sl of
         SHole     -> pure SHole
-        SPure sle -> do
-          tenv <- gets tyEnv
-          SPure <$> doSubst (slExprToExpr' tenv sle)
+        SPure sle -> SPure <$> goE sle
 
         SDo x l r -> do
           x' <- refreshName x
@@ -312,13 +314,42 @@ exportSlice m_sid sl0 = do
         SCall cn   -> SCall <$> exportCallNode cn
         SCase t cs -> do
           Case x cs' <- traverse go cs
-          x' <- asks (Map.findWithDefault x x)
+          x' <- goN x
           pure (SCase t (Case x' cs'))
 
---        SAssertion e   -> SAssertion <$> doSubst e
+        SLoop str lcl -> SLoop str <$>
+          case lcl of 
+            ManyLoop sem bt lb m_ub g ->
+              ManyLoop sem bt <$> goE lb
+                              <*> traverse goE m_ub
+                              <*> go g
+            RepeatLoop bt n e b -> do
+              n' <- refreshName n
+              RepeatLoop bt n' <$> goE e <*> substNameIn n n' (go b)
+            MorphismLoop (FoldMorphism n e lc b) -> do 
+              n' <- refreshName n
+              MorphismLoop <$> goLC lc (FoldMorphism n <$> goE e) (substNameIn n n' (go b))
+            MorphismLoop (MapMorphism lc b) ->
+              MorphismLoop <$> goLC lc (pure MapMorphism) (go b)
+            
         SInverse n f p -> do
           n' <- refreshName n
           substNameIn n n' (SInverse n' <$> doSubst f <*> doSubst p)
+
+    goN :: Name -> ExpM ae Name
+    goN n = asks (Map.findWithDefault n n)
+
+    goE sle = do
+      tenv <- gets tyEnv
+      doSubst (slExprToExpr' tenv sle)
+
+    goLC lc mk bm = do
+      eln'  <- refreshName (lcElName lc)
+      m_kn' <- traverse refreshName (lcKName lc)
+      mk <*> (LoopCollection m_kn' eln' <$> goE (lcCol lc))
+         <*> substNameIn (lcElName lc) eln' 
+               (maybe id (uncurry substNameIn) ((,) <$> lcKName lc <*> m_kn')
+               bm)
 
     doSubst :: Subst e => e -> ExpM ae e
     doSubst e = do

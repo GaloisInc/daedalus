@@ -106,7 +106,7 @@ data Slice' cn sle =
   | SCase Bool (Case (Slice' cn sle))
   
   -- Having 'Structural' here is a bit of a hack
-  | SLoop (LoopClass' sle (Structural, Slice' cn sle))
+  | SLoop Structural (LoopClass' sle (Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
@@ -165,7 +165,7 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
-      (SLoop lb, SLoop lb')          -> lb `eqv` lb'
+      (SLoop str lb, SLoop str' lb') -> (str, lb) `eqv` (str', lb')
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -182,7 +182,7 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
-      (SLoop lc, SLoop lc')          -> SLoop (merge lc lc')
+      (SLoop str lc, SLoop str' lc') -> SLoop (merge str str') (merge lc lc')
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
@@ -211,7 +211,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
-      SLoop lc       -> freeVars lc
+      SLoop _ lc     -> freeVars lc
       SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
 
   freeFVars sl =
@@ -223,7 +223,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
-      SLoop lc       -> freeFVars lc
+      SLoop _ lc     -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
       SInverse _ _f p -> {- freeFVars f <> -} freeFVars p
@@ -247,7 +247,7 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
-      SLoop lc         -> SLoop <$> traverseUserTypes f lc
+      SLoop str lc     -> SLoop str <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
@@ -271,7 +271,7 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
-      SLoop lc       -> pp (snd <$> lc) -- forget Structural
+      SLoop _ lc     -> pp lc -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
 

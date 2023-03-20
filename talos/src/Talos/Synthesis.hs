@@ -493,20 +493,20 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
 -- FIXME: sem
-synthesiseG (SelectedMany m_count ms) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
+synthesiseG (SelectedMany m_structural ms) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
-  count <- maybe (synthesiseLoopBounds lv m_uv) pure m_count
+  count <- maybe (synthesiseLoopBounds lv m_uv) (pure . length) m_structural
 
   -- We need to select count elements from the synthesised models in ms.
   ms' <- mapM (selectLoopElements count) ms
   let (elPaths, targetPaths) = selectedMany ms'
-
+      allPaths = maybe elPaths (zipWith merge elPaths) m_structural
   -- ... which may require us to update the RHS stack to propagate selected models.  
   overDoRHSs (applyManyTargets targetPaths)
 
   -- next we synthesise the elements of the Many, using the selected paths.
-  vArray <$> mapM (flip synthesiseG g) elPaths
+  vArray <$> mapM (flip synthesiseG g) allPaths
 
 synthesiseG (SelectedLoop ps) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e

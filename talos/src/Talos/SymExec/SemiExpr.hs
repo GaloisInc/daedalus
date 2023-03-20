@@ -20,7 +20,8 @@ module Talos.SymExec.SemiExpr ( runSemiSolverM
 
 -- import Data.Map (Map)
 import           Control.Monad.Reader
-import           Data.Foldable                (find)
+import qualified Data.ByteString              as BS
+import           Data.Foldable                (find, foldlM, toList)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (isJust, isNothing)
@@ -47,6 +48,7 @@ import qualified Talos.SymExec.SemiValue      as SV
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
+
 
 
 
@@ -133,10 +135,10 @@ semiSExprToSExpr tys ty sv =
         in case els of
           []             -> sArrayIterNew emptyA
           ((fstI, _) : _) -> S.fun "mk-ArrayIter" [arr, fstI]
-          
+
       TIterator (TMap   _kt' _vt') -> panic "Unimplemented" []
       _ -> panic "Malformed iterator type" []
-      
+
     _ -> panic "Malformed value" [show sv, showPP ty]
   where
     go = semiSExprToSExpr tys
@@ -190,6 +192,10 @@ matches' v pat =
     PCon l | VUnionElem l' _ <- v -> Just (l == l')
     PCon {} -> Nothing
 
+    PBytes bs | Just bs' <- SV.toList v >>= traverse SV.toByte
+                -> Just (bs == BS.pack bs')
+    PBytes _ -> Nothing
+
     PAny   -> Just True
     PNum _ -> Nothing -- only works on values
 
@@ -197,7 +203,7 @@ data SymbolicCaseResult a = TooSymbolic | NoMatch | DidMatch Int a
 
 semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a, HasCallStack) =>
                 Case a -> SemiSolverM m (SymbolicCaseResult a)
-semiExecCase c@(Case y pats) = do
+semiExecCase (Case y pats) = do
   ve <- semiExecName y
   -- we need to be careful not to match 'Any' if the others can't
   -- be determined.
@@ -255,7 +261,9 @@ semiExecExpr expr =
         DidMatch _ e' -> semiExecExpr e'
         -- Shouldn't happen in pure code
         NoMatch -> panic "No match" []
-        
+
+    ELoop lm     -> semiExecLoop lm
+
     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
     Ap2 op e1 e2 ->
@@ -270,7 +278,41 @@ semiExecExpr expr =
     ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
   where
     rty = typeOf expr
-    
+
+-- It would be nice to reuse evalLoopMorphism but it may just be easier to do this.
+semiExecLoop :: (MonadIO m, Monad m, HasGUID m) => LoopMorphism' Expr Expr -> SemiSolverM m SemiSExpr
+semiExecLoop lm =
+  case lm of
+    FoldMorphism n e lc b -> do
+      e_v  <- semiExecExpr e
+      (els, bindIn, _mk) <- goLC lc
+      let goOne acc el = bindNameIn n acc (bindIn el (semiExecExpr b))
+      foldlM goOne e_v els
+    MapMorphism lc b -> do
+      (els, bindIn, mk) <- goLC lc
+      let goOne el = (,) (fst el) <$> bindIn el (semiExecExpr b)
+      mk <$> traverse goOne els
+  where
+    goLC lc = do
+      lcv <- semiExecExpr (lcCol lc)
+
+      let k_bind = maybe (const id) bindNameIn (lcKName lc)
+          bindIn (kv, ev) = k_bind kv . bindNameIn (lcElName lc) ev
+
+          mkA = zip (map (VValue . V.vSize) [0..])
+          (els, mk) = case lcv of
+            VValue (V.VArray vs) -> ( mkA (map VValue (toList vs))
+                                    , SV.fromList False . map snd
+                                    )
+                                    
+            -- FIXME: this chooses an order
+            VValue (V.VMap m)  -> ( [ (VValue k, VValue v) | (k, v) <- Map.toList m ], VMap )
+            -- isBldr should probably always be False as we don't iterate over builders.
+            VSequence isBldr vs -> (mkA vs, SV.fromList isBldr . map snd)
+            VMap vs -> (vs, VMap)
+            _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
+      pure (els, bindIn, mk)
+
 -- Might be able to just use the value instead of requiring t
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp1 op _rty ty (VValue v) =
@@ -293,7 +335,7 @@ semiExecOp1 op rty ty sv =
     Concat   | Just svs <- SV.toList sv
              , Just svss <- mapM SV.toList svs -> pure (SV.fromList False (mconcat svss))
     -- Just flip the 'isbuilder' flag
-    FinishBuilder | VSequence _ vs <- sv -> pure (VSequence False vs)
+    FinishBuilder | Just svs <- SV.toList sv -> pure (VSequence False svs)
     NewIterator
       | TArray {} <- ty,
         Just svs <- SV.toList sv -> pure $ VIterator (zip (map (VValue . V.vSize) [0..]) svs)
@@ -328,7 +370,7 @@ semiExecOp1 op rty ty sv =
 
 
 typeToElType :: Type -> Maybe Type
-typeToElType ty = 
+typeToElType ty =
   case ty of
     TBuilder elTy -> Just elTy
     TArray   elTy -> Just elTy
@@ -356,7 +398,7 @@ typeToElType ty =
 -- bOr  = scBinOp S.or (const (VBool True)) id
 
 bOpMany :: MonadReader SemiSolverEnv m => Bool -> [SemiSExpr] -> m SemiSExpr
-bOpMany opUnit els 
+bOpMany opUnit els
   | any (isBool absorb) els = pure (VBool absorb)
   | otherwise = do
       tys <- asks typeDefs
@@ -401,7 +443,7 @@ semiExecEqNeq iseq ty sv1 sv2 =
     (VStruct flds1, VStruct flds2) -> do
       tys <- asks typeDefs
       opMany =<< zipWithM (go tys) flds1 flds2
-      
+
     (VMaybe sv1', VMaybe sv2')
       | TMaybe ty' <- ty -> case (sv1', sv2') of
           (Nothing, Nothing)       -> pure (VBool iseq)
@@ -423,14 +465,14 @@ semiExecEqNeq iseq ty sv1 sv2 =
       if iseq
       then (Eq   , (==), bAndMany)
       else (NotEq, (/=), bOrMany)
-    
+
     go tys (l, sv1') (l', sv2') =
       if l == l'
       then case typeAtLabel tys ty l of
              Just (_, ty') -> semiExecEqNeq iseq ty' sv1' sv2'
              _             -> panic "Missing label" [showPP l]
       else panic "Label mismatch" [showPP l, showPP l']
-    
+
 semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> Type -> Type ->
                SemiSExpr -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp2 op _rty _ty _ty' (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
@@ -444,17 +486,20 @@ semiExecOp2 op rty ty1 ty2 sv1 sv2 =
 
     Eq       -> semiExecEq ty1 sv1 sv2
     NotEq    -> semiExecNEq ty1 sv1 sv2
-    
+
     -- sv1 is arr, sv2 is ix
     ArrayIndex
       | Just svs <- SV.toList sv1
       , VValue v <- sv2, Just ix <- V.valueToIntSize v
         -> pure (svs !! ix)
     Emit | Just svs <- SV.toList sv1 -> pure (VSequence True (svs ++ [sv2]))
-
+    EmitArray | Just svs1 <- SV.toList sv1, Just svs2 <- SV.toList sv2
+                -> pure (VSequence True (svs1 ++ svs2))
+    EmitBuilder | Just svs1 <- SV.toList sv1, Just svs2 <- SV.toList sv2
+                  -> pure (VSequence True (svs1 ++ svs2))
     -- sv1 is map, sv2 is key
     MapLookup -> mapOp (VValue $ V.VMaybe Nothing) (sNothing . symExecTy)
-                       (VMaybe . Just)             sJust 
+                       (VMaybe . Just)             sJust
 
     MapMember -> mapOp (VValue $ V.VBool False)        (const (S.bool False))
                        (const (VValue $ V.VBool True)) (\_ _ -> S.bool True)
@@ -539,7 +584,7 @@ semiExecOpN (CallF fn) _rty vs = do
 
   foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
 
-semiExecOpN op _rty _vs = panic "Unimplemented" [showPP op]
+semiExecOpN (ArrayL _) _rty vs = pure (VSequence False vs)
 
 -- -----------------------------------------------------------------------------
 -- Value -> SExpr
@@ -567,7 +612,7 @@ valueToSExpr tys ty v =
       else S.bvBin (fromIntegral n) i
     V.VInteger i -> S.int i
     V.VBool b -> S.bool b
-    V.VUnionElem l v' 
+    V.VUnionElem l v'
       | Just (ut, ty') <- typeAtLabel tys ty l
       -> S.fun (labelToField (utName ut) l) [go ty' v']
 
@@ -577,7 +622,7 @@ valueToSExpr tys ty v =
       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
       | ty == TUnit -> sUnit
-      
+
     V.VArray vs | TArray elty <- ty ->
       let sVals     = map (go elty) (Vector.toList vs)
           emptyArr = sArrayL (sEmptyL (symExecTy elty) (typeDefault elty)) -- FIXME, a bit gross?

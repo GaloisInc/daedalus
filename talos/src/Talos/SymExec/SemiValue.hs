@@ -7,6 +7,7 @@ module Talos.SymExec.SemiValue where
 
 import qualified Data.Map       as Map
 import qualified Data.Vector    as Vector
+import           Data.Word      (Word8)
 
 import           Daedalus.PP
 import qualified Daedalus.Value as V
@@ -92,6 +93,10 @@ toList sv =
     -- Builders are stored in reverse order.
     VValue (V.VBuilder vs) -> Just (map VValue (reverse vs))
     _ -> Nothing
+
+toByte :: SemiValue a -> Maybe Word8
+toByte (VValue v) = Just (V.valueToByte v)
+toByte _          = Nothing
 
 
 toMappings :: SemiValue a -> Maybe [(SemiValue a, SemiValue a)]

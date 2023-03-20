@@ -45,7 +45,7 @@ data LoopClass' e body =
 
 type LoopClass = LoopClass' Expr
 
-loopClassBody :: LoopClass body -> body
+loopClassBody :: LoopClass' e body -> body
 loopClassBody lc = case lc of
   ManyLoop _ _ _ _ g -> g
   RepeatLoop _ _ _ g -> g

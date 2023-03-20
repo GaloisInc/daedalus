@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving, ParallelListComp #-}
@@ -70,7 +69,7 @@ data SelectedPathF ch ca a =
   -- The first argument is the (possible) size of the generated list,
   -- if it is known, the second argument can be any size (i.e. we
   -- should pick a random number until we get the count we want).
-  | SelectedMany (Maybe Int) [SelectedManyF ch ca a]
+  | SelectedMany (Maybe [SelectedPathF ch ca a]) [SelectedManyF ch ca a]
   | SelectedLoop [SelectedPathF ch ca a]
   deriving (Functor, Foldable, Traversable, Generic)
 
@@ -228,12 +227,15 @@ instance ( Functor ch, PP (ch Doc)
   ppPrec n p = 
     case p of
       SelectedHole       -> "□"
+      SelectedNode p'    -> "<<" <> pp p' <> ">>"
       SelectedBytes _ bs -> pp bs
       SelectedDo {}      -> "do" <+> ppStmts' p
       SelectedChoice ch ->
           wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
       SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
+      SelectedMany _m_structural _els -> "SelectedMany" -- FIXME
+      SelectedLoop els -> brackets (sep (punctuate ", " (map pp els)))
 
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)

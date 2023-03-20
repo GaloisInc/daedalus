@@ -488,7 +488,7 @@ summariseMany preds sem bt lb m_ub g = do
   -- We have to squash as we don't yet support disjunctive domains.
   squashDomain' "summariseMany" resD
   where
-    mkLoop lb' m_ub' str sl = SLoop (ManyLoop sem bt lb' m_ub' (str, sl))
+    mkLoop lb' m_ub' str sl = SLoop str (ManyLoop sem bt lb' m_ub' sl)
 
     -- Used to construct the Structural slice, if any
     mkStructural gs =
@@ -558,7 +558,7 @@ summariseLoop preds lcl =
       --  * gD is the domain without matching
       (gss, gD) <- gssFixpoint n g preds
       
-      let mkSlice e' str g' = SLoop (RepeatLoop bt n e' (str, g'))
+      let mkSlice e' str g' = SLoop str (RepeatLoop bt n e' g')
           eHole = EHole (typeOf n)
           mkGS (gs, m_p) =
             let (enve, sle) = absPre' (typeOf n) m_p e
@@ -578,7 +578,7 @@ summariseLoop preds lcl =
       (gss, gD) <- gssFixpoint n g preds
       
       let mkSlice e' lc' str g' =
-            SLoop (MorphismLoop (FoldMorphism n e' lc' (str, g')))
+            SLoop str (MorphismLoop (FoldMorphism n e' lc' g'))
                  
           (gssNoPred, gD') = domainElements gD
           gss' = map (, Nothing) gssNoPred ++ gss
@@ -605,7 +605,7 @@ summariseLoop preds lcl =
     MorphismLoop (MapMorphism lc g) -> do
       gD <- summariseG (mapMaybe absPredListElement preds) g
       
-      let mkSlice lc' str g' = SLoop (MorphismLoop (MapMorphism lc' (str, g')))
+      let mkSlice lc' str g' = SLoop str (MorphismLoop (MapMorphism lc' g'))
           (gss, gD') = domainElements gD
           
           mkGS gs =
