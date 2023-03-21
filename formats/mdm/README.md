@@ -4,7 +4,8 @@ MORA Data Messages (MDM) Parser
 This directory contains a parser for much of the MORA Data Messages
 (MDM) format, version 2.4, as specified in by Chapter 6 ("MORA DATA
 MESSAGING") and related chapters of the Modular Open RF Architecture
-Draft Specification, version 2.4, published March 1, 2021.
+Draft Specification, version 2.4, published March 1, 2021. A copy is
+included in `spec/`.
 
 Status
 ------
