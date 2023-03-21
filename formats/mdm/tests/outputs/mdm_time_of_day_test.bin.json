@@ -1,0 +1,15 @@
+{
+  "header": {
+    "ack": "NULL",
+    "destinationMui": 568,
+    "msgType": "TimeOfDay",
+    "numDataMessages": 1,
+    "originMui": 49156,
+    "seqNumber": 235,
+    "versionMajor": 2,
+    "versionMinor": 3
+  },
+  "message": {
+    "timeOfDayField": "Fri, 13 Feb 2009 23:31:30 +0000"
+  }
+}
