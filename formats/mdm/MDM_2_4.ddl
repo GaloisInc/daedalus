@@ -481,20 +481,20 @@ def Body_Switch_Group_User_ID_s =
 
 -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
 bitdata Identifier_Triple where
-  type: uint 3
-  device_id: ID_Device_Type
+  type: ID_Device_Type
+  device_id: uint 6
   signal_port_id: uint 7
 
 -- See 6.3.1.2.4: VRT Stream ID, ID-Device Types table
 bitdata ID_Device_Type where
   -- Other
-  DTy_OTH = 0x0: uint 6
+  DTy_OTH = 0x0: uint 3
   -- MORA Radiohead
-  DTy_RHD = 0x1: uint 6
+  DTy_RHD = 0x1: uint 3
   -- MORA RF Conditioning and Distribution
-  DTy_RCD = 0x2: uint 6
+  DTy_RCD = 0x2: uint 3
   -- MORA Software Defined Radio
-  DTy_SDR = 0x3: uint 6
+  DTy_SDR = 0x3: uint 3
 
 -- All possible message body structures corresponding to supported
 -- message types.
