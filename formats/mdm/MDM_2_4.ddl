@@ -131,17 +131,17 @@ def MDM_Body (ty: MDM_Type) =
 
     -- See 6.3.6: MDM Command Message (Type 6) Specification
     Type_Command ->
-      block
-        let command_field = BEUInt32 as? Command_Command_Field
-        let configuration_field = BEUInt32
-        let waveform_op_field = BEUInt32
-        {| Body_Command = { command = command_field,
-                            configuration = configuration_field,
-                            waveform_operation = waveform_op_field } |}
+      {| Body_Command = Body_Command |}
 
     -- See 6.3.7: MDM Switch Group User ID Message (Type 7) Specification
     Type_Switch_Group_User_ID ->
       Parse_Body_Switch_Group_User_ID
+
+def Body_Command: Body_Command_s =
+  block
+    command = BEUInt32 as? Command_Command_Field
+    configuration = BEUInt32
+    waveform_operation = BEUInt32
 
 -- See 6.3.1.2.1: VRT Message Format
 def VRT_Message: MDM_Body_u =
