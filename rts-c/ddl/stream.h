@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <boost/context/fiber.hpp>
 
-#include <ddl/number.h>
-
 #include <ddl/boxed.h>
 #include <ddl/size.h>
 #include <ddl/number.h>
@@ -17,7 +15,6 @@ namespace ctx=boost::context;
 
 /// Deallocate buffers using delete[]
 using DeleteNewAlloc = std::default_delete<const char[]>;
-
 
 /// The data source for a stream
 template <typename Del = DeleteNewAlloc>
@@ -82,7 +79,7 @@ class StreamData : HasRefs {
     /// Assumes: offset < size
     UInt<8> elementAt(Size offset) const {
       assert(offset < size);
-      return DDL::UInt<8>(buffer[offset.rep()]);
+      return UInt<8>(buffer[offset.rep()]);
     }
 
     /// Add an extra reference.
@@ -143,21 +140,19 @@ class StreamData : HasRefs {
     }
 
     /// Append a new chunk of data to the stream.
-    /// If the size is 0 terminates the stream.
+    /// Ignores buffers of size 0, so if you do this, either pass nullptr
+    /// for cbuffer, or deallocate it yourself.
     /// Owns this.
-    /// Assume: isTerminal() && !isEmpty()
+    /// Assume: isTerminal() && !isEmpty() && thunk != nullptr
     /// @return An owned reference to the new end of the stream.
     /// Assert: return != nullptr
     template <typename D>
     Chunk* append(Size csize, const char *cbuffer, D&& del) {
-      assert (next == nullptr);
+      assert (isTerminal());
+      assert (!isEmpty());
       assert (thunk != nullptr);
-      assert (!*thunk);
 
-      if (csize == 0) {
-        buffer = emptyBuffer;
-        return this;
-      }
+      if (csize == 0) return this;
 
       size    = csize;
       buffer  = cbuffer;
@@ -165,6 +160,13 @@ class StreamData : HasRefs {
       next    = new Chunk(*thunk);
 
       return nextChunk();
+    }
+
+    /// Terminate the stream.
+    /// Assume: isTerminal()
+    void finish() {
+      assert(isTerminal());
+      buffer = emptyBuffer;
     }
   };
 
@@ -198,15 +200,17 @@ public:
 
   /// Owns this.
   /// Append new buffer.
+  /// Ignores buffers of size 0.
   /// The data stream is updated to point to the new end of stream.
-  /// If the size is 0, then marks the stream as terminated.
-  /// @param csize    Size of the new data.  If 0, then terminate the stream.
+  /// @param csize    Size of the new data.
   /// @param cbuffer  Data associate with the buffer.
   /// @param del      How to deallocate the data when we are done with it.
   template <typename D = Del>
   void appendMut(Size csize, const char *cbuffer, D&& del = Del()) {
     front = front->append<D>(csize, cbuffer, std::forward<D>(del));
   }
+
+  void finishMut() { front->finish(); }
 
   /// Try to fill a terminal node with data.
   /// Owns this.
@@ -414,6 +418,59 @@ public:
   }
 
 };
+
+
+/// Encapsulates the interaction between a parser and a separate corouting
+/// that fills the parser's data stream.
+template <typename Del = DeleteNewAlloc>
+class ParserThread {
+  ctx::fiber       context;   /// The context of the suspended party.
+  StreamData<Del>  data;      /// The data stream to be parserd.
+  bool             done;      /// Is the parser finished parsing.
+
+public:
+
+  /// Initialize the data stream.
+  ParserThread()
+    : data(StreamData<Del>(context))
+    , done(false)
+    {}
+
+  ~ParserThread() { data.free(); }
+
+  /// Run the parser.  The parser is abstracted by `Fn` which
+  /// will be called with a stream argument corresponding to the current stream.
+  template <typename Fn>
+  void start( Fn &&parser ) {
+    context = ctx::fiber([this,parser] (ctx::fiber &&top) {
+      context = std::move(top);
+      data.copy();
+      parser(Stream(data));
+      done = true;
+      return std::move(context);
+    });
+    resume();
+  }
+
+  /// Resume the parser, after it had suspended 
+  /// Should only be run *after* `start`.
+  /// Assumes: !isDone()
+  void resume() { context = std::move(context).resume(); }
+
+  /// Check if the parser has finished parsing.
+  bool isDone() const { return done; }
+
+  /// Provide more data to the parser.
+  template <typename D = Del>
+  void append(size_t csize, const char* bytes, D&& del = Del()) {
+    data.appendMut(csize, bytes, std::forward<D>(del));
+  }
+
+  /// Terminate the data stream.
+  void finish() { data.finishMut(); }
+};
+
+
 
 
 }
