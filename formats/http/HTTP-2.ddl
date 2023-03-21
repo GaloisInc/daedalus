@@ -10,7 +10,7 @@ import Daedalus
 def HTTP2_frame =
   block
     -- Length (24 bits)
-    len = UInt24
+    len = BEUInt24
 
     -- Type (8 bits) and flags (8 bits)
     type = Frame_Type
@@ -480,7 +480,7 @@ def Settings_Identifier =
 -- Utilities
 --------------------------------------------------------------------------------
 
-def UInt24: uint 24 =
+def BEUInt24: uint 24 =
   block
     let b0 = UInt8
     let b1 = UInt8
