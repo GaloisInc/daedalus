@@ -3,6 +3,9 @@
 #include <cassert>
 #include <memory>
 #include <algorithm>
+#include <boost/context/fiber.hpp>
+
+#include <ddl/number.h>
 
 #include <ddl/boxed.h>
 #include <ddl/size.h>
@@ -10,267 +13,407 @@
 
 namespace DDL {
 
-using DefaultDeleter = std::default_delete<const char[]>;
+namespace ctx=boost::context;
 
-template <typename Del>
-class Stream;
+/// Deallocate buffers using delete[]
+using DeleteNewAlloc = std::default_delete<const char[]>;
 
-// The data source for a stream
-template <typename Del = DefaultDeleter>
+
+/// The data source for a stream
+template <typename Del = DeleteNewAlloc>
 class StreamData : HasRefs {
 
   class Chunk: Del, HasRefs {
-    Size       size;
-    RefCount   ref_count;
-    const char *buffer;
-    Chunk      *next;
+    Size        size;         // Amount of data in this chunk
+    RefCount    ref_count;    // Number of references to this chunk
+    const char* buffer;       // Data for the chunk  (nullable)
+    Chunk*      next;         // Next chunk, if any  (nullable)
+    ctx::fiber* thunk;        // Where to get more data.
+                              // Only meaningful on a terminal thunk
 
-    // Deallocate data associated with the current node
-    // Does not mess with `next`.
-    void freeThis() {
-      if (buffer != nullptr && buffer != emptyStreamBuffer) {
+    // A marker for a terminal empty buffer.
+    // If `buffer` points to this then this stream is finished and cannot
+    // get any more data.
+    inline static const char *emptyBuffer = "";
+
+    /// Deallocate the current node.
+    /// @return A pointer to the next node, if any.
+    Chunk* freeThis() {
+      Chunk *res = next;
+      if (buffer != nullptr && buffer != emptyBuffer)
         (*static_cast<Del*>(this))(buffer);
-      }
       delete this;
+      return res;
     }
-
-    // Terminator marker
-    inline static char emptyStreamBuffer[1];
-
 
   public:
 
-
-    // Make an empty or a thunk chunk
-    Chunk(bool empty)
+    /// Make an empty, non-extensible buffer.
+    Chunk()
       : size(0)
       , ref_count(1)
-      , buffer(empty ? emptyStreamBuffer : nullptr)
-      , next(nullptr) {}
+      , buffer(emptyBuffer)
+      , next(nullptr)
+      , thunk(nullptr)
+      {}
 
-    // (borrow this) Is this a special last entry in a the data stream
+
+    /// Make an extensible buffer with no data.
+    /// @param getData The context that will provide more data.
+    Chunk(ctx::fiber &getData)
+      : size(0)
+      , ref_count(1)
+      , buffer(nullptr)
+      , next(nullptr)
+      , thunk(&getData)
+      {}
+
+    /// @return `true` if there are no more chunks after this.
     bool isTerminal () const { return next == nullptr; }
 
-    // (borrow this) Is this a thunk (i.e., may be extended)
-    bool isThunk ()    const { return buffer == nullptr; }
+    /// @return `true` if we are a finished chunk with no more data.
+    bool isEmpty()     const { return buffer == emptyBuffer; }
 
-    // (borrow this) The size of *this* chunk of stream.
-    Size getSize() const { return size; }
+    /// @return The size of *this* chunk of stream.
+    Size getChunkSize() const { return size; }
 
-    // (borrow this)
-    // Assumes offset < size
+    /// @param offset  Offset of the element we want.
+    /// @return        Element at the given offset of the *current* chunk.
+    /// Assumes: offset < size
     UInt<8> elementAt(Size offset) const {
       assert(offset < size);
       return DDL::UInt<8>(buffer[offset.rep()]);
     }
 
-
-    // Add an extra reference.
+    /// Add an extra reference.
     void copy() { ++ref_count; }
 
+    /// Remove a reference.
+    /// Owns this.
     void free() {
       for (auto p = this; p != nullptr;) {
         if (p->ref_count > 1) { --(p->ref_count); return; }
-        auto next = p->next;
-        p->freeThis();
-        p = next;
+        p = p->freeThis();
       }
     }
 
-    // (owns this)
-    // Assumes: not on a terminal node
-    // Returns an *owned* reference to the next node.
+    /// Assume: !isTerminal()
+    /// Owns this.
+    /// @return An ownded reference to the next chunk.
+    /// Assert: return != nullptr
     Chunk* nextChunk() {
       assert(!isTerminal());
 
-      auto res = next;
       if (ref_count > 1) {
         --ref_count;
-        ++(res->ref_count);
+        ++(next->ref_count);
+        return next;
       } else
-        freeThis();
-      return res;
+        return freeThis();
     }
 
-    void dump() {
+    /// May suspend execution.
+    /// Assumes: isTerminal()
+    /// Owns this.
+    /// @return returns `true` if we got new data.
+    bool tryGetData() {
+
+      if (!isTerminal()) return true;
+
+      while (isTerminal()) {
+        if (isEmpty()) return false;
+        *thunk = std::move(*thunk).resume();
+      }
+
+      return true;
+    }
+
+    /// Debug view of the chunks.
+    void dump() const {
       for (auto p = this; p != nullptr; p = p->next) {
         std::cout
           << "[" << p->ref_count
           << "|" << (void*) p
           << "|";
-        if (p->buffer == nullptr) std::cout << "thunk"; else
-        if (p->buffer == emptyStreamBuffer) std::cout << "empty"; else
+        if (p->buffer == nullptr)     std::cout << "thunk"; else
+        if (p->buffer == emptyBuffer) std::cout << "empty"; else
           std::cout << (void*)p->buffer;
         std::cout << "]\n";
       }
     }
 
-
-    // (owns this)
-    // Append a new chunk of data to the stream
-    // Assumes: we are at the last chunk, which is a thunk.
-    // If the buffer is empty, then mark the stream as finished.
-    // Returns an owned pointer to the new end of the stream.
+    /// Append a new chunk of data to the stream.
+    /// If the size is 0 terminates the stream.
+    /// Owns this.
+    /// Assume: isTerminal() && !isEmpty()
+    /// @return An owned reference to the new end of the stream.
+    /// Assert: return != nullptr
     template <typename D>
     Chunk* append(Size csize, const char *cbuffer, D&& del) {
-
-      assert(isThunk());
+      assert (next == nullptr);
+      assert (thunk != nullptr);
+      assert (!*thunk);
 
       if (csize == 0) {
-        buffer = emptyStreamBuffer;
+        buffer = emptyBuffer;
         return this;
       }
 
-      size   = csize;
-      buffer = cbuffer;
+      size    = csize;
+      buffer  = cbuffer;
       *static_cast<Del*>(this) = std::forward<D>(del);
-      next   = new Chunk(false);
+      next    = new Chunk(*thunk);
 
       return nextChunk();
     }
   };
 
+
   // ------------------------------------------ //
 
-  Chunk *front;
-  StreamData(Chunk *f) : front(f) {}
+  Chunk* front;       /// The front of the data.
+                      /// Invariant: front != nullptr
 
 public:
 
-  StreamData(bool empty = false) : front(new Chunk(empty)) {}
+  /// Make a new non-extensible stream empty stream.
+  StreamData() : front(new Chunk())  {}
 
-  bool isTerminal ()             const { return front->isTerminal(); }
-  bool isThunk ()                const { return front->isThunk(); }
-  Size getChunkSize()            const { return front->getSize(); }
-  UInt<8> elementAt(Size offset) const { return front->elementAt(offset); }
+  /// Make a new extensible empty stream.
+  StreamData(ctx::fiber &getData) : front(new Chunk(getData))  {}
 
-  // Owns this
-  // Append new buffer or terminal stream, if csize = 0
-  // The data stream is updated to point to the new end of stream.
+  /// @return `true` if there is currently no data in the stream.
+  bool isTerminal ()  const { return front->isTerminal(); }
+
+  /// @return The size of the first chunk in the data.
+  Size getChunkSize() const { return front->getChunkSize(); }
+
+  /// Assume: offset < getChunkSize()
+  /// @param  offset  The offset of the element we are interested in.
+  /// @return         The element at the given offset in the *current* chunk.
+  UInt<8> elementAt(Size offset) const {
+    assert(offset < getChunkSize());
+    return front->elementAt(offset);
+  }
+
+  /// Owns this.
+  /// Append new buffer.
+  /// The data stream is updated to point to the new end of stream.
+  /// If the size is 0, then marks the stream as terminated.
+  /// @param csize    Size of the new data.  If 0, then terminate the stream.
+  /// @param cbuffer  Data associate with the buffer.
+  /// @param del      How to deallocate the data when we are done with it.
   template <typename D = Del>
   void appendMut(Size csize, const char *cbuffer, D&& del = Del()) {
     front = front->append<D>(csize, cbuffer, std::forward<D>(del));
   }
 
-  // Owns this
-  // Assume: !isTerminal()
-  // Advance to the next chunk
+  /// Try to fill a terminal node with data.
+  /// Owns this.
+  /// May suspend.
+  /// @return `true` if more data was available, or `false` if no more data.
+  bool tryGetData() {
+    assert(isTerminal());
+    front->tryGetData();
+    return !front->isEmpty();
+  }
+
+  /// Advance to the next chunk.
+  /// Owns this.
+  /// Assumes: !isTerminal()
   void nextChunkMut() { front = front->nextChunk(); }
 
+  /// Add an extrea reference.
   void copy() { front->copy(); }
+
+  /// Remove a reference.
+  /// Owns this.
   void free() { front->free(); }
-  void dump() { front->dump(); }
+
+  /// Debug dump of the available data.
+  void dump() const { front->dump(); }
 };
 
 
+// -----------------------------------------------------------------------------
 
 
-
-
-
-template <typename Del = DefaultDeleter>
+template <typename Del = DeleteNewAlloc>
 class Stream : HasRefs {
 
-  StreamData<Del> front;  // Front of the stream (not null).
+  StreamData<Del> data;
+  /// The data backing this stream.
 
   Size chunk_offset;
-  // Offset of the beginning of this chunk relative to the start of the stream.
+  /// Offset of the *beginning of the data, relative to the start of the stream.
 
   Size offset;
-  // Offset relative to the current chunk
+  /// Offset relative to the current chunk.
+  /// Invariant: chunk_size == 0 || offset < chunk_size
 
   Size chunk_size;
-  // How much of the chunk is available to us.
-  // This is used to restrict the last chunk of a take.
+  /// How much of the chunk is available to us.
+  /// This may be less then the size of the chunk, if we have restricted
+  /// the stream.
 
-  Size max_size;
+  Size last_offset;
+  /// The offset at the end of the stream.
+  /// We are only allowed to read at smaller offsets.
 
+
+  /// Do this when this stream is known to be empty to
+  /// let go of the underlying stream
   void makeEmpty() {
+    data.free();
+    data         = StreamData<Del>();
     chunk_offset = getOffset();
-    front.free();
-    front = StreamData(true);
-    offset = 0;
-    chunk_size = 0;
-    max_size = 0;
+    offset       = 0;
+    chunk_size   = 0;
   }
 
 
-  void skipDropped() {
-
-    if (chunk_size == 0 && !front.isTerminal()) {
-      chunk_size = front.getChunkSize();
-      if (chunk_size > max_size) chunk_size = max_size;
-    }
-
-    while (!front.isTerminal() && offset >= chunk_size) {
-      offset.decrementBy(chunk_size);
-      chunk_offset.incrementBy(chunk_size);
-      front.nextChunkMut();
-      chunk_size = front.getChunkSize();
-    }
-
-    if (front.isTerminal()) {
-      if (!front.isThunk()) max_size = 0;
-      return;
-    }
-
-    if (chunk_size > max_size) chunk_size = max_size;
+  /// Adjust metadata after going to the next chunk.
+  /// @param: global The global offset.
+  /// Assumes: !data.isTerminal()
+  void advance(Size global) {
+    chunk_offset = global;
+    offset       = 0;
+    chunk_size   = data.getChunkSize();
+    Size have    = last_offset.decrementedBy(global);
+    if (chunk_size > have) chunk_size = have;
   }
+
 
 public:
 
-  // (owns data)
-  // Make a new stream using the given data source, starting at offset 0.
+  /// Make a new stream using the given data source, starting at offset 0.
+  /// @param data  The data to back the stream.  Owned.
   Stream (StreamData<Del> data)
-    : front(data)
+    : data(data)
     , chunk_offset(0)
     , offset(0)
     , chunk_size(data.getChunkSize())
-    , max_size(Size::maxValue())
+    , last_offset(Size::maxValue())
   {}
 
-  void copy() { front.copy(); }
-  void free() { front.free(); }
-  void dump() { front.dump(); }
+  /// Add an extre reference.
+  void copy()       { data.copy(); }
 
-  // Return the current offset, relative to the beginning of the stream.
-  // (borrow this)
-  Size getOffset() const { return chunk_offset.incrementedBy(offset); }
+  /// Remove a reference.
+  /// Owns this.
+  void free()       { data.free(); }
 
-  // Is this a known empty stream.
-  // Note that !isEmpty() *DOES NOT* imply *hasDasta()* as we may be at a thunk
-  bool isEmpty() const { return max_size == 0; }
+  /// Debug dump of the data in stream.
+  /// XXX: Currently this dumps *all* data, ignoring `last_offset`.
+  void dump() const { data.dump(); }
 
-  // Does the stream contain any data that can be consumed
-  bool hasData() {
-    if (offset < chunk_size) return true;  // common case
-    if (isEmpty()) return false;
-
-    skipDropped();
-    return offset < chunk_size;
+  /// @return the current offset, relative to the beginning of the stream.
+  Size getOffset() const {
+    return chunk_offset.incrementedBy(offset);
   }
 
-  // Return the front element of the stream
-  // assume: hasData()
-  UInt<8> head() { return front.elementAt(offset); }
+  /// Check to see if the stream is empty.
+  /// May suspend.
+  /// @return `true` if the stream contains no data,
+  ///                and won't be getting any more.
+  bool isEmpty() {
+    if (offset < chunk_size) return false;  // common case
 
-  // Advance the current offset by this much.
-  void dropMut(Size n) {
-    if (n >= max_size) { makeEmpty(); return; }
-    offset.incrementBy(n);
-    max_size.decrementBy(n);
-    skipDropped();
+    Size global = getOffset();
+    if (global >= last_offset) return true;
+
+    if (!data.isTerminal()) data.nextChunkMut();
+
+    if (!data.tryGetData()) return true;
+
+    advance(global);
+    return false;
   }
 
-  void takeMut(Size n) {
-    if (n >= max_size) return;
-    max_size = n;
-    if (max_size == 0) { makeEmpty(); return; }
+  /// Assume: !isEmpty()
+  /// @return The front element of the stream.
+  UInt<8> iHead() const {
+    return data.elementAt(offset);
   }
 
+  /// Advance the current offset by this much.
+  /// Mutable own this.
+  /// @param nHow many bytes to advance by.
+  /// @return How many bytes were NOT dropped. If all requested
+  ///         bytes were dropped reutrns 0, but if the data run out before then
+  ///         it will return how many bytes still needed to be dropped.
+  Size iDropMut(Size n) {
+
+    while (n > 0 && !isEmpty()) {
+
+      Size have = chunk_size.decrementedBy(offset);
+      if (n < have) {
+        offset.incrementBy(n);
+        return 0;
+      } else {
+        if (n == have) {
+          Size global = getOffset();
+          if (global == last_offset)
+            makeEmpty();
+          else {
+            data.nextChunkMut();
+            advance(global);
+          }
+          return 0;
+        } else {
+          offset.incrementBy(have);
+          n.decrementedBy(have);
+        }
+      }
+    }
+    assert(false);
+  }
+
+  /// Restrict the stream to at most the given number of bytes.
+  /// Note that this does *not* ensure that the given number of bytes
+  /// is present in the stream, only that we won't consume more than this much.
+  /// Mutable owns this.
+  /// @param n Limit the stream to this many bytes.
+  void iTakeMut(Size n) {
+    Size global = getOffset();
+    Size have   = last_offset.decrementedBy(global);
+    if (n >= have) return;
+
+    last_offset = global.incrementedBy(n);
+    if (offset == last_offset) {
+        makeEmpty();
+        return;
+    }
+    have = last_offset.decrementedBy(chunk_offset);
+    if (chunk_size > have) chunk_size = have;
+  }
+
+  /// Create a new stream that is the same as the current one,
+  /// except it won't consume more than the given number of bytes.
+  /// Owns this.
+  /// @param n  How many bytes is the limit.
+  /// @return   A new stream with the requested restriction.
+  Stream iTake(Size n) const {
+    Stream res(*this);
+    res.iTakeMut(n);
+    return res;
+  }
+
+  /// Create a new stream by skipping some bytes from the current stream.
+  /// If the underlying data backing the stream has less data than we drop,
+  /// then we only drop to the end of the data.
+  /// Owns this.
+  /// May suspend.
+  /// @param n    How many bytes to skip.
+  /// @return     A new stream advanced by the requested amount, or less
+  ///             if the data runs out.
+  Stream iDrop(Size n) const {
+    Stream res(*this);
+    res.iDropMut(n);
+    return res;
+  }
 
 };
 
 
 }
-
