@@ -112,7 +112,7 @@ def MDM_Body (ty: MDM_Type) =
     -- See 6.3.2: MDM Acknowledgement Message (Type 2) Specification
     -- Acknowledgement messages have no body.
     Type_Acknowledgement info ->
-      ^ {| Body_Acknowledgement = { } |}
+      {| Body_Acknowledgement |}
 
     -- See 6.3.3: MDM Time of Day Message (Type 3) Specification
     Type_Time_Of_Day ->
@@ -150,7 +150,7 @@ def VRT_Message: MDM_Body_u =
     -- VRT_Packet_Payload -- M
     -- VRT_Trailer -- Packet dependent
 
-    ^ {| Body_VRT = { } |}
+    {| Body_VRT |}
 
 -- See 6.3.1.2.2: VRT Prologue
 def VRT_Prologue =
