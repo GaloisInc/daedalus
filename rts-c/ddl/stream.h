@@ -276,10 +276,10 @@ class Stream : HasRefs {
   }
 
 
-  /// Adjust metadata after going to the next chunk.
+  /// Adjust metadata after reaching a new chunk.
   /// @param: global The global offset.
   /// Assumes: !data.isTerminal()
-  void advance(Size global) {
+  void atNewChunk(Size global) {
     chunk_offset = global;
     offset       = 0;
     chunk_size   = data.getChunkSize();
@@ -330,7 +330,7 @@ public:
 
     if (!data.tryGetData()) return true;
 
-    advance(global);
+    atNewChunk(global);
     return false;
   }
 
@@ -355,22 +355,18 @@ public:
         offset.incrementBy(n);
         return 0;
       } else {
-        if (n == have) {
-          Size global = getOffset();
-          if (global == last_offset)
-            makeEmpty();
-          else {
-            data.nextChunkMut();
-            advance(global);
-          }
-          return 0;
-        } else {
-          offset.incrementBy(have);
-          n.decrementedBy(have);
+        offset.incrementBy(have);
+        Size global = getOffset();
+        if (global == last_offset) {
+          makeEmpty();
+          break;
         }
+        data.nextChunkMut();
+        atNewChunk(global);
+        n.decrementBy(have);
       }
     }
-    assert(false);
+    return n;
   }
 
   /// Restrict the stream to at most the given number of bytes.
