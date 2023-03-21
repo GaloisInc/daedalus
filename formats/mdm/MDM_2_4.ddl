@@ -19,8 +19,7 @@ def MDM =
 def MDM_Header =
   block
     -- See 6.1.2.1.1, MDM Preamble
-    -- "MDM"
-    Match [0x4d, 0x44, 0x4d]
+    Match "MDM"
 
     -- Ack octet, multiple meanings.
     --
