@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <memory>
-#include <algorithm>
 #include <boost/context/fiber.hpp>
 
 #include <ddl/boxed.h>
