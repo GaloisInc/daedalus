@@ -45,6 +45,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html">Control Structures</a></li>
@@ -168,7 +169,7 @@ implementation dependent, but will attempt to do something reasonable.</p></li>
 information. If this holds, behaviour is identical to the lossless version of
 <code class="docutils literal notranslate"><span class="pre">as</span></code>. Otherwise, the coercion fails and backtracks.</p></li>
 </ul>
-<p>Note that <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> are values, and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> is a parser.
+<p>Note that <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code> and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as!</span> <span class="pre">T</span></code> are values, and <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> is a parser.
 This is because <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as?</span> <span class="pre">T</span></code> can fail and backtrack, which is only meaningful
 in parser expressions.</p>
 </section>
