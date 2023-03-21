@@ -175,7 +175,6 @@ runDaedalus inFile m_invFile m_entry = daedalus $ do
 
   passSpecialize specMod ((mm, entryName) : extras)
   passCore specMod
-  passNoLoops specMod -- FIXME
   passStripFail specMod
   passSpecTys specMod
   passConstFold specMod

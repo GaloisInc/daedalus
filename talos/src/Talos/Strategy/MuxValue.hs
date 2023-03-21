@@ -14,6 +14,8 @@
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
+--
+-- This is comied and modified from SemiExpr
 
 module Talos.Strategy.MuxValue where
 
@@ -551,6 +553,8 @@ semiExecExpr expr =
             pure $ mapMaybe (\g -> refine g v) (NE.toList gs)
       els <- concat <$> mapM mk1 ms
       hoistMaybe (unions' els)
+
+    -- ELoop lm     -> semiExecLoop lm
         
     Ap0 op       -> pure (vValue mempty $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
@@ -566,7 +570,40 @@ semiExecExpr expr =
     ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
   where
     rty = typeOf expr
-    
+
+-- semiExecLoop :: (MonadIO m, Monad m, HasGUID m) => LoopMorphism' Expr Expr -> SemiSolverM m GuardedSemiSExprs
+-- semiExecLoop lm =
+--   case lm of
+--     FoldMorphism n e lc b -> do
+--       e_v  <- semiExecExpr e
+--       (els, bindIn, _mk) <- goLC lc
+--       let goOne acc el = bindNameIn n acc (bindIn el (semiExecExpr b))
+--       foldlM goOne e_v els
+--     MapMorphism lc b -> do
+--       (els, bindIn, mk) <- goLC lc
+--       let goOne el = (,) (fst el) <$> bindIn el (semiExecExpr b)
+--       mk <$> traverse goOne els
+--   where
+--     goLC lc = do
+--       lcv <- semiExecExpr (lcCol lc)
+
+--       let k_bind = maybe (const id) bindNameIn (lcKName lc)
+--           bindIn (kv, ev) = k_bind kv . bindNameIn (lcElName lc) ev
+
+--           mkA = zip (map (VValue . V.vSize) [0..])
+--           (els, mk) = case lcv of
+--             VValue (V.VArray vs) -> ( mkA (map VValue (toList vs))
+--                                    , VSequence False . map snd
+--                                     )
+                                    
+--             -- FIXME: this chooses an order
+--             VValue (V.VMap m)  -> ( [ (VValue k, VValue v) | (k, v) <- Map.toList m ], VMap )
+--             -- isBldr should probably always be False as we don't iterate over builders.
+--             VSequence isBldr vs -> (mkA vs, VSequence isBldr . map snd)
+--             VMap vs -> (vs, VMap)
+--             _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
+--       pure (els, bindIn, mk)
+
 semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
                GuardedSemiSExprs ->
                SemiSolverM m GuardedSemiSExprs

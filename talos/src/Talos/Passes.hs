@@ -12,9 +12,13 @@ import qualified Data.Text as Text
 import Daedalus.PP (showPP)
 import Control.Monad (zipWithM)
 
+import Talos.Passes.LiftExpr (liftExprM)
+
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
-allPassesM _entry m = nameBoundExprM (removeUnitsM m) >>= nameMatchResultsM  >>= pure . normM
-                     -- >>= inlineModule [entry]
+allPassesM _entry m = liftExprM (removeUnitsM m) >>=
+                      nameBoundExprM >>=
+                      nameMatchResultsM >>=
+                      pure . normM
 
 -- ----------------------------------------------------------------------------------------
 -- Name non-variable bound expressions
@@ -141,4 +145,3 @@ nameMatchResultsG _isTop gram = do
         _ -> pure gram'
 
     bindMatch x arr rhs = Let x arr $ Do_ (Match SemNo (MatchBytes (Var x))) rhs
-

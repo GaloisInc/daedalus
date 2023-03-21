@@ -69,6 +69,7 @@ library
                      , Talos.Synthesis
 
                      , Talos.Passes
+                     , Talos.Passes.LiftExpr
 
                      , Talos
                      -- , Machine
