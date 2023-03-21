@@ -276,63 +276,45 @@ def Body_Switch_Group_User_ID: Body_Switch_Group_User_ID_s =
 
 -- See 6.3.4: MDM Signal Port User ID Message (Type 4) Specification
 def Parse_Body_Signal_Port_User_ID: MDM_Body_u =
- block
-   let signal_port_resource_id = BEUInt16 as? Identifier_Triple
-   let user_id = BEUInt16 as? Identifier_Triple
+  {| Body_Signal_Port_User_ID = Body_Signal_Port_User_ID |}
 
-   let user_ml2b_command_ip_address_field_1 = BEUInt32
-   let user_ml2b_command_ip_address_field_2 = BEUInt32
-   let user_ml2b_command_ip_address_field_3 = BEUInt32
-   let user_ml2b_command_ip_address_field_4 = BEUInt32
+def Body_Signal_Port_User_ID: Body_Signal_Port_User_ID_s =
+ block
+   signal_port_resource_id = BEUInt16 as? Identifier_Triple
+   user_id = BEUInt16 as? Identifier_Triple
+
+   user_ml2b_command_ip_address_field_1 = BEUInt32
+   user_ml2b_command_ip_address_field_2 = BEUInt32
+   user_ml2b_command_ip_address_field_3 = BEUInt32
+   user_ml2b_command_ip_address_field_4 = BEUInt32
 
    let user_ml2b_command_mac_3_to_6 = BEUInt32
    let user_ml2b_command_mac_1_2 = BEUInt16
-   let user_ml2b_command_mac =
+   user_ml2b_command_mac =
      user_ml2b_command_mac_1_2 # user_ml2b_command_mac_3_to_6
-   let user_ml2b_command_udp_port = BEUInt16
+   user_ml2b_command_udp_port = BEUInt16
 
-   let user_ml2b_signal_data_ip_address_field_1 = BEUInt32
-   let user_ml2b_signal_data_ip_address_field_2 = BEUInt32
-   let user_ml2b_signal_data_ip_address_field_3 = BEUInt32
-   let user_ml2b_signal_data_ip_address_field_4 = BEUInt32
+   user_ml2b_signal_data_ip_address_field_1 = BEUInt32
+   user_ml2b_signal_data_ip_address_field_2 = BEUInt32
+   user_ml2b_signal_data_ip_address_field_3 = BEUInt32
+   user_ml2b_signal_data_ip_address_field_4 = BEUInt32
+
    let user_ml2b_signal_data_mac_3_to_6 = BEUInt32
    let user_ml2b_signal_data_mac_1_2 = BEUInt16
-   let user_ml2b_signal_data_mac =
+   user_ml2b_signal_data_mac =
      user_ml2b_signal_data_mac_1_2 # user_ml2b_signal_data_mac_3_to_6
-   let user_ml2b_signal_data_udp_port = BEUInt16
+   user_ml2b_signal_data_udp_port = BEUInt16
 
-   let user_ml2b_context_ip_address_field_1 = BEUInt32
-   let user_ml2b_context_ip_address_field_2 = BEUInt32
-   let user_ml2b_context_ip_address_field_3 = BEUInt32
-   let user_ml2b_context_ip_address_field_4 = BEUInt32
+   user_ml2b_context_ip_address_field_1 = BEUInt32
+   user_ml2b_context_ip_address_field_2 = BEUInt32
+   user_ml2b_context_ip_address_field_3 = BEUInt32
+   user_ml2b_context_ip_address_field_4 = BEUInt32
+
    let user_ml2b_context_mac_3_to_6 = BEUInt32
    let user_ml2b_context_mac_1_2 = BEUInt16
-   let user_ml2b_context_mac =
+   user_ml2b_context_mac =
      user_ml2b_context_mac_1_2 # user_ml2b_context_mac_3_to_6
-   let user_ml2b_context_udp_port = BEUInt16
-
-   {| Body_Signal_Port_User_ID = {
-      signal_port_resource_id = signal_port_resource_id,
-      user_id = user_id,
-      user_ml2b_command_ip_address_field_1 = user_ml2b_command_ip_address_field_1,
-      user_ml2b_command_ip_address_field_2 = user_ml2b_command_ip_address_field_2,
-      user_ml2b_command_ip_address_field_3 = user_ml2b_command_ip_address_field_3,
-      user_ml2b_command_ip_address_field_4 = user_ml2b_command_ip_address_field_4,
-      user_ml2b_command_mac = user_ml2b_command_mac,
-      user_ml2b_command_udp_port = user_ml2b_command_udp_port,
-      user_ml2b_signal_data_ip_address_field_1 = user_ml2b_signal_data_ip_address_field_1,
-      user_ml2b_signal_data_ip_address_field_2 = user_ml2b_signal_data_ip_address_field_2,
-      user_ml2b_signal_data_ip_address_field_3 = user_ml2b_signal_data_ip_address_field_3,
-      user_ml2b_signal_data_ip_address_field_4 = user_ml2b_signal_data_ip_address_field_4,
-      user_ml2b_signal_data_mac = user_ml2b_signal_data_mac,
-      user_ml2b_signal_data_udp_port = user_ml2b_signal_data_udp_port,
-      user_ml2b_context_ip_address_field_1 = user_ml2b_context_ip_address_field_1,
-      user_ml2b_context_ip_address_field_2 = user_ml2b_context_ip_address_field_2,
-      user_ml2b_context_ip_address_field_3 = user_ml2b_context_ip_address_field_3,
-      user_ml2b_context_ip_address_field_4 = user_ml2b_context_ip_address_field_4,
-      user_ml2b_context_mac = user_ml2b_context_mac,
-      user_ml2b_context_udp_port = user_ml2b_context_udp_port
-      } |}
+   user_ml2b_context_udp_port = BEUInt16
 
 -- See 6.3.5: MDM Health Message (Type 5) Specification, Health Status
 -- Field #1 Format
