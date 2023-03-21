@@ -1,0 +1,12 @@
+{
+  "header": {
+    "ack": "Acknowledged",
+    "destinationMui": 567,
+    "msgType": "Acknowledge",
+    "numDataMessages": 0,
+    "originMui": 49155,
+    "seqNumber": 234,
+    "versionMajor": 2,
+    "versionMinor": 3
+  }
+}
