@@ -62,9 +62,8 @@ def ML2B_Interface_id =
 -- * 6.1.2.1.7: Number of messages
 def MDM_Type (raw_ack_byte: uint 8) =
   First
-    -- Parse the message type octet followed by the number of messages
-    -- octet, which has a fixed value corresponding to each message
-    -- type.
+    -- Parse the message type followed by the number of messages, which
+    -- has a fixed value corresponding to each message type.
     Type_VRT                  = @Match [0x0, 0x1, 0x0, 0x1]
     Type_Time_Of_Day          = @Match [0x0, 0x3, 0x0, 0x1]
     Type_Signal_Port_User_ID  = @Match [0x0, 0x4, 0x0, 0x1]
