@@ -271,8 +271,8 @@ choice facility in DaeDaLus allows us to express those formats with ease.
     ``|``; use whatever syntax is more comfortable for you. There is one major
     exception to this, which we'll address in the next section.
 
-Tagged Sum Types
-^^^^^^^^^^^^^^^^
+Tagged Sum Types in DaeDaLus: Unions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
@@ -280,23 +280,21 @@ branches, but this is limiting! What if, for example, we're parsing a format
 that allows strings or numbers to appear in the same place? As described so
 far, we can't handle this using biased or unbiased choice.
 
-Enter *sum types*.
+Enter *sum types*, called "unions" in DaeDaLus.
 
-In many programming languages, sum types are how we can describe a set of
-alternatives. They are a 'dual' to record types, which are also known as
-*product* types. Typically, the *variants* of a sum type are labeled with a
-*tag*, which may or may not carry some additional data of some other type.
+In many programming languages, *sum types* are how we can describe a set
+of alternatives. Typically, the *variants* of a sum type are labeled
+with a *tag* which may or may not carry some additional data of some
+other type. In DaeDaLus, such a sum type is called a *union* and the
+tags given to its alternatives are called *constructors*.
 
-As a simple example, we can think of the type ``bool`` as a sum type with
-two variants, both of which are simply tags: ``true`` and ``false``.
+As a simple example, the type ``bool`` is a union with two constructors:
+``true`` and ``false``.
 
-DaeDaLus allows us to return a tagged sum type using variations of the
-layout-based syntax described in the note above, similar to how we can
-build structures using parser sequencing. Note that we can't use the infix
-operators ``<|`` or ``|`` to accomplish this same goal; we *must* use
-``First`` and ``Choose``.
-
-As usual, this concept is best demonstrated by an example:
+DaeDaLus allows us to implicitly declare and return a union semantic
+value using variations of the layout-based syntax described in the note
+above, similar to how we can build structures using parser sequencing.
+To do this, we use ``First`` and ``Choose``. For example:
 
 .. code-block:: DaeDaLus
 
@@ -305,17 +303,15 @@ As usual, this concept is best demonstrated by an example:
         good = $['G']
         bad  = $['B']
 
-This parser returns a semantic value of a new tagged sum type named
-``GoodOrBad``, which has two variants whose tags are ``good`` and ``bad``; this
-is like parser sequencing that produces structures, except rather than each
-variable corresponding to a field, each corresponds to one of the variants of
-the sum type.
+This parser implicitly declares a new ``union`` called ``GoodOrBad``
+with two constructors, ``good`` and ``bad``. The parser returns a
+semantic value of type ``GoodOrBad``.
 
 .. note::
 
     You might wonder if, like sequencing earlier, there is some syntactic sugar
-    at play. Indeed, we can construct semantic values of tagged-sum types
-    explicitly, using a special "barbed wire" bracket:
+    at play. Indeed, we can construct semantic values of union types
+    explicitly, using a special bracket syntax, ``{| ... |}``:
 
     .. code-block:: DaeDaLus
 
@@ -352,6 +348,34 @@ the sum type.
     Note that, since all branches of ``First`` and ``Choose`` parsers must have
     the same type, we need only annotate the first branch's result. The type
     inferencer will take care of the rest.
+
+Unions can be declared explicitly and then used in parsers as an
+alternative to declaring and using unions implicitly with ``First`` or
+``Choose``. For example:
+
+.. code-block:: DaeDaLus
+
+    def GoodOrBadData =
+      union
+        good: {}
+        bad: {}
+
+    def GoodOrBad: GoodOrBadData =
+      First
+        block
+          $['G']
+          {| good |}
+        block
+          $['B']
+          {| bad |}
+
+In the example above, we've explicitly declared a union called
+``GoodOrBadData`` and we're returning semantic values of that type in
+the two parsers in ``GoodOrBad``. Taking this approach rather than
+implicitly declaring a union can be helpful when we need to declare a
+union in one place and construct its values in multiple places or when
+we need to return semantic values of a union somewhere other than a
+``First`` or ``Choose`` construct.
 
 With this set of rich type-constructing mechanisms, you can go forth and create
 many interesting format specifications with DaeDaLus. But, what happens when

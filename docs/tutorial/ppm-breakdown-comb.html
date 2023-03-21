@@ -54,7 +54,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#parsing-alternates">Parsing Alternates</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#biased-choice-parsing">Biased Choice Parsing</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#unbiased-choice-parsing">Unbiased Choice Parsing</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#tagged-sum-types">Tagged Sum Types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tagged-sum-types-in-daedalus-unions">Tagged Sum Types in DaeDaLus: Unions</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#repeating-parsers">Repeating Parsers</a></li>
@@ -332,42 +332,39 @@ and <code class="docutils literal notranslate"><span class="pre">Choose</span></
 exception to this, which we’ll address in the next section.</p>
 </div>
 </section>
-<section id="tagged-sum-types">
-<h3>Tagged Sum Types<a class="headerlink" href="#tagged-sum-types" title="Permalink to this heading"></a></h3>
+<section id="tagged-sum-types-in-daedalus-unions">
+<h3>Tagged Sum Types in DaeDaLus: Unions<a class="headerlink" href="#tagged-sum-types-in-daedalus-unions" title="Permalink to this heading"></a></h3>
 <p>Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
 branches, but this is limiting! What if, for example, we’re parsing a format
 that allows strings or numbers to appear in the same place? As described so
 far, we can’t handle this using biased or unbiased choice.</p>
-<p>Enter <em>sum types</em>.</p>
-<p>In many programming languages, sum types are how we can describe a set of
-alternatives. They are a ‘dual’ to record types, which are also known as
-<em>product</em> types. Typically, the <em>variants</em> of a sum type are labeled with a
-<em>tag</em>, which may or may not carry some additional data of some other type.</p>
-<p>As a simple example, we can think of the type <code class="docutils literal notranslate"><span class="pre">bool</span></code> as a sum type with
-two variants, both of which are simply tags: <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-<p>DaeDaLus allows us to return a tagged sum type using variations of the
-layout-based syntax described in the note above, similar to how we can
-build structures using parser sequencing. Note that we can’t use the infix
-operators <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> or <code class="docutils literal notranslate"><span class="pre">|</span></code> to accomplish this same goal; we <em>must</em> use
-<code class="docutils literal notranslate"><span class="pre">First</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose</span></code>.</p>
-<p>As usual, this concept is best demonstrated by an example:</p>
+<p>Enter <em>sum types</em>, called “unions” in DaeDaLus.</p>
+<p>In many programming languages, <em>sum types</em> are how we can describe a set
+of alternatives. Typically, the <em>variants</em> of a sum type are labeled
+with a <em>tag</em> which may or may not carry some additional data of some
+other type. In DaeDaLus, such a sum type is called a <em>union</em> and the
+tags given to its alternatives are called <em>constructors</em>.</p>
+<p>As a simple example, the type <code class="docutils literal notranslate"><span class="pre">bool</span></code> is a union with two constructors:
+<code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<p>DaeDaLus allows us to implicitly declare and return a union semantic
+value using variations of the layout-based syntax described in the note
+above, similar to how we can build structures using parser sequencing.
+To do this, we use <code class="docutils literal notranslate"><span class="pre">First</span></code> and <code class="docutils literal notranslate"><span class="pre">Choose</span></code>. For example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad</span> <span class="k">=</span>
   <span class="k">First</span>
     <span class="n">good</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
     <span class="n">bad</span>  <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
-<p>This parser returns a semantic value of a new tagged sum type named
-<code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code>, which has two variants whose tags are <code class="docutils literal notranslate"><span class="pre">good</span></code> and <code class="docutils literal notranslate"><span class="pre">bad</span></code>; this
-is like parser sequencing that produces structures, except rather than each
-variable corresponding to a field, each corresponds to one of the variants of
-the sum type.</p>
+<p>This parser implicitly declares a new <code class="docutils literal notranslate"><span class="pre">union</span></code> called <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code>
+with two constructors, <code class="docutils literal notranslate"><span class="pre">good</span></code> and <code class="docutils literal notranslate"><span class="pre">bad</span></code>. The parser returns a
+semantic value of type <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>You might wonder if, like sequencing earlier, there is some syntactic sugar
-at play. Indeed, we can construct semantic values of tagged-sum types
-explicitly, using a special “barbed wire” bracket:</p>
+at play. Indeed, we can construct semantic values of union types
+explicitly, using a special bracket syntax, <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">...</span> <span class="pre">|}</span></code>:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBad2</span> <span class="k">=</span>
   <span class="k">First</span>
     <span class="k">block</span>
@@ -400,6 +397,31 @@ guide the type inferencer:</p>
 the same type, we need only annotate the first branch’s result. The type
 inferencer will take care of the rest.</p>
 </div>
+<p>Unions can be declared explicitly and then used in parsers as an
+alternative to declaring and using unions implicitly with <code class="docutils literal notranslate"><span class="pre">First</span></code> or
+<code class="docutils literal notranslate"><span class="pre">Choose</span></code>. For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GoodOrBadData</span> <span class="k">=</span>
+  <span class="n">union</span>
+    <span class="n">good</span><span class="p">:</span> <span class="p">{}</span>
+    <span class="n">bad</span><span class="p">:</span> <span class="p">{}</span>
+
+<span class="k">def</span> <span class="n">GoodOrBad</span><span class="p">:</span> <span class="n">GoodOrBadData</span> <span class="k">=</span>
+  <span class="k">First</span>
+    <span class="k">block</span>
+      <span class="n">$</span><span class="p">[</span><span class="s">&#39;G&#39;</span><span class="p">]</span>
+      <span class="p">{|</span> <span class="n">good</span> <span class="k">|</span><span class="p">}</span>
+    <span class="k">block</span>
+      <span class="n">$</span><span class="p">[</span><span class="s">&#39;B&#39;</span><span class="p">]</span>
+      <span class="p">{|</span> <span class="n">bad</span> <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>In the example above, we’ve explicitly declared a union called
+<code class="docutils literal notranslate"><span class="pre">GoodOrBadData</span></code> and we’re returning semantic values of that type in
+the two parsers in <code class="docutils literal notranslate"><span class="pre">GoodOrBad</span></code>. Taking this approach rather than
+implicitly declaring a union can be helpful when we need to declare a
+union in one place and construct its values in multiple places or when
+we need to return semantic values of a union somewhere other than a
+<code class="docutils literal notranslate"><span class="pre">First</span></code> or <code class="docutils literal notranslate"><span class="pre">Choose</span></code> construct.</p>
 <p>With this set of rich type-constructing mechanisms, you can go forth and create
 many interesting format specifications with DaeDaLus. But, what happens when
 you need to parse many copies of the same thing in sequence, perhaps an unknown
