@@ -133,7 +133,7 @@ public:
 
   // Borrows this
   // Returns an owned copy of the element.
-  T operator[] (Size i0) {
+  T operator[] (Size i0) const {
     size_t i = i0.rep();
     if constexpr (std::is_base_of<HasRefs,T>::value) {
       T& x = ptr->data[i];
