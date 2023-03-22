@@ -7,6 +7,7 @@
 #include <ddl/boxed.h>
 #include <ddl/size.h>
 #include <ddl/number.h>
+#include <ddl/maybe.h>
 
 namespace DDL {
 
@@ -42,16 +43,18 @@ class StreamData : HasRefs {
       return res;
     }
 
-  public:
+  /// Make an empty, non-extensible buffer.
+  Chunk()
+    : size(0)
+    , ref_count(1)
+    , buffer(emptyBuffer)
+    , next(nullptr)
+    , thunk(nullptr)
+    {}
 
-    /// Make an empty, non-extensible buffer.
-    Chunk()
-      : size(0)
-      , ref_count(1)
-      , buffer(emptyBuffer)
-      , next(nullptr)
-      , thunk(nullptr)
-      {}
+
+
+  public:
 
 
     /// Make an extensible buffer with no data.
@@ -63,6 +66,8 @@ class StreamData : HasRefs {
       , next(nullptr)
       , thunk(&getData)
       {}
+
+    inline static Chunk empty;
 
     /// @return `true` if there are no more chunks after this.
     bool isTerminal () const { return next == nullptr; }
@@ -87,7 +92,7 @@ class StreamData : HasRefs {
     /// Remove a reference.
     /// Owns this.
     void free() {
-      for (auto p = this; p != nullptr;) {
+      for (auto p = this; p != &empty && p != nullptr;) {
         if (p->ref_count > 1) { --(p->ref_count); return; }
         p = p->freeThis();
       }
@@ -139,8 +144,6 @@ class StreamData : HasRefs {
     }
 
     /// Append a new chunk of data to the stream.
-    /// Ignores buffers of size 0, so if you do this, either pass nullptr
-    /// for cbuffer, or deallocate it yourself.
     /// Owns this.
     /// Assume: isTerminal() && !isEmpty() && thunk != nullptr
     /// @return An owned reference to the new end of the stream.
@@ -151,7 +154,10 @@ class StreamData : HasRefs {
       assert (!isEmpty());
       assert (thunk != nullptr);
 
-      if (csize == 0) return this;
+      if (csize == 0) {
+        del(cbuffer);
+        return this;
+      }
 
       size    = csize;
       buffer  = cbuffer;
@@ -178,7 +184,7 @@ class StreamData : HasRefs {
 public:
 
   /// Make a new non-extensible stream empty stream.
-  StreamData() : front(new Chunk())  {}
+  StreamData() : front(&Chunk::empty)  {}
 
   /// Make a new extensible empty stream.
   StreamData(ctx::fiber &getData) : front(new Chunk(getData))  {}
@@ -211,12 +217,11 @@ public:
 
   void finishMut() { front->finish(); }
 
-  /// Try to fill a terminal node with data.
+  /// Try to fill a node with data.
   /// Owns this.
   /// May suspend.
   /// @return `true` if more data was available, or `false` if no more data.
   bool tryGetData() {
-    assert(isTerminal());
     front->tryGetData();
     return !front->isEmpty();
   }
@@ -241,6 +246,7 @@ public:
 // -----------------------------------------------------------------------------
 
 
+/// A consumer of a data, where the data may be provided a little bit a time.
 template <typename Del = DeleteNewAlloc>
 class Stream : HasRefs {
 
@@ -274,17 +280,26 @@ class Stream : HasRefs {
     chunk_size   = 0;
   }
 
-
-  /// Adjust metadata after reaching a new chunk.
-  /// @param: global The global offset.
-  /// Assumes: !data.isTerminal()
-  void atNewChunk(Size global) {
-    chunk_offset = global;
-    offset       = 0;
+  /// Adjust the size of the current chunk.
+  void setChunkSize(Size global) {
     chunk_size   = data.getChunkSize();
     Size have    = last_offset.decrementedBy(global);
     if (chunk_size > have) chunk_size = have;
   }
+
+  /// Assumes: !data.isTerminal()
+  void advance() {
+    Size global = getOffset();
+    if (global == last_offset) {
+      makeEmpty();
+      return;
+    }
+    data.nextChunkMut();
+    offset = 0;
+    chunk_offset = global;
+    setChunkSize(global);
+  }
+
 
 
 public:
@@ -325,11 +340,11 @@ public:
     Size global = getOffset();
     if (global >= last_offset) return true;
 
-    if (!data.isTerminal()) data.nextChunkMut();
+    assert(chunk_size == 0);
 
     if (!data.tryGetData()) return true;
 
-    atNewChunk(global);
+    setChunkSize(global);
     return false;
   }
 
@@ -337,6 +352,13 @@ public:
   /// @return The front element of the stream.
   UInt<8> iHead() const {
     return data.elementAt(offset);
+  }
+
+  bool iDropMut1() {
+    if (isEmpty()) return false;
+    offset.increment();
+    if (offset == chunk_size) advance();
+    return true;
   }
 
   /// Advance the current offset by this much.
@@ -355,14 +377,13 @@ public:
         return 0;
       } else {
         offset.incrementBy(have);
+        n.decrementBy(have);
         Size global = getOffset();
         if (global == last_offset) {
           makeEmpty();
           break;
         }
-        data.nextChunkMut();
-        atNewChunk(global);
-        n.decrementBy(have);
+        advance();
       }
     }
     return n;
@@ -374,16 +395,17 @@ public:
   /// Mutable owns this.
   /// @param n Limit the stream to this many bytes.
   void iTakeMut(Size n) {
+    if (n == 0) {
+      makeEmpty();
+      return;
+    }
+
     Size global = getOffset();
     Size have   = last_offset.decrementedBy(global);
     if (n >= have) return;
 
     last_offset = global.incrementedBy(n);
-    if (offset == last_offset) {
-        makeEmpty();
-        return;
-    }
-    have = last_offset.decrementedBy(chunk_offset);
+    have = have.decrementedBy(n);
     if (chunk_size > have) chunk_size = have;
   }
 
@@ -412,7 +434,22 @@ public:
     return res;
   }
 
+  /// Create a new stream by skipping some bytes from the current stream.
+  /// Returns `nothing` if there isn't enought data to drop.
+  /// Owns this.
+  /// Maybe suspend.
+  /// @param n    How many bytes to skip.
+  /// @return     A new stream advanced by the requested amount, or nothing.
+  Maybe<Stream> iDropMaybe(Size n) const {
+    Stream res(*this);
+    if (res.iDropMut(n) == 0) return Maybe(res);
+    res.free();
+    return Maybe<Stream>();
+  }
+
 };
+
+
 
 
 /// Encapsulates the interaction between a parser and a separate corouting
@@ -426,26 +463,25 @@ class ParserThread {
 public:
 
   /// Initialize the data stream.
-  ParserThread()
-    : data(StreamData<Del>(context))
+  /// @param parser The consumer of the stream.
+  ///               Will be called with a Stream value
+  template <typename Fn> 
+  ParserThread(Fn &&parser)
+    : context(
+        [this,parser] (ctx::fiber &&top) {
+          context = std::move(top);
+          data.copy();
+          parser(Stream(data));
+          done = true;
+          return std::move(context);
+        })
+    , data(StreamData<Del>(context))
     , done(false)
     {}
 
-  ~ParserThread() { data.free(); }
 
-  /// Run the parser.  The parser is abstracted by `Fn` which
-  /// will be called with a stream argument corresponding to the current stream.
-  template <typename Fn>
-  void start( Fn &&parser ) {
-    context = ctx::fiber([this,parser] (ctx::fiber &&top) {
-      context = std::move(top);
-      data.copy();
-      parser(Stream(data));
-      done = true;
-      return std::move(context);
-    });
-    resume();
-  }
+
+  ~ParserThread() { data.free(); }
 
   /// Resume the parser, after it had suspended 
   /// Should only be run *after* `start`.
