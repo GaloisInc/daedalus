@@ -319,7 +319,6 @@ inSolver = SymbolicM . lift . lift
 
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
-  funs <- getFunDefs
   lenv <- asks sVarEnv
   env  <- getIEnv
-  inSolver (runSemiSolverM funs lenv env m)
+  inSolver (runSemiSolverM lenv env m)

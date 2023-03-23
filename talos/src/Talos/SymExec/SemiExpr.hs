@@ -21,7 +21,7 @@ module Talos.SymExec.SemiExpr ( runSemiSolverM
 -- import Data.Map (Map)
 import           Control.Monad.Reader
 import qualified Data.ByteString              as BS
-import           Data.Foldable                (find, foldlM, toList)
+import           Data.Foldable                (find)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (isJust, isNothing)
@@ -33,7 +33,7 @@ import qualified SimpleSMT                    as S
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
-                                               evalOp3, evalOpN, matches,
+                                               evalOp3, matches,
                                                partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
@@ -48,9 +48,6 @@ import qualified Talos.SymExec.SemiValue      as SV
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-
-
-
 
 -- FIXME: move
 
@@ -223,7 +220,6 @@ data SemiSolverEnv = SemiSolverEnv
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
   , interpEnv       :: I.Env
-  , funDefs         :: Map FName (Fun Expr)
   }
 
 typeDefs :: SemiSolverEnv -> Map TName TDecl
@@ -232,12 +228,11 @@ typeDefs = I.tEnv . interpEnv
 type SemiSolverM m = ReaderT SemiSolverEnv (SolverT m)
 
 runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
-                  Map FName (Fun Expr) ->
                   Map Name SemiSExpr ->
                   I.Env ->
                   SemiSolverM m a -> SolverT m a
-runSemiSolverM funs lenv env m =
-  runReaderT m (SemiSolverEnv lenv env funs)
+runSemiSolverM lenv env m =
+  runReaderT m (SemiSolverEnv lenv env)
 
 semiExecExpr :: (HasGUID m, Monad m, MonadIO m, HasCallStack) =>
                 Expr -> SemiSolverM m SemiSExpr
@@ -262,7 +257,7 @@ semiExecExpr expr =
         -- Shouldn't happen in pure code
         NoMatch -> panic "No match" []
 
-    ELoop lm     -> semiExecLoop lm
+    ELoop _lm    -> panic "Impossible (semiExecExpr)" [showPP expr]
 
     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
@@ -275,43 +270,11 @@ semiExecExpr expr =
              <$> semiExecExpr e1
              <*> semiExecExpr e2
              <*> semiExecExpr e3)
-    ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
+    ApN (ArrayL _ty) vs -> VSequence False <$> traverse semiExecExpr vs
+    ApN _ _ ->  panic "Impossible (semiExecExpr)" [showPP expr]
+
   where
     rty = typeOf expr
-
--- It would be nice to reuse evalLoopMorphism but it may just be easier to do this.
-semiExecLoop :: (MonadIO m, Monad m, HasGUID m) => LoopMorphism' Expr Expr -> SemiSolverM m SemiSExpr
-semiExecLoop lm =
-  case lm of
-    FoldMorphism n e lc b -> do
-      e_v  <- semiExecExpr e
-      (els, bindIn, _mk) <- goLC lc
-      let goOne acc el = bindNameIn n acc (bindIn el (semiExecExpr b))
-      foldlM goOne e_v els
-    MapMorphism lc b -> do
-      (els, bindIn, mk) <- goLC lc
-      let goOne el = (,) (fst el) <$> bindIn el (semiExecExpr b)
-      mk <$> traverse goOne els
-  where
-    goLC lc = do
-      lcv <- semiExecExpr (lcCol lc)
-
-      let k_bind = maybe (const id) bindNameIn (lcKName lc)
-          bindIn (kv, ev) = k_bind kv . bindNameIn (lcElName lc) ev
-
-          mkA = zip (map (VValue . V.vSize) [0..])
-          (els, mk) = case lcv of
-            VValue (V.VArray vs) -> ( mkA (map VValue (toList vs))
-                                    , SV.fromList False . map snd
-                                    )
-                                    
-            -- FIXME: this chooses an order
-            VValue (V.VMap m)  -> ( [ (VValue k, VValue v) | (k, v) <- Map.toList m ], VMap )
-            -- isBldr should probably always be False as we don't iterate over builders.
-            VSequence isBldr vs -> (mkA vs, SV.fromList isBldr . map snd)
-            VMap vs -> (vs, VMap)
-            _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
-      pure (els, bindIn, mk)
 
 -- Might be able to just use the value instead of requiring t
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
@@ -560,31 +523,6 @@ semiExecOp3 MapInsert _rty _ty sv k v =
     _ -> panic "Unimplemented" [showPP MapInsert, show sv]
 
 semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
-
-semiExecOpN :: (Monad m, HasGUID m, MonadIO m) => OpN -> Type -> [SemiSExpr] ->
-               SemiSolverM m SemiSExpr
-semiExecOpN op rty vs
-  | Just vs' <- mapM unValue vs = do
-      env <- asks interpEnv
-      pure (VValue (evalOpN op vs' env))
-  | Just vs' <- mapM unOther vs = lift (vSExpr rty <$> SE.symExecOpN op vs')
-  where
-    unValue (VValue v) = Just v
-    unValue _ = Nothing
-
-    unOther (VOther v) = Just (typedThing v)
-    unOther _ = Nothing
-
--- unfold body of function.
-semiExecOpN (CallF fn) _rty vs = do
-  fdefs <- asks funDefs
-  let (ps, e) = case Map.lookup fn fdefs of
-        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
-        _   -> panic "Missing function " [showPP fn]
-
-  foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
-
-semiExecOpN (ArrayL _) _rty vs = pure (VSequence False vs)
 
 -- -----------------------------------------------------------------------------
 -- Value -> SExpr
