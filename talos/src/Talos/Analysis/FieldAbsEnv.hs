@@ -25,6 +25,7 @@ import           Talos.Analysis.Eqv    (Eqv)
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.SLExpr (SLExpr (..))
 import           Talos.Analysis.Slice (Structural (..))
+import Daedalus.Panic (panic)
 
 fieldAbsEnvTy :: AbsEnvTy
 fieldAbsEnvTy = AbsEnvTy (Proxy @FieldAbsEnv)
@@ -112,31 +113,8 @@ exprToAbsEnv fp expr =
       in SStruct ut <$> traverse mk' flds
 
     ECase cs       -> second SECase (traverse (go fp) cs)
-    ELoop (FoldMorphism n e lc b) ->
-      let (env, fp', slb) = exprFixpoint n b fp
-          (enve, sle) = go fp' e
-          (lcenv, sllc) = go Whole (lcCol lc)
-          lc' = lc {lcCol = sllc }
-      in (env `merge` enve `merge` lcenv
-         , SELoop (FoldMorphism n sle lc' slb)
-         )
-
-    -- fp should be Whole here.
-    ELoop (MapMorphism lc b) ->
-      -- This is an over-approximate, as the body doesn't _have_
-      -- to reference the list, but probably it does.
-      let (lcenv, sllc) = go Whole (lcCol lc)
-          lc' = lc {lcCol = sllc }
-          (benv, bsl) = go Whole b
-
-          -- ignores pred (should be Whole)
-          benvNoEl =
-            maybe benv fst (absProj (lcElName lc) benv)
-          benvNoElK =
-            maybe benvNoEl fst (flip absProj benvNoEl =<< lcKName lc)
-      in (merge lcenv benvNoElK, SELoop (MapMorphism lc' bsl))
-
-        -- Apart from SelStruct, none of the below are interesting (should be Whole)
+    ELoop {}       -> panic "Saw a Loop in exprToAbsEnv" [showPP expr]
+    -- Apart from SelStruct, none of the below are interesting (should be Whole)
     Ap0 op         -> (absEmptyEnv, SAp0 op)
     Ap1 (SelStruct ty l) e
       | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- ty ->
@@ -146,16 +124,11 @@ exprToAbsEnv fp expr =
     Ap3 op e1 e2 e3 -> SAp3 op <$> go Whole e1 <*> go Whole e2 <*> go Whole e3
 
     -- We could (should?) unfold functions etc. here, but this is simpler.
-    ApN op es       -> SApN op <$> traverse (go Whole) es
+    ApN (ArrayL ty) es -> SArrayL ty <$> traverse (go Whole) es
+    ApN _op _es        -> panic "Saw a Call in exprToAbsEnv" [showPP expr]
+    
   where
     go = exprToAbsEnv
-
-    exprFixpoint n e fp' =
-      let (env, sle) = exprToAbsEnv fp' e
-          (env', fp'') = fromMaybe (env, fp') (absProj n env)
-      in if absPredEntails fp fp''
-         then (env', fp, sle)
-         else exprFixpoint n e (fp `merge` fp'')
 
 -- FIXME: a bit simplistic.
 byteSetToAbsEnv :: ByteSet -> LiftAbsEnv FieldProj

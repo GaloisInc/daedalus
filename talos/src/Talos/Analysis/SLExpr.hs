@@ -22,7 +22,7 @@ import           Daedalus.Core                   (Case, Expr (..), Label, Name,
                                                   byteArrayL, floatL, inUnion,
                                                   intL, mapEmpty, newBuilder,
                                                   newIterator, nothing, ppOp2,
-                                                  ppOp3, ppTApp, unit, mapMorphismE)
+                                                  ppOp3, ppTApp, unit)
 import           Daedalus.Core.Free              (FreeVars (..))
 import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
 import           Daedalus.PP
@@ -30,7 +30,6 @@ import           Daedalus.Panic                  (panic)
 
 import           Talos.Analysis.Eqv              (Eqv (..))
 import           Talos.Analysis.Merge            (Merge (..))
-import Daedalus.Core.Expr (LoopMorphism')
 
 -- Expressions with a hole
 data SLExpr =
@@ -38,13 +37,13 @@ data SLExpr =
   | SPureLet Name SLExpr SLExpr
   | SStruct UserType [ (Label, SLExpr) ]
   | SECase (Case SLExpr)
-  | SELoop (LoopMorphism' SLExpr SLExpr)
   
   | SAp0 Op0
   | SAp1 Op1 SLExpr
   | SAp2 Op2 SLExpr SLExpr
   | SAp3 Op3 SLExpr SLExpr SLExpr
-  | SApN OpN [SLExpr]
+  -- No CallE
+  | SArrayL Type [SLExpr]
   | EHole Type
   deriving (Generic, NFData)
 
@@ -55,12 +54,11 @@ slExprToExpr dflt sl =
     SPureLet n e e'  -> PureLet n (go e) (go e') 
     SStruct ut flds  -> Struct ut [ (l, go e) | (l, e) <- flds ]
     SECase c         -> ECase (go <$> c)
-    SELoop lm        -> ELoop (mapMorphismE go go lm)
     SAp0 op          -> Ap0 op
     SAp1 op e        -> Ap1 op (go e)
     SAp2 op e1 e2    -> Ap2 op (go e1) (go e2)
     SAp3 op e1 e2 e3 -> Ap3 op (go e1) (go e2) (go e3)
-    SApN op es       -> ApN op (map go es)
+    SArrayL ty es    -> ApN (ArrayL ty) (map go es)
     EHole ty         -> dflt ty
   where
     go = slExprToExpr dflt
@@ -72,12 +70,13 @@ exprToSLExpr expr =
     PureLet n e e'  -> SPureLet n (go e) (go e') 
     Struct ut flds  -> SStruct ut [ (l, go e) | (l, e) <- flds ]
     ECase c         -> SECase (go <$> c)
-    ELoop lm        -> SELoop (mapMorphismE go go lm)
+    ELoop {}        -> panic "Saw an expression-level Loop" [showPP expr]
     Ap0 op          -> SAp0 op
     Ap1 op e        -> SAp1 op (go e)
     Ap2 op e1 e2    -> SAp2 op (go e1) (go e2)
     Ap3 op e1 e2 e3 -> SAp3 op (go e1) (go e2) (go e3)
-    ApN op es       -> SApN op (map go es)
+    ApN (ArrayL ty) es -> SArrayL ty (map go es)
+    ApN _op _es        -> panic "Saw an expression-level Call" [showPP expr]
   where
     go = exprToSLExpr
 
@@ -129,7 +128,6 @@ instance TraverseUserTypes SLExpr where
                                    <*> traverse (\(l, e') -> (,) l
                                        <$> traverseUserTypes f e') ls
       SECase c          -> SECase   <$> traverseUserTypes f c
-      SELoop lm         -> SELoop   <$> traverseUserTypes f lm
       SAp0 op0          -> SAp0 <$> traverseUserTypes f op0
       SAp1 op1 e'       -> SAp1 <$> traverseUserTypes f op1
                                 <*> traverseUserTypes f e'
@@ -138,8 +136,8 @@ instance TraverseUserTypes SLExpr where
       SAp3 op3 e1 e2 e3 -> SAp3 op3 <$> traverseUserTypes f e1
                                     <*> traverseUserTypes f e2
                                     <*> traverseUserTypes f e3
-      SApN opN es       -> SApN <$> traverseUserTypes f opN
-                                <*> traverseUserTypes f es
+      SArrayL ty es     -> SArrayL <$> traverseUserTypes f ty
+                                   <*> traverseUserTypes f es
 
 instance FreeVars SLExpr where
   freeVars expr =
@@ -149,12 +147,11 @@ instance FreeVars SLExpr where
       SPureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
       SStruct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
       SECase e         -> freeVars e
-      SELoop lm        -> freeVars lm
       SAp0 _           -> Set.empty
       SAp1 _ e         -> freeVars e
       SAp2 _ e1 e2     -> freeVars [e1,e2]
       SAp3 _ e1 e2 e3  -> freeVars [e1,e2,e3]
-      SApN _ es        -> freeVars es
+      SArrayL _ es     -> freeVars es
 
   freeFVars expr =
     case expr of
@@ -163,17 +160,11 @@ instance FreeVars SLExpr where
       SPureLet _ e1 e2 -> freeFVars [e1,e2]
       SStruct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
       SECase e         -> freeFVars e
-      SELoop lm        -> freeFVars lm
-      
       SAp0 _           -> Set.empty
       SAp1 _ e         -> freeFVars e
       SAp2 _ e1 e2     -> freeFVars [e1,e2]
       SAp3 _ e1 e2 e3  -> freeFVars [e1,e2,e3]
-      SApN op es ->
-        let fs = freeFVars es
-        in case op of
-            CallF f  -> Set.insert f fs
-            ArrayL _ -> fs
+      SArrayL _ es     -> freeFVars es
 
 instance PP SLExpr where
   ppPrec n expr =
@@ -189,7 +180,6 @@ instance PP SLExpr where
         where ppF (l,e) = pp l <+> "=" <+> pp e
 
       SECase c  -> pp c
-      SELoop lm -> pp lm
 
       SAp0 op   -> ppPrec n op
 
@@ -208,13 +198,10 @@ instance PP SLExpr where
           (PPPref,d) -> d <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3
           (_,d) -> panic "PP Ap3" [show d]
 
-      SApN op es ->
-        case op of
-          ArrayL t ->
-            case es of
-              [] -> ppTApp n "[]" [t]
-              _  -> brackets (commaSep (map pp es))
-          CallF f -> pp f <.> parens (commaSep (map pp es))
+      SArrayL ty es ->
+        case es of
+          [] -> ppTApp n "[]" [ty]
+          _  -> brackets (commaSep (map pp es))
 
 instance Eqv SLExpr where
   eqv l r =
@@ -232,7 +219,7 @@ instance Eqv SLExpr where
       (SAp2 _op e1 e2, SAp2 _op' e1' e2') -> (e1, e2) `eqv` (e1', e2')
       (SAp3 _op e1 e2 e3, SAp3 _op' e1' e2' e3') ->
         (e1, e2, e3) `eqv` (e1', e2', e3')
-      (SApN _op es, SApN _op' es') -> es `eqv` es'
+      (SArrayL _ty es, SArrayL _ty' es') -> es `eqv` es'
       _ -> panic "Mismatched terms in eqv (SLExpr)" ["Left", showPP l, "Right", showPP r]      
 
 instance Merge SLExpr where
@@ -252,5 +239,5 @@ instance Merge SLExpr where
       (SAp2 op e1 e2, SAp2 _op e1' e2') -> SAp2 op (merge e1 e1') (merge e2 e2')
       (SAp3 op e1 e2 e3, SAp3 _op e1' e2' e3') ->
         SAp3 op (merge e1 e1') (merge e2 e2') (merge e3 e3')
-      (SApN op es, SApN _op es') -> SApN op (zipWith merge es es')
+      (SArrayL ty es, SArrayL _ty es') -> SArrayL ty (zipWith merge es es')
       _ -> panic "Mismatched terms in merge (SLExpr)" ["Left", showPP l, "Right", showPP r]

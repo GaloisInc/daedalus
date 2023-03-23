@@ -20,6 +20,7 @@ import           Control.Lens               (_1, view)
 import           Control.Monad              (when)
 import           Data.List                  (partition)
 import qualified Data.Map                   as Map
+import           Data.Maybe                 (mapMaybe)
 import           Data.Monoid                (All (All))
 import qualified Data.Set                   as Set
 
@@ -29,17 +30,19 @@ import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
-
 import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
+import           Talos.Analysis.FLAbsEnv    (flAbsEnvTy)
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
 import           Talos.Analysis.Merge       (Merge, merge, mergeOverlapping)
 import           Talos.Analysis.Monad
-import           Talos.Analysis.SLExpr      (SLExpr (EHole))
+import           Talos.Analysis.SLExpr      (SLExpr (EHole), exprToSLExpr)
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
-import Data.Maybe (mapMaybe)
+import Data.Functor (($>))
+import Control.Arrow (second)
+
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -71,6 +74,7 @@ summarise _ md nguid = (summaries, reverse (loggedMessages s'), nextGUID s')
 absEnvTys :: [(String, AbsEnvTy)]
 absEnvTys = [ ("vars", varAbsEnvTy)
             , ("fields", fieldAbsEnvTy)
+            , ("fl", flAbsEnvTy)
             ]
 
 --------------------------------------------------------------------------------
@@ -80,7 +84,10 @@ summariseDecl :: AbsEnv ae =>
                  SummaryClass' ae -> FInstId ->
                  Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls fid Fun { fDef = Def def
+                          , fName = fn
                           , fParams = ps } = do
+  logMessage 1 ("Summarising " ++ showPP fn) 
+  
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
 
@@ -439,15 +446,15 @@ summariseBind preds x lhs rhs = do
       indepRHSD = mapSlices (SDo x SHole) rhsD'
       final     = indepLHSD `merge` indepRHSD `merge` domainFromElements els
 
-  -- fn <- currentDeclName
+  fn <- currentDeclName
   -- when (showPP fn == "Main") $
-  -- traceM ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
-  --         show (nest 4 $ pp (Do x lhs rhs)) ++
-  --         "\n (result'? " ++ show (not $ null preds') ++ ")" ++
-  --         "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
-  --         "\n" ++
-  --         show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
-  --         show (hang "final" 4 (pp final)))
+  logMessage 2 ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
+                show (nest 4 $ pp (Do x lhs rhs)) ++
+                "\n (result'? " ++ show (not $ null preds') ++ ")" ++
+                "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
+                "\n" ++
+                show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
+                show (hang "final" 4 (pp final)))
 
   pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
@@ -464,6 +471,7 @@ summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  SummariseM ae (Domain ae)
 summariseMany preds sem bt lb m_ub g = do
   elsD <- summariseG (mapMaybe absPredListElement preds) g
+  logMessage 1 ("Many " ++ showPP elsD)
 
   -- We need to now map the elpreds we used (from the list predicates)
   -- back into preds, and wrap the slices in a SLoop . ManyLpop.  We
@@ -576,22 +584,49 @@ summariseLoop preds lcl =
     -- Similar for Repeat above, with the additional use of elements.
     MorphismLoop (FoldMorphism n e lc g) -> do
       (gss, gD) <- gssFixpoint n g preds
-      
-      let mkSlice e' lc' str g' =
+
+      let -- This is the case where the body just constrains the
+          -- environment, so se pretend it is a semantic-less Many,
+          -- i.e., we get 0 or 1 elements.  We could also try to
+          -- detect this case during synthesis, but it seems simpler
+          -- to just pun on the Many case.
+          mkSliceNoDeps = SLoopParametric SemNo sz0
+          mkSlice e' lc' str g' =
             SLoop str (MorphismLoop (FoldMorphism n e' lc' g'))
                  
           (gssNoPred, gD') = domainElements gD
           gss' = map (, Nothing) gssNoPred ++ gss
       
           mkGS (gs, m_p) =
-            let (elgs, lc', str) =
-                  summariseLC lc (maybe StructureInvariant absPredStructural m_p) gs
-                  
-                (enve, sle)   = absPre' (typeOf n) (gsPred elgs) e
-            in (elgs { gsEnv   = gsEnv gs `merge` enve
-                     , gsSlice = mkSlice sle lc' str (gsSlice gs)
-                     }
-               , str)
+            -- If we depend on the accumulator at all, in the fold
+            -- case, then we have a structural loop, just so we can
+            -- avoid the case where the we don't care about the
+            -- collection, but we do care about the accumulator, but
+            -- in a structuralinvariant fashion (which is probably
+            -- rare in any case).
+            let str = maybe StructureInvariant (const Structural) m_p
+                (elgs, m_lc'_str) = summariseLC lc str gs
+
+            in case (m_lc'_str, m_p) of
+              -- No deps. on collection or accumulator, so we pretend
+              -- we are in a parametric (null/singleton) Many
+              ( Nothing, Nothing ) -> ( elgs { gsSlice = mkSliceNoDeps (gsSlice gs) }
+                                      , StructureInvariant
+                                      )
+
+              -- We don't depend on the list, but we _do_ on the
+              -- accum, but not in a structural way.  This case can't
+              -- happen due to the way we construct str above.
+              ( Nothing, Just {} )        -> panic "IMPOSSIBLE (summariseLoop)" []
+              ( Just (lc', str'), _ ) ->
+                -- Note we use (gsPred elgs) instead of m_p as gsPred
+                -- elps entails m_p, and in the zero-rep case we need
+                -- e to satisfy (gsPred elgs)
+                let (enve, sle)   = absPre' (typeOf n) (gsPred elgs) e
+                in (elgs { gsEnv   = gsEnv elgs `merge` enve
+                         , gsSlice = mkSlice sle lc' str' (gsSlice elgs)
+                         }
+                   , str')
       
           (strgss, nsgss) = partition ((==) Structural . snd) (map mkGS gss')
           gss'' = case strgss of
@@ -604,28 +639,40 @@ summariseLoop preds lcl =
 
     MorphismLoop (MapMorphism lc g) -> do
       gD <- summariseG (mapMaybe absPredListElement preds) g
+      logMessage 1 ("MapMorphism\n" ++ showPP gD)
       
-      let mkSlice lc' str g' = SLoop str (MorphismLoop (MapMorphism lc' g'))
+      let -- This is the case where the body just constrains the
+          -- environment, so se pretend it is a semantic-less Many,
+          -- i.e., we get 0 or 1 elements.  We could also try to
+          -- detect this case during synthesis, but it seems simpler
+          -- to just pun on the Many case.
+          mkSliceNoDeps = SLoopParametric SemYes sz0
+          mkSlice lc' str g' = SLoop str (MorphismLoop (MapMorphism lc' g'))
           (gss, gD') = domainElements gD
           
-          mkGS gs =
-            let (elgs, lc', str) =
-                  summariseLC lc (maybe StructureInvariant absPredStructural (gsPred gs)) gs 
-            in (elgs { gsSlice = mkSlice lc' str (gsSlice gs) }, str)
+          mkGS gs =            
+            let (elgs, m_lc'_str) = summariseLC lc StructureInvariant gs
+            in case m_lc'_str of
+                 Nothing -> ( elgs { gsSlice = mkSliceNoDeps (gsSlice elgs) }
+                            , StructureInvariant)
+                 Just (lc', str) -> ( elgs { gsSlice = mkSlice lc' str (gsSlice elgs) }
+                                    , str)
           
           (strgss, nsgss) = partition ((==) Structural . snd) (map mkGS gss)
-          gss' = case strgss of
-                   [] -> map fst nsgss
-                   (gs, _) : rest -> foldl merge gs (map fst rest) : map fst nsgss
-                   
+
+      gss' <- case strgss of
+                []             -> logMessage 1 ("No structural" ++ show (vcat (map (pp . fst) nsgss))) $> map fst nsgss
+                (gs, _) : rest -> logMessage 1 "Structural"    $> foldl merge gs (map fst rest) : map fst nsgss
+      
       -- We squash as we don't support disjunctive slicing.
       squashDomain' "MapMorphism" $ domainFromElements gss' `merge` gD'
   where
+    sz0 = exprToSLExpr (intL 0 (tWord 64))
     absPre' ty m_p e = maybe (absEmptyEnv, EHole ty) (flip absPre e) m_p
     
-    summariseLC lc str gs = (gs { gsEnv = env }, lc', str')
+    summariseLC lc str gs = (gs { gsEnv = env }, r)
       where
-        (env, lc', str') = projectForLoopCollection str (gsEnv gs) lc
+        (env, r) = projectForLoopCollection str (gsEnv gs) lc
 
     -- There are 3 types of slices we care about here:
     --  * sources: establish some p in ps, no dep. on x
@@ -636,6 +683,8 @@ summariseLoop preds lcl =
     --  1. all deps on x are entailed by post-cond; and
     --  2. at most 1 slice with structural deps.
     gssFixpoint x g ps = do
+      logMessage 1 "gssFixpoint ..."
+      
       (matching, gD) <- repeatFixpoint x g ps
       let (justPost, gD') = partitionDomainForResult (const True) gD
       let gss = mergeForDeps (map (\(gs, p) -> (gs, p, p)) matching) ( (, Nothing) <$> justPost)
@@ -663,6 +712,7 @@ summariseLoop preds lcl =
       in mergeForDeps rest' acc'
                       
     repeatFixpoint x g ps = do
+      logMessage 1 ("Calculating fixpoint ...") 
       gD <- summariseG ps g
       
       let (matching, gD') = partitionDomainForVar x gD
@@ -673,6 +723,20 @@ summariseLoop preds lcl =
       if all (\p -> any (`absPredEntails` p) ps) deps
         then pure (matching, gD') -- fixpoint reached
         else repeatFixpoint x g ps'
+
+projectForLoopCollection :: AbsEnv ae => Structural -> ae -> LoopCollection' Expr ->
+                            (ae, Maybe (LoopCollection' SLExpr, Structural))
+projectForLoopCollection useStr env lc
+  | Just lcp <- absPredCollection ty useStr m_kp m_elp =
+      let (lcenv, sllc) = absPre lcp (lcCol lc)
+      in ( kenv `merge` lcenv , Just (lc {lcCol = sllc }, absPredStructural lcp))
+  | otherwise = (kenv, Nothing)
+  where
+    (elenv, m_elp) = projectMaybe (lcElName lc) env
+    (kenv, m_kp)   = maybe (elenv, Nothing) (flip projectMaybe elenv) (lcKName lc)
+    
+    projectMaybe x env' = maybe (env', Nothing) (second Just) (absProj x env')
+    ty = typeOf (lcCol lc)
       
 -- -----------------------------------------------------------------------------
 -- Special patterns

@@ -104,18 +104,24 @@ data Slice' cn sle =
   | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
   | SCall cn
   | SCase Bool (Case (Slice' cn sle))
-  
+
+   -- | This is the case where the length of the list isn't important,
+   -- so we can generate multiple models and combine lazily.  The
+   -- lower bound is included so we can assert it is == 0 in the null
+   -- case.
+  | SLoopParametric Sem sle (Slice' cn sle)
   -- Having 'Structural' here is a bit of a hack
+  
   | SLoop Structural (LoopClass' sle (Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
-  -- | SAssertion Expr -- FIXME: this is inferred from e.g. case x of True -> ...
   | SInverse Name Expr Expr
   -- ^ We have an inverse for this statement; this constructor has a
   -- name for the result (considered bound in this term only), the
   -- inverse expression, and a predicate constraining the value
   -- produced by this node (i.e., result of the original DDL code).
+  
   deriving (Generic, NFData)
 
 -- A note on inverses.  The ides is if we have something like
@@ -135,7 +141,6 @@ data Slice' cn sle =
 -- with (\result > y && \result < 1000) when synthesising, and then
 -- [\result >> 24 as uint 8, \result >> 16 as uint 8, \result >> 8 as uint 8, \result as uint 8 ]
 -- when constructing the path (i.e., when getting bytes).
-
 
 -- | This is for loops -- a loop slice is structural if the structure
 -- is important (i.e., the order/number of elements).
@@ -165,7 +170,11 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
+      (SLoopParametric _sem lb sl, SLoopParametric _sem' lb' sl') -> (lb, sl) `eqv` (lb', sl')
+      (SLoopParametric {}, SLoop {}) -> False
+      (SLoop {}, SLoopParametric {}) -> False
       (SLoop str lb, SLoop str' lb') -> (str, lb) `eqv` (str', lb')
+      
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -178,11 +187,22 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SDo x1 slL1 slR1, SDo _x2 slL2 slR2) ->
         SDo x1 (merge slL1 slL2) (merge slR1 slR2)
       (SMatch {}, SMatch {})         -> l
---      (SAssertion {}, SAssertion {}) -> l
+
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
-      (SLoop str lc, SLoop str' lc') -> SLoop (merge str str') (merge lc lc')
+
+      ( SLoopParametric sem lb lc, SLoopParametric _sem rb rc ) ->
+        SLoopParametric sem (merge lb rb) (merge lc rc)
+      ( SLoopParametric _sem lb lc, SLoop str (ManyLoop sem bt rb m_ub rc) ) ->
+        SLoop str (ManyLoop sem bt (merge lb rb) m_ub (merge lc rc))
+      ( SLoopParametric _sem _lb lsl, SLoop str (MorphismLoop (MapMorphism lc rsl)) ) ->
+        SLoop str (MorphismLoop (MapMorphism lc (merge lsl rsl)))
+      ( SLoopParametric _sem _lb lsl, SLoop str (MorphismLoop (FoldMorphism n e lc rsl)) ) ->
+        SLoop str (MorphismLoop (FoldMorphism n e lc (merge lsl rsl)))
+      (SLoop str lc, SLoop str' rc) -> SLoop (merge str str') (merge lc rc)
+      (SLoop {}, SLoopParametric {}) -> merge r l
+       
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
@@ -211,8 +231,9 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
+      SLoopParametric _sem lb sl' -> freeVars (lb, sl')
       SLoop _ lc     -> freeVars lc
-      SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
+      SInverse n f p -> Set.delete n (freeVars (f, p))
 
   freeFVars sl =
     case sl of
@@ -223,6 +244,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
+      SLoopParametric _sem lb sl' -> freeFVars (lb, sl')
       SLoop _ lc     -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
@@ -247,6 +269,8 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
+      SLoopParametric sem lb sl' -> 
+        SLoopParametric sem <$> traverseUserTypes f lb <*> traverseUserTypes f sl'
       SLoop str lc     -> SLoop str <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
@@ -271,6 +295,8 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
+      SLoopParametric _sem lb sl' ->
+        "Loop[0/1]" <> parens (pp lb) <> " " <> pp sl'
       SLoop _ lc     -> pp lc -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p

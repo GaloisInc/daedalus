@@ -317,7 +317,7 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 
 logMessage' :: (Monad m, MonadIO m) => Int -> Int -> String -> m ()
 logMessage' v lvl s
-  | lvl > v = liftIO (putStr s >> hFlush stdout)
+  | lvl <= v = liftIO (putStrLn s >> hFlush stdout)
   | otherwise = pure ()
 
 logMessage :: LiftStrategyM m => Int -> String -> m ()

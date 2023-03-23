@@ -183,23 +183,7 @@ exprToAbsEnv fp expr =
       in SStruct ut <$> traverse mk' flds
 
     ECase cs       -> second SECase (traverse (go fp) cs)
-    ELoop (FoldMorphism n e lc b) ->
-      let (env, m_fp', slb) = exprFixpoint n b fp
-          (enve, sle) = goM m_fp' e
-          
-          str = maybe StructureInvariant absPredStructural m_fp'
-          (lcenv, lc', _str') = projectForLoopCollection str env lc
-      in (env `merge` enve `merge` lcenv
-         , SELoop (FoldMorphism n sle lc' slb)
-         )
-
-    ELoop (MapMorphism lc b) ->
-      let m_fp' = absPredListElement fp
-          str   = absPredStructural fp
-          (env, slb) = goM m_fp' b
-          (lcenv, lc', _str') = projectForLoopCollection str env lc
-      in (env `merge` lcenv, SELoop (MapMorphism lc' slb))
-
+    ELoop {}       -> panic "Saw a Loop in exprToAbsEnv" []
     -- We care about SelStruct and list/builder ops only, we don't do
     -- anything special for iterators (FIXME: maybe we should).
     Ap0 op         -> (absEmptyEnv, SAp0 op)
@@ -237,22 +221,12 @@ exprToAbsEnv fp expr =
     Ap3 op e1 e2 e3 -> SAp3 op <$> go Whole e1 <*> go Whole e2 <*> go Whole e3
 
     ApN (ArrayL ty) es ->
-      SApN (ArrayL ty) <$> traverse (goM (absPredListElement fp)) es
-      
-    -- We could (should?) unfold functions etc. here, but this is simpler.    
-    ApN op es       -> SApN op <$> traverse (go Whole) es
+      SArrayL ty <$> traverse (goM (absPredListElement fp)) es
+    ApN {}       -> panic "Saw a Call in exprToAbsEnv" []
   where
     goM m_fp e' = maybe (absEmptyEnv, EHole (typeOf e')) (flip go e') m_fp
      
     go = exprToAbsEnv
-
-    exprFixpoint n e fp' =
-      let (env, sle) = exprToAbsEnv fp' e
-          (env', m_fp'') = maybe (env, Nothing) (second Just) (absProj n env)
-      in case m_fp'' of
-        Just fp'' | not (absPredEntails fp' fp'') ->
-                    exprFixpoint n e (fp' `merge` fp'')
-        _ -> (env', m_fp'', sle)
 
 -- FIXME: a bit simplistic.
 byteSetToAbsEnv :: ByteSet -> LiftAbsEnv FLProj
