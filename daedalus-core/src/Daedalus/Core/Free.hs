@@ -29,6 +29,9 @@ instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
   freeVars (a, b)  = freeVars a `Set.union` freeVars b
   freeFVars (a, b) = freeFVars a `Set.union` freeFVars b
 
+instance (FreeVars a, FreeVars b, FreeVars c) => FreeVars (a, b, c) where
+  freeVars (a, b, c)  = freeVars a `Set.union` freeVars b `Set.union` freeVars c
+  freeFVars (a, b, c) = freeFVars a `Set.union` freeFVars b `Set.union` freeFVars c
 
 instance FreeVars Name where
   freeVars = Set.singleton

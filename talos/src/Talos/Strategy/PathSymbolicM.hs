@@ -272,11 +272,9 @@ enterFunction tgt argMap m = do
 
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
-  funs <- getFunDefs
-  bfuns <- getBFunDefs
   lenv <- asks sVarEnv
   env  <- getIEnv
-  hoistMaybe =<< liftSolver (runSemiSolverM funs bfuns lenv env m)
+  hoistMaybe =<< liftSolver (runSemiSolverM lenv env m)
 
 liftSymExecM :: SE.SymExecM StrategyM a -> SymbolicM a
 liftSymExecM m = do

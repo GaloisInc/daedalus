@@ -108,8 +108,9 @@ data Slice' cn sle =
    -- | This is the case where the length of the list isn't important,
    -- so we can generate multiple models and combine lazily.  The
    -- lower bound is included so we can assert it is == 0 in the null
-   -- case.
-  | SLoopParametric Sem sle (Slice' cn sle)
+   -- case, while the upper bound is included to assert it is > 0 in
+   -- the non-null case.
+  | SLoopParametric Sem sle (Maybe sle) (Slice' cn sle)
   -- Having 'Structural' here is a bit of a hack
   
   | SLoop Structural (LoopClass' sle (Slice' cn sle))
@@ -170,7 +171,8 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
-      (SLoopParametric _sem lb sl, SLoopParametric _sem' lb' sl') -> (lb, sl) `eqv` (lb', sl')
+      (SLoopParametric _sem lb m_ub sl, SLoopParametric _sem' lb' m_ub' sl') ->
+        (lb, sl, m_ub) `eqv` (lb', sl', m_ub')
       (SLoopParametric {}, SLoop {}) -> False
       (SLoop {}, SLoopParametric {}) -> False
       (SLoop str lb, SLoop str' lb') -> (str, lb) `eqv` (str', lb')
@@ -192,13 +194,13 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
 
-      ( SLoopParametric sem lb lc, SLoopParametric _sem rb rc ) ->
-        SLoopParametric sem (merge lb rb) (merge lc rc)
-      ( SLoopParametric _sem lb lc, SLoop str (ManyLoop sem bt rb m_ub rc) ) ->
-        SLoop str (ManyLoop sem bt (merge lb rb) m_ub (merge lc rc))
-      ( SLoopParametric _sem _lb lsl, SLoop str (MorphismLoop (MapMorphism lc rsl)) ) ->
+      ( SLoopParametric sem lb m_lub lc, SLoopParametric _sem rb m_rub rc ) ->
+        SLoopParametric sem (merge lb rb) (merge m_lub m_rub) (merge lc rc)
+      ( SLoopParametric _sem lb m_lub lc, SLoop str (ManyLoop sem bt rb m_rub rc) ) ->
+        SLoop str (ManyLoop sem bt (merge lb rb) (merge m_lub m_rub) (merge lc rc))
+      ( SLoopParametric _sem _lb _m_ub lsl, SLoop str (MorphismLoop (MapMorphism lc rsl)) ) ->
         SLoop str (MorphismLoop (MapMorphism lc (merge lsl rsl)))
-      ( SLoopParametric _sem _lb lsl, SLoop str (MorphismLoop (FoldMorphism n e lc rsl)) ) ->
+      ( SLoopParametric _sem _lb _m_ub lsl, SLoop str (MorphismLoop (FoldMorphism n e lc rsl)) ) ->
         SLoop str (MorphismLoop (FoldMorphism n e lc (merge lsl rsl)))
       (SLoop str lc, SLoop str' rc) -> SLoop (merge str str') (merge lc rc)
       (SLoop {}, SLoopParametric {}) -> merge r l
@@ -231,7 +233,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
-      SLoopParametric _sem lb sl' -> freeVars (lb, sl')
+      SLoopParametric _sem lb m_ub sl' -> freeVars (lb, m_ub, sl')
       SLoop _ lc     -> freeVars lc
       SInverse n f p -> Set.delete n (freeVars (f, p))
 
@@ -244,7 +246,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
-      SLoopParametric _sem lb sl' -> freeFVars (lb, sl')
+      SLoopParametric _sem lb m_ub sl' -> freeFVars (lb, m_ub, sl')
       SLoop _ lc     -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
@@ -269,8 +271,10 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
-      SLoopParametric sem lb sl' -> 
-        SLoopParametric sem <$> traverseUserTypes f lb <*> traverseUserTypes f sl'
+      SLoopParametric sem lb m_ub sl' -> 
+        SLoopParametric sem <$> traverseUserTypes f lb
+                            <*> traverseUserTypes f m_ub
+                            <*> traverseUserTypes f sl'
       SLoop str lc     -> SLoop str <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
@@ -295,8 +299,8 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
-      SLoopParametric _sem lb sl' ->
-        "Loop[0/1]" <> parens (pp lb) <> " " <> pp sl'
+      SLoopParametric _sem lb m_ub sl' ->
+        "Loop[0/1]" <> parens (pp lb <> ".." <> maybe "" pp m_ub) <> " " <> pp sl'
       SLoop _ lc     -> pp lc -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p

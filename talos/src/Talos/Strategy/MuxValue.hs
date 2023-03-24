@@ -489,8 +489,6 @@ data SemiSolverEnv = SemiSolverEnv
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
   , interpEnv       :: I.Env
-  , funDefs         :: Map FName (Fun Expr)
-  , byteFunDefs     :: Map FName (Fun ByteSet)
   } deriving (Generic)
 
 
@@ -502,13 +500,11 @@ type SemiCtxt m = (Monad m, MonadIO m, HasGUID m)
 type SemiSolverM m = MaybeT (ReaderT SemiSolverEnv (SolverT m))
 
 runSemiSolverM :: SemiCtxt m =>
-                  Map FName (Fun Expr) ->
-                  Map FName (Fun ByteSet) ->                  
                   Map Name GuardedSemiSExprs ->
                   I.Env ->
                   SemiSolverM m a -> SolverT m (Maybe a)
-runSemiSolverM funs bfuns lenv env m =
-  runReaderT (runMaybeT m) (SemiSolverEnv lenv env funs bfuns)
+runSemiSolverM lenv env m =
+  runReaderT (runMaybeT m) (SemiSolverEnv lenv env)
 
 getMaybe :: SemiCtxt m => SemiSolverM m a -> SemiSolverM m (Maybe a)
 getMaybe = lift . runMaybeT 
@@ -554,7 +550,8 @@ semiExecExpr expr =
       els <- concat <$> mapM mk1 ms
       hoistMaybe (unions' els)
 
-    -- ELoop lm     -> semiExecLoop lm
+    -- These should be lifted in LiftExpr
+    ELoop _lm    -> panic "Impossible" []
         
     Ap0 op       -> pure (vValue mempty $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
@@ -570,39 +567,6 @@ semiExecExpr expr =
     ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
   where
     rty = typeOf expr
-
--- semiExecLoop :: (MonadIO m, Monad m, HasGUID m) => LoopMorphism' Expr Expr -> SemiSolverM m GuardedSemiSExprs
--- semiExecLoop lm =
---   case lm of
---     FoldMorphism n e lc b -> do
---       e_v  <- semiExecExpr e
---       (els, bindIn, _mk) <- goLC lc
---       let goOne acc el = bindNameIn n acc (bindIn el (semiExecExpr b))
---       foldlM goOne e_v els
---     MapMorphism lc b -> do
---       (els, bindIn, mk) <- goLC lc
---       let goOne el = (,) (fst el) <$> bindIn el (semiExecExpr b)
---       mk <$> traverse goOne els
---   where
---     goLC lc = do
---       lcv <- semiExecExpr (lcCol lc)
-
---       let k_bind = maybe (const id) bindNameIn (lcKName lc)
---           bindIn (kv, ev) = k_bind kv . bindNameIn (lcElName lc) ev
-
---           mkA = zip (map (VValue . V.vSize) [0..])
---           (els, mk) = case lcv of
---             VValue (V.VArray vs) -> ( mkA (map VValue (toList vs))
---                                    , VSequence False . map snd
---                                     )
-                                    
---             -- FIXME: this chooses an order
---             VValue (V.VMap m)  -> ( [ (VValue k, VValue v) | (k, v) <- Map.toList m ], VMap )
---             -- isBldr should probably always be False as we don't iterate over builders.
---             VSequence isBldr vs -> (mkA vs, VSequence isBldr . map snd)
---             VMap vs -> (vs, VMap)
---             _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
---       pure (els, bindIn, mk)
 
 semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
                GuardedSemiSExprs ->
@@ -962,7 +926,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
 
     -- FIXME: do something better here, i.e., return the values in the
     -- map guarded by the path expression to get there.
-    mapOp g sv1 sv2 missing smissingf found sfound 
+    mapOp g sv1 sv2 _missing _smissingf _found _sfound 
       -- -- Concrete case
       --  | Just els <- toL sv1, VValue kv <- sv2
       -- , Just res <- mapLookupV missing found kv els
@@ -988,16 +952,16 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
 
     unimplemented = panic "semiEvalOp2: Unimplemented" [showPP op]
 
-    mapLookupV z _f  _kv  [] = Just z
-    mapLookupV z f  kv ((VValue kv', el) : rest) =
-      if kv == kv' then Just (f el) else mapLookupV z f kv rest
-    mapLookupV _ _ _ _ = Nothing
+    -- mapLookupV z _f  _kv  [] = Just z
+    -- mapLookupV z f  kv ((VValue kv', el) : rest) =
+    --   if kv == kv' then Just (f el) else mapLookupV z f kv rest
+    -- mapLookupV _ _ _ _ = Nothing
 
-    mapLookupS tys f kTy symkv skv (skv', sel) rest =
-      case (skv, skv') of
-        (VValue kv, VValue kv')
-          -> if kv == kv' then f sel else rest
-        _ -> S.ite (S.eq symkv (toSExpr1 tys kTy skv')) (f sel) rest
+    -- mapLookupS tys f kTy symkv skv (skv', sel) rest =
+    --   case (skv, skv') of
+    --     (VValue kv, VValue kv')
+    --       -> if kv == kv' then f sel else rest
+    --     _ -> S.ite (S.eq symkv (toSExpr1 tys kTy skv')) (f sel) rest
 
 
 semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
@@ -1030,30 +994,7 @@ semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOpN (ArrayL _ty) _rty vs =
   pure (singleton mempty (VSequence False vs))
-               
--- semiExecOpN op rty vs
---   | Just vs' <- mapM unValue vs = do
---       env <- asks interpEnv
---       pure (VValue (evalOpN op vs' env))
---   | Just vs' <- mapM unOther vs = lift (vSExpr rty <$> SE.symExecOpN op vs')
---   where
---     unValue (VValue v) = Just v
---     unValue _ = Nothing
-
---     unOther (VOther v) = Just (typedThing v)
---     unOther _ = Nothing
-
--- Unfold body of function.
-
--- FIXME: This may run into termination issues if the arguments aren't
--- concrete enough (e.g. map over a symbolic array)
-semiExecOpN (CallF fn) _rty vs = do
-  fdefs <- asks funDefs
-  let (ps, e) = case Map.lookup fn fdefs of
-        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
-        _   -> panic "Missing function " [showPP fn]
-
-  foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
+semiExecOpN (CallF _fn) _rty _vs = panic "Impossible" []
 
 -- -- -----------------------------------------------------------------------------
 -- -- Value -> SExpr

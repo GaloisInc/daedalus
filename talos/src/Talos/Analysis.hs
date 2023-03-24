@@ -594,7 +594,7 @@ summariseLoop preds lcl =
           -- i.e., we get 0 or 1 elements.  We could also try to
           -- detect this case during synthesis, but it seems simpler
           -- to just pun on the Many case.
-          mkSliceNoDeps = SLoopParametric SemNo sz0
+          mkSliceNoDeps = SLoopParametric SemNo sz0 Nothing
           mkSlice e' lc' str g' =
             SLoop str (MorphismLoop (FoldMorphism n e' lc' g'))
                  
@@ -650,7 +650,7 @@ summariseLoop preds lcl =
           -- i.e., we get 0 or 1 elements.  We could also try to
           -- detect this case during synthesis, but it seems simpler
           -- to just pun on the Many case.
-          mkSliceNoDeps = SLoopParametric SemYes sz0
+          mkSliceNoDeps = SLoopParametric SemYes sz0 Nothing
           mkSlice lc' str g' = SLoop str (MorphismLoop (MapMorphism lc' g'))
           (gss, gD') = domainElements gD
           
