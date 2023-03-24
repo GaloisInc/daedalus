@@ -31,6 +31,7 @@ data Options =
           , optInvFile    :: Maybe FilePath
           , optAnalysisKind :: Maybe String
           , optVerbosity :: Int
+          , optNoLoops :: Bool
           , optDDLInput  :: FilePath
           }
 
@@ -151,6 +152,12 @@ verbosityOpt = flag' ()
      <> short 'v'
      <> help "Verbosity level (can be used multiple times)" )
 
+noLoopsOpt :: Parser Bool
+noLoopsOpt = switch
+   ( long "no-loops"
+   <> help "Remove loops before running Talos" )
+
+
 options :: Parser Options
 options = Options <$> solverOpt
                   <*> optional logfileOpt
@@ -163,10 +170,11 @@ options = Options <$> solverOpt
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt
-                  <*> ((Just <$> some strategyOpt) <|> pure Nothing)
+                  <*> optional (some strategyOpt)
                   <*> optional invFileOpt
                   <*> optional analysisKindOpt
                   <*> (length <$> many verbosityOpt)
+                  <*> noLoopsOpt
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

@@ -45,31 +45,29 @@ main = do
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
-  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
+  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
   print (pp md)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
   let absEnv = fromMaybe "fields" (optAnalysisKind opts)
-  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optVerbosity opts) absEnv
+  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optVerbosity opts) (optNoLoops opts) absEnv
   print summaryDoc
-    
+
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
   let bOpts = [ ("auto-config", "false")
               , ("smt.phase_selection", "5")
               -- see :smt.arith.random_initial_value also and seed options
               ]
-              ++ if optValidateModel opts
-                 then [("model-validate", "true")]
-                  else []
+              ++ [("model-validate", "true") | optValidateModel opts]
 
   let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
       absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
-  strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
+  strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts)
             ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts) absEnv (optVerbosity opts)
+            logOpt (optSeed opts) absEnv (optVerbosity opts) (optNoLoops opts)
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines
@@ -100,13 +98,13 @@ doSynthesis opts = do
   let doWriteModel n m_bs =
         case m_bs of
           Nothing      -> hPutStrLn stderr "Not enough models" >> exitFailure
-          Just (v, bs, provmap) -> 
+          Just (v, bs, provmap) ->
             do writeModel n v bs provmap
                when (optPrettyModel opts) $ prettyBytes n v bs provmap
                case optProvFile opts of
                  Nothing -> pure ()
                  Just f  -> writeFile f (show provmap)
-                   
+
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
 
@@ -115,20 +113,20 @@ prettyHexWithProv provmap bs =
   prettyHexCfg (Cfg 0 mkColor) bs
     ++ (setSGRCode [])
   where
-    mkColor off s = 
-      let (i, col) = case Map.lookup off provmap of 
+    mkColor off s =
+      let (i, col) = case Map.lookup off provmap of
                          Just p -> colors !! (p `mod` (length colors))
                          Nothing -> (Vivid, White)
       in
         (setSGRCode [SetColor Foreground i col]) ++ s
 
-    colors = [(Vivid, Red), 
+    colors = [(Vivid, Red),
               (Vivid, Green),
               (Vivid, Yellow),
               (Vivid, Blue),
               (Vivid, Magenta),
               (Vivid, Cyan),
-              (Dull, Red), 
+              (Dull, Red),
               (Dull, Green),
               (Dull, Yellow),
               (Dull, Blue),

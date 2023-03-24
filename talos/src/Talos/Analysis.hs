@@ -86,7 +86,7 @@ summariseDecl :: AbsEnv ae =>
 summariseDecl cls fid Fun { fDef = Def def
                           , fName = fn
                           , fParams = ps } = do
-  logMessage 1 ("Summarising " ++ showPP fn) 
+  logMessage 1 ("* Summarising " ++ showPP fn ++ " for " ++ showPP cls) 
   
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
@@ -197,10 +197,10 @@ summariseCall preds fn args
                              , gsSlice = SCall (mkCallNode i gs)
                              }
               res = domainFromElements $ zipWith mkCall [0..] (elements dom)
-          -- traceM ("Call result to " ++ showPP fn ++
-          --         " for " ++ showPP cl ++ "\n" ++
-          --         show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
-          --         show (nest 4 (pp res)))
+          logMessage 1 ("** Call result to " ++ showPP fn ++
+                        " for " ++ showPP cl ++ "\n" ++
+                        show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
+                        show (nest 4 (pp res)))
           pure res
   | otherwise = panic "Saw non-Var arg" []
 
@@ -448,10 +448,9 @@ summariseBind preds x lhs rhs = do
 
   fn <- currentDeclName
   -- when (showPP fn == "Main") $
-  logMessage 2 ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
+  logMessage 3 ("** Summarising bind in " ++ showPP fn ++ "\n" ++
                 show (nest 4 $ pp (Do x lhs rhs)) ++
-                "\n (result'? " ++ show (not $ null preds') ++ ")" ++
-                "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
+                "\n" ++ show (hang ("lhsD: " <> brackets (commaSep (map pp preds'))) 4 (pp lhsD)) ++
                 "\n" ++
                 show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
                 show (hang "final" 4 (pp final)))
@@ -461,9 +460,11 @@ summariseBind preds x lhs rhs = do
 
 squashDomain' :: AbsEnv ae => String -> Domain ae -> SummariseM ae (Domain ae)
 squashDomain' msg d = do
-  when (nelems > 1) $ logMessage 1 (msg ++ ": Merging " ++ show nelems ++ " elements")
-  pure (squashDomain d)
+  when (nelems > 1) $ logMessage 1 ("** " ++ msg ++ ": Merging " ++ show nelems ++ " elements")
+  when (nelems > 1) $ logMessage 2 ("** " ++ show (nest 4 (pp d')))
+  pure d'
   where
+    d'     = squashDomain d
     nelems = length (elements d)
 
 summariseMany :: AbsEnv ae => [AbsPred ae] ->
@@ -471,7 +472,7 @@ summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  SummariseM ae (Domain ae)
 summariseMany preds sem bt lb m_ub g = do
   elsD <- summariseG (mapMaybe absPredListElement preds) g
-  logMessage 1 ("Many " ++ showPP elsD)
+  logMessage 1 ("** Many " ++ showPP elsD)
 
   -- We need to now map the elpreds we used (from the list predicates)
   -- back into preds, and wrap the slices in a SLoop . ManyLpop.  We
@@ -490,7 +491,7 @@ summariseMany preds sem bt lb m_ub g = do
       -- length stgss should be <= 1
       stgss' = map mkStructural stgss
       nsgss' = map mkInvariant  nsgss
-      resD   = domainFromElements (stgss ++ nsgss') `merge` nonResD'
+      resD   = domainFromElements (stgss' ++ nsgss') `merge` nonResD'
   when (length stgss' > 1) $ panic "BUG: Saw multiple structural loop slices" []
 
   -- We have to squash as we don't yet support disjunctive domains.
@@ -584,7 +585,10 @@ summariseLoop preds lcl =
     -- Similar for Repeat above, with the additional use of elements.
     MorphismLoop (FoldMorphism n e lc g) -> do
       (gss, gD) <- gssFixpoint n g preds
-
+      logMessage 1 ("** Fold" ++
+                    "\n" ++ show (nest 4 (vcat (map (pp . fst) gss))) ++
+                    "\n" ++ show (nest 4 (pp gD)))
+      
       let -- This is the case where the body just constrains the
           -- environment, so se pretend it is a semantic-less Many,
           -- i.e., we get 0 or 1 elements.  We could also try to
@@ -639,7 +643,7 @@ summariseLoop preds lcl =
 
     MorphismLoop (MapMorphism lc g) -> do
       gD <- summariseG (mapMaybe absPredListElement preds) g
-      logMessage 1 ("MapMorphism\n" ++ showPP gD)
+      logMessage 1 ("** MapMorphism\n" ++ showPP gD)
       
       let -- This is the case where the body just constrains the
           -- environment, so se pretend it is a semantic-less Many,
@@ -661,8 +665,8 @@ summariseLoop preds lcl =
           (strgss, nsgss) = partition ((==) Structural . snd) (map mkGS gss)
 
       gss' <- case strgss of
-                []             -> logMessage 1 ("No structural" ++ show (vcat (map (pp . fst) nsgss))) $> map fst nsgss
-                (gs, _) : rest -> logMessage 1 "Structural"    $> foldl merge gs (map fst rest) : map fst nsgss
+                []             -> logMessage 1 ("*** No structural\n" ++ show (nest 4 $ vcat (map (pp . fst) nsgss))) $> map fst nsgss
+                (gs, _) : rest -> logMessage 1 "*** Structural\n"  $> foldl merge gs (map fst rest) : map fst nsgss
       
       -- We squash as we don't support disjunctive slicing.
       squashDomain' "MapMorphism" $ domainFromElements gss' `merge` gD'
@@ -683,12 +687,15 @@ summariseLoop preds lcl =
     --  1. all deps on x are entailed by post-cond; and
     --  2. at most 1 slice with structural deps.
     gssFixpoint x g ps = do
-      logMessage 1 "gssFixpoint ..."
-      
       (matching, gD) <- repeatFixpoint x g ps
       let (justPost, gD') = partitionDomainForResult (const True) gD
       let gss = mergeForDeps (map (\(gs, p) -> (gs, p, p)) matching) ( (, Nothing) <$> justPost)
           (strgss, nsgss) = partition (maybe False absPredIsStructural . snd) gss
+
+          ppOne = show . nest 4 . vcat . map (pp . fst) 
+      logMessage 2 ("*** gssFixpoint: " ++ show (brackets (commaSep (map pp ps))) ++
+                    "\nStructural\n" ++ ppOne strgss ++
+                    "\nNon-structural\n" ++ ppOne nsgss)
       pure $ case strgss of
                [] -> (nsgss, gD')
                _ -> (foldl1 merge strgss : nsgss, gD')
@@ -708,16 +715,21 @@ summariseLoop preds lcl =
           -- If a gs in rest matches, we merge in the slices and
           -- re-add it to the wl using the matching predicate.
           rest' = [(gs `merge` gs', merge depp depp', p') | (gs', depp', p') <- inrest ] ++ outrest
-          acc'  = [(gs `merge` gs', merge (Just depp) m_p) | (gs', m_p) <- inacc ] ++ outacc
-      in mergeForDeps rest' acc'
+          acc' | null inrest && null inacc = [(gs, Just depp)]                                          
+               | otherwise = [(gs `merge` gs', merge (Just depp) m_p) | (gs', m_p) <- inacc ]
+      in mergeForDeps rest' (acc' ++ outacc)
                       
     repeatFixpoint x g ps = do
-      logMessage 1 ("Calculating fixpoint ...") 
       gD <- summariseG ps g
       
       let (matching, gD') = partitionDomainForVar x gD
           deps = map snd matching
           ps' = mergeOverlapping absPredOverlaps deps ps
+
+      logMessage 2 ("*** repeatFixpoint: " ++ show (brackets (commaSep (map pp ps))) ++
+                   "\n   Depends on bound var (" ++ showPP x ++
+                   ")\n" ++ (show . nest 4 . vcat . map (pp . fst) $ matching) ++
+                   "\n   Remainder\n" ++ show (nest 4 (pp gD')))
           
       -- looks expensive, although the lists should be pretty short.
       if all (\p -> any (`absPredEntails` p) ps) deps

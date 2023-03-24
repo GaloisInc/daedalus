@@ -54,10 +54,10 @@ import qualified Talos.Synthesis              as T
 -- instance HasGUID FreshGUIDM where
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
-summarise :: FilePath -> Maybe FilePath -> Maybe String -> Int -> String ->
-             IO Doc
-summarise inFile m_invFile m_entry verbosity absEnv = do
-  (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+summarise :: FilePath -> Maybe FilePath -> Maybe String -> Int -> Bool ->
+             String -> IO Doc
+summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
+  (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry noLoops
 
   AbsEnvTy p <- case lookup absEnv A.absEnvTys of
     Just x -> pure x
@@ -119,9 +119,11 @@ synthesise :: FilePath           -- ^ DDL file
            -> Maybe Int          -- ^ Random seed
            -> String             -- ^ Analysis abstract env.
            -> Int                -- ^ Verbosity
+           -> Bool               -- ^ No loops
            -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed absEnv verbosity = do
-  (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+synthesise inFile m_invFile m_entry backend bArgs bOpts bInit
+           stratOpt m_logOpts m_seed absEnv verbosity noLoops = do
+  (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry noLoops
 
   -- SMT init
   logger <- case m_logOpts of
@@ -159,9 +161,9 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
 -- declarations (that are named struct or union types), and a list of
 -- type-checked modules. The main rule's name includes the module
 -- information needed to find it.r
-runDaedalus :: FilePath -> Maybe FilePath -> Maybe String ->
+runDaedalus :: FilePath -> Maybe FilePath -> Maybe String -> Bool ->
                IO (FName, Module, GUID)
-runDaedalus inFile m_invFile m_entry = daedalus $ do
+runDaedalus inFile m_invFile m_entry noLoops = daedalus $ do
   mm <- ddlPassFromFile ddlLoadModule inFile
   extras <- case m_invFile of
     Nothing -> pure []
@@ -175,6 +177,7 @@ runDaedalus inFile m_invFile m_entry = daedalus $ do
 
   passSpecialize specMod ((mm, entryName) : extras)
   passCore specMod
+  when noLoops $ passNoLoops specMod
   passStripFail specMod
   passSpecTys specMod
   passConstFold specMod
