@@ -37,9 +37,9 @@ instance AbsEnvPred Whole where
   absPredOverlaps _ _ = True
 
   absPredEntails _ _ = True
-  absPredStructural _ = Structural
+  absPredStructural _ = StructureDependent
   absPredListElement _ = Just Whole
-  absPredCollection _ StructureInvariant Nothing Nothing = Nothing
+  absPredCollection _ StructureIndependent Nothing Nothing = Nothing
   absPredCollection _ _                  _       _       = Just Whole
   
 newtype VarAbsEnv = VarAbsEnv (LiftAbsEnv Whole)

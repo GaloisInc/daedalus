@@ -9,9 +9,12 @@ module Talos.Analysis.Slice
   ( FInstId(..)
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
-  , Slice'(..), Structural(..)
+  , Slice'(..), Structural(..), SLoopClass(..)
+  , sloopClassBody, sloopClassE, mapSLoopClassE, foldMapSLoopClassE
   ) where
 
+import           Data.Functor.Identity (Identity (..))
+import           Control.Applicative   (Const (..))
 import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 
@@ -105,15 +108,7 @@ data Slice' cn sle =
   | SCall cn
   | SCase Bool (Case (Slice' cn sle))
 
-   -- | This is the case where the length of the list isn't important,
-   -- so we can generate multiple models and combine lazily.  The
-   -- lower bound is included so we can assert it is == 0 in the null
-   -- case, while the upper bound is included to assert it is > 0 in
-   -- the non-null case.
-  | SLoopParametric Sem sle (Maybe sle) (Slice' cn sle)
-  -- Having 'Structural' here is a bit of a hack
-  
-  | SLoop Structural (LoopClass' sle (Slice' cn sle))
+  | SLoop (SLoopClass sle (Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
@@ -143,10 +138,103 @@ data Slice' cn sle =
 -- [\result >> 24 as uint 8, \result >> 16 as uint 8, \result >> 8 as uint 8, \result as uint 8 ]
 -- when constructing the path (i.e., when getting bytes).
 
--- | This is for loops -- a loop slice is structural if the structure
--- is important (i.e., the order/number of elements).
-data Structural = Structural | StructureInvariant
-  deriving (Eq, Ord, Show, Generic, NFData)
+-- | For sequences, there are three ways we care about loop
+-- dependency, apart from the dependency on the elements.
+data Structural =
+  StructureIndependent
+  -- ^ No dependence on the structure, including whether it is empty
+  -- or not, for example
+  --
+  --  xs = Many UInt8
+  --  map (x in xs) block
+  --    $$ = UInt8
+  --    x < $$ is true
+  --
+  | StructureIsNull
+  -- ^ Depends only on whether the list is empty or not, typically
+  -- because the usage of the list constrains other parts of the
+  -- grammar, and so the emptiness (or not) may be relevant to
+  -- e.g. the solvability of the slice, for example
+  -- 
+  -- > let xs = Many UInt8
+  -- > let y = UInt8
+  -- > map (x in xs) (x < y is true)
+  | StructureDependent
+  -- ^ The order and length of the list, for example
+  -- 
+  -- >  let xs = Many UInt8
+  -- >  ^ for (acc = 0; x in xs) (x + acc * 10)
+
+  deriving (Eq, Show, Generic, NFData)
+
+instance Ord Structural where
+  StructureIndependent <= _ = True
+  StructureIsNull <= StructureIsNull    = True
+  StructureIsNull <= StructureDependent = True
+  StructureDependent <= StructureDependent = True
+  _ <= _ = False
+
+data SLoopClass sle b =
+  SMorphismBody b
+  -- ^ Should generate a set of models for b, and we will pick the
+  -- number we need.  The body should not depend on the context or the
+  -- collection.  This can occur when the body constructs the output
+  -- of the map without inspecting the element, for example
+  --
+  -- > xs = ...
+  -- > ys = map (x in xs) block
+  -- >        a = f x
+  -- >        b = UInt8
+  -- >        b > 10 is true
+  --
+  -- because even though the slice will have no deps, recall we
+  -- consider slices which establish a post-condition to be open (so
+  -- we can bind then in a Do to link up with the user of the post-condition).
+  
+  | SManyLoop Structural sle (Maybe sle) b
+  -- ^ A Many loop where the dependence on the result is determined by
+  -- the first parameter: it should be possible to ignore this flag,
+  -- e.g. in a simple strategy, but a more complex strategy can take
+  -- advantage of this information to produce a set of results (i.e.,
+  -- order independent and not all need to be used).
+
+  | SRepeatLoop Structural Name sle b
+  -- ^ A Repeat loop where the dependence on the result is determined
+  -- by the first parameter, as for 'SManyLoop'.
+
+  | SMorphismLoop (LoopMorphism' sle b)
+  -- ^ A 'LoopMorphism', where the structure is determined by the collection.
+  deriving (Eq, Generic, NFData)
+
+sloopClassBody :: SLoopClass sle b -> b
+sloopClassBody lc =
+  case lc of
+    SMorphismBody b -> b
+    SManyLoop _str _lb _m_ub b -> b
+    SRepeatLoop _str _n _e b -> b
+    SMorphismLoop lm -> morphismBody lm
+
+sloopClassE :: Applicative f => (sle -> f sle') -> (b -> f b') -> SLoopClass sle b ->
+                      f (SLoopClass sle' b')
+sloopClassE ef bf lc =
+  case lc of
+    SMorphismBody b -> SMorphismBody <$> bf b
+    SManyLoop str lb m_ub b ->
+      SManyLoop str <$> ef lb <*> traverse ef m_ub <*> bf b
+    SRepeatLoop str n e b ->
+      SRepeatLoop str n <$> ef e <*> bf b      
+    SMorphismLoop lm -> SMorphismLoop <$> morphismE ef bf lm
+  
+mapSLoopClassE :: (e -> e') -> (a -> a') ->
+                   SLoopClass e a -> SLoopClass e' a'
+mapSLoopClassE ef af lc =
+  runIdentity (sloopClassE (Identity . ef) (Identity . af) lc)
+
+foldMapSLoopClassE :: Monoid m => (e -> m) -> (a -> m) ->
+                       SLoopClass e a -> m
+foldMapSLoopClassE ef af lc = m
+  where
+    Const m = sloopClassE (Const . ef) (Const . af) lc
 
 --------------------------------------------------------------------------------
 -- Domain Instances
@@ -171,12 +259,7 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
-      (SLoopParametric _sem lb m_ub sl, SLoopParametric _sem' lb' m_ub' sl') ->
-        (lb, sl, m_ub) `eqv` (lb', sl', m_ub')
-      (SLoopParametric {}, SLoop {}) -> False
-      (SLoop {}, SLoopParametric {}) -> False
-      (SLoop str lb, SLoop str' lb') -> (str, lb) `eqv` (str', lb')
-      
+      (SLoop lc, SLoop lc')          -> lc `eqv` lc'
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -194,26 +277,39 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
 
-      ( SLoopParametric sem lb m_lub lc, SLoopParametric _sem rb m_rub rc ) ->
-        SLoopParametric sem (merge lb rb) (merge m_lub m_rub) (merge lc rc)
-      ( SLoopParametric _sem lb m_lub lc, SLoop str (ManyLoop sem bt rb m_rub rc) ) ->
-        SLoop str (ManyLoop sem bt (merge lb rb) (merge m_lub m_rub) (merge lc rc))
-      ( SLoopParametric _sem _lb _m_ub lsl, SLoop str (MorphismLoop (MapMorphism lc rsl)) ) ->
-        SLoop str (MorphismLoop (MapMorphism lc (merge lsl rsl)))
-      ( SLoopParametric _sem _lb _m_ub lsl, SLoop str (MorphismLoop (FoldMorphism n e lc rsl)) ) ->
-        SLoop str (MorphismLoop (FoldMorphism n e lc (merge lsl rsl)))
-      (SLoop str lc, SLoop str' rc) -> SLoop (merge str str') (merge lc rc)
-      (SLoop {}, SLoopParametric {}) -> merge r l
-       
+      (SLoop lc, SLoop lc')          -> SLoop (merge lc lc')
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
 
 instance Eqv Structural where -- default
 instance Merge Structural where
-  StructureInvariant `merge` StructureInvariant = StructureInvariant
-  _ `merge` _ = Structural
+  merge = max
 
+instance (Eqv sle, Eqv b) => Eqv (SLoopClass sle b) where
+  SMorphismBody b `eqv ` SMorphismBody b' = b `eqv` b'
+  SManyLoop str lb m_ub b `eqv ` SManyLoop str' lb' m_ub' b'
+    = (str, lb, m_ub, b) `eqv` (str', lb', m_ub', b')
+  SRepeatLoop str _n sle b `eqv` SRepeatLoop str' _n' sle' b' =
+    (str, sle, b) `eqv` (str', sle', b')
+  SMorphismLoop lm `eqv` SMorphismLoop lm' = lm `eqv` lm'
+  _ `eqv` _ = False
+
+instance (Merge sle, Merge b, PP sle, PP b) => Merge (SLoopClass sle b) where
+  SMorphismBody b `merge ` SMorphismBody b' = SMorphismBody (merge b b')
+  SManyLoop str lb m_ub b `merge ` SManyLoop str' lb' m_ub' b'
+    = SManyLoop (merge str str') (merge lb lb') (merge m_ub m_ub') (merge b b')
+  SRepeatLoop str n sle b `merge` SRepeatLoop str' _n sle' b' =
+    SRepeatLoop (merge str str') n (merge sle sle') (merge b b')
+  SMorphismLoop lm `merge` SMorphismLoop lm' = SMorphismLoop (merge lm lm')
+  -- Now for MorphismBody and LoopMorphism
+  SMorphismBody b `merge` SMorphismLoop lm =
+    SMorphismLoop $ case lm of
+                      MapMorphism lc b' -> MapMorphism lc (merge b b')
+                      FoldMorphism n e lc b' -> FoldMorphism n e lc (merge b b')
+  lc@SMorphismLoop {} `merge` lc'@SMorphismBody {} = merge lc' lc
+  lc `merge` lc' = panic "IMPOSSIBLE (merge)" [showPP lc, showPP lc']
+  
 --------------------------------------------------------------------------------
 -- Free instances
 --
@@ -233,8 +329,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
-      SLoopParametric _sem lb m_ub sl' -> freeVars (lb, m_ub, sl')
-      SLoop _ lc     -> freeVars lc
+      SLoop lc       -> freeVars lc
       SInverse n f p -> Set.delete n (freeVars (f, p))
 
   freeFVars sl =
@@ -246,12 +341,27 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
-      SLoopParametric _sem lb m_ub sl' -> freeFVars (lb, m_ub, sl')
-      SLoop _ lc     -> freeFVars lc
+      SLoop lc       -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
       SInverse _ _f p -> {- freeFVars f <> -} freeFVars p
 
+
+instance (FreeVars sle, FreeVars b) => FreeVars (SLoopClass sle b) where
+  freeVars lc =
+    case lc of
+      SMorphismBody b -> freeVars b
+      SManyLoop _str lb m_ub b -> freeVars (lb, m_ub, b)
+      SRepeatLoop _str n e b   -> freeVars e <> Set.delete n (freeVars b)
+      SMorphismLoop lm -> freeVars lm
+
+  freeFVars lc =
+    case lc of
+      SMorphismBody b -> freeFVars b
+      SManyLoop _str lb m_ub b -> freeFVars (lb, m_ub, b)
+      SRepeatLoop _str _n e b   -> freeFVars (e, b)
+      SMorphismLoop lm -> freeFVars lm
+      
 -- -----------------------------------------------------------------------------
 -- FreeTCons
 
@@ -267,20 +377,28 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
                                <*> traverseUserTypes f l
                                <*> traverseUserTypes f r
       SMatch m         -> SMatch <$> traverseUserTypes f m
---      SAssertion e     -> SAssertion <$> traverseUserTypes f e
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
-      SLoopParametric sem lb m_ub sl' -> 
-        SLoopParametric sem <$> traverseUserTypes f lb
-                            <*> traverseUserTypes f m_ub
-                            <*> traverseUserTypes f sl'
-      SLoop str lc     -> SLoop str <$> traverseUserTypes f lc
+      SLoop lc         -> SLoop <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
   traverseUserTypes _f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
+
+instance (TraverseUserTypes sle, TraverseUserTypes b) =>
+         TraverseUserTypes (SLoopClass sle b) where
+  traverseUserTypes f lc =
+    case lc of
+      SMorphismBody b -> SMorphismBody <$> traverseUserTypes f b
+      SManyLoop str lb m_ub b -> SManyLoop str <$> traverseUserTypes f lb
+                                               <*> traverseUserTypes f m_ub
+                                               <*> traverseUserTypes f b
+      SRepeatLoop str n e b -> SRepeatLoop str <$> traverseUserTypes f n
+                                               <*> traverseUserTypes f e
+                                               <*> traverseUserTypes f b
+      SMorphismLoop lm -> SMorphismLoop <$> traverseUserTypes f lm
 
 --------------------------------------------------------------------------------
 -- PP Instances
@@ -299,9 +417,7 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
-      SLoopParametric _sem lb m_ub sl' ->
-        "Loop[0/1]" <> parens (pp lb <> ".." <> maybe "" pp m_ub) <> " " <> pp sl'
-      SLoop _ lc     -> pp lc -- forget Structural
+      SLoop lc       -> pp lc -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
 
@@ -317,3 +433,21 @@ instance PP FInstId where
 instance PP p => PP (SummaryClass p) where
   pp Assertions = "Assertions"
   pp (Result p) = "Result" <+> brackets (commaSep (map pp (Set.toList p)))
+
+instance (PP sle, PP b) => PP (SLoopClass sle b) where
+  pp lc =
+    case lc of
+      SMorphismBody b -> "Morphism " <> pp b
+      SManyLoop str l m_h g ->
+        "Many" <.> pp str  <.>
+        parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+      SRepeatLoop str n e g   ->
+        "for" <.> pp str <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+      SMorphismLoop lm  -> pp lm    
+
+instance PP Structural where
+  pp str =
+    case str of
+      StructureIndependent -> "*"
+      StructureIsNull -> "+"
+      StructureDependent -> "!"

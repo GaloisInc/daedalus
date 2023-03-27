@@ -30,10 +30,9 @@ import qualified Data.Set                        as Set
 import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
-                                                  LoopClass' (..),
+                                                  LoopCollection' (..),
                                                   LoopMorphism' (..), Name,
-                                                  TDecl, TName, loopClassBody,
-                                                  nameId, LoopCollection'(..))
+                                                  TDecl, TName, nameId)
 import           Daedalus.Core.Basics            (freshName)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
@@ -51,7 +50,8 @@ import           Talos.Analysis.Domain           (CallNode (..), Domain, Slice,
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (Summaries, Summary (..))
 import           Talos.Analysis.SLExpr           (slExprToExpr')
-import           Talos.Analysis.Slice            (FInstId, Slice' (..))
+import           Talos.Analysis.Slice            (FInstId, SLoopClass (..),
+                                                  Slice' (..), sloopClassBody)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -95,7 +95,7 @@ sliceToCallees = go
       SChoice cs        -> foldMap go cs
       SCall cn          -> Set.singleton (ecnSliceId cn)
       SCase _ c         -> foldMap go c
-      SLoop _ lc        -> go (loopClassBody lc)
+      SLoop lc          -> go (sloopClassBody lc)
       SInverse {}       -> mempty -- No grammar calls
 
 makeEsRecs :: Map SliceId ExpSlice ->  Map SliceId (Set SliceId)
@@ -154,7 +154,7 @@ sliceToRecVars recs = snd . go
       SChoice cs -> foldMap go cs
       SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
       SCase _ cs -> foldMap go cs
-      SLoop _ lc  -> go (loopClassBody lc)
+      SLoop lc   -> go (sloopClassBody lc)
       SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
@@ -317,20 +317,21 @@ exportSlice m_sid sl0 = do
           x' <- goN x
           pure (SCase t (Case x' cs'))
 
-        SLoop str lcl -> SLoop str <$>
-          case lcl of 
-            ManyLoop sem bt lb m_ub g ->
-              ManyLoop sem bt <$> goE lb
-                              <*> traverse goE m_ub
-                              <*> go g
-            RepeatLoop bt n e b -> do
+        SLoop lcl -> SLoop <$>
+          case lcl of
+            SMorphismBody g -> SMorphismBody <$> go g
+            SManyLoop str lb m_ub g ->
+              SManyLoop str <$> goE lb
+                            <*> traverse goE m_ub
+                            <*> go g
+            SRepeatLoop str n e b -> do
               n' <- refreshName n
-              RepeatLoop bt n' <$> goE e <*> substNameIn n n' (go b)
-            MorphismLoop (FoldMorphism n e lc b) -> do 
+              SRepeatLoop str n' <$> goE e <*> substNameIn n n' (go b)
+            SMorphismLoop (FoldMorphism n e lc b) -> do 
               n' <- refreshName n
-              MorphismLoop <$> goLC lc (FoldMorphism n <$> goE e) (substNameIn n n' (go b))
-            MorphismLoop (MapMorphism lc b) ->
-              MorphismLoop <$> goLC lc (pure MapMorphism) (go b)
+              SMorphismLoop <$> goLC lc (FoldMorphism n <$> goE e) (substNameIn n n' (go b))
+            SMorphismLoop (MapMorphism lc b) ->
+              SMorphismLoop <$> goLC lc (pure MapMorphism) (go b)
             
         SInverse n f p -> do
           n' <- refreshName n

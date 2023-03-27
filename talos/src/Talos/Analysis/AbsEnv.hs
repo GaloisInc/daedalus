@@ -70,9 +70,6 @@ mapLiftAbsEnv f (LiftAbsEnv m) = LiftAbsEnv (f m)
 mapPredOverlaps :: (Ord k, AbsEnvPred p) => Map k p -> Map k p -> Bool
 mapPredOverlaps m1 m2 = 
   any (uncurry absPredOverlaps) (Map.intersectionWith (,) m1 m2)
-
-absPredIsStructural :: AbsEnvPred p => p -> Bool
-absPredIsStructural = (==) Structural . absPredStructural
   
 -- -----------------------------------------------------------------------------
 -- Instances

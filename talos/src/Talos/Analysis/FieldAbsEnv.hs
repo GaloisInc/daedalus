@@ -63,11 +63,11 @@ instance AbsEnvPred FieldProj where
                    m1 m2)
 
   -- Nothing special for lists.
-  absPredStructural _ = Structural
+  absPredStructural _  = StructureDependent
   absPredListElement _ = Just Whole
   
-  absPredCollection _ StructureInvariant Nothing Nothing = Nothing
-  absPredCollection _ _                  _       _       = Just Whole
+  absPredCollection _ StructureIndependent Nothing Nothing = Nothing
+  absPredCollection _ _                    _       _       = Just Whole
 
 newtype FieldAbsEnv = FieldAbsEnv (LiftAbsEnv FieldProj)
   deriving (Merge, Eqv, PP, AbsEnv)

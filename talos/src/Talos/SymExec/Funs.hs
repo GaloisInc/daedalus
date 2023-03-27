@@ -155,10 +155,10 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SPure e           -> exprToPolyFuns e
       SDo _m_x l r      -> go l <> go r
       SMatch m          -> byteSetToPolyFuns m
---      SAssertion  e     -> exprToPolyFuns e
       SChoice cs        -> foldMap go cs
       SCall {}          -> mempty
       SCase _ c         -> foldMap go c
+      SLoop lc          -> foldMapSLoopClassE exprToPolyFuns go lc
       SInverse _n fe pe -> exprToPolyFuns fe <> exprToPolyFuns pe
         
       

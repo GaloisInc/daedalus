@@ -39,6 +39,10 @@ instance (Eqv a, Eqv b) => Eqv (a, b) where
 instance (Eqv a, Eqv b, Eqv c) => Eqv (a, b, c) where
   eqv (a, b, c) (a', b', c') = a `eqv` a' && b `eqv` b' && c `eqv` c'
 
+instance (Eqv a, Eqv b, Eqv c, Eqv d) => Eqv (a, b, c, d) where
+  eqv (a, b, c, d) (a', b', c', d') =
+    a `eqv` a' && b `eqv` b' && c `eqv` c' && d `eqv` d'
+
 instance Eqv a => Eqv (Maybe a) where
   eqv Nothing Nothing = True
   eqv (Just a) (Just b) = a `eqv` b

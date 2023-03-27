@@ -11,7 +11,7 @@ import           Data.Bifunctor        (second)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
-import           Data.Maybe            (fromMaybe, isJust)
+import           Data.Maybe            (fromMaybe)
 import           Data.Proxy            (Proxy (Proxy))
 import qualified Data.Set              as Set
 import           GHC.Generics          (Generic)
@@ -19,13 +19,14 @@ import           GHC.Generics          (Generic)
 import           Daedalus.Core
 import           Daedalus.Core.Type
 import           Daedalus.PP
+import           Daedalus.Panic        (panic)
 
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Eqv    (Eqv)
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.SLExpr (SLExpr (..))
-import Talos.Analysis.Slice (Structural(..))
-import Daedalus.Panic (panic)
+import           Talos.Analysis.Slice  (Structural (..))
+
 
 flAbsEnvTy :: AbsEnvTy
 flAbsEnvTy = AbsEnvTy (Proxy @FLAbsEnv)
@@ -35,10 +36,9 @@ data FLProj =
   | FieldProj [Label] (Map Label FLProj)
   
   -- Maybe FLProj is the element pred, it is Nothing in the case of
-  -- e.g. Length.  Having a special case for just structure avoids
-  -- spurious cases.
-  | ListProj Structural FLProj
-  | ListStructure
+  -- e.g. Length.  ListProj StructureInvariant Nothing should not
+  -- occur, as it means we don't care about the list at all.
+  | ListProj Structural (Maybe FLProj)
   deriving (Ord, Eq, Show, Generic)
 
 instance NFData FLProj -- default
@@ -50,9 +50,6 @@ instance Merge FLProj where
 
   ListProj str1 fp1 `merge` ListProj str2 fp2 =
     listProj (merge str1 str2) (merge fp1 fp2)
-  ListProj _str1 fp1 `merge` ListStructure = listProj Structural fp1
-  ListStructure `merge` ListProj _str1 fp1 = listProj Structural fp1
-  ListStructure `merge` ListStructure = ListStructure
   
   -- FIXME: push the set of labels into the type.
   FieldProj ls m1 `merge` FieldProj _ls m2 = fieldPrpj ls (merge m1 m2)
@@ -64,10 +61,12 @@ fieldPrpj ls m
   | all (== Whole) m, Map.keysSet m == Set.fromList ls = Whole
   | otherwise = FieldProj ls m
 
-listProj :: Structural -> FLProj -> FLProj
-listProj str fp
-  | Whole <- fp, Structural <- str = Whole
-  | otherwise = ListProj str fp
+listProj :: Structural -> Maybe FLProj -> FLProj
+listProj str m_fp
+  | Just Whole <- m_fp, StructureDependent <- str = Whole
+  | Nothing <- m_fp, StructureIndependent <- str =
+      panic "Malformed list projection" []
+  | otherwise = ListProj str m_fp
 
 listLike :: Type -> Bool
 listLike (TArray {})   = True
@@ -82,13 +81,18 @@ instance AbsEnvPred FLProj where
       (_, Whole) -> True
       
       -- In this case the strs should both be structural.
-      (ListStructure, ListProj str _) -> str == Structural
-      (ListProj str _, ListStructure) -> str == Structural
-      (ListStructure, ListStructure) -> True
-      -- Only allow a single structural pred.
-      (ListProj str1 fp1', ListProj str2 fp2') ->
-        (str1 == Structural && str2 == Structural)
-        || absPredOverlaps fp1' fp2'        
+      (ListProj str1 m_fp1, ListProj str2 m_fp2) ->
+        case (str1, m_fp1, str2, m_fp2) of
+          (StructureIndependent, Nothing, _, _) -> panic "IMPOSSIBLE (absPredOverlaps)" []
+          (_, _, StructureIndependent, Nothing) -> panic "IMPOSSIBLE (absPredOverlaps)" []
+          (StructureIndependent, _, _, Nothing) -> False
+          (_, Nothing, StructureIndependent, _) -> False
+          (StructureIndependent, Just fp1', _, Just fp2') ->
+            absPredOverlaps fp1' fp2'
+          (_, Just fp1', StructureIndependent, Just fp2') ->
+            absPredOverlaps fp1' fp2'
+          _ -> True
+          
       (FieldProj _ m1, FieldProj _ m2) ->
         mapPredOverlaps m1 m2
         
@@ -97,16 +101,13 @@ instance AbsEnvPred FLProj where
   absPredEntails Whole _ = True
   -- Assumes we normalise (\_ -> Whole) to Whole
   absPredEntails _ Whole = False
-  absPredEntails (ListProj str _) ListStructure = str == Structural
-  -- We don't have empty preds, hence this case
-  absPredEntails ListStructure (ListProj {})    = False
-  absPredEntails ListStructure ListStructure    = True  
-  absPredEntails (ListProj str1 fp1) (ListProj str2 fp2) =
-    absPredEntails fp1 fp2 &&
-    case (str1, str2) of
-      (Structural, _)                          -> True
-      (StructureInvariant, StructureInvariant) -> True
-      (StructureInvariant, Structural)         -> False
+  absPredEntails (ListProj str1 m_fp1) (ListProj str2 m_fp2) =
+    str2 <= str1 &&
+    case (m_fp1, m_fp2) of
+      (Nothing, Nothing) -> True
+      (Just {}, Nothing) -> True
+      (Nothing, Just {}) -> False
+      (Just fp1, Just fp2) -> absPredEntails fp1 fp2
   
   absPredEntails (FieldProj _ m1) (FieldProj _ m2) =
     and (Map.merge Map.dropMissing {- in m1 not m2 -}
@@ -118,22 +119,18 @@ instance AbsEnvPred FLProj where
 
   -- Nothing special for lists.
   absPredStructural (ListProj str _) = str
-  absPredStructural _ = Structural
+  absPredStructural _ = StructureDependent
   
-  absPredListElement (ListProj _ fp) = Just fp
-  absPredListElement ListStructure = Nothing
+  absPredListElement (ListProj _ fp) = fp
   absPredListElement _ = Just Whole
   
-  absPredCollection _ StructureInvariant Nothing Nothing = Nothing
-  absPredCollection ty str m_kp Nothing
-    | listLike ty, str == Structural || isJust m_kp
-    = Just ListStructure
-  absPredCollection ty str m_kp (Just fp) | listLike ty
-    = Just $ listProj str' fp
+  absPredCollection _ StructureIndependent Nothing Nothing = Nothing
+  absPredCollection ty str m_kp m_elp
+    | listLike ty = Just $ listProj str' m_elp
     where
       -- If the key pred is non-empty then we care about the list
       -- index, and so the structure.
-      str' = maybe str (const Structural) m_kp
+      str' = maybe str (const StructureDependent) m_kp
       
   -- We take the whole dictionary    
   absPredCollection _ _ _ _ = Just Whole
@@ -155,8 +152,7 @@ explodeFieldProj _ = [ [] ]
 
 instance PP FLProj where
   pp Whole = "Whole"
-  pp (ListProj str fp) = ("List" <> if str == Structural then "!" else "") <+> pp fp
-  pp ListStructure = "ListStructure"
+  pp (ListProj str fp) = ("List" <> pp str) <+> maybe "⊥" pp fp
   pp fs    = braces (commaSep (map (hcat . punctuate "." . map pp) (explodeFieldProj fs)))
 
 -- -----------------------------------------------------------------------------
@@ -191,19 +187,21 @@ exprToAbsEnv fp expr =
       | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- ty ->
         SAp1 (SelStruct ty l) <$> go (FieldProj ls $ Map.singleton l fp) e
 
-    Ap1 ArrayLen e -> SAp1 ArrayLen <$> go ListStructure e
+    Ap1 ArrayLen e ->
+      SAp1 ArrayLen <$> go (listProj StructureDependent Nothing) e
       
     -- We just push fp into the elements of e    
     Ap1 Concat e ->
-      SAp1 Concat <$> go (listProj (absPredStructural fp) fp) e
+      SAp1 Concat <$> go (listProj (absPredStructural fp) (Just fp)) e
       
     -- We treat builders like lists    
     Ap1 FinishBuilder e -> SAp1 FinishBuilder <$> go fp e
     Ap1 op e        -> SAp1 op <$> go Whole e
 
     Ap2 ArrayIndex arre ixe ->
-      SAp2 ArrayIndex <$> go (listProj Structural fp) arre
+      SAp2 ArrayIndex <$> go (listProj StructureDependent (Just fp)) arre
                       <*> go Whole ixe
+                      
     Ap2 Emit bldre ve -> 
       SAp2 Emit <$> go fp bldre <*> goM (absPredListElement fp) ve
 
