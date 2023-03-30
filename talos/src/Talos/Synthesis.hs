@@ -145,7 +145,7 @@ data SynthesisMState =
                   -- | This contains the stack of RHSs that can be
                   -- updated by Many selection (enables lazy selection
                   -- of Many elements).
-                  , doRHSStack :: [SelectedPath] 
+                  , pathContext :: PathContext
                   }
 
 newtype SynthesisM a =
@@ -191,19 +191,19 @@ freshProvenanceTag = do
   SynthesisM $ modify (\s -> s { nextProvenance = p + 1 })
   return p
 
-withDoRHS :: SelectedPath -> SynthesisM a -> SynthesisM (a, SelectedPath)
-withDoRHS rhs m = do
-  SynthesisM $ modify (\s -> s { doRHSStack = rhs : doRHSStack s })
+withPushedContext :: PathContextElement -> SynthesisM a -> SynthesisM (a, PathContextElement)
+withPushedContext pce m = do
+  SynthesisM $ modify (\s -> s { pathContext = pce : pathContext s })
   r <- m
-  cp' <- SynthesisM $ state go
-  pure (r, cp')
+  pc' <- SynthesisM $ state go
+  pure (r, pc')
   where
     go s
-      | rhs' : rest <- doRHSStack s = (rhs', s { doRHSStack = rest })
-      | otherwise = panic "BUG: empty RHS stack" []  
+      | pc' : rest <- pathContext s = (pc', s { pathContext = rest })
+      | otherwise = panic "BUG: empty PathContext stack" []  
 
-overDoRHSs :: ([SelectedPath] -> [SelectedPath]) -> SynthesisM ()
-overDoRHSs f = SynthesisM $ modify (\s -> s { doRHSStack = f (doRHSStack s) })
+overPathContext :: (PathContext -> PathContext) -> SynthesisM ()
+overPathContext f = SynthesisM $ modify (\s -> s { pathContext = f (pathContext s) })
 
 -- -----------------------------------------------------------------------------
 -- Top level
@@ -257,7 +257,7 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
                       , modelCache     = mc
-                      , doRHSStack     = []
+                      , pathContext    = []
                       }
     
     Just rootDecl = find (\d -> fName d == root) allDecls
@@ -385,8 +385,9 @@ selectLoopElements count sm = do
   paths' <- randPermute (concat (replicate repCount paths))
   pure $ sm { smPaths = take count paths' }
 
+-- m_ps should probably not have holes here, but we can deal so we let it.
 -- c.f. Daedalus.Core.Semantics.Expr.evalLoopMorphism
-synthesiseLoopMorphism :: Maybe [SelectedPath] -> LoopMorphism Grammar -> SynthesisM Value
+synthesiseLoopMorphism :: Maybe (Map Int SelectedPath) -> LoopMorphism Grammar -> SynthesisM Value
 synthesiseLoopMorphism m_ps lm =
   case lm of
     FoldMorphism s e lc b -> do
@@ -400,10 +401,14 @@ synthesiseLoopMorphism m_ps lm =
       mk <$> traverse goOne els
   where
     goLC lc v
-      | Just ps' <- m_ps, length els /= length ps' = panic "BUG: length mismatch in synthesiseG" []
-      | otherwise = (zip ps els, bindLC, mk)
+      | Just (i, _) <- m_ps >>= Map.lookupMax, i > length els
+      = panic "BUG: length mismatch in synthesiseG" []
+      | otherwise = (zip ps' els, bindLC, mk)
       where
-        ps = fromMaybe (repeat SelectedHole) m_ps
+        ps = fromMaybe mempty m_ps
+        holeMap = Map.fromDistinctAscList [ (i, SelectedHole) | i <- [0 .. length els - 1] ]
+        -- This will not contain holes, by construction
+        ps' = Map.elems (Map.unionWith const ps holeMap)
         k_bind = maybe (const id) bindIn (lcKName lc)
         bindLC (kv, ev) = k_bind kv . bindIn (lcElName lc) ev
         (els, mk) = case assertInterpValue v of
@@ -453,7 +458,11 @@ synthesiseDo :: SelectedPath -> Maybe Name -> Grammar -> Grammar ->
 synthesiseDo cp m_x lhs rhs = do
   cp' <- maybe (pure cp) (choosePath cp) m_x
   let (lhsp, rhsp) = splitPath cp'
-  (v, rhsp') <- withDoRHS rhsp (synthesiseG lhsp lhs)
+  (v, pc) <- withPushedContext (PCEDoRHS rhsp) (synthesiseG lhsp lhs)
+  let rhsp' = case pc of
+                PCEDoRHS rhsp -> rhsp
+                _ -> panic "Unexpected path context element" []
+              
   bindInMaybe m_x v (synthesiseG rhsp' rhs)
                 
 -- Does all the heavy lifting
@@ -503,7 +512,7 @@ synthesiseG (SelectedMany m_structural ms) (Loop (ManyLoop _sem _bt lb m_ub g)) 
   let (elPaths, targetPaths) = selectedMany ms'
       allPaths = maybe elPaths (zipWith merge elPaths) m_structural
   -- ... which may require us to update the RHS stack to propagate selected models.  
-  overDoRHSs (applyManyTargets targetPaths)
+  overPathContext (applyManyTargets targetPaths)
 
   -- next we synthesise the elements of the Many, using the selected paths.
   vArray <$> mapM (flip synthesiseG g) allPaths

@@ -117,7 +117,7 @@ exprToAbsEnv fp expr =
     -- Apart from SelStruct, none of the below are interesting (should be Whole)
     Ap0 op         -> (absEmptyEnv, SAp0 op)
     Ap1 (SelStruct ty l) e
-      | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- ty ->
+      | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- typeOf e ->
         SAp1 (SelStruct ty l) <$> go (FieldProj ls $ Map.singleton l fp) e
     Ap1 op e        -> SAp1 op <$> go Whole e
     Ap2 op e1 e2    -> SAp2 op <$> go Whole e1 <*> go Whole e2

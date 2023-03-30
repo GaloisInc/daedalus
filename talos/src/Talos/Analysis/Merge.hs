@@ -31,7 +31,6 @@ instance Merge m => Semigroup (MergeAsMonoid m) where
 instance (HasEmpty m, Merge m) => Monoid (MergeAsMonoid m) where
   mempty = MergeAsMonoid empty
 
-
 instance (Ord k, Merge v) => Merge (Map k v) where
   merge = Map.unionWith merge
 
@@ -52,6 +51,10 @@ instance Merge a => Merge (Maybe a) where
   merge a@(Just {}) _ = a
   merge _ b@(Just {}) = b
   merge Nothing Nothing = Nothing
+
+-- This assumes the list lengths are the same.
+instance Merge a => Merge [a] where
+  merge = zipWith merge
   
 instance (Merge e, Merge b) => Merge (LoopClass' e b) where
   merge l r =

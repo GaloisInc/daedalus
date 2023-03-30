@@ -70,7 +70,9 @@ data SelectedPathF ch ca a =
   -- if it is known, the second argument can be any size (i.e. we
   -- should pick a random number until we get the count we want).
   | SelectedMany (Maybe [SelectedPathF ch ca a]) [SelectedManyF ch ca a]
-  | SelectedLoop [SelectedPathF ch ca a]
+  | SelectedLoop (Map Int (SelectedPathF ch ca a))
+  -- ^ Elements of a sequence based upon another sequence.  The Ints
+  -- are the indicies.
   deriving (Functor, Foldable, Traversable, Generic)
 
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
@@ -82,22 +84,49 @@ type SelectedMany = SelectedManyF PathIndex Identity ByteString
 deriving instance NFData SelectedPath
 deriving instance NFData SelectedMany
 
+-- -----------------------------------------------------------------------------
+-- Cursors
+--
+--  A cursor is an index to a particular node, used to update loop elements.
+
+-- | A 'PathCursorElement' tells how to navigate a 'SelectedPathF'.
+-- See also 'PathContextElement'.
+data PathCursorElement =
+  PCDoLeft
+  | PCDoRight
+  | PCSequence Int
+  -- ^ An element of a sequence, useful for indexing.  We cannot just
+  -- use PCNode here as we may need a particular element.
+  | PCNode
+  deriving (Eq, Ord, Show, Generic, NFData)
+  
 -- | THis is a path inside a SelectedPath to a particlar node, c.f. Zippers
-data PathCursor =
-  PCTarget
-  | PCDoLeft PathCursor
-  | PCDoRight PathCursor
-  | PCNode PathCursor
-  deriving (Generic, NFData)
+type PathCursor = [PathCursorElement]
 
 fillCursorTarget :: PathCursor -> [SelectedPath] -> SelectedPath
 fillCursorTarget pc els = go pc
   where
-    go p = case p of
-      PCTarget -> SelectedLoop els
-      PCDoLeft  p' -> SelectedDo (go p') SelectedHole
-      PCDoRight p' -> SelectedDo SelectedHole (go p')
-      PCNode p'    -> SelectedNode (go p')
+    -- This is a bit gross?
+    go [] = SelectedLoop (Map.fromList $ zip [0..] els)
+    go (el : rest) =
+      case el of
+        PCDoLeft     -> SelectedDo (go rest) SelectedHole
+        PCDoRight    -> SelectedDo SelectedHole (go rest)
+        PCSequence i -> SelectedLoop (Map.singleton i (go rest))
+        PCNode       -> SelectedNode (go rest)
+
+relitiviseCursors :: PathCursor -> PathCursor -> (Int, PathCursor)
+relitiviseCursors gen use = (length (filter isContextPC gen'), use')
+  where
+    isContextPC PCDoLeft = True
+    isContextPC PCDoRight = False -- Doesn't generate a context element
+    isContextPC PCSequence {} = True
+    isContextPC PCNode = False
+    
+    (gen', use') = unzip (dropWhile (uncurry (==)) (zip gen use))
+
+-- -----------------------------------------------------------------------------
+-- SelectedMany
 
 fillManyTargets :: SelectedMany -> Map Int SelectedPath
 fillManyTargets sm = Map.fromListWith merge els
@@ -121,16 +150,48 @@ selectedMany ms
     mps  = map (foldl1 merge) $ transpose $ map (map fst . smPaths) ms
     tgts = Map.unionsWith merge (map fillManyTargets ms)
 
+-- -----------------------------------------------------------------------------
+-- PathContext
+
+data PathContextElement =
+  PCEDoRHS SelectedPath
+  -- ^ When we enter the LHS of a bind, we push the context for the
+  -- RHS so we can update if required.
+  | PCELoopBody Int [SelectedPath]
+  -- ^ When we enter a loop element, we push the remaining loop
+  -- iteration elements along with the current loop element index.
+  -- This needs to match up with the use of 'PathCursor' -- when we
+  -- would generate a 'PathCursor' in model generation, we need to
+  -- push a 'PCELoopBody' during synthesis.
+
+type PathContext = [PathContextElement]
+
 -- | Refines the RHS continuations based on the results of a call to selectedMany    
-applyManyTargets :: Map Int SelectedPath -> [SelectedPath] -> [SelectedPath]
-applyManyTargets tgts = go 0 (Map.toList tgts) 
+applyManyTargets :: Map Int SelectedPath -> PathContext -> PathContext
+applyManyTargets tgts = go 0 (Map.toList tgts)
   where
     go _here [] stack = stack
     go here ((depth, p) : rest) (frame : stack)
-      | depth == here = merge frame p : go (here + 1) rest stack
+      | depth == here =
+        let newFrame = case (frame, p) of
+              -- In this case we can merge directly              
+              (PCEDoRHS p', _) -> PCEDoRHS $ merge p p'
+              -- ... while here we need to inspect the path to update
+              -- the right elements
+              (PCELoopBody i ps, SelectedLoop m) ->
+                PCELoopBody i $ goLoop i m ps
+              _ -> panic "BUG: mismatched context/path" []
+        in newFrame : go (here + 1) rest stack
     go here ps (frame : stack) = frame : go (here + 1) ps stack
     go _    (_ : _) [] = panic "BUG: mismatched Many target/Do stack" []
-           
+
+    -- We may need to update multiple loop paths.  Note that the
+    -- indicies in m should all be > i.
+    goLoop i m = zipWith (upd m) [i+1 ..]
+    upd m j p
+      | Just p' <- Map.lookup j m = merge p p'
+      | otherwise = p
+                         
 splitPath :: SelectedPath -> (SelectedPath, SelectedPath)
 splitPath cp =
   case cp of
@@ -219,6 +280,12 @@ instance Merge (SelectedPathF PathIndex Identity a) where
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
+      (SelectedMany m_structural pool, SelectedMany m_structural' pool')
+        | Just structural <- m_structural, Just structural' <- m_structural',
+          length structural /= length structural' ->
+          panic "BUG: mismatched Many lengths" []
+        | otherwise -> SelectedMany (merge m_structural m_structural') (pool ++ pool')
+      (SelectedLoop els, SelectedLoop els') -> SelectedLoop (Map.unionWith merge els els')
       _ -> panic "BUG: merging non-mergeable nodes" []
 
 instance ( Functor ch, PP (ch Doc)
@@ -235,7 +302,9 @@ instance ( Functor ch, PP (ch Doc)
       SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
       SelectedMany _m_structural _els -> "SelectedMany" -- FIXME
-      SelectedLoop els -> brackets (sep (punctuate ", " (map pp els)))
+      SelectedLoop els -> brackets (sep (punctuate ", " (map ppEl (Map.toList els))))
+        where
+          ppEl (i, el) = pp i <> ": " <> pp el
 
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)

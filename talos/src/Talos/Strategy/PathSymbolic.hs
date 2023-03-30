@@ -16,7 +16,7 @@ import           Control.Lens                 (_1, _2, at, each, over, (%=),
                                                (%~), (&), (+~), (.=), (.~))
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Control.Monad.Writer         (pass)
+import           Control.Monad.Writer         (pass, censor)
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
 import           Data.Foldable                (find)
@@ -104,16 +104,18 @@ pathSymbolicStrat = Strategy
 data Config = Config { cMaxRecDepth :: Int
                      , cNModels :: Int
                      , cMaxUnsat :: Maybe Int
+                     , cNLoopElements :: Int
                      }
   deriving (Generic)
 
 defaultConfig :: Config
-defaultConfig = Config 10 1 Nothing
+defaultConfig = Config 10 1 Nothing 10
 
 configOpts :: [Opt Config]
 configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
              , P.option "num-models" (field @"cNModels")     P.intP
              , P.option "max-unsat"  (field @"cMaxUnsat")    (Just <$> P.intP)
+             , P.option "num-loop-elements" (field @"cNLoopElements") P.intP
              ]
 
 -- ----------------------------------------------------------------------------------------
@@ -135,13 +137,13 @@ symbolicFun config ptag sl = StratGen $ do
   forM_ slAndDeps $ \sl' -> do
     defineSliceTypeDefs md sl'
     defineSlicePolyFuns sl'
-    defineSliceFunDefs md sl'
+    defineSliceFunDefs md sl' -- FIXME: not needed 
     
   -- FIXME: this should be calculated once, along with how it is used
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (stratSlice ptag sl)
+    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) (stratSlice ptag sl)
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           liftIO $ printf "\tGenerated %d models " (length rs)
@@ -184,8 +186,13 @@ stratSlice ptag = go
           mk <$> synthesiseExpr e
 
         SDo x lsl rsl -> do
-          bindNameIn x (go lsl)
-            (\lpath -> over _2 (SelectedDo lpath) <$> go rsl)
+          let goL = extendPathCursorM PCDoLeft (go lsl)
+          
+              goR :: PathBuilder -> SymbolicM Result
+              goR lpath = over _2 (SelectedDo lpath) <$>
+                          extendPathCursorM PCDoRight (go rsl)
+                          
+          bindNameIn x goL goR
 
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.
@@ -207,6 +214,8 @@ stratSlice ptag = go
         SCall cn -> stratCallNode ptag cn
 
         SCase total c -> stratCase ptag total c Nothing -- =<< asks sCurrentSCC
+
+        SLoop lc -> stratLoop ptag lc
 
         SInverse n ifn p -> do
           n' <- MV.vSExpr mempty (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
@@ -253,13 +262,13 @@ guardedChoice pv i m = pass $ do
 
 -- FIXME: put ptag in env.
 stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
-stratChoice ptag sls (Just sccs)
-  | any hasRecCall sls = do
-      -- Just pick randomly if there is recursion.
-      (i, sl) <- randL (enumerate sls)
-      over _2 (SelectedChoice . ConcreteChoice i) <$> stratSlice ptag sl
-  where
-    hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
+-- stratChoice ptag sls (Just sccs)
+--   | any hasRecCall sls = do
+--       -- Just pick randomly if there is recursion.
+--       (i, sl) <- randL (enumerate sls)
+--       over _2 (SelectedChoice . ConcreteChoice i) <$> stratSlice ptag sl
+--   where
+--     hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
 
 stratChoice ptag sls _ = do
   pv <- freshPathVar (length sls)
@@ -274,6 +283,16 @@ stratChoice ptag sls _ = do
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
   --                 <> " ==> " <> pp (length (MV.guardedValues v)))
   pure (v, SelectedChoice (SymbolicChoice pv paths))
+
+stratLoop :: ProvenanceTag -> SLoopClass Expr ExpSlice ->
+             SymbolicM Result
+stratLoop ptag lc =
+  case lc of
+    
+    SMorphismBody b -> undefined
+    SManyLoop str lb m_ub b -> undefined
+    SRepeatLoop str n e b -> undefined
+    SMorphismLoop lm -> undefined
 
 -- We represent disjunction by having multiple values; in this case,
 -- if we have matching values for the case alternative v1, v2, v3,
@@ -321,7 +340,7 @@ stratCase ptag _total cs m_sccs = do
           pure (v, SelectedCase (ConcreteCase pb))
 
     _ -> do
-      stag <- liftStrategy getNextGUID
+      stag <- freshSymbolicCaseTag
 
       (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
       v <- hoistMaybe (MV.unions' vs)
@@ -334,7 +353,7 @@ stratCase ptag _total cs m_sccs = do
       -- that value is enabled (matches some guard).  We require that at
       -- least 1 alternative is enabled, so we assert the disjunction of
       -- (g <-> s) for (g,s) in preds.  We could also assert the
-      -- conjunction of (g --> s), which doe snot assert that the guard
+      -- conjunction of (g --> s), which does not assert that the guard
       -- holds (only that the enabling predicate holds when that value is
       -- enabled).
 
@@ -904,6 +923,19 @@ gsesModel gses = join <$> (traverse (gseModel . snd) =<< firstM go els)
   where
     go  = pathConditionModel . fst
     els = MV.guardedValues gses
+
+
+-- -----------------------------------------------------------------------------
+-- Linking loop bodies
+
+
+
+
+-- linkLoopBodoes :: Map SymbolicLoopTag (Maybe SymbolicLoopTag, [S.SExpr], PathCursor) ->
+--                   [(PathCursor, 
+-- linkLoopBodoes m 
+
+
 
 -- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value
 -- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value

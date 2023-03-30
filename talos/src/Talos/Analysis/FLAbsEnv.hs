@@ -63,7 +63,7 @@ fieldPrpj ls m
 
 listProj :: Structural -> Maybe FLProj -> FLProj
 listProj str m_fp
-  | Just Whole <- m_fp, StructureDependent <- str = Whole
+  | Just Whole <- m_fp, str == StructureDependent = Whole
   | Nothing <- m_fp, StructureIndependent <- str =
       panic "Malformed list projection" []
   | otherwise = ListProj str m_fp
@@ -118,8 +118,10 @@ instance AbsEnvPred FLProj where
   absPredEntails _ _ = panic "BUG: malformed FLProj" []
 
   -- Nothing special for lists.
-  absPredStructural (ListProj str _) = str
-  absPredStructural _ = StructureDependent
+
+  absPredStructural Whole = StructureDependent
+  absPredStructural (ListProj str _) = str  
+  absPredStructural (FieldProj _ m)  = maximum (absPredStructural <$> m)
   
   absPredListElement (ListProj _ fp) = fp
   absPredListElement _ = Just Whole
@@ -184,9 +186,8 @@ exprToAbsEnv fp expr =
     -- anything special for iterators (FIXME: maybe we should).
     Ap0 op         -> (absEmptyEnv, SAp0 op)
     Ap1 (SelStruct ty l) e
-      | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- ty ->
+      | TUser UserType { utName = TName { tnameFlav = TFlavStruct ls }} <- typeOf e ->
         SAp1 (SelStruct ty l) <$> go (FieldProj ls $ Map.singleton l fp) e
-
     Ap1 ArrayLen e ->
       SAp1 ArrayLen <$> go (listProj StructureDependent Nothing) e
       
