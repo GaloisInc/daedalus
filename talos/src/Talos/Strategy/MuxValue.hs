@@ -75,6 +75,11 @@ guardedValues = NE.toList . getGuardedValues
   
 type GuardedValue a = MuxValue GuardedValues a
 
+-- | This type is used to track where a sequence was generated, so
+-- that we can link uses and defs for doing pool-generation of
+-- sequenece elements.
+type SequenceTag = GUID
+
 data MuxValue f a =
     VValue                 !V.Value
   | VOther                 !a
@@ -84,7 +89,7 @@ data MuxValue f a =
   | VStruct                ![(V.Label, f a)]
 
   -- The bool is used to tell us if this is an array or builder, use in toValue
-  | VSequence              Bool ![f a]
+  | VSequence              (Maybe SequenceTag) Bool ![f a]
   | VJust                  !(f a)
 
   -- -- For iterators and maps
@@ -106,7 +111,7 @@ singleton g gv = GuardedValues ((g, gv) :| [])
 muxValueToList :: (V.Value -> f a) -> MuxValue f a -> Maybe [f a]
 muxValueToList mk mv =
   case mv of
-    VSequence _ xs         -> Just xs
+    VSequence _ _ xs       -> Just xs
     VValue (V.VArray v)    -> Just (map mk (Vector.toList v))
     -- Builders are stored in reverse order.
     VValue (V.VBuilder vs) -> Just (map mk (reverse vs))
@@ -240,7 +245,7 @@ toSExpr tys ty gvs =
     (_g, el) :| els = getGuardedValues gvs
 
 toSExpr1 :: Map TName TDecl -> Type ->
-                           GuardedSemiSExpr -> SExpr
+            GuardedSemiSExpr -> SExpr
 toSExpr1 tys ty sv = 
   case sv of
     VValue v -> valueToSExpr tys ty v
@@ -255,7 +260,8 @@ toSExpr1 tys ty sv =
       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
 
-    VSequence _ vs
+    -- Should probably never happen?
+    VSequence _ _ vs
       | Just elTy <- typeToElType ty ->
           sArrayLit (symExecTy elTy) (typeDefault elTy) (map (go elTy) vs)
           
@@ -679,7 +685,7 @@ gseConcat svs = unions' (mapMaybe mkOne combs)
 
     doConcat els g'
       | PC.isInfeasible g' = Nothing    
-      | Just els' <- mapM toL els = Just $ singleton g' (VSequence False (concat els'))
+      | Just els' <- mapM toL els = Just $ singleton g' (VSequence Nothing False (concat els'))
       | otherwise  = panic "UNIMPLEMENTED: saw symbolic list" []
     
     mkOne comb =
@@ -838,7 +844,7 @@ semiExecOp2 Emit _rty _ty1 _ty2 gvs1 gvs2
       -- FIXME: this breaks the abstraction a little
       pure (GuardedValues (NE.zipWith mk gs vss1))
   where
-    mk g vs = (g, VSequence True (vs ++ [gvs2]))
+    mk g vs = (g, VSequence Nothing True (vs ++ [gvs2]))
     (gs, gvss1) = NE.unzip (getGuardedValues gvs1)
     
 semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
@@ -887,7 +893,7 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
             
         EmitArray
           | Just bs   <- toL sv1
-          , Just arrs <- toL sv2 -> pure $ singleton g (VSequence True (bs ++ arrs))
+          , Just arrs <- toL sv2 -> pure $ singleton g (VSequence Nothing True (bs ++ arrs))
         EmitBuilder -> unimplemented
 
         -- sv1 is map, sv2 is key
@@ -993,7 +999,7 @@ semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOpN (ArrayL _ty) _rty vs =
-  pure (singleton mempty (VSequence False vs))
+  pure (singleton mempty (VSequence Nothing False vs))
 semiExecOpN (CallF _fn) _rty _vs = panic "Impossible" []
 
 -- -- -----------------------------------------------------------------------------
@@ -1122,7 +1128,7 @@ ppMuxValue ppF ppA val =
     VStruct xs      -> block "{" "," "}" (map ppFld xs)
       where ppFld (x,t) = pp x <.> colon <+> ppF t
 
-    VSequence _ vs ->  block "[" "," "]" (map ppF vs)
+    VSequence sid _ vs ->  block (maybe "" (parens . pp) sid <> "[") "," "]" (map ppF vs)
 
     VJust v   -> "Just" <+> ppF v
     VMap m -> block "{|" ", " "|}" [ ppF k <+> "->" <+> ppF v | (k,v) <- m ]

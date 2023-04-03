@@ -319,7 +319,7 @@ exportSlice m_sid sl0 = do
 
         SLoop lcl -> SLoop <$>
           case lcl of
-            SMorphismBody g -> SMorphismBody <$> go g
+            SLoopPool sem g -> SLoopPool sem <$> go g
             SManyLoop str lb m_ub g ->
               SManyLoop str <$> goE lb
                             <*> traverse goE m_ub

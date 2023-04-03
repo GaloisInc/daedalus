@@ -31,10 +31,13 @@ import           Talos.Analysis.Slice  (Structural (..))
 flAbsEnvTy :: AbsEnvTy
 flAbsEnvTy = AbsEnvTy (Proxy @FLAbsEnv)
 
+
+-- | field-and-list projections.  Note that the results here need to
+-- support the abilities of the various synthesis backends.
 data FLProj =
   Whole
   | FieldProj [Label] (Map Label FLProj)
-  
+
   -- Maybe FLProj is the element pred, it is Nothing in the case of
   -- e.g. Length.  ListProj StructureInvariant Nothing should not
   -- occur, as it means we don't care about the list at all.
@@ -50,7 +53,7 @@ instance Merge FLProj where
 
   ListProj str1 fp1 `merge` ListProj str2 fp2 =
     listProj (merge str1 str2) (merge fp1 fp2)
-  
+
   -- FIXME: push the set of labels into the type.
   FieldProj ls m1 `merge` FieldProj _ls m2 = fieldPrpj ls (merge m1 m2)
 
@@ -68,9 +71,15 @@ listProj str m_fp
       panic "Malformed list projection" []
   | otherwise = ListProj str m_fp
 
+
+-- Only operatses over lists (FIXME?)
+overStructural :: (Structural -> Structural) -> FLProj -> FLProj
+overStructural f (ListProj str fp) = ListProj (f str) fp
+overStructural _ x = x
+
 listLike :: Type -> Bool
-listLike (TArray {})   = True
-listLike (TBuilder {}) = True
+listLike TArray {}   = True
+listLike TBuilder {} = True
 listLike _ = False
 
 instance AbsEnvPred FLProj where
@@ -79,7 +88,7 @@ instance AbsEnvPred FLProj where
     case (fp1, fp2) of
       (Whole, _) -> True
       (_, Whole) -> True
-      
+
       -- In this case the strs should both be structural.
       (ListProj str1 m_fp1, ListProj str2 m_fp2) ->
         case (str1, m_fp1, str2, m_fp2) of
@@ -92,12 +101,12 @@ instance AbsEnvPred FLProj where
           (_, Just fp1', StructureIndependent, Just fp2') ->
             absPredOverlaps fp1' fp2'
           _ -> True
-          
+
       (FieldProj _ m1, FieldProj _ m2) ->
         mapPredOverlaps m1 m2
-        
+
       _ -> panic "BUG: malformed FLProj" []
-      
+
   absPredEntails Whole _ = True
   -- Assumes we normalise (\_ -> Whole) to Whole
   absPredEntails _ Whole = False
@@ -108,7 +117,7 @@ instance AbsEnvPred FLProj where
       (Just {}, Nothing) -> True
       (Nothing, Just {}) -> False
       (Just fp1, Just fp2) -> absPredEntails fp1 fp2
-  
+
   absPredEntails (FieldProj _ m1) (FieldProj _ m2) =
     and (Map.merge Map.dropMissing {- in m1 not m2 -}
                    (Map.mapMissing (\_ _ -> False)) {- in m2 not m1 -}
@@ -120,12 +129,12 @@ instance AbsEnvPred FLProj where
   -- Nothing special for lists.
 
   absPredStructural Whole = StructureDependent
-  absPredStructural (ListProj str _) = str  
+  absPredStructural (ListProj str _) = str
   absPredStructural (FieldProj _ m)  = maximum (absPredStructural <$> m)
-  
+
   absPredListElement (ListProj _ fp) = fp
   absPredListElement _ = Just Whole
-  
+
   absPredCollection _ StructureIndependent Nothing Nothing = Nothing
   absPredCollection ty str m_kp m_elp
     | listLike ty = Just $ listProj str' m_elp
@@ -133,7 +142,7 @@ instance AbsEnvPred FLProj where
       -- If the key pred is non-empty then we care about the list
       -- index, and so the structure.
       str' = maybe str (const StructureDependent) m_kp
-      
+
   -- We take the whole dictionary    
   absPredCollection _ _ _ _ = Just Whole
 
@@ -176,7 +185,7 @@ exprToAbsEnv fp expr =
       let mk = case fp of
             Whole         -> \_l e -> go Whole e
             FieldProj _ m -> \l  e -> goM (Map.lookup l m) e
-            _ -> panic "BUG: malformed FLProj" []            
+            _ -> panic "BUG: malformed FLProj" []
           mk' (l, e) = (,) l <$> mk l e
       in SStruct ut <$> traverse mk' flds
 
@@ -190,11 +199,13 @@ exprToAbsEnv fp expr =
         SAp1 (SelStruct ty l) <$> go (FieldProj ls $ Map.singleton l fp) e
     Ap1 ArrayLen e ->
       SAp1 ArrayLen <$> go (listProj StructureDependent Nothing) e
-      
-    -- We just push fp into the elements of e    
+
+    -- We just push fp into the elements of e
+    -- c.f. issue #317    
     Ap1 Concat e ->
-      SAp1 Concat <$> go (listProj (absPredStructural fp) (Just fp)) e
-      
+      let fp' = overStructural (const StructureDependent) fp
+      in  SAp1 Concat <$> go (listProj (absPredStructural fp') (Just fp')) e
+
     -- We treat builders like lists    
     Ap1 FinishBuilder e -> SAp1 FinishBuilder <$> go fp e
     Ap1 op e        -> SAp1 op <$> go Whole e
@@ -202,18 +213,26 @@ exprToAbsEnv fp expr =
     Ap2 ArrayIndex arre ixe ->
       SAp2 ArrayIndex <$> go (listProj StructureDependent (Just fp)) arre
                       <*> go Whole ixe
-                      
-    Ap2 Emit bldre ve -> 
-      SAp2 Emit <$> go fp bldre <*> goM (absPredListElement fp) ve
+
+    -- For now we upgrade the predicate to be structure dependent.
+    -- c.f. issue #317
+    Ap2 Emit bldre ve ->
+      SAp2 Emit <$> go (overStructural (const StructureDependent) fp) bldre
+                <*> goM (absPredListElement fp) ve
 
     -- Appends the array to the builder, so we have the same
     -- projection for both.
-    Ap2 EmitArray bldre arre -> 
-      SAp2 EmitArray <$> go fp bldre <*> go fp arre
+    
+    -- c.f. issue #317    
+    Ap2 EmitArray bldre arre ->
+      let fp' = overStructural (const StructureDependent) fp
+      in SAp2 EmitArray <$> go fp' bldre <*> go fp' arre
 
     -- Similarly, appends two builders.
-    Ap2 EmitBuilder bldre1 bldre2  -> 
-      SAp2 EmitBuilder <$> go fp bldre1 <*> go fp bldre2
+    -- c.f. issue #317    
+    Ap2 EmitBuilder bldre1 bldre2  ->
+      let fp' = overStructural (const StructureDependent) fp
+      in SAp2 EmitBuilder <$> go fp' bldre1 <*> go fp' bldre2
     Ap2 op e1 e2    -> SAp2 op <$> go Whole e1 <*> go Whole e2
 
     -- Range ops are just Whole
@@ -224,7 +243,7 @@ exprToAbsEnv fp expr =
     ApN {}       -> panic "Saw a Call in exprToAbsEnv" []
   where
     goM m_fp e' = maybe (absEmptyEnv, EHole (typeOf e')) (flip go e') m_fp
-     
+
     go = exprToAbsEnv
 
 -- FIXME: a bit simplistic.

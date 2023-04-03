@@ -117,7 +117,7 @@ data Slice' cn sle =
   -- name for the result (considered bound in this term only), the
   -- inverse expression, and a predicate constraining the value
   -- produced by this node (i.e., result of the original DDL code).
-  
+
   deriving (Generic, NFData)
 
 -- A note on inverses.  The ides is if we have something like
@@ -175,7 +175,7 @@ instance Ord Structural where
   _ <= _ = False
 
 data SLoopClass sle b =
-  SMorphismBody b
+  SLoopPool Sem b
   -- ^ Should generate a set of models for b, and we will pick the
   -- number we need.  The body should not depend on the context or the
   -- collection.  This can occur when the body constructs the output
@@ -190,7 +190,7 @@ data SLoopClass sle b =
   -- because even though the slice will have no deps, recall we
   -- consider slices which establish a post-condition to be open (so
   -- we can bind then in a Do to link up with the user of the post-condition).
-  
+
   | SManyLoop Structural sle (Maybe sle) b
   -- ^ A Many loop where the dependence on the result is determined by
   -- the first parameter: it should be possible to ignore this flag,
@@ -204,12 +204,12 @@ data SLoopClass sle b =
 
   | SMorphismLoop (LoopMorphism' sle b)
   -- ^ A 'LoopMorphism', where the structure is determined by the collection.
-  deriving (Eq, Generic, NFData)
+  deriving (Generic, NFData)
 
 sloopClassBody :: SLoopClass sle b -> b
 sloopClassBody lc =
   case lc of
-    SMorphismBody b -> b
+    SLoopPool _ b -> b
     SManyLoop _str _lb _m_ub b -> b
     SRepeatLoop _str _n _e b -> b
     SMorphismLoop lm -> morphismBody lm
@@ -218,13 +218,13 @@ sloopClassE :: Applicative f => (sle -> f sle') -> (b -> f b') -> SLoopClass sle
                       f (SLoopClass sle' b')
 sloopClassE ef bf lc =
   case lc of
-    SMorphismBody b -> SMorphismBody <$> bf b
+    SLoopPool s b -> SLoopPool s <$> bf b
     SManyLoop str lb m_ub b ->
       SManyLoop str <$> ef lb <*> traverse ef m_ub <*> bf b
     SRepeatLoop str n e b ->
-      SRepeatLoop str n <$> ef e <*> bf b      
+      SRepeatLoop str n <$> ef e <*> bf b
     SMorphismLoop lm -> SMorphismLoop <$> morphismE ef bf lm
-  
+
 mapSLoopClassE :: (e -> e') -> (a -> a') ->
                    SLoopClass e a -> SLoopClass e' a'
 mapSLoopClassE ef af lc =
@@ -287,7 +287,7 @@ instance Merge Structural where
   merge = max
 
 instance (Eqv sle, Eqv b) => Eqv (SLoopClass sle b) where
-  SMorphismBody b `eqv ` SMorphismBody b' = b `eqv` b'
+  SLoopPool _s b `eqv ` SLoopPool _s' b' = b `eqv` b'
   SManyLoop str lb m_ub b `eqv ` SManyLoop str' lb' m_ub' b'
     = (str, lb, m_ub, b) `eqv` (str', lb', m_ub', b')
   SRepeatLoop str _n sle b `eqv` SRepeatLoop str' _n' sle' b' =
@@ -296,20 +296,26 @@ instance (Eqv sle, Eqv b) => Eqv (SLoopClass sle b) where
   _ `eqv` _ = False
 
 instance (Merge sle, Merge b, PP sle, PP b) => Merge (SLoopClass sle b) where
-  SMorphismBody b `merge ` SMorphismBody b' = SMorphismBody (merge b b')
-  SManyLoop str lb m_ub b `merge ` SManyLoop str' lb' m_ub' b'
+  SLoopPool s b `merge ` SLoopPool _s b' = SLoopPool s (merge b b')
+
+  SLoopPool _ b `merge`  SManyLoop str lb m_ub b' = SManyLoop str lb m_ub (merge b b')
+  lc@SManyLoop {} `merge` lc'@SLoopPool {} = merge lc' lc
+  SManyLoop str lb m_ub b `merge` SManyLoop str' lb' m_ub' b'
     = SManyLoop (merge str str') (merge lb lb') (merge m_ub m_ub') (merge b b')
+
   SRepeatLoop str n sle b `merge` SRepeatLoop str' _n sle' b' =
     SRepeatLoop (merge str str') n (merge sle sle') (merge b b')
+
   SMorphismLoop lm `merge` SMorphismLoop lm' = SMorphismLoop (merge lm lm')
   -- Now for MorphismBody and LoopMorphism
-  SMorphismBody b `merge` SMorphismLoop lm =
+  SLoopPool _ b `merge` SMorphismLoop lm =
     SMorphismLoop $ case lm of
                       MapMorphism lc b' -> MapMorphism lc (merge b b')
                       FoldMorphism n e lc b' -> FoldMorphism n e lc (merge b b')
-  lc@SMorphismLoop {} `merge` lc'@SMorphismBody {} = merge lc' lc
+  lc@SMorphismLoop {} `merge` lc'@SLoopPool {} = merge lc' lc
+
   lc `merge` lc' = panic "IMPOSSIBLE (merge)" [showPP lc, showPP lc']
-  
+
 --------------------------------------------------------------------------------
 -- Free instances
 --
@@ -350,18 +356,18 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
 instance (FreeVars sle, FreeVars b) => FreeVars (SLoopClass sle b) where
   freeVars lc =
     case lc of
-      SMorphismBody b -> freeVars b
+      SLoopPool _ b -> freeVars b
       SManyLoop _str lb m_ub b -> freeVars (lb, m_ub, b)
       SRepeatLoop _str n e b   -> freeVars e <> Set.delete n (freeVars b)
       SMorphismLoop lm -> freeVars lm
 
   freeFVars lc =
     case lc of
-      SMorphismBody b -> freeFVars b
+      SLoopPool _ b -> freeFVars b
       SManyLoop _str lb m_ub b -> freeFVars (lb, m_ub, b)
       SRepeatLoop _str _n e b   -> freeFVars (e, b)
       SMorphismLoop lm -> freeFVars lm
-      
+
 -- -----------------------------------------------------------------------------
 -- FreeTCons
 
@@ -391,7 +397,7 @@ instance (TraverseUserTypes sle, TraverseUserTypes b) =>
          TraverseUserTypes (SLoopClass sle b) where
   traverseUserTypes f lc =
     case lc of
-      SMorphismBody b -> SMorphismBody <$> traverseUserTypes f b
+      SLoopPool s b -> SLoopPool s <$> traverseUserTypes f b
       SManyLoop str lb m_ub b -> SManyLoop str <$> traverseUserTypes f lb
                                                <*> traverseUserTypes f m_ub
                                                <*> traverseUserTypes f b
@@ -437,13 +443,17 @@ instance PP p => PP (SummaryClass p) where
 instance (PP sle, PP b) => PP (SLoopClass sle b) where
   pp lc =
     case lc of
-      SMorphismBody b -> "Morphism " <> pp b
+      SLoopPool s b -> ("LoopPool" <> parens pp_s) <+> pp b
+        where pp_s = case s of
+                       SemNo -> "@"
+                       _     -> ""
+                
       SManyLoop str l m_h g ->
         "Many" <.> pp str  <.>
         parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
       SRepeatLoop str n e g   ->
         "for" <.> pp str <+> parens (pp n <+> "=" <+> pp e) <+> pp g
-      SMorphismLoop lm  -> pp lm    
+      SMorphismLoop lm  -> pp lm
 
 instance PP Structural where
   pp str =

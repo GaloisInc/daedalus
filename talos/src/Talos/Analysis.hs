@@ -481,7 +481,7 @@ structureFromLoopBody m_pred env =
 summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
-summariseMany preds _sem _bt lb m_ub g = do
+summariseMany preds sem _bt lb m_ub g = do
   elsD <- summariseG (mapMaybe absPredListElement preds) g
   logMessage 1 ("** Many " ++ showPP elsD)
 
@@ -493,22 +493,22 @@ summariseMany preds _sem _bt lb m_ub g = do
   let (gs, elsD') = asSingleton elsD
       gsDom
         | closedDomain elsD && null preds = emptyDomain
-        | otherwise = singletonDomain (makeSlice gs)
+        | otherwise = singletonDomain (makeSlice (gs { gsPred = m_pred}))
   
   pure (gsDom `merge` elsD')
   
   where
-    makeSlice gs = gs { gsEnv   = env
-                      , gsPred  = m_pred
-                      , gsSlice = sl
-                      }
+    makeSlice gs
+      -- In this case we can ignore the bounds (FIXME: as far as I can
+      -- reason).  For str to be StructureIndependent, the number of
+      -- elements cannot impact the rest of the synthesis.
+      | str == StructureIndependent =
+          gs { gsSlice = SLoop (SLoopPool sem (gsSlice gs)) }
+      | otherwise = gs { gsEnv   = gsEnv gs `merge` envlb `merge` envub
+                       , gsSlice = SLoop (SManyLoop str slb m_sub (gsSlice gs)) }
       where
-        env = gsEnv gs `merge` envlb `merge` envub
-        -- maybe we should use just gsEnv gs here?  This is sound but
-        -- might over-slice.
-        str = structureFromLoopBody m_pred env
-        sl = SLoop (SManyLoop str slb m_sub (gsSlice gs))
-    
+        str = structureFromLoopBody m_pred (gsEnv gs)
+
     (envlb, slb) = absPre absPredTop lb
     m_env_ub = absPre absPredTop <$> m_ub
     envub = maybe absEmptyEnv fst m_env_ub
@@ -593,7 +593,7 @@ summariseMorphism preds lm =
                      -- We don't care about the lc, and hence gsPred
                      -- should be Nothing, as otherwise the structure would be important.
                      Nothing
-                       | isNothing (gsPred gs) -> SMorphismBody (gsSlice gs)
+                       | isNothing (gsPred gs) -> SLoopPool SemNo (gsSlice gs)
                        | otherwise -> panic "Expecting gsPred to be Nothing" []
                      Just (lc', _str') -> SMorphismLoop (FoldMorphism n sle lc' (gsSlice gs))
                            
@@ -615,7 +615,7 @@ summariseMorphism preds lm =
                 sl' = case m_lc_str' of
                         -- We don't do the gsPred check here because it
                         -- isn't required/true.
-                        Nothing -> SMorphismBody sl
+                        Nothing -> SLoopPool SemYes sl
                         Just (lc', _str') -> SMorphismLoop (MapMorphism lc' sl)
                 gs' = GuardedSlice { gsEnv = env'
                                    , gsPred = m_pred

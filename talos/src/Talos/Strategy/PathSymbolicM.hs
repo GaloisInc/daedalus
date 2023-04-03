@@ -36,7 +36,7 @@ import           Daedalus.Rec                 (Rec)
 import           Talos.Analysis.Exported      (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
-                                               runSemiSolverM)
+                                               runSemiSolverM, SequenceTag)
 import qualified Talos.Strategy.MuxValue      as MV
 import           Talos.Strategy.PathCondition (PathVar (..), PathCondition)
 import qualified Talos.SymExec.Expr           as SE
@@ -70,6 +70,8 @@ data SymbolicEnv = SymbolicEnv
     
   -- ^ Current recursive depth (basically the sum of all back edge
   -- calls, irrespective of source/target).
+
+  , sProvenance :: ProvenanceTag
   
   -- The path isn't required as we add it on post-facto
   -- , sPath    :: ValueGuard -- ^ Current path.
@@ -102,13 +104,13 @@ data PathCaseBuilder a   =
 
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
 
-emptySymbolicEnv :: Int -> Int -> SymbolicEnv
+emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0
 
 -- A reference to a loop, used to collect loop elements and their
 -- children.  Using a GUID here is a bit lazy as any uniquely
 -- generated Int etc. would do.
-type SymbolicLoopTag = GUID
+type SymbolicLoopTag = SequenceTag
 
 -- We could figure this out from the generated parse tree, but this is
 -- (maybe?) clearer.
@@ -121,11 +123,35 @@ data SymbolicModel = SymbolicModel
                                      , [SMT.SExpr] -- Symbolic path (all true to be enabled)
                                      , [(NonEmpty PathCondition, Pattern)] -- Pattern guards
                                      )
-  , smLoops   :: Map SymbolicLoopTag  ( Maybe SymbolicLoopTag -- Parent loop (for morphisms), if any
-                                      , [SMT.SExpr] -- Symbolic path (all true to be enabled)
-                                      , PathCursor  -- Cursor to this loop, reversed.
-                                      )
+  , smLoops   :: Map SymbolicLoopTag SymbolicLoopModel
   } deriving Generic
+
+data SLMPerValue = SLMPerValue
+  { slmpCollectionTag :: Maybe SymbolicLoopTag
+  -- ^ The loop the collection this loop depends on; the same id may
+  -- appear multiple times, if encountered on multiple paths.
+  , slmpGuard :: [SMT.SExpr]
+  -- ^ The guard for this value.  Note that this misses any shared
+  -- path prefix for this loop (i.e., we don't extend this in
+  -- 'extendPath') as we assert this loop is reachable, so any shared
+  -- path will be asserted.
+  , slmpPathBuilder :: [ PathBuilder ]
+  -- ^ The paths corresponding to the elements of the list.
+  } deriving Generic
+  
+data SymbolicLoopModel = SymbolicLoopModel
+  { slmModels :: [ SLMPerValue ]
+  , slmGuard  :: [SMT.SExpr]
+  , slmCursor :: PathCursor
+  -- ^ Cursor to this loop, reversed.
+  } deriving Generic
+
+makeSymbolicLoopModel :: [SLMPerValue] -> [SMT.SExpr] -> SymbolicLoopModel
+makeSymbolicLoopModel ms g = SymbolicLoopModel
+  { slmModels = ms
+  , slmGuard = g
+  , slmCursor = []
+  }
 
 -- We should only ever combine disjoint sets, so we cheat here
 instance Semigroup SymbolicModel where
@@ -149,11 +175,12 @@ instance LiftStrategyM SymbolicM where
 runSymbolicM :: -- | Slices for pre-run analysis
                 (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
                 Int ->
-                Int -> 
+                Int ->
+                ProvenanceTag ->
                 SymbolicM Result ->
                 SolverT StrategyM (Maybe Result, SymbolicModel)
-runSymbolicM _sls maxRecDepth nLoopEls (SymbolicM m) =
-  runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth nLoopEls)
+runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
+  runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
 
 --------------------------------------------------------------------------------
 -- Names
@@ -206,13 +233,13 @@ recordCase _stag _n [_rhs] = pure ()
 recordCase stag n rhss =
   tell (SymbolicModel mempty mempty (Map.singleton stag (n, mempty, rhss)) mempty)
 
-recordLoop :: SymbolicLoopTag -> Maybe SymbolicLoopTag -> SymbolicM ()
+recordLoop :: SymbolicLoopTag -> SymbolicLoopModel -> SymbolicM ()
 -- If we have a _single_ rhs then we ignore the case (this happens with predicates)
-recordLoop stag m_stag =
-  tell (SymbolicModel mempty mempty mempty (Map.singleton stag (m_stag, mempty, [])))
+recordLoop stag slm =
+  tell (SymbolicModel mempty mempty mempty (Map.singleton stag slm))
 
 extendPathCursor :: PathCursorElement -> SymbolicModel -> SymbolicModel
-extendPathCursor pc = over (field @"smLoops") (fmap (_3 %~ (pc :)))
+extendPathCursor pc = over (field @"smLoops" . mapped .field @"slmCursor") (pc :)
 
 extendPathCursorM :: PathCursorElement -> SymbolicM a -> SymbolicM a
 extendPathCursorM pc = censor (extendPathCursor pc) 
@@ -230,9 +257,9 @@ extendPath g = extendPathCursor PCNode -- We could fold this into addGuard, but 
 
     -- Merge in the guard g with the path for the known choices/cases
     addGuard = 
-      over (field @"smChoices") (fmap (_1 %~ (g :)))
-      . over (field @"smCases") (fmap (_2 %~ (g :)))
-      . over (field @"smLoops") (fmap ((_2 %~ (g :))))
+      over (field @"smChoices" . mapped . _1) (g :)
+      . over (field @"smCases" . mapped . _2) (g :)
+      . over (field @"smLoops" . mapped . field @"slmGuard") (g :)
 
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do

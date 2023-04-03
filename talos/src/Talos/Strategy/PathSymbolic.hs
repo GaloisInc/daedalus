@@ -143,7 +143,7 @@ symbolicFun config ptag sl = StratGen $ do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) (stratSlice ptag sl)
+    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl) 
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           liftIO $ printf "\tGenerated %d models " (length rs)
@@ -173,8 +173,8 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) []
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ProvenanceTag -> ExpSlice -> SymbolicM Result
-stratSlice ptag = go
+stratSlice :: ExpSlice -> SymbolicM Result
+stratSlice = go
   where
     go sl =  do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
@@ -206,16 +206,16 @@ stratSlice ptag = go
           -- (byte sets are typically not empty)
           assertSExpr bassn
           -- liftSolver check -- required?
-
+          ptag <- asks sProvenance
           pure (bv, SelectedBytes ptag (ByteResult sym))
 
-        SChoice sls -> stratChoice ptag sls Nothing --  =<< asks sCurrentSCC
+        SChoice sls -> stratChoice sls Nothing --  =<< asks sCurrentSCC
 
-        SCall cn -> stratCallNode ptag cn
+        SCall cn -> stratCallNode cn
 
-        SCase total c -> stratCase ptag total c Nothing -- =<< asks sCurrentSCC
+        SCase total c -> stratCase total c Nothing -- =<< asks sCurrentSCC
 
-        SLoop lc -> stratLoop ptag lc
+        SLoop lc -> stratLoop lc
 
         SInverse n ifn p -> do
           n' <- MV.vSExpr mempty (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
@@ -238,6 +238,7 @@ stratSlice ptag = go
             let fvM = Map.fromSet id $ freeVars ifn
             -- Resolve all Names (to semisexprs and solver names)
             venv <- traverse getName fvM
+            ptag <- asks sProvenance
             pure (n', SelectedBytes ptag (InverseResult venv ifn))
 
 -- This function runs the given monadic action under the current pathc
@@ -260,8 +261,7 @@ guardedChoice pv i m = pass $ do
 
     notFeasible _ = mempty { smAsserts = [S.not pathGuard] }
 
--- FIXME: put ptag in env.
-stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
+stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
 --   | any hasRecCall sls = do
 --       -- Just pick randomly if there is recursion.
@@ -270,11 +270,11 @@ stratChoice :: ProvenanceTag -> [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM R
 --   where
 --     hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
 
-stratChoice ptag sls _ = do
+stratChoice sls _ = do
   pv <- freshPathVar (length sls)
   (vs, paths) <-
     unzip . catMaybes <$>
-    zipWithM (guardedChoice pv) [0..] (map (stratSlice ptag) sls)
+    zipWithM (guardedChoice pv) [0..] (map stratSlice sls)
   v <- hoistMaybe (MV.unions' vs)
 
   -- Record that we have this choice variable, and the possibilities
@@ -284,13 +284,37 @@ stratChoice ptag sls _ = do
   --                 <> " ==> " <> pp (length (MV.guardedValues v)))
   pure (v, SelectedChoice (SymbolicChoice pv paths))
 
-stratLoop :: ProvenanceTag -> SLoopClass Expr ExpSlice ->
+stratLoop :: SLoopClass Expr ExpSlice ->
              SymbolicM Result
-stratLoop ptag lc =
+stratLoop lc =
   case lc of
-    
-    SMorphismBody b -> undefined
-    SManyLoop str lb m_ub b -> undefined
+    SLoopPool sem b -> do
+      ltag <- freshSymbolicLoopTag
+      -- PCNode would also work, but this is a little less confusing.
+      (v, m) <- extendPathCursorM (PCSequence 0) $ stratSlice b
+      let xs = VSequence (Just ltag) False [v]
+          slv = SLMPerValue
+            { slmpCollectionTag = Nothing -- no collection
+            , slmpGuard         = [] -- No values we rely on
+            , slmpPathBuilder   = [m] -- Single element
+            }
+          v' = case sem of
+                 SemNo  -> vUnit
+                 SemYes -> MV.singleton mempty xs
+      recordLoop ltag (makeSymbolicLoopModel [slv] [])
+      pure (v', SelectedHole) -- We will update later with the contents
+    -- Should be SLoopPool
+    SManyLoop StructureIndependent _lb _m_ub _b ->
+      panic "BUG: saw SManyLoop StructureIndependent" []
+    SManyLoop StructureIsNull lb m_ub b -> do
+      ltag <- freshSymbolicLoopTag
+      
+      undefined
+    SManyLoop StructureDependent lb m_ub b -> do
+      ltag <- freshSymbolicLoopTag      
+      undefined
+
+      
     SRepeatLoop str n e b -> undefined
     SMorphismLoop lm -> undefined
 
@@ -323,11 +347,11 @@ guardedCase gs pat m = pass $ do
     pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
     notFeasible _ = mempty { smAsserts = [S.not pathGuard] }
 
-stratCase :: ProvenanceTag -> Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase ptag _total cs m_sccs = do
+stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
+stratCase _total cs m_sccs = do
   inv <- getName (caseVar cs)
   (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
-  let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice ptag a)
+  let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice a)
   case m_sccs of
     Just sccs
       | any (hasRecCall sccs . snd . snd) alts -> do
@@ -387,13 +411,14 @@ stratCase ptag _total cs m_sccs = do
     hasRecCall sccs = \sl -> not (sliceToCallees sl `Set.disjoint` sccs)
 
 -- FIXME: this is copied from BTRand
-stratCallNode :: ProvenanceTag -> ExpCallNode ->
+stratCallNode :: ExpCallNode ->
                  SymbolicM Result
-stratCallNode ptag cn = do
+stratCallNode cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
   over _2 (SelectedCall (ecnIdx cn))
-    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice ptag sl)
+    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn)
+          (extendPathCursorM PCNode (stratSlice sl))
 
 -- -----------------------------------------------------------------------------
 -- Merging values
@@ -790,7 +815,6 @@ buildPaths ntotal nfails sm pb = do
           ((p, st'), tbuild) <- timeIt $ buildPath st pb
           pure (Right (p, st', tbuild))
 
-
 -- FIXME: we could get all the sexps from the solver in a single query.
 buildPath :: MultiModelState -> PathBuilder ->
              SolverT StrategyM (SelectedPath, MultiModelState)
@@ -899,9 +923,9 @@ gseModel gse =
       m_gsess <- sequence <$> mapM gsesModel gsess
       pure (I.VStruct . zip ls <$> m_gsess)
 
-    VSequence True gsess ->
+    VSequence _ True gsess ->
       fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
-    VSequence False gsess ->
+    VSequence _ False gsess ->
       fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
 
     VJust gses -> fmap (I.VMaybe . Just) <$> gsesModel gses
