@@ -119,7 +119,7 @@ public:
   }
 
   // Borrow arguments
-  Array(T *data, Size n)
+  Array(T const *data, Size n)
   : ptr(Content::allocate(n)) {
     std::copy_n(data, n.rep(), ptr->data);
   }
