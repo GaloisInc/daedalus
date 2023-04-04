@@ -7,6 +7,7 @@
 #include <ddl/boxed.h>
 #include <ddl/size.h>
 #include <ddl/number.h>
+#include <ddl/array.h>
 #include <ddl/maybe.h>
 
 namespace DDL {
@@ -445,6 +446,23 @@ public:
     if (res.iDropMut(n) == 0) return Maybe(res);
     res.free();
     return Maybe<Stream>();
+  }
+
+  /// Check if the given string is a prfiex of the input.
+  /// May suspend.
+  /// Returns `true` if the given bytes are a prefix of the stream,
+  /// and `false` if they are not.
+  bool hasPrefix(Array<UInt<8>> pref) {
+    Size n = pref.size();
+    Stream peek(*this);
+    peek.copy();
+    bool yes = true;
+    for (Size i = 0; i < n; i.increment()) {
+      if (peek.isEmpty() || peek.iHead() != pref[i]) { yes = false; break; }
+      peek.iDropMut1();
+    }
+    peek.free();
+    return yes;
   }
 
 };

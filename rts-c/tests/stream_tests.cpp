@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstring>
 #include <ddl/stream.h>
 
 class StreamTestDelete {
@@ -12,6 +13,13 @@ public:
   // level string constants in the tests
   void operator() (const char* p) { ++(*free_count); }
 };
+
+DDL::Array<DDL::UInt<8>> str(char const * x) {
+  return DDL::Array<DDL::UInt<8>>
+              ( reinterpret_cast<DDL::UInt<8> const *>(x)
+              , DDL::Size{strlen(x)}
+              );
+}
 
 using Stream = DDL::Stream<StreamTestDelete>;
 
@@ -192,6 +200,24 @@ TEST(Streams, TwoChunksTake2) {
 }
 
 
+TEST(Streams, Prefix) {
+  const char* chunks[] = { "One", "Two" };
+
+  doTest(std::size(chunks), chunks, [](size_t &alloc, size_t &free, Stream s) {
+      auto pref1 = str("On");
+      auto pref2 = str("OneT");
+      auto pref3 = str("OneTwoT");
+      EXPECT_TRUE(s.hasPrefix(pref1));
+      EXPECT_EQ(free,0);
+      EXPECT_TRUE(s.hasPrefix(pref2));
+      EXPECT_EQ(free,0);
+      EXPECT_FALSE(s.hasPrefix(pref3));
+      EXPECT_EQ(free,0);
+      pref1.free();
+      pref2.free();
+      pref3.free();
+  });
+}
 
 
 
