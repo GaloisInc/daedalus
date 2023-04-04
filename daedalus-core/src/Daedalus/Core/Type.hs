@@ -87,7 +87,6 @@ instance TypeOf Expr where
           IsEmptyStream   -> TBool
           Head            -> TUInt (TSize 8)
           StreamOffset    -> sizeType
-          StreamLen       -> sizeType
           BytesOfStream   -> TArray (TUInt (TSize 8))
           OneOf _         -> TBool
           Neg             -> typeOf e
@@ -147,6 +146,7 @@ instance TypeOf Expr where
         case op of
           IsPrefix  -> TBool
           Drop      -> TStream
+          DropMaybe -> TMaybe TStream
           Take      -> TStream
           Eq        -> TBool
           NotEq     -> TBool

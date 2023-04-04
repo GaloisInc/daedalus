@@ -98,6 +98,11 @@ public:
   // preserved
   Input iDrop(Size n)     { Input x(*this); x.iDropMut(n); return x; }
 
+  Maybe<Input> iDropMaybe(Size n) {
+    if (n <= length()) return Maybe();
+    return Maybe(iDrop(n));
+  }
+
   // Restrict amount of input
   // Assumes: n <= length()
   // Owns this.

@@ -40,13 +40,17 @@ vStreamTake = tracedFun \a b ->
 
 vStreamDrop :: Value -> Value -> Partial Value
 vStreamDrop = tracedFun \a b ->
-  let notEnough = vErr "Not enough bytes in `Drop`"
-  in
-  case valueToIntSize a of
-    Nothing -> notEnough
-    Just x  ->
-      case advanceBy (UInt (fromIntegral x)) (valueToStream b) of
-        Nothing -> notEnough
-        Just i  -> pure (VStream i)
+  case vStreamDropMaybe' a b of
+    Just v  -> pure v
+    Nothing -> vErr "Not enough bytes in `Drop`"
+
+vStreamDropMaybe' :: Value -> Value -> Maybe Value
+vStreamDropMaybe' a b =
+  do x <- valueToIntSize a
+     VStream <$> advanceBy (UInt (fromIntegral x)) (valueToStream b)
+
+vStreamDropMaybe :: Value -> Value -> Value
+vStreamDropMaybe = tracedFun \a b -> VMaybe (vStreamDropMaybe' a b)
+
 
 

@@ -50,7 +50,6 @@ data Op1 =
   | IsEmptyStream
   | Head
   | StreamOffset
-  | StreamLen
   | BytesOfStream
   | OneOf ByteString
   | Neg
@@ -80,6 +79,7 @@ data Op1 =
 data Op2 =
     IsPrefix
   | Drop
+  | DropMaybe
   | Take
 
   | Eq
@@ -235,9 +235,9 @@ isEmptyStream = Ap1 IsEmptyStream
 isPrefix      = Ap2 IsPrefix
 eHead         = Ap1 Head
 eDrop         = Ap2 Drop
+eDropMaybe    = Ap2 DropMaybe
 eTake         = Ap2 Take
 streamOffset  = Ap1 StreamOffset
-streamLen     = Ap1 StreamLen
 arrayStream   = Ap2 ArrayStream
 bytesOfStream = Ap1 BytesOfStream
 
@@ -401,7 +401,6 @@ instance PP Op1 where
       IsEmptyStream   -> "iNull"
       Head            -> "iHead"
       StreamOffset    -> "iOffset"
-      StreamLen       -> "iLen"
       BytesOfStream   -> "bytesOfStream"
       OneOf xs        -> "oneOf" <+> pp xs
       Neg             -> "neg"
@@ -453,6 +452,7 @@ ppOp2 op =
 
       IsPrefix    -> pref "iPrefix"
       Drop        -> pref "iDrop"
+      DropMaybe   -> pref "iDropMaybe"
       Take        -> pref "iTake"
 
       Eq          -> inf "=="

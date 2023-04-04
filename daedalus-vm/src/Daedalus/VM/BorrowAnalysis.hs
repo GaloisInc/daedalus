@@ -419,7 +419,6 @@ modeOp1 op =
     IsEmptyStream         -> [Borrowed]
     Head                  -> [Borrowed]
     StreamOffset          -> [Borrowed]
-    StreamLen             -> [Borrowed]
     BytesOfStream         -> [Borrowed]
     OneOf {}              -> [Borrowed]
     Neg                   -> [Owned]
@@ -450,6 +449,7 @@ modeOp2 op =
   case op of
     IsPrefix             -> [Borrowed,Borrowed]
     Drop                 -> [Borrowed,Owned]
+    DropMaybe            -> [Borrowed,Owned]
     Take                 -> [Borrowed,Owned]
 
     Eq                   -> [Borrowed,Borrowed]

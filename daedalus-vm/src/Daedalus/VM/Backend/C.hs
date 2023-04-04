@@ -828,16 +828,13 @@ cOp1 x op1 ~[e'] =
             | otherwise    -> bad "Unexpected source type"
 
     Src.IsEmptyStream ->
-      cVarDecl x $ cCallMethod e "length" [] <+> "==" <+> "0"
+      cVarDecl x $ cCallMethod e "isEmpty" []
 
     Src.Head ->
       cVarDecl x $ cCall "DDL::UInt<8>" [ cCallMethod e "iHead" [] ]
 
     Src.StreamOffset ->
       cVarDecl x $ sizeTo64 (cCallMethod e "getOffset" [])
-
-    Src.StreamLen ->
-      cVarDecl x $ sizeTo64 (cCallMethod e "length" [])
 
     Src.BytesOfStream ->
       cVarDecl x $ cCallMethod e "getByteArray" []
@@ -926,6 +923,8 @@ cOp2 x op2 ~[e1',e2'] =
   case op2 of
     Src.IsPrefix -> cVarDecl x (cCallMethod e2 "hasPrefix" [ e1 ])
     Src.Drop     -> cVarDecl x (cCallMethod e2 "iDrop"    [ n ])
+      where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
+    Src.DropMaybe -> cVarDecl x (cCallMethod e2 "iDropMaybe" [ n ])
       where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
     Src.Take     -> cVarDecl x (cCallMethod e2 "iTake"    [ n ])
       where n = cCall "DDL::Size::from" [cCallMethod e1 "rep" []]
