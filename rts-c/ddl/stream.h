@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <memory>
+#include <functional>
 #include <boost/context/fiber.hpp>
 
 #include <ddl/boxed.h>
@@ -14,20 +15,21 @@ namespace DDL {
 
 namespace ctx=boost::context;
 
-/// Deallocate buffers using delete[]
-using DeleteNewAlloc = std::default_delete<const char[]>;
+using StreamChunkDel = std::function<void(const char*)>;
 
 /// The data source for a stream
-template <typename Del = DeleteNewAlloc>
 class StreamData : HasRefs {
 
-  class Chunk: Del, HasRefs {
+  class Chunk: HasRefs {
     Size        size;         // Amount of data in this chunk
     RefCount    ref_count;    // Number of references to this chunk
     const char* buffer;       // Data for the chunk  (nullable)
     Chunk*      next;         // Next chunk, if any  (nullable)
     ctx::fiber* thunk;        // Where to get more data.
                               // Only meaningful on a terminal thunk
+    StreamChunkDel* del;      // Deallocate data buffer
+    bool own_del;             // Do we own `del`?
+
 
     // A marker for a terminal empty buffer.
     // If `buffer` points to this then this stream is finished and cannot
@@ -38,25 +40,24 @@ class StreamData : HasRefs {
     /// @return A pointer to the next node, if any.
     Chunk* freeThis() {
       Chunk *res = next;
-      if (buffer != nullptr && buffer != emptyBuffer)
-        (*static_cast<Del*>(this))(buffer);
+      if (buffer != nullptr && buffer != emptyBuffer) (*del)(buffer);
+      if (own_del) delete del;
       delete this;
       return res;
     }
 
-  /// Make an empty, non-extensible buffer.
-  Chunk()
-    : size(0)
-    , ref_count(1)
-    , buffer(emptyBuffer)
-    , next(nullptr)
-    , thunk(nullptr)
-    {}
-
-
+    /// Make an empty, non-extensible buffer.
+    Chunk()
+      : size(0)
+      , ref_count(1)
+      , buffer(emptyBuffer)
+      , next(nullptr)
+      , thunk(nullptr)
+      , del(nullptr)
+      , own_del(false)
+      {}
 
   public:
-
 
     /// Make an extensible buffer with no data.
     /// @param getData The context that will provide more data.
@@ -66,9 +67,34 @@ class StreamData : HasRefs {
       , buffer(nullptr)
       , next(nullptr)
       , thunk(&getData)
+      , del(nullptr)
+      , own_del(false)
       {}
 
-    inline static Chunk empty;
+    /// Make a non-extensible single chunk buffer from the given array
+    /// Owns the array
+    Chunk(Array<UInt<8>> data) {
+      auto buf = data.borrowData();
+      if (buf == nullptr) {
+        *this = Chunk();
+      } else {
+        size = data.size();
+        ref_count = 1;
+        buffer = reinterpret_cast<char const*>(buf);
+        next = nullptr;
+        thunk = nullptr;
+        del = new StreamChunkDel([data](const char* b) mutable {
+            data.free();
+        });
+        own_del = true;
+      }
+    }
+
+    /// The address of a staic empty chunk
+    static inline Chunk* empty() {
+      static Chunk e;
+      return &e;
+    }
 
     /// @return `true` if there are no more chunks after this.
     bool isTerminal () const { return next == nullptr; }
@@ -93,7 +119,7 @@ class StreamData : HasRefs {
     /// Remove a reference.
     /// Owns this.
     void free() {
-      for (auto p = this; p != &empty && p != nullptr;) {
+      for (auto p = this; p != empty() && p != nullptr;) {
         if (p->ref_count > 1) { --(p->ref_count); return; }
         p = p->freeThis();
       }
@@ -146,23 +172,26 @@ class StreamData : HasRefs {
 
     /// Append a new chunk of data to the stream.
     /// Owns this.
+    /// When we are done with `cbuffer` we call `buf_del` with it as a
+    /// parameter.  We keep the address of buf_del while the chunk is alive
+    /// so it should not be deallocated.
     /// Assume: isTerminal() && !isEmpty() && thunk != nullptr
+    /// Assume: lifetime of buf_del is bigger than that of cbuffer.
     /// @return An owned reference to the new end of the stream.
     /// Assert: return != nullptr
-    template <typename D>
-    Chunk* append(Size csize, const char *cbuffer, D&& del) {
+    Chunk* append(Size csize, const char *cbuffer, StreamChunkDel &buf_del) {
       assert (isTerminal());
       assert (!isEmpty());
       assert (thunk != nullptr);
 
       if (csize == 0) {
-        del(cbuffer);
+        buf_del(cbuffer);
         return this;
       }
 
       size    = csize;
       buffer  = cbuffer;
-      *static_cast<Del*>(this) = std::forward<D>(del);
+      del     = &buf_del;
       next    = new Chunk(*thunk);
 
       return nextChunk();
@@ -185,7 +214,10 @@ class StreamData : HasRefs {
 public:
 
   /// Make a new non-extensible empty stream.
-  StreamData() : front(&Chunk::empty)  {}
+  StreamData() : front(Chunk::empty())  {}
+
+  /// Make a new non-extensible stream containing the given array.
+  StreamData(Array<UInt<8>> data) : front(new Chunk(data)) {}
 
   /// Make a new extensible empty stream.
   StreamData(ctx::fiber &getData) : front(new Chunk(getData))  {}
@@ -206,14 +238,12 @@ public:
 
   /// Owns this.
   /// Append new buffer.
-  /// Ignores buffers of size 0.
   /// The data stream is updated to point to the new end of stream.
   /// @param csize    Size of the new data.
   /// @param cbuffer  Data associate with the buffer.
   /// @param del      How to deallocate the data when we are done with it.
-  template <typename D = Del>
-  void appendMut(Size csize, const char *cbuffer, D&& del = Del()) {
-    front = front->append<D>(csize, cbuffer, std::forward<D>(del));
+  void appendMut(Size csize, const char *cbuffer, StreamChunkDel &d) {
+    front = front->append(csize, cbuffer, d);
   }
 
   void finishMut() { front->finish(); }
@@ -248,10 +278,9 @@ public:
 
 
 /// A consumer of a data, where the data may be provided a little bit a time.
-template <typename Del = DeleteNewAlloc>
 class Stream : HasRefs {
 
-  StreamData<Del> data;
+  StreamData data;
   /// The data backing this stream.
 
   Size chunk_offset;
@@ -278,7 +307,7 @@ class Stream : HasRefs {
   /// let go of the underlying stream
   void makeEmpty() {
     data.free();
-    data         = StreamData<Del>();
+    data         = StreamData();
     chunk_offset = getOffset();
     offset       = 0;
     chunk_size   = 0;
@@ -310,17 +339,28 @@ public:
 
   /// Make an empty, non-extensible data source.
   Stream()
-    : data(StreamData<Del>())
+    : data(StreamData())
     , chunk_offset(0)
     , offset(0)
     , chunk_size(0)
     , last_offset(0)
     , name() {}
 
+  /// Make a new stream using the given data source, starting at offset 0.
+  /// @param data  The data to back the stream.  Owned.
+  Stream (Array<UInt<8>> name, Array<UInt<8>> data)
+    : data(data)
+    , chunk_offset(0)
+    , offset(0)
+    , chunk_size(data.size())
+    , last_offset(data.size())
+    , name(name)
+  {}
+
 
   /// Make a new stream using the given data source, starting at offset 0.
   /// @param data  The data to back the stream.  Owned.
-  Stream (Array<UInt<8>> name, StreamData<Del> data)
+  Stream (Array<UInt<8>> name, StreamData data)
     : data(data)
     , chunk_offset(0)
     , offset(0)
@@ -521,34 +561,28 @@ public:
 
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator == (Stream<D> xs, Stream<D> ys) { return compare(xs,ys) == 0; }
+bool operator == (Stream xs, Stream ys) { return compare(xs,ys) == 0; }
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator < (Stream<D> xs, Stream<D> ys) { return compare(xs,ys) < 0; }
+bool operator < (Stream xs, Stream ys) { return compare(xs,ys) < 0; }
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator > (Stream<D> xs, Stream <D>ys) { return compare(xs,ys) > 0; }
+bool operator > (Stream xs, Stream ys) { return compare(xs,ys) > 0; }
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator != (Stream<D> xs, Stream<D> ys) { return !(xs == ys); }
+bool operator != (Stream xs, Stream ys) { return !(xs == ys); }
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator <= (Stream<D> xs, Stream<D> ys) { return !(xs > ys); }
+bool operator <= (Stream xs, Stream ys) { return !(xs > ys); }
 
 // Borrow arguments
-template <typename D = DeleteNewAlloc>
 static inline
-bool operator >= (Stream<D> xs, Stream<D> ys) { return !(xs < ys); }
+bool operator >= (Stream xs, Stream ys) { return !(xs < ys); }
 
 
 
@@ -557,11 +591,11 @@ bool operator >= (Stream<D> xs, Stream<D> ys) { return !(xs < ys); }
 
 /// Encapsulates the interaction between a parser and a separate corouting
 /// that fills the parser's data stream.
-template <typename Del = DeleteNewAlloc>
 class ParserThread {
-  ctx::fiber       context;   /// The context of the suspended party.
-  StreamData<Del>  data;      /// The data stream to be parserd.
-  bool             done;      /// Is the parser finished parsing.
+  ctx::fiber      context;   /// The context of the suspended party.
+  StreamData      data;      /// The data stream to be parserd.
+  StreamChunkDel  del;       /// Use this to deallocate buffers
+  bool            done;      /// Is the parser finished parsing.
 
 public:
 
@@ -569,9 +603,10 @@ public:
   /// @param parser The consumer of the stream.
   ///               Will be called with a Stream value
   template <typename Fn>
-  ParserThread(const char* name, Fn &&parser)
+  ParserThread(const char* name, StreamChunkDel &&d, Fn &&parser)
     : ParserThread
         ( Array{reinterpret_cast<UInt<8> const*>(name), strlen(name)}
+        , std::move(d)
         , std::move(parser)
         ) {}
 
@@ -582,7 +617,7 @@ public:
   /// @param parser The consumer of the stream.
   ///               Will be called with a Stream value
   template <typename Fn>
-  ParserThread(Array<UInt<8>> name, Fn &&parser)
+  ParserThread(Array<UInt<8>> name, StreamChunkDel &&d, Fn &&parser)
     : context(
         [this,name,parser] (ctx::fiber &&top) {
           context = std::move(top);
@@ -591,7 +626,8 @@ public:
           done = true;
           return std::move(context);
         })
-    , data(StreamData<Del>(context))
+    , data(StreamData(context))
+    , del(std::move(d))
     , done(false)
     {}
 
@@ -608,9 +644,8 @@ public:
   bool isDone() const { return done; }
 
   /// Provide more data to the parser.
-  template <typename D = Del>
-  void append(size_t csize, const char* bytes, D&& del = Del()) {
-    data.appendMut(csize, bytes, std::forward<D>(del));
+  void append(size_t csize, const char* bytes) {
+    data.appendMut(csize, bytes, del);
   }
 
   /// Terminate the data stream.
