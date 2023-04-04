@@ -34,7 +34,8 @@ void doTest
   size_t alloc_count = 0;
 
   DDL::ParserThread<StreamTestDelete> pt
-     { [&free_count, &alloc_count,f = std::forward<Fn>(f)]
+     { "Test"
+     , [&free_count, &alloc_count,f = std::forward<Fn>(f)]
        (Stream s) {
          f(alloc_count, free_count,s);
        }

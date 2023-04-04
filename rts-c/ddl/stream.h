@@ -184,7 +184,7 @@ class StreamData : HasRefs {
 
 public:
 
-  /// Make a new non-extensible stream empty stream.
+  /// Make a new non-extensible empty stream.
   StreamData() : front(&Chunk::empty)  {}
 
   /// Make a new extensible empty stream.
@@ -270,6 +270,9 @@ class Stream : HasRefs {
   /// The offset at the end of the stream.
   /// We are only allowed to read at smaller offsets.
 
+  Array<UInt<8>> name;
+  /// Name for the stream
+
 
   /// Do this when this stream is known to be empty to
   /// let go of the underlying stream
@@ -305,22 +308,33 @@ class Stream : HasRefs {
 
 public:
 
+  /// Make an empty, non-extensible data source.
+  Stream()
+    : data(StreamData<Del>())
+    , chunk_offset(0)
+    , offset(0)
+    , chunk_size(0)
+    , last_offset(0)
+    , name() {}
+
+
   /// Make a new stream using the given data source, starting at offset 0.
   /// @param data  The data to back the stream.  Owned.
-  Stream (StreamData<Del> data)
+  Stream (Array<UInt<8>> name, StreamData<Del> data)
     : data(data)
     , chunk_offset(0)
     , offset(0)
     , chunk_size(data.getChunkSize())
     , last_offset(Size::maxValue())
+    , name(name)
   {}
 
   /// Add an extre reference.
-  void copy()       { data.copy(); }
+  void copy()       { data.copy(); name.copy(); }
 
   /// Remove a reference.
   /// Owns this.
-  void free()       { data.free(); }
+  void free()       { data.free(); name.free(); }
 
   /// Debug dump of the data in stream.
   /// XXX: Currently this dumps *all* data, ignoring `last_offset`.
@@ -465,7 +479,78 @@ public:
     return yes;
   }
 
+
+  /// We compare by name, not the actual byte content.
+  friend
+  int compare(Stream x, Stream y) {
+    if (x.offset < y.offset) return -1;
+    if (x.offset > y.offset) return 1;
+    if (x.last_offset < y.last_offset) return -1;
+    if (x.last_offset > y.last_offset) return 1;
+    return compare(x.name,y.name);
+  }
+
+
+  // XXX: We need to esacpe quotes in the input name
+  friend
+  std::ostream& operator<<(std::ostream& os, Stream x) {
+    os << "Stream(\"" << (char*)x.name.borrowData()
+                   << "\":0x" << std::hex << x.offset;
+    if (x.last_offset < Size::maxValue()) {
+       os << "--0x" << std::hex << x.last_offset;
+     }
+     os << ")";
+
+     return os;
+  }
+
+  // XXX: We need to esacpe quotes in the input name
+  friend
+  std::ostream& toJS(std::ostream& os, Stream x) {
+    os << "{ \"$$input\": \"" << (char*)x.name.borrowData()
+                   << ":0x" << std::hex << x.offset;
+    if (x.last_offset < Size::maxValue()) {
+      os << "--0x" << std::hex << x.last_offset;
+    }
+    os << "\"}";
+
+    return os;
+  }
+
 };
+
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator == (Stream<D> xs, Stream<D> ys) { return compare(xs,ys) == 0; }
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator < (Stream<D> xs, Stream<D> ys) { return compare(xs,ys) < 0; }
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator > (Stream<D> xs, Stream <D>ys) { return compare(xs,ys) > 0; }
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator != (Stream<D> xs, Stream<D> ys) { return !(xs == ys); }
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator <= (Stream<D> xs, Stream<D> ys) { return !(xs > ys); }
+
+// Borrow arguments
+template <typename D = DeleteNewAlloc>
+static inline
+bool operator >= (Stream<D> xs, Stream<D> ys) { return !(xs < ys); }
+
+
 
 
 
@@ -483,13 +568,26 @@ public:
   /// Initialize the data stream.
   /// @param parser The consumer of the stream.
   ///               Will be called with a Stream value
-  template <typename Fn> 
-  ParserThread(Fn &&parser)
+  template <typename Fn>
+  ParserThread(const char* name, Fn &&parser)
+    : ParserThread
+        ( Array{reinterpret_cast<UInt<8> const*>(name), strlen(name)}
+        , std::move(parser)
+        ) {}
+
+
+
+  /// Initialize the data stream.
+  /// Owns name
+  /// @param parser The consumer of the stream.
+  ///               Will be called with a Stream value
+  template <typename Fn>
+  ParserThread(Array<UInt<8>> name, Fn &&parser)
     : context(
-        [this,parser] (ctx::fiber &&top) {
+        [this,name,parser] (ctx::fiber &&top) {
           context = std::move(top);
           data.copy();
-          parser(Stream(data));
+          parser(Stream(name,data));
           done = true;
           return std::move(context);
         })
