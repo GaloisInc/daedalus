@@ -324,6 +324,7 @@ generateCPP opts mm =
                   , cfgUserNS       = text (optUserNS opts)
                   , cfgExtraInclude = optExtraInclude opts
                   , cfgExternal     = optExternMods opts
+                  , cfgLazyStreams  = optUseLazyStream opts
                   }
          (hpp,cpp,warns) = C.cProgram ccfg prog
 

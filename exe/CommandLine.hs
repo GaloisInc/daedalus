@@ -65,6 +65,7 @@ data Options =
           , optUserNS :: String
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
+          , optUseLazyStream :: Bool
 
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
@@ -108,6 +109,7 @@ defaultOptions =
           , optExternMods = Map.empty
           , optModulePath = []
           , optDetailedErrors = Nothing
+          , optUseLazyStream = False
           }
 
 defaultUserSpace :: String
@@ -387,6 +389,11 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
         "Add #include INCLUDE to generated files"
         $ ReqArg "INCLUDE"
           \s o -> Right o { optExtraInclude = s : optExtraInclude o }
+
+      , Option [] ["lazy-streams"]
+        "The parser can context switch to ask for more data."
+        $ NoArg \o -> Right o { optUseLazyStream = True }
+
       ] ++
       coreOptions ++
       [ helpOption

@@ -41,6 +41,7 @@ data CCodeGenConfig = CCodeGenConfig
   , cfgExternal     :: Map Text String
     -- ^ Maps external modules to the namespaces to use for the
     -- types in them.
+  , cfgLazyStreams  :: !Bool
   }
 
 
@@ -58,12 +59,15 @@ cProgram
     , cfgUserNS       = nsUserParam
     , cfgExtraInclude = extraIncludes
     , cfgExternal     = ext
+    , cfgLazyStreams  = lazy
     }
     prog =
   case checkProgram prog of
     Nothing  -> (hpp,cpp,warns)
     Just err -> panic "cProgram" err
   where
+  inpType = if lazy then "DDL::Stream" else "DDL::Input"
+
   externalMap = Map.fromList [ (Src.MName x, text y) | (x,y) <- Map.toList ext ]
 
   warns = [ "Using external definition" <+> backticks (pp w)
@@ -73,6 +77,7 @@ cProgram
 
 
   hpp = let ?nsUser = nsUserParam
+            ?nsInputType = inpType
             ?nsExternal = externalMap
         in
         vcat $
@@ -92,6 +97,7 @@ cProgram
 
   cpp = let ?userState = userState
             ?nsUser = nsUserParam
+            ?nsInputType = inpType
             ?nsExternal = externalMap
         in
         vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
@@ -115,6 +121,7 @@ cProgram
   primSigs =
     let ?userState = userState
         ?nsUser = nsUserParam
+        ?nsInputType = inpType
         ?nsExternal = externalMap
     in case prims of
          [] -> []
@@ -128,6 +135,7 @@ cProgram
         ?allTypes = allTypesMap
         ?userState = userState
         ?nsUser = nsUserParam
+        ?nsInputType = inpType
         ?nsExternal = externalMap
     in concatMap cFun noCapFun
 
@@ -139,6 +147,7 @@ cProgram
          ?allTypes = allTypesMap
          ?userState = userState
          ?nsUser = nsUserParam
+         ?nsInputType = inpType
          ?nsExternal = externalMap
      in unzip (map cNonCaptureRoot noCapRoots)
 
@@ -147,6 +156,7 @@ cProgram
   (capEnts,capBlocks)        =
     let ?userState = userState
         ?nsUser = nsUserParam
+        ?nsInputType = inpType
         ?nsExternal = externalMap
     in unzip (zipWith cCaptureEntryDef [0..] capRoots)
   (cEntCode,cEntFuns,cEntTs) = unzip3 capEnts
@@ -158,6 +168,7 @@ cProgram
         ?allTypes = allTypesMap
         ?userState = userState
         ?nsUser    = nsUserParam
+        ?nsInputType = inpType
         ?nsExternal = externalMap
     in defineCaptureParser cEntTs cEntCode capFuns
 
@@ -186,6 +197,7 @@ includes =
   vcat [ "#include <ddl/parser.h>"
        , "#include <ddl/size.h>"
        , "#include <ddl/input.h>"
+       , "#include <ddl/stream.h>"
        , "#include <ddl/unit.h>"
        , "#include <ddl/bool.h>"
        , "#include <ddl/number.h>"
@@ -202,7 +214,7 @@ includes =
        ]
 
 
-type UserState  = (?userState :: Maybe CType)
+type UserState  = (?userState :: Maybe CType, NSUser)
 type AllFuns    = (?allFuns   :: Map Src.FName VMFun)
 type AllTypes   = (?allTypes  :: Map Src.TName Src.TDecl)
 type AllBlocks  = (?allBlocks :: Map Label Block)
@@ -235,8 +247,11 @@ findExternFunsWithDef ext = map vmfName . filter warn
 parserStateType :: UserState => CType
 parserStateType =
   case ?userState of
-    Nothing -> "DDL::ParserState"
-    Just t  -> cInst "DDL::ParserStateUser" [t]
+    Nothing -> cInst "DDL::ParserState" [ nsInputType ]
+    Just t  -> cInst "DDL::ParserStateUser" [ nsInputType, t ]
+
+parseErrorType :: NSUser => CType
+parseErrorType = cInst "DDL::ParseError" [ nsInputType ]
 
 userStateArgDecl :: UserState => [Doc]
 userStateArgDecl =
@@ -267,7 +282,7 @@ cCaptureParserSig =
   "static void" <+>
   cCall "parser" ([ "EntryArgs entry" ] ++
                   userStateArgDecl ++
-                  [ "DDL::ParseError &err"
+                  [ parseErrorType <+> "&err"
                   , "void* out"
                   ])
 
@@ -352,7 +367,7 @@ cDeclareClosures bs =
 standardEntryArgs :: UserState => CType -> [Doc]
 standardEntryArgs ty =
   userStateArgDecl ++
-  [ "DDL::ParseError &error"
+  [ parseErrorType <+> "&error"
   , cInst "std::vector" [ ty ] <+> "&results"
   ]
 
@@ -489,7 +504,7 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
 
   body = [ declareParserState
          , cDeclareVar ty "out_result"
-         , cDeclareVar "DDL::Input" "out_input"
+         , cDeclareVar nsInputType "out_input"
          , cIf call
               [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
               , cStmt (cCallMethod "out_input" "free" [])

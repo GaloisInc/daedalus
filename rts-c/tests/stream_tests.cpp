@@ -214,6 +214,7 @@ TEST(Streams, Prefix) {
       pref1.free();
       pref2.free();
       pref3.free();
+      s.free();
   });
 }
 
