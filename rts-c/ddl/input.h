@@ -10,6 +10,7 @@
 #include <ddl/array.h>
 #include <ddl/number.h>
 #include <ddl/integer.h>
+#include <ddl/maybe.h>
 
 namespace DDL {
 
@@ -99,7 +100,7 @@ public:
   Input iDrop(Size n)     { Input x(*this); x.iDropMut(n); return x; }
 
   Maybe<Input> iDropMaybe(Size n) {
-    if (n <= length()) return Maybe();
+    if (n <= length()) return Maybe<Input>();
     return Maybe(iDrop(n));
   }
 
