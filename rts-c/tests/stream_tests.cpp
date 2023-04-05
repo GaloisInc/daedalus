@@ -231,6 +231,39 @@ TEST(Streams, FromArray) {
 }
 
 
+TEST(Streams, Length) {
+  const char* chunks[] = { "One", "Two" };
+
+  doTest(std::size(chunks)
+        , chunks, [](size_t &alloc, size_t &free, DDL::Stream s) {
+    EXPECT_EQ(s.length(), 6);
+    s = s.iDrop(2);
+    EXPECT_EQ(s.length(), 4);
+    s = s.iTake(3);
+    EXPECT_EQ(s.length(), 3);
+    s.free();
+  });
+
+}
+
+
+TEST(Streams, GetBytes) {
+  const char* chunks[] = { "One", "Two" };
+
+  doTest(std::size(chunks)
+        , chunks, [](size_t &alloc, size_t &free, DDL::Stream s) {
+    auto arr  = s.getByteArray();
+    auto tgt = DDL::Array<DDL::UInt<8>>{"OneTwo",6};
+    EXPECT_EQ(arr,tgt);
+    tgt.free();
+    arr.free();
+    s.free();
+  });
+
+}
+
+
+
 
 
 

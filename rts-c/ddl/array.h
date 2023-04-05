@@ -16,6 +16,7 @@
 namespace DDL {
 
 template <typename T> class Builder;
+class Stream;
 
 template <typename T>
 class Array : IsBoxed {
@@ -29,6 +30,7 @@ class Array : IsBoxed {
 
   public:
     friend Builder<T>;
+    friend Stream;
 
     // Allocate an array with unitialized data
     static
@@ -54,6 +56,7 @@ class Array : IsBoxed {
 
 public:
   friend Builder<T>;
+  friend Stream;
 
   static Array rangeUp(T start,T end, T step) {
     // step > 0 && step <= MAX(Size)

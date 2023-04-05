@@ -141,6 +141,14 @@ class StreamData : HasRefs {
         return freeThis();
     }
 
+    /// Assume: !isTerminal()
+    /// @return A borrowed reference to the next chunk.
+    /// Assert: return != nullptr
+    Chunk* borrowNext() {
+      assert(!isTerminal());
+      return next;
+    }
+
     /// May suspend execution.
     /// Assumes: isTerminal()
     /// Owns this.
@@ -171,11 +179,20 @@ class StreamData : HasRefs {
       }
     }
 
+    /// Copy `len` bytes, starting at `offset` into the give buffer.
+    /// @param out      A buffer to copy the bytes into
+    /// @param offset   The index of the first byte to copy
+    /// @param len      How many bytes to copy.
+    /// @return pointer to the element after the last copie one
+    char *copyInto(char *out, Size offset, Size len) const {
+      assert(buffer != nullptr);
+      return std::copy_n(buffer + offset.rep(), len.rep(), out);
+    }
+
     /// Append a new chunk of data to the stream.
     /// Owns this.  Owns buf_del
     /// When we are done with `cbuffer` we call `buf_del`.
     /// Assume: isTerminal() && !isEmpty() && thunk != nullptr
-    /// Assume: lifetime of buf_del is bigger than that of cbuffer.
     /// @return An owned reference to the new end of the stream.
     /// Assert: return != nullptr
     Chunk* append( Size csize, const char *cbuffer
@@ -192,20 +209,19 @@ class StreamData : HasRefs {
 
       size    = csize;
       buffer  = cbuffer;
-      //del.emplace(std::move(buf_del));
-      del = std::move(buf_del);
+      del     = std::move(buf_del);
       next    = new Chunk(*thunk);
 
       return nextChunk();
     }
 
-    /// Terminate the stream.
-    /// Assume: isTerminal()
-    void finish() {
-      assert(isTerminal());
-      buffer = emptyBuffer;
-    }
-
+    /// Append a new chunk of data to the stream.
+    /// Owns this.
+    /// When we are done with `cbuffer` we call `buf_del(cbuffer)`.
+    /// Assume: isTerminal() && !isEmpty() && thunk != nullptr
+    /// Assume: buf_del lives longer then we do (we are borrwoing it).
+    /// @return An owned reference to the new end of the stream.
+    /// Assert: return != nullptr
     Chunk* append( Size csize, const char *cbuffer
                  , StreamChunkGenericDel &buf_del
                  ) {
@@ -225,6 +241,15 @@ class StreamData : HasRefs {
 
       return nextChunk();
     }
+
+    /// Terminate the stream.
+    /// Assume: isTerminal()
+    void finish() {
+      assert(isTerminal());
+      buffer = emptyBuffer;
+    }
+
+
 
   };
 
@@ -301,6 +326,28 @@ public:
 
   /// Debug dump of the available data.
   void dump() const { front->dump(); }
+
+  void copyInto(char *out, Size offset, Size len) const {
+    if (len == 0) return;
+
+    auto p = front;
+    auto size = p->getChunkSize();
+    assert(offset < size);
+    auto have = size.decrementedBy(offset);
+    if (have > len) have = len;
+    out = p->copyInto(out, offset, have);
+    len.decrementBy(have);
+
+    while (len > 0) {
+      p    = p->borrowNext();
+      have = p->getChunkSize();
+      assert(have > 0);
+      if (have > len) have = len;
+      out = p->copyInto(out, 0, have);
+      len.decrementBy(have);
+    }
+
+  }
 };
 
 
@@ -552,6 +599,32 @@ public:
   Array<UInt<8>> getName()          { name.copy(); return name; }
   Array<UInt<8>> borrowName() const { return name; }
   std::string_view borrowNameBytes() const { return name.borrowBytes(); }
+
+  /// Compute the number of bytes in the stream.
+  /// May suspend. Will wait until the stream is terminated.
+  Size length() const {
+    Size n = 0;
+    Stream peek(*this);
+    peek.copy();
+    while (!peek.isEmpty()) {
+      auto have = peek.chunk_size.decrementedBy(peek.offset);
+      n.incrementBy(have);
+      peek.offset.incrementBy(have);
+      peek.advance();
+    }
+    peek.free();
+    return n;
+  }
+
+  /// Copy all bytes from the stream into an array.
+  /// May suspend. Will wait until the stream is terminated.
+  Array<UInt<8>> getByteArray() const {
+    auto n        = length();
+    auto *content = Array<UInt<8>>::Content::allocate(n);
+    char *out     = reinterpret_cast<char*>(content->data);
+    data.copyInto(out, offset, n);
+    return Array<UInt<8>>{content};
+  }
 
   /// We compare by name, not the actual byte content.
   friend
