@@ -1,7 +1,7 @@
 .PHONY: build run clean example0 example1 example2
 
 # IMPORTANT:
-# Assumes that `ddl` directory is in the ecurrent directory
+# Assumes that `ddl` directory is in the current directory
 
 run: build
 	###################
