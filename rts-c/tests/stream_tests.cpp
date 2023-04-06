@@ -253,7 +253,8 @@ TEST(Streams, GetBytes) {
   doTest(std::size(chunks)
         , chunks, [](size_t &alloc, size_t &free, DDL::Stream s) {
     auto arr  = s.getByteArray();
-    auto tgt = DDL::Array<DDL::UInt<8>>{"OneTwo",6};
+    auto tgt =
+     DDL::Array<DDL::UInt<8>>{reinterpret_cast<DDL::UInt<8>const*>("OneTwo"),6};
     EXPECT_EQ(arr,tgt);
     tgt.free();
     arr.free();
