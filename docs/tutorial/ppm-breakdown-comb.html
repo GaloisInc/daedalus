@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -86,7 +88,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
       <li class="breadcrumb-item active">Breaking down PPM: Parser Combinators</li>
       <li class="wy-breadcrumbs-aside">
@@ -99,13 +101,13 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-parser-combinators">
-<h1>Breaking down PPM: Parser Combinators<a class="headerlink" href="#breaking-down-ppm-parser-combinators" title="Permalink to this heading"></a></h1>
+<h1>Breaking down PPM: Parser Combinators<a class="headerlink" href="#breaking-down-ppm-parser-combinators" title="Permalink to this headline"></a></h1>
 <p>The primitives are critical to defining parsers, but aren’t very interesting
 on their own; we need ways to sequence them, represent notions of choice,
 and deal with repetition. First, we look at the various ways to sequence a
 collection of parsers.</p>
 <section id="standard-sequencing">
-<h2>Standard Sequencing<a class="headerlink" href="#standard-sequencing" title="Permalink to this heading"></a></h2>
+<h2>Standard Sequencing<a class="headerlink" href="#standard-sequencing" title="Permalink to this headline"></a></h2>
 <p>First and foremost, we need a way to run one parser after another. In DaeDaLus,
 we write sequenced parsers by writing the keyword <code class="docutils literal notranslate"><span class="pre">block</span></code> and, on the
 following lines, writing each parser we want to run, one parser per line. We’ve
@@ -155,7 +157,7 @@ aren’t rules, though; use what’s comfortable for you!</p>
 </div>
 </section>
 <section id="array-sequencing">
-<h2>Array Sequencing<a class="headerlink" href="#array-sequencing" title="Permalink to this heading"></a></h2>
+<h2>Array Sequencing<a class="headerlink" href="#array-sequencing" title="Permalink to this headline"></a></h2>
 <p>We may also use square braces (<code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">..</span> <span class="pre">]</span></code>) for sequencing parsers. When we use
 this notation, rather than returning a single result from one of the sequenced
 parsers, we return an array containing <em>all</em> of the results. Crucially, in this
@@ -169,7 +171,7 @@ structure sequencing.</p>
 </div>
 </section>
 <section id="structure-sequencing">
-<h2>Structure Sequencing<a class="headerlink" href="#structure-sequencing" title="Permalink to this heading"></a></h2>
+<h2>Structure Sequencing<a class="headerlink" href="#structure-sequencing" title="Permalink to this headline"></a></h2>
 <p>What if we need to keep the results of multiple parsers, but they return
 different types of semantic values? Neither standard nor array sequencing are
 sufficient, so we need something a bit fancier.</p>
@@ -231,7 +233,7 @@ a local variable, <em>not</em> a field of a structure!</p>
 </div>
 </section>
 <section id="de-sugaring-nonstandard-structure-sequences">
-<h2>De-Sugaring Nonstandard Structure Sequences<a class="headerlink" href="#de-sugaring-nonstandard-structure-sequences" title="Permalink to this heading"></a></h2>
+<h2>De-Sugaring Nonstandard Structure Sequences<a class="headerlink" href="#de-sugaring-nonstandard-structure-sequences" title="Permalink to this headline"></a></h2>
 <p>Let’s pull back the curtain a bit: as it turns out, most of the constructs
 for sequencing we’ve looked at so far can be expressed using only local
 variables and standard sequencing!</p>
@@ -258,7 +260,7 @@ it actually means can make it more obvious when each construct is
 appropriate for your use-cases.</p>
 </section>
 <section id="parsing-alternates">
-<h2>Parsing Alternates<a class="headerlink" href="#parsing-alternates" title="Permalink to this heading"></a></h2>
+<h2>Parsing Alternates<a class="headerlink" href="#parsing-alternates" title="Permalink to this headline"></a></h2>
 <p>While it is great to be able to parse many things in sequence, most interesting
 formats require that we be able to parse one of a set of <em>alternatives</em>. As an
 example, in a programming language, there are typically many different forms of
@@ -272,7 +274,7 @@ some examples that demonstrate their differing behaviors.</p>
 extended exercise following this section, to implement the PNG image format,
 will show off these features more concretely.</p>
 <section id="biased-choice-parsing">
-<h3>Biased Choice Parsing<a class="headerlink" href="#biased-choice-parsing" title="Permalink to this heading"></a></h3>
+<h3>Biased Choice Parsing<a class="headerlink" href="#biased-choice-parsing" title="Permalink to this headline"></a></h3>
 <p>If we have two parsers, <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code>, we can construct the parser <code class="docutils literal notranslate"><span class="pre">P</span>
 <span class="pre">&lt;|</span> <span class="pre">Q</span></code>. This new parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code> succeeds, and
 crucially, even if <em>both</em> would succeed on the input, it behaves like
@@ -290,7 +292,7 @@ unambiguous on inputs starting with <code class="docutils literal notranslate"><
 <code class="docutils literal notranslate"><span class="pre">'A'</span></code> rather than consuming nothing.</p>
 </section>
 <section id="unbiased-choice-parsing">
-<h3>Unbiased Choice Parsing<a class="headerlink" href="#unbiased-choice-parsing" title="Permalink to this heading"></a></h3>
+<h3>Unbiased Choice Parsing<a class="headerlink" href="#unbiased-choice-parsing" title="Permalink to this headline"></a></h3>
 <p>We can also construct the parser <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">|</span> <span class="pre">Q</span></code> from two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code>.
 Like biased choice, this parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code> succeed -
 However, if <em>both</em> would succeed on the input, it is <em>ambiguous</em>, and
@@ -333,7 +335,7 @@ exception to this, which we’ll address in the next section.</p>
 </div>
 </section>
 <section id="tagged-sum-types-in-daedalus-unions">
-<h3>Tagged Sum Types in DaeDaLus: Unions<a class="headerlink" href="#tagged-sum-types-in-daedalus-unions" title="Permalink to this heading"></a></h3>
+<h3>Tagged Sum Types in DaeDaLus: Unions<a class="headerlink" href="#tagged-sum-types-in-daedalus-unions" title="Permalink to this headline"></a></h3>
 <p>Something not mentioned above is that, like array-sequenced parsers,
 alternative parsers must parse to the same type of semantic value on all
 branches, but this is limiting! What if, for example, we’re parsing a format
@@ -430,7 +432,7 @@ next section.</p>
 </section>
 </section>
 <section id="repeating-parsers">
-<h2>Repeating Parsers<a class="headerlink" href="#repeating-parsers" title="Permalink to this heading"></a></h2>
+<h2>Repeating Parsers<a class="headerlink" href="#repeating-parsers" title="Permalink to this headline"></a></h2>
 <p>If we need to parse the same thing multiple times, we can use the <code class="docutils literal notranslate"><span class="pre">Many</span></code>
 parser combinator. In its most basic form, it can parse an arbitrarily long
 sequence, stopping only when the given parser first fails. As a simple example:</p>
