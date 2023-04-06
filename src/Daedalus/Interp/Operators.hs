@@ -108,8 +108,9 @@ evalBinOp op =
     BitwiseOr   -> vBitOr
     BitwiseXor  -> vBitXor
 
-    ArrayStream -> vStreamFromArray
-    LookupMap   -> vMapLookup
+    StreamTakeUpTo  -> vStreamTake
+    ArrayStream     -> vStreamFromArray
+    LookupMap       -> vMapLookup
 
     BuilderEmit        -> vEmit
     BuilderEmitArray   -> vEmitArray

@@ -293,7 +293,7 @@ evalOp2 op v1 v2 = case op of
 
   Drop      -> partial (vStreamDrop v1 v2)
   DropMaybe -> vStreamDropMaybe v1 v2
-  Take      -> partial (vStreamTake v1 v2)
+  Take      -> vStreamTake v1 v2
 
   Eq       -> vEq  v1 v2
   NotEq    -> vNeq v1 v2

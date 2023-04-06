@@ -884,6 +884,7 @@ fromExpr expr =
            TC.BitwiseXor   -> pure $ bitXor e1 e2
 
            TC.ArrayStream  -> pure $ arrayStream e1 e2
+           TC.StreamTakeUpTo -> pure $ eTake e1 e2
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1

@@ -312,6 +312,7 @@ tokenClass tok =
     KWDollarAny           -> clIdent
     KWGetStream           -> clIdent
     KWSetStream           -> clIdent
+    KWtake                -> clIdent
     KWTake                -> clIdent
     KWDrop                -> clIdent
     KWJust                -> clKW
