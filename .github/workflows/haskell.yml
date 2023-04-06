@@ -229,7 +229,7 @@ jobs:
         submodules: true
 
     - name: Build and run tests
-      run:
+      run: |
         cmake -B rts-c-tests-build rts-c/tests
         cmake --build rts-c-tests-build
         ./rts-c-tests-build/rts-c-tests
