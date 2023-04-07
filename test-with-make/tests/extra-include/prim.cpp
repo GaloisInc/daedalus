@@ -3,7 +3,7 @@
 #include <iostream>
 
 bool parser_P
-  ( DDL::ParserStateUser<UserState> &p
+  ( DDL::ParserStateUser<DDL::Input,UserState> &p
   , DDL::UInt<8ul> *out
   , DDL::Input *outi
   , DDL::Input ini
