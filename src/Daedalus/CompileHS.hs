@@ -645,6 +645,7 @@ hsValue env tc =
         BitwiseOr   -> bin "RTS.bitOr"
         BitwiseXor  -> bin "RTS.bitXor"
 
+        StreamTakeUpTo -> bin "RTS.inputTake"
         ArrayStream -> bin "RTS.arrayStream"
         LookupMap   -> bin "Map.lookup"
         BuilderEmit -> "Vector.pushBack" `Ap` hsValue env v1 `Ap` hsValue env v2
