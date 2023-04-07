@@ -205,7 +205,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: Build Daedalus
-      run: cabal build daedalus
+      run: cabal build exe:daedalus
 
     - name: Build C++ PDF driver
       run: |
