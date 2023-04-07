@@ -168,7 +168,7 @@ jobs:
       run: cabal build pdf-driver
 
 
-  pdf-driver-c++:
+  pdf-driver-cpp:
 
     runs-on: ${{ matrix.os }}
 
