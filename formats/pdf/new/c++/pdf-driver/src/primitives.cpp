@@ -11,7 +11,7 @@ std::u32string emittedCodepoints;
 
 
 bool parser_GetCharCode
-  ( DDL::ParserStateUser<ReferenceTable>& state
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::SInt<32> *result
   , DDL::Input    *inputout
   , DDL::Input inputin // own
@@ -96,7 +96,7 @@ FAIL:
 }
 
 bool parser_EmitChar
-  ( DDL::ParserStateUser<ReferenceTable>& state
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input *inputout
   , DDL::Input inputin
