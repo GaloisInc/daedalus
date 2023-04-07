@@ -250,7 +250,9 @@ jobs:
           ${{ runner.os }}-
 
     - name: Run HTTP parser test suite
-      run: formats/http/run-tests.sh
+      run: |
+        cabal build exe:daedalus
+        formats/http/run-tests.sh
 
 
   rts-c-tests:
