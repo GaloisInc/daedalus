@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Now parse the given input with the Packet parser
-    DDL::ParseError error;    // Inforation about errors goes here
+    DDL::ParseError<DDL::Input> error;    // Inforation about errors goes here
     User::Packet result;      // Parsed result goes here
     if (!DDL::parseOne(parsePacket, error, &result, input, DDL::UInt<64>(count))) {
       std::cerr << "Failed to parse packet:" << std::endl;
