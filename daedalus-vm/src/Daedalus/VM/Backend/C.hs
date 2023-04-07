@@ -53,7 +53,7 @@ data CCodeGenConfig = CCodeGenConfig
 -- | Currently returns the content for @(.h,.cpp,warnings)@ files.
 cProgram :: CCodeGenConfig -> Program -> (Doc,Doc,[Doc])
 cProgram
-  CCodeGenConfig
+  opts@CCodeGenConfig
     { cfgFileNameRoot = fileNameRoot
     , cfgUserState    = userState
     , cfgUserNS       = nsUserParam
@@ -83,7 +83,7 @@ cProgram
         vcat $
           [ "#pragma once"
           , " "
-          , includes ] ++
+          , includes opts ] ++
           [ "#include" <+> text x | x <- extraIncludes ] ++
           [ let (ds,defs) = unzip (map (cTypeGroup allTypesMap) allTypes)
             in vcat' (ds ++ defs)
@@ -192,12 +192,12 @@ cProgram
 
 
 
-includes :: Doc
-includes =
-  vcat [ "#include <ddl/parser.h>"
+includes :: CCodeGenConfig -> Doc
+includes opts =
+  vcat $ maybeStream ++
+       [ "#include <ddl/parser.h>"
        , "#include <ddl/size.h>"
        , "#include <ddl/input.h>"
-       , "#include <ddl/stream.h>"
        , "#include <ddl/unit.h>"
        , "#include <ddl/bool.h>"
        , "#include <ddl/number.h>"
@@ -212,6 +212,7 @@ includes =
        , "#include <ddl/utils.h>"
        , "#include <optional>"
        ]
+  where maybeStream = [ "<ddl/stream.h>" | cfgLazyStreams opts ]
 
 
 type UserState  = (?userState :: Maybe CType, NSUser)
