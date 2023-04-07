@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  DDL::ParseError err;
+  DDL::ParseError<DDL::Input> err;
   std::vector<DDL::ResultOf::parseMain> out;
   auto start = std::chrono::high_resolution_clock::now();
   parseMain(err,out,i);
