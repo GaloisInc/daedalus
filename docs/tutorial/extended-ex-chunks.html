@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -101,7 +103,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
       <li class="breadcrumb-item active">Extended Exercise: PNG Chunks</li>
       <li class="wy-breadcrumbs-aside">
@@ -114,7 +116,7 @@
            <div itemprop="articleBody">
              
   <section id="extended-exercise-png-chunks">
-<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this heading"></a></h1>
+<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this headline"></a></h1>
 <p>Now, we’ll use our utilities and more of the knowledge we’ve developed
 to build up parsers for PNG chunks themselves, culminating in a
 top-level parser that can consume full PNG images.</p>
@@ -129,7 +131,7 @@ we’ll need to be able to handle specific bit arrangements in the PNG
 data. The next section introduces <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, a DaeDaLus feature that
 we’ll use for this purpose.</p>
 <section id="introducing-bitdata">
-<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this heading"></a></h2>
+<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this headline"></a></h2>
 <p>In general, a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> specifies how bytes should be broken into
 groups of bits, which are <em>then</em> combined into a tagged sum.</p>
 <p>Here is a small example of using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to inspect the first nybble
@@ -182,7 +184,7 @@ value’s bits match that of the expected numeric value. For example:</p>
 </div>
 </section>
 <section id="png-chunk-types">
-<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this heading"></a></h2>
+<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this headline"></a></h2>
 <p>To get started using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, you’ll first declare one that
 specifies the different type tags that a PNG chunk can carry.</p>
 <p>Every type tag is a 32-bit unsigned integer consisting of four bytes.
@@ -280,13 +282,13 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="png-chunk-data">
-<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this heading"></a></h2>
+<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this headline"></a></h2>
 <p>Now, we’ll build parsers for each type of chunk data. We’ll then combine
 those into a single <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> parser, which will allow us to parse
 any type of chunk with a single parser and, more importantly, parse many
 chunks in sequence.</p>
 <section id="plte">
-<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this heading"></a></h3>
+<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this headline"></a></h3>
 <p>The PLTE chunk contains between 1 and 256 palette entries, which are
 simply RGB structures as we defined in the section
 <a class="reference internal" href="extended-ex-utils.html#extended-exercise-defining-helpful-utilities"><span class="std std-ref">Extended Exercise: Defining Helpful Utilities</span></a>.</p>
@@ -305,7 +307,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="idat">
-<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this heading"></a></h3>
+<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this headline"></a></h3>
 <p>The IDAT chunk contains image data as output by the PNG compression
 algorithm; it consists merely of a bunch of bytes.</p>
 <p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">IDATChunkData</span></code> that parses any number of
@@ -323,7 +325,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="trns">
-<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this heading"></a></h3>
+<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this headline"></a></h3>
 <p>Transparency chunks are significantly more complex than the others we’ve
 looked at so far in that they have a different data shape depending on
 data provided in the PNG <em>signature</em> that we have not yet defined. We’ll
@@ -405,7 +407,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="chrm">
-<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this heading"></a></h3>
+<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this headline"></a></h3>
 <p>The chromaticities and white point chunk is made of eight big-endian
 4-byte values: <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> respectively for each of the white point,
 red, green, and blue. You should use the names <code class="docutils literal notranslate"><span class="pre">white_point_x</span></code>,
@@ -435,7 +437,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="gama">
-<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this heading"></a></h3>
+<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this headline"></a></h3>
 <p>The gamma chunk relates image samples to desired output intensity. It is
 simply a big-endian 4-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">GAMAChunkData</span></code> that parses a single field,
@@ -455,7 +457,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="iccp">
-<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this heading"></a></h3>
+<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this headline"></a></h3>
 <p>The embedded ICC profile chunk contains information related to the
 International Color Consortium. It consists of three fields:</p>
 <ol class="arabic simple">
@@ -492,7 +494,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="sbit">
-<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this heading"></a></h3>
+<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this headline"></a></h3>
 <p>The significant bits chunk allows lossless data recovery even if the
 sample depth isn’t supported by PNG. The supported color modes each have
 a number of significant bits to store that allows this to be done.</p>
@@ -566,7 +568,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="srgb">
-<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this heading"></a></h3>
+<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this headline"></a></h3>
 <p>The standard RGB color space chunk defines a <em>rendering intent</em>, defined
 by the ICC. It contains one byte, which is a value between 0 and 3
 (inclusive) giving the intent.</p>
@@ -588,7 +590,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="text">
-<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this heading"></a></h3>
+<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this headline"></a></h3>
 <p>PNG provides textual data blocks to store information associated with
 images such as descriptions and copyright notices. There are three types
 of textual chunk, the most basic of which is the tEXt chunk we’ll define
@@ -619,7 +621,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="ztxt">
-<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this heading"></a></h3>
+<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this headline"></a></h3>
 <p>The zTXt chunk is semantically the same as tEXt, but with compressed
 data; it is recommended for use with large blocks of text.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ZTXTChunkData</span></code> that returns a
@@ -644,7 +646,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="itxt">
-<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this heading"></a></h3>
+<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this headline"></a></h3>
 <p>The final type of textual data chunk is iTXt. This chunk type is used
 for international text. It consists of the following fields:</p>
 <ul class="simple">
@@ -680,7 +682,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="bkgd">
-<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this heading"></a></h3>
+<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this headline"></a></h3>
 <p>The background color chunk specifies the default background color
 against which to present the image. Different color modes use different
 data in this chunk to achieve the specified effects.</p>
@@ -739,7 +741,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="hist">
-<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this heading"></a></h3>
+<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this headline"></a></h3>
 <p>The image histogram chunk gives approximate usage frequencies for all
 colors in the palette. Each frequency is a big-endian two-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">HISTChunkData</span></code> that returns a structure with a
@@ -761,7 +763,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="phys">
-<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this heading"></a></h3>
+<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this headline"></a></h3>
 <p>The physical pixel dimensions chunk describes the intended aspect ratio for
 image display. It’s comprised of:</p>
 <ul class="simple">
@@ -789,7 +791,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="splt">
-<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this heading"></a></h3>
+<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this headline"></a></h3>
 <p>The suggested palette chunk is semantically fairly complex; if you
 want to know the details, we once again refer you to the full PNG
 specification linked earlier in this section. As it turns out, it is
@@ -897,7 +899,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="time">
-<h3>tIME<a class="headerlink" href="#time" title="Permalink to this heading"></a></h3>
+<h3>tIME<a class="headerlink" href="#time" title="Permalink to this headline"></a></h3>
 <p>With that tricky one out of the way, there’s only one chunk type left,
 and it’s very straightforward: the last one left is the tIME chunk that
 carries along the last-modified time for the image.</p>
@@ -916,7 +918,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="generic-chunk-data-parsing">
-<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this heading"></a></h3>
+<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this headline"></a></h3>
 <p>Now that we know how to parse each type of chunk, we’ll combine all
 of those possibilities into a single tagged sum type so that we will
 be able to parse many chunks in sequence. To do this, we’ll use
@@ -957,7 +959,7 @@ Solution<div class="sd-summary-down docutils">
 </details></section>
 </section>
 <section id="png-chunks">
-<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this heading"></a></h2>
+<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this headline"></a></h2>
 <p>Now that we can successfully parse any type of chunk data, we need only
 add in the metadata necessary for a complete chunk. A complete PNG chunk
 consists of the chunk’s length (as a 4-byte integer), the type of the
@@ -1005,7 +1007,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="header-trailer">
-<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this heading"></a></h2>
+<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this headline"></a></h2>
 <p>Two special chunks we haven’t discussed are the <em>header</em> and <em>trailer</em>
 for PNG. These are the first and last chunks in a PNG datastream. The
 <code class="docutils literal notranslate"><span class="pre">sig</span></code> parameter we’ve left undiscussed is the data in the header.</p>
@@ -1072,7 +1074,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="full-png">
-<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this heading"></a></h2>
+<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this headline"></a></h2>
 <p>We have almost all of the components needed to parse full PNG images
 now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:</p>
@@ -1104,7 +1106,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="conclusion">
-<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this heading"></a></h2>
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline"></a></h2>
 <p>Congratulations on making it through! The full PNG specification can be
 found on the following page; notice how DaeDaLus has made it possible to
 write such a short specification compared to the PNG specification upon

@@ -29,7 +29,7 @@ bool getGlyphMap(ReferenceTable &refs, const char *file, DDL::ResultOf::parseStd
   DDL::Input input{"glyphmap.txt",(const char*)glyphmap_txt,glyphmap_txt_len};
 
   std::vector<DDL::ResultOf::parseStdEncodings> results;
-  DDL::ParseError err;
+  DDL::ParseError<DDL::Input> err;
   parseStdEncodings(refs, err,results,input);
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
@@ -48,7 +48,7 @@ void check_catalog(ReferenceTable &refs, bool text) {
   if (!root.has_value()) { throw CatalogException("Missing root"); }
 
   std::vector<PdfDriver::PdfCatalog> results;
-  DDL::ParseError error;
+  DDL::ParseError<DDL::Input> error;
 
 
   DDL::Maybe <DDL::ResultOf::parseStdEncodings> mbglyphs;

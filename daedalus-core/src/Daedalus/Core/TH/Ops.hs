@@ -56,9 +56,6 @@ compileOp1 op1 argT e =
     StreamOffset      -> [| RTS.UInt (fromIntegral (RTS.inputOffset $e))
                               :: $(compileMonoType (tWord 64)) |]
 
-    StreamLen         -> [| RTS.UInt (fromIntegral (RTS.inputLength $e))
-                              :: $(compileMonoType (tWord 64)) |]
-
     BytesOfStream     -> [| RTS.vecFromRep (RTS.inputBytes $e)
                               :: $(compileMonoType tByteArray) |]
 
@@ -125,6 +122,7 @@ compileOp2 op e1 e2 =
     IsPrefix    -> [| RTS.vecToRep $e1 `BS.isPrefixOf` RTS.inputBytes $e2 |]
 
     Drop        -> [| RTS.inputDrop $e1 $e2 |]
+    DropMaybe   -> [| RTS.advanceBy $e1 $e2 |]
     Take        -> [| RTS.inputTake $e1 $e2 |]
 
     Eq          -> [| $e1 == $e2 |]

@@ -3,7 +3,7 @@
 #include <ddl/utils.h>
 
 int go(DDL::Input i) {
-  DDL::ParseError error;
+  DDL::ParseError<DDL::Input> error;
   Custom::Main res;
   auto ok = DDL::parseOne(parseMain, error, &res, i);
   if (ok) {

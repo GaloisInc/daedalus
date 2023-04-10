@@ -232,33 +232,35 @@ fromGrammar gram =
       do lenE <- fromExpr n
          strE <- fromExpr s
          case sem of
-           NoSem -> doIf (lenE `leq` streamLen strE)
-                        (Pure unit)
-                        (sysErr TUnit "unexpected end of input")
-
-
-           YesSem -> do len <- newLocal sizeType
-                        str <- newLocal TStream
-                        Let len lenE . Let str strE
-                          <$> doIf (Var len `leq` streamLen (Var str))
-                                  (Pure $ eTake (Var len) (Var str))
-                                  (sysErr TStream "unexpected end of input")
+           NoSem ->
+             doCase (eDropMaybe lenE strE) \_ ->
+               pure
+                 [ (PNothing, sysErr TUnit "unexpected end of input")
+                 , (PJust,    Pure unit)
+                 ]
+           YesSem ->
+              withVar lenE \lx ->
+              withVar strE \sx ->
+              doCase (eDropMaybe (Var lx) (Var sx)) \_ ->
+                pure
+                  [ (PNothing, sysErr TStream "unexpected end of input")
+                  , (PJust, Pure (eTake (Var lx) (Var sx)))
+                  ]
 
     TC.TCStreamOff sem n s ->
       do lenE <- fromExpr n
          strE <- fromExpr s
-         case sem of
-           NoSem -> doIf (lenE `leq` streamLen strE)
-                        (Pure unit)
-                        (sysErr TUnit "unexpected end of input")
-           YesSem ->
-             do len <- newLocal sizeType
-                str <- newLocal TStream
-                Let len lenE . Let str strE
-                  <$> doIf (Var len `leq` streamLen (Var str))
-                          (Pure $ eDrop (Var len) (Var str))
-                          (sysErr TStream "unexpected end of input")
-
+         doCase (eDropMaybe lenE strE) \x ->
+           pure
+             case sem of
+               NoSem ->
+                 [ (PNothing, sysErr TUnit "unexpected end of input")
+                 , (PJust,    Pure unit)
+                 ]
+               YesSem ->
+                 [ (PNothing, sysErr TStream "unexpected end of input")
+                 , (PJust,    Pure (eFromJust (Var x)))
+                 ]
 
     TC.TCMany sem cmt bnd g ->
       do ge <- fromGrammar g
@@ -882,6 +884,7 @@ fromExpr expr =
            TC.BitwiseXor   -> pure $ bitXor e1 e2
 
            TC.ArrayStream  -> pure $ arrayStream e1 e2
+           TC.StreamTakeUpTo -> pure $ eTake e1 e2
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1

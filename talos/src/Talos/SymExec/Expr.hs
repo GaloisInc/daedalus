@@ -98,7 +98,6 @@ symExecOp1 op ty =
     IsEmptyStream    -> unimplemented
     Head             -> unimplemented
     StreamOffset     -> unimplemented
-    StreamLen        -> unimplemented
     OneOf bs         -> \v -> S.orMany (map (S.eq v . sByte) (BS.unpack bs))
     Neg | Just _ <- isBits ty -> S.bvNeg
         | TInteger <- ty      -> S.neg
@@ -147,9 +146,10 @@ symExecOp2 MapMember   ty = panic "Unexpected type" [showPP ty]
 symExecOp2 bop (isBits -> Just (signed, nBits)) =
   case bop of
     -- Stream ops
-    IsPrefix -> unimplemented
-    Drop     -> unimplemented
-    Take     -> unimplemented
+    IsPrefix  -> unimplemented
+    Drop      -> unimplemented
+    DropMaybe -> unimplemented
+    Take      -> unimplemented
     
     Eq     -> pure2 S.eq
     NotEq  -> pure2 $ \x y -> S.distinct [x, y]
@@ -184,9 +184,10 @@ symExecOp2 bop (isBits -> Just (signed, nBits)) =
 symExecOp2 bop TInteger =
   case bop of
     -- Stream ops
-    IsPrefix -> unimplemented
-    Drop     -> unimplemented
-    Take     -> unimplemented
+    IsPrefix  -> unimplemented
+    Drop      -> unimplemented
+    DropMaybe -> unimplemented
+    Take      -> unimplemented
 
     Eq     -> pure2 $ S.eq
     NotEq  -> pure2 $ \x y -> S.distinct [x, y]

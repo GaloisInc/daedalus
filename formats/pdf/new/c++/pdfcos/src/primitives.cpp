@@ -14,7 +14,7 @@
 
 // owns inputin, message
 bool parser_Trace
-  ( DDL::ParserStateUser<ReferenceTable>& state
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input* inputout
   , DDL::Input inputin
@@ -40,7 +40,7 @@ bool parser_Trace
 
 // owns input,ref
 bool parser_ResolveRef
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Maybe<PdfCos::TopDecl> *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -67,7 +67,7 @@ bool parser_ResolveRef
 
 // owns input body
 bool parser_Decrypt
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -146,7 +146,7 @@ bool parser_Decrypt
 
 // owns input, predictor, colors, bpc, columns, body
 bool parser_FlateDecode
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -227,7 +227,7 @@ bool parser_FlateDecode
 
 // owns input predictor colors bpc column earlychange body
 bool parser_LZWDecode
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input* result
   , DDL::Input* out_input
   , DDL::Input input
@@ -283,7 +283,7 @@ bool parser_LZWDecode
 
 // owns input,body
 bool parser_ASCIIHexDecode
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input
@@ -306,7 +306,7 @@ bool parser_ASCIIHexDecode
 
 // owns input,body
 bool parser_ASCII85Decode
-  ( DDL::ParserStateUser<ReferenceTable> &pstate
+  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
   , DDL::Input input

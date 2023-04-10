@@ -312,7 +312,8 @@ parseEntry mm x =
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
-  do let makeExe = null (optEntries opts) && isNothing (optUserState opts)
+  do let makeExe = null (optEntries opts) && isNothing (optUserState opts) &&
+                   not (optUseLazyStream opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
@@ -324,6 +325,7 @@ generateCPP opts mm =
                   , cfgUserNS       = text (optUserNS opts)
                   , cfgExtraInclude = optExtraInclude opts
                   , cfgExternal     = optExternMods opts
+                  , cfgLazyStreams  = optUseLazyStream opts
                   }
          (hpp,cpp,warns) = C.cProgram ccfg prog
 

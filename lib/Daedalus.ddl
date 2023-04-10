@@ -104,7 +104,9 @@ def Skip n          = SetStreamAt n GetStream
 def Chunk n P =
   block
     let s = GetStream
-    SetStream (Take n s)
+    SetStream (take n s)
+    -- we use `take` instead of `Take` so that we can start parsing before
+    -- all bytes are available (when streaming)
     $$ = P
     SetStreamAt n s
 

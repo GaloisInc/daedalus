@@ -21,7 +21,7 @@ cType ty =
 cSemType :: NSUser => Src.Type -> Doc
 cSemType sty =
   case sty of
-    Src.TStream     -> "DDL::Input"
+    Src.TStream     -> nsInputType
     Src.TUInt n     -> cInst "DDL::UInt" [ cSizeType n ]
     Src.TSInt n     -> cInst "DDL::SInt" [ cSizeType n ]
     Src.TInteger    -> "DDL::Integer"

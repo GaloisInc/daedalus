@@ -431,8 +431,8 @@ compilePExpr env expr0 args
                             pure vUnit
 
         TCStreamLen sem n s ->
-          case vStreamTake vn vs of
-            Right v -> pure $ mbSkip sem v
+          case vStreamDrop vn vs of
+            Right _ -> pure $ mbSkip sem $ vStreamTake vn vs
             Left _  -> addScope
                      $ pError FromSystem erng
                              ("Not enough bytes: need " ++

@@ -197,8 +197,7 @@ Daedalus.SetStreamAt_ (n : uint 64) (s : Stream) : Grammar {} =
  
 Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
-     do (_174 : Stream) <- StreamLen n s
-        SetStream _174
+     SetStream (n take s)
      ($$ : ?a0) <- P
      Daedalus.SetStreamAt_ n s
      pure $$
@@ -244,8 +243,8 @@ Daedalus.TestParses ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?a
   Daedalus.TestParsesPrefix ?a0 (Daedalus.Only ?a0 Parser) input expected
  
 Daedalus.TestFailsPrefix ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
-  do (_177 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
-     case _177 is
+  do (_176 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
+     case _176 is
        { just _ -> {- case branch  just _ -} Fail "unexpected success"
        ; nothing -> {- case branch  nothing -} pure {}
        }
@@ -365,8 +364,7 @@ Daedalus.Skip_ (n : uint 64) : Grammar {} =
  
 Daedalus.Chunk_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
-     do (_174 : Stream) <- StreamLen n s
-        SetStream _174
+     SetStream (n take s)
      P_
      Daedalus.SetStreamAt_ n s
  
@@ -389,8 +387,8 @@ Daedalus.TestParses_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?
   Daedalus.TestParsesPrefix_ ?a0 (Daedalus.Only ?a0 Parser) input expected
  
 Daedalus.TestFailsPrefix_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
-  do (_177 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
-     case _177 is
+  do (_176 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
+     case _176 is
        { just _ -> {- case branch  just _ -} Fail "unexpected success"
        ; nothing -> {- case branch  nothing -} pure {}
        }

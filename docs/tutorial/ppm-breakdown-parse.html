@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -81,7 +83,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
       <li class="breadcrumb-item active">Breaking down PPM: Primitive Parsing</li>
       <li class="wy-breadcrumbs-aside">
@@ -94,13 +96,13 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-primitive-parsing">
-<h1>Breaking down PPM: Primitive Parsing<a class="headerlink" href="#breaking-down-ppm-primitive-parsing" title="Permalink to this heading"></a></h1>
+<h1>Breaking down PPM: Primitive Parsing<a class="headerlink" href="#breaking-down-ppm-primitive-parsing" title="Permalink to this headline"></a></h1>
 <p>Before trying to move on to the other more complex parsers defined in this
 specification, it is going to be helpful to outline some of the primitive
 parsers made available in the DaeDaLus standard library, pointing to their uses
 in the PPM example where appropriate:</p>
 <section id="uint8">
-<h2><code class="docutils literal notranslate"><span class="pre">UInt8</span></code><a class="headerlink" href="#uint8" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">UInt8</span></code><a class="headerlink" href="#uint8" title="Permalink to this headline"></a></h2>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">UInt8</span></code> parses a single byte of input, failing if there are no
 bytes left to consume. When it succeeds, it constructs a semantic value of
 type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>. The PPM example doesn’t use this parser, but later we will
@@ -111,7 +113,7 @@ see examples of parsers that do.</p>
 </div>
 </section>
 <section id="id1">
-<h2><code class="docutils literal notranslate"><span class="pre">$[...]</span></code><a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">$[...]</span></code><a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">$[...]</span></code> parses a single byte of input that matches any of the
 bytes specified by the content in the square brackets. We can specify
 inclusive ranges of bytes, such as <code class="docutils literal notranslate"><span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span></code>, or we can specify the
@@ -125,7 +127,7 @@ set elements explicitly, as in this example from the PPM specification:</p>
 </div>
 </section>
 <section id="match">
-<h2><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code><a class="headerlink" href="#match" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">...</span></code><a class="headerlink" href="#match" title="Permalink to this headline"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">Match</span></code> parses a particular sequence of bytes in the input, returning
 a semantic value that is an array of bytes (whose type is written
 <code class="docutils literal notranslate"><span class="pre">[uint</span> <span class="pre">8]</span></code>.) As an example, we can write <code class="docutils literal notranslate"><span class="pre">Match</span> <span class="pre">&quot;keyword&quot;</span></code> to match
@@ -142,7 +144,7 @@ used <code class="docutils literal notranslate"><span class="pre">$['P']</span><
 </div>
 </section>
 <section id="end">
-<h2><code class="docutils literal notranslate"><span class="pre">END</span></code><a class="headerlink" href="#end" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">END</span></code><a class="headerlink" href="#end" title="Permalink to this headline"></a></h2>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">END</span></code> succeeds only if there is no additional input to be
 consumed. It results in the ‘trivial’ semantic value <code class="docutils literal notranslate"><span class="pre">{}</span></code>. Typically,
 a DaeDaLus parser succeeds consuming only a <em>prefix</em> of the input, but
@@ -157,7 +159,7 @@ PPM; depending on the use-case, this may or may not be desirable.</p>
 </div>
 </section>
 <section id="id2">
-<h2><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code><a class="headerlink" href="#id2" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">^</span> <span class="pre">...</span></code><a class="headerlink" href="#id2" title="Permalink to this headline"></a></h2>
 <p>It is sometimes convenient to ‘lift’ a semantic value into a parser that
 consumes no input and always succeeds, returning that same semantic value;
 this is an important part of how data-dependent parsing works in DaeDaLus.
@@ -189,7 +191,7 @@ input.</p>
 </div>
 </section>
 <section id="fail">
-<h2><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code><a class="headerlink" href="#fail" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">Fail</span> <span class="pre">...</span></code><a class="headerlink" href="#fail" title="Permalink to this headline"></a></h2>
 <p>We can trigger a failure with the <code class="docutils literal notranslate"><span class="pre">Fail</span></code> parser, which <em>always</em> fails.
 Optionally, we can provide a message to this parser which will be printed as
 part of the triggered failure; this is how you may indicate to users of your

@@ -596,7 +596,6 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       IsEmptyStream -> unimplemented
       Head          -> unimplemented
       StreamOffset  -> unimplemented
-      StreamLen     -> unimplemented
       ArrayLen
         | Just svs <- toL sv -> mk1 g $ VValue (V.vSize (toInteger (length svs)))
       Concat | Just svs  <- toL sv -> hoistMaybe (refine g =<< gseConcat svs)
@@ -855,9 +854,10 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     -- only one side is a sexpr
     go g sv1 sv2 = do
       case op of
-        IsPrefix -> unimplemented
-        Drop     -> unimplemented
-        Take     -> unimplemented
+        IsPrefix  -> unimplemented
+        Drop      -> unimplemented
+        DropMaybe -> unimplemented
+        Take      -> unimplemented
 
         -- Eq       -> semiExecEq ty1 sv1 sv2
         -- NotEq    -> semiExecNEq ty1 sv1 sv2

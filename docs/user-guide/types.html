@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -81,7 +83,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Language Reference</a></li>
       <li class="breadcrumb-item active">Type Annotations and Coercions</li>
       <li class="wy-breadcrumbs-aside">
@@ -94,12 +96,12 @@
            <div itemprop="articleBody">
              
   <section id="type-annotations-and-coercions">
-<h1>Type Annotations and Coercions<a class="headerlink" href="#type-annotations-and-coercions" title="Permalink to this heading"></a></h1>
+<h1>Type Annotations and Coercions<a class="headerlink" href="#type-annotations-and-coercions" title="Permalink to this headline"></a></h1>
 <p>DaeDaLus declarations and expressions may be annotated with explicit types,
 which is useful when type inference fails to infer the type of something,
 or to improve the readability of the specification.</p>
 <section id="annotating-an-expression">
-<h2>Annotating an Expression<a class="headerlink" href="#annotating-an-expression" title="Permalink to this heading"></a></h2>
+<h2>Annotating an Expression<a class="headerlink" href="#annotating-an-expression" title="Permalink to this headline"></a></h2>
 <p>Use <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">:</span> <span class="pre">t</span></code> to specify that expression <code class="docutils literal notranslate"><span class="pre">e</span></code> should have type <code class="docutils literal notranslate"><span class="pre">t</span></code>.
 For example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">i</span>_<span class="n">am</span>_<span class="n">a</span>_<span class="n">byte</span> <span class="k">=</span> <span class="m">1</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span>
@@ -110,7 +112,7 @@ resulting declaration would be polymorphic because literals are overloaded
 and may be used at many different types.</p>
 </section>
 <section id="annotating-the-result-of-a-declaration">
-<h2>Annotating the Result of a Declaration<a class="headerlink" href="#annotating-the-result-of-a-declaration" title="Permalink to this heading"></a></h2>
+<h2>Annotating the Result of a Declaration<a class="headerlink" href="#annotating-the-result-of-a-declaration" title="Permalink to this headline"></a></h2>
 <p>To specify the result type of a declaration use <code class="docutils literal notranslate"><span class="pre">:</span> <span class="pre">t</span></code> after the name
 (or the parameters, if any) of the declaration like this:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">also</span>_<span class="n">byte</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="k">=</span> <span class="m">1</span>
@@ -120,7 +122,7 @@ and may be used at many different types.</p>
 </div>
 </section>
 <section id="annotating-a-parameter">
-<h2>Annotating a Parameter<a class="headerlink" href="#annotating-a-parameter" title="Permalink to this heading"></a></h2>
+<h2>Annotating a Parameter<a class="headerlink" href="#annotating-a-parameter" title="Permalink to this headline"></a></h2>
 <p>Parameters of declarations may also be annotated with a type:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Example</span> <span class="p">(</span><span class="n">P</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">)</span> <span class="k">=</span> <span class="n">P</span>
 </pre></div>
@@ -129,7 +131,7 @@ and may be used at many different types.</p>
 will construct a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code> semantic value.</p>
 </section>
 <section id="naming-unknown-types">
-<h2>Naming Unknown Types<a class="headerlink" href="#naming-unknown-types" title="Permalink to this heading"></a></h2>
+<h2>Naming Unknown Types<a class="headerlink" href="#naming-unknown-types" title="Permalink to this headline"></a></h2>
 <p>Occasionally it is useful to name a type without specifying it explicitly.
 For example:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span> <span class="p">(</span><span class="n">x</span> <span class="p">:</span> <span class="k">maybe</span> <span class="n">?a</span><span class="p">)</span> <span class="k">=</span> <span class="m">1</span> <span class="p">:</span> <span class="n">?a</span>
@@ -146,7 +148,7 @@ declarations it refers to <a class="reference internal" href="implicit-parameter
 </div>
 </section>
 <section id="coercions">
-<h2>Coercions<a class="headerlink" href="#coercions" title="Permalink to this heading"></a></h2>
+<h2>Coercions<a class="headerlink" href="#coercions" title="Permalink to this headline"></a></h2>
 <p>Coercions provide a way to change a semantic value into the corresponding value
 of a different type. The general form is <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">as</span> <span class="pre">T</span></code>, which converts the value of
 expression <code class="docutils literal notranslate"><span class="pre">e</span></code> into type <code class="docutils literal notranslate"><span class="pre">T</span></code>. For example, the following code will parse

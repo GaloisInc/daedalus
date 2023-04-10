@@ -195,6 +195,11 @@ of how to manipualte the parser's stream.
   -- Will fail if the stream does not have enough bytes
   Take (n : uint 64) (s : stream) : stream
 
+  -- Restrict a stream to at most `n` bytes.
+  -- The resulting stream might be shorter if there are not
+  -- enough bytes
+  take (n : uint 64) (s : stream) : stream
+
   -- Advance a stream by `n` bytes.
   -- Will fail if the stream does not have enough bytes
   Drop (n : uint 64) (s : stream) : stream

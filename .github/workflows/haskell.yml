@@ -88,6 +88,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential
         sudo apt-get install -y libgmp-dev zlib1g-dev
+        sudo apt-get install -y libboost-context-dev
 
     - name: Install Z3 (Ubuntu)
       if: matrix.component.noun == 'talos' && matrix.os == 'ubuntu-latest'
@@ -166,6 +167,52 @@ jobs:
     - name: Build driver
       run: cabal build pdf-driver
 
+
+  pdf-driver-cpp:
+
+    runs-on: ${{ matrix.os }}
+
+    needs: [build]
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    # Copied from 'build'
+    - name: Install GHC
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
+      with:
+        ghc-version: '9.2.5'
+        cabal-version: '3.6'
+
+    - name: Cache
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-cabal
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Build Daedalus
+      run: cabal build exe:daedalus
+
+    - name: Build C++ PDF driver
+      run: |
+        cmake -B build-pdf-c++ formats/pdf/new/c++/
+        cmake --build build-pdf-c++
+
+
   http-test-suite:
 
     runs-on: ${{ matrix.os }}
@@ -203,4 +250,36 @@ jobs:
           ${{ runner.os }}-
 
     - name: Run HTTP parser test suite
-      run: formats/http/run-tests.sh
+      run: |
+        cabal build exe:daedalus
+        formats/http/run-tests.sh
+
+
+  rts-c-tests:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+
+    steps:
+
+    - name: Install prereqs.
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+        sudo apt-get install -y libgmp-dev libboost-context-dev
+        sudo apt-get install -y libgtest-dev
+        sudo apt-get install -y cmake
+
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Build and run tests
+      run: |
+        cmake -B rts-c-tests-build rts-c/tests
+        cmake --build rts-c-tests-build
+        ./rts-c-tests-build/rts-c-tests
+
+

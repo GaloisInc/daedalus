@@ -542,6 +542,12 @@ inferExpr expr =
     EBinOp op e1 e2 ->
       case op of
 
+        StreamTakeUpTo ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
+          do unify tSize   (e1',t1)
+             unify tStream (e2',t2)
+             pure (exprAt expr (TCBinOp op e1' e2' tStream), tStream)
+
         ArrayStream ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
           do unify (tArray tByte) (e1',t1)

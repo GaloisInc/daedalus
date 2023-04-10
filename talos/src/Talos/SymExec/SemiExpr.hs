@@ -288,7 +288,6 @@ semiExecOp1 op rty ty sv =
     IsEmptyStream -> unimplemented
     Head          -> unimplemented
     StreamOffset  -> unimplemented
-    StreamLen     -> unimplemented
     ArrayLen | Just svs <- SV.toList sv -> pure $ VValue (V.vSize (toInteger (length svs)))
     Concat   | Just svs <- SV.toList sv
              , Just svss <- mapM SV.toList svs -> pure (SV.fromList False (mconcat svss))
@@ -438,9 +437,10 @@ semiExecOp2 op rty   ty _ty' (VOther v1) (VOther v2) =
   lift (vSExpr rty <$> SE.symExecOp2 op ty (typedThing v1) (typedThing v2))
 semiExecOp2 op rty ty1 ty2 sv1 sv2 =
   case op of
-    IsPrefix -> unimplemented
-    Drop     -> unimplemented
-    Take     -> unimplemented
+    IsPrefix  -> unimplemented
+    Drop      -> unimplemented
+    DropMaybe -> unimplemented
+    Take      -> unimplemented
 
     Eq       -> semiExecEq ty1 sv1 sv2
     NotEq    -> semiExecNEq ty1 sv1 sv2

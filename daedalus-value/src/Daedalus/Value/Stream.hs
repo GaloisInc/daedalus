@@ -29,24 +29,24 @@ vStreamHead = tracedFun \v ->
     Just (w,_) -> pure (vByte w)
     Nothing    -> vErr "Head of empty list"
 
-vStreamTake :: Value -> Value -> Partial Value
+vStreamTake :: Value -> Value -> Value
 vStreamTake = tracedFun \a b ->
-  case valueToIntSize a of
-    Nothing -> pure b
-    Just x  ->
-      case limitLen (UInt (fromIntegral x)) (valueToStream b) of
-        Nothing -> vErr "Not enough bytes in `Take`"
-        Just i  -> pure (VStream i)
+  let sz = toUInt (fromInteger (valueToSize a))
+  in VStream (inputTake sz (valueToStream b))
 
 vStreamDrop :: Value -> Value -> Partial Value
 vStreamDrop = tracedFun \a b ->
-  let notEnough = vErr "Not enough bytes in `Drop`"
-  in
-  case valueToIntSize a of
-    Nothing -> notEnough
-    Just x  ->
-      case advanceBy (UInt (fromIntegral x)) (valueToStream b) of
-        Nothing -> notEnough
-        Just i  -> pure (VStream i)
+  case vStreamDropMaybe' a b of
+    Just v  -> pure v
+    Nothing -> vErr "Not enough bytes in `Drop`"
+
+vStreamDropMaybe' :: Value -> Value -> Maybe Value
+vStreamDropMaybe' a b =
+  do x <- valueToIntSize a
+     VStream <$> advanceBy (UInt (fromIntegral x)) (valueToStream b)
+
+vStreamDropMaybe :: Value -> Value -> Value
+vStreamDropMaybe = tracedFun \a b -> VMaybe (vStreamDropMaybe' a b)
+
 
 
