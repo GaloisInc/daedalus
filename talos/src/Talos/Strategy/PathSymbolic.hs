@@ -13,7 +13,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
 import           Control.Lens                 (_1, _2, at, each, over, (%=),
-                                               (%~), (&), (+~), (.=), (.~))
+                                               (%~), (&), (+~), (.=), (.~), Lens', use, (?=))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass, censor)
@@ -61,13 +61,13 @@ import           Talos.Strategy.OptParser     (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser     as P
 import           Talos.Strategy.PathCondition (PathCondition,
                                                PathConditionCaseInfo, PathVar,
-                                               pathVarToSExpr)
+                                               pathVarToSExpr, loopCountVarToSExpr, LoopCountVar)
 import qualified Talos.Strategy.PathCondition as PC
 import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
                                                defineSlicePolyFuns)
-import           Talos.SymExec.ModelParser    (evalModelP, pNumber, pValue)
+import           Talos.SymExec.ModelParser    (evalModelP, pNumber, pValue, ModelP)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
                                                declareSymbol, liftSolver, reset,
@@ -275,6 +275,7 @@ stratChoice sls _ = do
   (vs, paths) <-
     unzip . catMaybes <$>
     zipWithM (guardedChoice pv) [0..] (map stratSlice sls)
+  -- FIXME: vs should never be empty.
   v <- hoistMaybe (MV.unions' vs)
 
   -- Record that we have this choice variable, and the possibilities
@@ -301,15 +302,54 @@ stratLoop lc =
           v' = case sem of
                  SemNo  -> vUnit
                  SemYes -> MV.singleton mempty xs
-      recordLoop ltag (makeSymbolicLoopModel [slv] [])
-      pure (v', SelectedHole) -- We will update later with the contents
+      recordLoop ltag (makeSymbolicLoopModel [slv] [] Nothing)
+      pure (v', SelectedLoop (PathLoopPool ltag)) -- We will update later with the contents
+
     -- Should be SLoopPool
     SManyLoop StructureIndependent _lb _m_ub _b ->
       panic "BUG: saw SManyLoop StructureIndependent" []
     SManyLoop StructureIsNull lb m_ub b -> do
       ltag <- freshSymbolicLoopTag
+      -- Here we can assert that the list is empty or non-empty (i.e.,
+      -- size 1 to allow pooling).  Note that the _length_ of the
+      -- _final list_ is not important to this slice, just
+      -- whether it is null/non-null
+      lv <- freshLoopCountVar 0 1
       
+      let nullCase = pass $ do            
+            let g = PC.insertLoopCount lv 0 mempty
+                pathGuard = PC.toSExpr g
+                -- We don't use the tag as there is no need to gather
+                -- later.
+                v = VSequence Nothing False []
+            pure (MV.singleton g v, extendPath pathGuard)
+
+          nonNullCase = pass $ do
+            -- PCNode would also work, but this is a little less confusing.
+            (v, m) <- extendPathCursorM (PCSequence 0) $ stratSlice b
+            let v' = VSequence (Just ltag) False [v]
+                slv = SLMPerValue
+                  { slmpCollectionTag = Nothing -- no collection
+                  , slmpGuard         = [] -- No values we rely on
+                  , slmpPathBuilder   = [m] -- Single element
+                  }
+            
+                g = PC.insertLoopCount lv 1 mempty
+                pathGuard = PC.toSExpr g
+                -- We don't use the tag as there is no need to gather
+                -- later.
+
+            pure (MV.singleton g v', extendPath pathGuard)
+
+      vs <- sequence [nullCase, nonNullCase]
+      -- FIXME: vs should never be empty.
+      v <- hoistMaybe (MV.unions' vs)
+      
+      
+      -- recordLoop ltag (makeSymbolicLoopModel [v] [] Nothing)
+      pure (v, SelectedLoop (PathLoopPool ltag)) -- We will update later with the contents
       undefined
+      
     SManyLoop StructureDependent lb m_ub b -> do
       ltag <- freshSymbolicLoopTag      
       undefined
@@ -615,54 +655,100 @@ enumerate t = evalState (traverse go t) 0
   where
     go a = state (\i -> ((i, a), i + 1))
 
+
+-- ----------------------------------------------------------------------------------------
+-- Model parsing and enumeration.
+--
 -- This code uses the Monad instance for Maybe pretty heavily, sorry :/
 
+data ModelState = ModelState
+  { msPathVars :: Map PathVar Int
+  , msValues   :: Map SMTVar I.Value
+  , msLoopCounts :: Map LoopCountVar Int
+  } deriving Generic
+
+-- Only works if we merge disjoint/agreeing models  
+instance Semigroup ModelState where
+  ms <> ms' = ModelState
+    { msPathVars   = msPathVars ms <> msPathVars ms'
+    , msValues     = msValues ms <> msValues ms'
+    , msLoopCounts = msLoopCounts ms <> msLoopCounts ms'
+    }
+
+instance Monoid ModelState where
+  mempty = ModelState mempty mempty mempty
+
 data ModelParserState = ModelParserState
-  { mpsPathVars :: Map PathVar Int
-  , mpsOthers   :: Map SMTVar I.Value
+  { mpsContext :: ModelState
+  -- ^ Read-only, used to cache the solver model in the context.
+  , mpsState   :: ModelState
+  -- ^ Captures the curent solver model.
   , mpsMMS      :: MultiModelState
+  -- ^ The stats across multiple models
+  , mpsLoopInfo :: ()
   } deriving Generic
 
 -- FIXME: clag
 getByteVar :: SMTVar -> ModelParserM Word8
 getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
-getPathVar :: PathVar -> ModelParserM Int
-getPathVar pv = do
-  m_i <- gets (Map.lookup pv . mpsPathVars)
+getModelVar :: Lens' ModelState (Map a b) ->
+               (a -> S.SExpr) ->
+               ModelP b ->
+               (a -> b -> MultiModelState -> MultiModelState) ->
+               a ->
+               ModelParserM b
+getModelVar msLens toSExpr pVal updateStats pv = do
+  m_i <- use (field @"mpsContext" . msLens . at pv)   
   case m_i of
     Just i -> pure i
     Nothing -> do
-      sexp <- lift (Solv.getValue (PC.pathVarToSExpr pv))
-      n <- case evalModelP pNumber sexp of
-             []    -> panic "No parse" []
-             b : _ -> pure (fromIntegral b)
-      field @"mpsPathVars" . at pv .= Just n
-      field @"mpsMMS" %= updateStats n
-      pure n
+      m_i <- use (field @"mpsState" . msLens . at pv)
+      case m_i of
+        Just i -> pure i
+        Nothing -> do
+          sexp <- lift (Solv.getValue (toSExpr pv))
+          n <- case evalModelP pVal sexp of
+                 []    -> panic "No parse" []
+                 b : _ -> pure b
+          field @"mpsState" . msLens . at pv ?= n
+          field @"mpsMMS" %= updateStats pv n
+          pure n
+
+getPathVar :: PathVar -> ModelParserM Int
+getPathVar =
+  getModelVar (field @"msPathVars") PC.pathVarToSExpr
+              (fromIntegral <$> pNumber)
+              updateStats 
   where
     -- bit gross doing this here ...
-    updateStats n mms
+    updateStats pv n mms
       | Just chi <- Map.lookup pv (mmsChoices mms)
       , n `notElem` mmschiSeen chi =
+        -- If we have seen all the choices then exhaust.
         let res | length (mmschiSeen chi) + 1 == length (mmschiAllChoices chi) = Nothing
                 | otherwise  = Just (chi & field @"mmschiSeen" %~ (n :))
         in mms & field @"mmsChoices" . at pv .~ res
                & field @"mmsNovel" +~ 1
       | otherwise = mms & field @"mmsSeen" +~ 1
 
+-- Maybe not worth caching?
+getLoopVar :: LoopCountVar -> ModelParserM Int
+getLoopVar =
+  getModelVar (field @"msLoopCounts") PC.loopCountVarToSExpr
+              (fromIntegral <$> pNumber)
+              updateStats 
+  where
+    -- FIXME: update this
+    updateStats _v _n mms = mms
+
 getValueVar :: Typed SMTVar -> ModelParserM I.Value
 getValueVar (Typed ty x) = do
-  m_v <- gets (Map.lookup x . mpsOthers)
-  case m_v of
-    Just v -> pure v
-    Nothing -> do
-      sexp <- lift (Solv.getValue (S.const x))
-      v <- case evalModelP (pValue ty) sexp of
-             []     -> panic "No parse" []
-             v' : _ -> pure v'
-      field @"mpsOthers" . at x .= Just v
-      pure v
+  getModelVar (field @"msValues") S.const
+              (pValue ty)
+              updateStats x
+  where
+    updateStats _ _ mms = mms
 
 type ModelParserM a = StateT ModelParserState (SolverT StrategyM) a
 
@@ -761,7 +847,7 @@ buildPaths ntotal nfails sm pb = do
 
   if not (nullMMS st0)
     then Solv.getContext >>= go 0 0 st0 []
-    else do
+    else do -- Only 1 choice, so take it.      
       (r, tcheck) <- timeIt Solv.check
       liftIO $ printf "\t(single): solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
       check st0 r >>= \case
@@ -829,6 +915,14 @@ buildPath mms0 = runModelParserM mms . go
     go (SelectedChoice pib) = SelectedChoice <$> buildPathChoice pib
     go (SelectedCall i p) = SelectedCall i <$> go p
     go (SelectedCase pib) = SelectedCase <$> buildPathCase pib
+    go (SelectedLoop lp) = SelectedLoop <$> buildLoop lp
+      
+    buildLoop (PathLoopElements m_v els) = do
+      len <- maybe (pure (length els)) getLoopVar m_v
+      ps <- mapM go (take len els)
+      pure (SelectedLoopElements (Map.fromList (zip [0..] ps)))
+
+    buildLoop (PathLoopPool tag) = undefined
 
     buildPathChoice :: PathChoiceBuilder PathBuilder ->
                        ModelParserM (PathIndex SelectedPath)
@@ -948,31 +1042,35 @@ gsesModel gses = join <$> (traverse (gseModel . snd) =<< firstM go els)
     go  = pathConditionModel . fst
     els = MV.guardedValues gses
 
-
 -- -----------------------------------------------------------------------------
--- Linking loop bodies
+-- Loops
+
+-- We deal with loops as follows:
+-- 
+--  1. We start by processing the model builder as per usual, just
+--     recording which loop ids we see, along with their corresponding
+--     SymbolicLoopModel/SMLPerValues (maybe filtered by which is enabled);
+--  2. We thus have a set of loop tags which can then be grouped into
+--     root/deps (this is only fully known when we have parsed everything);
+--  3. The models for each tag are parsed, which may, in turn generate
+--     new sets of tags (for the nested loops);
+--  4. 
+
+-- FIXME:
+--   - Do we need the guard for the slmpervalue, as we know which the generator generates
+--   - We have to be careful about the nestings of loops, e.g. 
+--     def Main = block
+--       xs = Many P1
+--       ys = Many P2
+--       zs = map (y in ys) block
+--              z = P3
+--              ws = map (x in xs) (P4 y z)
+--
+
+  
 
 
 
-
--- linkLoopBodoes :: Map SymbolicLoopTag (Maybe SymbolicLoopTag, [S.SExpr], PathCursor) ->
---                   [(PathCursor, 
--- linkLoopBodoes m 
-
-
-
--- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value
--- valueModel :: GuardedSemiSExprs -> ModelParserM I.Value
-
--- valueModel (VValue v) = pure v
--- valueModel sv =
---   SE.toValue <$> traverse go sv
---   where
---     go tse = do
---       sexp <- Solv.getValue (typedThing tse)
---       case evalModelP (pValue (typedType tse)) sexp of
---         [] -> panic "No parse" []
---         v : _ -> pure v
 
 
 

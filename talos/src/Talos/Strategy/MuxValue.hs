@@ -49,8 +49,12 @@ import           Daedalus.Panic
 import qualified Daedalus.Value.Type          as V
 
 -- import Talos.Strategy.Monad
-import           Talos.Strategy.PathCondition (PathCondition (..),
-                                               PathConditionCaseInfo (..))
+-- import Talos.Strategy.Monad
+-- import Talos.Strategy.Monad
+-- import Talos.Strategy.Monad
+import           Talos.Strategy.PathCondition (PathCondition (..)
+                                              , ValuePathConstraint (..)
+                                              , LoopCountVar, loopCountVarToSMTVar)
 import qualified Talos.Strategy.PathCondition as PC
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.SolverT
@@ -89,7 +93,7 @@ data MuxValue f a =
   | VStruct                ![(V.Label, f a)]
 
   -- The bool is used to tell us if this is an array or builder, use in toValue
-  | VSequence              (Maybe SequenceTag) Bool ![f a]
+  | VSequence              VSequenceMeta ![f a]
   | VJust                  !(f a)
 
   -- -- For iterators and maps
@@ -101,6 +105,23 @@ data MuxValue f a =
   | VIterator              ![(f a, f a)]
     deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
 
+data VSequenceMeta = VSequenceMeta
+  { vsmGeneratorTag :: Maybe SequenceTag
+  , vsmLoopCountVar :: Maybe LoopCountVar
+  , vsmMinLength    :: Int
+  -- ^ This is the minimum length of the list, it allows us to not
+  -- generate cases which are impossible.
+  , vsmIsBuilder    :: Bool
+  } deriving (Show, Eq, Ord, Generic)
+
+emptyVSequenceMeta :: VSequenceMeta
+emptyVSequenceMeta = VSequenceMeta
+  { vsmGeneratorTag = Nothing
+  , vsmLoopCountVar = Nothing
+  , vsmMinLength    = 0
+  , vsmIsBuilder    = False
+  }
+
 -- Typed so we can turn into a value.
 type GuardedSemiSExprs = GuardedValues (Typed SMTVar)
 type GuardedSemiSExpr  = GuardedValue  (Typed SMTVar)
@@ -108,16 +129,23 @@ type GuardedSemiSExpr  = GuardedValue  (Typed SMTVar)
 singleton :: PathCondition -> GuardedSemiSExpr -> GuardedSemiSExprs
 singleton g gv = GuardedValues ((g, gv) :| [])
 
-muxValueToList :: (V.Value -> f a) -> MuxValue f a -> Maybe [f a]
+muxValueToList :: (V.Value -> f a) -> MuxValue f a -> Maybe (VSequenceMeta, [f a])
 muxValueToList mk mv =
   case mv of
-    VSequence _ _ xs       -> Just xs
-    VValue (V.VArray v)    -> Just (map mk (Vector.toList v))
+    VSequence m xs       -> Just (m, xs)
+    VValue (V.VArray v)    -> fromValue False (map mk (Vector.toList v))
     -- Builders are stored in reverse order.
-    VValue (V.VBuilder vs) -> Just (map mk (reverse vs))
+    VValue (V.VBuilder vs) -> fromValue True (map mk (reverse vs))
     _ -> Nothing
 
-gseToList :: GuardedSemiSExpr -> Maybe [GuardedSemiSExprs]
+  where
+    -- We don't weed out ArrayL and builder ops, so it is possible for
+    -- interp arrays to occur, so we need to construct a vsequence meta)
+    fromValue b vs =
+      Just ( emptyVSequenceMeta { vsmMinLength = length vs, vsmIsBuilder = b }
+           , vs)
+
+gseToList :: GuardedSemiSExpr -> Maybe (VSequenceMeta, [GuardedSemiSExprs])
 gseToList = muxValueToList (vValue mempty)
 
 -- -----------------------------------------------------------------------------
@@ -170,6 +198,22 @@ unions xs = GuardedValues . sconcat . fmap getGuardedValues $ xs
 
 unions' :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
 unions' = fmap unions . nonEmpty
+
+-- -----------------------------------------------------------------------------
+-- Sequences
+-- 
+
+-- | Turns a sequence, which may be a super-position of multiple
+-- sequence lengths, into multiple sequences where the length is
+-- fixed.
+explodeSequence :: VSequenceMeta -> [GuardedSemiSExprs]
+                -> [ (PathCondition, [GuardedSemiSExprs]) ]
+explodeSequence vsm els
+  | Just lcv <- vsmLoopCountVar vsm = map (go lcv) [vsmMinLength vsm .. length els - 1] 
+  | otherwise = [(mempty, els)]
+  where
+    -- FIXME: this is inefficient, maybe store loops in reversed order (to get sharing)
+    go lcv len = (PC.insertLoopCount lcv (PC.LCCEq len) mempty, take len els)
 
 -- -----------------------------------------------------------------------------
 -- Byte sets
@@ -261,9 +305,9 @@ toSExpr1 tys ty sv =
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
 
     -- Should probably never happen?
-    VSequence _ _ vs
-      | Just elTy <- typeToElType ty ->
-          sArrayLit (symExecTy elTy) (typeDefault elTy) (map (go elTy) vs)
+    VSequence _ _ -> panic "Saw toSExpr1 on VSequence" []
+      --  | Just elTy <- typeToElType ty ->
+      --      sArrayLit (symExecTy elTy) (typeDefault elTy) (map (go elTy) vs)
           
     VJust v' | TMaybe ty' <- ty -> sJust (symExecTy ty') (go ty' v')
 
@@ -466,10 +510,10 @@ semiExecCase (Case y pats) = do
           (m_any, assn)
             -- if we have a default case, the constraint is that none
             -- of the above matched
-            | hasAny    = ([ Right (Set.fromList pats') ] , YesMatch)
+            | hasAny    = ([ VPCNegative (Set.fromList pats') ], YesMatch)
             | otherwise = ([], SymbolicMatch (orMany basePreds))
-          vgciFor c = PathConditionCaseInfo { pcciType = ty, pcciConstraint = c }
-      in (map (\c -> PC.insertCase (typedThing x) (vgciFor c) g) (map Left pats' ++ m_any), (g, assn))
+          vgciFor c = Typed ty c
+      in (map (\c -> PC.insertValue (typedThing x) (vgciFor c) g) (map VPCPositive pats' ++ m_any), (g, assn))
     goV (g, v) =
       let ms = map (matches' v) pats'
           noMatch = not (or ms)
@@ -587,7 +631,6 @@ semiExecOp1 (InUnion _ut l)  _rty _ty sv =
 semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
   where
     mk1 g = pure . singleton g
-    toL = gseToList
     
     -- This function executes a for a single value, returning Nothing
     -- if the value is of the wrong shape (e.g. not Just).  It is the
@@ -605,32 +648,50 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       StreamOffset  -> unimplemented
       StreamLen     -> unimplemented
       ArrayLen
-        | Just svs <- toL sv -> mk1 g $ VValue (V.vSize (toInteger (length svs)))
-      Concat | Just svs  <- toL sv -> hoistMaybe (refine g =<< gseConcat svs)
-      -- Just flip the 'isbuilder' flag
-      FinishBuilder | VSequence {} <- sv -> mk1 g sv
-      NewIterator
-        | TArray {} <- ty
-        , Just svs  <- toL sv ->
-          let ixs = map (vValue mempty . V.vSize) [0..]
-              els = zip ixs svs
-          in mk1 g $ VIterator els
-          
-      NewIterator -> unimplemented -- maps
-      IteratorDone | VIterator els <- sv -> pure (vBool g (null els))
-      IteratorKey
-        | VIterator ((k, _) : _) <- sv  ->
-            hoistMaybe (refine g k) -- FIXME: correct?
-        | VIterator [] <- sv -> hoistMaybe Nothing
+        | Just (vsm, _svs) <- gseToList sv
+        , Just lcv <- vsmLoopCountVar vsm -> mk1 g $ VOther (Typed sizeType (loopCountVarToSMTVar lcv))
+        -- Otherwise we just use the length.  This should be the non-many generated case.
+        | Just (_, svs) <- gseToList sv -> mk1 g $ VValue (V.vSize (toInteger (length svs)))
+        | otherwise -> panic "BUG: saw non-concrete list" []
         
-      IteratorVal
-        | VIterator ((_, v) : _) <- sv ->
-            hoistMaybe (refine g v) -- FIXME: correct?
-        | VIterator [] <- sv -> hoistMaybe Nothing 
+      Concat
+        | Just (vsm, svs)  <- gseToList sv -> hoistMaybe (refine g =<< gseConcat vsm svs)
+        | otherwise -> panic "BUG: saw non-concrete list" []
+        
+      -- Just flip the 'isbuilder' flag
+      FinishBuilder
+        | VSequence vsm els <- sv ->
+          mk1 g (VSequence (vsm { vsmIsBuilder = False}) els)
+          
+      -- NewIterator
+      --   | TArray {} <- ty
+      --   , Just svs  <- toL sv ->
+      --     let ixs = map (vValue mempty . V.vSize) [0..]
+      --         els = zip ixs svs
+      --     in mk1 g $ VIterator els
+
+      -- Shouldn't really happen as loops take care of iterators,
+      -- although they can still be used directly.
+      NewIterator -> unimplemented
+      IteratorDone -> unimplemented
+      IteratorKey  -> unimplemented
+      IteratorNext -> unimplemented
+      
+      -- IteratorDone  | VIterator els <- sv -> pure (vBool g (null els))
+      -- IteratorKey
+      --   | VIterator ((k, _) : _) <- sv  ->
+      --       hoistMaybe (refine g k) -- FIXME: correct?
+      --   | VIterator [] <- sv -> hoistMaybe Nothing
+        
+      -- IteratorVal
+      --   | VIterator ((_, v) : _) <- sv ->
+      --       hoistMaybe (refine g v) -- FIXME: correct?
+      --   | VIterator [] <- sv -> hoistMaybe Nothing 
             
-      IteratorNext
-        | VIterator (_ : els) <- sv -> mk1 g (VIterator els)
-        | VIterator [] <- sv -> hoistMaybe Nothing
+      -- IteratorNext
+      --   | VIterator (_ : els) <- sv -> mk1 g (VIterator els)
+      --   | VIterator [] <- sv -> hoistMaybe Nothing
+
 
       -- handled above.
       -- EJust -> mk1 g (VJust sv)
@@ -675,24 +736,24 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
     unimplemented = panic "semiEvalOp1: Unimplemented" [showPP op]
 
 -- | Concatentates a list of list-valued exprs
-gseConcat :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
-gseConcat svs = unions' (mapMaybe mkOne combs)
-  where
-    elss = map guardedValues svs
-    -- This is a sneaky way to get the list of products of the
-    -- members.  This is potentially very expensive.
-    combs = sequence elss
+gseConcat :: VSequenceMeta -> [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
+gseConcat _vsm _svs = panic "UNIMPLEMENTED: Concat" []
 
-    doConcat els g'
-      | PC.isInfeasible g' = Nothing    
-      | Just els' <- mapM toL els = Just $ singleton g' (VSequence Nothing False (concat els'))
-      | otherwise  = panic "UNIMPLEMENTED: saw symbolic list" []
+  -- unions' (mapMaybe mkOne combs)
+  -- where
+  --   elss = map guardedValues svs
+  --   -- This is a sneaky way to get the list of products of the
+  --   -- members.  This is potentially very expensive.
+  --   combs = sequence elss
+
+  --   doConcat els g'
+  --     | PC.isInfeasible g' = Nothing    
+  --     | Just els' <- mapM toL els = Just $ singleton g' (VSequence emptyVSequenceMeta (concat els'))
+  --     | otherwise  = panic "UNIMPLEMENTED: saw symbolic list" []
     
-    mkOne comb =
-      let (gs, els) = unzip comb
-      in doConcat els (mconcat gs)
-
-    toL = gseToList
+  --   mkOne comb =
+  --     let (gs, els) = unzip comb
+  --     in doConcat els (mconcat gs)
 
 sexprAsSMTVar :: MonadSolver m => SExpr -> SExpr -> m SMTVar
 sexprAsSMTVar _ty (S.Atom x) = pure x
@@ -802,22 +863,27 @@ semiExecEqNeq iseq ty gvs1 gvs2 =
           | TMaybe ty' <- ty -> semiExecEqNeq iseq ty' sv1' sv2'
         (VJust {}, VNothing) -> mkB (not iseq)
         (VNothing, VJust {}) -> mkB (not iseq)
-      
-        _ | Just svs1 <- toL sv1
-          , Just svs2 <- toL sv2
+
+        -- List/sequence equality.  We don't have the ability to just
+        -- assert lengths are equal, so we have to add as a path
+        -- condition.
+        _ | Just (vsm1, svs1) <- gseToList sv1
+          , Just (vsm2, svs2) <- gseToList sv2
           , Just elTy <- typeToElType ty ->
-            if length svs1 /= length svs2
-            then mkB (not iseq)
-            else opMany g =<< zipWithM (semiExecEqNeq iseq elTy) svs1 svs2
-            
+            let go1 g' svs1' svs2'            
+                  | length svs1' /= length svs2' = pure (vBool g' (not iseq))
+                  | otherwise = opMany g' =<< zipWithM (semiExecEqNeq iseq elTy) svs1' svs2'
+            in gseCollect [ go1 g' svs1' svs2'
+                          | (g1, svs1') <- explodeSequence vsm1 svs1
+                          , (g2, svs2') <- explodeSequence vsm2 svs2
+                          , let g' = g <> g1 <> g2, PC.isFeasibleMaybe g'
+                          ]            
         _ -> do
           se <- liftSolver (SE.symExecOp2 op TBool
                             (toSExpr1 tys ty sv1)
                             (toSExpr1 tys ty sv2))
           vSExpr g TBool se
             
-    toL = gseToList
-
     (op, eqcmp, opMany) =
       if iseq
       then (Eq   , (==), bAndMany)
@@ -844,7 +910,7 @@ semiExecOp2 Emit _rty _ty1 _ty2 gvs1 gvs2
       -- FIXME: this breaks the abstraction a little
       pure (GuardedValues (NE.zipWith mk gs vss1))
   where
-    mk g vs = (g, VSequence Nothing True (vs ++ [gvs2]))
+    mk g (vsm, vs) = (g, VSequence (vsm {vsmIsBuilder = True}) (vs ++ [gvs2]))
     (gs, gvss1) = NE.unzip (getGuardedValues gvs1)
     
 semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
@@ -869,31 +935,18 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
         -- Eq       -> semiExecEq ty1 sv1 sv2
         -- NotEq    -> semiExecNEq ty1 sv1 sv2
     
-        -- sv1 is arr, sv2 is ix
-        ArrayIndex
-          -- concrete spine, concrete index
-          | Just svs <- toL sv1
-          , VValue v <- sv2, Just ix <- V.valueToIntSize v
-            -> if ix < length svs
-               then hoistMaybe (refine g (svs !! ix))
-               else hoistMaybe Nothing -- index out of bounds, should
-                                       -- be impossible in practice
-                                       -- but we see it here as path
-                                       -- merging is an over-approx of
-                                       -- feasible paths.
+        -- sv1 is arr, sv2 is ix. Note that the translation inserts a
+        -- check on the length, so probably we don't need an explicit
+        -- check here.
+        ArrayIndex -> semiExecArrayIndex g sv1 sv2 
 
-          -- FIXME: produce a n-way value (I doubt this case is very common)
-
-          -- concrete spine, symbolic index.  We could either make the
-          -- whole thing symbolic, or create a value for each value in
-          -- the list and also constrain the index.
-          --  | Just svs <- toL sv1
-          --  , VOther x <- sv2
-          --    -> hoistMaybe (refine g (svs !! ix))
-            
-        EmitArray
-          | Just bs   <- toL sv1
-          , Just arrs <- toL sv2 -> pure $ singleton g (VSequence Nothing True (bs ++ arrs))
+        EmitArray -> unimplemented
+          --  | Just (vsmbs,  bs) <- gseToList sv1          
+          --  , Just (vsmarr, arrs) <- gseToList sv2 ->
+          --      unless (isNothing (vsmLoopCountVar vsmbs)
+          --              && isNothing (vsmLoopCountVar vsmarr)) $ panic "Invariant violated?" []
+          --      pure $ singleton g (VSequence vsmbs (bs ++ arrs))
+              
         EmitBuilder -> unimplemented
 
         -- sv1 is map, sv2 is key
@@ -954,8 +1007,6 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
                                    (toSExpr1 tys ty1 sv1)
                                    (toSExpr1 tys ty2 sv2))
 
-    toL = gseToList
-
     unimplemented = panic "semiEvalOp2: Unimplemented" [showPP op]
 
     -- mapLookupV z _f  _kv  [] = Just z
@@ -969,6 +1020,36 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     --       -> if kv == kv' then f sel else rest
     --     _ -> S.ite (S.eq symkv (toSExpr1 tys kTy skv')) (f sel) rest
 
+
+semiExecArrayIndex :: SemiCtxt m => PathCondition ->
+                      GuardedSemiSExpr ->
+                      GuardedSemiSExpr ->
+                      SemiSolverM m GuardedSemiSExprs
+-- concrete spine, concrete index
+semiExecArrayIndex g arrv (VValue v)
+  | Just (vsm, svs) <- gseToList arrv
+  , Just ix <- V.valueToIntSize v =
+      let g' | Just lc <- vsmLoopCountVar vsm = PC.insertLoopCount lc (PC.LCCGt ix) g
+             | otherwise = g
+      in if length svs <= ix
+         then hoistMaybe Nothing
+         else hoistMaybe (refine g' (svs !! ix))
+
+-- Symbolic index, we assert it at concrete indices and get n results.    
+semiExecArrayIndex g arrv (VOther (Typed ty sIx))
+  | Just (vsm, svs) <- gseToList arrv =
+      let mkIxG ix =
+            PC.insertValue sIx (Typed ty (VPCPositive $ PNum (fromIntegral ix))) g
+            
+          mkG' | Just lc <- vsmLoopCountVar vsm =
+                   \ix -> PC.insertLoopCount lc (PC.LCCGt ix) (mkIxG ix)
+               | otherwise = mkIxG
+
+          mkV ix el = refine (mkG' ix) el
+               
+      in hoistMaybe (unions' (catMaybes (zipWith mkV [0..] svs)))
+
+semiExecArrayIndex _g _arrv _sv = panic "BUG: saw non-symbolic sequence" []
 
 semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
                GuardedSemiSExprs -> GuardedSemiSExprs -> GuardedSemiSExprs ->
@@ -999,7 +1080,7 @@ semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOpN (ArrayL _ty) _rty vs =
-  pure (singleton mempty (VSequence Nothing False vs))
+  pure (singleton mempty (VSequence emptyVSequenceMeta vs))
 semiExecOpN (CallF _fn) _rty _vs = panic "Impossible" []
 
 -- -- -----------------------------------------------------------------------------
@@ -1128,8 +1209,9 @@ ppMuxValue ppF ppA val =
     VStruct xs      -> block "{" "," "}" (map ppFld xs)
       where ppFld (x,t) = pp x <.> colon <+> ppF t
 
-    VSequence sid _ vs ->  block (maybe "" (parens . pp) sid <> "[") "," "]" (map ppF vs)
-
+    VSequence vsm vs ->  block (maybe "" (parens . pp) sid <> "[") "," "]" (map ppF vs)
+      where sid = vsmGeneratorTag vsm
+            
     VJust v   -> "Just" <+> ppF v
     VMap m -> block "{|" ", " "|}" [ ppF k <+> "->" <+> ppF v | (k,v) <- m ]
 

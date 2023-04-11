@@ -156,6 +156,11 @@ instance AbsEnvPointwise FLProj where
     mapLiftAbsEnv (Map.delete n)
                   (fst (exprToAbsEnv Whole e1) `merge` fst (exprToAbsEnv Whole e2))
 
+  absPredNonStructural Whole = False
+  absPredNonStructural (FieldProj _ m) = any absPredNonStructural m
+  absPredNonStructural (ListProj str m_el) =
+    str /= StructureDependent || maybe False absPredNonStructural m_el
+
 explodeFieldProj :: FLProj -> [ [Label] ]
 explodeFieldProj (FieldProj _ m) =
   [ l : ls | (l, fs') <- Map.toList m, ls <- explodeFieldProj fs' ]

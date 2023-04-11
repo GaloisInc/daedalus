@@ -3,7 +3,7 @@
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
+
  -- for dealing with TCDecl and existential k
 
 -- We walk through the each decl figuring out if it has things we
@@ -477,7 +477,8 @@ structureFromLoopBody m_pred env =
             -- note that enve can be empty but we can care about the
             -- accumulator.
             ++ [ StructureIsNull | not (absNullEnv env) ]
-
+            ++ [ StructureDependent | not (null (absNonStructural env)) ]
+  
 summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
@@ -720,8 +721,7 @@ summariseLoopCollection lc useStr env
     (env_no_lcvars, m_kp)
       = maybe (env_no_el, Nothing) (flip projectMaybe env_no_el) (lcKName lc)
 
-    str = maximum (useStr : [ StructureIsNull | not (absNullEnv env_no_lcvars) ])
-    
+    str = max useStr (structureFromLoopBody Nothing env_no_el)
     projectMaybe x env' = maybe (env', Nothing) (second Just) (absProj x env')
     ty = typeOf (lcCol lc)
       

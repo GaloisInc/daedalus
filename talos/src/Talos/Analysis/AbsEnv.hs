@@ -55,6 +55,10 @@ class (AbsEnvPred (AbsPred ae), Eqv ae, PP ae, Merge ae) => AbsEnv ae where
   absInverse     :: Name -> Expr -> Expr -> ae
   absEnvOverlaps :: ae -> ae -> Bool
   absSubstEnv    :: Map Name Name -> ae -> ae
+  -- | Returns all (if any) variables which contain list predicates
+  -- which are not structure-dependent.  Used to avoid annoying cases
+  -- with pooling (the "exists-forall" problem)
+  absNonStructural :: ae -> [Name]
   
 data AbsEnvTy = forall ae. AbsEnv ae => AbsEnvTy (Proxy ae) 
 
@@ -85,6 +89,7 @@ class (Eqv p, AbsEnvPred p, PP p, Merge p) => AbsEnvPointwise p where
   absPredPre     :: p -> Expr -> (LiftAbsEnv p, SLExpr)
   absPredByteSet :: p -> ByteSet -> LiftAbsEnv p
   absPredInverse :: Name -> Expr -> Expr -> LiftAbsEnv p
+  absPredNonStructural :: p -> Bool
 
 instance AbsEnvPointwise p => AbsEnv (LiftAbsEnv p) where
   type AbsPred (LiftAbsEnv p) = p
@@ -108,7 +113,10 @@ instance AbsEnvPointwise p => AbsEnv (LiftAbsEnv p) where
     where
       keyf k | Just k' <- Map.lookup k subst = k'
              | otherwise = panic "Missing key" [showPP k]
-
+  
+  absNonStructural (LiftAbsEnv m) =
+    [ k | (k, v) <- Map.toList m, absPredNonStructural v ]
+    
 instance PP p => PP (LiftAbsEnv p) where
   pp (LiftAbsEnv m) = brackets (commaSep (map go (Map.toList m)))
     where

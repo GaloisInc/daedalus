@@ -22,6 +22,7 @@ import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
 import Data.List (transpose)
 import qualified Data.Map as Map
+import Data.Function (on)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -40,12 +41,39 @@ import qualified Data.Map as Map
 --
 -- where we don't fill in the Hole until the Many is filled in.
 
-data SelectedManyF ch ca a = SelectedManyF
+data SelectedPathF ch ca lp a = 
+    SelectedHole
+    -- | Placeholder for cursors, shouldn't really appear when we see
+    -- the grammar node.
+  | SelectedNode (SelectedPathF ch ca lp a)
+  | SelectedBytes ProvenanceTag a
+  --  | Fail ErrorSource Type (Maybe Expr)
+  | SelectedDo (SelectedPathF ch ca lp a) (SelectedPathF ch ca lp a)
+  | SelectedChoice (ch (SelectedPathF ch ca lp a))
+  | SelectedCall FInstId (SelectedPathF ch ca lp a)
+  | SelectedCase (ca (SelectedPathF ch ca lp a))
+  | SelectedLoop (lp (SelectedPathF ch ca lp a))
+  deriving (Functor, Foldable, Traversable, Generic)
+
+data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+type SelectedPath = SelectedPathF PathIndex Identity SelectedLoopF ByteString 
+
+deriving instance NFData SelectedPath
+
+-- -----------------------------------------------------------------------------
+-- Loops
+
+type SelectedLoopPool = SelectedLoopPoolF SelectedPath
+deriving instance NFData SelectedLoopPool
+
+data SelectedLoopPoolF a = SelectedLoopPoolF
   {
     -- | The possible paths in a Many, one list entry per Many
     -- iteration.  The second element is the following grammar nodes
     -- that depend on the Many.
-    smPaths   :: [ (SelectedPathF ch ca a, [SelectedPathF ch ca a]) ]
+    smPaths   :: [ (a, [a]) ]
     -- | The cursors for the subsequent nodes, depth is for Do nodes
     -- only, and we have on entry here for each element in the second
     -- entry of smPaths.
@@ -53,36 +81,20 @@ data SelectedManyF ch ca a = SelectedManyF
   }
   deriving (Functor, Foldable, Traversable, Generic)
 
-data SelectedPathF ch ca a = 
-    SelectedHole
-    -- | Placeholder for cursors, shouldn't really appear when we see
-    -- the grammar node.
-  | SelectedNode (SelectedPathF ch ca a)
-  | SelectedBytes ProvenanceTag a
-  --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo (SelectedPathF ch ca a) (SelectedPathF ch ca a)
-  | SelectedChoice (ch (SelectedPathF ch ca a))
-  | SelectedCall FInstId (SelectedPathF ch ca a)
-  | SelectedCase (ca (SelectedPathF ch ca a))
+type SelectedLoop = SelectedLoopF SelectedPath
+deriving instance NFData SelectedLoop
+
+data SelectedLoopF a =
   -- | For Many nodes, we have one element for each merged node (i.e.,
   -- slice) --- merging two of these nodes just appends the lists.
   -- The first argument is the (possible) size of the generated list,
   -- if it is known, the second argument can be any size (i.e. we
   -- should pick a random number until we get the count we want).
-  | SelectedMany (Maybe [SelectedPathF ch ca a]) [SelectedManyF ch ca a]
-  | SelectedLoop (Map Int (SelectedPathF ch ca a))
+    SelectedLoopPool     (Maybe [a]) [SelectedLoopPoolF a]
+  | SelectedLoopElements (Map Int a)
   -- ^ Elements of a sequence based upon another sequence.  The Ints
   -- are the indicies.
   deriving (Functor, Foldable, Traversable, Generic)
-
-data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
-  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
-
-type SelectedPath = SelectedPathF PathIndex Identity ByteString
-type SelectedMany = SelectedManyF PathIndex Identity ByteString
-
-deriving instance NFData SelectedPath
-deriving instance NFData SelectedMany
 
 -- -----------------------------------------------------------------------------
 -- Cursors
@@ -107,12 +119,12 @@ fillCursorTarget :: PathCursor -> [SelectedPath] -> SelectedPath
 fillCursorTarget pc els = go pc
   where
     -- This is a bit gross?
-    go [] = SelectedLoop (Map.fromList $ zip [0..] els)
+    go [] = SelectedLoop (SelectedLoopElements (Map.fromList $ zip [0..] els))
     go (el : rest) =
       case el of
         PCDoLeft     -> SelectedDo (go rest) SelectedHole
         PCDoRight    -> SelectedDo SelectedHole (go rest)
-        PCSequence i -> SelectedLoop (Map.singleton i (go rest))
+        PCSequence i -> SelectedLoop (SelectedLoopElements (Map.singleton i (go rest)))
         PCNode       -> SelectedNode (go rest)
 
 relitiviseCursors :: PathCursor -> PathCursor -> (Int, PathCursor)
@@ -128,7 +140,7 @@ relitiviseCursors gen use = (length (filter isContextPC gen'), use')
 -- -----------------------------------------------------------------------------
 -- SelectedMany
 
-fillManyTargets :: SelectedMany -> Map Int SelectedPath
+fillManyTargets :: SelectedLoopPool -> Map Int SelectedPath
 fillManyTargets sm = Map.fromListWith merge els
   where
     els = [ (depth, fillCursorTarget pc sps)
@@ -138,7 +150,7 @@ fillManyTargets sm = Map.fromListWith merge els
     
 -- | This handles the lazy merge of Many elements.  This allows
 -- decoupling e.g. the count of elements from the synthesis of the elements. 
-selectedMany :: [SelectedMany] -> ([SelectedPath], Map Int SelectedPath)
+selectedMany :: [SelectedLoopPool] -> ([SelectedPath], Map Int SelectedPath)
 selectedMany ms
   | not (same (map (length . smPaths) ms)) = panic "BUG: selectedMany needs to agree on count" []
   | otherwise = (mps, tgts)
@@ -178,7 +190,7 @@ applyManyTargets tgts = go 0 (Map.toList tgts)
               (PCEDoRHS p', _) -> PCEDoRHS $ merge p p'
               -- ... while here we need to inspect the path to update
               -- the right elements
-              (PCELoopBody i ps, SelectedLoop m) ->
+              (PCELoopBody i ps, SelectedLoop (SelectedLoopElements m)) ->
                 PCELoopBody i $ goLoop i m ps
               _ -> panic "BUG: mismatched context/path" []
         in newFrame : go (here + 1) rest stack
@@ -265,8 +277,20 @@ firstSolverProvenance = 2
 --------------------------------------------------------------------------------
 -- Instances
 
+instance Merge a => Merge (SelectedLoopF a) where
+  merge lp lp' =
+    case (lp, lp') of
+      (SelectedLoopPool m_selection pool, SelectedLoopPool m_selection' pool')
+        | Just False <- ((==) `on` length) <$> m_selection <*> m_selection' -> 
+          panic "BUG: mismatched SelectedLoopPool lengths" []
+        | otherwise ->
+          SelectedLoopPool (merge m_selection m_selection') (pool ++ pool')
+      (SelectedLoopElements els, SelectedLoopElements els') ->
+        SelectedLoopElements (Map.unionWith merge els els')
+      _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
+      
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex Identity a) where
+instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -280,17 +304,13 @@ instance Merge (SelectedPathF PathIndex Identity a) where
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
-      (SelectedMany m_structural pool, SelectedMany m_structural' pool')
-        | Just structural <- m_structural, Just structural' <- m_structural',
-          length structural /= length structural' ->
-          panic "BUG: mismatched Many lengths" []
-        | otherwise -> SelectedMany (merge m_structural m_structural') (pool ++ pool')
-      (SelectedLoop els, SelectedLoop els') -> SelectedLoop (Map.unionWith merge els els')
+      (SelectedLoop lp, SelectedLoop lp') -> SelectedLoop (merge lp lp')
       _ -> panic "BUG: merging non-mergeable nodes" []
 
 instance ( Functor ch, PP (ch Doc)
          , Functor ca, PP (ca Doc)
-         , PP a) => PP ( SelectedPathF ch ca a ) where
+         , Functor lp, PP (lp Doc)
+         , PP a) => PP ( SelectedPathF ch ca lp a ) where
   ppPrec n p = 
     case p of
       SelectedHole       -> "□"
@@ -301,14 +321,21 @@ instance ( Functor ch, PP (ch Doc)
           wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
       SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
-      SelectedMany _m_structural _els -> "SelectedMany" -- FIXME
-      SelectedLoop els -> brackets (sep (punctuate ", " (map ppEl (Map.toList els))))
+      SelectedLoop l -> pp (pp <$> l)
+
+instance PP a => PP (SelectedLoopF a) where
+  pp l =
+    case l of
+      SelectedLoopPool _m_structural _els -> "SelectedLoopPool" -- FIXME
+      SelectedLoopElements els ->
+        brackets (sep (punctuate ", " (map ppEl (Map.toList els))))
         where
           ppEl (i, el) = pp i <> ": " <> pp el
-
+  
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)
-            , PP a) => SelectedPathF ch ca a -> Doc
+            , Functor lp, PP (lp Doc)
+            , PP a) => SelectedPathF ch ca lp a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2

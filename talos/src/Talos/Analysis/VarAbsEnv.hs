@@ -41,7 +41,7 @@ instance AbsEnvPred Whole where
   absPredListElement _ = Just Whole
   absPredCollection _ StructureIndependent Nothing Nothing = Nothing
   absPredCollection _ _                  _       _       = Just Whole
-  
+ 
 newtype VarAbsEnv = VarAbsEnv (LiftAbsEnv Whole)
   deriving (Eqv, PP, Merge, AbsEnv)
 
@@ -54,6 +54,8 @@ instance AbsEnvPointwise Whole where
   absPredInverse n e1 e2 =
     LiftAbsEnv $ Map.delete n $
       Map.union (freeToAbsEnv e1) (freeToAbsEnv e2)
+  absPredNonStructural _ = False
+  
 
 instance PP Whole where
   pp _ = "Whole"

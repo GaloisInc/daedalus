@@ -38,7 +38,7 @@ import           Talos.Strategy.Monad
 import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
                                                runSemiSolverM, SequenceTag)
 import qualified Talos.Strategy.MuxValue      as MV
-import           Talos.Strategy.PathCondition (PathVar (..), PathCondition)
+import           Talos.Strategy.PathCondition (PathVar (..), PathCondition, LoopCountVar(..))
 import qualified Talos.SymExec.Expr           as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
@@ -102,7 +102,14 @@ data PathCaseBuilder a   =
   | ConcreteCase                   a
   deriving (Functor)
 
-type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
+-- | When we see a loop while parsing a model we either suspend the
+-- loop (for pooling) and just record the loop's tag, or we have
+-- elements we just inline (for non-pooling loops).
+data PathLoopBuilder a =
+  PathLoopPool SymbolicLoopTag
+  | PathLoopElements (Maybe LoopCountVar) [a]
+  
+type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0
@@ -141,16 +148,21 @@ data SLMPerValue = SLMPerValue
   
 data SymbolicLoopModel = SymbolicLoopModel
   { slmModels :: [ SLMPerValue ]
+  -- ^ One of there per guarded value (i.e., per path to the list).
   , slmGuard  :: [SMT.SExpr]
-  , slmCursor :: PathCursor
+  , slmRevCursor :: PathCursor
   -- ^ Cursor to this loop, reversed.
+  , slmLoopCountVar :: Maybe LoopCountVar
+  -- ^ The smt variable representing the no. of iterations inside the
+  -- solver.  Only really relevent for 'StructureIsNull' and 'StructureDependent'
   } deriving Generic
 
-makeSymbolicLoopModel :: [SLMPerValue] -> [SMT.SExpr] -> SymbolicLoopModel
-makeSymbolicLoopModel ms g = SymbolicLoopModel
+makeSymbolicLoopModel :: [SLMPerValue] -> [SMT.SExpr] -> Maybe LoopCountVar -> SymbolicLoopModel
+makeSymbolicLoopModel ms g v = SymbolicLoopModel
   { slmModels = ms
   , slmGuard = g
-  , slmCursor = []
+  , slmRevCursor = []
+  , slmLoopCountVar = v
   }
 
 -- We should only ever combine disjoint sets, so we cheat here
@@ -202,12 +214,23 @@ getName n = SymbolicM $ do
 pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
+-- This allows the var to be used for the length.
+loopCountVarSort :: SExpr
+loopCountVarSort = S.tBits 64
+
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
   assertSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
                         (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
   pure (PathVar sym)
+
+freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
+freshLoopCountVar lb ub = do
+  sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
+  assertSExpr $ SMT.and (SMT.leq (SMT.int (fromIntegral lb)) (SMT.const sym))
+                        (SMT.lt (SMT.const sym) (SMT.int (fromIntegral ub)))
+  pure (LoopCountVar sym)
 
 freshSymbolicCaseTag :: SymbolicM SymbolicCaseTag
 freshSymbolicCaseTag = liftStrategy getNextGUID
@@ -239,7 +262,7 @@ recordLoop stag slm =
   tell (SymbolicModel mempty mempty mempty (Map.singleton stag slm))
 
 extendPathCursor :: PathCursorElement -> SymbolicModel -> SymbolicModel
-extendPathCursor pc = over (field @"smLoops" . mapped .field @"slmCursor") (pc :)
+extendPathCursor pc = over (field @"smLoops" . mapped .field @"slmRevCursor") (pc :)
 
 extendPathCursorM :: PathCursorElement -> SymbolicM a -> SymbolicM a
 extendPathCursorM pc = censor (extendPathCursor pc) 

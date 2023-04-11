@@ -374,7 +374,7 @@ synthesiseLoopBounds lv m_uv = do
 
 -- | Given a collection of Many elments and a target count, this
 -- function selects that many from the given SelectedMany
-selectLoopElements :: Int -> SelectedMany -> SynthesisM SelectedMany
+selectLoopElements :: Int -> SelectedLoopPool -> SynthesisM SelectedLoopPool
 selectLoopElements count sm = do
   let paths  = smPaths sm
       nPaths = length paths
@@ -502,7 +502,7 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
 -- FIXME: sem
-synthesiseG (SelectedMany m_structural ms) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
+synthesiseG (SelectedLoop (SelectedLoopPool m_structural ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
   count <- maybe (synthesiseLoopBounds lv m_uv) (pure . length) m_structural
@@ -517,12 +517,12 @@ synthesiseG (SelectedMany m_structural ms) (Loop (ManyLoop _sem _bt lb m_ub g)) 
   -- next we synthesise the elements of the Many, using the selected paths.
   vArray <$> mapM (flip synthesiseG g) allPaths
 
-synthesiseG (SelectedLoop ps) (Loop (RepeatLoop _bt n e g)) = do
+synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e
   let go v p = bindIn n v (synthesiseG p g)
   foldlM go initV ps
 
-synthesiseG (SelectedLoop ps) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism (Just ps) lm
+synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism (Just ps) lm
   
 synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose randomly
   case g of

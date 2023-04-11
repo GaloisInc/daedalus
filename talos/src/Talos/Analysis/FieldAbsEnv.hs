@@ -78,6 +78,7 @@ instance AbsEnvPointwise FieldProj where
   absPredInverse n e1 e2 =
     mapLiftAbsEnv (Map.delete n)
                   (fst (exprToAbsEnv Whole e1) `merge` fst (exprToAbsEnv Whole e2))
+  absPredNonStructural _ = False
 
 explodeFieldProj :: FieldProj -> [ [Label] ]
 explodeFieldProj Whole = [ [] ]
