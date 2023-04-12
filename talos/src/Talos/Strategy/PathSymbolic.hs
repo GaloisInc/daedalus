@@ -13,13 +13,13 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
 import           Control.Lens                 (_1, _2, at, each, over, (%=),
-                                               (%~), (&), (+~), (.=), (.~), Lens', use, (?=))
+                                               (%~), (&), (+~), (.~), Lens', use, (?=))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass, censor)
 import           Data.Bifunctor               (second)
 import qualified Data.ByteString              as BS
-import           Data.Foldable                (find)
+import           Data.Foldable                (find, traverse_)
 import           Data.Functor.Identity        (Identity (Identity))
 import           Data.Generics.Product        (field)
 import           Data.List.NonEmpty           (NonEmpty)
@@ -41,7 +41,6 @@ import           Daedalus.Core.Free           (freeVars)
 import qualified Daedalus.Core.Semantics.Env  as I
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.Core.Type
-import           Daedalus.GUID                (getNextGUID)
 import           Daedalus.PP                  (Doc, brackets, commaSep, pp,
                                                showPP, text)
 import           Daedalus.Panic
@@ -53,15 +52,17 @@ import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
                                                SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
-import           Talos.Strategy.MuxValue      (GuardedSemiSExpr,
-                                               GuardedSemiSExprs, MuxValue (..),
-                                               ValueMatchResult (..), vUnit)
+import           Talos.Strategy.MuxValue      (GuardedSemiSExpr
+                                               ,GuardedSemiSExprs, MuxValue (..)
+                                               , ValueMatchResult (..)
+                                              , VSequenceMeta(..)
+                                              , vUnit)
 import qualified Talos.Strategy.MuxValue      as MV
 import           Talos.Strategy.OptParser     (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser     as P
-import           Talos.Strategy.PathCondition (PathCondition,
-                                               PathConditionCaseInfo, PathVar,
-                                               pathVarToSExpr, loopCountVarToSExpr, LoopCountVar)
+import           Talos.Strategy.PathCondition (PathCondition
+                                               , PathVar
+                                               , pathVarToSExpr, LoopCountVar, ValuePathConstraint)
 import qualified Talos.Strategy.PathCondition as PC
 import           Talos.Strategy.PathSymbolicM
 import qualified Talos.SymExec.Expr           as SE
@@ -75,6 +76,7 @@ import           Talos.SymExec.SolverT        (SMTVar, SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
+import Data.Functor (($>))
 
 
 -- ----------------------------------------------------------------------------------------
@@ -101,15 +103,20 @@ pathSymbolicStrat = Strategy
 -- ----------------------------------------------------------------------------------------
 -- Configuration
 
-data Config = Config { cMaxRecDepth :: Int
-                     , cNModels :: Int
-                     , cMaxUnsat :: Maybe Int
-                     , cNLoopElements :: Int
-                     }
-  deriving (Generic)
+data Config = Config
+  { cMaxRecDepth :: Int
+  , cNModels :: Int
+  , cMaxUnsat :: Maybe Int
+  , cNLoopElements :: Int
+  } deriving (Generic)
 
 defaultConfig :: Config
-defaultConfig = Config 10 1 Nothing 10
+defaultConfig = Config
+  { cMaxRecDepth = 10
+  , cNModels = 1
+  , cMaxUnsat = Nothing
+  , cNLoopElements = 10
+  } 
 
 configOpts :: [Opt Config]
 configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
@@ -186,11 +193,10 @@ stratSlice = go
           mk <$> synthesiseExpr e
 
         SDo x lsl rsl -> do
-          let goL = extendPathCursorM PCDoLeft (go lsl)
+          let goL = go lsl
           
               goR :: PathBuilder -> SymbolicM Result
-              goR lpath = over _2 (SelectedDo lpath) <$>
-                          extendPathCursorM PCDoRight (go rsl)
+              goR lpath = over _2 (SelectedDo lpath) <$> go rsl
                           
           bindNameIn x goL goR
 
@@ -291,23 +297,28 @@ stratLoop lc =
   case lc of
     SLoopPool sem b -> do
       ltag <- freshSymbolicLoopTag
-      -- PCNode would also work, but this is a little less confusing.
-      (v, m) <- extendPathCursorM (PCSequence 0) $ stratSlice b
-      let xs = VSequence (Just ltag) False [v]
-          slv = SLMPerValue
-            { slmpCollectionTag = Nothing -- no collection
-            , slmpGuard         = [] -- No values we rely on
-            , slmpPathBuilder   = [m] -- Single element
-            }
+      let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
+                              , vsmLoopCountVar = Nothing
+                              , vsmMinLength    = 1 -- FIXME: shouldn't matter?
+                              , vsmIsBuilder    = False
+                              }
+                
+      -- No need to constrain the processing of the body.
+      (v, m) <- stratSlice b
+      
+      let xs = VSequence vsm [v]
           v' = case sem of
                  SemNo  -> vUnit
                  SemYes -> MV.singleton mempty xs
-      recordLoop ltag (makeSymbolicLoopModel [slv] [] Nothing)
-      pure (v', SelectedLoop (PathLoopPool ltag)) -- We will update later with the contents
+
+          node = PathLoopPool ltag Nothing [(mempty, MV.emptyVSequenceMeta, m)]
+          
+      pure (v', SelectedLoop node)
 
     -- Should be SLoopPool
     SManyLoop StructureIndependent _lb _m_ub _b ->
       panic "BUG: saw SManyLoop StructureIndependent" []
+      
     SManyLoop StructureIsNull lb m_ub b -> do
       ltag <- freshSymbolicLoopTag
       -- Here we can assert that the list is empty or non-empty (i.e.,
@@ -316,47 +327,70 @@ stratLoop lc =
       -- whether it is null/non-null
       lv <- freshLoopCountVar 0 1
       
-      let nullCase = pass $ do            
-            let g = PC.insertLoopCount lv 0 mempty
-                pathGuard = PC.toSExpr g
-                -- We don't use the tag as there is no need to gather
-                -- later.
-                v = VSequence Nothing False []
-            pure (MV.singleton g v, extendPath pathGuard)
+      -- Bounds check: the null case is only allowed if lb is 0, the non-null case if m_ub /= 0      
+      let slv = PC.loopCountVarToSExpr lv
+          s0  = S.bvHex 64 0
+          s1  = S.bvHex 64 0
+          
+      mkBound (\slb -> S.eq slv s0 `S.implies` S.eq slb s0) lb
+      traverse_ (mkBound (\sub -> S.eq slv s1 `S.implies` S.not (S.eq sub s0))) m_ub
 
-          nonNullCase = pass $ do
-            -- PCNode would also work, but this is a little less confusing.
-            (v, m) <- extendPathCursorM (PCSequence 0) $ stratSlice b
-            let v' = VSequence (Just ltag) False [v]
-                slv = SLMPerValue
-                  { slmpCollectionTag = Nothing -- no collection
-                  , slmpGuard         = [] -- No values we rely on
-                  , slmpPathBuilder   = [m] -- Single element
-                  }
-            
-                g = PC.insertLoopCount lv 1 mempty
-                pathGuard = PC.toSExpr g
-                -- We don't use the tag as there is no need to gather
-                -- later.
+      -- Construct return value
+      let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
+                              , vsmLoopCountVar = Just lv
+                              , vsmMinLength    = 0
+                              , vsmIsBuilder    = False
+                              }
 
-            pure (MV.singleton g v', extendPath pathGuard)
+          pathGuard = PC.toSExpr (PC.insertLoopCount lv (PC.LCCEq 1) mempty)
 
-      vs <- sequence [nullCase, nonNullCase]
-      -- FIXME: vs should never be empty.
-      v <- hoistMaybe (MV.unions' vs)
-      
-      
-      -- recordLoop ltag (makeSymbolicLoopModel [v] [] Nothing)
-      pure (v, SelectedLoop (PathLoopPool ltag)) -- We will update later with the contents
-      undefined
+      -- We must be careful to only constrain lv when we are doing
+      -- something.
+      (elv, m) <- censor (extendPath pathGuard) (stratSlice b)
+     
+      let v    = VSequence vsm [elv]
+          node = PathLoopPool ltag (Just lv) [(mempty, MV.emptyVSequenceMeta, m)]
+          
+      pure (MV.singleton mempty v, SelectedLoop node)
       
     SManyLoop StructureDependent lb m_ub b -> do
-      ltag <- freshSymbolicLoopTag      
-      undefined
+      -- How many times to unroll the loop
+      nloops <- asks sNLoopElements
+      -- FIXME: this is a bit blunt/incomplete
+      lv <- freshLoopCountVar 0 nloops
+      
+      manyBoundsCheck (PC.loopCountVarToSExpr lv) lb m_ub
+      
+      -- Construct result  
+      let pathGuard i = PC.toSExpr (PC.insertLoopCount lv (PC.LCCGt i) mempty)
+          -- FIXME: we could name the results of this and use a SMT
+          -- function to avoid retraversing multiple times.
+          doOne i = censor (extendPath (pathGuard i)) (stratSlice b)
 
+      (els, ms) <- unzip <$> mapM doOne [0 .. nloops - 1]
+      
+      let vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
+                              , vsmLoopCountVar = Just lv
+                              , vsmMinLength    = 0
+                              , vsmIsBuilder    = False
+                              }
+          v = VSequence vsm els
+      pure (MV.singleton mempty v, SelectedLoop (PathLoopElements (Just lv) ms))
       
     SRepeatLoop str n e b -> undefined
     SMorphismLoop lm -> undefined
+
+  where
+    manyBoundsCheck slv lb m_ub = do
+      -- Assert bounds
+      mkBound (`S.bvULeq` slv) lb
+      traverse_ (mkBound (slv `S.bvULeq`)) m_ub
+
+    mkBound f bnd = do
+      ienv <- getIEnv      
+      sb <- MV.toSExpr (I.tEnv ienv) sizeType <$> synthesiseExpr bnd
+      assertSExpr (f sb)
+  
 
 -- We represent disjunction by having multiple values; in this case,
 -- if we have matching values for the case alternative v1, v2, v3,
@@ -457,8 +491,7 @@ stratCallNode cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
   over _2 (SelectedCall (ecnIdx cn))
-    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn)
-          (extendPathCursorM PCNode (stratSlice sl))
+    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice sl)
 
 -- -----------------------------------------------------------------------------
 -- Merging values
@@ -692,14 +725,14 @@ data ModelParserState = ModelParserState
 getByteVar :: SMTVar -> ModelParserM Word8
 getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
-getModelVar :: Lens' ModelState (Map a b) ->
+getModelVar :: Ord a => Lens' ModelState (Map a b) ->
                (a -> S.SExpr) ->
                ModelP b ->
                (a -> b -> MultiModelState -> MultiModelState) ->
                a ->
                ModelParserM b
 getModelVar msLens toSExpr pVal updateStats pv = do
-  m_i <- use (field @"mpsContext" . msLens . at pv)   
+  m_i <- use (field @"mpsContext" . msLens . at pv)
   case m_i of
     Just i -> pure i
     Nothing -> do
@@ -754,7 +787,7 @@ type ModelParserM a = StateT ModelParserState (SolverT StrategyM) a
 
 runModelParserM :: MultiModelState -> ModelParserM a -> SolverT StrategyM (a, MultiModelState)
 runModelParserM mms mp =
-  (_2 %~ mpsMMS) <$> runStateT mp (ModelParserState mempty mempty mms)
+  (_2 %~ mpsMMS) <$> runStateT mp (ModelParserState mempty mempty mms ())
 
 data MMSCaseInfo = MMSCaseInfo
   { -- Read only
@@ -922,7 +955,7 @@ buildPath mms0 = runModelParserM mms . go
       ps <- mapM go (take len els)
       pure (SelectedLoopElements (Map.fromList (zip [0..] ps)))
 
-    buildLoop (PathLoopPool tag) = undefined
+    buildLoop (PathLoopPool {}) = undefined
 
     buildPathChoice :: PathChoiceBuilder PathBuilder ->
                        ModelParserM (PathIndex SelectedPath)
@@ -998,13 +1031,12 @@ pathConditionModel (PC.FeasibleMaybe pci) = do
   choiceb <- andM [ (==) i <$> getPathVar pv
                   | (pv, i) <- Map.toList (PC.pcChoices pci) ]
   if choiceb
-    then andM [ pcciModel x vgci
-              | (x, vgci) <- Map.toList (PC.pcCases pci) ]
+    then andM (map vpcModel (Map.toList (PC.pcValues pci)))
     else pure False
   where
-    pcciModel :: SMTVar -> PathConditionCaseInfo -> ModelParserM Bool
-    pcciModel x vgci =
-      PC.pcciSatisfied vgci <$> getValueVar (Typed (PC.pcciType vgci) x)
+    vpcModel :: (SMTVar, Typed ValuePathConstraint) -> ModelParserM Bool
+    vpcModel (x, vpcT) =
+      PC.vpcSatisfied vpcT <$> getValueVar (vpcT $> x)
 
 gseModel :: GuardedSemiSExpr -> ModelParserM (Maybe I.Value)
 gseModel gse =
@@ -1017,10 +1049,11 @@ gseModel gse =
       m_gsess <- sequence <$> mapM gsesModel gsess
       pure (I.VStruct . zip ls <$> m_gsess)
 
-    VSequence _ True gsess ->
-      fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
-    VSequence _ False gsess ->
-      fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
+    VSequence vsm gsess
+      | vsmIsBuilder vsm ->
+        fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
+      | otherwise -> 
+        fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
 
     VJust gses -> fmap (I.VMaybe . Just) <$> gsesModel gses
     VMap els -> do

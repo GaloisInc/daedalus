@@ -24,7 +24,7 @@ import qualified SimpleSMT                    as SMT
 -- FIXME: use .CPS
 -- FIXME: use .CPS
 import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
-                                               tell, censor)
+                                               tell)
 import           Data.Set                     (Set)
 
 import           Daedalus.Core                (Expr, Name, Pattern, typedThing)
@@ -106,7 +106,12 @@ data PathCaseBuilder a   =
 -- loop (for pooling) and just record the loop's tag, or we have
 -- elements we just inline (for non-pooling loops).
 data PathLoopBuilder a =
-  PathLoopPool SymbolicLoopTag
+  -- | A pool of elements.  The list is all the possible collections
+  -- that reach this node (for Many, it will be a singleton so we
+  -- don't need another node type).  The 'LoopCountVar' tells us
+  -- whether the loop is empty or not.
+  PathLoopPool SymbolicLoopTag (Maybe LoopCountVar) [ (PathCondition, MV.VSequenceMeta, a) ]
+  -- | A fixed set of loop elements, potentially with a dynamic length.  
   | PathLoopElements (Maybe LoopCountVar) [a]
   
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
@@ -130,40 +135,7 @@ data SymbolicModel = SymbolicModel
                                      , [SMT.SExpr] -- Symbolic path (all true to be enabled)
                                      , [(NonEmpty PathCondition, Pattern)] -- Pattern guards
                                      )
-  , smLoops   :: Map SymbolicLoopTag SymbolicLoopModel
   } deriving Generic
-
-data SLMPerValue = SLMPerValue
-  { slmpCollectionTag :: Maybe SymbolicLoopTag
-  -- ^ The loop the collection this loop depends on; the same id may
-  -- appear multiple times, if encountered on multiple paths.
-  , slmpGuard :: [SMT.SExpr]
-  -- ^ The guard for this value.  Note that this misses any shared
-  -- path prefix for this loop (i.e., we don't extend this in
-  -- 'extendPath') as we assert this loop is reachable, so any shared
-  -- path will be asserted.
-  , slmpPathBuilder :: [ PathBuilder ]
-  -- ^ The paths corresponding to the elements of the list.
-  } deriving Generic
-  
-data SymbolicLoopModel = SymbolicLoopModel
-  { slmModels :: [ SLMPerValue ]
-  -- ^ One of there per guarded value (i.e., per path to the list).
-  , slmGuard  :: [SMT.SExpr]
-  , slmRevCursor :: PathCursor
-  -- ^ Cursor to this loop, reversed.
-  , slmLoopCountVar :: Maybe LoopCountVar
-  -- ^ The smt variable representing the no. of iterations inside the
-  -- solver.  Only really relevent for 'StructureIsNull' and 'StructureDependent'
-  } deriving Generic
-
-makeSymbolicLoopModel :: [SLMPerValue] -> [SMT.SExpr] -> Maybe LoopCountVar -> SymbolicLoopModel
-makeSymbolicLoopModel ms g v = SymbolicLoopModel
-  { slmModels = ms
-  , slmGuard = g
-  , slmRevCursor = []
-  , slmLoopCountVar = v
-  }
 
 -- We should only ever combine disjoint sets, so we cheat here
 instance Semigroup SymbolicModel where
@@ -171,10 +143,9 @@ instance Semigroup SymbolicModel where
     (smAsserts sm1 <> smAsserts sm2)
     (smChoices sm1 <> smChoices sm2)
     (smCases   sm1 <> smCases   sm2)
-    (smLoops   sm1 <> smLoops   sm2)
 
 instance Monoid SymbolicModel where
-  mempty = SymbolicModel mempty mempty mempty mempty
+  mempty = SymbolicModel mempty mempty mempty 
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -215,8 +186,8 @@ pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
 -- This allows the var to be used for the length.
-loopCountVarSort :: SExpr
-loopCountVarSort = S.tBits 64
+loopCountVarSort :: SMT.SExpr
+loopCountVarSort = SMT.tBits 64
 
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
@@ -242,36 +213,21 @@ freshSymbolicLoopTag = liftStrategy getNextGUID
 -- Assertions
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr p = tell (SymbolicModel [p] mempty mempty mempty)
-  -- pe <- asks (valueGuardToSExpr . sPath)
-  -- inSolver (Solv.assert (SMT.implies pe p))
+assertSExpr p = tell (mempty { smAsserts = [p] })
 
 recordChoice :: PathVar -> [Int] -> SymbolicM ()
 recordChoice pv ixs =
-  tell (SymbolicModel mempty (Map.singleton pv (mempty, ixs)) mempty mempty)
+  tell (mempty { smChoices = Map.singleton pv (mempty, ixs) })
 
 recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
 -- If we have a _single_ rhs then we ignore the case (this happens with predicates)
 recordCase _stag _n [_rhs] = pure ()
 recordCase stag n rhss =
-  tell (SymbolicModel mempty mempty (Map.singleton stag (n, mempty, rhss)) mempty)
-
-recordLoop :: SymbolicLoopTag -> SymbolicLoopModel -> SymbolicM ()
--- If we have a _single_ rhs then we ignore the case (this happens with predicates)
-recordLoop stag slm =
-  tell (SymbolicModel mempty mempty mempty (Map.singleton stag slm))
-
-extendPathCursor :: PathCursorElement -> SymbolicModel -> SymbolicModel
-extendPathCursor pc = over (field @"smLoops" . mapped .field @"slmRevCursor") (pc :)
-
-extendPathCursorM :: PathCursorElement -> SymbolicM a -> SymbolicM a
-extendPathCursorM pc = censor (extendPathCursor pc) 
+  tell (mempty { smCases = Map.singleton stag (n, mempty, rhss) })
 
 -- Used for case/choice slice alternatives
 extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
-extendPath g = extendPathCursor PCNode -- We could fold this into addGuard, but this is cleaner
-               . addGuard
-               . addImpl
+extendPath g = addGuard . addImpl
   where
     addImpl sm
       | []      <- smAsserts sm = sm
@@ -282,7 +238,6 @@ extendPath g = extendPathCursor PCNode -- We could fold this into addGuard, but 
     addGuard = 
       over (field @"smChoices" . mapped . _1) (g :)
       . over (field @"smCases" . mapped . _2) (g :)
-      . over (field @"smLoops" . mapped . field @"slmGuard") (g :)
 
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do
