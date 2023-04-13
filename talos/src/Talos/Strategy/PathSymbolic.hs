@@ -13,7 +13,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
 import           Control.Lens                 (_1, _2, at, each, over, (%=),
-                                               (%~), (&), (+~), (.~), Lens', use, (?=))
+                                               (%~), (&), (+~), (.~), Lens', use, (?=), (<>=), (<<.=), uses, (.=))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer         (pass, censor)
@@ -22,11 +22,11 @@ import qualified Data.ByteString              as BS
 import           Data.Foldable                (find, traverse_)
 import           Data.Functor.Identity        (Identity (Identity))
 import           Data.Generics.Product        (field)
-import           Data.List.NonEmpty           (NonEmpty)
+import           Data.List.NonEmpty           (NonEmpty( (:|) ))
 import qualified Data.List.NonEmpty           as NE
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
-import           Data.Maybe                   (catMaybes, mapMaybe)
+import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import qualified Data.Vector                  as Vector
@@ -56,7 +56,7 @@ import           Talos.Strategy.MuxValue      (GuardedSemiSExpr
                                                ,GuardedSemiSExprs, MuxValue (..)
                                                , ValueMatchResult (..)
                                               , VSequenceMeta(..)
-                                              , vUnit)
+                                              , vUnit, vUInt)
 import qualified Talos.Strategy.MuxValue      as MV
 import           Talos.Strategy.OptParser     (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser     as P
@@ -293,8 +293,8 @@ stratChoice sls _ = do
 
 stratLoop :: SLoopClass Expr ExpSlice ->
              SymbolicM Result
-stratLoop lc =
-  case lc of
+stratLoop lclass =
+  case lclass of
     SLoopPool sem b -> do
       ltag <- freshSymbolicLoopTag
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
@@ -311,8 +311,8 @@ stratLoop lc =
                  SemNo  -> vUnit
                  SemYes -> MV.singleton mempty xs
 
-          node = PathLoopPool ltag Nothing [(mempty, MV.emptyVSequenceMeta, m)]
-          
+          node = PathLoopGenerator ltag Nothing m
+                 
       pure (v', SelectedLoop node)
 
     -- Should be SLoopPool
@@ -332,8 +332,8 @@ stratLoop lc =
           s0  = S.bvHex 64 0
           s1  = S.bvHex 64 0
           
-      mkBound (\slb -> S.eq slv s0 `S.implies` S.eq slb s0) lb
-      traverse_ (mkBound (\sub -> S.eq slv s1 `S.implies` S.not (S.eq sub s0))) m_ub
+      mkBound (\slb -> S.eq slv s0 `sImplies` S.eq slb s0) lb
+      traverse_ (mkBound (\s_ub -> S.eq slv s1 `sImplies` S.not (S.eq s_ub s0))) m_ub
 
       -- Construct return value
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
@@ -349,7 +349,7 @@ stratLoop lc =
       (elv, m) <- censor (extendPath pathGuard) (stratSlice b)
      
       let v    = VSequence vsm [elv]
-          node = PathLoopPool ltag (Just lv) [(mempty, MV.emptyVSequenceMeta, m)]
+          node = PathLoopGenerator ltag (Just lv) m
           
       pure (MV.singleton mempty v, SelectedLoop node)
       
@@ -375,11 +375,134 @@ stratLoop lc =
                               , vsmIsBuilder    = False
                               }
           v = VSequence vsm els
-      pure (MV.singleton mempty v, SelectedLoop (PathLoopElements (Just lv) ms))
+          node = PathLoopUnrolled (Just lv) ms
+      pure (MV.singleton mempty v, SelectedLoop node)
       
-    SRepeatLoop str n e b -> undefined
-    SMorphismLoop lm -> undefined
+    SRepeatLoop StructureIndependent _n _e _b ->
+      panic "UNEXPECTED: StructureIndependent" []
 
+    -- In this case the body just constrains the environment, so we
+    -- just need the empty/non-empty loop count (n and e shouldn't
+    -- really matter).  The result for this computation should also
+    -- not matter (if it did, it would be StructureDependent)
+    SRepeatLoop StructureIsNull _n _e b -> do
+      -- Mainly to allow pooling (this won't have users as we don't produce a list) 
+      ltag <- freshSymbolicLoopTag 
+      
+      lv   <- freshLoopCountVar 0 1
+      
+      let pathGuard = PC.toSExpr (PC.insertLoopCount lv (PC.LCCEq 1) mempty)
+
+      -- We must be careful to only constrain lv when we are doing
+      -- something.
+      (_elv, m) <- censor (extendPath pathGuard) (stratSlice b)
+     
+      let node = PathLoopGenerator ltag (Just lv) m
+                 
+      pure (vUnit, SelectedLoop node)
+
+    -- Just unfold
+    SRepeatLoop StructureDependent n e b -> do
+      -- How many times to unroll the loop
+      nloops <- asks sNLoopElements
+      
+      -- FIXME: this is a bit blunt/incomplete
+      lv <- freshLoopCountVar 0 nloops
+
+      se <- synthesiseExpr e
+
+      -- We start from 0 so Gt works
+      let gtGuard i = PC.insertLoopCount lv (PC.LCCGt i) mempty
+          eqGuard i = PC.insertLoopCount lv (PC.LCCEq (i + 1)) mempty
+          pathGuard i = PC.toSExpr (gtGuard i)
+
+          -- this allows short-circuiting if we try to unfold too many
+          -- times.
+          go (_se', acc) [] = pure (reverse acc)
+          go (se', acc) (i : rest) = do
+            m_v_m <- getMaybe $ censor (extendPath (pathGuard i))
+                                       (primBindName n se' (stratSlice b))
+            case m_v_m of
+              Nothing -> pure (reverse acc)
+              Just (v, m) -> do
+                -- these should work (no imcompatible assumptions about lv)
+                v' <- hoistMaybe (MV.refine (eqGuard i) v)
+                se'' <- hoistMaybe (MV.refine (gtGuard i) v)
+            
+                go (se'', (v', m) : acc) rest
+      
+      (vs, ms) <- unzip <$> go (se, []) [0 .. nloops - 1]
+      let node = PathLoopUnrolled (Just lv) ms
+      base <- hoistMaybe (MV.refine (PC.insertLoopCount lv (PC.LCCEq 0) mempty) se)
+          
+      pure (MV.unions (base :| vs), SelectedLoop node)
+      
+    SMorphismLoop (FoldMorphism n e lc b) -> do
+      ltag <- freshSymbolicLoopTag
+      
+      se <- synthesiseExpr e
+      col <- synthesiseExpr (lcCol lc)      
+      -- c.f. SRepeatLoop
+      let guards vsm
+            | Just lv <- vsmLoopCountVar vsm =
+                \i -> ( PC.insertLoopCount lv (PC.LCCGt i) mempty
+                      , PC.insertLoopCount lv (PC.LCCEq (i + 1)) mempty
+                      )
+            | otherwise = const (mempty, mempty)
+
+          goOne _vsm (_se', acc) [] = pure (reverse acc)
+          goOne vsm (se', acc) ((i, el) : rest) = do
+            (v, pb) <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
+            let (gtGuard, eqGuard) = guards vsm i
+            
+            v' <- hoistMaybe (MV.refine eqGuard v)
+            se'' <- hoistMaybe (MV.refine gtGuard v)
+            goOne vsm (se'', (v', pb) : acc) rest
+
+          go (g, sv)
+            | Just (vsm, els) <- MV.gseToList sv = do
+                (svs, pbs) <- unzip <$> goOne vsm (se, []) (zip [0..] els)
+
+                let (_, eqGuard) = guards vsm 0
+                base <- hoistMaybe (MV.refine eqGuard se)
+                
+                pure (MV.unions (base :| svs), (g, vsm, pbs))
+
+                -- pure (v, node)
+            | otherwise =  panic "UNIMPLEMENTED: fold over non-lists" []
+          
+      (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
+      
+      v <- hoistMaybe (MV.unions' vs)
+      let node' = PathLoopMorphism ltag nodes
+      
+      pure (v, SelectedLoop node')
+      
+    SMorphismLoop (MapMorphism lc b) -> do
+      ltag <- freshSymbolicLoopTag
+
+      col <- synthesiseExpr (lcCol lc)
+      let go (g, sv)
+            | Just (vsm, els) <- MV.gseToList sv = do
+                (els', pbs) <- unzip <$> zipWithM (guardedLoopCollection vsm lc (stratSlice b)) [0..] els
+                -- Update the tag in vsm, but only if there was a tag
+                -- there already (i.e., don't tag unfolded loops).  We
+                -- inherit e.g. the length param.
+                let vsm' = vsm { vsmGeneratorTag = vsmGeneratorTag vsm $> ltag }
+                    -- We inherit the guard from the collection
+                    v = MV.singleton g (VSequence vsm' els')
+
+                pure (v, (g, vsm, pbs))
+
+                -- pure (v, node)
+            | otherwise =  panic "UNIMPLEMENTED: map over non-lists" []
+          
+      (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
+      
+      v <- hoistMaybe (MV.unions' vs)
+      let node' = PathLoopMorphism ltag nodes
+      
+      pure (v, SelectedLoop node')      
   where
     manyBoundsCheck slv lb m_ub = do
       -- Assert bounds
@@ -390,7 +513,26 @@ stratLoop lc =
       ienv <- getIEnv      
       sb <- MV.toSExpr (I.tEnv ienv) sizeType <$> synthesiseExpr bnd
       assertSExpr (f sb)
+
+guardedLoopCollection :: VSequenceMeta ->
+                         LoopCollection' e ->
+                         SymbolicM b ->
+                         Int ->
+                         GuardedSemiSExprs ->
+                         SymbolicM b
+guardedLoopCollection vsm lc m i el = do
+  el' <- hoistMaybe (MV.refine g el)
+  let kv = vUInt g 64 (fromIntegral i)
+      bindK = maybe id (\kn -> primBindName kn kv) (lcKName lc)
+      bindE = primBindName (lcElName lc) el'
   
+  censor doCensor (bindK (bindE m))
+  where
+    (g, doCensor)
+      | Just lcv <- vsmLoopCountVar vsm =
+          let g' = PC.insertLoopCount lcv (PC.LCCGt i) mempty
+          in ( g', extendPath (PC.toSExpr g') )
+      | otherwise = (mempty, id)
 
 -- We represent disjunction by having multiple values; in this case,
 -- if we have matching values for the case alternative v1, v2, v3,
@@ -461,13 +603,13 @@ stratCase _total cs m_sccs = do
       pure (v, SelectedCase (SymbolicCase stag inv paths))
 
   where
-    enabledChecks preds
+    enabledChecks preds = do
       --  | total     = pure ()
       -- FIXME: Is it OK to omit this if the case is total?      
-      | otherwise = do
+      --  | otherwise = do
           let preds' = over (each . _1) PC.toSExpr preds
               patConstraints =
-                MV.andMany ([ S.implies g c | (g, SymbolicMatch c) <- preds' ]
+                MV.andMany ([ g `sImplies` c | (g, SymbolicMatch c) <- preds' ]
                             ++ [ S.not g | (g, NoMatch) <- preds' ])
 
           oneEnabled <- case [ g | (g, vmr) <- preds', vmr /= NoMatch ] of
@@ -683,10 +825,10 @@ synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
 -- ----------------------------------------------------------------------------------------
 -- Utils
 
-enumerate :: Traversable t => t a -> t (Int, a)
-enumerate t = evalState (traverse go t) 0
-  where
-    go a = state (\i -> ((i, a), i + 1))
+-- enumerate :: Traversable t => t a -> t (Int, a)
+-- enumerate t = evalState (traverse go t) 0
+--   where
+--     go a = state (\i -> ((i, a), i + 1))
 
 
 -- ----------------------------------------------------------------------------------------
@@ -711,6 +853,13 @@ instance Semigroup ModelState where
 instance Monoid ModelState where
   mempty = ModelState mempty mempty mempty
 
+
+data SymbolicLoopUsage = SymbolicLoopUsage
+  { sluLoopTag :: SymbolicLoopTag
+  , sluPathCursor :: PathCursor
+  , sluBuilder    :: PathBuilder
+  } deriving Generic
+
 data ModelParserState = ModelParserState
   { mpsContext :: ModelState
   -- ^ Read-only, used to cache the solver model in the context.
@@ -718,8 +867,19 @@ data ModelParserState = ModelParserState
   -- ^ Captures the curent solver model.
   , mpsMMS      :: MultiModelState
   -- ^ The stats across multiple models
-  , mpsLoopInfo :: ()
+  , mpsLoopDeps    :: Map SymbolicLoopTag [SymbolicLoopUsage]
+  -- ^ This accumulates the usages of a sequence until the generator is reached.
+  , mpsClosedLoops :: Map SymbolicLoopTag (PathCursor, SelectedLoopPoolF PathBuilder)
+  -- ^ This contains the generator and users.
   } deriving Generic
+
+emptyModelParserState :: MultiModelState -> ModelParserState
+emptyModelParserState mms = ModelParserState
+  { mpsContext = mempty
+  , mpsState = mempty
+  , mpsMMS   = mms
+  , mpsLoopDeps = mempty
+  }
 
 -- FIXME: clag
 getByteVar :: SMTVar -> ModelParserM Word8
@@ -736,11 +896,11 @@ getModelVar msLens toSExpr pVal updateStats pv = do
   case m_i of
     Just i -> pure i
     Nothing -> do
-      m_i <- use (field @"mpsState" . msLens . at pv)
-      case m_i of
+      m_i' <- use (field @"mpsState" . msLens . at pv)
+      case m_i' of
         Just i -> pure i
         Nothing -> do
-          sexp <- lift (Solv.getValue (toSExpr pv))
+          sexp <- lift . lift $ Solv.getValue (toSExpr pv)
           n <- case evalModelP pVal sexp of
                  []    -> panic "No parse" []
                  b : _ -> pure b
@@ -783,11 +943,39 @@ getValueVar (Typed ty x) = do
   where
     updateStats _ _ mms = mms
 
-type ModelParserM a = StateT ModelParserState (SolverT StrategyM) a
+-- | Records a dependency between loops
+recordLoopDep :: SymbolicLoopTag -> [SymbolicLoopUsage] -> ModelParserM ()
+recordLoopDep ltag models = field @"mpsLoopDeps" . at ltag <>= Just models
+
+-- | Records the generator and users of a sequence, along with the
+-- path to the generator.  This will also forget the users of the loop.
+recordClosedLoop :: SymbolicLoopTag -> PathCursor -> SelectedLoopPoolF PathBuilder -> ModelParserM ()
+recordClosedLoop ltag pc pool = do
+  field @"mpsLoopDeps" . at ltag .= Nothing
+  field @"mpsClosedLoops" . at ltag ?= (pc, pool)
+
+-- | Gets any dependencies for a given tag, forgetting about the tag as a side-effect
+getLoopDep :: SymbolicLoopTag -> ModelParserM [SymbolicLoopUsage]
+getLoopDep ltag = uses (field @"mpsLoopDeps" . at ltag) (fromMaybe [])
+
+data ModelParserEnv = ModelParserEnv
+  { mpeRevCursor :: PathCursor
+  } deriving Generic
+
+emptyModelParserEnv :: ModelParserEnv
+emptyModelParserEnv = ModelParserEnv mempty
+
+extendCursorIn :: PathCursorElement -> ModelParserM a -> ModelParserM a
+extendCursorIn el = local (field @"mpeRevCursor" %~ (:) el)
+
+type ModelParserM a = ReaderT ModelParserEnv (StateT ModelParserState (SolverT StrategyM)) a
 
 runModelParserM :: MultiModelState -> ModelParserM a -> SolverT StrategyM (a, MultiModelState)
 runModelParserM mms mp =
-  (_2 %~ mpsMMS) <$> runStateT mp (ModelParserState mempty mempty mms ())
+  (_2 %~ mpsMMS) <$> runStateT (runReaderT mp emptyModelParserEnv) (emptyModelParserState mms)
+
+-- ------------------------------------------------------------------------------
+-- Multi-pass state
 
 data MMSCaseInfo = MMSCaseInfo
   { -- Read only
@@ -878,6 +1066,8 @@ buildPaths ntotal nfails sm pb = do
     Solv.flush
   liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
 
+  panic "Lets go no further" []
+
   if not (nullMMS st0)
     then Solv.getContext >>= go 0 0 st0 []
     else do -- Only 1 choice, so take it.      
@@ -944,18 +1134,41 @@ buildPath mms0 = runModelParserM mms . go
     go :: PathBuilder -> ModelParserM SelectedPath
     go SelectedHole = pure SelectedHole
     go (SelectedBytes ptag r) = SelectedBytes ptag <$> resolveResult r
-    go (SelectedDo l r) = SelectedDo <$> go l <*> go r
+    go (SelectedDo l r) = do
+      -- Order here is important as we collect loop uses from use-site
+      -- to def site.
+      rv <- extendCursorIn PCDoRight (go r)
+      lv <- extendCursorIn PCDoLeft  (go l)
+      pure (SelectedDo lv rv)
     go (SelectedChoice pib) = SelectedChoice <$> buildPathChoice pib
     go (SelectedCall i p) = SelectedCall i <$> go p
     go (SelectedCase pib) = SelectedCase <$> buildPathCase pib
     go (SelectedLoop lp) = SelectedLoop <$> buildLoop lp
-      
-    buildLoop (PathLoopElements m_v els) = do
-      len <- maybe (pure (length els)) getLoopVar m_v
-      ps <- mapM go (take len els)
-      pure (SelectedLoopElements (Map.fromList (zip [0..] ps)))
 
-    buildLoop (PathLoopPool {}) = undefined
+    -- In this case we just generate the results, nothing futher to do.
+    buildLoop (PathLoopUnrolled m_lv els) = do
+      len <- maybe (pure (length els)) getLoopVar m_lv
+      ps <- zipWithM (\i -> extendCursorIn (PCSequence i) . go) [0..] (take len els)
+      pure (SelectedLoopElements ps)
+
+    -- In this case we might need to pool.  Note that els should be
+    -- either a singleton or the empty list.
+    buildLoop (PathLoopGenerator ltag m_lv el) = do
+      len <- maybe (pure 1) getLoopVar m_lv
+      if len == 0
+        -- null case, we shouldn't have any users, so we don't
+        -- generate a pool.
+        then pure (SelectedLoopElements mempty)
+        -- singleton case, we need to record and move on.
+        else do
+        users <- getLoopDep ltag
+        hereCursor <- asks mpeRevCursor
+        pure (SelectedLoopPool False [])
+        undefined 
+      
+      undefined
+      
+    -- buildLoop (PathLoopPool {}) = undefined
 
     buildPathChoice :: PathChoiceBuilder PathBuilder ->
                        ModelParserM (PathIndex SelectedPath)

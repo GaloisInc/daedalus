@@ -494,7 +494,7 @@ summariseMany preds sem _bt lb m_ub g = do
   let (gs, elsD') = asSingleton elsD
       gsDom
         | closedDomain elsD && null preds = emptyDomain
-        | otherwise = singletonDomain (makeSlice (gs { gsPred = m_pred}))
+        | otherwise = singletonDomain (makeSlice (gs { gsPred = m_pred }))
   
   pure (gsDom `merge` elsD')
   
@@ -565,8 +565,11 @@ summariseRepeat preds n e g = do
     Nothing -> pure gD
     Just gs -> do
       let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
-          str = structureFromLoopBody (gsPred gs) (gsEnv gs)
+          useStr = maybe StructureIndependent (const StructureDependent) (gsPred gs)
+          str = max useStr (structureFromLoopBody Nothing (gsEnv gs))
           gs' = gs { gsEnv   = gsEnv gs `merge` enve
+                   -- We need to forget we have a post if, e.g., none was requested.
+                   , gsPred  = mergeMaybe preds
                    , gsSlice = SLoop (SRepeatLoop str n sle (gsSlice gs))
                    }
       pure (merge (singletonDomain gs') gD)
@@ -586,7 +589,7 @@ summariseMorphism preds lm =
         Nothing -> pure gD
         Just gs -> do
           let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
-              str | Just p <- gsPred gs         = absPredStructural p
+              str | Just _p <- gsPred gs        = StructureDependent -- absPredStructural p
                   | otherwise                   = StructureIndependent
               (env', m_lc_str') = summariseLoopCollection lc str (gsEnv gs)
 
@@ -609,8 +612,7 @@ summariseMorphism preds lm =
           m_gs = mergeMaybe gss
 
           mkMap env sl =
-            let str | Just p <- m_pred = absPredStructural p
-                    | otherwise = StructureIndependent
+            let str = maybe StructureIndependent absPredStructural m_pred
                     
                 (env', m_lc_str') = summariseLoopCollection lc str env
                 sl' = case m_lc_str' of

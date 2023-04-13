@@ -354,10 +354,10 @@ synthesiseCallG fp n fid args = do
 -- -----------------------------------------------------------------------------
 -- Loops
 
-synthesiseLoopBounds :: Value -> Maybe Value -> SynthesisM Int
-synthesiseLoopBounds lv m_uv = do
+synthesiseLoopBounds :: Bool -> Value -> Maybe Value -> SynthesisM Int
+synthesiseLoopBounds canBeNull lv m_uv = do
   -- FIXME: make params  
-  let -- Poilcy 
+  let -- Policy 
     -- Number of iterations, unless below the min
     softMaxLoopCount = 1000
     -- The minimum loop range (unless constrained by both lower and upper).
@@ -368,9 +368,10 @@ synthesiseLoopBounds lv m_uv = do
     
   fromIntegral <$> randR (l, u)
   where
-    l = I.valueToIntegral (assertInterpValue lv)
+    l = max altUpperBound (I.valueToIntegral (assertInterpValue lv))
     m_u = I.valueToIntegral . assertInterpValue <$> m_uv
 
+    altLowerBound = if canBeNull then 0 else 1
 
 -- | Given a collection of Many elments and a target count, this
 -- function selects that many from the given SelectedMany
@@ -501,11 +502,15 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
 
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
+synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (ManyLoop _sem _bt _lb _m_ub g)) = do
+  vs <- mapM (flip synthesiseG g) ps
+  pure (I.vArray vs)
+  
 -- FIXME: sem
-synthesiseG (SelectedLoop (SelectedLoopPool m_structural ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
+synthesiseG (SelectedLoop (SelectedLoopPool canBeNull ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
-  count <- maybe (synthesiseLoopBounds lv m_uv) (pure . length) m_structural
+  count <- synthesiseLoopBounds canBeNull lv m_uv
 
   -- We need to select count elements from the synthesised models in ms.
   ms' <- mapM (selectLoopElements count) ms
@@ -564,7 +569,7 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
     Loop (ManyLoop _sem _bt lb m_ub body) -> do
       lv   <- synthesiseV lb
       m_uv <- traverse synthesiseV m_ub
-      count <- synthesiseLoopBounds lv m_uv
+      count <- synthesiseLoopBounds True lv m_uv
       vArray <$> replicateM count (synthesiseG SelectedHole body)
 
     -- FIXME: probably it is OK to do this, as if there are
@@ -572,7 +577,7 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
     -- slicing.
     Loop (RepeatLoop _bt n e body) -> do
       -- FIXME: maybe we should have a separate policy for repeat
-      count <- synthesiseLoopBounds (vSize 0) Nothing
+      count <- synthesiseLoopBounds True (vSize 0) Nothing
       initV <- synthesiseV e
       let go v _ = bindIn n v (synthesiseG SelectedHole body)
       foldlM go initV (replicate count ())

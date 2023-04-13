@@ -9,6 +9,7 @@
 
 module Talos.SymExec.Path where
 
+import Control.Lens (ix, (%~))
 import           Control.DeepSeq       (NFData)
 import           Data.ByteString       (ByteString)
 import           Data.Functor.Identity (Identity (Identity))
@@ -22,7 +23,7 @@ import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
 import Data.List (transpose)
 import qualified Data.Map as Map
-import Data.Function (on)
+import Data.Function (on, (&))
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -43,9 +44,6 @@ import Data.Function (on)
 
 data SelectedPathF ch ca lp a = 
     SelectedHole
-    -- | Placeholder for cursors, shouldn't really appear when we see
-    -- the grammar node.
-  | SelectedNode (SelectedPathF ch ca lp a)
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
   | SelectedDo (SelectedPathF ch ca lp a) (SelectedPathF ch ca lp a)
@@ -87,11 +85,10 @@ deriving instance NFData SelectedLoop
 data SelectedLoopF a =
   -- | For Many nodes, we have one element for each merged node (i.e.,
   -- slice) --- merging two of these nodes just appends the lists.
-  -- The first argument is the (possible) size of the generated list,
-  -- if it is known, the second argument can be any size (i.e. we
-  -- should pick a random number until we get the count we want).
-    SelectedLoopPool     (Maybe [a]) [SelectedLoopPoolF a]
-  | SelectedLoopElements (Map Int a)
+  -- The Bool says whether the loop can be empty, the second argument
+  -- are the possible elements.
+    SelectedLoopPool     Bool [SelectedLoopPoolF a]
+  | SelectedLoopElements [a]
   -- ^ Elements of a sequence based upon another sequence.  The Ints
   -- are the indicies.
   deriving (Functor, Foldable, Traversable, Generic)
@@ -102,55 +99,71 @@ data SelectedLoopF a =
 --  A cursor is an index to a particular node, used to update loop elements.
 
 -- | A 'PathCursorElement' tells how to navigate a 'SelectedPathF'.
--- See also 'PathContextElement'.
+-- See also 'PathContextElement'.  Note that if we have multiple
+-- slices for loops, we will need to make this follow the structure of
+-- the path more closely --- in particular, we will need to be able to
+-- extend previously-filled-in holes.
 data PathCursorElement =
   PCDoLeft
   | PCDoRight
   | PCSequence Int
-  -- ^ An element of a sequence, useful for indexing.  We cannot just
-  -- use PCNode here as we may need a particular element.
-  | PCNode
+  -- ^ An element of a sequence.
   deriving (Eq, Ord, Show, Generic, NFData)
   
 -- | THis is a path inside a SelectedPath to a particlar node, c.f. Zippers
 type PathCursor = [PathCursorElement]
 
-fillCursorTarget :: PathCursor -> [SelectedPath] -> SelectedPath
-fillCursorTarget pc els = go pc
+-- This should target a hole in a slice.
+fillCursorTarget :: SelectedPath -> PathCursor -> SelectedPath -> SelectedPath
+fillCursorTarget fill = go 
   where
     -- This is a bit gross?
-    go [] = SelectedLoop (SelectedLoopElements (Map.fromList $ zip [0..] els))
-    go (el : rest) =
-      case el of
-        PCDoLeft     -> SelectedDo (go rest) SelectedHole
-        PCDoRight    -> SelectedDo SelectedHole (go rest)
-        PCSequence i -> SelectedLoop (SelectedLoopElements (Map.singleton i (go rest)))
-        PCNode       -> SelectedNode (go rest)
+    go pc' sp =
+      case (sp, pc') of
+        (SelectedHole, [])                 -> fill
+        (SelectedHole, _)                  -> badPath
+        (SelectedBytes {}, _)              -> badPath
+        (SelectedChoice pidx, _)           -> SelectedChoice (go pc' <$> pidx)
+        (SelectedCall fid sp', _)          -> SelectedCall fid (go pc' sp')
+        (SelectedCase sp', _)              -> SelectedCase (go pc' <$> sp')
+        (SelectedDo l r, PCDoLeft : rest)  -> SelectedDo (go rest l) r
+        (SelectedDo l r, PCDoRight : rest) -> SelectedDo l (go rest r)
+        (SelectedDo {}, _)                 -> badPath        
+        (SelectedLoop {}, [])              -> badPath
+        (SelectedLoop (SelectedLoopElements els), PCSequence i : rest)
+          | i < length els -> SelectedLoop (SelectedLoopElements (els & ix i %~ go rest))
+        (SelectedLoop _, _) -> badPath
 
+    badPath = panic "Unexpected path element" []
+
+-- | Given the generator for a loop element, and a user, this will
+-- determine the target of the cursor _with respect to_ the generating
+-- loop.
 relitiviseCursors :: PathCursor -> PathCursor -> (Int, PathCursor)
 relitiviseCursors gen use = (length (filter isContextPC gen'), use')
   where
     isContextPC PCDoLeft = True
     isContextPC PCDoRight = False -- Doesn't generate a context element
     isContextPC PCSequence {} = True
-    isContextPC PCNode = False
     
     (gen', use') = unzip (dropWhile (uncurry (==)) (zip gen use))
 
 -- -----------------------------------------------------------------------------
 -- SelectedMany
 
-fillManyTargets :: SelectedLoopPool -> Map Int SelectedPath
-fillManyTargets sm = Map.fromListWith merge els
+fillManyTargets :: SelectedLoopPool -> Map Int [(PathCursor, SelectedPath)]
+fillManyTargets sm = Map.fromListWith (<>) els
   where
-    els = [ (depth, fillCursorTarget pc sps)
+    els = [ (depth, [(pc , SelectedLoop (SelectedLoopElements sps))])
           | (depth, pc) <- smCursors sm
           | sps <- transpose $ map snd (smPaths sm)
           ]
     
 -- | This handles the lazy merge of Many elements.  This allows
--- decoupling e.g. the count of elements from the synthesis of the elements. 
-selectedMany :: [SelectedLoopPool] -> ([SelectedPath], Map Int SelectedPath)
+-- decoupling e.g. the count of elements from the synthesis of the
+-- elements. In practice (until we stop squashing loop bodies) this
+-- will be applied to singleton lists.
+selectedMany :: [SelectedLoopPool] -> ([SelectedPath], Map Int [(PathCursor, SelectedPath)])
 selectedMany ms
   | not (same (map (length . smPaths) ms)) = panic "BUG: selectedMany needs to agree on count" []
   | otherwise = (mps, tgts)
@@ -165,6 +178,8 @@ selectedMany ms
 -- -----------------------------------------------------------------------------
 -- PathContext
 
+-- | These are the places in a SelectedPath which can branch (i.e.,
+-- sequence points).
 data PathContextElement =
   PCEDoRHS SelectedPath
   -- ^ When we enter the LHS of a bind, we push the context for the
@@ -178,32 +193,31 @@ data PathContextElement =
 
 type PathContext = [PathContextElement]
 
--- | Refines the RHS continuations based on the results of a call to selectedMany    
-applyManyTargets :: Map Int SelectedPath -> PathContext -> PathContext
+-- | Refines the RHS continuations based on the results of a call to
+-- selectedMany.  Note that the PathCursors start with the first
+-- different path node, so either PCDoRight or PCSequence as the user
+-- of a sequence will be _after_ the generator.
+applyManyTargets :: Map Int [(PathCursor, SelectedPath)] -> PathContext -> PathContext
 applyManyTargets tgts = go 0 (Map.toList tgts)
   where
     go _here [] stack = stack
-    go here ((depth, p) : rest) (frame : stack)
-      | depth == here =
-        let newFrame = case (frame, p) of
-              -- In this case we can merge directly              
-              (PCEDoRHS p', _) -> PCEDoRHS $ merge p p'
-              -- ... while here we need to inspect the path to update
-              -- the right elements
-              (PCELoopBody i ps, SelectedLoop (SelectedLoopElements m)) ->
-                PCELoopBody i $ goLoop i m ps
-              _ -> panic "BUG: mismatched context/path" []
-        in newFrame : go (here + 1) rest stack
+    go here ((depth, pcs) : rest) (frame : stack)
+      | depth == here = foldl goOne frame pcs : go (here + 1) rest stack
     go here ps (frame : stack) = frame : go (here + 1) ps stack
-    go _    (_ : _) [] = panic "BUG: mismatched Many target/Do stack" []
+    go _    (_ : _) [] = bad
 
-    -- We may need to update multiple loop paths.  Note that the
-    -- indicies in m should all be > i.
-    goLoop i m = zipWith (upd m) [i+1 ..]
-    upd m j p
-      | Just p' <- Map.lookup j m = merge p p'
-      | otherwise = p
-                         
+    -- A bit inefficient, but it will be rare to have lots of targets.
+    goOne frame (pc, tgt) = 
+      case (frame, pc) of
+        -- If we are looking at a RHS
+        (PCEDoRHS p', PCDoRight : pc') -> PCEDoRHS (fillCursorTarget tgt pc' p')
+        (PCEDoRHS {}, _) -> bad
+        (PCELoopBody i ps, PCSequence j : pc')
+          | i < j -> PCELoopBody i (ps & ix (j - (i + 1)) %~ fillCursorTarget tgt pc')
+        (PCELoopBody {}, _) -> bad
+  
+    bad = panic "BUG: mismatched Many target/Do stack" []
+    
 splitPath :: SelectedPath -> (SelectedPath, SelectedPath)
 splitPath cp =
   case cp of
@@ -314,7 +328,6 @@ instance ( Functor ch, PP (ch Doc)
   ppPrec n p = 
     case p of
       SelectedHole       -> "□"
-      SelectedNode p'    -> "<<" <> pp p' <> ">>"
       SelectedBytes _ bs -> pp bs
       SelectedDo {}      -> "do" <+> ppStmts' p
       SelectedChoice ch ->

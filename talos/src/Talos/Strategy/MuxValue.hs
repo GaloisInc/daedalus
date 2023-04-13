@@ -166,6 +166,9 @@ vValue g = singleton g . VValue
 vBool :: PathCondition -> Bool -> GuardedSemiSExprs
 vBool g = vValue g . V.VBool
 
+vUInt :: PathCondition -> Int -> Integer -> GuardedSemiSExprs
+vUInt g n = vValue g . V.vUInt n
+
 -- vFst :: GuardedSemiSExprs -> Maybe GuardedSemiSExprs
 -- vFst gvs = sconcat <$> nonEmpty gvss
 --   where

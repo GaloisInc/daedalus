@@ -106,13 +106,12 @@ data PathCaseBuilder a   =
 -- loop (for pooling) and just record the loop's tag, or we have
 -- elements we just inline (for non-pooling loops).
 data PathLoopBuilder a =
-  -- | A pool of elements.  The list is all the possible collections
-  -- that reach this node (for Many, it will be a singleton so we
-  -- don't need another node type).  The 'LoopCountVar' tells us
-  -- whether the loop is empty or not.
-  PathLoopPool SymbolicLoopTag (Maybe LoopCountVar) [ (PathCondition, MV.VSequenceMeta, a) ]
-  -- | A fixed set of loop elements, potentially with a dynamic length.  
-  | PathLoopElements (Maybe LoopCountVar) [a]
+  PathLoopUnrolled (Maybe LoopCountVar) [a]
+  | PathLoopGenerator SymbolicLoopTag
+                      (Maybe LoopCountVar) -- 0 or 1
+                      a
+  | PathLoopMorphism SymbolicLoopTag
+                     [ (PathCondition, MV.VSequenceMeta, [a]) ]
   
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
 
@@ -199,8 +198,8 @@ freshPathVar bnd = do
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
   sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
-  assertSExpr $ SMT.and (SMT.leq (SMT.int (fromIntegral lb)) (SMT.const sym))
-                        (SMT.lt (SMT.const sym) (SMT.int (fromIntegral ub)))
+  assertSExpr $ SMT.and (SMT.bvULeq (SMT.bvHex 64 (fromIntegral lb)) (SMT.const sym))
+                        (SMT.bvULt  (SMT.const sym) (SMT.bvHex 64 (fromIntegral ub)))
   pure (LoopCountVar sym)
 
 freshSymbolicCaseTag :: SymbolicM SymbolicCaseTag
@@ -213,6 +212,7 @@ freshSymbolicLoopTag = liftStrategy getNextGUID
 -- Assertions
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
+assertSExpr p | p == SMT.bool True = pure ()
 assertSExpr p = tell (mempty { smAsserts = [p] })
 
 recordChoice :: PathVar -> [Int] -> SymbolicM ()
@@ -227,6 +227,7 @@ recordCase stag n rhss =
 
 -- Used for case/choice slice alternatives
 extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
+extendPath g | g == SMT.bool True = id
 extendPath g = addGuard . addImpl
   where
     addImpl sm
@@ -344,6 +345,11 @@ hoistMaybe r =
 
 collectMaybes :: [SymbolicM a] -> SymbolicM [a]
 collectMaybes = fmap catMaybes . mapM getMaybe
+
+sImplies :: SMT.SExpr -> SMT.SExpr -> SMT.SExpr
+sImplies l r | l == SMT.bool True = r
+sImplies l _r | l == SMT.bool False = SMT.bool True
+sImplies l r = l `SMT.implies` r
 
 -- -----------------------------------------------------------------------------
 -- Instances
