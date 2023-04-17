@@ -9,11 +9,13 @@
 
 module Talos.SymExec.Path where
 
-import Control.Lens (ix, (%~))
 import           Control.DeepSeq       (NFData)
+import           Control.Lens          (ix, (%~), (&))
 import           Data.ByteString       (ByteString)
 import           Data.Functor.Identity (Identity (Identity))
+import           Data.List             (transpose)
 import           Data.Map              (Map)
+import qualified Data.Map              as Map
 import           GHC.Generics          (Generic)
 
 import           Daedalus.PP
@@ -21,9 +23,7 @@ import           Daedalus.Panic
 
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
-import Data.List (transpose)
-import qualified Data.Map as Map
-import Data.Function (on, (&))
+import Daedalus.GUID (GUID)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -87,7 +87,7 @@ data SelectedLoopF a =
   -- slice) --- merging two of these nodes just appends the lists.
   -- The Bool says whether the loop can be empty, the second argument
   -- are the possible elements.
-    SelectedLoopPool     Bool [SelectedLoopPoolF a]
+    SelectedLoopPool     LoopGeneratorTag Bool [SelectedLoopPoolF a]
   | SelectedLoopElements [a]
   -- ^ Elements of a sequence based upon another sequence.  The Ints
   -- are the indicies.
@@ -108,12 +108,33 @@ data PathCursorElement =
   | PCDoRight
   | PCSequence Int
   -- ^ An element of a sequence.
+  | PCLoopPool LoopGeneratorTag
+  -- ^ This allows us to deal with code like the following
+  -- @
+  --  xss = Many (Many P)
+  --  ys = map (xs in xss) (map (x in xs) ...)
+  -- @
+  -- 
+  -- where the index into a sequence isn't known until thee elements
+  -- of the generating loop are selected.
   deriving (Eq, Ord, Show, Generic, NFData)
-  
+
+-- | c.f. 'SequenceTag' and 'SymbolicLoopTag', which are basically this.
+type LoopGeneratorTag = GUID
+
 -- | THis is a path inside a SelectedPath to a particlar node, c.f. Zippers
 type PathCursor = [PathCursorElement]
 
--- This should target a hole in a slice.
+resolveLoopGeneratorTags :: Map LoopGeneratorTag Int -> PathCursor -> PathCursor
+resolveLoopGeneratorTags tagInst = map fixup
+  where
+    fixup (PCLoopPool tag)
+      | Just i <- Map.lookup tag tagInst = PCSequence i
+      | otherwise = panic "Missing LoopGeneratorTag" []
+    fixup el = el
+
+-- | This should target a hole in a slice.  Note that any PCLoopPool
+-- should have been resolved before this.
 fillCursorTarget :: SelectedPath -> PathCursor -> SelectedPath -> SelectedPath
 fillCursorTarget fill = go 
   where
@@ -145,16 +166,20 @@ relitiviseCursors gen use = (length (filter isContextPC gen'), use')
     isContextPC PCDoLeft = True
     isContextPC PCDoRight = False -- Doesn't generate a context element
     isContextPC PCSequence {} = True
+    isContextPC PCLoopPool {} = True -- same as PCSequence above.
     
     (gen', use') = unzip (dropWhile (uncurry (==)) (zip gen use))
 
 -- -----------------------------------------------------------------------------
 -- SelectedMany
 
-fillManyTargets :: SelectedLoopPool -> Map Int [(PathCursor, SelectedPath)]
-fillManyTargets sm = Map.fromListWith (<>) els
+makeManyTargets :: Map LoopGeneratorTag Int ->
+                   SelectedLoopPool ->
+                   Map Int [(PathCursor, SelectedPath)]
+makeManyTargets tagInst sm = Map.fromListWith (<>) els
   where
-    els = [ (depth, [(pc , SelectedLoop (SelectedLoopElements sps))])
+    els = [ (depth, [( resolveLoopGeneratorTags tagInst pc
+                     , SelectedLoop (SelectedLoopElements sps))])
           | (depth, pc) <- smCursors sm
           | sps <- transpose $ map snd (smPaths sm)
           ]
@@ -163,8 +188,10 @@ fillManyTargets sm = Map.fromListWith (<>) els
 -- decoupling e.g. the count of elements from the synthesis of the
 -- elements. In practice (until we stop squashing loop bodies) this
 -- will be applied to singleton lists.
-selectedMany :: [SelectedLoopPool] -> ([SelectedPath], Map Int [(PathCursor, SelectedPath)])
-selectedMany ms
+selectedMany :: Map LoopGeneratorTag Int ->
+                [SelectedLoopPool] ->
+                ([SelectedPath], Map Int [(PathCursor, SelectedPath)])
+selectedMany tagInst ms
   | not (same (map (length . smPaths) ms)) = panic "BUG: selectedMany needs to agree on count" []
   | otherwise = (mps, tgts)
   where
@@ -173,7 +200,7 @@ selectedMany ms
 
     -- Merge the elements
     mps  = map (foldl1 merge) $ transpose $ map (map fst . smPaths) ms
-    tgts = Map.unionsWith merge (map fillManyTargets ms)
+    tgts = Map.unionsWith (<>) (map (makeManyTargets tagInst) ms)
 
 -- -----------------------------------------------------------------------------
 -- PathContext
@@ -197,7 +224,8 @@ type PathContext = [PathContextElement]
 -- selectedMany.  Note that the PathCursors start with the first
 -- different path node, so either PCDoRight or PCSequence as the user
 -- of a sequence will be _after_ the generator.
-applyManyTargets :: Map Int [(PathCursor, SelectedPath)] -> PathContext -> PathContext
+applyManyTargets :: Map Int [(PathCursor, SelectedPath)] ->
+                    PathContext -> PathContext
 applyManyTargets tgts = go 0 (Map.toList tgts)
   where
     go _here [] stack = stack
@@ -294,13 +322,11 @@ firstSolverProvenance = 2
 instance Merge a => Merge (SelectedLoopF a) where
   merge lp lp' =
     case (lp, lp') of
-      (SelectedLoopPool m_selection pool, SelectedLoopPool m_selection' pool')
-        | Just False <- ((==) `on` length) <$> m_selection <*> m_selection' -> 
-          panic "BUG: mismatched SelectedLoopPool lengths" []
-        | otherwise ->
-          SelectedLoopPool (merge m_selection m_selection') (pool ++ pool')
-      (SelectedLoopElements els, SelectedLoopElements els') ->
-        SelectedLoopElements (Map.unionWith merge els els')
+      (SelectedLoopPool tag canBeNull pool, SelectedLoopPool tag' canBeNull' pool')
+        | tag == tag' -> SelectedLoopPool tag (canBeNull && canBeNull') (pool ++ pool')
+        | otherwise -> panic "Mismatched tags" []
+      (SelectedLoopElements els, SelectedLoopElements els')
+        | length els == length els' -> SelectedLoopElements (merge els els')
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
       
 -- FIXME: too general probably
@@ -339,11 +365,8 @@ instance ( Functor ch, PP (ch Doc)
 instance PP a => PP (SelectedLoopF a) where
   pp l =
     case l of
-      SelectedLoopPool _m_structural _els -> "SelectedLoopPool" -- FIXME
-      SelectedLoopElements els ->
-        brackets (sep (punctuate ", " (map ppEl (Map.toList els))))
-        where
-          ppEl (i, el) = pp i <> ": " <> pp el
+      SelectedLoopPool _tag _canBeNull _els -> "SelectedLoopPool" -- FIXME
+      SelectedLoopElements els -> brackets (sep (punctuate ", " (map pp els)))
   
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)

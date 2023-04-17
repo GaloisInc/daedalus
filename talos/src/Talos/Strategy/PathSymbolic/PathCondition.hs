@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Talos.Strategy.PathCondition
+module Talos.Strategy.PathSymbolic.PathCondition
   ( -- * Path Variables
     PathVar(..)
   , pathVarToSExpr

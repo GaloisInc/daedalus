@@ -17,46 +17,45 @@
 --
 -- This is comied and modified from SemiExpr
 
-module Talos.Strategy.MuxValue where
+module Talos.Strategy.PathSymbolic.MuxValue where
 
-import           Control.Lens                 (locally)
+import           Control.Lens                              (locally)
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Maybe    (MaybeT, runMaybeT)
-import           Data.Generics.Product        (field)
-import           Data.List                    (transpose)
-import           Data.List.NonEmpty           (NonEmpty (..), nonEmpty)
-import qualified Data.List.NonEmpty           as NE
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (catMaybes, mapMaybe)
-import           Data.Semigroup               (sconcat)
-import qualified Data.Set                     as Set
-import qualified Data.Vector                  as Vector
-import           GHC.Generics                 (Generic)
-import           GHC.Stack                    (HasCallStack)
+import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
+import           Data.Generics.Product                     (field)
+import           Data.List                                 (transpose)
+import           Data.List.NonEmpty                        (NonEmpty (..),
+                                                            nonEmpty)
+import qualified Data.List.NonEmpty                        as NE
+import           Data.Map                                  (Map)
+import qualified Data.Map                                  as Map
+import           Data.Maybe                                (catMaybes, mapMaybe)
+import           Data.Semigroup                            (sconcat)
+import qualified Data.Set                                  as Set
+import qualified Data.Vector                               as Vector
+import           GHC.Generics                              (Generic)
+import           GHC.Stack                                 (HasCallStack)
 
-import           SimpleSMT                    (SExpr)
-import qualified SimpleSMT                    as S
+import           SimpleSMT                                 (SExpr)
+import qualified SimpleSMT                                 as S
 
-import           Daedalus.Core                hiding (freshName)
-import qualified Daedalus.Core.Semantics.Env  as I
-import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
-                                               matches, partial)
+import           Daedalus.Core                             hiding (freshName)
+import qualified Daedalus.Core.Semantics.Env               as I
+import           Daedalus.Core.Semantics.Expr              (evalOp0, evalOp1,
+                                                            evalOp2, matches,
+                                                            partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
-import qualified Daedalus.Value.Type          as V
+import qualified Daedalus.Value.Type                       as V
 
--- import Talos.Strategy.Monad
--- import Talos.Strategy.Monad
--- import Talos.Strategy.Monad
--- import Talos.Strategy.Monad
-import           Talos.Strategy.PathCondition (PathCondition (..)
-                                              , ValuePathConstraint (..)
-                                              , LoopCountVar, loopCountVarToSMTVar)
-import qualified Talos.Strategy.PathCondition as PC
-import qualified Talos.SymExec.Expr           as SE
+import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
+                                                            PathCondition (..),
+                                                            ValuePathConstraint (..),
+                                                            loopCountVarToSMTVar)
+import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
+import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type

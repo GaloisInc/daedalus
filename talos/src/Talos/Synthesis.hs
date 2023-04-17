@@ -469,9 +469,6 @@ synthesiseDo cp m_x lhs rhs = do
 -- Does all the heavy lifting
 synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
 
--- Shouldn't happen
-synthesiseG (SelectedNode {}) _g = panic "BUG: saw SelectedNode in synthesiseG" []
-
 synthesiseG p (Annot _ g) = synthesiseG p g
 
 -- This does all the work for internal slices etc.
@@ -504,10 +501,10 @@ synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid arg
 
 synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (ManyLoop _sem _bt _lb _m_ub g)) = do
   vs <- mapM (flip synthesiseG g) ps
-  pure (I.vArray vs)
+  pure (vArray vs)
   
 -- FIXME: sem
-synthesiseG (SelectedLoop (SelectedLoopPool canBeNull ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
+synthesiseG (SelectedLoop (SelectedLoopPool tag canBeNull ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
   count <- synthesiseLoopBounds canBeNull lv m_uv
@@ -515,12 +512,11 @@ synthesiseG (SelectedLoop (SelectedLoopPool canBeNull ms)) (Loop (ManyLoop _sem 
   -- We need to select count elements from the synthesised models in ms.
   ms' <- mapM (selectLoopElements count) ms
   let (elPaths, targetPaths) = selectedMany ms'
-      allPaths = maybe elPaths (zipWith merge elPaths) m_structural
   -- ... which may require us to update the RHS stack to propagate selected models.  
   overPathContext (applyManyTargets targetPaths)
 
   -- next we synthesise the elements of the Many, using the selected paths.
-  vArray <$> mapM (flip synthesiseG g) allPaths
+  vArray <$> mapM (flip synthesiseG g) elPaths
 
 synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e

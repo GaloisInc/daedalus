@@ -39,7 +39,7 @@ library
                      , Talos.Analysis.AbsEnv
                      , Talos.Analysis.VarAbsEnv
                      , Talos.Analysis.FieldAbsEnv
-                     , Talos.Analysis.FLAbsEnv                     
+                     , Talos.Analysis.FLAbsEnv
                      , Talos.Analysis.Eqv
                      , Talos.Analysis.Merge
                      , Talos.Analysis.Domain
@@ -51,19 +51,23 @@ library
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
+                     , Talos.Strategy.OptParser
+
+                     , Talos.Strategy.BTRand
+
                      , Talos.Strategy.DFST
                      , Talos.Strategy.SearchTree
                      , Talos.Strategy.SearchT
-                     , Talos.Strategy.SymbolicM
-                     , Talos.Strategy.PathSymbolicM
-                     , Talos.Strategy.MuxValue                     
-
-                     , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
-                     , Talos.Strategy.PathSymbolic
-                     , Talos.Strategy.PathCondition                     
                      , Talos.Strategy.MemoSearch
-                     , Talos.Strategy.OptParser                     
+                     , Talos.Strategy.SymbolicM
+
+                     , Talos.Strategy.PathSymbolic
+                     , Talos.Strategy.PathSymbolic.PathCondition
+                     , Talos.Strategy.PathSymbolic.Monad
+                     , Talos.Strategy.PathSymbolic.MuxValue
+                     , Talos.Strategy.PathSymbolic.ModelParser
+
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis
@@ -233,4 +237,3 @@ test-suite talos-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
-

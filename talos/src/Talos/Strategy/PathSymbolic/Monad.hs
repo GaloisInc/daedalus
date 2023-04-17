@@ -9,44 +9,52 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# Language GeneralizedNewtypeDeriving #-}
 
-module Talos.Strategy.PathSymbolicM where
+module Talos.Strategy.PathSymbolic.Monad where
 
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
-import           Control.Monad.Trans.Maybe    (MaybeT, runMaybeT)
-import           Data.Generics.Product        (field)
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (catMaybes)
-import           GHC.Generics                 (Generic)
-import qualified SimpleSMT                    as SMT
+import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
+import           Data.Generics.Product                     (field)
+import           Data.Map                                  (Map)
+import qualified Data.Map                                  as Map
+import           Data.Maybe                                (catMaybes)
+import           GHC.Generics                              (Generic)
+import qualified SimpleSMT                                 as SMT
 -- FIXME: use .CPS
--- FIXME: use .CPS
-import           Control.Monad.Writer         (MonadWriter, WriterT, runWriterT,
-                                               tell)
-import           Data.Set                     (Set)
+import           Control.Monad.Writer                      (MonadWriter,
+                                                            WriterT, runWriterT,
+                                                            tell)
+import           Data.List.NonEmpty                        (NonEmpty)
+import           Data.Set                                  (Set)
+import qualified Data.Set                                  as Set
 
-import           Daedalus.Core                (Expr, Name, Pattern, typedThing)
-import qualified Daedalus.Core.Semantics.Env  as I
+import           Daedalus.Core                             (Expr, Name, Pattern,
+                                                            typedThing)
+import qualified Daedalus.Core.Semantics.Env               as I
+import           Daedalus.GUID                             (GUID, getNextGUID)
 import           Daedalus.PP
-import           Daedalus.Panic               (panic)
-import           Daedalus.Rec                 (Rec)
+import           Daedalus.Panic                            (panic)
+import           Daedalus.Rec                              (Rec)
 
-import           Talos.Analysis.Exported      (ExpSlice, SliceId)
+import           Talos.Analysis.Exported                   (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.MuxValue      (GuardedSemiSExprs, SemiSolverM,
-                                               runSemiSolverM, SequenceTag)
-import qualified Talos.Strategy.MuxValue      as MV
-import           Talos.Strategy.PathCondition (PathVar (..), PathCondition, LoopCountVar(..))
-import qualified Talos.SymExec.Expr           as SE
+import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
+                                                            SemiSolverM,
+                                                            SequenceTag,
+                                                            runSemiSolverM)
+import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
+import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar (..),
+                                                            PathCondition,
+                                                            PathVar (..))
+import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT        (MonadSolver, SMTVar, SolverT,
-                                               liftSolver)
-import qualified Talos.SymExec.SolverT        as Solv
-import qualified Data.Set as Set
-import Daedalus.GUID (GUID, getNextGUID)
-import Data.List.NonEmpty (NonEmpty)
+import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
+                                                            SolverT, liftSolver)
+import qualified Talos.SymExec.SolverT                     as Solv
+
+
+
 
 -- =============================================================================
 -- (Path) Symbolic monad
