@@ -5,7 +5,7 @@
 
 module Talos.SymExec.ModelParser
   ( ModelP, evalModelP
-  , pByte, pNumber, pBytes, pMUnit, pIndexed, pSeq, pValue
+  , pByte, pNumber, pBytes, pMUnit, pIndexed, pSeq, pValue, pSExpr, pExact
   ) where
 
 import           Control.Applicative

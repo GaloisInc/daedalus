@@ -229,7 +229,7 @@ stratSlice ptag = go
         SCase _ c -> stratCase ptag c
 
         SInverse n ifn p -> do
-          n' <- vSExpr (typeOf n) <$> liftSolver (declareName n (symExecTy (typeOf n)))
+          n' <- vSExpr (typeOf n) . S.const <$> liftSolver (declareName n (symExecTy (typeOf n)))
           primBindName n n' mempty $ do
             pe <- synthesiseExpr p
             assert pe

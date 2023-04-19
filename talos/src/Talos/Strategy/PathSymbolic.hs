@@ -17,7 +17,6 @@ import           Control.Monad.Reader
 import           Control.Monad.Writer                      (censor, pass)
 import           Data.Bifunctor                            (second)
 import           Data.Foldable                             (traverse_)
-import           Data.Functor                              (($>))
 import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
@@ -68,8 +67,6 @@ import           Talos.SymExec.SolverT                     (declareName,
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type                        (defineSliceTypeDefs,
                                                             symExecTy)
-
-
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -196,6 +193,8 @@ stratSlice = go
         -- to branch and have a concrete bset.
         SMatch bset -> do
           sym <- liftSolver (declareSymbol "b" tByte)
+          recordValue TByte sym
+          
           let bse = S.const sym
               bv  = MV.vOther mempty (Typed TByte sym)
 
@@ -216,7 +215,12 @@ stratSlice = go
         SLoop lc -> stratLoop lc
 
         SInverse n ifn p -> do
-          n' <- MV.vSExpr mempty (typeOf n) =<< liftSolver (declareName n (symExecTy (typeOf n)))
+          let ty = typeOf n
+          
+          sym <- liftSolver (declareName n (symExecTy ty))
+          recordValue ty sym          
+          let n' =  MV.vOther mempty (Typed (typeOf n) sym)
+
           primBindName n n' $ do
             pe <- synthesiseExpr p
             ienv <- getIEnv

@@ -5,6 +5,7 @@ module Talos.Strategy.PathSymbolic.PathCondition
   ( -- * Path Variables
     PathVar(..)
   , pathVarToSExpr
+  , pathVarToSMTVar
   -- * Loops
   , LoopCountVar(..)
   , LoopCountConstraint(..)
@@ -53,6 +54,9 @@ newtype LoopCountVar = LoopCountVar { getLoopCountVar :: SMTVar }
 
 pathVarToSExpr :: PathVar -> SExpr
 pathVarToSExpr (PathVar v) = S.const v
+
+pathVarToSMTVar :: PathVar -> SMTVar
+pathVarToSMTVar (PathVar v) = v
 
 loopCountVarToSExpr :: LoopCountVar -> SExpr
 loopCountVarToSExpr = S.const . getLoopCountVar

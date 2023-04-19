@@ -30,9 +30,9 @@ import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 
 import           Daedalus.Core                             (Expr, Name, Pattern,
-                                                            typedThing)
+                                                            typedThing, Typed(..), Type)
 import qualified Daedalus.Core.Semantics.Env               as I
-import           Daedalus.GUID                             (GUID, getNextGUID)
+import           Daedalus.GUID                             (GUID, getNextGUID, invalidGUID)
 import           Daedalus.PP
 import           Daedalus.Panic                            (panic)
 import           Daedalus.Rec                              (Rec)
@@ -131,6 +131,10 @@ emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0
 -- generated Int etc. would do.
 type SymbolicLoopTag = SequenceTag
 
+-- | A hack so we can use a tag which will never actually occur.
+invalidSymbolicLoopTag :: SymbolicLoopTag
+invalidSymbolicLoopTag = invalidGUID
+
 -- We could figure this out from the generated parse tree, but this is
 -- (maybe?) clearer.
 data SymbolicModel = SymbolicModel
@@ -142,6 +146,9 @@ data SymbolicModel = SymbolicModel
                                      , [SMT.SExpr] -- Symbolic path (all true to be enabled)
                                      , [(NonEmpty PathCondition, Pattern)] -- Pattern guards
                                      )
+  , smNamedValues :: Map SMTVar Type
+  
+  , smLoopVars :: Set LoopCountVar
   } deriving Generic
 
 -- We should only ever combine disjoint sets, so we cheat here
@@ -150,9 +157,11 @@ instance Semigroup SymbolicModel where
     (smAsserts sm1 <> smAsserts sm2)
     (smChoices sm1 <> smChoices sm2)
     (smCases   sm1 <> smCases   sm2)
+    (smNamedValues sm1 <> smNamedValues sm2)
+    (smLoopVars sm1 <> smLoopVars sm2)
 
 instance Monoid SymbolicModel where
-  mempty = SymbolicModel mempty mempty mempty 
+  mempty = SymbolicModel mempty mempty mempty mempty mempty
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -208,7 +217,9 @@ freshLoopCountVar lb ub = do
   sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
   assertSExpr $ SMT.and (SMT.bvULeq (SMT.bvHex 64 (fromIntegral lb)) (SMT.const sym))
                         (SMT.bvULt  (SMT.const sym) (SMT.bvHex 64 (fromIntegral ub)))
-  pure (LoopCountVar sym)
+  let lv = LoopCountVar sym
+  tell (mempty { smLoopVars = Set.singleton lv })
+  pure lv
 
 freshSymbolicCaseTag :: SymbolicM SymbolicCaseTag
 freshSymbolicCaseTag = liftStrategy getNextGUID
@@ -233,6 +244,14 @@ recordCase _stag _n [_rhs] = pure ()
 recordCase stag n rhss =
   tell (mempty { smCases = Map.singleton stag (n, mempty, rhss) })
 
+recordValue :: Type -> SMTVar -> SymbolicM ()
+recordValue ty sym = tell (mempty { smNamedValues = Map.singleton sym ty })
+
+recordValues :: Set (Typed SMTVar) -> SymbolicM ()
+recordValues newvars = tell (mempty { smNamedValues = m })
+  where
+    m = Map.fromList [ (var, ty) | Typed ty var <- Set.toList newvars ]
+    
 -- Used for case/choice slice alternatives
 extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
 extendPath g | g == SMT.bool True = id
@@ -328,7 +347,9 @@ liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
   lenv <- asks sVarEnv
   env  <- getIEnv
-  hoistMaybe =<< liftSolver (runSemiSolverM lenv env m)
+  (m_res, newvars) <- liftSolver (runSemiSolverM lenv env m)
+  recordValues newvars
+  hoistMaybe m_res
 
 liftSymExecM :: SE.SymExecM StrategyM a -> SymbolicM a
 liftSymExecM m = do

@@ -3,58 +3,75 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 {-# Language OverloadedStrings #-}
 
 -- Symbolic but the only non-symbolic path choices are those in
 -- recursive functions (i.e., we only unroll loops).
 
 -- FIXME: factor out commonalities with Symbolic.hs
-module Talos.Strategy.PathSymbolic.ModelParser where
+module Talos.Strategy.PathSymbolic.ModelParser (buildPaths) where
 
-import           Control.Lens                 (_1, _2, at, each, over, (%=),
-                                               (%~), (&), (+~), (.~), Lens', use, (?=), (<>=), uses, (.=), (%%~), view, (<<.=), mapped, Getter, preuse, ix)
+import           Control.Lens                              (Lens', Setter', _1,
+                                                            _2, _3, at,
+                                                            each, ifoldlM,
+                                                            locally, mapped,
+                                                            over, scribe, view,
+                                                            views, (%=), (%~),
+                                                            (&), (+~), (.~),
+                                                            (<>~))
 import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Data.ByteString              as BS
-import           Data.Foldable                (find, asum)
-import           Data.Functor.Identity        (Identity (Identity))
-import           Data.Generics.Product        (field)
-import qualified Data.List.NonEmpty           as NE
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromMaybe, isNothing)
-import qualified Data.Vector                  as Vector
-import           Data.Word                    (Word8)
-import           GHC.Generics                 (Generic)
-import qualified SimpleSMT                    as S
-import           Text.Printf                  (printf)
+import           Control.Monad.RWS               (RWST, censor,
+                                                            mapRWST, runRWST)
+import qualified Data.ByteString                           as BS
+import           Data.Foldable                             (find)
+import           Data.Functor                              (($>))
+import           Data.Functor.Identity                     (Identity (Identity))
+import           Data.Generics.Product                     (field)
+import           Data.List.NonEmpty                        (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                        as NE
+import           Data.Map                                  (Map)
+import qualified Data.Map                                  as Map
+import qualified Data.Map.Merge.Strict                     as Map
+import           Data.Maybe                                (isNothing)
+import qualified Data.Set                                  as Set
+import qualified Data.Vector                               as Vector
+import           Data.Word                                 (Word8)
+import           GHC.Generics                              (Generic)
+import qualified SimpleSMT                                 as S
+import           Text.Printf                               (printf)
 
-import           Daedalus.Core                hiding (streamOffset, tByte)
-import qualified Daedalus.Core.Semantics.Env  as I
-import qualified Daedalus.Core.Semantics.Expr as I
-import           Daedalus.PP                  (Doc, brackets, commaSep, pp,
-                                               showPP, text)
+import           Daedalus.Core                             hiding (streamOffset,
+                                                            tByte)
+import qualified Daedalus.Core.Semantics.Env               as I
+import qualified Daedalus.Core.Semantics.Expr              as I
+import           Daedalus.PP                               (Doc, brackets,
+                                                            commaSep, pp,
+                                                            showPP, text)
 import           Daedalus.Panic
-import           Daedalus.Time                (timeIt)
-import qualified Daedalus.Value               as I
+import           Daedalus.Time                             (timeIt)
+import qualified Daedalus.Value                            as I
 
 import           Talos.Strategy.Monad
-import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExpr
-                                               ,GuardedSemiSExprs, MuxValue (..)
-                                               
-                                              , VSequenceMeta(..)
-                                              )
-import qualified Talos.Strategy.PathSymbolic.MuxValue as MV
-import           Talos.Strategy.PathSymbolic.PathCondition (PathCondition
-                                               , PathVar
-                                               , pathVarToSExpr, LoopCountVar, ValuePathConstraint, loopCountVarToSExpr)
-import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import           Talos.Strategy.PathSymbolic.Monad
-import           Talos.SymExec.ModelParser    (evalModelP, pNumber, pValue, ModelP)
+import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExpr,
+                                                            GuardedSemiSExprs,
+                                                            MuxValue (..),
+                                                            VSequenceMeta (..))
+import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
+import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
+                                                            PathCondition,
+                                                            PathVar,
+                                                            ValuePathConstraint,
+                                                            loopCountVarToSExpr,
+                                                            pathVarToSExpr)
+import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
+import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
+                                                            pNumber, pSExpr,
+                                                            pValue)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT        (SMTVar, SolverT)
-import qualified Talos.SymExec.SolverT        as Solv
-import Data.Functor (($>))
+import           Talos.SymExec.SolverT                     (SMTVar, SolverT)
+import qualified Talos.SymExec.SolverT                     as Solv
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -78,137 +95,195 @@ instance Semigroup ModelState where
 instance Monoid ModelState where
   mempty = ModelState mempty mempty mempty
 
-
-data SymbolicLoopUsage = SymbolicLoopUsage
-  { sluLoopTag :: SymbolicLoopTag -- UNUSED (?)
-  , sluPathCursor :: PathCursor
-  , sluBuilder    :: PathBuilder
+data SymbolicLoopPoolElement = SymbolicLoopPoolElement
+  { slpePathCursor :: PathCursor
+  , slpeBuilder    :: PathBuilder
+  , slpeNullable   :: Bool -- ^ Only applies to generators
   } deriving Generic
 
 data ModelParserState = ModelParserState
-  { mpsContext :: [(Maybe Solv.SolverContext, ModelState)]
-  -- ^ Read-only, used to cache the solver model in the context, newest first.
-  , mpsState   :: ModelState
-  -- ^ Captures the curent solver model.
-  , mpsMMS      :: MultiModelState
+  { mpsMMS      :: MultiModelState
   -- ^ The stats across multiple models
-  , mpsLoopDeps :: Map SymbolicLoopTag [SymbolicLoopUsage]
-  -- ^ This accumulates the usages of a sequence until the generator is reached.
-  , mpsLoopGenerators :: Map SymbolicLoopTag (PathCursor, PathBuilder)
-  -- ^ This contains the generator and users.
-  , mpsHaveSolverModel :: Bool
-  -- ^ Whether or not there is a current model.
+  -- ^ This is _all_ the values from the solver, including those not
+  -- on the path etc.  Having this here means we don't have to worry
+  -- about preserving e.g. the solver stack when traversing the
+  -- pathbuilder.  It might also be faster to do in a single query(?)
   } deriving Generic
 
 emptyModelParserState :: MultiModelState -> ModelParserState
 emptyModelParserState mms = ModelParserState
-  { mpsContext = mempty
-  , mpsState = mempty
-  , mpsMMS   = mms
-  , mpsLoopDeps = mempty
-  , mpsLoopGenerators = mempty
-  , mpsHaveSolverModel = False
+  { 
+   mpsMMS   = mms
+--  , mpsHaveSolverModel = False
   }
 
 -- FIXME: clag
 getByteVar :: SMTVar -> ModelParserM Word8
 getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
-getModelVar :: Ord a => Lens' ModelState (Map a b) ->
-               (a -> S.SExpr) ->
-               ModelP b ->
-               (a -> b -> MultiModelState -> MultiModelState) ->
-               a ->
-               ModelParserM b
-getModelVar msLens toSExpr pVal updateStats pv = do
+getModelVar :: Ord a => Lens' ModelState (Map a b) -> a -> ModelParserM b
+getModelVar msLens pv = do
   -- Look for a pv in the context
-  m_i <- preuse (field @"mpsContext" . each . _2 . msLens . ix pv)
-  case m_i of
-    Just i -> pure i
-    Nothing -> do
-      m_i' <- use (field @"mpsState" . msLens . at pv)
-      case m_i' of
-        Just i -> pure i
-        Nothing -> do
-          sexp <- lift . lift $ Solv.getValue (toSExpr pv)
-          n <- case evalModelP pVal sexp of
-                 []    -> panic "No parse" []
-                 b : _ -> pure b
-          field @"mpsState" . msLens . at pv ?= n
-          field @"mpsMMS" %= updateStats pv n
-          pure n
+  m_ctxt   <- view (field @"mpeModelContext" . msLens . at pv)
+  m_solv   <- view (field @"mpeSolverModel" . msLens . at pv)
+  
+  case (m_ctxt, m_solv) of
+    (Just i, _) -> pure i
+    -- Note that we saw the variable
+    (_, Just i) -> scribe (mpoModelState . msLens) (Map.singleton pv i) $> i
+    _           -> panic "Missing variable in solver model" []
           
 getPathVar :: PathVar -> ModelParserM Int
-getPathVar =
-  getModelVar (field @"msPathVars") PC.pathVarToSExpr
-              (fromIntegral <$> pNumber)
-              updateStats 
-  where
-    -- bit gross doing this here ...
-    updateStats pv n mms
-      | Just chi <- Map.lookup pv (mmsChoices mms)
-      , n `notElem` mmschiSeen chi =
-        -- If we have seen all the choices then exhaust.
-        let res | length (mmschiSeen chi) + 1 == length (mmschiAllChoices chi) = Nothing
-                | otherwise  = Just (chi & field @"mmschiSeen" %~ (n :))
-        in mms & field @"mmsChoices" . at pv .~ res
-               & field @"mmsNovel" +~ 1
-      | otherwise = mms & field @"mmsSeen" +~ 1
+getPathVar = getModelVar (field @"msPathVars") 
+  -- where
+  --   -- bit gross doing this here ...
+  --   updateStats pv n mms
+  --     | Just chi <- Map.lookup pv (mmsChoices mms)
+  --     , n `notElem` mmschiSeen chi =
+  --       -- If we have seen all the choices then exhaust.
+  --       let res | length (mmschiSeen chi) + 1 == length (mmschiAllChoices chi) = Nothing
+  --               | otherwise  = Just (chi & field @"mmschiSeen" %~ (n :))
+  --       in mms & field @"mmsChoices" . at pv .~ res
+  --              & field @"mmsNovel" +~ 1
+  --     | otherwise = mms & field @"mmsSeen" +~ 1
 
 -- Maybe not worth caching?
 getLoopVar :: LoopCountVar -> ModelParserM Int
-getLoopVar =
-  getModelVar (field @"msLoopCounts") PC.loopCountVarToSExpr
-              (fromIntegral <$> pNumber)
-              updateStats 
-  where
-    -- FIXME: update this
-    updateStats _v _n mms = mms
+getLoopVar = getModelVar (field @"msLoopCounts")
 
 getValueVar :: Typed SMTVar -> ModelParserM I.Value
-getValueVar (Typed ty x) = do
-  typedThing <$> getModelVar (field @"msValues") S.const
-                             (Typed ty <$> pValue ty)
-                             updateStats x
-  where
-    updateStats _ _ mms = mms
+getValueVar (Typed _ty x) = typedThing <$> getModelVar (field @"msValues") x
 
--- | Records a dependency between loops
-recordLoopDep :: SymbolicLoopTag -> SymbolicLoopUsage -> ModelParserM ()
-recordLoopDep ltag model = field @"mpsLoopDeps" . at ltag <>= Just [model]
+-- -- | Gets any dependencies for a given tag, forgetting about the tag as a side-effect
+-- getLoopDep :: SymbolicLoopTag -> ModelParserM [SymbolicLoopPoolElement]
+-- getLoopDep ltag = uses (field @"mpsLoopDeps" . at ltag) (fromMaybe [])
 
--- | Records the generator and users of a sequence, along with the
--- path to the generator.  This will also forget the users of the loop.
-recordLoopGenerator :: SymbolicLoopTag -> PathBuilder -> ModelParserM ()
-recordLoopGenerator ltag pb = do
-  pc <- getCursor
-  field @"mpsLoopGenerators" . at ltag ?= (pc, pb)
-
--- | Gets any dependencies for a given tag, forgetting about the tag as a side-effect
-getLoopDep :: SymbolicLoopTag -> ModelParserM [SymbolicLoopUsage]
-getLoopDep ltag = uses (field @"mpsLoopDeps" . at ltag) (fromMaybe [])
+-- ---------- Reader ----------
 
 data ModelParserEnv = ModelParserEnv
-  { mpeRevCursor :: PathCursor
+  { mpeSolverModel  :: ModelState
+  -- ^ The entire model from the solver.
+  , mpeModelContext :: ModelState
+  -- ^ Used to figure out if a value is owned by the current code or
+  -- by the context.
+  , mpeGetModel :: SolverT StrategyM ModelState
+  -- ^ Reads the model from the solver (should always succeed, needs
+  -- to be in a solver state where we have a model).  Having it here
+  -- means we can override it to ask the solver for fewer things
+  -- (e.g. when getting loop elements).
   } deriving Generic
 
-emptyModelParserEnv :: ModelParserEnv
-emptyModelParserEnv = ModelParserEnv mempty
+makeModelParserEnv :: SymbolicModel -> SolverT StrategyM ModelParserEnv
+makeModelParserEnv sm = do
+  let mkModel = symbolicModelToModelStateP sm
+  initModel <- mkModel
+  
+  pure (ModelParserEnv { mpeSolverModel = initModel
+                       , mpeModelContext = mempty
+                       , mpeGetModel = mkModel
+                       })
+
+symbolicModelToModelStateP :: SymbolicModel -> SolverT StrategyM ModelState
+symbolicModelToModelStateP sm = do
+  -- We assume the query/result order is the same
+  let (pes, pPathVars)   = mapToP PC.pathVarToSMTVar pInt (smChoices sm)
+      (ves, pValues)     = mapToP id (\ty -> Typed ty <$> pValue ty) (smNamedValues sm)
+      (les, pLoopCounts) = mapToP PC.loopCountVarToSMTVar pInt (Map.fromSet (const ()) (smLoopVars sm))
+  sexp <- Solv.getValues (pes ++ ves ++ les)
+  let modelp = ModelState <$> pPathVars <*> pValues <*> pLoopCounts  
+  case evalModelP (pSExpr modelp) sexp of
+    []    -> panic "No parse" []
+    b : _ -> pure b
+  where
+   pInt = \_ -> fromIntegral <$> pNumber
+   mapToP toSMTVar pVal m =
+     let pOne k v = pSExpr ( pExact (toSMTVar k) *> pVal v )
+     in ( S.const . toSMTVar <$> Map.keys m
+        , Map.traverseWithKey pOne m)
+
+-- ---------- Writer ----------
+
+-- So we can have a better monoid instance (i.e., concat the values)
+newtype MPLoopDeps = MPLoopDeps { mpLoopDeps :: Map SymbolicLoopTag [SymbolicLoopPoolElement] }
+  deriving Generic
+
+instance Semigroup MPLoopDeps where
+  MPLoopDeps m1 <> MPLoopDeps m2 = MPLoopDeps $ Map.unionWith (<>) m1 m2
+instance Monoid MPLoopDeps where mempty = MPLoopDeps mempty
+
+type MPLoopGenerators = Map SymbolicLoopTag SymbolicLoopPoolElement
+
+-- data ModelParserOutput = ModelParserOutput
+--   { mpoLoopDeps       :: Map SymbolicLoopTag [SymbolicLoopPoolElement]
+--   -- ^ This accumulates the usages of a sequence until the generator is reached.
+--   , mpoLoopGenerators :: Map SymbolicLoopTag SymbolicLoopPoolElement
+--   -- ^ This contains the generator and users.
+--   } deriving Generic
+
+-- instance Semigroup ModelParserOutput where
+--   mpo1 <> mpo2 = ModelParserOutput
+--     { mpoLoopDeps       = Map.unionWith (<>) (mpoLoopDeps mpo1) (mpoLoopDeps mpo2)
+--     -- These shouldn't overlap, so <> is OK
+--     , mpoLoopGenerators = mpoLoopGenerators mpo1 <> mpoLoopGenerators mpo2
+--     }
+
+-- instance Monoid ModelParserOutput where
+--   mempty = ModelParserOutput mempty mempty
+
+recordLoopGenerator :: Bool -> SymbolicLoopTag -> PathBuilder -> ModelParserM ()
+recordLoopGenerator nullable ltag pb = scribe mpoLoopGenerators (Map.singleton ltag slpe)
+  where
+    slpe = SymbolicLoopPoolElement
+           { slpePathCursor = mempty
+           , slpeBuilder = pb
+           , slpeNullable = nullable
+           }
+
+recordLoopDep ::  SymbolicLoopTag -> PathBuilder -> ModelParserM ()
+recordLoopDep ltag pb =
+  scribe mpoLoopDeps (MPLoopDeps $ Map.singleton ltag [slpe])  
+  where
+    slpe = SymbolicLoopPoolElement
+           { slpePathCursor = mempty
+           , slpeBuilder = pb
+           , slpeNullable = True -- Ignored.
+           }
+
+loopDepsPathL :: Setter' MPLoopDeps PathCursor
+loopDepsPathL = field @"mpLoopDeps" . mapped . each . field @"slpePathCursor"
 
 extendCursorIn :: PathCursorElement -> ModelParserM a -> ModelParserM a
-extendCursorIn el = local (field @"mpeRevCursor" %~ (:) el)
+extendCursorIn el = censor go
+  where
+    go = (mpoLoopDeps . loopDepsPathL %~ (el :))
+         . (mpoLoopGenerators . mapped . field @"slpePathCursor" %~ (:) el)
 
-withCursorIn :: PathCursor -> ModelParserM a -> ModelParserM a
-withCursorIn pc = local (field @"mpeRevCursor" .~ reverse pc)
+-- ---------- Monad ----------
 
-getCursor :: ModelParserM PathCursor
-getCursor = asks (reverse . mpeRevCursor)
+type ModelParserM' w = RWST ModelParserEnv w ModelParserState (SolverT StrategyM)
 
-type ModelParserM a = ReaderT ModelParserEnv (StateT ModelParserState (SolverT StrategyM)) a
+-- We use a tuple so we can use different types at different phases.
+type ModelParserM = ModelParserM' (MPLoopDeps, MPLoopGenerators, ModelState)
 
-runModelParserM :: MultiModelState -> ModelParserM a -> SolverT StrategyM (a, MultiModelState)
-runModelParserM mms mp =
-  (_2 %~ mpsMMS) <$> runStateT (runReaderT mp emptyModelParserEnv) (emptyModelParserState mms)
+inSolver :: Monoid w => SolverT StrategyM a -> ModelParserM' w a
+inSolver = lift
+
+-- convenience lenses
+mpoLoopDeps :: Lens' (MPLoopDeps, MPLoopGenerators, ModelState) MPLoopDeps
+mpoLoopDeps = _1
+
+mpoLoopGenerators :: Lens' (MPLoopDeps, MPLoopGenerators, ModelState) MPLoopGenerators
+mpoLoopGenerators = _2
+
+mpoModelState :: Lens' (MPLoopDeps, MPLoopGenerators, ModelState) ModelState
+mpoModelState = _3
+
+runModelParserM :: SymbolicModel -> ModelParserM' w a -> SolverT StrategyM (a, MultiModelState)
+runModelParserM sm mp = do
+  env0 <- makeModelParserEnv sm
+  let mms = symbolicModelToMMS sm -- FIXME
+  (a, st, _) <- runRWST mp env0 (emptyModelParserState mms)
+  pure (a, mpsMMS st)
 
 -- ------------------------------------------------------------------------------
 -- Multi-pass state
@@ -270,7 +345,6 @@ modelChoiceCount mms = choices + cases
                     | ci <- Map.elems (mmsCases mms)
                     ]
 
-
 symbolicModelToMMS :: SymbolicModel -> MultiModelState
 symbolicModelToMMS sm = MultiModelState
   { mmsChoices = fmap mkCh (smChoices sm)
@@ -293,74 +367,97 @@ symbolicModelToMMS sm = MultiModelState
 
 nullMMS :: MultiModelState -> Bool
 nullMMS ms = Map.null (mmsCases ms) && Map.null (mmsChoices ms)
-      
-buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
-buildPaths ntotal nfails sm pb = do
-  liftIO $ printf "\n\t%d choices and cases" (modelChoiceCount st0)
+
+buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder ->
+              SolverT StrategyM [SelectedPath]
+buildPaths _ntotal _nfails sm pb = do
   (_, tassert) <- timeIt $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
   liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
-
-  _ <- panic "Lets go no further" []
-
-  if not (nullMMS st0)
-    then Solv.getContext >>= go 0 0 st0 []
-    else do -- Only 1 choice, so take it.      
-      (r, tcheck) <- timeIt Solv.check
-      liftIO $ printf "\t(single): solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
-      check st0 r >>= \case
-        Left errReason -> do
-          liftIO $ printf " (%s)\n" errReason
-          pure []
-        Right (p, _st', tbuild) -> do
-          liftIO $ printf ", build time: %.3fms\n" (fromInteger tbuild / 1000000 :: Double)
-          pure [p]
-
+  (r, tcheck) <- timeIt Solv.check
+  liftIO $ printf "\tInitial solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
+  case r of
+    S.Unsat   -> pure []
+    S.Unknown -> pure []
+    S.Sat     -> do
+      -- Have at least 1 model, lets pretend to be a loop.
+      (pool, _) <- runModelParserM sm (build invalidSymbolicLoopTag fakesle [])
+      pure (map fst (smPaths pool))
   where
-    st0 = symbolicModelToMMS sm
-    go :: Int -> Int -> MultiModelState -> [SelectedPath] -> Solv.SolverContext ->
-          SolverT StrategyM [SelectedPath]
-    go _na _nf _st acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
-    go _na nf  _st acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
-    go na nf st acc ctxt = do
-      Solv.restoreContext ctxt
-      m_next <- nextChoice st
-      case m_next of
-        Nothing -> pure acc -- Done, although we could try for different byte values?
-        Just (assn, exhaust, descr) -> do
-          (_, tassert) <- timeIt $ do
-            Solv.assert assn
-            Solv.flush
-          (r, tcheck) <- timeIt Solv.check
-          
-          liftIO $ printf "\t%d: (%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
-                          na
-                          (show descr) (modelChoiceCount st)
-                          (fromInteger tassert / 1000000 :: Double)
-                          (fromInteger tcheck / 1000000 :: Double)
-          
-          check st r >>= \case
-            Left errReason -> do
-              liftIO $ printf " (%s)\n" errReason
-              go (na + 1) (nf + 1) (exhaust st) acc ctxt
-            Right (p, st', tbuild) -> do
-              liftIO $ printf ", build time: %.3fms, novel: %d, reused: %d\n"
-                (fromInteger tbuild / 1000000 :: Double)
-                (mmsNovel st') (mmsSeen st')
-              go (na + 1) nf st' (p : acc) ctxt
-    check :: MultiModelState -> S.Result ->
-             SolverT StrategyM (Either String
-                                 (SelectedPath, MultiModelState, Integer))
-    check st r = do
-      case r of
-        S.Unsat   -> pure (Left "unsat")
-        S.Unknown -> pure (Left "unknown")
-        S.Sat     -> do
-          let mms = st { mmsNovel = 0, mmsSeen = 0 }
-          ((p, st'), tbuild) <- timeIt $ runModelParserM mms (buildPath pb)
-          pure (Right (p, st', tbuild))
+    fakesle = SymbolicLoopPoolElement
+              { slpePathCursor = mempty
+              , slpeBuilder    = pb
+              , slpeNullable   = False -- doesn't matter
+              }
+             
+-- buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder -> SolverT StrategyM [SelectedPath]
+-- buildPaths ntotal nfails sm pb = do
+--   liftIO $ printf "\n\t%d choices and cases" (modelChoiceCount st0)
+--   (_, tassert) <- timeIt $ do
+--     mapM_ Solv.assert (smAsserts sm)
+--     Solv.flush
+--   liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
 
+--   _ <- panic "Lets go no further" []
+
+--   if not (nullMMS st0)
+--     then Solv.getContext >>= go 0 0 st0 []
+--     else do -- Only 1 choice, so take it.      
+--       (r, tcheck) <- timeIt Solv.check
+--       liftIO $ printf "\t(single): solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
+--       check st0 r >>= \case
+--         Left errReason -> do
+--           liftIO $ printf " (%s)\n" errReason
+--           pure []
+--         Right (p, _st', tbuild) -> do
+--           liftIO $ printf ", build time: %.3fms\n" (fromInteger tbuild / 1000000 :: Double)
+--           pure [p]
+
+--   where
+--     st0 = symbolicModelToMMS sm
+--     go :: Int -> Int -> MultiModelState -> [SelectedPath] -> Solv.SolverContext ->
+--           SolverT StrategyM [SelectedPath]
+--     go _na _nf _st acc ctxt | length acc == ntotal = acc <$ Solv.restoreContext ctxt
+--     go _na nf  _st acc ctxt | Just nf == nfails    = acc <$ Solv.restoreContext ctxt
+--     go na nf st acc ctxt = do
+--       Solv.restoreContext ctxt
+--       m_next <- nextChoice st
+--       case m_next of
+--         Nothing -> pure acc -- Done, although we could try for different byte values?
+--         Just (assn, exhaust, descr) -> do
+--           (_, tassert) <- timeIt $ do
+--             Solv.assert assn
+--             Solv.flush
+--           (r, tcheck) <- timeIt Solv.check
+          
+--           liftIO $ printf "\t%d: (%s) %d choices and cases, assert time: %.3fms, solve time: %.3fms"
+--                           na
+--                           (show descr) (modelChoiceCount st)
+--                           (fromInteger tassert / 1000000 :: Double)
+--                           (fromInteger tcheck / 1000000 :: Double)
+          
+--           check st r >>= \case
+--             Left errReason -> do
+--               liftIO $ printf " (%s)\n" errReason
+--               go (na + 1) (nf + 1) (exhaust st) acc ctxt
+--             Right (p, st', tbuild) -> do
+--               liftIO $ printf ", build time: %.3fms, novel: %d, reused: %d\n"
+--                 (fromInteger tbuild / 1000000 :: Double)
+--                 (mmsNovel st') (mmsSeen st')
+--               go (na + 1) nf st' (p : acc) ctxt
+--     check :: MultiModelState -> S.Result ->
+--              SolverT StrategyM (Either String
+--                                  (SelectedPath, MultiModelState, Integer))
+             
+--     check st r = undefined -- do
+      -- case r of
+      --   S.Unsat   -> pure (Left "unsat")
+      --   S.Unknown -> pure (Left "unknown")
+      --   S.Sat     -> do
+      --     let mms = st { mmsNovel = 0, mmsSeen = 0 }
+      --     ((p, st'), tbuild) <- timeIt $ runModelParserM mms (buildPath pb)
+      --     pure (Right (p, st', tbuild))
 
 -- -----------------------------------------------------------------------------
 -- Building a single context
@@ -406,11 +503,11 @@ buildLoop (PathLoopUnrolled m_lv els) = do
 -- a singleton or the empty list.
 buildLoop (PathLoopGenerator ltag m_lv el) =
   loopNonEmpty m_lv $ do
-    recordLoopGenerator ltag el
+    recordLoopGenerator (isNothing m_lv) ltag el
     -- We will fill this in when we have all the models
     pure SelectedHole
 
-buildLoop (PathLoopMorphism ltag guardedEls) = do
+buildLoop (PathLoopMorphism _ltag guardedEls) = do
   m_el <- findM (pathConditionModel . view _1) guardedEls
   case m_el of
     Nothing -> panic "No input collection was reachable" []
@@ -420,13 +517,7 @@ buildLoop (PathLoopMorphism ltag guardedEls) = do
       -- We always have an element, although it might not be well-defined if the loopvar is 0
       | Just genltag <- vsmGeneratorTag vsm, [el] <- els ->
         loopNonEmpty (vsmLoopCountVar vsm) $ do
-          hereCursor <- getCursor
-          let slu = SymbolicLoopUsage
-                    { sluLoopTag    = ltag
-                    , sluPathCursor = hereCursor
-                    , sluBuilder    = el
-                    }
-          recordLoopDep genltag slu
+          recordLoopDep genltag el
           -- We will fill this in at synthesis time.
           pure SelectedHole
         
@@ -557,93 +648,130 @@ gsesModel gses = join <$> (traverse (gseModel . snd) =<< findM go els)
 -- -----------------------------------------------------------------------------
 -- Loops
   
-symbolicLoopUsageToPool :: PathCursor -> PathBuilder -> [SymbolicLoopUsage] -> SelectedLoopPoolF PathBuilder
-symbolicLoopUsageToPool hereCursor pb slus = SelectedLoopPoolF
-  { smPaths   = paths
-  , smCursors = cursors
-  }
-  where
-    -- Only a single path, we will create a bunch when we iterate over the models
-    paths   = [ (pb, map sluBuilder slus) ]
-    cursors = map (relitiviseCursors hereCursor . sluPathCursor) slus
+-- symbolicLoopUsageToPool :: PathCursor -> PathBuilder -> [SymbolicLoopPoolElement] -> SelectedLoopPoolF PathBuilder
+-- symbolicLoopUsageToPool hereCursor pb slus = SelectedLoopPoolF
+--   { smPaths   = paths
+--   , smCursors = cursors
+--   }
+--   where
+--     -- Only a single path, we will create a bunch when we iterate over the models
+--     paths   = [ (pb, map sluBuilder slus) ]
+--     cursors = map (relitiviseCursors hereCursor . sluPathCursor) slus
 
 -- We run the builder, then collect all the sequences, get a pool of
 -- models for them, and up the generators.
 
--- This is run after a successful check sat
-build :: -- MultiModelState -> ModelState ->
-         (LoopGeneratorTag, (PathCursor, PathBuilder), [SymbolicLoopUsage]) ->
-         ModelParserM SelectedLoopPool
-build (gentag, (genpc, genb), slus) = do
-  -- We do this in two phases to reduce order dependence:
-  --  1. Get models for the usages along with any generators for each
-  --     usage, and similarly for the generator
-  --  2. After getting all the models we can associate them with their
-  --     generators and recurse.
-  
-  usesps  <- mapM (\slu -> runOne (sluPathCursor slu) (sluBuilder slu)) slus
-  genpc   <- runOne genpc genb
-  
-  
-  
-  
-                   
-  undefined
-  
+-- This is run after a successful check sat.
+-- Invariants:
+--   - We leave the solver in the context in which we found it.
+build :: SymbolicLoopTag -> SymbolicLoopPoolElement -> [SymbolicLoopPoolElement] ->
+         ModelParserM' () SelectedLoopPool
+build gentag genpe deppes =
+  withScopedContext $ SelectedLoopPoolF <$> go 0 10 [] <*> pure cursors   
+  where 
+    go :: Int -> Int -> [(SelectedPath, [SelectedPath])] ->
+          ModelParserM' () [(SelectedPath, [SelectedPath])]
+    go n ntotal acc = do
+      (ms, r) <- makePoolElement gentag (genpe :| deppes)
+      let acc' = r : acc
+      if n >= ntotal
+        then pure acc'
+        else tryAgain ms acc (go (n + 1) ntotal acc')
+        
+    tryAgain ms acc m = do
+      assertDifferentModel ms
+      r <- inSolver Solv.check
+      case r of
+        S.Unsat   -> pure acc
+        S.Unknown -> pure acc
+        S.Sat     -> do
+          modelMaker <- asks mpeGetModel
+          model <- inSolver modelMaker
+          locally (field @"mpeSolverModel") (const model) m
+
+    assertDifferentModel :: ModelState -> ModelParserM' () ()
+    assertDifferentModel ms = do
+      -- FIXME: we should name this so we don't send it twice.
+      sexp <- modelStateToSExpr ms
+      inSolver (Solv.assert (S.not sexp))
+
+    cursors = map (relitiviseCursors (slpePathCursor genpe) . slpePathCursor) deppes
+
+-- We do this in two phases to reduce order dependence:
+--  1. Get models for the usages along with any generators for each
+--     usage, and similarly for the generator
+--  2. After getting all the models we can associate them with their
+--     generators and recurse.    
+makePoolElement :: SymbolicLoopTag -> NonEmpty SymbolicLoopPoolElement ->
+                   ModelParserM' () (ModelState, (SelectedPath, [SelectedPath]))
+makePoolElement gentag slpes = do
+  -- Build each loop element in gen/deps, collecting any sub-gens/deps
+  (pgs, (deps, ms)) <-
+    listenCensor (\w r -> ((), (r, w))) (traverse buildOne slpes)
+
+  let mkret (g :| ds) = (ms, (g, ds))
+
+  -- If there are no generators we have a fast-path
+  mkret <$> if all (Map.null . view _3) pgs
+            then pure $ view _1 <$> pgs
+            else fixModelIn ms $ recursiveSteps deps pgs
   where
+    -- otherwise assert the current model and recurse    
+    recursiveSteps deps pgs = do 
+      -- Sanity check that we consume all the deps
+      let allTags = foldMap (views _3 Map.keysSet) pgs
+      unless (Map.keysSet (mpLoopDeps deps) `Set.isSubsetOf` allTags) $
+        panic "Leftover loop deps" []
+      traverse (resolveGenerators deps) pgs
+    
     -- Gets the path and any generators.
-    runOne pc pb = withCursorIn pc (extendCursorIn (PCLoopPool gentag) ((,) <$> buildPath pb <*> getGenerators))
-    
-    -- runOnce menv' mms' m = runStateT (runReaderT m menv') (emptyModelParserState mms')
-    getGenerators = field @"mpsLoopGenerators" <<.= mempty
-    
-    getUsagesFor :: LoopGeneratorTag -> ModelParserM [SymbolicLoopUsage]
-    getUsagesFor ltag = fromMaybe [] <$> (field @"mpsLoopDeps" . at ltag <<.= Nothing)
+    buildOne slpe = do
+      let pc = slpePathCursor slpe ++ [PCLoopPool gentag]
+          -- We peel off the generators and add the path prefix to any
+          -- deps.
+          lcfun (deps, gens, ms) sp = ( (deps & loopDepsPathL %~ (pc ++), ms)
+                                      , (sp, pc, gens))
+      listenCensor lcfun (buildPath (slpeBuilder slpe))
 
--- build :: MultiModelState -> ModelState -> PathBuilder -> SolverT StrategyM SelectedPath
--- build mms ms pb = do
-  -- (sp, st) <- runOnce emptyModelParserEnv mms (buildPath pb)
-  -- let loops = mpsClosedLoops st
+resolveGenerators :: MPLoopDeps -> (SelectedPath, PathCursor, MPLoopGenerators) ->
+                     ModelParserM' () SelectedPath
+resolveGenerators allDeps (sp, pc, gens) = ifoldlM resolveOneGenerator sp gens'
+  where
+    gens' :: Map SymbolicLoopTag (SymbolicLoopPoolElement, [SymbolicLoopPoolElement])
+    gens' = Map.merge (Map.mapMissing $ const (, []))
+                      Map.dropMissing
+                      (Map.zipWithMatched (const (,)))
+                      gens (mpLoopDeps allDeps)
+
+    resolveOneGenerator ltag sp' (gen, deps) = do
+      let gen'  = gen & field @"slpePathCursor" %~ (pc ++)
+      pool <- build ltag gen' deps
       
-  -- undefined
-
-  -- where
-  --   goPool (gentag, (genpc, SelectedLoopPoolF { smPaths = [(genp, useps)], smCursors = cs })) = do
-  --     ctxt <- Solv.getContext
-  --     -- Fix the context of the loop(s) but not the loops themselves.
+      let node = SelectedLoop $ SelectedLoopPool ltag (slpeNullable gen) [pool]
+      pure (fillCursorTarget node (slpePathCursor gen) sp')
       
-  --     assertModelState ms
-  --     r <- Solv.check
-  --     case r of
-  --       S.Sat -> do
-  --         useps' <- extendCursorIn (PCLoopPool gentag) (mapM goOne useps)
-  --         genp' <- goOne genp
-  --         pure (genp', useps')
-          
-  --       _ -> panic "FIXME" []
-
-  --   runOnce menv' mms' m = runStateT (runReaderT m menv') (emptyModelParserState mms')
-
+listenCensor :: (w -> a -> (w', b)) -> ModelParserM' w a -> ModelParserM' w' b
+listenCensor f = mapRWST $ \m -> do
+  (a, s, w) <- m
+  let (w', b) = f w a
+  pure (b, s, w')
+  
 -- -----------------------------------------------------------------------------
 -- Solver context/model state management
 
-inFixedModelState :: ModelParserM a -> ModelParserM a
-inFixedModelState m = do
-  ms <- gets mpsState
-  field @"mpsContext" %= (:) (Nothing, ms)
-  field @"mpsState"   .= mempty
+withScopedContext :: Monoid w => ModelParserM' w a -> ModelParserM' w a
+withScopedContext m = do
+  ctxt <- inSolver Solv.getContext
   r <- m
-  field @"mpsState"   .= ms  
-  field @"mpsContext" %= tail
+  inSolver (Solv.restoreContext ctxt)
   pure r
 
-assertContext :: ModelParserM ()
-assertContext = do
-  ctxt <- gets mpsContext
-  
-
-  -- This will mess up any model we have (probably)
-  field @"mpsHaveSolverModel" .= False
+fixModelIn :: Monoid w => ModelState -> ModelParserM' w a -> ModelParserM' w a
+fixModelIn ms m = withScopedContext $ do
+  sexp <- modelStateToSExpr ms
+  inSolver (Solv.assert sexp)
+  -- We also need to update the model in the context.
+  local (field @"mpeModelContext" <>~ ms) m
 
 modelStateToSExpr :: LiftStrategyM m => ModelState -> m S.SExpr
 modelStateToSExpr ms = do
@@ -658,12 +786,6 @@ modelStateToSExpr ms = do
 
     loops = map lccPred (Map.toList (msLoopCounts ms))
     lccPred (lc, i) = S.eq (loopCountVarToSExpr lc) (S.int (fromIntegral i))
-
--- -- c.f. PathCondition.toSExpr
--- assertModelState :: ModelState -> SolverT StrategyM ()
--- assertModelState ms = do
---   tdefs <- getTypeDefs
---   Solv.assert 
 
 
 

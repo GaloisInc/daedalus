@@ -59,6 +59,8 @@ import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
+import Control.Monad.State (StateT, runStateT, modify)
+import Data.Set (Set)
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -156,8 +158,9 @@ vUnit = singleton mempty $ VValue V.vUnit
 vOther :: PathCondition -> Typed SMTVar -> GuardedSemiSExprs
 vOther g = singleton g . VOther 
 
-vSExpr :: MonadSolver m => PathCondition -> Type -> SExpr -> m GuardedSemiSExprs
-vSExpr g ty se = vOther g . Typed ty <$> sexprAsSMTVar (symExecTy ty) se
+vSExpr :: (MonadIO m, HasGUID m) =>
+          PathCondition -> Type -> SExpr -> SemiSolverM m GuardedSemiSExprs
+vSExpr g ty se = vOther g . Typed ty <$> sexprAsSMTVar ty se
 
 vValue :: PathCondition -> V.Value -> GuardedSemiSExprs
 vValue g = singleton g . VValue
@@ -265,7 +268,7 @@ explodeSequence vsm els
 -- -- Fallin back to (fully) symbolic execution
 
 symExecToSemiExec :: (HasGUID m, Monad m, MonadIO m) => SE.SymExecM m a -> SemiSolverM m a
-symExecToSemiExec = lift . withReaderT envf
+symExecToSemiExec = lift . lift . withReaderT envf
   where
     envf env = envToSymEnv (typeDefs env) (localBoundNames env)
 
@@ -549,14 +552,23 @@ typeDefs = I.tEnv . interpEnv
 
 type SemiCtxt m = (Monad m, MonadIO m, HasGUID m)
 
-type SemiSolverM m = MaybeT (ReaderT SemiSolverEnv (SolverT m))
+type SemiState = Set (Typed SMTVar)
+
+type SemiSolverM m = MaybeT (StateT SemiState (ReaderT SemiSolverEnv (SolverT m)))
 
 runSemiSolverM :: SemiCtxt m =>
                   Map Name GuardedSemiSExprs ->
                   I.Env ->
-                  SemiSolverM m a -> SolverT m (Maybe a)
-runSemiSolverM lenv env m =
-  runReaderT (runMaybeT m) (SemiSolverEnv lenv env)
+                  SemiSolverM m a -> SolverT m (Maybe a, Set (Typed SMTVar))
+runSemiSolverM lenv env m = 
+  runReaderT (runStateT (runMaybeT m) mempty) (SemiSolverEnv lenv env)
+
+sexprAsSMTVar :: (MonadIO m, HasGUID m) => Type -> SExpr -> SemiSolverM m SMTVar
+sexprAsSMTVar _ty (S.Atom x) = pure x
+sexprAsSMTVar ty e = do
+  s <- liftSolver (defineSymbol "named" (symExecTy ty) e)
+  modify (Set.insert (Typed ty s))
+  pure s
 
 getMaybe :: SemiCtxt m => SemiSolverM m a -> SemiSolverM m (Maybe a)
 getMaybe = lift . runMaybeT 
@@ -576,6 +588,8 @@ collectMaybes = fmap catMaybes . mapM getMaybe
 gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
               SemiSolverM m GuardedSemiSExprs
 gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unions'
+
+
 
 --------------------------------------------------------------------------------
 -- Exprs
@@ -756,10 +770,6 @@ gseConcat _vsm _svs = panic "UNIMPLEMENTED: Concat" []
   --   mkOne comb =
   --     let (gs, els) = unzip comb
   --     in doConcat els (mconcat gs)
-
-sexprAsSMTVar :: MonadSolver m => SExpr -> SExpr -> m SMTVar
-sexprAsSMTVar _ty (S.Atom x) = pure x
-sexprAsSMTVar ty e = liftSolver (defineSymbol "named" ty e)
 
 typeToElType :: Type -> Maybe Type
 typeToElType ty = 

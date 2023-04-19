@@ -368,7 +368,7 @@ synthesiseLoopBounds canBeNull lv m_uv = do
     
   fromIntegral <$> randR (l, u)
   where
-    l = max altUpperBound (I.valueToIntegral (assertInterpValue lv))
+    l = max altLowerBound (I.valueToIntegral (assertInterpValue lv))
     m_u = I.valueToIntegral . assertInterpValue <$> m_uv
 
     altLowerBound = if canBeNull then 0 else 1

@@ -19,7 +19,7 @@ module Talos.SymExec.SolverT (
   withSolver, SMTVar,
   -- assert, declare, check,
   solverOp, solverState,
-  getValue, getModel,
+  getValue, getValues, getModel,
   -- * Context management
   SolverContext, SolverFrame, getContext, restoreContext,
   freshContext, collapseContext, extendContext, instantiateSolverFrame,
@@ -361,14 +361,33 @@ check = flush >> solverOp S.check
 
 getValue :: MonadIO m => SExpr -> SolverT m SExpr
 getValue v = do
-  res <- solverOp (\s -> S.command s $ S.fun "get-value" [S.List [v]])
+  res <- getValues [v]
   case res of
-    S.List [S.List [_, v']] -> pure v'
+    S.List [S.List [_, r]] -> pure r
     _ -> panic (unlines
                  [ "Unexpected response from the SMT solver:"
                  , "  Exptected: a value"
                  , "  Result: " ++ S.showsSExpr res ""
                  ]) []
+
+getValues :: MonadIO m => [SExpr] -> SolverT m SExpr
+getValues es = solverOp (\s -> S.command s $ S.fun "get-value" [S.List es])
+
+-- getValues :: MonadIO m => [SExpr] -> SolverT m [(SExpr, SExpr)]
+-- getValues es = do
+--   res <- solverOp (\s -> S.command s $ S.fun "get-value" [S.List es])
+--   case res of
+--     S.List vs -> pure (map getVal vs)
+--     _ -> bug res
+--   where
+--     getVal (S.List [e, r]) = (e, r)
+--     getVal res = bug res
+
+--     bug res = panic (unlines
+--                       [ "Unexpected response from the SMT solver:"
+--                       , "  Exptected: a value"
+--                       , "  Result: " ++ S.showsSExpr res ""
+--                       ]) []
 
 -- Mainly for debugging
 getModel :: MonadIO m => SolverT m SExpr
@@ -434,17 +453,17 @@ defineSymbol pfx ty e = do
 
 -- FIXME: we could convert the type here
 -- gives a name a value, returns the fresh name
-defineName :: (Monad m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SExpr
+defineName :: (Monad m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SMTVar
 defineName n ty v = do
   n' <- freshName n
   queueSolverOp (QCDefine n' ty v)
-  pure (S.const n')
+  pure n'
 
-declareName :: (Monad m, HasGUID m) => Name -> SExpr -> SolverT m SExpr
+declareName :: (Monad m, HasGUID m) => Name -> SExpr -> SolverT m SMTVar
 declareName n ty = do
   n' <- freshName n
   queueSolverOp (QCDeclare n' ty)
-  pure (S.const n')
+  pure n'
 
 solverState :: Monad m => (SolverState -> m (a, SolverState)) -> SolverT m a
 solverState f = do
