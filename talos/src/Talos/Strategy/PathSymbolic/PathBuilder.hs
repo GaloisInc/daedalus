@@ -10,7 +10,7 @@
 -- recursive functions (i.e., we only unroll loops).
 
 -- FIXME: factor out commonalities with Symbolic.hs
-module Talos.Strategy.PathSymbolic.ModelParser (buildPaths) where
+module Talos.Strategy.PathSymbolic.PathBuilder (buildPaths) where
 
 import           Control.Lens                              (Lens', Setter', _1,
                                                             _2, _3, at,

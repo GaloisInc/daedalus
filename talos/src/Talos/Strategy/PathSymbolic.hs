@@ -45,7 +45,7 @@ import           Talos.Analysis.Slice
 import           Talos.Strategy.Monad
 import           Talos.Strategy.OptParser                  (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser                  as P
-import           Talos.Strategy.PathSymbolic.ModelParser   (buildPaths)
+import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
 import           Talos.Strategy.PathSymbolic.Monad
 import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
                                                             MuxValue (..),
