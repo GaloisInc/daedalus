@@ -414,20 +414,18 @@ synthesiseLoopMorphism m_ltag m_ps lm =
   case lm of
     FoldMorphism s e lc b -> do
       e_v <- synthesiseV e
-      (els, bindLC, _mk) <- goLC lc <$> synthesiseV (lcCol lc)
-      let goOne i acc (p, el) =
-            bindLC el (bindIn s acc (enterLoop m_ltag i (synthesiseG p b)))
-      ifoldlM goOne e_v els
+      (ps, els, bindLC, _mk) <- goLC lc <$> synthesiseV (lcCol lc)
+      let goEl el = \acc p -> bindLC el (bindIn s acc (synthesiseG p b))
+      synthesiseLoop m_ltag ps (map goEl els) e_v
     MapMorphism lc b -> do
-      (els, bindLC, mk) <- goLC lc <$> synthesiseV (lcCol lc)      
-      let goOne i (p, el) =
-            (,) (fst el) <$> bindLC el (enterLoop m_ltag i (synthesiseG p b))
-      mk <$> itraverse goOne els
+      (ps, els, bindLC, mk) <- goLC lc <$> synthesiseV (lcCol lc)
+      let goEl el = \acc p -> (: acc) . (,) (fst el) <$> bindLC el (synthesiseG p b)
+      mk <$> synthesiseLoop m_ltag ps (map goEl els) []
   where
     goLC lc v
       | length ps /= length els
       = panic "BUG: length mismatch in synthesiseG" []
-      | otherwise = (zip ps els, bindLC, mk)
+      | otherwise = (ps, els, bindLC, mk)
       where
         ps = fromMaybe (replicate (length els) SelectedHole) m_ps
         -- This will not contain holes, by construction
@@ -482,11 +480,35 @@ synthesiseDo cp m_x lhs rhs = do
   let (lhsp, rhsp) = splitPath cp'
   (v, pc) <- withPushedContext (PCEDoRHS rhsp) (synthesiseG lhsp lhs)
   let rhsp' = case pc of
-                PCEDoRHS rhsp -> rhsp
+                PCEDoRHS r -> r
                 _ -> panic "Unexpected path context element" []
               
   bindInMaybe m_x v (synthesiseG rhsp' rhs)
-                
+
+synthesiseLoop :: Maybe LoopGeneratorTag ->
+                  [SelectedPath] ->
+                  [a -> SelectedPath -> SynthesisM a] ->
+                  a -> SynthesisM a
+synthesiseLoop m_ltag = go 0 
+  where
+    -- essentially itraverse with the addition of the context manipulation.
+    go _ [] _ acc = pure acc
+    go i (p : ps') (m : ms') acc = do
+      let pcel = PCELoopBody i ps'
+      (acc', pc) <- withPushedContext pcel (enterLoop m_ltag i (m acc p))
+      let ps'' = case pc of
+                   PCELoopBody _ r -> r
+                   _ -> panic "Unexpected path context element" []
+      go (i + 1) ps'' ms' acc'
+    go _ _ _ _ = panic "Wrong number of loop bodies" []
+    
+synthesiseMany :: Maybe LoopGeneratorTag -> [SelectedPath] ->
+                  Grammar -> SynthesisM [Value]
+synthesiseMany m_ltag ps g =
+  reverse <$> synthesiseLoop m_ltag ps (repeat go) [] 
+  where
+    go acc p = (: acc) <$> synthesiseG p g
+    
 -- Does all the heavy lifting
 synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
 
@@ -521,11 +543,11 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
 synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (ManyLoop sem _bt _lb _m_ub g)) = do
-  vs <- zipWithM (\i p -> enterLoop m_ltag i (synthesiseG p g)) [0..] ps
+  vs <- synthesiseMany m_ltag ps g
   mbPure sem (vArray vs)
   
 -- FIXME: sem
-synthesiseG (SelectedLoop (SelectedLoopPool tag canBeNull ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
+synthesiseG (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
   count <- synthesiseLoopBounds canBeNull lv m_uv
@@ -535,18 +557,18 @@ synthesiseG (SelectedLoop (SelectedLoopPool tag canBeNull ms)) (Loop (ManyLoop _
 
   -- We need this to resolve which indices we are in which loops.
   tagMap <- getLoopTagInstMap
-  let (elPaths, targetPaths) = selectedMany tag tagMap ms'
+  let (elPaths, targetPaths) = selectedMany ltag tagMap ms'
   -- ... which may require us to update the RHS stack to propagate selected models.  
   overPathContext (applyManyTargets targetPaths)
 
-  -- next we synthesise the elements of the Many, using the selected paths.
-  vArray <$> mapM (flip synthesiseG g) elPaths
+  vs <- synthesiseMany (Just ltag) elPaths g
+  mbPure sem (vArray vs)
 
 synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e
   -- FIXME: do we need the enterLoop here?
-  let go i v p = enterLoop m_ltag i (bindIn n v (synthesiseG p g))
-  ifoldlM go initV ps
+  let go v p = bindIn n v (synthesiseG p g)
+  synthesiseLoop m_ltag ps (repeat go) initV
 
 synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism m_ltag (Just ps) lm
   
@@ -581,9 +603,10 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
       env <- projectEnvForM y
       I.evalCase (\g' _env -> synthesiseG SelectedHole g')
                  (do bs <- SynthesisM $ gets seenBytes
+                     env' <- SynthesisM $ asks synthValueEnv
                      panic "Case failed" [showPP g
                                          , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
-                                                 (Map.toList $ I.vEnv env))
+                                                 (Map.toList (assertInterpValue <$> env')))
                                          , show bs
                                          ])
                  c env
