@@ -13,16 +13,15 @@
 module Talos.Strategy.PathSymbolic.PathBuilder (buildPaths) where
 
 import           Control.Lens                              (Lens', Setter', _1,
-                                                            _2, _3, at,
-                                                            each, ifoldlM,
-                                                            locally, mapped,
-                                                            over, scribe, view,
-                                                            views, (%=), (%~),
-                                                            (&), (+~), (.~),
-                                                            (<>~))
-import           Control.Monad.Reader
-import           Control.Monad.RWS               (RWST, censor,
+                                                            _2, _3, at, each,
+                                                            ifoldlM, locally,
+                                                            mapped, over,
+                                                            scribe, view, views,
+                                                            (%=), (%~), (&),
+                                                            (+~), (.~), (<>~))
+import           Control.Monad.RWS                         (RWST, censor,
                                                             mapRWST, runRWST)
+import           Control.Monad.Reader
 import qualified Data.ByteString                           as BS
 import           Data.Foldable                             (find)
 import           Data.Functor                              (($>))
@@ -63,8 +62,9 @@ import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             PathCondition,
                                                             PathVar,
                                                             ValuePathConstraint,
+                                                            loopCountToSExpr,
                                                             loopCountVarToSExpr,
-                                                            pathVarToSExpr, loopCountToSExpr)
+                                                            pathVarToSExpr)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
                                                             pNumber, pSExpr,
@@ -72,6 +72,7 @@ import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT                     (SMTVar, SolverT)
 import qualified Talos.SymExec.SolverT                     as Solv
+
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.

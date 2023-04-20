@@ -13,23 +13,25 @@
 
 module Talos.Synthesis (synthesise) where
 
-import Control.Lens (itraverse, ifoldlM, locally, at, (?~))
+import           Control.Lens                    (at, (%=), (?~))
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.ByteString       (ByteString)
-import qualified Data.ByteString       as BS
-import           Data.Foldable         (find, foldlM, toList)
-import           Data.Functor.Identity (Identity (Identity))
-import           Data.List             (foldl')
-import qualified Data.List.NonEmpty    as NE
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (fromMaybe)
-import qualified Data.Set              as Set
+import           Data.ByteString                 (ByteString)
+import qualified Data.ByteString                 as BS
+import           Data.Foldable                   (find, foldlM, toList)
+import           Data.Functor.Identity           (Identity (Identity))
+import           Data.Generics.Product           (field)
+import           Data.List                       (foldl')
+import qualified Data.List.NonEmpty              as NE
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (fromMaybe)
+import qualified Data.Set                        as Set
 import           Data.Word
-import           SimpleSMT             (Solver)
-import           System.IO.Streams     (Generator, InputStream)
-import qualified System.IO.Streams     as Streams
+import           GHC.Generics                    (Generic)
+import           SimpleSMT                       (Solver)
+import           System.IO.Streams               (Generator, InputStream)
+import qualified System.IO.Streams               as Streams
 import           System.Random
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -40,14 +42,15 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
-import qualified Daedalus.Value                  as I
 import           Daedalus.RTS.Input              (newInput)
+import qualified Daedalus.Value                  as I
+import           RTS.ParseError                  (ErrorStyle (SingleError),
+                                                  ppParseError)
 import           RTS.Parser                      (runParser)
 import           RTS.ParserAPI                   (ResultG (..))
-import           RTS.ParseError (ppParseError,ErrorStyle(SingleError))
 
 import           Talos.Analysis                  (summarise)
-import           Talos.Analysis.Exported         (esRootSlices, SliceId)
+import           Talos.Analysis.Exported         (SliceId, esRootSlices)
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
@@ -58,8 +61,6 @@ import           Talos.SymExec.StdLib
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
 import           Talos.Strategy
 import           Talos.Strategy.Monad
-import GHC.Generics (Generic)
-import Data.Generics.Product (field)
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -209,8 +210,14 @@ withPushedContext pce m = do
       | otherwise = panic "BUG: empty PathContext stack" []  
 
 overPathContext :: (PathContext -> PathContext) -> SynthesisM ()
-overPathContext f = SynthesisM $ modify (\s -> s { pathContext = f (pathContext s) })
+overPathContext f = SynthesisM $ field @"pathContext" %= f
 
+printPathContext :: SynthesisM ()
+printPathContext = do
+  pc <- SynthesisM $ gets pathContext
+  liftIO $ print (ppPathContext pc)
+  
+  
 enterLoop :: Maybe LoopGeneratorTag -> Int -> SynthesisM a -> SynthesisM a
 enterLoop Nothing _     m = m
 enterLoop (Just ltag) i (SynthesisM m) =
@@ -380,7 +387,7 @@ synthesiseLoopBounds canBeNull lv m_uv = do
   -- FIXME: make params  
   let -- Policy 
     -- Number of iterations, unless below the min
-    softMaxLoopCount = 1000
+    softMaxLoopCount = 10 -- 1000
     -- The minimum loop range (unless constrained by both lower and upper).
     minLoopRangeSize = 10
     altUpperBound = max softMaxLoopCount (l + minLoopRangeSize)
@@ -558,9 +565,10 @@ synthesiseG (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop 
   -- We need this to resolve which indices we are in which loops.
   tagMap <- getLoopTagInstMap
   let (elPaths, targetPaths) = selectedMany ltag tagMap ms'
+  
   -- ... which may require us to update the RHS stack to propagate selected models.  
   overPathContext (applyManyTargets targetPaths)
-
+  
   vs <- synthesiseMany (Just ltag) elPaths g
   mbPure sem (vArray vs)
 

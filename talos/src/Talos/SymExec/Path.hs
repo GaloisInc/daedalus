@@ -42,7 +42,7 @@ import Daedalus.GUID (GUID)
 --
 -- where we don't fill in the Hole until the Many is filled in.
 
-data SelectedPathF ch ca lp a = 
+data SelectedPathF ch ca lp a =
     SelectedHole
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
@@ -56,7 +56,7 @@ data SelectedPathF ch ca lp a =
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
-type SelectedPath = SelectedPathF PathIndex Identity SelectedLoopF ByteString 
+type SelectedPath = SelectedPathF PathIndex Identity SelectedLoopF ByteString
 
 deriving instance NFData SelectedPath
 
@@ -114,7 +114,7 @@ data PathCursorElement =
   --  xss = Many (Many P)
   --  ys = map (xs in xss) (map (x in xs) ...)
   -- @
-  -- 
+  --
   -- where the index into a sequence isn't known until thee elements
   -- of the generating loop are selected.
   deriving (Eq, Ord, Show, Generic, NFData)
@@ -136,7 +136,7 @@ resolveLoopGeneratorTags tagInst = map fixup
 -- | This should target a hole in a slice.  Note that any PCLoopPool
 -- should have been resolved before this.
 fillCursorTarget :: SelectedPath -> PathCursor -> SelectedPath -> SelectedPath
-fillCursorTarget fill = go 
+fillCursorTarget fill = go
   where
     -- This is a bit gross?
     go pc' sp =
@@ -149,7 +149,7 @@ fillCursorTarget fill = go
         (SelectedCase sp', _)              -> SelectedCase (go pc' <$> sp')
         (SelectedDo l r, PCDoLeft : rest)  -> SelectedDo (go rest l) r
         (SelectedDo l r, PCDoRight : rest) -> SelectedDo l (go rest r)
-        (SelectedDo {}, _)                 -> badPath        
+        (SelectedDo {}, _)                 -> badPath
         (SelectedLoop {}, [])              -> badPath
         (SelectedLoop (SelectedLoopElements tag els), PCSequence i : rest)
           | i < length els -> SelectedLoop (SelectedLoopElements tag (els & ix i %~ go rest))
@@ -158,17 +158,52 @@ fillCursorTarget fill = go
     badPath = panic "Unexpected path element" []
 
 -- | Given the generator for a loop element, and a user, this will
--- determine the target of the cursor _with respect to_ the generating
--- loop.
+-- determine the target of th| cursor _with respect to_ the generating
+-- loop.  Here is an example: consider the code
+--
+--  xs = Many UInt8
+--  y  = UInt8
+--  zs = map (x in xs) { z = UInt8; z < y is true }
+--
+-- which generates a 'SelectedPaht' like
+-- 
+--    +-----+         +------+
+--    |     |    x    |      |
+--    +-----+    |    +------+
+--       |       |       |
+--       |       |       |
+--       *-------*-------*--------x
+--
+-- where each '*' is a do node, and the boxes represent the loops.
+-- The many (in the first bo) will have a path cursor 'L' for taking a
+-- left at the node, while the map (second box) will be at 'RRL'. When
+-- updating the 'map' node, we find thee first branch point, and then
+-- start from there.  This branch point is above the Many node by the
+-- length of the context-generating path elements, less one
+-- (representing the point of divergence), so in the above the length
+-- will be 1 (as 'L' generates a new path element), so less 1 means
+-- when we are updating the paths, we start at the top of the stack,
+-- move right, right, then left and update that node.
+
 relitiviseCursors :: PathCursor -> PathCursor -> (Int, PathCursor)
-relitiviseCursors gen use = (length (filter isContextPC gen'), use')
+relitiviseCursors gen use
+  | depthToBranch > 0 = (depthToBranch - 1, use')
+  | otherwise = panic "UNEXPECTED: 0 depth to branch" []
   where
+    depthToBranch = length (filter isContextPC gen')
+
     isContextPC PCDoLeft = True
     isContextPC PCDoRight = False -- Doesn't generate a context element
     isContextPC PCSequence {} = True
     isContextPC PCLoopPool {} = True -- same as PCSequence above.
-    
-    (gen', use') = unzip (dropWhile (uncurry (==)) (zip gen use))
+
+    (gen', use') = stripCommon gen use
+
+    stripCommon [] ys = ([], ys)
+    stripCommon xs []  = (xs, [])
+    stripCommon xs@(x : xs') ys@(y : ys')
+      | x == y = stripCommon xs' ys'
+      | otherwise = (xs, ys)
 
 -- -----------------------------------------------------------------------------
 -- SelectedMany
@@ -184,12 +219,12 @@ makeManyTargets gentag tagInst sm = Map.fromListWith (<>) els
           | (depth, pc) <- smCursors sm
           | sps <- transpose $ map snd (smPaths sm)
           ]
-    
+
 -- | This handles the lazy merge of Many elements.  This allows
 -- decoupling e.g. the count of elements from the synthesis of the
 -- elements. In practice (until we stop squashing loop bodies) this
 -- will be applied to singleton lists.
-selectedMany :: LoopGeneratorTag -> 
+selectedMany :: LoopGeneratorTag ->
                 Map LoopGeneratorTag Int ->
                 [SelectedLoopPool] ->
                 ([SelectedPath], Map Int [(PathCursor, SelectedPath)])
@@ -237,7 +272,7 @@ applyManyTargets tgts = go 0 (Map.toList tgts)
     go _    (_ : _) [] = bad
 
     -- A bit inefficient, but it will be rare to have lots of targets.
-    goOne frame (pc, tgt) = 
+    goOne frame (pc, tgt) =
       case (frame, pc) of
         -- If we are looking at a RHS
         (PCEDoRHS p', PCDoRight : pc') -> PCEDoRHS (fillCursorTarget tgt pc' p')
@@ -245,9 +280,9 @@ applyManyTargets tgts = go 0 (Map.toList tgts)
         (PCELoopBody i ps, PCSequence j : pc')
           | i < j -> PCELoopBody i (ps & ix (j - (i + 1)) %~ fillCursorTarget tgt pc')
         (PCELoopBody {}, _) -> bad
-  
+
     bad = panic "BUG: mismatched Many target/Do stack" []
-    
+
 splitPath :: SelectedPath -> (SelectedPath, SelectedPath)
 splitPath cp =
   case cp of
@@ -264,7 +299,7 @@ type ProvenanceMap = Map Int ProvenanceTag
 randomProvenance :: ProvenanceTag
 randomProvenance = 0
 
-synthVProvenance :: ProvenanceTag -- XXX: this is a placeholder. Need to work out what to do 
+synthVProvenance :: ProvenanceTag -- XXX: this is a placeholder. Need to work out what to do
 synthVProvenance = 1
 
 firstSolverProvenance :: ProvenanceTag
@@ -287,7 +322,7 @@ firstSolverProvenance = 2
 -- without picking all bytes that result in that value.
 
 -- Interestingly, reversing the order of a and b changes this example
--- significantly (from a synthesis POV). 
+-- significantly (from a synthesis POV).
 --
 -- def Zoo' = {
 --     a = UInt8;
@@ -297,7 +332,7 @@ firstSolverProvenance = 2
 -- }
 --
 -- FIXME: we need to ensure that selecting a path doesn't make a
--- future selection infeasible, as in 
+-- future selection infeasible, as in
 
 -- def Zoo = {
 --     b = UInt8;
@@ -332,7 +367,7 @@ instance Merge a => Merge (SelectedLoopF a) where
       (SelectedLoopElements ltag els, SelectedLoopElements _ltag' els')
         | length els == length els' -> SelectedLoopElements ltag (merge els els')
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
-      
+
 -- FIXME: too general probably
 instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
   merge psL psR =
@@ -355,7 +390,7 @@ instance ( Functor ch, PP (ch Doc)
          , Functor ca, PP (ca Doc)
          , Functor lp, PP (lp Doc)
          , PP a) => PP ( SelectedPathF ch ca lp a ) where
-  ppPrec n p = 
+  ppPrec n p =
     case p of
       SelectedHole       -> "□"
       SelectedBytes _ bs -> pp bs
@@ -366,12 +401,51 @@ instance ( Functor ch, PP (ch Doc)
       SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
       SelectedLoop l -> pp (pp <$> l)
 
+instance PP a => PP (PathIndex a) where
+  pp (PathIndex i p) = pp i <> "@" <> pp p
+
 instance PP a => PP (SelectedLoopF a) where
   pp l =
     case l of
-      SelectedLoopPool _tag _canBeNull _els -> "SelectedLoopPool" -- FIXME
-      SelectedLoopElements _ltag els -> brackets (sep (punctuate ", " (map pp els)))
-  
+      SelectedLoopPool tag canBeNull els ->
+        "(SelectedLoopPool@" <> pp tag <> ")"
+        <> (if canBeNull then "*" else "+")
+        <> bullets (map pp els)
+      SelectedLoopElements _ltag els ->
+        "LoopEls" <> brackets (sep (punctuate ", " (map pp els)))
+
+instance PP PathCursorElement where
+  pp el =
+    case el of
+      PCDoLeft     -> "L"
+      PCDoRight    -> "R"
+      PCSequence i -> brackets (pp i)
+      PCLoopPool ltag -> brackets ("?" <> pp ltag)
+
+-- FIXME
+instance PP a => PP (Identity a) where
+  pp (Identity a) = pp a
+
+instance PP a => PP (SelectedLoopPoolF a) where
+  pp slp =
+    bullets (map ppOne (smPaths slp))
+    where
+      ppOne (gen, deps) =
+        hang (pp gen) 4 (bullets (map pp deps))
+
+instance PP PathContextElement where
+  pp el =
+    case el of
+      PCEDoRHS p -> "[R]" <> pp p
+      PCELoopBody i ps ->
+        hang (brackets ("L" <> pp i)) 4 (bullets (map pp ps))
+
+ppPathContext :: PathContext -> Doc
+ppPathContext = bullets . map pp
+
+ppPathCursor :: PathCursor -> Doc
+ppPathCursor = hcat . map pp
+
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)
             , Functor lp, PP (lp Doc)
