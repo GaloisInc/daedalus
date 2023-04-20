@@ -64,7 +64,7 @@ import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             PathVar,
                                                             ValuePathConstraint,
                                                             loopCountVarToSExpr,
-                                                            pathVarToSExpr)
+                                                            pathVarToSExpr, loopCountToSExpr)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
                                                             pNumber, pSExpr,
@@ -497,7 +497,7 @@ buildLoop (PathLoopUnrolled m_lv els) = do
   -- We don't need to worry about order too much here (wrt def/use of
   -- loops) as we deal with that in the post-phase.
   ps <- zipWithM (\i -> extendCursorIn (PCSequence i) . buildPath) [0..] (take len els)
-  pure (SelectedLoop (SelectedLoopElements ps))
+  pure (SelectedLoop (SelectedLoopElements Nothing ps))
 
 -- In this case we might need to pool.  Note that els should be either
 -- a singleton or the empty list.
@@ -529,7 +529,7 @@ loopNonEmpty m_lv m = do
   if isNull
      -- null case, we shouldn't have any users, so we don't
      -- generate a pool.
-    then pure (SelectedLoop (SelectedLoopElements []))
+    then pure (SelectedLoop (SelectedLoopElements Nothing []))
     -- singleton case, we need to record and move on.
     else m
     
@@ -785,7 +785,7 @@ modelStateToSExpr ms = do
     choicePred (pv, i) = S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))
 
     loops = map lccPred (Map.toList (msLoopCounts ms))
-    lccPred (lc, i) = S.eq (loopCountVarToSExpr lc) (S.int (fromIntegral i))
+    lccPred (lc, i) = S.eq (loopCountVarToSExpr lc) (loopCountToSExpr i)
 
 
 

@@ -88,9 +88,9 @@ data SelectedLoopF a =
   -- The Bool says whether the loop can be empty, the second argument
   -- are the possible elements.
     SelectedLoopPool     LoopGeneratorTag Bool [SelectedLoopPoolF a]
-  | SelectedLoopElements [a]
-  -- ^ Elements of a sequence based upon another sequence.  The Ints
-  -- are the indicies.
+  | SelectedLoopElements (Maybe LoopGeneratorTag) [a]
+  -- ^ Elements of a sequence, the generator tag is used to resolve
+  -- PCLoopPool paths later on.
   deriving (Functor, Foldable, Traversable, Generic)
 
 -- -----------------------------------------------------------------------------
@@ -151,8 +151,8 @@ fillCursorTarget fill = go
         (SelectedDo l r, PCDoRight : rest) -> SelectedDo l (go rest r)
         (SelectedDo {}, _)                 -> badPath        
         (SelectedLoop {}, [])              -> badPath
-        (SelectedLoop (SelectedLoopElements els), PCSequence i : rest)
-          | i < length els -> SelectedLoop (SelectedLoopElements (els & ix i %~ go rest))
+        (SelectedLoop (SelectedLoopElements tag els), PCSequence i : rest)
+          | i < length els -> SelectedLoop (SelectedLoopElements tag (els & ix i %~ go rest))
         (SelectedLoop _, _) -> badPath
 
     badPath = panic "Unexpected path element" []
@@ -173,13 +173,14 @@ relitiviseCursors gen use = (length (filter isContextPC gen'), use')
 -- -----------------------------------------------------------------------------
 -- SelectedMany
 
-makeManyTargets :: Map LoopGeneratorTag Int ->
+makeManyTargets :: LoopGeneratorTag ->
+                   Map LoopGeneratorTag Int ->
                    SelectedLoopPool ->
                    Map Int [(PathCursor, SelectedPath)]
-makeManyTargets tagInst sm = Map.fromListWith (<>) els
+makeManyTargets gentag tagInst sm = Map.fromListWith (<>) els
   where
     els = [ (depth, [( resolveLoopGeneratorTags tagInst pc
-                     , SelectedLoop (SelectedLoopElements sps))])
+                     , SelectedLoop (SelectedLoopElements (Just gentag) sps))])
           | (depth, pc) <- smCursors sm
           | sps <- transpose $ map snd (smPaths sm)
           ]
@@ -188,10 +189,11 @@ makeManyTargets tagInst sm = Map.fromListWith (<>) els
 -- decoupling e.g. the count of elements from the synthesis of the
 -- elements. In practice (until we stop squashing loop bodies) this
 -- will be applied to singleton lists.
-selectedMany :: Map LoopGeneratorTag Int ->
+selectedMany :: LoopGeneratorTag -> 
+                Map LoopGeneratorTag Int ->
                 [SelectedLoopPool] ->
                 ([SelectedPath], Map Int [(PathCursor, SelectedPath)])
-selectedMany tagInst ms
+selectedMany gentag tagInst ms
   | not (same (map (length . smPaths) ms)) = panic "BUG: selectedMany needs to agree on count" []
   | otherwise = (mps, tgts)
   where
@@ -200,7 +202,7 @@ selectedMany tagInst ms
 
     -- Merge the elements
     mps  = map (foldl1 merge) $ transpose $ map (map fst . smPaths) ms
-    tgts = Map.unionsWith (<>) (map (makeManyTargets tagInst) ms)
+    tgts = Map.unionsWith (<>) (map (makeManyTargets gentag tagInst) ms)
 
 -- -----------------------------------------------------------------------------
 -- PathContext
@@ -325,8 +327,10 @@ instance Merge a => Merge (SelectedLoopF a) where
       (SelectedLoopPool tag canBeNull pool, SelectedLoopPool tag' canBeNull' pool')
         | tag == tag' -> SelectedLoopPool tag (canBeNull && canBeNull') (pool ++ pool')
         | otherwise -> panic "Mismatched tags" []
-      (SelectedLoopElements els, SelectedLoopElements els')
-        | length els == length els' -> SelectedLoopElements (merge els els')
+      -- FIXME: if we actually hit this (i.e. multiple loop slices) we
+      -- might need to have a set of tags.
+      (SelectedLoopElements ltag els, SelectedLoopElements _ltag' els')
+        | length els == length els' -> SelectedLoopElements ltag (merge els els')
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
       
 -- FIXME: too general probably
@@ -366,7 +370,7 @@ instance PP a => PP (SelectedLoopF a) where
   pp l =
     case l of
       SelectedLoopPool _tag _canBeNull _els -> "SelectedLoopPool" -- FIXME
-      SelectedLoopElements els -> brackets (sep (punctuate ", " (map pp els)))
+      SelectedLoopElements _ltag els -> brackets (sep (punctuate ", " (map pp els)))
   
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)

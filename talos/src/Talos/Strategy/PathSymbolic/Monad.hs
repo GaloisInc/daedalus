@@ -46,7 +46,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar (..),
                                                             PathCondition,
-                                                            PathVar (..))
+                                                            PathVar (..), loopCountVarSort, loopCountToSExpr)
 import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
@@ -201,10 +201,6 @@ getName n = SymbolicM $ do
 pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
--- This allows the var to be used for the length.
-loopCountVarSort :: SMT.SExpr
-loopCountVarSort = SMT.tBits 64
-
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
@@ -215,8 +211,8 @@ freshPathVar bnd = do
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
   sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
-  assertSExpr $ SMT.and (SMT.bvULeq (SMT.bvHex 64 (fromIntegral lb)) (SMT.const sym))
-                        (SMT.bvULt  (SMT.const sym) (SMT.bvHex 64 (fromIntegral ub)))
+  assertSExpr $ SMT.and (SMT.bvULeq (loopCountToSExpr lb) (SMT.const sym))
+                        (SMT.bvULeq  (SMT.const sym) (loopCountToSExpr ub))
   let lv = LoopCountVar sym
   tell (mempty { smLoopVars = Set.singleton lv })
   pure lv

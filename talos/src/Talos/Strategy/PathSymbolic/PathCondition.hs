@@ -9,6 +9,8 @@ module Talos.Strategy.PathSymbolic.PathCondition
   -- * Loops
   , LoopCountVar(..)
   , LoopCountConstraint(..)
+  , loopCountVarSort
+  , loopCountToSExpr
   , loopCountVarToSExpr
   , loopCountVarToSMTVar  
   -- * Path condition type
@@ -34,7 +36,7 @@ import qualified Data.Map.Merge.Strict        as Map
 import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           GHC.Generics                 (Generic)
-import           SimpleSMT                    (SExpr)
+import           SimpleSMT                    (SExpr, bvHex, tBits)
 import qualified SimpleSMT                    as S
 
 import           Daedalus.Core                (Pattern, Typed (..))
@@ -63,6 +65,13 @@ loopCountVarToSExpr = S.const . getLoopCountVar
 
 loopCountVarToSMTVar :: LoopCountVar -> SMTVar
 loopCountVarToSMTVar = getLoopCountVar
+
+-- This allows the var to be used for the length.
+loopCountVarSort :: SExpr
+loopCountVarSort = tBits 64
+
+loopCountToSExpr :: Int -> SExpr
+loopCountToSExpr = bvHex 64 . fromIntegral
 
 -- | Subsumes case variables and general program variables (where
 -- Pattern should probably be a constant, not a ctor)
@@ -159,8 +168,8 @@ toSExpr (FeasibleMaybe pc)
     loops = map lccPred (Map.toList (pcLoops pc))
     lccPred (v, lcc) =
       case lcc of
-        LCCEq n  -> S.eq (loopCountVarToSExpr v) (S.bvHex 64 (fromIntegral n))
-        LCCGt n  -> S.bvULt (S.bvHex 64 (fromIntegral n)) (loopCountVarToSExpr v)
+        LCCEq n  -> S.eq (loopCountVarToSExpr v) (loopCountToSExpr n)
+        LCCGt n  -> S.bvULt (loopCountToSExpr n) (loopCountVarToSExpr v)
 
 -- -----------------------------------------------------------------------------
 -- Semantics

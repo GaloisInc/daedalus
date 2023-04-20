@@ -54,7 +54,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
                                                             vUInt, vUnit)
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.PathCondition (PathCondition,
-                                                            PathVar)
+                                                            PathVar, loopCountToSExpr)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.Funs                        (defineSliceFunDefs,
@@ -325,8 +325,8 @@ stratLoop lclass =
       
       -- Bounds check: the null case is only allowed if lb is 0, the non-null case if m_ub /= 0      
       let slv = PC.loopCountVarToSExpr lv
-          s0  = S.bvHex 64 0
-          s1  = S.bvHex 64 0
+          s0  = loopCountToSExpr 0
+          s1  = loopCountToSExpr 1
           
       mkBound (\slb -> S.eq slv s0 `sImplies` S.eq slb s0) lb
       traverse_ (mkBound (\s_ub -> S.eq slv s1 `sImplies` S.not (S.eq s_ub s0))) m_ub

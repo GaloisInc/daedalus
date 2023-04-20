@@ -3,6 +3,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language RecordWildCards #-}
 {-# Language ViewPatterns #-}
 {-# Language OverloadedStrings #-}
@@ -11,6 +13,7 @@
 
 module Talos.Synthesis (synthesise) where
 
+import Control.Lens (itraverse, ifoldlM, locally, at, (?~))
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString       (ByteString)
@@ -55,6 +58,8 @@ import           Talos.SymExec.StdLib
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
 import           Talos.Strategy
 import           Talos.Strategy.Monad
+import GHC.Generics (Generic)
+import Data.Generics.Product (field)
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -82,7 +87,8 @@ data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
                          , pathSetRoots :: Map Name [SliceId]
                          , currentClass :: FInstId
                          , currentFName :: FName
-                         }
+                         , loopTagInstMap :: Map LoopGeneratorTag Int
+                         } deriving Generic
 
 addVal :: Name -> Value -> SynthEnv -> SynthEnv
 addVal x v e = e { synthValueEnv = Map.insert x v (synthValueEnv e) }
@@ -146,7 +152,7 @@ data SynthesisMState =
                   -- updated by Many selection (enables lazy selection
                   -- of Many elements).
                   , pathContext :: PathContext
-                  }
+                  } deriving Generic
 
 newtype SynthesisM a =
   SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState StrategyM) a }
@@ -205,6 +211,14 @@ withPushedContext pce m = do
 overPathContext :: (PathContext -> PathContext) -> SynthesisM ()
 overPathContext f = SynthesisM $ modify (\s -> s { pathContext = f (pathContext s) })
 
+enterLoop :: Maybe LoopGeneratorTag -> Int -> SynthesisM a -> SynthesisM a
+enterLoop Nothing _     m = m
+enterLoop (Just ltag) i (SynthesisM m) =
+  SynthesisM $ local (field @"loopTagInstMap" . at ltag ?~ i) m
+
+getLoopTagInstMap :: SynthesisM (Map LoopGeneratorTag Int)
+getLoopTagInstMap = SynthesisM $ asks loopTagInstMap
+  
 -- -----------------------------------------------------------------------------
 -- Top level
 
@@ -245,8 +259,9 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
   where
     go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
     go s0 mc = do
-      ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
-                                               (initState mc)) s0
+      ((a, s), sts) <-
+        liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
+                                (initState mc)) s0
                        
       Streams.yield (assertInterpValue a, seenBytes s, provenances s)
       go sts (modelCache s)
@@ -270,8 +285,14 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
     -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
     once = synthesiseCallG SelectedHole (fName rootDecl) assertionsFID []
 
-    env0      = SynthEnv Map.empty Map.empty assertionsFID root
-
+    env0      = SynthEnv
+                { synthValueEnv = mempty
+                , pathSetRoots  = mempty
+                , currentClass  = assertionsFID
+                , currentFName  = root
+                , loopTagInstMap  = mempty
+                }
+                
     -- FIXME: we assume topologically sorted (by reference)
     allDecls  = mGFuns md
     
@@ -386,30 +407,30 @@ selectLoopElements count sm = do
   paths' <- randPermute (concat (replicate repCount paths))
   pure $ sm { smPaths = take count paths' }
 
--- m_ps should probably not have holes here, but we can deal so we let it.
--- c.f. Daedalus.Core.Semantics.Expr.evalLoopMorphism
-synthesiseLoopMorphism :: Maybe (Map Int SelectedPath) -> LoopMorphism Grammar -> SynthesisM Value
-synthesiseLoopMorphism m_ps lm =
+synthesiseLoopMorphism :: Maybe LoopGeneratorTag ->
+                          Maybe [SelectedPath] ->
+                          LoopMorphism Grammar -> SynthesisM Value
+synthesiseLoopMorphism m_ltag m_ps lm =
   case lm of
     FoldMorphism s e lc b -> do
       e_v <- synthesiseV e
       (els, bindLC, _mk) <- goLC lc <$> synthesiseV (lcCol lc)
-      let goOne acc (p, el) = bindLC el (bindIn s acc (synthesiseG p b))
-      foldlM goOne e_v els
+      let goOne i acc (p, el) =
+            bindLC el (bindIn s acc (enterLoop m_ltag i (synthesiseG p b)))
+      ifoldlM goOne e_v els
     MapMorphism lc b -> do
       (els, bindLC, mk) <- goLC lc <$> synthesiseV (lcCol lc)      
-      let goOne (p, el) = (,) (fst el) <$> bindLC el (synthesiseG p b)
-      mk <$> traverse goOne els
+      let goOne i (p, el) =
+            (,) (fst el) <$> bindLC el (enterLoop m_ltag i (synthesiseG p b))
+      mk <$> itraverse goOne els
   where
     goLC lc v
-      | Just (i, _) <- m_ps >>= Map.lookupMax, i > length els
+      | length ps /= length els
       = panic "BUG: length mismatch in synthesiseG" []
-      | otherwise = (zip ps' els, bindLC, mk)
+      | otherwise = (zip ps els, bindLC, mk)
       where
-        ps = fromMaybe mempty m_ps
-        holeMap = Map.fromDistinctAscList [ (i, SelectedHole) | i <- [0 .. length els - 1] ]
+        ps = fromMaybe (replicate (length els) SelectedHole) m_ps
         -- This will not contain holes, by construction
-        ps' = Map.elems (Map.unionWith const ps holeMap)
         k_bind = maybe (const id) bindIn (lcKName lc)
         bindLC (kv, ev) = k_bind kv . bindIn (lcElName lc) ev
         (els, mk) = case assertInterpValue v of
@@ -499,9 +520,9 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
 
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
-synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (ManyLoop _sem _bt _lb _m_ub g)) = do
-  vs <- mapM (flip synthesiseG g) ps
-  pure (vArray vs)
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (ManyLoop sem _bt _lb _m_ub g)) = do
+  vs <- zipWithM (\i p -> enterLoop m_ltag i (synthesiseG p g)) [0..] ps
+  mbPure sem (vArray vs)
   
 -- FIXME: sem
 synthesiseG (SelectedLoop (SelectedLoopPool tag canBeNull ms)) (Loop (ManyLoop _sem _bt lb m_ub g)) = do
@@ -511,19 +532,23 @@ synthesiseG (SelectedLoop (SelectedLoopPool tag canBeNull ms)) (Loop (ManyLoop _
 
   -- We need to select count elements from the synthesised models in ms.
   ms' <- mapM (selectLoopElements count) ms
-  let (elPaths, targetPaths) = selectedMany ms'
+
+  -- We need this to resolve which indices we are in which loops.
+  tagMap <- getLoopTagInstMap
+  let (elPaths, targetPaths) = selectedMany tag tagMap ms'
   -- ... which may require us to update the RHS stack to propagate selected models.  
   overPathContext (applyManyTargets targetPaths)
 
   -- next we synthesise the elements of the Many, using the selected paths.
   vArray <$> mapM (flip synthesiseG g) elPaths
 
-synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (RepeatLoop _bt n e g)) = do
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e
-  let go v p = bindIn n v (synthesiseG p g)
-  foldlM go initV ps
+  -- FIXME: do we need the enterLoop here?
+  let go i v p = enterLoop m_ltag i (bindIn n v (synthesiseG p g))
+  ifoldlM go initV ps
 
-synthesiseG (SelectedLoop (SelectedLoopElements ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism (Just ps) lm
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism m_ltag (Just ps) lm
   
 synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose randomly
   case g of
@@ -578,7 +603,7 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
       let go v _ = bindIn n v (synthesiseG SelectedHole body)
       foldlM go initV (replicate count ())
 
-    Loop (MorphismLoop lm) -> synthesiseLoopMorphism Nothing lm
+    Loop (MorphismLoop lm) -> synthesiseLoopMorphism Nothing Nothing lm
   where
     unimplemented = panic "Unimplemented" [showPP g]
     impossible    = panic "Impossible (theoretically)" [showPP g]
