@@ -4,6 +4,7 @@
 {-# Language RankNTypes #-}
 {-# Language TypeOperators #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Talos.Strategy.What4.Exprs(
     toWhat4Expr
@@ -43,6 +44,7 @@ import Control.Monad
 import qualified What4.Expr.GroundEval as W4
 import qualified Data.Parameterized.TraversableFC as TFC
 import Control.Monad.Writer
+import Control.Monad.RWS (gets, asks, MonadReader (ask))
 
 
 
@@ -102,6 +104,64 @@ fnsEqual fn1 fn2 = withSym $ \sym -> case W4.fnArgTypes fn1 of
   forallVars fresh_vars results_eq
   -}
 
+fnFromArray ::
+  W4.SymExpr sym (W4.BaseArrayType args ret) ->
+  W4SolverT sym m (W4.SymFn sym args ret)
+fnFromArray arr = withSym $ \sym -> do
+  W4.BaseArrayRepr var_reprs _ <- return $ W4.exprType arr
+  vars <- liftIO $ TFC.traverseFC (W4.freshBoundVar sym W4.emptySymbol) var_reprs
+  ret_val <- liftIO $ W4.arrayLookup sym arr (TFC.fmapFC (W4.varExpr sym) vars)
+  liftIO $ W4.definedFn sym W4.emptySymbol vars ret_val W4.AlwaysUnfold
+
+mkRecursion ::
+  args ~ args' Ctx.::> arg' =>
+  String ->
+  W4.SymFn sym (args Ctx.::> W4.BaseArrayType args ret) ret ->
+  W4SolverT sym m (W4.SymFn sym args ret, W4.SymFn sym args W4.BaseBoolType)
+mkRecursion nm fn = withSym $ \sym -> do
+  arg_reprs Ctx.:> _ <- return $ W4.fnArgTypes fn
+  rec_limit' <- asks rec_limit
+  ret_repr <- return $ W4.fnReturnType fn
+  dummy_const1 <- liftIO $ W4.freshConstant sym (W4.safeSymbol "dummy_const1") ret_repr
+  dummy_const2 <- liftIO $ W4.freshConstant sym (W4.safeSymbol "dummy_const2") ret_repr
+
+  consts_differ <- liftIO $ W4.isEq sym dummy_const1 dummy_const2 >>= W4.notPred sym
+  addAssumption consts_differ
+
+  dummy_var <- liftIO $ W4.freshBoundVar sym W4.emptySymbol ret_repr
+  rec_fn <- mkRecursion' nm rec_limit' (W4.varExpr sym dummy_var) fn
+  -- make assumptions function, which asserts that the result is
+  -- independent of the dummy stub values
+  vars <- liftIO $ TFC.traverseFC (W4.freshBoundVar sym W4.emptySymbol) arg_reprs
+  rec_result <- liftIO $ W4.applySymFn sym rec_fn ((TFC.fmapFC (W4.varExpr sym) vars))
+  result_fn <- liftIO $ W4.definedFn sym W4.emptySymbol (Ctx.singleton dummy_var) rec_result W4.AlwaysUnfold 
+  result1 <- liftIO $ W4.applySymFn sym result_fn (Ctx.singleton dummy_const1)
+  result2 <- liftIO $ W4.applySymFn sym result_fn (Ctx.singleton dummy_const2)
+  results_same <- liftIO $ W4.isEq sym result1 result2
+  asm_fn <- liftIO $ W4.definedFn sym (W4.safeSymbol "assumptions_rec0") vars results_same W4.AlwaysUnfold
+  rec_fn' <- liftIO $ W4.definedFn sym (W4.safeSymbol nm) vars result1 W4.AlwaysUnfold
+  return (rec_fn', asm_fn) 
+
+
+mkRecursion' ::
+  args ~ args' Ctx.::> arg' =>
+  String ->
+  Integer ->
+  W4.SymExpr sym ret ->
+  W4.SymFn sym (args Ctx.::> W4.BaseArrayType args ret) ret ->
+  W4SolverT sym m (W4.SymFn sym args ret)
+mkRecursion' nm n def_ fn = withSym $ \sym -> do
+  arg_reprs Ctx.:> _ <- return $ W4.fnArgTypes fn
+  vars <- liftIO $ TFC.traverseFC (W4.freshBoundVar sym W4.emptySymbol) arg_reprs
+  case n of
+    0 -> do
+      liftIO $ W4.definedFn sym W4.emptySymbol vars def_ W4.AlwaysUnfold
+    _ -> do
+      rec_fn <- mkRecursion' nm (n-1) def_ fn
+      rec_arr <- liftIO $ W4.arrayFromFn sym rec_fn
+      body <- liftIO $ W4.applySymFn sym fn ((TFC.fmapFC (W4.varExpr sym) vars) Ctx.:> rec_arr)
+      liftIO $ W4.definedFn sym (W4.safeSymbol (nm ++ "_" ++ show n)) vars body W4.AlwaysUnfold
+
 mkSymFn :: FName -> Fun Expr -> W4SolverT sym m (SomeSymFn sym)
 mkSymFn fnm fn = withSym $ \sym -> do
   let ret_raw = fnameType (fName fn)
@@ -109,25 +169,48 @@ mkSymFn fnm fn = withSym $ \sym -> do
   case fDef fn of
     Def e -> withBoundVars (fParams fn) $ \vars -> do
         let var_reprs = TFC.fmapFC (W4.exprType . (W4.varExpr sym)) vars
-        rec_fn <- liftIO $ W4.freshTotalUninterpFn sym nm var_reprs ret
-        rec_asms_fn <- liftIO $ W4.freshTotalUninterpFn sym nm var_reprs W4.BaseBoolRepr
+        (_ Ctx.:> _) <- return var_reprs
+        let rec_repr = W4.BaseArrayRepr var_reprs ret
+        rec_var <- liftIO $ W4.freshBoundVar sym W4.emptySymbol rec_repr
+        rec_fn <- fnFromArray (W4.varExpr sym rec_var)
+        let rec_asms_repr = W4.BaseArrayRepr var_reprs W4.BaseBoolRepr
+        rec_asms_var <- liftIO $ W4.freshBoundVar sym W4.emptySymbol rec_asms_repr
+        --rec_asms_fn <- fnFromArray (W4.varExpr sym rec_asms_var)
+        rec_asms_fn <- liftIO $ W4.definedFn sym W4.emptySymbol vars (W4.truePred sym) W4.AlwaysUnfold
         withLocalFunction fnm (SomeSymFn rec_fn rec_asms_fn) fn $ do
+          body <- toWhat4Expr ret_raw ret e
+          symFn_rec <- liftIO $ W4.definedFn sym nm (vars Ctx.:> rec_var) body W4.AlwaysUnfold 
+          (symFn, symFn_rec_asms) <- mkRecursion (T.unpack (fnameText (fName fn))) symFn_rec
+          return $ SomeSymFn symFn symFn_rec_asms
+         
+          {-
           -- we need to scope any assumptions inside the inner translation
           (body, asms) <- censor (\_ -> mempty) $ listen $ toWhat4Expr ret_raw ret e
-          symFn <- liftIO $ W4.definedFn sym nm vars body W4.UnfoldConcrete
-          fns_eq_asm <- fnsEqual symFn rec_fn
-          -- this assumption can be emitted directly, because it is well-scoped already
-          addAssumption fns_eq_asm
+
+          symFn_rec <- liftIO $ W4.definedFn sym nm (vars Ctx.:> rec_var) body W4.AlwaysUnfold 
+          (symFn, symFn_rec_asms) <- mkRecursion (T.unpack (fnameText (fName fn))) symFn_rec
+
           asms_pred <- collapseAssumptions sym asms
-          -- scoping the assumptions, which will be unfolded when the function is applied
-          asms_fn <- liftIO $ W4.definedFn sym nm vars asms_pred W4.UnfoldConcrete
-          asms_eq_asm <- fnsEqual rec_asms_fn asms_fn
-          addAssumption asms_eq_asm
-          return $ SomeSymFn symFn asms_fn
+          asms_rec <- liftIO $ W4.definedFn sym (W4.safeSymbol "assumptions_rec1") (vars Ctx.:> rec_asms_var) asms_pred W4.AlwaysUnfold
+          (asmsFn, asmsFn_rec_asms) <- mkRecursion "asms_rec" asms_rec
+         
+
+          -- merge all of the assumption states into the overall function assumptions
+          fresh_vars <- liftIO $ TFC.traverseFC (W4.freshBoundVar sym W4.emptySymbol) var_reprs
+          let fresh_varEs = (TFC.fmapFC (W4.varExpr sym) fresh_vars)
+          asms1 <- liftIO $ W4.applySymFn sym symFn_rec_asms fresh_varEs
+          asms2 <- liftIO $ W4.applySymFn sym asmsFn_rec_asms fresh_varEs
+          liftIO $ putStrLn (show (W4.printSymExpr asms2))
+          asms3 <- liftIO $ W4.applySymFn sym asmsFn fresh_varEs
+          asms_final <- liftIO $ W4.andPred sym asms1 asms2 >>= W4.andPred sym asms3
+          
+          asmsFn_final <- liftIO $ W4.definedFn sym (W4.safeSymbol "assumptions") fresh_vars asms_final W4.AlwaysUnfold
+          return $ SomeSymFn symFn asmsFn_final
+          -}
     External -> withBoundVars (fParams fn) $ \vars -> do
       let var_reprs = TFC.fmapFC (W4.exprType . (W4.varExpr sym)) vars
       symFn <- liftIO $ W4.freshTotalUninterpFn sym nm var_reprs ret
-      no_asms <- liftIO $ W4.definedFn sym nm vars (W4.truePred sym) W4.UnfoldConcrete
+      no_asms <- liftIO $ W4.definedFn sym nm vars (W4.truePred sym) W4.AlwaysUnfold
       return $ SomeSymFn symFn no_asms
   where
     nm = W4.safeSymbol (T.unpack (fnameText (fName fn)))
@@ -195,9 +278,11 @@ muxExprs p (Some eT) (Some eF) = withSym $ \sym -> do
         [show eT_type, show eF_type]  
 
 -- Core translation
-
 toWhat4Expr :: I.Type -> W4.BaseTypeRepr tp -> Expr -> W4SolverT sym m (W4.SymExpr sym tp)
-toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
+toWhat4Expr t_raw t e = checkAsms [showPP e] $ toWhat4Expr' t_raw t e
+
+toWhat4Expr' :: I.Type -> W4.BaseTypeRepr tp -> Expr -> W4SolverT sym m (W4.SymExpr sym tp)
+toWhat4Expr' t_raw t e = withSym $ \sym -> case (t, e) of
   -- Core
   (_, Var nm) -> do
     Some e' <- getVar nm
@@ -257,6 +342,7 @@ toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
     e1_sym <- toWhat4Expr source_tp source_repr e1
     case (target_repr, source_repr) of
       (W4.BaseBVRepr w, W4.BaseIntegerRepr) -> do
+        -- getting a weird error from SMTWriter so I've hacked around it
         liftIO $ W4.integerToBV sym e1_sym w
       _ -> panic "Unsupported cast" [showPP source_tp, showPP t_raw]
   -- FIXME: todo
@@ -303,7 +389,7 @@ toWhat4Expr t_raw t e = withSym $ \sym -> case (t, e) of
         args' <- toWhat4ExprList (W4.fnArgTypes fn) args_typs
         result <- liftIO $ W4.applySymFn sym fn args'
         asms <- liftIO $ W4.applySymFn sym asms_fn args'
-        addAssumption asms
+        checkAsms [showPP e, show (W4.printSymExpr asms)] $ addAssumption asms
         return result
       _ -> panic "Mismatched function return type" [showPP e, show (W4.fnReturnType fn), show t, showPP t_raw]
   _ -> panic "toWhat4Expr: Unsupported type" [showPP t_raw, show t, showPP e]

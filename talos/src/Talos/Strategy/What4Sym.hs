@@ -231,6 +231,7 @@ groundSymbolicResult ::
 groundSymbolicResult fn (SymbolicResult arr) = withSym $ \sym -> do
   sz <- liftIO $ arrayLenSize sym arr
   sz_conc <- BVS.asUnsigned <$> execGroundFn fn sz
+  liftIO $ putStrLn $ ("groundSymbolicResult: sz_conc " ++ show sz_conc)
   bytes_sym <- liftIO $ arrayLenPrefix sym sz_conc arr
   bytes_conc <- mapM (execGroundFn fn) bytes_sym
   let ws = concat $ map (fromJust . BVS.asBytesBE (knownNat @8)) bytes_conc
@@ -251,10 +252,13 @@ stratSliceConcrete ptag sl = do
   senv <- ask
   env <- lift ask
   ((_, path), asm) <- lift $ runW4StratT senv env (stratSlice ptag sl)
+  liftIO $ putStrLn ("checkSat:\n" ++ (show (W4.printSymExpr asm)))
   checkSat asm $ \case
     W4R.Sat fn -> getConcretePath fn path
-    _ -> mzero
-    
+    _ -> panic "asms unsat" [show (W4.printSymExpr asm)]
+
+
+
 stratSlice :: 
   forall sym m.
   ProvenanceTag -> ExpSlice ->
@@ -262,7 +266,10 @@ stratSlice ::
 stratSlice ptag = go
   where
     go :: ExpSlice -> W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
-    go sl = 
+    go sl = checkAsms [showPP sl] (go' sl) 
+
+    go' :: ExpSlice -> W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
+    go' sl = 
       case sl of
         SHole -> go (SPure (Ap0 Unit))
         SPure e -> do
@@ -324,7 +331,7 @@ stratSlice ptag = go
           n_sym <- liftIO $ W4.freshConstant sym W4.emptySymbol n_T_repr
           bindVarIn n n_sym $ do
             p_sym <- toWhat4Expr I.TBool W4.BaseBoolRepr p
-            addAssumption p_sym
+            checkAsms [show (W4.printSymExpr p_sym)] (addAssumption p_sym)
             ifn_sym <- toWhat4Expr (TArray (I.TUInt (I.TSize 8))) (ArrayLenRepr (W4.BaseBVRepr (knownNat @8))) ifn
             return (Some n_sym, SelectedBytes ptag (SymbolicResult ifn_sym))
 

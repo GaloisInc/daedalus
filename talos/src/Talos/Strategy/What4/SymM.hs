@@ -12,12 +12,17 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Talos.Strategy.What4.SymM(
    SomeSymFn(..)
  , W4SolverT_
  , W4SolverT
  , W4SolverEnv
+ , rec_limit
+ , intToBV
  , SomeW4SolverEnv(..)
  , withSomeSolverEnv
  , runW4Solver
@@ -29,6 +34,7 @@ module Talos.Strategy.What4.SymM(
  , withLocalFunction
  , addAssumption
  , collapseAssumptions
+ , checkAsms
 ) where
 
 import           Control.Applicative (Alternative)
@@ -53,6 +59,7 @@ import           Daedalus.PP
 
 import           Talos.Strategy.Monad
 import           Talos.Strategy.What4.Solver
+import qualified Data.Parameterized.Context      as Ctx
 
 import Unsafe.Coerce (unsafeCoerce)
 import Control.Monad.Catch
@@ -76,23 +83,45 @@ type FnEnv sym = Map.Map FName (SomeSymFn sym, Fun Expr)
 -- down translation time, depending on how much it ends up dominating time of the strategy
 data W4SolverEnv sym = W4.IsSymExprBuilder sym => 
   W4SolverEnv { solver :: SolverSym sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym),
-                local_fns :: Map.Map FName (SomeSymFn sym, Fun Expr)
+                local_fns :: Map.Map FName (SomeSymFn sym, Fun Expr), rec_limit :: Integer,
+                intToBV :: forall n. W4.NatRepr n ->  (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) (W4.BaseBVType n))
               }
+
+mkIntToBV ::
+  W4.IsSymExprBuilder sym =>
+  1 W4.<= n =>
+  sym ->
+  W4.NatRepr n ->
+  IO (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) ( W4.BaseBVType n))
+mkIntToBV sym n = do
+  liftIO $ W4.freshTotalUninterpFn sym W4.emptySymbol (Ctx.singleton (W4.BaseIntegerRepr)) (W4.BaseBVRepr n)
+
+  --var <- W4.freshBoundVar sym W4.emptySymbol W4.BaseIntegerRepr
+
+  --body <- liftIO $ W4.integerToBV sym (W4.varExpr sym var) n 
+
+  --liftIO $ W4.definedFn sym W4.emptySymbol (Ctx.singleton var) body W4.NeverUnfold
 
 withInitEnv :: 
   (MonadIO m, MonadMask m) =>
   (forall sym. W4SolverEnv sym -> m a) -> m a
 withInitEnv f = do
   Some gen <- liftIO N.newIONonceGenerator
-  sym <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
+  (sym :: sym) <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
   liftIO $ WE.startCaching sym
-  withOnlineSolver Yices Nothing sym $ \bak -> do
+  withOnlineSolver Z3 Nothing sym $ \bak -> do
     let ssym = SolverSym sym bak
     fnCacheRef <- liftIO $ IO.newIORef mempty
-    f (W4SolverEnv ssym mempty fnCacheRef mempty)
+    intToBV8 <- liftIO $ mkIntToBV sym (W4.knownNat @8)
+    let 
+      intToBV_ :: forall n. W4.NatRepr n ->  (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) (W4.BaseBVType n))
+      intToBV_ n = if | Just Refl <- testEquality n (W4.knownNat @8) -> intToBV8
+                      | otherwise -> error "missing intToBV"
+
+    f (W4SolverEnv ssym mempty fnCacheRef mempty 1 intToBV_)
 
 withSymEnv :: W4SolverEnv sym -> (W4.IsSymExprBuilder sym => sym -> a) -> a
-withSymEnv (W4SolverEnv (SolverSym sym _) _ _ _) f = f sym
+withSymEnv (W4SolverEnv (SolverSym sym _) _ _ _ _ _) f = f sym
 
 
 withSomeSolverEnv ::
@@ -178,7 +207,10 @@ runW4Solver env (W4SolverT_ f) = do
 addAssumption ::
   W4.Pred sym ->
   W4SolverT sym m ()
-addAssumption p = tell (Assumptions (Set.singleton (Assumption p)))
+addAssumption p = case W4.asConstantPred p of
+  Just False -> panic "Cannot add false assumption" []
+  Just True -> return ()
+  _ -> tell (Assumptions (Set.singleton (Assumption p)))
 
 collapseAssumptions ::
   MonadIO m =>
@@ -188,6 +220,17 @@ collapseAssumptions ::
   m (W4.Pred sym)
 collapseAssumptions sym (Assumptions asms) =
   foldM (\a (Assumption b) -> liftIO (W4.andPred sym a b)) (W4.truePred sym) asms
+
+checkAsms ::
+  [String] ->
+  W4SolverT_ sym m a ->
+  W4SolverT sym m a
+checkAsms msg f = withSym $ \sym -> do
+  (a, asms) <- listen f
+  p <- collapseAssumptions sym asms
+  case W4.asConstantPred p of
+    Just False -> panic "False assumptions" msg
+    _ -> return a  
 
 bindVarIn :: Monad m => Name -> W4.SymExpr sym tp -> W4SolverT_ sym m a -> W4SolverT_ sym m a
 bindVarIn nm e f = local (\env -> env { nameEnv = Map.insert nm (Some e) (nameEnv env)}) f

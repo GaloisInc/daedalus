@@ -149,7 +149,11 @@ execGroundFn ::
   SymGroundEvalFn sym  ->
   WI.SymExpr sym tp ->
   m (W4G.GroundValue tp)
-execGroundFn (SymGroundEvalFn fn) e = liftIO $ W4G.groundEval fn e
+execGroundFn (SymGroundEvalFn fn) e = do
+  liftIO $ putStrLn ("execGroundFn:" ++ show (WI.printSymExpr e))
+  r <- liftIO $ W4G.groundEval fn e
+  liftIO $ putStrLn ("execGroundFn success!")
+  return r
 
 filterAsync :: SomeException -> Maybe SomeException
 filterAsync e
@@ -177,10 +181,15 @@ checkSatisfiableWithModel ::
 checkSatisfiableWithModel p k = withOnlineBackend $ \bak -> do
   (_, r) <- generalBracket
     (do
+      liftIO $ putStrLn ("pushing asms 1")
       st <- liftIO $ CB.saveAssumptionState bak
+      
       withSolverProcess $ \sp -> do
+        liftIO $ putStrLn ("pushing asms 2")
         WPO.push sp
+        liftIO $ putStrLn ("pushing asms 3")
         W4.assume (WPO.solverConn sp) p
+        liftIO $ putStrLn ("pushing asms 4")
         return st)
     (\st exitCase -> case exitCase of
         ExitCaseSuccess (Right res) -> do
@@ -200,6 +209,7 @@ checkSatisfiableWithModel p k = withOnlineBackend $ \bak -> do
             ExitCaseAbort -> return ExitCaseAbort)
     (\_st -> do
       mres <- tryJust filterAsync $ withSolverProcess $ \sp -> do
+        liftIO $ putStrLn ("checkAndGetModel\n" ++ show (WI.printSymExpr p))
         res <- WPO.checkAndGetModel sp "checkSatisfiableWithModel"
         W4R.traverseSatResult (\r' -> pure $ SymGroundEvalFn r') pure res
       case mres of
