@@ -23,7 +23,7 @@ module Talos.Strategy.PathSymbolic.PathCondition
   , isInfeasible
   , isFeasibleMaybe
   -- * Semantics
-  , vpcSatisfied
+  , vpcSatisfied, lccSatisfied
   -- * Converstion to SExpr
   , toSExpr
   ) where
@@ -178,6 +178,12 @@ vpcSatisfied :: Typed ValuePathConstraint -> I.Value -> Bool
 vpcSatisfied (Typed _ (VPCPositive p))  v = I.matches p v
 vpcSatisfied (Typed _ (VPCNegative ps)) v =
   not (any (flip I.matches v) (Set.toList ps))
+
+lccSatisfied :: LoopCountConstraint -> Int -> Bool
+lccSatisfied lcc i =
+  case lcc of
+    LCCGt j -> i > j
+    LCCEq j -> i == j
 
 -- ------------------------------------------------------------------------------
 -- Instances

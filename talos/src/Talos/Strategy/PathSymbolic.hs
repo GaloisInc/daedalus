@@ -441,15 +441,15 @@ stratLoop lclass =
       -- c.f. SRepeatLoop
       let guards vsm
             | Just lv <- vsmLoopCountVar vsm =
-                \i -> ( PC.insertLoopCount lv (PC.LCCGt i) mempty
-                      , PC.insertLoopCount lv (PC.LCCEq (i + 1)) mempty
+                \i -> ( PC.insertLoopCount lv (PC.LCCGt (i - 1)) mempty
+                      , PC.insertLoopCount lv (PC.LCCEq i) mempty
                       )
             | otherwise = const (mempty, mempty)
 
           goOne _vsm (_se', acc) [] = pure (reverse acc)
           goOne vsm (se', acc) ((i, el) : rest) = do
             (v, pb) <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
-            let (gtGuard, eqGuard) = guards vsm i
+            let (gtGuard, eqGuard) = guards vsm (i + 1)
             
             v' <- hoistMaybe (MV.refine eqGuard v)
             se'' <- hoistMaybe (MV.refine gtGuard v)

@@ -18,7 +18,7 @@ import           Control.Lens                              (Lens', Setter', _1,
                                                             mapped, over,
                                                             scribe, view, views,
                                                             (%=), (%~), (&),
-                                                            (+~), (.~), (<>~))
+                                                            (+~), (.~), (<>~), uses)
 import           Control.Monad.RWS                         (RWST, censor,
                                                             mapRWST, runRWST)
 import           Control.Monad.Reader
@@ -46,7 +46,7 @@ import qualified Daedalus.Core.Semantics.Env               as I
 import qualified Daedalus.Core.Semantics.Expr              as I
 import           Daedalus.PP                               (Doc, brackets,
                                                             commaSep, pp,
-                                                            showPP, text)
+                                                            showPP, text, PP, braces, bullets)
 import           Daedalus.Panic
 import           Daedalus.Time                             (timeIt)
 import qualified Daedalus.Value                            as I
@@ -64,7 +64,7 @@ import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             ValuePathConstraint,
                                                             loopCountToSExpr,
                                                             loopCountVarToSExpr,
-                                                            pathVarToSExpr)
+                                                            pathVarToSExpr, LoopCountConstraint)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
                                                             pNumber, pSExpr,
@@ -375,9 +375,9 @@ buildPaths _ntotal _nfails sm pb = do
   (_, tassert) <- timeIt $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
-  liftIO $ printf "; initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
+  liftIO $ printf "Initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
   (r, tcheck) <- timeIt Solv.check
-  liftIO $ printf "\tInitial solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
+  liftIO $ printf "Initial solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
   case r of
     S.Unsat   -> pure []
     S.Unknown -> pure []
@@ -553,9 +553,10 @@ buildPathCase (SymbolicCase stag gses ps) = do
          Nothing  -> do
            panic "Missing case value" [showPP (text . typedThing <$> gses)]
          Just v'  -> pure v'
+
   let (pat, p) = case find (flip I.matches v . fst) ps of
         Nothing ->
-          panic "Missing case alt" [showPP v
+          panic "Missing case alt" [ showPP v
                                    , showPP (text . typedThing <$> gses)
                                    , showPP (commaSep (map (pp . fst) ps))
                                    ]
@@ -597,17 +598,21 @@ findM f (x : xs) = do
 
 pathConditionModel :: PathCondition -> ModelParserM Bool
 pathConditionModel PC.Infeasible = pure False
-pathConditionModel (PC.FeasibleMaybe pci) = do
-  -- We try choices first as they are more likely to fail (?)  
-  choiceb <- andM [ (==) i <$> getPathVar pv
-                  | (pv, i) <- Map.toList (PC.pcChoices pci) ]
-  if choiceb
-    then andM (map vpcModel (Map.toList (PC.pcValues pci)))
-    else pure False
+pathConditionModel (PC.FeasibleMaybe pci) =
+  andM (choices ++ values ++ loops)
   where
+    choices =  [ (==) i <$> getPathVar pv
+               | (pv, i) <- Map.toList (PC.pcChoices pci) ]
+    values = map vpcModel (Map.toList (PC.pcValues pci))
+    loops  = map lccModel (Map.toList (PC.pcLoops pci))
+
     vpcModel :: (SMTVar, Typed ValuePathConstraint) -> ModelParserM Bool
     vpcModel (x, vpcT) =
       PC.vpcSatisfied vpcT <$> getValueVar (vpcT $> x)
+
+    lccModel :: (LoopCountVar, LoopCountConstraint) -> ModelParserM Bool
+    lccModel (x, lcc) = PC.lccSatisfied lcc <$> getLoopVar x
+
 
 gseModel :: GuardedSemiSExpr -> ModelParserM (Maybe I.Value)
 gseModel gse =
@@ -677,7 +682,7 @@ build gentag genpe deppes =
       let acc' = r : acc
       if n >= ntotal
         then pure acc'
-        else tryAgain ms acc (go (n + 1) ntotal acc')
+        else tryAgain ms acc' (go (n + 1) ntotal acc')
         
     tryAgain ms acc m = do
       assertDifferentModel ms
@@ -788,7 +793,18 @@ modelStateToSExpr ms = do
     loops = map lccPred (Map.toList (msLoopCounts ms))
     lccPred (lc, i) = S.eq (loopCountVarToSExpr lc) (loopCountToSExpr i)
 
+-- -----------------------------------------------------------------------------
+-- PP Instances
 
+instance PP ModelState where
+  pp ms =
+    bullets [ ppM pp pp msPathVars
+            , ppM text (pp . typedThing) msValues
+            , ppM pp pp msLoopCounts
+            ]
+    where
+      ppM ppK ppV f =
+        braces (commaSep [ ppK k <> ": " <> ppV v | (k, v) <- Map.toList (f ms) ])
 
 
 
