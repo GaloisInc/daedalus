@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- ----------------------------------------------------------------------------------------
 -- Lift parts of an expression to the grammar level, in particular
@@ -10,14 +11,16 @@
 
 module Talos.Passes.LiftExpr (liftExprM) where
 
-import           Control.Monad        (when, zipWithM, unless)
+import           Control.Monad        (unless, when, zipWithM)
 import           Control.Monad.Reader (ReaderT, asks, runReaderT)
-import           Control.Monad.State  (StateT, modify, runStateT, state, gets)
-import           Data.Bifunctor       (second)
+import           Control.Monad.Writer (WriterT, censor, listen, runWriterT,
+                                       tell)
 import           Data.Foldable        (foldlM)
+import           Data.Functor         (($>))
 import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.Maybe           (isNothing)
+import qualified Data.Set             as Set
 
 import           Daedalus.Core
 import           Daedalus.Core.Free   (FreeVars, freeFVars, freeVars)
@@ -26,8 +29,6 @@ import           Daedalus.GUID
 import           Daedalus.PP          (showPP)
 import           Daedalus.Panic       (panic)
 import           Daedalus.Rec         (forgetRecs, topoOrder)
-import qualified Data.Set as Set
-import Data.Functor (($>))
 
 -- ----------------------------------------------------------------------------------------
 -- Monad
@@ -41,18 +42,19 @@ data LiftExprEnv = LiftExprEnv
 emptyEnv :: LiftExprEnv
 emptyEnv = LiftExprEnv mempty mempty mempty
 
-newtype LiftExprState = LiftExprState
-  { lesNamed :: [(Name, Grammar)]
+newtype NamedGrammars = NamedGrammars
+  { getNamedGrammars :: [(Name, Grammar)]
   }
+  deriving (Semigroup, Monoid)
 
-type LiftExprM m = ReaderT LiftExprEnv (StateT LiftExprState m)
+nullNamedGrammars :: NamedGrammars -> Bool
+nullNamedGrammars = null . getNamedGrammars
+
+type LiftExprM m = ReaderT LiftExprEnv (WriterT NamedGrammars m)
 type LiftExprCtx m = (Monad m, HasGUID m)
 
-
-runLiftExprM :: (Monad m) => LiftExprEnv -> LiftExprM m a -> m (a, [(Name, Grammar)])
-runLiftExprM env m = second lesNamed <$> runStateT (runReaderT m env) emptySt
-  where
-    emptySt = LiftExprState []
+runLiftExprM :: (Monad m) => LiftExprEnv -> LiftExprM m a -> m (a, NamedGrammars)
+runLiftExprM env m = runWriterT (runReaderT m env)
 
 -- | Add a new grammar node and get a name for it.
 newNamed :: LiftExprCtx m => Grammar -> LiftExprM m Name
@@ -62,14 +64,13 @@ newNamed g = do
   pure n
 
 newNamedWithName :: LiftExprCtx m => Name -> Grammar -> LiftExprM m ()
-newNamedWithName n g =
-  modify (\s -> s { lesNamed = (n, g) : lesNamed s })
+newNamedWithName n g = tell (NamedGrammars [(n, g)])
 
-flushNamed :: LiftExprCtx m => LiftExprM m [(Name, Grammar)]
-flushNamed = state (\s -> (lesNamed s, s { lesNamed = [] }))
+getNamedIn :: LiftExprCtx m => LiftExprM m a -> LiftExprM m (a, NamedGrammars)
+getNamedIn = censor (const mempty) . listen 
 
-freeInNamed :: LiftExprCtx m => Name -> LiftExprM m Bool
-freeInNamed n = gets (any (Set.member n . freeVars . snd) . lesNamed)
+freeInNamed ::  Name -> NamedGrammars -> Bool
+freeInNamed n = any (Set.member n . freeVars . snd) . getNamedGrammars
   
 -- -----------------------------------------------------------------------------
 -- Workers
@@ -123,7 +124,7 @@ liftExprEFun env m_n fu =
   case fDef fu of
     Def e -> do
       (e', binds) <- runLiftExprM env (liftExprE e)
-      if null binds && isNothing m_n
+      if nullNamedGrammars binds && isNothing m_n
         then pure (Left fu { fDef = Def e' })
         else do -- Need to make a grammar
           fn' <- maybe (makeLiftedName (fName fu)) pure m_n
@@ -143,46 +144,49 @@ liftExprGFun env fu =
   case fDef fu of
     Def g -> do
       (g', binds) <- runLiftExprM env (liftExprG g)
-      unless (null binds) $ panic "Binds should be flushed in liftExprG" []
+      unless (nullNamedGrammars binds) $ panic "Binds should be flushed in liftExprG" []
       pure $ fu { fDef = Def g' }
     _ -> pure fu
 
 liftExprE :: LiftExprCtx m => Expr -> LiftExprM m Expr
 liftExprE expr = do
-  e' <- childrenE liftExprE expr
   ffuns <- asks leeFFuns
   fToG  <- asks leeFToG
-  case e' of
+  case expr of
     -- Loops become grammars
     ELoop lm -> do
-      let lm' = Pure <$> lm
+      lm' <- morphismE liftExprE (fmap (uncurry bindNamedE) . getNamedIn . liftExprE) lm
       Var <$> newNamed (Loop (MorphismLoop lm'))
 
     PureLet n le re -> do
-      nIsFree <- freeInNamed n
-      if nIsFree
-        then newNamedWithName n (Pure le) $> re
-        else pure e'
+      (re', named) <- getNamedIn (liftExprE re)
+      le' <- liftExprE le
+      if n `freeInNamed` named 
+        then newNamedWithName n (Pure le') *> (tell named $> re')
+        else tell named $> PureLet n le' re'
+
+    -- Need to lift this as parts of the body may have partial
+    -- operations (e.g. getting sum types).  We try to only generate a
+    -- Grammar when the body of the case produces a non-empty NamedGrammar
+    ECase cs -> do
+      cs' <- traverse (getNamedIn . liftExprE) cs
+      if all (nullNamedGrammars . snd) cs'
+        then pure (ECase (fst <$> cs'))
+        else Var <$> newNamed (GCase (uncurry bindNamedE <$> cs'))
 
     ApN (CallF f) es
       | Just gn <- Map.lookup f fToG -> Var <$> newNamed (Call gn es)
       | otherwise -> pure $ inlineCall f es ffuns
 
-    _ -> pure e'
+    _ -> childrenE liftExprE expr
 
+-- This is in here mainly for convenience.  Invariant: always writes mempty
 liftExprG :: LiftExprCtx m => Grammar -> LiftExprM m Grammar
--- This is treated specially as otherwise named grammars in e get
--- pushed into g
-liftExprG (Let n e g) = do
-  e' <- liftExprE e
-  e_binds <- flushNamed
-  g' <- liftExprG g
-  pure $ bindNamed (Let n e' g') e_binds
 liftExprG gram = do
-  g <- gebChildrenG liftExprG liftExprE liftExprB gram
+  (g, named) <- getNamedIn $ gebChildrenG liftExprG liftExprE liftExprB gram
   -- We need to add the statements right at the grammar to capture at
   -- the right place.
-  bindNamed g <$> flushNamed
+  pure (bindNamed g named)
 
 liftExprB :: LiftExprCtx m => ByteSet -> LiftExprM m ByteSet
 liftExprB bs = do
@@ -213,5 +217,8 @@ hasRecursion fs = any isMutRec ordered
 
     ordered = topoOrder (\f -> (fName f, freeFVars f)) fs
 
-bindNamed :: Grammar -> [(Name, Grammar)] -> Grammar
-bindNamed = foldr (\(n, lhs) acc -> Do n lhs acc)
+bindNamedE :: Expr -> NamedGrammars -> Grammar
+bindNamedE e = bindNamed (Pure e)
+
+bindNamed :: Grammar -> NamedGrammars -> Grammar
+bindNamed g = foldr (\(n, lhs) acc -> Do n lhs acc) g . getNamedGrammars
