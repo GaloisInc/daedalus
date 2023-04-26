@@ -16,9 +16,10 @@ module Talos.Analysis ( summarise
                       -- FIXME: move
                       ) where
 
-import           Data.List                  (foldl1', foldl')
+import           Control.Arrow              (second)
+import           Data.List                  (foldl', foldl1')
 import qualified Data.Map                   as Map
-import           Data.Maybe                 (mapMaybe, maybeToList, isNothing)
+import           Data.Maybe                 (isNothing, mapMaybe, maybeToList)
 import           Data.Monoid                (All (All))
 import qualified Data.Set                   as Set
 
@@ -38,7 +39,7 @@ import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
-import Control.Arrow (second)
+
 
 
 --------------------------------------------------------------------------------

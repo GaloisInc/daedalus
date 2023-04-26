@@ -138,7 +138,9 @@ invalidSymbolicLoopTag = invalidGUID
 -- We could figure this out from the generated parse tree, but this is
 -- (maybe?) clearer.
 data SymbolicModel = SymbolicModel
-  { smAsserts :: [SMT.SExpr]
+  { smGlobalAsserts :: [SMT.SExpr]
+    -- ^ These are not predicated, e.g. range limits on choices.
+  , smGuardedAsserts :: [SMT.SExpr]
   , smChoices :: Map PathVar ( [SMT.SExpr] -- Symbolic path (all true to be enabled)
                              , [Int] -- Allowed choice indicies
                              )
@@ -151,17 +153,28 @@ data SymbolicModel = SymbolicModel
   , smLoopVars :: Set LoopCountVar
   } deriving Generic
 
--- We should only ever combine disjoint sets, so we cheat here
+smAsserts :: SymbolicModel -> [SMT.SExpr]
+smAsserts sm = smGlobalAsserts sm ++ smGuardedAsserts sm
+
+-- We should only ever combine disjoint sets, so we cheat here.
 instance Semigroup SymbolicModel where
   sm1 <> sm2 = SymbolicModel
-    (smAsserts sm1 <> smAsserts sm2)
+    (smGlobalAsserts sm1 <> smGlobalAsserts sm2)
+    (smGuardedAsserts sm1 <> smGuardedAsserts sm2)
     (smChoices sm1 <> smChoices sm2)
     (smCases   sm1 <> smCases   sm2)
     (smNamedValues sm1 <> smNamedValues sm2)
     (smLoopVars sm1 <> smLoopVars sm2)
 
 instance Monoid SymbolicModel where
-  mempty = SymbolicModel mempty mempty mempty mempty mempty
+  mempty = SymbolicModel
+           { smGlobalAsserts  = mempty
+           , smGuardedAsserts = mempty
+           , smChoices        = mempty
+           , smCases          = mempty
+           , smNamedValues    = mempty
+           , smLoopVars       = mempty
+           }
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
@@ -204,13 +217,16 @@ pathVarSort = SMT.tInt
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
-  assertSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
-                        (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
+  -- The symbol only makes sense with these bounds, hence the global
+  -- assertion (without this we can get e.g. negative indicies)
+  assertGlobalSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
+                              (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
   pure (PathVar sym)
 
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
   sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
+  -- Not global here as we may want to switch to exprs for bounds
   assertSExpr $ SMT.and (SMT.bvULeq (loopCountToSExpr lb) (SMT.const sym))
                         (SMT.bvULeq  (SMT.const sym) (loopCountToSExpr ub))
   let lv = LoopCountVar sym
@@ -228,7 +244,11 @@ freshSymbolicLoopTag = liftStrategy getNextGUID
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
 assertSExpr p | p == SMT.bool True = pure ()
-assertSExpr p = tell (mempty { smAsserts = [p] })
+assertSExpr p = tell (mempty { smGuardedAsserts = [p] })
+
+assertGlobalSExpr :: SMT.SExpr -> SymbolicM ()
+assertGlobalSExpr p | p == SMT.bool True = pure ()
+assertGlobalSExpr p = tell (mempty { smGlobalAsserts = [p] })
 
 recordChoice :: PathVar -> [Int] -> SymbolicM ()
 recordChoice pv ixs =
@@ -254,9 +274,9 @@ extendPath g | g == SMT.bool True = id
 extendPath g = addGuard . addImpl
   where
     addImpl sm
-      | []      <- smAsserts sm = sm
+      | []      <- smGuardedAsserts sm = sm
       | otherwise =
-        over (field @"smAsserts") (\ss -> [SMT.implies g (MV.andMany ss) ]) sm
+        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (MV.andMany ss) ]) sm
 
     -- Merge in the guard g with the path for the known choices/cases
     addGuard = 

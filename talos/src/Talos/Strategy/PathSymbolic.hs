@@ -34,7 +34,7 @@ import           Daedalus.Core                             hiding (streamOffset,
 import           Daedalus.Core.Free                        (freeVars)
 import qualified Daedalus.Core.Semantics.Env               as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                               (showPP, text)
+import           Daedalus.PP                               (showPP, text, pp)
 import           Daedalus.Panic
 import           Daedalus.Rec                              (topoOrder)
 
@@ -261,7 +261,7 @@ guardedChoice pv i m = pass $ do
     g = PC.insertChoice pv i mempty
     pathGuard = PC.toSExpr g
 
-    notFeasible _ = mempty { smAsserts = [S.not pathGuard] }
+    notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
 
 stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
@@ -554,7 +554,7 @@ guardedCase gs pat m = pass $ do
       pure (x, (pat, pb))
 
     pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
-    notFeasible _ = mempty { smAsserts = [S.not pathGuard] }
+    notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
 
 stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
 stratCase _total cs m_sccs = do
@@ -623,7 +623,8 @@ stratCase _total cs m_sccs = do
 stratCallNode :: ExpCallNode ->
                  SymbolicM Result
 stratCallNode cn = do
-  -- liftIO $ print ("Entering: " <> pp cn)
+  -- liftIO $ do print ("Entering: " <> pp cn)
+  --             hFlush stdout
   sl <- getSlice (ecnSliceId cn)
   over _2 (SelectedCall (ecnIdx cn))
     <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice sl)

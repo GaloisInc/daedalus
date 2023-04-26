@@ -21,6 +21,7 @@ import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.Maybe           (isNothing)
 import qualified Data.Set             as Set
+import qualified Data.Text            as Text
 
 import           Daedalus.Core
 import           Daedalus.Core.Free   (FreeVars, freeFVars, freeVars)
@@ -80,7 +81,7 @@ makeLiftedName f = freshFName (f { fnameText = "Lifted_" <> fnameText f })
 
 liftExprM :: LiftExprCtx m => Module -> m Module
 liftExprM m = do
-  when (hasRecursion (mBFuns m)) $ panic "Found ByteSet recrsion" []
+  when (hasRecursion (mBFuns m)) $ panic "Found ByteSet recursion" []
   (efs, gfs, env) <- liftExprEFuns (mFFuns m)
   let env' = env { leeBFuns = Map.fromList [ (fName f, f) | f <- mBFuns m ] }
   gfs' <- mapM (liftExprGFun env') (mGFuns m)
@@ -104,7 +105,12 @@ liftExprEFuns oldFs = do
         Left efu  -> (efu : fs, gs, env { leeFFuns = Map.insert fn efu (leeFFuns env) })
         Right gfu -> (fs, gfu : gs, env { leeFToG  = Map.insert fn (fName gfu) (leeFToG env) })
 
+    go r             (NonRec fu) | isSpecialFun fu = pure (mkR r (fName fu) (Left fu))
     go r@(_, _, env) (NonRec fu) = mkR r (fName fu) <$> liftExprEFun env Nothing fu
+
+    -- This is a bit dangerous, but we assume any group involving a special function is special.
+    go r             (MutRec fus) | any isSpecialFun fus =
+      pure (foldl (uncurry . mkR) r (zip (map fName fus) (map Left fus)))      
     go r@(_, _, env) (MutRec fus) = do
       ns <- mapM (makeLiftedName . fName) fus
       let newFToGs = Map.fromList [ (fName fu, n) | (fu, n) <- zip fus ns ]
@@ -115,6 +121,11 @@ liftExprEFuns oldFs = do
 
     ordered = topoOrder (\f -> (fName f, freeFVars f)) oldFs
     -- The type etc. remains the same
+
+    isSpecialFun fn = 
+      Text.isPrefixOf "inverse_" (fnameText (fName fn))
+      || Text.isPrefixOf "pred_" (fnameText (fName fn))
+
 
 -- We don't get the full env here, just the partial map of FFuns
 liftExprEFun :: LiftExprCtx m => LiftExprEnv ->

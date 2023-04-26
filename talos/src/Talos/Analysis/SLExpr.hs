@@ -22,7 +22,7 @@ import           Daedalus.Core                   (Case, Expr (..), Label, Name,
                                                   byteArrayL, floatL, inUnion,
                                                   intL, mapEmpty, newBuilder,
                                                   newIterator, nothing, ppOp2,
-                                                  ppOp3, ppTApp, unit)
+                                                  ppOp3, ppTApp, unit, FName)
 import           Daedalus.Core.Free              (FreeVars (..))
 import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
 import           Daedalus.PP
@@ -42,8 +42,9 @@ data SLExpr =
   | SAp1 Op1 SLExpr
   | SAp2 Op2 SLExpr SLExpr
   | SAp3 Op3 SLExpr SLExpr SLExpr
-  -- No CallE
   | SArrayL Type [SLExpr]
+  -- Just so we can have them in inverses, we shouldn't get calls in normal code.  
+  | SCallF FName [SLExpr]
   | EHole Type
   deriving (Generic, NFData)
 
@@ -59,6 +60,7 @@ slExprToExpr dflt sl =
     SAp2 op e1 e2    -> Ap2 op (go e1) (go e2)
     SAp3 op e1 e2 e3 -> Ap3 op (go e1) (go e2) (go e3)
     SArrayL ty es    -> ApN (ArrayL ty) (map go es)
+    SCallF f es      -> ApN (CallF f) (map go es)
     EHole ty         -> dflt ty
   where
     go = slExprToExpr dflt
@@ -76,7 +78,7 @@ exprToSLExpr expr =
     Ap2 op e1 e2    -> SAp2 op (go e1) (go e2)
     Ap3 op e1 e2 e3 -> SAp3 op (go e1) (go e2) (go e3)
     ApN (ArrayL ty) es -> SArrayL ty (map go es)
-    ApN _op _es        -> panic "Saw an expression-level Call" [showPP expr]
+    ApN (CallF f) es -> SCallF f (map go es)
   where
     go = exprToSLExpr
 
@@ -111,7 +113,6 @@ typeToInhabitant tdecls = go
             TUnion  _   -> panic "Empty union" [showPP ut]
             TBitdata {} -> panic "Bitdata not yet supported" [showPP ut]
       | otherwise = panic "Unknown user type " [showPP ut]
-  
 
 --------------------------------------------------------------------------------
 -- Instances
@@ -138,6 +139,8 @@ instance TraverseUserTypes SLExpr where
                                     <*> traverseUserTypes f e3
       SArrayL ty es     -> SArrayL <$> traverseUserTypes f ty
                                    <*> traverseUserTypes f es
+      SCallF fn es      -> SCallF <$> traverseUserTypes f fn
+                                  <*> traverseUserTypes f es
 
 instance FreeVars SLExpr where
   freeVars expr =
@@ -152,6 +155,7 @@ instance FreeVars SLExpr where
       SAp2 _ e1 e2     -> freeVars [e1,e2]
       SAp3 _ e1 e2 e3  -> freeVars [e1,e2,e3]
       SArrayL _ es     -> freeVars es
+      SCallF _f es     -> freeVars es
 
   freeFVars expr =
     case expr of
@@ -165,7 +169,8 @@ instance FreeVars SLExpr where
       SAp2 _ e1 e2     -> freeFVars [e1,e2]
       SAp3 _ e1 e2 e3  -> freeFVars [e1,e2,e3]
       SArrayL _ es     -> freeFVars es
-
+      SCallF f es      -> Set.insert f (freeFVars es)
+      
 instance PP SLExpr where
   ppPrec n expr =
     case expr of
@@ -203,6 +208,8 @@ instance PP SLExpr where
           [] -> ppTApp n "[]" [ty]
           _  -> brackets (commaSep (map pp es))
 
+      SCallF f es -> pp f <> parens (commaSep (map pp es))
+
 instance Eqv SLExpr where
   eqv l r =
     case (l,r) of
@@ -220,6 +227,7 @@ instance Eqv SLExpr where
       (SAp3 _op e1 e2 e3, SAp3 _op' e1' e2' e3') ->
         (e1, e2, e3) `eqv` (e1', e2', e3')
       (SArrayL _ty es, SArrayL _ty' es') -> es `eqv` es'
+      (SCallF _f es, SCallF _f' es') -> es `eqv` es'
       _ -> panic "Mismatched terms in eqv (SLExpr)" ["Left", showPP l, "Right", showPP r]      
 
 instance Merge SLExpr where
@@ -239,5 +247,6 @@ instance Merge SLExpr where
       (SAp2 op e1 e2, SAp2 _op e1' e2') -> SAp2 op (merge e1 e1') (merge e2 e2')
       (SAp3 op e1 e2 e3, SAp3 _op e1' e2' e3') ->
         SAp3 op (merge e1 e1') (merge e2 e2') (merge e3 e3')
-      (SArrayL ty es, SArrayL _ty es') -> SArrayL ty (zipWith merge es es')
+      (SArrayL ty es, SArrayL _ty es') -> SArrayL ty (merge es es')
+      (SCallF f es, SCallF _f' es') -> SCallF f (merge es es')
       _ -> panic "Mismatched terms in merge (SLExpr)" ["Left", showPP l, "Right", showPP r]

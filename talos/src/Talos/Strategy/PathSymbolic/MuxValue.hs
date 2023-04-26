@@ -61,6 +61,7 @@ import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 import Control.Monad.State (StateT, runStateT, modify)
 import Data.Set (Set)
+import Talos.Strategy.Monad (LiftStrategyM, liftStrategy, getFunDefs)
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -345,7 +346,11 @@ semiExecName :: (HasGUID m, Monad m, HasCallStack) =>
 semiExecName n = do
   m_local <- asks (Map.lookup n . localBoundNames)
   case m_local of
-    Nothing -> panic "Missing name" [showPP n]
+    Nothing -> do
+      ns <- asks localBoundNames
+      let ppM kf vf m = braces (commaSep [ kf x <> " -> " <> vf y | (x, y) <- Map.toList m])
+
+      panic "Missing name" [showPP n, show (ppM pp (pp . fmap (text . typedThing)) ns)]
     Just r  -> pure r
 
 bindNameIn :: Monad m => Name -> GuardedSemiSExprs ->
@@ -536,21 +541,20 @@ semiExecCase (Case y pats) = do
     
     ty = typeOf y
 
--- -- -----------------------------------------------------------------------------
--- -- Monad
+-- -----------------------------------------------------------------------------
+-- Monad
 
 data SemiSolverEnv = SemiSolverEnv
   { localBoundNames :: Map Name GuardedSemiSExprs
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
-  , interpEnv       :: I.Env
+  , interpEnv       :: I.Env -- FIXME: probably we can get from the StrategyM
   } deriving (Generic)
-
 
 typeDefs :: SemiSolverEnv -> Map TName TDecl
 typeDefs = I.tEnv . interpEnv
 
-type SemiCtxt m = (Monad m, MonadIO m, HasGUID m)
+type SemiCtxt m = (Monad m, MonadIO m, HasGUID m, LiftStrategyM m)
 
 type SemiState = Set (Typed SMTVar)
 
@@ -589,7 +593,12 @@ gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
               SemiSolverM m GuardedSemiSExprs
 gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unions'
 
-
+getEFun :: SemiCtxt m => FName -> SemiSolverM m (Fun Expr)
+getEFun f = do
+  fdefs <- liftStrategy getFunDefs
+  case Map.lookup f fdefs of
+    Just fn -> pure fn
+    Nothing -> panic "Missing pure function" [showPP f]
 
 --------------------------------------------------------------------------------
 -- Exprs
@@ -731,8 +740,8 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
 
       -- Otherwise, if we have a value just call the evaluator
       _ | VValue v <- sv -> do
-            env <- asks interpEnv
-            mk1 g $ VValue (evalOp1 (I.tEnv env) op ty v)
+            tdefs <- asks typeDefs
+            mk1 g $ VValue (evalOp1 tdefs op ty v)
 
       -- These are the remaining cases, which are only defined on values or sexprs
       --  CoerceTo Type
@@ -1093,8 +1102,19 @@ semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
                SemiSolverM m GuardedSemiSExprs
 semiExecOpN (ArrayL _ty) _rty vs =
   pure (singleton mempty (VSequence emptyVSequenceMeta vs))
-semiExecOpN (CallF _fn) _rty _vs = panic "Impossible" []
-
+  
+-- FIXME: this will recurse forever if the varying parameter(s) are
+-- symbolic.  This is only used for inverses (well, predicates for
+-- inverses), so it should be OK.
+semiExecOpN (CallF fn) _rty vs = do
+  fdef <- getEFun fn
+  let e = case fDef fdef of
+        Def d -> d
+        _   -> panic "Missing function " [showPP fn]
+      ps = fParams fdef
+      
+  foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
+  
 -- -- -----------------------------------------------------------------------------
 -- -- Value -> SExpr
 

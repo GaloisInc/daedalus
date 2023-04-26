@@ -6,8 +6,8 @@
 
 module Talos.Analysis.FLAbsEnv (flAbsEnvTy) where
 
+import           Control.Arrow         ((***))
 import           Control.DeepSeq       (NFData)
-import           Data.Bifunctor        (second)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
@@ -26,6 +26,7 @@ import           Talos.Analysis.Eqv    (Eqv)
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.SLExpr (SLExpr (..))
 import           Talos.Analysis.Slice  (Structural (..))
+
 
 
 flAbsEnvTy :: AbsEnvTy
@@ -194,7 +195,7 @@ exprToAbsEnv fp expr =
           mk' (l, e) = (,) l <$> mk l e
       in SStruct ut <$> traverse mk' flds
 
-    ECase cs       -> second SECase (traverse (go fp) cs)
+    ECase cs@(Case x _) -> (mapLiftAbsEnv (Map.insert x Whole) *** SECase) (traverse (go fp) cs)
     ELoop {}       -> panic "Saw a Loop in exprToAbsEnv" []
     -- We care about SelStruct and list/builder ops only, we don't do
     -- anything special for iterators (FIXME: maybe we should).
@@ -245,7 +246,10 @@ exprToAbsEnv fp expr =
 
     ApN (ArrayL ty) es ->
       SArrayL ty <$> traverse (goM (absPredListElement fp)) es
-    ApN {}       -> panic "Saw a Call in exprToAbsEnv" []
+      
+    -- Mainly for inverses
+    ApN (CallF f) es -> SCallF f <$> traverse (go Whole) es
+
   where
     goM m_fp e' = maybe (absEmptyEnv, EHole (typeOf e')) (flip go e') m_fp
 

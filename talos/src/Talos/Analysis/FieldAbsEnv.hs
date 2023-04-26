@@ -6,8 +6,8 @@
 
 module Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy) where
 
+import           Control.Arrow         ((***))
 import           Control.DeepSeq       (NFData)
-import           Data.Bifunctor        (second)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
@@ -19,13 +19,14 @@ import           GHC.Generics          (Generic)
 import           Daedalus.Core
 import           Daedalus.Core.Type
 import           Daedalus.PP
+import           Daedalus.Panic        (panic)
+
 
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Eqv    (Eqv)
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.SLExpr (SLExpr (..))
-import           Talos.Analysis.Slice (Structural (..))
-import Daedalus.Panic (panic)
+import           Talos.Analysis.Slice  (Structural (..))
 
 fieldAbsEnvTy :: AbsEnvTy
 fieldAbsEnvTy = AbsEnvTy (Proxy @FieldAbsEnv)
@@ -113,7 +114,7 @@ exprToAbsEnv fp expr =
           mk' (l, e) = (,) l <$> mk l e
       in SStruct ut <$> traverse mk' flds
 
-    ECase cs       -> second SECase (traverse (go fp) cs)
+    ECase cs@(Case x _) -> (mapLiftAbsEnv (Map.insert x Whole) *** SECase) (traverse (go fp) cs)
     ELoop {}       -> panic "Saw a Loop in exprToAbsEnv" [showPP expr]
     -- Apart from SelStruct, none of the below are interesting (should be Whole)
     Ap0 op         -> (absEmptyEnv, SAp0 op)
@@ -126,7 +127,9 @@ exprToAbsEnv fp expr =
 
     -- We could (should?) unfold functions etc. here, but this is simpler.
     ApN (ArrayL ty) es -> SArrayL ty <$> traverse (go Whole) es
-    ApN _op _es        -> panic "Saw a Call in exprToAbsEnv" [showPP expr]
+    
+    -- Mainly for inverses
+    ApN (CallF f) es -> SCallF f <$> traverse (go Whole) es
     
   where
     go = exprToAbsEnv
