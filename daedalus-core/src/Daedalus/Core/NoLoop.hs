@@ -412,13 +412,14 @@ noLoopMorphism lm defFun inj bindf =
           bTy = typeOf b'
           (rty, mknext, initAcc, mkRes) =
             case colT of
-              TArray  _ -> (TBuilder bTy, emit
+              TArray  _ -> ( TBuilder bTy
+                           , emit
                            , newBuilder bTy
                            , \c -> do x <- newLocal (TBuilder bTy)
                                       pure (bindf x c (inj (finishBuilder (Var x))))
                            )
               TMap kT _ -> (TMap kT bTy
-                           , \m -> mapInsert m (iteratorNext (Var i))
+                           , \m -> mapInsert m (iteratorKey (Var i))
                            , mapEmpty kT bTy
                            , pure
                            )

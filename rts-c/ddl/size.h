@@ -28,6 +28,9 @@ public:
 
   size_t rep() const { return value; }
 
+  static inline
+  Size maxValue() { return Size{std::numeric_limits<size_t>::max()}; }
+
   bool operator == (Size x) const { return rep() == x.rep(); }
   bool operator != (Size x) const { return rep() != x.rep(); }
   bool operator <  (Size x) const { return rep() <  x.rep(); }
@@ -42,8 +45,8 @@ public:
   void decrement()         { decrementBy(Size(1)); }
 
   // immutable
-  Size incrementedBy(Size x) const { Size y(value); y.incrementBy(x); return y; }
-  Size decrementedBy(Size x) const { Size y(value); y.decrementBy(x); return y; }
+  Size incrementedBy(Size x) const { Size y(value); y.incrementBy(x); return y;}
+  Size decrementedBy(Size x) const { Size y(value); y.decrementBy(x); return y;}
   Size incremented()         const { return incrementedBy(Size(1)); }
   Size decremented()         const { return decrementedBy(Size(1)); }
 };

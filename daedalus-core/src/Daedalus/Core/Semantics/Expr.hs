@@ -246,7 +246,6 @@ evalOp1 env op ty v = case op of
   IsEmptyStream -> vStreamIsEmpty v
   Head          -> partial (vStreamHead v)
   StreamOffset  -> vStreamOffset v
-  StreamLen     -> vStreamLength v
   BytesOfStream -> vBytesOfStream v
   OneOf bs      -> VBool $ isJust $ BS.elemIndex (valueToByte v) bs
   Neg           -> partial (vNeg v)
@@ -292,8 +291,9 @@ evalOp2 op v1 v2 = case op of
     VBool $ valueToByteString v1 `BS.isPrefixOf`
                    inputBytes (valueToStream v2)
 
-  Drop -> partial (vStreamDrop v1 v2)
-  Take -> partial (vStreamTake v1 v2)
+  Drop      -> partial (vStreamDrop v1 v2)
+  DropMaybe -> vStreamDropMaybe v1 v2
+  Take      -> vStreamTake v1 v2
 
   Eq       -> vEq  v1 v2
   NotEq    -> vNeq v1 v2

@@ -139,6 +139,7 @@ import Daedalus.Parser.Monad
   'Offset'    { Lexeme { lexemeRange = $$, lexemeToken = KWOffset } }
   'GetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWGetStream } }
   'SetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWSetStream } }
+  'take'      { Lexeme { lexemeRange = $$, lexemeToken = KWtake } }
   'Take'      { Lexeme { lexemeRange = $$, lexemeToken = KWTake } }
   'Drop'      { Lexeme { lexemeRange = $$, lexemeToken = KWDrop } }
   'arrayStream' { Lexeme { lexemeRange = $$, lexemeToken = KWArrayStream } }
@@ -454,6 +455,7 @@ call_expr                                :: { Expr }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
   | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
+  | 'take' aexpr aexpr                      { at ($1,$2) (EBinOp StreamTakeUpTo $2 $3) }
   | 'Take' aexpr aexpr                      { at ($1,$2) (EStreamLen $2 $3) }
   | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
   | 'length' aexpr                          { at ($1,$2) (EUniOp ArrayLength $2)}

@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -45,6 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Control Structures</a><ul>
@@ -87,7 +90,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Language Reference</a></li>
       <li class="breadcrumb-item active">Control Structures</li>
       <li class="wy-breadcrumbs-aside">
@@ -100,9 +103,9 @@
            <div itemprop="articleBody">
              
   <section id="control-structures">
-<h1>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this heading"></a></h1>
+<h1>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline"></a></h1>
 <section id="if-then-else">
-<h2>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this heading"></a></h2>
+<h2>If-then-else<a class="headerlink" href="#if-then-else" title="Permalink to this headline"></a></h2>
 <p>Booleans may be used to choose between one of two parsers:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
   <span class="k">let</span> <span class="n">i</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span> <span class="s">&#39;0&#39;</span><span class="p">..</span><span class="s">&#39;9&#39;</span> <span class="p">]</span>
@@ -116,14 +119,14 @@ it will try to match <code class="docutils literal notranslate"><span class="pre
 with semantic value 7.</p>
 </section>
 <section id="guards">
-<h2>Guards<a class="headerlink" href="#guards" title="Permalink to this heading"></a></h2>
+<h2>Guards<a class="headerlink" href="#guards" title="Permalink to this headline"></a></h2>
 <p>Guards provide one way to examine a semantic value, and their general form is:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="n">expression</span> <span class="k">is</span> <span class="n">shape</span>
 </pre></div>
 </div>
 <p>A guard is a parser that will succeed if the expression has the required shape.</p>
 <section id="boolean-guards">
-<h3>Boolean Guards<a class="headerlink" href="#boolean-guards" title="Permalink to this heading"></a></h3>
+<h3>Boolean Guards<a class="headerlink" href="#boolean-guards" title="Permalink to this headline"></a></h3>
 <p>Perhaps the most common guard is on boolean semantic values,
 which may be used to control whether parsing should continue. For example,
 the following parser uses the guard <code class="docutils literal notranslate"><span class="pre">(i</span> <span class="pre">-</span> <span class="pre">'0')</span> <span class="pre">&gt;</span> <span class="pre">5</span> <span class="pre">is</span> <span class="pre">true</span></code> to continue
@@ -143,7 +146,7 @@ Similarly, <code class="docutils literal notranslate"><span class="pre">p</span>
 if <code class="docutils literal notranslate"><span class="pre">p</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
 </section>
 <section id="guards-on-maybe">
-<h3>Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code><a class="headerlink" href="#guards-on-maybe" title="Permalink to this heading"></a></h3>
+<h3>Guards on <code class="docutils literal notranslate"><span class="pre">maybe</span></code><a class="headerlink" href="#guards-on-maybe" title="Permalink to this headline"></a></h3>
 <p>The type <code class="docutils literal notranslate"><span class="pre">maybe</span></code> also supports guards, with two shapes:
 <code class="docutils literal notranslate"><span class="pre">just</span></code> and <code class="docutils literal notranslate"><span class="pre">nothing</span></code>.  For example <code class="docutils literal notranslate"><span class="pre">e</span> <span class="pre">is</span> <span class="pre">just</span></code> is a parser that will
 succeed only if <code class="docutils literal notranslate"><span class="pre">e</span></code> is of the shape <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code> form some <code class="docutils literal notranslate"><span class="pre">x</span></code>.  In that
@@ -152,7 +155,7 @@ no interesting result (e.g., <code class="docutils literal notranslate"><span cl
 value <code class="docutils literal notranslate"><span class="pre">{}</span></code>.</p>
 </section>
 <section id="guards-on-tagged-unions">
-<h3>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this heading"></a></h3>
+<h3>Guards on Tagged Unions<a class="headerlink" href="#guards-on-tagged-unions" title="Permalink to this headline"></a></h3>
 <p>The same notation may be used to examine values of user-defined
 union types (see <a class="reference internal" href="parsers.html#tagged-unions"><span class="std std-ref">Tagged Unions</span></a>)</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">block</span>
@@ -174,7 +177,7 @@ union types (see <a class="reference internal" href="parsers.html#tagged-unions"
 </section>
 </section>
 <section id="case">
-<h2>Case<a class="headerlink" href="#case" title="Permalink to this heading"></a></h2>
+<h2>Case<a class="headerlink" href="#case" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">case</span></code> construct provides an alternative method for examining semantic
 values. The body of a case expression consists of a list of matches with the
 syntax <code class="docutils literal notranslate"><span class="pre">pattern</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code>. For example, the following expression has the same
@@ -214,7 +217,7 @@ total.</p>
 </div>
 </section>
 <section id="for-loops">
-<span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this heading"></a></h2>
+<span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
 the accumulated result of the computation, and a variable that is
@@ -250,7 +253,7 @@ loop is a parser which fails when the value is less than the key:</p>
 </div>
 </section>
 <section id="traversing-with-map">
-<h2>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this heading"></a></h2>
+<h2>Traversing with <code class="docutils literal notranslate"><span class="pre">map</span></code><a class="headerlink" href="#traversing-with-map" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports another iteration construct, <code class="docutils literal notranslate"><span class="pre">map</span></code>. This performs an operation on each
 element of a sequence, resulting in a sequence of results. For example, the following code
 doubles each element in an array:</p>
@@ -278,7 +281,7 @@ sequence indexes and values:</p>
 </div>
 </section>
 <section id="many-loops">
-<h2><code class="docutils literal notranslate"><span class="pre">many</span></code> loops<a class="headerlink" href="#many-loops" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">many</span></code> loops<a class="headerlink" href="#many-loops" title="Permalink to this headline"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">many</span></code> loops are similar to <code class="docutils literal notranslate"><span class="pre">for</span></code> loops and the <code class="docutils literal notranslate"><span class="pre">Many</span></code> combinator.</p>
 <blockquote>
 <div><ul class="simple">
@@ -293,6 +296,12 @@ iteration.</p></li>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">many</span> <span class="p">(</span><span class="n">s</span> <span class="k">=</span> <span class="m">0</span><span class="p">)</span> <span class="p">(</span><span class="m">10</span> <span class="o">*</span> <span class="n">s</span> <span class="o">+</span> <span class="n">Digit</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>In the example above, the state variable is <code class="docutils literal notranslate"><span class="pre">s</span></code> and is initialized
+to <code class="docutils literal notranslate"><span class="pre">0</span></code>. The loop body is evaluated, and if it succeeds, its value
+replaces <code class="docutils literal notranslate"><span class="pre">s</span></code>, which in the example above means that the loop body’s
+result is assigned to <code class="docutils literal notranslate"><span class="pre">s</span></code>, i.e., <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">10</span> <span class="pre">*</span> <span class="pre">s</span> <span class="pre">+</span> <span class="pre">Digit</span></code>. The result
+of the <code class="docutils literal notranslate"><span class="pre">many</span></code> is the result of the body of its last successful loop
+iteration.</p>
 <p>There is also a variant called <code class="docutils literal notranslate"><span class="pre">many?</span></code> which is similar to <code class="docutils literal notranslate"><span class="pre">Many?</span></code> in
 that the loop repeats just enough times to make the parser succeed.</p>
 <div class="admonition warning">
@@ -302,7 +311,7 @@ that the loop repeats just enough times to make the parser succeed.</p>
 </div>
 </section>
 <section id="commit">
-<h2>Commit<a class="headerlink" href="#commit" title="Permalink to this heading"></a></h2>
+<h2>Commit<a class="headerlink" href="#commit" title="Permalink to this headline"></a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><code class="docutils literal notranslate"><span class="pre">commit</span></code> is an unstable experimental feature and its behavior may change

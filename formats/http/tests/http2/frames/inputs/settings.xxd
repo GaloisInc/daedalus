@@ -1,0 +1,11 @@
+00000000: 0000 2a                               // Header: length: 42 bytes
+00000003: 04                                    // Header: frame type: settings
+00000004: 00                                    // Settings frame flags (no ack)
+00000005: fcaf cafe                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: 0001 0000 0001                        // Settings frame payload: SETTINGS_HEADER_TABLE_SIZE
+0000000f: 0002 0000 0002                        // Settings frame payload: SETTINGS_ENABLE_PUSH
+00000015: 0003 0000 0003                        // Settings frame payload: SETTINGS_MAX_CONCURRENT_STREAMS
+0000001b: 0004 0000 0004                        // Settings frame payload: SETTINGS_INITIAL_WINDOW_SIZE
+00000021: 0005 0000 0005                        // Settings frame payload: SETTINGS_MAX_FRAME_SIZE
+00000027: 0006 0000 0006                        // Settings frame payload: SETTINGS_MAX_HEADER_LIST_SIZE
+0000002d: 0007 0000 0007                        // Settings frame payload: unknown setting (should be ignored)

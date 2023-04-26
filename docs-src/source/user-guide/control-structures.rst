@@ -236,6 +236,13 @@ For example, this is how one might parse a base 10 number:
 
   many (s = 0) (10 * s + Digit)
 
+In the example above, the state variable is ``s`` and is initialized
+to ``0``. The loop body is evaluated, and if it succeeds, its value
+replaces ``s``, which in the example above means that the loop body's
+result is assigned to ``s``, i.e., ``s = 10 * s + Digit``. The result
+of the ``many`` is the result of the body of its last successful loop
+iteration.
+
 There is also a variant called ``many?`` which is similar to ``Many?`` in
 that the loop repeats just enough times to make the parser succeed.
 

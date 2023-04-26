@@ -40,7 +40,7 @@ data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 
 data Options =
   Options { optCommand   :: Command
-          , optParserDDL :: FilePath
+          , optParserDDL :: Maybe FilePath
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
@@ -65,6 +65,7 @@ data Options =
           , optUserNS :: String
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
+          , optUseLazyStream :: Bool
 
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
@@ -81,7 +82,7 @@ data Options =
 defaultOptions :: Options
 defaultOptions =
   Options { optCommand   = DumpTC
-          , optParserDDL = ""
+          , optParserDDL = Nothing
           , optBackend   = UseInterp
           , optEntries   = []
           , optForceUTF8 = True
@@ -108,6 +109,7 @@ defaultOptions =
           , optExternMods = Map.empty
           , optModulePath = []
           , optDetailedErrors = Nothing
+          , optUseLazyStream = False
           }
 
 defaultUserSpace :: String
@@ -305,7 +307,7 @@ cmdJsonToHtmlOptions = (\o -> o { optCommand = JStoHTML }, opts)
               [ helpOption
               ]
           , progParamDocs = [ ("FILE", "The JSON file to process.") ]
-          , progParams    = \s o -> Right o { optParserDDL = s }
+          , progParams    = \s o -> Right o { optParserDDL = Just s }
           }
 
 cmdCompileHSOptions :: CommandSpec
@@ -387,6 +389,11 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
         "Add #include INCLUDE to generated files"
         $ ReqArg "INCLUDE"
           \s o -> Right o { optExtraInclude = s : optExtraInclude o }
+
+      , Option [] ["lazy-streams"]
+        "The parser can context switch to ask for more data."
+        $ NoArg \o -> Right o { optUseLazyStream = True }
+
       ] ++
       coreOptions ++
       [ helpOption
@@ -531,7 +538,7 @@ helpOption =
 optWithDDL :: OptSpec Options
 optWithDDL = optSpec
   { progParamDocs = [ ("FILE", "The DDL specification to process.") ]
-  , progParams    = \s o -> Right o { optParserDDL = s }
+  , progParams    = \s o -> Right o { optParserDDL = Just s }
   }
 
 colonSplitText :: String -> (Text, Maybe String)

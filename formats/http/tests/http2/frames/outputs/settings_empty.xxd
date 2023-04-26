@@ -1,0 +1,10 @@
+--- Found 1 results:
+{ len: 0[24]
+, type: {F_SETTINGS: { flags: 0x00[8]
+                                { unused: 0[7]
+                                , ack: 0[1]
+                                }
+                     }}
+, stream_identifier: 2091895550[31]
+, body: {Settings_Frame_Body: [ ]}
+}

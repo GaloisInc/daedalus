@@ -1,0 +1,34 @@
+{
+  "header": {
+    "ack": "Acknowledged",
+    "destinationMui": 32,
+    "msgType": "SwitchGroupUserId",
+    "numDataMessages": 1,
+    "originMui": 15,
+    "seqNumber": 4,
+    "versionMajor": 2,
+    "versionMinor": 4
+  },
+  "message": {
+    "commandEndPoint": {
+      "ip": "2.3.4.5",
+      "mac": "02:01:22:33:44:55",
+      "udpPort": 21
+    },
+    "contextEndPoint": {
+      "ip": "6.5.4.3",
+      "mac": "cc:ee:ff:55:bb:33",
+      "udpPort": 12
+    },
+    "resourceId": {
+      "deviceId": 2,
+      "deviceType": "RCD",
+      "resourceId": 4
+    },
+    "userId": {
+      "deviceId": 3,
+      "deviceType": "RCD",
+      "resourceId": 5
+    }
+  }
+}

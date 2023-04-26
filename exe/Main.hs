@@ -20,6 +20,7 @@ import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
 import Data.Traversable(for)
 import Data.Foldable(for_)
 import Text.Show.Pretty (ppDoc)
+import SimpleGetOpt (GetOptException(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
@@ -82,6 +83,11 @@ main =
           do printError ("[Error] " ++ displayException (e :: InterpError))
              exitFailure
 
+       , Handler \(GetOptException msgs) ->
+           do forM_ msgs $ \msg ->
+                  printError $ "Error: " ++ msg
+              exitFailure
+
        , Handler \(SomeException e) ->
            do printError (displayException e)
               exitFailure
@@ -105,25 +111,31 @@ configure opts =
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
 
-  | DumpRaw <- optCommand opts =
-    do mm   <- ddlPassFromFile passParse (optParserDDL opts)
+  | DumpRaw <- optCommand opts, Just path <- optParserDDL opts =
+    do mm   <- ddlPassFromFile passParse path
        mo   <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
-  | DumpResolve <- optCommand opts =
-    do mm       <- ddlPassFromFile passResolve (optParserDDL opts)
+  | DumpResolve <- optCommand opts, Just path <- optParserDDL opts =
+    do mm       <- ddlPassFromFile passResolve path
        mo       <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
-  | DumpTypes <- optCommand opts =
-    do mm  <- ddlPassFromFile passTC (optParserDDL opts)
+  | DumpTypes <- optCommand opts, Just path <- optParserDDL opts =
+    do mm  <- ddlPassFromFile passTC path
        mo  <- ddlGetAST mm astTC
        ddlPrint (ppTypes mo)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
   | otherwise =
-    do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
+    do path <- case optParserDDL opts of
+         Nothing -> do
+           ddlIO $ throwOptError
+             [ "Missing command-line argument: DDL input file" ]
+         Just p -> return p
+
+       mm <- ddlPassFromFile ddlLoadModule path
        allMods <- ddlBasis mm
 
        let mainRules = parseEntries opts mm
@@ -300,7 +312,8 @@ parseEntry mm x =
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
-  do let makeExe = null (optEntries opts) && isNothing (optUserState opts)
+  do let makeExe = null (optEntries opts) && isNothing (optUserState opts) &&
+                   not (optUseLazyStream opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
@@ -312,6 +325,7 @@ generateCPP opts mm =
                   , cfgUserNS       = text (optUserNS opts)
                   , cfgExtraInclude = optExtraInclude opts
                   , cfgExternal     = optExternMods opts
+                  , cfgLazyStreams  = optUseLazyStream opts
                   }
          (hpp,cpp,warns) = C.cProgram ccfg prog
 
@@ -476,10 +490,10 @@ compilePGen moduls outDir =
 inputHack :: Options -> Options
 inputHack opts =
   case optCommand opts of
-    DumpTC | let f = optParserDDL opts
+    DumpTC | Just f <- optParserDDL opts
              , takeExtension f == ".input"
              , let xs = takeWhile (/= '.') (takeFileName f) ->
-               opts { optParserDDL = addExtension (takeDirectory f </> xs) "ddl"
+               opts { optParserDDL = Just $ addExtension (takeDirectory f </> xs) "ddl"
                     , optCommand = Interp (Just f)
                     }
     _ -> opts
@@ -491,10 +505,7 @@ jsToHTML :: Options -> Daedalus ()
 jsToHTML opts =
   ddlPrint . dumpHTML . text =<<
     ddlIO
-    if null (optParserDDL opts)
-      then getContents
-      else readFile (optParserDDL opts)
-
+    (maybe getContents readFile $ optParserDDL opts)
 
 dumpHTML :: Doc -> Doc
 dumpHTML jsData = vcat

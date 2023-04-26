@@ -332,6 +332,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LogicAnd | LogicOr
            | ArrayStream
            | LookupMap
+           | StreamTakeUpTo
            | BuilderEmit -- ^ push a new element onto the end of a builder
            | BuilderEmitArray
            | BuilderEmitBuilder
@@ -529,6 +530,7 @@ instance PP BinOp where
       LogicAnd -> "&&"
       LogicOr  -> "||"
       ArrayStream -> "arrayStream"
+      StreamTakeUpTo -> "take"
       LookupMap -> "lookup"
       BuilderEmit -> "emit"
       BuilderEmitArray -> "emitArray"

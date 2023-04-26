@@ -118,6 +118,7 @@ data Token =
   | KWDollarAny
   | KWGetStream
   | KWSetStream
+  | KWtake
   | KWTake
   | KWDrop
   | KWJust

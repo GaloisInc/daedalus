@@ -1,0 +1,5 @@
+00000000: 0000 0e                               // Header: length: 14 bytes
+00000003: 00                                    // Header: frame type: data
+00000004: 08                                    // Data frame flags with padding enabled
+00000005: faaa cafe                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: 0068 656c 6c6f 2c20 776f 726c 6421    // Data frame payload with zero padding bytes explicitly declared

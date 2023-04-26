@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -79,7 +81,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
       <li class="breadcrumb-item active">The DaeDaLus Standard Library</li>
       <li class="wy-breadcrumbs-aside">
@@ -92,7 +94,7 @@
            <div itemprop="articleBody">
              
   <section id="the-daedalus-standard-library">
-<h1>The DaeDaLus Standard Library<a class="headerlink" href="#the-daedalus-standard-library" title="Permalink to this heading"></a></h1>
+<h1>The DaeDaLus Standard Library<a class="headerlink" href="#the-daedalus-standard-library" title="Permalink to this headline"></a></h1>
 <p>Like most modern programming languages, DaeDaLus ships with a standard
 library of useful parsers and functions. It is quite small and is
 written entirely in DaeDaLus itself. This section highlights some of
@@ -101,7 +103,7 @@ You’ll find this section useful while working on the extended PNG
 exercise, particularly for parsing multi-byte words with the correct
 endianness.</p>
 <section id="endianness">
-<h2>Endianness<a class="headerlink" href="#endianness" title="Permalink to this heading"></a></h2>
+<h2>Endianness<a class="headerlink" href="#endianness" title="Permalink to this headline"></a></h2>
 <p>When working with binary data, we must concern ourselves with
 <em>endianness</em>: the order of bytes within a multi-byte word of data.
 Many format specifications define an endianness for their bytes and
@@ -148,7 +150,7 @@ parameter <code class="docutils literal notranslate"><span class="pre">?bigEndia
 </ul>
 </section>
 <section id="floating-point-numbers">
-<h2>Floating-Point Numbers<a class="headerlink" href="#floating-point-numbers" title="Permalink to this heading"></a></h2>
+<h2>Floating-Point Numbers<a class="headerlink" href="#floating-point-numbers" title="Permalink to this headline"></a></h2>
 <p>We also provide parsers for floating-point data in the standard library
 for 16-, 32-, and 64-bit IEEE-754 standard floating-point numbers.
 Like with the integer parsers described above, there are variations
@@ -177,7 +179,7 @@ its words, you’ll find many of these parsers useful while completing the
 exercises.</p>
 </section>
 <section id="guarding-and-consuming-everything">
-<h2>Guarding and Consuming Everything<a class="headerlink" href="#guarding-and-consuming-everything" title="Permalink to this heading"></a></h2>
+<h2>Guarding and Consuming Everything<a class="headerlink" href="#guarding-and-consuming-everything" title="Permalink to this headline"></a></h2>
 <p>The standard library also provides two parsers that mimic behavior we’ve
 already covered in earlier sections. The parser <code class="docutils literal notranslate"><span class="pre">Guard</span> <span class="pre">b</span></code> (where <code class="docutils literal notranslate"><span class="pre">b</span></code>
 is a <code class="docutils literal notranslate"><span class="pre">bool</span></code>) succeeds if <code class="docutils literal notranslate"><span class="pre">b</span></code> is <code class="docutils literal notranslate"><span class="pre">true</span></code> and fails otherwise; it’s
@@ -186,7 +188,7 @@ consumes all input. We can write this instead of the slightly more
 verbose sequence <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">$$</span> <span class="pre">=</span> <span class="pre">P;</span> <span class="pre">END</span> <span class="pre">}</span></code>.</p>
 </section>
 <section id="manipulating-input-streams">
-<h2>Manipulating Input Streams<a class="headerlink" href="#manipulating-input-streams" title="Permalink to this heading"></a></h2>
+<h2>Manipulating Input Streams<a class="headerlink" href="#manipulating-input-streams" title="Permalink to this headline"></a></h2>
 <p>Sometimes, we need to control exactly where we are in the input stream
 manually. To work with the parser’s input stream, we must first get it
 using a special <code class="docutils literal notranslate"><span class="pre">GetStream</span></code> parser: <code class="docutils literal notranslate"><span class="pre">let</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">GetStream</span></code>.</p>

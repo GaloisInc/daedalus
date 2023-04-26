@@ -1,0 +1,8 @@
+GET /hello.html HTTP/1.1
+User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)
+Host: www.example.com
+Accept-Language: en-us
+Accept-Encoding: gzip, deflate
+Content-Length: 500
+Connection: Keep-Alive
+

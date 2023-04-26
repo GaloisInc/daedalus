@@ -1,0 +1,32 @@
+--- Found 1 results:
+{ start: { method: {GET: { }}
+         , target: {Origin: { path: [ "hello.html"
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, field_info: { fields: [ {Field: { name: "user-agent"
+                                  , value: "Mozilla/4.0 (compatible; MSIE5.01; Windows NT)"
+                                  }}
+                        , {Field: { name: "host"
+                                  , value: "www.example.com"
+                                  }}
+                        , {Field: { name: "accept-language"
+                                  , value: "en-us"
+                                  }}
+                        , {Field: { name: "accept-encoding"
+                                  , value: "gzip, deflate"
+                                  }}
+                        , {Field: { name: "connection"
+                                  , value: "Keep-Alive"
+                                  }}
+                        ]
+              , chunked: F
+              , explicit_length: Nothing
+              , encoded: F
+              }
+, body: {bytes: [ ]}
+}

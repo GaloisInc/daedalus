@@ -361,7 +361,6 @@ checkOp1 op arg =
     IsEmptyStream   -> typeIs TStream arg       $> TBool
     Head            -> typeIs TStream arg       $> tByte
     StreamOffset    -> typeIs TStream arg       $> sizeType
-    StreamLen       -> typeIs TStream arg       $> sizeType
     BytesOfStream   -> typeIs TStream arg       $> TArray tByte
     OneOf _         -> typeIs tByte   arg       $> sizeType
     Neg             -> isArith arg              $> arg
@@ -411,6 +410,11 @@ checkOp2 op arg1 arg2 =
       do typeIs sizeType arg1
          typeIs TStream  arg2
          pure TStream
+
+    DropMaybe ->
+      do typeIs sizeType arg1
+         typeIs TStream  arg2
+         pure (TMaybe TStream)
 
     Take ->
       do typeIs sizeType arg1

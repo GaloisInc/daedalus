@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -75,7 +77,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">The Command-Line Tools</a></li>
       <li class="breadcrumb-item active">Getting Help</li>
       <li class="wy-breadcrumbs-aside">
@@ -88,7 +90,7 @@
            <div itemprop="articleBody">
              
   <section id="getting-help">
-<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this heading"></a></h1>
+<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this headline"></a></h1>
 <p>To see a list of available commands and options that apply to all commands:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
 </pre></div>
@@ -99,7 +101,7 @@
 </div>
 </section>
 <section id="command-show-types">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this heading"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this headline"></a></h1>
 <p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus show-types MyParserSpec.ddl
 </pre></div>
@@ -157,7 +159,7 @@ often have the form <code class="docutils literal notranslate"><span class="pre"
 result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
 </section>
 <section id="command-run">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this heading"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this headline"></a></h1>
 <p>This command is used to run a DaeDaLus specification using the interpreter:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus run MyParserSpec.ddl --input<span class="o">=</span>input.txt
 </pre></div>
@@ -166,7 +168,7 @@ result is a parser, that itself generates semantic values of type <code class="d
 input from file <code class="docutils literal notranslate"><span class="pre">input.txt</span></code>.</p>
 <p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.</p>
 <section id="flags">
-<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this heading"></a></h2>
+<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this headline"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--input=FILE</span></span></dt>
@@ -212,7 +214,7 @@ polymorphic) and it should not have any parameters, implicit or explicit.</p>
 </section>
 </section>
 <section id="command-compile-hs">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this heading"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this headline"></a></h1>
 <p>To compile a DaeDaLus parser specification to Haskell:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-hs MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
 </pre></div>
@@ -233,13 +235,13 @@ command will start using the new backend.</p>
 </div>
 </section>
 <section id="command-compile-c">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this heading"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this headline"></a></h1>
 <p>To compile a DaeDaLus package specification C++:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-c++ MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
 <section id="generated-files">
-<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this heading"></a></h2>
+<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this headline"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is in two files:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">main_parser.h</span></code> contains the interface to the generated parser, and</p></li>
@@ -256,12 +258,13 @@ of any kind—if this is not the case, the sample driver will fail to compile.</
 <blockquote>
 <div><ul class="simple">
 <li><p>there is no explicit <code class="docutils literal notranslate"><span class="pre">--entry</span></code> specified, and</p></li>
-<li><p>there is no custom user state <code class="docutils literal notranslate"><span class="pre">--user-state</span></code></p></li>
+<li><p>there is no custom user state <code class="docutils literal notranslate"><span class="pre">--user-state</span></code>, and</p></li>
+<li><p>the flag <code class="docutils literal notranslate"><span class="pre">--lazy-streams</span></code> is not enabled</p></li>
 </ul>
 </div></blockquote>
 </section>
 <section id="id1">
-<h2>Flags<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h2>
+<h2>Flags<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
@@ -374,10 +377,24 @@ types in the given module will be qualified with the given namespace.
 Otherwise, the default namespace <code class="docutils literal notranslate"><span class="pre">User</span></code> will be used.</p>
 </dd></dl>
 
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--lazy-strems</span></span></dt>
+<dd><p>Generate code that uses streams where not all data is available when
+the parser starts.  The generated code uses coroutines, as defined by
+the <code class="docutils literal notranslate"><span class="pre">fiber</span></code> class from <code class="docutils literal notranslate"><span class="pre">boost-context</span></code> library.  If the parser
+reaches the end of an incomplete data stream, it yileds to another
+coroutine which should either provide more data or terminate the
+stream before resuming the parser.  For more details see <code class="docutils literal notranslate"><span class="pre">ddl/stream.h</span></code>.
+The data streams used by the parser are as defined in class
+<code class="docutils literal notranslate"><span class="pre">DDL::Stream</span></code>.  The interaction between the data provider and the
+parser should be done using class <code class="docutils literal notranslate"><span class="pre">DDL::ParserThread</span></code>.</p>
+</dd></dl>
+
 </section>
 </section>
 <section id="command-dump">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this heading"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this headline"></a></h1>
 <p>It shows the various IR structures of the DaeDaLus compiler. This
 command is largely for debugging.</p>
 <dl class="py data">

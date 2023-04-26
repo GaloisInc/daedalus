@@ -1,0 +1,14 @@
+--- Parse error: 
+[offset: 9]
+  • Pattern match failure, expected True
+  • see grammar at: 223:9--223:24
+  • context:
+      • 28:12--28:36
+      • case branch  {| F_PRIORITY = _ |}
+  • input trace:
+      /tmp/input_file.bin
+        0--8
+File context:
+Length: 14 (0xe) bytes
+0000:   00 00 03 02  00 fc af ca  fe [1;91mff[0m ac fa  ce ca   .........[1;91m.[0m....
+

@@ -671,7 +671,6 @@ semiExecOp1 op rty ty gvs = gseCollect (map go (guardedValues gvs))
       IsEmptyStream -> unimplemented
       Head          -> unimplemented
       StreamOffset  -> unimplemented
-      StreamLen     -> unimplemented
       ArrayLen
         | Just (vsm, _svs) <- gseToList sv
         , Just lcv <- vsmLoopCountVar vsm -> mk1 g $ VOther (Typed sizeType (loopCountVarToSMTVar lcv))
@@ -949,9 +948,10 @@ semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
     -- only one side is a sexpr
     go g sv1 sv2 = do
       case op of
-        IsPrefix -> unimplemented
-        Drop     -> unimplemented
-        Take     -> unimplemented
+        IsPrefix  -> unimplemented
+        Drop      -> unimplemented
+        DropMaybe -> unimplemented
+        Take      -> unimplemented
 
         -- Eq       -> semiExecEq ty1 sv1 sv2
         -- NotEq    -> semiExecNEq ty1 sv1 sv2

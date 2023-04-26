@@ -166,6 +166,7 @@ $ws+        ;
 "Offset"    { lexeme KWOffset }
 "SetStream" { lexeme KWSetStream }
 "GetStream" { lexeme KWGetStream }
+"take"      { lexeme KWtake }
 "Take"      { lexeme KWTake }
 "Drop"      { lexeme KWDrop }
 "arrayStream" { lexeme KWArrayStream }

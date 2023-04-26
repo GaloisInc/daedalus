@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -45,6 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Parsers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#primitive-parsers">Primitive Parsers</a></li>
@@ -92,7 +95,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Language Reference</a></li>
       <li class="breadcrumb-item active">Parsers</li>
       <li class="wy-breadcrumbs-aside">
@@ -105,9 +108,9 @@
            <div itemprop="articleBody">
              
   <section id="parsers">
-<h1>Parsers<a class="headerlink" href="#parsers" title="Permalink to this heading"></a></h1>
+<h1>Parsers<a class="headerlink" href="#parsers" title="Permalink to this headline"></a></h1>
 <section id="primitive-parsers">
-<h2>Primitive Parsers<a class="headerlink" href="#primitive-parsers" title="Permalink to this heading"></a></h2>
+<h2>Primitive Parsers<a class="headerlink" href="#primitive-parsers" title="Permalink to this headline"></a></h2>
 <p><strong>Specific Byte.</strong> The parser <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">set</span> <span class="pre">]</span></code> matches a single byte that
 belongs to the set of bytes described by <em>set</em>.
 For example, <code class="docutils literal notranslate"><span class="pre">$[</span> <span class="pre">'0'</span> <span class="pre">..</span> <span class="pre">'9'</span> <span class="pre">]</span></code> matches any bytes in the range 48 (<code class="docutils literal notranslate"><span class="pre">'0'</span></code>)
@@ -149,9 +152,9 @@ message.</p>
 </div>
 </section>
 <section id="sequencing-parsers">
-<h2>Sequencing Parsers<a class="headerlink" href="#sequencing-parsers" title="Permalink to this heading"></a></h2>
+<h2>Sequencing Parsers<a class="headerlink" href="#sequencing-parsers" title="Permalink to this headline"></a></h2>
 <section id="basic-sequencing">
-<h3>Basic Sequencing<a class="headerlink" href="#basic-sequencing" title="Permalink to this heading"></a></h3>
+<h3>Basic Sequencing<a class="headerlink" href="#basic-sequencing" title="Permalink to this headline"></a></h3>
 <p>Multiple parsers may be executed one after the other,
 by listing them either between <code class="docutils literal notranslate"><span class="pre">{</span></code> and <code class="docutils literal notranslate"><span class="pre">}</span></code> or between <code class="docutils literal notranslate"><span class="pre">[</span></code> and <code class="docutils literal notranslate"><span class="pre">]</span></code>,
 and separating them with <code class="docutils literal notranslate"><span class="pre">;</span></code>.  Thus, <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">P;</span> <span class="pre">Q;</span> <span class="pre">R</span> <span class="pre">}</span></code> and <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">P;</span> <span class="pre">Q;</span> <span class="pre">R</span> <span class="pre">]</span></code> are
@@ -194,7 +197,7 @@ equivalent to the previous two:</p>
 </div>
 </section>
 <section id="explicit-result">
-<h3>Explicit Result<a class="headerlink" href="#explicit-result" title="Permalink to this heading"></a></h3>
+<h3>Explicit Result<a class="headerlink" href="#explicit-result" title="Permalink to this headline"></a></h3>
 <p>A <code class="docutils literal notranslate"><span class="pre">block</span></code> or <code class="docutils literal notranslate"><span class="pre">{}</span></code>-sequenced group of parsers may
 return the result from any member of the group instead of the last one.
 To do so, assign the result of the parser to the special variable <code class="docutils literal notranslate"><span class="pre">$$</span></code>.
@@ -210,7 +213,7 @@ For example:</p>
 produced by <code class="docutils literal notranslate"><span class="pre">Q</span></code>.</p>
 </section>
 <section id="local-variables">
-<h3>Local Variables<a class="headerlink" href="#local-variables" title="Permalink to this heading"></a></h3>
+<h3>Local Variables<a class="headerlink" href="#local-variables" title="Permalink to this headline"></a></h3>
 <p>It is also possible to combine the results of some
 of the <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced parsers by using <em>local variables</em> and the
 pure parser.  Assignments prefixed by the keyword <code class="docutils literal notranslate"><span class="pre">let</span></code> introduce a local
@@ -230,7 +233,7 @@ any input, but only constructs a semantic value by adding <code class="docutils 
 together.</p>
 </section>
 <section id="structure-sequence">
-<h3>Structure Sequence<a class="headerlink" href="#structure-sequence" title="Permalink to this heading"></a></h3>
+<h3>Structure Sequence<a class="headerlink" href="#structure-sequence" title="Permalink to this headline"></a></h3>
 <p>It is also possible to return results from more than
 one of the parsers in a <code class="docutils literal notranslate"><span class="pre">block/{}</span></code>-sequenced group.  To do so give names
 to the desired results (<em>without</em> <code class="docutils literal notranslate"><span class="pre">let</span></code>).  The semantic value of the
@@ -273,7 +276,7 @@ example, here is an equivalent way to define the same parser:</p>
 </div>
 </section>
 <section id="syntactic-sugar">
-<h3>Syntactic Sugar<a class="headerlink" href="#syntactic-sugar" title="Permalink to this heading"></a></h3>
+<h3>Syntactic Sugar<a class="headerlink" href="#syntactic-sugar" title="Permalink to this headline"></a></h3>
 <p>A number of the constructs described in this section are
 may be thought of as simply syntactic sugar for using local variables.
 Here are some examples:</p>
@@ -302,9 +305,9 @@ Here are some examples:</p>
 </section>
 </section>
 <section id="parsing-alternatives">
-<h2>Parsing Alternatives<a class="headerlink" href="#parsing-alternatives" title="Permalink to this heading"></a></h2>
+<h2>Parsing Alternatives<a class="headerlink" href="#parsing-alternatives" title="Permalink to this headline"></a></h2>
 <section id="biased-choice">
-<h3>Biased Choice<a class="headerlink" href="#biased-choice" title="Permalink to this heading"></a></h3>
+<h3>Biased Choice<a class="headerlink" href="#biased-choice" title="Permalink to this headline"></a></h3>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">&lt;|</span> <span class="pre">Q</span></code>.   This parser succeeds if <em>either</em> <code class="docutils literal notranslate"><span class="pre">P</span></code> <em>or</em> <code class="docutils literal notranslate"><span class="pre">Q</span></code>
 succeeds. In the case that <em>both</em> succeed, the parser behaves like <code class="docutils literal notranslate"><span class="pre">P</span></code>.
@@ -335,7 +338,7 @@ byte <code class="docutils literal notranslate"><span class="pre">B</span></code
 </dl>
 </section>
 <section id="unbiased-choice">
-<h3>Unbiased Choice<a class="headerlink" href="#unbiased-choice" title="Permalink to this heading"></a></h3>
+<h3>Unbiased Choice<a class="headerlink" href="#unbiased-choice" title="Permalink to this headline"></a></h3>
 <p>Given two parsers <code class="docutils literal notranslate"><span class="pre">P</span></code> and <code class="docutils literal notranslate"><span class="pre">Q</span></code> we may construct the composite
 parser``P | Q``.  This parser succeeds if either <code class="docutils literal notranslate"><span class="pre">P</span></code> or <code class="docutils literal notranslate"><span class="pre">Q</span></code>
 succeeds on the given input.   Unlike biased choice, if <em>both</em> succeed,
@@ -356,7 +359,7 @@ left alternative of <code class="docutils literal notranslate"><span class="pre"
 alternative of <code class="docutils literal notranslate"><span class="pre">U1</span></code>).  No inputs are ambiguous in this case.</p>
 </section>
 <section id="alternative-syntax">
-<h3>Alternative Syntax<a class="headerlink" href="#alternative-syntax" title="Permalink to this heading"></a></h3>
+<h3>Alternative Syntax<a class="headerlink" href="#alternative-syntax" title="Permalink to this headline"></a></h3>
 <p>Given multiple parsers <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, … we can use the <code class="docutils literal notranslate"><span class="pre">Choose</span></code> keyword
 for unbiased choice and <code class="docutils literal notranslate"><span class="pre">First</span></code> for biased choice.  These constructs
 use layout, in a similar style to <code class="docutils literal notranslate"><span class="pre">block</span></code>:  when using this notation
@@ -382,7 +385,7 @@ some examples:</p>
 </div>
 </section>
 <section id="tagged-unions">
-<h3>Tagged Unions<a class="headerlink" href="#tagged-unions" title="Permalink to this heading"></a></h3>
+<h3>Tagged Unions<a class="headerlink" href="#tagged-unions" title="Permalink to this headline"></a></h3>
 <p>DaeDaLus supports a variation on <code class="docutils literal notranslate"><span class="pre">Choose</span></code> and <code class="docutils literal notranslate"><span class="pre">First</span></code>
 that can be used to construct tagged unions, which is useful if
 you’d like the semantic value to reflect which of the parsers succeeded,
@@ -441,10 +444,36 @@ of type <code class="docutils literal notranslate"><span class="pre">BorG</span>
 second alternative because all alternatives in (untagged) <code class="docutils literal notranslate"><span class="pre">Choose</span></code> have
 the same type, so DaeDaLus can infer that we are also making a value of
 type <code class="docutils literal notranslate"><span class="pre">BorG</span></code>.</p>
+<p>Unions can also be declared explicitly for use in the above scenarios
+rather than declaring them implicitly by using <code class="docutils literal notranslate"><span class="pre">Choose</span></code> or <code class="docutils literal notranslate"><span class="pre">First</span></code>.
+For example:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">MyUnion</span> <span class="k">=</span>
+  <span class="n">union</span>
+    <span class="n">Good</span><span class="p">:</span> <span class="k">uint</span> <span class="m">8</span>
+    <span class="n">Bad</span><span class="p">:</span> <span class="p">[</span><span class="k">uint</span> <span class="m">8</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>In this example, we have explicitly declared a union <code class="docutils literal notranslate"><span class="pre">MyUnion</span></code> with
+two constructors, <code class="docutils literal notranslate"><span class="pre">Good</span></code> and <code class="docutils literal notranslate"><span class="pre">Bad</span></code>. The <code class="docutils literal notranslate"><span class="pre">Good</span></code> constructor carries
+a single <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code> and the <code class="docutils literal notranslate"><span class="pre">Bad</span></code> constructor carries a list of <code class="docutils literal notranslate"><span class="pre">uint</span>
+<span class="pre">8</span></code>. Such a union could then be used in a parser as follows:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">MyUnionParser</span><span class="p">:</span> <span class="n">MyUnion</span> <span class="k">=</span>
+  <span class="k">Choose</span>
+    <span class="k">block</span>
+      <span class="k">let</span> <span class="n">x</span> <span class="k">=</span> <span class="k">UInt8</span>
+      <span class="p">{|</span> <span class="n">Good</span> <span class="k">=</span> <span class="n">x</span> <span class="k">|</span><span class="p">}</span>
+    <span class="k">block</span>
+      <span class="p">{|</span> <span class="n">Bad</span> <span class="k">=</span> <span class="s">&quot;Some text&quot;</span> <span class="k">|</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>To use an explicitly-declared union, we give <code class="docutils literal notranslate"><span class="pre">MyUnionParser</span></code> a return
+type annotation to indicate that it returns values of type <code class="docutils literal notranslate"><span class="pre">MyUnion</span></code>.
+We then construct union semantic values using the <code class="docutils literal notranslate"><span class="pre">Good</span></code> and <code class="docutils literal notranslate"><span class="pre">Bad</span></code>
+constructors and the <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">...</span> <span class="pre">|}</span></code> notation.</p>
 </section>
 </section>
 <section id="repetition">
-<h2>Repetition<a class="headerlink" href="#repetition" title="Permalink to this heading"></a></h2>
+<h2>Repetition<a class="headerlink" href="#repetition" title="Permalink to this headline"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">Many</span></code> construct allows the same parser to be run multiple times
 in sequence on an incoming data stream, and it returns an array containing
 the resulting semantic values.</p>
