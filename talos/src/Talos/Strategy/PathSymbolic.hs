@@ -21,7 +21,7 @@ import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, mapMaybe)
+import           Data.Maybe                                (catMaybes, mapMaybe, isNothing)
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 import           GHC.Generics                              (Generic)
@@ -34,7 +34,7 @@ import           Daedalus.Core                             hiding (streamOffset,
 import           Daedalus.Core.Free                        (freeVars)
 import qualified Daedalus.Core.Semantics.Env               as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                               (showPP, text, pp)
+import           Daedalus.PP                               (showPP, text, pp, block, commaSep)
 import           Daedalus.Panic
 import           Daedalus.Rec                              (topoOrder)
 
@@ -416,13 +416,18 @@ stratLoop lclass =
           -- times.
           go (_se', acc) [] = pure (reverse acc)
           go (se', acc) (i : rest) = do
-            m_v_m <- getMaybe $ censor (extendPath (pathGuard i))
-                                       (primBindName n se' (stratSlice b))
+            let notFeasible _ = mempty { smGuardedAsserts = [ S.not (pathGuard i) ] }
+            m_v_m <- pass $ do
+              m_v <- getMaybe (primBindName n se' (stratSlice b))
+              pure $ case m_v of
+                       Just v  -> (Just v, extendPath (pathGuard i))
+                       Nothing -> (Nothing, notFeasible)
             case m_v_m of
               Nothing -> pure (reverse acc)
               Just (v, m) -> do
                 -- these should work (no imcompatible assumptions about lv)
                 v' <- hoistMaybe (MV.refine (eqGuard i) v)
+                -- Is this needed?
                 se'' <- hoistMaybe (MV.refine (gtGuard i) v)
             
                 go (se'', (v', m) : acc) rest
@@ -545,6 +550,8 @@ guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
                SymbolicM (Maybe (GuardedSemiSExprs, (Pattern, PathBuilder)))
 guardedCase gs pat m = pass $ do
   m_r <- getMaybe m
+  -- when (isNothing m_r) $ liftIO $ print ("Infeasible case: " ++ S.ppSExpr pathGuard "" ++ "\n")
+
   pure $ case m_r of
            Just r  -> (mk r, extendPath pathGuard)
            Nothing -> (Nothing, notFeasible)
@@ -560,6 +567,8 @@ stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
 stratCase _total cs m_sccs = do
   inv <- getName (caseVar cs)
   (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
+  -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
+  --                 (show $ commaSep [ pp p <> " => " <> pp vmr | (p, vmr) <- preds ])
   let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice a)
   case m_sccs of
     Just sccs
@@ -576,6 +585,7 @@ stratCase _total cs m_sccs = do
       stag <- freshSymbolicCaseTag
 
       (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
+      
       v <- hoistMaybe (MV.unions' vs)
       -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
       --                 <> " ==> " <> pp (length (MV.guardedValues v))

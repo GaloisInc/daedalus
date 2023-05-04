@@ -329,7 +329,7 @@ exportSlice m_sid sl0 = do
               SRepeatLoop str n' <$> goE e <*> substNameIn n n' (go b)
             SMorphismLoop (FoldMorphism n e lc b) -> do 
               n' <- refreshName n
-              SMorphismLoop <$> goLC lc (FoldMorphism n <$> goE e) (substNameIn n n' (go b))
+              SMorphismLoop <$> goLC lc (FoldMorphism n' <$> goE e) (substNameIn n n' (go b))
             SMorphismLoop (MapMorphism lc b) ->
               SMorphismLoop <$> goLC lc (pure MapMorphism) (go b)
             

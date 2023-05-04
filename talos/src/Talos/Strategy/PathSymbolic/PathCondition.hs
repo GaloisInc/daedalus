@@ -22,6 +22,7 @@ module Talos.Strategy.PathSymbolic.PathCondition
   -- * Predicates
   , isInfeasible
   , isFeasibleMaybe
+  , isTrivial
   -- * Semantics
   , vpcSatisfied, lccSatisfied
   -- * Converstion to SExpr
@@ -99,6 +100,9 @@ data PathCondition =
 
 isInfeasible :: PathCondition -> Bool
 isInfeasible = (==) Infeasible
+
+isTrivial :: PathCondition -> Bool
+isTrivial = (==) mempty
 
 isFeasibleMaybe :: PathCondition -> Bool
 isFeasibleMaybe = (/=) Infeasible

@@ -29,7 +29,7 @@ import           Data.List.NonEmpty                        (NonEmpty (..),
 import qualified Data.List.NonEmpty                        as NE
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, mapMaybe)
+import           Data.Maybe                                (catMaybes, mapMaybe, isNothing)
 import           Data.Semigroup                            (sconcat)
 import qualified Data.Set                                  as Set
 import qualified Data.Vector                               as Vector
@@ -62,6 +62,7 @@ import           Talos.SymExec.Type
 import Control.Monad.State (StateT, runStateT, modify)
 import Data.Set (Set)
 import Talos.Strategy.Monad (LiftStrategyM, liftStrategy, getFunDefs)
+import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -208,6 +209,7 @@ unions' = fmap unions . nonEmpty
 -- -----------------------------------------------------------------------------
 -- Sequences
 -- 
+-- These two operations could be horrendously expensive.
 
 -- | Turns a sequence, which may be a super-position of multiple
 -- sequence lengths, into multiple sequences where the length is
@@ -220,6 +222,22 @@ explodeSequence vsm els
   where
     -- FIXME: this is inefficient, maybe store loops in reversed order (to get sharing)
     go lcv len = (PC.insertLoopCount lcv (PC.LCCEq len) mempty, take len els)
+
+-- | Turns a sequence (of fixed length) into a sequence for each
+-- possible combination of paths to the elements.  This could be
+-- exponential in the length of the list, in the worst case.
+
+unzipSequence :: [GuardedSemiSExprs] -> [ (PathCondition, [GuardedSemiSExpr]) ]
+unzipSequence = go []
+  where
+    go acc [] = [ (g, reverse vs) | (g, vs) <- acc ]
+    go acc (gs : rest) =
+      go [ (merged_g, v : vs)
+         | (g, vs) <- acc
+         , (g', v) <- guardedValues gs
+         , let merged_g = g <> g'
+         , PC.isFeasibleMaybe merged_g
+         ] rest
 
 -- -----------------------------------------------------------------------------
 -- Byte sets
@@ -505,15 +523,15 @@ semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
 semiExecCase (Case y pats) = do
   els <- guardedValues <$> semiExecName y
   let (vgs, preds) = unzip (map goV els)
-      vgs_for_pats = map (nonEmpty . filter PC.isFeasibleMaybe) (transpose vgs)
+      vgs_for_pats = map (nonEmpty . concat) (transpose vgs)
       allRes       = zipWith (\a -> fmap (, a)) pats vgs_for_pats
-  pure (catMaybes allRes, preds)
+  pure (catMaybes allRes, concat preds)
   where
     -- This function returns, for a given value, a path-condition for
     -- each pattern stating when that PC is enabled, and a predicate
     -- for when some pattern matched.
     goV :: (PathCondition, GuardedSemiSExpr) ->
-           ( [ PathCondition ], (PathCondition, ValueMatchResult) )
+           ( [ [PathCondition] ], [ (PathCondition, ValueMatchResult) ] )
     -- Symbolic case
     goV (g, VOther x) =
       let basePreds = map (\p -> SE.patternToPredicate ty p (S.const (typedThing x))) pats'
@@ -523,23 +541,56 @@ semiExecCase (Case y pats) = do
             | hasAny    = ([ VPCNegative (Set.fromList pats') ], YesMatch)
             | otherwise = ([], SymbolicMatch (orMany basePreds))
           vgciFor c = Typed ty c
-      in (map (\c -> PC.insertValue (typedThing x) (vgciFor c) g) (map VPCPositive pats' ++ m_any), (g, assn))
+          mkG c = [ g' | let g' = PC.insertValue (typedThing x) (vgciFor c) g
+                       , PC.isFeasibleMaybe g' ]
+      in ( map mkG (map VPCPositive pats' ++ m_any)
+         , [ (g, assn) ])
+
+    -- This only matches the bytestring pattern.
+    goV (g, VSequence vsm vs) =
+      let ms = map (bytesPatternMatch g vsm vs) pats'
+          m_any = [ [g] | hasAny ]
+      in ( ms ++ m_any, [ (g', SymbolicMatch (S.bool True)) | gs' <- ms, g' <- gs'] ) -- FIXME
+    
+    -- v is a concrete value.
     goV (g, v) =
       let ms = map (matches' v) pats'
           noMatch = not (or ms)
-          (m_any, assn)
-            | hasAny && noMatch = ( [True], YesMatch )
-            | hasAny            = ( [False], YesMatch )
-            | noMatch           = ( [], NoMatch )
-            -- FIXME: do we need the (g, YesMatch) here?
-            | otherwise         = ( [], YesMatch )
-      in ( [ if b then g else Infeasible | b <- ms ++ m_any], (g, assn) )
+          m_any = [ noMatch | hasAny ]
+          assn | hasAny || not noMatch = YesMatch
+               | otherwise             = NoMatch
+      in ( [ [g | b] | b <- ms ++ m_any]
+         , [ (g, assn) ] )
 
     -- ASSUME that a PAny is the last element
     pats'  = [ p | p <- map fst pats, p /= PAny ]
     hasAny = PAny `elem` map fst pats
     
     ty = typeOf y
+
+bytesPatternMatch :: PathCondition -> VSequenceMeta -> [ GuardedSemiSExprs ] -> Pattern -> [PathCondition]
+bytesPatternMatch _g _vsm _els PAny = [mempty] -- Always matches
+bytesPatternMatch g vsm els (PBytes bs)
+  | length els < BS.length bs = []
+  | length els > BS.length bs, isNothing (vsmLoopCountVar vsm) = []
+  | BS.length bs < vsmMinLength vsm = []
+  -- either we have exactly the right no. of elements, or we have more
+  -- and the ability to select fewer.
+  | otherwise = filter PC.isFeasibleMaybe $ map doOne (unzipSequence (take l els))
+  where
+    l    = BS.length bs
+    g_len = maybe g (\v -> PC.insertLoopCount v (PC.LCCEq l) g) (vsmLoopCountVar vsm)
+
+    doOne (g', vs) = foldl go (g' <> g_len) (zip vs (BS.unpack bs))
+    
+    go g' (VValue bv, b)
+      | b == V.valueToByte bv = g'
+      | otherwise             = Infeasible
+    go g' (VOther (Typed ty x), b) =
+      PC.insertValue x (Typed ty (VPCPositive (PNum (fromIntegral b)))) g'
+    go _ _ = panic "Unexpected pattern over bytes" []
+        
+bytesPatternMatch _g _vsm _els _p = panic "Unexpected pattern over sequences" []
 
 -- -----------------------------------------------------------------------------
 -- Monad
@@ -1256,3 +1307,10 @@ instance PP a => PP (GuardedValues a) where
 instance PP a => PP (GuardedValue a) where
   pp = ppMuxValue pp pp
 
+instance PP ValueMatchResult where
+  pp vmr =
+    case vmr of
+      NoMatch -> "no"
+      YesMatch -> "yes"
+      SymbolicMatch s -> "symbolic:" <> text (S.ppSExpr s "")
+      
