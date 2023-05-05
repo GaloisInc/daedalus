@@ -11,7 +11,6 @@ import           Control.DeepSeq       (NFData)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
-import           Data.Maybe            (fromMaybe)
 import           Data.Proxy            (Proxy (Proxy))
 import qualified Data.Set              as Set
 import           GHC.Generics          (Generic)
@@ -184,9 +183,12 @@ exprToAbsEnv fp expr =
     Var n            -> (LiftAbsEnv $ Map.singleton n fp, SVar n)
     PureLet n e e' ->
       let (env, sle') = go fp e'
-          (env', fpe) = fromMaybe (absEmptyEnv, Whole) (absProj n env)
-          (enve, sle) = go fpe e
-      in (merge env' enve, SPureLet n sle sle')
+      in case absProj n env of
+           Nothing -> (env, sle') -- Drop the Let
+           Just (env', fpe) ->
+             let (enve, sle) = go fpe e
+             in (merge env' enve, SPureLet n sle sle')
+             
     Struct ut flds   ->
       let mk = case fp of
             Whole         -> \_l e -> go Whole e
