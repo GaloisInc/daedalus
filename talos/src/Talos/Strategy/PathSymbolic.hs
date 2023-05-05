@@ -21,7 +21,7 @@ import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, mapMaybe, isNothing)
+import           Data.Maybe                                (catMaybes, mapMaybe, fromMaybe)
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 import           GHC.Generics                              (Generic)
@@ -34,7 +34,7 @@ import           Daedalus.Core                             hiding (streamOffset,
 import           Daedalus.Core.Free                        (freeVars)
 import qualified Daedalus.Core.Semantics.Env               as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                               (showPP, text, pp, block, commaSep)
+import           Daedalus.PP                               (showPP, text)
 import           Daedalus.Panic
 import           Daedalus.Rec                              (topoOrder)
 
@@ -67,6 +67,7 @@ import           Talos.SymExec.SolverT                     (declareName,
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type                        (defineSliceTypeDefs,
                                                             symExecTy)
+import qualified Daedalus.Value as V
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -105,7 +106,7 @@ defaultConfig = Config
   , cNModels = 1
   , cMaxUnsat = Nothing
   , cNLoopElements = 10
-  } 
+  }
 
 configOpts :: [Opt Config]
 configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
@@ -134,12 +135,17 @@ symbolicFun config ptag sl = StratGen $ do
     defineSliceTypeDefs md sl'
     defineSlicePolyFuns sl'
     defineSliceFunDefs md sl' -- FIXME: not needed 
-    
+
   -- FIXME: this should be calculated once, along with how it is used
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl) 
+    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
+    let stats = assertionStats (smAsserts sm)
+    liftIO $ do
+      printf "Assertion size: %d\n%s\n" (assertionStatsSize stats) (showPP stats)
+      hFlush stdout
+
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           liftIO $ printf "\tGenerated %d models " (length rs)
@@ -182,19 +188,20 @@ stratSlice = go
           mk <$> synthesiseExpr e
 
         SDo x lsl rsl -> do
-          let goL = go lsl
-          
+          let goL = noteCurrentName (fromMaybe "_" (nameText x)) (go lsl)
+
               goR :: PathBuilder -> SymbolicM Result
               goR lpath = over _2 (SelectedDo lpath) <$> go rsl
-                          
+
           bindNameIn x goL goR
 
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.
         SMatch bset -> do
-          sym <- liftSolver (declareSymbol "b" tByte)
+          n <- makeNicerSym "b"
+          sym <- liftSolver (declareSymbol n tByte)
           recordValue TByte sym
-          
+
           let bse = S.const sym
               bv  = MV.vOther mempty (Typed TByte sym)
 
@@ -216,9 +223,9 @@ stratSlice = go
 
         SInverse n ifn p -> do
           let ty = typeOf n
-          
+
           sym <- liftSolver (declareName n (symExecTy ty))
-          recordValue ty sym          
+          recordValue ty sym
           let n' =  MV.vOther mempty (Typed (typeOf n) sym)
 
           primBindName n n' $ do
@@ -298,23 +305,23 @@ stratLoop lclass =
                               , vsmMinLength    = 1 -- FIXME: shouldn't matter?
                               , vsmIsBuilder    = False
                               }
-                
+
       -- No need to constrain the processing of the body.
       (v, m) <- stratSlice b
-      
+
       let xs = VSequence vsm [v]
           v' = case sem of
                  SemNo  -> vUnit
                  SemYes -> MV.singleton mempty xs
 
           node = PathLoopGenerator ltag Nothing m
-                 
+
       pure (v', SelectedLoop node)
 
     -- Should be SLoopPool
     SManyLoop StructureIndependent _lb _m_ub _b ->
       panic "BUG: saw SManyLoop StructureIndependent" []
-      
+
     SManyLoop StructureIsNull lb m_ub b -> do
       ltag <- freshSymbolicLoopTag
       -- Here we can assert that the list is empty or non-empty (i.e.,
@@ -322,14 +329,16 @@ stratLoop lclass =
       -- _final list_ is not important to this slice, just
       -- whether it is null/non-null
       lv <- freshLoopCountVar 0 1
-      
+
       -- Bounds check: the null case is only allowed if lb is 0, the non-null case if m_ub /= 0      
       let slv = PC.loopCountVarToSExpr lv
           s0  = loopCountToSExpr 0
           s1  = loopCountToSExpr 1
-          
-      mkBound (\slb -> S.eq slv s0 `sImplies` S.eq slb s0) lb
-      traverse_ (mkBound (\s_ub -> S.eq slv s1 `sImplies` S.not (S.eq s_ub s0))) m_ub
+
+      -- FIXME: if this is non-0 then we don't need to worry about the null case.
+      mkBound (\slb -> S.eq slv s0 `sImplies` S.eq slb s0) . fst =<< execBnd minimum lb
+      traverse_ (mkBound (\ s_ub -> S.eq slv s1 `sImplies` S.not (S.eq s_ub s0)) . fst
+                 <=< execBnd maximum) m_ub
 
       -- Construct return value
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
@@ -343,37 +352,50 @@ stratLoop lclass =
       -- We must be careful to only constrain lv when we are doing
       -- something.
       (elv, m) <- censor (extendPath pathGuard) (stratSlice b)
-     
+
       let v    = VSequence vsm [elv]
           node = PathLoopGenerator ltag (Just lv) m
-          
+
       pure (MV.singleton mempty v, SelectedLoop node)
-      
+
     SManyLoop StructureDependent lb m_ub b -> do
       -- How many times to unroll the loop
       nloops <- asks sNLoopElements
+
+      (slb, m_clb) <- execBnd minimum lb
+      m_ubs <- traverse (execBnd maximum) m_ub
+
+      let clb = fromMaybe 0 m_clb
+          altub = clb + nloops
+          -- Truncate to at most nloops
+          -- FIXME: incomplete.
+          cub = maybe altub (min altub) (snd =<< m_ubs)
+
+      n <- asks sCurrentName
+      liftIO $ printf "Bounds (%s): %d %d\n" (show n) clb cub
+
       -- FIXME: this is a bit blunt/incomplete
-      lv <- freshLoopCountVar 0 nloops
-      
-      manyBoundsCheck (PC.loopCountVarToSExpr lv) lb m_ub
-      
+      lv <- freshLoopCountVar clb cub
+
+      manyBoundsCheck (PC.loopCountVarToSExpr lv) slb (fst <$> m_ubs)
+
       -- Construct result  
       let pathGuard i = PC.toSExpr (PC.insertLoopCount lv (PC.LCCGt i) mempty)
           -- FIXME: we could name the results of this and use a SMT
           -- function to avoid retraversing multiple times.
           doOne i = censor (extendPath (pathGuard i)) (stratSlice b)
 
-      (els, ms) <- unzip <$> mapM doOne [0 .. nloops - 1]
-      
+      (els, ms) <- unzip <$> mapM doOne [0 .. cub - 1]
+
       let vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
                               , vsmLoopCountVar = Just lv
-                              , vsmMinLength    = 0
+                              , vsmMinLength    = clb
                               , vsmIsBuilder    = False
                               }
           v = VSequence vsm els
           node = PathLoopUnrolled (Just lv) ms
       pure (MV.singleton mempty v, SelectedLoop node)
-      
+
     SRepeatLoop StructureIndependent _n _e _b ->
       panic "UNEXPECTED: StructureIndependent" []
 
@@ -383,25 +405,25 @@ stratLoop lclass =
     -- not matter (if it did, it would be StructureDependent)
     SRepeatLoop StructureIsNull _n _e b -> do
       -- Mainly to allow pooling (this won't have users as we don't produce a list) 
-      ltag <- freshSymbolicLoopTag 
-      
+      ltag <- freshSymbolicLoopTag
+
       lv   <- freshLoopCountVar 0 1
-      
+
       let pathGuard = PC.toSExpr (PC.insertLoopCount lv (PC.LCCEq 1) mempty)
 
       -- We must be careful to only constrain lv when we are doing
       -- something.
       (_elv, m) <- censor (extendPath pathGuard) (stratSlice b)
-     
+
       let node = PathLoopGenerator ltag (Just lv) m
-                 
+
       pure (vUnit, SelectedLoop node)
 
     -- Just unfold
     SRepeatLoop StructureDependent n e b -> do
       -- How many times to unroll the loop
       nloops <- asks sNLoopElements
-      
+
       -- FIXME: this is a bit blunt/incomplete
       lv <- freshLoopCountVar 0 nloops
 
@@ -429,20 +451,20 @@ stratLoop lclass =
                 v' <- hoistMaybe (MV.refine (eqGuard i) v)
                 -- Is this needed?
                 se'' <- hoistMaybe (MV.refine (gtGuard i) v)
-            
+
                 go (se'', (v', m) : acc) rest
-      
+
       (vs, ms) <- unzip <$> go (se, []) [0 .. nloops - 1]
       let node = PathLoopUnrolled (Just lv) ms
       base <- hoistMaybe (MV.refine (PC.insertLoopCount lv (PC.LCCEq 0) mempty) se)
-          
+
       pure (MV.unions (base :| vs), SelectedLoop node)
-      
+
     SMorphismLoop (FoldMorphism n e lc b) -> do
       ltag <- freshSymbolicLoopTag
-      
+
       se <- synthesiseExpr e
-      col <- synthesiseExpr (lcCol lc)      
+      col <- synthesiseExpr (lcCol lc)
       -- c.f. SRepeatLoop
       let guards vsm
             | Just lv <- vsmLoopCountVar vsm =
@@ -451,11 +473,12 @@ stratLoop lclass =
                       )
             | otherwise = const (mempty, mempty)
 
+          -- TODO: prune early as for Repeat above
           goOne _vsm (_se', acc) [] = pure (reverse acc)
           goOne vsm (se', acc) ((i, el) : rest) = do
             (v, pb) <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
             let (gtGuard, eqGuard) = guards vsm (i + 1)
-            
+
             v' <- hoistMaybe (MV.refine eqGuard v)
             se'' <- hoistMaybe (MV.refine gtGuard v)
             goOne vsm (se'', (v', pb) : acc) rest
@@ -466,22 +489,23 @@ stratLoop lclass =
 
                 let (_, eqGuard) = guards vsm 0
                 base <- hoistMaybe (MV.refine eqGuard se)
-                
+
                 pure (MV.unions (base :| svs), (g, vsm, pbs))
 
                 -- pure (v, node)
             | otherwise =  panic "UNIMPLEMENTED: fold over non-lists" []
-          
+
       (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
-      
+
       v <- hoistMaybe (MV.unions' vs)
       let node' = PathLoopMorphism ltag nodes
-      
+
       pure (v, SelectedLoop node')
-      
+
     SMorphismLoop (MapMorphism lc b) -> do
       ltag <- freshSymbolicLoopTag
 
+      -- TODO: prune early as for Repeat above
       col <- synthesiseExpr (lcCol lc)
       let go (g, sv)
             | Just (vsm, els) <- MV.gseToList sv = do
@@ -494,23 +518,29 @@ stratLoop lclass =
 
                 -- pure (v, node)
             | otherwise =  panic "UNIMPLEMENTED: map over non-lists" []
-          
+
       (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
-      
+
       v <- hoistMaybe (MV.unions' vs)
       let node' = PathLoopMorphism ltag nodes
-      
-      pure (v, SelectedLoop node')      
-  where
-    manyBoundsCheck slv lb m_ub = do
-      -- Assert bounds
-      mkBound (`S.bvULeq` slv) lb
-      traverse_ (mkBound (slv `S.bvULeq`)) m_ub
 
-    mkBound f bnd = do
-      ienv <- getIEnv      
-      sb <- MV.toSExpr (I.tEnv ienv) sizeType <$> synthesiseExpr bnd
-      assertSExpr (f sb)
+      pure (v, SelectedLoop node')
+  where
+    execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (GuardedSemiSExprs, Maybe Int)
+    execBnd g bnd = do
+      sbnd <- synthesiseExpr bnd
+      let m_cbnd = fmap (g . fmap (fromIntegral . V.valueToSize)) (MV.asValues sbnd)
+      pure (sbnd, m_cbnd)
+
+    manyBoundsCheck slv slb m_sub = do
+      -- Assert bounds
+      mkBound (`S.bvULeq` slv) slb
+      traverse_ (mkBound (slv `S.bvULeq`)) m_sub
+
+    -- Constructs a bounds check, and returns a concrete bound (if any)
+    mkBound f sbnd = do
+      ienv <- getIEnv
+      assertSExpr (f (MV.toSExpr (I.tEnv ienv) sizeType sbnd))
 
 guardedLoopCollection :: VSequenceMeta ->
                          LoopCollection' e ->
@@ -523,7 +553,7 @@ guardedLoopCollection vsm lc m i el = do
   let kv = vUInt g 64 (fromIntegral i)
       bindK = maybe id (\kn -> primBindName kn kv) (lcKName lc)
       bindE = primBindName (lcElName lc) el'
-  
+
   censor doCensor (bindK (bindE m))
   where
     (g, doCensor)
@@ -585,7 +615,7 @@ stratCase _total cs m_sccs = do
       stag <- freshSymbolicCaseTag
 
       (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
-      
+
       v <- hoistMaybe (MV.unions' vs)
       -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
       --                 <> " ==> " <> pp (length (MV.guardedValues v))
@@ -637,7 +667,8 @@ stratCallNode cn = do
   --             hFlush stdout
   sl <- getSlice (ecnSliceId cn)
   over _2 (SelectedCall (ecnIdx cn))
-    <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice sl)
+    <$> noteCurrentName (fnameText (ecnName cn))
+          (enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice sl))
 
 -- -----------------------------------------------------------------------------
 -- Merging values
@@ -820,8 +851,19 @@ stratCallNode cn = do
 
 synthesiseExpr :: Expr -> SymbolicM GuardedSemiSExprs
 synthesiseExpr e = do
-  liftSemiSolverM . MV.semiExecExpr $ e
+  traceGUIDChange "synthesiseExpr" (liftSemiSolverM . MV.semiExecExpr $ e)
 
 -- Not a GuardedSemiSExprs here as there is no real need
 synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr
 synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
+
+traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
+traceGUIDChange msg m = do
+  cn <- asks sCurrentName
+  pre <- getRawGUID
+  r <- m
+  post <- getRawGUID
+  when (pre /= post) $ liftIO $ do
+    printf "%s (%s): GUID %s -> %s\n" msg (show cn) (showPP pre) (showPP post)
+    hFlush stdout
+  pure r

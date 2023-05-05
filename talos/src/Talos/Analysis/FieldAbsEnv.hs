@@ -11,7 +11,6 @@ import           Control.DeepSeq       (NFData)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Lazy   as Map
-import           Data.Maybe            (fromMaybe)
 import           Data.Proxy            (Proxy (Proxy))
 import qualified Data.Set              as Set
 import           GHC.Generics          (Generic)

@@ -18,7 +18,7 @@ import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
 import           Data.Generics.Product                     (field)
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes)
+import           Data.Maybe                                (catMaybes, fromMaybe)
 import           GHC.Generics                              (Generic)
 import qualified SimpleSMT                                 as SMT
 -- FIXME: use .CPS
@@ -30,7 +30,7 @@ import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 
 import           Daedalus.Core                             (Expr, Name, Pattern,
-                                                            typedThing, Typed(..), Type)
+                                                            typedThing, Typed(..), Type, nameText)
 import qualified Daedalus.Core.Semantics.Env               as I
 import           Daedalus.GUID                             (GUID, getNextGUID, invalidGUID)
 import           Daedalus.PP
@@ -52,6 +52,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)
 import qualified Talos.SymExec.SolverT                     as Solv
+import Data.Text (Text)
 
 
 
@@ -80,7 +81,9 @@ data SymbolicEnv = SymbolicEnv
   -- calls, irrespective of source/target).
 
   , sProvenance :: ProvenanceTag
-  
+
+  -- Used for getting prettier solver variables.
+  , sCurrentName :: Text
   -- The path isn't required as we add it on post-facto
   -- , sPath    :: ValueGuard -- ^ Current path.
   } deriving (Generic)
@@ -124,7 +127,17 @@ data PathLoopBuilder a =
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
-emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0
+emptySymbolicEnv maxRecDepth nLoopElements ptag = SymbolicEnv
+  { sVarEnv     = mempty
+  , sCurrentSCC = mempty
+  , sBackEdges  = mempty
+  , sSliceId    = Nothing
+  , sRecDepth   = 0
+  , sMaxRecDepth = maxRecDepth
+  , sNLoopElements = nLoopElements
+  , sProvenance    = ptag
+  , sCurrentName   = "result"
+  }
 
 -- A reference to a loop, used to collect loop elements and their
 -- children.  Using a GUID here is a bit lazy as any uniquely
@@ -211,12 +224,22 @@ getName n = SymbolicM $ do
     Nothing -> panic "Missing variable" [showPP n]
     Just r  -> pure r
 
+noteCurrentName :: Text -> SymbolicM a -> SymbolicM a
+noteCurrentName n =
+  local (field @"sCurrentName" .~ n)
+
+makeNicerSym :: Text -> SymbolicM Text
+makeNicerSym pfx = do
+  n <- asks sCurrentName
+  pure (pfx <> "." <> n)
+
 pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
-  sym <- liftSolver $ Solv.declareSymbol "c" pathVarSort
+  n <- makeNicerSym "c"
+  sym <- liftSolver $ Solv.declareSymbol n pathVarSort
   -- The symbol only makes sense with these bounds, hence the global
   -- assertion (without this we can get e.g. negative indicies)
   assertGlobalSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
@@ -225,7 +248,8 @@ freshPathVar bnd = do
 
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
-  sym <- liftSolver $ Solv.declareSymbol "lc" loopCountVarSort
+  n <- makeNicerSym "lc"
+  sym <- liftSolver $ Solv.declareSymbol n loopCountVarSort
   -- Not global here as we may want to switch to exprs for bounds
   assertSExpr $ SMT.and (SMT.bvULeq (loopCountToSExpr lb) (SMT.const sym))
                         (SMT.bvULeq  (SMT.const sym) (loopCountToSExpr ub))
@@ -238,7 +262,7 @@ freshSymbolicCaseTag = liftStrategy getNextGUID
 
 freshSymbolicLoopTag :: SymbolicM SymbolicLoopTag
 freshSymbolicLoopTag = liftStrategy getNextGUID
-    
+                       
 --------------------------------------------------------------------------------
 -- Assertions
 
@@ -363,7 +387,8 @@ liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
   lenv <- asks sVarEnv
   env  <- getIEnv
-  (m_res, newvars) <- liftSolver (runSemiSolverM lenv env m)
+  n    <- asks sCurrentName
+  (m_res, newvars) <- liftSolver (runSemiSolverM lenv env n m)
   recordValues newvars
   hoistMaybe m_res
 
@@ -396,6 +421,32 @@ sImplies l r | l == SMT.bool True = r
 sImplies l _r | l == SMT.bool False = SMT.bool True
 sImplies l r = l `SMT.implies` r
 
+-- -----------------------------------------------------------------------------
+-- Statistics
+
+newtype AssertionStats = AssertionStats { getAssertionStats :: Map SMTVar Int }
+
+instance Semigroup AssertionStats where
+  AssertionStats m1 <> AssertionStats m2 = AssertionStats (Map.unionWith (+) m1 m2)
+
+instance Monoid AssertionStats where
+  mempty = AssertionStats mempty
+
+-- | A rough guide to the size of an assertion
+assertionStats :: [SMT.SExpr] -> AssertionStats
+assertionStats = foldMap go
+  where
+    go (SMT.Atom a) | '@' `elem` a = AssertionStats (Map.singleton a 1)
+                  | otherwise = mempty
+    go (SMT.List sexps) = assertionStats sexps
+
+assertionStatsSize :: AssertionStats -> Int
+assertionStatsSize = sum . getAssertionStats
+
+instance PP AssertionStats where
+  pp (AssertionStats m) =
+    bullets [ text k <> ": " <> pp i | (k, i) <- Map.toList m ]
+    
 -- -----------------------------------------------------------------------------
 -- Instances
 

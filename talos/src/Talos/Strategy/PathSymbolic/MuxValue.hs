@@ -21,7 +21,10 @@ module Talos.Strategy.PathSymbolic.MuxValue where
 
 import           Control.Lens                              (locally)
 import           Control.Monad.Reader
+import           Control.Monad.State                       (StateT, modify,
+                                                            runStateT)
 import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
+import qualified Data.ByteString                           as BS
 import           Data.Generics.Product                     (field)
 import           Data.List                                 (transpose)
 import           Data.List.NonEmpty                        (NonEmpty (..),
@@ -29,9 +32,12 @@ import           Data.List.NonEmpty                        (NonEmpty (..),
 import qualified Data.List.NonEmpty                        as NE
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, mapMaybe, isNothing)
+import           Data.Maybe                                (catMaybes,
+                                                            isNothing, mapMaybe)
 import           Data.Semigroup                            (sconcat)
+import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
+import           Data.Text                                 (Text)
 import qualified Data.Vector                               as Vector
 import           GHC.Generics                              (Generic)
 import           GHC.Stack                                 (HasCallStack)
@@ -50,6 +56,9 @@ import           Daedalus.PP
 import           Daedalus.Panic
 import qualified Daedalus.Value.Type                       as V
 
+import           Talos.Strategy.Monad                      (LiftStrategyM,
+                                                            getFunDefs,
+                                                            liftStrategy)
 import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             PathCondition (..),
                                                             ValuePathConstraint (..),
@@ -59,10 +68,6 @@ import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-import Control.Monad.State (StateT, runStateT, modify)
-import Data.Set (Set)
-import Talos.Strategy.Monad (LiftStrategyM, liftStrategy, getFunDefs)
-import qualified Data.ByteString as BS
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -217,7 +222,7 @@ unions' = fmap unions . nonEmpty
 explodeSequence :: VSequenceMeta -> [GuardedSemiSExprs]
                 -> [ (PathCondition, [GuardedSemiSExprs]) ]
 explodeSequence vsm els
-  | Just lcv <- vsmLoopCountVar vsm = map (go lcv) [vsmMinLength vsm .. length els - 1] 
+  | Just lcv <- vsmLoopCountVar vsm = map (go lcv) [vsmMinLength vsm .. length els] 
   | otherwise = [(mempty, els)]
   where
     -- FIXME: this is inefficient, maybe store loops in reversed order (to get sharing)
@@ -597,6 +602,7 @@ bytesPatternMatch _g _vsm _els _p = panic "Unexpected pattern over sequences" []
 
 data SemiSolverEnv = SemiSolverEnv
   { localBoundNames :: Map Name GuardedSemiSExprs
+  , currentName     :: Text
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
   , interpEnv       :: I.Env -- FIXME: probably we can get from the StrategyM
@@ -614,14 +620,18 @@ type SemiSolverM m = MaybeT (StateT SemiState (ReaderT SemiSolverEnv (SolverT m)
 runSemiSolverM :: SemiCtxt m =>
                   Map Name GuardedSemiSExprs ->
                   I.Env ->
+                  Text ->
                   SemiSolverM m a -> SolverT m (Maybe a, Set (Typed SMTVar))
-runSemiSolverM lenv env m = 
-  runReaderT (runStateT (runMaybeT m) mempty) (SemiSolverEnv lenv env)
+runSemiSolverM lenv env pfx m = 
+  runReaderT (runStateT (runMaybeT m) mempty) (SemiSolverEnv lenv pfx env)
 
 sexprAsSMTVar :: (MonadIO m, HasGUID m) => Type -> SExpr -> SemiSolverM m SMTVar
 sexprAsSMTVar _ty (S.Atom x) = pure x
 sexprAsSMTVar ty e = do
-  s <- liftSolver (defineSymbol "named" (symExecTy ty) e)
+  -- c.f. PathSymbolic.Monad.makeNicerName
+  n <- asks currentName
+  let n' = "N" <> "." <> n
+  s <- liftSolver (defineSymbol n' (symExecTy ty) e)
   modify (Set.insert (Typed ty s))
   pure s
 
@@ -1261,23 +1271,13 @@ andMany [] = S.bool True
 andMany [x] = x
 andMany xs  = S.andMany xs
 
--- -- -- Says whether a variable occurs in a SExpr, taking into account let binders.
--- -- freeInSExpr :: String -> SExpr -> Bool
--- -- freeInSExpr n = getAny . go
--- --   where
--- --     go (S.Atom a) = Any (a == n)
--- --     go (S.List [S.Atom "let", S.List es, e]) =
--- --       let (Any stop, occ) = goL es
--- --       in if stop then occ else occ <> go e
-
--- --     go (S.List es) = foldMap go es
-
--- --     goL (S.List [S.Atom a, be] : es) = (Any (a == n), go be) <> goL es
--- --     goL [] = (mempty, mempty)
--- --     goL _ = panic "Malformed let binding" []
-
--- -- freeInSemiSExpr :: String -> SemiSExpr -> Bool
--- -- freeInSemiSExpr n = getAny . foldMap (Any . freeInSExpr n)
+-- | If the argument consists of only values, then those values are
+-- retunred.
+asValues :: GuardedSemiSExprs -> Maybe (NonEmpty V.Value)
+asValues = traverse (go . snd) . getGuardedValues
+  where
+    go (VValue v) = Just v
+    go _ = Nothing
 
 -- -----------------------------------------------------------------------------
 -- Instances

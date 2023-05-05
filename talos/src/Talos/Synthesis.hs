@@ -33,6 +33,8 @@ import           SimpleSMT                       (Solver)
 import           System.IO.Streams               (Generator, InputStream)
 import qualified System.IO.Streams               as Streams
 import           System.Random
+import System.IO               (hPutStrLn, stderr)
+import System.Exit (exitFailure)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
@@ -474,7 +476,10 @@ choosePath cp x = do
       fn   <- SynthesisM $ asks currentFName
       (m_cp, mc') <- findModel mc prov fn x sl
       case m_cp of
-        Nothing -> panic "All strategies failed" []
+        Nothing -> liftIO $ do
+          hPutStrLn stderr $ "All strategies failed for " ++ showPP x
+          exitFailure
+          
         Just sp -> go (sp : acc) mc' sls
       
 -- -----------------------------------------------------------------------------

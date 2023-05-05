@@ -16,6 +16,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
                             , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
+                            , getRawGUID
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
                             , logMessage, logMessage'
@@ -204,6 +205,10 @@ getBFunDefs = liftStrategy (StrategyM (gets stsBFunDefs))
 
 getIEnv :: LiftStrategyM m => m I.Env
 getIEnv = liftStrategy (StrategyM (gets stsIEnv))
+
+-- For debugging
+getRawGUID :: LiftStrategyM m => m GUID
+getRawGUID = liftStrategy (StrategyM (gets stsNextGUID))
 
 -- -----------------------------------------------------------------------------
 -- Random values
