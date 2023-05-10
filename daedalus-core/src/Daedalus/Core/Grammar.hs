@@ -147,14 +147,14 @@ pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 
 collectChoices :: Grammar -> Maybe (Bool, [Grammar])
-collectChoices g@(OrUnbiased {}) = Just (False, go g)
+collectChoices g@(skipAnnot -> OrUnbiased {}) = Just (False, go g)
   where
-    go (OrUnbiased l r) = go l ++ go r
+    go (skipAnnot -> OrUnbiased l r) = go l ++ go r
     go g'               = [g']
 
-collectChoices g@(OrBiased {}) = Just (True, go g)
+collectChoices g@(skipAnnot -> OrBiased {}) = Just (True, go g)
   where
-    go (OrBiased l r) = go l ++ go r
+    go (skipAnnot -> OrBiased l r) = go l ++ go r
     go g'             = [g']
 
 collectChoices _ = Nothing
