@@ -177,6 +177,7 @@ runDaedalus inFile m_invFile m_entry noLoops = daedalus $ do
 
   passSpecialize specMod ((mm, entryName) : extras)
   passCore specMod
+  passNoBitdata specMod
   when noLoops $ passNoLoops specMod
   passStripFail specMod
   passSpecTys specMod

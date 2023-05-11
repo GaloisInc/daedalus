@@ -4,15 +4,17 @@
 
 module Daedalus.Core.TraverseUserTypes where
 
-import Control.Applicative
-import qualified Data.Set as Set
-import Data.Set (Set)
+import           Control.Applicative
+import           Data.Functor.Identity (Identity (Identity), runIdentity)
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
 
-import Daedalus.Core.Basics
-import Daedalus.Core.Expr
-import Daedalus.Core.ByteSet
-import Daedalus.Core.Grammar
-import Daedalus.Core.Decl
+import           Daedalus.Core.Basics
+import           Daedalus.Core.ByteSet
+import           Daedalus.Core.Decl
+import           Daedalus.Core.Expr
+import           Daedalus.Core.Grammar
+
 
 -- XXX: This should probably be "traverseTypes"
 -- And then we can compose with another traversal that finds *user* types
@@ -21,6 +23,9 @@ import Daedalus.Core.Decl
 foldMapUserTypes ::
   (Monoid m, TraverseUserTypes t) => (UserType -> m) -> t -> m
 foldMapUserTypes f v = getConst (traverseUserTypes (Const . f) v)
+
+mapUserTypes :: TraverseUserTypes t => (UserType -> UserType) -> t -> t
+mapUserTypes f v = runIdentity (traverseUserTypes (Identity . f) v)
 
 -- Does not recurse into types
 -- i.e. 
