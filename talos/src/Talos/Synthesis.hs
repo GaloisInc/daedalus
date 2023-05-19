@@ -30,11 +30,13 @@ import qualified Data.Set                        as Set
 import           Data.Word
 import           GHC.Generics                    (Generic)
 import           SimpleSMT                       (Solver)
-import           System.IO.Streams               (Generator, InputStream)
-import qualified System.IO.Streams               as Streams
+import qualified Streaming as S
 import           System.Random
 import System.IO               (hPutStrLn, stderr)
 import System.Exit (exitFailure)
+import           Text.Printf                               (printf)
+import           System.IO (hFlush, stdout)
+
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
@@ -63,6 +65,8 @@ import           Talos.SymExec.StdLib
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
 import           Talos.Strategy
 import           Talos.Strategy.Monad
+import Data.Functor.Of (Of ( (:>) ))
+import Talos.Monad (TalosM, getIEnv, getGFun, getModule)
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -121,7 +125,7 @@ projectEnvFor tm env0 se = doMerge <$> Map.traverseMaybeWithKey go (synthValueEn
 
 projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
 projectEnvForM tm = do
-  env0 <- getIEnv
+  env0 <- liftStrategy getIEnv
   m_e <- SynthesisM $ asks (projectEnvFor tm env0)
   case m_e of
     Just e  -> pure e
@@ -231,49 +235,39 @@ getLoopTagInstMap = SynthesisM $ asks loopTagInstMap
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> Module -> Int
-           -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
-  let (allSummaries, msgs, nguid') = summarise p md nguid
+type DocumentStream = S.Stream (Of (I.Value, ByteString, ProvenanceMap)) TalosM ()
 
-  -- Log messages fron summarise
-  mapM_ (uncurry (logMessage' verbosity)) msgs
-  
-  -- We do this in one giant step to deal with recursion and deps on
-  -- pure functions.
-  -- symExecSummaries md allSummaries
-
-  -- let symExecSummary' fun
-  --       | Just sm <- Map.lookup (fName fun) allSummaries =
-  --         mapM_ (symExecSummary (fName fun)) (Map.elems sm)
-  --       | otherwise = pure ()
-
-  -- mapM_ symExecSummary' allDecls
+synthesise :: Maybe Int -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> DocumentStream
+synthesise m_seed solv (AbsEnvTy p) strats root = S.effect $ do
+  allSummaries <- summarise p
 
   -- Generate a seed if none has been given to us.
-  seed    <- maybe randomIO pure m_seed
+  seed    <- liftIO $ maybe randomIO pure m_seed
   -- putStrLn ("Using random seed " ++ show seed)  
   let gen = mkStdGen seed
 
-  let sst0 = emptyStrategyMState gen allSummaries md nguid' verbosity
-      solvSt0 = emptySolverState solv
+  sst0 <- makeStrategyMState gen allSummaries
+  let solvSt0 = emptySolverState solv
       mc0 = newModelCache strats solvSt0
       
   -- Init solver stdlib
   -- FIXME: probably move?
-  makeStdLib solv 
+  liftIO $ makeStdLib solv 
 
-  Streams.fromGenerator (go sst0 mc0)
-  
+  md <- getModule
+  let Just rootDecl = find (\d -> fName d == root) (mGFuns md)
+
+  pure (S.unfold (go rootDecl) (sst0, mc0))
   where
-    go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go s0 mc = do
+    -- go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go rootDecl (s0, mc) = do
+      let once = synthesiseCallG SelectedHole (fName rootDecl) assertionsFID []
+      
       ((a, s), sts) <-
-        liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
-                                (initState mc)) s0
+        runStrategyM s0 (runStateT (runReaderT (getSynthesisM once) env0)
+                         (initState mc))
                        
-      Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go sts (modelCache s)
+      pure (Right $ (assertInterpValue a, seenBytes s, provenances s) :> (sts, modelCache s))
 
     initState mc = 
       SynthesisMState { seenBytes      = mempty
@@ -283,8 +277,6 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
                       , modelCache     = mc
                       , pathContext    = []
                       }
-    
-    Just rootDecl = find (\d -> fName d == root) allDecls
 
     -- Do the actual synthesis by calling the main function. The
     -- 'Assertions' is to tell the system that we don't care about the
@@ -292,7 +284,6 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
     -- 'Assertions' result class.
     --
     -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
-    once = synthesiseCallG SelectedHole (fName rootDecl) assertionsFID []
 
     env0      = SynthEnv
                 { synthValueEnv = mempty
@@ -301,9 +292,6 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md verbosity = do
                 , currentFName  = root
                 , loopTagInstMap  = mempty
                 }
-                
-    -- FIXME: we assume topologically sorted (by reference)
-    allDecls  = mGFuns md
     
     -- ns        = needsSolver allDecls
     -- rs     = Map.fromList [ (fName d, d) | d <- allDecls ]
@@ -378,7 +366,7 @@ synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 synthesiseCallG :: SelectedPath -> FName -> FInstId -> [Expr] -> SynthesisM Value
 synthesiseCallG fp n fid args = do
   -- liftIO $ printf "Calling into %s\n" (showPP n)
-  decl <- getGFun n
+  decl <- liftStrategy (getGFun n)
   synthesiseDecl fp fid decl args
 
 -- -----------------------------------------------------------------------------
@@ -396,7 +384,20 @@ synthesiseLoopBounds canBeNull lv m_uv = do
     
     u = maybe altUpperBound (min altUpperBound) m_u
     
-  fromIntegral <$> randR (l, u)
+  r <- fromIntegral <$> randR (l, u)
+  when (r > 100) $ liftIO $ do
+    printf "Large loop count (%d)\n" r
+    hFlush stdout
+  -- liftIO $ if (r == 0)
+  --          then do
+  --            printf "Zero loop count (%d, %d)\n" l u
+  --            hFlush stdout
+  --          else do
+  --            printf "Non-zero loop count (%d, %d)\n" l u
+  --            hFlush stdout
+    
+  pure r
+    
   where
     l = max altLowerBound (I.valueToIntegral (assertInterpValue lv))
     m_u = I.valueToIntegral . assertInterpValue <$> m_uv

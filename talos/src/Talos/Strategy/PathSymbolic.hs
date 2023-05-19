@@ -68,9 +68,11 @@ import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type                        (defineSliceTypeDefs,
                                                             symExecTy)
 import qualified Daedalus.Value as V
+import Talos.Monad (getModule, getIEnv, getRawGUID)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
+
 
 pathSymbolicStrat :: Strategy
 pathSymbolicStrat = Strategy
@@ -127,7 +129,7 @@ symbolicFun config ptag sl = StratGen $ do
   -- defined referenced types/functions
   reset -- FIXME
 
-  md <- getModule
+  md <- liftStrategy getModule
   deps <- sliceToDeps sl
   let slAndDeps = map snd deps ++ [sl]
 
@@ -143,7 +145,7 @@ symbolicFun config ptag sl = StratGen $ do
     (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
     let stats = assertionStats (smAsserts sm)
     liftIO $ do
-      printf "Assertion size: %d\n%s\n" (assertionStatsSize stats) (showPP stats)
+      printf "Assertion size: %d\n" (assertionStatsSize stats)
       hFlush stdout
 
     let go (_, pb) = do
@@ -230,7 +232,7 @@ stratSlice = go
 
           primBindName n n' $ do
             pe <- synthesiseExpr p
-            ienv <- getIEnv
+            ienv <- liftStrategy getIEnv
             assertSExpr (MV.toSExpr (I.tEnv ienv) TBool pe)
 
             -- Once we have a model, we need to convert all the free
@@ -539,7 +541,7 @@ stratLoop lclass =
 
     -- Constructs a bounds check, and returns a concrete bound (if any)
     mkBound f sbnd = do
-      ienv <- getIEnv
+      ienv <- liftStrategy getIEnv
       assertSExpr (f (MV.toSExpr (I.tEnv ienv) sizeType sbnd))
 
 guardedLoopCollection :: VSequenceMeta ->
@@ -629,6 +631,8 @@ stratCase _total cs m_sccs = do
       -- conjunction of (g --> s), which does not assert that the guard
       -- holds (only that the enabling predicate holds when that value is
       -- enabled).
+
+      liftIO $ printf "Case on %s: %d -> %d\n" (showPP (caseVar cs)) (length (MV.guardedValues inv)) (length (MV.guardedValues v))
 
       enabledChecks preds
       recordCase stag (caseVar cs) [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
@@ -860,9 +864,9 @@ synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
 traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
 traceGUIDChange msg m = do
   cn <- asks sCurrentName
-  pre <- getRawGUID
+  pre <- liftStrategy getRawGUID
   r <- m
-  post <- getRawGUID
+  post <- liftStrategy getRawGUID
   when (pre /= post) $ liftIO $ do
     printf "%s (%s): GUID %s -> %s\n" msg (show cn) (showPP pre) (showPP post)
     hFlush stdout

@@ -37,23 +37,25 @@ data FixpointState n c s st = FixpointState
   , clientState  :: st
   }
 
-newtype FixpointM n c s st a = FixpointM { getFixpointM :: State (FixpointState n c s st) a }
-  deriving (Functor, Applicative, Monad)
+newtype FixpointT n c s st m a = FixpointT { getFixpointT :: StateT (FixpointState n c s st) m a }
+  deriving (Functor, Applicative, Monad, MonadTrans)
 
-runFixpointM :: FixpointM n c s st a -> FixpointState n c s st -> FixpointState n c s st
-runFixpointM m = execState (getFixpointM m)
+runFixpointT :: Monad m => FixpointT n c s st m a -> FixpointState n c s st -> m (FixpointState n c s st)
+runFixpointT m = execStateT (getFixpointT m)
 
 -- -----------------------------------------------------------------------------
 -- Main function
 
-type FixpointC n c s = (Ord n, Ord c, PP n, PP c, PP s)
+type FixpointC n c s m = (Ord n, Ord c, PP n, PP c, PP s, Monad m)
 
-calcFixpoint :: FixpointC n c s => (s -> s -> Bool) ->
-                (n -> c -> FixpointM n c s st s) -> Worklist n c -> st ->
-                (st, Summaries n c s)
+calcFixpoint :: FixpointC n c s m => (s -> s -> Bool) ->
+                (n -> c -> FixpointT n c s st m s) -> Worklist n c -> st ->
+                m (st, Summaries n c s)
 calcFixpoint eqv doIt wl0 ust0 = go st0
   where
-    st0 = FixpointState { worklist = wl0, revDeps = Map.empty, summaries = Map.empty
+    st0 = FixpointState { worklist = wl0
+                        , revDeps = Map.empty
+                        , summaries = Map.empty
                         , summaryEqv = eqv
                         , currentName = error "Name not set"
                         , currentClass = error "Class not set"
@@ -62,12 +64,12 @@ calcFixpoint eqv doIt wl0 ust0 = go st0
 
     go s@FixpointState { worklist = wl } | Just ((fn, cl), wl') <- Set.minView wl
       = let s' = s { worklist = wl', currentName = fn, currentClass = cl }
-        in go $ runFixpointM (doIt fn cl >>= addSummary fn cl {- >> traceState -} ) s'
-    go st = (clientState st, summaries st)
+        in go =<< runFixpointT (doIt fn cl >>= addSummary fn cl {- >> traceState -} ) s'
+    go st = pure (clientState st, summaries st)
 
-traceState :: FixpointC n c s => FixpointM n c s st ()
+traceState :: FixpointC n c s m => FixpointT n c s st m ()
 traceState = do
-  s <- FixpointM get
+  s <- FixpointT get
   traceM (show $ tr s)
   where
     tr st = hang "Iteration" 2 $ vcat [ hang "Worklist" 4 (ppWL (worklist st))
@@ -83,35 +85,35 @@ traceState = do
 -- -----------------------------------------------------------------------------
 -- Worklist and rev deps
 
-currentDeclName :: FixpointM n c s st n
-currentDeclName = FixpointM $ gets currentName
+currentDeclName :: Monad m => FixpointT n c s st m n
+currentDeclName = FixpointT $ gets currentName
 
-currentSummaryClass :: FixpointM n c s st c
-currentSummaryClass = FixpointM $ gets currentClass
+currentSummaryClass :: Monad m => FixpointT n c s st m c
+currentSummaryClass = FixpointT $ gets currentClass
 
-addRevDep :: FixpointC n c s => n -> c -> FixpointM n c s st ()
+addRevDep :: FixpointC n c s m => n -> c -> FixpointT n c s st m ()
 addRevDep nm cl = do
   here    <- currentDeclName
   here_cl <- currentSummaryClass
-  FixpointM $ modify (\s -> s { revDeps = Map.insertWith Set.union (nm, cl) (Set.singleton (here, here_cl)) (revDeps s) })
+  FixpointT $ modify (\s -> s { revDeps = Map.insertWith Set.union (nm, cl) (Set.singleton (here, here_cl)) (revDeps s) })
 
-getRevDeps :: FixpointC n c s => n -> c -> FixpointM n c s st (Set (n, c))
+getRevDeps :: FixpointC n c s m => n -> c -> FixpointT n c s st m (Set (n, c))
 getRevDeps nm cl = do
-  FixpointM $ gets (Map.findWithDefault Set.empty (nm, cl) . revDeps)
+  FixpointT $ gets (Map.findWithDefault Set.empty (nm, cl) . revDeps)
 
-lookupSummary :: FixpointC n c s => n -> c -> FixpointM n c s st (Maybe s)
+lookupSummary :: FixpointC n c s m => n -> c -> FixpointT n c s st m (Maybe s)
 lookupSummary nm cls = do
-  m_summary <- FixpointM $ gets (Map.lookup nm . summaries)
+  m_summary <- FixpointT $ gets (Map.lookup nm . summaries)
   pure $ Map.lookup cls =<< m_summary
 
-requestSummarisation :: FixpointC n c s => n -> c -> FixpointM n c s st ()
+requestSummarisation :: FixpointC n c s m => n -> c -> FixpointT n c s st m ()
 requestSummarisation nm p =
-  FixpointM $ modify (\s -> s { worklist = Set.insert (nm, p) (worklist s) })
+  FixpointT $ modify (\s -> s { worklist = Set.insert (nm, p) (worklist s) })
 
--- FixpointM n c s st interface
+-- FixpointT n c s st m interface
 
 -- Gets the precondition for a given decl.  This may update the worklist and revdeps
-requestSummary :: FixpointC n c s => n -> c -> FixpointM n c s st (Maybe s)
+requestSummary :: FixpointC n c s m => n -> c -> FixpointT n c s st m (Maybe s)
 requestSummary nm cl = do
   addRevDep nm cl
   m_summary <- lookupSummary nm cl
@@ -124,23 +126,23 @@ requestSummary nm cl = do
 -- changed, so they need to be resummarised.
 
 -- Note: Everything in revdeps will have a summary
-propagate :: FixpointC n c s => n -> c -> FixpointM n c s st ()
+propagate :: FixpointC n c s m => n -> c -> FixpointT n c s st m ()
 propagate nm cl = do
   rdeps  <- getRevDeps nm cl
-  FixpointM $ modify (\s -> s { worklist = Set.union rdeps (worklist s) })
+  FixpointT $ modify (\s -> s { worklist = Set.union rdeps (worklist s) })
 
 -- Adds a summary for a function, and propagates changes if required.
-addSummary :: FixpointC n c s => n -> c -> s -> FixpointM n c s st ()
+addSummary :: FixpointC n c s m => n -> c -> s -> FixpointT n c s st m ()
 addSummary fn cl newS = do
   m_oldS <- lookupSummary fn cl
 
   -- insertWith calls Map.union new old which prefers new.
   let upd = Map.insertWith Map.union fn (Map.singleton cl newS)
         
-  FixpointM $ modify (\s -> s { summaries = upd (summaries s) })
+  FixpointT $ modify (\s -> s { summaries = upd (summaries s) })
   
   -- propagate if the summary is different than what was there before.
-  eqv  <- FixpointM (gets summaryEqv)
+  eqv  <- FixpointT (gets summaryEqv)
   case m_oldS of
     Just oldS | eqv oldS newS -> pure ()
     _                         -> propagate fn cl
@@ -148,11 +150,11 @@ addSummary fn cl newS = do
 -- ----------------------------------------------------------------------------------------
 -- Client state
 
-fixpointState :: (st -> (a, st)) -> FixpointM n c s st a
+fixpointState :: Monad m => (st -> (a, st)) -> FixpointT n c s st m a
 fixpointState f = do
-  st <- FixpointM (gets clientState)
+  st <- FixpointT (gets clientState)
   let (r, st') = f st
-  FixpointM (modify (\s -> s { clientState = st' }))
+  FixpointT (modify (\s -> s { clientState = st' }))
   pure r
 
 

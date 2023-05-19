@@ -57,7 +57,6 @@ import           Daedalus.Panic
 import qualified Daedalus.Value.Type                       as V
 
 import           Talos.Strategy.Monad                      (LiftStrategyM,
-                                                            getFunDefs,
                                                             liftStrategy)
 import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             PathCondition (..),
@@ -68,6 +67,8 @@ import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
+import Text.Printf (printf)
+import Talos.Monad (getFunDefs)
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -684,7 +685,12 @@ semiExecExpr expr =
             v <- semiExecExpr e
             pure $ mapMaybe (\g -> refine g v) (NE.toList gs)
       els <- concat <$> mapM mk1 ms
-      hoistMaybe (unions' els)
+      v <- hoistMaybe (unions' els)
+      inv <- semiExecName (caseVar cs)
+      nm <- asks currentName
+      liftIO $ printf "Pure case on %s for %s: %d -> %d\n" (showPP (caseVar cs)) (showPP nm) (length (guardedValues inv)) (length (guardedValues v))
+
+      pure v
 
     -- These should be lifted in LiftExpr
     ELoop _lm    -> panic "Impossible" []

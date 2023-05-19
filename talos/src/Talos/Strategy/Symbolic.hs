@@ -54,6 +54,7 @@ import           Talos.SymExec.SolverT        (SolverT, declareName,
 import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
+import Talos.Monad (getModule, getIEnv)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -123,7 +124,7 @@ symbolicFun (Config sstrat) ptag sl = StratGen $ do
   -- defined referenced types/functions
   reset -- FIXME
 
-  md <- getModule
+  md <- liftStrategy getModule
   deps <- sliceToDeps sl
   let slAndDeps = map snd deps ++ [sl]
 

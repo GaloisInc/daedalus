@@ -34,6 +34,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM, runSemiSolverM)
 import           Talos.SymExec.SolverT    (SolverT, MonadSolver)
 import qualified Talos.SymExec.SolverT    as Solv
+import Talos.Monad (getIEnv)
 
 --------------------------------------------------------------------------------
 -- The free monad for searching
@@ -320,5 +321,5 @@ inSolver = SymbolicM . lift . lift
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
   lenv <- asks sVarEnv
-  env  <- getIEnv
+  env  <- liftStrategy getIEnv
   inSolver (runSemiSolverM lenv env m)

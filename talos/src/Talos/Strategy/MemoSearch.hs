@@ -13,18 +13,26 @@ module Talos.Strategy.MemoSearch
   , BacktrackPolicy(..)
   ) where
 
-import           Control.Lens
+import           Control.Lens                   (At (at),
+                                                 FoldableWithIndex (ifoldMap),
+                                                 Ixed (ix), preuse, uses, (%%=),
+                                                 (.=), (^?))
 import           Control.Monad.Reader           (runReaderT)
-import           Control.Monad.State
-import           Control.Monad.Trans.Free
-import           Control.Monad.Trans.Writer.CPS
-import           Data.Foldable                  (foldl', foldlM, toList, fold)
+import           Control.Monad.State            (MonadIO, MonadState,
+                                                 MonadTrans (lift),
+                                                 StateT (StateT), evalStateT,
+                                                 gets, guard, join, zipWithM)
+import           Control.Monad.Trans.Free       (FreeF (Free, Pure),
+                                                 FreeT (runFreeT))
+import           Control.Monad.Trans.Writer.CPS (WriterT, execWriter,
+                                                 runWriterT, tell)
+import           Data.Foldable                  (fold, foldl', foldlM, toList)
 import           Data.Functor                   (($>))
 import           Data.Generics.Product          (field)
 import           Data.Map                       (Map)
 import qualified Data.Map                       as Map
 import qualified Data.Map.Merge.Lazy            as Map
-import           Data.Maybe                     (maybeToList, fromMaybe)
+import           Data.Maybe                     (maybeToList)
 import           Data.Monoid                    (Any (Any), First (First),
                                                  getAny, getFirst)
 import           Data.Set                       (Set)
@@ -36,9 +44,8 @@ import qualified SimpleSMT                      as SMT
 import           Daedalus.Core                  (Name, Typed (..), casePats,
                                                  caseVar, nameId)
 import           Daedalus.Core.Free             (freeVars)
-import           Daedalus.PP                    (Doc, block, bullets, hang,
-                                                 parens, pp, ppPrec, showPP,
-                                                 text)
+import           Daedalus.PP                    (Doc, block, bullets, parens,
+                                                 pp, ppPrec, showPP, text)
 import           Daedalus.Panic                 (panic)
 import           Daedalus.Rec                   (Rec (..), forgetRecs)
 
@@ -48,7 +55,7 @@ import           Talos.Strategy.Monad           (LiftStrategyM, StrategyM,
                                                  isRecVar, randR)
 import           Talos.Strategy.SearchTree      (Location)
 import qualified Talos.Strategy.SearchTree      as ST
-import           Talos.Strategy.SymbolicM       hiding (inSolver)
+import           Talos.Strategy.SymbolicM hiding (inSolver)
 import           Talos.SymExec.SemiExpr         (SemiSExpr)
 import           Talos.SymExec.SemiValue        (SemiValue (..))
 import           Talos.SymExec.SolverT          (SMTVar, SolverContext,

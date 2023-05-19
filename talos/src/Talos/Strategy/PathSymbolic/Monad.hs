@@ -53,6 +53,7 @@ import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)
 import qualified Talos.SymExec.SolverT                     as Solv
 import Data.Text (Text)
+import Talos.Monad (getIEnv)
 
 
 
@@ -386,7 +387,7 @@ enterFunction tgt argMap m = do
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
   lenv <- asks sVarEnv
-  env  <- getIEnv
+  env  <- liftStrategy getIEnv
   n    <- asks sCurrentName
   (m_res, newvars) <- liftSolver (runSemiSolverM lenv env n m)
   recordValues newvars
@@ -394,7 +395,7 @@ liftSemiSolverM m = do
 
 liftSymExecM :: SE.SymExecM StrategyM a -> SymbolicM a
 liftSymExecM m = do
-  ienv  <- getIEnv
+  ienv  <- liftStrategy getIEnv
   SymbolicM . lift . lift . withReaderT (envf (I.tEnv ienv)) $ m
   where
     -- FIXME: probably these should live outside MuxValue

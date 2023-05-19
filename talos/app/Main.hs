@@ -14,7 +14,6 @@ import System.Console.ANSI
 import qualified Data.Map as Map
 
 import qualified Data.ByteString.Char8 as BS
-import qualified System.IO.Streams as Streams
 
 import Hexdump
 
@@ -23,6 +22,8 @@ import Daedalus.PP
 import CommandLine
 import Talos
 import Data.Maybe (fromMaybe)
+
+import qualified Streaming.Prelude as S
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -57,17 +58,7 @@ doSummary opts = do
 
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
-  let bOpts = [ ("auto-config", "false")
-              , ("smt.phase_selection", "5")
-              -- see :smt.arith.random_initial_value also and seed options
-              ]
-              ++ [("model-validate", "true") | optValidateModel opts]
-
-  let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
-      absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
-  strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts)
-            ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts) absEnv (optVerbosity opts) (optNoLoops opts)
+  strm <- synthesise sopts
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines
@@ -95,18 +86,41 @@ doSynthesis opts = do
                    _                -> \n -> pat ++ "." ++ show n
         pure (\n _ bs _ -> BS.writeFile (mk n) bs)
 
-  let doWriteModel n m_bs =
-        case m_bs of
-          Nothing      -> hPutStrLn stderr "Not enough models" >> exitFailure
-          Just (v, bs, provmap) ->
-            do writeModel n v bs provmap
-               when (optPrettyModel opts) $ prettyBytes n v bs provmap
-               case optProvFile opts of
-                 Nothing -> pure ()
-                 Just f  -> writeFile f (show provmap)
+  let doWriteModel ((v, bs, provmap), n) = do
+        writeModel n v bs provmap
+        when (optPrettyModel opts) $ prettyBytes n v bs provmap
+        case optProvFile opts of
+          Nothing -> pure ()
+          Just f  -> writeFile f (show provmap)
 
-  bss <- replicateM (optNModels opts) (Streams.read strm)
-  zipWithM_ doWriteModel [(0 :: Int)..] bss
+  let strm' = S.take (optNModels opts) $ S.zip strm (S.each [(0 :: Int)..])
+  S.mapM_ doWriteModel strm'
+  where
+    sopts = SynthesisOptions
+      { inputFile       = optDDLInput opts
+      , inverseFile     = optInvFile opts
+      , entry           = optDDLEntry opts
+      , solverPath      = optSolver opts
+      , solverArgs      = ["-smt2", "-in"]
+      , solverOpts      = bOpts
+      , solverInit      = pure ()
+      , synthesisStrats = optStrategy opts 
+      , loggingOpts     = logOpt
+      , seed            = optSeed opts
+      , analysisEnv     = absEnv
+      , verbosity       = optVerbosity opts
+      , eraseLoops      = optNoLoops opts 
+      , statsHandle     = Nothing
+      }
+      
+    bOpts = [ ("auto-config", "false")
+            , ("smt.phase_selection", "5")
+            -- see :smt.arith.random_initial_value also and seed options
+            ]
+            ++ [("model-validate", "true") | optValidateModel opts]
+    logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
+    absEnv = fromMaybe "fl" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
+
 
 prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
 prettyHexWithProv provmap bs =

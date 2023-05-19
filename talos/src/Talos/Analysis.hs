@@ -25,7 +25,6 @@ import qualified Data.Set                   as Set
 
 import           Daedalus.Core
 import           Daedalus.Core.Type
-import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
@@ -39,6 +38,7 @@ import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
+import Talos.Monad (TalosM, getModule)
 
 
 
@@ -46,27 +46,21 @@ import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
 -- Top level function
 
 -- FIXME: do something nicer with messages
-summarise :: AbsEnv ae =>
-             Proxy ae -> Module -> GUID -> (Summaries ae, [(Int, String)], GUID)
-summarise _ md nguid = (summaries, reverse (loggedMessages s'), nextGUID s')
-  where
-    -- FIXME: need to rename bound vars to avoid clashing in synthesis
-    (s', summaries) = calcFixpoint doOne wl0 s0
-    s0    = initState (mGFuns md) (mFFuns md) nguid
-
-    doOne nm cl fid
-      | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
-      | otherwise = panic "Missing decl" [showPP nm]
-
-    wl0   = Set.fromList grammarDecls
-
-    decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
-
-    grammarDecls =
-      [ (name, assertionsFID) -- FIXME: using an explicit FID is a bit gross here
-      | Fun { fName = name, fDef = Def _ } <- mGFuns md
-      ]
-
+summarise :: AbsEnv ae => Proxy ae -> TalosM (Summaries ae)
+summarise _ = do
+  md <- getModule
+  let decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
+      wl0   = Set.fromList grammarDecls
+      grammarDecls =
+        -- FIXME: using an explicit FID is a bit gross here
+        [ (name, assertionsFID)
+        | Fun { fName = name, fDef = Def _ } <- mGFuns md
+        ]
+      doOne nm cl fid
+        | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
+        | otherwise = panic "Missing decl" [showPP nm]
+      
+  snd <$> calcFixpoint doOne wl0
 
 -- Not sure these belong here
 absEnvTys :: [(String, AbsEnvTy)]
@@ -82,9 +76,9 @@ summariseDecl :: AbsEnv ae =>
                  SummaryClass' ae -> FInstId ->
                  Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls fid Fun { fDef = Def def
-                          , fName = fn
+                          -- , fName = fn
                           , fParams = ps } = do
-  logMessage 1 ("* Summarising " ++ showPP fn ++ " for " ++ showPP cls) 
+  -- logMessage 1 ("* Summarising " ++ showPP fn ++ " for " ++ showPP cls) 
   
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
@@ -195,10 +189,10 @@ summariseCall preds fn args
                              , gsSlice = SCall (mkCallNode i gs)
                              }
               res = domainFromElements $ zipWith mkCall [0..] (elements dom)
-          logMessage 1 ("** Call result to " ++ showPP fn ++
-                        " for " ++ showPP cl ++ "\n" ++
-                        show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
-                        show (nest 4 (pp res)))
+          -- logMessage 1 ("** Call result to " ++ showPP fn ++
+          --               " for " ++ showPP cl ++ "\n" ++
+          --               show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
+          --               show (nest 4 (pp res)))
           pure res
   | otherwise = panic "Saw non-Var arg" []
 
@@ -449,14 +443,14 @@ summariseBind preds x lhs rhs = do
       indepRHSD = mapSlices (SDo x SHole) rhsD'
       final     = indepLHSD `merge` indepRHSD `merge` domainFromElements els
 
-  fn <- currentDeclName
+  -- fn <- currentDeclName
   -- when (showPP fn == "Main") $
-  logMessage 3 ("** Summarising bind in " ++ showPP fn ++ "\n" ++
-                show (nest 4 $ pp (Do x lhs rhs)) ++
-                "\n" ++ show (hang ("lhsD: " <> brackets (commaSep (map pp preds'))) 4 (pp lhsD)) ++
-                "\n" ++
-                show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
-                show (hang "final" 4 (pp final)))
+  -- logMessage 3 ("** Summarising bind in " ++ showPP fn ++ "\n" ++
+  --               show (nest 4 $ pp (Do x lhs rhs)) ++
+  --               "\n" ++ show (hang ("lhsD: " <> brackets (commaSep (map pp preds'))) 4 (pp lhsD)) ++
+  --               "\n" ++
+  --               show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
+  --               show (hang "final" 4 (pp final)))
 
   pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
@@ -485,7 +479,7 @@ summariseMany :: AbsEnv ae => [AbsPred ae] ->
                  SummariseM ae (Domain ae)
 summariseMany preds sem _bt lb m_ub g = do
   elsD <- summariseG (mapMaybe absPredListElement preds) g
-  logMessage 1 ("** Many " ++ showPP elsD)
+  -- logMessage 1 ("** Many " ++ showPP elsD)
 
   -- Invariant: if preds is non-empty then either the domain
   -- isn't closed (because there is some predicate in preds with
@@ -608,7 +602,7 @@ summariseMorphism preds lm =
 
     MapMorphism lc g -> do
       gD <- summariseG (mapMaybe absPredListElement preds) g
-      logMessage 1 ("** MapMorphism\n" ++ showPP gD)
+      -- logMessage 1 ("** MapMorphism\n" ++ showPP gD)
       let (gss, gD') = domainElements gD
           m_gs = mergeMaybe gss
 
@@ -663,10 +657,10 @@ gssFixpoint x g ps = do
   (matching, gD) <- repeatFixpoint ps
   let (nonDeps, gD') = domainElements gD
       gss = map fst matching ++ nonDeps
-      ppgss = show . nest 4 . vcat . map pp
+      -- ppgss = show . nest 4 . vcat . map pp
       
-  logMessage 2 ("*** gssFixpoint: " ++ show (brackets (commaSep (map pp ps))) ++
-                 ppgss gss)
+  -- logMessage 2 ("*** gssFixpoint: " ++ show (brackets (commaSep (map pp ps))) ++
+              -- ppgss gss)
 
   pure (mergeMaybe gss, gD')
 
@@ -700,10 +694,10 @@ gssFixpoint x g ps = do
           deps = map snd matching
           ps'' = mergeOverlapping absPredOverlaps deps ps'
 
-      logMessage 2 ("*** repeatFixpoint: " ++ show (brackets (commaSep (map pp ps'))) ++
-                   "\n   Depends on bound var (" ++ showPP x ++
-                   ")\n" ++ (show . nest 4 . vcat . map (pp . fst) $ matching) ++
-                   "\n   Remainder\n" ++ show (nest 4 (pp gD')))
+      -- logMessage 2 ("*** repeatFixpoint: " ++ show (brackets (commaSep (map pp ps'))) ++
+      --              "\n   Depends on bound var (" ++ showPP x ++
+      --              ")\n" ++ (show . nest 4 . vcat . map (pp . fst) $ matching) ++
+      --              "\n   Remainder\n" ++ show (nest 4 (pp gD')))
           
       -- looks expensive, although the lists should be pretty short.
       if all (\p -> any (`absPredEntails` p) ps') deps

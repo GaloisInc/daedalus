@@ -23,6 +23,7 @@ library
   ghc-prof-options:    -fprof-auto
   exposed-modules:     Talos.Lib
                      -- , Talos.SymExec
+                     , Talos.Monad
                      , Talos.SymExec.SolverT
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
@@ -91,7 +92,7 @@ library
                      , containers >= 0.6.4
                      , bytestring
                      , simple-smt >= 0.9.6
-                     , io-streams
+                     , streaming
                      , transformers
                      , IntervalMap
                      , split
@@ -102,6 +103,7 @@ library
                      , generic-lens
                      , lens
                      , free
+                     , hslogger
 
 executable talos
   main-is:             Main.hs
@@ -114,7 +116,7 @@ executable talos
                      , daedalus-utils
                      , optparse-applicative
                      , bytestring
-                     , io-streams
+                     , streaming
                      , pretty-hex
                      -- , rts-hs
                      -- , vector

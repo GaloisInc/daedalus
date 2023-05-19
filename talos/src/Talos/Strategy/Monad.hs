@@ -10,16 +10,14 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyInstance(..)
                             , parseStrategies
                             , StratFun, StratGen(..), trivialStratGen
-                            , StrategyM, StrategyMState, emptyStrategyMState
+                            , StrategyM, StrategyMState
                             , runStrategyM -- just type, not ctors
+                            , makeStrategyMState
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
-                            , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
-                            , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
-                            , getRawGUID
+                            , summaries, getSlice, sccsFor, backEdgesFor, isRecVar
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
-                            , logMessage, logMessage'
+                            -- , logMessage, logMessage'
                             ) where
 
 import           Control.Monad.Except         (throwError)
@@ -38,16 +36,31 @@ import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import qualified Data.Vector                  as V
 import qualified Data.Vector.Mutable          as V
-import           System.IO                    (hFlush, stdout)
 import           System.Random
 
-import           Daedalus.Core
-import qualified Daedalus.Core.Semantics.Decl as I
-import qualified Daedalus.Core.Semantics.Env  as I
-import           Daedalus.GUID
+import Daedalus.Core
+    ( Expr(Struct),
+      Name,
+      Type(..),
+      arrayL,
+      boolL,
+      byteArrayL,
+      emit,
+      inUnion,
+      intL,
+      just,
+      mapEmpty,
+      mapInsert,
+      newBuilder,
+      nothing,
+      unit,
+      SizeType(TSize),
+      TName,
+      UserType(utName),
+      TDecl(tDef),
+      TDef(TBitdata, TStruct, TUnion) )
 import           Daedalus.PP
 import           Daedalus.Panic
-import           Daedalus.Rec                 (forgetRecs)
 
 import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
@@ -55,6 +68,8 @@ import           Talos.Strategy.OptParser     (Parser, runParser)
 import qualified Talos.Strategy.OptParser     as P
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
+import Talos.Monad (LiftTalosM, TalosM, getTypeDefs)
+import Daedalus.GUID (HasGUID)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -108,32 +123,18 @@ parseStrategies opts strats =
 data StrategyMState  =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
-                 , stsVerbosity :: Int
                  , stsSummaries :: ExpSummaries
-                 , stsModule    :: Module
-                 -- Derived from the module
-                 , stsFunDefs   :: Map FName (Fun Expr)
-                 , stsBFunDefs  :: Map FName (Fun ByteSet)
-                 , stsIEnv      :: I.Env
-                 , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> Int -> StrategyMState
-emptyStrategyMState gen ss md nguid verbosity =
-  StrategyMState gen verbosity expss md funDefs bfunDefs env0 nguid' 
-  where
-    (expss, nguid') = exportSummaries tyDefs (ss, nguid)
-    env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
-    tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
-    funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
-    bfunDefs = Map.fromList [ (fName f, f) | f <- mBFuns md ]
-
 newtype StrategyM a =
-  StrategyM { getStrategyM :: StateT StrategyMState IO a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  StrategyM { getStrategyM :: StateT StrategyMState TalosM a }
+  deriving (Functor, Applicative, Monad, MonadIO, LiftTalosM, HasGUID)
 
-runStrategyM :: StrategyM a -> StrategyMState -> IO (a, StrategyMState)
-runStrategyM m st = runStateT (getStrategyM m) st
+makeStrategyMState :: StdGen -> Summaries ae -> TalosM StrategyMState
+makeStrategyMState gen ss = StrategyMState gen <$> exportSummaries ss
+
+runStrategyM :: StrategyMState -> StrategyM a -> TalosM (a, StrategyMState)
+runStrategyM st m = runStateT (getStrategyM m) st
 
 -- -----------------------------------------------------------------------------
 -- State access
@@ -160,7 +161,6 @@ backEdgesFor :: LiftStrategyM m => SliceId -> m (Map SliceId (Set SliceId))
 backEdgesFor entrySid = do
   liftStrategy (StrategyM (gets (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)))
 
-
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
 -- callNodeToSlices cn = do
 --   -- FIXME: This is maybe less efficient dep on how GHC optimises
@@ -183,32 +183,6 @@ backEdgesFor entrySid = do
 --     Just sl -> pure sl
 --     Nothing -> panic "Missing summary" [showPP fn, showPP fid]
 
-
-getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
-getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
-  where
-    getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
-      Nothing -> panic "Missing function" [showPP f]
-      Just v  -> v
-
-getModule :: LiftStrategyM m => m Module
-getModule = liftStrategy (StrategyM (gets stsModule))
-
-getTypeDefs :: LiftStrategyM m => m (Map TName TDecl)
-getTypeDefs = liftStrategy (StrategyM (gets (I.tEnv . stsIEnv)))
-
-getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
-getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
-
-getBFunDefs :: LiftStrategyM m => m (Map FName (Fun ByteSet))
-getBFunDefs = liftStrategy (StrategyM (gets stsBFunDefs))
-
-getIEnv :: LiftStrategyM m => m I.Env
-getIEnv = liftStrategy (StrategyM (gets stsIEnv))
-
--- For debugging
-getRawGUID :: LiftStrategyM m => m GUID
-getRawGUID = liftStrategy (StrategyM (gets stsNextGUID))
 
 -- -----------------------------------------------------------------------------
 -- Random values
@@ -248,9 +222,9 @@ shuffle xs = do
 randPermute :: LiftStrategyM m => [a] -> m [a]
 randPermute = liftStrategy . shuffle
 
-typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
+typeToRandomInhabitant :: LiftStrategyM m => Type -> m Expr
 typeToRandomInhabitant ty = do
-  tdecls <- getTypeDefs
+  tdecls <- liftStrategy getTypeDefs
   typeToRandomInhabitant' tdecls ty
 
 typeToRandomInhabitant' :: (LiftStrategyM m) => Map TName TDecl -> Type -> m Expr
@@ -321,22 +295,21 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 -- -----------------------------------------------------------------------------
 -- Printing verbosely
 
-logMessage' :: (Monad m, MonadIO m) => Int -> Int -> String -> m ()
-logMessage' v lvl s
-  | lvl <= v = liftIO (putStrLn s >> hFlush stdout)
-  | otherwise = pure ()
+-- logMessage' :: (Monad m, MonadIO m) => Int -> Int -> String -> m ()
+-- logMessage' v lvl s
+--   | lvl <= v = liftIO (putStrLn s >> hFlush stdout)
+--   | otherwise = pure ()
 
-logMessage :: LiftStrategyM m => Int -> String -> m ()
-logMessage lvl s = liftStrategy $ do
-  v <- StrategyM (gets stsVerbosity)
-  logMessage' v lvl s
+-- logMessage :: LiftStrategyM m => Int -> String -> m ()
+-- logMessage lvl s = liftStrategy $ do
+--   v <- StrategyM (gets stsVerbosity)
+--   logMessage' v lvl s
 
 -- -----------------------------------------------------------------------------
 -- Class
 
 class Monad m => LiftStrategyM m where
   liftStrategy :: StrategyM a -> m a
-
 
 instance LiftStrategyM StrategyM where
   liftStrategy = id
@@ -358,10 +331,4 @@ instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWST r w s m) where
 
 -- -----------------------------------------------------------------------------
 -- Instances
-
-instance HasGUID StrategyM where
-  guidState f = StrategyM (state go)
-    where
-      go s = let (r, guid') = f (stsNextGUID s)
-             in (r, s { stsNextGUID = guid' })
 

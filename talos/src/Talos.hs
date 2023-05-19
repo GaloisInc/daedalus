@@ -6,6 +6,7 @@
 module Talos (
   -- * High-level synthesis operators
   synthesise,
+  SynthesisOptions(..),
   summarise,
   -- * Useful helpers
   runDaedalus,
@@ -17,15 +18,15 @@ import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
                                                readIORef, writeIORef)
 import qualified Data.Map                     as Map
-import           Data.Maybe                  (fromMaybe)
+import           Data.Maybe                   (fromMaybe)
 import           Data.String                  (fromString)
 import           Data.Version
 import qualified SimpleSMT                    as SMT
+import qualified Streaming                    as S
 import           System.Exit                  (exitFailure)
 import           System.IO                    (IOMode (..), hFlush, hPutStr,
                                                hPutStrLn, openFile, stderr,
-                                               stdout)
-import           System.IO.Streams            (InputStream)
+                                               stdout, Handle)
 import           Text.ParserCombinators.ReadP (readP_to_S)
 import qualified Text.ParserCombinators.ReadP as RP
 
@@ -43,9 +44,10 @@ import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
 import           Talos.Passes
 import           Talos.Strategy
-import           Talos.Strategy.Monad         (logMessage')
 import           Talos.SymExec.Path           (ProvenanceMap)
 import qualified Talos.Synthesis              as T
+import Data.Functor.Of (Of)
+import Talos.Monad (runTalosStream, runTalosM)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -67,10 +69,8 @@ summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
   putStrLn "Slices"
-  let (summs, msgs, _) = A.summarise p md nguid
+  summs <- runTalosM md nguid Nothing (A.summarise p)
   
-  -- Log all messages
-  mapM_ (uncurry (logMessage' verbosity)) msgs
   pure (bullets (map goF (Map.toList summs)))
   where
     goF (fn, m) =
@@ -106,46 +106,49 @@ errorExit msg = do
   hFlush stderr
   exitFailure
 
+data SynthesisOptions = SynthesisOptions
+  { inputFile       :: FilePath           -- ^ DDL file
+  , inverseFile     :: Maybe FilePath     -- ^ Inverse file
+  , entry           :: Maybe String       -- ^ Entry
+  , solverPath      :: FilePath           -- ^ Backend solver executable
+  , solverArgs      :: [String]           -- ^ Solver args
+  , solverOpts      :: [(String, String)] -- ^ Backend solver options
+  , solverInit      :: IO ()              -- ^ Backend solver init
+  , synthesisStrats :: Maybe [String]     -- ^ Synthesis strategies
+  , loggingOpts     :: Maybe (Int, Maybe FilePath) -- ^ Logging options
+  , seed            :: Maybe Int          -- ^ Random seed
+  , analysisEnv     :: String             -- ^ Analysis abstract env.
+  , verbosity       :: Int                -- ^ Verbosity
+  , eraseLoops      :: Bool               -- ^ No loops
+  , statsHandle     :: Maybe Handle       -- ^ Output file for stats
+  }
 
-synthesise :: FilePath           -- ^ DDL file
-           -> Maybe FilePath     -- ^ Inverse file
-           -> Maybe String       -- ^ Entry
-           -> FilePath           -- ^ Backend solver executable
-           -> [String]           -- ^ Solver args
-           -> [(String, String)] -- ^ Backend solver options
-           -> IO ()              -- ^ Backend solver init
-           -> Maybe [String]     -- ^ Synthesis strategies
-           -> Maybe (Int, Maybe FilePath) -- ^ Logging options
-           -> Maybe Int          -- ^ Random seed
-           -> String             -- ^ Analysis abstract env.
-           -> Int                -- ^ Verbosity
-           -> Bool               -- ^ No loops
-           -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit
-           stratOpt m_logOpts m_seed absEnv verbosity noLoops = do
-  (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry noLoops
+synthesise :: SynthesisOptions
+           -> IO (S.Stream (Of (Value, ByteString, ProvenanceMap)) IO ())
+synthesise SynthesisOptions { .. } = do
+  (mainRule, md, nguid) <- runDaedalus inputFile inverseFile entry eraseLoops
 
   -- SMT init
-  logger <- case m_logOpts of
+  logger <- case loggingOpts of
               Nothing        -> pure Nothing
               Just (i, m_f)  -> Just <$> newFileLogger m_f i
 
-  solver <- SMT.newSolver backend bArgs logger
+  solver <- SMT.newSolver solverPath solverArgs logger
 
   -- Check version: z3 before 4.8.10 (or .9) seems to have an issue
   -- with match.  
   -- z3VersionCheck solver
 
   -- Set options
-  forM_ bOpts $ \(opt, val) -> do
+  forM_ solverOpts $ \(opt, val) -> do
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
-  absty <- case lookup absEnv A.absEnvTys of
+  absty <- case lookup analysisEnv A.absEnvTys of
     Just x -> pure x
-    _      -> errorExit ("Unknown abstract env " ++ absEnv)
+    _      -> errorExit ("Unknown abstract env " ++ analysisEnv)
 
-  let strats = fromMaybe ["pathsymb"] stratOpt
+  let strats = fromMaybe ["pathsymb"] synthesisStrats
 
   stratInsts <- case parseStrategies strats of
                   Left err -> errorExit err
@@ -153,8 +156,9 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
-  bInit
-  T.synthesise m_seed nguid solver absty stratInsts mainRule md verbosity
+  solverInit
+  let strm = T.synthesise seed solver absty stratInsts mainRule
+  pure (runTalosStream md nguid statsHandle strm)
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type

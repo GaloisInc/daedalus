@@ -30,6 +30,7 @@ import           Talos.Strategy.Monad
 import           Talos.Strategy.OptParser        (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser        as P
 import           Talos.SymExec.Path
+import Talos.Monad (getIEnv)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -156,7 +157,7 @@ randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
 mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice -> m SelectedPath
 mkStrategyFun ptag sl = do
-  env0 <- getIEnv -- for pure function implementations
+  env0 <- liftStrategy getIEnv -- for pure function implementations
   snd <$> runReaderT (stratSlice ptag sl) env0 
 
 stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice

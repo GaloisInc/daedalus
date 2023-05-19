@@ -781,7 +781,7 @@ fixModelIn ms m = withScopedContext $ do
 
 modelStateToSExpr :: LiftStrategyM m => ModelState -> m S.SExpr
 modelStateToSExpr ms = do
-  tdefs <- getTypeDefs
+  tdefs <- liftStrategy getTypeDefs
   pure (S.andMany (values tdefs ++ choices ++ loops))
   where
     values tdefs = map (valuePred tdefs) (Map.toList (msValues ms))
