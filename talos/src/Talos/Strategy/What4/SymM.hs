@@ -1,3 +1,12 @@
+{-|
+ 
+Provides the 'W4SolverT' monad transformer for adding a solver connection
+and variable binding environment to a given monad. Additionally it
+supports adding assumptions that are introduced along any execution path
+(i.e. with multiple paths for an 'Alternative' monad).
+
+-}
+
 
 {-# Language MultiParamTypeClasses #-}
 {-# Language FunctionalDependencies #-}
@@ -22,8 +31,6 @@ module Talos.Strategy.What4.SymM(
  , W4SolverT
  , W4SolverEnv
  , rec_limit
- , intToBV
- , SomeW4SolverEnv(..)
  , withSomeSolverEnv
  , runW4Solver
  , withSym
@@ -35,13 +42,10 @@ module Talos.Strategy.What4.SymM(
  , addAssumption
  , collapseAssumptions
  , checkAsms
-) where
+, viewSolverEnv) where
 
 import           Control.Applicative (Alternative)
 import           Control.Monad.Reader
-import           Control.Monad.IO.Class
-import qualified System.IO.Unsafe                as IO
-
 import qualified Data.IORef                      as IO
 import qualified Data.Map                        as Map
 
@@ -50,7 +54,6 @@ import           Data.Parameterized.Classes
 import qualified Data.Parameterized.Nonce        as N
 
 import qualified What4.Interface                 as W4
-import qualified What4.ProgramLoc                as W4
 import qualified What4.Expr                      as WE
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -59,17 +62,17 @@ import           Daedalus.PP
 
 import           Talos.Strategy.Monad
 import           Talos.Strategy.What4.Solver
-import qualified Data.Parameterized.Context      as Ctx
 
-import Unsafe.Coerce (unsafeCoerce)
 import Control.Monad.Catch
-import qualified Data.Kind as DK
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.Trans.Writer (WriterT, runWriterT)
 import Control.Monad.Writer.Class
 
-
+-- | A wrapper around 'W4.SymFn' that existentially quantifies over the argument
+-- and return types for the function.
+-- Additionally it contains a secondary 'W4.SymFn' that represents any assumptions
+-- that should be added to current execution path if this function is executed.
 data SomeSymFn sym = forall args ret. SomeSymFn
   { someSymFn :: W4.SymFn sym args ret
   , someSymFnAsms :: W4.SymFn sym args W4.BaseBoolType
@@ -79,32 +82,28 @@ type NameEnv sym = Map.Map Name (Some (W4.SymExpr sym))
 
 type FnEnv sym = Map.Map FName (SomeSymFn sym, Fun Expr)
 
--- This could also do a better job of having context-sensitive expression caches, which would cut
--- down translation time, depending on how much it ends up dominating time of the strategy
+-- | The execution environment that is attached when using 'W4SolverT'.
 data W4SolverEnv sym = W4.IsSymExprBuilder sym => 
-  W4SolverEnv { solver :: SolverSym sym, nameEnv :: NameEnv sym, fnCache :: IO.IORef (FnEnv sym),
-                local_fns :: Map.Map FName (SomeSymFn sym, Fun Expr), rec_limit :: Integer,
-                intToBV :: forall n. W4.NatRepr n ->  (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) (W4.BaseBVType n))
+  W4SolverEnv {   solver :: SolverSym sym
+                -- ^ expression builder and online solver connection
+                , nameEnv :: NameEnv sym
+                -- ^ binding environment for local variables
+                , fnCache :: IO.IORef (FnEnv sym)
+                -- ^ cached results for function translations
+                , local_fns :: FnEnv sym
+                -- ^ a local function-binding environment, which takes
+                -- precedence over the cache
+                , rec_limit :: Integer
+                -- ^ limit to use when unwinding recursive functions.
+                -- FIXME: recursion support is still highly experimental
               }
 
-mkIntToBV ::
-  W4.IsSymExprBuilder sym =>
-  1 W4.<= n =>
-  sym ->
-  W4.NatRepr n ->
-  IO (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) ( W4.BaseBVType n))
-mkIntToBV sym n = do
-  liftIO $ W4.freshTotalUninterpFn sym W4.emptySymbol (Ctx.singleton (W4.BaseIntegerRepr)) (W4.BaseBVRepr n)
-
-  --var <- W4.freshBoundVar sym W4.emptySymbol W4.BaseIntegerRepr
-
-  --body <- liftIO $ W4.integerToBV sym (W4.varExpr sym var) n 
-
-  --liftIO $ W4.definedFn sym W4.emptySymbol (Ctx.singleton var) body W4.NeverUnfold
-
+-- | Initialize a fresh 'W4SolverEnv' with empty binding environments, 
+-- a new expression builder and default online solver connection (currently Z3),
+-- which is valid in the given continuation.
 withInitEnv :: 
   (MonadIO m, MonadMask m) =>
-  (forall sym. W4SolverEnv sym -> m a) -> m a
+  (forall sym. W4.IsSymExprBuilder sym => W4SolverEnv sym -> m a) -> m a
 withInitEnv f = do
   Some gen <- liftIO N.newIONonceGenerator
   (sym :: sym) <- liftIO $ WE.newExprBuilder WE.FloatRealRepr WE.EmptyExprBuilderState gen
@@ -112,24 +111,26 @@ withInitEnv f = do
   withOnlineSolver Z3 Nothing sym $ \bak -> do
     let ssym = SolverSym sym bak
     fnCacheRef <- liftIO $ IO.newIORef mempty
-    intToBV8 <- liftIO $ mkIntToBV sym (W4.knownNat @8)
-    let 
-      intToBV_ :: forall n. W4.NatRepr n ->  (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseIntegerType) (W4.BaseBVType n))
-      intToBV_ n = if | Just Refl <- testEquality n (W4.knownNat @8) -> intToBV8
-                      | otherwise -> error "missing intToBV"
+    f (W4SolverEnv ssym mempty fnCacheRef mempty 1)
 
-    f (W4SolverEnv ssym mempty fnCacheRef mempty 1 intToBV_)
-
+-- | Retrieve the expression builder and associated type constraint from
+-- a 'W4SolverEnv'
 withSymEnv :: W4SolverEnv sym -> (W4.IsSymExprBuilder sym => sym -> a) -> a
-withSymEnv (W4SolverEnv (SolverSym sym _) _ _ _ _ _) f = f sym
+withSymEnv (W4SolverEnv (SolverSym sym _) _ _ _ _) f = f sym
 
-
+-- Wraps 'withInitEnv' with an existentially-quantified 'W4SolverEnv'
 withSomeSolverEnv ::
   (MonadIO m, MonadMask m) =>
-  (SomeW4SolverEnv -> m a) -> m a
-withSomeSolverEnv f = withInitEnv $ \env -> withSymEnv env $ \_sym ->
-  f (SomeW4SolverEnv env)
+  (Some W4SolverEnv -> m a) -> m a
+withSomeSolverEnv f = withInitEnv $ \env -> f (Some env)
 
+-- Establish 'W4.IsSymExprBuilder' for 'sym' from a 'W4SolverEnv'
+viewSolverEnv ::
+  W4SolverEnv sym -> (W4.IsSymExprBuilder sym => a) -> a
+viewSolverEnv (W4SolverEnv{}) f = f
+
+-- | Internal assumption type, used simply to establish an 'Ord' instance
+-- for 'W4.Pred' so we can use it in a 'Set'
 data Assumption sym = OrdF (W4.SymExpr sym) => Assumption (W4.Pred sym)
 
 instance Eq (Assumption sym) where
@@ -140,9 +141,14 @@ instance Eq (Assumption sym) where
 instance Ord (Assumption sym) where
   compare (Assumption p1) (Assumption p2) = toOrdering (compareF p1 p2)
 
+-- | A collection of What4 predicates (set union is implicitly conjunction)
 newtype Assumptions sym = Assumptions (Set (Assumption sym))
   deriving (Monoid, Semigroup)
 
+-- | A simple monad transformer that can collect ad-hoc assumptions as part of its output, with an associated
+-- online solver connection and variable binding environments.
+-- NOTE: We have 'W4SolverT_' and 'W4SolverT'. This (the former) defines the actual type, while
+-- the latter adds the collection of type constraints that are normally applied.
 newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: WriterT (Assumptions sym) (ReaderT (W4SolverEnv sym) m) a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadReader (W4SolverEnv sym), 
             LiftStrategyM, Alternative, MonadPlus, MonadCatch, MonadThrow, MonadMask,
@@ -155,6 +161,9 @@ instance MonadTrans (W4SolverT_ sym) where
 instance (MonadIO m, MonadCatch m, MonadThrow m, MonadMask m) => SolverM sym (W4SolverT_ sym m) where
   getSolverSym = asks solver
 
+-- | Alias to 'W4SolverT_' with a default set of type constraints.
+--   This can be used for most function signatures, but the 'W4SolverT_' is
+--   needed for type class instances, etc.
 type W4SolverT sym m a = 
   (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m, MonadMask m, MonadCatch m, MonadThrow m) => 
     W4SolverT_ sym m a
@@ -162,38 +171,9 @@ type W4SolverT sym m a =
 instance MonadIO m => MonadFail (W4SolverT_ sym m) where
   fail msg = liftIO $ fail msg
 
--- Opaque type that stands for our top-level expression builder
--- This is never exported, since the interface abstracts it away (see: 'asSomeSolver')
--- FIXME: unused currently
-
-type Sym = SymOf SomeSym
-type family SymOf t :: DK.Type
-
-unsafeCoerceToSym :: W4.IsSymExprBuilder sym => sym -> (sym :~: Sym)
-unsafeCoerceToSym _ = unsafeCoerce Refl
-
-data SomeSym = forall sym. W4.IsSymExprBuilder sym => SomeSym sym
-
--- | Singleton reference for a global handle on a single expression builder
-singletonSym_ref :: IO.IORef (Maybe SomeSym)
-singletonSym_ref = IO.unsafePerformIO (IO.newIORef Nothing)
-
--- | This is a sanity check that initializes the global expression builder,
---   and checks that any subsequent attempts at initialization necessarily use
---   the same builder.
-initSym :: W4.IsSymExprBuilder sym => sym -> IO (sym :~: Sym)
-initSym sym1 = do
-  msym2 <- IO.atomicModifyIORef' singletonSym_ref $ \msym -> case msym of
-    Just (SomeSym sym2) -> (msym, Just (SomeSym sym2))
-    Nothing -> (Just (SomeSym sym1), Nothing)
-  case msym2 of
-    Just (SomeSym sym2) -> testSymEquality sym1 sym2 >>= \case
-      Just Refl -> return $ unsafeCoerceToSym sym1
-      Nothing -> fail "attempted to initialize Sym to different builder"
-    Nothing -> return $ unsafeCoerceToSym sym1
-
-data SomeW4SolverEnv = forall sym. W4.IsSymExprBuilder sym => SomeW4SolverEnv (W4SolverEnv sym)
-
+-- | Run a 'W4SolverT' in the given environment, and return the result along
+-- with a conjunction of any assumptions that were emitted during execution
+-- (i.e. with 'addAssumption')
 runW4Solver ::
   MonadIO m =>
   W4SolverEnv sym ->
@@ -204,6 +184,9 @@ runW4Solver env (W4SolverT_ f) = do
   p <- withSymEnv env $ \sym -> collapseAssumptions sym asms
   return (a, p)
 
+-- | Add an assumption to the current computation path. Note that this does not
+-- affect the context of the solver (i.e. in contrast to 'What4.Solver.withAssumption'),
+-- but simply adds to the output of the 'W4SolverT' execution.
 addAssumption ::
   W4.Pred sym ->
   W4SolverT sym m ()
@@ -221,8 +204,12 @@ collapseAssumptions ::
 collapseAssumptions sym (Assumptions asms) =
   foldM (\a (Assumption b) -> liftIO (W4.andPred sym a b)) (W4.truePred sym) asms
 
+-- | Collect the assumptions emitted from the inner computation and
+-- check that they are not inconsistent (i.e. trivially false) 
+-- before returning, panicking otherwise.
+-- FIXME: We can consider using the solver here as well.
 checkAsms ::
-  [String] ->
+  [String] {- ^ debugging message to attach if the resulting assumptions are inconsistent -} ->
   W4SolverT_ sym m a ->
   W4SolverT sym m a
 checkAsms msg f = withSym $ \sym -> do
@@ -232,9 +219,21 @@ checkAsms msg f = withSym $ \sym -> do
     Just False -> panic "False assumptions" msg
     _ -> return a  
 
-bindVarIn :: Monad m => Name -> W4.SymExpr sym tp -> W4SolverT_ sym m a -> W4SolverT_ sym m a
+-- | Execute the given continuation in a context where the given
+-- 'Name' is bound to the given 'W4.SymExpr'.
+-- NOTE: This does not validate the type in the 'Name' (i.e. 'nameType')
+-- against the type of the expression (i.e. 'tp')
+bindVarIn :: 
+  Monad m => 
+  Name {- ^ name to bind -} -> 
+  W4.SymExpr sym tp {- ^ expression to bind to the name -} -> 
+  W4SolverT_ sym m a {- ^ continuation to run with the binding in scope -} -> 
+  W4SolverT_ sym m a
 bindVarIn nm e f = local (\env -> env { nameEnv = Map.insert nm (Some e) (nameEnv env)}) f
 
+-- | Retrieves the 'W4.SymExpr' bound to the given 'Name' in the current environment.
+-- Panics if the name is not bound.
+-- TODO: Make a 'Maybe' variant of this.
 getVar :: Monad m => Name -> W4SolverT_ sym m (Some (W4.SymExpr sym))
 getVar nm = do
   env <- asks nameEnv
@@ -246,10 +245,16 @@ liftMaybe :: Monad m => Maybe a -> W4SolverT_ sym m a
 liftMaybe (Just a) = return a
 liftMaybe Nothing = panic "liftMaybe" []
 
--- | withLocalFunction overrides the result of 'withFNameCache'
+-- | Bind a 'FName' (function name) to a function to a 'SomeSymFn' (and corresponding 'Fun Expr')
+-- in the current environment. In particular this is a local binding which overrides
+-- any cached functions (i.e. as a result of using 'withFNameCache').
 withLocalFunction :: Monad m => FName -> SomeSymFn sym -> Fun Expr -> W4SolverT_ sym m a -> W4SolverT_ sym m a
 withLocalFunction fname fn fne f = local (\env -> env { local_fns = Map.insert fname (fn,fne) (local_fns env )}) f
 
+-- | Returns the 'SomeSymFn' and 'Fun Expr' associated with the provided 'FName',
+-- either by running the given 'f' or by finding the given function in the cache.
+-- NOTE: This function is stateful, so a function definition should only be translated
+-- once across all explored branches.
 withFNameCache :: MonadIO m => FName -> W4SolverT_ sym m (SomeSymFn sym, Fun Expr) -> W4SolverT_ sym m (SomeSymFn sym, Fun Expr)
 withFNameCache fname f = do
   locals <- asks local_fns
@@ -264,26 +269,3 @@ withFNameCache fname f = do
           a <- f
           liftIO $ IO.modifyIORef' ref (Map.insert fname a)
           return a
-
--- | Hack to check if both expression builders are the same.
---   If they have the same IO reference to control the "current" program location
---   then they are necessarily the same builder.
-testSymEquality ::
-  W4.IsSymExprBuilder sym1 =>
-  W4.IsSymExprBuilder sym2 =>
-  sym1 ->
-  sym2 ->
-  IO (Maybe (sym1 :~: sym2))
-testSymEquality sym1 sym2 = do
-  loc1 <- W4.getCurrentProgramLoc sym1
-  W4.setCurrentProgramLoc sym1 (W4.mkProgramLoc "loc1" W4.InternalPos)
-  loc2 <- W4.getCurrentProgramLoc sym2
-  let loc2' = W4.mkProgramLoc "loc2" W4.InternalPos
-  W4.setCurrentProgramLoc sym2 loc2'
-  loc1' <- W4.getCurrentProgramLoc sym1
-  -- undo the program loc mangling
-  W4.setCurrentProgramLoc sym1 loc1
-  W4.setCurrentProgramLoc sym2 loc2
-  case loc1' == loc2' of
-    True -> return (Just (unsafeCoerce Refl))
-    False -> return Nothing

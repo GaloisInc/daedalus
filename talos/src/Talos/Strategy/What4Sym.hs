@@ -65,6 +65,7 @@ import Control.Monad.Writer.Class
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
+type SomeW4SolverEnv = Some W4SolverEnv
 
 -- FIXME: maybe unify these into a single parameterised strat 'rand backtrack=dfs ...'
 what4DFS :: Strategy
@@ -166,7 +167,7 @@ what4MaybeStrat ptag sl = trivialStratGen . lift $ do
 
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
 mkStrategyFun :: (MonadPlus m, LiftStrategyM m, MonadIO m, MonadMask m, MonadCatch m, MonadThrow m) => SomeW4SolverEnv -> ProvenanceTag -> ExpSlice -> m SelectedPath
-mkStrategyFun (SomeW4SolverEnv solverEnv0) ptag sl = do
+mkStrategyFun (Some solverEnv0) ptag sl = viewSolverEnv solverEnv0 $ do
   env0 <- getIEnv -- for pure function implementations
   fst <$> runW4StratT solverEnv0 env0 (stratSliceConcrete ptag sl)
 
