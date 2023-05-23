@@ -50,7 +50,7 @@ library
     Daedalus.Core.Semantics.Decl
 
   build-depends:
-    base >=4.13 && <4.17,
+    base >=4.13 && <5,
     bytestring,
     text,
     containers,

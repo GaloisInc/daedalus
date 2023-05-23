@@ -27,9 +27,6 @@ import qualified Data.Text.Lazy as Text
 import           GHC.Records(HasField, getField)
 import           Text.PrettyPrint
 
--- pkg linguistic-ordinals:
-import qualified Text.Ordinal
-
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
 
@@ -346,12 +343,11 @@ printUpdateSummary updates =
              
       incUpdateName n =
         (if gd then
-           if n == 0 then "base, " else showOrdinal' n ++ " applied, "
+           if n == 0 then "base, " else show n ++ " applied, "
          else
            "")
-        ++ showOrdinal' (len-n) ++ " found"
-        where
-        showOrdinal' = Text.unpack . Text.Ordinal.showOrdinal 
+        ++ show (len-n) ++ " found"
+
 
   case updates of
     U_Success{} -> logInfo $
