@@ -5,8 +5,10 @@ module Talos.Monad where
 
 import           Control.Monad.RWS         (RWST)
 import           Control.Monad.Reader      (ReaderT)
-import           Control.Monad.State       (MonadIO, MonadTrans (lift),
-                                            StateT (..), gets, state, evalStateT)
+import           Control.Monad.State.Strict (MonadIO, MonadTrans (lift),
+                                             StateT (..), gets, state, evalStateT)
+import qualified Control.Monad.State as St
+                 
 import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe (MaybeT)
 import           Control.Monad.Writer      (WriterT)
@@ -116,6 +118,9 @@ instance LiftTalosM TalosM where
 
 instance LiftTalosM m => LiftTalosM (StateT s m) where
   liftTalosM = lift . liftTalosM
+instance LiftTalosM m => LiftTalosM (St.StateT s m) where
+  liftTalosM = lift . liftTalosM
+ 
 instance LiftTalosM m => LiftTalosM (ReaderT s m) where
   liftTalosM = lift . liftTalosM
 instance (Monoid w, LiftTalosM m) => LiftTalosM (WriterT w m) where
