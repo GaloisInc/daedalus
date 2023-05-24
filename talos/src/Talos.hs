@@ -13,6 +13,7 @@ module Talos (
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
+import           Control.Monad                (forM_, unless, when)
 import           Control.Monad.State
 import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
@@ -24,11 +25,11 @@ import           Data.Version
 import qualified SimpleSMT                    as SMT
 import qualified Streaming                    as S
 import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush, hPutStr,
-                                               hPutStrLn, openFile, stderr,
-                                               stdout, Handle)
-import           Text.ParserCombinators.ReadP (readP_to_S)
+import           System.IO                    (Handle, IOMode (..), hFlush,
+                                               hPutStr, hPutStrLn, openFile,
+                                               stderr, stdout)
 import qualified Text.ParserCombinators.ReadP as RP
+import           Text.ParserCombinators.ReadP (readP_to_S)
 
 import           Daedalus.AST                 (nameScopeAsModScope)
 import           Daedalus.Core
@@ -39,15 +40,15 @@ import           Daedalus.Rec                 (forgetRecs)
 import           Daedalus.Type.AST            (tcDeclName, tcModuleDecls)
 import           Daedalus.Value               (Value)
 
+import           Data.Functor.Of              (Of)
 import qualified Talos.Analysis               as A
 import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
+import           Talos.Monad                  (runTalosM, runTalosStream)
 import           Talos.Passes
 import           Talos.Strategy
 import           Talos.SymExec.Path           (ProvenanceMap)
 import qualified Talos.Synthesis              as T
-import Data.Functor.Of (Of)
-import Talos.Monad (runTalosStream, runTalosM)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }

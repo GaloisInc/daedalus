@@ -43,6 +43,7 @@ module Talos.SymExec.SolverT (
 
 import           Control.Applicative
 import           Control.Lens
+import           Control.Monad             (MonadPlus, when, void)
 import           Control.Monad.Reader      (ReaderT)
 import           Control.Monad.State
 import           Control.Monad.Trans.Free  (FreeT)

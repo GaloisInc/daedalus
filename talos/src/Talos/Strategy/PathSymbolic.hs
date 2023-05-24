@@ -13,6 +13,8 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
 import           Control.Lens                              (_1, _2, each, over)
+import           Control.Monad                             (forM_, when,
+                                                            zipWithM, (<=<))
 import           Control.Monad.Reader
 import           Control.Monad.Writer                      (censor, pass)
 import           Data.Bifunctor                            (second)
@@ -21,7 +23,8 @@ import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
 import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, mapMaybe, fromMaybe)
+import           Data.Maybe                                (catMaybes,
+                                                            fromMaybe, mapMaybe)
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 import           GHC.Generics                              (Generic)
@@ -34,28 +37,32 @@ import           Daedalus.Core                             hiding (streamOffset,
 import           Daedalus.Core.Free                        (freeVars)
 import qualified Daedalus.Core.Semantics.Env               as I
 import           Daedalus.Core.Type
-import           Daedalus.PP                               (showPP, text)
 import           Daedalus.Panic
+import           Daedalus.PP                               (showPP, text)
 import           Daedalus.Rec                              (topoOrder)
 
+import qualified Daedalus.Value                            as V
 import           Talos.Analysis.Exported                   (ExpCallNode (..),
                                                             ExpSlice, SliceId,
                                                             sliceToCallees)
 import           Talos.Analysis.Slice
+import           Talos.Monad                               (getIEnv, getModule,
+                                                            getRawGUID)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.OptParser                  (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser                  as P
-import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
+import           Talos.Strategy.OptParser                  (Opt, parseOpts)
 import           Talos.Strategy.PathSymbolic.Monad
+import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
                                                             MuxValue (..),
                                                             VSequenceMeta (..),
                                                             ValueMatchResult (..),
                                                             vUInt, vUnit)
-import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.PathCondition (PathCondition,
-                                                            PathVar, loopCountToSExpr)
+import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
+import           Talos.Strategy.PathSymbolic.PathCondition (PathCondition,
+                                                            PathVar,
+                                                            loopCountToSExpr)
 import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.Funs                        (defineSliceFunDefs,
                                                             defineSlicePolyFuns)
@@ -67,8 +74,6 @@ import           Talos.SymExec.SolverT                     (declareName,
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type                        (defineSliceTypeDefs,
                                                             symExecTy)
-import qualified Daedalus.Value as V
-import Talos.Monad (getModule, getIEnv, getRawGUID)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats

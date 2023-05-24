@@ -16,12 +16,15 @@ import           Control.Lens                              (Lens', Setter', _1,
                                                             _2, _3, at, each,
                                                             ifoldlM, locally,
                                                             mapped, over,
-                                                            scribe, view, views,
-                                                            (%=), (%~), (&),
-                                                            (+~), (.~), (<>~), uses)
+                                                            scribe, uses, view,
+                                                            views, (%=), (%~),
+                                                            (&), (+~), (.~),
+                                                            (<>~))
+import           Control.Monad                             (join, unless,
+                                                            zipWithM)
+import           Control.Monad.Reader
 import           Control.Monad.RWS                         (RWST, censor,
                                                             mapRWST, runRWST)
-import           Control.Monad.Reader
 import qualified Data.ByteString                           as BS
 import           Data.Foldable                             (find)
 import           Data.Functor                              (($>))
@@ -44,34 +47,39 @@ import           Daedalus.Core                             hiding (streamOffset,
                                                             tByte)
 import qualified Daedalus.Core.Semantics.Env               as I
 import qualified Daedalus.Core.Semantics.Expr              as I
-import           Daedalus.PP                               (Doc, brackets,
-                                                            commaSep, pp,
-                                                            showPP, text, PP, braces, bullets)
 import           Daedalus.Panic
+import           Daedalus.PP                               (Doc, PP, braces,
+                                                            brackets, bullets,
+                                                            commaSep, pp,
+                                                            showPP, text)
 import           Daedalus.Time                             (timeIt)
 import qualified Daedalus.Value                            as I
 
+import           System.IO                                 (hFlush, stdout)
+import           Talos.Monad                               (getIEnv,
+                                                            getTypeDefs)
 import           Talos.Strategy.Monad
 import           Talos.Strategy.PathSymbolic.Monad
+import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExpr,
                                                             GuardedSemiSExprs,
                                                             MuxValue (..),
                                                             VSequenceMeta (..))
-import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
+import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
+import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountConstraint,
+                                                            LoopCountVar,
                                                             PathCondition,
                                                             PathVar,
                                                             ValuePathConstraint,
                                                             loopCountToSExpr,
                                                             loopCountVarToSExpr,
-                                                            pathVarToSExpr, LoopCountConstraint)
-import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
+                                                            pathVarToSExpr)
 import           Talos.SymExec.ModelParser                 (evalModelP, pExact,
                                                             pNumber, pSExpr,
                                                             pValue)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT                     (SMTVar, SolverT)
 import qualified Talos.SymExec.SolverT                     as Solv
+import           Talos.SymExec.SolverT                     (SMTVar, SolverT)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -377,7 +385,7 @@ buildPaths _ntotal _nfails sm pb = do
     Solv.flush
   liftIO $ printf "Initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
   (r, tcheck) <- timeIt Solv.check
-  liftIO $ printf "Initial solve time: %.3fms" (fromInteger tcheck / 1000000 :: Double)
+  liftIO $ printf "Initial solve time: %.3fms\n" (fromInteger tcheck / 1000000 :: Double)
   case r of
     S.Unsat   -> pure []
     S.Unknown -> pure []
@@ -673,7 +681,7 @@ gsesModel gses = join <$> (traverse (gseModel . snd) =<< findM go els)
 build :: SymbolicLoopTag -> SymbolicLoopPoolElement -> [SymbolicLoopPoolElement] ->
          ModelParserM' () SelectedLoopPool
 build gentag genpe deppes =
-  withScopedContext $ SelectedLoopPoolF <$> go 0 10 [] <*> pure cursors   
+  withScopedContext $ SelectedLoopPoolF <$> go 0 200 [] <*> pure cursors   
   where 
     go :: Int -> Int -> [(SelectedPath, [SelectedPath])] ->
           ModelParserM' () [(SelectedPath, [SelectedPath])]
@@ -687,6 +695,7 @@ build gentag genpe deppes =
     tryAgain ms acc m = do
       assertDifferentModel ms
       r <- inSolver Solv.check
+      liftIO $ putStr "." >> hFlush stdout
       case r of
         S.Unsat   -> pure acc
         S.Unknown -> pure acc

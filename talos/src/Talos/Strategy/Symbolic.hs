@@ -8,6 +8,7 @@
 module Talos.Strategy.Symbolic (symbolicStrat) where
 
 import           Control.Lens                 (_3, over)
+import           Control.Monad                (forM_)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
@@ -35,11 +36,12 @@ import qualified Daedalus.Value               as I
 import           Talos.Analysis.Exported      (ExpCallNode (..), ExpSlice,
                                                SliceId, sliceToCallees)
 import           Talos.Analysis.Slice
+import           Talos.Monad                  (getIEnv, getModule)
 import           Talos.Strategy.MemoSearch    (memoSearch, randAccelDFSPolicy,
                                                randDFSPolicy, randRestartPolicy)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.OptParser     (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser     as P
+import           Talos.Strategy.OptParser     (Opt, parseOpts)
 import           Talos.Strategy.SymbolicM
 import           Talos.SymExec.Expr           (symExecCaseAlts)
 import           Talos.SymExec.Funs           (defineSliceFunDefs,
@@ -48,13 +50,12 @@ import           Talos.SymExec.ModelParser    (evalModelP, pByte, pValue)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SemiExpr
 import           Talos.SymExec.SemiValue      as SE
+import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.SolverT        (SolverT, declareName,
                                                declareSymbol, liftSolver, reset,
                                                scoped)
-import qualified Talos.SymExec.SolverT        as Solv
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type           (defineSliceTypeDefs, symExecTy)
-import Talos.Monad (getModule, getIEnv)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats

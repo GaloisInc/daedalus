@@ -88,12 +88,12 @@ library
                      , rts-hs-data
                      , vector
                      , parameterized-utils
-                     , mtl
+                     , mtl >= 2.3.1
                      , containers >= 0.6.4
                      , bytestring
                      , simple-smt >= 0.9.6
                      , streaming
-                     , transformers
+                     , transformers >= 0.5.6.2
                      , IntervalMap
                      , split
                      , deepseq

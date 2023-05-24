@@ -11,6 +11,7 @@
 module Talos.Strategy.SymbolicM where
 
 import           Control.Lens
+import           Control.Monad            (join)
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Free
@@ -24,17 +25,18 @@ import           SimpleSMT                (ppSExpr)
 
 import           Daedalus.Core            (Expr, Name, Typed (..), nameId)
 import           Daedalus.GUID            (GUID, getNextGUID)
-import           Daedalus.PP
 import           Daedalus.Panic           (panic)
+import           Daedalus.PP
 import           Daedalus.Rec             (Rec)
 
 import           Talos.Analysis.Exported  (ExpSlice, SliceId)
+import           Talos.Monad              (getIEnv)
 import           Talos.Strategy.Monad
 import           Talos.SymExec.Path
-import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM, runSemiSolverM)
-import           Talos.SymExec.SolverT    (SolverT, MonadSolver)
+import           Talos.SymExec.SemiExpr   (SemiSExpr, SemiSolverM,
+                                           runSemiSolverM)
 import qualified Talos.SymExec.SolverT    as Solv
-import Talos.Monad (getIEnv)
+import           Talos.SymExec.SolverT    (MonadSolver, SolverT)
 
 --------------------------------------------------------------------------------
 -- The free monad for searching

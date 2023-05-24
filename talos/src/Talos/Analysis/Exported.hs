@@ -18,9 +18,9 @@ module Talos.Analysis.Exported
 
 import           Control.Lens                    (at, (.=))
 import           Control.Lens.Lens               ((<<+=))
+import           Control.Monad                   (void)
 import           Control.Monad.Reader            (MonadReader (ask, local),
-                                                  ReaderT (..), asks, void)
-
+                                                  ReaderT (..), asks)
 import           Control.Monad.State             (MonadState (get, put), State,
                                                   StateT (runStateT), evalState,
                                                   gets, modify)
@@ -43,8 +43,8 @@ import           Daedalus.Core.Free
 import           Daedalus.Core.Subst             (Subst, substitute)
 import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
 import           Daedalus.GUID                   (HasGUID)
-import           Daedalus.PP                     (PP (..), block, parens)
 import           Daedalus.Panic                  (panic)
+import           Daedalus.PP                     (PP (..), block, parens)
 import           Daedalus.Rec                    (Rec (..), topoOrder)
 
 import           Talos.Analysis.Domain           (CallNode (..), Domain, Slice,

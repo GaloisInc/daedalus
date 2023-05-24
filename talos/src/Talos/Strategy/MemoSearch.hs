@@ -17,11 +17,12 @@ import           Control.Lens                   (At (at),
                                                  FoldableWithIndex (ifoldMap),
                                                  Ixed (ix), preuse, uses, (%%=),
                                                  (.=), (^?))
+import           Control.Monad                  (guard, join, zipWithM)
 import           Control.Monad.Reader           (runReaderT)
 import           Control.Monad.State            (MonadIO, MonadState,
                                                  MonadTrans (lift),
                                                  StateT (StateT), evalStateT,
-                                                 gets, guard, join, zipWithM)
+                                                 gets)
 import           Control.Monad.Trans.Free       (FreeF (Free, Pure),
                                                  FreeT (runFreeT))
 import           Control.Monad.Trans.Writer.CPS (WriterT, execWriter,
@@ -38,24 +39,24 @@ import           Data.Monoid                    (Any (Any), First (First),
 import           Data.Set                       (Set)
 import qualified Data.Set                       as Set
 import           GHC.Generics                   (Generic)
-import           SimpleSMT                      (SExpr, ppSExpr)
 import qualified SimpleSMT                      as SMT
+import           SimpleSMT                      (SExpr, ppSExpr)
 
 import           Daedalus.Core                  (Name, Typed (..), casePats,
                                                  caseVar, nameId)
 import           Daedalus.Core.Free             (freeVars)
+import           Daedalus.Panic                 (panic)
 import           Daedalus.PP                    (Doc, block, bullets, parens,
                                                  pp, ppPrec, showPP, text)
-import           Daedalus.Panic                 (panic)
 import           Daedalus.Rec                   (Rec (..), forgetRecs)
 
 import           Talos.Analysis.Exported        (ExpSlice, SliceId, ecnSliceId)
 import           Talos.Analysis.Slice           (Slice' (..))
 import           Talos.Strategy.Monad           (LiftStrategyM, StrategyM,
                                                  isRecVar, randR)
-import           Talos.Strategy.SearchTree      (Location)
 import qualified Talos.Strategy.SearchTree      as ST
-import           Talos.Strategy.SymbolicM hiding (inSolver)
+import           Talos.Strategy.SearchTree      (Location)
+import           Talos.Strategy.SymbolicM       hiding (inSolver)
 import           Talos.SymExec.SemiExpr         (SemiSExpr)
 import           Talos.SymExec.SemiValue        (SemiValue (..))
 import           Talos.SymExec.SolverT          (SMTVar, SolverContext,

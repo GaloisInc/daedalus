@@ -20,6 +20,7 @@
 module Talos.Strategy.PathSymbolic.MuxValue where
 
 import           Control.Lens                              (locally)
+import           Control.Monad                             (join, zipWithM)
 import           Control.Monad.Reader
 import           Control.Monad.State                       (StateT, modify,
                                                             runStateT)
@@ -42,8 +43,8 @@ import qualified Data.Vector                               as Vector
 import           GHC.Generics                              (Generic)
 import           GHC.Stack                                 (HasCallStack)
 
-import           SimpleSMT                                 (SExpr)
 import qualified SimpleSMT                                 as S
+import           SimpleSMT                                 (SExpr)
 
 import           Daedalus.Core                             hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env               as I
@@ -52,23 +53,23 @@ import           Daedalus.Core.Semantics.Expr              (evalOp0, evalOp1,
                                                             partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
 import qualified Daedalus.Value.Type                       as V
 
+import           Talos.Monad                               (getFunDefs)
 import           Talos.Strategy.Monad                      (LiftStrategyM,
                                                             liftStrategy)
+import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar,
                                                             PathCondition (..),
                                                             ValuePathConstraint (..),
                                                             loopCountVarToSMTVar)
-import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
 import qualified Talos.SymExec.Expr                        as SE
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-import Text.Printf (printf)
-import Talos.Monad (getFunDefs)
+import           Text.Printf                               (printf)
 
 --------------------------------------------------------------------------------
 -- GuardedValues

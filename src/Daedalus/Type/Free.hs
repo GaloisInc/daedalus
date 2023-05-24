@@ -7,7 +7,7 @@
 module Daedalus.Type.Free where
 
 import Control.Monad.State
-
+import Control.Monad (unless)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Graph.SCC(stronglyConnComp)

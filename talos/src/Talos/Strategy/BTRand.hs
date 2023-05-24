@@ -7,14 +7,15 @@
 module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) where
 
 import           Control.Applicative
+import           Control.Monad                   (MonadPlus (..), ap, guard)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import qualified Data.ByteString           as BS
-import           Data.Functor.Identity     (Identity (Identity))
-import           Data.Generics.Product     (field)
-import qualified Data.Map                  as Map
-import           GHC.Generics              (Generic)
+import qualified Data.ByteString                 as BS
+import           Data.Functor.Identity           (Identity (Identity))
+import           Data.Generics.Product           (field)
+import qualified Data.Map                        as Map
+import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import qualified Daedalus.Core.Semantics.Env     as I
@@ -25,12 +26,12 @@ import qualified Daedalus.Value                  as I
 
 import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice)
 import           Talos.Analysis.Slice
+import           Talos.Monad                     (getIEnv)
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
-import           Talos.Strategy.OptParser        (Opt, parseOpts)
 import qualified Talos.Strategy.OptParser        as P
+import           Talos.Strategy.OptParser        (Opt, parseOpts)
 import           Talos.SymExec.Path
-import Talos.Monad (getIEnv)
 
 
 -- ----------------------------------------------------------------------------------------

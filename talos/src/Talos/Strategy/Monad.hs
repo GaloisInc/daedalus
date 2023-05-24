@@ -20,56 +20,44 @@ module Talos.Strategy.Monad ( Strategy(..)
                             -- , logMessage, logMessage'
                             ) where
 
-import           Control.Monad.Except         (throwError)
-import           Control.Monad.RWS            (RWST)
+import           Control.Monad             (forM, replicateM)
+import           Control.Monad.Except      (throwError)
 import           Control.Monad.Reader
+import           Control.Monad.RWS         (RWST)
 import           Control.Monad.State
-import           Control.Monad.Trans.Free     (FreeT)
+import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Writer         (WriterT)
-import qualified Data.ByteString              as BS
-import           Data.Foldable                (find, foldl')
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (maybeToList)
-import           Data.Set                     (Set)
-import qualified Data.Set                     as Set
-import qualified Data.Vector                  as V
-import qualified Data.Vector.Mutable          as V
+import           Control.Monad.Writer      (WriterT)
+import qualified Data.ByteString           as BS
+import           Data.Foldable             (find, foldl')
+import           Data.Map                  (Map)
+import qualified Data.Map                  as Map
+import           Data.Maybe                (maybeToList)
+import           Data.Set                  (Set)
+import qualified Data.Set                  as Set
+import qualified Data.Vector               as V
+import qualified Data.Vector.Mutable       as V
 import           System.Random
 
-import Daedalus.Core
-    ( Expr(Struct),
-      Name,
-      Type(..),
-      arrayL,
-      boolL,
-      byteArrayL,
-      emit,
-      inUnion,
-      intL,
-      just,
-      mapEmpty,
-      mapInsert,
-      newBuilder,
-      nothing,
-      unit,
-      SizeType(TSize),
-      TName,
-      UserType(utName),
-      TDecl(tDef),
-      TDef(TBitdata, TStruct, TUnion) )
-import           Daedalus.PP
+import           Daedalus.Core             (Expr (Struct), Name,
+                                            SizeType (TSize), TDecl (tDef),
+                                            TDef (TBitdata, TStruct, TUnion),
+                                            TName, Type (..), UserType (utName),
+                                            arrayL, boolL, byteArrayL, emit,
+                                            inUnion, intL, just, mapEmpty,
+                                            mapInsert, newBuilder, nothing,
+                                            unit)
 import           Daedalus.Panic
+import           Daedalus.PP
 
+import           Daedalus.GUID             (HasGUID)
 import           Talos.Analysis.Exported
-import           Talos.Analysis.Monad         (Summaries)
-import           Talos.Strategy.OptParser     (Parser, runParser)
-import qualified Talos.Strategy.OptParser     as P
+import           Talos.Analysis.Monad      (Summaries)
+import           Talos.Monad               (LiftTalosM, TalosM, getTypeDefs)
+import qualified Talos.Strategy.OptParser  as P
+import           Talos.Strategy.OptParser  (Parser, runParser)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT        (SolverT)
-import Talos.Monad (LiftTalosM, TalosM, getTypeDefs)
-import Daedalus.GUID (HasGUID)
+import           Talos.SymExec.SolverT     (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes

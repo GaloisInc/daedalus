@@ -14,6 +14,7 @@
 module Talos.Synthesis (synthesise) where
 
 import           Control.Lens                    (at, (%=), (?~))
+import           Control.Monad                   (replicateM, when)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString                 (ByteString)
@@ -30,12 +31,12 @@ import qualified Data.Set                        as Set
 import           Data.Word
 import           GHC.Generics                    (Generic)
 import           SimpleSMT                       (Solver)
-import qualified Streaming as S
+import qualified Streaming                       as S
+import           System.Exit                     (exitFailure)
+import           System.IO                       (hFlush, hPutStrLn, stderr,
+                                                  stdout)
 import           System.Random
-import System.IO               (hPutStrLn, stderr)
-import System.Exit (exitFailure)
-import           Text.Printf                               (printf)
-import           System.IO (hFlush, stdout)
+import           Text.Printf                     (printf)
 
 
 import           Daedalus.Core                   hiding (streamOffset)
@@ -44,8 +45,8 @@ import qualified Daedalus.Core.Semantics.Env     as I
 import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.GUID
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
 import           Daedalus.RTS.Input              (newInput)
 import qualified Daedalus.Value                  as I
 import           RTS.ParseError                  (ErrorStyle (SingleError),
@@ -62,11 +63,12 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT           (emptySolverState)
 import           Talos.SymExec.StdLib
 
+import           Data.Functor.Of                 (Of ((:>)))
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
+import           Talos.Monad                     (TalosM, getGFun, getIEnv,
+                                                  getModule)
 import           Talos.Strategy
 import           Talos.Strategy.Monad
-import Data.Functor.Of (Of ( (:>) ))
-import Talos.Monad (TalosM, getIEnv, getGFun, getModule)
 
 
 data Stream = Stream { streamOffset :: Integer

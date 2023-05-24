@@ -7,17 +7,16 @@
 
 module Talos.Analysis.Fixpoint where
 
-import Daedalus.PP
+import           Control.Monad       (when)
+import           Control.Monad.State
+import           Data.Map            (Map)
+import qualified Data.Map            as Map
+import           Data.Maybe          (isNothing)
+import           Data.Set            (Set)
+import qualified Data.Set            as Set
+import           Debug.Trace         (traceM)
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
--- These rep
-import Control.Monad.State
-import Data.Maybe (isNothing)
-import Debug.Trace (traceM)
-
+import           Daedalus.PP
 -- -----------------------------------------------------------------------------
 -- Types
 
