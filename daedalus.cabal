@@ -113,7 +113,7 @@ library
                        containers,
                        vector,
                        pretty,
-                       alex-tools >= 0.6,
+                       alex-tools >= 0.6.1,
                        GraphSCC,
                        filepath,
                        mtl,
