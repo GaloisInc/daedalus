@@ -23,19 +23,20 @@ import qualified Data.Text                     as Text
 
 import           Data.Aeson                    (encode, fromJSON)
 import           Data.Aeson.Types              (Result (..))
+import           Data.Maybe                    (fromMaybe)
 
 import           Language.LSP.Server
 import qualified Language.LSP.Types            as J
 import qualified Language.LSP.Types.Lens       as J
 import           System.Log.Logger
 
-import           Daedalus.PP
+-- import           Daedalus.PP
 
-import           Daedalus.LSP.Worker      (requestParse, worker)
+import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import Daedalus.LSP.Command
-import Data.Maybe (fromMaybe)
+import           Daedalus.LSP.Worker           (requestParse, worker)
+
 
 -- SI for server impl.
 
@@ -64,9 +65,8 @@ run = flip E.catches handlers $ do
       , options = lspOptions
       }
 
-  flip E.finally finalProc $ do
-    setupLogger (Just "/tmp/lsp-log.txt") ["reactor", "worker"] DEBUG
-    runServer serverDefinition
+  -- FIXME: add logging
+  flip E.finally finalProc (runServer serverDefinition)
 
   where
     handlers = [ E.Handler ioExcept
@@ -184,7 +184,7 @@ handle = mconcat
   , requestHandler J.STextDocumentSemanticTokensFull $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
       let params = req ^. J.params
-          uri  = params ^. to (J._textDocument :: J.SemanticTokensParams -> J.TextDocumentIdentifier)
+          uri  = params ^. J.textDocument
                          . J.uri
                          . to J.toNormalizedUri
 
@@ -193,10 +193,10 @@ handle = mconcat
   , requestHandler J.STextDocumentSemanticTokensRange $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/range request"
       let params = req ^. J.params
-          uri  = params ^. to (J._textDocument :: J.SemanticTokensRangeParams -> J.TextDocumentIdentifier)
+          uri  = params ^. J.textDocument
                          . J.uri
                          . to J.toNormalizedUri
-          r    = params ^. to (J._range :: J.SemanticTokensRangeParams -> J.Range)
+          r    = params ^. J.range
 
       semanticTokens responder (Just r) uri
 

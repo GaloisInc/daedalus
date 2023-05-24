@@ -165,7 +165,7 @@ library
     containers,
     cryptonite,
     daedalus-utils,
-    linguistic-ordinals,
+    -- linguistic-ordinals,
     memory,
     pretty,
     range-set-list,
