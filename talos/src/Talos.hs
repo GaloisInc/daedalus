@@ -14,7 +14,6 @@ module Talos (
   ) where
 
 import           Control.Monad                (forM_, unless, when)
-import           Control.Monad.State
 import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
                                                readIORef, writeIORef)

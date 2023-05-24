@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- API for strategies, which say how to produce a path from a slice.
 
@@ -24,6 +25,8 @@ import           Control.Monad             (forM, replicateM)
 import           Control.Monad.Except      (throwError)
 import           Control.Monad.Reader
 import           Control.Monad.RWS         (RWST)
+import qualified Control.Monad.RWS.CPS as RWSCPS
+import qualified Control.Monad.RWS.Strict as RWSStrict
 import           Control.Monad.State
 import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe
@@ -297,25 +300,22 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 -- Class
 
 class Monad m => LiftStrategyM m where
-  liftStrategy :: StrategyM a -> m a
+  liftStrategy :: StrategyM a -> m a  
+  default liftStrategy :: (m ~ t m', MonadTrans t, LiftStrategyM m') => StrategyM a -> m a
+  liftStrategy = lift . liftStrategy
 
 instance LiftStrategyM StrategyM where
   liftStrategy = id
 
 instance LiftStrategyM m => LiftStrategyM (StateT s m) where
-  liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
-  liftStrategy = lift . liftStrategy
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (WriterT w m) where
-  liftStrategy = lift . liftStrategy  
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
-  liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
-  liftStrategy = lift . liftStrategy
 instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
-  liftStrategy = lift . liftStrategy
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWST r w s m) where
-  liftStrategy = lift . liftStrategy
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSCPS.RWST r w s m) where
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSStrict.RWST r w s m) where
 
 -- -----------------------------------------------------------------------------
 -- Instances

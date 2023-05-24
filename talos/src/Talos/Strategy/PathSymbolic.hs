@@ -16,7 +16,7 @@ import           Control.Lens                              (_1, _2, each, over)
 import           Control.Monad                             (forM_, when,
                                                             zipWithM, (<=<))
 import           Control.Monad.Reader
-import           Control.Monad.Writer                      (censor, pass)
+import           Control.Monad.Writer.CPS                  (censor, pass)
 import           Data.Bifunctor                            (second)
 import           Data.Foldable                             (traverse_)
 import           Data.Generics.Product                     (field)

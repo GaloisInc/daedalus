@@ -23,7 +23,7 @@ import           Control.Lens                              (Lens', Setter', _1,
 import           Control.Monad                             (join, unless,
                                                             zipWithM)
 import           Control.Monad.Reader
-import           Control.Monad.RWS                         (RWST, censor,
+import           Control.Monad.RWS.CPS                     (RWST, censor,
                                                             mapRWST, runRWST)
 import qualified Data.ByteString                           as BS
 import           Data.Foldable                             (find)
@@ -32,6 +32,7 @@ import           Data.Functor.Identity                     (Identity (Identity))
 import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
+-- Lazy maps seems faster here.
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
 import qualified Data.Map.Merge.Strict                     as Map
@@ -88,9 +89,9 @@ import           Talos.SymExec.SolverT                     (SMTVar, SolverT)
 -- This code uses the Monad instance for Maybe pretty heavily, sorry :/
 
 data ModelState = ModelState
-  { msPathVars :: Map PathVar Int
-  , msValues   :: Map SMTVar (Typed I.Value)
-  , msLoopCounts :: Map LoopCountVar Int
+  { msPathVars :: !(Map PathVar Int)
+  , msValues   :: !(Map SMTVar (Typed I.Value))
+  , msLoopCounts :: !(Map LoopCountVar Int)
   } deriving Generic
 
 -- Only works if we merge disjoint/agreeing models  
@@ -287,7 +288,7 @@ mpoLoopGenerators = _2
 mpoModelState :: Lens' (MPLoopDeps, MPLoopGenerators, ModelState) ModelState
 mpoModelState = _3
 
-runModelParserM :: SymbolicModel -> ModelParserM' w a -> SolverT StrategyM (a, MultiModelState)
+runModelParserM :: Monoid w => SymbolicModel -> ModelParserM' w a -> SolverT StrategyM (a, MultiModelState)
 runModelParserM sm mp = do
   env0 <- makeModelParserEnv sm
   let mms = symbolicModelToMMS sm -- FIXME
@@ -765,7 +766,7 @@ resolveGenerators allDeps (sp, pc, gens) = ifoldlM resolveOneGenerator sp gens'
       let node = SelectedLoop $ SelectedLoopPool ltag (slpeNullable gen) [pool]
       pure (fillCursorTarget node (slpePathCursor gen) sp')
       
-listenCensor :: (w -> a -> (w', b)) -> ModelParserM' w a -> ModelParserM' w' b
+listenCensor :: (Monoid w, Monoid w') => (w -> a -> (w', b)) -> ModelParserM' w a -> ModelParserM' w' b
 listenCensor f = mapRWST $ \m -> do
   (a, s, w) <- m
   let (w', b) = f w a
