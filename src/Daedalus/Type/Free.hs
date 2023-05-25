@@ -6,6 +6,7 @@
 
 module Daedalus.Type.Free where
 
+import Control.Monad(unless)
 import Control.Monad.State
 
 import Data.Set (Set)
