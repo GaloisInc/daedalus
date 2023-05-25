@@ -3,3 +3,17 @@ This directory contains an LSP server for DaeDaLus.
 For instructions on how to use this server with VS Code, please look at
 the README in `syntax-highlight/vscode-daedalus`
 
+To use this with neovim, you will need the `lspconfig` plugin; then an LSP
+config for daedalus is available in the `nvim` directory. For example, with the
+`vim-plug` package manager, you would put something like this in `init.vim`:
+
+    call plug#begin()
+    Plug 'neovim/nvim-lspconfig'
+    Plug 'GaloisInc/daedalus', {'rtp': 'daedalus-language-server/nvim'}
+    call plug#end()
+    lua lsp.daedalus.setup {}
+
+Don't forget to `cabal install` and make sure the `daedalus-language-server`
+executable is on your `$PATH`. See the [`lspconfig`
+documentation](https://github.com/neovim/nvim-lspconfig#Suggested-configuration)
+for suggestions on setting up keybindings.

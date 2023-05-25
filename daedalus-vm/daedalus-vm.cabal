@@ -44,7 +44,7 @@ library
     Daedalus.VM.Semantics
 
   build-depends:
-    base >=4.13 && <4.17,
+    base >=4.13 && <5,
     containers,
     text,
     bytestring,
