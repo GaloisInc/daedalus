@@ -1,3 +1,15 @@
+{-|
+ 
+Implements the core translation from Daedalus expressions into What4 expressions.
+Currently each Daedalus function is implemented by a defined What4 function, where
+recursion is represented by creating a fixed number of copies of the function
+up to some maximum recursion depth.
+
+FIXME: The main limitation here is that the strategy used in 'mkRecursion' needs more work,
+which means that recursion function calls are currently not supported.
+
+-}
+
 {-# Language GADTs #-}
 {-# Language DataKinds #-}
 {-# Language TypeApplications #-}
@@ -104,6 +116,8 @@ fnsEqual fn1 fn2 = withSym $ \sym -> case W4.fnArgTypes fn1 of
   forallVars fresh_vars results_eq
   -}
 
+-- | Wrap a 'W4.BaseArrayType' into an equivalent 'W4.SymFn' that simply looks up
+--   the given argument in the array.
 fnFromArray ::
   W4.SymExpr sym (W4.BaseArrayType args ret) ->
   W4SolverT sym m (W4.SymFn sym args ret)
@@ -113,6 +127,15 @@ fnFromArray arr = withSym $ \sym -> do
   ret_val <- liftIO $ W4.arrayLookup sym arr (TFC.fmapFC (W4.varExpr sym) vars)
   liftIO $ W4.definedFn sym W4.emptySymbol vars ret_val W4.AlwaysUnfold
 
+-- | Ties the recursive knot for a given symbolic function, which is defined with
+--   an additional array parameter representing recursive calls.
+--   This is implemented by iteratively calling 'f' with itself as an argument, which
+--   bottoms out with an uninterpreted value once the recursive limit is reached.
+--   i.e.: mkRecursion "f" f = f (f (f ... (\_ -> undefined)))
+--   NOTE: Also returns a predicate representing the assumptions that are brought into scope
+--   as a result of this function being called
+--   FIXME: The challenge here is making an appropriate assumption to enforce the fact that
+--   the recursive limit is not reached in any synthesized models.
 mkRecursion ::
   args ~ args' Ctx.::> arg' =>
   String ->
@@ -124,7 +147,10 @@ mkRecursion nm fn = withSym $ \sym -> do
   ret_repr <- return $ W4.fnReturnType fn
   dummy_const1 <- liftIO $ W4.freshConstant sym (W4.safeSymbol "dummy_const1") ret_repr
   dummy_const2 <- liftIO $ W4.freshConstant sym (W4.safeSymbol "dummy_const2") ret_repr
-
+  
+  -- FIXME: This doesn't seems to be working like I expected and needs some more thought
+  -- The intention is to force the solver to find a model where this function doesn't hit
+  -- the undefined case (i.e. limit it to the number of recursive unfoldings we explicitly added)
   consts_differ <- liftIO $ W4.isEq sym dummy_const1 dummy_const2 >>= W4.notPred sym
   addAssumption consts_differ
 
@@ -162,6 +188,13 @@ mkRecursion' nm n def_ fn = withSym $ \sym -> do
       body <- liftIO $ W4.applySymFn sym fn ((TFC.fmapFC (W4.varExpr sym) vars) Ctx.:> rec_arr)
       liftIO $ W4.definedFn sym (W4.safeSymbol (nm ++ "_" ++ show n)) vars body W4.AlwaysUnfold
 
+-- | Compute a 'SomeSymFn' by calling 'toWhat4Expr' on the body of
+--   a 'Fun Expr'.
+--   Recursion is handled by introducing an uninterpreted function
+--   representing recursive calls, and locally binding it while the
+--   function body is translated (using 'withLocalFunction').
+--   Uses 'mkRecursion' as the strategy for how to tie the knot on
+--   representing recursive applications.
 mkSymFn :: FName -> Fun Expr -> W4SolverT sym m (SomeSymFn sym)
 mkSymFn fnm fn = withSym $ \sym -> do
   let ret_raw = fnameType (fName fn)
@@ -215,6 +248,9 @@ mkSymFn fnm fn = withSym $ \sym -> do
   where
     nm = W4.safeSymbol (T.unpack (fnameText (fName fn)))
 
+-- | Lookup the 'SomeSymFn' corresponding to the 'FName' if it exists in the cache
+--   or translate it and add the result to the cache.
+--   Returns the 'Fun Expr' that was retrieved as the Daedalus function definition.
 lookupFn ::
   FName -> 
   W4SolverT sym m (SomeSymFn sym, Fun Expr)
@@ -250,6 +286,7 @@ data SymBV sym w = SymBV { unSymBV :: (W4.SymExpr sym (W4.BaseBVType w)) }
 byteToBV :: W4.IsSymExprBuilder sym => sym -> Word8 -> IO (SymBV sym 8)
 byteToBV sym w8 = SymBV <$> W4.bvLit sym (knownNat @8) (BVS.mkBV (knownNat @8) (fromIntegral w8))
 
+-- | Convert a list of concrete bytes into an equivalent list of 'SymBV' symbolic bytes
 -- FIXME: endianness?
 bsToBV :: W4.IsSymExprBuilder sym => sym -> [Word8] -> IO (Some (SymBV sym))
 bsToBV _sym [] = panic "Empty ByteString" []
@@ -261,6 +298,8 @@ bsToBV sym (w8 : ws) = do
   W4.BaseBVRepr{} <- return $ W4.exprType bv
   (Some .  SymBV) <$> W4.bvConcat sym w8_bv bv
 
+-- | If-then-else for expressions that throws a runtime error if they
+--   have incompatible types.
 muxExprs ::
   SolverM sym m =>
   W4.Pred sym ->
@@ -277,7 +316,17 @@ muxExprs p (Some eT) (Some eF) = withSym $ \sym -> do
       panic "muxExprs: Incompatible expression types" 
         [show eT_type, show eF_type]  
 
--- Core translation
+-- | Given a 'I.Type', a 'W4.BaseTypeRepr tp' as a target type (i.e. as a result of
+--   calling 'What4.Types.typeToRepr'), and an 'Expr', compute a corresponding 'W4.SymExpr'
+--   in the current binding environment.
+--   Will lazily translate and add definitions for any called functions that appear in the expression.
+--   FIXME: Currently only supports a subset of Daedalus syntax, including:
+--     * integer and bitvector arithmetic and comparison
+--     * creating and accessing Maybe types
+--     * creating arrays and concatenating arrays
+--     * case analysis
+--     * union membership testing
+--     * function calls
 toWhat4Expr :: I.Type -> W4.BaseTypeRepr tp -> Expr -> W4SolverT sym m (W4.SymExpr sym tp)
 toWhat4Expr t_raw t e = checkAsms [showPP e] $ toWhat4Expr' t_raw t e
 
@@ -394,6 +443,8 @@ toWhat4Expr' t_raw t e = withSym $ \sym -> case (t, e) of
       _ -> panic "Mismatched function return type" [showPP e, show (W4.fnReturnType fn), show t, showPP t_raw]
   _ -> panic "toWhat4Expr: Unsupported type" [showPP t_raw, show t, showPP e]
 
+-- | Computes a predicate that is true iff the given symbolic byte is a member of the
+--   given 'ByteSet'
 evalByteSet :: ByteSet -> W4.SymExpr sym (W4.BaseBVType 8) -> W4SolverT sym m (W4.Pred sym)
 evalByteSet bs bv = withSym $ \sym -> do
   let mk_bv e = toWhat4Expr (I.TUInt (I.TSize 8)) (W4.BaseBVRepr (knownNat @8)) e
@@ -438,11 +489,14 @@ evalByteSet bs bv = withSym $ \sym -> do
     SetCase b ->
       evalCase b (\x y z -> matchesPat x y z) (\bs_ -> evalByteSet bs_ bv) (W4.falsePred sym)
 
+-- | Collapse a 'Case' by computing a 'W4.SymExpr' for the body of each individual 'Pattern', and
+--   then combining them in a mux tree.
 evalCase ::
-  Case a ->
-  (forall var_tp. I.Type -> Pattern -> W4.SymExpr sym var_tp -> W4SolverT_ sym m (W4.Pred sym)) ->
-  (a -> W4SolverT_ sym m (W4.SymExpr sym tp)) ->
-  W4.SymExpr sym tp ->
+  Case a {- ^ case statement being translated/collapsed -} ->
+  (forall var_tp. I.Type -> Pattern -> W4.SymExpr sym var_tp -> W4SolverT_ sym m (W4.Pred sym)) 
+    {- ^ compute a predicate that is true if the given 'W4.SymExpr' mathes the pattern -} ->
+  (a -> W4SolverT_ sym m (W4.SymExpr sym tp)) {- ^ translate the body of a pattern into a 'W4.SymExpr' -} ->
+  W4.SymExpr sym tp {- ^ the fallthrough result if no patterns match -} ->
   W4SolverT sym m (W4.SymExpr sym tp)
 evalCase c eval_pat eval_case fallthrough = withSym $ \sym -> do
   let var = I.caseVar c
@@ -452,9 +506,8 @@ evalCase c eval_pat eval_case fallthrough = withSym $ \sym -> do
     body <- eval_case body_raw
     liftIO $ W4.baseTypeIte sym matches body x) fallthrough (I.casePats c)
 
--- byteSetToWhat4 :: ByteSet -> W4SolverT sym m (W4.SymFn sym (Ctx.EmptyCtx Ctx.::> W4.BaseBVType 8) W4.BaseBoolType)
--- liftIO $ W4.definedFn sym W4.emptySymbol (Ctx.empty Ctx.:> bv_var) body W4.UnfoldConcrete
-
+-- | Returns the list of fields for a given union type, or panics if the given
+--   type is not a union.
 unionFields :: I.Type -> W4SolverT sym m ([(Label,Type)])
 unionFields t@(TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
   tdefs <- getTypeDefs
@@ -465,6 +518,9 @@ unionFields t@(TUser ut) | [] <- utTyArgs ut, [] <- utNumArgs ut = do
     _ -> panic "unionFields: unexpected type" [showPP t]
 unionFields t = panic "unionFields: unexpected type" [showPP t]
 
+-- | Convert a list of Daedalus expressions into a corresponding
+--   list of 'W4.SymExpr' values with the given types.
+--   Panics if the translated types don't match or the list length is incorrect.
 toWhat4ExprList ::
   Ctx.Assignment W4.BaseTypeRepr tps -> 
   [(Expr, Type)] -> 
@@ -476,10 +532,12 @@ toWhat4ExprList (tps Ctx.:> tp) ((e, t_raw) : exprs) = do
   return $ exprs' Ctx.:> e'
 toWhat4ExprList _ _ = panic "toWhat4ExprList: mismatch" []
 
+-- | Compute a 'W4.Pred' that is true iff if the given 'W4.SymExpr' matches
+--   the given 'Pattern'
 matchesPat ::
-  I.Type ->
-  Pattern -> 
-  W4.SymExpr sym tp -> 
+  I.Type {- ^ type of the case variable being matched against (corresponds to 'tp') -} ->
+  Pattern {- ^ pattern in the case statement -} -> 
+  W4.SymExpr sym tp {- ^ expression that the pattern is evaluated against -} -> 
   W4SolverT sym m (W4.Pred sym)
 matchesPat tp_raw pat e = withSym $ \sym -> do
   case (W4.exprType e, pat) of
