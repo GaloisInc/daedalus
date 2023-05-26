@@ -1,3 +1,10 @@
+{-|
+ 
+Conversion from Daedalus types into What4 types
+
+-}
+
+
 {-# Language OverloadedStrings #-}
 {-# Language GADTs #-}
 {-# Language GeneralisedNewtypeDeriving #-}
@@ -45,6 +52,10 @@ sizeToRepr :: I.SizeType -> Maybe (Some (W4.NatRepr))
 sizeToRepr (I.TSize n) = W4.someNat n
 sizeToRepr (I.TSizeParam{}) = Nothing
 
+-- | Converts a 'I.Type' into a 'W4.BaseTypeRepr', using the typing context
+--   from 'W4SolverT' to resolve user-defined types.
+--   FIXME: Is not nearly complete, but supports basic primitive types
+--   as well as maps, arrays and Maybe types.
 typeToRepr ::
   forall sym m.
   I.Type -> 
@@ -77,9 +88,15 @@ typeToRepr v = go v
       lookupTName (utName ut)
     go t = panic "typeToRepr: unsupported type" [showPP v, showPP t]
 
+-- | Converts a labeled list of fields into a 'Ctx.Assignment' of 'W4.BaseTypeRepr's
+--   based on their corresponding 'I.Type'
 mkFlds :: [(Label, Type)] -> W4SolverT sym m (Some (Ctx.Assignment W4.BaseTypeRepr))
 mkFlds lbls = Ctx.fromList <$> mapM (\(_,t) -> typeToRepr t) lbls
 
+-- | Resolve a 'TName' to a used-defined type and then convert it into
+--   a 'W4.BaseTypeRepr'.
+--   FIXME: currently only handles union types
+--   FIXME: panics if the name is not bound in the environment
 lookupTName :: TName -> W4SolverT sym m (Some (W4.BaseTypeRepr))
 lookupTName nm = do
   tdefs <- getTypeDefs
@@ -91,6 +108,11 @@ lookupTName nm = do
       _ -> panic "lookupTName: unsupported type" [showPP nm]
     _ -> panic "lookupTName: missing type" [showPP nm]
   
+-- | Given a list of labelled types and a target 'Ctx.Size' (i.e. the size of the
+--   corresponding 'Ctx.Assignment' that resulted from calling 'mkFlds'),
+--   takes a 'Label' and returns the index into the 'Ctx.Assignment' and the corresponding 'Type'
+--   in the original list associated with that 'Label'.
+--   FIXME: panics if there is a length mismatch or if the label is missing
 getFieldIndex ::
   [(Label, Type)] -> 
   Ctx.Size tps ->
