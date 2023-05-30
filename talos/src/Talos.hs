@@ -120,7 +120,7 @@ data SynthesisOptions = SynthesisOptions
   , analysisEnv     :: String             -- ^ Analysis abstract env.
   , verbosity       :: Int                -- ^ Verbosity
   , eraseLoops      :: Bool               -- ^ No loops
-  , statsHandle     :: Maybe Handle       -- ^ Output file for stats
+  , statsFile       :: Maybe FilePath     -- ^ Output file for stats
   }
 
 synthesise :: SynthesisOptions
@@ -153,6 +153,8 @@ synthesise SynthesisOptions { .. } = do
   stratInsts <- case parseStrategies strats of
                   Left err -> errorExit err
                   Right sis -> pure sis
+
+  statsHandle <- traverse (flip openFile WriteMode) statsFile
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library

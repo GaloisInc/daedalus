@@ -110,7 +110,7 @@ doSynthesis opts = do
       , analysisEnv     = absEnv
       , verbosity       = optVerbosity opts
       , eraseLoops      = optNoLoops opts 
-      , statsHandle     = Nothing
+      , statsFile       = optStatsFile opts
       }
       
     bOpts = [ ("auto-config", "false")

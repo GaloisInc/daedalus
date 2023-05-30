@@ -29,6 +29,7 @@ data Options =
           , optDDLEntry   :: Maybe String
           , optStrategy   :: Maybe [String]
           , optInvFile    :: Maybe FilePath
+          , optStatsFile  :: Maybe FilePath          
           , optAnalysisKind :: Maybe String
           , optVerbosity :: Int
           , optNoLoops :: Bool
@@ -99,6 +100,12 @@ invFileOpt = strOption
      <> short 'i'
      <> help "Inverse annotations" )
 
+
+statsFileOpt :: Parser FilePath
+statsFileOpt = strOption
+               ( long "stats"
+                 <> metavar "FILE"
+                 <> help "Statistics output file." )
 
 allOutputOpt :: Parser String
 allOutputOpt = strOption
@@ -172,6 +179,7 @@ options = Options <$> solverOpt
                   <*> optional entryOpt
                   <*> optional (some strategyOpt)
                   <*> optional invFileOpt
+                  <*> optional statsFileOpt                  
                   <*> optional analysisKindOpt
                   <*> (length <$> many verbosityOpt)
                   <*> noLoopsOpt
