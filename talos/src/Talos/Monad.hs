@@ -1,32 +1,36 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- Services monad for Talos in general, provides mainly debugging etc.
 
 module Talos.Monad where
 
-import           Control.Monad.RWS         (RWST)
-import           Control.Monad.Reader      (ReaderT)
-import           Control.Monad.State.Strict (MonadIO, MonadTrans (lift),
-                                             StateT (..), gets, state, evalStateT)
-import qualified Control.Monad.State as St
-                 
-import           Control.Monad.Trans.Free  (FreeT)
-import           Control.Monad.Trans.Maybe (MaybeT)
-import           Control.Monad.Writer      (WriterT)
-import           Data.Foldable             (find)
-import           Data.Map                  (Map)
+import qualified Colog.Core                   as Log
+import           Control.Monad.Reader         (ReaderT)
+import           Control.Monad.RWS            (RWST)
+import qualified Control.Monad.State          as St
+import           Control.Monad.State.Strict   (MonadIO, MonadTrans (lift),
+                                               StateT (..), evalStateT, gets,
+                                               state)
+import           Control.Monad.Trans.Free     (FreeT)
+import           Control.Monad.Trans.Maybe    (MaybeT)
+import           Control.Monad.Writer         (WriterT)
+import           Data.Foldable                (find)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Data.Text                    (Text)
+import qualified Data.Text as Text
+
+import qualified Streaming                    as S
 
 import           Daedalus.Core
 import qualified Daedalus.Core.Semantics.Decl as I
 import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.GUID                (GUID, HasGUID, guidState)
-import           Daedalus.PP                  (showPP)
 import           Daedalus.Panic               (panic)
+import           Daedalus.PP                  (showPP)
 import           Daedalus.Rec                 (forgetRecs)
-import qualified Data.Map                     as Map
 import           Talos.SymExec.SolverT        (SolverT)
-import System.IO (Handle, hPutStrLn, hFlush)
-import Control.Monad.IO.Class (liftIO)
-import qualified Streaming as S
+import Data.String (IsString(..))
 
 data TalosMState  = TalosMState
   { tmModule    :: !Module
@@ -34,8 +38,9 @@ data TalosMState  = TalosMState
   , tmFunDefs   :: !(Map FName (Fun Expr))
   , tmBFunDefs  :: !(Map FName (Fun ByteSet))
   , tmIEnv      :: !I.Env
-  -- Statistics
-  , tmStatHandle :: !(Maybe Handle)
+  -- Logging and Statistics
+  , tmStatAction :: !(Log.LogAction TalosM (LogKey, Statistic))
+  , tmLogAction  :: !(Log.LogAction TalosM (LogKey, (LogLevel, String)))
     -- GUIDs
   , tmNextGUID  :: !GUID
   }
@@ -44,22 +49,32 @@ newtype TalosM a =
   TalosM { getTalosM :: StateT TalosMState IO a }
   deriving (Functor, Applicative, Monad, MonadIO)
 
-runTalosStream :: Functor f => Module -> GUID -> Maybe Handle -> S.Stream f TalosM r ->
+runTalosStream :: Functor f => Module -> GUID ->
+                  Log.LogAction TalosM (LogKey, Statistic) ->
+                  Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+                  S.Stream f TalosM r ->
                   S.Stream f IO r
-runTalosStream md nguid statshdl strm =
-  evalStateT (S.distribute (S.hoist getTalosM strm)) (emptyTalosMState md nguid statshdl)
+runTalosStream md nguid statsact logact strm =
+  evalStateT (S.distribute (S.hoist getTalosM strm)) (emptyTalosMState md nguid statsact logact)
 
-runTalosM :: Module -> GUID -> Maybe Handle -> TalosM a -> IO a
-runTalosM md nguid statshdl m = evalStateT (getTalosM m) (emptyTalosMState md nguid statshdl)
+runTalosM :: Module -> GUID ->
+             Log.LogAction TalosM (LogKey, Statistic) ->
+             Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+             TalosM a -> IO a
+runTalosM md nguid statsact logact m = evalStateT (getTalosM m) (emptyTalosMState md nguid statsact logact)
 
-emptyTalosMState :: Module -> GUID -> Maybe Handle -> TalosMState
-emptyTalosMState md nguid statshdl = TalosMState
+emptyTalosMState :: Module -> GUID ->
+                    Log.LogAction TalosM (LogKey, Statistic) ->
+                    Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+                    TalosMState
+emptyTalosMState md nguid statsact logact = TalosMState
   { tmModule    = md
   -- Derived from the module
   , tmFunDefs   = funDefs
   , tmBFunDefs  = bfunDefs
   , tmIEnv      = env0
-  , tmStatHandle = statshdl
+  , tmStatAction = statsact
+  , tmLogAction  = logact
   , tmNextGUID  = nguid
   }
   where
@@ -96,17 +111,45 @@ getRawGUID :: LiftTalosM m => m GUID
 getRawGUID = liftTalosM (TalosM (gets tmNextGUID))
 
 -- -----------------------------------------------------------------------------
--- Statistic collection
+-- Logging and Statistics
 
-statistic :: LiftTalosM m => String -> String -> m ()
-statistic name val = liftTalosM $ TalosM $ do
-  m_hdl <- gets tmStatHandle
-  case m_hdl of
-    Nothing -> pure ()
-    Just hdl -> liftIO $ do
-      hPutStrLn hdl (name ++ ": " ++ val)
-      hFlush hdl
-       
+newtype LogKey = LogKey { getLogKey :: Text }
+type Statistic = Text
+
+logKeyEnabled :: LogKey -> Text -> Bool
+logKeyEnabled k t = t `Text.isPrefixOf` (getLogKey k)
+
+-- We use this over Colog.Core.Severity as we don't need all the
+-- levels from that type.
+data LogLevel = Warning | Info | Debug
+  deriving Enum
+
+instance Show LogLevel where
+  show lvl = case lvl of
+               Debug -> "DEBUG"
+               Info  -> "INFO"
+               Warning -> "WARNING"
+
+statistic :: LiftTalosM m => LogKey -> Statistic -> m ()
+statistic key val = liftTalosM $ do
+  action <- TalosM $ gets tmStatAction
+  action Log.<& (key, val)
+
+statS :: (LiftTalosM m, Show a) => LogKey -> a -> m ()
+statS key val = liftTalosM $ do
+  action <- TalosM $ gets tmStatAction
+  action Log.<& (key, Text.pack (show val))
+
+logMessage :: LiftTalosM m => LogLevel -> LogKey -> String -> m ()
+logMessage lvl key msg = liftTalosM $ do
+  action <- TalosM $ gets tmLogAction
+  action Log.<& (key, (lvl, msg))
+
+debug, info, warning :: LiftTalosM m => LogKey -> String -> m ()
+debug   = logMessage Info 
+info    = logMessage Debug 
+warning = logMessage Warning 
+
 -- -----------------------------------------------------------------------------
 -- Lifting
 
@@ -142,3 +185,12 @@ instance HasGUID TalosM where
     where
       go s = let (r, guid') = f (tmNextGUID s)
              in (r, s { tmNextGUID = guid' })
+
+instance IsString LogKey where
+  fromString = LogKey . fromString
+
+-- Not a Monoid as the empty key makes no sense
+instance Semigroup LogKey where
+  (LogKey k1) <> (LogKey k2) = LogKey (k1 <> "." <> k2)
+
+  

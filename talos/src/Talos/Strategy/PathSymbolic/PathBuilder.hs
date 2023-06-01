@@ -16,7 +16,7 @@ import           Control.Lens                              (Lens', Setter', _1,
                                                             _2, _3, at, each,
                                                             ifoldlM, locally,
                                                             mapped, over,
-                                                            scribe, uses, view,
+                                                            scribe, view,
                                                             views, (%=), (%~),
                                                             (&), (+~), (.~),
                                                             (<>~))
@@ -43,6 +43,7 @@ import           Data.Word                                 (Word8)
 import           GHC.Generics                              (Generic)
 import qualified SimpleSMT                                 as S
 import           Text.Printf                               (printf)
+import qualified Data.Text as Text
 
 import           Daedalus.Core                             hiding (streamOffset,
                                                             tByte)
@@ -56,9 +57,10 @@ import           Daedalus.PP                               (Doc, PP, braces,
 import           Daedalus.Time                             (timeIt)
 import qualified Daedalus.Value                            as I
 
-import           System.IO                                 (hFlush, stdout)
 import           Talos.Monad                               (getIEnv,
-                                                            getTypeDefs)
+                                                            getTypeDefs, LogKey)
+import qualified Talos.Monad                               as T
+
 import           Talos.Strategy.Monad
 import           Talos.Strategy.PathSymbolic.Monad
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
@@ -378,15 +380,20 @@ symbolicModelToMMS sm = MultiModelState
 nullMMS :: MultiModelState -> Bool
 nullMMS ms = Map.null (mmsCases ms) && Map.null (mmsChoices ms)
 
+timed :: LogKey -> SolverT StrategyM a -> SolverT StrategyM a
+timed key m = do
+  (r, t) <- timeIt m
+  T.statistic (pathKey <> key) (Text.pack $ printf "%.3fms" (fromInteger t / 1000000 :: Double))
+  pure r
+
 buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder ->
               SolverT StrategyM [SelectedPath]
 buildPaths _ntotal _nfails sm pb = do
-  (_, tassert) <- timeIt $ do
+  timed "assert" $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
-  liftIO $ printf "Initial model time: %.3fms\n" (fromInteger tassert / 1000000 :: Double)
-  (r, tcheck) <- timeIt Solv.check
-  liftIO $ printf "Initial solve time: %.3fms\n" (fromInteger tcheck / 1000000 :: Double)
+
+  r <- timed "check" Solv.check
   case r of
     S.Unsat   -> pure []
     S.Unknown -> pure []
@@ -695,8 +702,7 @@ build gentag genpe deppes =
         
     tryAgain ms acc m = do
       assertDifferentModel ms
-      r <- inSolver Solv.check
-      liftIO $ putStr "." >> hFlush stdout
+      r <- inSolver (timed ("modelcheck" <> "repeated") Solv.check)
       case r of
         S.Unsat   -> pure acc
         S.Unknown -> pure acc
@@ -709,7 +715,9 @@ build gentag genpe deppes =
     assertDifferentModel ms = do
       -- FIXME: we should name this so we don't send it twice.
       sexp <- modelStateToSExpr ms
-      inSolver (Solv.assert (S.not sexp))
+      inSolver $ timed ("assert" <> "repeated") $ do
+        Solv.assert (S.not sexp)
+        Solv.flush
 
     cursors = map (relitiviseCursors (slpePathCursor genpe) . slpePathCursor) deppes
 
@@ -785,7 +793,7 @@ withScopedContext m = do
 fixModelIn :: Monoid w => ModelState -> ModelParserM' w a -> ModelParserM' w a
 fixModelIn ms m = withScopedContext $ do
   sexp <- modelStateToSExpr ms
-  inSolver (Solv.assert sexp)
+  inSolver (timed "nestedloop" (Solv.assert sexp))
   -- We also need to update the model in the context.
   local (field @"mpeModelContext" <>~ ms) m
 

@@ -14,8 +14,11 @@ data Mode = SynthesisMode | SummaryMode | DumpCoreMode
 data Options =
   Options { optSolver    :: FilePath
           -- Logging
+          , optSMTOutput :: Maybe FilePath
           , optLogOutput :: Maybe FilePath
-          , optLogLevel  :: Maybe Int
+          , optDebugKeys :: [String]
+          , optStatsOutput :: Maybe FilePath
+          , optStatsKeys :: [String]
           -- Model generation
           , optNModels   :: Int
           , optSeed      :: Maybe Int
@@ -47,17 +50,36 @@ solverOpt = strOption
 
 logfileOpt :: Parser String
 logfileOpt = strOption
-   ( long "logfile"
-  <> short 'L'
-  <> metavar "FILE"
-  <> help "Write log to FILE (default stdout)" )
-
-loglevelOpt :: Parser Int
-loglevelOpt = option auto
    ( long "log"
-  <> short 'l'
-  <> metavar "INT"
-  <> help "Log verbosity (default don't log)" )
+     <> short 'l'
+     <> metavar "FILE"
+     <> help "Write log to FILE (default stdout)" )
+
+debugKeyOpt :: Parser String
+debugKeyOpt = strOption
+   ( long "debug-key"
+     <> short 'D'
+     <> metavar "FILE"
+     <> help "Produce debug output for KEY" )
+
+statsFileOpt :: Parser String
+statsFileOpt = strOption
+   ( long "stats"
+     <> metavar "FILE"
+     <> help "Write statistics to FILE" )
+
+statsKeyOpt :: Parser String
+statsKeyOpt = strOption
+   ( long "stats-key"
+     <> short 'k'
+     <> metavar "KEY"
+     <> help "Produce statistics output for KEY (may be used multiple times)" )
+
+smtLogOpt :: Parser FilePath
+smtLogOpt = option auto
+   ( long "smt-log"
+     <> metavar "File"
+     <> help "Write smt log to FILE" )
 
 validateModelFlag :: Parser Bool
 validateModelFlag = switch
@@ -99,13 +121,6 @@ invFileOpt = strOption
      <> metavar "FILE"
      <> short 'i'
      <> help "Inverse annotations" )
-
-
-statsFileOpt :: Parser FilePath
-statsFileOpt = strOption
-               ( long "stats"
-                 <> metavar "FILE"
-                 <> help "Statistics output file." )
 
 allOutputOpt :: Parser String
 allOutputOpt = strOption
@@ -167,8 +182,11 @@ noLoopsOpt = switch
 
 options :: Parser Options
 options = Options <$> solverOpt
+                  <*> optional smtLogOpt
                   <*> optional logfileOpt
-                  <*> optional loglevelOpt
+                  <*> many debugKeyOpt
+                  <*> optional statsFileOpt
+                  <*> many statsKeyOpt
                   <*> nModelsOpt
                   <*> optional seedOpt
                   <*> optional ((AllOutput <$> allOutputOpt) <|> (PatOutput <$> patOutputOpt))

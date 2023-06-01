@@ -1,29 +1,23 @@
-{-# Language RecordWildCards #-}
+
 {-# Language OverloadedStrings #-}
-{-# Language ViewPatterns, FlexibleContexts #-}
+{-# Language FlexibleContexts #-}
 
 module Main where
 
-import System.Exit(exitFailure)
-import System.IO (hFlush, hPutStrLn, stdout, stderr
-                 , openFile, IOMode(..))
-import Control.Monad (replicateM, zipWithM_, when)
-
-import System.Console.ANSI
-
-import qualified Data.Map as Map
-
+import           Control.Monad         (when)
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.Map              as Map
+import           Data.Maybe            (fromMaybe)
+import           Hexdump
+import qualified Streaming.Prelude     as S
+import           System.Console.ANSI
+import           System.IO             (IOMode (..), hFlush, openFile, stdout)
 
-import Hexdump
+import           Daedalus.PP
+import           Talos
 
-import Daedalus.PP
+import           CommandLine
 
-import CommandLine
-import Talos
-import Data.Maybe (fromMaybe)
-
-import qualified Streaming.Prelude as S
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -105,12 +99,15 @@ doSynthesis opts = do
       , solverOpts      = bOpts
       , solverInit      = pure ()
       , synthesisStrats = optStrategy opts 
-      , loggingOpts     = logOpt
+      , smtLogFile      = optSMTOutput opts
       , seed            = optSeed opts
       , analysisEnv     = absEnv
       , verbosity       = optVerbosity opts
-      , eraseLoops      = optNoLoops opts 
-      , statsFile       = optStatsFile opts
+      , eraseLoops      = optNoLoops opts
+      , logFile         = optLogOutput opts
+      , debugKeys       = optDebugKeys opts
+      , statsFile       = optStatsOutput opts
+      , statsKeys       = optStatsKeys opts
       }
       
     bOpts = [ ("auto-config", "false")
@@ -118,7 +115,6 @@ doSynthesis opts = do
             -- see :smt.arith.random_initial_value also and seed options
             ]
             ++ [("model-validate", "true") | optValidateModel opts]
-    logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
     absEnv = fromMaybe "fl" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
 
 

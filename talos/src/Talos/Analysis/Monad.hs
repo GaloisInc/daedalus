@@ -47,7 +47,6 @@ data Summary ae =
           , fInstId     :: FInstId
           }
 
-
 emptySummary :: FInstId -> Summary ae
 emptySummary = Summary emptyDomain []
 

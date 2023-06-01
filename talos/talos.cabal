@@ -103,7 +103,7 @@ library
                      , generic-lens
                      , lens
                      , free
-                     , hslogger
+                     , co-log-core
 
 executable talos
   main-is:             Main.hs
@@ -123,7 +123,7 @@ executable talos
                      -- , parameterized-utils
                      -- , mtl
                      , containers
-
+                     , co-log-core
                      , simple-smt
                      , ansi-terminal
 

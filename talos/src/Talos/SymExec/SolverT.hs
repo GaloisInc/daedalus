@@ -38,7 +38,9 @@ module Talos.SymExec.SolverT (
   defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
   reset, assert, check, flush,
   -- * Type Class
-  MonadSolver(..)
+  MonadSolver(..),
+  -- * Metrics
+  contextSize
   ) where
 
 import           Control.Applicative
@@ -92,7 +94,7 @@ data QueuedCommand =
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
 data SolverFrame = SolverFrame
-  { frId        :: !Int -- ^ The index of the choice which led to this frame
+  { frId        :: !Int
   , frCommands   :: !(Seq QueuedCommand)
   -- , frBoundNames :: !(Map Name SMTVar)
   -- ^ May include names bound in closed scopes, to allow for
@@ -342,6 +344,28 @@ withSolver :: (MonadIO m, Monad m) => (Solver -> SolverT m a) -> SolverT m a
 withSolver f = do
   s <- SolverT $ gets solver
   f s
+
+-- | A metric over the size of a solver problem, currently the number
+-- of atoms.  This is in the monad (as opposed to over `SolverContext`
+-- because `getContext` pushes).
+contextSize :: Monad m => SolverT m Int
+contextSize =
+  SolverT $ gets (\s -> sum (map frameSize (ssCurrentFrame s : ssFrames s)))
+
+frameSize :: SolverFrame -> Int
+frameSize = sum . fmap queuedCommandSize . frCommands
+
+queuedCommandSize :: QueuedCommand -> Int
+queuedCommandSize (QCAssert e) = sexprSize e
+queuedCommandSize (QCDeclare {}) = 0 -- Maybe make this 1?
+queuedCommandSize (QCDefine _ _ e) = sexprSize e
+
+-- | A rough guide to the size of an assertion
+sexprSize :: SExpr -> Int
+sexprSize = go
+  where
+    go (S.Atom {})    = 1
+    go (S.List sexps) = sum (map go sexps)
 
 -- -----------------------------------------------------------------------------
 -- Solver operations, over SExprs 

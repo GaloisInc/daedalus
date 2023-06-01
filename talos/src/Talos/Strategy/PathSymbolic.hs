@@ -47,7 +47,9 @@ import           Talos.Analysis.Exported                   (ExpCallNode (..),
                                                             sliceToCallees)
 import           Talos.Analysis.Slice
 import           Talos.Monad                               (getIEnv, getModule,
-                                                            getRawGUID)
+                                                            getRawGUID, LogKey)
+import qualified Talos.Monad as T
+                 
 import           Talos.Strategy.Monad
 import qualified Talos.Strategy.OptParser                  as P
 import           Talos.Strategy.OptParser                  (Opt, parseOpts)
@@ -70,7 +72,7 @@ import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT                     (declareName,
                                                             declareSymbol,
                                                             liftSolver, reset,
-                                                            scoped)
+                                                            scoped, contextSize)
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type                        (defineSliceTypeDefs,
                                                             symExecTy)
@@ -148,15 +150,12 @@ symbolicFun config ptag sl = StratGen $ do
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
     (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
-    let stats = assertionStats (smAsserts sm)
-    liftIO $ do
-      printf "Assertion size: %d\n" (assertionStatsSize stats)
-      hFlush stdout
-
+    sz <- contextSize
+    T.statS (pathKey <> "modelsize") sz
+    
     let go (_, pb) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
-          liftIO $ printf "\tGenerated %d models " (length rs)
-          liftIO $ hFlush stdout
+          T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
 
     case m_res of

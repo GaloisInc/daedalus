@@ -53,13 +53,13 @@ import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)
 import qualified Talos.SymExec.SolverT                     as Solv
 import Data.Text (Text)
-import Talos.Monad (getIEnv)
-
-
-
+import Talos.Monad (getIEnv, LogKey)
 
 -- =============================================================================
 -- (Path) Symbolic monad
+
+pathKey :: LogKey
+pathKey = "pathsymb"
 
 type Result = (GuardedSemiSExprs, PathBuilder)
 
@@ -432,17 +432,6 @@ instance Semigroup AssertionStats where
 
 instance Monoid AssertionStats where
   mempty = AssertionStats mempty
-
--- | A rough guide to the size of an assertion
-assertionStats :: [SMT.SExpr] -> AssertionStats
-assertionStats = foldMap go
-  where
-    go (SMT.Atom a) | '@' `elem` a = AssertionStats (Map.singleton a 1)
-                  | otherwise = mempty
-    go (SMT.List sexps) = assertionStats sexps
-
-assertionStatsSize :: AssertionStats -> Int
-assertionStatsSize = sum . getAssertionStats
 
 instance PP AssertionStats where
   pp (AssertionStats m) =
