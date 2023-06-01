@@ -57,6 +57,10 @@ library
                      , Talos.Strategy.PathSymbolicM
                      , Talos.Strategy.MuxValue                     
 
+                     , Talos.Strategy.Boltzmann
+                     , Talos.Strategy.Boltzmann.Newton
+                     , Talos.Strategy.Boltzmann.Polynomial
+                     , Talos.Strategy.Boltzmann.Util
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
                      , Talos.Strategy.PathSymbolic
@@ -95,6 +99,8 @@ library
                      , generic-lens
                      , lens
                      , free
+                     , multiset
+                     , hmatrix
 
 executable talos
   main-is:             Main.hs
@@ -103,6 +109,7 @@ executable talos
   build-depends:       base
                      , talos
                      , daedalus
+                     , daedalus-core
                      , daedalus-value
                      , daedalus-utils
                      , optparse-applicative

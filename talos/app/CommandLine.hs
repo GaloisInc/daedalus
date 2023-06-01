@@ -9,7 +9,7 @@ import Options.Applicative
 
 data Outfile = AllOutput FilePath | PatOutput FilePath
 
-data Mode = SynthesisMode | SummaryMode | DumpCoreMode
+data Mode = SynthesisMode | SummaryMode | DumpCoreMode | CallGraphMode
 
 data Options =
   Options { optSolver    :: FilePath
@@ -115,6 +115,7 @@ patOutputOpt = strOption
 modeOpt :: Parser Mode
 modeOpt = flag' SummaryMode ( long "summary" <> help "Print out analysis results")
           <|> flag' DumpCoreMode ( long "dump-core" <> help "Print out intermediate core")
+          <|> flag' CallGraphMode ( long "call-graph" <> help "Print out some information on the call graph")
           <|> pure SynthesisMode -- defaultx
           
 entryOpt :: Parser String

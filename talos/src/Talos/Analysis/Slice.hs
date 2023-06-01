@@ -115,7 +115,7 @@ data Slice' cn sle =
   -- produced by this node (i.e., result of the original DDL code).
   deriving (Generic, NFData)
 
--- A note on inverses.  The ides is if we have something like
+-- A note on inverses.  The idea is if we have something like
 --
 -- def F y = {
 --   x = UInt8 # UInt8 # UInt8 # UInt 8

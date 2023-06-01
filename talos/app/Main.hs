@@ -22,6 +22,7 @@ import Daedalus.PP
 
 import CommandLine
 import Talos
+import Talos.Strategy.Boltzmann -- TODO: instead export some high-level operations from Talos and use those
 import Data.Maybe (fromMaybe)
 
 -- debugging
@@ -41,6 +42,7 @@ main = do
     SynthesisMode -> doSynthesis opts
     SummaryMode   -> doSummary opts
     DumpCoreMode  -> doDumpCore opts
+    CallGraphMode -> doCallGraph opts
 
 
 doDumpCore :: Options -> IO ()
@@ -109,6 +111,11 @@ doSynthesis opts = do
                    
   bss <- replicateM (optNModels opts) (Streams.read strm)
   zipWithM_ doWriteModel [(0 :: Int)..] bss
+
+doCallGraph :: Options -> IO ()
+doCallGraph opts = do
+  (mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
+  printGeneratingFunctions md mainRule
 
 prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
 prettyHexWithProv provmap bs =
