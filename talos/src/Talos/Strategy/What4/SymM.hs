@@ -42,7 +42,9 @@ module Talos.Strategy.What4.SymM(
  , addAssumption
  , collapseAssumptions
  , checkAsms
-, viewSolverEnv) where
+ , viewSolverEnv
+ , mkW4SolverT
+, runW4Solver') where
 
 import           Control.Applicative (Alternative)
 import           Control.Monad.Reader
@@ -66,7 +68,7 @@ import           Talos.Strategy.What4.Solver
 import Control.Monad.Catch
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Control.Monad.Trans.Writer (WriterT, runWriterT)
+import Control.Monad.Trans.Writer (WriterT (WriterT), runWriterT)
 import Control.Monad.Writer.Class
 
 -- | A wrapper around 'W4.SymFn' that existentially quantifies over the argument
@@ -155,6 +157,11 @@ newtype W4SolverT_ sym m a = W4SolverT_ { _unW4SolverT :: WriterT (Assumptions s
             MonadWriter (Assumptions sym)
           )
 
+mkW4SolverT ::
+  (W4SolverEnv sym -> m (a, Assumptions sym)) ->
+  W4SolverT_ sym m a
+mkW4SolverT f = W4SolverT_ (WriterT (ReaderT f))
+
 instance MonadTrans (W4SolverT_ sym) where
   lift m = W4SolverT_(lift $ lift m)
 
@@ -183,6 +190,15 @@ runW4Solver env (W4SolverT_ f) = do
   (a, asms) <- runReaderT (runWriterT f) env
   p <- withSymEnv env $ \sym -> collapseAssumptions sym asms
   return (a, p)
+
+-- | Same as 'runW4Solver' but leaves the result as an 'Assumptions' instead'
+--   of producing the predicate
+runW4Solver' ::
+  MonadIO m =>
+  W4SolverEnv sym ->
+  W4SolverT_ sym m a ->
+  m (a, Assumptions sym)
+runW4Solver' env (W4SolverT_ f) = runReaderT (runWriterT f) env
 
 -- | Add an assumption to the current computation path. Note that this does not
 -- affect the context of the solver (i.e. in contrast to 'What4.Solver.withAssumption'),
@@ -218,7 +234,7 @@ checkAsms msg f = withSym $ \sym -> do
   case W4.asConstantPred p of
     Just False -> panic "False assumptions" msg
     _ -> return a  
-
+ 
 -- | Execute the given continuation in a context where the given
 -- 'Name' is bound to the given 'W4.SymExpr'.
 -- NOTE: This does not validate the type in the 'Name' (i.e. 'nameType')

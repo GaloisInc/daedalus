@@ -82,7 +82,7 @@ import Control.Monad.IO.Class
 import Data.Parameterized.Vector (Vector)
 import qualified Data.Parameterized.Vector as V
 import Control.Monad (foldM, forM)
-import GHC.Base (Nat)
+import GHC.TypeLits (Nat)
 
 ------------------------------------------------------------
 -- Helper symbolic datatypes

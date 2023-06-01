@@ -1,3 +1,38 @@
+{-|
+
+This is the top-level module for the What4 synthesis strategy. Most of the functionality
+is the modules from './src/Talos/Strategy/What4/'. This module was (naively) adapted from the 
+BTRand (./src/Talos/Strategy/BTRand.hs) strategy, and notably the traversal strategies
+are likely not actually appropriate for using symbolic execution from what4.
+
+Here is a table of contents for the key modules for this strategy, from './src/Talos/Strategy/What4/'
+  * 'Solver.hs' 
+    - a convenient wrapper around 'Lang.Crucible.Backend'
+    - maintains a "live" solver process with a persistent assumption state
+    - provides functionality for safely pushing/popping assumptions
+    - provides a robust 'checkSatisfiableWithModel' that attempts to repair the assumption
+      state if errors are thrown
+  * 'SymM.hs'
+    - another layer of wrapping around the solver interface
+    - provides 'W4SolverT' monad transformer, which tracks variable
+      binding and side conditions for logical contexts
+    - 'W4SolverT' is used to define all of the Daedalus -> What4 expression
+      and type translations
+  * 'Types.hs'
+    - provides "encodings" for several Daedalus types to and from What4
+      base types
+    - 'typeToRepr' provides the core functionality for converting
+      Daedalus types into What4 types
+    - basic types (int, bool, etc) are supported as well as some container
+      types (array, maybe, union)
+  * 'Exprs.hs'
+    - 'toWhat4Expr' provides the core functionality for converting
+      Daedalus expressions into What4 expression
+    - recursion is not yet supported, as what4 does not natively
+      support defining recursive functions
+
+-}
+
 {-# Language OverloadedStrings #-}
 {-# Language GADTs #-}
 {-# Language GeneralisedNewtypeDeriving #-}
@@ -62,7 +97,7 @@ import Data.Maybe
 import Control.Monad.Catch
 import Control.Monad.Writer.Class
 
-
+-- ====================== START OF CLAGGED CODE ================================
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 type SomeW4SolverEnv = Some W4SolverEnv
@@ -162,7 +197,7 @@ what4MaybeStrat ptag sl = trivialStratGen . lift $ do
     once solverEnv0 = runMaybeT (mkStrategyFun solverEnv0 ptag sl)
   
 -- ----------------------------------------------------------------------------------------
-
+-- ====================== END OF CLAGGED CODE ================================
 -- TODO: use W4StratT
 
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
@@ -171,12 +206,14 @@ mkStrategyFun (Some solverEnv0) ptag sl = viewSolverEnv solverEnv0 $ do
   env0 <- getIEnv -- for pure function implementations
   fst <$> runW4StratT solverEnv0 env0 (stratSliceConcrete ptag sl)
 
+-- | Add an 'I.Env' to the environment for 'W4SolverT_' 
 type W4StratT_ sym m a = W4SolverT_ sym (ReaderT I.Env m) a
 
 type W4StratT sym m a = 
   (W4.IsSymExprBuilder sym, LiftStrategyM m, MonadIO m, Monad m, MonadMask m, MonadThrow m, MonadCatch m, MonadPlus m) => W4StratT_ sym m a
 
-
+-- | Run a 'W4Strat_' under the given 'W4.SolverEnv' and 'I.Env', yielding a result and a predicate
+--   representing the set of assumptions that were made during the computation of the result
 runW4StratT :: 
   MonadIO m =>
   W4SolverEnv sym ->
@@ -185,9 +222,35 @@ runW4StratT ::
   m (a, W4.Pred sym)
 runW4StratT solverEnv env f = runReaderT (runW4Solver solverEnv f) env
 
+-- | Run the given 'W4StratT' in a modified 'I.Env' environment.
+--   (NB: This is in contrast to simply using 'local', which modifies the solver environment)
+localW4Strat :: 
+  (I.Env -> I.Env) ->
+  W4StratT sym m a -> 
+  W4StratT sym m a
+localW4Strat fenv f = do
+  solverEnv <- ask
+  (a,asms) <- lift $ local fenv (runW4Solver' solverEnv f)
+  tell asms
+  return a
+
 
 type SymbolicPath sym = SelectedPathF (SymbolicPathChoice sym) (SymbolicPathCase sym) (SymbolicResult sym)
 
+
+-- | Represents a symbolic choice of one between some number of 'a' values.
+data SymbolicPathChoice sym a =
+    forall n. SymbolicPath (SymbolicChoice sym n (Int, a))
+  | ConcreteChoice Int a
+
+-- | Represents a collection of 'a' values
+data SymbolicPathCase sym a =
+  forall n. SymbolicCase (SymbolicVector sym n a)
+  | ConcreteCase a
+
+newtype SymbolicResult sym = SymbolicResult (ArrayLen sym (W4.BaseBVType 8))
+
+-- | Ground a 'SymbolicPath' with respect to a model from the solver
 getConcretePath ::
   SymGroundEvalFn sym ->
   SymbolicPath sym ->
@@ -215,16 +278,8 @@ getConcretePath fn p = case p of
     conc_p' <- getConcretePath fn path
     return $ SelectedCase (return conc_p')
 
-data SymbolicPathChoice sym a =
-    forall n. SymbolicPath (SymbolicChoice sym n (Int, a))
-  | ConcreteChoice Int a
 
-data SymbolicPathCase sym a =
-  forall n. SymbolicCase (SymbolicVector sym n a)
-  | ConcreteCase a
-
-newtype SymbolicResult sym = SymbolicResult (ArrayLen sym (W4.BaseBVType 8))
-
+-- | Ground a 'SymbolicResult' into a 'BS.ByteString' using a model from the solver
 groundSymbolicResult ::
   SymGroundEvalFn sym ->
   SymbolicResult sym ->
@@ -238,13 +293,8 @@ groundSymbolicResult fn (SymbolicResult arr) = withSym $ \sym -> do
   let ws = concat $ map (fromJust . BVS.asBytesBE (knownNat @8)) bytes_conc
   return $ BS.pack ws
 
--- type SelectedPath = SelectedPathF PathIndex Identity ByteString
-
--- data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
---  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
-
-
-
+-- | Use symbolic execution on the slice to compute a concrete 'SelectedPath' with
+--   backtracking over different models.
 stratSliceConcrete ::
   forall sym m.
   ProvenanceTag -> ExpSlice ->
@@ -259,7 +309,8 @@ stratSliceConcrete ptag sl = do
     _ -> panic "asms unsat" [show (W4.printSymExpr asm)]
 
 
-
+-- | This is the synthesis toplevel that computes a 'W4.SymExpr' from a given 'ExpSlice' and
+--   a 'SymbolicPath' representing the series of symbolic decisions made along its computation.
 stratSlice :: 
   forall sym m.
   ProvenanceTag -> ExpSlice ->
@@ -279,13 +330,13 @@ stratSlice ptag = go
           return (Some e', path)
 
         SDo x lsl rsl -> do
-          liftStrategy (liftIO $ putStrLn ("Do: lsl " ++ show (pp lsl)))
-          liftStrategy (liftIO $ putStrLn ("Do: rsl " ++ show (pp rsl)))
           (Some v, lpath)  <- go lsl
-          --liftStrategy (liftIO $ putStrLn ("Do: lsl v " ++ show (pp v)))
-          --liftStrategy (liftIO $ putStrLn ("Do: lsl path " ++ show (pp lpath)))
           onSlice (SelectedDo lpath) <$> bindVarIn x v (go rsl)
 
+          -- | We invent a fresh variable 'b' and compute a predicate that is true iff
+          --   'b' is in the given 'bset'.
+          --   We emit this as an assumption along the current path and then emit 'b' as
+          --   both the resulting expression and 'SymbolicResult' for this path.
         SMatch bset -> withSym $ \sym -> do
           b <- liftIO $ W4.freshConstant sym W4.emptySymbol (W4.BaseBVRepr (knownNat @8))
           p <- evalByteSet bset b
@@ -293,15 +344,22 @@ stratSlice ptag = go
           byte <- liftIO $ singletonArrayLen sym b
           return (Some b, SelectedBytes ptag (SymbolicResult byte))
 
+        -- | Given 'k' choices, generate a fresh bitvector 'b' which is interpreted as an integer
+        --   indicating which choice was taken.
         SChoice sls -> withSym $ \sym -> do
           case someNat (length sls) of
             Just (Some k) | Just LeqProof <- W4.isPosNat k -> do
               b <- liftIO $ W4.freshConstant sym W4.emptySymbol (W4.BaseBVRepr k)
+              -- b is an int, selecting from k alternatives, and so we assume it is at most 'k'
+              k_bv <- liftIO $ W4.bvLit sym k (BVS.mkBV k (W4.intValue k))
+              bounded <- liftIO $ W4.bvUlt sym b k_bv
+              addAssumption bounded
               choice <- mkSymbolicChoice sym b $ \n -> do
                 let (i :: Int) = fromIntegral (intValue n)
                 let sl' = sls !! i
                 (e,p') <- go sl'
                 return (i, (e,p'))
+              -- expression result is a mux over all alternatives
               val <- getSymbolicChoice sym muxExprs (fmap (fst . snd) choice)
               return $ (val, SelectedChoice (SymbolicPath (fmap (\(i,(_,p')) -> (i, p')) choice)))
             _ -> panic "Empty choice" []
@@ -353,13 +411,10 @@ stratSlice ptag = go
 
 stratCallNode :: (MonadPlus m, LiftStrategyM m, MonadIO m) => ProvenanceTag -> ExpCallNode -> 
                  W4StratT sym m (Some (W4.SymExpr sym), SymbolicPath sym)
-stratCallNode ptag cn = do
-  env <- lift $ ask
-  let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
+stratCallNode ptag cn = localW4Strat (\env -> env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }) $ do
   sl <- getSlice (ecnSliceId cn)
-  return $ error ""
-  -- (v, res) <- local (const env') (stratSlice ptag sl)
-  -- pure (v, SelectedCall (ecnIdx cn) res)
+  (v, res) <- stratSlice ptag sl
+  return (v, SelectedCall (ecnIdx cn) res)
 
 -- ----------------------------------------------------------------------------------------
 -- Strategy helpers
@@ -456,6 +511,8 @@ liftRestartT ::
   RestartT r m b
 liftRestartT f g = RestartT $ \ctxt -> f (getRestartT g ctxt)
 
+-- | This gives the 'RestartT' monad the ability to correctly bracket solver assumption states
+--   when backtracking.
 instance MonadMask m => MonadMask (RestartT r m) where
   mask f = RestartT $ \ctxt -> mask (\g -> getRestartT (f (liftRestartT g)) ctxt)
   uninterruptibleMask f = RestartT $ \ctxt -> uninterruptibleMask (\g -> getRestartT (f (liftRestartT g)) ctxt)

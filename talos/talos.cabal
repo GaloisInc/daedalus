@@ -65,6 +65,7 @@ library
                      , Talos.Strategy.OptParser
 
                      , Talos.Strategy.What4.Exprs
+                     , Talos.Strategy.What4.BaseTypes
                      , Talos.Strategy.What4.Types
                      , Talos.Strategy.What4.SymM
                      , Talos.Strategy.What4.Solver
