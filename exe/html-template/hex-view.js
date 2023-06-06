@@ -1,0 +1,1 @@
+../error-viewer-template/hex-view.js

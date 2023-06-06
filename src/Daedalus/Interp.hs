@@ -383,20 +383,22 @@ compileSourceRange rng =
 compilePExpr ::
   forall a. (CfgCtxt, HasRange a) =>
   Env -> TC a K.Grammar -> PParser Value
-compilePExpr env expr0 args
-  | tracedValues ?cfg =
-    do (v,t) <- traceScope (go expr0)
-       pure (vTraced v t)
-  | otherwise = go expr0
-
+compilePExpr env expr0 args = go expr0
   where
     addScope :: Parser x -> Parser x
     addScope
       | detailedCallstack ?cfg = pScope env
       | otherwise              = id
 
-    go :: TC a K.Grammar -> Parser Value
-    go expr =
+    go e
+      | tracedValues ?cfg =
+        do (v,t) <- traceScope (go' e)
+           pure (vTraced v t)
+      | otherwise = go' e
+
+
+    go' :: TC a K.Grammar -> Parser Value
+    go' expr =
       let erng = compileSourceRange (range expr)
           alt c = case c of
                     Commit   -> (<||)

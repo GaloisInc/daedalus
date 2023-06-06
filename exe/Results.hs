@@ -8,6 +8,7 @@ import qualified Data.Text.Encoding as Text
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Short as SBS
 import qualified Data.ByteString.Char8 as BS8
 import Data.List.NonEmpty(toList)
 import System.Console.ANSI
@@ -35,28 +36,38 @@ import Templates
 import CommandLine
 
 -- | Show the results of running the interpreter.
--- Returns `True` if successful, or `False` on parse error
-dumpResult ::
-  (?opts :: Options, GroupedErr e) => (a -> Doc) -> RTS.ResultG e a -> Doc
-dumpResult ppVal r =
+dumpResult :: (?opts :: Options, GroupedErr e) => RTS.ResultG e Value -> Doc
+dumpResult r =
   case r of
      RTS.NoResults err -> dumpErr err
-     RTS.Results as    -> dumpValues ppVal' (toList as)
-  where
-  ppVal' (a,x) = ppVal a -- $$ "----" $$ RTS.ppInputTrace x
+     RTS.Results as    -> dumpValues (map fst (toList as))
 
 -- | Show some parsed values
-dumpValues :: (?opts :: Options) => (a -> Doc) -> [a] -> Doc
-dumpValues ppVal as
-  | optShowJS ?opts = brackets (vcat $ punctuate comma $ map ppVal as)
+dumpValues :: (?opts :: Options) => [Value] -> Doc
+dumpValues as
+  | optShowJS ?opts =
+    toDoc $
+    if optTracedValues ?opts
+       then let is = RTS.jsObject [ (SBS.fromShort k, RTS.jsText v)
+                                  | (k,v) <- Map.toList (RTS.getInputs as)
+                                  ]
+            in RTS.jsObject [ ("values", jsvals), ("inputs", is) ]
+       else jsvals
   | otherwise =
     vcat [ "--- Found" <+> int (length as) <+> "results:"
-         , vcat' (map ppVal as)
+         , vcat' (map pp as)
          ]
+  where
+  jsvals = RTS.toJSON as
+  toDoc  = text . Text.unpack . Text.decodeUtf8 . RTS.jsonToBytes
 
 -- | Show the value of the interpreter either pretty printed or in JSON
 dumpInterpVal :: (?opts :: Options) => Value -> Doc
-dumpInterpVal = if optShowJS ?opts then valueToJS else pp
+dumpInterpVal x
+  | optShowJS ?opts =
+    text $ Text.unpack $ Text.decodeUtf8 $ RTS.jsonToBytes $ RTS.toJSON x
+  | otherwise = pp x
+
 
 {- | Show the errors either pretty printed or in JSON
 Note that the detailed error directory is handed in `saveDetailedError`,

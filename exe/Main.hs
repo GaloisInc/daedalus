@@ -221,10 +221,13 @@ interpInterp opts srcFiles inp prog ents =
                 es -> interpError (MultipleStartRules es)
      let cfg = case optDetailedErrors opts of
                  Just _  -> detailedErrorsConfig
-                 Nothing -> defaultInterpConfig
+                 Nothing
+                   | optTracedValues opts ->
+                       defaultInterpConfig { tracedValues = True }
+                   | otherwise -> defaultInterpConfig
      (_,res) <- interpFile cfg inp prog start
      let ?opts = opts
-     let txt1   = dumpResult dumpInterpVal res
+     let txt1   = dumpResult res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1
      print txt2
      case res of
@@ -243,7 +246,7 @@ interpCore opts mm inpMb =
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
      let ?opts = opts
      ddlIO $ forM_ ents \ent ->
-               print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+               print (dumpResult (Core.runEntry env ent inp))
 
 interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
@@ -252,7 +255,7 @@ interpVM opts mm inpMb =
     let entries = VM.semModule (head (VM.pModules r))
     let ?opts = opts
     for_ (Map.elems entries) \impl ->
-        ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
+        ddlPrint (dumpValues (VM.resultToValues (impl [VStream inp])))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -453,7 +456,7 @@ interpPGen opts inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then print $ dumpValues dumpInterpVal resultValues
+                      then print $ dumpValues resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -515,18 +518,23 @@ dumpHTML jsData = vcat
   , bytes tstyle
   , "</style>"
   , "<script>"
-  , "const inf = 'inf'"
   , "const data =" <+> jsData
   , bytes trender
+  , bytes thex
+  , bytes tscope
   , "</script>"
   , "</head>"
-  , "<body id='container' onload=\"main()\">"
+  , "<body onload=\"main()\">"
+  , bytes tindex
   , "</body>"
   , "</html>"
   ]
   where
-  Just tstyle  = lookup "style.css" html_files
+  Just tstyle  = lookup "view.css" html_files
   Just trender = lookup "render.js" html_files
+  Just thex    = lookup "hex-view.js" html_files
+  Just tscope  = lookup "scope.js" html_files
+  Just tindex   = lookup "index.html" html_files
   bytes = text . BS8.unpack
 
 

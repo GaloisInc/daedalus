@@ -169,7 +169,27 @@ function renderUnion(inputs,l,x0) {
 }
 
 function renderMap(inputs,v) {
-  return renderLiteral("XXX: map")
+  const dom = document.createElement("div")
+  dom.classList.add("map")
+  dom.classList.add("composite-value")
+  const n = v.length
+  for (let i = 0; i < n; ++i) {
+    const entry = v[i]
+    const key = document.createElement("div")
+    key.classList.add("map-key")
+    key.appendChild(renderValue(inputs,entry[0]))
+
+    const val = document.createElement("div")
+    val.classList.add("map-val")
+    val.appendChild(renderValue(inputs,entry[1]))
+
+    const row = document.createElement("div")
+    row.classList.add("map-row")
+    row.appendChild(key)
+    row.appendChild(val)
+    dom.appendChild(row)
+  }
+  return dom
 }
 
 function renderInput(inputs,v) {

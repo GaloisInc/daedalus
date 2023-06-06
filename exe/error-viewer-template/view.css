@@ -195,6 +195,16 @@ body {
   overflow: scroll;
 }
 
+#value-pane {
+  padding-top: 1em;
+  padding-left: 1em;
+  max-height: 100%;
+  overflow: scroll;
+}
+
+
+
+
 
 
 /* ----------------------------------------------------------------------
@@ -275,6 +285,7 @@ body {
 .field-value {
   display: table-cell;
   padding-left: 1em;
+  vertical-align: top;
 }
 
 .union {
@@ -297,7 +308,8 @@ body {
 }
 
 .array {
-  display: inline-block;
+  display: flex;/*inline-block;*/
+  flex-direction: column;
 }
 
 .array-menu {
@@ -305,6 +317,21 @@ body {
   font-size: smaller;
 }
 
+.value.map {
+  display: table;
+}
+
+.map-row {
+  display: table-row;
+}
+
+.map-key {
+  display: table-cell;
+}
+
+.map-val {
+  display: table-cell;
+}
 
 
 
@@ -324,19 +351,6 @@ body {
   z-index: 2;
 }
 
-.map-call {
-  border-left: 5px solid black;
-  padding-left: 0.25em;
-  margin-top: 0.1em;
-}
-
-.map-content {
-  padding-bottom: 1em;
-}
-
-.map-err {
-  color: red;
-}
 
 
 /* ----------------------------------------------------------------------------

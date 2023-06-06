@@ -3,6 +3,16 @@ import utf8
 --------------------------------------------------------------------------------
 -- Values
 
+def JSON_value_strict =
+  block
+    let ?strict = true
+    JSON_value
+
+def JSON_value_lax =
+  block
+    let ?strict = false
+    JSON_value
+
 def JSON_value =
   First
     Null    = JSON_null

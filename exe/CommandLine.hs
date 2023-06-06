@@ -46,6 +46,7 @@ data Options =
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
           , optShowHTML  :: Bool
+          , optTracedValues :: Bool
           , optInline    :: Bool
           , optInlineThis :: [String]
           , optStripFail :: Bool
@@ -88,6 +89,7 @@ defaultOptions =
           , optForceUTF8 = True
           , optShowJS    = False
           , optShowHTML  = False
+          , optTracedValues = True
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
@@ -218,6 +220,10 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
               , Option [] ["json"]
                 "Show semantics values as JSON."
                 $ NoArg \o -> Right o { optShowJS = True }
+
+              , Option [] ["traced-values"]
+                "Annotate results with input file locations."
+                $ NoArg \o -> Right o { optTracedValues = True }
 
               , Option [] ["detailed-errors"]
                 "Show a lot of information in error messages"

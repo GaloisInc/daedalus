@@ -15,8 +15,9 @@ extra-source-files:
   exe/c-template/Makefile
   exe/c-template/Doxyfile
   exe/c-template/main.cpp
-  exe/html-template/render.js
-  exe/html-template/style.css
+  exe/html-template/*.js
+  exe/html-template/*.html
+  exe/html-template/*.css
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
   exe/error-viewer-template/*.js
