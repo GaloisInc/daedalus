@@ -29,7 +29,7 @@ defaultInterpConfig = InterpConfing
 -- | Enables detailed call stacks and traced values.
 detailedErrorsConfig :: InterpConfing
 detailedErrorsConfig = defaultInterpConfig
-  { multiErrors = False
+  { multiErrors = True
   , detailedCallstack = True
   , tracedValues = True
   }
