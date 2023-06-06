@@ -1,4 +1,4 @@
-{-# Language BlockArguments, TypeSynonymInstances, FlexibleInstances #-}
+{-# Language BlockArguments, FlexibleInstances #-}
 module Daedalus.Value.Utils where
 
 import qualified Data.Vector as Vector
@@ -10,6 +10,12 @@ import Daedalus.Value.Type
 
 tracedFun :: LiftTraced a => a -> a
 tracedFun = liftTraced id
+
+addTraced :: Value -> Value -> Value
+addTraced val =
+  case val of
+    VTraced _ t -> (`vTraced` t)
+    _           -> id
 
 class LiftTraced a where
   liftTraced :: (Value -> Value) -> a -> a

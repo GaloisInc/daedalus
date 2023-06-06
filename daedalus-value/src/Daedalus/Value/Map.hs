@@ -11,7 +11,9 @@ vMapEmpty = VMap Map.empty
 
 vMapInsert ::
   Value {- ^ key -} -> Value {- ^ value -} -> Value {- ^ map -} -> Value
-vMapInsert = tracedFun \k v m -> VMap (Map.insert k v (valueToMap m))
+vMapInsert k v = addTraced k
+               . addTraced v
+               . tracedFun (VMap . Map.insert k v . valueToMap)
 
 vMapLookup :: Value {- ^ key -} -> Value {- ^ map -} -> Value
 vMapLookup = tracedFun \k m -> VMaybe (Map.lookup k (valueToMap m))
