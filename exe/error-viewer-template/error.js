@@ -1,7 +1,6 @@
 
 
 function showRange(files,loc) {
-  const file = loc.from.file
   files.select(loc.from.file, loc.from.line, loc.from.col
                             , loc.to.line,   loc.to.col
                             , true)
