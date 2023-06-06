@@ -223,7 +223,10 @@ function renderFiles(fs) {
 
   function select(file,fromL,fromC,toL,toC,yes) {
     const f = rendered[file]
-    if (f === undefined) return
+    if (f === undefined) {
+      console.log("UNKNOWN FILE", file)
+      return
+    }
     focus(file,fromL)
     f.highlight(fromL,fromC,toL,toC,'selected',yes)
     f.update()
