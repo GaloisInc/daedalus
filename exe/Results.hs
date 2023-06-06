@@ -164,7 +164,7 @@ doFile file =
   do txt <- Text.readFile file
      let nm = Text.pack file
      let ts = lexer nm txt
-     a <- Dir.canonicalizePath file
+     a <- Dir.makeAbsolute file
      pure ( a
           , RTS.jsObject [ ("text",   RTS.toJSON txt)
                          , ("syntax", jsLexemes ts)
