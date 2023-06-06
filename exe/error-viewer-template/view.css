@@ -351,6 +351,10 @@ body {
   z-index: 2;
 }
 
+.map-err {
+  color: orange;
+}
+
 
 
 /* ----------------------------------------------------------------------------
@@ -359,4 +363,5 @@ body {
 
 .error-message {
   display: inline-block;
+  color: orange;
 }
