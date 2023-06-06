@@ -51,7 +51,7 @@ function renderErrorMap(gui,p,t) {
     dom.appendChild(lab)
     const content = document.createElement("div")
     content.classList.add("map-content")
-    const cntCtrl = collapsible(content,false)
+    const cntCtrl = collapsible(content,true)
     lab.classList.add("clickable")
     lab.addEventListener("click",(ev) => {
       ev.stopPropagation()
