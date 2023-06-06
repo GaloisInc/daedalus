@@ -1,5 +1,4 @@
 {-# Language GeneralizedNewtypeDeriving #-}
-{-# Language StandaloneDeriving #-}
 {-# Language OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -40,7 +39,7 @@ module Talos.SymExec.SolverT (
   -- * Type Class
   MonadSolver(..),
   -- * Metrics
-  contextSize
+  contextSize, ContextSize
   ) where
 
 import           Control.Applicative
@@ -66,6 +65,7 @@ import           SimpleSMT                 (SExpr, Solver)
 import qualified SimpleSMT                 as S
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import qualified Data.Kind as K
 
 import           Daedalus.Core             hiding (freshName)
 import qualified Daedalus.Core             as C
@@ -345,20 +345,38 @@ withSolver f = do
   s <- SolverT $ gets solver
   f s
 
+data ContextSize = ContextSize
+  { csAtomCount :: Int
+  , csDeclCount :: Int
+  }
+
+instance Semigroup ContextSize where
+  cs1 <> cs2 = ContextSize
+               { csAtomCount = csAtomCount cs1 + csAtomCount cs2
+               , csDeclCount = csDeclCount cs1 + csDeclCount cs2
+               }
+
+instance Monoid ContextSize where
+  mempty = ContextSize { csAtomCount = 0, csDeclCount = 0 }
+
+-- This is a bit gross, maybe we should use PP 
+instance Show ContextSize where
+  show cs = "#atoms: " ++ show (csAtomCount cs) ++ " #decls: " ++ show (csDeclCount cs)
+
 -- | A metric over the size of a solver problem, currently the number
 -- of atoms.  This is in the monad (as opposed to over `SolverContext`
 -- because `getContext` pushes).
-contextSize :: Monad m => SolverT m Int
+contextSize :: Monad m => SolverT m ContextSize
 contextSize =
-  SolverT $ gets (\s -> sum (map frameSize (ssCurrentFrame s : ssFrames s)))
+  SolverT $ gets (\s -> foldMap frameSize (ssCurrentFrame s : ssFrames s))
 
-frameSize :: SolverFrame -> Int
-frameSize = sum . fmap queuedCommandSize . frCommands
+frameSize :: SolverFrame -> ContextSize
+frameSize = foldMap queuedCommandSize . frCommands
 
-queuedCommandSize :: QueuedCommand -> Int
-queuedCommandSize (QCAssert e) = sexprSize e
-queuedCommandSize (QCDeclare {}) = 0 -- Maybe make this 1?
-queuedCommandSize (QCDefine _ _ e) = sexprSize e
+queuedCommandSize :: QueuedCommand -> ContextSize
+queuedCommandSize (QCAssert e) = mempty { csAtomCount = sexprSize e }
+queuedCommandSize (QCDeclare {}) = mempty { csDeclCount = 1 }
+queuedCommandSize (QCDefine _ _ e) = mempty { csAtomCount = sexprSize e }
 
 -- | A rough guide to the size of an assertion
 sexprSize :: SExpr -> Int
@@ -633,7 +651,7 @@ defineSMTPolyFun pf = onState (field @"ssKnownPolys") $ \polys -> do
 -- Convenience class
 
 class (Monad m, MonadIO (BaseMonad m), HasGUID (BaseMonad m)) => MonadSolver m where
-  type BaseMonad m :: * -> *
+  type BaseMonad m :: K.Type -> K.Type
   liftSolver :: SolverT (BaseMonad m) a -> m a
 
 instance (Monad m, MonadIO m, HasGUID m) => MonadSolver (SolverT m) where

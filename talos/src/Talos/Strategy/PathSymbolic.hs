@@ -859,19 +859,23 @@ stratCallNode cn = do
 
 synthesiseExpr :: Expr -> SymbolicM GuardedSemiSExprs
 synthesiseExpr e = do
-  traceGUIDChange "synthesiseExpr" (liftSemiSolverM . MV.semiExecExpr $ e)
+  r <- liftSemiSolverM . MV.semiExecExpr $ e
+  let vs = MV.guardedValues r
+      numSymb = length [ () | (_, MV.VOther _) <- vs ]
+  T.statS (pathKey <> "exprsize") (length vs, numSymb)
+  pure r
 
 -- Not a GuardedSemiSExprs here as there is no real need
 synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr
 synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
 
-traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
-traceGUIDChange msg m = do
-  cn <- asks sCurrentName
-  pre <- liftStrategy getRawGUID
-  r <- m
-  post <- liftStrategy getRawGUID
-  when (pre /= post) $ liftIO $ do
-    printf "%s (%s): GUID %s -> %s\n" msg (show cn) (showPP pre) (showPP post)
-    hFlush stdout
-  pure r
+-- traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
+-- traceGUIDChange msg m = do
+--   cn <- asks sCurrentName
+--   pre <- liftStrategy getRawGUID
+--   r <- m
+--   post <- liftStrategy getRawGUID
+--   when (pre /= post) $ liftIO $ do
+--     printf "%s (%s): GUID %s -> %s\n" msg (show cn) (showPP pre) (showPP post)
+--     hFlush stdout
+--   pure r

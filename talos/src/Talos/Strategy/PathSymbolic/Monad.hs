@@ -53,7 +53,7 @@ import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)
 import qualified Talos.SymExec.SolverT                     as Solv
 import Data.Text (Text)
-import Talos.Monad (getIEnv, LogKey)
+import Talos.Monad (getIEnv, LogKey, LiftTalosM)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -193,7 +193,7 @@ instance Monoid SymbolicModel where
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO
-           , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver)
+           , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver, LiftTalosM)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
