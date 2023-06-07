@@ -138,7 +138,10 @@ function renderError(gui,err) {
       const ix = stackFrames.length
       const dom = document.createElement("div")
       dom.classList.add("call")
-      dom.textContent = lab
+      const dolab = document.createElement("div")
+      dolab.textContent = lab
+      dom.appendChild(dolab)
+      const frame = err.stack[ix]
       cur.fun = dom
       stackPane.appendChild(dom)
       dom.addEventListener("click",() => showFrame(ix))
@@ -153,6 +156,7 @@ function renderError(gui,err) {
 
         case "scope": {
           cur.scope = renderScope(gui.inputs,frame.content)
+          cur.fun.appendChild(cur.scope.cloneNode(true))
           continue
         }
 
