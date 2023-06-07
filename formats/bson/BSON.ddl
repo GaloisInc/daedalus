@@ -4,10 +4,11 @@ import Daedalus
 import utf8
 
 def BSON_document =
-  BSON_chunk
   block
-    $$ = Many BSON_element
-    $[0x00]
+    let len = LEUInt32 as ?auto
+    len >= 5 is true    -- 4 for the length, 1 for the 0
+    $$ = Chunk (len - 5) (Many BSON_element)
+    $[0]
 
 def BSON_element =
   block
@@ -41,6 +42,7 @@ def BSON_value tag =
     0x13 -> {| Decimal128     = Many 16 UInt8 |} -- Unchecked
     0xFF -> {| MinKey |}
     0x7F -> {| MaxKey |}
+    _    -> Fail "Malformed tag"
 
 def BSON_regular_expression =
   block
@@ -53,10 +55,11 @@ def BSON_DBPointer =
     field2 = Many 12 UInt8
 
 def BSON_string =
-  BSON_chunk
-    block
-      $$ = Many UTF8
-      $[0x00]
+  block
+    let len = LEUInt32 as ?auto
+    len > 0 is true   -- 0 terminator
+    $$ = Chunk (len - 1) (Only (Many UTF8))
+    $[0]
 
 def BSON_cstring =
   block
@@ -68,6 +71,7 @@ def BSON_cstring =
              case c of
                0 -> { buf = s.buf; done = true }
                _ -> { buf = emit s.buf c; done = false }
+    res.done is true <| Fail "Malformed cstring"
     build res.buf
 
 def BSON_binary =
