@@ -75,7 +75,7 @@ def BSON_cstring =
     build res.buf
 
 def BSON_binary =
-  BSON_chunk_prefix
+  BSON_chunk
     block
       tag  = UInt8 as? BSON_binary_subtype
       data = GetStream
@@ -92,15 +92,14 @@ bitdata BSON_binary_subtype where
   UserDefined     = 0x80
 
 def BSON_code_w_s =
-  BSON_chunk
-    block
-      field1 = BSON_string
-      field2 = BSON_document
+  BSON_chunk (
+    Only
+      block
+        field1 = BSON_string
+        field2 = BSON_document
+  )
 
 def BSON_chunk P =
-  BSON_chunk_prefix (Only P)
-
-def BSON_chunk_prefix P =
   Chunk (LEUInt32 as ?auto) P
 
 

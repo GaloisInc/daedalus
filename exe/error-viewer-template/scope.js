@@ -12,7 +12,12 @@ function renderScope(inputs,vs) {
     x.textContent = name
     b.appendChild(x)
     const [annot,val] = isTraced(inputs,vs[name])
-    const valDom = renderValueUntraced(inputs,val)
+
+    const ctx = { path: name
+                , showPath: () => {}
+                , zoom: () => {}
+                }
+    const valDom = renderValueUntraced(ctx,inputs,val)
     b.appendChild(valDom)
     annot(x)
     annot(valDom)
@@ -22,19 +27,32 @@ function renderScope(inputs,vs) {
   return dom
 }
 
+function extendPath(ctx,p) {
+  return { ...ctx, path: ctx.path + p }
+}
 
-function renderLiteral(x) {
+function setPath(ctx,dom) {
+  dom.addEventListener("mouseenter", () => { ctx.showPath(ctx.path,true) })
+  dom.addEventListener("mouseleave", () => { ctx.showPath(ctx.path,false) })
+
+}
+
+
+
+function renderLiteral(ctx, x) {
   const dom = document.createElement("div")
   dom.classList.add("literal")
   dom.classList.add("value")
   dom.textContent = x
+  setPath(ctx,dom)
   return dom
 }
 
-function renderStruct(inputs,s) {
+function renderStruct(ctx, inputs,s) {
   const dom = document.createElement("div")
   dom.classList.add("struct")
   dom.classList.add("composite-value")
+
   for (const l in s) {
     const f = document.createElement("div")
     f.classList.add("field")
@@ -46,19 +64,31 @@ function renderStruct(inputs,s) {
     const y = document.createElement("div")
     y.classList.add("field-value")
     const [annot, val] = isTraced(inputs,s[l])
-    const valDom = renderValueUntraced(inputs,val)
-    annot(x)
-    annot(valDom)
+    const newCtx = extendPath(ctx, "." + l)
+    const valDom = renderValueUntraced(newCtx, inputs,val)
     y.appendChild(valDom)
     f.appendChild(y)
 
+    annot(f)
+    setPath(newCtx,f)
     dom.appendChild(f)
   }
+
   return dom
 }
 
-function renderArray(inputs, x) {
+function renderArray(ctx,inputs, x) {
 
+  // empty array
+  if (x.length === 0) {
+    const dom = document.createElement("div")
+    setPath(ctx,dom)
+    dom.classList.add("value-meta")
+    dom.textContent = "empty array"
+    return dom
+  }
+
+  // differnt views for the array
   const doms = []
 
   let allBytes = true
@@ -72,22 +102,36 @@ function renderArray(inputs, x) {
   }
 
 
-  {
+  { // Normal array view
     const dom1 = document.createElement("div")
+    setPath(ctx,dom1)
     dom1.classList.add("array")
     dom1.classList.add("composite-value")
+    dom1.classList.add("value")
 
     for (let i = 0; i < x.length; ++i) {
       let v = x[i]
-      dom1.appendChild(renderValue(inputs,v))
-      v = unTrace(v)
-      if (typeof(v) !== "number" || v < 0 || v >= 256) {
+      const entry = document.createElement("div")
+      entry.classList.add("array-entry")
+      const entry_index = document.createElement("div")
+      entry_index.classList.add("value-meta")
+      entry_index.textContent = i
+      entry.appendChild(entry_index)
+      const [annot, val] = isTraced(inputs,v)
+      const newCtx = extendPath(ctx,"[" + i + "]")
+      const valDom = renderValueUntraced(newCtx, inputs,val)
+      entry.appendChild(valDom)
+      dom1.appendChild(entry)
+      setPath(newCtx,entry)
+      annot(entry)
+      if (typeof(val) !== "number" || val < 0 || val >= 256) {
         allBytes = false
       }
     }
     doms.push(dom1)
   }
 
+  // String view
   if (allBytes) {
     let charCount = 0
     let str = "\""
@@ -107,19 +151,23 @@ function renderArray(inputs, x) {
       }
     }
     str += "\""
-    const dom2 = renderLiteral(str)
+    const dom2 = renderLiteral(ctx,str)
     charFrac   = x.length > 0 ? charCount / x.length : 0
     doms.push(dom2)
   }
 
-  if (doms.length === 1) return doms[0]
+  // we only have a single view.
+  if (doms.length === 1) {
+    return doms[0]
+  }
 
-  if (x.length === 0) return doms[1]
-
+  // Default view: use string if the thing is mostly characters
   let curView = charFrac > 0.5 ? 1 : 0
   const dom = document.createElement("div")
+  setPath(ctx,dom)
   dom.classList.add("value")
 
+  // Menu for switching views.
   const menu = document.createElement("div")
   menu.classList.add("array-menu")
   menu.textContent = "..."
@@ -141,16 +189,12 @@ function renderArray(inputs, x) {
   return dom
 }
 
-function renderUnion(inputs,l,x0) {
+function renderUnion(ctx,inputs,l,x0) {
 
   const [annot,x] = isTraced(inputs,x0)
-  if (typeof(x) === "object" && Object.keys(x).length === 0) {
-    const dom = renderLiteral(l)
-    annot(dom)
-    return(dom)
-  }
 
   const dom = document.createElement("div")
+  setPath(ctx,dom)
   dom.classList.add("union")
   dom.classList.add("composite-value")
 
@@ -161,27 +205,43 @@ function renderUnion(inputs,l,x0) {
 
   const el = document.createElement("div")
   el.classList.add("union-value")
-  el.appendChild(renderValue(inputs,x))
+  const newCtx = extendPath(ctx,":" + l)
+  el.appendChild(renderValue(newCtx,inputs,x))
   dom.appendChild(el)
 
   annot(dom)
   return dom
 }
 
-function renderMap(inputs,v) {
+function renderMap(ctx,inputs,v) {
+
+  const n = v.length
+
+  if (n === 0) {
+    const dom = document.createElement("div")
+    setPath(ctx,dom)
+    dom.classList.add("value-meta")
+    dom.textContent = "empty map"
+    return dom
+  }
+
+
+
   const dom = document.createElement("div")
+  setPath(ctx,dom)
   dom.classList.add("map")
   dom.classList.add("composite-value")
-  const n = v.length
   for (let i = 0; i < n; ++i) {
     const entry = v[i]
     const key = document.createElement("div")
     key.classList.add("map-key")
-    key.appendChild(renderValue(inputs,entry[0]))
+    const keyCtxt= extendPath(ctx,"#key")
+    key.appendChild(renderValue(keyCtx,inputs,entry[0]))
 
     const val = document.createElement("div")
     val.classList.add("map-val")
-    val.appendChild(renderValue(inputs,entry[1]))
+    const valCtx = extendPath(ctx,"#value")
+    val.appendChild(renderValue(valCtx,inputs,entry[1]))
 
     const row = document.createElement("div")
     row.classList.add("map-row")
@@ -192,12 +252,12 @@ function renderMap(inputs,v) {
   return dom
 }
 
-function renderInput(inputs,v) {
-  return renderLiteral("XXX: input")
+function renderInput(ctx,inputs,v) {
+  return renderLiteral(ctx,"XXX: input")
 }
 
-function renderIterator(inputs,v) {
-  return renderLiteral("XXX: iterator")
+function renderIterator(ctx,inputs,v) {
+  return renderLiteral(ctx,"XXX: iterator")
 }
 
 function isTraced(inputs, tv) {
@@ -208,6 +268,7 @@ function isTraced(inputs, tv) {
   const trace = tr.trace
 
   function highlight(ev) {
+    if (ev.ctrlKey) return
     ev.stopPropagation()
     for(let i = 0; i < trace.length; ++i) {
       const t = trace[i]
@@ -227,24 +288,34 @@ function isTraced(inputs, tv) {
          ]
 }
 
-function renderValue(inputs,v) {
+function renderValue(ctx,inputs,v) {
   const [annot, val] = isTraced(inputs,v)
-  const dom = renderValueUntraced(inputs,val)
+  const dom = renderValueUntraced(ctx,inputs,val)
   annot(dom)
   return dom
 }
 
+function renderValueUntraced(ctx,inputs,v) {
 
-function renderValueUntraced(inputs,v) {
+  const dom = doRenderValueUntraced(ctx,inputs,v)
+  dom.addEventListener("click",(ev) => {
+    if (!ev.ctrlKey) return
+    ev.stopPropagation()
+    ctx.zoom(ctx.path,renderValueUntraced(ctx,inputs,v))
+  })
+  return dom
+}
+
+function doRenderValueUntraced(ctx,inputs,v) {
   switch (typeof v) {
 
     case "object": {
 
       if (v === null) {
-        return renderLiteral("nothing")
+        return renderLiteral(ctx,"nothing")
       }
 
-      if (Array.isArray(v)) return renderArray(inputs, v)
+      if (Array.isArray(v)) return renderArray(ctx,inputs, v)
 
       const keys = Object.keys(v)
       if (keys.length === 1) {
@@ -254,41 +325,41 @@ function renderValueUntraced(inputs,v) {
         switch (k) {
 
           case "$$inf":
-            return renderLiteral("Infinity")
+            return renderLiteral(ctx,"Infinity")
 
           case "$$nan":
-            return renderLiteral("NaN")
+            return renderLiteral(ctx,"NaN")
 
           case "$$just":
-            return renderUnion(inputs, "just",val)
+            return renderUnion(ctx,inputs, "just",val)
 
           case "$$map":
-            return renderMap(inputs, val)
+            return renderMap(ctx,inputs, val)
 
           case "$$input":
-            return renderInput(inputs, val)
+            return renderInput(ctx,inputs, val)
 
           case "$$builder":
-            return renderArray(inputs, val)
+            return renderArray(ctx,inputs, val)
 
           case "$$iterator":
-            return renderIterator(inputs, val)
+            return renderIterator(ctx,inputs, val)
 
           default:
             if (k.length > 0) {
               if (k.charAt(0) === '$')
-                return renderUnion(inputs, k.substring(1),val)
+                return renderUnion(ctx,inputs, k.substring(1),val)
               else
-                return renderStruct(inputs, v)
+                return renderStruct(ctx,inputs, v)
             }
         }
       }
 
-      return renderStruct(inputs, v)
+      return renderStruct(ctx,inputs, v)
     }
 
     default:
-      return renderLiteral(v)
+      return renderLiteral(ctx,v)
   }
 
 }

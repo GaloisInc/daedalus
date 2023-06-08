@@ -149,7 +149,7 @@ body {
 }
 
 .literal {
-  color: purple;
+  color:       purple;
   font-family: monospace;
 }
 
@@ -195,10 +195,15 @@ body {
   overflow: scroll;
 }
 
+#value-path {
+  height: 2em;
+  overflow: scroll;
+  background-color: #ccc;
+}
 #value-pane {
   padding-top: 1em;
   padding-left: 1em;
-  max-height: 100%;
+  max-height: 90%;
   overflow: scroll;
 }
 
@@ -252,85 +257,118 @@ body {
  * Values
  * ---------------------------------------------------------------------- */
 
+.value-meta {
+  font-family:      monospace;
+  font-style:       italic;
+  color:            #999;
+  margin-left:      0.5em;
+  margin-right:     0.5em;
+}
+
+
 
 .value {
 }
 
 .composite-value {
-  border: 1px solid black;
+  border:        1px solid black;
   border-radius: 5px;
-  margin: 0.2em;
+  margin:        0.2em;
+  overflow:      scroll;
 }
 
+/* Literals */
 .value.literal {
-  font-weight: bold;
-  display: inline-block;
-  padding-left: 0.5em;
-  padding-right: 0.5em;
-  white-space: pre;
+  color:          #069;
+  font-weight:    bold;
+  display:        inline-block;
+  padding-left:   0.5em;
+  padding-right:  0.5em;
+  white-space:    pre;
+  overflow:       scroll;
+  max-width:      80em;
 }
 
+/* Structs */
 .struct {
-  display: table;
-  padding-left: 0.5em;
+  display:        inline-flex;
+  flex-direction: column;
+  padding-left:   0.5em;
 }
 
-.field { display: table-row; }
+.field {
+  display:         inline-flex;
+  flex-direction:  row;
+  justify-content: flex-start;
+}
 
 .label {
-  font-family: monospace;
-  display: table-row;
+  font-family:    monospace;
+  display:        inline-block;
 }
 
 .field-value {
-  display: table-cell;
-  padding-left: 1em;
+  display:        inline-block;
+  padding-left:   1em;
   vertical-align: top;
 }
 
+/* Unions */
 .union {
 }
 
 .union-tag {
-  font-family: monospace;
-  border-bottom: 1px solid black;
-  text-align: center;
-  padding-left: 1em;
-  padding-right: 1em;
-  background-color: purple;
-  color: white;
-  font-weight: bold;
+  font-family:      monospace;
+  border-bottom:    1px solid black;
+  text-align:       center;
+  padding-left:     1em;
+  padding-right:    1em;
+  background-color: #069;
+  color:            white;
+  font-weight:      bold;
 }
 
 .union-value {
-  text-align: center;
-  padding: 0.2em;
+  text-align:       center;
+  padding:          0.2em;
 }
 
+
+/* Arrays */
 .array {
-  display: flex;/*inline-block;*/
-  flex-direction: column;
+  display:          inline-flex;
+  flex-direction:   column;
+  /*align-items:      stretch;*/
+}
+
+.array-entry {
+  display:          flex;
+  flex-direction:   row;
+  justify-content:  flex-start;
+  align-items:      flex-start;
 }
 
 .array-menu {
-  display: inline-block;
-  font-size: smaller;
+  display:          inline-block;
+  font-size:        smaller;
 }
 
+
+/* Maps */
 .value.map {
-  display: table;
+  display:          table;
 }
 
 .map-row {
-  display: table-row;
+  display:          table-row;
 }
 
 .map-key {
-  display: table-cell;
+  display:          table-cell;
 }
 
 .map-val {
-  display: table-cell;
+  display:          table-cell;
 }
 
 
