@@ -99,12 +99,13 @@ implementations in `main_parser.cpp`.
 
 The entry procedure of the parser will be named `parseMain`, and has
 the following parameters:
-* an input, of type `DDL::Input`. In short, a `DDL::Input` can be constructed
-  from an `Array` of bytes or a pointer to a null-terminated sequence
-  of characters.
-* a reference to a `DDL::ParseError`, where `main_parser.cpp` stores
-  its result in the case of an error;
-* a reference to a vector of parse results. The class of parse results is declared/defined in `main_parser.h` / `main_parser.cpp`, and contains selector methods for accessings its various components.
+
+  * an input, of type `DDL::Input`. In short, a `DDL::Input` can be constructed
+    from an `Array` of bytes or a pointer to a null-terminated sequence
+    of characters.
+  * a reference to a `DDL::ParseError`, where `main_parser.cpp` stores
+    its result in the case of an error;
+  * a reference to a vector of parse results. The class of parse results is declared/defined in `main_parser.h` / `main_parser.cpp`, and contains selector methods for accessings its various components.
 
 All classes in the `DDL` namespace are defined in `rts-c/ddl`.
 
