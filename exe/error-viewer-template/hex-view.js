@@ -41,15 +41,15 @@ function drawPage(content,bytesPerPage,page) {
   const bytesPerLine  = 32
   const bytesPerGroup =  4
   const groupsPerLine = Math.ceil(bytesPerLine / bytesPerGroup)
-  const showSize      = Math.min(size,bytesPerPage)
-  const lines         = Math.ceil(showSize/bytesPerLine)
 
   const dom = document.createElement("div")
   dom.classList.add("input-file")
 
-  const start = page * bytesPerPage
-  let offset  = start
-  const end   = offset + showSize
+  const start     = page * bytesPerPage
+  const showSize  = Math.max(0, Math.min(size - start, bytesPerPage))
+  const lines     = Math.ceil(showSize/bytesPerLine)
+  let offset      = start
+  const end       = offset + showSize
 
   const bytes   = []
   const chars   = []
@@ -78,7 +78,7 @@ function drawPage(content,bytesPerPage,page) {
 
         const byteD = document.createElement("div")
         byteD.classList.add("input-byte")
-        byteD.setAttribute('title', offset.toString(16))
+        byteD.setAttribute('title', "0x" + offset.toString(16))
         byteD.textContent = str.length < 2 ? ('0' + str) : str
         groupD.appendChild(byteD)
         bytes.push(byteD)
