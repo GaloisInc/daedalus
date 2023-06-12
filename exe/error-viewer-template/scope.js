@@ -287,11 +287,11 @@ function renderValue(ctx,owner,v) {
   })
 
 
-  let collapsed = true
+  let collapsed = false
   const mini = document.createElement("div")
   mini.textContent = "*"
   mini.classList.add("value-mini")
-  dom.classList.add("hidden")
+  mini.classList.add("hidden")
 
   function toggleSize(ev) {
     if (!ev.shiftKey) return

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+FMT=html
+
+cabal exec daedalus \
+  --verbose=0 \
+  -- \
+  run JSON.ddl \
+  --entry=JSON_value_strict \
+  --$FMT \
+  --input $1 > "$(basename $1 .bson).$FMT"

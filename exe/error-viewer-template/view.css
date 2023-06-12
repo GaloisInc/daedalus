@@ -304,10 +304,11 @@ body {
   vertical-align:   top;
   color:            #069;
   background-color: #eee;
+  border-radius:    5px;
   font-family:      monospace;
   padding:          0.5em;
   max-width:        30em;
-  white-space:      pre;
+  white-space:      pre-wrap;
   overflow:         scroll;
 }
 
