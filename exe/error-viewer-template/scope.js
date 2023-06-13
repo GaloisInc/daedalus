@@ -16,6 +16,7 @@ function renderScope(inputs,vs) {
                 , inputs: inputs
                 , showPath: () => {}
                 , zoom: () => {}
+                , elements: {}
                 }
 
     b.appendChild(renderValue(ctx,x,vs[name]))
@@ -30,6 +31,14 @@ function extendPath(ctx,p) {
   newPath.push(...ctx.path)
   newPath.push(p)
   return { ...ctx, path: newPath }
+}
+
+function pathToString(path) {
+  let s = ""
+  for (let i = 0; i < path.length; ++i) {
+    s += path[i]
+  }
+  return s
 }
 
 function renderLiteral(ctx, x) {
@@ -275,18 +284,21 @@ function renderValue(ctx,owner,v) {
   const own = owner === null ? container : owner
   annot(own)
 
+  // Hover and set the path
   own.addEventListener("mouseover", (ev) => {
     ev.stopPropagation()
-    ctx.showPath(own,ctx.path)
+    ctx.showPath(own,ctx)
   })
 
+  // Zoom into an element
   own.addEventListener("click",(ev) => {
     if (!ev.ctrlKey) return
     ev.stopPropagation()
-    ctx.zoom(ctx.path,renderValue(ctx,null,v))
+    ctx.zoom(ctx)
   })
 
 
+  // Collapsing elements -----------------------------------
   let collapsed = false
   const mini = document.createElement("div")
   mini.textContent = "*"
@@ -297,6 +309,7 @@ function renderValue(ctx,owner,v) {
     if (!ev.shiftKey) return
     ev.stopPropagation()
     collapsed = !collapsed
+
     if (collapsed) {
       dom.classList.add("hidden")
       mini.classList.remove("hidden")
@@ -305,12 +318,14 @@ function renderValue(ctx,owner,v) {
       mini.classList.add("hidden")
     }
   }
-
   own.addEventListener("click",toggleSize)
   mini.addEventListener("click",toggleSize)
+  // -- End Collapse --------------------------------------------
 
   container.appendChild(mini)
   container.appendChild(dom)
+
+  ctx.elements[pathToString(ctx.path)] = v
 
   return container
 }

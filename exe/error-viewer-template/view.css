@@ -7,6 +7,8 @@ html {
 
 body {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   margin: 0;
   padding: 0;
   width: 100%;
@@ -35,33 +37,41 @@ body {
  * Left Pane
  * ---------------------------------------------------------------------- */
 
+div {
+  box-sizing: border-box;
+}
+
 #left-pane {
-  width: 60%;
+  display: flex;
+  flex-direction: column;
+  resize: horizontal;
+  width: 50%;
   height: 100%;
-  position: fixed;
-  left: 0;
-  top: 0;
+  overflow: auto;
+  border-right: 1px solid black;
 }
 
 #left-header {
   width: 100%;
-  border-bottom: 1px solid black;
-  line-height: 2em;
-}
-
-.thing-name {
-  background-color: #336;
-  font-weight: bold;
-  color: white;
-  padding-left: 1em;
-  padding-right: 1em;
-  height: 3ex;
-  line-height: 100%;
 }
 
 #file-pane {
-  height: 100%;
-  overflow: scroll;
+  overflow: auto;
+  flex: 1;
+}
+
+
+
+.thing-name {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  font-weight: bold;
+  padding-left: 1em;
+  padding-right: 1em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid black;
 }
 
 
@@ -164,12 +174,9 @@ body {
  * ---------------------------------------------------------------------- */
 
 #right-pane {
-  border-left: 1px solid black;
-  width:    40%;
-  height:   100%;
-  position: fixed;
-  right: 0;
-  top: 0;
+  height:100%;
+  flex: 1;
+  overflow: auto;
 }
 
 #error-pane {
@@ -198,8 +205,11 @@ body {
 #value-pane {
   padding-top: 1em;
   padding-left: 1em;
-  max-height: 90%;
   overflow: scroll;
+  flex: 1;
+}
+
+#help-pane {
 }
 
 
@@ -259,6 +269,7 @@ body {
   padding:          0.5em;
 }
 
+/* Minimized value */
 .value-mini {
   text-align:       center;
   font-family:      monospace;
@@ -271,6 +282,18 @@ body {
   border-radius:    5px;
   margin:           0.5em;
 }
+
+.value-disappearing {
+  animation-duration: 1s;
+  animation-name: disappearing;
+  overflow: hidden !important;
+}
+
+@keyframes disappearing {
+  from { width: auto; height: auto; }
+  to   { width: 1em; height: 1em; }
+}
+
 
 .value-hover {
   background-color: #fc3;
@@ -442,3 +465,5 @@ body {
   display: inline-block;
   color: orange;
 }
+
+
