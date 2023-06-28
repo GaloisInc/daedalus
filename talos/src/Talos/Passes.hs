@@ -13,9 +13,12 @@ import Daedalus.PP (showPP)
 import Control.Monad (zipWithM)
 
 import Talos.Passes.LiftExpr (liftExprM)
+import Talos.Passes.NoBytesPatterns (noBytesPatternsM)
 
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
-allPassesM _entry m = liftExprM (removeUnitsM m) >>=
+allPassesM _entry m = noBytesPatternsM m >>=
+                      pure . removeUnitsM >>=
+                      liftExprM >>=
                       nameBoundExprM >>=
                       nameMatchResultsM >>=
                       pure . normM

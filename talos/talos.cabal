@@ -75,6 +75,7 @@ library
 
                      , Talos.Passes
                      , Talos.Passes.LiftExpr
+                     , Talos.Passes.NoBytesPatterns
 
                      , Talos
                      -- , Machine
