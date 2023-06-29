@@ -37,8 +37,8 @@ library
                        unordered-containers,
                        lens,
                        containers,
-                       lsp >= 1.6,
-                       lsp-types >= 1.6,
+                       lsp >= 2.0,
+                       lsp-types >= 2.0,
                        aeson,
                        stm,
                        text,
@@ -76,7 +76,7 @@ executable daedalus-language-server
         hslogger,
         stm,
         bytestring,
-        lsp >= 1.6
+        lsp >= 2.0
        
     hs-source-dirs:   app
     default-language: Haskell2010

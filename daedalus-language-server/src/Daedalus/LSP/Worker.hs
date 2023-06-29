@@ -47,8 +47,9 @@ import           Daedalus.Type.Monad      (RuleEnv, runMTypeM, TCConfig(..))
 
 import           Language.LSP.Diagnostics (partitionBySource)
 import           Language.LSP.Server      (publishDiagnostics, runLspT, getVirtualFile)
-import           Language.LSP.Types       (Diagnostic (..))
-import qualified Language.LSP.Types       as J
+import           Language.LSP.Protocol.Types       (Diagnostic (..))
+import qualified Language.LSP.Protocol.Types       as J
+import qualified Language.LSP.Protocol.Message     as J
 
 import           Daedalus.LSP.Diagnostics
 import           Daedalus.LSP.Monad
@@ -60,7 +61,7 @@ import System.Log.Logger (debugM)
 -- -----------------------------------------------------------------------------
 -- Asking the worker thread to do something
 
-requestParse :: ServerState -> J.NormalizedUri -> J.TextDocumentVersion -> Int -> 
+requestParse :: ServerState -> J.NormalizedUri -> J.Int32 -> Int -> 
                 IO ()
 requestParse sst uri version delay = do
   m_txt <- runLspT (lspEnv sst) $ do
@@ -71,7 +72,7 @@ requestParse sst uri version delay = do
       -- might update the doc before we start, so we check here and do
       -- nothing if we are out of date.
 
-      Just vf | version == Just (virtualFileVersion vf) ->
+      Just vf | version == virtualFileVersion vf ->
                 pure (Just (virtualFileText vf))
       _ -> do
         liftIO $ debugM "reactor.requestParse" "Requested version is out of date"
@@ -239,7 +240,7 @@ runIfNeeded l prevl cleanup deps doIt mn = do
         -- infrequent).
         (_, (errs, _)) -> do
           setStatus False $ PassStatus True ErrorStatus
-          addDiagnostic ms (map (makeDiagnosticL J.DsError) errs)
+          addDiagnostic ms (map (makeDiagnosticL J.DiagnosticSeverity_Error) errs)
   where
     setStatus :: Bool -> PassStatus a -> WorkerM ()
     setStatus ok x = wsModules . ix mn %= (set l x . cleanup ok)
@@ -270,7 +271,7 @@ addModuleFromFile rootDir mn = do
   txt <- liftIO $ Text.readFile filename
   addModule filename (FileModule rootDir) txt
 
-addModuleFromRequest :: J.NormalizedUri -> J.TextDocumentVersion -> Text -> WorkerM ()
+addModuleFromRequest :: J.NormalizedUri -> J.Int32 -> Text -> WorkerM ()
 addModuleFromRequest uri version txt = do
   let ms = ClientModule uri version
       filename = case J.uriToFilePath (J.fromNormalizedUri uri) of
@@ -367,7 +368,7 @@ scopeAll = do
 
     cycleError mns mn = do
       let err = "Cyclic imports with " <> hsep (punctuate ", " (map pp mns))
-          diag lmn = makeDiagnosticText J.DsError (sourceRangeToRange (importRange lmn))
+          diag lmn = makeDiagnosticText J.DiagnosticSeverity_Error (sourceRangeToRange (importRange lmn))
                                         (Text.pack (show err))
       m_mst <- use (wsModules . at mn)
       case m_mst of
@@ -459,7 +460,7 @@ publishDiags sst = do
         ClientModule uri ver -> do
           let maxNDiags = 100
           void $ liftIO $ runLspT (lspEnv sst) $
-            publishDiagnostics maxNDiags uri ver (partitionBySource diags)
+            publishDiagnostics maxNDiags uri (Just ver) (partitionBySource diags)
 
 worker :: ServerState -> IO ()
 worker sst = void $ runWorkerM go (initWorkerState (passState sst))
