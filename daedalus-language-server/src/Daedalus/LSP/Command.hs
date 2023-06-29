@@ -2,6 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Daedalus.LSP.Command (supportedCommands, executeCommand) where
 
@@ -22,8 +25,9 @@ import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
 
 import           Language.LSP.Server          (sendNotification)
-import qualified Language.LSP.Types           as J
-import qualified Language.LSP.Types.Lens      as J
+import qualified Language.LSP.Protocol.Types     as J
+import qualified Language.LSP.Protocol.Lens      as J
+import qualified Language.LSP.Protocol.Message   as J
 
 import qualified Daedalus.LSP.Command.Debug   as C
 import qualified Daedalus.LSP.Command.Regions as C
@@ -33,6 +37,7 @@ import           Daedalus.LSP.Position        (declAtPos)
 import           Daedalus.PP
 import           Daedalus.SourceRange
 import           Daedalus.Type.AST            (TCModule, tcDeclName)
+import Data.Proxy (Proxy(..))
 
 
 type CommandImplFun = [A.Value] -> Either String (ServerM (Either J.ResponseError A.Value))
@@ -66,24 +71,24 @@ commands = Map.fromList [ ("positionToRegions", CommandImpl positionToRegions)
                         , ("debug/dumpModuleInfo", CommandImpl debugDumpModuleInfo)
                         ]
 
-executeCommand :: (Either J.ResponseError A.Value -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
+executeCommand :: (Either J.ResponseError (A.Value J.|? J.Null) -> ServerM ()) -> Text -> [A.Value] -> ServerM ()
 executeCommand resp nm vs
   | Just impl <- Map.lookup nm commands = do
       case invoke impl vs of
-        Left err -> resp $ Left $ J.ResponseError J.InvalidParams (Text.pack err) Nothing
-        Right m  -> resp =<< m
-  | otherwise = resp (Left $ J.ResponseError J.InternalError ("Unknown command " <> nm) Nothing)
+        Left err -> resp $ Left $ J.ResponseError (J.InR J.ErrorCodes_InvalidParams) (Text.pack err) Nothing
+        Right m  -> resp . fmap J.InL =<< m
+  | otherwise = resp (Left $ J.ResponseError (J.InR J.ErrorCodes_InvalidParams) ("Unknown command " <> nm) Nothing)
 
 supportedCommands :: [Text]
 supportedCommands = Map.keys commands
 
-positionToRegions :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (J.List J.Range))
+positionToRegions :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError [J.Range])
 positionToRegions doc pos = do
   e_mr <- uriToModuleState (J.toNormalizedUri (doc ^. J.uri))
   pure $ do
     ms <- e_mr
     case passStatusToMaybe (ms ^. msTCRes) of
-      Nothing -> Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Nothing -> Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "Missing module" Nothing
       Just (m, _, _)  -> Right $ C.positionToRegions pos m
 
 runModule :: J.TextDocumentIdentifier -> J.Position -> ServerM (Either J.ResponseError (Maybe A.Value))
@@ -93,7 +98,7 @@ runModule doc pos = do
   case e_ms of
     Left err -> pure (Left err)
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
-      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Nothing -> pure $ Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "Missing module" Nothing
       Just (m, _, _)  -> liftIO $ Right <$> C.runModule pos sst m
 
 watchModule :: J.TextDocumentIdentifier -> J.Position -> A.Value -> ServerM (Either J.ResponseError WatcherTag)
@@ -102,15 +107,15 @@ watchModule doc pos clientHandle = do
   case e_mr of
     Left err -> pure (Left err)
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
-      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Nothing -> pure $ Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "Missing module" Nothing
       Just (m, _, _)  -> go m
   where
     go :: TCModule SourceRange -> ServerM (Either J.ResponseError WatcherTag)
     go m | Just d <- declAtPos pos m = do
       sst <- ask
       a <- withRunInIO $ \runInBase ->
-        async $ C.watchModule (runInBase . sendNotification (J.SCustomMethod "daedalus/run/watchResult"))
-                              (runInBase . sendNotification J.SWindowShowMessage)
+        async $ C.watchModule (runInBase . sendNotification (J.SMethod_CustomMethod (Proxy @"daedalus/run/watchResult")))
+                              (runInBase . sendNotification J.SMethod_WindowShowMessage)
                               clientHandle sst (tcDeclName d)
       liftIO $ atomically $ do
         wmap <- readTVar (watchers sst)
@@ -118,7 +123,7 @@ watchModule doc pos clientHandle = do
         modifyTVar (watchers sst) (Map.insert next a)
         pure (Right next)
 
-    go _ = pure $ Left $ J.ResponseError J.ParseError "No decl at position" Nothing
+    go _ = pure $ Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "No decl at position" Nothing
 
 -- We don't bother telling the client if the watcher doesn't exist
 cancelWatchModule :: WatcherTag -> ServerM (Either J.ResponseError ())
@@ -129,7 +134,7 @@ cancelWatchModule tag = do
   liftIO $ traverse_ cancel m_a
   pure (Right ())
 
--- pure $ Left $ J.ResponseError J.ParseError "Cannot determine decl" Nothing
+-- pure $ Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "Cannot determine decl" Nothing
 
 debugSupportedPasses :: ServerM (Either J.ResponseError [A.Value])
 debugSupportedPasses = pure (Right (map A.String C.passNames))
@@ -141,7 +146,7 @@ debugPass doc pos passN = do
   case e_ms of
     Left err -> pure (Left err)
     Right ms -> case passStatusToMaybe (ms ^. msTCRes) of
-      Nothing -> pure $ Left $ J.ResponseError J.ParseError "Missing module" Nothing
+      Nothing -> pure $ Left $ J.ResponseError (J.InR J.ErrorCodes_ParseError) "Missing module" Nothing
       Just (m, _, _) -> Right <$> C.debugPass pos m passN
 
 debugDumpModuleInfo :: ServerM (Either J.ResponseError A.Value)

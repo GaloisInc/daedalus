@@ -12,7 +12,7 @@
 # Do the build itself in one image, then copy the important build
 # artifacts to a second image that we'll actually distribute.
 # FROM haskell:8.10 AS build
-FROM haskell:8.10 AS build
+FROM haskell:9.4 AS build
 
 # Hack to make sure we fetch if the head changes
 ADD https://api.github.com/repos/GaloisInc/daedalus/git/refs/heads/master version.unused.json

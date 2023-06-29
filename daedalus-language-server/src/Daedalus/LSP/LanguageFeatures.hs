@@ -4,21 +4,18 @@
 -- More or less the features discussed as 'Language features' in the LSP spec.
 module Daedalus.LSP.LanguageFeatures where
 
-import           Control.Concurrent.STM
 import           Control.Lens
 import           Control.Monad.Reader
 import           Data.Foldable
-import qualified Data.HashMap.Strict         as HMap
 import qualified Data.Map                    as Map
 import           Data.Maybe                  (fromMaybe, maybeToList)
-import           Data.Monoid
 import qualified Data.Text                   as Text
 
 import           Language.LSP.Server         (getClientCapabilities)
-import qualified Language.LSP.Types          as J
-import qualified Language.LSP.Types.Lens     as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
+import qualified Language.LSP.Protocol.Lens  as J
 
-import           Daedalus.PP
 import           Daedalus.Rec                (forgetRecs)
 import           Daedalus.Scope
 import           Daedalus.SourceRange
@@ -29,17 +26,16 @@ import           Daedalus.LSP.Diagnostics    (sourceRangeToRange)
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Position
 import qualified Daedalus.LSP.SemanticTokens as SI
-import System.Log.Logger (debugM)
 
 -- -----------------------------------------------------------------------------
 -- Semantic tokens (highlighting etc.)
 
-semanticTokens :: (Either J.ResponseError (Maybe J.SemanticTokens) -> ServerM ()) -> 
+semanticTokens :: (Either J.ResponseError (J.SemanticTokens J.|? J.Null) -> ServerM ()) -> 
                   Maybe J.Range -> J.NormalizedUri -> ServerM ()
 semanticTokens resp m_range uri = do
   e_mr <- uriToModuleState uri
 
-  caps <- getClientCapabilities
+  -- caps <- getClientCapabilities
   let m_semcaps = Nothing -- caps ^. J.textDocument >>= view J.semanticTokens
 
   -- case e_mr of
@@ -53,13 +49,13 @@ semanticTokens resp m_range uri = do
   --   Just caps -> liftIO $ debugM "reactor.semanticTokens" $ "Caps " ++ show (caps ^. J.tokenTypes)
     
   -- We might want to cache these?
-  resp $ fmap (SI.semanticTokens m_range m_semcaps) e_mr
+  resp $ fmap (maybeToNull . SI.semanticTokens m_range m_semcaps) e_mr
 
 -- -----------------------------------------------------------------------------
 -- Definition links
 
 
-definition :: (Either J.ResponseError (J.Location J.|? (J.List J.Location J.|? J.List J.LocationLink)) -> ServerM ()) ->
+definition :: (Either J.ResponseError (J.Definition J.|? ([J.DefinitionLink] J.|? J.Null)) -> ServerM ()) ->
               J.NormalizedUri -> J.Position -> ServerM ()
 definition resp uri pos = do
   e_mr <- uriToModuleState uri
@@ -67,8 +63,8 @@ definition resp uri pos = do
 
 -- This currently returns a location, but we could return a
 -- locationlink --- we need the range of the target defn.
-doDefinition :: J.NormalizedUri -> J.Position -> ModuleState -> J.List J.Location
-doDefinition _uri pos ms = J.List . maybeToList $ do
+doDefinition :: J.NormalizedUri -> J.Position -> ModuleState -> [J.DefinitionLink]
+doDefinition _uri pos ms = maybeToList $ do
   (m, _, _)   <- passStatusToMaybe (ms ^. msTCRes)
   (_, gscope) <- passStatusToMaybe (ms ^. msScopeRes)
   
@@ -84,7 +80,7 @@ doDefinition _uri pos ms = J.List . maybeToList $ do
         scope <- Map.lookup mn gscope
         range . snd <$> Map.lookup i (identScope scope)
 
-  pure (sourceRangeToLocation targetRange)
+  pure (J.DefinitionLink $ sourceRangeToLocationLink targetRange)
   
 -- -----------------------------------------------------------------------------
 -- Renaming (locals only right now)
@@ -95,13 +91,13 @@ doDefinition _uri pos ms = J.List . maybeToList $ do
 -- return Nothing if the symbol is defined in another module.  This
 -- doesn't guarantee that the edits will result in a well formed module.
 
-rename :: (Either J.ResponseError J.WorkspaceEdit -> ServerM ()) -> J.NormalizedUri ->
+rename :: (Either J.ResponseError (J.WorkspaceEdit J.|? J.Null) -> ServerM ()) -> J.NormalizedUri ->
           J.Position -> Text.Text -> ServerM ()
 rename resp uri pos newName = do
   e_tcn <- uriToTCModule uri
   resp $ case e_tcn of
     Left err   -> Left err
-    Right m_tcm  -> Right $ fromMaybe mempty $ doRename pos uri newName =<< m_tcm
+    Right m_tcm  -> Right . J.InL $ fromMaybe mempty $ doRename pos uri newName =<< m_tcm
 
 doRename :: J.Position -> J.NormalizedUri -> Text.Text -> TCModule SourceRange -> Maybe J.WorkspaceEdit
 doRename pos uri newName m = do
@@ -120,8 +116,8 @@ doRename pos uri newName m = do
   --
   -- FIXME: We use 'changes' instead of 'documentChanges' until we
   -- export the version etc. from the worker.
-  let edits = J.List [ J.TextEdit (sourceRangeToRange (range ni')) newName | ni' <- nis ]
-      emap = HMap.singleton (J.fromNormalizedUri uri) edits
+  let edits = [ J.TextEdit (sourceRangeToRange (range ni')) newName | ni' <- nis ]
+      emap = Map.singleton (J.fromNormalizedUri uri) edits
   pure (set J.changes (Just emap) mempty)
 
 -- -----------------------------------------------------------------------------
@@ -129,13 +125,13 @@ doRename pos uri newName m = do
 --
 -- This returns a list of places that a symbol is referenced.
 
-highlight :: (Either J.ResponseError (J.List J.DocumentHighlight) -> ServerM ()) -> J.NormalizedUri -> J.Position ->
+highlight :: (Either J.ResponseError ([J.DocumentHighlight] J.|? J.Null) -> ServerM ()) -> J.NormalizedUri -> J.Position ->
              ServerM ()
 highlight resp uri pos = do
   e_tc <- uriToTCModule uri
-  resp $ fmap (maybe mempty (doHighlight pos)) e_tc
+  resp $ fmap (maybeToNull . fmap (doHighlight pos)) e_tc
 
-doHighlight :: J.Position -> TCModule SourceRange -> J.List J.DocumentHighlight
+doHighlight :: J.Position -> TCModule SourceRange -> [J.DocumentHighlight]
 doHighlight pos m = fromMaybe mempty $ do
   d <- declAtPos pos m
   let allnis = declToNames d
@@ -146,14 +142,17 @@ doHighlight pos m = fromMaybe mempty $ do
         -- This is pretty gross
         else concatMap declToNames (forgetRecs (tcModuleDecls m))
       nis = filter ((==) (niName ni) . niName) allnis'
-  pure $ J.List (map niToHighlight nis)
+  pure (map niToHighlight nis)
   where
     niToHighlight ni = J.DocumentHighlight (sourceRangeToRange (range ni))
-                       (Just $ case niNameRefClass ni of { NameDef -> J.HkWrite ; NameUse -> J.HkRead })
+                       (Just $ case niNameRefClass ni of
+                                 NameDef -> J.DocumentHighlightKind_Write
+                                 NameUse -> J.DocumentHighlightKind_Read
+                       )
 
 -- FIXME: what about version ?
 -- FIXME: check uri against module's URI
-hover :: (Either J.ResponseError (Maybe J.Hover) -> ServerM ()) -> J.NormalizedUri -> J.Position -> ServerM ()
+hover :: (Either J.ResponseError (J.Hover J.|? J.Null) -> ServerM ()) -> J.NormalizedUri -> J.Position -> ServerM ()
 hover resp uri pos = do
   e_tc <- uriToTCModule uri
 
@@ -174,7 +173,7 @@ hover resp uri pos = do
   --   _ -> liftIO $ debugM "reactor.hover" "Didn't find a tc'd module"
 
   -- resp (Right Nothing)
-  resp $ fmap (doHover pos =<<) e_tc
+  resp $ fmap (maybeToNull . (doHover pos =<<)) e_tc
 
 doHover :: J.Position -> TCModule SourceRange -> Maybe J.Hover
 doHover pos m = do
@@ -184,6 +183,6 @@ doHover pos m = do
               Just t  -> ppTypeInContext (typeOfDecl info) t
               Nothing -> ppNamedRuleType (nameOfDecl info) (typeOfDecl info)
 
-  let ms = J.HoverContents $ J.markedUpContent "lsp-daedalus" msg
+  let ms = J.InL $ J.MarkupContent J.MarkupKind_PlainText msg
   pure $ J.Hover ms (Just (sourceRangeToRange (typeLoc info)))
 

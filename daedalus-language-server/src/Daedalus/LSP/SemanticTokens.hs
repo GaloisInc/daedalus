@@ -3,13 +3,11 @@ module Daedalus.LSP.SemanticTokens (semanticTokens) where
 
 import           Control.Lens             hiding (op)
 import           Daedalus.Parser.Lexer    (Lexeme (..), Token (..))
-import           Data.Default
 import           Data.Maybe               (mapMaybe)
 import qualified Data.Text                as Text
 
-import qualified Language.LSP.Types       as J
-import qualified Language.LSP.Types.Lens  as J
-import qualified Language.LSP.Types.Lens  as JL
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens  as J
 
 import           Daedalus.Panic
 import           Daedalus.SourceRange
@@ -26,9 +24,9 @@ semanticTokens m_range m_caps ms = do
         Just r  -> filter (flip inRange r . sourceRangeToRange . range) toks
 
   let legend = case m_caps of
-        Nothing -> def -- Just guess?
+        Nothing -> J.defaultSemanticTokensLegend -- Just guess?
         Just caps -> J.SemanticTokensLegend (caps ^. J.tokenTypes)
-                                            (caps ^. JL.tokenModifiers)
+                                            (caps ^. J.tokenModifiers)
 
   case J.makeSemanticTokens legend (mapMaybe lexemeToSemanticToken toks') of
     Left err -> panic "makeSemanticTokens" [Text.unpack err]
@@ -53,11 +51,11 @@ lexemeToSemanticToken lexeme = uncurry (J.SemanticTokenAbsolute l c (fromIntegra
 tokenToSTT :: Token -> Maybe (J.SemanticTokenTypes, [J.SemanticTokenModifiers])
 tokenToSTT tok = flip (,) [] <$> typ
   where
-    var = Just J.SttVariable
-    num = Just J.SttNumber
-    str = Just J.SttString
-    op  = Just J.SttOperator
-    kw  = Just J.SttKeyword
+    var = Just J.SemanticTokenTypes_Variable
+    num = Just J.SemanticTokenTypes_Number
+    str = Just J.SemanticTokenTypes_String
+    op  = Just J.SemanticTokenTypes_Operator
+    kw  = Just J.SemanticTokenTypes_Keyword
 
     typ = case tok of
       BigIdent    -> var

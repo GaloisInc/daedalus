@@ -5,7 +5,7 @@ module Daedalus.LSP.Command.Debug (debugPass, passNames) where
 
 import qualified Data.Text              as Text
 import qualified Data.Aeson             as A
-import qualified Language.LSP.Types     as J
+import qualified Language.LSP.Protocol.Types as J
 
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Foldable          (find)
