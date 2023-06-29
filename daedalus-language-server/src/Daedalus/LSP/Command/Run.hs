@@ -5,22 +5,19 @@ module Daedalus.LSP.Command.Run (runModule, watchModule) where
 
 import           Control.Concurrent.STM.TVar
 import           Control.Lens hiding ((.=))
-import           Control.Monad.Reader
 import           Control.Monad.STM
 import           Data.Aeson                  (KeyValue ((.=)))
 import qualified Data.Aeson                  as A
 import           Data.Either                 (isRight)
 import           Data.Foldable               (find)
 import           Data.Function               (on)
-import           Data.Functor                (($>))
 import qualified Data.List.NonEmpty          as NE
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import qualified Data.Text                   as Text
 
-import qualified Language.LSP.Types          as J
+import qualified Language.LSP.Protocol.Types          as J
 
-import           System.Log.Logger           (debugM)
 
 import           Daedalus.AST                (nameScopeAsModScope)
 import           Daedalus.Interp             (interpFile,defaultInterpConfig)
@@ -108,7 +105,7 @@ watchModule report reportMsg clientHandle sst nm = go mempty
                 RTS.Results as    -> showPP (fst (NE.head as)) -- FIXME
               msg = A.object ["clientHandle" .= clientHandle, "result" .= A.String (Text.pack resStr)]
           report msg
-        Left err -> reportMsg (J.ShowMessageParams J.MtWarning (Text.pack $ "Declaration " ++ showPP nm ++ " cannot be run: " ++ err))
+        Left err -> reportMsg (J.ShowMessageParams J.MessageType_Warning (Text.pack $ "Declaration " ++ showPP nm ++ " cannot be run: " ++ err))
       go newTCs
 
     -- debugDecl mods = do

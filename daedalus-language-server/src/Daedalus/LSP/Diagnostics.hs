@@ -9,9 +9,9 @@ import qualified Data.Text                    as Text
 
 import           Control.Lens                 hiding (Iso, (<.>))
 
-import           Language.LSP.Types           (Diagnostic (..))
-import qualified Language.LSP.Types           as J
-import qualified Language.LSP.Types.Lens      as J
+import           Language.LSP.Protocol.Types           (Diagnostic (..))
+import qualified Language.LSP.Protocol.Types           as J
+import qualified Language.LSP.Protocol.Lens            as J
 
 import           Daedalus.PP                  hiding ((<.>))
 
@@ -668,8 +668,10 @@ makeDiagnosticText sev r msg =
              , _source   = Nothing -- ??
              , _message  = msg
              , _code     = Nothing
+             , _codeDescription = Nothing
              , _relatedInformation = Nothing
              , _tags     = Nothing
+             , _data_    = Nothing
              }
 
 makeDiagnostic :: PP a => J.DiagnosticSeverity -> J.Range -> a -> Diagnostic
@@ -685,19 +687,18 @@ class ToDiagnostics a where
 --   toDiagnostics (CycleCheckErrors errs) = map makeDiagnosticL errs
 
 instance ToDiagnostics ParseError where
-  toDiagnostics (ParseError { errorLoc = sp, errorMsg = msg }) = [ makeDiagnosticText J.DsError (sourcePosToRange sp) (Text.pack msg) ]
+  toDiagnostics (ParseError { errorLoc = sp, errorMsg = msg }) = [ makeDiagnosticText J.DiagnosticSeverity_Error (sourcePosToRange sp) (Text.pack msg) ]
 
 instance ToDiagnostics ScopeError where
-  toDiagnostics serr = [ makeDiagnostic J.DsError noRange serr ]
+  toDiagnostics serr = [ makeDiagnostic J.DiagnosticSeverity_Error noRange serr ]
 
 instance ToDiagnostics TypeError where
-  toDiagnostics (TypeError l) = [ makeDiagnosticText J.DsError (sourceRangeToRange $ thingRange l) (Text.pack (show (thingValue l))) ]
-
+  toDiagnostics (TypeError l) = [ makeDiagnosticText J.DiagnosticSeverity_Error (sourceRangeToRange $ thingRange l) (Text.pack (show (thingValue l))) ]
 
 instance ToDiagnostics TypeWarning where
   toDiagnostics w =
     [ makeDiagnosticText
-        J.DsWarning
+        J.DiagnosticSeverity_Warning
         (sourceRangeToRange (range w))
         (Text.pack (show (pp w)))
     ]
