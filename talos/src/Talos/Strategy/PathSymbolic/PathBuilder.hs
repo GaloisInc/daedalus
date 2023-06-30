@@ -201,7 +201,12 @@ symbolicModelToModelStateP sm = do
   let (pes, pPathVars)   = mapToP PC.pathVarToSMTVar pInt (smChoices sm)
       (ves, pValues)     = mapToP id (\ty -> Typed ty <$> pValue ty) (smNamedValues sm)
       (les, pLoopCounts) = mapToP PC.loopCountVarToSMTVar pInt (Map.fromSet (const ()) (smLoopVars sm))
-  sexp <- Solv.getValues (pes ++ ves ++ les)
+  let vals = pes ++ ves ++ les
+  sexp <- timed "getmodel.time" $ Solv.getValues vals
+  T.statS (pathKey <> "getmodel" <> "size") (length vals)
+  -- Getting the model again seems to take about the same amount ot time.
+  -- _ <- timed "getmodel.again" $ Solv.getValues (pes ++ ves ++ les)
+  
   let modelp = ModelState <$> pPathVars <*> pValues <*> pLoopCounts  
   case evalModelP (pSExpr modelp) sexp of
     []    -> panic "No parse" []

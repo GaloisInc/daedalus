@@ -39,6 +39,7 @@ import           Data.Semigroup                            (sconcat)
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 import           Data.Text                                 (Text)
+import qualified Data.Text as Text
 import qualified Data.Vector                               as Vector
 import           GHC.Generics                              (Generic)
 import           GHC.Stack                                 (HasCallStack)
@@ -57,7 +58,8 @@ import           Daedalus.Panic
 import           Daedalus.PP
 import qualified Daedalus.Value.Type                       as V
 
-import           Talos.Monad                               (getFunDefs)
+import           Talos.Monad                               (getFunDefs, LogKey, LiftTalosM)
+import qualified Talos.Monad as T
 import           Talos.Strategy.Monad                      (LiftStrategyM,
                                                             liftStrategy)
 import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
@@ -70,6 +72,13 @@ import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
 import           Text.Printf                               (printf)
+import Data.String (fromString)
+
+--------------------------------------------------------------------------------
+-- Logging and stats
+
+muxKey :: LogKey
+muxKey = "muxvalue"
 
 --------------------------------------------------------------------------------
 -- GuardedValues
@@ -179,21 +188,6 @@ vBool g = vValue g . V.VBool
 
 vUInt :: PathCondition -> Int -> Integer -> GuardedSemiSExprs
 vUInt g n = vValue g . V.vUInt n
-
--- vFst :: GuardedSemiSExprs -> Maybe GuardedSemiSExprs
--- vFst gvs = sconcat <$> nonEmpty gvss
---   where
---     gvss = catMaybes [ refineGuardedSemiExprs g v
---                      | (g, (v, _) <- guardedValues gvs ]
-
--- vSnd :: GuardedSemiSExprs -> Maybe GuardedSemiSExprs
--- vSnd gvs = sconcat <$> nonEmpty gvss
---   where
---     gvss = catMaybes [ refineGuardedSemiExprs g v
---                      | (g, VPair _ v) <- guardedValues gvs ]
-
--- pattern VBool :: Bool -> SemiValue a
--- pattern VBool b = VValue (V.VBool b)
 
 pattern VNothing :: MuxValue f a
 pattern VNothing = VValue (V.VMaybe Nothing)
@@ -613,7 +607,7 @@ data SemiSolverEnv = SemiSolverEnv
 typeDefs :: SemiSolverEnv -> Map TName TDecl
 typeDefs = I.tEnv . interpEnv
 
-type SemiCtxt m = (Monad m, MonadIO m, HasGUID m, LiftStrategyM m)
+type SemiCtxt m = (Monad m, MonadIO m, HasGUID m, LiftStrategyM m, LiftTalosM m)
 
 type SemiState = Set (Typed SMTVar)
 
@@ -652,9 +646,19 @@ hoistMaybe r =
 collectMaybes :: SemiCtxt m => [SemiSolverM m a] -> SemiSolverM m [a]
 collectMaybes = fmap catMaybes . mapM getMaybe
 
+-- | Strips out failing values and produces a single value.
 gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
               SemiSolverM m GuardedSemiSExprs
 gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unions'
+  -- gvs' <- collectMaybes gvs
+  -- let m_v   = unions' gvs'
+  --     ngvs  = length gvs
+  --     ngvs' = length gvs'
+  --     nvs   = length (concatMap guardedValues gvs')
+  --     nvs'  = maybe 0 (length . guardedValues) m_v
+
+  -- T.statistic (muxKey <> "collect") (Text.pack $ printf "non-empty: %d/%d pruned: %d/%d" ngvs' ngvs (nvs - nvs') nvs)
+  -- hoistMaybe m_v
 
 getEFun :: SemiCtxt m => FName -> SemiSolverM m (Fun Expr)
 getEFun f = do
@@ -689,8 +693,7 @@ semiExecExpr expr =
       v <- hoistMaybe (unions' els)
       inv <- semiExecName (caseVar cs)
       nm <- asks currentName
-      liftIO $ printf "Pure case on %s for %s: %d -> %d\n" (showPP (caseVar cs)) (showPP nm) (length (guardedValues inv)) (length (guardedValues v))
-
+      T.info (muxKey <> "case") (printf "Pure case on %s for %s: %d -> %d\n" (showPP (caseVar cs)) (showPP nm) (length (guardedValues inv)) (length (guardedValues v)))
       pure v
 
     -- These should be lifted in LiftExpr
@@ -914,6 +917,34 @@ bAndMany, bOrMany :: SemiCtxt m => PathCondition ->
 bAndMany = bOpMany True
 bOrMany  = bOpMany False
 
+reportingSemiExec2 :: SemiCtxt m =>
+  LogKey ->
+  (PathCondition -> GuardedSemiSExpr -> GuardedSemiSExpr ->
+   SemiSolverM m GuardedSemiSExprs) ->
+  GuardedSemiSExprs ->
+  GuardedSemiSExprs ->
+  SemiSolverM m GuardedSemiSExprs
+reportingSemiExec2 key go gvs1 gvs2 = do
+  let rs = [ go g sv1 sv2
+           | (g1, sv1) <- guardedValues gvs1
+           , (g2, sv2) <- guardedValues gvs2
+           , let g = g1 <> g2, PC.isFeasibleMaybe g
+           ]
+  r <- gseCollect rs
+  let ncomb = length (guardedValues gvs1) * length (guardedValues gvs2)
+      nres  = length rs
+      lv1   = length (guardedValues gvs1)
+      lv2   = length (guardedValues gvs2)      
+      nv1   = length [ () | (g, _) <- guardedValues gvs1, PC.isFeasibleMaybe g ]
+      nv2   = length [ () | (g, _) <- guardedValues gvs2, PC.isFeasibleMaybe g ]
+  T.statistic (muxKey <> "exec2" <> key)
+    (Text.pack $ printf "pruned: %d/%d v1: %d/%d v2: %d/%d"
+                        (ncomb - nres) ncomb
+                        (lv1 - nv1) lv1
+                        (lv2 - nv2) lv2                        
+    )
+  pure r
+
 semiExecEq, semiExecNEq :: SemiCtxt m => Type ->
                            GuardedSemiSExprs -> GuardedSemiSExprs ->
                            SemiSolverM m GuardedSemiSExprs
@@ -924,12 +955,7 @@ semiExecEqNeq :: SemiCtxt m => Bool -> Type ->
                  GuardedSemiSExprs ->
                  GuardedSemiSExprs ->
                  SemiSolverM m GuardedSemiSExprs
-semiExecEqNeq iseq ty gvs1 gvs2 =
-  gseCollect [ go g sv1 sv2
-             | (g1, sv1) <- guardedValues gvs1
-             , (g2, sv2) <- guardedValues gvs2
-             , let g = g1 <> g2, PC.isFeasibleMaybe g
-             ]
+semiExecEqNeq iseq ty = reportingSemiExec2 "eqneq" go
   where
     go g sv1 sv2 = do
       let mkB = pure . vBool g
@@ -1001,12 +1027,7 @@ semiExecOp2 Emit _rty _ty1 _ty2 gvs1 gvs2
     mk g (vsm, vs) = (g, VSequence (vsm {vsmIsBuilder = True}) (vs ++ [gvs2]))
     (gs, gvss1) = NE.unzip (getGuardedValues gvs1)
     
-semiExecOp2 op rty ty1 ty2 gvs1 gvs2 =
-  gseCollect [ go g sv1 sv2
-             | (g1, sv1) <- guardedValues gvs1
-             , (g2, sv2) <- guardedValues gvs2
-             , let g = g1 <> g2, PC.isFeasibleMaybe g
-             ]
+semiExecOp2 op rty ty1 ty2 gvs1 gvs2 = reportingSemiExec2 ("op2" <> fromString (showPP op)) go gvs1 gvs2
   where
     -- point-wise
     go g (VValue v1) (VValue v2) =
@@ -1134,9 +1155,9 @@ semiExecArrayIndex g arrv (VOther (Typed ty sIx))
                    \ix -> PC.insertLoopCount lc (PC.LCCGt ix) (mkIxG ix)
                | otherwise = mkIxG
 
-          mkV ix el = refine (mkG' ix) el
+          mkV ix el = hoistMaybe (refine (mkG' ix) el)
                
-      in hoistMaybe (unions' (catMaybes (zipWith mkV [0..] svs)))
+      in gseCollect (zipWith mkV [0..] svs)
 
 semiExecArrayIndex _g _arrv _sv = panic "BUG: saw non-symbolic sequence" []
 
