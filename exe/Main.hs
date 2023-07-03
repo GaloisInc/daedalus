@@ -111,30 +111,28 @@ configure opts =
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
 
-  | DumpRaw <- optCommand opts, Just path <- optParserDDL opts =
-    do mm   <- ddlPassFromFile passParse path
-       mo   <- ddlGetAST mm astParse
-       ddlPrint (ppDoc mo)
+  | DumpRaw <- optCommand opts =
+      do path <- getSpecPath
+         mm   <- ddlPassFromFile passParse path
+         mo   <- ddlGetAST mm astParse
+         ddlPrint (ppDoc mo)
 
-  | DumpResolve <- optCommand opts, Just path <- optParserDDL opts =
-    do mm       <- ddlPassFromFile passResolve path
+  | DumpResolve <- optCommand opts =
+    do path     <- getSpecPath
+       mm       <- ddlPassFromFile passResolve path
        mo       <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
-  | DumpTypes <- optCommand opts, Just path <- optParserDDL opts =
-    do mm  <- ddlPassFromFile passTC path
-       mo  <- ddlGetAST mm astTC
+  | DumpTypes <- optCommand opts =
+    do path <- getSpecPath
+       mm   <- ddlPassFromFile passTC path
+       mo   <- ddlGetAST mm astTC
        ddlPrint (ppTypes mo)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
   | otherwise =
-    do path <- case optParserDDL opts of
-         Nothing -> do
-           ddlIO $ throwOptError
-             [ "Missing command-line argument: DDL input file" ]
-         Just p -> return p
-
+    do path <- getSpecPath
        mm <- ddlPassFromFile ddlLoadModule path
        allMods <- ddlBasis mm
 
@@ -206,6 +204,12 @@ handleOptions opts
 
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
+  where
+  getSpecPath =
+    case optParserDDL opts of
+     Nothing -> ddlIO $ throwOptError
+                             [ "Missing command-line argument: DDL input file" ]
+     Just p -> pure p
 
 
 interpInterp ::
