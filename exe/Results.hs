@@ -1,5 +1,5 @@
 {-# Language ImplicitParams #-}
-module Results where
+module Results(dumpResult, dumpValues, dumpErr, saveDetailedError) where
 
 import Control.Monad(forM_)
 import qualified Data.Text as Text
@@ -39,8 +39,8 @@ import CommandLine
 dumpResult :: (?opts :: Options, GroupedErr e) => RTS.ResultG e Value -> Doc
 dumpResult r =
   case r of
-     RTS.NoResults err -> dumpErr err
-     RTS.Results as    -> dumpValues (map fst (toList as))
+    RTS.NoResults err -> dumpErr err
+    RTS.Results as    -> dumpValues (map fst (toList as))
 
 -- | Show some parsed values
 dumpValues :: (?opts :: Options) => [Value] -> Doc
@@ -61,21 +61,13 @@ dumpValues as
   jsvals = RTS.toJSON as
   toDoc  = text . Text.unpack . Text.decodeUtf8 . RTS.jsonToBytes
 
--- | Show the value of the interpreter either pretty printed or in JSON
-dumpInterpVal :: (?opts :: Options) => Value -> Doc
-dumpInterpVal x
-  | optShowJS ?opts =
-    text $ Text.unpack $ Text.decodeUtf8 $ RTS.jsonToBytes $ RTS.toJSON x
-  | otherwise = pp x
-
-
 {- | Show the errors either pretty printed or in JSON
 Note that the detailed error directory is handed in `saveDetailedError`,
 not here. -}
 dumpErr ::
   (?opts :: Options, GroupedErr e) =>
   RTS.ParseErrorG e -> Doc
-dumpErr err
+dumpErr err0
   | optShowJS ?opts = RTS.jsToDoc (RTS.toJSON err)
   | otherwise =
     vcat
@@ -85,6 +77,7 @@ dumpErr err
       , text (prettyHexCfg cfg ctx)
       ]
   where
+  err = RTS.normalizePaths err0
   ctxtAmt = 32
   bs      = RTS.inputTopBytes (RTS.peInput err)
   errLoc  = RTS.peOffset err
@@ -114,7 +107,7 @@ saveDetailedError srcs err =
     Just dir ->
       do Dir.createDirectoryIfMissing True dir
          doFiles dir srcs
-         doDetailedErr dir err
+         doDetailedErr dir (RTS.normalizePaths err)
          forM_ error_viewer_files \(name,bytes) ->
             BS.writeFile (dir </> name) bytes
 
@@ -130,7 +123,8 @@ doDetailedErr outDir err =
        do BS8.hPutStrLn h "const parseError ="
           BS8.hPutStrLn h (RTS.jsonToBytes (jsGrouped err))
 
-class (RTS.HasInputs e, RTS.IsAnnotation e) => GroupedErr e where
+class (RTS.HasSourcePaths e, RTS.HasInputs e, RTS.IsAnnotation e) =>
+  GroupedErr e where
   jsGrouped :: RTS.ParseErrorG e -> RTS.JSON
 
 instance GroupedErr DebugAnnot where

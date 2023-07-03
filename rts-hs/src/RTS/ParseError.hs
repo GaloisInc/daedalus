@@ -98,19 +98,21 @@ normalizePaths :: HasSourcePaths a => a -> a
 normalizePaths e = mapSourcePaths (normalizePathFun (getSourcePaths e)) e
 
 normalizePathFun :: Set FilePath -> FilePath -> FilePath
-normalizePathFun ps = joinPath . drop common . splitDirectories
+normalizePathFun ps0 = joinPath . drop common . splitDirectories
   where
   common = length $ takeWhile allSame
                   $ transpose
                   $ map splitDirectories
                   $ Set.toList ps
 
+  ps = Set.delete "synthetic" ps0
   len = Set.size ps
   allSame xs =
     length xs == len &&
     case xs of
       []       -> True
       y : more -> all (== y) more
+
 
 instance (HasInputs e) => HasInputs (ParseErrorG e) where
   getInputs pe = Map.unions [ getInputs (peITrace pe)
