@@ -14,7 +14,7 @@ import           Control.Monad(guard)
 import           Data.Parameterized.Some
 import qualified Data.Text               as Text
 
-import qualified Language.LSP.Types      as J
+import qualified Language.LSP.Protocol.Types as J
 
 import           Daedalus.PP
 import           Daedalus.SourceRange
@@ -182,8 +182,10 @@ positionInRange (J.Position line0 col0) (range -> SourceRange start end) =
     line = line0 + 1
     col  = col0  + 1
 
-sourceRangeToLocation :: SourceRange -> J.Location
-sourceRangeToLocation pos =
-  J.Location (J.filePathToUri (Text.unpack $ sourceFile (sourceFrom pos)))
-             (sourceRangeToRange pos)
-
+sourceRangeToLocationLink :: SourceRange -> J.LocationLink
+sourceRangeToLocationLink pos = J.LocationLink
+  { J._originSelectionRange = Nothing
+  , J._targetUri = J.filePathToUri (Text.unpack $ sourceFile (sourceFrom pos))
+  , J._targetRange = sourceRangeToRange pos
+  , J._targetSelectionRange = sourceRangeToRange pos
+  }
