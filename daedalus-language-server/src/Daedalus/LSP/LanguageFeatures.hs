@@ -5,6 +5,7 @@
 module Daedalus.LSP.LanguageFeatures where
 
 import           Control.Lens
+import           Control.Monad (guard)
 import           Control.Monad.Reader
 import           Data.Foldable
 import qualified Data.Map                    as Map

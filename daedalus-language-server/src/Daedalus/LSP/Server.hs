@@ -17,6 +17,7 @@ import           Control.Concurrent            (forkIO)
 import           Control.Concurrent.STM.TChan
 import qualified Control.Exception             as E
 import           Control.Lens                  hiding (Fold, Iso)
+import           Control.Monad                 (forever, void)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import qualified Data.Text                     as Text
@@ -25,10 +26,10 @@ import           Data.Aeson                    (encode, fromJSON)
 import           Data.Aeson.Types              (Result (..))
 import           Data.Maybe                    (fromMaybe)
 
-import           Language.LSP.Server
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens  as J
+import qualified Language.LSP.Protocol.Lens    as J
 import qualified Language.LSP.Protocol.Message as J
+import qualified Language.LSP.Protocol.Types   as J
+import           Language.LSP.Server
 import           System.Log.Logger
 
 -- import           Daedalus.PP
