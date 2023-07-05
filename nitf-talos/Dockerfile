@@ -1,0 +1,43 @@
+
+# The daedalus dockerfile.
+#
+# Note: the artifacts published in this image are used by the
+# 'try-daedalus' project at
+#
+# https://github.com/GaloisInc/try-daedalus
+#
+# so be sure to keep that in mind if you make changes here and update
+# the try-daedalus '.devcontainer.json' file as needed.
+
+# Do the build itself in one image, then copy the important build
+# artifacts to a second image that we'll actually distribute.
+# FROM haskell:8.10 AS build
+FROM haskell:8.10 AS build
+
+# Hack to make sure we fetch if the head changes
+ADD https://api.github.com/repos/GaloisInc/daedalus/git/refs/heads/wip/talos-nitf-docker version.unused.json
+RUN git clone -b wip/talos-nitf-docker --single-branch https://github.com/GaloisInc/daedalus
+WORKDIR daedalus
+
+RUN cabal update
+
+RUN cabal install exe:daedalus
+RUN cabal install exe:talos
+
+# Second image: the actual distribution image containing the user-facing
+# build artifacts.  We needa more recent ubuntu to get a decent z3
+FROM ubuntu:jammy
+
+WORKDIR /usr/local/
+
+COPY --from=build /root/.cabal/bin/daedalus                 bin/
+COPY --from=build /root/.cabal/bin/talos                    bin/
+
+WORKDIR /
+COPY --from=build /daedalus/nitf-talos                     /nitf/
+
+ENV PATH="/usr/local/bin/:${PATH}"
+
+RUN apt-get update && apt-get install -y git libnuma1 z3
+
+WORKDIR /nitf
