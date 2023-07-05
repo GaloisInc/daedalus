@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- API for strategies, which say how to produce a path from a slice.
 
@@ -10,19 +11,22 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , StrategyInstance(..)
                             , parseStrategies
                             , StratFun, StratGen(..), trivialStratGen
-                            , StrategyM, StrategyMState, emptyStrategyMState
+                            , StrategyM, StrategyMState
                             , runStrategyM -- just type, not ctors
+                            , makeStrategyMState
                             , LiftStrategyM (..)
-                            , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
-                            , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
-                            , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
+                            , summaries, getSlice, sccsFor, backEdgesFor, isRecVar
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
-                            , logMessage
+                            -- , logMessage, logMessage'
                             ) where
 
+import           Control.Monad             (forM, replicateM)
 import           Control.Monad.Except      (throwError)
 import           Control.Monad.Reader
+import           Control.Monad.RWS         (RWST)
+import qualified Control.Monad.RWS.CPS as RWSCPS
+import qualified Control.Monad.RWS.Strict as RWSStrict
 import           Control.Monad.State
 import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe
@@ -34,23 +38,29 @@ import qualified Data.Map                  as Map
 import           Data.Maybe                (maybeToList)
 import           Data.Set                  (Set)
 import qualified Data.Set                  as Set
+import qualified Data.Vector               as V
+import qualified Data.Vector.Mutable       as V
 import           System.Random
 
-import           Daedalus.Core
-import qualified Daedalus.Core.Semantics.Decl as I
-import qualified Daedalus.Core.Semantics.Env  as I
-import           Daedalus.GUID
-import           Daedalus.PP
+import           Daedalus.Core             (Expr (Struct), Name,
+                                            SizeType (TSize), TDecl (tDef),
+                                            TDef (TBitdata, TStruct, TUnion),
+                                            TName, Type (..), UserType (utName),
+                                            arrayL, boolL, byteArrayL, emit,
+                                            inUnion, intL, just, mapEmpty,
+                                            mapInsert, newBuilder, nothing,
+                                            unit)
 import           Daedalus.Panic
-import           Daedalus.Rec                 (forgetRecs)
+import           Daedalus.PP
 
+import           Daedalus.GUID             (HasGUID)
 import           Talos.Analysis.Exported
-import           Talos.Analysis.Monad         (Summaries)
+import           Talos.Analysis.Monad      (Summaries)
+import           Talos.Monad               (LiftTalosM, TalosM, getTypeDefs)
+import qualified Talos.Strategy.OptParser  as P
+import           Talos.Strategy.OptParser  (Parser, runParser)
 import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT        (SolverT)
-import           Talos.Strategy.OptParser (Parser, runParser)
-import qualified Talos.Strategy.OptParser as P
-import System.IO (hFlush, stdout)
+import           Talos.SymExec.SolverT     (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes
@@ -104,32 +114,18 @@ parseStrategies opts strats =
 data StrategyMState  =
   StrategyMState { stsStdGen    :: StdGen
                    -- Read only
-                 , stsVerbosity :: Int
                  , stsSummaries :: ExpSummaries
-                 , stsModule    :: Module
-                 -- Derived from the module
-                 , stsFunDefs   :: Map FName (Fun Expr)
-                 , stsBFunDefs  :: Map FName (Fun ByteSet)
-                 , stsIEnv      :: I.Env
-                 , stsNextGUID  :: GUID
                  }
 
-emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> Int -> StrategyMState
-emptyStrategyMState gen ss md nguid verbosity =
-  StrategyMState gen verbosity expss md funDefs bfunDefs env0 nguid' 
-  where
-    (expss, nguid') = exportSummaries tyDefs (ss, nguid)
-    env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
-    tyDefs  = Map.fromList [ (tName td, td) | td <- forgetRecs (mTypes md) ]
-    funDefs = Map.fromList [ (fName f, f) | f <- mFFuns md ]
-    bfunDefs = Map.fromList [ (fName f, f) | f <- mBFuns md ]
-
 newtype StrategyM a =
-  StrategyM { getStrategyM :: StateT StrategyMState IO a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  StrategyM { getStrategyM :: StateT StrategyMState TalosM a }
+  deriving (Functor, Applicative, Monad, MonadIO, LiftTalosM, HasGUID)
 
-runStrategyM :: StrategyM a -> StrategyMState -> IO (a, StrategyMState)
-runStrategyM m st = runStateT (getStrategyM m) st
+makeStrategyMState :: StdGen -> Summaries ae -> TalosM StrategyMState
+makeStrategyMState gen ss = StrategyMState gen <$> exportSummaries ss
+
+runStrategyM :: StrategyMState -> StrategyM a -> TalosM (a, StrategyMState)
+runStrategyM st m = runStateT (getStrategyM m) st
 
 -- -----------------------------------------------------------------------------
 -- State access
@@ -156,7 +152,6 @@ backEdgesFor :: LiftStrategyM m => SliceId -> m (Map SliceId (Set SliceId))
 backEdgesFor entrySid = do
   liftStrategy (StrategyM (gets (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)))
 
-
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
 -- callNodeToSlices cn = do
 --   -- FIXME: This is maybe less efficient dep on how GHC optimises
@@ -180,28 +175,6 @@ backEdgesFor entrySid = do
 --     Nothing -> panic "Missing summary" [showPP fn, showPP fid]
 
 
-getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
-getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
-  where
-    getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
-      Nothing -> panic "Missing function" [showPP f]
-      Just v  -> v
-
-getModule :: LiftStrategyM m => m Module
-getModule = liftStrategy (StrategyM (gets stsModule))
-
-getTypeDefs :: LiftStrategyM m => m (Map TName TDecl)
-getTypeDefs = liftStrategy (StrategyM (gets (I.tEnv . stsIEnv)))
-
-getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
-getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
-
-getBFunDefs :: LiftStrategyM m => m (Map FName (Fun ByteSet))
-getBFunDefs = liftStrategy (StrategyM (gets stsBFunDefs))
-
-getIEnv :: LiftStrategyM m => m I.Env
-getIEnv = liftStrategy (StrategyM (gets stsIEnv))
-
 -- -----------------------------------------------------------------------------
 -- Random values
 
@@ -219,17 +192,30 @@ randL :: LiftStrategyM m => [a] -> m a
 randL [] = panic "randL: empty list" []
 randL vs = (!!) vs <$> randR (0, length vs - 1)
 
-randPermute :: LiftStrategyM m => [a] -> m [a]
-randPermute = go
-  where
-    go [] = pure []
-    go xs = do idx <- randR (0, length xs - 1)
-               let (pfx, x : sfx) = splitAt idx xs
-               (:) x <$> go (pfx ++ sfx)
 
-typeToRandomInhabitant :: (LiftStrategyM m) => Type -> m Expr
+
+-- | Randomly shuffle a list
+--   /O(N)/
+--
+--  c.f. https://wiki.haskell.org/Random_shuffle
+shuffle :: [a] -> StrategyM [a]
+shuffle xs = do
+  ar <- liftStrategy . liftIO $ V.thaw (V.fromList xs)
+  forM [0..n-1] $ \i -> do
+    j <- randR (i,n-1)
+    vi <- liftIO $ V.read ar i
+    vj <- liftIO $ V.read ar j
+    liftIO $ V.write ar j vi
+    return vj
+  where
+    n = length xs
+  
+randPermute :: LiftStrategyM m => [a] -> m [a]
+randPermute = liftStrategy . shuffle
+
+typeToRandomInhabitant :: LiftStrategyM m => Type -> m Expr
 typeToRandomInhabitant ty = do
-  tdecls <- getTypeDefs
+  tdecls <- liftStrategy getTypeDefs
   typeToRandomInhabitant' tdecls ty
 
 typeToRandomInhabitant' :: (LiftStrategyM m) => Map TName TDecl -> Type -> m Expr
@@ -300,42 +286,37 @@ typeToRandomInhabitant' tdecls targetTy = go targetTy
 -- -----------------------------------------------------------------------------
 -- Printing verbosely
 
-logMessage :: LiftStrategyM m => Int -> String -> m ()
-logMessage lvl s = liftStrategy $ do
-  v <- StrategyM (gets stsVerbosity)
-  if lvl > v
-    then pure ()
-    else liftIO (putStr s >> hFlush stdout)
+-- logMessage' :: (Monad m, MonadIO m) => Int -> Int -> String -> m ()
+-- logMessage' v lvl s
+--   | lvl <= v = liftIO (putStrLn s >> hFlush stdout)
+--   | otherwise = pure ()
+
+-- logMessage :: LiftStrategyM m => Int -> String -> m ()
+-- logMessage lvl s = liftStrategy $ do
+--   v <- StrategyM (gets stsVerbosity)
+--   logMessage' v lvl s
 
 -- -----------------------------------------------------------------------------
 -- Class
 
 class Monad m => LiftStrategyM m where
-  liftStrategy :: StrategyM a -> m a
-
+  liftStrategy :: StrategyM a -> m a  
+  default liftStrategy :: (m ~ t m', MonadTrans t, LiftStrategyM m') => StrategyM a -> m a
+  liftStrategy = lift . liftStrategy
 
 instance LiftStrategyM StrategyM where
   liftStrategy = id
 
 instance LiftStrategyM m => LiftStrategyM (StateT s m) where
-  liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
-  liftStrategy = lift . liftStrategy
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (WriterT w m) where
-  liftStrategy = lift . liftStrategy  
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
-  liftStrategy = lift . liftStrategy
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
-  liftStrategy = lift . liftStrategy
 instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
-  liftStrategy = lift . liftStrategy
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWST r w s m) where
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSCPS.RWST r w s m) where
+instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSStrict.RWST r w s m) where
 
 -- -----------------------------------------------------------------------------
 -- Instances
-
-instance HasGUID StrategyM where
-  guidState f = StrategyM (state go)
-    where
-      go s = let (r, guid') = f (stsNextGUID s)
-             in (r, s { stsNextGUID = guid' })
 

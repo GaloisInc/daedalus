@@ -1,5 +1,5 @@
 
-def Foo = { @v = UInt8; ^ v as int }
+def Foo = { @v = UInt8; ^ v as uint 64 }
 
 def Main = { x = Foo; Test2; (x < 10) is true }
 

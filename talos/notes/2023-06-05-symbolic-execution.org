@@ -1,0 +1,1010 @@
+
+* Symbolic Simulation Introduction
+
+This note documents the 'pathsymb' strategy from Talos.  Recall that a
+strategy takes a slice and constructs a set of models for that slice,
+where a model is represented by a SelectedPath --- essentially a
+grammar where all choices (byte values, alternation) have been
+replaced by concrete values.  This strategy uses an SMT solver to
+determine these values.
+
+We will initially discuss the strategy mostly ignoring looping
+constructs, and then discuss loops and sequences.
+
+The strategy is implemented in two phases: (1) the slice is converted
+into a _parametric SelectedPath_ along with supporting SMT context;
+and (2) the SMT solver is repeatedly queried to build up a set of
+SelectedPaths which are returned to the rest of Talos.
+
+The first phase of the pathsymb strategy constructs, for a given
+slice,
+
+1. A parametric SelectedPath which represents a family of 
+   SelectedPaths indexed by the SMT variables in the context;
+2. A SMT context, consisting of a set of SMT variables representing
+   the byte values and choices in the slice, along with a set of SMT
+   assertions constraining these variables;
+3. A (semi-)symbolic value representing the result of the slice, used
+   when recursing into the slice.
+
+** Example
+
+As an example, consider the Daedalus grammar
+
+#+begin_src daedalus
+
+  def Ex1 = block
+    v = ( {- c == 0 -} ^ 42
+        | {- c == 1 -} ^ 10
+        )
+#+end_src
+
+where the ghost variable 'c' represents the SMT variable assigned to
+the choice in v.
+
+In this example, the (symbolic) value assigned to v is
+#+begin_example
+v: { (c = 0) |= 42
+   , (c = 1) |= 10
+   }
+#+end_example
+
+If we were representing values purely symbolically, this would result
+in a new SMT variable x, which is associated with the Daedalus
+variable v, along with the side conditions
+#+begin_example
+(c = 0 --> x = 42) && (c = 1 --> x = 10)
+#+end_example
+(or some equivalent encoding).  With any representation of values, we
+also have the side condition that c is 0 or 1.
+
+Now, if we consider
+#+begin_src daedalus
+
+  def Ex2 = block
+    v1 =  ( {- c1 == 0 -} ^ 1
+	  | {- c1 == 1 -} ^ 2
+	  )
+    v2 =  ( {- c2 == 0 -} ^ 10
+	  | {- c2 == 1 -} ^ 20
+	  )
+    v3 = ^ v1 + v2	
+#+end_src
+
+we have the variable assignments:
+#+begin_example
+v1: { (c1 = 0) |= 1
+    , (c1 = 1) |= 2
+    }
+v2: { (c2 = 0) |= 10
+    , (c2 = 1) |= 20
+    }
+v3: { (c1 = 0, c2 = 0) |= 11
+    , (c1 = 1, c2 = 0) |= 12
+    , (c1 = 0, c2 = 1) |= 21
+    , (c1 = 1, c2 = 1) |= 22
+    }
+#+end_example
+
+where there is a value in v3 for each possible path to v3 in the
+variables used to calculate v3.
+
+The tricky part is how to represent and operate over these values in
+an efficient and comprehensible fashion.  There are a few key places
+where the implementation of values impacts these areas
+1. Values are joined at branching operations, namely choice and
+   case. This join is essentially set union guarded by a per-branch
+   predicate; and
+2. Case operations are where the value is examined, and hence where
+   the path condition associated with each value is used.
+
+In the remainder of this document we will discuss the representation of
+values, using a simplifed Core to focus the discussino on the main
+issues.
+
+* A simplified Core
+
+We shall use a minimal Core type for the remainder of the document.
+We will present =SimpleCore= piecemeal; the complete set of definitions
+is section [[* Complete implementation]].
+
+** Types
+
+=SimpleCore= supports only sums, products, recursion via type names, and
+bitvec base types.  A =SimpleCore= module (not shown) is a collection of
+named type and grammar definitions.
+
+#+begin_src haskell
+  -- Types
+  data Type =
+    BVTy Int
+    | SumTy Type Type
+    | ProdTy Type Type
+    | NamedTy TName
+
+  -- Derived types and terms
+  unitTy = BVTy 0
+  unit   = BVLit 0 0
+
+  boolTy = SumTy unitTy unitTy
+  true   = InL unit
+  false  = InR unit
+#+end_src
+
+** Syntax
+
+The AST for =SimpleCore= is
+
+#+begin_src haskell
+
+  -- The datatype for simplified Core slices 
+  data SimpleCore =
+    Hole
+    -- Monadic operations
+    | Pure Expr
+    | Do Name SimpleCore SimpleCore
+    -- Parser operations    
+    | Byte
+    | Choose SimpleCore SimpleCore
+    -- Data-dependency
+    | ProjectLeft Name
+    -- Function calls and recursion 
+    | Call FName [Name]
+
+  -- Expressions
+  data Expr =
+    Var Name
+    | BVLit Int Integer
+    -- Operators
+    | Add Expr Expr
+    -- Relations
+    | Equal Expr Expr
+    | Lt   Expr Expr
+    -- Type constructors and destructors
+    | Prod Expr Expr
+    | Fst  Expr
+    | Snd  Expr
+    | InL Expr
+    | InR Expr
+    | Mirror Expr -- :: SumTy a b -> SumTy b a
+
+#+end_src haskell
+
+** Adequacy of SimpleCore
+
+=SimpleCore= is quite minimal, but we can, for example, implement
+(total) case over a sum type as (abusing syntax)
+#+begin_src
+  mirror :: SumTy a b -> SumTy b a
+   
+  (case n of L -> LHS | R -> RHS)
+  =def=
+  Choose (Do _ (ProjectLeft n) LHS)
+         (Do _ (ProjectLeft (mirror n)) RHS)
+#+end_src
+
+=SimpleCore= has no Case statement, being replaced by =ProjectLeft=.  While
+much of the complexity of the symbolic simulation backend is due to
+supporting =Case=, the crux of the problem is inspection of the value in
+a partial fashion.  Thus =ProjectLeft= captures the parts of Case which
+cause the most complexity.  Note also that in Daedalus Core we have
+#+begin_example
+case n of L -> RHS
+==
+Do _ <- case n of L -> {}
+   RHS
+#+end_example
+noting that pattern-match failure causes backtracking, and so the RHS
+is reached if and only the n matches L.
+
+# Something about preservation of complexity?  We might have a large
+# blow-up in size compiling from DDL Core to SimpleCore, so we might
+# have to be careful about size claims.
+
+** Parametric SelectedPath
+
+=SelectedPath= are a family of partial parse trees.  They can be
+thought of as a path through a Slice, where all the choices in the
+slice have been assigned a value.
+
+#+begin_src haskell  
+  type PathVar = SMTVar
+
+  -- The datatype for the output and intermediate phases of the strategy.
+  data SimpleSelectedPathF b c = 
+    SelectedHole
+    | SelectedDo (SimpleSelectedPath b c) (SimpleSelectedPath b c)
+    | SelectedByte b
+    | SelectedChoice (c (SimpleSelectedPathF b c))
+
+  -- The intermediate datatype after symbolic simulation and before
+  -- model iteration.
+  data MaybeSymbolicChoice a = Concrete Bool a | Symbolic PathVar a a
+  type SimplePathBuilder  = SimpleSelectedPathF SMTVar MaybeSymbolicChoice
+
+  -- The final result of all strategies
+  type ConcreteChoice a = ConcreteChoice Bool a
+  type SimpleSelectedPath = SimpleSelectedPathF Word8  ConcreteChoice
+
+#+end_src
+
+During the first phase of pathsymb, these choices are left symbolic
+(i.e., represented by a SMT variable) in the =SelectedPath=, and so all
+paths are represented.  During the second phase (where a SMT model is
+available), these choices are replaced by concrete values, and the
+paths not taken are discarded.
+
+** Simulation (simplified)
+
+Below we sketch a simplified general symbolic simulator for
+=SimpleCore=.  We will extend this implementation with exceptions in
+later sections, but will elide this complexity for the initial
+presentation.  For reference, the complete implementation of
+SimpleCore and the simulator is included in section [[Complete implementation]]. 
+
+The simulator is implemented inside the =M= monad, the implementation
+of which is left abstract.  The monad provides a number of services
+including fresh names, and keeps track of the generated SMT context.
+
+#+begin_src haskell
+  data M a = -- ...
+
+  freshSMTVar :: M SMTVar
+  addSMTAssertion  :: SExpr -> M ()
+
+#+end_src
+
+** Path conditions
+
+A =PathCondition= represents the choices made from the root of the
+program to a given program point.  For =SimpleCore=, path conditions are
+assignments from path variables (represented as SMT variables) to
+which choice was taken, represented as a Haskell =Bool= (=True= is the
+first branch, =False= the second).
+
+For this section we will leave abstract the definition of path
+conditions; we will discuss the implementation further when we discuss
+[[* Conjoining PathConditions]].  The main operations on path conditions are
+extension (when entering the branch of a choice) and conversion to an
+SMT term (not shown) for guarding assertions.
+
+#+begin_src haskell
+  type PathCondition = -- ...
+
+  -- This assumes that pc is not mapped.
+  extendPath :: PathCondition -> PathVar -> Bool -> PathCondition
+  emptyPathCondition :: PathCondition
+#+end_src
+
+** SimValue
+
+The implementation of the simulator is generic in the implementation
+of values.  Later sections will instantiate this class as appropriate:
+it descrices the API that values need to provide.
+
+#+begin_src haskell
+  type Env a = Map Name a
+  
+  class SimValue a where
+    -- Convert an a pure expression into a symbolic value.
+    symExecExpr       :: Env a -> Expr -> M a
+
+    -- Convert a SMT variable representing an abstract byte into a value.
+    smtVarToByteVal   :: SMTVar -> a
+
+    -- Merge two values from different paths into a single value.
+    muxChoices :: PathVar -> a -> a -> M a
+
+    -- Assert that the argument value is a Left sum member.  The result
+    -- is the value associated with that label.
+    projectLeft :: PathCondition -> a -> M a
+#+end_src
+
+A value API provides the following operations:
+- =symExecExpr= :: symbolically execute a =SimpleCore= expression in a
+  given environment (mapping =SimpleCore= variables to values);
+- =smtVarToByteVal= :: lift a SMT variable representing an symbolic byte
+  into a value;
+- =muxChoices= :: merge two values discriminated by a path variable.
+  This operation is performed after symbolically executing the two
+  branches of a =Choose= statement.  Logically, the result is a value
+  which may be either of the results of the branches, depending on the
+  value of the path variable.
+- =projectLeft= :: assert that the given value is the =InL= sum-type
+  constructor, and return the associated value.  Generally this
+  operation will extend the SMT context with the appropriate
+  assertions.
+
+** Symbolic values
+
+For illustration consider a purely symbolic implementation of values:
+the value type is simply a SMT term.  We can instantiate the
+framework by
+#+begin_src haskell
+
+  -- Assume some magic to turn [smt| ... |] into a sexpr
+  instance SimValue SExpr where
+    symExecExpr env e =
+      case e of
+	Add e1 e2  = [smt| (bvadd e1 e2) |]
+	Prod e1 e2 = [smt| (make-Pair e1 e2) |]
+	-- ...
+
+    smtVarToByteVal v = const v
+
+    muxChoices pc pv lval rval = do
+      v <- freshSMTVar
+      addSMTAssertion [smt| v = if pv then lval else rval |]
+      pure v
+
+    projectLeft pc v = do
+      addSMTAssertion [smt| pc --> isLeft v |]
+      pure [smt| getLeft v |]
+#+end_src
+
+with some abuse of syntax when converting haskell expressions into SMT
+terms.
+
+
+
+** Simulation (simplified)
+
+The core simulation algorithm is then
+
+#+begin_src haskell
+  -- Unfolds the function defition and simulates the body under the
+  -- environment extended by the arguments.
+  unfoldFunctionAndRecurse :: SimValue a => 
+			      PathCondition -> Env a ->
+			      FName -> [Expr] -> M (PathBuilder, a)
+
+  extendEnv :: Env a -> Name -> a -> Env a
+
+  simulate :: SimValue a => PathCondition -> Env a ->
+	      Slice -> M (SimplePathBuilder, a)
+  simulate pc env s =
+    case s of
+      Hole -> pure (SelectedHole, unit) -- value should never be used.    
+      Pure e -> do
+	v <- symExecExpr env e
+	pure (SelectedHole, v)
+      Do x l r -> do
+	(lp, lv) <- simulate pc env l
+	(rp, rv) <- simulate pc (extendEnv env x lv) r
+	pure (SelectedDo lp rp, rv)
+      Byte -> do
+	v <- freshSMTVar
+	pure (SelectedByte v, smtVarToByteVal v)
+      Call f args -> unfoldFunctionAndRecurse pc env f args
+      Choose l r -> do
+	cv <- freshSMTVar
+	(lp, lv) <- simulate (extendPath pc cv True) env l
+	(rp, rv) <- simulate (extendPath pc cv False) env r
+	v <- muxChoices pc cv lv rv
+	pure (SelectedChoice (Symbolic cv lp rp), v)
+      ProjectLeft n -> do
+	v <- projectLeft (lookupEnv env n)
+	pure (SelectedHole, v)
+#+end_src
+
+** Conjoining PathConditions
+
+Unreachable grammars, although not expected to be common, do occur
+qespecially when unrolling recursive grammars.  We discuss them in
+more detail in section [[* Unreachable grammars]].
+
+Not every path (and combination of paths) is satisfiable.  There are a
+number of reasons that a gramamr may be unreachable, and a benefit of
+the more complicated value implementations discussed below is that
+some of these cases can be detected without involving the solver.  In
+particular, conjoining =PathCondition= may result in an unsatisfiable
+=PathCondition=.
+
+#+begin_src haskell
+  type PathCondition = Map PathVar Bool
+  conj :: PathCondition -> PathCondition -> Maybe PathCondition
+  conj = -- ...   
+#+end_src
+
+** Handling unreachable values
+
+Unreachable code is detected when examining values, either when
+merging them (detected via =conj=) or when projecting them (when all
+values projected are =InR=).  Thus, it makes sense to describe
+_values_ as being unreachable when the value cannot be constructed along
+any feasible path.
+
+The simulation monad =M= is extended with functions for raising and
+catching unreachable code (e.g. via =MaybeT= or continuations).  The
+=unreachable= function behaves like raising an exception. The
+=handleUnreachable= function catches this exception and returns =Nothing=,
+returning =Just= in the case that no unreachable exception was raised.
+
+The unreachable function is called in implementations of =SimValue= and
+only caught and propagated by the simulator, during the case for
+=Choose=: if no side is unreachable, then the simulator proceeds as for
+the simplified implementation above; if one side is unreachable then the
+simulator records the concrete index of the successful side;
+otherwise, if both sides of the =Choose= are unreachable, the whole
+=Choose= is unreachable and hence the exception is propagated.
+
+#+begin_src haskell
+  unreachable :: M a
+  handleUnreachable :: M a -> M (Maybe a)
+
+  simulate pc env s =
+    case s of
+      -- ...
+      Choose l r -> do
+	cv <- freshSMTVar
+
+	-- This is where we handle unreachable code
+	m_l <- handleUnreachable
+		 (simulate (extendPath pc cv True) env l)
+	m_r <- handleUnreachable
+		 (simulate (extendPath pc cv False) env r)
+	-- If no branch is reachable, then the choice is unreachable; if
+	-- one branch is unreachable, then we just use the remaining
+	-- branch; if both are reachable, we mux the values.
+	case (m_el, m_r) of
+	  (Nothing, Nothing) -> unreachable -- propagate
+	  (Just (p, v), Nothing) ->
+	    pure (SelectedChoice (Concrete True p), v)
+	  (Nothing, Just (p, v)) ->
+	    pure (SelectedChoice (Concrete False p), v)
+	  (Just (lp, lv), Just (rp, rv)) -> do
+	    v <- muxChoices pc cv lv rv
+	    pure (SelectedChoice (Symbolic cv lp rp), v)
+      -- ... 
+#+end_src
+
+Note that we could handle unreachable values just in =ProjectLeft=: if
+the value is unreachable, then =ProjectLeft= would assert to the
+solver that the current program point is unreachable.  In practice,
+catching unreachable values when they are constructed (rather than
+when they are inspected) means that more recursive grammars will
+terminate (without a depth bound) than would otherwise be the case.
+
+# Semantic vs syntactic path conditions 
+
+# Something about how in Talos we also have Map SMTVar Pattern to
+# track case paths vars/detect incompatible assumptions.
+
+** Complete implementation
+
+For reference, this is the complete implementation of the simulator
+for SimpleCore.  We will use this implementation in the following to
+discuss the tradeoffs for the various value representations.  Because
+the =PathBuilder= is a function of the input slice, and generated by
+common code, two implementations should have isomorphic =PathBuilder=
+results up to pruning of unreachable nodes and renaming of path
+variables.  In the case of pruned nodes, the isomorphism will equate
+path variables in one =PathBuilder= with the concrete index of the
+reachable branch in the other.
+
+#+begin_src haskell
+
+  -- The datatype for simplified Core slices 
+  data SimpleCore =
+    Hole
+    -- Monadic operations
+    | Pure Expr
+    | Do Name SimpleCore SimpleCore
+    -- Parser operations    
+    | Byte
+    | Choose SimpleCore SimpleCore
+    -- Data-dependency
+    | ProjectLeft Name
+    -- Function calls and recursion 
+    | Call FName [Name]
+
+  -- Expressions
+  data Expr =
+    Var Name
+    | BVLit Int Integer
+    -- Operators
+    | Add Expr Expr
+    -- Relations
+    | Equal Expr Expr
+    | Lt   Expr Expr
+    -- Type constructors and destructors
+    | Pair Expr Expr
+    | Fst  Expr
+    | Snd  Expr
+    | InL Expr
+    | InR Expr
+    | Mirror Expr -- :: SumTy a b -> SumTy b a
+
+  -- Types
+  data Type =
+    BVTy Int
+    | SumTy Type Type
+    | ProdTy Type Type
+    | NamedTy TName
+
+  -- Derived types and terms
+  unitTy = BVTy 0
+  unit   = BVLit 0 0
+
+  boolTy = SumTy unitTy unitTy
+  true   = InL unit
+  false  = InR unit
+
+  -- The datatype for the output and intermediate phases of the strategy.
+  data SimpleSelectedPathF b c = 
+    SelectedHole
+    | SelectedDo (SimpleSelectedPath b c) (SimpleSelectedPath b c)
+    | SelectedByte b
+    | SelectedChoice (c (SimpleSelectedPathF b c))
+
+  -- The intermediate datatype after symbolic simulation and before
+  -- model iteration.
+  data MaybeSymbolicChoice a = Concrete Bool a | Symbolic SMTVar a a
+  type SimplePathBuilder  = SimpleSelectedPathF SMTVar MaybeSymbolicChoice
+
+  -- The final result of all strategies
+  type ConcreteChoice a = ConcreteChoice Bool a
+  type SimpleSelectedPath = SimpleSelectedPathF Word8  ConcreteChoice
+
+
+  -- * The Monad
+  data M a = -- ...
+
+  freshSMTVar :: M SMTVar
+  addSMTAssertion  :: SExpr -> M ()
+
+  -- Unreachabe/unsatisfiable grammars.  These can happen when the
+  -- grammar is empty, or in normal grammars when, for example,
+  -- unfolding recursive calls beyond some depth implicit in the
+  -- grammar.  We handle them like exceptions in this implementation.
+  unreachable :: M a
+  handleUnreachable :: M a -> M (Maybe a)
+
+  -- The Bool represents left/right branches resp.  We could use Label
+  -- but that may be a bit confusing (as it labels sum types).
+  type PathVar = SMTVar
+
+  -- A pathcondition is a partial function from pathvar to the choice
+  -- taken.  Having it as a Map allows detection of infeasible
+  -- constraints (i.e., where different choices are taken at the same
+  -- location.)
+  type PathCondition = Map PathVar Bool
+
+  -- This can fail if the paths disagree on choices, otherwise it is the
+  -- union of the choices.
+  conj :: PathCondition -> PathCondition -> Maybe PathCondition
+
+
+  -- * Abstract Value API    
+  type Env a = Map Name a
+
+  class SimValue a where
+    -- Convert an a pure expression into a symbolic value.  May be
+    -- unreachable if, e.g., we combine two mutually disjoint values.
+    symExecExpr       :: Env a -> Expr -> M a
+    smtVarToByteVal   :: SMTVar -> a
+
+    -- Merge two values from different paths into a single value.
+    muxChoices :: PathCondition -> PathVar -> a -> a -> M a
+
+    -- Assert that the given value is the given label, returning the
+    -- path context element.  May be unreachable if the value is the
+    -- wrong shape.  The result is the value associated with that label,
+    -- this differs from Daedalus Core which uses partial pure exprs to
+    -- get the value.
+    projectLeft :: PathCondition -> a -> M a
+
+  -- * Helpers
+
+  -- Unfolds the function defition and simulates the body under the
+  -- environment extended by the arguments.
+  unfoldFunctionAndRecurse :: SimValue a => 
+			      PathCondition -> Env a ->
+			      FName -> [Expr] -> M (PathBuilder, a)
+
+  extendEnv :: Env a -> Name -> a -> Env a
+  extendEnv = Map.insert 
+
+  -- This assumes that the path var is not mapped, which is the case
+  -- when we have a fresh var.
+  extendPath :: PathCondition -> PathVar -> Bool -> PathCondition
+  extendPath = Map.insert
+
+  simulate :: SimValue a => PathCondition -> Env a ->
+	      Slice -> M (SimplePathBuilder, a)
+  simulate pc env s =
+    case s of
+      Hole -> pure (SelectedHole, unit) -- value should never be used.    
+      Pure e -> do
+	e' <- symExecExpr e
+	pure (SelectedHole, e')
+      Do x l r -> do
+	(lp, lv) <- simulate pc env l
+	(rp, rv) <- simulate pc (extendEnv env x lv) r
+	pure (SelectedDo lp rp, rv)
+      Byte -> do
+	v <- freshSMTVar
+	pure (SelectedByte v, smtVarToByteVal v)
+      Call f args -> unfoldFunctionAndRecurse pc env f args
+      Choose l r -> do
+	cv <- freshSMTVar
+
+	-- This is where we handle unreachable code
+	m_l <- handleUnreachable
+		 (simulate (extendPath pc cv True) env l)
+	m_r <- handleUnreachable
+		 (simulate (extendPath pc cv False) env r)
+	-- If no branch is reachable, then the choice is unreachable; if
+	-- one branch is unreachable, then we just use the remaining
+	-- branch; if both are reachable, we mux the values.
+	case (m_el, m_r) of
+	  (Nothing, Nothing) -> unreachable -- propagate
+	  (Just (p, v), Nothing) ->
+	    pure (SelectedChoice (Concrete True p), v)
+	  (Nothing, Just (p, v)) ->
+	    pure (SelectedChoice (Concrete False p), v)
+	  (Just (lp, lv), Just (rp, rv)) -> do
+	    v <- muxChoices pc cv lv rv
+	    pure (SelectedChoice (Symbolic cv lp rp), v)
+      ProjectLeft n -> do
+	v <- projectLeft (lookupEnv env n)
+	pure (SelectedHole, v)
+#+end_src
+
+* Values
+
+The purely symbolic representation of values is problematic for the
+following reasons:
+1. SMT solver support for inductive data-types is experimental, and
+   has caused issues in earlier versions of Talos.  Thus, these types
+   are better represented inside Talos, using the solver for base
+   types only; and
+2. Supporting concrete values means that paths which are not feasible
+   can by pruned before they are sent to the solver.  This is useful,
+   for example, in the case of loops with an implicit bound (e.g. the
+   IPV6 parser).
+   
+The alternative is to use _semi-symbolic values_ (SSVs), namely values
+where some of the structure is kept in the simulator, as opposed to in
+the solver.  A major complication in using semi-symbolic values is
+that values branch, and so need be represented as a something like a
+set of (PathCondition, Value) pairs.
+
+The symbolic representation will serve as the definition of
+correctness: a different representation of values will be considered
+correct if the SMT contexts generated is equi-satisfiable to that for
+symbolic representation, and the resulting =SelectedPath= is equal (or,
+equivalently, the models are equivalent modulo the isomorphism between
+=PathBuilder=).
+
+The various implementations and their tradeoffs of these
+SSVs are the subject of this section.
+
+** A parametric value
+
+Consider the generalised type of values
+#+begin_src haskell
+
+  data SemiValue f a =
+    BaseSV a
+    | SumSV Label f
+    | ProdSV f f
+
+  data BaseSemiValue = ConcreteBase Integer | SymbolicBase SMTVar
+#+end_src
+
+There are 3 representations of semi-symbolic values we will discuss,
+differing in where path-branching occurs (i.e., how f and a are
+instantiated in the above):
+1. Top-level branching, where path conditions occur only at the
+   top-level, not inside SemiValue;
+2. Nested branching, allowing branching at recursion points inside
+   SemiValue; and
+3. Leaf branching, where all branching occurs at the leaves of the
+   SemiValue (except for sums).
+
+For clarity we will redefine the type at each value type below, rather
+than instantiating the type parameters.
+
+** Top-level branching
+
+Top-level branching instantiates as follows
+#+begin_src haskell
+  data OneTopLevel =
+    ConcreteSV Integer
+    | SymbolicSV SExpr
+    | SumSV Label OneTopLevel
+    | ProdSV OneTopLevel OneTopLevel
+
+  -- Empty values are unreachable, shouldn't happen
+  type TopLevelValue  = [ (PathCondition, OneTopLevel)] ]
+
+  -- Handle unreachable values
+  maybesToValue :: [(Maybe PathCondition, OneTopLevel)] ->
+		   M TopLevelValue
+  maybesToValue vs
+    | null vals = unreachable
+    | otherwise = vals
+    where
+      vals = [ (g, v) | (Just g, v) <- vs ]
+
+  -- Forms a new value from the cross-product of the argument values.
+  crossWith :: Env TopLevelValue -> (OneTopLevel -> OneTopLevel -> OneTopLevel) ->
+	       Expr -> Expr -> M TopLevelValue
+  crossWith f e1 e2 =
+    vs1 <- symExecExpr env e1
+    vs2 <- symExecExpr env e2
+    maybesToValue [ (g1 `conj` g2, f v1 v2) | (g1, v1) <- vs1, (g2, v2) <- vs2 ]
+
+  instance SimValue TopLevelValue where
+    symExecExpr env e = do
+      let addOne (ConcreteSV v1) (ConcreteSV v2) = ConcreteSV (v1 + v2)
+	  addOne e1 e2 = SymbolicSV [smt| (bvadd e1 e2) |]
+      case e of
+	Add e1 e2  -> crossWith addOne e1 e2
+	Prod e1 e2 -> crossWith ProdSV e1 e2
+	-- ...
+
+    smtVarToByteVal v = [ (emptyPathCondition, SymbolicSV (const v)) ]
+
+    muxChoices pc pv lval rval = do
+      let extend b (g, v) = (g `conj` extendPath pc pv b, v)
+      maybesToValue (map (extend True) lval ++ map (extend False) rval)
+
+    projectLeft pc v = do
+    
+      addSMTAssertion [smt| pc --> is v l |]
+      pure [smt| getLabel v l |]
+#+end_src
+
+This representation is inefficient: consider
+#+begin_src haskell
+  makeProduct g xs ys = [ (g `conj` gx `conj` gy, ProdSV x y)
+			| (gx, x) <- xs, (gy, y) <- ys]
+#+end_src
+
+The result has size equal to the product of the size of the arguments,
+and requires merging of path conditions for each combination of
+argument values.
+
+*** Nested branching
+
+#+begin_src haskell
+  type NestedBranch = SemiValue NestedValue BaseSemiValue
+  type NestedValue  = [(PathCondition NestedValue, TopLevelBranch)]
+#+end_src
+
+where the arguments to recursive nodes can be value sets, rather than
+just values.  This makes construction of products simple
+#+begin_src haskell
+  makeProduct g xs ys = [ (g, ProdSV xs ys) ]
+#+end_src
+
+** Phase 2: Model extraction
+
+TBD
+   
+** Loops and sequences
+
+TBD
+
+** Unreachable grammars
+
+TBD
+
+Can use path sets as a proxy for semantic value shapes, but only for
+sum-type cases (word values can depend on input, e.g.
+
+  case x of 1 -> ...; 2 -> ...
+
+)
+
+
+* Alternate SimpleCore
+
+#+begin_src haskell
+  data SimpleCore =
+    -- Monadic
+    Pure Expr
+    | Do Name SimpleCore SimpleCore
+    -- Parser
+    | Fail
+    | NonDet -- :: Parser BoolTy
+    | Byte   
+    -- Data dep.
+    | Case Name Name SimpleCore SimpleCore
+    | Call FName [Name]
+
+
+  -- The datatype for the output and intermediate phases of the strategy.
+  data SimpleSelectedPathF a b c = 
+    SelectedHole
+    | SelectedDo (SimpleSelectedPath b c) (SimpleSelectedPath b c)
+    | SelectedByte a
+    | SelectedNonDet b
+    | SelectedCase (c (SimpleSelectedPathF b c))
+  
+    -- The intermediate datatype after symbolic simulation and before
+    -- model iteration.
+  data MaybeSymbolicCase a = Concrete Bool a | Symbolic SMTVar a a
+  type SimplePathBuilder   = SimpleSelectedPathF SMTVar SMTVar MaybeSymbolicCase
+
+    -- The final result of all strategies
+  type ConcreteCase a = ConcreteCase Bool a
+  type SimpleSelectedPath = SimpleSelectedPathF Word8 Bool ConcreteCase
+
+  -- * The Monad
+  data M a = -- ...
+
+  freshSMTVar :: M SMTVar
+  addSMTAssertion  :: SExpr -> M ()
+
+  -- Unreachabe/unsatisfiable grammars.  These can happen when the
+  -- grammar is empty, or in normal grammars when, for example,
+  -- unfolding recursive calls beyond some depth implicit in the
+  -- grammar.  We handle them like exceptions in this implementation.
+  unreachable :: M a
+  handleUnreachable :: M a -> M (Maybe a)
+
+  -- The Bool represents left/right branches resp.  We could use Label
+  -- but that may be a bit confusing (as it labels sum types).
+  type PathVar = SMTVar
+
+  -- A pathcondition is a partial function from pathvar to the choice
+  -- taken.  Having it as a Map allows detection of infeasible
+  -- constraints (i.e., where different choices are taken at the same
+  -- location.)
+  type PathCondition = Map PathVar Bool
+
+  -- This can fail if the paths disagree on choices, otherwise it is the
+  -- union of the choices.
+  conj :: PathCondition -> PathCondition -> Maybe PathCondition
+
+  -- * Abstract Value API    
+  type Env a = Map Name a
+
+  class SimValue a where
+    -- Convert an a pure expression into a symbolic value.  May be
+    -- unreachable if, e.g., we combine two mutually disjoint values.
+    symExecExpr       :: Env a -> Expr -> M a
+    smtVarToByteVal   :: SMTVar -> a
+
+    -- Merge two values from different paths into a single value.
+    muxChoices :: PathCondition -> PathVar -> a -> a -> M a
+
+    -- Assert that the given value is the given label, returning the
+    -- path context element.  May be unreachable if the value is the
+    -- wrong shape.  The result is the value associated with that label,
+    -- this differs from Daedalus Core which uses partial pure exprs to
+    -- get the value.
+    projectLeft :: PathCondition -> a -> M a
+
+  -- * Helpers
+
+  -- Unfolds the function defition and simulates the body under the
+  -- environment extended by the arguments.
+  unfoldFunctionAndRecurse :: SimValue a => 
+			PathCondition -> Env a ->
+			FName -> [Expr] -> M (PathBuilder, a)
+
+  extendEnv :: Env a -> Name -> a -> Env a
+  extendEnv = Map.insert 
+
+  -- This assumes that the path var is not mapped, which is the case
+  -- when we have a fresh var.
+  extendPath :: PathCondition -> PathVar -> Bool -> PathCondition
+  extendPath = Map.insert
+
+  simulate :: SimValue a => PathCondition -> Env a ->
+	      Slice -> M (SimplePathBuilder, a)
+  simulate pc env s =
+    case s of
+      Hole -> pure (SelectedHole, unit) -- value should never be used.    
+      Pure e -> do
+	e' <- symExecExpr e
+	pure (SelectedHole, e')
+      Fail -> unreachable      
+      Do x l r -> do
+	(lp, lv) <- simulate pc env l
+	(rp, rv) <- simulate pc (extendEnv env x lv) r
+	pure (SelectedDo lp rp, rv)
+      NonDet -> do
+	v <- freshSMTVar
+	pure (SelectedNonDet v, smtVarToBoolVal v)
+      Byte -> do
+	v <- freshSMTVar
+	pure (SelectedByte v, smtVarToByteVal v)
+      Call f args -> unfoldFunctionAndRecurse pc env f args
+      Case n x l r -> do
+	cv <- freshSMTVar
+
+	-- This is where we handle unreachable code
+	m_l <- handleUnreachable
+	   (simulate (extendPath pc cv True) env l)
+	m_r <- handleUnreachable
+	   (simulate (extendPath pc cv False) env r)
+	-- If no branch is reachable, then the choice is unreachable; if
+	-- one branch is unreachable, then we just use the remaining
+	-- branch; if both are reachable, we mux the values.
+	case (m_el, m_r) of
+	  (Nothing, Nothing) -> unreachable -- propagate
+	  (Just (p, v), Nothing) ->
+	    pure (SelectedChoice (Concrete True p), v)
+	  (Nothing, Just (p, v)) ->
+	    pure (SelectedChoice (Concrete False p), v)
+	  (Just (lp, lv), Just (rp, rv)) -> do
+	    v <- muxChoices pc cv lv rv
+	    pure (SelectedChoice (Symbolic cv lp rp), v)
+      
+      
+      Choose l r -> do
+	cv <- freshSMTVar
+
+	-- This is where we handle unreachable code
+	m_l <- handleUnreachable
+	   (simulate (extendPath pc cv True) env l)
+	m_r <- handleUnreachable
+	   (simulate (extendPath pc cv False) env r)
+	-- If no branch is reachable, then the choice is unreachable; if
+	-- one branch is unreachable, then we just use the remaining
+	-- branch; if both are reachable, we mux the values.
+	case (m_el, m_r) of
+	  (Nothing, Nothing) -> unreachable -- propagate
+	  (Just (p, v), Nothing) ->
+	    pure (SelectedChoice (Concrete True p), v)
+	  (Nothing, Just (p, v)) ->
+	    pure (SelectedChoice (Concrete False p), v)
+	  (Just (lp, lv), Just (rp, rv)) -> do
+	    v <- muxChoices pc cv lv rv
+	    pure (SelectedChoice (Symbolic cv lp rp), v)
+      ProjectLeft n -> do
+	v <- projectLeft (lookupEnv env n)
+	pure (SelectedHole, v)
+
+#+end_src
+
+* Notes
+
+
+#+begin_src daedalus
+
+  def Ex = block
+    v1 = UInt8
+    v2 = UInt8
+    ( {- c == 0 -} ^ { x = v1 }
+    | {- c == 1 -} ^ { x = v2 }
+    )
+
+#+end_src
+
+
+In this case we will have 
+
+* Parking area
+** SMT Context
+
+The SMT context consists of byte and path variable declarations, along
+with assertions which constrain the 
+
+
+# The SMT context contains a collection of side conditions for variables
+# generated during the first phase.  There are several classes of
+# variable generated by the pathsymb strategy, namely
+# - Byte variables;
+# - Choice variables; and
+
+# fThese correspond to Byte statements, Choose statements, and Many
+# statements respectively.
+
+# During symbolic simulation, assertions are generated to show that  
+# 1. A (fresh) byte variable lies within the corresponding ByteSet;
+# 2. A choice variable is bounded by the number of choices;
+# 3. A loop variable lies within a particular range (e.g. from the
+#    arguments to Many)
+# 4. Cases are well-formed (more below); and 
+# 5. A fresh inverse variable is constrained by the inverse predicate.
+
+# The primary generator of SMT assertions are case statements (and loop
+# bounds, see the discussion on loops below).  Case statements are where
+# values are examined, and so we will discuss these statements during
+# the discussion of value representation.

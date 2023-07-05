@@ -3,29 +3,35 @@
 {-# LANGUAGE FlexibleInstances, TypeFamilies, GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 {-# LANGUAGE TupleSections #-}
-module Talos.Analysis.Monad (getDeclInv, requestSummary, initState, makeDeclInvs, currentDeclName
+module Talos.Analysis.Monad (getDeclInv, requestSummary, makeDeclInvs, currentDeclName
                             , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
                             , calcFixpoint
                             , module Export) where
 
+import           Control.Monad.Trans     (lift)
 import           Data.Map.Strict         (Map)
 import qualified Data.Map.Strict         as Map
 import           Data.Maybe              (fromJust, mapMaybe)
 import qualified Data.Text               as Text
 
 import           Daedalus.Core
-import           Daedalus.GUID
-import           Daedalus.PP
-import           Daedalus.Panic
+import           Daedalus.GUID           (HasGUID (..))
+import           Daedalus.PP             (PP (pp), showPP)
+import           Daedalus.Panic          (panic)
 
-import           Talos.Analysis.AbsEnv
-import           Talos.Analysis.Domain
-import           Talos.Analysis.Fixpoint as Export (addSummary, 
+import           Talos.Analysis.AbsEnv   (AbsEnv (AbsPred))
+import           Talos.Analysis.Domain   (Domain, domainEqv, emptyDomain)
+import           Talos.Analysis.Fixpoint as Export (addSummary,
                                                     currentSummaryClass,
                                                     lookupSummary)
 import qualified Talos.Analysis.Fixpoint as F
-import           Talos.Analysis.Slice
+import           Talos.Analysis.Slice    (FInstId (..),
+                                          SummaryClass (Assertions),
+                                          assertionsFID)
+import           Talos.Monad             (TalosM, getModule)
+
 -- import Debug.Trace (trace, traceM)
+
 
 -- This is the current map from variables to path sets that begin at
 -- that variable.  We assume that variables are (globally) unique.
@@ -40,7 +46,6 @@ data Summary ae =
           , params      :: [Name]
           , fInstId     :: FInstId
           }
-
 
 emptySummary :: FInstId -> Summary ae
 emptySummary = Summary emptyDomain []
@@ -79,29 +84,16 @@ data AnalysisState p = AnalysisState
   , summaryToInst :: Map (SummaryClass p) FInstId
   , instToSummary :: Map FInstId (SummaryClass p)
   , nextFInstId   :: Int
-  , nextGUID  :: GUID
   }
-
--- We want assertions for all decls as the base case for calls is to
--- use 'Assertion although we may not always require them (if every
--- call to a function uses the result in a relevant way)
-initState :: [Fun Grammar] -> [Fun Expr] -> GUID -> AnalysisState ae
-initState decls funs nguid = AnalysisState
-  { declInvs    = makeDeclInvs decls funs
-  , summaryToInst = Map.singleton Assertions assertionsFID
-  , instToSummary = Map.singleton assertionsFID Assertions
-  , nextFInstId   = assnId + 1
-  , nextGUID      = nguid
-  }
-  where
-    FInstId assnId = assertionsFID
   
 newtype IterM ae a = IterM
-  {
-    getIterM :: F.FixpointM FName FInstId (Summary ae) (AnalysisState (AbsPred ae)) a
+  { getIterM :: F.FixpointT FName FInstId (Summary ae) (AnalysisState (AbsPred ae)) TalosM a
   }
   deriving (Functor, Applicative, Monad)
 
+instance HasGUID (IterM ae) where
+  guidState f = IterM $ lift (guidState f)
+  
 --------------------------------------------------------------------------------
 -- Inverses
 
@@ -151,9 +143,6 @@ makeDeclInvs decls funs = Map.fromList fnsWithInvs
 --------------------------------------------------------------------------------
 -- low-level IterM primitives
 
-instance HasGUID (IterM ae) where
-  guidState f = IterM $ F.fixpointState (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
-
 getDeclInv :: FName -> IterM ae (Maybe (Name -> [Expr] -> (Expr, Expr)))
 getDeclInv n = IterM $ F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
 
@@ -191,17 +180,36 @@ requestSummary nm cl = do
 calcFixpoint :: (AbsEnv ae, Ord (AbsPred ae)) =>
                 (FName -> SummaryClass' ae -> FInstId -> IterM ae (Summary ae)) ->
                 F.Worklist FName FInstId ->
-                AnalysisState (AbsPred ae) -> (AnalysisState (AbsPred ae), Summaries ae)
-calcFixpoint m wl = F.calcFixpoint seqv go wl
+                TalosM (AnalysisState (AbsPred ae), Summaries ae)
+calcFixpoint m wl = do
+  md <- getModule
+  let st0 = AnalysisState
+            { declInvs      = makeDeclInvs (mGFuns md) (mFFuns md)
+            , summaryToInst = Map.singleton Assertions assertionsFID
+            , instToSummary = Map.singleton assertionsFID Assertions
+            , nextFInstId   = assnId + 1
+            }
+  F.calcFixpoint seqv go wl st0
   where
+    -- Hack
+    FInstId assnId = assertionsFID
+    
     go n fid = getIterM $ do
       cl <- getSummaryClass fid
       m n cl fid
     seqv oldS newS = domainEqv (domain oldS) (domain newS)
-    
+
 currentDeclName :: IterM ae FName
 currentDeclName = IterM F.currentDeclName
 
+-- logMessage :: Int -> String -> IterM ae ()
+-- logMessage priority msg = IterM $ F.fixpointState go
+--   where
+--     go st =
+--       ((), st { loggedMessages = (priority, msg) : loggedMessages st })
+
 instance AbsEnv ae => PP (Summary ae) where
   pp s = pp (domain s)
+
+
 

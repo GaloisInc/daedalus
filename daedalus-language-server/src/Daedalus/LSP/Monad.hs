@@ -19,7 +19,7 @@ import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import           Data.Aeson                   (FromJSON, ToJSON)
-import           Data.Foldable                (traverse_)
+import           Data.Foldable                (traverse_, msum)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)

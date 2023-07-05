@@ -23,6 +23,7 @@ library
   ghc-prof-options:    -fprof-auto
   exposed-modules:     Talos.Lib
                      -- , Talos.SymExec
+                     , Talos.Monad
                      , Talos.SymExec.SolverT
                      -- , Talos.SymExec.Convenience
                      , Talos.SymExec.StdLib
@@ -39,6 +40,7 @@ library
                      , Talos.Analysis.AbsEnv
                      , Talos.Analysis.VarAbsEnv
                      , Talos.Analysis.FieldAbsEnv
+                     , Talos.Analysis.FLAbsEnv
                      , Talos.Analysis.Eqv
                      , Talos.Analysis.Merge
                      , Talos.Analysis.Domain
@@ -50,24 +52,30 @@ library
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
+                     , Talos.Strategy.OptParser
+
+                     , Talos.Strategy.BTRand
+
                      , Talos.Strategy.DFST
                      , Talos.Strategy.SearchTree
                      , Talos.Strategy.SearchT
-                     , Talos.Strategy.SymbolicM
-                     , Talos.Strategy.PathSymbolicM
-                     , Talos.Strategy.MuxValue                     
-
-                     , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic
-                     , Talos.Strategy.PathSymbolic
-                     , Talos.Strategy.PathCondition                     
                      , Talos.Strategy.MemoSearch
-                     , Talos.Strategy.OptParser                     
+                     , Talos.Strategy.SymbolicM
+
+                     , Talos.Strategy.PathSymbolic
+                     , Talos.Strategy.PathSymbolic.PathCondition
+                     , Talos.Strategy.PathSymbolic.Monad
+                     , Talos.Strategy.PathSymbolic.MuxValue
+                     , Talos.Strategy.PathSymbolic.PathBuilder
+
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis
 
                      , Talos.Passes
+                     , Talos.Passes.LiftExpr
+                     , Talos.Passes.NoBytesPatterns
 
                      , Talos
                      -- , Machine
@@ -81,12 +89,12 @@ library
                      , rts-hs-data
                      , vector
                      , parameterized-utils
-                     , mtl
+                     , mtl >= 2.3.1
                      , containers >= 0.6.4
                      , bytestring
                      , simple-smt >= 0.9.6
-                     , io-streams
-                     , transformers
+                     , streaming
+                     , transformers >= 0.5.6.2
                      , IntervalMap
                      , split
                      , deepseq
@@ -96,6 +104,7 @@ library
                      , generic-lens
                      , lens
                      , free
+                     , co-log-core
 
 executable talos
   main-is:             Main.hs
@@ -108,14 +117,14 @@ executable talos
                      , daedalus-utils
                      , optparse-applicative
                      , bytestring
-                     , io-streams
+                     , streaming
                      , pretty-hex
                      -- , rts-hs
                      -- , vector
                      -- , parameterized-utils
                      -- , mtl
                      , containers
-
+                     , co-log-core
                      , simple-smt
                      , ansi-terminal
 
@@ -231,4 +240,3 @@ test-suite talos-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
-

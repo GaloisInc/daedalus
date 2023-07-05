@@ -25,6 +25,14 @@ instance FreeVars a => FreeVars [a] where
   freeVars = Set.unions . map freeVars
   freeFVars = Set.unions . map freeFVars
 
+instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
+  freeVars (a, b)  = freeVars a `Set.union` freeVars b
+  freeFVars (a, b) = freeFVars a `Set.union` freeFVars b
+
+instance (FreeVars a, FreeVars b, FreeVars c) => FreeVars (a, b, c) where
+  freeVars (a, b, c)  = freeVars a `Set.union` freeVars b `Set.union` freeVars c
+  freeFVars (a, b, c) = freeFVars a `Set.union` freeFVars b `Set.union` freeFVars c
+
 instance FreeVars Name where
   freeVars = Set.singleton
   freeFVars _ = mempty
@@ -51,10 +59,7 @@ instance FreeVars Grammar where
       Do  x g1 g2       -> freeVars g1 `Set.union` Set.delete x (freeVars g2)
       Let x e g         -> freeVars e  `Set.union` Set.delete x (freeVars g)
       GCase c           -> freeVars c
-      Loop lc           -> case lc of
-        ManyLoop _ _ l m_u b -> freeVars l <> freeVars m_u <> freeVars b
-        RepeatLoop _ n e b   -> freeVars e <> Set.delete n (freeVars b)
-        MorphismLoop lm      -> freeVars lm
+      Loop lc           -> freeVars lc 
       _ -> dflt
     where
       dflt = foldMapChildrenG freeVars freeVars freeVars gram
@@ -63,6 +68,19 @@ instance FreeVars Grammar where
     case gram of
       Call f es         -> Set.insert f (freeFVars es)
       _ -> foldMapChildrenG freeFVars freeFVars freeFVars gram
+
+instance (FreeVars e, FreeVars b) =>  FreeVars (LoopClass' e b) where
+  freeVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeVars l <> freeVars m_u <> freeVars b
+      RepeatLoop _ n e b   -> freeVars e <> Set.delete n (freeVars b)
+      MorphismLoop lm      -> freeVars lm    
+
+  freeFVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeFVars l <> freeFVars m_u <> freeFVars b
+      RepeatLoop _ _ e b   -> freeFVars e <> freeFVars b
+      MorphismLoop lm      -> freeFVars lm    
       
 instance FreeVars ByteSet where
   freeVars bs = 
@@ -100,7 +118,7 @@ instance FreeVars e => FreeVars (Maybe e) where
   freeVars  = maybe mempty freeVars
   freeFVars = maybe mempty freeFVars
 
-instance FreeVars e => FreeVars (LoopMorphism e) where
+instance (FreeVars e, FreeVars b) => FreeVars (LoopMorphism' e b) where
   freeVars m = case m of
     FoldMorphism n e lc b -> 
       freeVars e <> freeVars (lcCol lc) <>

@@ -32,18 +32,20 @@ data Grammar =
   deriving (Generic,NFData)
 
 -- | Types of loops we support.
-data LoopClass body =
-    ManyLoop Sem Backtrack Expr (Maybe Expr) body
+data LoopClass' e body =
+    ManyLoop Sem Backtrack e (Maybe e) body
     -- ^ `Many`
 
-  | RepeatLoop Backtrack Name Expr body
+  | RepeatLoop Backtrack Name e body
     -- ^ `many`
 
-  | MorphismLoop (LoopMorphism body)
+  | MorphismLoop (LoopMorphism' e body)
     -- ^ `for`, `map`
   deriving (Functor, Generic, NFData)
 
-loopClassBody :: LoopClass body -> body
+type LoopClass = LoopClass' Expr
+
+loopClassBody :: LoopClass' e body -> body
 loopClassBody lc = case lc of
   ManyLoop _ _ _ _ g -> g
   RepeatLoop _ _ _ g -> g
@@ -145,14 +147,14 @@ pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 
 collectChoices :: Grammar -> Maybe (Bool, [Grammar])
-collectChoices g@(OrUnbiased {}) = Just (False, go g)
+collectChoices g@(skipAnnot -> OrUnbiased {}) = Just (False, go g)
   where
-    go (OrUnbiased l r) = go l ++ go r
+    go (skipAnnot -> OrUnbiased l r) = go l ++ go r
     go g'               = [g']
 
-collectChoices g@(OrBiased {}) = Just (True, go g)
+collectChoices g@(skipAnnot -> OrBiased {}) = Just (True, go g)
   where
-    go (OrBiased l r) = go l ++ go r
+    go (skipAnnot -> OrBiased l r) = go l ++ go r
     go g'             = [g']
 
 collectChoices _ = Nothing
@@ -237,13 +239,17 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
-      Loop lc        -> case lc of
-        ManyLoop s b l m_h g ->
-          "Many" <.> ppBiased b <.> ppSemSuff s <+>
-          parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
-        RepeatLoop b n e g   ->
-          "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
-        MorphismLoop lm  -> pp lm
+      Loop lc        -> pp lc
+
+instance (PP e, PP b) => PP (LoopClass' e b) where
+  pp lc =
+    case lc of
+      ManyLoop s b l m_h g ->
+        "Many" <.> ppBiased b <.> ppSemSuff s <+>
+        parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+      RepeatLoop b n e g   ->
+        "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+      MorphismLoop lm  -> pp lm    
     where
       ppBiased b = case b of
                      Eager -> ""

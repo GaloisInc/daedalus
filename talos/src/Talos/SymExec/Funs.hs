@@ -6,6 +6,7 @@
 module Talos.SymExec.Funs where
 
 -- import Data.Map (Map)
+import           Control.Monad                   (forM_)
 import           Control.Monad.Reader
 import           Data.Foldable                   (fold)
 import           Data.Map                        (Map)
@@ -13,25 +14,25 @@ import qualified Data.Map                        as Map
 import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 
-import           SimpleSMT                       (SExpr)
 import qualified SimpleSMT                       as S
+import           SimpleSMT                       (SExpr)
 
 import           Daedalus.Core                   hiding (freshName, tByte)
 import           Daedalus.Core.Free
 import           Daedalus.Core.TraverseUserTypes
 import           Daedalus.Core.Type
 import           Daedalus.GUID
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
 import           Daedalus.Rec
 
 -- import Talos.Strategy.Monad
+import           Talos.Analysis.Exported         (ExpSlice)
 import           Talos.Analysis.Slice
+import           Talos.SymExec.Expr              (symExecByteSet, symExecExpr)
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-import           Talos.SymExec.Expr (symExecExpr, symExecByteSet)
-import Talos.Analysis.Exported (ExpSlice)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -155,10 +156,10 @@ defineSlicePolyFuns sl = mapM_ defineSMTPolyFun polys
       SPure e           -> exprToPolyFuns e
       SDo _m_x l r      -> go l <> go r
       SMatch m          -> byteSetToPolyFuns m
---      SAssertion  e     -> exprToPolyFuns e
       SChoice cs        -> foldMap go cs
       SCall {}          -> mempty
       SCase _ c         -> foldMap go c
+      SLoop lc          -> foldMapSLoopClassE exprToPolyFuns go lc
       SInverse _n fe pe -> exprToPolyFuns fe <> exprToPolyFuns pe
         
       

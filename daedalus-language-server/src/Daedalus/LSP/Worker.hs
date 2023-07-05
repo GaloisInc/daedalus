@@ -10,51 +10,54 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Daedalus.LSP.Worker (requestParse, worker) where
 
-import           Control.Concurrent       (threadDelay)
-import           Control.Concurrent.Async (Async, async, cancel)
-import           Control.Concurrent.STM   (atomically, readTChan, writeTChan,
-                                           writeTVar)
-import           Control.Lens             hiding ((<.>))
-import           Control.Monad.Except
+import           Control.Concurrent            (threadDelay)
+import           Control.Concurrent.Async      (Async, async, cancel)
+import           Control.Concurrent.STM        (atomically, readTChan,
+                                                writeTChan, writeTVar)
+import           Control.Lens                  hiding ((<.>))
+import           Control.Monad                 (filterM, forever, void)
 import           Control.Monad.State
-import           Data.Either              (partitionEithers)
-import           Data.Foldable            (traverse_)
-import           Data.Map                 (Map)
-import qualified Data.Map                 as Map
-import           Data.Set                 (Set)
-import qualified Data.Set                 as Set
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import qualified Data.Text.IO             as Text
+import           Data.Either                   (partitionEithers)
+import           Data.Foldable                 (traverse_)
+import           Data.Map                      (Map)
+import qualified Data.Map                      as Map
+import           Data.Set                      (Set)
+import qualified Data.Set                      as Set
+import           Data.Text                     (Text)
+import qualified Data.Text                     as Text
+import qualified Data.Text.IO                  as Text
 import           System.FilePath
+import           System.Log.Logger             (debugM)
 
-import           Daedalus.AST             (Module (..), Import(..))
-import           Daedalus.Module          (pathToModuleName)
-import           Daedalus.PP              hiding ((<.>))
+import           Daedalus.AST                  (Import (..), Module (..))
+import           Daedalus.Module               (pathToModuleName)
 import           Daedalus.Panic
-import           Daedalus.Parser          (parseFromTokens)
-import           Daedalus.Parser.Lexer    (Lexeme, Token, lexer)
-import           Daedalus.Pass            (PassM, PassState, runPassM')
-import           Daedalus.Rec             (Rec (..), forgetRecs, topoOrder)
-import           Daedalus.Scope           (GlobalScope, resolveModule)
+import           Daedalus.Parser               (parseFromTokens)
+import           Daedalus.Parser.Lexer         (Lexeme, Token, lexer)
+import           Daedalus.Pass                 (PassM, PassState, runPassM')
+import           Daedalus.PP                   hiding ((<.>))
+import           Daedalus.Rec                  (Rec (..), forgetRecs, topoOrder)
+import           Daedalus.Scope                (GlobalScope, resolveModule)
 import           Daedalus.SourceRange
-import           Daedalus.Type            (inferRules)
-import           Daedalus.Type.AST        (Located (..), ModuleName,
-                                           TCModule (..), TCTyDecl, TCTyName,
-                                           declTypeOf, tcDeclName, tctyName)
-import           Daedalus.Type.Monad      (RuleEnv, runMTypeM, TCConfig(..))
+import           Daedalus.Type                 (inferRules)
+import           Daedalus.Type.AST             (Located (..), ModuleName,
+                                                TCModule (..), TCTyDecl,
+                                                TCTyName, declTypeOf,
+                                                tcDeclName, tctyName)
+import           Daedalus.Type.Monad           (RuleEnv, TCConfig (..),
+                                                runMTypeM)
 
 
-import           Language.LSP.Diagnostics (partitionBySource)
-import           Language.LSP.Server      (publishDiagnostics, runLspT, getVirtualFile)
-import           Language.LSP.Protocol.Types       (Diagnostic (..))
-import qualified Language.LSP.Protocol.Types       as J
-import qualified Language.LSP.Protocol.Message     as J
+import           Language.LSP.Diagnostics      (partitionBySource)
+import           Language.LSP.Protocol.Types   (Diagnostic (..))
+import qualified Language.LSP.Protocol.Types   as J
+import           Language.LSP.Server           (getVirtualFile,
+                                                publishDiagnostics, runLspT)
+import           Language.LSP.VFS              (virtualFileText,
+                                                virtualFileVersion)
 
 import           Daedalus.LSP.Diagnostics
 import           Daedalus.LSP.Monad
-import Language.LSP.VFS (virtualFileText, virtualFileVersion)
-import System.Log.Logger (debugM)
 
 
 

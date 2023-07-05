@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 
 {-# LANGUAGE FlexibleContexts #-}
+
  -- for dealing with TCDecl and existential k
 
 -- We walk through the each decl figuring out if it has things we
@@ -15,58 +16,57 @@ module Talos.Analysis ( summarise
                       -- FIXME: move
                       ) where
 
-import qualified Data.Map                 as Map
-import           Data.Monoid              (All (All))
-import qualified Data.Set                 as Set
+import           Control.Arrow              (second)
+import           Data.List                  (foldl', foldl1')
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (isNothing, mapMaybe, maybeToList)
+import           Data.Monoid                (All (All))
+import qualified Data.Set                   as Set
 
 import           Daedalus.Core
 import           Daedalus.Core.Type
-import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
-
-import           Data.Proxy               (Proxy)
+import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
-import           Talos.Analysis.Merge     (merge)
-import           Talos.Analysis.Monad
-import           Talos.Analysis.Slice
-import           Talos.Analysis.VarAbsEnv (varAbsEnvTy)
+import           Talos.Analysis.FLAbsEnv    (flAbsEnvTy)
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
+import           Talos.Analysis.Merge       (Merge, merge, mergeOverlapping)
+import           Talos.Analysis.Monad
+import           Talos.Analysis.SLExpr      (SLExpr (EHole))
+import           Talos.Analysis.Slice
+import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
+import Talos.Monad (TalosM, getModule)
 
 
-import Debug.Trace (traceM)
 
 --------------------------------------------------------------------------------
 -- Top level function
 
-summarise :: AbsEnv ae =>
-             Proxy ae -> Module -> GUID -> (Summaries ae, GUID)
-summarise _ md nguid = (summaries, nextGUID s')
-  where
-    -- FIXME: need to rename bound vars to avoid clashing in synthesis
-    (s', summaries) = calcFixpoint doOne wl0 s0
-    s0    = initState (mGFuns md) (mFFuns md) nguid
-
-    doOne nm cl fid
-      | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
-      | otherwise = panic "Missing decl" [showPP nm]
-
-    wl0   = Set.fromList grammarDecls
-
-    decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
-
-    grammarDecls =
-      [ (name, assertionsFID) -- FIXME: using an explicit FID is a bit gross here
-      | Fun { fName = name, fDef = Def _ } <- mGFuns md
-      ]
-
+-- FIXME: do something nicer with messages
+summarise :: AbsEnv ae => Proxy ae -> TalosM (Summaries ae)
+summarise _ = do
+  md <- getModule
+  let decls = Map.fromList (map (\tc -> (fName tc, tc)) (mGFuns md))
+      wl0   = Set.fromList grammarDecls
+      grammarDecls =
+        -- FIXME: using an explicit FID is a bit gross here
+        [ (name, assertionsFID)
+        | Fun { fName = name, fDef = Def _ } <- mGFuns md
+        ]
+      doOne nm cl fid
+        | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
+        | otherwise = panic "Missing decl" [showPP nm]
+      
+  snd <$> calcFixpoint doOne wl0
 
 -- Not sure these belong here
 absEnvTys :: [(String, AbsEnvTy)]
 absEnvTys = [ ("vars", varAbsEnvTy)
             , ("fields", fieldAbsEnvTy)
+            , ("fl", flAbsEnvTy)
             ]
 
 --------------------------------------------------------------------------------
@@ -76,7 +76,10 @@ summariseDecl :: AbsEnv ae =>
                  SummaryClass' ae -> FInstId ->
                  Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls fid Fun { fDef = Def def
+                          -- , fName = fn
                           , fParams = ps } = do
+  -- logMessage 1 ("* Summarising " ++ showPP fn ++ " for " ++ showPP cls) 
+  
   let preds = summaryClassToPreds cls
   d <- runSummariseM (summariseG preds def)
 
@@ -144,6 +147,9 @@ exprAsVar :: Expr -> Maybe Name
 exprAsVar (Var n) = Just n
 exprAsVar _       = Nothing
 
+mergeMaybe :: Merge p => [p] -> Maybe p
+mergeMaybe ps = foldl' merge Nothing (Just <$> ps)
+
 summariseCall :: AbsEnv ae => [AbsPred ae] -> FName -> [Expr] ->
                  SummariseM ae (Domain ae)
 summariseCall preds fn args
@@ -158,7 +164,7 @@ summariseCall preds fn args
            let (ifn, pfn) = f n args
            let gs = GuardedSlice
                  { gsEnv   = absInverse n ifn pfn
-                 , gsPred  = preds
+                 , gsPred  = mergeMaybe preds
                  , gsSlice = SInverse n ifn pfn
                  }
            pure (singletonDomain gs)
@@ -183,10 +189,10 @@ summariseCall preds fn args
                              , gsSlice = SCall (mkCallNode i gs)
                              }
               res = domainFromElements $ zipWith mkCall [0..] (elements dom)
-          -- traceM ("Call result to " ++ showPP fn ++
-          --         " for " ++ showPP cl ++ "\n" ++
-          --         show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
-          --         show (nest 4 (pp res)))
+          -- logMessage 1 ("** Call result to " ++ showPP fn ++
+          --               " for " ++ showPP cl ++ "\n" ++
+          --               show (brackets (commaSep [ pp n <+> "->" <+> pp n' | (n, n') <- Map.toList argsMap ])) ++ "\n" ++
+          --               show (nest 4 (pp res)))
           pure res
   | otherwise = panic "Saw non-Var arg" []
 
@@ -255,19 +261,22 @@ collapseDoms :: AbsEnv ae => [AbsPred ae] ->
 -- may want to construct e.g. Case nodes over empty bodies when the
 -- case is partial.
 collapseDoms _preds _mk [] = emptyDomain
-collapseDoms preds mk branchDs = foldl merge (singletonDomain gs') doms
+collapseDoms preds mk branchDs = foldl' merge (singletonDomain gs') doms
   where
-    (envs, sls, doms) = unzip3 (map (asSingleton . squashDomain) branchDs)
-    gs' = GuardedSlice { gsEnv   = foldl1 (<>) envs
-                       , gsPred  = preds
-                       , gsSlice = mk sls
+    (gss, doms) = unzip (map asSingleton branchDs)
+    gs' = GuardedSlice { gsEnv   = foldl1 merge (map gsEnv gss)
+                       , gsPred  = mergeMaybe preds
+                       , gsSlice = mk (map gsSlice gss)
                        }
 
-asSingleton :: AbsEnv ae => Domain ae -> (ae, Slice, Domain ae)
+asSingleton :: AbsEnv ae => Domain ae -> (GuardedSlice ae, Domain ae)
 asSingleton dom
-  | null (elements dom)  = (absTop, SHole, dom)
-  | [gs] <- elements dom = (gsEnv gs, gsSlice gs, dom { elements = [] })
-  | otherwise = panic "Saw non-singleton domain" [] -- [show (pp dom)]
+  | null gss = ( GuardedSlice { gsEnv = absEmptyEnv, gsPred = Nothing, gsSlice = SHole}
+               , dom)
+  | otherwise = (gs, dom')
+  where
+    (gss, dom') = domainElements dom
+    gs = foldl1' merge gss
 
 summariseCase :: AbsEnv ae => [AbsPred ae] ->
                  Case Grammar -> SummariseM ae (Domain ae)
@@ -281,15 +290,17 @@ summariseCase preds cs = do
   if trivial && total
     then pure emptyDomain
     else do
-    let squashed = asSingleton . squashDomain <$> bDoms
-        newEnv   = absCase ((\(ae, _, _) -> ae) <$> squashed)
-        newCase  = (\(_, sl, _) -> sl) <$> squashed
-        newDoms  = (\(_, _, d ) -> d) <$> squashed
-        gs'      =
-          GuardedSlice { gsEnv   = newEnv
-                       , gsPred  = preds
-                       , gsSlice = SCase total newCase
-                       }
+    let squashed = asSingleton <$> bDoms
+        newEnv   = foldl1 merge (gsEnv . fst <$> squashed)
+        newCase  = gsSlice . fst <$> squashed
+        newDom  = foldl1 merge (snd <$> squashed)
+        -- Include the case variable too, absPre should leave the var
+        -- alone
+        (varEnv, _) = absPre absPredTop (Var (caseVar cs)) 
+        gs = GuardedSlice { gsEnv   = newEnv `merge` varEnv
+                          , gsPred  = mergeMaybe preds
+                          , gsSlice = SCase total newCase
+                          }
 
     -- fn <- currentDeclName
     -- traceM ("Summarising case in " ++ showPP fn ++
@@ -297,7 +308,7 @@ summariseCase preds cs = do
     --       showPP cs)
     -- traceM ("\tresult: " ++ showPP gs')
 
-    pure (foldl merge (singletonDomain gs') newDoms)
+    pure (merge (singletonDomain gs) newDom)
 
 -- Some examples:
 --
@@ -325,37 +336,10 @@ summariseCase preds cs = do
 --
 -- We have that the result is relevant.
 
--- FIXME: as with Choice and Case, we squash here to reduce
--- complexity, but we might be able to avoid this by introducing
--- orderings.
 
--- summariseMany :: Maybe EntangledVar ->
---                  TC TCSynthAnnot Grammar ->
---                  ManyBounds (TC TCSynthAnnot Value) ->
---                  TC TCSynthAnnot Grammar ->
---                  SummariseM (Domain)
--- summariseMany m_x _tc bnds body = do
---   -- We squash as we need to unify the domain vars with the frees
---   -- in the bounds, modulo m_x
---   bodyD <- squashDomain <$> summariseG m_ret body
---   -- bodyD has 0 or 1 elements
---   if nullDomain bodyD then pure emptyDomain else do
---     let (evs, fps) = asSingleton bodyD
---         evs'       = subst_x evs
---         node       = ManyNode { manyBounds       = bnds
---                               , manyFrees        = maybe evs (flip deleteEntangledVar evs) m_ret
---                               , manyBody         = fps
---                               }
---     pure $ singletonDomain (mergeEntangledVars evs' (tcEntangledVars bnds))
---                            (SMany node)
---     where
---       (m_ret, subst_x) = case m_x of
---         Nothing -> (Nothing, id)
---         Just x  -> let ret = ResultVar (typeOf x)
---                        rSubst y
---                          | y == ret  = singletonEntangledVars x
---                          | otherwise = singletonEntangledVars y
---                    in (Just ret, substEntangledVars rSubst)
+
+
+
 
 -- This calculates the pathset for a grammar.  The first argument is
 -- what parts (if any) we care about for the result of this function
@@ -365,19 +349,25 @@ summariseCase preds cs = do
 -- Is it necessary to explode the Ors here?  The idea is to make it equally likely in the solver
 -- that we choose one.
 
+-- | The main summary function, it constructs a domain based on the
+-- argument grammar, with respect to `preds`. The post-condition here
+-- is that each pred should appear in the gsPred of some element of
+-- the resulting domain (exactly, not via absPredEntails), although we
+-- may have more in gsPred than in preds (in particular, loop invariants).
 summariseG :: AbsEnv ae => [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
 summariseG preds tc =
   case tc of
     -- When preds == [] this is emptyDomain
-    Pure e -> pure $ domainFromElements $
-      [ GuardedSlice { gsEnv = env, gsPred = [p], gsSlice = SPure e'}
-      | p <- preds, let (env, e') = absPre p e ]
+    Pure e -> pure $ domainFromElements
+      [ GuardedSlice { gsEnv = env, gsPred = Just p, gsSlice = SPure e'}
+      | (env, p, e') <- summariseExpr preds e
+      ]
 
     GetStream    -> unimplemented
     SetStream {} -> unimplemented
     Match _ (MatchByte bset) -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = absByteSet p bset
-                     , gsPred = [p]
+                     , gsPred = Just p
                      , gsSlice = SMatch bset}
       | p <- preds ]
     Match {}
@@ -412,22 +402,17 @@ summariseG preds tc =
     Call fn args  -> summariseCall preds fn args
     Annot _ g     -> summariseG preds g
 
-    -- Cases
-    -- GuardP e g    -> do
-    --   n <- freshNameSys TUnit
-    --   rhsD <- mapSlices (SDo n SHole) <$> summariseG preds g
-    --   let lhsD = singletonDomain
-    --         (GuardedSlice { gsEnv  = absGuard e
-    --                       , gsPred = []
-    --                       , gsSlice = SDo n (SAssertion e) SHole
-    --                       })
-    --   pure (merge lhsD rhsD)
-
     GCase cs      -> summariseCase preds cs
+
+    Loop lp -> summariseLoop preds lp
+
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
     unimplemented = panic "summariseG unimplemented" [showPP tc]
+
+summariseExpr :: AbsEnv ae => [AbsPred ae] -> Expr -> [(ae, AbsPred ae, SLExpr)]
+summariseExpr preds e = [ (env, p, e') | p <- preds, let (env, e') = absPre p e ]
 
 summariseBind :: AbsEnv ae =>
                  [AbsPred ae] -> Name -> Grammar -> Grammar ->
@@ -439,13 +424,14 @@ summariseBind preds x lhs rhs = do
       preds'            = map snd matching
   lhsD <- summariseG preds' lhs
 
-  let (lhsMatching, lhsD') = partitionDomainForResult lhsD
+  let (lhsMatching, lhsD') = partitionDomainForResult (const True) lhsD
       -- For each element of lhsMatching we find the corresponding
       -- rhs(s) from matching, merge if there are multiple, and the
       -- bind them all together.
       --
       -- gsFor gets the rhs(s) for a particular result lhs
-      gsFor gs = [ gs' | (gs', p) <- matching, p `elem` gsPred gs ]
+      gsFor gs = [ gs' | (gs', p) <- matching,
+                   maybe True (`absPredEntails` p) (gsPred gs) ]
 
       els = [ bindGuardedSlice x gs gs'
             | gs <- lhsMatching
@@ -456,31 +442,291 @@ summariseBind preds x lhs rhs = do
       indepLHSD = mapSlices (\sl -> SDo x sl SHole) lhsD'
       indepRHSD = mapSlices (SDo x SHole) rhsD'
       final     = indepLHSD `merge` indepRHSD `merge` domainFromElements els
-      
+
   -- fn <- currentDeclName
   -- when (showPP fn == "Main") $
-  -- traceM ("Summarising bind in " ++ showPP fn ++ " (result? " ++ show (not $ null preds) ++ ")\n" ++
-  --         show (nest 4 $ pp (Do x lhs rhs)) ++
-  --         "\n (result'? " ++ show (not $ null preds') ++ ")" ++
-  --         "\n" ++ show (hang "lhsD" 4 (pp lhsD)) ++          
-  --         "\n" ++
-  --         show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
-  --         show (hang "final" 4 (pp final)))
+  -- logMessage 3 ("** Summarising bind in " ++ showPP fn ++ "\n" ++
+  --               show (nest 4 $ pp (Do x lhs rhs)) ++
+  --               "\n" ++ show (hang ("lhsD: " <> brackets (commaSep (map pp preds'))) 4 (pp lhsD)) ++
+  --               "\n" ++
+  --               show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
+  --               show (hang "final" 4 (pp final)))
 
   pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 
--- diagonalise :: a -> [b] -> ([a] -> b -> [a] -> c) -> [c]
--- diagonalise el xs f =
---   let pfxs = inits (replicate (length xs - 1) el)
---       sfxs = reverse pfxs
---   in zipWith3 f pfxs xs sfxs
+
+-- squashDomain' :: AbsEnv ae => String -> Domain ae -> SummariseM ae (Domain ae)
+-- squashDomain' msg d = do
+--   when (nelems > 1) $ logMessage 1 ("** " ++ msg ++ ": Merging " ++ show nelems ++ " elements")
+--   when (nelems > 1) $ logMessage 2 ("** " ++ show (nest 4 (pp d')))
+--   pure d'
+--   where
+--     d'     = squashDomain d
+--     nelems = length (elements d)
 
 
+structureFromLoopBody :: AbsEnv ae => Maybe (AbsPred ae) -> ae -> Structural
+structureFromLoopBody m_pred env =
+  maximum $ [StructureIndependent]
+            ++ maybeToList (absPredStructural <$> m_pred)
+            -- note that enve can be empty but we can care about the
+            -- accumulator.
+            ++ [ StructureIsNull | not (absNullEnv env) ]
+            ++ [ StructureDependent | not (null (absNonStructural env)) ]
+  
+summariseMany :: AbsEnv ae => [AbsPred ae] ->
+                 Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
+                 SummariseM ae (Domain ae)
+summariseMany preds sem _bt lb m_ub g = do
+  elsD <- summariseG (mapMaybe absPredListElement preds) g
+  -- logMessage 1 ("** Many " ++ showPP elsD)
+
+  -- Invariant: if preds is non-empty then either the domain
+  -- isn't closed (because there is some predicate in preds with
+  -- a non-Nothing element predicate), or there is some
+  -- structural predicate in preds: (StructureIndependent,
+  -- Nothing) isn't a valid list predicate.
+  let (gs, elsD') = asSingleton elsD
+      gsDom
+        | closedDomain elsD && null preds = emptyDomain
+        | otherwise = singletonDomain (makeSlice (gs { gsPred = m_pred }))
+  
+  pure (gsDom `merge` elsD')
+  
+  where
+    makeSlice gs
+      -- In this case we can ignore the bounds (FIXME: as far as I can
+      -- reason).  For str to be StructureIndependent, the number of
+      -- elements cannot impact the rest of the synthesis.
+      | str == StructureIndependent =
+          gs { gsSlice = SLoop (SLoopPool sem (gsSlice gs)) }
+      | otherwise = gs { gsEnv   = gsEnv gs `merge` envlb `merge` envub
+                       , gsSlice = SLoop (SManyLoop str slb m_sub (gsSlice gs)) }
+      where
+        str = structureFromLoopBody m_pred (gsEnv gs)
+
+    (envlb, slb) = absPre absPredTop lb
+    m_env_ub = absPre absPredTop <$> m_ub
+    envub = maybe absEmptyEnv fst m_env_ub
+    m_sub = snd <$> m_env_ub
+
+    -- need to lift back to list preds from element preds (gsPred
+    -- for gs is for the element)
+    m_pred = mergeMaybe preds
+
+-- For repeat we nned to find a predicate P s.t.
+--
+--    ... { P } g { P } ... { P } g { preds }
+---
+-- i.e., an invariant which entails preds
+-- e.g. given
+--
+-- r = many (acc = { count = 0; sum = 0})
+--  block
+--    acc.count < 100 is true
+--    let x = UInt8
+--    count = acc.count + 1
+--    sum   = acc.sum + x
+--
+-- r.sum < 1000 is true
+--
+-- we have preds == [ .sum ] and the result of summarising the
+-- body is acc.[ .sum ; .count ] -> ...
+-- 
+-- Also consider
+-- r = many (acc = { count = 0; last = 0 })
+--  block
+--    acc.count < 100 is true
+--    last = UInt8
+--    count = acc.count + 1
+--
+-- r.last > 0 is true
+--
+-- where last is an output only variable (inside the loop) so with
+-- prems == [ .last ] we get a summary of
+--
+--   acc.[ .last ] -> _; last = UInt8; _
+--   acc.[ .count ] -> acc.count > 100 is true; _; ^ { count - acc.count + 1 }
+--
+-- FIXME: we could also just desugar this and proceed as usual for
+-- recursion
+summariseRepeat :: AbsEnv ae => [AbsPred ae] ->
+                   Name -> Expr -> Grammar ->
+                   SummariseM ae (Domain ae)
+summariseRepeat preds n e g = do
+  -- gD is closed by construction, gsPred m_gs (if any) entails mergeMaybe preds
+  (m_gs, gD) <- gssFixpoint n g preds
+  case m_gs of
+    Nothing -> pure gD
+    Just gs -> do
+      let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
+          useStr = maybe StructureIndependent (const StructureDependent) (gsPred gs)
+          str = max useStr (structureFromLoopBody Nothing (gsEnv gs))
+          gs' = gs { gsEnv   = gsEnv gs `merge` enve
+                   -- We need to forget we have a post if, e.g., none was requested.
+                   , gsPred  = mergeMaybe preds
+                   , gsSlice = SLoop (SRepeatLoop str n sle (gsSlice gs))
+                   }
+      pure (merge (singletonDomain gs') gD)
+
+summariseMorphism :: AbsEnv ae =>
+                     [AbsPred ae] -> LoopMorphism Grammar ->
+                     SummariseM ae (Domain ae)
+summariseMorphism preds lm =
+  case lm of
+    -- Similar for Repeat above, with the additional use of elements.
+    FoldMorphism n e lc g -> do
+      (m_gs, gD) <- gssFixpoint n g preds
+      -- logMessage 1 ("** Fold" ++
+      --               "\n" ++ show (nest 4 (vcat (map (pp . fst) gss))) ++
+      --               "\n" ++ show (nest 4 (pp gD)))
+      case m_gs of
+        Nothing -> pure gD
+        Just gs -> do
+          let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
+              str | Just _p <- gsPred gs        = StructureDependent -- absPredStructural p
+                  | otherwise                   = StructureIndependent
+              (env', m_lc_str') = summariseLoopCollection lc str (gsEnv gs)
+
+              sl = case m_lc_str' of
+                     -- We don't care about the lc, and hence gsPred
+                     -- should be Nothing, as otherwise the structure would be important.
+                     Nothing
+                       | isNothing (gsPred gs) -> SLoopPool SemNo (gsSlice gs)
+                       | otherwise -> panic "Expecting gsPred to be Nothing" []
+                     Just (lc', _str') -> SMorphismLoop (FoldMorphism n sle lc' (gsSlice gs))
+                           
+              gs'' = gs { gsEnv = env' `merge` enve, gsSlice = SLoop sl }
+              
+          pure (merge (singletonDomain gs'') gD)
+
+    MapMorphism lc g -> do
+      gD <- summariseG (mapMaybe absPredListElement preds) g
+      -- logMessage 1 ("** MapMorphism\n" ++ showPP gD)
+      let (gss, gD') = domainElements gD
+          m_gs = mergeMaybe gss
+
+          mkMap env sl =
+            let str = maybe StructureIndependent absPredStructural m_pred
+                    
+                (env', m_lc_str') = summariseLoopCollection lc str env
+                sl' = case m_lc_str' of
+                        -- We don't do the gsPred check here because it
+                        -- isn't required/true.
+                        Nothing -> SLoopPool SemYes sl
+                        Just (lc', _str') -> SMorphismLoop (MapMorphism lc' sl)
+                gs' = GuardedSlice { gsEnv = env'
+                                   , gsPred = m_pred
+                                   , gsSlice = SLoop sl' }
+              
+            in merge (singletonDomain gs') gD'
+      -- This is different to the Fold case as we can rely _just_ on
+      -- the structure of the list, which fact needs to be propagated
+      -- back to the loop collection.
+      pure $ case m_gs of
+               Nothing | isNothing m_pred -> gD'
+               -- Otherwise, we have m_pred has no elements but exists.
+               Nothing -> mkMap absEmptyEnv SHole
+               Just gs -> mkMap (gsEnv gs) (gsSlice gs)
+  where
+    m_pred = mergeMaybe preds
+
+summariseLoop :: AbsEnv ae =>
+                 [AbsPred ae] -> LoopClass Grammar ->
+                 SummariseM ae (Domain ae)
+summariseLoop preds lcl =
+  case lcl of
+    ManyLoop sem bt lb m_ub g -> summariseMany preds sem bt lb m_ub g
+    RepeatLoop _bt n e g -> summariseRepeat preds n e g
+    MorphismLoop lm -> summariseMorphism preds lm
+
+-- | There are 3 types of slices we care about here:
+-- * sources: establish some p in ps, no dep. on x
+-- * sinks: no post-conds, needs some q for x
+-- * transfers: establishes some p, needs some q for x (q and p can differ)
+--
+-- Generally we want to find gslices s.t.
+-- 1. all deps on x are entailed by post-cond; and
+-- 2. at most 1 slice with structural deps.
+--
+-- For now we produce a single slice (if one exists); we could product
+-- multiple slices if we support disjunctive slicing.
+gssFixpoint :: AbsEnv ae => Name -> Grammar -> [AbsPred ae] ->
+               SummariseM ae (Maybe (GuardedSlice ae), Domain ae)
+gssFixpoint x g ps = do
+  (matching, gD) <- repeatFixpoint ps
+  let (nonDeps, gD') = domainElements gD
+      gss = map fst matching ++ nonDeps
+      -- ppgss = show . nest 4 . vcat . map pp
+      
+  -- logMessage 2 ("*** gssFixpoint: " ++ show (brackets (commaSep (map pp ps))) ++
+              -- ppgss gss)
+
+  pure (mergeMaybe gss, gD')
+
+  -- let (justPost, gD') = partitionDomainForResult (const True) gD
+  --     gss = mergeForDeps (map (\(gs, p) -> (gs, p, p)) matching) ( (, Nothing) <$> justPost)
+  --     (strgss, nsgss) = partition (maybe False absPredIsStructural . snd) gss
+  where
+    -- First argument are those which depend on x, as (gs, dep, post),
+    -- second arg. is those which have their precond (if any)
+    -- resolved.  Invariant: at most one gsPreds entails any predicate
+    -- in the worklist.
+    -- mergeForDeps [] acc = acc
+    -- mergeForDeps ((gs, depp, p) : rest) acc =
+    --   let gsEntails = maybe False (`absPredEntails` p) . gsPred
+    --       -- length inrest + length inacc <= 1.  If inrest and inacc
+    --       -- are both empty, then the predicate should be entailed by
+    --       -- gs.
+    --       (inrest, outrest) = partition (gsEntails . view _1) rest
+    --       (inacc, outacc)   = partition (gsEntails . view _1) acc
+    --       -- If a gs in rest matches, we merge in the slices and
+    --       -- re-add it to the wl using the matching predicate.
+    --       rest' = [(gs `merge` gs', merge depp depp', p') | (gs', depp', p') <- inrest ] ++ outrest
+    --       acc' | null inrest && null inacc = [(gs, Just depp)]                                          
+    --            | otherwise = [(gs `merge` gs', merge (Just depp) m_p) | (gs', m_p) <- inacc ]
+    --   in mergeForDeps rest' (acc' ++ outacc)
+                      
+    repeatFixpoint ps' = do
+      gD <- summariseG ps' g
+      
+      let (matching, gD') = partitionDomainForVar x gD
+          deps = map snd matching
+          ps'' = mergeOverlapping absPredOverlaps deps ps'
+
+      -- logMessage 2 ("*** repeatFixpoint: " ++ show (brackets (commaSep (map pp ps'))) ++
+      --              "\n   Depends on bound var (" ++ showPP x ++
+      --              ")\n" ++ (show . nest 4 . vcat . map (pp . fst) $ matching) ++
+      --              "\n   Remainder\n" ++ show (nest 4 (pp gD')))
+          
+      -- looks expensive, although the lists should be pretty short.
+      if all (\p -> any (`absPredEntails` p) ps') deps
+        then pure (matching, gD') -- fixpoint reached
+        else repeatFixpoint ps''
+
+summariseLoopCollection :: AbsEnv ae => LoopCollection' Expr -> Structural -> ae ->
+                           (ae, Maybe (LoopCollection' SLExpr, Structural))
+summariseLoopCollection lc useStr env
+  | Just lcp <- absPredCollection ty str m_kp m_elp =
+      let (lcenv, sllc) = absPre lcp (lcCol lc)
+      in ( env_no_lcvars `merge` lcenv
+         , Just (lc {lcCol = sllc}, absPredStructural lcp)
+         )
+  | otherwise = (env_no_lcvars, Nothing)
+  where
+    (env_no_el, m_elp) = projectMaybe (lcElName lc) env
+    (env_no_lcvars, m_kp)
+      = maybe (env_no_el, Nothing) (flip projectMaybe env_no_el) (lcKName lc)
+
+    str = max useStr (structureFromLoopBody Nothing env_no_el)
+    projectMaybe x env' = maybe (env', Nothing) (second Just) (absProj x env')
+    ty = typeOf (lcCol lc)
+      
 -- -----------------------------------------------------------------------------
 -- Special patterns
 
-pattern GuardP :: Expr -> Grammar -> Grammar
-pattern GuardP e g <- (caseIsGuard -> Just (e, g))
+-- pattern GuardP :: Expr -> Grammar -> Grammar
+-- pattern GuardP e g <- (caseIsGuard -> Just (e, g))
 
 -- Attempts to catch things ike
 --
@@ -488,15 +734,15 @@ pattern GuardP e g <- (caseIsGuard -> Just (e, g))
 --   True  -> ...
 --   False -> Fail ...
 
-caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
-caseIsGuard (GCase (Case x cs)) =
-  case cs of
-    -- FIXME: Annot
-    [(PBool b, g), (_, Fail {})]       -> mk b g
-    [(PBool _, Fail {}), (PBool b, g)] -> mk b g
-    [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g
-    [(PBool b, g)]                     -> mk b g
-    _ -> Nothing
-  where
-    mk b g = Just (if b then Var x else eNot (Var x), g)
-caseIsGuard _ = Nothing
+-- caseIsGuard :: Grammar -> Maybe (Expr, Grammar)
+-- caseIsGuard (GCase (Case x cs)) =
+--   case cs of
+--     -- FIXME: Annot
+--     [(PBool b, g), (_, Fail {})]       -> mk b g
+--     [(PBool _, Fail {}), (PBool b, g)] -> mk b g
+--     [(PBool b, Fail {}), (PAny, g)]    -> mk (not b) g
+--     [(PBool b, g)]                     -> mk b g
+--     _ -> Nothing
+--   where
+--     mk b g = Just (if b then Var x else eNot (Var x), g)
+-- caseIsGuard _ = Nothing

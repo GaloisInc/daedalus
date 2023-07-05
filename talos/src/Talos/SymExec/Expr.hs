@@ -132,6 +132,8 @@ symExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> SExpr -> SExpr -> SolverT m
 
 -- Generic ops
 symExecOp2 Emit (TBuilder elTy) = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v2 v1
+symExecOp2 EmitArray   _ = panic "EmitArray is unimplemented" []
+symExecOp2 EmitBuilder _ = panic "EmitBuilder is unimplemented" []
 symExecOp2 Eq          _elTy = \v1 v2 -> pure $ S.eq v1 v2
 symExecOp2 NotEq       _elTy = \x y -> pure $ S.distinct [x, y]
 symExecOp2 MapLookup   (TMap kt vt) = \x y -> do
@@ -174,6 +176,9 @@ symExecOp2 bop (isBits -> Just (signed, nBits)) =
 
     ArrayIndex  -> unimplemented
     Emit        -> unimplemented
+    EmitArray   -> unimplemented
+    EmitBuilder -> unimplemented
+    
     MapLookup   -> unimplemented -- handled above
     MapMember   -> unimplemented -- handled above
 
@@ -211,6 +216,9 @@ symExecOp2 bop TInteger =
 
     ArrayIndex  -> unimplemented
     Emit        -> unimplemented
+    EmitArray   -> unimplemented
+    EmitBuilder -> unimplemented
+    
     MapLookup   -> unimplemented -- handled above
     MapMember   -> unimplemented -- handled above
 
@@ -251,11 +259,11 @@ symExecCoerce (isUInt -> Just n) (isBits -> Just (_signed, m)) v
 
     -- From SInts
 symExecCoerce (isSInt -> Just _) _toT _v  =
-  error "symExecCoerce from SInt is unimplemented"
+  panic "symExecCoerce from SInt is unimplemented" []
 
 symExecCoerce fromT toT _v  =
-  error ("Shouldn't happen (symExecCoerce non-reflexive/non-numericb) "
-         ++ show (pp fromT) ++ " to " ++ show (pp toT))
+  panic "Shouldn't happen (symExecCoerce non-reflexive/non-numericb)"
+        [show (pp fromT) ++ " to " ++ show (pp toT)]
 
 -- -----------------------------------------------------------------------------
 -- Expressions
@@ -358,6 +366,8 @@ symExecExpr expr =
       S.fun (typeNameToCtor (utName ut)) <$> mapM (symExecExpr . snd) ctors
       
     ECase c -> symExecCase symExecExpr c
+    
+    ELoop _lm -> panic "symExec on loops is unimplemented" []
   
     Ap0 op      -> pure (symExecOp0 op)
     Ap1 op e    -> lift . symExecOp1 op (typeOf e) =<< symExecExpr e

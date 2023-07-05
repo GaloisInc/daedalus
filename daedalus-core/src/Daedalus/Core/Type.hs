@@ -241,7 +241,7 @@ instance TypeOf Match where
 instance TypeOf a => TypeOf (Case a) where
   typeOf (Case _ as) = typeOf (snd (head as))
 
-instance TypeOf a => TypeOf (LoopMorphism a) where
+instance (TypeOf a, TypeOf b)=> TypeOf (LoopMorphism' a b) where
   typeOf lm =
     case lm of
       FoldMorphism _s _e _lc b -> typeOf b

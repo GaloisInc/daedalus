@@ -19,36 +19,35 @@ module Talos.SymExec.SemiExpr ( runSemiSolverM
                               ) where
 
 -- import Data.Map (Map)
+import           Control.Monad                (join, zipWithM)
 import           Control.Monad.Reader
+import qualified Data.ByteString              as BS
 import           Data.Foldable                (find)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (isJust, isNothing)
 import qualified Data.Vector                  as Vector
 import           GHC.Stack                    (HasCallStack)
-import           SimpleSMT                    (SExpr)
 import qualified SimpleSMT                    as S
+import           SimpleSMT                    (SExpr)
 
 import           Daedalus.Core                hiding (freshName)
 import qualified Daedalus.Core.Semantics.Env  as I
 import           Daedalus.Core.Semantics.Expr (evalOp0, evalOp1, evalOp2,
-                                               evalOp3, evalOpN, matches,
-                                               partial)
+                                               evalOp3, matches, partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
 import qualified Daedalus.Value.Type          as V
 
 -- import Talos.Strategy.Monad
 import qualified Talos.SymExec.Expr           as SE
-import           Talos.SymExec.SemiValue      (SemiValue (..))
 import qualified Talos.SymExec.SemiValue      as SV
+import           Talos.SymExec.SemiValue      (SemiValue (..))
 import           Talos.SymExec.SolverT
 import           Talos.SymExec.StdLib
 import           Talos.SymExec.Type
-
-
 
 -- FIXME: move
 
@@ -133,10 +132,10 @@ semiSExprToSExpr tys ty sv =
         in case els of
           []             -> sArrayIterNew emptyA
           ((fstI, _) : _) -> S.fun "mk-ArrayIter" [arr, fstI]
-          
+
       TIterator (TMap   _kt' _vt') -> panic "Unimplemented" []
       _ -> panic "Malformed iterator type" []
-      
+
     _ -> panic "Malformed value" [show sv, showPP ty]
   where
     go = semiSExprToSExpr tys
@@ -190,6 +189,10 @@ matches' v pat =
     PCon l | VUnionElem l' _ <- v -> Just (l == l')
     PCon {} -> Nothing
 
+    PBytes bs | Just bs' <- SV.toList v >>= traverse SV.toByte
+                -> Just (bs == BS.pack bs')
+    PBytes _ -> Nothing
+
     PAny   -> Just True
     PNum _ -> Nothing -- only works on values
 
@@ -197,7 +200,7 @@ data SymbolicCaseResult a = TooSymbolic | NoMatch | DidMatch Int a
 
 semiExecCase :: (HasGUID m, Monad m, MonadIO m, PP a, HasCallStack) =>
                 Case a -> SemiSolverM m (SymbolicCaseResult a)
-semiExecCase c@(Case y pats) = do
+semiExecCase (Case y pats) = do
   ve <- semiExecName y
   -- we need to be careful not to match 'Any' if the others can't
   -- be determined.
@@ -217,7 +220,6 @@ data SemiSolverEnv = SemiSolverEnv
   -- for concretely evaluating functions, only const/pure fun env
   -- should be used.
   , interpEnv       :: I.Env
-  , funDefs         :: Map FName (Fun Expr)
   }
 
 typeDefs :: SemiSolverEnv -> Map TName TDecl
@@ -226,12 +228,11 @@ typeDefs = I.tEnv . interpEnv
 type SemiSolverM m = ReaderT SemiSolverEnv (SolverT m)
 
 runSemiSolverM :: (HasGUID m, Monad m, MonadIO m) =>
-                  Map FName (Fun Expr) ->
                   Map Name SemiSExpr ->
                   I.Env ->
                   SemiSolverM m a -> SolverT m a
-runSemiSolverM funs lenv env m =
-  runReaderT m (SemiSolverEnv lenv env funs)
+runSemiSolverM lenv env m =
+  runReaderT m (SemiSolverEnv lenv env)
 
 semiExecExpr :: (HasGUID m, Monad m, MonadIO m, HasCallStack) =>
                 Expr -> SemiSolverM m SemiSExpr
@@ -255,7 +256,9 @@ semiExecExpr expr =
         DidMatch _ e' -> semiExecExpr e'
         -- Shouldn't happen in pure code
         NoMatch -> panic "No match" []
-        
+
+    ELoop _lm    -> panic "Impossible (semiExecExpr)" [showPP expr]
+
     Ap0 op       -> pure (VValue $ partial (evalOp0 op))
     Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
     Ap2 op e1 e2 ->
@@ -267,10 +270,12 @@ semiExecExpr expr =
              <$> semiExecExpr e1
              <*> semiExecExpr e2
              <*> semiExecExpr e3)
-    ApN opN vs     -> semiExecOpN opN rty =<< mapM semiExecExpr vs
+    ApN (ArrayL _ty) vs -> VSequence False <$> traverse semiExecExpr vs
+    ApN _ _ ->  panic "Impossible (semiExecExpr)" [showPP expr]
+
   where
     rty = typeOf expr
-    
+
 -- Might be able to just use the value instead of requiring t
 semiExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> Type -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp1 op _rty ty (VValue v) =
@@ -292,7 +297,7 @@ semiExecOp1 op rty ty sv =
     Concat   | Just svs <- SV.toList sv
              , Just svss <- mapM SV.toList svs -> pure (SV.fromList False (mconcat svss))
     -- Just flip the 'isbuilder' flag
-    FinishBuilder | VSequence _ vs <- sv -> pure (VSequence False vs)
+    FinishBuilder | Just svs <- SV.toList sv -> pure (VSequence False svs)
     NewIterator
       | TArray {} <- ty,
         Just svs <- SV.toList sv -> pure $ VIterator (zip (map (VValue . V.vSize) [0..]) svs)
@@ -327,7 +332,7 @@ semiExecOp1 op rty ty sv =
 
 
 typeToElType :: Type -> Maybe Type
-typeToElType ty = 
+typeToElType ty =
   case ty of
     TBuilder elTy -> Just elTy
     TArray   elTy -> Just elTy
@@ -355,7 +360,7 @@ typeToElType ty =
 -- bOr  = scBinOp S.or (const (VBool True)) id
 
 bOpMany :: MonadReader SemiSolverEnv m => Bool -> [SemiSExpr] -> m SemiSExpr
-bOpMany opUnit els 
+bOpMany opUnit els
   | any (isBool absorb) els = pure (VBool absorb)
   | otherwise = do
       tys <- asks typeDefs
@@ -400,7 +405,7 @@ semiExecEqNeq iseq ty sv1 sv2 =
     (VStruct flds1, VStruct flds2) -> do
       tys <- asks typeDefs
       opMany =<< zipWithM (go tys) flds1 flds2
-      
+
     (VMaybe sv1', VMaybe sv2')
       | TMaybe ty' <- ty -> case (sv1', sv2') of
           (Nothing, Nothing)       -> pure (VBool iseq)
@@ -422,14 +427,14 @@ semiExecEqNeq iseq ty sv1 sv2 =
       if iseq
       then (Eq   , (==), bAndMany)
       else (NotEq, (/=), bOrMany)
-    
+
     go tys (l, sv1') (l', sv2') =
       if l == l'
       then case typeAtLabel tys ty l of
              Just (_, ty') -> semiExecEqNeq iseq ty' sv1' sv2'
              _             -> panic "Missing label" [showPP l]
       else panic "Label mismatch" [showPP l, showPP l']
-    
+
 semiExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> Type -> Type ->
                SemiSExpr -> SemiSExpr -> SemiSolverM m SemiSExpr
 semiExecOp2 op _rty _ty _ty' (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
@@ -444,17 +449,20 @@ semiExecOp2 op rty ty1 ty2 sv1 sv2 =
 
     Eq       -> semiExecEq ty1 sv1 sv2
     NotEq    -> semiExecNEq ty1 sv1 sv2
-    
+
     -- sv1 is arr, sv2 is ix
     ArrayIndex
       | Just svs <- SV.toList sv1
       , VValue v <- sv2, Just ix <- V.valueToIntSize v
         -> pure (svs !! ix)
     Emit | Just svs <- SV.toList sv1 -> pure (VSequence True (svs ++ [sv2]))
-
+    EmitArray | Just svs1 <- SV.toList sv1, Just svs2 <- SV.toList sv2
+                -> pure (VSequence True (svs1 ++ svs2))
+    EmitBuilder | Just svs1 <- SV.toList sv1, Just svs2 <- SV.toList sv2
+                  -> pure (VSequence True (svs1 ++ svs2))
     -- sv1 is map, sv2 is key
     MapLookup -> mapOp (VValue $ V.VMaybe Nothing) (sNothing . symExecTy)
-                       (VMaybe . Just)             sJust 
+                       (VMaybe . Just)             sJust
 
     MapMember -> mapOp (VValue $ V.VBool False)        (const (S.bool False))
                        (const (VValue $ V.VBool True)) (\_ _ -> S.bool True)
@@ -516,31 +524,6 @@ semiExecOp3 MapInsert _rty _ty sv k v =
 
 semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 
-semiExecOpN :: (Monad m, HasGUID m, MonadIO m) => OpN -> Type -> [SemiSExpr] ->
-               SemiSolverM m SemiSExpr
-semiExecOpN op rty vs
-  | Just vs' <- mapM unValue vs = do
-      env <- asks interpEnv
-      pure (VValue (evalOpN op vs' env))
-  | Just vs' <- mapM unOther vs = lift (vSExpr rty <$> SE.symExecOpN op vs')
-  where
-    unValue (VValue v) = Just v
-    unValue _ = Nothing
-
-    unOther (VOther v) = Just (typedThing v)
-    unOther _ = Nothing
-
--- unfold body of function.
-semiExecOpN (CallF fn) _rty vs = do
-  fdefs <- asks funDefs
-  let (ps, e) = case Map.lookup fn fdefs of
-        Just fdef | Def d <- fDef fdef -> (fParams fdef, d)
-        _   -> panic "Missing function " [showPP fn]
-
-  foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
-
-semiExecOpN op _rty _vs = panic "Unimplemented" [showPP op]
-
 -- -----------------------------------------------------------------------------
 -- Value -> SExpr
 
@@ -567,7 +550,7 @@ valueToSExpr tys ty v =
       else S.bvBin (fromIntegral n) i
     V.VInteger i -> S.int i
     V.VBool b -> S.bool b
-    V.VUnionElem l v' 
+    V.VUnionElem l v'
       | Just (ut, ty') <- typeAtLabel tys ty l
       -> S.fun (labelToField (utName ut) l) [go ty' v']
 
@@ -577,7 +560,7 @@ valueToSExpr tys ty v =
       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
       | ty == TUnit -> sUnit
-      
+
     V.VArray vs | TArray elty <- ty ->
       let sVals     = map (go elty) (Vector.toList vs)
           emptyArr = sArrayL (sEmptyL (symExecTy elty) (typeDefault elty)) -- FIXME, a bit gross?

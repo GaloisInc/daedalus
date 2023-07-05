@@ -12,12 +12,16 @@ module Daedalus.GUID (GUID
                      , FreshM, runFresh, runFreshIn
                      ) where
 
-import Control.DeepSeq (NFData)
-import GHC.Generics (Generic)
+import           Control.DeepSeq (NFData)
+import           GHC.Generics    (Generic)
+import           MonadLib
+import qualified Control.Monad.Reader as MTL
+import qualified Control.Monad.State as MTL
+import qualified Control.Monad.Writer as MTL
 
-import MonadLib
-import Daedalus.PP
-import qualified Daedalus.TH as TH
+import           Daedalus.PP
+import qualified Daedalus.TH     as TH
+
 
 
 newtype GUID = GUID { getGUID :: Int }
@@ -65,7 +69,6 @@ runFresh (FreshM m) n = runId (runStateT n m)
 runFreshIn :: HasGUID m => FreshM a -> m a
 runFreshIn = guidState . runFresh
 
-
 class Monad m => HasGUID m where
   guidState :: (GUID -> (a, GUID)) -> m a
 
@@ -73,10 +76,16 @@ instance (HasGUID m) => HasGUID (IdT m) where
   guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ReaderT i m) where
   guidState = lift . guidState
+instance (HasGUID m) => HasGUID (MTL.ReaderT i m) where
+  guidState = MTL.lift . guidState  
 instance (HasGUID m,Monoid i) => HasGUID (WriterT i m) where
   guidState = lift . guidState
+instance (HasGUID m, Monoid i) => HasGUID (MTL.WriterT i m) where
+  guidState = MTL.lift . guidState    
 instance (HasGUID m) => HasGUID (StateT s m) where
   guidState = lift . guidState
+instance (HasGUID m) => HasGUID (MTL.StateT i m) where
+  guidState = MTL.lift . guidState
 instance (HasGUID m) => HasGUID (ExceptionT i m) where
   guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ChoiceT m) where
