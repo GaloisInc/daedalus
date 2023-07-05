@@ -13,6 +13,6 @@ COUNT=$1
 mkdir -p out
 rm -f out/http.bin.*
 
-/usr/local/bin/talos -n $COUNT -O out/http.bin -t 'pathsymb max-depth=10 num-models=1000 num-loop-elements=10' -a fl -e HTTP_request http/HTTP-1.1.ddl > /dev/null
+/usr/local/bin/talos -n $COUNT -O out/http.bin -t 'pathsymb max-depth=10 num-models=300 num-loop-elements=5' -a fl -e HTTP_request http/HTTP-1.1.ddl > /dev/null
 
 
