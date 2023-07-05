@@ -14,6 +14,6 @@ The following should work
 $ mkdir out
 $ docker build -t http-talos https://raw.githubusercontent.com/GaloisInc/daedalus/wip/talos-http-docker/http-talos/Dockerfile
 ...
-$ docker run --rm -it -v $(pwd)/out/:/http-out http-talos ./run_talos.sh 10 
+$ docker run --rm -it -v $(pwd)/out/:/http/out http-talos ./run_talos.sh 10 
 $ ls out
 ```
