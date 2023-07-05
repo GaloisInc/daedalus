@@ -38,7 +38,8 @@ annotateLoops = foldr doComp [] . topoOrder deps
                   VMDef b     -> foldr blockDeps Set.empty (vmfBlocks b)
   blockDeps b = case blockTerm b of
                   CallPure f _ _   -> Set.insert f
-                  Call f _ _ _ _   -> Set.insert f
+                  CallCapture f _ _ _  -> Set.insert f
+                  CallNoCapture f _ _  -> Set.insert f
                   TailCall f _ _   -> Set.insert f
                   _                -> id
 
@@ -62,7 +63,8 @@ isLoop xs
 
   ok b = case blockTerm b of
            CallPure f _ _ -> not (f `Map.member` names)
-           Call f _ _ _ _ -> not (f `Map.member` names)
+           CallCapture f _ _ _ -> not (f `Map.member` names)
+           CallNoCapture f _ _ -> not (f `Map.member` names)
            _ -> True
 
 

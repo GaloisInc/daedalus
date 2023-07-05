@@ -115,9 +115,13 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       ReturnNo           -> ReturnNo
       ReturnYes e i      -> ReturnYes (annE mp e) (annE mp i)
       ReturnPure e       -> ReturnPure (annE mp e)
-      CallPure f l es    -> CallPure f (annClo mp l) (annE mp <$> es)
-      Call f c no yes es -> Call f c (annClo mp no)
-                                     (annClo mp yes) (annE mp <$> es)
+      CallPure f l es    -> CallPure f (annJF mp l) (annE mp <$> es)
+
+      CallNoCapture f ks es -> CallNoCapture f (annJ2 mp ks) (annE mp <$> es)
+
+      CallCapture f no yes es ->
+        CallCapture f (annClo mp no) (annClo mp yes) (annE mp <$> es)
+
       TailCall f c es    -> TailCall f c (annE mp <$> es)
 
   annVA mp v@(BA x _ _) = Map.findWithDefault v x mp
@@ -333,14 +337,20 @@ cinstr _b ci =
     ReturnPure e -> expr e (Nothing,Owned `ifRefs` e)
 
     CallPure f l es ->
-      \i -> closure l
+      \i -> jumpWithFree l
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
 
-    Call f _ no yes es ->
+    CallCapture f no yes es ->
       \i -> closure no
           $ closure yes
+          $ foldr ($) i
+          $ zipWith expr es
+          $ getFunOwnership f i
+
+    CallNoCapture f ks es ->
+      \i -> jumpChoice ks
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
@@ -358,7 +368,7 @@ closure clo i = foldr ($) upd
                                           | (n,e) <- [0..] `zip` jArgs clo ]
   upd  = foldr ($) i (map setOwnership args)
 
-jumpChoice :: JumpChoice -> Info -> Info
+jumpChoice :: JumpChoice ix -> Info -> Info
 jumpChoice (JumpCase opts) = \i -> foldr jumpWithFree i opts
 
 jumpWithFree :: JumpWithFree -> Info -> Info

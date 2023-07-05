@@ -528,38 +528,36 @@ compileCInstr cinstr =
     Yield -> [| RTS.vmYield $getThreadState |]
 
     CallPure f jp es ->
-      doJump [ doCall f (map compileE es) ] stateArgs jp
+      doJump [ doCall f (map compileE es) ] stateArgs (jumpTarget jp)
 
-    Call f how no yes es ->
-      case how of
-        NoCapture ->
-          case ?funTy of
+    CallNoCapture f (JumpCase ks) es ->
+      let no  = jumpTarget (ks Map.! False)
+          yes = jumpTarget (ks Map.! True)
+      in
+      case ?funTy of
 
-            NonCapturingParser {} ->
-              dToC (doCall f (map compileE es ++ stateArgs))
-                   (\s1     -> doJump []     [s1] no)
-                   (\a i s1 -> doJump [a, i] [s1] yes)
+        NonCapturingParser {} ->
+          dToC (doCall f (map compileE es ++ stateArgs))
+               (\s1     -> doJump []     [s1] no)
+               (\a i s1 -> doJump [a, i] [s1] yes)
 
-            CapturingParser {} ->
-              withThrErrorState \getS setS ->
-                dToC (doCall f (map compileE es ++ [getS]))
-                     (\s1     -> doJump []     [setS s1] no)
-                     (\a i s1 -> doJump [a, i] [setS s1] yes)
+        CapturingParser {} ->
+          withThrErrorState \getS setS ->
+            dToC (doCall f (map compileE es ++ [getS]))
+                 (\s1     -> doJump []     [setS s1] no)
+                 (\a i s1 -> doJump [a, i] [setS s1] yes)
 
-            PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
+        PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
 
+    CallCapture f no yes es ->
+      doCall f $
+        map compileE es ++
+        [ [| \s -> $(doJump [] [ [| s |] ] no) |]
 
-        Capture ->
-          doCall f $
-            map compileE es ++
-            [ [| \s -> $(doJump [] [ [| s |] ] no) |]
-
-            , [| \val inp s ->
-                    $(doJump [ [| val |], [| inp |] ] [[|s|]] yes) |]
-            ] ++
-            stateArgs
-
-        Unknown -> panic "compileCInstr" ["Unknown call"]
+        , [| \val inp s ->
+                $(doJump [ [| val |], [| inp |] ] [[|s|]] yes) |]
+        ] ++
+        stateArgs
 
     TailCall f how es ->
       case how of

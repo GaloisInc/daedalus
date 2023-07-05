@@ -24,7 +24,6 @@ import Daedalus.Rec(topoOrder,forgetRecs)
 import Daedalus.VM
 import qualified Daedalus.Core as Src
 import Daedalus.VM.RefCountSane
-import Daedalus.VM.TypeRep
 import Daedalus.VM.Backend.C.Lang
 import Daedalus.VM.Backend.C.Names
 import Daedalus.VM.Backend.C.Types
@@ -1104,44 +1103,44 @@ cTermStmt ccInstr =
           [ cStmt ("return" <+> cExpr e) ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
-    Call f captures no yes es ->
-      case captures of
-        Unknown   -> panic "cTermStmt" ["Unknown"]
+    CallCapture f no yes es ->
+        doPush no
+      : doPush yes
+      : case vmfDef (lkpFun f) of
+         VMDef d -> cJump (JumpPoint (vmfEntry d) es)
+         VMExtern {} -> panic "Capture call to extern" []
 
-        Capture ->
-            doPush no
-          : doPush yes
-          : case vmfDef (lkpFun f) of
-              VMDef d -> cJump (JumpPoint (vmfEntry d) es)
-              VMExtern {} -> panic "Capture call to extern" []
+    CallNoCapture f (JumpCase ks) es ->
+      let yes = ks Map.! True
+          no  = ks Map.! False
+          JumpPoint lYes esYes = jumpTarget yes
+          JumpPoint lNo esNo = jumpTarget no
+          bYes = ?allBlocks Map.! lYes
+          bNo  = ?allBlocks Map.! lNo
+          a : i : _ = blockArgs bYes
+          call = cCall (cFName f)
+               $ "p"
+               : ("&" <.> cArgUse bYes a)
+               : ("&" <.> cArgUse bYes i)
+               : map cExpr es
+      in [ cIf call
+              (freeClo no  ++ cDoJump bYes esYes)
+              (freeClo yes ++ cDoJump bNo  esNo)
+        ]
 
-        NoCapture ->
-          let JumpPoint lYes esYes = yes
-              JumpPoint lNo esNo = no
-              bYes = ?allBlocks Map.! lYes
-              bNo  = ?allBlocks Map.! lNo
-              a : i : _ = blockArgs bYes
-              call = cCall (cFName f)
-                   $ "p"
-                   : ("&" <.> cArgUse bYes a)
-                   : ("&" <.> cArgUse bYes i)
-                   : map cExpr es
-          in [ cIf call
-                  (freeClo no  ++ cDoJump bYes esYes)
-                  (freeClo yes ++ cDoJump bNo  esNo)
-            ]
+      where
+      freeClo c = cFree (freeFirst c)
 
-          where freeClo (JumpPoint _ vs) =
-                   [ cStmt (cCallMethod (cExpr e) "free" [])
-                   | e <- vs, typeRepOf e == HasRefs ]
-
-    -- XXX: this one does not need to be terminal
-    CallPure f (JumpPoint lab les) es ->
+    CallPure f jp es ->
+      let JumpPoint lab les = jumpTarget jp
+      in
       case Map.lookup lab ?allBlocks of
         Just b -> zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
+                  cFree (freeFirst jp) ++
                   [ cGoto (cBlockLabel (blockName b)) ]
-          where assignP ba = cAssign (cArgUse b ba)
-                doCall = cCall (cFName f) (map cExpr es)
+          where
+          assignP ba = cAssign (cArgUse b ba)
+          doCall = cCall (cFName f) (map cExpr es)
         Nothing -> panic "CallPure" [ "Missing block: " ++ show (pp lab) ]
 
 

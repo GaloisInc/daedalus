@@ -94,18 +94,24 @@ data Instr =
 -- | Instructions that jump
 data CInstr =
     Jump JumpPoint
-  | JumpIf E JumpChoice
+  | JumpIf E (JumpChoice Src.Pattern)
   | Yield
   | ReturnNo
   | ReturnYes E E   -- ^ Result, input
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
-  | CallPure Src.FName Closure [E]
-    -- ^ The jump point contains information on where to continue after
-    -- return and what we need to preserve acrross the call
 
-  | Call Src.FName Captures Closure Closure [E]
-    -- The JumpPoints contain information about the return addresses.
+  | CallPure Src.FName JumpWithFree [E]
+    -- ^ The jump point contains information on where to continue after
+    -- return and what we need to preserve acrross the call, and what we
+    -- should free right after we return from the call.
+
+  | CallNoCapture Src.FName (JumpChoice Bool) [E]
+    -- ^ Call a parser that does not capture the continuation.
+
+  | CallCapture Src.FName Closure Closure [E]
+    -- ^ Call a function that captures the continuation.
     -- The closures are: no, yes
+    -- This differs from NoCapture in that we may use *both* continuations.
 
   | TailCall Src.FName Captures [E]
     -- ^ Used for both grammars and exprs.
@@ -127,7 +133,8 @@ type Closure = JumpPoint
 
 -- | Before jumping to these targets we should deallocate the given
 -- variables.  We could achieve the same with just normal jumps and
--- additional basic blocks, but this seems more straight forward
+-- additional basic blocks, but this seems more straight forward.
+-- Invariant: `freeFirst` and `jArgs (jumpTarget)` are disjoint.
 data JumpWithFree = JumpWithFree
   { freeFirst  :: Set VMVar   -- ^ Free these before jumping
   , jumpTarget :: JumpPoint
@@ -136,10 +143,10 @@ data JumpWithFree = JumpWithFree
 jumpNoFree :: JumpPoint -> JumpWithFree
 jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 
--- | Two joint points, but we'll use exactly one of the two.
+-- | Multiple jump points, but we'll use exactly one of the two.
 -- This matters for memory management.
 -- NOTE:  String literal patterns should have been already compiled away.
-data JumpChoice = JumpCase (Map Src.Pattern JumpWithFree)
+newtype JumpChoice ix = JumpCase (Map ix JumpWithFree)
 
 -- | Constants, and acces to the VM state that does not change in a block.
 data E =
@@ -332,9 +339,18 @@ instance PP CInstr where
       ReturnYes e i -> ppFun "return" [pp e, pp i]
       ReturnPure e  -> ppFun "return" [pp e]
       CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
-      Call f c no yes es ->
+
+      CallNoCapture f (JumpCase ks) es ->
         vcat [ ppFun (pp f) (map pp es)
-             , nest 2 $ vcat [ pp c
+             , nest 2 $ vcat [ "ok:"   <+> pp (ks Map.! True)
+                             , "fail:" <+> pp (ks Map.! False)
+                             ]
+             ]
+
+
+      CallCapture f no yes es ->
+        vcat [ ppFun (pp f) (map pp es)
+             , nest 2 $ vcat [ ".spawns"
                              , "ok:"   <+> pp yes
                              , "fail:" <+> pp no
                              ]

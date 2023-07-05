@@ -31,8 +31,9 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
   -- the corresponding return block should be *non* capturing!
   findNoCaptureRet b =
     case blockTerm b of
-      Call f _ r1 r2 _
+      CallCapture f r1 r2 _
         | NoCapture <- getCaptures info f -> [ jLabel r1, jLabel r2 ]
+      CallNoCapture {} -> panic "findNoCaptureRet" ["CallNoCapture"]
       _ -> []
 
   nonCapture = Set.fromList (concatMap findNoCaptureRet (pAllBlocks prog))
@@ -66,9 +67,18 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
                             RetYes _ -> RetYes (retBlockCaptureInfo b)
       }
 
+
   annotateTerm me i =
     case i of
-      Call f _ no yes es  -> Call f (callSanity f) no yes es
+      CallCapture f no yes es ->
+        case callSanity f of
+          Capture   -> CallCapture f no yes es
+          NoCapture -> CallNoCapture f (JumpCase ks) es
+            where ks = Map.fromList
+                          [ (False, jumpNoFree no)
+                          , (True,  jumpNoFree yes)
+                          ]
+          Unknown   -> panic "captureAnalysis" ["sanity: unknown"]
       TailCall f _ es     -> TailCall f (callSanity f) es
       _                   -> i
     where
@@ -81,6 +91,7 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
             Unknown   -> panic "captureInfo" ["call unknown"]
             NoCapture -> panic "captureInfo" ["call capture from no capture"]
         NoCapture -> NoCapture
+
 
 
 -- We only mark something as capturing if we have good reason to do so
@@ -151,47 +162,29 @@ instance Monoid CaptureInfo where
 
 class GetCaptureInfo t where
   captureInfo   :: t -> CaptureInfo
-  annotate      :: Map FName CaptureInfo -> t -> t
 
 instance GetCaptureInfo Instr where
   captureInfo i =
     case i of
       Spawn {} -> CapturesYes
       _        -> capturesNo
-  annotate _ i = i
+
 
 instance GetCaptureInfo CInstr where
   captureInfo i =
     case i of
-      Call f c _ _ _   -> CapturesIf (call f c)
-      TailCall f c _   -> CapturesIf (call f c)
-      _                -> capturesNo
-    where call f c = case c of
-                       NoCapture -> Set.empty
-                       Unknown   -> Set.singleton f
-                       Capture   -> panic "captureInfo" ["Capture"]
-
-  annotate mp i =
-    case i of
-      Call f _ no yes es -> Call f (getCaptures mp f) no yes es
-      TailCall f _ es -> TailCall f (getCaptures mp f) es
-      _               -> i
+      CallCapture f _ _ _ -> CapturesIf (Set.singleton f)
+      CallNoCapture {}    -> panic "captureInfo" ["CallNoCapture"]
+      TailCall f c _      -> case c of
+                               Unknown -> CapturesIf (Set.singleton f)
+                               _       -> panic "captureInfo" ["Not unknown"]
+      _                   -> capturesNo
 
 instance GetCaptureInfo Block where
   captureInfo b = captureInfo (blockTerm b) <>
                   foldMap captureInfo (blockInstrs b)
-  annotate mp b = b { blockTerm = annotate mp (blockTerm b) }
 
 instance GetCaptureInfo VMFun where
   captureInfo b = case vmfDef b of
                     VMExtern {} -> capturesNo
                     VMDef d     -> foldMap captureInfo (vmfBlocks d)
-  annotate mp fu = fu { vmfDef = annDef (vmfDef fu)
-                      , vmfCaptures = getCaptures mp (vmfName fu)
-                      }
-    where annDef d = case d of
-                       VMExtern {} -> d
-                       VMDef b ->
-                          VMDef b { vmfBlocks = annotate mp <$> vmfBlocks b }
-
-

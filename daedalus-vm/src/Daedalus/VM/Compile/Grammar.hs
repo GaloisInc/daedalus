@@ -202,7 +202,9 @@ compile expr next0 =
                                  cloYes <- yesL
                                  dbgEnter DebugCall
                                  i <- getInput
-                                 term $ Call f Unknown cloNo cloYes (i:vs)
+                                 term $ CallCapture f cloNo cloYes (i:vs)
+                                 -- Later we do an analsis to refine this.
+                                 -- See CaptureAnalysis.
 
          compileEs es \vs -> doCall vs
 

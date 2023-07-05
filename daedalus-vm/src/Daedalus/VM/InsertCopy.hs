@@ -1,5 +1,5 @@
 -- | Assumes borrow analysis has been done
-{-# Language BlockArguments, OverloadedStrings, RecordWildCards #-}
+{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.InsertCopy (addCopyIs) where
 
 import Control.Monad(zipWithM,ap,liftM)
@@ -167,6 +167,10 @@ checkTermCopies is0 term0 = (reverse is1, term1)
         case checkIs okChoice is0 ls0 of
           (is,ls) -> (is, JumpIf e ls)
 
+      CallNoCapture fu ks0 args ->
+        case checkIs okChoice is0 ks0 of
+          (is,ks) -> (is, CallNoCapture fu ks args)
+
       _ -> (is0,term0)
 
   checkIs upd is jc =
@@ -180,9 +184,9 @@ checkTermCopies is0 term0 = (reverse is1, term1)
 
       _ -> (is, jc)
 
-  okChoice :: BV -> VMVar -> JumpChoice -> Maybe JumpChoice
+  okChoice :: Ord i => BV -> VMVar -> JumpChoice i -> Maybe (JumpChoice i)
   okChoice x' v (JumpCase opts)
-    | all ok optsVs = Just (JumpCase (elimJF <$> opts))
+    | all ok optsVs = Just (JumpCase (elimJF x' v <$> opts))
     | otherwise     = Nothing
 
     where
@@ -190,19 +194,18 @@ checkTermCopies is0 term0 = (reverse is1, term1)
 
     ok vs     = not (x `Set.member` vs && v `Set.member` vs)
 
-    optsVs = (freeVarSet . jumpTarget) <$> opts
+    optsVs = freeVarSet . jumpTarget <$> opts
 
-    elimJF jf = JumpWithFree
-                  { jumpTarget = doSubst x' v (jumpTarget jf)
-                  , freeFirst =
-                     let toFree = freeFirst jf
-                     in Set.delete x
-                      $ if x `Set.member` toFree
-                          then toFree
-                          else Set.delete v toFree
-                  }
-
-
+  elimJF x' v jf =
+    JumpWithFree
+      { jumpTarget = doSubst x' v (jumpTarget jf)
+      , freeFirst =
+          let toFree = freeFirst jf
+          in Set.delete (LocalVar x')
+               $ if LocalVar x' `Set.member` toFree
+                   then toFree
+                   else Set.delete v toFree
+      }
 
 
 -- | Replace a local variable with another variable.
@@ -241,14 +244,15 @@ instance DoSubst CInstr where
       ReturnYes e i   -> ReturnYes  (doSubst x v e) (doSubst x v i)
       ReturnPure e    -> ReturnPure (doSubst x v e)
       CallPure f l es -> CallPure f (doSubst x v l) (doSubst x v es)
-      Call f c no yes es -> Call f c (doSubst x v no) (doSubst x v yes)
-                                                      (doSubst x v es)
+      CallNoCapture f ks es -> CallNoCapture f (doSubst x v ks) (doSubst x v es)
+      CallCapture f no yes es ->
+        CallCapture f (doSubst x v no) (doSubst x v yes) (doSubst x v es)
       TailCall f c es -> TailCall f c (doSubst x v es)
 
 instance DoSubst JumpPoint where
   doSubst x v (JumpPoint l es) = JumpPoint l (doSubst x v es)
 
-instance DoSubst JumpChoice where
+instance DoSubst (JumpChoice ix) where
   doSubst x v (JumpCase opts) = JumpCase (doSubst x v <$> opts)
 
 instance DoSubst JumpWithFree where
@@ -304,62 +308,79 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
 
   mkFree vs = [ Free vs' | let vs'= filterFree True vs, not (Set.null vs') ]
 
-  filterFree checkCopy = Set.filter \v -> getOwnership v == Owned &&
-                                typeRep (getType v) == HasRefs &&
-                                (not checkCopy ||
-                                 case v of
-                                   LocalVar y -> not (y `Set.member` copies)
-                                   ArgVar {}  -> True)
+  filterFree checkCopy =
+    Set.filter \v ->
+      getOwnership v == Owned &&
+      typeRep (getType v) == HasRefs &&
+      (not checkCopy ||
+         case v of
+           LocalVar y -> not (y `Set.member` copies)
+           ArgVar {}  -> True)
 
 
   inTerm = case blockTerm b of
-             JumpIf e ls -> (JumpIf e (freeChoice e ls), [])
+             JumpIf e ls -> (JumpIf e (freeChoice freeE ls), [])
+                where freeE = maybe Set.empty Set.singleton (eIsVar e)
 
              CallPure f l es
-                | not (null cs) -> (CallPure f l' es, [newB])
-                where cs = checkFun f es [l]
-                      (l',newB) = makeOwner l cs
+                | not (null freeE) -> (CallPure f (ans Map.! ()) es, [])
+                where
+                freeE = freeFunArgs f es
+                JumpCase ans = freeChoice freeE (JumpCase (Map.singleton () l))
 
-             Call f c l1 l2 es
-                | not (null cs) -> (Call f c l' l2 es,[newB])
-                where cs = checkFun f es [l1,l2]
-                      (l',newB) = makeOwner l1 cs  -- arbitrary choice of l1
+             CallNoCapture f ks es ->
+                (CallNoCapture f (freeChoice freeE ks) es, [])
+                where
+                freeE = freeFunArgs f es
+
+             -- XXX: This operators on the assumption that we will execute
+             -- both continuations (yes and no), which is OK as long as we
+             -- are generating *all* possible results of a parse, but is not
+             -- OK if we stop after the first one.
+             --
+             -- If we have pass an owned thing as a borrowed argument, and
+             -- *none* of the continuations own it, we transform one of the
+             -- continutations so that it will free that parameter.
+             CallCapture f l1 l2 es
+                | not (null cs) -> (CallCapture f l' l2 es,[newB])
+                where
+                cs = filter (needsOwner [l1,l2]) (Set.toList (freeFunArgs f es))
+                (l',newB) = makeOwner l1 cs  -- arbitrary choice of l1
+
 
              t -> (t,[])
 
-  freeChoice e (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
+
+  -- Use when only one of a multitude of continuations would be activated
+  -- (e.g., for `case` and non-capturing call).  Modify the continuations
+  -- to free variables from the other alternatives.  `otherFree` are
+  -- variables that need to be freed in all cases (e.g., if we case on an
+  -- owned variable, or we passed an owned argument as borrowed, and they
+  -- are not used in the continuation.
+  freeChoice freeE (JumpCase opts) = JumpCase (Map.mapWithKey doCase opts)
     where
     allFree = getFree <$> opts
 
     doCase l it =
       let (this, rest) = doLookupRm l allFree
-          others'      = Set.unions (Map.elems rest)
-          others       = case eIsVar e of
-                           Just x | getOwnership x == Owned ->
-                                                      Set.insert x others'
-                           _ -> others'
+          others       = Set.unions (freeE : Map.elems rest)
       in changeFree (others `Set.difference` this) it
 
     changeFree vs x = x { freeFirst = filterFree False vs }
     getFree         = freeVarSet . jumpTarget
 
-  -- if we call f(x) and `x` expects borrowed, but we are passing it owned,
-  -- upon returning we need to free `x`
-  --  * if `x` is in at least one of the continuation's closures we are done
-  --    (the continuation is the owner that will take care of it).
-  --  * if not, then we need to add it by making an extra block:
-  --      B: (thingsToFree,otherArgs)
-  --          free(thingsToFree)
-  --          goto L(otherArgs)   -- where L was the original return address
-  --  * For parsers, where we have 2 return continuations, we only need to
-  --    modify one of the blocks as above, and this block becomes the new
-  --    owner.
-  checkFun f es ls =
+
+  -- Find function arguments that need to be freed after we return from
+  -- a function call.  This may happen if we call `f(x)` and `f` expects
+  -- a borrowed argument, but we own `x`.
+  freeFunArgs f es =
     case Map.lookup f (funMap ro) of
-      Just sig -> filter (needsOwner ls) (concat (zipWith checkArg sig es))
+      Just sig -> Set.fromList (concat (zipWith checkArg sig es))
       Nothing  -> panic "funOwn" [ "Missing function " ++ show (pp f) ]
 
-  -- an owned argument that is borrowed by the call
+
+
+  -- an owned argument that is borrowed by the call, but we own it
   checkArg funParam e =
     case eIsVar e of
       Just v | funParam == Borrowed && getOwnership v == Owned -> [v]
@@ -459,7 +480,7 @@ doArg e m =
     Unmanaged -> pure e
 
 
-
+-- | Insert copy instructions for all owned things.
 doCInstr :: CInstr -> M CInstr
 doCInstr cinstr =
   case cinstr of
@@ -474,15 +495,21 @@ doCInstr cinstr =
     CallPure f l es ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
-         l1  <- doJump l
+         l1  <- doJumpWithFree l
          pure (CallPure f l1 es1)
 
-    Call f c no yes es  ->
+    CallNoCapture f ks es  ->
+      do sig <- lookupFunMode f
+         es1 <- doArgs es sig
+         ks1 <- doJumpChoice ks
+         pure (CallNoCapture f ks1 es1)
+
+    CallCapture f no yes es  ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
          no1 <- doJump no
          yes1 <- doJump yes
-         pure (Call f c no1 yes1 es1)
+         pure (CallCapture f no1 yes1 es1)
 
     TailCall f c es ->
       do sig <- lookupFunMode f
@@ -495,10 +522,15 @@ doJump (JumpPoint l es) =
   do ms <- lookupLabelMode l
      JumpPoint l <$> doArgs es ms
 
+doJumpWithFree :: JumpWithFree -> M JumpWithFree
+doJumpWithFree k =
+  do JumpCase x <- doJumpChoice (JumpCase (Map.singleton () k))
+     pure (x Map.! ())
+
 -- | We will only take one of the two choices at run time.
 -- So when we add a `copy` for the one side we add a `free` to the other.
 -- A later pass removes redundant copies
-doJumpChoice :: JumpChoice -> M JumpChoice
+doJumpChoice :: Ord i => JumpChoice i -> M (JumpChoice i)
 doJumpChoice (JumpCase opts) =
   do opts' <- mapM doSide opts
      let doOne l (it,_) =

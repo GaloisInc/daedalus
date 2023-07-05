@@ -67,7 +67,7 @@ instance FreeVars JumpPoint where
 instance FreeVars JumpWithFree where
   freeVars' jf = freeVars' (freeFirst jf, jumpTarget jf)
 
-instance FreeVars JumpChoice where
+instance FreeVars (JumpChoice ix) where
   freeVars' (JumpCase opts) = freeVars' (Map.elems opts)
 
 instance FreeVars VMVar where
@@ -81,7 +81,8 @@ instance FreeVars CInstr where
       Yield             -> id
       ReturnNo          -> id
       ReturnYes e i     -> freeVars' (e,i)
-      Call _ _ no yes es -> freeVars' (es,(no,yes))
+      CallNoCapture _ ks es -> freeVars' (es,ks)
+      CallCapture _ no yes es -> freeVars' (es,(no,yes))
       CallPure _ l es   -> freeVars' (l,es)
       TailCall _ _ es   -> freeVars' es
       ReturnPure e      -> freeVars' e

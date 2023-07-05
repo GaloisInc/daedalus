@@ -129,7 +129,7 @@ compileOpN op ty es k =
                do mkL <- retPure (Src.typeOf f) k'
                   pure \vs ->
                     do l <- mkL
-                       term (CallPure f l vs)
+                       term (CallPure f (jumpNoFree l) vs)
 
          compileEs es doCall
 

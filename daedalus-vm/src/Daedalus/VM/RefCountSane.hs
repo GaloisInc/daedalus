@@ -8,7 +8,7 @@ import Data.Set(Set)
 import qualified Data.Set as Set
 import Control.Monad(when)
 
-import Daedalus.PP(showPP,pp,hsep)
+import Daedalus.PP(PP,showPP,pp,hsep)
 import Daedalus.VM.BorrowAnalysis(modeI)
 import Daedalus.VM.TypeRep
 import Daedalus.VM
@@ -57,6 +57,8 @@ checkProgram prog =
 
 checkBlock :: RO -> Block -> Either Error ()
 checkBlock ro block =
+  -- trace (unlines $ ("Checking " ++ name)
+  --                : [ "  " ++ showPP x ++ ": " ++ show y | (x,y) <- Map.toList count ])
   do checkArgs
      fin <- checkTerm name ro (blockTerm block) =<<
                           checkIs name 1 ro (blockInstrs block) count
@@ -152,6 +154,8 @@ checkI loc ro i count =
 
 checkTerm :: String -> RO -> CInstr -> Count -> Either Error Count
 checkTerm loc ro ci count =
+  --trace (unlines $ ("Check term " ++ loc)
+  --               : [ "  " ++ showPP x ++ ": " ++ show y | (x,y) <- Map.toList count ])
   case ci of
     Yield         -> pure count
     ReturnNo      -> pure count
@@ -161,10 +165,12 @@ checkTerm loc ro ci count =
 
     Jump jp       -> checkJP loc ro (== NormalBlock) jp count
     JumpIf e ch   ->
-      checkJumpChoice loc ro ch =<<
+      checkJumpChoice loc ro (== NormalBlock) ch =<<
                         checkE (loc ++ ":case") e (Borrowed `ifRefs` e) count
-    CallPure f jp es -> checkRet jp =<< checkArgs f es
-    Call f _ jp1 jp2 es ->
+    CallPure f jp es -> checkJumpWithFree retLab ro isRet jp =<< checkArgs f es
+    CallNoCapture f ks es ->
+      checkJumpChoice retLab ro isRet ks =<< checkArgs f es
+    CallCapture f jp1 jp2 es ->
       checkRet jp1 =<< checkRet jp2 =<< checkArgs f es
     TailCall f _ es -> checkArgs f es
   where
@@ -188,9 +194,8 @@ checkTerm loc ro ci count =
                          (map getOwnership as) count
       Nothing -> Left ["Missing function: " ++ showPP f]
 
-  checkRet = checkJP (loc ++ ", return from call") ro isRet
-
-
+  retLab = loc ++ ", return from call"
+  checkRet = checkJP retLab ro isRet
 
 checkEs :: String -> [E] -> [Ownership] -> Count -> Either Error Count
 checkEs loc es0 os0 = go es0 os0
@@ -244,21 +249,20 @@ checkJP loc ro typeOk jp count =
 
     Nothing -> Left ["Jump to missing block: " ++ showPP (jLabel jp)]
 
+checkJumpWithFree ::
+  String -> RO -> (BlockType -> Bool) ->
+  JumpWithFree -> Count -> Either Error Count
+checkJumpWithFree loc ro typeOk jf count =
+  checkJP loc ro typeOk (jumpTarget jf) =<< freeVars (freeFirst jf) count
 
 
-
-
-checkJumpWithFree :: String -> RO -> JumpWithFree -> Count -> Either Error Count
-checkJumpWithFree loc ro jf count =
-  checkJP loc ro (NormalBlock ==) (jumpTarget jf)
-                                          =<< freeVars (freeFirst jf) count
-
-
-checkJumpChoice :: String -> RO -> JumpChoice -> Count -> Either Error Count
-checkJumpChoice loc ro (JumpCase alts) count =
+checkJumpChoice ::
+  (PP i) => String -> RO -> (BlockType -> Bool) ->
+  JumpChoice i -> Count -> Either Error Count
+checkJumpChoice loc ro blockOk (JumpCase alts) count =
   do counts <- Map.traverseWithKey
                 (\p jf -> let l' = loc ++ ", case " ++ showPP p
-                          in checkJumpWithFree l' ro jf count) alts
+                          in checkJumpWithFree l' ro blockOk jf count) alts
      case Map.toList counts of
        [] -> pure count
        (p,m) : more
