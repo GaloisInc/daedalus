@@ -131,14 +131,14 @@ data Pattern =
   | PBytes ByteString
   | PCon Label
   | PAny
-    deriving (Eq,Ord,Generic,NFData)
+    deriving (Show,Eq,Ord,Generic,NFData)
 
 -- A convenience type for typed things
 data Typed a = Typed
   { typedType :: Type
   , typedThing :: a
   }
-  deriving (Eq,Ord,Functor,Generic,NFData)
+  deriving (Eq,Ord,Foldable,Traversable,Functor,Generic,NFData)
 
 instance Show a => Show (Typed a) where
   show = show . typedThing
