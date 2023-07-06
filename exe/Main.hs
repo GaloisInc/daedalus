@@ -147,8 +147,10 @@ handleOptions opts
               mo <- ddlGetAST specMod astTC
               ddlPrint (pp mo)
 
-         DumpCore ->
+         DumpCore how ->
             do _ <- doToCore opts mm
+               when (dumpCoreNoLoops how) (passNoLoops specMod)
+               when (dumpCoreNoMatch how) (passNoMatch specMod)
                ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpRel -> dumpRel opts mm

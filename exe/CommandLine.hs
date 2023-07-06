@@ -5,6 +5,7 @@ module CommandLine ( Command(..)
                    , options
                    , throwOptError
                    , OptsHS(..)
+                   , DumpCoreHow(..)
                    ) where
 
 import Data.Text(Text)
@@ -25,7 +26,7 @@ data Command =
   | DumpTC
   | DumpTypes
   | DumpSpec
-  | DumpCore
+  | DumpCore DumpCoreHow
   | DumpVM
   | DumpRel
   | DumpGraph Bool
@@ -37,6 +38,11 @@ data Command =
   | ShowHelp
 
 data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
+
+data DumpCoreHow = DumpCoreHow
+  { dumpCoreNoLoops :: Bool
+  , dumpCoreNoMatch :: Bool
+  }
 
 data Options =
   Options { optCommand   :: Command
@@ -255,6 +261,23 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
               ]
           }
 
+
+defaultDumpCore :: DumpCoreHow
+defaultDumpCore = DumpCoreHow
+  { dumpCoreNoLoops = False
+  , dumpCoreNoMatch = False
+  }
+
+dumpCoreCommand :: (DumpCoreHow -> DumpCoreHow) -> ArgDescr Options
+dumpCoreCommand f = NoArg \o ->
+  Right $
+    o { optCommand =
+          DumpCore
+            case optCommand o of
+              DumpCore h -> f h
+              _ -> f defaultDumpCore
+      }
+
 cmdDumpOptions :: CommandSpec
 cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
   where
@@ -280,8 +303,16 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
 
                , Option [] ["core"]
                  "Dump core AST"
-                $ simpleCommand DumpCore
-               
+                $ dumpCoreCommand id
+
+               , Option [] ["core-no-loops"]
+                 "Eliminate loops before dumping core"
+                $ dumpCoreCommand \how -> how { dumpCoreNoLoops = True }
+
+               , Option [] ["core-no-match"]
+                 "Eliminate matches loops before dumping core"
+                $ dumpCoreCommand \how -> how { dumpCoreNoMatch = True }
+
                , Option [] ["rel"]
                  "Dump relational core"
                 $ simpleCommand DumpRel
@@ -505,7 +536,7 @@ impliedOptions opts0 =
         DumpTC          -> opts
         DumpTypes       -> opts
         DumpSpec        -> opts
-        DumpCore        -> noTCUnbiased
+        DumpCore _      -> noTCUnbiased
         DumpRel         -> noTCUnbiased
         DumpVM          -> noTCUnbiased
         DumpGraph {}    -> opts
