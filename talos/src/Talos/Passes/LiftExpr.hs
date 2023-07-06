@@ -176,14 +176,13 @@ liftExprE expr = do
         then newNamedWithName n (Pure le') *> (tell named $> re')
         else tell named $> PureLet n le' re'
 
-    -- Need to lift this as parts of the body may have partial
-    -- operations (e.g. getting sum types).  We try to only generate a
-    -- Grammar when the body of the case produces a non-empty NamedGrammar
+    -- We always remove Cases from Expr as they are complex, and so
+    -- better handled in a single place.
+    -- 
+    -- FIXME: maybe we can allow e.g. Bool cases?
     ECase cs -> do
       cs' <- traverse (getNamedIn . liftExprE) cs
-      if all (nullNamedGrammars . snd) cs'
-        then pure (ECase (fst <$> cs'))
-        else Var <$> newNamed (GCase (uncurry bindNamedE <$> cs'))
+      Var <$> newNamed (GCase (uncurry bindNamedE <$> cs'))
 
     ApN (CallF f) es
       | Just gn <- Map.lookup f fToG -> Var <$> newNamed (Call gn es)
