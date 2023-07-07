@@ -21,19 +21,12 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
-  exposed-modules:     Talos.Lib
-                     -- , Talos.SymExec
-                     , Talos.Monad
-                     , Talos.SymExec.SolverT
-                     -- , Talos.SymExec.Convenience
-                     , Talos.SymExec.StdLib
-                     , Talos.SymExec.ModelParser
-                     , Talos.SymExec.Expr
-                     , Talos.SymExec.Funs
-                     , Talos.SymExec.SemiExpr
-                     , Talos.SymExec.SemiValue
-                     , Talos.SymExec.Type
-                     , Talos.SymExec.Path
+  exposed-modules:     Talos.Monad
+                     , Talos.Path
+                     
+                     , Talos.Solver.SolverT
+                     -- , Talos.SymExec.StdLib
+                     , Talos.Solver.ModelParser
 
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
@@ -55,20 +48,15 @@ library
                      , Talos.Strategy.OptParser
 
                      , Talos.Strategy.BTRand
-
                      , Talos.Strategy.DFST
-                     , Talos.Strategy.SearchTree
-                     , Talos.Strategy.SearchT
-                     , Talos.Strategy.Symbolic
-                     , Talos.Strategy.MemoSearch
-                     , Talos.Strategy.SymbolicM
 
                      , Talos.Strategy.PathSymbolic
                      , Talos.Strategy.PathSymbolic.PathCondition
                      , Talos.Strategy.PathSymbolic.Monad
                      , Talos.Strategy.PathSymbolic.MuxValue
                      , Talos.Strategy.PathSymbolic.PathBuilder
-
+                     , Talos.Strategy.PathSymbolic.SymExec
+                     
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis

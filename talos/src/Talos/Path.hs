@@ -5,9 +5,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving, ParallelListComp #-}
 
--- Path set analysis
+-- Representation of Paths
 
-module Talos.SymExec.Path where
+module Talos.Path where
 
 import           Control.DeepSeq       (NFData)
 import           Control.Lens          (ix, (%~), (&))
@@ -20,10 +20,10 @@ import           GHC.Generics          (Generic)
 
 import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.GUID (GUID)
 
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
-import Daedalus.GUID (GUID)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets

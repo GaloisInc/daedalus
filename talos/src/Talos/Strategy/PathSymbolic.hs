@@ -865,9 +865,29 @@ synthesiseExpr e = do
   T.statS (pathKey <> "exprsize") (length vs, numSymb)
   pure r
 
--- Not a GuardedSemiSExprs here as there is no real need
 synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr
-synthesiseByteSet bs b = liftSymExecM $ SE.symExecByteSet b bs
+synthesiseByteSet bs b = go bs -- liftSymExecM $ SE.symExecByteSet b bs
+  where
+    go bs' =
+      case bs' of
+        SetAny          -> pure (S.bool True)
+        SetSingle  v    -> S.eq b <$> symExecExpr v
+        SetRange l h    -> S.and <$> (flip S.bvULeq b <$> symExecExpr l)
+                                 <*> (S.bvULeq b <$> symExecExpr h)
+    
+        SetComplement c -> S.not <$> go c
+        SetUnion l r    -> S.or <$> go l <*> go r
+        SetIntersection l r -> S.and <$> go l <*> go r
+
+        SetLet n e bs'' -> do
+          (n', r) <- bindNameFreshIn n (go bs'')
+          mklet n' <$> symExecExpr e <*> pure r
+          
+        SetCall f es  -> S.fun (fnameToSMTName f) <$> ((++ [b]) <$> mapM symExecExpr es)
+        SetCase {}    -> unimplemented
+    
+    unimplemented = panic "SymExec (ByteSet): Unimplemented inside" [showPP bs]
+
 
 -- traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
 -- traceGUIDChange msg m = do
