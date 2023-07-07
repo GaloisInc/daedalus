@@ -1,10 +1,16 @@
 {-# LANGUAGE RankNTypes #-}
 {-# Language GADTs, ViewPatterns, PatternGuards, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 
--- Symbolically execute Core terms
+-- Symbolically execute Core terms, but only for the subset required by MuxValue.hs
 
-module Talos.SymExec.Expr where
+module Talos.Strategy.PathSymbolic.SymExec
+  ( symExecName
+  , symExecOp0
+  , symExecOp1
+  , symExecOp2  
+  , ) where
 
 -- import Data.Map (Map)
 import           Control.Monad.Reader
@@ -15,27 +21,22 @@ import qualified Data.Map                        as Map
 import           SimpleSMT                       (SExpr)
 import qualified SimpleSMT                       as S
 
-import           Daedalus.Core                   hiding (tByte)
+import           Daedalus.Core                   hiding (tByte, freshName)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
--- import Talos.Strategy.Monad
-import           Talos.SymExec.SolverT hiding (freshName)
-import           Talos.SymExec.StdLib
-import           Talos.SymExec.Type
+import           Talos.Solver.SolverT (freshName, SMTVar) 
 
 -- -----------------------------------------------------------------------------
--- Class
+-- Monad
 
--- class SymExec a where
---   -- monadio for debugging
---   symExec :: (Monad m, HasGUID m, MonadIO m) => a -> SolverT m SExpr
+type SymExecM m a = ReaderT (Map Name SExpr) m a
 
-type SymExecM m a = ReaderT (Map Name SExpr) (SolverT m) a
+type SymExecCtxt m = (Monad m, HasGUID m)
 
-type SymExec a = forall m. (Monad m, HasGUID m, MonadIO m) => a -> SymExecM m SExpr
+type SymExec a = forall m. SymExecCtxt m => a -> SymExecM m SExpr
 
 -- -----------------------------------------------------------------------------
 -- Names
@@ -49,10 +50,9 @@ symExecName n = do
     Nothing -> panic "Missing name" [showPP n]
 
 -- This is probably overkill for lets, but it is safer (we probably don't need to freshName)
-bindNameFreshIn :: (Monad m, HasGUID m) => Name -> SymExecM m a -> SymExecM m (String, a)
+bindNameFreshIn :: SymExecCtxt m => Name -> SymExecM m a -> SymExecM m (SMTVar, a)
 bindNameFreshIn n m = do
-  n' <- lift (freshName n)
-  let ns = nameToSMTName n'
+  ns <- freshName n
   (,) ns <$> local (Map.insert n (S.const ns)) m 
       
 -- -----------------------------------------------------------------------------
@@ -78,20 +78,20 @@ symExecOp0 op =
       else S.bvBin (fromIntegral n) i
 
     BoolL b -> S.bool b
-    ByteArrayL bs ->
-      let sBytes   = map sByte (BS.unpack bs)
-          emptyArr = S.app (S.as (S.const "const") (S.tArray tSize tByte)) [sByte 0]
-          arr      = foldr (\(i, b) arr' -> S.store arr' (sSize i) b) emptyArr (zip [0..] sBytes)
-      in sArrayWithLength tByte arr (sSize (fromIntegral $ BS.length bs))
+    ByteArrayL bs -> unimplemented
+      -- let sBytes   = map sByte (BS.unpack bs)
+      --     emptyArr = S.app (S.as (S.const "const") (S.tArray tSize tByte)) [sByte 0]
+      --     arr      = foldr (\(i, b) arr' -> S.store arr' (sSize i) b) emptyArr (zip [0..] sBytes)
+      -- in sArrayWithLength tByte arr (sSize (fromIntegral $ BS.length bs))
       
-    NewBuilder ty -> sEmptyL (symExecTy ty) (typeDefault ty)
+    NewBuilder ty -> unsEmptyL (symExecTy ty) (typeDefault ty)
     MapEmpty kt vt   -> sMapEmpty (symExecTy kt) (symExecTy vt)
     ENothing ty   -> sNothing (symExecTy ty)
     _ -> unimplemented
   where
     unimplemented = panic "Unimplemented" [showPP op]
 
-symExecOp1 :: (Monad m, HasGUID m) => Op1 -> Type -> SExpr -> SolverT m SExpr
+symExecOp1 :: SymExecCtxt m => Op1 -> Type -> SExpr -> m SExpr
 symExecOp1 op ty =
   pure . case op of
     CoerceTo tyTo    -> symExecCoerce ty tyTo
@@ -128,7 +128,7 @@ symExecOp1 op ty =
     unimplemented = panic "Unimplemented" [showPP op]
     fun f = \v -> S.fun f [v]
 
-symExecOp2 :: (Monad m, HasGUID m) => Op2 -> Type -> SExpr -> SExpr -> SolverT m SExpr
+symExecOp2 :: SymExecCtxt m => Op2 -> Type -> SExpr -> SExpr -> m SExpr
 
 -- Generic ops
 symExecOp2 Emit (TBuilder elTy) = \v1 v2 -> pure $ sPushBack (symExecTy elTy) v2 v1
@@ -228,13 +228,13 @@ symExecOp2 bop TInteger =
     
 symExecOp2 bop _t = panic "Unsupported operation" [showPP bop]
 
-symExecOp3 :: (Monad m, HasGUID m) => Op3 -> Type -> SExpr -> SExpr -> SExpr -> SolverT m SExpr
+symExecOp3 :: SymExecCtxt m => Op3 -> Type -> SExpr -> SExpr -> SExpr -> m SExpr
 symExecOp3 MapInsert (TMap kt vt) m k v = do
   fnm <- getPolyFun (PMapInsert (symExecTy kt) (symExecTy vt))
   pure $ S.app fnm [m, k, v]
 symExecOp3 op _ _ _ _ = panic "Unimpleented" [showPP op]
 
-symExecOpN :: (Monad m, HasGUID m) => OpN -> [SExpr] -> SolverT m SExpr
+symExecOpN :: SymExecCtxt m => OpN -> [SExpr] -> m SExpr
 symExecOpN (CallF fn) args = pure (S.fun (fnameToSMTName fn) args)
 symExecOpN op _ = panic "Unimplemented" [showPP op]
                         
@@ -383,26 +383,3 @@ symExecExpr expr =
       lift (symExecOp3 op (typeOf e1) se1 se2 se3)
     
     ApN op args -> lift .  symExecOpN op =<< mapM symExecExpr args
-
-symExecByteSet :: SExpr -> SymExec ByteSet
-symExecByteSet b bs = go bs
-  where
-    go bs' =
-      case bs' of
-        SetAny          -> pure (S.bool True)
-        SetSingle  v    -> S.eq b <$> symExecExpr v
-        SetRange l h    -> S.and <$> (flip S.bvULeq b <$> symExecExpr l)
-                                 <*> (S.bvULeq b <$> symExecExpr h)
-    
-        SetComplement c -> S.not <$> go c
-        SetUnion l r    -> S.or <$> go l <*> go r
-        SetIntersection l r -> S.and <$> go l <*> go r
-
-        SetLet n e bs'' -> do
-          (n', r) <- bindNameFreshIn n (go bs'')
-          mklet n' <$> symExecExpr e <*> pure r
-          
-        SetCall f es  -> S.fun (fnameToSMTName f) <$> ((++ [b]) <$> mapM symExecExpr es)
-        SetCase {}    -> unimplemented
-    
-    unimplemented = panic "SymExec (ByteSet): Unimplemented inside" [showPP bs]

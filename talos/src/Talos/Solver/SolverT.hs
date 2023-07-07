@@ -9,10 +9,10 @@
 
 -- | Defines the symbolic parser API.  This wraps the SimpleSMT API
 
-module Talos.SymExec.SolverT (
+module Talos.Solver.SolverT (
   -- * Solver interaction monad
   SolverT, runSolverT, mapSolverT, emptySolverState,
-  nameToSMTName, fnameToSMTName, tnameToSMTName,
+  nameToSMTName, 
   -- getName,
   SolverState,
   withSolver, SMTVar,
@@ -24,17 +24,10 @@ module Talos.SymExec.SolverT (
   freshContext, collapseContext, extendContext, instantiateSolverFrame,
   substSExpr,
   scoped,
-  -- * Functions
-  SMTFunDef(..), defineSMTFunDefs,
-  -- * SMT Polymorphic functions
-  PolyFun (..), defineSMTPolyFun, getPolyFun,
-  -- * Types
-  SMTTypeDef(..), defineSMTTypeDefs,
-  typeNameToDefault,
   -- * Context management
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, freshSymbol, defineName, declareName,
-  defineSymbol, declareSymbol, declareFreshSymbol, knownFNames,
+  defineSymbol, declareSymbol, declareFreshSymbol, 
   reset, assert, check, flush,
   -- * Type Class
   MonadSolver(..),
@@ -52,13 +45,10 @@ import           Control.Monad.Trans.Maybe (MaybeT)
 import           Control.Monad.Writer      (WriterT)
 import           Data.Foldable             (for_, toList)
 import           Data.Function             (on)
-import           Data.Functor              (($>))
 import           Data.Generics.Product     (field)
 import           Data.Map                  (Map)
 import qualified Data.Map                  as Map
 import           Data.Maybe                (catMaybes)
-import           Data.Set                  (Set)
-import qualified Data.Set                  as Set
 import           Data.Text                 (Text)
 import           GHC.Generics              (Generic)
 import           SimpleSMT                 (SExpr, Solver)
@@ -79,12 +69,6 @@ import           Talos.SymExec.StdLib
 -- import Text.Printf (printf)
 
 type SMTVar = String
-
--- The name of a polymorphic function (map lookup, map insertion, etc)
-data PolyFun = PMapLookup SExpr SExpr -- kt vt
-             | PMapInsert SExpr SExpr -- kt vt
-             | PMapMember SExpr SExpr -- kt vt
-             deriving (Eq, Ord, Show)
 
 data QueuedCommand =
   QCAssert SExpr
@@ -119,10 +103,6 @@ newtype SolverContext = SolverContext { getSolverContext :: [SolverFrame] }
 
 data SolverState = SolverState
   { solver       :: !Solver
-    -- These have to be defined at the top level (before we start pushing etc.)
-  , ssKnownTypes :: !(Set TName)
-  , ssKnownFuns  :: !(Set FName)
-  , ssKnownPolys :: !(Map PolyFun SMTVar)
 
   , ssFrames          :: ![SolverFrame]
   , ssNFlushedFrames  :: !Int
@@ -136,9 +116,6 @@ data SolverState = SolverState
 emptySolverState :: Solver -> SolverState
 emptySolverState s = SolverState
   { solver = s
-  , ssKnownTypes = mempty
-  , ssKnownFuns  = mempty
-  , ssKnownPolys = mempty
 
   , ssFrames          = mempty
   , ssNFlushedFrames  = 0
@@ -439,36 +416,20 @@ getModel = solverOp (\s -> S.command s $ S.List [S.const "get-model"])
 -- -----------------------------------------------------------------------------
 -- Names
 
+freshSymbol :: (Monad m, HasGUID m) => Text -> m SMTVar
+freshSymbol pfx = textToSMTName pfx <$> getNextGUID
+
+freshName :: (Monad m, HasGUID m) => Name -> m SMTVar
+freshName n = nameToSMTName <$> C.freshName n
+
 stringToSMTName :: String -> GUID -> SMTVar
 stringToSMTName n g = n ++ "@" ++ showPP g
-
 
 textToSMTName :: Text -> GUID -> SMTVar
 textToSMTName n = stringToSMTName (showPP n)
 
-fnameToSMTName :: FName -> String
-fnameToSMTName n = textToSMTName (fnameText n) (fnameId n)
-
 nameToSMTName :: Name -> SMTVar
 nameToSMTName n = textToSMTName (maybe "_N" id (nameText n)) (nameId n)
-
-tnameToSMTName :: TName -> SMTVar
-tnameToSMTName n = textToSMTName (tnameText n) (tnameId n)
-
-knownFNames :: Monad m => SolverT m (Set FName)
-knownFNames = SolverT $ gets ssKnownFuns
-
-getPolyFun :: Monad m => PolyFun -> SolverT m SExpr
-getPolyFun pf = do
-  m_s <- SolverT $ gets (Map.lookup pf . ssKnownPolys)
-  case m_s of
-    Just s  -> pure (S.const s)
-    Nothing -> panic "Missing polyfun" [show pf]
-
-freshSymbol :: (Monad m, HasGUID m) => Text -> SolverT m SMTVar
-freshSymbol pfx = do
-  guid <- lift getNextGUID
-  pure (textToSMTName pfx guid)
 
 -- Declare a symbol we have previously generated with freshSymbol
 declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
@@ -479,13 +440,6 @@ declareSymbol pfx ty = do
   sym <- freshSymbol pfx
   queueSolverOp (QCDeclare sym ty)
   pure sym
-
-freshName :: (Monad m, HasGUID m) => Name -> SolverT m SMTVar
-freshName n = do
-  n' <- lift (C.freshName n)
-  let ns = nameToSMTName n'
-  -- modifyCurrentFrame (bindName n ns)
-  pure ns
 
 defineSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SExpr ->
                 SolverT m SMTVar
@@ -521,130 +475,11 @@ runSolverT (SolverT m) s = runStateT m s
 mapSolverT :: (m (a, SolverState) -> n (b, SolverState)) -> SolverT m a -> SolverT n b
 mapSolverT f (SolverT m) = SolverT (mapStateT f m)
 
-onState :: Monad m => Lens' SolverState a -> (a -> SolverT m a) -> SolverT m ()
-onState l f = do
-  v <- SolverT $ use l
-  r <- f v
-  SolverT $ l .= r
-
---------------------------------------------------------------------------------
--- Types
-
-data SMTTypeDef =
-  SMTTypeDef { stdName :: TName
-             , stdBody :: [(String, [(String, SExpr)])]
-             }
-
-typeNameToDefault :: TName -> SMTVar
-typeNameToDefault n = "default-" ++ tnameToSMTName n
-
--- FIXME: merge into simple-smt
-
--- Arguments are as for declareDatatype: (name, tparams, constructors)
-declareDatatypes :: Solver -> [ (String, [String], [(String, [(String, SExpr)])]) ] -> IO ()
-declareDatatypes s ts = S.ackCommand s (S.fun "declare-datatypes" [namesArities, decls])
-  where
-    namesArities = S.List (map nameArity ts)
-    nameArity (n, tparams, _) = S.List [ S.Atom n, S.int (fromIntegral $ length tparams) ]
-    decls        = S.List (map decl ts)
-    decl (_, [], ctors) = mkbody ctors
-    decl (_, tparams, ctors) = S.fun "par" [ S.List (map S.Atom tparams), mkbody ctors ]
-    mkbody ctors = S.List [ S.fun ctor [ S.List [ S.Atom fld, ty ]
-                                       | (fld, ty) <- flds ]
-                          | (ctor, flds) <- ctors
-                          ]
-
-defineDefaultType :: MonadIO m => SMTTypeDef -> SolverT m ()
-defineDefaultType std = void $ solverOp (\s -> S.declare s n ty)
-  where
-    ty = S.const (tnameToSMTName (stdName std))
-    n  = typeNameToDefault (stdName std)
-
--- FIXME: merge with defineSMTFunDefs ?
--- FIXME: add defaults
-defineSMTTypeDefs :: MonadIO m => Rec SMTTypeDef -> SolverT m ()
-defineSMTTypeDefs (NonRec std) = onState (field @"ssKnownTypes") $ \known -> do
-  if stdName std `Set.member` known
-  then pure known
-  else do solverOp doDef
-          defineDefaultType std
-          pure (Set.insert (stdName std) known)
-  where
-    doDef s = void $ S.declareDatatype s n' [] (stdBody std)
-    n' = tnameToSMTName (stdName std)
-
-defineSMTTypeDefs (MutRec stds) = onState (field @"ssKnownTypes") $ \known -> do
-  if not (Set.disjoint allNames known) -- if we define one we should have defined all
-  then pure known
-  else do solverOp (flip declareDatatypes defs)
-          mapM_ defineDefaultType stds
-          pure (Set.union allNames known)
-  where
-    allNames = Set.fromList (map stdName stds)
-    defs = map (\std -> (tnameToSMTName (stdName std), [], stdBody std)) stds
-
--- defineTName :: (MonadIO m) => TName ->  -> SolverT m SExpr
--- defineTName n flds = overCurrentFrame $ \f ->
---   if n `Set.member` frKnownTypes f
---   then pure (sn, f)
---   else do
---     solverOp (\s -> S.declareDatatype s n' [] flds)
---     -- Add a 'default' constant for this type, which is used to
---     -- init. arrays etc.  We never care what it actually is.
---     solverOp (\s -> void $ S.declare s (typeNameToDefault n) sn)
-
---     pure (sn, f { frKnownTypes = Set.insert n (frKnownTypes f) })
-
---   where
---     n' = tnameToSMTName n
---     sn = S.const n'
-
-
-
--- -----------------------------------------------------------------------------
--- Functions
-
-data SMTFunDef = SMTFunDef { sfdName :: FName
-                           , sfdArgs :: [(SMTVar, SExpr)]
-                           , sfdRet  :: SExpr
-                           , sfdBody :: SExpr
-                           , sfdPureDeps :: Set FName
-                           , sfdTyDeps   :: Set TName
-                           }
-
-defineSMTFunDefs :: MonadIO m => Rec SMTFunDef -> SolverT m ()
-defineSMTFunDefs (NonRec sfd) = onState (field @"ssKnownFuns") $ \funs ->
-  if sfdName sfd `Set.member` funs
-  then pure funs
-  else solverOp doDef $> Set.insert (sfdName sfd) funs
-  where
-    doDef s = void $ S.defineFun s (fnameToSMTName (sfdName sfd)) (sfdArgs sfd) (sfdRet sfd) (sfdBody sfd)
-
-defineSMTFunDefs (MutRec sfds) = onState (field @"ssKnownFuns") $ \funs ->
-  if not (Set.disjoint allNames funs) -- if we define one we should have defined all
-  then pure funs
-  else solverOp (flip S.defineFunsRec defs) $> Set.union allNames funs
-  where
-    allNames = Set.fromList (map sfdName sfds)
-    defs = map (\sfd -> (fnameToSMTName (sfdName sfd), sfdArgs sfd, sfdRet sfd, sfdBody sfd)) sfds
-
--- -----------------------------------------------------------------------------
--- Poly functions
-
-defineSMTPolyFun :: (HasGUID m, MonadIO m) => PolyFun -> SolverT m ()
-defineSMTPolyFun pf = onState (field @"ssKnownPolys") $ \polys -> do
-  if pf `Map.member` polys
-    then pure polys
-    else case pf of
-           PMapLookup kt vt -> do
-             fnm <- freshSymbol "mapLookup"
-             solverOp (\s' -> mkMapLookup s' fnm kt vt) $> Map.insert pf fnm polys
-           PMapMember kt vt -> do
-             fnm <- freshSymbol "mapMember"
-             solverOp (\s' -> mkMapMember s' fnm kt vt) $> Map.insert pf fnm polys
-           PMapInsert kt vt -> do
-             fnm <- freshSymbol "mapInsert"
-             solverOp (\s' -> mkMapInsert s' fnm kt vt) $> Map.insert pf fnm polys
+-- onState :: Monad m => Lens' SolverState a -> (a -> SolverT m a) -> SolverT m ()
+-- onState l f = do
+--   v <- SolverT $ use l
+--   r <- f v
+--   SolverT $ l .= r
 
 
 -- -----------------------------------------------------------------------------
