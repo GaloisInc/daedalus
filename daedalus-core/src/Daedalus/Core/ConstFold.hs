@@ -194,6 +194,7 @@ valueToExpr tenv ty v =
     -- Thes are a bit hacky, and probably shouldn't actually occur,
     -- but there are included for completeness.
     VStream inp -> arrayStream (byteArrayL (inputBytes inp)) (byteArrayL "array")
+    VBuilder [] | TBuilder ty' <- ty -> newBuilder ty'
     VBuilder vs | TBuilder ty' <- ty ->
       let es = map (go ty') vs
           arr = arrayL ty' (reverse es)

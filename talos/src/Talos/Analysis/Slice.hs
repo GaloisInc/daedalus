@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- Path set analysis
 
@@ -9,24 +9,27 @@ module Talos.Analysis.Slice
   ( FInstId(..)
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
-  , Slice'(..)
+  , Slice'(..), Structural(..), SLoopClass(..)
+  , sloopClassBody, sloopClassE, mapSLoopClassE, foldMapSLoopClassE
   ) where
 
-import           Data.Set      (Set)
-import qualified Data.Set      as Set
+import           Data.Functor.Identity (Identity (..))
+import           Control.Applicative   (Const (..))
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
 
-import Control.DeepSeq (NFData)
-import GHC.Generics (Generic)
+import           Control.DeepSeq                 (NFData)
+import           GHC.Generics                    (Generic)
 
-import Daedalus.PP
-import Daedalus.Panic
+import           Daedalus.PP
+import           Daedalus.Panic
 
-import Daedalus.Core
-import Daedalus.Core.Free
-import Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core
+import           Daedalus.Core.Free
+import           Daedalus.Core.TraverseUserTypes
 
-import Talos.Analysis.Eqv
-import Talos.Analysis.Merge
+import           Talos.Analysis.Eqv
+import           Talos.Analysis.Merge
 
 -- import Debug.Trace
 
@@ -95,24 +98,26 @@ data Slice' cn sle =
   | SPure sle
   --  | GetStream
   --  | SetStream Expr
-  
+
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
   | SDo Name (Slice' cn sle) (Slice' cn sle)
   --  | Let Name Expr Grammar
   | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
-  | SCall cn 
+  | SCall cn
   | SCase Bool (Case (Slice' cn sle))
+
+  | SLoop (SLoopClass sle (Slice' cn sle))
 
   -- Extras for synthesis, we don't usually have SLExpr here as we
   -- don't slice the Exprs here.
-  -- | SAssertion Expr -- FIXME: this is inferred from e.g. case x of True -> ...
   | SInverse Name Expr Expr
   -- ^ We have an inverse for this statement; this constructor has a
   -- name for the result (considered bound in this term only), the
   -- inverse expression, and a predicate constraining the value
   -- produced by this node (i.e., result of the original DDL code).
+
   deriving (Generic, NFData)
 
 -- A note on inverses.  The ides is if we have something like
@@ -133,6 +138,104 @@ data Slice' cn sle =
 -- [\result >> 24 as uint 8, \result >> 16 as uint 8, \result >> 8 as uint 8, \result as uint 8 ]
 -- when constructing the path (i.e., when getting bytes).
 
+-- | For sequences, there are three ways we care about loop
+-- dependency, apart from the dependency on the elements.
+data Structural =
+  StructureIndependent
+  -- ^ No dependence on the structure, including whether it is empty
+  -- or not, for example
+  --
+  --  xs = Many UInt8
+  --  map (x in xs) block
+  --    $$ = UInt8
+  --    x < $$ is true
+  --
+  | StructureIsNull
+  -- ^ Depends only on whether the list is empty or not, typically
+  -- because the usage of the list constrains other parts of the
+  -- grammar, and so the emptiness (or not) may be relevant to
+  -- e.g. the solvability of the slice, for example
+  -- 
+  -- > let xs = Many UInt8
+  -- > let y = UInt8
+  -- > map (x in xs) (x < y is true)
+  | StructureDependent
+  -- ^ The order and length of the list, for example
+  -- 
+  -- >  let xs = Many UInt8
+  -- >  ^ for (acc = 0; x in xs) (x + acc * 10)
+
+  deriving (Eq, Show, Generic, NFData)
+
+instance Ord Structural where
+  StructureIndependent <= _ = True
+  StructureIsNull <= StructureIsNull    = True
+  StructureIsNull <= StructureDependent = True
+  StructureDependent <= StructureDependent = True
+  _ <= _ = False
+
+data SLoopClass sle b =
+  SLoopPool Sem b
+  -- ^ Should generate a set of models for b, and we will pick the
+  -- number we need.  The body should not depend on the context or the
+  -- collection.  This can occur when the body constructs the output
+  -- of the map without inspecting the element, for example
+  --
+  -- > xs = ...
+  -- > ys = map (x in xs) block
+  -- >        a = f x
+  -- >        b = UInt8
+  -- >        b > 10 is true
+  --
+  -- because even though the slice will have no deps, recall we
+  -- consider slices which establish a post-condition to be open (so
+  -- we can bind then in a Do to link up with the user of the post-condition).
+
+  | SManyLoop Structural sle (Maybe sle) b
+  -- ^ A Many loop where the dependence on the result is determined by
+  -- the first parameter: it should be possible to ignore this flag,
+  -- e.g. in a simple strategy, but a more complex strategy can take
+  -- advantage of this information to produce a set of results (i.e.,
+  -- order independent and not all need to be used).
+
+  | SRepeatLoop Structural Name sle b
+  -- ^ A Repeat loop where the dependence on the result is determined
+  -- by the first parameter, as for 'SManyLoop'.
+
+  | SMorphismLoop (LoopMorphism' sle b)
+  -- ^ A 'LoopMorphism', where the structure is determined by the collection.
+  deriving (Generic, NFData)
+
+sloopClassBody :: SLoopClass sle b -> b
+sloopClassBody lc =
+  case lc of
+    SLoopPool _ b -> b
+    SManyLoop _str _lb _m_ub b -> b
+    SRepeatLoop _str _n _e b -> b
+    SMorphismLoop lm -> morphismBody lm
+
+sloopClassE :: Applicative f => (sle -> f sle') -> (b -> f b') -> SLoopClass sle b ->
+                      f (SLoopClass sle' b')
+sloopClassE ef bf lc =
+  case lc of
+    SLoopPool s b -> SLoopPool s <$> bf b
+    SManyLoop str lb m_ub b ->
+      SManyLoop str <$> ef lb <*> traverse ef m_ub <*> bf b
+    SRepeatLoop str n e b ->
+      SRepeatLoop str n <$> ef e <*> bf b
+    SMorphismLoop lm -> SMorphismLoop <$> morphismE ef bf lm
+
+mapSLoopClassE :: (e -> e') -> (a -> a') ->
+                   SLoopClass e a -> SLoopClass e' a'
+mapSLoopClassE ef af lc =
+  runIdentity (sloopClassE (Identity . ef) (Identity . af) lc)
+
+foldMapSLoopClassE :: Monoid m => (e -> m) -> (a -> m) ->
+                       SLoopClass e a -> m
+foldMapSLoopClassE ef af lc = m
+  where
+    Const m = sloopClassE (Const . ef) (Const . af) lc
+
 --------------------------------------------------------------------------------
 -- Domain Instances
 
@@ -149,14 +252,14 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
       (SHole {}, SHole {}) -> True
       (SHole {}, _)         -> False
       (_       , SHole {}) -> False
-      
+
       (SPure e, SPure e')  -> eqv e e' -- FIXME: needed?
       (SMatch {}, SMatch {}) -> True
       (SDo _ l1 r1, SDo _ l2 r2)  -> (l1, r1) `eqv` (l2, r2)
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
       (SCall lc, SCall rc)           -> lc `eqv` rc
       (SCase _ lc, SCase _ rc)       -> lc `eqv` rc
---      (SAssertion {}, SAssertion {}) -> True      
+      (SLoop lc, SLoop lc')          -> lc `eqv` lc'
       (SInverse {}, SInverse {})     -> True
       _                              -> panic "Mismatched terms in eqv (Slice)" ["Left", showPP l, "Right", showPP r]
 
@@ -169,18 +272,58 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
       (SDo x1 slL1 slR1, SDo _x2 slL2 slR2) ->
         SDo x1 (merge slL1 slL2) (merge slR1 slR2)
       (SMatch {}, SMatch {})         -> l
---      (SAssertion {}, SAssertion {}) -> l
+
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
       (SCall lc, SCall rc)           -> SCall (merge lc rc)
       (SCase t lc, SCase _ rc)       -> SCase t (merge lc rc)
+
+      (SLoop lc, SLoop lc')          -> SLoop (merge lc lc')
       (SInverse {}, SInverse{})      -> l
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
+
+instance Eqv Structural where -- default
+instance Merge Structural where
+  merge = max
+
+instance (Eqv sle, Eqv b) => Eqv (SLoopClass sle b) where
+  SLoopPool _s b `eqv ` SLoopPool _s' b' = b `eqv` b'
+  SManyLoop str lb m_ub b `eqv ` SManyLoop str' lb' m_ub' b'
+    = (str, lb, m_ub, b) `eqv` (str', lb', m_ub', b')
+  SRepeatLoop str _n sle b `eqv` SRepeatLoop str' _n' sle' b' =
+    (str, sle, b) `eqv` (str', sle', b')
+  SMorphismLoop lm `eqv` SMorphismLoop lm' = lm `eqv` lm'
+  _ `eqv` _ = False
+
+instance (Merge sle, Merge b, PP sle, PP b) => Merge (SLoopClass sle b) where
+  SLoopPool s b `merge ` SLoopPool _s b' = SLoopPool s (merge b b')
+
+  SLoopPool _ b `merge`  SManyLoop str lb m_ub b' = SManyLoop str lb m_ub (merge b b')
+  lc@SManyLoop {} `merge` lc'@SLoopPool {} = merge lc' lc
+  SManyLoop str lb m_ub b `merge` SManyLoop str' lb' m_ub' b'
+    = SManyLoop (merge str str') (merge lb lb') (merge m_ub m_ub') (merge b b')
+
+  SRepeatLoop str n sle b `merge` SRepeatLoop str' _n sle' b' =
+    SRepeatLoop (merge str str') n (merge sle sle') (merge b b')
+
+  SMorphismLoop lm `merge` SMorphismLoop lm' = SMorphismLoop (merge lm lm')
+  -- Now for MorphismBody and LoopMorphism
+  SLoopPool _ b `merge` SMorphismLoop lm =
+    SMorphismLoop $ case lm of
+                      MapMorphism lc b' -> MapMorphism lc (merge b b')
+                      FoldMorphism n e lc b' -> FoldMorphism n e lc (merge b b')
+  lc@SMorphismLoop {} `merge` lc'@SLoopPool {} = merge lc' lc
+
+  lc `merge` lc' = panic "IMPOSSIBLE (merge)" [showPP lc, showPP lc']
 
 --------------------------------------------------------------------------------
 -- Free instances
 --
 --  Used for getting deps for the SMT solver defs.
+
+instance FreeVars Structural where
+  freeVars = mempty
+  freeFVars = mempty
 
 instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
   freeVars sl =
@@ -192,8 +335,8 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
       SCase _ c      -> freeVars c
---      SAssertion e   -> freeVars e      
-      SInverse n f p -> Set.delete n (freeVars f <> freeVars p)
+      SLoop lc       -> freeVars lc
+      SInverse n f p -> Set.delete n (freeVars (f, p))
 
   freeFVars sl =
     case sl of
@@ -201,21 +344,35 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
       SDo _x l r     -> freeFVars l `Set.union` freeFVars r
       SPure v        -> freeFVars v
       SMatch m       -> freeFVars m
---      SAssertion e   -> freeFVars e
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
       SCase _ c      -> freeFVars c
+      SLoop lc       -> freeFVars lc
       -- the functions in f should not be e.g. sent to the solver
       -- FIXME: what about other usages of this function?
-      SInverse _ _f p -> {- freeFVars f <> -} freeFVars p 
+      SInverse _ _f p -> {- freeFVars f <> -} freeFVars p
 
+
+instance (FreeVars sle, FreeVars b) => FreeVars (SLoopClass sle b) where
+  freeVars lc =
+    case lc of
+      SLoopPool _ b -> freeVars b
+      SManyLoop _str lb m_ub b -> freeVars (lb, m_ub, b)
+      SRepeatLoop _str n e b   -> freeVars e <> Set.delete n (freeVars b)
+      SMorphismLoop lm -> freeVars lm
+
+  freeFVars lc =
+    case lc of
+      SLoopPool _ b -> freeFVars b
+      SManyLoop _str lb m_ub b -> freeFVars (lb, m_ub, b)
+      SRepeatLoop _str _n e b   -> freeFVars (e, b)
+      SMorphismLoop lm -> freeFVars lm
 
 -- -----------------------------------------------------------------------------
 -- FreeTCons
 
--- traverseUserTypesMap :: (Ord a, TraverseUserTypes a, TraverseUserTypes b, Applicative f) =>
---                         (UserType -> f UserType) -> Map a b -> f (Map a b)
--- traverseUserTypesMap f = fmap Map.fromList . traverseUserTypes f . Map.toList
+instance TraverseUserTypes Structural where
+  traverseUserTypes _f s = pure s
 
 instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Slice' cn sle) where
   traverseUserTypes f sl =
@@ -224,24 +381,37 @@ instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Sli
       SPure v          -> SPure <$> traverseUserTypes f v
       SDo x l r        -> SDo  <$> traverseUserTypes f x
                                <*> traverseUserTypes f l
-                               <*> traverseUserTypes f r      
+                               <*> traverseUserTypes f r
       SMatch m         -> SMatch <$> traverseUserTypes f m
---      SAssertion e     -> SAssertion <$> traverseUserTypes f e
       SChoice cs       -> SChoice <$> traverseUserTypes f cs
       SCall cn         -> SCall   <$> traverseUserTypes f cn
       SCase b c        -> SCase b <$> traverseUserTypes f c
+      SLoop lc         -> SLoop <$> traverseUserTypes f lc
       SInverse n ifn p -> SInverse n <$> traverseUserTypes f ifn <*> traverseUserTypes f p
 
 instance (Ord p, TraverseUserTypes p) => TraverseUserTypes (SummaryClass p) where
   traverseUserTypes _f Assertions = pure Assertions
   traverseUserTypes f (Result r) = Result <$> traverseUserTypes f r
 
+instance (TraverseUserTypes sle, TraverseUserTypes b) =>
+         TraverseUserTypes (SLoopClass sle b) where
+  traverseUserTypes f lc =
+    case lc of
+      SLoopPool s b -> SLoopPool s <$> traverseUserTypes f b
+      SManyLoop str lb m_ub b -> SManyLoop str <$> traverseUserTypes f lb
+                                               <*> traverseUserTypes f m_ub
+                                               <*> traverseUserTypes f b
+      SRepeatLoop str n e b -> SRepeatLoop str <$> traverseUserTypes f n
+                                               <*> traverseUserTypes f e
+                                               <*> traverseUserTypes f b
+      SMorphismLoop lm -> SMorphismLoop <$> traverseUserTypes f lm
+
 --------------------------------------------------------------------------------
 -- PP Instances
 -- instance PP CallInstance where
 --   ppPrec n (CallInstance { callParams = ps, callSlice' = sl }) =
 --     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
-    
+
 -- c.f. PP Grammar
 instance (PP cn, PP sle) => PP (Slice' cn sle) where
   pp sl =
@@ -253,10 +423,10 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)
       SCall cn       -> pp cn
       SCase _ c      -> pp c
---      SAssertion e   -> "assert" <+> ppPrec 1 e
+      SLoop lc       -> pp lc -- forget Structural
       SInverse n' ifn p -> -- wrapIf (n > 0) $
         "inverse for" <+> ppPrec 1 n' <+> "is" <+> ppPrec 1 ifn <+> "/" <+> ppPrec 1 p
-      
+
 ppStmts' :: (PP cn, PP sle) => Slice' cn sle -> Doc
 ppStmts' sl =
   case sl of
@@ -269,3 +439,25 @@ instance PP FInstId where
 instance PP p => PP (SummaryClass p) where
   pp Assertions = "Assertions"
   pp (Result p) = "Result" <+> brackets (commaSep (map pp (Set.toList p)))
+
+instance (PP sle, PP b) => PP (SLoopClass sle b) where
+  pp lc =
+    case lc of
+      SLoopPool s b -> ("LoopPool" <> parens pp_s) <+> pp b
+        where pp_s = case s of
+                       SemNo -> "@"
+                       _     -> ""
+                
+      SManyLoop str l m_h g ->
+        "Many" <.> pp str  <.>
+        parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+      SRepeatLoop str n e g   ->
+        "for" <.> pp str <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+      SMorphismLoop lm  -> pp lm
+
+instance PP Structural where
+  pp str =
+    case str of
+      StructureIndependent -> "*"
+      StructureIsNull -> "+"
+      StructureDependent -> "!"

@@ -6,28 +6,31 @@
 module Talos (
   -- * High-level synthesis operators
   synthesise,
+  SynthesisOptions(..),
   summarise,
   -- * Useful helpers
   runDaedalus,
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
-import           Control.Monad.State
+import qualified Colog.Core                   as Log
+import           Control.Monad                (forM_, unless, when)
 import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
                                                readIORef, writeIORef)
 import qualified Data.Map                     as Map
-import           Data.Maybe                  (fromMaybe)
+import           Data.Maybe                   (fromMaybe, isJust)
 import           Data.String                  (fromString)
 import           Data.Version
 import qualified SimpleSMT                    as SMT
+import qualified Streaming                    as S
 import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush, hPutStr,
-                                               hPutStrLn, openFile, stderr,
-                                               stdout)
-import           System.IO.Streams            (InputStream)
-import           Text.ParserCombinators.ReadP (readP_to_S)
+import           System.IO                    (IOMode (..), hFlush,
+                                               hPutStr, hPutStrLn, openFile,
+                                               stderr)
 import qualified Text.ParserCombinators.ReadP as RP
+import           Text.ParserCombinators.ReadP (readP_to_S)
+import qualified Data.Text as Text
 
 import           Daedalus.AST                 (nameScopeAsModScope)
 import           Daedalus.Core
@@ -38,14 +41,16 @@ import           Daedalus.Rec                 (forgetRecs)
 import           Daedalus.Type.AST            (tcDeclName, tcModuleDecls)
 import           Daedalus.Value               (Value)
 
+import           Data.Functor.Of              (Of)
 import qualified Talos.Analysis               as A
 import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
+import           Talos.Monad                  (runTalosM, runTalosStream, LogKey, logKeyEnabled, getLogKey)
 import           Talos.Passes
 import           Talos.Strategy
-import           Talos.Strategy.Monad         ()
 import           Talos.SymExec.Path           (ProvenanceMap)
 import qualified Talos.Synthesis              as T
+import Data.Text (Text)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -54,10 +59,10 @@ import qualified Talos.Synthesis              as T
 -- instance HasGUID FreshGUIDM where
 --   getNextGUID = FreshGUIDM $ state (mkGetNextGUID' id const)
 
-summarise :: FilePath -> Maybe FilePath -> Maybe String -> String
-          -> IO Doc
-summarise inFile m_invFile m_entry absEnv = do
-  (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+summarise :: FilePath -> Maybe FilePath -> Maybe String -> Int -> Bool ->
+             String -> IO Doc
+summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
+  (_mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry noLoops
 
   AbsEnvTy p <- case lookup absEnv A.absEnvTys of
     Just x -> pure x
@@ -67,7 +72,8 @@ summarise inFile m_invFile m_entry absEnv = do
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
   putStrLn "Slices"
-  let (summs, _) = A.summarise p md nguid
+  summs <- runTalosM md nguid mempty mempty (A.summarise p)
+  
   pure (bullets (map goF (Map.toList summs)))
   where
     goF (fn, m) =
@@ -103,44 +109,52 @@ errorExit msg = do
   hFlush stderr
   exitFailure
 
+data SynthesisOptions = SynthesisOptions
+  { inputFile       :: FilePath           -- ^ DDL file
+  , inverseFile     :: Maybe FilePath     -- ^ Inverse file
+  , entry           :: Maybe String       -- ^ Entry
+  , solverPath      :: FilePath           -- ^ Backend solver executable
+  , solverArgs      :: [String]           -- ^ Solver args
+  , solverOpts      :: [(String, String)] -- ^ Backend solver options
+  , solverInit      :: IO ()              -- ^ Backend solver init
+  , synthesisStrats :: Maybe [String]     -- ^ Synthesis strategies
+  , seed            :: Maybe Int          -- ^ Random seed
+  , analysisEnv     :: String             -- ^ Analysis abstract env.
+  , verbosity       :: Int                -- ^ Verbosity
+  , eraseLoops      :: Bool               -- ^ No loops
+  , logFile         :: Maybe FilePath     -- ^ General logging
+  , debugKeys       :: [String]           -- ^ Keys for logging debug messages
+  , statsFile       :: Maybe FilePath     -- ^ Output file for stats
+  , statsKeys       :: [String]           -- ^ Keys for stats
+  , smtLogFile      :: Maybe FilePath     -- ^ SMT logging file  
+  }
 
-synthesise :: FilePath           -- ^ DDL file
-           -> Maybe FilePath     -- ^ Inverse file
-           -> Maybe String       -- ^ Entry
-           -> FilePath           -- ^ Backend solver executable
-           -> [String]           -- ^ Solver args
-           -> [(String, String)] -- ^ Backend solver options
-           -> IO ()              -- ^ Backend solver init
-           -> Maybe [String]     -- ^ Synthesis strategies
-           -> Maybe (Int, Maybe FilePath) -- ^ Logging options
-           -> Maybe Int          -- ^ Random seed
-           -> String             -- ^ Analysis abstract env.
-           -> Int                -- ^ Verbosity
-           -> IO (InputStream (Value, ByteString, ProvenanceMap))
-synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts m_seed absEnv verbosity = do
-  (mainRule, md, nguid) <- runDaedalus inFile m_invFile m_entry
+synthesise :: SynthesisOptions
+           -> IO (S.Stream (Of (Value, ByteString, ProvenanceMap)) IO ())
+synthesise SynthesisOptions { .. } = do
+  (mainRule, md, nguid) <- runDaedalus inputFile inverseFile entry eraseLoops
 
   -- SMT init
-  logger <- case m_logOpts of
-              Nothing        -> pure Nothing
-              Just (i, m_f)  -> Just <$> newFileLogger m_f i
+  logger <- case smtLogFile of
+              Nothing -> pure Nothing
+              Just f  -> Just <$> newFileLogger f 0
 
-  solver <- SMT.newSolver backend bArgs logger
+  solver <- SMT.newSolver solverPath solverArgs logger
 
   -- Check version: z3 before 4.8.10 (or .9) seems to have an issue
   -- with match.  
   -- z3VersionCheck solver
 
   -- Set options
-  forM_ bOpts $ \(opt, val) -> do
+  forM_ solverOpts $ \(opt, val) -> do
     r <- SMT.setOptionMaybe solver (':' : opt) val
     unless r $ hPutStrLn stderr ("WARNING: solver does not support option " ++ opt)
 
-  absty <- case lookup absEnv A.absEnvTys of
+  absty <- case lookup analysisEnv A.absEnvTys of
     Just x -> pure x
-    _      -> errorExit ("Unknown abstract env " ++ absEnv)
+    _      -> errorExit ("Unknown abstract env " ++ analysisEnv)
 
-  let strats = fromMaybe ["pathsymb"] stratOpt
+  let strats = fromMaybe ["pathsymb"] synthesisStrats
 
   stratInsts <- case parseStrategies strats of
                   Left err -> errorExit err
@@ -148,17 +162,51 @@ synthesise inFile m_invFile m_entry backend bArgs bOpts bInit stratOpt m_logOpts
 
   -- Setup stdlib by initializing the solver and then defining the
   -- Talos standard library
-  bInit
-  T.synthesise m_seed nguid solver absty stratInsts mainRule md verbosity
+  solverInit
+
+  when (isJust statsFile && null statsKeys) $
+    errorExit "ERROR: no stats keys but stats output requested"
+  
+  withLogStringFileMaybe logFile Log.logStringStdout $ \logact ->
+    withLogStringFileMaybe statsFile mempty $ \statsact -> do
+    let strm = T.synthesise seed solver absty stratInsts mainRule
+        logact'   = Log.cmapMaybe logAction logact
+        statsact' = Log.cfilter (keyCFilter (map Text.pack statsKeys)) (Log.cmap ppStat statsact)
+        
+    pure (runTalosStream md nguid statsact' logact' strm)
+
+  where
+    -- We have a lazy stream which persists after the call returns, so
+    -- we can't use Log.withLogStringFile (as it closes the handle)
+    withLogStringFileMaybe Nothing    dflt f = f dflt
+    withLogStringFileMaybe (Just fn) _dlft f = do
+      hdl <- openFile fn WriteMode
+      f (Log.logStringHandle hdl <> Log.logFlush hdl)
+
+    logAction (key, (lvl, msg))
+      -- Always produce debug output if the key was requested
+      | any (logKeyEnabled key) (map Text.pack debugKeys) = Just msg'
+      -- Otherwise follow the verbosity level
+      | verbosity >= fromEnum lvl             = Just msg'
+      | otherwise = Nothing
+      where
+        msg' = "[" <> show lvl <> "] " <> Text.unpack (getLogKey key) <> " " <> msg
+
+    ppStat (key, stat) = Text.unpack (getLogKey key) <> " " <> Text.unpack stat
+        
+-- Passes on only those keys that are prefixed by one of the argument
+-- keys
+keyCFilter :: [Text] -> (LogKey, a) -> Bool
+keyCFilter ks = \(k, _v) -> any (logKeyEnabled k) ks 
 
 -- | Run DaeDaLus on a source file, returning a triple that consists
 -- of the name of the main rule (the entry point), a list of type
 -- declarations (that are named struct or union types), and a list of
 -- type-checked modules. The main rule's name includes the module
 -- information needed to find it.r
-runDaedalus :: FilePath -> Maybe FilePath -> Maybe String ->
+runDaedalus :: FilePath -> Maybe FilePath -> Maybe String -> Bool ->
                IO (FName, Module, GUID)
-runDaedalus inFile m_invFile m_entry = daedalus $ do
+runDaedalus inFile m_invFile m_entry noLoops = daedalus $ do
   mm <- ddlPassFromFile ddlLoadModule inFile
   extras <- case m_invFile of
     Nothing -> pure []
@@ -172,7 +220,8 @@ runDaedalus inFile m_invFile m_entry = daedalus $ do
 
   passSpecialize specMod ((mm, entryName) : extras)
   passCore specMod
-  passNoLoops specMod -- FIXME
+  passNoBitdata specMod
+  when noLoops $ passNoLoops specMod
   passStripFail specMod
   passSpecTys specMod
   passConstFold specMod
@@ -185,14 +234,15 @@ runDaedalus inFile m_invFile m_entry = daedalus $ do
 
   pure (entry, md, nguid)
 
-newFileLogger :: Maybe FilePath -> Int -> IO SMT.Logger
-newFileLogger  m_f l  =
+
+
+
+newFileLogger :: FilePath -> Int -> IO SMT.Logger
+newFileLogger f l  =
   do tab <- newIORef 0
      lev <- newIORef 0
 
-     hdl <- case m_f of
-              Nothing -> pure stdout
-              Just f  -> openFile f WriteMode
+     hdl <- openFile f WriteMode
 
      let logLevel    = readIORef lev
          logSetLevel = writeIORef lev

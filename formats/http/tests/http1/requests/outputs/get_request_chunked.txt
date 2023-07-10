@@ -50,6 +50,7 @@
                               , contents: "foobar"
                               }
                             ]
+                  , last_chunk_extensions: [ ]
                   , trailer_fields: [ {Field: { name: "x-trailing-header"
                                               , value: "stuff"
                                               }}

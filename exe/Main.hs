@@ -269,6 +269,7 @@ doToCore opts mm =
      passSpecialize specMod entries
      passCore specMod
      checkCore "Core"
+     when (optNoBitdata opts) (passNoBitdata specMod >> checkCore "NoBitdata")
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts)
         do fs <- forM (optInlineThis opts) \s ->

@@ -16,30 +16,35 @@ module Talos.Analysis.Exported
   , sliceToCallees
   ) where
 
-import           Control.Lens          (at, (.=))
-import           Control.Lens.Lens     ((<<+=))
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Data.Generics.Product (field)
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
-import           Data.Maybe            (catMaybes)
-import           Data.Monoid           (Any (..))
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
-import           GHC.Generics          (Generic)
+import           Control.Lens                    (at, (.=))
+import           Control.Lens.Lens               ((<<+=))
+import           Control.Monad                   (void)
+import           Control.Monad.Reader            (MonadReader (ask, local),
+                                                  ReaderT (..), asks)
+import           Control.Monad.State             (MonadState (get, put), State,
+                                                  StateT (runStateT), evalState,
+                                                  gets, modify)
+import           Data.Generics.Product           (field)
+import           Data.Map                        (Map)
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (catMaybes)
+import           Data.Monoid                     (Any (..))
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
+import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   (Case (Case), Expr, FName,
-                                                  Name, TDecl, TName, nameId)
+                                                  LoopCollection' (..),
+                                                  LoopMorphism' (..), Name,
+                                                  nameId)
 import           Daedalus.Core.Basics            (freshName)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
 import           Daedalus.Core.Subst             (Subst, substitute)
-import           Daedalus.Core.TraverseUserTypes
-import           Daedalus.GUID                   (GUID, HasGUID, guidState,
-                                                  mkGUIDState')
-import           Daedalus.PP
+import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
+import           Daedalus.GUID                   (HasGUID)
 import           Daedalus.Panic                  (panic)
+import           Daedalus.PP                     (PP (..), block, parens)
 import           Daedalus.Rec                    (Rec (..), topoOrder)
 
 import           Talos.Analysis.Domain           (CallNode (..), Domain, Slice,
@@ -48,7 +53,10 @@ import           Talos.Analysis.Domain           (CallNode (..), Domain, Slice,
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Monad            (Summaries, Summary (..))
 import           Talos.Analysis.SLExpr           (slExprToExpr')
-import           Talos.Analysis.Slice            (FInstId, Slice' (..))
+import           Talos.Analysis.Slice            (FInstId, SLoopClass (..),
+                                                  Slice' (..), sloopClassBody)
+import           Talos.Monad                     (LiftTalosM, TalosM,
+                                                  getTypeDefs)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -92,6 +100,7 @@ sliceToCallees = go
       SChoice cs        -> foldMap go cs
       SCall cn          -> Set.singleton (ecnSliceId cn)
       SCase _ c         -> foldMap go c
+      SLoop lc          -> go (sloopClassBody lc)
       SInverse {}       -> mempty -- No grammar calls
 
 makeEsRecs :: Map SliceId ExpSlice ->  Map SliceId (Set SliceId)
@@ -150,7 +159,7 @@ sliceToRecVars recs = snd . go
       SChoice cs -> foldMap go cs
       SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
       SCase _ cs -> foldMap go cs
---      SAssertion {} -> mempty
+      SLoop lc   -> go (sloopClassBody lc)
       SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
@@ -175,24 +184,20 @@ data ExpState ae = ExpState
   , worklist       :: Worklist
   , sliceMap       :: Map (FName, FInstId, Set Int) SliceId
   , slices         :: Map SliceId ExpSlice
-  , nextGUID       :: GUID
   , nextSliceId    :: Int
   -- Read only
   , summaries      :: Summaries ae
-  , tyEnv          :: Map TName TDecl
   } deriving Generic
 
 -- This is the rename map for making bound variables unique across slices.
 type ExpEnv = Map Name Name
 
-newtype ExpM ae a = ExpM { getExpM :: ReaderT ExpEnv (State (ExpState ae)) a }
-  deriving (Functor, Applicative, Monad, MonadReader ExpEnv, MonadState (ExpState ae))
+newtype ExpM ae a = ExpM { getExpM :: ReaderT ExpEnv (StateT (ExpState ae) TalosM) a }
+  deriving (Functor, Applicative, Monad, MonadReader ExpEnv
+           , MonadState (ExpState ae), HasGUID, LiftTalosM)
 
-instance HasGUID (ExpM ae) where
-  guidState f = state (mkGUIDState' nextGUID (\v s -> s { nextGUID = v }) f)
-
-runExpM :: ExpM ae a -> ExpState ae -> (a, ExpState ae)
-runExpM m = runState (runReaderT (getExpM m) Map.empty)
+runExpM :: ExpM ae a -> ExpState ae -> TalosM (a, ExpState ae)
+runExpM m = runStateT (runReaderT (getExpM m) Map.empty)
 
 getSummary :: FName -> FInstId -> ExpM ae (Summary ae)
 getSummary fn fid = do
@@ -243,31 +248,28 @@ substNameIn n n' = local (Map.insert n n')
 
 type Worklist = Set (FName, FInstId, Set Int)
 
-exportSummaries :: Map TName TDecl -> (Summaries ae, GUID) -> (ExpSummaries, GUID)
-exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
+exportSummaries :: Summaries ae -> TalosM ExpSummaries
+exportSummaries summs = do
+  (roots, st') <- runExpM go st0
+  let recs = makeEsRecs (slices st')
+  pure ExpSummaries
+    { esRootSlices     = roots
+    , esFunctionSlices = slices st'
+    , esRecs           = recs
+    -- These rely on root slices nnot being in SCCs
+    , esRecVars        = makeEsRecVars   (slices st') recs
+    , esBackEdges      = makeEsBackEdges (slices st') recs
+    }
   where
-    expSumms = ExpSummaries
-      { esRootSlices     = roots
-      , esFunctionSlices = slices st'
-      , esRecs           = recs
-      -- These rely on root slices nnot being in SCCs
-      , esRecVars        = makeEsRecVars   (slices st') recs
-      , esBackEdges      = makeEsBackEdges (slices st') recs
-      }
-
-    recs = makeEsRecs (slices st')
-
-    (roots, st') = runExpM go st0
     st0 = ExpState { seenNames      = mempty
                    , worklist       = mempty
                    , sliceMap       = mempty
                    , slices         = mempty
-                   , nextGUID       = nguid
                    , nextSliceId    = 0
                    , summaries      = summs
-                   , tyEnv          = tenv
                    }
 
+    -- TODO: prune so we only get reachable nodes (i.e., not intermediate onces from fixpoint calc).
     go = do
       -- THe internal elements are the entry points for synthesis, and
       -- do not call each other, so we start here.  We initially only
@@ -275,13 +277,17 @@ exportSummaries tenv (summs, nguid) = (expSumms, nextGUID st')
       -- start at the assertionFID and extend when we see a FInstId
       -- that we haven't seen before).
       rs <- traverse (traverse (goDom . domain)) summs
-      modify goWL
+      goWL
       pure rs
 
-    goWL s@ExpState { worklist = wl } | Just (wle, wl') <- Set.minView wl
-      = let s' = s { worklist = wl' }
-        in goWL . snd $ runExpM (goFunSlice wle) s'
-    goWL st = st
+    goWL
+      = do s <- get
+           case s of
+             ExpState { worklist = wl }
+               | Just (wle, wl') <- Set.minView wl -> do put s { worklist = wl' }
+                                                         goFunSlice wle
+                                                         goWL
+             _ -> pure ()
 
     goFunSlice wle@(fn, fid, ixs) = do
       Summary { domain = ds } <- getSummary fn fid
@@ -299,9 +305,7 @@ exportSlice m_sid sl0 = do
     go sl =
       case sl of
         SHole     -> pure SHole
-        SPure sle -> do
-          tenv <- gets tyEnv
-          SPure <$> doSubst (slExprToExpr' tenv sle)
+        SPure sle -> SPure <$> goE sle
 
         SDo x l r -> do
           x' <- refreshName x
@@ -312,13 +316,43 @@ exportSlice m_sid sl0 = do
         SCall cn   -> SCall <$> exportCallNode cn
         SCase t cs -> do
           Case x cs' <- traverse go cs
-          x' <- asks (Map.findWithDefault x x)
+          x' <- goN x
           pure (SCase t (Case x' cs'))
 
---        SAssertion e   -> SAssertion <$> doSubst e
+        SLoop lcl -> SLoop <$>
+          case lcl of
+            SLoopPool sem g -> SLoopPool sem <$> go g
+            SManyLoop str lb m_ub g ->
+              SManyLoop str <$> goE lb
+                            <*> traverse goE m_ub
+                            <*> go g
+            SRepeatLoop str n e b -> do
+              n' <- refreshName n
+              SRepeatLoop str n' <$> goE e <*> substNameIn n n' (go b)
+            SMorphismLoop (FoldMorphism n e lc b) -> do 
+              n' <- refreshName n
+              SMorphismLoop <$> goLC lc (FoldMorphism n' <$> goE e) (substNameIn n n' (go b))
+            SMorphismLoop (MapMorphism lc b) ->
+              SMorphismLoop <$> goLC lc (pure MapMorphism) (go b)
+            
         SInverse n f p -> do
           n' <- refreshName n
           substNameIn n n' (SInverse n' <$> doSubst f <*> doSubst p)
+
+    goN :: Name -> ExpM ae Name
+    goN n = asks (Map.findWithDefault n n)
+
+    goE sle = do
+      tenv <- getTypeDefs
+      doSubst (slExprToExpr' tenv sle)
+
+    goLC lc mk bm = do
+      eln'  <- refreshName (lcElName lc)
+      m_kn' <- traverse refreshName (lcKName lc)
+      mk <*> (LoopCollection m_kn' eln' <$> goE (lcCol lc))
+         <*> substNameIn (lcElName lc) eln' 
+               (maybe id (uncurry substNameIn) ((,) <$> lcKName lc <*> m_kn')
+               bm)
 
     doSubst :: Subst e => e -> ExpM ae e
     doSubst e = do

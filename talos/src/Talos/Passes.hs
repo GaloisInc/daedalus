@@ -1,7 +1,7 @@
 
 -- This is a hack so that the analysis works when we have constant arguments.
 
-module Talos.Passes (nameArgsM, removeUnitsM, nameMatchResultsM, allPassesM ) where
+module Talos.Passes (nameBoundExprM, removeUnitsM, nameMatchResultsM, allPassesM ) where
 
 import Daedalus.GUID
 import Daedalus.Core
@@ -12,41 +12,68 @@ import qualified Data.Text as Text
 import Daedalus.PP (showPP)
 import Control.Monad (zipWithM)
 
+import Talos.Passes.LiftExpr (liftExprM)
+import Talos.Passes.NoBytesPatterns (noBytesPatternsM)
+
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
-allPassesM _entry m = nameArgsM (removeUnitsM m) >>= nameMatchResultsM  >>= pure . normM
-                     -- >>= inlineModule [entry]
+allPassesM _entry m = noBytesPatternsM m >>=
+                      pure . removeUnitsM >>=
+                      liftExprM >>=
+                      nameBoundExprM >>=
+                      nameMatchResultsM >>=
+                      pure . normM
 
 -- ----------------------------------------------------------------------------------------
--- Name literal args to functions
+-- Name non-variable bound expressions
 --
--- This is required as the analysis needs something to anchor argument slices.
--- FIXME: hack
+-- The analysis is simpler if we name all non-Do bound expressions.
+-- This allows the analysis to assume that slices start at Do/Let
+-- binders only.
 
-nameArgsM :: (Monad m, HasGUID m) => Module -> m Module
-nameArgsM m = do
-  gfuns' <- mapM nameArgsGFun (mGFuns m)
+nameBoundExprM :: (Monad m, HasGUID m) => Module -> m Module
+nameBoundExprM m = do
+  gfuns' <- mapM nameBoundExprGFun (mGFuns m)
   pure (m { mGFuns = gfuns' })
 
-nameArgsGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
-nameArgsGFun fu =
+nameBoundExprGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
+nameBoundExprGFun fu =
   case fDef fu of
-    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameArgsG g
+    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameBoundExprG g
     _     -> pure fu
 
-nameArgsG :: (Monad m, HasGUID m) => Grammar -> m Grammar
-nameArgsG gram = do
-  gram' <- childrenG nameArgsG gram
+nameBoundExprG :: (Monad m, HasGUID m) => Grammar -> m Grammar
+nameBoundExprG gram = do
+  gram' <- childrenG nameBoundExprG gram
   case gram' of
+    Loop lclass ->
+      case lclass of
+        ManyLoop {} -> pure gram'
+        RepeatLoop bt n e g -> do
+          (bs, e') <- nameBound ("_r" ++ showPP n) e
+          pure (doBind (Loop (RepeatLoop bt n e' g)) bs)
+          
+        MorphismLoop (FoldMorphism n e lc g) -> do
+          (bse, e') <- nameBound ("_acc" ++ showPP n) e
+          (bslc, lc') <- (\(bs, col) -> (bs, lc { lcCol = col })) <$> nameBound "_col" (lcCol lc)
+          pure (doBind (Loop (MorphismLoop (FoldMorphism n e' lc' g))) (bse ++ bslc))
+
+        MorphismLoop (MapMorphism lc g) -> do
+          (bslc, lc') <- (\(bs, col) -> (bs, lc { lcCol = col })) <$> nameBound "_col" (lcCol lc)
+          pure (doBind (Loop (MorphismLoop (MapMorphism lc' g))) bslc)
+        
     Call fn args -> do
-      (bindss, args') <- unzip <$> zipWithM (nameArg fn) [0 :: Integer ..] args
-      pure (foldl (\body' (v, e) -> Let v e body') (Call fn args') (concat bindss))
+      let mk i = nameBound ("_a" ++ showPP fn ++ "_" ++ show i)
+      (bindss, args') <- unzip <$> zipWithM mk [0 :: Integer ..] args
+      pure (doBind (Call fn args') (concat bindss))
     _ -> pure gram'
 
   where
-    nameArg _fn _i e@(Var _) = pure ([], e)
-    nameArg fn i e = do
+    doBind = foldl (\body' (v, e) -> Let v e body')
+    
+    nameBound _n e@(Var _) = pure ([], e)
+    nameBound nm e = do
       n <- freshNameSys (typeOf e)
-      let n' = n { nameText = Just (Text.pack $ "_a" ++ showPP fn ++ "_" ++ show i) }
+      let n' = n { nameText = Just (Text.pack nm) }
       pure ([(n', e)], Var n')
 
 -- ----------------------------------------------------------------------------------------
@@ -103,7 +130,7 @@ nameMatchResultsGFun fu =
     _     -> pure fu
 
 nameMatchResultsG :: (Monad m, HasGUID m) => Bool -> Grammar -> m Grammar
-nameMatchResultsG isTop gram = do
+nameMatchResultsG _isTop gram = do
   gram' <- childrenG (nameMatchResultsG False) gram
   nameRHS True gram' -- FIXME: this always introduces a new variable
   -- case gram' of
@@ -121,4 +148,3 @@ nameMatchResultsG isTop gram = do
         _ -> pure gram'
 
     bindMatch x arr rhs = Let x arr $ Do_ (Match SemNo (MatchBytes (Var x))) rhs
-

@@ -35,6 +35,7 @@ module Daedalus.Driver
   , passTC
   , passDeadVal
   , passNoLoops
+  , passNoBitdata  
   , passNoMatch
   , passSpecialize
   , passCore
@@ -122,6 +123,7 @@ import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
 import qualified Daedalus.Core.NoLoop as Core
+import qualified Daedalus.Core.NoBitdata as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
@@ -788,37 +790,47 @@ passCore m =
           , coreTypeNames = tnms'
           }
 
-
-passSpecTys :: ModuleName -> Daedalus ()
-passSpecTys m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModule ast ->
-         do i <- ddlRunPass (Core.specialiseTypes ast)
-            ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModule i) (loadedModules s) }
-       _ -> panic "passSpecTys" ["Module is not in Core form"]
-
-coreToCorePass ::
-  String -> (Core.Module -> PassM Core.Module) -> ModuleName -> Daedalus ()
-coreToCorePass name f m =
+coreToCore ::
+  String -> (Core.Module -> PassM Core.Module) -> ModuleName ->  Daedalus ()
+coreToCore name f m =
   do ph <- doGetLoaded m
      case ph of
        CoreModule ast ->
          do i <- ddlRunPass (f ast)
             ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModule i) (loadedModules s) }
+              s { loadedModules =
+                     Map.insert m
+                        (CoreModule i)
+                        (loadedModules s) }
        _ -> panic name ["Module is not in Core form"]
 
+passInline :: Core.InlineWhat -> [Core.FName] -> ModuleName -> Daedalus ()
+passInline what no = coreToCore "inline" (Core.inlineModule what no)
+
+passStripFail :: ModuleName -> Daedalus ()
+passStripFail = coreToCore "strip Fail" (pure . Core.stripFailM)
+
+passNoLoops :: ModuleName -> Daedalus ()
+passNoLoops = coreToCore "no loops" Core.noLoop
+
+passNoBitdata :: ModuleName -> Daedalus ()
+passNoBitdata = coreToCore "no bitdata" Core.noBitdata
+
+passSpecTys :: ModuleName -> Daedalus ()
+passSpecTys = coreToCore "specialise types" Core.specialiseTypes
+
 passConstFold :: ModuleName -> Daedalus ()
-passConstFold = coreToCorePass "passConstFold" Core.constFold
+passConstFold = coreToCore "specialise types" Core.constFold
 
 passDeterminize :: ModuleName -> Daedalus ()
-passDeterminize =
-  coreToCorePass "passDeterminize" (pure . Core.determinizeModule)
+passDeterminize = coreToCore "determinize" (pure . Core.determinizeModule)
 
 passNorm :: ModuleName -> Daedalus ()
-passNorm = coreToCorePass "passNorm" (pure . Core.normM)
+passNorm = coreToCore "norm" (pure . Core.normM)
+
+passNoMatch :: ModuleName -> Daedalus ()
+passNoMatch = coreToCore "coreNoMatch" Core.noMatch
+
 
 passWarnFork :: ModuleName -> Daedalus ()
 passWarnFork m =
@@ -836,18 +848,6 @@ passWarnFork m =
                           nest 2 ("Using unbiased choice may be inefficient.")
                        )
        _ -> panic "passwarnFork" ["Module is not in Core form"]
-
-passInline :: Core.InlineWhat -> [Core.FName] -> ModuleName -> Daedalus ()
-passInline what no = coreToCorePass "passInline" (Core.inlineModule what no)
-
-passStripFail :: ModuleName -> Daedalus ()
-passStripFail = coreToCorePass "passStripFail" (pure . Core.stripFailM)
-
-passNoLoops :: ModuleName -> Daedalus ()
-passNoLoops = coreToCorePass "coreNoLoops" Core.noLoop
-
-passNoMatch :: ModuleName -> Daedalus ()
-passNoMatch = coreToCorePass "coreNoMatch" Core.noMatch
 
 
 -- | (7) Convert to VM. The given module should be in Core form.

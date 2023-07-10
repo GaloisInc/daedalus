@@ -70,7 +70,7 @@ executable daedalus-language-server
         lens,
         unordered-containers,
         containers,
-        mtl,
+        mtl >= 2.3.1,
         text,
         aeson,
         hslogger,

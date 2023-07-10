@@ -98,7 +98,7 @@ instance Rename e => Rename (Case e) where
 instance Rename e => Rename (Maybe e) where
   doRename = traverse doRename
 
-instance Rename e => Rename (LoopMorphism e) where
+instance (Rename e, Rename b) => Rename (LoopMorphism' e b) where
   doRename m = case m of
     FoldMorphism n e lc b -> do
       e' <- doRename e

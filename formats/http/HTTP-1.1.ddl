@@ -66,15 +66,27 @@ def HTTP_field_info =
   block
     fields = Many { $$ = HTTP_field; CRLF }
 
-    let result = for (result = { chunked = false, encoded = false, len = nothing }; f in fields)
-      case f: HTTP_field_u of
-        Field _ -> ^ result
+    let result =
+          for ( result = { chunked = false
+                         , encoded = false
+                         , len = nothing
+                         }
+              ; f in fields)
 
-        Content_Length l ->
-          ^ { chunked = result.chunked, encoded = result.encoded, len = just l }
+            case f: HTTP_field_u of
+              Field _ -> result
 
-        Transfer_Encoding h ->
-          ^ { chunked = h.is_chunked, encoded = true, len = result.len }
+              Content_Length l ->
+                { chunked = result.chunked
+                , encoded = result.encoded
+                , len = just l
+                }
+
+              Transfer_Encoding h ->
+                { chunked = h.is_chunked
+                , encoded = true
+                , len = result.len
+                }
 
     chunked = result.chunked
     explicit_length = result.len
@@ -98,22 +110,22 @@ def HTTP_field_info =
 -- receiving all octets until the connection is closed. (See
 -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.8)
 def HTTP_body_type is_response (field_info: HTTP_field_info): HTTP_body_type_u =
-  block
-    ^ if field_info.chunked
-        then {| ty_chunked |}
-        else if field_info.encoded
-          then {| ty_read_all |}
-          else case field_info.explicit_length of
-            nothing -> if is_response
-                         -- Responses are of indeterminate length in this case
-                         then {| ty_read_all |}
-                         -- But requests are zero-length in this case
-                         else {| ty_normal_len = 0 |}
-            just l -> {| ty_normal_len = l |}
+  if field_info.chunked
+    then {| ty_chunked |}
+    else if field_info.encoded
+      then {| ty_read_all |}
+      else case field_info.explicit_length of
+        nothing -> if is_response
+                     -- Responses are of indeterminate length in this case
+                     then {| ty_read_all |}
+                     -- But requests are zero-length in this case
+                     else {| ty_normal_len = 0 |}
+        just l -> {| ty_normal_len = l |}
 
 def HTTP_message_chunked_s =
   struct
     chunks: [BodyChunk]
+    last_chunk_extensions: [ChunkExtension]
     trailer_fields: [HTTP_field_u]
 
 def HTTP_message_body_u =
@@ -132,20 +144,24 @@ def HTTP_message_body_u =
 def HTTP_message_body (ty: HTTP_body_type_u): HTTP_message_body_u =
   case ty of
     ty_chunked ->
-      block
-        -- content chunks:
-        let chunks = Many BodyChunk
+      {| chunked =
+           block
+             -- content chunks:
+             chunks = Many BodyChunk
 
-        -- last-chunk:
-        Many (1..) $['0']; CRLF
+             -- last-chunk:
+             last_chunk_extensions =
+               block
+                 Many (1..) $['0']
+                 $$ = Many ChunkExtension
+                 CRLF
 
-        -- trailer fields:
-        let trailer_fields = Many { $$ = HTTP_field; CRLF }
+             -- trailer fields:
+             trailer_fields = Many { $$ = HTTP_field; CRLF }
 
-        -- Final required CRLF
-        CRLF
-
-        ^ {| chunked = { chunks = chunks, trailer_fields = trailer_fields } |}
+             -- Final required CRLF
+             CRLF
+        |}
 
     ty_normal_len len ->
       block
@@ -235,25 +251,24 @@ def HTTP_request_line =
   block
     method = HTTP_method
     $sp
-    target = HTTP_request_target
+    target = HTTP_request_target method
     $sp
     version = HTTP_version
 
-def HTTP_request_target =
-  First
-    AbsoluteURI = URI_absolute_URI        -- old style and for proxies
-    Origin      = HTTP_origin_form        -- normal request
-
-    -- NOTE: should the following two cases be factored out and used
-    -- only when the request method is the appropriate method?
-    Authority   = HTTP_authority_form     -- only in CONNECT
-    Asterisk    = @$['*']                 -- only in OPTIONS
+def HTTP_request_target (method : HTTP_method) =
+  case method of
+    CONNECT -> {| Authority = HTTP_authority_form |}
+    _ ->
+      First
+        AbsoluteURI = URI_absolute_URI        -- old style and for proxies
+        Origin      = HTTP_origin_form        -- normal request
+        Asterisk    = { method is OPTIONS; @$['*'] }
 
 def HTTP_authority_form =
   block
     host  = URI_host
     $[':']
-    port  = Many DigitNum
+    port  = URI_port
 
 def HTTP_origin_form =
   block
@@ -387,7 +402,7 @@ def HTTP_field: HTTP_field_u =
          -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
          block
-           let values = SepBy1 (MaybeQuoted PositiveNum64) { HTTP_OWS; $[',']; HTTP_OWS }
+           let values = SepBy1 PositiveNum64 { HTTP_OWS; $[',']; HTTP_OWS }
            let first = Head values
            let checked = for (result = first; val in values)
                            block

@@ -56,7 +56,8 @@ data Options =
           , optInline    :: Bool
           , optInlineThis :: [String]
           , optStripFail :: Bool
-          , optNoLoops :: Bool          
+          , optNoLoops :: Bool
+          , optNoBitdata :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
           , optCheckCore  :: Bool
@@ -99,7 +100,8 @@ defaultOptions =
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
-          , optNoLoops = False          
+          , optNoLoops = False
+          , optNoBitdata = False
           , optSpecTys   = False
           , optCheckCore = True
           , optDeterminize = False
@@ -464,6 +466,10 @@ coreOptions =
   , Option [] ["no-loops"]
     "Remove loops in Core"
     $ NoArg \o -> Right o { optNoLoops = True }
+    
+  , Option [] ["no-bitdata"]
+    "Remove bitdata in Core"
+    $ NoArg \o -> Right o { optNoBitdata = True }
   
   , Option [] ["spec-types"]
     "Specialise types"
