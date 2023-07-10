@@ -1,17 +1,17 @@
 --- Parse error: 
 [offset: 145]
   • byte 's' does not match (byte ' '), or (byte 0x09)
-  • see grammar at: HTTP-1.1.ddl:472:24--472:38
+  • see grammar at: HTTP-1.1.ddl:488:24--488:38
   • context:
       • HTTP-1.1.ddl:17:20--17:55
       • HTTP-1.1.ddl:38:18--38:32
       • HTTP-1.1.ddl:67:26--67:35
       • case branch  "transfer-encoding"
-      • HTTP-1.1.ddl:356:27--356:48
-      • HTTP-1.1.ddl:297:3--297:61
-      • HTTP-1.1.ddl:297:10--297:30
-      • HTTP-1.1.ddl:311:9--311:16
-      • HTTP-1.1.ddl:472:18--472:38
+      • HTTP-1.1.ddl:372:27--372:48
+      • HTTP-1.1.ddl:313:3--313:61
+      • HTTP-1.1.ddl:313:10--313:30
+      • HTTP-1.1.ddl:327:9--327:16
+      • HTTP-1.1.ddl:488:18--488:38
   • input trace:
       tests/http1/requests/inputs/get_request_chunked_invalid_header.txt
         0--145
