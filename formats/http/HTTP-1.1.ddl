@@ -402,7 +402,7 @@ def HTTP_field: HTTP_field_u =
          -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
          block
-           let values = SepBy1 (MaybeQuoted PositiveNum64) { HTTP_OWS; $[',']; HTTP_OWS }
+           let values = SepBy1 PositiveNum64 { HTTP_OWS; $[',']; HTTP_OWS }
            let first = Head values
            let checked = for (result = first; val in values)
                            block
