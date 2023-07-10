@@ -235,25 +235,24 @@ def HTTP_request_line =
   block
     method = HTTP_method
     $sp
-    target = HTTP_request_target
+    target = HTTP_request_target method
     $sp
     version = HTTP_version
 
-def HTTP_request_target =
-  First
-    AbsoluteURI = URI_absolute_URI        -- old style and for proxies
-    Origin      = HTTP_origin_form        -- normal request
-
-    -- NOTE: should the following two cases be factored out and used
-    -- only when the request method is the appropriate method?
-    Authority   = HTTP_authority_form     -- only in CONNECT
-    Asterisk    = @$['*']                 -- only in OPTIONS
+def HTTP_request_target (method : HTTP_method) =
+  case method of
+    CONNECT -> {| Authority = HTTP_authority_form |}
+    _ ->
+      First
+        AbsoluteURI = URI_absolute_URI        -- old style and for proxies
+        Origin      = HTTP_origin_form        -- normal request
+        Asterisk    = { method is OPTIONS; @$['*'] }
 
 def HTTP_authority_form =
   block
     host  = URI_host
     $[':']
-    port  = Many DigitNum
+    port  = URI_port
 
 def HTTP_origin_form =
   block
