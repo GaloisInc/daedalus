@@ -45,8 +45,7 @@ import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.PP
 import qualified Daedalus.Value               as I
 
-import qualified Talos.SymExec.Expr           as SE
-import           Talos.SymExec.SolverT        (SMTVar)
+import           Talos.Solver.SolverT        (SMTVar)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -79,10 +78,10 @@ loopCountToSExpr = bvHex 64 . fromIntegral
 data ValuePathConstraint =
   VPCPositive Pattern
   | VPCNegative (Set Pattern)
-  deriving (Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 data LoopCountConstraint = LCCEq Int | LCCGt Int
-  deriving (Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 data PathConditionInfo = PathConditionInfo
   { pcValues   :: Map SMTVar (Typed ValuePathConstraint)
@@ -91,12 +90,12 @@ data PathConditionInfo = PathConditionInfo
   -- ^ We call these out separately as it is easy to figure out if the
   -- conjunction of two guards is unsat.
   , pcLoops   :: Map LoopCountVar LoopCountConstraint
-  } deriving (Eq, Ord, Generic)
+  } deriving (Show, Eq, Ord, Generic)
 
 data PathCondition =
   FeasibleMaybe PathConditionInfo
   | Infeasible
-  deriving (Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 isInfeasible :: PathCondition -> Bool
 isInfeasible = (==) Infeasible
@@ -159,12 +158,12 @@ toSExpr (FeasibleMaybe pc)
     allPreds = values ++ choices ++ loops
     
     values = concatMap valuePred (Map.toList (pcValues pc))
-    valuePred (n, Typed ty v) =
-      case v of
-        VPCPositive p  -> [ SE.patternToPredicate ty p (S.const n) ]
-        VPCNegative ps -> [ S.not (SE.patternToPredicate ty p (S.const n))
-                          | p <- Set.toList ps
-                          ]
+    valuePred (n, Typed ty v) = undefined
+      -- case v of
+      --   VPCPositive p  -> [ SE.patternToPredicate ty p (S.const n) ]
+      --   VPCNegative ps -> [ S.not (SE.patternToPredicate ty p (S.const n))
+      --                     | p <- Set.toList ps
+      --                     ]
              
     choices = map choicePred (Map.toList (pcChoices pc))
     choicePred (pv, i) = S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))

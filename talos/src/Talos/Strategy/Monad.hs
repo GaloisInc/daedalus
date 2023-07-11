@@ -59,8 +59,8 @@ import           Talos.Analysis.Monad      (Summaries)
 import           Talos.Monad               (LiftTalosM, TalosM, getTypeDefs)
 import qualified Talos.Strategy.OptParser  as P
 import           Talos.Strategy.OptParser  (Parser, runParser)
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT     (SolverT)
+import           Talos.Path
+import           Talos.Solver.SolverT     (SolverT)
 
 -- ----------------------------------------------------------------------------------------
 -- Core datatypes

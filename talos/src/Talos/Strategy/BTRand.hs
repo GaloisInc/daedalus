@@ -31,7 +31,7 @@ import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import qualified Talos.Strategy.OptParser        as P
 import           Talos.Strategy.OptParser        (Opt, parseOpts)
-import           Talos.SymExec.Path
+import           Talos.Path
 
 
 -- ----------------------------------------------------------------------------------------

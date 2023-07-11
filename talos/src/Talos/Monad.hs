@@ -29,7 +29,7 @@ import           Daedalus.GUID                (GUID, HasGUID, guidState)
 import           Daedalus.Panic               (panic)
 import           Daedalus.PP                  (showPP)
 import           Daedalus.Rec                 (forgetRecs)
-import           Talos.SymExec.SolverT        (SolverT)
+import           Talos.Solver.SolverT        (SolverT)
 import Data.String (IsString(..))
 
 data TalosMState  = TalosMState

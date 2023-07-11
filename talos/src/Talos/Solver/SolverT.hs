@@ -63,9 +63,6 @@ import           Daedalus.GUID
 import           Daedalus.PP
 import           Daedalus.Panic
 
-import           Talos.SymExec.StdLib
-
-
 -- import Text.Printf (printf)
 
 type SMTVar = String
@@ -306,13 +303,6 @@ reset :: MonadIO m => SolverT m ()
 reset = do
   SolverT (modify (emptySolverState . solver))
   solverOp (\s -> S.ackCommand s (S.app (S.const "reset") []))
-  solverOp makeStdLib
-
--- bindName :: Name -> SMTVar -> SolverFrame -> SolverFrame
--- bindName k v = field @"frBoundNames" %~ Map.insert k v
-
--- lookupName :: Name -> SolverFrame -> Maybe SExpr
--- lookupName k = fmap S.const . Map.lookup k . frBoundNames
 
 newtype SolverT m a = SolverT { _getSolverT :: StateT SolverState m a }
   deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
