@@ -9,7 +9,7 @@
       • NO_ERROR
   • input trace:
       /tmp/input_file.bin
-        0--11
+        9--11
 File context:
 Length: 12 (0xc) bytes
 0000:   00 00 04 03  00 fc af ca  fe 00 00 00                ............

@@ -12,8 +12,6 @@
       • Daedalus.ddl:19:50--19:55
       • Daedalus.ddl:7:38--7:43
   • input trace:
-      /tmp/input_file.bin
-        0--19
 File context:
 Length: 21 (0x15) bytes
 0000:   00 00 0b 04  00 fc af ca  fe 00 01 00  00 00 01 00   ................

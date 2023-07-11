@@ -442,9 +442,9 @@ instance PP Value where
                                ]
 
 
-      VArray v -> case vs of
-                    VUInt 8 _ : _ ->
-                      text (show (BS.pack [ fromInteger x | VUInt _ x <- vs ]))
+      VArray v -> case map unTrace vs of
+                    vs1@(VUInt 8 _ : _) ->
+                      text (show (BS.pack [ fromInteger x | VUInt _ x <- vs1 ]))
                     _ -> block "[" "," "]" (map pp vs)
         where vs = Vector.toList v
 

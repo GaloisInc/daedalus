@@ -6,8 +6,6 @@
       • 28:12--28:36
       • case branch  {| F_DATA = info |}
   • input trace:
-      /tmp/input_file.bin
-        0--8
 File context:
 Length: 9 (0x9) bytes
 0000:   00 00 00 00  08 fa aa ca  fe                         .........

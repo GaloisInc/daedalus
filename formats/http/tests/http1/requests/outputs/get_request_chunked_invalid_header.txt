@@ -14,7 +14,7 @@
       • HTTP-1.1.ddl:488:18--488:38
   • input trace:
       tests/http1/requests/inputs/get_request_chunked_invalid_header.txt
-        0--145
+        145--145
 File context:
 Length: 42 (0x2a) bytes
 0070:      33 34 35  36 0a 54 72  61 6e 73 66  65 72 2d 45    3456.Transfer-E

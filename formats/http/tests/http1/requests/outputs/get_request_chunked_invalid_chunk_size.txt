@@ -13,7 +13,7 @@
       • Lexemes.ddl:43:5--43:12
   • input trace:
       tests/http1/requests/inputs/get_request_chunked_invalid_chunk_size.txt
-        0--147
+        147--147
 File context:
 Length: 42 (0x2a) bytes
 0070:            35  36 0a 54 72  61 6e 73 66  65 72 2d 45      56.Transfer-E
