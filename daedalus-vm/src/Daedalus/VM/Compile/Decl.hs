@@ -75,7 +75,7 @@ compileSomeFun isPure dm doBody fun =
                    in VMFBody { vmfEntry = l
                               , vmfBlocks = Map.adjust addArgs l ls
                               }
-               Src.External -> VMExtern (inpArgs ++ args)
+               Src.External _mayFail -> VMExtern (inpArgs ++ args)
 
       addArgs b = b { blockArgs = inpArgs ++ args }
 
@@ -83,7 +83,7 @@ compileSomeFun isPure dm doBody fun =
       VMFun { vmfName   = Src.fName fun
             , vmfCaptures = case Src.fDef fun of
                               Src.Def {}   -> Unknown
-                              Src.External -> NoCapture
+                              Src.External _mayFail -> NoCapture
             , vmfPure   = isPure
             , vmfLoop   = False
             , vmfDef    = def

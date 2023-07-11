@@ -124,7 +124,7 @@ fromDecl decl@TC.TCDecl { .. }
            TC.AValue   ->
               case tcDeclDef of
                 TC.ExternDecl _ ->
-                  pure $ FE Fun { fName = f, fParams = xs, fDef = External
+                  pure $ FE Fun { fName = f, fParams = xs, fDef = External False
                                 , fIsEntry = tcDeclName `Set.member` ?ents
                                 , fAnnot = declAnnot decl }
 
@@ -136,7 +136,7 @@ fromDecl decl@TC.TCDecl { .. }
            TC.AClass ->
              case tcDeclDef of
                TC.ExternDecl _ ->
-                 pure $ FB Fun { fName = f, fParams = xs, fDef = External
+                 pure $ FB Fun { fName = f, fParams = xs, fDef = External True
                                , fIsEntry = tcDeclName `Set.member` ?ents
                                , fAnnot = declAnnot decl }
 
@@ -149,8 +149,9 @@ fromDecl decl@TC.TCDecl { .. }
            TC.AGrammar ->
              case tcDeclDef of
 
+               -- XXX: Add no-fail annotation
                TC.ExternDecl _ ->
-                 pure $ FG Fun { fName = f, fParams = xs, fDef = External
+                 pure $ FG Fun { fName = f, fParams = xs, fDef = External True
                                , fIsEntry = tcDeclName `Set.member` ?ents
                                , fAnnot = declAnnot decl }
 

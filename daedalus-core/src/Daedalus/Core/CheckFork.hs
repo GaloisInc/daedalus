@@ -15,7 +15,7 @@ checkFork = concatMap checkFun . mGFuns
 checkFun :: Fun Grammar -> [Loc]
 checkFun fun =
   case fDef fun of
-    External -> []
+    External _mayFail -> []
     Def g    -> checkGrammar ann g
       where ann = case [ a | SrcRange a <- fAnnot fun ] of
                     a : _ -> Right a

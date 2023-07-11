@@ -37,7 +37,7 @@ data Fun e = Fun
   }
   deriving (Functor, Foldable, Traversable, Generic, NFData)
 
-data FunDef e = Def e | External
+data FunDef e = Def e | External Bool   -- ^ Can the external function fail
   deriving (Functor, Foldable, Traversable, Generic, NFData)
 
 data TDecl = TDecl
@@ -165,7 +165,9 @@ instance PP e => PP (FunDef e) where
   pp def =
     case def of
       Def e   -> pp e
-      External -> "_ {- external -}"
+      External mayFail
+        | mayFail -> "_ {- external -}"
+        | otherwise -> "_ {- external, no fail -}"
 
 
 instance PP TDecl where

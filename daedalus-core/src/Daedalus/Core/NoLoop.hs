@@ -50,7 +50,7 @@ inFun go f = case fDef f of
     setMName
     r <- go b
     pure (f { fDef = Def r })
-  External -> pure f
+  External _mayFail -> pure f
   where
     -- Should really be in Reader, but we don't nest so having stale
     -- mod names isn't an issue

@@ -46,7 +46,7 @@ funEnv = Map.fromList . map funType
 checkFun :: (a -> Env -> TCResult Type) -> Fun a -> TCResult ()
 checkFun check fun =
   case fDef fun of
-    External -> pure ()
+    External _mayFail -> pure ()
     Def e ->
       inContext ("function" <+> pp (fName fun))
       do let env = Map.fromList [ (x, typeOf x) | x <- fParams fun ]

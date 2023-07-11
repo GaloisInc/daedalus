@@ -62,7 +62,7 @@ funToFunDef :: (Monad m, FreeVars e, TraverseUserTypes e, HasGUID m) =>
                (e -> ReaderT (Map Name SExpr) (SolverT m) SExpr) ->
                [(String, SExpr)] -> Fun e ->
                SolverT m SMTFunDef
-funToFunDef _ _ Fun { fDef = External } =
+funToFunDef _ _ Fun { fDef = External _mayFail } =
   panic "Saw an external function" []
 
 funToFunDef sexec extraArgs f@(Fun { fDef = Def body }) = do

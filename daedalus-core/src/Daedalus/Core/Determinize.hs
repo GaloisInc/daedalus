@@ -55,7 +55,7 @@ getGrammar modl name =
     if fnameId n1 == fnameId name
     then case fdef of
            Def g2 -> Just (g2, params)
-           External -> Nothing
+           External _mayFail -> Nothing
     else goGetGrammar rest
 
 getByteSet :: Module -> FName -> Maybe ByteSet
@@ -67,7 +67,7 @@ getByteSet modl name =
     if fnameId n1 == fnameId name
     then case fdef of
            Def g2 -> Just g2
-           External -> Nothing
+           External _mayFail -> Nothing
     else goGetByteSet rest
 
 
