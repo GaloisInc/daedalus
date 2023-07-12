@@ -1,4 +1,5 @@
 {-# Language GeneralizedNewtypeDeriving, DeriveGeneric, DeriveLift #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Daedalus.GUID (GUID
                      , invalidGUID
@@ -18,6 +19,7 @@ import           MonadLib
 import qualified Control.Monad.Reader as MTL
 import qualified Control.Monad.State as MTL
 import qualified Control.Monad.Writer as MTL
+import qualified Control.Monad.Except as MTL
 
 import           Daedalus.PP
 import qualified Daedalus.TH     as TH
@@ -69,6 +71,7 @@ runFresh (FreshM m) n = runId (runStateT n m)
 runFreshIn :: HasGUID m => FreshM a -> m a
 runFreshIn = guidState . runFresh
 
+  
 class Monad m => HasGUID m where
   guidState :: (GUID -> (a, GUID)) -> m a
 
@@ -79,6 +82,7 @@ instance (HasGUID m) => HasGUID (ReaderT i m) where
 instance (HasGUID m) => HasGUID (MTL.ReaderT i m) where
   guidState = MTL.lift . guidState  
 instance (HasGUID m,Monoid i) => HasGUID (WriterT i m) where
+  guidState :: (HasGUID m, Monoid i) => (GUID -> (a, GUID)) -> WriterT i m a
   guidState = lift . guidState
 instance (HasGUID m, Monoid i) => HasGUID (MTL.WriterT i m) where
   guidState = MTL.lift . guidState    
@@ -88,6 +92,8 @@ instance (HasGUID m) => HasGUID (MTL.StateT i m) where
   guidState = MTL.lift . guidState
 instance (HasGUID m) => HasGUID (ExceptionT i m) where
   guidState = lift . guidState
+instance (HasGUID m) => HasGUID (MTL.ExceptT e m) where
+  guidState = MTL.lift . guidState  
 instance (HasGUID m) => HasGUID (ChoiceT m) where
   guidState = lift . guidState
 instance (HasGUID m) => HasGUID (ContT i m) where
