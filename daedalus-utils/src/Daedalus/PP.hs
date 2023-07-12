@@ -1,9 +1,12 @@
 {-# Language OverloadedStrings #-}
+{-# Language LambdaCase #-}
+{-# Language EmptyCase #-}
 module Daedalus.PP (module Daedalus.PP, module PP) where
 
 import Data.List(intersperse)
 import Data.Text (Text)
 import Data.ByteString(ByteString)
+import Data.Void
 import Data.Word
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as Text
@@ -88,6 +91,8 @@ instance PP SourcePos where
 
 instance PP SourceRange where
   pp = text . prettySourceRangeLong
+
+instance PP Void where ppPrec _n = \case
 
 wrapIf :: Bool -> Doc -> Doc
 wrapIf p d = if p then parens d else d

@@ -278,5 +278,3 @@ ppGFs gfs = vcat
   [ pp (Recursive nm) <+> text "=" <+> pp spec
   | (nm, spec) <- M.toList gfs
   ]
-
-instance PP Void where ppPrec _n = \case
