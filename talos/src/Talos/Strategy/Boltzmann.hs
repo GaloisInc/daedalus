@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE EmptyCase #-}
 
 module Talos.Strategy.Boltzmann (
   printGeneratingFunctions,
@@ -35,13 +34,16 @@ printGeneratingFunctions :: Module -> FName -> IO ()
 printGeneratingFunctions md mainRule = do
     print (ppGFs gfs)
     putStrLn . showPP . grammarChoices gfs weights' $ top
-    randomGrammar ge gfs temperature $ top
+    randomGrammar weightedPaths ge (weightedPaths M.! mainRule) top
     where
     temperature = 0.49
     ge = mkGrammarEnv md
     gfs = summarizeGrammars ge (county ge mainRule)
     weights = solveEquations temperature gfs
     weights' = M.insert Temperature temperature . M.mapKeysMonotonic Recursive $ weights
+    weightedPaths = flip M.mapMaybe ge $ \case
+        Fun { fDef = Def grammar } -> Just (grammarChoices gfs weights' grammar)
+        _ -> Nothing
     top = fromJust $ lookupGrammar mainRule ge
 
 type GrammarEnv = Map FName (Fun Grammar)
@@ -204,53 +206,52 @@ grammarChoices gfs weights = go where
         , choice = go g
         }
 
-randomGrammar :: GrammarEnv -> Map FName GrammarGF -> Double -> Grammar -> IO ()
-randomGrammar env scope temperature = go where
-    go = \case
-        Pure _ -> putStrLn "pure -> pure"
-        GetStream -> putStrLn "getstream -> getstream"
-        SetStream _ -> putStrLn "setstream -> setstream"
-        Match _ _ -> putStrLn "match -> match"
-        Fail _ _ _ -> putStrLn "YIKES! fail -> fail"
-        Do_ g g' -> go g >> go g'
-        Do _ g g' -> go g >> go g'
-        Let _ _ g -> go g
-        OrBiased g g' -> do
-            let w  = weightFor g
-                w' = weightFor g'
+randomGrammar :: Map FName WeightedPath -> GrammarEnv -> WeightedPath -> Grammar -> IO ()
+randomGrammar paths grammars = go where
+    go SelectedHole (Pure _) = putStrLn "pure -> pure"
+    go SelectedHole GetStream = putStrLn "getstream -> getstream"
+    go SelectedHole (SetStream _) = putStrLn "setstream -> setstream"
+    go SelectedHole (Match _ _) = putStrLn "match -> match"
+    go SelectedHole (Fail _ _ _) = putStrLn "YIKES! fail -> fail"
+    go (SelectedDo p p') (Do_ g g') = go p g >> go p' g'
+    go (SelectedDo p p') (Do _ g g') = go p g >> go p' g'
+    go (SelectedChoice (WeightedChoice p p')) (OrBiased g g') = do
+        let w = weight p
+            w' = weight p'
+        putStrLn $ "weight " ++ show w ++ " for " ++ pps g
+        putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
+        n <- randomRIO (0, w+w')
+        print n
+        putStrLn $ "biased or -> chose " ++ if n < w then "first branch" else "second branch"
+        if n < w then go (choice p) g else go (choice p') g'
+    go (SelectedChoice (WeightedChoice p p')) (OrUnbiased g g') = do
+        let w  = weight p
+            w' = weight p'
+        putStrLn $ "weight " ++ show w ++ " for " ++ pps g
+        putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
+        n <- randomRIO (0, w+w')
+        print n
+        putStrLn $ "unbiased or -> chose " ++ if n < w then "first branch" else "second branch"
+        if n < w then go (choice p) g else go (choice p') g'
+    go (SelectedCall (FName1 fn)) (Call fn' _) | fn == fn' = case lookupGrammar fn grammars of
+        Just g -> go (paths M.! fn) g
+        Nothing -> putStrLn $ "YIKES! call " <> show (pp fn) <> " -> call " <> show (pp fn)
+    go p (Annot _ g) = go p g
+    go p (Let _ _ g) = go p g
+    go (SelectedCase (WeightedCase (Case _ ps))) (GCase (Case _ gs)) = do
+        let ws = weight . snd <$> ps
+        for_ (zip ws gs) $ \(w, (_, g)) -> do
             putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-            putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
-            n <- randomRIO (0, w+w')
-            print n
-            putStrLn $ "biased or -> chose " ++ if n < w then "first branch" else "second branch"
-            if n < w then go g else go g'
-        OrUnbiased g g' -> do
-            let w  = weightFor g
-                w' = weightFor g'
-            putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-            putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
-            n <- randomRIO (0, w+w')
-            print n
-            putStrLn $ "unbiased or -> chose " ++ if n < w then "first branch" else "second branch"
-            if n < w then go g else go g'
-        Call f _ -> case lookupGrammar f env of
-            Just g -> go g
-            Nothing -> putStrLn $ "YIKES! call " <> show (pp f) <> " -> call " <> show (pp f)
-        Annot _ g -> go g
-        GCase (Case _ pats) -> do
-            let ws = map (weightFor . snd) pats
-            for_ (zip ws pats) $ \(w, (_, g)) -> do
-                putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-            n <- randomRIO (0, sum ws)
-            print n
-            putStrLn $ "gcase -> chose " ++ show (findIndex (n<) (scanl1 (+) ws))
-            go . snd $ case findIndex (n<) (scanl1 (+) ws) of
-                Nothing -> last pats
-                Just i -> pats !! i
+        n <- randomRIO (0, sum ws)
+        print n
+        let ix = findIndex (n<) (scanl1 (+) ws)
+        putStrLn $ "gcase -> chose " ++ show ix
+        case ix of
+            Nothing -> go (choice (snd (last ps))) (snd (last gs))
+            Just i -> go (choice (snd (ps !! i))) (snd (gs !! i))
+    go p g = putStrLn $ "YIKES! mismatched path and grammar\npath: " ++ show (pp p) ++ "\ngrammar: " ++ pps g
 
-    pps = show . pp . unannotated
-    weightFor = fromJust . evalConstant valuations . newtonPoly temperature . summarizeGrammar scope
-    valuations = Newton.fixedPoint 1e-6 (newtonPoly temperature <$> scope)
+    pps = show . pp .unannotated
 
 unannotated :: Grammar -> Grammar
 unannotated = \case
