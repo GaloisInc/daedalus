@@ -98,7 +98,7 @@ data PathCaseBuilder a   =
   | ConcreteCase                   a
   deriving (Functor)
 
-type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder SolverResult
+type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder CallInstantiation SolverResult
 
 emptySymbolicEnv :: Int -> SymbolicEnv
 emptySymbolicEnv = SymbolicEnv mempty mempty mempty Nothing 0 

@@ -373,7 +373,7 @@ stratCallNode :: ProvenanceTag -> ExpCallNode ->
 stratCallNode ptag cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
-  over _2 (SelectedCall (ecnIdx cn))
+  over _2 (SelectedCall . CallInstantiation (ecnIdx cn))
     <$> enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice ptag sl)
 
 -- -----------------------------------------------------------------------------
@@ -784,7 +784,7 @@ buildPath mms0 = runModelParserM mms . go
     go (SelectedBytes ptag r) = SelectedBytes ptag <$> resolveResult r
     go (SelectedDo l r) = SelectedDo <$> go l <*> go r
     go (SelectedChoice pib) = SelectedChoice <$> buildPathChoice pib
-    go (SelectedCall i p) = SelectedCall i <$> go p
+    go (SelectedCall (CallInstantiation i p)) = SelectedCall . CallInstantiation i <$> go p
     go (SelectedCase pib) = SelectedCase <$> buildPathCase pib
 
     buildPathChoice :: PathChoiceBuilder PathBuilder ->

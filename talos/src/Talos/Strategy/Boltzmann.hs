@@ -1,4 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE EmptyCase #-}
 
 module Talos.Strategy.Boltzmann (
   printGeneratingFunctions,
@@ -9,6 +14,7 @@ import Data.List
 import Data.Map (Map)
 import Data.Maybe
 import Data.Set (Set)
+import Data.Void
 import System.Random
 
 import qualified Data.List as List
@@ -22,15 +28,21 @@ import Daedalus.Rec
 
 import Talos.Strategy.Boltzmann.Polynomial
 import Talos.Strategy.Boltzmann.Util
+import Talos.SymExec.Path
 import qualified Talos.Strategy.Boltzmann.Newton as Newton
 
 printGeneratingFunctions :: Module -> FName -> IO ()
 printGeneratingFunctions md mainRule = do
     print (ppGFs gfs)
-    randomGrammar ge gfs 0.49 . fromJust $ lookupGrammar mainRule ge
+    putStrLn . showPP . grammarChoices gfs weights' $ top
+    randomGrammar ge gfs temperature $ top
     where
+    temperature = 0.49
     ge = mkGrammarEnv md
     gfs = summarizeGrammars ge (county ge mainRule)
+    weights = solveEquations temperature gfs
+    weights' = M.insert Temperature temperature . M.mapKeysMonotonic Recursive $ weights
+    top = fromJust $ lookupGrammar mainRule ge
 
 type GrammarEnv = Map FName (Fun Grammar)
 
@@ -138,6 +150,60 @@ summarizeGrammars ge fullScope = List.foldl' go M.empty $
         (M.fromList [(nm, summarizeLookupGrammar ge scope nm) | nm <- recToList rec])
         scope
 
+newtonPoly :: Double -> GrammarGF -> Polynomial Double FName
+newtonPoly temperature = evalPoly unHotname . bimap fromIntegral id . gfPolynomial where
+    unHotname = \case
+        Temperature -> Right temperature
+        Recursive nm -> Left nm
+
+solveEquations :: Double -> Map FName GrammarGF -> Map FName Double
+solveEquations temperature eqns = Newton.fixedPoint 1e-6 (newtonPoly temperature <$> eqns)
+
+data Weighted a = Weighted
+    { weight :: Double
+    , choice :: a
+    } deriving (Eq, Ord, Read, Show, Functor, Foldable, Traversable)
+
+instance PP a => PP (Weighted a) where
+    pp w = pp (choice w) <+> parens (text "weight" <+> pp (weight w))
+
+data WeightedChoice a = WeightedChoice { wc, wc' :: Weighted a }
+    deriving (Eq, Ord, Read, Show, Functor, Foldable, Traversable)
+
+instance PP a => PP (WeightedChoice a) where
+    pp choice = pp (wc choice) <> text "/" <> pp (wc' choice)
+
+newtype WeightedCase a = WeightedCase (Case (Weighted a))
+    deriving (Functor, Foldable, Traversable, PP)
+
+data FName1 a = FName1 FName deriving (Functor, Foldable, Traversable)
+
+instance PP (FName1 a) where ppPrec _ (FName1 fn) = space <> pp fn
+
+type WeightedPath = SelectedPathF WeightedChoice WeightedCase FName1 Void
+
+grammarChoices :: Map FName GrammarGF -> Map HotName Double -> Grammar -> WeightedPath
+grammarChoices gfs weights = go where
+    go = \case
+        -- TODO: surely not all of these are SelectedHole
+        Pure{} -> SelectedHole
+        GetStream{} -> SelectedHole
+        SetStream{} -> SelectedHole
+        Match{} -> SelectedHole
+        Fail{} -> SelectedHole
+        Do_ g g' -> SelectedDo (go g) (go g')
+        Do _nm g g' -> SelectedDo (go g) (go g')
+        Let _nm _rhs g -> go g
+        OrBiased g g' -> SelectedChoice (WeightedChoice (weightFor g) (weightFor g'))
+        OrUnbiased g g' -> go (OrBiased g g')
+        Call fn _args -> SelectedCall (FName1 fn)
+        Annot _note g -> go g
+        GCase c -> SelectedCase . WeightedCase $ weightFor <$> c
+    weightFor g = Weighted
+        { weight = fromJust . evalConstant weights . lmap fromIntegral . gfPolynomial . summarizeGrammar gfs $ g
+        , choice = go g
+        }
+
 randomGrammar :: GrammarEnv -> Map FName GrammarGF -> Double -> Grammar -> IO ()
 randomGrammar env scope temperature = go where
     go = \case
@@ -183,14 +249,8 @@ randomGrammar env scope temperature = go where
                 Just i -> pats !! i
 
     pps = show . pp . unannotated
-    newtonPoly :: GrammarGF -> Polynomial Double FName
-    newtonPoly = evalPoly unHotname . bimap fromIntegral id . gfPolynomial
-
-    weightFor = fromJust . evalConstant valuations . newtonPoly . summarizeGrammar scope
-    valuations = Newton.fixedPoint 1e-6 (newtonPoly <$> scope)
-    unHotname = \case
-        Temperature -> Right temperature
-        Recursive nm -> Left nm
+    weightFor = fromJust . evalConstant valuations . newtonPoly temperature . summarizeGrammar scope
+    valuations = Newton.fixedPoint 1e-6 (newtonPoly temperature <$> scope)
 
 unannotated :: Grammar -> Grammar
 unannotated = \case
@@ -218,3 +278,5 @@ ppGFs gfs = vcat
   [ pp (Recursive nm) <+> text "=" <+> pp spec
   | (nm, spec) <- M.toList gfs
   ]
+
+instance PP Void where ppPrec _n = \case

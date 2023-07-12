@@ -20,25 +20,34 @@ import           Daedalus.PP
 import           Daedalus.Panic
 
 import           Talos.Analysis.Merge  (Merge (..))
-import           Talos.Analysis.Slice  (FInstId)
+import           Talos.Analysis.Slice  (FInstId, assertionsFID)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
 
-data SelectedPathF ch ca a = 
+data SelectedPathF ch ca fn a = 
     SelectedHole 
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo (SelectedPathF ch ca a) (SelectedPathF ch ca a)
-  | SelectedChoice (ch (SelectedPathF ch ca a))
-  | SelectedCall FInstId (SelectedPathF ch ca a)
-  | SelectedCase (ca (SelectedPathF ch ca a))
+  | SelectedDo (SelectedPathF ch ca fn a) (SelectedPathF ch ca fn a)
+  | SelectedChoice (ch (SelectedPathF ch ca fn a))
+  | SelectedCall (fn (SelectedPathF ch ca fn a))
+  | SelectedCase (ca (SelectedPathF ch ca fn a))
   deriving (Functor, Foldable, Traversable, Generic)
 
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
-type SelectedPath = SelectedPathF PathIndex Identity ByteString
+data CallInstantiation a = CallInstantiation { instantiationId :: FInstId, instantiationVal :: a }
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+instance PP a => PP (CallInstantiation a) where
+    pp (CallInstantiation fid sp) = parens (pp fid) <+> ppPrec 1 sp
+
+assertionsCI :: CallInstantiation SelectedPath
+assertionsCI = CallInstantiation assertionsFID SelectedHole
+
+type SelectedPath = SelectedPathF PathIndex Identity CallInstantiation ByteString
 
 deriving instance NFData SelectedPath
 
@@ -142,7 +151,7 @@ firstSolverProvenance = 2
 -- Instances
 
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex Identity a) where
+instance Merge (SelectedPathF PathIndex Identity CallInstantiation a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -152,15 +161,16 @@ instance Merge (SelectedPathF PathIndex Identity a) where
         | otherwise -> SelectedChoice (PathIndex n1 (merge sp1 sp2))
       (SelectedCase (Identity sp1), SelectedCase (Identity sp2))
         -> SelectedCase (Identity (merge sp1 sp2))
-      (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
+      (SelectedCall (CallInstantiation cl1 sp1), SelectedCall (CallInstantiation cl2 sp2))
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
-        | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
+        | otherwise  -> SelectedCall (CallInstantiation cl1 (merge sp1 sp2))
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       _ -> panic "BUG: merging non-mergeable nodes" []
 
 instance ( Functor ch, PP (ch Doc)
          , Functor ca, PP (ca Doc)
-         , PP a) => PP ( SelectedPathF ch ca a ) where
+         , Functor fn, PP (fn Doc)
+         , PP a) => PP ( SelectedPathF ch ca fn a ) where
   ppPrec n p = 
     case p of
       SelectedHole       -> "□"
@@ -169,11 +179,12 @@ instance ( Functor ch, PP (ch Doc)
       SelectedChoice ch ->
           wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
       SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
-      SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
+      SelectedCall   fn -> wrapIf (n > 0) $ "call" <> ppPrec 1 (pp <$> fn)
 
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)
-            , PP a) => SelectedPathF ch ca a -> Doc
+            , Functor fn, PP (fn Doc)
+            , PP a) => SelectedPathF ch ca fn a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2

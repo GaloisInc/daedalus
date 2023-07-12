@@ -231,7 +231,7 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
     -- 'Assertions' result class.
     --
     -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
-    once = synthesiseCallG SelectedHole (fName rootDecl) assertionsFID []
+    once = synthesiseCallG assertionsCI (fName rootDecl) []
 
     env0      = SynthEnv Map.empty Map.empty assertionsFID root
 
@@ -326,8 +326,8 @@ synthesiseDecl fp fid Fun { fDef = Def def, ..} args = do
 
 synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 
-synthesiseCallG :: SelectedPath -> FName -> FInstId -> [Expr] -> SynthesisM Value
-synthesiseCallG fp n fid args = do
+synthesiseCallG :: CallInstantiation SelectedPath -> FName -> [Expr] -> SynthesisM Value
+synthesiseCallG (CallInstantiation fid fp) n args = do
   -- liftIO $ printf "Calling into %s\n" (showPP n)
   decl <- getGFun n
   synthesiseDecl fp fid decl args
@@ -447,7 +447,7 @@ synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
   let base = panic "Failed to match pattern" [showPP cs]
   I.evalCase (\g _ -> synthesiseG sp g) base cs env 
 
-synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
+synthesiseG (SelectedCall sc) (Call fn args) = synthesiseCallG sc fn args
 
 synthesiseG p (Let x e rhs) = synthesiseG p (Do x (Pure e) rhs)
   
@@ -476,7 +476,7 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
     OrBiased {}      -> impossible
     OrUnbiased {}    -> impossible
     
-    Call fn args     -> synthesiseCallG SelectedHole fn assertionsFID args
+    Call fn args     -> synthesiseCallG assertionsCI fn args
     Annot {}         -> impossible
     GCase c@(Case y _) -> do
       env <- projectEnvForM y

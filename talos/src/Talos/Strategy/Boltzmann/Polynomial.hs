@@ -1,5 +1,7 @@
 module Talos.Strategy.Boltzmann.Polynomial (
-    Polynomial(..), bimap, term, constantTerm,
+    Polynomial(..),
+    bimap, lmap, rmap,
+    term, constantTerm,
     zero, constant, variable, monomial, (^.),
     assertConstant,
     evalPoly, evalConstant,
@@ -111,3 +113,9 @@ bimap fCoeff fVar (Polynomial ts) = Polynomial $ M.fromListWith (+)
     [ (MS.map fVar vars, fCoeff coeff)
     | (vars, coeff) <- M.toList ts
     ]
+
+lmap :: (coeff -> coeff') -> Polynomial coeff var -> Polynomial coeff' var
+lmap fCoeff (Polynomial ts) = Polynomial $ fCoeff <$> ts
+
+rmap :: (Num coeff, Ord var') => (var -> var') -> Polynomial coeff var -> Polynomial coeff var'
+rmap = bimap id

@@ -163,7 +163,7 @@ data SolverResultF a =
 -- Just so we can get fmap/traverse/etc.
 type SolverResult = SolverResultF SemiSExpr
 
-type PathBuilder = SelectedPathF PathIndex Identity SolverResult
+type PathBuilder = SelectedPathF PathIndex Identity CallInstantiation SolverResult
 type SearchT'  = SearchT (SolverT StrategyM)
 
 emptySymbolicEnv :: SymbolicEnv

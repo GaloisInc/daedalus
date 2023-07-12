@@ -281,7 +281,7 @@ stratCallNode :: ProvenanceTag -> ExpCallNode ->
 stratCallNode ptag cn = do
   -- liftIO $ print ("Entering: " <> pp cn)
   sl <- getSlice (ecnSliceId cn)
-  over _3 (SelectedCall (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
+  over _3 (SelectedCall . CallInstantiation (ecnIdx cn)) <$> enterFunction (ecnParamMap cn) (stratSlice ptag sl)
 
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers

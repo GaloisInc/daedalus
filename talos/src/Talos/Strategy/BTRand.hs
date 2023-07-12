@@ -190,7 +190,7 @@ stratCallNode ptag cn = do
   let env' = env { I.vEnv = Map.compose (I.vEnv env) (ecnParamMap cn) }
   sl <- getSlice (ecnSliceId cn)
   (v, res) <- local (const env') (stratSlice ptag sl)
-  pure (v, SelectedCall (ecnIdx cn) res)
+  pure (v, SelectedCall (CallInstantiation (ecnIdx cn) res))
 
 -- ----------------------------------------------------------------------------------------
 -- Strategy helpers
