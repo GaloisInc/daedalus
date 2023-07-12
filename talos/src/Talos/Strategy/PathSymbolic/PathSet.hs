@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Talos.Strategy.PathSymbolic.PathCondition
+module Talos.Strategy.PathSymbolic.PathSet
   ( -- * Path Variables
     PathVar(..)
   , pathVarToSExpr
@@ -13,45 +13,56 @@ module Talos.Strategy.PathSymbolic.PathCondition
   , loopCountToSExpr
   , loopCountVarToSExpr
   , loopCountVarToSMTVar  
-  -- * Path condition type
-  , PathConditionInfo(..)
-  , PathCondition(..)
-  , ValuePathConstraint(..)
-  -- * Operations
-  , insertValue, insertChoice, insertLoopCount
+  -- -- * Path condition type
+  -- , PathConditionInfo(..)
+  -- , PathCondition(..)
+  -- , ValuePathConstraint(..)
+  -- -- * Operations
+  -- , insertValue, insertChoice, insertLoopCount
   -- * Predicates
   , isInfeasible
   , isFeasibleMaybe
   , isTrivial
-  -- * Semantics
-  , vpcSatisfied, lccSatisfied
+  -- -- * Semantics
+  -- , vpcSatisfied, lccSatisfied
   -- * Converstion to SExpr
   , toSExpr
+  -- * Path Sets
+  , PathSet
+  , trivialPathSet
+  , conjPathSet
+  , disjPathSet
   ) where
 
 import           Control.Monad                (guard)
 import           Data.Functor                 (($>))
+import           Data.List.NonEmpty           (NonEmpty)
+import qualified Data.List.NonEmpty           as NE
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import qualified Data.Map.Merge.Strict        as Map
 import           Data.Set                     (Set)
 import qualified Data.Set                     as Set
 import           GHC.Generics                 (Generic)
-import           SimpleSMT                    (SExpr, bvHex, tBits)
 import qualified SimpleSMT                    as S
+import           SimpleSMT                    (SExpr, bvHex, tBits)
 
 import           Daedalus.Core                (Pattern, Typed (..))
 import qualified Daedalus.Core.Semantics.Expr as I
 import           Daedalus.PP
 import qualified Daedalus.Value               as I
 
-import           Talos.Solver.SolverT        (SMTVar)
+import           Talos.Solver.SolverT         (SMTVar)
+import Data.Foldable (toList)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
 
 newtype LoopCountVar = LoopCountVar { getLoopCountVar :: SMTVar }
   deriving (Eq, Ord, Show)
+
+-- ----------------------------------------------------------------------------------------
+-- Path conditions
 
 
 pathVarToSExpr :: PathVar -> SExpr
@@ -83,7 +94,7 @@ data ValuePathConstraint =
 data LoopCountConstraint = LCCEq Int | LCCGt Int
   deriving (Show, Eq, Ord, Generic)
 
-data PathConditionInfo = PathConditionInfo
+data PathCondition = PathCondition
   { pcValues   :: Map SMTVar (Typed ValuePathConstraint)
   -- ^ Case match path conditions.
   , pcChoices :: Map PathVar Int
@@ -92,18 +103,24 @@ data PathConditionInfo = PathConditionInfo
   , pcLoops   :: Map LoopCountVar LoopCountConstraint
   } deriving (Show, Eq, Ord, Generic)
 
-data PathCondition =
-  FeasibleMaybe PathConditionInfo
-  | Infeasible
-  deriving (Show, Eq, Ord)
+trivialPathCondition :: PathCondition
+trivialPathCondition = PathCondition mempty mempty mempty
 
-isInfeasible :: PathCondition -> Bool
+trivialPathSet :: PathSet
+trivialPathSet = Disjunction (NE.singleton trivialPathCondition)
+
+-- data PathCondition =
+--   FeasibleMaybe PathConditionInfo
+--   | Infeasible
+--   deriving (Show, Eq, Ord)
+
+isInfeasible :: PathSet -> Bool
 isInfeasible = (==) Infeasible
 
-isTrivial :: PathCondition -> Bool
-isTrivial = (==) mempty
+isTrivial :: PathSet -> Bool
+isTrivial = (==) trivialPathSet
 
-isFeasibleMaybe :: PathCondition -> Bool
+isFeasibleMaybe :: PathSet -> Bool
 isFeasibleMaybe = (/=) Infeasible
 
 conjValues :: Typed ValuePathConstraint -> Typed ValuePathConstraint ->
@@ -126,32 +143,56 @@ conjLoops lc1 lc2 =
 
 -- | Conjoins two guards, returning Nothing if the result is unsat.
 -- This is an optimisation, so an unsat guards may still be returned.
-conjInfo :: PathConditionInfo -> PathConditionInfo -> Maybe PathConditionInfo
-conjInfo pc1 pc2 =
-  PathConditionInfo <$> joinMap conjValues (pcValues pc1) (pcValues pc2)
-                    <*> joinMap (\x y -> guard (x == y) $> x) (pcChoices pc1) (pcChoices pc2)
-                    <*> joinMap conjLoops (pcLoops pc1)   (pcLoops pc2)  
+conjPathCondition :: PathCondition -> PathCondition -> Maybe PathCondition
+conjPathCondition pc1 pc2 =
+  PathCondition <$> joinMap conjValues (pcValues pc1) (pcValues pc2)
+                <*> joinMap (\x y -> guard (x == y) $> x) (pcChoices pc1) (pcChoices pc2)
+                <*> joinMap conjLoops (pcLoops pc1)   (pcLoops pc2)  
   where
     joinMap f =
       Map.mergeA Map.preserveMissing Map.preserveMissing
          (Map.zipWithAMatched (const f))
     
 
-insertValue :: SMTVar -> Typed ValuePathConstraint->
-               PathCondition -> PathCondition
-insertValue v els = (<>) (FeasibleMaybe (PathConditionInfo (Map.singleton v els) mempty mempty))
+-- insertValue :: SMTVar -> Typed ValuePathConstraint->
+--                PathCondition -> PathCondition
+-- insertValue v els = (<>) (FeasibleMaybe (PathConditionInfo (Map.singleton v els) mempty mempty))
 
-insertChoice :: PathVar -> Int ->
-                PathCondition -> PathCondition
-insertChoice v el = (<>) (FeasibleMaybe (PathConditionInfo mempty (Map.singleton v el) mempty))
+-- insertChoice :: PathVar -> Int ->
+--                 PathCondition -> PathCondition
+-- insertChoice v el = (<>) (FeasibleMaybe (PathConditionInfo mempty (Map.singleton v el) mempty))
 
-insertLoopCount :: LoopCountVar -> LoopCountConstraint -> 
-                   PathCondition -> PathCondition
-insertLoopCount v el = (<>) (FeasibleMaybe (PathConditionInfo mempty mempty (Map.singleton v el)))
+-- insertLoopCount :: LoopCountVar -> LoopCountConstraint -> 
+--                    PathCondition -> PathCondition
+-- insertLoopCount v el = (<>) (FeasibleMaybe (PathConditionInfo mempty mempty (Map.singleton v el)))
 
-toSExpr :: PathCondition -> SExpr
-toSExpr Infeasible = S.bool False
-toSExpr (FeasibleMaybe pc)
+-- ----------------------------------------------------------------------------------------
+-- Path sets
+
+-- A path set is a disjunction of path conditions
+
+-- FIXME: do we need to keep this in DNF?
+data PathSet =
+  Infeasible  
+  | Disjunction (NonEmpty PathCondition) -- Contains > 1 element
+  deriving (Show, Eq, Ord)
+
+-- | Returns Infeasible if the conjunction is unsatisfiable.
+conjPathSet :: PathSet -> PathSet -> PathSet
+conjPathSet Infeasible _ps = Infeasible
+conjPathSet _ps Infeasible = Infeasible
+conjPathSet (Disjunction vs1) (Disjunction vs2) =
+  maybe Infeasible Disjunction (NE.nonEmpty els)
+  where
+    els = [ g | g1 <- toList vs1, g2 <- toList vs2, Just g <- [ g1 `conjPathCondition` g2 ]]
+
+disjPathSet :: PathSet -> PathSet -> PathSet
+disjPathSet Infeasible ps = ps
+disjPathSet ps Infeasible = ps
+disjPathSet (Disjunction vs1) (Disjunction vs2) = Disjunction (vs1 <> vs2)
+
+pathConditionToSExpr :: PathCondition -> SExpr
+pathConditionToSExpr pc 
   | [el] <- allPreds = el
   | otherwise = S.andMany allPreds
   where
@@ -174,6 +215,18 @@ toSExpr (FeasibleMaybe pc)
         LCCEq n  -> S.eq (loopCountVarToSExpr v) (loopCountToSExpr n)
         LCCGt n  -> S.bvULt (loopCountToSExpr n) (loopCountVarToSExpr v)
 
+toSExpr :: PathSet -> SExpr
+toSExpr Infeasible = S.bool False
+toSExpr (Disjunction pcs) = orMany (map pathConditionToSExpr (toList pcs))
+
+orMany :: [SExpr] -> SExpr
+orMany [x] = x
+orMany xs  = S.orMany xs
+
+andMany :: [SExpr] -> SExpr
+andMany [x] = x
+andMany xs  = S.andMany xs
+
 -- -----------------------------------------------------------------------------
 -- Semantics
 
@@ -191,14 +244,11 @@ lccSatisfied lcc i =
 -- ------------------------------------------------------------------------------
 -- Instances
 
-instance Semigroup PathCondition where
-  Infeasible <> _ = Infeasible
-  _ <> Infeasible = Infeasible
-  (FeasibleMaybe pc1) <> (FeasibleMaybe pc2) =
-    maybe Infeasible FeasibleMaybe (conjInfo pc1 pc2)
+-- instance Semigroup PathCondition where
+--   (<>) = conjPathCondition
 
-instance Monoid PathCondition where
-  mempty = FeasibleMaybe (PathConditionInfo mempty mempty mempty)
+-- instance Monoid PathCondition where
+--   mempty = PathCondition mempty mempty mempty
 
 instance PP PathVar where
   pp = text . getPathVar
@@ -210,7 +260,7 @@ instance PP ValuePathConstraint where
   pp (VPCPositive c)   = "=" <+> pp c
   pp (VPCNegative cs)  = "∉" <+> block "{" "," "}" (pp <$> Set.toList cs)
 
-instance PP PathConditionInfo where
+instance PP PathCondition where
   pp pci | Map.null (pcChoices pci), Map.null (pcValues pci), Map.null (pcLoops pci) = "⊤"
   pp pci = "∧" <> block "{" ";" "}" (chEls ++ valueEls ++ loopEls)
     where
@@ -218,9 +268,9 @@ instance PP PathConditionInfo where
       valueEls = [ text v <+> pp c | (v, Typed _ c) <- Map.toList (pcValues pci) ]
       loopEls  = [ pp v <+> pp c | (v, c) <- Map.toList (pcLoops pci) ]
         
-instance PP PathCondition where
+instance PP PathSet where
   pp Infeasible = "⊥"
-  pp (FeasibleMaybe pci) = pp pci
+  pp (Disjunction pcs) = "⋁" <> block "(" ";" ")" (map pp (toList pcs))
 
 instance PP LoopCountConstraint where
   pp (LCCEq  n) = "=" <+> pp n

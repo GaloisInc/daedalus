@@ -51,7 +51,7 @@ library
                      , Talos.Strategy.DFST
 
                      , Talos.Strategy.PathSymbolic
-                     , Talos.Strategy.PathSymbolic.PathCondition
+                     , Talos.Strategy.PathSymbolic.PathSet
                      , Talos.Strategy.PathSymbolic.Monad
                      , Talos.Strategy.PathSymbolic.MuxValue
                      , Talos.Strategy.PathSymbolic.PathBuilder
