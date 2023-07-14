@@ -41,6 +41,8 @@ data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 data DumpCoreHow = DumpCoreHow
   { dumpCoreNoLoops :: Bool
   , dumpCoreNoMatch :: Bool
+  , dumpCoreShrinkBiased :: Bool
+  , dumpCoreCaseCase :: Bool
   }
 
 data Options =
@@ -265,8 +267,10 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
 
 defaultDumpCore :: DumpCoreHow
 defaultDumpCore = DumpCoreHow
-  { dumpCoreNoLoops = False
-  , dumpCoreNoMatch = False
+  { dumpCoreNoLoops      = False
+  , dumpCoreNoMatch      = False
+  , dumpCoreShrinkBiased = False
+  , dumpCoreCaseCase     = False
   }
 
 dumpCoreCommand :: (DumpCoreHow -> DumpCoreHow) -> ArgDescr Options
@@ -313,6 +317,14 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                , Option [] ["core-no-match"]
                  "Eliminate matches loops before dumping core"
                 $ dumpCoreCommand \how -> how { dumpCoreNoMatch = True }
+
+               , Option [] ["core-shrink-biased"]
+                 "Try to shrink scope of biased choice."
+                $ dumpCoreCommand \how -> how { dumpCoreShrinkBiased = True }
+
+               , Option [] ["core-case-case"]
+                 "Inline case in case."
+                $ dumpCoreCommand \how -> how { dumpCoreCaseCase = True }
 
                , Option [] ["vm"]
                  "Dump VM AST"
