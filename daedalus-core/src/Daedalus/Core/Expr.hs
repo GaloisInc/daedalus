@@ -131,7 +131,7 @@ data LoopMorphism' e body =
   | MapMorphism (LoopCollection' e) body
     -- ^ map (... in ...) ...
 
-  deriving (Functor, Generic, NFData, Eq)
+  deriving (Functor, Foldable, Traversable, Generic, NFData, Eq)
 
 type LoopMorphism = LoopMorphism' Expr
 

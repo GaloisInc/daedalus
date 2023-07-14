@@ -1,6 +1,6 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns, PatternSynonyms #-}
-{-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor #-}
+{-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor, DeriveTraversable #-}
 
 module Daedalus.Core.Grammar where
 
@@ -31,6 +31,7 @@ data Grammar =
   | Loop (LoopClass Grammar)
   deriving (Generic,NFData)
 
+
 -- | Types of loops we support.
 data LoopClass' e body =
     ManyLoop Sem Backtrack e (Maybe e) body
@@ -41,7 +42,7 @@ data LoopClass' e body =
 
   | MorphismLoop (LoopMorphism' e body)
     -- ^ `for`, `map`
-  deriving (Functor, Generic, NFData)
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
 
 type LoopClass = LoopClass' Expr
 

@@ -1,5 +1,6 @@
 {-# Language BlockArguments #-}
-module Daedalus.Core.Effect(canFail, mayFailModule) where
+{-# Language FunctionalDependencies, FlexibleInstances #-}
+module Daedalus.Core.Effect(canFail, mayFail, mayFailModule) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -24,7 +25,7 @@ mayFailFun fu failing
   where
   name = fName fu
   fails = case fDef fu of
-            External mayFail -> mayFail
+            External mayFail' -> mayFail'
             Def e -> mayFail failing e
 
 -- | Given a set of functions that are known to fail,

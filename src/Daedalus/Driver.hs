@@ -45,6 +45,8 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passShrinkBiasedOr
+  , passInlineCase
   , passWarnFork
   , passVM
   , ddlRunPass
@@ -128,6 +130,8 @@ import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
 import qualified Daedalus.Core.Determinize as Core
+import qualified Daedalus.Core.ShrinkBiasedOr as Core
+import qualified Daedalus.Core.InlineCase as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -831,6 +835,12 @@ passNorm = coreToCore "norm" (pure . Core.normM)
 passNoMatch :: ModuleName -> Daedalus ()
 passNoMatch = coreToCore "coreNoMatch" Core.noMatch
 
+passShrinkBiasedOr :: ModuleName -> Daedalus ()
+passShrinkBiasedOr = coreToCore "shrunkBiasedOr" (Core.shrinkModule mempty)
+
+passInlineCase :: ModuleName -> Daedalus ()
+passInlineCase = coreToCore "inlineCase" Core.inlineCaseModule
+
 
 passWarnFork :: ModuleName -> Daedalus ()
 passWarnFork m =
@@ -855,6 +865,10 @@ passVM :: ModuleName -> Daedalus ()
 passVM m =
   do passNoLoops m
      passNoMatch m
+     passShrinkBiasedOr m
+     passNorm m
+     passInlineCase m
+     passNorm m
      ph <- doGetLoaded m
      case ph of
        CoreModule ast ->
