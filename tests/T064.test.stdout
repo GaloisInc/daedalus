@@ -1,1 +1,1 @@
-{"values":[{"$$traced":{"value":{"$D":{"x":{"$B":{}}}},"trace":[{"input":"array","ranges":[[0,1]]}]}}],"inputs":{"array":"AB"}}
+[{"$D":{"x":{"$B":{}}}}]
