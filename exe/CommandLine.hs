@@ -35,15 +35,17 @@ data Command =
   | Interp (Maybe FilePath)
   | JStoHTML
   | ShowHelp
+    deriving Show
 
 data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
+    deriving Show
 
 data DumpCoreHow = DumpCoreHow
   { dumpCoreNoLoops :: Bool
   , dumpCoreNoMatch :: Bool
   , dumpCoreShrinkBiased :: Bool
   , dumpCoreCaseCase :: Bool
-  }
+  } deriving Show
 
 data Options =
   Options { optCommand   :: Command
@@ -86,7 +88,7 @@ data Options =
             -- the directory where we should save stuff
 
           , optParams :: [String]
-          }
+          } deriving Show
 
 defaultOptions :: Options
 defaultOptions =
@@ -97,7 +99,7 @@ defaultOptions =
           , optForceUTF8 = True
           , optShowJS    = False
           , optShowHTML  = False
-          , optTracedValues = True
+          , optTracedValues = False
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
@@ -135,7 +137,7 @@ data OptsHS =
     , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
     , hsoptFile    :: Maybe FilePath
     , hsoptCore    :: Bool
-    }
+    } deriving Show
 
 noOptsHS :: OptsHS
 noOptsHS =
