@@ -463,7 +463,7 @@ compilePExpr env expr0 args = go expr0
         TCLabel l p -> pEnter (TextAnnot l) (go p)
 
         TCMapInsert s ke ve me ->
-          case vMapLookup kv mv of
+          case unTrace (vMapLookup kv mv) of
             VMaybe (Just {}) ->
               addScope $
               pError FromSystem erng ("duplicate key " ++ show (pp kv))
@@ -474,7 +474,7 @@ compilePExpr env expr0 args = go expr0
           mv = compilePureExpr env me
 
         TCMapLookup s ke me ->
-          case vMapLookup kv mv of
+          case unTrace (vMapLookup kv mv) of
             VMaybe (Just a) -> pure $! mbSkip s a
             _ -> addScope $ pError FromSystem erng ("missing key " ++ show (pp kv))
           where

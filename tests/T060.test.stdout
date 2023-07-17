@@ -1,1 +1,1 @@
-[{ "ex1": true }]
+{"values":[{"$$traced":{"value":{"ex1":{"$$traced":{"value":true,"trace":[{"input":"array","ranges":[[0,0]]}]}}},"trace":[{"input":"array","ranges":[[0,0]]}]}}],"inputs":{"array":"\u0001\u0002"}}
