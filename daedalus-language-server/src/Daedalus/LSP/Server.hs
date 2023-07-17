@@ -109,8 +109,8 @@ reactor inp = do
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
-lspHandlers :: TChan ReactorInput -> Handlers ServerM
-lspHandlers rin = mapHandlers goReq goNot handle
+lspHandlers :: TChan ReactorInput -> a -> Handlers ServerM
+lspHandlers rin _client_caps = mapHandlers goReq goNot handle
   where
     goReq :: forall (a :: J.Method 'J.ClientToServer 'J.Request). Handler ServerM a -> Handler ServerM a
     goReq f = \msg k -> do
