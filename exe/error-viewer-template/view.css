@@ -187,6 +187,9 @@ div {
   border-bottom: 1px solid black;
   height: 2.5em;
   min-height: 2.5em;
+  display: flex;
+  align-items: center;
+  padding-left: 1em;
 }
 
 #stack-pane {
