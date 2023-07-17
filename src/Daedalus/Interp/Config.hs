@@ -14,7 +14,7 @@ data InterpConfing = InterpConfing
     -- ^ Should we keep track of which bytes in the input contributed
     -- towards various values.
 
-  }
+  } deriving Show
 
 
 -- | Default intepreter configuration.
