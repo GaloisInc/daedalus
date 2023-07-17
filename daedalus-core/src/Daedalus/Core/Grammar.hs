@@ -10,6 +10,7 @@ import Data.Functor.Identity(Identity(..))
 import Data.Functor.Const (Const(Const))
 
 import Daedalus.PP
+import Daedalus.SourceRange
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
@@ -94,16 +95,12 @@ skipGetAnnot = go []
 
 
 gAnnotate :: [Annot] -> Grammar -> Grammar
-gAnnotate as g = foldr Annot g as
+gAnnotate as g0 = foldr addAnn g0 as
   where
-  -- can use this to only add a single src range annotation
-  _addAnn a gram =
-    case a of
-      SrcRange {} ->
-        case gram of
-          Annot (SrcRange {}) _ -> gram
-          Annot b g1 -> Annot b (_addAnn a g1)
-          _ -> Annot a gram
+  addAnn a gram =
+    case (a,gram) of
+      (SrcRange r1, Annot (SrcRange r2) g)
+        | Just r <- r1 `sourceRangeContainedIn` r2 -> Annot (SrcRange r) g
       _ -> Annot a gram
 
 

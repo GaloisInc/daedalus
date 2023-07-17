@@ -312,7 +312,7 @@ addSubst = MapF.insert
 mergeSubst :: Subst a -> Subst a -> Subst a
 mergeSubst old new = MapF.union new old
 
-apSubst' :: forall a m k. MonadReader (Subst a) m
+apSubst' :: forall a m k. (PP a, MonadReader (Subst a) m)
          => (forall k'. TC a k' -> m (TC a k'))
          -> TCF a k -> m (TCF a k)
 apSubst' go = go'
@@ -365,13 +365,13 @@ apSubst' go = go'
     fixupType (Type (TFun _ rhs)) n = fixupType rhs (n - 1)
     fixupType ty n = panic "Cannot remove argument types" [showPP ty, show n]
 
-apSubst :: Subst a -> TC a k -> TC a k
+apSubst :: PP a => Subst a -> TC a k -> TC a k
 apSubst s = flip runReader s . go
   where
-    go :: forall a k'. TC a k' -> Reader (Subst a) (TC a k')
+    go :: forall a k'. PP a => TC a k' -> Reader (Subst a) (TC a k')
     go (TC v) = TC <$> (traverse (apSubst' go) v)
 
-apSubstArg :: Subst a -> Arg a -> Arg a
+apSubstArg :: PP a => Subst a -> Arg a -> Arg a
 apSubstArg s (ValArg     e) = ValArg     $ apSubst s e
 apSubstArg s (GrammarArg e) = GrammarArg $ apSubst s e
 apSubstArg s (ClassArg e)   = ClassArg   $ apSubst s e

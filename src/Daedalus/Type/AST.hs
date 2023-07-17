@@ -413,7 +413,7 @@ instance PP (TCName k) where
 instance PP TVar where
   pp x = "?a" <.> int (tvarId x)
 
-instance PP (TCDecl a) where
+instance PP a => PP (TCDecl a) where
   pp d@TCDecl { tcDeclName, tcDeclDef } = pp tcDeclName <+>
          hsep (map pp (tcDeclTyParams d)) <+>
          hsep (map (ppPrec 2) (tcDeclCtrs d)) <+>
@@ -425,7 +425,7 @@ instance PP (TCDecl a) where
                           ExternDecl {} -> (empty,empty)
 
 
-instance PP (Arg a) where
+instance PP a => PP (Arg a) where
   ppPrec n arg =
     case arg of
       ValArg e -> ppPrec n e
@@ -439,10 +439,17 @@ instance PP Param where
       ClassParam e -> ppBinder e
       GrammarParam e -> ppBinder e
 
-instance PP (TC a k) where
-  ppPrec n = ppPrec n . texprValue
+instance PP a => PP (TC a k) where
+  ppPrec n e = ppAnnot e $$ ppPrec n (texprValue e)
 
-instance PP (Loop a k) where
+ppAnnot :: PP a => TC a k -> Doc
+ppAnnot e
+  | enable = "--" <+> pp (texprAnnot e)
+  | otherwise = empty
+  where
+  enable = False
+
+instance PP a => PP (Loop a k) where
   ppPrec n lp = wrapIf (n > 0) $
     kw <+> parens hdr $$ nest 2 (ppPrec 1 (loopBody lp))
     where
@@ -455,7 +462,7 @@ instance PP (Loop a k) where
                       Commit    -> "for"
                       Backtrack -> "for?"
 
-instance PP (LoopCollection a) where
+instance PP a => PP (LoopCollection a) where
   ppPrec _ lp = ppK <+> ppBinder (lcElName lp) <+> "in" <+> pp (lcCol lp)
     where
     ppK = case lcKName lp of
@@ -464,7 +471,7 @@ instance PP (LoopCollection a) where
 
 
 
-instance PP (TCF a k) where
+instance PP a => PP (TCF a k) where
   ppPrec n texpr =
     case texpr of
       TCPure e      -> wrapIf (n > 0) ("pure" <+> ppPrec 1 e)
@@ -525,11 +532,16 @@ instance PP (TCF a k) where
       TCTriOp op e1 e2 e3 _ ->
         wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2 <+> ppPrec 1 e3)
 
-      TCBinOp op@ArrayStream e1 e2 _ ->
-          wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2)
-
       TCBinOp op e1 e2 _ ->
-          wrapIf (n > 0) (ppPrec 1 e1 <+> pp op <+> ppPrec 1 e2)
+        case op of
+          ArrayStream -> ppPrefix
+          BuilderEmit -> ppPrefix
+          BuilderEmitArray -> ppPrefix
+          BuilderEmitBuilder -> ppPrefix
+          _ -> ppInfix
+        where
+        ppPrefix = wrapIf (n > 0) (pp op <+> ppPrec 1 e1 <+> ppPrec 1 e2)
+        ppInfix = wrapIf (n > 0) (ppPrec 1 e1 <+> pp op <+> ppPrec 1 e2)
 
       TCUniOp op e -> wrapIf (n > 0) (pp op <+> ppPrec 1 e)
       TCSelStruct x l _ -> wrapIf (n > 0) (ppPrec 1 x <.> "." <.> pp l)
@@ -598,7 +610,7 @@ instance PP a => PP (Poly a) where
                  in wrapIf (n > 0) (qual <+> ctrs <+> pp a)
 
 
-instance PP (TCModule a) where
+instance PP a => PP (TCModule a) where
   ppPrec _ m =
     vcat' [ "module" <+> pp (tcModuleName m)
           , "--- Imports:" $$
@@ -650,7 +662,7 @@ instance PP BDField where
            BDTag i    -> pp i <+> brackets (pp (bdWidth f))
            BDData l t -> pp l <+> ":" <+> pp t
 
-instance PP (TCAlt a k) where
+instance PP a => PP (TCAlt a k) where
   ppPrec _ (TCAlt ps e) = lhs <+> "->" <+> pp e
     where lhs = sep $ punctuate comma $ map pp ps
 
@@ -702,7 +714,7 @@ describePat par pat =
 
 
 
-ppTCRuleRes :: Rec (TCDecl a) -> Doc
+ppTCRuleRes :: PP a => Rec (TCDecl a) -> Doc
 ppTCRuleRes sc =
   case sc of
     NonRec d -> ppRule d
@@ -742,13 +754,16 @@ wrapQuietIf s p d = pref <.> wrapIf (p || w) d
                      NoSem -> (True, "@")
                      YesSem -> (False,empty)
 
-ppStmt :: TCF a k -> Doc
+ppStmt' :: PP a => TC a Grammar -> Doc
+ppStmt' e = ppAnnot e $$ ppStmt (texprValue e)
+
+ppStmt :: PP a => TCF a k -> Doc
 ppStmt texpr =
   case texpr of
-    TCDo mb (texprValue -> e1) (texprValue -> e2) ->
+    TCDo mb (texprValue -> e1) e2 ->
       case mb of
-        Nothing -> pp e1 $$ ppStmt e2
-        Just x  -> (ppBinder x <+> "<-" <+> pp e1) $$ ppStmt e2
+        Nothing -> pp e1 $$ ppStmt' e2
+        Just x  -> (ppBinder x <+> "<-" <+> pp e1) $$ ppStmt' e2
 
     _ -> pp texpr
 

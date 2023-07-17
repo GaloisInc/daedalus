@@ -107,7 +107,8 @@ missingNumPatterns _declTys allPats
     extractLbl (TCNumPat typ n _) = (typ, n)
     extractLbl pat = panic "Saw a non-constructor pattern" [show (pp pat)]
 
-summariseCase :: Map TCTyName TCTyDecl -> TC a k -> (PatternCompleteness, CaseSummary)
+summariseCase ::
+  PP a => Map TCTyName TCTyDecl -> TC a k -> (PatternCompleteness, CaseSummary)
 summariseCase declTys tc =
   case texprValue tc of
     -- FIXME: Maybe have the class of case in the ctor?
@@ -130,8 +131,9 @@ summariseCase declTys tc =
 --------------------------------------------------------------------------------
 -- Module-level checks
 
-missingPatterns :: forall a k. HasRange a => Map TCTyName TCTyDecl -> TC a k ->
-                   [ (SourceRange, CaseSummary ) ]
+missingPatterns ::
+  forall a k. (PP a, HasRange a) => Map TCTyName TCTyDecl -> TC a k ->
+  [ (SourceRange, CaseSummary ) ]
 missingPatterns declTys = go
   where
     go :: forall k'. TC a k' -> [ (SourceRange, CaseSummary) ]

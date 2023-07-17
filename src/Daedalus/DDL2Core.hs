@@ -189,7 +189,6 @@ fromGrammar gram =
       do x' <- fromName x
          Do (snd x') <$> fromGrammar g1 <*> withSourceLocal x' (fromGrammar g2)
 
-
     TC.TCLabel t g ->
       Annot (SrcAnnot t) <$> fromGrammar g
 
@@ -1259,7 +1258,7 @@ fromMb sem t e =
 newtype M a = M (ReaderT R (StateT S PassM) a)
   deriving (Functor,Applicative,Monad)
 
-data R = R
+newtype R = R
   { sourceLocals :: Map (TC.TCName TC.Value) Expr
   }
 
@@ -1357,7 +1356,7 @@ newName mb t =
 newLocal :: Type -> M Name
 newLocal = newName Nothing
 
--- | Add a local varialble from the source (i.e., not newly generate)
+-- | Add a local varialble from the source (i.e., not newly generated)
 withSourceLocal :: (TC.TCName TC.Value, Name) -> M a -> M a
 withSourceLocal (x,n) (M m) = M (mapReader upd m)
   where upd r = r { sourceLocals = Map.insert x (Var n) (sourceLocals r) }

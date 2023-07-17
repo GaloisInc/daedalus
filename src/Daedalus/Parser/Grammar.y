@@ -455,12 +455,12 @@ call_expr                                :: { Expr }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
   | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
-  | 'take' aexpr aexpr                      { at ($1,$2) (EBinOp StreamTakeUpTo $2 $3) }
-  | 'Take' aexpr aexpr                      { at ($1,$2) (EStreamLen $2 $3) }
-  | 'Drop' aexpr aexpr                      { at ($1,$2) (EStreamOff $2 $3) }
+  | 'take' aexpr aexpr                      { at ($1,$3) (EBinOp StreamTakeUpTo $2 $3) }
+  | 'Take' aexpr aexpr                      { at ($1,$3) (EStreamLen $2 $3) }
+  | 'Drop' aexpr aexpr                      { at ($1,$3) (EStreamOff $2 $3) }
   | 'length' aexpr                          { at ($1,$2) (EUniOp ArrayLength $2)}
-  | 'Index' aexpr aexpr                     { at ($1,$2) (EArrayIndex $2 $3) }
-  | 'emit' aexpr aexpr                      { at ($1,$2) (EBinOp BuilderEmit $2 $3) }
+  | 'Index' aexpr aexpr                     { at ($1,$3) (EArrayIndex $2 $3) }
+  | 'emit' aexpr aexpr                      { at ($1,$3) (EBinOp BuilderEmit $2 $3) }
   | 'emitArray' aexpr aexpr                 { at ($1,$2) (EBinOp BuilderEmitArray $2 $3) }
   | 'emitBuilder' aexpr aexpr               { at ($1,$2) (EBinOp BuilderEmitBuilder $2 $3) }
 

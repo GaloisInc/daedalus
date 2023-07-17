@@ -149,11 +149,10 @@ handleOptions opts
             do _ <- doToCore opts mm
                when (dumpCoreNoLoops how) (passNoLoops specMod)
                when (dumpCoreNoMatch how) (passNoMatch specMod)
-               when (dumpCoreShrinkBiased how)
-                    (passNorm specMod >> passNoMatch specMod >> passNorm specMod)
+               when (dumpCoreShrinkBiased how) (passShrinkBiasedOr specMod)
                when (dumpCoreCaseCase how)
-                    (passNorm specMod >> passInlineCase specMod >> passNorm specMod)
-               passNorm specMod
+                    (passNorm specMod >> passInlineCase specMod)
+               -- passNorm specMod
                ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM -> ddlPrint . pp =<< doToVM opts mm

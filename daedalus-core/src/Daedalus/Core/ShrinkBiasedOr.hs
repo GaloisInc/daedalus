@@ -90,7 +90,7 @@ shrink g =
     Do_ g1 g2         -> Do_ <$> shrink g1 <*> shrink g2
     Do x g1 g2        -> Do x <$> shrink g1 <*> shrink g2
     Let x e g1        -> Let x e <$> shrink g1
-    Annot a g1        -> shrink g1 -- Annot a <$> shrink g1
+    Annot a g1        -> gAnnotate [a] <$> shrink g1
     GCase c           -> GCase <$> traverse shrink c
     Loop l            -> Loop <$> traverse shrink l
 
@@ -131,7 +131,7 @@ toStmts x g =
     Do_ g1 g2   -> toStmts Nothing g1 ++ toStmts x g2
     Do y g1 g2  -> toStmts (Just y) g1 ++ toStmts x g2
     Let a e g1  -> StmtLet a e : toStmts x g1
-    Annot a g1  -> toStmts x g1 -- XXX: Annot a : toStmts x g1
+    Annot a g1  -> StmtAnnot a : toStmts x g1
     _           -> [Stmt x g]
 
 fromStmts :: [Stmt] -> Grammar
@@ -147,6 +147,6 @@ fromStmts stmts =
           case mb of
             Nothing -> Do_ g (fromStmts more)
             Just x  -> Do x g (fromStmts more)
-        StmtAnnot a -> Annot a (fromStmts more)
+        StmtAnnot a -> gAnnotate [a] (fromStmts more)
 
 
