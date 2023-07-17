@@ -409,7 +409,7 @@ ppRawBD w i = "0x" <.> padding <.> text txt <.> brackets (int w)
 instance PP Value where
   ppPrec n val =
     case val of
-      VTraced v _ -> ppPrec n v
+      VTraced v t -> ppPrec n v <+> "{-" <+> text (show t) <+> "-}"
       VUInt 8 x
         | isAscii c && isPrint c -> quotes (char (chr (fromInteger x)))
           where c = toEnum (fromInteger x)
