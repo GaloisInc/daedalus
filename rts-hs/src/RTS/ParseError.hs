@@ -102,7 +102,7 @@ normalizePathFun ps0 = joinPath . drop common . splitDirectories
   where
   common = length $ takeWhile allSame
                   $ transpose
-                  $ map splitDirectories
+                  $ map (init . splitDirectories)
                   $ Set.toList ps
 
   ps = Set.delete "synthetic" ps0
