@@ -1,15 +1,15 @@
 --- Parse error: 
 [offset: 12]
   • unexpected end of input
-  • see grammar at: 441:28--441:54
+  • see grammar at: HTTP-2.ddl:441:28--441:54
   • context:
-      • 28:12--28:36
+      • HTTP-2.ddl:28:12--28:36
       • case branch  {| F_RST_STREAM = _ |}
-      • 210:26--210:35
+      • HTTP-2.ddl:210:26--210:35
       • NO_ERROR
   • input trace:
       /tmp/input_file.bin
-        9--11
+        0--11
 File context:
 Length: 12 (0xc) bytes
 0000:   00 00 04 03  00 fc af ca  fe 00 00 00                ............

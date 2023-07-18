@@ -1,11 +1,13 @@
 --- Parse error: 
 [offset: 9]
   • Pattern match failure, expected True
-  • see grammar at: 246:9--246:24
+  • see grammar at: HTTP-2.ddl:246:9--246:24
   • context:
-      • 28:12--28:36
+      • HTTP-2.ddl:28:12--28:36
       • case branch  {| F_WINDOW_UPDATE = _ |}
   • input trace:
+      /tmp/input_file.bin
+        0--8
 File context:
 Length: 13 (0xd) bytes
 0000:   00 00 03 08  00 fc af ca  fe [1;91mff[0m ac fa  ce   .........[1;91m.[0m...
