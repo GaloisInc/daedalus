@@ -279,10 +279,11 @@ doToCore opts mm =
      when (optStripFail opts) (passStripFail specMod >> checkCore opts "StripFail")
      when (optSpecTys opts) (passSpecTys specMod >> checkCore opts "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore opts "Det")
+     when (optNoMatch opts) (passNoMatch specMod >> checkCore opts "NoMatch ")
      when (optShrinkBiased opts)
           (passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
      when (optInlineCaseCase opts)
-          (passNorm specMod >> passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
+          (passNorm specMod >> passInlineCase specMod >> checkCore opts "CaseCase")
      passNorm specMod >> checkCore opts "Norm"
      unless (optNoWarnUnbiased opts) (passWarnFork specMod)
      pure ents
@@ -300,7 +301,11 @@ checkCore opts x =
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
   do ddlSetOpt optDebugMode (optErrorStacks opts)
-     _ <- doToCore opts mm
+     _ <- doToCore opts { optNoLoops = True
+                        , optNoMatch = True
+                        , optShrinkBiased = True
+                        , optInlineCaseCase = True
+                        } mm
      passVM specMod
      m <- ddlGetAST specMod astVM
      let addMM p

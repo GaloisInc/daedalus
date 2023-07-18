@@ -55,6 +55,7 @@ data Options =
           , optNoBitdata :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
+          , optNoMatch :: Bool
           , optShrinkBiased :: Bool
           , optInlineCaseCase :: Bool
           , optCheckCore  :: Bool
@@ -98,11 +99,12 @@ defaultOptions =
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
-          , optNoLoops = False
+          , optNoLoops = True
           , optNoBitdata = False
           , optSpecTys   = False
           , optCheckCore = True
           , optDeterminize = False
+          , optNoMatch = True
           , optShrinkBiased = True
           , optInlineCaseCase = True
           , optOutDir    = Nothing
@@ -422,7 +424,11 @@ coreOptions =
     "Determinize core"
     $ NoArg \o -> Right o { optDeterminize = True }
 
-  , Option [] ["no-shrink-biase"]
+  , Option [] ["keep-match"]
+    "Do not remove mathcing constructs"
+    $ NoArg \o -> Right o { optNoMatch = False }
+
+  , Option [] ["no-shrink-biased"]
     "Do not try to shrink the scope of biased choice."
     $ NoArg \o -> Right o { optShrinkBiased = False }
 
