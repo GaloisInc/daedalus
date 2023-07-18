@@ -5,7 +5,6 @@ module CommandLine ( Command(..)
                    , options
                    , throwOptError
                    , OptsHS(..)
-                   , DumpCoreHow(..)
                    ) where
 
 import Data.Text(Text)
@@ -26,7 +25,7 @@ data Command =
   | DumpTC
   | DumpTypes
   | DumpSpec
-  | DumpCore DumpCoreHow
+  | DumpCore
   | DumpVM
   | DumpGraph Bool
   | DumpGen
@@ -39,13 +38,6 @@ data Command =
 
 data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
     deriving Show
-
-data DumpCoreHow = DumpCoreHow
-  { dumpCoreNoLoops :: Bool
-  , dumpCoreNoMatch :: Bool
-  , dumpCoreShrinkBiased :: Bool
-  , dumpCoreCaseCase :: Bool
-  } deriving Show
 
 data Options =
   Options { optCommand   :: Command
@@ -63,6 +55,8 @@ data Options =
           , optNoBitdata :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
+          , optShrinkBiased :: Bool
+          , optInlineCaseCase :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
           , optOutDirHeaders :: Maybe FilePath
@@ -109,6 +103,8 @@ defaultOptions =
           , optSpecTys   = False
           , optCheckCore = True
           , optDeterminize = False
+          , optShrinkBiased = True
+          , optInlineCaseCase = True
           , optOutDir    = Nothing
           , optOutDirHeaders    = Nothing
           , optNoWarnUnbiasedFront = False
@@ -267,24 +263,6 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
               ]
           }
 
-defaultDumpCore :: DumpCoreHow
-defaultDumpCore = DumpCoreHow
-  { dumpCoreNoLoops      = False
-  , dumpCoreNoMatch      = False
-  , dumpCoreShrinkBiased = False
-  , dumpCoreCaseCase     = False
-  }
-
-dumpCoreCommand :: (DumpCoreHow -> DumpCoreHow) -> ArgDescr Options
-dumpCoreCommand f = NoArg \o ->
-  Right $
-    o { optCommand =
-          DumpCore
-            case optCommand o of
-              DumpCore h -> f h
-              _ -> f defaultDumpCore
-      }
-
 cmdDumpOptions :: CommandSpec
 cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
   where
@@ -310,23 +288,7 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
 
                , Option [] ["core"]
                  "Dump core AST"
-                $ dumpCoreCommand id
-
-               , Option [] ["core-no-loops"]
-                 "Eliminate loops before dumping core"
-                $ dumpCoreCommand \how -> how { dumpCoreNoLoops = True }
-
-               , Option [] ["core-no-match"]
-                 "Eliminate matches loops before dumping core"
-                $ dumpCoreCommand \how -> how { dumpCoreNoMatch = True }
-
-               , Option [] ["core-shrink-biased"]
-                 "Try to shrink scope of biased choice."
-                $ dumpCoreCommand \how -> how { dumpCoreShrinkBiased = True }
-
-               , Option [] ["core-case-case"]
-                 "Inline case in case."
-                $ dumpCoreCommand \how -> how { dumpCoreCaseCase = True }
+                $ simpleCommand DumpCore
 
                , Option [] ["vm"]
                  "Dump VM AST"
@@ -460,6 +422,14 @@ coreOptions =
     "Determinize core"
     $ NoArg \o -> Right o { optDeterminize = True }
 
+  , Option [] ["no-shrink-biase"]
+    "Do not try to shrink the scope of biased choice."
+    $ NoArg \o -> Right o { optShrinkBiased = False }
+
+  , Option [] ["no-case-of-case"]
+    "Do not try to eliminate case of case."
+    $ NoArg \o -> Right o { optInlineCaseCase = False }
+
   , Option [] ["inline"]
     "Do aggressive inlining on Core"
     $ NoArg \o -> Right o { optInline = True }
@@ -558,7 +528,7 @@ impliedOptions opts0 =
         DumpTC          -> opts
         DumpTypes       -> opts
         DumpSpec        -> opts
-        DumpCore _      -> noTCUnbiased
+        DumpCore        -> noTCUnbiased
         DumpVM          -> noTCUnbiased
         DumpGraph {}    -> opts
         DumpGen         -> opts

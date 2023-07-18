@@ -146,14 +146,8 @@ handleOptions opts
               mo <- ddlGetAST specMod astTC
               ddlPrint (pp mo)
 
-         DumpCore how ->
+         DumpCore ->
             do _ <- doToCore opts mm
-               when (dumpCoreNoLoops how) (passNoLoops specMod)
-               when (dumpCoreNoMatch how) (passNoMatch specMod)
-               when (dumpCoreShrinkBiased how) (passShrinkBiasedOr specMod)
-               when (dumpCoreCaseCase how)
-                    (passNorm specMod >> passInlineCase specMod)
-               -- passNorm specMod
                ddlPrint . pp =<< ddlGetAST specMod astCore
 
          DumpVM -> ddlPrint . pp =<< doToVM opts mm
@@ -269,8 +263,8 @@ doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
-     checkCore "Core"
-     when (optNoBitdata opts) (passNoBitdata specMod >> checkCore "NoBitdata")
+     checkCore opts "Core"
+     when (optNoBitdata opts) (passNoBitdata specMod >> checkCore opts "NoBitdata")
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts)
         do fs <- forM (optInlineThis opts) \s ->
@@ -278,23 +272,28 @@ doToCore opts mm =
            case fs of
              [] -> passInline Core.AllBut ents specMod
              _  -> passInline Core.Only fs specMod
-           checkCore "Inline"
+           checkCore opts "Inline"
 
-     when (optNoLoops opts || optDeterminize opts) (passNoLoops specMod >> checkCore "NoLoops")
-     when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
-     when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
-     when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
-     when (optDeterminize opts) (passNorm specMod >> checkCore "Norm")
+     when (optNoLoops opts || optDeterminize opts)
+          (passNoLoops specMod >> checkCore opts "NoLoops")
+     when (optStripFail opts) (passStripFail specMod >> checkCore opts "StripFail")
+     when (optSpecTys opts) (passSpecTys specMod >> checkCore opts "SpecTys")
+     when (optDeterminize opts) (passDeterminize specMod >> checkCore opts "Det")
+     when (optShrinkBiased opts)
+          (passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
+     when (optInlineCaseCase opts)
+          (passNorm specMod >> passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
+     passNorm specMod >> checkCore opts "Norm"
      unless (optNoWarnUnbiased opts) (passWarnFork specMod)
      pure ents
 
-  where
-  checkCore x =
-    when (optCheckCore opts)
-       do core <- ddlGetAST specMod astCore
-          case checkModule core of
-            Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
-            Nothing  -> pure ()
+checkCore :: Options -> String -> Daedalus ()
+checkCore opts x =
+  when (optCheckCore opts)
+    do core <- ddlGetAST specMod astCore
+       case checkModule core of
+         Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
+         Nothing  -> pure ()
 
 
 
