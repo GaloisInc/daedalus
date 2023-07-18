@@ -1,4 +1,4 @@
-import Utils
+import Daedalus
 import Lexemes
 
 -- Reference:
@@ -156,14 +156,16 @@ def URI_IPv6address =
                         buf    = v4.buf
                         count  = v4.count
                         stop   = true
-                            
+
                       block
                         buf   = emit loop.buf URI_h6
                         count = loop.count + 1
                         stop  = count == 7
 
           -- End in ::
-          When (front.count == back.count) $[':']
+          if front.count == back.count
+            then @$[':']
+            else Accept
 
           -- Only :: is not OK
           let zeros = 8 - back.count

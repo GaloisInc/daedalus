@@ -5,7 +5,7 @@
 -- Specific section and paragraph links to RFC 9112 are provided below
 -- where appropriate.
 
-import Utils
+import Daedalus
 import Lexemes
 import URI
 
@@ -357,17 +357,33 @@ def HTTP_field_u =
     Content_Length: uint 64
     Field: Header_s
 
+-- Parse an HTTP field (header). We only trim white space around the field
+-- value but do not process it otherwise.
+def HTTP_field_raw =
+  block
+    field_name = Field_name
+    $[':']
+    HTTP_OWS
+    let start  = GetStream
+    field_data = Take HTTP_field_content start
+    HTTP_OWS
+
+def HTTP_special_field (raw: HTTP_field_raw) P =
+  WithStream raw.field_data
+  First
+    Only P
+    Fail (concat [ "Malformed field: ", raw.field_name ])
+
+
 -- Parse an HTTP field (header). We specifically parse Content-Length
 -- and Transfer-Encoding for use elsewhere in the parser; all other
 -- headers are represented as Field { ... }.
 def HTTP_field: HTTP_field_u =
   block
-    let field_name = Field_name
-    $[':']
-    HTTP_OWS
-
-    case field_name of
+    let raw_field = HTTP_field_raw
+    case raw_field.field_name of
       "transfer-encoding" ->
+        HTTP_special_field raw_field
         block
           let encodings = Transfer_Encoding_List
           let last = Last encodings
@@ -401,6 +417,7 @@ def HTTP_field: HTTP_field_u =
          --
          -- https://www.rfc-editor.org/rfc/rfc9110#section-5.5-12
          -- https://www.rfc-editor.org/rfc/rfc9112#section-6.3-2.5
+         HTTP_special_field raw_field
          block
            let values = SepBy1 PositiveNum64 { HTTP_OWS; $[',']; HTTP_OWS }
            let first = Head values
@@ -411,12 +428,11 @@ def HTTP_field: HTTP_field_u =
            ^ {| Content_Length = checked |}
 
       _ ->
-        block
-          let cur = GetStream
-          let field_len = HTTP_field_content
-          let value = bytesOfStream (Take field_len cur)
-          SetStream (Drop field_len cur)
-          ^ {| Field = { name = field_name, value = value } |}
+        {| Field =
+              block
+                name  = raw_field.field_name
+                value = bytesOfStream raw_field.field_data
+        |}
 
 -- Get the last element of a list.
 def Last (a: [?a]): ?a =
