@@ -54,6 +54,7 @@ import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 import qualified Daedalus.VM.Semantics as VM
+import qualified Daedalus.VM.RefCountSane as VM
 
 import CommandLine
 import Results
@@ -303,8 +304,16 @@ doToVM opts mm =
      _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
-     let addMM = VM.addCopyIs . VM.doBorrowAnalysis
-     pure $ addMM $ VM.moduleToProgram [m]
+     let addMM p = let p1 = VM.addCopyIs (VM.doBorrowAnalysis p)
+                   in case VM.checkProgram p1 of
+                        Just err -> ddlThrow (ADriverError $ unlines $
+                                                 [ show (pp p1)
+                                                 , "-------------------"
+                                                 , "MALFORMED VM"
+                                                 ] ++ err
+                                             )
+                        Nothing  -> pure p1
+     addMM (VM.moduleToProgram [m])
 
 
 parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]
