@@ -304,15 +304,18 @@ doToVM opts mm =
      _ <- doToCore opts mm
      passVM specMod
      m <- ddlGetAST specMod astVM
-     let addMM p = let p1 = VM.addCopyIs (VM.doBorrowAnalysis p)
-                   in case VM.checkProgram p1 of
-                        Just err -> ddlThrow (ADriverError $ unlines $
+     let addMM p
+           | optVM_do_mm opts =
+             let p1 = VM.addCopyIs (VM.doBorrowAnalysis p)
+             in case VM.checkProgram p1 of
+                  Just err -> ddlThrow (ADriverError $ unlines $
                                                  [ show (pp p1)
                                                  , "-------------------"
                                                  , "MALFORMED VM"
                                                  ] ++ err
                                              )
-                        Nothing  -> pure p1
+                  Nothing  -> pure p1
+            | otherwise = pure p
      addMM (VM.moduleToProgram [m])
 
 
@@ -337,7 +340,7 @@ generateCPP opts mm =
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
 
-     prog <- doToVM opts mm
+     prog <- doToVM opts { optVM_do_mm = True } mm
      let ccfg = C.CCodeGenConfig
                   { cfgFileNameRoot = optFileRoot opts
                   , cfgUserState    = text <$> optUserState opts

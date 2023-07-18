@@ -73,6 +73,7 @@ data Options =
           , optUserState :: Maybe String
           , optExtraInclude :: [String]
           , optFileRoot :: String
+          , optVM_do_mm :: Bool -- ^ Should we do memomry management in VM
           , optUserNS :: String
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
@@ -123,6 +124,7 @@ defaultOptions =
           , optModulePath = []
           , optDetailedErrors = Nothing
           , optUseLazyStream = False
+          , optVM_do_mm = True
           }
 
 defaultUserSpace :: String
@@ -256,16 +258,14 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
                 "Use the Core interpreter"
                 $ NoArg \o -> Right o { optBackend = UseCore }
 
-              
               , Option [] ["vm"]
                 "Use the VM interpreter"
                 $ NoArg \o -> Right o { optBackend = UseVM }
 
-              ] ++ coreOptions ++
+              ] ++ coreOptions ++ vmOptions ++
               [ helpOption
               ]
           }
-
 
 defaultDumpCore :: DumpCoreHow
 defaultDumpCore = DumpCoreHow
@@ -342,6 +342,7 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                 $ simpleCommand DumpGen
                ] ++
                coreOptions ++
+               vmOptions ++
                [ helpOption
                ]
            }
@@ -500,6 +501,12 @@ coreOptions =
   ]
 
 
+vmOptions :: [OptDescr Options]
+vmOptions =
+  [ Option [] ["vm-no-mm"]
+    "Don't do memory management."
+    $ NoArg \o -> Right o { optVM_do_mm = False }
+  ]
 
 --------------------------------------------------------------------------------
 

@@ -137,6 +137,7 @@ doRmRedundat doneIs is term =
       , let xs' = Set.delete y xs ->
         doRmRedundat doneIs (doSubst x y (Free xs' : more)) (doSubst x y term)
 
+    -- Combine multiple `free` into a single one
     Free xs : more
       | Set.null xs -> doRmRedundat doneIs more term
       | Free ys : ps <- doneIs ->
@@ -168,13 +169,15 @@ checkTermCopies is0 term0 = (reverse is1, term1)
           (is,ls) -> (is, JumpIf e ls)
 
       CallNoCapture fu ks0 args ->
-        case checkIs okChoice is0 ks0 of
+        case checkIs (okFun (freeVarSet args)) is0 ks0 of
           (is,ks) -> (is, CallNoCapture fu ks args)
 
       _ -> (is0,term0)
 
   checkIs upd is jc =
     case is of
+
+      -- We found a copy instruction
       i@(Let x e) : more ->
         case eIsVar e of
           Just v
@@ -184,17 +187,21 @@ checkTermCopies is0 term0 = (reverse is1, term1)
 
       _ -> (is, jc)
 
+  okFun ::
+    Ord i => Set VMVar -> BV -> VMVar -> JumpChoice i -> Maybe (JumpChoice i)
+  okFun inArgs x v ch
+    | LocalVar x `Set.member` inArgs = Nothing
+    | otherwise                      = okChoice x v ch
+
   okChoice :: Ord i => BV -> VMVar -> JumpChoice i -> Maybe (JumpChoice i)
   okChoice x' v (JumpCase opts)
-    | all ok optsVs = Just (JumpCase (elimJF x' v <$> opts))
+    | all ok altVss = Just (JumpCase (elimJF x' v <$> opts))
     | otherwise     = Nothing
-
     where
-    x         = LocalVar x'
-
-    ok vs     = not (x `Set.member` vs && v `Set.member` vs)
-
-    optsVs = freeVarSet . jumpTarget <$> opts
+    x       = LocalVar x'
+    -- variable and copy do not occur in the same alternative
+    ok altVs  = not (x `Set.member` altVs && v `Set.member` altVs)
+    altVss    = freeVarSet . jumpTarget <$> opts  -- free vars in each alt
 
   elimJF x' v jf =
     JumpWithFree
