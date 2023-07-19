@@ -1124,8 +1124,8 @@ cTermStmt ccInstr =
                : ("&" <.> cArgUse bYes i)
                : map cExpr es
       in [ cIf call
-              (freeClo no  ++ cDoJump bYes esYes)
-              (freeClo yes ++ cDoJump bNo  esNo)
+             (freeClo yes ++ cDoJump bYes esYes)
+             (freeClo no  ++ cDoJump bNo  esNo)
         ]
 
       where
