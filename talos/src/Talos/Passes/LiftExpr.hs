@@ -144,6 +144,7 @@ liftExprEFun env m_n fu =
                         , fParams  = fParams fu
                         , fDef     = Def g'
                         , fIsEntry = False
+                        , fMayFail = MayNotFail
                         , fAnnot   = fAnnot fu
                         }
           pure (Right fu')
