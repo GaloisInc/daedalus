@@ -303,8 +303,6 @@ doToVM opts mm =
   do ddlSetOpt optDebugMode (optErrorStacks opts)
      _ <- doToCore opts { optNoLoops = True
                         , optNoMatch = True
-                        , optShrinkBiased = True
-                        , optInlineCaseCase = True
                         } mm
      passVM specMod
      m <- ddlGetAST specMod astVM
