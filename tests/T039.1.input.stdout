@@ -1,9 +1,9 @@
 --- Parse error: 
 [offset: 0]
   • Not enough bytes: need 5, have 3
-  • see grammar at: 10:16--10:23
+  • see grammar at: T039.ddl:10:16--10:23
   • context:
-      • 4:5--4:23
+      • T039.ddl:4:5--4:23
   • input trace:
 File context:
 Length: 3 (0x3) bytes

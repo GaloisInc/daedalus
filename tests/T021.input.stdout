@@ -1,7 +1,7 @@
 --- Parse error: 
 [offset: 4]
   • byte '2' does not match byte '0'
-  • see grammar at: 3:10--3:15
+  • see grammar at: T021.ddl:3:10--3:15
   • context:
   • input trace:
       T021.input

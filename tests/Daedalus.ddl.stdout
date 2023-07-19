@@ -192,10 +192,10 @@ Daedalus.Count ?a0 (P : Grammar ?a0) : Grammar (uint 64) =
  
 Daedalus.ManyStart ?a0 (P : Grammar ?a0) (Q : Grammar ?a0) : Grammar [?a0] =
   do (_173 : Builder ?a0) <- do (_171 : Builder ?a0) <- do (_170 : ?a0) <- P
-                                                           pure (builder emit _170)
+                                                           pure (emit builder _170)
                                 for ((buf : Builder ?a0) = _171)
                                   do (_172 : ?a0) <- Q
-                                     pure (buf emit _172)
+                                     pure (emit buf _172)
      pure (build _173)
  
 Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =

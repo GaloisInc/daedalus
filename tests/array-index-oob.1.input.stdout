@@ -1,7 +1,7 @@
 --- Parse error: 
 [offset: 0]
   • index out of bounds 6[64]
-  • see grammar at: 5:16--5:26
+  • see grammar at: array-index-oob.ddl:5:16--5:26
   • context:
   • input trace:
 File context:

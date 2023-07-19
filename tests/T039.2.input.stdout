@@ -1,7 +1,7 @@
 --- Parse error: 
 [offset: 5]
   • expected 't' while matching "there"
-  • see grammar at: 5:5--5:17
+  • see grammar at: T039.ddl:5:5--5:17
   • context:
   • input trace:
       T039.2.input
