@@ -1,6 +1,6 @@
 {-# Language BlockArguments #-}
 {-# Language FlexibleInstances #-}
-module Daedalus.Core.Effect(canFail, mayFail, annotateMayFail, mayFailModule) where
+module Daedalus.Core.Effect(mayFail, annotateMayFail, mayFailModule) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -103,41 +103,6 @@ mayFailLoop failing lp =
 
 
 
-
-
-canFail :: Grammar -> Bool
-canFail gram =
-  case gram of
-    Pure {}           -> False
-    GetStream {}      -> False
-    SetStream {}      -> False
-    Match {}          -> True
-    Fail {}           -> True
-    Call {}           -> True
-
-    Annot a g         -> case a of
-                           NoFail -> False
-                           _      -> canFail g
-
-    Do_ g1 g2         -> canFail g1 || canFail g2
-    Do _ g1 g2        -> canFail g1 || canFail g2
-    Let _ _ g         -> canFail g
-    OrBiased _ g2     -> canFail g2
-    OrUnbiased g1 g2  -> canFail g1 && canFail g2
-    GCase (Case _ alts) -> any (canFail . snd) alts || partial (map fst alts)
-      where
-      partial xs =
-        case xs of
-          [] -> True
-
-          PAny     : _                    -> False
-          PNothing : PJust : _            -> False
-          PJust    : PNothing : _         -> False
-          PBool x : PBool y : _ | x /= y  -> False
-
-          _ : ys                          -> partial ys
-    -- Overly pessimistic as Many (0..) can't fail
-    Loop lc -> canFail (loopClassBody lc)
 
 
 

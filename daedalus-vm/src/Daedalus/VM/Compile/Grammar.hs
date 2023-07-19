@@ -1,5 +1,6 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
+{-# Language ImplicitParams #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use record patterns" #-}
 {-# HLINT ignore "Use const" #-}
@@ -11,6 +12,7 @@ import qualified Data.Text as Text
 import Data.Void(Void)
 import Control.Monad(forM,when)
 import qualified Data.Map as Map
+import Data.Set(Set)
 
 import Daedalus.Panic(panic)
 
@@ -28,9 +30,11 @@ import Daedalus.PP ( PP(pp) )
 ppText :: PP a => a -> Text
 ppText = Text.pack . show . pp
 
-compile :: Src.Grammar -> WhatNext -> C (BlockBuilder Void)
+compile ::
+  (?failing :: Set FName) => Src.Grammar -> WhatNext -> C (BlockBuilder Void)
 compile expr next0 =
-  let next = if Src.canFail expr then next0 else next0 { onNo = Nothing }
+  let next = if Src.mayFail ?failing expr then next0
+                                          else next0 { onNo = Nothing }
   in
 
   case expr of
