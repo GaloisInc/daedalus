@@ -402,7 +402,12 @@ modeI i =
     Notify _                 -> [ Unmanaged ]
     CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
     Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
+
     NoteFail {}              -> [ Borrowed, Borrowed ]
+    -- Note this borrows the inputs, because often we are not going to keep
+    -- them, because they are not better then what we have.   If we decide
+    -- to keep them, then we copy them.
+
     Free {}                  -> []  -- XXX: `Free` owns its asrguments
     Let _ e                  -> [ Borrowed `ifRefs` e] -- borrow to make a copy
     PushDebug{}              -> []
