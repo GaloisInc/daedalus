@@ -111,8 +111,8 @@ struct ParseError {
     // We found a better error.
     is_system_error = newIsSys;
     error_loc = loc;
-    input   = borrowed(newInput);
-    message = borrowed(newMsg);
+    input.assignBorrowed(newInput);
+    message.assignBorrowed(newMsg);
     debugs  = newDebugs;
   }
 };
