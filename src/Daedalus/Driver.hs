@@ -45,6 +45,7 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passMayFail
   , passShrinkBiasedOr
   , passInlineCase
   , passWarnFork
@@ -130,6 +131,7 @@ import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
 import qualified Daedalus.Core.Determinize as Core
+import qualified Daedalus.Core.Effect as Core
 import qualified Daedalus.Core.ShrinkBiasedOr as Core
 import qualified Daedalus.Core.InlineCase as Core
 import qualified Daedalus.DDL2Core as Core
@@ -834,6 +836,9 @@ passNorm = coreToCore "norm" (pure . Core.normM)
 
 passNoMatch :: ModuleName -> Daedalus ()
 passNoMatch = coreToCore "coreNoMatch" Core.noMatch
+
+passMayFail :: ModuleName -> Daedalus ()
+passMayFail = coreToCore "mayFail" (pure . Core.annotateMayFail mempty)
 
 passShrinkBiasedOr :: ModuleName -> Daedalus ()
 passShrinkBiasedOr = coreToCore "shrunkBiasedOr" (Core.shrinkModule mempty)

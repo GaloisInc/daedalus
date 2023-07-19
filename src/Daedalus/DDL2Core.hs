@@ -124,26 +124,30 @@ fromDecl decl@TC.TCDecl { .. }
            TC.AValue   ->
               case tcDeclDef of
                 TC.ExternDecl _ ->
-                  pure $ FE Fun { fName = f, fParams = xs, fDef = External False
+                  pure $ FE Fun { fName = f, fParams = xs, fDef = External
                                 , fIsEntry = tcDeclName `Set.member` ?ents
+                                , fMayFail = MayNotFail
                                 , fAnnot = declAnnot decl }
 
                 TC.Defined v ->
                    do e <- fromExpr v
                       pure $ FE Fun { fName = f, fParams = xs, fDef = Def e
                                     , fIsEntry = tcDeclName `Set.member` ?ents
+                                    , fMayFail = MayNotFail
                                     , fAnnot = declAnnot decl }
            TC.AClass ->
              case tcDeclDef of
                TC.ExternDecl _ ->
-                 pure $ FB Fun { fName = f, fParams = xs, fDef = External True
+                 pure $ FB Fun { fName = f, fParams = xs, fDef = External
                                , fIsEntry = tcDeclName `Set.member` ?ents
+                               , fMayFail = MayNotFail
                                , fAnnot = declAnnot decl }
 
                TC.Defined v ->
                  do e <- fromClass v
                     pure $ FB Fun { fName = f, fParams = xs, fDef = Def e
                                   , fIsEntry = tcDeclName `Set.member` ?ents
+                                  , fMayFail = MayNotFail
                                   , fAnnot = declAnnot decl }
 
            TC.AGrammar ->
@@ -151,14 +155,16 @@ fromDecl decl@TC.TCDecl { .. }
 
                -- XXX: Add no-fail annotation
                TC.ExternDecl _ ->
-                 pure $ FG Fun { fName = f, fParams = xs, fDef = External True
+                 pure $ FG Fun { fName = f, fParams = xs, fDef = External
                                , fIsEntry = tcDeclName `Set.member` ?ents
+                               , fMayFail = MayFail
                                , fAnnot = declAnnot decl }
 
                TC.Defined v ->
                  do e <- fromGrammar v
                     pure $ FG Fun { fName = f, fParams = xs, fDef = Def e
                                   , fIsEntry = tcDeclName `Set.member` ?ents
+                                  , fMayFail = Unknown
                                   , fAnnot = declAnnot decl }
 
 

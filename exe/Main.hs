@@ -280,6 +280,7 @@ doToCore opts mm =
      when (optSpecTys opts) (passSpecTys specMod >> checkCore opts "SpecTys")
      when (optDeterminize opts) (passDeterminize specMod >> checkCore opts "Det")
      when (optNoMatch opts) (passNoMatch specMod >> checkCore opts "NoMatch ")
+     passMayFail specMod
      when (optShrinkBiased opts)
           (passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
      when (optInlineCaseCase opts)

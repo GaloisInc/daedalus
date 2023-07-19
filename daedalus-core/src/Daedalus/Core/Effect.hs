@@ -1,6 +1,6 @@
 {-# Language BlockArguments #-}
-{-# Language FunctionalDependencies, FlexibleInstances #-}
-module Daedalus.Core.Effect(canFail, mayFail, mayFailModule) where
+{-# Language FlexibleInstances #-}
+module Daedalus.Core.Effect(canFail, mayFail, annotateMayFail, mayFailModule) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
@@ -16,6 +16,15 @@ mayFailModule m failing =
         then failing
         else mayFailModule m new
 
+-- | Given a set of known failing functions, annotate parsers with info
+-- on if they may fail.
+annotateMayFail :: Set FName -> Module -> Module
+annotateMayFail failingExt m = m { mGFuns = map annotFun (mGFuns m) }
+  where
+  failing = mayFailModule m failingExt
+  annotFun fu = fu { fMayFail = if fName fu `Set.member` failing
+                                   then MayFail else MayNotFail }
+
 -- | Given a set of functions that are known to fail,
 -- determine if we should extend thet set with this function
 mayFailFun :: Fun Grammar -> Set FName -> Set FName
@@ -24,9 +33,13 @@ mayFailFun fu failing
   | otherwise = if fails then Set.insert name failing else failing
   where
   name = fName fu
-  fails = case fDef fu of
-            External mayFail' -> mayFail'
-            Def e -> mayFail failing e
+  fails = case fMayFail fu of
+            MayFail -> True
+            MayNotFail -> False
+            Unknown ->
+              case fDef fu of
+                External -> True
+                Def e    -> mayFail failing e
 
 -- | Given a set of functions that are known to fail,
 -- determine if grammar may fail.
@@ -125,43 +138,6 @@ canFail gram =
           _ : ys                          -> partial ys
     -- Overly pessimistic as Many (0..) can't fail
     Loop lc -> canFail (loopClassBody lc)
-    
--- | Cache analysis results in annotation nodes
-annotate :: (FName -> [Expr] -> Grammar) -> Grammar -> Grammar
-annotate annCall = annot
-  where
-  annot gram =
-    addAnn
-    case gram of
-      Pure {}           -> gram
-      GetStream {}      -> gram
-      SetStream {}      -> gram
-      Fail {}           -> gram
-      Match {}          -> gram
-
-      Call f es         -> annCall f es
-
-      Annot a g         -> Annot a (annot g)
-
-      Do_ g1 g2         -> Do_ (annot g1) (annot g2)
-      Do x g1 g2        -> Do x (annot g1) (annot g2)
-      Let x e g         -> Let x e (annot g)
-      OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
-      OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
-      GCase (Case e alts) -> GCase (Case e [ (p,annot g1) | (p,g1) <- alts ])
-      Loop lc           -> Loop (annot <$> lc)
-
-  annNoFail g = case g of
-
-                  -- these are already known to not fail, so no need for annot
-                  Annot NoFail _ -> g
-                  Pure {}        -> g
-                  GetStream {}   -> g
-                  SetStream {}   -> g
-
-                  _              -> Annot NoFail g
-
-  addAnn g1 = if canFail g1 then g1 else annNoFail g1
 
 
 

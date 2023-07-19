@@ -5,16 +5,19 @@ module DaedalusMain where
  
 -------------
  
+-- may fail
 -- ./Det007.ddl:5:1--5:14
 proc A_() : () =
   -- ./Det007.ddl:5:9--5:14
   match1_ { 97 @(Word 8) }
  
+-- may fail
 -- ./Det007.ddl:6:1--6:14
 proc B_() : () =
   -- ./Det007.ddl:6:9--6:14
   match1_ { 98 @(Word 8) }
  
+-- may fail
 -- ./Det007.ddl:10:1--10:30
 proc Test1_() : () =
   -- ./Det007.ddl:10:14--10:30
@@ -39,6 +42,7 @@ proc Test1_() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det007.ddl:12:1--12:30
 proc Test2_() : () =
   -- ./Det007.ddl:12:14--12:30
@@ -63,16 +67,19 @@ proc Test2_() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det007.ddl:7:1--7:14
 proc C_() : () =
   -- ./Det007.ddl:7:9--7:14
   match1_ { 99 @(Word 8) }
  
+-- may fail
 -- ./Det007.ddl:8:1--8:14
 proc D_() : () =
   -- ./Det007.ddl:8:9--8:14
   match1_ { 100 @(Word 8) }
  
+-- may fail
 -- ./Det007.ddl:14:1--14:44
 proc Test3_() : () =
   -- ./Det007.ddl:14:14--14:44
@@ -105,6 +112,7 @@ proc Test3_() : () =
        _ ->
          fail_sys @()
  
+-- may not fail
 -- ./Det007.ddl:16:1--16:23
 proc Test4_() : () =
   -- ./Det007.ddl:16:14--16:23
@@ -116,6 +124,7 @@ proc Test4_() : () =
     pure ()
  
 -- entry pont
+-- may fail
 -- ./Det007.ddl:3:1--3:46
 proc Main() : () =
   -- ./Det007.ddl:3:14--3:46

@@ -50,7 +50,7 @@ inFun go f = case fDef f of
     setMName
     r <- go b
     pure (f { fDef = Def r })
-  External _mayFail -> pure f
+  External -> pure f
   where
     -- Should really be in Reader, but we don't nest so having stale
     -- mod names isn't an issue
@@ -111,22 +111,23 @@ newFName lab ty = do
           , fnameMod  = cmod
           }
 
-mkFun :: FName -> [Name] -> a -> Fun a
-mkFun fname anames b = 
+mkFun :: MayFail -> FName -> [Name] -> a -> Fun a
+mkFun failing fname anames b = 
   Fun { fName = fname
       , fParams = anames
       , fDef = Def b
       , fIsEntry = False
+      , fMayFail = failing
       , fAnnot = [] -- FIXME
       }
 
-defGFun :: FName -> [Name] -> Grammar -> M ()
-defGFun fname anames g =
-  M $ sets_ (\s -> s { newGFuns = mkFun fname anames g : newGFuns s })
+defGFun :: MayFail -> FName -> [Name] -> Grammar -> M ()
+defGFun failing fname anames g =
+  M $ sets_ (\s -> s { newGFuns = mkFun failing fname anames g : newGFuns s })
 
 defFFun :: FName -> [Name] -> Expr -> M ()
 defFFun fname anames g =
-  M $ sets_ (\s -> s { newFFuns = mkFun fname anames g : newFFuns s })
+  M $ sets_ (\s -> s { newFFuns = mkFun MayNotFail fname anames g : newFFuns s })
 
 -- Names a grammar (in a function) so we don't duplicate terms.  In
 -- theory this could not name for simple bodies, but for now we just
@@ -137,7 +138,7 @@ nameGrammar name g =
      let ty = typeOf g
          (args, anames) = unzip (Map.toList nameMap)
      fname <- newFName name ty
-     defGFun fname anames g'
+     defGFun Unknown fname anames g'
      pure (Call fname (map Var args))
 
 -- -----------------------------------------------------------------------------
@@ -170,7 +171,7 @@ noLoopG g =
      case g1 of
        Loop (ManyLoop s c l m_u b) -> noManyLoop s c l m_u b
        Loop (RepeatLoop c x e b)   -> noRepeatLoop c x e b
-       Loop (MorphismLoop lm)      -> noLoopMorphism lm defGFun Pure Do
+       Loop (MorphismLoop lm)      -> noLoopMorphism lm (defGFun MayFail) Pure Do
        _       -> pure g1
 
 -- -----------------------------------------------------------------------------
@@ -250,7 +251,7 @@ pSkipMany cmt p =
      (p', nameMap) <- rename p
      let (anames, args) = unzip (Map.toList nameMap)
      skipBody <- maybeSkip cmt p' (Call f (map Var args)) (Pure unit)
-     defGFun f args skipBody
+     defGFun MayNotFail f args skipBody
      pure (Call f (map Var anames))
 
 pParseMany :: Backtrack -> Type -> Expr -> Grammar -> M Grammar
@@ -262,7 +263,7 @@ pParseMany cmt ty be p =
      let xe = Var x
      body <- maybeParse cmt ty p'
                               (\a -> Call f (emit xe a : map Var args)) (Pure xe)
-     defGFun f (x:args) body
+     defGFun MayNotFail f (x:args) body
      pure $ Call f (be : map Var anames)
 
 pSkipExactlyMany :: Backtrack -> Expr -> Grammar -> M Grammar
@@ -276,7 +277,7 @@ pSkipExactlyMany _cmt tgt p =
      let body = Do_ (OrBiased p' (sysErr TUnit "insufficient element occurances"))
                     (Call f (add xe (intL 1 sizeType) : map Var args))
 
-     defGFun f (x : args) =<< doIf (xe `lt` tgt') body (Pure unit)
+     defGFun MayFail f (x : args) =<< doIf (xe `lt` tgt') body (Pure unit)
      pure $ Call f (intL 0 sizeType : map Var anames)
 
 -- | Produces a function which returns a builder
@@ -304,7 +305,7 @@ pParseExactlyMany _cmt ty tgt p =
                               : emit be re
                               : map Var args))
 
-     defGFun  f (x : b : args) =<< doIf (xe `lt` tgt') body (Pure be)
+     defGFun MayFail f (x : b : args) =<< doIf (xe `lt` tgt') body (Pure be)
      pure $ Call f (intL 0 sizeType : newBuilder ty : map Var anames)
 
 pSkipAtMost :: Backtrack -> Expr -> Grammar -> M Grammar
@@ -316,7 +317,7 @@ pSkipAtMost cmt tgt p =
      let xe = Var x
      skipBody <- maybeSkip cmt p' (Call f (add xe (intL 1 sizeType) : map Var args))
                                   (Pure xe)
-     defGFun f (x:args) =<< doIf (xe `lt` tgt') skipBody (Pure xe)
+     defGFun MayNotFail f (x:args) =<< doIf (xe `lt` tgt') skipBody (Pure xe)
      pure (Call f (intL 0 sizeType : map Var anames))
 
 pParseAtMost :: Backtrack -> Type -> Expr -> Expr -> Grammar -> M Grammar
@@ -335,7 +336,7 @@ pParseAtMost cmt ty tgt be p =
                               : map Var args))
                 (Pure bve)
 
-     defGFun f (x : bv : args) =<< doIf (xe `lt` tgt') body (Pure bve)
+     defGFun MayNotFail f (x : bv : args) =<< doIf (xe `lt` tgt') body (Pure bve)
      pure $ Call f (intL 0 sizeType : be : map Var anames)
 
 finishMany :: Type -> Grammar -> M Grammar
@@ -363,7 +364,7 @@ noRepeatLoop cmt x e p =
                            [ (PJust, Call f (eFromJust (Var r2) : map Var args))
                            , (PNothing, Pure (Var x))
                            ]
-     defGFun f (x : args) =<< def
+     defGFun MayNotFail f (x : args) =<< def
      pure (Call f (e : map Var anames))
   where
     ty = typeOf p

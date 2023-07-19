@@ -81,7 +81,7 @@ getNoInline = InlineM (noInline <$> get)
 instantiate :: (HasGUID m, Subst e) => Fun e -> [Expr] -> InlineM m e
 instantiate f es =
   case fDef f of
-    External _mayFail -> panic "instantiate"
+    External -> panic "instantiate"
                   [ "Trying to inline a primitve: " ++ show (pp (fName f)) ]
     Def e ->
       do let su = Map.fromList (fParams f `zip` es)
@@ -146,7 +146,7 @@ instance Expand e => Expand (Fun e) where
       Def e ->
         do e' <- expand e
            pure f { fDef = Def e' }
-      External _mayFail -> pure f
+      External -> pure f
 
 --------------------------------------------------------------------------------
 

@@ -33,12 +33,16 @@ data Fun e = Fun
   , fParams  :: [Name]
   , fDef     :: FunDef e
   , fIsEntry :: !Bool
+  , fMayFail :: !MayFail
   , fAnnot   :: ![Annot]
   }
   deriving (Functor, Foldable, Traversable, Generic, NFData)
 
-data FunDef e = Def e | External Bool   -- ^ Can the external function fail
+data FunDef e = Def e | External
   deriving (Functor, Foldable, Traversable, Generic, NFData)
+
+data MayFail = Unknown | MayFail | MayNotFail
+  deriving (Generic, NFData)
 
 data TDecl = TDecl
   { tName          :: TName
@@ -149,6 +153,7 @@ instance PP Module where
 
 instance (DefKW e, PP e) => PP (Fun e) where
   pp f = isEnt $$
+         mayFail $$
          annot $$
          kw <+> pp (fName f)
        <.> parens (commaSep (map ppP (fParams f)))
@@ -157,6 +162,13 @@ instance (DefKW e, PP e) => PP (Fun e) where
     where ppP x = pp x <+> ":" <+> pp (nameType x)
           kw = defKW (fDef f)
           isEnt = if fIsEntry f then "-- entry pont" else empty
+          mayFail
+            | defIsGrammar (fDef f) =
+              case fMayFail f of
+                MayFail -> "-- may fail"
+                MayNotFail -> "-- may not fail"
+                Unknown -> mempty
+            | otherwise = mempty
           annot = case fAnnot f of
                     [] -> empty
                     as -> hsep ("--" : map pp as)
@@ -165,10 +177,7 @@ instance PP e => PP (FunDef e) where
   pp def =
     case def of
       Def e   -> pp e
-      External mayFail
-        | mayFail -> "_ {- external -}"
-        | otherwise -> "_ {- external, no fail -}"
-
+      External -> "_ {- external -}"
 
 instance PP TDecl where
   pp d =
@@ -203,13 +212,17 @@ instance PP BDField where
 
 class DefKW a where
   defKW :: FunDef a -> Doc
+  defIsGrammar :: FunDef a -> Bool
 
 instance DefKW Expr where
   defKW _ = "func"
+  defIsGrammar _ = False
 
 instance DefKW ByteSet where
   defKW _ = "byteset"
+  defIsGrammar _ = False
 
 instance DefKW Grammar where
   defKW _ = "proc"
+  defIsGrammar _ = True
 

@@ -204,6 +204,7 @@ makeCoercionFun pfx tn bdef argTy retTy mkS mkU = do
            , fDef     = Def def
            , fIsEntry = False
            , fAnnot   = []
+           , fMayFail = MayNotFail
            }
   where
     n0 = Name { nameId = invalidGUID

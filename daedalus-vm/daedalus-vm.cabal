@@ -25,6 +25,7 @@ library
     Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy
     Daedalus.VM.RefCountSane
+    Daedalus.VM.TypeCheck
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.BlockBuilder
     Daedalus.VM.Compile.Grammar

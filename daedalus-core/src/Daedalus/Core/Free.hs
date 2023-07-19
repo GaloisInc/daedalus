@@ -102,12 +102,12 @@ instance FreeVars e => FreeVars (FunDef e) where
   freeVars def =
     case def of
       Def e -> freeVars e
-      External _mayFail -> Set.empty
+      External -> Set.empty
 
   freeFVars def =
     case def of
       Def e -> freeFVars e
-      External _mayFail -> Set.empty
+      External -> Set.empty
 
 
 instance FreeVars e => FreeVars (Fun e) where

@@ -17,7 +17,7 @@ noMatchGFun :: HasGUID m => Fun Grammar -> m (Fun Grammar)
 noMatchGFun fu =
   case fDef fu of
     Def b    -> (\b1 -> fu { fDef = Def b1 }) <$> noMatchG b
-    External _mayFail -> pure fu
+    External -> pure fu
 
 
 noMatchBFun :: HasGUID m => Fun ByteSet -> m (Fun Expr)

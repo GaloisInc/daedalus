@@ -9,16 +9,19 @@ type Main =
  
 -------------
  
+-- may fail
 -- ./Det004.ddl:9:1--10:9
 proc Gram2() : Word 8 =
   -- ./Det004.ddl:10:4--10:9
   match1 { 98 @(Word 8) }
  
+-- may fail
 -- ./Det004.ddl:12:1--13:8
 proc Gram3() : Word 8 =
   -- ./Det004.ddl:13:3--13:8
   match1 { 99 @(Word 8) }
  
+-- may fail
 -- ./Det004.ddl:5:1--7:24
 proc Gram1() : Word 8 =
   -- ./Det004.ddl:6:6--7:24
@@ -46,6 +49,7 @@ proc Gram1() : Word 8 =
          fail_sys @(Word 8)
  
 -- entry pont
+-- may fail
 -- ./Det004.ddl:3:1--3:47
 proc Main() : Main =
   -- ./Det004.ddl:3:14--3:47

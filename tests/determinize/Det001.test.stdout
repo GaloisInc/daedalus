@@ -12,6 +12,7 @@ type Main =
  
 -------------
  
+-- may fail
 -- ./Det001.ddl:5:1--9:10
 proc Simple1() : Word 8 =
   -- ./Det001.ddl:6:5--9:10
@@ -38,6 +39,7 @@ proc Simple1() : Word 8 =
        _ ->
          fail_sys @(Word 8)
  
+-- may fail
 -- ./Det001.ddl:11:1--15:10
 proc SimpleNot1() : Word 8 =
   -- ./Det001.ddl:12:5--15:10
@@ -64,6 +66,7 @@ proc SimpleNot1() : Word 8 =
        _ ->
          fail_sys @(Word 8)
  
+-- may fail
 -- ./Det001.ddl:17:1--20:12
 proc Simple2() : () =
   -- ./Det001.ddl:18:6--20:12
@@ -84,6 +87,7 @@ proc Simple2() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det001.ddl:22:1--25:39
 proc Simple3() : Word 8 =
   -- ./Det001.ddl:23:6--25:39
@@ -119,6 +123,7 @@ proc Simple3() : Word 8 =
          fail_sys @(Word 8)
  
 -- entry pont
+-- may fail
 -- ./Det001.ddl:3:1--3:69
 proc Main() : Main =
   -- ./Det001.ddl:3:14--3:69

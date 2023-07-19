@@ -4,6 +4,7 @@ module DaedalusMain where
 -------------
  
 -- entry pont
+-- may fail
 -- ./Det010.ddl:3:1--6:14
 proc Main() : Word 8 =
   -- ./Det010.ddl:4:3--6:14

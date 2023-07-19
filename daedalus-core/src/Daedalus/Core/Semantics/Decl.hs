@@ -72,7 +72,7 @@ evalFun fn env =
   val = \vs -> let env1 = foldr (uncurry defLocal) env (zip (fParams fn) vs)
                in case fDef fn of
                     Def e    -> eval e env1
-                    External _mayFail -> lookupFun (fName fn) env vs
+                    External -> lookupFun (fName fn) env vs
 
 
 evalGFuns :: [Fun Grammar] -> Env -> Env
@@ -86,7 +86,7 @@ evalGFun fn env = (fName fn, val)
   val = \vs -> let env1 = foldr (uncurry defLocal) env (zip (fParams fn) vs)
                in case fDef fn of
                     Def e    -> evalG e env1
-                    External _mayFail -> lookupGFun (fName fn) env vs
+                    External -> lookupGFun (fName fn) env vs
 
 
 evalBFun :: Fun ByteSet -> Env -> (FName, [Value] -> Word8 -> Bool)
@@ -95,7 +95,7 @@ evalBFun fn env = (fName fn, val)
   val = \vs -> let env1 = foldr (uncurry defLocal) env (zip (fParams fn) vs)
                in case fDef fn of
                     Def e    -> evalByteSet e env1
-                    External _mayFail -> lookupBFun (fName fn) env vs
+                    External -> lookupBFun (fName fn) env vs
 
 
 evalBFuns :: [Fun ByteSet] -> Env -> Env
