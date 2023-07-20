@@ -14,6 +14,8 @@ import Daedalus.PP
 import Daedalus.VM
 
 
+-- XXX: It might make sense to do this analysis on Core
+
 captureAnalysis :: Program -> Program
 captureAnalysis prog = Program { pModules = map annotateModule ms }
   where
@@ -176,8 +178,9 @@ instance GetCaptureInfo CInstr where
       CallCapture f _ _ _ -> CapturesIf (Set.singleton f)
       CallNoCapture {}    -> panic "captureInfo" ["CallNoCapture"]
       TailCall f c _      -> case c of
-                               Unknown -> CapturesIf (Set.singleton f)
-                               _       -> panic "captureInfo" ["Not unknown"]
+                               Unknown   -> CapturesIf (Set.singleton f)
+                               NoCapture -> CapturesIf Set.empty -- e.g., expr
+                               Capture   -> CapturesYes
       _                   -> capturesNo
 
 instance GetCaptureInfo Block where
