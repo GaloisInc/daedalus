@@ -44,10 +44,10 @@ import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
                                                             SequenceTag,
                                                             runSemiSolverM)
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.PathCondition (LoopCountVar (..),
-                                                            PathCondition,
-                                                            PathVar (..), loopCountVarSort, loopCountToSExpr)
-import qualified Talos.SymExec.Expr                        as SE
+import           Talos.Strategy.PathSymbolic.PathSet      (LoopCountVar (..),
+                                                          PathCondition,
+                                                          PathVar (..), loopCountVarSort, loopCountToSExpr)
+import qualified Talos.SymExec.Expr                       as SE
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)

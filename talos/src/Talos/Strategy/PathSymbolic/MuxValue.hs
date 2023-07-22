@@ -1,21 +1,16 @@
-{-# LANGUAGE ConstraintKinds      #-}
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE DeriveFunctor        #-}
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE DeriveTraversable    #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE GADTs                #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE PatternSynonyms      #-}
-{-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE TypeApplications     #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedLabels  #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards     #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
@@ -24,135 +19,76 @@
 
 module Talos.Strategy.PathSymbolic.MuxValue (
   MuxValue
+  , semiExecExpr
   ) where
 
-import           Control.Lens                              (locally, traverseOf, _2, _1, each)
-import           Control.Monad                             (join, zipWithM)
+import           Control.Lens                        (Prism', _1, _2, each,
+                                                      locally, over, preview,
+                                                      traverseOf, (%~), (&),
+                                                      (.~))
+import           Control.Monad                       (join, zipWithM)
+import           Control.Monad.Except                (ExceptT, throwError)
+import           Control.Monad.Identity              (Identity (..))
 import           Control.Monad.Reader
-import           Control.Monad.State                       (StateT, modify,
-                                                            runStateT)
-import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
-import qualified Data.ByteString                           as BS
-import           Data.Generics.Product                     (field)
-import           Data.List                                 (transpose)
-import           Data.List.NonEmpty                        (NonEmpty (..),
-                                                            nonEmpty)
-import qualified Data.List.NonEmpty                        as NE
-import           Data.Map.Strict                           (Map)
-import qualified Data.Map.Strict                           as Map
-import           Data.Maybe                                (catMaybes,
-                                                            fromMaybe,
-                                                            isNothing, mapMaybe)
-import           Data.Semigroup                            (sconcat)
-import           Data.Set                                  (Set)
-import qualified Data.Set                                  as Set
-import           Data.Text                                 (Text)
-import qualified Data.Text                                 as Text
-import qualified Data.Vector                               as Vector
-import           GHC.Generics                              (Generic)
-import           GHC.Stack                                 (HasCallStack)
+import           Control.Monad.State                 (StateT, modify)
+import           Data.Bifunctor                      (first)
+import qualified Data.ByteString                     as BS
+import           Data.Foldable                       (foldl', foldlM, toList)
+import           Data.Generics.Labels                ()
+import qualified Data.List.NonEmpty                  as NE
+import qualified Data.Map.Merge.Strict               as Map
+import           Data.Map.Strict                     (Map)
+import qualified Data.Map.Strict                     as Map
+import           Data.Maybe                          (fromMaybe, isNothing,
+                                                      mapMaybe, maybeToList)
+import           Data.Set                            (Set)
+import qualified Data.Set                            as Set
+import           Data.Text                           (Text)
+import           Data.Tuple                          (swap)
+import           GHC.Generics                        (Generic)
+import           GHC.Stack                           (HasCallStack)
 
-import qualified SimpleSMT                                 as S
-import           SimpleSMT                                 (SExpr)
+import qualified SimpleSMT                           as S
+import           SimpleSMT                           (SExpr)
 
-import           Daedalus.Core                             hiding (freshName)
-import qualified Daedalus.Core.Semantics.Env               as I
-import           Daedalus.Core.Semantics.Expr              (evalOp0, evalOp1,
-                                                            evalOp2, matches,
-                                                            partial)
+import           Daedalus.Core                       hiding (freshName)
+import           Daedalus.Core.Semantics.Expr        (evalOp0, evalOp1, evalOp2,
+                                                      partial)
 import           Daedalus.Core.Type
 import           Daedalus.GUID
 import           Daedalus.Panic
 import           Daedalus.PP
-import qualified Daedalus.Value.Type                       as V
+import qualified Daedalus.Value.Type                 as V
 
-import qualified Talos.Monad                               as T
-import           Talos.Monad                               (LiftTalosM, LogKey,
-                                                            getFunDefs)
+import           Talos.Monad                         (LiftTalosM, LogKey)
 import           Talos.Solver.SolverT
-import           Talos.Strategy.Monad                      (LiftStrategyM,
-                                                            liftStrategy)
+import           Talos.Strategy.Monad                (LiftStrategyM)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar
-                                                     , PathSet
-                                                     -- , ValuePathConstraint (..)
-                                                     , loopCountVarToSMTVar)
-import qualified Talos.Strategy.PathSymbolic.SymExec       as SE
+import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar (..),
+                                                      PathSet)
+import qualified Talos.Strategy.PathSymbolic.SymExec as SE
+import           Talos.Strategy.PathSymbolic.SymExec (symExecTy)
 
-import           Data.String                               (fromString)
-import           Text.Printf                               (printf)
-import Data.Bifunctor (second, first)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Data.Foldable (toList, foldl')
-import Control.Monad.Except (ExceptT, throwError)
-import Data.Proxy (Proxy(..))
-import Data.Type.Equality ((:~:)(..))
-import Data.Traversable (forM)
 
 --------------------------------------------------------------------------------
 -- Logging and stats
 
-muxKey :: LogKey
-muxKey = "muxvalue"
+_muxKey :: LogKey
+_muxKey = "muxvalue"
 
 --------------------------------------------------------------------------------
 -- Types
 
-data BVClass t where
-  BoolC    :: BVClass Bool
-  IntegerC :: BVClass Integer
-
-sameClass :: BVClass c1 -> BVClass c2 -> Maybe (c1 :~: c2)
-sameClass c1 c2  =
-  case (c1, c2) of
-    (BoolC, BoolC) -> Just Refl
-    (IntegerC, IntegerC) -> Just Refl
-    _ -> Nothing
-
-withBVClassTCs :: BVClass v -> ((Eq v, Ord v, Show v) => a) -> a
-withBVClassTCs BoolC f = f
-withBVClassTCs IntegerC f = f
-
-deriving instance Show (BVClass t)
-deriving instance Eq (BVClass t)
-deriving instance Ord (BVClass t)
-
 -- | A collection of base values (integer or bool) with their
 -- associated path conditions.  The symbolic case does not need a path
--- condition as it is enabled only if the other values are not.
+-- condition as it is enabled only if the other values are not (this
+-- means, however, we need to assert negations at a case)
 data BaseValues v s = BaseValues
   { bvConcrete :: !(Map v PathSet)
   -- ^ Concrete values mapped onto the disjunction of path conditions.
   , bvSymbolic :: !(Maybe s)
   }
-  deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
-
-data TypedValues s = forall v. TypedValues
-  { clType :: Type
-  , clClass :: BVClass v
-  , clValue :: BaseValues v s
-  } 
-
-instance Show (TypedValues s) where
-  show _vals = "UNIMPLEMENTED"
-
-instance Ord s => Ord (TypedValues s) where
-  compare (TypedValues { clType = t1, clClass = cl1, clValue = cv1 })
-          (TypedValues { clType = t2, clClass = cl2, clValue = cv2 }) =
-    case (cl1, cl2) of
-      (BoolC, BoolC)    -> compare (t1, cv1) (t2, cv2)
-      (BoolC, IntegerC) -> LT
-      (IntegerC, BoolC) -> GT
-      (IntegerC, IntegerC) -> compare (t1, cv1) (t2, cv2)
-
-instance Ord s => Eq (TypedValues s) where
-  a == b = compare a b == EQ
-
--- instance Eq (TypedValues s) where
-deriving instance Foldable TypedValues
-deriving instance Traversable TypedValues
-deriving instance Functor TypedValues
+  deriving (Show, Eq, Ord, Foldable, Traversable, Functor, Generic)
 
 singletonBaseValues :: PathSet -> v -> BaseValues v s
 singletonBaseValues ps v = BaseValues
@@ -166,19 +102,6 @@ singletonSymBaseValues s = BaseValues
   , bvSymbolic = Just s
   }
 
--- | Converts many symbolic values into a single value
-collapseSymbolic :: [(SExpr, PathSet)] -> Maybe SExpr -> Maybe SExpr
-collapseSymbolic xs m_base =
-  case (xs, m_base) of
-    ([], Nothing)  -> Nothing
-    (_, Just base) -> Just (mk base xs)
-    ((base, _) : xs', Nothing) -> Just (mk base xs')
-  where
-    mk = foldl' (\acc (se, ps) -> S.ite (PS.toSExpr ps) se acc)
-
--- FIXME: we could also have Map V.Label [(PathCondition, MuxValueF
--- b)], i.e. merge lazily.  Maybe Haskell helps here anyway?
-
 -- | Unifies Maybe and Unions
 type SumTypeMuxValueF l s = Map l (PathSet, MuxValueF s)
 
@@ -186,8 +109,10 @@ singletonSumTypeMuxValueF :: l -> MuxValueF s -> SumTypeMuxValueF l s
 singletonSumTypeMuxValueF k v = Map.singleton k (PS.trivialPathSet, v)
 
 data MuxValueF s =
-  VBase !(TypedValues s)
-  | VUnit
+  VUnit
+  | VIntegers !(Typed (BaseValues Integer s))
+  | VBools    !(BaseValues Bool s)
+
   -- FIXME: we could also have Map V.Label [(PathCondition, MuxValueF
   -- b)], i.e. merge lazily.  Maybe Haskell helps here anyway?
   | VUnion                !(SumTypeMuxValueF V.Label s)
@@ -196,7 +121,38 @@ data MuxValueF s =
 
   | VStruct                !(Map V.Label (MuxValueF s))
 
-  | VSequence             !VSequenceMeta ![MuxValueF s]
+  -- There are 2 main way to represent sequences:
+  -- 1. [ PathSet, (VSequenceMeta, [MuxValueF s]) ]
+  -- 2. VSequenceMeta' [MuxValueF s]
+  --
+  -- where the second pushes the paths into the elements, and needs a
+  -- different VSM type.  Mostly this is just a question of when the
+  -- merge happens: before or after we perform operations,
+  -- respectively (i.e., for (1) above we would merge after the op.,
+  -- (2) is merged once prior to any other list operation.)
+  --
+  -- In practice I don't expect we will merge lists that frequently,
+  -- so whatever makes the implementation simpler seems to be best.
+  -- This seems to be (1), although it breaks a little the idea of
+  -- having paths only at the leaves (we also have them at sum types,
+  -- so this is not the only place).
+  --
+  -- Operations on sequences:
+  --  - Generators
+  --  - Morphisms
+  --  - Eq
+  --  - Emit* (only on Builders, should be simple in general?)
+  --  - ArrayLen
+  --  - Concat
+  --  - FinishBuilder
+  --  - ArrayIndex
+  --  - ArrayStream
+  --  - RangeUp/RangeDown
+  --
+  -- Also, having this rep. allows concrete lengths (the alternative
+  -- is to use a muxvalue/basevalue for the length, which would introduce all
+  -- sorts of complexities).
+  | VSequence             [(PathSet, (VSequenceMeta, [MuxValueF s]))] (VSequenceMeta, [MuxValueF s])
   | VMaybe                !(SumTypeMuxValueF (Maybe ()) s)
 
   -- We support symbolic keys, so we can't use Map here
@@ -205,7 +161,7 @@ data MuxValueF s =
   -- example.  We might also keep track of merge points (useful
   -- e.g. if conditionally updating a map)
   | VMap                   ![(MuxValueF s, MuxValueF s)]
-  deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
+  deriving (Show, Eq, Ord, Foldable, Traversable, Functor, Generic)
 
 -- Used by the rest of the simulator
 type MuxValue = MuxValueF SMTVar
@@ -214,35 +170,126 @@ type MuxValue = MuxValueF SMTVar
 type MuxValueSExpr = MuxValueF SExpr
 
 
--- Conversion to/from interp. values
-toValue :: BVClass v -> Type -> v -> V.Value
-toValue IntegerC ty i = partial (evalOp0 (IntL i ty))
-toValue BoolC    _  b = V.VBool b
+-- ----------------------------------------------------------------------------------------
+-- ValueLens
+--
+-- This is useful for being a bit generic when dealing with base values.
 
--- Defined only for types which can converted to BaseValues
-fromValue :: BVClass v -> V.Value -> v
-fromValue BoolC (V.VBool b) = b
-fromValue IntegerC v =
-  case v of
-    V.VUInt _n i -> i
-    V.VSInt _n i -> i
-    V.VInteger i -> i
-    _          -> panic "Unexpected value shape" [showPP v]
+-- Simpler way of abstracting over bool/ints (and maybe later floats)
+data ValueLens v = ValueLens
+  { vlFromMuxValue  :: forall s. MuxValueF s -> Maybe (Type, BaseValues v s)
+  , vlToMuxValue    :: forall s. Type -> BaseValues v s -> MuxValueF s
+  , vlFromInterpValue :: V.Value -> v
+  , vlToInterpValue :: Type -> v -> V.Value
+  , vlToSExpr       :: Type -> v -> S.SExpr
+  }
 
-baseValueToSExpr :: BVClass v -> Type -> v -> SExpr
-baseValueToSExpr BoolC _ = S.bool
-baseValueToSExpr IntegerC ty =
-  case ty of
-    TUInt (TSize n) ->
-      if n `mod` 4 == 0
-      then S.bvHex (fromIntegral n)
-      else S.bvBin (fromIntegral n)
-    TSInt (TSize n) -> -- FIXME: correct?
-      if n `mod` 4 == 0
-      then S.bvHex (fromIntegral n) 
-      else S.bvBin (fromIntegral n)
-    TInteger -> S.int
-    _ -> panic "Unexpected type for base value" [showPP ty]
+-- FIXME: a bit gross?
+symExecInt :: Type -> Integer -> SExpr
+symExecInt ty i = SE.symExecOp0 (IntL i ty)
+
+integerVL :: ValueLens Integer
+integerVL = ValueLens
+  { vlFromMuxValue =
+      \case
+        VIntegers (Typed ty bvs) -> Just (ty, bvs)
+        _ -> Nothing
+  , vlToMuxValue = \ty vs -> VIntegers (Typed ty vs)
+  , vlFromInterpValue =
+      \case
+        V.VUInt _n i -> i
+        V.VSInt _n i -> i
+        V.VInteger i -> i
+        _          -> panic "Unexpected value shape" []
+  , vlToInterpValue = \ty i -> partial (evalOp0 (IntL i ty))
+  , vlToSExpr =
+      \case
+        TUInt (TSize n) ->
+          if n `mod` 4 == 0
+          then S.bvHex (fromIntegral n)
+          else S.bvBin (fromIntegral n)
+        TSInt (TSize n) -> -- FIXME: correct?
+          if n `mod` 4 == 0
+          then S.bvHex (fromIntegral n)
+          else S.bvBin (fromIntegral n)
+        TInteger -> S.int
+        ty -> panic "Unexpected type for base value" [showPP ty]
+  }
+
+boolVL :: ValueLens Bool
+boolVL = ValueLens
+  { vlFromMuxValue =
+      \case
+        VBools bvs -> Just (TBool, bvs)
+        _ -> Nothing
+  , vlToMuxValue = \_ty vs -> VBools vs
+  , vlFromInterpValue =
+      \case
+        V.VBool b -> b
+        _          -> panic "Unexpected value shape" []
+  , vlToInterpValue = \_ -> V.VBool
+  , vlToSExpr       = \_ -> S.bool
+  }
+
+-- projectBools (VBools bvs) = bvs
+-- projectBools _ = panic "Expecting a bool value" []
+
+-- projectIntegers :: MuxValueF s -> Typed (BaseValues Integer s)
+-- projectIntegers (VIntegers r) = r
+-- projectIntegers _ = panic "Expecting a bool value" []
+
+-- projectUnion :: MuxValueF s -> SumTypeMuxValueF V.Label s
+-- projectUnion (VUnion r) = r
+-- projectUnion _ = panic "Expecting a VUnion" []
+
+-- projectStruct :: MuxValueF s -> Map V.Label (MuxValueF s)
+-- projectStruct (VStruct r) = r
+-- projectStruct _ = panic "Expecting a VStruct" []
+
+-- projectSequence :: MuxValueF s -> (VSequenceMeta, [MuxValueF s])
+-- projectSequence (VSequence r1 r2) = (r1, r2)
+-- projectSequence 
+--   | VMaybe                !(SumTypeMuxValueF (Maybe ()) s)
+
+--   -- We support symbolic keys, so we can't use Map here
+
+--   -- FIXME: This is pretty naieve, we might duplicate paths, for
+--   -- example.  We might also keep track of merge points (useful
+--   -- e.g. if conditionally updating a map)
+--   | VMap                   ![(MuxValueF s, MuxValueF s)]
+--   deriving (Show, Eq, Ord, Foldable, Traversable, Functor)
+
+
+
+-- -- Conversion to/from interp. values
+-- toValue :: BVClass v -> Type -> v -> V.Value
+-- toValue IntegerC ty i = partial (evalOp0 (IntL i ty))
+-- toValue BoolC    _  b = V.VBool b
+
+-- -- Defined only for types which can converted to BaseValues
+-- fromValue :: BVClass v -> V.Value -> v
+-- fromValue BoolC (V.VBool b) = b
+-- fromValue IntegerC v =
+--   case v of
+--     V.VUInt _n i -> i
+--     V.VSInt _n i -> i
+--     V.VInteger i -> i
+--     _          -> panic "Unexpected value shape" [showPP v]
+
+-- baseValueToSExpr :: BVClass v -> Type -> v -> SExpr
+-- baseValueToSExpr BoolC _ = S.bool
+-- baseValueToSExpr IntegerC ty =
+--   case ty of
+--     TUInt (TSize n) ->
+--       if n `mod` 4 == 0
+--       then S.bvHex (fromIntegral n)
+--       else S.bvBin (fromIntegral n)
+--     TSInt (TSize n) -> -- FIXME: correct?
+--       if n `mod` 4 == 0
+--       then S.bvHex (fromIntegral n) 
+--       else S.bvBin (fromIntegral n)
+--     TInteger -> S.int
+--     _ -> panic "Unexpected type for base value" [showPP ty]
 
 -- Sequences
 
@@ -300,10 +347,10 @@ emptyVSequenceMeta = VSequenceMeta
 
 -- | An empty base value is malformed and should not occur.
 nullBaseValues :: BaseValues v s -> Bool
-nullBaseValues BaseValues {..} = Map.null bvConcrete && isNothing bvSymbolic 
+nullBaseValues BaseValues {..} = Map.null bvConcrete && isNothing bvSymbolic
 
-singletonBase :: Type -> PathSet -> BVClass v -> v -> MuxValueF b
-singletonBase ty ps cl v = VBase (TypedValues ty cl $ singletonBaseValues ps v)
+-- singletonBase :: Type -> PathSet -> BVClass v -> v -> MuxValueF b
+-- singletonBase ty ps cl v = VBase (TypedValues ty cl $ singletonBaseValues ps v)
 
 -- vOther :: PathCondition -> Typed SMTVar -> MuxValueF b
 -- vOther g = singleton g . VOther
@@ -315,18 +362,20 @@ singletonBase ty ps cl v = VBase (TypedValues ty cl $ singletonBaseValues ps v)
 -- vValue :: PathCondition -> V.Value -> GuardedSemiSExprs
 -- vValue g = singleton g . VValue
 
-vSymbolic :: Type -> BVClass v -> s -> MuxValueF s
-vSymbolic ty cl s = VBase (TypedValues ty cl $ singletonSymBaseValues s)
+vSymbolicInteger :: Type -> s -> MuxValueF s
+vSymbolicInteger ty s = VIntegers (Typed ty $ singletonSymBaseValues s)
 
+_vSymbolicBool :: s -> MuxValueF s
+_vSymbolicBool s = VBools (singletonSymBaseValues s)
 vBool :: Bool -> MuxValueF b
-vBool b = singletonBase TBool PS.trivialPathSet BoolC b
+vBool = VBools . singletonBaseValues PS.trivialPathSet
 
 vInteger :: Type -> Integer -> MuxValueF b
-vInteger ty i = singletonBase ty PS.trivialPathSet IntegerC i
+vInteger ty = VIntegers . Typed ty . singletonBaseValues PS.trivialPathSet
 
 -- | Construct a fixed-length sequence
 vFixedLenSequence :: [MuxValueF b] -> MuxValueF b
-vFixedLenSequence = VSequence emptyVSequenceMeta
+vFixedLenSequence els = VSequence [] (emptyVSequenceMeta, els)
 
 -- Sum types
 
@@ -334,7 +383,7 @@ vNothing :: MuxValueF b
 vNothing = VMaybe (singletonSumTypeMuxValueF Nothing VUnit)
 
 vJust :: MuxValueF b -> MuxValueF b
-vJust = VMaybe . singletonSumTypeMuxValueF (Just ()) 
+vJust = VMaybe . singletonSumTypeMuxValueF (Just ())
 
 -- vUInt :: PathCondition -> Int -> Integer -> MuxValueF b
 -- vUInt g n = vValue g . V.vUInt n
@@ -357,39 +406,144 @@ vJust = VMaybe . singletonSumTypeMuxValueF (Just ())
 -- unions' :: [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
 -- unions' = fmap unions . nonEmpty
 
--- -- -----------------------------------------------------------------------------
--- -- Sequences
--- --
--- -- These two operations could be horrendously expensive.
+-- ----------------------------------------------------------------------------------------
+-- Multiplexing values
 
--- -- | Turns a sequence, which may be a super-position of multiple
--- -- sequence lengths, into multiple sequences where the length is
--- -- fixed.
--- explodeSequence :: VSequenceMeta -> [GuardedSemiSExprs]
---                 -> [ (PathCondition, [GuardedSemiSExprs]) ]
--- explodeSequence vsm els
---   | Just lcv <- vsmLoopCountVar vsm = map (go lcv) [vsmMinLength vsm .. length els]
---   | otherwise = [(mempty, els)]
---   where
---     -- FIXME: this is inefficient, maybe store loops in reversed order (to get sharing)
---     go lcv len = (PC.insertLoopCount lcv (PC.LCCEq len) mempty, take len els)
 
--- -- | Turns a sequence (of fixed length) into a sequence for each
--- -- possible combination of paths to the elements.  This could be
--- -- exponential in the length of the list, in the worst case.
+-- Maybe we can use this in mergeBaseValues?
+muxMapsM :: (Monad m, Ord k) => (PathSet -> v -> m (Maybe w)) ->
+            ([w] -> Maybe x -> m z) ->
+            (Map k x -> m (Map k z)) -> 
+            [(PathSet, Map k v)] -> Map k x -> m (Map k z)
+muxMapsM _f _g dflt  [] m = dflt m
+muxMapsM f g   _dflt ms m = do
+  ms' <- Map.unionsWith (<>) <$> sequence [ Map.traverseMaybeWithKey (f' ps) m' | (ps, m') <- ms ]
+  let lhs = Map.traverseMissing (const (`g` Nothing))
+      rhs = Map.traverseMissing (const (g [] . Just))
+  Map.mergeA lhs rhs (Map.zipWithAMatched g') ms' m  
+  where
+    f' ps _k el = fmap (: []) <$> f ps el
+    g' _k xs y = g xs (Just y)
 
--- unzipSequence :: [GuardedSemiSExprs] -> [ (PathCondition, [GuardedSemiSExpr]) ]
--- unzipSequence = go []
---   where
---     go acc [] = [ (g, reverse vs) | (g, vs) <- acc ]
---     go acc (gs : rest) =
---       go [ (merged_g, v : vs)
---          | (g, vs) <- acc
---          , (g', v) <- guardedValues gs
---          , let merged_g = g <> g'
---          , PC.isFeasibleMaybe merged_g
---          ] rest
+muxMaps :: Ord k => (PathSet -> v -> Maybe w) ->
+            ([w] -> Maybe x -> z) ->
+            (Map k x -> Map k z) -> 
+            [(PathSet, Map k v)] -> Map k x -> Map k z
+muxMaps f g dflt xs m =
+  runIdentity (muxMapsM (\a b -> pure (f a b)) (\a b -> pure (g a b)) (pure . dflt) xs m)
 
+muxBaseValues :: Ord v => [(PathSet, BaseValues v SExpr)] -> Maybe (BaseValues v SExpr) ->
+                 Maybe (BaseValues v SExpr)
+muxBaseValues xs m_base =
+  case (xs, m_base) of
+    ([], Nothing) -> Nothing
+    (_, Just base) -> Just (mk xs base)
+    ((_ps, base) : xs', Nothing) -> Just (mk xs' base)
+  where
+    mk :: Ord v => [(PathSet, BaseValues v SExpr)] -> BaseValues v SExpr ->
+          BaseValues v SExpr
+    mk xs' base =
+      let css = over (each . _2) bvConcrete xs'
+          g pss m_ps = PS.disjPathSets (maybeToList m_ps ++ pss)
+          cs' = muxMaps PS.conjPathSet g id css (bvConcrete base)
+          -- sequence :: (a, Maybe b) -> Maybe (a, b)
+          sexps = over (each . _2) bvSymbolic xs'
+          syms = map swap $ mapMaybe sequence sexps
+          m_sym' = muxSymbolic syms (bvSymbolic base)
+      in BaseValues { bvConcrete = cs', bvSymbolic = m_sym' }
+
+-- These should all be well-formed
+muxMuxValues :: [(PathSet, MuxValueSExpr)] -> Maybe MuxValueSExpr -> MuxValueSExpr
+muxMuxValues xs m_base =
+  case (xs, m_base) of
+    ([], Nothing) -> panic "Empty collection of values" []
+    (_, Just base) -> mk base xs
+    ((_ps, base) : xs', Nothing) -> mk base xs'
+  where
+    -- We unfold all the values one step, avoiding re-traversing the
+    -- accumulator every time.
+    mk base xs' =
+      case base of
+        VUnit -> VUnit 
+        VIntegers (Typed ty bvs) -> mkBase integerVL ty xs' bvs
+        VBools bvs -> mkBase boolVL TBool xs' bvs
+        VUnion m -> VUnion $ stmvMerge (projectCtors #_VUnion xs') m
+        VMaybe m -> VMaybe $ stmvMerge (projectCtors #_VMaybe xs') m
+        VStruct m ->
+          VStruct $ muxMaps (\ps x -> Just (ps, x)) muxMuxValues id (projectCtors #_VStruct xs') m
+  
+        VSequence variants vbase ->
+          let variant_els = projectCtors #_VSequence xs'
+              goOne (ps, (variants', vbase')) =
+                (ps, vbase') : [ (outps, vsm_els)
+                               | (ps', vsm_els) <- variants'
+                               , Just outps <- [ PS.conjPathSet ps ps' ]
+                               ]
+          in VSequence (variants ++ concatMap goOne variant_els) vbase
+
+        VMap {} -> unsupported
+
+    unsupported = panic "Unsupported (VMap)" []
+
+    stmvMerge ms m = 
+      let f ps (ps', v) = do
+            ps'' <- PS.conjPathSet ps ps'
+            pure (ps'', (ps, v))
+          g els m_el =
+            let (ps'', vs) = unzip els
+                allps = foldl1 PS.disjPathSet (ps'' ++ maybeToList (fst <$> m_el))
+                allvs = muxMuxValues vs (snd <$> m_el)
+            in (allps, allvs)
+      in muxMaps f g id ms m
+
+    projectCtors :: Prism' MuxValueSExpr v -> [(a, MuxValueSExpr)] ->
+                     [(a, v)]
+    projectCtors p = fromMaybe err . traverseOf (each . _2) (preview p)
+
+    mkBase :: Ord v => ValueLens v -> Type -> [(PathSet, MuxValueSExpr)] ->
+              BaseValues v SExpr -> MuxValueSExpr
+    mkBase vl ty xs' bvs =
+      let m_bvss = traverseOf (each . _2) (fmap snd . vlFromMuxValue vl) xs'
+          m_r    = join (muxBaseValues <$> m_bvss <*> pure (Just bvs))
+      in maybe err (vlToMuxValue vl ty) m_r
+      
+    err  = panic "Malformed value" []
+           
+        
+
+        
+
+
+
+conjBaseValues :: SemiCtxt m => [BaseValues Bool SExpr] ->
+                  SemiSolverM m (BaseValues Bool SExpr)
+conjBaseValues [] = panic "Empty conjBaseValues" []
+conjBaseValues (v:vs) = foldlM go v vs
+  where
+    go bvs1 bvs2 =
+      muxBinOp S.and (&&) TBool TBool bvs1 bvs2 boolVL
+
+-- | Converts many symbolic values into a single value
+
+-- FIXME: maybe choose the largest pathset to use as the default if
+-- none is given?
+muxSymbolic :: [(SExpr, PathSet)] -> Maybe SExpr -> Maybe SExpr
+muxSymbolic xs m_base =
+  case (xs, m_base) of
+    ([], Nothing)  -> Nothing
+    (_, Just base) -> Just (mk base xs)
+    ((base, _) : xs', Nothing) -> Just (mk base xs')
+  where
+    mk = foldl' (\acc (se, ps) -> S.ite (PS.toSExpr ps) se acc)
+
+-- ValueLens is for toSExpr
+baseValueToSExpr :: Type -> ValueLens v -> BaseValues v SExpr -> SExpr
+baseValueToSExpr ty vl bvs
+  | Just sexpr <- muxSymbolic sexps (bvSymbolic bvs) = sexpr
+  | otherwise = panic "Empty basevalue" []
+  where
+    sexps = map (first (vlToSExpr vl ty)) (Map.toList (bvConcrete bvs))
+      
 -- -- -----------------------------------------------------------------------------
 -- -- Byte sets
 -- --
@@ -522,7 +676,7 @@ semiExecName n = asks (fromMaybe missing . Map.lookup n . localBoundNames)
 
 bindNameIn :: Monad m => Name -> MuxValueSExpr ->
               SemiSolverM m a -> SemiSolverM m a
-bindNameIn n v = locally (field @"localBoundNames") (Map.insert n v)
+bindNameIn n v = locally #localBoundNames (Map.insert n v)
 
 -- -- -- Stolen from Synthesis
 -- -- -- projectEnvFor :: FreeVars t => t -> I.Env -> SynthEnv -> Maybe I.Env
@@ -716,8 +870,8 @@ bindNameIn n v = locally (field @"localBoundNames") (Map.insert n v)
 
 --     ty = typeOf y
 
--- -- -----------------------------------------------------------------------------
--- -- Monad
+-- -----------------------------------------------------------------------------
+-- Monad
 
 data SemiSolverEnv = SemiSolverEnv
   { localBoundNames :: Map Name MuxValueSExpr
@@ -729,28 +883,36 @@ data SemiSolverEnv = SemiSolverEnv
 
 type SemiCtxt m = (Monad m, MonadIO m, HasGUID m, LiftStrategyM m, LiftTalosM m)
 
+-- We may try to insert multiple times (presumably at the same type).
 type SemiState = Set (Typed SMTVar)
 
 type SemiSolverM m = ExceptT () (StateT SemiState (ReaderT SemiSolverEnv (SolverT m)))
 
 -- runSemiSolverM :: SemiCtxt m =>
---                   Map Name GuardedSemiSExprs ->
+--                   Map Name MuxValue ->
 --                   I.Env ->
 --                   Text ->
 --                   SemiSolverM m a -> SolverT m (Maybe a, Set (Typed SMTVar))
 -- runSemiSolverM lenv env pfx m =
 --   runReaderT (runStateT (runMaybeT m) mempty) (SemiSolverEnv lenv pfx env)
 
--- sexprAsSMTVar :: (MonadIO m, HasGUID m) => Type -> SExpr -> SemiSolverM m SMTVar
--- sexprAsSMTVar _ty (S.Atom x) = pure x
--- sexprAsSMTVar ty e = do
---   -- c.f. PathSymbolic.Monad.makeNicerName
---   n <- asks currentName
---   let n' = "N" <> "." <> n
---   s <- liftSolver (defineSymbol n' (symExecTy ty) e)
---   modify (Set.insert (Typed ty s))
---   pure s
+sexprAsSMTVar :: SemiCtxt m => Type -> SExpr -> SemiSolverM m SMTVar
+sexprAsSMTVar _ty (S.Atom x) = pure x
+sexprAsSMTVar ty e = do
+  -- c.f. PathSymbolic.Monad.makeNicerName
+  n <- asks currentName
+  let n' = "N" <> "." <> n
+  liftSolver (defineSymbol n' (symExecTy ty) e)
 
+nameSExprForSideCond :: SemiCtxt m => Type -> SExpr -> SemiSolverM m SMTVar
+nameSExprForSideCond ty sexpr = do
+  s <- sexprAsSMTVar ty sexpr
+  modify (Set.insert (Typed ty s))
+  pure s
+
+nameLoopCountVar :: SemiCtxt m => SExpr -> SemiSolverM m LoopCountVar
+nameLoopCountVar sexpr = LoopCountVar <$> nameSExprForSideCond sizeType sexpr
+  
 unreachable :: SemiCtxt m => SemiSolverM m a
 unreachable = throwError ()
 
@@ -800,23 +962,23 @@ semiExecExpr expr =
     Var n          -> semiExecName n
     PureLet n e e' -> do
       ve  <- semiExecExpr e
-      -- FIXME: we might want to name here if n occurs in e' multiple times
+      -- FIXME: duplicates; we might want to name here if n occurs in e' multiple times
       bindNameIn n ve (semiExecExpr e')
 
     Struct _ut ctors -> do
       let (ls, es) = unzip ctors
       VStruct . Map.fromList . zip ls <$> mapM semiExecExpr es
 
-    ECase cs  -> impossible
+    ECase {}  -> impossible
     ELoop _lm -> impossible
 
     Ap0 op       -> pure (semiExecOp0 op)
-    Ap1 op e     -> semiExecOp1 op rty (typeOf e) =<< semiExecExpr e
+    Ap1 op e     -> semiExecOp1 op rty =<< semiExecExpr e
     Ap2 op e1 e2 ->
       join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
             <$> semiExecExpr e1
             <*> semiExecExpr e2)
-    Ap3 op e1 e2 e3 -> undefined
+    Ap3 {} -> unimplemented -- MapInsert, RangeUp, RangeDown
       -- join (semiExecOp3 op rty (typeOf e1)
       --        <$> semiExecExpr e1
       --        <*> semiExecExpr e2
@@ -825,7 +987,7 @@ semiExecExpr expr =
     ApN (CallF {}) _es  -> impossible
   where
     rty = typeOf expr
-
+    unimplemented = panic "semiExecExpr: UNIMPLEMENTED" [showPP expr]
     impossible = panic "semiExecExpr: IMPOSSIBLE" [showPP expr]
 
 semiExecOp0 :: Op0 -> MuxValueSExpr
@@ -836,35 +998,38 @@ semiExecOp0 op =
     FloatL {}     -> unimplemented
     BoolL b       -> vBool b
     ByteArrayL bs -> vFixedLenSequence (map (vInteger tByte . fromIntegral) (BS.unpack bs))
-    NewBuilder _ty -> VSequence (emptyVSequenceMeta {vsmIsBuilder = True}) []
-    MapEmpty kty vty -> VMap []
-    ENothing ty    -> vNothing
+    NewBuilder _ty -> VSequence [] (emptyVSequenceMeta {vsmIsBuilder = True}, [])
+    MapEmpty _kty _vty -> VMap []
+    ENothing _ty    -> vNothing
   where
     unimplemented = panic "semiExecOp0: UNIMPLEMENTED" [showPP op]
 
-semiExecOp1 :: SemiCtxt m => Op1 -> Type -> Type ->
+semiExecOp1 :: SemiCtxt m => Op1 -> Type -> 
                MuxValueSExpr ->
                SemiSolverM m MuxValueSExpr
-semiExecOp1 op rty ty mv =
+semiExecOp1 op rty mv =
   case op of
-    CoerceTo {}   -> viaInterp IntegerC -- only support coercions betweent integrals
+    CoerceTo {}   -> viaInterp integerVL integerVL
     IsEmptyStream -> unsupported
     Head          -> unsupported
     StreamOffset  -> unsupported
     BytesOfStream -> unsupported
-    OneOf {}      -> viaInterp BoolC
-    Neg           -> viaInterp IntegerC
-    BitNot        -> viaInterp IntegerC
-    Not           -> viaInterp BoolC
-    ArrayLen
-      | VSequence vsm _mvs <- mv
-      , Just lcv <- vsmLoopCountVar vsm -> pure $ vSymbolic sizeType IntegerC (S.const (loopCountVarToSMTVar lcv))
-        -- Otherwise we just use the length.  This should be the non-many generated case.
-      | VSequence _ mvs <- mv -> pure $ vInteger sizeType (toInteger (length mvs))
+    OneOf {}      -> viaInterp integerVL boolVL
+    Neg           -> viaInterp integerVL integerVL
+    BitNot        -> viaInterp integerVL integerVL
+    Not           -> viaInterp boolVL boolVL
+    ArrayLen | VSequence variants base <- mv -> do
+      let go (vsm, els)
+            | Just lcv <- vsmLoopCountVar vsm = vSymbolicInteger sizeType (PS.loopCountVarToSExpr lcv)
+            | otherwise = vInteger sizeType (toInteger (length els))
+
+          varlens = over (each . _2) go variants
+      pure $ muxMuxValues varlens (Just $ go base)
 
     Concat        -> unsupported
-    FinishBuilder
-      | VSequence vsm els <- mv -> pure $ VSequence (vsm { vsmIsBuilder = False}) els
+    FinishBuilder | VSequence variants base <- mv -> do
+      let go = _1 . #vsmIsBuilder .~ True
+      pure $ VSequence (variants & each . _2 %~ go) (go base)
 
     NewIterator  -> unsupported
     IteratorDone -> unsupported
@@ -900,37 +1065,17 @@ semiExecOp1 op rty ty mv =
     _ -> panic "Malformed Op1 expression" [showPP op]
     where
       unsupported = panic "Unsupported Op1" [showPP op]
-      viaInterp :: SemiCtxt m => BVClass v -> SemiSolverM m MuxValueSExpr
-      viaInterp cl
-        | VBase (TypedValues _ty' cl' bvs) <- mv = withBVClassTCs cl $ do
-            m_s' <- traverse (SE.symExecOp1 op ty) (bvSymbolic bvs)
-            let cs = Map.fromList (map (first (viaInterpBase cl cl')) (Map.toList $ bvConcrete bvs))
+      viaInterp :: (Ord w, SemiCtxt m) => ValueLens v -> ValueLens w ->
+                   SemiSolverM m MuxValueSExpr
+      viaInterp (ValueLens { vlFromMuxValue = fromArg, vlToInterpValue = argToI })
+                (ValueLens { vlFromInterpValue = fromI, vlToMuxValue = toRes })
+        | Just (ty', bvs) <- fromArg mv = do
+            let m_s' = SE.symExecOp1 op ty' <$> bvSymbolic bvs
+                interp = fromI . evalOp1 mempty op ty' . argToI ty'
+                cs = Map.fromList (map (first interp) (Map.toList $ bvConcrete bvs))
                 bvs' = BaseValues { bvConcrete = cs, bvSymbolic = m_s' }
-            pure (VBase (TypedValues rty cl bvs'))
+            pure (toRes rty bvs')
         | otherwise = panic "Malformed Op1 value" [showPP op]
-
-      viaInterpBase :: BVClass v -> BVClass w -> w -> v
-      viaInterpBase outcl cl = fromValue outcl  . evalOp1 mempty op ty . toValue cl ty
-
--- -- | Concatentates a list of list-valued exprs
--- gseConcat :: VSequenceMeta -> [GuardedSemiSExprs] -> Maybe GuardedSemiSExprs
--- gseConcat _vsm _svs = panic "UNIMPLEMENTED: Concat" []
-
---   -- unions' (mapMaybe mkOne combs)
---   -- where
---   --   elss = map guardedValues svs
---   --   -- This is a sneaky way to get the list of products of the
---   --   -- members.  This is potentially very expensive.
---   --   combs = sequence elss
-
---   --   doConcat els g'
---   --     | PC.isInfeasible g' = Nothing
---   --     | Just els' <- mapM toL els = Just $ singleton g' (VSequence emptyVSequenceMeta (concat els'))
---   --     | otherwise  = panic "UNIMPLEMENTED: saw symbolic list" []
-
---   --   mkOne comb =
---   --     let (gs, els) = unzip comb
---   --     in doConcat els (mconcat gs)
 
 -- typeToElType :: Type -> Maybe Type
 -- typeToElType ty =
@@ -1092,6 +1237,49 @@ semiExecOp1 op rty ty mv =
 --              _             -> panic "Missing label" [showPP l]
 --       else panic "Label mismatch" [showPP l, showPP l']
 
+sequenceEq :: SemiCtxt m =>
+              (VSequenceMeta, [MuxValueSExpr]) ->
+              (VSequenceMeta, [MuxValueSExpr]) ->
+              SemiSolverM m (BaseValues Bool SExpr)              
+sequenceEq (vsm1, els1) (vsm2, els2) =
+  case  (vsmLoopCountVar vsm1, vsmLoopCountVar vsm2) of
+    (Nothing, Nothing) ->
+      if length els1 /= length els2
+      then pure neverEq
+      else do
+        bvs <- conjBaseValues =<< zipWithM semiExecEq els1 els2
+        -- FIXME: figure out how to keep null base values inside the basevalue functions
+        if nullBaseValues bvs
+          then unreachable
+          else pure bvs
+    (Nothing, Just szv)
+      | length els2 < length els1 -> pure neverEq
+      | length els1 < vsmMinLength vsm2 -> pure neverEq
+      | otherwise -> do
+          ses <- makeEqs
+          let lenEqAssn = S.eq (PS.loopCountVarToSExpr szv) (PS.loopCountToSExpr (length els1))
+              assn = PS.andMany (lenEqAssn : ses)
+          pure (singletonSymBaseValues assn)
+    -- Symmetric, just use the above case.
+    (Just {}, Nothing)  -> sequenceEq (vsm2, els2) (vsm1, els1)
+    (Just szv1, Just szv2)
+      | length els1 < minLen || length els2 < minLen -> pure neverEq
+      | otherwise -> do
+          ses <- makeEqs
+          -- FIXME: duplicates; we may need to name the size terms if they are not vars.
+          let lenEqAssn = S.eq (PS.loopCountVarToSExpr szv1) (PS.loopCountVarToSExpr szv2)
+              (always, conds0) = splitAt minLen ses
+              guardLen n = S.implies (S.bvULt (PS.loopCountToSExpr n) (PS.loopCountVarToSExpr szv1))
+              conds = zipWith guardLen [minLen ..] conds0
+              assn = PS.andMany (lenEqAssn : always ++ conds)
+          pure (singletonSymBaseValues assn)
+  where
+    -- FIXME: do we need a path here?  This is unconditionally false.
+    neverEq = singletonBaseValues PS.trivialPathSet False
+    minLen  = max (vsmMinLength vsm1) (vsmMinLength vsm2)
+
+    makeEqs =
+      map (baseValueToSExpr TBool boolVL) <$> zipWithM semiExecEq els1 els2
 
 {-
 
@@ -1162,40 +1350,84 @@ combining is
 -}
 
 semiExecEq :: SemiCtxt m => MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m (BaseValues Bool SExpr)
-semiExecEq mv1 mv2 =
+semiExecEq mv1 mv2 =  
   case (mv1, mv2) of
-    (VBase {}, VBase {}) -> viaInterpOp2 Eq TBool mv1 mv2 BoolC
-    (VUnit, VUnit) -> pure (vBool True)
-    (VUnion m1, VUnion m2) -> undefined
-    (VStruct s1, VStruct s2) -> undefined
-    (VSequence vsm1 els1, VSequence vsm2 els2) -> undefined
-    (VMaybe m1, VMaybe m2) -> undefined
-    (VMap els1, VMap els2) -> unsupported    
+    (VUnit, VUnit) -> pure (singletonBaseValues PS.trivialPathSet True)
+    (VIntegers (Typed ty1 bvs1), VIntegers (Typed ty2 bvs2)) ->
+      muxBinOp S.eq (==) ty1 ty2 bvs1 bvs2 integerVL
+    (VBools bvs1, VBools bvs2) ->
+      muxBinOp S.eq (==) TBool TBool bvs1 bvs2 boolVL
+    (VUnion m1, VUnion m2)   -> stmvEq m1 m2
+    (VStruct m1, VStruct m2) -> do
+      let vs = toList $ Map.intersectionWith (,) m1 m2 -- should always work
+      bvs <- conjBaseValues =<< mapM (uncurry semiExecEq) vs
+      if nullBaseValues bvs
+        then unreachable
+        else pure bvs
+  
+    (VSequence vars1 base1, VSequence vars2 base2) -> do
+      vars <- sequence [ (,) g <$> sequenceEq v1 v2
+                       | (g1, v1) <- vars1
+                       , (g2, v2) <- vars2
+                       -- strip out infeasible values
+                       , Just g <- [ g1 `PS.conjPathSet` g2 ]
+                       ]
+      vars1_base2 <- traverseOf (each . _2) (sequenceEq base2) vars1
+      vars2_base1 <- traverseOf (each . _2) (sequenceEq base1) vars2
+
+      base1_base2 <- sequenceEq base1 base2
+
+      let m_bvs = muxBaseValues (vars ++ vars1_base2 ++ vars2_base1) (Just base1_base2)
+      case m_bvs of
+        Just bvs | not (nullBaseValues bvs) -> pure bvs
+        _ -> unreachable
+    
+    (VMaybe m1, VMaybe m2) -> stmvEq m1 m2
+    (VMap _els1, VMap _els2) -> unsupported    
     _ -> panic "Incompatible value comparison" []
   where
     unsupported = panic "Unsupported Eq?NotEq comparison" []
-    
-    stmvEq m1 m2 = do
-      
-      let sameLabelMap = Map.intersectionWith (,) m1 m2
-      sameLabel <- sequence [ (,) g <$> semiExecEq mv1' mv2' 
-                            | ((g1, mv1'), (g2, mv2')) <- toList sameLabelMap
-                            , let g = g1 `PS.conjPathSet` g2, PS.isFeasibleMaybe g
-                            ] -- Don't need the key.
-          
-      let diffLabel = [ (g, vBool False)
-                      | (k1, (g1, _mv1')) <- Map.toList m1
-                      , (k2, (g2, _mv2')) <- Map.toList m2
-                      , k1 /= k2
-                      , let g = g1 `PS.conjPathSet` g2, PS.isFeasibleMaybe g
-                      ]
-                      
-      undefined -- forM allComb $ \(ks,  
 
-    stmvOneEq k1 k2 ps1 ps2 mv1' mv2'
-      | k1 == k2  = semiExecEq mv1' mv2' 
-      | otherwise = pure (vBool False)
-        
+    stmvEq m1 m2 = do
+      let sameLabelMap = Map.intersectionWith (,) m1 m2
+      sameLabel <- sequence [ (,) g <$> semiExecEq mv1' mv2'
+                            | ((g1, mv1'), (g2, mv2')) <- toList sameLabelMap
+                            , Just g <- [ g1 `PS.conjPathSet` g2 ]
+                            ] -- Don't need the key.
+
+      let m_diffPaths =
+            NE.nonEmpty [ g | (k1, (g1, _mv1')) <- Map.toList m1
+                            , (k2, (g2, _mv2')) <- Map.toList m2
+                            , k1 /= k2
+                            , Just g <- [ g1 `PS.conjPathSet` g2 ]
+                            ]
+          m_diffPath = foldl1 PS.disjPathSet <$> m_diffPaths
+          m_base = flip singletonBaseValues False <$> m_diffPath
+
+      maybe unreachable pure (muxBaseValues sameLabel m_base)
+
+semiExecEmit :: SemiCtxt m => MuxValueSExpr -> (VSequenceMeta, [MuxValueSExpr]) -> 
+                SemiSolverM m (VSequenceMeta, [MuxValueSExpr])
+semiExecEmit new (vsm, els)
+  -- In this case we need to update each possible element in els with
+  -- new as an alternative.  We only need to tag the new value with
+  -- the size constraint as the negation of that constraint + other
+  -- facts about the length will prove that the existing loop element
+  -- is the correct one if the new element is not in the right place.
+  | Just lcv <- vsmLoopCountVar vsm = do
+      let minLen = vsmMinLength vsm
+          (pfx, rest) = splitAt minLen els
+          mkNew i old = muxMuxValues [ (PS.loopCountEqConstraint lcv i, new) ] (Just old)
+          newels = zipWith mkNew [minLen ..] rest
+      newsz <- nameLoopCountVar (S.bvAdd (PS.loopCountVarToSExpr lcv) (symExecInt sizeType 1))
+      let vsm' = vsm { vsmLoopCountVar = Just newsz
+                     , vsmMinLength = minLen + 1
+                     } -- FIXME: we ignore the tag
+      pure (vsm', pfx ++ newels)
+      
+  -- Normal case (?)
+  | otherwise = pure (vsm, els ++ [new])
+
 semiExecOp2 :: SemiCtxt m => Op2 -> Type -> Type -> Type ->
                MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
 semiExecOp2 op rty ty1 ty2 mv1 mv2 =
@@ -1206,36 +1438,52 @@ semiExecOp2 op rty ty1 ty2 mv1 mv2 =
     DropMaybe -> unsupported
     Take      -> unsupported
 
-    Eq        -> undefined
-    NotEq     -> undefined
-    Leq       -> viaInterp BoolC
-    Lt        -> viaInterp BoolC
+    Eq        -> VBools <$> semiExecEq mv1 mv2
+    NotEq     -> semiExecOp1 Not TBool =<< semiExecOp2 Eq TBool ty1 ty2 mv1 mv2
+    Leq       -> viaInterp integerVL boolVL
+    Lt        -> viaInterp integerVL boolVL
 
-    Add       -> viaInterp IntegerC
-    Sub       -> viaInterp IntegerC
-    Mul       -> viaInterp IntegerC
-    Div       -> viaInterp IntegerC
-    Mod       -> viaInterp IntegerC
+    Add       -> viaInterp integerVL integerVL
+    Sub       -> viaInterp integerVL integerVL
+    Mul       -> viaInterp integerVL integerVL
+    Div       -> viaInterp integerVL integerVL
+    Mod       -> viaInterp integerVL integerVL
 
-    BitAnd    -> viaInterp IntegerC
-    BitOr     -> viaInterp IntegerC
-    BitXor    -> viaInterp IntegerC
-    Cat       -> viaInterp IntegerC
-    LCat      -> viaInterp IntegerC
-    LShift    -> viaInterp IntegerC
-    RShift    -> viaInterp IntegerC
+    BitAnd    -> viaInterp integerVL integerVL
+    BitOr     -> viaInterp integerVL integerVL
+    BitXor    -> viaInterp integerVL integerVL
+    Cat       -> viaInterp integerVL integerVL
+    LCat      -> viaInterp integerVL integerVL
+    LShift    -> viaInterp integerVL integerVL
+    RShift    -> viaInterp integerVL integerVL
 
-    ArrayIndex -> undefined
-    Emit -> undefined
-    EmitArray -> undefined
-    EmitBuilder -> undefined
-    MapLookup -> undefined
-    MapMember -> undefined
+    ArrayIndex
+      | VIntegers (Typed _ bvs) <- mv1
+      , VSequence variants base <- mv2 -> do
+          varsv <- traverseOf (each . _2) (semiExecArrayIndex bvs) variants
+          basev <- semiExecArrayIndex bvs base
+          pure (muxMuxValues varsv (Just basev))
+        
+      | otherwise -> panic "Incorrect value shapes" []
+      
+    Emit
+      | VSequence variants base <- mv1 -> do
+          variants' <- traverseOf (each . _2) (semiExecEmit mv2) variants
+          base'     <- semiExecEmit mv2 base
+          pure (VSequence variants' base')
+          
+      | otherwise -> panic "Incorrect value shapes" []
+           
+    EmitArray -> unsupported
+    EmitBuilder -> unsupported
+    MapLookup -> unsupported
+    MapMember -> unsupported
 
     ArrayStream -> unsupported
   where
     unsupported = panic "Unsupported Op2" [showPP op]
-    viaInterp :: SemiCtxt m => BVClass v -> SemiSolverM m MuxValueSExpr    
+    viaInterp :: (SemiCtxt m, Ord w) => ValueLens v -> ValueLens w ->
+                 SemiSolverM m MuxValueSExpr
     viaInterp = viaInterpOp2 op rty mv1 mv2
 
 -- The idea here is that we collect all the concrete values and pass
@@ -1243,192 +1491,117 @@ semiExecOp2 op rty ty1 ty2 mv1 mv2 =
 -- constructed (if required) by converting the concrete values on one
 -- side to sexprs, and executing with the other side's symbolic value.
 -- The final symbolic value is formed by muxing these values together.
-viaInterpOp2 :: SemiCtxt m => Op2 -> Type ->  MuxValueSExpr -> MuxValueSExpr -> BVClass v -> 
-                SemiSolverM m MuxValueSExpr
-viaInterpOp2 op rty mv1 mv2 cl
-  | VBase (TypedValues ty1 cl1 bvs1) <- mv1
-  , VBase (TypedValues _ty2 cl2 bvs2) <- mv2
-  , Just Refl <- sameClass cl1 cl2 = withBVClassTCs cl $ do
-      let cvs = [ (viaInterpBase cl cl1 v1 v2, g)
-                | (v1, g1) <- Map.toList (bvConcrete bvs1)
-                , (v2, g2) <- Map.toList (bvConcrete bvs2)
-                -- strip out infeasible values
-                , let g = g1 `PS.conjPathSet` g2, PS.isFeasibleMaybe g
-                ]
+viaInterpOp2 :: (SemiCtxt m, Ord w) => Op2 -> Type ->  MuxValueSExpr -> MuxValueSExpr ->
+                ValueLens v -> ValueLens w -> SemiSolverM m MuxValueSExpr
+viaInterpOp2 op rty mv1 mv2 argVL resVL
+  | Just (ty1, bvs1) <- vlFromMuxValue argVL mv1
+  , Just (ty2, bvs2) <- vlFromMuxValue argVL mv2 =
+      vlToMuxValue resVL rty <$>
+        muxBinOp (SE.symExecOp2 op ty1) (interp ty1 ty2) ty1 ty2 bvs1 bvs2 argVL
 
-      m_svs1 <- traverse (viaInterpSymbolic cl1 False bvs1) (bvSymbolic bvs2)
-      m_svs2 <- traverse (viaInterpSymbolic cl1 True  bvs2) (bvSymbolic bvs1)
-
-      m_svBoth <- sequence (SE.symExecOp2 op ty1 <$> bvSymbolic bvs1 <*> bvSymbolic bvs2)
-      let -- concat :: Maybe [a] -> [a]
-        sv  = collapseSymbolic (concat m_svs1 <> concat m_svs2) m_svBoth
-        bvs  = BaseValues { bvConcrete = Map.fromList cvs
-                                , bvSymbolic = sv }
-
-      if nullBaseValues bvs
-        then unreachable
-        else pure (VBase (TypedValues rty cl bvs))
-
-  | otherwise = panic "Malformed Op1 value" [showPP op]
+  | otherwise = panic "Malformed muxBinOp value" []
   where
-    viaInterpSymbolic :: SemiCtxt m => BVClass v -> Bool -> BaseValues v SExpr -> SExpr ->
-                         SemiSolverM m [(SExpr, PathSet)]
-    viaInterpSymbolic cl flipped bvs sexp = do
-      let f | flipped   = \x -> SE.symExecOp2 op ty1 sexp (baseValueToSExpr cl ty2 x)
-            | otherwise = \x -> SE.symExecOp2 op ty1 (baseValueToSExpr cl ty1 x) sexp
-      traverseOf (each . _1) f (Map.toList $ bvConcrete bvs) 
+    interp ty1 ty2 x y =
+      vlFromInterpValue resVL
+       (evalOp2 op (vlToInterpValue argVL ty1 x)
+                   (vlToInterpValue argVL ty2 y))
 
-    viaInterpBase :: BVClass v -> BVClass w -> w -> w -> v
-    viaInterpBase outcl cl x y = fromValue outcl (evalOp2 op (toValue cl ty1 x) (toValue cl ty2 y))
+-- The idea here is that we collect all the concrete values and pass
+-- them off pairwise to the interpreter; the symbolic value is
+-- constructed (if required) by converting the concrete values on one
+-- side to sexprs, and executing with the other side's symbolic value.
+-- The final symbolic value is formed by muxing these values together.
+muxBinOp :: (SemiCtxt m, Ord w) =>
+            (SExpr -> SExpr -> SExpr) ->
+            (v -> v -> w) ->
+            Type -> Type -> 
+            BaseValues v SExpr -> BaseValues v SExpr ->
+            ValueLens v -> SemiSolverM m (BaseValues w SExpr) -- just so it can fail.
+muxBinOp sfun cfun ty1 ty2 bvs1 bvs2 argVL
+  | nullBaseValues bvs = unreachable
+  | otherwise          = pure bvs
+  where
+    cvs = [ (cfun v1 v2, g)
+          | (v1, g1) <- Map.toList (bvConcrete bvs1)
+          , (v2, g2) <- Map.toList (bvConcrete bvs2)
+          -- strip out infeasible values
+          , Just g <- [ g1 `PS.conjPathSet` g2 ]
+          ]
 
--- -- semiExecOp2 op _rty _ty _ty' (VValue v1) (VValue v2) = pure $ VValue (evalOp2 op v1 v2)
--- -- semiExecOp2 op rty   ty _ty' (VOther v1) (VOther v2) =
--- --   lift (vSExpr rty <$> SE.symExecOp2 op ty (typedThing v1) (typedThing v2))
--- semiExecOp2 Eq    _rty ty1 _ty2 sv1 sv2 = semiExecEq  ty1 sv1 sv2
--- semiExecOp2 NotEq _rty ty1 _ty2 sv1 sv2 = semiExecNEq ty1 sv1 sv2
+    m_svs1 = viaInterpSymbolic False bvs1 <$> bvSymbolic bvs2
+    m_svs2 = viaInterpSymbolic True  bvs2 <$> bvSymbolic bvs1
 
--- -- If all the vals in sv1 are spine-concrete (which is the usual case) we can just append.
--- semiExecOp2 Emit _rty _ty1 _ty2 gvs1 gvs2
---   | Just vss1 <- traverse gseToList gvss1 =
---       -- FIXME: this breaks the abstraction a little
---       pure (GuardedValues (NE.zipWith mk gs vss1))
+    m_svBoth = sfun <$> bvSymbolic bvs1 <*> bvSymbolic bvs2
+
+    sv  = muxSymbolic (concat m_svs1 <> concat m_svs2) m_svBoth
+    bvs  = BaseValues { bvConcrete = Map.fromList cvs
+                      , bvSymbolic = sv }
+           
+    viaInterpSymbolic flipped bvs' sexp = do
+      let f | flipped   = \x -> sfun sexp (vlToSExpr argVL ty2 x)
+            | otherwise = \x -> sfun (vlToSExpr argVL ty1 x) sexp
+      over (each . _1) f (Map.toList $ bvConcrete bvs')
+
+-- muxBinOp :: (SemiCtxt m, Ord w) =>
+--             (SExpr -> SExpr -> SemiSolverM m SExpr) ->
+--             (v -> v -> w) ->
+--             Type -> Type -> 
+--             BaseValues v SExpr -> BaseValues v SExpr ->
+--             ValueLens v -> SemiSolverM m (BaseValues w SExpr)
+-- muxBinOp sfun cfun ty1 ty2 bvs1 bvs2 argVL = do
+--   let cvs = [ (cfun v1 v2, g)
+--             | (v1, g1) <- Map.toList (bvConcrete bvs1)
+--             , (v2, g2) <- Map.toList (bvConcrete bvs2)
+--             -- strip out infeasible values
+--             , Just g <- [ g1 `PS.conjPathSet` g2 ]
+--             ]
+
+--   m_svs1 <- traverse (viaInterpSymbolic False bvs1) (bvSymbolic bvs2)
+--   m_svs2 <- traverse (viaInterpSymbolic True  bvs2) (bvSymbolic bvs1)
+
+--   m_svBoth <- sequence (sfun <$> bvSymbolic bvs1 <*> bvSymbolic bvs2)
+--   let -- concat :: Maybe [a] -> [a]
+--     sv  = muxSymbolic (concat m_svs1 <> concat m_svs2) m_svBoth
+--     bvs  = BaseValues { bvConcrete = Map.fromList cvs
+--                       , bvSymbolic = sv }
+--   if nullBaseValues bvs
+--     then unreachable
+--     else pure bvs
 --   where
---     mk g (vsm, vs) = (g, VSequence (vsm {vsmIsBuilder = True}) (vs ++ [gvs2]))
---     (gs, gvss1) = NE.unzip (getGuardedValues gvs1)
+--     viaInterpSymbolic flipped bvs sexp = do
+--       let f | flipped   = \x -> sfun sexp (vlToSExpr argVL ty2 x)
+--             | otherwise = \x -> sfun (vlToSExpr argVL ty1 x) sexp
+--       traverseOf (each . _1) f (Map.toList $ bvConcrete bvs)
 
--- semiExecOp2 op rty ty1 ty2 gvs1 gvs2 = reportingSemiExec2 ("op2" <> fromString (showPP op)) go gvs1 gvs2
---   where
---     -- point-wise
---     go g (VValue v1) (VValue v2) =
---       pure (singleton g (VValue (evalOp2 op v1 v2)))
-
---     -- Some of these are lazy so we don't eagerly convert to sexpr if
---     -- only one side is a sexpr
---     go g sv1 sv2 = do
---       case op of
---         IsPrefix  -> unimplemented
---         Drop      -> unimplemented
---         DropMaybe -> unimplemented
---         Take      -> unimplemented
-
---         -- Eq       -> semiExecEq ty1 sv1 sv2
---         -- NotEq    -> semiExecNEq ty1 sv1 sv2
-
---         -- sv1 is arr, sv2 is ix. Note that the translation inserts a
---         -- check on the length, so probably we don't need an explicit
---         -- check here.
---         ArrayIndex -> semiExecArrayIndex g sv1 sv2
-
---         EmitArray -> unimplemented
---           --  | Just (vsmbs,  bs) <- gseToList sv1
---           --  , Just (vsmarr, arrs) <- gseToList sv2 ->
---           --      unless (isNothing (vsmLoopCountVar vsmbs)
---           --              && isNothing (vsmLoopCountVar vsmarr)) $ panic "Invariant violated?" []
---           --      pure $ singleton g (VSequence vsmbs (bs ++ arrs))
-
---         EmitBuilder -> unimplemented
-
---         -- sv1 is map, sv2 is key
---         MapLookup -> mapOp g sv1 sv2
---                            VNothing        (sNothing . symExecTy)
---                            VJust           sJust
-
---         MapMember -> mapOp g sv1 sv2
---                            (VValue $ V.VBool False)        (const (S.bool False))
---                            (const (VValue $ V.VBool True)) (\_ _ -> S.bool True)
-
---         ArrayStream -> unimplemented
-
---         -- Leq
---         -- Lt
---         -- Add
---         -- Sub
---         -- Mul
---         -- Div
---         -- Mod
---         -- BitAnd
---         -- BitOr
---         -- BitXor
---         -- Cat
---         -- LCat
---         -- LShift
---         -- RShift
-
---         -- Otherwise generate a symbolic term.
---         _ -> def g sv1 sv2
-
---     -- sv1 is map, sv2 is key
---     -- mapOp :: PathCondition -> GuardedSemiSExpr -> GuardedSemiSExpr ->
---     --          GuardedSemiSExpr -> (Type -> SExpr) -> (GuardedSemiSExprs -> GuardedSemiSExprs) ->
---     --          (SExpr -> SExpr -> SExpr) -> SemiSolverM m GuardedSemiSExprs
-
---     -- FIXME: do something better here, i.e., return the values in the
---     -- map guarded by the path expression to get there.
---     mapOp g sv1 sv2 _missing _smissingf _found _sfound
---       -- -- Concrete case
---       --  | Just els <- toL sv1, VValue kv <- sv2
---       -- , Just res <- mapLookupV missing found kv els
---       --   = pure res
---       -- -- Expand into if-then-else.
---       --  | Just els <- toL sv1
---       -- , TMap kt vt <- ty1 = do
---       --     tys <- asks typeDefs
---       --     let symkv = toSExpr1 tys kt sv2
---       --         mk    = sfound (symExecTy vt) . toSExpr1 tys vt
---       --     vSExpr g rty (foldr (mapLookupS tys mk kt symkv sv2)
---       --                         (smissingf vt)
---       --                         els)
---       | otherwise = def g sv1 sv2
-
---     def g sv1 sv2 = do
---       tys <- asks typeDefs
---       vSExpr g rty =<< liftSolver (SE.symExecOp2 op ty1
---                                    (toSExpr1 tys ty1 sv1)
---                                    (toSExpr1 tys ty2 sv2))
-
---     unimplemented = panic "semiEvalOp2: Unimplemented" [showPP op]
-
---     -- mapLookupV z _f  _kv  [] = Just z
---     -- mapLookupV z f  kv ((VValue kv', el) : rest) =
---     --   if kv == kv' then Just (f el) else mapLookupV z f kv rest
---     -- mapLookupV _ _ _ _ = Nothing
-
---     -- mapLookupS tys f kTy symkv skv (skv', sel) rest =
---     --   case (skv, skv') of
---     --     (VValue kv, VValue kv')
---     --       -> if kv == kv' then f sel else rest
---     --     _ -> S.ite (S.eq symkv (toSExpr1 tys kTy skv')) (f sel) rest
-
-
--- semiExecArrayIndex :: SemiCtxt m => PathCondition ->
---                       GuardedSemiSExpr ->
---                       GuardedSemiSExpr ->
---                       SemiSolverM m GuardedSemiSExprs
--- -- concrete spine, concrete index
--- semiExecArrayIndex g arrv (VValue v)
---   | Just (vsm, svs) <- gseToList arrv
---   , Just ix <- V.valueToIntSize v =
---       let g' | Just lc <- vsmLoopCountVar vsm = PC.insertLoopCount lc (PC.LCCGt ix) g
---              | otherwise = g
---       in if length svs <= ix
---          then hoistMaybe Nothing
---          else hoistMaybe (refine g' (svs !! ix))
-
--- -- Symbolic index, we assert it at concrete indices and get n results.
--- semiExecArrayIndex g arrv (VOther (Typed ty sIx))
---   | Just (vsm, svs) <- gseToList arrv =
---       let mkIxG ix =
---             PC.insertValue sIx (Typed ty (VPCPositive $ PNum (fromIntegral ix))) g
-
---           mkG' | Just lc <- vsmLoopCountVar vsm =
---                    \ix -> PC.insertLoopCount lc (PC.LCCGt ix) (mkIxG ix)
---                | otherwise = mkIxG
-
---           mkV ix el = hoistMaybe (refine (mkG' ix) el)
-
---       in gseCollect (zipWith mkV [0..] svs)
-
--- semiExecArrayIndex _g _arrv _sv = panic "BUG: saw non-symbolic sequence" []
+-- This is a bit weird in that we don't care if the list has symbolic
+-- length.  This is because this operation is always (well, should be)
+-- guarded by a check that the index < length arr.  In practice this
+-- means the SMT context will contain an assertion like
+--
+-- if PS1 then v1 < len else if PS2 then v2 < len else if ... else sym < len
+--
+-- so we don't need to tag the result value with a constraint on the length.
+semiExecArrayIndex :: SemiCtxt m =>
+                      BaseValues Integer SExpr ->
+                      (VSequenceMeta, [MuxValueSExpr]) ->
+                      SemiSolverM m MuxValueSExpr
+semiExecArrayIndex ixs (_vsm, els) = do
+  let cs = getEls 0 (Map.toList (bvConcrete ixs)) els []
+  -- concat :: Maybe [a] -> [a]
+  syms <- concat <$> traverse mksym (bvSymbolic ixs)
+  pure (muxMuxValues (cs ++ syms) Nothing)
+  where
+    -- Order of results isn't important
+    getEls _i [] _  acc = acc
+    getEls _i _  [] acc = acc
+    getEls i ((j, ps) : ixs') (el : els') acc
+      | i == j = getEls (i + 1) ixs' els' ((ps, el) : acc)
+    getEls i ixs' (_el : els') acc = getEls (i + 1) ixs' els' acc
+    
+    mksym sexp = do
+      -- FIXME: not exactly a loop count here (is a loop index, same type)
+      sv <- nameSExprForSideCond sizeType sexp
+      pure $ zipWith (\i el -> (PS.indexConstraint sv i, el)) [0..] els
 
 -- semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
 --                GuardedSemiSExprs -> GuardedSemiSExprs -> GuardedSemiSExprs ->
@@ -1456,120 +1629,9 @@ viaInterpOp2 op rty mv1 mv2 cl
 -- -- RangeUp and RangeDown
 -- semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 
--- semiExecOpN :: SemiCtxt m => OpN -> Type -> [GuardedSemiSExprs] ->
---                SemiSolverM m GuardedSemiSExprs
--- semiExecOpN (ArrayL _ty) _rty vs =
---   pure (singleton mempty (VSequence emptyVSequenceMeta vs))
-
--- -- FIXME: this will recurse forever if the varying parameter(s) are
--- -- symbolic.  This is only used for inverses (well, predicates for
--- -- inverses), so it should be OK.
--- semiExecOpN (CallF fn) _rty vs = do
---   fdef <- getEFun fn
---   let e = case fDef fdef of
---         Def d -> d
---         _   -> panic "Missing function " [showPP fn]
---       ps = fParams fdef
-
---   foldr (uncurry bindNameIn) (semiExecExpr e) (zip ps vs)
-
--- -- -- -----------------------------------------------------------------------------
--- -- -- Value -> SExpr
-
--- -- FIXME: move
--- -- Probably an error if they don't match?
--- typeAtLabel :: Map TName TDecl -> Type -> Label -> Maybe (UserType, Type)
--- typeAtLabel tys (TUser ut) l
---   | Just TDecl { tDef = TUnion flds }  <- tdecl = (,) ut <$> lookup l flds
---   | Just TDecl { tDef = TStruct flds } <- tdecl = (,) ut <$> lookup l flds
---   where
---     tdecl = Map.lookup (utName ut) tys
--- typeAtLabel _ _ _ = Nothing
-
--- valueToSExpr :: Map TName TDecl -> Type -> V.Value -> SExpr
--- valueToSExpr tys ty v =
---   case v of
---     V.VUInt n i ->
---       if n `mod` 4 == 0
---       then S.bvHex (fromIntegral n) i
---       else S.bvBin (fromIntegral n) i
---     V.VSInt n i -> -- FIXME: correct?
---       if n `mod` 4 == 0
---       then S.bvHex (fromIntegral n) i
---       else S.bvBin (fromIntegral n) i
---     V.VInteger i -> S.int i
---     V.VBool b -> S.bool b
---     V.VUnionElem l v'
---       | Just (ut, ty') <- typeAtLabel tys ty l
---       -> S.fun (labelToField (utName ut) l) [go ty' v']
-
---     -- FIXME: assumes the order is the same
---     V.VStruct els
---       | TUser ut <- ty
---       , Just TDecl { tDef = TStruct flds } <- Map.lookup (utName ut) tys
---       -> S.fun (typeNameToCtor (utName ut)) (zipWith goStruct els flds)
---       | ty == TUnit -> sUnit
-
---     V.VArray vs | TArray elty <- ty ->
---       let sVals     = map (go elty) (Vector.toList vs)
---           emptyArr = sArrayL (sEmptyL (symExecTy elty) (typeDefault elty)) -- FIXME, a bit gross?
---           arr      = foldr (\(i, b) arr' -> S.store arr' (sSize i) b) emptyArr (zip [0..] sVals)
---       in sArrayWithLength (symExecTy elty) arr (sSize (fromIntegral $ Vector.length vs))
-
---     V.VMaybe mv | TMaybe ty' <- ty ->
---       case mv of
---         Nothing -> sNothing (symExecTy ty')
---         Just v' -> sJust (symExecTy ty') (go ty' v')
-
---     V.VMap m | TMap kt vt <- ty ->
---       -- FIXME: breaks abstraction of maps
---       sFromList (tTuple (symExecTy kt) (symExecTy vt))
---                 [ sTuple (go kt k) (go vt v') | (k, v') <- Map.toList m ]
-
-
---     V.VStream {}                       -> unimplemented
---     V.VBuilder vs
---       | TBuilder elTy <- ty -> sFromList (symExecTy elTy) (reverse (map (go elTy) vs))
-
---     -- FIXME: copied from semiSExprToSExpr
---     V.VIterator vs -> case ty of
---       -- FIXME: this breaks abstractions
---       TIterator (TArray elTy) ->
---         let emptyA = sEmptyL (symExecTy elTy) (typeDefault elTy)
---             els    = [ (go sizeType k, go elTy v') | (k, v') <- vs ]
---             arr    = foldr (\(i, v') arr' -> S.store arr' i v') emptyA els
---         in case els of
---           []             -> sArrayIterNew emptyA
---           ((fstI, _) : _) -> S.fun "mk-ArrayIter" [arr, fstI]
---       TIterator (TMap   _kt' _vt') -> panic "Unimplemented" []
---       _ -> panic "Malformed iterator type" []
-
---     _ -> unexpectedTy
---   where
---     unexpectedTy = panic "Unexpected type" [showPP v, showPP ty]
-
---     go = valueToSExpr tys
---     goStruct (l, e) (l', ty') | l == l' = go ty' e
---     goStruct (l, _) (l', _) = panic "Mis-matched labels" [showPP l, showPP l']
-
---     unimplemented = panic "Unimplemented" [showPP v]
-
-
--- -- ----------------------------------------------------------------------------------------
--- -- Helpers
-
-
--- -- | If the argument consists of only values, then those values are
--- -- retunred.
--- asValues :: GuardedSemiSExprs -> Maybe (NonEmpty V.Value)
--- asValues = traverse (go . snd) . getGuardedValues
---   where
---     go (VValue v) = Just v
---     go _ = Nothing
 
 -- -- -----------------------------------------------------------------------------
 -- -- Instances
-
 
 -- ppMuxValue :: (f a -> Doc) -> (a -> Doc) -> MuxValue f a -> Doc
 -- ppMuxValue ppF ppA val =

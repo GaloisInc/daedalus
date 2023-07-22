@@ -61,25 +61,19 @@ import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
                                                             ValueMatchResult (..),
                                                             vUInt, vUnit)
 import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
-import qualified Talos.Strategy.PathSymbolic.PathCondition as PC
-import           Talos.Strategy.PathSymbolic.PathCondition (PathCondition,
-                                                            PathVar,
-                                                            loopCountToSExpr)
-import qualified Talos.SymExec.Expr                        as SE
-import           Talos.SymExec.Funs                        (defineSliceFunDefs,
-                                                            defineSlicePolyFuns)
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT                     (declareName,
-                                                            declareSymbol,
-                                                            liftSolver, reset,
-                                                            scoped, contextSize)
-import           Talos.SymExec.StdLib
-import           Talos.SymExec.Type                        (defineSliceTypeDefs,
-                                                            symExecTy)
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
+import           Talos.Strategy.PathSymbolic.PathSet (PathSet,
+                                                       PathVar,
+                                                       loopCountToSExpr)
+import qualified Talos.Strategy.PathSymbolic.SymExec as SE
+import           Talos.Path
+import           Talos.Solver.SolverT                     (declareName,
+                                                           declareSymbol,
+                                                           liftSolver, reset,
+                                                           scoped, contextSize)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
-
 
 pathSymbolicStrat :: Strategy
 pathSymbolicStrat = Strategy
@@ -139,11 +133,6 @@ symbolicFun config ptag sl = StratGen $ do
   md <- liftStrategy getModule
   deps <- sliceToDeps sl
   let slAndDeps = map snd deps ++ [sl]
-
-  forM_ slAndDeps $ \sl' -> do
-    defineSliceTypeDefs md sl'
-    defineSlicePolyFuns sl'
-    defineSliceFunDefs md sl' -- FIXME: not needed 
 
   -- FIXME: this should be calculated once, along with how it is used
   -- by e.g. memoSearch
