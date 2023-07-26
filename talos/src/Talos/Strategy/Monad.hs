@@ -22,7 +22,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             ) where
 
 import           Control.Monad             (forM, replicateM)
-import           Control.Monad.Except      (throwError)
+import           Control.Monad.Except      (throwError, ExceptT)
 import           Control.Monad.Reader
 import           Control.Monad.RWS         (RWST)
 import qualified Control.Monad.RWS.CPS as RWSCPS
@@ -311,6 +311,7 @@ instance LiftStrategyM m => LiftStrategyM (StateT s m) where
 instance LiftStrategyM m => LiftStrategyM (ReaderT s m) where
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (WriterT w m) where
 instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
+instance LiftStrategyM m => LiftStrategyM (ExceptT e m) where  
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
 instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWST r w s m) where

@@ -39,21 +39,25 @@ import           Daedalus.Rec                              (Rec)
 
 import           Talos.Analysis.Exported                   (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
-                                                            SemiSolverM,
-                                                            SequenceTag,
-                                                            runSemiSolverM)
+import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue
+                                                           , SemiSolverM
+                                                           , runSemiSolverM
+                                                           )
+                                                            -- SequenceTag,
+                                                            -- )
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.PathSet      (LoopCountVar (..),
-                                                          PathCondition,
+                                                          PathSet,
                                                           PathVar (..), loopCountVarSort, loopCountToSExpr)
-import qualified Talos.SymExec.Expr                       as SE
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT                     (MonadSolver, SMTVar,
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
+import qualified Talos.Strategy.PathSymbolic.SymExec as SE
+import           Talos.Path
+import           Talos.Solver.SolverT                     (MonadSolver, SMTVar,
                                                             SolverT, liftSolver)
-import qualified Talos.SymExec.SolverT                     as Solv
+import qualified Talos.Solver.SolverT                     as Solv
 import Data.Text (Text)
 import Talos.Monad (getIEnv, LogKey, LiftTalosM)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -61,9 +65,9 @@ import Talos.Monad (getIEnv, LogKey, LiftTalosM)
 pathKey :: LogKey
 pathKey = "pathsymb"
 
-type Result = (GuardedSemiSExprs, PathBuilder)
+type Result = (MuxValue, PathBuilder)
 
-type SymVarEnv = Map Name GuardedSemiSExprs
+type SymVarEnv = Map Name MuxValue
 
 data SymbolicEnv = SymbolicEnv
   { sVarEnv     :: SymVarEnv
@@ -98,8 +102,7 @@ data SymbolicEnv = SymbolicEnv
 
 data SolverResult =
   ByteResult SMTVar
-  | InverseResult (Map Name GuardedSemiSExprs) Expr -- The env. includes the result var.
-
+  | InverseResult (Map Name MuxValue) Expr -- The env. includes the result var.
  -- Not all paths are necessarily feasible.
 data PathChoiceBuilder a =
   SymbolicChoice   PathVar           [(Int, a)]
@@ -110,7 +113,7 @@ data PathChoiceBuilder a =
 type SymbolicCaseTag = GUID
 
 data PathCaseBuilder a   =
-  SymbolicCase   SymbolicCaseTag GuardedSemiSExprs [(Pattern, a)]
+  SymbolicCase   SymbolicCaseTag MuxValue [(Pattern, a)]
   | ConcreteCase                   a
   deriving (Functor)
 
@@ -123,7 +126,7 @@ data PathLoopBuilder a =
                       (Maybe LoopCountVar) -- 0 or 1
                       a
   | PathLoopMorphism SymbolicLoopTag
-                     [ (PathCondition, MV.VSequenceMeta, [a]) ]
+                     [ (PathSet, MV.VSequenceMeta, [a]) ]
   
 type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
 
@@ -143,7 +146,7 @@ emptySymbolicEnv maxRecDepth nLoopElements ptag = SymbolicEnv
 -- A reference to a loop, used to collect loop elements and their
 -- children.  Using a GUID here is a bit lazy as any uniquely
 -- generated Int etc. would do.
-type SymbolicLoopTag = SequenceTag
+type SymbolicLoopTag = MV.SequenceTag
 
 -- | A hack so we can use a tag which will never actually occur.
 invalidSymbolicLoopTag :: SymbolicLoopTag
@@ -160,7 +163,7 @@ data SymbolicModel = SymbolicModel
                              )
   , smCases   :: Map SymbolicCaseTag (Name -- Cased-on variable
                                      , [SMT.SExpr] -- Symbolic path (all true to be enabled)
-                                     , [(NonEmpty PathCondition, Pattern)] -- Pattern guards
+                                     , [(NonEmpty PathSet, Pattern)] -- Pattern guards
                                      )
   , smNamedValues :: Map SMTVar Type
   
@@ -191,7 +194,7 @@ instance Monoid SymbolicModel where
            }
 
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: MaybeT (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: ExceptT () (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO
            , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver, LiftTalosM)
 
@@ -204,9 +207,9 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 Int ->
                 ProvenanceTag ->
                 SymbolicM Result ->
-                SolverT StrategyM (Maybe Result, SymbolicModel)
+                SolverT StrategyM (Either () Result, SymbolicModel)
 runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
-  runReaderT (runWriterT (runMaybeT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
+  runReaderT (runWriterT (runExceptT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
 
 --------------------------------------------------------------------------------
 -- Names
@@ -215,10 +218,10 @@ bindNameIn :: Name -> SymbolicM Result
            -> (PathBuilder -> SymbolicM a) -> SymbolicM a
 bindNameIn n lhs rhs = lhs >>= \(v, p) -> primBindName n v (rhs p)
 
-primBindName :: Name -> GuardedSemiSExprs -> SymbolicM a -> SymbolicM a
+primBindName :: Name -> MuxValue -> SymbolicM a -> SymbolicM a
 primBindName n v = locally (field @"sVarEnv"  . at n) (const (Just v))
 
-getName :: Name -> SymbolicM GuardedSemiSExprs
+getName :: Name -> SymbolicM MuxValue
 getName n = SymbolicM $ do
   m_local <- asks (view (field @"sVarEnv" . at n))
   case m_local of
@@ -279,7 +282,7 @@ recordChoice :: PathVar -> [Int] -> SymbolicM ()
 recordChoice pv ixs =
   tell (mempty { smChoices = Map.singleton pv (mempty, ixs) })
 
-recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathCondition, Pattern)] -> SymbolicM ()
+recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathSet, Pattern)] -> SymbolicM ()
 -- If we have a _single_ rhs then we ignore the case (this happens with predicates)
 recordCase _stag _n [_rhs] = pure ()
 recordCase stag n rhss =
@@ -301,7 +304,7 @@ extendPath g = addGuard . addImpl
     addImpl sm
       | []      <- smGuardedAsserts sm = sm
       | otherwise =
-        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (MV.andMany ss) ]) sm
+        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (PS.andMany ss) ]) sm
 
     -- Merge in the guard g with the path for the known choices/cases
     addGuard = 
@@ -317,9 +320,6 @@ extendPath g = addGuard . addImpl
 --     -- If we assert false, we can't get here (negate path cond)
 --     VValue (V.VBool False) -> inSolver (Solv.assert (SMT.not pe))
 --     _ -> panic "Malformed boolean" [show sv]
-
-infeasible :: SymbolicM a
-infeasible = SymbolicM $ fail "UNUSED"
 
 --------------------------------------------------------------------------------
 -- Search operaations
@@ -372,7 +372,7 @@ enterFunction tgt argMap m = do
     -- Case 3
     sameSCC False _ = m_with_args    
     -- Case 4 back edge, beyond the max
-    sameSCC True False = infeasible
+    sameSCC True False = unreachable
     -- Case 4 back edge, allowed, so just increase depth
     sameSCC True True = 
       locally (field @"sRecDepth") (+ 1) m_with_args
@@ -387,35 +387,29 @@ enterFunction tgt argMap m = do
 liftSemiSolverM :: SemiSolverM StrategyM a -> SymbolicM a
 liftSemiSolverM m = do
   lenv <- asks sVarEnv
-  env  <- liftStrategy getIEnv
   n    <- asks sCurrentName
-  (m_res, newvars) <- liftSolver (runSemiSolverM lenv env n m)
+  (m_res, newvars) <- liftSolver (runSemiSolverM lenv n m)
   recordValues newvars
-  hoistMaybe m_res
+  either (const unreachable) pure m_res
 
-liftSymExecM :: SE.SymExecM StrategyM a -> SymbolicM a
-liftSymExecM m = do
-  ienv  <- liftStrategy getIEnv
-  SymbolicM . lift . lift . withReaderT (envf (I.tEnv ienv)) $ m
-  where
-    -- FIXME: probably these should live outside MuxValue
-    envf tenv env = MV.envToSymEnv tenv (sVarEnv env)
+unreachable :: SymbolicM a
+unreachable = SymbolicM $ throwError ()
 
 -- FIXME: copied from MuxValue
-getMaybe :: SymbolicM a -> SymbolicM (Maybe a)
-getMaybe = SymbolicM . lift . runMaybeT . getSymbolicM
+-- getMaybe :: SymbolicM a -> SymbolicM (Maybe a)
+-- getMaybe = SymbolicM . lift . runMaybeT . getSymbolicM
 
-putMaybe :: SymbolicM (Maybe a) -> SymbolicM a
-putMaybe m = hoistMaybe =<< m
+-- putMaybe :: SymbolicM (Maybe a) -> SymbolicM a
+-- putMaybe m = hoistMaybe =<< m
 
-hoistMaybe :: Maybe a -> SymbolicM a
-hoistMaybe r = 
-  case r of
-    Nothing -> SymbolicM $ fail "Ignored"
-    Just v  -> pure v
+-- hoistMaybe :: Maybe a -> SymbolicM a
+-- hoistMaybe r = 
+--   case r of
+--     Nothing -> SymbolicM $ fail "Ignored"
+--     Just v  -> pure v
 
-collectMaybes :: [SymbolicM a] -> SymbolicM [a]
-collectMaybes = fmap catMaybes . mapM getMaybe
+-- collectMaybes :: [SymbolicM a] -> SymbolicM [a]
+-- collectMaybes = fmap catMaybes . mapM getMaybe
 
 sImplies :: SMT.SExpr -> SMT.SExpr -> SMT.SExpr
 sImplies l r | l == SMT.bool True = r
@@ -447,15 +441,15 @@ instance PP (PathChoiceBuilder Doc) where
   pp (ConcreteChoice i p) = pp i <+> "=" <+> p
 
 
-instance PP (PathCaseBuilder Doc) where
-  pp (SymbolicCase stag gses ps) =
-    pp stag <> ": " <>
-    block "[[" "," "]]" [ pp (text . typedThing <$> gses)
-                        , block "{" "," "}" (map pp1 ps) ]
-    where
-      pp1 (pat, p) = pp pat <+> "=" <+> p
+-- instance PP (PathCaseBuilder Doc) where
+--   pp (SymbolicCase stag gses ps) =
+--     pp stag <> ": " <>
+--     block "[[" "," "]]" [ pp (text . typedThing <$> gses)
+--                         , block "{" "," "}" (map pp1 ps) ]
+--     where
+--       pp1 (pat, p) = pp pat <+> "=" <+> p
       
-  pp (ConcreteCase p) = p
+--   pp (ConcreteCase p) = p
 
 instance PP SolverResult where
   pp (ByteResult v) = text v

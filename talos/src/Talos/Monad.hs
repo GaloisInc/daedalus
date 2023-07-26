@@ -31,6 +31,7 @@ import           Daedalus.PP                  (showPP)
 import           Daedalus.Rec                 (forgetRecs)
 import           Talos.Solver.SolverT        (SolverT)
 import Data.String (IsString(..))
+import Control.Monad.Except (ExceptT)
 
 data TalosMState  = TalosMState
   { tmModule    :: !Module
@@ -170,6 +171,8 @@ instance (Monoid w, LiftTalosM m) => LiftTalosM (WriterT w m) where
   liftTalosM = lift . liftTalosM
 instance LiftTalosM m => LiftTalosM (MaybeT m) where
   liftTalosM = lift . liftTalosM
+instance LiftTalosM m => LiftTalosM (ExceptT e m) where
+  liftTalosM = lift . liftTalosM  
 instance LiftTalosM m => LiftTalosM (SolverT m) where
   liftTalosM = lift . liftTalosM
 instance (Functor f, LiftTalosM m) => LiftTalosM (FreeT f m) where

@@ -34,6 +34,9 @@ module Talos.Strategy.PathSymbolic.PathSet
   -- , vpcSatisfied, lccSatisfied
   -- * Converstion to SExpr
   , toSExpr
+  -- * Models
+  , fromModel
+  , PathSetModelMonad(..)
   -- * Path Sets
   , PathSet
   , trivialPathSet
@@ -58,11 +61,13 @@ import           GHC.Generics                 (Generic)
 import qualified SimpleSMT                    as S
 import           SimpleSMT                    (SExpr, bvHex, tBits)
 
-import           Daedalus.Core                (Pattern)
+import           Daedalus.Core                (Pattern, Typed(..))
 import           Daedalus.PP
+import qualified Daedalus.Value.Type                 as V
 
 import           Talos.Solver.SolverT         (SMTVar)
 import Data.Foldable (toList)
+import Daedalus.Core.Type (sizeType)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -249,16 +254,41 @@ andMany xs  = S.andMany xs
 -- -----------------------------------------------------------------------------
 -- Semantics
 
--- vpcSatisfied :: Typed ValuePathConstraint -> I.Value -> Bool
--- vpcSatisfied (Typed _ (VPCPositive p))  v = I.matches p v
--- vpcSatisfied (Typed _ (VPCNegative ps)) v =
---   not (any (flip I.matches v) (Set.toList ps))
+-- short-circuiting
+andM :: Monad m => [m Bool] -> m Bool
+andM [] = pure True
+andM (m : ms) = do
+  b <- m
+  if b then andM ms else pure False
 
--- lccSatisfied :: LoopCountConstraint -> Int -> Bool
--- lccSatisfied lcc i =
---   case lcc of
---     LCCGt j -> i > j
---     LCCEq j -> i == j
+orM :: Monad m => [m Bool] -> m Bool
+orM [] = pure False
+orM (m : ms) = do
+  b <- m
+  if b then pure True else orM ms
+
+-- There will only be one of these, so a class isn't really required.
+class Monad m => PathSetModelMonad m where
+  psmmPathVar :: PathVar      -> m Int
+  psmmSMTVar  :: Typed SMTVar -> m V.Value
+  psmmLoopVar :: LoopCountVar -> m Int
+  
+pathConditionToBool :: PathSetModelMonad m => PathCondition -> m Bool
+pathConditionToBool pc = andM (choices ++ ixs ++ loops)
+  where
+    choices = [ (==) i <$> psmmPathVar v | (v, i) <- Map.toList (pcChoices pc) ]
+    ixs     = [ (==) (V.vSize (fromIntegral i)) <$> psmmSMTVar (Typed sizeType v)
+              | (v, i) <- Map.toList (pcSymbolicIndices pc) ]
+    loops   = [ lccSatisfied ctr <$> psmmLoopVar v | (v, ctr) <- Map.toList (pcLoops pc) ]
+
+    lccSatisfied :: LoopCountConstraint -> Int -> Bool
+    lccSatisfied lcc i =
+      case lcc of
+        LCCGt j -> i > j
+        LCCEq j -> i == j
+    
+fromModel :: PathSetModelMonad m => PathSet -> m Bool
+fromModel (PathSet ps) = orM (map pathConditionToBool (toList ps))
 
 -- ------------------------------------------------------------------------------
 -- Instances

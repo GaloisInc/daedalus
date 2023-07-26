@@ -20,17 +20,23 @@
 module Talos.Strategy.PathSymbolic.MuxValue (
   MuxValue
   , semiExecExpr
+  , VSequenceMeta(..)
+  , SequenceTag
+  -- * Monad
+  , SemiSolverM
+  , runSemiSolverM
+  , fromModel
   ) where
 
 import           Control.Lens                        (Prism', _1, _2, each,
                                                       locally, over, preview,
                                                       traverseOf, (%~), (&),
-                                                      (.~))
+                                                      (.~), traversed)
 import           Control.Monad                       (join, zipWithM)
-import           Control.Monad.Except                (ExceptT, throwError)
+import           Control.Monad.Except                (ExceptT, throwError, runExceptT)
 import           Control.Monad.Identity              (Identity (..))
 import           Control.Monad.Reader
-import           Control.Monad.State                 (StateT, modify)
+import           Control.Monad.State                 (StateT, modify, runStateT)
 import           Data.Bifunctor                      (first)
 import qualified Data.ByteString                     as BS
 import           Data.Foldable                       (foldl', foldlM, toList)
@@ -47,6 +53,7 @@ import           Data.Text                           (Text)
 import           Data.Tuple                          (swap)
 import           GHC.Generics                        (Generic)
 import           GHC.Stack                           (HasCallStack)
+import qualified Data.Vector as Vector
 
 import qualified SimpleSMT                           as S
 import           SimpleSMT                           (SExpr)
@@ -64,8 +71,9 @@ import           Talos.Monad                         (LiftTalosM, LogKey)
 import           Talos.Solver.SolverT
 import           Talos.Strategy.Monad                (LiftStrategyM)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar (..),
-                                                      PathSet)
+import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar (..)
+                                                      , PathSet
+                                                      , PathSetModelMonad, psmmSMTVar, psmmLoopVar)
 import qualified Talos.Strategy.PathSymbolic.SymExec as SE
 import           Talos.Strategy.PathSymbolic.SymExec (symExecTy)
 
@@ -888,15 +896,37 @@ type SemiState = Set (Typed SMTVar)
 
 type SemiSolverM m = ExceptT () (StateT SemiState (ReaderT SemiSolverEnv (SolverT m)))
 
--- runSemiSolverM :: SemiCtxt m =>
---                   Map Name MuxValue ->
---                   I.Env ->
---                   Text ->
---                   SemiSolverM m a -> SolverT m (Maybe a, Set (Typed SMTVar))
--- runSemiSolverM lenv env pfx m =
---   runReaderT (runStateT (runMaybeT m) mempty) (SemiSolverEnv lenv pfx env)
+runSemiSolverM :: SemiCtxt m =>
+                  Map Name MuxValue ->
+                  Text ->
+                  SemiSolverM m a -> SolverT m (Either () a, Set (Typed SMTVar))
+runSemiSolverM lenv pfx m =
+  runReaderT (runStateT (runExceptT m) mempty) (SemiSolverEnv lenvSExpr pfx)
+  where
+    lenvSExpr = fmap S.const <$> lenv
 
-sexprAsSMTVar :: SemiCtxt m => Type -> SExpr -> SemiSolverM m SMTVar
+nameSExprs :: SemiCtxt m => MuxValueSExpr -> SemiSolverM m MuxValue
+nameSExprs mv =
+  case mv of
+    VUnit -> pure VUnit
+    VIntegers (Typed ty bvs) -> VIntegers . Typed ty <$> traverse (sexprAsSMTVar ty) bvs
+    VBools bvs -> VBools <$> traverse (sexprAsSMTVar TBool) bvs
+    VUnion m -> VUnion <$> goSTVM m
+    VMaybe m -> VMaybe <$> goSTVM m 
+    VStruct m -> VStruct <$> traverse nameSExprs m
+    VSequence variants vbase -> do
+      VSequence <$> traverseOf (each . _2 . _2 . each) nameSExprs variants
+                <*> traverseOf (_2 . each) nameSExprs vbase
+                
+    VMap {} -> unsupported
+  where
+    unsupported = panic "Unsupported (VMap)" []
+    
+    goSTVM :: SemiCtxt m => SumTypeMuxValueF k SExpr ->
+              SemiSolverM m (SumTypeMuxValueF k SMTVar)
+    goSTVM = traverseOf (traversed . _2) nameSExprs
+
+sexprAsSMTVar :: (SemiCtxt m) => Type -> SExpr -> SemiSolverM m SMTVar
 sexprAsSMTVar _ty (S.Atom x) = pure x
 sexprAsSMTVar ty e = do
   -- c.f. PathSymbolic.Monad.makeNicerName
@@ -955,40 +985,43 @@ unreachable = throwError ()
 -- --------------------------------------------------------------------------------
 -- -- Exprs
 
-semiExecExpr :: (SemiCtxt m, HasCallStack) =>
-                Expr -> SemiSolverM m MuxValueSExpr
-semiExecExpr expr =
+semiExecExpr :: (SemiCtxt m, HasCallStack) => Expr -> SemiSolverM m MuxValue
+semiExecExpr e = nameSExprs =<< semiExecExpr' e
+  
+semiExecExpr' :: (SemiCtxt m, HasCallStack) =>
+                 Expr -> SemiSolverM m MuxValueSExpr
+semiExecExpr' expr =
   case expr of
     Var n          -> semiExecName n
     PureLet n e e' -> do
-      ve  <- semiExecExpr e
+      ve  <- semiExecExpr' e
       -- FIXME: duplicates; we might want to name here if n occurs in e' multiple times
-      bindNameIn n ve (semiExecExpr e')
+      bindNameIn n ve (semiExecExpr' e')
 
     Struct _ut ctors -> do
       let (ls, es) = unzip ctors
-      VStruct . Map.fromList . zip ls <$> mapM semiExecExpr es
+      VStruct . Map.fromList . zip ls <$> mapM semiExecExpr' es
 
     ECase {}  -> impossible
     ELoop _lm -> impossible
 
     Ap0 op       -> pure (semiExecOp0 op)
-    Ap1 op e     -> semiExecOp1 op rty =<< semiExecExpr e
+    Ap1 op e     -> semiExecOp1 op rty =<< semiExecExpr' e
     Ap2 op e1 e2 ->
       join (semiExecOp2 op rty (typeOf e1) (typeOf e2)
-            <$> semiExecExpr e1
-            <*> semiExecExpr e2)
+            <$> semiExecExpr' e1
+            <*> semiExecExpr' e2)
     Ap3 {} -> unimplemented -- MapInsert, RangeUp, RangeDown
       -- join (semiExecOp3 op rty (typeOf e1)
-      --        <$> semiExecExpr e1
-      --        <*> semiExecExpr e2
-      --        <*> semiExecExpr e3)
-    ApN (ArrayL _ty) es -> vFixedLenSequence <$> mapM semiExecExpr es
+      --        <$> semiExecExpr' e1
+      --        <*> semiExecExpr' e2
+      --        <*> semiExecExpr' e3)
+    ApN (ArrayL _ty) es -> vFixedLenSequence <$> mapM semiExecExpr' es
     ApN (CallF {}) _es  -> impossible
   where
     rty = typeOf expr
-    unimplemented = panic "semiExecExpr: UNIMPLEMENTED" [showPP expr]
-    impossible = panic "semiExecExpr: IMPOSSIBLE" [showPP expr]
+    unimplemented = panic "semiExecExpr': UNIMPLEMENTED" [showPP expr]
+    impossible = panic "semiExecExpr': IMPOSSIBLE" [showPP expr]
 
 semiExecOp0 :: Op0 -> MuxValueSExpr
 semiExecOp0 op =
@@ -1628,6 +1661,89 @@ semiExecArrayIndex ixs (_vsm, els) = do
 
 -- -- RangeUp and RangeDown
 -- semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
+
+
+-- -----------------------------------------------------------------------------
+-- Getting a concrete value in a model
+
+findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+findM _f [] = pure Nothing
+findM f (x : xs) = do
+  b <- f x
+  if b then pure (Just x) else findM f xs
+  
+fromModel :: PathSetModelMonad m => MuxValue -> m V.Value
+fromModel mv =
+  case mv of
+    VUnit -> pure V.vUnit 
+    VIntegers (Typed ty bvs) -> mkBase integerVL ty bvs
+    VBools bvs -> mkBase boolVL TBool bvs
+    VUnion m -> stmvValue V.VUnionElem m
+    VMaybe m -> stmvValue (\k v -> V.VMaybe (v <$ k)) m
+    VStruct m -> V.VStruct <$> traverseOf (each . _2) fromModel (Map.toList m)
+    VSequence variants vbase -> do
+      m_res <- findM (PS.fromModel . fst) variants
+      let mk (vsm, els) = do
+            -- get the actual elements
+            els' <- maybe (pure els) (fmap (flip take els) . psmmLoopVar) (vsmLoopCountVar vsm)
+            vs   <- traverse fromModel els'
+            pure $ if vsmIsBuilder vsm
+                   then V.VBuilder vs
+                   else V.VArray (Vector.fromList vs)
+  
+      case m_res of
+        Nothing -> mk vbase
+        Just (_, r) -> mk r
+
+    VMap {} -> unsupported
+
+  where
+    unsupported = panic "Unsupported (VMap)" []
+
+    stmvValue f m = do
+      m_res <- findM (PS.fromModel . fst . snd) (Map.toList m)
+      case m_res of
+        Just (k, (_ps, mv')) -> f k <$> fromModel mv'
+        Nothing -> panic "Encountered unreachable value" []
+
+    mkBase :: (PathSetModelMonad m, Ord v) => ValueLens v -> Type -> BaseValues v SMTVar -> m V.Value
+    mkBase vl ty bvs = do
+      m_res <- findM (PS.fromModel . snd) (Map.toList (bvConcrete bvs))
+      case (m_res, bvSymbolic bvs) of
+        (Nothing, Nothing) -> panic "Encountered unreachable value" []
+        (Just (i, _), _)   -> pure (vlToInterpValue vl ty i)
+        (Nothing, Just s)  -> psmmSMTVar (Typed ty s)
+  
+  -- case gse of
+  --   VValue v -> pure (Just v)
+  --   VOther x -> Just <$> getValueVar x
+  --   VUnionElem l gses -> fmap (I.VUnionElem l) <$> gsesModel gses
+  --   VStruct flds -> do
+  --     let (ls, gsess) = unzip flds
+  --     m_gsess <- sequence <$> mapM gsesModel gsess
+  --     pure (I.VStruct . zip ls <$> m_gsess)
+
+  --   VSequence vsm gsess
+  --     | vsmIsBuilder vsm ->
+  --       fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
+  --     | otherwise -> 
+  --       fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
+
+  --   VJust gses -> fmap (I.VMaybe . Just) <$> gsesModel gses
+  --   VMap els -> do
+  --     let (ks, vs) = unzip els
+  --     m_kvs <- sequence <$> mapM gsesModel ks
+  --     m_vvs <- sequence <$> mapM gsesModel vs
+  --     pure (I.VMap . Map.fromList <$> (zip <$> m_kvs <*> m_vvs))
+
+  -- We support symbolic keys, so we can't use Map here
+    -- VIterator els -> do
+    --   let (ks, vs) = unzip els
+    --   m_kvs <- sequence <$> mapM gsesModel ks
+    --   m_vvs <- sequence <$> mapM gsesModel vs
+    --   pure (I.VIterator <$> (zip <$> m_kvs <*> m_vvs))
+  
+
 
 
 -- -- -----------------------------------------------------------------------------
