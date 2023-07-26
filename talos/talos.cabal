@@ -62,6 +62,8 @@ library
                      
                      -- , Talos.Strategy.BackwardSymbolic
 
+                     , Talos.Dataflow
+                     , Talos.StatefulProcessor
                      , Talos.Synthesis
 
                      , Talos.Passes
@@ -211,7 +213,7 @@ executable talos-pretty
 executable talos-run-test
   hs-source-dirs:     tests
   main-is:            RunUnitTestsTalos.hs
-  default-language:    Haskell2010
+  default-language:   Haskell2010
   build-depends:      base,
                       filepath,
                       bytestring,
@@ -224,7 +226,7 @@ test-suite talos-tests
   type:               exitcode-stdio-1.0
   hs-source-dirs:     tests
   main-is:            RunUnitTestsTalos.hs
-  default-language:    Haskell2010
+  default-language:   Haskell2010
   build-depends:      base,
                       filepath,
                       bytestring,
@@ -232,3 +234,32 @@ test-suite talos-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
+
+executable talos-run-hunit
+  hs-source-dirs:     tests
+  main-is:            HUnit.hs
+  default-language:   Haskell2010
+  build-depends:      base,
+                      containers,
+                      daedalus-core,
+                      daedalus-utils,
+                      talos,
+                      text,
+                      HUnit
+  other-modules:      Talos.Dataflow.Tests,
+                      Talos.StatefulProcessor.Tests
+
+test-suite talos-hunit
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            HUnit.hs
+  default-language:   Haskell2010
+  build-depends:      base,
+                      containers,
+                      daedalus-core,
+                      daedalus-utils,
+                      talos,
+                      text,
+                      HUnit
+  other-modules:      Talos.Dataflow.Tests,
+                      Talos.StatefulProcessor.Tests

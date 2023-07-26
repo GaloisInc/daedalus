@@ -4,6 +4,7 @@
 {-# Language ViewPatterns #-}
 {-# Language DeriveGeneric, DeriveAnyClass #-}
 {-# Language DeriveTraversable #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Daedalus.Core.Basics where
 
@@ -13,6 +14,7 @@ import GHC.Generics (Generic)
 
 import Data.Text(Text)
 import Data.Function(on)
+import Text.Printf (printf)
 
 import Daedalus.SourceRange(SourceRange)
 import Daedalus.PP
@@ -57,6 +59,9 @@ data FName = FName
     -- and might (probably will) be different from the Core module name
   }
   deriving (Generic, NFData)
+
+instance Show FName where
+    show (FName {fnameId, fnameText}) = printf "(%s %s)" (show fnameId) (show fnameText)
 
 -- | Names of local variables
 data Name = Name

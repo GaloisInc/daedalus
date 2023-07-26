@@ -17,4 +17,22 @@ parser failure if there is a transitive path in the control dependence graph.
 
 ### Examples
 
+```
+-- A -> B
+--   <-
+-- A -> B
+--   <-
+-- A
+def Main = 
+  block
+    let a = UInt8
+    F a
+    let b = UInt8
+    F b
+    (a, b)
 
+def F x =
+  block
+    x < 255 is True
+    x
+```

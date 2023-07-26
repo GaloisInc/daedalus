@@ -39,6 +39,11 @@ main = do
     SummaryMode   -> doSummary opts
     DumpCoreMode  -> doDumpCore opts
     CFGDotMode    -> doCFGDot opts
+    ColeMode      -> doCole opts
+
+doCole :: Options -> IO ()
+doCole opts = do
+  runDataflow (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do

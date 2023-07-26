@@ -10,6 +10,7 @@ module Talos (
   summarise,
   -- * Useful helpers
   runDaedalus,
+  runDataflow,
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
@@ -48,6 +49,7 @@ import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
 import           Talos.Monad                  (LogKey, getLogKey, logKeyEnabled,
                                                runTalosM, runTalosStream)
+import           Talos.Dataflow
 import           Talos.Passes
 import           Talos.Path                   (ProvenanceMap)
 import           Talos.Strategy
@@ -81,6 +83,12 @@ summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
       hang (pp fn) 2 $
         bullets [ hang (pp fid) 2 (pp d)
                 | (fid, d) <- Map.toList m]
+
+runDataflow :: FilePath -> Maybe FilePath -> Maybe String ->
+               IO ()
+runDataflow inFile m_invFile m_entry = do
+  (_, md, _) <- runDaedalus inFile m_invFile m_entry False
+  summarizeDataflow md
 
 _z3VersionCheck :: SMT.Solver -> IO ()
 _z3VersionCheck s = do
@@ -271,8 +279,3 @@ newFileLogger f l  =
          logTab   = shouldLog (modifyIORef' tab (+ 2))
          logUntab = shouldLog (modifyIORef' tab (subtract 2))
      return SMT.Logger { .. }
-
-
-
-
-

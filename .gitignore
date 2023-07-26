@@ -7,6 +7,9 @@ dist
 /test-parser-gen-output
 .*.swp
 .DS_Store
+.vscode
+*~
 tmp
+venv
 __pycache__
 /daedalus-standalone

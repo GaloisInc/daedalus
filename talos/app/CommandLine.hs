@@ -9,7 +9,7 @@ import Options.Applicative
 
 data Outfile = AllOutput FilePath | PatOutput FilePath
 
-data Mode = SynthesisMode | SummaryMode | DumpCoreMode | CFGDotMode
+data Mode = SynthesisMode | SummaryMode | DumpCoreMode | CFGDotMode | ColeMode
 
 data Options =
   Options { optSolver    :: FilePath
@@ -147,6 +147,7 @@ modeOpt :: Parser Mode
 modeOpt = flag' SummaryMode ( long "summary" <> help "Print out analysis results")
           <|> flag' DumpCoreMode ( long "dump-core" <> help "Print out intermediate core")
           <|> flag' CFGDotMode ( long "cfg-dot" <> help "Print out the control flow graph(s)")
+          <|> flag' ColeMode ( long "cole" <> help "Cole's test code for polyglot detection")
           <|> pure SynthesisMode -- defaultx
 
 entryOpt :: Parser String
