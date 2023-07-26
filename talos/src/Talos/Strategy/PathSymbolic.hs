@@ -55,11 +55,11 @@ import qualified Talos.Strategy.OptParser                  as P
 import           Talos.Strategy.OptParser                  (Opt, parseOpts)
 import           Talos.Strategy.PathSymbolic.Monad
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.MuxValue      (GuardedSemiSExprs,
+import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue,
                                                             MuxValue (..),
-                                                            VSequenceMeta (..),
-                                                            ValueMatchResult (..),
-                                                            vUInt, vUnit)
+                                                            VSequenceMeta (..)
+--                                                           , vUInt, vUnit
+                                                           )
 import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
 import           Talos.Strategy.PathSymbolic.PathSet (PathSet,
@@ -251,7 +251,7 @@ stratSlice = go
 -- condition, and also update the value.  If the computation fails,
 -- then the negated path condition will be asserted and 
 guardedChoice :: PathVar -> Int -> SymbolicM Result ->
-                 SymbolicM (Maybe (GuardedSemiSExprs, (Int, PathBuilder)))
+                 SymbolicM (Maybe (MuxValue, (Int, PathBuilder)))
 guardedChoice pv i m = pass $ do
   m_r <- getMaybe m
   pure $ case m_r of
@@ -521,7 +521,7 @@ stratLoop lclass =
 
       pure (v, SelectedLoop node')
   where
-    execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (GuardedSemiSExprs, Maybe Int)
+    execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (MuxValue, Maybe Int)
     execBnd g bnd = do
       sbnd <- synthesiseExpr bnd
       let m_cbnd = fmap (g . fmap (fromIntegral . V.valueToSize)) (MV.asValues sbnd)
@@ -541,7 +541,7 @@ guardedLoopCollection :: VSequenceMeta ->
                          LoopCollection' e ->
                          SymbolicM b ->
                          Int ->
-                         GuardedSemiSExprs ->
+                         MuxValue ->
                          SymbolicM b
 guardedLoopCollection vsm lc m i el = do
   el' <- hoistMaybe (MV.refine g el)
@@ -571,90 +571,94 @@ guardedLoopCollection vsm lc m i el = do
 -- This can greatly increase the number of values
 
 -- FIXME: merge with the above?
-guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
-               SymbolicM (Maybe (GuardedSemiSExprs, (Pattern, PathBuilder)))
-guardedCase gs pat m = pass $ do
-  m_r <- getMaybe m
-  -- when (isNothing m_r) $ liftIO $ print ("Infeasible case: " ++ S.ppSExpr pathGuard "" ++ "\n")
+-- guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
+--                SymbolicM (Maybe (MuxValue, (Pattern, PathBuilder)))
+-- guardedCase gs pat m = pass $ do
+--   m_r <- getMaybe m
+--   -- when (isNothing m_r) $ liftIO $ print ("Infeasible case: " ++ S.ppSExpr pathGuard "" ++ "\n")
 
-  pure $ case m_r of
-           Just r  -> (mk r, extendPath pathGuard)
-           Nothing -> (Nothing, notFeasible)
-  where
-    mk (v, pb) = do
-      x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
-      pure (x, (pat, pb))
+--   pure $ case m_r of
+--            Just r  -> (mk r, extendPath pathGuard)
+--            Nothing -> (Nothing, notFeasible)
+--   where
+--     mk (v, pb) = do
+--       x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
+--       pure (x, (pat, pb))
 
-    pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
-    notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
+--     pathGuard = MV.orMany (map PC.toSExpr (NE.toList gs))
+--     notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
 
 stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
 stratCase _total cs m_sccs = do
-  inv <- getName (caseVar cs)
-  (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
-  -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
-  --                 (show $ commaSep [ pp p <> " => " <> pp vmr | (p, vmr) <- preds ])
-  let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice a)
-  case m_sccs of
-    Just sccs
-      | any (hasRecCall sccs . snd . snd) alts -> do
-          -- In this case we just pick a random alt (and maybe
-          -- backtrack at some point?).  We ignore preds, as we assert
-          -- that the alt is reachable.
+  v <- getName (caseVar cs)
+  pv <- freshPathVar
+  let (pred, missing) = MV.semiExecPatterns v pv (map fst (caseAlts cs))
+  undefined
+  
+  -- (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
+  -- -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
+  -- --                 (show $ commaSep [ pp p <> " => " <> pp vmr | (p, vmr) <- preds ])
+  -- let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice a)
+  -- case m_sccs of
+  --   Just sccs
+  --     | any (hasRecCall sccs . snd . snd) alts -> do
+  --         -- In this case we just pick a random alt (and maybe
+  --         -- backtrack at some point?).  We ignore preds, as we assert
+  --         -- that the alt is reachable.
 
-          -- FIXME(!): this is incomplete
-          (v, (_pat, pb)) <- putMaybe . mk1 =<< randL alts
-          pure (v, SelectedCase (ConcreteCase pb))
+  --         -- FIXME(!): this is incomplete
+  --         (v, (_pat, pb)) <- putMaybe . mk1 =<< randL alts
+  --         pure (v, SelectedCase (ConcreteCase pb))
 
-    _ -> do
-      stag <- freshSymbolicCaseTag
+  --   _ -> do
+  --     stag <- freshSymbolicCaseTag
 
-      (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
+  --     (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
 
-      v <- hoistMaybe (MV.unions' vs)
-      -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
-      --                 <> " ==> " <> pp (length (MV.guardedValues v))
-      --                 <> pp (text . typedThing <$> snd (head (MV.guardedValues v))))
+  --     v <- hoistMaybe (MV.unions' vs)
+  --     -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
+  --     --                 <> " ==> " <> pp (length (MV.guardedValues v))
+  --     --                 <> pp (text . typedThing <$> snd (head (MV.guardedValues v))))
 
-      -- preds here is a list [(PathCondition, SExpr)] where the PC is the
-      -- condition for the value, and the SExpr is a predicate on when
-      -- that value is enabled (matches some guard).  We require that at
-      -- least 1 alternative is enabled, so we assert the disjunction of
-      -- (g <-> s) for (g,s) in preds.  We could also assert the
-      -- conjunction of (g --> s), which does not assert that the guard
-      -- holds (only that the enabling predicate holds when that value is
-      -- enabled).
+  --     -- preds here is a list [(PathCondition, SExpr)] where the PC is the
+  --     -- condition for the value, and the SExpr is a predicate on when
+  --     -- that value is enabled (matches some guard).  We require that at
+  --     -- least 1 alternative is enabled, so we assert the disjunction of
+  --     -- (g <-> s) for (g,s) in preds.  We could also assert the
+  --     -- conjunction of (g --> s), which does not assert that the guard
+  --     -- holds (only that the enabling predicate holds when that value is
+  --     -- enabled).
 
-      liftIO $ printf "Case on %s: %d -> %d\n" (showPP (caseVar cs)) (length (MV.guardedValues inv)) (length (MV.guardedValues v))
+  --     liftIO $ printf "Case on %s: %d -> %d\n" (showPP (caseVar cs)) (length (MV.guardedValues inv)) (length (MV.guardedValues v))
 
-      enabledChecks preds
-      recordCase stag (caseVar cs) [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
+  --     enabledChecks preds
+  --     recordCase stag (caseVar cs) [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
 
-      pure (v, SelectedCase (SymbolicCase stag inv paths))
+  --     pure (v, SelectedCase (SymbolicCase stag inv paths))
 
-  where
-    enabledChecks preds = do
-      --  | total     = pure ()
-      -- FIXME: Is it OK to omit this if the case is total?      
-      --  | otherwise = do
-          let preds' = over (each . _1) PC.toSExpr preds
-              patConstraints =
-                MV.andMany ([ g `sImplies` c | (g, SymbolicMatch c) <- preds' ]
-                            ++ [ S.not g | (g, NoMatch) <- preds' ])
+  -- where
+  --   enabledChecks preds = do
+  --     --  | total     = pure ()
+  --     -- FIXME: Is it OK to omit this if the case is total?      
+  --     --  | otherwise = do
+  --         let preds' = over (each . _1) PC.toSExpr preds
+  --             patConstraints =
+  --               MV.andMany ([ g `sImplies` c | (g, SymbolicMatch c) <- preds' ]
+  --                           ++ [ S.not g | (g, NoMatch) <- preds' ])
 
-          oneEnabled <- case [ g | (g, vmr) <- preds', vmr /= NoMatch ] of
-                          [] -> do
-                            inv <- getName (caseVar cs)
-                            liftIO $ putStrLn ("No matches " ++ showPP cs ++ "\nValue\n"
-                                               ++ showPP (text . typedThing <$> inv)
-                                               ++ "\n" ++ show preds')
-                            infeasible
-                          ps -> pure (MV.orMany ps)
+  --         oneEnabled <- case [ g | (g, vmr) <- preds', vmr /= NoMatch ] of
+  --                         [] -> do
+  --                           inv <- getName (caseVar cs)
+  --                           liftIO $ putStrLn ("No matches " ++ showPP cs ++ "\nValue\n"
+  --                                              ++ showPP (text . typedThing <$> inv)
+  --                                              ++ "\n" ++ show preds')
+  --                           infeasible
+  --                         ps -> pure (MV.orMany ps)
 
-          assertSExpr oneEnabled
-          assertSExpr patConstraints
+  --         assertSExpr oneEnabled
+  --         assertSExpr patConstraints
 
-    hasRecCall sccs = \sl -> not (sliceToCallees sl `Set.disjoint` sccs)
+  --   hasRecCall sccs = \sl -> not (sliceToCallees sl `Set.disjoint` sccs)
 
 -- FIXME: this is copied from BTRand
 stratCallNode :: ExpCallNode ->
@@ -846,12 +850,12 @@ stratCallNode cn = do
 -- ----------------------------------------------------------------------------------------
 -- Solver helpers
 
-synthesiseExpr :: Expr -> SymbolicM GuardedSemiSExprs
+synthesiseExpr :: Expr -> SymbolicM MuxValue
 synthesiseExpr e = do
   r <- liftSemiSolverM . MV.semiExecExpr $ e
-  let vs = MV.guardedValues r
-      numSymb = length [ () | (_, MV.VOther _) <- vs ]
-  T.statS (pathKey <> "exprsize") (length vs, numSymb)
+  -- let vs = MV.guardedValues r
+  --     numSymb = length [ () | (_, MV.VOther _) <- vs ]
+  -- T.statS (pathKey <> "exprsize") (length vs, numSymb)
   pure r
 
 synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr

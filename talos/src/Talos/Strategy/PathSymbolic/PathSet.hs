@@ -43,31 +43,29 @@ module Talos.Strategy.PathSymbolic.PathSet
   , conjPathSet
   , disjPathSet
   , disjPathSets
-  -- * Helpers
-  , andMany -- FIXME: move
-  , orMany
   ) where
 
-import           Control.Monad                (guard)
-import           Data.Functor                 (($>))
-import           Data.List.NonEmpty           (NonEmpty)
-import qualified Data.List.NonEmpty           as NE
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import qualified Data.Map.Merge.Strict        as Map
-import           Data.Set                     (Set)
-import qualified Data.Set                     as Set
-import           GHC.Generics                 (Generic)
-import qualified SimpleSMT                    as S
-import           SimpleSMT                    (SExpr, bvHex, tBits)
+import           Control.Monad         (guard)
+import           Data.Foldable         (toList)
+import           Data.Functor          (($>))
+import           Data.List.NonEmpty    (NonEmpty)
+import qualified Data.List.NonEmpty    as NE
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import qualified Data.Map.Merge.Strict as Map
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
+import           GHC.Generics          (Generic)
+import qualified SimpleSMT             as S
+import           SimpleSMT             (SExpr, bvHex, tBits)
 
-import           Daedalus.Core                (Pattern, Typed(..))
+import           Daedalus.Core         (Pattern, Typed (..))
+import           Daedalus.Core.Type    (sizeType)
 import           Daedalus.PP
-import qualified Daedalus.Value.Type                 as V
+import qualified Daedalus.Value.Type   as V
 
-import           Talos.Solver.SolverT         (SMTVar)
-import Data.Foldable (toList)
-import Daedalus.Core.Type (sizeType)
+import           Talos.Lib             (andM, orM, orMany)
+import           Talos.Solver.SolverT  (SMTVar)
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -243,29 +241,8 @@ pathConditionToSExpr pc
 toSExpr :: PathSet -> SExpr
 toSExpr (PathSet pcs) = orMany (map pathConditionToSExpr (toList pcs))
 
-orMany :: [SExpr] -> SExpr
-orMany [x] = x
-orMany xs  = S.orMany xs
-
-andMany :: [SExpr] -> SExpr
-andMany [x] = x
-andMany xs  = S.andMany xs
-
 -- -----------------------------------------------------------------------------
 -- Semantics
-
--- short-circuiting
-andM :: Monad m => [m Bool] -> m Bool
-andM [] = pure True
-andM (m : ms) = do
-  b <- m
-  if b then andM ms else pure False
-
-orM :: Monad m => [m Bool] -> m Bool
-orM [] = pure False
-orM (m : ms) = do
-  b <- m
-  if b then pure True else orM ms
 
 -- There will only be one of these, so a class isn't really required.
 class Monad m => PathSetModelMonad m where

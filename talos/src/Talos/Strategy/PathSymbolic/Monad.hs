@@ -103,7 +103,8 @@ data SymbolicEnv = SymbolicEnv
 data SolverResult =
   ByteResult SMTVar
   | InverseResult (Map Name MuxValue) Expr -- The env. includes the result var.
- -- Not all paths are necessarily feasible.
+
+-- Not all paths are necessarily feasible.
 data PathChoiceBuilder a =
   SymbolicChoice   PathVar           [(Int, a)]
   | ConcreteChoice Int               a
@@ -111,11 +112,6 @@ data PathChoiceBuilder a =
 
 -- Used to tag cases so we can iterate through models
 type SymbolicCaseTag = GUID
-
-data PathCaseBuilder a   =
-  SymbolicCase   SymbolicCaseTag MuxValue [(Pattern, a)]
-  | ConcreteCase                   a
-  deriving (Functor)
 
 -- | When we see a loop while parsing a model we either suspend the
 -- loop (for pooling) and just record the loop's tag, or we have
@@ -126,9 +122,10 @@ data PathLoopBuilder a =
                       (Maybe LoopCountVar) -- 0 or 1
                       a
   | PathLoopMorphism SymbolicLoopTag
-                     [ (PathSet, MV.VSequenceMeta, [a]) ]
-  
-type PathBuilder = SelectedPathF PathChoiceBuilder PathCaseBuilder PathLoopBuilder SolverResult
+                     [ (PathSet, (MV.VSequenceMeta, [a]) ) ]
+                     (MV.VSequenceMeta, [a])
+                     
+type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
 emptySymbolicEnv maxRecDepth nLoopElements ptag = SymbolicEnv

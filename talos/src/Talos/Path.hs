@@ -56,7 +56,9 @@ data SelectedPathF ch ca lp a =
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
-type SelectedPath = SelectedPathF PathIndex Identity SelectedLoopF ByteString
+-- We don't really need the index for cases, but it makes life a bit
+-- easier if we can just copy choice.
+type SelectedPath = SelectedPathF PathIndex PathIndex SelectedLoopF ByteString
 
 deriving instance NFData SelectedPath
 

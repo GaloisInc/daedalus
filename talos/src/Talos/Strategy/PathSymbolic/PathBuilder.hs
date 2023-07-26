@@ -7,6 +7,7 @@
 {-# Language OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE FlexibleInstances #-} -- Just for PathSetModelMonad
 
 -- Symbolic but the only non-symbolic path choices are those in
 -- recursive functions (i.e., we only unroll loops).
@@ -65,10 +66,11 @@ import qualified Talos.Monad                               as T
 
 import           Talos.Strategy.Monad
 import           Talos.Strategy.PathSymbolic.Monad
+import qualified Talos.Strategy.PathSymbolic.SymExec      as SE
 import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
 import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue,
                                                             VSequenceMeta (..))
-import qualified Talos.Strategy.PathSymbolic.PathSet as PC
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
 import           Talos.Strategy.PathSymbolic.PathSet (PathSetModelMonad(..)
                                                      , LoopCountVar
                                                      , PathSet
@@ -83,6 +85,7 @@ import           Talos.Solver.ModelParser                 (evalModelP, pExact,
 import           Talos.Path
 import qualified Talos.Solver.SolverT                     as Solv
 import           Talos.Solver.SolverT                     (SMTVar, SolverT)
+import Talos.Lib (findM, andMany)
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -164,10 +167,10 @@ getLoopVar = getModelVar (#msLoopCounts)
 getValueVar :: Typed SMTVar -> ModelParserM I.Value
 getValueVar (Typed _ty x) = typedThing <$> getModelVar (#msValues) x
 
--- instance PathSetModelMonad (ModelParserM' x) where
---   psmmPathVar = getPathVar
---   psmmSMTVar  = getValueVar
---   psmmLoopVar = getLoopVar
+instance PathSetModelMonad ModelParserM where
+  psmmPathVar = getPathVar
+  psmmSMTVar  = getValueVar
+  psmmLoopVar = getLoopVar
 
 -- -- | Gets any dependencies for a given tag, forgetting about the tag as a side-effect
 -- getLoopDep :: SymbolicLoopTag -> ModelParserM [SymbolicLoopPoolElement]
@@ -201,9 +204,9 @@ makeModelParserEnv sm = do
 symbolicModelToModelStateP :: SymbolicModel -> SolverT StrategyM ModelState
 symbolicModelToModelStateP sm = do
   -- We assume the query/result order is the same
-  let (pes, pPathVars)   = mapToP PC.pathVarToSMTVar pInt (smChoices sm)
+  let (pes, pPathVars)   = mapToP PS.pathVarToSMTVar pInt (smChoices sm)
       (ves, pValues)     = mapToP id (\ty -> Typed ty <$> pValue ty) (smNamedValues sm)
-      (les, pLoopCounts) = mapToP PC.loopCountVarToSMTVar pInt (Map.fromSet (const ()) (smLoopVars sm))
+      (les, pLoopCounts) = mapToP PS.loopCountVarToSMTVar pInt (Map.fromSet (const ()) (smLoopVars sm))
   let vals = pes ++ ves ++ les
   sexp <- timed "getmodel.time" $ Solv.getValues vals
   T.statS (pathKey <> "getmodel" <> "size") (length vals)
@@ -497,7 +500,7 @@ buildPath = go
                    <*> extendCursorIn PCDoRight (go r)
       SelectedChoice pib -> SelectedChoice <$> buildPathChoice pib
       SelectedCall i p   -> SelectedCall i <$> go p
-      SelectedCase pib   -> SelectedCase <$> buildPathCase pib
+      SelectedCase pib   -> SelectedCase <$> buildPathChoice pib
       SelectedLoop lp    -> buildLoop lp
 
     resolveResult :: SolverResult -> ModelParserM BS.ByteString
@@ -527,21 +530,23 @@ buildLoop (PathLoopGenerator ltag m_lv el) =
     -- We will fill this in when we have all the models
     pure SelectedHole
 
-buildLoop (PathLoopMorphism _ltag guardedEls) = do
-  m_el <- findM (pathConditionModel . view _1) guardedEls
+buildLoop (PathLoopMorphism _ltag variants base) = do
+  m_el <- findM (PS.fromModel . fst) variants
   case m_el of
-    Nothing -> panic "No input collection was reachable" []
-    Just (_, vsm, els)
+    Nothing     -> go base
+    Just (_, r) -> go r
+  where
+    go (vsm, els)
       -- This is the unrolled case, so we just emit the path. We re-use the Unrolled case above.
-      | isNothing (vsmGeneratorTag vsm) -> buildLoop (PathLoopUnrolled (vsmLoopCountVar vsm) els)
+      | isNothing (vsmGeneratorTag vsm) = buildLoop (PathLoopUnrolled (vsmLoopCountVar vsm) els)
       -- We always have an element, although it might not be well-defined if the loopvar is 0
-      | Just genltag <- vsmGeneratorTag vsm, [el] <- els ->
+      | Just genltag <- vsmGeneratorTag vsm, [el] <- els =
         loopNonEmpty (vsmLoopCountVar vsm) $ do
           recordLoopDep genltag el
           -- We will fill this in at synthesis time.
           pure SelectedHole
         
-      | otherwise -> panic "Non-singleton sequence" []
+      | otherwise = panic "Non-singleton sequence" []
 
 loopNonEmpty :: Maybe LoopCountVar -> ModelParserM SelectedPath -> ModelParserM SelectedPath
 loopNonEmpty m_lv m = do
@@ -562,38 +567,6 @@ buildPathChoice (SymbolicChoice pv ps) = do
             Nothing  -> panic "Missing choice" []
             Just p'  -> p'
   PathIndex i <$> buildPath p
-
-buildPathCase :: PathCaseBuilder PathBuilder ->
-                 ModelParserM (Identity SelectedPath)
-buildPathCase (ConcreteCase p) = Identity <$> buildPath p
-buildPathCase (SymbolicCase stag gses ps) = do
-  m_v <- gsesModel gses
-  v <- case m_v of
-         Nothing  -> do
-           panic "Missing case value" [showPP (text . typedThing <$> gses)]
-         Just v'  -> pure v'
-
-  let (pat, p) = case find (flip I.matches v . fst) ps of
-        Nothing ->
-          panic "Missing case alt" [ showPP v
-                                   , showPP (text . typedThing <$> gses)
-                                   , showPP (commaSep (map (pp . fst) ps))
-                                   ]
-        Just r -> r
-
-  -- #mpsMMS %= updateCaseStats pat
-
-  Identity <$> buildPath p
-  where
-    -- c.f. getPathVar
-    -- updateCaseStats pat mms'
-    --   | Just ci <- Map.lookup stag (mmsCases mms')
-    --   , pat `notElem` mmsciSeen ci =
-    --     let res | length (mmsciSeen ci) + 1 == length (mmsciAllPats ci) = Nothing
-    --             | otherwise  = Just (ci & #mmsciSeen %~ (pat :))
-    --     in mms' & #mmsCases . at stag .~ res
-    --             & #mmsNovel +~ 1
-    --   | otherwise = mms' & #mmsSeen +~ 1
 
 -- -----------------------------------------------------------------------------
 -- Loops
@@ -637,12 +610,12 @@ build gentag genpe deppes =
         S.Sat     -> do
           modelMaker <- asks mpeGetModel
           model <- inSolver modelMaker
-          locally (#mpeSolverModel) (const model) m
+          locally #mpeSolverModel (const model) m
 
     assertDifferentModel :: ModelState -> ModelParserM' () ()
     assertDifferentModel ms = do
       -- FIXME: we should name this so we don't send it twice.
-      sexp <- modelStateToSExpr ms
+      let sexp = modelStateToSExpr ms
       inSolver $ timed ("assert" <> "repeated") $ do
         Solv.assert (S.not sexp)
         Solv.flush
@@ -720,18 +693,17 @@ withScopedContext m = do
 
 fixModelIn :: Monoid w => ModelState -> ModelParserM' w a -> ModelParserM' w a
 fixModelIn ms m = withScopedContext $ do
-  sexp <- modelStateToSExpr ms
+  let sexp = modelStateToSExpr ms
   inSolver (timed "nestedloop" (Solv.assert sexp))
   -- We also need to update the model in the context.
   local (#mpeModelContext <>~ ms) m
 
-modelStateToSExpr :: LiftStrategyM m => ModelState -> m S.SExpr
-modelStateToSExpr ms = do
-  tdefs <- liftStrategy getTypeDefs
-  pure (S.andMany (values tdefs ++ choices ++ loops))
+modelStateToSExpr :: ModelState -> S.SExpr
+modelStateToSExpr ms =
+  andMany (values ++ choices ++ loops)
   where
-    values tdefs = map (valuePred tdefs) (Map.toList (msValues ms))
-    valuePred tdefs = \(n, Typed ty v) -> S.eq (S.const n) (MV.valueToSExpr tdefs ty v)
+    values = map valuePred (Map.toList (msValues ms))
+    valuePred = \(n, Typed ty v) -> S.eq (S.const n) (SE.symExecValue v)
     
     choices = map choicePred (Map.toList (msPathVars ms))
     choicePred (pv, i) = S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))

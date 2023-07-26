@@ -20,6 +20,7 @@
 module Talos.Strategy.PathSymbolic.MuxValue (
   MuxValue
   , semiExecExpr
+  , semiExecPatterns
   , VSequenceMeta(..)
   , SequenceTag
   -- * Monad
@@ -30,14 +31,15 @@ module Talos.Strategy.PathSymbolic.MuxValue (
 
 import           Control.Lens                        (Prism', _1, _2, each,
                                                       locally, over, preview,
-                                                      traverseOf, (%~), (&),
-                                                      (.~), traversed)
+                                                      traverseOf, traversed,
+                                                      (%~), (&), (.~), (^?), ifoldr)
 import           Control.Monad                       (join, zipWithM)
-import           Control.Monad.Except                (ExceptT, throwError, runExceptT)
+import           Control.Monad.Except                (ExceptT, runExceptT,
+                                                      throwError)
 import           Control.Monad.Identity              (Identity (..))
 import           Control.Monad.Reader
 import           Control.Monad.State                 (StateT, modify, runStateT)
-import           Data.Bifunctor                      (first)
+import           Data.Bifunctor                      (first, second)
 import qualified Data.ByteString                     as BS
 import           Data.Foldable                       (foldl', foldlM, toList)
 import           Data.Generics.Labels                ()
@@ -51,9 +53,9 @@ import           Data.Set                            (Set)
 import qualified Data.Set                            as Set
 import           Data.Text                           (Text)
 import           Data.Tuple                          (swap)
+import qualified Data.Vector                         as Vector
 import           GHC.Generics                        (Generic)
 import           GHC.Stack                           (HasCallStack)
-import qualified Data.Vector as Vector
 
 import qualified SimpleSMT                           as S
 import           SimpleSMT                           (SExpr)
@@ -67,16 +69,18 @@ import           Daedalus.Panic
 import           Daedalus.PP
 import qualified Daedalus.Value.Type                 as V
 
+import           Talos.Lib                           (findM, andMany)
 import           Talos.Monad                         (LiftTalosM, LogKey)
 import           Talos.Solver.SolverT
 import           Talos.Strategy.Monad                (LiftStrategyM)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar (..)
-                                                      , PathSet
-                                                      , PathSetModelMonad, psmmSMTVar, psmmLoopVar)
+import           Talos.Strategy.PathSymbolic.PathSet (LoopCountVar (..),
+                                                      PathVar, 
+                                                      PathSet,
+                                                      PathSetModelMonad,
+                                                      psmmLoopVar, psmmSMTVar)
 import qualified Talos.Strategy.PathSymbolic.SymExec as SE
 import           Talos.Strategy.PathSymbolic.SymExec (symExecTy)
-
 
 --------------------------------------------------------------------------------
 -- Logging and stats
@@ -826,6 +830,103 @@ bindNameIn n v = locally #localBoundNames (Map.insert n v)
 -- data ValueMatchResult = NoMatch | YesMatch | SymbolicMatch SExpr
 --   deriving (Eq, Ord, Show)
 
+-- Doing it this way (if ps then pv == 0 else ...) instead of the
+-- other way (if pv == 0 then ps ...) means we can have a symbolic
+-- default.  We could be a bit tricky here and note that if we have a
+-- default then pv is allowed to be (length vs), but if there is no
+-- default ((pv == length vs) == False).  We currently don't rely on
+-- this.
+mapPatterns :: Ord k => PathVar -> Map k PathSet -> (Maybe SExpr -> SExpr) ->
+               [k] -> Bool -> (SExpr, [Int])
+mapPatterns pv valMap mkDflt vs hasAny = mk 0 valMap [] vs
+  where
+    mk _i m missing []
+      | not (Map.null m) =
+        ( mkDflt (Just (PS.toSExpr (PS.disjPathSets (toList m))))
+        , missing)
+      | otherwise = ( mkDflt Nothing
+                    -- If we have a PAny, it isn't reached here.
+                    , if hasAny then length vs : missing else missing)
+      
+    mk i m missing (v : vs')
+      | (Just ps, m') <- Map.updateLookupWithKey (\_ _ -> Nothing) v m =
+          first (S.ite (PS.toSExpr ps) (pvIs i)) (mk (i + 1) m' missing vs')
+      | otherwise = mk (i + 1) m (i : missing) vs'
+
+    pvIs = PS.toSExpr . PS.choiceConstraint pv
+
+baseValuesPatterns :: Ord v => PathVar -> ValueLens v -> [v] -> Bool ->
+                      Type -> BaseValues v SMTVar -> 
+                      (SExpr, [Int])
+baseValuesPatterns pv vl vs hasAny ty bvs =
+  second updMissing $ mapPatterns pv (bvConcrete bvs) mkDflt vs hasAny
+  where
+    -- if we have a symbolic entry we need to look at all branches.
+    updMissing | isNothing (bvSymbolic bvs) = id
+               | otherwise = const []
+    mkDflt Nothing = symCase
+    mkDflt (Just s) = S.ite s dflt symCase
+
+    symCase | Just sym <- bvSymbolic bvs = ifoldr (mksym sym) dflt vs
+            | otherwise = S.bool False
+    
+    dflt | hasAny    = pvIs (length vs)
+         | otherwise = S.bool False
+
+    -- if s == val then pv == ix else ...
+    mksym sym = \i val acc ->
+      S.ite (S.eq (S.const sym) (vlToSExpr vl ty val)) (pvIs i) acc
+
+    pvIs = PS.toSExpr . PS.choiceConstraint pv
+
+stvmPatterns :: Ord l => PS.PathVar -> [l] -> Bool -> SumTypeMuxValueF l SMTVar ->
+                (SExpr, [Int])
+stvmPatterns pv vs hasAny m = mapPatterns pv (fst <$> m) mkDflt vs hasAny
+  where
+    mkDflt Nothing  = S.bool False
+    mkDflt (Just _s) = if hasAny then pvIs (length vs) else S.bool False
+
+    pvIs = PS.toSExpr . PS.choiceConstraint pv
+
+-- Returns an sexpr constraining the allowed values of pv.
+semiExecPatterns :: HasCallStack => MuxValue -> PS.PathVar -> [Pattern] ->
+                    (SExpr, [Int])
+semiExecPatterns mv pv pats = 
+  case pats'  of
+    []            -> panic "Empty patterns" []
+    PBool {}  : _ -> bvPat boolVL #_PBool
+    PNum {}   : _ -> bvPat integerVL #_PNum          
+    PNothing  : _ | VMaybe m <- mv -> stmvPat mbPat m
+    PJust     : _ | VMaybe m <- mv -> stmvPat mbPat m
+    PCon {}   : _ | VUnion m <- mv -> stmvPat conPat m
+    PBytes {} : _ -> unexpected -- should be erased by one of the passes
+    _             -> unexpected
+  where
+    mbPat PNothing = Nothing
+    mbPat PJust    = Just ()
+    mbPat _        = unexpected
+
+    conPat (PCon l) = l
+    conPat _        = unexpected
+
+    -- Primitive.
+    bvPat :: Ord v => ValueLens v -> Prism' Pattern v -> (SExpr, [Int])
+    bvPat vl p
+      | Just (ty, bvs) <- vlFromMuxValue vl mv =
+          let vs = fromMaybe unexpected (traverse (preview p) pats')
+          in baseValuesPatterns pv vl vs hasAny ty bvs
+      | otherwise = unexpected
+
+    stmvPat :: Ord l => (Pattern -> l) -> SumTypeMuxValueF l SMTVar ->
+               (SExpr, [Int])
+    stmvPat getPat = stvmPatterns pv (map getPat pats') hasAny
+
+    -- ASSUME that a PAny is the last element
+    pats'  = filter ((/=) PAny) pats
+    hasAny = PAny `elem` pats
+
+    unexpected = panic "Unexpected pattern" []
+
 -- semiExecCase :: (Monad m, HasGUID m, HasCallStack) =>
 --                 Case a ->
 --                 SemiSolverM m ( [ ( NonEmpty PathCondition, (Pattern, a)) ]
@@ -1291,7 +1392,7 @@ sequenceEq (vsm1, els1) (vsm2, els2) =
       | otherwise -> do
           ses <- makeEqs
           let lenEqAssn = S.eq (PS.loopCountVarToSExpr szv) (PS.loopCountToSExpr (length els1))
-              assn = PS.andMany (lenEqAssn : ses)
+              assn = andMany (lenEqAssn : ses)
           pure (singletonSymBaseValues assn)
     -- Symmetric, just use the above case.
     (Just {}, Nothing)  -> sequenceEq (vsm2, els2) (vsm1, els1)
@@ -1304,7 +1405,7 @@ sequenceEq (vsm1, els1) (vsm2, els2) =
               (always, conds0) = splitAt minLen ses
               guardLen n = S.implies (S.bvULt (PS.loopCountToSExpr n) (PS.loopCountVarToSExpr szv1))
               conds = zipWith guardLen [minLen ..] conds0
-              assn = PS.andMany (lenEqAssn : always ++ conds)
+              assn = andMany (lenEqAssn : always ++ conds)
           pure (singletonSymBaseValues assn)
   where
     -- FIXME: do we need a path here?  This is unconditionally false.
@@ -1665,12 +1766,6 @@ semiExecArrayIndex ixs (_vsm, els) = do
 
 -- -----------------------------------------------------------------------------
 -- Getting a concrete value in a model
-
-findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
-findM _f [] = pure Nothing
-findM f (x : xs) = do
-  b <- f x
-  if b then pure (Just x) else findM f xs
   
 fromModel :: PathSetModelMonad m => MuxValue -> m V.Value
 fromModel mv =

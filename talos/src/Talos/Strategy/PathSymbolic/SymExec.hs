@@ -10,6 +10,7 @@ module Talos.Strategy.PathSymbolic.SymExec
   , symExecOp1
   , symExecOp2
   , symExecTy
+  , symExecValue
   ) where
 
 import qualified Data.ByteString                 as BS
@@ -20,6 +21,7 @@ import qualified SimpleSMT                       as S
 import           Daedalus.Core                   hiding (tByte, freshName)
 import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.Value.Type as V
 
 -- -----------------------------------------------------------------------------
 -- OpN
@@ -221,3 +223,20 @@ symExecTy ty =
     TDouble         -> panic "Saw a double" []
     _               -> unexpected
   where unexpected = panic "Unexpected type" [showPP ty]
+
+-- ----------------------------------------------------------------------------------------
+-- Interpreter Values
+--
+-- This should match symExecTy
+
+
+symExecValue :: V.Value -> SExpr
+symExecValue v =
+  case v of
+    V.VUInt n i -> symExecOp0 (IntL i (TUInt (TSize (fromIntegral n))))
+    V.VSInt n i -> symExecOp0 (IntL i (TSInt (TSize (fromIntegral n))))
+    V.VInteger i -> symExecOp0 (IntL i TInteger)
+    V.VBool b    -> symExecOp0 (BoolL b)
+    _            -> unexpected
+  where unexpected = panic "Unexpected value" [showPP v]
+    
