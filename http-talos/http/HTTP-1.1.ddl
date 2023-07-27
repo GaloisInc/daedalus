@@ -354,24 +354,6 @@ def HTTP_field_u =
     Content_Length: uint 64
     Field: Header_s
 
--- Parse an HTTP field (header). We only trim white space around the field
--- value but do not process it otherwise.
-def HTTP_field_raw =
-  block
-    field_name = Field_name
-    $[':']
-    HTTP_OWS
-    let start  = GetStream
-    field_data = Take HTTP_field_content start
-    HTTP_OWS
-
-def HTTP_special_field (raw: HTTP_field_raw) P =
-  WithStream raw.field_data
-  First
-    Only P
-    Fail (concat [ "Malformed field: ", raw.field_name ])
-
-
 -- Parse an HTTP field (header). We specifically parse Content-Length
 -- and Transfer-Encoding for use elsewhere in the parser; all other
 -- headers are represented as Field { ... }.
