@@ -1,4 +1,4 @@
-import Utils
+import Daedalus
 import Lexemes
 
 -- Reference:
@@ -55,15 +55,16 @@ def URI_authority =
   block
     user_info = Optional { $$ = URI_userinfo; $['@'] }
     host      = URI_host
-    port =
-      First
-        block
-          $[':']
-          Many DigitNum  -- XXX: Maybe turn into a number, but what size?
-        []
+    port      = Optional URI_port
+
+def URI_port =
+  block
+    let val = many (value = DigitNum as uint 32)
+                   (10 * value + (DigitNum as ?auto))
+    val as? uint 16
 
 def URI_userinfo =
-  Many 
+  Many
     First
       $uri_unreserved
       URI_pct_encoded
@@ -155,14 +156,16 @@ def URI_IPv6address =
                         buf    = v4.buf
                         count  = v4.count
                         stop   = true
-                            
+
                       block
                         buf   = emit loop.buf URI_h6
                         count = loop.count + 1
                         stop  = count == 7
 
           -- End in ::
-          When (front.count == back.count) $[':']
+          if front.count == back.count
+            then @$[':']
+            else Accept
 
           -- Only :: is not OK
           let zeros = 8 - back.count

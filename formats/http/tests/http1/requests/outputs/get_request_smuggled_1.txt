@@ -21,6 +21,7 @@
               , encoded: T
               }
 , body: {chunked: { chunks: [ ]
+                  , last_chunk_extensions: [ ]
                   , trailer_fields: [ ]
                   }}
 }
