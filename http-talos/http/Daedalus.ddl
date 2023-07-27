@@ -83,9 +83,19 @@ def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 --------------------------------------------------------------------------------
 
+-- Compute the smaller value
 def min x y = if x < y then x else y
+
+-- Compute the larger value
 def max x y = if x < y then y else x
 
+-- Skip some occurances of the given parser, and return how many
+-- were skipped.
+def Count P : uint 64 = many (count = 0) { P; count + 1 }
+
+
+-- Match a P, followed by some Qs
+def ManyStart P Q = build (many (buf = emit builder P) (emit buf Q))
 
 
 --------------------------------------------------------------------------------
