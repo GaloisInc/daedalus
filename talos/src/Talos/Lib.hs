@@ -42,3 +42,5 @@ andMany :: [SExpr] -> SExpr
 andMany [x] = x
 andMany xs  = S.andMany xs
 
+tByte :: SExpr
+tByte = S.tBits 8

@@ -19,10 +19,18 @@
 
 module Talos.Strategy.PathSymbolic.MuxValue (
   MuxValue
+  , MuxValueF(..)
   , semiExecExpr
   , semiExecPatterns
   , VSequenceMeta(..)
   , SequenceTag
+  -- * Constructors
+  , vSymbolicBool
+  , vSymbolicInteger
+  -- * Combinators
+  , mux
+  -- * Destructors
+  , asAssertion
   -- * Monad
   , SemiSolverM
   , runSemiSolverM
@@ -32,7 +40,7 @@ module Talos.Strategy.PathSymbolic.MuxValue (
 import           Control.Lens                        (Prism', _1, _2, each,
                                                       locally, over, preview,
                                                       traverseOf, traversed,
-                                                      (%~), (&), (.~), (^?), ifoldr)
+                                                      (%~), (&), (.~), (^?), ifoldr, mapped)
 import           Control.Monad                       (join, zipWithM)
 import           Control.Monad.Except                (ExceptT, runExceptT,
                                                       throwError)
@@ -377,8 +385,9 @@ nullBaseValues BaseValues {..} = Map.null bvConcrete && isNothing bvSymbolic
 vSymbolicInteger :: Type -> s -> MuxValueF s
 vSymbolicInteger ty s = VIntegers (Typed ty $ singletonSymBaseValues s)
 
-_vSymbolicBool :: s -> MuxValueF s
-_vSymbolicBool s = VBools (singletonSymBaseValues s)
+vSymbolicBool :: s -> MuxValueF s
+vSymbolicBool s = VBools (singletonSymBaseValues s)
+
 vBool :: Bool -> MuxValueF b
 vBool = VBools . singletonBaseValues PS.trivialPathSet
 
@@ -521,11 +530,12 @@ muxMuxValues xs m_base =
       
     err  = panic "Malformed value" []
            
-        
-
-        
-
-
+mux :: SemiCtxt m => [(PathSet, MuxValue)] -> Maybe MuxValue ->
+       SemiSolverM m MuxValue
+mux vs m_v = nameSExprs v
+  where
+    v = muxMuxValues (over (each . _2 . mapped) S.const vs)
+                     (fmap S.const <$> m_v)
 
 conjBaseValues :: SemiCtxt m => [BaseValues Bool SExpr] ->
                   SemiSolverM m (BaseValues Bool SExpr)
@@ -555,6 +565,10 @@ baseValueToSExpr ty vl bvs
   | otherwise = panic "Empty basevalue" []
   where
     sexps = map (first (vlToSExpr vl ty)) (Map.toList (bvConcrete bvs))
+
+asAssertion :: MuxValue -> SExpr
+asAssertion (VBools bvs) = baseValueToSExpr TBool boolVL (S.const <$> bvs)
+asAssertion _ = panic "Expecting a boolean value" []
       
 -- -- -----------------------------------------------------------------------------
 -- -- Byte sets

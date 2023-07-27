@@ -408,6 +408,7 @@ getModel = solverOp (\s -> S.command s $ S.List [S.const "get-model"])
 -- -----------------------------------------------------------------------------
 -- Names
 
+
 freshSymbol :: (Monad m, HasGUID m) => Text -> m SMTVar
 freshSymbol pfx = textToSMTName pfx <$> getNextGUID
 
