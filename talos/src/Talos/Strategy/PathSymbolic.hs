@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# Language OverloadedStrings #-}
+{-# Language OverloadedLabels #-}
 
 -- Symbolic but the only non-symbolic path choices are those in
 -- recursive functions (i.e., we only unroll loops).
@@ -12,7 +13,7 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                              (_1, _2, each, over, itraverse)
+import           Control.Lens                              (_1, _2, each, over, itraverse, preview, traverseOf)
 import           Control.Monad                             (forM_, when,
                                                             zipWithM, (<=<), unless)
 import           Control.Monad.Reader
@@ -374,7 +375,7 @@ stratLoop lclass =
           cub = maybe altub (min altub) (snd =<< m_ubs)
 
       n <- asks sCurrentName
-      liftIO $ printf "Bounds (%s): %d %d\n" (show n) clb cub
+      -- liftIO $ printf "Bounds (%s): %d %d\n" (show n) clb cub
 
       -- FIXME: this is a bit blunt/incomplete
       lv <- freshLoopCountVar clb cub
@@ -457,15 +458,34 @@ stratLoop lclass =
       ltag <- freshSymbolicLoopTag
 
       se <- synthesiseExpr e
-      col <- synthesiseExpr (lcCol lc)
+      m_col <- preview #_VSequence <$> synthesiseExpr (lcCol lc)
+
+      let (vars, base) = case m_col of
+            Nothing -> panic "UNIMPLEMENTED: non-list fold" []
+            Just r  -> r
+      
       -- c.f. SRepeatLoop
       let guards vsm
             | Just lv <- vsmLoopCountVar vsm =
-                \i -> ( PS.insertLoopCount lv (PS.LCCGt (i - 1)) mempty
-                      , PS.insertLoopCount lv (PS.LCCEq i) mempty
+                \i -> ( PS.loopCountGeqConstraint lv i
+                      , PS.loopCountEqConstraint lv i
                       )
             | otherwise = const (mempty, mempty)
 
+          -- this allows short-circuiting if we try to unfold too many
+          -- times.
+          go se' acc i
+            | i == nloops = pure (reverse acc)
+            | otherwise = do
+                m_v_pb <- handleUnreachable (gtGuard i)
+                           (primBindName n se' (stratSlice b))
+                case m_v_pb of
+                  Nothing -> pure (reverse acc)
+                  Just (v, pb) -> do
+                    -- these should work (no imcompatible assumptions about lv)
+                    go v (((eqGuard i, v), pb) : acc) (i + 1)
+
+      
           -- TODO: prune early as for Repeat above
           goOne _vsm (_se', acc) [] = pure (reverse acc)
           goOne vsm (se', acc) ((i, el) : rest) = do
@@ -476,20 +496,19 @@ stratLoop lclass =
             se'' <- hoistMaybe (MV.refine gtGuard v)
             goOne vsm (se'', (v', pb) : acc) rest
 
-          go (g, sv)
-            | Just (vsm, els) <- MV.gseToList sv = do
-                (svs, pbs) <- unzip <$> goOne vsm (se, []) (zip [0..] els)
+          go (vsm, els) = do
+            (svs, pbs) <- unzip <$> goOne vsm (se, []) (zip [0..] els)
 
-                let (_, eqGuard) = guards vsm 0
-                base <- hoistMaybe (MV.refine eqGuard se)
+            let (_, eqGuard) = guards vsm 0
+            base <- hoistMaybe (MV.refine eqGuard se)
 
-                pure (MV.unions (base :| svs), (g, vsm, pbs))
+            pure (MV.unions (base :| svs), (g, vsm, pbs))
 
-                -- pure (v, node)
-            | otherwise =  panic "UNIMPLEMENTED: fold over non-lists" []
+      -- (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
 
-      (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
-
+      vars' <- traverseOf (each . _2) go vars
+      base' <- go base
+      
       v <- hoistMaybe (MV.unions' vs)
       let node' = PathLoopMorphism ltag nodes
 
