@@ -52,6 +52,7 @@ library
                      , Talos.Strategy.DFST
 
                      , Talos.Strategy.PathSymbolic
+                     , Talos.Strategy.PathSymbolic.Branching                     
                      , Talos.Strategy.PathSymbolic.PathSet
                      , Talos.Strategy.PathSymbolic.Monad
                      , Talos.Strategy.PathSymbolic.MuxValue

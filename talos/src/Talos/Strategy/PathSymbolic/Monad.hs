@@ -11,53 +11,53 @@
 
 module Talos.Strategy.PathSymbolic.Monad where
 
-import           Control.Lens
-import           Control.Monad.IO.Class
-import           Control.Monad.Reader
-import           Control.Monad.Trans.Maybe                 (MaybeT, runMaybeT)
-import           Data.Generics.Product                     (field)
-import           Data.Map                                  (Map)
-import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes, fromMaybe)
-import           GHC.Generics                              (Generic)
-import qualified SimpleSMT                                 as SMT
+import           Control.Lens                          (_1, _2, at, locally,
+                                                        mapped, over, view,
+                                                        (.~))
+import           Control.Monad.IO.Class                (MonadIO)
+import           Control.Monad.Reader                  (MonadIO, ReaderT, ask,
+                                                        asks, local, runReaderT)
+import           Data.Generics.Product                 (field)
+import           Data.Map                              (Map)
+import qualified Data.Map                              as Map
+import           GHC.Generics                          (Generic)
+import qualified SimpleSMT                             as SMT
 -- FIXME: use .CPS
-import           Control.Monad.Writer                      (MonadWriter,
-                                                            WriterT, runWriterT,
-                                                            tell)
-import           Data.List.NonEmpty                        (NonEmpty)
-import           Data.Set                                  (Set)
-import qualified Data.Set                                  as Set
+import           Control.Monad.Except                  (ExceptT, runExceptT,
+                                                        throwError)
+import           Control.Monad.Writer                  (MonadWriter, WriterT,
+                                                        runWriterT, tell)
+import           Data.List.NonEmpty                    (NonEmpty)
+import           Data.Set                              (Set)
+import qualified Data.Set                              as Set
+import           Data.Text                             (Text)
 
-import           Daedalus.Core                             (Expr, Name, Pattern,
-                                                            typedThing, Typed(..), Type, nameText)
-import qualified Daedalus.Core.Semantics.Env               as I
-import           Daedalus.GUID                             (GUID, getNextGUID, invalidGUID)
+import           Daedalus.Core                         (Expr, Name, Pattern,
+                                                        Type, Typed (..))
+import           Daedalus.GUID                         (GUID, getNextGUID,
+                                                        invalidGUID)
+import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
-import           Daedalus.Panic                            (panic)
-import           Daedalus.Rec                              (Rec)
+import           Daedalus.Rec                          (Rec)
 
-import           Talos.Analysis.Exported                   (ExpSlice, SliceId)
+import           Talos.Analysis.Exported               (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
-import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue
-                                                           , SemiSolverM
-                                                           , runSemiSolverM
-                                                           )
+import           Talos.Strategy.PathSymbolic.MuxValue  (MuxValue, SemiSolverM,
+                                                        runSemiSolverM)
                                                             -- SequenceTag,
                                                             -- )
-import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.PathSet      (LoopCountVar (..),
-                                                          PathSet,
-                                                          PathVar (..), loopCountVarSort, loopCountToSExpr)
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import qualified Talos.Strategy.PathSymbolic.SymExec as SE
+import           Talos.Lib                             (andMany)
+import           Talos.Monad                           (LiftTalosM, LogKey)
 import           Talos.Path
-import           Talos.Solver.SolverT                     (MonadSolver, SMTVar,
-                                                            SolverT, liftSolver)
-import qualified Talos.Solver.SolverT                     as Solv
-import Data.Text (Text)
-import Talos.Monad (getIEnv, LogKey, LiftTalosM)
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import qualified Talos.Solver.SolverT                  as Solv
+import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
+                                                        SolverT, liftSolver)
+import           Talos.Strategy.PathSymbolic.Branching (Branching)
+import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
+import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
+                                                        PathSet, PathVar (..),
+                                                        loopCountToSExpr,
+                                                        loopCountVarSort)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -121,9 +121,7 @@ data PathLoopBuilder a =
   | PathLoopGenerator SymbolicLoopTag
                       (Maybe LoopCountVar) -- 0 or 1
                       a
-  | PathLoopMorphism SymbolicLoopTag
-                     [ (PathSet, (MV.VSequenceMeta, [a]) ) ]
-                     (MV.VSequenceMeta, [a])
+  | PathLoopMorphism SymbolicLoopTag (Branching (MV.VSequenceMeta, [a]))
                      
 type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder PathLoopBuilder SolverResult
 
@@ -301,7 +299,7 @@ extendPath g = addGuard . addImpl
     addImpl sm
       | []      <- smGuardedAsserts sm = sm
       | otherwise =
-        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (PS.andMany ss) ]) sm
+        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (andMany ss) ]) sm
 
     -- Merge in the guard g with the path for the known choices/cases
     addGuard = 
