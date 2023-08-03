@@ -76,15 +76,11 @@ mapVariants f bvs = bvs { variants = new }
     new = mapMaybe (uncurry f) (variants bvs)
 
 muxMaps :: Ord k => Branching (Map k v) -> Map k (Branching v)
-muxMaps bmv = do
-  ms' <- Map.unionsWith (<>) [ Map.mapMaybeWithKey (f' ps) m'
-                             | (ps, m') <- variants bmv ]
-  let lhs = Map.mapMissing (const (`branchingMaybe'` Nothing))
-      rhs = Map.mapMissing (const (Branching []))
-  Map.merge lhs rhs (Map.zipWithMatched (const Branching)) ms' (base bmv)
+muxMaps bmv = Map.merge lhs rhs (Map.zipWithMatched (const Branching)) ms' (base bmv)
   where
-    f' ps _k el = fmap (: []) <$> f ps el
-    g' _k xs y = g xs (Just y)
+  ms' = Map.unionsWith (<>) [ (: []) . (,) ps <$> m' | (ps, m') <- variants bmv ]
+  lhs = Map.mapMissing (const (`branchingMaybe'` Nothing))
+  rhs = Map.mapMissing (const (Branching []))
 
 -- | Find the reachable branching value in a model
 resolve :: PS.PathSetModelMonad m => Branching a -> m a

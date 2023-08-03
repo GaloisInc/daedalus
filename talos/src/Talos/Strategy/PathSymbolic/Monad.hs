@@ -15,7 +15,8 @@ import           Control.Lens                          (_1, _2, at, locally,
                                                         mapped, over, view,
                                                         (.~))
 import           Control.Monad.IO.Class                (MonadIO)
-import           Control.Monad.Reader                  (MonadIO, ReaderT, ask,
+import           Control.Monad.Reader                  (ReaderT, ask,
+                                                        MonadReader,
                                                         asks, local, runReaderT)
 import           Data.Generics.Product                 (field)
 import           Data.Map                              (Map)

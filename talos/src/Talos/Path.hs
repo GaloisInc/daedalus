@@ -371,7 +371,7 @@ instance Merge a => Merge (SelectedLoopF a) where
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
 
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
+instance Merge (SelectedPathF PathIndex PathIndex SelectedLoopF a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -379,8 +379,10 @@ instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
       (SelectedChoice (PathIndex n1 sp1), SelectedChoice (PathIndex n2 sp2))
         | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
         | otherwise -> SelectedChoice (PathIndex n1 (merge sp1 sp2))
-      (SelectedCase (Identity sp1), SelectedCase (Identity sp2))
-        -> SelectedCase (Identity (merge sp1 sp2))
+      (SelectedCase (PathIndex n1 sp1), SelectedCase (PathIndex n2 sp2))
+        | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
+        | otherwise -> SelectedCase (PathIndex n1 (merge sp1 sp2))
+
       (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
