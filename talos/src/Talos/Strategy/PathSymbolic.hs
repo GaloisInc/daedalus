@@ -248,20 +248,6 @@ stratSlice = go
             venv <- traverse getName fvM
             ptag <- asks sProvenance
             pure (n', SelectedBytes ptag (InverseResult venv ifn))
-
--- This function runs the given monadic action under the current pathc
--- extended with the give path condition.  In practice, it will run
--- the action, collect any assertions, predicate them by the path
--- condition, and also update the value.  If the computation fails,
--- then the negated path condition will be asserted and 
--- guardedChoice :: PathVar -> Int -> SymbolicM Result ->
---                  SymbolicM (Maybe ((PathSet, MuxValue), (Int, PathBuilder)))
--- guardedChoice pv i m =
---   handleUnreachable ps $ do
---     (v, p) <- m
---     pure ((ps, v), (i, p))
---   where
---     ps = PS.choiceConstraint pv i
     
 stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
@@ -275,17 +261,18 @@ stratChoice sls _
   | Nothing   <- NE.nonEmpty sls = unreachable
   | Just sls' <- NE.nonEmpty sls = do
       pv <- freshPathVar (length sls)
+
       let mk i sl = (PS.choiceConstraint pv i, over _2 ((,) i) <$> stratSlice sl)
       b <- branching $ B.branchingNE $ imap mk sls'
-      let (vs, paths) = B.unzip b
-          paths' = toList paths -- Ignore branching around paths.
-          
-      v <- liftSemiSolverM (MV.mux vs)
-      let feasibleIxs = map fst paths'
+      v <- liftSemiSolverM (MV.mux (fst <$> b))
+      
+      let paths = map snd (toList b)
+          feasibleIxs = map fst paths
+      
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
       
-      pure (v, SelectedChoice (SymbolicChoice pv paths'))
+      pure (v, SelectedChoice (SymbolicChoice pv paths))
       
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
   --                 <> " ==> " <> pp (length (MV.guardedValues v)))
@@ -576,12 +563,33 @@ guardedLoopCollection vsm lc m i el
 --     pathGuard = MV.orMany (map PS.toSExpr (NE.toList gs))
 --     notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
 
+-- c.f. stratChoice
 stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase _total cs m_sccs = do
-  v <- getName (caseVar cs)
-  pv <- freshPathVar (length (casePats cs))
-  let (pred, missing) = MV.semiExecPatterns v pv (map fst (casePats cs))
-  undefined
+stratCase _total cs@(Case n pats) m_sccs
+  | Nothing   <- NE.nonEmpty pats = unreachable
+  | Just pats' <- NE.nonEmpty pats = do
+      v <- getName n
+      pv <- freshPathVar (length pats)
+      
+      let (assn, missing) = MV.semiExecPatterns v pv (map fst (casePats cs))
+      
+      let go i sl | i `elem` missing = unreachable -- short-circuit, maybe tell the user?
+                  | otherwise = over _2 ((,) i) <$> stratSlice sl
+          mk i (_pat, sl) = (PS.choiceConstraint pv i, go i sl)
+          
+      b <- branching $ B.branchingNE $ imap mk pats'
+      v <- liftSemiSolverM (MV.mux (fst <$> b))
+      
+      let paths = map snd (toList b)
+          feasibleIxs = map fst paths
+
+      assertSExpr assn -- FIXME: generate a Branching in semiExecPatterns
+
+      -- FIXME: we are pretending that we are a choice
+      -- Record that we have this choice variable, and the possibilities
+      recordChoice pv feasibleIxs
+      
+      pure (v, SelectedCase (SymbolicChoice pv paths))
   
   -- (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
   -- -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
