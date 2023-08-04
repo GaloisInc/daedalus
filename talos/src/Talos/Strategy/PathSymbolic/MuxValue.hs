@@ -335,7 +335,8 @@ vInteger ty = VIntegers . Typed ty . singletonBaseValues PS.trivialPathSet
 
 -- | Construct a fixed-length sequence
 vFixedLenSequence :: [MuxValueF b] -> MuxValueF b
-vFixedLenSequence els = VSequence (pure (emptyVSequenceMeta, els))
+vFixedLenSequence els =
+  VSequence (B.singleton (emptyVSequenceMeta { vsmMinLength = length els }, els ))
 
 -- Sum types
 

@@ -13,19 +13,19 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                              (_1, _2, each, over, itraverse, preview, traverseOf)
+import           Control.Lens                              (_1, _2, each, over, itraverse, preview, traverseOf, ifor, imap)
 import           Control.Monad                             (forM_, when,
                                                             zipWithM, (<=<), unless, join)
 import           Control.Monad.Reader
 import           Control.Monad.Writer.CPS                  (censor, pass)
 import           Data.Bifunctor                            (second)
-import           Data.Foldable                             (traverse_)
+import           Data.Foldable                             (traverse_, toList)
 import           Data.Generics.Product                     (field)
 import           Data.List.NonEmpty                        (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                        as NE
 import qualified Data.Map                                  as Map
 import           Data.Maybe                                (catMaybes,
-                                                            fromMaybe, mapMaybe)
+                                                            fromMaybe, mapMaybe, isNothing)
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as Set
 import           GHC.Generics                              (Generic)
@@ -142,16 +142,16 @@ symbolicFun config ptag sl = StratGen $ do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res, sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
+    (m_res_sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
     sz <- contextSize
     T.statS (pathKey <> "modelsize") sz
     
-    let go (_, pb) = do
+    let go ((_, pb), sm) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
 
-    case m_res of
+    case m_res_sm of
       Left _   -> pure ([], Nothing)
       Right rs -> go rs
 
@@ -249,28 +249,19 @@ stratSlice = go
             ptag <- asks sProvenance
             pure (n', SelectedBytes ptag (InverseResult venv ifn))
 
-handleUnreachable :: PathSet -> SymbolicM a -> SymbolicM (Maybe a)
-handleUnreachable ps m = pass (catchError go (\() -> pure (Nothing, const notReachable)))
-  where
-    go = do
-      r <- m
-      pure (Just r, extendPath (PS.toSExpr ps))
-      
-    notReachable = mempty { smGuardedAsserts = [ S.not (PS.toSExpr ps) ] }
-
 -- This function runs the given monadic action under the current pathc
 -- extended with the give path condition.  In practice, it will run
 -- the action, collect any assertions, predicate them by the path
 -- condition, and also update the value.  If the computation fails,
 -- then the negated path condition will be asserted and 
-guardedChoice :: PathVar -> Int -> SymbolicM Result ->
-                 SymbolicM (Maybe ((PathSet, MuxValue), (Int, PathBuilder)))
-guardedChoice pv i m =
-  handleUnreachable ps $ do
-    (v, p) <- m
-    pure ((ps, v), (i, p))
-  where
-    ps = PS.choiceConstraint pv i
+-- guardedChoice :: PathVar -> Int -> SymbolicM Result ->
+--                  SymbolicM (Maybe ((PathSet, MuxValue), (Int, PathBuilder)))
+-- guardedChoice pv i m =
+--   handleUnreachable ps $ do
+--     (v, p) <- m
+--     pure ((ps, v), (i, p))
+--   where
+--     ps = PS.choiceConstraint pv i
     
 stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
@@ -280,23 +271,25 @@ stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 --       over _2 (SelectedChoice . ConcreteChoice i) <$> stratSlice ptag sl
 --   where
 --     hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
-
-stratChoice sls _ = do
-  pv <- freshPathVar (length sls)
-  (vs, paths) <-
-    unzip . catMaybes <$>
-    itraverse (\i -> guardedChoice pv i . stratSlice) sls
-
-  v <- maybe unreachable (liftSemiSolverM . MV.mux) (B.branchingMaybe vs Nothing)
-
-  let feasibleIxs = map fst paths
-  
-  -- Record that we have this choice variable, and the possibilities
-  recordChoice pv feasibleIxs
-    
+stratChoice sls _
+  | Nothing   <- NE.nonEmpty sls = unreachable
+  | Just sls' <- NE.nonEmpty sls = do
+      pv <- freshPathVar (length sls)
+      let mk i sl = (PS.choiceConstraint pv i, over _2 ((,) i) <$> stratSlice sl)
+      b <- branching $ B.branchingNE $ imap mk sls'
+      let (vs, paths) = B.unzip b
+          paths' = toList paths -- Ignore branching around paths.
+          
+      v <- liftSemiSolverM (MV.mux vs)
+      let feasibleIxs = map fst paths'
+      -- Record that we have this choice variable, and the possibilities
+      recordChoice pv feasibleIxs
+      
+      pure (v, SelectedChoice (SymbolicChoice pv paths'))
+      
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
   --                 <> " ==> " <> pp (length (MV.guardedValues v)))
-  pure (v, SelectedChoice (SymbolicChoice pv paths))
+
 
 stratLoop :: SLoopClass Expr ExpSlice ->
              SymbolicM Result
@@ -351,11 +344,11 @@ stratLoop lclass =
                               , vsmIsBuilder    = False
                               }
 
-          pathGuard = PS.toSExpr (PS.loopCountEqConstraint lv 1)
+          pathGuard = PS.loopCountEqConstraint lv 1
       
       -- We must be careful to only constrain lv when we are doing
       -- something.
-      (elv, m) <- censor (extendPath pathGuard) (stratSlice b)
+      (elv, m) <- guardAssertions pathGuard (stratSlice b)
 
       let v    = MV.VSequence (B.singleton (vsm, [elv]))
           node = PathLoopGenerator ltag (Just lv) m
@@ -383,12 +376,7 @@ stratLoop lclass =
 
       manyBoundsCheck (PS.loopCountVarToSExpr lv) slb (fst <$> m_ubs)
 
-      -- Construct result  
-      let pathGuard i = PS.toSExpr (PS.loopCountGtConstraint lv i)
-          -- FIXME: we could name the results of this and use a SMT
-          -- function to avoid retraversing multiple times.
-          doOne i = censor (extendPath (pathGuard i)) (stratSlice b)
-
+      let doOne i = guardAssertions (PS.loopCountGtConstraint lv i) (stratSlice b)
       (els, ms) <- unzip <$> mapM doOne [0 .. cub - 1]
 
       let vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
@@ -398,6 +386,7 @@ stratLoop lclass =
                               }
           v = MV.VSequence (B.singleton (vsm, els))
           node = PathLoopUnrolled (Just lv) ms
+          
       pure (v, SelectedLoop node)
 
     SRepeatLoop StructureIndependent _n _e _b ->
@@ -413,11 +402,9 @@ stratLoop lclass =
 
       lv   <- freshLoopCountVar 0 1
 
-      let pathGuard = PS.toSExpr (PS.loopCountEqConstraint lv 1)
-
       -- We must be careful to only constrain lv when we are doing
       -- something.
-      (_elv, m) <- censor (extendPath pathGuard) (stratSlice b)
+      (_elv, m) <- guardAssertions (PS.loopCountEqConstraint lv 1) (stratSlice b)
 
       let node = PathLoopGenerator ltag (Just lv) m
 
@@ -434,16 +421,15 @@ stratLoop lclass =
       se <- synthesiseExpr e
 
       -- We start from 0 so Gt works
-      let gtGuard i = PS.loopCountGtConstraint lv i
-          eqGuard i = PS.loopCountEqConstraint lv (i + 1)
-
+      let eqGuard i = PS.loopCountEqConstraint lv (i + 1)
           -- this allows short-circuiting if we try to unfold too many
           -- times.
           go se' acc i
             | i == nloops = pure (reverse acc)
             | otherwise = do
-                m_v_pb <- handleUnreachable (gtGuard i)
-                           (primBindName n se' (stratSlice b))
+                m_v_pb <-
+                  guardAssertions (PS.loopCountGtConstraint lv i)
+                    $ handleUnreachable (primBindName n se' (stratSlice b))
                 case m_v_pb of
                   Nothing -> pure (reverse acc)
                   Just (v, pb) -> do
@@ -465,61 +451,33 @@ stratLoop lclass =
             Nothing -> panic "UNIMPLEMENTED: non-list fold" []
             Just r  -> r
       
-      -- -- c.f. SRepeatLoop
-      -- let guards vsm
-      --       | Just lv <- vsmLoopCountVar vsm =
-      --           \i -> ( PS.loopCountGeqConstraint lv i
-      --                 , PS.loopCountEqConstraint lv i
-      --                 )
-      --       | otherwise = const (mempty, mempty)
-
-      --     -- this allows short-circuiting if we try to unfold too many
-      --     -- times.
-      --     go se' acc i
-      --       | i == nloops = pure (reverse acc)
-      --       | otherwise = do
-      --           m_v_pb <- handleUnreachable (gtGuard i)
-      --                      (primBindName n se' (stratSlice b))
-      --           case m_v_pb of
-      --             Nothing -> pure (reverse acc)
-      --             Just (v, pb) -> do
-      --               -- these should work (no imcompatible assumptions about lv)
-      --               go v (((eqGuard i, v), pb) : acc) (i + 1)
-
-      
-      --     -- TODO: prune early as for Repeat above
-      --     goOne _vsm (_se', acc) [] = pure (reverse acc)
-      --     goOne vsm (se', acc) ((i, el) : rest) = do
-      --       (v, pb) <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
-      --       let (gtGuard, eqGuard) = guards vsm (i + 1)
-
-      --       v' <- hoistMaybe (MV.refine eqGuard v)
-      --       se'' <- hoistMaybe (MV.refine gtGuard v)
-      --       goOne vsm (se'', (v', pb) : acc) rest
-
-      --     go (vsm, els) = do
-      --       (svs, pbs) <- unzip <$> goOne vsm (se, []) (zip [0..] els)
-
-      --       let (_, eqGuard) = guards vsm 0
-      --       base <- hoistMaybe (MV.refine eqGuard se)
-
-      --       pure (MV.unions (base :| svs), (g, vsm, pbs))
-
-      -- -- (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
-
-      let go :: (VSequenceMeta, [MuxValue]) ->
-                SymbolicM (B.Branching MuxValue, [S.SExpr], (VSequenceMeta, [PathBuilder]))
+      let eqGuard vsm
+            | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
+            | otherwise = const PS.trivialPathSet
+          
+          goOne _mkC _vsm _se' acc [] = pure (reverse acc)
+          goOne mkC vsm se' acc ((i, el) : rest) = do
+            m_v_pb <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
+            case m_v_pb of
+              Nothing -> pure (reverse acc)
+              Just (v, pb) -> goOne mkC vsm v (((mkC i, v), pb) : acc) rest
+                
+          go :: (VSequenceMeta, [MuxValue]) ->
+                SymbolicM (B.Branching MuxValue, (VSequenceMeta, [PathBuilder]))
           go (vsm, els) = do
-            (svs, pbs) <- unzip <$> goOne vsm se [] (zip [0..] els)
-            let svs' = drop (vsmMinLength vsm) ((eqGuard vsm 0, se) : svs)
+            let mkC = eqGuard vsm
+            (svs, pbs) <- unzip <$> goOne mkC vsm se [] (zip [1..] els)
+            let allvs = (mkC 0, se) : svs
+            -- This check shouldn't be required (assuming minLength is
+            -- correct) but this is clearer and probably more correct
+            v <-
+              if isNothing (vsmLoopCountVar vsm)
+              -- if we have a non-symbolic spine, the val is the last
+              then pure (B.singleton (snd (last allvs))) 
+              else maybe unreachable (pure . B.branchingNE) (NE.nonEmpty $ drop (vsmMinLength vsm) allvs)
+            pure (v, (vsm, pbs))
             
-            undefined
-            
-      (bvs', assns, nodes) <- B.unzip3 <$> traverse go bvs
-      let assn = B.fold (\ps ss acc -> [S.ite (PS.toSExpr ps) (andMany ss) (andMany acc)]) assns
-      -- re-assert guarded assertions
-      assertSExpr (andMany assn)
-      
+      (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
       v <- liftSemiSolverM (MV.mux (join bvs'))
       
       let node' = PathLoopMorphism ltag nodes
@@ -527,28 +485,33 @@ stratLoop lclass =
 
     SMorphismLoop (MapMorphism lc b) -> do
       ltag <- freshSymbolicLoopTag
-      undefined
+      m_col <- preview #_VSequence <$> synthesiseExpr (lcCol lc)
+  
+      let bvs = case m_col of
+            Nothing -> panic "UNIMPLEMENTED: non-list fold" []
+            Just r  -> r
       
-      -- -- TODO: prune early as for Repeat above
-      -- col <- synthesiseExpr (lcCol lc)
-      -- let go (g, sv)
-      --       | Just (vsm, els) <- MV.gseToList sv = do
-      --           (els', pbs) <- unzip <$> zipWithM (guardedLoopCollection vsm lc (stratSlice b)) [0..] els
-      --           -- We just propagate the vsm for the collection value
-      --           -- to the users of the result of this sequence.  We
-      --           -- also inherit the guard from the collection
-      --           let v = MV.singleton g (VSequence vsm els')
-      --           pure (v, (g, vsm, pbs))
-
-      --           -- pure (v, node)
-      --       | otherwise =  panic "UNIMPLEMENTED: map over non-lists" []
-
-      -- (vs, nodes) <- unzip <$> collectMaybes (map go (MV.guardedValues col))
-
-      -- v <- hoistMaybe (MV.unions' vs)
-      -- let node' = PathLoopMorphism ltag nodes
-
-      -- pure (v, SelectedLoop node')
+      let eqGuard vsm
+            | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
+            | otherwise = const PS.trivialPathSet
+          
+          goOne _vsm acc [] = pure (reverse acc)
+          goOne vsm acc ((i, el) : rest) = do
+            m_v_pb <- guardedLoopCollection vsm lc (stratSlice b) i el
+            case m_v_pb of
+              Nothing -> pure (reverse acc)
+              Just (v, pb) -> goOne vsm ((v, pb) : acc) rest
+                
+          go :: (VSequenceMeta, [MuxValue]) ->
+                SymbolicM ((VSequenceMeta, [MuxValue]), (VSequenceMeta, [PathBuilder]))
+          go (vsm, els) = do
+            (els', pbs) <- unzip <$> goOne vsm [] (zip [1..] els)
+            pure ((vsm, els'), (vsm, pbs))
+            
+      (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
+      
+      let node' = PathLoopMorphism ltag nodes
+      pure (MV.VSequence bvs', SelectedLoop node')
   where
     execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (MuxValue, Maybe Int)
     execBnd g bnd = do
@@ -571,15 +534,16 @@ guardedLoopCollection :: VSequenceMeta ->
                          Int ->
                          MuxValue ->
                          SymbolicM (Maybe b)
-guardedLoopCollection vsm lc m i el = do
-  let kv = MV.vInteger sizeType (fromIntegral i)
-      bindK = maybe id (\kn -> primBindName kn kv) (lcKName lc)
-      bindE = primBindName (lcElName lc) el
-
-  handleUnreachable g (bindK (bindE m))
+guardedLoopCollection vsm lc m i el
+  -- Are we allowed to fail here?  If so, handle it, otherwise just propagate.
+  | Just lcv <- vsmLoopCountVar vsm, i >= vsmMinLength vsm =
+      guardAssertions (PS.loopCountGtConstraint lcv i)
+        $ handleUnreachable (bindK (bindE m))
+  | otherwise = Just <$> bindK (bindE m)
   where
-    g | Just lcv <- vsmLoopCountVar vsm = PS.loopCountGtConstraint lcv i
-      | otherwise = PS.trivialPathSet
+    kv = MV.vInteger sizeType (fromIntegral i)
+    bindK = maybe id (\kn -> primBindName kn kv) (lcKName lc)
+    bindE = primBindName (lcElName lc) el    
 
 -- We represent disjunction by having multiple values; in this case,
 -- if we have matching values for the case alternative v1, v2, v3,

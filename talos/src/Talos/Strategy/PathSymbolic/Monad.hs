@@ -8,12 +8,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# Language GeneralizedNewtypeDeriving #-}
+{-# Language OverloadedLabels #-}
 
 module Talos.Strategy.PathSymbolic.Monad where
 
 import           Control.Lens                          (_1, _2, at, locally,
                                                         mapped, over, view,
-                                                        (.~))
+                                                        (.~), (%~))
 import           Control.Monad.IO.Class                (MonadIO)
 import           Control.Monad.Reader                  (ReaderT, ask,
                                                         MonadReader,
@@ -25,10 +26,12 @@ import           GHC.Generics                          (Generic)
 import qualified SimpleSMT                             as SMT
 -- FIXME: use .CPS
 import           Control.Monad.Except                  (ExceptT, runExceptT,
-                                                        throwError, MonadError)
+                                                        throwError, MonadError, catchError)
 import           Control.Monad.Writer                  (MonadWriter, WriterT,
-                                                        runWriterT, tell)
-import           Data.List.NonEmpty                    (NonEmpty)
+                                                        runWriterT, tell,
+                                                        listens, pass, censor, listen)
+import           Data.List.NonEmpty                    (NonEmpty(..), nonEmpty)
+import qualified Data.List as List
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
@@ -54,11 +57,16 @@ import qualified Talos.Solver.SolverT                  as Solv
 import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
                                                         SolverT, liftSolver)
 import           Talos.Strategy.PathSymbolic.Branching (Branching)
+import qualified Talos.Strategy.PathSymbolic.Branching as B
 import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
 import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         PathSet, PathVar (..),
                                                         loopCountToSExpr,
                                                         loopCountVarSort)
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
+import Data.Foldable (toList)
+import Data.Functor (($>))
+import Data.Maybe (maybeToList)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -148,12 +156,79 @@ type SymbolicLoopTag = MV.SequenceTag
 invalidSymbolicLoopTag :: SymbolicLoopTag
 invalidSymbolicLoopTag = invalidGUID
 
+-- -----------------------------------------------------------------------------
+-- Assertions
+
+-- Should we do something smarter when we have entailment under a
+-- Branching? We could split Entail into Conj and Implies and then
+-- simplify Implies under Branching.
+data Assertion =
+  SExprAssert SMT.SExpr -- Try not to use as it is not that informative.
+  | PSAssert PathSet
+  | BoolAssert Bool
+  | BAssert (Branching Assertion)
+  | EntailAssert PathSet (NonEmpty Assertion) -- P |= AND assns
+  deriving (Ord, Eq, Show, Generic)
+
+assertionToSExpr :: Assertion -> SMT.SExpr
+assertionToSExpr assn =
+  case assn of
+    SExprAssert s -> s
+    PSAssert ps -> PS.toSExpr ps
+    BoolAssert b -> SMT.bool b
+    BAssert  b  -> B.toSExpr (assertionToSExpr <$> b)
+    EntailAssert ps assns ->
+      PS.toSExpr ps `SMT.implies` andMany (map assertionToSExpr (toList assns))
+
+isTrivialAssertion :: Assertion -> Bool
+isTrivialAssertion assn =
+  case assn of
+    SExprAssert s -> s == SMT.bool True
+    PSAssert ps -> PS.isTrivial ps
+    BoolAssert b -> b
+    BAssert  b  -> all isTrivialAssertion b
+    EntailAssert _ assns -> all isTrivialAssertion assns
+
+instance Semigroup Assertion where
+  -- Unit
+  BoolAssert True <> assn = assn
+  assn <> BoolAssert True = assn
+  -- Absorb
+  assn@(BoolAssert False) <> _ = assn
+  _ <> assn@(BoolAssert False) = assn
+
+  -- Entailment
+  EntailAssert ps1 assns1 <> EntailAssert ps2 assns2
+    | PS.isTrivial ps1, PS.isTrivial ps2 = EntailAssert PS.trivialPathSet (assns1 <> assns2)
+  EntailAssert ps1 assns1 <> assn2
+    | PS.isTrivial ps1 = EntailAssert PS.trivialPathSet (assn2 :| toList assns1)
+  assn1 <> EntailAssert ps2 assns2
+    | PS.isTrivial ps2 = EntailAssert PS.trivialPathSet (assn1 :| toList assns2)
+  assn1 <> assn2 = EntailAssert PS.trivialPathSet (assn1 :| [assn2])
+
+instance Monoid Assertion where mempty = BoolAssert True
+
+entailAssert :: PathSet -> Assertion -> Assertion
+entailAssert ps a
+  | PS.isTrivial ps      = a
+  | isTrivialAssertion a = mempty
+  | EntailAssert ps' assns <- a =
+      maybe mempty (`EntailAssert` assns) (PS.conjPathSet ps ps')
+  | otherwise            = EntailAssert ps (a :| [])
+
+entailAsserts :: PathSet -> NonEmpty Assertion -> Assertion
+entailAsserts ps (a :| []) = entailAssert ps a
+entailAsserts ps assns     = EntailAssert ps assns
+
+-- -----------------------------------------------------------------------------
+-- Symbolic models
+    
 -- We could figure this out from the generated parse tree, but this is
 -- (maybe?) clearer.
 data SymbolicModel = SymbolicModel
   { smGlobalAsserts :: [SMT.SExpr]
     -- ^ These are not predicated, e.g. range limits on choices.
-  , smGuardedAsserts :: [SMT.SExpr]
+  , smGuardedAsserts :: Assertion
   , smChoices :: Map PathVar ( [SMT.SExpr] -- Symbolic path (all true to be enabled)
                              , [Int] -- Allowed choice indicies
                              )
@@ -162,12 +237,13 @@ data SymbolicModel = SymbolicModel
                                      , [(NonEmpty PathSet, Pattern)] -- Pattern guards
                                      )
   , smNamedValues :: Map SMTVar Type
-  
-  , smLoopVars :: Set LoopCountVar
+  , smLoopVars    :: Set LoopCountVar
   } deriving Generic
 
 smAsserts :: SymbolicModel -> [SMT.SExpr]
-smAsserts sm = smGlobalAsserts sm ++ smGuardedAsserts sm
+smAsserts sm = smGlobalAsserts sm ++
+               [ assertionToSExpr (smGuardedAsserts sm)
+               | not (isTrivialAssertion (smGuardedAsserts sm)) ]
 
 -- We should only ever combine disjoint sets, so we cheat here.
 instance Semigroup SymbolicModel where
@@ -189,8 +265,9 @@ instance Monoid SymbolicModel where
            , smLoopVars       = mempty
            }
 
+-- Writer outside of Except as writer state should be discarded on exception.
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: ExceptT () (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: WriterT SymbolicModel (ExceptT () (ReaderT SymbolicEnv (SolverT StrategyM))) a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadError ()
            , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver, LiftTalosM)
 
@@ -203,9 +280,9 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 Int ->
                 ProvenanceTag ->
                 SymbolicM Result ->
-                SolverT StrategyM (Either () Result, SymbolicModel)
+                SolverT StrategyM (Either () (Result, SymbolicModel))
 runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
-  runReaderT (runWriterT (runExceptT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
+  runReaderT (runExceptT (runWriterT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
 
 --------------------------------------------------------------------------------
 -- Names
@@ -250,9 +327,9 @@ freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
   n <- makeNicerSym "lc"
   sym <- liftSolver $ Solv.declareSymbol n loopCountVarSort
-  -- Not global here as we may want to switch to exprs for bounds
-  assertSExpr $ SMT.and (SMT.bvULeq (loopCountToSExpr lb) (SMT.const sym))
-                        (SMT.bvULeq  (SMT.const sym) (loopCountToSExpr ub))
+  -- Hard (non-symbolic) limits on loop bounds.
+  assertGlobalSExpr $ SMT.and (SMT.bvULeq (loopCountToSExpr lb) (SMT.const sym))
+                              (SMT.bvULeq  (SMT.const sym) (loopCountToSExpr ub))
   let lv = LoopCountVar sym
   tell (mempty { smLoopVars = Set.singleton lv })
   pure lv
@@ -266,9 +343,15 @@ freshSymbolicLoopTag = liftStrategy getNextGUID
 --------------------------------------------------------------------------------
 -- Assertions
 
+-- asserts :: [Assertion] -> SymbolicM ()
+-- asserts assns | all isTrivialAssertion assns = pure ()
+-- asserts assns = tell (mempty { smGuardedAsserts = assns })
+
+assert :: Assertion -> SymbolicM ()
+assert a = tell (mempty { smGuardedAsserts = a })
+
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr p | p == SMT.bool True = pure ()
-assertSExpr p = tell (mempty { smGuardedAsserts = [p] })
+assertSExpr = assert . SExprAssert
 
 assertGlobalSExpr :: SMT.SExpr -> SymbolicM ()
 assertGlobalSExpr p | p == SMT.bool True = pure ()
@@ -291,21 +374,46 @@ recordValues :: Set (Typed SMTVar) -> SymbolicM ()
 recordValues newvars = tell (mempty { smNamedValues = m })
   where
     m = Map.fromList [ (var, ty) | Typed ty var <- Set.toList newvars ]
-    
--- Used for case/choice slice alternatives
-extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
-extendPath g | g == SMT.bool True = id
-extendPath g = addGuard . addImpl
-  where
-    addImpl sm
-      | []      <- smGuardedAsserts sm = sm
-      | otherwise =
-        over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (andMany ss) ]) sm
 
-    -- Merge in the guard g with the path for the known choices/cases
-    addGuard = 
-      over (field @"smChoices" . mapped . _1) (g :)
-      . over (field @"smCases" . mapped . _2) (g :)
+handleUnreachable :: SymbolicM a -> SymbolicM (Maybe a)
+handleUnreachable m =
+  (Just <$> m) `catchError` hdl
+  where
+    hdl () = assert (BoolAssert False) $> Nothing
+
+-- Handles assertions and failure as well.
+branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
+branching b = do
+  (vs, assn) <- B.unzip <$> traverse go b
+  case B.catMaybes vs of
+    Just v -> assert (BAssert assn) $> v
+    Nothing -> unreachable
+  where
+    go m = censor forgetAssns (catchError (runm m) hdl)
+    
+    runm :: SymbolicM a -> SymbolicM (Maybe a, Assertion)
+    runm m = listens smGuardedAsserts (Just <$> m)
+    hdl () = pure (Nothing, BoolAssert False)
+
+    forgetAssns = #smGuardedAsserts .~ mempty
+
+guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
+guardAssertions ps = censor (#smGuardedAsserts %~ entailAssert ps)
+                  
+-- -- Used for case/choice slice alternatives
+-- extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
+-- extendPath g | g == SMT.bool True = id
+-- extendPath g = addGuard . addImpl
+--   where
+--     addImpl sm
+--       | []      <- smGuardedAsserts sm = sm
+--       | otherwise =
+--         over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (andMany ss) ]) sm
+
+--     -- Merge in the guard g with the path for the known choices/cases
+--     addGuard = 
+--       over (field @"smChoices" . mapped . _1) (g :)
+--       . over (field @"smCases" . mapped . _2) (g :)
 
 -- assert :: GuardedSemiSExprs -> SymbolicM ()
 -- assert sv = do

@@ -16,11 +16,12 @@ module Talos.Strategy.PathSymbolic.Branching
   , foldM
   , unzip
   , unzip3
+  , catMaybes
   , mapVariants
   
   , resolve
   , muxMaps
-  
+  , toSExpr
   ) where
 
 import Prelude hiding (unzip, unzip3)
@@ -40,6 +41,7 @@ import qualified Data.Map.Strict                     as Map
 import Daedalus.Panic (panic)
 import Data.List.NonEmpty (NonEmpty(..))
 
+import qualified SimpleSMT as S
 data Branching a = Branching
   { variants :: [ (PathSet, a) ]
   , base     :: a
@@ -90,6 +92,10 @@ fold f b = foldl' (\a' (ps, a) -> f ps a a') (base b) (variants b)
 foldM :: Monad m => (PathSet -> a -> a -> m a) -> Branching a -> m a
 foldM f b = foldlM (\a' (ps, a) -> f ps a a') (base b) (variants b)
 
+catMaybes :: Branching (Maybe a) -> Maybe (Branching a)
+catMaybes b = -- sequence :: (a, Maybe b) -> Maybe (a, b)
+  branchingMaybe (mapMaybe sequence (variants b)) (base b)
+
 -- FIXME: duplicates the pathsets
 unzip :: Branching (a, b) -> (Branching a, Branching b)
 unzip b = ( Branching { variants = zip pss vs1, base = fst (base b) }
@@ -127,3 +133,5 @@ resolve :: PS.PathSetModelMonad m => Branching a -> m a
 resolve bvs =
   maybe (base bvs) snd <$> findM (PS.fromModel . fst) (variants bvs)
 
+toSExpr :: Branching S.SExpr -> S.SExpr
+toSExpr = fold (S.ite . PS.toSExpr)
