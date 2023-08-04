@@ -25,7 +25,7 @@ import           GHC.Generics                          (Generic)
 import qualified SimpleSMT                             as SMT
 -- FIXME: use .CPS
 import           Control.Monad.Except                  (ExceptT, runExceptT,
-                                                        throwError)
+                                                        throwError, MonadError)
 import           Control.Monad.Writer                  (MonadWriter, WriterT,
                                                         runWriterT, tell)
 import           Data.List.NonEmpty                    (NonEmpty)
@@ -191,7 +191,7 @@ instance Monoid SymbolicModel where
 
 newtype SymbolicM a =
   SymbolicM { getSymbolicM :: ExceptT () (WriterT SymbolicModel (ReaderT SymbolicEnv (SolverT StrategyM))) a }
-  deriving (Applicative, Functor, Monad, MonadIO
+  deriving (Applicative, Functor, Monad, MonadIO, MonadError ()
            , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver, LiftTalosM)
 
 instance LiftStrategyM SymbolicM where

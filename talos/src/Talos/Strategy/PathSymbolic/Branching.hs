@@ -5,16 +5,26 @@
 
 module Talos.Strategy.PathSymbolic.Branching
   ( Branching(..)
+  -- * Constructors
+  , singleton  
   , branching
   , branchingMaybe
+  , branchingNE
+  
+  -- * Operations
   , fold
   , foldM
+  , unzip
+  , unzip3
   , mapVariants
   
   , resolve
   , muxMaps
   
   ) where
+
+import Prelude hiding (unzip, unzip3)
+import qualified Prelude
 
 import           GHC.Generics                              (Generic)
 
@@ -28,6 +38,7 @@ import qualified Data.Map.Merge.Strict               as Map
 import           Data.Map.Strict                     (Map)
 import qualified Data.Map.Strict                     as Map
 import Daedalus.Panic (panic)
+import Data.List.NonEmpty (NonEmpty(..))
 
 data Branching a = Branching
   { variants :: [ (PathSet, a) ]
@@ -51,8 +62,15 @@ instance Monad Branching where
       vs = variants (base bs) ++ concatMap vsOne (variants bs)
       base' = base (base bs)
 
+singleton :: a -> Branching a
+singleton = pure
+
 branching :: [(PathSet, a)] -> a -> Branching a
 branching = Branching
+
+
+branchingNE :: NonEmpty (PathSet, a) -> Branching a
+branchingNE ((_, a) :| rest) = branching rest a
 
 branchingMaybe :: [(PathSet, a)] -> Maybe a -> Maybe (Branching a)
 branchingMaybe vs m_b
@@ -64,11 +82,33 @@ branchingMaybe' vs m_b = fromMaybe err (branchingMaybe vs m_b)
   where
     err = panic "Expecting non-empty branching" []
 
+-- Standard operations
+
 fold :: (PathSet -> a -> a -> a) -> Branching a -> a
 fold f b = foldl' (\a' (ps, a) -> f ps a a') (base b) (variants b)
 
 foldM :: Monad m => (PathSet -> a -> a -> m a) -> Branching a -> m a
 foldM f b = foldlM (\a' (ps, a) -> f ps a a') (base b) (variants b)
+
+-- FIXME: duplicates the pathsets
+unzip :: Branching (a, b) -> (Branching a, Branching b)
+unzip b = ( Branching { variants = zip pss vs1, base = fst (base b) }
+          , Branching { variants = zip pss vs2, base = snd (base b) }
+          )
+  where
+    (pss, vs)  = Prelude.unzip (variants b)
+    (vs1, vs2) = Prelude.unzip vs
+
+-- FIXME: duplicates pathsets
+unzip3 :: Branching (a, b, c) -> (Branching a, Branching b, Branching c)
+unzip3 b = ( Branching { variants = zip pss vs1, base = b1 }
+           , Branching { variants = zip pss vs2, base = b2 }
+           , Branching { variants = zip pss vs3, base = b3 }
+           )
+  where
+    (pss, vs)  = Prelude.unzip (variants b)
+    (vs1, vs2, vs3) = Prelude.unzip3 vs
+    (b1, b2, b3) = base b
 
 mapVariants :: (PathSet -> a -> Maybe (PathSet, a)) -> Branching a -> Branching a
 mapVariants f bvs = bvs { variants = new }

@@ -86,6 +86,7 @@ import           Talos.Path
 import qualified Talos.Solver.SolverT                     as Solv
 import           Talos.Solver.SolverT                     (SMTVar, SolverT)
 import Talos.Lib (findM, andMany)
+import qualified Talos.Strategy.PathSymbolic.Branching as B
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -530,11 +531,7 @@ buildLoop (PathLoopGenerator ltag m_lv el) =
     -- We will fill this in when we have all the models
     pure SelectedHole
 
-buildLoop (PathLoopMorphism _ltag variants base) = do
-  m_el <- findM (PS.fromModel . fst) variants
-  case m_el of
-    Nothing     -> go base
-    Just (_, r) -> go r
+buildLoop (PathLoopMorphism _ltag bvs) = go =<< B.resolve bvs
   where
     go (vsm, els)
       -- This is the unrolled case, so we just emit the path. We re-use the Unrolled case above.

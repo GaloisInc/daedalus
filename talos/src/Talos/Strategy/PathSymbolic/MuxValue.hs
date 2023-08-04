@@ -29,10 +29,12 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   -- * Constructors
   , vSymbolicBool
   , vSymbolicInteger
+  , vInteger
   -- * Combinators
   , mux
   -- * Destructors
-  , asAssertion
+  , toSExpr
+  , asIntegers
   -- * Monad
   , SemiSolverM
   , runSemiSolverM
@@ -95,6 +97,7 @@ import           Talos.Strategy.PathSymbolic.SymExec   (symExecTy)
 
 import qualified Talos.Strategy.PathSymbolic.Branching as B
 import           Talos.Strategy.PathSymbolic.Branching (Branching)
+import Data.List.NonEmpty (NonEmpty)
 
 --------------------------------------------------------------------------------
 -- Logging and stats
@@ -195,7 +198,6 @@ type MuxValue = MuxValueF SMTVar
 
 -- Used internally to avoid naming after every single operation.
 type MuxValueSExpr = MuxValueF SExpr
-
 
 -- ----------------------------------------------------------------------------------------
 -- ValueLens
@@ -343,6 +345,11 @@ vNothing = VMaybe (singletonSumTypeMuxValueF Nothing VUnit)
 vJust :: MuxValueF b -> MuxValueF b
 vJust = VMaybe . singletonSumTypeMuxValueF (Just ())
 
+asIntegers :: MuxValueF s -> Maybe (NonEmpty Integer)
+asIntegers (VIntegers (Typed _ bvs))
+  | Nothing <- bvSymbolic bvs = NE.nonEmpty (Map.keys (bvConcrete bvs))
+asIntegers _ = Nothing
+
 -- ----------------------------------------------------------------------------------------
 -- Multiplexing values
 
@@ -426,10 +433,11 @@ baseValueToSExpr ty vl bvs
   where
     sexps = map (first (vlToSExpr vl ty)) (Map.toList (bvConcrete bvs))
 
-asAssertion :: MuxValue -> SExpr
-asAssertion (VBools bvs) = baseValueToSExpr TBool boolVL (S.const <$> bvs)
-asAssertion _ = panic "Expecting a boolean value" []
-      
+toSExpr :: MuxValue -> SExpr
+toSExpr (VBools bvs)    = baseValueToSExpr TBool boolVL (S.const <$> bvs)
+toSExpr (VIntegers (Typed ty bvs)) = baseValueToSExpr ty integerVL (S.const <$> bvs)
+toSExpr _ = panic "Non-base value" []
+
 semiExecName :: (SemiCtxt m, HasCallStack) =>
                 Name -> SemiSolverM m MuxValueSExpr
 semiExecName n = asks (fromMaybe missing . Map.lookup n . localBoundNames)
@@ -834,8 +842,8 @@ unreachable = throwError ()
 --     Just fn -> pure fn
 --     Nothing -> panic "Missing pure function" [showPP f]
 
--- --------------------------------------------------------------------------------
--- -- Exprs
+--------------------------------------------------------------------------------
+-- Exprs
 
 semiExecExpr :: (SemiCtxt m, HasCallStack) => Expr -> SemiSolverM m MuxValue
 semiExecExpr e = nameSExprs =<< semiExecExpr' e
@@ -883,7 +891,7 @@ semiExecOp0 op =
     FloatL {}     -> unimplemented
     BoolL b       -> vBool b
     ByteArrayL bs -> vFixedLenSequence (map (vInteger tByte . fromIntegral) (BS.unpack bs))
-    NewBuilder _ty -> VSequence (pure (emptyVSequenceMeta {vsmIsBuilder = True}, []))
+    NewBuilder _ty -> VSequence (B.singleton (emptyVSequenceMeta {vsmIsBuilder = True}, []))
     MapEmpty _kty _vty -> VMap []
     ENothing _ty    -> vNothing
   where
