@@ -163,7 +163,8 @@ then
     exit 1
 fi
 
-DAEDALUS=$(find_daedalus)
+# DAEDALUS=$(find_daedalus)
+DAEDALUS=$(cabal exec which daedalus)
 
 if [ -z "$DAEDALUS" ]
 then
