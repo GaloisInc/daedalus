@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- A branching thing
 
@@ -24,24 +25,28 @@ module Talos.Strategy.PathSymbolic.Branching
   , toSExpr
   ) where
 
-import Prelude hiding (unzip, unzip3)
+import           Prelude                             hiding (unzip, unzip3)
 import qualified Prelude
 
-import           GHC.Generics                              (Generic)
+import           GHC.Generics                        (Generic)
 
-import Talos.Strategy.PathSymbolic.PathSet ( PathSet )
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import Control.Monad (ap)
-import Data.Foldable (foldl', foldlM)
-import           Talos.Lib                           (findM)
-import Data.Maybe (fromMaybe, mapMaybe)
+import           Control.Monad                       (ap)
+import           Daedalus.Panic                      (panic)
+import           Data.Foldable                       (foldl', foldlM)
+import           Data.List.NonEmpty                  (NonEmpty (..))
+import qualified Data.List as List
 import qualified Data.Map.Merge.Strict               as Map
 import           Data.Map.Strict                     (Map)
 import qualified Data.Map.Strict                     as Map
-import Daedalus.Panic (panic)
-import Data.List.NonEmpty (NonEmpty(..))
+import           Data.Maybe                          (fromMaybe, mapMaybe)
+import           Talos.Lib                           (findM)
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
+import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
 
-import qualified SimpleSMT as S
+import qualified SimpleSMT                           as S
+
+import           Daedalus.PP
+
 data Branching a = Branching
   { variants :: [ (PathSet, a) ]
   , base     :: a
@@ -124,7 +129,7 @@ mapVariants f bvs = bvs { variants = new }
 muxMaps :: Ord k => Branching (Map k v) -> Map k (Branching v)
 muxMaps bmv = Map.merge lhs rhs (Map.zipWithMatched (const Branching)) ms' (base bmv)
   where
-  ms' = Map.unionsWith (<>) [ (: []) . (,) ps <$> m' | (ps, m') <- variants bmv ]
+  ms' = Map.unionsWith (<>) [ List.singleton . (,) ps <$> m' | (ps, m') <- variants bmv ]
   lhs = Map.mapMissing (const (`branchingMaybe'` Nothing))
   rhs = Map.mapMissing (const (Branching []))
 
@@ -135,3 +140,11 @@ resolve bvs =
 
 toSExpr :: Branching S.SExpr -> S.SExpr
 toSExpr = fold (S.ite . PS.toSExpr)
+
+-- -----------------------------------------------------------------------------
+-- Instances
+
+instance PP a => PP (Branching a) where
+  pp b = vcat ([ pp ps <> " ==> " <> pp v  | (ps, v) <- variants b ] ++
+               [ pp (base b) ])
+         

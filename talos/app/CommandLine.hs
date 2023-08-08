@@ -76,7 +76,7 @@ statsKeyOpt = strOption
      <> help "Produce statistics output for KEY (may be used multiple times)" )
 
 smtLogOpt :: Parser FilePath
-smtLogOpt = option auto
+smtLogOpt = strOption
    ( long "smt-log"
      <> metavar "File"
      <> help "Write smt log to FILE" )

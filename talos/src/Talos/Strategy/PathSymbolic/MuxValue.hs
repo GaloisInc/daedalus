@@ -35,6 +35,7 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   -- * Destructors
   , toSExpr
   , asIntegers
+  , ppMuxValue
   -- * Monad
   , SemiSolverM
   , runSemiSolverM
@@ -1580,6 +1581,41 @@ fromModel mv =
 
 -- -- -----------------------------------------------------------------------------
 -- -- Instances
+
+ppBaseValues :: (PP v, PP s) => BaseValues v s -> Doc
+ppBaseValues bvs =
+  vcat ([ pp ps <> " ==> " <> pp v  | (v, ps) <-  Map.toList (bvConcrete bvs) ] ++
+        [ maybe "~" pp (bvSymbolic bvs) ])
+
+ppMuxValueF :: PP s => MuxValueF s -> Doc
+ppMuxValueF mv =
+  case mv of
+    VUnit -> "()"
+    VIntegers (Typed _ty bvs) -> ppBaseValues bvs
+    VBools    bvs -> ppBaseValues bvs
+    VUnion m -> stmv pp m
+    VStruct m -> block "{" "," "}" (map ppFld (Map.toList m))
+      where ppFld (x,t) = pp x <.> colon <+> go t
+    VSequence b -> pp (ppSeq <$> b)
+    VMaybe m -> stmv (maybe "nothing" (const "just")) m
+    VMap els -> unsupported
+  where
+    stmv :: PP s => (l -> Doc) -> SumTypeMuxValueF l s -> Doc
+    stmv f m = block "(|" "," "|)" (map ppFld (Map.toList m))
+      where ppFld (x, (ps, t)) = f x <.> parens (pp ps) <.> colon <+> ppMuxValueF t
+
+    ppSeq (vsm, els) = 
+      block (maybe "" (parens . pp) sid <> "[") "," "]" (map go els)
+      where sid = vsmGeneratorTag vsm
+
+    unsupported = panic "Unsupported (VMap)" []
+    go = ppMuxValueF
+
+instance PP s => PP (MuxValueF s) where
+  pp = ppMuxValueF
+
+ppMuxValue :: MuxValue -> Doc
+ppMuxValue = pp . fmap text 
 
 -- ppMuxValue :: (f a -> Doc) -> (a -> Doc) -> MuxValue f a -> Doc
 -- ppMuxValue ppF ppA val =
