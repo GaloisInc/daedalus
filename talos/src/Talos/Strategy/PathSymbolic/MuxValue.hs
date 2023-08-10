@@ -63,7 +63,7 @@ import           Data.Generics.Labels                  ()
 import qualified Data.List.NonEmpty                    as NE
 import           Data.Map.Strict                       (Map)
 import qualified Data.Map.Strict                       as Map
-import           Data.Maybe                            (fromMaybe, isNothing)
+import           Data.Maybe                            (fromMaybe, isNothing, maybeToList)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
@@ -359,11 +359,11 @@ asIntegers _ = Nothing
 muxBaseValues :: Ord v => Branching (BaseValues v SExpr) -> BaseValues v SExpr
 muxBaseValues bbvs = BaseValues { bvConcrete = bcs, bvSymbolic = bss }
   where
-    bcs = B.fold creduce <$> B.muxMaps (bvConcrete <$> bbvs)
+    bcs = B.fold1 creduce <$> B.muxMaps (bvConcrete <$> bbvs)
     creduce ps ps' acc =
       maybe acc (PS.disjPathSet acc) (PS.conjPathSet ps ps')
 
-    bss = B.fold sreduce (bvSymbolic <$> bbvs)
+    bss = B.fold1 sreduce (bvSymbolic <$> bbvs)
     sreduce _p m_s Nothing = m_s
     sreduce _p Nothing m_s = m_s
     sreduce p (Just s1) (Just s2) = Just (S.ite (PS.toSExpr p) s1 s2)
@@ -371,16 +371,18 @@ muxBaseValues bbvs = BaseValues { bvConcrete = bcs, bvSymbolic = bss }
 -- These should all be well-formed
 muxMuxValues :: Branching MuxValueSExpr -> MuxValueSExpr
 muxMuxValues bmv =
-  case B.base bmv of
-    VUnit -> VUnit 
-    VIntegers (Typed ty _bvs) -> mkBase integerVL ty
-    VBools {} -> mkBase boolVL TBool
-    VUnion {} -> VUnion $ stmvMerge #_VUnion
-    VMaybe {} -> VMaybe $ stmvMerge #_VMaybe
-    VStruct {} -> VStruct $ muxMuxValues <$> B.muxMaps (bmv ^?! below #_VStruct)
+  -- FIXME: this is a bit gross
+  case B.select bmv of
+    Just VUnit -> VUnit 
+    Just (VIntegers (Typed ty _bvs)) -> mkBase integerVL ty
+    Just VBools {} -> mkBase boolVL TBool
+    Just VUnion {} -> VUnion $ stmvMerge #_VUnion
+    Just VMaybe {} -> VMaybe $ stmvMerge #_VMaybe
+    Just VStruct {} -> VStruct $ muxMuxValues <$> B.muxMaps (bmv ^?! below #_VStruct)
     -- join here is over Branching.
-    VSequence {} -> VSequence (join (bmv ^?! below #_VSequence))
-    VMap {} -> unsupported
+    Just VSequence {} -> VSequence (join (bmv ^?! below #_VSequence))
+    Just VMap {} -> unsupported
+    Nothing -> panic "Empty branching" []
   where
     unsupported = panic "Unsupported (VMap)" []
 
@@ -1284,22 +1286,22 @@ semiExecEq mv1 mv2 =
                             , Just g <- [ g1 `PS.conjPathSet` g2 ]
                             ]
           m_diffPath = foldl1 PS.disjPathSet <$> m_diffPaths
-          m_base = flip singletonBaseValues False <$> m_diffPath
+          m_base = [ (g, singletonBaseValues PS.trivialPathSet False)
+                   | g <- maybeToList m_diffPath
+                   ]
 
-      maybe unreachable (pure . muxBaseValues) (B.branchingMaybe sameLabel m_base)
+      maybe unreachable (pure . muxBaseValues) (B.branchingMaybe (m_base ++ sameLabel))
 
 semiExecEmit :: SemiCtxt m => MuxValueSExpr -> (VSequenceMeta, [MuxValueSExpr]) -> 
                 SemiSolverM m (VSequenceMeta, [MuxValueSExpr])
 semiExecEmit new (vsm, els)
-  -- In this case we need to update each possible element in els with
-  -- new as an alternative.  We only need to tag the new value with
-  -- the size constraint as the negation of that constraint + other
-  -- facts about the length will prove that the existing loop element
-  -- is the correct one if the new element is not in the right place.
   | Just lcv <- vsmLoopCountVar vsm = do
       let minLen = vsmMinLength vsm
           (pfx, rest) = splitAt minLen els
-          mkNew i = muxMuxValues . B.branching [(PS.loopCountEqConstraint lcv i, new)]
+          mkNew i old =
+            muxMuxValues $ B.branching [ (PS.loopCountEqConstraint lcv i, new)
+                                       , (PS.loopCountGtConstraint lcv i, old)
+                                       ]
           newels  = zipWith mkNew [minLen ..] rest
       newsz <- nameLoopCountVar (S.bvAdd (PS.loopCountVarToSExpr lcv) (symExecInt sizeType 1))
       let vsm' = vsm { vsmLoopCountVar = Just newsz
@@ -1340,10 +1342,10 @@ semiExecOp2 op rty ty1 ty2 mv1 mv2 =
     RShift    -> viaInterp integerVL integerVL
 
     ArrayIndex
-      | VIntegers (Typed _ ixvs) <- mv1
-      , VSequence bvs <- mv2 ->
+      | VSequence bvs <- mv1
+      , VIntegers (Typed _ ixvs) <- mv2 ->
           muxMuxValues <$> traverse (semiExecArrayIndex ixvs) bvs
-      | otherwise -> panic "Incorrect value shapes" []
+      | otherwise -> panic "Incorrect value shapes" [show mv1, show mv2]
       
     Emit
       | VSequence bvs <- mv1 ->
@@ -1375,7 +1377,9 @@ viaInterpOp2 op rty mv1 mv2 argVL resVL
   , Just (Typed ty2 bvs2) <- mv2 ^? vlMVPrism argVL =
       view (re (vlMVPrism resVL)) . Typed rty <$>
         muxBinOp (SE.symExecOp2 op ty1) (interp ty1 ty2) ty1 ty2 bvs1 bvs2 argVL
-  | otherwise = panic "Malformed muxBinOp value" []
+  | otherwise = panic "Malformed muxBinOp value" [showPP op
+                                                 , show mv1
+                                                 , show mv2]
   where
     interp ty1 ty2 x y =
       vlFromInterpValue resVL
@@ -1466,7 +1470,7 @@ semiExecArrayIndex ixs (_vsm, els) = do
   -- concat :: Maybe [a] -> [a]
   syms <- concat <$> traverse mksym (bvSymbolic ixs)
   -- FIXME: should we do something other than unreachable here?
-  maybe unreachable (pure . muxMuxValues) (B.branchingMaybe (cs ++ syms) Nothing)
+  maybe unreachable (pure . muxMuxValues) (B.branchingMaybe (cs ++ syms))
   where
     -- Order of results isn't important
     getEls _i [] _  acc = acc
@@ -1520,13 +1524,16 @@ fromModel mv =
     VMaybe m -> stmvValue (\k v -> V.VMaybe (v <$ k)) m
     VStruct m -> V.VStruct <$> traverseOf (each . _2) fromModel (Map.toList m)
     VSequence bvs -> do
-      (vsm, els) <- B.resolve bvs
-      -- get the actual elements
-      els' <- maybe (pure els) (fmap (flip take els) . psmmLoopVar) (vsmLoopCountVar vsm)
-      vs   <- traverse fromModel els'
-      pure $ if vsmIsBuilder vsm
-             then V.VBuilder vs
-             else V.VArray (Vector.fromList vs)
+      m_r <- B.resolve bvs
+      case m_r of
+        Nothing -> panic "Empty model" []
+        Just (vsm, els) -> do
+          -- get the actual elements
+          els' <- maybe (pure els) (fmap (flip take els) . psmmLoopVar) (vsmLoopCountVar vsm)
+          vs   <- traverse fromModel els'
+          pure $ if vsmIsBuilder vsm
+                 then V.VBuilder vs
+                 else V.VArray (Vector.fromList vs)
 
     VMap {} -> unsupported
 

@@ -202,7 +202,7 @@ stratSlice = go
           recordValue TByte sym
 
           let bse = S.const sym
-              bv  = MV.vSymbolicBool sym
+              bv  = MV.vSymbolicInteger TByte sym
 
           bassn <- synthesiseByteSet bset bse
           -- This just constrains the byte, we expect it to be satisfiable
@@ -293,7 +293,7 @@ stratLoop lclass =
       -- No need to constrain the processing of the body.
       (v, m) <- stratSlice b
 
-      let xs = MV.VSequence (B.branching [] (vsm, [v]))
+      let xs = MV.VSequence (B.singleton (vsm, [v]))
           v' = case sem of
                  SemNo  -> MV.VUnit
                  SemYes -> xs
@@ -425,7 +425,7 @@ stratLoop lclass =
 
       (vs, pbs) <- unzip <$> go se [] 0
       let node = PathLoopUnrolled (Just lv) pbs
-      v <- liftSemiSolverM (MV.mux (B.branching vs se))
+      v <- liftSemiSolverM (MV.mux (B.branching $ (PS.loopCountEqConstraint lv 0, se) : vs))
       pure (v, SelectedLoop node)
 
     SMorphismLoop (FoldMorphism n e lc b) -> do

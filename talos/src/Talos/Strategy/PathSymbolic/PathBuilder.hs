@@ -533,7 +533,8 @@ buildLoop (PathLoopGenerator ltag m_lv el) =
 
 buildLoop (PathLoopMorphism _ltag bvs) = go =<< B.resolve bvs
   where
-    go (vsm, els)
+    go Nothing = panic "Missing branch" []
+    go (Just (vsm, els))
       -- This is the unrolled case, so we just emit the path. We re-use the Unrolled case above.
       | isNothing (vsmGeneratorTag vsm) = buildLoop (PathLoopUnrolled (vsmLoopCountVar vsm) els)
       -- We always have an element, although it might not be well-defined if the loopvar is 0

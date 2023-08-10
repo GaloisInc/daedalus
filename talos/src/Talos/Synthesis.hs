@@ -548,12 +548,13 @@ synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
 synthesiseG (SelectedCase (PathIndex n sp)) (GCase cs) = do
   let v = Var (caseVar cs)
   env <- projectEnvForM v
+  let r = I.lookupVar (caseVar cs) env
   -- check interpreter agrees
   let numberedCase = Case (caseVar cs) (imap (\i (pat, g) -> (pat, (i, g))) (casePats cs))
       agrees = I.evalCase (\(i, g) _ -> guard (i == n) $> g) Nothing numberedCase env
 
   case agrees of
-    Nothing -> panic "Mismatch in case" []
+    Nothing -> panic "Mismatch in case(!)" [showPP n, showPP r]
     Just g -> synthesiseG sp g
 
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args

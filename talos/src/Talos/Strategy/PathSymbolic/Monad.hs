@@ -385,9 +385,10 @@ handleUnreachable m =
 branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
 branching b = do
   (vs, assn) <- B.unzip <$> traverse go b
-  case B.catMaybes vs of
-    Just v -> assert (BAssert assn) $> v
-    Nothing -> unreachable
+  let vs' = B.catMaybes vs
+  if B.null vs'
+    then unreachable
+    else assert (BAssert assn) $> vs'
   where
     go m = censor forgetAssns (catchError (runm m) hdl)
     
