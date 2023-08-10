@@ -184,7 +184,7 @@ isTrivialAssertion :: Assertion -> Bool
 isTrivialAssertion assn =
   case assn of
     SExprAssert s -> s == SMT.bool True
-    PSAssert ps -> PS.isTrivial ps
+    PSAssert ps -> PS.trivial ps
     BoolAssert b -> b
     BAssert  b  -> all isTrivialAssertion b
     EntailAssert _ assns -> all isTrivialAssertion assns
@@ -199,21 +199,20 @@ instance Semigroup Assertion where
 
   -- Entailment
   EntailAssert ps1 assns1 <> EntailAssert ps2 assns2
-    | PS.isTrivial ps1, PS.isTrivial ps2 = EntailAssert PS.trivialPathSet (assns1 <> assns2)
+    | PS.trivial ps1, PS.trivial ps2 = EntailAssert PS.true (assns1 <> assns2)
   EntailAssert ps1 assns1 <> assn2
-    | PS.isTrivial ps1 = EntailAssert PS.trivialPathSet (assn2 :| toList assns1)
+    | PS.trivial ps1 = EntailAssert PS.true (assn2 :| toList assns1)
   assn1 <> EntailAssert ps2 assns2
-    | PS.isTrivial ps2 = EntailAssert PS.trivialPathSet (assn1 :| toList assns2)
-  assn1 <> assn2 = EntailAssert PS.trivialPathSet (assn1 :| [assn2])
+    | PS.trivial ps2 = EntailAssert PS.true (assn1 :| toList assns2)
+  assn1 <> assn2 = EntailAssert PS.true (assn1 :| [assn2])
 
 instance Monoid Assertion where mempty = BoolAssert True
 
 entailAssert :: PathSet -> Assertion -> Assertion
 entailAssert ps a
-  | PS.isTrivial ps      = a
+  | PS.trivial ps      = a
   | isTrivialAssertion a = mempty
-  | EntailAssert ps' assns <- a =
-      maybe mempty (`EntailAssert` assns) (PS.conjPathSet ps ps')
+  | EntailAssert ps' assns <- a = EntailAssert (ps `PS.conj` ps') assns
   | otherwise            = EntailAssert ps (a :| [])
 
 entailAsserts :: PathSet -> NonEmpty Assertion -> Assertion

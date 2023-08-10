@@ -9,8 +9,6 @@ module Talos.Strategy.PathSymbolic.Branching
   -- * Constructors
   , singleton  
   , branching
-  , branchingMaybe
-  , branchingNE
   
   -- * Operations
   , fold
@@ -27,7 +25,7 @@ module Talos.Strategy.PathSymbolic.Branching
   , resolve
   , muxMaps
   , toSExpr
-  
+  , reducePS
   -- * Debugging
   , invariant
   ) where
@@ -56,6 +54,9 @@ import           Daedalus.PP
 import Control.Lens (traverseOf, _2)
 
 
+-- FIXME: maybe rep. as a tree
+-- data Branching a = Leaf (PathSet, a) | Conj PathSet [Branching a]
+
 -- | A 'Branching' represents a branching value, where exactly one
 -- path is viable (perhaps assuming some restricting context).
 -- Because the branches are disjoint and total, it is possible to
@@ -68,7 +69,7 @@ newtype Branching a = Branching
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
 
 instance Applicative Branching where
-  pure v = Branching { variants = [(PS.trivialPathSet, v)] }
+  pure v = Branching { variants = [(PS.true, v)] }
   (<*>) = ap
 
 instance MonadFail Branching where
@@ -77,27 +78,18 @@ instance MonadFail Branching where
 -- Essentially 'join', we could use this structure to optimise
 -- e.g. query size.
 instance Monad Branching where
-  b >>= f = Branching { variants = vs }
-    where
-      vs = [ (ps', v)
-           | (ps1, w) <- variants b
-           , (ps2, v) <- variants (f w)
-           , Just ps' <- [ PS.conjPathSet ps1 ps2 ]
-           ]
-      
+  b >>= f =
+    branching [ (PS.conj ps1 ps2, v)
+              | (ps1, w) <- variants b
+              , (ps2, v) <- variants (f w)
+              ]
+    
 singleton :: a -> Branching a
 singleton = pure
 
--- FIXME: what if the list is empty?
+-- | Smart constructor, prunes false pathsets
 branching :: [(PathSet, a)] -> Branching a
-branching = Branching
-
-branchingMaybe :: [(PathSet, a)] -> Maybe (Branching a)
-branchingMaybe [] = Nothing
-branchingMaybe xs = Just (Branching xs)
-
-branchingNE :: NonEmpty (PathSet, a) -> Branching a
-branchingNE = Branching . toList
+branching = Branching . filter (not . PS.null . fst) 
 
 -- | An empty branching is denoted as False
 null :: Branching a -> Bool
@@ -142,12 +134,12 @@ fold1M f Branching { variants = (_, v) : vs } =
   foldlM (\a' (ps, a) -> f ps a a') v vs
 
 catMaybes :: Branching (Maybe a) -> Branching a
-catMaybes b = Branching $ mapMaybe sequence (variants b) -- sequence :: (a, Maybe b) -> Maybe (a, b)
+catMaybes b = branching $ mapMaybe sequence (variants b) -- sequence :: (a, Maybe b) -> Maybe (a, b)
 
 -- FIXME: duplicates the pathsets
 unzip :: Branching (a, b) -> (Branching a, Branching b)
-unzip b = ( Branching { variants = zip pss vs1 }
-          , Branching { variants = zip pss vs2 }
+unzip b = ( branching (zip pss vs1)
+          , branching (zip pss vs2)
           )
   where
     (pss, vs)  = Prelude.unzip (variants b)
@@ -155,21 +147,21 @@ unzip b = ( Branching { variants = zip pss vs1 }
 
 -- FIXME: duplicates pathsets
 unzip3 :: Branching (a, b, c) -> (Branching a, Branching b, Branching c)
-unzip3 b = ( Branching { variants = zip pss vs1 }
-           , Branching { variants = zip pss vs2 }
-           , Branching { variants = zip pss vs3 }
+unzip3 b = ( branching (zip pss vs1)
+           , branching (zip pss vs2)
+           , branching (zip pss vs3)
            )
   where
     (pss, vs)  = Prelude.unzip (variants b)
     (vs1, vs2, vs3) = Prelude.unzip3 vs
 
 mapVariants :: (PathSet -> a -> Maybe (PathSet, a)) -> Branching a -> Branching a
-mapVariants f bvs = bvs { variants = new }
+mapVariants f bvs = branching new
   where
     new = mapMaybe (uncurry f) (variants bvs)
 
 muxMaps :: Ord k => Branching (Map k v) -> Map k (Branching v)
-muxMaps bmv = Branching <$> ms'
+muxMaps bmv = branching <$> ms'
   where
   ms' = Map.unionsWith (<>) [ List.singleton . (,) ps <$> m' | (ps, m') <- variants bmv ]
 
@@ -179,9 +171,7 @@ resolve bvs =
   fmap snd <$> findM (PS.fromModel . fst) (variants bvs)
 
 reducePS :: Branching PathSet -> PathSet
-reducePS b = undefined
-  where r = mapMaybe (uncurry PS.conjPathSet) (variants b)
-
+reducePS b = PS.disjMany (map (uncurry PS.conj) (variants b))
 
 -- | Return some element, if it exists.
 select :: Branching a -> Maybe a

@@ -137,7 +137,7 @@ singletonSymBaseValues s = BaseValues
 type SumTypeMuxValueF l s = Map l (PathSet, MuxValueF s)
 
 singletonSumTypeMuxValueF :: l -> MuxValueF s -> SumTypeMuxValueF l s
-singletonSumTypeMuxValueF k v = Map.singleton k (PS.trivialPathSet, v)
+singletonSumTypeMuxValueF k v = Map.singleton k (PS.true, v)
 
 data MuxValueF s =
   VUnit
@@ -329,10 +329,10 @@ vSymbolicBool :: s -> MuxValueF s
 vSymbolicBool s = VBools (singletonSymBaseValues s)
 
 vBool :: Bool -> MuxValueF b
-vBool = VBools . singletonBaseValues PS.trivialPathSet
+vBool = VBools . singletonBaseValues PS.true
 
 vInteger :: Type -> Integer -> MuxValueF b
-vInteger ty = VIntegers . Typed ty . singletonBaseValues PS.trivialPathSet
+vInteger ty = VIntegers . Typed ty . singletonBaseValues PS.true
 
 -- | Construct a fixed-length sequence
 vFixedLenSequence :: [MuxValueF b] -> MuxValueF b
@@ -359,9 +359,7 @@ asIntegers _ = Nothing
 muxBaseValues :: Ord v => Branching (BaseValues v SExpr) -> BaseValues v SExpr
 muxBaseValues bbvs = BaseValues { bvConcrete = bcs, bvSymbolic = bss }
   where
-    bcs = B.fold1 creduce <$> B.muxMaps (bvConcrete <$> bbvs)
-    creduce ps ps' acc =
-      maybe acc (PS.disjPathSet acc) (PS.conjPathSet ps ps')
+    bcs = B.reducePS <$> B.muxMaps (bvConcrete <$> bbvs)
 
     bss = B.fold1 sreduce (bvSymbolic <$> bbvs)
     sreduce _p m_s Nothing = m_s
@@ -392,9 +390,9 @@ muxMuxValues bmv =
       -- We don't update the ps in the branching as the pathset at the
       -- node is the union of the pathsets in the children (and is
       -- essentially a cache).
-      let f ps (ps', v) = (,) ps . (, v) <$> PS.conjPathSet ps ps'
+      let f ps (ps', v) = Just (ps, (PS.conj ps ps', v))
           -- Construct the new pathset for the node and merge the values.
-          mk b_ps_v = ( PS.disjPathSets (fst <$> toList b_ps_v)
+          mk b_ps_v = ( PS.disjMany (fst <$> toList b_ps_v)
                       , muxMuxValues (snd <$> b_ps_v))
       in mk . B.mapVariants f <$> B.muxMaps (bmv ^?! below p)
 
@@ -608,7 +606,7 @@ mapPatterns pv valMap mkDflt vs hasAny = mk 0 valMap [] vs
   where
     mk _i m missing []
       | not (Map.null m) =
-        ( mkDflt (Just (PS.toSExpr (PS.disjPathSets (toList m))))
+        ( mkDflt (Just (PS.toSExpr (PS.disjMany (toList m))))
         , missing)
       | otherwise = ( mkDflt Nothing
                     -- If we have a PAny, it isn't reached here.
@@ -1170,7 +1168,7 @@ sequenceEq (vsm1, els1) (vsm2, els2) =
           pure (singletonSymBaseValues assn)
   where
     -- FIXME: do we need a path here?  This is unconditionally false.
-    neverEq = singletonBaseValues PS.trivialPathSet False
+    neverEq = singletonBaseValues PS.true False
     minLen  = max (vsmMinLength vsm1) (vsmMinLength vsm2)
 
     makeEqs =
@@ -1247,7 +1245,7 @@ combining is
 semiExecEq :: SemiCtxt m => MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m (BaseValues Bool SExpr)
 semiExecEq mv1 mv2 =  
   case (mv1, mv2) of
-    (VUnit, VUnit) -> pure (singletonBaseValues PS.trivialPathSet True)
+    (VUnit, VUnit) -> pure (singletonBaseValues PS.true True)
     (VIntegers (Typed ty1 bvs1), VIntegers (Typed ty2 bvs2)) ->
       muxBinOp S.eq (==) ty1 ty2 bvs1 bvs2 integerVL
     (VBools bvs1, VBools bvs2) ->
@@ -1274,23 +1272,23 @@ semiExecEq mv1 mv2 =
 
     stmvEq m1 m2 = do
       let sameLabelMap = Map.intersectionWith (,) m1 m2
-      sameLabel <- sequence [ (,) g <$> semiExecEq mv1' mv2'
+      sameLabel <- sequence [ (,) (g1 `PS.conj` g2) <$> semiExecEq mv1' mv2'
                             | ((g1, mv1'), (g2, mv2')) <- toList sameLabelMap
-                            , Just g <- [ g1 `PS.conjPathSet` g2 ]
+                            , Just g <- [  ]
                             ] -- Don't need the key.
 
       let m_diffPaths =
-            NE.nonEmpty [ g | (k1, (g1, _mv1')) <- Map.toList m1
-                            , (k2, (g2, _mv2')) <- Map.toList m2
-                            , k1 /= k2
-                            , Just g <- [ g1 `PS.conjPathSet` g2 ]
-                            ]
-          m_diffPath = foldl1 PS.disjPathSet <$> m_diffPaths
-          m_base = [ (g, singletonBaseValues PS.trivialPathSet False)
+            NE.nonEmpty [ g1 `PS.conj` g2
+                        | (k1, (g1, _mv1')) <- Map.toList m1
+                        , (k2, (g2, _mv2')) <- Map.toList m2
+                        , k1 /= k2
+                        ]
+          m_diffPath = foldl1 PS.disj <$> m_diffPaths
+          m_base = [ (g, singletonBaseValues PS.true False)
                    | g <- maybeToList m_diffPath
                    ]
 
-      maybe unreachable (pure . muxBaseValues) (B.branchingMaybe (m_base ++ sameLabel))
+      pure (muxBaseValues (B.branching (m_base ++ sameLabel)))
 
 semiExecEmit :: SemiCtxt m => MuxValueSExpr -> (VSequenceMeta, [MuxValueSExpr]) -> 
                 SemiSolverM m (VSequenceMeta, [MuxValueSExpr])
@@ -1401,11 +1399,9 @@ muxBinOp sfun cfun ty1 ty2 bvs1 bvs2 argVL
   | nullBaseValues bvs = unreachable
   | otherwise          = pure bvs
   where
-    cvs = [ (cfun v1 v2, g)
+    cvs = [ (cfun v1 v2, g1 `PS.conj` g2)
           | (v1, g1) <- Map.toList (bvConcrete bvs1)
           , (v2, g2) <- Map.toList (bvConcrete bvs2)
-          -- strip out infeasible values
-          , Just g <- [ g1 `PS.conjPathSet` g2 ]
           ]
 
     m_svs1 = viaInterpSymbolic False bvs1 <$> bvSymbolic bvs2
@@ -1469,8 +1465,8 @@ semiExecArrayIndex ixs (_vsm, els) = do
   let cs = getEls 0 (Map.toList (bvConcrete ixs)) els []
   -- concat :: Maybe [a] -> [a]
   syms <- concat <$> traverse mksym (bvSymbolic ixs)
-  -- FIXME: should we do something other than unreachable here?
-  maybe unreachable (pure . muxMuxValues) (B.branchingMaybe (cs ++ syms))
+  -- FIXME: should we do something about unreachable here?
+  pure (muxMuxValues (B.branching (cs ++ syms)))
   where
     -- Order of results isn't important
     getEls _i [] _  acc = acc

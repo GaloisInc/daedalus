@@ -20,18 +20,11 @@ module Talos.Strategy.PathSymbolic.PathSet
   , loopCountGeqConstraint
   , loopCountEqConstraint
   
-  -- -- * Path condition type
-  -- , PathConditionInfo(..)
-  -- , PathCondition(..)
-  -- , ValuePathConstraint(..)
-  -- -- * Operations
-  -- , insertValue, insertChoice, insertLoopCount
-  -- * Predicates
-  -- , isInfeasible
-  -- , isFeasibleMaybe
-  , isTrivial
-  -- -- * Semantics
-  -- , vpcSatisfied, lccSatisfied
+  , trivial
+  , null
+  , true
+  , false
+  
   -- * Converstion to SExpr
   , toSExpr
   -- * Models
@@ -39,22 +32,16 @@ module Talos.Strategy.PathSymbolic.PathSet
   , PathSetModelMonad(..)
   -- * Path Sets
   , PathSet
-  , trivialPathSet
-  , conjPathSet
-  , disjPathSet
-  , disjPathSets
+  , true, false, disj, conj, disjMany
   ) where
 
+import Prelude hiding (null)
 import           Control.Monad         (guard)
 import           Data.Foldable         (toList)
 import           Data.Functor          (($>))
-import           Data.List.NonEmpty    (NonEmpty)
-import qualified Data.List.NonEmpty    as NE
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Strict as Map
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
 import           GHC.Generics          (Generic)
 import qualified SimpleSMT             as S
 import           SimpleSMT             (SExpr, bvHex, tBits)
@@ -66,6 +53,8 @@ import qualified Daedalus.Value.Type   as V
 
 import           Talos.Lib             (andM, orM, orMany)
 import           Talos.Solver.SolverT  (SMTVar)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)
@@ -96,13 +85,6 @@ loopCountVarSort = tBits 64
 loopCountToSExpr :: Int -> SExpr
 loopCountToSExpr = bvHex 64 . fromIntegral
 
--- | Subsumes case variables and general program variables (where
--- Pattern should probably be a constant, not a ctor)
-data ValuePathConstraint =
-  VPCPositive Pattern
-  | VPCNegative (Set Pattern)
-  deriving (Show, Eq, Ord, Generic)
-
 data LoopCountConstraint = LCCEq Int | LCCGt Int
   deriving (Show, Eq, Ord, Generic)
 
@@ -119,17 +101,6 @@ data PathCondition = PathCondition
 
 trivialPathCondition :: PathCondition
 trivialPathCondition = PathCondition mempty mempty mempty
-
-trivialPathSet :: PathSet
-trivialPathSet = PathSet (NE.singleton trivialPathCondition)
-
--- data PathCondition =
---   FeasibleMaybe PathConditionInfo
---   | Infeasible
---   deriving (Show, Eq, Ord)
-
-isTrivial :: PathSet -> Bool
-isTrivial = (==) trivialPathSet
 
 -- conjValues :: Typed ValuePathConstraint -> Typed ValuePathConstraint ->
 --               Maybe (Typed ValuePathConstraint)
@@ -162,62 +133,67 @@ conjPathCondition pc1 pc2 =
          (Map.zipWithAMatched (const f))
 
 indexConstraint :: SMTVar -> Int -> PathSet
-indexConstraint v i = PathSet (NE.singleton pc)
+indexConstraint v i = singleton pc
   where
     pc = trivialPathCondition { pcSymbolicIndices = Map.singleton v i }
 
 choiceConstraint :: PathVar -> Int -> PathSet
-choiceConstraint pv i = PathSet (NE.singleton pc)
+choiceConstraint pv i = singleton pc
   where
     pc = trivialPathCondition { pcChoices = Map.singleton pv i }
 
 loopCountEqConstraint :: LoopCountVar -> Int -> PathSet
-loopCountEqConstraint lcv i = PathSet (NE.singleton pc)
+loopCountEqConstraint lcv i = singleton pc
   where
     pc = trivialPathCondition { pcLoops = Map.singleton lcv (LCCEq i) }
 
 loopCountGtConstraint :: LoopCountVar -> Int -> PathSet
-loopCountGtConstraint lcv i = PathSet (NE.singleton pc)
+loopCountGtConstraint lcv i = singleton pc
   where
     pc = trivialPathCondition { pcLoops = Map.singleton lcv (LCCGt i) }
 
 loopCountGeqConstraint :: LoopCountVar -> Int -> PathSet
 loopCountGeqConstraint lcv i
-  | i == 0    = trivialPathSet -- lccs are unsigned
+  | i == 0    = true -- lccs are unsigned
   | otherwise = loopCountGtConstraint lcv (i - 1)
-
--- insertValue :: SMTVar -> Typed ValuePathConstraint->
---                PathCondition -> PathCondition
--- insertValue v els = (<>) (FeasibleMaybe (PathConditionInfo (Map.singleton v els) mempty mempty))
-
--- insertChoice :: PathVar -> Int ->
---                 PathCondition -> PathCondition
--- insertChoice v el = (<>) (FeasibleMaybe (PathConditionInfo mempty (Map.singleton v el) mempty))
-
--- insertLoopCount :: LoopCountVar -> LoopCountConstraint -> 
---                    PathCondition -> PathCondition
--- insertLoopCount v el = (<>) (FeasibleMaybe (PathConditionInfo mempty mempty (Map.singleton v el)))
 
 -- ----------------------------------------------------------------------------------------
 -- Path sets
 
--- A path set is a disjunction of path conditions
+-- FIXME: maybe store as a tree like
+-- data PathSet = Leaf PathCondition | And PathSet PathSet | Or (Seq PathSet)
 
--- FIXME: do we need to keep this in DNF?
-newtype PathSet = PathSet { getPathSet :: NonEmpty PathCondition } -- Contains > 1 element
+-- | A path set is a disjunction of path conditions.  Note that
+-- PathSet forms a Semiring over (disj, false) (conj, true).
+newtype PathSet = PathSet { getPathSet :: Seq PathCondition } 
   deriving (Show, Eq, Ord)
 
+singleton :: PathCondition -> PathSet
+singleton = PathSet . Seq.singleton
+
+true :: PathSet
+true = PathSet (Seq.singleton trivialPathCondition)
+
+false :: PathSet
+false = PathSet Seq.empty
+
+trivial :: PathSet -> Bool
+trivial = (==) true
+
+null :: PathSet -> Bool
+null = (==) false
+
 -- | Returns Infeasible if the conjunction is unsatisfiable.
-conjPathSet :: PathSet -> PathSet -> Maybe PathSet
-conjPathSet (PathSet vs1) (PathSet vs2) = PathSet <$> NE.nonEmpty els
+conj :: PathSet -> PathSet -> PathSet
+conj (PathSet vs1) (PathSet vs2) = PathSet (Seq.fromList els)
   where
     els = [ g | g1 <- toList vs1, g2 <- toList vs2, Just g <- [ g1 `conjPathCondition` g2 ]]
 
-disjPathSet :: PathSet -> PathSet -> PathSet
-disjPathSet (PathSet vs1) (PathSet vs2) = PathSet (vs1 <> vs2)
+disj :: PathSet -> PathSet -> PathSet
+disj (PathSet vs1) (PathSet vs2) = PathSet (vs1 <> vs2)
 
-disjPathSets :: [PathSet] -> PathSet
-disjPathSets = PathSet . foldl1 (<>) . map getPathSet
+disjMany :: [PathSet] -> PathSet
+disjMany = PathSet . mconcat . map getPathSet
 
 pathConditionToSExpr :: PathCondition -> SExpr
 pathConditionToSExpr pc 
@@ -281,10 +257,6 @@ instance PP PathVar where
 
 instance PP LoopCountVar where
   pp = text . getLoopCountVar
-
-instance PP ValuePathConstraint where
-  pp (VPCPositive c)   = "=" <+> pp c
-  pp (VPCNegative cs)  = "∉" <+> block "{" "," "}" (pp <$> Set.toList cs)
 
 instance PP PathCondition where
   pp pci | Map.null (pcChoices pci), Map.null (pcSymbolicIndices pci), Map.null (pcLoops pci) = "⊤"

@@ -13,69 +13,56 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                              (_1, _2, each, over, itraverse, preview, traverseOf, ifor, imap)
-import           Control.Monad                             (forM_, when,
-                                                            zipWithM, (<=<), unless, join)
+import           Control.Lens                            (_2, imap, over,
+                                                          preview)
+import           Control.Monad                           (join, (<=<))
 import           Control.Monad.Reader
-import           Control.Monad.Writer.CPS                  (censor, pass)
-import           Data.Bifunctor                            (second)
-import           Data.Foldable                             (traverse_, toList)
-import           Data.Generics.Product                     (field)
-import           Data.List.NonEmpty                        (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                        as NE
-import qualified Data.Map                                  as Map
-import           Data.Maybe                                (catMaybes,
-                                                            fromMaybe, mapMaybe, isNothing)
-import           Data.Set                                  (Set)
-import qualified Data.Set                                  as Set
-import           GHC.Generics                              (Generic)
-import qualified SimpleSMT                                 as S
-import           System.IO                                 (hFlush, stdout)
-import           Text.Printf                               (printf)
+import           Data.Bifunctor                          (second)
+import           Data.Foldable                           (toList, traverse_)
+import           Data.Generics.Product                   (field)
+import           Data.List.NonEmpty                      (NonEmpty)
+import qualified Data.Map                                as Map
+import           Data.Maybe                              (fromMaybe, isNothing)
+import           Data.Set                                (Set)
+import qualified Data.Set                                as Set
+import           GHC.Generics                            (Generic)
+import qualified SimpleSMT                               as S
+import           Text.Printf                             (printf)
 
-import           Daedalus.Core                             hiding (streamOffset,
-                                                            tByte)
-import           Daedalus.Core.Free                        (freeVars)
-import qualified Daedalus.Core.Semantics.Env               as I
+import           Daedalus.Core                           hiding (streamOffset,
+                                                          tByte)
+import           Daedalus.Core.Free                      (freeVars)
 import           Daedalus.Core.Type
 import           Daedalus.Panic
-import           Daedalus.PP                               (showPP, text)
-import           Daedalus.Rec                              (topoOrder)
+import           Daedalus.PP                             (pp, showPP)
+import           Daedalus.Rec                            (topoOrder)
 
-import qualified Daedalus.Value                            as V
-import           Talos.Analysis.Exported                   (ExpCallNode (..),
-                                                            ExpSlice, SliceId,
-                                                            sliceToCallees)
+import           Talos.Analysis.Exported                 (ExpCallNode (..),
+                                                          ExpSlice, SliceId,
+                                                          sliceToCallees)
 import           Talos.Analysis.Slice
-import           Talos.Monad                               (getIEnv, getModule,
-                                                            getRawGUID, LogKey)
-import qualified Talos.Monad as T
-                 
-import           Talos.Strategy.Monad
-import qualified Talos.Strategy.OptParser                  as P
-import           Talos.Strategy.OptParser                  (Opt, parseOpts)
-import           Talos.Strategy.PathSymbolic.Monad
-import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue,
-                                                            VSequenceMeta (..)
---                                                           , vUInt, vUnit
-                                                           )
-import           Talos.Strategy.PathSymbolic.PathBuilder   (buildPaths)
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (PathSet,
-                                                       PathVar,
-                                                       loopCountToSExpr)
-import qualified Talos.Strategy.PathSymbolic.SymExec as SE
-import           Talos.Path
-import           Talos.Solver.SolverT                     (declareName,
-                                                           declareSymbol,
-                                                           liftSolver, reset,
-                                                           scoped, contextSize)
-import Talos.Lib (tByte, andMany)
-import Control.Monad.Except (catchError)
-import Data.List ((\\))
+import qualified Talos.Monad                             as T
+import           Talos.Monad                             (getModule)
 
-import qualified Talos.Strategy.PathSymbolic.Branching as B
+import           Talos.Lib                               (tByte)
+import           Talos.Path
+import           Talos.Solver.SolverT                    (contextSize,
+                                                          declareName,
+                                                          declareSymbol,
+                                                          liftSolver, reset,
+                                                          scoped)
+import           Talos.Strategy.Monad
+import qualified Talos.Strategy.OptParser                as P
+import           Talos.Strategy.OptParser                (Opt, parseOpts)
+import qualified Talos.Strategy.PathSymbolic.Branching   as B
+import           Talos.Strategy.PathSymbolic.Monad
+import qualified Talos.Strategy.PathSymbolic.MuxValue    as MV
+import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
+                                                          VSequenceMeta (..))
+import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
+import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
+import           Talos.Strategy.PathSymbolic.PathSet     (loopCountToSExpr)
+import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -258,12 +245,12 @@ stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 --   where
 --     hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
 stratChoice sls _
-  | Nothing   <- NE.nonEmpty sls = unreachable
-  | Just sls' <- NE.nonEmpty sls = do
+  | null sls = unreachable
+  | otherwise = do
       pv <- freshPathVar (length sls)
 
       let mk i sl = (PS.choiceConstraint pv i, over _2 ((,) i) <$> stratSlice sl)
-      b <- branching $ B.branchingNE $ imap mk sls'
+      b <- branching $ B.branching $ imap mk sls
       v <- liftSemiSolverM (MV.mux (fst <$> b))
       
       let paths = map snd (toList b)
@@ -271,7 +258,9 @@ stratChoice sls _
       
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
-      
+
+      liftIO $ printf "After choice: %s\n======\n%s\n" (show $ pp $ MV.ppMuxValue . fst <$> b)
+                      (show $ MV.ppMuxValue v)
       pure (v, SelectedChoice (SymbolicChoice pv paths))
       
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
@@ -440,7 +429,7 @@ stratLoop lclass =
       
       let eqGuard vsm
             | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
-            | otherwise = const PS.trivialPathSet
+            | otherwise = const PS.true
           
           goOne _mkC _vsm _se' acc [] = pure (reverse acc)
           goOne mkC vsm se' acc ((i, el) : rest) = do
@@ -457,11 +446,11 @@ stratLoop lclass =
             let allvs = (mkC 0, se) : svs
             -- This check shouldn't be required (assuming minLength is
             -- correct) but this is clearer and probably more correct
-            v <-
+            v <- -- FIXME: check for empty branching.
               if isNothing (vsmLoopCountVar vsm)
               -- if we have a non-symbolic spine, the val is the last
               then pure (B.singleton (snd (last allvs))) 
-              else maybe unreachable (pure . B.branchingNE) (NE.nonEmpty $ drop (vsmMinLength vsm) allvs)
+              else pure $ B.branching (drop (vsmMinLength vsm) allvs)
             pure (v, (vsm, pbs))
             
       (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
@@ -480,7 +469,7 @@ stratLoop lclass =
       
       let eqGuard vsm
             | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
-            | otherwise = const PS.trivialPathSet
+            | otherwise = const PS.true
           
           goOne _vsm acc [] = pure (reverse acc)
           goOne vsm acc ((i, el) : rest) = do
@@ -566,8 +555,8 @@ guardedLoopCollection vsm lc m i el
 -- c.f. stratChoice
 stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
 stratCase _total cs@(Case n pats) m_sccs
-  | Nothing   <- NE.nonEmpty pats = unreachable
-  | Just pats' <- NE.nonEmpty pats = do
+  | null pats = unreachable
+  | otherwise = do
       v <- getName n
       pv <- freshPathVar (length pats)
       
@@ -577,19 +566,19 @@ stratCase _total cs@(Case n pats) m_sccs
                   | otherwise = over _2 ((,) i) <$> stratSlice sl
           mk i (_pat, sl) = (PS.choiceConstraint pv i, go i sl)
           
-      b <- branching $ B.branchingNE $ imap mk pats'
-      v <- liftSemiSolverM (MV.mux (fst <$> b))
+      b <- branching $ B.branching $ imap mk pats
+      rv <- liftSemiSolverM (MV.mux (fst <$> b))
       
       let paths = map snd (toList b)
           feasibleIxs = map fst paths
-
+      
       assertSExpr assn -- FIXME: generate a Branching in semiExecPatterns
 
       -- FIXME: we are pretending that we are a choice
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
       
-      pure (v, SelectedCase (SymbolicChoice pv paths))
+      pure (rv, SelectedCase (SymbolicChoice pv paths))
   
   -- (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
   -- -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
