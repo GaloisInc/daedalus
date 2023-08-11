@@ -67,6 +67,8 @@ import qualified Talos.Strategy.PathSymbolic.PathSet as PS
 import Data.Foldable (toList)
 import Data.Functor (($>))
 import Data.Maybe (maybeToList)
+import Talos.Strategy.PathSymbolic.Assertion (Assertion)
+import qualified Talos.Strategy.PathSymbolic.Assertion as A
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -157,69 +159,6 @@ invalidSymbolicLoopTag :: SymbolicLoopTag
 invalidSymbolicLoopTag = invalidGUID
 
 -- -----------------------------------------------------------------------------
--- Assertions
-
--- Should we do something smarter when we have entailment under a
--- Branching? We could split Entail into Conj and Implies and then
--- simplify Implies under Branching.
-data Assertion =
-  SExprAssert SMT.SExpr -- Try not to use as it is not that informative.
-  | PSAssert PathSet
-  | BoolAssert Bool
-  | BAssert (Branching Assertion)
-  | EntailAssert PathSet (NonEmpty Assertion) -- P |= AND assns
-  deriving (Ord, Eq, Show, Generic)
-
-assertionToSExpr :: Assertion -> SMT.SExpr
-assertionToSExpr assn =
-  case assn of
-    SExprAssert s -> s
-    PSAssert ps -> PS.toSExpr ps
-    BoolAssert b -> SMT.bool b
-    BAssert  b  -> B.toSExpr (assertionToSExpr <$> b)
-    EntailAssert ps assns ->
-      PS.toSExpr ps `SMT.implies` andMany (map assertionToSExpr (toList assns))
-
-isTrivialAssertion :: Assertion -> Bool
-isTrivialAssertion assn =
-  case assn of
-    SExprAssert s -> s == SMT.bool True
-    PSAssert ps -> PS.trivial ps
-    BoolAssert b -> b
-    BAssert  b  -> all isTrivialAssertion b
-    EntailAssert _ assns -> all isTrivialAssertion assns
-
-instance Semigroup Assertion where
-  -- Unit
-  BoolAssert True <> assn = assn
-  assn <> BoolAssert True = assn
-  -- Absorb
-  assn@(BoolAssert False) <> _ = assn
-  _ <> assn@(BoolAssert False) = assn
-
-  -- Entailment
-  EntailAssert ps1 assns1 <> EntailAssert ps2 assns2
-    | PS.trivial ps1, PS.trivial ps2 = EntailAssert PS.true (assns1 <> assns2)
-  EntailAssert ps1 assns1 <> assn2
-    | PS.trivial ps1 = EntailAssert PS.true (assn2 :| toList assns1)
-  assn1 <> EntailAssert ps2 assns2
-    | PS.trivial ps2 = EntailAssert PS.true (assn1 :| toList assns2)
-  assn1 <> assn2 = EntailAssert PS.true (assn1 :| [assn2])
-
-instance Monoid Assertion where mempty = BoolAssert True
-
-entailAssert :: PathSet -> Assertion -> Assertion
-entailAssert ps a
-  | PS.trivial ps      = a
-  | isTrivialAssertion a = mempty
-  | EntailAssert ps' assns <- a = EntailAssert (ps `PS.conj` ps') assns
-  | otherwise            = EntailAssert ps (a :| [])
-
-entailAsserts :: PathSet -> NonEmpty Assertion -> Assertion
-entailAsserts ps (a :| []) = entailAssert ps a
-entailAsserts ps assns     = EntailAssert ps assns
-
--- -----------------------------------------------------------------------------
 -- Symbolic models
     
 -- We could figure this out from the generated parse tree, but this is
@@ -241,8 +180,8 @@ data SymbolicModel = SymbolicModel
 
 smAsserts :: SymbolicModel -> [SMT.SExpr]
 smAsserts sm = smGlobalAsserts sm ++
-               [ assertionToSExpr (smGuardedAsserts sm)
-               | not (isTrivialAssertion (smGuardedAsserts sm)) ]
+               [ A.toSExpr (smGuardedAsserts sm)
+               | not (A.trivial (smGuardedAsserts sm)) ]
 
 -- We should only ever combine disjoint sets, so we cheat here.
 instance Semigroup SymbolicModel where
@@ -350,7 +289,7 @@ assert :: Assertion -> SymbolicM ()
 assert a = tell (mempty { smGuardedAsserts = a })
 
 assertSExpr :: SMT.SExpr -> SymbolicM ()
-assertSExpr = assert . SExprAssert
+assertSExpr = assert . A.SExprAssert
 
 assertGlobalSExpr :: SMT.SExpr -> SymbolicM ()
 assertGlobalSExpr p | p == SMT.bool True = pure ()
@@ -378,7 +317,7 @@ handleUnreachable :: SymbolicM a -> SymbolicM (Maybe a)
 handleUnreachable m =
   (Just <$> m) `catchError` hdl
   where
-    hdl () = assert (BoolAssert False) $> Nothing
+    hdl () = assert (A.BoolAssert False) $> Nothing
 
 -- Handles assertions and failure as well.
 branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
@@ -387,18 +326,18 @@ branching b = do
   let vs' = B.catMaybes vs
   if B.null vs'
     then unreachable
-    else assert (BAssert assn) $> vs'
+    else assert (A.BAssert assn) $> vs'
   where
     go m = censor forgetAssns (catchError (runm m) hdl)
     
     runm :: SymbolicM a -> SymbolicM (Maybe a, Assertion)
     runm m = listens smGuardedAsserts (Just <$> m)
-    hdl () = pure (Nothing, BoolAssert False)
+    hdl () = pure (Nothing, A.BoolAssert False)
 
     forgetAssns = #smGuardedAsserts .~ mempty
 
 guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
-guardAssertions ps = censor (#smGuardedAsserts %~ entailAssert ps)
+guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
                   
 -- -- Used for case/choice slice alternatives
 -- extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel

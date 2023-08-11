@@ -31,6 +31,7 @@ import           Text.Printf                             (printf)
 
 import           Daedalus.Core                           hiding (streamOffset,
                                                           tByte)
+import qualified Daedalus.Core as Core
 import           Daedalus.Core.Free                      (freeVars)
 import           Daedalus.Core.Type
 import           Daedalus.Panic
@@ -63,6 +64,8 @@ import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import           Talos.Strategy.PathSymbolic.PathSet     (loopCountToSExpr)
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
+import qualified Talos.Strategy.PathSymbolic.Assertion   as A
+import Talos.Strategy.PathSymbolic.Assertion (Assertion)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -188,13 +191,13 @@ stratSlice = go
           sym <- liftSolver (declareSymbol n tByte)
           recordValue TByte sym
 
-          let bse = S.const sym
-              bv  = MV.vSymbolicInteger TByte sym
+          let bv  = MV.vSymbolicInteger TByte sym
 
-          bassn <- synthesiseByteSet bset bse
+          bassn <- synthesiseByteSet bset bv
           -- This just constrains the byte, we expect it to be satisfiable
           -- (byte sets are typically not empty)
           assertSExpr bassn
+          
           -- liftSolver check -- required?
           ptag <- asks sProvenance
           pure (bv, SelectedBytes ptag (ByteResult sym))
@@ -572,7 +575,7 @@ stratCase _total cs@(Case n pats) m_sccs
       let paths = map snd (toList b)
           feasibleIxs = map fst paths
       
-      assertSExpr assn -- FIXME: generate a Branching in semiExecPatterns
+      assert assn -- FIXME: generate a Branching in semiExecPatterns
 
       -- FIXME: we are pretending that we are a choice
       -- Record that we have this choice variable, and the possibilities
@@ -843,15 +846,24 @@ synthesiseExpr e = do
   -- T.statS (pathKey <> "exprsize") (length vs, numSymb)
   pure r
 
-synthesiseByteSet :: ByteSet -> S.SExpr -> SymbolicM S.SExpr
+synthesiseByteSet :: ByteSet -> MuxValue -> SymbolicM S.SExpr
 synthesiseByteSet bs b = go bs -- liftSymExecM $ SE.symExecByteSet b bs
   where
     go bs' =
       case bs' of
         SetAny          -> pure (S.bool True)
-        SetSingle  v    -> S.eq b <$> symE v
-        SetRange l h    -> S.and <$> (flip S.bvULeq b <$> symE l)
-                                 <*> (S.bvULeq b <$> symE h)
+        SetSingle  e    -> do
+          r <- liftSemiSolverM (MV.op2 Eq TBool Core.tByte Core.tByte b =<< symE e)
+          pure (MV.toSExpr r)
+        SetRange l h    -> do
+          (r1, r2) <- liftSemiSolverM $ do
+            l' <- symE l
+            h' <- symE h
+            lb <- MV.op2 Leq TBool Core.tByte Core.tByte l' b
+            ub <- MV.op2 Leq TBool Core.tByte Core.tByte b h'
+            pure (lb, ub)
+          
+          pure (S.and (MV.toSExpr r1) (MV.toSExpr r2))
     
         SetComplement c -> S.not <$> go c
         SetUnion l r    -> S.or <$> go l <*> go r
@@ -865,7 +877,7 @@ synthesiseByteSet bs b = go bs -- liftSymExecM $ SE.symExecByteSet b bs
         SetCase {}  -> unexpected bs'
     
     unexpected bs' = panic "Unexpected constructor" [showPP bs']
-    symE = fmap MV.toSExpr . synthesiseExpr 
+    symE = MV.semiExecExpr
 
 -- traceGUIDChange :: String -> SymbolicM a -> SymbolicM a
 -- traceGUIDChange msg m = do

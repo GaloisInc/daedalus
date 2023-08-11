@@ -11,6 +11,7 @@ module Talos.Strategy.PathSymbolic.Branching
   , branching
   
   -- * Operations
+  , disjointUnion
   , fold
   , fold1  
   , foldM
@@ -19,7 +20,9 @@ module Talos.Strategy.PathSymbolic.Branching
   , unzip3
   , catMaybes
   , mapVariants
+  , partitionEithers
 
+  , empty
   , null
   , select
   , resolve
@@ -30,8 +33,9 @@ module Talos.Strategy.PathSymbolic.Branching
   , invariant
   ) where
 
-import           Prelude                             hiding (unzip, unzip3, null)
+import           Prelude                             hiding (unzip, unzip3, null, empty)
 import qualified Prelude
+import qualified Data.Either as Either
 
 import           GHC.Generics                        (Generic)
 
@@ -50,8 +54,8 @@ import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
 
 import qualified SimpleSMT                           as S
 
-import           Daedalus.PP
-import Control.Lens (traverseOf, _2)
+import Daedalus.PP ( PP, pp, vcat )
+import Control.Lens (traverseOf, _2, over, both, (^.), alongside)
 
 
 -- FIXME: maybe rep. as a tree
@@ -91,6 +95,9 @@ singleton = pure
 branching :: [(PathSet, a)] -> Branching a
 branching = Branching . filter (not . PS.null . fst) 
 
+empty :: Branching a
+empty = Branching []
+  
 -- | An empty branching is denoted as False
 null :: Branching a -> Bool
 null = Prelude.null . variants
@@ -116,6 +123,9 @@ invariant b = andMany atMostOneTrue
 -- split = undefined
 
 -- Standard operations
+
+disjointUnion :: Branching a -> Branching a -> Branching a
+disjointUnion b1 b2 = branching (variants b1 <> variants b2)
 
 fold :: (PathSet -> a -> b -> b) -> b -> Branching a -> b
 fold f i b = foldl' (\a' (ps, a) -> f ps a a') i (variants b)
@@ -154,6 +164,13 @@ unzip3 b = ( branching (zip pss vs1)
   where
     (pss, vs)  = Prelude.unzip (variants b)
     (vs1, vs2, vs3) = Prelude.unzip3 vs
+
+-- Does not duplicate
+partitionEithers :: Branching (Either a b) -> (Branching a, Branching b)
+partitionEithers b = (branching ls, branching rs)
+  where
+    (ls, rs) = Either.partitionEithers [ either (Left . (,) p) (Right . (,) p) v
+                                       | (p, v) <- variants b ]
 
 mapVariants :: (PathSet -> a -> Maybe (PathSet, a)) -> Branching a -> Branching a
 mapVariants f bvs = branching new
