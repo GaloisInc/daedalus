@@ -424,7 +424,7 @@ boolsToSExpr bvs = B.toSExpr (go <$> bvs)
 
 toSExpr :: MuxValue -> SExpr
 toSExpr (VBools bvs)    = boolsToSExpr (over _Right S.const <$> bvs)
-toSExpr _ = panic "Non-base value" []
+toSExpr v = panic "Non-base value" [show v]
 
 toAssertion :: MuxValue -> Assertion
 toAssertion (VBools bvs) = A.BAssert (go <$> bvs)

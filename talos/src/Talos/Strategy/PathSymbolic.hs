@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# Language OverloadedStrings #-}
 {-# Language OverloadedLabels #-}
+{-# Language BlockArguments #-}
 
 -- Symbolic but the only non-symbolic path choices are those in
 -- recursive functions (i.e., we only unroll loops).
@@ -15,7 +16,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 import           Control.Lens                            (_2, imap, over,
                                                           preview)
-import           Control.Monad                           (join, (<=<))
+import           Control.Monad                           (join, (<=<), forM_)
 import           Control.Monad.Reader
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
@@ -311,11 +312,6 @@ stratLoop lclass =
           s0  = loopCountToSExpr 0
           s1  = loopCountToSExpr 1
 
-      -- FIXME: if this is non-0 then we don't need to worry about the null case.
-      mkBound (\slb -> S.eq slv s0 `sImplies` S.eq slb s0) . fst =<< execBnd minimum lb
-      traverse_ (mkBound (\ s_ub -> S.eq slv s1 `sImplies` S.not (S.eq s_ub s0)) . fst
-                 <=< execBnd maximum) m_ub
-
       -- Construct return value
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
                               , vsmLoopCountVar = Just lv
@@ -323,11 +319,18 @@ stratLoop lclass =
                               , vsmIsBuilder    = False
                               }
 
-          pathGuard = PS.loopCountEqConstraint lv 1
+          pathGuard = PS.loopCountEqConstraint lv
+
+      guardAssertions (pathGuard 0)
+        (mkBound (op2 Eq (MV.vInteger sizeType 0)) lb)
+      
+      -- FIXME: if this is non-0 then we don't need to worry about the null case.
+      guardAssertions (pathGuard 1)
+        (traverse_ (mkBound (op2 Lt (MV.vInteger sizeType 0))) m_ub)
       
       -- We must be careful to only constrain lv when we are doing
       -- something.
-      (elv, m) <- guardAssertions pathGuard (stratSlice b)
+      (elv, m) <- guardAssertions (pathGuard 1) (stratSlice b)
 
       let v    = MV.VSequence (B.singleton (vsm, [elv]))
           node = PathLoopGenerator ltag (Just lv) m
@@ -353,7 +356,10 @@ stratLoop lclass =
       -- FIXME: this is a bit blunt/incomplete
       lv <- freshLoopCountVar clb cub
 
-      manyBoundsCheck (PS.loopCountVarToSExpr lv) slb (fst <$> m_ubs)
+      let lvv = MV.vSymbolicInteger sizeType (PS.loopCountVarToSMTVar lv)
+      -- Assert bounds
+      mkBound (\v -> op2 Leq v lvv) lb
+      traverse_ (mkBound (op2 Leq lvv)) m_ub
 
       let doOne i = guardAssertions (PS.loopCountGtConstraint lv i) (stratSlice b)
       (els, ms) <- unzip <$> mapM doOne [0 .. cub - 1]
@@ -498,13 +504,12 @@ stratLoop lclass =
       let m_cbnd = g . fmap fromIntegral <$> MV.asIntegers sbnd
       pure (sbnd, m_cbnd)
 
-    manyBoundsCheck slv slb m_sub = do
-      -- Assert bounds
-      mkBound (`S.bvULeq` slv) slb
-      traverse_ (mkBound (slv `S.bvULeq`)) m_sub
+    op2 op a b = MV.op2 op TBool sizeType sizeType a b
 
-    -- Constructs a bounds check, and returns a concrete bound (if any)
-    mkBound f sbnd = assertSExpr (f (MV.toSExpr sbnd))
+    mkBound f b =
+      assert =<< liftSemiSolverM do
+        v <- MV.semiExecExpr b
+        MV.toAssertion <$> f v
 
 -- Handles early failure as well.
 guardedLoopCollection :: VSequenceMeta ->
