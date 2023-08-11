@@ -263,8 +263,6 @@ stratChoice sls _
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
 
-      liftIO $ printf "After choice: %s\n======\n%s\n" (show $ pp $ MV.ppMuxValue . fst <$> b)
-                      (show $ MV.ppMuxValue v)
       pure (v, SelectedChoice (SymbolicChoice pv paths))
       
   -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
