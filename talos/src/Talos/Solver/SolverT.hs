@@ -60,13 +60,10 @@ import           SimpleSMT                 (SExpr, Solver)
 
 import           Daedalus.Core             hiding (freshName)
 import qualified Daedalus.Core             as C
-import           Daedalus.GUID
-import           Daedalus.Panic
-import           Daedalus.PP
-
-
--- import Text.Printf (printf)
-
+import           Daedalus.GUID             (GUID, HasGUID (..), getNextGUID)
+import           Daedalus.Panic            (panic)
+import           Daedalus.PP               (PP (pp), bullets, hang, showPP,
+                                            text, vcat, (<+>))
 type SMTVar = String
 
 data QueuedCommand =

@@ -10,20 +10,17 @@ module Talos.Solver.ModelParser
 
 import           Control.Applicative
 import           Control.Monad       (ap, guard)
-import           Data.ByteString     (ByteString)
-import qualified Data.ByteString     as BS
 import           Data.Char           (isDigit)
 import           Data.List           (foldl')
 import           Data.Map            (Map)
 import qualified Data.Map            as Map
-import qualified Data.Vector         as V
 import           Data.Word
 import           SimpleSMT           (SExpr (..))
 import           Text.Read           (readMaybe)
 
 import           Daedalus.Core
+import           Daedalus.Panic      (panic)
 import           Daedalus.PP         (showPP)
-import           Daedalus.Panic
 import qualified Daedalus.Value      as I
 
 -- -----------------------------------------------------------------------------
@@ -108,70 +105,38 @@ pExact a = pAtom >>= guard . (==) a
 pSExpr :: ModelP a -> ModelP a
 pSExpr = pHead (const empty)
 
-withSExprs :: [SExpr] -> ModelP a -> ModelP a
-withSExprs ss m = ModelP $ \st -> do
-  r <- evalModelP' m (st { sexps = ss })
-  pure (r, st)
+-- withSExprs :: [SExpr] -> ModelP a -> ModelP a
+-- withSExprs ss m = ModelP $ \st -> do
+--   r <- evalModelP' m (st { sexps = ss })
+--   pure (r, st)
 
-pArray :: Integer -> ModelP a -> ModelP a
-pArray count p = do
-  (els, arr) <- go
-  let v = V.replicate (fromInteger count) arr V.// els
-  withSExprs (V.toList v) p
-  where
-    -- FIXME: maybe use a mutable vector here?
-    base :: ModelP ([(Int, SExpr)], SExpr)
-    base = pSExpr $ do
-      pExact "const"
-      s <- pRawHead
-      pure ([], s)
+-- pArray :: Integer -> ModelP a -> ModelP a
+-- pArray count p = do
+--   (els, arr) <- go
+--   let v = V.replicate (fromInteger count) arr V.// els
+--   withSExprs (V.toList v) p
+--   where
+--     -- FIXME: maybe use a mutable vector here?
+--     base :: ModelP ([(Int, SExpr)], SExpr)
+--     base = pSExpr $ do
+--       pExact "const"
+--       s <- pRawHead
+--       pure ([], s)
 
-    go :: ModelP ([(Int, SExpr)], SExpr)
-    go =
-      base <|>
-      (pSExpr $
-        do pExact "store"
-           (els, arr) <- go
-           i   <- pNumber
-           s   <- pRawHead
-           pure (if i < count then (fromInteger i, s) : els else els, arr))
-
--- FIXME: do we need this?
-
--- getValue :: String -> ModelP SExpr
--- getValue a = do
---   m_sexpr <- ModelP $ asks (Map.lookup a . vEnv)
---   case m_sexpr of
---     Just v -> pure v
---     Nothing -> do
---       s <- ModelP $ asks solver
---       res <- liftIO $ command s $ fun "get-value" [List [S.const a]]
---       case res of
---         List [List [_, v]] -> pure v
---         _ -> panic (unlines
---                 [ "Unexpected response from the SMT solver:"
---                 , "  Exptected: a value"
---                 , "  Result: " ++ showsSExpr res ""
---                 ]) []
-
+--     go :: ModelP ([(Int, SExpr)], SExpr)
+--     go =
+--       base <|>
+--       pSExpr (do pExact "store"
+--                  (els, arr) <- go
+--                  i   <- pNumber
+--                  s   <- pRawHead
+--                  pure (if i < count then (fromInteger i, s) : els else els, arr))
 
 --------------------------------------------------------------------------------
 -- Combinators
 --
 -- Only what is needed by the relation type generated in SymExec.hs
 -- (sum, product, bytes, unit) 
-
--- pTuple :: ModelP a -> ModelP b -> ModelP (a, b)
--- pTuple l r = pSExpr $ do
---   pExact "mk-tuple"
---   (,) <$> l <*> r
-
--- pUnit :: ModelP ()
--- pUnit = pExact "unit"
-
--- pSum :: ModelP a -> ModelP a -> ModelP a
--- pSum l r = pSExpr $ do
---   (pExact "inl" *> l) <|> (pExact "inr" *> r)
 
 pNumber :: ModelP Integer
 pNumber = pAtom >>= go
@@ -202,14 +167,14 @@ pNumber = pAtom >>= go
 pByte :: ModelP Word8
 pByte = fromIntegral <$> pNumber
 
--- This is nicer, we could use pHead directly
-pList :: ModelP a -> ModelP [a]
-pList p = ([] <$ pExact "nil") <|>
-          (pSExpr $ do pExact "insert"
-                       (:) <$> p <*> pList p)
+-- -- This is nicer, we could use pHead directly
+-- pList :: ModelP a -> ModelP [a]
+-- pList p = ([] <$ pExact "nil") <|>
+--           (pSExpr $ do pExact "insert"
+--                        (:) <$> p <*> pList p)
 
-pByteString :: ModelP ByteString
-pByteString = BS.pack <$> pList pByte
+-- pByteString :: ModelP ByteString
+-- pByteString = BS.pack <$> pList pByte
 
 pBool :: ModelP Bool
 pBool = pAtom >>= go
@@ -242,6 +207,8 @@ pValue ty0 = go ty0
         TIterator {} -> unimplemented
         TUser _ut -> unimplemented
         TParam {} -> unimplemented
+        TFloat    -> unimplemented
+        TDouble   -> unimplemented
 
     unimplemented = panic "sexprToValue: Unimplemented" [ showPP ty0 ]
 
