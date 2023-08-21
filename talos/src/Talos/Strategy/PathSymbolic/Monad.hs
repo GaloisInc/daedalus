@@ -12,33 +12,33 @@
 
 module Talos.Strategy.PathSymbolic.Monad where
 
-import           Control.Lens                          (_1, _2, at, locally,
-                                                        mapped, over, view,
-                                                        (.~), (%~))
+import           Control.Lens                          (at, locally, view, (%~),
+                                                        (.~))
 import           Control.Monad.IO.Class                (MonadIO)
-import           Control.Monad.Reader                  (ReaderT, ask,
-                                                        MonadReader,
-                                                        asks, local, runReaderT)
+import           Control.Monad.Reader                  (MonadReader, ReaderT,
+                                                        ask, asks, local,
+                                                        runReaderT)
+import           Data.Functor                          (($>))
 import           Data.Generics.Product                 (field)
 import           Data.Map                              (Map)
 import qualified Data.Map                              as Map
 import           GHC.Generics                          (Generic)
 import qualified SimpleSMT                             as SMT
--- FIXME: use .CPS
-import           Control.Monad.Except                  (ExceptT, runExceptT,
-                                                        throwError, MonadError, catchError)
+
+import           Control.Monad.Except                  (ExceptT, MonadError,
+                                                        catchError, runExceptT,
+                                                        throwError)
+-- FIXME: use .CPS?
 import           Control.Monad.Writer                  (MonadWriter, WriterT,
-                                                        runWriterT, tell,
-                                                        listens, pass, censor, listen)
-import           Data.List.NonEmpty                    (NonEmpty(..), nonEmpty)
-import qualified Data.List as List
+                                                        censor, listens,
+                                                        runWriterT, tell)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
 
-import           Daedalus.Core                         (Expr, Name, Pattern,
-                                                        Type, Typed (..))
-import           Daedalus.GUID                         (GUID, getNextGUID,
+import           Daedalus.Core                         (Expr, Name, Type,
+                                                        Typed (..))
+import           Daedalus.GUID                         (getNextGUID,
                                                         invalidGUID)
 import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
@@ -50,25 +50,21 @@ import           Talos.Strategy.PathSymbolic.MuxValue  (MuxValue, SemiSolverM,
                                                         runSemiSolverM)
                                                             -- SequenceTag,
                                                             -- )
-import           Talos.Lib                             (andMany)
 import           Talos.Monad                           (LiftTalosM, LogKey)
-import           Talos.Path
+import           Talos.Path                            (ProvenanceTag,
+                                                        SelectedPathF)
 import qualified Talos.Solver.SolverT                  as Solv
 import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
                                                         SolverT, liftSolver)
-import           Talos.Strategy.PathSymbolic.Branching (Branching)
+import qualified Talos.Strategy.PathSymbolic.Assertion as A
+import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
 import qualified Talos.Strategy.PathSymbolic.Branching as B
+import           Talos.Strategy.PathSymbolic.Branching (Branching)
 import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
 import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         PathSet, PathVar (..),
                                                         loopCountToSExpr,
                                                         loopCountVarSort)
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import Data.Foldable (toList)
-import Data.Functor (($>))
-import Data.Maybe (maybeToList)
-import Talos.Strategy.PathSymbolic.Assertion (Assertion)
-import qualified Talos.Strategy.PathSymbolic.Assertion as A
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -121,9 +117,6 @@ data PathChoiceBuilder a =
   | ConcreteChoice Int               a
   deriving (Functor)
 
--- Used to tag cases so we can iterate through models
-type SymbolicCaseTag = GUID
-
 -- | When we see a loop while parsing a model we either suspend the
 -- loop (for pooling) and just record the loop's tag, or we have
 -- elements we just inline (for non-pooling loops).
@@ -170,10 +163,6 @@ data SymbolicModel = SymbolicModel
   , smChoices :: Map PathVar ( [SMT.SExpr] -- Symbolic path (all true to be enabled)
                              , [Int] -- Allowed choice indicies
                              )
-  , smCases   :: Map SymbolicCaseTag (Name -- Cased-on variable
-                                     , [SMT.SExpr] -- Symbolic path (all true to be enabled)
-                                     , [(NonEmpty PathSet, Pattern)] -- Pattern guards
-                                     )
   , smNamedValues :: Map SMTVar Type
   , smLoopVars    :: Set LoopCountVar
   } deriving Generic
@@ -189,7 +178,6 @@ instance Semigroup SymbolicModel where
     (smGlobalAsserts sm1 <> smGlobalAsserts sm2)
     (smGuardedAsserts sm1 <> smGuardedAsserts sm2)
     (smChoices sm1 <> smChoices sm2)
-    (smCases   sm1 <> smCases   sm2)
     (smNamedValues sm1 <> smNamedValues sm2)
     (smLoopVars sm1 <> smLoopVars sm2)
 
@@ -198,7 +186,6 @@ instance Monoid SymbolicModel where
            { smGlobalAsserts  = mempty
            , smGuardedAsserts = mempty
            , smChoices        = mempty
-           , smCases          = mempty
            , smNamedValues    = mempty
            , smLoopVars       = mempty
            }
@@ -272,9 +259,6 @@ freshLoopCountVar lb ub = do
   tell (mempty { smLoopVars = Set.singleton lv })
   pure lv
 
-freshSymbolicCaseTag :: SymbolicM SymbolicCaseTag
-freshSymbolicCaseTag = liftStrategy getNextGUID
-
 freshSymbolicLoopTag :: SymbolicM SymbolicLoopTag
 freshSymbolicLoopTag = liftStrategy getNextGUID
                        
@@ -298,12 +282,6 @@ assertGlobalSExpr p = tell (mempty { smGlobalAsserts = [p] })
 recordChoice :: PathVar -> [Int] -> SymbolicM ()
 recordChoice pv ixs =
   tell (mempty { smChoices = Map.singleton pv (mempty, ixs) })
-
-recordCase :: SymbolicCaseTag -> Name -> [(NonEmpty PathSet, Pattern)] -> SymbolicM ()
--- If we have a _single_ rhs then we ignore the case (this happens with predicates)
-recordCase _stag _n [_rhs] = pure ()
-recordCase stag n rhss =
-  tell (mempty { smCases = Map.singleton stag (n, mempty, rhss) })
 
 recordValue :: Type -> SMTVar -> SymbolicM ()
 recordValue ty sym = tell (mempty { smNamedValues = Map.singleton sym ty })
@@ -338,50 +316,9 @@ branching b = do
 
 guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
 guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
-                  
--- -- Used for case/choice slice alternatives
--- extendPath :: SMT.SExpr -> SymbolicModel -> SymbolicModel
--- extendPath g | g == SMT.bool True = id
--- extendPath g = addGuard . addImpl
---   where
---     addImpl sm
---       | []      <- smGuardedAsserts sm = sm
---       | otherwise =
---         over (field @"smGuardedAsserts") (\ss -> [SMT.implies g (andMany ss) ]) sm
-
---     -- Merge in the guard g with the path for the known choices/cases
---     addGuard = 
---       over (field @"smChoices" . mapped . _1) (g :)
---       . over (field @"smCases" . mapped . _2) (g :)
-
--- assert :: GuardedSemiSExprs -> SymbolicM ()
--- assert sv = do
---   pe <- asks (pathToSExpr . sPath)
---   case sv of
---     VOther p -> inSolver (Solv.assert (SMT.implies pe (typedThing p)))
---     VValue (V.VBool True) -> pure ()
---     -- If we assert false, we can't get here (negate path cond)
---     VValue (V.VBool False) -> inSolver (Solv.assert (SMT.not pe))
---     _ -> panic "Malformed boolean" [show sv]
 
 --------------------------------------------------------------------------------
 -- Search operaations
-
--- choose :: [a] -> SymbolicM (ChoiceId, a)
--- choose bs = do
---   pathToHere <- getPathDeps
---   cid <- freshChoiceId
---   SymbolicM $ (,) cid <$> lift (chooseST cid pathToHere bs)
-
--- backtrack :: BacktrackReason -> SymbolicM a
--- backtrack reason = do
---   pathToFailure <- getPathDeps
---   -- liftIO $ putStrLn "Backtracking ..."
---   SymbolicM (lift (backtrackST reason pathToFailure))
-
--- enterPathNode :: Set ChoiceId -> SymbolicM a -> SymbolicM a
--- enterPathNode deps = local (over (field @"sPath") (deps :))
-
 
 -- We have a number of cases here
 -- 1. Normal function call to non-rec. function
@@ -482,17 +419,6 @@ instance PP (PathChoiceBuilder Doc) where
     where
       pp1 (i, p) = pp i <+> "=" <+> p
   pp (ConcreteChoice i p) = pp i <+> "=" <+> p
-
-
--- instance PP (PathCaseBuilder Doc) where
---   pp (SymbolicCase stag gses ps) =
---     pp stag <> ": " <>
---     block "[[" "," "]]" [ pp (text . typedThing <$> gses)
---                         , block "{" "," "}" (map pp1 ps) ]
---     where
---       pp1 (pat, p) = pp pat <+> "=" <+> p
-      
---   pp (ConcreteCase p) = p
 
 instance PP SolverResult where
   pp (ByteResult v) = text v
