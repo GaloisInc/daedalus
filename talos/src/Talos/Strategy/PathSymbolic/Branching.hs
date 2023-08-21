@@ -33,30 +33,25 @@ module Talos.Strategy.PathSymbolic.Branching
   , invariant
   ) where
 
-import           Prelude                             hiding (unzip, unzip3, null, empty)
-import qualified Prelude
-import qualified Data.Either as Either
-
-import           GHC.Generics                        (Generic)
-
 import           Control.Monad                       (ap)
-import           Daedalus.Panic                      (panic)
-import           Data.Foldable                       (foldl', foldlM, toList)
-import           Data.List.NonEmpty                  (NonEmpty (..))
-import qualified Data.List as List
-import qualified Data.Map.Merge.Strict               as Map
+import qualified Data.Either                         as Either
+import           Data.Foldable                       (foldl', foldlM)
+import qualified Data.List                           as List
 import           Data.Map.Strict                     (Map)
 import qualified Data.Map.Strict                     as Map
-import           Data.Maybe                          (fromMaybe, mapMaybe)
-import           Talos.Lib                           (findM, andMany, orMany)
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
-
+import           Data.Maybe                          (mapMaybe)
+import           GHC.Generics                        (Generic)
+import           Prelude                             hiding (null, unzip,
+                                                      unzip3)
+import qualified Prelude
 import qualified SimpleSMT                           as S
 
-import Daedalus.PP ( PP, pp, vcat )
-import Control.Lens (traverseOf, _2, over, both, (^.), alongside)
+import           Daedalus.Panic                      (panic)
+import           Daedalus.PP                         (PP, pp, vcat)
 
+import           Talos.Lib                           (andMany, findM)
+import qualified Talos.Strategy.PathSymbolic.PathSet as PS
+import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
 
 -- FIXME: maybe rep. as a tree
 -- data Branching a = Leaf (PathSet, a) | Conj PathSet [Branching a]

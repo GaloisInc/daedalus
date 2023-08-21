@@ -2,7 +2,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# Language OverloadedStrings #-}
 {-# Language OverloadedLabels #-}
 {-# Language BlockArguments #-}
@@ -16,8 +15,8 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 import           Control.Lens                            (_2, imap, over,
                                                           preview)
-import           Control.Monad                           (join, (<=<), forM_)
-import           Control.Monad.Reader
+import           Control.Monad                           (join, mapAndUnzipM)
+import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
 import           Data.Generics.Product                   (field)
@@ -32,11 +31,11 @@ import           Text.Printf                             (printf)
 
 import           Daedalus.Core                           hiding (streamOffset,
                                                           tByte)
-import qualified Daedalus.Core as Core
+import qualified Daedalus.Core                           as Core
 import           Daedalus.Core.Free                      (freeVars)
-import           Daedalus.Core.Type
-import           Daedalus.Panic
-import           Daedalus.PP                             (pp, showPP)
+import           Daedalus.Core.Type                      (sizeType, typeOf)
+import           Daedalus.Panic                          (panic)
+import           Daedalus.PP                             (showPP)
 import           Daedalus.Rec                            (topoOrder)
 
 import           Talos.Analysis.Exported                 (ExpCallNode (..),
@@ -44,7 +43,6 @@ import           Talos.Analysis.Exported                 (ExpCallNode (..),
                                                           sliceToCallees)
 import           Talos.Analysis.Slice
 import qualified Talos.Monad                             as T
-import           Talos.Monad                             (getModule)
 
 import           Talos.Lib                               (tByte)
 import           Talos.Path
@@ -63,10 +61,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
                                                           VSequenceMeta (..))
 import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
-import           Talos.Strategy.PathSymbolic.PathSet     (loopCountToSExpr)
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
-import qualified Talos.Strategy.PathSymbolic.Assertion   as A
-import Talos.Strategy.PathSymbolic.Assertion (Assertion)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -126,7 +121,6 @@ symbolicFun config ptag sl = StratGen $ do
   -- defined referenced types/functions
   reset -- FIXME
 
-  md <- liftStrategy getModule
   deps <- sliceToDeps sl
 
   -- FIXME: this should be calculated once, along with how it is used
@@ -306,10 +300,6 @@ stratLoop lclass =
       lv <- freshLoopCountVar 0 1
 
       -- Bounds check: the null case is only allowed if lb is 0, the non-null case if m_ub /= 0      
-      let slv = PS.loopCountVarToSExpr lv
-          s0  = loopCountToSExpr 0
-          s1  = loopCountToSExpr 1
-
       -- Construct return value
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
                               , vsmLoopCountVar = Just lv
@@ -339,7 +329,7 @@ stratLoop lclass =
       -- How many times to unroll the loop
       nloops <- asks sNLoopElements
 
-      (slb, m_clb) <- execBnd minimum lb
+      (_slb, m_clb) <- execBnd minimum lb
       m_ubs <- traverse (execBnd maximum) m_ub
 
       let clb = fromMaybe 0 m_clb
@@ -348,7 +338,7 @@ stratLoop lclass =
           -- FIXME: incomplete.
           cub = maybe altub (min altub) (snd =<< m_ubs)
 
-      n <- asks sCurrentName
+      -- n <- asks sCurrentName
       -- liftIO $ printf "Bounds (%s): %d %d\n" (show n) clb cub
 
       -- FIXME: this is a bit blunt/incomplete
@@ -360,7 +350,7 @@ stratLoop lclass =
       traverse_ (mkBound (op2 Leq lvv)) m_ub
 
       let doOne i = guardAssertions (PS.loopCountGtConstraint lv i) (stratSlice b)
-      (els, ms) <- unzip <$> mapM doOne [0 .. cub - 1]
+      (els, ms) <- mapAndUnzipM doOne [0 .. cub - 1]
 
       let vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
                               , vsmLoopCountVar = Just lv
@@ -474,11 +464,7 @@ stratLoop lclass =
             Nothing -> panic "UNIMPLEMENTED: non-list fold" []
             Just r  -> r
       
-      let eqGuard vsm
-            | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
-            | otherwise = const PS.true
-          
-          goOne _vsm acc [] = pure (reverse acc)
+      let goOne _vsm acc [] = pure (reverse acc)
           goOne vsm acc ((i, el) : rest) = do
             m_v_pb <- guardedLoopCollection vsm lc (stratSlice b) i el
             case m_v_pb of
@@ -496,13 +482,14 @@ stratLoop lclass =
       let node' = PathLoopMorphism ltag nodes
       pure (MV.VSequence bvs', SelectedLoop node')
   where
+    -- FIXME: this duplicates work done in mkBound (the synthesiseExpr)
     execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (MuxValue, Maybe Int)
     execBnd g bnd = do
       sbnd <- synthesiseExpr bnd
       let m_cbnd = g . fmap fromIntegral <$> MV.asIntegers sbnd
       pure (sbnd, m_cbnd)
 
-    op2 op a b = MV.op2 op TBool sizeType sizeType a b
+    op2 op = MV.op2 op TBool sizeType sizeType
 
     mkBound f b =
       assert =<< liftSemiSolverM do
@@ -527,40 +514,9 @@ guardedLoopCollection vsm lc m i el
     bindK = maybe id (\kn -> primBindName kn kv) (lcKName lc)
     bindE = primBindName (lcElName lc) el    
 
--- We represent disjunction by having multiple values; in this case,
--- if we have matching values for the case alternative v1, v2, v3,
--- with guards g1, g2, g3, then for each value returned by the RHS
--- of the pattern we will combine with each g1, g2, g3 (to get 3
--- sets of values) which we then union.  As a formula, we have
---
--- (ga, va) \/ (gb, vb) \/ ... = RHS
--- return  (ga /\ g1, va) \/ (gb /\ g1, vb) \/ (gc /\ g1, vc)
---      \/ (ga /\ g2, va) \/ (gb /\ g2, vb) \/ (gc /\ g2, vc)
---      \/ ...
---
--- This can greatly increase the number of values
-
--- FIXME: merge with the above?
--- guardedCase :: NonEmpty PathCondition -> Pattern -> SymbolicM Result ->
---                SymbolicM (Maybe (MuxValue, (Pattern, PathBuilder)))
--- guardedCase gs pat m = pass $ do
---   m_r <- getMaybe m
---   -- when (isNothing m_r) $ liftIO $ print ("Infeasible case: " ++ S.ppSExpr pathGuard "" ++ "\n")
-
---   pure $ case m_r of
---            Just r  -> (mk r, extendPath pathGuard)
---            Nothing -> (Nothing, notFeasible)
---   where
---     mk (v, pb) = do
---       x <-  MV.unions' (mapMaybe (flip MV.refine v) (NE.toList gs))
---       pure (x, (pat, pb))
-
---     pathGuard = MV.orMany (map PS.toSExpr (NE.toList gs))
---     notFeasible _ = mempty { smGuardedAsserts = [S.not pathGuard] }
-
 -- c.f. stratChoice
 stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase _total cs@(Case n pats) m_sccs
+stratCase _total cs@(Case n pats) _m_sccs
   | null pats = unreachable
   | otherwise = do
       v <- getName n
