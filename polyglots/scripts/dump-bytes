@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+hexdump -C $1 \
+    | grep "\|" \
+    | cut -d\  -f2-19 \
+    | sed -e 's/\([0-9a-z]\)\([a-z0-9]\)/0x&,/g'
