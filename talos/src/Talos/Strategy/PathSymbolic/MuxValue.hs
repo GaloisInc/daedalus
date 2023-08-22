@@ -10,9 +10,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards     #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 -- -----------------------------------------------------------------------------
 -- Semi symbolic/concrete evaluation
@@ -45,33 +43,31 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   , fromModel
   ) where
 
-
-import           Control.Monad.Writer.CPS              (Writer,
-                                                        runWriter, tell,
-                                                        listens, pass, censor, listen)
-
+import           Control.Applicative                   (liftA2)
 import           Control.Lens                          (Iso, Prism', _1, _2,
-                                                        below, each, from,
-                                                        ifoldr, iso, locally,
-                                                        over, preview, re,
-                                                        traverseOf, traversed,
-                                                        view, (.~), (^.), (^?!),
-                                                        (^?), _Left, _Right, imap, mapped, (^..), folded)
-import           Control.Monad                         (join, zipWithM, guard, unless)
+                                                        _Left, _Right, below,
+                                                        each, from, imap, iso,
+                                                        locally, over, preview,
+                                                        re, traverseOf,
+                                                        traversed, view, (.~),
+                                                        (^.), (^?!), (^?))
+import           Control.Monad                         (join, unless, zipWithM)
 import           Control.Monad.Except                  (ExceptT, runExceptT,
                                                         throwError)
 import           Control.Monad.Reader                  (MonadIO, ReaderT, asks,
                                                         runReaderT)
 import           Control.Monad.State                   (StateT, modify,
                                                         runStateT)
-import           Data.Bifunctor                        (first, second)
+import           Control.Monad.Writer.CPS              (runWriter, tell)
 import qualified Data.ByteString                       as BS
-import           Data.Foldable                         (foldl', foldlM, toList)
+import           Data.Foldable                         (foldlM, toList)
+import           Data.Functor                          (($>))
 import           Data.Generics.Labels                  ()
+import           Data.List.NonEmpty                    (NonEmpty)
 import qualified Data.List.NonEmpty                    as NE
 import           Data.Map.Strict                       (Map)
 import qualified Data.Map.Strict                       as Map
-import           Data.Maybe                            (fromMaybe, isNothing, maybeToList, isJust)
+import           Data.Maybe                            (fromMaybe, isJust)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
@@ -85,32 +81,29 @@ import           SimpleSMT                             (SExpr)
 import           Daedalus.Core                         hiding (freshName)
 import           Daedalus.Core.Semantics.Expr          (evalOp0, evalOp1,
                                                         evalOp2, partial)
-import           Daedalus.Core.Type
-import           Daedalus.GUID
-import           Daedalus.Panic
+import           Daedalus.Core.Type                    (sizeType, typeOf)
+import           Daedalus.GUID                         (GUID, HasGUID)
+import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
 import qualified Daedalus.Value.Type                   as V
 
-import           Talos.Lib                             (andMany, findM)
+import           Talos.Lib                             (andMany)
 import           Talos.Monad                           (LiftTalosM, LogKey)
-import           Talos.Solver.SolverT
+import           Talos.Solver.SolverT                  (MonadSolver (liftSolver),
+                                                        SMTVar, SolverT,
+                                                        defineSymbol)
 import           Talos.Strategy.Monad                  (LiftStrategyM)
+import qualified Talos.Strategy.PathSymbolic.Assertion as A
+import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
+import qualified Talos.Strategy.PathSymbolic.Branching as B
+import           Talos.Strategy.PathSymbolic.Branching (Branching)
 import qualified Talos.Strategy.PathSymbolic.PathSet   as PS
 import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
-                                                        PathSet,
                                                         PathSetModelMonad,
                                                         PathVar, psmmLoopVar,
                                                         psmmSMTVar)
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
 import           Talos.Strategy.PathSymbolic.SymExec   (symExecTy)
-
-import qualified Talos.Strategy.PathSymbolic.Branching as B
-import           Talos.Strategy.PathSymbolic.Branching (Branching)
-import Data.List.NonEmpty (NonEmpty)
-import Control.Applicative (liftA2)
-import qualified Talos.Strategy.PathSymbolic.Assertion as A
-import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
-import Data.Functor (($>))
 
 --------------------------------------------------------------------------------
 -- Logging and stats
@@ -121,18 +114,11 @@ _muxKey = "muxvalue"
 --------------------------------------------------------------------------------
 -- Types
 
--- -- | A collection of base values (integer or bool) with their
--- -- associated path conditions.  The symbolic case does not need a path
--- -- condition as it is enabled only if the other values are not (this
--- -- means, however, we need to assert negations at a case, or use ite).
--- -- This is a special form of a Branching.
--- data BaseValues v s = BaseValues
---   { bvConcrete :: !(Map v PathSet)
---   -- ^ Concrete values mapped onto the disjunction of path conditions.
---   , bvSymbolic :: !(Maybe s)
---   }
---   deriving (Show, Eq, Ord, Foldable, Traversable, Functor, Generic)
+-- FIXME: we should normalise this so there is only ever 1 symbolic
+-- term.
 
+-- | A collection of base values (integer or bool) with their
+-- associated path conditions.
 type BaseValues v s = Branching (Either v s)
 
 singletonBaseValues :: v -> BaseValues v s
@@ -431,6 +417,7 @@ toAssertion (VBools bvs) = A.BAssert (go <$> bvs)
   where
     go (Left b) = A.BoolAssert b
     go (Right s) = A.SExprAssert (S.const s)
+toAssertion _ = panic "Value has wrong shape: expected VBools" []
 
 semiExecName :: (SemiCtxt m, HasCallStack) =>
                 Name -> SemiSolverM m MuxValueSExpr
@@ -1522,7 +1509,7 @@ ppMuxValueF mv =
       where ppFld (x,t) = pp x <.> colon <+> go t
     VSequence b -> pp (ppSeq <$> b)
     VMaybe m -> stmv (maybe "nothing" (const "just")) m
-    VMap els -> unsupported
+    VMap {} -> unsupported
   where
     stmv :: PP s => (l -> Doc) -> SumTypeMuxValueF l s -> Doc
     stmv f = pp . fmap ppOne
