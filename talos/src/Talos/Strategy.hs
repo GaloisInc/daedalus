@@ -26,14 +26,14 @@ import           Talos.Strategy.BTRand
 import           Talos.Strategy.Monad        (LiftStrategyM (..), StratGen(..),
                                               Strategy (..), StrategyM, StrategyInstance (siFun), siName, getSlice)
 import           Talos.Strategy.PathSymbolic (pathSymbolicStrat)
-import           Talos.Strategy.Symbolic     (symbolicStrat)
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT       (SolverState, runSolverT)
+-- import           Talos.Strategy.Symbolic     (symbolicStrat)
+import           Talos.Path
+import           Talos.Solver.SolverT       (SolverState, runSolverT)
 import qualified Talos.Strategy.Monad as M
 
 
 allStrategies :: [Strategy]
-allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat, symbolicStrat] {- , backwardSymbolicStrat -}
+allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat] {- , backwardSymbolicStrat -}
 
 parseStrategies :: [String] -> Either String [StrategyInstance]
 parseStrategies ss = M.parseStrategies ss allStrategies

@@ -1,40 +1,46 @@
-{-# Language ViewPatterns #-}
+
+-- Functions which should be in other libraries but aren't
+
 module Talos.Lib where
 
-import Daedalus.Core
+import qualified SimpleSMT                    as S
+import           SimpleSMT                    (SExpr)
+import Data.Foldable (toList)
 
 -- -----------------------------------------------------------------------------
--- Daedalus helpers
+-- base
 
--- isBits :: Type -> Maybe (Bool, Integer)
--- isBits (isUInt -> Just n) = Just (False, n)
--- isBits (isSInt -> Just n) = Just (True, n)
--- isBits _                  = Nothing
+-- short-circuiting
+andM :: Monad m => [m Bool] -> m Bool
+andM [] = pure True
+andM (m : ms) = do
+  b <- m
+  if b then andM ms else pure False
 
--- isUInt :: Type -> Maybe Integer
--- isUInt (TUInt (TSize n)) = Just n
--- isUInt _                 = Nothing
+orM :: Monad m => [m Bool] -> m Bool
+orM [] = pure False
+orM (m : ms) = do
+  b <- m
+  if b then pure True else orM ms
 
--- isSInt :: Type -> Maybe Integer
--- isSInt (TSInt (TSize n)) = Just n
--- isSInt _                 = Nothing
+findM :: (Foldable t, Monad m) => (a -> m Bool) -> t a -> m (Maybe a)
+findM f = go . toList
+  where
+    go [] = pure Nothing
+    go (x : xs) = do
+      b <- f x
+      if b then pure (Just x) else findM f xs
 
--- isInteger :: Type -> Bool
--- isInteger (Type TInteger) = True
--- isInteger _              = False
+-- -----------------------------------------------------------------------------
+-- simple-smt
 
--- isArray :: Type -> Maybe Type
--- isArray (Type (TArray t)) = Just t
--- isArray _                 = Nothing
+orMany :: [SExpr] -> SExpr
+orMany [x] = x
+orMany xs  = S.orMany xs
 
--- isMaybe :: Type -> Maybe Type
--- isMaybe (Type (TMaybe t)) = Just t
--- isMaybe _                 = Nothing
+andMany :: [SExpr] -> SExpr
+andMany [x] = x
+andMany xs  = S.andMany xs
 
--- isBool :: Type -> Bool
--- isBool (Type TBool) = True
--- isBool _            = False
-
--- stripParam :: Param -> TCName Value
--- stripParam (ValParam n) = n
--- stripParam _            = error "Shouldn't happen (stripParam)"
+tByte :: SExpr
+tByte = S.tBits 8

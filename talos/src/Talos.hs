@@ -48,7 +48,7 @@ import           Talos.Analysis.Monad         (makeDeclInvs)
 import           Talos.Monad                  (runTalosM, runTalosStream, LogKey, logKeyEnabled, getLogKey)
 import           Talos.Passes
 import           Talos.Strategy
-import           Talos.SymExec.Path           (ProvenanceMap)
+import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 import Data.Text (Text)
 

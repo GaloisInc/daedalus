@@ -5,9 +5,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving, ParallelListComp #-}
 
--- Path set analysis
+-- Representation of Paths
 
-module Talos.SymExec.Path where
+module Talos.Path where
 
 import           Control.DeepSeq       (NFData)
 import           Control.Lens          (ix, (%~), (&))
@@ -20,10 +20,10 @@ import           GHC.Generics          (Generic)
 
 import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.GUID (GUID)
 
 import           Talos.Analysis.Merge  (Merge (..))
 import           Talos.Analysis.Slice  (FInstId)
-import Daedalus.GUID (GUID)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -56,7 +56,9 @@ data SelectedPathF ch ca lp a =
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
-type SelectedPath = SelectedPathF PathIndex Identity SelectedLoopF ByteString
+-- We don't really need the index for cases, but it makes life a bit
+-- easier if we can just copy choice.
+type SelectedPath = SelectedPathF PathIndex PathIndex SelectedLoopF ByteString
 
 deriving instance NFData SelectedPath
 
@@ -369,7 +371,7 @@ instance Merge a => Merge (SelectedLoopF a) where
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
 
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
+instance Merge (SelectedPathF PathIndex PathIndex SelectedLoopF a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -377,8 +379,10 @@ instance Merge (SelectedPathF PathIndex Identity SelectedLoopF a) where
       (SelectedChoice (PathIndex n1 sp1), SelectedChoice (PathIndex n2 sp2))
         | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
         | otherwise -> SelectedChoice (PathIndex n1 (merge sp1 sp2))
-      (SelectedCase (Identity sp1), SelectedCase (Identity sp2))
-        -> SelectedCase (Identity (merge sp1 sp2))
+      (SelectedCase (PathIndex n1 sp1), SelectedCase (PathIndex n2 sp2))
+        | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
+        | otherwise -> SelectedCase (PathIndex n1 (merge sp1 sp2))
+
       (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
         | otherwise  -> SelectedCall cl1 (merge sp1 sp2)

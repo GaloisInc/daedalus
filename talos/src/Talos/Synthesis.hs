@@ -13,8 +13,8 @@
 
 module Talos.Synthesis (synthesise) where
 
-import           Control.Lens                    (at, (%=), (?~))
-import           Control.Monad                   (replicateM, when)
+import           Control.Lens                    (at, (%=), (?~), imap)
+import           Control.Monad                   (replicateM, when, guard)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString                 (ByteString)
@@ -59,9 +59,8 @@ import           Talos.Analysis.Exported         (SliceId, esRootSlices)
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT           (emptySolverState)
-import           Talos.SymExec.StdLib
+import           Talos.Path
+import           Talos.Solver.SolverT           (emptySolverState)
 
 import           Data.Functor.Of                 (Of ((:>)))
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
@@ -69,6 +68,7 @@ import           Talos.Monad                     (TalosM, getGFun, getIEnv,
                                                   getModule)
 import           Talos.Strategy
 import           Talos.Strategy.Monad
+import Data.Functor (($>))
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -252,10 +252,6 @@ synthesise m_seed solv (AbsEnvTy p) strats root = S.effect $ do
   let solvSt0 = emptySolverState solv
       mc0 = newModelCache strats solvSt0
       
-  -- Init solver stdlib
-  -- FIXME: probably move?
-  liftIO $ makeStdLib solv 
-
   md <- getModule
   let Just rootDecl = find (\d -> fName d == root) (mGFuns md)
 
@@ -549,11 +545,17 @@ synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
 
-synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
+synthesiseG (SelectedCase (PathIndex n sp)) (GCase cs) = do
   let v = Var (caseVar cs)
   env <- projectEnvForM v
-  let base = panic "Failed to match pattern" [showPP cs]
-  I.evalCase (\g _ -> synthesiseG sp g) base cs env 
+  let r = I.lookupVar (caseVar cs) env
+  -- check interpreter agrees
+  let numberedCase = Case (caseVar cs) (imap (\i (pat, g) -> (pat, (i, g))) (casePats cs))
+      agrees = I.evalCase (\(i, g) _ -> guard (i == n) $> g) Nothing numberedCase env
+
+  case agrees of
+    Nothing -> panic "Mismatch in case(!)" [showPP n, showPP r]
+    Just g -> synthesiseG sp g
 
 synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 

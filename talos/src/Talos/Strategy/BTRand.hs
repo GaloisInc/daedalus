@@ -31,7 +31,7 @@ import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
 import qualified Talos.Strategy.OptParser        as P
 import           Talos.Strategy.OptParser        (Opt, parseOpts)
-import           Talos.SymExec.Path
+import           Talos.Path
 
 
 -- ----------------------------------------------------------------------------------------
@@ -194,8 +194,7 @@ stratSlice ptag = go
 
         SCase _ c -> do
           env <- ask
-          I.evalCase (\(_i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
-
+          I.evalCase (\(i, sl') _env -> onSlice (SelectedCase . PathIndex i) <$> go sl' ) mzero (enumerate c) env
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do
           let tryOne = do
