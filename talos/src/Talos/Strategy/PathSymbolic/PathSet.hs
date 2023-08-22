@@ -22,8 +22,6 @@ module Talos.Strategy.PathSymbolic.PathSet
   
   , trivial
   , null
-  , true
-  , false
   
   -- * Converstion to SExpr
   , toSExpr
@@ -35,26 +33,26 @@ module Talos.Strategy.PathSymbolic.PathSet
   , true, false, disj, conj, disjMany
   ) where
 
-import Prelude hiding (null)
 import           Control.Monad         (guard)
 import           Data.Foldable         (toList)
 import           Data.Functor          (($>))
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import qualified Data.Map.Merge.Strict as Map
+import           Data.Sequence         (Seq)
+import qualified Data.Sequence         as Seq
 import           GHC.Generics          (Generic)
+import           Prelude               hiding (null)
 import qualified SimpleSMT             as S
 import           SimpleSMT             (SExpr, bvHex, tBits)
 
-import           Daedalus.Core         (Pattern, Typed (..))
+import           Daedalus.Core         (Typed (..))
 import           Daedalus.Core.Type    (sizeType)
 import           Daedalus.PP
 import qualified Daedalus.Value.Type   as V
 
 import           Talos.Lib             (andM, orM, orMany)
 import           Talos.Solver.SolverT  (SMTVar)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 
 newtype PathVar = PathVar { getPathVar :: SMTVar }
   deriving (Eq, Ord, Show)

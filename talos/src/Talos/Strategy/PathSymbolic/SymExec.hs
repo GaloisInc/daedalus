@@ -13,14 +13,13 @@ module Talos.Strategy.PathSymbolic.SymExec
   , symExecValue
   ) where
 
-import qualified Data.ByteString                 as BS
+import qualified Data.ByteString     as BS
+import qualified SimpleSMT           as S
+import           SimpleSMT           (SExpr)
 
-import           SimpleSMT                       (SExpr)
-import qualified SimpleSMT                       as S
-
-import           Daedalus.Core                   hiding (tByte, freshName)
-import           Daedalus.PP
+import           Daedalus.Core       hiding (freshName, tByte)
 import           Daedalus.Panic
+import           Daedalus.PP
 import           Daedalus.Value.Type as V
 
 -- -----------------------------------------------------------------------------

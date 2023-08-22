@@ -1,13 +1,11 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# Language OverloadedStrings #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE FlexibleInstances #-} -- Just for PathSetModelMonad
+{-# LANGUAGE PatternSynonyms #-} 
 
 -- Symbolic but the only non-symbolic path choices are those in
 -- recursive functions (i.e., we only unroll loops).
@@ -15,78 +13,62 @@
 -- FIXME: factor out commonalities with Symbolic.hs
 module Talos.Strategy.PathSymbolic.PathBuilder (buildPaths) where
 
-import           Control.Lens                              (Lens', Setter', _1,
-                                                            _2, _3, at, each,
-                                                            ifoldlM, locally,
-                                                            mapped, over,
-                                                            scribe, view,
-                                                            views, (%=), (%~),
-                                                            (&), (+~), (.~),
-                                                            (<>~))
-import           Control.Monad                             (join, unless,
-                                                            zipWithM)
+import           Control.Lens                          (Lens', Setter', _1, _2,
+                                                        _3, at, each, ifoldlM,
+                                                        locally, mapped, scribe,
+                                                        view, views, (%~), (&),
+                                                        (<>~))
+import           Control.Monad                         (unless, zipWithM)
 import           Control.Monad.Reader
-import           Control.Monad.RWS.CPS                     (RWST, censor,
-                                                            mapRWST, runRWST)
-import qualified Data.ByteString                           as BS
-import           Data.Foldable                             (find)
-import           Data.Functor                              (($>))
-import           Data.Functor.Identity                     (Identity (Identity))
-import           Data.Generics.Labels                      ()
-import           Data.List.NonEmpty                        (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty                        as NE
+import           Control.Monad.RWS.CPS                 (RWST, censor, mapRWST,
+                                                        runRWST)
+import qualified Data.ByteString                       as BS
+import           Data.Functor                          (($>))
+import           Data.Generics.Labels                  ()
+import           Data.List.NonEmpty                    (NonEmpty ((:|)))
 -- Lazy maps seems faster here.
-import           Data.Map                                  (Map)
-import qualified Data.Map                                  as Map
-import qualified Data.Map.Merge.Strict                     as Map
-import           Data.Maybe                                (isNothing)
-import qualified Data.Set                                  as Set
-import qualified Data.Vector                               as Vector
-import           Data.Word                                 (Word8)
-import           GHC.Generics                              (Generic)
-import qualified SimpleSMT                                 as S
-import           Text.Printf                               (printf)
-import qualified Data.Text as Text
+import           Data.Map                              (Map)
+import qualified Data.Map                              as Map
+import qualified Data.Map.Merge.Strict                 as Map
+import           Data.Maybe                            (isNothing)
+import qualified Data.Set                              as Set
+import qualified Data.Text                             as Text
+import           Data.Word                             (Word8)
+import           GHC.Generics                          (Generic)
+import qualified SimpleSMT                             as S
+import           Text.Printf                           (printf)
 
-import           Daedalus.Core                             hiding (streamOffset,
-                                                            tByte)
-import qualified Daedalus.Core.Semantics.Env               as I
-import qualified Daedalus.Core.Semantics.Expr              as I
+import           Daedalus.Core                         (pattern TByte, Typed (..))
+import qualified Daedalus.Core.Semantics.Env           as I
+import qualified Daedalus.Core.Semantics.Expr          as I
 import           Daedalus.Panic
-import           Daedalus.PP                               (Doc, PP, braces,
-                                                            brackets, bullets,
-                                                            commaSep, pp,
-                                                            showPP, text)
-import           Daedalus.Time                             (timeIt)
-import qualified Daedalus.Value                            as I
+import           Daedalus.PP                           (PP, braces, bullets,
+                                                        commaSep, pp, text)
+import           Daedalus.Time                         (timeIt)
+import qualified Daedalus.Value                        as I
 
-import           Talos.Monad                               (getIEnv,
-                                                            getTypeDefs, LogKey)
-import qualified Talos.Monad                               as T
+import qualified Talos.Monad                           as T
+import           Talos.Monad                           (LogKey, getIEnv)
 
-import           Talos.Strategy.Monad
-import           Talos.Strategy.PathSymbolic.Monad
-import qualified Talos.Strategy.PathSymbolic.SymExec      as SE
-import qualified Talos.Strategy.PathSymbolic.MuxValue      as MV
-import           Talos.Strategy.PathSymbolic.MuxValue      (MuxValue,
-                                                            VSequenceMeta (..))
-import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (PathSetModelMonad(..)
-                                                     , LoopCountVar
-                                                     , PathSet
-                                                     , PathVar
-                                                     -- ValuePathConstraint,
-                                                     , loopCountToSExpr
-                                                     , loopCountVarToSExpr
-                                                     , pathVarToSExpr)
-import           Talos.Solver.ModelParser                 (evalModelP, pExact,
-                                                            pNumber, pSExpr,
-                                                            pValue)
+import           Talos.Lib                             (andMany)
 import           Talos.Path
-import qualified Talos.Solver.SolverT                     as Solv
-import           Talos.Solver.SolverT                     (SMTVar, SolverT)
-import Talos.Lib (findM, andMany)
+import           Talos.Solver.ModelParser              (evalModelP, pExact,
+                                                        pNumber, pSExpr, pValue)
+import qualified Talos.Solver.SolverT                  as Solv
+import           Talos.Solver.SolverT                  (SMTVar, SolverT)
+import           Talos.Strategy.Monad
 import qualified Talos.Strategy.PathSymbolic.Branching as B
+import           Talos.Strategy.PathSymbolic.Monad
+import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
+import           Talos.Strategy.PathSymbolic.MuxValue  (VSequenceMeta (..))
+import qualified Talos.Strategy.PathSymbolic.PathSet   as PS
+import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar,
+                                                        PathSetModelMonad (..),
+                                                        PathVar,
+                                                        loopCountToSExpr,
+                                                        loopCountVarToSExpr,
+                                                        pathVarToSExpr)
+import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -148,7 +130,7 @@ getModelVar msLens pv = do
     _           -> panic "Missing variable in solver model" []
           
 getPathVar :: PathVar -> ModelParserM Int
-getPathVar = getModelVar (#msPathVars) 
+getPathVar = getModelVar #msPathVars
   -- where
   --   -- bit gross doing this here ...
   --   updateStats pv n mms
@@ -163,10 +145,10 @@ getPathVar = getModelVar (#msPathVars)
 
 -- Maybe not worth caching?
 getLoopVar :: LoopCountVar -> ModelParserM Int
-getLoopVar = getModelVar (#msLoopCounts)
+getLoopVar = getModelVar #msLoopCounts
 
 getValueVar :: Typed SMTVar -> ModelParserM I.Value
-getValueVar (Typed _ty x) = typedThing <$> getModelVar (#msValues) x
+getValueVar (Typed _ty x) = typedThing <$> getModelVar #msValues x
 
 instance PathSetModelMonad ModelParserM where
   psmmPathVar = getPathVar
@@ -701,7 +683,7 @@ modelStateToSExpr ms =
   andMany (values ++ choices ++ loops)
   where
     values = map valuePred (Map.toList (msValues ms))
-    valuePred = \(n, Typed ty v) -> S.eq (S.const n) (SE.symExecValue v)
+    valuePred = \(n, Typed _ty v) -> S.eq (S.const n) (SE.symExecValue v)
     
     choices = map choicePred (Map.toList (msPathVars ms))
     choicePred (pv, i) = S.eq (pathVarToSExpr pv) (S.int (fromIntegral i))
