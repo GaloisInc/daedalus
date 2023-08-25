@@ -53,15 +53,14 @@ those in Mitra; those results are also presented below.
         Z 7 A R   P I D T   P M   A B B C C E E F F G G I I I I J J N O P L P P R R T W   B J P P W   I X
         i Z r A   D S C A   S P   R M Z A P B L L l I Z C C D L P P E G S N E N I T I A   P a C C A   D Z
         p   j R   F O M R     4     P 2 B I M F V a F   C O 3 D 2 G S G D K   G F F F D   G v A A S   3
-                                          O L     c         v A                 F   F       a P P M   v
-                                                            2                                   N     1
+                                          O L     c         v A                 F   F       a P P M   v 2
 
-Zip     . X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             30
+Zip     . X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             28
 7Z      
 Arj     
 RAR     
 
-PDF     X X X X   . X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             30
+PDF     X X X X   . X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             28
 ISO     
 DCM    
 TAR   
@@ -109,4 +108,17 @@ XZ
 
 ### Formats Beyond Mitra
 
-TODO: Add cavity characteristics/polyglots for other data formats we've defined.
+```
+                          Delayed                 Magic at offset zero,                  No appended
+      Any offset  Cavities start                 tolerated appended data                     data    Footer
+
+        Z 7 A R   P I D T   P M   A B B C C E E F F G G I I I I J J N O P L P P R R T W   B J P P W   I X
+        i Z r A   D S C A   S P   R M Z A P B L L l I Z C C D L P P E G S N E N I T I A   P a C C A   D Z
+        p   j R   F O M R     4     P 2 B I M F V a F   C O 3 D 2 G S G D K   G F F F D   G v A A S   3
+                                          O L     c         v A                 F   F       a P P M   v
+                                                            2                                   N     1
+
+Phar    X X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             29
+```
+
+TODO: Analyze all formats we've defined with DDL.
