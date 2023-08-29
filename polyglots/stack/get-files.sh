@@ -2,6 +2,8 @@
 
 function print_help {
   echo "usage: $(basename $0) DIR"
+  echo ""
+  echo "For each file x.ext in DIR, extract its bytes and embed them into EXT.ddl.  If more than one file with the same extension exist, the last (lexicographically) is extracted."
 }
 
 if [ $# -ne 1 ]; then
