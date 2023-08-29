@@ -8,6 +8,7 @@ module Talos (
   synthesise,
   SynthesisOptions(..),
   summarise,
+  residuals, 
   -- * Useful helpers
   runDaedalus,
   ProvenanceMap, -- XXX: should do this properly 
@@ -21,16 +22,16 @@ import           Data.IORef                   (modifyIORef', newIORef,
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe, isJust)
 import           Data.String                  (fromString)
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
 import           Data.Version
 import qualified SimpleSMT                    as SMT
 import qualified Streaming                    as S
 import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush,
-                                               hPutStr, hPutStrLn, openFile,
-                                               stderr)
+import           System.IO                    (IOMode (..), hFlush, hPutStr,
+                                               hPutStrLn, openFile, stderr)
 import qualified Text.ParserCombinators.ReadP as RP
 import           Text.ParserCombinators.ReadP (readP_to_S)
-import qualified Data.Text as Text
 
 import           Daedalus.AST                 (nameScopeAsModScope)
 import           Daedalus.Core
@@ -45,12 +46,13 @@ import           Data.Functor.Of              (Of)
 import qualified Talos.Analysis               as A
 import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
-import           Talos.Monad                  (runTalosM, runTalosStream, LogKey, logKeyEnabled, getLogKey)
+import           Talos.Monad                  (LogKey, getLogKey, logKeyEnabled,
+                                               runTalosM, runTalosStream)
 import           Talos.Passes
+import           Talos.Path                   (ProvenanceMap)
+import qualified Talos.Residuals              as R
 import           Talos.Strategy
-import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
-import Data.Text (Text)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -80,6 +82,20 @@ summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
       hang (pp fn) 2 $
         bullets [ hang (pp fid) 2 (pp d)
                 | (fid, d) <- Map.toList m]
+
+residuals :: FilePath -> Maybe String -> IO Doc
+residuals inFile m_entry = do
+  (mainRule, md, nguid) <- runDaedalus inFile Nothing m_entry False
+  
+  resfuns <- runTalosM md nguid mempty mempty (R.residuals mainRule)
+  
+  pure (bullets (map pp resfuns))
+  where
+    -- goF fun = pp fun
+    --   -- hang (pp fn) 2 $
+    --   --   bullets [ hang (pp fid) 2 (pp d)
+    --   --           | (fid, d) <- Map.toList m]
+
 
 _z3VersionCheck :: SMT.Solver -> IO ()
 _z3VersionCheck s = do

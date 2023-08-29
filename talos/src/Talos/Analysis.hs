@@ -21,26 +21,24 @@ import           Data.List                  (foldl', foldl1')
 import qualified Data.Map                   as Map
 import           Data.Maybe                 (isNothing, mapMaybe, maybeToList)
 import           Data.Monoid                (All (All))
+import           Data.Proxy                 (Proxy)
 import qualified Data.Set                   as Set
 
 import           Daedalus.Core
-import           Daedalus.Core.Type
-import           Daedalus.PP
-import           Daedalus.Panic
+import           Daedalus.Core.Type         (typeOf)
+import           Daedalus.Panic             (panic)
+import           Daedalus.PP                (showPP)
 
-import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
-import           Talos.Analysis.FLAbsEnv    (flAbsEnvTy)
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
+import           Talos.Analysis.FLAbsEnv    (flAbsEnvTy)
 import           Talos.Analysis.Merge       (Merge, merge, mergeOverlapping)
 import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
-import Talos.Monad (TalosM, getModule)
-
-
+import           Talos.Monad                (TalosM, getModule)
 
 --------------------------------------------------------------------------------
 -- Top level function

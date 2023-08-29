@@ -142,7 +142,11 @@ pattern Annotated :: [Annot] -> Grammar -> Grammar
 pattern Annotated as g <- (skipGetAnnot -> (as,g))
 
 pattern Choice :: Bool -> [Grammar] -> Grammar
-pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
+pattern Choice biased cs <- (collectChoices -> Just (biased, cs)) where
+  Choice biased cs =
+    let ctor | biased = OrBiased
+             | otherwise = OrUnbiased
+    in foldl1 ctor cs
 
 collectChoices :: Grammar -> Maybe (Bool, [Grammar])
 collectChoices g@(skipAnnot -> OrUnbiased {}) = Just (False, go g)

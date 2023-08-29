@@ -35,6 +35,7 @@ main = do
   case optMode opts of
     SynthesisMode -> doSynthesis opts
     SummaryMode   -> doSummary opts
+    ResidualsMode -> doResiduals opts
     DumpCoreMode  -> doDumpCore opts
 
 
@@ -49,6 +50,12 @@ doSummary opts = do
   let absEnv = fromMaybe "fields" (optAnalysisKind opts)
   summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optVerbosity opts) (optNoLoops opts) absEnv
   print summaryDoc
+
+doResiduals :: Options -> IO ()
+doResiduals opts = do
+  putStrLn "Residuals:"
+  doc <- residuals (optDDLInput opts) (optDDLEntry opts)
+  print doc
 
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do

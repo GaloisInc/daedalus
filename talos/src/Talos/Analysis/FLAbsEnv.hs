@@ -4,7 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Talos.Analysis.FLAbsEnv (flAbsEnvTy) where
+module Talos.Analysis.FLAbsEnv (flAbsEnvTy, FLAbsEnv) where
 
 import           Control.Arrow         ((***))
 import           Control.DeepSeq       (NFData)

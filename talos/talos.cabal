@@ -68,6 +68,8 @@ library
                      , Talos.Passes.LiftExpr
                      , Talos.Passes.NoBytesPatterns
 
+                     , Talos.Residuals
+                     
                      , Talos
                      -- , Machine
   build-depends:       base
