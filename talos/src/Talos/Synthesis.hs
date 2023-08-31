@@ -196,7 +196,7 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
   putStrLn ("Using random seed " ++ show seed)
   let gen = mkStdGen seed
 
-  let sst0 = emptyStrategyMState gen allSummaries md nguid'
+  let sst0 = emptyStrategyMState gen allSummaries Map.empty md nguid'
       solvSt0 = emptySolverState solv
       mc0 = newModelCache strats solvSt0
       

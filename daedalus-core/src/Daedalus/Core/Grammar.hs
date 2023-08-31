@@ -116,6 +116,7 @@ pattern SkipAnnot g <- (skipAnnot -> g)
 pattern Annotated :: [Annot] -> Grammar -> Grammar
 pattern Annotated as g <- (skipGetAnnot -> (as,g))
 
+{-# COMPLETE Pure, GetStream, SetStream, Match, Fail, Do_, Do, Let, Choice, Call, Annot, GCase #-}
 pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 

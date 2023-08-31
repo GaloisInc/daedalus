@@ -60,6 +60,7 @@ library
                      , Talos.Strategy.Boltzmann
                      , Talos.Strategy.Boltzmann.Newton
                      , Talos.Strategy.Boltzmann.Polynomial
+                     , Talos.Strategy.Boltzmann.Types
                      , Talos.Strategy.Boltzmann.Util
                      , Talos.Strategy.BTRand
                      , Talos.Strategy.Symbolic

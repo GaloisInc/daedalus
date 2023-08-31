@@ -38,6 +38,9 @@ data SelectedPathF ch ca fn a =
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
+instance PP a => PP (PathIndex a) where
+    pp (PathIndex i a) = pp i <> ":" <> pp a
+
 data CallInstantiation a = CallInstantiation { instantiationId :: FInstId, instantiationVal :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 

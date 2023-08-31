@@ -1,19 +1,18 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Talos.Strategy.Boltzmann (
-  printGeneratingFunctions,
+  printRandomPath,
+  chooseTemperature,
   ) where
 
-import Data.Foldable
+import Control.Applicative
+import Control.Monad.IO.Class
+import Data.Functor
+import Data.Functor.Identity
 import Data.List
 import Data.Map (Map)
 import Data.Maybe
 import Data.Set (Set)
-import Data.Void
 import System.Random
 
 import qualified Data.List as List
@@ -23,28 +22,46 @@ import qualified Data.Set as S
 import Daedalus.Core.Basics
 import Daedalus.Core.Decl
 import Daedalus.Core.Grammar
+import Daedalus.GUID
 import Daedalus.Rec
 
+import Talos.Analysis (summarise, absEnvTys)
+import Talos.Analysis.AbsEnv (AbsEnvTy(AbsEnvTy))
+import Talos.Analysis.Slice (assertionsFID)
 import Talos.Strategy.Boltzmann.Polynomial
+import Talos.Strategy.Boltzmann.Types
 import Talos.Strategy.Boltzmann.Util
-import Talos.SymExec.Path
+import Talos.Strategy.Monad
 import qualified Talos.Strategy.Boltzmann.Newton as Newton
 
-printGeneratingFunctions :: Module -> FName -> IO ()
-printGeneratingFunctions md mainRule = do
-    print (ppGFs gfs)
-    putStrLn . showPP . grammarChoices gfs weights' $ top
-    randomGrammar weightedPaths ge (weightedPaths M.! mainRule) top
-    where
-    temperature = 0.49
+import Talos.SymExec.Path
+
+printRandomPath :: Module -> FName -> String -> IO ()
+printRandomPath md mainRule absEnvNm = ioStrategyM md absEnvNm $ do
+    wp <- getBoltzmannWeight mainRule
+    sp <- randomSelectedPath wp
+    liftIO . print . pp $ sp
+
+chooseTemperature :: Double -> Module -> Map FName WeightedPath
+chooseTemperature temperature md = M.mapMaybe pathFor ge where
     ge = mkGrammarEnv md
-    gfs = summarizeGrammars ge (county ge mainRule)
-    weights = solveEquations temperature gfs
-    weights' = M.insert Temperature temperature . M.mapKeysMonotonic Recursive $ weights
-    weightedPaths = flip M.mapMaybe ge $ \case
-        Fun { fDef = Def grammar } -> Just (grammarChoices gfs weights' grammar)
+    gfs = summarizeGrammars ge
+    weights = M.insert Temperature temperature
+            . M.mapKeysMonotonic Recursive
+            $ solveEquations temperature gfs
+    pathFor = \case
+        Fun { fDef = Def grammar } -> Just (grammarChoices gfs weights grammar)
         _ -> Nothing
-    top = fromJust $ lookupGrammar mainRule ge
+
+ioStrategyM :: Module -> String -> StrategyM a -> IO ()
+ioStrategyM md absEnvNm act = case lookup absEnvNm absEnvTys of
+    Just (AbsEnvTy env) -> do
+        gen <- newStdGen
+        void . runStrategyM act $ emptyStrategyMState gen summaries weights md guid
+        where
+        (summaries, guid) = summarise env md firstValidGUID
+        weights = chooseTemperature 0.49 md
+    Nothing -> fail $ "Couldn't find abstraction environment " ++ absEnvNm
 
 type GrammarEnv = Map FName (Fun Grammar)
 
@@ -55,15 +72,6 @@ lookupGrammar :: FName -> GrammarEnv -> Maybe Grammar
 lookupGrammar nm ge = do
     Fun { fDef = Def grammar } <- M.lookup nm ge
     pure grammar
-
-county :: GrammarEnv -> FName -> Set FName
-county ge = go S.empty . S.singleton where
-  go seen frontier
-    | S.null frontier = seen
-    | otherwise = go seen' frontier'
-    where
-    seen' = S.union seen frontier
-    frontier' = S.unions [neighborhood ge nm | nm <- S.toList frontier] S.\\ seen'
 
 neighborhood :: GrammarEnv -> FName -> Set FName
 neighborhood ge nm = foldMap calls (lookupGrammar nm ge)
@@ -82,7 +90,7 @@ calls grammar = case grammar of
   OrUnbiased g g' -> calls g `S.union` calls g'
   Call fnm _ -> S.singleton fnm
   Annot _ g -> calls g
-  GCase{} -> undefined
+  GCase c -> foldMap calls c
 
 -- | In the literature, 'Temperature' is the @x@ variable in the polynomial, while @'Recursive' nm@ is part of a recursive specification.
 data HotName
@@ -144,9 +152,9 @@ summarizeLookupGrammar ge scope nm = case lookupGrammar nm ge of
     Just grammar -> summarizeGrammar scope grammar
     _ -> Failing (show (pp nm) <> " not defined in this module")
 
-summarizeGrammars :: GrammarEnv -> Set FName -> Map FName GrammarGF
-summarizeGrammars ge fullScope = List.foldl' go M.empty $
-    topoOrder (\nm -> (nm, neighborhood ge nm)) (S.toList fullScope)
+summarizeGrammars :: GrammarEnv -> Map FName GrammarGF
+summarizeGrammars ge = List.foldl' go M.empty $
+    topoOrder (\nm -> (nm, neighborhood ge nm)) (M.keys ge)
     where
     go scope rec = M.union
         (M.fromList [(nm, summarizeLookupGrammar ge scope nm) | nm <- recToList rec])
@@ -161,29 +169,6 @@ newtonPoly temperature = evalPoly unHotname . bimap fromIntegral id . gfPolynomi
 solveEquations :: Double -> Map FName GrammarGF -> Map FName Double
 solveEquations temperature eqns = Newton.fixedPoint 1e-6 (newtonPoly temperature <$> eqns)
 
-data Weighted a = Weighted
-    { weight :: Double
-    , choice :: a
-    } deriving (Eq, Ord, Read, Show, Functor, Foldable, Traversable)
-
-instance PP a => PP (Weighted a) where
-    pp w = pp (choice w) <+> parens (text "weight" <+> pp (weight w))
-
-data WeightedChoice a = WeightedChoice { wc, wc' :: Weighted a }
-    deriving (Eq, Ord, Read, Show, Functor, Foldable, Traversable)
-
-instance PP a => PP (WeightedChoice a) where
-    pp choice = pp (wc choice) <> text "/" <> pp (wc' choice)
-
-newtype WeightedCase a = WeightedCase (Case (Weighted a))
-    deriving (Functor, Foldable, Traversable, PP)
-
-data FName1 a = FName1 FName deriving (Functor, Foldable, Traversable)
-
-instance PP (FName1 a) where ppPrec _ (FName1 fn) = space <> pp fn
-
-type WeightedPath = SelectedPathF WeightedChoice WeightedCase FName1 Void
-
 grammarChoices :: Map FName GrammarGF -> Map HotName Double -> Grammar -> WeightedPath
 grammarChoices gfs weights = go where
     go = \case
@@ -196,8 +181,7 @@ grammarChoices gfs weights = go where
         Do_ g g' -> SelectedDo (go g) (go g')
         Do _nm g g' -> SelectedDo (go g) (go g')
         Let _nm _rhs g -> go g
-        OrBiased g g' -> SelectedChoice (WeightedChoice (weightFor g) (weightFor g'))
-        OrUnbiased g g' -> go (OrBiased g g')
+        Choice _ gs -> SelectedChoice (WeightedChoice (weightFor <$> gs))
         Call fn _args -> SelectedCall (FName1 fn)
         Annot _note g -> go g
         GCase c -> SelectedCase . WeightedCase $ weightFor <$> c
@@ -206,63 +190,31 @@ grammarChoices gfs weights = go where
         , choice = go g
         }
 
-randomGrammar :: Map FName WeightedPath -> GrammarEnv -> WeightedPath -> Grammar -> IO ()
-randomGrammar paths grammars = go where
-    go SelectedHole (Pure _) = putStrLn "pure -> pure"
-    go SelectedHole GetStream = putStrLn "getstream -> getstream"
-    go SelectedHole (SetStream _) = putStrLn "setstream -> setstream"
-    go SelectedHole (Match _ _) = putStrLn "match -> match"
-    go SelectedHole (Fail _ _ _) = putStrLn "YIKES! fail -> fail"
-    go (SelectedDo p p') (Do_ g g') = go p g >> go p' g'
-    go (SelectedDo p p') (Do _ g g') = go p g >> go p' g'
-    go (SelectedChoice (WeightedChoice p p')) (OrBiased g g') = do
-        let w = weight p
-            w' = weight p'
-        putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-        putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
-        n <- randomRIO (0, w+w')
-        print n
-        putStrLn $ "biased or -> chose " ++ if n < w then "first branch" else "second branch"
-        if n < w then go (choice p) g else go (choice p') g'
-    go (SelectedChoice (WeightedChoice p p')) (OrUnbiased g g') = do
-        let w  = weight p
-            w' = weight p'
-        putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-        putStrLn $ "weight " ++ show w' ++ " for " ++ pps g'
-        n <- randomRIO (0, w+w')
-        print n
-        putStrLn $ "unbiased or -> chose " ++ if n < w then "first branch" else "second branch"
-        if n < w then go (choice p) g else go (choice p') g'
-    go (SelectedCall (FName1 fn)) (Call fn' _) | fn == fn' = case lookupGrammar fn grammars of
-        Just g -> go (paths M.! fn) g
-        Nothing -> putStrLn $ "YIKES! call " <> show (pp fn) <> " -> call " <> show (pp fn)
-    go p (Annot _ g) = go p g
-    go p (Let _ _ g) = go p g
-    go (SelectedCase (WeightedCase (Case _ ps))) (GCase (Case _ gs)) = do
-        let ws = weight . snd <$> ps
-        for_ (zip ws gs) $ \(w, (_, g)) -> do
-            putStrLn $ "weight " ++ show w ++ " for " ++ pps g
-        n <- randomRIO (0, sum ws)
-        print n
-        let ix = findIndex (n<) (scanl1 (+) ws)
-        putStrLn $ "gcase -> chose " ++ show ix
-        case ix of
-            Nothing -> go (choice (snd (last ps))) (snd (last gs))
-            Just i -> go (choice (snd (ps !! i))) (snd (gs !! i))
-    go p g = putStrLn $ "YIKES! mismatched path and grammar\npath: " ++ show (pp p) ++ "\ngrammar: " ++ pps g
+randomSelectedPath :: LiftStrategyM m => WeightedPath -> m SelectedPath
+randomSelectedPath = \case
+    SelectedHole -> pure SelectedHole
+    SelectedDo p p' -> liftA2 SelectedDo (randomSelectedPath p) (randomSelectedPath p')
+    SelectedChoice (WeightedChoice ps) -> do
+        (i, p) <- categorical ps
+        SelectedChoice . PathIndex i <$> randomSelectedPath p
+    SelectedCall (FName1 fn) -> do
+        wp <- getBoltzmannWeight fn
+        SelectedCall . CallInstantiation assertionsFID <$> randomSelectedPath wp
+    SelectedCase (WeightedCase (Case _ ps)) -> do
+        (_, p) <- categorical (snd <$> ps)
+        SelectedCase . Identity <$> randomSelectedPath p
+    _ -> undefined
 
-    pps = show . pp .unannotated
-
-unannotated :: Grammar -> Grammar
-unannotated = \case
-    Annot _ g -> unannotated g
-    Do_ g g' -> Do_ (unannotated g) (unannotated g')
-    Do nm g g' -> Do nm (unannotated g) (unannotated g')
-    Let nm e g -> Let nm e (unannotated g)
-    OrBiased g g' -> OrBiased (unannotated g) (unannotated g')
-    OrUnbiased g g' -> OrUnbiased (unannotated g) (unannotated g')
-    GCase (Case nm pats) -> GCase (Case nm [(pat, unannotated g) | (pat, g) <- pats])
-    g -> g
+categorical :: LiftStrategyM m => [Weighted a] -> m (Int, a)
+categorical [] = error "can't sample from an empty categorical distribution"
+categorical categories = do
+    let ws = weight <$> categories
+    n <- randR (0, sum ws)
+    let mix = findIndex (n<) (scanl1 (+) ws)
+        (ix, selectIx) = case mix of
+            Nothing -> (length categories, last)
+            Just i -> (i, (!!i))
+    pure (ix, choice (selectIx categories))
 
 instance PP HotName where
     pp = \case
@@ -273,9 +225,3 @@ instance PP GrammarGF where
     pp = \case
         Failing s -> text ("0<" <> s <> ">")
         gf -> pp (gfPolynomial gf)
-
-ppGFs :: Map FName GrammarGF -> Doc
-ppGFs gfs = vcat
-  [ pp (Recursive nm) <+> text "=" <+> pp spec
-  | (nm, spec) <- M.toList gfs
-  ]

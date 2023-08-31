@@ -86,7 +86,7 @@ mkBenchmarks solv seeds summaries md nguid strats fn clM =
       | seed <- seeds, strat <- strats]
 
     benchSl seed strat sl =
-      let st0     = emptyStrategyMState (mkStdGen seed) summaries md nguid
+      let st0     = emptyStrategyMState (mkStdGen seed) summaries Map.empty md nguid
       in whnfAppIO (benchIt strat sl st0) solv
 
     benchIt strat sl st0 = \solv ->

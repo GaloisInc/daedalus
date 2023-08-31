@@ -3,6 +3,7 @@
 {-# Language EmptyCase #-}
 module Daedalus.PP (module Daedalus.PP, module PP) where
 
+import Data.Functor.Identity
 import Data.List(intersperse)
 import Data.Text (Text)
 import Data.ByteString(ByteString)
@@ -93,6 +94,8 @@ instance PP SourceRange where
   pp = text . prettySourceRangeLong
 
 instance PP Void where ppPrec _n = \case
+
+instance PP a => PP (Identity a) where ppPrec n (Identity a) = ppPrec n a
 
 wrapIf :: Bool -> Doc -> Doc
 wrapIf p d = if p then parens d else d

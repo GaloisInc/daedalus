@@ -16,6 +16,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , summaries, getModule, getGFun, getSlice, sccsFor, backEdgesFor -- , getParamSlice
                             , getFunDefs, getBFunDefs, getTypeDefs, isRecVar
                             , getIEnv--, callNodeToSlices, sliceToCallees, callIdToSlice
+                            , getBoltzmannWeight
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
                             ) where
@@ -47,6 +48,7 @@ import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
 import           Talos.SymExec.Path
 import           Talos.SymExec.SolverT        (SolverT)
+import           Talos.Strategy.Boltzmann.Types (WeightedPath)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P
 
@@ -109,10 +111,11 @@ data StrategyMState  =
                  , stsBFunDefs  :: Map FName (Fun ByteSet)
                  , stsIEnv      :: I.Env
                  , stsNextGUID  :: GUID
+                 , stsBoltzmannWeights :: Map FName WeightedPath
                  }
 
-emptyStrategyMState :: StdGen -> Summaries ae -> Module -> GUID -> StrategyMState
-emptyStrategyMState gen ss md nguid  = StrategyMState gen expss md funDefs bfunDefs env0 nguid'
+emptyStrategyMState :: StdGen -> Summaries ae -> Map FName WeightedPath -> Module -> GUID -> StrategyMState
+emptyStrategyMState gen ss weights md nguid  = StrategyMState gen expss md funDefs bfunDefs env0 nguid' weights
   where
     (expss, nguid') = exportSummaries tyDefs (ss, nguid)
     env0 = I.defTypes tyDefs (I.evalModule md I.emptyEnv)
@@ -130,8 +133,12 @@ runStrategyM m st = runStateT (getStrategyM m) st
 -- -----------------------------------------------------------------------------
 -- State access
 
+-- | internal use only, not exported -- so if you see this sentence in documentation, it's a bug
+getsStrategyM :: LiftStrategyM m => (StrategyMState -> a) -> m a
+getsStrategyM = liftStrategy . StrategyM . gets
+
 summaries :: LiftStrategyM m => m ExpSummaries
-summaries = liftStrategy (StrategyM (gets stsSummaries))
+summaries = getsStrategyM stsSummaries
 
 getSlice :: LiftStrategyM m => SliceId -> m ExpSlice
 getSlice sid = do
@@ -142,15 +149,15 @@ getSlice sid = do
 
 isRecVar :: LiftStrategyM m => Name -> m Bool
 isRecVar n = do
-  liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
+  getsStrategyM (Set.member n . esRecVars . stsSummaries)
 
 sccsFor :: LiftStrategyM m => SliceId -> m (Maybe (Set SliceId))
 sccsFor sid = do
-  liftStrategy (StrategyM (gets (Map.lookup sid . esRecs . stsSummaries)))
+  getsStrategyM (Map.lookup sid . esRecs . stsSummaries)
 
 backEdgesFor :: LiftStrategyM m => SliceId -> m (Map SliceId (Set SliceId))
 backEdgesFor entrySid = do
-  liftStrategy (StrategyM (gets (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)))
+  getsStrategyM (Map.findWithDefault mempty entrySid . esBackEdges . stsSummaries)
 
 
 -- callnodetoslices :: LiftStrategyM m => CallNode FInstId -> m [ ((Bool, Slice), Map Name Name) ]
@@ -177,26 +184,32 @@ backEdgesFor entrySid = do
 
 
 getGFun :: LiftStrategyM m => FName -> m (Fun Grammar)
-getGFun f = getFun <$> liftStrategy (StrategyM (gets stsModule))
+getGFun f = getsStrategyM (getFun . stsModule)
   where
     getFun md = case find ((==) f . fName) (mGFuns md) of -- FIXME: us a map or something
       Nothing -> panic "Missing function" [showPP f]
       Just v  -> v
 
 getModule :: LiftStrategyM m => m Module
-getModule = liftStrategy (StrategyM (gets stsModule))
+getModule = getsStrategyM stsModule
 
 getTypeDefs :: LiftStrategyM m => m (Map TName TDecl)
-getTypeDefs = liftStrategy (StrategyM (gets (I.tEnv . stsIEnv)))
+getTypeDefs = getsStrategyM (I.tEnv . stsIEnv)
 
 getFunDefs :: LiftStrategyM m => m (Map FName (Fun Expr))
-getFunDefs = liftStrategy (StrategyM (gets stsFunDefs))
+getFunDefs = getsStrategyM stsFunDefs
 
 getBFunDefs :: LiftStrategyM m => m (Map FName (Fun ByteSet))
-getBFunDefs = liftStrategy (StrategyM (gets stsBFunDefs))
+getBFunDefs = getsStrategyM stsBFunDefs
 
 getIEnv :: LiftStrategyM m => m I.Env
-getIEnv = liftStrategy (StrategyM (gets stsIEnv))
+getIEnv = getsStrategyM stsIEnv
+
+getBoltzmannWeight :: LiftStrategyM m => FName -> m WeightedPath
+getBoltzmannWeight nm = getsStrategyM (getPath . Map.lookup nm . stsBoltzmannWeights)
+    where
+    getPath Nothing = panic "Missing Boltzmann weight; maybe you haven't called chooseTemperature yet?" [showPP nm]
+    getPath (Just wp) = wp
 
 -- -----------------------------------------------------------------------------
 -- Random values

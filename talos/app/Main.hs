@@ -114,8 +114,9 @@ doSynthesis opts = do
 
 doCallGraph :: Options -> IO ()
 doCallGraph opts = do
+  let absEnv = fromMaybe "fields" (optAnalysisKind opts)
   (mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
-  printGeneratingFunctions md mainRule
+  printRandomPath md mainRule absEnv
 
 prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
 prettyHexWithProv provmap bs =
