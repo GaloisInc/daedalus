@@ -203,7 +203,7 @@ randomSelectedPath = \case
     SelectedCase (WeightedCase (Case _ ps)) -> do
         (_, p) <- categorical (snd <$> ps)
         SelectedCase . Identity <$> randomSelectedPath p
-    _ -> undefined
+    SelectedBytes _ _ -> error "The impossible happened: the Boltzmann path generator produced a SelectedBytes path"
 
 categorical :: LiftStrategyM m => [Weighted a] -> m (Int, a)
 categorical [] = error "can't sample from an empty categorical distribution"
