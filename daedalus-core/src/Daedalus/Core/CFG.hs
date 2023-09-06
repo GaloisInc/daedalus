@@ -153,19 +153,24 @@ cfgFunToDot f =
   $+$ nest 2 (vcat (prelude ++ nodes))
   $+$ rbrace
   where
-    prelude = [ "rankdir=LR;", pp (cfgfunExit f) <> "[ shape = doublecircle ]; " ]
+    prelude = [ "rankdir=LR;"
+              , "init -> " <> pp (cfgfunEntry f) <> semi
+              , "init [style = invis];"
+              , pp (cfgfunExit f) <> " [style = invis];"
+              ]
     nodes   = concat [ mkNode k n |  (k, n) <- Map.toList (cfgfunCFG f) ]
     mkNode nid n =
       let (lbl, edges) =
             case n of
-              CSimple m_x sn nxtN -> (mkSimple m_x sn, [(nid, nxtN, empty)])
+              CSimple m_x sn nxtN -> (mkSimple m_x sn, [(nid, nxtN, Nothing)])
               CFail -> ("Fail", [])
-              COr b l r -> ("Or" <> if b then " (biased) " else "", [(nid, l, empty), (nid, r, empty)])
-              CCase (Case n' pats) -> ("Case " <> pp n', [ (nid, l, pp pat) | (pat, l) <- pats ])
+              COr b l r -> ("Or" <> if b then " (biased) " else "", [(nid, l, Nothing), (nid, r, Nothing)])
+              CCase (Case n' pats) -> ("Case " <> pp n', [ (nid, l, Just (pp pat)) | (pat, l) <- pats ])
               CLoop m_x lc nxtN -> ( maybe empty (\x -> pp x <> " = ") m_x <> "Loop"
-                                   , [ (nid, loopClassBody lc, "loop"), (nid, nxtN, "exit") ])
-          edges' = [ pp l1 <> " -> " <> pp l2 <> brackets ("label = " <> lbl') | (l1, l2, lbl') <- edges ]
-      in ( pp nid <> brackets ("label = " <> lbl) ) : edges'
+                                   , [ (nid, loopClassBody lc, Just "loop"), (nid, nxtN, Just "exit") ])
+          edges' = [ pp l1 <> " -> " <> pp l2 <> maybe empty (brackets . (<>) "label = ". doubleQuotes) m_lbl <> semi
+                   | (l1, l2, m_lbl) <- edges ]
+      in ( pp nid <> " " <> brackets ("label = " <> doubleQuotes lbl) <> semi ) : edges'
 
     mkSimple m_x sn =
       let pfx = maybe empty (\x -> pp x <> " = ") m_x
@@ -173,7 +178,7 @@ cfgFunToDot f =
         CPure e -> pp e
         CGetStream -> "GetStream"
         CSetStream e -> "SetStream " <> pp e
-        CMatch s m  -> "Match " <> ppMatch s m
+        CMatch s m  -> ppMatch s m
         CCall fn es  -> pp fn <> hsep (map pp es)
       
         
