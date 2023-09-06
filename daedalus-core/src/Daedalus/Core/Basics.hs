@@ -20,7 +20,7 @@ import Daedalus.GUID
 
 -- | Module names
 newtype MName = MName { mNameText :: Text }
-  deriving (Eq,Ord,Generic,NFData)
+  deriving (Eq,Ord,Show,Generic,NFData)
 
 -- | Type declaration names
 data TName = TName
@@ -38,13 +38,13 @@ data TName = TName
   , tnameBD   :: !Bool        -- ^ Is this a bitdata type
   , tnameFlav :: TFlav        -- ^ Some information about the type
   }
-  deriving (Generic, NFData)
+  deriving (Show, Generic, NFData)
 
 -- | What "flavor of type" we have
 data TFlav = TFlavStruct [Label]     -- ^ A struct with fields in this order
            | TFlavEnum  [Label]      -- ^ A sum type with no data
            | TFlavUnion [Label]      -- ^ A sum type with data
-           deriving (Generic, NFData)
+           deriving (Show, Generic, NFData)
 
 -- | Names of top-level functions
 data FName = FName
@@ -56,7 +56,7 @@ data FName = FName
     -- ^ This is the module where the name was origially defined,
     -- and might (probably will) be different from the Core module name
   }
-  deriving (Generic, NFData)
+  deriving (Show, Generic, NFData)
 
 -- | Names of local variables
 data Name = Name
@@ -64,7 +64,7 @@ data Name = Name
   , nameText :: Maybe Text      -- ^ Name in source, if any
   , nameType :: Type
   }
-  deriving (Generic, NFData)
+  deriving (Show, Generic, NFData)
 
 
 -- | Annotation
@@ -92,7 +92,7 @@ data Type =
   | TIterator Type
   | TUser UserType
   | TParam TParam         -- ^ Only in type declaraionts
-    deriving (Eq,Ord,Generic,NFData)
+    deriving (Show,Eq,Ord,Generic,NFData)
 
 tWord :: Integer -> Type
 tWord w = TUInt (TSize w)
@@ -106,17 +106,17 @@ tByteArray = TArray tByte
 data SizeType =
     TSize Integer
   | TSizeParam TParam     -- ^ Only in type declarations
-  deriving (Eq,Ord,Generic,NFData)
+  deriving (Eq,Ord,Show,Generic,NFData)
 
 data UserType = UserType
   { utName    :: TName
   , utNumArgs :: [SizeType]
   , utTyArgs  :: [Type]
-  } deriving (Eq,Ord,Generic,NFData)
+  } deriving (Eq,Ord,Show,Generic,NFData)
 
 
 newtype TParam = TP Int
-  deriving (Eq,Ord,Generic,NFData)
+  deriving (Eq,Ord,Show,Generic,NFData)
 
 data Case k = Case { caseVar  :: Name
                    , casePats :: [(Pattern,k)]
