@@ -1,11 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
+
+-- This module exports two closely related APIs: a pass to annotate a
+-- (un-annotated) module with GUIDs, one for each node; and a pass to
+-- turn those annotations into a CFG.
 
 -- Construct a control flow graph and an associated annotated Module
 
 module Daedalus.Core.CFG
-  ( cfg
-  , NodeId
+  ( addNodeIDs
+  , pattern WithNodeID
+  , cfg
+  , NodeID
   , CFGModule(..)
   , CFG
   , CFGFun(..)
@@ -15,38 +23,71 @@ module Daedalus.Core.CFG
   ) where
 
 import           Data.Map      (Map)
+import Data.List (partition)
 import qualified Data.Map      as Map
+
 
 import           Daedalus.Core
 import           Daedalus.GUID (GUID, HasGUID, getNextGUID)
 import           GHC.Generics  (Generic)
 import           MonadLib      (WriterT, put, runWriterT)
 import Daedalus.PP 
+import Data.Functor (($>))
+import Daedalus.Panic (panic)
+
+{-# COMPLETE WithNodeID #-}
+pattern WithNodeID :: NodeID -> [Annot] -> Grammar -> Grammar
+pattern WithNodeID n anns g <- (getNodeIDPat -> (n, anns, g))
+
+getNodeIDPat :: Grammar -> (NodeID, [Annot], Grammar)
+getNodeIDPat (skipGetAnnot -> (anns', g))
+  | ([NodeID n], anns) <- partition isNodeID anns' = (n, anns, g)
+  | otherwise = panic "Missing NodeID annotation" []
+  where
+    isNodeID (NodeID {}) = True
+    isNodeID _           = False
+    
+-- ----------------------------------------------------------------------------------------
+-- Decorating grammar nodes
+
+addNodeIDs :: HasGUID m => Module -> m Module
+addNodeIDs mo = do
+  gfs <- traverse (traverse addNodeIDsG) (mGFuns mo)
+  pure mo { mGFuns = gfs }
+
+addNodeIDsG :: HasGUID m => Grammar -> m Grammar
+addNodeIDsG (Annot a g) = Annot a <$> addNodeIDsG g
+addNodeIDsG g = do
+  nid <- freshNodeID
+  Annot (NodeID nid) <$> gebChildrenG addNodeIDsG pure pure g
+
+-- ----------------------------------------------------------------------------------------
+-- Construct CFG
 
 -- Entry
-cfg :: HasGUID m => Module -> m (Module, CFGModule)
+cfg :: HasGUID m => Module -> m CFGModule
 cfg m = do
-  (gfuns', m_cfgfuns) <- unzip <$> traverse cfgGFun (mGFuns m)
+  m_cfgfuns <- traverse cfgGFun (mGFuns m)
   let cfgfuns = Map.fromList [ (cfgfunName f, f) | Just f <- m_cfgfuns ]
-  pure (m { mGFuns = gfuns'}, CFGModule cfgfuns)
+  pure (CFGModule cfgfuns)
 
 -- ----------------------------------------------------------------------------------------
 -- CFG datatype
 
-type NodeId = GUID
+type NodeID = GUID
 
 data CFGModule = CFGModule
   { cfgFuns  :: Map FName CFGFun
   } deriving (Generic)
 
-type CFG = Map NodeId CFGNode  
+type CFG = Map NodeID CFGNode  
 
 data CFGFun = CFGFun
-  { cfgfunEntry :: !NodeId
-  , cfgfunExit  :: !NodeId
+  { cfgfunEntry :: !NodeID
+  , cfgfunExit  :: !NodeID
   , cfgfunName  :: !FName
   , cfgfunCFG   :: !CFG
-  -- , cfgfunGrammars :: Map NodeId Grammar
+  -- , cfgfunGrammars :: Map NodeID Grammar
   } deriving (Generic)
 
 -- We ignore Annot
@@ -59,88 +100,70 @@ data CFGSimpleNode =
 
 -- Basically Grammar without Do/Let
 data CFGNode =
-  CSimple (Maybe Name) CFGSimpleNode NodeId
+  CSimple (Maybe Name) CFGSimpleNode NodeID
   | CFail
-  | COr Bool NodeId NodeId
-  | CCase (Case NodeId)
-  | CLoop (Maybe Name) (LoopClass' Expr NodeId) NodeId
+  | COr Bool NodeID NodeID
+  | CCase (Case NodeID)
+  | CLoop (Maybe Name) (LoopClass' Expr NodeID) NodeID
 
 -- ----------------------------------------------------------------------------------------
 -- Workers
 
-freshNodeId :: HasGUID m => m NodeId
-freshNodeId = getNextGUID
+freshNodeID :: HasGUID m => m NodeID
+freshNodeID = getNextGUID
 
-cfgGFun :: HasGUID m => Fun Grammar -> m (Fun Grammar, Maybe CFGFun)
+cfgGFun :: HasGUID m => Fun Grammar -> m (Maybe CFGFun)
 cfgGFun fu =
   case fDef fu of
-    Def b    -> do
-      inN   <- freshNodeId
-      exitN <- freshNodeId
-      (g', nodes) <- runWriterT (cfgG Nothing inN exitN b)
-      let fu' = fu { fDef = Def g'
-                   , fAnnot = NodeID inN : fAnnot fu
-                   }
-          cfgfun = CFGFun
+    Def b -> do
+      exitN <- freshNodeID
+      (inN, nodes) <- runWriterT (cfgG Nothing exitN b)
+      let cfgfun = CFGFun
             { cfgfunEntry = inN
-            , cfgfunExit = exitN
+            , cfgfunExit  = exitN
             , cfgfunName  = fName fu
             , cfgfunCFG   = nodes
             }
-      pure (fu', Just cfgfun)
-    External -> pure (fu, Nothing)
+      pure (Just cfgfun)
+    External -> pure Nothing
 
-cfgG :: HasGUID m => Maybe Name -> NodeId -> NodeId -> Grammar -> WriterT CFG m Grammar
-cfgG m_x inN exitN g =
+cfgG :: HasGUID m => Maybe Name -> NodeID -> Grammar -> WriterT CFG m NodeID
+cfgG m_x exitN (WithNodeID inN _anns g) =
   case g of
     Pure e -> simple (CPure e)
-    GetStream -> simple CGetStream
-    SetStream e ->  simple (CSetStream e)
+    GetStream    -> simple CGetStream
+    SetStream e  -> simple (CSetStream e)
     Match s m    -> simple (CMatch s m)
-    Fail {} -> do
-      emitNode CFail
-      pure (annot g)
+    Fail {}      -> emitNode CFail
       
-    Do_ lhs rhs   -> goDo Do_ Nothing lhs rhs
-    Do  n lhs rhs -> goDo (Do n) (Just n) lhs rhs
-    Let n e rhs   -> cfgG m_x inN exitN (Do n (Pure e) rhs) -- FIXME
-    OrBiased lhs rhs   -> goOr OrBiased True lhs rhs
-    OrUnbiased lhs rhs -> goOr OrUnbiased False lhs rhs
-    Call fn es -> simple (CCall fn es)
-    Annot a g' -> Annot a <$> cfgG m_x inN exitN g'
-    GCase cs   -> do
-      cs' <- traverse (goOne exitN) cs
-      emitNode (CCase (fst <$> cs'))
-      pure (annot (GCase (snd <$> cs')))
-    Loop lc -> do
-      lc' <- traverse (goOne inN) lc -- loop back here
-      emitNode (CLoop m_x (fst <$> lc') exitN)
-      pure (annot (Loop (snd <$> lc')))
-  where
-    goOne exitN' g' = do
-      lN <- freshNodeId
-      (,) lN <$> cfgG m_x lN exitN' g'
-    
-    goDo mk m_y lhs rhs = do
-      rhsN <- freshNodeId
-      lhs' <- cfgG m_y inN rhsN lhs
-      rhs' <- cfgG m_x rhsN exitN rhs
-      pure (mk lhs' rhs') -- We do not annotate Do/Do_ nodes
+    Do_ lhs rhs   -> goDo Nothing lhs rhs
+    Do  n lhs rhs -> goDo (Just n) lhs rhs
+    Let n e rhs   -> do
+      rhsN <- cfgG (Just n) exitN rhs
+      emitNode (CSimple m_x (CPure e) rhsN)
 
-    goOr mk biased lhs rhs = do
-      lN <- freshNodeId
-      rN <- freshNodeId
-      lhs' <- cfgG m_x lN exitN lhs
-      rhs' <- cfgG m_x rN exitN rhs
+    OrBiased lhs rhs   -> goOr True lhs rhs
+    OrUnbiased lhs rhs -> goOr False lhs rhs
+    Call fn es -> simple (CCall fn es)
+    Annot _a _g' -> panic "Unexpected Annot" []    
+    GCase cs   -> do
+      cs' <- traverse (cfgG m_x exitN) cs
+      emitNode (CCase cs')
+    Loop lc -> do
+      lc' <- traverse (cfgG m_x inN) lc -- loop back here
+      emitNode (CLoop m_x lc' exitN)
+  where
+    goDo m_y lhs rhs = do
+      rhsN <- cfgG m_x exitN rhs
+      cfgG m_y rhsN lhs
+
+    goOr biased lhs rhs = do
+      lN <- cfgG m_x exitN lhs
+      rN <- cfgG m_x exitN rhs
       emitNode (COr biased lN rN)
-      pure (annot (mk lhs' rhs'))
       
-    simple n = do
-      emitNode (CSimple m_x n exitN)
-      pure (annot g)
-    
-    annot = Annot (NodeID inN)
-    emitNode node = tell (Map.singleton inN node)
+    simple n = emitNode (CSimple m_x n exitN)
+    emitNode node = tell (Map.singleton inN node) $> inN
 
     tell = put -- to be consistent with mtl
 
@@ -153,8 +176,7 @@ cfgFunToDot f =
   $+$ nest 2 (vcat (prelude ++ nodes))
   $+$ rbrace
   where
-    prelude = [ "rankdir=LR;"
-              , "init -> " <> pp (cfgfunEntry f) <> semi
+    prelude = [ "init -> " <> pp (cfgfunEntry f) <> semi
               , "init [style = invis];"
               , pp (cfgfunExit f) <> " [style = invis];"
               ]
@@ -182,4 +204,5 @@ cfgFunToDot f =
         CCall fn es  -> pp fn <> hsep (map pp es)
       
         
-  
+ 
+ 

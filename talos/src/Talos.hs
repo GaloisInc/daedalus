@@ -227,7 +227,7 @@ runDaedalus inFile m_invFile m_entry noLoops = daedalus $ do
   passConstFold specMod
   
   entry <- ddlGetFName mm entryName
-
+  
   md    <- ddlGetAST specMod astCore >>= ddlRunPass . allPassesM entry
 
   nguid <- ddlRunPass getNextGUID

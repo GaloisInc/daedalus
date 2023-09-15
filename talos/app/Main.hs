@@ -48,7 +48,7 @@ doDumpCore opts = do
 doCFGDot :: Options -> IO ()
 doCFGDot opts = do
   (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
-  let ((_, cfgm), _nguid') = runFresh (cfg md) nguid
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
   traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
 
 doSummary :: Options -> IO ()

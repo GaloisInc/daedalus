@@ -45,6 +45,7 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passAddNodeIDs
   , passMayFail
   , passShrinkBiasedOr
   , passInlineCase
@@ -52,6 +53,7 @@ module Daedalus.Driver
   , passVM
   , ddlRunPass
 
+ 
     -- * State
   , State(..)
   , ddlState
@@ -134,6 +136,7 @@ import qualified Daedalus.Core.Determinize as Core
 import qualified Daedalus.Core.Effect as Core
 import qualified Daedalus.Core.ShrinkBiasedOr as Core
 import qualified Daedalus.Core.InlineCase as Core
+import qualified Daedalus.Core.CFG as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -830,6 +833,9 @@ passConstFold = coreToCore "specialise types" Core.constFold
 
 passDeterminize :: ModuleName -> Daedalus ()
 passDeterminize = coreToCore "determinize" (pure . Core.determinizeModule)
+
+passAddNodeIDs :: ModuleName -> Daedalus ()
+passAddNodeIDs = coreToCore "add node IDs" Core.addNodeIDs
 
 passNorm :: ModuleName -> Daedalus ()
 passNorm = coreToCore "norm" (pure . Core.normM)
