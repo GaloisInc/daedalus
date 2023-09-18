@@ -72,6 +72,7 @@ data Annot =
     SrcAnnot Text
   | SrcRange SourceRange  -- ^ Reference to something in the original source
   | NoFail                -- ^ The grammar is known to not fail
+  | NodeID GUID
   deriving (Generic,NFData,Show)
 
 type Label = Text
@@ -231,7 +232,7 @@ instance PP Annot where
       SrcAnnot t -> pp t
       SrcRange r -> pp r
       NoFail     -> "NoFail"
-
+      NodeID g   -> "id:" <> pp g
 
 instance PP Type where
   ppPrec n ty =

@@ -7,6 +7,8 @@ import Daedalus.GUID
 import Daedalus.Core
 import Daedalus.Core.Type
 import Daedalus.Core.Normalize
+import Daedalus.Core.CFG (addNodeIDs)
+
 -- import Daedalus.Core.Inline
 import qualified Data.Text as Text
 import Daedalus.PP (showPP)
@@ -15,13 +17,15 @@ import Control.Monad (zipWithM)
 import Talos.Passes.LiftExpr (liftExprM)
 import Talos.Passes.NoBytesPatterns (noBytesPatternsM)
 
+
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
 allPassesM _entry m = noBytesPatternsM m >>=
                       pure . removeUnitsM >>=
                       liftExprM >>=
                       nameBoundExprM >>=
                       nameMatchResultsM >>=
-                      pure . normM
+                      pure . normM >>=
+                      addNodeIDs
 
 -- ----------------------------------------------------------------------------------------
 -- Name non-variable bound expressions

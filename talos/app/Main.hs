@@ -13,11 +13,13 @@ import qualified Streaming.Prelude     as S
 import           System.Console.ANSI
 import           System.IO             (IOMode (..), hFlush, openFile, stdout)
 
+import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns)
 import           Daedalus.PP
 import           Talos
 
 import           CommandLine
-
+import Daedalus.GUID (runFresh)
+import Data.Foldable (traverse_)
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -36,12 +38,18 @@ main = do
     SynthesisMode -> doSynthesis opts
     SummaryMode   -> doSummary opts
     DumpCoreMode  -> doDumpCore opts
-
+    CFGDotMode    -> doCFGDot opts
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
   (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
   print (pp md)
+
+doCFGDot :: Options -> IO ()
+doCFGDot opts = do
+  (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
+  traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
