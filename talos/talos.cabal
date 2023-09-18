@@ -106,6 +106,7 @@ executable talos
                      , daedalus
                      , daedalus-value
                      , daedalus-utils
+                     , daedalus-core                     
                      , optparse-applicative
                      , bytestring
                      , streaming
