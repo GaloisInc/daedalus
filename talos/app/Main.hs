@@ -13,7 +13,7 @@ import qualified Streaming.Prelude     as S
 import           System.Console.ANSI
 import           System.IO             (IOMode (..), hFlush, openFile, stdout)
 
-import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns)
+import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns, cfgModuleToCallGraph, callGraphToDot)
 import           Daedalus.PP
 import           Talos
 
@@ -35,10 +35,11 @@ main = do
   opts <- getOptions
 
   case optMode opts of
-    SynthesisMode -> doSynthesis opts
-    SummaryMode   -> doSummary opts
-    DumpCoreMode  -> doDumpCore opts
-    CFGDotMode    -> doCFGDot opts
+    SynthesisMode     -> doSynthesis opts
+    SummaryMode       -> doSummary opts
+    DumpCoreMode      -> doDumpCore opts
+    CFGDotMode        -> doCFGDot opts
+    CallGraphDotMode  -> doCallGraphDot opts
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
@@ -50,6 +51,13 @@ doCFGDot opts = do
   (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
   let (cfgm, _nguid') = runFresh (cfg md) nguid
   traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
+  print $ pp $ callGraphToDot $ cfgModuleToCallGraph cfgm
+
+doCallGraphDot :: Options -> IO ()
+doCallGraphDot opts = do
+  (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
+  print $ pp $ callGraphToDot $ cfgModuleToCallGraph cfgm
 
 doSummary :: Options -> IO ()
 doSummary opts = do
