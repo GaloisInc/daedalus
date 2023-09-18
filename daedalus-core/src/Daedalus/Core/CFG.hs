@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- This module exports two closely related APIs: a pass to annotate a
 -- (un-annotated) module with GUIDs, one for each node; and a pass to
@@ -20,14 +21,16 @@ module Daedalus.Core.CFG
   , CFGSimpleNode(..)
   , CFGNode(..)
   , cfgFunToDot
+  , cfgModuleToCallGraph
+  , callGraphToDot
   ) where
 
-import           Data.Functor   (($>))
-import           Data.List      (partition)
-import           Data.Map       (Map)
-import qualified Data.Map       as Map
-import           GHC.Generics   (Generic)
-import           MonadLib       (WriterT, put, runWriterT)
+import           Data.Functor          (($>))
+import           Data.List             (partition)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           GHC.Generics          (Generic)
+import           MonadLib              (WriterT, put, runWriterT)
 
 import           Daedalus.Core
 import           Daedalus.GUID  (GUID, HasGUID, getNextGUID)
@@ -105,6 +108,34 @@ data CFGNode =
   | CCase (Case NodeID)
   | CLoop (Maybe Name) (LoopClass' Expr NodeID) NodeID
 
+instance PP CFGModule where
+  pp CFGModule {..} = braces . vcat $ rows
+    where
+      rows :: [Doc]
+      rows = map (\(fname, fun) -> pp fname <+> text "->" <+> pp fun) (Map.toList cfgFuns)
+
+instance PP CFGFun where
+  pp CFGFun{..} = braces . vcat $ header:rows
+    where
+      header = pp cfgfunName <+> text "|" <+> pp cfgfunEntry <+> text "->" <+> pp cfgfunExit
+      rows = map (\(nodeID, node) -> pp nodeID <+> text "->" <+> pp node) (Map.toList cfgfunCFG)
+
+instance PP CFGNode where
+  pp (CSimple (Just name) simpleNode nextID) = pp name <+> text "=" <+> (parens . pp) simpleNode <+> text "->" <+> pp nextID
+  pp (CSimple Nothing simpleNode nextID)     = pp simpleNode <+> text "->" <+> pp nextID
+  pp CFail                                   = text "FAIL"
+  pp (COr b left right)                      = text "OR" <+> (text . show) b <+> pp left <+> pp right
+  pp (CCase cases)                           = text "CASE" <+> (parens . pp) cases
+  pp (CLoop (Just name) loop nextID)         = text "LOOP" <+> pp name <+> text "=" <+> (parens . pp) loop <+> text "->" <+> pp nextID
+  pp (CLoop Nothing loop nextID)             = text "LOOP" <+> (parens . pp) loop <+> text "->" <+> pp nextID
+
+instance PP CFGSimpleNode where
+  pp (CPure expr) = text "PURE" <+> (parens . pp) expr
+  pp CGetStream   = text "GET_STEAM"
+  pp (CSetStream expr) = text "SET_STEAM" <+> (parens . pp) expr
+  pp (CMatch sem match) = text "MATCH" <+> parens (ppMatch sem match)
+  pp (CCall name exprs) = text "CALL" <+> pp name <+> (parens . hcat) (map pp exprs)
+
 -- ----------------------------------------------------------------------------------------
 -- Workers
 
@@ -159,7 +190,7 @@ cfgG m_x exitN (WithNodeID inN _anns g) =
     goOr biased lhs rhs = do
       lN <- cfgG m_x exitN lhs
       rN <- cfgG m_x exitN rhs
-      emitNode (COr biased lN rN) $> lN -- Ignore id of Do, use the id of the first non-do in the AST.
+      emitNode (COr biased lN rN)
       
     simple n = emitNode (CSimple m_x n exitN)
     emitNode node = tell (Map.singleton inN node) $> inN
@@ -201,7 +232,27 @@ cfgFunToDot f =
         CSetStream e -> "SetStream " <> pp e
         CMatch s m  -> ppMatch s m
         CCall fn es  -> pp fn <> hsep (map pp es)
-      
-        
- 
- 
+
+-- ----------------------------------------------------------------------------------------
+-- Call graph extraction
+
+type CallGraph = Map FName [FName]
+
+cfgModuleToCallGraph :: CFGModule -> CallGraph
+cfgModuleToCallGraph m = Map.map callees (cfgFuns m)
+  where
+    callees :: CFGFun -> [FName]
+    callees f = foldl addCallee [] (Map.elems (cfgfunCFG f))
+
+    addCallee :: [FName] -> CFGNode -> [FName]
+    addCallee acc (CSimple _ (CCall name _) _) = name:acc
+    addCallee acc _ = acc
+
+callGraphToDot :: CallGraph -> Doc
+callGraphToDot cg =
+  ("digraph callgraph " <> lbrace)
+  $+$ nest 2 (vcat edges)
+  $+$ rbrace
+  where
+    edges = concat [ (pp src <> semi):[ pp src <> " -> " <> pp dst <> semi | dst <- dsts ]
+                   | (src, dsts) <- Map.toList cg ]

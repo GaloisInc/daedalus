@@ -9,11 +9,12 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
 import           Hexdump
+import qualified Data.Set              as Set
 import qualified Streaming.Prelude     as S
 import           System.Console.ANSI
 import           System.IO             (IOMode (..), hFlush, openFile, stdout)
 
-import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns)
+import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns, cfgModuleToCallGraph, callGraphToDot)
 import           Daedalus.PP
 import           Talos
 
@@ -35,10 +36,12 @@ main = do
   opts <- getOptions
 
   case optMode opts of
-    SynthesisMode -> doSynthesis opts
-    SummaryMode   -> doSummary opts
-    DumpCoreMode  -> doDumpCore opts
-    CFGDotMode    -> doCFGDot opts
+    SynthesisMode     -> doSynthesis opts
+    SummaryMode       -> doSummary opts
+    DumpCoreMode      -> doDumpCore opts
+    CFGDotMode        -> doCFGDot opts
+    CallGraphDotMode  -> doCallGraphDot opts
+    CavityFinderMode  -> doFindCavities opts
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
@@ -50,6 +53,23 @@ doCFGDot opts = do
   (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
   let (cfgm, _nguid') = runFresh (cfg md) nguid
   traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
+
+doCallGraphDot :: Options -> IO ()
+doCallGraphDot opts = do
+  (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
+  print $ pp $ callGraphToDot $ cfgModuleToCallGraph cfgm
+
+doFindCavities :: Options -> IO ()
+doFindCavities opts = do
+  (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
+  traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
+  let cavityLocs = findCavities md cfgm
+  if null cavityLocs then
+    print $ text "No cavities."
+  else
+    print $ text "Cavity locations:" $$ (vcat $ map pp $ Set.toList $ findCavities md cfgm)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
