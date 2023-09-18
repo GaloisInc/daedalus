@@ -22,18 +22,17 @@ module Daedalus.Core.CFG
   , cfgFunToDot
   ) where
 
-import           Data.Map      (Map)
-import Data.List (partition)
-import qualified Data.Map      as Map
-
+import           Data.Functor   (($>))
+import           Data.List      (partition)
+import           Data.Map       (Map)
+import qualified Data.Map       as Map
+import           GHC.Generics   (Generic)
+import           MonadLib       (WriterT, put, runWriterT)
 
 import           Daedalus.Core
-import           Daedalus.GUID (GUID, HasGUID, getNextGUID)
-import           GHC.Generics  (Generic)
-import           MonadLib      (WriterT, put, runWriterT)
-import Daedalus.PP 
-import Data.Functor (($>))
-import Daedalus.Panic (panic)
+import           Daedalus.GUID  (GUID, HasGUID, getNextGUID)
+import           Daedalus.Panic (panic)
+import           Daedalus.PP
 
 {-# COMPLETE WithNodeID #-}
 pattern WithNodeID :: NodeID -> [Annot] -> Grammar -> Grammar
