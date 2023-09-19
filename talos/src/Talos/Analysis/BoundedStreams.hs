@@ -13,7 +13,7 @@ module Talos.Analysis.BoundedStreams
 import           Control.Lens                   (_2, at, each, gplate, ix, over,
                                                  traverseOf, use, (%=), (%~),
                                                  (&), (.=), (.~), (<>=))
-import           Control.Monad                  (join)
+import           Control.Monad                  (join, when)
 import           Control.Monad.Reader           (MonadReader, ReaderT, asks,
                                                  local, runReaderT)
 import           Control.Monad.State            (MonadState, StateT, execStateT)
@@ -168,8 +168,13 @@ transferDecl fn = do
       (r, info) <- local (#bsmVars .~ argMap) (runWriterT (transferG (bsmsArgBounded bsm) g))
       -- Make sure we use any updates to the bsm (i.e., don't use bsm above)
       #bsmSummaries . ix fn %= ((#bsmsResult .~ r) . (#bsmsNodes .~ info))
-
+      when (needToPropagate bsm r) propagate      
   where
+    needToPropagate old r = bsmsResult old /= r -- Can get away with (==) here
+    propagate = do
+      revDeps <- use (#bsmRevDeps . ix fn)
+      #bsmWorklist <>= revDeps
+    
     err = panic "Missing summary" [showPP fn]
     
 makeTyInfo :: TalosM TyInfo
