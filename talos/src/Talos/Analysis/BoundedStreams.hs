@@ -1,67 +1,187 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE FlexibleContexts #-}
 
-module Talos.Analysis.BoundedStreams (boundedStreams, BoundedStreams, isStreamBoundedMaybe) where
+module Talos.Analysis.BoundedStreams
+  ( boundedStreams
+  , BoundedStreams
+  , isStreamBoundedMaybe
+  ) where
 
-import qualified Data.Map            as Map
-import Data.Map (Map)
-import Data.Set (Set)
-import qualified Data.Set as Set
+import           Control.Lens                   (_2, at, each, gplate, ix, over,
+                                                 traverseOf, use, (%=), (%~),
+                                                 (&), (.=), (.~), (<>=))
+import           Control.Monad                  (join)
+import           Control.Monad.Reader           (MonadReader, ReaderT, asks,
+                                                 local, runReaderT)
+import           Control.Monad.State            (MonadState, StateT, execStateT)
+import           Control.Monad.Trans            (lift)
+import           Control.Monad.Trans.Writer.CPS (runWriterT)
+import           Control.Monad.Writer.CPS       (Writer, WriterT, censor,
+                                                 listen, runWriter, tell)
+import           Data.Foldable                  (foldl', toList)
+import           Data.Functor                   (($>))
+import           Data.Generics.Labels           ()
+import           Data.Map                       (Map)
+import qualified Data.Map                       as Map
+import qualified Data.Map.Merge.Lazy            as Map
+import           Data.Maybe                     (fromMaybe)
+import           Data.Sequence                  (Seq)
+import qualified Data.Sequence                  as Seq
+import           Data.Set                       (Set)
+import qualified Data.Set                       as Set
+import           GHC.Generics                   (Generic)
+import           GHC.Generics.Lens              ()
 
-import Daedalus.Panic (panic)
-import           Daedalus.Core
-import           Daedalus.Core.Type
+import           Daedalus.Core                  hiding (leq)
+import           Daedalus.Core.CFG              (NodeID, pattern WithNodeID)
+import           Daedalus.Core.Type             (typeOf)
+import           Daedalus.Panic                 (panic)
+import           Daedalus.PP                    (showPP)
 
-import Talos.Monad (TalosM)
-import Daedalus.PP (showPP)
-import Control.Monad.State (StateT, MonadState, gets)
-import Data.Maybe (fromMaybe)
-import GHC.Generics (Generic)
-import GHC.Generics.Lens ()
-import Control.Lens (at, (.=), (&), each, (%~), _2, _1, has, gplate, traverseOf, over)
-import Data.Generics.Labels ()
-import Data.Foldable (foldl', toList)
-import Daedalus.GUID (invalidGUID)
-import Data.Data (Data)
-import Control.Monad.Writer.CPS (tell, runWriter, Writer)
-import Data.Functor (($>))
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Control.Monad (join)
+import           Talos.Monad                    (LiftTalosM, TalosM, getGFun,
+                                                 getModule)
 
-newtype BoundedStreams = BoundedStreams { getBoundedStreams :: Map Name Bool } 
+-- For now this analysis is context insensitive, as making it context
+-- sensitive requires the slicing to be context sensitive (which it
+-- currently is not).
+newtype BoundedStreams = BoundedStreams { getBoundedStreams :: Map NodeID Bool } 
 
-boundedStreams :: TalosM BoundedStreams
-boundedStreams = undefined
+boundedStreams :: FName -> TalosM BoundedStreams
+boundedStreams entry = calcFixpoint entry
 
--- | Returns whether a stream may be bounded (or, the negation of
+--  | Returns whether a stream may be bounded (or, the negation of
 -- whether the stream is definitely unbounded)
-isStreamBoundedMaybe :: BoundedStreams -> Expr -> Bool
-isStreamBoundedMaybe = undefined
+isStreamBoundedMaybe :: NodeID -> BoundedStreams -> Bool
+isStreamBoundedMaybe n = Map.findWithDefault False n . getBoundedStreams
 
 -- -----------------------------------------------------------------------------
 -- Monad
 
--- This is not scoped (as it would be ordinarily) as we have unique
--- names, and we are calculating the abs value for each assignment.
-data BSMState = BSMState
+data BSMEnv = BSMEnv
   { bsmVars :: Map Name AbsValue
   , bsmTInfo :: TyInfo
+  , bsmCurrentFun :: FName  
   } deriving Generic
 
-newtype BSM a = BSM { getBSM :: StateT BSMState TalosM a }
-  deriving (Functor, Applicative, Monad, MonadState BSMState )
+data BSMSummary = BSMSummary
+  { bsmsArgs   :: [AbsValue]
+  , bsmsArgBounded :: Bool
+  , bsmsResult :: (Bool, AbsValue)
+  , bsmsNodes  :: Map NodeID Bool
+  } deriving Generic
 
-recordName :: Name -> AbsValue -> BSM ()
-recordName n v = #bsmVars . at n .= Just v
+-- FIXME: combine with Fixpoint.hs?
+data BSMState = BSMState
+  { bsmWorklist  :: Set FName
+  , bsmSummaries :: Map FName BSMSummary
+  , bsmRevDeps   :: Map FName (Set FName)
+  } deriving Generic
+
+type NodeInfo = Map NodeID Bool
+
+newtype BSM a = BSM { _getBSM :: ReaderT BSMEnv (StateT BSMState TalosM) a }
+  deriving (Functor, Applicative, Monad, MonadReader BSMEnv, MonadState BSMState, LiftTalosM)
+
+runBSM :: FName -> TyInfo -> BSMState -> BSM a -> TalosM BSMState
+runBSM fn tinfo st (BSM m) = execStateT (runReaderT m env) st
+  where
+    env = BSMEnv { bsmVars = mempty
+                 , bsmTInfo = tinfo
+                 , bsmCurrentFun = fn
+                 }
+
+bindNameIn :: MonadReader BSMEnv m => Name -> AbsValue -> m a -> m a
+bindNameIn n v = local (#bsmVars . at n .~ Just v)
 
 getTypeInfo :: TName -> BSM (TDef, Set TName)
 getTypeInfo tn = do
-  tinfo <- gets bsmTInfo
+  tinfo <- asks bsmTInfo
   let err = panic "Missing type def" [showPP tn]  
   pure $ Map.findWithDefault err tn tinfo
 
+bottomSummary :: TyInfo -> Bool -> FName -> [AbsValue] -> BSMSummary
+bottomSummary tinfo bndd fn args = do
+  BSMSummary { bsmsArgs   = args
+             , bsmsArgBounded = bndd
+             , bsmsResult = (False, bot)
+             , bsmsNodes  = Map.empty
+             }
+  where
+    bot = bottomForTy tinfo (fnameType fn)
+    
+-- ----------------------------------------------------------------------------------------
+-- Monadic fixpoint construction
+
+getResultFor :: Bool -> FName -> [AbsValue] -> BSM (Bool, AbsValue)
+getResultFor bndd fn args = do
+  cfun <- asks bsmCurrentFun
+  #bsmRevDeps . at fn <>= Just (Set.singleton cfun) -- note rev dep, could pre-calc.
+  m_summary <- use (#bsmSummaries . at fn)
+
+  let needsWork bndd' args' = do
+        tinfo <- asks bsmTInfo
+        let emptySummary = bottomSummary tinfo bndd' fn args'
+        #bsmWorklist %= Set.insert fn                           
+        #bsmSummaries . at fn .= Just emptySummary
+        pure (bsmsResult emptySummary)
+        
+  case m_summary of
+    Just bsm
+      | args `allLeq` bsmsArgs bsm -> pure (bsmsResult bsm)
+      | otherwise -> needsWork (bndd || bsmsArgBounded bsm) (zipWith lub args (bsmsArgs bsm))
+    Nothing -> needsWork bndd args    
+  where
+    allLeq m1 m2 = and (zipWith leq m1 m2)
+
+calcFixpoint :: FName -> TalosM BoundedStreams
+calcFixpoint entry = do
+  tinfo <- makeTyInfo
+  -- We add a summary for entry so we can assume one exists in
+  -- transferDecl (note thet getResultFor adds a summary if one is
+  -- missing).
+  args <- map (bottomForTy tinfo . typeOf) . fParams <$> getGFun entry
+  let bsm = bottomSummary tinfo False entry args
+  
+  let st0 = BSMState { bsmWorklist = Set.singleton entry
+                     , bsmSummaries = Map.singleton entry bsm
+                     , bsmRevDeps  = mempty
+                     }
+  st <- go tinfo st0
+  pure (BoundedStreams (foldMap bsmsNodes (bsmSummaries st)))
+  where
+    go tinfo s@BSMState { bsmWorklist = wl } | Just (fn, wl') <- Set.minView wl
+      = let s' = s { bsmWorklist = wl' }
+        in go tinfo =<< runBSM fn tinfo s' (transferDecl fn)
+    go _ st = pure st
+
+transferDecl :: FName -> BSM ()
+transferDecl fn = do
+  decl <- getGFun fn
+  case fDef decl of
+    External -> panic "External function" []
+    Def g    -> do
+      bsm <- fromMaybe err <$> use (#bsmSummaries . at fn) -- should always work
+      let argMap = Map.fromList (zip (fParams decl) (bsmsArgs bsm))
+      (r, info) <- local (#bsmVars .~ argMap) (runWriterT (transferG (bsmsArgBounded bsm) g))
+      -- Make sure we use any updates to the bsm (i.e., don't use bsm above)
+      #bsmSummaries . ix fn %= ((#bsmsResult .~ r) . (#bsmsNodes .~ info))
+
+  where
+    err = panic "Missing summary" [showPP fn]
+    
+makeTyInfo :: TalosM TyInfo
+makeTyInfo = do
+  md  <- getModule
+  let tys = mTypes md
+      mk1 (NonRec td)  = [ (tName td, (tDef td, mempty)) ]
+      mk1 (MutRec tds) =
+        let recs = Set.fromList (map tName tds)
+        in [ (tName td, (tDef td, recs)) | td <- tds ]
+  pure (Map.fromList (concatMap mk1 tys))
+  
 -- -----------------------------------------------------------------------------
 -- Domain
 
@@ -150,7 +270,7 @@ absFromUnion ty l av =
           (_tdef, recs) <- getTypeInfo tn
           pure (unfoldRecursive av tn recs av')
       | otherwise -> do
-          tinfo <- gets bsmTInfo
+          tinfo <- asks bsmTInfo
           pure (bottomForTy tinfo ty)
     _ -> panic "Saw non-AVUser value in absFromUnion" []
 
@@ -196,6 +316,24 @@ bottomForTy tinfo = goTy mempty mempty
 
     impossible = panic "Unexpected type" []
 
+
+bottomForTyM :: MonadReader BSMEnv m => Type -> m AbsValue
+bottomForTyM ty = do
+  tinfo <- asks bsmTInfo
+  pure (bottomForTy tinfo ty)
+
+isBottom :: AbsValue -> Bool
+isBottom av =
+  case av of
+    AVStream b -> not b
+    AVOther    -> True
+    AVSequence av'  -> isBottom av'
+    AVMaybe av'     -> isBottom av'
+    AVMap av1 av2   -> isBottom av1 && isBottom av2
+    AVIterator av1 av2 -> isBottom av1 && isBottom av2
+    AVUser _tn m       -> all isBottom m
+    AVRec _            -> True
+
 -- This allows us to derive traversable etc.
 data AbsValue = 
     AVStream Bool
@@ -206,7 +344,7 @@ data AbsValue =
   | AVIterator AbsValue AbsValue
   | AVUser TName (Map Label AbsValue) -- Both struct and union.  
   | AVRec TName
-  deriving (Show, Generic)
+  deriving (Show, Eq, Generic)
 
 -- instance Plated AbsValue where -- default
 
@@ -220,7 +358,6 @@ data AbsValue =
 AVMaybe (AVStream False)
 AVUser (TName {tnameId = GUID {getGUID = -1}, tnameText = "T1", tnameMod = MName {mNameText = "M1"}, tnameAnon = Nothing, tnameRec = False, tnameBD = False, tnameFlav = TFlavStruct []}) (fromList [("l1",AVOther)])
 -}
-
 
 lub :: AbsValue -> AbsValue -> AbsValue
 lub = go 
@@ -239,26 +376,48 @@ lub = go
         (AVUser tn flds1, AVUser _ flds2) -> AVUser tn (Map.unionWith lub flds1 flds2)
         (AVUser {}, AVRec {}) -> v1
         (AVRec {}, AVUser {}) -> v2
-        (AVRec tn1, AVRec _tn2) -> v1
+        (AVRec _tn1, AVRec _tn2) -> v1
         _ -> panic "Mismatched values" []
 
--- lt :: AbsValue -> AbsValue -> Bool
+-- Partial order
+leq :: AbsValue -> AbsValue -> Bool
+leq = go
+  where
+    go v1 v2 =
+      case (v1, v2) of
+        (AVStream b1, AVStream b2) -> if b1 then b2 else True
+        (AVOther,     AVOther)     -> True
+        (AVSequence v1', AVSequence v2') -> v1' `leq` v2'
+        (AVMaybe v1', AVMaybe v2') -> v1' `leq` v2'
+        (AVMap kv1 vv1, AVMap kv2 vv2) -> kv1 `leq` kv2 && vv1 `leq` vv2
+        (AVIterator kv1 vv1, AVIterator kv2 vv2) -> kv1 `leq` kv2 && vv1 `leq` vv2
+        (AVUser _tn flds1, AVUser _ flds2) ->
+          and (Map.merge
+               -- should always yield false?  We should maybe not have bottoms in AVUsers              
+               (Map.mapMissing (const isBottom))
+               Map.dropMissing
+               (Map.zipWithMatched (const go)) flds1 flds2)
+        (AVUser {}, AVRec {}) -> False -- ???
+        (AVRec {}, AVUser {}) -> False -- ??/
+        (AVRec _tn1, AVRec _tn2) -> False -- ???
+        _ -> panic "Mismatched values" []
 
 -- -----------------------------------------------------------------------------
 -- Transfer functions
 
 transferName :: Name -> BSM AbsValue
-transferName n = gets (fromMaybe err . Map.lookup n . bsmVars)
+transferName n = asks (fromMaybe err . Map.lookup n . bsmVars)
   where
     err = panic "Missing key" []
 
-transferG :: Bool -> Grammar -> BSM (Bool, AbsValue)
-transferG bndd g =
+transferG :: Bool -> Grammar -> WriterT NodeInfo BSM (Bool, AbsValue)
+transferG bndd (WithNodeID nid _anns g) = do
+  tell (Map.singleton nid bndd)  
   case g of
-    Pure e    -> (,) bndd <$> transferE e
-    GetStream -> (,) bndd <$> pure (AVStream bndd)
+    Pure e    -> simple (lift (transferE e))
+    GetStream -> simple (pure (AVStream bndd))
     SetStream e -> do
-      av <- transferE e
+      av <- lift (transferE e)
       case av of
         AVStream bndd' -> pure (bndd', AVOther)
         _ -> unexpected
@@ -270,24 +429,78 @@ transferG bndd g =
       transferG bndd' rhs
     Do n lhs rhs -> do
       (bndd', av) <- transferG bndd lhs
-      recordName n av
-      transferG bndd' rhs
+      bindNameIn n av (transferG bndd' rhs)
     Let n e rhs -> transferG bndd (Do n (Pure e) rhs)
-    OrBiased lhs rhs  -> orG lhs rhs
-    OrUnbiased lhs rhs -> orG lhs rhs
-    Call fn args -> undefined
-    Annot _ g' -> transferG bndd g'
-    GCase (Case n pats) -> undefined
-    Loop lc -> undefined
-  where    
-    orG lhs rhs = do
-      (bnddl, avl) <- transferG bndd lhs
-      (bnddr, avr) <- transferG bndd rhs
-      pure (bnddl || bnddr, avl `lub` avr)
+    Choice _biased gs  -> do
+      (bnds, vs) <- unzip <$> traverse (transferG bndd) gs
+      pure (or bnds, foldl1 lub vs)
+    Call fn args -> lift (transferCall bndd fn args)
+    Annot {} -> unexpected
+    GCase cs -> do
+      (bnds, vs) <- unzip <$> traverse (transferG bndd) (toList cs)
+      pure (or bnds, foldl1 lub vs)
+    Loop lc -> transferLoop bndd lc
+    _ -> unexpected -- keep pat completeness happy
+  where
+    simple :: WriterT NodeInfo BSM AbsValue -> WriterT NodeInfo BSM (Bool, AbsValue)
+    simple m = (,) bndd <$> m
       
-.    other = pure (bndd, AVOther)
+    other = pure (bndd, AVOther)
     unexpected = panic "Unexpected grammar or value" []
+
+transferLoop :: Bool -> LoopClass Grammar -> WriterT NodeInfo BSM (Bool, AbsValue)
+transferLoop bndd lcl =
+  case lcl of
+    ManyLoop _sem _bt _lb _m_ub g -> do
+      bot <- bottomForTyM (typeOf g)
+      over _2 AVSequence <$> go False bot (\bndd' _ -> transferG bndd' g)
+    RepeatLoop _bt n e g -> do
+      rE <- lift (transferE e)
+      bot <- bottomForTyM (typeOf n)
+      let f bndd' r = bindNameIn n (lub r rE) (transferG bndd' g)
+      over _2 (lub rE) <$> go False bot f
+    MorphismLoop (FoldMorphism n e lc g) -> do
+      -- See Repeat, maybe we could factor out
+      rE <- lift (transferE e)
+      bot <- bottomForTyM (typeOf n)
+      bnds <- lift (bindsLC lc)
+      let f bndd' r =  bindNameIn n (lub r rE) (bnds (transferG bndd' g))
+      over _2 (lub rE) <$> go False bot f
+    MorphismLoop (MapMorphism lc g) -> do
+      bot <- bottomForTyM (typeOf g)
+      bnds <- lift (bindsLC lc)
+      let f bndd' _ = bnds (transferG bndd' g)
+      over _2 AVSequence <$> go False bot f
+  where
+    go bndd0 r0 f = do
+      ((bndd', r'), nodes) <-
+        censor (const mempty) (listen (f (bndd0 || bndd) r0))
+      if bndd' == bndd0 && r' == r0
+        then tell nodes $> (bndd' || bndd, r')
+        else go bndd' r' f
     
+    bindsLC lc = do
+      colE <- transferE (lcCol lc)
+      let (kv, elv) = case colE of
+                        AVSequence v -> (AVOther, v)
+                        AVMap kv' elv' -> (kv', elv')
+                        _ -> panic "Unexpected value" []
+          bndK | Just kn <- lcKName lc = bindNameIn kn kv
+               | otherwise             = id
+          bndE = bindNameIn (lcElName lc) elv
+      pure (bndK . bndE)
+
+transferCall :: Bool -> FName -> [Expr] -> BSM (Bool, AbsValue)
+transferCall bndd fn args
+  | Just vs <- mapM exprAsVar args = do
+      avals <- mapM transferName vs
+      getResultFor bndd fn avals
+  | otherwise = panic "Malformed call" []
+  where
+    -- Copied from Analysis.hs
+    exprAsVar :: Expr -> Maybe Name
+    exprAsVar (Var n) = Just n
+    exprAsVar _       = Nothing
 
 transferE :: Expr -> BSM AbsValue
 transferE e = 
@@ -295,8 +508,7 @@ transferE e =
     Var n -> transferName n
     PureLet n e1 e2 -> do
       av1 <- transferE e1
-      recordName n av1
-      transferE e2
+      bindNameIn n av1 (transferE e2)
       
     Struct ut flds -> AVUser (utName ut) . Map.fromList <$> mapM goFld flds
 
@@ -305,7 +517,7 @@ transferE e =
     ELoop {} -> unexpected
     
     Ap0 op0 -> transferOp0 op0
-    Ap1 op1 e -> transferOp1 op1 =<< transferE e
+    Ap1 op1 e' -> transferOp1 op1 =<< transferE e'
     Ap2 op2 e1 e2 -> join (transferOp2 op2 <$> transferE e1 <*> transferE e2)
     Ap3 op3 e1 e2 e3 ->
       join (transferOp3 op3 <$> transferE e1 <*> transferE e2 <*> transferE e3)
@@ -323,12 +535,8 @@ transferOp0 op0 =
     BoolL {}  -> pure AVOther
     ByteArrayL {}   -> pure (AVSequence AVOther)
     NewBuilder {}   -> pure (AVSequence AVOther)
-    MapEmpty ty ty' -> do
-      tinfo <- gets bsmTInfo
-      pure (bottomForTy tinfo (TMap ty ty'))
-    ENothing ty -> do
-      tinfo <- gets bsmTInfo
-      pure (bottomForTy tinfo (TMaybe ty))
+    MapEmpty ty ty' -> bottomForTyM (TMap ty ty')
+    ENothing ty -> bottomForTyM (TMaybe ty)
 
 transferOp1 :: Op1 -> AbsValue -> BSM AbsValue
 transferOp1 op1 av =
@@ -368,7 +576,7 @@ transferOp1 op1 av =
       case av of
         AVMaybe av' -> pure av'
         _ -> unexpected
-    SelStruct ty l
+    SelStruct _ty l
       | AVUser _ m <- av, Just av' <- Map.lookup l m -> pure av'
       | otherwise -> unexpected
       
@@ -443,8 +651,8 @@ transferOpN :: OpN -> [AbsValue] -> BSM AbsValue
 transferOpN opN avs =
   case opN of
     ArrayL ty -> do
-      tinfo <- gets bsmTInfo
-      pure (foldl lub (bottomForTy tinfo ty) avs)
+      bot <- bottomForTyM ty
+      pure (foldl lub bot avs)
     CallF {} -> unexpected
   where
     unexpected = panic "Unexpected expression" []
