@@ -15,7 +15,7 @@ module Talos.Strategy.Monad ( Strategy(..)
                             , runStrategyM -- just type, not ctors
                             , makeStrategyMState
                             , LiftStrategyM (..)
-                            , summaries, getSlice, sccsFor, backEdgesFor, isRecVar
+                            , summaries, getSlice, sccsFor, backEdgesFor {- , isRecVar -}
                             , rand, randR, randL, randPermute, typeToRandomInhabitant
                             -- , timeStrategy
                             -- , logMessage, logMessage'
@@ -140,9 +140,9 @@ getSlice sid = do
     Nothing -> panic "Missing SliceId" [showPP sid]
     Just sl -> pure sl
 
-isRecVar :: LiftStrategyM m => Name -> m Bool
-isRecVar n = do
-  liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
+-- isRecVar :: LiftStrategyM m => Name -> m Bool
+-- isRecVar n = do
+--   liftStrategy (StrategyM (gets (Set.member n . esRecVars . stsSummaries)))
 
 sccsFor :: LiftStrategyM m => SliceId -> m (Maybe (Set SliceId))
 sccsFor sid = do

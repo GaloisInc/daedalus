@@ -172,16 +172,18 @@ data ModelParserEnv = ModelParserEnv
   -- to be in a solver state where we have a model).  Having it here
   -- means we can override it to ask the solver for fewer things
   -- (e.g. when getting loop elements).
+  , mpeModelCount :: Int
   } deriving Generic
 
-makeModelParserEnv :: SymbolicModel -> SolverT StrategyM ModelParserEnv
-makeModelParserEnv sm = do
+makeModelParserEnv :: Int -> SymbolicModel -> SolverT StrategyM ModelParserEnv
+makeModelParserEnv ntotal sm = do
   let mkModel = symbolicModelToModelStateP sm
   initModel <- mkModel
   
   pure (ModelParserEnv { mpeSolverModel = initModel
                        , mpeModelContext = mempty
                        , mpeGetModel = mkModel
+                       , mpeModelCount = ntotal
                        })
 
 symbolicModelToModelStateP :: SymbolicModel -> SolverT StrategyM ModelState
@@ -284,9 +286,9 @@ mpoLoopGenerators = _2
 mpoModelState :: Lens' (MPLoopDeps, MPLoopGenerators, ModelState) ModelState
 mpoModelState = _3
 
-runModelParserM :: Monoid w => SymbolicModel -> ModelParserM' w a -> SolverT StrategyM (a, ModelParserState)
-runModelParserM sm mp = do
-  env0 <- makeModelParserEnv sm
+runModelParserM :: Monoid w => Int -> SymbolicModel -> ModelParserM' w a -> SolverT StrategyM (a, ModelParserState)
+runModelParserM ntotal sm mp = do
+  env0 <- makeModelParserEnv ntotal sm
   (a, st, _) <- runRWST mp env0 emptyModelParserState 
   pure (a, st)
 
@@ -381,7 +383,7 @@ timed key m = do
 
 buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder ->
               SolverT StrategyM [SelectedPath]
-buildPaths _ntotal _nfails sm pb = do
+buildPaths ntotal _nfails sm pb = do
   timed "assert" $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
@@ -392,7 +394,7 @@ buildPaths _ntotal _nfails sm pb = do
     S.Unknown -> pure []
     S.Sat     -> do
       -- Have at least 1 model, lets pretend to be a loop.
-      (pool, _) <- runModelParserM sm (build invalidSymbolicLoopTag fakesle [])
+      (pool, _) <- runModelParserM ntotal sm (build invalidSymbolicLoopTag fakesle [])
       pure (map fst (smPaths pool))
   where
     fakesle = SymbolicLoopPoolElement
@@ -569,9 +571,10 @@ buildPathChoice (SymbolicChoice pv ps) = do
 --   - We leave the solver in the context in which we found it.
 build :: SymbolicLoopTag -> SymbolicLoopPoolElement -> [SymbolicLoopPoolElement] ->
          ModelParserM' () SelectedLoopPool
-build gentag genpe deppes =
-  withScopedContext $ SelectedLoopPoolF <$> go 0 200 [] <*> pure cursors   
-  where 
+build gentag genpe deppes = do
+  ntotal <- view #mpeModelCount
+  withScopedContext (SelectedLoopPoolF <$> go 0 ntotal [] <*> pure cursors)
+  where
     go :: Int -> Int -> [(SelectedPath, [SelectedPath])] ->
           ModelParserM' () [(SelectedPath, [SelectedPath])]
     go n ntotal acc = do

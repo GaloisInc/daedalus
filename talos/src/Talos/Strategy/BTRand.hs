@@ -12,7 +12,6 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString                 as BS
-import           Data.Functor.Identity           (Identity (Identity))
 import           Data.Generics.Product           (field)
 import qualified Data.Map                        as Map
 import           GHC.Generics                    (Generic)
@@ -32,6 +31,7 @@ import           Talos.Strategy.Monad
 import qualified Talos.Strategy.OptParser        as P
 import           Talos.Strategy.OptParser        (Opt, parseOpts)
 import           Talos.Path
+import Daedalus.Panic (panic)
 
 
 -- ----------------------------------------------------------------------------------------
@@ -170,9 +170,9 @@ stratSlice ptag = go
         SHole -> pure (uncPath I.vUnit)
         SPure e -> uncPath <$> synthesiseExpr e
 
-        SDo x lsl rsl -> do
+        SDo m_x lsl rsl -> do
           (v, lpath)  <- go lsl
-          onSlice (SelectedDo lpath) <$> bindIn x v (go rsl)
+          onSlice (SelectedDo lpath) <$> bindInMaybe m_x v (go rsl)
 
         SMatch bset -> do
           env <- ask
@@ -206,12 +206,13 @@ stratSlice ptag = go
                   pure (v, SelectedBytes ptag (I.valueToByteString bs))
               tryMany = tryOne <|> tryMany -- FIXME: this might run forever.
           tryMany 
+        SLoop {} -> unimplemented
 
     uncPath :: I.Value -> (I.Value, SelectedPath)
     uncPath v = (v, SelectedHole)
     onSlice f = \(a, sl') -> (a, f sl')
 
-    -- unimplemented = panic "Unimplemented" []
+    unimplemented = panic "Unimplemented" []
 
 -- Synthesise for each call
 
@@ -247,6 +248,10 @@ bindIn :: Monad m => Name -> I.Value -> ReaderT I.Env m a -> ReaderT I.Env m a
 bindIn x v m = local upd m
   where
     upd e = e { I.vEnv = Map.insert x v (I.vEnv e) }
+
+bindInMaybe :: Monad m => Maybe Name -> I.Value -> ReaderT I.Env m a -> ReaderT I.Env m a
+bindInMaybe Nothing _ m = m
+bindInMaybe (Just x) v m = bindIn x v m
 
 synthesiseExpr :: Monad m => Expr -> ReaderT I.Env m I.Value
 synthesiseExpr e = I.eval e <$> ask

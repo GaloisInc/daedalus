@@ -216,6 +216,11 @@ bindNameIn :: Name -> SymbolicM Result
            -> (PathBuilder -> SymbolicM a) -> SymbolicM a
 bindNameIn n lhs rhs = lhs >>= \(v, p) -> primBindName n v (rhs p)
 
+bindNameInMaybe :: Maybe Name -> SymbolicM Result
+           -> (PathBuilder -> SymbolicM a) -> SymbolicM a
+bindNameInMaybe Nothing lhs rhs = lhs >>= rhs . snd
+bindNameInMaybe (Just n) lhs rhs = bindNameIn n lhs rhs
+
 primBindName :: Name -> MuxValue -> SymbolicM a -> SymbolicM a
 primBindName n v = locally (field @"sVarEnv"  . at n) (const (Just v))
 

@@ -38,6 +38,7 @@ import           Daedalus.Core                   (Case (Case), Expr, FName,
                                                   LoopMorphism' (..), Name,
                                                   nameId)
 import           Daedalus.Core.Basics            (freshName)
+import           Daedalus.Core.CFG               (NodeID)
 import           Daedalus.Core.Expr              (Expr (Var))
 import           Daedalus.Core.Free
 import           Daedalus.Core.Subst             (Subst, substitute)
@@ -71,7 +72,7 @@ data ExpCallNode = ExpCallNode
 
 type ExpSlice = Slice' ExpCallNode Expr
 
-type ExpSummary = Map Name [SliceId]
+type ExpSummary = Map NodeID [SliceId]
 
 data ExpSummaries = ExpSummaries
   { esRootSlices     :: Map FName (Map FInstId ExpSummary)
@@ -79,8 +80,9 @@ data ExpSummaries = ExpSummaries
   -- These possibly don't belong here (maybe in StrategyM?)
   , esRecs           :: Map SliceId (Set SliceId)
   -- ^ For each recursive slice, this gives the SCC it belongs to.
-  , esRecVars        :: Set Name
-  -- ^ These variables contain a recursive call.
+  
+  --  , esRecVars        :: Set Name
+  --  ^ These variables contain a recursive call.
   , esBackEdges :: Map SliceId (Map SliceId (Set SliceId))
   -- ^ Maps SCC entry point to the set of back edges in that group.
   }
@@ -114,11 +116,11 @@ makeEsRecs sls =
     recs = topoOrder edges (Map.toList sls)
     edges (sid, sl) = (sid, sliceToCallees sl)
 
-makeEsRecVars :: Map SliceId ExpSlice -> Map SliceId (Set SliceId) -> Set Name
-makeEsRecVars slm = Map.foldMapWithKey go
-  where
-    go sid recs | Just sl <- Map.lookup sid slm = sliceToRecVars recs sl
-    go _   _ = panic "Missing slice" []
+-- makeEsRecVars :: Map SliceId ExpSlice -> Map SliceId (Set SliceId) -> Set Name
+-- makeEsRecVars slm = Map.foldMapWithKey go
+--   where
+--     go sid recs | Just sl <- Map.lookup sid slm = sliceToRecVars recs sl
+--     go _   _ = panic "Missing slice" []
 
 backEdgesForNode :: Map SliceId ExpSlice -> SliceId -> Set SliceId -> Map SliceId (Set SliceId)
 backEdgesForNode sls rootId sccs = evalState (go mempty rootId) mempty
@@ -139,28 +141,28 @@ backEdgesForNode sls rootId sccs = evalState (go mempty rootId) mempty
 makeEsBackEdges :: Map SliceId ExpSlice -> Map SliceId (Set SliceId) -> Map SliceId (Map SliceId (Set SliceId))
 makeEsBackEdges sls = Map.mapWithKey (backEdgesForNode sls)
 
--- | Gives the set of variables which are bound to grammars which may
+--  | Gives the set of variables which are bound to grammars which may
 -- call recursively
-sliceToRecVars :: Set SliceId -> ExpSlice -> Set Name
-sliceToRecVars recs = snd . go
-  where
-    go :: ExpSlice -> (Any, Set Name)
-    go sl = case sl of
-      SHole    -> mempty
-      SPure {} -> mempty
-      SDo x l r ->
-        let (l_rec, ls) = go l
-            (r_rec, rs) = go r
-        in ( l_rec <> r_rec
-           , ls <> rs <> (if getAny l_rec then Set.singleton x else mempty)
-           )
+-- sliceToRecVars :: Set SliceId -> ExpSlice -> Set Name
+-- sliceToRecVars recs = snd . go
+--   where
+--     go :: ExpSlice -> (Any, Set Name)
+--     go sl = case sl of
+--       SHole    -> mempty
+--       SPure {} -> mempty
+--       SDo x l r ->
+--         let (l_rec, ls) = go l
+--             (r_rec, rs) = go r
+--         in ( l_rec <> r_rec
+--            , ls <> rs <> (if getAny l_rec then Set.singleton x else mempty)
+--            )
            
-      SMatch {}  -> mempty
-      SChoice cs -> foldMap go cs
-      SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
-      SCase _ cs -> foldMap go cs
-      SLoop lc   -> go (sloopClassBody lc)
-      SInverse {} -> mempty
+--       SMatch {}  -> mempty
+--       SChoice cs -> foldMap go cs
+--       SCall cn -> (Any $ ecnSliceId cn `Set.member` recs, mempty)
+--       SCase _ cs -> foldMap go cs
+--       SLoop lc   -> go (sloopClassBody lc)
+--       SInverse {} -> mempty
     
 --------------------------------------------------------------------------------
 -- Monad
@@ -257,7 +259,7 @@ exportSummaries summs = do
     , esFunctionSlices = slices st'
     , esRecs           = recs
     -- These rely on root slices nnot being in SCCs
-    , esRecVars        = makeEsRecVars   (slices st') recs
+    -- , esRecVars        = makeEsRecVars   (slices st') recs
     , esBackEdges      = makeEsBackEdges (slices st') recs
     }
   where
@@ -307,9 +309,13 @@ exportSlice m_sid sl0 = do
         SHole     -> pure SHole
         SPure sle -> SPure <$> goE sle
 
-        SDo x l r -> do
+        SDo Nothing l r -> do
+          SDo Nothing <$> go l <*> go r
+
+        -- Is this really needed?
+        SDo (Just x) l r -> do
           x' <- refreshName x
-          SDo x' <$> go l <*> substNameIn x x' (go r)
+          SDo (Just x') <$> go l <*> substNameIn x x' (go r)
 
         SMatch e   -> SMatch <$> doSubst e
         SChoice cs -> SChoice <$> traverse go cs

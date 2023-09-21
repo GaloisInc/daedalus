@@ -102,7 +102,7 @@ data Slice' cn sle =
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SDo Name (Slice' cn sle) (Slice' cn sle)
+  | SDo (Maybe Name) (Slice' cn sle) (Slice' cn sle)
   --  | Let Name Expr Grammar
   | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
   | SCall cn
@@ -330,7 +330,7 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
     case sl of
       SHole {}       -> mempty
       SPure   v      -> freeVars v -- FIXME: ignores fset, which night not be what we want
-      SDo x l r      -> freeVars l `Set.union` Set.delete x (freeVars r)
+      SDo m_x l r    -> freeVars l `Set.union` maybe id Set.delete m_x (freeVars r)
       SMatch m       -> freeVars m
       SChoice cs     -> foldMap freeVars cs
       SCall cn       -> freeVars cn
@@ -430,7 +430,7 @@ instance (PP cn, PP sle) => PP (Slice' cn sle) where
 ppStmts' :: (PP cn, PP sle) => Slice' cn sle -> Doc
 ppStmts' sl =
   case sl of
-    SDo x g1 g2 -> pp x <+> "<-" <+> pp g1 $$ ppStmts' g2
+    SDo m_x g1 g2 -> maybe mempty (\x -> pp x <+> "<-") m_x <+> pp g1 $$ ppStmts' g2
     _           -> pp sl
 
 instance PP FInstId where

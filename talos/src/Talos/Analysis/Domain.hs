@@ -17,21 +17,24 @@ import           Data.Function                   (on)
 import           Data.List                       (foldl1', partition)
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
+import           Data.Maybe                      (isNothing)
 import qualified Data.Set                        as Set
 import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   (FName, Name)
+import           Daedalus.Core.CFG               (NodeID)
 import           Daedalus.Core.Free              (FreeVars (..))
-import           Daedalus.Core.TraverseUserTypes
+import           Daedalus.Core.TraverseUserTypes (TraverseUserTypes (..))
+import           Daedalus.Panic                  (panic)
 import           Daedalus.PP
-import           Daedalus.Panic
 
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Eqv
 import           Talos.Analysis.Merge
 import           Talos.Analysis.SLExpr           (SLExpr)
 import           Talos.Analysis.Slice
-import Data.Maybe (isNothing)
+
+
 
 --------------------------------------------------------------------------------
 -- Domains
@@ -43,6 +46,8 @@ data GuardedSlice ae = GuardedSlice
   -- non-empty, this slice returns a value (i.e., the last grammar
   -- isn't a hole or a non-result call)
   , gsSlice :: Slice
+  , gsDominator :: NodeID
+  -- ^ The node which dominates this slice (usually a Do, or a SetStream)
   }
   deriving (Generic)
 
@@ -51,6 +56,7 @@ instance AbsEnv ae => Merge (GuardedSlice ae) where
     { gsEnv  = gsEnv gs `merge` gsEnv gs'
     , gsPred = gsPred gs `merge` gsPred gs'
     , gsSlice = merge (gsSlice gs) (gsSlice gs')
+    , gsDominator = gsDominator gs -- should equal gsDominator gs'
     }
 
 instance AbsEnv ae => Eqv (GuardedSlice ae) where
@@ -58,17 +64,19 @@ instance AbsEnv ae => Eqv (GuardedSlice ae) where
     eqv (gsEnv gs) (gsEnv gs') &&
     gsPred gs == gsPred gs' && -- FIXME, we have (==) over preds
     eqv (gsSlice gs) (gsSlice gs')
+    -- No need to check gsDominator as they should always be the same.
 
 mapGuardedSlice :: (Slice -> Slice) ->
                    GuardedSlice ae -> GuardedSlice ae
 mapGuardedSlice f gs = gs { gsSlice = f (gsSlice gs) }
 
-bindGuardedSlice :: AbsEnv ae => Name ->
+bindGuardedSlice :: AbsEnv ae => NodeID -> Maybe Name ->
                     GuardedSlice ae -> GuardedSlice ae -> GuardedSlice ae
-bindGuardedSlice x lhs rhs = GuardedSlice
+bindGuardedSlice dom m_x lhs rhs = GuardedSlice
   { gsEnv = gsEnv lhs `merge` gsEnv rhs
   , gsPred = gsPred rhs
-  , gsSlice = SDo x (gsSlice lhs) (gsSlice rhs)
+  , gsSlice = SDo m_x (gsSlice lhs) (gsSlice rhs)
+  , gsDominator = dom
   }
 
 -- A guarded slice is closed if it is not a result slice, and it has
@@ -81,9 +89,9 @@ deriving instance (NFData (AbsPred ae), NFData ae) => NFData (GuardedSlice ae)
 data Domain ae = Domain
   { elements      :: [ GuardedSlice ae ]
   -- ^ In-progress (open, containing free vars) elements
-  , closedElements :: Map Name [Slice]
+  , closedElements :: Map NodeID [Slice]
   -- ^ Finalised (closed, no free vars, internal) elements.  We may
-  -- have multiple starting from a single var, e.g.
+  -- have multiple starting from a single node, e.g.
   --
   --    x = ParseTuple ...
   --    Guard (x.fst > 0)
@@ -92,7 +100,6 @@ data Domain ae = Domain
   --
   -- might yield [ SDo x (ParseTuple | fst) (SAssertion (x.fst > 0))
   --             , SDo x (ParseTuple | snd) (SDo _ SHole (SAssertion (x.snd > 0)))]
-  -- for x
   }
   deriving (Generic)
 
@@ -122,18 +129,11 @@ singletonDomain gs
   -- If the element is not a result element (i.e., has no preds
   -- associated with it) and has a null env (i.e., no free vars) it is
   -- closed, otherwise it gets put in elements.
-  --
-  -- A non-result element with a null environment must start with SDo
-  | closedGuardedSlice gs, SDo x _ _ <- gsSlice gs = mkSingleton x
-
-  -- We ensure that any other binding site (e.g. in loops) that may be
-  -- the root of a slice binds a variable, so that variable will then
-  -- be the root.
-  | closedGuardedSlice gs = panic "Expecting a slice headed by a SDo" [showPP gs]
+  | closedGuardedSlice gs = mkSingleton
   | otherwise = Domain { elements = [gs], closedElements = Map.empty }
   where
-    mkSingleton x =
-      Domain { elements = [], closedElements = Map.singleton x [gsSlice gs] }
+    mkSingleton =
+      Domain { elements = [], closedElements = Map.singleton (gsDominator gs) [gsSlice gs] }
 
 -- | Constructs a domain from the possibly-overlapping elements.
 domainFromElements :: AbsEnv ae => [GuardedSlice ae] -> Domain ae
@@ -171,10 +171,11 @@ partitionSliceForVar x gs =
 
 -- | Removes `x` from the domain, returning any slices mentioning x
 -- and the domain less those slices
-partitionDomainForVar :: AbsEnv ae => Name ->
+partitionDomainForVar :: AbsEnv ae => Maybe Name ->
                          Domain ae ->
                          ( [ (GuardedSlice ae, AbsPred ae) ], Domain ae )
-partitionDomainForVar x d = ( matching, d' )
+partitionDomainForVar Nothing d = ([], d)
+partitionDomainForVar (Just x) d = ( matching, d' )
   where
     (matching, nonMatching) = partitionEithers (map (partitionSliceForVar x) (elements d))
     d' = d { elements = nonMatching }

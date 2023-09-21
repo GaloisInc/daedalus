@@ -25,7 +25,21 @@ allPassesM _entry m = noBytesPatternsM m >>=
                       nameBoundExprM >>=
                       nameMatchResultsM >>=
                       pure . normM >>=
+                      pure . letToDoM >>=
                       addNodeIDs
+
+
+-- ----------------------------------------------------------------------------------------
+-- Just turn Let into Do (this has to happen after normM)
+
+letToDoM :: Module -> Module
+letToDoM mo = mo { mGFuns = gfs }
+  where
+    gfs = map (fmap letToDoG) (mGFuns mo)
+
+letToDoG :: Grammar -> Grammar
+letToDoG (Let n e g) = Do n (Pure e) (letToDoG g)
+letToDoG g = gebMapChildrenG letToDoG id id g
 
 -- ----------------------------------------------------------------------------------------
 -- Name non-variable bound expressions

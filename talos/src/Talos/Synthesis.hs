@@ -41,6 +41,7 @@ import           Text.Printf                     (printf)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
+import           Daedalus.Core.CFG (pattern WithNodeID, NodeID)
 import qualified Daedalus.Core.Semantics.Env     as I
 import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
@@ -69,6 +70,7 @@ import           Talos.Monad                     (TalosM, getGFun, getIEnv,
 import           Talos.Strategy
 import           Talos.Strategy.Monad
 import Data.Functor (($>))
+import GHC.Stack (HasCallStack)
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -93,7 +95,7 @@ emptyStream = Stream 0 Nothing
 data Value = InterpValue I.Value | StreamValue Stream
 
 data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
-                         , pathSetRoots :: Map Name [SliceId]
+                         , pathSetRoots :: Map NodeID [SliceId]
                          , currentClass :: FInstId
                          , currentFName :: FName
                          , loopTagInstMap :: Map LoopGeneratorTag Int
@@ -453,9 +455,9 @@ synthesiseLoopMorphism m_ltag m_ps lm =
 --------------------------------------------------------------------------------
 -- Selection
 
-choosePath :: SelectedPath -> Name -> SynthesisM SelectedPath
-choosePath cp x = do
-  m_sl <- SynthesisM $ asks (Map.lookup x . pathSetRoots)
+choosePath :: SelectedPath -> NodeID -> SynthesisM SelectedPath
+choosePath cp nid = do
+  m_sl <- SynthesisM $ asks (Map.lookup nid . pathSetRoots)
   case m_sl of
     Nothing  -> pure cp
     -- The analysis determined that we have a set of projections on
@@ -473,10 +475,10 @@ choosePath cp x = do
     go acc mc (sl : sls) = do
       prov <- freshProvenanceTag
       fn   <- SynthesisM $ asks currentFName
-      (m_cp, mc') <- findModel mc prov fn x sl
+      (m_cp, mc') <- findModel mc prov fn sl
       case m_cp of
         Nothing -> liftIO $ do
-          hPutStrLn stderr $ "All strategies failed for " ++ showPP x
+          hPutStrLn stderr $ "All strategies failed for " ++ showPP nid
           exitFailure
           
         Just sp -> go (sp : acc) mc' sls
@@ -487,8 +489,7 @@ choosePath cp x = do
 synthesiseDo :: SelectedPath -> Maybe Name -> Grammar -> Grammar ->
                 SynthesisM Value
 synthesiseDo cp m_x lhs rhs = do
-  cp' <- maybe (pure cp) (choosePath cp) m_x
-  let (lhsp, rhsp) = splitPath cp'
+  let (lhsp, rhsp) = splitPath cp
   (v, pc) <- withPushedContext (PCEDoRHS rhsp) (synthesiseG lhsp lhs)
   let rhsp' = case pc of
                 PCEDoRHS r -> r
@@ -521,16 +522,23 @@ synthesiseMany m_ltag ps g =
     go acc p = (: acc) <$> synthesiseG p g
     
 -- Does all the heavy lifting
-synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
+synthesiseG, synthesiseG' :: HasCallStack => SelectedPath -> Grammar -> SynthesisM Value
 
-synthesiseG p (Annot _ g) = synthesiseG p g
+synthesiseG cp (WithNodeID nid _annots g) = do
+  cp' <- choosePath cp nid
+  synthesiseG' cp' g
+  
+synthesiseG' p (Annot _ g) = panic "Unexpected Annot" []
 
 -- This does all the work for internal slices etc.
-synthesiseG cp (Do x lhs rhs) = synthesiseDo cp (Just x) lhs rhs
-synthesiseG cp (Do_ lhs rhs)  = synthesiseDo cp Nothing  lhs rhs
-synthesiseG cp (Let x e rhs)  = synthesiseDo cp (Just x) (Pure e) rhs
+synthesiseG' cp (Do x lhs rhs) = synthesiseDo cp (Just x) lhs rhs
+synthesiseG' cp (Do_ lhs rhs)  = synthesiseDo cp Nothing  lhs rhs
+synthesiseG' cp (Let x e rhs)  = do
+  let (_lhsp, rhsp) = splitPath cp
+  v <- synthesiseV e
+  bindIn x v (synthesiseG rhsp rhs)
 
-synthesiseG (SelectedBytes prov bs) g = do
+synthesiseG' (SelectedBytes prov bs) g = do
   addBytes prov bs
   env <- projectEnvForM g
 
@@ -541,11 +549,11 @@ synthesiseG (SelectedBytes prov bs) g = do
       
   pure (InterpValue res)
       
-synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
+synthesiseG' (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
 
-synthesiseG (SelectedCase (PathIndex n sp)) (GCase cs) = do
+synthesiseG' (SelectedCase (PathIndex n sp)) (GCase cs) = do
   let v = Var (caseVar cs)
   env <- projectEnvForM v
   let r = I.lookupVar (caseVar cs) env
@@ -557,14 +565,14 @@ synthesiseG (SelectedCase (PathIndex n sp)) (GCase cs) = do
     Nothing -> panic "Mismatch in case(!)" [showPP n, showPP r]
     Just g -> synthesiseG sp g
 
-synthesiseG (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
+synthesiseG' (SelectedCall fid sp) (Call fn args) = synthesiseCallG sp fn fid args
 
-synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (ManyLoop sem _bt _lb _m_ub g)) = do
+synthesiseG' (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (ManyLoop sem _bt _lb _m_ub g)) = do
   vs <- synthesiseMany m_ltag ps g
   mbPure sem (vArray vs)
   
 -- FIXME: sem
-synthesiseG (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop sem _bt lb m_ub g)) = do
+synthesiseG' (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop sem _bt lb m_ub g)) = do
   lv   <- synthesiseV lb
   m_uv <- traverse synthesiseV m_ub
   count <- synthesiseLoopBounds canBeNull lv m_uv
@@ -582,15 +590,15 @@ synthesiseG (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop 
   vs <- synthesiseMany (Just ltag) elPaths g
   mbPure sem (vArray vs)
 
-synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (RepeatLoop _bt n e g)) = do
+synthesiseG' (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (RepeatLoop _bt n e g)) = do
   initV <- synthesiseV e
   -- FIXME: do we need the enterLoop here?
   let go v p = bindIn n v (synthesiseG p g)
   synthesiseLoop m_ltag ps (repeat go) initV
 
-synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism m_ltag (Just ps) lm
+synthesiseG' (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism m_ltag (Just ps) lm
   
-synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose randomly
+synthesiseG' SelectedHole g = -- Result of this is unentangled, so we can choose randomly
   case g of
     Pure e            -> synthesiseV e
     GetStream         -> unimplemented
@@ -650,4 +658,4 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
     impossible    = panic "Impossible (theoretically)" [showPP g]
 
 -- We didn't match any of the above, so this is a bug
-synthesiseG _p _g = panic "Mismatched path/grammar in synthesiseG" []
+synthesiseG' _p _g = panic "Mismatched path/grammar in synthesiseG'" []

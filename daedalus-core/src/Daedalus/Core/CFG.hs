@@ -27,6 +27,7 @@ import           Data.List      (partition)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
 import           GHC.Generics   (Generic)
+import           GHC.Stack      (HasCallStack)
 import           MonadLib       (WriterT, put, runWriterT)
 
 import           Daedalus.Core
@@ -35,13 +36,13 @@ import           Daedalus.Panic (panic)
 import           Daedalus.PP
 
 {-# COMPLETE WithNodeID #-}
-pattern WithNodeID :: NodeID -> [Annot] -> Grammar -> Grammar
+pattern WithNodeID :: HasCallStack => NodeID -> [Annot] -> Grammar -> Grammar
 pattern WithNodeID n anns g <- (getNodeIDPat -> (n, anns, g))
 
-getNodeIDPat :: Grammar -> (NodeID, [Annot], Grammar)
+getNodeIDPat :: HasCallStack => Grammar -> (NodeID, [Annot], Grammar)
 getNodeIDPat (skipGetAnnot -> (anns', g))
   | ([NodeID n], anns) <- partition isNodeID anns' = (n, anns, g)
-  | otherwise = panic "Missing NodeID annotation" []
+  | otherwise = panic "Missing NodeID annotation" [showPP g]
   where
     isNodeID (NodeID {}) = True
     isNodeID _           = False

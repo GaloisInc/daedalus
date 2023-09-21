@@ -50,9 +50,9 @@ timeStrategy solvSt strat ptag sl = timeIt $ do
   rv'           <- liftIO $ evaluate $ force rv
   pure (rv', gen, solvSt')
 
-runStrategies :: LiftStrategyM m => SolverState -> [StrategyInstance] -> ProvenanceTag -> FName -> Name -> ExpSlice ->
+runStrategies :: LiftStrategyM m => SolverState -> [StrategyInstance] -> ProvenanceTag -> FName -> ExpSlice ->
                  m ([SelectedPath], Maybe StratGen, SolverState)
-runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
+runStrategies solvSt strats0 ptag fn sl = liftStrategy $ go solvSt strats0
   where
     -- FIXME: There is probably a nicer way of doing this
     go s [] = pure ([], Nothing, s)
@@ -92,9 +92,9 @@ data ModelCache = ModelCache
 newModelCache :: [StrategyInstance] -> SolverState -> ModelCache
 newModelCache = ModelCache mempty
 
-findModel :: LiftStrategyM m => ModelCache -> ProvenanceTag -> FName -> Name -> SliceId -> 
+findModel :: LiftStrategyM m => ModelCache -> ProvenanceTag -> FName -> SliceId -> 
              m (Maybe SelectedPath, ModelCache)
-findModel mc ptag fn x sid
+findModel mc ptag fn sid
   -- For the moment we never re-generate models
   | Just mce <- Map.lookup sid (mcCache mc) =
       if V.null (mceModels mce)
@@ -104,7 +104,7 @@ findModel mc ptag fn x sid
     -- We haven't seen this slice before, so solve
   | otherwise = do
       sl <- getSlice sid
-      (r, _m_gen, solvSt') <- runStrategies (mcSolverState mc) (mcStratInstances mc) ptag fn x sl
+      (r, _m_gen, solvSt') <- runStrategies (mcSolverState mc) (mcStratInstances mc) ptag fn sl
       pure $ if null r
              then (Nothing, mc)
              else nextModel (mc { mcSolverState = solvSt' })

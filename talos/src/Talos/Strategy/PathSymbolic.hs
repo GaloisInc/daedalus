@@ -171,13 +171,13 @@ stratSlice = go
           let mk v = (v, SelectedHole)
           mk <$> synthesiseExpr e
 
-        SDo x lsl rsl -> do
-          let goL = noteCurrentName (fromMaybe "_" (nameText x)) (go lsl)
+        SDo m_x lsl rsl -> do
+          let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go lsl)
 
               goR :: PathBuilder -> SymbolicM Result
               goR lpath = over _2 (SelectedDo lpath) <$> go rsl
 
-          bindNameIn x goL goR
+          bindNameInMaybe m_x goL goR
 
         -- FIXME: we could pick concrete values here if we are willing
         -- to branch and have a concrete bset.

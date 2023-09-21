@@ -44,18 +44,20 @@ import           Daedalus.PP                    (showPP)
 import           Talos.Monad                    (LiftTalosM, TalosM, getGFun,
                                                  getModule)
 
+
 -- For now this analysis is context insensitive, as making it context
 -- sensitive requires the slicing to be context sensitive (which it
 -- currently is not).
-newtype BoundedStreams = BoundedStreams { getBoundedStreams :: Map NodeID Bool } 
-
+newtype BoundedStreams = BoundedStreams { getBoundedStreams :: Map NodeID (Bool, Bool) }
+  deriving (Semigroup, Monoid)
+  
 boundedStreams :: FName -> TalosM BoundedStreams
 boundedStreams entry = calcFixpoint entry
 
 --  | Returns whether a stream may be bounded (or, the negation of
 -- whether the stream is definitely unbounded)
-isStreamBoundedMaybe :: NodeID -> BoundedStreams -> Bool
-isStreamBoundedMaybe n = Map.findWithDefault False n . getBoundedStreams
+isStreamBoundedMaybe :: NodeID -> BoundedStreams -> (Bool, Bool)
+isStreamBoundedMaybe n = Map.findWithDefault (False, False) n . getBoundedStreams
 
 -- -----------------------------------------------------------------------------
 -- Monad
@@ -70,7 +72,7 @@ data BSMSummary = BSMSummary
   { bsmsArgs   :: [AbsValue]
   , bsmsArgBounded :: Bool
   , bsmsResult :: (Bool, AbsValue)
-  , bsmsNodes  :: Map NodeID Bool
+  , bsmsNodes  :: BoundedStreams
   } deriving Generic
 
 -- FIXME: combine with Fixpoint.hs?
@@ -79,8 +81,6 @@ data BSMState = BSMState
   , bsmSummaries :: Map FName BSMSummary
   , bsmRevDeps   :: Map FName (Set FName)
   } deriving Generic
-
-type NodeInfo = Map NodeID Bool
 
 newtype BSM a = BSM { _getBSM :: ReaderT BSMEnv (StateT BSMState TalosM) a }
   deriving (Functor, Applicative, Monad, MonadReader BSMEnv, MonadState BSMState, LiftTalosM)
@@ -107,7 +107,7 @@ bottomSummary tinfo bndd fn args = do
   BSMSummary { bsmsArgs   = args
              , bsmsArgBounded = bndd
              , bsmsResult = (False, bot)
-             , bsmsNodes  = Map.empty
+             , bsmsNodes  = mempty
              }
   where
     bot = bottomForTy tinfo (fnameType fn)
@@ -150,7 +150,7 @@ calcFixpoint entry = do
                      , bsmRevDeps  = mempty
                      }
   st <- go tinfo st0
-  pure (BoundedStreams (foldMap bsmsNodes (bsmSummaries st)))
+  pure (foldMap bsmsNodes (bsmSummaries st))
   where
     go tinfo s@BSMState { bsmWorklist = wl } | Just (fn, wl') <- Set.minView wl
       = let s' = s { bsmWorklist = wl' }
@@ -415,10 +415,9 @@ transferName n = asks (fromMaybe err . Map.lookup n . bsmVars)
   where
     err = panic "Missing key" []
 
-transferG :: Bool -> Grammar -> WriterT NodeInfo BSM (Bool, AbsValue)
+transferG :: Bool -> Grammar -> WriterT BoundedStreams BSM (Bool, AbsValue)
 transferG bndd (WithNodeID nid _anns g) = do
-  tell (Map.singleton nid bndd)  
-  case g of
+  (postb, r) <- case g of
     Pure e    -> simple (lift (transferE e))
     GetStream -> simple (pure (AVStream bndd))
     SetStream e -> do
@@ -446,14 +445,16 @@ transferG bndd (WithNodeID nid _anns g) = do
       pure (or bnds, foldl1 lub vs)
     Loop lc -> transferLoop bndd lc
     _ -> unexpected -- keep pat completeness happy
+  tell (BoundedStreams (Map.singleton nid (bndd, postb)))
+  pure (postb, r)
   where
-    simple :: WriterT NodeInfo BSM AbsValue -> WriterT NodeInfo BSM (Bool, AbsValue)
+    simple :: WriterT BoundedStreams BSM AbsValue -> WriterT BoundedStreams BSM (Bool, AbsValue)
     simple m = (,) bndd <$> m
       
     other = pure (bndd, AVOther)
     unexpected = panic "Unexpected grammar or value" []
 
-transferLoop :: Bool -> LoopClass Grammar -> WriterT NodeInfo BSM (Bool, AbsValue)
+transferLoop :: Bool -> LoopClass Grammar -> WriterT BoundedStreams BSM (Bool, AbsValue)
 transferLoop bndd lcl =
   case lcl of
     ManyLoop _sem _bt _lb _m_ub g -> do
