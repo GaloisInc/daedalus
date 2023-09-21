@@ -1,16 +1,14 @@
 {-# Language BlockArguments, OverloadedStrings, NamedFieldPuns #-}
 {-# Language DataKinds, GADTs #-}
-{-# Language RecordWildCards #-}
 {-# Language RankNTypes #-}
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
 import qualified Data.Text as Text
-import Control.Monad(forM,forM_,unless)
+import Control.Monad(forM,forM_,unless,zipWithM)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
 import Data.Maybe(catMaybes,maybeToList,fromMaybe)
-import Control.Monad(zipWithM)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
