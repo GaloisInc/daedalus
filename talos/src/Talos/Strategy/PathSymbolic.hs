@@ -15,7 +15,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 import           Control.Lens                            (_2, imap, over,
                                                           preview)
-import           Control.Monad                           (join, mapAndUnzipM)
+import           Control.Monad                           (join, mapAndUnzipM, unless)
 import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
@@ -62,6 +62,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
 import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
+import Talos.Monad (debug)
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -132,6 +133,7 @@ symbolicFun config ptag sl = StratGen $ do
     T.statS (pathKey <> "modelsize") sz
     
     let go ((_, pb), sm) = do
+          debug pathKey ("PathBuilder " ++ showPP pb)
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
@@ -258,10 +260,6 @@ stratChoice sls _
       recordChoice pv feasibleIxs
 
       pure (v, SelectedChoice (SymbolicChoice pv paths))
-      
-  -- liftIO $ print ("choice " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
-  --                 <> " ==> " <> pp (length (MV.guardedValues v)))
-
 
 stratLoop :: SLoopClass Expr ExpSlice ->
              SymbolicM Result
@@ -523,6 +521,9 @@ stratCase _total cs@(Case n pats) _m_sccs
       pv <- freshPathVar (length pats)
       
       let (assn, missing) = MV.semiExecPatterns v pv (map fst (casePats cs))
+
+      unless (null missing) $ debug pathKey ("Missing patterns for " <> show missing <> " "
+                                              <> show (MV.ppMuxValue v))
       
       let go i sl | i `elem` missing = unreachable -- short-circuit, maybe tell the user?
                   | otherwise = over _2 ((,) i) <$> stratSlice sl
@@ -534,7 +535,7 @@ stratCase _total cs@(Case n pats) _m_sccs
       let paths = map snd (toList b)
           feasibleIxs = map fst paths
       
-      assert assn -- FIXME: generate a Branching in semiExecPatterns
+      assert assn
 
       -- FIXME: we are pretending that we are a choice
       -- Record that we have this choice variable, and the possibilities

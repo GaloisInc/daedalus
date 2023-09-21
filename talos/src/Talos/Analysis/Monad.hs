@@ -28,7 +28,7 @@ import qualified Talos.Analysis.Fixpoint as F
 import           Talos.Analysis.Slice    (FInstId (..),
                                           SummaryClass (Assertions),
                                           assertionsFID)
-import           Talos.Monad             (TalosM, getModule)
+import           Talos.Monad             (TalosM, getModule, LiftTalosM, liftTalosM)
 
 -- import Debug.Trace (trace, traceM)
 
@@ -91,6 +91,9 @@ newtype IterM ae a = IterM
   }
   deriving (Functor, Applicative, Monad)
 
+instance LiftTalosM (IterM ae) where
+  liftTalosM = IterM . lift . liftTalosM 
+  
 instance HasGUID (IterM ae) where
   guidState f = IterM $ lift (guidState f)
   

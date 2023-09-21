@@ -126,7 +126,8 @@ data PathLoopBuilder a =
                       (Maybe LoopCountVar) -- 0 or 1
                       a
   | PathLoopMorphism SymbolicLoopTag (Branching (MV.VSequenceMeta, [a]))
-                     
+    deriving Functor
+
 type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
@@ -428,3 +429,7 @@ instance PP (PathChoiceBuilder Doc) where
 instance PP SolverResult where
   pp (ByteResult v) = text v
   pp (InverseResult _e _v) = "inv"
+
+instance PP a => PP (PathLoopBuilder a) where
+  pp _ = "FIXME: PathLoopBuilder"
+  

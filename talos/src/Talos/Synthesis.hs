@@ -527,16 +527,14 @@ synthesiseG, synthesiseG' :: HasCallStack => SelectedPath -> Grammar -> Synthesi
 synthesiseG cp (WithNodeID nid _annots g) = do
   cp' <- choosePath cp nid
   synthesiseG' cp' g
-  
-synthesiseG' p (Annot _ g) = panic "Unexpected Annot" []
 
 -- This does all the work for internal slices etc.
 synthesiseG' cp (Do x lhs rhs) = synthesiseDo cp (Just x) lhs rhs
 synthesiseG' cp (Do_ lhs rhs)  = synthesiseDo cp Nothing  lhs rhs
-synthesiseG' cp (Let x e rhs)  = do
-  let (_lhsp, rhsp) = splitPath cp
-  v <- synthesiseV e
-  bindIn x v (synthesiseG rhsp rhs)
+-- synthesiseG' cp (Let x e rhs)  = do -- actually impossible, but 
+--   let (_lhsp, rhsp) = splitPath cp
+--   v <- synthesiseV e
+--   bindIn x v (synthesiseG rhsp rhs)
 
 synthesiseG' (SelectedBytes prov bs) g = do
   addBytes prov bs
@@ -614,8 +612,8 @@ synthesiseG' SelectedHole g = -- Result of this is unentangled, so we can choose
     Fail {}           -> unimplemented -- probably should be impossible
     -- Handled above
     Do  {}            -> impossible
-    Let {}            -> impossible
     Do_ {}            -> impossible
+    Let {}            -> impossible -- We removed this in Passes.hs
     
     Choice _biased gs -> do
       g' <- randL gs

@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
 
 {-# LANGUAGE FlexibleContexts #-}
@@ -17,18 +18,20 @@ module Talos.Analysis ( summarise
                       ) where
 
 import           Control.Arrow              (second)
-import           Control.Lens               (_1, _2, _3, view)
+import           Control.Lens               (_1, _2, _3, view, (.~))
 import           Data.List                  (foldl', foldl1')
 import qualified Data.Map                   as Map
 import           Data.Maybe                 (isNothing, mapMaybe, maybeToList)
 import           Data.Monoid                (All (All))
 import qualified Data.Set                   as Set
+import Data.Generics.Labels ()
+import qualified Data.Text as Text
 
 import           Daedalus.Core
 import           Daedalus.Core.CFG          (NodeID, pattern WithNodeID)
 import           Daedalus.Core.Type         (typeOf)
 import           Daedalus.Panic             (panic)
-import           Daedalus.PP                (showPP)
+import           Daedalus.PP                (showPP, pp)
 
 import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
@@ -40,10 +43,11 @@ import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
-import           Talos.Monad                (TalosM, getModule)
+import           Talos.Monad                (TalosM, getModule, LogKey, debug)
 
 
-
+summaryKey :: LogKey
+summaryKey = "summarise"
 
 --------------------------------------------------------------------------------
 -- Top level function
@@ -311,10 +315,7 @@ summariseCase preds nid cs = do
                           }
 
     -- fn <- currentDeclName
-    -- traceM ("Summarising case in " ++ showPP fn ++
-    --       "(trivial: " ++ show trivial ++ ", total: " ++ show total ++ ") " ++
-    --       showPP cs)
-    -- traceM ("\tresult: " ++ showPP gs')
+    debug summaryKey ("Summarising case in " ++ showPP cs ++ "\n\tresult: " ++ showPP gs)
 
     pure (merge (singletonDomain gs) newDom)
 
@@ -432,6 +433,9 @@ summariseBind preds nid m_x lhs rhs = do
   let (matching, rhsD') = partitionDomainForVar m_x rhsD
       preds'            = map snd matching
   lhsD <- summariseG preds' lhs
+
+  -- let anonName = "_anon" <> Text.pack (showPP nid)
+  -- m_x' <- Just <$> maybe ((#nameText .~ Just anonName) <$> freshNameSys (typeOf lhs)) pure m_x
 
   let (lhsMatching, lhsD') = partitionDomainForResult (const True) lhsD
       -- For each element of lhsMatching we find the corresponding
