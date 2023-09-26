@@ -10,6 +10,7 @@ import           Daedalus.Core         (Case (..), LoopClass' (..),
                                         LoopMorphism' (..))
 import           Daedalus.Panic        (panic)
 import Data.List (partition)
+import Data.Foldable (foldl', toList)
 
 -- Merging
 --
@@ -91,3 +92,6 @@ mergeOverlapping ovlf = go
       where
         newds = foldl merge d dep
         (dep, indep) = partition (ovlf d) d2
+
+mergeMaybe :: (Merge p, Foldable t) => t p -> Maybe p
+mergeMaybe ps = foldl' merge Nothing (Just <$> toList ps)

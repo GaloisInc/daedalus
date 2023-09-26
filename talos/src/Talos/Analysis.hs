@@ -2,8 +2,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
 
  -- for dealing with TCDecl and existential k
 
@@ -18,33 +20,34 @@ module Talos.Analysis ( summarise
                       ) where
 
 import           Control.Arrow              (second)
-import           Control.Lens               (_1, _2, _3, view, (.~))
-import           Data.List                  (foldl', foldl1')
+import           Control.Lens               (_1, _2, _3, _4, view)
+import qualified Data.ByteString            as BS
+import           Data.Foldable              (toList)
+import           Data.Generics.Labels       ()
+import           Data.List                  (foldl', foldl1', unzip4)
 import qualified Data.Map                   as Map
 import           Data.Maybe                 (isNothing, mapMaybe, maybeToList)
 import           Data.Monoid                (All (All))
 import qualified Data.Set                   as Set
-import Data.Generics.Labels ()
-import qualified Data.Text as Text
 
 import           Daedalus.Core
 import           Daedalus.Core.CFG          (NodeID, pattern WithNodeID)
 import           Daedalus.Core.Type         (typeOf)
 import           Daedalus.Panic             (panic)
-import           Daedalus.PP                (showPP, pp)
+import           Daedalus.PP                (showPP)
 
 import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
 import           Talos.Analysis.Domain
 import           Talos.Analysis.FieldAbsEnv (fieldAbsEnvTy)
 import           Talos.Analysis.FLAbsEnv    (flAbsEnvTy)
-import           Talos.Analysis.Merge       (Merge, merge, mergeOverlapping)
+import           Talos.Analysis.Merge       (merge, mergeMaybe,
+                                             mergeOverlapping)
 import           Talos.Analysis.Monad
 import           Talos.Analysis.SLExpr      (SLExpr (EHole))
 import           Talos.Analysis.Slice
 import           Talos.Analysis.VarAbsEnv   (varAbsEnvTy)
-import           Talos.Monad                (TalosM, getModule, LogKey, debug)
-
+import           Talos.Monad                (LogKey, TalosM, debug, getModule)
 
 summaryKey :: LogKey
 summaryKey = "summarise"
@@ -154,12 +157,9 @@ exprAsVar :: Expr -> Maybe Name
 exprAsVar (Var n) = Just n
 exprAsVar _       = Nothing
 
-mergeMaybe :: Merge p => [p] -> Maybe p
-mergeMaybe ps = foldl' merge Nothing (Just <$> ps)
-
-summariseCall :: AbsEnv ae => [AbsPred ae] -> NodeID -> FName -> [Expr] ->
+summariseCall :: AbsEnv ae => [AbsPred ae] -> NodeID -> Bool -> FName -> [Expr] ->
                  SummariseM ae (Domain ae)
-summariseCall preds nid fn args
+summariseCall preds nid inBounded fn args
   | Just vargs <-  mapM exprAsVar args = do
       m_invs <- liftIterM (getDeclInv fn)
       case m_invs of
@@ -171,7 +171,10 @@ summariseCall preds nid fn args
            let (ifn, pfn) = f n args
            let gs = GuardedSlice
                  { gsEnv   = absInverse n ifn pfn
+                 , gsBoundedStream = inBounded 
                  , gsPred  = mergeMaybe preds
+                   -- FIXME: We do not currently construct
+                   -- compound holes with call nodes                 
                  , gsSlice = SInverse n ifn pfn
                  , gsDominator = nid
                  }
@@ -193,7 +196,10 @@ summariseCall preds nid fn args
 
               mkCall i gs =
                 GuardedSlice { gsEnv   = absSubstEnv argsMap (gsEnv gs)
+                             , gsBoundedStream = gsBoundedStream gs
                              , gsPred  = gsPred gs -- FIXME: subst?
+                             -- FIXME: We do not currently construct
+                             -- compound holes with call nodes
                              , gsSlice = SCall (mkCallNode i gs)
                              , gsDominator = nid
                              }
@@ -272,8 +278,9 @@ collapseDoms :: AbsEnv ae => [AbsPred ae] -> NodeID ->
 collapseDoms _preds _nid _mk [] = emptyDomain
 collapseDoms preds nid mk branchDs = foldl' merge (singletonDomain gs') doms
   where
-    (envs, slices, doms) = unzip3 (map asSingleton branchDs)
+    (envs, bndds, slices, doms) = unzip4 (map asSingleton branchDs)
     gs' = GuardedSlice { gsEnv   = foldl1 merge envs
+                       , gsBoundedStream = or bndds
                        , gsPred  = mergeMaybe preds
                        , gsSlice = mk slices
                        , gsDominator = nid
@@ -281,10 +288,11 @@ collapseDoms preds nid mk branchDs = foldl' merge (singletonDomain gs') doms
 
 -- We return the elements of the GuardedSlice as we don't have a
 -- dominator for the empty-element domain.
-asSingleton :: AbsEnv ae => Domain ae -> (ae, Slice, Domain ae)
+asSingleton :: AbsEnv ae => Domain ae -> (ae, Bool, Slice, Domain ae)
 asSingleton dom
-  | null gss = (absEmptyEnv, SHole, dom)
-  | otherwise = (gsEnv gs, gsSlice gs, dom')
+  -- Nothing/False is ok here as otherwise we would have a slice.
+  | null gss = (absEmptyEnv, False, SHole Nothing, dom) 
+  | otherwise = (gsEnv gs, gsBoundedStream gs, gsSlice gs, dom')
   where
     (gss, dom') = domainElements dom
     gs = foldl1' merge gss
@@ -292,23 +300,26 @@ asSingleton dom
 summariseCase :: AbsEnv ae => [AbsPred ae] -> NodeID ->
                  Case Grammar -> SummariseM ae (Domain ae)
 summariseCase preds nid cs = do
-  bDoms   <- traverse (summariseG preds) cs
-  let All trivial = foldMap (All . nullDomain) bDoms
-      total       = caseIsTotal cs
+  bDoms0   <- traverse (summariseG preds) cs
+  let total       = caseIsTotal cs
+      (bnddD, bDoms) = collectDomainBoundedHoles nid (SCase total) bDoms0
+      All trivial = foldMap (All . nullDomain) bDoms
 
   -- This is a bit gross because we need to be careful to merge in any
   -- info from the case, and to construct the new gsEnv properly.
   if trivial && total
-    then pure emptyDomain
+    then pure bnddD
     else do
     let squashed = asSingleton <$> bDoms
         newEnv   = foldl1 merge (view _1 <$> squashed)
-        newCase  = view _2 <$> squashed
-        newDom  = foldl1 merge (view _3 <$> squashed)
+        newBndd  = or (view _2 <$> squashed)
+        newCase  = view _3 <$> squashed
+        newDom  = foldl1 merge (view _4 <$> squashed)
         -- Include the case variable too, absPre should leave the var
         -- alone
         (varEnv, _) = absPre absPredTop (Var (caseVar cs)) 
         gs = GuardedSlice { gsEnv   = newEnv `merge` varEnv
+                          , gsBoundedStream = newBndd
                           , gsPred  = mergeMaybe preds
                           , gsSlice = SCase total newCase
                           , gsDominator = nid
@@ -317,7 +328,7 @@ summariseCase preds nid cs = do
     -- fn <- currentDeclName
     debug summaryKey ("Summarising case in " ++ showPP cs ++ "\n\tresult: " ++ showPP gs)
 
-    pure (merge (singletonDomain gs) newDom)
+    pure (bnddD `merge` (singletonDomain gs) `merge` newDom)
 
 -- Some examples:
 --
@@ -363,30 +374,70 @@ summariseCase preds nid cs = do
 -- is that each pred should appear in the gsPred of some element of
 -- the resulting domain (exactly, not via absPredEntails), although we
 -- may have more in gsPred than in preds (in particular, loop invariants).
-summariseG :: AbsEnv ae => [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
+summariseG :: forall ae. AbsEnv ae =>
+              [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
 summariseG preds (WithNodeID nid _annots g) = do
-  
-  case g of
+  bnddTransition@(inBounded, outBounded) <- getBoundedStream nid        
+  boundedTransition nid bnddTransition <$> case g of
     -- When preds == [] this is emptyDomain
-    Pure e -> pure $ domainFromElements
+    Pure e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env
+                     , gsBoundedStream = False
                      , gsPred = Just p
                      , gsSlice = SPure e'
                      , gsDominator = nid}
       | (env, p, e') <- summariseExpr preds e
-      ]
+      ] ++ [ bnddHole 0 | inBounded ]
 
-    GetStream    -> unimplemented
-    SetStream {} -> unimplemented
+    -- This is a bit odd in that we don't include the GetStream in the
+    -- bndd bit, but if a stream is depended upon, then it will be
+    -- included in the first set of slices (which will be a singleton)
+    GetStream -> pure $ domainFromElements $
+      [ GuardedSlice { gsEnv = absEmptyEnv
+                     , gsBoundedStream = False
+                     , gsPred = Just p
+                     , gsSlice = SGetStream
+                     , gsDominator = nid }
+      | p <- preds ] ++ [ bnddHole 0 | inBounded ]
+      
+    SetStream e -> pure $ domainFromElements $
+      [ GuardedSlice { gsEnv = env
+                     -- The slice is bounded if the stream we set is.
+                     , gsBoundedStream = outBounded
+                     , gsPred = Nothing
+                     , gsSlice = SSetStream e'
+                     , gsDominator = nid }
+      | outBounded, (env, _p, e') <- summariseExpr [absPredTop] e ]
+      
     Match _ (MatchByte bset) -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = absByteSet p bset
+                     , gsBoundedStream = False
                      , gsPred = Just p
                      , gsSlice = SMatch bset
                      , gsDominator = nid }
-      | p <- preds ]
-    Match {}
-      | not (null preds) -> panic "Saw a relevant match" [showPP g]
-      | otherwise        -> pure emptyDomain
+      | p <- preds ] ++ [ bnddHole 1 | inBounded ]
+      
+    Match _ (MatchBytes e)
+      | Ap0 (ByteArrayL v) <- e ->
+          pure (singletonDomain (bnddHole (BS.length v)))
+      | ApN (ArrayL _) es  <- e ->
+          pure (singletonDomain (bnddHole (length es)))
+      | Var n <- e              -> do
+          -- In the expression case we don't need to keep around the
+          -- bytes (they will be emitted by the outer synthesis loop)
+          -- but we do need the length.  We might get some deps. on
+          -- the list (i.e. the length) so we need to keep that around.
+          let m_p = absPredCollection (typeOf n) StructureDependent (Just absPredTop) Nothing
+              shs = dynamicSHoleSize n (staticSHoleSize 1)
+              els = [ bnddSlice env Nothing (SHole (Just (shs, SHole Nothing)))
+                    | (env, _p, _e') <- summariseExpr (toList m_p) e
+                    ]
+          pure (domainFromElements els)
+      | otherwise               -> unexpected
+
+    Match _ MatchEnd          -> pure $ domainFromElements $
+      [ bnddSlice absEmptyEnv Nothing SEnd | inBounded ]
+      
     Fail {}   -> unimplemented -- FIXME: we will probably handle this specially in branching code
 
     Do_ lhs rhs  -> summariseBind preds nid Nothing lhs rhs
@@ -404,22 +455,40 @@ summariseG preds (WithNodeID nid _annots g) = do
     --
     Choice _biased gs -> do
       doms <- mapM (summariseG preds) gs
-      if all closedDomain doms
-        then pure (foldl merge emptyDomain doms)
-        else pure (collapseDoms preds nid SChoice doms)
 
-    Call fn args  -> summariseCall preds nid fn args
-    Annot {}      -> panic "Unexpected Annot" [] -- should be taken care of by WithNodeID
+      let (bnddD, doms') = collectDomainBoundedHoles nid SChoice doms
+      
+      if all closedDomain doms' && closedDomain bnddD
+        then pure (foldl merge bnddD doms')
+        else pure (bnddD `merge` collapseDoms preds nid SChoice doms)
+
+    Call fn args  -> summariseCall preds nid inBounded fn args
+    Annot {}      -> unexpected
 
     GCase cs      -> summariseCase preds nid cs
 
-    Loop lp -> summariseLoop preds nid lp
+    Loop lp -> summariseLoop preds nid inBounded lp
 
     _ -> panic "impossible" [] -- 'Or's, captured by Choice above
 
   where
     unimplemented = panic "summariseG unimplemented" [showPP g]
     unexpected = panic "Unexpected" [showPP g]
+
+    bnddSlice env m_p sl = GuardedSlice
+      { gsEnv = env
+      , gsBoundedStream = True
+      , gsPred = m_p
+        -- For non-compound nodes, we ignore the inner hole so this
+        -- should be OK (we could also have an error to check.)
+      , gsSlice = sl
+      , gsDominator = nid
+      }
+
+    bnddHole :: Int -> GuardedSlice ae
+    bnddHole sz = bnddSlice absEmptyEnv Nothing
+                  (SHole (Just (staticSHoleSize sz, SHole Nothing)))
+
 
 summariseExpr :: AbsEnv ae => [AbsPred ae] -> Expr -> [(ae, AbsPred ae, SLExpr)]
 summariseExpr preds e = [ (env, p, e') | p <- preds, let (env, e') = absPre p e ]
@@ -451,9 +520,10 @@ summariseBind preds nid m_x lhs rhs = do
             , let gs' = foldl1 merge (gsFor gs)
             ]
 
-      -- There are the elements which do not care about x.
-      indepLHSD = mapSlices (\sl -> SDo m_x sl SHole) lhsD'
-      indepRHSD = mapSlices (SDo m_x SHole) rhsD'
+      -- There are the elements which do not care about x.  Any
+      -- bounded slices will get merged properly.
+      indepLHSD = mapSlices (\sl -> SDo m_x sl (SHole Nothing)) lhsD'
+      indepRHSD = mapSlices (SDo m_x (SHole Nothing)) rhsD'
       final     = indepLHSD `merge` indepRHSD `merge` domainFromElements els
 
   -- fn <- currentDeclName
@@ -487,10 +557,10 @@ structureFromLoopBody m_pred env =
             ++ [ StructureIsNull | not (absNullEnv env) ]
             ++ [ StructureDependent | not (null (absNonStructural env)) ]
   
-summariseMany :: AbsEnv ae => [AbsPred ae] -> NodeID -> 
+summariseMany :: AbsEnv ae => [AbsPred ae] -> NodeID -> Bool -> 
                  Sem -> Backtrack -> Expr -> Maybe Expr -> Grammar ->
                  SummariseM ae (Domain ae)
-summariseMany preds nid sem _bt lb m_ub g = do
+summariseMany preds nid inBounded sem _bt lb m_ub g = do
   elsD <- summariseG (mapMaybe absPredListElement preds) g
   -- logMessage 1 ("** Many " ++ showPP elsD)
 
@@ -499,26 +569,32 @@ summariseMany preds nid sem _bt lb m_ub g = do
   -- a non-Nothing element predicate), or there is some
   -- structural predicate in preds: (StructureIndependent,
   -- Nothing) isn't a valid list predicate.
-  let (env, sl, elsD') = asSingleton elsD
+  let (env, _bndd, sl, elsD') = asSingleton elsD
       gsDom
-        | closedDomain elsD && null preds = emptyDomain
+        | closedDomain elsD && null preds = emptyDomain -- implies not inBounded
         | otherwise = singletonDomain (makeSlice env sl)
   
   pure (gsDom `merge` elsD')
   
   where
+    -- FIXME: we can optimise here by turning a many with a Hole body
+    -- into a compound hole (if we know the size).  We can also
+    -- special case that in the solver backend.
     makeSlice env sl
       -- In this case we can ignore the bounds (FIXME: as far as I can
       -- reason).  For str to be StructureIndependent, the number of
-      -- elements cannot impact the rest of the synthesis.
-      | str == StructureIndependent = GuardedSlice
+      -- elements cannot impact the rest of the synthesis.  If we are
+      -- in a bounded stream, we do not pool (although maybe we could).
+      | str == StructureIndependent && not inBounded = GuardedSlice
         { gsEnv = env
+        , gsBoundedStream = inBounded
         , gsSlice = SLoop (SLoopPool sem sl)
         , gsPred = m_pred
         , gsDominator = nid
         }
       | otherwise = GuardedSlice
         { gsEnv = env `merge` envlb `merge` envub
+        , gsBoundedStream = inBounded
         , gsSlice = SLoop (SManyLoop str slb m_sub sl) 
         , gsPred = m_pred
         , gsDominator = nid
@@ -571,10 +647,10 @@ summariseMany preds nid sem _bt lb m_ub g = do
 --
 -- FIXME: we could also just desugar this and proceed as usual for
 -- recursion
-summariseRepeat :: AbsEnv ae => [AbsPred ae] ->
+summariseRepeat :: AbsEnv ae => [AbsPred ae] -> NodeID ->
                    Name -> Expr -> Grammar ->
                    SummariseM ae (Domain ae)
-summariseRepeat preds n e g = do
+summariseRepeat preds nid n e g = do
   -- gD is closed by construction, gsPred m_gs (if any) entails mergeMaybe preds
   (m_gs, gD) <- gssFixpoint n g preds
   case m_gs of
@@ -583,17 +659,21 @@ summariseRepeat preds n e g = do
       let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
           useStr = maybe StructureIndependent (const StructureDependent) (gsPred gs)
           str = max useStr (structureFromLoopBody Nothing (gsEnv gs))
-          gs' = gs { gsEnv   = gsEnv gs `merge` enve
-                   -- We need to forget we have a post if, e.g., none was requested.
-                   , gsPred  = mergeMaybe preds
-                   , gsSlice = SLoop (SRepeatLoop str n sle (gsSlice gs))
-                   }
+          gs' = GuardedSlice
+                { gsEnv   = gsEnv gs `merge` enve
+                , gsBoundedStream = gsBoundedStream gs -- should imply inBounded
+                -- We need to forget we have a post if, e.g., none was requested.
+                , gsPred  = mergeMaybe preds
+                , gsSlice = SLoop (SRepeatLoop str n sle (gsSlice gs))
+                , gsDominator = nid
+                }
       pure (merge (singletonDomain gs') gD)
 
 summariseMorphism :: AbsEnv ae =>
-                     [AbsPred ae] -> NodeID -> LoopMorphism Grammar ->
+                     [AbsPred ae] -> NodeID -> Bool ->
+                     LoopMorphism Grammar ->
                      SummariseM ae (Domain ae)
-summariseMorphism preds nid lm =
+summariseMorphism preds nid inBounded lm =
   case lm of
     -- Similar for Repeat above, with the additional use of elements.
     FoldMorphism n e lc g -> do
@@ -606,6 +686,7 @@ summariseMorphism preds nid lm =
         Just gs -> do
           let (enve, sle) = maybe (absEmptyEnv, EHole (typeOf n)) (flip absPre e) (gsPred gs)
               str | Just _p <- gsPred gs        = StructureDependent -- absPredStructural p
+                  | inBounded                   = StructureDependent
                   | otherwise                   = StructureIndependent
               (env', m_lc_str') = summariseLoopCollection lc str (gsEnv gs)
 
@@ -617,8 +698,14 @@ summariseMorphism preds nid lm =
                        | otherwise -> panic "Expecting gsPred to be Nothing" []
                      Just (lc', _str') -> SMorphismLoop (FoldMorphism n sle lc' (gsSlice gs))
                            
-              gs'' = gs { gsEnv = env' `merge` enve, gsSlice = SLoop sl }
-              
+              gs'' = GuardedSlice
+                     { gsEnv = env' `merge` enve
+                     , gsBoundedStream = gsBoundedStream gs
+                     , gsSlice = SLoop sl
+                     , gsPred  = gsPred gs
+                     , gsDominator = nid
+                     }
+
           pure (merge (singletonDomain gs'') gD)
 
     MapMorphism lc g -> do
@@ -627,16 +714,20 @@ summariseMorphism preds nid lm =
       let (gss, gD') = domainElements gD
           m_gs = mergeMaybe gss
 
-          mkMap env sl =
+          mkMap env bndd sl =
             let str = maybe StructureIndependent absPredStructural m_pred
-                    
-                (env', m_lc_str') = summariseLoopCollection lc str env
+                -- We need to increase the structure if we are in a bounded stream
+                bnddStr | inBounded = StructureDependent
+                        | otherwise = StructureIndependent
+                        
+                (env', m_lc_str') = summariseLoopCollection lc (max bnddStr str) env
                 sl' = case m_lc_str' of
                         -- We don't do the gsPred check here because it
                         -- isn't required/true.
                         Nothing -> SLoopPool SemYes sl
                         Just (lc', _str') -> SMorphismLoop (MapMorphism lc' sl)
                 gs' = GuardedSlice { gsEnv = env'
+                                   , gsBoundedStream = bndd
                                    , gsPred = m_pred
                                    , gsSlice = SLoop sl'
                                    , gsDominator = nid
@@ -647,21 +738,21 @@ summariseMorphism preds nid lm =
       -- the structure of the list, which fact needs to be propagated
       -- back to the loop collection.
       pure $ case m_gs of
-               Nothing | isNothing m_pred -> gD'
+               Nothing | isNothing m_pred, not inBounded -> gD'
                -- Otherwise, we have m_pred has no elements but exists.
-               Nothing -> mkMap absEmptyEnv SHole
-               Just gs -> mkMap (gsEnv gs) (gsSlice gs)
+               Nothing -> mkMap absEmptyEnv inBounded (SHole Nothing)
+               Just gs -> mkMap (gsEnv gs) (gsBoundedStream gs) (gsSlice gs)
   where
     m_pred = mergeMaybe preds
 
 summariseLoop :: AbsEnv ae =>
-                 [AbsPred ae] -> NodeID -> LoopClass Grammar ->
+                 [AbsPred ae] -> NodeID -> Bool -> LoopClass Grammar ->
                  SummariseM ae (Domain ae)
-summariseLoop preds nid lcl =
+summariseLoop preds nid inBounded lcl =
   case lcl of
-    ManyLoop sem bt lb m_ub g -> summariseMany preds nid sem bt lb m_ub g
-    RepeatLoop _bt n e g -> summariseRepeat preds n e g
-    MorphismLoop lm -> summariseMorphism preds nid lm
+    ManyLoop sem bt lb m_ub g -> summariseMany preds nid inBounded sem bt lb m_ub g
+    RepeatLoop _bt n e g -> summariseRepeat preds nid n e g
+    MorphismLoop lm -> summariseMorphism preds nid inBounded lm
 
 -- | There are 3 types of slices we care about here:
 -- * sources: establish some p in ps, no dep. on x
@@ -744,6 +835,9 @@ summariseLoopCollection lc useStr env
     str = max useStr (structureFromLoopBody Nothing env_no_el)
     projectMaybe x env' = maybe (env', Nothing) (second Just) (absProj x env')
     ty = typeOf (lcCol lc)
+
+-- -----------------------------------------------------------------------------
+-- Streams
       
 -- -----------------------------------------------------------------------------
 -- Special patterns

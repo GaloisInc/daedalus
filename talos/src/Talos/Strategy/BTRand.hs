@@ -167,9 +167,13 @@ stratSlice ptag = go
   where
     go sl = 
       case sl of
-        SHole -> pure (uncPath I.vUnit)
+        SHole _ -> pure (uncPath I.vUnit)
         SPure e -> uncPath <$> synthesiseExpr e
-
+        
+        SGetStream -> unimplemented
+        SSetStream {} -> unimplemented
+        SEnd -> unimplemented
+        
         SDo m_x lsl rsl -> do
           (v, lpath)  <- go lsl
           onSlice (SelectedDo lpath) <$> bindInMaybe m_x v (go rsl)

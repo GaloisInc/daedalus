@@ -43,6 +43,7 @@ library
                      , Talos.Analysis.Slice
                      , Talos.Analysis.SLExpr
                      , Talos.Analysis.Exported
+                     , Talos.Analysis.BoundedStreams
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad

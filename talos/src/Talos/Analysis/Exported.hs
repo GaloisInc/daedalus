@@ -16,7 +16,7 @@ module Talos.Analysis.Exported
   , sliceToCallees
   ) where
 
-import           Control.Lens                    (at, (.=))
+import           Control.Lens                    (at, (.=), (&), mapped, (.~), _2)
 import           Control.Lens.Lens               ((<<+=))
 import           Control.Monad                   (void)
 import           Control.Monad.Reader            (MonadReader (ask, local),
@@ -28,7 +28,6 @@ import           Data.Generics.Product           (field)
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
 import           Data.Maybe                      (catMaybes)
-import           Data.Monoid                     (Any (..))
 import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 import           GHC.Generics                    (Generic)
@@ -96,6 +95,9 @@ sliceToCallees = go
     go sl = case sl of
       SHole {}          -> mempty
       SPure {}          -> mempty
+      SGetStream        -> mempty
+      SSetStream {}     -> mempty
+      SEnd              -> mempty
       SDo _ l r         -> go l <> go r
       SMatch _m         -> mempty
 --      SAssertion _e     -> mempty
@@ -306,9 +308,14 @@ exportSlice m_sid sl0 = do
   where
     go sl =
       case sl of
-        SHole     -> pure SHole
+        -- Just discard the structure part of the hole
+        SHole m_sh -> pure (SHole (m_sh & mapped . _2 .~ SHole Nothing))
         SPure sle -> SPure <$> goE sle
 
+        SGetStream -> pure SGetStream
+        SSetStream sle -> SSetStream <$> goE sle
+        SEnd -> pure SEnd
+        
         SDo Nothing l r -> do
           SDo Nothing <$> go l <*> go r
 

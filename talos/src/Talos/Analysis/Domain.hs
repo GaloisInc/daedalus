@@ -1,8 +1,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies, FlexibleContexts, StandaloneDeriving, UndecidableInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- This module contains the datastructure representing future path
 -- constraints for a variable.  A path may be thought of as an
@@ -10,10 +12,14 @@
 
 module Talos.Analysis.Domain where
 
-
 import           Control.DeepSeq                 (NFData)
+import           Control.Lens                    (_1, _Just, at, preview, (%~),
+                                                  (&), (<>~))
+import           Control.Monad                   (guard)
 import           Data.Either                     (partitionEithers)
-import           Data.Function                   (on)
+import           Data.Foldable                   (toList)
+import           Data.Functor                    (($>))
+import           Data.Generics.Labels            ()
 import           Data.List                       (foldl1', partition)
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
@@ -34,13 +40,17 @@ import           Talos.Analysis.Merge
 import           Talos.Analysis.SLExpr           (SLExpr)
 import           Talos.Analysis.Slice
 
-
-
 --------------------------------------------------------------------------------
 -- Domains
 
 data GuardedSlice ae = GuardedSlice
   { gsEnv   :: ae
+  , gsBoundedStream :: Bool
+  -- ^ The slice contains size information because it may be in one
+  -- (or many) constrained streams.  This counts as a meta-variable in
+  -- that if this is true then the slice is not closed (it gets closed
+  -- when it reaches the dominator for the SetStream node).  This
+  -- propagates backwards: in a bind, this is set by the lhs.
   , gsPred  :: Maybe (AbsPred ae)
   -- ^ The predicate(s) used to generate the result in this slice.  If
   -- non-empty, this slice returns a value (i.e., the last grammar
@@ -54,6 +64,7 @@ data GuardedSlice ae = GuardedSlice
 instance AbsEnv ae => Merge (GuardedSlice ae) where
   merge gs gs' = GuardedSlice
     { gsEnv  = gsEnv gs `merge` gsEnv gs'
+    , gsBoundedStream = gsBoundedStream gs || gsBoundedStream gs'
     , gsPred = gsPred gs `merge` gsPred gs'
     , gsSlice = merge (gsSlice gs) (gsSlice gs')
     , gsDominator = gsDominator gs -- should equal gsDominator gs'
@@ -62,8 +73,9 @@ instance AbsEnv ae => Merge (GuardedSlice ae) where
 instance AbsEnv ae => Eqv (GuardedSlice ae) where
   eqv gs gs' =
     eqv (gsEnv gs) (gsEnv gs') &&
+    gsBoundedStream gs == gsBoundedStream gs' &&
     gsPred gs == gsPred gs' && -- FIXME, we have (==) over preds
-    eqv (gsSlice gs) (gsSlice gs')
+    eqv (gsSlice gs) (gsSlice gs')    
     -- No need to check gsDominator as they should always be the same.
 
 mapGuardedSlice :: (Slice -> Slice) ->
@@ -74,6 +86,9 @@ bindGuardedSlice :: AbsEnv ae => NodeID -> Maybe Name ->
                     GuardedSlice ae -> GuardedSlice ae -> GuardedSlice ae
 bindGuardedSlice dom m_x lhs rhs = GuardedSlice
   { gsEnv = gsEnv lhs `merge` gsEnv rhs
+  -- We can only clear this on a transition in the BoundedStream
+  -- result.
+  , gsBoundedStream = gsBoundedStream lhs || gsBoundedStream rhs
   , gsPred = gsPred rhs
   , gsSlice = SDo m_x (gsSlice lhs) (gsSlice rhs)
   , gsDominator = dom
@@ -82,7 +97,7 @@ bindGuardedSlice dom m_x lhs rhs = GuardedSlice
 -- A guarded slice is closed if it is not a result slice, and it has
 -- no free variables.  We use absNullEnv as a proxy for empty free vars.
 closedGuardedSlice :: AbsEnv ae => GuardedSlice ae -> Bool
-closedGuardedSlice gs = isNothing (gsPred gs) && absNullEnv (gsEnv gs)
+closedGuardedSlice gs = isNothing (gsPred gs) && absNullEnv (gsEnv gs) && not (gsBoundedStream gs)
 
 deriving instance (NFData (AbsPred ae), NFData ae) => NFData (GuardedSlice ae)
 
@@ -111,7 +126,10 @@ instance AbsEnv ae => Merge (Domain ae) where
     , closedElements = Map.unionWith (<>) (closedElements dL) (closedElements dR)
     }
     where
-      overlaps = absEnvOverlaps `on` gsEnv
+      -- Two slices need to be merged if the environment overlaps or
+      -- if they both include stream bound information.
+      overlaps gs gs' = absEnvOverlaps (gsEnv gs) (gsEnv gs')
+                        || (gsBoundedStream gs && gsBoundedStream gs == gsBoundedStream gs')
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?
@@ -189,6 +207,64 @@ partitionDomainForResult f d = ( matching, d' )
     (matching, nonMatching) = partition (maybe False f . gsPred) (elements d)
     d' = d { elements = nonMatching }
 
+partitionDomainForBounded :: AbsEnv ae => Domain ae -> (Maybe (GuardedSlice ae), Domain ae)
+partitionDomainForBounded d =
+  let (bnddgs, rest) = partition gsBoundedStream (elements d)
+  in case bnddgs of
+       []   -> (Nothing, d)
+       [gs] -> (Just gs, d { elements = rest })
+       _    -> panic "Multiple bounded slices" []
+
+collectDomainBoundedHoles :: (AbsEnv ae, Traversable t) =>
+                             NodeID -> (t Slice -> Slice) -> 
+                             t (Domain ae) ->
+                             (Domain ae, t (Domain ae))
+collectDomainBoundedHoles nid mkSlice doms
+  | Just gss <- m_gss, Just shs <- sameSize (toList gss) =
+      (singletonDomain (mkGS shs gss), snd <$> doms')
+  | otherwise = (emptyDomain, doms)
+  where
+    sameSize :: [GuardedSlice ae] -> Maybe SHoleSize
+    sameSize gss = do
+      -- This check is overly strict as we shouldn't care about order (of the summands)
+      shs : shss <- traverse (sizedHoleMaybe . gsSlice) gss
+      guard (all (== shs) shss) $> shs
+
+    sizedHoleMaybe :: Slice -> Maybe SHoleSize
+    sizedHoleMaybe = preview (#_SHole . _Just . _1)
+
+    mkGS shs gss = GuardedSlice
+      { gsEnv = foldl1 merge (gsEnv <$> gss)
+      -- Basically be definition, as otherwise we wouldn't have sized holes.      
+      , gsBoundedStream = True
+      -- Holes don't generate values.
+      , gsPred  = Nothing 
+      , gsSlice = SHole (Just (shs, mkSlice (gsSlice <$> gss)))
+      , gsDominator = nid
+      }
+    
+    m_gss = traverse fst doms'
+    doms' = fmap partitionDomainForBounded doms
+
+boundedTransition :: AbsEnv ae => NodeID -> (Bool, Bool) -> Domain ae -> Domain ae
+boundedTransition nid (inBounded, outBounded) d
+  -- In this case there should be exactly 1 guarded slice in elements
+  -- which has gsBoundedStream set.  If this becomes closed we move
+  -- the slice to closedElements otherwise it is kept in elements.
+  | outBounded && not inBounded =
+      let (gs, d') = splitOnBounded
+          gs'      = gs { gsBoundedStream = False }
+      in if closedGuardedSlice gs'
+         then d' & #closedElements . at nid <>~ Just [ gsSlice gs' ]
+         else d  & #elements %~ (:) gs'
+  | otherwise = d
+  where
+    splitOnBounded =
+      let (m_gs, d') = partitionDomainForBounded d
+      in case m_gs of
+           Nothing -> panic "Missing bounded slice" []
+           Just gs -> (gs, d')
+    
 -- Maps over non-closed slices
 mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae
 mapSlices f d = d { elements = map (mapGuardedSlice f) (elements d) }

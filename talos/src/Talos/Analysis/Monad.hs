@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections #-}
 module Talos.Analysis.Monad (getDeclInv, requestSummary, makeDeclInvs, currentDeclName
                             , Summary (..), SummaryClass', Summaries, IterM, AnalysisState(..)
-                            , calcFixpoint
+                            , calcFixpoint, getBoundedStream
                             , module Export) where
 
 import           Control.Monad.Trans     (lift)
@@ -18,9 +18,11 @@ import           Daedalus.Core
 import           Daedalus.GUID           (HasGUID (..))
 import           Daedalus.PP             (PP (pp), showPP)
 import           Daedalus.Panic          (panic)
+import           Daedalus.Core.CFG       (NodeID)
 
 import           Talos.Analysis.AbsEnv   (AbsEnv (AbsPred))
 import           Talos.Analysis.Domain   (Domain, domainEqv, emptyDomain)
+import Talos.Analysis.BoundedStreams (BoundedStreams, isStreamBoundedMaybe, boundedStreams)
 import           Talos.Analysis.Fixpoint as Export (addSummary,
                                                     currentSummaryClass,
                                                     lookupSummary)
@@ -83,6 +85,7 @@ data AnalysisState p = AnalysisState
   { declInvs  :: Map FName (Name -> [Expr] -> (Expr, Expr))
   , summaryToInst :: Map (SummaryClass p) FInstId
   , instToSummary :: Map FInstId (SummaryClass p)
+  , boundedStreamInfo :: BoundedStreams
   , nextFInstId   :: Int
   }
   
@@ -149,6 +152,10 @@ makeDeclInvs decls funs = Map.fromList fnsWithInvs
 getDeclInv :: FName -> IterM ae (Maybe (Name -> [Expr] -> (Expr, Expr)))
 getDeclInv n = IterM $ F.fixpointState (\s -> (Map.lookup n (declInvs s) , s))
 
+getBoundedStream :: NodeID -> IterM ae (Bool, Bool)
+getBoundedStream nid =
+  IterM $ F.fixpointState (\s -> (isStreamBoundedMaybe nid (boundedStreamInfo s), s))
+
 getAllocInstId :: Ord (AbsPred ae) => SummaryClass' ae -> IterM ae FInstId
 getAllocInstId cl = IterM $ F.fixpointState go
   where
@@ -186,10 +193,12 @@ calcFixpoint :: (AbsEnv ae, Ord (AbsPred ae)) =>
                 TalosM (AnalysisState (AbsPred ae), Summaries ae)
 calcFixpoint m wl = do
   md <- getModule
+  bs <- boundedStreams
   let st0 = AnalysisState
             { declInvs      = makeDeclInvs (mGFuns md) (mFFuns md)
             , summaryToInst = Map.singleton Assertions assertionsFID
             , instToSummary = Map.singleton assertionsFID Assertions
+            , boundedStreamInfo = bs
             , nextFInstId   = assnId + 1
             }
   F.calcFixpoint seqv go wl st0

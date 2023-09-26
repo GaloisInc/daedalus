@@ -21,7 +21,7 @@ import           Control.Monad.Trans            (lift)
 import           Control.Monad.Trans.Writer.CPS (runWriterT)
 import           Control.Monad.Writer.CPS       (Writer, WriterT, censor,
                                                  listen, runWriter, tell)
-import           Data.Foldable                  (foldl', toList)
+import           Data.Foldable                  (foldl', toList, find)
 import           Data.Functor                   (($>))
 import           Data.Generics.Labels           ()
 import           Data.Map                       (Map)
@@ -51,8 +51,14 @@ import           Talos.Monad                    (LiftTalosM, TalosM, getGFun,
 newtype BoundedStreams = BoundedStreams { getBoundedStreams :: Map NodeID (Bool, Bool) }
   deriving (Semigroup, Monoid)
   
-boundedStreams :: FName -> TalosM BoundedStreams
-boundedStreams entry = calcFixpoint entry
+boundedStreams :: TalosM BoundedStreams
+boundedStreams = do
+  md <- getModule
+  let entry =
+        case find fIsEntry (mGFuns md) of
+          Nothing -> error "Missing entry function" []
+          Just f  -> f
+  calcFixpoint entry
 
 --  | Returns whether a stream may be bounded (or, the negation of
 -- whether the stream is definitely unbounded)
@@ -136,14 +142,14 @@ getResultFor bndd fn args = do
   where
     allLeq m1 m2 = and (zipWith leq m1 m2)
 
-calcFixpoint :: FName -> TalosM BoundedStreams
-calcFixpoint entry = do
+calcFixpoint :: Fun Grammar -> TalosM BoundedStreams
+calcFixpoint entryf = do
   tinfo <- makeTyInfo
   -- We add a summary for entry so we can assume one exists in
   -- transferDecl (note thet getResultFor adds a summary if one is
   -- missing).
-  args <- map (bottomForTy tinfo . typeOf) . fParams <$> getGFun entry
-  let bsm = bottomSummary tinfo False entry args
+  let args = map (bottomForTy tinfo . typeOf) (fParams entryf)
+      bsm = bottomSummary tinfo False entry args
   
   let st0 = BSMState { bsmWorklist = Set.singleton entry
                      , bsmSummaries = Map.singleton entry bsm
@@ -156,6 +162,8 @@ calcFixpoint entry = do
       = let s' = s { bsmWorklist = wl' }
         in go tinfo =<< runBSM fn tinfo s' (transferDecl fn)
     go _ st = pure st
+
+    entry = fName entryf
 
 transferDecl :: FName -> BSM ()
 transferDecl fn = do

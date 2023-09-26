@@ -1,6 +1,8 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 -- Path set analysis
 
@@ -10,19 +12,25 @@ module Talos.Analysis.Slice
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
   , Slice'(..), Structural(..), SLoopClass(..)
+  , SHoleSize(..), staticSHoleSize, dynamicSHoleSize
   , sloopClassBody, sloopClassE, mapSLoopClassE, foldMapSLoopClassE
   ) where
 
-import           Data.Functor.Identity (Identity (..))
-import           Control.Applicative   (Const (..))
+import           Control.Applicative             (Const (..), (<|>))
+import           Control.Lens                    (Traversal', foldMapOf,
+                                                  traversal, traverseOf, mapped, (%~), (*~), traversed)
+import           Data.Functor.Identity           (Identity (..))
+import           Data.Sequence                   (Seq)
+import qualified Data.Sequence                   as Seq
 import           Data.Set                        (Set)
 import qualified Data.Set                        as Set
 
 import           Control.DeepSeq                 (NFData)
 import           GHC.Generics                    (Generic)
+import           Data.Generics.Labels            ()
 
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
 
 import           Daedalus.Core
 import           Daedalus.Core.Free
@@ -30,6 +38,7 @@ import           Daedalus.Core.TraverseUserTypes
 
 import           Talos.Analysis.Eqv
 import           Talos.Analysis.Merge
+import Data.Foldable (toList)
 
 -- import Debug.Trace
 
@@ -94,16 +103,20 @@ summaryClassFromPreds ps = Result (Set.fromList ps)
 
 -- This is a variant of Grammar from Core
 data Slice' cn sle =
-    SHole -- Type
+  -- | A hole where we don't care about the value.  The argument is
+  -- the number of bytes that the elided grammar uses. The structure
+  -- is only used for merging, we could erase when exporting.
+    SHole (Maybe (SHoleSize, Slice' cn sle)) -- FIXME: param by the Slice'
   | SPure sle
-  --  | GetStream
-  --  | SetStream Expr
+  
+  | SGetStream
+  | SSetStream sle
+  | SEnd 
 
   -- We only really care about a byteset.
   | SMatch ByteSet
   --  | Fail ErrorSource Type (Maybe Expr)
   | SDo (Maybe Name) (Slice' cn sle) (Slice' cn sle)
-  --  | Let Name Expr Grammar
   | SChoice [Slice' cn sle] -- This gives better probabilities than nested Ors
   | SCall cn
   | SCase Bool (Case (Slice' cn sle))
@@ -120,7 +133,67 @@ data Slice' cn sle =
 
   deriving (Generic, NFData)
 
--- A note on inverses.  The ides is if we have something like
+-- -----------------------------------------------------------------------------
+-- Sized holes
+--
+-- These are used to track the size of a part of a grammar for nodes
+-- with bounded streams.
+
+staticSHoleSize :: Int -> SHoleSize
+staticSHoleSize n = SHoleSize n mempty
+
+dynamicSHoleSize :: Name -> SHoleSize -> SHoleSize
+dynamicSHoleSize n mult =
+  SHoleSize { shsStatic = 1
+            , shsDynamic = Seq.singleton expr
+            }
+  where
+    expr = SHoleSizeExpr { shseSeq = n , shseMult = mult }
+    
+data SHoleSize = SHoleSize
+  { shsStatic  :: Int
+  , shsDynamic :: Seq SHoleSizeExpr
+  } deriving (Generic, NFData, Eq, Ord)
+
+-- | This summarises size information of a slice, allowing us to
+-- avoid merging slices.
+data SHoleSizeExpr = SHoleSizeExpr
+  { shseSeq  :: Name -- The length of this times the shseMult
+  , shseMult :: SHoleSize
+  } deriving (Generic, NFData, Eq, Ord)
+
+sHoleSizeNameT :: Traversal' SHoleSize Name
+sHoleSizeNameT = traversal go
+  where
+    go :: Applicative f => (Name -> f Name) -> SHoleSize -> f SHoleSize
+    go f = traverseOf (#shsDynamic . traversed) (goE f)
+    goE :: Applicative f => (Name -> f Name) -> SHoleSizeExpr -> f SHoleSizeExpr    
+    goE f shse = SHoleSizeExpr <$> f (shseSeq shse) <*> go f (shseMult shse)
+
+addSHoleSize :: SHoleSize -> SHoleSize -> SHoleSize
+addSHoleSize sh1 sh2 = SHoleSize
+  { shsStatic  = shsStatic sh1 + shsStatic sh2
+  , shsDynamic = shsDynamic sh1 <> shsDynamic sh2
+  }
+
+scaleSHoleSize :: Int -> SHoleSize -> SHoleSize
+scaleSHoleSize k =
+  (#shsStatic *~ k)
+  . (#shsDynamic . mapped %~ scaleSHoleSizeExpr k)
+
+scaleSHoleSizeExpr :: Int -> SHoleSizeExpr -> SHoleSizeExpr
+scaleSHoleSizeExpr k = #shseMult %~ scaleSHoleSize k
+
+-- | Smart SDo constructor which constructs compound holes where
+-- possible.
+sDo :: Maybe Name -> Slice' cn sle -> Slice' cn sle -> Slice' cn sle
+-- If m_x is free in rhs then the lhs can't be a hole.
+sDo m_x (SHole (Just (shs1, sl1))) (SHole (Just (shs2, sl2))) =
+  SHole (Just (addSHoleSize shs1 shs2, SDo m_x sl1 sl2))
+sDo m_x lhs rhs = SDo m_x lhs rhs
+    
+
+-- A note on inverses.  The idea is if we have something like
 --
 -- def F y = {
 --   x = UInt8 # UInt8 # UInt8 # UInt 8
@@ -204,7 +277,7 @@ data SLoopClass sle b =
 
   | SMorphismLoop (LoopMorphism' sle b)
   -- ^ A 'LoopMorphism', where the structure is determined by the collection.
-  deriving (Generic, NFData)
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
 
 sloopClassBody :: SLoopClass sle b -> b
 sloopClassBody lc =
@@ -249,11 +322,15 @@ foldMapSLoopClassE ef af lc = m
 instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
   eqv l r =
     case (l, r) of
-      (SHole {}, SHole {}) -> True
+      (SHole {}, SHole {}) -> True -- The sizes should be the same
       (SHole {}, _)         -> False
       (_       , SHole {}) -> False
 
       (SPure e, SPure e')  -> eqv e e' -- FIXME: needed?
+      (SGetStream, SGetStream) -> True
+      (SSetStream e, SSetStream e') -> eqv e e'
+      (SEnd, SEnd) -> True
+      
       (SMatch {}, SMatch {}) -> True
       (SDo _ l1 r1, SDo _ l2 r2)  -> (l1, r1) `eqv` (l2, r2)
       (SChoice ls, SChoice rs)       -> ls `eqv` rs
@@ -266,11 +343,26 @@ instance (Eqv cn, PP cn, Eqv sle, PP sle) => Eqv (Slice' cn sle) where
 instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
   merge l r =
     case (l, r) of
-      (SHole {}, _)                  -> r
-      (_       , SHole {})           -> l
+      -- Filling in holes.
+      
+      -- Pick the first non-Nothing, we should never have Just for
+      -- both (we can only create 1 bounded-stream slice)
+      (SHole m_le, SHole m_re)            -> SHole (m_le <|> m_re)
+      (SHole Nothing, _)                  -> r
+      (_       , SHole Nothing)           -> l      
+      -- These are those nodes which create a wrapped hole.
+      (SHole (Just (_, str)), _) -> merge str r
+      (_, SHole (Just (_, str))) -> merge l str
+
+      -- Non-holes
       (SPure e, SPure e')            -> SPure (merge e e')
+      (SGetStream, SGetStream)       -> SGetStream
+      (SSetStream e, SSetStream e')  -> SSetStream (merge e e')
+      (SEnd, SEnd)                   -> SEnd
+      
       (SDo x1 slL1 slR1, SDo _x2 slL2 slR2) ->
-        SDo x1 (merge slL1 slL2) (merge slR1 slR2)
+        -- Handle compound sized hole construction.
+        sDo x1 (merge slL1 slL2) (merge slR1 slR2)
       (SMatch {}, SMatch {})         -> l
 
       (SChoice cs1, SChoice cs2)     -> SChoice (zipWith merge cs1 cs2)
@@ -279,6 +371,7 @@ instance (Merge cn, PP cn, Merge sle, PP sle) => Merge (Slice' cn sle) where
 
       (SLoop lc, SLoop lc')          -> SLoop (merge lc lc')
       (SInverse {}, SInverse{})      -> l
+      
       _                              -> panic "Mismatched terms in merge"
                                               ["Left", showPP l, "Right", showPP r]
 
@@ -325,11 +418,20 @@ instance FreeVars Structural where
   freeVars = mempty
   freeFVars = mempty
 
+instance FreeVars SHoleSize where
+  freeVars = foldMapOf sHoleSizeNameT freeVars
+  freeFVars = foldMapOf sHoleSizeNameT freeFVars
+
 instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
   freeVars sl =
     case sl of
-      SHole {}       -> mempty
+      SHole e        -> freeVars e -- FIXME: we can probably ignore
+                                   -- the slice in this node as the
+                                   -- size should have the same frees.
       SPure   v      -> freeVars v -- FIXME: ignores fset, which night not be what we want
+      SGetStream     -> mempty
+      SSetStream e   -> freeVars e
+      SEnd           -> mempty
       SDo m_x l r    -> freeVars l `Set.union` maybe id Set.delete m_x (freeVars r)
       SMatch m       -> freeVars m
       SChoice cs     -> foldMap freeVars cs
@@ -340,9 +442,12 @@ instance (FreeVars cn, FreeVars sle) => FreeVars (Slice' cn sle) where
 
   freeFVars sl =
     case sl of
-      SHole {}       -> mempty
+      SHole e        -> freeFVars e
       SDo _x l r     -> freeFVars l `Set.union` freeFVars r
       SPure v        -> freeFVars v
+      SGetStream     -> mempty
+      SSetStream e   -> freeFVars e
+      SEnd           -> mempty
       SMatch m       -> freeFVars m
       SChoice cs     -> foldMap freeFVars cs
       SCall cn       -> freeFVars cn
@@ -374,11 +479,17 @@ instance (FreeVars sle, FreeVars b) => FreeVars (SLoopClass sle b) where
 instance TraverseUserTypes Structural where
   traverseUserTypes _f s = pure s
 
+instance TraverseUserTypes SHoleSize where
+  traverseUserTypes f = traverseOf sHoleSizeNameT (traverseUserTypes f)
+
 instance (TraverseUserTypes cn, TraverseUserTypes sle) => TraverseUserTypes (Slice' cn sle) where
   traverseUserTypes f sl =
     case sl of
-      SHole            -> pure SHole
+      SHole e          -> SHole <$> traverseUserTypes f e
       SPure v          -> SPure <$> traverseUserTypes f v
+      SGetStream       -> pure sl
+      SSetStream e     -> SSetStream <$> traverseUserTypes f e
+      SEnd             -> pure sl
       SDo x l r        -> SDo  <$> traverseUserTypes f x
                                <*> traverseUserTypes f l
                                <*> traverseUserTypes f r
@@ -412,12 +523,29 @@ instance (TraverseUserTypes sle, TraverseUserTypes b) =>
 --   ppPrec n (CallInstance { callParams = ps, callSlice' = sl }) =
 --     wrapIf (n > 0) $ pp ps <+> "-->" <+> pp sl
 
+instance PP SHoleSize where
+  pp shs
+    | shsStatic shs == 1, Seq.null (shsDynamic shs) = "1"
+    | otherwise = stat <> dyn
+    where
+      stat | shsStatic shs == 1 = mempty
+           | otherwise      = pp (shsStatic shs) <+> "*"
+      dyn | Seq.null (shsDynamic shs) = mempty
+          | [x] <- toList (shsDynamic shs) = pp x
+          | otherwise = parens (hsep (punctuate "+" (map pp (toList $ shsDynamic shs))))
+
+instance PP SHoleSizeExpr where
+  pp shse = pp (shseSeq shse) <+> "*" <+> pp (shseMult shse)
+      
 -- c.f. PP Grammar
 instance (PP cn, PP sle) => PP (Slice' cn sle) where
   pp sl =
     case sl of
-      SHole          -> "□"
+      SHole sz       -> "□" <> maybe mempty (parens . pp . fst) sz
       SPure e        -> "pure" <+> ppPrec 1 e
+      SGetStream     -> "getStream"
+      SSetStream e   -> "setStream" <+> pp e
+      SEnd           -> "end"
       SMatch e       -> "match" <+> pp e
       SDo  {}        -> "do" <+> ppStmts' sl
       SChoice cs     -> "choice" <> block "{" "," "}" (map pp cs)

@@ -164,14 +164,20 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) []
 stratSlice :: ExpSlice -> SymbolicM Result
 stratSlice = go
   where
+    unimplemented = panic "Unimplemented" []
+    
     go sl =  do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
-        SHole -> pure (MV.VUnit, SelectedHole)
+        SHole m_shs -> pure (MV.VUnit, SelectedHole)
 
         SPure e -> do
           let mk v = (v, SelectedHole)
           mk <$> synthesiseExpr e
+
+        SGetStream -> unimplemented
+        SSetStream {} -> unimplemented
+        SEnd -> unimplemented
 
         SDo m_x lsl rsl -> do
           let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go lsl)

@@ -138,31 +138,27 @@ removeUnitsB bs =
   
 nameMatchResultsM :: (Monad m, HasGUID m) => Module -> m Module
 nameMatchResultsM m = do
-  gfuns' <- mapM nameMatchResultsGFun (mGFuns m)
+  gfuns' <- mapM (traverse nameMatchResultsG) (mGFuns m)
   pure (m { mGFuns = gfuns' })
 
-nameMatchResultsGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
-nameMatchResultsGFun fu =
-  case fDef fu of
-    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameMatchResultsG True g
-    _     -> pure fu
-
-nameMatchResultsG :: (Monad m, HasGUID m) => Bool -> Grammar -> m Grammar
-nameMatchResultsG _isTop gram = do
-  gram' <- childrenG (nameMatchResultsG False) gram
-  nameRHS True gram' -- FIXME: this always introduces a new variable
-  -- case gram' of
-  --   Do x (Match SemYes (MatchBytes arr)) rhs -> bindMatch x arr <$> nameRHS True rhs
-  --   Do_ lhs rhs -> Do_ lhs <$> nameRHS True rhs
-  --   _ -> nameRHS isTop gram'
-
-  where
-    -- create a new variable if we are in a Match
-    nameRHS isTop' gram' =
-      case gram' of
-        Match SemYes (MatchBytes arr) | isTop' -> do
+nameMatchResultsG :: (Monad m, HasGUID m) => Grammar -> m Grammar
+nameMatchResultsG gram = do
+  gram' <- childrenG nameMatchResultsG gram
+  -- This constructs either
+  --   Match "xs"; ^ "xs"
+  -- or
+  --   let x = e in (Match x; ^ x)
+  --
+  -- depending on whether the argument to Match is has constant length
+  -- or not.  Note that this duplicates expressions (in the ArrayL case)
+  case gram' of
+    Match SemYes (MatchBytes arr)
+      | Ap0 (ByteArrayL {}) <- arr -> pure (mk arr)
+      | ApN (ArrayL {}) _   <- arr -> pure (mk arr)
+      | otherwise -> do
           x <- freshNameSys (typeOf arr) -- should be TArray (TUInt (TSize 8))
-          pure (bindMatch x arr (Pure (Var x)))
-        _ -> pure gram'
-
-    bindMatch x arr rhs = Let x arr $ Do_ (Match SemNo (MatchBytes (Var x))) rhs
+          pure (Let x arr (mk (Var x)))
+    _ -> pure gram'
+    
+  where
+    mk arr = Do_ (Match SemNo (MatchBytes arr)) (Pure arr)
