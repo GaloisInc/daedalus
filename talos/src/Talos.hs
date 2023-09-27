@@ -11,6 +11,10 @@ module Talos (
   -- * Useful helpers
   runDaedalus,
   ProvenanceMap, -- XXX: should do this properly 
+  -- * Polyglot analysis
+  findCavities,
+  ppAbstractStates,
+  ppLoc,
   ) where
 
 import qualified Colog.Core                   as Log
@@ -51,6 +55,10 @@ import           Talos.Strategy
 import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 import Data.Text (Text)
+
+import           Talos.Polyglot.AbstractState (ppAbstractStates)
+import           Talos.Polyglot.Location      (ppLoc)
+import           Talos.Polyglot.FindCavities  (findCavities)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }

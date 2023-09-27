@@ -108,6 +108,34 @@ data CFGNode =
   | CCase (Case NodeID)
   | CLoop (Maybe Name) (LoopClass' Expr NodeID) NodeID
 
+instance PP CFGModule where
+  pp CFGModule {..} = braces . vcat $ rows
+    where
+      rows :: [Doc]
+      rows = map (\(fname, fun) -> pp fname <+> text "->" <+> pp fun) (Map.toList cfgFuns)
+
+instance PP CFGFun where
+  pp CFGFun{..} = braces . vcat $ header:rows
+    where
+      header = pp cfgfunName <+> text "|" <+> pp cfgfunEntry <+> text "->" <+> pp cfgfunExit
+      rows = map (\(nodeID, node) -> pp nodeID <+> text "->" <+> pp node) (Map.toList cfgfunCFG)
+
+instance PP CFGNode where
+  pp (CSimple (Just name) simpleNode nextID) = pp name <+> text "=" <+> (parens . pp) simpleNode <+> text "->" <+> pp nextID
+  pp (CSimple Nothing simpleNode nextID)     = pp simpleNode <+> text "->" <+> pp nextID
+  pp CFail                                   = text "FAIL"
+  pp (COr b left right)                      = text "OR" <+> (text . show) b <+> pp left <+> pp right
+  pp (CCase cases)                           = text "CASE" <+> (parens . pp) cases
+  pp (CLoop (Just name) loop nextID)         = text "LOOP" <+> pp name <+> text "=" <+> (parens . pp) loop <+> text "->" <+> pp nextID
+  pp (CLoop Nothing loop nextID)             = text "LOOP" <+> (parens . pp) loop <+> text "->" <+> pp nextID
+
+instance PP CFGSimpleNode where
+  pp (CPure expr) = text "PURE" <+> (parens . pp) expr
+  pp CGetStream   = text "GET_STEAM"
+  pp (CSetStream expr) = text "SET_STEAM" <+> (parens . pp) expr
+  pp (CMatch sem match) = text "MATCH" <+> parens (ppMatch sem match)
+  pp (CCall name exprs) = text "CALL" <+> pp name <+> (parens . hcat) (map pp exprs)
+
 -- ----------------------------------------------------------------------------------------
 -- Workers
 
