@@ -526,17 +526,22 @@ instance (TraverseUserTypes sle, TraverseUserTypes b) =>
 instance PP SHoleSize where
   pp shs
     | shsStatic shs == 1, Seq.null (shsDynamic shs) = "1"
-    | otherwise = stat <> dyn
+    | otherwise = stat <> mult <> dyn
     where
+      mult | shsStatic shs == 1 || Seq.null (shsDynamic shs) = mempty
+           | otherwise = " * "
       stat | shsStatic shs == 1 = mempty
-           | otherwise      = pp (shsStatic shs) <+> "*"
+           | otherwise      = pp (shsStatic shs)
       dyn | Seq.null (shsDynamic shs) = mempty
           | [x] <- toList (shsDynamic shs) = pp x
           | otherwise = parens (hsep (punctuate "+" (map pp (toList $ shsDynamic shs))))
 
 instance PP SHoleSizeExpr where
-  pp shse = pp (shseSeq shse) <+> "*" <+> pp (shseMult shse)
-      
+  pp shse = pp (shseSeq shse) <> ppMult (shseMult shse)
+    where
+      ppMult m | shsStatic m == 1, Seq.null (shsDynamic m) = mempty
+               | otherwise = " *" <+> pp (shseMult shse)
+            
 -- c.f. PP Grammar
 instance (PP cn, PP sle) => PP (Slice' cn sle) where
   pp sl =

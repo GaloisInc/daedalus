@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -39,7 +40,7 @@ import           Daedalus.Core                  hiding (leq)
 import           Daedalus.Core.CFG              (NodeID, pattern WithNodeID)
 import           Daedalus.Core.Type             (typeOf)
 import           Daedalus.Panic                 (panic)
-import           Daedalus.PP                    (showPP)
+import           Daedalus.PP                    (showPP, PP(..), vcat)
 
 import           Talos.Monad                    (LiftTalosM, TalosM, getGFun,
                                                  getModule)
@@ -604,7 +605,7 @@ transferOp1 op1 av =
     IsNegativeZero -> other
   where
     other = pure AVOther
-    unexpected = panic "Unexpected expression" []
+    unexpected = panic "Unexpected Op1" [showPP op1, show av]
 
 -- Doesn't need to be monadic.
 transferOp2 :: Op2 -> AbsValue -> AbsValue -> BSM AbsValue
@@ -612,7 +613,7 @@ transferOp2 op2 av1 av2 =
   case op2 of
     IsPrefix -> other
     Drop     -> pure av2 -- stream is bounded if input is
-    DropMaybe -> pure av2
+    DropMaybe -> pure (AVMaybe av2)
     Take -> pure (AVStream True) 
     Eq -> other
     NotEq -> other
@@ -670,3 +671,12 @@ transferOpN opN avs =
     CallF {} -> unexpected
   where
     unexpected = panic "Unexpected expression" []
+
+-- -----------------------------------------------------------------------------
+-- Pretty printing
+
+instance PP BoundedStreams where
+  pp (BoundedStreams m) =
+    vcat [ "id:" <> pp nid <> " " <> pp inB <> " -> " <> pp outB
+         | (nid, (inB, outB)) <- Map.toList m]
+    

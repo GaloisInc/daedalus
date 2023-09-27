@@ -129,7 +129,7 @@ instance AbsEnv ae => Merge (Domain ae) where
       -- Two slices need to be merged if the environment overlaps or
       -- if they both include stream bound information.
       overlaps gs gs' = absEnvOverlaps (gsEnv gs) (gsEnv gs')
-                        || (gsBoundedStream gs && gsBoundedStream gs == gsBoundedStream gs')
+                        || (gsBoundedStream gs && gsBoundedStream gs')
 
 -- FIXME: does this satisfy the laws?  Maybe for a sufficiently
 -- general notion of equality?
@@ -246,24 +246,17 @@ collectDomainBoundedHoles nid mkSlice doms
     m_gss = traverse fst doms'
     doms' = fmap partitionDomainForBounded doms
 
-boundedTransition :: AbsEnv ae => NodeID -> (Bool, Bool) -> Domain ae -> Domain ae
-boundedTransition nid (inBounded, outBounded) d
+boundedTransition :: AbsEnv ae => NodeID -> Bool -> Domain ae -> Domain ae
+boundedTransition nid inBounded d
   -- In this case there should be exactly 1 guarded slice in elements
   -- which has gsBoundedStream set.  If this becomes closed we move
   -- the slice to closedElements otherwise it is kept in elements.
-  | outBounded && not inBounded =
-      let (gs, d') = splitOnBounded
-          gs'      = gs { gsBoundedStream = False }
+  | not inBounded, (Just gs, d') <- partitionDomainForBounded d =
+      let gs'      = gs { gsBoundedStream = False }
       in if closedGuardedSlice gs'
          then d' & #closedElements . at nid <>~ Just [ gsSlice gs' ]
-         else d  & #elements %~ (:) gs'
+         else d' & #elements %~ (:) gs'
   | otherwise = d
-  where
-    splitOnBounded =
-      let (m_gs, d') = partitionDomainForBounded d
-      in case m_gs of
-           Nothing -> panic "Missing bounded slice" []
-           Just gs -> (gs, d')
     
 -- Maps over non-closed slices
 mapSlices :: (Slice -> Slice) -> Domain ae -> Domain ae

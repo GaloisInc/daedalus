@@ -377,8 +377,8 @@ summariseCase preds nid cs = do
 summariseG :: forall ae. AbsEnv ae =>
               [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
 summariseG preds (WithNodeID nid _annots g) = do
-  bnddTransition@(inBounded, outBounded) <- getBoundedStream nid        
-  boundedTransition nid bnddTransition <$> case g of
+  (inBounded, outBounded) <- getBoundedStream nid        
+  boundedTransition nid inBounded <$> case g of
     -- When preds == [] this is emptyDomain
     Pure e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env
@@ -402,8 +402,8 @@ summariseG preds (WithNodeID nid _annots g) = do
       
     SetStream e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env
-                     -- The slice is bounded if the stream we set is.
-                     , gsBoundedStream = outBounded
+                     -- We only include SetStream if it is bounded
+                     , gsBoundedStream = True
                      , gsPred = Nothing
                      , gsSlice = SSetStream e'
                      , gsDominator = nid }
@@ -418,6 +418,7 @@ summariseG preds (WithNodeID nid _annots g) = do
       | p <- preds ] ++ [ bnddHole 1 | inBounded ]
       
     Match _ (MatchBytes e)
+      | not inBounded -> pure emptyDomain
       | Ap0 (ByteArrayL v) <- e ->
           pure (singletonDomain (bnddHole (BS.length v)))
       | ApN (ArrayL _) es  <- e ->
@@ -458,9 +459,9 @@ summariseG preds (WithNodeID nid _annots g) = do
 
       let (bnddD, doms') = collectDomainBoundedHoles nid SChoice doms
       
-      if all closedDomain doms' && closedDomain bnddD
+      if all closedDomain doms'
         then pure (foldl merge bnddD doms')
-        else pure (bnddD `merge` collapseDoms preds nid SChoice doms)
+        else pure (bnddD `merge` collapseDoms preds nid SChoice doms')
 
     Call fn args  -> summariseCall preds nid inBounded fn args
     Annot {}      -> unexpected

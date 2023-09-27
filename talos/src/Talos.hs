@@ -51,6 +51,8 @@ import           Talos.Strategy
 import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 import Data.Text (Text)
+import Talos.Analysis.BoundedStreams (boundedStreams)
+import Control.Monad.IO.Class (liftIO)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -71,8 +73,12 @@ summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
   let invs = makeDeclInvs (mGFuns md) (mFFuns md)
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
-  putStrLn "Slices"
-  summs <- runTalosM md nguid mempty mempty (A.summarise p)
+  putStrLn "Bounded status"
+  summs <- runTalosM md nguid mempty mempty $ do
+    bndstrm <- boundedStreams
+    liftIO $ print (pp bndstrm)
+    liftIO $ putStrLn "Slices"    
+    A.summarise p
   
   pure (bullets (map goF (Map.toList summs)))
   where
