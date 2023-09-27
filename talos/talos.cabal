@@ -68,6 +68,9 @@ library
                      , Talos.Passes.LiftExpr
                      , Talos.Passes.NoBytesPatterns
 
+                     , Talos.Polyglot.FindCavities
+                     , Talos.Polyglot.AbstractState
+
                      , Talos
                      -- , Machine
   build-depends:       base
