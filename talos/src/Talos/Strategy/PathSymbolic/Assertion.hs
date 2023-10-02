@@ -42,9 +42,11 @@ toSExpr assn =
     PSAssert ps -> PS.toSExpr ps
     BoolAssert b -> SMT.bool b
     BAssert  b  -> B.toSExpr (toSExpr <$> b)
-    EntailAssert ps assns ->
-      PS.toSExpr ps `SMT.implies` andMany (map toSExpr (toList assns))
-
+    EntailAssert ps assns
+      | PS.trivial ps -> rhs
+      | otherwise     -> PS.toSExpr ps `SMT.implies` rhs
+      where rhs = andMany (map toSExpr (toList assns))
+      
 trivial :: Assertion -> Bool
 trivial assn =
   case assn of
@@ -75,8 +77,8 @@ instance Monoid Assertion where mempty = BoolAssert True
 
 entail :: PathSet -> Assertion -> Assertion
 entail ps a
-  | PS.trivial ps      = a
   | trivial a = mempty
+  | PS.trivial ps      = a
   | EntailAssert ps' assns <- a = EntailAssert (ps `PS.conj` ps') assns
   | otherwise            = EntailAssert ps (a :| [])
 

@@ -139,8 +139,8 @@ cfgG m_x exitN (WithNodeID inN _anns g) =
     Do_ lhs rhs   -> goDo Nothing lhs rhs
     Do  n lhs rhs -> goDo (Just n) lhs rhs
     Let n e rhs   -> do
-      rhsN <- cfgG (Just n) exitN rhs
-      emitNode (CSimple m_x (CPure e) rhsN)
+      rhsN <- cfgG m_x exitN rhs
+      emitNode (CSimple (Just n) (CPure e) rhsN)
 
     OrBiased lhs rhs   -> goOr True lhs rhs
     OrUnbiased lhs rhs -> goOr False lhs rhs

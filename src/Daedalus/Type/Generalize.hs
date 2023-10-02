@@ -38,7 +38,8 @@ generalize ds =
   do -- Simplify constraints.
      -- Includes adding definitions for "inferred" type defintitions.
      (lcs,tds,ds1) <- simpCtrs ds
-     -- Check no left-over mono types
+
+     -- Check no left-over mono types, or HasUnion on newly defined types.
      cs <- forM lcs \lc ->
               case thingValue lc of
                 IsNamed _ -> reportDetailedError lc
@@ -47,6 +48,12 @@ generalize ds =
                                                     "need a concrete type."
                   , "Please use a type annotation to specify it."
                   ]
+                HasUnion ty l _
+                  | TCon c _ <- ty
+                  , c `Map.member` tds ->
+                      reportDetailedError lc
+                        ("Type does not have tag" <+> backticks (pp l))
+                        [ "Problem type:" <+> pp ty ]
                 x         -> pure x
 
      -- Since we don't have local definitions there should be no free

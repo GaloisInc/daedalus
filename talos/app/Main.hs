@@ -115,6 +115,7 @@ doSynthesis opts = do
       , logFile         = optLogOutput opts
       , debugKeys       = optDebugKeys opts
       , statsFile       = optStatsOutput opts
+      , problemFile     = optProblemFilePfx opts
       , statsKeys       = optStatsKeys opts
       }
       

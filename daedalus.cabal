@@ -120,7 +120,7 @@ library
                        mtl >= 2.3.1,
                        monadLib >= 3.10.1,
                        panic,
-                       parameterized-utils >= 2.0.1,
+                       parameterized-utils >= 2.1.7,
                        pretty-hex >= 1.1,
                        template-haskell >= 2.15,
                        ansi-terminal,

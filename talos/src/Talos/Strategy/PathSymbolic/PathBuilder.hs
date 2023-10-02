@@ -38,18 +38,22 @@ import           GHC.Generics                          (Generic)
 import qualified SimpleSMT                             as S
 import           Text.Printf                           (printf)
 
-import           Daedalus.Core                         (pattern TByte, Typed (..))
+import           Daedalus.Core                         (Typed (..),
+                                                        pattern TByte)
 import qualified Daedalus.Core.Semantics.Env           as I
 import qualified Daedalus.Core.Semantics.Expr          as I
 import           Daedalus.Panic
 import           Daedalus.PP                           (PP, braces, bullets,
-                                                        commaSep, pp, text)
+                                                        commaSep, pp, showPP,
+                                                        text, Doc, vcat)
 import           Daedalus.Time                         (timeIt)
 import qualified Daedalus.Value                        as I
 
 import qualified Talos.Monad                           as T
-import           Talos.Monad                           (LogKey, getIEnv)
+import           Talos.Monad                           (LogKey, getIEnv,
+                                                        logProblem)
 
+import           Talos.Analysis.Exported               (SliceId)
 import           Talos.Lib                             (andMany)
 import           Talos.Path
 import           Talos.Solver.ModelParser              (evalModelP, pExact,
@@ -69,6 +73,7 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar,
                                                         loopCountVarToSExpr,
                                                         pathVarToSExpr)
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
+import GHC.Stack (HasCallStack)
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -117,6 +122,15 @@ emptyModelParserState = ()
 getByteVar :: SMTVar -> ModelParserM Word8
 getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
+ppModelVars :: (PP a, PP b, Ord a) => Lens' ModelState (Map a b) -> ModelParserM Doc
+ppModelVars msLens = do
+  -- Look for a pv in the context
+  ctxt   <- view (#mpeModelContext . msLens)
+  solv   <- view (#mpeSolverModel . msLens)
+
+  let m = Map.union ctxt solv
+  pure (vcat [ pp k <> " -> " <> pp v | (k, v) <- Map.toList m ])
+    
 getModelVar :: Ord a => Lens' ModelState (Map a b) -> a -> ModelParserM b
 getModelVar msLens pv = do
   -- Look for a pv in the context
@@ -381,12 +395,15 @@ timed key m = do
   T.statistic (pathKey <> key) (Text.pack $ printf "%.3fms" (fromInteger t / 1000000 :: Double))
   pure r
 
-buildPaths :: Int -> Maybe Int -> SymbolicModel -> PathBuilder ->
+buildPaths :: Int -> Maybe Int -> SliceId -> SymbolicModel -> PathBuilder ->
               SolverT StrategyM [SelectedPath]
-buildPaths ntotal _nfails sm pb = do
+buildPaths ntotal _nfails sid sm pb = do
   timed "assert" $ do
     mapM_ Solv.assert (smAsserts sm)
     Solv.flush
+
+  ctxt <- Solv.getContext
+  logProblem pathKey (showPP sid) (concatMap (flip S.ppSExpr "\n") (Solv.contextToSExprs ctxt))
 
   r <- timed "check" Solv.check
   case r of
@@ -540,14 +557,19 @@ loopNonEmpty m_lv m = do
     -- singleton case, we need to record and move on.
     else m
     
-buildPathChoice :: PathChoiceBuilder PathBuilder ->
+buildPathChoice :: HasCallStack =>
+                   PathChoiceBuilder PathBuilder ->
                    ModelParserM (PathIndex SelectedPath)
 buildPathChoice (ConcreteChoice i p) = PathIndex i <$> buildPath p
 buildPathChoice (SymbolicChoice pv ps) = do
   i <- getPathVar pv
-  let p = case lookup i ps of
-            Nothing  -> panic "Missing choice" []
-            Just p'  -> p'
+  p <- case lookup i ps of
+         Nothing  -> do
+           mP <- ppModelVars #msPathVars
+           mL <- ppModelVars #msLoopCounts
+           
+           panic "Missing choice" [showPP pv <> " = " <> show i, show mP, show mL]
+         Just p'  -> pure p'
   PathIndex i <$> buildPath p
 
 -- -----------------------------------------------------------------------------

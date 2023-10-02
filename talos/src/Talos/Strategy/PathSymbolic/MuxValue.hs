@@ -602,7 +602,7 @@ baseValuesPatterns pv vl vs hasAny ty bvs =
     sa    = sgo . S.const <$> sb
 
     svs   = map (vlToSExpr vl ty) vs
-    sgo s = A.BAssert $ B.branching (dflt s ++ imap (\i v -> (pvIs i, A.SExprAssert (S.eq s v))) svs)
+    sgo s = A.BAssert $ B.branching True (dflt s ++ imap (\i v -> (pvIs i, A.SExprAssert (S.eq s v))) svs)
     dflt s | hasAny    = [ (pvIs (length vs), A.SExprAssert (S.distinct (s : svs))) ]
            | otherwise = []
            
@@ -1256,9 +1256,9 @@ semiExecEmit new (vsm, els)
       let minLen = vsmMinLength vsm
           (pfx, rest) = splitAt minLen els
           mkNew i old =
-            muxMuxValues $ B.branching [ (PS.loopCountEqConstraint lcv i, new)
-                                       , (PS.loopCountGtConstraint lcv i, old)
-                                       ]
+            muxMuxValues $ B.branching False [ (PS.loopCountEqConstraint lcv i, new)
+                                             , (PS.loopCountGtConstraint lcv i, old)
+                                             ]
           newels  = zipWith mkNew [minLen ..] rest
       newsz <- nameLoopCountVar (S.bvAdd (PS.loopCountVarToSExpr lcv) (symExecInt sizeType 1))
       let vsm' = vsm { vsmLoopCountVar = Just newsz
@@ -1388,7 +1388,7 @@ semiExecArrayIndex ixs (_vsm, els) = do
     mksym sexp = do
       -- FIXME: not exactly a loop count here (is a loop index, same type)
       sv <- nameSExprForSideCond sizeType sexp
-      pure $ B.branching $ zipWith (\i el -> (PS.indexConstraint sv i, el)) [0..] els
+      pure $ B.branching False {- ??? -} $ imap (\i el -> (PS.indexConstraint sv i, el)) els
 
 -- semiExecOp3 :: SemiCtxt m => Op3 -> Type -> Type ->
 --                GuardedSemiSExprs -> GuardedSemiSExprs -> GuardedSemiSExprs ->

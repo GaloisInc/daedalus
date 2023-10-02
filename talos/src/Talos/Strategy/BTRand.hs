@@ -23,7 +23,7 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.Core.Type              (typeOf)
 import qualified Daedalus.Value                  as I
 
-import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice)
+import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice, SliceId)
 import           Talos.Analysis.Slice
 import           Talos.Monad                     (getIEnv)
 import           Talos.Strategy.DFST
@@ -56,7 +56,7 @@ randDFS =
         , siFun   = mkgen c
         }
 
-    mkgen c = \ptag sl -> StratGen $ lift $ do
+    mkgen c = \ptag _sid sl -> StratGen $ lift $ do
       rs <- go (cNModels c) [] ptag sl
       pure (rs, Nothing)
 
@@ -108,8 +108,8 @@ randRestart =
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randRestartStrat ptag sl = trivialStratGen . lift $ go restartBound
+randRestartStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
+randRestartStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -139,8 +139,8 @@ randMaybeT =
     name  = "rand-restart-local-bt"
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
-randMaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
+randMaybeStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
+randMaybeStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do

@@ -5,7 +5,7 @@
 -- A branching thing
 
 module Talos.Strategy.PathSymbolic.Branching
-  ( Branching(..)
+  ( Branching -- (..)
   -- * Constructors
   , singleton  
   , branching
@@ -39,7 +39,8 @@ import           Data.Foldable                       (foldl', foldlM)
 import qualified Data.List                           as List
 import           Data.Map.Strict                     (Map)
 import qualified Data.Map.Strict                     as Map
-import           Data.Maybe                          (mapMaybe)
+import           Data.Maybe                          (isJust, mapMaybe)
+import qualified Data.Maybe                          as Maybe
 import           GHC.Generics                        (Generic)
 import           Prelude                             hiding (null, unzip,
                                                       unzip3)
@@ -62,36 +63,39 @@ import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
 -- remove one when converting to an if-then-else SMT expression, as
 -- the negation of the remaining branches should entail the elided
 -- branch.
-newtype Branching a = Branching
-  { variants :: [ (PathSet, a) ]
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+data Branching a = Branching
+  { total :: Bool -- ^ If at least one path is satisfiable (at most one is).
+  , variants :: [ (PathSet, a) ]
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
 
 instance Applicative Branching where
-  pure v = Branching { variants = [(PS.true, v)] }
+  pure v = Branching { total = True, variants = [(PS.true, v)] }
   (<*>) = ap
 
 instance MonadFail Branching where
-  fail _ = Branching []
+  fail _ = Branching { total = False, variants = [] }
 
 -- Essentially 'join', we could use this structure to optimise
 -- e.g. query size.
 instance Monad Branching where
   b >>= f =
-    branching [ (PS.conj ps1 ps2, v)
-              | (ps1, w) <- variants b
-              , (ps2, v) <- variants (f w)
-              ]
+    let (tots, vs) = Prelude.unzip 
+          [ (total b', (PS.conj ps1 ps2, v))
+          | (ps1, w) <- variants b
+          , let b' = f w
+          , (ps2, v) <- variants b'
+          ]
+    in branching (or (total b : tots)) vs
     
 singleton :: a -> Branching a
 singleton = pure
 
--- | Smart constructor, prunes false pathsets
-branching :: [(PathSet, a)] -> Branching a
-branching = Branching . filter (not . PS.null . fst) 
+-- | Smart constructor, prunes unsatisfiable pathsets
+branching :: Bool -> [(PathSet, a)] -> Branching a
+branching isTotal = Branching isTotal  . filter (not . PS.null . fst) 
 
 empty :: Branching a
-empty = Branching []
+empty = Branching True []
   
 -- | An empty branching is denoted as False
 null :: Branching a -> Bool
@@ -100,11 +104,12 @@ null = Prelude.null . variants
 -- For debugging/checking.  Note the empty branching does not satisfy
 -- this.
 invariant :: Branching a -> S.SExpr
-invariant b = andMany atMostOneTrue
+invariant b = andMany (atLeastOneTrue : atMostOneTrue)
   where
     -- FIXME: name these.
     ps = map (PS.toSExpr . fst) (variants b)
-    -- atLeastOneTrue = orMany ps
+    atLeastOneTrue | total b   = S.orMany ps
+                   | otherwise = S.bool True
     atMostOneTrue =
       [ ps' `S.implies` S.not (andMany pss)
       | (ps', pss) <- holes [] [] ps ] 
@@ -119,8 +124,10 @@ invariant b = andMany atMostOneTrue
 
 -- Standard operations
 
+-- | Combines two branching structures where the pathsets are
+-- disjoint.  This discards totality, so prefer other combinators
 disjointUnion :: Branching a -> Branching a -> Branching a
-disjointUnion b1 b2 = branching (variants b1 <> variants b2)
+disjointUnion b1 b2 = branching False (variants b1 <> variants b2)
 
 fold :: (PathSet -> a -> b -> b) -> b -> Branching a -> b
 fold f i b = foldl' (\a' (ps, a) -> f ps a a') i (variants b)
@@ -139,12 +146,14 @@ fold1M f Branching { variants = (_, v) : vs } =
   foldlM (\a' (ps, a) -> f ps a a') v vs
 
 catMaybes :: Branching (Maybe a) -> Branching a
-catMaybes b = branching $ mapMaybe sequence (variants b) -- sequence :: (a, Maybe b) -> Maybe (a, b)
+catMaybes b = branching (total b && allJust) $ mapMaybe sequence (variants b) -- sequence :: (a, Maybe b) -> Maybe (a, b)
+  where
+    allJust = all (isJust . snd) (variants b)
 
 -- FIXME: duplicates the pathsets
 unzip :: Branching (a, b) -> (Branching a, Branching b)
-unzip b = ( branching (zip pss vs1)
-          , branching (zip pss vs2)
+unzip b = ( branching (total b) (zip pss vs1)
+          , branching (total b) (zip pss vs2)
           )
   where
     (pss, vs)  = Prelude.unzip (variants b)
@@ -152,9 +161,9 @@ unzip b = ( branching (zip pss vs1)
 
 -- FIXME: duplicates pathsets
 unzip3 :: Branching (a, b, c) -> (Branching a, Branching b, Branching c)
-unzip3 b = ( branching (zip pss vs1)
-           , branching (zip pss vs2)
-           , branching (zip pss vs3)
+unzip3 b = ( branching (total b) (zip pss vs1)
+           , branching (total b) (zip pss vs2)
+           , branching (total b) (zip pss vs3)
            )
   where
     (pss, vs)  = Prelude.unzip (variants b)
@@ -162,18 +171,20 @@ unzip3 b = ( branching (zip pss vs1)
 
 -- Does not duplicate
 partitionEithers :: Branching (Either a b) -> (Branching a, Branching b)
-partitionEithers b = (branching ls, branching rs)
+partitionEithers b = ( branching (total b && Prelude.null rs) ls
+                     , branching (total b && Prelude.null ls) rs)
   where
     (ls, rs) = Either.partitionEithers [ either (Left . (,) p) (Right . (,) p) v
                                        | (p, v) <- variants b ]
 
 mapVariants :: (PathSet -> a -> Maybe (PathSet, a)) -> Branching a -> Branching a
-mapVariants f bvs = branching new
+mapVariants f bvs = branching (total bvs && allJust) (Maybe.catMaybes news)
   where
-    new = mapMaybe (uncurry f) (variants bvs)
+    news = map (uncurry f) (variants bvs)
+    allJust = all isJust news
 
 muxMaps :: Ord k => Branching (Map k v) -> Map k (Branching v)
-muxMaps bmv = branching <$> ms'
+muxMaps bmv = branching (total bmv && Map.size ms' == 1) <$> ms'
   where
   ms' = Map.unionsWith (<>) [ List.singleton . (,) ps <$> m' | (ps, m') <- variants bmv ]
 
@@ -190,8 +201,36 @@ select :: Branching a -> Maybe a
 select b | (_, x) : _ <- variants b = Just x
          | otherwise = Nothing
 
+-- We can do some optimisations here to make the result easier to
+-- read.  If we know the result is total we can produce a bunch of
+-- implications, and we can special case e.g. on singletons and where
+-- the elements are all true/false.
 toSExpr :: Branching S.SExpr -> S.SExpr
-toSExpr = fold (S.ite . PS.toSExpr) (S.bool False)
+toSExpr b
+  | [(ps, v)] <- variants b = handleSingleton ps v
+  -- prefer this to disjMany (msp PS.toSExpr poss) as it allows to
+  -- combine the paths more intelligently (if we ever choose to do
+  -- so).
+  | Just poss <- collectPos = PS.toSExpr (PS.disjMany poss)
+  | total b = andMany [ PS.toSExpr ps `S.implies` v
+                      | (ps, v) <- variants b, v /= S.bool True
+                      ]
+  | otherwise = fold (S.ite . PS.toSExpr) (S.bool False) b
+  where
+    handleSingleton ps v
+      | total b           = v    
+      | PS.trivial ps     = v -- maybe entailed by (total b)?
+      | v == S.bool False = v -- RHS is 'false'
+      | v == S.bool True  = PS.toSExpr ps
+      | otherwise         = S.and (PS.toSExpr ps) v
+
+    -- Collect all the positive (i.e., true on the RHS) paths, failing
+    -- if we see a non-constant value.
+    collectPos = mconcat <$> traverse collectOnePos (variants b) 
+    collectOnePos (p, bse)
+      | bse == S.bool True  = Just [p]
+      | bse == S.bool False = Just []
+      | otherwise = Nothing
 
 -- -----------------------------------------------------------------------------
 -- Instances
