@@ -77,8 +77,8 @@ instance Monoid Assertion where mempty = BoolAssert True
 
 entail :: PathSet -> Assertion -> Assertion
 entail ps a
-  | PS.trivial ps      = a
   | trivial a = mempty
+  | PS.trivial ps      = a
   | EntailAssert ps' assns <- a = EntailAssert (ps `PS.conj` ps') assns
   | otherwise            = EntailAssert ps (a :| [])
 
