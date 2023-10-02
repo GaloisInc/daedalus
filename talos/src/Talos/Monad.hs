@@ -42,6 +42,7 @@ data TalosMState  = TalosMState
   -- Logging and Statistics
   , tmStatAction :: !(Log.LogAction TalosM (LogKey, Statistic))
   , tmLogAction  :: !(Log.LogAction TalosM (LogKey, (LogLevel, String)))
+  , tmLogProblemAction :: !(Log.LogAction TalosM (LogKey, (String, String)))
     -- GUIDs
   , tmNextGUID  :: !GUID
   }
@@ -53,22 +54,25 @@ newtype TalosM a =
 runTalosStream :: Functor f => Module -> GUID ->
                   Log.LogAction TalosM (LogKey, Statistic) ->
                   Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+                  Log.LogAction TalosM (LogKey, (String, String)) ->
                   S.Stream f TalosM r ->
                   S.Stream f IO r
-runTalosStream md nguid statsact logact strm =
-  evalStateT (S.distribute (S.hoist getTalosM strm)) (emptyTalosMState md nguid statsact logact)
+runTalosStream md nguid statsact logact problemact strm =
+  evalStateT (S.distribute (S.hoist getTalosM strm)) (emptyTalosMState md nguid statsact logact problemact)
 
 runTalosM :: Module -> GUID ->
              Log.LogAction TalosM (LogKey, Statistic) ->
              Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+             Log.LogAction TalosM (LogKey, (String, String)) ->             
              TalosM a -> IO a
-runTalosM md nguid statsact logact m = evalStateT (getTalosM m) (emptyTalosMState md nguid statsact logact)
+runTalosM md nguid statsact logact problemact m = evalStateT (getTalosM m) (emptyTalosMState md nguid statsact logact problemact)
 
 emptyTalosMState :: Module -> GUID ->
                     Log.LogAction TalosM (LogKey, Statistic) ->
                     Log.LogAction TalosM (LogKey, (LogLevel, String)) ->
+                    Log.LogAction TalosM (LogKey, (String, String)) ->
                     TalosMState
-emptyTalosMState md nguid statsact logact = TalosMState
+emptyTalosMState md nguid statsact logact logproblemact = TalosMState
   { tmModule    = md
   -- Derived from the module
   , tmFunDefs   = funDefs
@@ -76,6 +80,7 @@ emptyTalosMState md nguid statsact logact = TalosMState
   , tmIEnv      = env0
   , tmStatAction = statsact
   , tmLogAction  = logact
+  , tmLogProblemAction = logproblemact
   , tmNextGUID  = nguid
   }
   where
@@ -146,9 +151,14 @@ logMessage lvl key msg = liftTalosM $ do
   action <- TalosM $ gets tmLogAction
   action Log.<& (key, (lvl, msg))
 
+logProblem :: LiftTalosM m => LogKey -> String -> String -> m ()
+logProblem key sid msg = liftTalosM $ do
+  action <- TalosM $ gets tmLogProblemAction
+  action Log.<& (key, (sid, msg))
+ 
 debug, info, warning :: LiftTalosM m => LogKey -> String -> m ()
-debug   = logMessage Info 
-info    = logMessage Debug 
+debug   = logMessage Debug
+info    = logMessage Info 
 warning = logMessage Warning 
 
 -- -----------------------------------------------------------------------------

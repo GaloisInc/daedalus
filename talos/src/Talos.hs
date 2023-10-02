@@ -15,22 +15,23 @@ module Talos (
 
 import qualified Colog.Core                   as Log
 import           Control.Monad                (forM_, unless, when)
+import           Control.Monad.IO.Class       (liftIO)
 import           Data.ByteString              (ByteString)
 import           Data.IORef                   (modifyIORef', newIORef,
                                                readIORef, writeIORef)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe, isJust)
 import           Data.String                  (fromString)
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
 import           Data.Version
 import qualified SimpleSMT                    as SMT
 import qualified Streaming                    as S
 import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush,
-                                               hPutStr, hPutStrLn, openFile,
-                                               stderr)
+import           System.IO                    (IOMode (..), hFlush, hPutStr,
+                                               hPutStrLn, openFile, stderr)
 import qualified Text.ParserCombinators.ReadP as RP
 import           Text.ParserCombinators.ReadP (readP_to_S)
-import qualified Data.Text as Text
 
 import           Daedalus.AST                 (nameScopeAsModScope)
 import           Daedalus.Core
@@ -45,12 +46,12 @@ import           Data.Functor.Of              (Of)
 import qualified Talos.Analysis               as A
 import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
 import           Talos.Analysis.Monad         (makeDeclInvs)
-import           Talos.Monad                  (runTalosM, runTalosStream, LogKey, logKeyEnabled, getLogKey)
+import           Talos.Monad                  (LogKey, getLogKey, logKeyEnabled,
+                                               runTalosM, runTalosStream)
 import           Talos.Passes
+import           Talos.Path                   (ProvenanceMap)
 import           Talos.Strategy
-import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
-import Data.Text (Text)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -72,7 +73,7 @@ summarise inFile m_invFile m_entry verbosity noLoops absEnv = do
   putStrLn "Inverses"
   print (pp <$> Map.keys invs)
   putStrLn "Slices"
-  summs <- runTalosM md nguid mempty mempty (A.summarise p)
+  summs <- runTalosM md nguid mempty mempty mempty (A.summarise p)
   
   pure (bullets (map goF (Map.toList summs)))
   where
@@ -126,6 +127,7 @@ data SynthesisOptions = SynthesisOptions
   , debugKeys       :: [String]           -- ^ Keys for logging debug messages
   , statsFile       :: Maybe FilePath     -- ^ Output file for stats
   , statsKeys       :: [String]           -- ^ Keys for stats
+  , problemFile     :: Maybe FilePath     -- ^ Output file(s) for SMT problems
   , smtLogFile      :: Maybe FilePath     -- ^ SMT logging file  
   }
 
@@ -169,11 +171,12 @@ synthesise SynthesisOptions { .. } = do
   
   withLogStringFileMaybe logFile Log.logStringStdout $ \logact ->
     withLogStringFileMaybe statsFile mempty $ \statsact -> do
-    let strm = T.synthesise seed solver absty stratInsts mainRule
-        logact'   = Log.cmapMaybe logAction logact
-        statsact' = Log.cfilter (keyCFilter (map Text.pack statsKeys)) (Log.cmap ppStat statsact)
-        
-    pure (runTalosStream md nguid statsact' logact' strm)
+      withLogStringFilePrefix problemFile mempty $ \problemact -> do
+        let strm = T.synthesise seed solver absty stratInsts mainRule
+            logact'    = Log.cmapMaybe logAction logact
+            statsact'  = Log.cfilter (keyCFilter (map Text.pack statsKeys)) (Log.cmap ppStat statsact)
+            problemact' = Log.cfilter (const True) problemact
+        pure (runTalosStream md nguid statsact' logact' problemact' strm)
 
   where
     -- We have a lazy stream which persists after the call returns, so
@@ -182,6 +185,13 @@ synthesise SynthesisOptions { .. } = do
     withLogStringFileMaybe (Just fn) _dlft f = do
       hdl <- openFile fn WriteMode
       f (Log.logStringHandle hdl <> Log.logFlush hdl)
+
+    withLogStringFilePrefix Nothing dflt f = f dflt
+    withLogStringFilePrefix (Just pfx) _dflt f = do
+      let mkName sid = pfx <> sid
+          -- FIXME: We ignore keys here.
+          act (_key, (sid, msg)) = liftIO (writeFile (mkName sid) msg)
+      f (Log.LogAction act)
 
     logAction (key, (lvl, msg))
       -- Always produce debug output if the key was requested
@@ -193,7 +203,8 @@ synthesise SynthesisOptions { .. } = do
         msg' = "[" <> show lvl <> "] " <> Text.unpack (getLogKey key) <> " " <> msg
 
     ppStat (key, stat) = Text.unpack (getLogKey key) <> " " <> Text.unpack stat
-        
+
+    
 -- Passes on only those keys that are prefixed by one of the argument
 -- keys
 keyCFilter :: [Text] -> (LogKey, a) -> Bool

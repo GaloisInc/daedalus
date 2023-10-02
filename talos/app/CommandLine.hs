@@ -32,7 +32,8 @@ data Options =
           , optDDLEntry   :: Maybe String
           , optStrategy   :: Maybe [String]
           , optInvFile    :: Maybe FilePath
-          , optStatsFile  :: Maybe FilePath          
+          , optStatsFile  :: Maybe FilePath
+          , optProblemFilePfx :: Maybe FilePath          
           , optAnalysisKind :: Maybe String
           , optVerbosity :: Int
           , optNoLoops :: Bool
@@ -68,6 +69,12 @@ statsFileOpt = strOption
      <> metavar "FILE"
      <> help "Write statistics to FILE" )
 
+problemFileOpt :: Parser String
+problemFileOpt = strOption
+   ( long "save-problems"
+     <> metavar "FILE"
+     <> help "Write SMT problems to FILE<slice-id>" )
+
 statsKeyOpt :: Parser String
 statsKeyOpt = strOption
    ( long "stats-key"
@@ -78,7 +85,7 @@ statsKeyOpt = strOption
 smtLogOpt :: Parser FilePath
 smtLogOpt = strOption
    ( long "smt-log"
-     <> metavar "File"
+     <> metavar "FILE"
      <> help "Write smt log to FILE" )
 
 validateModelFlag :: Parser Bool
@@ -198,7 +205,8 @@ options = Options <$> solverOpt
                   <*> optional entryOpt
                   <*> optional (some strategyOpt)
                   <*> optional invFileOpt
-                  <*> optional statsFileOpt                  
+                  <*> optional statsFileOpt
+                  <*> optional problemFileOpt                  
                   <*> optional analysisKindOpt
                   <*> (length <$> many verbosityOpt)
                   <*> noLoopsOpt

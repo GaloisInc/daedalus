@@ -21,7 +21,7 @@ module Talos.Solver.SolverT (
   getValue, getValues, getModel,
   -- * Context management
   SolverContext, SolverFrame, getContext, restoreContext,
-  freshContext, collapseContext, extendContext, instantiateSolverFrame,
+  freshContext, collapseContext, extendContext, instantiateSolverFrame, contextToSExprs,
   substSExpr,
   scoped,
   -- * Context management
@@ -208,6 +208,19 @@ collapseContext (SolverContext fs)
       pure (fr { frCommands = foldMap frCommands fs' })
   where
     fs' = filter (not . nullSolverFrame) fs
+
+-- | This should match what was/will be sent to the solver.
+contextToSExprs :: SolverContext -> [SExpr]
+contextToSExprs (SolverContext frames) =
+  concatMap ( (++ [ S.List [S.const "push"] ]) . frameToSExprs ) frames
+
+frameToSExprs :: SolverFrame -> [SExpr]
+frameToSExprs sf = map go (toList $ frCommands sf)
+  where
+    go (QCAssert se) = S.fun "assert" [se]
+    go (QCDeclare v ty) = S.fun "declare-fun" [S.const v, S.List [], ty]
+    go (QCDefine  v ty body) = S.fun "define-fun" [S.const v,  S.List [], ty, body]
+
 
 -- | This makes all the variables in the solver frame fresh, so that
 -- we can use it multiple times.

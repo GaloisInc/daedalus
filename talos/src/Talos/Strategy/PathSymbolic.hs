@@ -45,6 +45,7 @@ import           Talos.Analysis.Slice
 import qualified Talos.Monad                             as T
 
 import           Talos.Lib                               (tByte)
+import           Talos.Monad                             (debug)
 import           Talos.Path
 import           Talos.Solver.SolverT                    (contextSize,
                                                           declareName,
@@ -115,9 +116,11 @@ configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
 -- FIXME: define all types etc. eagerly
 symbolicFun :: Config ->
                ProvenanceTag ->
+               SliceId -> 
                ExpSlice ->
                StratGen
-symbolicFun config ptag sl = StratGen $ do
+symbolicFun config ptag sid sl = StratGen $ do
+  debug pathKey $ "Generating models for " <> showPP sid
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -132,7 +135,7 @@ symbolicFun config ptag sl = StratGen $ do
     T.statS (pathKey <> "modelsize") sz
     
     let go ((_, pb), sm) = do
-          rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
+          rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm pb
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
 
