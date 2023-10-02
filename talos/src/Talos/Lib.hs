@@ -35,12 +35,16 @@ findM f = go . toList
 -- simple-smt
 
 orMany :: [SExpr] -> SExpr
-orMany [x] = x
-orMany xs  = S.orMany xs
+orMany = go . filter ((/=) (S.bool False))
+  where
+    go [x] = x
+    go xs  = S.orMany xs
 
 andMany :: [SExpr] -> SExpr
-andMany [x] = x
-andMany xs  = S.andMany xs
+andMany = go . filter ((/=) (S.bool True))
+  where
+    go [x] = x
+    go xs  = S.andMany xs
 
 tByte :: SExpr
 tByte = S.tBits 8

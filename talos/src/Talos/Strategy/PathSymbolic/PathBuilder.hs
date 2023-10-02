@@ -45,7 +45,7 @@ import qualified Daedalus.Core.Semantics.Expr          as I
 import           Daedalus.Panic
 import           Daedalus.PP                           (PP, braces, bullets,
                                                         commaSep, pp, showPP,
-                                                        text)
+                                                        text, Doc, vcat)
 import           Daedalus.Time                         (timeIt)
 import qualified Daedalus.Value                        as I
 
@@ -73,6 +73,7 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar,
                                                         loopCountVarToSExpr,
                                                         pathVarToSExpr)
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
+import GHC.Stack (HasCallStack)
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -121,6 +122,15 @@ emptyModelParserState = ()
 getByteVar :: SMTVar -> ModelParserM Word8
 getByteVar symB = I.valueToByte <$> getValueVar (Typed TByte symB)
 
+ppModelVars :: (PP a, PP b, Ord a) => Lens' ModelState (Map a b) -> ModelParserM Doc
+ppModelVars msLens = do
+  -- Look for a pv in the context
+  ctxt   <- view (#mpeModelContext . msLens)
+  solv   <- view (#mpeSolverModel . msLens)
+
+  let m = Map.union ctxt solv
+  pure (vcat [ pp k <> " -> " <> pp v | (k, v) <- Map.toList m ])
+    
 getModelVar :: Ord a => Lens' ModelState (Map a b) -> a -> ModelParserM b
 getModelVar msLens pv = do
   -- Look for a pv in the context
@@ -545,14 +555,19 @@ loopNonEmpty m_lv m = do
     -- singleton case, we need to record and move on.
     else m
     
-buildPathChoice :: PathChoiceBuilder PathBuilder ->
+buildPathChoice :: HasCallStack =>
+                   PathChoiceBuilder PathBuilder ->
                    ModelParserM (PathIndex SelectedPath)
 buildPathChoice (ConcreteChoice i p) = PathIndex i <$> buildPath p
 buildPathChoice (SymbolicChoice pv ps) = do
   i <- getPathVar pv
-  let p = case lookup i ps of
-            Nothing  -> panic "Missing choice" [showPP pv, "Index: " <> show i]
-            Just p'  -> p'
+  p <- case lookup i ps of
+         Nothing  -> do
+           mP <- ppModelVars #msPathVars
+           mL <- ppModelVars #msLoopCounts
+           
+           panic "Missing choice" [showPP pv <> " = " <> show i, show mP, show mL]
+         Just p'  -> pure p'
   PathIndex i <$> buildPath p
 
 -- -----------------------------------------------------------------------------
