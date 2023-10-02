@@ -34,7 +34,7 @@ import           Daedalus.Core
 import           Daedalus.Core.CFG          (NodeID, pattern WithNodeID)
 import           Daedalus.Core.Type         (typeOf)
 import           Daedalus.Panic             (panic)
-import           Daedalus.PP                (showPP)
+import           Daedalus.PP                
 
 import           Data.Proxy                 (Proxy)
 import           Talos.Analysis.AbsEnv
@@ -456,7 +456,7 @@ summariseG preds (WithNodeID nid _annots g) = do
     --
     Choice _biased gs -> do
       doms <- mapM (summariseG preds) gs
-
+  
       let (bnddD, doms') = collectDomainBoundedHoles nid SChoice doms
       
       if all closedDomain doms'
@@ -480,12 +480,12 @@ summariseG preds (WithNodeID nid _annots g) = do
       { gsEnv = env
       , gsBoundedStream = True
       , gsPred = m_p
-        -- For non-compound nodes, we ignore the inner hole so this
-        -- should be OK (we could also have an error to check.)
       , gsSlice = sl
       , gsDominator = nid
       }
 
+    -- For non-compound nodes, we ignore the inner hole so this should
+    -- be OK (we could also have an error to check.)
     bnddHole :: Int -> GuardedSlice ae
     bnddHole sz = bnddSlice absEmptyEnv Nothing
                   (SHole (Just (staticSHoleSize sz, SHole Nothing)))
@@ -529,12 +529,7 @@ summariseBind preds nid m_x lhs rhs = do
 
   -- fn <- currentDeclName
   -- when (showPP fn == "Main") $
-  -- logMessage 3 ("** Summarising bind in " ++ showPP fn ++ "\n" ++
-  --               show (nest 4 $ pp (Do x lhs rhs)) ++
-  --               "\n" ++ show (hang ("lhsD: " <> brackets (commaSep (map pp preds'))) 4 (pp lhsD)) ++
-  --               "\n" ++
-  --               show (hang "lhs" 4 (bullets (map pp lhsMatching))) ++ "\n" ++
-  --               show (hang "final" 4 (pp final)))
+  debug summaryKey . show $ "Bind at" <+> pp nid <+> pp final
 
   pure final --  (indepLHSD `merge` indepRHSD `merge` domainFromElements els)
 

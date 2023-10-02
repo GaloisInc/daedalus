@@ -324,7 +324,7 @@ type Slice = Slice' CallNode SLExpr
 -- Class instances
 
 instance AbsEnv ae => PP (GuardedSlice ae) where
-  pp gs = vcat [ pp (gsEnv gs)
+  pp gs = vcat [ (if gsBoundedStream gs then "(bounded)" else mempty) <> pp (gsEnv gs)
                , "For" <+> brackets (maybe " (non-result) " pp (gsPred gs))
                , pp (gsSlice gs)  ]
 
