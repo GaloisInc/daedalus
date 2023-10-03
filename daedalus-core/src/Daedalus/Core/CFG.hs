@@ -190,7 +190,7 @@ cfgG m_x exitN (WithNodeID inN _anns g) =
     goOr biased lhs rhs = do
       lN <- cfgG m_x exitN lhs
       rN <- cfgG m_x exitN rhs
-      emitNode (COr biased lN rN) $> lN -- Ignore id of Do, use the id of the first non-do in the AST.
+      emitNode (COr biased lN rN)
       
     simple n = emitNode (CSimple m_x n exitN)
     emitNode node = tell (Map.singleton inN node) $> inN
