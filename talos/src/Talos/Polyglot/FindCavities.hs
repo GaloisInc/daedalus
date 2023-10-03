@@ -162,25 +162,39 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
 -- reaching a fixpoint.  Calls `error` if "Main" doesn't exist.
 findCavities :: Module -> CFGModule -> [Loc]
 findCavities m cfgm = 
-  let states = analyze_ initialState in
+  let states  = analyze_ initialState initialWorklist in
     findCavityReadLocs states `debug` (show $ ppAbstractStates states)
   where
-    initialState = Map.singleton ([], getMainEntrypoint cfgm) emptyAbstractState
-    -- globalCFGMap = Map.foldl (\acc f -> Map.union acc (cfgfunCFG f)) Map.empty cfgFuns
+    entrypoint = ([], getMainEntrypoint cfgm)
+    initialWorklist = [entrypoint]
+    initialState = Map.singleton entrypoint emptyAbstractState
+    cfState = PolyglotReaderState{cfModule=m, cfCFGModule=cfgm}
+
+    globalCFGMap = Map.foldl (\acc f -> Map.union acc (cfgfunCFG f)) Map.empty (cfgFuns cfgm)
+    isExitNode (_, nodeID) = not $ Map.member nodeID globalCFGMap
+
 
     -- Do the fixpoint.
-    analyze_ states =
+
+    -- TODO(cns): Pick up here.  Add a worklist for efficiency and so it's more
+    -- obvious what's happening at each step.
+
+    analyze_ :: AbstractStates -> [(CallStack, Loc)] -> AbstractStates
+    analyze_ states worklist =
       let 
-          cfState       = PolyglotReaderState{cfModule=m, cfCFGModule=cfgm}
-          toProcess     = map (\(loc, state) -> interpret loc state) (Map.toList states)
+          toProcess     = map (\loc -> interpret loc $ states Map.! loc) worklist `debug` (show $ text "WORKLIST" <+> (hsep $ map ppStackLoc worklist))
           newStatesList = runPolyglotReader (sequence toProcess) cfState 
-          newStates     = foldl mergeAbstractStates Map.empty (states:newStatesList)
+          newStates     = foldl mergeAbstractStates Map.empty newStatesList
           newStates'    = replaceExitNodes newStates  
+          changedStates = Map.filterWithKey (\k state ->
+              (not $ Map.member k states) || state /= states Map.! k
+            ) newStates'
+          newWorklist   = Map.keys $ Map.filterWithKey (\(_, loc) _ -> not . isExitNode $ loc) changedStates
           in
-      if states == newStates' then 
-        states
+      if null newWorklist then 
+        states `debug` (show $ text "DONE")
       else
-        analyze_ newStates'
+        analyze_ (mergeAbstractStates states changedStates) newWorklist
 
     -- Handle transition from function exit nodes back to callsites.
     replaceExitNodes :: AbstractStates -> AbstractStates
@@ -188,17 +202,14 @@ findCavities m cfgm =
       let exitLocs = Set.fromList $ map (\CFGFun{..} -> (cfgfunName, cfgfunExit)) (Map.elems $ cfgFuns cfgm)
           (exitStates, otherStates) = Map.partitionWithKey (\(_, loc) _ -> Set.member loc exitLocs) states
           -- For each exit node, replace it with the call site popped from the stack.
-          -- If the stack is empty, leave it for now; we'll remove those in the next step.
+          -- If the stack is empty, leave it.  This is a program exit.
           returnedStates = Map.mapKeys
             ( \(stack, loc) -> case stack of
               callsite:locs -> (locs, callsite)
               _ -> (stack, loc) -- At exit with no call stack: Leave for now, we'll remove these later.
             ) exitStates
-          -- Remove any remaining exit nodes.  These are program exits and cannot
-          -- be further processed.
-          returnedStates' = Map.filterWithKey (\(_, loc) _ -> not $ Set.member loc exitLocs) returnedStates
       in
-      mergeAbstractStates otherStates returnedStates'
+      mergeAbstractStates otherStates returnedStates
 
     -- Find NodeIDs that that contain themselves in their read frontiers.
     findCavityReadLocs :: AbstractStates -> [Loc]
