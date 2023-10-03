@@ -378,7 +378,7 @@ summariseG :: forall ae. AbsEnv ae =>
               [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
 summariseG preds (WithNodeID nid _annots g) = do
   (inBounded, outBounded) <- getBoundedStream nid        
-  boundedTransition nid inBounded <$> case g of
+  boundedTransition nid inBounded outBounded <$> case g of
     -- When preds == [] this is emptyDomain
     Pure e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env
@@ -581,7 +581,7 @@ summariseMany preds nid inBounded sem _bt lb m_ub g = do
       -- reason).  For str to be StructureIndependent, the number of
       -- elements cannot impact the rest of the synthesis.  If we are
       -- in a bounded stream, we do not pool (although maybe we could).
-      | str == StructureIndependent && not inBounded = GuardedSlice
+      | str == StructureIndependent = GuardedSlice
         { gsEnv = env
         , gsBoundedStream = inBounded
         , gsSlice = SLoop (SLoopPool sem sl)
@@ -596,7 +596,8 @@ summariseMany preds nid inBounded sem _bt lb m_ub g = do
         , gsDominator = nid
         }
       where
-        str = structureFromLoopBody m_pred env
+        str = max (structureFromLoopBody m_pred env)
+                  (if inBounded then StructureDependent else StructureIndependent)
 
     (envlb, slb) = absPre absPredTop lb
     m_env_ub = absPre absPredTop <$> m_ub
