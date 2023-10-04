@@ -29,6 +29,8 @@ module Talos.Strategy.PathSymbolic.Branching
   , muxMaps
   , toSExpr
   , reducePS
+  -- * Optimising
+  , namePathSets
   -- * Debugging
   , invariant
   ) where
@@ -52,7 +54,7 @@ import           Daedalus.PP                         (PP, pp, vcat)
 
 import           Talos.Lib                           (andMany, findM)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
-import           Talos.Strategy.PathSymbolic.PathSet (PathSet)
+import           Talos.Strategy.PathSymbolic.PathSet (PathSet, PathVar)
 
 -- FIXME: maybe rep. as a tree
 -- data Branching a = Leaf (PathSet, a) | Conj PathSet [Branching a]
@@ -232,6 +234,25 @@ toSExpr b
       | bse == S.bool False = Just []
       | otherwise = Nothing
 
+-- -----------------------------------------------------------------------------
+-- Optimising
+
+-- | Names all the pathsets in a branching so that duplication
+-- (e.g. via unzip) is cheaper.
+namePathSets :: PathVar -> Branching a -> (Int, Branching PathSet, Branching a)
+namePathSets pv b = (length (variants b), named, newb)
+  -- FIXME: there are 2 equivalent ways of representing the nameing branching:
+  --   p1 --> pv = 0; p2 --> pv = 1; ...
+  -- and
+  --  pv = 0 --> p1; pv = 1 --> p2; ...
+  --
+  -- we should expeirment to see which is faster in the solver.  The
+  -- first option is total, so we will default to that.
+  where
+    -- turns [ (ps1, v1), (ps2, v2), ... ] into
+    -- [ (pv = 0, (ps1, v1)), (pv = 1, (ps2, v2)), ... ] and then unzips the resulting branching.
+    (named, newb) = unzip (branching True (zip (map (PS.choiceConstraint pv) [9..]) (variants b)))
+    
 -- -----------------------------------------------------------------------------
 -- Instances
 

@@ -244,15 +244,32 @@ makeNicerSym pfx = do
 pathVarSort :: SMT.SExpr
 pathVarSort = SMT.tInt
 
-freshPathVar :: Int -> SymbolicM PathVar
-freshPathVar bnd = do
-  n <- makeNicerSym "c"
-  sym <- liftSolver $ Solv.declareSymbol n pathVarSort
+constrainPathVar :: PathVar -> Int -> SymbolicM ()
+constrainPathVar (PathVar sym) bnd = do
   -- The symbol only makes sense with these bounds, hence the global
   -- assertion (without this we can get e.g. negative indicies)
   assertGlobalSExpr $ SMT.and (SMT.leq (SMT.int 0) (SMT.const sym))
                               (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
-  pure (PathVar sym)
+
+-- Here because we do low-level pathvar stuff.
+namePathSets :: Branching a -> SymbolicM (Branching a)
+namePathSets b = do
+  n <- makeNicerSym "pvN"
+  pv <- PathVar <$> liftSolver (Solv.declareSymbol n pathVarSort)
+  -- FIXME: check if the branching pathsets are sufficiently
+  -- complicated to make this worthwhile.  
+  let (bnd, assn, r) = B.namePathSets pv b
+  constrainPathVar pv bnd
+  recordChoice pv [0 .. bnd - 1]
+  assert (A.BAssert (A.PSAssert <$> assn))
+  pure r
+
+freshPathVar :: Int -> SymbolicM PathVar
+freshPathVar bnd = do
+  n <- makeNicerSym "c"
+  pv <- PathVar <$> liftSolver (Solv.declareSymbol n pathVarSort)
+  constrainPathVar pv bnd
+  pure pv
 
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
 freshLoopCountVar lb ub = do
@@ -302,7 +319,7 @@ handleUnreachable m =
   (Just <$> m) `catchError` hdl
   where
     hdl () = assert (A.BoolAssert False) $> Nothing
-
+  
 -- Handles assertions and failure as well.
 branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
 branching b = do
