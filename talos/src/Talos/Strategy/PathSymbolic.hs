@@ -13,9 +13,9 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                            (_2, imap, over,
+import           Control.Lens                            (_3, imap, over, 
                                                           preview)
-import           Control.Monad                           (join, mapAndUnzipM, unless)
+import           Control.Monad                           (join, unless)
 import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
@@ -59,11 +59,11 @@ import qualified Talos.Strategy.PathSymbolic.Branching   as B
 import           Talos.Strategy.PathSymbolic.Monad
 import qualified Talos.Strategy.PathSymbolic.MuxValue    as MV
 import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
-                                                          VSequenceMeta (..))
+                                                          VSequenceMeta (..), SymbolicStream)
 import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
-import Talos.Monad (debug)
+import Data.Functor (($>))
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -131,11 +131,11 @@ symbolicFun config ptag sid sl = StratGen $ do
   -- by e.g. memoSearch
   scoped $ do
     let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res_sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice sl)
+    (m_res_sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag (stratSlice Nothing sl)
     sz <- contextSize
     T.statS (pathKey <> "modelsize") sz
     
-    let go ((_, pb), sm) = do
+    let go ((_, _, pb), sm) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm pb
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
@@ -163,29 +163,42 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) []
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: ExpSlice -> SymbolicM Result
+stratSlice :: Maybe SymbolicStream -> ExpSlice -> SymbolicM Result
 stratSlice = go
   where
-    unimplemented = panic "Unimplemented" []
+    unexpected   = panic "Unexpected" []
     
-    go sl =  do
+    go m_strm sl =  do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
-        SHole m_shs -> pure (MV.VUnit, SelectedHole)
+        SHole m_shs -> do
+          m_strm' <- maybe (pure m_strm) (consumeFromStream m_strm . fst) m_shs
+          pure (MV.VUnit, m_strm', SelectedHole)
 
         SPure e -> do
-          let mk v = (v, SelectedHole)
+          let mk v = (v, m_strm, SelectedHole)
           mk <$> synthesiseExpr e
 
-        SGetStream -> unimplemented
-        SSetStream {} -> unimplemented
-        SEnd -> unimplemented
+        SGetStream -> do
+          let strm' = fromMaybe MV.unboundedStream m_strm
+          pure (MV.VStream strm', Just strm', SelectedHole)
+          
+        SSetStream e -> do
+          mv <- synthesiseExpr e
+          case preview #_VStream mv of
+            Just strm -> pure (MV.VUnit, Just strm, SelectedHole)
+            Nothing   -> unexpected
+
+        -- We assert tha the stream is empty, and return the empty
+        -- stream.  See the treatment of MatchEnd in BoundedStreams.
+        SEnd -> maybe (pure ()) (assert . MV.nullStream) m_strm
+                $> (MV.VUnit, Just MV.emptyStream, SelectedHole)
 
         SDo m_x lsl rsl -> do
-          let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go lsl)
+          let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go m_strm lsl)
 
-              goR :: PathBuilder -> SymbolicM Result
-              goR lpath = over _2 (SelectedDo lpath) <$> go rsl
+              goR :: Maybe SymbolicStream -> PathBuilder -> SymbolicM Result
+              goR m_strm' lpath = over _3 (SelectedDo lpath) <$> go m_strm' rsl
 
           bindNameInMaybe m_x goL goR
 
@@ -204,16 +217,18 @@ stratSlice = go
           assertSExpr bassn
           
           -- liftSolver check -- required?
+          m_strm' <- consumeFromStream m_strm (staticSHoleSize 1)
+          
           ptag <- asks sProvenance
-          pure (bv, SelectedBytes ptag (ByteResult sym))
+          pure (bv, m_strm', SelectedBytes ptag (ByteResult sym))
 
-        SChoice sls -> stratChoice sls Nothing --  =<< asks sCurrentSCC
+        SChoice sls -> stratChoice m_strm sls Nothing --  =<< asks sCurrentSCC
 
-        SCall cn -> stratCallNode cn
+        SCall cn -> stratCallNode m_strm cn
 
-        SCase total c -> stratCase total c Nothing -- =<< asks sCurrentSCC
+        SCase total c -> stratCase m_strm total c Nothing -- =<< asks sCurrentSCC
 
-        SLoop lc -> stratLoop lc
+        SLoop lc -> stratLoop m_strm lc
 
         SInverse n ifn p -> do
           let ty = typeOf n
@@ -223,6 +238,9 @@ stratSlice = go
           recordValue ty sym
           let n' =  MV.vSymbolicInteger (typeOf n) sym
 
+          -- FIXME
+          unless (isNothing m_strm) $ panic "Unsupported inverse in bounded stream" []
+          
           primBindName n n' $ do
             pe <- synthesiseExpr p
             assertSExpr (MV.toSExpr pe)
@@ -242,9 +260,13 @@ stratSlice = go
             -- Resolve all Names (to semisexprs and solver names)
             venv <- traverse getName fvM
             ptag <- asks sProvenance
-            pure (n', SelectedBytes ptag (InverseResult venv ifn))
+            
+            -- FIXME: the stream has to be Nothing here as we don't
+            -- support inverses in bounded streams (we could).
+            pure (n', Nothing, SelectedBytes ptag (InverseResult venv ifn))
     
-stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
+stratChoice :: Maybe SymbolicStream -> [ExpSlice] -> Maybe (Set SliceId) ->
+               SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
 --   | any hasRecCall sls = do
 --       -- Just pick randomly if there is recursion.
@@ -252,27 +274,34 @@ stratChoice :: [ExpSlice] -> Maybe (Set SliceId) -> SymbolicM Result
 --       over _2 (SelectedChoice . ConcreteChoice i) <$> stratSlice ptag sl
 --   where
 --     hasRecCall sl = not (sliceToCallees sl `Set.disjoint` sccs)
-stratChoice sls _
+stratChoice m_strm sls _
   | null sls = unreachable
   | otherwise = do
       pv <- freshPathVar (length sls)
 
-      let mk i sl = (PS.choiceConstraint pv i, over _2 ((,) i) <$> stratSlice sl)
+      let mk i sl = (PS.choiceConstraint pv i, over _3 ((,) i) <$> stratSlice m_strm sl)
       b <- branching $ B.branching True $ imap mk sls
-      v <- liftSemiSolverM (MV.mux (fst <$> b))
+      let (b_vs, b_strms, b_paths) = B.unzip3 b
+      v <- liftSemiSolverM (MV.mux b_vs)
       
-      let paths = map snd (toList b)
+      let m_strm' = MV.branchingStreams b_strms
+          paths = toList b_paths
           feasibleIxs = map fst paths
-      
+          
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
 
-      pure (v, SelectedChoice (SymbolicChoice pv paths))
+      pure (v, m_strm', SelectedChoice (SymbolicChoice pv paths))
 
-stratLoop :: SLoopClass Expr ExpSlice ->
+stratLoop :: Maybe SymbolicStream ->
+             SLoopClass Expr ExpSlice ->
              SymbolicM Result
-stratLoop lclass =
+stratLoop m_strm lclass =
   case lclass of
+    -- FIXME: is this correct?  We have two reps. of unboundedStreams,
+    -- Nothing and MV.unboundedStream but we should never see a
+    -- MV.unboundedStream by itself.
+    SLoopPool {} | Just {} <- m_strm -> streamShouldBeUnboundedErr
     SLoopPool sem b -> do
       ltag <- freshSymbolicLoopTag
       let vsm = VSequenceMeta { vsmGeneratorTag = Just ltag
@@ -282,7 +311,8 @@ stratLoop lclass =
                               }
 
       -- No need to constrain the processing of the body.
-      (v, m) <- stratSlice b
+      (v, m_strm', m) <- stratSlice Nothing b -- See comment above for why Nothing.
+      unless (isNothing m_strm') streamShouldBeUnboundedErr
 
       let xs = MV.VSequence (B.singleton (vsm, [v]))
           v' = case sem of
@@ -291,12 +321,15 @@ stratLoop lclass =
                  
           node = PathLoopGenerator ltag Nothing m
 
-      pure (v', SelectedLoop node)
+      pure (v', Nothing, SelectedLoop node) -- See above for why Nothing.
 
     -- Should be SLoopPool
     SManyLoop StructureIndependent _lb _m_ub _b ->
       panic "BUG: saw SManyLoop StructureIndependent" []
 
+    SManyLoop StructureIsNull _lb _m_ub _b
+      | Just {} <- m_strm -> streamShouldBeUnboundedErr
+      
     SManyLoop StructureIsNull lb m_ub b -> do
       ltag <- freshSymbolicLoopTag
       -- Here we can assert that the list is empty or non-empty (i.e.,
@@ -324,13 +357,15 @@ stratLoop lclass =
       
       -- We must be careful to only constrain lv when we are doing
       -- something.
-      (elv, m) <- guardAssertions (pathGuard 1) (stratSlice b)
+      (elv, m_strm', m) <- guardAssertions (pathGuard 1) (stratSlice Nothing b)
+      unless (isNothing m_strm') streamShouldBeUnboundedErr
 
       let v    = MV.VSequence (B.singleton (vsm, [elv]))
           node = PathLoopGenerator ltag (Just lv) m
 
-      pure (v, SelectedLoop node)
+      pure (v, Nothing, SelectedLoop node)
 
+    -- FIXME: special case when b is SHole (Just ...)
     SManyLoop StructureDependent lb m_ub b -> do
       -- How many times to unroll the loop
       nloops <- asks sNLoopElements
@@ -351,26 +386,31 @@ stratLoop lclass =
       lv <- freshLoopCountVar clb cub
 
       let lvv = MV.vSymbolicInteger sizeType (PS.loopCountVarToSMTVar lv)
+
       -- Assert bounds
       mkBound (\v -> op2 Leq v lvv) lb
       traverse_ (mkBound (op2 Leq lvv)) m_ub
 
-      let doOne i = guardAssertions (PS.loopCountGtConstraint lv i) (stratSlice b)
-      (els, ms) <- mapAndUnzipM doOne [0 .. cub - 1]
-
-      let vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
+      (els, m_strms, pbs) <- unrollLoop MV.VUnit (replicate cub ()) $ \_ i _ m_strm' ->
+        Just <$> guardAssertions (PS.loopCountGtConstraint lv i) (stratSlice m_strm' b)
+  
+      let m_strm' = MV.branchingStreams $ mkBranching lv clb m_strms
+          vsm = VSequenceMeta { vsmGeneratorTag = Nothing -- We don't pool dep. loops
                               , vsmLoopCountVar = Just lv
                               , vsmMinLength    = clb
                               , vsmIsBuilder    = False
                               }
           v = MV.VSequence (B.singleton (vsm, els))
-          node = PathLoopUnrolled (Just lv) ms
+          node = PathLoopUnrolled (Just lv) pbs
           
-      pure (v, SelectedLoop node)
+      pure (v, m_strm', SelectedLoop node)
 
     SRepeatLoop StructureIndependent _n _e _b ->
       panic "UNEXPECTED: StructureIndependent" []
 
+    SRepeatLoop StructureIsNull _n _e _b
+      | Just {} <- m_strm -> streamShouldBeUnboundedErr
+      
     -- In this case the body just constrains the environment, so we
     -- just need the empty/non-empty loop count (n and e shouldn't
     -- really matter).  The result for this computation should also
@@ -383,11 +423,12 @@ stratLoop lclass =
 
       -- We must be careful to only constrain lv when we are doing
       -- something.
-      (_elv, m) <- guardAssertions (PS.loopCountEqConstraint lv 1) (stratSlice b)
+      (_elv, m_strm', m) <- guardAssertions (PS.loopCountEqConstraint lv 1) (stratSlice Nothing b)
+      unless (isNothing m_strm') streamShouldBeUnboundedErr
 
       let node = PathLoopGenerator ltag (Just lv) m
 
-      pure (MV.VUnit, SelectedLoop node)
+      pure (MV.VUnit, Nothing, SelectedLoop node)
 
     -- Just unfold
     SRepeatLoop StructureDependent n e b -> do
@@ -399,26 +440,16 @@ stratLoop lclass =
 
       se <- synthesiseExpr e
 
-      -- We start from 0 so Gt works
-      let eqGuard i = PS.loopCountEqConstraint lv (i + 1)
-          -- this allows short-circuiting if we try to unfold too many
-          -- times.
-          go se' acc i
-            | i == nloops = pure (reverse acc)
-            | otherwise = do
-                m_v_pb <-
-                  guardAssertions (PS.loopCountGtConstraint lv i)
-                    $ handleUnreachable (primBindName n se' (stratSlice b))
-                case m_v_pb of
-                  Nothing -> pure (reverse acc)
-                  Just (v, pb) -> do
-                    -- these should work (no imcompatible assumptions about lv)
-                    go v (((eqGuard i, v), pb) : acc) (i + 1)
+      (svs, m_strms, pbs) <- unrollLoop se (replicate nloops ()) $ \se' i _ m_strm' ->
+        guardAssertions (PS.loopCountGtConstraint lv i)
+          $ handleUnreachable (primBindName n se' (stratSlice m_strm' b))
 
-      (vs, pbs) <- unzip <$> go se [] 0
-      let node = PathLoopUnrolled (Just lv) pbs
-      v <- liftSemiSolverM (MV.mux (B.branching False {- ??? -} $ (PS.loopCountEqConstraint lv 0, se) : vs))
-      pure (v, SelectedLoop node)
+      let m_strm' = MV.branchingStreams $ mkBranching lv 0 m_strms
+          node = PathLoopUnrolled (Just lv) pbs
+          vs' = zip (map (PS.loopCountGtConstraint lv) [0..]) (se : svs)
+          
+      v <- liftSemiSolverM (MV.mux (B.branching True vs'))
+      pure (v, m_strm', SelectedLoop node)
 
     SMorphismLoop (FoldMorphism n e lc b) -> do
       ltag <- freshSymbolicLoopTag
@@ -430,37 +461,29 @@ stratLoop lclass =
             Nothing -> panic "UNIMPLEMENTED: non-list fold" []
             Just r  -> r
       
-      let eqGuard vsm
-            | Just lv <- vsmLoopCountVar vsm = PS.loopCountEqConstraint lv
-            | otherwise = const PS.true
-          
-          goOne _mkC _vsm _se' acc [] = pure (reverse acc)
-          goOne mkC vsm se' acc ((i, el) : rest) = do
-            m_v_pb <- guardedLoopCollection vsm lc (primBindName n se' (stratSlice b)) i el
-            case m_v_pb of
-              Nothing -> pure (reverse acc)
-              Just (v, pb) -> goOne mkC vsm v (((mkC i, v), pb) : acc) rest
-                
-          go :: (VSequenceMeta, [MuxValue]) ->
-                SymbolicM (B.Branching MuxValue, (VSequenceMeta, [PathBuilder]))
+      let go :: (VSequenceMeta, [MuxValue]) ->
+                SymbolicM (B.Branching MuxValue, Maybe SymbolicStream, (VSequenceMeta, [PathBuilder]))
           go (vsm, els) = do
-            let mkC i = eqGuard vsm (i + 1)
-            (svs, pbs) <- unzip <$> goOne mkC vsm se [] (zip [0..] els)
-            let allvs = (eqGuard vsm 0, se) : svs
+            (svs, m_strms, pbs) <- unrollLoop se els $ \se' i el m_strm' -> 
+              guardedLoopCollection vsm lc (primBindName n se' (stratSlice m_strm' b)) i el
+                
             -- This check shouldn't be required (assuming minLength is
             -- correct) but this is clearer and probably more correct
-            v <- -- FIXME: check for empty branching.
-              if isNothing (vsmLoopCountVar vsm)
-              -- if we have a non-symbolic spine, the val is the last
-              then pure (B.singleton (snd (last allvs))) 
-              else pure $ B.branching False {- ??? -} (drop (vsmMinLength vsm) allvs)
-            pure (v, (vsm, pbs))
+            -- FIXME: check for empty branching.            
+            let (v, m_strm')
+                  | Just lv <- vsmLoopCountVar vsm =
+                      ( mkBranching lv (vsmMinLength vsm) (se : svs)
+                      , MV.branchingStreams (mkBranching lv (vsmMinLength vsm) m_strms) )
+                  -- if we have a non-symbolic spine, the val is the last                      
+                  | otherwise = (B.singleton (last (se : svs)), last m_strms)
+
+            pure (v, m_strm', (vsm, pbs))
             
-      (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
-      v <- liftSemiSolverM (MV.mux (join bvs'))
-      
+      (bvs', b_strms, nodes) <- B.unzip3 <$> branching (go <$> bvs)
+      v <- liftSemiSolverM (MV.mux (join bvs'))      
       let node' = PathLoopMorphism ltag nodes
-      pure (v, SelectedLoop node')
+
+      pure (v, MV.branchingStreams b_strms, SelectedLoop node')
 
     SMorphismLoop (MapMorphism lc b) -> do
       ltag <- freshSymbolicLoopTag
@@ -470,24 +493,45 @@ stratLoop lclass =
             Nothing -> panic "UNIMPLEMENTED: non-list fold" []
             Just r  -> r
       
-      let goOne _vsm acc [] = pure (reverse acc)
-          goOne vsm acc ((i, el) : rest) = do
-            m_v_pb <- guardedLoopCollection vsm lc (stratSlice b) i el
-            case m_v_pb of
-              Nothing -> pure (reverse acc)
-              Just (v, pb) -> goOne vsm ((v, pb) : acc) rest
-                
-          go :: (VSequenceMeta, [MuxValue]) ->
-                SymbolicM ((VSequenceMeta, [MuxValue]), (VSequenceMeta, [PathBuilder]))
+      let go :: (VSequenceMeta, [MuxValue]) ->
+                SymbolicM ((VSequenceMeta, [MuxValue]), Maybe SymbolicStream, (VSequenceMeta, [PathBuilder]))
           go (vsm, els) = do
-            (els', pbs) <- unzip <$> goOne vsm [] (zip [0..] els)
-            pure ((vsm, els'), (vsm, pbs))
+            (svs, m_strms, pbs) <- unrollLoop MV.VUnit els $ \_ i el m_strm' -> 
+              guardedLoopCollection vsm lc (stratSlice m_strm' b) i el
+              
+            -- This check shouldn't be required (assuming minLength is
+            -- correct) but this is clearer and probably more correct
+            -- FIXME: check for empty branching.            
+            let m_strm'
+                  | Just lv <- vsmLoopCountVar vsm =
+                      MV.branchingStreams (mkBranching lv (vsmMinLength vsm) m_strms)
+                  -- if we have a non-symbolic spine, the val is the last                      
+                  | otherwise = last m_strms
+
+            pure ((vsm, svs), m_strm', (vsm, pbs))
             
-      (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
+      (bvs', b_strms, nodes) <- B.unzip3 <$> branching (go <$> bvs)
       
       let node' = PathLoopMorphism ltag nodes
-      pure (MV.VSequence bvs', SelectedLoop node')
+      pure (MV.VSequence bvs', MV.branchingStreams b_strms, SelectedLoop node')
   where
+    streamShouldBeUnboundedErr = panic "Expected unbounded stream" []
+
+    mkBranching lv nIgnored =
+      B.branching (nIgnored == 0) . drop nIgnored . zip (map (PS.loopCountEqConstraint lv) [0..])
+
+    unrollLoop initv vs f = do
+      (els, m_strms, pbs) <- unzip3 <$> doOne m_strm initv [] (zip [0..] vs)
+      pure (els, m_strm : m_strms, pbs)
+        where
+          doOne _m_strm' _v acc [] = pure (reverse acc)
+          doOne m_strm' v acc ((i, el) : rest) = do
+            m_v_strm_pb <- f v i el m_strm'
+            case m_v_strm_pb of
+              Nothing -> pure (reverse acc)
+              Just (r, m_strm'', pb) ->
+                doOne m_strm'' r ((r, m_strm'', pb) : acc) rest
+    
     -- FIXME: this duplicates work done in mkBound (the synthesiseExpr)
     execBnd :: (NonEmpty Int -> Int) -> Expr -> SymbolicM (MuxValue, Maybe Int)
     execBnd g bnd = do
@@ -521,112 +565,60 @@ guardedLoopCollection vsm lc m i el
     bindE = primBindName (lcElName lc) el    
 
 -- c.f. stratChoice
-stratCase ::  Bool -> Case ExpSlice -> Maybe (Set SliceId) -> SymbolicM Result
-stratCase _total cs@(Case n pats) _m_sccs
+stratCase :: Maybe SymbolicStream ->
+             Bool -> Case ExpSlice -> Maybe (Set SliceId) ->
+             SymbolicM Result
+stratCase m_strm _total cs@(Case n pats) _m_sccs
   | null pats = unreachable
   | otherwise = do
       v <- getName n
       pv <- freshPathVar (length pats)
       
       let (assn, missing) = MV.semiExecPatterns v pv (map fst (casePats cs))
+      assert assn
 
       unless (null missing) $ do
         debug pathKey $ "Case on " <> showPP n <> " missing " <> show (commaSep (map pp (toList missing)))
           <> ": " <> show (MV.ppMuxValue v)
       
       let go i sl | i `elem` missing = unreachable -- short-circuit, maybe tell the user?
-                  | otherwise = over _2 ((,) i) <$> stratSlice sl
+                  | otherwise = over _3 ((,) i) <$> stratSlice m_strm sl
           mk i (_pat, sl) = (PS.choiceConstraint pv i, go i sl)
           
       b <- branching $ B.branching True $ imap mk pats
-      rv <- liftSemiSolverM (MV.mux (fst <$> b))
+      let (b_vs, b_strms, b_paths) = B.unzip3 b
+      rv <- liftSemiSolverM (MV.mux b_vs)
       
-      let paths = map snd (toList b)
+      let m_strm' = MV.branchingStreams b_strms
+          paths = toList b_paths
           feasibleIxs = map fst paths
-      
-      assert assn
 
       -- FIXME: we are pretending that we are a choice
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
       
-      pure (rv, SelectedCase (SymbolicChoice pv paths))
-  
-  -- (alts, preds) <- liftSemiSolverM (MV.semiExecCase cs)
-  -- -- liftIO $ printf "Length alts is %d\n\t%s\n" (length alts)
-  -- --                 (show $ commaSep [ pp p <> " => " <> pp vmr | (p, vmr) <- preds ])
-  -- let mk1 (gs, (pat, a)) = guardedCase gs pat (stratSlice a)
-  -- case m_sccs of
-  --   Just sccs
-  --     | any (hasRecCall sccs . snd . snd) alts -> do
-  --         -- In this case we just pick a random alt (and maybe
-  --         -- backtrack at some point?).  We ignore preds, as we assert
-  --         -- that the alt is reachable.
+      pure (rv, m_strm', SelectedCase (SymbolicChoice pv paths))
 
-  --         -- FIXME(!): this is incomplete
-  --         (v, (_pat, pb)) <- putMaybe . mk1 =<< randL alts
-  --         pure (v, SelectedCase (ConcreteCase pb))
-
-  --   _ -> do
-  --     stag <- freshSymbolicCaseTag
-
-  --     (vs, paths) <- unzip . catMaybes <$> mapM mk1 alts
-
-  --     v <- hoistMaybe (MV.unions' vs)
-  --     -- liftIO $ print ("case " <> pp (caseVar cs) <> " " <> block "[" "," "]" (map (pp . length . MV.guardedValues) vs)
-  --     --                 <> " ==> " <> pp (length (MV.guardedValues v))
-  --     --                 <> pp (text . typedThing <$> snd (head (MV.guardedValues v))))
-
-  --     -- preds here is a list [(PathCondition, SExpr)] where the PC is the
-  --     -- condition for the value, and the SExpr is a predicate on when
-  --     -- that value is enabled (matches some guard).  We require that at
-  --     -- least 1 alternative is enabled, so we assert the disjunction of
-  --     -- (g <-> s) for (g,s) in preds.  We could also assert the
-  --     -- conjunction of (g --> s), which does not assert that the guard
-  --     -- holds (only that the enabling predicate holds when that value is
-  --     -- enabled).
-
-  --     liftIO $ printf "Case on %s: %d -> %d\n" (showPP (caseVar cs)) (length (MV.guardedValues inv)) (length (MV.guardedValues v))
-
-  --     enabledChecks preds
-  --     recordCase stag (caseVar cs) [ (pcs, pat) | (pcs, (pat, _)) <- alts ]
-
-  --     pure (v, SelectedCase (SymbolicCase stag inv paths))
-
-  -- where
-  --   enabledChecks preds = do
-  --     --  | total     = pure ()
-  --     -- FIXME: Is it OK to omit this if the case is total?      
-  --     --  | otherwise = do
-  --         let preds' = over (each . _1) PS.toSExpr preds
-  --             patConstraints =
-  --               MV.andMany ([ g `sImplies` c | (g, SymbolicMatch c) <- preds' ]
-  --                           ++ [ S.not g | (g, NoMatch) <- preds' ])
-
-  --         oneEnabled <- case [ g | (g, vmr) <- preds', vmr /= NoMatch ] of
-  --                         [] -> do
-  --                           inv <- getName (caseVar cs)
-  --                           liftIO $ putStrLn ("No matches " ++ showPP cs ++ "\nValue\n"
-  --                                              ++ showPP (text . typedThing <$> inv)
-  --                                              ++ "\n" ++ show preds')
-  --                           infeasible
-  --                         ps -> pure (MV.orMany ps)
-
-  --         assertSExpr oneEnabled
-  --         assertSExpr patConstraints
-
-  --   hasRecCall sccs = \sl -> not (sliceToCallees sl `Set.disjoint` sccs)
-
--- FIXME: this is copied from BTRand
-stratCallNode :: ExpCallNode ->
+stratCallNode :: Maybe SymbolicStream ->
+                 ExpCallNode ->
                  SymbolicM Result
-stratCallNode cn = do
+stratCallNode m_strm cn = do
   -- liftIO $ do print ("Entering: " <> pp cn)
   --             hFlush stdout
   sl <- getSlice (ecnSliceId cn)
-  over _2 (SelectedCall (ecnIdx cn))
+  over _3 (SelectedCall (ecnIdx cn))
     <$> noteCurrentName (fnameText (ecnName cn))
-          (enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice sl))
+          (enterFunction (ecnSliceId cn) (ecnParamMap cn) (stratSlice m_strm sl))
+
+-- -----------------------------------------------------------------------------
+-- Streams
+
+consumeFromStream :: Maybe SymbolicStream -> SHoleSize -> SymbolicM (Maybe SymbolicStream)
+consumeFromStream Nothing _shs = pure Nothing
+consumeFromStream (Just strm) shs = do
+  (assn, strm') <- liftSemiSolverM (MV.consumeFromStream strm shs)
+  assert assn
+  pure (Just strm')
 
 -- -----------------------------------------------------------------------------
 -- Merging values

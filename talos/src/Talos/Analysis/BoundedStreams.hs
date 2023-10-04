@@ -434,7 +434,8 @@ transferG bndd (WithNodeID nid _anns g) = do
       case av of
         AVStream bndd' -> pure (bndd', AVOther)
         _ -> unexpected
-    -- MatchEnd shouldn't impact us here
+    -- END can be thought of as partially (SetStream (emptyStream))
+    Match _ MatchEnd -> pure (True, AVOther) 
     Match {} -> other 
     Fail {}  -> other
     Do_ lhs rhs -> do

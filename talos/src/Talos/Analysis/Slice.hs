@@ -12,7 +12,7 @@ module Talos.Analysis.Slice
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
   , Slice'(..), Structural(..), SLoopClass(..)
-  , SHoleSize(..), staticSHoleSize, dynamicSHoleSize
+  , SHoleSize(..), SHoleSizeExpr(..), staticSHoleSize, dynamicSHoleSize
   , sloopClassBody, sloopClassE, mapSLoopClassE, foldMapSLoopClassE
   ) where
 

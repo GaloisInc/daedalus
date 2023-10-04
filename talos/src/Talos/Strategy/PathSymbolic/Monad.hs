@@ -47,7 +47,7 @@ import           Daedalus.Rec                          (Rec)
 import           Talos.Analysis.Exported               (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
 import           Talos.Strategy.PathSymbolic.MuxValue  (MuxValue, SemiSolverM,
-                                                        runSemiSolverM)
+                                                        runSemiSolverM, SymbolicStream)
                                                             -- SequenceTag,
                                                             -- )
 import           Talos.Monad                           (LiftTalosM, LogKey)
@@ -72,7 +72,7 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
 pathKey :: LogKey
 pathKey = "pathsymb"
 
-type Result = (MuxValue, PathBuilder)
+type Result = (MuxValue, Maybe SymbolicStream, PathBuilder)
 
 type SymVarEnv = Map Name MuxValue
 
@@ -213,13 +213,13 @@ runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
 --------------------------------------------------------------------------------
 -- Names
 
-bindNameIn :: Name -> SymbolicM Result
-           -> (PathBuilder -> SymbolicM a) -> SymbolicM a
-bindNameIn n lhs rhs = lhs >>= \(v, p) -> primBindName n v (rhs p)
+bindNameIn :: Name -> SymbolicM Result -> 
+              (Maybe SymbolicStream -> PathBuilder -> SymbolicM a) -> SymbolicM a
+bindNameIn n lhs rhs = lhs >>= \(v, m_strm, p) -> primBindName n v (rhs m_strm p)
 
-bindNameInMaybe :: Maybe Name -> SymbolicM Result
-           -> (PathBuilder -> SymbolicM a) -> SymbolicM a
-bindNameInMaybe Nothing lhs rhs = lhs >>= rhs . snd
+bindNameInMaybe :: Maybe Name -> SymbolicM Result -> 
+                   (Maybe SymbolicStream -> PathBuilder -> SymbolicM a) -> SymbolicM a
+bindNameInMaybe Nothing lhs rhs = lhs >>= \(_v, m_strm, p) -> rhs m_strm p
 bindNameInMaybe (Just n) lhs rhs = bindNameIn n lhs rhs
 
 primBindName :: Name -> MuxValue -> SymbolicM a -> SymbolicM a
@@ -380,22 +380,6 @@ liftSemiSolverM m = do
 
 unreachable :: SymbolicM a
 unreachable = SymbolicM $ throwError ()
-
--- FIXME: copied from MuxValue
--- getMaybe :: SymbolicM a -> SymbolicM (Maybe a)
--- getMaybe = SymbolicM . lift . runMaybeT . getSymbolicM
-
--- putMaybe :: SymbolicM (Maybe a) -> SymbolicM a
--- putMaybe m = hoistMaybe =<< m
-
--- hoistMaybe :: Maybe a -> SymbolicM a
--- hoistMaybe r = 
---   case r of
---     Nothing -> SymbolicM $ fail "Ignored"
---     Just v  -> pure v
-
--- collectMaybes :: [SymbolicM a] -> SymbolicM [a]
--- collectMaybes = fmap catMaybes . mapM getMaybe
 
 sImplies :: SMT.SExpr -> SMT.SExpr -> SMT.SExpr
 sImplies l r | l == SMT.bool True = r

@@ -41,17 +41,24 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   , SemiSolverM
   , runSemiSolverM
   , fromModel
+  -- * Streams
+  , SymbolicStream
+  , consumeFromStream
+  , unboundedStream
+  , nullStream
+  , emptyStream
+  , branchingStreams
   ) where
 
 import           Control.Applicative                   (liftA2)
-import           Control.Lens                          (Iso, Prism', _1, _2,
+import           Control.Lens                          (Iso, Prism', _1, _2, (%~), mapped, (&),
                                                         _Left, _Right, below,
                                                         each, from, imap, iso,
                                                         locally, over, preview,
                                                         re, traverseOf,
                                                         traversed, view, (.~),
                                                         (^.), (^?!), (^?))
-import           Control.Monad                         (join, unless, zipWithM)
+import           Control.Monad                         (join, unless, zipWithM, guard)
 import           Control.Monad.Except                  (ExceptT, runExceptT,
                                                         throwError)
 import           Control.Monad.Reader                  (MonadIO, ReaderT, asks,
@@ -67,7 +74,7 @@ import           Data.List.NonEmpty                    (NonEmpty)
 import qualified Data.List.NonEmpty                    as NE
 import           Data.Map.Strict                       (Map)
 import qualified Data.Map.Strict                       as Map
-import           Data.Maybe                            (fromMaybe, isJust)
+import           Data.Maybe                            (fromMaybe, isJust, isNothing)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
@@ -104,6 +111,7 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         psmmSMTVar)
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
 import           Talos.Strategy.PathSymbolic.SymExec   (symExecTy)
+import           Talos.Analysis.Slice   (SHoleSize(..), SHoleSizeExpr(..))
 
 --------------------------------------------------------------------------------
 -- Logging and stats
@@ -120,6 +128,9 @@ _muxKey = "muxvalue"
 -- | A collection of base values (integer or bool) with their
 -- associated path conditions.
 type BaseValues v s = Branching (Either v s)
+
+type SymbolicStreamF s = BaseValues (Maybe Integer) s
+type SymbolicStream = SymbolicStreamF SMTVar
 
 singletonBaseValues :: v -> BaseValues v s
 singletonBaseValues = B.singleton . Left
@@ -186,6 +197,25 @@ data MuxValueF s =
   -- example.  We might also keep track of merge points (useful
   -- e.g. if conditionally updating a map)
   | VMap                   ![(MuxValueF s, MuxValueF s)]
+
+  -- Bytes left in stream, this is essentially a partial BaseValues
+  -- --- this allows us to reuse some of the functions over
+  -- BaseValues, but the Maybe makes it a bit of a degenerate case
+  -- (ValueLens doesn't make sense, for example)
+  --
+  -- Operations (* - not required, used only after NoMatch; ! - not supported):
+  --   - IsEmptyStream (*)
+  --   - Head (*)
+  --   - StreamOffset (!)
+  --   - BytesOfStream (!)
+  --   - IsPrefix (*)
+  --   - Drop (*)
+  --   - DropMaybe
+  --   - Take
+  --   - ArrayStream (!)
+  --   - GetStream
+  --   - SetStream
+  | VStream                !(SymbolicStreamF s)
   deriving (Show, Eq, Ord, Foldable, Traversable, Functor, Generic)
 
 -- Used by the rest of the simulator
@@ -199,19 +229,21 @@ type MuxValueSExpr = MuxValueF SExpr
 --
 -- This is useful for being a bit generic when dealing with base values.
 
+type BaseValuesPrism v = forall s. Prism' (MuxValueF s) (Typed (BaseValues v s))
+
 -- Simpler way of abstracting over bool/ints (and maybe later floats)
 data ValueLens v = ValueLens
-  { vlMVPrism :: forall s. Prism' (MuxValueF s) (Typed (BaseValues v s))
+  { vlMVPrism :: BaseValuesPrism v
   , vlFromInterpValue :: V.Value -> v
   , vlToInterpValue :: Type -> v -> V.Value
   , vlToSExpr       :: Type -> v -> S.SExpr
   }
 
-vlFromMuxValue :: ValueLens v -> MuxValueF s -> Maybe (Typed (BaseValues v s))
-vlFromMuxValue vl mv = mv ^? vlMVPrism vl
+vlFromMuxValue :: BaseValuesPrism v -> MuxValueF s -> Maybe (Typed (BaseValues v s))
+vlFromMuxValue vl mv = mv ^? vl
 
-vlToMuxValue :: ValueLens v -> Typed (BaseValues v s) -> MuxValueF s
-vlToMuxValue vl v = v ^. re (vlMVPrism vl)
+vlToMuxValue :: BaseValuesPrism v -> Typed (BaseValues v s) -> MuxValueF s
+vlToMuxValue vl v = v ^. re vl
 
 -- FIXME: a bit gross?
 symExecInt :: Type -> Integer -> SExpr
@@ -254,6 +286,9 @@ boolVL = ValueLens
   , vlToInterpValue = \_ -> V.VBool
   , vlToSExpr       = \_ -> S.bool
   }
+
+streamBVP :: BaseValuesPrism (Maybe Integer)
+streamBVP = #_VStream . from (typedIso sizeType)
 
 -- -- Conversion to/from interp. values
 -- toValue :: BVClass v -> Type -> v -> V.Value
@@ -346,11 +381,31 @@ asIntegers (VIntegers (Typed _ bvs))
   | Just is <- bvs ^? below _Left = NE.nonEmpty (toList is)
 asIntegers _ = Nothing
 
+-- Streams
+unboundedStream :: SymbolicStream
+unboundedStream = singletonBaseValues Nothing
+
+nullStream :: SymbolicStream -> Assertion
+nullStream = A.BAssert . fmap go
+  where
+    go (Left Nothing)  = A.BoolAssert False
+    go (Left (Just i)) = A.BoolAssert (i == 0)
+    go (Right s)       = A.SExprAssert (S.eq (S.const s) (symExecInt sizeType 0))
+
+emptyStream :: SymbolicStream
+emptyStream = singletonBaseValues (Just 0)
+
+branchingStreams :: Branching (Maybe SymbolicStream) -> Maybe SymbolicStream
+branchingStreams b
+  | all isNothing b = Nothing
+  -- otherwise some stream is bounded so we need to replace the remainder with unboundedStream
+  | otherwise = Just $ muxBaseValues (fromMaybe unboundedStream <$> b)
+
 -- ----------------------------------------------------------------------------------------
 -- Multiplexing values
 
 -- FIXME: should we check for emptiness?
-muxBaseValues :: Ord v => Branching (BaseValues v SExpr) -> BaseValues v SExpr
+muxBaseValues :: Ord v => Branching (BaseValues v s) -> BaseValues v s
 muxBaseValues = join
 
 -- These should all be well-formed
@@ -359,13 +414,14 @@ muxMuxValues bmv =
   -- FIXME: this is a bit gross
   case B.select bmv of
     Just VUnit -> VUnit 
-    Just (VIntegers (Typed ty _bvs)) -> mkBase integerVL ty
-    Just VBools {} -> mkBase boolVL TBool
+    Just (VIntegers (Typed ty _bvs)) -> mkBase (vlMVPrism integerVL) ty
+    Just VBools {} -> mkBase (vlMVPrism boolVL) TBool
     Just VUnion {} -> VUnion $ stmvMerge #_VUnion
     Just VMaybe {} -> VMaybe $ stmvMerge #_VMaybe
     Just VStruct {} -> VStruct $ muxMuxValues <$> B.muxMaps (bmv ^?! below #_VStruct)
     -- join here is over Branching.
     Just VSequence {} -> VSequence (join (bmv ^?! below #_VSequence))
+    Just VStream {}   -> mkBase streamBVP sizeType
     Just VMap {} -> unsupported
     Nothing -> panic "Empty branching" []
   where
@@ -375,10 +431,10 @@ muxMuxValues bmv =
                  SumTypeMuxValueF l SExpr
     stmvMerge p = join (bmv ^?! below p)
 
-    mkBase :: Ord v => ValueLens v -> Type -> MuxValueSExpr
-    mkBase vl ty =
-      let bvs' = muxBaseValues (bmv ^?! below (vlMVPrism vl . typedIso ty))
-      in  vlToMuxValue vl (Typed ty bvs')
+    mkBase :: Ord v => BaseValuesPrism v -> Type -> MuxValueSExpr
+    mkBase bvp ty =
+      let bvs' = muxBaseValues (bmv ^?! below (bvp . typedIso ty))
+      in  vlToMuxValue bvp (Typed ty bvs')
            
 mux :: SemiCtxt m => Branching MuxValue -> SemiSolverM m MuxValue
 mux bvs = nameSExprs v
@@ -640,7 +696,7 @@ semiExecPatterns mv pv pats =
     -- Primitive.
     bvPat :: Ord v => ValueLens v -> Prism' Pattern v -> (Assertion, Set Int)
     bvPat vl p
-      | Just (Typed ty bvs) <- vlFromMuxValue vl mv =
+      | Just (Typed ty bvs) <- vlFromMuxValue (vlMVPrism vl) mv =
           let vs = fromMaybe unexpected (traverse (preview p) pats')
           in baseValuesPatterns pv vl vs hasAny ty bvs
       | otherwise = unexpected
@@ -734,17 +790,21 @@ runSemiSolverM lenv pfx m =
   where
     lenvSExpr = fmap S.const <$> lenv
 
+bvsNameSExprs :: SemiCtxt m => Type -> BaseValues v SExpr -> SemiSolverM m (BaseValues v SMTVar)
+bvsNameSExprs ty = traverseOf (traversed . _Right) (sexprAsSMTVar ty)
+
 nameSExprs :: SemiCtxt m => MuxValueSExpr -> SemiSolverM m MuxValue
 nameSExprs mv =
   case mv of
     VUnit -> pure VUnit
     VIntegers (Typed ty bvs) ->
-      VIntegers . Typed ty <$> traverseOf (traversed . _Right) (sexprAsSMTVar ty) bvs
-    VBools bvs -> VBools <$> traverseOf (traversed . _Right) (sexprAsSMTVar TBool) bvs
+      VIntegers . Typed ty <$> bvsNameSExprs ty bvs
+    VBools bvs -> VBools <$> bvsNameSExprs TBool bvs
     VUnion m -> VUnion <$> goSTVM m
     VMaybe m -> VMaybe <$> goSTVM m 
     VStruct m -> VStruct <$> traverse nameSExprs m
     VSequence bvs -> VSequence <$> traverseOf (traverse . _2 . traverse) nameSExprs bvs
+    VStream bvs -> VStream <$> bvsNameSExprs sizeType bvs
     VMap {} -> unsupported
   where
     unsupported = panic "Unsupported (VMap)" []
@@ -937,166 +997,6 @@ semiExecOp1 op rty mv =
             pure (Typed rty (go <$> bvs) ^. re toP)
         | otherwise = panic "Malformed Op1 value" [showPP op]
 
--- typeToElType :: Type -> Maybe Type
--- typeToElType ty =
---   case ty of
---     TBuilder elTy -> Just elTy
---     TArray   elTy -> Just elTy
---     _ -> Nothing
-
--- -- Short circuiting op
--- -- scBinOp :: MonadReader SemiSolverEnv m =>
--- --   (SExpr -> SExpr -> SExpr) ->
--- --   (SemiSExpr -> SemiSExpr) ->
--- --   (SemiSExpr -> SemiSExpr) ->
--- --   SemiSExpr -> SemiSExpr -> m SemiSExpr
--- -- scBinOp op tc fc x y =
--- --   case (x, y) of
--- --     (VBool True, _)  -> pure (tc y)
--- --     (VBool False, _) -> pure (fc y)
--- --     (_, VBool True)  -> pure (tc x)
--- --     (_, VBool False) -> pure (fc x)
--- --     _ -> do
--- --       tys <- asks typeDefs
--- --       pure (vSExpr TBool (op (semiSExprToSExpr tys TBool x)
--- --                              (semiSExprToSExpr tys TBool y)))
-
--- -- bAnd, bOr :: MonadReader SemiSolverEnv m => SemiSExpr -> SemiSExpr -> m SemiSExpr
--- -- bAnd = scBinOp S.and id (const (VBool False))
--- -- bOr  = scBinOp S.or (const (VBool True)) id
-
--- bOpMany :: SemiCtxt m => Bool -> PathCondition ->
---            [GuardedSemiSExprs] ->
---            SemiSolverM m GuardedSemiSExprs
--- bOpMany opUnit g svs = gseCollect (map mkOne combs)
---   where
---     elss = map guardedValues svs
---     -- This is a sneaky way to get the list of products of the
---     -- members.  This is potentially very expensive.
---     combs = sequence elss
-
---     mkOne (unzip -> (gs, els)) =
---       go els (mconcat (g : gs))
-
---     go els g'
---       | PC.isInfeasible g' = fail "Ignored"
---       | any (isBool absorb) els = mkB g' absorb
---       | otherwise = do
---           tys <- asks typeDefs
---           -- strip out units and convert to sexpr
---           let nonUnits = [ toSExpr1 tys TBool sv
---                          | sv <- els, not (isBool opUnit sv) ]
---           case nonUnits of
---             [] -> mkB g' opUnit
---             [el] -> vSExpr g' TBool el
---             _    -> vSExpr g' TBool (op nonUnits)
-
---     mkB g' = pure . vBool g'
-
---     isBool b (VValue (V.VBool b')) = b == b'
---     isBool _ _ = False
---     op = if opUnit then andMany else orMany
---     absorb = not opUnit
-
--- bAndMany, bOrMany :: SemiCtxt m => PathCondition ->
---                      [GuardedSemiSExprs] ->
---                      SemiSolverM m GuardedSemiSExprs
--- bAndMany = bOpMany True
--- bOrMany  = bOpMany False
-
--- reportingSemiExec2 :: SemiCtxt m =>
---   LogKey ->
---   (PathCondition -> GuardedSemiSExpr -> GuardedSemiSExpr ->
---    SemiSolverM m GuardedSemiSExprs) ->
---   GuardedSemiSExprs ->
---   GuardedSemiSExprs ->
---   SemiSolverM m GuardedSemiSExprs
--- reportingSemiExec2 key go gvs1 gvs2 = do
---   let rs = [ go g sv1 sv2
---            | (g1, sv1) <- guardedValues gvs1
---            , (g2, sv2) <- guardedValues gvs2
---            , let g = g1 <> g2, PC.isFeasibleMaybe g
---            ]
---   r <- gseCollect rs
---   let ncomb = length (guardedValues gvs1) * length (guardedValues gvs2)
---       nres  = length rs
---       lv1   = length (guardedValues gvs1)
---       lv2   = length (guardedValues gvs2)
---       nv1   = length [ () | (g, _) <- guardedValues gvs1, PC.isFeasibleMaybe g ]
---       nv2   = length [ () | (g, _) <- guardedValues gvs2, PC.isFeasibleMaybe g ]
---   T.statistic (muxKey <> "exec2" <> key)
---     (Text.pack $ printf "pruned: %d/%d v1: %d/%d v2: %d/%d"
---                         (ncomb - nres) ncomb
---                         (lv1 - nv1) lv1
---                         (lv2 - nv2) lv2
---     )
---   pure r
-
--- semiExecEq, semiExecNEq :: SemiCtxt m => Type ->
---                            GuardedSemiSExprs -> GuardedSemiSExprs ->
---                            SemiSolverM m GuardedSemiSExprs
--- semiExecEq  = semiExecEqNeq True
--- semiExecNEq = semiExecEqNeq False
-
--- semiExecEqNeq :: SemiCtxt m => Bool -> Type ->
---                  GuardedSemiSExprs ->
---                  GuardedSemiSExprs ->
---                  SemiSolverM m GuardedSemiSExprs
--- semiExecEqNeq iseq ty = reportingSemiExec2 "eqneq" go
---   where
---     go g sv1 sv2 = do
---       let mkB = pure . vBool g
-
---       tys <- asks typeDefs
-
---       case (sv1, sv2) of
---         (VValue v1, VValue v2) -> mkB (v1 `eqcmp` v2)
---         (VUnionElem l sv1', VUnionElem l' sv2')
---           | l == l', Just (_, ty') <- typeAtLabel tys ty l ->
---               semiExecEqNeq iseq ty' sv1' sv2'
---           | l == l'    -> panic "Missing label" [showPP l]
---           | otherwise -> mkB (not iseq)
-
---         (VStruct flds1, VStruct flds2) ->
---           opMany g =<< zipWithM (go' tys) flds1 flds2
-
---         (VJust sv1', VJust sv2')
---           | TMaybe ty' <- ty -> semiExecEqNeq iseq ty' sv1' sv2'
---         (VJust {}, VNothing) -> mkB (not iseq)
---         (VNothing, VJust {}) -> mkB (not iseq)
-
---         -- List/sequence equality.  We don't have the ability to just
---         -- assert lengths are equal, so we have to add as a path
---         -- condition.
---         _ | Just (vsm1, svs1) <- gseToList sv1
---           , Just (vsm2, svs2) <- gseToList sv2
---           , Just elTy <- typeToElType ty ->
---             let go1 g' svs1' svs2'
---                   | length svs1' /= length svs2' = pure (vBool g' (not iseq))
---                   | otherwise = opMany g' =<< zipWithM (semiExecEqNeq iseq elTy) svs1' svs2'
---             in gseCollect [ go1 g' svs1' svs2'
---                           | (g1, svs1') <- explodeSequence vsm1 svs1
---                           , (g2, svs2') <- explodeSequence vsm2 svs2
---                           , let g' = g <> g1 <> g2, PC.isFeasibleMaybe g'
---                           ]
---         _ -> do
---           se <- liftSolver (SE.symExecOp2 op TBool
---                             (toSExpr1 tys ty sv1)
---                             (toSExpr1 tys ty sv2))
---           vSExpr g TBool se
-
---     (op, eqcmp, opMany) =
---       if iseq
---       then (Eq   , (==), bAndMany)
---       else (NotEq, (/=), bOrMany)
-
---     go' tys (l, sv1') (l', sv2') =
---       if l == l'
---       then case typeAtLabel tys ty l of
---              Just (_, ty') -> semiExecEqNeq iseq ty' sv1' sv2'
---              _             -> panic "Missing label" [showPP l]
---       else panic "Label mismatch" [showPP l, showPP l']
-
 sequenceEq :: SemiCtxt m =>
               (VSequenceMeta, [MuxValueSExpr]) ->
               (VSequenceMeta, [MuxValueSExpr]) ->
@@ -1269,6 +1169,28 @@ semiExecEmit new (vsm, els)
   -- Normal case (?)
   | otherwise = pure (vsm, els ++ [new])
 
+semiExecTake :: SemiCtxt m => MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
+semiExecTake (VIntegers (Typed _ bvsL)) (VStream bvsS)
+  | nullBaseValues bvs = unreachable
+  | otherwise          = pure (VStream bvs)
+  where
+    bvs = liftA2 go bvsL bvsS
+    -- Unbounded stream
+    go (Left j) (Left Nothing) = Left (Just j)
+    go (Right s) (Left Nothing) = Right s
+    -- Bounded stream
+    go (Left j) (Left (Just k)) = Left (Just (min j k))
+    go (Left j) (Right s) = Right (mkMin (iToS j) s)
+    go (Right s) (Left (Just k)) = Right (mkMin s (iToS k))
+    go (Right s) (Right t) = Right (mkMin s t)
+
+    iToS = vlToSExpr integerVL sizeType
+    -- FIXME: we should probably let-bind these?  In practice the
+    -- SExpr will be a variable anyway.
+    mkMin a b = S.ite (S.bvULt a b) a b
+    
+semiExecTake _ _ = panic "Unexpected value shape" []
+
 semiExecOp2 :: SemiCtxt m => Op2 -> Type -> Type -> Type ->
                MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
 semiExecOp2 op rty ty1 ty2 mv1 mv2 =
@@ -1276,8 +1198,9 @@ semiExecOp2 op rty ty1 ty2 mv1 mv2 =
     -- Stream operations 
     IsPrefix  -> unsupported
     Drop      -> unsupported
+    
     DropMaybe -> unsupported
-    Take      -> unsupported
+    Take      -> semiExecTake mv1 mv2
 
     Eq        -> VBools <$> semiExecEq mv1 mv2
     NotEq     -> semiExecOp1 Not TBool =<< semiExecOp2 Eq TBool ty1 ty2 mv1 mv2
@@ -1416,7 +1339,44 @@ semiExecArrayIndex ixs (_vsm, els) = do
 -- -- RangeUp and RangeDown
 -- semiExecOp3 op        _    _   _         _ _ = panic "Unimplemented" [showPP op]
 
+-- -----------------------------------------------------------------------------
+-- Streams
 
+fromHoleSize :: SemiCtxt m => SHoleSize -> SemiSolverM m MuxValueSExpr
+fromHoleSize s = go s
+  where
+    go shs = do
+      let static = vInteger sizeType (fromIntegral $ shsStatic shs)
+      dyn <- traverse goE (shsDynamic shs)
+      foldlM (semiExecOp2 Add sizeType sizeType sizeType) static dyn
+
+    goE shse = do
+      len <- semiExecOp1 ArrayLen sizeType =<< semiExecName (shseSeq shse)
+      m <- go (shseMult shse)
+      semiExecOp2 Mul sizeType sizeType sizeType len m
+
+consumeFromStream :: SemiCtxt m =>
+                     SymbolicStream -> SHoleSize ->
+                     SemiSolverM m (Assertion, SymbolicStream)
+consumeFromStream strm shs = do
+  shsV <- fromHoleSize shs
+  let (assn, strm0') = B.unzip $ B.catMaybes $ liftA2 go strm (typedThing (shsV ^?! #_VIntegers))
+  strm' <- bvsNameSExprs sizeType strm0'
+  pure (A.BAssert assn, strm')
+  where
+    go (Left Nothing) _ = pure (A.BoolAssert True, Left Nothing)
+    go (Left (Just remaining)) (Left count) =
+      guard (count <= remaining) $> ( A.BoolAssert True
+                                      , Left (Just (remaining - count)))
+    go (Left (Just remaining)) (Right scount) = symbolic (iToS remaining) scount
+    go (Right sremaining) (Right scount) = symbolic (S.const sremaining) scount
+
+    symbolic sremaining scount =
+      pure ( A.SExprAssert (S.bvULeq scount sremaining)
+           , Right (S.bvSub sremaining scount))
+      
+    iToS = vlToSExpr integerVL sizeType
+               
 -- -----------------------------------------------------------------------------
 -- Getting a concrete value in a model
   
@@ -1442,7 +1402,7 @@ fromModel mv =
                  else V.VArray (Vector.fromList vs)
 
     VMap {} -> unsupported
-
+    VStream {} -> unsupported -- shouldn't happen.
   where
     unsupported = panic "Unsupported (VMap)" []
 
@@ -1460,38 +1420,6 @@ fromModel mv =
         Just (Left i)  -> pure (vlToInterpValue vl ty i)
         Just (Right s) -> psmmSMTVar (Typed ty s)
   
-  -- case gse of
-  --   VValue v -> pure (Just v)
-  --   VOther x -> Just <$> getValueVar x
-  --   VUnionElem l gses -> fmap (I.VUnionElem l) <$> gsesModel gses
-  --   VStruct flds -> do
-  --     let (ls, gsess) = unzip flds
-  --     m_gsess <- sequence <$> mapM gsesModel gsess
-  --     pure (I.VStruct . zip ls <$> m_gsess)
-
-  --   VSequence vsm gsess
-  --     | vsmIsBuilder vsm ->
-  --       fmap (I.VBuilder . reverse) . sequence <$> mapM gsesModel gsess
-  --     | otherwise -> 
-  --       fmap (I.VArray . Vector.fromList) . sequence <$> mapM gsesModel gsess
-
-  --   VJust gses -> fmap (I.VMaybe . Just) <$> gsesModel gses
-  --   VMap els -> do
-  --     let (ks, vs) = unzip els
-  --     m_kvs <- sequence <$> mapM gsesModel ks
-  --     m_vvs <- sequence <$> mapM gsesModel vs
-  --     pure (I.VMap . Map.fromList <$> (zip <$> m_kvs <*> m_vvs))
-
-  -- We support symbolic keys, so we can't use Map here
-    -- VIterator els -> do
-    --   let (ks, vs) = unzip els
-    --   m_kvs <- sequence <$> mapM gsesModel ks
-    --   m_vvs <- sequence <$> mapM gsesModel vs
-    --   pure (I.VIterator <$> (zip <$> m_kvs <*> m_vvs))
-  
-
-
-
 -- -- -----------------------------------------------------------------------------
 -- -- Instances
 
@@ -1509,6 +1437,7 @@ ppMuxValueF mv =
       where ppFld (x,t) = pp x <.> colon <+> go t
     VSequence b -> pp (ppSeq <$> b)
     VMaybe m -> stmv (maybe "nothing" (const "just")) m
+    VStream bvs -> ppBaseValues (bvs & mapped . _Left %~ ppMaybe)
     VMap {} -> unsupported
   where
     stmv :: PP s => (l -> Doc) -> SumTypeMuxValueF l s -> Doc
@@ -1521,6 +1450,9 @@ ppMuxValueF mv =
 
     unsupported = panic "Unsupported (VMap)" []
     go = ppMuxValueF
+
+    ppMaybe Nothing = "⊥"
+    ppMaybe (Just n) = pp n
 
 instance PP s => PP (MuxValueF s) where
   pp = ppMuxValueF
