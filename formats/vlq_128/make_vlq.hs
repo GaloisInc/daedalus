@@ -13,7 +13,7 @@ import System.IO
 
 main :: IO ()
 main =
-  do let rep = 1000000
+  do let rep = 10000000
      g <- newTFGen
      _ <- withBinaryFile "data.dat" WriteMode \h -> nums h rep g
      pure ()
