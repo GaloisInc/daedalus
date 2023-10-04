@@ -1198,8 +1198,9 @@ semiExecOp2 op rty ty1 ty2 mv1 mv2 =
     -- Stream operations 
     IsPrefix  -> unsupported
     Drop      -> unsupported
-    
-    DropMaybe -> unsupported
+
+    -- Should be handled in PathSymbolic.stratSlice
+    DropMaybe -> panic "Impossible" []
     Take      -> semiExecTake mv1 mv2
 
     Eq        -> VBools <$> semiExecEq mv1 mv2
@@ -1367,9 +1368,10 @@ consumeFromStream strm shs = do
     go (Left Nothing) _ = pure (A.BoolAssert True, Left Nothing)
     go (Left (Just remaining)) (Left count) =
       guard (count <= remaining) $> ( A.BoolAssert True
-                                      , Left (Just (remaining - count)))
+                                    , Left (Just (remaining - count)))
     go (Left (Just remaining)) (Right scount) = symbolic (iToS remaining) scount
     go (Right sremaining) (Right scount) = symbolic (S.const sremaining) scount
+    go (Right sremaining) (Left count) = symbolic (S.const sremaining) (iToS count)
 
     symbolic sremaining scount =
       pure ( A.SExprAssert (S.bvULeq scount sremaining)

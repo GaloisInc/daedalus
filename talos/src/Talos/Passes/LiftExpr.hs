@@ -186,8 +186,14 @@ liftExprE expr = do
       Var <$> newNamed (GCase (uncurry bindNamedE <$> cs'))
 
     ApN (CallF f) es
-      | Just gn <- Map.lookup f fToG -> Var <$> newNamed (Call gn es)
+      | Just gn <- Map.lookup f fToG ->
+          Var <$> (newNamed . Call gn =<< traverse liftExprE es)
       | otherwise -> pure $ inlineCall f es ffuns
+
+    -- This is more easily handled when it is in a Pure by itself.
+    Ap2 DropMaybe nE strmE -> do
+      expr' <- Ap2 DropMaybe <$> liftExprE nE <*> liftExprE strmE
+      Var <$> newNamed (Pure expr')
 
     _ -> childrenE liftExprE expr
 

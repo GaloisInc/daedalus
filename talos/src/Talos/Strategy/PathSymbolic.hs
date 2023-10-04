@@ -175,6 +175,8 @@ stratSlice = go
           m_strm' <- maybe (pure m_strm) (consumeFromStream m_strm . fst) m_shs
           pure (MV.VUnit, m_strm', SelectedHole)
 
+        -- We special case this here so we can add assertions/path variables.
+        SPure (Ap2 DropMaybe ixE strmE) -> undefined
         SPure e -> do
           let mk v = (v, m_strm, SelectedHole)
           mk <$> synthesiseExpr e
