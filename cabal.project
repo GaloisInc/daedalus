@@ -12,6 +12,7 @@ packages:
   formats/pdf/arlington-pdf-model/
   formats/icc/
   formats/nitf/haskell/
+  formats/vlq_128/atto/
   talos/
   daedalus-language-server/
   standalone/cabal-pack/

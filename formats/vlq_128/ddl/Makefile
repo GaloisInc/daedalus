@@ -8,5 +8,6 @@
 
 run: parser
 	./parser ../data.dat
+
 clean:
 	rm -rf parser out
