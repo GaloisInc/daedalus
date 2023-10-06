@@ -29,6 +29,8 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   , vSymbolicInteger
   , vInteger
   , vBool
+  , vNothing
+  , vJust
   -- * Combinators
   , mux
   , op2
@@ -44,6 +46,7 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   -- * Streams
   , SymbolicStream
   , consumeFromStream
+  , dropMaybe
   , unboundedStream
   , nullStream
   , emptyStream
@@ -58,7 +61,7 @@ import           Control.Lens                          (Iso, Prism', _1, _2, (%~
                                                         re, traverseOf,
                                                         traversed, view, (.~),
                                                         (^.), (^?!), (^?))
-import           Control.Monad                         (join, unless, zipWithM, guard)
+import           Control.Monad                         (join, unless, zipWithM)
 import           Control.Monad.Except                  (ExceptT, runExceptT,
                                                         throwError)
 import           Control.Monad.Reader                  (MonadIO, ReaderT, asks,
@@ -376,6 +379,10 @@ vNothing = VMaybe (singletonSumTypeMuxValueF Nothing VUnit)
 vJust :: MuxValueF b -> MuxValueF b
 vJust = VMaybe . singletonSumTypeMuxValueF (Just ())
 
+-- Make the type explicit here.
+_vMaybe :: Branching (Maybe (), MuxValueF b) -> MuxValueF b
+_vMaybe = VMaybe
+
 asIntegers :: MuxValueF s -> Maybe (NonEmpty Integer)
 asIntegers (VIntegers (Typed _ bvs))
   | Just is <- bvs ^? below _Left = NE.nonEmpty (toList is)
@@ -409,7 +416,7 @@ muxBaseValues :: Ord v => Branching (BaseValues v s) -> BaseValues v s
 muxBaseValues = join
 
 -- These should all be well-formed
-muxMuxValues :: Branching MuxValueSExpr -> MuxValueSExpr
+muxMuxValues :: forall s. Branching (MuxValueF s) -> MuxValueF s
 muxMuxValues bmv =
   -- FIXME: this is a bit gross
   case B.select bmv of
@@ -427,19 +434,17 @@ muxMuxValues bmv =
   where
     unsupported = panic "Unsupported (VMap)" []
 
-    stmvMerge :: Ord l => Prism' MuxValueSExpr (SumTypeMuxValueF l SExpr) ->
-                 SumTypeMuxValueF l SExpr
+    stmvMerge :: Ord l => Prism' (MuxValueF s) (SumTypeMuxValueF l s) ->
+                 SumTypeMuxValueF l s
     stmvMerge p = join (bmv ^?! below p)
 
-    mkBase :: Ord v => BaseValuesPrism v -> Type -> MuxValueSExpr
+    mkBase :: Ord v => BaseValuesPrism v -> Type -> MuxValueF s
     mkBase bvp ty =
       let bvs' = muxBaseValues (bmv ^?! below (bvp . typedIso ty))
       in  vlToMuxValue bvp (Typed ty bvs')
            
-mux :: SemiCtxt m => Branching MuxValue -> SemiSolverM m MuxValue
-mux bvs = nameSExprs v
-  where
-    v = muxMuxValues (fmap S.const <$> bvs)
+mux :: Branching MuxValue -> MuxValue
+mux = muxMuxValues
 
 op2 :: SemiCtxt m => Op2 -> Type -> Type -> Type ->
                      MuxValue -> MuxValue ->
@@ -1169,28 +1174,6 @@ semiExecEmit new (vsm, els)
   -- Normal case (?)
   | otherwise = pure (vsm, els ++ [new])
 
-semiExecTake :: SemiCtxt m => MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
-semiExecTake (VIntegers (Typed _ bvsL)) (VStream bvsS)
-  | nullBaseValues bvs = unreachable
-  | otherwise          = pure (VStream bvs)
-  where
-    bvs = liftA2 go bvsL bvsS
-    -- Unbounded stream
-    go (Left j) (Left Nothing) = Left (Just j)
-    go (Right s) (Left Nothing) = Right s
-    -- Bounded stream
-    go (Left j) (Left (Just k)) = Left (Just (min j k))
-    go (Left j) (Right s) = Right (mkMin (iToS j) s)
-    go (Right s) (Left (Just k)) = Right (mkMin s (iToS k))
-    go (Right s) (Right t) = Right (mkMin s t)
-
-    iToS = vlToSExpr integerVL sizeType
-    -- FIXME: we should probably let-bind these?  In practice the
-    -- SExpr will be a variable anyway.
-    mkMin a b = S.ite (S.bvULt a b) a b
-    
-semiExecTake _ _ = panic "Unexpected value shape" []
-
 semiExecOp2 :: SemiCtxt m => Op2 -> Type -> Type -> Type ->
                MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
 semiExecOp2 op rty ty1 ty2 mv1 mv2 =
@@ -1343,8 +1326,30 @@ semiExecArrayIndex ixs (_vsm, els) = do
 -- -----------------------------------------------------------------------------
 -- Streams
 
+semiExecTake :: SemiCtxt m => MuxValueSExpr -> MuxValueSExpr -> SemiSolverM m MuxValueSExpr
+semiExecTake (VIntegers (Typed _ bvsL)) (VStream bvsS)
+  | nullBaseValues bvs = unreachable
+  | otherwise          = pure (VStream bvs)
+  where
+    bvs = liftA2 go bvsL bvsS
+    -- Unbounded stream
+    go (Left j) (Left Nothing) = Left (Just j)
+    go (Right s) (Left Nothing) = Right s
+    -- Bounded stream
+    go (Left j) (Left (Just k)) = Left (Just (min j k))
+    go (Left j) (Right s) = Right (mkMin (iToS j) s)
+    go (Right s) (Left (Just k)) = Right (mkMin s (iToS k))
+    go (Right s) (Right t) = Right (mkMin s t)
+
+    iToS = vlToSExpr integerVL sizeType
+    -- FIXME: we should probably let-bind these?  In practice the
+    -- SExpr will be a variable anyway.
+    mkMin a b = S.ite (S.bvULt a b) a b
+    
+semiExecTake _ _ = panic "Unexpected value shape" []
+
 fromHoleSize :: SemiCtxt m => SHoleSize -> SemiSolverM m MuxValueSExpr
-fromHoleSize s = go s
+fromHoleSize = go
   where
     go shs = do
       let static = vInteger sizeType (fromIntegral $ shsStatic shs)
@@ -1356,28 +1361,42 @@ fromHoleSize s = go s
       m <- go (shseMult shse)
       semiExecOp2 Mul sizeType sizeType sizeType len m
 
-consumeFromStream :: SemiCtxt m =>
-                     SymbolicStream -> SHoleSize ->
-                     SemiSolverM m (Assertion, SymbolicStream)
-consumeFromStream strm shs = do
-  shsV <- fromHoleSize shs
-  let (assn, strm0') = B.unzip $ B.catMaybes $ liftA2 go strm (typedThing (shsV ^?! #_VIntegers))
-  strm' <- bvsNameSExprs sizeType strm0'
-  pure (A.BAssert assn, strm')
+semiExecDropMaybe :: SemiCtxt m =>
+                     SymbolicStream -> MuxValueSExpr ->
+                     SemiSolverM m (Assertion, (Assertion, SymbolicStream))
+semiExecDropMaybe strm countV = do
+  let (notEnough, enough) = B.unzip (liftA2 go strm (typedThing (countV ^?! #_VIntegers)))
+      (enoughAssn, strm0') = B.unzip (B.catMaybes enough)
+  strm' <- bvsNameSExprs sizeType strm0'      
+  pure (A.BAssert (B.catMaybes notEnough), (A.BAssert enoughAssn, strm'))
   where
-    go (Left Nothing) _ = pure (A.BoolAssert True, Left Nothing)
-    go (Left (Just remaining)) (Left count) =
-      guard (count <= remaining) $> ( A.BoolAssert True
-                                    , Left (Just (remaining - count)))
+    -- returns (not-enough, has-enough)
+    go (Left Nothing) _ = (Nothing, Just (A.true, Left Nothing))
+    go (Left (Just remaining)) (Left count)
+      | count <= remaining = (Nothing, Just ( A.true, Left (Just (remaining - count))))
+      | otherwise = (Just A.true, Nothing)
     go (Left (Just remaining)) (Right scount) = symbolic (iToS remaining) scount
     go (Right sremaining) (Right scount) = symbolic (S.const sremaining) scount
     go (Right sremaining) (Left count) = symbolic (S.const sremaining) (iToS count)
 
     symbolic sremaining scount =
-      pure ( A.SExprAssert (S.bvULeq scount sremaining)
-           , Right (S.bvSub sremaining scount))
+      ( Just (A.SExprAssert (S.bvULt sremaining scount))
+      , Just ( A.SExprAssert (S.bvULeq scount sremaining)
+             , Right (S.bvSub sremaining scount)) )
       
     iToS = vlToSExpr integerVL sizeType
+
+dropMaybe :: SemiCtxt m =>
+             MuxValue -> MuxValue ->
+             SemiSolverM m (Assertion, (Assertion, SymbolicStream))
+dropMaybe strm mv = semiExecDropMaybe (strm ^?! #_VStream) (S.const <$> mv)
+
+consumeFromStream :: SemiCtxt m =>
+                     SymbolicStream -> SHoleSize ->
+                     SemiSolverM m (Assertion, SymbolicStream)
+consumeFromStream strm shs = do
+  shsV <- fromHoleSize shs
+  snd <$> semiExecDropMaybe strm shsV
                
 -- -----------------------------------------------------------------------------
 -- Getting a concrete value in a model

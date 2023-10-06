@@ -252,6 +252,7 @@ constrainPathVar (PathVar sym) bnd = do
                               (SMT.lt (SMT.const sym) (SMT.int (fromIntegral bnd)))
 
 -- Here because we do low-level pathvar stuff.
+-- TODO: use this where necessary (unzip and friends)
 namePathSets :: Branching a -> SymbolicM (Branching a)
 namePathSets b = do
   n <- makeNicerSym "pvN"

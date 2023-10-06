@@ -13,12 +13,13 @@
 module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
-import           Control.Lens                            (_3, imap, over, 
+import           Control.Lens                            (_3, imap, over,
                                                           preview)
 import           Control.Monad                           (join, unless)
 import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
+import           Data.Functor                            (($>))
 import           Data.Generics.Product                   (field)
 import           Data.List.NonEmpty                      (NonEmpty)
 import qualified Data.Map                                as Map
@@ -35,7 +36,7 @@ import qualified Daedalus.Core                           as Core
 import           Daedalus.Core.Free                      (freeVars)
 import           Daedalus.Core.Type                      (sizeType, typeOf)
 import           Daedalus.Panic                          (panic)
-import           Daedalus.PP                             (showPP, commaSep, pp)
+import           Daedalus.PP                             (commaSep, pp, showPP)
 import           Daedalus.Rec                            (topoOrder)
 
 import           Talos.Analysis.Exported                 (ExpCallNode (..),
@@ -55,15 +56,16 @@ import           Talos.Solver.SolverT                    (contextSize,
 import           Talos.Strategy.Monad
 import qualified Talos.Strategy.OptParser                as P
 import           Talos.Strategy.OptParser                (Opt, parseOpts)
+import qualified Talos.Strategy.PathSymbolic.Assertion   as A
 import qualified Talos.Strategy.PathSymbolic.Branching   as B
 import           Talos.Strategy.PathSymbolic.Monad
 import qualified Talos.Strategy.PathSymbolic.MuxValue    as MV
 import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
-                                                          VSequenceMeta (..), SymbolicStream)
+                                                          SymbolicStream,
+                                                          VSequenceMeta (..))
 import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
-import Data.Functor (($>))
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -168,7 +170,7 @@ stratSlice = go
   where
     unexpected   = panic "Unexpected" []
     
-    go m_strm sl =  do
+    go m_strm sl = do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
         SHole m_shs -> do
@@ -176,7 +178,18 @@ stratSlice = go
           pure (MV.VUnit, m_strm', SelectedHole)
 
         -- We special case this here so we can add assertions/path variables.
-        SPure (Ap2 DropMaybe ixE strmE) -> undefined
+        SPure (Ap2 DropMaybe lenE strmE) -> do
+          (negA, (posA, strm)) <-
+            liftSemiSolverM (join $ MV.dropMaybe <$> MV.semiExecExpr strmE <*> MV.semiExecExpr lenE)
+          pv <- freshPathVar 2
+          let (assn, mv) = B.unzip $
+                B.branching True [ (PS.choiceConstraint pv 0, (negA, MV.vNothing))
+                                 , (PS.choiceConstraint pv 1, (posA, MV.vJust (MV.VStream strm)))
+                                 ]
+          assert (A.BAssert assn)
+          
+          pure (MV.mux mv, m_strm, SelectedHole)
+          
         SPure e -> do
           let mk v = (v, m_strm, SelectedHole)
           mk <$> synthesiseExpr e
@@ -284,7 +297,6 @@ stratChoice m_strm sls _
       let mk i sl = (PS.choiceConstraint pv i, over _3 ((,) i) <$> stratSlice m_strm sl)
       b <- branching $ B.branching True $ imap mk sls
       let (b_vs, b_strms, b_paths) = B.unzip3 b
-      v <- liftSemiSolverM (MV.mux b_vs)
       
       let m_strm' = MV.branchingStreams b_strms
           paths = toList b_paths
@@ -293,7 +305,7 @@ stratChoice m_strm sls _
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
 
-      pure (v, m_strm', SelectedChoice (SymbolicChoice pv paths))
+      pure (MV.mux b_vs, m_strm', SelectedChoice (SymbolicChoice pv paths))
 
 stratLoop :: Maybe SymbolicStream ->
              SLoopClass Expr ExpSlice ->
@@ -450,7 +462,7 @@ stratLoop m_strm lclass =
           node = PathLoopUnrolled (Just lv) pbs
           vs' = zip (map (PS.loopCountGtConstraint lv) [0..]) (se : svs)
           
-      v <- liftSemiSolverM (MV.mux (B.branching True vs'))
+      let v = MV.mux (B.branching True vs')
       pure (v, m_strm', SelectedLoop node)
 
     SMorphismLoop (FoldMorphism n e lc b) -> do
@@ -482,8 +494,8 @@ stratLoop m_strm lclass =
             pure (v, m_strm', (vsm, pbs))
             
       (bvs', b_strms, nodes) <- B.unzip3 <$> branching (go <$> bvs)
-      v <- liftSemiSolverM (MV.mux (join bvs'))      
-      let node' = PathLoopMorphism ltag nodes
+      let v = MV.mux (join bvs')
+          node' = PathLoopMorphism ltag nodes
 
       pure (v, MV.branchingStreams b_strms, SelectedLoop node')
 
@@ -589,7 +601,6 @@ stratCase m_strm _total cs@(Case n pats) _m_sccs
           
       b <- branching $ B.branching True $ imap mk pats
       let (b_vs, b_strms, b_paths) = B.unzip3 b
-      rv <- liftSemiSolverM (MV.mux b_vs)
       
       let m_strm' = MV.branchingStreams b_strms
           paths = toList b_paths
@@ -599,7 +610,7 @@ stratCase m_strm _total cs@(Case n pats) _m_sccs
       -- Record that we have this choice variable, and the possibilities
       recordChoice pv feasibleIxs
       
-      pure (rv, m_strm', SelectedCase (SymbolicChoice pv paths))
+      pure (MV.mux b_vs, m_strm', SelectedCase (SymbolicChoice pv paths))
 
 stratCallNode :: Maybe SymbolicStream ->
                  ExpCallNode ->
