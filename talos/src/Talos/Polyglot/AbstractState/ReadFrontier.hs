@@ -4,7 +4,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Talos.Polyglot.ReadFrontier where
+module Talos.Polyglot.AbstractState.ReadFrontier where
 
 import qualified Data.List             as List
 import           Data.Map              (Map)
@@ -15,66 +15,50 @@ import qualified Data.Set              as Set
 import           Daedalus.Core
 import           Daedalus.Core.CFG
 import           Daedalus.PP
-import           Talos.Polyglot.Util
+import           Talos.Polyglot.AbstractState.ThreadSet (ThreadSet)
+import qualified Talos.Polyglot.AbstractState.ThreadSet as ThreadSet
 import           Talos.Polyglot.PolyglotReader
+import           Talos.Polyglot.Util
 
 -- | Maps each stream read location to the set of sets of stream read locations
 -- downstream from it.  Each set corresponds to an execution path.
-type ReadFrontier = Map NodeID ReadFrontierRange
-type ReadFrontierRange = Set (Set NodeID)
+type ReadFrontier = Map NodeID (ThreadSet NodeID)
 
 ppReadFrontier :: ReadFrontier -> Doc
 ppReadFrontier rf = vcat $ map doRow (Map.toList rf)
   where
-    doRow (nodeID, sets) = pp nodeID <+> text "->" <+> ppSets sets
+    doRow (nodeID, threads) = pp nodeID <+> text "->" <+> pp threads
 
-readFrontierContains :: ReadFrontier -> NodeID -> NodeID -> Bool
-readFrontierContains rf id1 id2 = not $ Map.null filteredMap
+contains :: ReadFrontier -> NodeID -> NodeID -> Bool
+contains rf id1 id2 = not $ Map.null filteredMap
   where
-    filteredMap = Map.filterWithKey (\k sets -> k == id1 && Set.member id2 (Set.unions sets)) rf
+    filteredMap = Map.filterWithKey (\k threads -> k == id1 && ThreadSet.contains id2 threads) rf
 
-mergeReadFrontier :: ReadFrontier -> ReadFrontier -> ReadFrontier
-mergeReadFrontier = mapUnion Set.union
+join :: ReadFrontier -> ReadFrontier -> ReadFrontier
+join = mapUnion ThreadSet.join
 
 -- Add `nodeID` as a dependency to nodes in the read frontier.  If `nodeID` is
 -- not in the read frontier, add it with an empty set.
-extendReadFrontier :: ReadFrontier -> NodeID -> ReadFrontier
-extendReadFrontier rf nodeID =
-  let rf' = Map.map (extendReadFrontierRange nodeID) rf in
+sequenceOne :: ReadFrontier -> NodeID -> ReadFrontier
+sequenceOne rf nodeID =
+  let rf' = Map.map (ThreadSet.sequenceOne nodeID) rf in
   if Map.member nodeID rf' then
      rf'
   else
-     Map.insert nodeID Set.empty rf'
-
--- Add `nodeID` to all existing sets and add a singleton set containing `nodeID`.
-extendReadFrontierRange :: NodeID -> ReadFrontierRange -> ReadFrontierRange
-extendReadFrontierRange nodeID rfr = Set.union extendedSets singletonRFR
-  where
-    extendedSets = Set.map (Set.insert nodeID) rfr
-    singletonRFR = Set.singleton (Set.singleton nodeID)
-
--- | Updates the read frontier to reflect that `nodeID` is bound.  That is, removes
--- all sets containing nodeID.
-applyBound :: ReadFrontier -> NodeID -> ReadFrontier
-applyBound state nodeID = Map.map filterSets state
-  where
-    filterSets :: Set (Set NodeID) -> Set (Set NodeID)
-    filterSets sets = Set.filter (\s -> Set.member nodeID s) sets
+     Map.insert nodeID ThreadSet.empty rf'
 
 -- | Updates the read frontier to reflect that all node IDs are bound.  That is,
 -- removes all sets overlapping with `nodeIDs`.
 applyBounds :: ReadFrontier -> Set NodeID -> ReadFrontier
-applyBounds rf nodeIDs = Map.map filterSets rf
-  where
-    filterSets = Set.filter (Set.disjoint nodeIDs)
+applyBounds rf nodeIDs = Map.map (ThreadSet.removeAllIntersecting nodeIDs) rf
 
 -- | Adds bounds to the read frontier for `nodeID` from `pat`, if any.  Constraints
 -- are induced from matching literal values but not constructors.
 addBoundsFromPattern :: ReadFrontier -> NodeID -> Pattern -> ReadFrontier
-addBoundsFromPattern state nodeID (PBool _)   = applyBound state nodeID
-addBoundsFromPattern state nodeID (PNum _)    = applyBound state nodeID
-addBoundsFromPattern state nodeID (PBytes _)  = applyBound state nodeID
-addBoundsFromPattern state _ _             = state
+addBoundsFromPattern state nodeID (PBool _)   = applyBounds state (Set.singleton nodeID)
+addBoundsFromPattern state nodeID (PNum _)    = applyBounds state (Set.singleton nodeID)
+addBoundsFromPattern state nodeID (PBytes _)  = applyBounds state (Set.singleton nodeID)
+addBoundsFromPattern state _ _                = state
 
 -- | Whether a Match induces bounds on a read location.
 inducesBounds :: Match -> PolyglotReader Bool

@@ -16,10 +16,13 @@ import qualified Data.Set              as Set
 import           Daedalus.Core
 import           Daedalus.Core.CFG
 import           Daedalus.PP
-import           Talos.Polyglot.AbstractState
+import           Talos.Polyglot.AbstractState.AbstractState (AbstractState (AbstractState), AbstractStates)
+import qualified Talos.Polyglot.AbstractState.AbstractState as AS
+import qualified Talos.Polyglot.AbstractState.Environment as Env
+import qualified Talos.Polyglot.AbstractState.ReadFrontier as RF
+import qualified Talos.Polyglot.AbstractState.ThreadSet as ThreadSet
 import           Talos.Polyglot.Location
 import           Talos.Polyglot.PolyglotReader
-import qualified Talos.Polyglot.ReadFrontier    as RF
 import           Talos.Polyglot.Util
 
 -- | Interpret the abstract state at a given location, producing abstract
@@ -28,7 +31,7 @@ interpret :: (CallStack, Loc) -> AbstractState -> PolyglotReader AbstractStates
 interpret stackLoc@(_, l) st = do
   node <- getNode l 
   res  <- interpret_ stackLoc st node
-  return res `debug` (show $ text "INTERPRET" <+> ppStackLoc stackLoc <+> pp node <+> text "~~>" <+> ppAbstractStates res)
+  return res `debug` (show $ text "INTERPRET" <+> ppStackLoc stackLoc <+> pp node <+> text "~~>" <+> AS.ppAbstractStates res)
   where
     interpret_ :: (CallStack, Loc) -> AbstractState -> CFGNode -> PolyglotReader AbstractStates
     -- Pure expressions cannot read from the stream or induce failure.  Because this
@@ -37,10 +40,10 @@ interpret stackLoc@(_, l) st = do
     -- new bounds or new read locations; we simply collect any NodeIDs for any variables
     -- present and assign them to m_name and the return value.
     interpret_ (stack, (thisName, _)) state (CSimple m_name (CPure expr) nextNodeID) = do
-      summary <- summarizeExpr (asEnv state) expr
-      let newState  = extendWithRV state summary
+      summary <- Env.summarizeExpr (AS.asEnv state) expr
+      let newState  = AS.extendRV state summary
           newState' = case m_name of
-            Just name -> extendEnv newState name summary
+            Just name -> AS.extendEnv newState name summary
             Nothing -> newState
       return $ Map.singleton (stack, (thisName, nextNodeID)) newState'
 
@@ -49,12 +52,12 @@ interpret stackLoc@(_, l) st = do
 
     interpret_ (stack, (thisName, thisNodeID)) state (CSimple m_name (CMatch _ match) nextNodeID) = do
       isBounded <- RF.inducesBounds match
-      let summary      = Set.singleton (Set.singleton thisNodeID)
+      let summary      = ThreadSet.singleton thisNodeID
           state'       = case m_name of
             Nothing   -> state
-            Just name -> extendEnv state name summary
-          state''      = if isBounded then state' else extendRF state' thisNodeID
-          state'''     = extendWithRV state'' summary
+            Just name -> AS.extendEnv state name summary
+          state''      = if isBounded then state' else AS.extendRF state' thisNodeID
+          state'''     = AS.extendRV state'' summary
       return $ Map.singleton (stack, (thisName, nextNodeID)) state'''
 
     -- Special handling for calling subparsers.  Other CSimple types are
@@ -66,8 +69,8 @@ interpret stackLoc@(_, l) st = do
 
       -- Set up call edge by extending the environment to map the formal
       -- parameter names to summaries of the actual arguments.
-      summaries <- sequence $ map (summarizeExpr $ asEnv state) exprs
-      let callState    = foldl (\acc (n, s) -> extendEnv acc n s) state (zip paramNames summaries)
+      summaries <- sequence $ map (Env.summarizeExpr $ AS.asEnv state) exprs
+      let callState    = foldl (\acc (n, s) -> AS.extendEnv acc n s) state (zip paramNames summaries)
           -- This is our loop widening: flatten all cycles into one cycle.
           newCallStack = if List.elem thisLoc stack then stack else thisLoc:stack
           callEdge     = ((newCallStack, (fname, calleeNodeID)), callState)
@@ -75,7 +78,7 @@ interpret stackLoc@(_, l) st = do
       -- Set up the downstream edge by extending the environment with `m_name`
       -- bound to the return value.  Also pass the return value through.
       let downstreamState = case m_name of
-            Just name -> extendVarWithRV state name
+            Just name -> AS.extendEnvWithRV state name
             Nothing   -> state
           downstreamEdge = ((stack, (thisFName, nextNodeID)), downstreamState)
 
@@ -85,7 +88,7 @@ interpret stackLoc@(_, l) st = do
 
     interpret_ (stack, (fname, _)) state (COr _ leftID rightID) =
       -- Copy abstract state from thisID to leftID and rightID.
-      return $ abstractStatesFromList 
+      return $ AS.abstractStatesFromList 
         [ ((stack, (fname, leftID)), state)
         , ((stack, (fname, rightID)), state)
         ]
@@ -93,11 +96,11 @@ interpret stackLoc@(_, l) st = do
     interpret_ (stack, (fname, _)) state (CCase Case{..}) =
       let interpretCase (pat, nodeID) = 
             -- Update the environment to reflect that this pattern matched.
-            let newState = addBoundsFromPattern state caseVar pat in
+            let newState = AS.addBoundsFromPattern state caseVar pat in
             Map.singleton (stack, (fname, nodeID)) newState
           mapResults = map interpretCase casePats
       in
-      return $ foldl mergeAbstractStates Map.empty mapResults
+      return $ foldl AS.joins Map.empty mapResults
 
     interpret_ loc state (CLoop m_name (ManyLoop _ _ _ _ bodyNodeID) nextNodeID) =
       return $ interpretLoop loc state m_name bodyNodeID nextNodeID
@@ -126,7 +129,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
       let
         -- Extend the environment with a summary of the loop body.
         state' = case m_name of
-          Just name -> extendVarWithRV state name
+          Just name -> AS.extendEnvWithRV state name
           Nothing   -> state
 
         -- On entering the loop, we pushed this location on the stack.  Now that we're
@@ -139,7 +142,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
         -- from the loop body is passed through.
         nextMap = ((stack, (fname, nextNodeID)), state')
         in
-      abstractStatesFromList [bodyMap, nextMap]
+      AS.abstractStatesFromList [bodyMap, nextMap]
 
     -- This case handles the entry edge(s) to a ManyLoop.
     _ ->
@@ -152,10 +155,10 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
         -- times, i.e. there is no result to bind from the loop body
         -- (technically the value is `[]` which contains no node IDs). The `loc
         -- == loc_` case of `interpret_` handles the other loop cases.
-        state' = extendWithRV state emptyEnvSummary
+        state' = AS.extendRV state ThreadSet.empty
         nextMap = ((stack, (fname, nextNodeID)), state')
         in
-      abstractStatesFromList [bodyMap, nextMap]
+      AS.abstractStatesFromList [bodyMap, nextMap]
 
 
 -- | Starting at "Main", applies abstract interpretation to the CFG until
@@ -163,11 +166,11 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
 findCavities :: Module -> CFGModule -> [Loc]
 findCavities m cfgm = 
   let states  = analyze_ initialState initialWorklist in
-    findCavityReadLocs states `debug` (show $ ppAbstractStates states)
+    findCavityReadLocs states `debug` (show $ AS.ppAbstractStates states)
   where
     entrypoint = ([], getMainEntrypoint cfgm)
     initialWorklist = [entrypoint]
-    initialState = Map.singleton entrypoint emptyAbstractState
+    initialState = Map.singleton entrypoint AS.empty
     cfState = PolyglotReaderState{cfModule=m, cfCFGModule=cfgm}
 
     globalCFGMap = Map.foldl (\acc f -> Map.union acc (cfgfunCFG f)) Map.empty (cfgFuns cfgm)
@@ -184,7 +187,7 @@ findCavities m cfgm =
       let 
           toProcess     = map (\loc -> interpret loc $ states Map.! loc) worklist `debug` (show $ text "WORKLIST" <+> (hsep $ map ppStackLoc worklist))
           newStatesList = runPolyglotReader (sequence toProcess) cfState 
-          newStates     = foldl mergeAbstractStates Map.empty newStatesList
+          newStates     = foldl AS.joins Map.empty newStatesList
           newStates'    = replaceExitNodes newStates  
           changedStates = Map.filterWithKey (\k state ->
               (not $ Map.member k states) || state /= states Map.! k
@@ -194,7 +197,7 @@ findCavities m cfgm =
       if null newWorklist then 
         states `debug` (show $ text "DONE")
       else
-        analyze_ (mergeAbstractStates states changedStates) newWorklist
+        analyze_ (AS.joins states changedStates) newWorklist
 
     -- Handle transition from function exit nodes back to callsites.
     replaceExitNodes :: AbstractStates -> AbstractStates
@@ -209,13 +212,13 @@ findCavities m cfgm =
               _ -> (stack, loc) -- At exit with no call stack: Leave for now, we'll remove these later.
             ) exitStates
       in
-      mergeAbstractStates otherStates returnedStates
+      AS.joins otherStates returnedStates
 
     -- Find NodeIDs that that contain themselves in their read frontiers.
     findCavityReadLocs :: AbstractStates -> [Loc]
     findCavityReadLocs states = map snd $ Map.keys $ Map.filterWithKey isCavityLoc states
       where
-        isCavityLoc (_, (_, nodeID)) AbstractState{..} = RF.readFrontierContains asReadFrontier nodeID nodeID
+        isCavityLoc (_, (_, nodeID)) AbstractState{..} = RF.contains asReadFrontier nodeID nodeID
 
 -- | Gets the entrypoint for the "Main" function.  Calls `error` if "Main" does not
 -- exist.

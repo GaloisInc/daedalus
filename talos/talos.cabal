@@ -68,11 +68,13 @@ library
                      , Talos.Passes.LiftExpr
                      , Talos.Passes.NoBytesPatterns
 
-                     , Talos.Polyglot.AbstractState
+                     , Talos.Polyglot.AbstractState.AbstractState
+                     , Talos.Polyglot.AbstractState.Environment
+                     , Talos.Polyglot.AbstractState.ReadFrontier
+                     , Talos.Polyglot.AbstractState.ThreadSet
                      , Talos.Polyglot.FindCavities
                      , Talos.Polyglot.Location
                      , Talos.Polyglot.PolyglotReader
-                     , Talos.Polyglot.ReadFrontier
                      , Talos.Polyglot.Util
 
                      , Talos

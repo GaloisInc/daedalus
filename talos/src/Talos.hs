@@ -56,9 +56,9 @@ import           Talos.Path                  (ProvenanceMap)
 import qualified Talos.Synthesis              as T
 import Data.Text (Text)
 
-import           Talos.Polyglot.AbstractState (ppAbstractStates)
-import           Talos.Polyglot.Location      (ppLoc)
-import           Talos.Polyglot.FindCavities  (findCavities)
+import           Talos.Polyglot.AbstractState.AbstractState (ppAbstractStates)
+import           Talos.Polyglot.Location                    (ppLoc)
+import           Talos.Polyglot.FindCavities                (findCavities)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
