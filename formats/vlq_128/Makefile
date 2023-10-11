@@ -1,17 +1,13 @@
-.PHONY: all clean kaitai/parser
+.PHONY: clean
 
-all: data.dat ddl/parser kaitai/parser
+all: data.dat
 
 data.dat: make_vlq.hs
 	./make_vlq.hs
 
-ddl/parser:
-	make -C ddl
-
-kaitai/parser:
-	make -C kaitai
-
 clean:
 	rm -f data.dat
 	make clean -C ddl
+	make clean -C ddl-hs
+	make clean -C atto
 	make clean -C kaitai
