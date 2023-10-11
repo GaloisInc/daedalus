@@ -13,7 +13,7 @@ import           Data.Set              (Set)
 import qualified Data.Set              as Set
 
 import           Daedalus.Core
-import           Daedalus.Core.CFG
+import Daedalus.Core.CFG ( NodeID )
 import           Daedalus.PP
 import           Talos.Polyglot.AbstractState.ThreadSet (ThreadSet)
 import qualified Talos.Polyglot.AbstractState.ThreadSet as ThreadSet
@@ -51,7 +51,7 @@ sequenceOne rf nodeID =
   if Map.member nodeID rf' then
      rf'
   else
-     Map.insert nodeID ThreadSet.empty rf'
+     Map.insert nodeID ThreadSet.emptyThread rf'
 
 -- | Updates the read frontier to reflect that all node IDs are bound.  That is,
 -- removes all sets overlapping with `nodeIDs`.

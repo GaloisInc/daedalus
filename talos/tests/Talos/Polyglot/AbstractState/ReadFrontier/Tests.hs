@@ -30,11 +30,11 @@ tests = TestList
       Map.fromList [(id1, TS.fromList [[id1], [id2]])] ~=?
         join (singleton id1 $ TS.singleton id2) (singleton id1 $ TS.singleton id1)
 
-  , "sequence-empty" ~: singleton id1 TS.empty ~=? sequenceOne empty id1
+  , "sequence-empty" ~: singleton id1 TS.emptyThread ~=? sequenceOne empty id1
   , "sequence-absent" ~:
-      Map.fromList [(id1, TS.empty), (id2, TS.singleton id1)] ~=?
-        sequenceOne (singleton id2 TS.empty) id1
+      Map.fromList [(id1, TS.emptyThread), (id2, TS.singleton id1)] ~=?
+        sequenceOne (singleton id2 TS.emptyThread) id1
   , "sequence-present" ~:
       Map.fromList [(id1, TS.singleton id1), (id2, TS.singleton id1)] ~=?
-        sequenceOne (Map.fromList [(id1, TS.empty), (id2, TS.empty)]) id1
+        sequenceOne (Map.fromList [(id1, TS.emptyThread), (id2, TS.emptyThread)]) id1
   ]

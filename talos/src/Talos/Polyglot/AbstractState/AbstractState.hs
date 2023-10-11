@@ -78,7 +78,7 @@ instance PP AbstractState where
         $$ (text "return-value" <+> colon <+> pp asReturnVal)
 
 empty :: AbstractState
-empty = AbstractState Map.empty Map.empty ThreadSet.empty
+empty = AbstractState Map.empty Map.empty ThreadSet.emptyThread
 
 join :: AbstractState -> AbstractState -> AbstractState
 join left right =

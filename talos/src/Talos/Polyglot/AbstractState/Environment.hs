@@ -50,7 +50,7 @@ extend env var summary = Map.alter f var env
 summarizeExpr :: Env -> Expr -> PolyglotReader Summary
 
 -- This is the important case.  The rest just implement the traversal :(
-summarizeExpr env (Var name) = return $ Map.findWithDefault ThreadSet.empty name env
+summarizeExpr env (Var name) = return $ Map.findWithDefault ThreadSet.emptyThread name env
 
 summarizeExpr env (PureLet _ left right) = do
   leftSummary <- summarizeExpr env left
@@ -62,13 +62,13 @@ summarizeExpr env (Struct _ fields) = do
   return $ foldl ThreadSet.join ThreadSet.empty summaries
 
 summarizeExpr env (ECase Case{..}) = do
-  let varSummary = Map.findWithDefault ThreadSet.empty caseVar env
+  let varSummary = Map.findWithDefault ThreadSet.emptyThread caseVar env
   summaries <- sequence $ map ((summarizeExpr env) . snd) casePats
   return $ foldl ThreadSet.join ThreadSet.empty (varSummary:summaries)
 
 summarizeExpr env (ELoop loop) = summarizeExpr env (morphismBody loop)
 
-summarizeExpr _ (Ap0 _) = return ThreadSet.empty
+summarizeExpr _ (Ap0 _) = return ThreadSet.emptyThread
 
 summarizeExpr env (Ap1 _ e1) = summarizeExpr env e1
 
@@ -83,7 +83,7 @@ summarizeExpr env (Ap3 _ e1 e2 e3) = do
 summarizeExpr env (ApN (CallF name) exprs) = do
   ffun <- getFFun name
   case fDef ffun of
-    External -> return ThreadSet.empty
+    External -> return ThreadSet.emptyThread
     Def body -> do
       fSum <- summarizeExpr env body
       summaries <- sequence $ map (summarizeExpr env) exprs

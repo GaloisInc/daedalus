@@ -15,9 +15,15 @@ newtype Ord a => ThreadSet a =
   ThreadSet (Set (Set a))
   deriving (Eq, Ord, Show)
 
--- | Thread set containing a single empty thread.
+-- | Thread set containing no threads.  This is the zero element; it is the
+-- additive (join) identity and multiplicative (sequence) annihilator.
 empty :: Ord a => ThreadSet a
-empty = ThreadSet (Set.singleton Set.empty)
+empty = ThreadSet Set.empty
+
+-- | Thread set containing a single empty thread.  This is the one element;
+-- it is the multiplicative (sequence) identity.
+emptyThread :: Ord a => ThreadSet a
+emptyThread = ThreadSet (Set.singleton Set.empty)
 
 -- | Thread set containing a single thread with elt.
 singleton :: Ord a => a -> ThreadSet a
