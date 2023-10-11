@@ -7,6 +7,7 @@ packages:
   rts-hs/
   rts-hs-data/
   rts-vm-hs/
+  hs-gen/
   formats/pdf/old/cos/
   formats/pdf/old/driver/
   formats/pdf/arlington-pdf-model/
