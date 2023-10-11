@@ -6,6 +6,7 @@ import Data.Word
 import Data.Int
 import Data.Bits
 import qualified Data.ByteString as BS
+import Control.Applicative
 
 main :: IO ()
 main =
@@ -32,8 +33,33 @@ parseLoop =
                         .|. value loop
                 }
 
+parseLoop' :: Parser Loop
+parseLoop' =
+  do l <- loop start
+     guard (done l)
+     pure l
+  where
+  loop l =
+    do b <- anyWord8
+       case step l b of
+         Just l1 -> loop l1
+         Nothing -> pure l
+    <|> pure l
+
+  start = Loop { done = False, bits = 0, value = 0 }
+  step loop b
+    | done loop = Nothing
+    | otherwise =
+      Just Loop { done   = b < 128
+                , bits   = bits loop + 7
+                , value  = (fromIntegral (b .&. 0x7F) `shiftL` bits loop)
+                        .|. value loop
+                }
+
+
+
 parseU64 :: Parser Word64
-parseU64 = value <$> parseLoop
+parseU64 = value <$> parseLoop'
 
 parseS64 :: Parser Int64
 parseS64 =
