@@ -69,9 +69,12 @@ standardDeriving = TH.derivClause Nothing [ [t| Eq |], [t| Ord |], [t| Show |] ]
 compileStruct ::
   HasTypeParams => TName -> [TH.DataParam] -> [(Label,Type)] -> TH.DecsQ
 compileStruct name as fields =
-  do let fs = [ case srcT of
+  do let bang = case fields of
+                  [ _ ] -> TH.bangT
+                  _     -> TH.bangT'
+     let fs = [ case srcT of
                   TUnit -> (l, Nothing)
-                  _     -> (l, Just (TH.bangT (compileType srcT)))
+                  _     -> (l, Just (bang (compileType srcT)))
               | (l,srcT) <- fields
               ]
 

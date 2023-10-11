@@ -63,6 +63,7 @@ module Daedalus.TH
 
   , BangType
   , bangT
+  , bangT'
   , TH.normalC
 
   , TH.match
@@ -88,6 +89,11 @@ type BangType = (TH.Bang, TH.Type)
 
 bangT :: TH.Q TH.Type -> TH.Q BangType
 bangT t = TH.bangType (TH.bang TH.noSourceUnpackedness TH.noSourceStrictness) t
+
+bangT' :: TH.Q TH.Type -> TH.Q BangType
+bangT' t = TH.bangType (TH.bang TH.noSourceUnpackedness TH.sourceStrict) t
+
+
 
 
 #if !MIN_VERSION_bytestring(0,11,2)
