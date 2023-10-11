@@ -125,7 +125,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
     -- 
     -- The environment carries a summary of the "return value" of an expression.  We
     -- extend the environment with this summary assigned to `m_name`.
-    stackHead:_ | stackHead == loc ->
+    stackHead:stackTail | stackHead == loc ->
       let
         -- Extend the environment with a summary of the loop body.
         state' = case m_name of
@@ -140,7 +140,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
         -- For the loop exit, pop the loop call site from the stack, and evaluate
         -- the next statement using the extended environment.  The return value
         -- from the loop body is passed through.
-        nextMap = ((stack, (fname, nextNodeID)), state')
+        nextMap = ((stackTail, (fname, nextNodeID)), state')
         in
       AS.abstractStatesFromList [bodyMap, nextMap]
 
@@ -155,7 +155,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
         -- times, i.e. there is no result to bind from the loop body
         -- (technically the value is `[]` which contains no node IDs). The `loc
         -- == loc_` case of `interpret_` handles the other loop cases.
-        state' = AS.extendRV state ThreadSet.empty
+        state' = AS.extendRV state ThreadSet.emptyThread
         nextMap = ((stack, (fname, nextNodeID)), state')
         in
       AS.abstractStatesFromList [bodyMap, nextMap]
@@ -185,19 +185,25 @@ findCavities m cfgm =
     analyze_ :: AbstractStates -> [(CallStack, Loc)] -> AbstractStates
     analyze_ states worklist =
       let 
-          toProcess     = map (\loc -> interpret loc $ states Map.! loc) worklist `debug` (show $ text "WORKLIST" <+> (hsep $ map ppStackLoc worklist))
-          newStatesList = runPolyglotReader (sequence toProcess) cfState 
-          newStates     = foldl AS.joins Map.empty newStatesList
-          newStates'    = replaceExitNodes newStates  
-          changedStates = Map.filterWithKey (\k state ->
+          toProcess     = map (\loc -> interpret loc $ states Map.! loc) worklist
+            `debug` (show $ text "WORKLIST" <+> (hsep $ map ppStackLoc worklist) $$ text "STATES" $$ AS.ppAbstractStates states)
+          nextStatesList = runPolyglotReader (sequence toProcess) cfState 
+          nextStates     = foldl AS.joins Map.empty nextStatesList
+          nextStates'    = replaceExitNodes nextStates  
+          newStates      = AS.joins states nextStates'
+
+          -- Morally speaking, check if states == (states U nextStates).  If
+          -- not, get the states that changed.
+          changedStates  = Map.filterWithKey (\k state ->
+              -- Keep if state is new or changed
               (not $ Map.member k states) || state /= states Map.! k
-            ) newStates'
-          newWorklist   = Map.keys $ Map.filterWithKey (\(_, loc) _ -> not . isExitNode $ loc) changedStates
+            ) newStates
+          newWorklist    = Map.keys $ Map.filterWithKey (\(_, loc) _ -> not . isExitNode $ loc) changedStates
           in
       if null newWorklist then 
-        states `debug` (show $ text "DONE")
+        states
       else
-        analyze_ (AS.joins states changedStates) newWorklist
+        analyze_ newStates newWorklist
 
     -- Handle transition from function exit nodes back to callsites.
     replaceExitNodes :: AbstractStates -> AbstractStates

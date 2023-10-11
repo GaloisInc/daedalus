@@ -27,5 +27,5 @@ ppSets sets = hsep $ map doSet (Set.toList sets)
 
 -- For debugging.  Not for production use.
 debug :: c -> String -> c
-debug = flip trace
--- debug c _ = c
+-- debug = flip trace
+debug c _ = c
