@@ -24,6 +24,12 @@ import           Talos.Polyglot.Util
 -- downstream from it.  Each set corresponds to an execution path.
 type ReadFrontier = Map NodeID (ThreadSet NodeID)
 
+empty :: ReadFrontier
+empty = Map.empty
+
+singleton :: NodeID -> ThreadSet NodeID -> ReadFrontier
+singleton = Map.singleton
+
 ppReadFrontier :: ReadFrontier -> Doc
 ppReadFrontier rf = vcat $ map doRow (Map.toList rf)
   where

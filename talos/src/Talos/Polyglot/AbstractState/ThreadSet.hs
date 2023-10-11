@@ -13,7 +13,7 @@ import           Daedalus.PP
 
 newtype Ord a => ThreadSet a =
   ThreadSet (Set (Set a))
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Thread set containing a single empty thread.
 empty :: Ord a => ThreadSet a
@@ -22,6 +22,13 @@ empty = ThreadSet (Set.singleton Set.empty)
 -- | Thread set containing a single thread with elt.
 singleton :: Ord a => a -> ThreadSet a
 singleton elt = ThreadSet $ Set.singleton $ Set.singleton elt
+
+-- | Build a thread set from a list of lists.  Each sublist becomes
+-- a thread.
+fromList :: Ord a => [[a]] -> ThreadSet a
+fromList lists = ThreadSet sets
+  where
+    sets = foldl (\acc l -> Set.insert (Set.fromList l) acc) Set.empty lists
 
 -- | Union two thread sets.
 join :: Ord a => ThreadSet a -> ThreadSet a -> ThreadSet a

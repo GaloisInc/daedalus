@@ -241,3 +241,19 @@ test-suite talos-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
+
+test-suite talos-hunit
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            HUnit.hs
+  default-language:   Haskell2010
+  build-depends:      base,
+                      containers,
+                      daedalus-core,
+                      daedalus-utils,
+                      talos,
+                      text,
+                      HUnit
+  other-modules:      Talos.Polyglot.Tests,
+                      Talos.Polyglot.AbstractState.Tests
+                      Talos.Polyglot.AbstractState.ThreadSet.Tests
