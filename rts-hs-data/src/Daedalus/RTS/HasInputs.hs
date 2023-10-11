@@ -10,13 +10,16 @@ class HasInputs a where
   getInputs :: a -> Map ShortByteString ByteString
 
 instance HasInputs () where
-  getInputs _ = Map.empty
+  getInputs = const Map.empty
+  {-# INLINE getInputs #-}
 
 instance HasInputs a => HasInputs [a] where
   getInputs = Map.unions . map getInputs
+  {-# INLINE getInputs #-}
 
 instance HasInputs a => HasInputs (Maybe a) where
   getInputs = maybe Map.empty getInputs
+  {-# INLINE getInputs #-}
 
 
 

@@ -134,26 +134,28 @@ instance SizeTypeDef n => SizeType n
 class (SizeOf w ~ s) => NormU (w :: Nat) (s :: Size) where
   normU :: UInt w -> UInt w
 
-instance {-# OVERLAPPING #-} NormU 8  'S8  where normU = id
-instance {-# OVERLAPPING #-} NormU 16 'S16 where normU = id
-instance {-# OVERLAPPING #-} NormU 32 'S32 where normU = id
-instance {-# OVERLAPPING #-} NormU 64 'S64 where normU = id
+instance {-# OVERLAPPING #-} NormU 8  'S8  where normU = id; {-# INLINE normU #-}
+instance {-# OVERLAPPING #-} NormU 16 'S16 where normU = id; {-# INLINE normU #-}
+instance {-# OVERLAPPING #-} NormU 32 'S32 where normU = id; {-# INLINE normU #-}
+instance {-# OVERLAPPING #-} NormU 64 'S64 where normU = id; {-# INLINE normU #-}
 
 instance (NormCtrs w, SizeOf w ~ s) => NormU w s where
-  normU n@(UInt w) = UInt (mask n w)
+  normU n@(UInt w) = UInt (mask n w); {-# INLINE normU #-}
 
 mask :: (Bits a, Num a, KnownNat n) => f n -> a -> a
 mask num a = a .&. ((1 `shiftL` thisWidth num) - 1)
+{-# INLINE mask #-}
 
 -- XXX: may overflow
 thisWidth :: KnownNat n => num n -> Int
 thisWidth x = fromIntegral (natVal x)
+{-# INLINE thisWidth #-}
 
 
 normS' :: NormCtrs n => Int -> SInt n -> SInt n
 normS' repW n@(SInt i) = SInt ((mask n i `shiftL` amt) `shiftR` amt)
   where amt = repW - thisWidth n
-
+{-# INLINE normS' #-}
 
 class (SizeOf n ~ sz) => NormS n sz where
   normS :: SInt n -> SInt n
@@ -165,16 +167,17 @@ instance (SizeOf w ~ 'SBig, NormCtrs w) => NormS w 'SBig where
     where w     = thisWidth n
           whole = 1 `shiftL` w
           half  = whole `shiftR` 1
+  {-# INLINE normS #-}
 
-instance {-# OVERLAPPING #-}              NormS 8  'S8  where normS = id
-instance {-# OVERLAPPING #-}              NormS 16 'S16 where normS = id
-instance {-# OVERLAPPING #-}              NormS 32 'S32 where normS = id
-instance {-# OVERLAPPING #-}              NormS 64 'S64 where normS = id
+instance {-# OVERLAPPING #-}              NormS 8  'S8  where normS = id; {-# INLINE normS #-}
+instance {-# OVERLAPPING #-}              NormS 16 'S16 where normS = id; {-# INLINE normS #-}
+instance {-# OVERLAPPING #-}              NormS 32 'S32 where normS = id; {-# INLINE normS #-}
+instance {-# OVERLAPPING #-}              NormS 64 'S64 where normS = id; {-# INLINE normS #-}
 
-instance (SizeOf w ~ 'S8 , NormCtrs w) => NormS w  'S8  where normS = normS' 8
-instance (SizeOf w ~ 'S16, NormCtrs w) => NormS w  'S16 where normS = normS' 16
-instance (SizeOf w ~ 'S32, NormCtrs w) => NormS w  'S32 where normS = normS' 32
-instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64
+instance (SizeOf w ~ 'S8 , NormCtrs w) => NormS w  'S8  where normS = normS' 8; {-# INLINE normS #-}
+instance (SizeOf w ~ 'S16, NormCtrs w) => NormS w  'S16 where normS = normS' 16; {-# INLINE normS #-}
+instance (SizeOf w ~ 'S32, NormCtrs w) => NormS w  'S32 where normS = normS' 32; {-# INLINE normS #-}
+instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64; {-# INLINE normS #-}
 
 
 type Literal (x :: Nat) t = Arith t
@@ -194,6 +197,12 @@ instance Arith Float where
   mul = (*)
   div = (/)
   neg = negate
+  {-# INLINE lit #-}
+  {-# INLINE add #-}
+  {-# INLINE sub #-}
+  {-# INLINE mul #-}
+  {-# INLINE div #-}
+  {-# INLINE neg #-}
 
 instance Arith Double where
   lit = fromInteger
@@ -202,6 +211,14 @@ instance Arith Double where
   mul = (*)
   div = (/)
   neg = negate
+  {-# INLINE lit #-}
+  {-# INLINE add #-}
+  {-# INLINE sub #-}
+  {-# INLINE mul #-}
+  {-# INLINE div #-}
+  {-# INLINE neg #-}
+
+
 
 class Arith t => Numeric t where
   mod :: t -> t -> t
@@ -221,6 +238,14 @@ instance Arith Integer where
   mul = (*)
   div = Prelude.div
   neg = negate
+  {-# INLINE lit #-}
+  {-# INLINE add #-}
+  {-# INLINE sub #-}
+  {-# INLINE mul #-}
+  {-# INLINE div #-}
+  {-# INLINE neg #-}
+
+
 
 instance Numeric Integer where
   mod = Prelude.mod
@@ -233,6 +258,14 @@ instance Numeric Integer where
   bitAnd = (.&.)
   bitXor = xor
   bitCompl = complement
+  {-# INLINE mod #-}
+  {-# INLINE asInt #-}
+  {-# INLINE shiftl' #-}
+  {-# INLINE shiftr' #-}
+  {-# INLINE bitOr #-}
+  {-# INLINE bitAnd #-}
+  {-# INLINE bitXor #-}
+  {-# INLINE bitCompl #-}
 
 binU :: SizeType n => (UIntRep n -> UIntRep n -> UIntRep n) ->
                       UInt n -> UInt n -> UInt n
@@ -281,6 +314,15 @@ instance SizeType n => Arith (UInt n) where
   mul             = normBinU (*)
   div             = normBinU Prelude.div
   neg             = normUnU negate
+  {-# INLINE lit #-}
+  {-# INLINE add #-}
+  {-# INLINE sub #-}
+  {-# INLINE mul #-}
+  {-# INLINE div #-}
+  {-# INLINE neg #-}
+
+
+
 
 instance SizeType n => Numeric (UInt n) where
   mod             = normBinU Prelude.mod
@@ -293,6 +335,15 @@ instance SizeType n => Numeric (UInt n) where
   shiftr' x i     = normUnU (`shiftR` i) x
 
   asInt (UInt x)  = toInteger x
+  {-# INLINE mod #-}
+  {-# INLINE asInt #-}
+  {-# INLINE shiftl' #-}
+  {-# INLINE shiftr' #-}
+  {-# INLINE bitOr #-}
+  {-# INLINE bitAnd #-}
+  {-# INLINE bitXor #-}
+  {-# INLINE bitCompl #-}
+
 
 
 instance SizeType n => Arith (SInt n) where
@@ -302,6 +353,14 @@ instance SizeType n => Arith (SInt n) where
   mul             = normBinS (*)
   div             = normBinS Prelude.div
   neg             = normUnS negate
+  {-# INLINE lit #-}
+  {-# INLINE add #-}
+  {-# INLINE sub #-}
+  {-# INLINE mul #-}
+  {-# INLINE div #-}
+  {-# INLINE neg #-}
+
+
 
 instance SizeType n => Numeric (SInt n) where
   mod             = normBinS Prelude.mod
@@ -314,6 +373,16 @@ instance SizeType n => Numeric (SInt n) where
   shiftr' x i     = normUnS (`shiftR` i) x
 
   asInt (SInt x)  = toInteger x
+  {-# INLINE mod #-}
+  {-# INLINE asInt #-}
+  {-# INLINE shiftl' #-}
+  {-# INLINE shiftr' #-}
+  {-# INLINE bitOr #-}
+  {-# INLINE bitAnd #-}
+  {-# INLINE bitXor #-}
+  {-# INLINE bitCompl #-}
+
+
 
 deriving instance SizeType n => Show (UInt n)
 deriving instance SizeType n => Eq   (UInt n)
@@ -331,6 +400,7 @@ cvtNumMaybe a = if asInt b == ia then Just b else Nothing
   where
   ia = asInt a
   b  = lit ia
+{-# INLINE cvtNumMaybe #-}
 
 -- Number to Floating Maybe.
 -- XXX: these can be more effecient
@@ -341,6 +411,7 @@ cvtNumToFloatingMaybe x
   where
   r = toRational (asInt x)
   y = fromRational r
+{-# INLINE cvtNumToFloatingMaybe #-}
 
 cvtFloatingToNumMaybe :: (RealFloat a, Numeric b) => a -> Maybe b
 cvtFloatingToNumMaybe x
@@ -348,32 +419,40 @@ cvtFloatingToNumMaybe x
   | isInfinite x = Nothing
   | otherwise    = if fromInteger (asInt y) == x then Just y else Nothing
     where y = lit (truncate x)
+{-# INLINE cvtFloatingToNumMaybe #-}
 
 
 
 cvtNum :: (Numeric a, Arith b) => a -> b
 cvtNum = lit . asInt
-
+{-# INLINE cvtNum #-}
 
 lcat :: (Numeric a, SizeType n) => a -> UInt n -> a
 lcat x y = shiftl' x (thisWidth y) `bitOr` cvtNum y
+{-# INLINE lcat #-}
 
 cat :: (SizeType m, SizeType n, SizeType (m+n)) =>
   UInt m -> UInt n -> UInt (m+n)
 cat x y = cvtNum x `lcat` y
+{-# INLINE cat #-}
+
 
 shiftl :: Numeric t => t -> UInt 64 -> t
 shiftl t x = shiftl' t (sizeToInt x)
+{-# INLINE shiftl #-}
 
 shiftr :: Numeric t => t -> UInt 64 -> t
 shiftr t x = shiftr' t (sizeToInt x)
+{-# INLINE shiftr #-}
 
 intToSize :: Int -> UInt 64
 intToSize n = UInt (toEnum n)
+{-# INLINE intToSize #-}
 
 -- Hopefully it fits
 sizeToInt :: UInt 64 -> Int
 sizeToInt (UInt n) = fromEnum n
+{-# INLINE sizeToInt #-}
 
 
 toInt :: Integer -> Maybe Int
@@ -383,7 +462,7 @@ toInt n
   where
   lower = toInteger (minBound :: Int)
   upper = toInteger (maxBound :: Int)
-
+{-# INLINE toInt #-}
 
 --------------------------------------------------------------------------------
 
@@ -411,8 +490,10 @@ doubleToWord = UInt . castDoubleToWord64
 
 instance SizeType n => ToJSON (UInt n) where
   toJSON = toJSON . asInt
+  {-# INLINE toJSON #-}
 
 instance SizeType n => ToJSON (SInt n) where
   toJSON = toJSON . asInt
+  {-# INLINE toJSON #-}
 
 

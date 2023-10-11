@@ -91,7 +91,9 @@ compileStruct name as fields =
      hasIs <- traverse (hasInstance ty cname fs) fs
 
      cvtIs <- [d| instance RTS.Convert $ty $ty where
-                    convert = id |]
+                    convert = id
+                    {-# INLINE convert #-}
+                |]
 
      pure (dataD : cvtIs ++ concat hasIs)
 
@@ -111,7 +113,9 @@ compileStruct name as fields =
                   Just t  -> snd <$> t
     in
     [d| instance R.HasField $lab $ty $ft where
-          getField = $def |]
+          getField = $def
+          {-# INLINE getField #-}
+      |]
 
 
 compileUnion ::
@@ -134,7 +138,9 @@ compileUnion name as cons =
      let ty = mkT tname as
      hasIs <- traverse (hasInstance ty) fs
      cvtIs <- [d| instance RTS.Convert $ty $ty where
-                    convert = id |]
+                    convert = id
+                    {-# INLINE convert #-}
+                |]
 
      pure (dataD : cvtIs ++ concat hasIs)
 
@@ -144,7 +150,8 @@ compileUnion name as cons =
   hasInstance ty (l,mb) =
     [d| instance R.HasField $(lab l) $ty $ft where
           getField = $def
-    |]
+          {-# INLINE getField #-}
+      |]
     where
     (ft,def) = case mb of
                  Nothing -> ([t| () |], [e| const () |])
@@ -169,17 +176,23 @@ compileBitdata name univ def =
 
      cvtIs <- [d| instance RTS.Convert $ty $ty where
                     convert = id
+                    {-# INLINE convert #-}
 
                   instance RTS.Bitdata $ty where
                     type instance BDWidth $ty = $(TH.litT (TH.numTyLit w))
                     fromBits = $(TH.conE cname)
+                    {-# INLINE fromBits #-}
                     toBits $(TH.conP cname [[p| x |]]) = x
+                    {-# INLINE toBits #-}
 
                   instance RTS.Convert $ty $repT where
                     convert = toBits
+                    {-# INLINE convert #-}
+
 
                   instance RTS.Convert $repT $ty where
                     convert = fromBits
+                    {-# INLINE convert #-}
                 |]
 
      hasIs <- case def of
@@ -207,7 +220,9 @@ compileBitdata name univ def =
                  getField $p = RTS.fromBits (
                                  RTS.convert
                                     ($(TH.varE x) `RTS.shiftr` RTS.UInt amt)
-                                 :: $wt) |]
+                                 :: $wt)
+                 {-# INLINE getField #-}
+             |]
 
 
   hasInstanceUnion ty (l,t) =
@@ -215,9 +230,12 @@ compileBitdata name univ def =
        ft <- compileMonoType t
        [d| instance R.HasField $lty $ty $(pure ft) where
               getField = RTS.fromBits . RTS.toBits
+              {-# INLINE getField #-}
 
            instance RTS.Convert $(pure ft) $ty where
-              convert = fromBits . toBits |]
+              convert = fromBits . toBits
+              {-# INLINE convert #-}
+          |]
 
 
 
