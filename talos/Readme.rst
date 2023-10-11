@@ -26,3 +26,10 @@ To run ``talos`` you need a Daedalus specification describing the parser. Talos 
   cabal run talos -- -n 4 tests/T003.ddl
 
 The ``-n`` flag controls how many example inputs are generated. In this example, we generate four possible inputs that satisfy the parser. 
+
+Developing Talos
+----------------
+
+See the [implementatino guide]_.
+
+.. _[implementatino guide]: implementation.md
