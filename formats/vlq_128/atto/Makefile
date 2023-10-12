@@ -7,5 +7,5 @@ run:
 	cabal exec atto
 
 clean:
-	cabal clean
+	rm -rf dist-newstyle
 
