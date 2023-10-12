@@ -127,7 +127,7 @@ data PathLoopBuilder a =
                       a
   | PathLoopMorphism SymbolicLoopTag (Branching (MV.VSequenceMeta, [a]))
                      
-type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder PathLoopBuilder SolverResult
+type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder CallInstantiation PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
 emptySymbolicEnv maxRecDepth nLoopElements ptag = SymbolicEnv

@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, DataKinds, RankNTypes, PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving, ParallelListComp #-}
@@ -42,23 +43,29 @@ import           Talos.Analysis.Slice  (FInstId)
 --
 -- where we don't fill in the Hole until the Many is filled in.
 
-data SelectedPathF ch ca lp a =
+data SelectedPathF ch ca fn lp a =
     SelectedHole
   | SelectedBytes ProvenanceTag a
   --  | Fail ErrorSource Type (Maybe Expr)
-  | SelectedDo (SelectedPathF ch ca lp a) (SelectedPathF ch ca lp a)
-  | SelectedChoice (ch (SelectedPathF ch ca lp a))
-  | SelectedCall FInstId (SelectedPathF ch ca lp a)
-  | SelectedCase (ca (SelectedPathF ch ca lp a))
-  | SelectedLoop (lp (SelectedPathF ch ca lp a))
+  | SelectedDo (SelectedPathF ch ca fn lp a) (SelectedPathF ch ca fn lp a)
+  | SelectedChoice (ch (SelectedPathF ch ca fn lp a))
+  | SelectedCall FInstId (SelectedPathF ch ca fn lp a)
+  | SelectedCase (ca (SelectedPathF ch ca fn lp a))
+  | SelectedLoop (lp (SelectedPathF ch ca fn lp a))
   deriving (Functor, Foldable, Traversable, Generic)
 
 data PathIndex a  = PathIndex { pathIndex :: Int, pathIndexPath :: a }
   deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
 
+data CallInstantiation a = CallInstantiation { instantiationId :: FInstId, instantiationVal :: a }
+  deriving (Eq, Ord, Functor, Foldable, Traversable, Generic, NFData)
+
+assertionsCI :: CallInstantiation SelectedPath
+assertionsCI = CallInstantiation assertionsFID SelectedHole
+
 -- We don't really need the index for cases, but it makes life a bit
 -- easier if we can just copy choice.
-type SelectedPath = SelectedPathF PathIndex PathIndex SelectedLoopF ByteString
+type SelectedPath = SelectedPathF PathIndex PathIndex CallInstantiation SelectedLoopF ByteString
 
 deriving instance NFData SelectedPath
 
@@ -371,7 +378,7 @@ instance Merge a => Merge (SelectedLoopF a) where
       _ -> panic "BUG: mismatched structure for merging SelectedLoop" []
 
 -- FIXME: too general probably
-instance Merge (SelectedPathF PathIndex PathIndex SelectedLoopF a) where
+instance Merge (SelectedPathF PathIndex PathIndex CallInstantiation SelectedLoopF a) where
   merge psL psR =
     case (psL, psR) of
       (SelectedHole, _) -> psR
@@ -383,9 +390,9 @@ instance Merge (SelectedPathF PathIndex PathIndex SelectedLoopF a) where
         | n1 /= n2  -> panic "BUG: Incompatible paths selected in merge" [show n1, show n2]
         | otherwise -> SelectedCase (PathIndex n1 (merge sp1 sp2))
 
-      (SelectedCall cl1 sp1, SelectedCall cl2 sp2)
+      (SelectedCall (CallInstantiation cl1 sp1), SelectedCall (CallInstantiation cl2 sp2))
         | cl1 /= cl2 -> panic "BUG: Incompatible function classes"  [] -- [showPP cl1, showPP cl2]
-        | otherwise  -> SelectedCall cl1 (merge sp1 sp2)
+        | otherwise  -> SelectedCall (CallInstantiation cl1 (merge sp1 sp2))
       (SelectedDo l1 r1, SelectedDo l2 r2) -> SelectedDo (merge l1 l2) (merge r1 r2)
       (SelectedLoop lp, SelectedLoop lp') -> SelectedLoop (merge lp lp')
       _ -> panic "BUG: merging non-mergeable nodes" []
@@ -407,6 +414,9 @@ instance ( Functor ch, PP (ch Doc)
 
 instance PP a => PP (PathIndex a) where
   pp (PathIndex i p) = pp i <> "@" <> pp p
+
+instance PP a => PP (CallInstantiation a) where
+    pp (CallInstantiation fid sp) = parens (pp fid) <+> ppPrec 1 sp
 
 instance PP a => PP (SelectedLoopF a) where
   pp l =
