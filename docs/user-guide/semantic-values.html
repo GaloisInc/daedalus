@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -45,6 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General Information</a></li>
 <li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="control-structures.html">Control Structures</a></li>
@@ -88,7 +91,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Language Reference</a></li>
       <li class="breadcrumb-item active">Semantic Values</li>
       <li class="wy-breadcrumbs-aside">
@@ -101,14 +104,14 @@
            <div itemprop="articleBody">
              
   <section id="semantic-values">
-<h1>Semantic Values<a class="headerlink" href="#semantic-values" title="Permalink to this heading"></a></h1>
+<h1>Semantic Values<a class="headerlink" href="#semantic-values" title="Permalink to this headline"></a></h1>
 <p>If successful, a parser produces a semantic value, which describes the
 input in some way useful to the application invoking the parser.
 In addition, semantic values may be used to control how other parts of the
 input are to be parsed.  DaeDaLus has a number of built-in semantic values
 types, and allows for user-defined record and union types.</p>
 <section id="booleans">
-<h2>Booleans<a class="headerlink" href="#booleans" title="Permalink to this heading"></a></h2>
+<h2>Booleans<a class="headerlink" href="#booleans" title="Permalink to this headline"></a></h2>
 <p>The type <code class="docutils literal notranslate"><span class="pre">bool</span></code> classifies the usual boolean values <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
 <p>The operator <code class="docutils literal notranslate"><span class="pre">!</span></code> may be used to negate a boolean value.
 The operators <code class="docutils literal notranslate"><span class="pre">||</span></code> and <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span></code> are for (short-circuiting) “or” and “and”
@@ -119,7 +122,7 @@ with <code class="docutils literal notranslate"><span class="pre">false</span> <
 using <a class="reference internal" href="control-structures.html#guards"><span class="std std-ref">Guards</span></a>, or by using <a class="reference internal" href="control-structures.html#case"><span class="std std-ref">Case</span></a>.</p>
 </section>
 <section id="numeric-types">
-<h2>Numeric Types<a class="headerlink" href="#numeric-types" title="Permalink to this heading"></a></h2>
+<h2>Numeric Types<a class="headerlink" href="#numeric-types" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>, the latter two being families of types indexed by a number.
 The type <code class="docutils literal notranslate"><span class="pre">int</span></code> classifies integers of arbitrary size.
@@ -127,24 +130,24 @@ The <code class="docutils literal notranslate"><span class="pre">uint</span> <sp
 bits and <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> is for signed numbers that can be represented
 in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits.</p>
 <section id="numeric-literals">
-<h3>Numeric Literals<a class="headerlink" href="#numeric-literals" title="Permalink to this heading"></a></h3>
+<h3>Numeric Literals<a class="headerlink" href="#numeric-literals" title="Permalink to this headline"></a></h3>
 <p>Literals of the numeric types may written either using decimal or hexadecimal
 notation (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> or <code class="docutils literal notranslate"><span class="pre">0xA</span></code>).  The type of a literal can be inferred
 from the context (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> can be used as both <code class="docutils literal notranslate"><span class="pre">int</span></code> a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
 </section>
 <section id="comparisons">
-<h3>Comparisons<a class="headerlink" href="#comparisons" title="Permalink to this heading"></a></h3>
+<h3>Comparisons<a class="headerlink" href="#comparisons" title="Permalink to this headline"></a></h3>
 <p>Numeric types can also be compared for equality, using <code class="docutils literal notranslate"><span class="pre">==</span></code> and ordering
 using <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>.</p>
 </section>
 <section id="basic-arithmetic">
-<h3>Basic Arithmetic<a class="headerlink" href="#basic-arithmetic" title="Permalink to this heading"></a></h3>
+<h3>Basic Arithmetic<a class="headerlink" href="#basic-arithmetic" title="Permalink to this headline"></a></h3>
 <p>Numeric types support basic arithmetic: addition, subtraction,
 multiplication, division, and modulus using the usual operators
 <code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, <code class="docutils literal notranslate"><span class="pre">/</span></code>, and <code class="docutils literal notranslate"><span class="pre">%</span></code>.</p>
 </section>
 <section id="bitwise-operations">
-<h3>Bitwise Operations<a class="headerlink" href="#bitwise-operations" title="Permalink to this heading"></a></h3>
+<h3>Bitwise Operations<a class="headerlink" href="#bitwise-operations" title="Permalink to this headline"></a></h3>
 <p>DaeDaLus also supports shift operations <code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;&gt;</span></code>.
 These operations are overloaded and can be used on all numeric types,
 with the restriction that the inputs and the outputs must be of the
@@ -167,7 +170,7 @@ The result of <code class="docutils literal notranslate"><span class="pre">x</sp
 </section>
 </section>
 <section id="maybe-type">
-<h2><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type<a class="headerlink" href="#maybe-type" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type<a class="headerlink" href="#maybe-type" title="Permalink to this headline"></a></h2>
 <p>DaeDaLus supports the special polymorphic type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">A</span></code>, which has possible
 values <code class="docutils literal notranslate"><span class="pre">nothing</span></code> and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, for some value, <code class="docutils literal notranslate"><span class="pre">x</span></code> of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
 <p>The parser <code class="docutils literal notranslate"><span class="pre">Optional</span> <span class="pre">P</span></code> will try to parse the input using and produce
@@ -181,7 +184,7 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 <a class="reference internal" href="control-structures.html#guards"><span class="std std-ref">Guards</span></a> or <a class="reference internal" href="control-structures.html#case"><span class="std std-ref">Case</span></a>.</p>
 </section>
 <section id="arrays">
-<h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this heading"></a></h2>
+<h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline"></a></h2>
 <p>The type of arrays containg elements of type <code class="docutils literal notranslate"><span class="pre">T</span></code> is <code class="docutils literal notranslate"><span class="pre">[T]</span></code>.</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- Array literals</span>
 <span class="p">[]</span>        <span class="c">-- empty array</span>
@@ -199,7 +202,7 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 <p>To visit all elements in array you may use a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
 </section>
 <section id="array-builders">
-<h2>Array Builders<a class="headerlink" href="#array-builders" title="Permalink to this heading"></a></h2>
+<h2>Array Builders<a class="headerlink" href="#array-builders" title="Permalink to this headline"></a></h2>
 <p>A <code class="docutils literal notranslate"><span class="pre">builder</span></code> is a datastructure that helps build arrays.
 To build an array, start with the empty builder <code class="docutils literal notranslate"><span class="pre">builder</span></code> and use
 <code class="docutils literal notranslate"><span class="pre">emit</span></code> to add elements to the builder.  Once all elements have been
@@ -221,7 +224,7 @@ added, you may use <code class="docutils literal notranslate"><span class="pre">
 </div>
 </section>
 <section id="association-maps">
-<h2>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this heading"></a></h2>
+<h2>Association Maps<a class="headerlink" href="#association-maps" title="Permalink to this headline"></a></h2>
 <p>The type of association maps with keys of type <code class="docutils literal notranslate"><span class="pre">K</span></code> and elements of type
 <code class="docutils literal notranslate"><span class="pre">T</span></code> is <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">K</span> <span class="pre">-&gt;</span> <span class="pre">T</span> <span class="pre">]</span></code>.</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="c">-- An empty map</span>
@@ -247,7 +250,7 @@ added, you may use <code class="docutils literal notranslate"><span class="pre">
 <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
 </section>
 <section id="streams">
-<h2>Streams<a class="headerlink" href="#streams" title="Permalink to this heading"></a></h2>
+<h2>Streams<a class="headerlink" href="#streams" title="Permalink to this headline"></a></h2>
 <p>The type <code class="docutils literal notranslate"><span class="pre">stream</span></code> is for values representing streams of data that
 can be parserd by a parser.   See <a class="reference internal" href="streams.html#stream-manipulation"><span class="std std-ref">Stream Manipulation</span></a> for more examples
 of how to manipualte the parser’s stream.</p>
@@ -257,6 +260,11 @@ of how to manipualte the parser’s stream.</p>
 <span class="c">-- Restrict a stream to the fist `n` bytes.</span>
 <span class="c">-- Will fail if the stream does not have enough bytes</span>
 <span class="k">Take</span> <span class="p">(</span><span class="n">n</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span> <span class="p">(</span><span class="n">s</span> <span class="p">:</span> <span class="k">stream</span><span class="p">)</span> <span class="p">:</span> <span class="k">stream</span>
+
+<span class="c">-- Restrict a stream to at most `n` bytes.</span>
+<span class="c">-- The resulting stream might be shorter if there are not</span>
+<span class="c">-- enough bytes</span>
+<span class="k">take</span> <span class="p">(</span><span class="n">n</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">64</span><span class="p">)</span> <span class="p">(</span><span class="n">s</span> <span class="p">:</span> <span class="k">stream</span><span class="p">)</span> <span class="p">:</span> <span class="k">stream</span>
 
 <span class="c">-- Advance a stream by `n` bytes.</span>
 <span class="c">-- Will fail if the stream does not have enough bytes</span>

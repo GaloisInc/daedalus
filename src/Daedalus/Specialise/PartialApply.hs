@@ -33,7 +33,8 @@ the original.  Consider, for example:
 -- FIXME: we don't rename here as the GUID guarantees that we have
 -- unique names (ignoring the scopedIdent).  We _will_ need to refresh
 -- the decl.
-partialApply :: 
+partialApply ::
+  PP a =>
   Name            {- ^ New name for instantiate declaration -}   ->
   [Type]          {- ^ Concrete types to use for the instance. -} ->
   [TCName Value]  {- ^ Additional paramteres for the instances. See NOTE -} ->

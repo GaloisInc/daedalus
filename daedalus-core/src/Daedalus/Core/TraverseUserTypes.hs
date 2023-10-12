@@ -1,18 +1,21 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Daedalus.Core.TraverseUserTypes where
 
-import Control.Applicative
-import qualified Data.Set as Set
-import Data.Set (Set)
+import           Control.Applicative
+import           Data.Functor.Identity (Identity (Identity), runIdentity)
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
 
-import Daedalus.Core.Basics
-import Daedalus.Core.Expr
-import Daedalus.Core.ByteSet
-import Daedalus.Core.Grammar
-import Daedalus.Core.Decl
+import           Daedalus.Core.Basics
+import           Daedalus.Core.ByteSet
+import           Daedalus.Core.Decl
+import           Daedalus.Core.Expr
+import           Daedalus.Core.Grammar
+
 
 -- XXX: This should probably be "traverseTypes"
 -- And then we can compose with another traversal that finds *user* types
@@ -21,6 +24,9 @@ import Daedalus.Core.Decl
 foldMapUserTypes ::
   (Monoid m, TraverseUserTypes t) => (UserType -> m) -> t -> m
 foldMapUserTypes f v = getConst (traverseUserTypes (Const . f) v)
+
+mapUserTypes :: TraverseUserTypes t => (UserType -> UserType) -> t -> t
+mapUserTypes f v = runIdentity (traverseUserTypes (Identity . f) v)
 
 -- Does not recurse into types
 -- i.e. 
@@ -74,6 +80,7 @@ instance TraverseUserTypes a => TraverseUserTypes (Fun a) where
         <*> traverseUserTypes f (fParams fn)
         <*> traverseUserTypes f (fDef fn)
         <*> pure (fIsEntry fn)
+        <*> pure (fMayFail fn)
         <*> pure (fAnnot fn)
 
 instance TraverseUserTypes Name where
@@ -123,6 +130,22 @@ instance TraverseUserTypes Grammar where
                            <*> traverseUserTypes f args
       Annot a g'  -> Annot a <$> traverseUserTypes f g'
       GCase c     -> GCase <$> traverseUserTypes f c
+      Loop lc -> Loop <$> traverseUserTypes f lc
+        
+instance (TraverseUserTypes e, TraverseUserTypes b) =>
+         TraverseUserTypes (LoopClass' e b) where
+  traverseUserTypes f lc = 
+    case lc of
+       ManyLoop s b l m_h g ->
+         ManyLoop s b <$> traverseUserTypes f l
+                      <*> traverseUserTypes f m_h
+                      <*> traverseUserTypes f g
+       RepeatLoop b n e g   ->
+         RepeatLoop b <$> traverseUserTypes f n
+                      <*> traverseUserTypes f e
+                      <*> traverseUserTypes f g
+       MorphismLoop lm  -> MorphismLoop <$> traverseUserTypes f lm
+ 
 
 instance TraverseUserTypes ByteSet where
   traverseUserTypes f bs =
@@ -142,7 +165,7 @@ instance TraverseUserTypes ByteSet where
       SetCall fn es            -> SetCall <$> traverseUserTypes f fn
                                           <*> traverseUserTypes f es
       SetCase c                -> SetCase <$> traverseUserTypes f c
-
+      
 instance TraverseUserTypes Expr where
   traverseUserTypes f e =
     case e of
@@ -154,6 +177,8 @@ instance TraverseUserTypes Expr where
                                   <*> traverse (\(l, e') -> (,) l
                                   <$> traverseUserTypes f e') ls
       ECase c          -> ECase   <$> traverseUserTypes f c
+
+      ELoop lm         -> ELoop <$> traverseUserTypes f lm
 
       Ap0 op0          -> Ap0 <$> traverseUserTypes f op0
       Ap1 op1 e'       -> Ap1 <$> traverseUserTypes f op1
@@ -229,3 +254,14 @@ instance TraverseUserTypes BDFieldType where
       BDTag n    -> pure (BDTag n)
       BDData l t -> BDData l <$> traverseUserTypes f t
 
+instance (TraverseUserTypes a, TraverseUserTypes b) =>
+         TraverseUserTypes (LoopMorphism' a b) where
+  traverseUserTypes f lm = case lm of
+    FoldMorphism s e lc b -> 
+      FoldMorphism s <$> traverseUserTypes f e <*> goLC lc <*> traverseUserTypes f b
+    MapMorphism lc b ->
+      MapMorphism <$> goLC lc <*> traverseUserTypes f  b
+    where
+      goLC lc = LoopCollection <$> traverseUserTypes f (lcKName lc)
+                               <*> traverseUserTypes f (lcElName lc)
+                               <*> traverseUserTypes f (lcCol lc)

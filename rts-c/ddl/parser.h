@@ -7,7 +7,6 @@
 #include <optional>
 
 #include <ddl/debug.h>
-#include <ddl/input.h>
 #include <ddl/stack.h>
 #include <ddl/parse_error.h>
 
@@ -15,9 +14,10 @@ namespace DDL {
 
 typedef size_t ThreadId;
 
+template<typename I>
 class ParserState {
 
-  ParseError error;
+  ParseError<I> error;
 
   ListStack           stack;
   std::vector<Thread> suspended;
@@ -26,13 +26,13 @@ class ParserState {
 public:
   ParserState() {}
 
-  ParseError getParseError() { return error; }
+  ParseError<I> getParseError() { return error; }
 
   // There are no more alternatives to consider.
   // Free the stack and return the best error we know about.
   // Note that if no errors occurer, the "error" woudl be just
   // the default error.
-  ParseError finalYield() {
+  ParseError<I> finalYield() {
     debugLine("final yield");
     debugVal(stack);
     stack.free();
@@ -46,17 +46,26 @@ public:
   void say(const char *msg) { debugLine(msg); }
 
   void pushDebug(char const* msg, bool tail = false) {
+#ifdef DDL_ENABLE_ERRORS
     if (tail) debugs.tailCallFun(msg); else debugs.callFun(msg);
+#endif
   }
-  void popDebug() { debugs.popFun(); }
+
+  void popDebug() {
+#ifdef DDL_ENABLE_ERRORS
+    debugs.popFun();
+#endif
+  }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
   void notify(ThreadId id) { suspended[id].notify(); }
 
   // Borrows input and msg
-  void noteFail(bool is_sys, char const *loc, Input input, Array<UInt<8>> msg) {
+  void noteFail(bool is_sys, char const *loc, I input, Array<UInt<8>> msg) {
+#ifdef DDL_ENABLE_ERRORS
     error.improve(is_sys,loc,input,msg,debugs);
+#endif
   }
 
   // Function calls
@@ -115,8 +124,8 @@ public:
 };
 
 
-template <typename T>
-class ParserStateUser : public ParserState {
+template <typename I, typename T>
+class ParserStateUser : public ParserState<I> {
   T &ustate;
 
 public:

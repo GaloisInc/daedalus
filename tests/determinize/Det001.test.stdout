@@ -12,6 +12,7 @@ type Main =
  
 -------------
  
+-- may fail
 -- ./Det001.ddl:5:1--9:10
 proc Simple1() : Word 8 =
   -- ./Det001.ddl:6:5--9:10
@@ -38,6 +39,7 @@ proc Simple1() : Word 8 =
        _ ->
          fail_sys @(Word 8)
  
+-- may fail
 -- ./Det001.ddl:11:1--15:10
 proc SimpleNot1() : Word 8 =
   -- ./Det001.ddl:12:5--15:10
@@ -53,7 +55,6 @@ proc SimpleNot1() : Word 8 =
          -- OR RECONSTRUCTION
          -- ./Det001.ddl:12:5--14:10
            fork
-             -- ./Det001.ddl:12:5--13:10
              -- ./Det001.ddl:13:5--13:10
              pure (102 @(Word 8))
            fork
@@ -65,6 +66,7 @@ proc SimpleNot1() : Word 8 =
        _ ->
          fail_sys @(Word 8)
  
+-- may fail
 -- ./Det001.ddl:17:1--20:12
 proc Simple2() : () =
   -- ./Det001.ddl:18:6--20:12
@@ -85,6 +87,7 @@ proc Simple2() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det001.ddl:22:1--25:39
 proc Simple3() : Word 8 =
   -- ./Det001.ddl:23:6--25:39
@@ -93,13 +96,13 @@ proc Simple3() : Word 8 =
      case _x0 of
        97 ->
          -- ./Det001.ddl:23:6--24:11
-         -- ./Det001.ddl:23:9--23:33
+         -- ./Det001.ddl:23:9--23:35
          -- ./Det001.ddl:23:13--23:18
          do let x = 97 @(Word 8)
-            -- ./Det001.ddl:23:22--23:33
+            -- ./Det001.ddl:23:22--23:35
             -- ./Det001.ddl:23:23--23:28
             match1_ { 98 @(Word 8) }
-            -- ./Det001.ddl:23:31--23:33
+            -- ./Det001.ddl:23:31--23:35
             -- ./Det001.ddl:23:31--23:33
             pure x
        98 ->
@@ -107,19 +110,20 @@ proc Simple3() : Word 8 =
          -- ./Det001.ddl:24:6--24:11
          pure (98 @(Word 8))
        99 ->
-         -- ./Det001.ddl:25:9--25:37
+         -- ./Det001.ddl:25:9--25:39
          -- ./Det001.ddl:25:13--25:18
          do let x = 99 @(Word 8)
-            -- ./Det001.ddl:25:22--25:37
+            -- ./Det001.ddl:25:22--25:39
             -- ./Det001.ddl:25:23--25:28
             match1_ { 98 @(Word 8) }
-            -- ./Det001.ddl:25:31--25:37
+            -- ./Det001.ddl:25:31--25:39
             -- ./Det001.ddl:25:31--25:37
             pure (x + x)
        _ ->
          fail_sys @(Word 8)
  
 -- entry pont
+-- may fail
 -- ./Det001.ddl:3:1--3:69
 proc Main() : Main =
   -- ./Det001.ddl:3:14--3:69

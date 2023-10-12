@@ -6,7 +6,8 @@ import qualified Data.ByteString.Char8 as C
 import Data.Word 
 import Data.Char (ord) 
 
-import RTS.Input
+import Daedalus.RTS.Input
+import RTS.ParseError
 
 import PdfMonad.Transformer
 

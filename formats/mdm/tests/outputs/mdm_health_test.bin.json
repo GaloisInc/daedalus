@@ -1,0 +1,19 @@
+{
+  "header": {
+    "ack": "NULL",
+    "destinationMui": 569,
+    "msgType": "HealthStatus",
+    "numDataMessages": 1,
+    "originMui": 49157,
+    "seqNumber": 236,
+    "versionMajor": 2,
+    "versionMinor": 3
+  },
+  "message": {
+    "alertType": "Warning",
+    "operationalParameter": "Cooling",
+    "operationalState": 987,
+    "parameterCondition": "Seized",
+    "portId": 9
+  }
+}

@@ -1,4 +1,4 @@
-{-# Language BlockArguments, RecordWildCards, DataKinds #-}
+{-# Language BlockArguments, RecordWildCards, DataKinds, TypeFamilies #-}
 module PdfMonad.Transformer
   ( PdfT
   , runPdfT, PdfResult(..)
@@ -7,6 +7,7 @@ module PdfMonad.Transformer
   , Cipher(..)
   , EncContext(..) 
   , doM
+  , ParseError
   , module RTS.ParserAPI
   ) where
 
@@ -18,8 +19,10 @@ import qualified Data.Map as Map
 import Control.Monad(liftM,ap)
 import Data.Word (Word32)
 
+import RTS.ParseError
+import RTS.Annot
 import RTS.ParserAPI
-import RTS.Numeric
+import Daedalus.RTS.Numeric
 
 
 data R = R { refObj :: {-# UNPACK #-} !Int
@@ -59,6 +62,8 @@ data RW = RW
 data PdfResult a = ParseOk a
                  | ParseAmbig [a]
                  | ParseErr ParseError
+
+type ParseError = ParseErrorG Annotation
 
 runPdfT :: Functor m => Input -> ObjIndex -> Maybe EncContext -> PdfT m a -> m a
 runPdfT inp objMap ec (P m) = fst <$> m ro rw
@@ -150,6 +155,8 @@ liftS s m = do a <- m
 {-# INLINE liftS #-}
 
 instance BasicParser m => BasicParser (PdfT m) where
+  type Annot (PdfT m) = Annot m
+
   P m ||| P n     = P \ro s -> m ro s ||| n ro s
   P m <|| P n     = P \ro s -> m ro s <|| n ro s
   pFail e         = doM (pFail e)
@@ -158,10 +165,8 @@ instance BasicParser m => BasicParser (PdfT m) where
   pStack          = doM pStack
   pPeek           = doM pPeek
   pSetInput i     = doM (pSetInput i)
-
-  pOffset         = doM pOffset
-  pEnd r          = doM (pEnd r)
-  pMatch1 r v     = doM (pMatch1 r v)
+  pITrace         = doM pITrace
+  pSetITrace x    = doM (pSetITrace x)
 
   pErrorMode e (P m) = P \ro s -> pErrorMode e (m ro s)
 
@@ -173,9 +178,6 @@ instance BasicParser m => BasicParser (PdfT m) where
   {-# INLINE pStack     #-}
   {-# INLINE pPeek      #-}
   {-# INLINE pSetInput  #-}
-  {-# INLINE pOffset    #-}
-  {-# INLINE pEnd       #-}
-  {-# INLINE pMatch1    #-}
   {-# INLINE pErrorMode #-}
 
 

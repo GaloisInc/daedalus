@@ -215,10 +215,17 @@ semCInstr env term =
     CallPure fn jp es ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Pure va -> next jp [va]
+          Pure va -> next (jumpTarget jp) [va]
           _       -> panic "semCInstr" ["pure function returned impure result"]
 
-    Call fn _ jpN jpY es ->
+    CallNoCapture fn (JumpCase ks) es ->
+     do result <- semFName fn (semE env <$> es)
+        case result of
+          Yes x y -> next (jumpTarget (ks Map.! True)) [x,y]
+          No      -> next (jumpTarget (ks Map.! False)) []
+          Pure{}  -> panic "semCInstr" ["parser returned pure result"]
+
+    CallCapture fn jpN jpY es ->
      do result <- semFName fn (semE env <$> es)
         case result of
           Yes x y -> next jpY [x,y]
@@ -257,7 +264,7 @@ semInstr kFrame env = \case
 -- Patterns -----------------------------------------------------------
 -----------------------------------------------------------------------
 
-semJumpChoice :: JumpChoice -> V.Value -> JumpWithFree
+semJumpChoice :: JumpChoice Src.Pattern -> V.Value -> JumpWithFree
 semJumpChoice (JumpCase jc) v =
   case match <|> Map.lookup PAny jc of
     Just jf -> jf

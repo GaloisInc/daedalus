@@ -1,0 +1,9 @@
+00000000: 0000 0f                               // Header: length: 15 bytes
+00000003: 01                                    // Header: frame type: headers
+00000004: 28                                    // Headers frame flags (priority bit set, padded bit set)
+00000005: ffac face                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: 04                                    // Headers frame payload: padding amount
+0000000a: f865 6c6c                             // Headers frame payload: exclusive (1) + stream dependency (31)
+0000000e: 9a                                    // Headers frame payload: weight
+0000000f: 6865 6c6c 6f                          // Headers frame payload: field block fragment octets
+00000014: cafe beef                             // Padding octets

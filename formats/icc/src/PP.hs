@@ -1,6 +1,7 @@
 {-# Language OverloadedStrings, TypeApplications, DataKinds #-}
 {-# Language ScopedTypeVariables #-}
 {-# Language AllowAmbiguousTypes, KindSignatures #-}
+{-# Language FlexibleInstances #-}
 module PP where
 
 import GHC.Records (HasField,getField)
@@ -13,9 +14,11 @@ import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Char8 as BS8
 import Data.Proxy(Proxy(Proxy))
 import qualified RTS.ParserAPI as RTS
-import qualified RTS.Input as RTS
-import qualified RTS.Vector as RTS
-import qualified RTS.Numeric as RTS
+import qualified Daedalus.RTS.Input as RTS
+import qualified Daedalus.RTS.Vector as RTS
+import qualified Daedalus.RTS.Numeric as RTS
+import qualified RTS.ParseError as RTS
+import qualified RTS.Annot as RTS
 import ICC
 import qualified Validator
 
@@ -53,7 +56,7 @@ instance PP a => PP (Maybe a) where
 
 --------------------------------------------------------------------------------
 
-instance PP RTS.ParseError where
+instance PP (RTS.ParseErrorG RTS.Annotation) where
   pp x =
     vcat [ "ERROR at offset" <+> (loc <> colon)
          , nest 2 $ vcat [ text (RTS.peMsg x)

@@ -1,8 +1,11 @@
 --- Parse error: 
 [offset: 5]
   • expected 't' while matching "there"
-  • see grammar at: ./T039.ddl:5:5--5:17
+  • see grammar at: T039.ddl:5:5--5:17
   • context:
+  • input trace:
+      T039.2.input
+        0--1 5--5
 File context:
 Length: 15 (0xf) bytes
 0000:   68 69 20 20  20 [1;91m20[0m 20 20  20 20 20 20  20 20 20   hi   [1;91m [0m         

@@ -83,9 +83,19 @@ def numBase base ds = for (val = 0; d in ds) (val * base + d)
 
 --------------------------------------------------------------------------------
 
+-- Compute the smaller value
 def min x y = if x < y then x else y
+
+-- Compute the larger value
 def max x y = if x < y then y else x
 
+-- Skip some occurances of the given parser, and return how many
+-- were skipped.
+def Count P : uint 64 = many (count = 0) { P; count + 1 }
+
+
+-- Match a P, followed by some Qs
+def ManyStart P Q = build (many (buf = emit builder P) (emit buf Q))
 
 
 --------------------------------------------------------------------------------
@@ -104,7 +114,9 @@ def Skip n          = SetStreamAt n GetStream
 def Chunk n P =
   block
     let s = GetStream
-    SetStream (Take n s)
+    SetStream (take n s)
+    -- we use `take` instead of `Take` so that we can start parsing before
+    -- all bytes are available (when streaming)
     $$ = P
     SetStreamAt n s
 
@@ -126,7 +138,34 @@ def WithStream s P =
       P
 
 
+--------------------------------------------------------------------------------
+-- Writing Tests
 
+-- Succeeds if the given parser accepts a prefix of the input.
+def TestAcceptsPrefix Parser input =
+  @ WithStream (arrayStream input) Parser
 
+-- Succeeds if the given parser accepts a the entire input.
+def TestAccepts Parser input = TestAcceptsPrefix (Only Parser) input
 
+-- Succeeds if the given parser can extract the expected values from
+-- a prefix of the input.
+def TestParsesPrefix Parser input expected =
+  WithStream (arrayStream input)
+    block
+      let result = Parser
+      result == expected is true
 
+-- Succeeds if the given parser can extract the expected values by
+-- consuming the entire input.
+def TestParses Parser input expected =
+  TestParsesPrefix (Only Parser) input expected
+
+-- Succeeds if the given parser will not accept any prefix of the input.
+def TestFailsPrefix Parser input =
+  case Optional (TestAcceptsPrefix Parser input) of
+    just    -> Fail "unexpected success"
+    nothing -> Accept
+
+-- Succeeds if the given parser will not accept the entire input.
+def TestFails Parser input = TestFailsPrefix (Only Parser) input

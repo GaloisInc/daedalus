@@ -1,37 +1,70 @@
 {-# Language BlockArguments #-}
-module Daedalus.Core.Effect(annotateNoFail, canFailFun, canFail) where
+{-# Language FlexibleInstances #-}
+module Daedalus.Core.Effect(mayFail, annotateMayFail, mayFailModule) where
 
 import Data.Set(Set)
 import qualified Data.Set as Set
 
 import Daedalus.Core
 
-canFailFun :: Fun Grammar -> Bool
-canFailFun f =
-  case fDef f of
-    External -> True
-    Def e    -> canFail e
+-- | Given known failing functions, determine which of
+-- the definitions in the module also may fail
+mayFailModule :: Module -> Set FName -> Set FName
+mayFailModule m failing =
+  let new = foldr mayFailFun failing (mGFuns m)
+  in if Set.size new == Set.size failing
+        then failing
+        else mayFailModule m new
 
-canFail :: Grammar -> Bool
-canFail gram =
+-- | Given a set of known failing functions, annotate parsers with info
+-- on if they may fail.
+annotateMayFail :: Set FName -> Module -> Module
+annotateMayFail failingExt m = m { mGFuns = map annotFun (mGFuns m) }
+  where
+  failing = mayFailModule m failingExt
+  annotFun fu = fu { fMayFail = if fName fu `Set.member` failing
+                                   then MayFail else MayNotFail }
+
+-- | Given a set of functions that are known to fail,
+-- determine if we should extend thet set with this function
+mayFailFun :: Fun Grammar -> Set FName -> Set FName
+mayFailFun fu failing
+  | name `Set.member` failing = failing
+  | otherwise = if fails then Set.insert name failing else failing
+  where
+  name = fName fu
+  fails = case fMayFail fu of
+            MayFail -> True
+            MayNotFail -> False
+            Unknown ->
+              case fDef fu of
+                External -> True
+                Def e    -> mayFail failing e
+
+-- | Given a set of functions that are known to fail,
+-- determine if grammar may fail.
+mayFail :: Set FName -> Grammar -> Bool
+mayFail failing gram =
   case gram of
     Pure {}           -> False
     GetStream {}      -> False
     SetStream {}      -> False
-    Match {}          -> True
+    Match _ m         -> mayFailMatch failing m
     Fail {}           -> True
-    Call {}           -> True
+    Call f _          -> f `Set.member` failing
 
     Annot a g         -> case a of
                            NoFail -> False
-                           _      -> canFail g
+                           _ -> mayFail failing g
 
-    Do_ g1 g2         -> canFail g1 || canFail g2
-    Do _ g1 g2        -> canFail g1 || canFail g2
-    Let _ _ g         -> canFail g
-    OrBiased _ g2     -> canFail g2
-    OrUnbiased g1 g2  -> canFail g1 && canFail g2
-    GCase (Case _ alts) -> any (canFail . snd) alts || partial (map fst alts)
+    Do_ g1 g2         -> mayFail failing g1 || mayFail failing g2
+    Do _ g1 g2        -> mayFail failing g1 || mayFail failing g2
+    Let _ _ g         -> mayFail failing g
+    OrBiased g1 g2    -> mayFail failing g1 && mayFail failing g2
+    OrUnbiased g1 g2  -> mayFail failing g1 && mayFail failing g2
+
+    GCase (Case _ alts) ->
+      any (mayFail failing . snd) alts || partial (map fst alts)
       where
       partial xs =
         case xs of
@@ -40,69 +73,38 @@ canFail gram =
           PAny     : _                    -> False
           PNothing : PJust : _            -> False
           PJust    : PNothing : _         -> False
-          PBool x : PBool y : _ | x /= y  -> False
+          PBool x  : PBool y : _ | x /= y  -> False
 
           _ : ys                          -> partial ys
 
--- | Cache analysis results in annotation nodes
-annotate :: (FName -> [Expr] -> Grammar) -> Grammar -> Grammar
-annotate annCall = annot
-  where
-  annot gram =
-    addAnn
-    case gram of
-      Pure {}           -> gram
-      GetStream {}      -> gram
-      SetStream {}      -> gram
-      Fail {}           -> gram
-      Match {}          -> gram
+    -- Overly pessimistic as Many (0..) can't fail
+    Loop lc -> mayFailLoop failing lc
 
-      Call f es         -> annCall f es
+mayFailMatch :: Set FName -> Match -> Bool
+mayFailMatch _failing ma =
+  case ma of
+    MatchByte {} -> True
+    MatchBytes e ->
+      case e of
+        ApN (ArrayL _) [] -> False
+        _ -> True
+    MatchEnd -> True
 
-      Annot a g         -> Annot a (annot g)
-
-      Do_ g1 g2         -> Do_ (annot g1) (annot g2)
-      Do x g1 g2        -> Do x (annot g1) (annot g2)
-      Let x e g         -> Let x e (annot g)
-      OrBiased g1 g2    -> OrBiased (annot g1) (annot g2)
-      OrUnbiased g1 g2  -> OrUnbiased (annot g1) (annot g2)
-      GCase (Case e alts) -> GCase (Case e [ (p,annot g1) | (p,g1) <- alts ])
-
-  annNoFail g = case g of
-
-                  -- these are already known to not fail, so no need for annot
-                  Annot NoFail _ -> g
-                  Pure {}        -> g
-                  GetStream {}   -> g
-                  SetStream {}   -> g
-
-                  _              -> Annot NoFail g
-
-  addAnn g1 = if canFail g1 then g1 else annNoFail g1
+mayFailLoop :: Set FName -> LoopClass Grammar -> Bool
+mayFailLoop failing lp =
+  case lp of
+    ManyLoop _ _ lower upper _ ->
+      case (lower,upper) of
+        (Ap0 (IntL 0 _), Nothing) -> False
+        _                         -> True
+    RepeatLoop {} -> False
+    MorphismLoop e -> mayFail failing (morphismBody e)
 
 
-analyseF :: Set FName ->  Fun Grammar -> Fun Grammar
-analyseF knownNoFail fun =
-  case fDef fun of
-    Def g     -> fun { fDef = Def (annotate annF g) }
-    External  -> fun
 
-  where
-  annF f es = if f `Set.member` knownNoFail
-                then Annot NoFail (Call f es)
-                else Call f es
 
--- | Annotate function names if they are know to always never fail
-annotateNoFail :: [Fun Grammar] -> [Fun Grammar]
-annotateNoFail fs0 = go (Set.empty,fs0)
-  where
-  save f (k,ch) = if fName f `Set.member` k || canFailFun f
-                    then (k,ch)
-                    else (Set.insert (fName f) k, True)
 
-  go (k,fs) = let fs1 = map (analyseF k) fs
-                  (k1,ch) = foldr save (k,False) fs1
-              in if ch then go (k1,fs1) else fs1
+
 
 
 

@@ -1,22 +1,21 @@
-{-# Language RecordWildCards #-}
+
 {-# Language OverloadedStrings #-}
-{-# Language ViewPatterns, FlexibleContexts #-}
+{-# Language FlexibleContexts #-}
 
 module Main where
 
-import System.Exit(exitFailure)
-import System.IO (hFlush, hPutStrLn, stdout, stderr
-                 , openFile, IOMode(..))
-import Control.Monad (replicateM, zipWithM_, when)
-
-import System.Console.ANSI
-
-import qualified Data.Map as Map
-
+import           Control.Monad         (when)
 import qualified Data.ByteString.Char8 as BS
-import qualified System.IO.Streams as Streams
+import qualified Data.Map              as Map
+import           Data.Maybe            (fromMaybe)
+import           Hexdump
+import qualified Streaming.Prelude     as S
+import           System.Console.ANSI
+import           System.IO             (IOMode (..), hFlush, openFile, stdout)
 
-import Hexdump
+import           Daedalus.Core.CFG (cfg, cfgFunToDot, cfgFuns)
+import           Daedalus.PP
+import           Talos
 
 import Daedalus.PP
 
@@ -24,6 +23,10 @@ import CommandLine
 import Talos
 import Talos.Strategy.Boltzmann -- TODO: instead export some high-level operations from Talos and use those
 import Data.Maybe (fromMaybe)
+
+import Daedalus.GUID (runFresh)
+import Data.Foldable (traverse_)
+
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -43,35 +46,29 @@ main = do
     SummaryMode   -> doSummary opts
     DumpCoreMode  -> doDumpCore opts
     CallGraphMode -> doCallGraph opts
-
+    CFGDotMode    -> doCFGDot opts
 
 doDumpCore :: Options -> IO ()
 doDumpCore opts = do
-  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
+  (_mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
   print (pp md)
+
+doCFGDot :: Options -> IO ()
+doCFGDot opts = do
+  (_mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  let (cfgm, _nguid') = runFresh (cfg md) nguid
+  traverse_ (print . pp . cfgFunToDot) (cfgFuns cfgm)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
   putStrLn "Summarising ..."
   let absEnv = fromMaybe "fields" (optAnalysisKind opts)
-  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) absEnv
+  summaryDoc <- summarise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optVerbosity opts) (optNoLoops opts) absEnv
   print summaryDoc
-    
+
 doSynthesis :: Options -> IO ()
 doSynthesis opts = do
-  let bOpts = [ ("auto-config", "false")
-              , ("smt.phase_selection", "5")
-              -- see :smt.arith.random_initial_value also and seed options
-              ]
-              ++ if optValidateModel opts
-                 then [("model-validate", "true")]
-                  else []
-
-  let logOpt = (\x -> (x, optLogOutput opts)) <$> optLogLevel opts
-      absEnv = fromMaybe "fields" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
-  strm <- synthesise (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optSolver opts) 
-            ["-smt2", "-in"] bOpts (pure ()) (optStrategy opts)
-            logOpt (optSeed opts) absEnv
+  strm <- synthesise sopts
 
   -- model output
   let indent = unlines . map ((++) "  ") . lines
@@ -99,18 +96,44 @@ doSynthesis opts = do
                    _                -> \n -> pat ++ "." ++ show n
         pure (\n _ bs _ -> BS.writeFile (mk n) bs)
 
-  let doWriteModel n m_bs =
-        case m_bs of
-          Nothing      -> hPutStrLn stderr "Not enough models" >> exitFailure
-          Just (v, bs, provmap) -> 
-            do writeModel n v bs provmap
-               when (optPrettyModel opts) $ prettyBytes n v bs provmap
-               case optProvFile opts of
-                 Nothing -> pure ()
-                 Just f  -> writeFile f (show provmap)
-                   
-  bss <- replicateM (optNModels opts) (Streams.read strm)
-  zipWithM_ doWriteModel [(0 :: Int)..] bss
+  let doWriteModel ((v, bs, provmap), n) = do
+        writeModel n v bs provmap
+        when (optPrettyModel opts) $ prettyBytes n v bs provmap
+        case optProvFile opts of
+          Nothing -> pure ()
+          Just f  -> writeFile f (show provmap)
+
+  let strm' = S.take (optNModels opts) $ S.zip strm (S.each [(0 :: Int)..])
+  S.mapM_ doWriteModel strm'
+  where
+    sopts = SynthesisOptions
+      { inputFile       = optDDLInput opts
+      , inverseFile     = optInvFile opts
+      , entry           = optDDLEntry opts
+      , solverPath      = optSolver opts
+      , solverArgs      = ["-smt2", "-in"]
+      , solverOpts      = bOpts
+      , solverInit      = pure ()
+      , synthesisStrats = optStrategy opts 
+      , smtLogFile      = optSMTOutput opts
+      , seed            = optSeed opts
+      , analysisEnv     = absEnv
+      , verbosity       = optVerbosity opts
+      , eraseLoops      = optNoLoops opts
+      , logFile         = optLogOutput opts
+      , debugKeys       = optDebugKeys opts
+      , statsFile       = optStatsOutput opts
+      , problemFile     = optProblemFilePfx opts
+      , statsKeys       = optStatsKeys opts
+      }
+      
+    bOpts = [ ("auto-config", "false")
+            , ("smt.phase_selection", "5")
+            -- see :smt.arith.random_initial_value also and seed options
+            ]
+            ++ [("model-validate", "true") | optValidateModel opts]
+    absEnv = fromMaybe "fl" (optAnalysisKind opts) -- FIXME: don't hardcode analysis
+
 
 doCallGraph :: Options -> IO ()
 doCallGraph opts = do
@@ -123,20 +146,20 @@ prettyHexWithProv provmap bs =
   prettyHexCfg (Cfg 0 mkColor) bs
     ++ (setSGRCode [])
   where
-    mkColor off s = 
-      let (i, col) = case Map.lookup off provmap of 
+    mkColor off s =
+      let (i, col) = case Map.lookup off provmap of
                          Just p -> colors !! (p `mod` (length colors))
                          Nothing -> (Vivid, White)
       in
         (setSGRCode [SetColor Foreground i col]) ++ s
 
-    colors = [(Vivid, Red), 
+    colors = [(Vivid, Red),
               (Vivid, Green),
               (Vivid, Yellow),
               (Vivid, Blue),
               (Vivid, Magenta),
               (Vivid, Cyan),
-              (Dull, Red), 
+              (Dull, Red),
               (Dull, Green),
               (Dull, Yellow),
               (Dull, Blue),

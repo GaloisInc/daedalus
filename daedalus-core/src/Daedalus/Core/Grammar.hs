@@ -1,15 +1,16 @@
 {-# Language OverloadedStrings #-}
 {-# Language ViewPatterns, PatternSynonyms #-}
-{-# Language DeriveGeneric, DeriveAnyClass #-}
+{-# Language DeriveGeneric, DeriveAnyClass, DeriveFunctor, DeriveTraversable #-}
 
 module Daedalus.Core.Grammar where
 
 import GHC.Generics          (Generic)
 import Control.DeepSeq       (NFData)
-
 import Data.Functor.Identity(Identity(..))
+import Data.Functor.Const (Const(Const))
 
 import Daedalus.PP
+import Daedalus.SourceRange
 import Daedalus.Core.Basics
 import Daedalus.Core.Expr
 import Daedalus.Core.ByteSet
@@ -28,7 +29,29 @@ data Grammar =
   | Call FName [Expr]
   | Annot Annot Grammar
   | GCase (Case Grammar)
+  | Loop (LoopClass Grammar)
   deriving (Generic,NFData)
+
+
+-- | Types of loops we support.
+data LoopClass' e body =
+    ManyLoop Sem Backtrack e (Maybe e) body
+    -- ^ `Many`
+
+  | RepeatLoop Backtrack Name e body
+    -- ^ `many`
+
+  | MorphismLoop (LoopMorphism' e body)
+    -- ^ `for`, `map`
+  deriving (Functor, Foldable, Traversable, Generic, NFData)
+
+type LoopClass = LoopClass' Expr
+
+loopClassBody :: LoopClass' e body -> body
+loopClassBody lc = case lc of
+  ManyLoop _ _ _ _ g -> g
+  RepeatLoop _ _ _ g -> g
+  MorphismLoop lm    -> morphismBody lm
 
 -- | Implicit input manipulation
 data Match =
@@ -39,6 +62,12 @@ data Match =
 
 data Sem = SemNo | SemYes
   deriving (Generic,NFData)
+
+-- | Specifies the backtracking strategy for a component.
+data Backtrack =
+    Eager -- ^ Consume as much input as possible
+  | Lazy  -- ^ Consume as much input as needed
+    deriving (Generic,NFData)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
   deriving (Generic,NFData)
@@ -66,16 +95,12 @@ skipGetAnnot = go []
 
 
 gAnnotate :: [Annot] -> Grammar -> Grammar
-gAnnotate as g = foldr Annot g as
+gAnnotate as g0 = foldr addAnn g0 as
   where
-  -- can use this to only add a single src range annotation
-  _addAnn a gram =
-    case a of
-      SrcRange {} ->
-        case gram of
-          Annot (SrcRange {}) _ -> gram
-          Annot b g1 -> Annot b (_addAnn a g1)
-          _ -> Annot a gram
+  addAnn a gram =
+    case (a,gram) of
+      (SrcRange r1, Annot (SrcRange r2) g)
+        | Just r <- r1 `sourceRangeContainedIn` r2 -> Annot (SrcRange r) g
       _ -> Annot a gram
 
 
@@ -121,14 +146,14 @@ pattern Choice :: Bool -> [Grammar] -> Grammar
 pattern Choice biased cs <- (collectChoices -> Just (biased, cs))
 
 collectChoices :: Grammar -> Maybe (Bool, [Grammar])
-collectChoices g@(OrUnbiased {}) = Just (False, go g)
+collectChoices g@(skipAnnot -> OrUnbiased {}) = Just (False, go g)
   where
-    go (OrUnbiased l r) = go l ++ go r
+    go (skipAnnot -> OrUnbiased l r) = go l ++ go r
     go g'               = [g']
 
-collectChoices g@(OrBiased {}) = Just (True, go g)
+collectChoices g@(skipAnnot -> OrBiased {}) = Just (True, go g)
   where
-    go (OrBiased l r) = go l ++ go r
+    go (skipAnnot -> OrBiased l r) = go l ++ go r
     go g'             = [g']
 
 collectChoices _ = Nothing
@@ -157,6 +182,10 @@ gebChildrenG gf ef bf gram =
     Call fn args      -> Call fn <$> traverse ef args
     Annot a g         -> Annot a <$> gf g
     GCase cs          -> GCase <$> traverse gf cs
+    Loop lc           -> Loop <$> case lc of
+      ManyLoop s b l m_h g -> ManyLoop s b <$> ef l <*> traverse ef m_h <*> gf g
+      RepeatLoop b n e g   -> RepeatLoop b n <$> ef e <*> gf g
+      MorphismLoop lm      -> MorphismLoop <$> morphismE ef gf lm
 
 gebMapChildrenG :: (Grammar -> Grammar) -> (Expr -> Expr) -> (ByteSet -> ByteSet) ->
                    Grammar -> Grammar
@@ -171,8 +200,14 @@ mapChildrenG :: (Grammar -> Grammar) -> Grammar -> Grammar
 mapChildrenG f g = g1
   where Identity g1 = childrenG (Identity . f) g
 
+foldMapChildrenG :: Monoid m => (Grammar -> m) -> (Expr -> m) -> (ByteSet -> m) ->
+                    Grammar -> m
+foldMapChildrenG gf ef bf g = m
+  where Const m = gebChildrenG (Const . gf) (Const . ef) (Const . bf) g
+
 collectChildren :: Monoid a => (Grammar -> a) -> Grammar -> a
 collectChildren f = fst . childrenG (\g -> (f g, g))
+
 
 --------------------------------------------------------------------------------
 
@@ -203,6 +238,21 @@ instance PP Grammar where
       Call f es      -> pp f <.> parens (commaSep (map pp es))
       Annot l g      -> "--" <+> pp l $$ pp g
       GCase c        -> pp c
+      Loop lc        -> pp lc
+
+instance (PP e, PP b) => PP (LoopClass' e b) where
+  pp lc =
+    case lc of
+      ManyLoop s b l m_h g ->
+        "Many" <.> ppBiased b <.> ppSemSuff s <+>
+        parens (pp l <.> ".." <.> maybe "" pp m_h) <+> pp g
+      RepeatLoop b n e g   ->
+        "for" <.> ppBiased b <+> parens (pp n <+> "=" <+> pp e) <+> pp g
+      MorphismLoop lm  -> pp lm    
+    where
+      ppBiased b = case b of
+                     Eager -> ""
+                     Lazy  -> "?"
 
 ppMatch :: Sem -> Match -> Doc
 ppMatch s mat =

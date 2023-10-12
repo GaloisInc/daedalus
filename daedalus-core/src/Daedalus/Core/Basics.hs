@@ -72,6 +72,7 @@ data Annot =
     SrcAnnot Text
   | SrcRange SourceRange  -- ^ Reference to something in the original source
   | NoFail                -- ^ The grammar is known to not fail
+  | NodeID GUID
   deriving (Generic,NFData,Show)
 
 type Label = Text
@@ -121,7 +122,7 @@ newtype TParam = TP Int
 data Case k = Case { caseVar  :: Name
                    , casePats :: [(Pattern,k)]
                    }
-  deriving (Functor,Foldable,Traversable,Generic,NFData)
+  deriving (Functor,Foldable,Traversable,Generic,NFData,Eq)
 
 data Pattern =
     PBool Bool
@@ -131,14 +132,14 @@ data Pattern =
   | PBytes ByteString
   | PCon Label
   | PAny
-    deriving (Eq,Ord,Generic,NFData)
+    deriving (Show,Eq,Ord,Generic,NFData)
 
 -- A convenience type for typed things
 data Typed a = Typed
   { typedType :: Type
   , typedThing :: a
   }
-  deriving (Eq,Ord,Functor,Generic,NFData)
+  deriving (Eq,Ord,Foldable,Traversable,Functor,Generic,NFData)
 
 instance Show a => Show (Typed a) where
   show = show . typedThing
@@ -231,7 +232,7 @@ instance PP Annot where
       SrcAnnot t -> pp t
       SrcRange r -> pp r
       NoFail     -> "NoFail"
-
+      NodeID g   -> "id:" <> pp g
 
 instance PP Type where
   ppPrec n ty =

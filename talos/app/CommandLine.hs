@@ -9,13 +9,16 @@ import Options.Applicative
 
 data Outfile = AllOutput FilePath | PatOutput FilePath
 
-data Mode = SynthesisMode | SummaryMode | DumpCoreMode | CallGraphMode
+data Mode = SynthesisMode | SummaryMode | DumpCoreMode | CallGraphMode | CFGDotMode
 
 data Options =
   Options { optSolver    :: FilePath
           -- Logging
+          , optSMTOutput :: Maybe FilePath
           , optLogOutput :: Maybe FilePath
-          , optLogLevel  :: Maybe Int
+          , optDebugKeys :: [String]
+          , optStatsOutput :: Maybe FilePath
+          , optStatsKeys :: [String]
           -- Model generation
           , optNModels   :: Int
           , optSeed      :: Maybe Int
@@ -29,7 +32,11 @@ data Options =
           , optDDLEntry   :: Maybe String
           , optStrategy   :: Maybe [String]
           , optInvFile    :: Maybe FilePath
+          , optStatsFile  :: Maybe FilePath
+          , optProblemFilePfx :: Maybe FilePath          
           , optAnalysisKind :: Maybe String
+          , optVerbosity :: Int
+          , optNoLoops :: Bool
           , optDDLInput  :: FilePath
           }
 
@@ -44,17 +51,42 @@ solverOpt = strOption
 
 logfileOpt :: Parser String
 logfileOpt = strOption
-   ( long "logfile"
-  <> short 'L'
-  <> metavar "FILE"
-  <> help "Write log to FILE (default stdout)" )
-
-loglevelOpt :: Parser Int
-loglevelOpt = option auto
    ( long "log"
-  <> short 'l'
-  <> metavar "INT"
-  <> help "Log verbosity (default don't log)" )
+     <> short 'l'
+     <> metavar "FILE"
+     <> help "Write log to FILE (default stdout)" )
+
+debugKeyOpt :: Parser String
+debugKeyOpt = strOption
+   ( long "debug-key"
+     <> short 'D'
+     <> metavar "FILE"
+     <> help "Produce debug output for KEY" )
+
+statsFileOpt :: Parser String
+statsFileOpt = strOption
+   ( long "stats"
+     <> metavar "FILE"
+     <> help "Write statistics to FILE" )
+
+problemFileOpt :: Parser String
+problemFileOpt = strOption
+   ( long "save-problems"
+     <> metavar "FILE"
+     <> help "Write SMT problems to FILE<slice-id>" )
+
+statsKeyOpt :: Parser String
+statsKeyOpt = strOption
+   ( long "stats-key"
+     <> short 'k'
+     <> metavar "KEY"
+     <> help "Produce statistics output for KEY (may be used multiple times)" )
+
+smtLogOpt :: Parser FilePath
+smtLogOpt = strOption
+   ( long "smt-log"
+     <> metavar "FILE"
+     <> help "Write smt log to FILE" )
 
 validateModelFlag :: Parser Bool
 validateModelFlag = switch
@@ -97,7 +129,6 @@ invFileOpt = strOption
      <> short 'i'
      <> help "Inverse annotations" )
 
-
 allOutputOpt :: Parser String
 allOutputOpt = strOption
    ( long "all-output"
@@ -115,9 +146,10 @@ patOutputOpt = strOption
 modeOpt :: Parser Mode
 modeOpt = flag' SummaryMode ( long "summary" <> help "Print out analysis results")
           <|> flag' DumpCoreMode ( long "dump-core" <> help "Print out intermediate core")
+          <|> flag' CFGDotMode ( long "cfg-dot" <> help "Print out the control flow graph(s)")
           <|> flag' CallGraphMode ( long "call-graph" <> help "Print out some information on the call graph")
           <|> pure SynthesisMode -- defaultx
-          
+
 entryOpt :: Parser String
 entryOpt = strOption
     ( long "entry"
@@ -143,10 +175,27 @@ analysisKindOpt = strOption
     <> help "The slicing analysis to use"
     )
 
+
+-- FIXME: lookup available types of analysis and use that
+verbosityOpt :: Parser ()
+verbosityOpt = flag' ()
+   ( long "verbose"
+     <> short 'v'
+     <> help "Verbosity level (can be used multiple times)" )
+
+noLoopsOpt :: Parser Bool
+noLoopsOpt = switch
+   ( long "no-loops"
+   <> help "Remove loops before running Talos" )
+
+
 options :: Parser Options
 options = Options <$> solverOpt
+                  <*> optional smtLogOpt
                   <*> optional logfileOpt
-                  <*> optional loglevelOpt
+                  <*> many debugKeyOpt
+                  <*> optional statsFileOpt
+                  <*> many statsKeyOpt
                   <*> nModelsOpt
                   <*> optional seedOpt
                   <*> optional ((AllOutput <$> allOutputOpt) <|> (PatOutput <$> patOutputOpt))
@@ -155,9 +204,13 @@ options = Options <$> solverOpt
                   <*> validateModelFlag
                   <*> modeOpt
                   <*> optional entryOpt
-                  <*> ((Just <$> some strategyOpt) <|> pure Nothing)
+                  <*> optional (some strategyOpt)
                   <*> optional invFileOpt
+                  <*> optional statsFileOpt
+                  <*> optional problemFileOpt                  
                   <*> optional analysisKindOpt
+                  <*> (length <$> many verbosityOpt)
+                  <*> noLoopsOpt
                   <*> argument str (metavar "FILE")
 
 opts :: ParserInfo Options

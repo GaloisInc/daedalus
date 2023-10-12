@@ -70,6 +70,7 @@ compileE expr k =
             continue k s
 
     Src.ECase (Src.Case x as) -> compileCase (Src.typeOf expr) x as k
+    Src.ELoop {} -> panic "compileE" ["Saw a ELoop"]
 
     Src.Ap0 op          -> compileOp0 op ty k
     Src.Ap1 op e        -> compileOp1 op ty e k
@@ -128,7 +129,7 @@ compileOpN op ty es k =
                do mkL <- retPure (Src.typeOf f) k'
                   pure \vs ->
                     do l <- mkL
-                       term (CallPure f l vs)
+                       term (CallPure f (jumpNoFree l) vs)
 
          compileEs es doCall
 

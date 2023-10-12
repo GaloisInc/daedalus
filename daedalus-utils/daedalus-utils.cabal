@@ -27,7 +27,7 @@ library
     Daedalus.Time
 
   build-depends:
-    base >=4.13 && <4.17,
+    base >=4.13 && <5,
     pretty,
     text,
     bytestring,
@@ -38,6 +38,7 @@ library
     panic,
     template-haskell,
     monadLib,
+    mtl,
     clock
 
   hs-source-dirs:      src

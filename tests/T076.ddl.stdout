@@ -10,31 +10,31 @@ Daedalus.joinWords ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (?a1 + ?a0 = ?a2) (?bigEndian :
   if ?bigEndian then a # b else b # a
  
 Daedalus.UInt16 (?bigEndian : bool) : Grammar (uint 16) =
-  do (_92 : uint 8) <- Match UInt8
-     (_93 : uint 8) <- Match UInt8
-     pure (Daedalus.joinWords 8 8 16 ?bigEndian _92 _93)
+  do (_120 : uint 8) <- Match UInt8
+     (_121 : uint 8) <- Match UInt8
+     pure (Daedalus.joinWords 8 8 16 ?bigEndian _120 _121)
  
 Daedalus.UInt32 (?bigEndian : bool) : Grammar (uint 32) =
-  do (_95 : uint 16) <- Daedalus.UInt16 ?bigEndian
-     (_96 : uint 16) <- Daedalus.UInt16 ?bigEndian
-     pure (Daedalus.joinWords 16 16 32 ?bigEndian _95 _96)
+  do (_123 : uint 16) <- Daedalus.UInt16 ?bigEndian
+     (_124 : uint 16) <- Daedalus.UInt16 ?bigEndian
+     pure (Daedalus.joinWords 16 16 32 ?bigEndian _123 _124)
  
 Daedalus.UInt64 (?bigEndian : bool) : Grammar (uint 64) =
-  do (_98 : uint 32) <- Daedalus.UInt32 ?bigEndian
-     (_99 : uint 32) <- Daedalus.UInt32 ?bigEndian
-     pure (Daedalus.joinWords 32 32 64 ?bigEndian _98 _99)
+  do (_126 : uint 32) <- Daedalus.UInt32 ?bigEndian
+     (_127 : uint 32) <- Daedalus.UInt32 ?bigEndian
+     pure (Daedalus.joinWords 32 32 64 ?bigEndian _126 _127)
  
 Daedalus.SInt16 (?bigEndian : bool) : Grammar (sint 16) =
-  do (_101 : uint 16) <- Daedalus.UInt16 ?bigEndian
-     pure (_101 as sint 16)
+  do (_129 : uint 16) <- Daedalus.UInt16 ?bigEndian
+     pure (_129 as sint 16)
  
 Daedalus.SInt32 (?bigEndian : bool) : Grammar (sint 32) =
-  do (_103 : uint 32) <- Daedalus.UInt32 ?bigEndian
-     pure (_103 as sint 32)
+  do (_131 : uint 32) <- Daedalus.UInt32 ?bigEndian
+     pure (_131 as sint 32)
  
 Daedalus.SInt64 (?bigEndian : bool) : Grammar (sint 64) =
-  do (_105 : uint 64) <- Daedalus.UInt64 ?bigEndian
-     pure (_105 as sint 64)
+  do (_133 : uint 64) <- Daedalus.UInt64 ?bigEndian
+     pure (_133 as sint 64)
  
 Daedalus.wordToHalfFloat (w : uint 16) : float =
   let sign = w >> 15 as uint 1 in
@@ -46,16 +46,16 @@ Daedalus.wordToHalfFloat (w : uint 16) : float =
                                                               wordToFloat (((sign # newExp) # mant) # 0)
  
 Daedalus.HalfFloat (?bigEndian : bool) : Grammar float =
-  do (_107 : uint 16) <- Daedalus.UInt16 ?bigEndian
-     pure (Daedalus.wordToHalfFloat _107)
+  do (_135 : uint 16) <- Daedalus.UInt16 ?bigEndian
+     pure (Daedalus.wordToHalfFloat _135)
  
 Daedalus.Float (?bigEndian : bool) : Grammar float =
-  do (_109 : uint 32) <- Daedalus.UInt32 ?bigEndian
-     pure (wordToFloat _109)
+  do (_137 : uint 32) <- Daedalus.UInt32 ?bigEndian
+     pure (wordToFloat _137)
  
 Daedalus.Double (?bigEndian : bool) : Grammar double =
-  do (_111 : uint 64) <- Daedalus.UInt64 ?bigEndian
-     pure (wordToDouble _111)
+  do (_139 : uint 64) <- Daedalus.UInt64 ?bigEndian
+     pure (wordToDouble _139)
  
 Daedalus.BEUInt16 : Grammar (uint 16) =
   do (?bigEndian : bool) <- pure true
@@ -183,22 +183,36 @@ Daedalus.min ?a0 (x : ?a0) (y : ?a0) : ?a0 =
 Daedalus.max ?a0 (x : ?a0) (y : ?a0) : ?a0 =
   if (x < y) then y else x
  
+Daedalus.Count ?a0 (P : Grammar ?a0) : Grammar (uint 64) =
+  for ((count : uint 64) = 0)
+    do do P
+          pure {}
+       ($$ : uint 64) <- pure (count + 1)
+       pure $$
+ 
+Daedalus.ManyStart ?a0 (P : Grammar ?a0) (Q : Grammar ?a0) : Grammar [?a0] =
+  do (_181 : Builder ?a0) <- do (_179 : Builder ?a0) <- do (_178 : ?a0) <- P
+                                                           pure (emit builder _178)
+                                for ((buf : Builder ?a0) = _179)
+                                  do (_180 : ?a0) <- Q
+                                     pure (emit buf _180)
+     pure (build _181)
+ 
 Daedalus.SetStreamAt (n : uint 64) (s : Stream) : Grammar {} =
-  do (_149 : Stream) <- StreamOff n s
-     SetStream _149
+  do (_182 : Stream) <- StreamOff n s
+     SetStream _182
  
 Daedalus.Skip (n : uint 64) : Grammar {} =
-  do (_150 : Stream) <- CurrentStream
-     Daedalus.SetStreamAt n _150
+  do (_183 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt n _183
  
 Daedalus.SetStreamAt_ (n : uint 64) (s : Stream) : Grammar {} =
-  do (_149 : Stream) <- StreamOff n s
-     SetStream _149
+  do (_182 : Stream) <- StreamOff n s
+     SetStream _182
  
 Daedalus.Chunk ?a0 (n : uint 64) (P : Grammar ?a0) : Grammar ?a0 =
   do (s : Stream) <- CurrentStream
-     do (_151 : Stream) <- StreamLen n s
-        SetStream _151
+     SetStream (n take s)
      ($$ : ?a0) <- P
      Daedalus.SetStreamAt_ n s
      pure $$
@@ -216,6 +230,42 @@ Daedalus.WithStream ?a0 (s : Stream) (P : Grammar ?a0) : Grammar ?a0 =
   Daedalus.LookAhead ?a0 do SetStream s
                             ($$ : ?a0) <- P
                             pure $$
+ 
+Daedalus.LookAhead_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  do (s : Stream) <- CurrentStream
+     P_
+     SetStream s
+ 
+Daedalus.WithStream_ ?a0 (s : Stream) (P_ : Grammar {}) : Grammar {} =
+  Daedalus.LookAhead_ ?a0 do SetStream s
+                             P_
+ 
+Daedalus.TestAcceptsPrefix ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  Daedalus.WithStream_ ?a0 (arrayStream "array" input) do Parser
+                                                          pure {}
+ 
+Daedalus.TestAccepts ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  Daedalus.TestAcceptsPrefix ?a0 (Daedalus.Only ?a0 Parser) input
+ 
+Daedalus.TestParsesPrefix ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?a0) : Grammar {} =
+  Daedalus.WithStream {} (arrayStream "array" input) do (result : ?a0) <- Parser
+                                                        ($$ : {}) <- case result == expected is
+                                                                       { true -> pure {}
+                                                                       }
+                                                        pure $$
+ 
+Daedalus.TestParses ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?a0) : Grammar {} =
+  Daedalus.TestParsesPrefix ?a0 (Daedalus.Only ?a0 Parser) input expected
+ 
+Daedalus.TestFailsPrefix ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  do (_186 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
+     case _186 is
+       { just _ -> {- case branch  just _ -} Fail "unexpected success"
+       ; nothing -> {- case branch  nothing -} pure {}
+       }
+ 
+Daedalus.TestFails ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  Daedalus.TestFailsPrefix ?a0 (Daedalus.Only ?a0 Parser) input
  
 Daedalus.UInt16_ : Grammar {} =
   do @Match UInt8
@@ -323,28 +373,52 @@ Daedalus.Only_ ?a0 (P_ : Grammar {}) : Grammar {} =
   do P_
      END
  
+Daedalus.Count_ ?a0 (P_ : Grammar {}) : Grammar {} =
+  for ((count : {}) = {})
+    P_
+ 
+Daedalus.ManyStart_ ?a0 (P_ : Grammar {}) (Q_ : Grammar {}) : Grammar {} =
+  do P_
+     for ((buf : {}) = {})
+       Q_
+ 
 Daedalus.Skip_ (n : uint 64) : Grammar {} =
-  do (_150 : Stream) <- CurrentStream
-     Daedalus.SetStreamAt_ n _150
+  do (_183 : Stream) <- CurrentStream
+     Daedalus.SetStreamAt_ n _183
  
 Daedalus.Chunk_ ?a0 (n : uint 64) (P_ : Grammar {}) : Grammar {} =
   do (s : Stream) <- CurrentStream
-     do (_151 : Stream) <- StreamLen n s
-        SetStream _151
+     SetStream (n take s)
      P_
      Daedalus.SetStreamAt_ n s
  
 Daedalus.Bytes_ (n : uint 64) : Grammar {} =
   Daedalus.Chunk_ Stream n (pure {})
  
-Daedalus.LookAhead_ ?a0 (P_ : Grammar {}) : Grammar {} =
-  do (s : Stream) <- CurrentStream
-     P_
-     SetStream s
+Daedalus.TestAcceptsPrefix_ ?a0 (input : [uint 8]) (Parser_ : Grammar {}) : Grammar {} =
+  Daedalus.WithStream_ ?a0 (arrayStream "array" input) Parser_
  
-Daedalus.WithStream_ ?a0 (s : Stream) (P_ : Grammar {}) : Grammar {} =
-  Daedalus.LookAhead_ ?a0 do SetStream s
-                             P_
+Daedalus.TestAccepts_ ?a0 (input : [uint 8]) (Parser_ : Grammar {}) : Grammar {} =
+  Daedalus.TestAcceptsPrefix_ ?a0 input (Daedalus.Only_ ?a0 Parser_)
+ 
+Daedalus.TestParsesPrefix_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?a0) : Grammar {} =
+  Daedalus.WithStream_ {} (arrayStream "array" input) do (result : ?a0) <- Parser
+                                                         case result == expected is
+                                                           { true -> pure {}
+                                                           }
+ 
+Daedalus.TestParses_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) (expected : ?a0) : Grammar {} =
+  Daedalus.TestParsesPrefix_ ?a0 (Daedalus.Only ?a0 Parser) input expected
+ 
+Daedalus.TestFailsPrefix_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  do (_186 : Maybe {}) <- Optional (Daedalus.TestAcceptsPrefix ?a0 Parser input)
+     case _186 is
+       { just _ -> {- case branch  just _ -} Fail "unexpected success"
+       ; nothing -> {- case branch  nothing -} pure {}
+       }
+ 
+Daedalus.TestFails_ ?a0 (Parser : Grammar ?a0) (input : [uint 8]) : Grammar {} =
+  Daedalus.TestFailsPrefix_ ?a0 (Daedalus.Only ?a0 Parser) input
 module T076
  
 --- Imports:

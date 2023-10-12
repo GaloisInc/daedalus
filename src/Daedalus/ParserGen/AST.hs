@@ -5,6 +5,7 @@ import Numeric (showHex)
 import qualified Data.Map as Map
 import Data.Text(Text)
 
+import Daedalus.PP
 import Daedalus.Type.AST hiding (ppBinder)
 import Daedalus.SourceRange
 
@@ -33,6 +34,9 @@ data Annot = Annot
   , annotContx :: Maybe Contx
   }
   deriving (Show)
+
+instance PP Annot where
+  pp = text . show
 
 emptyAnnot :: Annot
 emptyAnnot = Annot { annotStates = [], annotContx = Nothing}

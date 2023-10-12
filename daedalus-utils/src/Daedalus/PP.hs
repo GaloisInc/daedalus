@@ -97,6 +97,9 @@ instance PP Void where ppPrec _n = \case
 
 instance PP a => PP (Identity a) where ppPrec n (Identity a) = ppPrec n a
 
+instance (PP a, PP b) => PP (a,b) where
+  pp (a,b) = parens (pp a <.> comma <+> pp b)
+
 wrapIf :: Bool -> Doc -> Doc
 wrapIf p d = if p then parens d else d
 

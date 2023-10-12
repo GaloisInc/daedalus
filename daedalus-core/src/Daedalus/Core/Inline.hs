@@ -1,4 +1,4 @@
-{-# Language TupleSections, GeneralizedNewtypeDeriving #-}
+{-# Language GeneralizedNewtypeDeriving #-}
 {-# Language BlockArguments #-}
 module Daedalus.Core.Inline (InlineWhat(..), inlineModule) where
 
@@ -96,52 +96,32 @@ class Expand e where
   expand :: HasGUID m => e -> InlineM m e
 
 instance Expand Expr where
-  expand expr =
-    case expr of
-      Var {} -> pure expr
-      PureLet x e1 e2 -> PureLet x <$> expand e1 <*> expand e2
-      Struct t fs -> Struct t <$> forM fs \(f,e) -> (f,) <$> expand e
-      ECase c -> ECase <$> expand c
-
-      Ap0 {} -> pure expr
-      Ap1 op e -> Ap1 op <$> expand e
-      Ap2 op e1 e2 -> Ap2 op <$> expand e1 <*> expand e2
-      Ap3 op e1 e2 e3 -> Ap3 op <$> expand e1 <*> expand e2 <*> expand e3
-      ApN op es ->
-        do es' <- traverse expand es
-           case op of
-             CallF f ->
-               do mb <- shouldExpand inlineE f
-                  case mb of
-                    Nothing  -> pure (ApN op es')
-                    Just def -> instantiate def es'
-             _ -> pure (ApN op es')
-
+  expand expr = do
+    expr' <- childrenE expand expr
+    case expr' of
+      ApN (CallF f) es -> do
+        mb <- shouldExpand inlineE f
+        case mb of
+          Nothing  -> pure (ApN (CallF f) es)
+          Just def -> instantiate def es
+      _ -> pure expr'
+      
 instance Expand e => Expand (Case e) where
   expand = traverse expand
 
 instance Expand Grammar where
-  expand gram =
-    case gram of
-      Pure e -> Pure <$> expand e
-      GetStream -> pure gram
-      SetStream e -> SetStream <$> expand e
-      Match s e -> Match s <$> expand e
-      Fail e t mb -> Fail e t <$> traverse expand mb
-      Do_ g1 g2 -> Do_ <$> expand g1 <*> expand g2
-      Do  x g1 g2 -> Do x <$> expand g1 <*> expand g2
-      Let x e g -> Let x <$> expand e <*> expand g
-      OrBiased g1 g2 -> OrBiased <$> expand g1 <*> expand g2
-      OrUnbiased g1 g2 -> OrUnbiased <$> expand g1 <*> expand g2
+  expand gram = do
+    gram' <- gebChildrenG expand expand expand gram
+    
+    case gram' of
       Call f es ->
         do es' <- traverse expand es
            mb <- shouldExpand inlineG f
            case mb of
              Nothing  -> pure (Call f es')
              Just yes -> instantiate yes es'
-      Annot a g -> Annot a <$> expand g
-      GCase c   -> GCase <$> expand c
-
+      _ -> pure gram'
+      
 instance Expand Match where
   expand mat =
     case mat of
@@ -152,22 +132,13 @@ instance Expand Match where
 instance Expand ByteSet where
   expand bs =
     case bs of
-      SetAny                -> pure bs
-      SetSingle e           -> SetSingle <$> expand e
-      SetRange e1 e2        -> SetRange <$> expand e1 <*> expand e2
-      SetComplement x       -> SetComplement <$> expand x
-      SetUnion x y          -> SetUnion <$> expand x <*> expand y
-      SetIntersection x y   -> SetIntersection <$> expand x <*> expand y
-      SetCase e             -> SetCase <$> expand e
-      SetLet x e1 e2        -> SetLet x <$> expand e1 <*> expand e2
       SetCall f es ->
         do es' <- traverse expand es
            mb <- shouldExpand inlineB f
            case mb of
              Nothing  -> pure (SetCall f es')
              Just yes -> instantiate yes es'
-
-
+      _ -> ebChildrenB expand expand bs
 
 instance Expand e => Expand (Fun e) where
   expand f =

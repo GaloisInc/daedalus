@@ -2,6 +2,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language RecordWildCards #-}
 {-# Language ViewPatterns #-}
 {-# Language OverloadedStrings #-}
@@ -10,22 +13,31 @@
 
 module Talos.Synthesis (synthesise) where
 
+import           Control.Lens                    (at, (%=), (?~), imap)
+import           Control.Monad                   (replicateM, when, guard)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString                 (ByteString)
 import qualified Data.ByteString                 as BS
-import           Data.Foldable                   (find)
+import           Data.Foldable                   (find, foldlM, toList)
 import           Data.Functor.Identity           (Identity (Identity))
+import           Data.Generics.Product           (field)
 import           Data.List                       (foldl')
 import qualified Data.List.NonEmpty              as NE
 import           Data.Map                        (Map)
 import qualified Data.Map                        as Map
+import           Data.Maybe                      (fromMaybe)
 import qualified Data.Set                        as Set
 import           Data.Word
+import           GHC.Generics                    (Generic)
 import           SimpleSMT                       (Solver)
-import           System.IO.Streams               (Generator, InputStream)
-import qualified System.IO.Streams               as Streams
+import qualified Streaming                       as S
+import           System.Exit                     (exitFailure)
+import           System.IO                       (hFlush, hPutStrLn, stderr,
+                                                  stdout)
 import           System.Random
+import           Text.Printf                     (printf)
+
 
 import           Daedalus.Core                   hiding (streamOffset)
 import           Daedalus.Core.Free
@@ -33,25 +45,30 @@ import qualified Daedalus.Core.Semantics.Env     as I
 import qualified Daedalus.Core.Semantics.Expr    as I
 import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.GUID
-import           Daedalus.PP
 import           Daedalus.Panic
+import           Daedalus.PP
+import           Daedalus.RTS.Input              (newInput)
 import qualified Daedalus.Value                  as I
-import           RTS.Input                       (newInput)
+import           RTS.ParseError                  (ErrorStyle (SingleError),
+                                                  ppParseError)
 import           RTS.Parser                      (runParser)
-import           RTS.ParserAPI                   (Result (..), ppParseError)
+import           RTS.ParserAPI                   (ResultG (..))
 
 import           Talos.Analysis                  (summarise)
-import           Talos.Analysis.Exported         (esRootSlices, SliceId)
+import           Talos.Analysis.Exported         (SliceId, esRootSlices)
 import           Talos.Analysis.Merge            (merge)
 import           Talos.Analysis.Slice
 -- import Talos.SymExec
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT           (emptySolverState)
-import           Talos.SymExec.StdLib
+import           Talos.Path
+import           Talos.Solver.SolverT           (emptySolverState)
 
+import           Data.Functor.Of                 (Of ((:>)))
 import           Talos.Analysis.AbsEnv           (AbsEnvTy (AbsEnvTy))
+import           Talos.Monad                     (TalosM, getGFun, getIEnv,
+                                                  getModule)
 import           Talos.Strategy
 import           Talos.Strategy.Monad
+import Data.Functor (($>))
 
 
 data Stream = Stream { streamOffset :: Integer
@@ -79,14 +96,11 @@ data SynthEnv = SynthEnv { synthValueEnv  :: Map Name Value
                          , pathSetRoots :: Map Name [SliceId]
                          , currentClass :: FInstId
                          , currentFName :: FName
-                         }
+                         , loopTagInstMap :: Map LoopGeneratorTag Int
+                         } deriving Generic
 
 addVal :: Name -> Value -> SynthEnv -> SynthEnv
 addVal x v e = e { synthValueEnv = Map.insert x v (synthValueEnv e) }
-
--- addValMaybe :: Maybe (TCName K.Value) -> Value -> SynthEnv -> SynthEnv
--- addValMaybe Nothing  _ e = e
--- addValMaybe (Just x) v e = addVal x v e
 
 projectInterpValue :: Value -> Maybe I.Value
 projectInterpValue (InterpValue v) = Just v
@@ -113,7 +127,7 @@ projectEnvFor tm env0 se = doMerge <$> Map.traverseMaybeWithKey go (synthValueEn
 
 projectEnvForM :: FreeVars t => t -> SynthesisM I.Env
 projectEnvForM tm = do
-  env0 <- getIEnv
+  env0 <- liftStrategy getIEnv
   m_e <- SynthesisM $ asks (projectEnvFor tm env0)
   case m_e of
     Just e  -> pure e
@@ -121,6 +135,18 @@ projectEnvForM tm = do
 
 vUnit :: Value
 vUnit = InterpValue I.vUnit
+
+-- FIXME: Means we can't have an array of streams
+vArray :: [Value] -> Value
+vArray = InterpValue . I.vArray . map assertInterpValue
+
+vMap :: [(Value, Value)] -> Value
+vMap els = InterpValue (I.VMap (Map.fromList els'))                               
+  where
+    els' = [ (assertInterpValue k, assertInterpValue v) | (k, v) <- els ]
+
+vSize :: Integer -> Value
+vSize = InterpValue . I.vSize
 
 --------------------------------------------------------------------------------
 -- Synthesis state
@@ -131,7 +157,11 @@ data SynthesisMState =
                   , nextProvenance :: ProvenanceTag 
                   , provenances :: ProvenanceMap
                   , modelCache :: ModelCache
-                  }
+                  -- | This contains the stack of RHSs that can be
+                  -- updated by Many selection (enables lazy selection
+                  -- of Many elements).
+                  , pathContext :: PathContext
+                  } deriving Generic
 
 newtype SynthesisM a =
   SynthesisM { getSynthesisM :: ReaderT SynthEnv (StateT SynthesisMState StrategyM) a }
@@ -166,54 +196,76 @@ addByte prov word = addBytes prov (BS.singleton word)
 bindIn :: Name -> Value -> SynthesisM a -> SynthesisM a
 bindIn x v = SynthesisM . local (addVal x v) . getSynthesisM 
 
+bindInMaybe :: Maybe Name -> Value -> SynthesisM a -> SynthesisM a
+bindInMaybe Nothing _  = id
+bindInMaybe (Just x) v = bindIn x v
+
 freshProvenanceTag :: SynthesisM ProvenanceTag
 freshProvenanceTag = do 
   p <- SynthesisM $ gets nextProvenance
   SynthesisM $ modify (\s -> s { nextProvenance = p + 1 })
   return p
 
+withPushedContext :: PathContextElement -> SynthesisM a -> SynthesisM (a, PathContextElement)
+withPushedContext pce m = do
+  SynthesisM $ modify (\s -> s { pathContext = pce : pathContext s })
+  r <- m
+  pc' <- SynthesisM $ state go
+  pure (r, pc')
+  where
+    go s
+      | pc' : rest <- pathContext s = (pc', s { pathContext = rest })
+      | otherwise = panic "BUG: empty PathContext stack" []  
+
+overPathContext :: (PathContext -> PathContext) -> SynthesisM ()
+overPathContext f = SynthesisM $ field @"pathContext" %= f
+
+printPathContext :: SynthesisM ()
+printPathContext = do
+  pc <- SynthesisM $ gets pathContext
+  liftIO $ print (ppPathContext pc)
+  
+  
+enterLoop :: Maybe LoopGeneratorTag -> Int -> SynthesisM a -> SynthesisM a
+enterLoop Nothing _     m = m
+enterLoop (Just ltag) i (SynthesisM m) =
+  SynthesisM $ local (field @"loopTagInstMap" . at ltag ?~ i) m
+
+getLoopTagInstMap :: SynthesisM (Map LoopGeneratorTag Int)
+getLoopTagInstMap = SynthesisM $ asks loopTagInstMap
+  
 -- -----------------------------------------------------------------------------
 -- Top level
 
-synthesise :: Maybe Int -> GUID -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> Module 
-           -> IO (InputStream (I.Value, ByteString, ProvenanceMap))
-synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
-  let (allSummaries, nguid') = summarise p md nguid
-  
-  -- We do this in one giant step to deal with recursion and deps on
-  -- pure functions.
-  -- symExecSummaries md allSummaries
+type DocumentStream = S.Stream (Of (I.Value, ByteString, ProvenanceMap)) TalosM ()
 
-  -- let symExecSummary' fun
-  --       | Just sm <- Map.lookup (fName fun) allSummaries =
-  --         mapM_ (symExecSummary (fName fun)) (Map.elems sm)
-  --       | otherwise = pure ()
-
-  -- mapM_ symExecSummary' allDecls
+synthesise :: Maybe Int -> Solver -> AbsEnvTy -> [StrategyInstance] -> FName -> DocumentStream
+synthesise m_seed solv (AbsEnvTy p) strats root = S.effect $ do
+  allSummaries <- summarise p
 
   -- Generate a seed if none has been given to us.
-  seed    <- maybe randomIO pure m_seed
-  putStrLn ("Using random seed " ++ show seed)
+  seed    <- liftIO $ maybe randomIO pure m_seed
+  -- putStrLn ("Using random seed " ++ show seed)  
   let gen = mkStdGen seed
 
-  let sst0 = emptyStrategyMState gen allSummaries Map.empty md nguid'
-      solvSt0 = emptySolverState solv
+  sst0 <- makeStrategyMState gen allSummaries Map.empty
+  let solvSt0 = emptySolverState solv
       mc0 = newModelCache strats solvSt0
       
-  -- Init solver stdlib
-  -- FIXME: probably move?
-  makeStdLib solv 
+  md <- getModule
+  let Just rootDecl = find (\d -> fName d == root) (mGFuns md)
 
-  Streams.fromGenerator (go sst0 mc0)
-  
+  pure (S.unfold (go rootDecl) (sst0, mc0))
   where
-    go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
-    go s0 mc = do
-      ((a, s), sts) <- liftIO $ runStrategyM (runStateT (runReaderT (getSynthesisM once) env0)
-                                               (initState mc)) s0
+    -- go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
+    go rootDecl (s0, mc) = do
+      let once = synthesiseCallG assertionsCI SelectedHole (fName rootDecl) []
+      
+      ((a, s), sts) <-
+        runStrategyM s0 (runStateT (runReaderT (getSynthesisM once) env0)
+                         (initState mc))
                        
-      Streams.yield (assertInterpValue a, seenBytes s, provenances s)
-      go sts (modelCache s)
+      pure (Right $ (assertInterpValue a, seenBytes s, provenances s) :> (sts, modelCache s))
 
     initState mc = 
       SynthesisMState { seenBytes      = mempty
@@ -221,9 +273,8 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
                       , nextProvenance = firstSolverProvenance
                       , provenances    = Map.empty 
                       , modelCache     = mc
+                      , pathContext    = []
                       }
-    
-    Just rootDecl = find (\d -> fName d == root) allDecls
 
     -- Do the actual synthesis by calling the main function. The
     -- 'Assertions' is to tell the system that we don't care about the
@@ -231,12 +282,14 @@ synthesise m_seed nguid solv (AbsEnvTy p) strats root md = do
     -- 'Assertions' result class.
     --
     -- The 'Unconstrained' is the current path set --- we have not yet determined any future bytes.
-    once = synthesiseCallG assertionsCI (fName rootDecl) []
 
-    env0      = SynthEnv Map.empty Map.empty assertionsFID root
-
-    -- FIXME: we assume topologically sorted (by reference)
-    allDecls  = mGFuns md
+    env0      = SynthEnv
+                { synthValueEnv = mempty
+                , pathSetRoots  = mempty
+                , currentClass  = assertionsFID
+                , currentFName  = root
+                , loopTagInstMap  = mempty
+                }
     
     -- ns        = needsSolver allDecls
     -- rs     = Map.fromList [ (fName d, d) | d <- allDecls ]
@@ -291,24 +344,6 @@ mbPure :: Sem -> Value -> SynthesisM Value
 mbPure SemNo _ = pure vUnit
 mbPure _     v = pure v
 
--- -- Bounds on how many to generate (if none given)
--- minMany, maxMany :: Int
--- minMany = 0
--- maxMany = 100
-
--- -- Select a number of iterations
--- synthesiseManyBounds :: ManyBounds (TC TCSynthAnnot K.Value) -> SynthesisM Int
--- synthesiseManyBounds bnds =
---   case bnds of
---     Exactly v    -> getV v
---     Between l h ->  do
---       lv <- maybe (pure minMany) getV l
---       hv <- maybe (pure (maxMany + lv)) getV h
---       when (hv < lv) $ panic "Shouldn't happen" []
---       randR (lv, hv)
---   where
---     getV v = fromInteger . I.valueToInteger . assertInterpValue <$> synthesiseV v
-
 synthesiseDecl :: SelectedPath -> FInstId -> Fun Grammar -> [Expr] -> SynthesisM Value
 synthesiseDecl fp fid Fun { fDef = Def def, ..} args = do
   args' <- mapM synthesiseV args
@@ -329,9 +364,89 @@ synthesiseDecl _ _ f _ = panic "Undefined function" [showPP (fName f)]
 synthesiseCallG :: CallInstantiation SelectedPath -> FName -> [Expr] -> SynthesisM Value
 synthesiseCallG (CallInstantiation fid fp) n args = do
   -- liftIO $ printf "Calling into %s\n" (showPP n)
-  decl <- getGFun n
+  decl <- liftStrategy (getGFun n)
   synthesiseDecl fp fid decl args
 
+-- -----------------------------------------------------------------------------
+-- Loops
+
+synthesiseLoopBounds :: Bool -> Value -> Maybe Value -> SynthesisM Int
+synthesiseLoopBounds canBeNull lv m_uv = do
+  -- FIXME: make params  
+  let -- Policy 
+    -- Number of iterations, unless below the min
+    softMaxLoopCount = 10 -- 1000
+    -- The minimum loop range (unless constrained by both lower and upper).
+    minLoopRangeSize = 10
+    altUpperBound = max softMaxLoopCount (l + minLoopRangeSize)
+    
+    u = maybe altUpperBound (min altUpperBound) m_u
+    
+  r <- fromIntegral <$> randR (l, u)
+  when (r > 100) $ liftIO $ do
+    printf "Large loop count (%d)\n" r
+    hFlush stdout
+  -- liftIO $ if (r == 0)
+  --          then do
+  --            printf "Zero loop count (%d, %d)\n" l u
+  --            hFlush stdout
+  --          else do
+  --            printf "Non-zero loop count (%d, %d)\n" l u
+  --            hFlush stdout
+    
+  pure r
+    
+  where
+    l = max altLowerBound (I.valueToIntegral (assertInterpValue lv))
+    m_u = I.valueToIntegral . assertInterpValue <$> m_uv
+
+    altLowerBound = if canBeNull then 0 else 1
+
+-- | Given a collection of Many elments and a target count, this
+-- function selects that many from the given SelectedMany
+selectLoopElements :: Int -> SelectedLoopPool -> SynthesisM SelectedLoopPool
+selectLoopElements count sm = do
+  let paths  = smPaths sm
+      nPaths = length paths
+      repCount
+        | nPaths > count = 1
+        | (count `div` nPaths) + nPaths == count = count `div` nPaths
+        | otherwise = (count `div` nPaths) + 1
+  paths' <- randPermute (concat (replicate repCount paths))
+  pure $ sm { smPaths = take count paths' }
+
+synthesiseLoopMorphism :: Maybe LoopGeneratorTag ->
+                          Maybe [SelectedPath] ->
+                          LoopMorphism Grammar -> SynthesisM Value
+synthesiseLoopMorphism m_ltag m_ps lm =
+  case lm of
+    FoldMorphism s e lc b -> do
+      e_v <- synthesiseV e
+      (ps, els, bindLC, _mk) <- goLC lc <$> synthesiseV (lcCol lc)
+      let goEl el = \acc p -> bindLC el (bindIn s acc (synthesiseG p b))
+      synthesiseLoop m_ltag ps (map goEl els) e_v
+    MapMorphism lc b -> do
+      (ps, els, bindLC, mk) <- goLC lc <$> synthesiseV (lcCol lc)
+      let goEl el = \acc p -> (: acc) . (,) (fst el) <$> bindLC el (synthesiseG p b)
+      mk <$> synthesiseLoop m_ltag ps (map goEl els) []
+  where
+    goLC lc v
+      | length ps /= length els
+      = panic "BUG: length mismatch in synthesiseG" []
+      | otherwise = (ps, els, bindLC, mk)
+      where
+        ps = fromMaybe (replicate (length els) SelectedHole) m_ps
+        -- This will not contain holes, by construction
+        k_bind = maybe (const id) bindIn (lcKName lc)
+        bindLC (kv, ev) = k_bind kv . bindIn (lcElName lc) ev
+        (els, mk) = case assertInterpValue v of
+          I.VArray vs -> ( zip (map vSize [0..]) (map InterpValue $ toList vs)
+                         , vArray . map snd
+                         )
+          I.VMap m     -> ( [ (InterpValue k, InterpValue v') | (k, v') <- Map.toList m ]
+                          , vMap )
+          _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
+    
 -- =============================================================================
 -- Tricky Synthesis
 
@@ -360,80 +475,69 @@ choosePath cp x = do
       fn   <- SynthesisM $ asks currentFName
       (m_cp, mc') <- findModel mc prov fn x sl
       case m_cp of
-        Nothing -> panic "All strategies failed" []
+        Nothing -> liftIO $ do
+          hPutStrLn stderr $ "All strategies failed for " ++ showPP x
+          exitFailure
+          
         Just sp -> go (sp : acc) mc' sls
-        
-      -- -- We have a path starting at this node, so we need to call the
-      -- -- corresponding SMT function and process any generated model.      
-      -- s   <- SynthesisM $ gets solver
-      -- cl  <- SynthesisM $ asks currentClass
-      -- prov <- freshProvenanceTag 
-      -- sp <- liftIO $ solverSynth s cl x prov sl
-      -- let new = (merge cp sp)      
-      -- -- liftIO $ print ("Got a path at " <> pp x $+$ pp sp $+$ pp new)
-      -- pure new
       
--- --------------------------------------------------------------------------------
--- -- Simple Synthesis
+-- -----------------------------------------------------------------------------
+-- Simple Synthesis
 
--- -- E.g.
--- -- def Foo = {
--- --   x = UInt8;
--- --   y = { x < 10; ^ 0 } | { ^ 1 }
--- -- }
+synthesiseDo :: SelectedPath -> Maybe Name -> Grammar -> Grammar ->
+                SynthesisM Value
+synthesiseDo cp m_x lhs rhs = do
+  cp' <- maybe (pure cp) (choosePath cp) m_x
+  let (lhsp, rhsp) = splitPath cp'
+  (v, pc) <- withPushedContext (PCEDoRHS rhsp) (synthesiseG lhsp lhs)
+  let rhsp' = case pc of
+                PCEDoRHS r -> r
+                _ -> panic "Unexpected path context element" []
+              
+  bindInMaybe m_x v (synthesiseG rhsp' rhs)
 
-
--- arrayFromList :: [Value] -> Value
--- arrayFromList = InterpValue . I.VArray . Vector.fromList . map assertInterpValue
-
--- matchPatOneOf :: [TCPat] -> I.Value -> Maybe [(Name,I.Value)]
--- matchPatOneOf ps v = msum [ matchPat p v | p <- ps ]
-
--- matchPat :: TCPat -> I.Value -> Maybe [(Name,I.Value)]
--- matchPat pat =
---   case pat of
---     TCConPat _ l p    -> \v -> case I.valueToUnion v of
---                                  (l1,v1) | l == l1 -> matchPat p v1
---                                  _ -> Nothing
---     TCNumPat _ i      -> \v -> do guard (I.valueToInteger v == i)
---                                   pure []
---     TCBoolPat b       -> \v -> do guard (I.valueToBool v == b)
---                                   pure []
---     TCJustPat p       -> \v -> case I.valueToMaybe v of
---                                  Nothing -> Nothing
---                                  Just v1 -> matchPat p v1
---     TCNothingPat {}   -> \v -> case I.valueToMaybe v of
---                                  Nothing -> Just []
---                                  Just _  -> Nothing
---     TCVarPat x        -> \v -> Just [(x,v)]
---     TCWildPat {}      -> \_ -> Just [
-
--- -- Does all the heavy lifting
+synthesiseLoop :: Maybe LoopGeneratorTag ->
+                  [SelectedPath] ->
+                  [a -> SelectedPath -> SynthesisM a] ->
+                  a -> SynthesisM a
+synthesiseLoop m_ltag = go 0 
+  where
+    -- essentially itraverse with the addition of the context manipulation.
+    go _ [] _ acc = pure acc
+    go i (p : ps') (m : ms') acc = do
+      let pcel = PCELoopBody i ps'
+      (acc', pc) <- withPushedContext pcel (enterLoop m_ltag i (m acc p))
+      let ps'' = case pc of
+                   PCELoopBody _ r -> r
+                   _ -> panic "Unexpected path context element" []
+      go (i + 1) ps'' ms' acc'
+    go _ _ _ _ = panic "Wrong number of loop bodies" []
+    
+synthesiseMany :: Maybe LoopGeneratorTag -> [SelectedPath] ->
+                  Grammar -> SynthesisM [Value]
+synthesiseMany m_ltag ps g =
+  reverse <$> synthesiseLoop m_ltag ps (repeat go) [] 
+  where
+    go acc p = (: acc) <$> synthesiseG p g
+    
+-- Does all the heavy lifting
 synthesiseG :: SelectedPath -> Grammar -> SynthesisM Value
+
 synthesiseG p (Annot _ g) = synthesiseG p g
 
 -- This does all the work for internal slices etc.
-synthesiseG cp (Do x lhs rhs) = do
-  cp' <- choosePath cp x
-  let (lhsp, rhsp) = splitPath cp' 
-  v <- synthesiseG lhsp lhs
-  bindIn x v (synthesiseG rhsp rhs)
-
--- We don't care about the result here, so we can never start an
--- internal slice here.
-synthesiseG cp (Do_ lhs rhs) = do
-  let (lhsp, rhsp) = splitPath cp  
-  void $ synthesiseG lhsp lhs
-  synthesiseG rhsp rhs
+synthesiseG cp (Do x lhs rhs) = synthesiseDo cp (Just x) lhs rhs
+synthesiseG cp (Do_ lhs rhs)  = synthesiseDo cp Nothing  lhs rhs
+synthesiseG cp (Let x e rhs)  = synthesiseDo cp (Just x) (Pure e) rhs
 
 synthesiseG (SelectedBytes prov bs) g = do
   addBytes prov bs
   env <- projectEnvForM g
 
   let inp = newInput "<synthesised bytes>" bs
-      res = case runParser (I.evalG g env) inp of
+      res = case runParser (I.evalG g env) SingleError inp of
         NoResults e -> panic "No results" [ show (ppParseError e) ]
-        Results  rs -> NE.head rs -- FIXME: this is maybe a little suspicious
+        Results  rs -> fst (NE.head rs) -- FIXME: this is maybe a little suspicious
       
   pure (InterpValue res)
       
@@ -441,15 +545,50 @@ synthesiseG (SelectedChoice (PathIndex n sp)) (Choice _biased gs)
   | n < length gs = synthesiseG sp (gs !! n)
   | otherwise     = panic "Index out of bounds" []
 
-synthesiseG (SelectedCase (Identity sp)) (GCase cs) = do
+synthesiseG (SelectedCase (PathIndex n sp)) (GCase cs) = do
   let v = Var (caseVar cs)
   env <- projectEnvForM v
-  let base = panic "Failed to match pattern" [showPP cs]
-  I.evalCase (\g _ -> synthesiseG sp g) base cs env 
+  let r = I.lookupVar (caseVar cs) env
+  -- check interpreter agrees
+  let numberedCase = Case (caseVar cs) (imap (\i (pat, g) -> (pat, (i, g))) (casePats cs))
+      agrees = I.evalCase (\(i, g) _ -> guard (i == n) $> g) Nothing numberedCase env
+
+  case agrees of
+    Nothing -> panic "Mismatch in case(!)" [showPP n, showPP r]
+    Just g -> synthesiseG sp g
 
 synthesiseG (SelectedCall sc) (Call fn args) = synthesiseCallG sc fn args
 
-synthesiseG p (Let x e rhs) = synthesiseG p (Do x (Pure e) rhs)
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (ManyLoop sem _bt _lb _m_ub g)) = do
+  vs <- synthesiseMany m_ltag ps g
+  mbPure sem (vArray vs)
+  
+-- FIXME: sem
+synthesiseG (SelectedLoop (SelectedLoopPool ltag canBeNull ms)) (Loop (ManyLoop sem _bt lb m_ub g)) = do
+  lv   <- synthesiseV lb
+  m_uv <- traverse synthesiseV m_ub
+  count <- synthesiseLoopBounds canBeNull lv m_uv
+
+  -- We need to select count elements from the synthesised models in ms.
+  ms' <- mapM (selectLoopElements count) ms
+
+  -- We need this to resolve which indices we are in which loops.
+  tagMap <- getLoopTagInstMap
+  let (elPaths, targetPaths) = selectedMany ltag tagMap ms'
+  
+  -- ... which may require us to update the RHS stack to propagate selected models.  
+  overPathContext (applyManyTargets targetPaths)
+  
+  vs <- synthesiseMany (Just ltag) elPaths g
+  mbPure sem (vArray vs)
+
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (RepeatLoop _bt n e g)) = do
+  initV <- synthesiseV e
+  -- FIXME: do we need the enterLoop here?
+  let go v p = bindIn n v (synthesiseG p g)
+  synthesiseLoop m_ltag ps (repeat go) initV
+
+synthesiseG (SelectedLoop (SelectedLoopElements m_ltag ps)) (Loop (MorphismLoop lm)) = synthesiseLoopMorphism m_ltag (Just ps) lm
   
 synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose randomly
   case g of
@@ -482,14 +621,30 @@ synthesiseG SelectedHole g = -- Result of this is unentangled, so we can choose 
       env <- projectEnvForM y
       I.evalCase (\g' _env -> synthesiseG SelectedHole g')
                  (do bs <- SynthesisM $ gets seenBytes
+                     env' <- SynthesisM $ asks synthValueEnv
                      panic "Case failed" [showPP g
                                          , show (sep $ map (\(k, v) -> pp k <+> "->" <+> pp v)
-                                                 (Map.toList $ I.vEnv env))
+                                                 (Map.toList (assertInterpValue <$> env')))
                                          , show bs
                                          ])
                  c env
+    Loop (ManyLoop _sem _bt lb m_ub body) -> do
+      lv   <- synthesiseV lb
+      m_uv <- traverse synthesiseV m_ub
+      count <- synthesiseLoopBounds True lv m_uv
+      vArray <$> replicateM count (synthesiseG SelectedHole body)
 
-    -- TCOffset          -> InterpValue . I.VInteger <$> SynthesisM (gets (streamOffset . curStream))
+    -- FIXME: probably it is OK to do this, as if there are
+    -- constraints on the iteration count we would figure it out in
+    -- slicing.
+    Loop (RepeatLoop _bt n e body) -> do
+      -- FIXME: maybe we should have a separate policy for repeat
+      count <- synthesiseLoopBounds True (vSize 0) Nothing
+      initV <- synthesiseV e
+      let go v _ = bindIn n v (synthesiseG SelectedHole body)
+      foldlM go initV (replicate count ())
+
+    Loop (MorphismLoop lm) -> synthesiseLoopMorphism Nothing Nothing lm
   where
     unimplemented = panic "Unimplemented" [showPP g]
     impossible    = panic "Impossible (theoretically)" [showPP g]

@@ -1,0 +1,7 @@
+00000000: 0000 15                               // Header: length: 21 bytes (8 for fields + 13 for debug data)
+00000003: 07                                    // Header: frame type: goaway
+00000004: 00                                    // Goaway frame flags (unused)
+00000005: fabc def0                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: fdef cafe                             // Goaway frame payload: reserved bit (ignored) + last stream identifier
+0000000d: 0000 0000                             // Goaway frame payload: error code (no error)
+00000011: 0102 0304 0506 0708 090a 0b0c 0d      // Goaway frame payload: debug data (opaque)

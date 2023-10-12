@@ -10,6 +10,7 @@
 #include <ddl/array.h>
 #include <ddl/number.h>
 #include <ddl/integer.h>
+#include <ddl/maybe.h>
 
 namespace DDL {
 
@@ -78,7 +79,7 @@ public:
   bool    isEmpty()   const { return last_offset == offset; }
 
   // borrow this, Assumes: !isEmpty()
-  UInt<8> iHead()   { return bytes[offset]; }
+  UInt<8> iHead() const { return bytes[offset]; }
 
   // Advance current location
   // Mutates
@@ -87,8 +88,11 @@ public:
 
   // Restrict amount of input
   // Mutates
-  // Assumes: n <= length()
-  void    iTakeMut(Size n)     { assert(n <= length()); last_offset = offset.incrementedBy(n); }
+  void    iTakeMut(Size n)     {
+    auto n1 = length();
+    if (n > n1) n = n1;
+    last_offset = offset.incrementedBy(n);
+  }
 
   // Advance current location
   // Assumes: n <= length()
@@ -98,8 +102,12 @@ public:
   // preserved
   Input iDrop(Size n)     { Input x(*this); x.iDropMut(n); return x; }
 
+  Maybe<Input> iDropMaybe(Size n) {
+    if (n > length()) return Maybe<Input>();
+    return Maybe(iDrop(n));
+  }
+
   // Restrict amount of input
-  // Assumes: n <= length()
   // Owns this.
   // Since we own *this* the copy constructor does not need to adjust
   // counts:  we are destroyed, but a new copy is returned so counts are

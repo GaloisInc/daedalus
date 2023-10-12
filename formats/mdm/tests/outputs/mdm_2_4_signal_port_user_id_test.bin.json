@@ -1,0 +1,39 @@
+{
+  "header": {
+    "ack": "Acknowledged",
+    "destinationMui": 32,
+    "msgType": "SignalPortUserID",
+    "numDataMessages": 1,
+    "originMui": 14,
+    "seqNumber": 3,
+    "versionMajor": 2,
+    "versionMinor": 4
+  },
+  "message": {
+    "commandEndPoint": {
+      "ip": "1.2.3.4",
+      "mac": "01:22:33:44:55:ff",
+      "udpPort": 20
+    },
+    "contextEndPoint": {
+      "ip": "5.4.3.2",
+      "mac": "ee:ff:55:bb:33:22",
+      "udpPort": 11
+    },
+    "resourceId": {
+      "deviceId": 1,
+      "deviceType": "SDR",
+      "resourceId": 3
+    },
+    "signalDataEndPoint": {
+      "ip": "4.3.2.1",
+      "mac": "ff:55:bb:33:22:01",
+      "udpPort": 10
+    },
+    "userId": {
+      "deviceId": 2,
+      "deviceType": "RCD",
+      "resourceId": 4
+    }
+  }
+}

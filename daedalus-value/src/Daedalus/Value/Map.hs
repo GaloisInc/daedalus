@@ -1,21 +1,23 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Map where
 
 import qualified Data.Map as Map
 
 import Daedalus.Value.Type
+import Daedalus.Value.Utils
 
 vMapEmpty :: Value
 vMapEmpty = VMap Map.empty
 
 vMapInsert ::
   Value {- ^ key -} -> Value {- ^ value -} -> Value {- ^ map -} -> Value
-vMapInsert k v m = VMap (Map.insert k v mp)
-  where
-  mp = valueToMap m
+vMapInsert k v = addTraced k
+               . addTraced v
+               . tracedFun (VMap . Map.insert k v . valueToMap)
 
 vMapLookup :: Value {- ^ key -} -> Value {- ^ map -} -> Value
-vMapLookup k m = VMaybe (Map.lookup k (valueToMap m))
+vMapLookup = tracedFun \k m -> VMaybe (Map.lookup k (valueToMap m))
 
 vMapMember :: Value {-^ key -} -> Value {- map -} -> Value
-vMapMember k m = VBool (Map.member k (valueToMap m))
+vMapMember = tracedFun \k m -> VBool (Map.member k (valueToMap m))
 

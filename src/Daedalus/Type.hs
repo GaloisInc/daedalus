@@ -1,16 +1,14 @@
 {-# Language BlockArguments, OverloadedStrings, NamedFieldPuns #-}
 {-# Language DataKinds, GADTs #-}
-{-# Language RecordWildCards #-}
 {-# Language RankNTypes #-}
 {-# Language ParallelListComp #-}
 module Daedalus.Type where
 
 import qualified Data.Text as Text
-import Control.Monad(forM,forM_,unless)
+import Control.Monad(forM,forM_,unless,zipWithM)
 import Data.Graph.SCC(stronglyConnComp)
 import Data.List(sort,group)
 import Data.Maybe(catMaybes,maybeToList,fromMaybe)
-import Control.Monad(zipWithM)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -281,7 +279,7 @@ inferRule r = runTypeM (ruleName r) (addParams [] (ruleParams r))
 data BindStmt = BindStmt (TCName Value) (TC SourceRange Grammar)
 
 addBind :: BindStmt -> TC SourceRange Grammar -> TC SourceRange Grammar
-addBind (BindStmt n e1) e2 = exprAt (n <-> e2) (TCDo (Just n) e1 e2)
+addBind (BindStmt n e1) e2 = exprAt (e1 <-> e2) (TCDo (Just n) e1 e2)
 
 addBinds :: [BindStmt] -> TC SourceRange Grammar -> TC SourceRange Grammar
 addBinds xs e = foldr addBind e xs
@@ -314,7 +312,7 @@ liftValExpr e =
 
 
 
--- | This allowes pure functions to be applied to parsers, automatically
+-- | This allows pure functions to be applied to parsers, automatically
 -- lifting the results using bind.  Note that this assumes that the callback
 -- will ensure that the result is of type `Grammar t`.
 -- For example @F P a Q@ becomes @do x <- P; y <- q; F x a y@
@@ -541,6 +539,12 @@ inferExpr expr =
 
     EBinOp op e1 e2 ->
       case op of
+
+        StreamTakeUpTo ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
+          do unify tSize   (e1',t1)
+             unify tStream (e2',t2)
+             pure (exprAt expr (TCBinOp op e1' e2' tStream), tStream)
 
         ArrayStream ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
@@ -1540,23 +1544,27 @@ inferStructPure toploc = check Set.empty []
 
 
 inferStructGrammar ::
-  Expr -> [StructField Expr] -> TypeM Grammar (TC SourceRange Grammar, Type)
+  HasRange r =>
+  r -> [StructField Expr] -> TypeM Grammar (TC SourceRange Grammar, Type)
 inferStructGrammar r = go [] []
   where
+  exprAtFrom :: HasRange r' => r' -> TCF SourceRange k -> TC SourceRange k
+  exprAtFrom from = exprAt (from <-> sourceTo (range r))
+
   go mbRes done fs =
     let checkBind x e kont =
           do (e1,t) <- inferExpr e
              a      <- grammarResult e t
              let x' = TCName { tcName = x, tcType = a, tcNameCtx = AValue }
              (ke,kt) <- extEnv x a (kont x')
-             pure (exprAt (x <-> ke) (TCDo (Just x') e1 ke), kt)
+             pure (exprAtFrom x (TCDo (Just x') e1 ke), kt)
     in
     case fs of
       [Anon e] | null mbRes && null done ->
-                  do -- This is ugly, but the tUnit is just do we can
+                  do -- This is ugly, but the tUnit is just so we can
                      -- call newName, we discard it when projecing out
                      -- the new Name
-                     nm <- tcName <$> newName e tUnit 
+                     nm <- tcName <$> newName e tUnit
                      let x = nm { nameScopedIdent = Local "$$" }
                      go mbRes done [x := e]
 
@@ -1574,7 +1582,7 @@ inferStructGrammar r = go [] []
           Anon e ->
             do (e1,_t) <- inferExpr e
                (ke,kt) <- go mbRes done more
-               pure (exprAt (e <-> ke) (TCDo Nothing e1 ke), kt)
+               pure (exprAtFrom e (TCDo Nothing e1 ke), kt)
 
           x :?= _ -> panic "inferStructGrammar"
                       [ "Unexpected implicit parameter", show (pp x) ]
@@ -1586,7 +1594,7 @@ inferStructGrammar r = go [] []
                    ls    = map (nameScopeAsLocal . tcName) xs'
                (e,ty) <- pureStruct r ls (map tcType xs')
                                          [ exprAt x (TCVar x) | x <- xs' ]
-               pure ( exprAt r (TCPure e)
+               pure ( exprAt e (TCPure e)
                     , tGrammar ty
                     )
           ([x],[]) -> pure ( exprAt x $ TCPure $

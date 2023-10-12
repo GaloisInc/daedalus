@@ -21,24 +21,20 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -O2
   ghc-prof-options:    -fprof-auto
-  exposed-modules:     Talos.Lib
-                     -- , Talos.SymExec
-                     , Talos.SymExec.SolverT
-                     -- , Talos.SymExec.Convenience
-                     , Talos.SymExec.StdLib
-                     , Talos.SymExec.ModelParser
-                     , Talos.SymExec.Expr
-                     , Talos.SymExec.Funs
-                     , Talos.SymExec.SemiExpr
-                     , Talos.SymExec.SemiValue
-                     , Talos.SymExec.Type
-                     , Talos.SymExec.Path
+  exposed-modules:     Talos.Monad
+                     , Talos.Lib
+                     , Talos.Path
+                     
+                     , Talos.Solver.SolverT
+                     -- , Talos.SymExec.StdLib
+                     , Talos.Solver.ModelParser
 
                      -- , Talos.Backend.Z3
                      , Talos.Analysis
                      , Talos.Analysis.AbsEnv
                      , Talos.Analysis.VarAbsEnv
                      , Talos.Analysis.FieldAbsEnv
+                     , Talos.Analysis.FLAbsEnv
                      , Talos.Analysis.Eqv
                      , Talos.Analysis.Merge
                      , Talos.Analysis.Domain
@@ -50,12 +46,7 @@ library
 
                      , Talos.Strategy
                      , Talos.Strategy.Monad
-                     , Talos.Strategy.DFST
-                     , Talos.Strategy.SearchTree
-                     , Talos.Strategy.SearchT
-                     , Talos.Strategy.SymbolicM
-                     , Talos.Strategy.PathSymbolicM
-                     , Talos.Strategy.MuxValue                     
+                     , Talos.Strategy.OptParser
 
                      , Talos.Strategy.Boltzmann
                      , Talos.Strategy.Boltzmann.Newton
@@ -63,16 +54,24 @@ library
                      , Talos.Strategy.Boltzmann.Types
                      , Talos.Strategy.Boltzmann.Util
                      , Talos.Strategy.BTRand
-                     , Talos.Strategy.Symbolic
+                     , Talos.Strategy.DFST
+
                      , Talos.Strategy.PathSymbolic
-                     , Talos.Strategy.PathCondition                     
-                     , Talos.Strategy.MemoSearch
-                     , Talos.Strategy.OptParser                     
+                     , Talos.Strategy.PathSymbolic.Branching
+                     , Talos.Strategy.PathSymbolic.Assertion                      
+                     , Talos.Strategy.PathSymbolic.PathSet
+                     , Talos.Strategy.PathSymbolic.Monad
+                     , Talos.Strategy.PathSymbolic.MuxValue
+                     , Talos.Strategy.PathSymbolic.PathBuilder
+                     , Talos.Strategy.PathSymbolic.SymExec
+                     
                      -- , Talos.Strategy.BackwardSymbolic
 
                      , Talos.Synthesis
 
                      , Talos.Passes
+                     , Talos.Passes.LiftExpr
+                     , Talos.Passes.NoBytesPatterns
 
                      , Talos
                      -- , Machine
@@ -83,14 +82,15 @@ library
                      , daedalus-core
                      , random
                      , rts-hs
+                     , rts-hs-data
                      , vector
                      , parameterized-utils
-                     , mtl
+                     , mtl >= 2.3.1
                      , containers >= 0.6.4
                      , bytestring
                      , simple-smt >= 0.9.6
-                     , io-streams
-                     , transformers
+                     , streaming
+                     , transformers >= 0.5.6.2
                      , IntervalMap
                      , split
                      , deepseq
@@ -102,6 +102,7 @@ library
                      , free
                      , multiset
                      , hmatrix
+                     , co-log-core
 
 executable talos
   main-is:             Main.hs
@@ -113,16 +114,17 @@ executable talos
                      , daedalus-core
                      , daedalus-value
                      , daedalus-utils
+                     , daedalus-core                     
                      , optparse-applicative
                      , bytestring
-                     , io-streams
+                     , streaming
                      , pretty-hex
                      -- , rts-hs
                      -- , vector
                      -- , parameterized-utils
                      -- , mtl
                      , containers
-
+                     , co-log-core
                      , simple-smt
                      , ansi-terminal
 
@@ -238,4 +240,3 @@ test-suite talos-tests
                       process,
                       process-extras,
                       simple-get-opt >= 0.4
-

@@ -17,25 +17,28 @@ import           Control.Concurrent            (forkIO)
 import           Control.Concurrent.STM.TChan
 import qualified Control.Exception             as E
 import           Control.Lens                  hiding (Fold, Iso)
+import           Control.Monad                 (forever, void)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import qualified Data.Text                     as Text
 
 import           Data.Aeson                    (encode, fromJSON)
 import           Data.Aeson.Types              (Result (..))
+import           Data.Maybe                    (fromMaybe)
 
+import qualified Language.LSP.Protocol.Lens    as J
+import qualified Language.LSP.Protocol.Message as J
+import qualified Language.LSP.Protocol.Types   as J
 import           Language.LSP.Server
-import qualified Language.LSP.Types            as J
-import qualified Language.LSP.Types.Lens       as J
 import           System.Log.Logger
 
-import           Daedalus.PP
+-- import           Daedalus.PP
 
-import           Daedalus.LSP.Worker      (requestParse, worker)
+import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import Daedalus.LSP.Command
-import Data.Maybe (fromMaybe)
+import           Daedalus.LSP.Worker           (requestParse, worker)
+
 
 -- SI for server impl.
 
@@ -64,9 +67,8 @@ run = flip E.catches handlers $ do
       , options = lspOptions
       }
 
-  flip E.finally finalProc $ do
-    setupLogger (Just "/tmp/lsp-log.txt") ["reactor", "worker"] DEBUG
-    runServer serverDefinition
+  -- FIXME: add logging
+  flip E.finally finalProc (runServer serverDefinition)
 
   where
     handlers = [ E.Handler ioExcept
@@ -81,7 +83,7 @@ run = flip E.catches handlers $ do
 syncOptions :: J.TextDocumentSyncOptions
 syncOptions = J.TextDocumentSyncOptions
   { J._openClose         = Just True
-  , J._change            = Just J.TdSyncIncremental
+  , J._change            = Just J.TextDocumentSyncKind_Incremental
   , J._willSave          = Just False
   , J._willSaveWaitUntil = Just False
   , J._save              = Just $ J.InR $ J.SaveOptions $ Just False
@@ -89,8 +91,8 @@ syncOptions = J.TextDocumentSyncOptions
 
 lspOptions :: Options
 lspOptions = defaultOptions
-  { textDocumentSync = Just syncOptions
-  , executeCommandCommands = Just supportedCommands
+  { optTextDocumentSync = Just syncOptions
+  , optExecuteCommandCommands = Just supportedCommands
   }
 
 -- ---------------------------------------------------------------------
@@ -107,15 +109,15 @@ reactor inp = do
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
-lspHandlers :: TChan ReactorInput -> Handlers ServerM
-lspHandlers rin = mapHandlers goReq goNot handle
+lspHandlers :: TChan ReactorInput -> a -> Handlers ServerM
+lspHandlers rin _client_caps = mapHandlers goReq goNot handle
   where
-    goReq :: forall (a :: J.Method 'J.FromClient 'J.Request). Handler ServerM a -> Handler ServerM a
+    goReq :: forall (a :: J.Method 'J.ClientToServer 'J.Request). Handler ServerM a -> Handler ServerM a
     goReq f = \msg k -> do
       sst <- ask
       liftIO $ atomically $ writeTChan rin $ ReactorAction (runServerM sst $ f msg k)
 
-    goNot :: forall (a :: J.Method 'J.FromClient 'J.Notification). Handler ServerM a -> Handler ServerM a
+    goNot :: forall (a :: J.Method 'J.ClientToServer 'J.Notification). Handler ServerM a -> Handler ServerM a
     goNot f = \msg -> do
       sst <- ask
       liftIO $ atomically $ writeTChan rin $ ReactorAction (runServerM sst $ f msg)
@@ -126,24 +128,24 @@ debounceTime = 100 -- ms
 -- | Where the actual logic resides for handling requests and notifications.
 handle :: Handlers ServerM
 handle = mconcat
-  [ notificationHandler J.SInitialized $ \_msg -> do
+  [ notificationHandler J.SMethod_Initialized $ \_msg -> do
       caps <- getClientCapabilities
       liftIO $ debugM "reactor.handle" $ "Processing the Initialized notification" ++ BSL.unpack (encode caps)
 
-  , notificationHandler J.STextDocumentDidOpen $ \msg -> do
+  , notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
     let doc  = msg ^. J.params . J.textDocument
         uri = doc ^. J.uri . to J.toNormalizedUri
 
     sst <- ask
     liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc
 
-    liftIO $ requestParse sst uri (Just (doc ^. J.version)) debounceTime
+    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
 
-  , notificationHandler J.SWorkspaceDidChangeConfiguration $ \msg -> do
+  , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
       liftIO $ debugM "configuration changed: " (show (msg,cfg))
 
-  , notificationHandler J.STextDocumentDidChange $ \msg -> do
+  , notificationHandler J.SMethod_TextDocumentDidChange $ \msg -> do
     let doc  = msg ^. J.params
                     . J.textDocument
 
@@ -160,7 +162,7 @@ handle = mconcat
   --     liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
   --     sendDiagnostics (J.toNormalizedUri doc) Nothing
 
-  , requestHandler J.STextDocumentDefinition $ \req responder -> do
+  , requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
       let params = req ^. J.params
           uri  = params ^. J.textDocument
@@ -169,7 +171,7 @@ handle = mconcat
           pos = params ^. J.position
       definition responder uri pos
 
-  , requestHandler J.STextDocumentRename $ \req responder -> do
+  , requestHandler J.SMethod_TextDocumentRename $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
       let params = req ^. J.params
           uri  = params ^. J.textDocument
@@ -180,23 +182,23 @@ handle = mconcat
 
       -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
       rename responder uri pos newName -- vdoc
-
-  , requestHandler J.STextDocumentSemanticTokensFull $ \req responder -> do
+  
+  , requestHandler J.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
       let params = req ^. J.params
-          uri  = params ^. to (J._textDocument :: J.SemanticTokensParams -> J.TextDocumentIdentifier)
+          uri  = params ^. J.textDocument
                          . J.uri
                          . to J.toNormalizedUri
 
       semanticTokens responder Nothing uri
 
-  , requestHandler J.STextDocumentSemanticTokensRange $ \req responder -> do
+  , requestHandler J.SMethod_TextDocumentSemanticTokensRange $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/range request"
       let params = req ^. J.params
-          uri  = params ^. to (J._textDocument :: J.SemanticTokensRangeParams -> J.TextDocumentIdentifier)
+          uri  = params ^. J.textDocument
                          . J.uri
                          . to J.toNormalizedUri
-          r    = params ^. to (J._range :: J.SemanticTokensRangeParams -> J.Range)
+          r    = params ^. J.range
 
       semanticTokens responder (Just r) uri
 
@@ -207,7 +209,7 @@ handle = mconcat
       --     rsp = J.WorkspaceEdit Nothing (Just (J.List [J.InL tde])) Nothing
       -- responder (Right rsp)
 
-  , requestHandler J.STextDocumentHover $ \req responder -> do
+  , requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
       let uri  = req ^. J.params
                       . J.textDocument
                       . J.uri
@@ -217,7 +219,7 @@ handle = mconcat
       liftIO $ debugM "reactor.handle" ("Processing a textDocument/hover request " ++ show uri ++ " at " ++ show pos)
       hover responder uri pos
 
-  , requestHandler J.STextDocumentDocumentHighlight $ \req responder -> do
+  , requestHandler J.SMethod_TextDocumentDocumentHighlight $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/documentHighlight request"
       let uri  = req ^. J.params
                       . J.textDocument
@@ -255,11 +257,11 @@ handle = mconcat
   --         rsp = J.List $ map J.InL $ concatMap makeCommand diags
   --     responder (Right rsp)
 
-  , requestHandler J.SWorkspaceExecuteCommand $ \req responder -> do
+  , requestHandler J.SMethod_WorkspaceExecuteCommand $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a workspace/executeCommand request"
       let params = req    ^. J.params
           cmd          = params ^. J.command
-          J.List args  = fromMaybe mempty (params ^. J.arguments)
+          args  = fromMaybe mempty (params ^. J.arguments)
 
       liftIO $ debugM "reactor.handle" $ Text.unpack cmd ++ ": " ++ show args
       let resp' res = do

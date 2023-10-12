@@ -71,6 +71,5 @@ instance PP ByteSet where
       SetCall f es -> pp f <.> parens (commaSep (map pp es))
       SetCase e -> pp e
       SetLet x e k -> "let" <+> pp x <+> "=" <+> pp e $$ "in" <+> pp k
-
     where
     wrap x = if n > x then parens else id

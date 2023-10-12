@@ -27,7 +27,7 @@ TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, PdfCos::TopDecl *resul
 
     input.iDropMut(offset);
 
-    DDL::ParseError error;
+    DDL::ParseError<DDL::Input> error;
     std::vector<PdfCos::TopDecl> results;
 
     input.copy();
@@ -75,7 +75,7 @@ StreamThunk::getDecl(ReferenceTable &refs, uint64_t refid, PdfCos::TopDecl *resu
 
     // XXX: Maybe we should cache the parsed ObjStreams so we don't
     // have to reparse them for every object?
-    DDL::ParseError error;
+    DDL::ParseError<DDL::Input> error;
     PdfCos::ObjStream objStream;
     if (!DDL::parseOneUser(parseObjStream, refs, error, &objStream,
        DDL::Input("ObjStream", ""), stream)) return false;
@@ -289,7 +289,7 @@ void ReferenceTable::process_trailer_post(PdfCos::TrailerDict trailer)
 {
     if (trailer.borrow_encrypt().isJust()) {
         DDL::Input emptyInput("empty", "", DDL::Size(0));
-        DDL::ParseError error;
+        DDL::ParseError<DDL::Input> error;
         std::vector<PdfCos::EncryptionDict> results;
 
         parseEncryptionDict(*this, error, results, emptyInput, trailer.borrow_encrypt().getValue());
@@ -373,7 +373,7 @@ void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Inpu
         throw XrefException("XRef tables form loop");
     }
 
-    DDL::ParseError error;
+    DDL::ParseError<DDL::Input> error;
     std::vector<PdfCos::CrossRef> crossRefs;
 
     if (offset > input.length()) {
@@ -453,7 +453,7 @@ void ReferenceTable::process_pdf(DDL::Input input)
         throw XrefException("End of pdf not found");
     }
 
-    DDL::ParseError error;
+    DDL::ParseError<DDL::Input> error;
     std::vector<DDL::UInt<64>> results;
 
     input.copy();

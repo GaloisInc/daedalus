@@ -1,0 +1,6 @@
+00000000: 0000 0b                               // Header: length: 11 bytes (not a multiple of 6)
+00000003: 04                                    // Header: frame type: settings
+00000004: 00                                    // Settings frame flags (no ack)
+00000005: fcaf cafe                             // Reserved bit (must be ignored) + Stream Identifier
+00000009: 0001 0000 0001                        // Settings frame payload: SETTINGS_HEADER_TABLE_SIZE
+0000000f: 0002 0000 0002                        // Settings frame payload: SETTINGS_ENABLE_PUSH

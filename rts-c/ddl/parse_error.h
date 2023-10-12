@@ -9,8 +9,9 @@
 #include <ddl/debug.h>
 #include <ddl/owned.h>
 #include <ddl/boxed.h>
-#include <ddl/input.h>
 #include <ddl/json.h>
+#include <ddl/number.h>
+#include <ddl/array.h>
 
 namespace DDL {
 
@@ -58,14 +59,15 @@ public:
 };
 
 
+template <typename I>
 struct ParseError {
-  Owned<Input> input;
+  Owned<I> input;
   Owned<Array<UInt<8>>> message;
   bool is_system_error;
   ParserContextStack debugs;
   char const *error_loc;
 
-  ParseError() : input(Owned(Input()))
+  ParseError() : input(Owned(I()))
                , message(Owned(Array<UInt<8>>()))
                , is_system_error(true)
                , error_loc("")
@@ -75,7 +77,7 @@ struct ParseError {
   // Owns array, message
   explicit ParseError( bool is_sys
                      , char const *loc
-                     , Input input
+                     , I input
                      , Array<UInt<8>> message
                      , ParserContextStack const& debugs
                      ) : input(input)
@@ -90,7 +92,7 @@ struct ParseError {
   // Borrows newInput, newMsg
   void improve( bool newIsSys
               , char const *loc
-              , Input newInput
+              , I newInput
               , Array<UInt<8>> newMsg
               , ParserContextStack const& newDebugs
               ) {
@@ -109,14 +111,15 @@ struct ParseError {
     // We found a better error.
     is_system_error = newIsSys;
     error_loc = loc;
-    input   = borrowed(newInput);
-    message = borrowed(newMsg);
+    input.assignBorrowed(newInput);
+    message.assignBorrowed(newMsg);
     debugs  = newDebugs;
   }
 };
 
+template <typename I>
 static inline
-std::ostream& toJS(std::ostream &os, ParseError const& err) {
+std::ostream& toJS(std::ostream &os, ParseError<I> const& err) {
   auto const &inp = err.input.borrow();
 
   os << "{ \"error\": " << JS(err.message.borrow().borrowBytes());
@@ -161,8 +164,9 @@ std::ostream& toJS(std::ostream &os, ParseError const& err) {
   return os << "}";
 }
 
+template <typename I>
 static inline
-std::ostream& operator << (std::ostream &os, ParseError const& err) {
+std::ostream& operator << (std::ostream &os, ParseError<I> const& err) {
   auto const &inp = err.input.borrow();
 
   // assumes a simple encoding for the name.

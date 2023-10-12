@@ -38,10 +38,10 @@ $ws         = [\0\9\10\13\32]
 @bigIdentI   = \? @bigIdent
 @setIdentI   = \? @setIdent
 @natural    = $digit+
-@integer    = \-? @natural
-@hexLiteral = 0 [xX] $hexDigit $hexDigit*
-@octLiteral = 0 [oO] $octDigit $octDigit*
-@binLiteral = 0 [bB] $binDigit $binDigit*
+@integer    = \-? $digit (_ | $digit)*
+@hexLiteral = 0 [xX] $hexDigit (_ | $hexDigit)*
+@octLiteral = 0 [oO] $octDigit (_ | $octDigit)*
+@binLiteral = 0 [bB] $binDigit (_ | $binDigit)*
 
 @esc        = \\ (@natural | \\ | \' | " | n | t | r | & | [xX] $hexDigit $hexDigit* )
 @byte       = \' ($anybyte # [\\] | @esc) \'
@@ -166,6 +166,7 @@ $ws+        ;
 "Offset"    { lexeme KWOffset }
 "SetStream" { lexeme KWSetStream }
 "GetStream" { lexeme KWGetStream }
+"take"      { lexeme KWtake }
 "Take"      { lexeme KWTake }
 "Drop"      { lexeme KWDrop }
 "arrayStream" { lexeme KWArrayStream }
@@ -222,26 +223,29 @@ $ws+        ;
 
 {
 
+lexUnpackLiteral :: Text -> String
+lexUnpackLiteral = filter (/= '_') . Text.unpack
+
 lexInteger :: Action s [Lexeme Token]
 lexInteger =
-  do x <- Text.unpack <$> matchText
+  do x <- lexUnpackLiteral <$> matchText
      lexeme $! Number (read x) Nothing
 
 lexHexLiteral :: Action s [Lexeme Token]
 lexHexLiteral =
-  do x <- Text.unpack <$> matchText
+  do x <- lexUnpackLiteral <$> matchText
      -- read supports hex literals too
      lexeme $! Number (read x) (Just ((length x - 2) * 4)) -- - 2 for '0x'
 
 lexOctLiteral :: Action s [Lexeme Token]
 lexOctLiteral =
-  do x <- Text.unpack <$> matchText
+  do x <- lexUnpackLiteral <$> matchText
      -- read supports hex literals too
      lexeme $! Number (read x) (Just ((length x - 2) * 3)) -- - 2 for '0o'
 
 lexBinLiteral :: Action s [Lexeme Token]
 lexBinLiteral =
-  do ds <- Text.unpack <$> matchText
+  do ds <- lexUnpackLiteral <$> matchText
      let vs = map (\x -> if x == '0' then 0 else 1) (drop 2 ds) -- removing the '0b'
          r  = foldl (\acc x -> x + 2 * acc) 0 vs
      lexeme $! Number r (Just (length vs))

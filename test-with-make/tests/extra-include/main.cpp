@@ -4,7 +4,7 @@
 #include "../../utils/mainWrapper.cpp"
 
 int go(DDL::Input i) {
-  DDL::ParseError err;
+  DDL::ParseError<DDL::Input> err;
   std::vector<DDL::ResultOf::parseMain> out;
   UserState state;
   parseMain(state,err,out,i);

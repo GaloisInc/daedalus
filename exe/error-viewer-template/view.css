@@ -1,0 +1,477 @@
+html {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+  justify-content: space-evenly;
+}
+
+
+.selected   { background-color: #ccf; }
+.hover      { background-color: #996; }
+.hidden     { display: none !important; }
+.clickable  { cursor: pointer; }
+.button   {
+  font-family: sans-serif;
+  font-size: smaller;
+  margin-left: 1em;
+  border: 1px solid black;
+  background-color: #fc3;
+  padding-left: 0.1em;
+  padding-right: 0.1em;
+}
+
+
+/* ----------------------------------------------------------------------
+ * Left Pane
+ * ---------------------------------------------------------------------- */
+
+div {
+  box-sizing: border-box;
+}
+
+#left-pane {
+  display: flex;
+  flex-direction: column;
+  resize: horizontal;
+  width: 50%;
+  height: 100%;
+  overflow: auto;
+  border-right: 1px solid black;
+}
+
+#left-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 2.5em;
+  min-height: 2.5em;
+  border-bottom: 1px solid black;
+}
+
+#file-pane {
+  overflow: auto;
+  flex: 1;
+}
+
+#file-name {
+  display: block;
+  flex: 1;
+  text-align: right;
+  font-weight: bold;
+  padding-left: 1em;
+  padding-right: 1em;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
+}
+
+
+
+
+/* ----------------------------------------------------------------------
+ * Input File
+ * ---------------------------------------------------------------------- */
+
+.input-file {
+  display: table;
+  font-family: monospace;
+}
+
+.input-line {
+  display: table-row;
+}
+
+.input-group {
+  display: table-cell;
+  padding-left: 1em;
+}
+
+.input-byte {
+  display: inline;
+}
+
+.input-char {
+  display: inline;
+  white-space: pre;
+}
+
+.input-line-offset {
+  display: table-cell;
+  padding-right: 1em;
+  border-right: 1px solid black;
+  font-style: italic;
+  color: #999;
+  text-align: right;
+}
+
+
+/* ----------------------------------------------------------------------
+ * Source File
+ * ---------------------------------------------------------------------- */
+
+.source-pane {
+}
+
+.source-content {
+  display: table;
+}
+
+.line {
+  display: table-row;
+}
+
+.line:hover {
+  background-color: #ffc;
+}
+
+.line-number {
+  display: table-cell;
+  text-align: right;
+  font-style: italic;
+  font-size: smaller;
+  color: #999;
+  width: 2em;
+  padding-right: 1em;
+}
+
+.line-content {
+  display: table-cell;
+  font-family: monospace;
+  white-space: pre;
+  color: green;
+}
+
+.identifier, .keyword, .punctuation, .operator {
+  color: black;
+}
+
+.keyword, .punctuation, .operator, .type {
+  font-weight: bold;
+}
+
+.literal {
+  color:       purple;
+  font-family: monospace;
+}
+
+
+
+
+
+
+
+/* ----------------------------------------------------------------------
+ * Right Pane
+ * ---------------------------------------------------------------------- */
+
+#right-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height:100%;
+  overflow: auto;
+}
+
+#error-pane {
+  border-bottom: 1px solid black;
+  height: 2.5em;
+  min-height: 2.5em;
+  display: flex;
+  align-items: center;
+  padding-left: 1em;
+}
+
+#stack-pane {
+  font-family: monospace;
+  padding-left: 1em;
+  padding: 1em;
+  border-bottom: 1px solid black;
+  height: 65%;
+  resize: vertical;
+  overflow: auto;
+}
+
+#scope-pane {
+  padding-top: 1em;
+  padding-left: 1em;
+  height: 30%;
+  overflow: scroll;
+  flex: 1;
+}
+
+#value-pane {
+  padding-top: 1em;
+  padding-left: 1em;
+  overflow: scroll;
+  flex: 1;
+}
+
+#help-pane {
+}
+
+
+
+
+
+
+/* ----------------------------------------------------------------------
+ * Stack View
+ * ---------------------------------------------------------------------- */
+
+.call {
+  cursor: pointer;
+  border-left: 5px black solid;
+  padding-left: 2px;
+  margin-bottom: 1px;
+}
+
+.call:hover {
+  background-color: #ffc;
+}
+
+
+
+/* ----------------------------------------------------------------------
+ * Scope View
+ * ---------------------------------------------------------------------- */
+
+.scope {
+  border: 1px solid balck;
+  display: table;
+}
+
+.binding {
+  display: table-row;
+}
+
+.binding:hover {
+  background-color: #ffc;
+}
+
+.variable {
+  font-family: monospace;
+  display: table-cell;
+  padding-right: 1em;
+}
+
+
+/* ----------------------------------------------------------------------
+ * Values
+ * ---------------------------------------------------------------------- */
+
+.value-meta {
+  font-family:      monospace;
+  font-style:       italic;
+  color:            #999;
+  padding:          0.5em;
+}
+
+/* Minimized value */
+.value-mini {
+  text-align:       center;
+  font-family:      monospace;
+  width:            1em;
+  height:           1em;
+  font-style:       italic;
+  color:            white;
+  background-color: #069;
+  border:           1px solid black;
+  border-radius:    5px;
+  margin:           0.5em;
+}
+
+.value-disappearing {
+  animation-duration: 1s;
+  animation-name: disappearing;
+  overflow: hidden !important;
+}
+
+@keyframes disappearing {
+  from { width: auto; height: auto; }
+  to   { width: 1em; height: 1em; }
+}
+
+
+.value-hover {
+  background-color: #fc3;
+}
+
+
+.composite-value {
+  border:        1px solid black;
+  border-radius: 5px;
+  margin:        0.2em;
+  overflow:      scroll;
+}
+
+/* Literals */
+.value-literal {
+  vertical-align: top;
+  color:          #069;
+  font-weight:    bold;
+  display:        inline-block;
+  font-family:    monospace;
+  padding:        0.5em;
+  white-space:    pre;
+  overflow:       scroll;
+  max-width:      30em;
+}
+
+/* Literals */
+.value-text {
+  display:          inline-block;
+  text-align:       left;
+  vertical-align:   top;
+  color:            #069;
+  background-color: #eee;
+  border-radius:    5px;
+  font-family:      monospace;
+  padding:          0.5em;
+  max-width:        30em;
+  white-space:      pre-wrap;
+  overflow:         scroll;
+}
+
+.value.text .escaped-char {
+  color:   #f00;
+  display: inline-block;
+  border:  1px solid black;
+  font-size: smaller;
+}
+
+
+
+/* Structs */
+.struct {
+  display:        inline-flex;
+  flex-direction: column;
+}
+
+.field {
+  display:         flex;
+  flex-direction:  row;
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.label {
+  font-family:    monospace;
+  display:        inline-block;
+  padding-left:   0.5em;
+}
+
+.field-value {
+  display:        inline-block;
+  padding-left:   1em;
+  vertical-align: top;
+}
+
+/* Unions */
+.union {
+  min-height: 2ex;
+}
+
+.union-tag {
+  font-family:      monospace;
+  border-bottom:    1px solid black;
+  text-align:       center;
+  padding-left:     1em;
+  padding-right:    1em;
+  background-color: #069;
+  color:            white;
+  font-weight:      bold;
+}
+
+.union-value {
+  text-align:       center;
+  padding:          0.2em;
+}
+
+
+/* Arrays */
+.array {
+  display:          inline-flex;
+  flex-direction:   column;
+  /*align-items:      stretch;*/
+}
+
+.array-entry {
+  display:          flex;
+  flex-direction:   row;
+  justify-content:  flex-start;
+  align-items:      flex-start;
+}
+
+.array-menu {
+  display:          inline-block;
+  font-size:        smaller;
+}
+
+
+/* Maps */
+.value.map {
+  display:          inline-flex;
+  flex-direction:   column;
+}
+
+.map-row {
+  display:          flex;
+  flex-direction:   row;
+  flex-wrap:        nowrap;
+  justify-content:  flex-start;
+  align-items:      stretch;
+}
+
+.map-key {
+  display: inline-block;
+}
+
+.map-val {
+  display: inline-block;
+}
+
+
+
+/* --------------------------
+ * Error Map
+ * --------------------------*/
+
+.map-dom {
+  position: absolute;
+  left: 20%;
+  top:  20%;
+  width: 60%;
+  height: 60%;
+  overflow: scroll;
+  border: 1px solid black;
+  background-color: white;
+  z-index: 2;
+}
+
+.map-err {
+  color: orange;
+}
+
+
+
+/* ----------------------------------------------------------------------------
+ * Error View
+ * ---------------------------------------------------------------------------*/
+
+.error-message {
+  display: inline-block;
+  color: orange;
+}
+
+

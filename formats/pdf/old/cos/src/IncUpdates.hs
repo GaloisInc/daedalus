@@ -27,17 +27,15 @@ import qualified Data.Text.Lazy as Text
 import           GHC.Records(HasField, getField)
 import           Text.PrettyPrint
 
--- pkg linguistic-ordinals:
-import qualified Text.Ordinal
-
 -- pkg range-set-list:
 import qualified Data.RangeSet.IntMap as RIntSet
 
 -- local:
 import Daedalus.Panic 
-import RTS.Vector(Vector,toList,VecElem)
-import RTS.Numeric
-import RTS.Input(advanceBy)
+import Daedalus.RTS.Vector(Vector,toList,VecElem)
+import Daedalus.RTS.Numeric
+import Daedalus.RTS.Input(advanceBy)
+import RTS.ParseError
 import Logger
 
 import PdfMonad
@@ -345,12 +343,11 @@ printUpdateSummary updates =
              
       incUpdateName n =
         (if gd then
-           if n == 0 then "base, " else showOrdinal' n ++ " applied, "
+           if n == 0 then "base, " else show n ++ " applied, "
          else
            "")
-        ++ showOrdinal' (len-n) ++ " found"
-        where
-        showOrdinal' = Text.unpack . Text.Ordinal.showOrdinal 
+        ++ show (len-n) ++ " found"
+
 
   case updates of
     U_Success{} -> logInfo $

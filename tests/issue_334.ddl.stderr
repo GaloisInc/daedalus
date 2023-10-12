@@ -1,0 +1,3 @@
+./issue_334.ddl:7:6--7:6:
+  Type does not have tag `C`
+    • Problem type: issue_334.Main2

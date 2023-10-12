@@ -2,10 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TypeOperators #-}
+
 module Daedalus.LSP.Monad where
 
 import           Control.Concurrent.Async     (Async)
@@ -18,7 +19,7 @@ import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
 import           Data.Aeson                   (FromJSON, ToJSON)
-import           Data.Foldable                (traverse_)
+import           Data.Foldable                (traverse_, msum)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)
@@ -41,9 +42,11 @@ import           Daedalus.Type.Monad          (RuleEnv)
 
 import           Language.LSP.Server          (LanguageContextEnv, LspM,
                                                MonadLsp (..), runLspT)
-import qualified Language.LSP.Types           as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import qualified Language.LSP.Protocol.Message as J
 
-data ModuleSource = ClientModule J.NormalizedUri J.TextDocumentVersion
+data ModuleSource = ClientModule J.NormalizedUri J.Int32
                   | FileModule FilePath -- FilePath here is the path to search
                   deriving (Eq, Ord, Show)
 
@@ -54,7 +57,7 @@ isFileModule _ = False
 -- Worker commands
 
 data WorkerRequest =
-  ChangedReq J.NormalizedUri  J.TextDocumentVersion Int Text -- ms delay
+  ChangedReq J.NormalizedUri  J.Int32 Int Text -- ms delay
   | WakeUpReq
   deriving Show
 
@@ -178,7 +181,7 @@ uriToModuleState uri = do
   liftIO $ atomically $ do
     mods <- readTVar (moduleStates sst)
     pure $ case Map.lookup mn mods of
-      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Nothing -> Left $ J.ResponseError (J.InR J.ErrorCodes_InvalidParams) "Missing module" Nothing
       Just ms -> Right ms
 
 
@@ -189,5 +192,8 @@ uriToTCModule uri = do
   liftIO $ atomically $ do
     mods <- readTVar (moduleStates sst)
     pure $ case Map.lookup mn mods of
-      Nothing -> Left $ J.ResponseError J.InvalidParams "Missing module" Nothing
+      Nothing -> Left $ J.ResponseError (J.InR J.ErrorCodes_InvalidParams) "Missing module" Nothing
       Just ms -> Right $ (\(tcm, _, _) -> tcm) <$> passStatusToMaybe (ms ^. msTCRes)
+
+maybeToNull :: Maybe a -> a J.|? J.Null
+maybeToNull = maybe (J.InR J.Null) J.InL

@@ -26,42 +26,42 @@ import           Talos.Strategy.BTRand
 import           Talos.Strategy.Monad        (LiftStrategyM (..), StratGen(..),
                                               Strategy (..), StrategyM, StrategyInstance (siFun), siName, getSlice)
 import           Talos.Strategy.PathSymbolic (pathSymbolicStrat)
-import           Talos.Strategy.Symbolic     (symbolicStrat)
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT       (SolverState, runSolverT)
+-- import           Talos.Strategy.Symbolic     (symbolicStrat)
+import           Talos.Path
+import           Talos.Solver.SolverT       (SolverState, runSolverT)
 import qualified Talos.Strategy.Monad as M
 
 
 allStrategies :: [Strategy]
-allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat, symbolicStrat] {- , backwardSymbolicStrat -}
+allStrategies = [ randRestart, randMaybeT, randDFS, pathSymbolicStrat] {- , backwardSymbolicStrat -}
 
 parseStrategies :: [String] -> Either String [StrategyInstance]
 parseStrategies ss = M.parseStrategies ss allStrategies
   
-runStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> ExpSlice ->
+runStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> SliceId -> ExpSlice -> 
                StrategyM (([SelectedPath], Maybe StratGen), SolverState)
-runStrategy solvSt strat ptag sl = runSolverT (getStratGen (siFun strat ptag sl)) solvSt
+runStrategy solvSt strat ptag sid sl = runSolverT (getStratGen (siFun strat ptag sid sl)) solvSt
 
 -- Returns the result and wall-clock time (in ns)
-timeStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> ExpSlice ->
+timeStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> SliceId -> ExpSlice ->
                 StrategyM (([SelectedPath], Maybe StratGen, SolverState), Integer)
-timeStrategy solvSt strat ptag sl = timeIt $ do
-  ((rv, gen), solvSt') <- runStrategy solvSt strat ptag sl
+timeStrategy solvSt strat ptag sid sl = timeIt $ do
+  ((rv, gen), solvSt') <- runStrategy solvSt strat ptag sid sl
   rv'           <- liftIO $ evaluate $ force rv
   pure (rv', gen, solvSt')
 
-runStrategies :: LiftStrategyM m => SolverState -> [StrategyInstance] -> ProvenanceTag -> FName -> Name -> ExpSlice ->
+runStrategies :: LiftStrategyM m => SolverState -> [StrategyInstance] -> ProvenanceTag -> FName -> Name -> SliceId -> ExpSlice ->
                  m ([SelectedPath], Maybe StratGen, SolverState)
-runStrategies solvSt strats0 ptag fn x sl = liftStrategy $ go solvSt strats0
+runStrategies solvSt strats0 ptag fn x sid sl = liftStrategy $ go solvSt strats0
   where
     -- FIXME: There is probably a nicer way of doing this
     go s [] = pure ([], Nothing, s)
     go s (strat : strats) = do
-      liftStrategy (liftIO (do { putStr $ "Trying strategy " ++ siName strat ++ " at " ++ showPP fn ++ "." ++ showPP x ++ " ... "; hFlush stdout }))
-      ((r, m_gen, s'), ns) <- timeStrategy s strat ptag sl
-      let dns = (fromIntegral ns :: Double)
-      let resReport = if null r then "failed" else "succeeded"
-      liftStrategy (liftIO (printf "%s (%.3fms)\n" resReport (dns  / 1000000)))
+      -- logMessage 1 $ "Trying strategy " ++ siName strat ++ " at " ++ showPP fn ++ "." ++ showPP x ++ " ... "
+      ((r, m_gen, s'), _ns) <- timeStrategy s strat ptag sid sl
+      -- let dns = (fromIntegral ns :: Double)
+      -- let resReport = if null r then "failed" else "succeeded"
+      -- logMessage 1 $ printf "%s (%.3fms)\n" resReport (dns  / 1000000)
       if null r
         then go s' strats
         else pure (r, m_gen, s')
@@ -85,7 +85,7 @@ data ModelCacheEntry = ModelCacheEntry
 
 data ModelCache = ModelCache
   { mcCache :: Map SliceId ModelCacheEntry
-  , mcStratInstances :: [StrategyInstance]
+  , mcStratInstances :: [StrategyInstance] -- ^ Read only
   , mcSolverState :: SolverState
   } deriving Generic
 
@@ -104,7 +104,7 @@ findModel mc ptag fn x sid
     -- We haven't seen this slice before, so solve
   | otherwise = do
       sl <- getSlice sid
-      (r, _m_gen, solvSt') <- runStrategies (mcSolverState mc) (mcStratInstances mc) ptag fn x sl
+      (r, _m_gen, solvSt') <- runStrategies (mcSolverState mc) (mcStratInstances mc) ptag fn x sid sl
       pure $ if null r
              then (Nothing, mc)
              else nextModel (mc { mcSolverState = solvSt' })

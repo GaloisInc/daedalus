@@ -38,7 +38,7 @@ struct CustomState {
 
 // This is the implementation of the `GetPacketBytes` primitive.
 bool parser_GetPacketBytes
-  ( DDL::ParserState& state
+  ( DDL::ParserState<DDL::Input>& state
   , DDL::Unit *result
   , DDL::Input *newInput
   , DDL::Input currentInput
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
   global_state.next_file   = 1;
 
   // Now parse the given input with the Protocol parser
-  DDL::ParseError error;    // Inforation about errors goes here
+  DDL::ParseError<DDL::Input> error;    // Inforation about errors goes here
   DDL::Input empty;         // Some empty input
   User::Protocol result;    // Parsed result goes here
     if (!DDL::parseOne(parseProtocol, error, &result, empty)) {

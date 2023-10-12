@@ -1,0 +1,7 @@
+--- Found 1 results:
+{ len: 4[24]
+, type: {F_WINDOW_UPDATE: { }}
+, stream_identifier: 2091895550[31]
+, body: {Window_Update_Frame_Body: { window_size_increment: 2142042830[31]
+                                   }}
+}

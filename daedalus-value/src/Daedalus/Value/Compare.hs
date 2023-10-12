@@ -1,21 +1,23 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Compare (vEq, vNeq, vLt, vGt, vLeq, vGeq) where
 
 import Daedalus.Value.Type
+import Daedalus.Value.Utils
 
 vEq :: Value -> Value -> Value
-vEq x y = VBool (vCompare x y == EQ)
+vEq = tracedFun \x y -> VBool (vCompare x y == EQ)
 
 vNeq :: Value -> Value -> Value
-vNeq x y = VBool (vCompare x y /= EQ)
+vNeq = tracedFun \x y -> VBool (vCompare x y /= EQ)
 
 vLt :: Value -> Value -> Value
-vLt x y = VBool (vCompare x y == LT)
+vLt = tracedFun \x y -> VBool (vCompare x y == LT)
 
 vGt :: Value -> Value -> Value
-vGt x y = VBool (vCompare x y == GT)
+vGt = tracedFun \x y -> VBool (vCompare x y == GT)
 
 vLeq :: Value -> Value -> Value
-vLeq x y = VBool (vCompare x y /= GT)
+vLeq = tracedFun \x y -> VBool (vCompare x y /= GT)
 
 vGeq :: Value -> Value -> Value
-vGeq x y = VBool (vCompare x y /= LT)
+vGeq = tracedFun \x y -> VBool (vCompare x y /= LT)

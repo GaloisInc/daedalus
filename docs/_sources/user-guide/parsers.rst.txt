@@ -387,9 +387,36 @@ second alternative because all alternatives in (untagged) ``Choose`` have
 the same type, so DaeDaLus can infer that we are also making a value of
 type ``BorG``.
 
+Unions can also be declared explicitly for use in the above scenarios
+rather than declaring them implicitly by using ``Choose`` or ``First``.
+For example:
 
+.. code-block:: DaeDaLus
 
+  def MyUnion =
+    union
+      Good: uint 8
+      Bad: [uint 8]
 
+In this example, we have explicitly declared a union ``MyUnion`` with
+two constructors, ``Good`` and ``Bad``. The ``Good`` constructor carries
+a single ``uint 8`` and the ``Bad`` constructor carries a list of ``uint
+8``. Such a union could then be used in a parser as follows:
+
+.. code-block:: DaeDaLus
+
+  def MyUnionParser: MyUnion =
+    Choose
+      block
+        let x = UInt8
+        {| Good = x |}
+      block
+        {| Bad = "Some text" |}
+
+To use an explicitly-declared union, we give ``MyUnionParser`` a return
+type annotation to indicate that it returns values of type ``MyUnion``.
+We then construct union semantic values using the ``Good`` and ``Bad``
+constructors and the ``{| ... |}`` notation.
 
 Repetition
 ----------

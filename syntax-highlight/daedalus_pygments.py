@@ -31,7 +31,7 @@ class DaeDaLusLexer(RegexLexer):
                  , 'insert', 'Insert', 'lookup', 'Lookup'
                  , 'Index', 'concat', 'length', 'rangeUp', 'rangeDown'
                  , 'GetStream', 'SetStream', 'Offset'
-                 , 'Take', 'Drop', 'arrayStream', 'bytesOfStream'
+                 , 'take', 'Take', 'Drop', 'arrayStream', 'bytesOfStream'
 
                  , 'wordToFloat'
                  , 'wordToDouble'

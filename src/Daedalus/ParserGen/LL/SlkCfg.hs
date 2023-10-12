@@ -36,7 +36,7 @@ import qualified Data.Text as T
 import Daedalus.Type.AST
 import Daedalus.Value as Interp
 import Daedalus.Interp as Interp
-import qualified RTS.Input as Input
+import qualified Daedalus.RTS.Input as Input
 
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action

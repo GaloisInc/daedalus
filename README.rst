@@ -10,8 +10,8 @@ Installing Haskell
 
 Daedalus is implemented in Haskell, so to build it you'd need to setup
 a Haskell environment.  An easy way to get this setup is to use ghcup_.
-You need a Haskell compiler (recommended `GHC 8.10.7`), and a Haskell package
-installer (recommended `Cabal 3.6`).
+You need a Haskell compiler (recommended `GHC 9.4.5`), and a Haskell package
+installer (recommended `Cabal 3.10`).
 
 .. _ghcup: https://www.haskell.org/ghcup/
 
@@ -20,7 +20,7 @@ Building the Daedalus Interpreter
 ---------------------------------
 
 The Daedalus interpreter, called ``daedalus`` is a good way to experiment
-with, and learn the Daedlus language.  To build and install the interpreter
+with, and learn the Daedalus language.  To build and install the interpreter
 you may use the command:
 
 .. code-block:: bash
@@ -28,7 +28,7 @@ you may use the command:
     cabal install exe:daedalus --installdir=DIR \
                                --overwrite-policy=always
 
-This instructs ``cabal`` to build Daedlus and place a link to the binary
+This instructs ``cabal`` to build Daedalus and place a link to the binary
 in directory ``DIR``.  The flag ``--overwrite-policy`` is optional and
 instructs ``cabal`` to overwite existing links with the same name.
 
@@ -42,64 +42,50 @@ the following, assuming ``daedalus`` is in your path:
 
 .. code-block:: bash
 
-  daedalus tests/midi/midi.ddl -i tests/midi/inputs/moz_k299.midi
+  daedalus run tests/midi/midi.ddl --input tests/midi/inputs/moz_k299.midi
 
-The first argument to daedalus is a specification describing the ``midi``
-format and the ``-i`` flag specfies the input that should be parsed.
+The first argument, ``run``, tells the interpreter what to do.
+The second is a Daedalus specification describing the ``midi``
+format and the ``--input`` flag specfies the input that should be parsed.
 If the input is parsed successfully, then ``daedalus`` will display the
 resulting semantic value.  Otherwise, you should see a parse error describing
 what went wrong.
+
+Passing ``--help`` to ``daedalus`` shows all commands, and passing it to
+a specific command shows the optoins for that command.  For more details
+on the various flags supported by the ``daedalus`` tool, have a look at
+the `tool section`_ of the reference manual.
+
+.. _`tool section`: https://galoisinc.github.io/daedalus/tool-docs/index.html
 
 
 Setting up Your Editor
 ----------------------
 
 The directory ``syntax-highlight`` contain Daedalus syntax hilighting
-files for common editors.
+files for common editors.  The ``README`` files in
+``syntax-highlight/vscode-daedalus`` contains instructions on setting up
+language server support for VS Code.
 
 
 More about the Daedalus Language
 ---------------------------------
 
-The documentation for ``Daedlus`` is not yet complete, but you may read
-more about the language in the 
-`user guide`_.  The ``tests`` directory
-contains numerous small examples of ``Daedlus`` specifications, of particular
-interest might be subdirectories ``ppm`` (PPM image format),
-``sexp`` (S-expressions) and ``midi`` (MIDI messages).
+The documentation for Daedalus is not yet complete, but you may read
+more about the language in the `user guide`_. The ``formats`` directory
+contains numerous small examples of Daedalus specifications.  Some starting
+points are:
+
+* ``plain-ppm.ddl`` (PPM image format),
+* ``sexp-mutrec.ddl`` (S-expressions), and
+* ``midi.ddl`` (MIDI messages).
 
 .. _`user guide`: https://galoisinc.github.io/daedalus/
-
-Generating Parsers
-------------------
-
-At present we can translate Daedalus specifications into Haskell, so that
-the resulting parsers may be intergrated with Haskell applications.
-We are working on adding support for generating parsers in other languages
-as well.  The parser generation functionality is very much in development
-at the moment.
-
-The repository contains two examples of Haskell applications using
-Daedalus parsers.  They are both validators, for the ICC and PDF
-format respectively.  You may install them using the commands:
-
-.. code-block:: bash
-
-    cabal install exe:icc           --installdir=DIR
-    cabal install exe:pdf-hs-driver --installdir=DIR
-
-The source code for the ICC validator is in ``icc-driver`` and the source
-code for the PDF validator is in ``pdf-driver``.
-
-NOTE:  The ``pdf-hs-dirver`` is being replaced by a validator using our C++
-backend.  For instructions on how to build this, please have a look at the
-README in ``formats/pdf/new/c++``.
-
 
 Generating C++ Parsers
 ----------------------
 
-The daedalus compiler, given a DaeDaLus format description, can
+The daedalus compiler, given a Daedalus format description, can
 generate a parser in C++ that parses the format. To generate a C++17
 parser for a format `Main` defined in `format.ddl`, storing the parser
 in directory `parser_dir`, run the command
@@ -114,6 +100,7 @@ implementations in `main_parser.cpp`.
 
 The entry procedure of the parser will be named `parseMain`, and has
 the following parameters:
+
 * an input, of type `DDL::Input`. In short, a `DDL::Input` can be constructed
   from an `Array` of bytes or a pointer to a null-terminated sequence
   of characters.
@@ -125,6 +112,11 @@ All classes in the `DDL` namespace are defined in `rts-c/ddl`.
 
 The generated parsers require C++17, so to compile them you may need
 to provide a flag such as `std=c++17` to the compiler.
+
+More detail about generating C++ parsers are available in the documentation
+for the ``compile-c++ command``.
+
+.. _`compile-c++ command`: https://galoisinc.github.io/daedalus/tool-docs/daedalus.html#command-compile-c
 
 Acknowledgements
 ----------------

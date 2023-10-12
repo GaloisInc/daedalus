@@ -12,7 +12,7 @@ where
 import qualified Data.ByteString as BS
 import qualified Data.Sequence as Seq
 
-import RTS.Input(Input(..))
+import Daedalus.RTS.Input(Input(..))
 import qualified Daedalus.Value as Interp
 
 import qualified Daedalus.ParserGen.AST as PAST

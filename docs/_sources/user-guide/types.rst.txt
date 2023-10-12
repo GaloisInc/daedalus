@@ -94,6 +94,6 @@ statically:
   information. If this holds, behaviour is identical to the lossless version of
   ``as``. Otherwise, the coercion fails and backtracks. 
 
-Note that ``e as T`` and ``e as T`` are values, and ``e as? T`` is a parser.
+Note that ``e as T`` and ``e as! T`` are values, and ``e as? T`` is a parser.
 This is because ``e as? T`` can fail and backtrack, which is only meaningful
 in parser expressions.

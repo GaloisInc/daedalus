@@ -1,0 +1,19 @@
+--- Found 1 results:
+{ start: { method: {CONNECT: { }}
+         , target: {Authority: { host: {Named: "www.example.com"}
+                               , port: 80[16]
+                               }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, field_info: { fields: [ {Field: { name: "host"
+                                  , value: "www.example.com"
+                                  }}
+                        ]
+              , chunked: F
+              , explicit_length: Nothing
+              , encoded: F
+              }
+, body: {bytes: [ ]}
+}

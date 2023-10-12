@@ -1,0 +1,20 @@
+{
+  "header": {
+    "ack": "Acknowledged",
+    "destinationMui": 49153,
+    "msgType": "Command",
+    "numDataMessages": 1,
+    "originMui": 49152,
+    "seqNumber": 1,
+    "versionMajor": 2,
+    "versionMinor": 4
+  },
+  "message": {
+    "commandField": {
+      "command": "RunBit",
+      "signalPortId": 2
+    },
+    "configurationId": 3,
+    "waveformOperationId": 4
+  }
+}

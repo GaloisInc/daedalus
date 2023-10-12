@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
-import Control.Monad(when,unless,forM_,forM)
+import Control.Monad(when,unless,forM,forM_)
 import Data.Maybe(fromMaybe,fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
@@ -17,12 +17,10 @@ import qualified Data.ByteString.Char8 as BS8
 import System.Directory(createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
-import System.Console.ANSI
 import Data.Traversable(for)
-import Data.Foldable(for_,toList)
+import Data.Foldable(for_)
 import Text.Show.Pretty (ppDoc)
-
-import Hexdump
+import SimpleGetOpt (GetOptException(..))
 
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
@@ -32,8 +30,7 @@ import Daedalus.Core(checkModule)
 import Daedalus.Driver
 import Daedalus.DriverHS
 
-import qualified RTS.ParserAPI as RTS
-import qualified RTS.Input as RTS
+import qualified Daedalus.RTS.Input as RTS
 
 import Daedalus.Value
 import Daedalus.Interp
@@ -50,8 +47,6 @@ import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
 import qualified Daedalus.Core.Inline as Core
-import qualified Daedalus.Core.NoMatch as Core
-import qualified Daedalus.Core.X as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import qualified Daedalus.VM.BorrowAnalysis as VM
@@ -59,8 +54,10 @@ import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
 import qualified Daedalus.VM.Semantics as VM
+import qualified Daedalus.VM.RefCountSane as VM
 
 import CommandLine
+import Results
 import Templates
 
 main :: IO ()
@@ -84,6 +81,11 @@ main =
        , Handler \e ->
           do printError ("[Error] " ++ displayException (e :: InterpError))
              exitFailure
+
+       , Handler \(GetOptException msgs) ->
+           do forM_ msgs $ \msg ->
+                  printError $ "Error: " ++ msg
+              exitFailure
 
        , Handler \(SomeException e) ->
            do printError (displayException e)
@@ -109,24 +111,28 @@ handleOptions :: Options -> Daedalus ()
 handleOptions opts
 
   | DumpRaw <- optCommand opts =
-    do mm   <- ddlPassFromFile passParse (optParserDDL opts)
-       mo   <- ddlGetAST mm astParse
-       ddlPrint (ppDoc mo)
+      do path <- getSpecPath
+         mm   <- ddlPassFromFile passParse path
+         mo   <- ddlGetAST mm astParse
+         ddlPrint (ppDoc mo)
 
   | DumpResolve <- optCommand opts =
-    do mm       <- ddlPassFromFile passResolve (optParserDDL opts)
+    do path     <- getSpecPath
+       mm       <- ddlPassFromFile passResolve path
        mo       <- ddlGetAST mm astParse
        ddlPrint (ppDoc mo)
 
   | DumpTypes <- optCommand opts =
-    do mm  <- ddlPassFromFile passTC (optParserDDL opts)
-       mo  <- ddlGetAST mm astTC
+    do path <- getSpecPath
+       mm   <- ddlPassFromFile passTC path
+       mo   <- ddlGetAST mm astTC
        ddlPrint (ppTypes mo)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
   | otherwise =
-    do mm <- ddlPassFromFile ddlLoadModule (optParserDDL opts)
+    do path <- getSpecPath
+       mm <- ddlPassFromFile ddlLoadModule path
        allMods <- ddlBasis mm
 
        let mainRules = parseEntries opts mm
@@ -143,8 +149,6 @@ handleOptions opts
          DumpCore ->
             do _ <- doToCore opts mm
                ddlPrint . pp =<< ddlGetAST specMod astCore
-
-         DumpRel -> dumpRel opts mm
 
          DumpVM -> ddlPrint . pp =<< doToVM opts mm
 
@@ -169,7 +173,8 @@ handleOptions opts
            case optBackend opts of
              UseInterp ->
                do prog <- for allMods \m -> ddlGetAST m astTC
-                  ddlIO (interpInterp opts inp prog mainRules)
+                  srcFiles <- Map.elems <$> ddlGet modulePaths
+                  ddlIO (interpInterp opts srcFiles inp prog mainRules)
 
              UseCore -> interpCore opts mm inp
 
@@ -178,12 +183,7 @@ handleOptions opts
              UsePGen flagMetrics ->
                do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
-                  ddlIO (interpPGen (optShowJS opts) inp [prog] flagMetrics)
-
-         DumpRaw -> error "Bug: DumpRaw"
-         DumpResolve -> error "Bug: DumpResolve"
-         DumpTypes -> error "Bug: DumpTypes"
-         JStoHTML -> error "Bug: JStoHTML"
+                  ddlIO (interpPGen opts inp [prog] flagMetrics)
 
          CompileHS -> generateHS opts mm allMods
 
@@ -201,49 +201,70 @@ handleOptions opts
 
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
+  where
+  getSpecPath =
+    case optParserDDL opts of
+     Nothing -> ddlIO $ throwOptError
+                             [ "Missing command-line argument: DDL input file" ]
+     Just p -> pure p
 
 
 interpInterp ::
-  Options -> Maybe FilePath -> [TCModule SourceRange] -> [(ModuleName,Ident)] ->
-    IO ()
-interpInterp opts inp prog ents =
+  Options    {- ^ Options -} ->
+  [FilePath] {- ^ Source files, for detailed errors -} ->
+  Maybe FilePath {- ^ Input file -} ->
+  [TCModule SourceRange] {- ^ Parsed source files -} ->
+  [(ModuleName,Ident)] {- ^ Entry points -} ->
+  IO ()
+interpInterp opts srcFiles inp prog ents =
   do start <- case [ ModScope m i | (m,i) <- ents ] of
                 [ent] -> pure ent
                 es -> interpError (MultipleStartRules es)
-     (_,res) <- interpFile inp prog start
-     let ?useJS = optShowJS opts
-     let txt1   = dumpResult dumpInterpVal res
+     let cfg = case optDetailedErrors opts of
+                 Just _  -> detailedErrorsConfig
+                 Nothing
+                   | optTracedValues opts ->
+                       defaultInterpConfig { tracedValues = True }
+                   | otherwise -> defaultInterpConfig
+     (_,res) <- interpFile cfg inp prog start
+     let ?opts = opts
+     let txt1   = dumpResult res
          txt2   = if optShowHTML opts then dumpHTML txt1 else txt1
      print txt2
      case res of
        Results {}   -> exitSuccess
-       NoResults {} -> exitFailure
+       NoResults err ->
+          do let ?opts = opts
+             saveDetailedError srcFiles err
+             exitFailure
+
+     -- srcs <- ddlGet modulePaths
 
 interpCore :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpCore opts mm inpMb =
   do ents <- doToCore opts mm
      env  <- Core.evalModuleEmptyEnv <$> ddlGetAST specMod astCore
      inp  <- ddlIO (RTS.newInputFromFile inpMb)
-     let ?useJS = optShowJS opts
-     -- XXX: html, etc
+     let ?opts = opts
      ddlIO $ forM_ ents \ent ->
-                  print (dumpResult dumpInterpVal (Core.runEntry env ent inp))
+               print (dumpResult (Core.runEntry env ent inp))
 
 interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
     let entries = VM.semModule (head (VM.pModules r))
-    let ?useJS = optShowJS opts
+    let ?opts = opts
     for_ (Map.elems entries) \impl ->
-        ddlPrint (dumpValues dumpInterpVal (VM.resultToValues (impl [VStream inp])))
+        ddlPrint (dumpValues (VM.resultToValues (impl [VStream inp])))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
-     checkCore "Core"
+     checkCore opts "Core"
+     when (optNoBitdata opts) (passNoBitdata specMod >> checkCore opts "NoBitdata")
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts)
         do fs <- forM (optInlineThis opts) \s ->
@@ -251,33 +272,54 @@ doToCore opts mm =
            case fs of
              [] -> passInline Core.AllBut ents specMod
              _  -> passInline Core.Only fs specMod
-           checkCore "Inline"
+           checkCore opts "Inline"
 
-     when (optStripFail opts) (passStripFail specMod >> checkCore "StripFail")
-     when (optSpecTys opts) (passSpecTys specMod >> checkCore "SpecTys")
-     when (optDeterminize opts) (passDeterminize specMod >> checkCore "Det")
-     when (optDeterminize opts) (passNorm specMod >> checkCore "Norm")
+     when (optNoLoops opts || optDeterminize opts)
+          (passNoLoops specMod >> checkCore opts "NoLoops")
+     when (optStripFail opts) (passStripFail specMod >> checkCore opts "StripFail")
+     when (optSpecTys opts) (passSpecTys specMod >> checkCore opts "SpecTys")
+     when (optDeterminize opts) (passDeterminize specMod >> checkCore opts "Det")
+     when (optNoMatch opts) (passNoMatch specMod >> checkCore opts "NoMatch ")
+     passMayFail specMod
+     when (optShrinkBiased opts)
+          (passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
+     when (optInlineCaseCase opts)
+          (passNorm specMod >> passInlineCase specMod >> checkCore opts "CaseCase")
+     passNorm specMod >> checkCore opts "Norm"
      unless (optNoWarnUnbiased opts) (passWarnFork specMod)
      pure ents
 
-  where
-  checkCore x =
-    when (optCheckCore opts)
-       do core <- ddlGetAST specMod astCore
-          case checkModule core of
-            Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
-            Nothing  -> pure ()
+checkCore :: Options -> String -> Daedalus ()
+checkCore opts x =
+  when (optCheckCore opts)
+    do core <- ddlGetAST specMod astCore
+       case checkModule core of
+         Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
+         Nothing  -> pure ()
 
 
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program
 doToVM opts mm =
   do ddlSetOpt optDebugMode (optErrorStacks opts)
-     _ <- doToCore opts mm
+     _ <- doToCore opts { optNoLoops = True
+                        , optNoMatch = True
+                        } mm
      passVM specMod
      m <- ddlGetAST specMod astVM
-     let addMM = VM.addCopyIs . VM.doBorrowAnalysis
-     pure $ addMM $ VM.moduleToProgram [m]
+     let addMM p
+           | optVM_do_mm opts =
+             let p1 = VM.addCopyIs (VM.doBorrowAnalysis p)
+             in case VM.checkProgram p1 of
+                  Just err -> ddlThrow (ADriverError $ unlines $
+                                                 [ show (pp p1)
+                                                 , "-------------------"
+                                                 , "MALFORMED VM"
+                                                 ] ++ err
+                                             )
+                  Nothing  -> pure p1
+            | otherwise = pure p
+     addMM (VM.moduleToProgram [m])
 
 
 parseEntries :: Options -> ModuleName -> [(ModuleName,Ident)]
@@ -295,18 +337,20 @@ parseEntry mm x =
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
-  do let makeExe = null (optEntries opts) && isNothing (optUserState opts)
+  do let makeExe = null (optEntries opts) && isNothing (optUserState opts) &&
+                   not (optUseLazyStream opts)
      when (makeExe && optOutDir opts == Nothing)
        $ ddlIO $ throwOptError
            [ "Generating a parser executable requires an output directory" ]
 
-     prog <- doToVM opts mm
+     prog <- doToVM opts { optVM_do_mm = True } mm
      let ccfg = C.CCodeGenConfig
                   { cfgFileNameRoot = optFileRoot opts
                   , cfgUserState    = text <$> optUserState opts
                   , cfgUserNS       = text (optUserNS opts)
                   , cfgExtraInclude = optExtraInclude opts
                   , cfgExternal     = optExternMods opts
+                  , cfgLazyStreams  = optUseLazyStream opts
                   }
          (hpp,cpp,warns) = C.cProgram ccfg prog
 
@@ -399,9 +443,9 @@ generateHS opts mainMod allMods
 
 
 
-interpPGen :: Bool -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
-interpPGen useJS inp moduls flagMetrics =
-  do let ?useJS = useJS
+interpPGen :: Options -> Maybe FilePath -> [TCModule SourceRange] -> Bool -> IO ()
+interpPGen opts inp moduls flagMetrics =
+  do let ?opts = opts
      let aut = PGen.buildArrayAut moduls
      let lla = PGen.createLLA aut                   -- LL
      let repeatNb = 1 -- 200
@@ -434,7 +478,7 @@ interpPGen useJS inp moduls flagMetrics =
                 else
                   do
                     if (i == 1)
-                      then print $ dumpValues dumpInterpVal resultValues
+                      then print $ dumpValues resultValues
                       else return ()
                     if flagMetrics
                       then
@@ -471,71 +515,22 @@ compilePGen moduls outDir =
 inputHack :: Options -> Options
 inputHack opts =
   case optCommand opts of
-    DumpTC | let f = optParserDDL opts
+    DumpTC | Just f <- optParserDDL opts
              , takeExtension f == ".input"
              , let xs = takeWhile (/= '.') (takeFileName f) ->
-               opts { optParserDDL = addExtension (takeDirectory f </> xs) "ddl"
+               opts { optParserDDL = Just $ addExtension (takeDirectory f </> xs) "ddl"
                     , optCommand = Interp (Just f)
                     }
     _ -> opts
 
 
 
-dumpResult :: (?useJS :: Bool) => (a -> Doc) -> RTS.Result a -> Doc
-dumpResult ppVal r =
-  case r of
-   RTS.NoResults err -> dumpErr err
-   RTS.Results as -> dumpValues ppVal (toList as)
-
-dumpValues :: (?useJS :: Bool) => (a -> Doc) -> [a] -> Doc
-dumpValues ppVal as
-  | ?useJS = brackets (vcat $ punctuate comma $ map ppVal as)
-  | otherwise =
-    vcat [ "--- Found" <+> int (length as) <+> "results:"
-         , vcat' (map ppVal as)
-         ]
-
-
-dumpInterpVal :: (?useJS :: Bool) => Value -> Doc
-dumpInterpVal = if ?useJS then valueToJS else pp
-
-dumpErr :: (?useJS :: Bool) => ParseError -> Doc
-dumpErr err
-  | ?useJS = RTS.errorToJS err
-  | otherwise =
-    vcat
-      [ "--- Parse error: "
-      , text (show (RTS.ppParseError err))
-      , "File context:"
-      , text (prettyHexCfg cfg ctx)
-      ]
-  where
-  ctxtAmt = 32
-  bs      = RTS.inputTopBytes (RTS.peInput err)
-  errLoc  = RTS.peOffset err
-  start = max 0 (errLoc - ctxtAmt)
-  end   = errLoc + 10
-  len   = end - start
-  ctx = BS.take len (BS.drop start bs)
-  startErr =
-     setSGRCode [ SetConsoleIntensity
-                  BoldIntensity
-                , SetColor Foreground Vivid Red ]
-  endErr = setSGRCode [ Reset ]
-  cfg = defaultCfg { startByte = start
-                   , transformByte =
-                      wrapRange startErr endErr
-                                errLoc errLoc }
-
 
 jsToHTML :: Options -> Daedalus ()
 jsToHTML opts =
   ddlPrint . dumpHTML . text =<<
     ddlIO
-    if null (optParserDDL opts)
-      then getContents
-      else readFile (optParserDDL opts)
-
+    (maybe getContents readFile $ optParserDDL opts)
 
 dumpHTML :: Doc -> Doc
 dumpHTML jsData = vcat
@@ -545,25 +540,23 @@ dumpHTML jsData = vcat
   , bytes tstyle
   , "</style>"
   , "<script>"
-  , "const inf = 'inf'"
   , "const data =" <+> jsData
   , bytes trender
+  , bytes thex
+  , bytes tscope
   , "</script>"
   , "</head>"
-  , "<body id='container' onload=\"main()\">"
+  , "<body onload=\"main()\">"
+  , bytes tindex
   , "</body>"
   , "</html>"
   ]
   where
-  Just tstyle  = lookup "style.css" html_files
+  Just tstyle  = lookup "view.css" html_files
   Just trender = lookup "render.js" html_files
+  Just thex    = lookup "hex-view.js" html_files
+  Just tscope  = lookup "scope.js" html_files
+  Just tindex   = lookup "index.html" html_files
   bytes = text . BS8.unpack
 
 
-dumpRel ::  Options -> ModuleName -> Daedalus ()
-dumpRel opts mm =
-  do _    <- doToCore opts mm
-     m    <- ddlGetAST specMod astCore
-     m1   <- ddlRunPass (Core.noMatch m)
-     fs   <- ddlRunPass (Core.suceedsMod m1)
-     ddlPrint (vcat (map pp fs))

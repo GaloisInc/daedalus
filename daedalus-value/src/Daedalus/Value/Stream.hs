@@ -1,8 +1,10 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Stream where
 
-import RTS.Input
-import RTS.Numeric
+import Daedalus.RTS.Input
+import Daedalus.RTS.Numeric
 import Daedalus.Value.Type
+import Daedalus.Value.Utils
 
 vStreamFromArray :: Value -> Value -> Value
 vStreamFromArray a b = VStream (newInput nm bs)
@@ -10,41 +12,41 @@ vStreamFromArray a b = VStream (newInput nm bs)
         bs = valueToByteString b
 
 vBytesOfStream :: Value -> Value
-vBytesOfStream = vByteString . inputBytes . valueToStream
+vBytesOfStream = tracedFun (vByteString . inputBytes . valueToStream)
 
 vStreamOffset :: Value -> Value
-vStreamOffset = vSize . toInteger . inputOffset . valueToStream
+vStreamOffset = tracedFun (vSize . toInteger . inputOffset . valueToStream)
 
 vStreamLength :: Value -> Value
-vStreamLength = vSize . toInteger . inputLength . valueToStream
+vStreamLength = tracedFun (vSize . toInteger . inputLength . valueToStream)
 
 vStreamIsEmpty :: Value -> Value
-vStreamIsEmpty = VBool . inputEmpty . valueToStream
+vStreamIsEmpty = tracedFun (VBool . inputEmpty . valueToStream)
 
 vStreamHead :: Value -> Partial Value
-vStreamHead v =
+vStreamHead = tracedFun \v ->
   case inputByte (valueToStream v) of
     Just (w,_) -> pure (vByte w)
     Nothing    -> vErr "Head of empty list"
 
-vStreamTake :: Value -> Value -> Partial Value
-vStreamTake a b =
-  case valueToIntSize a of
-    Nothing -> pure b
-    Just x  ->
-      case limitLen (UInt (fromIntegral x)) (valueToStream b) of
-        Nothing -> vErr "Not enough bytes in `Take`"
-        Just i  -> pure (VStream i)
+vStreamTake :: Value -> Value -> Value
+vStreamTake = tracedFun \a b ->
+  let sz = toUInt (fromInteger (valueToSize a))
+  in VStream (inputTake sz (valueToStream b))
 
 vStreamDrop :: Value -> Value -> Partial Value
-vStreamDrop a b =
-  case valueToIntSize a of
-    Nothing -> notEnough
-    Just x  ->
-      case advanceBy (UInt (fromIntegral x)) (valueToStream b) of
-        Nothing -> notEnough
-        Just i  -> pure (VStream i)
+vStreamDrop = tracedFun \a b ->
+  case vStreamDropMaybe' a b of
+    Just v  -> pure v
+    Nothing -> vErr "Not enough bytes in `Drop`"
 
-  where
-  notEnough = vErr "Not enough bytes in `Drop`"
+vStreamDropMaybe' :: Value -> Value -> Maybe Value
+vStreamDropMaybe' a b =
+  do x <- valueToIntSize a
+     VStream <$> advanceBy (UInt (fromIntegral x)) (valueToStream b)
+
+vStreamDropMaybe :: Value -> Value -> Value
+vStreamDropMaybe = tracedFun \a b -> VMaybe (vStreamDropMaybe' a b)
+
+
 

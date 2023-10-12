@@ -15,9 +15,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script src="../_static/design-tabs.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -31,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Daedalus
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -101,7 +103,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html">Tutorial</a></li>
       <li class="breadcrumb-item active">Breaking down PPM: Expressions and Control Flow</li>
       <li class="wy-breadcrumbs-aside">
@@ -114,7 +116,7 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-expressions-and-control-flow">
-<h1>Breaking down PPM: Expressions and Control Flow<a class="headerlink" href="#breaking-down-ppm-expressions-and-control-flow" title="Permalink to this heading"></a></h1>
+<h1>Breaking down PPM: Expressions and Control Flow<a class="headerlink" href="#breaking-down-ppm-expressions-and-control-flow" title="Permalink to this headline"></a></h1>
 <p>So far, we have introduced everything needed to understand the parsers defined
 in the PPM example but there are still some loose ends when it comes to
 working with semantic values and control flow. This section will tie up those
@@ -122,13 +124,13 @@ ends and give you the tools necessary to add some logic to your own DaeDaLus
 specifications to enable more complex parsing and construction of semantic
 values.</p>
 <section id="built-in-semantic-values">
-<h2>Built-In Semantic Values<a class="headerlink" href="#built-in-semantic-values" title="Permalink to this heading"></a></h2>
+<h2>Built-In Semantic Values<a class="headerlink" href="#built-in-semantic-values" title="Permalink to this headline"></a></h2>
 <p>We’ve already discussed how user-defined structure and sum types can be
 defined through parser specifications, but we haven’t spoken in detail
 about what sorts of data are available by default. It’s about time we do
 that!</p>
 <section id="bool">
-<h3><code class="docutils literal notranslate"><span class="pre">bool</span></code><a class="headerlink" href="#bool" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">bool</span></code><a class="headerlink" href="#bool" title="Permalink to this headline"></a></h3>
 <p>We’ve already mentioned the sum type <code class="docutils literal notranslate"><span class="pre">bool</span></code>: it has precisely two
 values, <code class="docutils literal notranslate"><span class="pre">true</span></code> and <code class="docutils literal notranslate"><span class="pre">false</span></code>. We can negate a <code class="docutils literal notranslate"><span class="pre">bool</span></code> using the unary
 <code class="docutils literal notranslate"><span class="pre">!</span></code> operator. For example: If <code class="docutils literal notranslate"><span class="pre">x</span></code> is a <code class="docutils literal notranslate"><span class="pre">bool</span></code> that is <code class="docutils literal notranslate"><span class="pre">true</span></code>,
@@ -145,7 +147,7 @@ and are ordered according to <code class="docutils literal notranslate"><span cl
 for control flow via <code class="docutils literal notranslate"><span class="pre">if</span></code>, guards, and pattern matching.</p>
 </section>
 <section id="numerics">
-<h3>Numerics<a class="headerlink" href="#numerics" title="Permalink to this heading"></a></h3>
+<h3>Numerics<a class="headerlink" href="#numerics" title="Permalink to this headline"></a></h3>
 <p>DaeDaLus supports unbounded integers with the type <code class="docutils literal notranslate"><span class="pre">int</span></code> and has two
 <em>type families</em>, indexed by positive integers, to represent bounded integers.
 Specifically, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> (which we’ve seen in a few examples) is the type of
@@ -196,7 +198,7 @@ parsers.</p></li>
 </ul>
 </section>
 <section id="maybe">
-<h3><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code><a class="headerlink" href="#maybe" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">...</span></code><a class="headerlink" href="#maybe" title="Permalink to this headline"></a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">T</span></code> type represents values of type <code class="docutils literal notranslate"><span class="pre">T</span></code> with the possibility that
 such a value is missing. It is a built-in sum type with two variants:
 <code class="docutils literal notranslate"><span class="pre">nothing</span></code>, representing a ‘missing’ value, and <code class="docutils literal notranslate"><span class="pre">just</span> <span class="pre">x</span></code>, where <code class="docutils literal notranslate"><span class="pre">x</span></code> is of
@@ -209,7 +211,7 @@ it returns <code class="docutils literal notranslate"><span class="pre">nothing<
 flow via guards and pattern matching, which we’ll discuss shortly.</p>
 </section>
 <section id="t">
-<h3><code class="docutils literal notranslate"><span class="pre">[T]</span></code><a class="headerlink" href="#t" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">[T]</span></code><a class="headerlink" href="#t" title="Permalink to this headline"></a></h3>
 <p>We have also already seen arrays and how they can be built through
 parser sequencing. We can also write array literals using familiar
 square-bracket notation from other languages. For example:</p>
@@ -233,7 +235,7 @@ argument and returns its length as a <code class="docutils literal notranslate">
 loop, which we’ll talk about in a later section.</p>
 </section>
 <section id="builders-for-arrays">
-<h3>Builders for Arrays<a class="headerlink" href="#builders-for-arrays" title="Permalink to this heading"></a></h3>
+<h3>Builders for Arrays<a class="headerlink" href="#builders-for-arrays" title="Permalink to this headline"></a></h3>
 <p>You may have noticed that there is no way to build arrays incrementally
 with the tools outlined above. To address this, there is a special
 ‘builder’ type that allows one to add elements to a structure
@@ -251,7 +253,7 @@ do not have a direct interface to look up elements by index or compute
 length; they’re useless outside of incremental array construction.</p>
 </section>
 <section id="k-t">
-<h3><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code><a class="headerlink" href="#k-t" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">[K</span> <span class="pre">-&gt;</span> <span class="pre">T]</span></code><a class="headerlink" href="#k-t" title="Permalink to this headline"></a></h3>
 <p>Sometimes, we wish to index by something other than integers; this
 is particularly useful when parsing formats that map names to other
 structures.</p>
@@ -277,11 +279,11 @@ in a <code class="docutils literal notranslate"><span class="pre">maybe</span></
 </section>
 </section>
 <section id="control-structures">
-<h2>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this heading"></a></h2>
+<h2>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline"></a></h2>
 <p>With a solid understanding of the types of values we have available,
 it’s now time to see how they’re used to control parser behaviors.</p>
 <section id="if-then-else">
-<h3><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code><a class="headerlink" href="#if-then-else" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">...</span> <span class="pre">then</span> <span class="pre">...</span> <span class="pre">else</span></code><a class="headerlink" href="#if-then-else" title="Permalink to this headline"></a></h3>
 <p>We can use a <code class="docutils literal notranslate"><span class="pre">bool</span></code> value to control which of two parsers runs. This
 is not used in the PPM example, but here is a simple example that
 parses an <code class="docutils literal notranslate"><span class="pre">'A'</span></code> if the first parsed digit is less than 5, and <code class="docutils literal notranslate"><span class="pre">'B'</span></code>
@@ -294,7 +296,7 @@ otherwise:</p>
 </div>
 </section>
 <section id="guarding">
-<h3>Guarding<a class="headerlink" href="#guarding" title="Permalink to this heading"></a></h3>
+<h3>Guarding<a class="headerlink" href="#guarding" title="Permalink to this headline"></a></h3>
 <p>When writing a complex parser, it is often useful to confirm that the ‘shape’
 of some value we’ve parsed from input is correct; this is the job of a <em>guard</em>.</p>
 <p>Guards are parsers that succeed when a given expression has a given
@@ -320,7 +322,7 @@ failure.</p>
 arise from parsing alternatives using biased/unbiased choice.</p>
 </section>
 <section id="case-of">
-<h3><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code><a class="headerlink" href="#case-of" title="Permalink to this heading"></a></h3>
+<h3><code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code><a class="headerlink" href="#case-of" title="Permalink to this headline"></a></h3>
 <p>A more generic way to inspect a semantic value – a tagged sum in
 particular – is the <em>pattern-matching</em> structure, <code class="docutils literal notranslate"><span class="pre">case</span> <span class="pre">...</span> <span class="pre">of</span> <span class="pre">...</span></code>.</p>
 <p>In general, a <code class="docutils literal notranslate"><span class="pre">case</span></code> expression looks like:</p>
@@ -369,9 +371,9 @@ make sure all patterns are covered, but DaeDaLus isn’t one of them!</p>
 </div>
 </section>
 <section id="loops">
-<h3>Loops<a class="headerlink" href="#loops" title="Permalink to this heading"></a></h3>
+<h3>Loops<a class="headerlink" href="#loops" title="Permalink to this headline"></a></h3>
 <section id="for">
-<h4><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code><a class="headerlink" href="#for" title="Permalink to this heading"></a></h4>
+<h4><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">...</span></code><a class="headerlink" href="#for" title="Permalink to this headline"></a></h4>
 <p>To visit all elements of an array or dictionary, DaeDaLus provides an unusual
 form of the familiar <code class="docutils literal notranslate"><span class="pre">for</span></code> loop.</p>
 <p>It’s best to demonstrate this with an example, taken from the PPM spec:</p>
@@ -421,7 +423,7 @@ you can use this form:</p>
 </div>
 </section>
 <section id="map">
-<h4><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code><a class="headerlink" href="#map" title="Permalink to this heading"></a></h4>
+<h4><code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">...</span></code><a class="headerlink" href="#map" title="Permalink to this headline"></a></h4>
 <p>If you wish to <em>transform</em> a sequence of elements, you can use the
 <code class="docutils literal notranslate"><span class="pre">map</span></code> construct. It is syntactically similar to <code class="docutils literal notranslate"><span class="pre">for</span></code> except that no
 accumulation variable is bound:</p>
@@ -439,9 +441,9 @@ the body for the corresponding element in the input collection.</p>
 </section>
 </section>
 <section id="more-on-types">
-<h2>More on Types<a class="headerlink" href="#more-on-types" title="Permalink to this heading"></a></h2>
+<h2>More on Types<a class="headerlink" href="#more-on-types" title="Permalink to this headline"></a></h2>
 <section id="annotating-types">
-<h3>Annotating Types<a class="headerlink" href="#annotating-types" title="Permalink to this heading"></a></h3>
+<h3>Annotating Types<a class="headerlink" href="#annotating-types" title="Permalink to this headline"></a></h3>
 <p>So far, we’ve only mentioned types in the context of alternative
 parsers: specifically, to be able to define two parsers that return
 exactly the same type of data, overriding the default behavior of
@@ -474,7 +476,7 @@ this case, we surround the parameter and its type with parentheses:</p>
 </div>
 </section>
 <section id="unknown-types">
-<h3>Unknown Types<a class="headerlink" href="#unknown-types" title="Permalink to this heading"></a></h3>
+<h3>Unknown Types<a class="headerlink" href="#unknown-types" title="Permalink to this headline"></a></h3>
 <p>We can also name types without being explicit about what they are. We write
 <em>type variables</em> with a <code class="docutils literal notranslate"><span class="pre">?</span></code> followed by a name, which is typically a
 lowercase letter. For example: The type <code class="docutils literal notranslate"><span class="pre">maybe</span> <span class="pre">?a</span></code> can be used to annotate
@@ -488,7 +490,7 @@ the user guide for more detail on this feature.</p>
 </div>
 </section>
 <section id="type-coercion">
-<h3>Type Coercion<a class="headerlink" href="#type-coercion" title="Permalink to this heading"></a></h3>
+<h3>Type Coercion<a class="headerlink" href="#type-coercion" title="Permalink to this headline"></a></h3>
 <p>It is commonly useful to be able to convert a semantic value of some
 type (usually numerical) into a semantic value of a different type.
 This will be particularly crucial to developing a solid understanding
@@ -515,7 +517,7 @@ a parser since it can fail and trigger backtracking.</p>
 </div>
 <p>We’ve now covered all of the essential types of values and control-flow
 structures. There are a few others for more specialized use cases; you
-can check out the <a class="reference internal" href="#control-structures"><span class="std std-ref">Control Structures</span></a> section of the main user
+can check out the <a class="reference internal" href="../user-guide/control-structures.html#control-structures"><span class="std std-ref">Control Structures</span></a> section of the main user
 guide for details on how to use these features.</p>
 <p>In <a class="reference internal" href="extended-ex-intro.html#extended-exercise-the-png-format"><span class="std std-ref">Extended Exercise: The PNG Format</span></a>, we’ll work through the
 implementation of a much more complicated layout specification one step

@@ -34,6 +34,9 @@ module Daedalus.Driver
   , passResolve
   , passTC
   , passDeadVal
+  , passNoLoops
+  , passNoBitdata  
+  , passNoMatch
   , passSpecialize
   , passCore
   , passInline
@@ -42,10 +45,15 @@ module Daedalus.Driver
   , passConstFold
   , passDeterminize
   , passNorm
+  , passAddNodeIDs
+  , passMayFail
+  , passShrinkBiasedOr
+  , passInlineCase
   , passWarnFork
   , passVM
   , ddlRunPass
 
+ 
     -- * State
   , State(..)
   , ddlState
@@ -55,6 +63,7 @@ module Daedalus.Driver
 
     -- ** State accessors
   , moduleSourcePath
+  , modulePaths
 
     -- * Updating state externally
   , recordTCModule
@@ -118,10 +127,16 @@ import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.Core.Normalize as Core
 import qualified Daedalus.Core.NoMatch as Core
+import qualified Daedalus.Core.NoLoop as Core
+import qualified Daedalus.Core.NoBitdata as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
 import qualified Daedalus.Core.Determinize as Core
+import qualified Daedalus.Core.Effect as Core
+import qualified Daedalus.Core.ShrinkBiasedOr as Core
+import qualified Daedalus.Core.InlineCase as Core
+import qualified Daedalus.Core.CFG as Core
 import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
@@ -313,6 +328,10 @@ defaultState = State
 moduleSourcePath :: ModuleName -> State -> Maybe FilePath
 moduleSourcePath m = Map.lookup m . moduleFiles
 
+-- | Get the pats for all loaded modules
+modulePaths :: State -> Map ModuleName FilePath
+modulePaths = moduleFiles
+
 
 data ModulePhase =
     ModuleInProgress                          -- ^ We are working on this
@@ -321,7 +340,7 @@ data ModulePhase =
   | TypeCheckedModule (TCModule SourceRange)  -- ^ Typechecking was done
   | DeadValModule (TCModule SourceRange)      -- ^ Unused value analysis
   | SpecializedModule (TCModule SourceRange)  -- ^ Specialized
-  | CoreModue Core.Module                     -- ^ Core module
+  | CoreModule Core.Module                    -- ^ Core module
   | VMModule VM.Module                        -- ^ VM module
 
 -- | The passes, in the order they should happen
@@ -344,7 +363,7 @@ phasePass ph =
     TypeCheckedModule {}  -> PassTC
     DeadValModule {}      -> PassDeadVal
     SpecializedModule {}  -> PassSpec
-    CoreModue {}          -> PassCore
+    CoreModule {}         -> PassCore
     VMModule {}           -> PassVM
 
 
@@ -370,8 +389,8 @@ astTC ph =
 astCore :: ModulePhase -> Maybe Core.Module
 astCore ph =
   case ph of
-    CoreModue m -> Just m
-    _           -> Nothing
+    CoreModule m -> Just m
+    _            -> Nothing
 
 -- | Get the low-level VM AST from a phase
 astVM :: ModulePhase -> Maybe VM.Module
@@ -608,15 +627,6 @@ analyzeDeadVal m =
           , matchingFunctions = mfs1
           }
 
-convertToVM :: Core.Module -> Daedalus ()
-convertToVM m =
-  do m1 <- ddlRunPass (Core.noMatch m)
-     ddlUpdate_ \s ->
-        let vm = VM.compileModule (debugMode s) m1 in
-        s { loadedModules = Map.insert (fromMName (VM.mName vm)) (VMModule vm)
-                                       (loadedModules s)
-          }
-
 fromMName :: Core.MName -> ModuleName
 fromMName (Core.MName x) = x
 
@@ -782,85 +792,72 @@ passCore m =
                                                             (Core.fromModule mo)
      let cm = Core.normM cm'
      ddlUpdate_ \s ->
-        s { loadedModules = Map.insert (fromMName (Core.mName cm))
-                                       (CoreModue (Core.normM cm))
+        s { loadedModules = Map.insert (fromMName  (Core.mName cm))
+                                       (CoreModule (Core.normM cm))
                                        (loadedModules s)
           , coreTopNames = cnms'
           , coreTypeNames = tnms'
           }
 
+coreToCore ::
+  String -> (Core.Module -> PassM Core.Module) -> ModuleName ->  Daedalus ()
+coreToCore name f m =
+  do ph <- doGetLoaded m
+     case ph of
+       CoreModule ast ->
+         do i <- ddlRunPass (f ast)
+            ddlUpdate_ \s ->
+              s { loadedModules =
+                     Map.insert m
+                        (CoreModule i)
+                        (loadedModules s) }
+       _ -> panic name ["Module is not in Core form"]
 
 passInline :: Core.InlineWhat -> [Core.FName] -> ModuleName -> Daedalus ()
-passInline what no m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do i <- ddlRunPass (Core.inlineModule what no ast)
-            ddlUpdate_ \s ->
-              s { loadedModules =
-                     Map.insert m
-                        (CoreModue (Core.normM i))
-                        (loadedModules s) }
-       _ -> panic "passInline" ["Module is not in Core form"]
+passInline what no = coreToCore "inline" (Core.inlineModule what no)
 
 passStripFail :: ModuleName -> Daedalus ()
-passStripFail m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do ddlUpdate_ \s ->
-              s { loadedModules =
-                     Map.insert m
-                        (CoreModue (Core.stripFailM ast)) -- FIXME: should we normM?
-                        (loadedModules s) }
-       _ -> panic "passInline" ["Module is not in Core form"]
+passStripFail = coreToCore "strip Fail" (pure . Core.stripFailM)
 
+passNoLoops :: ModuleName -> Daedalus ()
+passNoLoops = coreToCore "no loops" Core.noLoop
+
+passNoBitdata :: ModuleName -> Daedalus ()
+passNoBitdata = coreToCore "no bitdata" Core.noBitdata
 
 passSpecTys :: ModuleName -> Daedalus ()
-passSpecTys m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do i <- ddlRunPass (Core.specialiseTypes ast)
-            ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
-       _ -> panic "passSpecTys" ["Module is not in Core form"]
+passSpecTys = coreToCore "specialise types" Core.specialiseTypes
 
 passConstFold :: ModuleName -> Daedalus ()
-passConstFold m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do i <- ddlRunPass (Core.constFold ast)
-            ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
-       _ -> panic "passConstFold" ["Module is not in Core form"]
+passConstFold = coreToCore "specialise types" Core.constFold
 
 passDeterminize :: ModuleName -> Daedalus ()
-passDeterminize m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do let i = Core.determinizeModule ast
-            ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
-       _ -> panic "passDeterminize" ["Module is not in Core form"]
+passDeterminize = coreToCore "determinize" (pure . Core.determinizeModule)
+
+passAddNodeIDs :: ModuleName -> Daedalus ()
+passAddNodeIDs = coreToCore "add node IDs" Core.addNodeIDs
 
 passNorm :: ModuleName -> Daedalus ()
-passNorm m =
-  do ph <- doGetLoaded m
-     case ph of
-       CoreModue ast ->
-         do let i = Core.normM ast
-            ddlUpdate_ \s ->
-              s { loadedModules = Map.insert m (CoreModue i) (loadedModules s) }
-       _ -> panic "passNorm" ["Module is not in Core form"]
+passNorm = coreToCore "norm" (pure . Core.normM)
+
+passNoMatch :: ModuleName -> Daedalus ()
+passNoMatch = coreToCore "coreNoMatch" Core.noMatch
+
+passMayFail :: ModuleName -> Daedalus ()
+passMayFail = coreToCore "mayFail" (pure . Core.annotateMayFail mempty)
+
+passShrinkBiasedOr :: ModuleName -> Daedalus ()
+passShrinkBiasedOr = coreToCore "shrunkBiasedOr" (Core.shrinkModule mempty)
+
+passInlineCase :: ModuleName -> Daedalus ()
+passInlineCase = coreToCore "inlineCase" Core.inlineCaseModule
+
 
 passWarnFork :: ModuleName -> Daedalus ()
 passWarnFork m =
   do ph <- doGetLoaded m
      case ph of
-       CoreModue ast ->
+       CoreModule ast ->
          do let bad = Core.checkFork ast
             forM_ bad \t ->
               let loc = case t of
@@ -877,12 +874,22 @@ passWarnFork m =
 -- | (7) Convert to VM. The given module should be in Core form.
 passVM :: ModuleName -> Daedalus ()
 passVM m =
-  do ph <- doGetLoaded m
+  do passNoLoops m
+     passNoMatch m
+     passShrinkBiasedOr m
+     passNorm m
+     passInlineCase m
+     passNorm m
+     ph <- doGetLoaded m
      case ph of
-       CoreModue ast -> convertToVM ast
-       _ | phasePass ph > PassCore -> pure ()
-         | otherwise -> panic "passVM" [ "Unexpected module phase"
-                                       , show (phasePass ph) ]
+       CoreModule ast ->
+         ddlUpdate_ \s ->
+            let vm = VM.compileModule (debugMode s) ast in
+            s { loadedModules = Map.insert (fromMName (VM.mName vm))
+                                           (VMModule vm)
+                                           (loadedModules s)
+              }
+       _ -> panic "passVM" [ "Not a core module", show (phasePass ph) ]
 
 
 

@@ -1,15 +1,16 @@
 module Daedalus.Core.Free where
 
-import Data.Set(Set)
-import qualified Data.Set as Set
+import           Data.Maybe                      (maybeToList)
+import           Data.Set                        (Set)
+import qualified Data.Set                        as Set
 
-import Daedalus.Core.Basics
-import Daedalus.Core.Expr
-import Daedalus.Core.ByteSet
-import Daedalus.Core.Grammar
-import Daedalus.Core.Decl
+import           Daedalus.Core.Basics
+import           Daedalus.Core.ByteSet
+import           Daedalus.Core.Decl
+import           Daedalus.Core.Expr
+import           Daedalus.Core.Grammar
+import           Daedalus.Core.TraverseUserTypes
 
-import Daedalus.Core.TraverseUserTypes
 
 -- | Compute value-level dependencies
 class FreeVars t where
@@ -24,6 +25,14 @@ instance FreeVars a => FreeVars [a] where
   freeVars = Set.unions . map freeVars
   freeFVars = Set.unions . map freeFVars
 
+instance (FreeVars a, FreeVars b) => FreeVars (a, b) where
+  freeVars (a, b)  = freeVars a `Set.union` freeVars b
+  freeFVars (a, b) = freeFVars a `Set.union` freeFVars b
+
+instance (FreeVars a, FreeVars b, FreeVars c) => FreeVars (a, b, c) where
+  freeVars (a, b, c)  = freeVars a `Set.union` freeVars b `Set.union` freeVars c
+  freeFVars (a, b, c) = freeFVars a `Set.union` freeFVars b `Set.union` freeFVars c
+
 instance FreeVars Name where
   freeVars = Set.singleton
   freeFVars _ = mempty
@@ -31,105 +40,59 @@ instance FreeVars Name where
 instance FreeVars Expr where
   freeVars expr =
     case expr of
-      Var x           -> freeVars x
+      Var x           -> Set.singleton x
       PureLet x e1 e2 -> freeVars e1 `Set.union` Set.delete x (freeVars e2)
-      Struct _ fs     -> Set.unions [ freeVars e | (_,e) <- fs ]
       ECase e         -> freeVars e
-      Ap0 _           -> Set.empty
-      Ap1 _ e         -> freeVars e
-      Ap2 _ e1 e2     -> freeVars [e1,e2]
-      Ap3 _ e1 e2 e3  -> freeVars [e1,e2,e3]
-      ApN _ es        -> freeVars es
-
+      ELoop lm        -> freeVars lm
+      _               -> dflt
+    where
+      dflt = foldMapChildrenE freeVars expr
+      
   freeFVars expr =
     case expr of
-      Var x           -> freeFVars x
-      PureLet _ e1 e2 -> freeFVars [e1,e2]
-      Struct _ fs     -> Set.unions [ freeFVars e | (_,e) <- fs ]
-      ECase e         -> freeFVars e
-      Ap0 _           -> Set.empty
-      Ap1 _ e         -> freeFVars e
-      Ap2 _ e1 e2     -> freeFVars [e1,e2]
-      Ap3 _ e1 e2 e3  -> freeFVars [e1,e2,e3]
-      ApN op es ->
-        let fs = freeFVars es
-        in case op of
-            CallF f  -> Set.insert f fs
-            ArrayL _ -> fs
-
-
-
+      ApN (CallF f) es -> Set.insert f (freeFVars es)
+      _ -> foldMapChildrenE freeFVars expr
+      
 instance FreeVars Grammar where
   freeVars gram =
     case gram of
-      Pure e            -> freeVars e
-      GetStream         -> Set.empty
-      SetStream e       -> freeVars e
-      Match _ e         -> freeVars e
-      Fail _ _ e        -> freeVars e
-      Do_ g1 g2         -> freeVars [g1,g2]
       Do  x g1 g2       -> freeVars g1 `Set.union` Set.delete x (freeVars g2)
       Let x e g         -> freeVars e  `Set.union` Set.delete x (freeVars g)
-      OrBiased g1 g2    -> freeVars [g1,g2]
-      OrUnbiased g1 g2  -> freeVars [g1,g2]
-      Call _ es         -> freeVars es
-      Annot _ g         -> freeVars g
       GCase c           -> freeVars c
-
+      Loop lc           -> freeVars lc 
+      _ -> dflt
+    where
+      dflt = foldMapChildrenG freeVars freeVars freeVars gram
+        
   freeFVars gram =
     case gram of
-      Pure e            -> freeFVars e
-      GetStream         -> Set.empty
-      SetStream e       -> freeFVars e
-      Match _ e         -> freeFVars e
-      Fail _ _ e        -> freeFVars e
-      Do_ g1 g2         -> freeFVars [g1,g2]
-      Do  _ g1 g2       -> freeFVars [g1,g2]
-      Let _ e g         -> freeFVars e `Set.union` freeFVars g
-      OrBiased g1 g2    -> freeFVars [g1,g2]
-      OrUnbiased g1 g2  -> freeFVars [g1,g2]
       Call f es         -> Set.insert f (freeFVars es)
-      Annot _ g         -> freeFVars g
-      GCase c           -> freeFVars c
+      _ -> foldMapChildrenG freeFVars freeFVars freeFVars gram
 
-instance FreeVars Match where
-  freeVars mat =
-    case mat of
-      MatchBytes e  -> freeVars e
-      MatchByte e   -> freeVars e
-      MatchEnd      -> Set.empty
+instance (FreeVars e, FreeVars b) =>  FreeVars (LoopClass' e b) where
+  freeVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeVars l <> freeVars m_u <> freeVars b
+      RepeatLoop _ n e b   -> freeVars e <> Set.delete n (freeVars b)
+      MorphismLoop lm      -> freeVars lm    
 
-  freeFVars mat =
-    case mat of
-      MatchBytes e  -> freeFVars e
-      MatchByte e   -> freeFVars e
-      MatchEnd      -> Set.empty
-
+  freeFVars lc =
+    case lc of
+      ManyLoop _ _ l m_u b -> freeFVars l <> freeFVars m_u <> freeFVars b
+      RepeatLoop _ _ e b   -> freeFVars e <> freeFVars b
+      MorphismLoop lm      -> freeFVars lm    
+      
 instance FreeVars ByteSet where
-  freeVars bs =
+  freeVars bs = 
     case bs of
-      SetAny -> Set.empty
-      SetSingle e -> freeVars e
-      SetRange e1 e2 -> freeVars [e1,e2]
-      SetComplement x -> freeVars x
-      SetUnion x y    -> freeVars [x,y]
-      SetIntersection x y -> freeVars [x,y]
-      SetCall _ es -> freeVars es
       SetCase e -> freeVars e
       SetLet x e k -> freeVars e `Set.union` Set.delete x (freeVars k)
-
+      _ -> ebFoldMapChildrenB freeVars freeVars bs
+      
   freeFVars bs =
     case bs of
-      SetAny -> Set.empty
-      SetSingle e -> freeFVars e
-      SetRange e1 e2 -> freeFVars [e1,e2]
-      SetComplement x -> freeFVars x
-      SetUnion x y    -> freeFVars [x,y]
-      SetIntersection x y -> freeFVars [x,y]
       SetCall f es -> Set.insert f (freeFVars es)
-      SetCase e -> freeFVars e
-      SetLet _ e1 e2 -> freeFVars e1 `Set.union` freeFVars e2
-
+      _ -> ebFoldMapChildrenB freeFVars freeFVars bs
 
 instance FreeVars e => FreeVars (Case e) where
   freeVars  (Case v opts) = Set.insert v (freeVars (map snd opts))
@@ -154,3 +117,16 @@ instance FreeVars e => FreeVars (Fun e) where
 instance FreeVars e => FreeVars (Maybe e) where
   freeVars  = maybe mempty freeVars
   freeFVars = maybe mempty freeFVars
+
+instance (FreeVars e, FreeVars b) => FreeVars (LoopMorphism' e b) where
+  freeVars m = case m of
+    FoldMorphism n e lc b -> 
+      freeVars e <> freeVars (lcCol lc) <>
+      (freeVars b `Set.difference` Set.fromList (n : lcBinds lc))
+    MapMorphism lc b -> freeVars (lcCol lc) <> (freeVars b `Set.difference` Set.fromList (lcBinds lc))
+    where
+      lcBinds lc = lcElName lc : maybeToList (lcKName lc)
+    
+  freeFVars (FoldMorphism _ e lc b) = freeFVars e <> freeFVars (lcCol lc) <> freeFVars b
+  freeFVars (MapMorphism lc b)      = freeFVars (lcCol lc) <> freeFVars b
+  

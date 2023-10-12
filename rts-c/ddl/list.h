@@ -15,11 +15,21 @@ class List : IsBoxed {
     List tail;
   public:
     friend List;
-    Node(T&& h, List t) : size(t.size().incremented()), head(h), tail(t) {}
+    Node(T&& h, List t)
+      : size(t.size().incremented()), head(h), tail(t) {}
 
     void free() {
       if constexpr (std::is_base_of<HasRefs,T>::value) head.free();
-      tail.free();
+
+      List &next = tail;
+      while (next.refCount() == 1) {
+        if constexpr (std::is_base_of<HasRefs,T>::value)
+            next.borrowHead().free();
+        List tmp = next.borrowTail();
+        DDL::shallow_free_boxed((BoxedValue<Node>*) next.rawPtr());
+        next = tmp;
+      }
+      next.free();
     }
   };
 

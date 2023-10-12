@@ -61,9 +61,6 @@ data Token =
   | RightArrow
   | Underscore
 
-  | BitwiseAndT
-  | BitwiseOrT
-  | BitwiseXorT
   | BitwiseComplementT
 
   | KWstruct
@@ -121,6 +118,7 @@ data Token =
   | KWDollarAny
   | KWGetStream
   | KWSetStream
+  | KWtake
   | KWTake
   | KWDrop
   | KWJust

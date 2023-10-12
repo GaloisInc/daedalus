@@ -1,0 +1,36 @@
+--- Found 1 results:
+{ start: { method: {POST: { }}
+         , target: {Origin: { path: [ "search"
+                                    ]
+                            , query: Nothing
+                            }}
+         , version: { major: 1[8]
+                    , minor: 1[8]
+                    }
+         }
+, field_info: { fields: [ {Field: { name: "host"
+                                  , value: "normal-website.com"
+                                  }}
+                        , {Field: { name: "content-type"
+                                  , value: "application/x-www-form-urlencoded"
+                                  }}
+                        , {Content_Length: 123[64]}
+                        , {Transfer_Encoding: { is_chunked: F
+                                              , encodings: [ { type: "encoding1"
+                                                             , params: [ ]
+                                                             }
+                                                           , { type: "chunked"
+                                                             , params: [ ]
+                                                             }
+                                                           , { type: "encoding2"
+                                                             , params: [ ]
+                                                             }
+                                                           ]
+                                              }}
+                        ]
+              , chunked: F
+              , explicit_length: Just 123[64]
+              , encoded: T
+              }
+, body: {remaining: "things\n"}
+}

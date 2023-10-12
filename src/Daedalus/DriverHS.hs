@@ -2,21 +2,25 @@
 module Daedalus.DriverHS
   ( module Daedalus.DriverHS
   , module Daedalus.Compile.Config
-  , ppParseError
   ) where
 
 import System.FilePath((</>),addExtension)
 import System.Directory(createDirectoryIfMissing,doesFileExist)
 import qualified System.IO as IO
+import Text.PrettyPrint(Doc)
 
 import Daedalus.PP(pp)
 
-import RTS.ParserAPI(ppParseError)
+import qualified RTS.ParseError as RTS
+import qualified RTS.Annot as RTS
 import Daedalus.AST(ModuleName)
 import Daedalus.Compile.Config
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsModule)
 import Daedalus.Driver
+
+ppParseError :: RTS.ParseErrorG RTS.Annotation -> Doc
+ppParseError = RTS.ppParseError
 
 
 -- | Save Haskell for the given module.

@@ -28,7 +28,7 @@ syn keyword ddlKeywordFun   Optional Optional?
 syn keyword ddlKeywordFun   Many Many?
 syn keyword ddlKeywordFun   Fail Accept
 syn keyword ddlKeywordFun   UInt8 $any Match END
-syn keyword ddlKeywordFun   Offset SetStream GetStream Take Drop
+syn keyword ddlKeywordFun   Offset SetStream GetStream take Take Drop
 
 syn keyword ddlKeywordConst true false
 syn keyword ddlKeywordConst nothing just

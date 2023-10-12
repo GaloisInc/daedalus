@@ -11,6 +11,7 @@ import Control.Applicative((<|>))
 import Control.Exception(throwIO)
 
 import Daedalus.Panic(panic)
+import Daedalus.Value(unTrace)
 import Daedalus.Value.Extract
 import Daedalus.Type.AST(primName,Name,ModuleName)
 import Daedalus.Compile.ConfigParser(pConfig)
@@ -95,7 +96,7 @@ instance FromValue Term where
 
 funArg :: Value -> Term
 funArg val =
-  case val of
+  case unTrace val of
     VUnionElem "TArg" v -> TyParam (Raw (fromValue v :: String))
     VUnionElem "Arg"  v -> fromValue v
     _                   -> panic "funArg" ["Invalid funArg"]

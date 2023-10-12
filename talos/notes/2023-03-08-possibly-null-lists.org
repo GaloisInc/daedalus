@@ -1,0 +1,636 @@
+
+<2023-03-08 Wed 16:20>
+
+* Slicing with possibly empty lists
+
+** Overview
+   
+The issue here is that we would like to be polymorphic in the length
+of the lists if possible, so we can generate multiple models for a
+list body, and select them lazily.  In general this is OK (if allowed
+by the code), but the choice between an empty list/non-empty list is
+important for every non-closed slice that goes through the list.
+
+Consider
+
+#+begin_src daedalus
+
+def Main = block
+  xs = Many UInt8
+  y  = UInt8
+  zs = map (x in xs)
+    UInt8 < y is true
+	
+#+end_src
+
+where the grammar for zs doesn't depend on the elements of xs, or the
+lenght, just whether xs is empty or not.  In the case that xs is
+empty, y is unconstrained.  Furthermore, there may be grammars in
+which xs must be empty, because of choices of other constraints.
+
+This may be further complicated if xs isn't the root of the slice, for
+example
+
+#+begin_src daedalus
+
+  def Main = block
+    a = P
+    xs = Many (Q a)
+    y  = UInt8
+    zs = map (x in xs)
+      UInt8 < y is true
+	
+#+end_src
+
+Another way of thinking about this is to rewrite it as 
+
+#+begin_src daedalus
+
+def Main = block
+  xs = ^ [] | Many (1..) UInt8
+  y  = UInt8
+  zs = map (x in xs)
+    UInt8 < y is true
+	
+#+end_src
+
+i.e., to make the choice explicit.
+
+In the case of
+
+#+begin_src daedalus
+
+  def Main = block
+    a = P
+    xs = Many (Q a)
+    y  = UInt8
+    zs = map (x in xs)
+      UInt8 < y is true
+	
+#+end_src
+
+we can split the domain along whether xs is nil, but then we run into
+the issue of having disjuncts start at different variables: xs for the
+nil case, and a for the non-nil case:
+
+#+begin_src daedalus
+
+  nil:
+     xs = ^ nil
+     y  = []
+     zs = []
+
+  non-nil:    
+     a = P 
+     xs = Many (Q a) -- > 0 length
+     y  = UInt8
+     zs = map ...
+
+#+end_src
+
+This is an issue because we will need to select which of the two
+alternatives we want, but the two slices have different roots when we
+do so.
+
+** Ideas Summary
+
+It is possible to split the slices into disjoint sets (e.g., one set
+where a list is nil, another where it is non-nil).  The main problem
+here is that it is possible for one slice to be unsatisfiable, for
+example
+
+#+begin_src daedalus
+  Many (1..) P	 
+#+end_src
+
+is clearly never empty (although the lower bound may be constrained in
+a more complicated way).  Without any further mechanism, synthesising
+for slices may then fail.
+
+One mitigation is to generate models for all slices eagerly (and,
+possibly, in parallel).  Slices without models can then be avoided,
+and potentially removed from the system entirely --- for the
+nil/non-nil case this is useful, but otherwise may be a specification bug.
+
+We would need to add a new construct to Slice to handle merging
+disjunctions (at nested/recursive sites), something like
+#+begin_src haskell
+  data Slice =
+    ...
+    | DisjChoice [ (Slice, Map Name Slice) ]
+    | ...
+#+end_src
+which is a list of possible choices, along with their associated
+closed slices (if any).  This would allow us to merge disjunctions,
+assuming each conjunct is a singleton.
+
+An alternative to this is to not generate disjunctions when we know
+that we are in a context where we will have to merge, as in a
+singleton slice we don't have to worry about consistent choices.  This
+might be limiting for closed slices where we may want to allow
+disjunctions.
+
+** When to close slices
+
+We need to decide when to close a disjunction: if we always propagate
+into callers, then we will continue to grow the number of clauses.
+This is somewhat mitigated my merging inside recursion and loops, so
+it may not be an issue in practice.  Another possible solution is to
+insert an extra DisjChoice at the start of a function where the slices
+have empty assumption environments.
+
+** DNF vs CNF
+
+DNF seems the obvious solution, as each clause corresponds to the
+non-disjunctive-slicing domain.  One problem with DNF is that it isn't
+clear when a slice is closed: should we have a set of closed slices
+per-conjunct, or would we prefer to have each variable have a set of
+possible slices?  Also, how large are DNF domains?  We get a copy of
+every element of the conjunctive clause being split, even if they are
+the same.
+
+Perhaps a solution is to represent the domain in CNF form, where each
+disjunctive clause has the same result predicate and precondition.
+
+*** An example
+
+Let's consider
+#+begin_src daedalus
+  def Main =
+    a = P
+    b = Q
+    xys = Many block
+      x = R a
+      y = S b
+
+#+end_src
+
+with conjunctive slicing we may get
+#+begin_example
+[[ xys = NIL ]]
+||
+[[ a = P
+   b = []
+   xys = Many (non-nil) block
+     x = R a
+     y = []
+, 
+   b = Q
+   xys = Many (non-nil) block
+     x = []
+     y = S b
+]]
+#+end_example
+wheras with disjunctive slicing we would have
+#+begin_example
+([[ xys = NIL ]]
+ || 
+ [[ a = P
+    b = []
+    xys = Many (non-nil) block
+      x = R a
+      y = [])
+/\
+([[ xys = NIL ]]
+ ||
+ [[ b = Q
+   xys = Many (non-nil) block
+     x = []
+     y = S b
+ ]])
+#+end_example
+we would probably have to name each choice so they are made
+consistenlty.  Furthermore, merging might become problematic (how do
+we do this properly? merge along choice-tags?)
+
+We could also get a similar benefit by representing the domain as
+
+((C1 /\ C2 /\ ...) \/ (C'1 /\ C'2 /\ ...)) /\ (GC1 /\ GC2 /\ GC3)
+
+where the GCs are shared conjuncts across all disjuncts.
+
+*** COMMENT Composition
+
+# Let's now consider
+# #+begin_src daedalus
+#   def Main =
+#     a = P
+#     b = Q
+#     c = T
+#     xys = Many block
+#       x = R a
+#       y = S b
+#     a > 0 is true
+#     b > 0 is true
+#     c > 0 is true
+# #+end_src
+
+
+# We then have steps
+# #+begin_example
+
+# ...
+# ---------- after Do (a > 0 is true) ... ----------
+
+# {a : whole} a > 0 is true {no-post}
+# /\
+# {b : whole} []; b > 0 is true {no-post}
+# /\
+# {c : whole} []; []; c > 0 is true {no-post}
+
+# ---------- Many ... {no-post} ----------
+
+# [xys:nil]
+#   {} NIL 
+
+# #+end_example
+    
+
+    
+** Problem
+
+Consider
+#+begin_src daedalus
+
+  def G = block
+    x = Q
+    ys = F x
+  def F a = Many (P a)
+#+end_src
+
+if we want F (no-post) then we will get
+
+#+begin_example
+
+F:
+{} NIL {no-post}
+||
+{a : whole} Many (non-nil) (P a) {no-post}
+
+#+end_example
+
+so when we come to process G, we
+
+#+begin_example
+G:
+{} x = Q; ys = CALL F (x) {no-post}
+#+end_example
+
+i.e. we lose the first disjunct, when what we probably want is
+
+#+begin_example
+G:
+{} x = []; ys = CALL F_1 () {no-post}
+||
+{} x = Q; ys = CALL F_2 (x) {no-post}
+#+end_example
+
+where we introduce a call node (where we would otherwise return []) to
+lift the nil conjunct to the calling context.  Alternately, we could
+have a synthetic choice inside F, with singleton conjuncts (chosen at
+synthesis time).  The resulting model would need to track which
+disjunct, as usual, and the precondition for the slice would be the
+union of all the precondtions across the conjuncts.
+
+#+begin_example
+F:
+{a : whole} SYNTH_CHOICE (NIL || Many (non-nil) P a) {no-post}
+#+end_example
+i.e., we 
+
+** Example 1: simple dep. list
+
+#+begin_src
+  def Main = block
+    a = UInt8
+    xs = Many { x = UInt8; x < a is true  }
+#+end_src
+
+
+#+begin_example
+
+---------- Step: xs = ... [] ----------
+
+--------------- Step: x = UInt8; x < a is true [] ----------
+     { a : whole } x = UInt8; x < a is true {no-post}
+---------------
+
+[xs:nil]:
+  {} xs = NIL {no-post}
+||
+[xs:non-nil]:
+  { a : whole } Many { x = UInt8; x < a is true } {no-post}  
+
+---------- Step: a = ... [ [], [whole] ] ----------
+
+[]: {} a = [] {no-post}
+,
+[whole]: {} a = UInt8 {whole}
+
+---------- Step: Do a = ... [] ----------
+
+[xs:nil]:
+  {} a = []; xs = NIL {no-post}
+||
+[xs:non-nil]:
+  { } a = UInt8; xs = Many { x = UInt8; x < a is true } {no-post}
+
+---------- Step: close slice ----------
+
+a |-> [  a = []; xs = NIL
+      || a = UInt8; xs = Many { x = UInt8; x < a is true }
+      ]
+      
+#+end_example
+
+** Example 2: lists with multiple slices
+
+#+begin_src
+  def Main = block
+    a = UInt8
+    b = UInt8
+    xs = Many { x = UInt8; x < a is true; y = UInt8; y < b is true  }
+#+end_src
+#+begin_example
+
+---------- Step: xs = ... [] ----------
+
+--------------- Step: x = UInt8; ... ----------
+     { a : whole } x = UInt8; x < a is true; [] {no-post}
+     { b : whole } x = []; []; y = UInt8; y < b is true {no-post}
+     
+---------------
+
+[xs:nil]:
+  [[ {} xs = NIL {no-post} ]]
+||
+[xs:non-nil]:
+  { a : whole } Many { x = UInt8; x < a is true; [] } {no-post}	 
+  { b : whole } Many { x = []; []; y = UInt8; y < b is true } {no-post}
+  
+  [[ ]]
+---------- Step: b = ... [ [], [whole] ] ----------
+
+[]: [[ ]]
+,
+[whole]: {} b = UInt8 {whole}, [[ ]]
+
+---------- Step: Do a = ... [] ----------
+
+[xs:nil]:
+  [[ xs = NIL ]]
+||
+[xs:non-nil]:
+  { a : whole } a = []; xs = Many { x = UInt8; x < a is true } {no-post}
+  [[ b = UInt; Many { x = []; []; y = UInt8; y < b is true } ]]
+
+---------- Step: a = ... [ [whole] ] ----------
+
+[whole]: {} b = UInt8 {whole}
+
+---------- Step: Do b = ... ----------
+
+[xs:nil]:
+  [[ xs = NIL ]]
+||
+[xs:non-nil]:
+   [[ a = UInt8; b = []; xs = Many { x = UInt8; x < a is true }
+    , b = UInt; Many { x = []; []; y = UInt8; y < b is true }
+   ]]
+      
+#+end_example
+
+
+** Multi-lists
+
+   What about
+   
+#+begin_src daedalus
+
+  def Main = block
+    a = P
+    xs = Many (Q a)
+    ys = Many (R a)
+    b  = UInt8
+    ws = map (x in xs)
+      UInt8 < b is true
+    c  = UInt8    
+    zs = map (y in ys)
+      UInt8 < c is true
+#+end_src
+
+We may analyse this as follows
+#+begin_example
+
+---------- Step: zs (no post) ----------
+
+  { ys : nil } zs = [] {no-post}
+||  
+  { ys : non-nil, c : whole }
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+   
+---------- Step: c (no post, [ whole ] ) ----------
+
+  {} [] {no-post}
+||
+  {} UInt8 { [whole] }
+
+---------- Step: Do c ... (no-post) ----------
+
+  { ys : nil } [] {no-post}
+||  
+  { ys : non-nil }
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+
+---------- Step: ws (no-post) ----------
+
+  { xs : nil } ws = [] {no-post}
+||  
+  { xs : non-nil, b : whole }
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+
+---------- Step: Do ws ... ----------
+
+  { ys : nil } [] { no-post }
+  { xs : nil } [] { no-post }
+||
+  { ys : nil } [] { no-post }  
+  { xs : non-nil, b : whole }
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+||
+  { ys : non-nil }
+    []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : nil } [] { no-post }
+||
+  { ys : non-nil }
+    []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : non-nil, b : whole }
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+
+---------- b = UInt8 [ [], [whole] ] ----------
+  
+[]:  {} b = [] {no-post}
+,
+[whole]:  {} b = UInt8 {whole}
+
+---------- Do b = UInt8 ... {no-post} ----------
+
+  { ys : nil } [] { no-post }
+  { xs : nil } [] { no-post }
+||
+  { ys : nil } [] { no-post }
+  { xs : non-nil }
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+||
+  { ys : non-nil }
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : nil } [] { no-post }
+||
+  { ys : non-nil }
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : non-nil }
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+  
+---------- Step: ys = ... [ [nil], [nil], [non-nil], [non-nil] ] ----------
+
+[nil]:
+  {} ys = NIL {nil}
+
+[non-nil]:
+  { a : Whole } ys = Many (1..) (R' a) {non-nil}
+
+---------- Step: Do ys = ... ----------
+
+  { } ys = NIL; [] { no-post }
+  { xs : nil } [] { no-post }
+||
+  { } ys = NIL; [] { no-post }
+  { xs : non-nil }
+    []
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+||
+  { }
+    ys = Many (1..) []
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : nil } [] { no-post }
+||
+  {}
+    ys = Many (1..) []
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : non-nil }
+    ys = []
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+
+---------- Step: xs = ... [ [nil], [nil], [non-nil], [non-nil] ] ----------
+
+[nil]:
+  {} xs = NIL {nil}
+
+[non-nil]:
+  {} xs = Many (1..) [] {non-nil}
+
+---------- Step: Do xs = ... ----------
+
+  { } ys = NIL; [] { no-post }
+  { } xs = NIL; [] { no-post }
+||
+  { } ys = NIL; [] { no-post }
+  { }
+    xs = Many (1..) []
+    ys = []
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+||
+  { }
+    xs = []
+    ys = Many (1..) []
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { } [] { no-post }
+||
+  {}
+    ys = Many (1..) []
+    b = []
+    ws = []
+    c = UInt8
+    zs = map (y in ys) UInt8 < c is true
+  { no-post }
+  { xs : non-nil }
+    ys = []
+    b = UInt8
+    ws = map (x in xs) UInt8 < b is true
+    []
+  { no-post }
+
+  
+#+end_example
+
+
+** Nested lists
+
+#+begin_src daedalus
+  def Main = block
+    xs = Many block
+      x = P
+      ys = Many (Q x)
+#+end_src
+
+and
+
+#+begin_src daedalus
+  def Main = block
+    x = P    
+    xs = Many (Many (Q x))  
+#+end_src
+
+similarly for recursive functions containing lists.
+
+** Notes

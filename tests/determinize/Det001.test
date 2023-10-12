@@ -2,3 +2,6 @@ dump
 Det001.ddl
 --core
 --determinize
+--keep-match
+--no-shrink-biased
+--no-case-of-case

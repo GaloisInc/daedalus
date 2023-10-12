@@ -27,7 +27,6 @@ data Command =
   | DumpSpec
   | DumpCore
   | DumpVM
-  | DumpRel
   | DumpGraph Bool
   | DumpGen
   | CompileHS
@@ -35,22 +34,30 @@ data Command =
   | Interp (Maybe FilePath)
   | JStoHTML
   | ShowHelp
+    deriving Show
 
 data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
+    deriving Show
 
 data Options =
   Options { optCommand   :: Command
-          , optParserDDL :: FilePath
+          , optParserDDL :: Maybe FilePath
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
           , optShowJS    :: Bool
           , optShowHTML  :: Bool
+          , optTracedValues :: Bool
           , optInline    :: Bool
           , optInlineThis :: [String]
           , optStripFail :: Bool
+          , optNoLoops :: Bool
+          , optNoBitdata :: Bool
           , optSpecTys   :: Bool
           , optDeterminize :: Bool
+          , optNoMatch :: Bool
+          , optShrinkBiased :: Bool
+          , optInlineCaseCase :: Bool
           , optCheckCore  :: Bool
           , optOutDir    :: Maybe FilePath
           , optOutDirHeaders :: Maybe FilePath
@@ -61,31 +68,45 @@ data Options =
           , optUserState :: Maybe String
           , optExtraInclude :: [String]
           , optFileRoot :: String
+          , optVM_do_mm :: Bool -- ^ Should we do memomry management in VM
           , optUserNS :: String
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
+          , optUseLazyStream :: Bool
 
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
 
+          , optDetailedErrors :: Maybe FilePath
+            -- ^ Should we produce very detailed error messages
+            -- We could break that up into more options.
+            -- 'Nothing' means no detailed errors, `Just` contains
+            -- the directory where we should save stuff
+
           , optParams :: [String]
-          }
+          } deriving Show
 
 defaultOptions :: Options
 defaultOptions =
   Options { optCommand   = DumpTC
-          , optParserDDL = ""
+          , optParserDDL = Nothing
           , optBackend   = UseInterp
           , optEntries   = []
           , optForceUTF8 = True
           , optShowJS    = False
           , optShowHTML  = False
+          , optTracedValues = False
           , optInline    = False
           , optInlineThis = []
           , optStripFail = False
+          , optNoLoops = True
+          , optNoBitdata = False
           , optSpecTys   = False
           , optCheckCore = True
           , optDeterminize = False
+          , optNoMatch = True
+          , optShrinkBiased = True
+          , optInlineCaseCase = True
           , optOutDir    = Nothing
           , optOutDirHeaders    = Nothing
           , optNoWarnUnbiasedFront = False
@@ -99,6 +120,9 @@ defaultOptions =
           , optUserNS = defaultUserSpace
           , optExternMods = Map.empty
           , optModulePath = []
+          , optDetailedErrors = Nothing
+          , optUseLazyStream = False
+          , optVM_do_mm = True
           }
 
 defaultUserSpace :: String
@@ -113,7 +137,7 @@ data OptsHS =
     , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
     , hsoptFile    :: Maybe FilePath
     , hsoptCore    :: Bool
-    }
+    } deriving Show
 
 noOptsHS :: OptsHS
 noOptsHS =
@@ -208,6 +232,14 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
                 "Show semantics values as JSON."
                 $ NoArg \o -> Right o { optShowJS = True }
 
+              , Option [] ["traced-values"]
+                "Annotate results with input file locations."
+                $ NoArg \o -> Right o { optTracedValues = True }
+
+              , Option [] ["detailed-errors"]
+                "Show a lot of information in error messages"
+                $ ReqArg "DIR" \d o -> Right o { optDetailedErrors = Just d }
+
               , Option [] ["html"]
                 "Show semantics values as HTML."
                 $ NoArg \o -> Right o { optShowJS = True, optShowHTML = True }
@@ -228,7 +260,7 @@ cmdRunOptions = (\o -> o { optCommand = Interp Nothing }, opts)
                 "Use the VM interpreter"
                 $ NoArg \o -> Right o { optBackend = UseVM }
 
-              ] ++ coreOptions ++
+              ] ++ coreOptions ++ vmOptions ++
               [ helpOption
               ]
           }
@@ -260,10 +292,6 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                  "Dump core AST"
                 $ simpleCommand DumpCore
 
-               , Option [] ["rel"]
-                 "Dump relational core"
-                $ simpleCommand DumpRel
-
                , Option [] ["vm"]
                  "Dump VM AST"
                 $ simpleCommand DumpVM
@@ -278,6 +306,7 @@ cmdDumpOptions = (\o -> o { optCommand = DumpTC }, opts)
                 $ simpleCommand DumpGen
                ] ++
                coreOptions ++
+               vmOptions ++
                [ helpOption
                ]
            }
@@ -291,7 +320,7 @@ cmdJsonToHtmlOptions = (\o -> o { optCommand = JStoHTML }, opts)
               [ helpOption
               ]
           , progParamDocs = [ ("FILE", "The JSON file to process.") ]
-          , progParams    = \s o -> Right o { optParserDDL = s }
+          , progParams    = \s o -> Right o { optParserDDL = Just s }
           }
 
 cmdCompileHSOptions :: CommandSpec
@@ -373,6 +402,11 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
         "Add #include INCLUDE to generated files"
         $ ReqArg "INCLUDE"
           \s o -> Right o { optExtraInclude = s : optExtraInclude o }
+
+      , Option [] ["lazy-streams"]
+        "The parser can context switch to ask for more data."
+        $ NoArg \o -> Right o { optUseLazyStream = True }
+
       ] ++
       coreOptions ++
       [ helpOption
@@ -390,6 +424,18 @@ coreOptions =
     "Determinize core"
     $ NoArg \o -> Right o { optDeterminize = True }
 
+  , Option [] ["keep-match"]
+    "Do not remove mathcing constructs"
+    $ NoArg \o -> Right o { optNoMatch = False }
+
+  , Option [] ["no-shrink-biased"]
+    "Do not try to shrink the scope of biased choice."
+    $ NoArg \o -> Right o { optShrinkBiased = False }
+
+  , Option [] ["no-case-of-case"]
+    "Do not try to eliminate case of case."
+    $ NoArg \o -> Right o { optInlineCaseCase = False }
+
   , Option [] ["inline"]
     "Do aggressive inlining on Core"
     $ NoArg \o -> Right o { optInline = True }
@@ -403,6 +449,14 @@ coreOptions =
     "Strip failure nodes in Core"
     $ NoArg \o -> Right o { optStripFail = True }
 
+  , Option [] ["no-loops"]
+    "Remove loops in Core"
+    $ NoArg \o -> Right o { optNoLoops = True }
+    
+  , Option [] ["no-bitdata"]
+    "Remove bitdata in Core"
+    $ NoArg \o -> Right o { optNoBitdata = True }
+  
   , Option [] ["spec-types"]
     "Specialise types"
     $ NoArg \o -> Right o { optSpecTys = True }
@@ -423,6 +477,12 @@ coreOptions =
   ]
 
 
+vmOptions :: [OptDescr Options]
+vmOptions =
+  [ Option [] ["vm-no-mm"]
+    "Don't do memory management."
+    $ NoArg \o -> Right o { optVM_do_mm = False }
+  ]
 
 --------------------------------------------------------------------------------
 
@@ -475,7 +535,6 @@ impliedOptions opts0 =
         DumpTypes       -> opts
         DumpSpec        -> opts
         DumpCore        -> noTCUnbiased
-        DumpRel         -> noTCUnbiased
         DumpVM          -> noTCUnbiased
         DumpGraph {}    -> opts
         DumpGen         -> opts
@@ -513,7 +572,7 @@ helpOption =
 optWithDDL :: OptSpec Options
 optWithDDL = optSpec
   { progParamDocs = [ ("FILE", "The DDL specification to process.") ]
-  , progParams    = \s o -> Right o { optParserDDL = s }
+  , progParams    = \s o -> Right o { optParserDDL = Just s }
   }
 
 colonSplitText :: String -> (Text, Maybe String)

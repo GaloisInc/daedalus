@@ -160,8 +160,9 @@ updS b =
     ReturnNo          -> id
     ReturnYes {}      -> id
     ReturnPure _      -> id
-    CallPure _ l _    -> addStays l
-    Call _ _ no yes _ -> addStays no . addStays yes
+    CallPure _ l _    -> staysJF l
+    CallCapture _ no yes _ -> addStays no . addStays yes
+    CallNoCapture _ ks _ -> stays2 ks
     TailCall {}       -> id
   where
   stays2 (JumpCase opts) = \i -> foldr staysJF i opts
@@ -210,8 +211,10 @@ mergeBlocks front back =
       ReturnNo        -> ReturnNo
       ReturnYes e i   -> ReturnYes (renE e) (renE i)
       ReturnPure e    -> ReturnPure (renE e)
-      Call f ca no yes es -> Call f ca (renJ no) (renJ yes) (map renE es)
-      CallPure f l es -> CallPure f (renJ l) (map renE es)
+      CallNoCapture f ks es -> CallNoCapture f (renJ2 ks) (map renE es)
+      CallCapture f no yes es ->
+        CallCapture f (renJ no) (renJ yes) (map renE es)
+      CallPure f l es -> CallPure f (renJF l) (map renE es)
       TailCall f ca es-> TailCall f ca (map renE es)
 
 
@@ -303,8 +306,9 @@ jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
       ReturnNo          -> term
       ReturnYes {}      -> term
       ReturnPure {}     -> term
-      CallPure f l es   -> CallPure f (rewJ l) es
-      Call f c l1 l2 es -> Call f c (rewJ l1) (rewJ l2) es
+      CallPure f l es   -> CallPure f (rewJF l) es
+      CallNoCapture f ks es -> CallNoCapture f (rewJC ks) es
+      CallCapture   f l1 l2 es -> CallCapture   f (rewJ l1)  (rewJ l2)  es
       TailCall {}       -> term
 
   rewL l  = Map.findWithDefault l l (jjReplace subst)
@@ -347,8 +351,9 @@ jjInfo b =
         _ -> addFixed l
 
     JumpIf _ ls       -> fixed2 ls
-    CallPure _ l _    -> addFixed l
-    Call _ _ no yes _ -> addFixed no . addFixed yes
+    CallPure _ l _    -> fixedJF l
+    CallNoCapture _ ks _ -> fixed2 ks
+    CallCapture _ no yes _   -> addFixed no . addFixed yes
     TailCall {}       -> id
     Yield             -> id
     ReturnNo          -> id

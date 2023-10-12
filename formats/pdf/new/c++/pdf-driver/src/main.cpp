@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
       PdfCos::Ref ref;
       ref.init(DDL::Integer{refid}, DDL::Integer{val.gen});
       std::vector<DDL::Bool> results;
-      DDL::ParseError error;
+      DDL::ParseError<DDL::Input> error;
       parseCheckRef(refs, error, results, DDL::Input{"",""}, ref);
       if (results.size() != 1) {
         std::cerr << "ERROR: [" << refid << "," << val.gen << "] Malformed\n";

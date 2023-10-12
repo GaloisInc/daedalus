@@ -68,7 +68,8 @@ instance TypeOf Expr where
       PureLet _ _ e -> typeOf e
       Struct ut _ -> TUser ut
       ECase c -> typeOf c
-
+      ELoop lm -> typeOf lm
+      
       Ap0 op ->
         case op of
           Unit         -> TUnit
@@ -86,7 +87,6 @@ instance TypeOf Expr where
           IsEmptyStream   -> TBool
           Head            -> TUInt (TSize 8)
           StreamOffset    -> sizeType
-          StreamLen       -> sizeType
           BytesOfStream   -> TArray (TUInt (TSize 8))
           OneOf _         -> TBool
           Neg             -> typeOf e
@@ -146,6 +146,7 @@ instance TypeOf Expr where
         case op of
           IsPrefix  -> TBool
           Drop      -> TStream
+          DropMaybe -> TMaybe TStream
           Take      -> TStream
           Eq        -> TBool
           NotEq     -> TBool
@@ -224,7 +225,12 @@ instance TypeOf Grammar where
       Call f _        -> typeOf f
       Annot _ g       -> typeOf g
       GCase c         -> typeOf c
-
+      Loop lc -> case lc of
+        ManyLoop SemNo _b _l _m_h _g -> TUnit
+        ManyLoop _s _b _l _m_h g -> TArray (typeOf g)
+        RepeatLoop _b _n _e g   -> typeOf g
+        MorphismLoop lm  -> typeOf lm
+        
 instance TypeOf Match where
   typeOf mat =
     case mat of
@@ -235,5 +241,13 @@ instance TypeOf Match where
 instance TypeOf a => TypeOf (Case a) where
   typeOf (Case _ as) = typeOf (snd (head as))
 
-
-
+instance (TypeOf a, TypeOf b)=> TypeOf (LoopMorphism' a b) where
+  typeOf lm =
+    case lm of
+      FoldMorphism _s _e _lc b -> typeOf b
+      MapMorphism lc b         ->
+        case typeOf (lcCol lc) of
+          TArray _       -> TArray (typeOf b)
+          TMap k _       -> TMap k (typeOf b)
+          _ -> panic "typeOf @(LoopMorphism a)" [ "invalid type" ]
+      

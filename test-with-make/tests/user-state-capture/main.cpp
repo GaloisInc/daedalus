@@ -3,7 +3,7 @@
 #include "main_parser.h"
 
 int go(DDL::Input i) {
-  DDL::ParseError error;
+  DDL::ParseError<DDL::Input> error;
   std::vector<DDL::Array <DDL::UInt<8>>> res;
   int state = 0;
   parseMain(state, error, res, i);

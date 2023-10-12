@@ -15,20 +15,7 @@ byteset $cr() : Bool =
 byteset $lf() : Bool =
   { 10 @(Word 8) }
  
--- ./Det005.ddl:11:42--11:62
-proc Many_24() : () =
-  do _x25 <- try
-               do -- ./Det005.ddl:11:47--11:62
-                  match1_ !($lf() | $cr())
-                  pure True
-             orelse
-               pure False
-     case _x25 of
-       True ->
-         Many_24()
-       False ->
-         pure ()
- 
+-- may fail
 -- ./Det005.ddl:9:1--9:47
 proc SimpleEOL_() : () =
   -- ./Det005.ddl:9:29--9:47
@@ -36,7 +23,7 @@ proc SimpleEOL_() : () =
   do _x0 <- match1 { ... }
      case _x0 of
        13 ->
-         -- ./Det005.ddl:9:31--9:38
+         -- ./Det005.ddl:9:31--9:40
          -- ./Det005.ddl:9:36--9:38
          match1_ $lf()
        10 ->
@@ -45,6 +32,7 @@ proc SimpleEOL_() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det005.ddl:10:1--10:44
 proc EOL_() : () =
   -- ./Det005.ddl:10:29--10:44
@@ -55,8 +43,7 @@ proc EOL_() : () =
          -- OR RECONSTRUCTION
          try
            -- ./Det005.ddl:10:29--10:37
-           -- ./Det005.ddl:9:29--9:47
-           -- ./Det005.ddl:9:31--9:38
+           -- ./Det005.ddl:9:31--9:40
            -- ./Det005.ddl:9:36--9:38
            match1_ $lf()
          orelse
@@ -70,17 +57,19 @@ proc EOL_() : () =
        _ ->
          fail_sys @()
  
+-- may fail
 -- ./Det005.ddl:11:1--11:69
 proc Comment_() : () =
-  -- ./Det005.ddl:11:31--11:67
+  -- ./Det005.ddl:11:31--11:69
   do -- ./Det005.ddl:11:31--11:39
      match_ "%"
-     -- ./Det005.ddl:11:42--11:67
+     -- ./Det005.ddl:11:42--11:69
      -- ./Det005.ddl:11:42--11:62
-     Many_24()
+     Many_26()
      -- ./Det005.ddl:11:65--11:67
      EOL_()
  
+-- may fail
 -- ./Det005.ddl:12:1--12:55
 proc AnyWS_() : () =
   -- ./Det005.ddl:12:29--12:55
@@ -106,10 +95,10 @@ proc AnyWS_() : () =
        37 ->
          -- ./Det005.ddl:12:29--12:48
          -- ./Det005.ddl:12:42--12:48
-         -- ./Det005.ddl:11:31--11:67
-         -- ./Det005.ddl:11:42--11:67
+         -- ./Det005.ddl:11:31--11:69
+         -- ./Det005.ddl:11:42--11:69
          do -- ./Det005.ddl:11:42--11:62
-            Many_24()
+            Many_26()
             -- ./Det005.ddl:11:65--11:67
             EOL_()
        13 ->
@@ -118,8 +107,7 @@ proc AnyWS_() : () =
          -- ./Det005.ddl:10:29--10:44
          try
            -- ./Det005.ddl:10:29--10:37
-           -- ./Det005.ddl:9:29--9:47
-           -- ./Det005.ddl:9:31--9:38
+           -- ./Det005.ddl:9:31--9:40
            -- ./Det005.ddl:9:36--9:38
            match1_ $lf()
          orelse
@@ -136,11 +124,30 @@ proc AnyWS_() : () =
          fail_sys @()
  
 -- entry pont
+-- may fail
 -- ./Det005.ddl:3:1--3:26
 proc Main() : () =
-  -- ./Det005.ddl:3:14--3:24
+  -- ./Det005.ddl:3:14--3:26
   do -- ./Det005.ddl:3:14--3:18
      AnyWS_()
-     -- ./Det005.ddl:3:22--3:24
+     -- ./Det005.ddl:3:22--3:26
      -- ./Det005.ddl:3:22--3:24
      matchEnd
+ 
+-- may not fail
+proc Many_26() : () =
+  do _x27 <- try
+               do ManyBody_25()
+                  pure True
+             orelse
+               pure False
+     case _x27 of
+       True ->
+         Many_26()
+       False ->
+         pure ()
+ 
+-- may fail
+proc ManyBody_25() : () =
+  -- ./Det005.ddl:11:47--11:62
+  match1_ !($lf() | $cr())

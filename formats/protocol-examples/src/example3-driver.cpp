@@ -29,7 +29,7 @@ bool inputFromFile(const char *file, DDL::Input *input)
 
 // This is the implementation of the `GetPacketBytes` primitive.
 bool parser_GetPacketBytes
-  ( DDL::ParserStateUser<CustomState>& state
+  ( DDL::ParserStateUser<DDL::Input,CustomState>& state
   , DDL::Unit *result
   , DDL::Input *newInput
   , DDL::Input currentInput
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
   user.next_file   = 1;
 
   // Now parse the given input with the Protocol parser
-  DDL::ParseError error;    // Inforation about errors goes here
+  DDL::ParseError<DDL::Input> error;    // Inforation about errors goes here
   DDL::Input empty;         // Some empty input
   User::Protocol result;    // Parsed result goes here
     if (!DDL::parseOneUser(parseProtocol, user, error, &result, empty)) {

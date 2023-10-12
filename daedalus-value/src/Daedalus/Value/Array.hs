@@ -1,3 +1,4 @@
+{-# Language BlockArguments #-}
 module Daedalus.Value.Array where
 
 import qualified Data.Vector as Vector
@@ -15,7 +16,8 @@ vArrayLength :: Value -> Value
 vArrayLength = vSize . toInteger . vArrayLengthInt
 
 vArrayIndex :: Value -> Value -> Partial Value
-vArrayIndex a b =
+vArrayIndex =
+  tracedFun \a b ->
   case valueToIntSize b of
     Nothing -> outOfBounds
     Just i  -> case valueToVector a Vector.!? i of
@@ -25,10 +27,12 @@ vArrayIndex a b =
   outOfBounds =  vErr "Array index out of bounds"
 
 vArrayConcat :: Value -> Value
-vArrayConcat = VArray . Vector.concat
-                      . Vector.toList
-                      . Vector.map valueToVector
-                      . valueToVector
+vArrayConcat =
+  tracedFun \a ->
+    VArray $ Vector.concat
+           $ Vector.toList
+           $ Vector.map valueToVector
+           $ valueToVector a
 
 
 vRangeUp :: Value -> Value -> Value -> Partial Value
@@ -42,20 +46,20 @@ vBuilder = VBuilder []
 
 -- | Builder, Array
 vEmit :: Value -> Value -> Value
-vEmit b v = VBuilder (v : valueToBuilder b)
+vEmit = tracedFun \b v -> VBuilder (v : valueToBuilder b)
 
 -- | Builder, Array
 vEmitArray :: Value -> Value -> Value
-vEmitArray b arr =
+vEmitArray = tracedFun \b arr ->
   VBuilder (reverse (Vector.toList (valueToVector arr)) ++ valueToBuilder b)
 
 -- | Builder, Array
 vEmitBuilder :: Value -> Value -> Value
-vEmitBuilder b bv =
+vEmitBuilder = tracedFun \b bv ->
   VBuilder (valueToBuilder bv ++ valueToBuilder b)
 
 vFinishBuilder :: Value -> Value
-vFinishBuilder = vArray . reverse . valueToBuilder
+vFinishBuilder = tracedFun (vArray . reverse . valueToBuilder)
 
 
 

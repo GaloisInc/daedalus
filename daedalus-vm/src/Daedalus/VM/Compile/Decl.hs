@@ -1,12 +1,15 @@
 {-# Language BlockArguments #-}
 {-# Language OverloadedStrings #-}
+{-# Language ImplicitParams #-}
 module Daedalus.VM.Compile.Decl where
 
+import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Void(Void)
 
 import qualified Daedalus.Core as Src
 import qualified Daedalus.Core.Type as Src
+import qualified Daedalus.Core.Effect as Src
 
 import Daedalus.VM
 import Daedalus.VM.Compile.BlockBuilder
@@ -32,13 +35,14 @@ compileModule useDebug m =
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
          , mFuns  = map (compileFFun dm) (Src.mFFuns m)
-                 ++ map (compileGFun dm) (Src.mGFuns m)
+                 ++ map (compileGFun dm failing) (Src.mGFuns m)
          }
   where
   dm        = if useDebug then DebugStack fi [] else NoDebug
   fi        = Map.fromList (concatMap getInfo (Src.mFFuns m) ++
                             concatMap getInfo (Src.mGFuns m))
   getInfo f = [ (Src.fName f, r) | Src.SrcRange r <- Src.fAnnot f ]
+  failing = Src.mayFailModule m mempty
 
 
 inpArg :: BA
@@ -93,5 +97,7 @@ compileSomeFun isPure dm doBody fun =
 compileFFun :: DebugMode -> Src.Fun Src.Expr -> VMFun
 compileFFun dm = compileSomeFun True dm \e -> compileE e Nothing
 
-compileGFun :: DebugMode -> Src.Fun Src.Grammar -> VMFun
-compileGFun dm = compileSomeFun False dm (\e -> compile e ret)
+compileGFun :: DebugMode -> Set FName -> Src.Fun Src.Grammar -> VMFun
+compileGFun dm failing =
+  let ?failing = failing
+  in compileSomeFun False dm (\e -> compile e ret)

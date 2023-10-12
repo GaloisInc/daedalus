@@ -5,16 +5,30 @@ packages:
   daedalus-vm/
   daedalus-value/
   rts-hs/
+  rts-hs-data/
   rts-vm-hs/
   formats/pdf/old/cos/
   formats/pdf/old/driver/
   formats/pdf/arlington-pdf-model/
   formats/icc/
   formats/nitf/haskell/
+  formats/vlq_128/atto/
+  formats/vlq_128/ddl-hs/
   talos/
   daedalus-language-server/
   standalone/cabal-pack/
 
+-- We want a newer version of mtl
+source-repository-package
+    type: git
+    location: https://github.com/haskell-streaming/streaming
+    tag: 0c815bf9043d0f0cbda92b80ef791892e2b7fb43
+    
+-- source-repository-package
+--     type: git
+--     location: https://github.com/GaloisInc/parameterized-utils
+--     tag: e5a340fab56694f971e3b2a0f23d9471a9143408
+    
 constraints:
   utf8-string < 1.0.2,
   entropy >= 0.4.1.10

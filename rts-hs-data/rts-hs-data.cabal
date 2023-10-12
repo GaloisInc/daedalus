@@ -1,0 +1,48 @@
+cabal-version:      2.4
+name:               rts-hs-data
+version:            0.1.0.0
+
+extra-source-files:
+  CHANGELOG.md
+
+library
+  hs-source-dirs: src
+  default-language: Haskell2010
+  ghc-options: -Wall
+
+  default-extensions:
+    DataKinds
+    RecordWildCards
+    OverloadedStrings
+    TypeFamilies
+    DataKinds
+    TypeOperators
+    UndecidableInstances
+    FlexibleContexts
+    FlexibleInstances
+    ConstraintKinds
+    StandaloneDeriving
+    MultiParamTypeClasses
+    ScopedTypeVariables
+
+  exposed-modules:
+    Daedalus.RTS.HasInputs
+    Daedalus.RTS.Convert
+    Daedalus.RTS.Base
+    Daedalus.RTS.JSON
+    Daedalus.RTS.Input
+    Daedalus.RTS.Numeric
+    Daedalus.RTS.Vector
+    Daedalus.RTS.Map
+    Daedalus.RTS.Iterator
+    Daedalus.RTS.InputTrace
+
+  build-depends:
+    base,
+    containers,
+    text,
+    vector,
+    vector-builder,
+    bytestring,
+    pretty
+

@@ -179,7 +179,8 @@ of any kind---if this is not the case, the sample driver will fail to compile.
 The sample executable driver will be generated when:
 
   * there is no explicit ``--entry`` specified, and
-  * there is no custom user state ``--user-state``
+  * there is no custom user state ``--user-state``, and
+  * the flag ``--lazy-streams`` is not enabled
 
 Flags
 -----
@@ -274,6 +275,19 @@ Flags
   of the already compiled code.  If a namespace is provided, then uses of
   types in the given module will be qualified with the given namespace.
   Otherwise, the default namespace ``User`` will be used.
+
+.. data:: --lazy-strems
+
+  Generate code that uses streams where not all data is available when
+  the parser starts.  The generated code uses coroutines, as defined by
+  the ``fiber`` class from ``boost-context`` library.  If the parser
+  reaches the end of an incomplete data stream, it yileds to another
+  coroutine which should either provide more data or terminate the
+  stream before resuming the parser.  For more details see ``ddl/stream.h``.
+  The data streams used by the parser are as defined in class
+  ``DDL::Stream``.  The interaction between the data provider and the
+  parser should be done using class ``DDL::ParserThread``.
+
 
 
 Command: ``dump``

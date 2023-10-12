@@ -163,3 +163,9 @@ cUnreachable = "__builtin_unreachable();"
 
 cTemplate :: [Doc] -> Doc -> Doc
 cTemplate typeArgs body = cInst "template" typeArgs $$ body
+
+
+cDebugMsg :: String -> Doc
+cDebugMsg msg = "std::cout <<" <+> text (show msg) <+> "<< std::endl;"
+
+

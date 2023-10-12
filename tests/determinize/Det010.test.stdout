@@ -4,6 +4,7 @@ module DaedalusMain where
 -------------
  
 -- entry pont
+-- may fail
 -- ./Det010.ddl:3:1--6:14
 proc Main() : Word 8 =
   -- ./Det010.ddl:4:3--6:14
@@ -11,10 +12,10 @@ proc Main() : Word 8 =
   do _x0 <- match1 { ... }
      case _x0 of
        254 ->
-         -- ./Det010.ddl:5:11--5:12
+         -- ./Det010.ddl:5:11--6:5
          -- ./Det010.ddl:5:16--5:22
          do let $$ = 254 @(Word 8)
-            -- ./Det010.ddl:5:25--5:12
+            -- ./Det010.ddl:5:25--6:5
             -- ./Det010.ddl:5:25--5:31
             match1_ { 1 @(Word 8) }
             -- ./Det010.ddl:5:11--5:12

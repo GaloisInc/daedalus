@@ -6,11 +6,11 @@
 
 namespace DDL {
 
-template <typename T, typename... Args>
+template <typename I, typename T, typename... Args>
 inline
 bool parseOne
-  ( void (*f)(DDL::ParseError&, std::vector<T>&, Args...)
-  , DDL::ParseError& error
+  ( void (*f)(DDL::ParseError<I>&, std::vector<T>&, Args...)
+  , DDL::ParseError<I>& error
   , T* out
   , Args... args
   ) {
@@ -24,12 +24,12 @@ bool parseOne
   return true;
 }
 
-template <typename UserState, typename T, typename... Args>
+template <typename I, typename UserState, typename T, typename... Args>
 inline
 bool parseOneUser
-  ( void (*f)(UserState&, DDL::ParseError&, std::vector<T>&, Args...)
+  ( void (*f)(UserState&, DDL::ParseError<I>&, std::vector<T>&, Args...)
   , UserState &ustate
-  , DDL::ParseError& error
+  , DDL::ParseError<I>& error
   , T* out
   , Args... args
   ) {

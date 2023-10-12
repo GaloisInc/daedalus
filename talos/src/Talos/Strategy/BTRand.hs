@@ -1,15 +1,21 @@
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# Language OverloadedStrings #-}
 
 -- FIXME: much of this file is similar to Synthesis, maybe factor out commonalities
 module Talos.Strategy.BTRand (randDFS, randRestart, randMaybeT, mkStrategyFun) where
 
 import           Control.Applicative
+import           Control.Monad                   (MonadPlus (..), ap, guard)
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString                 as BS
 import           Data.Functor.Identity           (Identity (Identity))
+import           Data.Generics.Product           (field)
 import qualified Data.Map                        as Map
+import           GHC.Generics                    (Generic)
 
 import           Daedalus.Core                   hiding (streamOffset)
 import qualified Daedalus.Core.Semantics.Env     as I
@@ -18,11 +24,15 @@ import qualified Daedalus.Core.Semantics.Grammar as I
 import           Daedalus.Core.Type              (typeOf)
 import qualified Daedalus.Value                  as I
 
-import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice)
+import           Talos.Analysis.Exported         (ExpCallNode (..), ExpSlice, SliceId)
 import           Talos.Analysis.Slice
+import           Talos.Monad                     (getIEnv)
 import           Talos.Strategy.DFST
 import           Talos.Strategy.Monad
-import           Talos.SymExec.Path
+import qualified Talos.Strategy.OptParser        as P
+import           Talos.Strategy.OptParser        (Opt, parseOpts)
+import           Talos.Path
+
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -32,20 +42,50 @@ randDFS :: Strategy
 randDFS = 
   Strategy { stratName  = name
            , stratDescr = descr
-           , stratParse = pure inst
+           , stratParse = mkinst           
            }
-  where
-    inst = StrategyInstance
-           { siName = name
-           , siDescr = descr
-           , siFun   = \ptag sl -> trivialStratGen . lift $
-                                   runDFST (go ptag sl) (return . Just) (return Nothing)
-           }
+  where    
     name  = "rand-dfs"
     descr = "Simple depth-first random generation"
     
-    go :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
-    go ptag sl = mkStrategyFun ptag sl
+    mkinst = do
+      c <- parseOpts configOpts defaultConfig
+      pure StrategyInstance
+        { siName  = name
+        , siDescr = descr -- <> parens (text s)
+        , siFun   = mkgen c
+        }
+
+    mkgen c = \ptag _sid sl -> StratGen $ lift $ do
+      rs <- go (cNModels c) [] ptag sl
+      pure (rs, Nothing)
+
+    -- FXME: this should share state (e.g. pruned search space)
+    go 0 acc _ptag _sl  = pure acc
+    go n acc ptag sl = do
+      m_r <- runDFST (goOne ptag sl) (return . Just) (return Nothing)
+      case m_r of
+        Nothing -> pure acc
+        Just r  -> go (n - 1) (r : acc) ptag sl
+        
+    goOne :: ProvenanceTag -> ExpSlice -> DFST (Maybe SelectedPath) StrategyM SelectedPath
+    goOne ptag sl = mkStrategyFun ptag sl
+
+-- ----------------------------------------------------------------------------------------
+-- Configuration
+
+data Config = Config { cNModels :: Int
+                     }
+  deriving (Generic)
+
+defaultConfig :: Config
+defaultConfig = Config 10 
+
+configOpts :: [Opt Config]
+configOpts = [ P.option "num-models" (field @"cNModels")     P.intP
+             ]
+
+
 
 -- ----------------------------------------------------------------------------------------
 -- Restarting strat (restart-on-failure)
@@ -68,8 +108,8 @@ randRestart =
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randRestartStrat ptag sl = trivialStratGen . lift $ go restartBound
+randRestartStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
+randRestartStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -99,8 +139,8 @@ randMaybeT =
     name  = "rand-restart-local-bt"
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
-randMaybeStrat :: ProvenanceTag -> ExpSlice -> StratGen
-randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
+randMaybeStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
+randMaybeStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -118,7 +158,7 @@ randMaybeStrat ptag sl = trivialStratGen . lift $ go restartBound
 -- A family of backtracking strategies indexed by a MonadPlus, so MaybeT StrategyM should give DFS
 mkStrategyFun :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice -> m SelectedPath
 mkStrategyFun ptag sl = do
-  env0 <- getIEnv -- for pure function implementations
+  env0 <- liftStrategy getIEnv -- for pure function implementations
   snd <$> runReaderT (stratSlice ptag sl) env0 
 
 stratSlice :: (MonadPlus m, LiftStrategyM m) => ProvenanceTag -> ExpSlice
@@ -154,8 +194,7 @@ stratSlice ptag = go
 
         SCase _ c -> do
           env <- ask
-          I.evalCase (\(_i, sl') _env -> onSlice (SelectedCase . Identity) <$> go sl' ) mzero (enumerate c) env
-
+          I.evalCase (\(i, sl') _env -> onSlice (SelectedCase . PathIndex i) <$> go sl' ) mzero (enumerate c) env
         -- FIXME: For now we just keep picking until we get something which satisfies the predicate; this can obviously be improved upon ...
         SInverse n ifn p -> do
           let tryOne = do

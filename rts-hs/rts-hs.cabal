@@ -17,23 +17,18 @@ extra-source-files:  CHANGELOG.md
 library
   hs-source-dirs:      src
   exposed-modules:     RTS,
-                       RTS.Numeric,
                        RTS.ParserAPI,
                        RTS.Parser,
                        RTS.StateT,
-                       RTS.Vector,
-                       RTS.Map,
-                       RTS.Input,
-                       RTS.Base,
-                       RTS.ByteRanges,
-                       RTS.Iterator,
-                       RTS.JSON,
-                       RTS.ParserVM
+                       RTS.ParseError,
+                       RTS.Annot
   build-depends:       base >=4.13,
+                       rts-hs-data,
                        vector,
                        vector-builder,
                        containers,
                        bytestring,
+                       filepath,
                        text,
                        pretty
   ghc-options:         -O2 -Wall

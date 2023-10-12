@@ -24,6 +24,12 @@ public:
       return *this;
     }
 
+    void assignBorrowed(T x) {
+      x.copy();
+      obj.free();
+      obj = x;
+    }
+
     // Accesses underlying owned value
     // This is a pointer to a borrowed value.
     T* operator->()             { return &obj; }

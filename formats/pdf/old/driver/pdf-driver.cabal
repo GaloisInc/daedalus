@@ -41,6 +41,7 @@ library
     containers,
     bytestring,
     rts-hs,
+    rts-hs-data,
     pdf-cos
 
 
@@ -66,6 +67,7 @@ executable pdf-hs-driver
     pretty-show,
     mtl,
     rts-hs,
+    rts-hs-data,
     pdf-cos,
     pdf-driver
 
@@ -83,6 +85,7 @@ executable pdf-dom
     containers,
     pretty,
     rts-hs,
+    rts-hs-data,
     pdf-cos,
     pdf-driver,
     simple-get-opt

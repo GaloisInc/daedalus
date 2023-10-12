@@ -114,6 +114,7 @@ module Daedalus.Value
   , vStreamLength
   , vStreamTake
   , vStreamDrop
+  , vStreamDropMaybe
   , vBytesOfStream
 
   -- * Iterators
@@ -123,6 +124,11 @@ module Daedalus.Value
   , vIteratorKey
   , vIteratorValue
   , vIteratorNext
+
+  -- * Tracing
+  , vTraced
+  , vAddTrace
+  , unTrace
 
     -- * Export
   , valueToDoc
@@ -153,7 +159,7 @@ vStruct = VStruct
 
 vStructLookup :: Value -> Label -> Value
 vStructLookup v l =
-  case v of
+  case unTrace v of
     VStruct fs ->
       case lookup l fs of
         Just i  -> i

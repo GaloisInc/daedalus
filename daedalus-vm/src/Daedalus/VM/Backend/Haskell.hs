@@ -33,12 +33,14 @@ import Debug.Trace
 data Config = Config
   { userMonad      :: Maybe TH.TypeQ
   , userPrimitives :: Map FName ([TH.ExpQ] -> TH.ExpQ)
+  , enableErrors   :: Bool    -- ^ Should we keep track of error locations
   }
 
 defaultConfig :: Config
 defaultConfig = Config
   { userMonad = Nothing
   , userPrimitives = mempty
+  , enableErrors = True
   }
 
 -- | Make a function with the given list of arguments and result.
@@ -77,7 +79,7 @@ compileFun fun =
      (funTy,contArgs) <-
         if vmfPure fun then pure (PureFun, []) else
         case vmfCaptures fun of
-          NoCapture -> pure (NonCapturingParser (),[])
+          NoCapture -> pure (NonCapturingParser Nothing,[])
           _ -> do rtyName  <- TH.newName "r"
                   noK  <- TH.newName "noK"
                   yesK <- TH.newName "yesK"
@@ -106,8 +108,12 @@ compileFun fun =
       NonCapturingParser {} ->
         funT srcTs
         case userMonad ?config of
-          Nothing -> [t| RTS.DParser $valResT |]
-          Just m  -> [t| RTS.DParserM $m $valResT |]
+          Nothing
+            | enableErrors ?config -> [t| RTS.DParser $valResT |]
+            | otherwise            -> [t| RTS.DParser' $valResT |]
+          Just m
+            | enableErrors ?config -> [t| RTS.DParserM $m $valResT |]
+            | otherwise            -> [t| RTS.DParserM' $m $valResT |]
 
       CapturingParser _ rtyName _ _ ->
         TH.forallT [TH.plainTV rtyName] (TH.cxt []) $
@@ -147,9 +153,11 @@ compileBlock ty b =
      (funTy,sArgs) <-
         case ty of
           PureFun -> pure (PureFun, [])
-          NonCapturingParser {} ->
-            do (spat,sexp) <- newArg' "s" [t| RTS.ParserErrorState |]
-               pure (NonCapturingParser sexp, [ spat ])
+          NonCapturingParser {}
+            | enableErrors ?config ->
+              do (spat,sexp) <- newArg' "s" [t| RTS.ParserErrorState |]
+                 pure (NonCapturingParser (Just sexp), [ spat ])
+            | otherwise -> pure (NonCapturingParser Nothing, [])
           CapturingParser _ rty noK yesK ->
             do let m = case userMonad ?config of
                          Nothing -> [t| RTS.Identity |]
@@ -299,7 +307,7 @@ mkBDCon nm args =
 --------------------------------------------------------------------------------
 data FunTy s =
     PureFun
-  | NonCapturingParser s -- error state
+  | NonCapturingParser (Maybe s) -- optional error state
   | CapturingParser s -- thread state
                     TH.Name    -- the type of the "final" result of the parser
                     TH.ExpQ   -- no cont
@@ -315,14 +323,17 @@ type BlockEnv =
 
 stateArgs :: BlockEnv => [TH.ExpQ]
 stateArgs = case ?funTy of
-              NonCapturingParser e    -> [e]
+              NonCapturingParser mb   -> maybe [] (: []) mb
               CapturingParser e _ _ _ -> [e]
               PureFun                 -> []
 
 getErrorState :: BlockEnv => TH.ExpQ
 getErrorState =
   case ?funTy of
-    NonCapturingParser e      -> e
+    NonCapturingParser mb     -> case mb of
+                                   Just e -> e
+                                   Nothing -> panic "getErrorState"
+                                                            ["no errors"]
     CapturingParser e _ _ _   -> [| RTS.thrErrors $e |]
     PureFun                   -> panic "getErrorState" ["Pure parser"]
 
@@ -330,10 +341,12 @@ updErrorState :: BlockEnv => (BlockEnv => a) -> (TH.ExpQ -> TH.ExpQ) -> a
 updErrorState k f =
   let ?funTy =
         case ?funTy of
-          NonCapturingParser e -> NonCapturingParser (f e)
-          CapturingParser e ty noK yesK ->
+          NonCapturingParser mb -> NonCapturingParser (f <$> mb)
+          CapturingParser e ty noK yesK
+            | enableErrors ?config ->
             CapturingParser
               [| RTS.thrUpdateErrors (\x -> $(f [|x|])) $e |] ty noK yesK
+            | otherwise -> ?funTy
           PureFun -> panic "updErrorState" ["Pure parser"]
   in k
 
@@ -347,13 +360,18 @@ withThrErrorState ::
   BlockEnv => (TH.ExpQ -> (TH.ExpQ -> TH.ExpQ) -> TH.ExpQ) -> TH.ExpQ
 withThrErrorState k =
   case ?funTy of
-    CapturingParser e t no yes ->
+    CapturingParser e t no yes
+      | enableErrors ?config ->
       [| let s = $e
          in $(let ?funTy = CapturingParser ([|s|] :: TH.ExpQ) t no yes
               in k [|RTS.thrErrors s|]
                    (\s1 -> [| RTS.thrUpdateErrors (const $s1) s |])
              )
       |]
+      | otherwise ->
+        k [| RTS.initParseErrorState |]
+          (const [| RTS.initParseErrorState |])
+
     _ -> panic "withThrErrorState" ["Not a capturing parser"]
 
 
@@ -430,7 +448,9 @@ compileCInstr cinstr =
     ReturnNo ->
       case ?funTy of
         NonCapturingParser {} ->
-          let val = [| (Nothing, $getErrorState) |]
+          let val
+                | enableErrors ?config = [| (Nothing, $getErrorState) |]
+                | otherwise = [| Nothing |]
           in case userMonad ?config of
                Nothing -> val
                Just {} -> [| pure $val |] -- do we need type sig here?
@@ -441,8 +461,10 @@ compileCInstr cinstr =
     ReturnYes a inp ->
       case ?funTy of
         NonCapturingParser {} ->
-          let val = [| ( Just ($(compileE a), $(compileE inp))
-                       , $getErrorState) |]
+          let res = [| Just ($(compileE a), $(compileE inp)) |]
+              val
+                | enableErrors ?config = [| ($res, $getErrorState) |]
+                | otherwise = res
           in case userMonad ?config of
               Nothing -> val
               Just {} -> [| pure $val |]
@@ -528,49 +550,64 @@ compileCInstr cinstr =
     Yield -> [| RTS.vmYield $getThreadState |]
 
     CallPure f jp es ->
-      doJump [ doCall f (map compileE es) ] stateArgs jp
+      doJump [ doCall f (map compileE es) ] stateArgs (jumpTarget jp)
 
-    Call f how no yes es ->
-      case how of
-        NoCapture ->
-          case ?funTy of
+    CallNoCapture f (JumpCase ks) es ->
+      let no  = jumpTarget (ks Map.! False)
+          yes = jumpTarget (ks Map.! True)
+      in
+      case ?funTy of
 
-            NonCapturingParser {} ->
-              dToC (doCall f (map compileE es ++ stateArgs))
-                   (\s1     -> doJump []     [s1] no)
-                   (\a i s1 -> doJump [a, i] [s1] yes)
+        NonCapturingParser {}
+          | enableErrors ?config ->
+          dToC (doCall f (map compileE es ++ stateArgs))
+               (\s1     -> doJump []     [s1] no)
+               (\a i s1 -> doJump [a, i] [s1] yes)
+          | otherwise ->
+          dToC' (doCall f (map compileE es))
+                 (doJump [] [] no)
+                 (\a i -> doJump [a,i] [] yes)
 
-            CapturingParser {} ->
-              withThrErrorState \getS setS ->
-                dToC (doCall f (map compileE es ++ [getS]))
-                     (\s1     -> doJump []     [setS s1] no)
-                     (\a i s1 -> doJump [a, i] [setS s1] yes)
+        CapturingParser {}
+          | enableErrors ?config ->
+          withThrErrorState \getS setS ->
+            dToC (doCall f (map compileE es ++ [getS]))
+                 (\s1     -> doJump []     [setS s1] no)
+                 (\a i s1 -> doJump [a, i] [setS s1] yes)
+          | otherwise ->
+            dToC' (doCall f (map compileE es))
+                   (doJump [] [] no)
+                   (\a i -> doJump [a,i] [] yes)
 
-            PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
 
+        PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
 
-        Capture ->
-          doCall f $
-            map compileE es ++
-            [ [| \s -> $(doJump [] [ [| s |] ] no) |]
+    CallCapture f no yes es ->
+      doCall f $
+        map compileE es ++
+        [ [| \s -> $(doJump [] [ [| s |] ] no) |]
 
-            , [| \val inp s ->
-                    $(doJump [ [| val |], [| inp |] ] [[|s|]] yes) |]
-            ] ++
-            stateArgs
-
-        Unknown -> panic "compileCInstr" ["Unknown call"]
+        , [| \val inp s ->
+                $(doJump [ [| val |], [| inp |] ] [[|s|]] yes) |]
+        ] ++
+        stateArgs
 
     TailCall f how es ->
       case how of
         NoCapture ->
           case ?funTy of
             NonCapturingParser {} -> doCall f (map compileE es ++ stateArgs)
-            CapturingParser _ _ noK yesK ->
+            CapturingParser _ _ noK yesK
+              | enableErrors ?config ->
               withThrErrorState \getS setS ->
               dToC (doCall f (map compileE es ++ [getS]))
                    (\s1 -> [| $noK $(setS s1) |])
                    (\a i s1 -> [| $yesK $a $i $(setS s1) |])
+              | otherwise ->
+              dToC' (doCall f (map compileE es))
+                    noK
+                    (\a i -> [| $yesK $a $i |])
+
             PureFun -> doCall f (map compileE es)
 
         Capture ->
@@ -601,6 +638,28 @@ dToC e no yes =
          (Nothing,    s1) -> $(no                  [| s1 |])
          (Just (a,i), s1) -> $(yes [| a |] [| i |] [| s1 |])
     |]
+
+-- | Version without error state
+dToC' :: HasConfig =>
+  TH.ExpQ ->
+  TH.ExpQ ->
+  (TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
+  TH.ExpQ
+dToC' e no yes =
+  case userMonad ?config of
+    Nothing -> doCase e
+    Just _ ->
+      [| do v <- $e
+            $(doCase [|v|])
+      |]
+  where
+  doCase d =
+    [| case $d of
+         Nothing    -> $no
+         Just (a,i) -> $(yes [| a |] [| i |])
+     |]
+
+
 
 
 labelName :: Label -> TH.Name

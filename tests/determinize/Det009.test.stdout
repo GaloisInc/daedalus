@@ -31,6 +31,7 @@ func jn_71(e : Endian, x : Word 8, y : Word 8) : Word 16 =
     LE ->
       y # x
  
+-- may fail
 -- ./Det009.ddl:7:1--11:3
 proc Endian() : Endian =
   -- ./Det009.ddl:7:14--11:3
@@ -56,34 +57,37 @@ proc Endian() : Endian =
        _ ->
          fail_sys @Endian
  
+-- may fail
 -- ./Det009.ddl:52:1--52:31
 proc Word16_() : () =
-  -- ./Det009.ddl:52:21--52:31
+  -- ./Det009.ddl:52:16--52:31
   do -- ./Det009.ddl:52:21--52:25
      match1_ { ... }
      -- ./Det009.ddl:52:27--52:31
      match1_ { ... }
  
+-- may fail
 -- ./Det009.ddl:28:1--37:3
 proc Unsgned(e : Endian) : () =
   -- ./Det009.ddl:29:16--29:23
   Word16_()
  
+-- may fail
 -- ./Det009.ddl:52:1--52:31
 proc Word16(e : Endian) : Word 16 =
-  -- ./Det009.ddl:52:21--52:31
+  -- ./Det009.ddl:52:16--52:31
   do _28 <- -- ./Det009.ddl:52:21--52:25
             match1 { ... }
-     -- ./Det009.ddl:52:27--52:31
+     -- ./Det009.ddl:52:16--52:31
      _29 <- -- ./Det009.ddl:52:27--52:31
             match1 { ... }
      -- ./Det009.ddl:52:16--52:31
      pure jn_71(e, _28, _29)
  
+-- may fail
 -- ./Det009.ddl:23:1--23:35
 proc Tag_(e : Endian, x : Word 16) : () =
   -- ./Det009.ddl:23:15--23:35
-  -- ./Det009.ddl:23:15--23:27
   do _30 <- -- ./Det009.ddl:23:15--23:22
             Word16(e)
      -- ./Det009.ddl:23:15--23:27
@@ -96,22 +100,23 @@ proc Tag_(e : Endian, x : Word 16) : () =
        False ->
          fail_sys @() "Pattern match failure"
  
+-- may fail
 -- ./Det009.ddl:24:1--28:3
 proc NumericTag(e : Endian, x : Word 16) : () =
-  -- ./Det009.ddl:25:3--26:11
+  -- ./Det009.ddl:25:3--28:3
   do -- ./Det009.ddl:25:3--25:9
      Tag_(e, x)
-     -- ./Det009.ddl:26:3--26:11
+     -- ./Det009.ddl:26:3--28:3
      -- ./Det009.ddl:26:3--26:11
      Unsgned(e)
  
+-- may fail
 -- ./Det009.ddl:37:1--47:3
 proc IFDUnknown(e : Endian) : IFDUnknown =
   -- ./Det009.ddl:38:3--47:3
   do tag <- -- ./Det009.ddl:38:12--38:19
             Word16(e)
      -- ./Det009.ddl:39:3--47:3
-     -- ./Det009.ddl:39:12--39:30
      _33 <- -- ./Det009.ddl:39:12--39:19
             Word16(e)
      -- ./Det009.ddl:39:12--39:30
@@ -119,6 +124,7 @@ proc IFDUnknown(e : Endian) : IFDUnknown =
      -- ./Det009.ddl:37:20--47:3
      pure IFDUnknown {tag = tag, format = format}
  
+-- may fail
 -- ./Det009.ddl:11:1--23:3
 proc IFDEntry(e : Endian) : IFDEntry =
   -- ./Det009.ddl:11:18--23:3
@@ -141,18 +147,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
           let _31 = _30 == x
           -- DETCALL 
           -- ./Det009.ddl:12:17--12:34
-          -- ./Det009.ddl:25:3--26:11
+          -- ./Det009.ddl:25:3--28:3
           -- ./Det009.ddl:23:15--23:27
-          -- ./Det009.ddl:23:15--23:27
-          -- ./Det009.ddl:23:15--23:35
           -- ./Det009.ddl:25:3--25:9
           -- DETCALL 
-          -- ./Det009.ddl:52:16--52:31
           -- ./Det009.ddl:52:21--52:25
-          -- ./Det009.ddl:52:21--52:31
           -- ./Det009.ddl:23:15--23:22
           -- DETCALL 
-          -- ./Det009.ddl:52:27--52:31
           -- ./Det009.ddl:52:27--52:31
           -- ./Det009.ddl:23:15--23:35
           case _31 of
@@ -163,8 +164,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
               fail_sys @() "Pattern match failure"
           _34 <- -- DETCALL 
                  -- ./Det009.ddl:12:17--12:34
-                 -- ./Det009.ddl:25:3--26:11
-                 -- ./Det009.ddl:26:3--26:11
+                 -- ./Det009.ddl:26:3--28:3
                  -- ./Det009.ddl:26:3--26:11
                  Unsgned(e)
           -- ./Det009.ddl:12:3--12:34
@@ -186,18 +186,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
             let _31 = _30 == x
             -- DETCALL 
             -- ./Det009.ddl:13:17--13:34
-            -- ./Det009.ddl:25:3--26:11
+            -- ./Det009.ddl:25:3--28:3
             -- ./Det009.ddl:23:15--23:27
-            -- ./Det009.ddl:23:15--23:27
-            -- ./Det009.ddl:23:15--23:35
             -- ./Det009.ddl:25:3--25:9
             -- DETCALL 
-            -- ./Det009.ddl:52:16--52:31
             -- ./Det009.ddl:52:21--52:25
-            -- ./Det009.ddl:52:21--52:31
             -- ./Det009.ddl:23:15--23:22
             -- DETCALL 
-            -- ./Det009.ddl:52:27--52:31
             -- ./Det009.ddl:52:27--52:31
             -- ./Det009.ddl:23:15--23:35
             case _31 of
@@ -208,8 +203,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                 fail_sys @() "Pattern match failure"
             _35 <- -- DETCALL 
                    -- ./Det009.ddl:13:17--13:34
-                   -- ./Det009.ddl:25:3--26:11
-                   -- ./Det009.ddl:26:3--26:11
+                   -- ./Det009.ddl:26:3--28:3
                    -- ./Det009.ddl:26:3--26:11
                    Unsgned(e)
             -- ./Det009.ddl:13:3--13:34
@@ -231,18 +225,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
               let _31 = _30 == x
               -- DETCALL 
               -- ./Det009.ddl:15:17--15:34
-              -- ./Det009.ddl:25:3--26:11
+              -- ./Det009.ddl:25:3--28:3
               -- ./Det009.ddl:23:15--23:27
-              -- ./Det009.ddl:23:15--23:27
-              -- ./Det009.ddl:23:15--23:35
               -- ./Det009.ddl:25:3--25:9
               -- DETCALL 
-              -- ./Det009.ddl:52:16--52:31
               -- ./Det009.ddl:52:21--52:25
-              -- ./Det009.ddl:52:21--52:31
               -- ./Det009.ddl:23:15--23:22
               -- DETCALL 
-              -- ./Det009.ddl:52:27--52:31
               -- ./Det009.ddl:52:27--52:31
               -- ./Det009.ddl:23:15--23:35
               case _31 of
@@ -253,8 +242,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                   fail_sys @() "Pattern match failure"
               _36 <- -- DETCALL 
                      -- ./Det009.ddl:15:17--15:34
-                     -- ./Det009.ddl:25:3--26:11
-                     -- ./Det009.ddl:26:3--26:11
+                     -- ./Det009.ddl:26:3--28:3
                      -- ./Det009.ddl:26:3--26:11
                      Unsgned(e)
               -- ./Det009.ddl:15:3--15:34
@@ -276,18 +264,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
                 let _31 = _30 == x
                 -- DETCALL 
                 -- ./Det009.ddl:16:31--16:48
-                -- ./Det009.ddl:25:3--26:11
+                -- ./Det009.ddl:25:3--28:3
                 -- ./Det009.ddl:23:15--23:27
-                -- ./Det009.ddl:23:15--23:27
-                -- ./Det009.ddl:23:15--23:35
                 -- ./Det009.ddl:25:3--25:9
                 -- DETCALL 
-                -- ./Det009.ddl:52:16--52:31
                 -- ./Det009.ddl:52:21--52:25
-                -- ./Det009.ddl:52:21--52:31
                 -- ./Det009.ddl:23:15--23:22
                 -- DETCALL 
-                -- ./Det009.ddl:52:27--52:31
                 -- ./Det009.ddl:52:27--52:31
                 -- ./Det009.ddl:23:15--23:35
                 case _31 of
@@ -298,8 +281,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     fail_sys @() "Pattern match failure"
                 _37 <- -- DETCALL 
                        -- ./Det009.ddl:16:31--16:48
-                       -- ./Det009.ddl:25:3--26:11
-                       -- ./Det009.ddl:26:3--26:11
+                       -- ./Det009.ddl:26:3--28:3
                        -- ./Det009.ddl:26:3--26:11
                        Unsgned(e)
                 -- ./Det009.ddl:16:3--16:48
@@ -321,18 +303,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
                   let _31 = _30 == x
                   -- DETCALL 
                   -- ./Det009.ddl:18:21--18:38
-                  -- ./Det009.ddl:25:3--26:11
+                  -- ./Det009.ddl:25:3--28:3
                   -- ./Det009.ddl:23:15--23:27
-                  -- ./Det009.ddl:23:15--23:27
-                  -- ./Det009.ddl:23:15--23:35
                   -- ./Det009.ddl:25:3--25:9
                   -- DETCALL 
-                  -- ./Det009.ddl:52:16--52:31
                   -- ./Det009.ddl:52:21--52:25
-                  -- ./Det009.ddl:52:21--52:31
                   -- ./Det009.ddl:23:15--23:22
                   -- DETCALL 
-                  -- ./Det009.ddl:52:27--52:31
                   -- ./Det009.ddl:52:27--52:31
                   -- ./Det009.ddl:23:15--23:35
                   case _31 of
@@ -343,8 +320,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                       fail_sys @() "Pattern match failure"
                   _38 <- -- DETCALL 
                          -- ./Det009.ddl:18:21--18:38
-                         -- ./Det009.ddl:25:3--26:11
-                         -- ./Det009.ddl:26:3--26:11
+                         -- ./Det009.ddl:26:3--28:3
                          -- ./Det009.ddl:26:3--26:11
                          Unsgned(e)
                   -- ./Det009.ddl:18:3--18:38
@@ -366,18 +342,13 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     let _31 = _30 == x
                     -- DETCALL 
                     -- ./Det009.ddl:19:21--19:38
-                    -- ./Det009.ddl:25:3--26:11
+                    -- ./Det009.ddl:25:3--28:3
                     -- ./Det009.ddl:23:15--23:27
-                    -- ./Det009.ddl:23:15--23:27
-                    -- ./Det009.ddl:23:15--23:35
                     -- ./Det009.ddl:25:3--25:9
                     -- DETCALL 
-                    -- ./Det009.ddl:52:16--52:31
                     -- ./Det009.ddl:52:21--52:25
-                    -- ./Det009.ddl:52:21--52:31
                     -- ./Det009.ddl:23:15--23:22
                     -- DETCALL 
-                    -- ./Det009.ddl:52:27--52:31
                     -- ./Det009.ddl:52:27--52:31
                     -- ./Det009.ddl:23:15--23:35
                     case _31 of
@@ -388,8 +359,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                         fail_sys @() "Pattern match failure"
                     _39 <- -- DETCALL 
                            -- ./Det009.ddl:19:21--19:38
-                           -- ./Det009.ddl:25:3--26:11
-                           -- ./Det009.ddl:26:3--26:11
+                           -- ./Det009.ddl:26:3--28:3
                            -- ./Det009.ddl:26:3--26:11
                            Unsgned(e)
                     -- ./Det009.ddl:19:3--19:38
@@ -403,33 +373,22 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     let _28 = _x0
                     let _29 = _x1
                     let tag = jn_71(e, _28, _29)
-                    _33 <- -- ./Det009.ddl:39:12--39:30
-                           -- ./Det009.ddl:39:3--47:3
-                           -- ./Det009.ddl:38:3--47:3
+                    _33 <- -- ./Det009.ddl:39:3--47:3
                            -- ./Det009.ddl:21:17--21:28
                            -- DETCALL 
-                           -- ./Det009.ddl:52:16--52:31
                            -- ./Det009.ddl:52:21--52:25
-                           -- ./Det009.ddl:52:21--52:31
                            -- ./Det009.ddl:38:12--38:19
                            -- DETCALL 
-                           -- ./Det009.ddl:52:27--52:31
                            -- ./Det009.ddl:52:27--52:31
                            -- ./Det009.ddl:39:12--39:19
                            Word16(e)
                     let format = cast @(Word 64) _33
-                    -- ./Det009.ddl:37:20--47:3
-                    -- ./Det009.ddl:39:12--39:30
                     -- ./Det009.ddl:39:3--47:3
-                    -- ./Det009.ddl:38:3--47:3
                     -- ./Det009.ddl:21:17--21:28
                     -- DETCALL 
-                    -- ./Det009.ddl:52:16--52:31
                     -- ./Det009.ddl:52:21--52:25
-                    -- ./Det009.ddl:52:21--52:31
                     -- ./Det009.ddl:38:12--38:19
                     -- DETCALL 
-                    -- ./Det009.ddl:52:27--52:31
                     -- ./Det009.ddl:52:27--52:31
                     -- ./Det009.ddl:39:12--39:30
                     let _40 = IFDUnknown {tag = tag, format = format}
@@ -437,11 +396,12 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     pure (tag unknown @IFDEntry _40)
  
 -- entry pont
+-- may fail
 -- ./Det009.ddl:3:1--7:3
 proc Main() : IFDEntry =
-  -- ./Det009.ddl:4:4--5:12
+  -- ./Det009.ddl:4:4--7:3
   do e <- -- ./Det009.ddl:4:8--4:13
           Endian()
-     -- ./Det009.ddl:5:3--5:12
+     -- ./Det009.ddl:5:3--7:3
      -- ./Det009.ddl:5:3--5:12
      IFDEntry(e)
