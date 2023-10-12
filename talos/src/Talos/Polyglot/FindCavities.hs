@@ -11,6 +11,7 @@ module Talos.Polyglot.FindCavities
 import qualified Data.List             as List
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromJust)
+import           Data.Set              (Set)
 import qualified Data.Set              as Set
 
 import           Daedalus.Core
@@ -169,13 +170,32 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID canHave
       else
         AS.abstractStatesFromList [bodyMap]
 
+data CavityPosition = CavityPosition
+  { isPrefix :: Bool
+  , isSuffix :: Bool
+  } deriving (Eq, Ord)
+
+instance PP CavityPosition where
+  pp CavityPosition{..} = case (isPrefix, isSuffix) of
+    (False, False) -> text "embedded"
+    _ -> parens $ hsep $ punctuate "," ixes
+    where
+      ixes = filter ((/=) "") [if isPrefix then "prefix" else "", if isSuffix then "suffix" else ""]
+
+data Cavity = Cavity
+  { cavityLocation :: Loc
+  , cavityPosition :: CavityPosition
+  } deriving (Eq, Ord)
+
+instance PP Cavity where
+  pp Cavity{..} = ppLoc cavityLocation <+> pp cavityPosition
 
 -- | Starting at "Main", applies abstract interpretation to the CFG until
 -- reaching a fixpoint.  Calls `error` if "Main" doesn't exist.
-findCavities :: Module -> CFGModule -> [Loc]
+findCavities :: Module -> CFGModule -> Set Cavity
 findCavities m cfgm = 
   let states  = analyze_ initialState initialWorklist in
-    findCavityReadLocs states `debug` (show $ AS.ppAbstractStates states)
+    findCavities_ states `debug` (show $ AS.ppAbstractStates states)
   where
     entrypoint = ([], getMainEntrypoint cfgm)
     initialWorklist = [entrypoint]
@@ -230,13 +250,22 @@ findCavities m cfgm =
       AS.joins otherStates returnedStates
 
     -- Find NodeIDs that that contain themselves in their read frontiers.
-    findCavityReadLocs :: AbstractStates -> [Loc]
-    findCavityReadLocs states = 
-      let candidateStates = Map.filterWithKey isCandidateLoc states
-          exitStates      = Map.filterWithKey (\(_, loc) _ -> isExitNode loc) states
-          cavities        = Map.filterWithKey (isUnboundedAtExit exitStates) candidateStates
-      in
-      map snd $ Map.keys cavities
+    findCavities_ :: AbstractStates -> Set Cavity
+    findCavities_ states = 
+      let candidateStates    = Map.filterWithKey isCandidateLoc states
+          exitStates         = Map.filterWithKey (\(_, loc) _ -> isExitNode loc) states
+          cavities           = Map.filterWithKey (isUnboundedAtExit exitStates) candidateStates
+          positionedCavities = Map.foldlWithKey (\acc (_, loc) state ->
+              Set.insert Cavity
+                { cavityLocation=loc
+                , cavityPosition=CavityPosition
+                  { isPrefix=isPrefixCavity exitStates state
+                  , isSuffix=isSuffixCavity exitStates state
+                  }
+                } acc
+            ) Set.empty cavities
+          in
+      positionedCavities
       where
         -- Candidates are locations that appear in their own read frontiers.
         isCandidateLoc (_, (_, nodeID)) AbstractState{..} = RF.contains asReadFrontier nodeID nodeID
@@ -250,6 +279,13 @@ findCavities m cfgm =
                 in
             acc || ThreadSet.existsDisjoint rfWithID bounded
           ) False exitStates
+
+        isPrefixCavity :: AbstractStates -> AbstractState -> Bool
+        isPrefixCavity exitStates AS.AbstractState{asBounded=boundedAtCavity} = False
+
+        isSuffixCavity :: AbstractStates -> AbstractState -> Bool
+        isSuffixCavity exitStates AS.AbstractState{asBounded=boundedAtCavity} =
+          Map.foldl (\acc exitState -> acc || boundedAtCavity == AS.asBounded exitState) False exitStates
 
 -- | Gets the entrypoint for the "Main" function.  Calls `error` if "Main" does not
 -- exist.

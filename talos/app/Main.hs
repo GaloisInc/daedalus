@@ -9,6 +9,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
 import           Hexdump
+import qualified Data.Set              as Set
 import qualified Streaming.Prelude     as S
 import           System.Console.ANSI
 import           System.IO             (IOMode (..), hFlush, openFile, stdout)
@@ -68,7 +69,7 @@ doFindCavities opts = do
   if null cavityLocs then
     print $ text "No cavities."
   else
-    print $ text "Cavity locations:" $$ (vcat $ map ppLoc $ findCavities md cfgm)
+    print $ text "Cavity locations:" $$ (vcat $ map pp $ Set.toList $ findCavities md cfgm)
 
 doSummary :: Options -> IO ()
 doSummary opts = do
