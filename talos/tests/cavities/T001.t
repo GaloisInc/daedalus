@@ -24,4 +24,4 @@ Run the test.
     6 -> 5;
   }
   Cavity locations:
-  Main:6
+  Main:6 (prefix, suffix)

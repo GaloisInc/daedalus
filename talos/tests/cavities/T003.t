@@ -14,18 +14,35 @@ Run the test.
 
   $ cabal run exe:talos -- --find-cavities testdata/T003.ddl
   digraph RecLoop {
-    init -> 8;
+    init -> 22;
     init [style = invis];
-    10 [style = invis];
-    8 [label = "match1 { ... }"];
-    8 -> 10;
+    36 [style = invis];
+    22 [label = "Or (biased) "];
+    22 -> 24;
+    22 -> 27;
+    24 [label = "matchEnd"];
+    24 -> 25;
+    25 [label = "bldr"];
+    25 -> 36;
+    27 [label = "c = match1 { ... }"];
+    27 -> 28;
+    28 [label = "_aRecLoop_0 = emit bldr c"];
+    28 -> 29;
+    29 [label = "RecLoop_aRecLoop_0"];
+    29 -> 36;
   }
   digraph Main {
-    init -> 9;
+    init -> 31;
     init [style = invis];
-    11 [style = invis];
-    9 [label = "RecLoop"];
-    9 -> 11;
+    37 [style = invis];
+    31 [label = "match_ "START""];
+    31 -> 32;
+    32 [label = "_aRecLoop_0 = nil @(Word 8)"];
+    32 -> 34;
+    34 [label = "_7 = RecLoop_aRecLoop_0"];
+    34 -> 35;
+    35 [label = "listToArray _7"];
+    35 -> 37;
   }
   Cavity locations:
-  RecLoop:8
+  RecLoop:27 (suffix)

@@ -54,16 +54,26 @@ interpret stackLoc@(_, l) st = do
     interpret_ (stack, (thisName, thisNodeID)) state (CSimple m_name (CMatch _ match) nextNodeID) = do
       isBounded <- RF.inducesBounds match
       let summary      = ThreadSet.singleton thisNodeID
-          state'       = case m_name of
-            Nothing   -> state
-            Just name -> AS.extendEnv name summary state
-          state''      = if isBounded then AS.extendBounded thisNodeID state' else AS.extendRF thisNodeID state' 
-          state'''     = AS.extendRV state'' summary
-      return $ Map.singleton (stack, (thisName, nextNodeID)) state'''
+          addName      = \s -> case m_name of
+            Nothing   -> s
+            Just name -> AS.extendEnv name summary s
+          handleBounds = \s -> if isBounded then AS.extendBounded thisNodeID s else AS.extendRF thisNodeID s
+          addRV        = \s -> AS.extendRV s summary
+          addRead      = \s -> AS.extendStreamReads thisNodeID s
+      return $ Map.singleton (stack, (thisName, nextNodeID)) $ (addName . handleBounds . addRV . addRead) state
 
-    -- Special handling for calling subparsers.  Other CSimple types are
-    -- evaluated immediately; calls are added to the set of abstract states.
-    interpret_ (stack, thisLoc@(thisFName, _)) state (CSimple m_name (CCall fname exprs) nextNodeID) = do
+    -- Handle returning from a call to the call site.
+    interpret_ (Returning:stack, (thisFName, _)) state (CSimple m_name (CCall _ _) nextNodeID) = do
+      -- Set up the downstream edge by extending the environment with `m_name`
+      -- bound to the return value.  Also pass the return value through.
+      let downstreamState = case m_name of
+            Just name -> AS.extendEnvWithRV name state
+            Nothing   -> state
+          downstreamEdge = ((stack, (thisFName, nextNodeID)), downstreamState)
+      return $ Map.fromList [downstreamEdge]
+
+    -- Handle calling a subparser.
+    interpret_ (stack, thisLoc) state (CSimple _ (CCall fname exprs) _) = do
       -- Look up callee and param names
       calleeNodeID <- getEntrypoint fname
       paramNames <- getGFunParameterNames fname
@@ -73,17 +83,10 @@ interpret stackLoc@(_, l) st = do
       summaries <- sequence $ map (Env.summarizeExpr $ AS.asEnv state) exprs
       let callState    = foldl (\acc (n, s) -> AS.extendEnv n s acc) state (zip paramNames summaries)
           -- This is our loop widening: flatten all cycles into one cycle.
-          newCallStack = if List.elem thisLoc stack then stack else thisLoc:stack
+          newCallStack = safePush (Loc thisLoc) stack
           callEdge     = ((newCallStack, (fname, calleeNodeID)), callState)
 
-      -- Set up the downstream edge by extending the environment with `m_name`
-      -- bound to the return value.  Also pass the return value through.
-      let downstreamState = case m_name of
-            Just name -> AS.extendEnvWithRV name state
-            Nothing   -> state
-          downstreamEdge = ((stack, (thisFName, nextNodeID)), downstreamState)
-
-      return $ Map.fromList [callEdge, downstreamEdge]
+      return $ Map.fromList [callEdge]
 
     interpret_ _ _ CFail = return Map.empty
 
@@ -126,7 +129,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID canHave
     -- 
     -- The environment carries a summary of the "return value" of an expression.  We
     -- extend the environment with this summary assigned to `m_name`.
-    stackHead:stackTail | stackHead == loc ->
+    stackHead:stackTail | stackHead == (Loc loc) ->
       let
         -- Extend the environment with a summary of the loop body.
         state' = case m_name of
@@ -150,7 +153,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID canHave
       let
         -- The CFG has edges from the loop body back to this node, so push the body
         -- node ID to the worklist, extending the stack with this location.
-        bodyMap = ((loc:stack, (fname, bodyNodeID)), state)
+        bodyMap = ((safePush (Loc loc) stack, (fname, bodyNodeID)), state)
         
         -- For the loop exit, this case handles where the loop executes zero
         -- times, i.e. there is no result to bind from the loop body
@@ -239,12 +242,14 @@ findCavities m cfgm =
     replaceExitNodes states = 
       let exitLocs = Set.fromList $ map (\CFGFun{..} -> (cfgfunName, cfgfunExit)) (Map.elems $ cfgFuns cfgm)
           (exitStates, otherStates) = Map.partitionWithKey (\(_, loc) _ -> Set.member loc exitLocs) states
-          -- For each exit node, replace it with the call site popped from the stack.
+          -- For each exit node, replace it with the call site popped from the stack and push
+          -- a Returning node on the stack in its place.
           -- If the stack is empty, leave it.  This is a program exit.
           returnedStates = Map.mapKeys
             ( \(stack, loc) -> case stack of
-              callsite:locs -> (locs, callsite)
-              _ -> (stack, loc) -- At exit with no call stack: Leave for now, we'll remove these later.
+              (Loc callsite):locs -> (Returning:locs, callsite)
+              Returning:_ -> error "Encountered a 'Returning' call site on the stack at an exit node"
+              _ -> (stack, loc) -- At exit with no call stack: Leave for now, we'll handle these later.
             ) exitStates
       in
       AS.joins otherStates returnedStates
@@ -281,7 +286,11 @@ findCavities m cfgm =
           ) False exitStates
 
         isPrefixCavity :: AbstractStates -> AbstractState -> Bool
-        isPrefixCavity exitStates AS.AbstractState{asBounded=boundedAtCavity} = False
+        isPrefixCavity exitStates AS.AbstractState{asStreamReads=readBeforeCavity} = 
+          -- A prefix cavity has no reads prior to the cavity that are bounded.
+          Map.foldl (\acc exitState ->
+              acc || ThreadSet.existsDisjoint readBeforeCavity (AS.asBounded exitState)
+            ) False exitStates
 
         isSuffixCavity :: AbstractStates -> AbstractState -> Bool
         isSuffixCavity exitStates AS.AbstractState{asBounded=boundedAtCavity} =

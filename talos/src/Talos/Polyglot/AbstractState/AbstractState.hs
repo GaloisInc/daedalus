@@ -70,7 +70,11 @@ import Talos.Polyglot.Util
 data AbstractState = AbstractState
   { asEnv :: Env
   , asReadFrontier :: ReadFrontier
-  , asBounded :: ThreadSet NodeID
+
+  -- | All stream read locations.
+  , asStreamReads :: ThreadSet NodeID
+  -- | Bounded stream read locations.
+  , asBounded     :: ThreadSet NodeID
 
   -- | Summarizes the node to which this state is attached.
   , asReturnVal :: Env.Summary 
@@ -86,14 +90,21 @@ instance PP AbstractState where
         $$ (text "return-value" <+> colon <+> pp asReturnVal)
 
 empty :: AbstractState
-empty = AbstractState Map.empty Map.empty ThreadSet.emptyThread ThreadSet.emptyThread
+empty = AbstractState 
+  { asEnv=Map.empty
+  , asReadFrontier=Map.empty
+  , asStreamReads=ThreadSet.emptyThread
+  , asBounded=ThreadSet.emptyThread
+  , asReturnVal=ThreadSet.emptyThread
+  }
 
 join :: AbstractState -> AbstractState -> AbstractState
 join left right =
-  AbstractState{asEnv=env, asReadFrontier=rf, asBounded=bounded, asReturnVal=rv}
+  AbstractState{asEnv=env, asReadFrontier=rf, asStreamReads=sReads, asBounded=bounded, asReturnVal=rv}
   where
     env     = Env.join (asEnv left) (asEnv right)
     rf      = RF.join (asReadFrontier left) (asReadFrontier right)
+    sReads  = ThreadSet.join (asStreamReads left) (asStreamReads right)
     bounded = ThreadSet.join (asBounded left) (asBounded right)
     rv      = ThreadSet.join (asReturnVal left) (asReturnVal right)
 
@@ -117,6 +128,9 @@ extendEnv name summary state@AbstractState{..} = state{asEnv=Env.extend asEnv na
 
 extendBounded :: NodeID -> AbstractState -> AbstractState
 extendBounded nodeID state@AbstractState{..} = state{asBounded=ThreadSet.sequenceOne nodeID asBounded}
+
+extendStreamReads :: NodeID -> AbstractState -> AbstractState
+extendStreamReads nodeID state@AbstractState{..} = state{asStreamReads=ThreadSet.sequenceOne nodeID asStreamReads}
 
 -- | Extends the environment at `name` with the return value in `state`.
 extendEnvWithRV :: Name -> AbstractState -> AbstractState
