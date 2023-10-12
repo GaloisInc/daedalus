@@ -72,9 +72,9 @@ inducesBounds (MatchByte byteSet) = isByteSetBound byteSet
 
 -- MatchBytes is bounded except in pathological cases (I think).
 -- TODO(cns): Handle pathological cases.
-inducesBounds (MatchBytes expr) = return True
+inducesBounds (MatchBytes _) = return True
 
-inducesBounds MatchEnd = return False
+inducesBounds MatchEnd = return True
 
 isByteSetBound :: ByteSet -> PolyglotReader Bool
 isByteSetBound SetAny = return False
