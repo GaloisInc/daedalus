@@ -7,7 +7,7 @@ def BSON_document =
   block
     let len = LEUInt32 as ?auto
     len >= 5 is true    -- 4 for the length, 1 for the 0
-    $$ = Chunk (len - 0{-5-}) (Many BSON_element)
+    $$ = Chunk (len - 5) (Many BSON_element)
     $[0]
 
 def BSON_element =

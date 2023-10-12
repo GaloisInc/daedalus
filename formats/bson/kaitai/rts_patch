@@ -1,0 +1,27 @@
+diff --git a/kaitai/kaitaistream.cpp b/kaitai/kaitaistream.cpp
+index f3d95eb..9e01bcd 100644
+--- a/kaitai/kaitaistream.cpp
++++ b/kaitai/kaitaistream.cpp
+@@ -655,6 +655,10 @@ uint8_t kaitai::kstream::byte_array_max(const std::string val) {
+ #include <cerrno>
+ #include <stdexcept>
+ 
++std::string kaitai::kstream::bytes_to_str(const std::string src, const std::string enc) {
++  return kaitai::kstream::bytes_to_str(src, enc.c_str());
++}
++
+ std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src_enc) {
+     iconv_t cd = iconv_open(KS_STR_DEFAULT_ENCODING, src_enc);
+ 
+diff --git a/kaitai/kaitaistream.h b/kaitai/kaitaistream.h
+index 3523ed1..6f8729d 100644
+--- a/kaitai/kaitaistream.h
++++ b/kaitai/kaitaistream.h
+@@ -167,6 +167,7 @@ public:
+ 
+     static std::string bytes_strip_right(std::string src, char pad_byte);
+     static std::string bytes_terminate(std::string src, char term, bool include);
++    static std::string bytes_to_str(const std::string src, const std::string enc);
+     static std::string bytes_to_str(const std::string src, const char *src_enc);
+ 
+     //@}
