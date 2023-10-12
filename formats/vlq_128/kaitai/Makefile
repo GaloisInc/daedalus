@@ -9,6 +9,7 @@ RUNTIME_FILE=$(RTS)/build/lib$(RUNTIME).so
 
 parser: main.cpp $(GEN) $(RUNTIME_FILE)
 	g++ -I$(RTS) -L$(RTS)/build -o parser \
+	  -O3 \
 	  main.cpp vlq_base128_le.cpp \
 	  -l$(RUNTIME)
 
