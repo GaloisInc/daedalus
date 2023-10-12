@@ -13,7 +13,6 @@ module Talos.Path where
 import           Control.DeepSeq       (NFData)
 import           Control.Lens          (ix, (%~), (&))
 import           Data.ByteString       (ByteString)
-import           Data.Functor.Identity (Identity (Identity))
 import           Data.List             (transpose)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
@@ -24,7 +23,7 @@ import           Daedalus.Panic
 import           Daedalus.GUID (GUID)
 
 import           Talos.Analysis.Merge  (Merge (..))
-import           Talos.Analysis.Slice  (FInstId)
+import           Talos.Analysis.Slice  (FInstId, assertionsFID)
 
 --------------------------------------------------------------------------------
 -- Representation of paths/pathsets
@@ -49,7 +48,7 @@ data SelectedPathF ch ca fn lp a =
   --  | Fail ErrorSource Type (Maybe Expr)
   | SelectedDo (SelectedPathF ch ca fn lp a) (SelectedPathF ch ca fn lp a)
   | SelectedChoice (ch (SelectedPathF ch ca fn lp a))
-  | SelectedCall FInstId (SelectedPathF ch ca fn lp a)
+  | SelectedCall (fn (SelectedPathF ch ca fn lp a))
   | SelectedCase (ca (SelectedPathF ch ca fn lp a))
   | SelectedLoop (lp (SelectedPathF ch ca fn lp a))
   deriving (Functor, Foldable, Traversable, Generic)
@@ -154,7 +153,7 @@ fillCursorTarget fill = go
         (SelectedHole, _)                  -> badPath
         (SelectedBytes {}, _)              -> badPath
         (SelectedChoice pidx, _)           -> SelectedChoice (go pc' <$> pidx)
-        (SelectedCall fid sp', _)          -> SelectedCall fid (go pc' sp')
+        (SelectedCall (CallInstantiation fid sp'), _)          -> SelectedCall (CallInstantiation fid (go pc' sp'))
         (SelectedCase sp', _)              -> SelectedCase (go pc' <$> sp')
         (SelectedDo l r, PCDoLeft : rest)  -> SelectedDo (go rest l) r
         (SelectedDo l r, PCDoRight : rest) -> SelectedDo l (go rest r)
@@ -399,8 +398,9 @@ instance Merge (SelectedPathF PathIndex PathIndex CallInstantiation SelectedLoop
 
 instance ( Functor ch, PP (ch Doc)
          , Functor ca, PP (ca Doc)
-         , Functor lp, PP (lp Doc)
-         , PP a) => PP ( SelectedPathF ch ca lp a ) where
+         , Functor fn, PP (fn Doc)
+         , Functor lp, PP (lp Doc)         
+         , PP a) => PP ( SelectedPathF ch ca fn lp a ) where
   ppPrec n p =
     case p of
       SelectedHole       -> "□"
@@ -409,14 +409,14 @@ instance ( Functor ch, PP (ch Doc)
       SelectedChoice ch ->
           wrapIf (n > 0) $ "choice" <+> pp (pp <$> ch)
       SelectedCase   cs -> wrapIf (n > 0) $ "case" <+> ppPrec 1 (pp <$> cs)
-      SelectedCall   fid sp  -> wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> ppPrec 1 sp
+      SelectedCall   fn -> pp (pp <$> fn)
       SelectedLoop l -> pp (pp <$> l)
+
+instance PP a => PP (CallInstantiation a) where
+  ppPrec n (CallInstantiation fid sp) = wrapIf (n > 0) $ ("call" <> parens (pp fid)) <+> pp sp
 
 instance PP a => PP (PathIndex a) where
   pp (PathIndex i p) = pp i <> "@" <> pp p
-
-instance PP a => PP (CallInstantiation a) where
-    pp (CallInstantiation fid sp) = parens (pp fid) <+> ppPrec 1 sp
 
 instance PP a => PP (SelectedLoopF a) where
   pp l =
@@ -435,10 +435,6 @@ instance PP PathCursorElement where
       PCDoRight    -> "R"
       PCSequence i -> brackets (pp i)
       PCLoopPool ltag -> brackets ("?" <> pp ltag)
-
--- FIXME
-instance PP a => PP (Identity a) where
-  pp (Identity a) = pp a
 
 instance PP a => PP (SelectedLoopPoolF a) where
   pp slp =
@@ -462,8 +458,9 @@ ppPathCursor = hcat . map pp
 
 ppStmts' :: ( Functor ch, PP (ch Doc)
             , Functor ca, PP (ca Doc)
+            , Functor fn, PP (fn Doc)
             , Functor lp, PP (lp Doc)
-            , PP a) => SelectedPathF ch ca lp a -> Doc
+            , PP a) => SelectedPathF ch ca fn lp a -> Doc
 ppStmts' p =
   case p of
     SelectedDo g1 g2 -> pp g1 $$ ppStmts' g2

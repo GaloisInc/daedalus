@@ -5,39 +5,41 @@ module Talos.Strategy.Boltzmann (
   chooseTemperature,
   ) where
 
-import Control.Applicative
-import Control.Monad.IO.Class
-import Data.Functor
-import Data.Functor.Identity
-import Data.List
-import Data.Map (Map)
-import Data.Maybe
-import Data.Set (Set)
-import System.Random
+import           Control.Applicative
+import           Control.Monad.IO.Class
+import           Data.Functor
+import           Data.Functor.Identity
+import           Data.List
+import qualified Data.List                           as List
+import           Data.Map                            (Map)
+import qualified Data.Map                            as M
+import           Data.Maybe
+import           Data.Set                            (Set)
+import qualified Data.Set                            as S
+import           System.Random
 
-import qualified Data.List as List
-import qualified Data.Map as M
-import qualified Data.Set as S
+import           Daedalus.Core.Basics
+import           Daedalus.Core.Decl
+import           Daedalus.Core.Grammar
+import           Daedalus.GUID
+import           Daedalus.Rec
 
-import Daedalus.Core.Basics
-import Daedalus.Core.Decl
-import Daedalus.Core.Grammar
-import Daedalus.GUID
-import Daedalus.Rec
+import           Talos.Analysis                      (absEnvTys, summarise)
+import           Talos.Analysis.AbsEnv               (AbsEnvTy (AbsEnvTy))
+import           Talos.Analysis.Slice                (assertionsFID)
+import           Talos.Path
+import qualified Talos.Strategy.Boltzmann.Newton     as Newton
+import           Talos.Strategy.Boltzmann.Polynomial
+import           Talos.Strategy.Boltzmann.Types
+import           Talos.Strategy.Boltzmann.Util
+import           Talos.Strategy.Monad
+import Talos.Monad (TalosM, getModule)
+import Daedalus.Panic (panic)
 
-import Talos.Analysis (summarise, absEnvTys)
-import Talos.Analysis.AbsEnv (AbsEnvTy(AbsEnvTy))
-import Talos.Analysis.Slice (assertionsFID)
-import Talos.Strategy.Boltzmann.Polynomial
-import Talos.Strategy.Boltzmann.Types
-import Talos.Strategy.Boltzmann.Util
-import Talos.Strategy.Monad
-import qualified Talos.Strategy.Boltzmann.Newton as Newton
-
-import Talos.SymExec.Path
-
-printRandomPath :: Module -> FName -> String -> IO ()
-printRandomPath md mainRule absEnvNm = ioStrategyM md absEnvNm $ do
+printRandomPath :: FName -> String -> TalosM ()
+printRandomPath mainRule absEnvNm = do
+  md <- getModule
+  ioStrategyM md absEnvNm $ do
     wp <- getBoltzmannWeight mainRule
     sp <- randomSelectedPath wp
     liftIO . print . pp $ sp
@@ -53,15 +55,16 @@ chooseTemperature temperature md = M.mapMaybe pathFor ge where
         Fun { fDef = Def grammar } -> Just (grammarChoices gfs weights grammar)
         _ -> Nothing
 
-ioStrategyM :: Module -> String -> StrategyM a -> IO ()
+ioStrategyM :: Module -> String -> StrategyM a -> TalosM ()
 ioStrategyM md absEnvNm act = case lookup absEnvNm absEnvTys of
     Just (AbsEnvTy env) -> do
+        ss <- summarise env
         gen <- newStdGen
-        void . runStrategyM act $ emptyStrategyMState gen summaries weights md guid
+        st  <- makeStrategyMState gen ss weights
+        void (runStrategyM st act)
         where
-        (summaries, guid) = summarise env md firstValidGUID
         weights = chooseTemperature 0.49 md
-    Nothing -> fail $ "Couldn't find abstraction environment " ++ absEnvNm
+    Nothing -> panic ("Couldn't find abstraction environment " ++ absEnvNm) []
 
 type GrammarEnv = Map FName (Fun Grammar)
 
@@ -170,7 +173,8 @@ solveEquations :: Double -> Map FName GrammarGF -> Map FName Double
 solveEquations temperature eqns = Newton.fixedPoint 1e-6 (newtonPoly temperature <$> eqns)
 
 grammarChoices :: Map FName GrammarGF -> Map HotName Double -> Grammar -> WeightedPath
-grammarChoices gfs weights = go where
+grammarChoices gfs weights = go
+  where
     go = \case
         -- TODO: surely not all of these are SelectedHole
         Pure{} -> SelectedHole
@@ -201,8 +205,8 @@ randomSelectedPath = \case
         wp <- getBoltzmannWeight fn
         SelectedCall . CallInstantiation assertionsFID <$> randomSelectedPath wp
     SelectedCase (WeightedCase (Case _ ps)) -> do
-        (_, p) <- categorical (snd <$> ps)
-        SelectedCase . Identity <$> randomSelectedPath p
+        (i, p) <- categorical (snd <$> ps)
+        SelectedCase . PathIndex i <$> randomSelectedPath p
     SelectedBytes _ _ -> error "The impossible happened: the Boltzmann path generator produced a SelectedBytes path"
 
 categorical :: LiftStrategyM m => [Weighted a] -> m (Int, a)

@@ -52,7 +52,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue  (MuxValue, SemiSolverM,
                                                             -- )
 import           Talos.Monad                           (LiftTalosM, LogKey)
 import           Talos.Path                            (ProvenanceTag,
-                                                        SelectedPathF)
+                                                        SelectedPathF, CallInstantiation)
 import qualified Talos.Solver.SolverT                  as Solv
 import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
                                                         SolverT, liftSolver)

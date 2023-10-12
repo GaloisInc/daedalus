@@ -43,7 +43,7 @@ import qualified Data.Vector               as V
 import qualified Data.Vector.Mutable       as V
 import           System.Random
 
-import           Daedalus.Core             (Expr (Struct), Name,
+import           Daedalus.Core             (Expr (Struct), Name, FName,
                                             SizeType (TSize), TDecl (tDef),
                                             TDef (TBitdata, TStruct, TUnion),
                                             TName, Type (..), UserType (utName),
@@ -57,8 +57,8 @@ import           Daedalus.PP
 import           Daedalus.GUID             (HasGUID)
 import           Talos.Analysis.Exported
 import           Talos.Analysis.Monad         (Summaries)
-import           Talos.SymExec.Path
-import           Talos.SymExec.SolverT        (SolverT)
+import           Talos.Path
+import           Talos.Solver.SolverT         (SolverT)
 import           Talos.Strategy.Boltzmann.Types (WeightedPath)
 import           Talos.Strategy.OptParser (Parser, runParser)
 import qualified Talos.Strategy.OptParser as P

@@ -259,7 +259,7 @@ synthesise m_seed solv (AbsEnvTy p) strats root = S.effect $ do
   where
     -- go :: StrategyMState -> ModelCache -> Generator (I.Value, ByteString, ProvenanceMap) ()
     go rootDecl (s0, mc) = do
-      let once = synthesiseCallG assertionsCI SelectedHole (fName rootDecl) []
+      let once = synthesiseCallG assertionsCI (fName rootDecl) []
       
       ((a, s), sts) <-
         runStrategyM s0 (runStateT (runReaderT (getSynthesisM once) env0)

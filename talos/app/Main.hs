@@ -4,7 +4,7 @@
 
 module Main where
 
-import           Control.Monad         (when)
+import           Control.Monad         (when, void)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromMaybe)
@@ -26,7 +26,7 @@ import Data.Maybe (fromMaybe)
 
 import Daedalus.GUID (runFresh)
 import Data.Foldable (traverse_)
-
+import Talos.Monad (runTalosM)
 
 -- debugging
 -- import qualified SimpleSMT as S
@@ -138,8 +138,8 @@ doSynthesis opts = do
 doCallGraph :: Options -> IO ()
 doCallGraph opts = do
   let absEnv = fromMaybe "fields" (optAnalysisKind opts)
-  (mainRule, md, _nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts)
-  printRandomPath md mainRule absEnv
+  (mainRule, md, nguid) <- runDaedalus (optDDLInput opts) (optInvFile opts) (optDDLEntry opts) (optNoLoops opts)
+  void $ runTalosM md nguid mempty mempty mempty $ printRandomPath mainRule absEnv
 
 prettyHexWithProv :: ProvenanceMap -> BS.ByteString -> String
 prettyHexWithProv provmap bs =

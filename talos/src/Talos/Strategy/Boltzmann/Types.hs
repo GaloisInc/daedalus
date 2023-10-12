@@ -13,7 +13,7 @@ import Data.Void
 import Daedalus.Core.Basics
 import Talos.Strategy.Boltzmann.Polynomial
 import Talos.Strategy.Boltzmann.Util
-import Talos.SymExec.Path
+import Talos.Path
 
 data Weighted a = Weighted
     { weight :: Double
@@ -32,8 +32,11 @@ instance PP a => PP (WeightedChoice a) where
 newtype WeightedCase a = WeightedCase (Case (Weighted a))
     deriving (Functor, Foldable, Traversable, PP)
 
+newtype WeightedLoop a = WeightedLoop { wl :: (Weighted a) }
+    deriving (Functor, Foldable, Traversable, PP)
+
 data FName1 a = FName1 FName deriving (Functor, Foldable, Traversable)
 
 instance PP (FName1 a) where ppPrec _ (FName1 fn) = space <> pp fn
 
-type WeightedPath = SelectedPathF WeightedChoice WeightedCase FName1 Void
+type WeightedPath = SelectedPathF WeightedChoice WeightedCase FName1 WeightedLoop Void
