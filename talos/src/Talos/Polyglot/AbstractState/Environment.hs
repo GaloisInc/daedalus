@@ -55,11 +55,11 @@ summarizeExpr env (Var name) = return $ Map.findWithDefault ThreadSet.emptyThrea
 summarizeExpr env (PureLet _ left right) = do
   leftSummary <- summarizeExpr env left
   rightSummary <- summarizeExpr env right
-  return $ ThreadSet.join leftSummary rightSummary
+  return $ ThreadSet.sequence leftSummary rightSummary
 
 summarizeExpr env (Struct _ fields) = do
   summaries <- sequence $ map ((summarizeExpr env) . snd) fields
-  return $ foldl ThreadSet.join ThreadSet.empty summaries
+  return $ foldl ThreadSet.sequence ThreadSet.emptyThread summaries
 
 summarizeExpr env (ECase Case{..}) = do
   let varSummary = Map.findWithDefault ThreadSet.emptyThread caseVar env
@@ -72,23 +72,20 @@ summarizeExpr _ (Ap0 _) = return ThreadSet.emptyThread
 
 summarizeExpr env (Ap1 _ e1) = summarizeExpr env e1
 
-summarizeExpr env (Ap2 _ e1 e2) = do
-  summaries <- sequence $ map (summarizeExpr env) [e1, e2]
-  return $ foldl ThreadSet.join ThreadSet.empty summaries
+summarizeExpr env (Ap2 _ e1 e2) = sequenceExprs env [e1, e2]
 
-summarizeExpr env (Ap3 _ e1 e2 e3) = do
-  summaries <- sequence $ map (summarizeExpr env) [e1, e2, e3]
-  return $ foldl ThreadSet.join ThreadSet.empty summaries
+summarizeExpr env (Ap3 _ e1 e2 e3) = sequenceExprs env [e1, e2, e3]
 
 summarizeExpr env (ApN (CallF name) exprs) = do
   ffun <- getFFun name
   case fDef ffun of
     External -> return ThreadSet.emptyThread
     Def body -> do
-      fSum <- summarizeExpr env body
-      summaries <- sequence $ map (summarizeExpr env) exprs
-      return $ foldl ThreadSet.join ThreadSet.empty (fSum:summaries)
+      sequenceExprs env (body:exprs)
 
-summarizeExpr env (ApN op exprs) = do
+summarizeExpr env (ApN _ exprs) = sequenceExprs env exprs
+
+sequenceExprs :: Env -> [Expr] -> PolyglotReader Summary
+sequenceExprs env exprs = do
   summaries <- sequence $ map (summarizeExpr env) exprs
-  return $ foldl ThreadSet.join ThreadSet.empty summaries
+  return $ foldl ThreadSet.sequence ThreadSet.emptyThread summaries

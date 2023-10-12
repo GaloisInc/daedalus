@@ -43,7 +43,7 @@ interpret stackLoc@(_, l) st = do
       summary <- Env.summarizeExpr (AS.asEnv state) expr
       let newState  = AS.extendRV state summary
           newState' = case m_name of
-            Just name -> AS.extendEnv newState name summary
+            Just name -> AS.extendEnv name summary newState
             Nothing -> newState
       return $ Map.singleton (stack, (thisName, nextNodeID)) newState'
 
@@ -55,8 +55,8 @@ interpret stackLoc@(_, l) st = do
       let summary      = ThreadSet.singleton thisNodeID
           state'       = case m_name of
             Nothing   -> state
-            Just name -> AS.extendEnv state name summary
-          state''      = if isBounded then state' else AS.extendRF state' thisNodeID
+            Just name -> AS.extendEnv name summary state
+          state''      = if isBounded then AS.extendBounded thisNodeID state' else AS.extendRF thisNodeID state' 
           state'''     = AS.extendRV state'' summary
       return $ Map.singleton (stack, (thisName, nextNodeID)) state'''
 
@@ -70,7 +70,7 @@ interpret stackLoc@(_, l) st = do
       -- Set up call edge by extending the environment to map the formal
       -- parameter names to summaries of the actual arguments.
       summaries <- sequence $ map (Env.summarizeExpr $ AS.asEnv state) exprs
-      let callState    = foldl (\acc (n, s) -> AS.extendEnv acc n s) state (zip paramNames summaries)
+      let callState    = foldl (\acc (n, s) -> AS.extendEnv n s acc) state (zip paramNames summaries)
           -- This is our loop widening: flatten all cycles into one cycle.
           newCallStack = if List.elem thisLoc stack then stack else thisLoc:stack
           callEdge     = ((newCallStack, (fname, calleeNodeID)), callState)
@@ -78,7 +78,7 @@ interpret stackLoc@(_, l) st = do
       -- Set up the downstream edge by extending the environment with `m_name`
       -- bound to the return value.  Also pass the return value through.
       let downstreamState = case m_name of
-            Just name -> AS.extendEnvWithRV state name
+            Just name -> AS.extendEnvWithRV name state
             Nothing   -> state
           downstreamEdge = ((stack, (thisFName, nextNodeID)), downstreamState)
 
@@ -102,22 +102,22 @@ interpret stackLoc@(_, l) st = do
       in
       return $ foldl AS.joins Map.empty mapResults
 
-    interpret_ loc state (CLoop m_name (ManyLoop _ _ _ _ bodyNodeID) nextNodeID) =
-      return $ interpretLoop loc state m_name bodyNodeID nextNodeID
+    interpret_ loc state (CLoop m_name (ManyLoop _ _ lower _ bodyNodeID) nextNodeID) =
+      return $ interpretLoop loc state m_name bodyNodeID nextNodeID (case lower of Ap0 (IntL n _) -> n == 0; _ -> True)
 
     interpret_ loc state (CLoop m_name (RepeatLoop _ _ _ bodyNodeID) nextNodeID) =
-      return $ interpretLoop loc state m_name bodyNodeID nextNodeID
+      return $ interpretLoop loc state m_name bodyNodeID nextNodeID True
 
     interpret_ loc state (CLoop m_name (MorphismLoop (FoldMorphism _ _ _ bodyNodeID)) nextNodeID) =
-      return $ interpretLoop loc state m_name bodyNodeID nextNodeID
+      return $ interpretLoop loc state m_name bodyNodeID nextNodeID True
 
     interpret_ loc state (CLoop m_name (MorphismLoop (MapMorphism _ bodyNodeID)) nextNodeID) =
-      return $ interpretLoop loc state m_name bodyNodeID nextNodeID
+      return $ interpretLoop loc state m_name bodyNodeID nextNodeID True
 
 -- | Provides a common interpretation for various Daedalus loop structures.
-interpretLoop :: (CallStack, Loc) -> AbstractState -> (Maybe Name) -> NodeID -> NodeID -> AbstractStates
+interpretLoop :: (CallStack, Loc) -> AbstractState -> (Maybe Name) -> NodeID -> NodeID -> Bool -> AbstractStates
 
-interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
+interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID canHaveZeroIterations =
   case stack of
     -- This case handles the loop edge(s) from the body of ManyLoop back to the loop head,
     -- which are identifiable when this node's location is already on the top of the
@@ -129,7 +129,7 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
       let
         -- Extend the environment with a summary of the loop body.
         state' = case m_name of
-          Just name -> AS.extendEnvWithRV state name
+          Just name -> AS.extendEnvWithRV name state
           Nothing   -> state
 
         -- On entering the loop, we pushed this location on the stack.  Now that we're
@@ -156,9 +156,18 @@ interpretLoop (stack, loc@(fname, _)) state m_name bodyNodeID nextNodeID =
         -- (technically the value is `[]` which contains no node IDs). The `loc
         -- == loc_` case of `interpret_` handles the other loop cases.
         state' = AS.extendRV state ThreadSet.emptyThread
-        nextMap = ((stack, (fname, nextNodeID)), state')
+
+        -- Extend the environment with an empty summary of the loop body.
+        state'' = case m_name of
+          Just name -> AS.extendEnv name ThreadSet.emptyThread state'
+          Nothing   -> state'
+
+        nextMap = ((stack, (fname, nextNodeID)), state'')
         in
-      AS.abstractStatesFromList [bodyMap, nextMap]
+      if canHaveZeroIterations then
+        AS.abstractStatesFromList [bodyMap, nextMap]
+      else
+        AS.abstractStatesFromList [bodyMap]
 
 
 -- | Starting at "Main", applies abstract interpretation to the CFG until
@@ -222,9 +231,25 @@ findCavities m cfgm =
 
     -- Find NodeIDs that that contain themselves in their read frontiers.
     findCavityReadLocs :: AbstractStates -> [Loc]
-    findCavityReadLocs states = map snd $ Map.keys $ Map.filterWithKey isCavityLoc states
+    findCavityReadLocs states = 
+      let candidateStates = Map.filterWithKey isCandidateLoc states
+          exitStates      = Map.filterWithKey (\(_, loc) _ -> isExitNode loc) states
+          cavities        = Map.filterWithKey (isUnboundedAtExit exitStates) candidateStates
+      in
+      map snd $ Map.keys cavities
       where
-        isCavityLoc (_, (_, nodeID)) AbstractState{..} = RF.contains asReadFrontier nodeID nodeID
+        -- Candidates are locations that appear in their own read frontiers.
+        isCandidateLoc (_, (_, nodeID)) AbstractState{..} = RF.contains asReadFrontier nodeID nodeID
+
+        isUnboundedAtExit :: AbstractStates -> (CallStack, Loc) -> AbstractState -> Bool
+        isUnboundedAtExit exitStates (_, (_, thisNodeID)) AS.AbstractState{asReadFrontier=readFrontier} =
+          Map.foldl (\acc exitState ->
+            let thisRF   = readFrontier Map.! thisNodeID
+                rfWithID = ThreadSet.filter (Set.member thisNodeID) thisRF
+                bounded  = AS.asBounded exitState
+                in
+            acc || ThreadSet.existsDisjoint rfWithID bounded
+          ) False exitStates
 
 -- | Gets the entrypoint for the "Main" function.  Calls `error` if "Main" does not
 -- exist.

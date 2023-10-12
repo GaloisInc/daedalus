@@ -17,53 +17,60 @@ import           Talos.Polyglot.AbstractState.Environment (Env)
 import qualified Talos.Polyglot.AbstractState.Environment as Env
 import           Talos.Polyglot.AbstractState.ReadFrontier (ReadFrontier)
 import qualified Talos.Polyglot.AbstractState.ReadFrontier as RF
+import           Talos.Polyglot.AbstractState.ThreadSet (ThreadSet)
 import qualified Talos.Polyglot.AbstractState.ThreadSet as ThreadSet
 
 import Talos.Polyglot.Location
 import Talos.Polyglot.Util
 
--- | The abstract state serves three purposes.
+-- | Abstract state tracks information necessary to detect cavity existence and
+-- location.  A stream read location is part of a cavity if
 -- 
--- 1. To determine if a value previously read from the stream can cause parsing
--- to fail, implying that stream read is constrained.
+-- 1. It is part of a control flow cycle.
 -- 
--- For this, we map variables to sets of abstract values with base values
--- replaced with the node ID where they originated.  Note that the analysis is
--- not flow sensitive, so the environment may admit infeasible combinations of
--- abstract values.
+-- 2. No stream read on the cycle is "bounded", i.e. tested in a way that can
+--    lead the parser to fail.  Note that data read from the stream may be stored
+--    and tested later, so there must exist at least one control flow path to
+--    parser exit on which no stream read is bounded.
 -- 
--- A stream read is considered "bound" on control flow branches that depend on
--- equality constraints on the value, e.g. `x == 1` is bound, `x != 1` is not,
--- nor is `x == y` so long as both x and y are unbound.
+-- A cavity is a prefix cavity if it can be reached without encountering a
+-- bounded read; a path to parser exit must exist on which no read prior to the
+-- cavity is later bounded.
 -- 
--- 2. To determine whether a cycle exists consisting of at least one unbounded
--- stream read and no bounded reads.
+-- A cavity is a suffix cavity if execution after the cavity can reach parser
+-- exit without encountering a bounded read.
 -- 
--- For each stream read (identified by node ID), we track whether we are part of
--- such a cycle by tracking sets of stream reads (again by node ID) encountered
--- thereafter, where each set represents the reads encountered on a unique path.
--- When a stream read is discovered to be bound, any sets containing it are
--- removed.  If all sets associated with a stream read are removed, then the
--- read is not part of a cavity cycle.
+-- An abstract state tracks per-flow information.  The analysis is context sensitive
+-- but flow-insensitive; that is, it may contain infeasible flows.  It maintains
 -- 
--- 3. For each such cycle, can it be reached from the program entrypoint without
--- any bounded reads, and can it in turn reach a program exitpoint without any
--- bounded reads.
+-- 1. An environment, to map variables to stream read locations that flow into the
+--    variable's value; if the variable is part of a condition that leads to
+--    failure, then it's dependent stream reads are considered bounded.
+-- 
+-- 2. A read frontier, to map each read location to read locations that follow it in
+--    the CFG.
 --
--- TODO(cns): Add prefix/suffix to the read frontier.
-
--- TODO(cns): Track bounded node IDs per path?  Then a cavity is a self loop +
--- at least one path to an exit where it's not bound.  A suffix is a cavity that
--- still has itself in its read frontier at a program exit.  And a prefix is a
--- cavity that has an empty set in the bound sets at its location.  (Note, we
--- need to be more careful to track empty sets.)
-
--- Check mergeUnion.  I think we want two operations, union (combining different
--- paths) and sequence (adding a new node to all existing paths).
-
+--    As an optimization, all reads on a flow are removed from the read frontier if
+--    any read on that flow is bounded.
+-- 
+-- 3. A bounded set, which contains read locations that have been bounded
+--    at a given location.
+-- 
+-- A stream read is part of a cycle if it is present in its own read frontier at the
+-- read location.
+--
+-- A stream read is part of a cavity if the read locations in its read frontier are
+-- not in the bounded set at at least one exit location.
+--
+-- A stream read is part of a prefix cavity if the bounded set is empty at the read
+-- location.
+--
+-- A stream read is part of a suffix cavity if there are no new read locations in
+-- the bounded set of at least one exit location.
 data AbstractState = AbstractState
   { asEnv :: Env
   , asReadFrontier :: ReadFrontier
+  , asBounded :: ThreadSet NodeID
 
   -- | Summarizes the node to which this state is attached.
   , asReturnVal :: Env.Summary 
@@ -75,38 +82,45 @@ instance PP AbstractState where
       body =
         (text "env" <+> colon <+> Env.ppEnv asEnv)
         $$ (text "read-frontier" <+> colon <+> RF.ppReadFrontier asReadFrontier)
+        $$ (text "bounded" <+> colon <+> pp asBounded)
         $$ (text "return-value" <+> colon <+> pp asReturnVal)
 
 empty :: AbstractState
-empty = AbstractState Map.empty Map.empty ThreadSet.emptyThread
+empty = AbstractState Map.empty Map.empty ThreadSet.emptyThread ThreadSet.emptyThread
 
 join :: AbstractState -> AbstractState -> AbstractState
 join left right =
-  AbstractState{asEnv=env, asReadFrontier=rf, asReturnVal=rv}
+  AbstractState{asEnv=env, asReadFrontier=rf, asBounded=bounded, asReturnVal=rv}
   where
-    env = Env.join (asEnv left) (asEnv right)
-    rf  = RF.join (asReadFrontier left) (asReadFrontier right)
-    rv  = ThreadSet.join (asReturnVal left) (asReturnVal right)
+    env     = Env.join (asEnv left) (asEnv right)
+    rf      = RF.join (asReadFrontier left) (asReadFrontier right)
+    bounded = ThreadSet.join (asBounded left) (asBounded right)
+    rv      = ThreadSet.join (asReturnVal left) (asReturnVal right)
 
 addBoundsFromPattern :: AbstractState -> Name -> Pattern -> AbstractState
 addBoundsFromPattern state@AbstractState{..} var pat = 
   -- Get IDs for var, then bound each ID.
   -- TODO(cns): Extract new variables from pat and copy state from var.
   let nodeIDs = ThreadSet.flatten (Map.findWithDefault ThreadSet.empty var asEnv)
-      newRF   = RF.applyBounds asReadFrontier nodeIDs in
-  state{asReadFrontier=newRF}
+      newRF   = RF.applyBounds asReadFrontier nodeIDs
+      newBounds = ThreadSet.sequenceMany nodeIDs asBounded 
+      in
+  state{asReadFrontier=newRF, asBounded=newBounds}
 
 -- | Add `nodeID` to all sets.  If `nodeID` is not already in the domain of the
 -- read frontier, add it with an empty set.
-extendRF :: AbstractState -> NodeID -> AbstractState
-extendRF state@AbstractState{..} nodeID = state{asReadFrontier=RF.sequenceOne asReadFrontier nodeID}
+extendRF :: NodeID -> AbstractState -> AbstractState
+extendRF nodeID state@AbstractState{..} = state{asReadFrontier=RF.sequenceOne asReadFrontier nodeID}
 
-extendEnv :: AbstractState -> Name -> Env.Summary -> AbstractState
-extendEnv state@AbstractState{..} name summary = state{asEnv=Env.extend asEnv name summary}
+extendEnv :: Name -> Env.Summary -> AbstractState -> AbstractState
+extendEnv name summary state@AbstractState{..} = state{asEnv=Env.extend asEnv name summary}
+
+extendBounded :: NodeID -> AbstractState -> AbstractState
+extendBounded nodeID state@AbstractState{..} = state{asBounded=ThreadSet.sequenceOne nodeID asBounded}
 
 -- | Extends the environment at `name` with the return value in `state`.
-extendEnvWithRV :: AbstractState -> Name -> AbstractState
-extendEnvWithRV state@AbstractState{..} name = state{asEnv=Map.alter f name asEnv}
+extendEnvWithRV :: Name -> AbstractState -> AbstractState
+extendEnvWithRV name state@AbstractState{..} = state{asEnv=Map.alter f name asEnv}
   where
     f Nothing        = Just asReturnVal
     f (Just summary) = Just (ThreadSet.join summary asReturnVal)

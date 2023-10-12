@@ -44,6 +44,14 @@ join (ThreadSet left) (ThreadSet right) = ThreadSet $ Set.union left right
 sequenceOne :: Ord a => a -> ThreadSet a -> ThreadSet a
 sequenceOne elt (ThreadSet left) = ThreadSet $ Set.map (Set.insert elt) left
 
+-- | Add `elts` to all threads.
+sequenceMany :: Ord a => Set a -> ThreadSet a -> ThreadSet a
+sequenceMany elts left = Set.foldl (\acc elt -> sequenceOne elt acc) left elts
+
+-- | Adds each thread in right to all threads in left.
+sequence :: Ord a => ThreadSet a -> ThreadSet a -> ThreadSet a
+sequence left (ThreadSet right) = Set.foldl (\acc rt -> sequenceMany rt acc) left right
+
 -- | Return a set of all node IDs in the ThreadSet.
 flatten :: Ord a => ThreadSet a -> Set a
 flatten (ThreadSet threads) = Set.foldl Set.union Set.empty threads
@@ -55,6 +63,24 @@ removeAllIntersecting elts (ThreadSet threads) = ThreadSet $ Set.filter (Set.dis
 -- | True if any set contains elt.
 contains :: Ord a => a -> ThreadSet a -> Bool
 contains elt (ThreadSet threads) = Set.foldl (\acc thread -> acc || Set.member elt thread) False threads
+
+-- | Test if the predicate holds on at least one thread in the set.
+existsThread :: Ord a => (Set a -> Bool) -> ThreadSet a -> Bool
+existsThread p (ThreadSet threads) = Set.foldl (\acc set -> acc || p set) False threads
+
+-- | Remove threads that do not match the predicate.
+filter :: Ord a => (Set a -> Bool) -> ThreadSet a -> ThreadSet a
+filter p (ThreadSet threads) = ThreadSet $ Set.filter p threads
+
+-- | True if there exists a thread lt in left and rt in right such that t1 and
+-- t2 are disjoins.
+existsDisjoint :: Ord a => ThreadSet a -> ThreadSet a -> Bool
+existsDisjoint (ThreadSet left) (ThreadSet right) = 
+  Set.foldl (\lacc lt -> 
+    lacc || (Set.foldl (\racc rt -> 
+      Set.disjoint lt rt || racc 
+    ) False right)
+  ) False left
 
 instance (Ord a, PP a) => PP (ThreadSet a) where
   pp (ThreadSet threads)= braces . hsep $ map doThread (Set.toList threads)
