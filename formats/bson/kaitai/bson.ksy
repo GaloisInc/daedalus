@@ -144,16 +144,12 @@ types:
             'bson_type::number_int': s4_value
             'bson_type::timestamp': timestamp
             'bson_type::number_long': s8_value
-            'bson_type::number_decimal': f16_value
+            'bson_type::number_decimal': f16
     types:
       f8_value:
         seq:
           - id: value
             type: f8
-      f16_value:
-        seq:
-          - id: value
-            type: f16
       u1_value:
         seq:
           - id: value
