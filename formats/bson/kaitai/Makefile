@@ -14,7 +14,7 @@ parser: main.cpp $(GEN) $(RUNTIME_FILE)
 	  -l$(RUNTIME)
 
 run: parser
-	LD_LIBRARY_PATH=$(RTS)/build ./parser ../bson-examples/as_c_aset.bson
+	LD_LIBRARY_PATH=$(RTS)/build ./parser ../data.dat
 
 $(GEN): bson.ksy
 	ksc --target=cpp_stl $<

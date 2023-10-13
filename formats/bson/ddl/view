@@ -1,0 +1,11 @@
+#!/bin/bash
+
+FMT=html
+
+cabal exec daedalus \
+  --verbose=0 \
+  -- \
+  run BSON.ddl \
+  --entry=BSON_document \
+  --$FMT \
+  --input $1 > "$(basename $1 .bson).$FMT"

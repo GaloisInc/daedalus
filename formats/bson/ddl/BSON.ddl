@@ -58,21 +58,28 @@ def BSON_string =
   block
     let len = LEUInt32 as ?auto
     len > 0 is true   -- 0 terminator
-    $$ = Chunk (len - 1) (Only (Many UTF8))
+    $$ = Chunk (len - 1)
+           block
+             let str = GetStream
+             Many UTF8
+             END
+             bytesOfStream str
     $[0]
+
+
 
 def BSON_cstring =
   block
-    let res =
-         many (s = { buf = builder, done = false })
+    let str = GetStream
+    let start = Offset
+    let done =
+         many (done = false)
            block
-             s.done is false
-             let c = UTF8
-             case c of
-               0 -> { buf = s.buf; done = true }
-               _ -> { buf = emit s.buf c; done = false }
-    res.done is true <| Fail "Malformed cstring"
-    build res.buf
+             done is false
+             UTF8 == 0
+    done is true <| Fail "Malformed cstring"
+    let end = Offset
+    bytesOfStream (take (end - start - 1) str)
 
 def BSON_binary =
   BSON_chunk

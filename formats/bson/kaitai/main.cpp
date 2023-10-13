@@ -36,6 +36,6 @@ int main(int argc, char* argv[]) {
   kaitai::kstream ks(&file);
   uint64_t sum = 0;
   bson_t doc(&ks);
-  std::cout << doc_size(&doc);
+  std::cout << doc_size(&doc) << std::endl;
   return 0;
 }

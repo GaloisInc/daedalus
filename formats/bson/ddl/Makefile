@@ -7,7 +7,7 @@
 	cp out/parser .
 
 run: parser
-	./parser ../bson-examples/as_c_aset.bson
+	./parser ../data.dat
 
 clean:
 	rm -rf parser out

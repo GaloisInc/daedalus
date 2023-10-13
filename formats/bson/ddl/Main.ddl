@@ -1,6 +1,8 @@
 import BSON
+import Daedalus
+import utf8
 
-def Main = doc_size BSON_document
+def Main = doc_size (Only BSON_document)
 
 def value_size (v : BSON_value) =
   case v of
