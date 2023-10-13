@@ -1,0 +1,19 @@
+cabal-version:      3.0
+name:               bson-hs
+version:            0.1.0.0
+license:            ISC
+license-file:       LICENSE
+author:             Iavor S. Diatchki
+maintainer:         iavor.diatchki@gmail.com
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+executable bson-hs
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:    base, bson, binary, bytestring, text
+    hs-source-dirs:   app
+    default-language: Haskell2010
