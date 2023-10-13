@@ -155,14 +155,13 @@ public:
     return compare(x.name,y.name);
   }
 
-
   Array<UInt<8>> getByteArray() {
-    if (offset == 0) {
+    auto len = length();
+    if (bytes.size() == len) {
       bytes.copy(); return bytes;
     }
 
-    auto off = offset.rep();
-    return Array{bytes.borrowData() + off, bytes.size().rep() - off};
+    return Array{bytes.borrowData() + offset.rep(), len};
   }
 
   Array<UInt<8>> getName()          { name.copy(); return name; }
