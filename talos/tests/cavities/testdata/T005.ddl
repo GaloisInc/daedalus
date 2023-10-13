@@ -1,4 +1,3 @@
-
 -- Test that a recursive loop with a builder and a guard is detected as a
 -- cavity.
 
