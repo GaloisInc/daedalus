@@ -26,8 +26,6 @@ sexps :: { [SExp] }
   | sexps sexp      { $2 : $1 }
 
 {
-type Parser a = [Token]
-
 data SExp  = Symbol ByteString | Node [SExp]
 happyError _ = Nothing
 }
