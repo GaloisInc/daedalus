@@ -16,6 +16,8 @@ packages:
   formats/vlq_128/ddl-hs/
   formats/bson/ddl-hs/
   formats/bson/hs
+  formats/s-exp/ddl-hs/
+  formats/s-exp/happy
   talos/
   daedalus-language-server/
   standalone/cabal-pack/
