@@ -1,5 +1,6 @@
-.PHONY: clean run
+.PHONY: clean build run
 
+build: parser
 
 ./parser: Main.ddl BSON.ddl
 	cabal exec daedalus -- compile-c++ $< --out-dir=out

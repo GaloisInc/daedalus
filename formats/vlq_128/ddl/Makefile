@@ -1,7 +1,8 @@
-.PHONY: clean run
+.PHONY: clean build run
 
+build: parser
 
-./parser: vlq_128.ddl
+parser: vlq_128.ddl
 	cabal exec daedalus -- compile-c++ $< --out-dir=out
 	make -C out
 	cp out/parser .

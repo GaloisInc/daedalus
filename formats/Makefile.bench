@@ -1,0 +1,29 @@
+TIME=/usr/bin/time -f%e
+
+.PHONY: run build clean
+
+run: build
+	@echo "[Running]"
+	@for i in $(TGTS);\
+	  do echo $$(basename $$i);\
+	     $(TIME) make run -s -C $$i;\
+	  done
+	@echo "[done]"
+
+
+build: data.dat
+	@echo "[Building]"
+	@for i in $(TGTS);\
+	  do echo $$(basename $$i);\
+	     make build -s -C $$i;\
+	  done
+	@echo "[done]"
+
+data.dat: make-data.hs
+	./$<
+
+clean:
+	@echo "[Cleaning]"
+	@rm -f data.dat
+	@for i in $(TGTS); do make clean -s -C $$i; done
+	@echo "[done]"

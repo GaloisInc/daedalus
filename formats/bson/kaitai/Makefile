@@ -1,4 +1,7 @@
-.PHONY: run clean
+.PHONY: run build clean
+
+
+build: parser
 
 GEN=bson.cpp bson.h
 

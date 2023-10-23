@@ -1,5 +1,4 @@
-clean:
-	rm -f data.dat
-	make clean -C ddl
-	make clean -C ddl-hs
-	make clean -C kaitai
+TGTS=ddl ddl-hs hs kaitai
+
+include ../Makefile.bench
+

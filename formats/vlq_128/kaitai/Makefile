@@ -1,4 +1,6 @@
-.PHONY: run clean
+.PHONY: run build clean
+
+build: parser
 
 GEN=vlq_base128_le.cpp vlq_base128_le.h
 

@@ -1,5 +1,4 @@
-clean:
-	rm -f data.dat
-	make clean -C ddl
-	make clean -C ddl-hs
-	make clean -C happy
+TGTS=ddl ddl-hs happy antlr
+
+include ../Makefile.bench
+

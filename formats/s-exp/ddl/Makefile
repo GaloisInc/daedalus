@@ -1,5 +1,6 @@
-.PHONY: clean run
+.PHONY: clean run bulid
 
+build: parser
 
 ./parser: Main.ddl SExp.ddl
 	cabal exec daedalus -- compile-c++ --determinize $< --out-dir=out

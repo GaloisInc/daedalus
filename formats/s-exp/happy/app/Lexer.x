@@ -17,5 +17,5 @@ $WS+    ;
 
 
 {
-data Token = OpenParen | CloseParen | Ident ByteString
+data Token = OpenParen | CloseParen | Ident !ByteString
 }
