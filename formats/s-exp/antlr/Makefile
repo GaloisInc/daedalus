@@ -17,10 +17,10 @@ ANTLR=antlr4
 ANTLR_RTS_INC=/usr/include/antlr4-runtime
 ANTLR_RTS_LIB=/usr/lib/x86_64-linux-gnu/
 
-parser: $(GEN) main.cpp
+parser: main.cpp $(GEN)
 	g++ -std=c++17 -static -O3 \
 		-I $(BUILD) -I $(ANTLR_RTS_INC) \
-		main.cpp $(GEN_CPP) \
+		$< $(GEN_CPP) \
 		-L $(ANTLR_RTS_LIB) -lantlr4-runtime \
 		-o $@
 
