@@ -1,12 +1,10 @@
-TIME=/usr/bin/time -f%e
-
 .PHONY: run build clean
 
 run: build
 	@echo "[Running]"
 	@for i in $(TGTS);\
 	  do echo $$(basename $$i);\
-	     $(TIME) make run -s -C $$i;\
+	     hyperfine "make run -s -C $$i"; \
 	  done
 	@echo "[done]"
 
