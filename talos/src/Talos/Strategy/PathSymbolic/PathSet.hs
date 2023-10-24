@@ -190,8 +190,8 @@ conj (PathSet vs1) (PathSet vs2) = PathSet (Seq.fromList els)
 disj :: PathSet -> PathSet -> PathSet
 disj (PathSet vs1) (PathSet vs2) = PathSet (vs1 <> vs2)
 
-disjMany :: [PathSet] -> PathSet
-disjMany = PathSet . mconcat . map getPathSet
+disjMany :: Foldable t => t PathSet -> PathSet
+disjMany = PathSet . foldMap getPathSet
 
 pathConditionToSExpr :: PathCondition -> SExpr
 pathConditionToSExpr pc 

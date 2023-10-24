@@ -134,7 +134,7 @@ liftExprEFun :: LiftExprCtx m => LiftExprEnv ->
 liftExprEFun env m_n fu =
   case fDef fu of
     Def e -> do
-      (e', binds) <- runLiftExprM env (liftExprE e)
+      (e', binds) <- runLiftExprM env (liftExprE False e)
       if nullNamedGrammars binds && isNothing m_n
         then pure (Left fu { fDef = Def e' })
         else do -- Need to make a grammar
@@ -160,19 +160,19 @@ liftExprGFun env fu =
       pure $ fu { fDef = Def g' }
     _ -> pure fu
 
-liftExprE :: LiftExprCtx m => Expr -> LiftExprM m Expr
-liftExprE expr = do
+liftExprE :: LiftExprCtx m => Bool -> Expr -> LiftExprM m Expr
+liftExprE topLevel expr = do
   ffuns <- asks leeFFuns
   fToG  <- asks leeFToG
   case expr of
     -- Loops become grammars
     ELoop lm -> do
-      lm' <- morphismE liftExprE (fmap (uncurry bindNamedE) . getNamedIn . liftExprE) lm
+      lm' <- morphismE go (fmap (uncurry bindNamedE) . getNamedIn . go) lm
       Var <$> newNamed (Loop (MorphismLoop lm'))
 
     PureLet n le re -> do
-      (re', named) <- getNamedIn (liftExprE re)
-      le' <- liftExprE le
+      (re', named) <- getNamedIn (go re)
+      le' <- go le
       if n `freeInNamed` named 
         then newNamedWithName n (Pure le') *> (tell named $> re')
         else tell named $> PureLet n le' re'
@@ -182,32 +182,42 @@ liftExprE expr = do
     -- 
     -- FIXME: maybe we can allow e.g. Bool cases?
     ECase cs -> do
-      cs' <- traverse (getNamedIn . liftExprE) cs
+      cs' <- traverse (getNamedIn . go) cs
       Var <$> newNamed (GCase (uncurry bindNamedE <$> cs'))
 
     ApN (CallF f) es
       | Just gn <- Map.lookup f fToG ->
-          Var <$> (newNamed . Call gn =<< traverse liftExprE es)
+          Var <$> (newNamed . Call gn =<< traverse go es)
       | otherwise -> pure $ inlineCall f es ffuns
 
     -- This is more easily handled when it is in a Pure by itself.
-    Ap2 DropMaybe nE strmE -> do
-      expr' <- Ap2 DropMaybe <$> liftExprE nE <*> liftExprE strmE
+    Ap2 DropMaybe nE strmE | not topLevel-> do
+      expr' <- Ap2 DropMaybe <$> go nE <*> go strmE
       Var <$> newNamed (Pure expr')
 
-    _ -> childrenE liftExprE expr
+    Ap2 Take nE strmE | not topLevel-> do
+      expr' <- Ap2 Take <$> go nE <*> go strmE
+      Var <$> newNamed (Pure expr')
+
+    _ -> childrenE go expr
+
+  where
+    go = liftExprE False
 
 -- This is in here mainly for convenience.  Invariant: always writes mempty
 liftExprG :: LiftExprCtx m => Grammar -> LiftExprM m Grammar
 liftExprG gram = do
-  (g, named) <- getNamedIn $ gebChildrenG liftExprG liftExprE liftExprB gram
+  (g, named) <- getNamedIn $
+    case gram of
+      Pure e -> Pure <$> liftExprE True e
+      _      -> gebChildrenG liftExprG (liftExprE False) liftExprB gram      
   -- We need to add the statements right at the grammar to capture at
   -- the right place.
   pure (bindNamed g named)
 
 liftExprB :: LiftExprCtx m => ByteSet -> LiftExprM m ByteSet
 liftExprB bs = do
-  bs' <- ebChildrenB liftExprE liftExprB bs
+  bs' <- ebChildrenB (liftExprE False) liftExprB bs
   bfuns <- asks leeBFuns
   case bs' of
     -- we don't pre-inline bytesets as we might need to add grammar

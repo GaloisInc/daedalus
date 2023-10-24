@@ -13,7 +13,7 @@
 module Talos.Strategy.PathSymbolic.Monad where
 
 import           Control.Lens                          (at, locally, view, (%~),
-                                                        (.~))
+                                                        (.~), listening, alongside, imap)
 import           Control.Monad.IO.Class                (MonadIO)
 import           Control.Monad.Reader                  (MonadReader, ReaderT,
                                                         ask, asks, local,
@@ -39,7 +39,7 @@ import           Data.Text                             (Text)
 import           Daedalus.Core                         (Expr, Name, Type,
                                                         Typed (..))
 import           Daedalus.GUID                         (getNextGUID,
-                                                        invalidGUID)
+                                                        invalidGUID, GUID)
 import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
 import           Daedalus.Rec                          (Rec)
@@ -59,12 +59,17 @@ import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
 import qualified Talos.Strategy.PathSymbolic.Assertion as A
 import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
 import qualified Talos.Strategy.PathSymbolic.Branching as B
-import           Talos.Strategy.PathSymbolic.Branching (Branching)
+import           Talos.Strategy.PathSymbolic.Branching (Branching, IndexedBranching)
 import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
 import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         PathSet, PathVar (..),
                                                         loopCountToSExpr,
                                                         loopCountVarSort)
+import qualified Talos.Strategy.PathSymbolic.Streams as S
+import           Talos.Strategy.PathSymbolic.Streams (StreamTreeInfo, StreamTreeNode(..))
+import Data.Sequence (Seq)
+import Control.Arrow ((&&&))
+import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -72,30 +77,60 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
 pathKey :: LogKey
 pathKey = "pathsymb"
 
-type Result = (MuxValue, Maybe SymbolicStream, PathBuilder)
+
+-- -----------------------------------------------------------------------------
+-- Streams
+
+-- class IsSymbolicStream a where
+--   type SymbolicSegments a
+--   muxSymbolicStreams :: Branching a -> a
+
+-- data StreamSegment = StreamSegment
+--   { stsOffset :: SMTVar
+--   , stsSize   :: SMTVar
+--   } deriving (Generic)
+
+-- type StreamSegments = Seq (Branching (Maybe StreamSegment))
+
+-- Only used in the simulator to record the current stream usage.
+data StreamUsage = StreamUsage
+  { suBase    :: SymbolicStream
+  -- , suBaseChanged :: Bool
+  --  ^ Set when a Set/GetStream operation is performed, and used to
+  -- avoid spurious merges of the suUsage.  Does NOT track suUsage.
+  , suUsage   :: MuxValue
+  } deriving Generic
+
+data Result = Result
+  { rValue          :: MuxValue
+  -- | The current stream, if any.  This accumulates the size
+  -- constraints, and holds the remaining bytes in the stream.
+  , rStream         :: Maybe StreamUsage
+  , rBuilder        :: PathBuilder
+  } deriving (Generic)
 
 type SymVarEnv = Map Name MuxValue
 
 data SymbolicEnv = SymbolicEnv
-  { sVarEnv     :: SymVarEnv
-  , sCurrentSCC :: Maybe (Set SliceId)
+  { sVarEnv        :: SymVarEnv
+  , sCurrentSCC    :: Maybe (Set SliceId)
   -- ^ The set of slices in the current SCC, if any
-  , sBackEdges :: Map SliceId (Set SliceId)
+  , sBackEdges     :: Map SliceId (Set SliceId)
   -- ^ All back edges from the current SCC
-  , sSliceId :: Maybe SliceId
+  , sSliceId       :: Maybe SliceId
   -- ^ Current slice
 
-  , sRecDepth :: Int
-  , sMaxRecDepth :: Int
+  , sRecDepth      :: Int
+  , sMaxRecDepth   :: Int
   , sNLoopElements :: Int
-    
+
   -- ^ Current recursive depth (basically the sum of all back edge
   -- calls, irrespective of source/target).
 
-  , sProvenance :: ProvenanceTag
+  , sProvenance    :: ProvenanceTag
 
   -- Used for getting prettier solver variables.
-  , sCurrentName :: Text
+  , sCurrentName   :: Text
   -- The path isn't required as we add it on post-facto
   -- , sPath    :: ValueGuard -- ^ Current path.
   } deriving (Generic)
@@ -111,12 +146,6 @@ data SolverResult =
   ByteResult SMTVar
   | InverseResult (Map Name MuxValue) Expr -- The env. includes the result var.
 
--- Not all paths are necessarily feasible.
-data PathChoiceBuilder a =
-  SymbolicChoice   PathVar           [(Int, a)]
-  | ConcreteChoice Int               a
-  deriving (Functor)
-
 -- | When we see a loop while parsing a model we either suspend the
 -- loop (for pooling) and just record the loop's tag, or we have
 -- elements we just inline (for non-pooling loops).
@@ -128,7 +157,7 @@ data PathLoopBuilder a =
   | PathLoopMorphism SymbolicLoopTag (Branching (MV.VSequenceMeta, [a]))
     deriving Functor
 
-type PathBuilder = SelectedPathF PathChoiceBuilder PathChoiceBuilder PathLoopBuilder SolverResult
+type PathBuilder = SelectedPathF (IndexedBranching Int) (IndexedBranching Int) PathLoopBuilder SolverResult
 
 emptySymbolicEnv :: Int -> Int -> ProvenanceTag -> SymbolicEnv
 emptySymbolicEnv maxRecDepth nLoopElements ptag = SymbolicEnv
@@ -154,13 +183,14 @@ invalidSymbolicLoopTag = invalidGUID
 
 -- -----------------------------------------------------------------------------
 -- Symbolic models
-    
+                        
 -- We could figure this out from the generated parse tree, but this is
 -- (maybe?) clearer.
 data SymbolicModel = SymbolicModel
   { smGlobalAsserts :: [SMT.SExpr]
     -- ^ These are not predicated, e.g. range limits on choices.
   , smGuardedAsserts :: Assertion
+  , smStreamTreeInfo :: StreamTreeInfo
   , smChoices :: Map PathVar ( [SMT.SExpr] -- Symbolic path (all true to be enabled)
                              , [Int] -- Allowed choice indicies
                              )
@@ -178,6 +208,7 @@ instance Semigroup SymbolicModel where
   sm1 <> sm2 = SymbolicModel
     (smGlobalAsserts sm1 <> smGlobalAsserts sm2)
     (smGuardedAsserts sm1 <> smGuardedAsserts sm2)
+    (smStreamTreeInfo sm1 <> smStreamTreeInfo sm2)
     (smChoices sm1 <> smChoices sm2)
     (smNamedValues sm1 <> smNamedValues sm2)
     (smLoopVars sm1 <> smLoopVars sm2)
@@ -186,6 +217,7 @@ instance Monoid SymbolicModel where
   mempty = SymbolicModel
            { smGlobalAsserts  = mempty
            , smGuardedAsserts = mempty
+           , smStreamTreeInfo = mempty
            , smChoices        = mempty
            , smNamedValues    = mempty
            , smLoopVars       = mempty
@@ -214,12 +246,12 @@ runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
 -- Names
 
 bindNameIn :: Name -> SymbolicM Result -> 
-              (Maybe SymbolicStream -> PathBuilder -> SymbolicM a) -> SymbolicM a
-bindNameIn n lhs rhs = lhs >>= \(v, m_strm, p) -> primBindName n v (rhs m_strm p)
+              (Result -> SymbolicM a) -> SymbolicM a
+bindNameIn n lhs rhs = lhs >>= \r -> primBindName n (rValue r) (rhs r)
 
 bindNameInMaybe :: Maybe Name -> SymbolicM Result -> 
-                   (Maybe SymbolicStream -> PathBuilder -> SymbolicM a) -> SymbolicM a
-bindNameInMaybe Nothing lhs rhs = lhs >>= \(_v, m_strm, p) -> rhs m_strm p
+                   (Result -> SymbolicM a) -> SymbolicM a
+bindNameInMaybe Nothing lhs rhs = lhs >>= rhs
 bindNameInMaybe (Just n) lhs rhs = bindNameIn n lhs rhs
 
 primBindName :: Name -> MuxValue -> SymbolicM a -> SymbolicM a
@@ -265,6 +297,12 @@ namePathSets b = do
   assert (A.BAssert (A.PSAssert <$> assn))
   pure r
 
+pathVariants :: [a] -> SymbolicM (PathVar, Branching a)
+pathVariants vs = do
+  pv <- freshPathVar (length vs)
+  let b = B.branching True $ imap (\i v -> (PS.choiceConstraint pv i, v)) vs
+  pure (pv, b)
+
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   n <- makeNicerSym "c"
@@ -296,6 +334,12 @@ freshSymbolicLoopTag = liftStrategy getNextGUID
 assert :: Assertion -> SymbolicM ()
 assert a = tell (mempty { smGuardedAsserts = a })
 
+emitStreamTreeInfo :: StreamTreeInfo -> SymbolicM ()
+emitStreamTreeInfo sti = tell (mempty { smStreamTreeInfo = sti })
+
+-- emitStreamTreeNode :: StreamTreeNode -> SymbolicM ()
+-- emitStreamTreeNode = emitStreamTreeInfo . S.STNode
+
 assertSExpr :: SMT.SExpr -> SymbolicM ()
 assertSExpr = assert . A.SExprAssert
 
@@ -324,23 +368,67 @@ handleUnreachable m =
 -- Handles assertions and failure as well.
 branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
 branching b = do
-  (vs, assn) <- B.unzip <$> traverse go b
+  (vs, siAndassn) <- B.unzip <$> traverse go b
   let vs' = B.catMaybes vs
   if B.null vs'
     then unreachable
-    else assert (A.BAssert assn) $> vs'
+    else do let (stis, assn) = B.unzip siAndassn
+            undefined -- emitStreamTreeInfo (S.STBranching stis)
+            assert (A.BAssert assn) $> vs'
   where
-    go m = censor forgetAssns (catchError (runm m) hdl)
+    go m = censor forgetGuarded (runm m `catchError` hdl)
     
-    runm :: SymbolicM a -> SymbolicM (Maybe a, Assertion)
-    runm m = listens smGuardedAsserts (Just <$> m)
-    hdl () = pure (Nothing, A.BoolAssert False)
+    runm :: SymbolicM a ->
+            SymbolicM (Maybe a, (StreamTreeInfo, Assertion))
+    runm m = listens (smStreamTreeInfo &&& smGuardedAsserts) (Just <$> m)
+    hdl () = pure (Nothing, (mempty, A.BoolAssert False))
 
-    forgetAssns = #smGuardedAsserts .~ mempty
+    forgetGuarded = (#smGuardedAsserts .~ mempty)
+                    . (#smStreamTreeInfo .~ mempty)
 
 guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
 guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
 
+-- freshStreamTreeNode :: GUID -> MuxValue -> MuxValue -> SymbolicM StreamTreeNode
+-- freshStreamTreeNode parent off len = do
+--   nid <- liftStrategy getNextGUID
+--   pure StreamTreeNode { stnID = nid, stnParent = parent, stnOffset = off, stnLength = len }
+
+-- Notes the amount of stream used by the current stream into the
+-- stream tree and creates a new sibling.
+finishStream :: StreamUsage -> SymbolicM (MuxValue, StreamUsage)
+finishStream su = do
+  (lenS, lenA) <- 
+  let mkNode parent = do
+        nid <- getNextGUID
+        let plenS = S.const (stnLength parent)
+            lenS  = S.const lenSym
+        let node = S.StreamTreeNode
+              { stnLength = newLen
+              , stnID     = nid
+              , stnParent = Just parent
+              , stnRelOffset = Nothing
+              , stnHasContents = False
+              }
+        pure node
+  
+        let node = S.StreamTreeNode
+              { stnLength = newLen
+              , stnID     = nid
+              , stnParent = Just parent
+              , stnRelOffset = Nothing
+              , stnHasContents = False
+              }
+  
+  -- let node = StreamTreeNode
+  --            { stnID = nid
+  --            , 
+  --              , stnParent :: GUID -- invalidGUID if the root
+  -- , stnOffset :: MuxValue
+  -- , stnLength :: MuxValue
+  -- } deriving (Generic)
+
+--  undefined
 --------------------------------------------------------------------------------
 -- Search operaations
 
@@ -421,12 +509,6 @@ instance PP AssertionStats where
     
 -- -----------------------------------------------------------------------------
 -- Instances
-
-instance PP (PathChoiceBuilder Doc) where
-  pp (SymbolicChoice pv ps) = pp pv <> ": " <> block "{" "," "}" (map pp1 ps)
-    where
-      pp1 (i, p) = pp i <+> "=" <+> p
-  pp (ConcreteChoice i p) = pp i <+> "=" <+> p
 
 instance PP SolverResult where
   pp (ByteResult v) = text v

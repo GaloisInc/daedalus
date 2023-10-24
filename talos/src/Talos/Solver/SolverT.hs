@@ -21,13 +21,14 @@ module Talos.Solver.SolverT (
   getValue, getValues, getModel,
   -- * Context management
   SolverContext, SolverFrame, getContext, restoreContext,
-  freshContext, collapseContext, extendContext, instantiateSolverFrame, contextToSExprs,
-  substSExpr,
+  freshContext, collapseContext, extendContext, {- instantiateSolverFrame, -} contextToSExprs,
+  {- substSExpr, -}
   scoped,
   -- * Context management
   -- modifyCurrentFrame, bindName, -- FIXME: probably should be hidden
   freshName, freshSymbol, defineName, declareName,
-  defineSymbol, declareSymbol, declareFreshSymbol, 
+  defineSymbol, declareSymbol, declareFreshSymbol,
+  defineFunSymbol,
   reset, assert, check, flush,
   -- * Type Class
   MonadSolver(..),
@@ -48,9 +49,6 @@ import           Data.Foldable             (for_, toList)
 import           Data.Function             (on)
 import           Data.Generics.Product     (field)
 import qualified Data.Kind                 as K
-import           Data.Map                  (Map)
-import qualified Data.Map                  as Map
-import           Data.Maybe                (catMaybes)
 import           Data.Sequence             (Seq)
 import qualified Data.Sequence             as Seq
 import           Data.Text                 (Text)
@@ -63,13 +61,13 @@ import qualified Daedalus.Core             as C
 import           Daedalus.GUID             (GUID, HasGUID (..), getNextGUID)
 import           Daedalus.Panic            (panic)
 import           Daedalus.PP               (PP (pp), bullets, hang, showPP,
-                                            text, vcat, (<+>))
+                                            text, vcat, (<+>), parens, punctuate, hcat)
 type SMTVar = String
 
 data QueuedCommand =
   QCAssert SExpr
-  | QCDeclare SMTVar SExpr
-  | QCDefine  SMTVar SExpr SExpr
+  | QCDeclareFun SMTVar [SExpr] SExpr
+  | QCDefineFun  SMTVar [(SMTVar, SExpr)] SExpr SExpr
 
 -- We manage this explicitly to make sure we are in synch with the
 -- solver as push/pop are effectful.
@@ -137,8 +135,8 @@ execQueuedCommand qc =
   solverOp $ \s ->
     case qc of
       QCAssert se      -> S.assert s se
-      QCDeclare v ty   -> void $ S.declare s v ty
-      QCDefine  v ty e -> void $ S.define s v ty e
+      QCDeclareFun v as ty   -> void $ S.declareFun s v as ty
+      QCDefineFun  v as ty e -> void $ S.defineFun s v as ty e
 
 -- | Flushes all pending commands to the solver
 flush :: MonadIO m => SolverT m ()
@@ -178,7 +176,7 @@ pushFrame force = do
 freshContext :: Monad m => [(SMTVar, SExpr)] -> SolverT m SolverContext
 freshContext decls = do
   fr <- freshSolverFrame
-  let fr' = fr { frCommands = Seq.fromList $ map (uncurry QCDeclare) decls }
+  let fr' = fr { frCommands = Seq.fromList $ map (\(s, ty) -> QCDeclareFun s [] ty) decls }
       -- This represents the global namespace, it needs to be there so
       -- we don't overpop.  FIXME: a hack :(  
       baseFrame = emptySolverFrame 0
@@ -218,57 +216,57 @@ frameToSExprs :: SolverFrame -> [SExpr]
 frameToSExprs sf = map go (toList $ frCommands sf)
   where
     go (QCAssert se) = S.fun "assert" [se]
-    go (QCDeclare v ty) = S.fun "declare-fun" [S.const v, S.List [], ty]
-    go (QCDefine  v ty body) = S.fun "define-fun" [S.const v,  S.List [], ty, body]
+    go (QCDeclareFun v as ty) = S.fun "declare-fun" [S.const v, S.List as, ty]
+    go (QCDefineFun  v as ty body) =
+      S.fun "define-fun" [S.const v, S.List [ S.List [ S.const x, ty' ] | (x, ty') <- as ], ty, body]
 
-
--- | This makes all the variables in the solver frame fresh, so that
--- we can use it multiple times.
-instantiateSolverFrame :: (Monad m, HasGUID m) =>
-                          Map SMTVar SExpr -> SolverFrame ->
-                          SolverT m (SolverFrame, Map SMTVar SExpr)
-instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
-  fr <- freshSolverFrame
-  (cs', e) <- runStateT (Seq.fromList . catMaybes . toList <$> traverse go cs) baseEnv
-  pure (fr { frCommands = cs' }, e)
-  where
-    go :: (Monad m, HasGUID m) => QueuedCommand ->
-          StateT (Map SMTVar SExpr) (SolverT m) (Maybe QueuedCommand)
-    go c = do
-      e <- get
-      case c of
-        QCAssert se      -> pure $ Just $ QCAssert (substSExpr e se)
-        QCDeclare v ty
-          | v `Map.member` e -> pure Nothing
-          | otherwise        -> do
-              sym <- freshFor v
-              pure $ Just $ QCDeclare sym ty
+-- -- | This makes all the variables in the solver frame fresh, so that
+-- -- we can use it multiple times.
+-- instantiateSolverFrame :: (Monad m, HasGUID m) =>
+--                           Map SMTVar SExpr -> SolverFrame ->
+--                           SolverT m (SolverFrame, Map SMTVar SExpr)
+-- instantiateSolverFrame baseEnv SolverFrame { frCommands = cs } = do
+--   fr <- freshSolverFrame
+--   (cs', e) <- runStateT (Seq.fromList . catMaybes . toList <$> traverse go cs) baseEnv
+--   pure (fr { frCommands = cs' }, e)
+--   where
+--     go :: (Monad m, HasGUID m) => QueuedCommand ->
+--           StateT (Map SMTVar SExpr) (SolverT m) (Maybe QueuedCommand)
+--     go c = do
+--       e <- get
+--       case c of
+--         QCAssert se      -> pure $ Just $ QCAssert (substSExpr e se)
+--         QCDeclare v ty
+--           | v `Map.member` e -> pure Nothing
+--           | otherwise        -> do
+--               sym <- freshFor v
+--               pure $ Just $ QCDeclare sym ty
               
-        QCDefine v ty se
-          -- Probably doesn't happen
-          | Just se' <- Map.lookup v e -> pure $ Just $ QCAssert (S.eq se' se)
-          | otherwise  ->  do
-              sym <- freshFor v
-              let se' = substSExpr e se
-              pure $ Just $ QCDefine sym ty se'
+--         QCDefine v ty se
+--           -- Probably doesn't happen
+--           | Just se' <- Map.lookup v e -> pure $ Just $ QCAssert (S.eq se' se)
+--           | otherwise  ->  do
+--               sym <- freshFor v
+--               let se' = substSExpr e se
+--               pure $ Just $ QCDefine sym ty se'
 
-    freshFor :: (Monad m, HasGUID m) => String -> StateT (Map SMTVar SExpr) (SolverT m) String
-    freshFor sym = do
-      -- c.f. freshSymbol
-      guid <- lift getNextGUID
-      let sym' = stringToSMTName (symPfx sym) guid
-      modify (Map.insert sym (S.const sym'))
-      pure sym'
+--     freshFor :: (Monad m, HasGUID m) => String -> StateT (Map SMTVar SExpr) (SolverT m) String
+--     freshFor sym = do
+--       -- c.f. freshSymbol
+--       guid <- lift getNextGUID
+--       let sym' = stringToSMTName (symPfx sym) guid
+--       modify (Map.insert sym (S.const sym'))
+--       pure sym'
 
-    symPfx = takeWhile (/= '@') 
+--     symPfx = takeWhile (/= '@') 
 
-substSExpr :: Map SMTVar SExpr -> SExpr -> SExpr
-substSExpr s = go
-  where
-    go se@(S.Atom a)
-      | Just e <- Map.lookup a s = e
-      | otherwise = se
-    go (S.List ls) = S.List (map go ls)
+-- substSExpr :: Map SMTVar SExpr -> SExpr -> SExpr
+-- substSExpr s = go
+--   where
+--     go se@(S.Atom a)
+--       | Just e <- Map.lookup a s = e
+--       | otherwise = se
+--     go (S.List ls) = S.List (map go ls)
 
 restoreContext :: MonadIO m => SolverContext -> SolverT m ()
 restoreContext (SolverContext fs) = do
@@ -354,8 +352,8 @@ frameSize = foldMap queuedCommandSize . frCommands
 
 queuedCommandSize :: QueuedCommand -> ContextSize
 queuedCommandSize (QCAssert e) = mempty { csAtomCount = sexprSize e }
-queuedCommandSize (QCDeclare {}) = mempty { csDeclCount = 1 }
-queuedCommandSize (QCDefine _ _ e) = mempty { csAtomCount = sexprSize e }
+queuedCommandSize (QCDeclareFun {}) = mempty { csDeclCount = 1 }
+queuedCommandSize (QCDefineFun _ _ _ e) = mempty { csAtomCount = sexprSize e }
 
 -- | A rough guide to the size of an assertion
 sexprSize :: SExpr -> Int
@@ -436,19 +434,23 @@ nameToSMTName n = textToSMTName (maybe "_N" id (nameText n)) (nameId n)
 
 -- Declare a symbol we have previously generated with freshSymbol
 declareFreshSymbol :: Monad m => SMTVar -> SExpr -> SolverT m ()
-declareFreshSymbol sym ty = queueSolverOp (QCDeclare sym ty)
+declareFreshSymbol sym ty = queueSolverOp (QCDeclareFun sym [] ty)
 
 declareSymbol :: (Monad m, HasGUID m) => Text -> SExpr -> SolverT m SMTVar
 declareSymbol pfx ty = do
   sym <- freshSymbol pfx
-  queueSolverOp (QCDeclare sym ty)
+  queueSolverOp (QCDeclareFun sym [] ty)
   pure sym
 
 defineSymbol :: (MonadIO m, HasGUID m) => Text -> SExpr -> SExpr ->
                 SolverT m SMTVar
-defineSymbol pfx ty e = do
+defineSymbol pfx ty e = defineFunSymbol pfx [] ty e
+
+defineFunSymbol :: (MonadIO m, HasGUID m) => Text -> [(SMTVar, SExpr)] -> SExpr -> SExpr ->
+                   SolverT m SMTVar
+defineFunSymbol pfx args ty e = do
   sym <- freshSymbol pfx
-  queueSolverOp (QCDefine sym ty e)
+  queueSolverOp (QCDefineFun sym args ty e)
   pure sym
 
 -- FIXME: we could convert the type here
@@ -456,13 +458,13 @@ defineSymbol pfx ty e = do
 defineName :: (Monad m, HasGUID m) => Name -> SExpr -> SExpr -> SolverT m SMTVar
 defineName n ty v = do
   n' <- freshName n
-  queueSolverOp (QCDefine n' ty v)
+  queueSolverOp (QCDefineFun n' [] ty v)
   pure n'
 
 declareName :: (Monad m, HasGUID m) => Name -> SExpr -> SolverT m SMTVar
 declareName n ty = do
   n' <- freshName n
-  queueSolverOp (QCDeclare n' ty)
+  queueSolverOp (QCDeclareFun n' [] ty)
   pure n'
 
 solverState :: Monad m => (SolverState -> m (a, SolverState)) -> SolverT m a
@@ -530,9 +532,17 @@ instance PP QueuedCommand where
   pp qc =
     case qc of
       QCAssert e      -> hang "assert" (length ("assert " :: String)) (vcat (map text (lines (S.ppSExpr e ""))))
-      QCDeclare v ty  -> "declare" <+> text v <+> text (S.ppSExpr ty "")
-      QCDefine v ty e -> "define" <+> text v <+> text (S.ppSExpr ty "") <+> text (S.ppSExpr e "")
-
+      QCDeclareFun v [] ty  -> "declare" <+> text v <+> ppS ty
+      QCDeclareFun v as ty  -> "declare-fun" <+> text v
+                                             <+> parens (hcat $ punctuate ", " (map ppS as))
+                                             <+> text (S.ppSExpr ty "")
+      QCDefineFun v [] ty e -> "define" <+> text v <+> ppS ty <+> ppS e
+      QCDefineFun v as ty e -> "define-fun" <+> text v
+                                            <+> parens (hcat $ punctuate ", " [ text n <+> ":" <+> ppS ty' | (n, ty') <- as ])
+                                            <+> ppS ty <+> ppS e
+    where
+      ppS s = text (S.ppSExpr s "")
+    
 instance PP SolverFrame where
   pp sf =
     hang ("index" <> pp (frId sf)) 2 (bullets (map pp (toList $ frCommands sf))) 

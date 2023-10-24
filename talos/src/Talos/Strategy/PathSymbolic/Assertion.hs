@@ -7,7 +7,8 @@ module Talos.Strategy.PathSymbolic.Assertion
   , entail
   , entailMany
   , true
-  , false, 
+  , false
+  , conj
   ) where
 
 import           Data.Foldable                         (toList)
@@ -85,6 +86,9 @@ entail ps a
 entailMany :: PathSet -> NonEmpty Assertion -> Assertion
 entailMany ps (a :| []) = entail ps a
 entailMany ps assns     = EntailAssert ps assns
+
+conj :: Assertion -> Assertion -> Assertion
+conj l r = EntailAssert PS.true (l :| [r])
 
 true, false :: Assertion
 true = BoolAssert True

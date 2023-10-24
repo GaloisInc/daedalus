@@ -6,6 +6,7 @@
 
 module Talos.Strategy.PathSymbolic.Branching
   ( Branching -- (..)
+  , IndexedBranching (..)
   -- * Constructors
   , singleton  
   , branching
@@ -29,6 +30,9 @@ module Talos.Strategy.PathSymbolic.Branching
   , muxMaps
   , toSExpr
   , reducePS
+  , nub
+  , explodeList
+  
   -- * Optimising
   , namePathSets
   -- * Debugging
@@ -55,6 +59,7 @@ import           Daedalus.PP                         (PP, pp, vcat)
 import           Talos.Lib                           (andMany, findM)
 import qualified Talos.Strategy.PathSymbolic.PathSet as PS
 import           Talos.Strategy.PathSymbolic.PathSet (PathSet, PathVar)
+import Data.Tuple (swap)
 
 -- FIXME: maybe rep. as a tree
 -- data Branching a = Leaf (PathSet, a) | Conj PathSet [Branching a]
@@ -70,6 +75,9 @@ data Branching a = Branching
   , variants :: [ (PathSet, a) ]
   } deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
 
+-- FIXME: We could be more efficient here when either side of the
+-- applicative is [(true, ...)] to just traverse to avoid creating
+-- garbage.
 instance Applicative Branching where
   pure v = Branching { total = True, variants = [(PS.true, v)] }
   (<*>) = ap
@@ -88,6 +96,10 @@ instance Monad Branching where
           , (ps2, v) <- variants b'
           ]
     in branching (or (total b : tots)) vs
+
+newtype IndexedBranching i a = IndexedBranching
+  { getIndexedBranching :: Branching (i, a)
+  } deriving Generic
     
 singleton :: a -> Branching a
 singleton = pure
@@ -202,6 +214,28 @@ reducePS b = PS.disjMany (map (uncurry PS.conj) (variants b))
 select :: Branching a -> Maybe a
 select b | (_, x) : _ <- variants b = Just x
          | otherwise = Nothing
+
+-- | Combines duplicate elements onto a single path.
+nub :: Ord a => Branching a -> Branching a
+nub b
+  | [(v, _ps)] <- res, total b = pure v
+  | otherwise = b { variants = [ (ps, v) | (v, ps) <- res ] }
+  where
+    res = Map.toList (Map.fromListWith PS.disj (map swap (variants b)))
+
+explodeList :: Branching [a] -> [ (a, Branching (Maybe a)) ]
+explodeList b = go PS.true (variants b)
+  where
+    go _   [] = []
+    -- special case
+    go pfx ( (ps, []) : rest ) = go (PS.disj pfx ps) rest
+    go pfx ( (ps, xs) : rest)  = goOne pfx ps xs rest
+
+    goOne pfx ps xs rest =
+      let pfx' = PS.disjMany (pfx : map fst rest)
+          bvs  = [ (x, branching (total b) [ (ps, Just x), (pfx', Nothing) ] )
+                 | x <- xs ]
+      in bvs ++ go (ps `PS.disj` pfx) rest
 
 -- We can do some optimisations here to make the result easier to
 -- read.  If we know the result is total we can produce a bunch of

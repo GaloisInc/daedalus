@@ -14,7 +14,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 
 import           Control.Lens                            (_3, imap, over,
-                                                          preview)
+                                                          preview, (^?!))
 import           Control.Monad                           (join, unless)
 import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
@@ -42,7 +42,7 @@ import           Daedalus.Rec                            (topoOrder)
 import           Talos.Analysis.Exported                 (ExpCallNode (..),
                                                           ExpSlice, SliceId,
                                                           sliceToCallees)
-import           Talos.Analysis.Slice
+import           Talos.Analysis.Slice hiding (Result)
 import qualified Talos.Monad                             as T
 
 import           Talos.Lib                               (tByte)
@@ -66,6 +66,7 @@ import           Talos.Strategy.PathSymbolic.MuxValue    (MuxValue,
 import           Talos.Strategy.PathSymbolic.PathBuilder (buildPaths)
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import qualified Talos.Strategy.PathSymbolic.SymExec     as SE
+import qualified Talos.Strategy.PathSymbolic.Streams     as Stream
 
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
@@ -137,8 +138,8 @@ symbolicFun config ptag sid sl = StratGen $ do
     sz <- contextSize
     T.statS (pathKey <> "modelsize") sz
     
-    let go ((_, _, pb), sm) = do
-          rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm pb
+    let go (r, sm) = do
+          rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm (rBuilder r)
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
 
@@ -157,6 +158,7 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) []
           go (Set.insert n seen) (new' `Set.union` rest) ((n, sl') : acc)
 
     go _ _ acc = pure acc
+  
 
 -- We return the symbolic value (which may contain bound variables, so
 -- those have to be all at the top level) and a computation for
@@ -165,38 +167,49 @@ sliceToDeps sl = go Set.empty (sliceToCallees sl) []
 -- once in the final (satisfying) state.  Note that the path
 -- construction code shouldn't backtrack, so it could be in (SolverT IO)
 
-stratSlice :: Maybe SymbolicStream -> ExpSlice -> SymbolicM Result
+stratSlice :: Maybe StreamUsage -> ExpSlice -> SymbolicM Result
 stratSlice = go
   where
     unexpected   = panic "Unexpected" []
     
-    go m_strm sl = do
+    go m_su sl = do
       -- liftIO (putStrLn "Slice" >> print (pp sl))
       case sl of
         SHole m_shs -> do
-          m_strm' <- maybe (pure m_strm) (consumeFromStream m_strm . fst) m_shs
-          pure (MV.VUnit, m_strm', SelectedHole)
+          m_su' <- maybe (pure m_su) (consumeFromStream m_su . fst) m_shs
+          pure $ Result MV.VUnit m_su' SelectedHole
 
-        -- We special case this here so we can add assertions/path variables.
+        -- We special case this here so we can add assertions/path
+        -- variables and deal with the stream tree.
         SPure (Ap2 DropMaybe lenE strmE) -> do
-          (negA, (posA, strm)) <-
-            liftSemiSolverM (join $ MV.dropMaybe <$> MV.semiExecExpr strmE <*> MV.semiExecExpr lenE)
-          pv <- freshPathVar 2
-          let (assn, mv) = B.unzip $
-                B.branching True [ (PS.choiceConstraint pv 0, (negA, MV.vNothing))
-                                 , (PS.choiceConstraint pv 1, (posA, MV.vJust (MV.VStream strm)))
-                                 ]
-          assert (A.BAssert assn)
-          
-          pure (MV.mux mv, m_strm, SelectedHole)
+          (extraAssn, negA, posA, sti, strmV) <- liftSemiSolverM (MV.semiExecDropMaybe strmE lenE)
+          v <- branching . snd =<< pathVariants [ assert negA $> MV.vNothing
+                                                , do assert posA
+                                                     emitStreamTreeInfo sti
+                                                     pure (MV.vJust strmV)
+                                                ]
+          pure $ Result (MV.mux v) m_su SelectedHole
+
+        -- Likewise, we need to deal with take
+        SPure (Ap2 Take lenE strmE) -> do
+          (assn, sti, v) <- liftSemiSolverM (MV.semiExecTake strmE lenE)
+          assert assn
+          emitStreamTreeInfo sti
+          pure $ Result v m_su SelectedHole
           
         SPure e -> do
-          let mk v = (v, m_strm, SelectedHole)
+          let mk v = Result v m_su SelectedHole
           mk <$> synthesiseExpr e
 
         SGetStream -> do
-          let strm' = fromMaybe MV.unboundedStream m_strm
-          pure (MV.VStream strm', Just strm', SelectedHole)
+          let su = fromMaybe (panic "Saw a getstream with no stream" []) m_su
+          
+          -- When we refer to the current stream via GetStream we
+          -- finish the current stream (make it a segment), create a
+          -- new segment and return that.
+          (strmV, su') <- finishStream su
+          
+          pure $ Result strmV (Just su') SelectedHole
           
         SSetStream e -> do
           mv <- synthesiseExpr e
@@ -626,12 +639,36 @@ stratCallNode m_strm cn = do
 -- -----------------------------------------------------------------------------
 -- Streams
 
-consumeFromStream :: Maybe SymbolicStream -> SHoleSize -> SymbolicM (Maybe SymbolicStream)
-consumeFromStream Nothing _shs = pure Nothing
-consumeFromStream (Just strm) shs = do
-  (assn, strm') <- liftSemiSolverM (MV.consumeFromStream strm shs)
-  assert assn
-  pure (Just strm')
+-- consumeFromStream :: SemiCtxt m =>
+--                      SymbolicStream -> SHoleSize ->
+--                      SemiSolverM m (Assertion, SymbolicStream)
+-- consumeFromStream strm shs = do
+--   shsV <- fromHoleSize shs
+--   (assn, strm0') <- B.unzip <$> traverse (go shsV) (getSymbolicStreamF (S.const <$> strm))
+--   strm' <- SymbolicStreamF <$> traverseOf (traversed . traversed) (bvsNameSExprs sizeType) strm0'
+--   pure (A.BAssert assn, strm')
+--   where
+--     go shsV stn = do
+--       len'    <- semiExecOp2 Add sizeType sizeType sizeType shsV (VIntegers (Typed sizeType (stnLength stn)))
+--       noWrapV <- semiExecOp2 Leq sizeType sizeType TBool shsV len'
+--       let noWrapA = toAssertion' noWrapV
+--       pure (noWrapA, stn { stnLength = len' ^?! #_VIntegers . typedIso sizeType })
+
+-- We do not need to assert that there is sufficient room, as that
+-- happens when we check that segments fit into the available space.
+-- We _do_ need to assert that the addition does not wrap (sizes are
+-- 64 bits), as we only see the aggregate sum in the segment
+-- constraint.
+consumeFromStream :: Maybe StreamUsage -> SHoleSize -> SymbolicM (Maybe StreamUsage)
+consumeFromStream m_su shs = traverse go m_su
+  where
+    go su = do
+      (assn, su') <- liftSemiSolverM $ do
+        szV <- MV.fromHoleSize shs
+        usage' <- MV.op2 Add sizeType sizeType sizeType szV (suUsage su)
+        noWrapV <- MV.op2 Leq sizeType sizeType TBool szV usage'
+        pure (MV.toAssertion noWrapV, usage')
+      assert assn $> su { suUsage = su' }
 
 -- -----------------------------------------------------------------------------
 -- Merging values

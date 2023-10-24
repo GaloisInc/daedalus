@@ -74,6 +74,7 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar,
                                                         pathVarToSExpr)
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
 import GHC.Stack (HasCallStack)
+import Talos.Strategy.PathSymbolic.Branching (IndexedBranching)
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -500,9 +501,9 @@ buildPath = go
       SelectedDo l r -> do
         SelectedDo <$> extendCursorIn PCDoLeft (go l)
                    <*> extendCursorIn PCDoRight (go r)
-      SelectedChoice pib -> SelectedChoice <$> buildPathChoice pib
+      SelectedChoice pib -> SelectedChoice <$> buildIndexedBranching pib
       SelectedCall i p   -> SelectedCall i <$> go p
-      SelectedCase pib   -> SelectedCase <$> buildPathChoice pib
+      SelectedCase pib   -> SelectedCase <$> buildIndexedBranching pib
       SelectedLoop lp    -> buildLoop lp
 
     resolveResult :: SolverResult -> ModelParserM BS.ByteString
@@ -557,20 +558,18 @@ loopNonEmpty m_lv m = do
     -- singleton case, we need to record and move on.
     else m
     
-buildPathChoice :: HasCallStack =>
-                   PathChoiceBuilder PathBuilder ->
-                   ModelParserM (PathIndex SelectedPath)
-buildPathChoice (ConcreteChoice i p) = PathIndex i <$> buildPath p
-buildPathChoice (SymbolicChoice pv ps) = do
-  i <- getPathVar pv
-  p <- case lookup i ps of
-         Nothing  -> do
-           mP <- ppModelVars #msPathVars
-           mL <- ppModelVars #msLoopCounts
+buildIndexedBranching :: HasCallStack =>
+                         IndexedBranching Int PathBuilder ->
+                         ModelParserM (PathIndex SelectedPath)
+buildIndexedBranching (B.IndexedBranching b) = do
+  m_i_a <- B.resolve b
+  case m_i_a of
+    Nothing  -> do
+      mP <- ppModelVars #msPathVars
+      mL <- ppModelVars #msLoopCounts
            
-           panic "Missing choice" [showPP pv <> " = " <> show i, show mP, show mL]
-         Just p'  -> pure p'
-  PathIndex i <$> buildPath p
+      panic "Missing choice" [show mP, show mL]
+    Just (i, p')  -> PathIndex i <$> buildPath p'
 
 -- -----------------------------------------------------------------------------
 -- Loops
