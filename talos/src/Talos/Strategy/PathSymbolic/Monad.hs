@@ -70,6 +70,7 @@ import           Talos.Strategy.PathSymbolic.Streams (StreamTreeInfo, StreamTree
 import Data.Sequence (Seq)
 import Control.Arrow ((&&&))
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
+import Daedalus.Core.Type (sizeType)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -94,7 +95,7 @@ pathKey = "pathsymb"
 
 -- Only used in the simulator to record the current stream usage.
 data StreamUsage = StreamUsage
-  { suBase    :: SymbolicStream
+  { suBase    :: MuxValue
   -- , suBaseChanged :: Bool
   --  ^ Set when a Set/GetStream operation is performed, and used to
   -- avoid spurious merges of the suUsage.  Does NOT track suUsage.
@@ -372,8 +373,10 @@ branching b = do
   let vs' = B.catMaybes vs
   if B.null vs'
     then unreachable
-    else do let (stis, assn) = B.unzip siAndassn
-            undefined -- emitStreamTreeInfo (S.STBranching stis)
+    else do let (stiB, assn) = B.unzip siAndassn
+                (stiAssn, sti) = S.branching stiB
+            assert stiAssn
+            emitStreamTreeInfo sti
             assert (A.BAssert assn) $> vs'
   where
     go m = censor forgetGuarded (runm m `catchError` hdl)
@@ -389,46 +392,15 @@ branching b = do
 guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
 guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
 
--- freshStreamTreeNode :: GUID -> MuxValue -> MuxValue -> SymbolicM StreamTreeNode
--- freshStreamTreeNode parent off len = do
---   nid <- liftStrategy getNextGUID
---   pure StreamTreeNode { stnID = nid, stnParent = parent, stnOffset = off, stnLength = len }
+finishStreamSegment :: StreamUsage -> SymbolicM (StreamUsage, MuxValue)
+finishStreamSegment su = do
+  (assn, sti, strmV) <- liftSemiSolverM (MV.finishStreamSegment (suBase su) (suUsage su))
+  assert assn
+  emitStreamTreeInfo sti
 
--- Notes the amount of stream used by the current stream into the
--- stream tree and creates a new sibling.
-finishStream :: StreamUsage -> SymbolicM (MuxValue, StreamUsage)
-finishStream su = do
-  (lenS, lenA) <- 
-  let mkNode parent = do
-        nid <- getNextGUID
-        let plenS = S.const (stnLength parent)
-            lenS  = S.const lenSym
-        let node = S.StreamTreeNode
-              { stnLength = newLen
-              , stnID     = nid
-              , stnParent = Just parent
-              , stnRelOffset = Nothing
-              , stnHasContents = False
-              }
-        pure node
-  
-        let node = S.StreamTreeNode
-              { stnLength = newLen
-              , stnID     = nid
-              , stnParent = Just parent
-              , stnRelOffset = Nothing
-              , stnHasContents = False
-              }
-  
-  -- let node = StreamTreeNode
-  --            { stnID = nid
-  --            , 
-  --              , stnParent :: GUID -- invalidGUID if the root
-  -- , stnOffset :: MuxValue
-  -- , stnLength :: MuxValue
-  -- } deriving (Generic)
+  let su' = StreamUsage { suBase = strmV, suUsage = MV.vInteger sizeType 0 }
+  pure (su', strmV)
 
---  undefined
 --------------------------------------------------------------------------------
 -- Search operaations
 

@@ -50,7 +50,8 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   , semiExecDropMaybe
   , semiExecTake  
   , fromHoleSize
-  -- , nullStream
+  , finishStreamSegment
+  , nullStream
   -- , branchingStreams
   ) where
 
@@ -74,7 +75,7 @@ import qualified Data.ByteString                       as BS
 import           Data.Foldable                         (foldlM, toList)
 import           Data.Functor                          (($>))
 import           Data.Generics.Labels                  ()
-import           Data.List.NonEmpty                    (NonEmpty)
+import           Data.List.NonEmpty                    (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                    as NE
 import           Data.Map.Strict                       (Map)
 import qualified Data.Map.Strict                       as Map
@@ -85,6 +86,7 @@ import           Data.Text                             (Text)
 import qualified Data.Vector                           as Vector
 import           GHC.Generics                          (Generic)
 import           GHC.Stack                             (HasCallStack)
+
 
 import qualified SimpleSMT                             as S
 import           SimpleSMT                             (SExpr)
@@ -361,20 +363,12 @@ asIntegers (VIntegers (Typed _ bvs))
   | Just is <- bvs ^? below _Left = NE.nonEmpty (toList is)
 asIntegers _ = Nothing
 
--- Streams
--- nullStream :: SymbolicStream -> Assertion
--- nullStream strm = A.BAssert $ liftA2 go (ssfConsumed strm) (ssfTotal strm)
---   where
---     go _ (Left Nothing)          = A.false
---     go (Left i) (Left (Just k))  = A.BoolAssert (i == k)
---     go (Left i) (Right t)        = mkIEq i t
---     go (Right s) (Left (Just k)) = mkIEq k s
---     go (Right s) (Right t)       = mkEq (S.const s) (S.const t)
-
---     mkEq l r = A.SExprAssert (S.eq l r)
-    
---     mkIEq :: Integer -> SMTVar -> Assertion
---     mkIEq i s = mkEq (S.const s) (symExecInt sizeType i)
+-- Assert that all lengths are 0
+nullStream :: MuxValue -> Assertion
+nullStream (VStream strmB) = A.BAssert $ go <$> strmB
+  where
+    go stn = A.SExprAssert (S.eq (S.const (stnLength stn)) (symExecInt sizeType 0))
+nullStream _ = panic "Malformed value" []
 
 -- branchingStreams :: Branching (Maybe SymbolicStream) -> Maybe SymbolicStream
 -- branchingStreams b
@@ -1387,34 +1381,32 @@ semiExecTake strmE lenE = do
   pure (lenA, VStream nodeB)
 
 finishStreamSegment :: SemiCtxt m =>
-                       SymbolicStream -> MuxValue ->
+                       MuxValue -> MuxValue ->
                        SemiSolverM m (Assertion, StreamTreeInfo, MuxValue)
-finishStreamSegment strmB offV = do
-  (lenSym, lenA) <- liftSolver (nameIntegers "off" (S.const <$> offV))
-  
-  -- let mkNode parent = do
-  --       nid <- getNextGUID
-
-  --       let plenS = S.const (stnLength parent)
-  --           lenS  = S.const lenSym
-  --           fitsA = A.SExprAssert (S.bvULeq lenS plenS)
-
+finishStreamSegment (VStream strmB) offV = do
+  (offSym, offA) <- liftSolver (nameIntegers "off" (S.const <$> offV))
+  let mkNode parent = do
+        let plenS = S.const (stnLength parent)
+            offS  = S.const offSym
+            fitsA = A.SExprAssert (S.bvULeq offS plenS)
+        
+        let node = S.StreamTreeNode
+              { stnLength = offSym
+              , stnBase   = stnBase parent
+              }
             
+        newLen  <- sexprAsSMTVar sizeType (S.bvSub plenS offS)
+        newBase <- sexprAsSMTVar sizeType (S.bvAdd (S.const (stnBase parent)) offS)
+        let strm = S.StreamTreeNode
+                   { stnLength = newLen
+                   , stnBase   = newBase
+                   }
+        pure (fitsA, S.singleton node, strm)
 
-        
-  --       -- newLen <- sexprAsSMTVar sizeType (S.ite (S.bvULeq lenS plenS) lenS plenS)
-  --       let node = S.StreamTreeNode
-  --             { stnLength = newLen
-  --             , stnID     = nid
-  --             , stnParent = Just parent
-  --             , stnRelOffset = Nothing
-  --             , stnHasContents = False
-  --             }
-  --       pure node
-        
-  undefined
-  
-
+  (assnB, stiB, strmB') <- B.unzip3 <$> traverse mkNode strmB
+  let (strmA, sti) = S.branching stiB
+  pure ( A.conjMany (offA :| [ strmA, A.BAssert assnB ]), sti, VStream strmB')
+finishStreamSegment _ _ = panic "Maloformed value" []
 
 -- -- We do not need to assert that there is sufficient room, as that
 -- -- happens when we check that segments fit into the available space.

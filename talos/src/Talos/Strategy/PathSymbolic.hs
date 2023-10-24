@@ -182,19 +182,16 @@ stratSlice = go
         -- We special case this here so we can add assertions/path
         -- variables and deal with the stream tree.
         SPure (Ap2 DropMaybe lenE strmE) -> do
-          (extraAssn, negA, posA, sti, strmV) <- liftSemiSolverM (MV.semiExecDropMaybe strmE lenE)
+          (extraAssn, negA, posA, strmV) <- liftSemiSolverM (MV.semiExecDropMaybe strmE lenE)
           v <- branching . snd =<< pathVariants [ assert negA $> MV.vNothing
-                                                , do assert posA
-                                                     emitStreamTreeInfo sti
-                                                     pure (MV.vJust strmV)
+                                                , assert posA $> MV.vJust strmV
                                                 ]
           pure $ Result (MV.mux v) m_su SelectedHole
 
         -- Likewise, we need to deal with take
         SPure (Ap2 Take lenE strmE) -> do
-          (assn, sti, v) <- liftSemiSolverM (MV.semiExecTake strmE lenE)
+          (assn, v) <- liftSemiSolverM (MV.semiExecTake strmE lenE)
           assert assn
-          emitStreamTreeInfo sti
           pure $ Result v m_su SelectedHole
           
         SPure e -> do
@@ -203,30 +200,32 @@ stratSlice = go
 
         SGetStream -> do
           let su = fromMaybe (panic "Saw a getstream with no stream" []) m_su
-          
-          -- When we refer to the current stream via GetStream we
-          -- finish the current stream (make it a segment), create a
-          -- new segment and return that.
-          (strmV, su') <- finishStream su
+          -- We don't _have_ to finish the stream here, but we might
+          -- as well name it to avoid re-naming the offset term.
+          (su', strmV) <- finishStreamSegment su
           
           pure $ Result strmV (Just su') SelectedHole
           
         SSetStream e -> do
+          traverse_ finishStreamSegment m_su
           mv <- synthesiseExpr e
-          case preview #_VStream mv of
-            Just strm -> pure (MV.VUnit, Just strm, SelectedHole)
-            Nothing   -> unexpected
+          let su' = StreamUsage { suBase = mv, suUsage = MV.vInteger sizeType 0 }
+          
+          pure $ Result MV.VUnit (Just su') SelectedHole
 
         -- We assert tha the stream is empty, and return the empty
         -- stream.  See the treatment of MatchEnd in BoundedStreams.
-        SEnd -> maybe (pure ()) (assert . MV.nullStream) m_strm
-                $> (MV.VUnit, Just MV.emptyStream, SelectedHole)
+        SEnd -> do
+          let su = fromMaybe (panic "Saw a getstream with no stream" []) m_su          
+          (su', strmV) <- finishStreamSegment su
+          assert (MV.nullStream strmV)
+          pure $ Result MV.VUnit (Just su') SelectedHole
 
         SDo m_x lsl rsl -> do
-          let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go m_strm lsl)
+          let goL = noteCurrentName (fromMaybe "_" (nameText =<< m_x)) (go m_su lsl)
 
-              goR :: Maybe SymbolicStream -> PathBuilder -> SymbolicM Result
-              goR m_strm' lpath = over _3 (SelectedDo lpath) <$> go m_strm' rsl
+              goR :: Result -> SymbolicM Result
+              goR r = over #rBuilder (SelectedDo (rBuilder r)) <$> go (rStream r) rsl
 
           bindNameInMaybe m_x goL goR
 
@@ -245,18 +244,18 @@ stratSlice = go
           assertSExpr bassn
           
           -- liftSolver check -- required?
-          m_strm' <- consumeFromStream m_strm (staticSHoleSize 1)
+          m_su' <- consumeFromStream m_su (staticSHoleSize 1)
           
           ptag <- asks sProvenance
-          pure (bv, m_strm', SelectedBytes ptag (ByteResult sym))
+          pure $ Result bv m_su' (SelectedBytes ptag (ByteResult sym))
 
-        SChoice sls -> stratChoice m_strm sls Nothing --  =<< asks sCurrentSCC
+        SChoice sls -> stratChoice m_su sls Nothing --  =<< asks sCurrentSCC
 
-        SCall cn -> stratCallNode m_strm cn
+        SCall cn -> stratCallNode m_su cn
 
-        SCase total c -> stratCase m_strm total c Nothing -- =<< asks sCurrentSCC
+        SCase total c -> stratCase m_su total c Nothing -- =<< asks sCurrentSCC
 
-        SLoop lc -> stratLoop m_strm lc
+        SLoop lc -> stratLoop m_su lc
 
         SInverse n ifn p -> do
           let ty = typeOf n
@@ -293,7 +292,7 @@ stratSlice = go
             -- support inverses in bounded streams (we could).
             pure (n', Nothing, SelectedBytes ptag (InverseResult venv ifn))
     
-stratChoice :: Maybe SymbolicStream -> [ExpSlice] -> Maybe (Set SliceId) ->
+stratChoice :: Maybe StreamUsage -> [ExpSlice] -> Maybe (Set SliceId) ->
                SymbolicM Result
 -- stratChoice ptag sls (Just sccs)
 --   | any hasRecCall sls = do
@@ -592,7 +591,7 @@ guardedLoopCollection vsm lc m i el
     bindE = primBindName (lcElName lc) el    
 
 -- c.f. stratChoice
-stratCase :: Maybe SymbolicStream ->
+stratCase :: Maybe StreamUsage ->
              Bool -> Case ExpSlice -> Maybe (Set SliceId) ->
              SymbolicM Result
 stratCase m_strm _total cs@(Case n pats) _m_sccs
@@ -625,7 +624,7 @@ stratCase m_strm _total cs@(Case n pats) _m_sccs
       
       pure (MV.mux b_vs, m_strm', SelectedCase (SymbolicChoice pv paths))
 
-stratCallNode :: Maybe SymbolicStream ->
+stratCallNode :: Maybe StreamUsage ->
                  ExpCallNode ->
                  SymbolicM Result
 stratCallNode m_strm cn = do
