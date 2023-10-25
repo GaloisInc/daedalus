@@ -29,15 +29,17 @@ import           Control.Monad.Except                  (ExceptT, MonadError,
                                                         catchError, runExceptT,
                                                         throwError)
 -- FIXME: use .CPS?
-import           Control.Monad.Writer                  (MonadWriter, WriterT,
-                                                        censor, listens,
-                                                        runWriterT, tell)
+import Control.Monad.RWS.CPS (RWST, MonadWriter, runRWST, tell, censor, listens, get, put, MonadState, gets)
+
+-- import           Control.Monad.Writer                  (MonadWriter, WriterT,
+--                                                         censor, listens,
+--                                                         runWriterT, tell)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
 
 import           Daedalus.Core                         (Expr, Name, Type,
-                                                        Typed (..))
+                                                        Typed (..), Type (TBool))
 import           Daedalus.GUID                         (getNextGUID,
                                                         invalidGUID, GUID)
 import           Daedalus.Panic                        (panic)
@@ -71,6 +73,13 @@ import Data.Sequence (Seq)
 import Control.Arrow ((&&&))
 import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
 import Daedalus.Core.Type (sizeType)
+import Data.Monoid (Any(..))
+import Data.Foldable (fold)
+import Data.Maybe (fromMaybe)
+import Talos.Analysis.Slice (SHoleSize)
+import System.Posix.Internals (puts)
+import           Daedalus.Core (Op2(Add, Leq))
+import Control.Monad (void, when)
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -96,17 +105,11 @@ pathKey = "pathsymb"
 -- Only used in the simulator to record the current stream usage.
 data StreamUsage = StreamUsage
   { suBase    :: MuxValue
-  -- , suBaseChanged :: Bool
-  --  ^ Set when a Set/GetStream operation is performed, and used to
-  -- avoid spurious merges of the suUsage.  Does NOT track suUsage.
   , suUsage   :: MuxValue
   } deriving Generic
 
 data Result = Result
   { rValue          :: MuxValue
-  -- | The current stream, if any.  This accumulates the size
-  -- constraints, and holds the remaining bytes in the stream.
-  , rStream         :: Maybe StreamUsage
   , rBuilder        :: PathBuilder
   } deriving (Generic)
 
@@ -192,11 +195,12 @@ data SymbolicModel = SymbolicModel
     -- ^ These are not predicated, e.g. range limits on choices.
   , smGuardedAsserts :: Assertion
   , smStreamTreeInfo :: StreamTreeInfo
-  , smChoices :: Map PathVar ( [SMT.SExpr] -- Symbolic path (all true to be enabled)
-                             , [Int] -- Allowed choice indicies
-                             )
+  , smChoices :: Map PathVar Int
   , smNamedValues :: Map SMTVar Type
   , smLoopVars    :: Set LoopCountVar
+  , smStreamBaseChanged :: Any
+  -- ^ used to avoid merging stream bases (which will be relatively
+  -- rare).
   } deriving Generic
 
 smAsserts :: SymbolicModel -> [SMT.SExpr]
@@ -213,7 +217,8 @@ instance Semigroup SymbolicModel where
     (smChoices sm1 <> smChoices sm2)
     (smNamedValues sm1 <> smNamedValues sm2)
     (smLoopVars sm1 <> smLoopVars sm2)
-
+    (smStreamBaseChanged sm1 <> smStreamBaseChanged sm2)
+    
 instance Monoid SymbolicModel where
   mempty = SymbolicModel
            { smGlobalAsserts  = mempty
@@ -222,13 +227,21 @@ instance Monoid SymbolicModel where
            , smChoices        = mempty
            , smNamedValues    = mempty
            , smLoopVars       = mempty
+           , smStreamBaseChanged = mempty
            }
+
+newtype SymbolicState = SymbolicState
+  { streamUsage :: Maybe StreamUsage
+  } deriving Generic
 
 -- Writer outside of Except as writer state should be discarded on exception.
 newtype SymbolicM a =
-  SymbolicM { getSymbolicM :: WriterT SymbolicModel (ExceptT () (ReaderT SymbolicEnv (SolverT StrategyM))) a }
+  SymbolicM { getSymbolicM :: RWST SymbolicEnv SymbolicModel SymbolicState (ExceptT () (SolverT StrategyM)) a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadError ()
-           , MonadReader SymbolicEnv, MonadWriter SymbolicModel, MonadSolver, LiftTalosM)
+           , MonadReader SymbolicEnv
+           , MonadState SymbolicState
+           , MonadWriter SymbolicModel
+           , MonadSolver, LiftTalosM)
 
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
@@ -238,10 +251,14 @@ runSymbolicM :: -- | Slices for pre-run analysis
                 Int ->
                 Int ->
                 ProvenanceTag ->
+                Maybe StreamUsage -> 
                 SymbolicM Result ->
-                SolverT StrategyM (Either () (Result, SymbolicModel))
-runSymbolicM _sls maxRecDepth nLoopEls ptag (SymbolicM m) =
-  runReaderT (runExceptT (runWriterT m)) (emptySymbolicEnv maxRecDepth nLoopEls ptag)
+                SolverT StrategyM (Either () (Result, SymbolicState, SymbolicModel))
+runSymbolicM _sls maxRecDepth nLoopEls ptag m_su (SymbolicM m) =
+  runExceptT (runRWST m env0 st0)
+  where
+    st0  = SymbolicState m_su
+    env0 = emptySymbolicEnv maxRecDepth nLoopEls ptag
 
 --------------------------------------------------------------------------------
 -- Names
@@ -294,7 +311,7 @@ namePathSets b = do
   -- complicated to make this worthwhile.  
   let (bnd, assn, r) = B.namePathSets pv b
   constrainPathVar pv bnd
-  recordChoice pv [0 .. bnd - 1]
+  recordChoice pv bnd
   assert (A.BAssert (A.PSAssert <$> assn))
   pure r
 
@@ -304,11 +321,18 @@ pathVariants vs = do
   let b = B.branching True $ imap (\i v -> (PS.choiceConstraint pv i, v)) vs
   pure (pv, b)
 
+ipathVariants :: [a] -> SymbolicM (PathVar, Branching (Int, a))
+ipathVariants vs = do
+  pv <- freshPathVar (length vs)
+  let b = B.branching True $ imap (\i v -> (PS.choiceConstraint pv i, (i, v))) vs
+  pure (pv, b)
+
 freshPathVar :: Int -> SymbolicM PathVar
 freshPathVar bnd = do
   n <- makeNicerSym "c"
   pv <- PathVar <$> liftSolver (Solv.declareSymbol n pathVarSort)
   constrainPathVar pv bnd
+  recordChoice pv bnd
   pure pv
 
 freshLoopCountVar :: Int -> Int -> SymbolicM LoopCountVar
@@ -338,6 +362,9 @@ assert a = tell (mempty { smGuardedAsserts = a })
 emitStreamTreeInfo :: StreamTreeInfo -> SymbolicM ()
 emitStreamTreeInfo sti = tell (mempty { smStreamTreeInfo = sti })
 
+emitStreamBaseChanged :: SymbolicM ()
+emitStreamBaseChanged = tell (mempty { smStreamBaseChanged = Any True })
+
 -- emitStreamTreeNode :: StreamTreeNode -> SymbolicM ()
 -- emitStreamTreeNode = emitStreamTreeInfo . S.STNode
 
@@ -348,9 +375,9 @@ assertGlobalSExpr :: SMT.SExpr -> SymbolicM ()
 assertGlobalSExpr p | p == SMT.bool True = pure ()
 assertGlobalSExpr p = tell (mempty { smGlobalAsserts = [p] })
 
-recordChoice :: PathVar -> [Int] -> SymbolicM ()
-recordChoice pv ixs =
-  tell (mempty { smChoices = Map.singleton pv (mempty, ixs) })
+recordChoice :: PathVar -> Int -> SymbolicM ()
+recordChoice pv n =
+  tell (mempty { smChoices = Map.singleton pv n })
 
 recordValue :: Type -> SMTVar -> SymbolicM ()
 recordValue ty sym = tell (mempty { smNamedValues = Map.singleton sym ty })
@@ -365,41 +392,141 @@ handleUnreachable m =
   (Just <$> m) `catchError` hdl
   where
     hdl () = assert (A.BoolAssert False) $> Nothing
+
+branchingSymbolicState :: SymbolicState  -> Any -> Branching SymbolicState -> SymbolicM ()
+-- Presence of a stream is a global (per-slice) property: it is either
+-- there or not, it doesn't evolve (could be a type param?)
   
+branchingSymbolicState (SymbolicState Nothing) _anyChanged _stB = pure ()
+branchingSymbolicState (SymbolicState (Just su)) anyChanged siB 
+  | Just suB <- traverse streamUsage siB = do
+      let base | getAny anyChanged = MV.mux (suBase <$> suB)
+               | otherwise = suBase su
+          usage = MV.mux (suUsage <$> suB)
+      put (SymbolicState . Just $ StreamUsage base usage)
+      when (getAny anyChanged) emitStreamBaseChanged
+  | otherwise = panic "Unexpected missing stream" []
+    
 -- Handles assertions and failure as well.
 branching :: Branching (SymbolicM a) -> SymbolicM (Branching a)
 branching b = do
-  (vs, siAndassn) <- B.unzip <$> traverse go b
-  let vs' = B.catMaybes vs
-  if B.null vs'
+  st <- get
+  (vsAndSt, wout) <- B.unzip <$> traverse (go st) b
+  let vsAndSt'  = B.catMaybes vsAndSt
+  if B.null vsAndSt'
     then unreachable
-    else do let (stiB, assn) = B.unzip siAndassn
-                (stiAssn, sti) = S.branching stiB
-            assert stiAssn
-            emitStreamTreeInfo sti
-            assert (A.BAssert assn) $> vs'
+    else do
+    let (changedB, stiB, assnB)   = B.unzip3 wout
+        (vsB, stB) = B.unzip vsAndSt'    
+        (stiAssn, sti) = S.branching stiB
+        anyChanged     = fold changedB
+        
+    assert (A.conj stiAssn (A.BAssert assnB))
+    emitStreamTreeInfo sti
+    branchingSymbolicState st anyChanged stB
+    pure vsB
   where
-    go m = censor forgetGuarded (runm m `catchError` hdl)
-    
-    runm :: SymbolicM a ->
-            SymbolicM (Maybe a, (StreamTreeInfo, Assertion))
-    runm m = listens (smStreamTreeInfo &&& smGuardedAsserts) (Just <$> m)
-    hdl () = pure (Nothing, (mempty, A.BoolAssert False))
+    go st m = censor forgetGuarded (runm st m `catchError` hdl)
+      
+    runm :: SymbolicState -> SymbolicM a ->
+            SymbolicM (Maybe (a, SymbolicState), (Any, StreamTreeInfo, Assertion))
+    runm st m = do
+      put st
+      let getW w = (smStreamBaseChanged w, smStreamTreeInfo w, smGuardedAsserts w)
+      (r, w) <- listens getW m
+      st' <- get
+      pure (Just (r, st'), w)
+      
+    hdl () = pure (Nothing, (mempty, mempty, A.BoolAssert False))
 
     forgetGuarded = (#smGuardedAsserts .~ mempty)
                     . (#smStreamTreeInfo .~ mempty)
 
-guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
-guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
+-- performs the partial unrolls for the loop, doing the right thing
+-- for assertions and streams (hence why it's here)
+unrollLoopPartials :: LoopCountVar -> MuxValue -> [b] ->
+                      (MuxValue -> Int -> b -> SymbolicM Result) ->
+                      SymbolicM [Result] -- All intermediate results.
+unrollLoopPartials lv initv vs f = do
+  st0 <- get
+  -- anyChanged is an over-approx. as it is an optimisation.
+  ((rs, sts), anyChanged) <- listens smStreamBaseChanged (unzip <$> doOne initv [] (zip [0..] vs))
+  -- True as any failing nodes will cause the idx to be restricted as well.
+  let stB = B.branching True (imap (\i st -> (PS.loopCountEqConstraint lv i, st)) (st0 : sts))
+  branchingSymbolicState st0 anyChanged stB
+  pure rs
+  where
+    doOne _v acc [] = pure (reverse acc)
+    doOne  v acc ((i, el) : rest) = do
+      m_r <- guardAssertions (PS.loopCountGtConstraint lv i)
+             $ handleUnreachable (f v i el)
+      case m_r of
+        Nothing -> pure (reverse acc)
+        Just r -> do
+          st <- get
+          doOne (rValue r) ((r, st) : acc) rest
 
-finishStreamSegment :: StreamUsage -> SymbolicM (StreamUsage, MuxValue)
-finishStreamSegment su = do
+    -- Not safe for general use as it doesn't play nicely with the stream tree 
+    guardAssertions :: PathSet -> SymbolicM a -> SymbolicM a
+    guardAssertions ps = censor (#smGuardedAsserts %~ A.entail ps)
+
+unrollLoop :: MuxValue -> [b] ->
+              (MuxValue -> Int -> b -> SymbolicM Result) ->
+              SymbolicM [Result] -- All intermediate results.
+unrollLoop initv vs f = doOne initv [] (zip [0..] vs)
+  where
+    doOne _v acc [] = pure (reverse acc)
+    doOne  v acc ((i, el) : rest) = do
+      r <- f v i el
+      doOne (rValue r) (r : acc) rest
+
+-- Handles the stream tree as well.
+unaryBranching :: PathSet -> SymbolicM a -> SymbolicM a
+unaryBranching ps m = do
+  (r, sti) <- censor ((#smGuardedAsserts %~ A.entail ps) . (#smStreamTreeInfo .~ mempty))
+              $ listens smStreamTreeInfo m
+              
+  let (stiAssn, sti') = S.branching (B.branching False [(ps, sti)])
+  assert stiAssn
+  emitStreamTreeInfo sti'
+  pure r
+
+finishStreamSegment :: SymbolicM MuxValue
+finishStreamSegment = do
+  su <- gets (fromMaybe (panic "Missing stream" []) . streamUsage)
+
   (assn, sti, strmV) <- liftSemiSolverM (MV.finishStreamSegment (suBase su) (suUsage su))
   assert assn
   emitStreamTreeInfo sti
+  emitStreamBaseChanged
+  
+  put (SymbolicState . Just $ StreamUsage { suBase = strmV, suUsage = MV.vInteger sizeType 0 })
+  pure strmV
 
-  let su' = StreamUsage { suBase = strmV, suUsage = MV.vInteger sizeType 0 }
-  pure (su', strmV)
+-- We do not need to assert that there is sufficient room, as that
+-- happens when we check that segments fit into the available space.
+-- We _do_ need to assert that the addition does not wrap (sizes are
+-- 64 bits), as we only see the aggregate sum in the segment
+-- constraint.
+consumeFromStream :: SHoleSize -> SymbolicM ()
+consumeFromStream shs = do
+  m_su <- gets streamUsage
+  traverse go m_su >>= put . SymbolicState
+  where
+    go su = do
+      (assn, su') <- liftSemiSolverM $ do
+        szV <- MV.fromHoleSize shs
+        usage' <- MV.op2 Add sizeType sizeType sizeType szV (suUsage su)
+        noWrapV <- MV.op2 Leq sizeType sizeType TBool szV usage'
+        pure (MV.toAssertion noWrapV, usage')
+      assert assn $> su { suUsage = su' }
+
+setStream :: MuxValue -> SymbolicM ()
+setStream strm = do
+  void $ finishStreamSegment
+  let su' = StreamUsage { suBase = strm, suUsage = MV.vInteger sizeType 0 }
+  put (SymbolicState (Just su'))
+  emitStreamBaseChanged
 
 --------------------------------------------------------------------------------
 -- Search operaations

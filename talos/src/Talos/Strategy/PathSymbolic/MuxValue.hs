@@ -826,42 +826,6 @@ nameLoopCountVar sexpr = LoopCountVar <$> nameSExprForSideCond sizeType sexpr
 unreachable :: SemiCtxt m => SemiSolverM m a
 unreachable = throwError ()
 
--- getMaybe :: SemiCtxt m => SemiSolverM m a -> SemiSolverM m (Maybe a)
--- getMaybe = lift . runMaybeT
-
--- putMaybe :: SemiCtxt m => SemiSolverM m (Maybe a) -> SemiSolverM m a
--- putMaybe m = hoistMaybe =<< m
-
--- hoistMaybe :: SemiCtxt m => Maybe a -> SemiSolverM m a
--- hoistMaybe r =
---   case r of
---     Nothing -> fail "Ignored"
---     Just v  -> pure v
-
--- collectMaybes :: SemiCtxt m => [SemiSolverM m a] -> SemiSolverM m [a]
--- collectMaybes = fmap catMaybes . mapM getMaybe
-
--- -- | Strips out failing values and produces a single value.
--- gseCollect :: SemiCtxt m => [SemiSolverM m GuardedSemiSExprs] ->
---               SemiSolverM m GuardedSemiSExprs
--- gseCollect gvs = collectMaybes gvs >>= hoistMaybe . unions'
---   -- gvs' <- collectMaybes gvs
---   -- let m_v   = unions' gvs'
---   --     ngvs  = length gvs
---   --     ngvs' = length gvs'
---   --     nvs   = length (concatMap guardedValues gvs')
---   --     nvs'  = maybe 0 (length . guardedValues) m_v
-
---   -- T.statistic (muxKey <> "collect") (Text.pack $ printf "non-empty: %d/%d pruned: %d/%d" ngvs' ngvs (nvs - nvs') nvs)
---   -- hoistMaybe m_v
-
--- getEFun :: SemiCtxt m => FName -> SemiSolverM m (Fun Expr)
--- getEFun f = do
---   fdefs <- liftStrategy getFunDefs
---   case Map.lookup f fdefs of
---     Just fn -> pure fn
---     Nothing -> panic "Missing pure function" [showPP f]
-
 --------------------------------------------------------------------------------
 -- Exprs
 
@@ -1408,26 +1372,6 @@ finishStreamSegment (VStream strmB) offV = do
   pure ( A.conjMany (offA :| [ strmA, A.BAssert assnB ]), sti, VStream strmB')
 finishStreamSegment _ _ = panic "Maloformed value" []
 
--- -- We do not need to assert that there is sufficient room, as that
--- -- happens when we check that segments fit into the available space.
--- -- We _do_ need to assert that the addition does not wrap (sizes are
--- -- 64 bits), as we only see the aggregate sum in the segment
--- -- constraint.
--- consumeFromStream :: SemiCtxt m =>
---                      SymbolicStream -> SHoleSize ->
---                      SemiSolverM m (Assertion, SymbolicStream)
--- consumeFromStream strm shs = do
---   shsV <- fromHoleSize shs
---   (assn, strm0') <- B.unzip <$> traverse (go shsV) (getSymbolicStreamF (S.const <$> strm))
---   strm' <- SymbolicStreamF <$> traverseOf (traversed . traversed) (bvsNameSExprs sizeType) strm0'
---   pure (A.BAssert assn, strm')
---   where
---     go shsV stn = do
---       len'    <- semiExecOp2 Add sizeType sizeType sizeType shsV (VIntegers (Typed sizeType (stnLength stn)))
---       noWrapV <- semiExecOp2 Leq sizeType sizeType TBool shsV len'
---       let noWrapA = toAssertion' noWrapV
---       pure (noWrapA, stn { stnLength = len' ^?! #_VIntegers . typedIso sizeType })
-
 -- -----------------------------------------------------------------------------
 -- Getting a concrete value in a model
   
@@ -1488,7 +1432,7 @@ ppMuxValueF mv =
       where ppFld (x,t) = pp x <.> colon <+> go t
     VSequence b -> pp (ppSeq <$> b)
     VMaybe m -> stmv (maybe "nothing" (const "just")) m
-    VStream bvs -> undefined -- ppBaseValues (bvs & mapped . _Left %~ ppMaybe)
+    VStream bvs -> pp bvs
     VMap {} -> unsupported
   where
     stmv :: PP s => (l -> Doc) -> SumTypeMuxValueF l s -> Doc

@@ -25,6 +25,7 @@ module Talos.Strategy.PathSymbolic.Branching
 
   , empty
   , null
+  , all
   , select
   , resolve
   , muxMaps
@@ -49,7 +50,7 @@ import           Data.Maybe                          (isJust, mapMaybe)
 import qualified Data.Maybe                          as Maybe
 import           GHC.Generics                        (Generic)
 import           Prelude                             hiding (null, unzip,
-                                                      unzip3)
+                                                      unzip3, all)
 import qualified Prelude
 import qualified SimpleSMT                           as S
 
@@ -114,6 +115,9 @@ empty = Branching True []
 -- | An empty branching is denoted as False
 null :: Branching a -> Bool
 null = Prelude.null . variants
+
+all :: (a -> Bool) -> Branching a -> Bool
+all p = Prelude.all (p . snd) . variants
 
 -- For debugging/checking.  Note the empty branching does not satisfy
 -- this.

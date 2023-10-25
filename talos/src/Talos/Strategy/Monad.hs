@@ -24,7 +24,6 @@ module Talos.Strategy.Monad ( Strategy(..)
 import           Control.Monad             (forM, replicateM)
 import           Control.Monad.Except      (throwError, ExceptT)
 import           Control.Monad.Reader
-import           Control.Monad.RWS         (RWST)
 import qualified Control.Monad.RWS.CPS as RWSCPS
 import qualified Control.Monad.RWS.Strict as RWSStrict
 import           Control.Monad.State
@@ -37,12 +36,11 @@ import           Data.Map                  (Map)
 import qualified Data.Map                  as Map
 import           Data.Maybe                (maybeToList)
 import           Data.Set                  (Set)
-import qualified Data.Set                  as Set
 import qualified Data.Vector               as V
 import qualified Data.Vector.Mutable       as V
 import           System.Random
 
-import           Daedalus.Core             (Expr (Struct), Name,
+import           Daedalus.Core             (Expr (Struct),
                                             SizeType (TSize), TDecl (tDef),
                                             TDef (TBitdata, TStruct, TUnion),
                                             TName, Type (..), UserType (utName),
@@ -314,7 +312,6 @@ instance LiftStrategyM m => LiftStrategyM (MaybeT m) where
 instance LiftStrategyM m => LiftStrategyM (ExceptT e m) where  
 instance LiftStrategyM m => LiftStrategyM (SolverT m) where
 instance (Functor f, LiftStrategyM m) => LiftStrategyM (FreeT f m) where
-instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWST r w s m) where
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSCPS.RWST r w s m) where
 instance (Monoid w, LiftStrategyM m) => LiftStrategyM (RWSStrict.RWST r w s m) where
 

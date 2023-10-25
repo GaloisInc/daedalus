@@ -41,6 +41,7 @@ import           Control.Lens
 import           Control.Monad             (MonadPlus, void, when)
 import           Control.Monad.Except      (ExceptT)
 import           Control.Monad.Reader      (ReaderT)
+import           Control.Monad.RWS.CPS     (RWST)
 import           Control.Monad.State
 import           Control.Monad.Trans.Free  (FreeT)
 import           Control.Monad.Trans.Maybe (MaybeT)
@@ -60,8 +61,9 @@ import           Daedalus.Core             hiding (freshName)
 import qualified Daedalus.Core             as C
 import           Daedalus.GUID             (GUID, HasGUID (..), getNextGUID)
 import           Daedalus.Panic            (panic)
-import           Daedalus.PP               (PP (pp), bullets, hang, showPP,
-                                            text, vcat, (<+>), parens, punctuate, hcat)
+import           Daedalus.PP               (PP (pp), bullets, hang, hcat,
+                                            parens, punctuate, showPP, text,
+                                            vcat, (<+>))
 type SMTVar = String
 
 data QueuedCommand =
@@ -516,7 +518,9 @@ instance (Monad m, MonadSolver m) => MonadSolver (ExceptT e m) where
 instance (Functor f, Monad m, MonadSolver m) => MonadSolver (FreeT f m) where
   type BaseMonad (FreeT f m) = BaseMonad m
   liftSolver = lift . liftSolver
-
+instance (Monad m, MonadSolver m) => MonadSolver (RWST r w s m) where
+  type BaseMonad (RWST r w s m) = BaseMonad m
+  liftSolver = lift . liftSolver  
 -- -----------------------------------------------------------------------------
 -- instances
 

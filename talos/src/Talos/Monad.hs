@@ -5,8 +5,9 @@
 module Talos.Monad where
 
 import qualified Colog.Core                   as Log
+import           Control.Monad.Except         (ExceptT)
 import           Control.Monad.Reader         (ReaderT)
-import           Control.Monad.RWS            (RWST)
+import           Control.Monad.RWS.CPS        (RWST)
 import qualified Control.Monad.State          as St
 import           Control.Monad.State.Strict   (MonadIO, MonadTrans (lift),
                                                StateT (..), evalStateT, gets,
@@ -17,9 +18,9 @@ import           Control.Monad.Writer         (WriterT)
 import           Data.Foldable                (find)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
+import           Data.String                  (IsString (..))
 import           Data.Text                    (Text)
-import qualified Data.Text as Text
-
+import qualified Data.Text                    as Text
 import qualified Streaming                    as S
 
 import           Daedalus.Core
@@ -29,9 +30,8 @@ import           Daedalus.GUID                (GUID, HasGUID, guidState)
 import           Daedalus.Panic               (panic)
 import           Daedalus.PP                  (showPP)
 import           Daedalus.Rec                 (forgetRecs)
-import           Talos.Solver.SolverT        (SolverT)
-import Data.String (IsString(..))
-import Control.Monad.Except (ExceptT)
+
+import           Talos.Solver.SolverT         (SolverT)
 
 data TalosMState  = TalosMState
   { tmModule    :: !Module
@@ -189,6 +189,7 @@ instance (Functor f, LiftTalosM m) => LiftTalosM (FreeT f m) where
   liftTalosM = lift . liftTalosM
 instance (Monoid w, LiftTalosM m) => LiftTalosM (RWST r w s m) where
   liftTalosM = lift . liftTalosM
+
 
 -- -----------------------------------------------------------------------------
 -- Instances
