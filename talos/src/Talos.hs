@@ -13,49 +13,50 @@ module Talos (
   ProvenanceMap, -- XXX: should do this properly 
   ) where
 
-import qualified Colog.Core                   as Log
-import           Control.Monad                (forM_, unless, when)
-import           Control.Monad.IO.Class       (liftIO)
-import           Data.ByteString              (ByteString)
-import           Data.IORef                   (modifyIORef', newIORef,
-                                               readIORef, writeIORef)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromMaybe, isJust)
-import           Data.String                  (fromString)
-import           Data.Text                    (Text)
-import qualified Data.Text                    as Text
+import qualified Colog.Core                    as Log
+import           Control.Monad                 (forM_, unless, when)
+import           Control.Monad.IO.Class        (liftIO)
+import           Data.ByteString               (ByteString)
+import           Data.Functor.Of               (Of)
+import           Data.IORef                    (modifyIORef', newIORef,
+                                                readIORef, writeIORef)
+import qualified Data.Map                      as Map
+import           Data.Maybe                    (fromMaybe, isJust)
+import           Data.String                   (fromString)
+import           Data.Text                     (Text)
+import qualified Data.Text                     as Text
 import           Data.Version
-import qualified SimpleSMT                    as SMT
-import qualified Streaming                    as S
-import           System.Exit                  (exitFailure)
-import           System.IO                    (IOMode (..), hFlush, hPutStr,
-                                               hPutStrLn, openFile, stderr)
-import qualified Text.ParserCombinators.ReadP as RP
-import           Text.ParserCombinators.ReadP (readP_to_S)
+import qualified SimpleSMT                     as SMT
+import qualified Streaming                     as S
+import           System.Exit                   (exitFailure)
+import           System.IO                     (IOMode (..), hFlush, hPutStr,
+                                                hPutStrLn, openFile, stderr)
+import qualified Text.ParserCombinators.ReadP  as RP
+import           Text.ParserCombinators.ReadP  (readP_to_S)
 
-import           Daedalus.AST                 (nameScopeAsModScope)
+import           Daedalus.AST                  (nameScopeAsModScope)
 import           Daedalus.Core
-import           Daedalus.Driver              hiding (State)
+import           Daedalus.Driver               hiding (State)
 import           Daedalus.GUID
 import           Daedalus.PP
-import           Daedalus.Rec                 (forgetRecs)
-import           Daedalus.Type.AST            (tcDeclName, tcModuleDecls)
-import           Daedalus.Value               (Value)
+import           Daedalus.Rec                  (forgetRecs)
+import           Daedalus.Type.AST             (tcDeclName, tcModuleDecls)
+import           Daedalus.Value                (Value)
 
-import           Data.Functor.Of              (Of)
-import qualified Talos.Analysis               as A
-import           Talos.Analysis.AbsEnv        (AbsEnvTy (AbsEnvTy))
-import           Talos.Analysis.Monad         (makeDeclInvs)
-import           Talos.Monad                  (LogKey, getLogKey, logKeyEnabled,
-                                               runTalosM, runTalosStream)
+
+import qualified Talos.Analysis                as A
+import           Talos.Analysis.AbsEnv         (AbsEnvTy (AbsEnvTy))
+import           Talos.Analysis.BoundedStreams (boundedStreams)
+import           Talos.Analysis.Monad          (makeDeclInvs)
+import           Talos.Monad                   (LogKey, getLogKey,
+                                                logKeyEnabled, runTalosM,
+                                                runTalosStream)
 import           Talos.Passes
-import           Talos.Path                   (ProvenanceMap)
+import           Talos.Passes.NoBytesPatterns  (noBytesPatternsM)
+import           Talos.Path                    (ProvenanceMap)
 import           Talos.Strategy
-import qualified Talos.Synthesis              as T
+import qualified Talos.Synthesis               as T
 
-import Data.Text (Text)
-import Talos.Analysis.BoundedStreams (boundedStreams)
-import Control.Monad.IO.Class (liftIO)
 
 -- -- FIXME: move, maybe to GUID.hs?
 -- newtype FreshGUIDM a = FreshGUIDM { getFreshGUIDM :: State GUID a }
@@ -241,6 +242,7 @@ runDaedalus inFile m_invFile m_entry noLoops = daedalus $ do
   passCore specMod
   passNoBitdata specMod
   when noLoops $ passNoLoops specMod
+  coreToCore "no bytes patterns" noBytesPatternsM specMod
   passStripFail specMod
   passSpecTys specMod
   passConstFold specMod

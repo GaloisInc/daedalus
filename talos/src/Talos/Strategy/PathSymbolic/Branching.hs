@@ -166,7 +166,7 @@ fold1M f Branching { variants = (_, v) : vs } =
 catMaybes :: Branching (Maybe a) -> Branching a
 catMaybes b = branching (total b && allJust) $ mapMaybe sequence (variants b) -- sequence :: (a, Maybe b) -> Maybe (a, b)
   where
-    allJust = all (isJust . snd) (variants b)
+    allJust = all isJust b
 
 -- FIXME: duplicates the pathsets
 unzip :: Branching (a, b) -> (Branching a, Branching b)
@@ -199,7 +199,7 @@ mapVariants :: (PathSet -> a -> Maybe (PathSet, a)) -> Branching a -> Branching 
 mapVariants f bvs = branching (total bvs && allJust) (Maybe.catMaybes news)
   where
     news = map (uncurry f) (variants bvs)
-    allJust = all isJust news
+    allJust = Prelude.all isJust news
 
 muxMaps :: Ord k => Branching (Map k v) -> Map k (Branching v)
 muxMaps bmv = branching (total bmv && Map.size ms' == 1) <$> ms'

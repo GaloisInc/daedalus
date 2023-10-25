@@ -60,6 +60,7 @@ library
                      , Talos.Strategy.PathSymbolic.MuxValue
                      , Talos.Strategy.PathSymbolic.PathBuilder
                      , Talos.Strategy.PathSymbolic.SymExec
+                     , Talos.Strategy.PathSymbolic.Streams
                      
                      -- , Talos.Strategy.BackwardSymbolic
 

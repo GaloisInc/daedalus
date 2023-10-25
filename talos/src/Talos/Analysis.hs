@@ -255,6 +255,7 @@ caseIsTotal (Case e alts)
         TBool     -> nAlts == 2 -- no repeated patterns
         TMaybe {} -> nAlts == 2
         TUser ut  -> nAlts == nLabels ut
+        TArray {} -> False
         ty -> panic "Unexpected type in caseIsTotal" [showPP ty]
   where
     nAlts = length alts

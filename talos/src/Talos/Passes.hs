@@ -1,7 +1,7 @@
 
 -- This is a hack so that the analysis works when we have constant arguments.
 
-module Talos.Passes (nameBoundExprM, removeUnitsM, nameMatchResultsM, allPassesM ) where
+module Talos.Passes (nameBoundExprM, removeUnitsM, nameMatchResultsM, allPassesM) where
 
 import Daedalus.GUID
 import Daedalus.Core
@@ -15,12 +15,9 @@ import Daedalus.PP (showPP)
 import Control.Monad (zipWithM)
 
 import Talos.Passes.LiftExpr (liftExprM)
-import Talos.Passes.NoBytesPatterns (noBytesPatternsM)
-
 
 allPassesM :: (Monad m, HasGUID m) => FName -> Module -> m Module
-allPassesM _entry m = noBytesPatternsM m >>=
-                      pure . removeUnitsM >>=
+allPassesM _entry m = pure (removeUnitsM m) >>=
                       liftExprM >>=
                       nameBoundExprM >>=
                       nameMatchResultsM >>=

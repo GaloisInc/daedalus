@@ -136,7 +136,7 @@ symbolicFun config ptag sid sl = StratGen $ do
     T.statS (pathKey <> "modelsize") sz
 
     let go (r, st, sm) = do
-          undefined
+          -- undefined
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm (rBuilder r)
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.

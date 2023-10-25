@@ -44,6 +44,7 @@ import           Daedalus.PP                    (showPP, PP(..), vcat)
 
 import           Talos.Monad                    (LiftTalosM, TalosM, getGFun,
                                                  getModule)
+import GHC.Stack (HasCallStack)
 
 
 -- For now this analysis is context insensitive, as making it context
@@ -373,7 +374,7 @@ AVMaybe (AVStream False)
 AVUser (TName {tnameId = GUID {getGUID = -1}, tnameText = "T1", tnameMod = MName {mNameText = "M1"}, tnameAnon = Nothing, tnameRec = False, tnameBD = False, tnameFlav = TFlavStruct []}) (fromList [("l1",AVOther)])
 -}
 
-lub :: AbsValue -> AbsValue -> AbsValue
+lub :: HasCallStack => AbsValue -> AbsValue -> AbsValue
 lub = go 
   where
     go v1 v2 =
@@ -391,7 +392,7 @@ lub = go
         (AVUser {}, AVRec {}) -> v1
         (AVRec {}, AVUser {}) -> v2
         (AVRec _tn1, AVRec _tn2) -> v1
-        _ -> panic "Mismatched values" []
+        _ -> panic "Mismatched values" [ show v1, show v2]
 
 -- Partial order
 leq :: AbsValue -> AbsValue -> Bool
@@ -668,7 +669,7 @@ transferOpN opN avs =
   case opN of
     ArrayL ty -> do
       bot <- bottomForTyM ty
-      pure (foldl lub bot avs)
+      pure (AVSequence (foldl lub bot avs))
     CallF {} -> unexpected
   where
     unexpected = panic "Unexpected expression" []

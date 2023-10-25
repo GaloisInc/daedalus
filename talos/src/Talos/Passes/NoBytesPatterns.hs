@@ -52,7 +52,7 @@ nbpCase dflt (Case n pats)
     mkOne (PBytes bs, tc) fc = do
       v <- freshNameSys TBool
       pure (coreLet v (eq (Var n) (byteArrayL bs))
-             (coreIf n tc fc))
+             (coreIf v tc fc))
 
     mkOne (pat, _) _ = panic "Unexpected pattern: expected PBytes" [showPP pat]
     isBytesPattern PBytes {} = True
