@@ -132,7 +132,8 @@ library
                        daedalus-vm,
                        daedalus-value,
                        rts-hs,
-                       rts-hs-data
+                       rts-hs-data,
+                       pretty-show
 
 
 executable daedalus

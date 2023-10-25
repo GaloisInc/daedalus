@@ -51,9 +51,9 @@ stripFailG gram =
     nonFail -> nonFail
 
   where
-    isFail (Fail {}) = True
+    isFail (SkipAnnot (Fail {})) = True
     isFail _         = False
 
-    isNonFailPAny (PAny, g) | not (isFail g) = True
+    isNonFailPAny (PAny, g) = not (isFail g)
     isNonFailPAny _ = False
 
