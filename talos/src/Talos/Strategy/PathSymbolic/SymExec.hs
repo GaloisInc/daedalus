@@ -11,6 +11,7 @@ module Talos.Strategy.PathSymbolic.SymExec
   , symExecOp2
   , symExecTy
   , symExecValue
+  , symExecInt
   ) where
 
 import qualified Data.ByteString     as BS
@@ -24,6 +25,10 @@ import           Daedalus.Value.Type as V
 
 -- -----------------------------------------------------------------------------
 -- OpN
+
+-- FIXME: a bit gross?
+symExecInt :: Type -> Integer -> SExpr
+symExecInt ty i = symExecOp0 (IntL i ty)
 
 symExecOp0 ::  Op0 -> SExpr
 symExecOp0 op = 

@@ -118,25 +118,25 @@ configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
 symbolicFun :: Config ->
                ProvenanceTag ->
                SliceId ->
+               Bool -> 
                ExpSlice ->
                StratGen
-symbolicFun config ptag sid sl = StratGen $ do
+symbolicFun config ptag sid hasStreams sl = StratGen $ do
   debug pathKey $ "Generating models for " <> showPP sid
   -- defined referenced types/functions
   reset -- FIXME
 
   deps <- sliceToDeps sl
-
+  
   -- FIXME: this should be calculated once, along with how it is used
   -- by e.g. memoSearch
   scoped $ do
-    let topoDeps = topoOrder (second sliceToCallees) deps
-    (m_res_sm) <- runSymbolicM (sl, topoDeps) (cMaxRecDepth config) (cNLoopElements config) ptag Nothing (stratSlice sl)
+    let m_uppberBound = Nothing
+    m_res_sm <- runSymbolicM (cMaxRecDepth config) (cNLoopElements config) ptag hasStreams m_uppberBound (stratSlice sl)
     sz <- contextSize
     T.statS (pathKey <> "modelsize") sz
 
-    let go (r, st, sm) = do
-          -- undefined
+    let go (r, sm) = do
           rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm (rBuilder r)
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.

@@ -84,18 +84,19 @@ entail ps a
   | EntailAssert ps' assns <- a = EntailAssert (ps `PS.conj` ps') assns
   | otherwise            = EntailAssert ps (a :| [])
 
-entailMany :: PathSet -> NonEmpty Assertion -> Assertion
-entailMany ps (a :| []) = entail ps a
-entailMany ps assns     = EntailAssert ps assns
+entailMany :: PathSet -> [Assertion] -> Assertion
+entailMany ps assns
+  | [] <- assns' = true
+  | [a] <- assns' = entail ps a
+  | x : xs <- assns' = EntailAssert ps (x :| xs)
+  where
+    assns' = filter (not . trivial) assns
 
-conjMany :: NonEmpty Assertion -> Assertion
+conjMany :: [Assertion] -> Assertion
 conjMany = entailMany PS.true
 
 conj :: Assertion -> Assertion -> Assertion
-conj l r = conjMany (l :| [r])
-
-
-
+conj l r = conjMany [l, r]
 
 true, false :: Assertion
 true = BoolAssert True

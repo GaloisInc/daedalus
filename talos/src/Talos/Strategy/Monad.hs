@@ -72,7 +72,7 @@ import           Talos.Solver.SolverT     (SolverT)
 -- Returns any new models, plus the option of getting more
 newtype StratGen = StratGen { getStratGen :: SolverT StrategyM ([SelectedPath], Maybe StratGen) }
 
-type StratFun = ProvenanceTag -> SliceId -> ExpSlice -> StratGen
+type StratFun = ProvenanceTag -> SliceId -> Bool -> ExpSlice -> StratGen
 
 data StrategyInstance = StrategyInstance
   { siName  :: String

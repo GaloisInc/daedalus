@@ -31,6 +31,7 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   , vBool
   , vNothing
   , vJust
+  , vStream
   -- * Combinators
   , mux
   , op2
@@ -56,7 +57,7 @@ module Talos.Strategy.PathSymbolic.MuxValue (
   ) where
 
 import           Control.Applicative                   (liftA2)
-import           Control.Lens                          (Iso, Prism', _1, _2, (%~), mapped, (&),
+import           Control.Lens                          (Iso, Prism', _1, _2,
                                                         _Left, _Right, below,
                                                         each, from, imap, iso,
                                                         locally, over, preview,
@@ -75,11 +76,11 @@ import qualified Data.ByteString                       as BS
 import           Data.Foldable                         (foldlM, toList)
 import           Data.Functor                          (($>))
 import           Data.Generics.Labels                  ()
-import           Data.List.NonEmpty                    (NonEmpty ((:|)))
+import           Data.List.NonEmpty                    (NonEmpty)
 import qualified Data.List.NonEmpty                    as NE
 import           Data.Map.Strict                       (Map)
 import qualified Data.Map.Strict                       as Map
-import           Data.Maybe                            (fromMaybe, isJust, isNothing)
+import           Data.Maybe                            (fromMaybe, isJust)
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
@@ -95,16 +96,19 @@ import           Daedalus.Core                         hiding (freshName)
 import           Daedalus.Core.Semantics.Expr          (evalOp0, evalOp1,
                                                         evalOp2, partial)
 import           Daedalus.Core.Type                    (sizeType, typeOf)
-import           Daedalus.GUID                         (GUID, HasGUID, getNextGUID)
+import           Daedalus.GUID                         (GUID, HasGUID)
 import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
 import qualified Daedalus.Value.Type                   as V
 
+import           Talos.Analysis.Slice                  (SHoleSize (..),
+                                                        SHoleSizeExpr (..))
 import           Talos.Lib                             (andMany)
 import           Talos.Monad                           (LiftTalosM, LogKey)
 import           Talos.Solver.SolverT                  (MonadSolver (liftSolver),
                                                         SMTVar, SolverT,
-                                                        defineSymbol, declareSymbol)
+                                                        declareSymbol,
+                                                        defineSymbol)
 import           Talos.Strategy.Monad                  (LiftStrategyM)
 import qualified Talos.Strategy.PathSymbolic.Assertion as A
 import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
@@ -115,11 +119,11 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         PathSetModelMonad,
                                                         PathVar, psmmLoopVar,
                                                         psmmSMTVar)
+import qualified Talos.Strategy.PathSymbolic.Streams   as Streams
+import           Talos.Strategy.PathSymbolic.Streams   (StreamTreeInfo,
+                                                        StreamTreeNode (..))
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
-import           Talos.Strategy.PathSymbolic.SymExec   (symExecTy)
-import qualified Talos.Strategy.PathSymbolic.Streams   (StreamTreeNode(..))
-import           Talos.Strategy.PathSymbolic.Streams   as S
-import           Talos.Analysis.Slice   (SHoleSize(..), SHoleSizeExpr(..))
+import           Talos.Strategy.PathSymbolic.SymExec   (symExecInt, symExecTy)
 
 --------------------------------------------------------------------------------
 -- Logging and stats
@@ -252,10 +256,6 @@ vlFromMuxValue vl mv = mv ^? vl
 vlToMuxValue :: BaseValuesPrism v -> Typed (BaseValues v s) -> MuxValueF s
 vlToMuxValue vl v = v ^. re vl
 
--- FIXME: a bit gross?
-symExecInt :: Type -> Integer -> SExpr
-symExecInt ty i = SE.symExecOp0 (IntL i ty)
-
 typedIso :: Type -> Iso (Typed a) (Typed b) a b
 typedIso ty = iso typedThing (Typed ty)
 
@@ -369,6 +369,9 @@ nullStream (VStream strmB) = A.BAssert $ go <$> strmB
   where
     go stn = A.SExprAssert (S.eq (S.const (stnLength stn)) (symExecInt sizeType 0))
 nullStream _ = panic "Malformed value" []
+
+vStream :: SMTVar -> SMTVar -> MuxValue
+vStream base len = VStream (B.singleton (StreamTreeNode { stnBase = base, stnLength = len }))
 
 -- branchingStreams :: Branching (Maybe SymbolicStream) -> Maybe SymbolicStream
 -- branchingStreams b
@@ -1281,9 +1284,9 @@ semiExecArrayIndex ixs (_vsm, els) = do
 fromHoleSize :: SemiCtxt m => SHoleSize -> SemiSolverM m MuxValue
 fromHoleSize shs = go shs >>= nameSExprs
   where
-    go shs = do
-      let static = vInteger sizeType (fromIntegral $ shsStatic shs)
-      dyn <- traverse goE (shsDynamic shs)
+    go shs' = do
+      let static = vInteger sizeType (fromIntegral $ shsStatic shs')
+      dyn <- traverse goE (shsDynamic shs')
       foldlM (semiExecOp2 Add sizeType sizeType sizeType) static dyn
 
     goE shse = do
@@ -1309,7 +1312,7 @@ semiExecDropMaybe strmE offE = do
         newBase <- sexprAsSMTVar sizeType (S.bvAdd (S.const (stnBase parent)) offS)
         let negA = A.SExprAssert (S.bvULt plenS offS)
             posA = A.SExprAssert (S.bvULeq offS plenS)
-            strm = S.StreamTreeNode
+            strm = StreamTreeNode
                    { stnLength = newLen
                    , stnBase   = newBase
                    }
@@ -1335,7 +1338,7 @@ semiExecTake strmE lenE = do
         let plenS = S.const (stnLength parent)
             lenS  = S.const lenSym
         newLen <- sexprAsSMTVar sizeType (S.ite (S.bvULeq lenS plenS) lenS plenS)
-        pure S.StreamTreeNode
+        pure StreamTreeNode
           { stnLength = newLen
           , stnBase   = stnBase parent
           }
@@ -1354,22 +1357,22 @@ finishStreamSegment (VStream strmB) offV = do
             offS  = S.const offSym
             fitsA = A.SExprAssert (S.bvULeq offS plenS)
         
-        let node = S.StreamTreeNode
+        let node = StreamTreeNode
               { stnLength = offSym
               , stnBase   = stnBase parent
               }
             
         newLen  <- sexprAsSMTVar sizeType (S.bvSub plenS offS)
         newBase <- sexprAsSMTVar sizeType (S.bvAdd (S.const (stnBase parent)) offS)
-        let strm = S.StreamTreeNode
+        let strm = StreamTreeNode
                    { stnLength = newLen
                    , stnBase   = newBase
                    }
-        pure (fitsA, S.singleton node, strm)
+        pure (fitsA, Streams.singleton node, strm)
 
   (assnB, stiB, strmB') <- B.unzip3 <$> traverse mkNode strmB
-  let (strmA, sti) = S.branching stiB
-  pure ( A.conjMany (offA :| [ strmA, A.BAssert assnB ]), sti, VStream strmB')
+  let (strmA, sti) = Streams.branching stiB
+  pure ( A.conjMany [offA, strmA, A.BAssert assnB ], sti, VStream strmB')
 finishStreamSegment _ _ = panic "Maloformed value" []
 
 -- -----------------------------------------------------------------------------
@@ -1445,9 +1448,6 @@ ppMuxValueF mv =
 
     unsupported = panic "Unsupported (VMap)" []
     go = ppMuxValueF
-
-    ppMaybe Nothing = "⊥"
-    ppMaybe (Just n) = pp n
 
 instance PP s => PP (MuxValueF s) where
   pp = ppMuxValueF

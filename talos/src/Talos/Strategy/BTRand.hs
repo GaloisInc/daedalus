@@ -33,7 +33,6 @@ import           Talos.Strategy.OptParser        (Opt, parseOpts)
 import           Talos.Path
 import Daedalus.Panic (panic)
 
-
 -- ----------------------------------------------------------------------------------------
 -- Backtracking random strats
 
@@ -56,7 +55,7 @@ randDFS =
         , siFun   = mkgen c
         }
 
-    mkgen c = \ptag _sid sl -> StratGen $ lift $ do
+    mkgen c = \ptag _sid _ sl -> StratGen $ lift $ do
       rs <- go (cNModels c) [] ptag sl
       pure (rs, Nothing)
 
@@ -108,8 +107,8 @@ randRestart =
 restartBound :: Int
 restartBound = 1000
 
-randRestartStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
-randRestartStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
+randRestartStrat :: ProvenanceTag -> SliceId -> Bool -> ExpSlice -> StratGen
+randRestartStrat ptag _sid _ sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do
@@ -139,8 +138,8 @@ randMaybeT =
     name  = "rand-restart-local-bt"
     descr = "Backtrack locally on failure, restart on (global) failure with random selection"
 
-randMaybeStrat :: ProvenanceTag -> SliceId -> ExpSlice -> StratGen
-randMaybeStrat ptag _sid sl = trivialStratGen . lift $ go restartBound
+randMaybeStrat :: ProvenanceTag -> SliceId -> Bool -> ExpSlice -> StratGen
+randMaybeStrat ptag _sid _ sl = trivialStratGen . lift $ go restartBound
   where
     go 0 = pure Nothing
     go n = do

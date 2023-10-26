@@ -35,6 +35,7 @@ import qualified Data.Set                              as Set
 import qualified Data.Text                             as Text
 import           Data.Word                             (Word8)
 import           GHC.Generics                          (Generic)
+import           GHC.Stack                             (HasCallStack)
 import qualified SimpleSMT                             as S
 import           Text.Printf                           (printf)
 
@@ -43,15 +44,16 @@ import           Daedalus.Core                         (Typed (..),
 import qualified Daedalus.Core.Semantics.Env           as I
 import qualified Daedalus.Core.Semantics.Expr          as I
 import           Daedalus.Panic
-import           Daedalus.PP                           (PP, braces, bullets,
-                                                        commaSep, pp, showPP,
-                                                        text, Doc, vcat)
+import           Daedalus.PP                           (Doc, PP, braces,
+                                                        bullets, commaSep, pp,
+                                                        showPP, text, vcat)
 import           Daedalus.Time                         (timeIt)
 import qualified Daedalus.Value                        as I
 
 import qualified Talos.Monad                           as T
 import           Talos.Monad                           (LogKey, getIEnv,
                                                         logProblem)
+
 
 import           Talos.Analysis.Exported               (SliceId)
 import           Talos.Lib                             (andMany)
@@ -62,6 +64,7 @@ import qualified Talos.Solver.SolverT                  as Solv
 import           Talos.Solver.SolverT                  (SMTVar, SolverT)
 import           Talos.Strategy.Monad
 import qualified Talos.Strategy.PathSymbolic.Branching as B
+import           Talos.Strategy.PathSymbolic.Branching (IndexedBranching)
 import           Talos.Strategy.PathSymbolic.Monad
 import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
 import           Talos.Strategy.PathSymbolic.MuxValue  (VSequenceMeta (..))
@@ -72,9 +75,9 @@ import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar,
                                                         loopCountToSExpr,
                                                         loopCountVarToSExpr,
                                                         pathVarToSExpr)
+import qualified Talos.Strategy.PathSymbolic.Streams   as S
 import qualified Talos.Strategy.PathSymbolic.SymExec   as SE
-import GHC.Stack (HasCallStack)
-import Talos.Strategy.PathSymbolic.Branching (IndexedBranching)
+import qualified Talos.Strategy.PathSymbolic.Assertion as A
 
 -- ----------------------------------------------------------------------------------------
 -- Model parsing and enumeration.
@@ -401,6 +404,11 @@ buildPaths :: Int -> Maybe Int -> SliceId -> SymbolicModel -> PathBuilder ->
 buildPaths ntotal _nfails sid sm pb = do
   timed "assert" $ do
     mapM_ Solv.assert (smAsserts sm)
+    Solv.flush
+
+  timed "stream-assert" $ do
+    assn <- S.toAssertion (smStreamTreeInfo sm)
+    Solv.assert (A.toSExpr assn)
     Solv.flush
 
   ctxt <- Solv.getContext

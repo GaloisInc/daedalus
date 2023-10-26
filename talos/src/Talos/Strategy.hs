@@ -40,7 +40,7 @@ parseStrategies ss = M.parseStrategies ss allStrategies
   
 runStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> SliceId -> ExpSlice -> 
                StrategyM (([SelectedPath], Maybe StratGen), SolverState)
-runStrategy solvSt strat ptag sid sl = runSolverT (getStratGen (siFun strat ptag sid sl)) solvSt
+runStrategy solvSt strat ptag sid sl = runSolverT (getStratGen (siFun strat ptag sid False sl)) solvSt
 
 -- Returns the result and wall-clock time (in ns)
 timeStrategy :: SolverState -> StrategyInstance -> ProvenanceTag -> SliceId -> ExpSlice ->

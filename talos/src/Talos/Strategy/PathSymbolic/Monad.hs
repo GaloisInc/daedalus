@@ -12,36 +12,39 @@
 
 module Talos.Strategy.PathSymbolic.Monad where
 
-import           Control.Lens                          (at, locally, view, (%~),
-                                                        (.~), listening, alongside, imap)
+import           Control.Lens                          (at, imap, locally, view,
+                                                        (%~), (.~))
+import           Control.Monad                         (void, when)
+import           Control.Monad.Except                  (ExceptT, MonadError,
+                                                        catchError, runExceptT,
+                                                        throwError)
 import           Control.Monad.IO.Class                (MonadIO)
-import           Control.Monad.Reader                  (MonadReader, ReaderT,
-                                                        ask, asks, local,
-                                                        runReaderT)
+import           Control.Monad.Reader                  (MonadReader, ask, asks,
+                                                        local)
+import           Control.Monad.RWS.CPS                 (MonadState, MonadWriter,
+                                                        RWST, censor, evalRWST,
+                                                        get, gets, listens, put,
+                                                        tell)
+import           Data.Foldable                         (fold, traverse_)
 import           Data.Functor                          (($>))
 import           Data.Generics.Product                 (field)
 import           Data.Map                              (Map)
 import qualified Data.Map                              as Map
-import           GHC.Generics                          (Generic)
-import qualified SimpleSMT                             as SMT
-
-import           Control.Monad.Except                  (ExceptT, MonadError,
-                                                        catchError, runExceptT,
-                                                        throwError)
--- FIXME: use .CPS?
-import Control.Monad.RWS.CPS (RWST, MonadWriter, runRWST, tell, censor, listens, get, put, MonadState, gets)
-
--- import           Control.Monad.Writer                  (MonadWriter, WriterT,
---                                                         censor, listens,
---                                                         runWriterT, tell)
+import           Data.Maybe                            (fromMaybe)
+import           Data.Monoid                           (Any (..))
 import           Data.Set                              (Set)
 import qualified Data.Set                              as Set
 import           Data.Text                             (Text)
+import           GHC.Generics                          (Generic)
+import qualified SimpleSMT                             as SMT
 
-import           Daedalus.Core                         (Expr, Name, Type,
-                                                        Typed (..), Type (TBool))
+import           Daedalus.Core                         (Expr, Name,
+                                                        Op2 (Add, Leq),
+                                                        Type (TBool),
+                                                        Typed (..))
+import           Daedalus.Core.Type                    (sizeType)
 import           Daedalus.GUID                         (getNextGUID,
-                                                        invalidGUID, GUID)
+                                                        invalidGUID)
 import           Daedalus.Panic                        (panic)
 import           Daedalus.PP
 import           Daedalus.Rec                          (Rec)
@@ -49,9 +52,10 @@ import           Daedalus.Rec                          (Rec)
 import           Talos.Analysis.Exported               (ExpSlice, SliceId)
 import           Talos.Strategy.Monad
 import           Talos.Strategy.PathSymbolic.MuxValue  (MuxValue, SemiSolverM,
-                                                        runSemiSolverM, SymbolicStream)
+                                                        runSemiSolverM)
                                                             -- SequenceTag,
                                                             -- )
+import           Talos.Analysis.Slice                  (SHoleSize)
 import           Talos.Monad                           (LiftTalosM, LogKey)
 import           Talos.Path                            (ProvenanceTag,
                                                         SelectedPathF)
@@ -61,25 +65,18 @@ import           Talos.Solver.SolverT                  (MonadSolver, SMTVar,
 import qualified Talos.Strategy.PathSymbolic.Assertion as A
 import           Talos.Strategy.PathSymbolic.Assertion (Assertion)
 import qualified Talos.Strategy.PathSymbolic.Branching as B
-import           Talos.Strategy.PathSymbolic.Branching (Branching, IndexedBranching)
+import           Talos.Strategy.PathSymbolic.Branching (Branching,
+                                                        IndexedBranching)
 import qualified Talos.Strategy.PathSymbolic.MuxValue  as MV
+import qualified Talos.Strategy.PathSymbolic.PathSet   as PS
 import           Talos.Strategy.PathSymbolic.PathSet   (LoopCountVar (..),
                                                         PathSet, PathVar (..),
                                                         loopCountToSExpr,
                                                         loopCountVarSort)
-import qualified Talos.Strategy.PathSymbolic.Streams as S
-import           Talos.Strategy.PathSymbolic.Streams (StreamTreeInfo, StreamTreeNode(..))
-import Data.Sequence (Seq)
-import Control.Arrow ((&&&))
-import qualified Talos.Strategy.PathSymbolic.PathSet     as PS
-import Daedalus.Core.Type (sizeType)
-import Data.Monoid (Any(..))
-import Data.Foldable (fold)
-import Data.Maybe (fromMaybe)
-import Talos.Analysis.Slice (SHoleSize)
-import System.Posix.Internals (puts)
-import           Daedalus.Core (Op2(Add, Leq))
-import Control.Monad (void, when)
+import qualified Talos.Strategy.PathSymbolic.Streams   as S
+import           Talos.Strategy.PathSymbolic.Streams   (StreamTreeInfo)
+import Talos.Strategy.PathSymbolic.SymExec (symExecTy, symExecInt)
+
 
 -- =============================================================================
 -- (Path) Symbolic monad
@@ -107,6 +104,13 @@ data StreamUsage = StreamUsage
   { suBase    :: MuxValue
   , suUsage   :: MuxValue
   } deriving Generic
+
+baseStreamUsage :: MuxValue -> StreamUsage
+baseStreamUsage mv = 
+  StreamUsage
+  { suBase  = mv
+  , suUsage = MV.vInteger sizeType 0
+  }
 
 data Result = Result
   { rValue          :: MuxValue
@@ -246,18 +250,29 @@ newtype SymbolicM a =
 instance LiftStrategyM SymbolicM where
   liftStrategy m = SymbolicM (liftStrategy m)
 
-runSymbolicM :: -- | Slices for pre-run analysis
-                (ExpSlice, [ Rec (SliceId, ExpSlice) ]) ->
-                Int ->
+runSymbolicM :: Int ->
                 Int ->
                 ProvenanceTag ->
-                Maybe StreamUsage -> 
+                Bool -> Maybe Integer ->
                 SymbolicM Result ->
-                SolverT StrategyM (Either () (Result, SymbolicState, SymbolicModel))
-runSymbolicM _sls maxRecDepth nLoopEls ptag m_su (SymbolicM m) =
-  runExceptT (runRWST m env0 st0)
+                SolverT StrategyM (Either () (Result, SymbolicModel))
+runSymbolicM maxRecDepth nLoopEls ptag hasStreams m_upperBound m = do
+  st0 <- SymbolicState  <$> if hasStreams
+                            then Just <$> mkInitStream
+                            else pure Nothing
+  runExceptT (evalRWST (getSymbolicM go) env0 st0)
   where
-    st0  = SymbolicState m_su
+    mkInitStream = do
+      base <- Solv.defineSymbol "global-stream-base"  (symExecTy sizeType) (symExecInt sizeType 0)
+      len  <- Solv.declareSymbol "global-stream-length"  (symExecTy sizeType)
+      -- Assert upper bound, if we give it one.  This should really go
+      -- in the model, but is more or less OK here.
+      traverse_ (Solv.assert . SMT.bvULeq (SMT.const len) . symExecInt sizeType) m_upperBound
+      pure (baseStreamUsage (MV.vStream base len))
+      
+    -- Make sure that any symbolic usage is accounted for.  Otherwise
+    -- we do not need the state.
+    go   = m <* finishStreamSegmentMaybe
     env0 = emptySymbolicEnv maxRecDepth nLoopEls ptag
 
 --------------------------------------------------------------------------------
@@ -491,17 +506,23 @@ unaryBranching ps m = do
   emitStreamTreeInfo sti'
   pure r
 
-finishStreamSegment :: SymbolicM MuxValue
-finishStreamSegment = do
-  su <- gets (fromMaybe (panic "Missing stream" []) . streamUsage)
-
-  (assn, sti, strmV) <- liftSemiSolverM (MV.finishStreamSegment (suBase su) (suUsage su))
-  assert assn
-  emitStreamTreeInfo sti
-  emitStreamBaseChanged
+finishStreamSegmentMaybe :: SymbolicM (Maybe MuxValue)
+finishStreamSegmentMaybe = do
+  m_su <- gets streamUsage
+  traverse go m_su
+  where
+    go su = do
+      (assn, sti, strmV) <- liftSemiSolverM (MV.finishStreamSegment (suBase su) (suUsage su))
+      assert assn
+      emitStreamTreeInfo sti
+      emitStreamBaseChanged
   
-  put (SymbolicState . Just $ StreamUsage { suBase = strmV, suUsage = MV.vInteger sizeType 0 })
-  pure strmV
+      put (SymbolicState . Just $ baseStreamUsage strmV)
+      pure strmV
+
+finishStreamSegment :: SymbolicM MuxValue
+finishStreamSegment =
+  fromMaybe (panic "Missing stream" []) <$> finishStreamSegmentMaybe
 
 -- We do not need to assert that there is sufficient room, as that
 -- happens when we check that segments fit into the available space.
@@ -524,7 +545,7 @@ consumeFromStream shs = do
 setStream :: MuxValue -> SymbolicM ()
 setStream strm = do
   void $ finishStreamSegment
-  let su' = StreamUsage { suBase = strm, suUsage = MV.vInteger sizeType 0 }
+  let su' = baseStreamUsage strm
   put (SymbolicState (Just su'))
   emitStreamBaseChanged
 

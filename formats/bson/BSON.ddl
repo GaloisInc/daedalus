@@ -3,6 +3,8 @@
 import Daedalus
 import utf8
 
+def Main = BSON_document
+
 def BSON_document =
   block
     let len = LEUInt32 as ?auto

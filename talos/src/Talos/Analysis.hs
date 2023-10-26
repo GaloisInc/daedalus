@@ -378,7 +378,9 @@ summariseCase preds nid cs = do
 summariseG :: forall ae. AbsEnv ae =>
               [AbsPred ae] -> Grammar -> SummariseM ae (Domain ae)
 summariseG preds (WithNodeID nid _annots g) = do
-  (inBounded, outBounded) <- getBoundedStream nid        
+  -- (inBounded, outBounded) <- getBoundedStream nid        
+  let inBounded = True
+      outBounded = True
   boundedTransition nid inBounded outBounded <$> case g of
     -- When preds == [] this is emptyDomain
     Pure e -> pure $ domainFromElements $
