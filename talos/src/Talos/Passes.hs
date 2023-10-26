@@ -47,14 +47,8 @@ letToDoG g = gebMapChildrenG letToDoG id id g
 
 nameBoundExprM :: (Monad m, HasGUID m) => Module -> m Module
 nameBoundExprM m = do
-  gfuns' <- mapM nameBoundExprGFun (mGFuns m)
+  gfuns' <- mapM (traverse nameBoundExprG) (mGFuns m)
   pure (m { mGFuns = gfuns' })
-
-nameBoundExprGFun :: (Monad m, HasGUID m) => Fun Grammar -> m (Fun Grammar)
-nameBoundExprGFun fu =
-  case fDef fu of
-    Def g -> (\g' -> fu { fDef = Def g' }) <$> nameBoundExprG g
-    _     -> pure fu
 
 nameBoundExprG :: (Monad m, HasGUID m) => Grammar -> m Grammar
 nameBoundExprG gram = do
@@ -152,6 +146,7 @@ nameMatchResultsG gram = do
     Match SemYes (MatchBytes arr)
       | Ap0 (ByteArrayL {}) <- arr -> pure (mk arr)
       | ApN (ArrayL {}) _   <- arr -> pure (mk arr)
+      | Var {} <- arr              -> pure (mk arr)
       | otherwise -> do
           x <- freshNameSys (typeOf arr) -- should be TArray (TUInt (TSize 8))
           pure (Let x arr (mk (Var x)))
