@@ -70,7 +70,7 @@ summarise _ = do
         | Just decl <- Map.lookup nm decls = summariseDecl cl fid decl
         | otherwise = panic "Missing decl" [showPP nm]
       
-  snd <$> calcFixpoint doOne wl0
+  calcFixpoint doOne wl0
 
 -- Not sure these belong here
 absEnvTys :: [(String, AbsEnvTy)]
@@ -87,13 +87,15 @@ summariseDecl :: AbsEnv ae =>
                  Fun Grammar -> IterM ae (Summary ae)
 summariseDecl cls fid Fun { fDef = Def def
                           -- , fName = fn
-                          , fParams = ps } = do
+                          , fParams = ps
+                          , fIsEntry = isEntry } = do
   -- logMessage 1 ("* Summarising " ++ showPP fn ++ " for " ++ showPP cls) 
   
   let preds = summaryClassToPreds cls
-  d <- runSummariseM (summariseG preds def)
-
-  let newS = Summary { domain = d
+  d <- summariseG preds def
+  let d' = if isEntry then finaliseStreamsForEntry d else d
+  
+  let newS = Summary { domain = d'
                      , params = ps
                      , fInstId = fid
                      }
@@ -194,15 +196,19 @@ summariseCall preds nid inBounded fn args
                          , callSlices       = Map.singleton i (argsFor (gsEnv gs))
                          }
 
-              mkCall i gs =
-                GuardedSlice { gsEnv   = absSubstEnv argsMap (gsEnv gs)
-                             , gsBoundedStream = gsBoundedStream gs
-                             , gsPred  = gsPred gs -- FIXME: subst?
-                             -- FIXME: We do not currently construct
-                             -- compound holes with call nodes
-                             , gsSlice = SCall (mkCallNode i gs)
-                             , gsDominator = nid
-                             }
+              -- We inline holes.
+              mkCall i gs = 
+                let callsl = SCall (mkCallNode i gs)
+                    sl | SHole (Just (shs, _sl)) <- gsSlice gs =
+                           SHole (Just (substSHoleSize argsMap shs, callsl))
+                       | otherwise = callsl
+                in GuardedSlice
+                   { gsEnv   = absSubstEnv argsMap (gsEnv gs)
+                   , gsBoundedStream = gsBoundedStream gs
+                   , gsPred  = gsPred gs -- FIXME: subst?
+                   , gsSlice = sl
+                   , gsDominator = nid
+                   }
               res = domainFromElements $ zipWith mkCall [0..] (elements dom)
           -- logMessage 1 ("** Call result to " ++ showPP fn ++
           --               " for " ++ showPP cl ++ "\n" ++
@@ -381,7 +387,7 @@ summariseG preds (WithNodeID nid _annots g) = do
   -- (inBounded, outBounded) <- getBoundedStream nid        
   let inBounded = True
       outBounded = True
-  boundedTransition nid inBounded outBounded <$> case g of
+  boundedTransition inBounded outBounded <$> case g of
     -- When preds == [] this is emptyDomain
     Pure e -> pure $ domainFromElements $
       [ GuardedSlice { gsEnv = env

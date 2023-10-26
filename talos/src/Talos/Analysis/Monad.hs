@@ -190,7 +190,7 @@ requestSummary nm cl = do
 calcFixpoint :: (AbsEnv ae, Ord (AbsPred ae)) =>
                 (FName -> SummaryClass' ae -> FInstId -> IterM ae (Summary ae)) ->
                 F.Worklist FName FInstId ->
-                TalosM (AnalysisState (AbsPred ae), Summaries ae)
+                TalosM (Summaries ae)
 calcFixpoint m wl = do
   md <- getModule
   bs <- boundedStreams
@@ -201,7 +201,7 @@ calcFixpoint m wl = do
             , boundedStreamInfo = bs
             , nextFInstId   = assnId + 1
             }
-  F.calcFixpoint seqv go wl st0
+  snd <$> F.calcFixpoint seqv go wl st0
   where
     -- Hack
     FInstId assnId = assertionsFID

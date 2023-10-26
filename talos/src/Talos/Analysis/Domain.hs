@@ -246,16 +246,26 @@ collectDomainBoundedHoles nid mkSlice doms
     m_gss = traverse fst doms'
     doms' = fmap partitionDomainForBounded doms
 
-boundedTransition :: AbsEnv ae => NodeID -> Bool -> Bool -> Domain ae -> Domain ae
-boundedTransition nid inBounded outBounded d
+boundedTransition :: AbsEnv ae => Bool -> Bool -> Domain ae -> Domain ae
+boundedTransition inBounded outBounded d
   -- In this case there should be exactly 1 guarded slice in elements
   -- which has gsBoundedStream set.  If this becomes closed we move
   -- the slice to closedElements otherwise it is kept in elements.
   | not inBounded, not outBounded, (Just gs, d') <- partitionDomainForBounded d =
       let gs'      = gs { gsBoundedStream = False }
       in if closedGuardedSlice gs'
-         then d' & #closedElements . at nid <>~ Just [ gsSlice gs' ]
+         then d' & #closedElements . at (gsDominator gs) <>~ Just [ gsSlice gs' ]
          else d' & #elements %~ (:) gs'
+  | otherwise = d
+
+-- Called on the entry point to finalise 
+finaliseStreamsForEntry :: AbsEnv ae => Domain ae -> Domain ae
+finaliseStreamsForEntry d
+  | (Just gs, d') <- partitionDomainForBounded d =
+      let gs'      = gs { gsBoundedStream = False }
+      in if closedGuardedSlice gs'
+         then d' & #closedElements . at (gsDominator gs') <>~ Just [ gsSlice gs' ]
+         else panic "Expected a close bounded slice" []
   | otherwise = d
     
 -- Maps over non-closed slices

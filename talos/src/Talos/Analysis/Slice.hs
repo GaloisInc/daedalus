@@ -12,13 +12,13 @@ module Talos.Analysis.Slice
   , assertionsFID
   , SummaryClass(..), isAssertions, isResult, summaryClassToPreds, summaryClassFromPreds
   , Slice'(..), Structural(..), SLoopClass(..)
-  , SHoleSize(..), SHoleSizeExpr(..), staticSHoleSize, dynamicSHoleSize
+  , SHoleSize(..), SHoleSizeExpr(..), staticSHoleSize, dynamicSHoleSize, substSHoleSize
   , sloopClassBody, sloopClassE, mapSLoopClassE, foldMapSLoopClassE
   ) where
 
 import           Control.Applicative             (Const (..), (<|>))
 import           Control.Lens                    (Traversal', foldMapOf,
-                                                  traversal, traverseOf, mapped, (%~), (*~), traversed)
+                                                  traversal, traverseOf, mapped, (%~), (*~), traversed, (^.), at)
 import           Data.Functor.Identity           (Identity (..))
 import           Data.Sequence                   (Seq)
 import qualified Data.Sequence                   as Seq
@@ -39,6 +39,8 @@ import           Daedalus.Core.TraverseUserTypes
 import           Talos.Analysis.Eqv
 import           Talos.Analysis.Merge
 import Data.Foldable (toList)
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 
 -- import Debug.Trace
 
@@ -183,6 +185,16 @@ scaleSHoleSize k =
 
 scaleSHoleSizeExpr :: Int -> SHoleSizeExpr -> SHoleSizeExpr
 scaleSHoleSizeExpr k = #shseMult %~ scaleSHoleSize k
+
+substSHoleSize :: Map Name Name -> SHoleSize -> SHoleSize
+substSHoleSize m = #shsDynamic . mapped %~ substSHoleSizeExpr m
+
+substSHoleSizeExpr :: Map Name Name -> SHoleSizeExpr -> SHoleSizeExpr
+substSHoleSizeExpr m =
+  (#shseSeq %~ doSubst)
+  . (#shseMult %~ substSHoleSize m)
+  where
+    doSubst n = fromMaybe n (m ^. at n)
 
 -- | Smart SDo constructor which constructs compound holes where
 -- possible.
