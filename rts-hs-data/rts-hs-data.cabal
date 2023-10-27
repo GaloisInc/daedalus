@@ -44,5 +44,5 @@ library
     vector,
     vector-builder,
     bytestring,
-    pretty
-
+    pretty,
+    deepseq

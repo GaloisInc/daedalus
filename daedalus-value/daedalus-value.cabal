@@ -36,6 +36,7 @@ library
     bytestring,
     text,
     vector,
+    deepseq,
     daedalus-utils,
     rts-hs,
     rts-hs-data

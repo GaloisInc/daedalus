@@ -1,9 +1,13 @@
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# Language OverloadedStrings, DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module Daedalus.Value.Type where
 
 import GHC.Float
 
+import           GHC.Generics          (Generic)
+import           Control.DeepSeq       (NFData)
 import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding(encodeUtf8)
@@ -46,7 +50,9 @@ data Value =
   | VBuilder               ![Value]   -- array builder
   | VIterator              ![(Value,Value)]
   | VTraced                !Value !InputTrace
-    deriving Show
+    deriving (Show, Generic)
+
+instance NFData Value where -- default instance
 
 data BDStruct = BDStruct
    { bdName       :: !Text
@@ -55,7 +61,9 @@ data BDStruct = BDStruct
    , bdStruct     :: !([(Label,Value)] -> Integer)
    , bdValid      :: !(Integer -> Bool)
    , bdFields     :: ![Label]
-   }
+   } deriving (Generic)
+
+instance NFData BDStruct where -- default instance
 
 data BDUnion = BDUnion
   { bduName       :: !Text
@@ -64,7 +72,9 @@ data BDUnion = BDUnion
   , bduGet        :: !(Label   -> Integer -> Value)
   , bduMatches    :: !(Label   -> Integer -> Bool)
   , bduCases      :: ![Label]
-  }
+  } deriving (Generic)
+
+instance NFData BDUnion where -- default instance
 
 instance Show BDStruct where
   show _ = "BDStruct"

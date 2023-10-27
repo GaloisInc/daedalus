@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Daedalus.RTS.InputTrace 
   ( InputTrace
   , ppInputTrace
@@ -13,6 +15,8 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Short(ShortByteString)
 import qualified Data.ByteString.Short as BSS
 import Text.PrettyPrint
+import GHC.Generics          (Generic)
+import Control.DeepSeq       (NFData)
 
 import Daedalus.RTS.HasInputs
 import Daedalus.RTS.JSON
@@ -26,12 +30,16 @@ of ranges on those bytes.
 Assumes that inputs will have non-overlapping names.
 -}
 data InputTrace = IT (Map ShortByteString Ranges)
-  deriving Show
+  deriving (Show, Generic)
+
+instance NFData InputTrace where -- default instance
 
 data Ranges = Ranges
   { rRanges :: ![Range]         -- ^ Ranges
   , rBytes  :: !ByteString      -- ^ Bytes of input
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance NFData Ranges where -- default instance
 
 instance HasInputs InputTrace where
   getInputs (IT mp) = rBytes <$> mp
@@ -68,7 +76,9 @@ addInputTrace = unionInputTrace . singletonInputTrace
 --------------------------------------------------------------------------------
 
 data Range = R !Int !Int
-  deriving Show
+  deriving (Show, Generic)
+
+instance NFData Range where -- default instance
 
 instance ToJSON Range where
   toJSON (R x y) = toJSON (x,y)

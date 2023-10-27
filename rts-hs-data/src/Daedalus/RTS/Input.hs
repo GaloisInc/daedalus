@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Daedalus.RTS.Input
   ( Input
   , inputName
@@ -26,6 +28,8 @@ import Data.ByteString.Short(ShortByteString,toShort)
 import Data.Word(Word8)
 import Control.Monad(guard)
 import Numeric(showHex)
+import           GHC.Generics          (Generic)
+import           Control.DeepSeq       (NFData)
 
 import Daedalus.RTS.HasInputs
 import Daedalus.RTS.JSON
@@ -45,7 +49,9 @@ data Input = Input
 
   , inputInfo     :: !InputInfo
     -- ^ Information about the stream we are processsing.
-  }
+  } deriving Generic
+
+instance NFData Input where -- default instance
 
 {- | Information about the input, used for error reporting. -}
 data InputInfo = InputInfo
@@ -55,7 +61,9 @@ data InputInfo = InputInfo
          This does not change when move around and restrict the stream.
          It is nice to keep the whole string around even for restricted
          streams, so that we can show context on parse error. -}
-  }
+  } deriving Generic
+
+instance NFData InputInfo where -- default instance
 
 instance Eq Input where
   x == y = inputOffset x == inputOffset y &&
