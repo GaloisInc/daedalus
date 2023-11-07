@@ -1344,11 +1344,6 @@ checkArg mbT e =
             checkTy (e1,t)
             pure (ValArg e1,t,mbS)
 
-       (AGrammar, Some AClass) ->     -- calling grammar, expecting a value
-         do ((e1,t),mbS) <- liftValExpr e    -- optional lifting
-            checkTy (e1,t)
-            pure (ValArg e1,t,mbS)
-
        (_,Some actx) ->
          do (e1,t) <- allowPartialApps partOk (inContext actx (inferExpr e))
             checkTy (e1,t)
