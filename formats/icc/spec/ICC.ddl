@@ -201,6 +201,15 @@ def PositionNumber =
     offset = BEUInt32 as uint 64
     size   = BEUInt32 as uint 64
 
+-- We'd usually use `PositionNumber` because ICC usually defines an offset-size
+-- tuple (in that order) to represent positions, but sometimes (e.g. in
+-- `multiLocalizedUnicodeType` records, Section 10.2.15) it defines size-offset
+-- instead.
+def NumberPosition =
+  block
+    size   = BEUInt32 as uint 64
+    offset = BEUInt32 as uint 64
+
 -- 0 terminated ASCII 7 string (sem value does not include the 0)
 def ASCII7 =
   block
@@ -282,7 +291,7 @@ def UnicodeRecord s =
   block
     language    = Many 2 UInt8
     country     = Many 2 UInt8
-    data        = Positioned s (Many UInt8)
+    data        = ReversePositioned s (Many UInt8)
 
 def S15Fixed16ArrayType =
   Only
@@ -784,12 +793,14 @@ def ChunkRelativeTo s off sz =
 
 def exp b e = for (x = 1; i in rangeUp(e)) x * b
 
-def Positioned s P =
+def PositionedVia Positioning s P =
   block
-    let p = PositionNumber
+    let p = Positioning
     LookAhead
       block
         SetStreamAt p.offset s
         Chunk p.size P
 
+def Positioned        s P = PositionedVia PositionNumber s P
+def ReversePositioned s P = PositionedVia NumberPosition s P
 
