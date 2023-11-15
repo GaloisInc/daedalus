@@ -18,7 +18,7 @@ import Common
 
 def Main =
     block
-        let ?collectRawTileData = false
+        let ?collectRawTileData = true
         JP2
 
 -- The format consists of a series of boxes. The first two must be a
@@ -393,6 +393,8 @@ def COMParameters =
 -- It starts with a `start of tile` marker segment, followed by headers a
 -- `start of data` marker and then a byte stream which lasts until
 -- the start of the next tile part or the end of the coding stream
+-- TODO: Differentiate between first tile part header and the rest; there are
+--   more marker segments possible in the first tile part than the rest
 def TilePart =
     block
         -- To validate lengths, capture the offset before we start parsing
@@ -420,7 +422,7 @@ def TilePart =
 
 def TilePartHeaderSegment =
     First
-        -- TODO: Collect bytes
+        comSegment     = COMSegment
         unknownSegment = MarkerSegment (Many UInt8)
 
 -- The `start of tile` (SOT) segment
