@@ -6,7 +6,7 @@ import Debug
 def NumericParserWithRange P min max =
     block
         let v = P
-        Guard ( v >= min && v <= max )
+        GuardMsg ( v >= min && v <= max ) "Value not in range"
         ^ v
 
 -- Parse a byte value and turn it in to a boolean
