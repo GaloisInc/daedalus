@@ -1,5 +1,6 @@
 import Daedalus
 import Debug
+import utf8
 
 -- Parse with a numeric Parser and ensure that it is
 -- within a specfied range
@@ -31,6 +32,32 @@ def indexOf (entry : ?a) (arr : [?a]): int =
     block
         for (val = -1 : int;  i, v in arr)
             if (val == -1 && v == entry) then (i as int) else val
+
+-- Parser a UTF8 encoded null-terminated string
+def UTF8NTString =
+    block
+        -- First find the null block
+        let start = Offset
+        let nullOffset = LookAhead OffsetOfNull
+        -- Take the relevant values as bytes
+        -- NOTE: We skip the NULL character (which may or may not be what we want)
+        -- NOTE: We could take them as UTF8 bytes too
+        --  by using the stream
+        let count = nullOffset - start - 1
+        Many count UInt8
+
+-- Find the offset of the null value
+def OffsetOfNull =
+    block
+        let done =
+            many (done = false)
+                block
+                    done is false
+                    UTF8 == 0
+        case done of
+            true  -> Offset
+            false -> Fail "Malformed String"
+
 
 -----------------------------------------------------------------------------------
 -- Box Parsing Helpers
