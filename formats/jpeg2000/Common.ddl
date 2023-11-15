@@ -76,8 +76,13 @@ def Box ContentParser =
 
 def BoxOfType type ContentParser =
     block
+        -- Parse header and check for type
         header  = BoxHeader
         Guard ( header.type == type )
+        -- At this point, we know what we are parsing, so any
+        -- failure can and should be treated as fatal
+        commit
+        -- Parse the contents
         content = BoxContent header.boxLength ContentParser
   
 def BoxLength (lboxValue : uint 32) =
@@ -99,8 +104,8 @@ def contentLength (boxLength: BoxLength) =
 def BoxContent (boxLength: BoxLength) ContentParser =
     block
         case boxLength of
-            untilEndOfFile -> { $$ = ContentParser ; END }
-            _              -> Chunk (contentLength boxLength) ContentParser
+            untilEndOfFile -> Only ContentParser
+            _              -> Chunk (contentLength boxLength) (Only ContentParser)
 
 -----------------------------------------------------------------------------------
 -- Marker Parsing Helpers
@@ -115,6 +120,7 @@ def AnyMarker =
     $[0xFF]
     UInt8
 
+-- Helper to parse the parameters after a marker
 def Parameters Parser =
     block
         let size = BEUInt16 as uint 64
@@ -122,19 +128,26 @@ def Parameters Parser =
         let len = size - 2
         Chunk len Parser
 
+-- Parse a marker segment
 def MarkerSegment Parser =
     block
         marker     = AnyMarker
         parameters = Parameters Parser
 
+-- Parse a marker segment and ensure that it is of a specific
+-- type before parsing parameters
 def MarkerSegmentOfType type Parser =
     block
         marker     = Marker type
+        commit
         parameters = Parameters Parser
 
-
+-- Parse as many entities as you can until we hit the specified marker
+-- This works correctly only if the specified parser always stops before
+-- markers (for example if the parser was a marker segment parser of some sort)
 def UntilMarker markerID Parser = Many (UnlessMarker markerID Parser)
 
+-- Parse unless you have hit a specified marker
 def UnlessMarker markerID Parser =
     block
         let found = LookAhead AnyMarker
@@ -142,13 +155,4 @@ def UnlessMarker markerID Parser =
         let x = (markerID == found)
         --Trace (if (x) then "T" else "F")
         markerID == found is false 
-        Parser
-
-def UnlessOneOfTwoMarkers markerID1 markerID2 Parser =
-    block
-        let found = LookAhead AnyMarker 
-        --Trace (dbgShowHexNumber found)
-        let x = (markerID1 == found || markerID2 == found)
-        --Trace (if (x) then "T" else "F")
-        (markerID1 == found || markerID2 == found) is false ;
         Parser
