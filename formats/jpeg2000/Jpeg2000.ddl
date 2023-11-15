@@ -1,17 +1,34 @@
+-- A partial specification for the JP2 file format.
+
+-- The specification covers the complete super structure of JP2 files
+-- (i.e. the boxes and marker segment structures), but only "interprets" and
+-- validates a subset thereof. Unparsed boxes and segments are read and their
+-- data collected as raw bytes.
+
+-- NOTE: By default, the raw data from JPEG 2000 tiles are stored and exposed
+-- as arrays of bytes, which is likely what is needed for a practical parser generated
+-- from this specification. However, if we are using the daedalus interpreter to
+-- work with JP2 files, this may cause unnecessary clutter. Turning the implicit
+-- parameter `?collectRawTileData` below to `false` will avoid exposing this data
+-- and produce more readable output on the terminal.
+
 import Daedalus
 import Common
-import Debug
 
-def Main = JP2
 
--- The format consists of a series of boxes. The first two must be a 
+def Main =
+    block
+        let ?collectRawTileData = false
+        JP2
+
+-- The format consists of a series of boxes. The first two must be a
 -- signature box followed by a file type box.
 def JP2 =
     block
         ValidSignatureBox
         fileType = FileTypeBox
         boxes = Many JP2Box
-    
+
 -- The signature box contents are fixed
 def ValidSignatureBox =
     block
@@ -27,7 +44,7 @@ def FileTypeBoxContent =
     block
         brand         = FourByteString
         minorVersion  = BEUInt32         -- Should be zero, but apparently you are supposed to continue parsing anyway
-        compatibility = Many FourByteString 
+        compatibility = Many FourByteString
         -- Verify that compatibility list contains at least one: entry of the form 'jp2\040'
         let index     = indexOf ['j', 'p', '2', 0x20] compatibility
         Guard ( index != -1 )
@@ -38,16 +55,17 @@ def FileTypeBoxContent =
 -- attempting to interpret the contents
 def JP2Box =
     First
-        jp2header  = JP2HeaderBox
-        codestream = ContiguousCodestreamBox
-        unknownBox = Box ({ let x = Many UInt8 ; ^ (0 : uint 8) } )  -- TODO: Replace with Many UInt8
+        jp2header   = JP2HeaderBox
+        codestream  = ContiguousCodestreamBox
+        uuidInfoBox = UUIDInfoBox
+        unknownBox = Box (Many UInt8)
 
 -- The JP2 Header box
 def JP2HeaderBox = BoxOfType "jp2h" JP2HeaderBoxContent
 
 -- The contents of the header box should being with an image header
 -- and can contain other sub boxes
-def JP2HeaderBoxContent = 
+def JP2HeaderBoxContent =
     block
         imageHeader = ImageHeaderBox
         boxes       = Many JP2HeaderSubBox
@@ -55,7 +73,7 @@ def JP2HeaderBoxContent =
 -- Parse any of the possible boxes
 -- Once again we support unknown boxes here
 def JP2HeaderSubBox =
-    block        
+    block
         First
             imageHeader        = ImageHeaderBox  -- This is allowed, but is expected to be ignored
             colorSpecification = ColorSpecificationBox
@@ -83,8 +101,8 @@ def ColorSpecificationBoxContent =
         precdence  = UInt8  -- Should be zero, but parsers are expected to ignore it
         approx     = UInt8  -- Should be zero, but parsers are expected to ignore it
         colorspace = ColorSpaceSpecification method
-        
--- Type of the color specification. Can be a pre-specified one or a restricted ICC profile        
+
+-- Type of the color specification. Can be a pre-specified one or a restricted ICC profile
 def ColorSpaceSpecificationType =
     block
         case UInt8 of
@@ -95,11 +113,11 @@ def ColorSpaceSpecificationType =
 -- Read the actual color space depending on the type
 def ColorSpaceSpecification (method : ColorSpaceSpecificationType) =
     block
-        case method of 
+        case method of
             enumeratedColorSpace -> {| enumeratedColorSpace = EnumeratedColorSpace |}
             restrictedICCProfile -> {| iccProfile = ICCProfile |}
             _                    -> {| unknownColorSpaceData = Many UInt8 |}
-    
+
 -- Determine which of the pre-specified color spaces has been specified.
 def EnumeratedColorSpace =
     block
@@ -111,19 +129,46 @@ def EnumeratedColorSpace =
             _  -> {| unknown |}
 
 -- TODO: Real ICC profile ?
-def ICCProfile = Many UInt8 
+def ICCProfile = Many UInt8
+
+def UUIDInfoBox = BoxOfType "uinf" UUIDInfoBoxContents
+
+def UUIDInfoBoxContents =
+    block
+        uuidList     = UUIDListBox
+        dataEntryURL = DataEntryURLBox
+
+def UUIDListBox = BoxOfType "ulst" UUIDListBoxContent
+
+def UUIDListBoxContent =
+    block
+        count = BEUInt16 as? uint 64
+        uuids = Many count UUID
+        END
+
+def UUID = Many 16 UInt8
+
+def DataEntryURLBox = BoxOfType ['u', 'r', 'l', 0x20] DataEntryURLBoxContent
+
+def DataEntryURLBoxContent =
+    block
+        version = $[0x0]
+        flag    = { Match [0x0, 0x0, 0x0] ; ^ 0 : uint 32 }
+        local   = UTF8NTString
+        -- After that we can still have bytes, just ignore it
+        Many UInt8
 
 -- The stream box containing the data stream that makes up the image
 def ContiguousCodestreamBox = BoxOfType "jp2c" ContiguousCodestreamBoxContent
 
-def ContiguousCodestreamBoxContent = 
+def ContiguousCodestreamBoxContent =
     block
         SOC
         mainHeaderMarkerSegments = UntilMarker sotId MainHeaderMarkerSegment
         tileParts = Many TilePart
         EOC
 
-def MainHeaderMarkerSegment = 
+def MainHeaderMarkerSegment =
     First
         sizSegment = SIZSegment
         codSegment = CODSegment
@@ -146,20 +191,20 @@ def SOD = Marker sodId
 
 def EOC = Marker eocId
 
-
+-- The SIZ marker segment that describes image and tile sizes
 def SIZSegment = MarkerSegmentOfType 0x51  SIZParameters
 
 def SIZParameters =
     block
         rSiz = BEUInt16  -- TODO: Capabilities, can be interpreted better, but complex
-        xSiz = BEUInt32
-        ySiz = BEUInt32
-        xoSiz = BEUInt32
-        yoSiz = BEUInt32
-        xtSiz = BEUInt32
-        ytSiz = BEUInt32
-        xtoSiz = BEUInt32
-        ytoSiz = BEUInt32
+        xSiz = NumericParserWithRange BEUInt32 1 0xFFFFFFFF
+        ySiz = NumericParserWithRange BEUInt32 1 0xFFFFFFFF
+        xoSiz = NumericParserWithRange BEUInt32 0 0xFFFFFFFE
+        yoSiz = NumericParserWithRange BEUInt32 0 0xFFFFFFFE
+        xtSiz = NumericParserWithRange BEUInt32 1 0xFFFFFFFF
+        ytSiz = NumericParserWithRange BEUInt32 1 0xFFFFFFFF
+        xtoSiz = NumericParserWithRange BEUInt32 0 0xFFFFFFFE
+        ytoSiz = NumericParserWithRange BEUInt32 0 0xFFFFFFFE
         cSiz = NumericParserWithRange BEUInt16 1 16384
         componentInfo = Many (1..) ComponentBlock
 
@@ -168,19 +213,20 @@ def ComponentBlock =
         sSiz = SSiz
         yrSiz = UInt8
         xrSiz = UInt8
-        
+
 def SSiz =
     block
         let data = UInt8 as? SSizData
         case data of
-            SSizData d -> 
+            SSizData d ->
                 case d.signed of
                     0x1 -> {| signed = d.bitDepth + 1 |}
                     0x0 -> {| unsigned = d.bitDepth + 1 |}
 
 bitdata SSizData where
   SSizData = { signed : uint 1, bitDepth : uint 7 }
-  
+
+-- Default coding style marker segment
 def CODSegment = MarkerSegmentOfType 0x52 CODSegmentParameters
 
 def CODSegmentParameters =
@@ -189,13 +235,13 @@ def CODSegmentParameters =
         sgCod = SGCod
         spCod = SPCod sCod
 
-def SCod = 
+def SCod =
     block
         let data = UInt8 as? SCodData
         case data of
             SCodData d ->
                 block
-                    entropyCoder = EntropyCoder d.entropyCoder        
+                    entropyCoder = EntropyCoder d.entropyCoder
                     sopMarker = toBoolean d.sopMarker
                     ephMarker = toBoolean d.ephMarker
 
@@ -203,10 +249,10 @@ bitdata SCodData where
   SCodData = { reserved : uint 5
              , ephMarker : uint 1
              , sopMarker : uint 1
-             , entropyCoder : uint 1 
+             , entropyCoder : uint 1
              }
 
-def SGCod = 
+def SGCod =
     block
         progressionOrder = ProgressionOrder
         numberOfLayers   = BEUInt16
@@ -216,7 +262,7 @@ def EntropyCoder (v : uint 1) =
     if (v > 0)
         then {| specifiedEntropy |}
         else {| fixedEntropy |}
-        
+
 def ProgressionOrder =
     block
         case UInt8 of
@@ -229,7 +275,7 @@ def ProgressionOrder =
 
 def MultipleComponentTransformation =
     block
-        case UInt8 of 
+        case UInt8 of
             0x0 -> {| noMultipleComponentTransformation |}
             0x1 -> {| predefinedComponentTransformation |}
 
@@ -249,7 +295,7 @@ def CodeBlockExponent =
         let val = UInt8
         Guard ( val >= 0 && val <= 8 )
         ^ (val + 2)
-        
+
 bitdata CodeBlockStyle where
   CodeBlockStyle = { unused : uint 2
                    , segmentationSymbolsUsed: uint 1
@@ -267,12 +313,12 @@ def Transformation =
             0x1 -> {| fiveThreeReversibleFilter |}
 
 
-def PrecinctSizes ( entropyCoder : EntropyCoder ) : [PrecinctSizeXandY] = 
+def PrecinctSizes ( entropyCoder : EntropyCoder ) : [PrecinctSizeXandY] =
     block
         case entropyCoder of
             fixedEntropy -> []
             specifiedEntropy -> Many PrecinctSizeXandY
-    
+
 
 def PrecinctSizeXandY =
     block
@@ -286,6 +332,7 @@ def PrecinctSizeXandY =
 bitdata PrecinctSizeXandYBits where
     PrecinctSizeXandYBits = { ppX : uint 4, ppY : uint 4 }
 
+-- Quantization defaults marker segment
 def QCDSegment = MarkerSegmentOfType 0x5C QCDParameters
 
 def QCDParameters =
@@ -309,14 +356,14 @@ def Sqcd =
 
 bitdata SqcdBits where
     SqcdBits = { guardBits : uint 3, quantizationStyle : uint 5 }
-    
+
 def SPqcd (sqcd : Sqcd) =
     block
         case sqcd.quantizationStyle of
             noQuantization   -> {| reversibleStepSize = UInt8 |}   -- Question: Should we strip the last 3 bits ? Not quite sure
             scalarDerived    -> {| quantizationValue = SPqcdQuantizationValue |}
             scalarExpounded  -> {| quantizationValue = SPqcdQuantizationValue |}
-            
+
 def SPqcdQuantizationValue =
     block
         let data = BEUInt16 as? SPqcdQuantizationValueBits
@@ -325,15 +372,16 @@ def SPqcdQuantizationValue =
                 block
                     mantissa = d.mantissa as uint 16
                     exponent = d.exponent as uint 16
-            
+
 bitdata SPqcdQuantizationValueBits where
     SPqcdQuantizationValueBits = { exponent : uint 5, mantissa : uint 11 }
 
+-- Comment segment
 def COMSegment = MarkerSegmentOfType 0x64 COMParameters
 
 def COMParameters =
     block
-        registrationValue = 
+        registrationValue =
             block
                 case BEUInt16 of
                     0x0 -> {| binary |}
@@ -341,30 +389,51 @@ def COMParameters =
                     _   -> {| reserved |}
         comment = Many UInt8
 
+-- A tile part
+-- It starts with a `start of tile` marker segment, followed by headers a
+-- `start of data` marker and then a byte stream which lasts until
+-- the start of the next tile part or the end of the coding stream
 def TilePart =
     block
+        -- To validate lengths, capture the offset before we start parsing
+        let start = Offset
+
+        -- Parse the initial part of the tile
         sotSegment = SOTSegment
         headers = UntilMarker sodId TilePartHeaderSegment
         SOD
+
+        -- To validate lengths, once again capture the offset
+        let beforeData = Offset  -- And this offset
+
+        -- Read data as raw bytes until we hit an end condition
+        -- We only expose the raw tile data as raw bytes based on an implicit
+        -- parameters
         let data = Many ByteUnlessTileEnd
         dataLength = length data
-        
+        rawData = if ?collectRawTileData then data else []
+
+        -- Verify that the expected length of the data is same what we expect
+        let expectedSize = sotSegment.parameters.pSot as uint 64 - (beforeData - start)
+        Guard ( dataLength == expectedSize )
+
 
 def TilePartHeaderSegment =
     First
         -- TODO: Collect bytes
-        unknownSegment = MarkerSegment (^ (0:uint 8)) 
+        unknownSegment = MarkerSegment (Many UInt8)
 
+-- The `start of tile` (SOT) segment
 def SOTSegment = MarkerSegmentOfType sotId SOTParameters
-        
+
 def SOTParameters =
     block
         iSot = BEUInt16
         pSot = BEUInt32
-        Guard ( pSot == 0 || pSot >= 14 )        
+        Guard ( pSot == 0 || pSot >= 14 )
         tpSot = NumericParserWithRange UInt8 0 254
         tnSot = TNSot
-            
+
 def TNSot =
     block
         let val = UInt8
@@ -373,11 +442,13 @@ def TNSot =
             _   -> {| tileParts = val |}
 
 
+-- Read bytes until we hit either a SOT marker or a EOC marker
+-- (i.e. the next tile part or the end of the code stream)
 def ByteUnlessTileEnd =
     block
         let bytes = LookAhead { first = UInt8 ; second = UInt8 }
         case bytes.first of
-            0xFF -> 
+            0xFF ->
                 block
                     (bytes.second == sotId || bytes.second == eocId) is false
                     UInt8
