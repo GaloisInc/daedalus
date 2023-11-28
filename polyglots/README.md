@@ -59,11 +59,9 @@ in Mitra.
                                           O L     c         v A                 F   F       a P P M   v 2
 
 Mitra:
-Zip     . X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             28
-PDF     X X X X   . X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             28
+Zip     . X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             30
+PDF     X X X X   . X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             30
 
 Other:
-Phar    X X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             29
+Phar    X X X X   X X X X   X X   X X X X X   X X X X X   X     X X   X X   X X   X X X     X             31
 ```
-
-TODO: Analyze all formats we've defined with DDL.
