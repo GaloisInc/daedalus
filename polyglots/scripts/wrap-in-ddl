@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+function print_help {
+  echo "usage: $(basename $0) [-o OUT] EXT FILE"
+  echo ""
+  echo "Produces a Daedalus file OUT (default EXT.ddl) that exports "EXTContents", a Daedalus parser that exactly matches the bytes of FILE."
+}
+
+# Get optional arguments.
+while getopts "ho:" opt; do
+  case $opt in
+    h)
+      print_help
+      exit 0
+      ;;
+    o)
+      OUT=${OPTARG}
+      ;;
+    \?)
+      echo "Invalid option: -${OPTARG}" >&2
+      exit 1
+      ;;
+    :)
+      echo "Missing argument for -${OPTARG}." >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Shift optional arguments to get positional arguments.
+shift $((OPTIND-1))
+
+# Check positional arguments.
+if [ $# -ne 2 ]; then
+  print_help
+  exit 1
+fi
+
+EXT=${1^^}
+FILE=$2
+
+if [ "${OUT}empty" = "empty" ]; then
+    OUT=${EXT}.ddl
+fi
+
+# Emit header.
+echo "{-|
+  Name: ${EXT}
+  Description: This file contains a Daedalus description of the contents of
+  a ${EXT} file for Talos to generate.  Use \`Match [...]\` to force Talos to
+  produce a specific ${EXT} file.
+  Maintainer     : Cole Schlesinger <coles@galois.com>
+  Stability      : provisional
+-}
+
+def ${EXT}Contents = Match [" > $OUT
+
+# Emit bytes.
+${SCRIPT_DIR}/dump-bytes ${FILE} >> $OUT
+
+# Emit footer.
+echo "]" >> $OUT

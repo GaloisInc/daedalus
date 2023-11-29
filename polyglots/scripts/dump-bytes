@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+xxd -g 1 $1 \
+    | cut -d\  -f2-17 \
+    | sed -e 's/\([0-9a-z]\)\([a-z0-9]\)/0x&,/g'
