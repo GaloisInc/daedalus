@@ -10,5 +10,5 @@ dist
 tmp
 __pycache__
 /daedalus-standalone
-.vscode
-venv
+**/venv
+**/.vscode

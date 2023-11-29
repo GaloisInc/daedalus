@@ -14,6 +14,14 @@ import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Numeric as RTS
 
 -- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- No custom user monad.  No error reporting.
+type DParser'    a = Maybe (a,RTS.Input)
+
+-- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- No error reporting.
+type DParserM' m a = m (Maybe (a,RTS.Input))
+
+-- | A direct parser.  Used for parsers that do not use unbiased chocie.
 -- No custom user monad
 type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
 
@@ -23,6 +31,10 @@ type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState
 liftD :: Functor m => m a -> RTS.Input -> DParserM m a
 liftD m i s = mk <$> m
   where mk a = (Just (a,i), s)
+
+liftD' :: Functor m => m a -> RTS.Input -> DParserM' m a
+liftD' m i = mk <$> m
+  where mk a = Just (a,i)
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
 -- No custom user monad
@@ -187,6 +199,12 @@ runDParserM p = dparserToEither <$> p initParseErrorState
 runDParser :: DParser a -> Either ParseError a
 runDParser p = dparserToEither (p initParseErrorState)
 
+runDParserM' :: Functor m => DParserM' m a -> m (Maybe a)
+runDParserM' p = dparserToMaybe <$> p
+
+runDParser' :: DParser' a -> Maybe a
+runDParser' = dparserToMaybe
+
 runCParserOne :: CParser a a -> Either ParseError a
 runCParserOne p = coerce (runCParserOneM p)
 
@@ -221,6 +239,8 @@ doGetErr s = case pesError s of
                Just e  -> e
                Nothing -> error "doGetErr: Nothing"
 
+dparserToMaybe :: DParser' a -> Maybe a
+dparserToMaybe = fmap fst
 
 --------------------------------------------------------------------------------
 

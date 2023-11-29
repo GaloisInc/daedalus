@@ -9,8 +9,9 @@
       • HTTP-1.1.ddl:150:28--150:36
       • HTTP-1.1.ddl:199:12--199:20
       • HTTP-1.1.ddl:233:17--233:25
-      • Lexemes.ddl:38:26--38:34
-      • Lexemes.ddl:43:5--43:12
+      • Lexemes.ddl:43:13--43:48
+      • Lexemes.ddl:43:33--43:41
+      • Lexemes.ddl:49:5--49:12
   • input trace:
       tests/http1/requests/inputs/get_request_chunked_invalid_missing_last_chunk.txt
         0--218

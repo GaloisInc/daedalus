@@ -107,7 +107,7 @@ If we never infer the type being constructed (i.e., it stays as a type
 variable), we don't generalize over it.  Instead we use the definition and
 the suggested name to generate a new type declaration.
 
-Note that we can't just manufacture a new type every type we see a constrcutro
+Note that we can't just manufacture a new type every time we see a constrcutor
 constraint.  Consider, for example, this definition:
 
 def Main = { x = Match1 'a' } <| { x = Uint8 }

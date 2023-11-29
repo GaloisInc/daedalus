@@ -46,9 +46,16 @@ public:
   void say(const char *msg) { debugLine(msg); }
 
   void pushDebug(char const* msg, bool tail = false) {
+#ifdef DDL_ENABLE_ERRORS
     if (tail) debugs.tailCallFun(msg); else debugs.callFun(msg);
+#endif
   }
-  void popDebug() { debugs.popFun(); }
+
+  void popDebug() {
+#ifdef DDL_ENABLE_ERRORS
+    debugs.popFun();
+#endif
+  }
 
   // Set the "sibling failied" flag in the given thread.
   // Assumes: valid id (i.e., thread has not been resumed)
@@ -56,7 +63,9 @@ public:
 
   // Borrows input and msg
   void noteFail(bool is_sys, char const *loc, I input, Array<UInt<8>> msg) {
+#ifdef DDL_ENABLE_ERRORS
     error.improve(is_sys,loc,input,msg,debugs);
+#endif
   }
 
   // Function calls

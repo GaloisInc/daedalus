@@ -15,7 +15,7 @@ module Talos.Strategy.PathSymbolic (pathSymbolicStrat) where
 
 import           Control.Lens                            (_2, imap, over,
                                                           preview)
-import           Control.Monad                           (join, mapAndUnzipM)
+import           Control.Monad                           (join, mapAndUnzipM, unless)
 import           Control.Monad.Reader                    (asks)
 import           Data.Bifunctor                          (second)
 import           Data.Foldable                           (toList, traverse_)
@@ -35,7 +35,7 @@ import qualified Daedalus.Core                           as Core
 import           Daedalus.Core.Free                      (freeVars)
 import           Daedalus.Core.Type                      (sizeType, typeOf)
 import           Daedalus.Panic                          (panic)
-import           Daedalus.PP                             (showPP)
+import           Daedalus.PP                             (showPP, commaSep, pp)
 import           Daedalus.Rec                            (topoOrder)
 
 import           Talos.Analysis.Exported                 (ExpCallNode (..),
@@ -45,6 +45,7 @@ import           Talos.Analysis.Slice
 import qualified Talos.Monad                             as T
 
 import           Talos.Lib                               (tByte)
+import           Talos.Monad                             (debug)
 import           Talos.Path
 import           Talos.Solver.SolverT                    (contextSize,
                                                           declareName,
@@ -115,9 +116,11 @@ configOpts = [ P.option "max-depth"  (field @"cMaxRecDepth") P.intP
 -- FIXME: define all types etc. eagerly
 symbolicFun :: Config ->
                ProvenanceTag ->
+               SliceId -> 
                ExpSlice ->
                StratGen
-symbolicFun config ptag sl = StratGen $ do
+symbolicFun config ptag sid sl = StratGen $ do
+  debug pathKey $ "Generating models for " <> showPP sid
   -- defined referenced types/functions
   reset -- FIXME
 
@@ -132,7 +135,7 @@ symbolicFun config ptag sl = StratGen $ do
     T.statS (pathKey <> "modelsize") sz
     
     let go ((_, pb), sm) = do
-          rs <- buildPaths (cNModels config) (cMaxUnsat config) sm pb
+          rs <- buildPaths (cNModels config) (cMaxUnsat config) sid sm pb
           T.info pathKey $ printf "Generated %d models" (length rs)
           pure (rs, Nothing) -- FIXME: return a generator here.
 
@@ -248,7 +251,7 @@ stratChoice sls _
       pv <- freshPathVar (length sls)
 
       let mk i sl = (PS.choiceConstraint pv i, over _2 ((,) i) <$> stratSlice sl)
-      b <- branching $ B.branching $ imap mk sls
+      b <- branching $ B.branching True $ imap mk sls
       v <- liftSemiSolverM (MV.mux (fst <$> b))
       
       let paths = map snd (toList b)
@@ -411,7 +414,7 @@ stratLoop lclass =
 
       (vs, pbs) <- unzip <$> go se [] 0
       let node = PathLoopUnrolled (Just lv) pbs
-      v <- liftSemiSolverM (MV.mux (B.branching $ (PS.loopCountEqConstraint lv 0, se) : vs))
+      v <- liftSemiSolverM (MV.mux (B.branching False {- ??? -} $ (PS.loopCountEqConstraint lv 0, se) : vs))
       pure (v, SelectedLoop node)
 
     SMorphismLoop (FoldMorphism n e lc b) -> do
@@ -438,16 +441,16 @@ stratLoop lclass =
           go :: (VSequenceMeta, [MuxValue]) ->
                 SymbolicM (B.Branching MuxValue, (VSequenceMeta, [PathBuilder]))
           go (vsm, els) = do
-            let mkC = eqGuard vsm
-            (svs, pbs) <- unzip <$> goOne mkC vsm se [] (zip [1..] els)
-            let allvs = (mkC 0, se) : svs
+            let mkC i = eqGuard vsm (i + 1)
+            (svs, pbs) <- unzip <$> goOne mkC vsm se [] (zip [0..] els)
+            let allvs = (eqGuard vsm 0, se) : svs
             -- This check shouldn't be required (assuming minLength is
             -- correct) but this is clearer and probably more correct
             v <- -- FIXME: check for empty branching.
               if isNothing (vsmLoopCountVar vsm)
               -- if we have a non-symbolic spine, the val is the last
               then pure (B.singleton (snd (last allvs))) 
-              else pure $ B.branching (drop (vsmMinLength vsm) allvs)
+              else pure $ B.branching False {- ??? -} (drop (vsmMinLength vsm) allvs)
             pure (v, (vsm, pbs))
             
       (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
@@ -474,7 +477,7 @@ stratLoop lclass =
           go :: (VSequenceMeta, [MuxValue]) ->
                 SymbolicM ((VSequenceMeta, [MuxValue]), (VSequenceMeta, [PathBuilder]))
           go (vsm, els) = do
-            (els', pbs) <- unzip <$> goOne vsm [] (zip [1..] els)
+            (els', pbs) <- unzip <$> goOne vsm [] (zip [0..] els)
             pure ((vsm, els'), (vsm, pbs))
             
       (bvs', nodes) <- B.unzip <$> branching (go <$> bvs)
@@ -523,12 +526,16 @@ stratCase _total cs@(Case n pats) _m_sccs
       pv <- freshPathVar (length pats)
       
       let (assn, missing) = MV.semiExecPatterns v pv (map fst (casePats cs))
+
+      unless (null missing) $ do
+        debug pathKey $ "Case on " <> showPP n <> " missing " <> show (commaSep (map pp (toList missing)))
+          <> ": " <> show (MV.ppMuxValue v)
       
       let go i sl | i `elem` missing = unreachable -- short-circuit, maybe tell the user?
                   | otherwise = over _2 ((,) i) <$> stratSlice sl
           mk i (_pat, sl) = (PS.choiceConstraint pv i, go i sl)
           
-      b <- branching $ B.branching $ imap mk pats
+      b <- branching $ B.branching True $ imap mk pats
       rv <- liftSemiSolverM (MV.mux (fst <$> b))
       
       let paths = map snd (toList b)

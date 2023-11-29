@@ -81,10 +81,12 @@ instance Show Input where
 -- | The name of the input
 inputName :: Input -> ShortByteString
 inputName = iiName . inputInfo
+{-# INLINE inputName #-}
 
 -- | Original bytes from the input
 inputTopBytes :: Input -> ByteString
 inputTopBytes = iiBytes . inputInfo
+{-# INLINE inputTopBytes #-}
 
 -- | How many bytes remain in the input.
 inputLength :: Input -> Int
@@ -173,6 +175,7 @@ newInputFromFile mb =
 
 instance HasInputs Input where
   getInputs i = Map.singleton (inputName i) (inputTopBytes i)
+  {-# INLINE getInputs #-}
 
 instance ToJSON Input where
   toJSON inp =

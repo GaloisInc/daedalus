@@ -24,7 +24,7 @@ data CompileConfig = CompileConfig
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
   , userEntries     :: [String]
   , specPath        :: [FilePath]
-  , nicerErrors     :: Bool
+  , errorLevel      :: Int    -- ^ 0: none, 1: normal, 2: detailed
   }
 
 defaultConfig :: CompileConfig
@@ -33,7 +33,7 @@ defaultConfig = CompileConfig
   , userPrimitives = []
   , userEntries    = ["Main"]
   , specPath       = ["."]
-  , nicerErrors    = True
+  , errorLevel     = 1
   }
 
 data DDLText = Inline SourcePos Text
@@ -69,6 +69,7 @@ compileDDLWith cfg ddlText =
 
      let c = VM.defaultConfig { VM.userMonad = userMonad cfg
                               , VM.userPrimitives = primMap
+                              , VM.enableErrors = errorLevel cfg > 0
                               }
 
      VM.compileModule c ast
@@ -96,7 +97,7 @@ loadDDLVM cfg src =
      -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
      DDL.passNorm specMod
-     DDL.ddlSetOpt DDL.optDebugMode (nicerErrors cfg)
+     DDL.ddlSetOpt DDL.optDebugMode (errorLevel cfg > 1)
      DDL.passVM specMod
      m <- DDL.ddlGetAST specMod DDL.astVM
 

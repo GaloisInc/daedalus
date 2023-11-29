@@ -12,6 +12,12 @@ packages:
   formats/pdf/arlington-pdf-model/
   formats/icc/
   formats/nitf/haskell/
+  formats/vlq_128/atto/
+  formats/vlq_128/ddl-hs/
+  formats/bson/ddl-hs/
+  formats/bson/hs
+  formats/s-exp/ddl-hs/
+  formats/s-exp/happy
   talos/
   daedalus-language-server/
   standalone/cabal-pack/
@@ -22,10 +28,10 @@ source-repository-package
     location: https://github.com/haskell-streaming/streaming
     tag: 0c815bf9043d0f0cbda92b80ef791892e2b7fb43
     
-source-repository-package
-    type: git
-    location: https://github.com/GaloisInc/parameterized-utils
-    tag: e5a340fab56694f971e3b2a0f23d9471a9143408
+-- source-repository-package
+--     type: git
+--     location: https://github.com/GaloisInc/parameterized-utils
+--     tag: e5a340fab56694f971e3b2a0f23d9471a9143408
     
 constraints:
   utf8-string < 1.0.2,

@@ -46,7 +46,6 @@ import Data.Int
 import Data.Coerce(coerce)
 import Data.List(unfoldr)
 
-import Daedalus.RTS.Base
 import Daedalus.RTS.JSON
 import Daedalus.RTS.Numeric
 import Daedalus.RTS.Base
@@ -146,38 +145,48 @@ deriving instance VecElem a => Ord (Vector a)
 
 empty :: VecElem a => Vector a
 empty = Vec vEmpty
+{-# INLINE empty #-}
 
 length :: VecElem a => Vector a -> UInt 64
 length (Vec x) = intToSize (vLen x)
+{-# INLINE length #-}
 
 fromList :: VecElem a => [a] -> Vector a
 fromList xs = Vec (vFromList (storingList xs))
+{-# INLINE fromList #-}
 
 unfoldrM :: (VecElem a, Monad m) => (s -> m (Maybe (a,s))) -> s -> m (Vector a)
 unfoldrM step s = Vec <$> vUnfoldrM step' s
   where step' s' = do mb <- step s'
                       pure (upd <$> mb)
         upd (a,s1) = (storing a, s1)
+{-# INLINE unfoldrM #-}
 
 
 replicateM :: (VecElem a, Monad m) => UInt 64 -> m a -> m (Vector a)
 replicateM n m = Vec <$> vReplicateM (sizeToInt n) (storing <$> m)
+{-# INLINE replicateM #-}
 
 concat :: VecElem a => Vector (Vector a) -> Vector a
 concat (Vec xs) = Vec (vConcat (coerce (vToList xs)))
+{-# INLINE concat #-}
 
 imapM_ :: (VecElem a, Monad m) => (Int -> a -> m b) -> Vector a -> m ()
 imapM_ f (Vec xs) = vImapM_ f' xs
   where f' i a = f i (reading a)
+{-# INLINE imapM_ #-}
 
 toList :: (VecElem a) => Vector a -> [a]
 toList (Vec xs) = readingList (vToList xs)
+{-# INLINE toList #-}
 
 (!?) :: VecElem a => Vector a -> UInt 64 -> Maybe a
 Vec xs !? i = reading <$> vLookup xs (sizeToInt i)
+{-# INLINE (!?) #-}
 
 (!) :: VecElem a => Vector a -> UInt 64 -> a
 Vec xs ! i = reading (vIndex xs (sizeToInt i))
+{-# INLINE (!) #-}
 
 rangeUp :: (VecElem a, Ord a, Numeric a) => a -> a -> a -> Vector a
 rangeUp start stop step
@@ -198,20 +207,6 @@ rangeDown start stop step
                         then let x = cur `sub` step
                              in x `seq` Just (x,x)
                         else Nothing
-
-
-
-{-# INLINE empty #-}
-{-# INLINE length #-}
-{-# INLINE fromList #-}
-{-# INLINE concat #-}
-{-# INLINE unfoldrM #-}
-{-# INLINE replicateM #-}
-{-# INLINE imapM_ #-}
-{-# INLINE toList #-}
-{-# INLINE (!?) #-}
-{-# INLINE rangeUp #-}
-{-# INLINE rangeDown #-}
 
 
 
@@ -483,19 +478,24 @@ newtype Builder a = Builder (BuilderT (VecOf a))
 
 emptyBuilder :: VecElem a => Builder a
 emptyBuilder = Builder mempty
+{-# INLINE emptyBuilder #-}
 
 finishBuilder :: VecElem a => Builder a -> Vector a
 finishBuilder (Builder b) = Vec (vBuild b)
+{-# INLINE finishBuilder #-}
 
 pushBackBuilder :: VecElem a => Builder a -> Builder a -> Builder a
 pushBackBuilder (Builder x) (Builder y) = Builder (x <> y)
+{-# INLINE pushBackBuilder #-}
 
 pushBack :: forall a. VecElem a => Builder a -> a -> Builder a
 pushBack (Builder x) a = Builder (x <> vOneBuilder sig (storing a))
   where sig = Nothing :: Maybe (VecOf a)
+{-# INLINE pushBack #-}
 
 pushBackVector :: VecElem a => Builder a -> Vector a -> Builder a
 pushBackVector (Builder x) (Vec y) = Builder (x <> vVecBuilder y)
+{-# INLINE pushBackVector #-}
 
 instance VecElem a => Eq (Builder a) where
   x == y = finishBuilder x == finishBuilder y
@@ -505,7 +505,9 @@ instance VecElem a => Ord (Builder a) where
 
 instance VecElem a => Show (Builder a) where
   showsPrec n b = showsPrec n (show (finishBuilder b))
+  {-# INLINE showsPrec #-}
 
 instance (VecElem a, ToJSON a) => ToJSON (Builder a) where
   toJSON = toJSON . finishBuilder
+  {-# INLINE toJSON #-}
 

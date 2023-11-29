@@ -1,0 +1,19 @@
+cabal-version:      3.0
+name:               SexpDDL
+version:            0.1.0.0
+license:            ISC
+license-file:       LICENSE
+maintainer:         iavor.diatchki@gmail.com
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+executable sexp-ddl
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:    base, bytestring, daedalus, rts-vm-hs, rts-hs-data
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
