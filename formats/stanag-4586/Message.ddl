@@ -64,7 +64,6 @@ def Checksum cstream =
 
 
 -- Compute the checksum over a stream of bytes
--- TODO: Verify that truncation behavior is as expected
 def calculateChecksum s =
     block
         let byteArray = bytesOfStream s
