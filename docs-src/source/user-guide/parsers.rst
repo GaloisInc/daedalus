@@ -292,7 +292,7 @@ Given multiple parsers ``A``, ``B``, ... we can use the ``Choose`` keyword
 for unbiased choice and ``First`` for biased choice.  These constructs
 use layout, in a similar style to ``block``:  when using this notation
 eahc alternative must start at the same indention in the file, and the
-entire definition of an alternative must be indented furter.  Here are
+entire definition of an alternative must be indented further.  Here are
 some examples:
 
 .. code-block:: DaeDaLus
@@ -301,7 +301,7 @@ some examples:
     First
       block
         Match "This is"
-        Match "the firts alternaitve"
+        Match "the first alternative"
       Match
         "The second one is here"
 
@@ -309,7 +309,7 @@ some examples:
     Choose
       block
         Match "This is"
-        Match "the firts alternaitve"
+        Match "the first alternative"
       Match
         "The second one is here"
 
@@ -320,7 +320,7 @@ Tagged Unions
 DaeDaLus supports a variation on ``Choose`` and ``First``
 that can be used to construct tagged unions, which is useful if
 you'd like the semantic value to reflect which of the parsers succeeded,
-or if the branches need to return construct results of different types.
+or if the branches need to return/construct results of different types.
 
 For example, the following parser constructs a union with possible tags
 ``good`` and ``bad``, depending on whether the input character is

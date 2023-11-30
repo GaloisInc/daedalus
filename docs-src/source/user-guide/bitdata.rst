@@ -15,7 +15,7 @@ groups of bits, which are then combined into a tagged union.
 
 Bitdata definitions are not parsers, but rather are used by applying coercions to
 already parsed bytes. The following code parses a byte, and then checks that the
-first four bits select the correct option. 
+first four bits (the most significant four bits) select the correct option. 
 
 .. code-block:: DaeDaLus 
 
