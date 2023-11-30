@@ -42,7 +42,7 @@ the following, assuming ``daedalus`` is in your path:
 
 .. code-block:: bash
 
-  daedalus run tests/midi/midi.ddl --input tests/midi/inputs/moz_k299.midi
+  daedalus run ./test-all-ways/tests/midi/midi.ddl --input ./test-all-ways/tests/midi/midi/moz_k299.midi
 
 The first argument, ``run``, tells the interpreter what to do.
 The second is a Daedalus specification describing the ``midi``
