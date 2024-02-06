@@ -301,7 +301,7 @@ some examples:
     First
       block
         Match "This is"
-        Match "the firts alternaitve"
+        Match "the first alternaitve"
       Match
         "The second one is here"
 
@@ -309,7 +309,7 @@ some examples:
     Choose
       block
         Match "This is"
-        Match "the firts alternaitve"
+        Match "the first alternaitve"
       Match
         "The second one is here"
 
