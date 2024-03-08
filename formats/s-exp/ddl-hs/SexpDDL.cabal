@@ -5,7 +5,6 @@ license:            ISC
 license-file:       LICENSE
 maintainer:         iavor.diatchki@gmail.com
 build-type:         Simple
-extra-doc-files:    CHANGELOG.md
 
 common warnings
     ghc-options: -Wall
