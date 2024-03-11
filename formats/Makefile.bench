@@ -1,3 +1,6 @@
+# Common stuff used for all bench marks
+
+
 .PHONY: run build clean
 
 run: build

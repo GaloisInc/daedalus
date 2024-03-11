@@ -1,0 +1,26 @@
+#!/bin/bash
+
+MAKE_TGT=run
+
+if [ $# -gt 0 ]; then
+  if [ "$1" == "clean" ]; then
+    MAKE_TGT=clean
+    shift
+  fi
+fi
+
+if [ $# -gt 0 ]; then
+  DIR=$1
+else
+  DIR=formats
+fi
+
+TGTS="vlq_128 bson s-exp"
+
+for TGT in $TGTS; do
+  echo "=== Benchmarking $TGT ================================================="
+  pushd "$DIR/$TGT"
+  make $MAKE_TGT
+  popd
+done
+
