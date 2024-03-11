@@ -3,10 +3,18 @@
 MAKE_TGT=run
 
 if [ $# -gt 0 ]; then
-  if [ "$1" == "clean" ]; then
-    MAKE_TGT=clean
-    shift
-  fi
+  case $1 in
+    "clean")
+      MAKE_TGT=clean
+      shift
+      ;;
+    "build")
+      MAKE_TGT=build
+      shift
+      ;;
+    *)
+      MAKE_TGT=run
+  esac
 fi
 
 if [ $# -gt 0 ]; then
