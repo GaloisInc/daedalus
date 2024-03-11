@@ -1,6 +1,0 @@
-add_library(ddl-rts INTERFACE)
-target_include_directories(ddl-rts INTERFACE .)
-add_subdirectory(docs)
-find_package(PkgConfig)
-pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
-target_link_libraries(ddl-rts INTERFACE PkgConfig::GMPXX)

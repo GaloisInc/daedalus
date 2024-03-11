@@ -380,6 +380,15 @@ generateCPP opts mm =
                      BS.writeFile (dir </> x) b
             mapM_ save c_template_files
 
+       when (makeExe || optSaveRTS opts) $
+         do let save (x,b) =
+                  do let d = dir </> "ddl"
+                     createDirectoryIfMissing True d
+                     BS.writeFile (d </> x) b
+            mapM_ save rts_files
+
+
+
 generateHS :: Options -> ModuleName -> [ModuleName] -> Daedalus ()
 generateHS opts mainMod allMods
   | hsoptCore hsopts =

@@ -70,6 +70,7 @@ data Options =
           , optFileRoot :: String
           , optVM_do_mm :: Bool -- ^ Should we do memomry management in VM
           , optUserNS :: String
+          , optSaveRTS :: Bool  -- ^ Should we generate the RTS files
           , optExternMods :: Map Text String
             -- ^ maps external module to namespace qualifier in generated code
           , optUseLazyStream :: Bool
@@ -123,6 +124,7 @@ defaultOptions =
           , optDetailedErrors = Nothing
           , optUseLazyStream = False
           , optVM_do_mm = True
+          , optSaveRTS = False
           }
 
 defaultUserSpace :: String
@@ -407,6 +409,9 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
         "The parser can context switch to ask for more data."
         $ NoArg \o -> Right o { optUseLazyStream = True }
 
+      , Option [] ["save-rts"]
+        "Also generate the source code for the Daedalus RTS."
+        $ NoArg \o -> Right o { optSaveRTS = True }
       ] ++
       coreOptions ++
       [ helpOption

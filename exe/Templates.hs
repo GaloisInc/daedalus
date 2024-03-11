@@ -13,6 +13,9 @@ import Data.FileEmbed
 c_template_files :: [(FilePath,ByteString)]
 c_template_files = $(embedDir "exe/c-template")
 
+rts_files :: [(FilePath,ByteString)]
+rts_files = $(embedDir "rts-c/ddl")
+
 hs_template_files :: [(FilePath,ByteString)]
 hs_template_files = $(embedDir "exe/hs-template")
 
