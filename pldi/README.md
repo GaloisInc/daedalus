@@ -3,40 +3,21 @@ Getting Started
 
 We provide a Docker image which contains a development environment including:
   * `daealus`: the parser generator described in our paper
-  * `daedalus-language-server`:
-    a LSP server, useful when working with Daedalus specifications in VS Code,
-    together with its corresponding VS Code client.
   * General development tools for working with Haskell and C++ code.
   * Other parser generators we use for benchamrking, namely:
     - antlr
     - kaitai-struct-compiler
 
-To use the image you'll need [docker][1].
-Optionally, you may also use VS Code[2],
-with the [remote container extension][3].
+To use the image you'll need [docker][1]:
 
-If you are not planning to use VS Code you may start docker using:
-
+    > docker image load -i daedalus-pldi
     > docker run -it daedalus:08-March-2024 /bin/bash
 
 This should start the image, attach to the running container, and
-start a shell on the terminal.
-
-If you'd like to use VS Code, then you don't need to attach to it on the
-command line:
-
-    > docker run daedalus:08-March-2024
-
-Instead, from within VS Code, you can issue the command
-"Dev Containers: Attach to Running Container" [4].  You can then use
-the VS Code terminal to interacti with `daedalus`,
-but you can also use the editor, which should give you Daedalus code
-syntax highlighting, point out errors in place, or show you the
-type of various expressions in a Daedalus specification.
-
-Once you are in the container image, you should see a directory
-called `daedalus`: this is the source code repository for our tool,
-which is also available on [github][5].
+start a shell on the terminal.  Once you are in the container image,
+you should see a directory called `daedalus`:
+this is the source code repository for our tool,
+which is also available on [github][2].
 
 
 Example Daedalus Specifications
@@ -83,7 +64,7 @@ This should print the AST again.  By default the C++ parsrer prints the
 output in JSON.   The interpreter can also do that, if given the `--json` flag.
 
 For more details on the Daedalus language, the tools, and a tutorial,
-please have a look at our [online docuementation][6].
+please have a look at our [online docuementation][3].
 
 
 Running the Benchmarks
@@ -138,11 +119,8 @@ so you'll notice that there are not spaces between the extracted characters.
 
 
 [1] https://www.docker.com/
-[2] https://code.visualstudio.com/
-[3] https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
-[4] https://code.visualstudio.com/docs/devcontainers/attach-container
-[5] https://github.com/GaloisInc/daedalus
-[6] https://galoisinc.github.io/daedalus/
+[2] https://github.com/GaloisInc/daedalus
+[3] https://galoisinc.github.io/daedalus/
 
 
 
