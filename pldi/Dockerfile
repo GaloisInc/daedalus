@@ -50,5 +50,10 @@ RUN cmake -B build && cmake --build build
 WORKDIR /PLDI/daedalus
 RUN ./run-benchmarks build
 
+RUN cp /PLDI/daedalus/formats/pdf/new/c++/build/pdf-driver/parser-test /PLDI/pdf-test
+
+WORKDIR /PLDI
+ADD inputs/ inputs/
+
 
 
