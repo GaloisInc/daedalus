@@ -107,7 +107,7 @@ One of the big motivating examples for our work has been processing PDF
 The executable for our PDF parser is avaiable `pdf-test` in the PLDI directory.
 By default it performs some simple PDF validation, you can try out like this:
 
-    > ./pdf-test inputs/confute.midi        # UNSAFE, REJECT
+    > ./pdf-test inputs/confuta.midi        # UNSAFE, REJECT
     > ./pdf-test inputs/sample.pdf          # SAFE, ACCEPT
 
 To see some basic text extraction, use the `-t` flag:
