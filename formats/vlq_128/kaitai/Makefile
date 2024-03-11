@@ -4,7 +4,7 @@ build: parser
 
 GEN=vlq_base128_le.cpp vlq_base128_le.h
 
-REPO=git@github.com:kaitai-io/kaitai_struct_cpp_stl_runtime.git
+REPO=https://github.com/kaitai-io/kaitai_struct_cpp_stl_runtime.git
 RTS=rts
 RUNTIME=kaitai_struct_cpp_stl_runtime
 RUNTIME_FILE=$(RTS)/build/lib$(RUNTIME).so
