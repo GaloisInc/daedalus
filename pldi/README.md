@@ -4,7 +4,7 @@ Getting Started
 We provide a Docker image which contains a development environment including:
   * `daealus`: the parser generator described in our paper
   * General development tools for working with Haskell and C++ code.
-  * Other parser generators we use for benchamrking, namely:
+  * Other parser generators we use for benchmarking, namely:
     - antlr
     - kaitai-struct-compiler
 
@@ -101,7 +101,7 @@ as follows:
     > cd /PLDI/daedalus
     > ./run-benchmarks
 
-The benchmarsk should be already built, so you should just see `hyperfine`
+The benchmark should be already built, so you should just see `hyperfine`
 doing the benchmarking.   To see more details about the benchmarks, have
 a look at:
 
@@ -121,7 +121,7 @@ The PDF Parser
 ==============
 
 One of the big motivating examples for our work has been processing PDF
-(Seciton 2).  The source code for our PDF parser is in:
+(Section 2).  The source code for our PDF parser is in:
 
     formats/pdf/new
       - pdf-cos-spec: specification of the COS structure of PDF
@@ -129,7 +129,7 @@ One of the big motivating examples for our work has been processing PDF
                            basics of text extractoin
       - c++: the build system and C++ code putting everything together
 
-The executable for our PDF parser is avaiable `pdf-test` in the PLDI directory.
+The executable for our PDF parser is available `pdf-test` in the PLDI directory.
 By default it performs some simple PDF validation, you can try out like this:
 
     > ./pdf-test inputs/confuta.midi        # UNSAFE, REJECT
@@ -139,7 +139,7 @@ To see some basic text extraction, use the `-t` flag:
 
     > ./pdf-test -t inputs/sample.pdf
 
-At present our text extraction is pretty simple and does model text layout,
+At present our text extraction is pretty simple and does not model text layout,
 so you'll notice that there are not spaces between the extracted characters.
 
 
