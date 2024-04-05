@@ -148,5 +148,30 @@ so you'll notice that there are not spaces between the extracted characters.
 [3] https://galoisinc.github.io/daedalus/
 
 
+Trying Out Talos
+================
+
+`talos` is an experimental tool that can generate inputs for a subset
+of Daedalus grammars.   One may try it out as follows:
+
+    1. Install `z3`:  apt-get install z3
+
+    2. Build and install `talos`:
+        2.1 cd /PLDI/daedalus
+        2.2 cabal build talois
+        2.3 cp $(cabal exec which talos) /usr/local/bin
+
+    3. Test `talos`:
+        3.1 Make a sample grammar file, for example:
+
+            (in a file called `test.ddl`)
+            def Main =
+              block
+                Match "MAGIC"
+                Many (UInt8 as uint 64) $['a' .. 'z']
+
+        3.2 talos test.ddl
+        3.3 You can run it multiple times to get different inputs.
+
 
 
