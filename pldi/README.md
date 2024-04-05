@@ -19,6 +19,31 @@ you should see a directory called `daedalus`:
 this is the source code repository for our tool,
 which is also available on [github][2].
 
+One way to try out the Daedalus language server capabilities is to
+use VS Code, which can be setup like this:
+
+    1. Install the VS Code "Remote Development" extension pack,
+     which contains extensions for working with docker containers.
+    2. Run the `docker` image as above (`docker run ...`)
+    3. From within VS Code: click the button in the bottom left corrner
+       that has a `><` symbol on it ("Open a Remote Window").
+    4. This will pop up a window with options,
+       select "Attach to a Running Container.."
+    5. This will show some docker containers you have (possibly just one).
+       Select the one that has `daedalus:08-March-2024` in the name.
+    6. This should start a new VS Code window, which allows you to
+       to work inside the container.
+    7. From the VS Code instance that is running in the container:
+        7.1 Click on the extensions tab (has some squares on it)
+        7.2 Open the menu in the top right (3 dots)
+        7.3 Select "Install from VSIX"
+        7.4 Select the following location: `/usr/local/lib/daedalus-0.0.1.vsix`
+    8. To try out the language integration open a daedalus file:
+        8.1 For example: `/PLDI/daedalus/formats/midi.ddl`
+        8.2 You should see some syntax highlighting
+        8.3 You can hover over things to see their types
+        8.4 If you make a mistake, you should see some errors.
+
 
 Example Daedalus Specifications
 ===============================
