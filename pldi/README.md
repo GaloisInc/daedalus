@@ -91,6 +91,21 @@ output in JSON.   The interpreter can also do that, if given the `--json` flag.
 For more details on the Daedalus language, the tools, and a tutorial,
 please have a look at our [online documentation][3].
 
+The `daedalus` interpreter can render the parsed result in HTML form,
+where the parsed values are annotated with their position in the input.
+You can see an example of this like this:
+
+    > cd /PLDI
+    > daedalus run --traced-values --html               \
+        daedalus/formats/midi.ddl                       \
+        --input=inputs/confuta.midi > example.html
+
+This should generate a file called `example.html` that you can open
+with a browser and you should see the parsed document on the right.
+You can click on the various parts of the document and it should highlight
+the ranges in the input that contributed towards parsing that value.
+
+
 
 Running the Benchmarks
 ======================
