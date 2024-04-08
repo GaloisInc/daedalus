@@ -173,7 +173,7 @@ of Daedalus grammars.   One may try it out as follows:
 
     2. Build and install `talos`:
         2.1 cd /PLDI/daedalus
-        2.2 cabal build talois
+        2.2 cabal build talos
         2.3 cp $(cabal exec which talos) /usr/local/bin
 
     3. Test `talos`:
