@@ -188,5 +188,48 @@ of Daedalus grammars.   One may try it out as follows:
         3.2 talos test.ddl
         3.3 You can run it multiple times to get different inputs.
 
+Trying out Cavity Detection
+===========================
 
+Cavity detection is an experimental tool built atop `daedalus` and `talos` for
+finding places in a Daedalus specification that admit underspecified input,
+which can enable polyglot compositions.
 
+One may try it out as follows:
+
+    1. Install `talos` ("Trying Out Talos" above)
+
+    2. Run `talos --find-cavities test.ddl`
+
+The output is a desugared representation of the Daedalus file in the form of a
+control-flow graph (DOT format), along with a list of code points corresponding
+to cavities.  The format of code points is `<function>:<node-id> <cavity
+type>`.
+
+Several examples files can be found in
+`daedalus/talos/tests/cavities/testdata`.  For example, here is the output from
+analyzing `T001.ddl`:
+
+```
+talos --find-cavities test.ddl
+
+digraph Main {
+  init -> 5;
+  init [style = invis];
+  7 [style = invis];
+  5 [label = "Loop"];
+  5 -> 6[label = "loop"];
+  5 -> 7[label = "exit"];
+  6 [label = "match1 { ... }"];
+  6 -> 5;
+}
+Cavity locations:
+Main:6 (prefix, suffix)
+```
+
+Here, `Main:6 (prefix, suffix)` indicates that node 6 -- which reads one byte
+from the stream -- forms both a prefix and suffix cavity.  One can see this
+from its position inside a loop, which comprises the body of `Main`; the loop
+will execute an unbounded number of times, unconditionally reading a byte each
+time.  In the future, we hope to extend the cavity detection implementation
+with richer explanations of the code constructs forming the cavity.
