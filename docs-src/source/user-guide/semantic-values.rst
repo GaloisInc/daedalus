@@ -88,7 +88,7 @@ The result of ``x <# y`` is a bitvector of type ``A`` that contains
 DaeDaLus supports the special polymorphic type ``maybe A``, which has possible 
 values ``nothing`` and ``just x``, for some value, ``x`` of type ``A``.
 
-The parser ``Optional P`` will try to parse the input using and produce
+The parser ``Optional P`` will try to parse the input using ``P`` and produce
 a ``maybe`` value.  If ``P`` succeeds with result ``x`` then
 ``Optional P`` will succeed with ``just x``, and if ``P`` fails, then
 ``Optional P`` will *succeed* with ``nothing``.
@@ -168,11 +168,11 @@ The type of association maps with keys of type ``K`` and elements of type
   -- This is a parser which fails if the element was already in the map.
   Insert (key : ?k) (value : ?v) (m : [ ?k -> ?v ]) : [ ?k -> ?v ]
 
-  -- Lookup an element in the map.
+  -- Look up an element in the map.
   lookup (key : ?k) (m : [ ?k -> ?v ]) : maybe ?v
 
-  -- Lookup an element in the map.
-  -- This is a parse which fails if the element is not in the map.
+  -- Look up an element in the map.
+  -- This is a parser which fails if the element is not in the map.
   Lookup (key : ?k) (m : [ ?k -> ?v ]) : ?v
 
 To visit all elements of an association map you may use a
@@ -191,7 +191,7 @@ of how to manipualte the parser's stream.
   -- Get the current stream for the parser
   GetStream : stream
 
-  -- Restrict a stream to the fist `n` bytes.
+  -- Restrict a stream to the first `n` bytes.
   -- Will fail if the stream does not have enough bytes
   Take (n : uint 64) (s : stream) : stream
 

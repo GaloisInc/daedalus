@@ -52,5 +52,5 @@ once the image is known to be otherwise well-formed.
 
 When writing your own specifications, be sure to be critical of these
 considerations. Adding too much analysis to the parser itself can
-degrade performance make maintenance and updates more difficult or
+degrade performance and make maintenance and updates more difficult or
 costly in the future.
