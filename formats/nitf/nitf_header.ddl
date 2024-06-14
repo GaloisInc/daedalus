@@ -43,14 +43,11 @@ def DigraphSeq = First
   {Many $[' ']; END; ^ nothing}
 
 
-def FSCODE : maybe [Digraph] = { Many 11 $[' ']; ^ nothing } -- Chunk 11 DigraphSeq
--- def FSCODE = Chunk 11 DigraphSeq
-
+def FSCODE : maybe [Digraph] = Chunk 11 DigraphSeq
 
 def FSCTLH = Many 2 ECSA <| Match "  "
 
-def FSREL : maybe [Digraph] = { Many 20 $[' ']; ^ nothing } -- Chunk 20 DigraphSeq
--- def FSREL = Chunk 20 DigraphSeq
+def FSREL = Chunk 20 DigraphSeq
 
 -- Unclear how to pad single characters here...
 def FSDCTP = First
@@ -182,7 +179,6 @@ def UDHDL = Many 5 BCSN
 {-- Main header parser --}
 
 def Header = block
-  @start = Offset
   FHDR
   fver = FVER
   clevel = CLEVEL
@@ -239,52 +235,3 @@ def Header = block
 
   udhd = UserData 99999
   xhd = UserData 99999
-
-  let bsize =
-      4 -- FHDR
-    + 5 -- FVER
-    + 2 -- CLEVEL
-    + 4 -- STYPE
-    + 10 -- OSTAID
-    + 14 -- FDT
-    + 80 -- FTITLE
-    + 1 -- FSCLAS
-    + 2 -- FSCLSY
-    + 11 -- FSCODE
-    + 2 -- FSCTLH
-    + 20 -- FSREL
-    + (2 + 8 -- fsdcdt
-         + 4 -- fsdcxe
-	 + 1 -- fsdg
-	 + 8 -- fsdgdt
-	 + 43 -- fscltx
-      ) -- FS_declass
-    + 41 -- FSC_auth
-    + 1 -- FSCRSN
-    + 8 -- FSSRDT
-    + 15 -- FSCTLN
-    + 5 -- FSCOP
-    + 5 -- FSCPYS
-    + 1 -- ENCRYP
-    + 3 -- FBKGC
-    + 24 -- ONAME
-    + 18 -- OPHONE
-    + 12 -- FL
-    + 6 -- HL
-    + 3 -- numi
-    + numi * 16
-    + 3 -- nums
-    + nums * 10
-    + 3 -- NUMX
-    + 3 -- numt
-    + numt * 9
-    + 3 -- numdes
-    + numdes * 13
-    + 3 -- numres
-    + numres * 11 -- resextlens
-    + bsize_UserData udhd
-    + bsize_UserData xhd
-
-  @end = Offset
-  -- Guard (hl == bsize)
-  -- Guard (bsize == (end - start))
