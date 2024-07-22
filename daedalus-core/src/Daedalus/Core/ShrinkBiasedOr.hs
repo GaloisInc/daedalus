@@ -157,7 +157,7 @@ refactor g2 u us safe =
        mname <- M (roModName <$> ask)
        let tname = TName
                      { tnameId   = guid
-                     , tnameText = "Tuple"
+                     , tnameText = "Tuple_" <> Text.pack (guidString guid)
                      , tnameMod  = mname
                      , tnameAnon = Nothing
                      , tnameRec  = False
