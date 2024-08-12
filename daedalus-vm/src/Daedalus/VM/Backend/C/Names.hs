@@ -25,11 +25,11 @@ nsDDL = "DDL"
 type NSUser = ( ?nsUser :: Doc
 
               , ?nsInputType :: Doc
-                -- ^ Use this type to represent input streams
+                -- Use this type to represent input streams
 
 
               , ?nsExternal :: Map Src.MName Doc
-                -- extrenal modules with corresponding namespace
+                -- external modules with corresponding namespace
               )
 
 -- | The namespace where we should put user definde type that are not external
