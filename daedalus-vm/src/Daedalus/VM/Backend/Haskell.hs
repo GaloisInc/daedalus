@@ -139,7 +139,7 @@ compileDef nm ty def args =
     VMExtern {} ->
       case Map.lookup nm (userPrimitives ?config) of
         Just d -> d args
-        Nothing -> panic "compileDef" ["Missing primitve"]
+        Nothing -> panic "compileDef" ["Missing primitive: ", show $ pp nm]
     VMDef d ->
       TH.letE [ compileBlock ty b | b <- Map.elems (vmfBlocks d) ]
               (TH.appsE (TH.varE (labelName (vmfEntry d)) : args))
