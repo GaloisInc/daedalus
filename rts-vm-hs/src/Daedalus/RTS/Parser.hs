@@ -13,19 +13,19 @@ import qualified Daedalus.RTS.Input as RTS
 import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Numeric as RTS
 
--- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No custom user monad.  No error reporting.
 type DParser'    a = Maybe (a,RTS.Input)
 
--- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No error reporting.
 type DParserM' m a = m (Maybe (a,RTS.Input))
 
--- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No custom user monad
 type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
 
--- | A direct parser.  Used for parsers that do not use unbiased chocie.
+-- | A direct parser.  Used for parsers that do not use unbiased choice.
 type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
 
 liftD :: Functor m => m a -> RTS.Input -> DParserM m a
