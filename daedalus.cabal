@@ -117,7 +117,7 @@ library
                        alex-tools >= 0.6.1,
                        GraphSCC,
                        filepath,
-                       mtl >= 2.3.1,
+                       mtl,
                        monadLib >= 3.10.1,
                        panic,
                        parameterized-utils >= 2.1.7,
