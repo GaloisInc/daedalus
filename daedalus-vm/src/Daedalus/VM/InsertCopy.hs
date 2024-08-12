@@ -346,7 +346,7 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
              -- OK if we stop after the first one.
              --
              -- If we have pass an owned thing as a borrowed argument, and
-             -- *none* of the continuations own it, we transform one of the
+             --  *none* of the continuations own it, we transform one of the
              -- continutations so that it will free that parameter.
              CallCapture f l1 l2 es
                 | not (null cs) -> (CallCapture f l' l2 es,[newB])
