@@ -44,7 +44,7 @@ data Input = Input
          This is a prefix of 'iiBytes' in 'inputInfo' -}
 
   , inputInfo     :: !InputInfo
-    -- ^ Information about the stream we are processsing.
+    -- ^ Information about the stream we are processing.
   }
 
 {- | Information about the input, used for error reporting. -}
