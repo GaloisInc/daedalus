@@ -76,6 +76,7 @@ module Daedalus.Driver
   , optSearchPath
   , optWarnings
   , optDebugMode
+  , optValidateCore
 
     -- * Output
   , ddlPutStr
@@ -96,7 +97,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Maybe(fromMaybe)
 import Data.List(find)
-import Control.Monad(msum,foldM,forM,forM_,unless)
+import Control.Monad(msum,foldM,forM,forM_,unless,when)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Exception(Exception,throwIO)
 import qualified System.IO as IO
@@ -141,7 +142,7 @@ import qualified Daedalus.DDL2Core as Core
 import qualified Daedalus.VM   as VM
 import qualified Daedalus.VM.Compile.Decl as VM
 import Daedalus.PrettyError(prettyError)
-
+import Daedalus.Core.TypeCheck(checkModule)
 
 ---------------------------------------------------------------------------------- Convenient functions
 
@@ -305,6 +306,9 @@ data State = State
     -- ^ Map type names to core names.
 
   , debugMode :: Bool
+
+  , checkCorePasses :: Bool
+    -- ^ Run a validation after each core to core pass
   }
 
 
@@ -322,6 +326,7 @@ defaultState = State
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   , debugMode           = False
+  , checkCorePasses     = True
   }
 
 
@@ -478,7 +483,7 @@ ddlGetOpt :: DDLOpt a -> Daedalus a
 ddlGetOpt (DDLOpt g _) = ddlGet g
 
 ddlSetOpt :: DDLOpt a -> a -> Daedalus ()
-ddlSetOpt (DDLOpt _ f) a = ddlUpdate_ \s -> f a s
+ddlSetOpt (DDLOpt _ f) a = ddlUpdate_ (f a)
 
 ddlUpdOpt :: DDLOpt a -> (a -> a) -> Daedalus ()
 ddlUpdOpt opt f =
@@ -502,6 +507,8 @@ optWarnings = DDLOpt useWarning \ a s -> s { useWarning = a }
 optDebugMode :: DDLOpt Bool
 optDebugMode = DDLOpt debugMode \a s -> s { debugMode = a }
 
+optValidateCore :: DDLOpt Bool
+optValidateCore = DDLOpt checkCorePasses \a s -> s { checkCorePasses = a }
 --------------------------------------------------------------------------------
 -- Names
 
@@ -798,6 +805,7 @@ passCore m =
           , coreTopNames = cnms'
           , coreTypeNames = tnms'
           }
+     checkCore "To Core" m
 
 coreToCore ::
   String -> (Core.Module -> PassM Core.Module) -> ModuleName ->  Daedalus ()
@@ -811,6 +819,7 @@ coreToCore name f m =
                      Map.insert m
                         (CoreModule i)
                         (loadedModules s) }
+            checkCore name m
        _ -> panic name ["Module is not in Core form"]
 
 passInline :: Core.InlineWhat -> [Core.FName] -> ModuleName -> Daedalus ()
@@ -891,5 +900,11 @@ passVM m =
               }
        _ -> panic "passVM" [ "Not a core module", show (phasePass ph) ]
 
-
-
+checkCore :: String -> ModuleName -> Daedalus ()
+checkCore x m =
+  do yes <- ddlGetOpt optValidateCore
+     when yes
+       do core <- ddlGetAST m astCore
+          case checkModule core of
+            Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
+            Nothing  -> pure ()

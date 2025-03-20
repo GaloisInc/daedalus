@@ -10,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,unless,forM,forM_)
-import Data.Maybe(fromMaybe,fromJust,isNothing)
+import Data.Maybe(fromJust,isNothing)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -22,10 +22,8 @@ import Data.Foldable(for_)
 import Text.Show.Pretty (ppDoc)
 import SimpleGetOpt (GetOptException(..))
 
-import Daedalus.Panic(panic)
 import Daedalus.PP hiding ((<.>))
 import Daedalus.SourceRange
-import Daedalus.Core(checkModule)
 
 import Daedalus.Driver
 import Daedalus.DriverHS
@@ -106,6 +104,7 @@ configure opts =
                                      WarnUnbiasedChoice {} -> False
                                      _                     -> True
      ddlSetOpt optSearchPath (optModulePath opts)
+     ddlSetOpt optValidateCore (optCheckCore opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts
@@ -193,7 +192,7 @@ handleOptions opts
              UseInterp -> generateCPP opts mm
              UseCore   -> generateCPP opts mm
              UseVM     -> generateCPP opts mm
-             UsePGen   -> ddoIO $ throwOptError "This backend is out of date."
+             UsePGen {} -> ddlIO $ throwOptError ["This backend is out of date."]
 {-
              UsePGen _ ->
                do passSpecialize specMod mainRules
@@ -266,8 +265,7 @@ doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
-     checkCore opts "Core"
-     when (optNoBitdata opts) (passNoBitdata specMod >> checkCore opts "NoBitdata")
+     when (optNoBitdata opts) (passNoBitdata specMod)
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts)
         do fs <- forM (optInlineThis opts) \s ->
@@ -275,31 +273,21 @@ doToCore opts mm =
            case fs of
              [] -> passInline Core.AllBut ents specMod
              _  -> passInline Core.Only fs specMod
-           checkCore opts "Inline"
 
      when (optNoLoops opts || optDeterminize opts)
-          (passNoLoops specMod >> checkCore opts "NoLoops")
-     when (optStripFail opts) (passStripFail specMod >> checkCore opts "StripFail")
-     when (optSpecTys opts) (passSpecTys specMod >> checkCore opts "SpecTys")
-     when (optDeterminize opts) (passDeterminize specMod >> checkCore opts "Det")
-     when (optNoMatch opts) (passNoMatch specMod >> checkCore opts "NoMatch ")
+          (passNoLoops specMod)
+     when (optStripFail opts) (passStripFail specMod)
+     when (optSpecTys opts) (passSpecTys specMod)
+     when (optDeterminize opts) (passDeterminize specMod)
+     when (optNoMatch opts) (passNoMatch specMod)
      passMayFail specMod
      when (optShrinkBiased opts)
-          (passShrinkBiasedOr specMod >> checkCore opts "ShrinkBiased")
+          (passShrinkBiasedOr specMod)
      when (optInlineCaseCase opts)
-          (passNorm specMod >> passInlineCase specMod >> checkCore opts "CaseCase")
-     passNorm specMod >> checkCore opts "Norm"
+          (passNorm specMod >> passInlineCase specMod)
+     passNorm specMod
      unless (optNoWarnUnbiased opts) (passWarnFork specMod)
      pure ents
-
-checkCore :: Options -> String -> Daedalus ()
-checkCore opts x =
-  when (optCheckCore opts)
-    do core <- ddlGetAST specMod astCore
-       case checkModule core of
-         Just err -> panic ("Malformed Core [" ++ x ++ "]") [ show err ]
-         Nothing  -> pure ()
-
 
 
 doToVM :: Options -> ModuleName -> Daedalus VM.Program

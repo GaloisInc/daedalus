@@ -101,9 +101,11 @@ rewriteCaseAlt var conts gram =
                 pure
                 case pat of
                   PJust ->
-                    gebMapChildrenG id (rewriteFromJust var x) id cont
+                    let rew = gebMapChildrenG rew (rewriteFromJust var x) id
+                    in rew cont
                   PCon l ->
-                    gebMapChildrenG id (rewriteFromCon l var x) id cont
+                    let rew = gebMapChildrenG rew (rewriteFromCon l var x) id
+                    in rew cont
                   _      -> panic "rewriteCase" ["Unexpected payload"]
 
     GetStream         -> abort
