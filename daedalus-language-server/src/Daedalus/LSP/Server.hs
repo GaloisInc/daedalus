@@ -53,7 +53,7 @@ run = flip E.catches handlers $ do
   let
     serverDefinition = ServerDefinition
       { defaultConfig = Config ()
-      , onConfigurationChange = \_old v -> do
+      , onConfigChange = \_old v -> do
           case fromJSON v of
             Error e -> Left (Text.pack e)
             Success cfg -> Right cfg

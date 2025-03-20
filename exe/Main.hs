@@ -193,11 +193,14 @@ handleOptions opts
              UseInterp -> generateCPP opts mm
              UseCore   -> generateCPP opts mm
              UseVM     -> generateCPP opts mm
+             UsePGen   -> ddoIO $ throwOptError "This backend is out of date."
+{-
              UsePGen _ ->
                do passSpecialize specMod mainRules
                   prog <- ddlGetAST specMod astTC
                   let outDir = fromMaybe "." $ optOutDir opts
                   compilePGen [prog] outDir
+-}
 
 
          ShowHelp -> ddlPutStrLn "Help!" -- this shouldn't happen
@@ -504,6 +507,7 @@ interpPGen opts inp moduls flagMetrics =
                     exitSuccess -- comment this with i > 1
          ) [(1::Int)..repeatNb]
 
+{-
 compilePGen :: [TCModule SourceRange] -> FilePath -> Daedalus ()
 compilePGen moduls outDir =
   do let aut = PGen.buildArrayAut moduls
@@ -517,7 +521,7 @@ compilePGen moduls outDir =
          let templateFile = "." </> "rts-pgen-c" </> "template.c"
          template <- ddlIO $ readFile templateFile
          return $ template ++ t
-
+-}
 
 
 

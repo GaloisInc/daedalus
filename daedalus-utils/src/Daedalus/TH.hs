@@ -83,15 +83,16 @@ module Daedalus.TH
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as TH
 import qualified Language.Haskell.TH.Quote as TH
+#if !MIN_VERSION_bytestring(0,11,2)
 import Data.ByteString(ByteString,pack,unpack)
-
+#endif
 type BangType = (TH.Bang, TH.Type)
 
 bangT :: TH.Q TH.Type -> TH.Q BangType
-bangT t = TH.bangType (TH.bang TH.noSourceUnpackedness TH.noSourceStrictness) t
+bangT = TH.bangType (TH.bang TH.noSourceUnpackedness TH.noSourceStrictness)
 
 bangT' :: TH.Q TH.Type -> TH.Q BangType
-bangT' t = TH.bangType (TH.bang TH.noSourceUnpackedness TH.sourceStrict) t
+bangT' = TH.bangType (TH.bang TH.noSourceUnpackedness TH.sourceStrict)
 
 
 
@@ -113,7 +114,13 @@ instance TH.Lift ByteString where
 
 
 #if MIN_VERSION_template_haskell(2,17,0)
-type DataParam    = TH.TyVarBndr ()
+
+#if MIN_VERSION_template_haskell(2,21,0)
+type DataParam    = TH.TyVarBndr TH.BndrVis
+#else
+type DataParam    = TH.TyVarrBndr ()
+#endif
+
 type ForallParam  = TH.TyVarBndr TH.Specificity
 
 tvName :: TH.TyVarBndr a -> TH.Name
@@ -133,6 +140,10 @@ instance MkTyVarBndr () where
 instance MkTyVarBndr TH.Specificity where
   plainTV x    = TH.PlainTV x TH.inferredSpec
   kindedTV x k = TH.KindedTV x TH.inferredSpec k
+
+instance MkTyVarBndr TH.BndrVis where
+  plainTV x    = TH.PlainTV x TH.BndrReq
+  kindedTV x k = TH.KindedTV x TH.BndrReq k
 
 #else
 type DataParam    = TH.TyVarBndr

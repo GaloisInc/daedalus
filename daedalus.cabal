@@ -35,7 +35,7 @@ library
 
   ghc-options:         -Wall -O2  -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
-  build-tool-depends:  alex:alex, happy:happy
+  build-tool-depends:  alex:alex, happy:happy < 2.0
   exposed-modules:     Daedalus.Parser.Tokens,
                        Daedalus.Parser.Layout,
                        Daedalus.Parser.Monad,
@@ -104,8 +104,8 @@ library
                        Daedalus.ParserGen.LL.DFAStep,
                        Daedalus.ParserGen.LL.DFA,
                        Daedalus.ParserGen.LL.LLA,
-                       Daedalus.ParserGen.Runner,
-                       Daedalus.ParserGen.Generate
+                       Daedalus.ParserGen.Runner
+                       -- Daedalus.ParserGen.Generate
 
   build-depends:       base,
                        array,
@@ -126,7 +126,6 @@ library
                        ansi-terminal,
                        directory,
                        ghc-prim,
-                       language-c,
                        daedalus-utils,
                        daedalus-core,
                        daedalus-vm,
