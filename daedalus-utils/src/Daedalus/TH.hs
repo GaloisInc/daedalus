@@ -118,7 +118,7 @@ instance TH.Lift ByteString where
 #if MIN_VERSION_template_haskell(2,21,0)
 type DataParam    = TH.TyVarBndr TH.BndrVis
 #else
-type DataParam    = TH.TyVarrBndr ()
+type DataParam    = TH.TyVarBndr ()
 #endif
 
 type ForallParam  = TH.TyVarBndr TH.Specificity
@@ -141,9 +141,11 @@ instance MkTyVarBndr TH.Specificity where
   plainTV x    = TH.PlainTV x TH.inferredSpec
   kindedTV x k = TH.KindedTV x TH.inferredSpec k
 
+#if MIN_VERSION_template_haskell(2,21,0)
 instance MkTyVarBndr TH.BndrVis where
   plainTV x    = TH.PlainTV x TH.BndrReq
   kindedTV x k = TH.KindedTV x TH.BndrReq k
+#endif
 
 #else
 type DataParam    = TH.TyVarBndr
