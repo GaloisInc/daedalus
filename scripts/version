@@ -1,0 +1,3 @@
+#!/bin/sh
+FILE="$(find . -name $1.cabal)"
+grep '^version' "$FILE" | awk '{print $2 }'
