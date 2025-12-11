@@ -1,0 +1,71 @@
+name: CI
+
+on: push
+
+env:
+  # The CACHE_VERSION environment variable can be updated to force the use of a
+  # new cache if the current cache contents become corrupted/invalid.  This can
+  # sometimes happen when (for example) the OS version is changed but older .so
+  # files are cached, which can have various unintended effects.
+  CACHE_VERSION: 1
+
+jobs:
+
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+        ghc-version: [9.8.4]
+        cabal-version: [3.14.2.0]
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Setup Haskell Environment
+      uses: haskell-actions/setup@v2
+      id: setup-haskell
+      with:
+        ghc-version:  ${{ matrix.ghc-version }}
+        cabal-version: ${{ matrix.cabal-version }}
+
+    - name: Restore Cabal Store from the Cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ env.CACHE_VERSION }}-cabal-${{ matrix.os }}-${{ matrix.ghc-version }}-${{ hashFiles(format('cabal.GHC-{0}.config', matrix.ghc-version)) }}-${{ github.sha }}
+        restore-keys: |
+          ${{ env.CACHE_VERSION }}-cabal-${{ matrix.os }}-${{ matrix.ghc-version }}-
+
+    - name: Build
+      shell: bash
+      run: scripts/build
+      env:
+        OS_TAG: ${{ matrix.os }}
+        ARCH_TAG: ${{ runner.arch }}
+
+    - name: Save Cabal Store to the Cache
+      uses: actions/cache/save@v4
+      if: always()
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ env.CACHE_VERSION }}-cabal-${{ matrix.os }}-${{ matrix.ghc-version }}-${{ hashFiles(format('cabal.GHC-{0}.config', matrix.ghc-version)) }}-${{ github.sha }}
+          ${{ env.CACHE_VERSION }}-cabal-${{ matrix.os }}-${{ matrix.ghc-version }}-${{ hashFiles(format('cabal.GHC-{0}.config', matrix.ghc-version)) }}-
+
+    - name: Release
+      if: github.ref_type == 'tag' && github.event.pull_request.head.repo.fork == false && github.repository_owner == 'GaloisInc'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: bin/*
+        fail_on_unmatched_files: true
+
+
