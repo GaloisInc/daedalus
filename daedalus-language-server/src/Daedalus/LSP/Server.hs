@@ -53,10 +53,10 @@ run = flip E.catches handlers $ do
   let
     serverDefinition = ServerDefinition
       { defaultConfig = Config ()
-      , onConfigChange = \_old v -> do
+      , onConfigChange = undefined {-\_old v -> do
           case fromJSON v of
             Error e -> Left (Text.pack e)
-            Success cfg -> Right cfg
+            Success cfg -> Right cfg -}
       , doInitialize = \env _ -> do
           sst <- emptyServerState env
           void $ forkIO (reactor rin)

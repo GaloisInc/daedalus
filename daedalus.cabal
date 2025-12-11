@@ -35,7 +35,7 @@ library
 
   ghc-options:         -Wall -O2  -Wno-incomplete-uni-patterns
   ghc-prof-options:    -fprof-auto
-  build-tool-depends:  alex:alex, happy:happy < 2.0
+  build-tool-depends:  alex:alex, happy:happy
   exposed-modules:     Daedalus.Parser.Tokens,
                        Daedalus.Parser.Layout,
                        Daedalus.Parser.Monad,
