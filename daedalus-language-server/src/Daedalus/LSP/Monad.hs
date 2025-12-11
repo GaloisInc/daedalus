@@ -120,7 +120,7 @@ newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a 
 
 emptyServerState :: LanguageContextEnv Config -> IO ServerState
 emptyServerState lenv = do
-  ServerState lenv <$> newPassState <*> atomically newTChan <*> atomically (newTVar mempty) <*> atomically (newTVar mempty) 
+  ServerState lenv <$> newPassState <*> atomically newTChan <*> newTVarIO mempty <*> newTVarIO mempty
 
 runServerM :: ServerState ->  ServerM a -> IO a
 runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
@@ -131,7 +131,7 @@ runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
 liftDaedalus :: Daedalus a -> ServerM (Either D.DaedalusError a)
 liftDaedalus m = do
   sst <- ask
-  mst <- liftIO $ atomically $ readTVar (moduleStates sst)
+  mst <- liftIO (readTVarIO (moduleStates sst))
   
   let (tcMs, restMs) = Map.mapEither extractTCs mst
       mkDst s = s { D.useWarning  = const False

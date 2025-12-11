@@ -5,6 +5,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
 
 -- | This modules has the LSP specific server code, including intialising LSP
 
@@ -53,10 +54,12 @@ run = flip E.catches handlers $ do
   let
     serverDefinition = ServerDefinition
       { defaultConfig = Config ()
-      , onConfigChange = undefined {-\_old v -> do
+      , configSection = "daedalus"
+      , onConfigChange = \_cfg -> pure ()
+      , parseConfig = \_old v -> do
           case fromJSON v of
             Error e -> Left (Text.pack e)
-            Success cfg -> Right cfg -}
+            Success cfg -> Right cfg
       , doInitialize = \env _ -> do
           sst <- emptyServerState env
           void $ forkIO (reactor rin)
@@ -125,6 +128,12 @@ lspHandlers rin _client_caps = mapHandlers goReq goNot handle
 debounceTime :: Int
 debounceTime = 100 -- ms
 
+untypedErrResp :: (Either (J.TResponseError m) a -> b) -> Either J.ResponseError a -> b
+untypedErrResp k res =
+  case res of
+    Left (J.ResponseError c t _) -> k (Left (J.TResponseError c t Nothing))
+    Right a  -> k (Right a)
+
 -- | Where the actual logic resides for handling requests and notifications.
 handle :: Handlers ServerM
 handle = mconcat
@@ -169,7 +178,7 @@ handle = mconcat
                          . J.uri
                          . to J.toNormalizedUri
           pos = params ^. J.position
-      definition responder uri pos
+      definition (untypedErrResp responder) uri pos
 
   , requestHandler J.SMethod_TextDocumentRename $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
@@ -181,7 +190,7 @@ handle = mconcat
           newName = params ^. J.newName
 
       -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
-      rename responder uri pos newName -- vdoc
+      rename (untypedErrResp responder) uri pos newName -- vdoc
   
   , requestHandler J.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
@@ -190,7 +199,7 @@ handle = mconcat
                          . J.uri
                          . to J.toNormalizedUri
 
-      semanticTokens responder Nothing uri
+      semanticTokens (untypedErrResp responder) Nothing uri
 
   , requestHandler J.SMethod_TextDocumentSemanticTokensRange $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/range request"
@@ -200,7 +209,7 @@ handle = mconcat
                          . to J.toNormalizedUri
           r    = params ^. J.range
 
-      semanticTokens responder (Just r) uri
+      semanticTokens (untypedErrResp responder) (Just r) uri
 
       -- -- Replace some text at the position with what the user entered
       -- let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
@@ -217,7 +226,7 @@ handle = mconcat
           pos = req ^. J.params . J.position
 
       liftIO $ debugM "reactor.handle" ("Processing a textDocument/hover request " ++ show uri ++ " at " ++ show pos)
-      hover responder uri pos
+      hover (untypedErrResp responder) uri pos
 
   , requestHandler J.SMethod_TextDocumentDocumentHighlight $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/documentHighlight request"
@@ -226,7 +235,7 @@ handle = mconcat
                       . J.uri
                       . to J.toNormalizedUri
           pos = req ^. J.params . J.position
-      highlight responder uri pos
+      highlight (untypedErrResp responder) uri pos
 
   -- , requestHandler J.STextDocumentDocumentSymbol $ \req responder -> do
   --     liftIO $ debugM "reactor.handle" "Processing a textDocument/documentSymbol request"
@@ -268,7 +277,7 @@ handle = mconcat
             case res of
               Left err -> liftIO $ debugM "reactor.handle" ("Request failed: " ++ show err)
               _ -> pure ()
-            responder res
+            untypedErrResp responder res
 
       executeCommand resp' cmd args
   ]
