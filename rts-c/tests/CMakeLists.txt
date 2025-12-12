@@ -8,7 +8,7 @@ enable_testing()
 find_package(GTest REQUIRED)
 find_package(PkgConfig)
 pkg_check_modules(GMPXX REQUIRED IMPORTED_TARGET gmpxx)
-find_package(Boost REQUIRED COMPONENTS context)
+find_package(Boost REQUIRED CONFIG COMPONENTS context)
 
 add_executable(rts-c-tests main.cpp
     array_tests.cpp
