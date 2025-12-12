@@ -12,3 +12,4 @@ __pycache__
 /daedalus-standalone
 **/venv
 **/.vscode
+rts-c-tests-build

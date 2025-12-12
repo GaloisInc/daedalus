@@ -120,10 +120,8 @@ compileHaskell ddl =
          build  = buildDirFor CompileHaskell ddl
      createDirectoryIfMissing True build
      callProcess' "cp" ["template_cabal_project", root </> "cabal.project"]
-     callProcess' "cabal"
-        [ "run", "-v0", "exe:daedalus", "--"
-        , "compile-hs", "--out-dir=" ++ build, ddl
-        ]
+     exe <- daedalusExe
+     callProcess' exe [ "compile-hs", "--out-dir=" ++ build, ddl ]
      callProcessIn_ build "cabal" ["build"]
      callProcessIn_ build "rm" ["-f", "parser"]
      path <- callProcessIn build "cabal" [ "-v0", "exec", "which", short ddl ]
@@ -134,10 +132,8 @@ compileCPP :: Quiet => FilePath -> IO ()
 compileCPP ddl =
   do let build = buildDirFor CompileCPP ddl
      createDirectoryIfMissing True build
-     callProcess' "cabal"
-        [ "run", "-v0", "exe:daedalus", "--"
-        , "compile-c++", "--out-dir=" ++ build, ddl
-        ]
+     exe <- daedalusExe
+     callProcess' exe [ "compile-c++", "--out-dir=" ++ build, ddl ]
      callProcess' "make" [ "-C", build, "parser" ]
 
 
@@ -152,20 +148,19 @@ runWith be ddl mbInput =
   do putStrLn $ unwords [ "[RUN " ++ show be ++ "]", ddl, fromMaybe "" mbInput ]
      let file = outputFileFor be ddl mbInput
      createDirectoryIfMissing True (takeDirectory file)
-     let interp = [ "run", "-v0", "exe:daedalus", "--"
-                  , "--no-warn-unbiased", "run", "--json"
-                  ]
+     exe <- daedalusExe
+     let interp = [ "--no-warn-unbiased", "run", "--json" ]
      save file =<<
         case be of
 
           InterpDaedalus ->
-            readProcessWithExitCode "cabal" (interp ++ [ ddl ] ++ inp) ""
+            readProcessWithExitCode exe (interp ++ [ ddl ] ++ inp) ""
 
           InterpCore ->
-            readProcessWithExitCode "cabal" (interp ++ ["--core", ddl] ++ inp) ""
+            readProcessWithExitCode exe (interp ++ ["--core", ddl] ++ inp) ""
 
           InterpVM ->
-            readProcessWithExitCode "cabal" (interp ++ ["--vm", ddl] ++ inp) ""
+            readProcessWithExitCode exe (interp ++ ["--vm", ddl] ++ inp) ""
 
           CompileHaskell ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
@@ -349,6 +344,9 @@ outputFileFor be ddl mbInput =
 
 --------------------------------------------------------------------------------
 -- Utilities
+
+daedalusExe :: IO FilePath
+daedalusExe = makeAbsolute "../bin/daedalus"
 
 callProcessIn_ :: Quiet => FilePath -> String -> [String] -> IO ()
 callProcessIn_ dir f xs =

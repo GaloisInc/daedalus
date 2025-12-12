@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 
 # Run the Daedalus tool to parse test cases using the HTTP specs in this
-# directory and compare them to expected outputs. This attempts to use
-# daedalus in the PATH; if it cannot be found there, daedalus is sought
-# in dist-newstyle/ at the root of this repository. This script assumes
-# that the 'ghc' in the PATH is the one that 'cabal' will use to build
-# daedalus.
+# directory and compare them to expected outputs.
 #
 # This script requires that "xxd" is installed in the PATH and that the
 # version of GHC that cabal used to build daedalus is also in the PATH.
@@ -47,21 +43,6 @@ function in_path {
     which $cmd 2>&1 >/dev/null
 }
 
-function ghc_version {
-    ghc --version 2>/dev/null | awk '{ print $NF }'
-}
-
-# Echo the path to the daedalus binary, either in the PATH or in
-# dist-newstyle in the repo root.
-function find_daedalus {
-    which daedalus || {
-        ghc_ver=$(ghc_version)
-        if [ ! -z "$ghc_ver" ]
-        then
-            find $ROOT/dist-newstyle -type f -name daedalus 2>/dev/null | grep $ghc_ver
-        fi
-    }
-}
 
 # parse <SPEC> <ENTRY> <INPUT_PATH> <EXPECTED_OUTPUT_PATH>; run Daedalus
 # using the specified spec using the entry point ENTRY on the specified
@@ -157,13 +138,7 @@ function run_test_group {
     done
 }
 
-if [ -z "$(ghc_version)" ]
-then
-    echo "Error: 'ghc' not found in the PATH, exiting"
-    exit 1
-fi
-
-DAEDALUS=$(find_daedalus)
+DAEDALUS="$ROOT/bin/daedalus" 
 
 if [ -z "$DAEDALUS" ]
 then
@@ -176,13 +151,6 @@ then
     echo "Error: 'xxd' not in the PATH; xxd is required to run the test suite.'"
     exit 1
 fi
-
-# Canonicalize the path and remove relative path segments
-DAEDALUS=$(readlink -f $DAEDALUS)
-
-echo "Using daedalus at:"
-echo "  $DAEDALUS"
-echo
 
 num_failures=0
 num_successes=0

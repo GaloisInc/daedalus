@@ -10,6 +10,9 @@ for NAME in "daedalus" "daedalus-language-server" "talos"; do
     if [ "$OS_TAG" != "" ]; then BIN="$BIN-$OS_TAG"; fi
     if [ "$ARCH_TAG" != "" ]; then BIN="$BIN-$ARCH_TAG"; fi
     cp $(cabal list-bin -v0 exe:$NAME) "$BIN"
+    pushd "bin"
+    ln -s $(basename "$BIN") "$NAME"
+    popd
     echo $BIN
 done
 

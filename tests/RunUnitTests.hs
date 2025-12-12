@@ -7,7 +7,7 @@ import Control.Exception(SomeException(..),catch)
 import System.Directory
 import System.FilePath
 import System.Exit
-import System.Process(callProcess,proc,CreateProcess(..))
+import System.Process(callProcess,proc,CreateProcess(..),system)
 import qualified System.Process.ByteString as BS
 import System.IO
 import SimpleGetOpt
@@ -71,7 +71,7 @@ main =
         do dumpUsage options
            exitFailure
 
-     buildExe
+     
 
      tests <- findManyTests
               ( case inputs opts of
@@ -80,12 +80,6 @@ main =
               )
      results <- mapM (runTest (outDir opts)) tests
      summarize results
-
-
-buildExe :: IO ()
-buildExe = callProcess "cabal" [ "build", "exe:" ++ exeName ]
-
-
 
 
 
@@ -135,8 +129,9 @@ runTest odir file =
      let testDir = takeDirectory file
          dir     = odir </> testDir
      createDirectoryIfMissing True dir
-     let ps = [ "exec", exeName, "--", takeFileName file ]
-         cp = (proc "cabal" ps) { cwd = Just testDir }
+     exe <- makeAbsolute testBin
+     let ps = [ takeFileName file ]
+         cp = (proc exe ps) { cwd = Just testDir }
      (_exit,out,err) <- BS.readCreateProcessWithExitCode cp BS.empty
      BS.writeFile stdFile out
      BS.writeFile errFile err
