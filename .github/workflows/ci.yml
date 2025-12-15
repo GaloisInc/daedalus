@@ -64,9 +64,17 @@ jobs:
 
     - name: Run Daedalus Tests
       shell: bash
-      run: cabal test daedalus-tests
+      run: scripts/run-test
 
-    # XXX: backend tests, tests with make file, talos tests
+    - name: Run Deadalus Backend Tests
+      shell: bash
+      run: scripts/run-backend-tests
+
+    - name: Run Daedalus Makefile Tests
+      shell: bash
+      run: scripts/run-makefile-tests
+
+    # XXX: For the moment we don't run Talos tests to speed up CI
     
     - name: Run HTTP Tests
       shell: bash

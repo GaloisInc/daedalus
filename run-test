@@ -1,3 +1,0 @@
-#!/bin/bash
-
-cabal test daedalus-tests --test-show-details=streaming ${*/#/--test-options=}
