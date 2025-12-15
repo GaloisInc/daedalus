@@ -35,9 +35,11 @@ class Array : IsBoxed {
     // Allocate an array with unitialized data
     static
     Content *allocate(Size n) {
-      size_t bytes = sizeof(Content) + sizeof(T[n.rep()]);
-      char *raw = new char[bytes];    // XXX: alignment?
-      Content *p   = (Content*) raw;
+      size_t hdr_size = sizeof(Content);
+      size_t need_bytes = hdr_size + n.rep() * sizeof(T);
+      // In unites of content, so that we can get proper alignment
+      size_t need_content = (need_bytes - 1 + hdr_size) / hdr_size;
+      Content *p   = new Content[need_content];
       p->ref_count = 1;
       p->size      = n;
       return p;
