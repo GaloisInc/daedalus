@@ -4,7 +4,7 @@
   • see grammar at: nitf_header.ddl:9:12--9:23
   • context:
       • nitf_main.ddl:25:9--25:14
-      • nitf_header.ddl:186:3--186:6
+      • nitf_header.ddl:182:3--182:6
   • input trace:
 File context:
 Length: 0 (0x0) bytes
