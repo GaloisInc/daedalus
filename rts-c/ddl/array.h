@@ -195,7 +195,7 @@ public:
         for(size_t i = 0; i < todo; ++i) arr[i].free();
       }
       debug("  Freeing array "); debugValNL((void*)ptr);
-      delete[] (char*)ptr;
+      delete[] ptr;
       ptr = nullptr;
     } else {
       ptr->ref_count = n - 1;
