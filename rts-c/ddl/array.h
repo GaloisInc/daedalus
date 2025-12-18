@@ -176,6 +176,28 @@ public:
   }
 
 
+  /// Owned this
+  template <typename ExtArrayBuilder, typename ExportElement>
+  typename ExtArrayBuilder::T export_array(ExtArrayBuilder &&builder, ExportElement elExp) {
+    auto n = size().rep();
+    builder.start(n);
+    auto r = refCount();
+    if (r == 1) {
+      for (size_t i = 0; i < n; ++i) {
+        builder.push(elExp(borrowElement(i)));
+      }
+      delete ptr;
+      ptr = nullptr;
+    } else {
+      for (size_t i = 0; i < n; ++i) {
+        builder.push(elExp((*this)[i]));
+      }
+      ptr->ref_count = r - 1;
+    }
+    return builder.done();
+  }
+
+
 
 
 
@@ -242,8 +264,6 @@ public:
     }
 
   };
-
-
 
 };
 
@@ -539,6 +559,9 @@ bool operator <= (Builder<T> xs, Builder<T> ys) { return !(xs > ys); }
 // Borrow arguments
 template <typename T> static inline
 bool operator >= (Builder<T> xs, Builder<T> ys) { return !(xs < ys); }
+
+
+
 
 
 
