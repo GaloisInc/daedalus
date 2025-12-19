@@ -148,7 +148,7 @@ jumpNoFree tgt = JumpWithFree { freeFirst = Set.empty, jumpTarget = tgt }
 -- NOTE:  String literal patterns should have been already compiled away.
 newtype JumpChoice ix = JumpCase (Map ix JumpWithFree)
 
--- | Constants, and acces to the VM state that does not change in a block.
+-- | Constants, and access to the VM state that does not change in a block.
 data E =
     EUnit
   | ENum Integer Src.Type     -- ^ Only unboxed
