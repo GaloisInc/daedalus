@@ -30,7 +30,7 @@ data TName = TName
     {- ^ The module name where this was defined.
          Note that after specialization everything
          is placed in the same module, but this
-         referes to the *original* module where the
+         refers to the *original* module where the
          type was defined -}
 
   , tnameAnon :: Maybe Int    -- ^ For types that only appear in other types
@@ -53,7 +53,7 @@ data FName = FName
   , fnamePublic     :: !Bool
   , fnameType       :: Type
   , fnameMod        :: MName
-    -- ^ This is the module where the name was origially defined,
+    -- ^ This is the module where the name was originally defined,
     -- and might (probably will) be different from the Core module name
   }
   deriving (Generic, NFData)
@@ -92,7 +92,7 @@ data Type =
   | TBuilder Type         -- ^ Builder for arrays
   | TIterator Type
   | TUser UserType
-  | TParam TParam         -- ^ Only in type declaraionts
+  | TParam TParam         -- ^ Only in type declarations
     deriving (Eq,Ord,Generic,NFData)
 
 tWord :: Integer -> Type
