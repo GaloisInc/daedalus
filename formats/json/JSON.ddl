@@ -132,7 +132,7 @@ def JSON_Fraction base =
                  block
                    exp = s.exp - 1 : int
                    val = 10 * s.val + JSON_Digit
-          $$.exp > 0 is true
+          $$.exp < 0 is true
       nothing -> default
 
 def JSON_exponent : int =
