@@ -178,9 +178,9 @@ public:
 
   /// Owned this
   template <typename ExtArrayBuilder, typename ExportElement>
-  typename ExtArrayBuilder::T export_array(ExtArrayBuilder &&builder, ExportElement elExp) {
+  typename ExtArrayBuilder::T export_array(ExportElement elExp) {
     auto n = size().rep();
-    builder.start(n);
+    auto builder = ExtArrayBuilder(n);
     auto r = refCount();
     if (r == 1) {
       for (size_t i = 0; i < n; ++i) {
