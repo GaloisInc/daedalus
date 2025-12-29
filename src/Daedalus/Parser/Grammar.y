@@ -616,6 +616,7 @@ type_flavor                              :: { TypeFlavor }
 
 type_field                               :: { (Located Label,SrcType) }
   : label ':' type                          { ($1,$3) }
+  | label                                   { ($1,atT $1 TUnit) }
 
 type                                     :: { SrcType }
   : atype                                   { $1 }
