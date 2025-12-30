@@ -186,7 +186,7 @@ public:
       for (size_t i = 0; i < n; ++i) {
         builder.push(elExp(borrowElement(i)));
       }
-      delete ptr;
+      delete[] ptr;
       ptr = nullptr;
     } else {
       for (size_t i = 0; i < n; ++i) {
