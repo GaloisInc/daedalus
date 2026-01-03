@@ -1,0 +1,5 @@
+
+def A x =
+ case x of
+   A -> X $(y.l) Z
+   B
