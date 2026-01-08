@@ -9,24 +9,33 @@ import AlexTools
 $alpha      = [a-z A-Z _]
 $digit      = [0-9]
 @ident      = $alpha ($alpha | $digit)*
+@number     = $digit+
 @comment    = "--" .* \n
 
 :-
 
 <0> {
-"def"       { emit TokKWDef }
-"case"      { emit TokKWCase }
-"of"        { startLayout TokKWOf }
+"def"       { emit TokKW_def }
+"case"      { emit TokKW_case }
+"of"        { startLayout TokKW_of }
+
+"["         { emit TokBracketOpen }
+"]"         { emit TokBracketClose }
 "("         { emit TokParenOpen }
 ")"         { emit TokParenClose }
+"{"         { emit TokBraceOpen }
+"}"         { emit TokBraceClose }
+
 "."         { emit TokDot }
 ","         { emit TokComma }
+"::"        { emit TokColonColon }
 ":"         { emit TokColon }
 "="         { emit TokEqual }
 "->"        { startLayout TokRightArrow }
 @comment    ;
 $white      ;
 @ident      { emit TokIdent }
+@number     { emit TokNumber }
 .           { matchText >>= \t -> lexeme (TokError ("Unexpected character: " <> t)) }
 }
 
@@ -59,22 +68,33 @@ $white      ;
 
 {
 data Token =
-    TokKWDef
-  | TokKWCase
-  | TokKWOf
+    TokKW_def
+  | TokKW_case
+  | TokKW_of
+  
   | TokIdent
+  | TokNumber
+
   | TokParenOpen
   | TokParenClose
+  | TokBracketOpen
+  | TokBracketClose
+  | TokBraceOpen
+  | TokBraceClose
+
   | TokDot
   | TokComma
   | TokColon
+  | TokColonColon
   | TokEqual
   | TokDollar
   | TokRightArrow
   | TokObject
+
   | TokLayoutStart
   | TokLayoutSep
   | TokLayoutEnd
+
   | TokError Text
   | TokEOF
     deriving Show
@@ -170,7 +190,7 @@ startLayout tok =
     lexeme (
       TokError
         case tok of
-          TokKWOf -> "Unexpected token: `of`"
+          TokKW_of -> "Unexpected token: `of`"
           _ -> error ("Unexpected layout starter: " ++ show tok)
     )
       

@@ -27,10 +27,17 @@ executable export
     import:           settings
     main-is:          Main.hs
     other-modules:
+      Options
+      Name
+      AST
       Quote
       Lexer
       Parser
-    build-depends:    base, text, array, alex-tools
+    build-depends:
+      base, text, array, containers,
+      alex-tools,
+      simple-get-opt,
+      daedalus, daedalus-core, daedalus-utils
     build-tool-depends:  alex:alex, happy:happy
     hs-source-dirs:   app
     default-language: Haskell2010

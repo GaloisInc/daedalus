@@ -1,5 +1,9 @@
 
-def A x =
- case x of
-   A -> X $(y.l) Z
-   B
+def F(x: uint 8) -> CTYPE
+  ->
+  Some Stuff $x
+  More $(f(x)) things
+  Keep goin
+
+def A(x: uint 8) -> OTHERTYPE
+  -> ANOTHER
