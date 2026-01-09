@@ -4,6 +4,7 @@ packages:
   daedalus-core/
   daedalus-vm/
   daedalus-value/
+  export/
   rts-hs/
   rts-hs-data/
   rts-vm-hs/

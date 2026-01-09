@@ -1,0 +1,45 @@
+cabal-version:      3.0
+name:               export
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            ISC
+license-file:       LICENSE
+author:             Iavor S. Diatchki
+maintainer:         diatchki@galois.com
+-- copyright:
+category:           Language
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common settings
+    ghc-options: -Wall
+    default-extensions:
+      BlockArguments
+      ImportQualifiedPost
+      DeriveTraversable
+      TemplateHaskell
+      OverloadedStrings
+      ViewPatterns
+
+executable export
+    import:           settings
+    main-is:          Main.hs
+    other-modules:
+      Options
+      Name
+      Check
+      AST
+      Quote
+      Lexer
+      Parser
+      ExportCPP
+    build-depends:
+      base, text, array, containers,
+      alex-tools,
+      simple-get-opt,
+      daedalus, daedalus-core, daedalus-utils
+    build-tool-depends:  alex:alex, happy:happy
+    hs-source-dirs:   app
+    default-language: Haskell2010
