@@ -86,7 +86,7 @@ instance PP DeclDef where
       DeclCase x alts ->
         vcat [
           "=" <+> "case" <+> pp x <+> "of",
-          nest 2 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
+          nest 4 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
         ]
 
 instance PP Pat where

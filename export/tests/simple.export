@@ -1,4 +1,20 @@
 
-def exportMain(m: Main) -> S
-  -> { .x = $(u8_to_int m.x), .y = $(u16_to_int m.y) }
 
+-- NOTE `uint_to_int` is a size polymorphic exported
+
+def exportMain(m: Main) -> S
+  -> { .x = $(uint_to_int m.x), .y = $(uint_to_int m.y) }
+
+def exportMaybe (m: maybe (uint 8)) -> std::optional<int>
+  =
+  case m of
+    nothing -> std::optional<int>{}
+    just x  -> std::optional<int>{$(u8_to_int x)}
+      
+-- def exportMaybePoly<f: A --> B> (m: maybe A) -> std::optional<$B>
+--   =
+--   case m of
+--     nothing -> std::optional<$B>{}
+--     just x  -> std::optional<$B>{$(f x)}
+--
+-- Use: exportMaybePoly<u8_to_int>(m)
