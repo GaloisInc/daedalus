@@ -1,9 +1,4 @@
 
-def F(x: uint 8) -> CTYPE
-  ->
-  Some Stuff $x
-  More $(f(x)) things
-  Keep goin
+def exportMain(m: Main) -> S
+  -> { .x = $(u8_to_int m.x), .y = $(u16_to_int m.y) }
 
-def A(x: uint 8) -> OTHERTYPE
-  -> ANOTHER

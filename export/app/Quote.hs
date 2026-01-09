@@ -20,10 +20,10 @@ renderQuoteWord w =
     Object a -> a
 
 instance PP a => PP (Q a) where
-  pp (Q xs) = fsep (map pp xs)
+  pp (Q xs) = fcat (map pp xs)
 
 instance PP a => PP (QuoteWord a) where
   pp w =
     case w of
-      Meta a -> pp a
+      Meta a -> "$" <.> parens (pp a)
       Object a -> text (Lazy.unpack a)

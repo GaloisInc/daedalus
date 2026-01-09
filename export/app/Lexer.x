@@ -50,7 +50,7 @@ $white      ;
 }
 
 <objectLineStart> {
-  " "* \n   ;
+  " "* \n   { emitObjectNL }
   " "*      { checkObjectEnd }
   \t        { lexeme (TokError "Please use spaces instead of tab characters for indentation") }
 }
@@ -133,13 +133,23 @@ data LexState =
   | InComment !SourceRange LexState
 
 
+emitObjectNL :: Action LexState [Lexeme Token]
+emitObjectNL =
+  do
+    r <- matchRange
+    s <- getLexerState
+    case s of
+      InObject l | LayoutStarting <- layoutState l -> pure []
+      InObjectLineStart l | LayoutStarting <- layoutState l -> pure []
+      _ -> pure [ Lexeme { lexemeToken = TokObject, lexemeText = "\n", lexemeRange = r } ]
+
 
 objectGotoNextLine :: Action LexState [Lexeme Token]
 objectGotoNextLine  =
   do
     s <- getLexerState
     case s of
-      InObject l -> setLexerState (InObjectLineStart l) >> pure []
+      InObject l -> setLexerState (InObjectLineStart l) >> emitObjectNL
       _ -> error "[bug]: `objectLineStart` but not in object."
 
 checkObjectEnd :: Action LexState [Lexeme Token]

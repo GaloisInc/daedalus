@@ -29,10 +29,12 @@ executable export
     other-modules:
       Options
       Name
+      Check
       AST
       Quote
       Lexer
       Parser
+      ExportCPP
     build-depends:
       base, text, array, containers,
       alex-tools,

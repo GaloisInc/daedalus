@@ -64,13 +64,21 @@ module ::                   { Module }
   : 'v{' sepBy('v;',decl) 'v}'         { Module $2 }
 
 decl ::                     { Decl }
-  : 'def' ename '(' ename ':' type ')' '->' 'v{' obj_type 'v}' decl_def { Decl $2 $4 $6 $10 $12 }
+  : 'def' ename '(' ename ':' type ')' '->' obj_type decl_def { Decl $2 $4 $6 $9 $10 }
 
 decl_def ::                                 { DeclDef }
   : '->' obj_expr                           { DeclDef $2 }
+  | '=' 'case' ename 'of' 'v{' sepBy('v;',case_alt) 'v}' { DeclCase $3 $6 }
 
-ename ::                                    { Name.Name }
-  : IDENT                                   { Name.fromText (lexemeText $1) }
+case_alt ::                                 { (Pat, Q ExportExpr) }
+  : pat '->' obj_expr                       { ($1, $3) }
+
+pat ::                                      { Pat }
+  : ename                                   { PCon $1 Nothing }
+  | ename ename                             { PCon $1 (Just $2) }
+
+ename ::                                    { LName }
+  : IDENT                                   { LName { nameName = Name.fromText (lexemeText $1), nameRange = lexemeRange $1 }  }
 
 qname ::                                    { (Maybe (Lexeme Token), Lexeme Token) }
   : IDENT                                   { (Nothing, $1) }
@@ -97,7 +105,7 @@ arr_or_map                               :: { Core.Type }
     -- NOTE: This syntax differs from Daedalus, which uses K -> V, but -> is quite special for us.
 
 obj_type ::                                 { Q ExportType }
-  : listOf1(OBJ)                            { Q (map objWord $1) } -- XXX: Spaces, etc
+  : 'v{' listOf(OBJ) 'v}'                   { Q (map objWord $2) } -- XXX: Spaces, etc
 
 obj_expr ::                                 { Q ExportExpr }
   : 'v{' listOf(obj_word) 'v}'              { Q $2 }
@@ -108,7 +116,7 @@ obj_word ::                                 { QuoteWord ExportExpr }
   | '$' '(' expr ')'                        { Meta $3 }
 
 expr ::                                     { ExportExpr }
-  : ename '(' ddl_expr ')'                  { ExportExpr (ExportWith $1) $3 }
+  : ename ddl_expr                          { ExportExpr (ExportWith $1) $2 }
   | ddl_expr                                { ExportExpr ExportDefault $1 }
 
 ddl_expr ::                                 { DDLExpr }
@@ -154,7 +162,8 @@ objWord = Object . LazyText.fromStrict . lexemeText
 --------------------------------------------------------------------------------
 
 data ParseError =
-    ParseError SourcePos
+    LexicalError SourceRange Text
+  | ParseError SourcePos
   | UndefinedType SourceRange
   | AmbiguousType SourceRange [Text]
   | MalformedType SourceRange
@@ -163,6 +172,7 @@ data ParseError =
 instance PP ParseError where
   pp err =
     case err of
+      LexicalError rng msg -> ppErr (sourceFrom rng) (text (Text.unpack msg))
       ParseError loc -> ppErr loc "Parse error"
       UndefinedType rng -> ppErr (sourceFrom rng) "Undefined type"
       AmbiguousType r ms ->
@@ -179,7 +189,7 @@ instance PP ParseError where
 -- Parser Monad
 --------------------------------------------------------------------------------
 
-newtype Parser a = Parser (ParserState -> (Either ParseError a, ParserState))
+newtype Parser a = Parser (ParserState -> Either ParseError (a, ParserState))
 
 -- | Maps module name, to type definitions in it.
 type TypeDefs = Map Text (Map Text Core.TDecl)
@@ -196,14 +206,14 @@ instance Functor Parser where
   fmap = liftM
 
 instance Applicative Parser where
-  pure a = Parser \rw -> (Right a, rw)
+  pure a = Parser \rw -> Right (a, rw)
   (<*>)  = ap
 
 instance Monad Parser where
   Parser m >>= k = Parser \rw ->
     case m rw of
-      (Left err, rw') -> (Left err, rw')
-      (Right a, rw') ->
+      Left err -> Left err
+      Right (a, rw') ->
         let Parser m1 = k a
         in m1 rw'
 
@@ -212,8 +222,11 @@ nextToken k = Parser \rw ->
   case nextTokens rw of
     [] -> error "Missing TokEOF"
     t : ts ->
-      let Parser m = k t
-      in m rw { lastToken = Just t, nextTokens = ts }
+      case lexemeToken t of
+        TokError msg ->
+          Left (LexicalError (lexemeRange t) msg)
+        _ -> let Parser m = k t
+             in m rw { lastToken = Just t, nextTokens = ts }
 
 happyError :: Parser a
 happyError = Parser \rw ->
@@ -221,10 +234,10 @@ happyError = Parser \rw ->
       loc = fromMaybe (parserStartPos rw)
               (rng (lastToken rw) <|> rng (listToMaybe (nextTokens rw)))
   in 
-  (Left (ParseError loc), rw)
+  Left (ParseError loc)
 
 parserAt :: SourcePos -> TypeDefs -> Text -> Parser a -> Either ParseError a
-parserAt loc tyDefs txt (Parser m) = fst (m rw)
+parserAt loc tyDefs txt (Parser m) = fst <$> m rw
   where
   rw =
     ParserState {
@@ -277,7 +290,7 @@ resolveUnqualType l ts =
     "builder" -> valArg Core.TBuilder
     nm        -> getDecl nm >>= \def -> appType (lexemeRange l) def ts
   where
-  bad = Parser \rw -> (Left (MalformedType (lexemeRange l)), rw)
+  bad = Parser \_ -> Left (MalformedType (lexemeRange l))
   noArg t =
     case ts of
       [] -> pure t
@@ -292,14 +305,12 @@ resolveUnqualType l ts =
       _         -> bad
   getDecl nm =
     Parser \rw ->
-      let ans = 
-            case Map.findWithDefault [] nm (typeDefsByName rw) of
-              [def] -> Right def
-              []    -> Left (UndefinedType (lexemeRange l))
-              ds    -> Left (AmbiguousType (lexemeRange l)
-                                [ Core.mNameText (Core.tnameMod (Core.tName d))
-                                | d <- ds ])
-      in (ans,rw)
+      case Map.findWithDefault [] nm (typeDefsByName rw) of
+        [def] -> Right (def, rw)
+        []    -> Left (UndefinedType (lexemeRange l))
+        ds    -> Left (AmbiguousType (lexemeRange l)
+                          [ Core.mNameText (Core.tnameMod (Core.tName d))
+                          | d <- ds ])
 
 resolveQualType ::
   Lexeme Token -> Lexeme Token -> [Either Core.SizeType Core.Type] ->
@@ -311,11 +322,10 @@ resolveQualType q l args = getDecl >>= \def -> appType rng def args
     Parser \rw ->
       let mb = Map.lookup (lexemeText l) =<<
                                 Map.lookup (lexemeText q) (typeDefsByMod rw)
-          ans =
-            case mb of
-              Nothing -> Left (UndefinedType rng)
-              Just a  -> Right a
-      in (ans, rw)
+      in
+        case mb of
+          Nothing -> Left (UndefinedType rng)
+          Just a  -> Right (a,rw)
         
 
 -- | Make a type application, using the given type definition and arguments.
@@ -341,6 +351,6 @@ appType loc decl args0 =
         })
       (Left _ : moreArgs, _ : moreNumPs, _) -> go moreNumPs valPs moreArgs
       (Right _ : moreArgs, _, _ : moreValPs) -> go numPs moreValPs moreArgs
-      _ -> Parser \rw -> (Left (MalformedType loc), rw)
+      _ -> Parser \_ -> Left (MalformedType loc)
 
 }

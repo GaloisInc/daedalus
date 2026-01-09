@@ -14,7 +14,6 @@ import Daedalus.Core
 import SimpleGetOpt
 import Options
 import Parser
-import Lexer
 
 
 main :: IO ()
@@ -30,7 +29,7 @@ main =
         Nothing -> reportUsageError options ["Missing export specification."]
         Just f  ->
           do
-            testFromFile f
+            -- testFromFile f
             mb <- parseFromFile f tys moduleParser
             case mb of
               Left err -> hPrint stderr (pp err) >> exitFailure

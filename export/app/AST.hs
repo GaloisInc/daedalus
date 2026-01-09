@@ -1,9 +1,8 @@
 module AST where
 
-import Data.List(intersperse)
-
 import Name(Name)
 import Quote
+import AlexTools(SourceRange)
 
 import Daedalus.PP
 import Daedalus.Core qualified as Core
@@ -13,9 +12,14 @@ newtype Module = Module {
   moduleDecls :: [Decl]
 }
 
+data LName = LName {
+  nameName :: Name,
+  nameRange :: SourceRange
+}
+
 data Decl = Decl {
-  declName      :: Name,
-  declArg       :: Name,
+  declName      :: LName,
+  declArg       :: LName,
   declArgType   :: Core.Type,
   declResType   :: Q ExportType,
   declDef       :: DeclDef
@@ -23,28 +27,42 @@ data Decl = Decl {
 
 data ExportType = ExportType
 
-data Exporter = ExportDefault | ExportWith Name
+data Exporter = ExportDefault | ExportWith LName
 
 data ExportExpr = ExportExpr {
   exportWith :: Exporter,
   exportExpr :: DDLExpr
 }
 
-data DDLExpr = DDLVar Name | DDLSelect Name Name
+data DDLExpr = DDLVar LName | DDLSelect LName LName
 
 data DeclDef =
     DeclDef (Q ExportExpr)
-  | DeclCaseXXX
+  | DeclCase LName [(Pat, Q ExportExpr)]
+
+data Pat =
+  PCon LName (Maybe LName)
+
+
+
+--------------------------------------------------------------------------------
+-- Pretty Printing
+--------------------------------------------------------------------------------
 
 instance PP Module where
-  pp m = vcat (intersperse " " (map pp (moduleDecls m)))
+  pp m = -- vcat (intersperse " " (map pp (moduleDecls m)))
+         vcat (map pp (moduleDecls m))
 
 instance PP Decl where
   pp d = vcat [
-    "def" <+> pp (declName d) <.> parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <+> "->",
+    "def" <+> pp (declName d) <.>
+      parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <+> "->",
     nest 2 (pp (declResType d)),
     nest 2 (pp (declDef d))
     ]
+
+instance PP LName where
+  pp = pp . nameName
 
 instance PP Exporter where
   pp e =
@@ -59,13 +77,20 @@ instance PP DDLExpr where
       DDLSelect x l -> pp x <.> pp l
 
 instance PP ExportExpr where
-  pp (ExportExpr f x) = pp f <.> parens (pp x)
+  pp (ExportExpr f x) = pp f <+> pp x
 
 instance PP DeclDef where
   pp d =
     case d of
       DeclDef f -> "->" $$ nest 2 (pp f)
-      DeclCaseXXX -> "XXX"
+      DeclCase x alts ->
+        vcat [
+          "=" <+> "case" <+> pp x <+> "of",
+          nest 2 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
+        ]
+
+instance PP Pat where
+  pp (PCon c mb) = pp c <+> maybe mempty pp mb
 
 instance PP ExportType where
   pp ExportType = mempty
