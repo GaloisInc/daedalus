@@ -36,7 +36,7 @@ constexpr
 bool hasRefs() { return std::is_base_of<HasRefs,T>::value; }
 
 
-// Relese this reference to the box.
+// Release this reference to the box.
 template <typename T>
 void free_boxed(BoxedValue<T> *ptr) {
   RefCount n = ptr->ref_count;
@@ -50,7 +50,7 @@ void free_boxed(BoxedValue<T> *ptr) {
   }
 }
 
-// Relese this reference to the box, and we've already extracted its
+// Release this reference to the box, and we've already extracted its
 // content so we don't free it.
 template <typename T>
 void shallow_free_boxed(BoxedValue<T> *ptr) {
@@ -60,7 +60,7 @@ void shallow_free_boxed(BoxedValue<T> *ptr) {
 }
 
 
-// Relese this reference to the box.
+// Release this reference to the box.
 template <typename T>
 inline
 void copy_boxed(BoxedValue<T> *ptr) { ++(ptr->ref_count); }
@@ -93,10 +93,10 @@ public:
   // Release the memory for an object that has already been unitialized.
   void del() { delete ptr; }
 
-  // Relese this reference to the box.
+  // Release this reference to the box.
   void free() { free_boxed(ptr); }
 
-  // Relese this reference to the box, without freeing the content.
+  // Release this reference to the box, without freeing the content.
   void shallowFree() { shallow_free_boxed(ptr); }
 
   // Make a new "owned" copy of the referece (i.e., increase ref count).
