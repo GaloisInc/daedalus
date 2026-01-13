@@ -20,7 +20,7 @@ renderQuoteWord w =
     Object a -> a
 
 instance PP a => PP (Q a) where
-  pp (Q xs) = fcat (map pp xs)
+  pp (Q xs) = hcat (map pp xs)
 
 instance PP a => PP (QuoteWord a) where
   pp w =
