@@ -1,61 +1,140 @@
+
+#include <vector>
+#include <optional>
+#include <iostream>
+#include <utility>
+#include <cstdint>
+#include <cmath>
+#include "json.hpp"
+
 #include "parser/main_parser.h"
 #include <ddl/parser.h>
 #include <ddl/number.h>
 #include <ddl/maybe.h>
-#include <vector>
-#include <optional>
-#include <iostream>
+#include <ddl/array.h>
+#include <ddl/export.h>
 
-struct S {
-  int x;
-  int y;
-};
+using nlohmann::basic_json;
 
-
-template<unsigned N>
-int export_uint_to_int(DDL::UInt<N> x) {
-  return int{x.rep()};
+uint64_t exp10(uint32_t exp) {
+  uint64_t res = 1;
+  while (exp != 0) { res *= 10; --exp; }
+  return res;
 }
 
+unsigned char exportChar(DDL::UInt<8> x) { return x.rep(); }
 
+int64_t exportS64(DDL::SInt<64> x) { return x.rep(); }
+int32_t exportS32(DDL::SInt<32> x) { return x.rep(); }
 
-S exportMain(User::Main x) {
-  return {
-    .x = export_uint_to_int<8>(x.get_x()),
-    .y = export_uint_to_int<16>(x.get_y())
-  };
+bool exportBool(DDL::Bool x) { return x.getValue(); }
+
+std::string exportString(DDL::Array<DDL::UInt<8>> x) {
+  return x.export_array(StringBuilder{}, exportChar);
 }
 
+basic_json<> exportNumber(User::JSON_number x) {
+  auto res = [=] () mutable { 
+    auto w = exportS64(x.borrow_whole());
+    auto e = exportS32(x.borrow_exp());
+    if (e < 0) return basic_json<>(w * std::pow(10,e));
+    auto pos_e = exp10(static_cast<uint32_t>(e));
+    if (w < 0) return basic_json<>(w * static_cast<int64_t>(pos_e));
+    return basic_json<>(static_cast<uint64_t>(w) * pos_e);
+  }();
+  x.free(); // XXX: shallow free
+  // In this particular case we don't really need to free anything
+  // as the record does not contain references, but in general we'd generate
+  // code that kind of looks like this.
+  return res;
+}
 
-std::optional<int> exportMaybe(DDL::Maybe<DDL::UInt<8>> m) {
-  if (m.isNothing()) {
-    return std::optional<int>{};
-  } else {
-    return std::optional<int>{export_uint_to_int<8>(m.getValue())};
+basic_json<> exportJSON(User::JSON_value x) {
+  std::vector<User::JSON_value> todo = {x};
+  std::vector<std::pair<User::JSON_value,size_t>> in_progress;
+  std::vector<basic_json<>> done;
+
+  while (!todo.empty()) {
+    User::JSON_value el = todo.back();
+    todo.pop_back();
+    switch(el.getTag()) {
+
+      case DDL::Tag::JSON_value::Null: {
+        done.push_back(basic_json(nullptr));
+        el.free(); // XXX: shallow
+        break;
+      }
+
+      case DDL::Tag::JSON_value::Bool: {
+        done.push_back(basic_json(exportBool(el.get_Bool())));
+        el.free(); // XXX: shallow
+        break;
+      }
+
+      case DDL::Tag::JSON_value::Number: {
+        done.push_back(exportNumber(el.get_Number()));
+        el.free(); // XXX: shallow
+        break;
+      }
+      
+      case DDL::Tag::JSON_value::String: {
+        done.push_back(basic_json(exportString(el.get_String())));
+        // XXX: shallow free el
+        break;
+      }
+
+      case DDL::Tag::JSON_value::Array: {
+        auto arr = el.get_Array();
+        size_t n = arr.size().rep();
+        in_progress.push_back({el,n});
+        for (size_t i = 0; i < n; ++i) {
+          todo.push_back(arr.stealElement(i));
+        }
+        continue;
+      }
+      case DDL::Tag::JSON_value::Object: {
+        // XXX;
+
+        break;
+      }
+    }
+
+    while(!in_progress.empty()) {
+      auto pair = in_progress.back();
+      size_t n = pair.second;
+      if (done.size() < n) break;
+      auto val = pair.first;
+      switch (pair.first.getTag()) {
+        case DDL::Tag::JSON_value::Array: {
+          std::vector<basic_json<>> result;
+          result.reserve(n);
+          for (size_t i = 0; i < n; ++i) {
+            result.push_back(std::move(done.back()));
+            done.pop_back();
+          }
+          done.push_back(basic_json(std::move(result)));
+          val.get_Array().shallowFree();
+          // XXX: val.shallowFree()
+          break;
+        }
+        default:
+          std::cerr << "BAD TAG: " << (int)pair.first.getTag() << "\n";
+          assert(false);
+      }
+    }
   }
-}
-
-template<typename A, typename B, typename F>
-std::optional<B> exportMaybePoly(F f, DDL::Maybe<A> m) {
-  if (m.isNothing()) {
-    return std::optional<B>{};
-  } else {
-    return std::optional<B>{f(m.getValue())};
-  }
-}
-
-std::optional<int> exportMaybeV2(DDL::Maybe<DDL::UInt<8>> m) {
-  return exportMaybePoly<DDL::UInt<8>, int>(export_uint_to_int<8>, m);
+  assert(done.size() == 1);
+  return std::move(done.back());
 }
 
 
 int main() {
   DDL::ParseError<DDL::Input> error;
-  std::vector<User::Main> results;
-  parseMain(error, results, DDL::Input());
+  std::vector<User::JSON_value> results;
+  parseJSON_value_strict(error, results, DDL::Input("(test)", "[1,2,3]"));
   for(auto i : results) {
-    auto s = exportMain(i);
-    std::cout << "x = " << s.x << "; y = " << s.y << "\n";
+    auto x = exportJSON(i);
+    std::cout << x << "\n";
   }
   if (results.size() == 0) {
     std::cout << "parse error\n";
