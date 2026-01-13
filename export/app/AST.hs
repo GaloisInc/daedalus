@@ -74,7 +74,7 @@ instance PP DDLExpr where
   pp e =
     case e of
       DDLVar x -> pp x
-      DDLSelect x l -> pp x <.> pp l
+      DDLSelect x l -> pp x <.> "." <.> pp l
 
 instance PP ExportExpr where
   pp (ExportExpr f x) = pp f <+> pp x
