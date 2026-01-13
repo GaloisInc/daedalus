@@ -44,6 +44,7 @@ $white      ;
 }
 
 <object> {
+  "$$"       { map (\l -> l { lexemeText = "$" }) <$> emit TokObject }
   "$"        { startSplice }
   [~\$]+     { emit TokObject }
   \n         { objectGotoNextLine }
@@ -61,6 +62,7 @@ $white      ;
   "("       { emit TokParenOpen }
   ")"       { emit TokParenClose }
   "."       { emit TokDot }
+  .         { emit (TokError "Unexpected character in slice.") }
 }
 
 
