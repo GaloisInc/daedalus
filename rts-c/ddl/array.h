@@ -240,18 +240,18 @@ public:
     // Owned xs
     Iterator(Array xs)  : index(0), xs(xs) {}
 
-    bool   done()       { return index >= xs.size(); }
-    DDL::UInt<64> key() { return DDL::UInt<64>(index.rep()); }
+    bool   done() const      { return index >= xs.size(); }
+    DDL::UInt<64> key() const { return DDL::UInt<64>(index.rep()); }
     // XXX: Update to size
 
     // Returns owned value
-    T value()       { return xs[index]; }
+    T value() const       { return xs[index]; }
     // Returns borrowed value
-    T borrowValue() { return xs.borrowElement(index); }
+    T borrowValue() const { return xs.borrowElement(index); }
 
     // Owned this. We don't increment `xs` because this copy of the iterator
     // is being freed.
-    Iterator next() {
+    Iterator next() const {
       return Iterator(index.incremented(), xs);
     }
 
