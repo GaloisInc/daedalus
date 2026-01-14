@@ -34,18 +34,15 @@ std::string exportString(DDL::Array<DDL::UInt<8>> x) {
 }
 
 basic_json<> exportNumber(User::JSON_number x) {
-  auto res = [=] () mutable { 
-    auto w = exportS64(x.borrow_whole());
-    auto e = exportS32(x.borrow_exp());
+  auto res = [=] () mutable {
+    auto w = exportS64(x.get_whole());
+    auto e = exportS32(x.get_exp());
     if (e < 0) return basic_json<>(w * std::pow(10,e));
     auto pos_e = exp10(static_cast<uint32_t>(e));
     if (w < 0) return basic_json<>(w * static_cast<int64_t>(pos_e));
     return basic_json<>(static_cast<uint64_t>(w) * pos_e);
   }();
-  x.free(); // XXX: shallow free
-  // In this particular case we don't really need to free anything
-  // as the record does not contain references, but in general we'd generate
-  // code that kind of looks like this.
+  x.free();
   return res;
 }
 
@@ -61,41 +58,41 @@ basic_json<> exportJSON(User::JSON_value x) {
 
       case DDL::Tag::JSON_value::Null: {
         done.push_back(basic_json(nullptr));
-        el.free(); // XXX: shallow
+        el.free();
         break;
       }
 
       case DDL::Tag::JSON_value::Bool: {
         done.push_back(basic_json(exportBool(el.get_Bool())));
-        el.free(); // XXX: shallow
+        el.free();
         break;
       }
 
       case DDL::Tag::JSON_value::Number: {
         done.push_back(exportNumber(el.get_Number()));
-        el.free(); // XXX: shallow
+        el.free();
         break;
       }
       
       case DDL::Tag::JSON_value::String: {
         done.push_back(basic_json(exportString(el.get_String())));
-        // XXX: shallow free el
+        el.free();
         break;
       }
 
       case DDL::Tag::JSON_value::Array: {
-        auto arr = el.get_Array();
+        auto arr = el.borrow_Array();
         size_t n = arr.size().rep();
         in_progress.push_back({el,n});
         for (size_t i = 0; i < n; ++i) {
-          todo.push_back(arr.stealElement(i));
+          todo.push_back(arr[i]);
         }
         continue;
       }
       case DDL::Tag::JSON_value::Object: {
         // XXX;
 
-        break;
+        break; // continue
       }
     }
 
@@ -106,6 +103,7 @@ basic_json<> exportJSON(User::JSON_value x) {
       auto val = pair.first;
       switch (pair.first.getTag()) {
         case DDL::Tag::JSON_value::Array: {
+          val.free();
           std::vector<basic_json<>> result;
           result.reserve(n);
           for (size_t i = 0; i < n; ++i) {
@@ -113,9 +111,7 @@ basic_json<> exportJSON(User::JSON_value x) {
             done.pop_back();
           }
           done.push_back(basic_json(std::move(result)));
-          val.get_Array().shallowFree();
-          // XXX: val.shallowFree()
-          break;
+          continue;
         }
         default:
           std::cerr << "BAD TAG: " << (int)pair.first.getTag() << "\n";
