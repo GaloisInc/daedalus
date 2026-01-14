@@ -55,16 +55,6 @@ bool free_boxed(BoxedValue<T>* ptr) {
   }
 }
 
-// Release this reference to the box, and we've already extracted its
-// content so we don't free it.  This should only be called on objects
-// with reference count of 1.
-template <typename T>
-void shallow_free_boxed(BoxedValue<T>* ptr) {
-  if (!ptr) return;
-  assert(ptr->ref_count == 1);
-  delete ptr;
-}
-
 
 // Release this reference to the box.
 template <typename T>
@@ -89,36 +79,33 @@ public:
     debug("  new boxed "); debugValNL((void*) ptr);
   }
 
-  bool isNull() { return ptr == NULL; }
+  bool isNull() const { return ptr == NULL; }
 
-  RefCount refCount() { return isNull()? 0 : ptr->ref_count; }
+  RefCount refCount() const { return isNull()? 0 : ptr->ref_count; }
 
   // Allocate without initializing the data, but ref count is 1
   void allocate() { ptr = new BoxedValue<T>(); }
 
-  // Release the memory for an object that has already been uninitialized.
-  void del() { if (ptr) { delete ptr; ptr = nullptr; } }
+  // Release the memory for the box, which has already been uninitialized.
+  void del() { assert(refCount() == 1); delete ptr; ptr = nullptr; }
 
   // Release this reference to the box.
   void free() { if (free_boxed(ptr)) ptr = nullptr; }
-
-  // Release this reference to the box, without freeing the content.
-  void shallowFree() { shallow_free_boxed(ptr); ptr = nullptr; }
 
   // Make a new "owned" copy of the reference (i.e., increase ref count).
   void copy() { if (ptr) copy_boxed(ptr); }
 
   // Get access to the contents of the box.
   // The resulting reference shouldn't be used after the box is gone.
-  // Borrows the value
-  T& getValue() { assert(ptr != nullptr); return ptr->value; }
+  // Borrows the value.
+  T& getValue() const { assert(ptr != nullptr); return ptr->value; }
 
-  bool operator == (Boxed x) { return getValue() == x.getValue(); }
-  bool operator != (Boxed x) { return getValue() != x.getValue(); }
+  bool operator == (Boxed x) const { return getValue() == x.getValue(); }
+  bool operator != (Boxed x) const { return getValue() != x.getValue(); }
 
   // For debugging
-  BoxedValue<T> *rawPtr() { return ptr; }
-  void dump() {
+  BoxedValue<T> *rawPtr() const { return ptr; }
+  void dump() const {
     debugVal((void*)ptr);
     debug(" ("); debugVal(refCount()); debugVal("NL)");
   }

@@ -15,7 +15,7 @@ namespace DDL {
 template <typename Key, typename Value>
 class Map : HasRefs {
 
-  // Empty reprsented as a null pointer, which is color black
+  // Empty represented as a null pointer, which is color black
   struct Node {
     using Color = bool;
 
@@ -57,9 +57,11 @@ class Map : HasRefs {
         debugLine("freeing last ref");
         if constexpr (hasRefs<Key>())   n->key.free();
         if constexpr (hasRefs<Value>()) n->value.free();
+        // XXX: avoid recursion?
         free(n->left);
         free(n->right);
         delete n;
+        n = nullptr;
       } else {
         debugLine("freeing decrement");
         n->ref_count = r - 1;
@@ -85,7 +87,7 @@ class Map : HasRefs {
     static bool is_black(Node const* n) { return n == nullptr || n->color == black; }
 
     // borrow n
-    static bool is_red(Node const* n)   { return !is_black(n); }
+    static bool is_red(Node const* n) { return !is_black(n); }
 
 
 
@@ -312,25 +314,25 @@ public:
     }
 
     // borrow this
-    bool  done()        { return cur == nullptr; }
+    bool  done() const { return cur == nullptr; }
 
     // borrow this, return owned
-    Key   key() {
+    Key   key() const {
       if constexpr (hasRefs<Key>()) cur->key.copy();
       return cur->key;
     }
 
     // borrow this, return owned
-    Value value() {
+    Value value() const {
       if constexpr (hasRefs<Value>()) cur->value.copy();
       return cur->value;
     }
 
     // borrow this
-    Key   borrowKey()   { return cur->key; }
+    Key   borrowKey() const  { return cur->key; }
 
     // borrow this
-    Value borrowValue() { return cur->value; }
+    Value borrowValue() const { return cur->value; }
 
     // owns this
     Iterator next() {
@@ -341,10 +343,13 @@ public:
         return r;
       }
       Node::free(cur);
-      if (above.isNull()) return Iterator();
       Iterator r = above.getValue();
-      if (above.refCount() != 1) r.copy();
-      above.shallowFree();
+      if (above.refCount() == 1) {
+        above.del();
+      } else {
+        r.copy();
+        above.free();
+      }
       return r;
     }
 
@@ -358,7 +363,7 @@ public:
       if (cur != nullptr) Node::free(cur);
     }
 
-    void dump() {
+    void dump() const {
       debug("IT:"); debugVal((void*) cur); debug("|");
       above.dump();
       if (!above.isNull()) above.getValue().dump();

@@ -148,13 +148,6 @@ public:
     return ptr->data[i];
   }
 
-  // If this is the last reference to the array we borrow, otherwise we copy.
-  // The result is owned, and the array should be freed using `shallowFree`.
-  T stealElement(Size i) const {
-    return refCount() > 1?  (*this)[i] : borrowElement(i);
-  }
-
-
   T* borrowData() const {
     if(ptr == nullptr) {
       return nullptr;
@@ -187,10 +180,17 @@ public:
   typename ExtArrayBuilder::T export_array(ExtArrayBuilder &&builder, ExportElement elExp) {
     auto n = size().rep();
     builder.start(n);
-    for (size_t i = 0; i < n; ++i) {
-      builder.push(elExp(stealElement(i)));
+    if (refCount() == 1) {
+      for (size_t i = 0; i < n; ++i) {
+       builder.push(elExp(borrowElement(i)));
+      }
+      del();
+    } else {
+      for (size_t i = 0; i < n; ++i) {
+        builder.push(elExp((*this)[i]));
+      }
+      free();
     }
-    shallowFree();
     return builder.done();
   }
 
@@ -218,17 +218,12 @@ public:
     }
   }
 
-  // Free array assuming that its elements are already freed, if this is
-  // the last reference.
-  void shallowFree() {
+  // Free array assuming that its elements are already freed.
+  void del() {
     if (ptr == nullptr) return;
-    auto n = refCount();
-    if (n == 1) {
-      delete[] ptr;
-      ptr = nullptr;
-    } else {
-      ptr->ref_count = n - 1;
-    }
+    assert(refCount() == 1);
+    delete[] ptr;
+    ptr = nullptr;
   }
 // -- Boxed --------------------------------------------------------------------
 
