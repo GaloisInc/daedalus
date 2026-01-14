@@ -1,0 +1,25 @@
+-- #include "json.hpp"
+
+def exportJSON(x: JSON_value) -> basic_json<>
+  =
+  case x of
+    Null      -> basic_json<>(nullptr)
+    Bool b    -> basic_json<>($b)
+    Number n  -> $(exportNumber n)
+    String s  -> $(array_to_string s)
+    -- Array   = JSON_array_of JSON_value
+    -- Object  = JSON_object_of JSON_value
+
+-- Exporting a struct.  Here we use a local lambda to do some computation.
+-- It might be better to name this on the C++ side, and keep things
+-- simple in here.
+def exportNumber(x: JSON_number) -> basic_json<>
+  ->
+  [=] () mutable { 
+    int64_t w = $(x.whole);
+    int32_t e = $(x.exp);
+    if (e < 0) return basic_json<>(w * std::pow(10,e));
+    auto pos_e = exp10(static_cast<uint32_t>(e));
+    if (w < 0) return basic_json<>(w * static_cast<int64_t>(pos_e));
+    return basic_json<>(static_cast<uint64_t>(w) * pos_e);
+  }()

@@ -148,7 +148,6 @@ public:
     return ptr->data[i];
   }
 
-
   T* borrowData() const {
     if(ptr == nullptr) {
       return nullptr;
@@ -178,31 +177,26 @@ public:
 
   /// Owned this
   template <typename ExtArrayBuilder, typename ExportElement>
-  typename ExtArrayBuilder::T export_array(ExportElement elExp) {
+  typename ExtArrayBuilder::T export_array(ExtArrayBuilder &&builder, ExportElement elExp) {
     auto n = size().rep();
-    auto builder = ExtArrayBuilder(n);
-    auto r = refCount();
-    if (r == 1) {
+    builder.start(n);
+    if (refCount() == 1) {
       for (size_t i = 0; i < n; ++i) {
-        builder.push(elExp(borrowElement(i)));
+       builder.push(elExp(borrowElement(i)));
       }
-      delete ptr;
-      ptr = nullptr;
+      del();
     } else {
       for (size_t i = 0; i < n; ++i) {
         builder.push(elExp((*this)[i]));
       }
-      ptr->ref_count = r - 1;
+      free();
     }
     return builder.done();
   }
 
 
-
-
-
 // -- Boxed --------------------------------------------------------------------
-  RefCount refCount() { return ptr == nullptr ? 0 : ptr->ref_count; }
+  RefCount refCount() const { return ptr == nullptr ? 0 : ptr->ref_count; }
 
   void copy() { if (ptr != nullptr) ptr->ref_count++; }
 
@@ -223,6 +217,14 @@ public:
       ptr->ref_count = n - 1;
     }
   }
+
+  // Free array assuming that its elements are already freed.
+  void del() {
+    if (ptr == nullptr) return;
+    assert(refCount() == 1);
+    delete[] ptr;
+    ptr = nullptr;
+  }
 // -- Boxed --------------------------------------------------------------------
 
 
@@ -238,18 +240,18 @@ public:
     // Owned xs
     Iterator(Array xs)  : index(0), xs(xs) {}
 
-    bool   done()       { return index >= xs.size(); }
-    DDL::UInt<64> key() { return DDL::UInt<64>(index.rep()); }
+    bool   done() const      { return index >= xs.size(); }
+    DDL::UInt<64> key() const { return DDL::UInt<64>(index.rep()); }
     // XXX: Update to size
 
     // Returns owned value
-    T value()       { return xs[index]; }
+    T value() const       { return xs[index]; }
     // Returns borrowed value
-    T borrowValue() { return xs.borrowElement(index); }
+    T borrowValue() const { return xs.borrowElement(index); }
 
     // Owned this. We don't increment `xs` because this copy of the iterator
     // is being freed.
-    Iterator next() {
+    Iterator next() const {
       return Iterator(index.incremented(), xs);
     }
 

@@ -159,6 +159,11 @@ copyMethodSig = cStmt ("void" <+> cCall "copy" [])
 freeMethodSig :: Doc
 freeMethodSig = cStmt ("void" <+> cCall "free" [])
 
+-- | Signature for the @del@ method. This is only really useful for boxed types.
+delMethodSig :: Doc
+delMethodSig = cStmt ("void" <+> cCall "del" [])
+
+
 -- | Constructor for a product
 cProdCtr :: NSUser => TDecl -> CStmt
 cProdCtr tdecl = cStmt ("void" <+> cCall structCon params)
@@ -166,9 +171,13 @@ cProdCtr tdecl = cStmt ("void" <+> cCall structCon params)
 
 cProdSels :: NSUser => TDecl -> [ CStmt ]
 cProdSels tdecl =
-  [ cStmt (cSemType t <+> cCall nm []) | (f,t) <- getFields tdecl
+  [ cStmt (cSemType t <+> cCall nm [] <+> suff)
+                                      | (f,t) <- getFields tdecl
                                        , pref  <- bor_own
                                        , let nm = selName pref f
+                                       , let suff = case pref of
+                                                      GenBorrow -> "const"
+                                                      GenOwn -> mempty
                                        ]
   where
   bor_own = if tnameBD (tName tdecl) then [ GenOwn ] else [GenBorrow,GenOwn]
@@ -177,9 +186,12 @@ cProdSels tdecl =
 -- | Signatures for getters of a sum
 cSumGetters :: NSUser => TDecl -> [CStmt]
 cSumGetters tdecl =
-  [ cStmt (cSemType t <+> cCall (selName pref l) [])
+  [ cStmt (cSemType t <+> cCall (selName pref l) [] <+> suff)
   | (l,t) <- getFields tdecl
   , pref <- [GenBorrow,GenOwn]
+  , let suff = case pref of
+                 GenBorrow -> "const"
+                 _ -> mempty
   ]
 
 -- | Signatures for constructors of a sum
@@ -258,7 +270,7 @@ cSumTagV t l = nsDDL .:: nsTag .:: cTNameRoot t .:: cLabel l
 
 -- | @getTag@ method signature
 cSumGetTag :: TDecl -> Doc
-cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [])
+cSumGetTag td = cStmt (cSumTagT td <+> cCall "getTag" [] <+> "const")
 --------------------------------------------------------------------------------
 
 
@@ -392,7 +404,7 @@ cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
        , ""
        , "/** @name Memory Management */"
        , "///@{" ]
-    ++ [ copyMethodSig, freeMethodSig ]
+    ++ [ copyMethodSig, freeMethodSig, delMethodSig ]
     ++ [ "///@}"
        , ""
        , "/** @name Variant dispatch */"
@@ -430,6 +442,7 @@ generateMethods vis boxed ty =
     , defCopyFree vis boxed "copy" ty
     , defCopyFree vis boxed "free" ty
     ] ++
+    [ defDel ty | GenBoxed <- [boxed] ] ++
     defCons      vis boxed ty ++
     defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
@@ -454,11 +467,11 @@ defSwitch vis boxed ty =
     _ -> []
 
 defMethod ::
-  NSUser => GenVis -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
-defMethod vis tdecl retT fun params def =
+  NSUser => GenVis -> Bool -> TDecl -> CType -> Doc -> [Doc] -> [CStmt] -> CDecl
+defMethod vis isConst tdecl retT fun params def =
   vcat [ cTemplateDecl tdecl
        , "inline"
-       , retT <+> cCall name params <+> "{"
+       , retT <+> cCall name params <+> (if isConst then "const {" else "{")
        , nest 2 (vcat def)
        , "}"
        ]
@@ -701,7 +714,7 @@ defCons vis boxed tdecl =
 
 
 defStructCon :: NSUser => GenVis -> GenBoxed -> TDecl -> CDecl
-defStructCon vis boxed tdecl = defMethod vis tdecl "void" structCon params def
+defStructCon vis boxed tdecl = defMethod vis False tdecl "void" structCon params def
   where
   params = [ t <+> x | (t,x,_) <- fs ]
   def =
@@ -723,7 +736,7 @@ defUnionCons vis boxed tdecl = zipWith defCon (getFields tdecl) [ 0 .. ]
   defCon (l,t) n =
     let name = unionCon l
         fs   = [ (cSemType t, cLabel l) | t /= TUnit ]
-    in defMethod vis tdecl "void" name [ ty <+> x | (ty,x) <- fs ]
+    in defMethod vis False tdecl "void" name [ ty <+> x | (ty,x) <- fs ]
        case boxed of
          GenBoxed -> [ cStmt (cCall "ptr.allocate" [])
                      , cStmt (cCall ("ptr.getValue()." <.> name) (map snd fs))
@@ -747,7 +760,7 @@ defGetTag vis boxed tdecl =
   case tDef tdecl of
     TStruct {} -> []
     TUnion {} ->
-      [ defMethod vis tdecl (cSumTagT tdecl) "getTag" []
+      [ defMethod vis True tdecl (cSumTagT tdecl) "getTag" []
           [ case boxed of
               GenBoxed   -> cReturn (cCallMethod "ptr.getValue()" "getTag" [])
               GenUnboxed -> cReturn "tag"
@@ -778,8 +791,11 @@ defSelectorsOwn vis boxed tdecl borrow =
                           , uniNote
                           , "*/"
                           ]
+        isConst = case borrow of
+                    GenBorrow -> True
+                    GenOwn -> False
     in doc $$ (
-       defMethod vis tdecl (cSemType t) name []
+       defMethod vis isConst tdecl (cSemType t) name []
        case boxed of
          GenBoxed ->
            [ cReturn (cCallMethod "ptr.getValue()" name []) ]
@@ -806,7 +822,7 @@ defCopyFree :: NSUser => GenVis -> GenBoxed -> Doc -> TDecl -> CDecl
 defCopyFree vis boxed fun tdecl =
   case tDef tdecl of
     TBitdata {} -> empty
-    _ -> defMethod vis tdecl "void" fun []
+    _ -> defMethod vis False tdecl "void" fun []
         case boxed of
           GenBoxed -> [ cStmt (cCallMethod "ptr" fun []) ]
           GenUnboxed ->
@@ -834,6 +850,8 @@ defCopyFree vis boxed fun tdecl =
        | ((l,t),n) <- getFields tdecl `zip` [ 0.. ]
        ]
 
+defDel :: NSUser => TDecl -> CDecl
+defDel tdecl = defMethod GenPublic False tdecl "void" "del" [] [ cStmt (cCallMethod "ptr" "del" []) ]
 
 -- | Emit some code to copy/free a field, unless it is Unit
 -- as those are deleted.

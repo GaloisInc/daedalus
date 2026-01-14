@@ -36,31 +36,27 @@ constexpr
 bool hasRefs() { return std::is_base_of<HasRefs,T>::value; }
 
 
-// Relese this reference to the box.
+// Release this reference to the box.
+// Returns `true` if we deallocated, `false` if we just decremented reference count.
 template <typename T>
-void free_boxed(BoxedValue<T> *ptr) {
+bool free_boxed(BoxedValue<T>* ptr) {
+  if (!ptr) return false;
+
   RefCount n = ptr->ref_count;
   if (n == 1) {
     if constexpr (hasRefs<T>()) ptr->value.free();
     debug("  freeing boxed "); debugValNL((void*) ptr);
     delete ptr;
+    return true;
   }
   else {
     ptr->ref_count = n - 1;
+    return false;
   }
 }
 
-// Relese this reference to the box, and we've already extracted its
-// content so we don't free it.
-template <typename T>
-void shallow_free_boxed(BoxedValue<T> *ptr) {
-  RefCount n = ptr->ref_count;
-  if (n == 1) delete ptr;
-  else ptr->ref_count = n - 1;
-}
 
-
-// Relese this reference to the box.
+// Release this reference to the box.
 template <typename T>
 inline
 void copy_boxed(BoxedValue<T> *ptr) { ++(ptr->ref_count); }
@@ -83,38 +79,35 @@ public:
     debug("  new boxed "); debugValNL((void*) ptr);
   }
 
-  bool isNull() { return ptr == NULL; }
+  bool isNull() const { return ptr == NULL; }
 
-  RefCount refCount() { return ptr->ref_count; }
+  RefCount refCount() const { return isNull()? 0 : ptr->ref_count; }
 
   // Allocate without initializing the data, but ref count is 1
   void allocate() { ptr = new BoxedValue<T>(); }
 
-  // Release the memory for an object that has already been unitialized.
-  void del() { delete ptr; }
+  // Release the memory for the box, which has already been uninitialized.
+  void del() { assert(refCount() == 1); delete ptr; ptr = nullptr; }
 
-  // Relese this reference to the box.
-  void free() { free_boxed(ptr); }
+  // Release this reference to the box.
+  void free() { if (free_boxed(ptr)) ptr = nullptr; }
 
-  // Relese this reference to the box, without freeing the content.
-  void shallowFree() { shallow_free_boxed(ptr); }
-
-  // Make a new "owned" copy of the referece (i.e., increase ref count).
-  void copy() { copy_boxed(ptr); }
+  // Make a new "owned" copy of the reference (i.e., increase ref count).
+  void copy() { if (ptr) copy_boxed(ptr); }
 
   // Get access to the contents of the box.
   // The resulting reference shouldn't be used after the box is gone.
-  // Borrows the value
-  T& getValue() { return ptr->value; }
+  // Borrows the value.
+  T& getValue() const { assert(ptr != nullptr); return ptr->value; }
 
-  bool operator == (Boxed x) { return getValue() == x.getValue(); }
-  bool operator != (Boxed x) { return getValue() != x.getValue(); }
+  bool operator == (Boxed x) const { return getValue() == x.getValue(); }
+  bool operator != (Boxed x) const { return getValue() != x.getValue(); }
 
   // For debugging
-  BoxedValue<T> *rawPtr() { return ptr; }
-  void dump() {
+  BoxedValue<T> *rawPtr() const { return ptr; }
+  void dump() const {
     debugVal((void*)ptr);
-    debug(" ("); debugVal(ptr? refCount() : 0); debugVal("NL)");
+    debug(" ("); debugVal(refCount()); debugVal("NL)");
   }
 };
 
