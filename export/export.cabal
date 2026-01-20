@@ -22,6 +22,7 @@ common settings
       TemplateHaskell
       OverloadedStrings
       ViewPatterns
+      FlexibleInstances
 
 executable export
     import:           settings
@@ -37,6 +38,7 @@ executable export
       ExportCPP
     build-depends:
       base, text, array, containers,
+      pretty,
       alex-tools,
       simple-get-opt,
       daedalus, daedalus-core, daedalus-utils

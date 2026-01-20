@@ -182,7 +182,7 @@ revListOf(p)                              :: { [p] }
 --------------------------------------------------------------------------------
 
 objWord :: Lexeme Token -> QuoteWord a
-objWord = Object . LazyText.fromStrict . lexemeText
+objWord = Object . lexemeText
 
 defaultEntry :: LName -> Entries
 defaultEntry m = Entries {

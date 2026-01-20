@@ -1,7 +1,7 @@
 module Quote where
 
-import Data.Text.Lazy(Text)
-import Data.Text.Lazy qualified as Lazy
+import Data.Text(Text)
+import Data.Text qualified as Text
 import Daedalus.PP
 
 newtype Q a       = Q [QuoteWord a]
@@ -10,14 +10,14 @@ newtype Q a       = Q [QuoteWord a]
 data QuoteWord a  = Meta a | Object Text
   deriving (Functor,Foldable,Traversable)
 
-renderQuote :: Q Text -> Text
+renderQuote :: Q Doc -> Doc
 renderQuote (Q xs) = foldMap renderQuoteWord xs
 
-renderQuoteWord :: QuoteWord Text -> Text
+renderQuoteWord :: QuoteWord Doc -> Doc
 renderQuoteWord w =
   case w of
     Meta a -> a
-    Object a -> a
+    Object a -> text (Text.unpack a)
 
 instance PP a => PP (Q a) where
   pp (Q xs) = hcat (map pp xs)
@@ -26,4 +26,4 @@ instance PP a => PP (QuoteWord a) where
   pp w =
     case w of
       Meta a -> "$" <.> parens (pp a)
-      Object a -> text (Lazy.unpack a)
+      Object a -> text (Text.unpack a)
