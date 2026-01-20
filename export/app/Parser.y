@@ -35,6 +35,7 @@ import Daedalus.Driver
 
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
+  'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
   'import'      { Lexeme { lexemeToken = TokKW_import, lexemeRange = $$ } }
   'of'          { Lexeme { lexemeToken = TokKW_of, lexemeRange = $$ } }
   'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
@@ -45,6 +46,8 @@ import Daedalus.Driver
   ']'           { Lexeme { lexemeToken = TokBracketClose, lexemeRange = $$ } }
   '{'           { Lexeme { lexemeToken = TokBraceOpen,  lexemeRange = $$ } } 
   '}'           { Lexeme { lexemeToken = TokBraceClose, lexemeRange = $$ } }
+  '<'           { Lexeme { lexemeToken = TokLt,  lexemeRange = $$ } } 
+  '>'           { Lexeme { lexemeToken = TokGt, lexemeRange = $$ } }
 
   '='           { Lexeme { lexemeToken = TokEqual, lexemeRange = $$ } }
   '->'          { Lexeme { lexemeToken = TokRightArrow, lexemeRange = $$ } }
@@ -91,8 +94,14 @@ entries ::                                  { Entries }
   : ename                                   { defaultEntry $1 }
   | ename '(' sepBy1(',', ename) ')'        { Entries { entryModule = $1, entryNames = $3 } }
 
-decl ::                     { Decl }
-  : 'def' ename '(' ename ':' type ')' '->' obj_type decl_def { Decl $2 $4 $6 $9 $10 }
+decl ::                                     { Decl }
+  : opt_default 'def'
+    ename '(' ename ':' type ')'
+    '->' obj_type decl_def                  { Decl $1 $3 $5 $7 $10 $11 }
+
+opt_default ::                              { Bool }
+  : 'default'                               { True }
+  | {- empty -}                             { False }
 
 decl_def ::                                 { DeclDef }
   : '->' obj_expr                           { DeclDef $2 }
@@ -144,8 +153,13 @@ obj_word ::                                 { QuoteWord ExportExpr }
   | '$' '(' expr ')'                        { Meta $3 }
 
 expr ::                                     { ExportExpr }
-  : ename ddl_expr                          { ExportExpr (ExportWith $1) $2 }
+  : exporter ddl_expr                       { ExportExpr $1 $2 }
   | ddl_expr                                { ExportExpr ExportDefault $1 }
+
+exporter ::                                 { Exporter }
+  : ename                                   { ExportWith $1 [] }
+  | ename '<' sepBy(',', exporter) '>'      { ExportWith $1 $3 }
+  | 'default'                               { ExportDefault }
 
 ddl_expr ::                                 { DDLExpr }
   : ename                                   { DDLVar $1 }

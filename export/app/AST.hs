@@ -28,6 +28,7 @@ data Entries = Entries {
 
 
 data Decl = Decl {
+  declDefault   :: Bool,      -- ^ Is this the default exporter for the type
   declName      :: LName,
   declArg       :: LName,
   declArgType   :: Core.Type,
@@ -37,14 +38,18 @@ data Decl = Decl {
 
 data ExportType = ExportType
 
-data Exporter = ExportDefault | ExportWith LName
+data Exporter =
+    ExportDefault
+  | ExportWith LName [Exporter]
 
 data ExportExpr = ExportExpr {
   exportWith :: Exporter,
   exportExpr :: DDLExpr
 }
 
-data DDLExpr = DDLVar LName | DDLSelect LName LName
+data DDLExpr = DDLVar LName           -- ^ Variable
+             | DDLSelect LName LName  -- ^ Struct selector
+             | DDLFrom LName LName    -- ^ Union selector (added by checker)
 
 data DeclDef =
     DeclDef (Q ExportExpr)
@@ -72,11 +77,12 @@ instance PP Entries where
 
 instance PP Decl where
   pp d = vcat [
-    "def" <+> pp (declName d) <.>
+    "def" <+> dflt <+> pp (declName d) <.>
       parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <+> "->",
     nest 2 (pp (declResType d)),
     nest 2 (pp (declDef d))
     ]
+    where dflt = if declDefault d then "default" else mempty
 
 instance PP LName where
   pp = pp . nameName
@@ -84,14 +90,19 @@ instance PP LName where
 instance PP Exporter where
   pp e =
     case e of
-      ExportDefault -> "USE_DEFAULT"
-      ExportWith f -> pp f
-
+      ExportDefault -> "default"
+      ExportWith f as ->
+        pp f <.> 
+          case map pp as of
+            [] -> mempty
+            xs -> "<" <.> commaSep xs <.> ">"
+        
 instance PP DDLExpr where
   pp e =
     case e of
       DDLVar x -> pp x
       DDLSelect x l -> pp x <.> "." <.> pp l
+      DDLFrom x l -> pp x <.> "!." <.> pp l
 
 instance PP ExportExpr where
   pp (ExportExpr f x) = pp f <+> pp x

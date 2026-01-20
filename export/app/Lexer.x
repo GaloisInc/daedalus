@@ -17,6 +17,7 @@ $digit      = [0-9]
 <0> {
 "case"      { emit TokKW_case }
 "def"       { emit TokKW_def }
+"default"   { emit TokKW_default }
 "extern"    { emit TokKW_extern }
 "import"    { emit TokKW_import }
 "of"        { startLayout TokKW_of }
@@ -27,6 +28,8 @@ $digit      = [0-9]
 ")"         { emit TokParenClose }
 "{"         { emit TokBraceOpen }
 "}"         { emit TokBraceClose }
+"<"         { emit TokLt }
+">"         { emit TokGt }
 
 "."         { emit TokDot }
 ","         { emit TokComma }
@@ -64,6 +67,8 @@ $white      ;
   @ident    { emit TokIdent }
   "("       { emit TokParenOpen }
   ")"       { emit TokParenClose }
+  "<"       { emit TokLt }
+  ">"       { emit TokGt }
   "."       { emit TokDot }
   .         { emit (TokError "Unexpected character in slice.") }
 }
@@ -75,6 +80,7 @@ $white      ;
 data Token =
     TokKW_case
   | TokKW_def
+  | TokKW_default
   | TokKW_extern
   | TokKW_import
   | TokKW_of
@@ -88,6 +94,8 @@ data Token =
   | TokBracketClose
   | TokBraceOpen
   | TokBraceClose
+  | TokLt
+  | TokGt
 
   | TokDot
   | TokComma
