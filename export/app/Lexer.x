@@ -15,8 +15,10 @@ $digit      = [0-9]
 :-
 
 <0> {
-"def"       { emit TokKW_def }
 "case"      { emit TokKW_case }
+"def"       { emit TokKW_def }
+"extern"    { emit TokKW_extern }
+"import"    { emit TokKW_import }
 "of"        { startLayout TokKW_of }
 
 "["         { emit TokBracketOpen }
@@ -32,6 +34,7 @@ $digit      = [0-9]
 ":"         { emit TokColon }
 "="         { emit TokEqual }
 "->"        { startLayout TokRightArrow }
+
 @comment    ;
 $white      ;
 @ident      { emit TokIdent }
@@ -70,8 +73,10 @@ $white      ;
 
 {
 data Token =
-    TokKW_def
-  | TokKW_case
+    TokKW_case
+  | TokKW_def
+  | TokKW_extern
+  | TokKW_import
   | TokKW_of
   
   | TokIdent
@@ -199,12 +204,8 @@ startLayout tok =
       InComment {} -> error "[bug] `startLayout` in comment"
   where
   bad =
-    lexeme (
-      TokError
-        case tok of
-          TokKW_of -> "Unexpected token: `of`"
-          _ -> error ("Unexpected layout starter: " ++ show tok)
-    )
+    matchText >>= \txt ->
+      lexeme (TokError ("Unexpected `" <> txt <> "`"))
       
 
 

@@ -12,8 +12,10 @@ import Data.Text(Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LazyText
 import Data.Text.IO qualified as Text
+import Data.Set qualified as Set
 import Data.Map(Map)
 import Data.Map qualified as Map
+import Data.Void(Void)
 import AlexTools
 import Daedalus.PP
 import Daedalus.Core qualified as Core
@@ -21,6 +23,7 @@ import Lexer
 import AST
 import Quote
 import Name qualified as Name
+import Daedalus.Driver
 }
 
 %tokentype { Lexeme Token }
@@ -30,9 +33,11 @@ import Name qualified as Name
   NUMBER        { $$@Lexeme { lexemeToken = TokNumber } }
   OBJ           { $$@Lexeme { lexemeToken = TokObject } }
 
-  'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
+  'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
+  'import'      { Lexeme { lexemeToken = TokKW_import, lexemeRange = $$ } }
   'of'          { Lexeme { lexemeToken = TokKW_of, lexemeRange = $$ } }
+  'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
   
   '('           { Lexeme { lexemeToken = TokParenOpen,  lexemeRange = $$ } } 
   ')'           { Lexeme { lexemeToken = TokParenClose, lexemeRange = $$ } }
@@ -55,13 +60,36 @@ import Name qualified as Name
 
 %monad { Parser }
 %lexer { nextToken } { Lexeme { lexemeToken = TokEOF } }
+%error.expected
 
 %name moduleParser module
 
 %%
 
-module ::                   { Module }
-  : 'v{' sepBy('v;',decl) 'v}'         { Module $2 }
+module ::                                   { Module }
+  : 'v{' early_decls late_decls 'v}'        { mkModule $2 $3 }
+
+early_decls ::                              { [EarlyDecl] }
+  : listOf1(early_decl)                     {% setTypeEnv $1 }
+
+early_decl ::                               { EarlyDecl }
+  : 'import' entries 'v;'                   { TopImport $2 }
+  | foreign_decl 'v;'                       { EarlyForeign $1 }
+
+late_decls ::                               { [LateDecl] }
+  : decl listOf(late_decl)                  { TopDef $1 : $2 }
+
+late_decl ::                                { LateDecl }
+  : 'v;' decl                               { TopDef $2 }
+  | 'v;' foreign_decl                       { LateForeign $2 }
+
+foreign_decl ::                             { Q Void }
+  : 'extern' '->' 'v{' listOf(OBJ) 'v}'     { Q (map objWord $4) }
+
+
+entries ::                                  { Entries }
+  : ename                                   { defaultEntry $1 }
+  | ename '(' sepBy1(',', ename) ')'        { Entries { entryModule = $1, entryNames = $3 } }
 
 decl ::                     { Decl }
   : 'def' ename '(' ename ':' type ')' '->' obj_type decl_def { Decl $2 $4 $6 $9 $10 }
@@ -156,6 +184,23 @@ revListOf(p)                              :: { [p] }
 objWord :: Lexeme Token -> QuoteWord a
 objWord = Object . LazyText.fromStrict . lexemeText
 
+defaultEntry :: LName -> Entries
+defaultEntry m = Entries {
+  entryModule = m,
+  entryNames  = [ m { nameName = Name.fromText "Main" } ]
+}
+
+data EarlyDecl = EarlyForeign (Q Void) | TopImport Entries
+data LateDecl  = LateForeign (Q Void) | TopDef Decl
+
+mkModule :: [EarlyDecl] -> [LateDecl] -> Module
+mkModule es ds =
+  Module {
+    moduleEntries = [ e | TopImport e <- es ],
+    moduleForeign = [ x | EarlyForeign x <- es ] ++ [ x | LateForeign x <- ds ],
+    moduleDecls   = [ d | TopDef d <- ds ]
+  }
+
 
 --------------------------------------------------------------------------------
 -- Parse Errors
@@ -189,7 +234,7 @@ instance PP ParseError where
 -- Parser Monad
 --------------------------------------------------------------------------------
 
-newtype Parser a = Parser (ParserState -> Either ParseError (a, ParserState))
+newtype Parser a = Parser (ParserState -> Daedalus (Either ParseError (a, ParserState)))
 
 -- | Maps module name, to type definitions in it.
 type TypeDefs = Map Text (Map Text Core.TDecl)
@@ -206,16 +251,19 @@ instance Functor Parser where
   fmap = liftM
 
 instance Applicative Parser where
-  pure a = Parser \rw -> Right (a, rw)
+  pure a = Parser \rw -> pure (Right (a, rw))
   (<*>)  = ap
 
 instance Monad Parser where
   Parser m >>= k = Parser \rw ->
-    case m rw of
-      Left err -> Left err
-      Right (a, rw') ->
-        let Parser m1 = k a
-        in m1 rw'
+    do
+      res1 <- m rw
+      case res1 of
+        Left err -> pure (Left err)
+        Right (a, rw') ->
+          do
+            let Parser m1 = k a
+            m1 rw'
 
 nextToken :: (Lexeme Token -> Parser a) -> Parser a
 nextToken k = Parser \rw ->
@@ -224,43 +272,88 @@ nextToken k = Parser \rw ->
     t : ts ->
       case lexemeToken t of
         TokError msg ->
-          Left (LexicalError (lexemeRange t) msg)
-        _ -> let Parser m = k t
-             in m rw { lastToken = Just t, nextTokens = ts }
+          pure (Left (LexicalError (lexemeRange t) msg))
+        _ ->
+          do
+            let Parser m = k t
+            -- ddlPrint (lexemeToken t)
+            m rw { lastToken = Just t, nextTokens = ts }
 
-happyError :: Parser a
-happyError = Parser \rw ->
-  let rng = fmap (sourceFrom . lexemeRange)
-      loc = fromMaybe (parserStartPos rw)
-              (rng (lastToken rw) <|> rng (listToMaybe (nextTokens rw)))
-  in 
-  Left (ParseError loc)
+happyError :: [String] -> Parser a
+happyError next = Parser \rw ->
+  do
+    let rng = fmap (sourceFrom . lexemeRange)
+    let loc = fromMaybe (parserStartPos rw)
+                (rng (lastToken rw) <|> rng (listToMaybe (nextTokens rw)))
+    pure (Left (ParseError loc))
 
-parserAt :: SourcePos -> TypeDefs -> Text -> Parser a -> Either ParseError a
-parserAt loc tyDefs txt (Parser m) = fst <$> m rw
+parserAt :: SourcePos -> Text -> Parser a -> Daedalus (Either ParseError a)
+parserAt loc txt (Parser m) = fmap fst <$> m rw
   where
   rw =
     ParserState {
       parserStartPos = loc,
       lastToken = Nothing,
       nextTokens = lexerAt loc txt,
-      typeDefsByMod = tyDefs,
-      typeDefsByName =
-        Map.fromListWith (++)
-          [ (Core.tnameText (Core.tName d), [d])
-          | ds <- Map.elems tyDefs,
-            d  <- Map.elems ds
-          ]
+      typeDefsByMod = error "[BUG] `parserAt`: typeDefsByMod",
+      typeDefsByName = error "[BUG] `parserAt`: typeDefsByNames"
     }
 
-parseFromFile :: FilePath -> TypeDefs -> Parser a -> IO (Either ParseError a)
-parseFromFile file tyDefs p =
-  do txt <- Text.readFile file
+parseFromFile :: FilePath -> Parser a -> Daedalus (Either ParseError a)
+parseFromFile file p =
+  do txt <- ddlIO (Text.readFile file)
      let loc = startPos (Text.pack file)
-     pure (parserAt loc tyDefs txt p)
+     parserAt loc txt p
 
 
 
+--------------------------------------------------------------------------------
+-- Load Daedalus
+--------------------------------------------------------------------------------
+
+setTypeEnv :: [EarlyDecl] -> Parser [EarlyDecl]
+setTypeEnv ents = Parser \rw ->
+  do
+    coreM <- loadDaedalus [ i | TopImport i <- ents ]
+    let tyDefs = getTypeDecls coreM
+    pure (Right 
+           (  ents,
+              rw {
+                typeDefsByMod = tyDefs,
+                typeDefsByName =
+                  Map.fromListWith (++)
+                    [ (Core.tnameText (Core.tName d), [d])
+                    | ds <- Map.elems tyDefs,
+                      d  <- Map.elems ds
+                    ]
+              }))
+
+
+loadDaedalus :: [Entries] -> Daedalus Core.Module
+loadDaedalus ents =
+  do
+    let toText = Name.toText . nameName
+    let ms = Set.toList (Set.fromList (map (toText . entryModule) ents))
+    mapM_ ddlLoadModule ms
+    let entries =
+          [ (toText (entryModule e), toText x) | e <- ents, x <- entryNames e ]
+    let specMod = "DaedalusMain"
+    passSpecialize specMod entries
+    passCore specMod
+    ddlGetAST specMod astCore
+
+-- | Get the type declarations, indexed by original module name.
+getTypeDecls :: Core.Module -> Map Text (Map Text Core.TDecl)
+getTypeDecls m =
+  Map.fromListWith Map.union [
+    (mo, Map.singleton (Core.tnameText nm) d) |
+    r <- Core.mTypes m,
+    d <- Core.recToList r,
+    let nm = Core.tName d
+        mo = Core.mNameText (Core.tnameMod nm)
+  ]
+
+  
 
 --------------------------------------------------------------------------------
 -- Resolving Types
@@ -290,7 +383,7 @@ resolveUnqualType l ts =
     "builder" -> valArg Core.TBuilder
     nm        -> getDecl nm >>= \def -> appType (lexemeRange l) def ts
   where
-  bad = Parser \_ -> Left (MalformedType (lexemeRange l))
+  bad = Parser \_ -> pure (Left (MalformedType (lexemeRange l)))
   noArg t =
     case ts of
       [] -> pure t
@@ -305,12 +398,13 @@ resolveUnqualType l ts =
       _         -> bad
   getDecl nm =
     Parser \rw ->
-      case Map.findWithDefault [] nm (typeDefsByName rw) of
-        [def] -> Right (def, rw)
-        []    -> Left (UndefinedType (lexemeRange l))
-        ds    -> Left (AmbiguousType (lexemeRange l)
-                          [ Core.mNameText (Core.tnameMod (Core.tName d))
-                          | d <- ds ])
+      pure
+        case Map.findWithDefault [] nm (typeDefsByName rw) of
+          [def] -> Right (def, rw)
+          []    -> Left (UndefinedType (lexemeRange l))
+          ds    -> Left (AmbiguousType (lexemeRange l)
+                            [ Core.mNameText (Core.tnameMod (Core.tName d))
+                            | d <- ds ])
 
 resolveQualType ::
   Lexeme Token -> Lexeme Token -> [Either Core.SizeType Core.Type] ->
@@ -323,9 +417,10 @@ resolveQualType q l args = getDecl >>= \def -> appType rng def args
       let mb = Map.lookup (lexemeText l) =<<
                                 Map.lookup (lexemeText q) (typeDefsByMod rw)
       in
-        case mb of
-          Nothing -> Left (UndefinedType rng)
-          Just a  -> Right (a,rw)
+        pure
+          case mb of
+            Nothing -> Left (UndefinedType rng)
+            Just a  -> Right (a,rw)
         
 
 -- | Make a type application, using the given type definition and arguments.
@@ -351,6 +446,6 @@ appType loc decl args0 =
         })
       (Left _ : moreArgs, _ : moreNumPs, _) -> go moreNumPs valPs moreArgs
       (Right _ : moreArgs, _, _ : moreValPs) -> go numPs moreValPs moreArgs
-      _ -> Parser \_ -> Left (MalformedType loc)
+      _ -> Parser \_ -> pure (Left (MalformedType loc))
 
 }

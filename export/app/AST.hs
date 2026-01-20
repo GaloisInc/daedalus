@@ -1,5 +1,7 @@
 module AST where
 
+import Data.Void(Void,vacuous)
+
 import Name(Name)
 import Quote
 import AlexTools(SourceRange)
@@ -8,14 +10,22 @@ import Daedalus.PP
 import Daedalus.Core qualified as Core
 
 
-newtype Module = Module {
-  moduleDecls :: [Decl]
-}
-
 data LName = LName {
   nameName :: Name,
   nameRange :: SourceRange
 }
+
+data Module = Module {
+  moduleEntries :: [Entries], -- ^ Roots for Daedalus parsers we are exporting
+  moduleForeign :: [Q Void],  -- ^ Arbitrary foreign text (e.g., #include or helper functions)
+  moduleDecls   :: [Decl]
+}
+
+data Entries = Entries {
+  entryModule :: LName,
+  entryNames  :: [LName]
+}
+
 
 data Decl = Decl {
   declName      :: LName,
@@ -50,8 +60,15 @@ data Pat =
 --------------------------------------------------------------------------------
 
 instance PP Module where
-  pp m = -- vcat (intersperse " " (map pp (moduleDecls m)))
-         vcat (map pp (moduleDecls m))
+  pp m =
+    vcat
+      [ vcat [ "import" <+> pp n | n <- moduleEntries m ]
+      , vcat [ pp (vacuous q :: Q Decl) | q <- moduleForeign m ]
+      , vcat (map pp (moduleDecls m))
+      ]
+
+instance PP Entries where
+  pp ent = pp (entryModule ent) <.> parens (commaSep (map pp (entryNames ent)))
 
 instance PP Decl where
   pp d = vcat [
