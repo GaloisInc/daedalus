@@ -16,15 +16,32 @@ data LName = LName {
 }
 
 data Module = Module {
-  moduleEntries :: [Entries], -- ^ Roots for Daedalus parsers we are exporting
-  moduleForeign :: [Q Void],  -- ^ Arbitrary foreign text (e.g., #include or helper functions)
-  moduleDecls   :: [Decl]
-}
+  moduleEntries :: [Entries],
+  -- ^ Roots for Daedalus parsers we are exporting
 
+  moduleForeign :: [Q Void],
+  -- ^ Arbitrary foreign text (e.g., #include or helper functions)
+
+  moduleForeignTypes :: [ForeignTypeDecl],
+  -- ^ Foreign type declarations
+
+  moduleDecls   :: [Decl]
+  -- ^ Exporter definitions
+  
+}
+-- | Specifies a Daedalus root
 data Entries = Entries {
   entryModule :: LName,
   entryNames  :: [LName]
 }
+
+data ForeignTypeDecl = ForeignTypeDecl {
+  ftName    :: LName,
+  ftParams  :: [LName],
+  ftDef     :: Q LName
+}
+
+data ForeignType = ForeignType LName [ForeignType]
 
 
 data Decl = Decl {
@@ -32,7 +49,7 @@ data Decl = Decl {
   declName      :: LName,
   declArg       :: LName,
   declArgType   :: Core.Type,
-  declResType   :: Q ExportType,
+  declResType   :: ForeignType,
   declDef       :: DeclDef
 }
 
@@ -74,11 +91,28 @@ instance PP Module where
     vcat
       [ vcat [ "import" <+> pp n | n <- moduleEntries m ]
       , vcat [ pp (vacuous q :: Q Decl) | q <- moduleForeign m ]
+      , vcat (map pp (moduleForeignTypes m))
       , vcat (map pp (moduleDecls m))
       ]
 
 instance PP Entries where
   pp ent = pp (entryModule ent) <.> parens (commaSep (map pp (entryNames ent)))
+
+instance PP ForeignTypeDecl where
+  pp fd =
+    vcat
+      [ "type" <+> pp (ftName fd) <+> hsep (map pp (ftParams fd)) <+> "->"
+      , nest 2 (pp (ftDef fd))
+      ]
+
+instance PP ForeignType where
+  pp ft = ppP (0 :: Int) ft
+    where
+    ppP n (ForeignType f xs) =
+      case xs of
+        [] -> pp f
+        _  -> if n > 0 then parens doc else doc
+          where doc = pp f <+> fsep (map (ppP 1) xs)
 
 instance PP Decl where
   pp d = vcat [

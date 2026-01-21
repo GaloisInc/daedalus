@@ -22,8 +22,10 @@ import Daedalus.Core qualified as Core
 import Lexer
 import AST
 import Quote
+import Name(Name)
 import Name qualified as Name
-import Daedalus.Driver
+import Daedalus.Driver (Daedalus)
+import Daedalus.Driver qualified as Daedalus
 }
 
 %tokentype { Lexeme Token }
@@ -36,10 +38,11 @@ import Daedalus.Driver
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
   'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
+  'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
   'import'      { Lexeme { lexemeToken = TokKW_import, lexemeRange = $$ } }
   'of'          { Lexeme { lexemeToken = TokKW_of, lexemeRange = $$ } }
-  'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
-  
+  'type'        { Lexeme { lexemeToken = TokKW_type, lexemeRange = $$ } }
+
   '('           { Lexeme { lexemeToken = TokParenOpen,  lexemeRange = $$ } } 
   ')'           { Lexeme { lexemeToken = TokParenClose, lexemeRange = $$ } }
   '['           { Lexeme { lexemeToken = TokBracketOpen,  lexemeRange = $$ } } 
@@ -76,19 +79,24 @@ early_decls ::                              { [EarlyDecl] }
   : listOf1(early_decl)                     {% setTypeEnv $1 }
 
 early_decl ::                               { EarlyDecl }
-  : 'import' entries 'v;'                   { TopImport $2 }
-  | foreign_decl 'v;'                       { EarlyForeign $1 }
+  : 'import' entries 'v;'                   { TopOther $2 }
+  | foreign_decl 'v;'                       { TopForeign $1 }
+  | foreign_type_decl 'v;'                  { TopForeignType $1 }
 
 late_decls ::                               { [LateDecl] }
-  : decl listOf(late_decl)                  { TopDef $1 : $2 }
+  : decl listOf(late_decl)                  { TopOther $1 : $2 }
 
 late_decl ::                                { LateDecl }
-  : 'v;' decl                               { TopDef $2 }
-  | 'v;' foreign_decl                       { LateForeign $2 }
+  : 'v;' decl                               { TopOther $2 }
+  | 'v;' foreign_decl                       { TopForeign $2 }
+  | 'v;' foreign_type_decl                  { TopForeignType $2 }
 
 foreign_decl ::                             { Q Void }
   : 'extern' '->' 'v{' listOf(OBJ) 'v}'     { Q (map objWord $4) }
 
+foreign_type_decl ::                        { ForeignTypeDecl }
+  : 'type' ename listOf(ename)              
+    '->' foreign_type_def                   { ForeignTypeDecl $2 $3 $5 }
 
 entries ::                                  { Entries }
   : ename                                   { defaultEntry $1 }
@@ -97,18 +105,19 @@ entries ::                                  { Entries }
 decl ::                                     { Decl }
   : opt_default 'def'
     ename '(' ename ':' type ')'
-    '->' obj_type decl_def                  { Decl $1 $3 $5 $7 $10 $11 }
+    ':' foreign_type decl_def               { Decl $1 $3 $5 $7 $10 $11 }
 
 opt_default ::                              { Bool }
   : 'default'                               { True }
   | {- empty -}                             { False }
 
 decl_def ::                                 { DeclDef }
-  : '->' obj_expr                           { DeclDef $2 }
-  | '=' 'case' ename 'of' 'v{' sepBy('v;',case_alt) 'v}' { DeclCase $3 $6 }
+  : '->' foreign_expr                       { DeclDef $2 }
+  | '=' 'case' ename 'of'
+    'v{' sepBy('v;',case_alt) 'v}'          { DeclCase $3 $6 }
 
 case_alt ::                                 { (Pat, Q ExportExpr) }
-  : pat '->' obj_expr                       { ($1, $3) }
+  : pat '->' foreign_expr                   { ($1, $3) }
 
 pat ::                                      { Pat }
   : ename                                   { PCon $1 Nothing }
@@ -135,21 +144,33 @@ atype                                    :: { Core.Type }
   | '{' '}'                                 { Core.TUnit }
   | qname                                   {% resolveType $1 [] }
 
-
 arr_or_map                               :: { Core.Type }
   : type                                    { Core.TArray $1 }
   | type ':' type                           { Core.TMap $1 $3 }
     -- NOTE: This syntax differs from Daedalus, which uses K -> V, but -> is quite special for us.
 
-obj_type ::                                 { Q ExportType }
-  : 'v{' listOf(OBJ) 'v}'                   { Q (map objWord $2) } -- XXX: Spaces, etc
 
-obj_expr ::                                 { Q ExportExpr }
-  : 'v{' listOf(obj_word) 'v}'              { Q $2 }
+foreign_type ::                             { ForeignType }
+  : aforeign_type                           { $1 }
+  | ename listOf1(aforeign_type)            { ForeignType $1 $2 }
 
-obj_word ::                                 { QuoteWord ExportExpr }
+aforeign_type ::                            { ForeignType }
+  : '(' foreign_type ')'                    { $2 }
+  | ename                                   { ForeignType $1 [] }
+
+foreign_type_def ::                         { Q LName }
+  : 'v{' listOf(foreign_type_word) 'v}'     { Q $2 }
+
+foreign_type_word ::                        { QuoteWord LName }
   : OBJ                                     { objWord $1 }
-  | '$' ename                               { Meta (ExportExpr ExportDefault (DDLVar $2)) }
+  | '$' ename                               { Meta $2 }
+
+foreign_expr ::                             { Q ExportExpr }
+  : 'v{' listOf(foreign_expr_word) 'v}'     { Q $2 }
+
+foreign_expr_word ::                        { QuoteWord ExportExpr }
+  : OBJ                                     { objWord $1 }
+  | '$' ename                               { Meta (ExportExpr ExportDefault (DDLExpr $2 [])) }
   | '$' '(' expr ')'                        { Meta $3 }
 
 expr ::                                     { ExportExpr }
@@ -162,8 +183,8 @@ exporter ::                                 { Exporter }
   | 'default'                               { ExportDefault }
 
 ddl_expr ::                                 { DDLExpr }
-  : ename                                   { DDLVar $1 }
-  | ename '.' ename                         { DDLSelect $1 $3 }
+  : ename                                   { DDLExpr $1 [] }
+  | ename '.' ename                         { DDLExpr $1 [StructSelector :. $3] }
 
 
 --------------------------------------------------------------------------------
@@ -204,15 +225,19 @@ defaultEntry m = Entries {
   entryNames  = [ m { nameName = Name.fromText "Main" } ]
 }
 
-data EarlyDecl = EarlyForeign (Q Void) | TopImport Entries
-data LateDecl  = LateForeign (Q Void) | TopDef Decl
+data TopDecl a = TopForeign (Q Void) | TopForeignType ForeignTypeDecl | TopOther a
+type EarlyDecl = TopDecl Entries
+type LateDecl  = TopDecl Decl
 
 mkModule :: [EarlyDecl] -> [LateDecl] -> Module
 mkModule es ds =
   Module {
-    moduleEntries = [ e | TopImport e <- es ],
-    moduleForeign = [ x | EarlyForeign x <- es ] ++ [ x | LateForeign x <- ds ],
-    moduleDecls   = [ d | TopDef d <- ds ]
+    moduleEntries       = [ e | TopOther e <- es ],
+    moduleForeign       = [ x | TopForeign x <- es ] ++
+                          [ x | TopForeign x <- ds ],
+    moduleForeignTypes  = [ x | TopForeignType x <- es ] ++
+                          [ x | TopForeignType x <- ds ],
+    moduleDecls         = [ d | TopOther d <- ds ]
   }
 
 
@@ -315,7 +340,7 @@ parserAt loc txt (Parser m) = fmap fst <$> m rw
 
 parseFromFile :: FilePath -> Parser a -> Daedalus (Either ParseError a)
 parseFromFile file p =
-  do txt <- ddlIO (Text.readFile file)
+  do txt <- Daedalus.ddlIO (Text.readFile file)
      let loc = startPos (Text.pack file)
      parserAt loc txt p
 
@@ -328,7 +353,7 @@ parseFromFile file p =
 setTypeEnv :: [EarlyDecl] -> Parser [EarlyDecl]
 setTypeEnv ents = Parser \rw ->
   do
-    coreM <- loadDaedalus [ i | TopImport i <- ents ]
+    coreM <- loadDaedalus [ i | TopOther i <- ents ]
     let tyDefs = getTypeDecls coreM
     pure (Right 
            (  ents,
@@ -348,13 +373,13 @@ loadDaedalus ents =
   do
     let toText = Name.toText . nameName
     let ms = Set.toList (Set.fromList (map (toText . entryModule) ents))
-    mapM_ ddlLoadModule ms
+    mapM_ Daedalus.ddlLoadModule ms
     let entries =
           [ (toText (entryModule e), toText x) | e <- ents, x <- entryNames e ]
     let specMod = "DaedalusMain"
-    passSpecialize specMod entries
-    passCore specMod
-    ddlGetAST specMod astCore
+    Daedalus.passSpecialize specMod entries
+    Daedalus.passCore specMod
+    Daedalus.ddlGetAST specMod Daedalus.astCore
 
 -- | Get the type declarations, indexed by original module name.
 getTypeDecls :: Core.Module -> Map Text (Map Text Core.TDecl)

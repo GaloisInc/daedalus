@@ -21,7 +21,6 @@ data ValidationError =
   | TypeMismatch Core.Type Core.Type    -- XXX: Locations
   | SizeMismatch Core.SizeType Core.SizeType -- XXX: Location
 
-type ForeignType       = Q ExportType
 data BasicExporterType = Core.Type :-> ForeignType
 data ExporterType      = Forall {
   etDDLTypeVars     :: [Core.TParam],

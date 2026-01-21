@@ -21,6 +21,7 @@ $digit      = [0-9]
 "extern"    { emit TokKW_extern }
 "import"    { emit TokKW_import }
 "of"        { startLayout TokKW_of }
+"type"      { emit TokKW_type }
 
 "["         { emit TokBracketOpen }
 "]"         { emit TokBracketClose }
@@ -84,6 +85,7 @@ data Token =
   | TokKW_extern
   | TokKW_import
   | TokKW_of
+  | TokKW_type
   
   | TokIdent
   | TokNumber
