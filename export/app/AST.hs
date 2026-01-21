@@ -117,9 +117,9 @@ instance PP ForeignType where
 instance PP Decl where
   pp d = vcat [
     "def" <+> dflt <+> pp (declName d) <.>
-      parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <+> "->",
-    nest 2 (pp (declResType d)),
-    nest 2 (pp (declDef d))
+      parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <.>
+        ":" <+> pp (declResType d) <+> ppDeclDefStarter (declDef d),
+      nest 2 (ppDeclDefBody (declDef d))
     ]
     where dflt = if declDefault d then "default" else mempty
 
@@ -154,15 +154,24 @@ instance PP SelectorType where
 instance PP ExportExpr where
   pp (ExportExpr f x) = pp f <+> pp x
 
+ppDeclDefBody :: DeclDef -> Doc
+ppDeclDefBody d =
+  case d of
+    DeclDef f -> pp f
+    DeclCase x alts ->
+      vcat [
+        "case" <+> pp x <+> "of",
+        nest 2 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
+      ]
+
+ppDeclDefStarter :: DeclDef -> Doc
+ppDeclDefStarter d =
+  case d of
+    DeclDef {} -> "->"
+    DeclCase {} -> "="
+
 instance PP DeclDef where
-  pp d =
-    case d of
-      DeclDef f -> "->" $$ nest 2 (pp f)
-      DeclCase x alts ->
-        vcat [
-          "=" <+> "case" <+> pp x <+> "of",
-          nest 4 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
-        ]
+  pp d = ppDeclDefStarter d <+> ppDeclDefBody d
 
 instance PP Pat where
   pp (PCon c mb) = pp c <+> maybe mempty pp mb
