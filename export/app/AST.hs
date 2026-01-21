@@ -47,9 +47,14 @@ data ExportExpr = ExportExpr {
   exportExpr :: DDLExpr
 }
 
-data DDLExpr = DDLVar LName           -- ^ Variable
-             | DDLSelect LName LName  -- ^ Struct selector
-             | DDLFrom LName LName    -- ^ Union selector (added by checker)
+
+data DDLExpr      = DDLExpr LName Selectors
+type Selectors    = [Selector]
+data Selector     = SelectorType :. LName
+data SelectorType =
+    StructSelector    -- ^ Select from a struct.  Parser only produces these.
+  | BDSelector        -- ^ Select from a BD struct (introduced by `Check`)
+  | UnionSelector     -- ^ Select from a union (introduced by `Check`)
 
 data DeclDef =
     DeclDef (Q ExportExpr)
@@ -100,9 +105,17 @@ instance PP Exporter where
 instance PP DDLExpr where
   pp e =
     case e of
-      DDLVar x -> pp x
-      DDLSelect x l -> pp x <.> "." <.> pp l
-      DDLFrom x l -> pp x <.> "!." <.> pp l
+      DDLExpr x sels -> pp x <.> hcat (map pp sels)
+      
+instance PP Selector where
+  pp (x :. l) = pp x <.> pp l
+
+instance PP SelectorType where
+  pp x =
+    case x of
+      StructSelector -> "."
+      BDSelector     -> ":."
+      UnionSelector  -> "!."
 
 instance PP ExportExpr where
   pp (ExportExpr f x) = pp f <+> pp x
