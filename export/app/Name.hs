@@ -23,5 +23,8 @@ fromText txt = Name (Text.foldl' hash 5381 txt) txt
   hash h c = (shiftL h 5 + h) `xor` fromEnum c
   -- djb2
 
+instance Show Name where
+  show = show . toText
+
 instance PP Name where
   pp = pp . toText
