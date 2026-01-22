@@ -53,7 +53,7 @@ $white      ;
 <object> {
   "$$"       { map (\l -> l { lexemeText = "$" }) <$> emit TokObject }
   "$"        { startSplice }
-  [~\$]+     { emit TokObject }
+  [^\$]+     { emit TokObject }
   \n         { objectGotoNextLine }
 }
 
@@ -153,7 +153,7 @@ data LexState =
 emitObjectNL :: Action LexState [Lexeme Token]
 emitObjectNL =
   do
-    r <- matchRange
+    r <- matchRange    
     s <- getLexerState
     case s of
       InObject l | LayoutStarting <- layoutState l -> pure []
@@ -177,7 +177,8 @@ checkObjectEnd =
       InObjectLineStart l ->
         do
           r <- matchRange
-          let col = sourceColumn (sourceTo r) + 1
+          n <- matchLength
+          let col = sourceColumn (if n == 0 then sourceFrom r else sourceTo r) + 1
           case layoutState l of
             LayoutStarting -> setLexerState (InObject l) >> pure []
             LayoutBlock b
@@ -205,8 +206,8 @@ startLayout tok =
             do
               let newL = l { layoutState = LayoutStarting, layoutStack = n : layoutStack l }
               case tok of
-                TokRightArrow -> setLexerState (InObject newL)
-                _ -> setLexerState (Normal newL)
+                TokRightArrow -> setLexerState (InObject newL) -- layout for foreign
+                _ -> setLexerState (Normal newL) -- layout for case
               lexeme tok
       InSplice {} -> error "[bug] `startLayout` in splice"
       InObject {} -> error "[bug] `startLayout` in object"
