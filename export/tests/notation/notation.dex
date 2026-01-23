@@ -1,0 +1,18 @@
+extern ->
+  #include <cstdint>
+  #include <option>
+
+type uint8_t    -> uint8_t
+type option<T>  -> std::option<$T>
+
+default
+def as_uint8 (x: uint 8): uint8_t = extern
+
+default
+def as_option<A,T> (f: A => T) (x: maybe A): option<T> =
+  case x of
+    Nothing -> std::option()
+    Just a  -> std::option($(f a))
+
+def as_option_uint8 (x: maybe (uint 8)): option<uint8_t> ->
+  $(as_option as_uint8 x)

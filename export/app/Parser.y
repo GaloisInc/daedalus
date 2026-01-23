@@ -7,15 +7,17 @@ module Parser (
 
 import Control.Monad
 import Control.Applicative((<|>))
-import Data.Maybe(listToMaybe, fromMaybe)
+import Data.Maybe(listToMaybe, fromMaybe, mapMaybe)
 import Data.Text(Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LazyText
 import Data.Text.IO qualified as Text
+import Data.Set(Set)
 import Data.Set qualified as Set
 import Data.Map(Map)
 import Data.Map qualified as Map
 import Data.Void(Void)
+import Data.Foldable(toList)
 import AlexTools
 import Daedalus.PP
 import Daedalus.Core qualified as Core
@@ -26,6 +28,7 @@ import Name(Name)
 import Name qualified as Name
 import Daedalus.Driver (Daedalus)
 import Daedalus.Driver qualified as Daedalus
+
 }
 
 %tokentype { Lexeme Token }
@@ -54,15 +57,12 @@ import Daedalus.Driver qualified as Daedalus
 
   '='           { Lexeme { lexemeToken = TokEqual, lexemeRange = $$ } }
   '->'          { Lexeme { lexemeToken = TokRightArrow, lexemeRange = $$ } }
+  '=>'          { Lexeme { lexemeToken = TokFatRightArrow, lexemeRange = $$ } }
   '.'           { Lexeme { lexemeToken = TokDot, lexemeRange = $$ } }
   ','           { Lexeme { lexemeToken = TokComma, lexemeRange = $$ } }
   '::'          { Lexeme { lexemeToken = TokColonColon, lexemeRange = $$ } }
   ':'           { Lexeme { lexemeToken = TokColon, lexemeRange = $$ } }
   '$'           { Lexeme { lexemeToken = TokDollar, lexemeRange = $$ } }
-
-  'v{'          { Lexeme { lexemeToken = TokLayoutStart, lexemeRange = $$ } }
-  'v;'          { Lexeme { lexemeToken = TokLayoutSep, lexemeRange = $$ } }
-  'v}'          { Lexeme { lexemeToken = TokLayoutEnd, lexemeRange = $$ } }
 
 %monad { Parser }
 %lexer { nextToken } { Lexeme { lexemeToken = TokEOF } }
@@ -71,53 +71,73 @@ import Daedalus.Driver qualified as Daedalus
 %name moduleParser module
 
 %%
-
 module ::                                   { Module }
-  : 'v{' early_decls late_decls 'v}'        { mkModule $2 $3 }
+  : early_decls late_decls                  { mkModule $1 $2 }
 
 early_decls ::                              { [EarlyDecl] }
   : listOf1(early_decl)                     {% setTypeEnv $1 }
 
 early_decl ::                               { EarlyDecl }
-  : 'import' entries 'v;'                   { TopOther $2 }
-  | foreign_decl 'v;'                       { TopForeign $1 }
-  | foreign_type_decl 'v;'                  { TopForeignType $1 }
+  : import_decl                             { TopOther $1 }
+  | extern_decl                             { TopExtern $1 }
+  | type_alias_decl                         { TopTypeAlias $1 }
 
 late_decls ::                               { [LateDecl] }
-  : decl listOf(late_decl)                  { TopOther $1 : $2 }
+  : export_decl listOf(late_decl)           { TopOther $1 : $2 }
 
 late_decl ::                                { LateDecl }
-  : 'v;' decl                               { TopOther $2 }
-  | 'v;' foreign_decl                       { TopForeign $2 }
-  | 'v;' foreign_type_decl                  { TopForeignType $2 }
+  : export_decl                             { TopOther $1 }
+  | extern_decl                             { TopExtern $1 }
+  | type_alias_decl                         { TopTypeAlias $1 }
 
-foreign_decl ::                             { Q Void }
-  : 'extern' '->' 'v{' listOf(OBJ) 'v}'     { Q (map objWord $4) }
 
-foreign_type_decl ::                        { ForeignTypeDecl }
-  : 'type' ename listOf(ename)              
-    '->' foreign_type_def                   { ForeignTypeDecl $2 $3 $5 }
+import_decl ::                              { Entries }
+  : 'import' roots                          { $2 }
 
-entries ::                                  { Entries }
+roots ::                                    { Entries }
   : ename                                   { defaultEntry $1 }
   | ename '(' sepBy1(',', ename) ')'        { Entries { entryModule = $1, entryNames = $3 } }
 
-decl ::                                     { Decl }
-  : opt_default 'def'
-    ename '(' ename ':' type ')'
-    ':' foreign_type decl_def               { Decl $1 $3 $5 $7 $10 $11 }
 
-opt_default ::                              { Bool }
+extern_decl ::                              { Q Void }
+  : 'extern' foreign_block(extern_splice)   { $2 }
+
+type_alias_decl ::                          { ForeignTypeDecl }
+  : 'type' ename type_alias_params              
+    foreign_block(ename)                    {% addForeignTypeDecl $2 $3 $4 }
+
+type_alias_params ::                        { [LName] }
+  : '<' listOf1(ename) '>'                  { $2 }
+  | {- empty -}                             { [] }
+
+
+export_decl ::                              { Decl }
+  : default ename opt_tparams listOf1(param)
+    ':' foreign_type decl_def               {% mkDecl $1 $2 $4 $6 $7 }
+
+default ::                                  { Bool }
   : 'default'                               { True }
-  | {- empty -}                             { False }
+  | 'def'                                   { False }
+
+opt_tparams ::                              { () }
+  : '<' sepBy1(',',ename) '>'               {% setTParams $2 }
+  | {- empty -}                             {% setTParams [] }
+
+param ::                                    { Param }
+  : '(' ename ':' fun_type ')'              { FunParam $2 $4 }
+  | '(' ename ':' type     ')'              { ValParam $2 $4 }
+
+fun_type ::                                 { BasicExporterType }
+  : type '=>' foreign_type                  { $1 :-> $3 }
 
 decl_def ::                                 { DeclDef }
-  : '->' foreign_expr                       { DeclDef $2 }
+  : foreign_block(expr_splice)              { DeclDef $1 }
+  | '=' 'extern'                            { DeclExtern }
   | '=' 'case' ename 'of'
-    'v{' sepBy('v;',case_alt) 'v}'          { DeclCase $3 $6 }
+    listOf(case_alt)                        { DeclCase $3 $5 }
 
 case_alt ::                                 { (Pat, Q ExportExpr) }
-  : pat '->' foreign_expr                   { ($1, $3) }
+  : pat foreign_block(expr_splice)          { ($1, $2) }
 
 pat ::                                      { Pat }
   : ename                                   { PCon $1 Nothing }
@@ -150,42 +170,45 @@ arr_or_map                               :: { Core.Type }
     -- NOTE: This syntax differs from Daedalus, which uses K -> V, but -> is quite special for us.
 
 
+
 foreign_type ::                             { ForeignType }
-  : aforeign_type                           { $1 }
-  | ename listOf1(aforeign_type)            { ForeignType $1 $2 }
-
-aforeign_type ::                            { ForeignType }
-  : '(' foreign_type ')'                    { $2 }
-  | ename                                   { ForeignType $1 [] }
-
-foreign_type_def ::                         { Q LName }
-  : 'v{' listOf(foreign_type_word) 'v}'     { Q $2 }
-
-foreign_type_word ::                        { QuoteWord LName }
-  : OBJ                                     { objWord $1 }
-  | '$' ename                               { Meta $2 }
-
-foreign_expr ::                             { Q ExportExpr }
-  : 'v{' listOf(foreign_expr_word) 'v}'     { Q $2 }
-
-foreign_expr_word ::                        { QuoteWord ExportExpr }
-  : OBJ                                     { objWord $1 }
-  | '$' ename                               { Meta (ExportExpr ExportDefault (DDLExpr $2 [])) }
-  | '$' '(' expr ')'                        { Meta $3 }
+  : ename                                   {% resolveForeign $1 [] }
+  | ename '<' sepBy1(',', foreign_type) '>' {% resolveForeign $1 $3 }
 
 expr ::                                     { ExportExpr }
   : exporter ddl_expr                       { ExportExpr $1 $2 }
   | ddl_expr                                { ExportExpr ExportDefault $1 }
 
 exporter ::                                 { Exporter }
-  : ename                                   { ExportWith $1 [] }
-  | ename '<' sepBy(',', exporter) '>'      { ExportWith $1 $3 }
-  | 'default'                               { ExportDefault }
+  : aexporter                               { $1 }
+  | exporter aexporter                      { ExportApp $1 $2 }
+
+aexporter ::                                { Exporter }
+  : ename                                   { ExportTop $1 }
+  | 'default'                               { ExportDefault } 
+  | '(' exporter ')'                        { $2 }
 
 ddl_expr ::                                 { DDLExpr }
   : ename                                   { DDLExpr $1 [] }
   | ename '.' ename                         { DDLExpr $1 [StructSelector :. $3] }
 
+expr_splice ::                              { ExportExpr }
+  : ename                                   { ExportExpr ExportDefault (DDLExpr $1 []) }
+  | '(' expr ')'                            { $2 }
+
+extern_splice ::                            { Void }
+  : {- empty -}                             {% externSplice }
+
+foreign_block(s) ::                         { Q s }
+  : '->' foreign_words(s)                   { Q (reverse $2) }
+
+foreign_words(s) ::                         { [QuoteWord s] }
+  : foreign_words(s) foreign_word(s)        { $2 : $1 }
+  | {- empty -}                             { [] }
+
+foreign_word(s) ::                          { QuoteWord s }
+  : OBJ                                     { objWord $1 }
+  | '$' s                                   { Meta $2 } 
 
 --------------------------------------------------------------------------------
 sepBy1(s,p)                              :: { [p] }
@@ -225,20 +248,70 @@ defaultEntry m = Entries {
   entryNames  = [ m { nameName = Name.fromText "Main" } ]
 }
 
-data TopDecl a = TopForeign (Q Void) | TopForeignType ForeignTypeDecl | TopOther a
+data TopDecl a = TopExtern (Q Void) | TopTypeAlias ForeignTypeDecl | TopOther a
 type EarlyDecl = TopDecl Entries
 type LateDecl  = TopDecl Decl
+
+data Param     = FunParam LName BasicExporterType | ValParam LName Core.Type
 
 mkModule :: [EarlyDecl] -> [LateDecl] -> Module
 mkModule es ds =
   Module {
     moduleEntries       = [ e | TopOther e <- es ],
-    moduleForeign       = [ x | TopForeign x <- es ] ++
-                          [ x | TopForeign x <- ds ],
-    moduleForeignTypes  = [ x | TopForeignType x <- es ] ++
-                          [ x | TopForeignType x <- ds ],
+    moduleForeign       = [ x | TopExtern x <- es ] ++
+                          [ x | TopExtern x <- ds ],
+    moduleForeignTypes  = [ x | TopTypeAlias x <- es ] ++
+                          [ x | TopTypeAlias x <- ds ],
     moduleDecls         = [ d | TopOther d <- ds ]
   }
+
+mkDecl ::
+  Bool {- ^ Default? -} ->
+  LName {- ^ Definition name -} ->
+  [Param] {- ^ Parameters -} ->
+  ForeignType {- ^ Target type to export to -} ->
+  DeclDef {- ^ Exporter definition -} ->
+  Parser Decl
+mkDecl isDefault f params res def =
+  Parser \rw ->
+    pure
+    case unusedTParams rw of
+      [] ->
+        case checkFunParams [] params of
+          Left err -> Left err
+          Right (fs,x,t) ->
+            Right
+              ( Decl {
+                  declDefault = isDefault,
+                  declName = f,
+                  declDDLTParams = ddlTParams rw,
+                  declForeignTParams = foreignTParams rw,
+                  declFunParams = fs,
+                  declArg = x,
+                  declArgType = t,
+                  declResType = res,
+                  declDef = def
+                }, rw
+              )
+      x : _ -> Left (UnusedTParam x)
+  where
+  checkFunParams fs ps =
+    case ps of
+      [] -> Left (MissingValueParameter f)
+      FunParam f t : more -> checkFunParams ((f,t) : fs) more
+      [ValParam x t] -> Right (reverse fs, x, t)
+      ValParam x _ : ValParam y _ : _ -> Left (MultipleValueParameters x y)
+      ValParam x _ : FunParam f _ : _ -> Left (FunctionAfterValue x f)
+        
+-- | Check if the given name corresponds to a type parameter,
+-- and if so, remove it from the unused list and return it.
+isUnusedTParam :: LName -> Parser (Maybe LName)
+isUnusedTParam x = Parser \rw ->
+  pure $
+  case break (\p -> nameName p == nameName x) (unusedTParams rw) of
+    (as, b : bs) -> Right (Just b, rw { unusedTParams = as ++ bs })
+    _ -> Right (Nothing, rw)
+
 
 
 --------------------------------------------------------------------------------
@@ -248,23 +321,52 @@ mkModule es ds =
 data ParseError =
     LexicalError SourceRange Text
   | ParseError SourcePos
-  | UndefinedType SourceRange
+  | UndefinedType SourceRange Text
   | AmbiguousType SourceRange [Text]
   | MalformedType SourceRange
-  deriving Show
+  | MultipleDefs Name SourceRange SourceRange
+  | UnusedTParam LName
+  | UndefinedForeignTypeParameter LName
+  | UndefinedForeignType LName
+  | ExternSplice SourceRange
+  | MissingValueParameter LName
+  | MultipleValueParameters LName LName
+  | FunctionAfterValue LName LName
+
 
 instance PP ParseError where
   pp err =
     case err of
       LexicalError rng msg -> ppErr (sourceFrom rng) (text (Text.unpack msg))
       ParseError loc -> ppErr loc "Parse error"
-      UndefinedType rng -> ppErr (sourceFrom rng) "Undefined type"
+      UndefinedType rng txt -> ppErr (sourceFrom rng) ("Undefined type" <+> quot txt)
       AmbiguousType r ms ->
         ppErr (sourceFrom r) "Ambiguous type, defined in module:" $$
           nest 2 (vcat (map (text . Text.unpack) ms))
       MalformedType rng -> ppErr (sourceFrom rng) "Malformed type"
+      MultipleDefs x r1 r2 ->
+        ppErr (sourceFrom r2) ("Multiple definitions for" <+> quot x <.> ":") $$
+          nest 2 ("Also defined here:" <+> text (prettySourcePos (sourceFrom r1)))
+      UndefinedForeignTypeParameter x ->
+        ppErr (sourceFrom (nameRange x)) ("Undefined type parameter:" <+> quot (nameName x))
+      UndefinedForeignType x ->
+        ppErr (sourceFrom (nameRange x)) ("Undefined foreign type" <+> quot (nameName x))
+      UnusedTParam x ->
+        ppErr (sourceFrom (nameRange x)) ("Unused type parameter" <+> quot (nameName x))
+      ExternSplice x -> ppErr (sourceFrom x) "Splices are not allowed in `extern` blocks"
+      MissingValueParameter f ->
+        ppErr (sourceFrom (nameRange f))
+          ("The definitions of" <+> quot (nameName f) <+> "does not have a value to export.")
+      MultipleValueParameters x y ->
+        ppErr (sourceFrom (nameRange y))
+          ("Multiple export values:" $$
+            nest 2 ("Other export value:" <+> text (prettySourcePos (sourceFrom (nameRange x)))))
+      FunctionAfterValue x f ->
+        ppErr (sourceFrom (nameRange f))
+          "Function parameters may not appear after the export value."
     where
     ppErr l msg = text (prettySourcePosLong l) <.> ":" <+> msg
+    quot x = "`" <.> pp x <.> "`"
 
 
 
@@ -279,11 +381,15 @@ newtype Parser a = Parser (ParserState -> Daedalus (Either ParseError (a, Parser
 type TypeDefs = Map Text (Map Text Core.TDecl)
 
 data ParserState = ParserState {
-  parserStartPos  :: SourcePos,
-  lastToken       :: Maybe (Lexeme Token),
-  nextTokens      :: [Lexeme Token],
-  typeDefsByMod   :: TypeDefs,
-  typeDefsByName  :: Map Text [Core.TDecl]
+  parserStartPos    :: SourcePos,
+  lastToken         :: Maybe (Lexeme Token),
+  nextTokens        :: [Lexeme Token],
+  typeDefsByMod     :: TypeDefs,
+  typeDefsByName    :: Map Text [Core.TDecl],
+  foreignTypeDecls  :: Map Name ForeignTypeDecl,
+  unusedTParams     :: [ LName ],
+  ddlTParams        :: [ (LName, Core.TParam) ],
+  foreignTParams    :: [ LName ]
 }
 
 instance Functor Parser where
@@ -315,7 +421,7 @@ nextToken k = Parser \rw ->
         _ ->
           do
             let Parser m = k t
-            -- ddlPrint (lexemeToken t)
+            -- Daedalus.ddlPutStrLn (show (lexemeToken t) ++ ": " ++ show (lexemeText t) )
             m rw { lastToken = Just t, nextTokens = ts }
 
 happyError :: [String] -> Parser a
@@ -326,6 +432,12 @@ happyError next = Parser \rw ->
                 (rng (lastToken rw) <|> rng (listToMaybe (nextTokens rw)))
     pure (Left (ParseError loc))
 
+externSplice :: Parser a
+externSplice = Parser \rw ->
+  case lastToken rw of
+    Just x -> pure (Left (ExternSplice (lexemeRange x)))
+    Nothing -> error "[BUG] externSplice"
+
 parserAt :: SourcePos -> Text -> Parser a -> Daedalus (Either ParseError a)
 parserAt loc txt (Parser m) = fmap fst <$> m rw
   where
@@ -335,7 +447,11 @@ parserAt loc txt (Parser m) = fmap fst <$> m rw
       lastToken = Nothing,
       nextTokens = lexerAt loc txt,
       typeDefsByMod = error "[BUG] `parserAt`: typeDefsByMod",
-      typeDefsByName = error "[BUG] `parserAt`: typeDefsByNames"
+      typeDefsByName = error "[BUG] `parserAt`: typeDefsByNames",
+      foreignTypeDecls = mempty,
+      unusedTParams = mempty,
+      ddlTParams = mempty,
+      foreignTParams = mempty
     }
 
 parseFromFile :: FilePath -> Parser a -> Daedalus (Either ParseError a)
@@ -392,11 +508,96 @@ getTypeDecls m =
         mo = Core.mNameText (Core.tnameMod nm)
   ]
 
-  
+--------------------------------------------------------------------------------
+-- Resolving Foreign Types
+--------------------------------------------------------------------------------
+addForeignTypeDecl :: LName -> [LName] -> Q LName -> Parser ForeignTypeDecl
+addForeignTypeDecl f xs def = Parser \rw ->
+  let fs = foreignTypeDecls rw
+      nm = nameName f
+      thisRng = nameRange f
+  in
+  pure
+  case Map.lookup nm fs of
+    Just def -> Left (MultipleDefs nm (nameRange (ftName def)) thisRng)
+    Nothing  ->
+      let ps = Set.fromList (map nameName xs)
+          check x = if nameName x `Set.member` ps
+                      then Nothing
+                      else Just (UndefinedForeignTypeParameter x)
+      in
+        case mapMaybe check (toList def) of
+          err : _ -> Left err
+          [] ->
+            let
+              d = ForeignTypeDecl {
+                    ftName = f,
+                    ftParams = xs,
+                    ftDef = def
+                  }
+            in Right (d, rw { foreignTypeDecls = Map.insert nm d fs })
+
+
+
+isForeignTParam :: LName -> Parser (Maybe LName)
+isForeignTParam x =
+  do
+    mb <- isUnusedTParam x
+    case mb of
+      Nothing ->
+        Parser \rw ->
+          pure $ Right
+          case break (\p -> nameName p == nameName x) (foreignTParams rw) of
+            (_, b : _) -> (Just b, rw)
+            _ -> (Nothing, rw)
+      Just yes ->
+        Parser \rw ->
+          pure (Right (Just x, rw { foreignTParams = yes : foreignTParams rw }))
+
+
+
+resolveForeign :: LName -> [ForeignType] -> Parser ForeignType
+resolveForeign x fs =
+  do
+    mb <- isForeignTParam x
+    case mb of
+      Just yes ->
+        case fs of
+          [] -> pure (ForeignTVar yes)
+          _  -> Parser \_ -> pure (Left (MalformedType (nameRange x)))
+      Nothing ->
+        Parser \rw ->
+          pure
+          case Map.lookup (nameName x) (foreignTypeDecls rw) of
+            Nothing -> Left (UndefinedForeignType x)
+            Just def ->
+              let have = length fs
+                  need = length (ftParams def)
+              in if have == need then Right (ForeignType x fs, rw)
+                                 else Left (MalformedType (nameRange x))
+
 
 --------------------------------------------------------------------------------
--- Resolving Types
+-- Resolving Daedalus Types
 --------------------------------------------------------------------------------
+
+
+isDDLTParam :: LName -> Parser (Maybe Core.TParam)
+isDDLTParam x =
+  do
+    mb <- isUnusedTParam x
+    case mb of
+      Nothing ->
+        Parser \rw ->
+          pure $ Right
+          case [ t | (a,t) <- ddlTParams rw, nameName x == nameName a ] of
+            [] -> (Nothing, rw)
+            a : _ -> (Just a, rw)
+      Just p ->
+        Parser \rw ->
+          pure $ Right
+            let t = Core.TP (length (ddlTParams rw))
+            in (Just t, rw { ddlTParams = (p,t) : ddlTParams rw })
 
 -- | Map a name to the corresponding Core type.
 resolveType ::
@@ -420,7 +621,12 @@ resolveUnqualType l ts =
     "sint"    -> numArg Core.TSInt
     "maybe"   -> valArg Core.TMaybe
     "builder" -> valArg Core.TBuilder
-    nm        -> getDecl nm >>= \def -> appType (lexemeRange l) def ts
+    nm        ->
+      do
+        mb <- isDDLTParam LName { nameName = Name.fromText (lexemeText l), nameRange = lexemeRange l }
+        case mb of
+          Nothing -> getDecl nm >>= \def -> appType (lexemeRange l) def ts
+          Just yes -> pure (Core.TParam yes)
   where
   bad = Parser \_ -> pure (Left (MalformedType (lexemeRange l)))
   noArg t =
@@ -440,10 +646,25 @@ resolveUnqualType l ts =
       pure
         case Map.findWithDefault [] nm (typeDefsByName rw) of
           [def] -> Right (def, rw)
-          []    -> Left (UndefinedType (lexemeRange l))
+          []    -> Left (UndefinedType (lexemeRange l) (lexemeText l))
           ds    -> Left (AmbiguousType (lexemeRange l)
                             [ Core.mNameText (Core.tnameMod (Core.tName d))
                             | d <- ds ])
+
+setTParams :: [LName] -> Parser ()
+setTParams xs = Parser \rw ->
+  pure
+    case Map.minView bad of
+      Just (err,_) -> Left err
+      Nothing ->
+        Right ((), rw { unusedTParams = xs, ddlTParams = [], foreignTParams = [] })
+  where
+  bad = Map.mapMaybeWithKey hasRep
+      $ Map.fromListWith (++) [ (nameName x, [nameRange x]) | x <- xs ]
+  hasRep x xs =
+    case xs of
+      a : b : _ -> Just (MultipleDefs x a b)
+      _ -> Nothing
 
 resolveQualType ::
   Lexeme Token -> Lexeme Token -> [Either Core.SizeType Core.Type] ->
@@ -458,7 +679,7 @@ resolveQualType q l args = getDecl >>= \def -> appType rng def args
       in
         pure
           case mb of
-            Nothing -> Left (UndefinedType rng)
+            Nothing -> Left (UndefinedType rng (lexemeText q <> "." <> lexemeText l))
             Just a  -> Right (a,rw)
         
 

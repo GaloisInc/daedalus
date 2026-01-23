@@ -3,12 +3,14 @@
 module Check where
 
 import Control.Monad
+import Data.Set(Set)
+import Data.Set qualified as Set
 import Data.Map(Map)
 import Data.Map qualified as Map
 import AlexTools(SourceRange)
 
 import Daedalus.Core qualified as Core
-import Quote
+
 import Name
 import AST
 
@@ -20,25 +22,33 @@ data ValidationError =
   | ShadowedVariable LName LName
   | TypeMismatch Core.Type Core.Type    -- XXX: Locations
   | SizeMismatch Core.SizeType Core.SizeType -- XXX: Location
-
-data BasicExporterType = Core.Type :-> ForeignType
-data ExporterType      = Forall {
-  etDDLTypeVars     :: [Core.TParam],
-  etForeignTypeVars :: [Name],
-  etExporterParams  :: [BasicExporterType],
-  etType            :: BasicExporterType
-}
+  | ForeignTVarApp LName
+  | UndefinedForeignType LName
+  | BadForeignTypeArgs LName Int Int  -- have, need
 
 
 data RO = RO {
-  exporterTypes :: Map Name ExportType,
+  exporterTypes :: Map Name ExporterType,
   -- ^ Types of known exporters
- 
+
+  foreignTyDefs :: Map Name ForeignTypeDecl,
+  -- ^ Foreign type definitions
+
+  tyDefs :: Map Core.TName Core.TDecl,
+  -- ^ Daedalus type definitions
+
+  -- Local to one exporter
+
   patternVars   :: Maybe (Map Name (LName, LName)),
   -- ^ If this is `Just` we desugar pattern variables to union selectors
+  -- XXX: Should this go in RW?
 
-  tyDefs :: Map Core.TName Core.TDecl 
-  -- ^ Type definitions
+  ddlTyParams :: Set Core.TParam,
+  -- ^ Daedalus type variables that are in scope
+
+  foreignTypeParams :: Set Name
+  -- ^ Foreign type variables that are in scope
+  
 }
 
 newtype RW = RW {
@@ -50,12 +60,12 @@ data VarStatus =
   | ExportedBy LName
   | ExplodedBy Core.Type LName (Map Core.Label VarStatus)
 
-
+{-
 checkDeclDef def =
   case def of
     DeclDef q -> undefined
     DeclCase x alts -> undefined
-
+-}
 
 
 checkDDLExpr :: DDLExpr -> M (DDLExpr, Core.Type)
@@ -68,6 +78,37 @@ checkDDLExpr e@(DDLExpr x sels) =
              Nothing    -> e
              Just (y,u) -> DDLExpr y ((UnionSelector :. u) : sels)
     pure (e1, ty)
+
+--------------------------------------------------------------------------------
+-- Validation of foreign types
+--------------------------------------------------------------------------------
+
+-- | Check that a foreign type is valid
+checkForeignType :: ForeignType -> M ForeignType
+checkForeignType ft =
+  case ft of
+    ForeignTVar {} -> error "[BUG] `checkForeignType` ForeignTVar"
+    ForeignType f xs ->
+      do
+        env <- getEnv
+        let nm = nameName f
+        if nm `Set.member` foreignTypeParams env
+          then
+            case xs of
+              [] -> pure (ForeignTVar f)
+              _  -> reportError (ForeignTVarApp f)
+          else
+            case Map.lookup nm (foreignTyDefs env) of
+              Nothing -> reportError (UndefinedForeignType f)
+              Just def ->
+                do
+                  let have = length xs
+                      need = length (ftParams def)
+                  unless (have == need) (reportError (BadForeignTypeArgs f have need))
+                  ts <- mapM checkForeignType xs
+                  pure (ForeignType f ts)
+            
+
 
 --------------------------------------------------------------------------------
 -- Substitutions

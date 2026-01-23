@@ -15,34 +15,35 @@ $digit      = [0-9]
 :-
 
 <0> {
-"case"      { emit TokKW_case }
-"def"       { emit TokKW_def }
-"default"   { emit TokKW_default }
-"extern"    { emit TokKW_extern }
-"import"    { emit TokKW_import }
-"of"        { startLayout TokKW_of }
-"type"      { emit TokKW_type }
+"case"      { lexeme TokKW_case }
+"def"       { lexeme TokKW_def }
+"default"   { lexeme TokKW_default }
+"extern"    { lexeme TokKW_extern }
+"import"    { lexeme TokKW_import }
+"of"        { lexeme TokKW_of }
+"type"      { lexeme TokKW_type }
 
-"["         { emit TokBracketOpen }
-"]"         { emit TokBracketClose }
-"("         { emit TokParenOpen }
-")"         { emit TokParenClose }
-"{"         { emit TokBraceOpen }
-"}"         { emit TokBraceClose }
-"<"         { emit TokLt }
-">"         { emit TokGt }
+"["         { lexeme TokBracketOpen }
+"]"         { lexeme TokBracketClose }
+"("         { lexeme TokParenOpen }
+")"         { lexeme TokParenClose }
+"{"         { lexeme TokBraceOpen }
+"}"         { lexeme TokBraceClose }
+"<"         { lexeme TokLt }
+">"         { lexeme TokGt }
 
-"."         { emit TokDot }
-","         { emit TokComma }
-"::"        { emit TokColonColon }
-":"         { emit TokColon }
-"="         { emit TokEqual }
-"->"        { startLayout TokRightArrow }
+"."         { lexeme TokDot }
+","         { lexeme TokComma }
+"::"        { lexeme TokColonColon }
+":"         { lexeme TokColon }
+"="         { lexeme TokEqual }
+"->"        { startLayout }
+"=>"        { lexeme TokFatRightArrow }
 
 @comment    ;
 $white      ;
-@ident      { emit TokIdent }
-@number     { emit TokNumber }
+@ident      { lexeme TokIdent }
+@number     { lexeme TokNumber }
 .           { matchText >>= \t -> lexeme (TokError ("Unexpected character: " <> t)) }
 }
 
@@ -106,11 +107,8 @@ data Token =
   | TokEqual
   | TokDollar
   | TokRightArrow
+  | TokFatRightArrow
   | TokObject
-
-  | TokLayoutStart
-  | TokLayoutSep
-  | TokLayoutEnd
 
   | TokError Text
   | TokEOF
@@ -134,20 +132,34 @@ data LayoutState =
     LayoutStarting      -- ^ At the start of a layout block. Column of next token determines indentation.
   | LayoutBlock !Int    -- ^ Column for layout block
 
-data Layout = Layout {
-  layoutState :: LayoutState,   -- ^ Current block
-  layoutStack :: [Int]          -- ^ Still open layout blocks
-}
-
-initialLayout :: Layout
-initialLayout = Layout { layoutState = LayoutStarting, layoutStack = [] }
-
 data LexState =
-    Normal Layout
-  | InObject Layout           -- ^ in object language, not after new line
-  | InObjectLineStart Layout  -- ^ in object language, after new line
-  | InSplice !SourceRange !Int Layout  -- ^ Splice start, counts number of open parens, outer layout
-  | InComment !SourceRange LexState
+    Normal
+  | InObject LayoutState            -- ^ in object language, not after new line
+  | InObjectLineStart LayoutState   -- ^ in object language, after new line
+  | InSplice !SourceRange !Int !Int -- ^ Splice start, counts number of open parens, outer layout
+  | InComment !SourceRange LexState -- ^ XXX
+
+
+startLayout :: Action LexState [Lexeme Token]
+startLayout = setLexerState (InObject LayoutStarting) >> lexeme TokRightArrow
+    
+  
+startSplice :: Action LexState [Lexeme Token]
+startSplice =
+  do
+    s <- getLexerState
+    r <- matchRange
+    case s of
+      InObject l ->
+        do
+          let newL =
+                case l of
+                  LayoutStarting -> sourceColumn (sourceFrom r)
+                  LayoutBlock n  -> n
+          setLexerState (InSplice r 0 newL)
+          lexeme TokDollar
+          
+      _ -> error "[bug] `startSplice` not in object"
 
 
 emitObjectNL :: Action LexState [Lexeme Token]
@@ -156,8 +168,8 @@ emitObjectNL =
     r <- matchRange    
     s <- getLexerState
     case s of
-      InObject l | LayoutStarting <- layoutState l -> pure []
-      InObjectLineStart l | LayoutStarting <- layoutState l -> pure []
+      InObject LayoutStarting -> pure []
+      InObjectLineStart LayoutStarting -> pure []
       _ -> pure [ Lexeme { lexemeToken = TokObject, lexemeText = "\n", lexemeRange = r } ]
 
 
@@ -169,6 +181,42 @@ objectGotoNextLine  =
       InObject l -> setLexerState (InObjectLineStart l) >> emitObjectNL
       _ -> error "[bug]: `objectLineStart` but not in object."
 
+
+emit :: Token -> Action LexState [Lexeme Token]
+emit t =
+  do
+    rng <- matchRange
+    txt <- matchText
+
+    let nextLex = Lexeme {
+            lexemeRange = rng,
+            lexemeToken = t,
+            lexemeText = txt
+          } 
+        
+    s <- getLexerState
+    case s of
+  
+      InObject LayoutStarting -> setLexerState (InObject (LayoutBlock col))
+        where col = sourceColumn (sourceFrom rng)
+        
+      InObject _ -> pure ()
+
+      InSplice r n l ->
+        case t of
+          TokParenOpen -> setLexerState (InSplice r (n + 1) l)
+          TokParenClose
+            | n > 1     -> setLexerState (InSplice r (n - 1) l)
+            | otherwise -> setLexerState (InObject (LayoutBlock l))
+          _
+            | n == 0 -> setLexerState (InObject (LayoutBlock l))
+            | otherwise -> pure ()
+
+      _ -> error "[BUG] `considerLayout`"
+
+    pure [nextLex]
+
+
 checkObjectEnd :: Action LexState [Lexeme Token]
 checkObjectEnd =
   do
@@ -179,140 +227,16 @@ checkObjectEnd =
           r <- matchRange
           n <- matchLength
           let col = sourceColumn (if n == 0 then sourceFrom r else sourceTo r) + 1
-          case layoutState l of
-            LayoutStarting -> setLexerState (InObject l) >> pure []
-            LayoutBlock b
-              | col >= b -> setLexerState (InObject l) >> pure []
-              | b' : bs <- layoutStack l ->
-                do
-                  setLexerState (Normal (Layout { layoutState = LayoutBlock b', layoutStack = bs }))
-                  pure [virtual (sourceTo r) TokLayoutEnd]
-              | otherwise -> error "[bug]: `checkObjectEnd` no outer layout"
+          setLexerState
+            case l of
+              LayoutBlock b | col < b -> Normal
+              _ -> InObject l
+          pure []
+ 
       _ -> error "[bug]: `checkObjectEnd` but not in object line start."
 
 
-
-
-
-startLayout :: Token -> Action LexState [Lexeme Token]
-startLayout tok =
-  do
-    s <- getLexerState
-    case s of
-      Normal l ->
-        case layoutState l of
-          LayoutStarting -> bad
-          LayoutBlock n ->
-            do
-              let newL = l { layoutState = LayoutStarting, layoutStack = n : layoutStack l }
-              case tok of
-                TokRightArrow -> setLexerState (InObject newL) -- layout for foreign
-                _ -> setLexerState (Normal newL) -- layout for case
-              lexeme tok
-      InSplice {} -> error "[bug] `startLayout` in splice"
-      InObject {} -> error "[bug] `startLayout` in object"
-      InObjectLineStart {} -> error "[bug] `startLayout` in object line start"
-      InComment {} -> error "[bug] `startLayout` in comment"
-  where
-  bad =
-    matchText >>= \txt ->
-      lexeme (TokError ("Unexpected `" <> txt <> "`"))
-      
-
-
-considerLayout :: Lexeme Token -> Action LexState [Lexeme Token]
-considerLayout nextLex =
-  do
-    s <- getLexerState
-    case s of
-      Normal l ->
-        do
-          let (mbL, toks) = go l
-          maybe (pure ()) (setLexerState . Normal) mbL
-          pure toks
-      InObject l ->
-        do
-          case checkStarting l of
-            Nothing -> pure [nextLex]
-            Just newL ->
-              do
-                setLexerState (InObject newL)
-                pure [virt TokLayoutStart, nextLex]
-      InSplice r n l ->
-        do
-          case lexemeToken nextLex of
-            TokParenOpen -> setLexerState (InSplice r (n + 1) l)
-            TokParenClose
-              | n > 1     -> setLexerState (InSplice r (n - 1) l)
-              | otherwise -> setLexerState (InObject l)
-            _
-              | n == 0 -> setLexerState (InObject l)
-              | otherwise -> pure ()
-          pure [nextLex]
-
-
-      _ -> error "[bug]: `considerLayout` but not in normal or object."
-        
-  where
-  checkStarting l =
-    case layoutState l of
-      LayoutStarting -> Just l { layoutState = LayoutBlock (sourceColumn pos) }
-      _ -> Nothing
-
-  go l =
-    case layoutState l of
-      LayoutStarting -> (Just l { layoutState = LayoutBlock col }, [ virt TokLayoutStart, nextLex ])
-      LayoutBlock n ->
-        case compare col n of
-          EQ -> (Nothing, [ virt TokLayoutSep, nextLex ])
-          GT -> (Nothing, [ nextLex ])
-          LT -> close [virt TokLayoutEnd] (layoutStack l) 
-            where
-            close toks xs =
-              case xs of
-                b : bs ->
-                  case compare col b of
-                    LT -> close (virt TokLayoutEnd : toks) bs
-                    EQ -> (Just Layout { layoutState = LayoutBlock b, layoutStack = bs }, toks ++ [ virt TokLayoutSep, nextLex])
-                    GT -> (Just Layout { layoutState = LayoutBlock b, layoutStack = bs }, toks ++ [ nextLex ])
-                [] -> (Just Layout { layoutState = LayoutStarting, layoutStack = [] }, toks ++ [err])
-
-  virt    = virtual pos
-  pos     = sourceFrom (lexemeRange nextLex)
-  col     = sourceColumn pos
-  err     = nextLex { lexemeToken = TokError "Unexpected token, possibly due to bad layout." }
-  
-endLayouts :: SourcePos -> Layout -> [Lexeme Token]
-endLayouts p l =
-  case layoutState l of
-    LayoutStarting -> virtual p TokLayoutStart : virtual p TokLayoutEnd : rest
-    LayoutBlock _  -> virtual p TokLayoutEnd : rest
-  where
-  rest = map (const (virtual p TokLayoutEnd)) (layoutStack l) ++ [ virtual p TokEOF ]
-  
-
-startSplice :: Action LexState [Lexeme Token]
-startSplice =
-  do
-    s <- getLexerState
-    r <- matchRange
-    case s of
-      InObject l -> setLexerState (InSplice r 0 l)
-      _          -> error "[bug] `startSplice` not in object"
-    lexeme TokDollar
-
-emit :: Token -> Action LexState [Lexeme Token]
-emit t =
-  do
-    r <- matchRange
-    txt <- matchText
-    considerLayout 
-      Lexeme {
-        lexemeRange = r,
-        lexemeToken = t,
-        lexemeText = txt
-      } 
-
+    
 
 lexer :: Text -> Text -> [Lexeme Token]
 lexer file = lexerAt (startPos file)
@@ -323,7 +247,7 @@ lexerAt loc txt = $makeLexer cfg (initialInputAt loc txt)
   -- dbg xs = trace (unlines [ show (Text.unpack (lexemeText l)) ++
   --          "\t" ++ show (lexemeToken l) |  l <- xs ]) xs
 
-  cfg = LexerConfig { lexerInitialState = Normal initialLayout
+  cfg = LexerConfig { lexerInitialState = Normal
                     , lexerStateMode = \s -> case s of
                                                Normal {} -> 0
                                                InObject {} -> object
@@ -332,9 +256,9 @@ lexerAt loc txt = $makeLexer cfg (initialInputAt loc txt)
                                                InComment {} -> comment
                     , lexerEOF = \s p ->
                         case s of
-                          Normal l -> endLayouts p l
-                          InObject l -> endLayouts p l
-                          InObjectLineStart l -> endLayouts p l
+                          Normal -> [ virtual p TokEOF ]
+                          InObject {} -> [ virtual p TokEOF ]
+                          InObjectLineStart {} -> [ virtual p TokEOF ]
                           InSplice r _ _ -> 
                             [ Lexeme { lexemeToken =
                                          TokError "Unterminated splice."

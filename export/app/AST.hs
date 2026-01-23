@@ -41,23 +41,35 @@ data ForeignTypeDecl = ForeignTypeDecl {
   ftDef     :: Q LName
 }
 
-data ForeignType = ForeignType LName [ForeignType]
+data ForeignType =
+    ForeignType LName [ForeignType] -- ^ Parser only produces these
+  | ForeignTVar LName   -- ^ Introduced by check
+
+data BasicExporterType = Core.Type :-> ForeignType
+data ExporterType = Forall {
+  etDDLTypeVars     :: [Core.TParam],
+  etForeignTypeVars :: [Name],
+  etExporterParams  :: [BasicExporterType],
+  etType            :: BasicExporterType
+}
 
 
 data Decl = Decl {
-  declDefault   :: Bool,      -- ^ Is this the default exporter for the type
-  declName      :: LName,
-  declArg       :: LName,
-  declArgType   :: Core.Type,
-  declResType   :: ForeignType,
-  declDef       :: DeclDef
+  declDefault         :: Bool,      -- ^ Is this the default exporter for the type
+  declName            :: LName,
+  declDDLTParams      :: [(LName, Core.TParam)],
+  declForeignTParams  :: [LName],
+  declFunParams       :: [(LName, BasicExporterType)],
+  declArg             :: LName,
+  declArgType         :: Core.Type,
+  declResType         :: ForeignType,
+  declDef             :: DeclDef
 }
-
-data ExportType = ExportType
 
 data Exporter =
     ExportDefault
-  | ExportWith LName [Exporter]
+  | ExportTop LName
+  | ExportApp Exporter Exporter
 
 data ExportExpr = ExportExpr {
   exportWith :: Exporter,
@@ -76,6 +88,7 @@ data SelectorType =
 data DeclDef =
     DeclDef (Q ExportExpr)
   | DeclCase LName [(Pat, Q ExportExpr)]
+  | DeclExtern
 
 data Pat =
   PCon LName (Maybe LName)
@@ -101,41 +114,58 @@ instance PP Entries where
 instance PP ForeignTypeDecl where
   pp fd =
     vcat
-      [ "type" <+> pp (ftName fd) <+> hsep (map pp (ftParams fd)) <+> "->"
+      [ "type" <+> pp (ftName fd) <.> ps <+> "->"
       , nest 2 (pp (ftDef fd))
       ]
+    where
+    ps = case map pp (ftParams fd) of
+           [] -> mempty
+           ds -> "<" <.> commaSep ds <.> ">"
 
 instance PP ForeignType where
-  pp ft = ppP (0 :: Int) ft
-    where
-    ppP n (ForeignType f xs) =
-      case xs of
-        [] -> pp f
-        _  -> if n > 0 then parens doc else doc
-          where doc = pp f <+> fsep (map (ppP 1) xs)
+  pp ft = 
+    case ft of
+      ForeignTVar x -> "?" <.> pp x
+      ForeignType f xs -> pp f <.> args
+        where
+        args =
+          case xs of
+            [] -> mempty
+            _  -> "<" <.> commaSep (map pp xs) <.> ">"
 
 instance PP Decl where
   pp d = vcat [
-    "def" <+> dflt <+> pp (declName d) <.>
+    dflt <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
       parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <.>
         ":" <+> pp (declResType d) <+> ppDeclDefStarter (declDef d),
       nest 2 (ppDeclDefBody (declDef d))
     ]
-    where dflt = if declDefault d then "default" else mempty
+    where
+    dflt = if declDefault d then "default" else "def"
+    ppF (f,t) = parens (pp f <.> ":" <+> pp t)
+    targs =
+      case map pp (map snd (declDDLTParams d)) ++
+           map pp (declForeignTParams d)
+      of
+        [] -> mempty
+        ds -> "<" <.> commaSep ds <.> ">"
+
+instance PP BasicExporterType where
+  pp (x :-> y) = pp x <+> "=>" <+> pp y
 
 instance PP LName where
   pp = pp . nameName
 
 instance PP Exporter where
-  pp e =
-    case e of
-      ExportDefault -> "default"
-      ExportWith f as ->
-        pp f <.> 
-          case map pp as of
-            [] -> mempty
-            xs -> "<" <.> commaSep xs <.> ">"
-        
+  pp = ppP (0 :: Int)
+    where
+    ppP n e =
+      case e of
+        ExportDefault -> "default"
+        ExportTop x -> pp x
+        ExportApp f x -> if n > 0 then parens doc else doc
+          where doc = ppP 0 f <+> ppP 1 x
+          
 instance PP DDLExpr where
   pp e =
     case e of
@@ -157,6 +187,7 @@ instance PP ExportExpr where
 ppDeclDefBody :: DeclDef -> Doc
 ppDeclDefBody d =
   case d of
+    DeclExtern -> "extern"
     DeclDef f -> pp f
     DeclCase x alts ->
       vcat [
@@ -169,12 +200,10 @@ ppDeclDefStarter d =
   case d of
     DeclDef {} -> "->"
     DeclCase {} -> "="
+    DeclExtern {} -> "="
 
 instance PP DeclDef where
   pp d = ppDeclDefStarter d <+> ppDeclDefBody d
 
 instance PP Pat where
   pp (PCon c mb) = pp c <+> maybe mempty pp mb
-
-instance PP ExportType where
-  pp ExportType = mempty
