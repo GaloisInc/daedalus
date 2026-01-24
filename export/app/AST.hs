@@ -135,13 +135,13 @@ instance PP ForeignType where
 
 instance PP Decl where
   pp d = vcat [
-    dflt <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
+    dflt <+> "def" <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
       parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <.>
         ":" <+> pp (declResType d) <+> ppDeclDefStarter (declDef d),
       nest 2 (ppDeclDefBody (declDef d))
     ]
     where
-    dflt = if declDefault d then "default" else "def"
+    dflt = if declDefault d then "default" else mempty
     ppF (f,t) = parens (pp f <.> ":" <+> pp t)
     targs =
       case map pp (map snd (declDDLTParams d)) ++

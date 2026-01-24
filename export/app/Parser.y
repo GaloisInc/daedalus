@@ -112,12 +112,12 @@ type_alias_params ::                        { [LName] }
 
 
 export_decl ::                              { Decl }
-  : default ename opt_tparams listOf1(param)
-    ':' foreign_type decl_def               {% mkDecl $1 $2 $4 $6 $7 }
+  : default 'def' ename opt_tparams listOf1(param)
+    ':' foreign_type decl_def               {% mkDecl $1 $3 $5 $7 $8 }
 
 default ::                                  { Bool }
   : 'default'                               { True }
-  | 'def'                                   { False }
+  | {-empty -}                              { False }
 
 opt_tparams ::                              { () }
   : '<' sepBy1(',',ename) '>'               {% setTParams $2 }
