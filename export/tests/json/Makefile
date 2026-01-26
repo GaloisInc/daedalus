@@ -1,6 +1,6 @@
 .PHONY: run clean
 
-DDL=../../rts-c
+DDL=../../../rts-c
  
 CXXFLAGS=-std=c++20 -Wall -I $(DDL) `pkg-config --cflags gmpxx` -g -fsanitize=address
 LDFLAGS=`pkg-config --libs gmpxx`
@@ -13,7 +13,7 @@ parser/main_parser.h parser/main_parser.o: json.ddl utf8.ddl Daedalus.ddl
 	clang++ $(CXXFLAGS) -c parser/main_parser.cpp -o parser/main_parser.o -fsanitize=address
 
 run:
-	cabal run exe:export -- json.export --ddl json.ddl
+	cabal run exe:export json.dex
 
 clean:
 	rm -rf parser simple_app

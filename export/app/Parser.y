@@ -38,6 +38,8 @@ import Daedalus.Driver qualified as Daedalus
   NUMBER        { $$@Lexeme { lexemeToken = TokNumber } }
   OBJ           { $$@Lexeme { lexemeToken = TokObject } }
 
+  LAYOUT_SEP    { Lexeme { lexemeToken = TokLayoutSep, lexemeRange = $$ } }
+
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
   'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
@@ -107,7 +109,7 @@ type_alias_decl ::                          { ForeignTypeDecl }
     foreign_block(ename)                    {% addForeignTypeDecl $2 $3 $4 }
 
 type_alias_params ::                        { [LName] }
-  : '<' listOf1(ename) '>'                  { $2 }
+  : '<' sepBy1(',',ename) '>'               { $2 }
   | {- empty -}                             { [] }
 
 
@@ -134,10 +136,14 @@ decl_def ::                                 { DeclDef }
   : foreign_block(expr_splice)              { DeclDef $1 }
   | '=' 'extern'                            { DeclExtern }
   | '=' 'case' ename 'of'
-    listOf(case_alt)                        { DeclCase $3 $5 }
+    sepBy(LAYOUT_SEP,case_alt)              { DeclCase $3 $5 }
 
 case_alt ::                                 { (Pat, Q ExportExpr) }
-  : pat foreign_block(expr_splice)          { ($1, $2) }
+  : pat case_rhs                            { ($1, $2) }
+
+case_rhs ::                                 { Q ExportExpr }
+  : foreign_block(expr_splice)              { $1 }
+  | '='  expr                               { Q [Meta $2] }
 
 pat ::                                      { Pat }
   : ename                                   { PCon $1 Nothing }
@@ -185,7 +191,6 @@ exporter ::                                 { Exporter }
 
 aexporter ::                                { Exporter }
   : ename                                   { ExportTop $1 }
-  | 'default'                               { ExportDefault } 
   | '(' exporter ')'                        { $2 }
 
 ddl_expr ::                                 { DDLExpr }

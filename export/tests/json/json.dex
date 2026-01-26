@@ -1,0 +1,44 @@
+
+import json(JSON_value_strict)
+
+extern ->
+  #include <vector>
+  #include <string>
+  #include <unordered_map>
+  #include "json.hpp"
+
+type int32_t    -> int32_t
+type int64_t    -> int64_t
+type vector<T>  -> std::vector<$T>
+type string     -> std::string
+type map<K,V>   -> std::unordered_map<$K,$V>
+type JSON       -> basic_json<>
+
+default def int32(x: sint 32): int32_t = extern
+default def int64(x: sint 64): int64_t = extern
+
+def as_string                         (x: [uint 8]): string = extern
+def as_vector<A, T> (element: A => T) (x: [A]): vector<T> = extern
+def as_map<K,V,X,Y> (k: K => X) (v: V => Y) (mp: [K:V]): map<X,Y> = extern
+
+def exportJSON (x: JSON_value): JSON =
+  case x of
+    Null      -> basic_json<>(nullptr)
+    Bool b    -> basic_json<>($b)
+    Number n  =  exportNumber n
+    String s  = as_string s
+    Array xs  = as_vector exportJSON xs
+    Object xs = as_map as_string exportJSON xs
+
+-- Exporting a struct.  Here we use a local lambda to do some computation.
+-- It might be better to name this on the C++ side, and keep things
+-- simple in here.
+def exportNumber(x: JSON_number): JSON ->
+  [=] () mutable { 
+    int64_t w = $(x.whole);
+    int32_t e = $(x.exp);
+    if (e < 0) return basic_json<>(w * std::pow(10,e));
+    auto pos_e = exp10(static_cast<uint32_t>(e));
+    if (w < 0) return basic_json<>(w * static_cast<int64_t>(pos_e));
+    return basic_json<>(static_cast<uint64_t>(w) * pos_e);
+  }()
