@@ -2,11 +2,14 @@
 import json(JSON_value_strict)
 
 extern ->
+  #include <cstdint>
   #include <vector>
   #include <string>
   #include <unordered_map>
   #include "json.hpp"
 
+type char       -> char
+type uint8_t    -> uint8_t
 type int32_t    -> int32_t
 type int64_t    -> int64_t
 type vector<T>  -> std::vector<$T>
@@ -14,18 +17,32 @@ type string     -> std::string
 type map<K,V>   -> std::unordered_map<$K,$V>
 type JSON       -> basic_json<>
 
+default def uint8(x: uint 8): uint8_t = extern
 default def int32(x: sint 32): int32_t = extern
 default def int64(x: sint 64): int64_t = extern
 
-def as_string                         (x: [uint 8]): string = extern
-def as_vector<A, T> (element: A => T) (x: [A]): vector<T> = extern
-def as_map<K,V,X,Y> (k: K => X) (v: V => Y) (mp: [K:V]): map<X,Y> = extern
+def as_char(x: uint 8): char -> static_cast<char>($x)
+
+def as_string (xs: [uint 8]): string =
+  init -> std::string result;
+  for x in xs -> result.push_back($(as_char x));
+  return -> result
+
+def as_vector<A, T> (element: A => T) (x: [A]): vector<T> =
+  init -> std::vector<$T> xs;
+  for x in xs -> xs.push_back($(element x));
+  return -> xs
+
+def as_map<K,V,X,Y> (expK: K => X) (expV: V => Y) (mp: [K:V]): map<X,Y> =
+  init -> std::unordered_map xs;
+  for k,v in mp -> xs.insert({$(expK k), $(expV v)});
+  return -> xs
 
 def exportJSON (x: JSON_value): JSON =
   case x of
     Null      -> basic_json<>(nullptr)
     Bool b    -> basic_json<>($b)
-    Number n  =  exportNumber n
+    Number n  = exportNumber n
     String s  = as_string s
     Array xs  = as_vector exportJSON xs
     Object xs = as_map as_string exportJSON xs

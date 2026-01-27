@@ -44,8 +44,12 @@ import Daedalus.Driver qualified as Daedalus
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
   'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
   'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
+  'for'         { Lexeme { lexemeToken = TokKW_for, lexemeRange = $$ } }
   'import'      { Lexeme { lexemeToken = TokKW_import, lexemeRange = $$ } }
+  'in'          { Lexeme { lexemeToken = TokKW_in, lexemeRange = $$ } }
+  'init'        { Lexeme { lexemeToken = TokKW_init, lexemeRange = $$ } }
   'of'          { Lexeme { lexemeToken = TokKW_of, lexemeRange = $$ } }
+  'return'      { Lexeme { lexemeToken = TokKW_return, lexemeRange = $$ } }
   'type'        { Lexeme { lexemeToken = TokKW_type, lexemeRange = $$ } }
 
   '('           { Lexeme { lexemeToken = TokParenOpen,  lexemeRange = $$ } } 
@@ -137,6 +141,14 @@ decl_def ::                                 { DeclDef }
   | '=' 'extern'                            { DeclExtern }
   | '=' 'case' ename 'of'
     sepBy(LAYOUT_SEP,case_alt)              { DeclCase $3 $5 }
+  | '=' loop                                { DeclLoop $2 }
+  
+loop ::                                     { Loop }
+  : 'init' foreign_block(expr_splice)
+    'for' sepBy1(',',ename) 'in' ename
+        foreign_block(expr_splice)
+    'return' foreign_block(expr_splice)     { Loop $2 ($4,$6,$7) $9 }
+
 
 case_alt ::                                 { (Pat, Q ExportExpr) }
   : pat case_rhs                            { ($1, $2) }

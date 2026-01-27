@@ -88,7 +88,14 @@ data SelectorType =
 data DeclDef =
     DeclDef (Q ExportExpr)
   | DeclCase LName [(Pat, Q ExportExpr)]
+  | DeclLoop Loop
   | DeclExtern
+
+data Loop = Loop {
+  loopInit    :: Q ExportExpr,
+  loopFor     :: ([LName],LName,Q ExportExpr),
+  loopReturn  :: Q ExportExpr
+}
 
 data Pat =
   PCon LName (Maybe LName)
@@ -194,6 +201,7 @@ ppDeclDefBody d =
         "case" <+> pp x <+> "of",
         nest 2 (vcat [ (pp pat <+> "->") $$ nest 2 (pp rhs) | (pat,rhs) <- alts ])
       ]
+    DeclLoop l -> pp l
 
 ppDeclDefStarter :: DeclDef -> Doc
 ppDeclDefStarter d =
@@ -201,6 +209,18 @@ ppDeclDefStarter d =
     DeclDef {} -> "->"
     DeclCase {} -> "="
     DeclExtern {} -> "="
+    DeclLoop {} -> "="
+
+instance PP Loop where
+  pp l =
+    let (xs,x,body) = loopFor l
+        clause c y = (c <+> "->") $$ nest 2 (pp y)
+    in
+    vcat [
+      clause "init" (loopInit l),
+      clause ("for" <+> commaSep (map pp xs) <+> "in" <+> pp x) body,
+      clause "return" (loopReturn l)
+    ]
 
 instance PP DeclDef where
   pp d = ppDeclDefStarter d <+> ppDeclDefBody d
