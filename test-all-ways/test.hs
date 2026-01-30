@@ -181,13 +181,13 @@ runWith be ddl mbInput =
 --------------------------------------------------------------------------------
 -- Validation
 
-equiv :: Eq b => [(a,b)] -> [[a]]
+equiv :: Eq b => [(a,b)] -> [([a],b)]
 equiv xs0 =
   case xs0 of
     [] -> []
     (x,b) : xs ->
       case partition ((== b) . snd) xs of
-        (as,bs) -> (x : map fst as) : equiv bs
+        (as,bs) -> (x : map fst as, b) : equiv bs
 
 load :: Backend -> FilePath -> Maybe FilePath -> IO (Backend,String)
 load be ddl mbInput =
@@ -208,9 +208,14 @@ validate' ddl mbInput =
      case equiv results of
        [_] -> putStrLn "OK" >> pure OK
        rs  -> do putStrLn "DIFFERENT"
-                 mapM_ (putStrLn . unwords . map show) rs
-                 pure (OutputsDiffer rs)
-
+                 mapM_ showGroup rs
+                 pure (OutputsDiffer (map fst rs))
+  where
+  showGroup (rs,ys) =
+    do
+      putStrLn (unwords (map show rs))
+      putStrLn ys
+      
 
 --------------------------------------------------------------------------------
 -- Diff
