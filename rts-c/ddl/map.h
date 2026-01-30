@@ -343,6 +343,7 @@ public:
         return r;
       }
       Node::free(cur);
+      if (above.isNull()) return Iterator();
       Iterator r = above.getValue();
       if (above.refCount() == 1) {
         above.del();
