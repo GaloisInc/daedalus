@@ -17,6 +17,7 @@ $digit      = [0-9]
 <0> {
 "case"      { emit TokKW_case }
 "def"       { emit TokKW_def }
+"daedalus"  { emit TokKW_daedalus }
 "default"   { emit TokKW_default }
 "extern"    { emit TokKW_extern }
 "for"       { emit TokKW_for }
@@ -81,6 +82,7 @@ $white      ;
 {
 data Token =
     TokKW_case
+  | TokKW_daedalus
   | TokKW_def
   | TokKW_default
   | TokKW_extern

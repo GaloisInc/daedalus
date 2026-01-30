@@ -54,7 +54,7 @@ checkDeclSig d =
       x : _ -> reportError (AmbiguousTParam x)
       [] -> pure ()
     let fps = declForeignTParams d
-        fvs = freeTVarsForeignType (declResType d)
+        fvs = freeTVarsType (declResType d)
         badF = [ l | l <- fps, not (nameName l `Set.member` fvs) ]
     case badF of
       x : _ -> reportError (AmbiguousTParam x)
@@ -196,7 +196,7 @@ checkExportExpr ex =
   do
     (arg, t) <- checkDDLExpr (exportExpr ex)
     r <- freshVar
-    let rt = ForeignTVar LName { nameRange = exportExprRange ex, nameName = r }
+    let rt = TVar LName { nameRange = exportExprRange ex, nameName = r }
     e <- 
       case exportWith ex of
         Nothing ->
@@ -206,10 +206,10 @@ checkExportExpr ex =
             pure (ExportTop LName { nameName = x, nameRange = rng } [] [])
         Just e  -> pure e  
     (e', su) <- checkExporter e (t :-> rt)
-    let e'' = apForeignSubst su e'
-        resT = apForeignSubst su rt
+    let e'' = apSubst su e'
+        resT = apSubst su rt
     pure ExportExpr {
-      exportWith = Just (apForeignSubst su e''),
+      exportWith = Just (apSubst su e''),
       exportExpr = arg,
       exportResult = Just resT
     }
@@ -251,7 +251,7 @@ checkDDLExpr e@(DDLExpr x sels) =
     pure (e1, ty)
 
 
-checkExporter :: Exporter -> BasicExporterType -> M (Exporter, ForeignSubst)
+checkExporter :: Exporter -> BasicExporterType -> M (Exporter, Subst)
 checkExporter e ty =
   case split e [] of
     (f,es) -> checkExporter' f es ty
@@ -262,7 +262,7 @@ checkExporter e ty =
       ExportApp f arg -> split f (arg : as)
 
 -- | Check that the given exporter has the provided type.
-checkExporter' :: LName -> [Exporter] -> BasicExporterType -> M (Exporter, ForeignSubst)
+checkExporter' :: LName -> [Exporter] -> BasicExporterType -> M (Exporter, Subst)
 checkExporter' f args (a :-> b) =
   do
     env <- getEnv
@@ -279,10 +279,10 @@ checkExporter' f args (a :-> b) =
             Just csu ->
               do
                 xs <- mapM (const freshVar) (etForeignTypeVars ty)
-                let mk x = ForeignTVar f { nameName = x }
+                let mk x = TVar f { nameName = x }
                     isu  = Map.fromList (zip (etForeignTypeVars ty) (map mk xs))
-                    res' = apForeignSubst isu res
-                case unifyForeignType (Set.fromList xs) (foreignTypeParams env) res' b of
+                    res' = apSubst isu res
+                case unifyType (Set.fromList xs) (foreignTypeParams env) res' b of
                   Nothing -> reportError (ForeignTypeMismatch (nameRange f) res' b)
                   Just fsu ->
                     do
@@ -292,7 +292,7 @@ checkExporter' f args (a :-> b) =
                     where
                     checkExArg (e,fsu1) (p :-> q, ex_arg) =
                       do 
-                        let tgt = apSubstCore csu p :-> apForeignSubst (fsu1 @@ isu) q
+                        let tgt = apSubstCore csu p :-> apSubst (fsu1 @@ isu) q
                         (newArg,fsu2) <- checkExporter ex_arg tgt
                         pure (ExportApp e newArg, fsu2 @@ fsu1)
                       
@@ -309,7 +309,7 @@ data ValidationError =
   | VarNotExported LName [Core.Label]
   | ShadowedVariable LName LName
   | TypeMismatch SourceRange Core.Type Core.Type
-  | ForeignTypeMismatch SourceRange ForeignType ForeignType
+  | ForeignTypeMismatch SourceRange Type Type
   | ExportArgMismatch LName Int Int -- ^ Need, have
   | InvalidForType LName Core.Type
   | InvalidForBinders LName Int Int -- ^ Need, have

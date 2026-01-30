@@ -43,6 +43,7 @@ import Daedalus.Driver qualified as Daedalus
 
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
+  'daedalus'    { Lexeme { lexemeToken = TokKW_daedalus, lexemeRange = $$ } }
   'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
   'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
   'for'         { Lexeme { lexemeToken = TokKW_for, lexemeRange = $$ } }
@@ -99,7 +100,7 @@ late_decl ::                                { LateDecl }
 
 
 import_decl ::                              { Roots }
-  : 'import' roots                          { $2 }
+  : 'daedalus' roots                        { $2 }
 
 roots ::                                    { Roots }
   : ename                                   { defaultRoot $1 }
@@ -191,7 +192,7 @@ arr_or_map                               :: { Core.Type }
 
 
 
-foreign_type ::                             { ForeignType }
+foreign_type ::                             { Type }
   : ename                                   {% resolveForeign $1 [] }
   | ename '<' sepBy1(',', foreign_type) '>' {% resolveForeign $1 $3 }
 
@@ -288,7 +289,7 @@ mkDecl ::
   Bool {- ^ Default? -} ->
   LName {- ^ Definition name -} ->
   [Param] {- ^ Parameters -} ->
-  ForeignType {- ^ Target type to export to -} ->
+  Type {- ^ Target type to export to -} ->
   DeclDef {- ^ Exporter definition -} ->
   Parser Decl
 mkDecl isDefault f params res def =
@@ -580,14 +581,14 @@ isForeignTParam x =
 
 
 
-resolveForeign :: LName -> [ForeignType] -> Parser ForeignType
+resolveForeign :: LName -> [Type] -> Parser Type
 resolveForeign x fs =
   do
     mb <- isForeignTParam x
     case mb of
       Just yes ->
         case fs of
-          [] -> pure (ForeignTVar yes)
+          [] -> pure (TVar yes)
           _  -> Parser \_ -> pure (Left (MalformedType (nameRange x)))
       Nothing ->
         Parser \rw ->
@@ -597,7 +598,7 @@ resolveForeign x fs =
             Just def ->
               let have = length fs
                   need = length (ftParams def)
-              in if have == need then Right (ForeignType x fs, rw)
+              in if have == need then Right (Type x fs, rw)
                                  else Left (MalformedType (nameRange x))
 
 

@@ -25,17 +25,17 @@ freeTVarsCore ty =
     Core.TUser ut -> Set.unions (map freeTVarsCore (Core.utTyArgs ut))
     Core.TParam x -> Set.singleton x
 
-data ForeignType =
-    ForeignType LName [ForeignType]
-  | ForeignTVar LName
+data Type =
+    Type LName [Type]
+  | TVar LName
 
-freeTVarsForeignType :: ForeignType -> Set Name
-freeTVarsForeignType ft =
+freeTVarsType :: Type -> Set Name
+freeTVarsType ft =
   case ft of
-    ForeignType _ fts -> Set.unions (map freeTVarsForeignType fts)
-    ForeignTVar x -> Set.singleton (nameName x)
+    Type _ fts -> Set.unions (map freeTVarsType fts)
+    TVar x -> Set.singleton (nameName x)
 
-data BasicExporterType = Core.Type :-> ForeignType
+data BasicExporterType = Core.Type :-> Type
 
 data ExporterType = Forall {
   etDDLTypeVars     :: [Core.TParam],
@@ -44,11 +44,11 @@ data ExporterType = Forall {
   etType            :: BasicExporterType
 }
 
-instance PP ForeignType where
+instance PP Type where
   pp ft = 
     case ft of
-      ForeignTVar x -> "?" <.> pp x
-      ForeignType f xs -> pp f <.> args
+      TVar x -> "?" <.> pp x
+      Type f xs -> pp f <.> args
         where
         args =
           case xs of

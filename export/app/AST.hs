@@ -54,7 +54,7 @@ data Decl = Decl {
   declFunParams       :: [(LName, BasicExporterType)],
   declArg             :: LName,
   declArgType         :: Core.Type,
-  declResType         :: ForeignType,
+  declResType         :: Type,
   declDef             :: DeclDef
 }
 
@@ -86,7 +86,7 @@ data ForeignCode =
 -- | An exporter expression
 data Exporter =
     
-    ExportTop LName [Core.Type] [ForeignType]
+    ExportTop LName [Core.Type] [Type]
     -- ^ The type instances are added by module "Check"
 
   | ExportApp Exporter Exporter
@@ -95,7 +95,7 @@ data Exporter =
 data ExportExpr = ExportExpr {
   exportWith :: Maybe Exporter, -- ^ '`Nothing` means `default`
   exportExpr :: DDLExpr,
-  exportResult :: Maybe ForeignType -- ^ Filled in by `Check`
+  exportResult :: Maybe Type -- ^ Filled in by `Check`
 }
 
 -- | A Daedalus value

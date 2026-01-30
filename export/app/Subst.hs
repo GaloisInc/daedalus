@@ -128,46 +128,46 @@ apSubstSize su ty =
 
 --------------------------------------------------------------------------------
 
-type ForeignSubst = Map Name ForeignType
+type Subst = Map Name Type
 
-(@@) :: ForeignSubst -> ForeignSubst -> ForeignSubst
-su2 @@ su1 = Map.union (apForeignSubst su2 <$> su1) su2
+(@@) :: Subst -> Subst -> Subst
+su2 @@ su1 = Map.union (apSubst su2 <$> su1) su2
   
-class ApForeginSubst t where
-  apForeignSubst :: ForeignSubst -> t -> t
+class ApSubst t where
+  apSubst :: Subst -> t -> t
 
-instance ApForeginSubst ForeignType where
-  apForeignSubst su ty =
+instance ApSubst Type where
+  apSubst su ty =
     case ty of
-      ForeignTVar x    -> Map.findWithDefault ty (nameName x) su
-      ForeignType f es -> ForeignType f (map (apForeignSubst su) es)
+      TVar x    -> Map.findWithDefault ty (nameName x) su
+      Type f es -> Type f (map (apSubst su) es)
 
-instance ApForeginSubst Exporter where
-  apForeignSubst su ex =
+instance ApSubst Exporter where
+  apSubst su ex =
     case ex of
-      ExportTop f cs ts -> ExportTop f cs (map (apForeignSubst su) ts)
-      ExportApp f g -> ExportApp (apForeignSubst su f) (apForeignSubst su g)
+      ExportTop f cs ts -> ExportTop f cs (map (apSubst su) ts)
+      ExportApp f g -> ExportApp (apSubst su f) (apSubst su g)
 
 -- | Find the most general unifier of two types.
 -- If two variables are to be unified together, we prefer binding the one that's
 -- in the given bind set.
-unifyForeignType :: Set Name -> Set Name -> ForeignType -> ForeignType -> Maybe ForeignSubst
-unifyForeignType preferB skolem t1 t2 =
+unifyType :: Set Name -> Set Name -> Type -> Type -> Maybe Subst
+unifyType preferB skolem t1 t2 =
   case (t1,t2) of
-    (ForeignType f xs, ForeignType g ys)
+    (Type f xs, Type g ys)
       | nameName f == nameName g -> unifyForeignTypes preferB skolem xs ys
       | otherwise -> Nothing
-    (ForeignTVar x, _) -> bindForeignVar preferB skolem x t2
-    (_, ForeignTVar x) -> bindForeignVar preferB skolem x t1
+    (TVar x, _) -> bindForeignVar preferB skolem x t2
+    (_, TVar x) -> bindForeignVar preferB skolem x t1
 
-bindForeignVar :: Set Name -> Set Name -> LName -> ForeignType -> Maybe ForeignSubst
+bindForeignVar :: Set Name -> Set Name -> LName -> Type -> Maybe Subst
 bindForeignVar preferB skolem x t =
   case t of
-    ForeignTVar y
+    TVar y
       | x' == y' -> pure mempty
-      | y' `Set.member` preferB -> pure (Map.singleton y' (ForeignTVar x)) -- assumes preferB and skolem are disjoin
+      | y' `Set.member` preferB -> pure (Map.singleton y' (TVar x)) -- assumes preferB and skolem are disjoin
       | x' `Set.member` skolem ->
-         if not (y' `Set.member` skolem) then pure (Map.singleton y' (ForeignTVar x)) else Nothing
+         if not (y' `Set.member` skolem) then pure (Map.singleton y' (TVar x)) else Nothing
       | otherwise -> pure (Map.singleton x' t)
       where y' = nameName y
     _
@@ -178,17 +178,17 @@ bindForeignVar preferB skolem x t =
   x' = nameName x
   occurs ty =
     case ty of
-      ForeignType _ ts -> any occurs ts
-      ForeignTVar y -> x' == nameName y
+      Type _ ts -> any occurs ts
+      TVar y -> x' == nameName y
 
 unifyForeignTypes ::
-    Set Name -> Set Name -> [ForeignType] -> [ForeignType] -> Maybe ForeignSubst
+    Set Name -> Set Name -> [Type] -> [Type] -> Maybe Subst
 unifyForeignTypes preferB skolem xs ys =
   case (xs,ys) of
     ([],[]) -> pure mempty
     (x : xs', y : ys') ->
-      do su1 <- unifyForeignType preferB skolem x y
-         let subst = map (apForeignSubst su1)
+      do su1 <- unifyType preferB skolem x y
+         let subst = map (apSubst su1)
          su2 <- unifyForeignTypes preferB skolem (subst xs') (subst ys')
          pure (su2 @@ su1)
     _ -> error "[BUG] `unifyForeginTypes` length mismatch."
