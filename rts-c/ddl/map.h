@@ -478,7 +478,7 @@ bool operator >= (Map<Key,Value> xs, Map<Key,Value> ys) { return !(xs < ys); }
 template <typename Key, typename Value>
 inline
 std::ostream& toJS(std::ostream& os, Map<Key,Value> x) {
-  os << "{ \"$$map\":";
+  os << "{\"$$map\":";
   char sep = '[';
   x.copy();
   typename Map<Key,Value>::Iterator it(x);
