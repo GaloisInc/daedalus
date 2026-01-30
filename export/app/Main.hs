@@ -11,13 +11,14 @@ import Daedalus.PP(pp)
 import SimpleGetOpt
 import Options
 import Parser
+import Check
 
 
 main :: IO ()
 main =
   do
     opts <- getOpts defaultOptions options
-    spec <-
+    (spec,tds) <-
       case optExportFile opts of
         Nothing -> reportUsageError options ["Missing export specification."]
         Just f  ->
@@ -30,5 +31,8 @@ main =
             case mb of
               Left err -> hPrint stderr (pp err) >> exitFailure
               Right a  -> pure a
-    print (pp spec)
+    case checkModule tds spec of
+      Left err -> hPrint stderr (pp err) >> exitFailure
+      Right a -> print (pp a)
+
 

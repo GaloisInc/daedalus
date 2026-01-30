@@ -22,9 +22,10 @@ import AlexTools
 import Daedalus.PP
 import Daedalus.Core qualified as Core
 import Lexer
+import Type
 import AST
 import Quote
-import Name(Name)
+import Name(Name,LName(..))
 import Name qualified as Name
 import Daedalus.Driver (Daedalus)
 import Daedalus.Driver qualified as Daedalus
@@ -97,12 +98,12 @@ late_decl ::                                { LateDecl }
   | type_alias_decl                         { TopTypeAlias $1 }
 
 
-import_decl ::                              { Entries }
+import_decl ::                              { Roots }
   : 'import' roots                          { $2 }
 
-roots ::                                    { Entries }
-  : ename                                   { defaultEntry $1 }
-  | ename '(' sepBy1(',', ename) ')'        { Entries { entryModule = $1, entryNames = $3 } }
+roots ::                                    { Roots }
+  : ename                                   { defaultRoot $1 }
+  | ename '(' sepBy1(',', ename) ')'        { Roots { rootModule = $1, rootNames = $3 } }
 
 
 extern_decl ::                              { Q Void }
@@ -137,25 +138,26 @@ fun_type ::                                 { BasicExporterType }
   : type '=>' foreign_type                  { $1 :-> $3 }
 
 decl_def ::                                 { DeclDef }
-  : foreign_block(expr_splice)              { DeclDef $1 }
+  : foreign_code                            { DeclDef $1 }
   | '=' 'extern'                            { DeclExtern }
   | '=' 'case' ename 'of'
     sepBy(LAYOUT_SEP,case_alt)              { DeclCase $3 $5 }
   | '=' loop                                { DeclLoop $2 }
+
   
 loop ::                                     { Loop }
-  : 'init' foreign_block(expr_splice)
+  : 'init' foreign_block(ename)
     'for' sepBy1(',',ename) 'in' ename
-        foreign_block(expr_splice)
-    'return' foreign_block(expr_splice)     { Loop $2 ($4,$6,$7) $9 }
+     foreign_code
+    'return' foreign_block(extern_splice)   { Loop $2 ($4,$6,$7) $9 }
 
 
-case_alt ::                                 { (Pat, Q ExportExpr) }
-  : pat case_rhs                            { ($1, $2) }
+case_alt ::                                 { (Pat, ForeignCode) }
+  : pat foreign_code                        { ($1, $2) }
 
-case_rhs ::                                 { Q ExportExpr }
-  : foreign_block(expr_splice)              { $1 }
-  | '='  expr                               { Q [Meta $2] }
+foreign_code ::                             { ForeignCode }
+  : foreign_block(expr_splice)              { Splice $1 }
+  | '=' expr                                { Direct $2 }
 
 pat ::                                      { Pat }
   : ename                                   { PCon $1 Nothing }
@@ -194,15 +196,15 @@ foreign_type ::                             { ForeignType }
   | ename '<' sepBy1(',', foreign_type) '>' {% resolveForeign $1 $3 }
 
 expr ::                                     { ExportExpr }
-  : exporter ddl_expr                       { ExportExpr $1 $2 }
-  | ddl_expr                                { ExportExpr ExportDefault $1 }
+  : exporter ddl_expr                       { ExportExpr (Just $1) $2 Nothing }
+  | ddl_expr                                { ExportExpr Nothing $1 Nothing }
 
 exporter ::                                 { Exporter }
   : aexporter                               { $1 }
   | exporter aexporter                      { ExportApp $1 $2 }
 
 aexporter ::                                { Exporter }
-  : ename                                   { ExportTop $1 }
+  : ename                                   { ExportTop $1 [] [] }
   | '(' exporter ')'                        { $2 }
 
 ddl_expr ::                                 { DDLExpr }
@@ -210,7 +212,7 @@ ddl_expr ::                                 { DDLExpr }
   | ename '.' ename                         { DDLExpr $1 [StructSelector :. $3] }
 
 expr_splice ::                              { ExportExpr }
-  : ename                                   { ExportExpr ExportDefault (DDLExpr $1 []) }
+  : ename                                   { ExportExpr Nothing (DDLExpr $1 []) Nothing }
   | '(' expr ')'                            { $2 }
 
 extern_splice ::                            { Void }
@@ -259,14 +261,14 @@ revListOf(p)                              :: { [p] }
 objWord :: Lexeme Token -> QuoteWord a
 objWord = Object . lexemeText
 
-defaultEntry :: LName -> Entries
-defaultEntry m = Entries {
-  entryModule = m,
-  entryNames  = [ m { nameName = Name.fromText "Main" } ]
+defaultRoot :: LName -> Roots
+defaultRoot m = Roots {
+  rootModule = m,
+  rootNames  = [ m { nameName = Name.fromText "Main" } ]
 }
 
 data TopDecl a = TopExtern (Q Void) | TopTypeAlias ForeignTypeDecl | TopOther a
-type EarlyDecl = TopDecl Entries
+type EarlyDecl = TopDecl Roots
 type LateDecl  = TopDecl Decl
 
 data Param     = FunParam LName BasicExporterType | ValParam LName Core.Type
@@ -274,7 +276,7 @@ data Param     = FunParam LName BasicExporterType | ValParam LName Core.Type
 mkModule :: [EarlyDecl] -> [LateDecl] -> Module
 mkModule es ds =
   Module {
-    moduleEntries       = [ e | TopOther e <- es ],
+    moduleRoots         = [ e | TopOther e <- es ],
     moduleForeign       = [ x | TopExtern x <- es ] ++
                           [ x | TopExtern x <- ds ],
     moduleForeignTypes  = [ x | TopTypeAlias x <- es ] ++
@@ -370,7 +372,7 @@ instance PP ParseError where
         ppErr (sourceFrom (nameRange x)) ("Undefined foreign type" <+> quot (nameName x))
       UnusedTParam x ->
         ppErr (sourceFrom (nameRange x)) ("Unused type parameter" <+> quot (nameName x))
-      ExternSplice x -> ppErr (sourceFrom x) "Splices are not allowed in `extern` blocks"
+      ExternSplice x -> ppErr (sourceFrom x) "Splices are not allowed in this context"
       MissingValueParameter f ->
         ppErr (sourceFrom (nameRange f))
           ("The definitions of" <+> quot (nameName f) <+> "does not have a value to export.")
@@ -455,8 +457,12 @@ externSplice = Parser \rw ->
     Just x -> pure (Left (ExternSplice (lexemeRange x)))
     Nothing -> error "[BUG] externSplice"
 
-parserAt :: SourcePos -> Text -> Parser a -> Daedalus (Either ParseError a)
-parserAt loc txt (Parser m) = fmap fst <$> m rw
+parserAt :: SourcePos -> Text -> Parser a -> Daedalus (Either ParseError (a,Map Core.TName Core.TDecl))
+parserAt loc txt (Parser m) =
+  do
+    res <- m rw
+    let getVal (a,s) = (a, Map.fromList [ (Core.tName d, d) | ds <- Map.elems (typeDefsByName s), d <- ds ])
+    pure (getVal <$> res)
   where
   rw =
     ParserState {
@@ -471,7 +477,8 @@ parserAt loc txt (Parser m) = fmap fst <$> m rw
       foreignTParams = mempty
     }
 
-parseFromFile :: FilePath -> Parser a -> Daedalus (Either ParseError a)
+parseFromFile ::
+  FilePath -> Parser a -> Daedalus (Either ParseError (a, Map Core.TName Core.TDecl))
 parseFromFile file p =
   do txt <- Daedalus.ddlIO (Text.readFile file)
      let loc = startPos (Text.pack file)
@@ -501,14 +508,14 @@ setTypeEnv ents = Parser \rw ->
               }))
 
 
-loadDaedalus :: [Entries] -> Daedalus Core.Module
+loadDaedalus :: [Roots] -> Daedalus Core.Module
 loadDaedalus ents =
   do
     let toText = Name.toText . nameName
-    let ms = Set.toList (Set.fromList (map (toText . entryModule) ents))
+    let ms = Set.toList (Set.fromList (map (toText . rootModule) ents))
     mapM_ Daedalus.ddlLoadModule ms
     let entries =
-          [ (toText (entryModule e), toText x) | e <- ents, x <- entryNames e ]
+          [ (toText (rootModule e), toText x) | e <- ents, x <- rootNames e ]
     let specMod = "DaedalusMain"
     Daedalus.passSpecialize specMod entries
     Daedalus.passCore specMod

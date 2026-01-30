@@ -31,7 +31,9 @@ executable export
       Options
       Name
       Check
+      Subst
       AST
+      Type
       Quote
       Lexer
       Parser
