@@ -6,7 +6,6 @@ import Data.Void(Void,vacuous)
 import AlexTools(SourceRange, (<->))
 
 import Daedalus.PP
-import Daedalus.Core qualified as Core
 
 import Name
 import Type
@@ -14,7 +13,10 @@ import Quote
 
 
 -- | A module of DSL declarations
-data Module = Module {
+data Module a b = Module {
+  moduleName :: Name,
+  -- ^ Name of the module.  Derived from the file.
+
   moduleRoots :: [Roots],
   -- ^ Roots for Daedalus parsers we are exporting
 
@@ -24,7 +26,7 @@ data Module = Module {
   moduleForeignTypes :: [ForeignTypeDecl],
   -- ^ Foreign type declarations
 
-  moduleDecls   :: [Decl]
+  moduleDecls   :: [Decl a b]
   -- ^ Exporter definitions
   
 }
@@ -32,51 +34,50 @@ data Module = Module {
 
 -- | Specifies a Daedalus root
 data Roots = Roots {
-  rootModule :: LName,      -- ^ Daedalus module
-  rootNames  :: [LName]     -- ^ Name of parser in that module
+  rootModule :: Loc Name,      -- ^ Daedalus module
+  rootNames  :: [Loc Name]     -- ^ Name of parser in that module
 }
 
 -- | Declare a foreign type alias
 data ForeignTypeDecl = ForeignTypeDecl {
-  ftName    :: LName,
-  ftParams  :: [LName],
-  ftDef     :: Q LName
+  ftName    :: Loc Name,
+  ftParams  :: [Loc Name],
+  ftDef     :: Q (Loc Name)
 }
 
 -- | Declare an exporter
-data Decl = Decl {
+data Decl a b = Decl {
   declDefault         :: Bool,
   -- ^ Is this the default exporter for the type
 
-  declName            :: LName,
-  declDDLTParams      :: [(LName, Core.TParam)],
-  declForeignTParams  :: [LName],
-  declFunParams       :: [(LName, BasicExporterType)],
-  declArg             :: LName,
-  declArgType         :: Core.Type,
-  declResType         :: Type,
-  declDef             :: DeclDef
+  declName            :: Loc b,
+  declDDLTParams      :: [Loc Name],
+  declForeignTParams  :: [Loc Name],
+  declFunParams       :: [(Loc Name, BasicExporterType a b)],
+  declArg             :: Loc Name,
+  declType            :: BasicExporterType a b,
+  declDef             :: DeclDef a b
 }
 
-data DeclDef =
-    DeclDef ForeignCode
-  | DeclCase LName [(Pat, ForeignCode)]
-  | DeclLoop Loop
+data DeclDef a b =
+    DeclDef (ForeignCode a b)
+  | DeclCase (Loc Name) [(Pat, ForeignCode a b)]
+  | DeclLoop (Loop a b)
   | DeclExtern
 
 
-data Loop = Loop {
-  loopInit    :: Q LName, -- ^ Splices are type parameters
-  loopFor     :: ([LName],LName,ForeignCode),
+data Loop a b = Loop {
+  loopInit    :: Q (Loc Name), -- ^ Splices are type parameters
+  loopFor     :: ([Loc Name],Loc Name,ForeignCode a b),
   loopReturn  :: Q Void
 }
 
 data Pat =
-  PCon LName (Maybe LName)
+  PCon (Loc Name) (Maybe (Loc Name))
 
-data ForeignCode =
-    Splice (Q ExportExpr)
-  | Direct ExportExpr
+data ForeignCode a b =
+    Splice (Q (ExportExpr a b))
+  | Direct (ExportExpr a b)
 
 
 --------------------------------------------------------------------------------
@@ -84,26 +85,26 @@ data ForeignCode =
 --------------------------------------------------------------------------------
 
 -- | An exporter expression
-data Exporter =
-    
-    ExportTop LName [Core.Type] [Type]
+data Exporter a b =    
+  ExportTop (Loc b) [Type a] [Type b] [Exporter a b]
     -- ^ The type instances are added by module "Check"
-
-  | ExportApp Exporter Exporter
+  | ExportLocal (Loc Name) 
+    -- ^ Use a of an exporter parameter.
+    -- Introduced by the renamer.
 
 -- | An exported value
-data ExportExpr = ExportExpr {
-  exportWith :: Maybe Exporter, -- ^ '`Nothing` means `default`
+data ExportExpr a b = ExportExpr {
+  exportWith :: Maybe (Exporter a b), -- ^ '`Nothing` means `default`
   exportExpr :: DDLExpr,
-  exportResult :: Maybe Type -- ^ Filled in by `Check`
+  exportResult :: Maybe (Type b) -- ^ Filled in by `Check`
 }
 
 -- | A Daedalus value
-data DDLExpr      = DDLExpr LName Selectors
+data DDLExpr      = DDLExpr (Loc Name) Selectors
 
 type Selectors    = [Selector]
 
-data Selector     = SelectorType :. LName
+data Selector     = SelectorType :. Loc Name
 
 data SelectorType =
     StructSelector    -- ^ Select from a struct.  Parser only produces these.
@@ -117,21 +118,30 @@ data SelectorType =
 -- Computing Source Ranges
 --------------------------------------------------------------------------------
 
-ddlExprRange :: DDLExpr -> SourceRange
-ddlExprRange (DDLExpr x ls) =
-  foldr (<->) (nameRange x) [ nameRange l | _ :. l <- ls ]
+class HasRange a where
+  getRange :: a -> SourceRange
 
-exporterRange :: Exporter -> SourceRange
-exporterRange ex =
-  case ex of
-    ExportTop l _ _ -> nameRange l
-    ExportApp f x -> exporterRange f <-> exporterRange x
+instance HasRange (Loc a) where
+  getRange = locRange
 
-exportExprRange :: ExportExpr -> SourceRange
-exportExprRange ex =
-  case exportWith ex of
-    Nothing -> ddlExprRange (exportExpr ex)
-    Just e  -> exporterRange e <-> ddlExprRange (exportExpr ex)
+instance HasRange DDLExpr where
+  getRange (DDLExpr x ls) =
+    foldr (<->) (locRange x) [ locRange l | _ :. l <- ls ]
+
+instance HasRange (Exporter a b) where
+  getRange ex =
+    case ex of
+      ExportTop l _ _ xs ->
+        case xs of
+          [] -> getRange l
+          _  -> getRange l <-> getRange (last xs)
+      ExportLocal x -> getRange x
+
+instance HasRange (ExportExpr a b) where
+  getRange ex =
+    case exportWith ex of
+      Nothing -> getRange (exportExpr ex)
+      Just e  -> getRange e <-> getRange (exportExpr ex)
 
 
 
@@ -144,11 +154,11 @@ exportExprRange ex =
 --------------------------------------------------------------------------------
 
 
-instance PP Module where
+instance (PP a, PP b) => PP (Module a b) where
   pp m =
     vcat
       [ vcat [ "import" <+> pp n | n <- moduleRoots m ]
-      , vcat [ pp (vacuous q :: Q Decl) | q <- moduleForeign m ]
+      , vcat [ pp (vacuous q :: Q Pat) | q <- moduleForeign m ]
       , vcat (map pp (moduleForeignTypes m))
       , vcat (map pp (moduleDecls m))
       ]
@@ -168,33 +178,35 @@ instance PP ForeignTypeDecl where
            ds -> "<" <.> commaSep ds <.> ">"
 
 
-instance PP Decl where
+instance (PP a, PP b) => PP (Decl a b) where
   pp d = vcat [
     dflt <+> "def" <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
-      parens (pp (declArg d) <.> ":" <+> pp (declArgType d)) <.>
-        ":" <+> pp (declResType d) <+> ppDeclDefStarter (declDef d),
+      parens (pp (declArg d) <.> ":" <+> pp argT) <.>
+        ":" <+> pp resT <+> ppDeclDefStarter (declDef d),
       nest 2 (ppDeclDefBody (declDef d))
     ]
     where
+    argT :-> resT = declType d -- XXX: PP types differently
     dflt = if declDefault d then "default" else mempty
     ppF (f,t) = parens (pp f <.> ":" <+> pp t)
     targs =
-      case map pp (map snd (declDDLTParams d)) ++
+      case map pp (declDDLTParams d) ++
            map pp (declForeignTParams d)
       of
         [] -> mempty
         ds -> "<" <.> commaSep ds <.> ">"
 
 
-instance PP Exporter where
-  ppPrec n e =
+instance (PP a, PP b) => PP (Exporter a b) where
+  pp e =
     case e of
-      ExportTop x [] [] -> pp x
-      ExportTop x cs es ->
-        wrapIf (n > 0)
-          (pp x <+> hsep (map (ppPrec 1) cs) <+> hsep (map (ppPrec 1) es))
-      ExportApp f x -> wrapIf (n > 0) (pp f <+> ppPrec 1 x)
-          
+      ExportTop x cs es fs -> pp x <.> opt_args
+        where
+        opt_args =
+          case map pp cs ++ map pp es ++ map pp fs of
+            [] -> mempty
+            ds -> "<" <.> commaSep ds <.> ">"
+      ExportLocal f -> pp f
 instance PP DDLExpr where
   pp e =
     case e of
@@ -210,7 +222,7 @@ instance PP SelectorType where
       BDSelector     -> ":."
       UnionSelector  -> "!."
 
-instance PP ExportExpr where
+instance (PP a, PP b) => PP (ExportExpr a b) where
   pp (ExportExpr mb x resT) =
     case mb  of
       Just f -> pp f <+> pp x <+> docRes
@@ -221,22 +233,22 @@ instance PP ExportExpr where
         Nothing -> mempty
         Just t -> ":" <+> pp t
 
-instance PP ForeignCode where
+instance (PP a, PP b) => PP (ForeignCode a b) where
   pp code = ppCodeStarter code $$ nest 2 (ppCodeDef code)
 
-ppCodeStarter :: ForeignCode -> Doc
+ppCodeStarter :: ForeignCode a b -> Doc
 ppCodeStarter code =
   case code of
     Splice {} -> "->"
     Direct {} -> "="
 
-ppCodeDef :: ForeignCode -> Doc
+ppCodeDef :: (PP a, PP b) => ForeignCode a b -> Doc
 ppCodeDef code =
   case code of
     Splice q -> pp q
     Direct q -> pp q
 
-ppDeclDefBody :: DeclDef -> Doc
+ppDeclDefBody :: (PP a, PP b) => DeclDef a b -> Doc
 ppDeclDefBody d =
   case d of
     DeclExtern -> "extern"
@@ -248,7 +260,7 @@ ppDeclDefBody d =
       ]
     DeclLoop l -> pp l
 
-ppDeclDefStarter :: DeclDef -> Doc
+ppDeclDefStarter :: DeclDef a b -> Doc
 ppDeclDefStarter d =
   case d of
     DeclDef code -> ppCodeStarter code
@@ -256,7 +268,7 @@ ppDeclDefStarter d =
     DeclExtern {} -> "="
     DeclLoop {} -> "="
 
-instance PP Loop where
+instance (PP a, PP b) => PP (Loop a b) where
   pp l =
     let (xs,x,body) = loopFor l
         clause c y = (c <+> "->") $$ nest 2 (pp y)
@@ -264,10 +276,10 @@ instance PP Loop where
     vcat [
       clause "init" (loopInit l),
       "for" <+> commaSep (map pp xs) <+> "in" <+> pp x <+> pp body,
-      clause "return" (vacuous (loopReturn l) :: Q Decl)
+      clause "return" (vacuous (loopReturn l) :: Q Pat)
     ]
 
-instance PP DeclDef where
+instance (PP a, PP b) => PP (DeclDef a b) where
   pp d = ppDeclDefStarter d <+> ppDeclDefBody d
 
 instance PP Pat where

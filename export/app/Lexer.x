@@ -73,6 +73,7 @@ $white      ;
   "<"       { emit TokLt }
   ">"       { emit TokGt }
   "."       { emit TokDot }
+  ","       { emit TokComma }
   .         { emit (TokError "Unexpected character in slice.") }
 }
 

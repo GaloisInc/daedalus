@@ -19,7 +19,9 @@ import AST
 import Type
 import Subst
 
-
+checkModule :: Module a b -> Either ValidationError (Module a b)
+checkModule = pure -- XXX
+{-
 checkModule :: Map Core.TName Core.TDecl -> Module -> Either ValidationError Module
 checkModule tys m =
   runValidation tys
@@ -54,7 +56,7 @@ checkDeclSig d =
       x : _ -> reportError (AmbiguousTParam x)
       [] -> pure ()
     let fps = declForeignTParams d
-        fvs = freeTVarsType (declResType d)
+        fvs = freeTVars (declResType d)
         badF = [ l | l <- fps, not (nameName l `Set.member` fvs) ]
     case badF of
       x : _ -> reportError (AmbiguousTParam x)
@@ -301,9 +303,9 @@ checkExporter' f args (a :-> b) =
 
 
 
-
-data ValidationError = 
-    UndefinedVariable LName
+-}
+data ValidationError =  XXX {-
+    UndefinedVariable (Loc PName)
   | InvalidSelector Core.Type LName
   | AlreadyExported LName LName   -- ^ First exporter, repeated export
   | VarNotExported LName [Core.Label]
@@ -318,10 +320,10 @@ data ValidationError =
   | MissingCase LName Core.Label
   | MultipleDefinitions Name SourceRange SourceRange
   | AmbiguousTParam LName
-  | CannotFindDefault SourceRange Core.Type
+  | CannotFindDefault SourceRange Core.Type -}
 
 instance PP ValidationError where
-  pp err =
+  pp err = undefined {-
     case err of
 
       UndefinedVariable x ->
@@ -412,14 +414,16 @@ instance PP ValidationError where
     where
     ppLoc x  = text (prettySourcePos x)
     ppErr l msg = text (prettySourcePosLong l) <.> ":" <+> msg
+-}
 
+{-
 data VarStatus =
     NotExported Core.Type
   | ExportedBy LName
   | ExplodedBy Core.Type LName (Map Core.Label VarStatus)
 
 
-            
+       
 
 
 
@@ -620,3 +624,4 @@ lookupVar x ls0 =
                         Core.TBitdata {} -> error ("XXX: `lookupVar` bitdata")
 
               _ -> reportError (InvalidSelector ty l)
+              -}

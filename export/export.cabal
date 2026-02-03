@@ -29,7 +29,9 @@ executable export
     main-is:          Main.hs
     other-modules:
       Options
+      Monad
       Name
+      Renamer
       Check
       Subst
       AST
@@ -40,7 +42,7 @@ executable export
       ExportCPP
     build-depends:
       base, text, array, containers,
-      pretty,
+      pretty, filepath,
       alex-tools,
       simple-get-opt,
       daedalus, daedalus-core, daedalus-utils

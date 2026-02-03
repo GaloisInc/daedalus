@@ -3,9 +3,10 @@ module Type where
 import Data.Set(Set)
 import Data.Set qualified as Set
 import Daedalus.PP
-import Daedalus.Core qualified as Core
+-- import Daedalus.Core qualified as Core
 import Name
 
+{-
 freeTVarsCore :: Core.Type -> Set Core.TParam
 freeTVarsCore ty =
   case ty of
@@ -24,36 +25,37 @@ freeTVarsCore ty =
     Core.TIterator a -> freeTVarsCore a
     Core.TUser ut -> Set.unions (map freeTVarsCore (Core.utTyArgs ut))
     Core.TParam x -> Set.singleton x
+-}
 
-data Type =
-    Type LName [Type]
-  | TVar LName
+data Type tc =
+    Type (Loc tc) [Type tc] [Integer]
+  | TVar (Loc Name)
 
-freeTVarsType :: Type -> Set Name
-freeTVarsType ft =
+freeTVars :: Type tc -> Set Name
+freeTVars ft =
   case ft of
-    Type _ fts -> Set.unions (map freeTVarsType fts)
-    TVar x -> Set.singleton (nameName x)
+    Type _ fts _ -> Set.unions (map freeTVars fts)
+    TVar x -> Set.singleton (locThing x)
 
-data BasicExporterType = Core.Type :-> Type
+data BasicExporterType a b = Type a :-> Type b
 
-data ExporterType = Forall {
-  etDDLTypeVars     :: [Core.TParam],
+data ExporterType a b = Forall {
+  etDDLTypeVars     :: [Name],
   etForeignTypeVars :: [Name],
-  etExporterParams  :: [BasicExporterType],
-  etType            :: BasicExporterType
+  etExporterParams  :: [BasicExporterType a b],
+  etType            :: BasicExporterType a b
 }
 
-instance PP Type where
+instance PP tc => PP (Type tc) where
   pp ft = 
     case ft of
       TVar x -> "?" <.> pp x
-      Type f xs -> pp f <.> args
+      Type f xs ns -> pp f <.> args
         where
         args =
           case xs of
             [] -> mempty
-            _  -> "<" <.> commaSep (map pp xs) <.> ">"
+            _  -> "<" <.> commaSep (map pp xs ++ map pp ns) <.> ">"
 
-instance PP BasicExporterType where
+instance (PP a, PP b) => PP (BasicExporterType a b) where
   pp (x :-> y) = pp x <+> "=>" <+> pp y
