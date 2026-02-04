@@ -58,7 +58,7 @@ data DDLTCon =
   | TBuilder
   | TIterator
   | TUser Core.TName
-    deriving Eq
+    deriving (Eq,Ord)
 
 instance Show Name where
   show = show . nameToText

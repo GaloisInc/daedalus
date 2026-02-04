@@ -23,6 +23,7 @@ common settings
       OverloadedStrings
       ViewPatterns
       FlexibleInstances
+      DisambiguateRecordFields
 
 executable export
     import:           settings
@@ -31,7 +32,6 @@ executable export
       Options
       Monad
       Name
-      Renamer
       Check
       Subst
       AST

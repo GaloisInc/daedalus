@@ -3,6 +3,7 @@ module Main(main) where
 
 import Data.Text qualified as Text
 import Data.Set qualified as Set
+import Data.Map qualified as Map
 import System.FilePath(takeBaseName)
 import System.IO(hPrint,stderr)
 import System.Exit(exitFailure)
@@ -15,7 +16,6 @@ import SimpleGetOpt
 import Options
 import Name
 import Parser
-import Renamer qualified
 import Check
 import AST
 
@@ -40,9 +40,10 @@ main =
               Right a  -> pure (a (nameFromText (Text.pack (takeBaseName f))))
     ddlTys <- Daedalus.daedalus (getTypeDecls <$> loadDaedalus (moduleRoots spec))
 
-    case Renamer.checkModule ddlTys [] spec of
+    let res = runValidator ddlTys (checkModule spec)
+    case res of
       Left err -> hPrint stderr (pp err) >> exitFailure
-      Right a -> print (pp a)
+      Right a  -> print (pp a)
 
 
 loadDaedalus :: [Roots] -> Daedalus.Daedalus Core.Module
@@ -59,12 +60,22 @@ loadDaedalus ents =
     Daedalus.ddlGetAST specMod Daedalus.astCore
 
 -- | Get the type declarations, indexed by original module name.
-getTypeDecls :: Core.Module -> [(Name,Name,Core.TDecl)]
-getTypeDecls m =
-  [ (nameFromText mo, nameFromText (Core.tnameText nm), d)
-  | r <- Core.mTypes m,
-    d <- Core.recToList r,
-    let nm = Core.tName d
-        mo = Core.mNameText (Core.tnameMod nm)
-  ]
+getTypeDecls :: Core.Module -> DDLTypes
+getTypeDecls mo =
+  DDLTypes {
+    ddlTypesByTName =
+      Map.fromList [ (Core.tName d, d) | (_,_,d) <- ds ],
+    ddlTypesByName =
+      Map.fromListWith (++) [ (x, [(m,t)]) | (m,x,t) <- ds ],
+    ddlTypesByModule =
+      Map.fromListWith Map.union [ (m, Map.singleton x t) | (m,x,t) <- ds ]
+  }
+  where
+  ds = 
+    [ (nameFromText modu, nameFromText (Core.tnameText nm), d)
+    | r <- Core.mTypes mo,
+      d <- Core.recToList r,
+      let nm = Core.tName d
+          modu = Core.mNameText (Core.tnameMod nm)
+    ]
   

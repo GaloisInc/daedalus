@@ -1,129 +1,593 @@
-{-| Validation a specification and fill-in some details that can be
-    auto computed. -}
-module Check(checkModule) where
+module Check (
+  checkModule,
+  runValidator,
+  ValidationError(..),
+  Mismatch(..),
+  DDLTypes(..),
+  Check
+) where
 
-import Data.Maybe(isJust)
+
 import Control.Monad
-import Data.Text qualified as Text
-import Data.Set(Set)
 import Data.Set qualified as Set
 import Data.Map(Map)
 import Data.Map qualified as Map
-import AlexTools(SourceRange,sourceFrom,prettySourcePosLong, prettySourcePos)
+import Data.Maybe(isJust)
+import Data.Text(Text)
+import Data.Text qualified as Text
+
+import AlexTools
 
 import Daedalus.PP
 import Daedalus.Core qualified as Core
 
-import Name
-import AST
-import Type
+import Monad
 import Subst
+import Name
+import Type
+import AST
 
-checkModule :: Module a b -> Either ValidationError (Module a b)
-checkModule = pure -- XXX
-{-
-checkModule :: Map Core.TName Core.TDecl -> Module -> Either ValidationError Module
-checkModule tys m =
-  runValidation tys
+import Debug.Trace
+
+type Check = M RO RW ValidationError
+
+data ValidationError =
+    UndefinedName (Loc PName)
+  | AmbiguousName (Loc PName) Name Name  -- ^ modules containing conflicting definitions
+  | MultipleDefinitions Name SourceRange SourceRange
+  | MalformedType (Loc PName) (Mismatch Int) (Mismatch Int) -- value, size
+  | InvalidTParam (Loc Name) (Mismatch TParamFlavor)
+  | TParamShadowBuiltIn (Loc Name)
+  | UnusedTParam (Loc Name)
+  | AlreadyExported (Loc Name) SourceRange
+  | InvalidSelector (Type DDLTCon) (Loc Name)
+  | CannotFindDefault SourceRange (Type DDLTCon)
+  | DefaultWithParams (Loc PName)
+  | MalformedExporter (Loc PName) (Mismatch Int)
+  | DDLTypeMismatch (Loc PName) (Mismatch (Type DDLTCon))
+  | ForeignTypeMismatch (Loc PName) (Mismatch (Type QName))
+  | InvalidCaseType (Loc Name) (Type DDLTCon)
+  | InvalidCon (Loc Name)
+  | MissingCase (Loc Name) Text
+  | VarNotExported (Loc Name) [Text]
+  | InvalidForType (Loc Name) (Type DDLTCon)
+  | InvalidForBinders (Loc Name) (Mismatch Int)
+  
+
+data Mismatch a = Mismatch {
+  expected :: a,
+  actual   :: a
+}
+
+instance PP ValidationError where
+  pp err =
+    case err of
+      UndefinedName x -> msg x \d -> ["Undefined name" <+> d]
+      AmbiguousName x a b ->
+        msg x \d ->
+          [ "Ambiguous name" <+> d
+          , "It may refer to the definition in" <+> qu a <+> ", or" <+> qu b
+          ]
+      MultipleDefinitions x r1 r2 ->
+        vcat
+          [ "Multiple definitions for" <+> pp x
+          , nest 2 ("defined at" <+> text (prettySourcePos (sourceFrom r1)))
+          , nest 2 ("and also at" <+> text (prettySourcePos (sourceFrom r2)))
+          ]
+      MalformedType x v s ->
+        msg x \d ->
+          ("Malformed type" <+> d) :
+          mis v "value arguments" ++ mis s "numeric arguments"
+
+      InvalidTParam x a ->
+          msg x \d ->
+          ("Invalid type parameter" <+> d) : mis a ""
+
+      TParamShadowBuiltIn x ->
+        msg x \d ->
+          [ "Type parameter" <+> d <+> "shadows a built-in type" ]
+
+      UnusedTParam x ->
+        msg x \d ->
+          [ "Type parameter" <+> d <+> "is not used in the exporter's type" ]
+
+      
+      AlreadyExported x y ->
+        msg x \d ->
+          [ "Variable" <+> d <+> "was already exported."
+          , nest 2 ("Other export:" <+> ppLoc y)
+          ]
+
+      InvalidSelector t l ->
+        msg l \d ->
+          [ "Type" <+> backticks (pp t) <+>
+            "does not have selector" <+> d ]
+
+      CannotFindDefault rng ty ->
+        ppLLoc rng <+>
+          "Cannot determine a default exporter for type" <+> backticks (pp ty)
+      
+      DefaultWithParams x ->
+        msg x \d ->
+          ["Exporter" <+> d <+> "is declared as `default`, but it has exporter parameters."]
+
+      MalformedExporter x m ->
+        msg x \d ->
+          ("Incorrect number of arguments to" <+> d <.> ":") : mis m ""
+
+      DDLTypeMismatch x m ->
+        msg x \d ->
+          ("Type error at" <+> d <.> ":") : mis m ""
+
+      ForeignTypeMismatch x m ->
+        msg x \d ->
+          ("Type error at" <+> d <.> ":") : mis m ""
+
+      InvalidCaseType x t ->
+        msg x \d ->
+          [ "Cannot case on" <+> d <.> ".",
+            "It has type:" <+> backticks (pp t) 
+          ]
+
+      InvalidCon l ->
+        msg l \d ->
+          [ "Invalid case alternative:" <+> d <.> "."]
+
+      MissingCase x l ->
+        msg x \d ->
+          [ "Incomplete cases for" <+> d <.> ":",
+            "Missing case for" <+> backticks (pp l)
+          ]
+
+      VarNotExported x ls ->
+        msg x \d ->
+          let
+            what = if null ls then "Variable" else "Field"
+            thing = foldl (\doc l -> doc <.> "." <.> pp l) d ls
+          in [ what <+> thing <+> "was never exported." ]
+        
+      InvalidForType x t ->
+        msg x \d ->
+          [ d <+> "does not support iteration.",
+            "It has type:" <+> backticks (pp t)
+          ]
+
+      InvalidForBinders x m ->
+        msg x \d ->
+          ("Incorrect binders when iterating over" <+> d <.> ":") : mis m "binders"
+
+    where
+    ppLoc = text . prettySourcePos . sourceFrom
+    ppLLoc = text . prettySourcePosLong . sourceFrom
+    mis m suf = if expected m == actual m
+              then []
+              else [ "Expected:" <+> pp (expected m) <+> suf,
+                     "  Actual:" <+> pp (actual m) <+> suf ]
+    msg x f =
+      let pre = ppLLoc (locRange x) in
+      case f (qu (locThing x)) of
+        [] -> pre
+        a : as -> (pre <+> a) $$ nest 2 (vcat as)
+      
+    qu a = backticks (pp a)
+
+data DDLTypes = DDLTypes {
+  ddlTypesByTName       :: Map Core.TName Core.TDecl,
+  ddlTypesByName        :: Map Name [(Name,Core.TDecl)],
+  ddlTypesByModule      :: Map Name (Map Name Core.TDecl)
+}
+
+data ExporterTypes = ExporterTypes {
+  exportersByName       :: Map Name [(Name,ExporterType DDLTCon QName)],
+  exportersByModule     :: Map Name (Map Name (ExporterType DDLTCon QName)),
+  exporterDefaults      :: [(Type DDLTCon,(QName, ExporterType DDLTCon QName))]
+}
+
+data RO = RO {
+  ddlTypes              :: DDLTypes,
+  -- ^ Deadalus type declarations
+
+  patternVars           :: Maybe (Map Name (Name, Name))
+  -- ^ If this is `Just` we desugar pattern variables to union selectors
+
+}
+
+data RW = RW {
+  curModule             :: Name,
+
+  foreignTypesByName    :: Map Name [(Name,ForeignTypeDecl)],
+  foreignTypesByModule  :: Map Name (Map Name ForeignTypeDecl),
+  exporterTypes         :: ExporterTypes,
+  
+  tvarSeed :: !Int,
+  -- ^ Used to generate fresh foreign unification variables.
+
+  -- Local to a function
+  tparamStatus  :: Map Name (Maybe TParamFlavor),
+  -- ^ Local type parameters. These change during signature validation,
+  -- which is when we infer if the kind of parameter (Daedalus vs. foreign).
+  -- They don't change during declaration validation.
+
+  varTypes      :: Map Name (SourceRange, VarStatus),
+  -- ^ Type of Daedalus variables, together with their export status
+  -- for linearity validation.
+
+  localExporters  :: Map Name (BasicExporterType DDLTCon QName)
+  -- ^ Types of local export functions.  These don't really change
+  -- but are here for consitency with the rest.
+}
+
+-- | Status of a local variable
+data VarStatus =
+    NotExported (Type DDLTCon)
+  | ExportedBy (Loc Name)
+  | ExplodedBy (Type DDLTCon) (Loc Name) (Map Core.Label VarStatus)
+
+-- | Indicates what kind of type parameter we have
+data TParamFlavor = TParamDDL | TParamForeign
+  deriving Eq
+
+instance PP TParamFlavor where
+  pp f =
+    case f of
+      TParamDDL -> "a Daedalus type"
+      TParamForeign -> "a foreign type"
+
+-- | Generate a fresh unification variable
+freshVar :: Check Name
+freshVar =
   do
-    let ds = moduleDecls m
-    env <- checkDeclSigs ds
-    ds' <- withTopExporters env (mapM checkDecl ds)
-    pure m { moduleDecls = ds' }
+    rw <- getState
+    let n  = tvarSeed rw
+        nm = nameFromText ("fresh-" <> Text.pack (show n))
+    setState rw { tvarSeed = n + 1 }
+    pure nm
 
-checkDeclSigs :: [Decl] -> M (Map Name (ExporterType,Bool))
-checkDeclSigs ds =
+
+-- | Check if the given name is a type parameter of the given kind.
+isTParam :: Loc Name -> TParamFlavor -> Check Bool
+isTParam x want =
   do
-    xs <- mapM checkDeclSig ds
-    let mp = Map.fromListWith (++) [ (nameName x,[(nameRange x,t)]) | (x,t) <- xs ]
-        check x ys =
-          case ys of
-            [(_,t)] -> Right t
-            (r,_) : (s,_) : _    -> Left (MultipleDefinitions x r s)
-            [] -> error "[BUG] `checkDeclSigs` []"
-        (bad,good) = Map.mapEitherWithKey check mp
-    case Map.minView bad of
-      Just (err, _) -> reportError err
-      Nothing -> pure good
+    rw <- getState
+    let x' = locThing x
+    case Map.lookup x' (tparamStatus rw) of
+      Nothing -> pure False
+      Just status ->
+        case status of
+          Nothing ->
+            do
+              setState rw { tparamStatus =
+                              Map.insert x' (Just want) (tparamStatus rw) }
+              pure True
+          Just s
+            | s == want -> pure True
+            | otherwise -> reportError (InvalidTParam x (Mismatch want s))
+                  
 
-checkDeclSig :: Decl -> M (LName, (ExporterType,Bool))
+
+-- | Check a type alias. Adds it to the state.
+checkTypeAlias :: ForeignTypeDecl -> Check ()
+checkTypeAlias decl =
+  do
+    checkUnique (ftParams decl)
+    mapM_ checkValidParam (ftDef decl)
+    mo <- curModule <$> getState
+    let nm = locThing (ftName decl)
+    updState \rw -> rw {
+      foreignTypesByName = Map.insertWith (++) nm [(mo,decl)] (foreignTypesByName rw),
+      foreignTypesByModule = Map.insertWith Map.union mo (Map.singleton nm decl) (foreignTypesByModule rw)
+    }
+    where
+    ps = Set.fromList (map locThing (ftParams decl))
+    checkValidParam x =
+      unless (locThing x `Set.member` ps)
+        (reportError (UndefinedName (Unqual <$> x)))
+      
+     
+-- | Check that a bunch of parameters are distinct.
+checkUnique :: [Loc Name] -> Check ()
+checkUnique xs =
+  case Map.minView bad of
+    Just (err, _) -> reportError err
+    _ -> pure ()
+  where
+  bad = Map.mapMaybeWithKey check
+      $ Map.fromListWith (++) [ (locThing x, [locRange x]) | x <- xs ]
+  check k ys =
+    case ys of
+      a : b : _ -> Just (MultipleDefinitions k a b)
+      _ -> Nothing
+
+
+-- | Validate and resolve a foreign type.
+checkForeignType :: Type PName -> Check (Type QName)
+checkForeignType ty =
+  case ty of
+    Type nm ts [] ->
+      do
+        args <- mapM checkForeignType ts
+        rw   <- getState
+        case locThing nm of
+
+          Unqual x ->
+            do
+              let nm' = nm { locThing = x }
+              isTP <- isTParam nm' TParamForeign
+              if isTP
+                then pure (TVar nm')
+                else
+                  do
+                    case Map.lookup x (foreignTypesByName rw) of
+                      Nothing -> reportError (UndefinedName nm)
+                      Just [] -> error "[BUG] `checkForeignType` []"
+                      Just [(m,def)] ->
+                        do
+                          let q = QName { qName = x, qModule = m }
+                          mkTCApp def q nm args
+                      Just ((m1,_) : (m2,_) : _) ->
+                        reportError (AmbiguousName nm m1 m2)
+          Qual q ->
+            do
+              let m = qModule q
+                  n = qName q
+              case Map.lookup n =<< Map.lookup m (foreignTypesByModule rw) of
+                Nothing  -> reportError (UndefinedName nm)
+                Just def -> mkTCApp def q nm args
+
+    _ -> error "[BUG] `checkForeignType`"
+
+  where
+  mkTCApp def q nm args =
+    do
+      let have = length args
+          need = length (ftParams def)
+      unless (have == need)
+        (reportError (MalformedType nm (Mismatch need have) (Mismatch 0 0)))
+      pure (Type nm { locThing = q } args [])
+
+
+-- | Names of Daedalus type constructors
+ddlTCons :: Map Name (DDLTCon,Int,Int)
+ddlTCons = Map.fromList
+  [ 
+    "bool"    ~> (TBool,0,0),
+    "double"  ~> (TDouble,0,0),
+    "stream"  ~> (TStream,1,0),
+    "int"     ~> (TInteger,0,0),
+    "uint"    ~> (TUInt,0,1),
+    "sint"    ~> (TSInt,0,1),
+    "maybe"   ~> (TMaybe,1,0),
+    "builder" ~> (TBuilder,1,0),
+    "[]"      ~> (TArray,1,0),
+    "[:]"     ~> (TMap,2,0)
+  ]
+  where x ~> y = (nameFromText x, y)
+
+
+-- | Validate and resolve a Daedalus type
+checkDDLType :: Type PName -> Check (Type DDLTCon)
+checkDDLType ty =
+  case ty of
+    Type nm ts szs ->
+      do
+        args <- mapM checkDDLType ts
+
+        case locThing nm of
+
+          Unqual x ->
+            do
+              let nm' = nm { locThing = x }
+              isTP <- isTParam nm' TParamDDL
+              if isTP
+                then
+                  do
+                    when (x `Map.member` ddlTCons)
+                      (reportError (TParamShadowBuiltIn nm'))
+                    pure (TVar nm')
+                else
+                  case Map.lookup x ddlTCons of
+                    Just (tc,vs,ss) -> mkTCApp nm tc vs ss args szs
+                    Nothing ->
+                      do
+                        env <- getEnv
+                        case Map.lookup x (ddlTypesByName (ddlTypes env)) of
+                          Nothing -> reportError (UndefinedName nm)
+                          Just [] -> error "[BUG] `checkDDLType` []"
+                          Just [(_,def)] -> mkTCUserApp def nm args szs
+                          Just ((m1,_) : (m2,_) : _) ->
+                            reportError (AmbiguousName nm m1 m2)
+          Qual q ->
+            do
+              let m = qModule q
+                  n = qName q
+              env <- getEnv
+              case Map.lookup n =<< Map.lookup m (ddlTypesByModule (ddlTypes env)) of
+                Nothing  -> reportError (UndefinedName nm)
+                Just def -> mkTCUserApp def nm args szs
+
+    _ -> error "[BUG] `checkForeignType`"
+
+  where
+  mkTCUserApp def nm =
+    mkTCApp nm (TUser (Core.tName def))
+      (length (Core.tTParamKValue def))
+      (length (Core.tTParamKNumber def))
+    
+  mkTCApp nm con need_val need_sz args szs =
+    do
+      let have_val = length args
+          have_sz  = length szs
+      unless (have_val == need_val && have_sz == need_sz)
+        (reportError (MalformedType nm (Mismatch need_val have_val)
+                                       (Mismatch need_sz have_sz)))
+      pure (Type nm { locThing = con } args szs)
+
+checkExporterType ::
+  BasicExporterType PName PName -> Check (BasicExporterType DDLTCon QName)
+checkExporterType (a :-> b) =
+  do
+    a' <- checkDDLType a
+    b' <- checkForeignType b
+    pure (a' :-> b')
+
+-- | Validate the type of a declaration. Add it to the state
+checkDeclSig :: Decl PName PName -> Check ()
 checkDeclSig d =
   do
-    let cps = declDDLTParams d
-        cvs = freeTVarsCore (declArgType d)
-        badC = [ l | (l,x) <- cps, not (x `Set.member` cvs) ]
-    case badC of
-      x : _ -> reportError (AmbiguousTParam x)
+    let tps   = declDDLTParams d
+        tpMap = Map.fromList [ (locThing tp, tp) | tp <- tps ]
+    checkUnique tps
+    updState \rw -> rw { tparamStatus = const Nothing <$> tpMap }
+    expT <- checkExporterType (declType d)
+
+    -- We require that all type parameters are mentioned in the type of
+    -- the exporter (not counting exporter arguments).  This ensures that
+    -- we can automatically infer the types at use sites.
+    doneTPs <- tparamStatus <$> getState
+    case [ UnusedTParam (tpMap Map.! x) | (x,Nothing) <- Map.toList doneTPs ] of
+      x : _ -> reportError x
       [] -> pure ()
-    let fps = declForeignTParams d
-        fvs = freeTVars (declResType d)
-        badF = [ l | l <- fps, not (nameName l `Set.member` fvs) ]
-    case badF of
-      x : _ -> reportError (AmbiguousTParam x)
-      _ -> pure ()
-    let ty =
-            Forall {
-              etDDLTypeVars     = map snd cps,
-              etForeignTypeVars = map nameName fps,
-              etExporterParams  = map snd (declFunParams d),
-              etType            = declArgType d :-> declResType d
-            }
-    pure (declName d, (ty, declDefault d))
 
-checkDecl :: Decl -> M Decl
+    expParams <- mapM (checkExporterType . snd) (declFunParams d)                  
+
+    mo <- curModule <$> getState
+    let nm = fromU (locThing (declName d))
+
+    let ty = Forall {
+      etDDLTypeVars =
+        [ locThing tp
+        | tp <- tps,
+          Map.lookup (locThing tp) doneTPs == Just (Just TParamDDL)
+        ],
+      etForeignTypeVars =
+        [ locThing tp
+        | tp <- tps,
+          Map.lookup (locThing tp) doneTPs == Just (Just TParamForeign)
+        ],
+      etExporterParams = expParams,
+      etType = expT
+    }
+    
+    let argTy :-> _ = expT
+    when (declDefault d && not (null expParams))
+      (reportError (DefaultWithParams (declName d)))
+
+    updState \rw ->
+      let es = exporterTypes rw
+      in rw {
+        exporterTypes = ExporterTypes {
+          exportersByName = Map.insertWith (++) nm [(mo,ty)] (exportersByName es),
+          exportersByModule =
+            Map.insertWith Map.union mo (Map.singleton nm ty) (exportersByModule es),
+          exporterDefaults =
+            if declDefault d
+              then (argTy, (QName mo nm,ty)) : exporterDefaults es
+              else exporterDefaults es
+        }
+    }
+
+
+checkDecl :: Decl PName PName -> Check (Decl DDLTCon QName)
 checkDecl d =
-  case declDef d of
-    DeclExtern -> pure d
-    _ ->
-      withTParams (Set.fromList (map snd (declDDLTParams d)))
-                  (Set.fromList (map nameName (declForeignTParams  d))) $
-      withExporters (declFunParams d) $
-      withVar (declArg d) (declArgType d) $
-      do
-        def <- checkDeclDef (declDef d)
-        pure d { declDef = def }
+  do
+    rw <- getState
+    let ourMod  = curModule rw
+        ourName = fromU (locThing (declName d))
+        exTs = exporterTypes rw
+        ourType =
+          case Map.lookup ourName =<< Map.lookup ourMod (exportersByModule exTs) of
+            Just ty -> ty
+            Nothing -> error "[BUG] `checkDecl` no type"
+        argTy :-> _ = etType ourType
+        tpStatus x =
+          if locThing x `elem` etDDLTypeVars ourType
+            then TParamDDL
+            else TParamForeign
+        
+    -- setup local variables
+    setState rw {
+      tparamStatus =
+        Map.fromList
+          [ (locThing tp,Just (tpStatus tp)) | tp <- declDDLTParams d ],
+      varTypes =
+        Map.singleton
+          (locThing (declArg d))
+          (locRange (declArg d), NotExported argTy),
+      localExporters =
+        Map.fromList
+            (map (locThing . fst) (declFunParams d) `zip` etExporterParams ourType)
+    }
+  
+    -- Validate body
+    def <- checkDeclDef (declDef d)
+    
+    pure Decl {
+      declDefault = declDefault d,
+      declName    = (declName d) { locThing = QName ourMod ourName },
+      declDDLTParams = filter ((TParamDDL ==) . tpStatus) (declDDLTParams d),
+      declForeignTParams = filter ((TParamForeign ==) . tpStatus) (declDDLTParams d),
+      declFunParams =
+        [ (x,t) | ((x,_),t) <- declFunParams d `zip` etExporterParams ourType ],
+      declArg = declArg d,
+      declType = etType ourType,
+      declDef = def      
+    }
 
-checkDeclDef :: DeclDef -> M DeclDef
+fromU :: PName -> Name
+fromU x =
+  case x of
+    Unqual y -> y
+    Qual {} -> error "[BUG] `fromU` Qual"
+
+-- | Check the definition of an exporter    
+checkDeclDef :: DeclDef PName PName -> Check (DeclDef DDLTCon QName)
 checkDeclDef def =
   case def of
-    DeclDef q       -> DeclDef <$> checkForeignCode q
-    DeclCase x alts -> DeclCase x <$> checkCase x alts
-    DeclExtern      -> pure DeclExtern
-    DeclLoop l      -> DeclLoop <$> checkLoop l
+    DeclDef code -> DeclDef <$> checkForeignCode code
+    DeclCase x as -> DeclCase x <$> checkCase x as
+    DeclLoop loop -> DeclLoop <$> checkLoop loop
+    DeclExtern -> pure DeclExtern
 
-checkForeignCode :: ForeignCode -> M ForeignCode
-checkForeignCode code =
-  case code of
-    Splice q -> Splice <$> traverse checkExportExpr q
-    Direct e -> Direct <$> checkExportExpr e
 
-checkCase :: LName -> [(Pat, ForeignCode)] -> M [(Pat,ForeignCode)]
+-- | Validate a case exporter
+checkCase ::
+  Loc Name ->
+  [(Pat, ForeignCode PName PName)] ->
+  Check [(Pat,ForeignCode DDLTCon QName)]
 checkCase x alts =
   do
-    ty <- lookupVar x []
+    ty <- checkDDLVar x []
     case ty of
-      Core.TBool ->
-        checkAlts x [("false", Core.TUnit), ("true", Core.TUnit)] alts
 
-      Core.TMaybe f ->
-        checkAlts x [("nothing", Core.TUnit), ("just", f)] alts
+      Type tc@Loc { locThing = TBool } [] [] ->
+        let u = Type tc { locThing = TUnit } [] [] in 
+        checkAlts x [("false", u), ("true", u)] alts
 
-      Core.TUser ut ->
+      Type tc@Loc { locThing = TMaybe } [f] [] ->
+        let u = Type tc { locThing = TUnit } [] [] in 
+        checkAlts x [("nothing", u), ("just", f)] alts
+
+      Type tc@Loc { locThing = TUser ut } vargs nargs ->
         do
           env <- getEnv
-          case Map.lookup (Core.utName ut) (tyDefs env) of
+          case Map.lookup ut (ddlTypesByTName (ddlTypes env)) of
             Nothing -> error "[BUG] `checkCase` Missing type"
             Just tdecl ->
               case Core.tDef tdecl of
-                Core.TUnion opts -> checkAlts x opts alts
+                Core.TUnion opts -> checkAlts x (map imp opts) alts
+                  where
+                  suV = Map.fromList (zip (Core.tTParamKValue tdecl) vargs)
+                  nuV = Map.fromList (zip (Core.tTParamKNumber tdecl) nargs)
+                  imp (con,y) = (con, coreTypeToType (locRange tc) suV nuV y)
                 Core.TBitdata {} -> error "XXX: `checkCase` `bitdata`"
                 Core.TStruct {} -> reportError (InvalidCaseType x ty)
 
       _ -> reportError (InvalidCaseType x ty)
 
+-- | Validate the alternatives of a case exporter
 checkAlts ::
-  LName -> [(Core.Label,Core.Type)] -> [(Pat, ForeignCode)] ->
-  M [(Pat,ForeignCode)]
+  Loc Name -> [(Text,Type DDLTCon)] -> [(Pat, ForeignCode PName PName)] ->
+  Check [(Pat,ForeignCode DDLTCon QName)]
 checkAlts disc needList = checkAll (Map.fromList needList) []
   where
   checkAll mp done pats =
@@ -135,48 +599,55 @@ checkAlts disc needList = checkAll (Map.fromList needList) []
       p@(PCon nm _, _) : more ->
         do
           p' <- check mp p
-          checkAll (Map.delete (Name.toText (nameName nm)) mp) (p':done) more
+          checkAll (Map.delete (nameToText (locThing nm)) mp) (p':done) more
 
 
   check mp (pat@(PCon nm mbX),code) =
-    let lab = Name.toText (nameName nm)
+    let lab = nameToText (locThing nm)
     in
     case Map.lookup lab mp of
       Nothing -> reportError (InvalidCon nm)
       Just ty ->
         case (ty, mbX) of
-          (Core.TUnit, Nothing) ->
+          (Type Loc { locThing = TUnit } [] [], Nothing) ->
             do
               rhs <- checkForeignCode code
               pure (pat, rhs)
           (_, Nothing) -> reportError (VarNotExported disc [lab])
           (ft, Just f) ->
-            withCaseVar f ft (disc,nm)
+            withCaseVar f ft (locThing disc, locThing nm)
             do
               code' <- checkForeignCode code
               pure (pat, code')
-            
-checkLoop :: Loop -> M Loop
+
+
+-- | Validate a loop exporter
+checkLoop :: Loop PName PName -> Check (Loop DDLTCon QName)
 checkLoop l =
   do
     mapM_ checkParam (loopInit l)
     let (vs,xs,body) = loopFor l
-    ty <- lookupVar xs []
+    ty <- checkDDLVar xs []
     body' <-
       case ty of
-        Core.TArray a -> checkBody xs vs [a] body
-        Core.TMap k v -> checkBody xs vs [k,v] body
-        Core.TBuilder a -> checkBody xs vs [a] body
+        Type Loc { locThing = TArray } [a] [] -> checkBody xs vs [a] body
+        Type Loc { locThing = TMap } [k,v] [] -> checkBody xs vs [k,v] body
+        Type Loc { locThing = TBuilder } [a] [] -> checkBody xs vs [a] body
         _ -> reportError (InvalidForType xs ty)
     pure l { loopFor = (vs,xs,body') }
   where
   checkParam x =
     do
-      env <- getEnv
-      unless (nameName x `Set.member` foreignTypeParams env)
-        (reportError (UndefinedVariable x))
+      tps <- tparamStatus <$> getState
+      case Map.lookup (locThing x) tps of
+        Just (Just TParamForeign) -> pure ()
+        Just (Just TParamDDL) ->
+          reportError (InvalidTParam x (Mismatch TParamForeign TParamDDL))
+        Just Nothing -> error "[BUG] `checkLoop` checkParam"
+        Nothing -> reportError (UndefinedName (Unqual <$> x))
+      
   checkBody xs vs ts body
-    | have /= need = reportError (InvalidForBinders xs need have)
+    | have /= need = reportError (InvalidForBinders xs (Mismatch need have))
     | Just ((a,(r1,r2)),_) <- repeated =
       reportError (MultipleDefinitions a r1 r2)
     | otherwise =
@@ -186,373 +657,205 @@ checkLoop l =
         need = length ts
         repeated = Map.minViewWithKey
                  $ Map.mapMaybe mult
-                 $ Map.fromListWith (++) [ (nameName x,[nameRange x]) | x <- vs ]
+                 $ Map.fromListWith (++) [ (locThing x,[locRange x]) | x <- vs ]
         mult m =
           case m of
             a : b : _ -> Just (a,b)
             _ -> Nothing
 
 
-checkExportExpr :: ExportExpr -> M ExportExpr
+
+-- | Validate a piece of foreign code with exporter escapes.
+checkForeignCode :: ForeignCode PName PName -> Check (ForeignCode DDLTCon QName)
+checkForeignCode code =
+  case code of
+    Direct e -> Direct <$> checkExportExpr e
+    Splice q -> Splice <$> mapM checkExportExpr q
+
+
+-- | Validate the names and types in an exporter.
+checkExportExpr :: ExportExpr PName PName -> Check (ExportExpr DDLTCon QName)
 checkExportExpr ex =
   do
     (arg, t) <- checkDDLExpr (exportExpr ex)
     r <- freshVar
-    let rt = TVar LName { nameRange = exportExprRange ex, nameName = r }
+    let rt = TVar Loc { locRange = getRange ex, locThing = r }
     e <- 
       case exportWith ex of
         Nothing ->
           do
-            let rng = exportExprRange ex
-            x <- findDefault rng t
-            pure (ExportTop LName { nameName = x, nameRange = rng } [] [])
-        Just e  -> pure e  
-    (e', su) <- checkExporter e (t :-> rt)
-    let e'' = apSubst su e'
-        resT = apSubst su rt
+            let rng = getRange ex
+            (q,ty) <- findDefault rng t
+            () <- traceM ("Found default: " ++ show (pp q <+> "::" <+> pp (etType ty)))
+            let nm  = Loc { locRange = rng, locThing = q }
+            pure (Qual <$> nm, ExportTop nm, ty, [])
+        Just e  -> resolveExporterFun e
+    (e', su) <- checkExporter' e (t :-> rt)
+    let e''  = apForeignSubstExp su e'
+        resT = apSubstT su rt
     pure ExportExpr {
-      exportWith = Just (apSubst su e''),
+      exportWith = Just e'',
       exportExpr = arg,
       exportResult = Just resT
     }
 
-findDefault :: SourceRange -> Core.Type -> M Name
+type ExporterFun =
+  ( Loc PName,
+    -- Name of exporter for error reporting
+
+    [Type DDLTCon] -> [Type QName] -> [Exporter DDLTCon QName] -> Exporter DDLTCon QName,
+    -- Use this to construct the exporter
+
+    ExporterType DDLTCon QName,
+    -- This is the type of the exporter
+
+    [Exporter PName PName]
+    -- Arguments to the exporter
+  )
+
+  
+-- | Figure out which exporter function we are talking about
+-- (i.e., is it local or top-level, and if so what Dex module came from)
+resolveExporterFun :: Exporter PName PName -> Check ExporterFun
+resolveExporterFun ex =
+  case ex of
+    ExportTop f _ _ es ->
+      case locThing f of
+        Unqual x ->
+          do
+            rw <- getState
+            let exTs = exporterTypes rw
+            case Map.lookup x (localExporters rw) of
+              Just t -> pure (f, \_ _ _ -> ExportLocal f { locThing = x }, Forall [] [] [] t, [])
+              Nothing ->
+                case Map.lookup x (exportersByName exTs) of
+                  Nothing -> reportError (UndefinedName f)
+                  Just [(m,ty)] -> pure (f, ExportTop f { locThing = QName m x }, ty, es)
+                  Just []  -> error "[BUG] `resolveExporterFun`"
+                  Just ((m1,_) : (m2,_) : _) -> reportError (AmbiguousName f m1 m2)
+        Qual q ->
+          do
+            rw <- getState
+            let exTs = exporterTypes rw
+            case Map.lookup (qName q) =<< Map.lookup (qModule q) (exportersByModule exTs) of
+              Just ty -> pure (f, ExportTop f { locThing = q }, ty, es)
+              Nothing -> reportError (UndefinedName f)
+    ExportLocal {} -> error "[BUG] resolveExporterFun"
+    
+
+checkExporter ::
+  Exporter PName PName -> BasicExporterType DDLTCon QName -> Check (Exporter DDLTCon QName, Subst QName)
+checkExporter ex ty =
+  do
+    res <- resolveExporterFun ex
+    checkExporter' res ty
+
+checkExporter' :: ExporterFun -> BasicExporterType DDLTCon QName -> Check (Exporter DDLTCon QName, Subst QName)
+checkExporter' (eNm, mk, ty, args) (a :-> b) =
+  do
+    let ePs  = etExporterParams ty
+        have = length args
+        need = length ePs
+    unless (have == need) (reportError (MalformedExporter eNm (Mismatch need have)))
+    let arg :-> res = etType ty
+    case matchType arg a of
+      Nothing -> reportError (DDLTypeMismatch eNm (Mismatch arg a))
+      Just csu ->
+        do
+          xs <- mapM (const freshVar) (etForeignTypeVars ty)
+          let mkV x     = TVar eNm { locThing = x }
+              dparamTs  = map (apSubstT csu) (map mkV (etDDLTypeVars ty))
+              fparamTs  = map mkV xs
+              isu       = Map.fromList (zip (etForeignTypeVars ty) fparamTs)
+              res'      = apSubstT isu res
+          skolem <- Map.keysSet . tparamStatus <$> getState
+          case unifyType (Set.fromList xs) skolem res' b of
+            Nothing -> reportError (ForeignTypeMismatch eNm (Mismatch res' b))
+            Just fsu ->
+              do
+                (newSu, newArgs) <- foldM checkExArg (fsu,[]) (zip ePs args)
+                pure (mk dparamTs fparamTs (reverse newArgs), newSu)
+              where
+              checkExArg (fsu1, doneArgs) (p :-> q, ex_arg) =
+                do 
+                  let tgt = apSubstT csu p :-> apSubstT (fsu1 @@ isu) q
+                  (newArg,fsu2) <- checkExporter ex_arg tgt
+                  pure (fsu2 @@ fsu1, newArg : doneArgs)
+  
+
+-- | Find a default top-level exporter to use.
+findDefault :: SourceRange -> Type DDLTCon -> Check (QName, ExporterType DDLTCon QName )
 findDefault rng t =
   do
-    env <- getEnv
-    let mp = Map.mapMaybe matchesThis (exporterTypes env)
-    case best [] (Map.toList mp) of
+    defs <- exporterDefaults . exporterTypes <$> getState
+    let candidates = filter ((t `isMoreSpecificThan`) . fst) defs
+    case best [] candidates of
       Just x -> pure x
       Nothing -> reportError (CannotFindDefault rng t)
   where
-  matchesThis (et,d)
-    | d =
-      case etType et of
-        a :-> _ -> matchType t a emptySu >> pure a
-    | otherwise = Nothing
+  x `isMoreSpecificThan` y = isJust (matchType y x)
 
-  x `isMoreSpecificThan` y = isJust (matchType y x emptySu)
   best before this =
     case this of
-      (x,ty) : after
+      (ty,x) : after
         | all (ty `isMoreSpecificThan`) before &&
-          all (ty `isMoreSpecificThan`) (map snd after) -> Just x
+          all (ty `isMoreSpecificThan`) (map fst after) -> Just x
         | otherwise -> best (ty : before) after
       [] -> Nothing
-  
--- | Check a Daedalus expression.
-checkDDLExpr :: DDLExpr -> M (DDLExpr, Core.Type)
+
+
+
+-- | Check a Daedalus expression.  Optionally rewrites locals from case
+-- expressions to projections from union.
+checkDDLExpr :: DDLExpr -> Check (DDLExpr, Type DDLTCon)
 checkDDLExpr e@(DDLExpr x sels) =
   do
-    ty <- lookupVar x sels
+    ty <- checkDDLVar x sels
     env <- getEnv
-    let e1 = 
-           case Map.lookup (nameName x) =<< patternVars env of
+    let var n = x { locThing = n }
+        e1 = 
+           case Map.lookup (locThing x) =<< patternVars env of
              Nothing    -> e
-             Just (y,u) -> DDLExpr y ((UnionSelector :. u) : sels)
+             Just (y,u) -> DDLExpr (var y) ((UnionSelector :. var u) : sels)
     pure (e1, ty)
 
-
-checkExporter :: Exporter -> BasicExporterType -> M (Exporter, Subst)
-checkExporter e ty =
-  case split e [] of
-    (f,es) -> checkExporter' f es ty
-  where
-  split ex as =
-    case ex of
-      ExportTop f _ _ -> (f, as)
-      ExportApp f arg -> split f (arg : as)
-
--- | Check that the given exporter has the provided type.
-checkExporter' :: LName -> [Exporter] -> BasicExporterType -> M (Exporter, Subst)
-checkExporter' f args (a :-> b) =
-  do
-    env <- getEnv
-    case Map.lookup (nameName f) (exporterTypes env) of
-      Nothing -> reportError (UndefinedVariable f)
-      Just (ty,_) ->
-        do
-          let have = length args
-              need = length (etExporterParams ty)
-          unless (have == need) (reportError (ExportArgMismatch f need have))
-          let arg :-> res = etType ty
-          case matchType arg a emptySu of
-            Nothing -> reportError (TypeMismatch (nameRange f) arg a)
-            Just csu ->
-              do
-                xs <- mapM (const freshVar) (etForeignTypeVars ty)
-                let mk x = TVar f { nameName = x }
-                    isu  = Map.fromList (zip (etForeignTypeVars ty) (map mk xs))
-                    res' = apSubst isu res
-                case unifyType (Set.fromList xs) (foreignTypeParams env) res' b of
-                  Nothing -> reportError (ForeignTypeMismatch (nameRange f) res' b)
-                  Just fsu ->
-                    do
-                      let cts = [ suTypes csu Map.! x | x <- etDDLTypeVars ty ]
-                      foldM checkExArg (ExportTop f cts (map mk xs),fsu)
-                                              (zip (etExporterParams ty) args)
-                    where
-                    checkExArg (e,fsu1) (p :-> q, ex_arg) =
-                      do 
-                        let tgt = apSubstCore csu p :-> apSubst (fsu1 @@ isu) q
-                        (newArg,fsu2) <- checkExporter ex_arg tgt
-                        pure (ExportApp e newArg, fsu2 @@ fsu1)
-                      
-                    
-    
-
-
-
--}
-data ValidationError =  XXX {-
-    UndefinedVariable (Loc PName)
-  | InvalidSelector Core.Type LName
-  | AlreadyExported LName LName   -- ^ First exporter, repeated export
-  | VarNotExported LName [Core.Label]
-  | ShadowedVariable LName LName
-  | TypeMismatch SourceRange Core.Type Core.Type
-  | ForeignTypeMismatch SourceRange Type Type
-  | ExportArgMismatch LName Int Int -- ^ Need, have
-  | InvalidForType LName Core.Type
-  | InvalidForBinders LName Int Int -- ^ Need, have
-  | InvalidCaseType LName Core.Type
-  | InvalidCon LName
-  | MissingCase LName Core.Label
-  | MultipleDefinitions Name SourceRange SourceRange
-  | AmbiguousTParam LName
-  | CannotFindDefault SourceRange Core.Type -}
-
-instance PP ValidationError where
-  pp err = undefined {-
-    case err of
-
-      UndefinedVariable x ->
-        ppErr (sourceFrom (nameRange x))
-          ("Undefined variable" <+> backticks (pp (nameName x)))
-
-      InvalidSelector t l ->
-        ppErr (sourceFrom (nameRange l))
-          ("Type" <+> backticks (pp t) <+>
-            "does not have selector" <+> backticks (pp l))
-
-      AlreadyExported x y ->
-        ppErr (sourceFrom (nameRange y)) $
-          vcat [ "Variable" <+> backticks (pp (nameName x)) <+> "was already exported."
-               , nest 2 ("Other export:" <+> ppLoc (sourceFrom (nameRange x)))
-               ]
-      VarNotExported x ls ->
-        ppErr (sourceFrom (nameRange x))
-          (what <+> thing <+> "was never exported.")
-        where what = if null ls then "Variable" else "Field"
-              thing = foldl (\doc l -> doc <.> "." <.> pp l) (pp (nameName x)) ls
-
-      ShadowedVariable x y ->
-        ppErr (sourceFrom (nameRange y)) $
-          vcat [ "Variable was already defined.",
-                 nest 2 ("Previous definition:" <+> ppLoc (sourceFrom (nameRange x))) ]
-
-      TypeMismatch rng t1 t2 ->
-        ppErr (sourceFrom rng) $
-          vcat [ "Daedalus type mismatch:"
-               , nest 2 $ "Expected:" <+> pp t1
-               , nest 2 $ "Actual:" <+> pp t2
-               ]
-
-      ForeignTypeMismatch rng t1 t2 ->
-        ppErr (sourceFrom rng) $
-          vcat [ "Foreign type mismatch:"
-               , nest 2 $ "Expected:" <+> pp t1
-               , nest 2 $ "Actual:" <+> pp t2
-               ]
-
-      ExportArgMismatch f need have
-        | need < have ->
-          ppErr (sourceFrom (nameRange f))
-            ("Export function" <+> backticks (pp (nameName f)) <+> "needs" <+>
-              pp (have - need) <+> "more exporter arguments.")
-        | otherwise ->
-          ppErr (sourceFrom (nameRange f))
-            ("Export function" <+> backticks (pp (nameName f)) <+>
-              "has been applied to" <+> pp (need - have) <+> "too many exporter arguments.")
-
-      InvalidForType x t ->
-        ppErr (sourceFrom (nameRange x)) $
-          vcat [ "Variable" <+> backticks (pp x) <+> "does not support iteration."
-               , nest 2 ("It has type:" <+> pp t)
-          ]
-
-      InvalidForBinders x need have ->
-        ppErr (sourceFrom (nameRange x))
-          ("Iterating over" <+> backticks (pp x) <+> "requires" <+>
-            pp need <+> "variables, but we have" <+> pp have <.> ".")
-
-      InvalidCaseType x t ->
-        ppErr (sourceFrom (nameRange x)) $
-          vcat [ "Cannot case on" <+> backticks (pp x) <.> "."
-               , nest 2 ("It has type:" <+> pp t) ]
-
-      InvalidCon l ->
-        ppErr (sourceFrom (nameRange l))
-          ("Invalid case alternative:" <+> backticks (pp (nameName l)) <.> ".")
-
-      MissingCase x l ->
-        ppErr (sourceFrom (nameRange x))
-          ("Missing case alternative:" <+> backticks (pp l))
-
-      MultipleDefinitions x r1 r2 ->
-        ppErr (sourceFrom r2) $
-          vcat [ "Multiple definitions for" <+> backticks (pp x)
-               , nest 2 ("Other definition:" <+> ppLoc (sourceFrom r1)) ]
-      AmbiguousTParam x ->
-        ppErr (sourceFrom (nameRange x)) $
-          vcat  [ "Type parameter" <+> backticks (pp (nameName x)) <+> "is ambigous."
-                , nest 2 "It needs to appear in input or output of the exporter."
-               ]
-      CannotFindDefault rng ty ->
-        ppErr (sourceFrom rng)
-          ("Cannot determine a default exporter for type" <+> backticks (pp ty))
-    where
-    ppLoc x  = text (prettySourcePos x)
-    ppErr l msg = text (prettySourcePosLong l) <.> ":" <+> msg
--}
-
-{-
-data VarStatus =
-    NotExported Core.Type
-  | ExportedBy LName
-  | ExplodedBy Core.Type LName (Map Core.Label VarStatus)
-
-
-       
-
-
-
 --------------------------------------------------------------------------------
--- Validation Monad
+-- Daedalus variables
 --------------------------------------------------------------------------------
 
-newtype M a = M (RO -> RW -> Either ValidationError (a,RW))
+-- | Introduce a variable that 
+withCaseVar :: Loc Name -> Type DDLTCon -> (Name,Name) -> Check a -> Check a
+withCaseVar x t sel = 
+  withVar x t .
+  updEnv \ro ->
+    ro { patternVars = Map.insert (locThing x) sel <$> patternVars ro }
 
-runValidation :: Map Core.TName Core.TDecl -> M a -> Either ValidationError a
-runValidation defs (M m) = fmap fst (m ro rw)
-  where
-  ro = RO {
-    exporterTypes = mempty,
-    tyDefs = defs,
-    patternVars = Just mempty,
-    ddlTyParams = mempty,
-    foreignTypeParams = mempty
-  }
-  rw = RW {
-    varTypes = mempty,
-    tvarSeed = 0
-  }
-
-data RO = RO {
-  exporterTypes :: Map Name (ExporterType,Bool),
-  -- ^ Types of known exporters.  `Bool` indicates if this is a default.
-
-  tyDefs :: Map Core.TName Core.TDecl,
-  -- ^ Daedalus type definitions
-
-  -- Local to one exporter
-
-  patternVars   :: Maybe (Map Name (LName, LName)),
-  -- ^ If this is `Just` we desugar pattern variables to union selectors
-
-  ddlTyParams :: Set Core.TParam,
-  -- ^ Daedalus type variables that are in scope
-
-  foreignTypeParams :: Set Name
-  -- ^ Foreign type variables that are in scope
-  
-}
-
-data RW = RW {
-  varTypes  :: Map Name (SourceRange, VarStatus),
-  -- ^ Type of Daedalus of variables, together with their export status
-  -- for linearity validation.
-
-  tvarSeed :: !Int
-  -- ^ Used to generate fresh foreign unification variables.
-}
-
-
-instance Functor M where
-  fmap = liftM
-
-instance Applicative M where
-    pure a = M (\_ rw -> Right (a,rw))
-    (<*>)   = ap
-
-instance Monad M where
-  M m >>= f = M \ro rw ->
-    case m ro rw of
-      Left err -> Left err
-      Right (a,rw1)  ->
-        do let M m1 = f a
-           m1 ro rw1
-
-freshVar :: M Name
-freshVar = M \_ rw ->
-  let n = tvarSeed rw
-      nm = Name.fromText ("fresh-" <> Text.pack (show n))
-  in pure (nm, rw { tvarSeed = n + 1 })
-
-getEnv :: M RO
-getEnv = M \ro rw -> Right (ro,rw)
-
-getVarTypes :: M (Map Name (SourceRange, VarStatus))
-getVarTypes = M \_ rw -> Right (varTypes rw, rw)
-
-updVarTypes ::
-  (Map Name (SourceRange, VarStatus) -> Map Name (SourceRange, VarStatus)) -> M ()
-updVarTypes f = M \_ rw -> Right ((), rw { varTypes = f (varTypes rw) })
-
--- | Abort further checking and report the given error.
-reportError :: ValidationError -> M a
-reportError e = M \_ _ -> Left e
-
-withTParams :: Set Core.TParam -> Set Name -> M a -> M a
-withTParams xs ys (M m) = M \ro rw ->
-  m ro { ddlTyParams = xs, foreignTypeParams = ys } rw
-
-withTopExporters :: Map Name (ExporterType,Bool) -> M a -> M a
-withTopExporters mp (M m) = M \ro rw ->
-  m ro { exporterTypes = mp `Map.union` exporterTypes ro } rw
-
-withExporters :: [(LName,BasicExporterType)] -> M a -> M a
-withExporters xs (M m) = M \ro rw ->
-  m ro { exporterTypes = Map.union new (exporterTypes ro) } rw
-  where
-  new = Map.fromList [ (nameName x, (Forall [] [] [] t, False)) | (x,t) <- xs ]
-
-withCaseVar :: LName -> Core.Type -> (LName,LName) -> M a -> M a
-withCaseVar f t b (M k) =
-  withVar f t $ M \ro rw ->
-    k ro { patternVars = (Map.insert (nameName f) b) <$> patternVars ro } rw
 
 -- | Add a variable in scope for the duration of the given computation.
-withVar :: LName -> Core.Type -> M a -> M a
+withVar :: Loc Name -> Type DDLTCon -> Check a -> Check a
 withVar x t k =
   do
-    statuses <- getVarTypes
-    let nm = nameName x
-    case Map.lookup nm statuses of
-      Nothing ->
-        do
-          updVarTypes (Map.insert nm (nameRange x, NotExported t))
-          a <- k
-          newStatuses <- getVarTypes
-          case Map.lookup nm newStatuses of
-            Nothing -> error "[BUG] `withVar` variable disappeared."
-            Just (_,status) -> checkExported x [] status
-          updVarTypes (Map.delete nm)
-          pure a
-      Just (rng,_) -> reportError (ShadowedVariable x { nameRange = rng } x)
+    statuses <- varTypes <$> getState
+    let nm = locThing x
+        oldStatus = Map.lookup nm statuses
+      
+    updState \rw -> rw { varTypes = Map.insert nm (locRange x, NotExported t) (varTypes rw) }
+    a <- k
+    newStatuses <- varTypes <$> getState
+    case Map.lookup nm newStatuses of
+      Nothing -> error "[BUG] `withVar` variable disappeared."
+      Just (_,status) -> checkExported x [] status
 
+    updState \rw -> rw {
+      varTypes =
+        case oldStatus of
+          Nothing -> Map.delete nm (varTypes rw)
+          Just yes -> Map.insert nm yes (varTypes rw)
+    }
+    pure a
+      
 -- | Check that the given name got fully exported.
-checkExported :: LName -> [Core.Label] -> VarStatus -> M ()
+checkExported :: Loc Name -> [Text] -> VarStatus -> Check ()
 checkExported x ls status =
   case status of
     ExportedBy _ -> pure ()
@@ -563,30 +866,30 @@ checkExported x ls status =
 
 -- | Validate a variable with some selectors.
 -- We check that a variable is defined, and is not exported more than once.
-lookupVar ::
-  LName                     -> {-^ Variable being exported -}
-  [Selector]                -> {-^ Selectors -}
-  M Core.Type
-lookupVar x ls0 =
-  do statuses <- getVarTypes
-     let nm = nameName x
+checkDDLVar ::
+  Loc Name     {-^ Variable being exported -} ->
+  [Selector]   {-^ Selectors -} ->
+  Check (Type DDLTCon)
+checkDDLVar x ls0 =
+  do statuses <- varTypes <$> getState
+     let nm = locThing x
      case Map.lookup nm statuses of
-        Nothing -> reportError (UndefinedVariable x)
+        Nothing -> reportError (UndefinedName (Unqual <$> x))
         Just (rng, status) ->
           do
             (ty,newStatus) <- go x status ls0
-            updVarTypes (Map.insert nm (rng, newStatus))
+            updState \rw -> rw { varTypes = Map.insert nm (rng, newStatus) (varTypes rw) }
             pure ty        
   where
   go curLoc curStatus todo =
     case curStatus of
-      ExportedBy there -> reportError (AlreadyExported there curLoc)
+      ExportedBy there -> reportError (AlreadyExported curLoc (locRange there))
 
       ExplodedBy ty there fields ->
         case todo of
-          [] -> reportError (AlreadyExported there curLoc)
+          [] -> reportError (AlreadyExported curLoc (locRange there))
           (_ :. l) : more ->
-            let lnm = Name.toText (nameName l) in
+            let lnm = nameToText (locThing l) in
             case Map.lookup lnm fields of
               Nothing -> reportError (InvalidSelector ty l)
               Just fieldStatus ->
@@ -599,16 +902,22 @@ lookupVar x ls0 =
           [] -> pure (ty, ExportedBy curLoc)
           (_ :. l) : more ->
             case ty of
-              Core.TUser ut ->
+              Type tc targs szargs
+                | TUser unm <- locThing tc ->
                 do
-                  tyDecls <- tyDefs <$> getEnv
-                  case Map.lookup (Core.utName ut) tyDecls of
+                  tyDecls <- ddlTypesByTName . ddlTypes <$> getEnv
+                  case Map.lookup unm tyDecls of
                     Nothing -> error "[BUG] `lookupVar` missing type definition"
 
                     Just tdecl ->
                       case Core.tDef tdecl of
-                        Core.TStruct fields ->
-                          let lnm = Name.toText (nameName l) in
+                        Core.TStruct fields' ->
+                          let lnm = nameToText (locThing l)
+                              suV = Map.fromList (zip (Core.tTParamKValue tdecl) targs)
+                              szV = Map.fromList (zip (Core.tTParamKNumber tdecl) szargs)
+                              rng = locRange tc
+                              fields = [ (f,coreTypeToType rng suV szV t) | (f,t) <- fields' ]
+                          in
                           case lookup lnm fields of
                             Nothing -> reportError (InvalidSelector ty l)
                             Just fty ->
@@ -624,4 +933,41 @@ lookupVar x ls0 =
                         Core.TBitdata {} -> error ("XXX: `lookupVar` bitdata")
 
               _ -> reportError (InvalidSelector ty l)
-              -}
+
+checkModule :: Module PName PName -> Check (Module DDLTCon QName)
+checkModule mo =
+    do
+      updState \rw -> rw { curModule = moduleName mo }
+      checkUnique (map ftName (moduleForeignTypes mo))
+      checkUnique (map (fmap fromU . declName) (moduleDecls mo))
+      mapM_ checkTypeAlias (moduleForeignTypes mo)
+      mapM_ checkDeclSig (moduleDecls mo)
+      ds1 <- mapM checkDecl (moduleDecls mo)
+      pure mo { moduleDecls = ds1 }
+
+
+runValidator :: DDLTypes -> Check a -> Either ValidationError a
+runValidator ddlTys m = fst <$> runMonad m ro rw
+  where
+  ro = RO {
+    ddlTypes = ddlTys,
+    patternVars = mempty
+  }
+
+  rw = RW {
+    curModule = nameFromText "<no module>",
+    
+    exporterTypes = ExporterTypes {
+      exportersByName = mempty,
+      exportersByModule = mempty,
+      exporterDefaults = []
+    },
+    
+    foreignTypesByName = mempty,
+    foreignTypesByModule = mempty,
+
+    tvarSeed = 0,
+    tparamStatus = mempty,
+    varTypes = mempty,
+    localExporters = mempty
+  }
