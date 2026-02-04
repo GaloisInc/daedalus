@@ -13,7 +13,7 @@ parser/main_parser.h parser/main_parser.o: json.ddl utf8.ddl Daedalus.ddl
 	clang++ $(CXXFLAGS) -c parser/main_parser.cpp -o parser/main_parser.o -fsanitize=address
 
 run:
-	cabal run exe:export json.dex
+	cabal run exe:dex json.dex
 
 clean:
 	rm -rf parser simple_app
