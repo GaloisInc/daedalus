@@ -72,16 +72,34 @@ data ExporterType a b = Forall {
   etType            :: BasicExporterType a b
 }
 
-instance PP tc => PP (Type tc) where
-  pp ft = 
-    case ft of
-      TVar x -> "?" <.> pp x
-      Type f xs ns -> pp f <.> args
-        where
-        args =
-          case map pp xs ++ map pp ns of
-            [] -> mempty
-            ds  -> "<" <.> commaSep ds <.> ">"
+class PP tc => PPTyCon tc where
+  ppTyCon :: tc -> [Type tc] -> [Integer] -> Doc
+  wrapTC  :: tc -> Bool -> Doc -> Doc
 
-instance (PP a, PP b) => PP (BasicExporterType a b) where
+instance PPTyCon DDLTCon where
+  ppTyCon tc vargs szargs =
+    case (tc,vargs,szargs) of
+      (TArray,[a],[]) -> brackets (pp a)
+      (TMap,[a,b],[]) -> brackets (pp a <+> ":" <+> pp b)
+      _ -> pp tc <+> hsep (map (ppPrec 1) vargs) <+> hsep (map pp szargs)
+  wrapTC _ = wrapIf
+
+instance PPTyCon QName where
+  ppTyCon tc xs ns =
+    pp tc <.>
+      case map pp xs ++ map pp ns of
+        [] -> mempty
+        ds  -> "<" <.> commaSep ds <.> ">"
+  wrapTC _ = const id
+
+instance PPTyCon tc => PP (Type tc) where
+  ppPrec n ft = 
+    case ft of
+      TVar x -> pp x
+      Type f [] [] -> ppTyCon (locThing f) [] []
+      Type f xs ns ->
+        wrapTC f' (n > 0) (ppTyCon f' xs ns)
+        where f' = locThing f
+        
+instance (PPTyCon a, PPTyCon b) => PP (BasicExporterType a b) where
   pp (x :-> y) = pp x <+> "=>" <+> pp y

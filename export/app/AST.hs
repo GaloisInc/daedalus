@@ -154,7 +154,7 @@ instance HasRange (ExportExpr a b) where
 --------------------------------------------------------------------------------
 
 
-instance (PP a, PP b) => PP (Module a b) where
+instance (PPTyCon a, PPTyCon b) => PP (Module a b) where
   pp m =
     vcat
       [ vcat [ "import" <+> pp n | n <- moduleRoots m ]
@@ -178,7 +178,7 @@ instance PP ForeignTypeDecl where
            ds -> "<" <.> commaSep ds <.> ">"
 
 
-instance (PP a, PP b) => PP (Decl a b) where
+instance (PPTyCon a, PPTyCon b) => PP (Decl a b) where
   pp d = vcat [
     dflt <+> "def" <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
       parens (pp (declArg d) <.> ":" <+> pp argT) <.>
@@ -197,7 +197,7 @@ instance (PP a, PP b) => PP (Decl a b) where
         ds -> "<" <.> commaSep ds <.> ">"
 
 
-instance (PP a, PP b) => PP (Exporter a b) where
+instance (PPTyCon a, PPTyCon b) => PP (Exporter a b) where
   pp e =
     case e of
       ExportTop x cs es fs -> pp x <.> opt_args
@@ -207,6 +207,7 @@ instance (PP a, PP b) => PP (Exporter a b) where
             [] -> mempty
             ds -> "<" <.> commaSep ds <.> ">"
       ExportLocal f -> pp f
+
 instance PP DDLExpr where
   pp e =
     case e of
@@ -222,10 +223,10 @@ instance PP SelectorType where
       BDSelector     -> ":."
       UnionSelector  -> "!."
 
-instance (PP a, PP b) => PP (ExportExpr a b) where
+instance (PPTyCon a, PPTyCon b) => PP (ExportExpr a b) where
   pp (ExportExpr mb x resT) =
     case mb  of
-      Just f -> pp f <+> pp x <+> docRes
+      Just f -> pp f <.> parens (pp x) <.> docRes
       Nothing -> pp x <+> docRes
     where
     docRes =
@@ -233,7 +234,7 @@ instance (PP a, PP b) => PP (ExportExpr a b) where
         Nothing -> mempty
         Just t -> ":" <+> pp t
 
-instance (PP a, PP b) => PP (ForeignCode a b) where
+instance (PPTyCon a, PPTyCon b) => PP (ForeignCode a b) where
   pp code = ppCodeStarter code $$ nest 2 (ppCodeDef code)
 
 ppCodeStarter :: ForeignCode a b -> Doc
@@ -242,13 +243,13 @@ ppCodeStarter code =
     Splice {} -> "->"
     Direct {} -> "="
 
-ppCodeDef :: (PP a, PP b) => ForeignCode a b -> Doc
+ppCodeDef :: (PPTyCon a, PPTyCon b) => ForeignCode a b -> Doc
 ppCodeDef code =
   case code of
     Splice q -> pp q
     Direct q -> pp q
 
-ppDeclDefBody :: (PP a, PP b) => DeclDef a b -> Doc
+ppDeclDefBody :: (PPTyCon a, PPTyCon b) => DeclDef a b -> Doc
 ppDeclDefBody d =
   case d of
     DeclExtern -> "extern"
@@ -268,7 +269,7 @@ ppDeclDefStarter d =
     DeclExtern {} -> "="
     DeclLoop {} -> "="
 
-instance (PP a, PP b) => PP (Loop a b) where
+instance (PPTyCon a, PPTyCon b) => PP (Loop a b) where
   pp l =
     let (xs,x,body) = loopFor l
         clause c y = (c <+> "->") $$ nest 2 (pp y)
@@ -279,7 +280,7 @@ instance (PP a, PP b) => PP (Loop a b) where
       clause "return" (vacuous (loopReturn l) :: Q Pat)
     ]
 
-instance (PP a, PP b) => PP (DeclDef a b) where
+instance (PPTyCon a, PPTyCon b) => PP (DeclDef a b) where
   pp d = ppDeclDefStarter d <+> ppDeclDefBody d
 
 instance PP Pat where
