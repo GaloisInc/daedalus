@@ -3,6 +3,7 @@ module Quote where
 import Data.Text(Text)
 import Data.Text qualified as Text
 import Daedalus.PP
+import Data.Char
 
 newtype Q a       = Q [QuoteWord a]
   deriving (Functor,Foldable,Traversable)
@@ -11,7 +12,15 @@ data QuoteWord a  = Meta a | Object Text
   deriving (Functor,Foldable,Traversable)
 
 renderQuote :: Q Doc -> Doc
-renderQuote (Q xs) = foldMap renderQuoteWord xs
+renderQuote (Q xs) = foldMap renderQuoteWord (hack xs)
+  where
+  -- As an artifact of parsing we emit newlines Object words at the end
+  -- of blocks.  This is a quick-and-dirty function to remove them.
+  hack = reverse . dropWhile onlyWS . reverse
+  onlyWS w =
+    case w of
+      Object txt -> Text.all isSpace txt
+      _ -> False
 
 renderQuoteWord :: QuoteWord Doc -> Doc
 renderQuoteWord w =

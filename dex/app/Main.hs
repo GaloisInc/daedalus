@@ -10,7 +10,7 @@ import System.Exit(exitFailure)
 
 import Daedalus.Driver qualified as Daedalus
 
-import Daedalus.PP(pp)
+import Daedalus.PP
 import Daedalus.Core qualified as Core
 import SimpleGetOpt
 import Options
@@ -18,7 +18,6 @@ import Name
 import Parser
 import Check
 import AST
-import Type
 import ExportCPP
 
 main :: IO ()
@@ -30,11 +29,13 @@ main =
       Just f  ->
         do
           spec <- loadSpec f
-          let ?ftAliases = Map.fromList [ (QName (moduleName spec) (locThing (ftName d)), d) | d <- moduleForeignTypes spec ]
-          let lo x = Loc { locRange = undefined, locThing = x }
-              tc x xs = Type (lo (q x)) xs []
-              q x = QName (moduleName spec) (nameFromText x)
-          print (genForeignType (tc "vector" [tc "uint8_t" []]))
+          let ?ftAliases = Map.fromList [ (QName { qModule = moduleName spec, qName = locThing (ftName d) }, d) | d <- moduleForeignTypes spec ]
+              ?nsUser = "User"
+              ?nsInputType = "INPUT"
+              ?nsExternal = mempty
+              ?ddlTPMap = mempty
+          print (genModule spec)
+    
 
         
 loadSpec :: FilePath -> IO (Module DDLTCon QName)

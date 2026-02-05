@@ -480,7 +480,7 @@ checkDeclSig d =
             Map.insertWith Map.union mo (Map.singleton nm ty) (exportersByModule es),
           exporterDefaults =
             if declDefault d
-              then (argTy, (QName mo nm,ty)) : exporterDefaults es
+              then (argTy, (QName { qModule = mo, qName = nm },ty)) : exporterDefaults es
               else exporterDefaults es
         }
     }
@@ -522,7 +522,7 @@ checkDecl d =
     
     pure Decl {
       declDefault = declDefault d,
-      declName    = (declName d) { locThing = QName ourMod ourName },
+      declName    = (declName d) { locThing = QName { qModule = ourMod, qName = ourName } },
       declDDLTParams = filter ((TParamDDL ==) . tpStatus) (declDDLTParams d),
       declForeignTParams = filter ((TParamForeign ==) . tpStatus) (declDDLTParams d),
       declFunParams =
@@ -551,8 +551,8 @@ checkDeclDef def =
 -- | Validate a case exporter
 checkCase ::
   Loc Name ->
-  [(Pat, ForeignCode PName PName)] ->
-  Check [(Pat,ForeignCode DDLTCon QName)]
+  [(Pat PName, ForeignCode PName PName)] ->
+  Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
 checkCase x alts =
   do
     ty <- checkDDLVar x []
@@ -585,8 +585,8 @@ checkCase x alts =
 
 -- | Validate the alternatives of a case exporter
 checkAlts ::
-  Loc Name -> [(Text,Type DDLTCon)] -> [(Pat, ForeignCode PName PName)] ->
-  Check [(Pat,ForeignCode DDLTCon QName)]
+  Loc Name -> [(Text,Type DDLTCon)] -> [(Pat PName, ForeignCode PName PName)] ->
+  Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
 checkAlts disc needList = checkAll (Map.fromList needList) []
   where
   checkAll mp done pats =
@@ -601,7 +601,7 @@ checkAlts disc needList = checkAll (Map.fromList needList) []
           checkAll (Map.delete (nameToText (locThing nm)) mp) (p':done) more
 
 
-  check mp (pat@(PCon nm mbX),code) =
+  check mp (PCon nm mbX,code) =
     let lab = nameToText (locThing nm)
     in
     case Map.lookup lab mp of
@@ -611,13 +611,13 @@ checkAlts disc needList = checkAll (Map.fromList needList) []
           (Type Loc { locThing = TUnit } [] [], Nothing) ->
             do
               rhs <- checkForeignCode code
-              pure (pat, rhs)
+              pure (PCon nm Nothing, rhs)
           (_, Nothing) -> reportError (VarNotExported disc [lab])
-          (ft, Just f) ->
+          (ft, Just (f,_)) ->
             withCaseVar f ft (locThing disc, locThing nm)
             do
               code' <- checkForeignCode code
-              pure (pat, code')
+              pure (PCon nm (Just (f,Just ft)), code')
 
 
 -- | Validate a loop exporter
@@ -686,7 +686,7 @@ checkExportExpr ex =
             let rng = getRange ex
             (q,ty) <- findDefault rng t
             let nm  = Loc { locRange = rng, locThing = q }
-            pure (Qual <$> nm, ExportTop nm, ty, [])
+            pure (Qual <$> nm, \as bs cs et -> ExportTop nm as bs cs (Just et), ty, [])
         Just e  -> resolveExporterFun e
     (e', su) <- checkExporter' e (t :-> rt)
     let e''  = apForeignSubstExp su e'
@@ -701,7 +701,7 @@ type ExporterFun =
   ( Loc PName,
     -- Name of exporter for error reporting
 
-    [Type DDLTCon] -> [Type QName] -> [Exporter DDLTCon QName] -> Exporter DDLTCon QName,
+    [Type DDLTCon] -> [Type QName] -> [Exporter DDLTCon QName] -> BasicExporterType DDLTCon QName -> Exporter DDLTCon QName,
     -- Use this to construct the exporter
 
     ExporterType DDLTCon QName,
@@ -717,18 +717,18 @@ type ExporterFun =
 resolveExporterFun :: Exporter PName PName -> Check ExporterFun
 resolveExporterFun ex =
   case ex of
-    ExportTop f _ _ es ->
+    ExportTop f _ _ es _ ->
       case locThing f of
         Unqual x ->
           do
             rw <- getState
             let exTs = exporterTypes rw
             case Map.lookup x (localExporters rw) of
-              Just t -> pure (f, \_ _ _ -> ExportLocal f { locThing = x }, Forall [] [] [] t, [])
+              Just t -> pure (f, \_ _ _ ty -> ExportLocal f { locThing = x } (Just ty), Forall [] [] [] t, [])
               Nothing ->
                 case Map.lookup x (exportersByName exTs) of
                   Nothing -> reportError (UndefinedName f)
-                  Just [(m,ty)] -> pure (f, ExportTop f { locThing = QName m x }, ty, es)
+                  Just [(m,ty)] -> pure (f, \as bs cs t -> ExportTop f { locThing = QName { qModule = m, qName = x } } as bs cs (Just t), ty, es)
                   Just []  -> error "[BUG] `resolveExporterFun`"
                   Just ((m1,_) : (m2,_) : _) -> reportError (AmbiguousName f m1 m2)
         Qual q ->
@@ -736,7 +736,7 @@ resolveExporterFun ex =
             rw <- getState
             let exTs = exporterTypes rw
             case Map.lookup (qName q) =<< Map.lookup (qModule q) (exportersByModule exTs) of
-              Just ty -> pure (f, ExportTop f { locThing = q }, ty, es)
+              Just ty -> pure (f, \as bs cs t -> ExportTop f { locThing = q } as bs cs (Just t), ty, es)
               Nothing -> reportError (UndefinedName f)
     ExportLocal {} -> error "[BUG] resolveExporterFun"
     
@@ -749,7 +749,7 @@ checkExporter ex ty =
     checkExporter' res ty
 
 checkExporter' :: ExporterFun -> BasicExporterType DDLTCon QName -> Check (Exporter DDLTCon QName, Subst QName)
-checkExporter' (eNm, mk, ty, args) (a :-> b) =
+checkExporter' (eNm, mk, ty, args) et@(a :-> b) =
   do
     let ePs  = etExporterParams ty
         have = length args
@@ -772,7 +772,7 @@ checkExporter' (eNm, mk, ty, args) (a :-> b) =
             Just fsu ->
               do
                 (newSu, newArgs) <- foldM checkExArg (fsu,[]) (zip ePs args)
-                pure (mk dparamTs fparamTs (reverse newArgs), newSu)
+                pure (mk dparamTs fparamTs (reverse newArgs) et, newSu)
               where
               checkExArg (fsu1, doneArgs) (p :-> q, ex_arg) =
                 do 

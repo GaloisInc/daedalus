@@ -29,13 +29,18 @@ apSubstT su ty =
     TVar x       -> Map.findWithDefault ty (locThing x) su
     Type f es ns -> Type f (map (apSubstT su) es) ns
 
+apForeignSubstBasicExporterType :: Subst b -> BasicExporterType a b -> BasicExporterType a b
+apForeignSubstBasicExporterType su (a :-> b) = a :-> apSubstT su b
+
 -- | Apply a substitution to the foreign types in an exporter
 apForeignSubstExp :: Subst b -> Exporter a b -> Exporter a b
 apForeignSubstExp su expr =
   case expr of
-    ExportTop f cs ts fs ->
-      ExportTop f cs (map (apSubstT su) ts) (map (apForeignSubstExp su) fs)
-    ExportLocal {} -> expr
+    ExportTop f cs ts fs ty ->
+      ExportTop f cs (map (apSubstT su) ts) (map (apForeignSubstExp su) fs) 
+                      (apForeignSubstBasicExporterType su <$> ty)
+    ExportLocal f ty ->
+      ExportLocal f (apForeignSubstBasicExporterType su <$> ty)
 
 
 -- | Check if we can instantiate the variables in the first type

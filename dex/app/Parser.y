@@ -136,16 +136,16 @@ loop ::                                     { Loop PName PName }
     'return' foreign_block(extern_splice)   { Loop $2 ($4,$6,$7) $9 }
 
 
-case_alt ::                                 { (Pat, ForeignCode PName PName) }
+case_alt ::                                 { (Pat PName, ForeignCode PName PName) }
   : pat foreign_code                        { ($1, $2) }
 
 foreign_code ::                             { ForeignCode PName PName }
   : foreign_block(expr_splice)              { Splice $1 }
   | '=' expr                                { Direct $2 }
 
-pat ::                                      { Pat }
+pat ::                                      { Pat PName }
   : ename                                   { PCon $1 Nothing }
-  | ename ename                             { PCon $1 (Just $2) }
+  | ename ename                             { PCon $1 (Just ($2,Nothing)) }
 
 ename ::                                    { Loc Name }
   : IDENT                                   { Loc {
@@ -156,7 +156,7 @@ ename ::                                    { Loc Name }
 qname ::                                    { Loc PName }
   : ename                                   { Unqual `fmap` $1 }
   | ename '::' ename                        { Loc { locRange = locRange $1 <-> locRange $3,
-                                                    locThing = Qual (QName (locThing $1) (locThing $3)) } }
+                                                    locThing = Qual (QName { qModule = locThing $1, qName = locThing $3 }) } }
   
 ddl_type ::                                 { Type PName }
   : atype                                   { $1 }
@@ -188,7 +188,7 @@ expr ::                                     { ExportExpr PName PName }
   | ddl_expr                                { ExportExpr Nothing $1 Nothing }
 
 exporter ::                                 { Exporter PName PName }
-  : qname opt_exp_args                      { ExportTop $1 [] [] $2 }
+  : qname opt_exp_args                      { ExportTop $1 [] [] $2 Nothing }
 
 opt_exp_args ::                             { [Exporter PName PName] }
   : '<' sepBy(',',exporter) '>'             { $2 }

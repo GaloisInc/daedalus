@@ -5,6 +5,7 @@ extern ->
   #include <cstdint>
   #include <vector>
   #include <string>
+  #include <option>
   #include <unordered_map>
   #include "json.hpp"
 
@@ -15,6 +16,7 @@ type int32_t    -> int32_t
 type int64_t    -> int64_t
 type vector<T>  -> std::vector<$T>
 type string     -> std::string
+type option<T>  -> std::option<T>
 type map<K,V>   -> std::unordered_map<$K,$V>
 type JSON       -> basic_json<>
 type void       -> void
@@ -22,11 +24,22 @@ type void       -> void
 default def uint8(x: uint 8): uint8_t = extern
 default def int32(x: sint 32): int32_t = extern
 default def int64(x: sint 64): int64_t = extern
-default def bool(x: bool): bool = extern
+
+default def as_bool(x: bool): bool =
+  case x of
+    true -> true
+    false -> false
+
+def as_option<A,T,f: A => T>(x: maybe A): option<T> =
+  case x of
+    nothing -> std::option()
+    just a  -> std::option($(f(a))) 
 
 def ignore<A>(x: A): void = extern
 
 def as_char(x: uint 8): char -> static_cast<char>($x)
+
+
 
 def as_string (xs: [uint 8]): string =
   init -> std::string result;

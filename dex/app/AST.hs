@@ -61,7 +61,7 @@ data Decl a b = Decl {
 
 data DeclDef a b =
     DeclDef (ForeignCode a b)
-  | DeclCase (Loc Name) [(Pat, ForeignCode a b)]
+  | DeclCase (Loc Name) [(Pat a, ForeignCode a b)]
   | DeclLoop (Loop a b)
   | DeclExtern
 
@@ -72,8 +72,8 @@ data Loop a b = Loop {
   loopReturn  :: Q Void
 }
 
-data Pat =
-  PCon (Loc Name) (Maybe (Loc Name))
+data Pat a =
+  PCon (Loc Name) (Maybe (Loc Name, Maybe (Type a)))
 
 data ForeignCode a b =
     Splice (Q (ExportExpr a b))
@@ -86,11 +86,12 @@ data ForeignCode a b =
 
 -- | An exporter expression
 data Exporter a b =    
-  ExportTop (Loc b) [Type a] [Type b] [Exporter a b]
+    ExportTop (Loc b) [Type a] [Type b] [Exporter a b] (Maybe (BasicExporterType a b))
     -- ^ The type instances are added by module "Check"
-  | ExportLocal (Loc Name) 
+  | ExportLocal (Loc Name) (Maybe (BasicExporterType a b))
     -- ^ Use a of an exporter parameter.
     -- Introduced by the renamer.
+
 
 -- | An exported value
 data ExportExpr a b = ExportExpr {
@@ -131,11 +132,11 @@ instance HasRange DDLExpr where
 instance HasRange (Exporter a b) where
   getRange ex =
     case ex of
-      ExportTop l _ _ xs ->
+      ExportTop l _ _ xs _ ->
         case xs of
           [] -> getRange l
           _  -> getRange l <-> getRange (last xs)
-      ExportLocal x -> getRange x
+      ExportLocal x _ -> getRange x
 
 instance HasRange (ExportExpr a b) where
   getRange ex =
@@ -158,7 +159,7 @@ instance (PPTyCon a, PPTyCon b) => PP (Module a b) where
   pp m =
     vcat
       [ vcat [ "import" <+> pp n | n <- moduleRoots m ]
-      , vcat [ pp (vacuous q :: Q Pat) | q <- moduleForeign m ]
+      , vcat [ pp (vacuous q :: Q Int) | q <- moduleForeign m ]
       , vcat (map pp (moduleForeignTypes m))
       , vcat (map pp (moduleDecls m))
       ]
@@ -200,13 +201,13 @@ instance (PPTyCon a, PPTyCon b) => PP (Decl a b) where
 instance (PPTyCon a, PPTyCon b) => PP (Exporter a b) where
   pp e =
     case e of
-      ExportTop x cs es fs -> pp x <.> opt_args
+      ExportTop x cs es fs _ -> pp x <.> opt_args
         where
         opt_args =
           case map pp cs ++ map pp es ++ map pp fs of
             [] -> mempty
             ds -> "<" <.> commaSep ds <.> ">"
-      ExportLocal f -> pp f
+      ExportLocal f _ -> pp f
 
 instance PP DDLExpr where
   pp e =
@@ -277,11 +278,11 @@ instance (PPTyCon a, PPTyCon b) => PP (Loop a b) where
     vcat [
       clause "init" (loopInit l),
       "for" <+> commaSep (map pp xs) <+> "in" <+> pp x <+> pp body,
-      clause "return" (vacuous (loopReturn l) :: Q Pat)
+      clause "return" (vacuous (loopReturn l) :: Q Int)
     ]
 
 instance (PPTyCon a, PPTyCon b) => PP (DeclDef a b) where
   pp d = ppDeclDefStarter d <+> ppDeclDefBody d
 
-instance PP Pat where
-  pp (PCon c mb) = pp c <+> maybe mempty pp mb
+instance PP (Pat a) where
+  pp (PCon c mb) = pp c <+> maybe mempty (pp . fst) mb
