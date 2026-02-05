@@ -18,33 +18,46 @@ import Name
 import Parser
 import Check
 import AST
-
+import Type
+import ExportCPP
 
 main :: IO ()
 main =
   do
     opts <- getOpts defaultOptions options
+    case optExportFile opts of
+      Nothing -> reportUsageError options ["Missing export specification."]
+      Just f  ->
+        do
+          spec <- loadSpec f
+          let ?ftAliases = Map.fromList [ (QName (moduleName spec) (locThing (ftName d)), d) | d <- moduleForeignTypes spec ]
+          let lo x = Loc { locRange = undefined, locThing = x }
+              tc x xs = Type (lo (q x)) xs []
+              q x = QName (moduleName spec) (nameFromText x)
+          print (genForeignType (tc "vector" [tc "uint8_t" []]))
+
+        
+loadSpec :: FilePath -> IO (Module DDLTCon QName)
+loadSpec f =
+  do
+    mb <- parseFromFile f moduleParser
     spec <-
-      case optExportFile opts of
-        Nothing -> reportUsageError options ["Missing export specification."]
-        Just f  ->
-          do
-            mb <- parseFromFile f moduleParser
+      case mb of
+        Left err -> hPrint stderr (pp err) >> exitFailure
+        Right a  -> pure (a (nameFromText (Text.pack (takeBaseName f))))
+    ddlTys <-
+      Daedalus.daedalus (getTypeDecls <$> loadDaedalus (moduleRoots spec))
+    let res = runValidator ddlTys (checkModule spec)
+    case res of
+      Left err -> hPrint stderr (pp err) >> exitFailure
+      Right a  -> pure a
+
 {-
+XXX:
               do
                 -- unless (null (optSearchPathForDDL opts))
                 --  (ddlSetOpt optSearchPath (reverse (optSearchPathForDDL opts))) 
   -}              
-            case mb of
-              Left err -> hPrint stderr (pp err) >> exitFailure
-              Right a  -> pure (a (nameFromText (Text.pack (takeBaseName f))))
-    ddlTys <- Daedalus.daedalus (getTypeDecls <$> loadDaedalus (moduleRoots spec))
-
-    let res = runValidator ddlTys (checkModule spec)
-    case res of
-      Left err -> hPrint stderr (pp err) >> exitFailure
-      Right a  -> print (pp a)
-
 
 loadDaedalus :: [Roots] -> Daedalus.Daedalus Core.Module
 loadDaedalus ents =

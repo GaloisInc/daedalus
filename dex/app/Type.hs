@@ -9,6 +9,41 @@ import Daedalus.PP
 import Daedalus.Core qualified as Core
 import Name
 
+typeToCoreType :: Map Name Core.TParam -> Type DDLTCon -> Core.Type
+typeToCoreType ps ty =
+  case ty of
+    TVar x ->
+      case Map.lookup (locThing x) ps of
+        Just p -> Core.TParam p
+        Nothing -> error "[BUG] typeToCoreType: missing type parmeter"
+    Type tc args szs ->
+      case (locThing tc,args',sz') of
+        (TStream,[],[]) -> Core.TStream
+        (TUInt,[],[sz]) -> Core.TUInt sz
+        (TSInt,[],[sz]) -> Core.TSInt sz
+        (TInteger,[],[]) -> Core.TInteger
+        (TBool,[],[]) -> Core.TBool
+        (TFloat,[],[]) -> Core.TFloat
+        (TDouble,[],[]) -> Core.TDouble
+        (TUnit,[],[]) -> Core.TUnit
+        (TArray,[a],[]) -> Core.TArray a
+        (TMaybe,[a],[]) -> Core.TMaybe a
+        (TMap,[a,b],[]) -> Core.TMap a b
+        (TBuilder,[a],[]) -> Core.TBuilder a
+        (TIterator,[a],[]) -> Core.TIterator a
+        (TUser ut,_,_) ->
+          Core.TUser Core.UserType {
+            utName    = ut,
+            utNumArgs = sz',
+            utTyArgs  = args'
+          } 
+        _ -> error "[BUG]: Malformerd DDL type"
+      where
+      args' = map (typeToCoreType ps) args
+      sz'   = map Core.TSize szs
+
+
+
 coreTypeToType :: SourceRange -> Map Core.TParam (Type DDLTCon) -> Map Core.TParam Integer -> Core.Type -> Type DDLTCon
 coreTypeToType rng vargs szargs ty =
   let go = coreTypeToType rng vargs szargs

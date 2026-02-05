@@ -24,6 +24,8 @@ common settings
       ViewPatterns
       FlexibleInstances
       DisambiguateRecordFields
+      ImplicitParams
+      ConstraintKinds
 
 executable dex
     import:           settings
@@ -45,7 +47,7 @@ executable dex
       pretty, filepath,
       alex-tools,
       simple-get-opt,
-      daedalus, daedalus-core, daedalus-utils
+      daedalus, daedalus-core, daedalus-vm, daedalus-utils
     build-tool-depends:  alex:alex, happy:happy
     hs-source-dirs:   app
     default-language: Haskell2010

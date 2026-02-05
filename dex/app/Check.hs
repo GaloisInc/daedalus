@@ -27,7 +27,6 @@ import Name
 import Type
 import AST
 
-import Debug.Trace
 
 type Check = M RO RW ValidationError
 
@@ -686,7 +685,6 @@ checkExportExpr ex =
           do
             let rng = getRange ex
             (q,ty) <- findDefault rng t
-            () <- traceM ("Found default: " ++ show (pp q <+> "::" <+> pp (etType ty)))
             let nm  = Loc { locRange = rng, locThing = q }
             pure (Qual <$> nm, ExportTop nm, ty, [])
         Just e  -> resolveExporterFun e
@@ -946,7 +944,8 @@ checkModule mo =
       pure mo { moduleDecls = ds1 }
 
 
-runValidator :: DDLTypes -> Check a -> Either ValidationError a
+runValidator :: DDLTypes -> Check a ->
+  Either ValidationError a
 runValidator ddlTys m = fst <$> runMonad m ro rw
   where
   ro = RO {
