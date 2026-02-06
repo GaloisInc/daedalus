@@ -43,13 +43,15 @@ main =
         ?nsExternal = mempty
         ?ddlTPMap = mempty
 
-    let outFile =
-          optOutputFile opts <|>
-          fmap (`replaceExtension` ".cpp") (optExportFile opts)
-          
-    case outFile of
-      Nothing -> print (genModules mos)
-      Just f -> writeFile f (show (genModules mos))
+    let saveOut ext out =
+          let name = fmap (`replaceExtension` ext)
+                      (optOutputFile opts <|> optExportFile opts)
+          in case name of
+               Nothing -> print out
+               Just f -> writeFile f (show out)
+        (header,impl) = genModules mos
+    saveOut ".h" header
+    saveOut ".cpp" impl
 
 abortWith :: String -> IO a
 abortWith x = hPutStrLn stderr x >> exitFailure

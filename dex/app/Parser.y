@@ -91,8 +91,13 @@ roots ::                                    { Roots }
   | ename '(' sepBy1(',', ename) ')'        { Roots { rootModule = $1,
                                                       rootNames = $3 } }
 
-extern_decl ::                              { Q Void }
-  : 'extern' foreign_block(extern_splice)   { $2 }
+extern_decl ::                              { ForeignBlock }
+  : 'extern' opt_extern_def
+    foreign_block(extern_splice)            { ForeignBlock $3 $2 }
+
+opt_extern_def ::                           { Bool }
+  : 'def'                                   { True }
+  | {- empty -}                             { False }
 
 type_alias_decl ::                          { ForeignTypeDecl }
   : 'type' ename type_alias_params              
@@ -258,7 +263,7 @@ defaultRoot m = Roots {
 data TopDecl =
     TopImport Roots
   | TopUsing (Loc Name)
-  | TopExtern (Q Void)
+  | TopExtern ForeignBlock
   | TopTypeAlias ForeignTypeDecl
   | TopDecl (Decl PName PName)
 

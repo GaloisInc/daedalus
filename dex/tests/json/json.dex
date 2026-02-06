@@ -7,6 +7,8 @@ extern ->
   #include "main_parser.h"
   #include "json.hpp"
 
+extern def ->
+  #include <parser/exporter.h>
   uint64_t exp10(uint32_t exp) {
     uint64_t res = 1;
     while (exp != 0) { res *= 10; --exp; }
@@ -16,7 +18,7 @@ extern ->
 
 type JSON       -> nlohmann::basic_json<>
 
-def exportJSON (x: JSON_value): JSON =
+def exportJSON(x: JSON_value): JSON =
   case x of
     Null      -> nlohmann::json(nullptr)
     Bool b    -> nlohmann::json($b)

@@ -22,16 +22,25 @@ type Ctx = (
   ?ddlTPMap :: Map Name Core.TParam
   )
 
-genModules :: Ctx => [Module DDLTCon QName] -> Doc
-genModules mos =
-  vcat $
-    banner "User Specified Custom Code" ++
-    foreigns ++
-    banner "Exporter Declarations" ++
-    exportDecls ++
-    banner "Exporter Definitions" ++
-    exportDefs
+genModules :: Ctx => [Module DDLTCon QName] -> (Doc,Doc)
+genModules mos = (header,impl)
   where
+  header =
+    vcat $
+      [ "#pragma once" ] ++
+      optBanner "User Specified Custom Code" (foreigns False) ++
+      optBanner "Exporter Declarations" exportDecls
+
+  impl =
+    vcat $
+      optBanner "User Specified Custom Code" (foreigns True) ++
+      optBanner "Exporter Definitions" exportDefs
+  
+  optBanner x ys =
+    case ys of
+      [] -> []
+      _  -> banner x ++ ys
+
   banner x = [
     " ",
     "// ---------------------------------------------",
@@ -39,10 +48,12 @@ genModules mos =
     "// ---------------------------------------------",
     " "
     ]
-  foreigns =
-    [ renderQuote (vacuous f)
+
+  foreigns withDef =
+    [ renderQuote (vacuous (foreignCode f))
     | mo <- mos
     , f <- moduleForeign mo
+    , foreignDef f == withDef
     ]
 
   inNS mo = cNamespace (pp (moduleName mo))

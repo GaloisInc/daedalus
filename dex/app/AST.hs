@@ -23,7 +23,7 @@ data Module a b = Module {
   moduleUsing :: [Loc Name],
   -- ^ Other Dex modules we depend on
 
-  moduleForeign :: [Q Void],
+  moduleForeign :: [ForeignBlock],
   -- ^ Arbitrary foreign text (e.g., #include or helper functions)
 
   moduleForeignTypes :: [ForeignTypeDecl],
@@ -31,9 +31,15 @@ data Module a b = Module {
 
   moduleDecls   :: [Decl a b]
   -- ^ Exporter definitions
-  
 }
 
+data ForeignBlock = ForeignBlock {
+  foreignCode  :: Q Void,
+  foreignDef   :: Bool
+  -- Indicates that the user used the `def` flag on the `extern`.
+  -- For C++, we interpret this to mean that this code should only go
+  -- in the generated `.cpp`, as opposed to going in the generated `.h`
+}
 
 -- | Specifies a Daedalus root
 data Roots = Roots {
@@ -101,9 +107,12 @@ data Exporter a b =
 
 -- | An exported value
 data ExportExpr a b = ExportExpr {
-  exportWith :: Maybe (Exporter a b), -- ^ '`Nothing` means `default`
-  exportExpr :: DDLExpr,
-  exportResult :: Maybe (Type b) -- ^ Filled in by `Check`
+  exportWith    :: Maybe (Exporter a b),
+  -- ^ '`Nothing` means `default`.  In some contexts, if this is `Nothing`,
+  -- then we try to see if the `exportExpr` is actually a *type* parameter.
+
+  exportExpr    :: DDLExpr,
+  exportResult  :: Maybe (Type b) -- ^ Filled in by `Check`
 }
 
 -- | A Daedalus value
@@ -165,13 +174,18 @@ instance (PPTyCon a, PPTyCon b) => PP (Module a b) where
   pp m =
     vcat
       [ vcat [ "import" <+> pp n | n <- moduleRoots m ]
-      , vcat [ pp (vacuous q :: Q Int) | q <- moduleForeign m ]
+      , vcat (map pp (moduleForeign m))
       , vcat (map pp (moduleForeignTypes m))
       , vcat (map pp (moduleDecls m))
       ]
 
 instance PP Roots where
   pp ent = pp (rootModule ent) <.> parens (commaSep (map pp (rootNames ent)))
+
+instance PP ForeignBlock where
+  pp fb =
+    ("extern" <+> (if foreignDef fb then "def" else mempty) <+> "->")
+    $$ nest 2 (pp (vacuous (foreignCode fb) :: Q Int))
 
 instance PP ForeignTypeDecl where
   pp fd =
