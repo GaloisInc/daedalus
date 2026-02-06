@@ -6,18 +6,24 @@ using CPP
 extern ->
   #include "main_parser.h"
   #include "json.hpp"
-  using namespace nlohmann;
 
-type JSON       -> basic_json<>
+  uint64_t exp10(uint32_t exp) {
+    uint64_t res = 1;
+    while (exp != 0) { res *= 10; --exp; }
+    return res;
+  }
+
+
+type JSON       -> nlohmann::basic_json<>
 
 def exportJSON (x: JSON_value): JSON =
   case x of
-    Null      -> basic_json<>(nullptr)
-    Bool b    -> basic_json<>($b)
+    Null      -> nlohmann::json(nullptr)
+    Bool b    -> nlohmann::json($b)
     Number n  = exportNumber(n)
-    String s  -> basic_json<>($(as_string(s)))
-    Array xs  -> basic_json<>($(as_vector<exportJSON>(xs)))
-    Object xs -> basic_json<>($(as_map<as_string,exportJSON>(xs)))
+    String s  -> nlohmann::json($(as_string(s)))
+    Array xs  -> nlohmann::json($(as_vector<exportJSON>(xs)))
+    Object xs -> nlohmann::json($(as_map<as_string,exportJSON>(xs)))
 
 
 -- Exporting a struct.  Here we use a local lambda to do some computation.
@@ -27,8 +33,8 @@ def exportNumber(x: JSON_number): JSON ->
   [=] () mutable { 
     int64_t w = $(x.whole);
     int32_t e = $(x.exp);
-    if (e < 0) return basic_json<>(w * std::pow(10,e));
+    if (e < 0) return nlohmann::json(w * std::pow(10,e));
     auto pos_e = exp10(static_cast<uint32_t>(e));
-    if (w < 0) return basic_json<>(w * static_cast<int64_t>(pos_e));
-    return basic_json<>(static_cast<uint64_t>(w) * pos_e);
+    if (w < 0) return nlohmann::json(w * static_cast<int64_t>(pos_e));
+    return nlohmann::json(static_cast<uint64_t>(w) * pos_e);
   }()
