@@ -79,9 +79,12 @@ data Pat a =
   PCon (Loc Name) (Maybe (Loc Name, Maybe (Type a)))
 
 data ForeignCode a b =
-    Splice (Q (ExportExpr a b))
+    Splice (Q (ForeignCodeSplice a b))
   | Direct (ExportExpr a b)
 
+data ForeignCodeSplice a b =
+    SpliceTParam (Loc Name)
+  | SpliceCode (ExportExpr a b)
 
 --------------------------------------------------------------------------------
 -- Expressions
@@ -241,6 +244,12 @@ instance (PPTyCon a, PPTyCon b) => PP (ExportExpr a b) where
 instance (PPTyCon a, PPTyCon b) => PP (ForeignCode a b) where
   pp code = ppCodeStarter code $$ nest 2 (ppCodeDef code)
 
+instance (PPTyCon a, PPTyCon b) => PP (ForeignCodeSplice a b) where
+  pp spl =
+    case spl of
+      SpliceCode c -> pp c
+      SpliceTParam t -> pp t
+
 ppCodeStarter :: ForeignCode a b -> Doc
 ppCodeStarter code =
   case code of
@@ -272,6 +281,8 @@ ppDeclDefStarter d =
     DeclCase {} -> "="
     DeclExtern {} -> "="
     DeclLoop {} -> "="
+
+
 
 instance (PPTyCon a, PPTyCon b) => PP (Loop a b) where
   pp l =

@@ -144,7 +144,7 @@ case_alt ::                                 { (Pat PName, ForeignCode PName PNam
   : pat foreign_code                        { ($1, $2) }
 
 foreign_code ::                             { ForeignCode PName PName }
-  : foreign_block(expr_splice)              { Splice $1 }
+  : foreign_block(expr_splice)              { Splice (fmap SpliceCode $1) }
   | '=' expr                                { Direct $2 }
 
 pat ::                                      { Pat PName }

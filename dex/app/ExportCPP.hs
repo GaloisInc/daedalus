@@ -44,8 +44,11 @@ genModules mos =
     | mo <- mos
     , f <- moduleForeign mo
     ]
-  exportDecls = [ cStmt (genDeclPart d) | mo <- mos, d <- moduleDecls mo ]
-  exportDefs = [ genDeclDef d | mo <- mos, d <- moduleDecls mo ]
+
+  inNS mo = cNamespace (pp (moduleName mo))
+  exportDecls = [ inNS mo [ cStmt (genDeclPart d) | d <- moduleDecls mo ]
+                | mo <- mos ]
+  exportDefs = [ inNS mo (map genDeclDef (moduleDecls mo)) | mo <- mos ]
 
 
 genForeignType :: Ctx => Type QName -> CType
@@ -138,14 +141,14 @@ genLoop loop ty =
   loopBody =
     case ty of
       Type tc args nargs ->
-        [ cDeclareConVar cit cix[cix],
+        [ cDeclareConVar cit cix[pp (locThing x)],
           cWhile ("!" <.> cCallMethod cix "done" [])
             (cBlock (declareEls ++ [genForeignCode' body])),
-          cCallMethod cix "free" []
+          cStmt (cCallMethod cix "free" [])
         ]
         where
-        cit = genDDLType (Type tc { locThing = TIterator } [ ty ] [])
-        cix = pp (locThing x)
+        cit = "typename" <+> genDDLType (Type tc { locThing = TIterator } [ ty ] [])
+        cix = pp (locThing x) <.> "_iter"
         (els,x,body) = loopFor loop
         doDecl a el m =
           cDeclareInitVar (genDDLType a) (pp (locThing el)) (cCallMethod cix m [])
@@ -234,8 +237,14 @@ genForeignCode = cReturn . genForeignCode'
 genForeignCode' :: Ctx => ForeignCode DDLTCon QName -> CExpr
 genForeignCode' co =
   case co of
-    Splice e -> renderQuote (genForeignExpr <$> e)
+    Splice e -> renderQuote (genForeignCodeSplice <$> e)
     Direct e -> genForeignExpr e
+
+genForeignCodeSplice :: Ctx => ForeignCodeSplice DDLTCon QName -> Doc
+genForeignCodeSplice spl =
+  case spl of
+    SpliceTParam x -> cForeignTP x
+    SpliceCode e -> genForeignExpr e
 
 genForeignExpr :: Ctx => ExportExpr DDLTCon QName -> CExpr
 genForeignExpr e =

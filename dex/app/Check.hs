@@ -669,7 +669,22 @@ checkForeignCode :: ForeignCode PName PName -> Check (ForeignCode DDLTCon QName)
 checkForeignCode code =
   case code of
     Direct e -> Direct <$> checkExportExpr e
-    Splice q -> Splice <$> mapM checkExportExpr q
+    Splice q -> Splice <$> mapM checkForeignCodeSplice q
+
+checkForeignCodeSplice ::
+  ForeignCodeSplice PName PName -> Check (ForeignCodeSplice DDLTCon QName)
+checkForeignCodeSplice spl =
+  case spl of
+    SpliceCode e ->
+      case (exportWith e, exportExpr e) of
+        (Nothing, DDLExpr x []) ->
+          do
+            tps <- tparamStatus <$> getState
+            case Map.lookup (locThing x) tps of
+              Just (Just TParamForeign) -> pure (SpliceTParam x)
+              _ -> SpliceCode <$> checkExportExpr e
+        _ -> SpliceCode <$> checkExportExpr e
+    SpliceTParam {} -> error "[BUG] checkForeignCodeSplice: TParam"
 
 
 -- | Validate the names and types in an exporter.
