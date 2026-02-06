@@ -631,7 +631,7 @@ checkLoop l =
       case ty of
         Type Loc { locThing = TArray } [a] [] -> checkBody xs vs [a] body
         Type Loc { locThing = TMap } [k,v] [] -> checkBody xs vs [k,v] body
-        Type Loc { locThing = TBuilder } [a] [] -> checkBody xs vs [a] body
+        -- Type Loc { locThing = TBuilder } [a] [] -> checkBody xs vs [a] body
         _ -> reportError (InvalidForType xs ty)
     pure l { loopFor = (vs,xs,body') }
   where

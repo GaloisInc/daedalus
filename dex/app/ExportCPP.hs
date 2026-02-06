@@ -117,15 +117,47 @@ genDeclDef decl =
   case declDef decl of
     DeclDef fc -> doDecl (genForeignCode fc)
     DeclCase x alts -> doDecl (genCase x a alts)
-      where a :-> _ = declType decl 
-    DeclLoop loop -> doDecl "// TODO: loop"
+    DeclLoop loop -> doDecl (genLoop loop a)
     DeclExtern -> mempty
   where
-  doDecl def =
-    vcat [
-      genDeclPart decl <+> "{",
-      nest 2 def,
-      "}\n" ]
+  a :-> _     = declType decl 
+  doDecl def  = vcat [ genDeclPart decl <+> "{", nest 2 def, "}\n" ]
+
+genLoop :: Ctx => Loop DDLTCon QName -> Type DDLTCon -> CStmt
+genLoop loop ty =
+  vcat (
+    renderQuote (cForeignTP <$> loopInit loop) :
+    loopBody ++
+    [ cReturn (renderQuote (vacuous (loopReturn loop))) ]
+  )
+  where
+  loopBody =
+    case ty of
+      Type tc args nargs ->
+        [ cDeclareConVar cit cix[cix],
+          cWhile ("!" <.> cCallMethod cix "done" [])
+            (cBlock (declareEls ++ [genForeignCode' body])),
+          cCallMethod cix "free" []
+        ]
+        where
+        cit = genDDLType (Type tc { locThing = TIterator } [ ty ] [])
+        cix = pp (locThing x)
+        (els,x,body) = loopFor loop
+        doDecl a el m =
+          cDeclareInitVar (genDDLType a) (pp (locThing el)) (cCallMethod cix m [])
+
+        declareEls =
+          case (locThing tc,els,args,nargs) of
+            (TArray,[el],[a],[]) ->
+              [ doDecl a el "value" ]
+
+            (TMap,[kel,vel],[k,v],[]) ->
+              [ doDecl k kel "key", doDecl v vel "value" ]
+            
+            _ -> error "[BUG] genLoop: unexpected loop type"
+
+      _ -> error "[BUG] genLoop: unexpected TVar"
+      
 
 genCase :: Ctx => Loc Name -> Type DDLTCon -> [(Pat DDLTCon,ForeignCode DDLTCon QName)] -> CStmt
 genCase x ty alts =
@@ -193,10 +225,13 @@ genCase x ty alts =
     TVar {} -> error "[BUG] genCase: unexpected type variable"
 
 genForeignCode :: Ctx => ForeignCode DDLTCon QName -> CStmt
-genForeignCode co =
+genForeignCode = cReturn . genForeignCode'
+
+genForeignCode' :: Ctx => ForeignCode DDLTCon QName -> CExpr
+genForeignCode' co =
   case co of
-    Splice e -> cReturn (renderQuote (genForeignExpr <$> e))
-    Direct e -> cReturn (genForeignExpr e)
+    Splice e -> renderQuote (genForeignExpr <$> e)
+    Direct e -> genForeignExpr e
 
 genForeignExpr :: Ctx => ExportExpr DDLTCon QName -> CExpr
 genForeignExpr e =

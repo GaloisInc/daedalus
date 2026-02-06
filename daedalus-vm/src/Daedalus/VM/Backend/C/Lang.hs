@@ -108,6 +108,9 @@ cCaseBlock e s = "case" <+> e <.> colon <+> "{" $$ nest 2 (vcat s) $$ "}"
 cDefault :: CStmt -> CStmt
 cDefault x = "default:" $$ nest 2 x
 
+cWhile :: CExpr -> CStmt -> CStmt
+cWhile e body =
+  ("while" <+> parens e) $$ nest 2 body
 
 cBreak :: CStmt
 cBreak = cStmt "break"
