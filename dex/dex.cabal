@@ -44,7 +44,7 @@ executable dex
       ExportCPP
     build-depends:
       base, text, array, containers,
-      pretty, filepath,
+      pretty, filepath, directory,
       alex-tools,
       simple-get-opt,
       daedalus, daedalus-core, daedalus-vm, daedalus-utils

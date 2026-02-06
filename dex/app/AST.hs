@@ -20,6 +20,9 @@ data Module a b = Module {
   moduleRoots :: [Roots],
   -- ^ Roots for Daedalus parsers we are exporting
 
+  moduleUsing :: [Loc Name],
+  -- ^ Other Dex modules we depend on
+
   moduleForeign :: [Q Void],
   -- ^ Arbitrary foreign text (e.g., #include or helper functions)
 

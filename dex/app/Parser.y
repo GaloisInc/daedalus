@@ -34,7 +34,6 @@ import Monad
 
   'case'        { Lexeme { lexemeToken = TokKW_case, lexemeRange = $$ } }
   'def'         { Lexeme { lexemeToken = TokKW_def, lexemeRange = $$ } }
-  'daedalus'    { Lexeme { lexemeToken = TokKW_daedalus, lexemeRange = $$ } }
   'default'     { Lexeme { lexemeToken = TokKW_default, lexemeRange = $$ } }
   'extern'      { Lexeme { lexemeToken = TokKW_extern, lexemeRange = $$ } }
   'for'         { Lexeme { lexemeToken = TokKW_for, lexemeRange = $$ } }
@@ -44,6 +43,7 @@ import Monad
   'of'          { Lexeme { lexemeToken = TokKW_of, lexemeRange = $$ } }
   'return'      { Lexeme { lexemeToken = TokKW_return, lexemeRange = $$ } }
   'type'        { Lexeme { lexemeToken = TokKW_type, lexemeRange = $$ } }
+  'using'       { Lexeme { lexemeToken = TokKW_using, lexemeRange = $$ } }
 
   '('           { Lexeme { lexemeToken = TokParenOpen,  lexemeRange = $$ } } 
   ')'           { Lexeme { lexemeToken = TokParenClose, lexemeRange = $$ } }
@@ -75,12 +75,16 @@ module ::                                   { Name -> Module PName PName }
 
 top_decl ::                                 { TopDecl }
   : import_decl                             { TopImport $1 }
+  | using_decl                              { TopUsing $1 }
   | extern_decl                             { TopExtern $1 }
   | type_alias_decl                         { TopTypeAlias $1 }
   | export_decl                             { TopDecl $1 }
 
 import_decl ::                              { Roots }
-  : 'daedalus' roots                        { $2 }
+  : 'import' roots                          { $2 }
+
+using_decl ::                               { Loc Name }
+  : 'using' ename                           { $2 }
 
 roots ::                                    { Roots }
   : ename                                   { defaultRoot $1 }
@@ -253,6 +257,7 @@ defaultRoot m = Roots {
 
 data TopDecl =
     TopImport Roots
+  | TopUsing (Loc Name)
   | TopExtern (Q Void)
   | TopTypeAlias ForeignTypeDecl
   | TopDecl (Decl PName PName)
@@ -262,6 +267,7 @@ mkModule :: [TopDecl] -> Name -> Module PName PName
 mkModule topds nm = Module {
   moduleName = nm,
   moduleRoots = [ r | TopImport r <- topds ],
+  moduleUsing = [ u | TopUsing u <- topds ],
   moduleForeign = [ e | TopExtern e <- topds ],
   moduleForeignTypes = [ t | TopTypeAlias t <- topds ],
   moduleDecls = [ d | TopDecl d <- topds ]

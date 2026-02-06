@@ -22,8 +22,8 @@ type Ctx = (
   ?ddlTPMap :: Map Name Core.TParam
   )
 
-genModule :: Ctx => Module DDLTCon QName -> Doc
-genModule mo =
+genModules :: Ctx => [Module DDLTCon QName] -> Doc
+genModules mos =
   vcat $
     banner "User Specified Custom Code" ++
     foreigns ++
@@ -39,9 +39,13 @@ genModule mo =
     "// ---------------------------------------------",
     " "
     ]
-  foreigns = map (renderQuote . vacuous) (moduleForeign mo)
-  exportDecls = [ cStmt (genDeclPart d) | d <- moduleDecls mo ]
-  exportDefs = [ genDeclDef d | d <- moduleDecls mo ]
+  foreigns =
+    [ renderQuote (vacuous f)
+    | mo <- mos
+    , f <- moduleForeign mo
+    ]
+  exportDecls = [ cStmt (genDeclPart d) | mo <- mos, d <- moduleDecls mo ]
+  exportDefs = [ genDeclDef d | mo <- mos, d <- moduleDecls mo ]
 
 
 genForeignType :: Ctx => Type QName -> CType

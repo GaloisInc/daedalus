@@ -4,12 +4,16 @@ import SimpleGetOpt
 
 data Options = Options {
   optSearchPathForDDL :: [FilePath],    -- ^ reversed
+  optSearchPathForDex :: [FilePath],    -- ^ reversed
+  optOutputFile :: Maybe FilePath,
   optExportFile :: Maybe FilePath
 }
 
 defaultOptions :: Options
 defaultOptions = Options {
     optSearchPathForDDL = [],
+    optSearchPathForDex = [],
+    optOutputFile = Nothing,
     optExportFile = Nothing
 }
 
@@ -26,7 +30,15 @@ options = OptSpec
   , progOptions =
       [ Option [] ["ddl-path"]
         "Add the given directory to the search path for DaeDaLs modules."
-        $ ReqArg "FILE" \s o -> Right o { optSearchPathForDDL = s : optSearchPathForDDL o }
+        $ ReqArg "DIR" \s o -> Right o { optSearchPathForDDL = s : optSearchPathForDDL o }
+
+      , Option [] ["dex-path"]
+        "Add the given directory to the search path for Dex modules."
+        $ ReqArg "DIR" \s o -> Right o { optSearchPathForDex = s : optSearchPathForDex o }
+
+      , Option [ ]["output"]
+        "Generate code in this file."
+        $ ReqArg "FILE" \s o -> Right o { optOutputFile = Just s }
       ]
 
   , progParamDocs = [ ("FILE", "Export specification") ]

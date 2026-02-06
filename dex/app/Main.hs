@@ -2,14 +2,19 @@ module Main(main) where
 
 
 import Data.Text qualified as Text
+import Data.Set(Set)
 import Data.Set qualified as Set
 import Data.Map qualified as Map
-import System.FilePath(takeBaseName)
-import System.IO(hPrint,stderr)
+import System.FilePath(takeBaseName,(</>),hasExtension,replaceExtension)
+import System.IO(hPutStrLn,stderr)
+import System.Directory(doesFileExist)
 import System.Exit(exitFailure)
+import Control.Monad(foldM,unless)
+import Control.Applicative((<|>))
+
+import AlexTools
 
 import Daedalus.Driver qualified as Daedalus
-
 import Daedalus.PP
 import Daedalus.Core qualified as Core
 import SimpleGetOpt
@@ -24,41 +29,121 @@ main :: IO ()
 main =
   do
     opts <- getOpts defaultOptions options
-    case optExportFile opts of
-      Nothing -> reportUsageError options ["Missing export specification."]
-      Just f  ->
+    mos <- loadSpec opts
+    let tyAliasesFrom m =
+          Map.fromList
+            [ (QName {
+                qModule = moduleName m,
+                qName = locThing (ftName d)
+              }, d)
+            | d <- moduleForeignTypes m ]
+    let ?ftAliases = Map.unions (map tyAliasesFrom mos)
+        ?nsUser = "User"
+        ?nsInputType = "INPUT"
+        ?nsExternal = mempty
+        ?ddlTPMap = mempty
+
+    let outFile =
+          optOutputFile opts <|>
+          fmap (`replaceExtension` ".cpp") (optExportFile opts)
+          
+    case outFile of
+      Nothing -> print (genModules mos)
+      Just f -> writeFile f (show (genModules mos))
+
+abortWith :: String -> IO a
+abortWith x = hPutStrLn stderr x >> exitFailure
+
+
+data ParsingState = ParsingState {
+  parsedModules :: [Module PName PName],
+  parsedFiles   :: Set FilePath
+}
+
+findModuleFile :: Options -> Maybe SourceRange -> String -> IO FilePath
+findModuleFile opts mbLoc mo = search searchPaths
+  where
+  searchPaths =
+    case optSearchPathForDex opts of
+      [] -> ["."]
+      p  -> reverse p
+
+  file = mo ++ ".dex"
+
+  search paths =
+    case paths of
+      [] ->
         do
-          spec <- loadSpec f
-          let ?ftAliases = Map.fromList [ (QName { qModule = moduleName spec, qName = locThing (ftName d) }, d) | d <- moduleForeignTypes spec ]
-              ?nsUser = "User"
-              ?nsInputType = "INPUT"
-              ?nsExternal = mempty
-              ?ddlTPMap = mempty
-          print (genModule spec)
-    
-
+          let loc =
+                case mbLoc of
+                  Nothing -> ""
+                  Just r -> prettySourcePosLong (sourceFrom r) ++ ": "
+          abortWith (loc ++ "Cannot find file for module " ++ show mo)
         
-loadSpec :: FilePath -> IO (Module DDLTCon QName)
-loadSpec f =
-  do
-    mb <- parseFromFile f moduleParser
-    spec <-
-      case mb of
-        Left err -> hPrint stderr (pp err) >> exitFailure
-        Right a  -> pure (a (nameFromText (Text.pack (takeBaseName f))))
-    ddlTys <-
-      Daedalus.daedalus (getTypeDecls <$> loadDaedalus (moduleRoots spec))
-    let res = runValidator ddlTys (checkModule spec)
-    case res of
-      Left err -> hPrint stderr (pp err) >> exitFailure
-      Right a  -> pure a
+      path : more ->
+        do
+          let candidate = path </> file
+          yes <- doesFileExist candidate
+          if yes then pure candidate else search more
 
-{-
-XXX:
+parseDexFile ::
+  Options -> ParsingState -> FilePath -> IO ParsingState
+parseDexFile opts state f
+  | f `Set.member` parsedFiles state = pure state
+  | otherwise =
+    do
+      mb <- parseFromFile f moduleParser
+      case mb of
+        Left err -> abortWith (show (pp err))
+        Right moF  ->
+          do
+            let mo = moF (nameFromText (Text.pack (takeBaseName f)))
+                newState =
+                  state {
+                    parsedFiles = Set.insert f (parsedFiles state),
+                    parsedModules = mo : parsedModules state
+                  }
+            foldM parseModule newState (moduleUsing mo)
+  where
+  parseModule s m =
+    do
+      file <- findModuleFile opts (Just (locRange m))
+                                  (Text.unpack (nameToText (locThing m)))
+      parseDexFile opts s file
+
+loadSpec :: Options -> IO [Module DDLTCon QName]
+loadSpec opts =
+  case optExportFile opts of
+    Nothing -> reportUsageError options ["Missing export specification."]
+    Just specName ->
+      do
+        file <-
+          if hasExtension specName
+            then
               do
-                -- unless (null (optSearchPathForDDL opts))
-                --  (ddlSetOpt optSearchPath (reverse (optSearchPathForDDL opts))) 
-  -}              
+                yes <- doesFileExist specName
+                unless yes (abortWith ("File " ++ show specName ++ " does not exist."))
+                pure specName
+            else
+              findModuleFile opts Nothing specName
+
+        mos <- parsedModules <$>
+                parseDexFile opts
+                  ParsingState { parsedFiles = mempty, parsedModules = [] }
+                  file
+
+        ddlTys <-
+          Daedalus.daedalus
+            do
+              unless (null (optSearchPathForDDL opts))
+                (Daedalus.ddlSetOpt Daedalus.optSearchPath
+                    (reverse (optSearchPathForDDL opts)))           
+              getTypeDecls <$> loadDaedalus (concatMap moduleRoots mos)
+        let res = runValidator ddlTys (mapM checkModule mos)
+        case res of
+          Left err -> abortWith (show (pp err))
+          Right a  -> pure a
+
 
 loadDaedalus :: [Roots] -> Daedalus.Daedalus Core.Module
 loadDaedalus ents =
@@ -72,6 +157,7 @@ loadDaedalus ents =
     Daedalus.passSpecialize specMod entries
     Daedalus.passCore specMod
     Daedalus.ddlGetAST specMod Daedalus.astCore
+
 
 -- | Get the type declarations, indexed by original module name.
 getTypeDecls :: Core.Module -> DDLTypes

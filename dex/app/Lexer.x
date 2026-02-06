@@ -17,7 +17,6 @@ $digit      = [0-9]
 <0> {
 "case"      { emit TokKW_case }
 "def"       { emit TokKW_def }
-"daedalus"  { emit TokKW_daedalus }
 "default"   { emit TokKW_default }
 "extern"    { emit TokKW_extern }
 "for"       { emit TokKW_for }
@@ -27,6 +26,7 @@ $digit      = [0-9]
 "of"        { startLayout TokKW_of }
 "return"    { emit TokKW_return }
 "type"      { emit TokKW_type }
+"using"     { emit TokKW_using }
 
 "["         { emit TokBracketOpen }
 "]"         { emit TokBracketClose }
@@ -83,7 +83,6 @@ $white      ;
 {
 data Token =
     TokKW_case
-  | TokKW_daedalus
   | TokKW_def
   | TokKW_default
   | TokKW_extern
@@ -94,6 +93,7 @@ data Token =
   | TokKW_of
   | TokKW_return
   | TokKW_type
+  | TokKW_using
   
   | TokIdent
   | TokNumber
