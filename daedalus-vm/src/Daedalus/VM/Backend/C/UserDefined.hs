@@ -163,6 +163,10 @@ freeMethodSig = cStmt ("void" <+> cCall "free" [])
 delMethodSig :: Doc
 delMethodSig = cStmt ("void" <+> cCall "del" [])
 
+-- | Signature for the @refCount@ method. This is only really useful for boxed types.
+refCountMethodSig :: Doc
+refCountMethodSig = cStmt ((nsDDL .:: "RefCount") <+> cCall "refCount" [] <+> "const")
+
 
 -- | Constructor for a product
 cProdCtr :: NSUser => TDecl -> CStmt
@@ -404,7 +408,7 @@ cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
        , ""
        , "/** @name Memory Management */"
        , "///@{" ]
-    ++ [ copyMethodSig, freeMethodSig, delMethodSig ]
+    ++ [ copyMethodSig, freeMethodSig, delMethodSig, refCountMethodSig ]
     ++ [ "///@}"
        , ""
        , "/** @name Variant dispatch */"
@@ -443,6 +447,7 @@ generateMethods vis boxed ty =
     , defCopyFree vis boxed "free" ty
     ] ++
     [ defDel ty | GenBoxed <- [boxed] ] ++
+    [ defRefCount ty | GenBoxed <- [boxed] ] ++
     defCons      vis boxed ty ++
     defGetTag    vis boxed ty ++
     defSelectors vis boxed ty ++
@@ -852,6 +857,10 @@ defCopyFree vis boxed fun tdecl =
 
 defDel :: NSUser => TDecl -> CDecl
 defDel tdecl = defMethod GenPublic False tdecl "void" "del" [] [ cStmt (cCallMethod "ptr" "del" []) ]
+
+defRefCount :: NSUser => TDecl -> CDecl
+defRefCount tdecl = defMethod GenPublic True tdecl (nsDDL .:: "RefCount") "refCount" [] [ cReturn (cCallMethod "ptr" "refCount" []) ]
+
 
 -- | Emit some code to copy/free a field, unless it is Unit
 -- as those are deleted.
