@@ -4,11 +4,13 @@ import json(JSON_value_strict)
 using CPP
 
 extern ->
+  #include <cmath>
   #include "main_parser.h"
   #include "json.hpp"
 
 extern def ->
   #include <parser/exporter.h>
+  
   uint64_t exp10(uint32_t exp) {
     uint64_t res = 1;
     while (exp != 0) { res *= 10; --exp; }
@@ -16,7 +18,7 @@ extern def ->
   }
 
 
-type JSON       -> nlohmann::basic_json<>
+type JSON  -> nlohmann::basic_json<>
 
 def exportJSON(x: JSON_value): JSON =
   case x of
@@ -27,10 +29,6 @@ def exportJSON(x: JSON_value): JSON =
     Array xs  -> nlohmann::json($(as_vector<exportJSON>(xs)))
     Object xs -> nlohmann::json($(as_map<as_string,exportJSON>(xs)))
 
-
--- Exporting a struct.  Here we use a local lambda to do some computation.
--- It might be better to name this on the C++ side, and keep things
--- simple in here.
 def exportNumber(x: JSON_number): JSON ->
   [=] () mutable { 
     int64_t w = $(x.whole);

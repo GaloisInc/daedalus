@@ -154,7 +154,7 @@ genLoop loop ty =
       Type tc args nargs ->
         [ cDeclareConVar cit cix[pp (locThing x)],
           cWhile ("!" <.> cCallMethod cix "done" [])
-            (cBlock (declareEls ++ [genForeignCode' body])),
+            (cBlock (declareEls ++ [genForeignCode' body] ++ updIt)),
           cStmt (cCallMethod cix "free" [])
         ]
         where
@@ -163,6 +163,8 @@ genLoop loop ty =
         (els,x,body) = loopFor loop
         doDecl a el m =
           cDeclareInitVar (genDDLType a) (pp (locThing el)) (cCallMethod cix m [])
+
+        updIt = [ cAssign cix (cCallMethod cix "next" []) ]
 
         declareEls =
           case (locThing tc,els,args,nargs) of
