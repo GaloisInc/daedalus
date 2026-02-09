@@ -10,7 +10,7 @@ $alpha      = [a-z A-Z _]
 $digit      = [0-9]
 @ident      = $alpha ($alpha | $digit)*
 @number     = $digit+
-@comment    = "--" .* \n
+@comment    = "//" .* \n
 
 :-
 
