@@ -1,25 +1,27 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Implicit Parameters &mdash; Daedalus 0.1 documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/design-tabs.js"></script>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dex: Daedalus Export DSL" href="../dex/index.html" />
     <link rel="prev" title="Implicit Lifting" href="lifting.html" /> 
 </head>
 
@@ -60,6 +62,7 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Implicit Parameters</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
 </ul>
 
         </div>
@@ -88,7 +91,7 @@
            <div itemprop="articleBody">
              
   <section id="implicit-parameters">
-<h1>Implicit Parameters<a class="headerlink" href="#implicit-parameters" title="Permalink to this headline"></a></h1>
+<h1>Implicit Parameters<a class="headerlink" href="#implicit-parameters" title="Link to this heading"></a></h1>
 <p>An <em>implicit parameter</em> is a parameter that is automatically
 passed along by the system, which helps avoid clutter in specifications.
 In DaeDaLus, implicit parameters have names staring with <code class="docutils literal notranslate"><span class="pre">?</span></code>, for example
@@ -151,12 +154,12 @@ as illustrated by the following example:</p>
 </pre></div>
 </div>
 <p>Executing <code class="docutils literal notranslate"><span class="pre">Example</span></code> results in the following output:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">{</span> big: <span class="o">{</span> x: <span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
-       , y: <span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
-       <span class="o">}</span>
-, little: <span class="o">{</span> x: <span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
-          , y: <span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
-          <span class="o">}</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">{</span><span class="w"> </span>big:<span class="w"> </span><span class="o">{</span><span class="w"> </span>x:<span class="w"> </span><span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
+<span class="w">       </span>,<span class="w"> </span>y:<span class="w"> </span><span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
+<span class="w">       </span><span class="o">}</span>
+,<span class="w"> </span>little:<span class="w"> </span><span class="o">{</span><span class="w"> </span>x:<span class="w"> </span><span class="m">1</span><span class="o">[</span><span class="m">16</span><span class="o">]</span>
+<span class="w">          </span>,<span class="w"> </span>y:<span class="w"> </span><span class="m">1</span><span class="o">[</span><span class="m">32</span><span class="o">]</span>
+<span class="w">          </span><span class="o">}</span>
 <span class="o">}</span>
 </pre></div>
 </div>
@@ -167,6 +170,7 @@ as illustrated by the following example:</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="lifting.html" class="btn btn-neutral float-left" title="Implicit Lifting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../dex/index.html" class="btn btn-neutral float-right" title="Dex: Daedalus Export DSL" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -1,0 +1,362 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overview &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Dex: Daedalus Export DSL" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Dex: Daedalus Export DSL</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-dex">Using Dex</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#command-line-flags">Command Line Flags</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c-namespaces">C++ Namespaces</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-dex-specifications">Writing Dex Specifications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-external-code">Writing External Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#exporter-definitions">Exporter Definitions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#structs">Structs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#discriminated-unions">Discriminated Unions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#iteration">Iteration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#type-and-function-parameters">Type and Function Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Dex: Daedalus Export DSL</a></li>
+      <li class="breadcrumb-item active">Overview</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/dex/overview.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
+<p>Dex is a domain specific language for generating “glue” code between
+a parser generated by Daedalus, and an application that needs to use the
+parser.   It’s purpose is to translate from the data representation used
+by Daedalus into an application specific data representation.</p>
+</section>
+<section id="using-dex">
+<h1>Using Dex<a class="headerlink" href="#using-dex" title="Link to this heading"></a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">dex</span></code> tool translates a Dex specification file (e.g., <code class="docutils literal notranslate"><span class="pre">my-app.dex</span></code>)
+to some code that implements the data translation (e.g., <code class="docutils literal notranslate"><span class="pre">my-app.h</span></code> and
+<code class="docutils literal notranslate"><span class="pre">my-app.cpp</span></code>).  While Dex specifications are agnostic to the target
+language, at present we’ve only implemented concrete support for exporting
+to C++, as this is one of the main backends supported by Daedalus.  We plan
+to support more backends in the future.</p>
+<dl>
+<dt>A simple invocation of <code class="docutils literal notranslate"><span class="pre">dex</span></code> looks like this:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>dex<span class="w"> </span>my-spec.dex
+</pre></div>
+</div>
+</dd>
+</dl>
+<section id="command-line-flags">
+<h2>Command Line Flags<a class="headerlink" href="#command-line-flags" title="Link to this heading"></a></h2>
+<p>By default, the name of the generated files will be derived from the
+name of the Dex specification.  <code class="docutils literal notranslate"><span class="pre">dex</span></code> supports the following flags:</p>
+<blockquote>
+<div><dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--ddl-path=DIR</span></span></dt>
+<dd><p>Adds a directory to be searched when looking for Daedalus specification.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--dex-path=DIR</span></span></dt>
+<dd><p>Adds a directory to be searched when looking for Dex specifications.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--output=FILE</span></span></dt>
+<dd><p>Generate code in this file, instead of deriving it from the name of
+the spec.  In the case of C++ we generate two files—a header and
+an implementation, whose names are derived from the given name by
+adjusting the file extension.</p>
+</dd></dl>
+
+</div></blockquote>
+</section>
+<section id="c-namespaces">
+<h2>C++ Namespaces<a class="headerlink" href="#c-namespaces" title="Link to this heading"></a></h2>
+<p>In the generated C++ code, the declarations from each Dex module are wrapped
+in a namespace matching the module name.  For example, all definitions in
+the standard <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module, would be declared in namespace called <code class="docutils literal notranslate"><span class="pre">CPP</span></code>.</p>
+</section>
+</section>
+<section id="writing-dex-specifications">
+<h1>Writing Dex Specifications<a class="headerlink" href="#writing-dex-specifications" title="Link to this heading"></a></h1>
+<p>A Dex specification consists of a sequence of top-level declarations.
+There are five types of declarations, described in more detail below.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> DAEADLUS_MODULE<span class="p">(</span>PARSERS<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">import</span></code> declarations are used to specify what Daedalus types we are
+going to be working with.  In parens, the declaration specifies which
+Daedalus parsers we are working with.  Only the main parsers need to be
+specified, our tooling will automatically infer all types that are needed
+to support exporting the results of the given parser.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">using</span> DEX_MODULE
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">using</span></code> declarations make it possible to define modular Dex specifications.
+Such a declaration brings into scope all the things defined in <code class="docutils literal notranslate"><span class="pre">DEX_MODULE</span></code>.
+The definitions from the module may be referred to either by <code class="docutils literal notranslate"><span class="pre">NAME</span></code> or qualified,
+as <code class="docutils literal notranslate"><span class="pre">DEX_MODULE::NAME</span></code> to avoid name clashes.  We provide a special module
+named <code class="docutils literal notranslate"><span class="pre">CPP</span></code>, which has definitions for exporting various Daedalus types
+to standard C++ types.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> CODE_BLOCK
+<span class="k">extern</span> <span class="k">def</span> CODE_BLOCK
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">extern</span></code> declarations allow for arbitrary code to be added
+to the generated translation file.  Such code will always be added at the
+top of the file.   For the C++ backend, <code class="docutils literal notranslate"><span class="pre">extern</span></code> declarations
+are added to the <code class="docutils literal notranslate"><span class="pre">.h</span></code> file, and <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">def</span></code> declarations are added to the
+<code class="docutils literal notranslate"><span class="pre">.cpp</span></code> file.   Typically, <code class="docutils literal notranslate"><span class="pre">extern</span></code> declarations should be used to
+<code class="docutils literal notranslate"><span class="pre">#include</span></code> dependencies, and <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">def</span></code> should be used to add local helper
+functions.  The CODE_BLOCKS in <code class="docutils literal notranslate"><span class="pre">extern</span></code> may not contain any escapes.
+See <a class="reference internal" href="#writing-external-code"><span class="std std-ref">Writing External Code</span></a> for more details on <code class="docutils literal notranslate"><span class="pre">CODE_BLOCK</span></code>.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">type</span> NAME&lt;TYPE_PARAMS&gt; CODE_BLOCK
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">type</span></code> defines a Dex way to refer to types in the target language (e.g., C++).
+In the rest of the Dex specification, we use <code class="docutils literal notranslate"><span class="pre">NAME&lt;TYPE_PARAMS&gt;</span></code> to refer
+to the given external type.  The <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module also defines Dex aliases
+for common C++ types.  The escapes in the code blocks may be used to refer
+to the type parameters of the declaration.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> NAME&lt;TYPE_PARAMS<span class="p">,</span>FUN_PARAMS&gt;<span class="p">(</span>NAME<span class="p">:</span> DAEDALUS_TYPE<span class="p">):</span> EXTERN_TYPE
+  DEFINITION
+</pre></div>
+</div>
+<p>Definitions are at the heart of Dex specifications, as they are used to
+specify the mapping between Daedalus values of type <code class="docutils literal notranslate"><span class="pre">DAEDALUS_TYPE</span></code> and
+values in the target language for type <code class="docutils literal notranslate"><span class="pre">EXTERN_TYPE</span></code> (which should be
+declared with <code class="docutils literal notranslate"><span class="pre">type</span></code>).</p>
+<p>Optionally, definitions may be preceeded by the <code class="docutils literal notranslate"><span class="pre">default</span></code> keyword,
+which specifies that unless otherwise specified this exporter
+will be used for Daedalus values of the given type.  At present,
+only definitions without <code class="docutils literal notranslate"><span class="pre">FUN_PAPRAMS</span></code> may be declared as <code class="docutils literal notranslate"><span class="pre">default</span></code>.</p>
+<p>Before we go into more details on how to write definitions, let’s look at
+how to write external code.</p>
+</section>
+<section id="writing-external-code">
+<h1>Writing External Code<a class="headerlink" href="#writing-external-code" title="Link to this heading"></a></h1>
+<p>A number of constructs in Dex require the user to write some code in the
+language of their application (e.g., C++).  In Dex, the symbol <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> is
+used to signify the beginning of an external code block.  The code block
+begins at the first non-white space character following <code class="docutils literal notranslate"><span class="pre">-&gt;</span></code> and contains
+all text that is indented equally or more than the first entry in the block.</p>
+<p>Here is an example of an external block:</p>
+<div class="highlight-DexBlock notranslate"><div class="highlight"><pre><span></span>-&gt;
+  The block starts here.
+  This is also part of the block.
+    As is this.
+This is not a part of the block.
+</pre></div>
+</div>
+<p>Dex code blacks may contain <em>escapes</em> which signify that what follows is
+not part of the external language but is Dex code instead.  Escapes start
+with <code class="docutils literal notranslate"><span class="pre">$</span></code> an extend for either a single identifier, or need are enclosed
+between parens (between <code class="docutils literal notranslate"><span class="pre">(</span></code> and <code class="docutils literal notranslate"><span class="pre">)</span></code>).  To write a literal <code class="docutils literal notranslate"><span class="pre">$</span></code> in a code
+block (i.e., one that <em>does not</em> start an escape) you need to write 2 dollars
+<code class="docutils literal notranslate"><span class="pre">$$</span></code>.  Here is an example of a code block with some escapes:</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">-&gt;</span>
+  External language code<span class="p">,</span> here comes single identifier escape <span class="k">$</span>x<span class="p">.</span>
+  More external code<span class="p">,</span> more complex escape <span class="k">$</span><span class="p">(</span>f<span class="p">(</span>x<span class="p">)).</span>
+  Finally<span class="p">,</span> this is just a single <span class="k">$$</span><span class="p">.</span>
+
+The escape on the first line contains the Dex expression ``x`` while
+the one one the second line contains ``f<span class="p">(</span>x<span class="p">)</span>``<span class="p">.</span>
+</pre></div>
+</div>
+</section>
+<section id="exporter-definitions">
+<h1>Exporter Definitions<a class="headerlink" href="#exporter-definitions" title="Link to this heading"></a></h1>
+<p>We provide a few different ways to define an exporting function, depending
+on the Daedalus type in question.  In this section, we are describing the
+various ways to provide <code class="docutils literal notranslate"><span class="pre">DEFINITION</span></code>.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> NAME&lt;TYPE_PARAMS<span class="p">,</span>FUN_PARAMS&gt;<span class="p">(</span>NAME<span class="p">:</span> DAEDALUS_TYPE<span class="p">):</span> EXTERN_TYPE
+  DEFINITION
+</pre></div>
+</div>
+<section id="structs">
+<h2>Structs<a class="headerlink" href="#structs" title="Link to this heading"></a></h2>
+<p>For Daedalus types with fields (i.e., structs/records), the definitions can
+be just a <code class="docutils literal notranslate"><span class="pre">CODE_BLOCK</span></code>.   The escapes of the code block will Typically
+specify how to export the fields of the structure.  For example, if we
+are working with a Daedalus parser that produces values of type <code class="docutils literal notranslate"><span class="pre">Point</span></code>, which
+have two fields <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, we might write an exporter like this:</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> as_point<span class="p">(</span>pt<span class="p">:</span> Point<span class="p">):</span> CustomAppPoint <span class="k">-&gt;</span>
+  CustomAppPoint<span class="p">(</span><span class="k">$</span><span class="p">(</span>pt<span class="p">.</span>x<span class="p">),</span> <span class="k">$</span><span class="p">(</span>pt<span class="p">.</span>y<span class="p">))</span>
+</pre></div>
+</div>
+<p>Note that in this example the escapes <code class="docutils literal notranslate"><span class="pre">pt.x</span></code> and <code class="docutils literal notranslate"><span class="pre">pt.y</span></code> do not specify
+<em>how</em> to export the fields, so Dex will use the types of the fields to try
+and find a <code class="docutils literal notranslate"><span class="pre">default</span></code> exporter.</p>
+</section>
+<section id="discriminated-unions">
+<h2>Discriminated Unions<a class="headerlink" href="#discriminated-unions" title="Link to this heading"></a></h2>
+<p>For discriminated union types (i.e., types with multiple constructors),
+the definition should be a <code class="docutils literal notranslate"><span class="pre">case</span></code> expression, that specifies how to handle
+each possible shape of a value.  Here’s an example that exports a Daedalus
+value of type <code class="docutils literal notranslate"><span class="pre">Maybe</span> <span class="pre">(uint</span> <span class="pre">8)</span></code> to a C++ <code class="docutils literal notranslate"><span class="pre">uint8_t</span></code>:</p>
+<blockquote>
+<div><div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> mb_to_u8<span class="p">(</span>x<span class="p">:</span> maybe <span class="p">(</span>uint 8<span class="p">)):</span> uint8_t <span class="k">=</span>
+  <span class="k">case</span> x <span class="k">of</span>
+    nothing <span class="k">-&gt;</span> 0
+    just v  <span class="k">-&gt;</span> <span class="k">$</span>v
+</pre></div>
+</div>
+</div></blockquote>
+<p>Each alternative in the <code class="docutils literal notranslate"><span class="pre">case</span></code> should match one of the possible alternative
+of the union type, followed by a <code class="docutils literal notranslate"><span class="pre">CODE_BLOCK</span></code> that specifies how to export it.
+In this example, we map Daedalus <code class="docutils literal notranslate"><span class="pre">nothing</span></code> values to 0, and defined values
+using the default exporter for <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>, which is defined in module <code class="docutils literal notranslate"><span class="pre">CPP</span></code>
+and maps the value to <code class="docutils literal notranslate"><span class="pre">uint8_t</span></code> in C++.</p>
+<p>The escapes in each case alternative may refer to the field of the constructor,
+if any.</p>
+</section>
+<section id="iteration">
+<h2>Iteration<a class="headerlink" href="#iteration" title="Link to this heading"></a></h2>
+<p>For Deadalus values that support iterations (i.e., arrays and maps), we
+provide a custom iteration form that makes it easy to iterate over all
+the elements.  For example, here is how we might export a Daedalus array of
+bytes to a C++ string (this is already defined in the <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module, but
+it serves as a nice example)</p>
+<blockquote>
+<div><div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> as_string <span class="p">(</span>xs<span class="p">:</span> <span class="p">[</span>uint 8<span class="p">]):</span> string <span class="k">=</span>
+  <span class="k">init</span>        <span class="k">-&gt;</span> std<span class="p">::</span>string result;
+  <span class="k">for</span> x <span class="k">in</span> xs <span class="k">-&gt;</span> result<span class="p">.</span>push_back<span class="p">(</span><span class="k">$</span><span class="p">(</span>as_char<span class="p">(</span>x<span class="p">)))</span>;
+  <span class="k">return</span>      <span class="k">-&gt;</span> result
+</pre></div>
+</div>
+</div></blockquote>
+<p>As the example illustrates, iteration definitions always have 3 parts:
+initialization, traversal, and final result.  The <code class="docutils literal notranslate"><span class="pre">init</span></code> code block
+contains statements that setup some initial state.  The <code class="docutils literal notranslate"><span class="pre">for</span></code> block contains
+statements that are executed for each element in the collection.  Note that
+in this example we are using an explicit exporter, <code class="docutils literal notranslate"><span class="pre">as_char</span></code> to indicate
+that we want to export the Daedalus <code class="docutils literal notranslate"><span class="pre">uint8_t</span></code> to <code class="docutils literal notranslate"><span class="pre">char</span></code>, and not to
+the default <code class="docutils literal notranslate"><span class="pre">uint8_t</span></code>.   Finally the <code class="docutils literal notranslate"><span class="pre">return</span></code> code block should contain
+an expression that extracts the result from the state.</p>
+</section>
+<section id="type-and-function-parameters">
+<h2>Type and Function Parameters<a class="headerlink" href="#type-and-function-parameters" title="Link to this heading"></a></h2>
+<p>Dex also supports the definition of polymorphic exporters.  A polymorphic
+exporter may be used for Daedalus values of different types.  For example,
+the standard <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module provides the following exporter for processing
+<code class="docutils literal notranslate"><span class="pre">maybe</span></code> values:</p>
+<blockquote>
+<div><div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> as_optional&lt;A<span class="p">,</span>T<span class="p">,</span>f<span class="p">:</span> A <span class="k">=</span>&gt; T&gt;<span class="p">(</span>x<span class="p">:</span> maybe A<span class="p">):</span> optional&lt;T&gt; <span class="k">=</span>
+  <span class="k">case</span> x <span class="k">of</span>
+    nothing <span class="k">-&gt;</span> std<span class="p">::</span>optional&lt;<span class="k">$</span>T&gt;<span class="p">()</span>
+    just a  <span class="k">-&gt;</span> std<span class="p">::</span>optional<span class="p">(</span><span class="k">$</span><span class="p">(</span>f<span class="p">(</span>a<span class="p">)))</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>This exporter maps Daedalus <code class="docutils literal notranslate"><span class="pre">maybe</span></code> types to the standard C++ type <code class="docutils literal notranslate"><span class="pre">optional</span></code>.
+This is a standard <code class="docutils literal notranslate"><span class="pre">case</span></code> based exporter.  The new thing here are the type
+and function parameters, declared between <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>.  Here we have
+a Daedalus type parameter <code class="docutils literal notranslate"><span class="pre">A</span></code> and a C++ template argument <code class="docutils literal notranslate"><span class="pre">T</span></code>.  In
+addition, we have an <em>exporter parameter</em> <code class="docutils literal notranslate"><span class="pre">f</span></code>, that we use to export the
+data in the <code class="docutils literal notranslate"><span class="pre">just</span></code> case.   Also note that the escapes in the code block
+may refer to type parameters, as illustrated by the <code class="docutils literal notranslate"><span class="pre">nothing</span></code> case.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Dex: Daedalus Export DSL" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

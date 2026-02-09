@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Breaking down PPM: Declarations &mdash; Daedalus 0.1 documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/design-tabs.js"></script>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -64,6 +65,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
 </ul>
 
         </div>
@@ -92,7 +94,7 @@
            <div itemprop="articleBody">
              
   <section id="breaking-down-ppm-declarations">
-<h1>Breaking down PPM: Declarations<a class="headerlink" href="#breaking-down-ppm-declarations" title="Permalink to this headline"></a></h1>
+<h1>Breaking down PPM: Declarations<a class="headerlink" href="#breaking-down-ppm-declarations" title="Link to this heading"></a></h1>
 <p>Starting from the very beginning of the PPM specification, we have:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
 </span>  <span class="k">block</span>
@@ -122,7 +124,7 @@ changing the meaning of the program or having to be concerned about changes
 to any global state.</p>
 </div>
 <section id="deducing-types-from-names">
-<h2>Deducing Types From Names<a class="headerlink" href="#deducing-types-from-names" title="Permalink to this headline"></a></h2>
+<h2>Deducing Types From Names<a class="headerlink" href="#deducing-types-from-names" title="Link to this heading"></a></h2>
 <p>Though it’s probably not obvious, there’s actually another piece of information
 we can deduce from this declaration: What type of entity <code class="docutils literal notranslate"><span class="pre">Main</span></code> refers to.</p>
 <p>In DaeDaLus, there are three sorts of entities that may be declared: <em>parsers</em>,
@@ -149,7 +151,7 @@ future!</p>
 </div>
 </section>
 <section id="parameterized-declarations">
-<h2>Parameterized Declarations<a class="headerlink" href="#parameterized-declarations" title="Permalink to this headline"></a></h2>
+<h2>Parameterized Declarations<a class="headerlink" href="#parameterized-declarations" title="Link to this heading"></a></h2>
 <p>The next declaration in the PPM specfication shows that a declaration may be
 <em>parameterized</em>:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">def</span> <span class="n">Token</span> <span class="n">P</span> <span class="k">=</span>

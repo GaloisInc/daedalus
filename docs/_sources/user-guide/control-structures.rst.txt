@@ -247,7 +247,7 @@ There is also a variant called ``many?`` which is similar to ``Many?`` in
 that the loop repeats just enough times to make the parser succeed.
 
 .. warning::
-  It is quite easy to write inefficient or ambiguous parser when using
+  It is quite easy to write inefficient or ambiguous parsers when using
   ``many?`` so it should be avoided, if possible.
 
 

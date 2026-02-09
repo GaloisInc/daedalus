@@ -14,4 +14,4 @@ This allows for a clear, yet precise, specification of many data formats.
   tutorial/index.rst
   tool-docs/index.rst
   user-guide/index.rst
-
+  dex/index.rst
