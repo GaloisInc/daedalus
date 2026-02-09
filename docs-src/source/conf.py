@@ -203,7 +203,8 @@ todo_include_todos = True
 
 from sphinx.highlighting import lexers
 import daedalus_pygments
+import dex_pygments
 
 lexers['DaeDaLus'] = daedalus_pygments.DaeDaLusLexer(startinline=False)
-
+lexers['Dex'] = dex_pygments.DexLexer(startinline=False)
 
