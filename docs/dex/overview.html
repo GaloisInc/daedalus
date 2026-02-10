@@ -107,12 +107,12 @@ to some code that implements the data translation (e.g., <code class="docutils l
 language, at present we’ve only implemented concrete support for exporting
 to C++, as this is one of the main backends supported by Daedalus.  We plan
 to support more backends in the future.</p>
-<dl>
-<dt>A simple invocation of <code class="docutils literal notranslate"><span class="pre">dex</span></code> looks like this:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>dex<span class="w"> </span>my-spec.dex
+<p>A simple invocation of <code class="docutils literal notranslate"><span class="pre">dex</span></code> looks like this:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>dex<span class="w"> </span>my-spec.dex
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 <section id="command-line-flags">
 <h2>Command Line Flags<a class="headerlink" href="#command-line-flags" title="Link to this heading"></a></h2>
 <p>By default, the name of the generated files will be derived from the
@@ -229,11 +229,10 @@ block (i.e., one that <em>does not</em> start an escape) you need to write 2 dol
   External language code<span class="p">,</span> here comes single identifier escape <span class="k">$</span>x<span class="p">.</span>
   More external code<span class="p">,</span> more complex escape <span class="k">$</span><span class="p">(</span>f<span class="p">(</span>x<span class="p">)).</span>
   Finally<span class="p">,</span> this is just a single <span class="k">$$</span><span class="p">.</span>
-
-The escape on the first line contains the Dex expression ``x`` while
-the one one the second line contains ``f<span class="p">(</span>x<span class="p">)</span>``<span class="p">.</span>
 </pre></div>
 </div>
+<p>The escape on the first line contains the Dex expression <code class="docutils literal notranslate"><span class="pre">x</span></code> while
+the one one the second line contains <code class="docutils literal notranslate"><span class="pre">f(x)</span></code>.</p>
 </section>
 <section id="exporter-definitions">
 <h1>Exporter Definitions<a class="headerlink" href="#exporter-definitions" title="Link to this heading"></a></h1>
@@ -312,7 +311,7 @@ exporter may be used for Daedalus values of different types.  For example,
 the standard <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module provides the following exporter for processing
 <code class="docutils literal notranslate"><span class="pre">maybe</span></code> values:</p>
 <blockquote>
-<div><div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> as_optional&lt;A<span class="p">,</span>T<span class="p">,</span>f<span class="p">:</span> A <span class="k">=</span>&gt; T&gt;<span class="p">(</span>x<span class="p">:</span> maybe A<span class="p">):</span> optional&lt;T&gt; <span class="k">=</span>
+<div><div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> as_optional&lt;A<span class="p">,</span>T<span class="p">,</span>f<span class="p">:</span> A <span class="k">=&gt;</span> T&gt;<span class="p">(</span>x<span class="p">:</span> maybe A<span class="p">):</span> optional&lt;T&gt; <span class="k">=</span>
   <span class="k">case</span> x <span class="k">of</span>
     nothing <span class="k">-&gt;</span> std<span class="p">::</span>optional&lt;<span class="k">$</span>T&gt;<span class="p">()</span>
     just a  <span class="k">-&gt;</span> std<span class="p">::</span>optional<span class="p">(</span><span class="k">$</span><span class="p">(</span>f<span class="p">(</span>a<span class="p">)))</span>

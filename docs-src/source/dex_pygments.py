@@ -24,8 +24,8 @@ class DexLexer(RegexLexer):
               , 'type'
               , 'using'
               ), suffix=r'\b'), token.Keyword)
-
-          , (words( ( '$','->', '=' )), token.Keyword)
+        
+          , (words( ( '$','=>', '->', '=' )), token.Keyword)
 
           , (words( ('(',')', '{', '}','[',']'
                     , '.', ',', ':'

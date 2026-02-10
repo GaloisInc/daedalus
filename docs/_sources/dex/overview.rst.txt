@@ -16,8 +16,8 @@ language, at present we've only implemented concrete support for exporting
 to C++, as this is one of the main backends supported by Daedalus.  We plan
 to support more backends in the future.
 
-
 A simple invocation of ``dex`` looks like this:
+
   .. code-block:: bash
 
     > dex my-spec.dex
@@ -156,8 +156,8 @@ block (i.e., one that *does not* start an escape) you need to write 2 dollars
     More external code, more complex escape $(f(x)).
     Finally, this is just a single $$.
 
-  The escape on the first line contains the Dex expression ``x`` while
-  the one one the second line contains ``f(x)``.
+The escape on the first line contains the Dex expression ``x`` while
+the one one the second line contains ``f(x)``.
 
 
 Exporter Definitions
