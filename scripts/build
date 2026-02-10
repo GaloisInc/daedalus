@@ -2,7 +2,7 @@
 
 set -e
 
-for NAME in "daedalus" "daedalus-language-server" "talos"; do
+for NAME in "daedalus" "daedalus-language-server" "dex" "talos"; do
     cabal build exe:$NAME
     mkdir -p bin
     VERSION="$(scripts/version $NAME)"
