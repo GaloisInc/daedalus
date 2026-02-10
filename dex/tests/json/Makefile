@@ -22,7 +22,7 @@ parser/exporter.o: json.dex parser/main_parser.h
 # Use Daedalus to generate the parser
 parser/main_parser.h parser/main_parser.o: json.ddl utf8.ddl Daedalus.ddl
 	cabal run exe:daedalus -- compile-c++ $< --out-dir=parser --entry=JSON_value_strict
-	clang++ $(CXXFLAGS) -c parser/main_parser.cpp -o parser/main_parser.o -fsanitize=address
+	clang++ $(CXXFLAGS) -DDDL_ENABLE_ERRORS=1 -c parser/main_parser.cpp -o parser/main_parser.o -fsanitize=address
 
 clean:
 	rm -rf parser simple_app simple_app.dSYM
