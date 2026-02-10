@@ -643,6 +643,7 @@ atype                                    :: { SrcType }
 arr_or_map                               :: { TypeF SrcType }
   : type                                    { TArray $1 }
   | type '->' type                          { TMap $1 $3 }
+  | type ':' type                           { TMap $1 $3 }
 
 
 --------------------------------------------------------------------------------

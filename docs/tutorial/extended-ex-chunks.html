@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Extended Exercise: PNG Chunks &mdash; Daedalus 0.1 documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/design-tabs.js"></script>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -88,6 +89,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
 </ul>
 
         </div>
@@ -116,7 +118,7 @@
            <div itemprop="articleBody">
              
   <section id="extended-exercise-png-chunks">
-<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Permalink to this headline"></a></h1>
+<h1>Extended Exercise: PNG Chunks<a class="headerlink" href="#extended-exercise-png-chunks" title="Link to this heading"></a></h1>
 <p>Now, we’ll use our utilities and more of the knowledge we’ve developed
 to build up parsers for PNG chunks themselves, culminating in a
 top-level parser that can consume full PNG images.</p>
@@ -131,7 +133,7 @@ we’ll need to be able to handle specific bit arrangements in the PNG
 data. The next section introduces <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, a DaeDaLus feature that
 we’ll use for this purpose.</p>
 <section id="introducing-bitdata">
-<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Permalink to this headline"></a></h2>
+<h2>Introducing <code class="docutils literal notranslate"><span class="pre">bitdata</span></code><a class="headerlink" href="#introducing-bitdata" title="Link to this heading"></a></h2>
 <p>In general, a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> specifies how bytes should be broken into
 groups of bits, which are <em>then</em> combined into a tagged sum.</p>
 <p>Here is a small example of using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> to inspect the first nybble
@@ -184,7 +186,7 @@ value’s bits match that of the expected numeric value. For example:</p>
 </div>
 </section>
 <section id="png-chunk-types">
-<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Permalink to this headline"></a></h2>
+<h2>PNG Chunk Types<a class="headerlink" href="#png-chunk-types" title="Link to this heading"></a></h2>
 <p>To get started using <code class="docutils literal notranslate"><span class="pre">bitdata</span></code>, you’ll first declare one that
 specifies the different type tags that a PNG chunk can carry.</p>
 <p>Every type tag is a 32-bit unsigned integer consisting of four bytes.
@@ -193,11 +195,7 @@ about what the tag names mean; if you’re curious, you can check the
 PNG specification for details, but we won’t need that information for
 parsing.</p>
 <table class="docutils align-default" id="id1">
-<caption><span class="caption-text">PNG Chunk Types</span><a class="headerlink" href="#id1" title="Permalink to this table"></a></caption>
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
+<caption><span class="caption-text">PNG Chunk Types</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
 <tbody>
 <tr class="row-odd"><td><p>plte</p></td>
 <td><p>80 76 84 69</p></td>
@@ -255,11 +253,7 @@ names in the table, and be sure to specify the type of each byte (use
 <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">bitdata</span> <span class="n">ChunkType</span> <span class="k">where</span>
   <span class="n">plte</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">80</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">76</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">69</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
   <span class="n">idat</span> <span class="k">=</span> <span class="p">{</span>  <span class="m">73</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">68</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">65</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">;</span>  <span class="m">84</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span> <span class="p">}</span>
@@ -282,13 +276,13 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="png-chunk-data">
-<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Permalink to this headline"></a></h2>
+<h2>PNG Chunk Data<a class="headerlink" href="#png-chunk-data" title="Link to this heading"></a></h2>
 <p>Now, we’ll build parsers for each type of chunk data. We’ll then combine
 those into a single <code class="docutils literal notranslate"><span class="pre">ChunkData</span></code> parser, which will allow us to parse
 any type of chunk with a single parser and, more importantly, parse many
 chunks in sequence.</p>
 <section id="plte">
-<h3>PLTE<a class="headerlink" href="#plte" title="Permalink to this headline"></a></h3>
+<h3>PLTE<a class="headerlink" href="#plte" title="Link to this heading"></a></h3>
 <p>The PLTE chunk contains between 1 and 256 palette entries, which are
 simply RGB structures as we defined in the section
 <a class="reference internal" href="extended-ex-utils.html#extended-exercise-defining-helpful-utilities"><span class="std std-ref">Extended Exercise: Defining Helpful Utilities</span></a>.</p>
@@ -296,36 +290,28 @@ simply RGB structures as we defined in the section
 256 <code class="docutils literal notranslate"><span class="pre">RGB</span></code> structures.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PLTEChunkData</span> <span class="k">=</span> <span class="k">Many</span> <span class="p">(</span><span class="m">1</span><span class="p">..</span><span class="m">256</span><span class="p">)</span> <span class="n">RGB</span>
 </pre></div>
 </div>
 </div>
 </details></section>
 <section id="idat">
-<h3>IDAT<a class="headerlink" href="#idat" title="Permalink to this headline"></a></h3>
+<h3>IDAT<a class="headerlink" href="#idat" title="Link to this heading"></a></h3>
 <p>The IDAT chunk contains image data as output by the PNG compression
 algorithm; it consists merely of a bunch of bytes.</p>
 <p><strong>Exercise:</strong> Write a parser <code class="docutils literal notranslate"><span class="pre">IDATChunkData</span></code> that parses any number of
 bytes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IDATChunkData</span> <span class="k">=</span> <span class="k">Many</span> <span class="k">UInt8</span>
 </pre></div>
 </div>
 </div>
 </details></section>
 <section id="trns">
-<h3>tRNS<a class="headerlink" href="#trns" title="Permalink to this headline"></a></h3>
+<h3>tRNS<a class="headerlink" href="#trns" title="Link to this heading"></a></h3>
 <p>Transparency chunks are significantly more complex than the others we’ve
 looked at so far in that they have a different data shape depending on
 data provided in the PNG <em>signature</em> that we have not yet defined. We’ll
@@ -352,11 +338,7 @@ names provided as field names (so, make sure these parsers all produce
 structures).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TRNSData0</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">grey</span>_<span class="n">sample</span>_<span class="n">value</span> <span class="k">=</span> <span class="n">BEUInt16</span>
@@ -381,21 +363,13 @@ with a message indicating that the transparency chunk cannot appear for
 any other color mode.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
-Hint<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Hint</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <p class="sd-card-text">Remember that you can return values of a tagged sum using the special
 ‘barbed wire’ brackets, <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">tag</span> <span class="pre">=</span> <span class="pre">...</span> <span class="pre">|}</span></code>.</p>
 </div>
 </details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TRNSChunkData</span> <span class="n">sig</span> <span class="k">=</span>
   <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
     <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">trns</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">TRNSData0</span> <span class="k">|</span><span class="p">}</span>
@@ -407,7 +381,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="chrm">
-<h3>cHRM<a class="headerlink" href="#chrm" title="Permalink to this headline"></a></h3>
+<h3>cHRM<a class="headerlink" href="#chrm" title="Link to this heading"></a></h3>
 <p>The chromaticities and white point chunk is made of eight big-endian
 4-byte values: <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> respectively for each of the white point,
 red, green, and blue. You should use the names <code class="docutils literal notranslate"><span class="pre">white_point_x</span></code>,
@@ -417,11 +391,7 @@ red, green, and blue. You should use the names <code class="docutils literal not
 described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">CHRMChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">white</span>_<span class="n">point</span>_<span class="n">x</span> <span class="k">=</span> <span class="n">BEUInt32</span>
@@ -437,18 +407,14 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="gama">
-<h3>gAMA<a class="headerlink" href="#gama" title="Permalink to this headline"></a></h3>
+<h3>gAMA<a class="headerlink" href="#gama" title="Link to this heading"></a></h3>
 <p>The gamma chunk relates image samples to desired output intensity. It is
 simply a big-endian 4-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">GAMAChunkData</span></code> that parses a single field,
 <code class="docutils literal notranslate"><span class="pre">image_gamma</span></code>, as specified in the above description.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">GAMAChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">image</span>_<span class="n">gamma</span> <span class="k">=</span> <span class="n">BEUInt32</span>
@@ -457,7 +423,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="iccp">
-<h3>iCCP<a class="headerlink" href="#iccp" title="Permalink to this headline"></a></h3>
+<h3>iCCP<a class="headerlink" href="#iccp" title="Link to this heading"></a></h3>
 <p>The embedded ICC profile chunk contains information related to the
 International Color Consortium. It consists of three fields:</p>
 <ol class="arabic simple">
@@ -470,20 +436,12 @@ call <code class="docutils literal notranslate"><span class="pre">profile_name</
 the three fields described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
-Hint<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Hint</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <p class="sd-card-text">Remember the null-terminated string parser we built previously!</p>
 </div>
 </details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ICCPChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">profile</span>_<span class="n">name</span>       <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
@@ -494,7 +452,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="sbit">
-<h3>sBIT<a class="headerlink" href="#sbit" title="Permalink to this headline"></a></h3>
+<h3>sBIT<a class="headerlink" href="#sbit" title="Link to this heading"></a></h3>
 <p>The significant bits chunk allows lossless data recovery even if the
 sample depth isn’t supported by PNG. The supported color modes each have
 a number of significant bits to store that allows this to be done.</p>
@@ -516,11 +474,7 @@ the fields using the names we provided (so make sure all parsers return
 structures).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SBITData0</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">significant</span>_<span class="n">greyscale</span>_<span class="n">bits</span> <span class="k">=</span> <span class="k">UInt8</span>
@@ -551,11 +505,7 @@ to produce an appropriate value; you can use pattern-matching and
 integer literals for this. You can ignore all other color modes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SBITChunkData</span> <span class="n">sig</span> <span class="k">=</span>
     <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
       <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">sbit</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">SBITData0</span> <span class="k">|</span><span class="p">}</span>
@@ -568,7 +518,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="srgb">
-<h3>sRGB<a class="headerlink" href="#srgb" title="Permalink to this headline"></a></h3>
+<h3>sRGB<a class="headerlink" href="#srgb" title="Link to this heading"></a></h3>
 <p>The standard RGB color space chunk defines a <em>rendering intent</em>, defined
 by the ICC. It contains one byte, which is a value between 0 and 3
 (inclusive) giving the intent.</p>
@@ -577,11 +527,7 @@ a single field, <code class="docutils literal notranslate"><span class="pre">ren
 between 0 and 3 (inclusive).</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SRGBChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">rendering</span>_<span class="n">intent</span> <span class="k">=</span> <span class="n">$</span><span class="p">[</span><span class="m">0</span> <span class="p">..</span> <span class="m">3</span><span class="p">]</span>
@@ -590,7 +536,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="text">
-<h3>tEXt<a class="headerlink" href="#text" title="Permalink to this headline"></a></h3>
+<h3>tEXt<a class="headerlink" href="#text" title="Link to this heading"></a></h3>
 <p>PNG provides textual data blocks to store information associated with
 images such as descriptions and copyright notices. There are three types
 of textual chunk, the most basic of which is the tEXt chunk we’ll define
@@ -607,11 +553,7 @@ and <code class="docutils literal notranslate"><span class="pre">text_string</sp
 bytes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TEXTChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">keyword</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
@@ -621,7 +563,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="ztxt">
-<h3>zTXt<a class="headerlink" href="#ztxt" title="Permalink to this headline"></a></h3>
+<h3>zTXt<a class="headerlink" href="#ztxt" title="Link to this heading"></a></h3>
 <p>The zTXt chunk is semantically the same as tEXt, but with compressed
 data; it is recommended for use with large blocks of text.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">ZTXTChunkData</span></code> that returns a
@@ -631,11 +573,7 @@ as they were for <code class="docutils literal notranslate"><span class="pre">TE
 single byte.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ZTXTChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">keyword</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
@@ -646,7 +584,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="itxt">
-<h3>iTXt<a class="headerlink" href="#itxt" title="Permalink to this headline"></a></h3>
+<h3>iTXt<a class="headerlink" href="#itxt" title="Link to this heading"></a></h3>
 <p>The final type of textual data chunk is iTXt. This chunk type is used
 for international text. It consists of the following fields:</p>
 <ul class="simple">
@@ -664,11 +602,7 @@ translation of the keyword into the language of the text</p></li>
 the six fields as described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ITXTChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">keyword</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
@@ -682,7 +616,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="bkgd">
-<h3>bKGD<a class="headerlink" href="#bkgd" title="Permalink to this headline"></a></h3>
+<h3>bKGD<a class="headerlink" href="#bkgd" title="Link to this heading"></a></h3>
 <p>The background color chunk specifies the default background color
 against which to present the image. Different color modes use different
 data in this chunk to achieve the specified effects.</p>
@@ -697,11 +631,7 @@ palette provided.</p>
 <code class="docutils literal notranslate"><span class="pre">BKGDData3</span></code> that return structures with the fields described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">BKGDData0or4</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">greyscale</span> <span class="k">=</span> <span class="n">BEUInt16</span>
@@ -724,11 +654,7 @@ prouce an appropriate value; you can use pattern-matching and integer literals
 for this. You can ignore all other color modes.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">BKGDChunkData</span> <span class="n">sig</span> <span class="k">=</span>
   <span class="k">case</span> <span class="n">sig</span><span class="p">.</span><span class="n">colour</span>_<span class="n">type</span> <span class="k">of</span>
     <span class="m">0</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">bkgd</span>_<span class="n">colour</span>_<span class="n">type</span>_<span class="m">0</span> <span class="k">=</span> <span class="n">BKGDData0or4</span> <span class="k">|</span><span class="p">}</span>
@@ -741,7 +667,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="hist">
-<h3>hIST<a class="headerlink" href="#hist" title="Permalink to this headline"></a></h3>
+<h3>hIST<a class="headerlink" href="#hist" title="Link to this heading"></a></h3>
 <p>The image histogram chunk gives approximate usage frequencies for all
 colors in the palette. Each frequency is a big-endian two-byte integer.</p>
 <p><strong>Exercise:</strong> Define a parser <code class="docutils literal notranslate"><span class="pre">HISTChunkData</span></code> that returns a structure with a
@@ -750,11 +676,7 @@ above. Don’t worry about checking that the correct number of frequencies are
 provided.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">HISTChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">frequencies</span> <span class="k">=</span> <span class="k">Many</span> <span class="n">BEUInt16</span>
@@ -763,7 +685,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="phys">
-<h3>pHYs<a class="headerlink" href="#phys" title="Permalink to this headline"></a></h3>
+<h3>pHYs<a class="headerlink" href="#phys" title="Link to this heading"></a></h3>
 <p>The physical pixel dimensions chunk describes the intended aspect ratio for
 image display. It’s comprised of:</p>
 <ul class="simple">
@@ -776,11 +698,7 @@ or specify actual size</p></li>
 the fields as described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PHYSChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">pixels</span>_<span class="n">per</span>_<span class="n">unit</span>_<span class="n">x</span>_<span class="n">axis</span> <span class="k">=</span> <span class="n">BEUInt32</span>
@@ -791,7 +709,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="splt">
-<h3>sPLT<a class="headerlink" href="#splt" title="Permalink to this headline"></a></h3>
+<h3>sPLT<a class="headerlink" href="#splt" title="Link to this heading"></a></h3>
 <p>The suggested palette chunk is semantically fairly complex; if you
 want to know the details, we once again refer you to the full PNG
 specification linked earlier in this section. As it turns out, it is
@@ -824,11 +742,7 @@ the remaining bytes in the input.</p>
 parse the five sample values as described above.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTSample8</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">red</span>       <span class="k">=</span> <span class="k">UInt8</span>
@@ -854,11 +768,7 @@ which to use. The result should be a tagged sum with two variants named
 anything to handle sample depths other than 8 and 16.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTSample</span> <span class="p">(</span><span class="n">depth</span> <span class="p">:</span> <span class="k">uint</span> <span class="m">8</span><span class="p">)</span> <span class="k">=</span>
   <span class="k">case</span> <span class="n">depth</span> <span class="k">of</span>
     <span class="m">8</span>  <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">splt</span>_<span class="n">sample</span>_<span class="n">depth</span>_<span class="m">8</span>  <span class="k">=</span> <span class="n">SPLTSample8</span> <span class="k">|</span><span class="p">}</span>
@@ -871,11 +781,7 @@ returns a structure containing fields <code class="docutils literal notranslate"
 <code class="docutils literal notranslate"><span class="pre">palette</span></code> as described earlier.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
-Hint<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Hint</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <p class="sd-card-text">Remember that you can parse alternatives using the operators <code class="docutils literal notranslate"><span class="pre">&lt;|</span></code> and
 <code class="docutils literal notranslate"><span class="pre">|</span></code> - the former is for biased choice, the latter for unbiased.</p>
 <p class="sd-card-text">Also remember that DaeDaLus allows for data-dependent parsing: If you store
@@ -884,11 +790,7 @@ may use that value later in the sequence.</p>
 </div>
 </details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">SPLTChunkData</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">palette</span>_<span class="n">name</span> <span class="k">=</span> <span class="n">NTString</span> <span class="p">(</span><span class="l">just</span> <span class="m">1</span><span class="p">)</span> <span class="p">(</span><span class="l">just</span> <span class="m">79</span><span class="p">)</span>
@@ -899,7 +801,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="time">
-<h3>tIME<a class="headerlink" href="#time" title="Permalink to this headline"></a></h3>
+<h3>tIME<a class="headerlink" href="#time" title="Link to this heading"></a></h3>
 <p>With that tricky one out of the way, there’s only one chunk type left,
 and it’s very straightforward: the last one left is the tIME chunk that
 carries along the last-modified time for the image.</p>
@@ -907,18 +809,14 @@ carries along the last-modified time for the image.</p>
 ‘new’ parser <code class="docutils literal notranslate"><span class="pre">TIMEChunkData</span></code> that returns a <code class="docutils literal notranslate"><span class="pre">UTCTime</span></code>.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">TIMEChunkData</span> <span class="k">=</span> <span class="n">UTCTime</span>
 </pre></div>
 </div>
 </div>
 </details></section>
 <section id="generic-chunk-data-parsing">
-<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Permalink to this headline"></a></h3>
+<h3>Generic Chunk Data Parsing<a class="headerlink" href="#generic-chunk-data-parsing" title="Link to this heading"></a></h3>
 <p>Now that we know how to parse each type of chunk, we’ll combine all
 of those possibilities into a single tagged sum type so that we will
 be able to parse many chunks in sequence. To do this, we’ll use
@@ -930,11 +828,7 @@ possible chunk types defined by the <code class="docutils literal notranslate"><
 be named, for example, <code class="docutils literal notranslate"><span class="pre">plte_data</span></code> for the <code class="docutils literal notranslate"><span class="pre">plte</span></code> case.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">ChunkData</span> <span class="n">sig</span> <span class="p">(</span><span class="n">type</span> <span class="p">:</span> <span class="n">ChunkType</span><span class="p">)</span> <span class="k">=</span>
   <span class="k">case</span> <span class="n">type</span> <span class="k">of</span>
     <span class="n">plte</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">plte</span>_<span class="n">data</span> <span class="k">=</span> <span class="n">PLTEChunkData</span>     <span class="k">|</span><span class="p">}</span>
@@ -959,7 +853,7 @@ Solution<div class="sd-summary-down docutils">
 </details></section>
 </section>
 <section id="png-chunks">
-<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Permalink to this headline"></a></h2>
+<h2>PNG Chunks<a class="headerlink" href="#png-chunks" title="Link to this heading"></a></h2>
 <p>Now that we can successfully parse any type of chunk data, we need only
 add in the metadata necessary for a complete chunk. A complete PNG chunk
 consists of the chunk’s length (as a 4-byte integer), the type of the
@@ -976,11 +870,7 @@ need to be stored in the resulting structure)</p></li>
 </ul>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-info sd-bg-text-info">
-Hint<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Hint</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <ol class="arabic simple">
 <li><p class="sd-card-text">Remember that you use a <code class="docutils literal notranslate"><span class="pre">bitdata</span></code> by coercing a parsed value; take
 care to use the appropriate coercion method!</p></li>
@@ -991,11 +881,7 @@ care to use the appropriate coercion method!</p></li>
 </div>
 </details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">PNGChunk</span> <span class="n">sig</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="k">let</span> <span class="n">len</span> <span class="k">=</span> <span class="n">Length</span> <span class="k">as</span> <span class="k">uint</span> <span class="m">64</span>
@@ -1007,7 +893,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="header-trailer">
-<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Permalink to this headline"></a></h2>
+<h2>Header / Trailer<a class="headerlink" href="#header-trailer" title="Link to this heading"></a></h2>
 <p>Two special chunks we haven’t discussed are the <em>header</em> and <em>trailer</em>
 for PNG. These are the first and last chunks in a PNG datastream. The
 <code class="docutils literal notranslate"><span class="pre">sig</span></code> parameter we’ve left undiscussed is the data in the header.</p>
@@ -1034,11 +920,7 @@ above-described fields. The type identifier for the header chunk is the four
 bytes <code class="docutils literal notranslate"><span class="pre">73</span></code>, <code class="docutils literal notranslate"><span class="pre">72</span></code>, <code class="docutils literal notranslate"><span class="pre">68</span></code>, and <code class="docutils literal notranslate"><span class="pre">82</span></code>.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IHDRChunk</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="k">Match</span> <span class="p">[</span> <span class="m">0</span><span class="p">;</span> <span class="m">0</span><span class="p">;</span> <span class="m">0</span><span class="p">;</span> <span class="m">13</span><span class="p">]</span>
@@ -1059,11 +941,7 @@ the description above. The type identifier for the trailer chunk is the four
 bytes <code class="docutils literal notranslate"><span class="pre">73</span></code>, <code class="docutils literal notranslate"><span class="pre">69</span></code>, <code class="docutils literal notranslate"><span class="pre">78</span></code>, and <code class="docutils literal notranslate"><span class="pre">68</span></code>.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">IENDChunk</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="k">Match</span> <span class="p">[</span><span class="m">0</span><span class="p">;</span> <span class="m">0</span><span class="p">;</span> <span class="m">0</span><span class="p">;</span> <span class="m">0</span><span class="p">]</span>
@@ -1074,7 +952,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="full-png">
-<h2>Full PNG<a class="headerlink" href="#full-png" title="Permalink to this headline"></a></h2>
+<h2>Full PNG<a class="headerlink" href="#full-png" title="Link to this heading"></a></h2>
 <p>We have almost all of the components needed to parse full PNG images
 now. The only thing missing is the PNG header, a byte sequence that
 starts every PNG image ever encoded:</p>
@@ -1089,11 +967,7 @@ trailer chunk. Make sure <code class="docutils literal notranslate"><span class=
 consumes the entire input.</p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-warning sd-bg-text-warning">
-Solution<div class="sd-summary-down docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
-<div class="sd-summary-up docutils">
-<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
-</summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">Solution</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Main</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">PNGHeader</span>
@@ -1106,7 +980,7 @@ Solution<div class="sd-summary-down docutils">
 </div>
 </details></section>
 <section id="conclusion">
-<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline"></a></h2>
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading"></a></h2>
 <p>Congratulations on making it through! The full PNG specification can be
 found on the following page; notice how DaeDaLus has made it possible to
 write such a short specification compared to the PNG specification upon

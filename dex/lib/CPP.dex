@@ -1,0 +1,74 @@
+
+extern ->
+  #include <ddl/unit.h>
+  #include <ddl/bool.h>
+  #include <ddl/number.h>
+  #include <ddl/size.h>
+  #include <ddl/array.h>
+  #include <ddl/map.h>
+  #include <ddl/maybe.h>
+  #include <ddl/input.h>
+  #include <ddl/dex.h>
+
+  #include <cstdint>
+  #include <vector>
+  #include <string>
+  #include <optional>
+  #include <unordered_map>
+
+type bool -> bool
+default def as_bool(x: bool): bool =
+  case x of
+    true -> true
+    false -> false
+
+type char  -> char
+def as_char(x: uint 8): char -> static_cast<char>($x)
+
+type uint8_t -> uint8_t
+default def as_uint8(x: uint 8): uint8_t = extern
+
+type uint16_t -> uint16_t
+default def as_uint16(x: uint 16): uint16_t = extern
+
+type uint32_t -> uint32_t
+default def as_uint32(x: uint 32): uint32_t = extern
+
+type uint64_t -> uint64_t
+default def as_uint64(x: uint 64): uint64_t = extern
+
+type int8_t -> int8_t
+default def as_int8(x: sint 8): int8_t = extern
+
+type int16_t -> int16_t
+default def as_int16(x: sint 16): int16_t = extern
+
+type int32_t -> int32_t
+default def as_int32(x: sint 32): int32_t = extern
+
+type int64_t -> int64_t
+default def as_int64(x: sint 64): int64_t = extern
+
+type optional<T> -> std::optional<T>
+def as_optional<A,T,f: A => T>(x: maybe A): optional<T> =
+  case x of
+    nothing -> std::optional<$T>()
+    just a  -> std::optional($(f(a))) 
+
+type vector<T> -> std::vector<$T>
+def as_vector<A, T, element: A => T>(xs: [A]): vector<T> =
+  init -> std::vector<$T> result;
+  for x in xs -> result.push_back($(element(x)));
+  return -> result
+
+type string -> std::string
+def as_string (xs: [uint 8]): string =
+  init -> std::string result;
+  for x in xs -> result.push_back($(as_char(x)));
+  return -> result
+
+type map<K,V> -> std::unordered_map<$K,$V>
+def as_map<K,V,X,Y, expK: K => X, expV: V => Y> (mp: [K:V]): map<X,Y> =
+  init -> std::unordered_map<$X,$Y> result;
+  for k,v in mp -> result.insert({$(expK(k)), $(expV(v))});
+  return -> result

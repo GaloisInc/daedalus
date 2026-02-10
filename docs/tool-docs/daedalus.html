@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getting Help &mdash; Daedalus 0.1 documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/design-tabs.js"></script>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -62,6 +63,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/index.html">Language Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
 </ul>
 
         </div>
@@ -90,26 +92,26 @@
            <div itemprop="articleBody">
              
   <section id="getting-help">
-<h1>Getting Help<a class="headerlink" href="#getting-help" title="Permalink to this headline"></a></h1>
+<h1>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading"></a></h1>
 <p>To see a list of available commands and options that apply to all commands:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus --help
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>--help
 </pre></div>
 </div>
 <p>To see a list of options for a specific command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus COMMAND --help
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>COMMAND<span class="w"> </span>--help
 </pre></div>
 </div>
 </section>
 <section id="command-show-types">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Permalink to this headline"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">show-types</span></code><a class="headerlink" href="#command-show-types" title="Link to this heading"></a></h1>
 <p>To type-check a DaeDaLus specification and see the types of the declarations:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus show-types MyParserSpec.ddl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>show-types<span class="w"> </span>MyParserSpec.ddl
 </pre></div>
 </div>
 <p>The command prints information about the types and parsers defined by
 the given specification.  For example:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id2" title="Permalink to this code"></a></div>
+<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id2" title="Link to this code"></a></div>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Types
 ======
 
@@ -151,7 +153,7 @@ def Main:
 </pre></div>
 </div>
 <p>This resembles a C type declaration as follows:</p>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">C</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">B</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w"></span>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">C</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ParserName</span><span class="p">(</span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="n">type</span><span class="w"> </span><span class="n">B</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
 </pre></div>
 </div>
 <p>The types themselves may be simple types such as integers or arrays, but they
@@ -159,16 +161,16 @@ often have the form <code class="docutils literal notranslate"><span class="pre"
 result is a parser, that itself generates semantic values of type <code class="docutils literal notranslate"><span class="pre">A</span></code>.</p>
 </section>
 <section id="command-run">
-<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Permalink to this headline"></a></h1>
+<h1>Command <code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#command-run" title="Link to this heading"></a></h1>
 <p>This command is used to run a DaeDaLus specification using the interpreter:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus run MyParserSpec.ddl --input<span class="o">=</span>input.txt
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>run<span class="w"> </span>MyParserSpec.ddl<span class="w"> </span>--input<span class="o">=</span>input.txt
 </pre></div>
 </div>
 <p>This command will run the parser defined in <code class="docutils literal notranslate"><span class="pre">MyParserSpec.ddl</span></code> on the
 input from file <code class="docutils literal notranslate"><span class="pre">input.txt</span></code>.</p>
 <p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.</p>
 <section id="flags">
-<h2>Flags<a class="headerlink" href="#flags" title="Permalink to this headline"></a></h2>
+<h2>Flags<a class="headerlink" href="#flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--input=FILE</span></span></dt>
@@ -214,9 +216,9 @@ polymorphic) and it should not have any parameters, implicit or explicit.</p>
 </section>
 </section>
 <section id="command-compile-hs">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code><a class="headerlink" href="#command-compile-hs" title="Link to this heading"></a></h1>
 <p>To compile a DaeDaLus parser specification to Haskell:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-hs MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-hs<span class="w"> </span>MyParserSpec.ddl<span class="w"> </span>--out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
 <p>The result is a directory populated with a Haskell module containing
@@ -235,13 +237,13 @@ command will start using the new backend.</p>
 </div>
 </section>
 <section id="command-compile-c">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Link to this heading"></a></h1>
 <p>To compile a DaeDaLus package specification C++:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus compile-c++ MyParserSpec.ddl --out-dir<span class="o">=</span>some_dir_name
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-c++<span class="w"> </span>MyParserSpec.ddl<span class="w"> </span>--out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
 <section id="generated-files">
-<h2>Generated Files<a class="headerlink" href="#generated-files" title="Permalink to this headline"></a></h2>
+<h2>Generated Files<a class="headerlink" href="#generated-files" title="Link to this heading"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is in two files:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">main_parser.h</span></code> contains the interface to the generated parser, and</p></li>
@@ -264,7 +266,7 @@ of any kind—if this is not the case, the sample driver will fail to compile.</
 </div></blockquote>
 </section>
 <section id="id1">
-<h2>Flags<a class="headerlink" href="#id1" title="Permalink to this headline"></a></h2>
+<h2>Flags<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
@@ -335,11 +337,11 @@ declaration <code class="docutils literal notranslate"><span class="pre">F</span
 type, but MAY have argument.</p>
 <div class="literal-block-wrapper docutils container" id="id3">
 <div class="code-block-caption"><span class="caption-text">Sample entry point for parser <code class="docutils literal notranslate"><span class="pre">Main</span></code> with no extra arguments,
-returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id3" title="Permalink to this code"></a></div>
-<div class="highlight-C++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">parseMain</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">ParseError</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span><span class="w"></span>
-<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">results</span><span class="w"></span>
-<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">Input</span><span class="w">      </span><span class="n">input</span><span class="w"></span>
-<span class="w">               </span><span class="p">);</span><span class="w"></span>
+returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id3" title="Link to this code"></a></div>
+<div class="highlight-C++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">parseMain</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">ParseError</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>
+<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">results</span>
+<span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">Input</span><span class="w">      </span><span class="n">input</span>
+<span class="w">               </span><span class="p">);</span>
 </pre></div>
 </div>
 </div>
@@ -394,7 +396,7 @@ parser should be done using class <code class="docutils literal notranslate"><sp
 </section>
 </section>
 <section id="command-dump">
-<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Permalink to this headline"></a></h1>
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code><a class="headerlink" href="#command-dump" title="Link to this heading"></a></h1>
 <p>It shows the various IR structures of the DaeDaLus compiler. This
 command is largely for debugging.</p>
 <dl class="py data">
