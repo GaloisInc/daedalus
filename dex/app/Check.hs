@@ -351,7 +351,8 @@ ddlTCons = Map.fromList
   [ 
     "bool"    ~> (TBool,0,0),
     "double"  ~> (TDouble,0,0),
-    "stream"  ~> (TStream,1,0),
+    "float"   ~> (TFloat,0,0),
+    "stream"  ~> (TStream,0,0),
     "int"     ~> (TInteger,0,0),
     "uint"    ~> (TUInt,0,1),
     "sint"    ~> (TSInt,0,1),
@@ -404,7 +405,7 @@ checkDDLType ty =
                 Nothing  -> reportError (UndefinedName nm)
                 Just def -> mkTCUserApp def nm args szs
 
-    _ -> error "[BUG] `checkForeignType`"
+    _ -> error "[BUG] `checkDDLType`"
 
   where
   mkTCUserApp def nm =
