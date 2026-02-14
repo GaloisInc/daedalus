@@ -15,7 +15,7 @@ typeToCoreType ps ty =
     TVar x ->
       case Map.lookup (locThing x) ps of
         Just p -> Core.TParam p
-        Nothing -> error "[BUG] typeToCoreType: missing type parmeter"
+        Nothing -> error "[BUG] typeToCoreType: missing type parameter"
     Type tc args szs ->
       case (locThing tc,args',sz') of
         (TStream,[],[]) -> Core.TStream
@@ -37,7 +37,7 @@ typeToCoreType ps ty =
             utNumArgs = sz',
             utTyArgs  = args'
           } 
-        _ -> error "[BUG]: Malformerd DDL type"
+        _ -> error "[BUG]: Malformed DDL type"
       where
       args' = map (typeToCoreType ps) args
       sz'   = map Core.TSize szs

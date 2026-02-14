@@ -79,7 +79,7 @@ genForeignType ty =
                 Nothing -> error "[BUG] genForeignType: missing param" 
           Nothing -> error $ unlines $ ("[BUG] genForeignType: missing type alias: " ++ show (pp tc))
                                      : [ show (pp k <+> ":" <+> pp v) | (k,v) <- Map.toList ?ftAliases ]
-      | otherwise -> error "[BUG] genForeingType: sizes"
+      | otherwise -> error "[BUG] genForeignType: sizes"
 
 type DDLTPs = Map Name Core.TParam
 
@@ -221,11 +221,16 @@ genCase x ty alts =
         (TUser u,_,_) ->
           cSwitch (cCallMethod xe "getTag" []) (map doCase alts)
           where
-          freeTop sel =
-            [ cIf (cCallMethod xe "refCount" [] <+> "==" <+> "1")
-                (sel GenBorrow ++ [ cStmt (cCallMethod xe "del" []) ])
-                (sel GenOwn ++ [ cStmt (cCallMethod xe "free" []) ])
-            ]
+          -- Boxed (recursive) unions need explicit refCount/del or
+          -- get/free; non-boxed unions just borrow.
+          freeTop sel
+            | Core.tnameRec u =
+              [ cIf (cCallMethod xe "refCount" [] <+> "==" <+> "1")
+                  (sel GenBorrow ++ [ cStmt (cCallMethod xe "del" []) ])
+                  (sel GenOwn ++ [ cStmt (cCallMethod xe "free" []) ])
+              ]
+            | otherwise =
+              sel GenBorrow
           doCase (PCon l f, rhs) =
             let lab = nameToText (locThing l)
                 tag = cSumTagV u lab
@@ -263,7 +268,7 @@ genForeignExpr :: Ctx => ExportExpr DDLTCon QName -> CExpr
 genForeignExpr e =
   case exportWith e of
     Just ex -> genExporter ex (Just (genDDLExpr (exportExpr e)))
-    Nothing -> "[BUG] genForeignExpr: unresolved default"
+    Nothing -> error "[BUG] genForeignExpr: unresolved default"
 
 -- | Generate code for calling an exporter with the given argument
 genExporter :: Ctx => Exporter DDLTCon QName -> Maybe CExpr -> CExpr
