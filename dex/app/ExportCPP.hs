@@ -79,7 +79,7 @@ genForeignType ty =
                 Nothing -> error "[BUG] genForeignType: missing param" 
           Nothing -> error $ unlines $ ("[BUG] genForeignType: missing type alias: " ++ show (pp tc))
                                      : [ show (pp k <+> ":" <+> pp v) | (k,v) <- Map.toList ?ftAliases ]
-      | otherwise -> error "[BUG] genForeingType: sizes"
+      | otherwise -> error "[BUG] genForeignType: sizes"
 
 type DDLTPs = Map Name Core.TParam
 
