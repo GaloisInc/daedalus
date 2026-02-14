@@ -173,11 +173,17 @@ getTypeDecls mo =
       Map.fromListWith Map.union [ (m, Map.singleton x t) | (m,x,t) <- ds ]
   }
   where
-  ds = 
-    [ (nameFromText modu, nameFromText (Core.tnameText nm), d)
+  -- Append the anonymous-type suffix so that e.g. ChunkRecord (struct)
+  -- and ChunkRecord0 (its anonymous union) get distinct map keys.
+  -- Mirrors cTNameRoot in Backend.C.Names.
+  ds =
+    [ (nameFromText modu, nameFromText visName, d)
     | r <- Core.mTypes mo,
       d <- Core.recToList r,
       let nm = Core.tName d
           modu = Core.mNameText (Core.tnameMod nm)
+          visName = case Core.tnameAnon nm of
+                      Nothing -> Core.tnameText nm
+                      Just i  -> Core.tnameText nm <> Text.pack (show i)
     ]
   
