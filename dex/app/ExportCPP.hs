@@ -263,7 +263,7 @@ genForeignExpr :: Ctx => ExportExpr DDLTCon QName -> CExpr
 genForeignExpr e =
   case exportWith e of
     Just ex -> genExporter ex (Just (genDDLExpr (exportExpr e)))
-    Nothing -> "[BUG] genForeignExpr: unresolved default"
+    Nothing -> error "[BUG] genForeignExpr: unresolved default"
 
 -- | Generate code for calling an exporter with the given argument
 genExporter :: Ctx => Exporter DDLTCon QName -> Maybe CExpr -> CExpr
