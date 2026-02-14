@@ -5,9 +5,9 @@
 #include "exporter.h"
 
 int main() {
-  // LE uint32 = 42
-  const char data[] = {42, 0, 0, 0};
-  DDL::Input input("test", data, DDL::Size(4));
+  // LE uint32 = 42 (parsed as just value of maybe)
+  const unsigned char data[] = {42, 0, 0, 0};
+  DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;
   parseMain(err, results, input);

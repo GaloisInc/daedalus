@@ -5,8 +5,9 @@
 #include "exporter.h"
 
 int main() {
-  const char data[] = {1};  // tag_a
-  DDL::Input input("test", data, DDL::Size(1));
+  // tag byte 1 -> matches tag_a alternative
+  const unsigned char data[] = {1};
+  DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;
   parseMain(err, results, input);

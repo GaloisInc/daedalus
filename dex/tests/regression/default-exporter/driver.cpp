@@ -5,9 +5,9 @@
 #include "exporter.h"
 
 int main() {
-  // Two LE uint32s: 10, 20
-  const char data[] = {10, 0, 0, 0, 20, 0, 0, 0};
-  DDL::Input input("test", data, DDL::Size(8));
+  // Two LE uint32s: Pair.x=10, Pair.y=20
+  const unsigned char data[] = {10, 0, 0, 0, 20, 0, 0, 0};
+  DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;
   parseMain(err, results, input);

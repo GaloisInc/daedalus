@@ -5,8 +5,9 @@
 #include "exporter.h"
 
 int main() {
-  const char data[] = "abc";
-  DDL::Input input("test", data, DDL::Size(3));
+  // 3-byte stream: "abc"
+  const unsigned char data[] = {'a', 'b', 'c'};
+  DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;
   parseMain(err, results, input);

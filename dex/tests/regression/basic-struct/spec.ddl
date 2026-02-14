@@ -1,4 +1,5 @@
 -- Test: basic struct export with field access and type aliases.
+
 import Daedalus
 
 def Main = {

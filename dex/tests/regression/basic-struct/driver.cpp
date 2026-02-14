@@ -6,8 +6,8 @@
 
 int main() {
   // 4 bytes LE uint32 = 42, then "hello"
-  const char data[] = {42, 0, 0, 0, 'h', 'e', 'l', 'l', 'o'};
-  DDL::Input input("test", data, DDL::Size(sizeof(data)));
+  const unsigned char data[] = {42, 0, 0, 0, 'h', 'e', 'l', 'l', 'o'};
+  DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;
   parseMain(err, results, input);
