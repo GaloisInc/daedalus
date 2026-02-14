@@ -1,0 +1,20 @@
+import spec(Main, IntList)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def sumList(x: IntList): uint32_t =
+  case x of
+    nil       -> 0
+    cons cell -> $(cell.val) + $(sumList(cell.rest))
+
+def exportMain(x: Main): Result ->
+  std::to_string($(sumList(x.a))) + " " + std::to_string($(sumList(x.b)))

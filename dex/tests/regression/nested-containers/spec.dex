@@ -1,0 +1,26 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+  #include <numeric>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportData(xss: [[uint 8]]): Result =
+  init   -> std::string result;
+  for xs in xss ->
+    auto v = $(as_vector<as_uint8>(xs));
+    uint32_t sum = 0;
+    for (auto e : v) sum += e;
+    if (!result.empty()) result += " ";
+    result += std::to_string(sum);
+  return -> result
+
+def exportMain(x: Main): Result ->
+  $(exportData(x.data))

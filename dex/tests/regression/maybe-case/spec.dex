@@ -1,0 +1,17 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+
+extern def ->
+  #include "exporter.h"
+
+def maybeToInt(x: maybe (uint 32)): int32_t =
+  case x of
+    nothing -> -1
+    just v  -> $(v)
+
+def exportMain(x: Main): int32_t ->
+  $(maybeToInt(x.val))

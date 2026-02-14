@@ -1,0 +1,21 @@
+import spec(Main, Point, Color)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportPoint(p: Point): Result ->
+  std::to_string($(p.x)) + "," + std::to_string($(p.y))
+
+def exportColor(c: Color): Result ->
+  std::to_string($(c.r)) + "," + std::to_string($(c.g)) + "," + std::to_string($(c.b))
+
+def exportMain(x: Main): Result ->
+  $(exportPoint(x.pt)) + " " + $(exportColor(x.col))

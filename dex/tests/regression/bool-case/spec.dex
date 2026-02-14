@@ -1,0 +1,17 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+
+extern def ->
+  #include "exporter.h"
+
+def boolToInt(x: bool): uint32_t =
+  case x of
+    true  -> 1
+    false -> 0
+
+def exportMain(x: Main): uint32_t ->
+  $(boolToInt(x.flag))

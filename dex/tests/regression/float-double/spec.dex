@@ -1,0 +1,32 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+  #include <sstream>
+  #include <iomanip>
+
+extern def ->
+  #include "exporter.h"
+
+  namespace spec {
+  float as_flt(DDL::Float x) { return x.getValue(); }
+  double as_dbl(DDL::Double x) { return x.getValue(); }
+  }
+
+type Result -> std::string
+type cfloat -> float
+type cdouble -> double
+
+def as_flt(x: float): cfloat = extern
+def as_dbl(x: double): cdouble = extern
+
+def exportMain(x: Main): Result ->
+  [=]() {
+    std::ostringstream os;
+    os << std::setprecision(2) << std::noshowpoint << $(as_flt(x.f))
+       << " " << std::setprecision(4) << std::noshowpoint << $(as_dbl(x.d));
+    return os.str();
+  }()

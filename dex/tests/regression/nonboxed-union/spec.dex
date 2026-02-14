@@ -1,0 +1,14 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+
+extern def ->
+  #include "exporter.h"
+
+def exportMain(x: Main): uint32_t =
+  case x of
+    tag_a -> 1
+    tag_b -> 2

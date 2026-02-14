@@ -1,0 +1,18 @@
+import spec(Main, Inner)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportInner(x: Inner): Result ->
+  std::to_string($(x.a)) + "+" + std::to_string($(x.b))
+
+def exportMain(x: Main): Result ->
+  std::to_string($(x.tag)) + ":" + $(exportInner(x.inner))

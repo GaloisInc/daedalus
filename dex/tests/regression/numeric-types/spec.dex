@@ -1,0 +1,22 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportMain(x: Main): Result ->
+  std::to_string($(x.a))
+  + " " + std::to_string($(x.b))
+  + " " + std::to_string($(x.c))
+  + " " + std::to_string($(x.d))
+  + " " + std::to_string($(x.e))
+  + " " + std::to_string($(x.f))
+  + " " + std::to_string($(x.g))
+  + " " + std::to_string($(x.h))

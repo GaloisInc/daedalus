@@ -1,0 +1,15 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportMain(x: Main): Result ->
+  std::to_string($(x.id)) + " " + $(as_string(x.name))
