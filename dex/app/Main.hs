@@ -39,7 +39,7 @@ main =
             | d <- moduleForeignTypes m ]
     let ?ftAliases = Map.unions (map tyAliasesFrom mos)
         ?nsUser = "User"
-        ?nsInputType = "INPUT"
+        ?nsInputType = "DDL::Input"
         ?nsExternal = mempty
         ?ddlTPMap = mempty
 
