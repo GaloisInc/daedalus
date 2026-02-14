@@ -351,6 +351,7 @@ ddlTCons = Map.fromList
   [ 
     "bool"    ~> (TBool,0,0),
     "double"  ~> (TDouble,0,0),
+    "float"   ~> (TFloat,0,0),
     "stream"  ~> (TStream,0,0),
     "int"     ~> (TInteger,0,0),
     "uint"    ~> (TUInt,0,1),
