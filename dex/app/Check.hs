@@ -404,7 +404,7 @@ checkDDLType ty =
                 Nothing  -> reportError (UndefinedName nm)
                 Just def -> mkTCUserApp def nm args szs
 
-    _ -> error "[BUG] `checkForeignType`"
+    _ -> error "[BUG] `checkDDLType`"
 
   where
   mkTCUserApp def nm =

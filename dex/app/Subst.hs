@@ -108,7 +108,7 @@ unifyTypes preferB skolem xs ys =
          let subst = map (apSubstT su1)
          su2 <- unifyTypes preferB skolem (subst xs') (subst ys')
          pure (su2 @@ su1)
-    _ -> error "[BUG] `unifyForeginTypes` length mismatch."
+    _ -> error "[BUG] `unifyTypes` length mismatch."
 
 
 
