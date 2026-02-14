@@ -221,11 +221,16 @@ genCase x ty alts =
         (TUser u,_,_) ->
           cSwitch (cCallMethod xe "getTag" []) (map doCase alts)
           where
-          freeTop sel =
-            [ cIf (cCallMethod xe "refCount" [] <+> "==" <+> "1")
-                (sel GenBorrow ++ [ cStmt (cCallMethod xe "del" []) ])
-                (sel GenOwn ++ [ cStmt (cCallMethod xe "free" []) ])
-            ]
+          -- Boxed (recursive) unions need explicit refCount/del or
+          -- get/free; non-boxed unions just borrow.
+          freeTop sel
+            | Core.tnameRec u =
+              [ cIf (cCallMethod xe "refCount" [] <+> "==" <+> "1")
+                  (sel GenBorrow ++ [ cStmt (cCallMethod xe "del" []) ])
+                  (sel GenOwn ++ [ cStmt (cCallMethod xe "free" []) ])
+              ]
+            | otherwise =
+              sel GenBorrow
           doCase (PCon l f, rhs) =
             let lab = nameToText (locThing l)
                 tag = cSumTagV u lab
