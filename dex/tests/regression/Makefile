@@ -38,7 +38,7 @@ ABS_DAEDALUS := $(abspath $(DAEDALUS_DIR))
 # Pattern rule: generate parser C++ from DDL
 $(BUILDROOT)/%/main_parser.stamp: %/spec.ddl
 	@mkdir -p $(BUILDROOT)/$*
-	cd $(ABS_DAEDALUS) && HOME=$$(pwd)/.cabal-home cabal exec daedalus -- \
+	cd $(ABS_DAEDALUS) && cabal exec daedalus -- \
 		--path=lib compile-c++ \
 		--out-dir=$(ABS_ROOT)/$(BUILDROOT)/$* \
 		--file-root=main_parser \
@@ -49,7 +49,7 @@ $(BUILDROOT)/%/main_parser.cpp $(BUILDROOT)/%/main_parser.h: $(BUILDROOT)/%/main
 
 # Pattern rule: generate exporter C++ from dex
 $(BUILDROOT)/%/exporter.stamp: %/spec.dex $(BUILDROOT)/%/main_parser.h
-	cd $(ABS_DAEDALUS) && HOME=$$(pwd)/.cabal-home cabal run exe:dex -- \
+	cd $(ABS_DAEDALUS) && cabal exec dex -- \
 		$(ABS_ROOT)/$*/spec.dex \
 		--dex-path=$(ABS_DEX_LIB) \
 		--ddl-path=$(ABS_ROOT)/$* \
