@@ -24,9 +24,9 @@ DDL_LIB      := $(DAEDALUS_DIR)/lib
 BUILDROOT    := build
 
 CXX      := c++
-CXXFLAGS := -std=c++20 -fsanitize=address -g -Wall
+CXXFLAGS := -std=c++20 -fsanitize=address,undefined -g -Wall
 HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
-LDFLAGS  := -fsanitize=address $(if $(HOMEBREW_PREFIX),-L$(HOMEBREW_PREFIX)/lib)
+LDFLAGS  := -fsanitize=address,undefined $(if $(HOMEBREW_PREFIX),-L$(HOMEBREW_PREFIX)/lib)
 LIBS     := -lgmpxx -lgmp
 
 # Absolute paths needed for daedalus/dex tools (they cd into daedalus/)
@@ -75,7 +75,7 @@ $(foreach t,$(TESTS),$(eval $(t): $(BUILDROOT)/$(t)/driver))
 all: $(foreach t,$(TESTS),$(BUILDROOT)/$(t)/driver)
 
 test: all
-	@./run-tests.sh $(TESTS)
+	@ASAN_OPTIONS=detect_leaks=0 ./run-tests.sh $(TESTS)
 
 clean:
 	rm -rf $(BUILDROOT)

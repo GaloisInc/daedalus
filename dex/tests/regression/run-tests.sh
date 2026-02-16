@@ -17,6 +17,7 @@ fi
 
 pass=0
 fail=0
+skip=0
 errors=""
 
 for t in "${tests[@]}"; do
@@ -24,11 +25,16 @@ for t in "${tests[@]}"; do
   driver="build/$t/driver"
   if [ ! -x "$driver" ]; then
     echo "SKIP (not built)"
+    skip=$((skip + 1))
     continue
   fi
   actual=$("$driver" 2>&1) || {
-    echo "FAIL (exit code $?)"
-    errors="$errors  $t: non-zero exit\n"
+    rc=$?
+    echo "FAIL (exit code $rc)"
+    if [ -n "$actual" ]; then
+      echo "$actual" | head -20
+    fi
+    errors="$errors  $t: non-zero exit ($rc)\n"
     fail=$((fail + 1))
     continue
   }
@@ -45,7 +51,15 @@ for t in "${tests[@]}"; do
 done
 
 echo ""
-echo "$pass passed, $fail failed"
+echo "$pass passed, $fail failed, $skip skipped"
+if [ $pass -eq 0 ]; then
+  echo "FAIL: no tests passed"
+  exit 1
+fi
+if [ $skip -ne 0 ]; then
+  echo "FAIL: $skip test(s) skipped (not built)"
+  exit 1
+fi
 if [ $fail -ne 0 ]; then
   printf "\nFailures:\n$errors"
   exit 1
