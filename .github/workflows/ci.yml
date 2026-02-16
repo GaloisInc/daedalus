@@ -74,6 +74,10 @@ jobs:
       shell: bash
       run: scripts/run-makefile-tests
 
+    - name: Run Dex Tests
+      shell: bash
+      run: scripts/run-dex-tests
+
     # XXX: For the moment we don't run Talos tests to speed up CI
     
     - name: Run HTTP Tests

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cabal test daedalus-test-dex --test-show-details=streaming
