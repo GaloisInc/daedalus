@@ -5,15 +5,11 @@
 #
 # Targets:
 #   make           - build all tests
-#   make test      - build and run all tests
 #   make clean     - remove build artifacts
 #   make <name>    - build one test (e.g. make basic-struct)
 
-TESTS := basic-struct numeric-types float-double stream-type \
-         bool-case maybe-case nonboxed-union boxed-union \
-         anon-union iteration map-iteration polymorphic default-exporter \
-         empty-collections many-alternatives nested-containers \
-         multi-entry nested-struct shared-boxed
+# Auto-discover tests: any directory containing spec.ddl
+TESTS := $(patsubst %/spec.ddl,%,$(wildcard */spec.ddl))
 
 # Paths relative to this directory
 DAEDALUS_DIR := ../../..
@@ -24,10 +20,10 @@ DDL_LIB      := $(DAEDALUS_DIR)/lib
 BUILDROOT    := build
 
 CXX      := c++
-CXXFLAGS := -std=c++20 -fsanitize=address,undefined -g -Wall
-HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
-LDFLAGS  := -fsanitize=address,undefined $(if $(HOMEBREW_PREFIX),-L$(HOMEBREW_PREFIX)/lib)
-LIBS     := -lgmpxx -lgmp
+CXXFLAGS := -std=c++20 -Wno-psabi -fsanitize=address,undefined -g -Wall
+GMP_CFLAGS := $(shell pkg-config --cflags gmp 2>/dev/null)
+GMP_LIBS   := $(shell pkg-config --libs gmpxx gmp 2>/dev/null || echo "-lgmpxx -lgmp")
+LDFLAGS  := -fsanitize=address,undefined
 
 # Absolute paths needed for daedalus/dex tools (they cd into daedalus/)
 ABS_ROOT     := $(abspath .)
@@ -61,23 +57,22 @@ $(BUILDROOT)/%/exporter.cpp $(BUILDROOT)/%/exporter.h: $(BUILDROOT)/%/exporter.s
 # Pattern rule: compile test binary
 $(BUILDROOT)/%/driver: %/driver.cpp $(BUILDROOT)/%/main_parser.cpp $(BUILDROOT)/%/main_parser.h \
                        $(BUILDROOT)/%/exporter.cpp $(BUILDROOT)/%/exporter.h
-	$(CXX) $(CXXFLAGS) \
+	$(CXX) $(CXXFLAGS) $(GMP_CFLAGS) \
 		-I$(RTS_INCLUDE) -I$(BUILDROOT)/$* \
-		$(if $(HOMEBREW_PREFIX),-I$(HOMEBREW_PREFIX)/include) \
 		$(BUILDROOT)/$*/main_parser.cpp \
 		$(BUILDROOT)/$*/exporter.cpp \
 		$*/driver.cpp \
-		$(LDFLAGS) $(LIBS) -o $@
+		$(LDFLAGS) $(GMP_LIBS) -o $@
 
 # Per-test build targets
 $(foreach t,$(TESTS),$(eval $(t): $(BUILDROOT)/$(t)/driver))
 
 all: $(foreach t,$(TESTS),$(BUILDROOT)/$(t)/driver)
 
-test: all
-	@ASAN_OPTIONS=detect_leaks=0 ./run-tests.sh $(TESTS)
-
 clean:
 	rm -rf $(BUILDROOT)
+
+# Keep all intermediate generated files (don't let Make auto-delete them)
+.SECONDARY:
 
 .PHONY: all test clean $(TESTS)

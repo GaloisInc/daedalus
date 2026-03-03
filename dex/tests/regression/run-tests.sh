@@ -7,6 +7,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Platform detection for ASAN leak detection
+# Disable leak detection on ARM Macs (not currently supported)
+if [[ "$(uname -s)" == "Darwin" ]] && [[ "$(uname -m)" == "arm64" ]]; then
+  export ASAN_OPTIONS=detect_leaks=0
+else
+  export ASAN_OPTIONS=detect_leaks=1
+fi
+
 tests=("$@")
 if [ ${#tests[@]} -eq 0 ]; then
   for d in */; do
@@ -17,15 +25,18 @@ fi
 
 pass=0
 fail=0
-skip=0
+build_fail=0
 errors=""
 
 for t in "${tests[@]}"; do
   printf "%-25s " "$t"
   driver="build/$t/driver"
-  if [ ! -x "$driver" ]; then
-    echo "SKIP (not built)"
-    skip=$((skip + 1))
+
+  # Build the test if needed
+  if ! make "$t" > /dev/null 2>&1; then
+    echo "FAIL (build error)"
+    errors="$errors  $t: build failed\n"
+    build_fail=$((build_fail + 1))
     continue
   fi
   actual=$("$driver" 2>&1) || {
@@ -51,16 +62,15 @@ for t in "${tests[@]}"; do
 done
 
 echo ""
-echo "$pass passed, $fail failed, $skip skipped"
+echo "$pass passed, $fail failed, $build_fail build failures"
 if [ $pass -eq 0 ]; then
   echo "FAIL: no tests passed"
   exit 1
 fi
-if [ $skip -ne 0 ]; then
-  echo "FAIL: $skip test(s) skipped (not built)"
-  exit 1
+if [ $build_fail -ne 0 ]; then
+  echo "FAIL: $build_fail test(s) failed to build"
 fi
-if [ $fail -ne 0 ]; then
+if [ $fail -ne 0 ] || [ $build_fail -ne 0 ]; then
   printf "\nFailures:\n$errors"
   exit 1
 fi
