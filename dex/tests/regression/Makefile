@@ -11,6 +11,9 @@
 # Auto-discover tests: any directory containing spec.ddl
 TESTS := $(patsubst %/spec.ddl,%,$(wildcard */spec.ddl))
 
+# Default target: build all tests
+.DEFAULT_GOAL := all
+
 # Paths relative to this directory
 DAEDALUS_DIR := ../../..
 DEX_DIR      := ../..
