@@ -181,7 +181,7 @@ genLoop loop ty =
 
 genCase :: Ctx => Loc Name -> Type DDLTCon -> [(Pat DDLTCon,ForeignCode DDLTCon QName)] -> CStmt
 genCase x ty alts =
-  let xe = genDDLExpr (DDLExpr x [])
+  let xe = genDDLExpr (DDLVar x)
       altMap = Map.fromList [ (nameToText (locThing l), (f,a)) | (PCon l f,a) <- alts ]
       getAlt a =
         case Map.lookup a altMap of
@@ -298,12 +298,10 @@ genExporter ex arg =
       fun = pp (locThing f)
 
 genDDLExpr :: DDLExpr -> CExpr
-genDDLExpr (DDLExpr x sel) =
-  case sel of
-    [] -> v
-    [StructSelector :. l] ->
-      cCallMethod v (selName GenBorrow (nameToText (locThing l))) []
+genDDLExpr e =
+  case e of
+    DDLVar x -> pp (locThing x)
+    DDLSel e1 (StructSelector :. l) ->
+      cCallMethod (genDDLExpr e1) (selName GenBorrow (nameToText (locThing l))) []
     _ -> error "[XXX] genDDLExpr: more selector support"
-  where
-  v = pp (locThing x)
-
+  

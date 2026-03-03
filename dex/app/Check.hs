@@ -139,11 +139,11 @@ instance PP ValidationError where
           ]
 
       VarNotExported x ls ->
-        msg x \d ->
+        ppLoc (locRange x) <+>
           let
             what = if null ls then "Variable" else "Field"
-            thing = foldl (\doc l -> doc <.> "." <.> pp l) d ls
-          in [ what <+> thing <+> "was never exported." ]
+            thing = qu (foldl (\doc l -> doc <.> "." <.> pp l) (pp (locThing x)) ls)
+          in what <+> thing <+> "was never exported."
         
       InvalidForType x t ->
         msg x \d ->
@@ -509,18 +509,18 @@ checkDecl d =
       tparamStatus =
         Map.fromList
           [ (locThing tp,Just (tpStatus tp)) | tp <- declDDLTParams d ],
-      varTypes =
-        Map.singleton
-          (locThing (declArg d))
-          (locRange (declArg d), NotExported argTy),
+     
       localExporters =
         Map.fromList
             (map (locThing . fst) (declFunParams d) `zip` etExporterParams ourType)
     }
   
     -- Validate body
-    def <- checkDeclDef (declDef d)
-    
+    def <-
+      case declDef d of
+        DeclExtern -> pure DeclExtern
+        d1 -> withVar (declArg d) argTy (checkDeclDef d1)
+
     pure Decl {
       declDefault = declDefault d,
       declName    = (declName d) { locThing = QName { qModule = ourMod, qName = ourName } },
@@ -678,7 +678,7 @@ checkForeignCodeSplice spl =
   case spl of
     SpliceCode e ->
       case (exportWith e, exportExpr e) of
-        (Nothing, DDLExpr x []) ->
+        (Nothing, DDLVar x) ->
           do
             tps <- tparamStatus <$> getState
             case Map.lookup (locThing x) tps of
@@ -822,15 +822,16 @@ findDefault rng t =
 -- | Check a Daedalus expression.  Optionally rewrites locals from case
 -- expressions to projections from union.
 checkDDLExpr :: DDLExpr -> Check (DDLExpr, Type DDLTCon)
-checkDDLExpr e@(DDLExpr x sels) =
+checkDDLExpr e =
   do
+    let (x,sels) = splitDDLExpr e
     ty <- checkDDLVar x sels
     env <- getEnv
     let var n = x { locThing = n }
         e1 = 
            case Map.lookup (locThing x) =<< patternVars env of
              Nothing    -> e
-             Just (y,u) -> DDLExpr (var y) ((UnionSelector :. var u) : sels)
+             Just (y,u) -> foldl DDLSel (DDLVar (var y)) ((UnionSelector :. var u) : sels)
     pure (e1, ty)
 
 --------------------------------------------------------------------------------

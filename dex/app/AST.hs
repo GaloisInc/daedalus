@@ -116,9 +116,18 @@ data ExportExpr a b = ExportExpr {
 }
 
 -- | A Daedalus value
-data DDLExpr      = DDLExpr (Loc Name) Selectors
+data DDLExpr      = DDLVar (Loc Name)
+                  | DDLSel DDLExpr Selector
 
-type Selectors    = [Selector]
+splitDDLExpr :: DDLExpr -> (Loc Name, [Selector])
+splitDDLExpr e0 = (v, reverse ss)
+  where
+  (v,ss) = go e0
+  go e =
+    case e of
+      DDLVar x -> (x,[])
+      DDLSel x y -> (a, y : b)
+        where (a,b) = go x
 
 data Selector     = SelectorType :. Loc Name
 
@@ -141,8 +150,13 @@ instance HasRange (Loc a) where
   getRange = locRange
 
 instance HasRange DDLExpr where
-  getRange (DDLExpr x ls) =
-    foldr (<->) (locRange x) [ locRange l | _ :. l <- ls ]
+  getRange e =
+    case e of
+      DDLVar x -> getRange x
+      DDLSel e1 l -> getRange e1 <-> getRange l
+
+instance HasRange Selector where
+  getRange (_ :. l) = locRange l
 
 instance HasRange (Exporter a b) where
   getRange ex =
@@ -232,7 +246,8 @@ instance (PPTyCon a, PPTyCon b) => PP (Exporter a b) where
 instance PP DDLExpr where
   pp e =
     case e of
-      DDLExpr x sels -> pp x <.> hcat (map pp sels)
+      DDLVar x -> pp x
+      DDLSel x y -> pp x <+> pp y
       
 instance PP Selector where
   pp (x :. l) = pp x <.> pp l

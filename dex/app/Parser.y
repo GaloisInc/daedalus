@@ -204,11 +204,11 @@ opt_exp_args ::                             { [Exporter PName PName] }
   | {- empty -}                             { [] }
 
 ddl_expr ::                                 { DDLExpr }
-  : ename                                   { DDLExpr $1 [] }
-  | ename '.' ename                         { DDLExpr $1 [StructSelector :. $3] }
+  : ename                                   { DDLVar $1 }
+  | ddl_expr '.' ename                      { DDLSel $1 (StructSelector :. $3) }
 
 expr_splice ::                              { ExportExpr PName PName }
-  : ename                                   { ExportExpr Nothing (DDLExpr $1 []) Nothing }
+  : ename                                   { ExportExpr Nothing (DDLVar $1) Nothing }
   | '(' expr ')'                            { $2 }
 
 extern_splice ::                            { Void }
