@@ -13,6 +13,8 @@ int main() {
   std::vector<User::Main> results;
   parseMain(err, results, input);
   if (results.empty()) { std::cerr << "parse failed\n"; return 1; }
-  std::cout << spec::exportMain(results[0]) << std::endl;
+  for (auto result : results) {
+    std::cout << spec::exportMain(result) << std::endl;
+  }
   return 0;
 }
