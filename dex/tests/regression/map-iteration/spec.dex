@@ -1,0 +1,20 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def mapStats(mp: [uint 8 : uint 8]): Result =
+  init   -> uint32_t count = 0; uint32_t sum = 0;
+  for k,v in mp -> count++; sum += $(k) + $(v);
+  return -> std::to_string(count) + " " + std::to_string(sum)
+
+def exportMain(x: Main): Result ->
+  $(mapStats(x.mp))

@@ -1,0 +1,22 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+type vec<T> -> std::vector<$T>
+
+def myVec<A, T, f: A => T>(xs: [A]): vec<T> =
+  init        -> std::vector<$T> result;
+  for x in xs -> result.push_back($(f(x)));
+  return      -> result
+
+def exportMain(x: Main): Result ->
+  std::to_string($(myVec<as_uint8>(x.first)).size())
+  + " " + std::to_string($(as_vector<as_uint8>(x.second)).size())

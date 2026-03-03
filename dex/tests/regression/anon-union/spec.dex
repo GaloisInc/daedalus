@@ -1,0 +1,18 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+def exportVal(x: Main0): uint32_t =
+  case x of
+    num n  -> $(n)
+    pair p -> $(p.a) + $(p.b)
+
+def exportMain(x: Main): uint32_t ->
+  $(exportVal(x.val))

@@ -1,0 +1,17 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+
+extern def ->
+  #include "exporter.h"
+
+def sumList(x: IntList): uint32_t =
+  case x of
+    nil       -> 0
+    cons cell -> $(cell.val) + $(sumList(cell.rest))
+
+def exportMain(x: IntList): uint32_t ->
+  $(sumList(x))

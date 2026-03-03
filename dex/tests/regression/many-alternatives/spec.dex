@@ -1,0 +1,19 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> std::string
+
+def exportMain(x: Main): Result =
+  case x of
+    circle c   -> "circle " + std::to_string($(c.radius))
+    square s   -> "square " + std::to_string($(s.side))
+    triangle t -> "triangle " + std::to_string($(t.base)) + "x" + std::to_string($(t.height))
+    rect r     -> "rect " + std::to_string($(r.w)) + "x" + std::to_string($(r.h))
