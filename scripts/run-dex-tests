@@ -1,3 +1,4 @@
 #!/bin/bash
 
-cabal test daedalus-test-dex --test-show-details=streaming
+cd "$(dirname "$0")/.."
+exec dex/tests/regression/run-tests.sh "$@"
