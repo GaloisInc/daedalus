@@ -1,4 +1,15 @@
 #!/bin/bash
 
-cd "$(dirname "$0")/.."
-exec dex/tests/regression/run-tests.sh "$@"
+echo "Regression Tests"
+echo "================"
+cd "$(dirname "$0")/../dex/tests"
+
+pushd regression > /dev/null
+./run-tests.sh "$@"
+popd > /dev/null
+
+echo ""
+echo "Error Validation Tests"
+echo "======================"
+cd validation-errors
+./run-tests.sh "$@"
