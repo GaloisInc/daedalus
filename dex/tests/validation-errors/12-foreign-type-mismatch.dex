@@ -1,0 +1,22 @@
+// Test: ForeignTypeMismatch
+// This test has a mismatch in foreign types
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+  #include <string>
+
+extern def ->
+  #include "exporter.h"
+
+type ResultInt -> uint32_t
+type ResultStr -> std::string
+
+def helper(x: Main): ResultInt = extern
+
+// Error: helper returns ResultInt but ResultStr is expected
+def exportMain(x: Main): ResultStr = helper(x)

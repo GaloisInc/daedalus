@@ -1,0 +1,1 @@
+tests/validation-errors/09-default-with-params.dex:18:13 Exporter `exportMain` is declared as `default`, but it has exporter parameters.

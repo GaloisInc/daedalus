@@ -1,0 +1,25 @@
+// Test: AlreadyExported
+// This test tries to export the same variable twice
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+  struct Result {
+    uint32_t first;
+    uint32_t second;
+  };
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> Result
+
+// Helper exporter for Main
+def exportMainHelper(m: Main): uint32_t = extern
+
+// Error: Variable x is exported twice
+def exportMain(x: Main): Result -> Result($(exportMainHelper(x)), $(exportMainHelper(x)))

@@ -1,0 +1,20 @@
+// Test: MissingCase
+// This test is missing a case alternative
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Missing case for 'just'
+def exportMaybe(x: maybe Main): Result =
+  case x of
+    nothing -> 0

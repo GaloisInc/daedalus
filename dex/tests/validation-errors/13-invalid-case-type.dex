@@ -1,0 +1,21 @@
+// Test: InvalidCaseType
+// This test tries to case on a type that doesn't support casing
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Cannot case on 'int' type
+def exportInt(x: int): Result =
+  case x of
+    false -> 0
+    true -> 1

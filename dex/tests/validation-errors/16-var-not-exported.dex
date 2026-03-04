@@ -1,0 +1,18 @@
+// Test: VarNotExported
+// This test doesn't export a variable that should be exported
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Variable x is never exported
+def exportMain(x: Main): Result -> 42

@@ -1,0 +1,18 @@
+// Test: DefaultWithParams
+// This test declares a default exporter that has exporter parameters
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Default exporters cannot have exporter parameters
+default def exportMain<conv: Main => Result>(x: Main): Result -> 42

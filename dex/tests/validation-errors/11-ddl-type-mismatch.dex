@@ -1,0 +1,19 @@
+// Test: DDLTypeMismatch
+// This test has a mismatch in DDL types when calling an exporter
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+
+// Error: exportInt expects 'int' but is given 'Main'
+def exportMain(x: Main): Result -> 32

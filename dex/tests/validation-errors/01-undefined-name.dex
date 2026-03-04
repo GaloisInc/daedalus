@@ -1,0 +1,18 @@
+// Test: UndefinedName
+// This test uses an undefined type name 'UndefinedType'
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: UndefinedType is not defined
+def exportMain(x: UndefinedType): Result -> 42

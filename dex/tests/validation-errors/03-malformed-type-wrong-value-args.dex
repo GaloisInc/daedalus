@@ -1,0 +1,18 @@
+// Test: MalformedType (wrong number of value arguments)
+// This test provides wrong number of type arguments to 'maybe'
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: maybe expects 1 type argument, but given 2
+def exportMain(x: maybe Main Main): Result -> 42

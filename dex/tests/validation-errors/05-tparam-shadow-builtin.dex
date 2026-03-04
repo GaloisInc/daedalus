@@ -1,0 +1,18 @@
+// Test: TParamShadowBuiltIn
+// This test uses a type parameter that shadows a built-in type
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Type parameter 'bool' shadows built-in type
+def exportMain<bool>(x: bool): Result -> 42

@@ -1,0 +1,18 @@
+// Test: UnusedTParam
+// This test declares a type parameter but never uses it
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Type parameter T is declared but not used in the type
+def exportMain<T>(x: Main): Result -> 42

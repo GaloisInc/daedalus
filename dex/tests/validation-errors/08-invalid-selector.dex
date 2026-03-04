@@ -1,0 +1,18 @@
+// Test: InvalidSelector
+// This test tries to use a selector that doesn't exist
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Main does not have a field called 'nonexistentField'
+def exportMain(x: Main): Result -> $(x.nonexistentField)

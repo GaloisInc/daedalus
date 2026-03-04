@@ -1,0 +1,21 @@
+// Test: MultipleDefinitions
+// This test defines the same exporter function twice
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// First definition
+def exportMain(x: Main): Result -> 42
+
+// Error: Second definition of exportMain
+def exportMain(x: Main): Result -> 100

@@ -1,0 +1,1 @@
+tests/validation-errors/08-invalid-selector.dex:18:40 Type `Main` does not have selector `nonexistentField`

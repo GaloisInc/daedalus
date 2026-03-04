@@ -1,0 +1,24 @@
+// Test: InvalidCon
+// This test uses an invalid constructor in a case expression
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+def other(x: Main): Result = extern
+
+// Error: 'invalid' is not a valid constructor for maybe
+def exportMaybe(x: maybe Main): Result =
+  case x of
+    nothing -> 0
+    just y  = other(y)
+    invalid -> 2

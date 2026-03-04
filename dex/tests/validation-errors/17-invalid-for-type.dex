@@ -1,0 +1,21 @@
+// Test: InvalidForType
+// This test tries to iterate over a type that doesn't support iteration
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: Cannot iterate over 'Main' type
+def exportMain(x: Main): Result =
+  init -> {}
+  for elem in x -> {}
+  return -> 10

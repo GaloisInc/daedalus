@@ -1,0 +1,1 @@
+tests/validation-errors/20-cannot-find-default.dex:21:37 Cannot determine a default exporter for type `Main`

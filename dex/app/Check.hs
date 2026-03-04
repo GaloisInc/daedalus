@@ -9,6 +9,7 @@ module Check (
 
 
 import Control.Monad
+import Data.Set(Set)
 import Data.Set qualified as Set
 import Data.Map(Map)
 import Data.Map qualified as Map
@@ -514,12 +515,14 @@ checkDecl d =
         Map.fromList
             (map (locThing . fst) (declFunParams d) `zip` etExporterParams ourType)
     }
+
+    let ty@(_ :-> resT) = etType ourType
   
     -- Validate body
     def <-
       case declDef d of
         DeclExtern -> pure DeclExtern
-        d1 -> withVar (declArg d) argTy (checkDeclDef d1)
+        d1 -> withVar (declArg d) argTy (checkDeclDef d1 (undefined,resT))
 
     pure Decl {
       declDefault = declDefault d,
@@ -529,7 +532,7 @@ checkDecl d =
       declFunParams =
         [ (x,t) | ((x,_),t) <- declFunParams d `zip` etExporterParams ourType ],
       declArg = declArg d,
-      declType = etType ourType,
+      declType = ty,
       declDef = def      
     }
 
@@ -539,33 +542,36 @@ fromU x =
     Unqual y -> y
     Qual {} -> error "[BUG] `fromU` Qual"
 
+type ResT = (Set Name, Type QName) -- Skolem variables, expected type
+
 -- | Check the definition of an exporter    
-checkDeclDef :: DeclDef PName PName -> Check (DeclDef DDLTCon QName)
-checkDeclDef def =
+checkDeclDef :: DeclDef PName PName -> ResT -> Check (DeclDef DDLTCon QName)
+checkDeclDef def resT =
   case def of
-    DeclDef code -> DeclDef <$> checkForeignCode code
-    DeclCase x as -> DeclCase x <$> checkCase x as
+    DeclDef code -> DeclDef <$> checkForeignCode code (Just resT)
+    DeclCase x as -> DeclCase x <$> checkCase resT x as
     DeclLoop loop -> DeclLoop <$> checkLoop loop
     DeclExtern -> pure DeclExtern
 
 
 -- | Validate a case exporter
 checkCase ::
+  ResT ->
   Loc Name ->
   [(Pat PName, ForeignCode PName PName)] ->
   Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
-checkCase x alts =
+checkCase resT x alts =
   do
     ty <- checkDDLVar x []
     case ty of
 
       Type tc@Loc { locThing = TBool } [] [] ->
         let u = Type tc { locThing = TUnit } [] [] in 
-        checkAlts x [("false", u), ("true", u)] alts
+        checkAlts resT x [("false", u), ("true", u)] alts
 
       Type tc@Loc { locThing = TMaybe } [f] [] ->
         let u = Type tc { locThing = TUnit } [] [] in 
-        checkAlts x [("nothing", u), ("just", f)] alts
+        checkAlts resT x [("nothing", u), ("just", f)] alts
 
       Type tc@Loc { locThing = TUser ut } vargs nargs ->
         do
@@ -574,7 +580,7 @@ checkCase x alts =
             Nothing -> error "[BUG] `checkCase` Missing type"
             Just tdecl ->
               case Core.tDef tdecl of
-                Core.TUnion opts -> checkAlts x (map imp opts) alts
+                Core.TUnion opts -> checkAlts resT x (map imp opts) alts
                   where
                   suV = Map.fromList (zip (Core.tTParamKValue tdecl) vargs)
                   nuV = Map.fromList (zip (Core.tTParamKNumber tdecl) nargs)
@@ -586,9 +592,10 @@ checkCase x alts =
 
 -- | Validate the alternatives of a case exporter
 checkAlts ::
+  ResT ->
   Loc Name -> [(Text,Type DDLTCon)] -> [(Pat PName, ForeignCode PName PName)] ->
   Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
-checkAlts disc needList = checkAll (Map.fromList needList) []
+checkAlts resT disc needList = checkAll (Map.fromList needList) []
   where
   checkAll mp done pats =
     case pats of
@@ -611,13 +618,13 @@ checkAlts disc needList = checkAll (Map.fromList needList) []
         case (ty, mbX) of
           (Type Loc { locThing = TUnit } [] [], Nothing) ->
             do
-              rhs <- checkForeignCode code
+              rhs <- checkForeignCode code (Just resT)
               pure (PCon nm Nothing, rhs)
           (_, Nothing) -> reportError (VarNotExported disc [lab])
           (ft, Just (f,_)) ->
             withCaseVar f ft (locThing disc, locThing nm)
             do
-              code' <- checkForeignCode code
+              code' <- checkForeignCode code (Just resT)
               pure (PCon nm (Just (f,Just ft)), code')
 
 
@@ -651,7 +658,7 @@ checkLoop l =
     | Just ((a,(r1,r2)),_) <- repeated =
       reportError (MultipleDefinitions a r1 r2)
     | otherwise =
-      foldr (uncurry withVar) (checkForeignCode body) (zip vs ts)
+      foldr (uncurry withVar) (checkForeignCode body Nothing) (zip vs ts)
         where
         have = length vs
         need = length ts
@@ -666,10 +673,10 @@ checkLoop l =
 
 
 -- | Validate a piece of foreign code with exporter escapes.
-checkForeignCode :: ForeignCode PName PName -> Check (ForeignCode DDLTCon QName)
-checkForeignCode code =
+checkForeignCode :: ForeignCode PName PName -> Maybe ResT -> Check (ForeignCode DDLTCon QName)
+checkForeignCode code expectedT =
   case code of
-    Direct e -> Direct <$> checkExportExpr e
+    Direct e -> Direct <$> checkExportExpr e expectedT
     Splice q -> Splice <$> mapM checkForeignCodeSplice q
 
 checkForeignCodeSplice ::
@@ -683,18 +690,23 @@ checkForeignCodeSplice spl =
             tps <- tparamStatus <$> getState
             case Map.lookup (locThing x) tps of
               Just (Just TParamForeign) -> pure (SpliceTParam x)
-              _ -> SpliceCode <$> checkExportExpr e
-        _ -> SpliceCode <$> checkExportExpr e
+              _ -> SpliceCode <$> checkExportExpr e Nothing
+        _ -> SpliceCode <$> checkExportExpr e Nothing
     SpliceTParam {} -> error "[BUG] checkForeignCodeSplice: TParam"
 
 
 -- | Validate the names and types in an exporter.
-checkExportExpr :: ExportExpr PName PName -> Check (ExportExpr DDLTCon QName)
-checkExportExpr ex =
+checkExportExpr :: ExportExpr PName PName -> Maybe ResT -> Check (ExportExpr DDLTCon QName)
+checkExportExpr ex expectedT =
   do
     (arg, t) <- checkDDLExpr (exportExpr ex)
-    r <- freshVar
-    let rt = TVar Loc { locRange = getRange ex, locThing = r }
+    (skolem,rt) <-
+      case expectedT of
+        Nothing ->
+          do
+            r <- freshVar
+            pure (Set.empty, TVar Loc { locRange = getRange ex, locThing = r })
+        Just rt -> pure rt
     e <- 
       case exportWith ex of
         Nothing ->
@@ -704,7 +716,7 @@ checkExportExpr ex =
             let nm  = Loc { locRange = rng, locThing = q }
             pure (Qual <$> nm, \as bs cs et -> ExportTop nm as bs cs (Just et), ty, [])
         Just e  -> resolveExporterFun e
-    (e', su) <- checkExporter' e (t :-> rt)
+    (e', su) <- checkExporter' skolem e (t :-> rt)
     let e''  = apForeignSubstExp su e'
         resT = apSubstT su rt
     pure ExportExpr {
@@ -762,10 +774,10 @@ checkExporter ::
 checkExporter ex ty =
   do
     res <- resolveExporterFun ex
-    checkExporter' res ty
+    checkExporter' Set.empty res ty
 
-checkExporter' :: ExporterFun -> BasicExporterType DDLTCon QName -> Check (Exporter DDLTCon QName, Subst QName)
-checkExporter' (eNm, mk, ty, args) et@(a :-> b) =
+checkExporter' :: Set Name -> ExporterFun -> BasicExporterType DDLTCon QName -> Check (Exporter DDLTCon QName, Subst QName)
+checkExporter' outSkol (eNm, mk, ty, args) et@(a :-> b) =
   do
     let ePs  = etExporterParams ty
         have = length args
@@ -783,7 +795,7 @@ checkExporter' (eNm, mk, ty, args) et@(a :-> b) =
               isu       = Map.fromList (zip (etForeignTypeVars ty) fparamTs)
               res'      = apSubstT isu res
           skolem <- Map.keysSet . tparamStatus <$> getState
-          case unifyType (Set.fromList xs) skolem res' b of
+          case unifyType (Set.fromList xs) (outSkol `Set.union` skolem) res' b of
             Nothing -> reportError (ForeignTypeMismatch eNm (Mismatch res' b))
             Just fsu ->
               do

@@ -1,0 +1,3 @@
+tests/validation-errors/18-invalid-for-binders.dex:20:15 Incorrect binders when iterating over `x`:
+  Expected: 1 binders
+    Actual: 2 binders

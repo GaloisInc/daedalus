@@ -1,0 +1,21 @@
+// Test: InvalidForBinders
+// This test uses wrong number of binders in a for loop
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: For loop over array needs 1 binder, but given 2
+def exportArray(x: [Main]): Result =
+  init -> {}
+  for k, v in x -> {}
+  return -> 10

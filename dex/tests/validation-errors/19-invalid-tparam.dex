@@ -1,0 +1,19 @@
+// Test: InvalidTParam
+// This test uses a type parameter with conflicting kinds
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+
+extern def ->
+  #include "exporter.h"
+
+type ForeignType<T> -> T
+type Result -> uint32_t
+
+// Error: T is used as both a DDL type (maybe T) and foreign type (ForeignType<T>)
+def exportGeneric<T>(x: maybe T): ForeignType<T> -> extern

@@ -1,0 +1,21 @@
+// Test: CannotFindDefault
+// This test tries to use a default exporter when none exists
+
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  #include <cstdint>
+  struct CustomType {
+    int x;
+  };
+
+extern def ->
+  #include "exporter.h"
+
+type Result -> uint32_t
+
+// Error: No default exporter exists for CustomType
+def exportMain(x: Main): Result -> $x

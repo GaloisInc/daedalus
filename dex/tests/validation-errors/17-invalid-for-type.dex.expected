@@ -1,0 +1,2 @@
+tests/validation-errors/17-invalid-for-type.dex:20:15 `x` does not support iteration.
+  It has type: `Main`
