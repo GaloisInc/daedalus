@@ -1,3 +1,3 @@
-tests/validation-errors/12-foreign-type-mismatch.dex:22:38 Type error at `helper`:
+12-foreign-type-mismatch.dex:22:38 Type error at `helper`:
   Expected: 12-foreign-type-mismatch::ResultInt 
     Actual: 12-foreign-type-mismatch::ResultStr 

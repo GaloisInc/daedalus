@@ -1,3 +1,3 @@
-tests/validation-errors/10-malformed-exporter.dex:20:38 Incorrect number of arguments to `exportWithConverter`:
+10-malformed-exporter.dex:20:38 Incorrect number of arguments to `exportWithConverter`:
   Expected: 1 
     Actual: 0 

@@ -1,2 +1,2 @@
-tests/validation-errors/15-missing-case.dex:19:8 Incomplete cases for `x`:
+15-missing-case.dex:19:8 Incomplete cases for `x`:
   Missing case for `just`

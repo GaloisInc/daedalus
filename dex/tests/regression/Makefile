@@ -15,12 +15,11 @@ TESTS := $(patsubst %/spec.ddl,%,$(wildcard */spec.ddl))
 .DEFAULT_GOAL := all
 
 # Paths relative to this directory
-DAEDALUS_DIR := ../../..
-DEX_DIR      := ../..
-RTS_INCLUDE  := $(DAEDALUS_DIR)/rts-c
-DEX_LIB      := $(DEX_DIR)/lib
-DDL_LIB      := $(DAEDALUS_DIR)/lib
-BUILDROOT    := build
+TOP         := ../../..
+RTS_INCLUDE := $(TOP)/rts-c
+DEX_LIB     := $(TOP)/dex/lib
+DDL_LIB     := $(TOP)/lib
+BUILDROOT   := build
 
 CXX      := c++
 CXXFLAGS := -std=c++20 -Wno-psabi -fsanitize=address,undefined -g -Wall
@@ -28,17 +27,21 @@ GMP_CFLAGS := $(shell pkg-config --cflags gmp 2>/dev/null)
 GMP_LIBS   := $(shell pkg-config --libs gmpxx gmp 2>/dev/null || echo "-lgmpxx -lgmp")
 LDFLAGS  := -fsanitize=address,undefined
 
-# Absolute paths needed for daedalus/dex tools (they cd into daedalus/)
-ABS_ROOT     := $(abspath .)
+# Tool binaries
+DAEDALUS := $(TOP)/bin/daedalus
+DEX      := $(TOP)/bin/dex
+
+# Absolute paths needed for daedalus/dex tools
+ABS_ROOT := $(abspath .)
+ABS_TOP  := $(abspath $(TOP))
 ABS_DDL_LIB  := $(abspath $(DDL_LIB))
 ABS_DEX_LIB  := $(abspath $(DEX_LIB))
-ABS_DAEDALUS := $(abspath $(DAEDALUS_DIR))
 
 # Pattern rule: generate parser C++ from DDL
 $(BUILDROOT)/%/main_parser.stamp: %/spec.ddl
 	@mkdir -p $(BUILDROOT)/$*
-	cd $(ABS_DAEDALUS) && cabal exec daedalus -- \
-		--path=lib compile-c++ \
+	$(DAEDALUS) \
+		--path=$(ABS_DDL_LIB) compile-c++ \
 		--out-dir=$(ABS_ROOT)/$(BUILDROOT)/$* \
 		--file-root=main_parser \
 		--entry=Main \
@@ -48,11 +51,11 @@ $(BUILDROOT)/%/main_parser.cpp $(BUILDROOT)/%/main_parser.h: $(BUILDROOT)/%/main
 
 # Pattern rule: generate exporter C++ from dex
 $(BUILDROOT)/%/exporter.stamp: %/spec.dex $(BUILDROOT)/%/main_parser.h
-	cd $(ABS_DAEDALUS) && cabal exec dex -- \
+	$(DEX) \
 		$(ABS_ROOT)/$*/spec.dex \
 		--dex-path=$(ABS_DEX_LIB) \
 		--ddl-path=$(ABS_ROOT)/$* \
-		--ddl-path=lib \
+		--ddl-path=$(ABS_DDL_LIB) \
 		--output=$(ABS_ROOT)/$(BUILDROOT)/$*/exporter.cpp
 	@touch $@
 $(BUILDROOT)/%/exporter.cpp $(BUILDROOT)/%/exporter.h: $(BUILDROOT)/%/exporter.stamp ;

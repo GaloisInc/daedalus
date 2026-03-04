@@ -12,7 +12,14 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")"
+# Get absolute path to script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TOP="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+DEX="$TOP/bin/dex"
+DEX_LIB="$TOP/dex/lib"
+DDL_LIB="$TOP/lib"
+
+cd "$SCRIPT_DIR"
 
 # Collect test files
 tests=()
@@ -39,15 +46,14 @@ for test_file in "${tests[@]}"; do
   expected_file="$test_file.expected"
 
   # Run dex on the test file, expecting it to fail
-  # Use -v0 to silence cabal's own output
   # Need to specify paths for dex and ddl libraries
-  # --dex-path=lib points to dex/lib (for CPP.dex)
-  # --ddl-path=tests/validation-errors points to test directory (for spec.ddl)
-  # --ddl-path=../lib points to daedalus/lib (for Daedalus.ddl)
-  output=$(cd ../.. && cabal -v0 exec dex -- "tests/validation-errors/$test_file" \
-    --dex-path=lib \
-    --ddl-path=tests/validation-errors \
-    --ddl-path=../lib \
+  # --dex-path points to dex/lib (for CPP.dex)
+  # --ddl-path points to test directory (for spec.ddl)
+  # --ddl-path points to daedalus/lib (for Daedalus.ddl)
+  output=$("$DEX" "$test_file" \
+    --dex-path="$DEX_LIB" \
+    --ddl-path="$SCRIPT_DIR" \
+    --ddl-path="$DDL_LIB" \
     2>&1) || rc=$?
 
   # Check that dex failed (non-zero exit code) - these are error tests!

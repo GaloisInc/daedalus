@@ -1,1 +1,1 @@
-tests/validation-errors/06-unused-tparam.dex:18:16 Type parameter `T` is not used in the exporter's type
+06-unused-tparam.dex:18:16 Type parameter `T` is not used in the exporter's type

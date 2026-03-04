@@ -1,2 +1,2 @@
-tests/validation-errors/07-already-exported.dex:25:86 Variable `x` was already exported.
+07-already-exported.dex:25:86 Variable `x` was already exported.
     Other export: 25:62

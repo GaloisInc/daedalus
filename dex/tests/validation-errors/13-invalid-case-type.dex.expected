@@ -1,2 +1,2 @@
-tests/validation-errors/13-invalid-case-type.dex:19:8 Cannot case on `x`.
+13-invalid-case-type.dex:19:8 Cannot case on `x`.
   It has type: `int`

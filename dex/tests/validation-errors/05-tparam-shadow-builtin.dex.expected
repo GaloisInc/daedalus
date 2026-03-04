@@ -1,1 +1,1 @@
-tests/validation-errors/05-tparam-shadow-builtin.dex:18:25 Type parameter `bool` shadows a built-in type
+05-tparam-shadow-builtin.dex:18:25 Type parameter `bool` shadows a built-in type

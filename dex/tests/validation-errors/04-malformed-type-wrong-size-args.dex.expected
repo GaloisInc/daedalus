@@ -1,3 +1,3 @@
-tests/validation-errors/04-malformed-type-wrong-size-args.dex:18:19 Malformed type `uint`
+04-malformed-type-wrong-size-args.dex:18:19 Malformed type `uint`
   Expected: 1 numeric arguments
     Actual: 0 numeric arguments
