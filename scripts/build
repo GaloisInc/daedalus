@@ -2,7 +2,19 @@
 
 set -e
 
-for NAME in "daedalus" "daedalus-language-server" "dex" "talos"; do
+NO_LINK=false
+
+for opt in $*; do
+  case opt in
+    --no-link)
+        NO_LINK=true
+    ;;
+  esac
+done
+
+# Don't build the language server and talos for the moment, as these
+# are a bit out of date.
+for NAME in "daedalus" "dex"; do
     cabal build exe:$NAME
     mkdir -p bin
     VERSION="$(scripts/version $NAME)"
