@@ -43,8 +43,9 @@ data ValidationError =
   | InvalidSelector (Type DDLTCon) (Loc Name)
   | CannotFindDefault SourceRange (Type DDLTCon)
   | DefaultWithParams (Loc PName)
+  | InvalidParams (Loc PName) (Mismatch Int)
   | MalformedExporter (Loc PName) (Mismatch Int)
-  | DDLTypeMismatch (Loc PName) (Mismatch (Type DDLTCon))
+  | DDLTypeMismatch (Loc PName) (Mismatch [Type DDLTCon])
   | ForeignTypeMismatch (Loc PName) (Mismatch (Type QName))
   | InvalidCaseType (Loc Name) (Type DDLTCon)
   | InvalidCon (Loc Name)
@@ -117,7 +118,10 @@ instance PP ValidationError where
 
       DDLTypeMismatch x m ->
         msg x \d ->
-          ("Type error at" <+> d <.> ":") : mis m ""
+          ("Type error at" <+> d <.> ":") :
+            mis' m
+                 Mismatch { expected = commaSep (map pp (expected m)),
+                            actual   = commaSep (map pp (actual m)) }
 
       ForeignTypeMismatch x m ->
         msg x \d ->
@@ -156,13 +160,26 @@ instance PP ValidationError where
         msg x \d ->
           ("Incorrect binders when iterating over" <+> d <.> ":") : mis m "binders"
 
+      InvalidParams x m ->
+        msg x \d ->
+          ("Incorrect number of parameters in the definitions of" <+> d)
+          : mis m "parameters"
+
     where
     ppLoc = text . prettySourcePos . sourceFrom
     ppLLoc = text . prettySourcePosLong . sourceFrom
-    mis m suf = if expected m == actual m
-              then []
-              else [ "Expected:" <+> pp (expected m) <+> suf,
-                     "  Actual:" <+> pp (actual m) <+> suf ]
+    mis' m1 m2 =
+      if expected m1 == actual m1
+        then []
+        else [ "Expected:" <+> expected m2,
+               "  Actual:" <+> actual m2 ]
+
+    mis m suf =
+      mis'
+        m
+        Mismatch { expected = pp (expected m) <+> suf,
+                   actual = pp (actual m) <+> suf }
+      
     msg x f =
       let pre = ppLLoc (locRange x) in
       case f (qu (locThing x)) of
@@ -427,7 +444,7 @@ checkExporterType ::
   BasicExporterType PName PName -> Check (BasicExporterType DDLTCon QName)
 checkExporterType (a :-> b) =
   do
-    a' <- checkDDLType a
+    a' <- mapM checkDDLType a
     b' <- checkForeignType b
     pure (a' :-> b')
 
@@ -470,8 +487,15 @@ checkDeclSig d =
     }
     
     let argTy :-> _ = expT
-    when (declDefault d && not (null expParams))
-      (reportError (DefaultWithParams (declName d)))
+    dflt <-
+      if declDefault d
+        then
+          do
+            unless (null expParams) (reportError (DefaultWithParams (declName d)))
+            case argTy of
+              [t] | null expParams -> pure (Just t)
+              n -> reportError (InvalidParams (declName d) Mismatch { expected = 1, actual = length n })
+        else pure Nothing
 
     updState \rw ->
       let es = exporterTypes rw
@@ -481,9 +505,10 @@ checkDeclSig d =
           exportersByModule =
             Map.insertWith Map.union mo (Map.singleton nm ty) (exportersByModule es),
           exporterDefaults =
-            if declDefault d
-              then (argTy, (QName { qModule = mo, qName = nm },ty)) : exporterDefaults es
-              else exporterDefaults es
+            case dflt of
+              Just t ->
+                (t, (QName { qModule = mo, qName = nm },ty)) : exporterDefaults es
+              Nothing -> exporterDefaults es
         }
     }
 
@@ -522,7 +547,9 @@ checkDecl d =
     def <-
       case declDef d of
         DeclExtern -> pure DeclExtern
-        d1 -> withVar (declArg d) argTy (checkDeclDef d1 (undefined,resT))
+        d1 -> foldr (uncurry withVar) (checkDeclDef (declName d) (length argTy) d1 (undefined,resT))
+                    (declArg d `zip` argTy)
+                  
 
     pure Decl {
       declDefault = declDefault d,
@@ -545,13 +572,17 @@ fromU x =
 type ResT = (Set Name, Type QName) -- Skolem variables, expected type
 
 -- | Check the definition of an exporter    
-checkDeclDef :: DeclDef PName PName -> ResT -> Check (DeclDef DDLTCon QName)
-checkDeclDef def resT =
+checkDeclDef :: Loc PName -> Int -> DeclDef PName PName -> ResT -> Check (DeclDef DDLTCon QName)
+checkDeclDef nm argNum def resT =
   case def of
     DeclDef code -> DeclDef <$> checkForeignCode code (Just resT)
-    DeclCase x as -> DeclCase x <$> checkCase resT x as
-    DeclLoop loop -> DeclLoop <$> checkLoop loop
+    DeclCase x as -> checkOne >> (DeclCase x <$> checkCase resT x as)
+    DeclLoop loop -> checkOne >> (DeclLoop <$> checkLoop loop)
     DeclExtern -> pure DeclExtern
+  where
+  checkOne
+    | argNum == 1 = pure ()
+    | otherwise = reportError (InvalidParams nm Mismatch { expected = 1, actual = argNum })
 
 
 -- | Validate a case exporter
@@ -685,7 +716,7 @@ checkForeignCodeSplice spl =
   case spl of
     SpliceCode e ->
       case (exportWith e, exportExpr e) of
-        (Nothing, DDLVar x) ->
+        (Nothing, [DDLVar x]) ->
           do
             tps <- tparamStatus <$> getState
             case Map.lookup (locThing x) tps of
@@ -699,7 +730,7 @@ checkForeignCodeSplice spl =
 checkExportExpr :: ExportExpr PName PName -> Maybe ResT -> Check (ExportExpr DDLTCon QName)
 checkExportExpr ex expectedT =
   do
-    (arg, t) <- checkDDLExpr (exportExpr ex)
+    (arg, t) <- mapAndUnzipM checkDDLExpr (exportExpr ex)
     (skolem,rt) <-
       case expectedT of
         Nothing ->
@@ -709,12 +740,14 @@ checkExportExpr ex expectedT =
         Just rt -> pure rt
     e <- 
       case exportWith ex of
-        Nothing ->
+        Nothing
+          | [argT] <- t ->
           do
             let rng = getRange ex
-            (q,ty) <- findDefault rng t
+            (q,ty) <- findDefault rng argT
             let nm  = Loc { locRange = rng, locThing = q }
             pure (Qual <$> nm, \as bs cs et -> ExportTop nm as bs cs (Just et), ty, [])
+          | otherwise -> error "[BUG] checkExportExpr: default but not 1 arg"
         Just e  -> resolveExporterFun e
     (e', su) <- checkExporter' skolem e (t :-> rt)
     let e''  = apForeignSubstExp su e'
@@ -784,7 +817,7 @@ checkExporter' outSkol (eNm, mk, ty, args) et@(a :-> b) =
         need = length ePs
     unless (have == need) (reportError (MalformedExporter eNm (Mismatch need have)))
     let arg :-> res = etType ty
-    case matchType arg a of
+    case matchMany arg a of
       Nothing -> reportError (DDLTypeMismatch eNm (Mismatch arg a))
       Just csu ->
         do
@@ -804,7 +837,7 @@ checkExporter' outSkol (eNm, mk, ty, args) et@(a :-> b) =
               where
               checkExArg (fsu1, doneArgs) (p :-> q, ex_arg) =
                 do 
-                  let tgt = apSubstT csu p :-> apSubstT (fsu1 @@ isu) q
+                  let tgt = map (apSubstT csu) p :-> apSubstT (fsu1 @@ isu) q
                   (newArg,fsu2) <- checkExporter ex_arg tgt
                   pure (fsu2 @@ fsu1, newArg : doneArgs)
   

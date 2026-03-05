@@ -109,7 +109,7 @@ type_alias_params ::                        { [Loc Name] }
 
 
 export_decl ::                              { Decl PName PName }
-  : default 'def' ename opt_special_params param
+  : default 'def' ename opt_special_params params
     ':' foreign_type decl_def               { mkDecl $1 $3 $4 $5 $7 $8 }
 
 default ::                                  { Bool }
@@ -124,11 +124,18 @@ special_param ::                            { Either (Loc Name) (Loc Name,BasicE
   : ename ':' fun_type                      { Right ($1,$3) }
   | ename                                   { Left $1 }
 
+params ::                                   { [(Loc Name, Type PName)] }
+  : '(' sepBy1(',', param) ')'              { $2 }
+
 param ::                                    { (Loc Name, Type PName) }
-  : '(' ename ':' ddl_type     ')'          { ($2,$4) }
+  : ename ':' ddl_type                      { ($1,$3) }
 
 fun_type ::                                 { BasicExporterType PName PName }
-  : ddl_type '=>' foreign_type              { $1 :-> $3 }
+  : fun_args '=>' foreign_type              { $1 :-> $3 }
+
+fun_args ::                                 { [Type PName] }
+  : ddl_type                                { [$1] }
+  | '(' sepBy1(',', ddl_type) ')'           { $2 }
 
 decl_def ::                                 { DeclDef PName PName }
   : foreign_code                            { DeclDef $1 }
@@ -193,8 +200,8 @@ foreign_type ::                             { Type PName }
   | qname '<' sepBy1(',', foreign_type) '>' { Type $1 $3 [] }
 
 expr ::                                     { ExportExpr PName PName }
-  : exporter '(' ddl_expr ')'               { ExportExpr (Just $1) $3 Nothing }
-  | ddl_expr                                { ExportExpr Nothing $1 Nothing }
+  : exporter '(' sepBy1(',', ddl_expr) ')'  { ExportExpr (Just $1) $3 Nothing }
+  | ddl_expr                                { ExportExpr Nothing [$1] Nothing }
 
 exporter ::                                 { Exporter PName PName }
   : qname opt_exp_args                      { ExportTop $1 [] [] $2 Nothing }
@@ -208,7 +215,7 @@ ddl_expr ::                                 { DDLExpr }
   | ddl_expr '.' ename                      { DDLSel $1 (StructSelector :. $3) }
 
 expr_splice ::                              { ExportExpr PName PName }
-  : ename                                   { ExportExpr Nothing (DDLVar $1) Nothing }
+  : ename                                   { ExportExpr Nothing [DDLVar $1] Nothing }
   | '(' expr ')'                            { $2 }
 
 extern_splice ::                            { Void }
@@ -282,18 +289,18 @@ mkDecl ::
   Bool ->
   Loc Name ->
   ([Loc Name], [(Loc Name, BasicExporterType PName PName)]) ->
-  (Loc Name, Type PName) ->
+  [(Loc Name, Type PName)] ->
   Type PName ->
   DeclDef PName PName ->
   Decl PName PName
-mkDecl d n (tps,fs) (x,t) r def = Decl {
+mkDecl d n (tps,fs) params r def = Decl {
   declDefault = d, 
   declName = Unqual <$> n,
   declDDLTParams = tps,   -- both DDL and foreign
   declForeignTParams = [], -- Filled in later
   declFunParams = fs,
-  declArg = x,
-  declType = t :-> r,
+  declArg = map fst params,
+  declType =  map snd params :-> r,
   declDef = def
 }
 

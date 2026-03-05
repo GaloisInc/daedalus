@@ -1,0 +1,28 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+  struct AB { uint8_t a, b; };
+  struct R  { AB ab; AB cd; }; 
+
+  static inline
+  std::ostream& operator << (std::ostream& out, AB const& x) {
+    return out << "AB { a = " << x.a << ", b = " << x.b << " }";
+  }
+
+  static inline
+  std::ostream& operator << (std::ostream& out, R const& x) {
+    return out << "R { ab = " << x.ab << ", cd = " << x.cd << " }";
+  }
+
+extern def ->
+  #include "exporter.h"
+
+type AB -> AB
+type R  -> R
+
+def exportAB(a: uint 8, b: uint 8): AB -> AB { .a = $a, .b = $b }
+def exportMain(x: Main): R ->
+    R { .ab = $(exportAB(x.a,x.b)), .cd = $(exportAB(x.c,x.d)) }

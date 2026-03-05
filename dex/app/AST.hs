@@ -1,3 +1,4 @@
+
 module AST where
 
 import Data.Void(Void,vacuous)
@@ -63,7 +64,7 @@ data Decl a b = Decl {
   declDDLTParams      :: [Loc Name],
   declForeignTParams  :: [Loc Name],
   declFunParams       :: [(Loc Name, BasicExporterType a b)],
-  declArg             :: Loc Name,
+  declArg             :: [Loc Name],
   declType            :: BasicExporterType a b,
   declDef             :: DeclDef a b
 }
@@ -111,7 +112,7 @@ data ExportExpr a b = ExportExpr {
   -- ^ '`Nothing` means `default`.  In some contexts, if this is `Nothing`,
   -- then we try to see if the `exportExpr` is actually a *type* parameter.
 
-  exportExpr    :: DDLExpr,
+  exportExpr    :: [DDLExpr],
   exportResult  :: Maybe (Type b) -- ^ Filled in by `Check`
 }
 
@@ -170,12 +171,19 @@ instance HasRange (Exporter a b) where
 instance HasRange (ExportExpr a b) where
   getRange ex =
     case exportWith ex of
-      Nothing -> getRange (exportExpr ex)
-      Just e  -> getRange e <-> getRange (exportExpr ex)
-
-
-
-
+      Nothing ->
+        case argRng of
+          Just r -> r
+          Nothing -> error "[BUG] HasRange (ExportExpr a b): no exporter argument"
+      Just e  ->
+        case argRng of
+          Nothing -> getRange e
+          Just r -> getRange e <-> r
+    where
+    argRng =
+      case exportExpr ex of
+        [] -> Nothing
+        xs@(x : _) -> Just (getRange x <-> getRange (last xs))
 
 
 
@@ -216,11 +224,12 @@ instance PP ForeignTypeDecl where
 instance (PPTyCon a, PPTyCon b) => PP (Decl a b) where
   pp d = vcat [
     dflt <+> "def" <+> pp (declName d) <.> targs <+> hsep (map ppF (declFunParams d)) <+>
-      parens (pp (declArg d) <.> ":" <+> pp argT) <.>
+      parens argsWithTs <.>
         ":" <+> pp resT <+> ppDeclDefStarter (declDef d),
       nest 2 (ppDeclDefBody (declDef d))
     ]
     where
+    argsWithTs = commaSep [ (pp x <.> ":" <+> pp y) | (x,y) <- declArg d `zip` argT ]
     argT :-> resT = declType d -- XXX: PP types differently
     dflt = if declDefault d then "default" else mempty
     ppF (f,t) = parens (pp f <.> ":" <+> pp t)
@@ -262,8 +271,11 @@ instance PP SelectorType where
 instance (PPTyCon a, PPTyCon b) => PP (ExportExpr a b) where
   pp (ExportExpr mb x resT) =
     case mb  of
-      Just f -> pp f <.> parens (pp x) <.> docRes
-      Nothing -> pp x <+> docRes
+      Just f -> pp f <.> parens (commaSep (map pp x)) <.> docRes
+      Nothing ->
+        case x of
+          [a] -> pp a <+> docRes
+          _   -> error "[BUG] PP (ExportExpr): Default exporter but not 1 argument"
     where
     docRes =
       case resT of

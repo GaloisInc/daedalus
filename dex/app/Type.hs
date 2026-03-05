@@ -98,7 +98,7 @@ freeTVars ft =
     Type _ fts _ -> Set.unions (map freeTVars fts)
     TVar x -> Set.singleton (locThing x)
 
-data BasicExporterType a b = Type a :-> Type b
+data BasicExporterType a b = [Type a] :-> Type b
 
 data ExporterType a b = Forall {
   etDDLTypeVars     :: [Name],
@@ -137,4 +137,8 @@ instance PPTyCon tc => PP (Type tc) where
         where f' = locThing f
         
 instance (PPTyCon a, PPTyCon b) => PP (BasicExporterType a b) where
-  pp (x :-> y) = pp x <+> "=>" <+> pp y
+  pp (x :-> y) = args <+> "=>" <+> pp y
+    where
+    args = case x of
+             [t] -> pp t
+             _   -> parens (commaSep (map pp x))

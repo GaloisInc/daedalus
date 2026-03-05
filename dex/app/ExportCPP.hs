@@ -115,11 +115,12 @@ genDeclPart decl =
 
   argT :-> resT = declType decl
 
-  params = funParams ++ [valParam]
+  params = funParams ++ valParams
   funParams = [ t <+> pp (fst f) | (f,t) <- declFunParams decl `zip` funTPs ]
-  valParam =
+  valParams = zipWith valParam (declArg decl) argT
+  valParam x t =
     let ?ddlTPMap = Map.fromList ddlTPs
-    in genDDLType argT <+> pp (locThing (declArg decl))
+    in genDDLType t <+> pp (locThing x)
 
   ctps = map (cTParam . snd) ddlTPs ++
          map cForeignTP (declForeignTParams decl) ++
@@ -134,10 +135,13 @@ genDeclDef decl =
   let ?ddlTPMap = Map.fromList (getDDLTPs decl) in
   case declDef decl of
     DeclDef fc -> doDecl (genForeignCode fc)
-    DeclCase x alts -> doDecl (genCase x a alts)
-    DeclLoop loop -> doDecl (genLoop loop a)
+    DeclCase x alts -> doDecl (genCase x a1 alts)
+    DeclLoop loop -> doDecl (genLoop loop a1)
     DeclExtern -> mempty
   where
+  a1 = case a of
+         arg : _ -> arg
+         _ -> error "[BUG] genDeclDef: no arg"
   a :-> _     = declType decl 
   doDecl def  = vcat [ genDeclPart decl <+> "{", nest 2 def, "}\n" ]
 
@@ -267,33 +271,34 @@ genForeignCodeSplice spl =
 genForeignExpr :: Ctx => ExportExpr DDLTCon QName -> CExpr
 genForeignExpr e =
   case exportWith e of
-    Just ex -> genExporter ex (Just (genDDLExpr (exportExpr e)))
+    Just ex -> genExporter ex (Just (map genDDLExpr (exportExpr e)))
     Nothing -> error "[BUG] genForeignExpr: unresolved default"
 
 -- | Generate code for calling an exporter with the given argument
-genExporter :: Ctx => Exporter DDLTCon QName -> Maybe CExpr -> CExpr
-genExporter ex arg =
+genExporter :: Ctx => Exporter DDLTCon QName -> Maybe [CExpr] -> CExpr
+genExporter ex eas =
   case ex of
     ExportTop f dts fts args ty ->
-      case arg of
-        Just e  -> doCall e
+      case eas of
         Nothing ->
           case ty of
-            Just (a :-> _) -> "[&]" <.> parens (genDDLType a <+> eta) <+> "mutable {" <+> cReturn (doCall eta) <+> "}"
+            Just (a :-> _) -> "[&]" <.> parens (commaSep (zipWith toD a eta)) <+> "mutable {" <+> cReturn (doCall eta) <+> "}"
               where
-              eta = "exp_arg"
+              toD x y = genDDLType x <+> y
+              eta = ["exp_arg" <.> int n | (n,_) <- zip [1 ..] a]
             Nothing -> error "[BUG] genExporter: no type"
+        Just es  -> doCall es
       where
       tyArgs = map genDDLType dts ++ map genForeignType fts
       base = pp (locThing f)
       fun = if null tyArgs then base else cInst base tyArgs
       funArgs = [ genExporter fa Nothing | fa <- args ]
-      doCall x = cCall fun (funArgs ++ [x])
+      doCall x = cCall fun (funArgs ++ x)
       
     ExportLocal f _ty ->
-      case arg of
+      case eas of
         Nothing -> fun
-        Just e  -> cCall fun [e]
+        Just es -> cCall fun es
       where
       fun = pp (locThing f)
 
