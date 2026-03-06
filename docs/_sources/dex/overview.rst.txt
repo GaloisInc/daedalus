@@ -103,6 +103,16 @@ to the given external type.  The ``CPP`` module also defines Dex aliases
 for common C++ types.  The escapes in the code blocks may be used to refer
 to the type parameters of the declaration.
 
+.. code-block:: Dex
+
+  extern type NAME1<TYPE_PARAMS1>, NAME2<TYPE_PARAMS2>
+
+This is a shortcut form of ``type``, for the common case then the Dex
+type is very similar to the extern type, so we allow the definitions to
+be omitted.  For example, we could say ``extern type utf8_t``, which 
+would map the Dex type ``utf8_t`` to the C++ type ``utf8_t``.
+
+
 
 .. code-block:: Dex
 
@@ -114,7 +124,7 @@ specify the mapping between Daedalus values of type ``DAEDALUS_TYPE`` and
 values in the target language for type ``EXTERN_TYPE`` (which should be
 declared with ``type``).
 
-Optionally, definitions may be preceeded by the ``default`` keyword,
+Optionally, definitions may be preceded by the ``default`` keyword,
 which specifies that unless otherwise specified this exporter
 will be used for Daedalus values of the given type.  At present,
 only definitions without ``FUN_PAPRAMS`` may be declared as ``default``.

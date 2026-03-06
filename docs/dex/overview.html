@@ -189,6 +189,13 @@ In the rest of the Dex specification, we use <code class="docutils literal notra
 to the given external type.  The <code class="docutils literal notranslate"><span class="pre">CPP</span></code> module also defines Dex aliases
 for common C++ types.  The escapes in the code blocks may be used to refer
 to the type parameters of the declaration.</p>
+<div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">type</span> NAME1&lt;TYPE_PARAMS1&gt;<span class="p">,</span> NAME2&lt;TYPE_PARAMS2&gt;
+</pre></div>
+</div>
+<p>This is a shortcut form of <code class="docutils literal notranslate"><span class="pre">type</span></code>, for the common case then the Dex
+type is very similar to the extern type, so we allow the definitions to
+be omitted.  For example, we could say <code class="docutils literal notranslate"><span class="pre">extern</span> <span class="pre">type</span> <span class="pre">utf8_t</span></code>, which
+would map the Dex type <code class="docutils literal notranslate"><span class="pre">utf8_t</span></code> to the C++ type <code class="docutils literal notranslate"><span class="pre">utf8_t</span></code>.</p>
 <div class="highlight-Dex notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> NAME&lt;TYPE_PARAMS<span class="p">,</span>FUN_PARAMS&gt;<span class="p">(</span>NAME<span class="p">:</span> DAEDALUS_TYPE<span class="p">):</span> EXTERN_TYPE
   DEFINITION
 </pre></div>
@@ -197,7 +204,7 @@ to the type parameters of the declaration.</p>
 specify the mapping between Daedalus values of type <code class="docutils literal notranslate"><span class="pre">DAEDALUS_TYPE</span></code> and
 values in the target language for type <code class="docutils literal notranslate"><span class="pre">EXTERN_TYPE</span></code> (which should be
 declared with <code class="docutils literal notranslate"><span class="pre">type</span></code>).</p>
-<p>Optionally, definitions may be preceeded by the <code class="docutils literal notranslate"><span class="pre">default</span></code> keyword,
+<p>Optionally, definitions may be preceded by the <code class="docutils literal notranslate"><span class="pre">default</span></code> keyword,
 which specifies that unless otherwise specified this exporter
 will be used for Daedalus values of the given type.  At present,
 only definitions without <code class="docutils literal notranslate"><span class="pre">FUN_PAPRAMS</span></code> may be declared as <code class="docutils literal notranslate"><span class="pre">default</span></code>.</p>
