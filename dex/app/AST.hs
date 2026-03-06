@@ -52,7 +52,8 @@ data Roots = Roots {
 data ForeignTypeDecl = ForeignTypeDecl {
   ftName    :: Loc Name,
   ftParams  :: [Loc Name],
-  ftDef     :: Q (Loc Name)
+  ftDef     :: Maybe (Q (Loc Name))
+    -- ^ If nothing, derive the foreign name for the Dex name.
 }
 
 -- | Declare an exporter
@@ -211,10 +212,14 @@ instance PP ForeignBlock where
 
 instance PP ForeignTypeDecl where
   pp fd =
-    vcat
-      [ "type" <+> pp (ftName fd) <.> ps <+> "->"
-      , nest 2 (pp (ftDef fd))
-      ]
+    case ftDef fd of
+      Just def ->
+        vcat
+          [ "type" <+> pp (ftName fd) <.> ps <+> "->"
+          , nest 2 (pp def) 
+          ]
+      Nothing ->
+          "extern" <+> "type" <+> pp (ftName fd) <.> ps <+> "->"
     where
     ps = case map pp (ftParams fd) of
            [] -> mempty

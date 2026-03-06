@@ -20,8 +20,7 @@ extern ->
 extern def ->
   #include "exporter.h"
 
-type AB -> AB
-type R  -> R
+extern type AB, R
 
 def exportAB(a: uint 8, b: uint 8): AB -> AB { .a = $a, .b = $b }
 def exportMain(x: Main): R ->

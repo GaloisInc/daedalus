@@ -69,7 +69,13 @@ genForeignType ty =
     Type tc args sizes
       | null sizes ->
         case Map.lookup (locThing tc) ?ftAliases of
-          Just tdef -> renderQuote (ppP <$> ftDef tdef)
+          Just tdef ->
+            case ftDef tdef of
+              Just def -> renderQuote (ppP <$> def)
+              Nothing
+                | null args -> con
+                | otherwise -> cInst con (map genForeignType args)
+                where con = pp (qName (locThing tc))
             where
             xs = map locThing (ftParams tdef)
             mp = Map.fromList (zip xs (map genForeignType args))

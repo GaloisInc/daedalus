@@ -287,7 +287,7 @@ checkTypeAlias :: ForeignTypeDecl -> Check ()
 checkTypeAlias decl =
   do
     checkUnique (ftParams decl)
-    mapM_ checkValidParam (ftDef decl)
+    mapM_ (mapM_ checkValidParam) (ftDef decl)
     mo <- curModule <$> getState
     let nm = locThing (ftName decl)
     updState \rw -> rw {

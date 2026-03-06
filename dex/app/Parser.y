@@ -99,9 +99,14 @@ opt_extern_def ::                           { Bool }
   : 'def'                                   { True }
   | {- empty -}                             { False }
 
-type_alias_decl ::                          { ForeignTypeDecl }
-  : 'type' ename type_alias_params              
-    foreign_block(ename)                    { ForeignTypeDecl $2 $3 $4 }
+type_alias_decl ::                          { [ForeignTypeDecl] }
+  : 'type' type_head              
+    foreign_block(ename)                    { [ForeignTypeDecl (fst $2) (snd $2) (Just $3)] }
+  | 'extern' 'type'
+    sepBy1(',', type_head)                  { [ ForeignTypeDecl x y Nothing | (x,y) <- $3 ] }
+
+type_head ::                                { (Loc Name, [Loc Name]) }
+  : ename type_alias_params                 { ($1, $2) }
 
 type_alias_params ::                        { [Loc Name] }
   : '<' sepBy1(',',ename) '>'               { $2 }
@@ -271,7 +276,7 @@ data TopDecl =
     TopImport Roots
   | TopUsing (Loc Name)
   | TopExtern ForeignBlock
-  | TopTypeAlias ForeignTypeDecl
+  | TopTypeAlias [ForeignTypeDecl]
   | TopDecl (Decl PName PName)
 
 
@@ -281,7 +286,7 @@ mkModule topds nm = Module {
   moduleRoots = [ r | TopImport r <- topds ],
   moduleUsing = [ u | TopUsing u <- topds ],
   moduleForeign = [ e | TopExtern e <- topds ],
-  moduleForeignTypes = [ t | TopTypeAlias t <- topds ],
+  moduleForeignTypes = [ t | TopTypeAlias ts <- topds, t <- ts ],
   moduleDecls = [ d | TopDecl d <- topds ]
 }
 
