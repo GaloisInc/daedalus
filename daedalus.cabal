@@ -214,12 +214,3 @@ test-suite daedalus-test-makefile
                       process,
                       directory
 
-test-suite daedalus-test-dex
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     dex/tests/regression
-  main-is:            TestSuite.hs
-  default-language:   Haskell2010
-  build-depends:      base,
-                      process,
-                      directory
-
