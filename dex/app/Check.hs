@@ -576,7 +576,7 @@ checkDeclDef :: Loc PName -> Int -> DeclDef PName PName -> ResT -> Check (DeclDe
 checkDeclDef nm argNum def resT =
   case def of
     DeclDef code -> DeclDef <$> checkForeignCode code (Just resT)
-    DeclCase x as -> checkOne >> (DeclCase x <$> checkCase resT x as)
+    DeclCase x as -> DeclCase x <$> checkCase resT x as
     DeclLoop loop -> checkOne >> (DeclLoop <$> checkLoop loop)
     DeclExtern -> pure DeclExtern
   where
@@ -594,15 +594,16 @@ checkCase ::
 checkCase resT x alts =
   do
     ty <- checkDDLVar x []
+    tys <- varTypes <$> getState
     case ty of
 
       Type tc@Loc { locThing = TBool } [] [] ->
         let u = Type tc { locThing = TUnit } [] [] in 
-        checkAlts resT x [("false", u), ("true", u)] alts
+        checkAlts tys resT x [("false", u), ("true", u)] alts
 
       Type tc@Loc { locThing = TMaybe } [f] [] ->
         let u = Type tc { locThing = TUnit } [] [] in 
-        checkAlts resT x [("nothing", u), ("just", f)] alts
+        checkAlts tys resT x [("nothing", u), ("just", f)] alts
 
       Type tc@Loc { locThing = TUser ut } vargs nargs ->
         do
@@ -611,7 +612,7 @@ checkCase resT x alts =
             Nothing -> error "[BUG] `checkCase` Missing type"
             Just tdecl ->
               case Core.tDef tdecl of
-                Core.TUnion opts -> checkAlts resT x (map imp opts) alts
+                Core.TUnion opts -> checkAlts tys resT x (map imp opts) alts
                   where
                   suV = Map.fromList (zip (Core.tTParamKValue tdecl) vargs)
                   nuV = Map.fromList (zip (Core.tTParamKNumber tdecl) nargs)
@@ -623,10 +624,11 @@ checkCase resT x alts =
 
 -- | Validate the alternatives of a case exporter
 checkAlts ::
+  Map Name (SourceRange, VarStatus) ->
   ResT ->
   Loc Name -> [(Text,Type DDLTCon)] -> [(Pat PName, ForeignCode PName PName)] ->
   Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
-checkAlts resT disc needList = checkAll (Map.fromList needList) []
+checkAlts env resT disc needList = checkAll (Map.fromList needList) []
   where
   checkAll mp done pats =
     case pats of
@@ -636,6 +638,7 @@ checkAlts resT disc needList = checkAll (Map.fromList needList) []
           Just ((k,_), _) -> reportError (MissingCase disc k)
       p@(PCon nm _, _) : more ->
         do
+          updState \rw -> rw { varTypes = env }
           p' <- check mp p
           checkAll (Map.delete (nameToText (locThing nm)) mp) (p':done) more
 

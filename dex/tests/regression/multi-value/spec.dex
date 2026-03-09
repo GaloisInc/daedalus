@@ -22,6 +22,10 @@ extern def ->
 
 extern type AB, R
 
-def exportAB(a: uint 8, b: uint 8): AB -> AB { .a = $a, .b = $b }
+def exportAB(a: uint 8, b: XorY): AB =
+  case b of
+    X -> { .a = $a, .b = 'b' }
+    Y -> { .a = $a, .b = 'd' }
+
 def exportMain(x: Main): R ->
-    R { .ab = $(exportAB(x.a,x.b)), .cd = $(exportAB(x.c,x.d)) }
+    R { .ab = $(exportAB(x.a, x.b)), .cd = $(exportAB(x.c, x.d)) }

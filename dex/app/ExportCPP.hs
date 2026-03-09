@@ -141,13 +141,17 @@ genDeclDef decl =
   let ?ddlTPMap = Map.fromList (getDDLTPs decl) in
   case declDef decl of
     DeclDef fc -> doDecl (genForeignCode fc)
-    DeclCase x alts -> doDecl (genCase x a1 alts)
-    DeclLoop loop -> doDecl (genLoop loop a1)
+    DeclCase x alts -> doDecl (genCase x (argType x) alts)
+    DeclLoop loop -> doDecl (genLoop loop (argType x))
+      where (_,x,_) = loopFor loop
     DeclExtern -> mempty
   where
-  a1 = case a of
-         arg : _ -> arg
-         _ -> error "[BUG] genDeclDef: no arg"
+  argTypes = zip (map locThing (declArg decl)) a
+
+  argType x =
+    case lookup (locThing x) argTypes of
+      Just ty -> ty
+      _ -> error "[BUG] genDeclDef: no arg"
   a :-> _     = declType decl 
   doDecl def  = vcat [ genDeclPart decl <+> "{", nest 2 def, "}\n" ]
 
