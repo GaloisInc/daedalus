@@ -186,10 +186,10 @@ ddl_type ::                                 { Type PName }
 type_arg ::                                 { Either (Type PName) Integer }
   : NUMBER                                  { Right (read (Text.unpack (lexemeText $1))) }
   | atype                                   { Left $1 }
+  | '(' ddl_type ')'                        { Left $2 }
 
 atype                                    :: { Type PName }
-  : '(' ddl_type  ')'                       { $2 }
-  | '[' arr_or_map ']'                      { $2 ($1 <-> $3) }
+  : '[' arr_or_map ']'                      { $2 ($1 <-> $3) }
   | '{' '}'                                 { mkType ($1 <-> $2) "{}" [] }
   | qname                                   { Type $1 [] [] }
 
