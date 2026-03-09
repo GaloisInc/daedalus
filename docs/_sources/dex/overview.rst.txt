@@ -129,6 +129,12 @@ which specifies that unless otherwise specified this exporter
 will be used for Daedalus values of the given type.  At present,
 only definitions without ``FUN_PAPRAMS`` may be declared as ``default``.
 
+Typically, top-level definitions would have only a single Daedalus parameter
+corresponding to the value being exported.  We also support definitions with
+multiple parameter values---these are typically useful when defining helper
+exporters, which combine multiple values from a Daedalus AST into a single
+value in the external language.
+
 Before we go into more details on how to write definitions, let's look at
 how to write external code.
 
@@ -181,6 +187,9 @@ various ways to provide ``DEFINITION``.
 
   def NAME<TYPE_PARAMS,FUN_PARAMS>(NAME: DAEDALUS_TYPE): EXTERN_TYPE
     DEFINITION
+
+
+
 
 
 Structs
