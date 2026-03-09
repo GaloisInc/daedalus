@@ -78,9 +78,9 @@ data DeclDef a b =
 
 
 data Loop a b = Loop {
-  loopInit    :: Q (Loc Name), -- ^ Splices are type parameters
+  loopInit    :: ForeignCode a b,
   loopFor     :: ([Loc Name],Loc Name,ForeignCode a b),
-  loopReturn  :: Q Void
+  loopReturn  :: ForeignCode a b
 }
 
 data Pat a =
@@ -338,7 +338,7 @@ instance (PPTyCon a, PPTyCon b) => PP (Loop a b) where
     vcat [
       clause "init" (loopInit l),
       "for" <+> commaSep (map pp xs) <+> "in" <+> pp x <+> pp body,
-      clause "return" (vacuous (loopReturn l) :: Q Int)
+      clause "return" (loopReturn l)
     ]
 
 instance (PPTyCon a, PPTyCon b) => PP (DeclDef a b) where

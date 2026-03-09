@@ -1,1 +1,1 @@
-R { ab = AB { a = a, b = b }, cd = AB { a = c, b = d } }
+R { ab = AB { a = a, b = b }, cd = AB { a = c, b = d }, xs = [ p, q ] }

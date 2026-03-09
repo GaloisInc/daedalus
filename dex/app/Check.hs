@@ -547,7 +547,7 @@ checkDecl d =
     def <-
       case declDef d of
         DeclExtern -> pure DeclExtern
-        d1 -> foldr (uncurry withVar) (checkDeclDef (declName d) (length argTy) d1 (undefined,resT))
+        d1 -> foldr (uncurry withVar) (checkDeclDef d1 resT)
                     (declArg d `zip` argTy)
                   
 
@@ -569,25 +569,18 @@ fromU x =
     Unqual y -> y
     Qual {} -> error "[BUG] `fromU` Qual"
 
-type ResT = (Set Name, Type QName) -- Skolem variables, expected type
-
 -- | Check the definition of an exporter    
-checkDeclDef :: Loc PName -> Int -> DeclDef PName PName -> ResT -> Check (DeclDef DDLTCon QName)
-checkDeclDef nm argNum def resT =
+checkDeclDef :: DeclDef PName PName -> Type QName -> Check (DeclDef DDLTCon QName)
+checkDeclDef def resT =
   case def of
     DeclDef code -> DeclDef <$> checkForeignCode code (Just resT)
     DeclCase x as -> DeclCase x <$> checkCase resT x as
-    DeclLoop loop -> checkOne >> (DeclLoop <$> checkLoop loop)
+    DeclLoop loop -> DeclLoop <$> checkLoop loop
     DeclExtern -> pure DeclExtern
-  where
-  checkOne
-    | argNum == 1 = pure ()
-    | otherwise = reportError (InvalidParams nm Mismatch { expected = 1, actual = argNum })
-
 
 -- | Validate a case exporter
 checkCase ::
-  ResT ->
+  Type QName ->
   Loc Name ->
   [(Pat PName, ForeignCode PName PName)] ->
   Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
@@ -625,7 +618,7 @@ checkCase resT x alts =
 -- | Validate the alternatives of a case exporter
 checkAlts ::
   Map Name (SourceRange, VarStatus) ->
-  ResT ->
+  Type QName ->
   Loc Name -> [(Text,Type DDLTCon)] -> [(Pat PName, ForeignCode PName PName)] ->
   Check [(Pat DDLTCon,ForeignCode DDLTCon QName)]
 checkAlts env resT disc needList = checkAll (Map.fromList needList) []
@@ -666,33 +659,46 @@ checkAlts env resT disc needList = checkAll (Map.fromList needList) []
 checkLoop :: Loop PName PName -> Check (Loop DDLTCon QName)
 checkLoop l =
   do
-    mapM_ checkParam (loopInit l)
+    newInit <- checkForeignCode (loopInit l) Nothing
     let (vs,xs,body) = loopFor l
     ty <- checkDDLVar xs []
-    body' <-
+    newBody <-
       case ty of
         Type Loc { locThing = TArray } [a] [] -> checkBody xs vs [a] body
         Type Loc { locThing = TMap } [k,v] [] -> checkBody xs vs [k,v] body
         -- Type Loc { locThing = TBuilder } [a] [] -> checkBody xs vs [a] body
         _ -> reportError (InvalidForType xs ty)
-    pure l { loopFor = (vs,xs,body') }
-  where
-  checkParam x =
-    do
-      tps <- tparamStatus <$> getState
-      case Map.lookup (locThing x) tps of
-        Just (Just TParamForeign) -> pure ()
-        Just (Just TParamDDL) ->
-          reportError (InvalidTParam x (Mismatch TParamForeign TParamDDL))
-        Just Nothing -> error "[BUG] `checkLoop` checkParam"
-        Nothing -> reportError (UndefinedName (Unqual <$> x))
-      
+    newRet <- checkForeignCode (loopReturn l) Nothing
+    pure Loop { loopInit = newInit, loopFor = (vs,xs,newBody), loopReturn = newRet }
+  where      
   checkBody xs vs ts body
     | have /= need = reportError (InvalidForBinders xs (Mismatch need have))
     | Just ((a,(r1,r2)),_) <- repeated =
       reportError (MultipleDefinitions a r1 r2)
     | otherwise =
-      foldr (uncurry withVar) (checkForeignCode body Nothing) (zip vs ts)
+      do
+        let x = locThing xs
+        varTys <- varTypes <$> getState
+        -- While checking the body of the loop, we mark all other DDL variables
+        -- as already exported.  Essentially, this means that the body should
+        -- not try to export them, if it does we'll get an "already exported"
+        -- error.  We do this because the body might execute 0 or more than 1
+        -- time, which would result in something *not* being exported, or
+        -- exported multiple times.
+        updState \rw ->
+          let upd v (rng,st)
+                | v == x = (rng,st)
+                | otherwise =
+                  case st of
+                    ExportedBy {} -> (rng,st)
+                    _ -> (rng, ExportedBy xs)
+          in rw { varTypes = Map.mapWithKey upd (varTypes rw) }
+        a <- foldr (uncurry withVar) (checkForeignCode body Nothing) (zip vs ts)
+        updState \rw ->
+          let upd k old new = if k == x then new else old
+          in rw { varTypes = Map.unionWithKey upd varTys (varTypes rw) }
+        pure a
+        
         where
         have = length vs
         need = length ts
@@ -707,7 +713,7 @@ checkLoop l =
 
 
 -- | Validate a piece of foreign code with exporter escapes.
-checkForeignCode :: ForeignCode PName PName -> Maybe ResT -> Check (ForeignCode DDLTCon QName)
+checkForeignCode :: ForeignCode PName PName -> Maybe (Type QName) -> Check (ForeignCode DDLTCon QName)
 checkForeignCode code expectedT =
   case code of
     Direct e -> Direct <$> checkExportExpr e expectedT
@@ -730,16 +736,16 @@ checkForeignCodeSplice spl =
 
 
 -- | Validate the names and types in an exporter.
-checkExportExpr :: ExportExpr PName PName -> Maybe ResT -> Check (ExportExpr DDLTCon QName)
+checkExportExpr :: ExportExpr PName PName -> Maybe (Type QName) -> Check (ExportExpr DDLTCon QName)
 checkExportExpr ex expectedT =
   do
     (arg, t) <- mapAndUnzipM checkDDLExpr (exportExpr ex)
-    (skolem,rt) <-
+    rt <-
       case expectedT of
         Nothing ->
           do
             r <- freshVar
-            pure (Set.empty, TVar Loc { locRange = getRange ex, locThing = r })
+            pure (TVar Loc { locRange = getRange ex, locThing = r })
         Just rt -> pure rt
     e <- 
       case exportWith ex of
@@ -752,6 +758,7 @@ checkExportExpr ex expectedT =
             pure (Qual <$> nm, \as bs cs et -> ExportTop nm as bs cs (Just et), ty, [])
           | otherwise -> error "[BUG] checkExportExpr: default but not 1 arg"
         Just e  -> resolveExporterFun e
+    skolem <- Map.keysSet . tparamStatus <$> getState
     (e', su) <- checkExporter' skolem e (t :-> rt)
     let e''  = apForeignSubstExp su e'
         resT = apSubstT su rt

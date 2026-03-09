@@ -158,9 +158,9 @@ genDeclDef decl =
 genLoop :: Ctx => Loop DDLTCon QName -> Type DDLTCon -> CStmt
 genLoop loop ty =
   vcat (
-    renderQuote (cForeignTP <$> loopInit loop) :
+    genForeignCode' (loopInit loop) :
     loopBody ++
-    [ cReturn (renderQuote (vacuous (loopReturn loop))) ]
+    [ genForeignCode (loopReturn loop) ]
   )
   where
   loopBody =

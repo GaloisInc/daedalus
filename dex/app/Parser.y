@@ -151,10 +151,10 @@ decl_def ::                                 { DeclDef PName PName }
 
   
 loop ::                                     { Loop PName PName }
-  : 'init' foreign_block(ename)
+  : 'init' foreign_code
     'for' sepBy1(',',ename) 'in' ename
      foreign_code
-    'return' foreign_block(extern_splice)   { Loop $2 ($4,$6,$7) $9 }
+    'return' foreign_code                   { Loop $2 ($4,$6,$7) $9 }
 
 
 case_alt ::                                 { (Pat PName, ForeignCode PName PName) }

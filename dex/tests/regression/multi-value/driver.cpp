@@ -5,7 +5,7 @@
 #include "exporter.h"
 
 int main() {
-  const unsigned char data[] = {'a','b','c','d'};
+  const unsigned char data[] = {'a','x','c','y',2,'p','q'};
   DDL::Input input("test", (const char*)data, DDL::Size(sizeof(data)));
   DDL::ParseError<DDL::Input> err;
   std::vector<User::Main> results;

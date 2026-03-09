@@ -4,17 +4,22 @@ using CPP
 
 extern ->
   #include "main_parser.h"
+  #include <vector>
   struct AB { uint8_t a, b; };
-  struct R  { AB ab; AB cd; }; 
+  struct R  { AB ab; AB cd; std::vector<uint8_t> xs; }; 
 
   static inline
   std::ostream& operator << (std::ostream& out, AB const& x) {
     return out << "AB { a = " << x.a << ", b = " << x.b << " }";
+    
   }
 
   static inline
   std::ostream& operator << (std::ostream& out, R const& x) {
-    return out << "R { ab = " << x.ab << ", cd = " << x.cd << " }";
+    out << "R { ab = " << x.ab << ", cd = " << x.cd << ", xs = [";
+    auto sep = " ";
+    for (auto const &a : x.xs) {out << sep << a; sep = ", "; }
+    return out << " ] }";
   }
 
 extern def ->
@@ -27,5 +32,13 @@ def exportAB(a: uint 8, b: XorY): AB =
     X -> { .a = $a, .b = 'b' }
     Y -> { .a = $a, .b = 'd' }
 
+def exportXS(a: uint 8, xs: [uint 8]): vector<uint8_t> =
+  init -> std::vector<uint8_t> res; res.reserve($a);
+  for x in xs -> res.push_back($x);
+  return -> res
+
 def exportMain(x: Main): R ->
-    R { .ab = $(exportAB(x.a, x.b)), .cd = $(exportAB(x.c, x.d)) }
+    R { .ab = $(exportAB(x.a, x.b)),
+        .cd = $(exportAB(x.c, x.d)),
+        .xs = $(exportXS(x.e, x.f))
+      }
