@@ -1,4 +1,4 @@
-import Spec(Main)
+import spec(Main)
  
 extern type T
 

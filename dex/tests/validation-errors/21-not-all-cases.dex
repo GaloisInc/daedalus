@@ -1,4 +1,4 @@
-import Spec(AorB)
+import spec(AorB)
 
 extern type T
 
