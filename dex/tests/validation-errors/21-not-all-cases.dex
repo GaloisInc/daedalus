@@ -1,0 +1,10 @@
+import Spec(AorB)
+
+extern type T
+
+def toT(x: uint 8): T = extern
+
+def exportAorB(x: AorB, y: uint 8): T =
+  case x of
+    A = toT(y)
+    B -> forgot to export y

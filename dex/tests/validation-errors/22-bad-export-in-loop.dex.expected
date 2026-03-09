@@ -1,0 +1,2 @@
+22-bad-export-in-loop.dex:9:50 Variable `y` was already exported.
+    Other export: 9:12

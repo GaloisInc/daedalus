@@ -1,0 +1,10 @@
+import Spec(Main)
+ 
+extern type T
+
+def use(y: uint 8): T = extern
+
+def exportVec(xs: [uint 8], y: uint 8): T =
+  init -> init here
+  for x in xs -> export $(use(x)) and also $(use(y))
+  return -> result is here $(use(y))
