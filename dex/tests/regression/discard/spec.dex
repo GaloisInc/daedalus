@@ -1,0 +1,12 @@
+import spec(Main)
+
+using CPP
+
+extern ->
+  #include "main_parser.h"
+
+extern def ->
+  #include "exporter.h"
+
+def exportMain(x: IntList): uint32_t ->
+  $(discard(x)), 3

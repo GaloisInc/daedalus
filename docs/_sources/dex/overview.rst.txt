@@ -135,6 +135,17 @@ multiple parameter values---these are typically useful when defining helper
 exporters, which combine multiple values from a Daedalus AST into a single
 value in the external language.
 
+Each value parameter in a definitions should be exported exactly once.
+If an exported value needs to be used more than once, it should be exported
+once and stored and copied in the target language.  For values that do
+not need to be exported, we provide a special ``discard`` exporter, which
+disposes of the value, and produces no result.  Values that correspond
+to Daedalus records (i.e., generated with ``block`` and named fields in
+Daedalus), may either be exported as a whole, or by exported each of their
+fields.  For example, if there's a Daedalus record ``r`` with two fields
+``x`` and ``y``, it is ok to export ``r.x`` and ``r.y`` separately---exporting
+the two fields is equivalent to exporting ``r`` directly.
+
 Before we go into more details on how to write definitions, let's look at
 how to write external code.
 

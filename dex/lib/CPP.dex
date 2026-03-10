@@ -16,37 +16,27 @@ extern ->
   #include <optional>
   #include <unordered_map>
 
-type bool -> bool
+extern type void, bool, char
+
+def discard<A>(x: A): void = extern
+
 default def as_bool(x: bool): bool =
   case x of
     true -> true
     false -> false
 
-type char  -> char
 def as_char(x: uint 8): char -> static_cast<char>($x)
 
-type uint8_t -> uint8_t
+extern type uint8_t, uint16_t, uint32_t, uint64_t
 default def as_uint8(x: uint 8): uint8_t = extern
-
-type uint16_t -> uint16_t
 default def as_uint16(x: uint 16): uint16_t = extern
-
-type uint32_t -> uint32_t
 default def as_uint32(x: uint 32): uint32_t = extern
-
-type uint64_t -> uint64_t
 default def as_uint64(x: uint 64): uint64_t = extern
 
-type int8_t -> int8_t
+extern type int8_t,  int16_t,  int32_t,  int64_t
 default def as_int8(x: sint 8): int8_t = extern
-
-type int16_t -> int16_t
 default def as_int16(x: sint 16): int16_t = extern
-
-type int32_t -> int32_t
 default def as_int32(x: sint 32): int32_t = extern
-
-type int64_t -> int64_t
 default def as_int64(x: sint 64): int64_t = extern
 
 type optional<T> -> std::optional<T>

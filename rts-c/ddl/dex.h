@@ -29,4 +29,7 @@ int32_t as_int32(DDL::SInt<32> x) { return x.rep(); }
 static inline
 int64_t as_int64(DDL::SInt<64> x) { return x.rep(); }
 
+template<typename T>
+void discard(T x) { if constexpr (DDL::hasRefs<T>()) x.free(); }
+
 }

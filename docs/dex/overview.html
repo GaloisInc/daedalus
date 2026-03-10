@@ -213,6 +213,16 @@ corresponding to the value being exported.  We also support definitions with
 multiple parameter values—these are typically useful when defining helper
 exporters, which combine multiple values from a Daedalus AST into a single
 value in the external language.</p>
+<p>Each value parameter in a definitions should be exported exactly once.
+If an exported value needs to be used more than once, it should be exported
+once and stored and copied in the target language.  For values that do
+not need to be exported, we provide a special <code class="docutils literal notranslate"><span class="pre">discard</span></code> exporter, which
+disposes of the value, and produces no result.  Values that correspond
+to Daedalus records (i.e., generated with <code class="docutils literal notranslate"><span class="pre">block</span></code> and named fields in
+Daedalus), may either be exported as a whole, or by exported each of their
+fields.  For example, if there’s a Daedalus record <code class="docutils literal notranslate"><span class="pre">r</span></code> with two fields
+<code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, it is ok to export <code class="docutils literal notranslate"><span class="pre">r.x</span></code> and <code class="docutils literal notranslate"><span class="pre">r.y</span></code> separately—exporting
+the two fields is equivalent to exporting <code class="docutils literal notranslate"><span class="pre">r</span></code> directly.</p>
 <p>Before we go into more details on how to write definitions, let’s look at
 how to write external code.</p>
 </section>
