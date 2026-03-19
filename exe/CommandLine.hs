@@ -31,6 +31,7 @@ data Command =
   | DumpGen
   | CompileHS
   | CompileCPP
+  | CompileRust
   | Interp (Maybe FilePath)
   | JStoHTML
   | ShowHelp
@@ -175,6 +176,7 @@ commands =
   , ("show-types",    cmdShowTypesOptions)
   , ("compile-hs",    cmdCompileHSOptions)
   , ("compile-c++",   cmdCompileCPPOptions)
+  , ("compile-rust",  cmdCompileRustOptions)
   , ("json-to-html",  cmdJsonToHtmlOptions)
   , ("dump",          cmdDumpOptions)
   ]
@@ -370,6 +372,31 @@ cmdCompileHSOptions = (\o -> o { optCommand = CompileHS }, opts)
       ]
     }
 
+cmdCompileRustOptions :: CommandSpec
+cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
+  where
+  opts = optWithDDL
+    { progDescription = [ "Generate Rust code" ]
+    , progOptions =
+      [ Option [] ["out-dir"]
+        "Save output in this directory."
+        $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["file-root"]
+        "Output file template (default: main_parser)"
+        $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
+
+      , Option [] ["user-module"]
+        "Place type declarations in this module (default: User)"
+        $ ReqArg "NAMESPACE" \s o -> Right o { optUserNS = s }
+
+      ] ++
+      coreOptions ++
+      [ helpOption
+      ]
+    }
+
+
 cmdCompileCPPOptions :: CommandSpec
 cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
   where
@@ -545,6 +572,7 @@ impliedOptions opts0 =
         DumpGen         -> opts
         CompileHS       -> opts
         CompileCPP      -> noTCUnbiased
+        CompileRust     -> noTCUnbiased
         Interp {}       -> opts
         JStoHTML        -> opts
         ShowHelp        -> opts

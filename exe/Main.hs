@@ -51,6 +51,7 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Backend.Rust as Rust
 import qualified Daedalus.VM.Semantics as VM
 import qualified Daedalus.VM.RefCountSane as VM
 
@@ -193,6 +194,9 @@ handleOptions opts
              UseCore   -> generateCPP opts mm
              UseVM     -> generateCPP opts mm
              UsePGen {} -> ddlIO $ throwOptError ["This backend is out of date."]
+
+         CompileRust -> generateRust opts mm
+
 {-
              UsePGen _ ->
                do passSpecialize specMod mainRules
@@ -325,6 +329,28 @@ parseEntry mm x =
     (as,_:bs) -> (Text.pack as, Text.pack bs)
     _         -> (mm, Text.pack x)
 
+
+generateRust :: Options -> ModuleName -> Daedalus ()
+generateRust opts mm =
+  do
+    prog <- doToVM opts { optVM_do_mm = True } mm
+    let cfg = Rust.Config {
+                cfgUserModule = optUserNS opts
+              }
+        -- XXX: catch unsupported.
+        (rust,warns) = Rust.compileProgram cfg prog
+    mapM_ (\w -> ddlPrint ("[WARNING]" <+> w)) warns
+    ddlIO
+      do
+        let fileBase = optFileRoot opts <.> "rs"
+        file <-
+          case optOutDir opts of
+            Nothing -> pure fileBase
+            Just dir ->
+              do                
+                createDirectoryIfMissing True dir
+                pure (dir </> fileBase)
+        writeFile file rust
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
