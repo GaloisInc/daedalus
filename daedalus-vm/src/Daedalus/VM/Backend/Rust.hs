@@ -126,12 +126,12 @@ compileBlockInstr instr =
   notYet  = unsupported (?fnMsg <+> "instruction:" <+> pp instr)
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
-compilePrim x p es =
+compilePrim x prim es =
   [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
       (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
   ]
   where
-  tmp = show (pp p <> parens (commaSep (map pp es)))
+  tmp = show (pp prim <> parens (commaSep (map pp es)))
 
 compileExpr :: FnCtx => VM.E -> Rust.Expr ()
 compileExpr expr =
@@ -178,7 +178,6 @@ compileCInstr cinstr =
         _            ->  bad
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
-  xxx = [Rust.expr_ (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit (show (pp cinstr)))])]
   doCall f es = Rust.call (Rust.identExpr (compileFName f)) (map compileExpr es)
  
 compileJump :: FnCtx => VM.JumpPoint -> [Rust.Expr ()] -> [Rust.Stmt ()]
