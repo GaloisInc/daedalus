@@ -5,7 +5,9 @@ module Daedalus.VM.Backend.Rust (
 ) where
 
 import Data.Text qualified as Text
+import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.List(foldl')
 import Control.Exception
 
 import Daedalus.PP
@@ -13,6 +15,7 @@ import Daedalus.GUID(guidString)
 import Daedalus.Panic(panic)
 import Daedalus.Core qualified as Core
 import Daedalus.VM qualified as VM
+import Daedalus.VM.TypeRep qualified as VM
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 
 
@@ -26,16 +29,48 @@ instance Exception Unsupported
 unsupported :: Doc -> a
 unsupported x = throw (Unsupported x)
 
+type ProgCtx = (
+  ?funSigs :: Map VM.FName [VM.Ownership],
+  ?blockSigs :: Map VM.Label [VM.Ownership]
+  )
+
+type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
+
 compileProgram :: Config -> VM.Program -> (String, [Doc])
 compileProgram cfg vm = (show (Rust.pretty' result), []) -- XXX
   where
   result :: Rust.SourceFile ()
-  result = Rust.SourceFile Nothing [] (concatMap compileModule (VM.pModules vm))
+  result =
+    let ?funSigs = funSigs
+        ?blockSigs = blockSigs
+    in
+    Rust.SourceFile Nothing [] (concatMap compileModule (VM.pModules vm))
 
-compileModule :: VM.Module -> [Rust.Item ()]
+  (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
+
+  sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
+
+  sigsOfFun (fs,bs) f =
+    case VM.vmfDef f of
+      VM.VMExtern ba -> (Map.insert (VM.vmfName f) (getSig ba) fs, bs)
+      VM.VMDef body -> (fs1, bs1)
+        where
+        bs1 = foldl' sigsOfBlock bs (Map.elems (VM.vmfBlocks body))
+        fs1 =
+          case Map.lookup (VM.vmfEntry body) bs1 of
+            Just sig -> Map.insert (VM.vmfName f) sig fs
+            Nothing ->
+              panic "compileProgram"
+                ["Missing entry block for", show (pp (VM.vmfName f))]
+        
+  sigsOfBlock bs b  = Map.insert (VM.blockName b) (getSig (VM.blockArgs b)) bs
+  getSig            = map VM.getOwnership
+
+
+compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
 compileModule m = map compileFun (VM.mFuns m) -- XXX: type declarations
-
-compileFun :: VM.VMFun -> Rust.Item ()
+  
+compileFun :: ProgCtx => VM.VMFun -> Rust.Item ()
 compileFun fu =
   case VM.vmfCaptures fu of
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
@@ -55,7 +90,7 @@ compileFun fu =
         ?fnMsg  = fnMsg
     in compileFunDef (VM.vmfDef fu)
 
-type FnCtx = (?isPure :: Bool, ?fnMsg :: Doc)
+
 
 compileFunDef :: FnCtx => VM.VMFDef -> ([(Rust.Ident,Rust.Ty ())], Rust.Block ())
 compileFunDef def =
@@ -116,7 +151,7 @@ compileBlockInstr instr =
     VM.CallPrim x f es  -> compilePrim x f es
     VM.Spawn {}         -> bad
     VM.Let x e ->
-      [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr e) "clone" [])]
+      [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "cloned" [])]
     VM.Free _                   -> [] -- Rust should drop things on its own
     VM.NoteFail loc str inp msg -> [] -- XXX: error messages
     VM.PushDebug {}             -> [] -- XXX: stack trace
@@ -133,29 +168,34 @@ compilePrim x prim es =
   where
   tmp = show (pp prim <> parens (commaSep (map pp es)))
 
-compileExpr :: FnCtx => VM.E -> Rust.Expr ()
-compileExpr expr =
+compileExpr :: FnCtx => VM.Ownership -> VM.E -> Rust.Expr ()
+compileExpr how expr =
   case expr of
     VM.EUnit         -> Rust.tupleExpr []
     VM.ENum n ty     -> Rust.litExpr (Rust.intLit n) --- XXX: suffix? non-standard sizes
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
     VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)
-    VM.EMapEmpty k v -> unsupported (?fnMsg <+> "empty map expression")
-    VM.ENothing ty   -> Rust.identExpr "None" -- type sig?
-    VM.EBlockArg x   -> Rust.identExpr (compileBAName x)
-    VM.EVar x        -> Rust.identExpr (compileBVName x)
-  
+    VM.EMapEmpty k v -> unsupported (?fnMsg <+> "empty map expression") -- XXX
+    VM.ENothing {}   -> mbBorrow VM.Owned (Rust.identExpr "None") -- type sig?
+    VM.EBlockArg x   -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBAName x))
+    VM.EVar x        -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBVName x))
+  where
+  mbBorrow own e =
+    case (how, own) of
+      (VM.Borrowed, VM.Owned) -> Rust.callMethod e "borrowed" []
+      _ -> e
+
 
 compileCInstr :: FnCtx => VM.CInstr -> [Rust.Stmt ()]
 compileCInstr cinstr =
   case cinstr of
     VM.Jump jp -> compileJump jp []
     VM.JumpIf e opts ->
-      [Rust.expr (Rust.matchExpr (compileExpr e) (compileJumpChoice opts))]
+      [Rust.expr (Rust.matchExpr (compileExpr VM.Borrowed e) (compileJumpChoice opts))]
     VM.Yield             -> bad
     VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
-    VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map compileExpr [res,inp])])]
-    VM.ReturnPure res    -> [Rust.ret (compileExpr res)]
+    VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map (compileExpr VM.Owned) [res,inp])])]
+    VM.ReturnPure res    -> [Rust.ret (compileExpr VM.Owned res)]
     VM.CallPure f j es   -> compileJumpWithFree j [doCall f es]
     VM.CallNoCapture f (VM.JumpCase opts) es ->
       [ Rust.expr (Rust.matchExpr (doCall f es) 
@@ -178,15 +218,28 @@ compileCInstr cinstr =
         _            ->  bad
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
-  doCall f es = Rust.call (Rust.identExpr (compileFName f)) (map compileExpr es)
+  doCall f es = Rust.call (Rust.identExpr (compileFName f))
+                          (zipWith compileExpr sig es)
+    where
+    sig =
+      case Map.lookup f ?funSigs of
+        Just s -> s
+        Nothing -> panic "compileCInstr" ["Missing ownership signature for", show (pp f)]
+
  
 compileJump :: FnCtx => VM.JumpPoint -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJump (VM.JumpPoint l es) extra =
- [ Rust.assign (Rust.identExpr pcName)
-                (Rust.call  (Rust.identExpr (compileLabel l))
-                            (extra ++ map compileExpr es)),
+ [ Rust.assign
+    (Rust.identExpr pcName)
+    (Rust.call (Rust.identExpr (compileLabel l))
+               (extra ++ zipWith compileExpr (drop (length extra) sig) es)),
     Rust.continue
   ]
+  where
+  sig =
+    case Map.lookup l ?blockSigs of
+      Just s  -> s
+      Nothing -> panic "compileJump" ["Missing ownership signature for block", show (pp l)]
 
 compileJumpWithFree :: FnCtx => VM.JumpWithFree -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJumpWithFree = compileJump . VM.jumpTarget -- Rust will do the freeing
@@ -210,6 +263,9 @@ compilePat p =
     Core.PAny       -> Rust.wildPat
   where
   xxx = unsupported (pp p)
+
+
+  
 --------------------------------------------------------------------------------             
 -- Names
 --------------------------------------------------------------------------------             

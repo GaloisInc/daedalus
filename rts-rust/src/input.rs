@@ -1,4 +1,5 @@
 use crate as ddl;
+use ddl::Type;
 
 #[derive(Clone)]
 pub struct Input {
@@ -7,6 +8,8 @@ pub struct Input {
   offset:       usize,
   last_offset:  usize       // Offset of end-of-input (1 past the end)
 }
+
+impl Type for Input { ddl::by_ref!(Input); }
 
 pub fn new_input(name: ddl::Array<u8>, bytes: ddl::Array<u8>) -> Input {
   Input {
@@ -18,9 +21,9 @@ pub fn new_input(name: ddl::Array<u8>, bytes: ddl::Array<u8>) -> Input {
 }
 
 pub fn new_input_str(name: &str, bytes: &str) -> Input {
-  let bs = ddl::new_array_from_slice(bytes.as_bytes());
+  let bs = ddl::new_array_slice(bytes.as_bytes());
   Input {
-    name: ddl::new_array_from_slice(name.as_bytes()),
+    name: ddl::new_array_slice(name.as_bytes()),
     last_offset: bs.len(),
     bytes: bs,
     offset: 0,
@@ -29,7 +32,7 @@ pub fn new_input_str(name: &str, bytes: &str) -> Input {
 
 impl Input {
   /// Get the name of the input
-  pub fn name(&self)     -> ddl::ArrayRef<u8> { self.name.borrowed() }
+  pub fn name(&self)        -> ddl::ArrayB<u8> { self.name.borrowed() }
   
   /// Get the current byte offset in the input.
   pub fn offset(&self)      -> usize { self.offset }

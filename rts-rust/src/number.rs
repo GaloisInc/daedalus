@@ -1,5 +1,4 @@
 
-
 macro_rules! Declare {
   ($nm: ident, $rep: ty, $repi: ty, $w: literal) => {
     #[derive(Copy,Clone,core::cmp::PartialEq,core::cmp::Eq,core::cmp::PartialOrd,core::cmp::Ord)]
