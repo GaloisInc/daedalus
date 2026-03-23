@@ -6,6 +6,8 @@ module Daedalus.VM.Backend.Rust.Lang (
   module Language.Rust.Pretty
 ) where
 
+import Data.ByteString(ByteString)
+import Data.ByteString qualified as BS
 import Data.Text(Text)
 import Data.Text qualified as Text
 import Data.Maybe(maybeToList)
@@ -186,6 +188,10 @@ floatLit f = Float f Unsuffixed ()
 strLit :: String -> Lit ()
 strLit x = Str x Cooked Unsuffixed ()
 
+-- | Make a cooked byte literal 
+bytesLit :: ByteString -> Lit ()
+bytesLit x = ByteStr (BS.unpack x) Cooked Unsuffixed ()
+
 litExpr :: Lit () -> Expr ()
 litExpr l = Lit [] l ()
 
@@ -227,6 +233,9 @@ call fn args = Call [] fn args ()
 callMethod :: Expr () -> Ident -> [Expr ()] -> Expr ()
 callMethod obj meth args = MethodCall [] obj meth Nothing args ()
 
+cast :: Expr () -> Ty () -> Expr ()
+cast e t = Cast [] e t ()
+
 callMacro :: Path () -> [Expr ()] -> Expr ()
 callMacro m es = callMacro' m args
   where
@@ -245,6 +254,21 @@ treeToken = Tree . Token dummySpan
 tokComma :: TokenStream
 tokComma = Tree (Token dummySpan Comma)
 
+--------------------------------------------------------------------------------
+-- Imports
+--------------------------------------------------------------------------------
+
+use :: UseTree () -> Item ()
+use x = Use [] InheritedV x ()
+
+useOne :: Path () -> Maybe Ident -> UseTree ()
+useOne p mbAs = UseTreeSimple p mbAs ()
+
+useGlob :: Path () -> UseTree ()
+useGlob p = UseTreeGlob p ()
+
+useSelect :: Path () -> [UseTree ()] -> UseTree ()
+useSelect p ts = UseTreeNested p ts ()
 
 --------------------------------------------------------------------------------
 -- Declarations

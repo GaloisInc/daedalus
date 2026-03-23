@@ -48,6 +48,7 @@ macro_rules! by_value {
   };
 }
 
+by_value!(());
 by_value!(bool);
 by_value!(u8);
 by_value!(u16);

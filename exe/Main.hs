@@ -10,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,unless,forM,forM_)
-import Data.Maybe(fromJust,isNothing)
+import Data.Maybe(fromJust,isNothing,fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -342,15 +342,25 @@ generateRust opts mm =
     mapM_ (\w -> ddlPrint ("[WARNING]" <+> w)) warns
     ddlIO
       do
-        let fileBase = optFileRoot opts <.> "rs"
-        file <-
-          case optOutDir opts of
-            Nothing -> pure fileBase
-            Just dir ->
-              do                
-                createDirectoryIfMissing True dir
-                pure (dir </> fileBase)
-        writeFile file rust
+        let nm = case optParserDDL opts of
+                   Nothing -> "ddl-parser"
+                   Just p  -> dropExtension (takeFileName p)
+        let dir = fromMaybe nm (optOutDir opts)
+            src = dir </> "src"
+        createDirectoryIfMissing True dir
+        createDirectoryIfMissing True src
+        -- XXX: The configuration is just temporary for testing
+        writeFile (dir </> "Cargo.toml") $ unlines
+          [ "[package]",
+            "name = " ++ show nm,
+            "version = \"0.1.0\"",
+            "edition = \"2024\"",
+            "",
+            "[dependencies]",
+            "daedalus-rts-rust = { path = \"../rts-rust\" }"
+          ]
+        createDirectoryIfMissing True src
+        writeFile (src </> "lib.rs") rust
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
