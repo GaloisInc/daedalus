@@ -1,10 +1,12 @@
 mod ddl_box;
 mod number;
 mod input;
+mod builder;
 
 pub use ddl_box::*;
 pub use number::*;
 pub use input::*;
+pub use builder::*;
 
 /// DDL types representing owned things that can be borrowed.
 /// The main reason for this is because in some cases we'd like to represent
@@ -27,10 +29,10 @@ impl <T:Clone> Clonable for &T {
 }
 
 /// Owned array
-type Array<T>       = O<[T]>;
+pub type Array<T>       = O<[T]>;
 
 /// Borrowed array
-type ArrayB<'a,T>   = B<'a,[T]>;
+pub type ArrayB<'a,T>   = B<'a,[T]>;
 
 
 /// Helper for simple types that are `Copy` and passed by value.

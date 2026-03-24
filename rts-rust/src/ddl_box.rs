@@ -1,9 +1,9 @@
 use crate as ddl;
-pub use std::rc::Rc;
+use std::rc::Rc;
 use std::marker::PhantomData;
 
 /// An owned DDL value.  Uses reference counting.
-pub struct O<T: ?Sized> { rc: Rc<T> }
+pub struct O<T: ?Sized> { pub(crate) rc: Rc<T> }
 
 /// Create a new owned value.
 pub fn new<T>(x: T) -> O<T> { O { rc: Rc::new(x) } }
@@ -13,6 +13,9 @@ pub fn new_array<const N: usize, T>(x: [T;N]) -> ddl::Array<T> { O { rc: x.into(
 
 /// Create new owned array out of a Rust reference to a slice.
 pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> { O { rc: x.into() } }
+
+/// Create new owned array out of a vector.
+pub fn new_array_vec<T>(x: Vec<T>) -> ddl::Array<T> { O { rc: x.into() } }
 
 /// Make a unique value, but try to reuse the first argument, if
 /// this is the last reference to it.
@@ -42,11 +45,12 @@ impl <'a, T: ?Sized> Clone for O<T> {
 }
 
 /// A borrowed DDL value.
- #[derive(Copy)]
 pub struct B<'a,T: ?Sized> {
     ptr: *const T,
     lifetime: PhantomData<&'a T>
 }
+
+impl <'a,T: ?Sized> Copy for B<'a,T> {}
 
 impl<'a, T: ?Sized> Clone for B<'a,T> {
   fn clone(&self) -> Self { B { ptr: self.ptr, lifetime: self.lifetime } }
@@ -63,8 +67,8 @@ impl<'a,T: ?Sized> ddl::Clonable for B<'a,T> {
   type O = O<T>;
   fn cloned(self) -> Self::O {
     unsafe {
-      ddl::Rc::increment_strong_count(self.ptr);
-      O { rc: ddl::Rc::from_raw(self.ptr) }
+      Rc::increment_strong_count(self.ptr);
+      O { rc: Rc::from_raw(self.ptr) }
     }
   }
 }

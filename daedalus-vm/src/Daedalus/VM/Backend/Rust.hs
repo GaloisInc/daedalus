@@ -8,6 +8,7 @@ import Data.Text qualified as Text
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List(foldl')
+import Data.ByteString qualified as BS
 import Control.Exception
 
 import Daedalus.PP
@@ -45,9 +46,10 @@ compileProgram cfg vm = (show (Rust.pretty' result), []) -- XXX
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
+  unusedOk = [Rust.disableWarning "unused_imports"]
   uses = [
-    Rust.use (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
-    Rust.use (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clonable" ] ])
+    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
+    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clonable" ] ])
     ]
 
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
@@ -86,8 +88,8 @@ compileFun fu =
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
   resT
-    | VM.vmfPure fu = compileType (Core.fnameType fnm)  VM.Owned
-    | otherwise     = Rust.tOption (Rust.tTuple [compileType (Core.fnameType fnm) VM.Owned , compileType Core.TStream VM.Owned])
+    | VM.vmfPure fu = compileType VM.Owned (Core.fnameType fnm)
+    | otherwise     = Rust.tOption (Rust.tTuple [compileType VM.Owned (Core.fnameType fnm), compileType VM.Owned Core.TStream])
 
   (args,def) =
     let ?isPure = VM.vmfPure fu
@@ -117,9 +119,9 @@ compileFunBody body = (args, Rust.block [contT, pcDecl, mainLoop])
     case Map.lookup entry blockCode of
       Just (l,ts,_) ->
         let argName i = Rust.mkIdent ("fa" ++ show i)
-            as        = [ (argName i, t) | (i,t) <- [0..] `zip` ts ]
+            as        = [ (argName i, t) | (i,t) <- [0 :: Int ..] `zip` ts ]
             start     = Rust.call (Rust.pathExpr (Rust.simplePath' [contTypeName,l])) (map (Rust.identExpr . fst) as)
-        in (as, Rust.localLetMut [] pcName Nothing start)
+        in (as, Rust.localLetMut ["unused_mut"] pcName Nothing start)
       _ -> panic "compileFunBody" ["Mssing entry block code"]
 
   mainLoop =
@@ -173,8 +175,16 @@ compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
   case prim of
     VM.ByteArray bs ->
-      def (Rust.call (Rust.pathExpr (ddlPath "new_array_slice")) [Rust.litExpr (Rust.bytesLit bs)])
+      def ty (Rust.call (Rust.pathExpr (ddlPath "new_array_slice")) [Rust.litExpr (Rust.bytesLit bs)])
+        where ty = if BS.null bs then Just (compileType VM.Owned (Core.TArray Core.TByte)) else Nothing
 
+    VM.NewBuilder ty -> 
+      def (Just (compileType VM.Owned ty)) (Rust.call (Rust.pathExpr (ddlPath "new_builder")) [])
+
+    VM.Integer i -> xxx
+
+    VM.StructCon ut -> xxx
+    
     VM.Op1 op ->
       case es of
         [e1] -> compileOp1 x op e1
@@ -191,14 +201,10 @@ compilePrim x prim es =
         _          -> bad 3
 
     VM.OpN op -> compileOpN x op es
-
-    VM.StructCon ut -> xxx
-    VM.NewBuilder ty -> xxx
-    VM.Integer i -> xxx
   
   where
   bad n = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
-  def re = [Rust.localLet [] (compileBVName x) Nothing re]
+  def mb re = [Rust.localLet [] (compileBVName x) mb re]
   tmp = show (pp prim <> parens (commaSep (map pp es)))
   xxx =
     [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
@@ -312,16 +318,13 @@ compileOp3 x op e1 e2 e3 =
 compileOpN :: FnCtx => VM.BV -> Core.OpN -> [VM.E] -> [Rust.Stmt ()]
 compileOpN x op es =
   case op of
-    Core.ArrayL t -> xxx 
+    Core.ArrayL t ->
+      def (if null es then Just (compileType VM.Owned t) else Nothing)
+          (Rust.call (Rust.pathExpr (ddlPath "new_array"))
+              [Rust.arrExpr (map (compileExpr VM.Owned) es)]) 
     Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
   where
-  def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  tmp = show (pp op <> parens (commaSep (map pp es)))
-  xxx =
-    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
-      (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
-    ]
-
+  def mbT e = [Rust.localLet [] (compileBVName x) mbT e]
 
 compileSize :: FnCtx => VM.E -> Rust.Expr ()
 compileSize e = Rust.cast (compileExpr VM.Owned e) Rust.tUsize
@@ -438,10 +441,10 @@ compileFName f = Rust.mkIdent (txt ++ "_" ++ uid)
   txt = Rust.snakeCase (Text.unpack (Core.fnameText f))
 
 compileBAName :: VM.BA -> Rust.Ident
-compileBAName (VM.BA n _ _) = Rust.mkIdent ("arg_" ++ show n)
+compileBAName (VM.BA n _ _) = Rust.mkIdent ("_arg_" ++ show n)
 
 compileBVName :: VM.BV -> Rust.Ident
-compileBVName (VM.BV n _) = Rust.mkIdent ("tmp_" ++ show n)
+compileBVName (VM.BV n _) = Rust.mkIdent ("_tmp_" ++ show n)
 
 pcName :: Rust.Ident
 pcName = Rust.mkIdent "block_id"
@@ -457,13 +460,13 @@ contTypeName = "Cont"
 compileVMT :: FnCtx => VM.VMT -> VM.Ownership -> Rust.Ty ()
 compileVMT ty own =
   case ty of
-    VM.TSem t     -> compileType t own
+    VM.TSem t     -> compileType own t
     VM.TThreadId  -> unsupported (?fnMsg <+> "ThreadId type")
 
 
 -- | Compile a type in its owned form.
-compileType :: Core.Type -> VM.Ownership -> Rust.Ty ()
-compileType ty own =
+compileType :: VM.Ownership -> Core.Type -> Rust.Ty ()
+compileType own ty =
   case ty of
     Core.TStream -> maybeRef (Rust.pathType (ddlPath "Input"))
 
@@ -486,18 +489,11 @@ compileType ty own =
     Core.TFloat             -> Rust.tF 32
     Core.TDouble            -> Rust.tF 64
     Core.TUnit              -> Rust.tTuple []
-    Core.TArray t           -> Rust.pathType p
-      where
-      p = Rust.pathWithTypes [ddlModName,base] [compileType t VM.Owned]
-      base =
-        case own of
-          VM.Borrowed -> "ArrayB"
-          _           -> "Array"
+    Core.TArray t           -> maybeB "Array" "ArrayB" t
+    Core.TBuilder t         -> maybeB "Builder" "BuilderB" t
 
-
-    Core.TMaybe t           -> maybeRef (Rust.tOption (compileType t VM.Owned))
+    Core.TMaybe t           -> maybeRef (Rust.tOption (compileType VM.Owned t))
     Core.TMap tk kv         -> xxx
-    Core.TBuilder t         -> xxx
     Core.TIterator t        -> xxx
     Core.TUser t            -> xxx
     Core.TParam bp          -> xxx
@@ -507,6 +503,13 @@ compileType ty own =
     case own of
       VM.Borrowed -> Rust.tRef Nothing rt
       _           -> rt
+  maybeB town tbor t = Rust.pathType p
+   where
+    p = Rust.pathWithTypes [ddlModName,base] [compileType VM.Owned t]
+    base =
+      case own of
+        VM.Borrowed -> tbor
+        _           -> town
 
 compileTParam :: Core.TParam -> Rust.Ty ()
 compileTParam = undefined

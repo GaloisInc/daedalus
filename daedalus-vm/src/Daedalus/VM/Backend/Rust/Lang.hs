@@ -211,6 +211,9 @@ blockExpr = blockExpr' . block
 tupleExpr :: [Expr ()] -> Expr ()
 tupleExpr es = TupExpr [] es ()
 
+arrExpr :: [Expr ()] -> Expr ()
+arrExpr es = Vec [] es ()
+
 loopExpr :: Block () -> Expr ()
 loopExpr b = Loop [] b Nothing ()
 
@@ -258,8 +261,11 @@ tokComma = Tree (Token dummySpan Comma)
 -- Imports
 --------------------------------------------------------------------------------
 
+use' :: [Attribute ()] -> UseTree () -> Item ()
+use' as x = Use as InheritedV x ()
+
 use :: UseTree () -> Item ()
-use x = Use [] InheritedV x ()
+use = use' []
 
 useOne :: Path () -> Maybe Ident -> UseTree ()
 useOne p mbAs = UseTreeSimple p mbAs ()
