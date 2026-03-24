@@ -184,7 +184,18 @@ compilePrim x prim es =
       case es of
         [e1,e2] -> compileOp2 x op e1 e2
         _       -> bad 2
-    _         -> xxx
+
+    VM.Op3 op ->
+      case es of
+        [e1,e2,e3] -> compileOp3 x op e1 e2 e3
+        _          -> bad 3
+
+    VM.OpN op -> compileOpN x op es
+
+    VM.StructCon ut -> xxx
+    VM.NewBuilder ty -> xxx
+    VM.Integer i -> xxx
+  
   where
   bad n = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
@@ -199,7 +210,34 @@ compileOp1 x op e =
   case op of
     Core.Head -> def (Rust.callMethod (compileExpr VM.Borrowed e) "head" [])
     Core.IsEmptyStream -> def (Rust.callMethod (compileExpr VM.Borrowed e) "is_empty" [])
-    _ -> xxx
+    
+    Core.CoerceTo ty -> xxx
+    Core.StreamOffset -> xxx
+    Core.BytesOfStream -> xxx
+    Core.OneOf bs -> xxx
+    Core.Neg -> xxx
+    Core.BitNot -> xxx
+    Core.Not -> xxx
+    Core.ArrayLen -> xxx
+    Core.Concat -> xxx
+    Core.FinishBuilder -> xxx
+    Core.NewIterator -> xxx
+    Core.IteratorDone -> xxx
+    Core.IteratorKey -> xxx
+    Core.IteratorVal -> xxx
+    Core.IteratorNext -> xxx
+    Core.EJust -> xxx
+    Core.FromJust -> xxx
+    Core.SelStruct ty lab -> xxx
+    Core.InUnion ut lab -> xxx
+    Core.FromUnion ty lab -> xxx
+    Core.WordToFloat -> xxx
+    Core.WordToDouble -> xxx
+    Core.IsNaN -> xxx
+    Core.IsInfinite -> xxx
+    Core.IsDenormalized -> xxx
+    Core.IsNegativeZero -> xxx
+    
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
   tmp = show (pp op <> parens (commaSep [pp e]))
@@ -214,7 +252,40 @@ compileOp2 x op e1 e2 =
   case op of
     Core.Drop ->
       def (Rust.callMethod (compileExpr VM.Owned e2) "advance" [ compileSize e1 ])
-    _ -> xxx
+
+    Core.IsPrefix -> xxx
+  
+    Core.DropMaybe -> xxx
+    Core.Take -> xxx
+ 
+    Core.Eq -> xxx
+    Core.NotEq -> xxx
+    Core.Leq -> xxx
+    Core.Lt -> xxx
+ 
+    Core.Add -> xxx
+    Core.Sub -> xxx
+    Core.Mul -> xxx
+    Core.Div -> xxx
+    Core.Mod -> xxx
+ 
+    Core.BitAnd -> xxx
+    Core.BitOr -> xxx
+    Core.BitXor -> xxx
+    Core.Cat -> xxx
+    Core.LCat -> xxx
+    Core.LShift -> xxx
+    Core.RShift -> xxx
+ 
+    Core.ArrayIndex -> xxx
+    Core.Emit -> xxx
+    Core.EmitArray -> xxx
+    Core.EmitBuilder -> xxx
+    Core.MapLookup -> xxx
+    Core.MapMember -> xxx
+ 
+    Core.ArrayStream -> xxx
+    
   where
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
   tmp = show (pp op <> parens (commaSep [pp e1, pp e2]))
@@ -223,6 +294,33 @@ compileOp2 x op e1 e2 =
       (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
+
+compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> VM.E -> VM.E -> VM.E -> [Rust.Stmt ()]
+compileOp3 x op e1 e2 e3 =
+  case op of
+    Core.RangeUp -> xxx
+    Core.RangeDown -> xxx
+    Core.MapInsert -> xxx
+  where
+  def e = [Rust.localLet [] (compileBVName x) Nothing e]
+  tmp = show (pp op <> parens (commaSep [pp e1, pp e2, pp e3]))
+  xxx =
+    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
+      (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
+    ]
+
+compileOpN :: FnCtx => VM.BV -> Core.OpN -> [VM.E] -> [Rust.Stmt ()]
+compileOpN x op es =
+  case op of
+    Core.ArrayL t -> xxx 
+    Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
+  where
+  def e = [Rust.localLet [] (compileBVName x) Nothing e]
+  tmp = show (pp op <> parens (commaSep (map pp es)))
+  xxx =
+    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
+      (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
+    ]
 
 
 compileSize :: FnCtx => VM.E -> Rust.Expr ()
