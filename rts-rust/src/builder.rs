@@ -16,12 +16,12 @@ impl<'a,T> Clone for BuilderB<'a,T> {
 
 impl <T: ddl::Type> ddl::Type for Builder<T> {
   type B<'a> = BuilderB<'a,T>;
-  fn borrowed(&self) -> BuilderB<T> { BuilderB { node: self.node.borrowed() } }
+  fn bor(&self) -> BuilderB<T> { BuilderB { node: self.node.bor() } }
 }
 
-impl <'a, T: ddl::Type> ddl::Clonable for BuilderB<'a,T> {
+impl <'a, T: ddl::Type> ddl::Clo for BuilderB<'a,T> {
   type O = Builder<T>;
-  fn cloned(self) -> Builder<T> { Builder { node: self.node.cloned() } }
+  fn clo(self) -> Builder<T> { Builder { node: self.node.clo() } }
 }
 
 struct Node<T> {

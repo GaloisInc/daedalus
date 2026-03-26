@@ -41,7 +41,7 @@ compileProgram cfg vm = (show (Rust.pretty' result), []) -- XXX
   unusedOk = [Rust.disableWarning "unused_imports"]
   uses = [
     Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
-    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clonable" ] ])
+    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
     ]
 
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
@@ -151,7 +151,7 @@ compileBlockInstr instr =
     VM.CallPrim x f es  -> compilePrim x f es
     VM.Spawn {}         -> bad
     VM.Let x e ->
-      [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "cloned" [])]
+      [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "clo" [])]
     VM.Free _                   -> [] -- Rust should drop things on its own
     VM.NoteFail loc str inp msg -> [] -- XXX: error messages
     VM.PushDebug {}             -> [] -- XXX: stack trace
@@ -206,20 +206,29 @@ compilePrim x prim es =
 compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> VM.E -> [Rust.Stmt ()]
 compileOp1 x op e =
   case op of
+    -- Streams
     Core.Head -> def (Rust.callMethod (compileExpr VM.Borrowed e) "head" [])
     Core.IsEmptyStream -> def (Rust.callMethod (compileExpr VM.Borrowed e) "is_empty" [])
-    
+    Core.StreamOffset -> def (Rust.cast val (compileType VM.Owned (Core.tWord 64)))
+      where val = Rust.callMethod (compileExpr VM.Borrowed e) "len" []
+    Core.BytesOfStream -> def (Rust.callMethod (compileExpr VM.Borrowed e) "bytes" [])
+
+    -- Arrays
+    Core.ArrayLen ->
+      def (Rust.cast (Rust.callMethod (compileExpr VM.Borrowed e) "len" [])
+                     (compileType VM.Owned (Core.tWord 64)))
+    Core.Concat ->
+      def (Rust.call (Rust.pathExpr (ddlPath "concat")) [compileExpr VM.Borrowed e])
+    Core.FinishBuilder -> def (Rust.callMethod (compileExpr VM.Owned e) "build" [])
+
     Core.CoerceTo ty -> xxx
-    Core.StreamOffset -> xxx
-    Core.BytesOfStream -> xxx
+    
+    
     Core.OneOf bs -> xxx
     Core.Neg -> xxx
     Core.BitNot -> xxx
     Core.Not -> xxx
-    Core.ArrayLen -> xxx
-    Core.Concat -> xxx
-    Core.FinishBuilder -> def (Rust.callMethod (compileExpr VM.Owned e) "build" [])
-
+    
     Core.NewIterator -> xxx
     Core.IteratorDone -> xxx
     Core.IteratorKey -> xxx
@@ -283,7 +292,9 @@ compileOp2 x op e1 e2 =
     Core.RShift -> xxx
  
     -- Arrays
-    Core.ArrayIndex -> xxx
+    Core.ArrayIndex -> def (Rust.callMethod val "clo" [])
+      where val = Rust.index (compileExpr VM.Borrowed e1)
+                             (Rust.cast (compileExpr VM.Borrowed e2) Rust.tUsize)
 
     -- Builders
     Core.Emit ->
@@ -348,7 +359,7 @@ compileExpr how expr =
   where
   mbBorrow own e =
     case (how, own) of
-      (VM.Borrowed, VM.Owned) -> Rust.callMethod e "borrowed" []
+      (VM.Borrowed, VM.Owned) -> Rust.callMethod e "bor" []
       _ -> e
 
 

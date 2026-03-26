@@ -48,5 +48,5 @@ valTPName :: Core.TParam -> Rust.Ident
 valTPName (Core.TP n) = Rust.mkIdent ("T" ++ show n)
 
 contTypeName :: Rust.Ident
-contTypeName = "Cont"
+contTypeName = "Goto"
 

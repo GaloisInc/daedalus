@@ -1,38 +1,34 @@
 mod ddl_box;
 mod number;
 mod input;
+mod array;
 mod builder;
 
 pub use ddl_box::*;
 pub use number::*;
 pub use input::*;
+pub use array::*;
 pub use builder::*;
 
 /// DDL types representing owned things that can be borrowed.
 /// The main reason for this is because in some cases we'd like to represent
 /// borrowed values in a different way than &T;
 pub trait Type : Clone + 'static {
-  type B<'a> : Clonable<O=Self>;
-  fn borrowed(&self) -> Self::B<'_>;
+  type B<'a> : Clo<O=Self>;
+  fn bor(&self) -> Self::B<'_>;
 }
 
 /// Types that represent borrowed things that can be cloned to an owned thing.
-pub trait Clonable {
+pub trait Clo {
   type O;
-  fn cloned(self) -> Self::O;
+  fn clo(self) -> Self::O;
 }
 
 /// References are the usual way to represent borrowed values.
-impl <T:Clone> Clonable for &T {
+impl <T:Clone> Clo for &T {
   type O = T;
-  fn cloned(self) -> Self::O { self.clone() }
+  fn clo(self) -> Self::O { self.clone() }
 }
-
-/// Owned array
-pub type Array<T>       = O<[T]>;
-
-/// Borrowed array
-pub type ArrayB<'a,T>   = B<'a,[T]>;
 
 
 /// Helper for simple types that are `Copy` and passed by value.
@@ -41,11 +37,11 @@ macro_rules! by_value {
   ($ty: ty) => {
     impl $crate::Type for $ty {
       type B<'a> = $ty;
-      fn borrowed(&self) -> $ty { *self }
+      fn bor(&self) -> $ty { *self }
     }
-    impl $crate::Clonable for $ty {
+    impl $crate::Clo for $ty {
       type O = $ty;
-      fn cloned(self) -> $ty { self }
+      fn clo(self) -> $ty { self }
     }
   };
 }
@@ -65,18 +61,16 @@ macro_rules! by_ref {
   ($nm:ident) => {
     impl Type for $nm {
       type B<'a> = &'a Self;
-      fn borrowed(&self) -> &Self { self }
+      fn bor(&self) -> &Self { self }
     }
   };
   ($nm:ident <$($tp: ident),*>) => {
     impl<$($tp: Type),*> Type for $nm<$($tp),*> {
       type B<'a> = &'a Self;
-      fn borrowed(&self) -> &Self { self }
+      fn bor(&self) -> &Self { self }
     }
   };
 }
 
 by_ref!(Option<T>);
-
-
 

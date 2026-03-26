@@ -1,5 +1,5 @@
 use crate as ddl;
-use ddl::Type;
+use ddl::{Clo,Type};
 
 #[derive(Clone)]
 pub struct Input {
@@ -33,10 +33,20 @@ pub fn new_input_str(name: &str, bytes: &str) -> Input {
 
 impl Input {
   /// Get the name of the input
-  pub fn name(&self)        -> ddl::ArrayB<u8> { self.name.borrowed() }
+  pub fn name(&self)        -> ddl::ArrayB<u8> { self.name.bor() }
   
   /// Get the current byte offset in the input.
   pub fn offset(&self)      -> usize { self.offset }
+
+  /// Get the bytes of the input.
+  pub fn bytes(&self) -> ddl::Array<u8> {
+    if self.len() == self.bytes.len() {
+      self.bytes.clo()
+    } else {
+      let x = &self.bytes();
+      ddl::new_array_slice(&x[self.offset .. self.last_offset])
+    }
+  }
 
   /// Get the number of bytes in the input.
   pub fn len(&self)         -> usize { self.last_offset - self.offset }

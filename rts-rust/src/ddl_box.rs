@@ -83,14 +83,14 @@ impl<'a, T: ?Sized> Clone for B<'a,T> {
 
 impl<T: ?Sized + 'static> ddl::Type for O<T> {
   type B<'a> = B<'a,T>;
-  fn borrowed(&self) -> B<T> {
+  fn bor(&self) -> B<T> {
     B { ptr: Rc::as_ptr(&(self.rc)), lifetime: PhantomData }
   }
 }
 
-impl<'a,T: ?Sized> ddl::Clonable for B<'a,T> {
+impl<'a,T: ?Sized> ddl::Clo for B<'a,T> {
   type O = O<T>;
-  fn cloned(self) -> Self::O {
+  fn clo(self) -> Self::O {
     unsafe {
       Rc::increment_strong_count(self.ptr);
       O { rc: Rc::from_raw(self.ptr) }

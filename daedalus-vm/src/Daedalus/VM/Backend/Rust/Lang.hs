@@ -256,6 +256,9 @@ callCon p es =
 callMethod :: Expr () -> Ident -> [Expr ()] -> Expr ()
 callMethod obj meth args = MethodCall [] obj meth Nothing args ()
 
+index :: Expr () -> Expr () -> Expr ()
+index v i = Index [] v i ()
+
 cast :: Expr () -> Ty () -> Expr ()
 cast e t = Cast [] e t ()
 
