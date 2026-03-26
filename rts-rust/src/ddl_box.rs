@@ -1,4 +1,5 @@
 use crate as ddl;
+use std::cmp::Ordering;
 use std::rc::Rc;
 use std::marker::PhantomData;
 
@@ -16,6 +17,15 @@ pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> { O { rc: x.into() } 
 
 /// Create new owned array out of a vector.
 pub fn new_array_vec<T>(x: Vec<T>) -> ddl::Array<T> { O { rc: x.into() } }
+
+/// Convert a DDL array into a vector.
+pub fn array_to_vec<T: Clone>(x: ddl::Array<T>) -> Vec<T> {
+  // XXX: It would be nice if this only cloned things when the ref count > 1,
+  // but Rc does not seem to expose such functionality.
+  let mut res = Vec::with_capacity(x.len());
+  res.extend_from_slice(&x.rc);
+  res
+}
 
 /// Make a unique value, but try to reuse the first argument, if
 /// this is the last reference to it.
@@ -43,6 +53,21 @@ pub fn reuse_array<const N: usize, T>(mut x: O<[T]>, y: [T; N]) -> O<[T]> {
 impl <'a, T: ?Sized> Clone for O<T> {
   fn clone(&self) -> O<T> { O { rc: self.rc.clone() } }
 }
+
+impl <T: ?Sized + PartialEq> PartialEq for O<T> {
+  fn eq(&self, other: &Self) -> bool { self.rc == other.rc }
+}
+
+impl <T: ?Sized + Eq> Eq for O<T> {}
+
+impl <T: ?Sized + PartialOrd> PartialOrd for O<T> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.rc.partial_cmp(&other.rc) }
+}
+
+impl <T: ?Sized + Ord> Ord for O<T> {
+  fn cmp(&self, other: &Self) -> Ordering { self.rc.cmp(&other.rc) }
+}
+
 
 /// A borrowed DDL value.
 pub struct B<'a,T: ?Sized> {

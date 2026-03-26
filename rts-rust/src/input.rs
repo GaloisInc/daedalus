@@ -9,7 +9,8 @@ pub struct Input {
   last_offset:  usize       // Offset of end-of-input (1 past the end)
 }
 
-impl Type for Input { ddl::by_ref!(Input); }
+ddl::by_ref!(Input);
+
 
 pub fn new_input(name: ddl::Array<u8>, bytes: ddl::Array<u8>) -> Input {
   Input {

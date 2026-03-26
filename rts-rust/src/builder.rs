@@ -33,16 +33,20 @@ pub fn new_builder<T>() -> Builder<T> {
   Builder { node: ddl::new(Node { data: vec![], more: None }) }
 }
 
-impl<T> Builder<T> {
+
+impl<T: Clone> Builder<T> {
+
   pub fn push(mut self, x: T) -> Builder<T> {
     match Rc::get_mut(&mut self.node.rc) {
       Some(v) => { v.data.push(x); self },
       None    => Builder { node: ddl::new (Node { data: vec![x], more: Some(self) }) }
     }
   }
-}
 
-impl<T: Clone> Builder<T> {
+  pub fn push_array(self, x: ddl::Array<T>) -> Builder<T> {
+    Builder { node: ddl::new(Node { data: ddl::array_to_vec(x), more: Some(self) }) }
+  }
+
   pub fn build(self) -> ddl::Array<T> {
     
     let mut size = 0;

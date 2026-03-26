@@ -44,6 +44,8 @@ library
     Daedalus.VM.Backend.Haskell
     Daedalus.VM.Backend.Rust
     Daedalus.VM.Backend.Rust.Lang
+    Daedalus.VM.Backend.Rust.Type
+    Daedalus.VM.Backend.Rust.Names
     Daedalus.VM.Semantics
 
   build-depends:

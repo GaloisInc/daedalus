@@ -10,10 +10,10 @@ import Data.ByteString(ByteString)
 import Data.ByteString qualified as BS
 import Data.Text(Text)
 import Data.Text qualified as Text
-import Data.Maybe(maybeToList)
-import Data.Char(isAlpha,toLower,isUpper)
+import Data.Maybe(maybeToList,mapMaybe)
+import Data.Char(isAlpha,toLower,isUpper,toUpper)
 import Numeric(showHex)
-import Data.List(intersperse)
+import Data.List(intersperse,groupBy)
 import Data.List.NonEmpty qualified as NonEmpty
 import Language.Rust.Syntax
 import Language.Rust.Data.Ident
@@ -37,9 +37,12 @@ pathWithTypes ns0 tys = Path False (go ns0) ()
     go ns =
       case ns of
         [] -> panic "pathWithTypes" ["empty names"]
-        [lst] -> [PathSegment lst (Just pathParams) ()]
+        [lst] -> [PathSegment lst pathParams ()]
         n:t -> PathSegment n Nothing () : go t
-    pathParams = AngleBracketed [] tys [] ()
+    pathParams =
+      case tys of
+        [] -> Nothing
+        _  -> Just (AngleBracketed [] tys [] ())
 
 
 --------------------------------------------------------------------------------
@@ -83,7 +86,10 @@ tRef :: Maybe (Lifetime ()) -> Ty () -> Ty ()
 tRef l ty = Rptr l Immutable ty ()
 
 noGenerics :: Generics ()
-noGenerics = mkGenerics [] [] (WhereClause [] ())
+noGenerics = mkGenerics [] [] noWhereClause
+
+noWhereClause :: WhereClause ()
+noWhereClause = WhereClause [] ()
 
 mkGenerics ::
   [LifetimeDef ()] ->
@@ -91,6 +97,9 @@ mkGenerics ::
   WhereClause () ->
   Generics ()
 mkGenerics lts tps wc = Generics lts tps wc ()
+
+tyParam :: Ident -> TyParam ()
+tyParam a = TyParam [] a [] Nothing ()
 
 --------------------------------------------------------------------------------
 -- Patterns
@@ -109,8 +118,11 @@ litPat lit = LitP (litExpr lit) ()
 conPat :: Path () -> [Pat ()] -> Pat ()
 conPat c ps = TupleStructP c ps Nothing ()
 
+tuplePat :: [Pat ()] -> Pat ()
+tuplePat ps = TupleP ps Nothing ()
+
 nonePat :: Pat ()
-nonePat = conPat (simplePath "None") []
+nonePat = PathP Nothing (simplePath "None") ()
 
 somePat :: Pat () -> Pat ()
 somePat p = conPat (simplePath "Some") [p]
@@ -239,6 +251,10 @@ callMethod obj meth args = MethodCall [] obj meth Nothing args ()
 cast :: Expr () -> Ty () -> Expr ()
 cast e t = Cast [] e t ()
 
+bin :: BinOp -> Expr () -> Expr () -> Expr ()
+bin op e1 e2 = Binary [] op e1 e2 ()
+
+
 callMacro :: Path () -> [Expr ()] -> Expr ()
 callMacro m es = callMacro' m args
   where
@@ -256,6 +272,8 @@ treeToken = Tree . Token dummySpan
 
 tokComma :: TokenStream
 tokComma = Tree (Token dummySpan Comma)
+
+
 
 --------------------------------------------------------------------------------
 -- Imports
@@ -290,6 +308,16 @@ disableWarning i = Attribute Inner (simplePath "allow") toks ()
        $ Delimited dummySpan Paren
        $ Tree (Token dummySpan (IdentTok i))
 
+deriveAttribute :: [Ident] -> Attribute ()
+deriveAttribute is = Attribute Inner (simplePath "derive") toks ()
+  where
+  toks = Tree
+       $ Delimited dummySpan Paren
+       $ Stream
+       $ intersperse tokComma [ Tree (Token dummySpan (IdentTok i)) | i <- is ]
+
+
+
 
 mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
@@ -311,12 +339,21 @@ mkFnItem mbDoc allow extraAttrs nm generics params returnTy body =
     mkArg (n, t)    = Arg (Just (identPat n)) t ()
     decl            = FnDecl (mkArg <$> params) (Just returnTy) False ()
 
-mkEnum :: Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
-mkEnum nm gs cons = Enum [] InheritedV nm (map mkCon cons) gs ()
+mkEnum :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
+mkEnum der vis nm gs cons = Enum derA vis nm (map mkCon cons) gs ()
   where
   mkCon (i,ts)  = Variant i [] (TupleD (map anon ts) ()) Nothing ()
   anon t        = StructField Nothing InheritedV t [] ()
+  derA          = if null der then [] else [deriveAttribute der]
 
+mkStruct :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,Ty ())] -> Item ()
+mkStruct der vis nm gs flds = StructItem derA vis nm (StructD fs ()) gs ()
+  where
+  fs = [ StructField (Just x) vis t [] () | (x,t) <- flds ]
+  derA          = if null der then [] else [deriveAttribute der]
+
+mkTySyn :: Visibility () -> Ident -> Generics () -> Ty () -> Item ()
+mkTySyn vis nm gen def = TyAlias [] vis nm def gen ()
 --------------------------------------------------------------------------------
 -- Names
 --------------------------------------------------------------------------------
@@ -341,6 +378,8 @@ snakeCase str = lower False str ""
         | isUpper x -> upper x id precededByAlpha more
         | otherwise -> showChar x . lower (isAlpha x) more
       [] -> id
+
+      
 
   -- Lower an uppercase character to a form suitable for snake_case.
   lowerToSnakeCase :: Char -> ShowS
@@ -397,6 +436,18 @@ snakeCase str = lower False str ""
 
       bufEmpty :: Bool
       bufEmpty = null (buf "")
+
+upperCamelCase :: String -> String
+upperCamelCase = concat . mapMaybe check . groupBy isUnder2
+  where
+  isUnder x = x == '_'
+  isUnder2 x y = isUnder x == isUnder y
+
+  check g =
+    case g of
+      '_' : _ -> Nothing
+      c : cs  -> Just (toUpper c : map toLower cs)
+      [] -> panic "check" ["groupBy returned []"]
 
 
 -- | Name mangling for exotic Unicode characters. For example, the character

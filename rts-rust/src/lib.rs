@@ -62,14 +62,21 @@ by_value!(u64);
 /// are borrowed the usual way (i.e., by reference)
 #[macro_export]
 macro_rules! by_ref {
-  ($ty: ty) => {
-    type B<'a> = &'a $ty;
-    fn borrowed(&self) -> Self::B<'_> { self }
+  ($nm:ident) => {
+    impl Type for $nm {
+      type B<'a> = &'a Self;
+      fn borrowed(&self) -> Self::B<'_> { self }
+    }
+  };
+  ($nm:ident <$($tp: ident),*>) => {
+    impl<$($tp: Type),*> Type for $nm<$($tp),*> {
+      type B<'a> = &'a Self;
+      fn borrowed(&self) -> Self::B<'_> { self }
+    }
   };
 }
 
-impl<T: Type> Type for Option<T> { by_ref!(Option<T>); }
-
+by_ref!(Option<T>);
 
 
 
