@@ -31,7 +31,7 @@ pcName :: Rust.Ident
 pcName = Rust.mkIdent "block_id"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
-compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt ++ show n))
+compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "_" ++ show n)
 
 -- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident

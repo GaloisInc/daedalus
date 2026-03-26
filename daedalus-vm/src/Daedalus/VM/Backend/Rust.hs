@@ -357,7 +357,11 @@ compileCInstr cinstr =
   case cinstr of
     VM.Jump jp -> compileJump jp []
     VM.JumpIf e opts ->
-      [Rust.expr (Rust.matchExpr (compileExpr VM.Borrowed e) (compileJumpChoice opts))]
+      [Rust.expr (Rust.matchExpr (deref (compileExpr VM.Borrowed e)) (compileJumpChoice ty opts))]
+      where
+      ty    = VM.getType e
+      deref = if isRecTy ty then Rust.uni Rust.Deref else id
+      
     VM.Yield             -> bad
     VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
     VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map (compileExpr VM.Owned) [res,inp])])]
@@ -398,7 +402,7 @@ compileJump :: FnCtx => VM.JumpPoint -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJump (VM.JumpPoint l es) extra =
  [ Rust.assign
     (Rust.identExpr pcName)
-    (Rust.call (Rust.pathExpr (Rust.simplePath' [contTypeName, compileBlockLabel l]))
+    (Rust.callCon (Rust.simplePath' [contTypeName, compileBlockLabel l])
                (extra ++ zipWith compileExpr (drop (length extra) sig) es)),
     Rust.continue
   ]
@@ -411,24 +415,43 @@ compileJump (VM.JumpPoint l es) extra =
 compileJumpWithFree :: FnCtx => VM.JumpWithFree -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJumpWithFree = compileJump . VM.jumpTarget -- Rust will do the freeing
 
-compileJumpChoice :: FnCtx => VM.JumpChoice Core.Pattern -> [Rust.Arm ()]
-compileJumpChoice (VM.JumpCase opts) =
-  [ Rust.matchArm (compilePat p) (Rust.blockExpr (compileJumpWithFree k []))
+compileJumpChoice :: FnCtx => VM.VMT -> VM.JumpChoice Core.Pattern -> [Rust.Arm ()]
+compileJumpChoice ty (VM.JumpCase opts) =
+  [ Rust.matchArm (compilePat ty p) (Rust.blockExpr (compileJumpWithFree k []))
+    -- XXX: for big integers we should use a decision tree instead of `match`
   | (p,k) <- Map.toList opts
   ]
 
+isRecTy :: VM.VMT -> Bool
+isRecTy ty =
+  case ty of
+    VM.TSem (Core.TUser ut) -> Core.tnameRec (Core.utName ut)
+    _ -> False
 
-compilePat :: Core.Pattern -> Rust.Pat ()
-compilePat p =
+
+compilePat :: VM.VMT -> Core.Pattern -> Rust.Pat ()
+compilePat ty p =
   case p of
     Core.PBool b    -> Rust.litPat (Rust.boolLit b)
     Core.PNothing   -> Rust.nonePat
     Core.PJust      -> Rust.somePat Rust.wildPat
     Core.PNum n     -> Rust.litPat (Rust.intLit n)
-    Core.PBytes bs  -> xxx
-    Core.PCon uc    -> xxx
-    Core.PAny       -> Rust.wildPat
-  where
-  xxx = unsupported (pp p)
+    Core.PBytes {}  -> panic "compilePat" ["Unexpecte PBytes"]
+    Core.PCon uc    ->
+      case ty of
+        VM.TSem (Core.TUser ut) -> Rust.conPat nm [Rust.wildPat | hasData ]
+          where
+          nm    = Rust.simplePath' [qual, compileConLabel uc]
+          unm   = Core.utName ut
+          qual  = compileTName (isRecTy ty) unm
+          hasData =
+            case Core.tnameFlav unm of
+              Core.TFlavEnum {} -> False
+              Core.TFlavUnion ls -> lookup uc ls == Just Core.HasData
+              Core.TFlavStruct {} -> panic "compilePat" ["struct"]
 
+
+        _  -> panic "compilePat" ["Con pat for not TUser"]
+
+    Core.PAny       -> Rust.wildPat
 

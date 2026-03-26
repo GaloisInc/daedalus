@@ -43,8 +43,11 @@ data TName = TName
 -- | What "flavor of type" we have
 data TFlav = TFlavStruct [Label]     -- ^ A struct with fields in this order
            | TFlavEnum  [Label]      -- ^ A sum type with no data
-           | TFlavUnion [Label]      -- ^ A sum type with data
+           | TFlavUnion [(Label,HasData)] -- ^ A sum type with data
            deriving (Generic, NFData)
+
+data HasData = HasData | NoData -- ^ Unit constructor
+  deriving (Generic,NFData,Eq)
 
 -- | Names of top-level functions
 data FName = FName

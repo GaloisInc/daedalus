@@ -116,13 +116,15 @@ litPat :: Lit () -> Pat ()
 litPat lit = LitP (litExpr lit) ()
 
 conPat :: Path () -> [Pat ()] -> Pat ()
-conPat c ps = TupleStructP c ps Nothing ()
+conPat c ps
+  | null ps   = PathP Nothing c ()
+  | otherwise = TupleStructP c ps Nothing ()
 
 tuplePat :: [Pat ()] -> Pat ()
 tuplePat ps = TupleP ps Nothing ()
 
 nonePat :: Pat ()
-nonePat = PathP Nothing (simplePath "None") ()
+nonePat = conPat (simplePath "None") []
 
 somePat :: Pat () -> Pat ()
 somePat p = conPat (simplePath "Some") [p]
@@ -245,11 +247,20 @@ matchArm pat body =
 call :: Expr () -> [Expr ()] -> Expr ()
 call fn args = Call [] fn args ()
 
+callCon :: Path () -> [Expr ()] -> Expr ()
+callCon p es =
+  case es of
+    [] -> pathExpr p
+    _  -> call (pathExpr p) es
+
 callMethod :: Expr () -> Ident -> [Expr ()] -> Expr ()
 callMethod obj meth args = MethodCall [] obj meth Nothing args ()
 
 cast :: Expr () -> Ty () -> Expr ()
 cast e t = Cast [] e t ()
+
+uni :: UnOp -> Expr () -> Expr ()
+uni op e = Unary [] op e ()
 
 bin :: BinOp -> Expr () -> Expr () -> Expr ()
 bin op e1 e2 = Binary [] op e1 e2 ()
@@ -261,11 +272,18 @@ callMacro m es = callMacro' m args
   args = Stream (intersperse tokComma (map exprToken es))
 
 callMacro' :: Path () -> TokenStream -> Expr ()
-callMacro' m args = MacExpr [] (Mac m args ()) ()
+callMacro' m args = MacExpr [] (mac m args) ()
+
+mac :: Path () -> TokenStream -> Mac ()
+mac m args = Mac m args ()
 
 exprToken :: Expr () -> TokenStream
 exprToken = treeToken . Interpolated
           . NtExpr . fmap (const dummySpan)
+
+tyToken :: Ty () -> TokenStream
+tyToken = treeToken . Interpolated
+          . NtTy . fmap (const dummySpan)
 
 treeToken :: Token -> TokenStream
 treeToken = Tree . Token dummySpan
@@ -316,8 +334,8 @@ deriveAttribute is = Attribute Inner (simplePath "derive") toks ()
        $ Stream
        $ intersperse tokComma [ Tree (Token dummySpan (IdentTok i)) | i <- is ]
 
-
-
+macDecl :: Mac () -> Item ()
+macDecl m = MacItem [] Nothing m ()
 
 mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
@@ -342,7 +360,7 @@ mkFnItem mbDoc allow extraAttrs nm generics params returnTy body =
 mkEnum :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
 mkEnum der vis nm gs cons = Enum derA vis nm (map mkCon cons) gs ()
   where
-  mkCon (i,ts)  = Variant i [] (TupleD (map anon ts) ()) Nothing ()
+  mkCon (i,ts)  = Variant i [] (if null ts then UnitD () else TupleD (map anon ts) ()) Nothing ()
   anon t        = StructField Nothing InheritedV t [] ()
   derA          = if null der then [] else [deriveAttribute der]
 

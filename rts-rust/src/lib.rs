@@ -41,11 +41,11 @@ macro_rules! by_value {
   ($ty: ty) => {
     impl $crate::Type for $ty {
       type B<'a> = $ty;
-      fn borrowed(&self) -> Self::B<'_> { *self }
+      fn borrowed(&self) -> $ty { *self }
     }
     impl $crate::Clonable for $ty {
       type O = $ty;
-      fn cloned(self) -> Self::O { self }
+      fn cloned(self) -> $ty { self }
     }
   };
 }
@@ -65,13 +65,13 @@ macro_rules! by_ref {
   ($nm:ident) => {
     impl Type for $nm {
       type B<'a> = &'a Self;
-      fn borrowed(&self) -> Self::B<'_> { self }
+      fn borrowed(&self) -> &Self { self }
     }
   };
   ($nm:ident <$($tp: ident),*>) => {
     impl<$($tp: Type),*> Type for $nm<$($tp),*> {
       type B<'a> = &'a Self;
-      fn borrowed(&self) -> Self::B<'_> { self }
+      fn borrowed(&self) -> &Self { self }
     }
   };
 }
