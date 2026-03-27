@@ -223,8 +223,6 @@ compileOp1 x op e =
 
     Core.CoerceTo ty -> xxx
     
-    
-    Core.OneOf bs -> xxx
     Core.Neg -> xxx
     Core.BitNot -> xxx
     Core.Not -> xxx

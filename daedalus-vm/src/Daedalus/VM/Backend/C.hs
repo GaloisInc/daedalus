@@ -854,18 +854,6 @@ cOp1 x op1 ~[e'] =
     Src.BytesOfStream ->
       cVarDecl x $ cCallMethod e "getByteArray" []
 
-    Src.OneOf bs ->
-      let v     = cVarUse x
-          true  = cAssign v (cCall "DDL::Bool" [ "true" ]) $$ cBreak
-          false = cAssign v (cCall "DDL::Bool" [ "false" ])
-      in
-      vcat
-        [ cDeclareVar (cType (getType x)) v
-        , cSwitch (cCallMethod e "rep" [])
-            $ [ cCase (int (fromEnum b)) true | b <- BS.unpack bs ]
-           ++ [ cDefault false ]
-        ]
-
     Src.Neg ->
       cVarDecl x $ "-" <> e
 
