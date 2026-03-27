@@ -162,17 +162,19 @@ compileBlockInstr instr =
   notYet  = unsupported (?fnMsg <+> "instruction:" <+> pp instr)
 
 
+callRTS :: Rust.Ident -> [Rust.Expr ()] -> Rust.Expr ()
+callRTS f = Rust.call (Rust.pathExpr (ddlPath f))
 
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
   case prim of
     VM.ByteArray bs ->
-      def ty (Rust.call (Rust.pathExpr (ddlPath "new_array_slice")) [Rust.litExpr (Rust.bytesLit bs)])
+      def ty (callRTS "new_array_slice" [Rust.litExpr (Rust.bytesLit bs)])
         where ty = if BS.null bs then Just (compileType VM.Owned (Core.TArray Core.TByte)) else Nothing
 
     VM.NewBuilder ty -> 
-      def (Just (compileType VM.Owned (Core.TBuilder ty))) (Rust.call (Rust.pathExpr (ddlPath "new_builder")) [])
+      def (Just (compileType VM.Owned (Core.TBuilder ty))) (callRTS "new_builder" [])
 
     VM.Integer i -> xxx
 
@@ -186,9 +188,9 @@ compilePrim x prim es =
       where nm = Core.utName ut
     
     VM.Op1 op ->
-      case compiled of
-        [e1] -> compileOp1 x op e1
-        _    -> bad 1
+      case (compiled,es) of
+        ([e1],[e]) -> compileOp1 x op e1 (VM.getType e)
+        _          -> bad 1
 
     VM.Op2 op ->
       case compiled of
@@ -212,8 +214,8 @@ compilePrim x prim es =
       (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
-compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> Rust.Expr () -> [Rust.Stmt ()]
-compileOp1 x op e =
+compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> Rust.Expr () -> VM.VMT -> [Rust.Stmt ()]
+compileOp1 x op e argTy =
   case op of
     -- Streams
     Core.Head -> def (Rust.callMethod e "head" [])
@@ -226,8 +228,7 @@ compileOp1 x op e =
     Core.ArrayLen ->
       def (Rust.cast (Rust.callMethod e "len" [])
                      (compileType VM.Owned (Core.tWord 64)))
-    Core.Concat ->
-      def (Rust.call (Rust.pathExpr (ddlPath "concat")) [e])
+    Core.Concat -> def (Rust.callMethod e "concat" [])
     Core.FinishBuilder -> def (Rust.callMethod e "build" [])
 
     Core.CoerceTo ty -> xxx
@@ -236,11 +237,16 @@ compileOp1 x op e =
     Core.BitNot -> def (Rust.uni Rust.Not e)
     Core.Not    -> def (Rust.uni Rust.Not e)
     
-    Core.NewIterator -> xxx
-    Core.IteratorDone -> xxx
-    Core.IteratorKey -> xxx
-    Core.IteratorVal -> xxx
-    Core.IteratorNext -> xxx
+    Core.NewIterator ->
+      case argTy of
+        VM.TSem (Core.TArray {}) -> def (callRTS "new_array_iterator" [e])
+        VM.TSem (Core.TMap {}) -> xxx
+        _ -> panic "compileOp1" ["NewIterator: unexpected argument type"]
+
+    Core.IteratorDone -> def (Rust.callMethod e "ddl_done" [])
+    Core.IteratorKey -> def (fromSize (Rust.callMethod e "ddl_key" []))
+    Core.IteratorVal -> def (Rust.callMethod e "ddl_val" [])
+    Core.IteratorNext -> def (Rust.callMethod e "ddl_next" [])
 
     Core.EJust -> def (Rust.call (Rust.identExpr "Some") [e])
     Core.FromJust -> def (Rust.callMethod e "unwrap" [])
@@ -253,12 +259,14 @@ compileOp1 x op e =
     Core.InUnion ut lab -> xxx
     Core.FromUnion ty lab -> xxx
 
-    Core.WordToFloat -> xxx
-    Core.WordToDouble -> xxx
-    Core.IsNaN -> xxx
-    Core.IsInfinite -> xxx
-    Core.IsDenormalized -> xxx
-    Core.IsNegativeZero -> xxx
+    Core.WordToFloat -> def (Rust.cast e (Rust.tF 32))
+    Core.WordToDouble -> def (Rust.cast e (Rust.tF 64))
+    Core.IsNaN -> def (Rust.callMethod e "is_nan" [])
+    Core.IsInfinite -> def (Rust.callMethod e "is_infinite" [])
+    Core.IsDenormalized -> def (Rust.callMethod e "is_subnormal" [])
+    Core.IsNegativeZero -> def (Rust.bin Rust.AndOp
+                                  (Rust.callMethod e "is_sign_negative" [])
+                                  (Rust.bin Rust.EqOp e (Rust.litExpr (Rust.floatLit 0))))
     
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
@@ -274,7 +282,7 @@ compileOp2 x op e1 e2 =
   case op of
     -- Streams
     Core.Drop ->
-      def (Rust.callMethod e2 "advance" [ compileSize e1 ])
+      def (Rust.callMethod e2 "advance" [ toSize e1 ])
 
     Core.ArrayStream -> xxx
     Core.IsPrefix -> xxx
@@ -348,13 +356,16 @@ compileOpN x op es =
   case op of
     Core.ArrayL t ->
       def (if null es then Just (compileType VM.Owned t) else Nothing)
-          (Rust.call (Rust.pathExpr (ddlPath "new_array")) [Rust.arrExpr es])
+          (callRTS "new_array" [Rust.arrExpr es])
     Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
   where
   def mbT e = [Rust.localLet [] (compileBVName x) mbT e]
 
-compileSize :: FnCtx => Rust.Expr () -> Rust.Expr ()
-compileSize e = Rust.cast e Rust.tUsize
+toSize :: Rust.Expr () -> Rust.Expr ()
+toSize e = Rust.cast e Rust.tUsize
+
+fromSize :: Rust.Expr () -> Rust.Expr ()
+fromSize e = Rust.cast e (Rust.tU 64)
 
 compileExpr :: FnCtx => VM.Ownership -> VM.E -> Rust.Expr ()
 compileExpr how expr =

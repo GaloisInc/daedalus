@@ -3,6 +3,7 @@ module Daedalus.VM.Backend.Rust.Type where
 
 import Control.Exception
 
+import Daedalus.Panic(panic)
 import Daedalus.PP
 import Daedalus.Rec
 import Daedalus.Core qualified as Core
@@ -106,7 +107,11 @@ compileType own ty =
 
     Core.TMaybe t           -> maybeRef (Rust.tOption (compileType VM.Owned t))
     Core.TMap tk kv         -> xxx
-    Core.TIterator t        -> xxx
+    Core.TIterator t        -> 
+      case t of
+        Core.TArray el -> maybeB "ArrayIterator" "ArrayIteratorB" el
+        Core.TMap k v -> xxx
+        _ -> panic "compileType" ["Unexpected iterator type"]
     Core.TUser t
       | not (null (Core.utNumArgs t)) -> unsupported (?fnMsg <> "numeric type arguments")
       | otherwise           -> Rust.pathType (Rust.pathWithTypes [nm] args)
@@ -116,7 +121,7 @@ compileType own ty =
 
     Core.TParam bp          -> Rust.pathType (Rust.simplePath (valTPName bp))
   where
-  xxx = error ("XXX: " ++ show (pp ty))
+  xxx = unsupported ("XXX:" <+> pp ty)
   maybeRef rt =
     case own of
       VM.Borrowed -> Rust.tRef Nothing rt
