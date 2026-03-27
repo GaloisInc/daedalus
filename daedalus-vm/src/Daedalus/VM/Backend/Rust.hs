@@ -15,6 +15,7 @@ import Daedalus.Core qualified as Core
 import Daedalus.VM qualified as VM
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
+import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
 
 newtype Config = Config {
@@ -178,23 +179,24 @@ compilePrim x prim es =
     VM.StructCon ut -> xxx
     
     VM.Op1 op ->
-      case es of
+      case compiled of
         [e1] -> compileOp1 x op e1
         _    -> bad 1
 
     VM.Op2 op ->
-      case es of
+      case compiled of
         [e1,e2] -> compileOp2 x op e1 e2
         _       -> bad 2
 
     VM.Op3 op ->
-      case es of
+      case compiled of
         [e1,e2,e3] -> compileOp3 x op e1 e2 e3
         _          -> bad 3
 
-    VM.OpN op -> compileOpN x op es
+    VM.OpN op -> compileOpN x op compiled
   
   where
+  compiled = zipWith compileExpr (modePrimName prim) es
   bad n = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
   def mb re = [Rust.localLet [] (compileBVName x) mb re]
   tmp = show (pp prim <> parens (commaSep (map pp es)))
@@ -203,23 +205,23 @@ compilePrim x prim es =
       (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
-compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> VM.E -> [Rust.Stmt ()]
+compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> Rust.Expr () -> [Rust.Stmt ()]
 compileOp1 x op e =
   case op of
     -- Streams
-    Core.Head -> def (Rust.callMethod (compileExpr VM.Borrowed e) "head" [])
-    Core.IsEmptyStream -> def (Rust.callMethod (compileExpr VM.Borrowed e) "is_empty" [])
+    Core.Head -> def (Rust.callMethod e "head" [])
+    Core.IsEmptyStream -> def (Rust.callMethod e "is_empty" [])
     Core.StreamOffset -> def (Rust.cast val (compileType VM.Owned (Core.tWord 64)))
-      where val = Rust.callMethod (compileExpr VM.Borrowed e) "len" []
-    Core.BytesOfStream -> def (Rust.callMethod (compileExpr VM.Borrowed e) "bytes" [])
+      where val = Rust.callMethod e "len" []
+    Core.BytesOfStream -> def (Rust.callMethod e "bytes" [])
 
     -- Arrays
     Core.ArrayLen ->
-      def (Rust.cast (Rust.callMethod (compileExpr VM.Borrowed e) "len" [])
+      def (Rust.cast (Rust.callMethod e "len" [])
                      (compileType VM.Owned (Core.tWord 64)))
     Core.Concat ->
-      def (Rust.call (Rust.pathExpr (ddlPath "concat")) [compileExpr VM.Borrowed e])
-    Core.FinishBuilder -> def (Rust.callMethod (compileExpr VM.Owned e) "build" [])
+      def (Rust.call (Rust.pathExpr (ddlPath "concat")) [e])
+    Core.FinishBuilder -> def (Rust.callMethod e "build" [])
 
     Core.CoerceTo ty -> xxx
     
@@ -248,19 +250,19 @@ compileOp1 x op e =
     
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
-  tmp = show (pp op <> parens (commaSep [pp e]))
+  tmp = show (pp op <> parens (commaSep [text (show (Rust.pretty' e))]))
   xxx =
     [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
       (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
 
-compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> VM.E -> VM.E -> [Rust.Stmt ()]
+compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> Rust.Expr () -> Rust.Expr () -> [Rust.Stmt ()]
 compileOp2 x op e1 e2 =
   case op of
     -- Streams
     Core.Drop ->
-      def (Rust.callMethod (compileExpr VM.Owned e2) "advance" [ compileSize e1 ])
+      def (Rust.callMethod e2 "advance" [ compileSize e1 ])
 
     Core.ArrayStream -> xxx
     Core.IsPrefix -> xxx
@@ -268,22 +270,22 @@ compileOp2 x op e1 e2 =
     Core.Take -> xxx
  
     -- Comparisons
-    Core.Eq     -> bin Rust.EqOp VM.Borrowed VM.Borrowed
-    Core.NotEq  -> bin Rust.NeOp VM.Borrowed VM.Borrowed
-    Core.Leq    -> bin Rust.LeOp VM.Borrowed VM.Borrowed
-    Core.Lt     -> bin Rust.LtOp VM.Borrowed VM.Borrowed
+    Core.Eq     -> bin Rust.EqOp
+    Core.NotEq  -> bin Rust.NeOp
+    Core.Leq    -> bin Rust.LeOp
+    Core.Lt     -> bin Rust.LtOp
  
     -- Arithmetic
-    Core.Add    -> bin Rust.AddOp VM.Owned VM.Owned
-    Core.Sub    -> bin Rust.SubOp VM.Owned VM.Owned
-    Core.Mul    -> bin Rust.MulOp VM.Owned VM.Owned
-    Core.Div    -> bin Rust.DivOp VM.Owned VM.Owned
-    Core.Mod    -> bin Rust.RemOp VM.Owned VM.Owned  -- XXX: rem/mod?
+    Core.Add    -> bin Rust.AddOp
+    Core.Sub    -> bin Rust.SubOp
+    Core.Mul    -> bin Rust.MulOp
+    Core.Div    -> bin Rust.DivOp
+    Core.Mod    -> bin Rust.RemOp  -- XXX: rem/mod?
  
     -- Bits
-    Core.BitAnd -> bin Rust.BitAndOp VM.Owned VM.Owned
-    Core.BitOr  -> bin Rust.BitOrOp  VM.Owned VM.Owned
-    Core.BitXor -> bin Rust.BitXorOp VM.Owned VM.Owned
+    Core.BitAnd -> bin Rust.BitAndOp
+    Core.BitOr  -> bin Rust.BitOrOp 
+    Core.BitXor -> bin Rust.BitXorOp
     Core.Cat    -> xxx
     Core.LCat   -> xxx
     Core.LShift -> xxx
@@ -291,14 +293,11 @@ compileOp2 x op e1 e2 =
  
     -- Arrays
     Core.ArrayIndex -> def (Rust.callMethod val "clo" [])
-      where val = Rust.index (compileExpr VM.Borrowed e1)
-                             (Rust.cast (compileExpr VM.Borrowed e2) Rust.tUsize)
+      where val = Rust.index e1 (Rust.cast e2 Rust.tUsize)
 
     -- Builders
-    Core.Emit ->
-      def (Rust.callMethod (compileExpr VM.Owned e1) "push" [ compileExpr VM.Owned e2 ])
-    Core.EmitArray ->
-      def (Rust.callMethod (compileExpr VM.Owned e1) "push_array" [ compileExpr VM.Owned e2 ])
+    Core.Emit -> def (Rust.callMethod e1 "push" [ e2 ])
+    Core.EmitArray -> def (Rust.callMethod e1 "push_array" [ e2 ])
     Core.EmitBuilder -> unsupported ("emit builder is not yet supported")
     
     -- Maps
@@ -307,15 +306,17 @@ compileOp2 x op e1 e2 =
  
   where
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  bin rop m1 m2 = def (Rust.bin rop (compileExpr m1 e1) (compileExpr m2 e2))
-  tmp = show (pp op <> parens (commaSep [pp e1, pp e2]))
+  bin rop = def (Rust.bin rop e1 e2)
+  ppR e = text (show (Rust.pretty' e))
+  tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2]))
   xxx =
     [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
       (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
 
-compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> VM.E -> VM.E -> VM.E -> [Rust.Stmt ()]
+
+compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> Rust.Expr () -> Rust.Expr () -> Rust.Expr () -> [Rust.Stmt ()]
 compileOp3 x op e1 e2 e3 =
   case op of
     Core.RangeUp -> xxx
@@ -323,25 +324,25 @@ compileOp3 x op e1 e2 e3 =
     Core.MapInsert -> xxx
   where
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  tmp = show (pp op <> parens (commaSep [pp e1, pp e2, pp e3]))
+  ppR e = text (show (Rust.pretty' e))
+  tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2, ppR e3]))
   xxx =
     [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
       (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
     ]
 
-compileOpN :: FnCtx => VM.BV -> Core.OpN -> [VM.E] -> [Rust.Stmt ()]
+compileOpN :: FnCtx => VM.BV -> Core.OpN -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileOpN x op es =
   case op of
     Core.ArrayL t ->
       def (if null es then Just (compileType VM.Owned t) else Nothing)
-          (Rust.call (Rust.pathExpr (ddlPath "new_array"))
-              [Rust.arrExpr (map (compileExpr VM.Owned) es)]) 
+          (Rust.call (Rust.pathExpr (ddlPath "new_array")) [Rust.arrExpr es])
     Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
   where
   def mbT e = [Rust.localLet [] (compileBVName x) mbT e]
 
-compileSize :: FnCtx => VM.E -> Rust.Expr ()
-compileSize e = Rust.cast (compileExpr VM.Owned e) Rust.tUsize
+compileSize :: FnCtx => Rust.Expr () -> Rust.Expr ()
+compileSize e = Rust.cast e Rust.tUsize
 
 compileExpr :: FnCtx => VM.Ownership -> VM.E -> Rust.Expr ()
 compileExpr how expr =
