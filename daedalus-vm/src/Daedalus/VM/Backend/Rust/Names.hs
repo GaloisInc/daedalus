@@ -15,9 +15,11 @@ ddlModName = "ddl"
 ddlPath :: Rust.Ident -> Rust.Path ()
 ddlPath f = Rust.simplePath' [ddlModName,f]
 
+-- XXX: collisions
 compileFName :: Core.FName -> Rust.Ident
-compileFName f = Rust.mkIdent (txt ++ "_" ++ uid)
+compileFName f = Rust.mkIdent (txt ++ suff)
   where
+  suff = if Core.fnamePublic f then "" else "_" ++ uid
   uid = guidString (Core.fnameId f)
   txt = Rust.snakeCase (Text.unpack (Core.fnameText f))
 

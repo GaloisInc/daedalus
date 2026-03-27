@@ -76,8 +76,9 @@ compileFun fu =
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
     VM.Unknown   -> panic "compileFun" [ show (pp fnm), "`Unknwon` capture" ]
     VM.NoCapture ->
-      Rust.mkFnItem Nothing [] [] nm Rust.noGenerics args resT def
+      Rust.mkFnItem Nothing [] [] vis nm Rust.noGenerics args resT def
   where
+  vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
   fnMsg           = backticks (pp fnm)
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
@@ -231,7 +232,9 @@ compileOp1 x op e argTy =
     Core.Concat -> def (Rust.callMethod e "concat" [])
     Core.FinishBuilder -> def (Rust.callMethod e "build" [])
 
-    Core.CoerceTo ty -> xxx
+    -- XXX: `as` won't work for non-standard sizes
+    Core.CoerceTo ty ->
+      def (Rust.cast e (compileType VM.Owned ty))
     
     Core.Neg    -> def (Rust.uni Rust.Neg e)
     Core.BitNot -> def (Rust.uni Rust.Not e)

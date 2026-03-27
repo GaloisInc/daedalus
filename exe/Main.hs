@@ -362,6 +362,12 @@ generateRust opts mm =
         createDirectoryIfMissing True src
         writeFile (src </> "lib.rs") rust
 
+        -- XXX: Temporary driver for testing
+        writeFile (src </> "main.rs") $ unlines
+          [ "use daedalus_rts_rust as ddl;"
+          , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
+          ]
+
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
   do let makeExe = null (optEntries opts) && isNothing (optUserState opts) &&

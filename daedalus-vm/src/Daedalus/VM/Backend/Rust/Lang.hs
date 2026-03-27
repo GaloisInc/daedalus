@@ -351,16 +351,16 @@ mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
   [Ident]           {- ^ Disable these warnings -} ->
   [Attribute ()]    {- ^ Extra attributes -} ->
+  Visibility ()     {- ^ Is this visible -} ->
   Ident             {- ^ Name -} ->
   Generics () -> [(Ident, Ty ())] -> Ty () ->
   Block () ->  Item ()
-mkFnItem mbDoc allow extraAttrs nm generics params returnTy body =
+mkFnItem mbDoc allow extraAttrs vis nm generics params returnTy body =
   Fn attrs vis nm decl unsafety constness abi generics body ()
   where
     attrs           = docAttrs ++ noWarnAttrs ++ extraAttrs
     noWarnAttrs     = map disableWarning allow
     docAttrs        = maybeToList (docAttribute <$> mbDoc)
-    vis             = PublicV
     unsafety        = Normal
     constness       = NotConst
     abi             = Rust

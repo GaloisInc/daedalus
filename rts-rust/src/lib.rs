@@ -1,9 +1,11 @@
+mod test;
 mod ddl_box;
 mod number;
 mod input;
 mod array;
 mod builder;
 
+pub use test::*;
 pub use ddl_box::*;
 pub use number::*;
 pub use input::*;
