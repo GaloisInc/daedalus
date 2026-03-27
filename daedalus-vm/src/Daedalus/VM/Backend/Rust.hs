@@ -176,7 +176,14 @@ compilePrim x prim es =
 
     VM.Integer i -> xxx
 
-    VM.StructCon ut -> xxx
+    VM.StructCon ut ->
+      case Core.tnameFlav nm of
+        Core.TFlavStruct ls ->
+          def Nothing (Rust.struct (Rust.simplePath (compileTName False nm))
+              [ (compileFieldLabel l, e) | (l,e) <- zip ls compiled ])
+        _ -> panic "compilePrim" ["StructCon bad flavor"]
+      
+      where nm = Core.utName ut
     
     VM.Op1 op ->
       case compiled of
@@ -225,9 +232,9 @@ compileOp1 x op e =
 
     Core.CoerceTo ty -> xxx
     
-    Core.Neg -> xxx
-    Core.BitNot -> xxx
-    Core.Not -> xxx
+    Core.Neg    -> def (Rust.uni Rust.Neg e)
+    Core.BitNot -> def (Rust.uni Rust.Not e)
+    Core.Not    -> def (Rust.uni Rust.Not e)
     
     Core.NewIterator -> xxx
     Core.IteratorDone -> xxx
@@ -235,9 +242,14 @@ compileOp1 x op e =
     Core.IteratorVal -> xxx
     Core.IteratorNext -> xxx
 
-    Core.EJust -> xxx
-    Core.FromJust -> xxx
-    Core.SelStruct ty lab -> xxx
+    Core.EJust -> def (Rust.call (Rust.identExpr "Some") [e])
+    Core.FromJust -> def (Rust.callMethod e "unwrap" [])
+
+    -- XXX: bitdata
+    Core.SelStruct ty lab -> def
+      (Rust.callMethod
+        (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
+
     Core.InUnion ut lab -> xxx
     Core.FromUnion ty lab -> xxx
 

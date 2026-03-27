@@ -256,6 +256,13 @@ callCon p es =
 callMethod :: Expr () -> Ident -> [Expr ()] -> Expr ()
 callMethod obj meth args = MethodCall [] obj meth Nothing args ()
 
+fieldAccess :: Expr () -> Ident -> Expr ()
+fieldAccess e l = FieldAccess [] e l ()
+
+struct :: Path () -> [(Ident,Expr ())] -> Expr ()
+struct c fs = Struct [] c (map toField fs) Nothing ()
+  where toField (l,e) = Field l (Just e) ()
+
 index :: Expr () -> Expr () -> Expr ()
 index v i = Index [] v i ()
 
