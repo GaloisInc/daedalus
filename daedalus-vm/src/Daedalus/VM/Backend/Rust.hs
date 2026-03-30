@@ -255,13 +255,58 @@ compileOp1 x op e argTy =
     Core.FromJust -> def (Rust.callMethod e "unwrap" [])
 
     -- XXX: bitdata
-    Core.SelStruct ty lab -> def
-      (Rust.callMethod
-        (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
+    Core.SelStruct ty lab ->
+      def
+        (Rust.callMethod
+          (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
 
-    Core.InUnion ut lab -> xxx
-    Core.FromUnion ty lab -> xxx
-
+    Core.InUnion ut lab ->
+      def (mkBox (
+        case Core.tnameFlav nm of
+          Core.TFlavEnum {} -> noArg
+          Core.TFlavUnion ls ->
+            case lookup lab ls of
+              Nothing -> panic "compileOp1" ["Missing lable InUnion", show (pp lab)]
+              Just Core.HasData -> withArg
+              Just Core.NoData  -> noArg
+          Core.TFlavStruct {} -> panic "compileOp1" ["InUinion on struct"]
+      ))
+      where
+      (hasPref,mkBox)
+        | Core.tnameRec nm = (True,\val -> callRTS "new" [val])
+        | otherwise = (False,id)
+      nm = Core.utName ut
+      noArg = Rust.pathExpr (Rust.simplePath' [compileTName hasPref nm,compileConLabel lab])
+      withArg = Rust.call noArg [e]
+      
+    Core.FromUnion _ty lab -> def (Rust.matchExpr e [ arm1, arm2 ])
+      where
+      arm2 =
+        Rust.matchArm Rust.wildPat
+          (Rust.callMacro (Rust.simplePath "assert")
+            (map Rust.litExpr [ Rust.boolLit False,
+                                Rust.strLit ("Not " ++ show (pp lab))]))
+      unm =
+        case argTy of
+          VM.TSem (Core.TUser ut) -> Core.utName ut
+          _ -> bad "not a sematnic type"
+      isRec = Core.tnameRec unm
+      con   = Rust.simplePath' [compileTName isRec unm, compileConLabel lab]
+      noArg = Rust.matchArm (Rust.conPat con []) (Rust.tupleExpr [])
+      arm1  =
+        case Core.tnameFlav unm of
+          Core.TFlavEnum {} -> noArg
+          Core.TFlavUnion ls ->
+            case lookup lab ls of
+              Nothing -> bad "Missing label"
+              Just Core.HasData ->
+                Rust.matchArm (Rust.conPat con [Rust.identPat "a"]) (Rust.identExpr "a")
+              Just Core.NoData -> noArg
+          Core.TFlavStruct {} -> bad "struct"
+        
+      bad msg = panic "compileOp1" ["FromUnion",msg]
+                  
+       
     Core.WordToFloat -> def (Rust.cast e (Rust.tF 32))
     Core.WordToDouble -> def (Rust.cast e (Rust.tF 64))
     Core.IsNaN -> def (Rust.callMethod e "is_nan" [])
