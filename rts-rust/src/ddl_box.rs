@@ -27,29 +27,6 @@ pub fn array_to_vec<T: Clone>(x: ddl::Array<T>) -> Vec<T> {
   res
 }
 
-/// Make a unique value, but try to reuse the first argument, if
-/// this is the last reference to it.
-pub fn reuse<T>(mut x: O<T>, y: T) -> O<T> {
-  match Rc::get_mut(&mut x.rc) {
-    Some(yes) => { *yes = y; x }
-    None      => new(y)
-  }
-}
-
-/// Make a unique value, but try to reuse the first argument if possible.
-/// Note that we can only reuse the array if the new one happens to be of
-/// the same size.
-pub fn reuse_array<const N: usize, T>(mut x: O<[T]>, y: [T; N]) -> O<[T]> {
-  match Rc::get_mut(&mut x.rc) {
-    Some(yes) => {
-      match <&mut [T;N] as TryFrom<&mut [T]>>::try_from(yes) {
-        Ok(arr) => { *arr = y; x },
-        Err(_)  => new_array(y)
-    }}
-    _ => new_array(y)
-  }
-}
-
 impl <'a, T: ?Sized> Clone for O<T> {
   fn clone(&self) -> O<T> { O { rc: self.rc.clone() } }
 }

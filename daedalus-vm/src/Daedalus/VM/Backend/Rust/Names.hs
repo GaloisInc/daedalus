@@ -49,6 +49,9 @@ compileConLabel l = Rust.mkIdent (Rust.upperCamelCase (Text.unpack l))
 valTPName :: Core.TParam -> Rust.Ident
 valTPName (Core.TP n) = Rust.mkIdent ("T" ++ show n)
 
+numTPName :: Core.TParam -> Rust.Ident
+numTPName (Core.TP n) = Rust.mkIdent ("N" ++ show n)
+
 contTypeName :: Rust.Ident
 contTypeName = "Goto"
 

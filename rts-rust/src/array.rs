@@ -17,12 +17,14 @@ impl<'a,T: ddl::Type> ArrayB<'a,Array<T>> {
   }
 }
 
+/// A helper type for iterating over array (owned from)
 #[derive(Clone)]
 pub struct ArrayIterator<T> {
   index: usize,
   array: Array<T>
 }
 
+/// A helper type for iterating over array (borrowed from)
 #[derive(Clone,Copy)]
 pub struct ArrayIteratorB<'a,T> {
   index: usize,

@@ -1,8 +1,10 @@
 use crate as ddl;
 use std::rc::Rc;
 
+/// A helper type for efficient building of arrays (owned form).
 pub struct Builder<T> { node: ddl::O<Node<T>> }
 
+/// A helper type for efficient building of arrays (borrowed form).
 #[derive(Copy)]
 pub struct BuilderB<'a,T> { node: ddl::B<'a,Node<T>> }
 

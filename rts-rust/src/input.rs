@@ -2,6 +2,8 @@ use crate as ddl;
 use ddl::{Clo,Type};
 
 #[derive(Clone)]
+
+/// The type of inputs.  This is what we parse.
 pub struct Input {
   name:         ddl::Array<u8>,
   bytes:        ddl::Array<u8>,
