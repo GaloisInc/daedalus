@@ -1,4 +1,5 @@
 {-# Language ImportQualifiedPost, OverloadedStrings, ImplicitParams, ConstraintKinds #-}
+{-# Language BlockArguments #-}
 module Daedalus.VM.Backend.Rust.Type where
 
 import Control.Exception
@@ -84,18 +85,10 @@ compileType own ty =
     Core.TStream -> maybeRef (Rust.pathType (ddlPath "Input"))
 
     Core.TUInt sz ->
-      case sz of
-        Core.TSize n
-          | n `elem` [8,16,32,64] -> Rust.tU n
-          | otherwise             -> xxx
-        Core.TSizeParam tp -> xxx
+      Rust.pathType (Rust.pathWithGen [ddlModName,"U"] [compileSizeType sz])
 
     Core.TSInt sz ->
-      case sz of
-        Core.TSize n
-          | n `elem` [8,16,32,64] -> Rust.tI n
-          | otherwise             -> xxx
-        Core.TSizeParam tp -> xxx
+      Rust.pathType (Rust.pathWithGen [ddlModName,"I"] [compileSizeType sz])
 
     Core.TInteger           -> xxx
     Core.TBool              -> Rust.tBool
@@ -133,3 +126,10 @@ compileType own ty =
       case own of
         VM.Borrowed -> tbor
         _           -> town
+
+compileSizeType :: Core.SizeType -> Rust.GenericArg ()
+compileSizeType ty =
+  Rust.constGeneric
+    case ty of
+      Core.TSize n -> Rust.litExpr (Rust.intLit n)
+      Core.TSizeParam a -> Rust.identExpr (numTPName a)

@@ -5,8 +5,8 @@ use ddl::{Clo,Type};
 
 /// The type of inputs.  This is what we parse.
 pub struct Input {
-  name:         ddl::Array<u8>,
-  bytes:        ddl::Array<u8>,
+  name:         ddl::Array<ddl::U<8>>,
+  bytes:        ddl::Array<ddl::U<8>>,
   offset:       usize,
   last_offset:  usize       // Offset of end-of-input (1 past the end)
 }
@@ -14,7 +14,7 @@ pub struct Input {
 ddl::by_ref!(Input);
 
 
-pub fn new_input(name: ddl::Array<u8>, bytes: ddl::Array<u8>) -> Input {
+pub fn new_input(name: ddl::Array<ddl::U<8>>, bytes: ddl::Array<ddl::U<8>>) -> Input {
   Input {
     name: name,
     last_offset: bytes.len(),
@@ -24,9 +24,9 @@ pub fn new_input(name: ddl::Array<u8>, bytes: ddl::Array<u8>) -> Input {
 }
 
 pub fn new_input_str(name: &str, bytes: &str) -> Input {
-  let bs = ddl::new_array_slice(bytes.as_bytes());
+  let bs = ddl::new_byte_array(bytes.as_bytes());
   Input {
-    name: ddl::new_array_slice(name.as_bytes()),
+    name: ddl::new_byte_array(name.as_bytes()),
     last_offset: bs.len(),
     bytes: bs,
     offset: 0,
@@ -35,13 +35,13 @@ pub fn new_input_str(name: &str, bytes: &str) -> Input {
 
 impl Input {
   /// Get the name of the input
-  pub fn name(&self)        -> ddl::ArrayB<u8> { self.name.bor() }
+  pub fn name(&self)        -> ddl::ArrayB<ddl::U<8>> { self.name.bor() }
   
   /// Get the current byte offset in the input.
   pub fn offset(&self)      -> usize { self.offset }
 
   /// Get the bytes of the input.
-  pub fn bytes(&self) -> ddl::Array<u8> {
+  pub fn bytes(&self) -> ddl::Array<ddl::U<8>> {
     if self.len() == self.bytes.len() {
       self.bytes.clo()
     } else {
@@ -57,7 +57,7 @@ impl Input {
   pub fn is_empty(&self)    -> bool  { self.offset == self.last_offset }
   
   /// Get the first byte in input.  Assumes the input is not empty.
-  pub fn head(&self)        -> u8    { self.bytes[0] }
+  pub fn head(&self)        -> ddl::U<8>  { self.bytes[0] }
 
   /// Advance the input to given number of bytes.
   pub fn advance(self, n: usize) -> Input {

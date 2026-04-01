@@ -102,6 +102,9 @@ mkGenerics ps wc = Generics ps wc ()
 tyParam :: Ident -> GenericParam ()
 tyParam a = TypeParam [] a [] Nothing ()
 
+constGeneric :: Expr () -> GenericArg ()
+constGeneric = ConstArg
+
 --------------------------------------------------------------------------------
 -- Patterns
 --------------------------------------------------------------------------------

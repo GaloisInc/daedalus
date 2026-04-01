@@ -9,24 +9,6 @@ pub struct O<T: ?Sized> { pub(crate) rc: Rc<T> }
 /// Create a new owned value.
 pub fn new<T>(x: T) -> O<T> { O { rc: Rc::new(x) } }
 
-/// Create new owned array out of a Rust array.
-pub fn new_array<const N: usize, T>(x: [T;N]) -> ddl::Array<T> { O { rc: x.into() } }
-
-/// Create new owned array out of a Rust reference to a slice.
-pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> { O { rc: x.into() } }
-
-/// Create new owned array out of a vector.
-pub fn new_array_vec<T>(x: Vec<T>) -> ddl::Array<T> { O { rc: x.into() } }
-
-/// Convert a DDL array into a vector.
-pub fn array_to_vec<T: Clone>(x: ddl::Array<T>) -> Vec<T> {
-  // XXX: It would be nice if this only cloned things when the ref count > 1,
-  // but Rc does not seem to expose such functionality.
-  let mut res = Vec::with_capacity(x.len());
-  res.extend_from_slice(&x.rc);
-  res
-}
-
 impl <'a, T: ?Sized> Clone for O<T> {
   fn clone(&self) -> O<T> { O { rc: self.rc.clone() } }
 }

@@ -193,6 +193,8 @@ DefineRep!(64, u64, i64);
 
 #[derive(Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 /// Generic representation for signed/unsigned bit-vectors of a given width.
+
+#[repr(transparent)]
 pub struct Word<const S: bool, const N: u32> where Size<S, N> : WordRep {
   rep: <Size<S,N> as WordRep>::Rep
 }
