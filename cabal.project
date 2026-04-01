@@ -32,7 +32,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/Galoisinc/language-rust
-    tag: master
+    tag: dc0a77717c136badb1becb939db3685262245305
 
 constraints:
   utf8-string < 1.0.2,

@@ -65,7 +65,7 @@ compileTDecl td
       _ -> False
       
 
-  gen = Rust.mkGenerics [] (map Rust.tyParam as) Rust.noWhereClause
+  gen = Rust.mkGenerics (map Rust.tyParam as) Rust.noWhereClause
   tyDecl how =
     Rust.macDecl (Rust.mac (Rust.simplePath' [ddlModName,how]) (Rust.tyToken (tyForm False)))
 

@@ -14,7 +14,6 @@ import Data.Maybe(maybeToList,mapMaybe)
 import Data.Char(isAlpha,toLower,isUpper,toUpper)
 import Numeric(showHex)
 import Data.List(intersperse,groupBy)
-import Data.List.NonEmpty qualified as NonEmpty
 import Language.Rust.Syntax
 import Language.Rust.Data.Ident
 import Language.Rust.Data.Position
@@ -31,8 +30,8 @@ simplePath n = simplePath' [n]
 simplePath' :: [Ident] -> Path ()
 simplePath' ns = Path False [ PathSegment n Nothing () | n <- ns ] ()
 
-pathWithTypes :: [Ident] -> [Ty ()] -> Path ()
-pathWithTypes ns0 tys = Path False (go ns0) ()
+pathWithGen :: [Ident] -> [GenericArg ()] -> Path ()
+pathWithGen ns0 gs = Path False (go ns0) ()
   where
     go ns =
       case ns of
@@ -40,10 +39,13 @@ pathWithTypes ns0 tys = Path False (go ns0) ()
         [lst] -> [PathSegment lst pathParams ()]
         n:t -> PathSegment n Nothing () : go t
     pathParams =
-      case tys of
+      case gs of
         [] -> Nothing
-        _  -> Just (AngleBracketed [] tys [] ())
+        _  -> Just (AngleBracketed gs [] ())
 
+
+pathWithTypes :: [Ident] -> [Ty ()] -> Path ()
+pathWithTypes ns0 tys = pathWithGen ns0 (map TypeArg tys)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -86,20 +88,19 @@ tRef :: Maybe (Lifetime ()) -> Ty () -> Ty ()
 tRef l ty = Rptr l Immutable ty ()
 
 noGenerics :: Generics ()
-noGenerics = mkGenerics [] [] noWhereClause
+noGenerics = mkGenerics [] noWhereClause
 
 noWhereClause :: WhereClause ()
 noWhereClause = WhereClause [] ()
 
 mkGenerics ::
-  [LifetimeDef ()] ->
-  [TyParam ()] ->
+  [GenericParam ()] ->
   WhereClause () ->
   Generics ()
-mkGenerics lts tps wc = Generics lts tps wc ()
+mkGenerics ps wc = Generics ps wc ()
 
-tyParam :: Ident -> TyParam ()
-tyParam a = TyParam [] a [] Nothing ()
+tyParam :: Ident -> GenericParam ()
+tyParam a = TypeParam [] a [] Nothing ()
 
 --------------------------------------------------------------------------------
 -- Patterns
@@ -118,10 +119,10 @@ litPat lit = LitP (litExpr lit) ()
 conPat :: Path () -> [Pat ()] -> Pat ()
 conPat c ps
   | null ps   = PathP Nothing c ()
-  | otherwise = TupleStructP c ps Nothing ()
+  | otherwise = TupleStructP c ps ()
 
 tuplePat :: [Pat ()] -> Pat ()
-tuplePat ps = TupleP ps Nothing ()
+tuplePat ps = TupleP ps ()
 
 nonePat :: Pat ()
 nonePat = conPat (simplePath "None") []
@@ -216,7 +217,7 @@ identExpr :: Ident -> Expr ()
 identExpr = pathExpr . simplePath
 
 blockExpr' :: Block () -> Expr ()
-blockExpr' b = BlockExpr [] b ()
+blockExpr' b = BlockExpr [] b Nothing ()
 
 blockExpr :: [Stmt ()] -> Expr ()
 blockExpr = blockExpr' . block
@@ -239,7 +240,7 @@ matchArm :: Pat () -> Expr () -> Arm ()
 matchArm pat body =
   Arm
     []
-    (pat NonEmpty.:| []) -- No or-patterns; just a single pattern per arm
+    pat -- No or-patterns; just a single pattern per arm
     Nothing -- No guard expression
     body
     ()
@@ -254,14 +255,14 @@ callCon p es =
     _  -> call (pathExpr p) es
 
 callMethod :: Expr () -> Ident -> [Expr ()] -> Expr ()
-callMethod obj meth args = MethodCall [] obj meth Nothing args ()
+callMethod obj meth args = MethodCall [] obj (PathSegment meth Nothing ()) args ()
 
 fieldAccess :: Expr () -> Ident -> Expr ()
 fieldAccess e l = FieldAccess [] e l ()
 
 struct :: Path () -> [(Ident,Expr ())] -> Expr ()
 struct c fs = Struct [] c (map toField fs) Nothing ()
-  where toField (l,e) = Field l (Just e) ()
+  where toField (l,e) = Field l (Just e) [] ()
 
 index :: Expr () -> Expr () -> Expr ()
 index v i = Index [] v i ()
@@ -345,7 +346,7 @@ deriveAttribute is = Attribute Inner (simplePath "derive") toks ()
        $ intersperse tokComma [ Tree (Token dummySpan (IdentTok i)) | i <- is ]
 
 macDecl :: Mac () -> Item ()
-macDecl m = MacItem [] Nothing m ()
+macDecl m = MacItem [] m ()
 
 mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
@@ -356,15 +357,13 @@ mkFnItem ::
   Generics () -> [(Ident, Ty ())] -> Ty () ->
   Block () ->  Item ()
 mkFnItem mbDoc allow extraAttrs vis nm generics params returnTy body =
-  Fn attrs vis nm decl unsafety constness abi generics body ()
+  Fn attrs vis nm decl fnHdr generics body ()
   where
     attrs           = docAttrs ++ noWarnAttrs ++ extraAttrs
     noWarnAttrs     = map disableWarning allow
     docAttrs        = maybeToList (docAttribute <$> mbDoc)
-    unsafety        = Normal
-    constness       = NotConst
-    abi             = Rust
-    mkArg (n, t)    = Arg (Just (identPat n)) t ()
+    fnHdr           = FnHeader Normal NotAsync NotConst Rust ()
+    mkArg (n, t)    = Arg [] (Just (identPat n)) t ()
     decl            = FnDecl (mkArg <$> params) (Just returnTy) False ()
 
 mkEnum :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
