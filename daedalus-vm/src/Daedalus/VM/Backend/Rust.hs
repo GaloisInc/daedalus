@@ -291,7 +291,7 @@ compileOp1 x op e argTy =
           _ -> bad "not a sematnic type"
       isRec = Core.tnameRec unm
       con   = Rust.simplePath' [compileTName isRec unm, compileConLabel lab]
-      noArg = Rust.matchArm (Rust.conPat con []) (Rust.tupleExpr [])
+      noArg = Rust.matchArm (Rust.conPat con []) (Rust.pathExpr (ddlPath "Unit"))
       arm1  =
         case Core.tnameFlav unm of
           Core.TFlavEnum {} -> noArg
@@ -417,7 +417,7 @@ fromSize e = Rust.cast e (Rust.tU 64)
 compileExpr :: FnCtx => VM.Ownership -> VM.E -> Rust.Expr ()
 compileExpr how expr =
   case expr of
-    VM.EUnit         -> Rust.tupleExpr []
+    VM.EUnit         -> Rust.pathExpr (ddlPath "Unit")
     VM.ENum n ty     -> Rust.litExpr (Rust.intLit n) --- XXX: suffix? non-standard sizes
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
     VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)

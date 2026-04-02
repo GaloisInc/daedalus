@@ -91,7 +91,7 @@ compileType own ty =
     Core.TBool              -> Rust.tBool
     Core.TFloat             -> Rust.tF 32
     Core.TDouble            -> Rust.tF 64
-    Core.TUnit              -> Rust.tTuple []
+    Core.TUnit              -> Rust.pathType (ddlPath "Unit")
     Core.TArray t           -> maybeB "Array" "ArrayB" t
     Core.TBuilder t         -> maybeB "Builder" "BuilderB" t
 
@@ -184,10 +184,10 @@ makeSerializeEnum typeParams typeName variants =
               ]))
         ]
 
-    -- For unit variants, emit &()
+    -- For unit variants, emit &Unit
     unitValue = Rust.exprToken $
       Rust.addrOf $
-      Rust.TupExpr [] [] ()
+      Rust.pathExpr (ddlPath "Unit")
 
     -- Generate TypeName::Variant for unit types, or TypeName::Variant(x) for data types
     constructorPath tn label ty =
