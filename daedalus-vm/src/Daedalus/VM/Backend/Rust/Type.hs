@@ -95,7 +95,7 @@ compileType own ty =
     Core.TArray t           -> maybeB "Array" "ArrayB" t
     Core.TBuilder t         -> maybeB "Builder" "BuilderB" t
 
-    Core.TMaybe t           -> maybeRef (Rust.tOption (compileType VM.Owned t))
+    Core.TMaybe t           -> Rust.pathType (Rust.pathWithTypes [ddlModName, "Maybe"] [compileType own t])
     Core.TMap tk kv         -> xxx
     Core.TIterator t        -> 
       case t of

@@ -4,6 +4,7 @@ mod number;
 mod input;
 mod array;
 mod builder;
+mod maybe;
 pub mod user_defined;
 
 pub use test::*;
@@ -12,6 +13,7 @@ pub use number::*;
 pub use input::*;
 pub use array::*;
 pub use builder::*;
+pub use maybe::*;
 
 /// DDL types representing owned things that can be borrowed.
 /// The main reason for this is because in some cases we'd like to represent

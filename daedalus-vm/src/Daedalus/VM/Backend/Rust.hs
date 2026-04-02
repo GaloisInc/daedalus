@@ -250,7 +250,7 @@ compileOp1 x op e argTy =
     Core.IteratorVal -> def (Rust.callMethod e "ddl_val" [])
     Core.IteratorNext -> def (Rust.callMethod e "ddl_next" [])
 
-    Core.EJust -> def (Rust.call (Rust.identExpr "Some") [e])
+    Core.EJust -> def (Rust.callCon (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [e])
     Core.FromJust -> def (Rust.callMethod e "unwrap" [])
 
     -- XXX: bitdata
@@ -422,7 +422,7 @@ compileExpr how expr =
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
     VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)
     VM.EMapEmpty k v -> unsupported (?fnMsg <+> "empty map expression") -- XXX
-    VM.ENothing {}   -> mbBorrow VM.Owned (Rust.identExpr "None") -- type sig?
+    VM.ENothing {}   -> Rust.pathExpr (Rust.simplePath' [ddlModName, "Maybe", "Nothing"])
     VM.EBlockArg x   -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBAName x))
     VM.EVar x        -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBVName x))
   where
@@ -513,8 +513,8 @@ compilePat :: VM.VMT -> Core.Pattern -> Rust.Pat ()
 compilePat ty p =
   case p of
     Core.PBool b    -> Rust.litPat (Rust.boolLit b)
-    Core.PNothing   -> Rust.nonePat
-    Core.PJust      -> Rust.somePat Rust.wildPat
+    Core.PNothing   -> Rust.conPat (Rust.simplePath' [ddlModName, "Maybe", "Nothing"]) []
+    Core.PJust      -> Rust.conPat (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [Rust.wildPat]
     Core.PNum n     -> Rust.litPat (Rust.intLit n)
     Core.PBytes {}  -> panic "compilePat" ["Unexpecte PBytes"]
     Core.PCon uc    ->
