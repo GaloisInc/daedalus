@@ -2,6 +2,7 @@ use crate as ddl;
 use std::cmp::Ordering;
 use std::rc::Rc;
 use std::marker::PhantomData;
+use std::fmt;
 
 /// An owned DDL value.  Uses reference counting.
 #[repr(transparent)]
@@ -85,4 +86,28 @@ impl<'a, T: ?Sized> std::ops::Deref for O<T> {
 impl<'a, T: ?Sized> std::ops::Deref for B<'a,T> {
   type Target = T;
   fn deref(&self) -> &T { unsafe { &*self.ptr } }
+}
+
+impl<T: ?Sized + fmt::Display> fmt::Display for O<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Display::fmt(&**self, f)
+  }
+}
+
+impl<T: ?Sized + fmt::Debug> fmt::Debug for O<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Debug::fmt(&**self, f)
+  }
+}
+
+impl<'a, T: ?Sized + fmt::Display> fmt::Display for B<'a, T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Display::fmt(&**self, f)
+  }
+}
+
+impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for B<'a, T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt::Debug::fmt(&**self, f)
+  }
 }

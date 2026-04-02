@@ -1,5 +1,6 @@
 use crate as ddl;
 use ddl::Clo;
+use std::fmt as fmt;
 
 /// Owned array
 #[repr(transparent)]
@@ -131,3 +132,42 @@ impl <T> ArrayIterator<T> {
     ArrayIterator { index: self.index + 1, array: self.array }
   }
 }
+
+fn fmt_array<T, F>(slice: &[T], f: &mut fmt::Formatter<'_>, fmt_item: F) -> fmt::Result
+where
+  F: Fn(&T, &mut fmt::Formatter<'_>) -> fmt::Result,
+{
+  write!(f, "[")?;
+  for (i, item) in slice.iter().enumerate() {
+    if i > 0 {
+      write!(f, ", ")?;
+    }
+    fmt_item(item, f)?;
+  }
+  write!(f, "]")
+}
+
+impl<T: fmt::Display> fmt::Display for Array<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_array(&**self, f, |item, f| write!(f, "{}", item))
+  }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Array<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_array(&**self, f, |item, f| write!(f, "{:?}", item))
+  }
+}
+
+impl<'a, T: fmt::Display> fmt::Display for ArrayB<'a, T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_array(&**self, f, |item, f| write!(f, "{}", item))
+  }
+}
+
+impl<'a, T: fmt::Debug> fmt::Debug for ArrayB<'a, T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_array(&**self, f, |item, f| write!(f, "{:?}", item))
+  }
+}
+
