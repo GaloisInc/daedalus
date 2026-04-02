@@ -2,34 +2,80 @@ use crate as ddl;
 use ddl::Clo;
 
 /// Owned array
-pub type Array<T>       = ddl::O<[T]>;
+#[repr(transparent)]
+#[derive(PartialEq,Eq,PartialOrd,Ord)]
+pub struct Array<T> { rc: ddl::O<[T]> }
 
 /// Borrowed array
-pub type ArrayB<'a,T>   = ddl::B<'a,[T]>;
+#[repr(transparent)]
+#[derive(Copy,PartialEq,Eq,PartialOrd,Ord)]
+pub struct ArrayB<'a,T> { rc: ddl::B<'a,[T]> }
+
+impl<T: ddl::Type> ddl::Type for Array<T> {
+  type B<'a> = ArrayB<'a,T>;
+  fn bor(&self) -> ArrayB<T> { ArrayB { rc: self.rc.bor() } }
+}
+
+impl <T: ddl::Type> ddl::Clo for ArrayB<'_,T> {
+  type O = Array<T>;
+  fn clo(self) -> Array<T> { Array { rc: self.rc.clo() } }
+}
+
+impl<T> Clone for Array<T> {
+  fn clone(&self) -> Self { Array { rc: self.rc.clone() } }
+}
+
+impl<'a,T> Clone for ArrayB<'a,T> {
+  fn clone(&self) -> Self { ArrayB { rc: self.rc.clone() } }
+}
+
+impl<T> std::ops::Deref for Array<T> {
+  type Target = [T];
+  fn deref(&self) -> &[T] { &self.rc }
+}
+
+impl<'a,T> std::ops::Deref for ArrayB<'a,T> {
+  type Target = [T];
+  fn deref(&self) -> &[T] { &self.rc }
+}
+
+
 
 
 /// Create new owned array out of a Rust array.
-pub fn new_array<const N: usize, T>(x: [T;N]) -> ddl::Array<T> { ddl::O { rc: x.into() } }
+pub fn new_array<const N: usize, T>(x: [T;N]) -> ddl::Array<T> {
+  Array { rc: ddl::O { rc: x.into() } }
+}
 
 /// Create a new byte array out of a reference to some bytes.
 pub fn new_byte_array(x: &[u8]) -> ddl::Array<ddl::U<8>> {
-  ddl::O { rc: x.into_iter().copied().map(|a| a.into()).collect() }
+  Array { rc: ddl::O { rc: x.into_iter().copied().map(|a| a.into()).collect() } }
 }
 
 /// Create new owned array out of a Rust reference to a slice.
-pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> { ddl::O { rc: x.into() } }
+pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> {
+  Array { rc: ddl::O { rc: x.into() } }
+}
 
 /// Create new owned array out of a vector.
-pub fn new_array_vec<T>(x: Vec<T>) -> ddl::Array<T> { ddl::O { rc: x.into() } }
+pub fn new_array_vec<T>(x: Vec<T>) -> ddl::Array<T> {
+  Array { rc: ddl::O { rc: x.into() } }
+}
 
 /// Convert a DDL array into a vector.
 pub fn array_to_vec<T: Clone>(x: ddl::Array<T>) -> Vec<T> {
   // XXX: It would be nice if this only cloned things when the ref count > 1,
-  // but Rc does not seem to expose such functionality.
-  let mut res = Vec::with_capacity(x.len());
-  res.extend_from_slice(&x.rc);
-  res
+  // But we'd have to do this unsafely
+  x.into_iter().cloned().collect()
 }
+
+/// Convert a DDL array into a vector of bytes.
+pub fn array_to_byte_vec<T: Clone>(x: ddl::Array<ddl::U<8>>) -> Vec<u8> {
+  // XXX: It would be nice if this only cloned things when the ref count > 1,
+  // But we'd have to do this unsafely
+  x.into_iter().cloned().map(|x|x.into()).collect()
+}
+
 
 
 impl<'a,T: ddl::Type> ArrayB<'a,Array<T>> {
