@@ -47,6 +47,10 @@ pathWithGen ns0 gs = Path False (go ns0) ()
 pathWithTypes :: [Ident] -> [Ty ()] -> Path ()
 pathWithTypes ns0 tys = pathWithGen ns0 (map TypeArg tys)
 
+typeQualifiedExpr :: Ty () -> Path () -> Expr ()
+typeQualifiedExpr ty n = PathExpr [] (Just (QSelf ty 0)) n ()
+
+
 --------------------------------------------------------------------------------
 -- Types
 --------------------------------------------------------------------------------

@@ -231,10 +231,9 @@ compileOp1 x op e argTy =
     Core.Concat -> def (Rust.callMethod e "concat" [])
     Core.FinishBuilder -> def (Rust.callMethod e "build" [])
 
-    -- XXX: `as` won't work for non-standard sizes
     Core.CoerceTo ty ->
-      def (Rust.cast e (compileType VM.Owned ty))
-    
+      [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
+
     Core.Neg    -> def (Rust.uni Rust.Neg e)
     Core.BitNot -> def (Rust.uni Rust.Not e)
     Core.Not    -> def (Rust.uni Rust.Not e)
@@ -409,16 +408,17 @@ compileOpN x op es =
   def mbT e = [Rust.localLet [] (compileBVName x) mbT e]
 
 toSize :: Rust.Expr () -> Rust.Expr ()
-toSize e = Rust.cast e Rust.tUsize
+toSize e = Rust.call (Rust.typeQualifiedExpr Rust.tUsize (Rust.simplePath "from")) [e]
 
-fromSize :: Rust.Expr () -> Rust.Expr ()
-fromSize e = Rust.cast e (Rust.tU 64)
+fromSize :: FnCtx => Rust.Expr () -> Rust.Expr ()
+fromSize e = Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from")) [e]
+  where ty = compileType VM.Owned (Core.tWord 64)
 
 compileExpr :: FnCtx => VM.Ownership -> VM.E -> Rust.Expr ()
 compileExpr how expr =
   case expr of
     VM.EUnit         -> Rust.pathExpr (ddlPath "Unit")
-    VM.ENum n ty     -> Rust.litExpr (Rust.intLit n) --- XXX: suffix? non-standard sizes
+    VM.ENum n ty     -> compileNumLit n ty
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
     VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)
     VM.EMapEmpty k v -> unsupported (?fnMsg <+> "empty map expression") -- XXX
@@ -431,6 +431,21 @@ compileExpr how expr =
       (VM.Borrowed, VM.Owned) -> Rust.callMethod e "bor" []
       _ -> e
 
+compileNumLit :: FnCtx => Integer -> Core.Type -> Rust.Expr ()
+compileNumLit n ty =
+  case ty of
+    Core.TUInt _ -> intoWord False
+    Core.TSInt _ -> intoWord True
+    Core.TFloat  -> Rust.litExpr (Rust.floatLit (fromInteger n))
+    Core.TDouble -> Rust.litExpr (Rust.floatLit (fromInteger n))
+    _ -> unsupported (?fnMsg <+> "numeric literal at type" <+> pp ty)
+  where
+  -- Use .into() on the literal, relying on type inference from context
+  intoWord sign = 
+    Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from"))
+      [Rust.litExpr (Rust.intLit' suf n)]
+    where
+    suf = if sign then Rust.I64 else Rust.U64
 
 compileCInstr :: FnCtx => VM.CInstr -> [Rust.Stmt ()]
 compileCInstr cinstr =

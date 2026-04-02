@@ -306,14 +306,16 @@ macro_rules! Coercions {
 }
 
 // To/from standard Rust types
-Coercions!(u8,  false, u64, op_from_u64, op_to_u64);
-Coercions!(u16, false, u64, op_from_u64, op_to_u64);
-Coercions!(u32, false, u64, op_from_u64, op_to_u64);
-Coercions!(u64, false, u64, op_from_u64, op_to_u64);
-Coercions!(i8,  true,  i64, op_from_i64, op_to_i64);
-Coercions!(i16, true,  i64, op_from_i64, op_to_i64);
-Coercions!(i32, true,  i64, op_from_i64, op_to_i64);
-Coercions!(i64, true,  i64, op_from_i64, op_to_i64);
+Coercions!(u8,    false, u64, op_from_u64, op_to_u64);
+Coercions!(u16,   false, u64, op_from_u64, op_to_u64);
+Coercions!(u32,   false, u64, op_from_u64, op_to_u64);
+Coercions!(u64,   false, u64, op_from_u64, op_to_u64);
+Coercions!(usize, false, u64, op_from_u64, op_to_u64);
+Coercions!(i8,    true,  i64, op_from_i64, op_to_i64);
+Coercions!(i16,   true,  i64, op_from_i64, op_to_i64);
+Coercions!(i32,   true,  i64, op_from_i64, op_to_i64);
+Coercions!(i64,   true,  i64, op_from_i64, op_to_i64);
+Coercions!(isize, true,  i64, op_from_i64, op_to_i64);
 
 impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
 
