@@ -357,7 +357,8 @@ generateRust opts mm =
             "edition = \"2024\"",
             "",
             "[dependencies]",
-            "daedalus-rts-rust = { path = \"../rts-rust\" }"
+            "daedalus-rts-rust = { path = \"../rts-rust\" }",
+            "serde = { version = \"1.0\" }"
           ]
         createDirectoryIfMissing True src
         writeFile (src </> "lib.rs") rust

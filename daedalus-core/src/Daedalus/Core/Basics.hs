@@ -163,6 +163,10 @@ isSInt :: Type -> Maybe Integer
 isSInt (TSInt (TSize n)) = Just n
 isSInt _                 = Nothing
 
+isUnit :: Type -> Bool
+isUnit TUnit = True
+isUnit _     = False
+
 pattern TByte :: Type
 pattern TByte = TUInt (TSize 8)
 

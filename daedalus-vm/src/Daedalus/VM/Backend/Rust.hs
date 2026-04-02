@@ -42,9 +42,8 @@ compileProgram cfg vm = (show (Rust.pretty' result), []) -- XXX
   unusedOk = [Rust.disableWarning "unused_imports"]
   uses = [
     Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
-    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
-    ]
-
+    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ]),
+    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing) ]
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)

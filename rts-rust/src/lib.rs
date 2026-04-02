@@ -4,6 +4,7 @@ mod number;
 mod input;
 mod array;
 mod builder;
+pub mod user_defined;
 
 pub use test::*;
 pub use ddl_box::*;

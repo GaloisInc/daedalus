@@ -279,6 +279,9 @@ uni op e = Unary [] op e ()
 bin :: BinOp -> Expr () -> Expr () -> Expr ()
 bin op e1 e2 = Binary [] op e1 e2 ()
 
+addrOf :: Expr () -> Expr ()
+addrOf e = AddrOf [] Immutable e ()
+
 
 callMacro :: Path () -> [Expr ()] -> Expr ()
 callMacro m es = callMacro' m args
@@ -304,6 +307,35 @@ treeToken = Tree . Token dummySpan
 
 tokComma :: TokenStream
 tokComma = Tree (Token dummySpan Comma)
+
+-- | Create a token from an identifier
+identToken :: Ident -> TokenStream
+identToken i = treeToken (IdentTok i)
+
+-- | Create a token from a string literal
+strToken :: String -> TokenStream
+strToken s = treeToken (LiteralTok (StrTok s) Nothing)
+
+-- | Create a token stream from a list with commas between elements
+commaList :: [TokenStream] -> TokenStream
+commaList ts = Stream (intersperse tokComma ts)
+
+-- | Wrap tokens in parentheses: (...)
+parenTokens :: [TokenStream] -> TokenStream
+parenTokens contents =
+  Stream
+    [ Tree (Delimited dummySpan Paren (Stream contents))
+    ]
+
+-- | Wrap a token stream in angle brackets: <...>
+angleTokens :: TokenStream -> TokenStream
+angleTokens (Stream contents) =
+  Stream
+    [ Tree (Token dummySpan Less)
+    , Stream contents
+    , Tree (Token dummySpan Greater)
+    ]
+angleTokens tree@(Tree _) = angleTokens (Stream [tree])
 
 
 
