@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::marker::PhantomData;
 
 /// An owned DDL value.  Uses reference counting.
+#[repr(transparent)]
 pub struct O<T: ?Sized> { pub(crate) rc: Rc<T> }
 
 /// Create a new owned value.
@@ -39,6 +40,25 @@ impl <'a,T: ?Sized> Copy for B<'a,T> {}
 impl<'a, T: ?Sized> Clone for B<'a,T> {
   fn clone(&self) -> Self { B { ptr: self.ptr, lifetime: self.lifetime } }
 }
+
+impl <'a,T: ?Sized + PartialEq> PartialEq for B<'a,T> {
+  fn eq(&self, other: &Self) -> bool { &self == &other }
+}
+
+impl <'a,T: ?Sized + Eq> Eq for B<'a,T> {}
+
+impl <'a,T: ?Sized + PartialOrd> PartialOrd for B<'a,T> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    (&self).partial_cmp(&other)
+  }
+}
+
+impl <'a,T: ?Sized + Ord> Ord for B<'a,T> {
+  fn cmp(&self, other: &Self) -> Ordering {
+    (&self).cmp(&other)
+  }
+}
+
 
 impl<T: ?Sized + 'static> ddl::Type for O<T> {
   type B<'a> = B<'a,T>;
