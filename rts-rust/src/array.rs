@@ -1,6 +1,7 @@
 use crate as ddl;
 use ddl::Clo;
 use std::fmt as fmt;
+use serde::Serialize;
 
 /// Owned array
 #[repr(transparent)]
@@ -168,6 +169,36 @@ impl<'a, T: fmt::Display> fmt::Display for ArrayB<'a, T> {
 impl<'a, T: fmt::Debug> fmt::Debug for ArrayB<'a, T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     fmt_array(&**self, f, |item, f| write!(f, "{:?}", item))
+  }
+}
+
+fn serialize_array<T: Serialize, S>(slice: &[T], serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::ser::SerializeSeq;
+  let mut seq = serializer.serialize_seq(Some(slice.len()))?;
+  for item in slice.iter() {
+    seq.serialize_element(item)?;
+  }
+  seq.end()
+}
+
+impl<T: Serialize> Serialize for Array<T> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serialize_array(&**self, serializer)
+  }
+}
+
+impl<'a, T: Serialize> Serialize for ArrayB<'a, T> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serialize_array(&**self, serializer)
   }
 }
 
