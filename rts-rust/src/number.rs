@@ -1,6 +1,7 @@
 use std::ops as ops;
 use std::fmt as fmt;
 use crate as ddl;
+use serde::Serialize;
 
 /// Operations that should be supported by representation types for [Word].
 pub trait Ops : Copy + PartialEq + Eq + PartialOrd + Ord {
@@ -263,6 +264,24 @@ impl <const N: u32> fmt::Display for Word<false,N> where Size<false,N>: WordRep 
 impl <const N: u32> fmt::Display for Word<true,N> where Size<true,N>: WordRep {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     self.rep.op_to_i64().fmt(f)
+  }
+}
+
+impl <const N: u32> Serialize for Word<false,N> where Size<false,N>: WordRep {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_u64(u64::from(*self))
+  }
+}
+
+impl <const N: u32> Serialize for Word<true,N> where Size<true,N>: WordRep {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_i64(i64::from(*self))
   }
 }
 
