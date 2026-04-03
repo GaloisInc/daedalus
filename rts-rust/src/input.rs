@@ -60,13 +60,30 @@ impl Input {
   pub fn head(&self)        -> ddl::U<8>  { self.bytes[0] }
 
   /// Advance the input to given number of bytes.
+  /// If there are not enough bytes go to the end of the input.
   pub fn advance(self, n: usize) -> Input {
     Input { offset: self.offset + std::cmp::min(n,self.len()), ..self }
+  }
+
+  /// Advance the input by this much, if there's enough space.
+  pub fn advance_maybe(self, n: usize) -> Option<Input> {
+    if self.len() < n { return None }
+    Some(Input { offset: self.offset + n, ..self })
   }
 
   /// Restrict the input to the given number of bytes.
   pub fn restrict(self, n: usize) -> Input {
     Input { last_offset: self.offset + std::cmp::min(n,self.len()), ..self }
   }
+
+  pub fn is_prefix(&self, xs: ddl::Array<ddl::U<8>>) -> bool {
+    let bs: &[ddl::U<8>] = &xs;
+    let str_len = self.len();
+    let bs_len  = bs.len();
+    if str_len < bs_len { return false }
+    let str: &[ddl::U<8>] = &xs[self.offset .. self.offset + bs_len];
+    return str == bs;
+  }
+  
 
 }

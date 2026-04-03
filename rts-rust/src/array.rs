@@ -49,9 +49,13 @@ pub fn new_array<const N: usize, T>(x: [T;N]) -> ddl::Array<T> {
   Array { rc: ddl::O { rc: x.into() } }
 }
 
+pub fn new_array_iter<T>(x: impl Iterator<Item=T>) -> ddl::Array<T> {
+  Array { rc: ddl::O { rc: x.collect() } }
+}
+
 /// Create a new byte array out of a reference to some bytes.
 pub fn new_byte_array(x: &[u8]) -> ddl::Array<ddl::U<8>> {
-  Array { rc: ddl::O { rc: x.into_iter().copied().map(|a| a.into()).collect() } }
+  new_array_iter(x.into_iter().copied().map(|a| a.into()))
 }
 
 /// Create new owned array out of a Rust reference to a slice.
@@ -202,3 +206,24 @@ impl<'a, T: Serialize> Serialize for ArrayB<'a, T> {
   }
 }
 
+
+pub fn rng_up_u_iter<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
+  where ddl::Size<false,N> : ddl::WordRep {
+  (u64::from(start) .. u64::from(end)).step_by(usize::from(step)).map(|x| x.into())
+}
+
+pub fn rng_up_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>) -> impl Iterator<Item=ddl::I<N>>
+  where ddl::Size<true,N> : ddl::WordRep {
+  (i64::from(start) .. i64::from(end)).step_by(i64::from(step) as usize).map(|x| x.into())
+  
+}
+
+pub fn rng_down_u<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
+  where ddl::Size<false,N> : ddl::WordRep {
+    (u64::from(start) + 1 ..= u64::from(end)).rev().step_by(usize::from(step)).map(|x| x.into())
+}
+
+pub fn rng_down_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>) -> impl Iterator<Item=ddl::I<N>>
+  where ddl::Size<true,N> : ddl::WordRep {
+    (i64::from(start) + 1 ..= i64::from(end)).rev().step_by(i64::from(step) as usize).map(|x| x.into())
+}

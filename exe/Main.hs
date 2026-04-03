@@ -338,8 +338,7 @@ generateRust opts mm =
                 cfgUserModule = optUserNS opts
               }
         -- XXX: catch unsupported.
-        (rust,warns) = Rust.compileProgram cfg prog
-    mapM_ (\w -> ddlPrint ("[WARNING]" <+> w)) warns
+        rust = Rust.compileProgram cfg prog
     ddlIO
       do
         let nm = case optParserDDL opts of

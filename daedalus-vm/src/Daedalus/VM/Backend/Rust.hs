@@ -29,8 +29,8 @@ type ProgCtx = (
 
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
 
-compileProgram :: Config -> VM.Program -> (String, [Doc])
-compileProgram cfg vm = (show (Rust.pretty' result), []) -- XXX
+compileProgram :: Config -> VM.Program -> String
+compileProgram cfg vm = show (Rust.pretty' result)
   where
   result :: Rust.SourceFile ()
   result =
@@ -198,8 +198,9 @@ compilePrim x prim es =
         _       -> bad 2
 
     VM.Op3 op ->
-      case compiled of
-        [e1,e2,e3] -> compileOp3 x op e1 e2 e3
+      case (compiled,es) of
+        ([e1,e2,e3],[a,b,c]) ->
+          compileOp3 x op e1 e2 e3 (VM.getType a) (VM.getType b) (VM.getType c)
         _          -> bad 3
 
     VM.OpN op -> compileOpN x op compiled
@@ -327,13 +328,11 @@ compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> Rust.Expr () -> Rust.Expr () -> [Rus
 compileOp2 x op e1 e2 =
   case op of
     -- Streams
-    Core.Drop ->
-      def (Rust.callMethod e2 "advance" [ toSize e1 ])
-
-    Core.ArrayStream -> xxx
-    Core.IsPrefix -> xxx
-    Core.DropMaybe -> xxx
-    Core.Take -> xxx
+    Core.Drop         -> def (Rust.callMethod e2 "advance" [ toSize e1 ])
+    Core.ArrayStream  -> def (callRTS "new_input" [e1,e2])
+    Core.IsPrefix     -> def (Rust.callMethod e1 "is_prefix" [e2])
+    Core.DropMaybe    -> def (callRTS "from_option" [Rust.callMethod e2 "advance" [ toSize e1 ]])
+    Core.Take         -> def (Rust.callMethod e2 "restrict" [ toSize e1 ])
  
     -- Comparisons
     Core.Eq     -> bin Rust.EqOp
@@ -346,16 +345,16 @@ compileOp2 x op e1 e2 =
     Core.Sub    -> bin Rust.SubOp
     Core.Mul    -> bin Rust.MulOp
     Core.Div    -> bin Rust.DivOp
-    Core.Mod    -> bin Rust.RemOp  -- XXX: rem/mod?
+    Core.Mod    -> bin Rust.RemOp
  
     -- Bits
     Core.BitAnd -> bin Rust.BitAndOp
     Core.BitOr  -> bin Rust.BitOrOp 
     Core.BitXor -> bin Rust.BitXorOp
-    Core.Cat    -> xxx
-    Core.LCat   -> xxx
-    Core.LShift -> xxx
-    Core.RShift -> xxx
+    Core.Cat    -> def (Rust.callMacro (ddlPath "cat") [ e1, e2 ])
+    Core.LCat   -> def (callRTS "lcat" [ e1, e2 ])
+    Core.LShift -> bin' Rust.ShlOp e1 (toSize e2)
+    Core.RShift -> bin' Rust.ShrOp e1 (toSize e2)
  
     -- Arrays
     Core.ArrayIndex -> def (Rust.callMethod val "clo" [])
@@ -372,7 +371,8 @@ compileOp2 x op e1 e2 =
  
   where
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  bin rop = def (Rust.bin rop e1 e2)
+  bin rop = bin' rop e1 e2
+  bin' rop x y = def (Rust.bin rop x y)
   ppR e = text (show (Rust.pretty' e))
   tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2]))
   xxx =
@@ -382,13 +382,34 @@ compileOp2 x op e1 e2 =
 
 
 
-compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> Rust.Expr () -> Rust.Expr () -> Rust.Expr () -> [Rust.Stmt ()]
-compileOp3 x op e1 e2 e3 =
+compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> Rust.Expr () -> Rust.Expr () -> Rust.Expr () ->
+              VM.VMT -> VM.VMT -> VM.VMT -> [Rust.Stmt ()]
+compileOp3 x op e1 e2 e3 t1 _t2 _t3 =
   case op of
-    Core.RangeUp -> xxx
-    Core.RangeDown -> xxx
+
+    Core.RangeUp ->
+      def (
+        callRTS "new_array_iter" [
+          case t1 of
+            VM.TSem (Core.TUInt _) -> callRTS "range_up_u" [e1,e2,e3]
+            VM.TSem (Core.TSInt _) -> callRTS "range_up_i" [e1,e2,e3]
+            VM.TSem Core.TInteger  -> unsupported "RangeUp on Integer"
+            _ -> bad
+        ])
+
+    Core.RangeDown ->
+      def (
+        callRTS "new_array_iter" [
+          case t1 of
+            VM.TSem (Core.TUInt _) -> callRTS "range_down_u" [e1,e2,e3]
+            VM.TSem (Core.TSInt _) -> callRTS "range_down_i" [e1,e2,e3]
+            VM.TSem Core.TInteger  -> unsupported "RangeDown on Integer"
+            _ -> bad
+        ])
+
     Core.MapInsert -> xxx
   where
+  bad   = panic "compileOp3" ["Unexpected",show (pp op)]
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
   ppR e = text (show (Rust.pretty' e))
   tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2, ppR e3]))

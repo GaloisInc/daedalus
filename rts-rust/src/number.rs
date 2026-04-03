@@ -88,7 +88,6 @@ macro_rules! MakeOps {
     }  
   };
 }
-
 // Operators on basic types
 MakeOps!(u8);
 MakeOps!(u16);
@@ -218,10 +217,21 @@ pub type U<const N: u32> = Word<false, N>;
 pub type I<const N: u32> = Word<true, N>;
 
 
+// -----------------------------------------------------------------------------
+// Standard Operations
+// -----------------------------------------------------------------------------
+
 impl<const S: bool, const N: u32> ops::Add for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn add(self, rhs: Self) -> Self {
     Word { rep: self.rep.op_add(rhs.rep) }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::Neg for Word<S,N> where Size<S, N>: WordRep {
+  type Output = Self;
+  fn neg(self) -> Self {
+    Word { rep: self.rep.op_neg() }
   }
 }
 
@@ -254,6 +264,62 @@ impl<const S: bool, const N: u32> ops::Rem for Word<S,N> where Size<S,N>: WordRe
     Word { rep: self.rep.op_shr(p).op_rem(rhs.rep.op_shr(p)).op_shl(p) }
   }
 }
+
+impl<const S: bool, const N: u32> ops::Shl<usize> for Word<S,N> where Size<S,N>: WordRep {
+  type Output = Self;
+  fn shl(self, rhs: usize) -> Self {
+    if rhs >= N as usize {
+      Word { rep: Ops::op_from_u64(0) } 
+    } else {
+      Word { rep: self.rep.op_shl(rhs as u32) }
+    }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::Shr<usize> for Word<S,N> where Size<S,N>: WordRep {
+  type Output = Self;
+  fn shr(self, rhs: usize) -> Self {
+    if rhs >= N as usize {
+      let z = Ops::op_from_u64(0);
+      let p = Size::<S,N>::PADDING;
+      Word { rep: if S && (self.rep < z) { z.op_not().op_shl(p) } else { z } }
+    } else {
+      Word { rep: self.rep.op_shr(rhs as u32) }
+    }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::BitAnd for Word<S,N> where Size<S,N>: WordRep {
+  type Output = Self;
+  fn bitand(self, rhs: Self) -> Self {
+    Word { rep: self.rep.op_bit_and(rhs.rep) }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::BitOr for Word<S,N> where Size<S,N>: WordRep {
+  type Output = Self;
+  fn bitor(self, rhs: Self) -> Self {
+    Word { rep: self.rep.op_bit_or(rhs.rep) }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::BitXor for Word<S,N> where Size<S,N>: WordRep {
+  type Output = Self;
+  fn bitxor(self, rhs: Self) -> Self {
+    Word { rep: self.rep.op_bit_xor(rhs.rep) }
+  }
+}
+
+impl<const S: bool, const N: u32> ops::Not for Word<S,N> where Size<S, N>: WordRep {
+  type Output = Self;
+  fn not(self) -> Self {
+    let p = Size::<S,N>::PADDING;
+    Word { rep: self.rep.op_not().op_shr(p).op_shl(p) }
+  }
+}
+
+
+
 
 impl <const N: u32> fmt::Display for Word<false,N> where Size<false,N>: WordRep {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -324,4 +390,19 @@ impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
     let v = self.rep.op_shr(Size::<S,N>::PADDING).op_to_u64();
     Word { rep: <<Size<S1,N1> as WordRep>::Rep>::op_from_u64(v).op_shl(Size::<S1,N1>::PADDING) }
   }
+}
+
+
+
+#[macro_export]
+macro_rules! cat {
+  ($M: literal, $N: literal, $x: expr, $y: expr) => {
+    U::<{$M+$N}::from(u64::from($x) << ($N as usize)) | (u64::from($y))
+  };
+}
+
+pub fn lcat<const M: u32, const N: u32>(x: U<M>, y: U<N>) -> U<M>
+  where
+  Size<false, M>: WordRep, Size<false,N>: WordRep, U<M>: From<U<N>> {
+  (x << (N as usize)) | U::<M>::from(y)
 }

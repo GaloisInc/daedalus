@@ -10,6 +10,13 @@ pub enum Maybe<T> {
     Just(T),
 }
 
+pub fn from_option<T>(x: Option<T>) -> Maybe<T> {
+    match x {
+      Some(x)   => Maybe::Just(x),
+      None      => Maybe::Nothing
+    }
+}
+
 impl<T> Maybe<T> {
     /// Unwraps the Maybe, panicking if it is Nothing.
     pub fn unwrap(self) -> T {
