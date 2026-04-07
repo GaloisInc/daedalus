@@ -5,12 +5,13 @@ use std::rc::Rc;
 pub struct Builder<T> { node: ddl::O<Node<T>> }
 
 /// A helper type for efficient building of arrays (borrowed form).
-#[derive(Copy)]
 pub struct BuilderB<'a,T> { node: ddl::B<'a,Node<T>> }
 
 impl<T> Clone for Builder<T> {
   fn clone(&self) -> Self { Builder { node: self.node.clone() } }
 }
+
+impl<'a,T> Copy for BuilderB<'a,T> {}
 
 impl<'a,T> Clone for BuilderB<'a,T> {
   fn clone(&self) -> Self { BuilderB { node: self.node.clone() } }

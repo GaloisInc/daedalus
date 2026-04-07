@@ -10,7 +10,7 @@ pub struct Array<T> { rc: ddl::O<[T]> }
 
 /// Borrowed array
 #[repr(transparent)]
-#[derive(Copy,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(PartialEq,Eq,PartialOrd,Ord)]
 pub struct ArrayB<'a,T> { rc: ddl::B<'a,[T]> }
 
 impl<T: ddl::Type> ddl::Type for Array<T> {
@@ -30,6 +30,8 @@ impl<T> Clone for Array<T> {
 impl<'a,T> Clone for ArrayB<'a,T> {
   fn clone(&self) -> Self { ArrayB { rc: self.rc.clone() } }
 }
+
+impl<'a,T> Copy for ArrayB<'a,T> {}
 
 impl<T> std::ops::Deref for Array<T> {
   type Target = [T];
@@ -95,18 +97,36 @@ impl<'a,T: ddl::Type> ArrayB<'a,Array<T>> {
 }
 
 /// A helper type for iterating over array (owned from)
-#[derive(Clone)]
 pub struct ArrayIterator<T> {
   index: usize,
   array: Array<T>
 }
 
+impl<T> Clone for ArrayIterator<T> {
+  fn clone(&self) -> Self {
+    ArrayIterator {
+      index: self.index,
+      array: self.array.clone()
+    }
+  }
+}
+
 /// A helper type for iterating over array (borrowed from)
-#[derive(Clone,Copy)]
 pub struct ArrayIteratorB<'a,T> {
   index: usize,
   array: ArrayB<'a,T>
 }
+
+impl<'a,T> Clone for ArrayIteratorB<'a,T> {
+  fn clone(&self) -> Self {
+    ArrayIteratorB {
+      index: self.index,
+      array: self.array.clone()
+    }
+  }
+}
+
+impl<'a,T> Copy for ArrayIteratorB<'a,T> {}
 
 impl<T: ddl::Type> ddl::Type for ArrayIterator<T> {
   type B<'a> = ArrayIteratorB<'a,T>;
