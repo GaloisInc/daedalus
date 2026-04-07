@@ -242,7 +242,7 @@ compileOp1 x op e argTy =
     Core.NewIterator ->
       case argTy of
         VM.TSem (Core.TArray {}) -> def (callRTS "new_array_iterator" [e])
-        VM.TSem (Core.TMap {}) -> xxx
+        VM.TSem (Core.TMap {}) -> def (callRTS "new_map_iterator" [e])
         _ -> panic "compileOp1" ["NewIterator: unexpected argument type"]
 
     Core.IteratorDone -> def (Rust.callMethod e "ddl_done" [])
@@ -317,12 +317,6 @@ compileOp1 x op e argTy =
     
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
-  tmp = show (pp op <> parens (commaSep [text (show (Rust.pretty' e))]))
-  xxx =
-    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
-      (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit tmp)])
-    ]
-
 
 compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> Rust.Expr () -> Rust.Expr () -> [Rust.Stmt ()]
 compileOp2 x op e1 e2 =
@@ -366,20 +360,14 @@ compileOp2 x op e1 e2 =
     Core.EmitBuilder -> unsupported ("emit builder is not yet supported")
     
     -- Maps
-    Core.MapLookup -> xxx
-    Core.MapMember -> xxx
+    Core.MapLookup -> def (Rust.callMethod e1 "lookup" [e2])
+    Core.MapMember -> def (Rust.callMethod e1 "contains" [e2])
  
   where
-  def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  bin rop = bin' rop e1 e2
-  bin' rop x y = def (Rust.bin rop x y)
-  ppR e = text (show (Rust.pretty' e))
-  tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2]))
-  xxx =
-    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
-      (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
-    ]
-
+  def e         = [Rust.localLet [] (compileBVName x) Nothing e]
+  bin rop       = bin' rop e1 e2
+  bin' rop l r  = def (Rust.bin rop l r)
+  
 
 
 compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> Rust.Expr () -> Rust.Expr () -> Rust.Expr () ->
@@ -407,17 +395,11 @@ compileOp3 x op e1 e2 e3 t1 _t2 _t3 =
             _ -> bad
         ])
 
-    Core.MapInsert -> xxx
+    Core.MapInsert -> def (Rust.callMethod e1 "insert" [e2,e3])
   where
   bad   = panic "compileOp3" ["Unexpected",show (pp op)]
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  ppR e = text (show (Rust.pretty' e))
-  tmp = show (pp op <> parens (commaSep [ppR e1, ppR e2, ppR e3]))
-  xxx =
-    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
-      (Rust.call (Rust.identExpr "todo") [Rust.litExpr (Rust.strLit tmp)])
-    ]
-
+  
 compileOpN :: FnCtx => VM.BV -> Core.OpN -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileOpN x op es =
   case op of
@@ -442,7 +424,9 @@ compileExpr how expr =
     VM.ENum n ty     -> compileNumLit n ty
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
     VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)
-    VM.EMapEmpty k v -> unsupported (?fnMsg <+> "empty map expression") -- XXX
+    VM.EMapEmpty k v -> Rust.call (Rust.pathExpr (Rust.pathWithTypes [ddlModName, "empty_map"] [rk,rv])) []
+      where rk = compileType VM.Owned k
+            rv = compileType VM.Owned v
     VM.ENothing {}   -> Rust.pathExpr (Rust.simplePath' [ddlModName, "Maybe", "Nothing"])
     VM.EBlockArg x   -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBAName x))
     VM.EVar x        -> mbBorrow (VM.getOwnership x) (Rust.identExpr (compileBVName x))

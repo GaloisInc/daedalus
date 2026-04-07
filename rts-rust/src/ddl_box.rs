@@ -30,6 +30,28 @@ impl <T: ?Sized + Ord> Ord for O<T> {
   fn cmp(&self, other: &Self) -> Ordering { self.rc.cmp(&other.rc) }
 }
 
+/// A unique owned reference
+#[repr(transparent)]
+pub struct Uniq<T: ?Sized> { rc: Rc<T> }
+
+pub fn new_uniq<T>(x: T) -> Uniq<T> { Uniq { rc: Rc::new(x) } }
+
+impl<T: ?Sized> Uniq<T> {
+  pub fn to_o(self) -> O<T> { O { rc: self.rc } }
+  pub fn to_mut(&mut self) -> &mut T {
+    let p: *mut T = Rc::as_ptr(&self.rc) as *mut T;
+    unsafe { &mut *p }
+  }
+}
+
+impl<T: ?Sized + Clone> O<T> {
+  pub fn to_uniq(mut self) -> Uniq<T> {
+    Rc::make_mut(&mut self.rc);
+    Uniq { rc: self.rc }
+  }
+}
+
+
 
 /// A borrowed DDL value.
 pub struct B<'a,T: ?Sized> {
@@ -84,9 +106,21 @@ impl<'a, T: ?Sized> std::ops::Deref for O<T> {
   fn deref(&self) -> &T { &(self.rc) }
 }
 
+impl<'a, T: ?Sized> std::ops::Deref for Uniq<T> {
+  type Target = T;
+  fn deref(&self) -> &T { &(self.rc) }
+}
+
+impl<'a, T: ?Sized> B<'a, T> {
+  /// Get a reference with the full 'a lifetime
+  pub fn as_ref(&self) -> &'a T {
+    unsafe { &*self.ptr }
+  }
+}
+
 impl<'a, T: ?Sized> std::ops::Deref for B<'a,T> {
   type Target = T;
-  fn deref(&self) -> &T { unsafe { &*self.ptr } }
+  fn deref(&self) -> &T { self.as_ref() }
 }
 
 impl<T: ?Sized + fmt::Display> fmt::Display for O<T> {
