@@ -32,26 +32,3 @@ pub fn test_parser<T: Serialize, F: FnOnce(ddl::Input) -> Option<(T,ddl::Input)>
     }
 }
 
-
-
-pub enum L<T> {
-  Nil,
-  Cons(Node<T>)
-}
-
-pub struct Node<T> {
-  pub head: T,
-  pub tail: ddl::O<L<T>>
-}
-
-// Example using the serialize_enum macro
-crate::serialize_enum!(<T>, L<T>,
-  (L::Nil, "Nil", &()),
-  (L::Cons(x), "Cons", x)
-);
-
-// Example using the serialize_struct macro
-crate::serialize_struct!(<T>, Node<T>,
-  (head, "head"),
-  (tail, "tail")
-);
