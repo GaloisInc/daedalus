@@ -1,10 +1,10 @@
 use crate as ddl;
-use std::fmt;
 use std::env;
 use std::fs;
 use std::process;
+use serde::Serialize;
 
-pub fn test_parser<T: fmt::Display, F: FnOnce(ddl::Input) -> Option<(T,ddl::Input)>>(f: F) {
+pub fn test_parser<T: Serialize, F: FnOnce(ddl::Input) -> Option<(T,ddl::Input)>>(f: F) {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -18,11 +18,40 @@ pub fn test_parser<T: fmt::Display, F: FnOnce(ddl::Input) -> Option<(T,ddl::Inpu
         eprintln!("Error reading file '{}': {}", filename, err);
         process::exit(1);
     });
-    let nm_arr = ddl::new_array_slice(filename.as_bytes());
-    let byte_arr = ddl::new_array_slice(&bytes);
+    let nm_arr = ddl::new_byte_array(filename.as_bytes());
+    let byte_arr = ddl::new_byte_array(&bytes);
 
     match f(ddl::new_input(nm_arr,byte_arr)) {
       None => println!("parse error"),
-      Some((a,_)) => println!("{}",a)
+      Some((a,_)) => {
+          match serde_json::to_string_pretty(&a) {
+              Ok(json) => println!("{}", json),
+              Err(err) => eprintln!("Serialization error: {}", err)
+          }
+      }
     }
 }
+
+
+
+pub enum L<T> {
+  Nil,
+  Cons(Node<T>)
+}
+
+pub struct Node<T> {
+  pub head: T,
+  pub tail: ddl::O<L<T>>
+}
+
+// Example using the serialize_enum macro
+crate::serialize_enum!(<T>, L<T>,
+  (L::Nil, "Nil", &()),
+  (L::Cons(x), "Cons", x)
+);
+
+// Example using the serialize_struct macro
+crate::serialize_struct!(<T>, Node<T>,
+  (head, "head"),
+  (tail, "tail")
+);
