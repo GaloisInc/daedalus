@@ -1,6 +1,7 @@
 mod test;
 mod ddl_box;
 mod number;
+mod int;
 mod input;
 mod array;
 mod builder;
@@ -13,6 +14,7 @@ pub mod user_defined;
 pub use test::*;
 pub use ddl_box::*;
 pub use number::*;
+pub use int::*;
 pub use input::*;
 pub use map::*;
 pub use map_iterators::*;

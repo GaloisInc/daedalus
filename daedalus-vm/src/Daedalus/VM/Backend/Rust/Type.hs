@@ -87,7 +87,7 @@ compileType own ty =
     Core.TSInt sz ->
       Rust.pathType (Rust.pathWithGen [ddlModName,"I"] [compileSizeType sz])
 
-    Core.TInteger           -> xxx
+    Core.TInteger           -> maybeRef (Rust.pathType (ddlPath "Int"))
     Core.TBool              -> Rust.tBool
     Core.TFloat             -> Rust.tF 32
     Core.TDouble            -> Rust.tF 64

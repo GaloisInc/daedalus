@@ -8,6 +8,9 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List(foldl')
 import Data.ByteString qualified as BS
+import Data.Word(Word8,Word64)
+import Data.Int(Int64)
+import Data.Bits
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
@@ -43,7 +46,8 @@ compileProgram cfg vm = show (Rust.pretty' result)
   uses = [
     Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
     Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ]),
-    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing) ]
+    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
+    ]
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
@@ -165,6 +169,25 @@ compileBlockInstr instr =
 callRTS :: Rust.Ident -> [Rust.Expr ()] -> Rust.Expr ()
 callRTS f = Rust.call (Rust.pathExpr (ddlPath f))
 
+-- | Convert an Integer to big-endian signed bytes
+integerToBytes :: Integer -> [Word8]
+integerToBytes i
+  | i == 0 = [0]
+  | i > 0 =
+      let bytes = reverse (go i)
+      in if testBit (head bytes) 7
+         then 0 : bytes  -- Add leading 0 if high bit is set
+         else bytes
+  | otherwise =  -- i < 0
+      let bytes = reverse (go (abs i - 1))
+          inverted = map complement bytes
+      in if testBit (head inverted) 7
+         then inverted
+         else 0xff : inverted  -- Add leading 0xff if high bit is clear
+  where
+    go 0 = []
+    go n = fromInteger (n .&. 0xff) : go (n `shiftR` 8)
+
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
@@ -176,7 +199,19 @@ compilePrim x prim es =
     VM.NewBuilder ty -> 
       def (Just (compileType VM.Owned (Core.TBuilder ty))) (callRTS "new_builder" [])
 
-    VM.Integer i -> xxx
+    VM.Integer i
+      | i == 0 -> def Nothing (Rust.typeQualifiedExpr ty (Rust.simplePath "ZERO"))
+      | otherwise -> def (Just ty) expr
+      where
+      ty = compileType VM.Owned Core.TInteger
+      expr
+        | toInteger (minBound :: Int64) <= i && i <= toInteger (maxBound :: Int64) =
+          Rust.callMethod (Rust.litExpr (Rust.intLit' Rust.I64 i)) "into" []
+        | 0 <= i && i <= toInteger (maxBound :: Word64) =
+          Rust.callMethod (Rust.litExpr (Rust.intLit' Rust.U64 i)) "into" []
+        | otherwise =
+          Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from_signed_bytes_be"))
+            [Rust.addrOf (Rust.arrExpr [Rust.litExpr (Rust.intLit' Rust.U8 (toInteger b)) | b <- integerToBytes i])]
 
     VM.StructCon ut ->
       case Core.tnameFlav nm of
@@ -232,8 +267,18 @@ compileOp1 x op e argTy =
     Core.Concat -> def (Rust.callMethod e "concat" [])
     Core.FinishBuilder -> def (Rust.callMethod e "build" [])
 
-    Core.CoerceTo ty ->
-      [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
+    Core.CoerceTo ty
+      | Just _ <- Core.isBits ty
+      , Just _ <- Core.isBits srcTy ->
+        -- Word to Word: use cast_to
+        [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
+      | otherwise ->
+        -- Converting to/from Integer: use .into() (leverages From instances)
+        [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "into" [])]
+      where
+      srcTy = case argTy of
+                VM.TSem t -> t
+                _ -> panic "compileOp1" ["CoerceTo with non-semantic type"]
 
     Core.Neg    -> def (Rust.uni Rust.Neg e)
     Core.BitNot -> def (Rust.uni Rust.Not e)
