@@ -30,7 +30,10 @@ compileBVName :: VM.BV -> Rust.Ident
 compileBVName (VM.BV n _) = Rust.mkIdent ("_tmp_" ++ show n)
 
 pcName :: Rust.Ident
-pcName = Rust.mkIdent "block_id"
+pcName = "block_id"
+
+parserStateName :: Rust.Ident
+parserStateName = "state"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
 compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "_" ++ show n)

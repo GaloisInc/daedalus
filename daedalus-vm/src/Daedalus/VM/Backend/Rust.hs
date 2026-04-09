@@ -4,6 +4,7 @@ module Daedalus.VM.Backend.Rust (
   Config(..)
 ) where
 
+import Data.Text qualified as Text
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List(foldl')
@@ -90,7 +91,8 @@ compileFun fu =
     | otherwise     = Rust.tOption (Rust.tTuple [compileType VM.Owned (Core.fnameType fnm), compileType VM.Owned Core.TStream])
     where ?fnMsg = fnMsg
 
-  (args,def) =
+  args = (parserStateName, Rust.tMutRef (Rust.pathType (ddlPath "ParserState"))) : args'
+  (args',def) =
     let ?isPure = VM.vmfPure fu
         ?fnMsg  = fnMsg
     in compileFunDef (VM.vmfDef fu)
@@ -150,7 +152,7 @@ compileBlock bl = (lab, argTs, alt)
 compileBlockInstr :: FnCtx => VM.Instr -> [Rust.Stmt ()]
 compileBlockInstr instr =
   case instr of
-    VM.Say str          -> notYet
+    VM.Say msg          -> pstate "say" [ str msg ]
     VM.Output {}        -> bad
     VM.Notify {}        -> bad
     VM.CallPrim x f es  -> compilePrim x f es
@@ -158,12 +160,20 @@ compileBlockInstr instr =
     VM.Let x e ->
       [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "clo" [])]
     VM.Free _                   -> [] -- Rust should drop things on its own
-    VM.NoteFail loc str inp msg -> [] -- XXX: error messages
-    VM.PushDebug {}             -> [] -- XXX: stack trace
-    VM.PopDebug                 -> [] -- XXX
+    VM.NoteFail loc s inp msg ->
+      pstate "note_fail" [ Rust.litExpr (Rust.boolLit (loc == Core.ErrorFromUser))
+                         , str s
+                         , compileExpr VM.Borrowed inp
+                         , compileExpr VM.Borrowed msg
+                         ]
+    VM.PushDebug t f            -> pstate "push" [ is_tail, str (Text.unpack f) ]
+      where is_tail = Rust.litExpr (Rust.boolLit (t == VM.DebugTailCall))
+    VM.PopDebug                 -> pstate "pop" []
   where
-  bad     = panic "compileBlockInstr" ["Unexpected instruction", show (pp instr)]
-  notYet  = unsupported (?fnMsg <+> "instruction:" <+> pp instr)
+  bad  = panic "compileBlockInstr" ["Unexpected instruction", show (pp instr)]
+  pstate x ys =
+    [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) x ys) ]
+  str x = Rust.litExpr (Rust.strLit x)
 
 
 callRTS :: Rust.Ident -> [Rust.Expr ()] -> Rust.Expr ()
@@ -193,7 +203,7 @@ compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
   case prim of
     VM.ByteArray bs ->
-      def ty (callRTS "new_array_slice" [Rust.litExpr (Rust.bytesLit bs)])
+      def ty (callRTS "new_byte_array" [Rust.litExpr (Rust.bytesLit bs)])
         where ty = if BS.null bs then Just (compileType VM.Owned (Core.TArray Core.TByte)) else Nothing
 
     VM.NewBuilder ty -> 
@@ -241,15 +251,10 @@ compilePrim x prim es =
     VM.OpN op -> compileOpN x op compiled
   
   where
-  compiled = zipWith compileExpr (modePrimName prim) es
-  bad n = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
+  compiled  = zipWith compileExpr (modePrimName prim) es
+  bad n     = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
   def mb re = [Rust.localLet [] (compileBVName x) mb re]
-  tmp = show (pp prim <> parens (commaSep (map pp es)))
-  xxx =
-    [ Rust.localLet [] (compileBVName x) (Just (compileVMT (VM.getType x) VM.Owned))
-      (Rust.callMacro (Rust.simplePath "todo") [Rust.litExpr (Rust.strLit tmp)])
-    ]
-
+  
 compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> Rust.Expr () -> VM.VMT -> [Rust.Stmt ()]
 compileOp1 x op e argTy =
   case op of
@@ -535,7 +540,7 @@ compileCInstr cinstr =
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
   doCall f es = Rust.call (Rust.identExpr (compileFName f))
-                          (zipWith compileExpr sig es)
+                          (Rust.identExpr parserStateName : zipWith compileExpr sig es)
     where
     sig =
       case Map.lookup f ?funSigs of

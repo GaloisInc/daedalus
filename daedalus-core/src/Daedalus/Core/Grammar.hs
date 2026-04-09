@@ -70,7 +70,7 @@ data Backtrack =
     deriving (Generic,NFData)
 
 data ErrorSource = ErrorFromUser | ErrorFromSystem
-  deriving (Generic,NFData)
+  deriving (Eq,Generic,NFData)
 
 instance CoreSyn Grammar where
   coreLet       = Let

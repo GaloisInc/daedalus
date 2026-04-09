@@ -1,5 +1,6 @@
 mod test;
 mod ddl_box;
+mod bitdata;
 mod number;
 mod int;
 mod input;
@@ -9,9 +10,11 @@ mod map;
 mod map_iterators;
 mod maybe;
 mod unit;
-pub mod user_defined;
+mod user_defined;
+mod parser_state;
 
 pub use test::*;
+pub use bitdata::*;
 pub use ddl_box::*;
 pub use number::*;
 pub use int::*;
@@ -22,6 +25,7 @@ pub use array::*;
 pub use builder::*;
 pub use maybe::*;
 pub use unit::*;
+pub use parser_state::*;
 
 /// DDL types representing owned things that can be borrowed.
 /// The main reason for this is because in some cases we'd like to represent

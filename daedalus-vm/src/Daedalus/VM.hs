@@ -75,6 +75,7 @@ data ReturnHow =
     deriving (Eq,Show)
 
 data DebugCall = DebugCall | DebugTailCall
+  deriving Eq
 
 -- | Instructions
 data Instr =

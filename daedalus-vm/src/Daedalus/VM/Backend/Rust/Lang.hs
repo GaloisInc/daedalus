@@ -91,6 +91,9 @@ tOption elT = pathType (pathWithTypes ["Option"] [elT])
 tRef :: Maybe (Lifetime ()) -> Ty () -> Ty ()
 tRef l ty = Rptr l Immutable ty ()
 
+tMutRef :: Ty () -> Ty ()
+tMutRef ty = Rptr Nothing Mutable ty ()
+
 noGenerics :: Generics ()
 noGenerics = mkGenerics [] noWhereClause
 
