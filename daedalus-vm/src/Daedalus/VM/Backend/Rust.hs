@@ -301,7 +301,7 @@ compileOp1 x op e argTy =
     Core.IteratorNext -> def (Rust.callMethod e "ddl_next" [])
 
     Core.EJust -> def (Rust.callCon (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [e])
-    Core.FromJust -> def (Rust.callMethod e "unwrap" [])
+    Core.FromJust -> def (Rust.callMethod (Rust.callMethod e "unwrap" []) "clo" [])
 
     -- XXX: bitdata
     Core.SelStruct ty lab ->
