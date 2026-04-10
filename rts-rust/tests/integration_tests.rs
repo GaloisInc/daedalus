@@ -188,6 +188,46 @@ fn test_array_concat() {
                "Concat should flatten nested arrays in order");
 }
 
+#[test]
+fn test_array_comparison() {
+    // Tests array comparison operations (Eq, Ord) which compare arrays lexicographically.
+    // Using byte arrays (ArrayB<U<8>>) to test the cmp operator.
+    let arr1 = ddl::new_byte_array(&[1, 2, 3]);
+    let arr2 = ddl::new_byte_array(&[1, 2, 3]);
+    let arr3 = ddl::new_byte_array(&[1, 2, 4]); // Different last element
+    let arr4 = ddl::new_byte_array(&[1, 2]);    // Shorter array
+    let arr5 = ddl::new_byte_array(&[1, 2, 3, 4]); // Longer array
+    let arr6 = ddl::new_byte_array(&[2, 1, 0]); // Different first element
+
+    // Test equality
+    assert!(arr1.bor() == arr2.bor(), "Arrays with same elements should be equal");
+    assert!(arr1.bor() != arr3.bor(), "Arrays with different elements should not be equal");
+    assert!(arr1.bor() != arr4.bor(), "Arrays with different lengths should not be equal");
+
+    // Test ordering - lexicographic comparison
+    assert!(arr1.bor() < arr3.bor(), "arr1 < arr3 (differs at last element: 3 < 4)");
+    assert!(arr3.bor() > arr1.bor(), "arr3 > arr1 (differs at last element: 4 > 3)");
+
+    assert!(arr4.bor() < arr1.bor(), "arr4 < arr1 (prefix is less than longer array)");
+    assert!(arr1.bor() > arr4.bor(), "arr1 > arr4 (longer array with same prefix)");
+
+    assert!(arr1.bor() < arr5.bor(), "arr1 < arr5 (prefix is less than longer array)");
+
+    assert!(arr1.bor() < arr6.bor(), "arr1 < arr6 (differs at first element: 1 < 2)");
+    assert!(arr6.bor() > arr1.bor(), "arr6 > arr1 (differs at first element: 2 > 1)");
+
+    // Test with empty arrays
+    let empty = ddl::new_byte_array(&[]);
+    assert!(empty.bor() < arr1.bor(), "Empty array should be less than non-empty array");
+    assert!(empty.bor() == ddl::new_byte_array(&[]).bor(), "Empty arrays should be equal");
+
+    // Test <= and >= operators
+    assert!(arr1.bor() <= arr2.bor(), "Equal arrays should satisfy <=");
+    assert!(arr1.bor() >= arr2.bor(), "Equal arrays should satisfy >=");
+    assert!(arr4.bor() <= arr1.bor(), "arr4 <= arr1");
+    assert!(arr1.bor() >= arr4.bor(), "arr1 >= arr4");
+}
+
 // ============================================================================
 // Builder Tests
 // ============================================================================

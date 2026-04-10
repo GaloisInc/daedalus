@@ -66,20 +66,20 @@ impl<'a, T: ?Sized> Clone for B<'a,T> {
 }
 
 impl <'a,T: ?Sized + PartialEq> PartialEq for B<'a,T> {
-  fn eq(&self, other: &Self) -> bool { &self == &other }
+  fn eq(&self, other: &Self) -> bool { **self == **other }
 }
 
 impl <'a,T: ?Sized + Eq> Eq for B<'a,T> {}
 
 impl <'a,T: ?Sized + PartialOrd> PartialOrd for B<'a,T> {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    (&self).partial_cmp(&other)
+    (**self).partial_cmp(&**other)
   }
 }
 
 impl <'a,T: ?Sized + Ord> Ord for B<'a,T> {
   fn cmp(&self, other: &Self) -> Ordering {
-    (&self).cmp(&other)
+    (**self).cmp(&**other)
   }
 }
 
