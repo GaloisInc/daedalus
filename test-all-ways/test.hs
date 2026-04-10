@@ -113,6 +113,7 @@ compileWith be ddl =
        InterpVM       -> pure ()
        CompileHaskell -> compileHaskell ddl
        CompileCPP     -> compileCPP ddl
+       CompileRust    -> compileRust ddl
 
 compileHaskell :: Quiet => FilePath -> IO ()
 compileHaskell ddl =
@@ -135,6 +136,14 @@ compileCPP ddl =
      exe <- daedalusExe
      callProcess' exe [ "compile-c++", "--out-dir=" ++ build, ddl ]
      callProcess' "make" [ "-C", build, "parser" ]
+
+compileRust :: Quiet => FilePath -> IO ()
+compileRust ddl =
+  do let build = buildDirFor CompileRust ddl
+     createDirectoryIfMissing True build
+     exe <- daedalusExe
+     callProcess' exe [ "compile-rust", "--determinize", "--save-rts", "--out-dir=" ++ build, ddl ]
+     callProcessIn_ build "cargo" ["build", "--release"]
 
 
 --------------------------------------------------------------------------------
@@ -169,6 +178,11 @@ runWith be ddl mbInput =
 
           CompileCPP ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
+                                    (maybeToList mbInput)
+                                    ""
+
+          CompileRust ->
+            readProcessWithExitCode (buildDirFor be ddl </> "target" </> "release" </> short ddl)
                                     (maybeToList mbInput)
                                     ""
   where
@@ -331,6 +345,7 @@ data Backend = InterpDaedalus
              | InterpVM
              | CompileHaskell
              | CompileCPP
+             | CompileRust
                deriving (Eq,Ord,Enum,Bounded,Show,Read)
 
 allBackends :: [Backend]
