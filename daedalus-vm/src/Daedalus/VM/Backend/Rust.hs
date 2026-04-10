@@ -261,16 +261,14 @@ compileOp1 x op e argTy =
     -- Streams
     Core.Head -> def (Rust.callMethod e "head" [])
     Core.IsEmptyStream -> def (Rust.callMethod e "is_empty" [])
-    Core.StreamOffset -> def (Rust.cast val (compileType VM.Owned (Core.tWord 64)))
+    Core.StreamOffset -> def (fromSize val)
       where val = Rust.callMethod e "len" []
     Core.BytesOfStream -> def (Rust.callMethod e "bytes" [])
 
     -- Arrays
-    Core.ArrayLen ->
-      def (Rust.cast (Rust.callMethod e "len" [])
-                     (compileType VM.Owned (Core.tWord 64)))
-    Core.Concat -> def (Rust.callMethod e "concat" [])
-    Core.FinishBuilder -> def (Rust.callMethod e "build" [])
+    Core.ArrayLen       -> def (fromSize (Rust.callMethod e "len" []))
+    Core.Concat         -> def (Rust.callMethod e "concat" [])
+    Core.FinishBuilder  -> def (Rust.callMethod e "build" [])
 
     Core.CoerceTo ty
       | Just _ <- Core.isBits ty
@@ -402,7 +400,7 @@ compileOp2 x op e1 e2 =
  
     -- Arrays
     Core.ArrayIndex -> def (Rust.callMethod val "clo" [])
-      where val = Rust.index e1 (Rust.cast e2 Rust.tUsize)
+      where val = Rust.index e1 (toSize e2)
 
     -- Builders
     Core.Emit -> def (Rust.callMethod e1 "push" [ e2 ])
