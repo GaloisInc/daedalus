@@ -24,6 +24,8 @@ extra-source-files:
   exe/error-viewer-template/*.html
   exe/error-viewer-template/*.css
   rts-c/ddl/*.h
+  rts-rust/Cargo.toml
+  rts-rust/src/*
 
 library
   hs-source-dirs:      src

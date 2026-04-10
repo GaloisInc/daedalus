@@ -9,12 +9,17 @@ import qualified Data.ByteString.Lazy as Lazy
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as Build
 import Data.FileEmbed
+import System.FilePath((</>))
 
 c_template_files :: [(FilePath,ByteString)]
 c_template_files = $(embedDir "exe/c-template")
 
 rts_files :: [(FilePath,ByteString)]
 rts_files = $(embedDir "rts-c/ddl")
+
+rust_rts_files :: [(FilePath,ByteString)]
+rust_rts_files = ("Cargo.toml", $(embedFile "rts-rust/Cargo.toml"))
+               : [ ("src" </> x, y) | (x,y) <- $(embedDir "rts-rust/src") ]
 
 hs_template_files :: [(FilePath,ByteString)]
 hs_template_files = $(embedDir "exe/hs-template")

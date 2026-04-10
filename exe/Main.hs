@@ -346,6 +346,9 @@ generateRust opts mm =
                    Just p  -> dropExtension (takeFileName p)
         let dir = fromMaybe nm (optOutDir opts)
             src = dir </> "src"
+            rtsPath = if optSaveRTS opts
+                       then "rts-rust"
+                       else fromMaybe "../rts-rust" (optRTSPath opts)
         createDirectoryIfMissing True dir
         createDirectoryIfMissing True src
         -- XXX: The configuration is just temporary for testing
@@ -356,7 +359,7 @@ generateRust opts mm =
             "edition = \"2024\"",
             "",
             "[dependencies]",
-            "daedalus-rts-rust = { path = \"../rts-rust\" }",
+            "daedalus-rts-rust = { path = " ++ show rtsPath ++ " }",
             "serde = { version = \"1.0\" }"
           ]
         createDirectoryIfMissing True src
@@ -367,6 +370,13 @@ generateRust opts mm =
           [ "use daedalus_rts_rust as ddl;"
           , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
           ]
+
+        when (optSaveRTS opts) $
+          do let save (x,b) =
+                   do let d = dir </> "rts-rust" </> takeDirectory x
+                      createDirectoryIfMissing True d
+                      BS.writeFile (dir </> "rts-rust" </> x) b
+             mapM_ save rust_rts_files
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =

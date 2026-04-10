@@ -85,6 +85,9 @@ data Options =
             -- 'Nothing' means no detailed errors, `Just` contains
             -- the directory where we should save stuff
 
+          , optRTSPath :: Maybe FilePath
+            -- ^ Path to the RTS (runtime system)
+
           , optParams :: [String]
           } deriving Show
 
@@ -123,6 +126,7 @@ defaultOptions =
           , optExternMods = Map.empty
           , optModulePath = []
           , optDetailedErrors = Nothing
+          , optRTSPath = Nothing
           , optUseLazyStream = False
           , optVM_do_mm = True
           , optSaveRTS = False
@@ -390,6 +394,13 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
         "Place type declarations in this module (default: User)"
         $ ReqArg "NAMESPACE" \s o -> Right o { optUserNS = s }
 
+      , Option [] ["rts-path"]
+        "Path to the Daedalus RTS"
+        $ ReqArg "PATH" \s o -> Right o { optRTSPath = Just s }
+
+      , Option [] ["save-rts"]
+        "Also generate the source code for the Daedalus RTS."
+        $ NoArg \o -> Right o { optSaveRTS = True }
       ] ++
       coreOptions ++
       [ helpOption
