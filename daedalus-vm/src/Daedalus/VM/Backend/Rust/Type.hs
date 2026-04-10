@@ -92,15 +92,15 @@ compileType own ty =
     Core.TFloat             -> Rust.tF 32
     Core.TDouble            -> Rust.tF 64
     Core.TUnit              -> Rust.pathType (ddlPath "Unit")
-    Core.TArray t           -> maybeB "Array" "ArrayB" t
-    Core.TBuilder t         -> maybeB "Builder" "BuilderB" t
+    Core.TArray t           -> maybeB "Array" "ArrayB" [t]
+    Core.TBuilder t         -> maybeB "Builder" "BuilderB" [t]
 
     Core.TMaybe t           -> Rust.pathType (Rust.pathWithTypes [ddlModName, "Maybe"] [compileType own t])
-    Core.TMap tk kv         -> xxx
+    Core.TMap tk tv         -> maybeB "Map" "MapB" [tk,tv]
     Core.TIterator t        -> 
       case t of
-        Core.TArray el -> maybeB "ArrayIterator" "ArrayIteratorB" el
-        Core.TMap k v -> xxx
+        Core.TArray el  -> maybeB "ArrayIterator" "ArrayIteratorB" [el]
+        Core.TMap tk tv -> maybeB "MapIterator" "MapIteratorB" [tk,tv]
         _ -> panic "compileType" ["Unexpected iterator type"]
     Core.TUser t
       | not (null (Core.utNumArgs t)) -> unsupported (?fnMsg <> "numeric type arguments")
@@ -111,18 +111,19 @@ compileType own ty =
 
     Core.TParam bp          -> Rust.pathType (Rust.simplePath (valTPName bp))
   where
-  xxx = unsupported ("XXX:" <+> pp ty)
   maybeRef rt =
     case own of
       VM.Borrowed -> Rust.tRef Nothing rt
       _           -> rt
-  maybeB town tbor t = Rust.pathType p
+  maybeB town tbor ts = Rust.pathType p
    where
-    p = Rust.pathWithTypes [ddlModName,base] [compileType VM.Owned t]
+    p = Rust.pathWithTypes [ddlModName,base] (map (compileType VM.Owned) ts)
     base =
       case own of
         VM.Borrowed -> tbor
         _           -> town
+
+
 
 compileSizeType :: Core.SizeType -> Rust.GenericArg ()
 compileSizeType ty =
