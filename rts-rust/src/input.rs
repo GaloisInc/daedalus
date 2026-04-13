@@ -45,7 +45,7 @@ impl Input {
     if self.len() == self.bytes.len() {
       self.bytes.clo()
     } else {
-      let x = &self.bytes();
+      let x = &self.bytes;
       ddl::new_array_slice(&x[self.offset .. self.last_offset])
     }
   }
@@ -57,7 +57,7 @@ impl Input {
   pub fn is_empty(&self)    -> bool  { self.offset == self.last_offset }
   
   /// Get the first byte in input.  Assumes the input is not empty.
-  pub fn head(&self)        -> ddl::U<8>  { self.bytes[0] }
+  pub fn head(&self)        -> ddl::U<8>  { self.bytes[self.offset] }
 
   /// Advance the input to given number of bytes.
   /// If there are not enough bytes go to the end of the input.
@@ -81,7 +81,7 @@ impl Input {
     let str_len = self.len();
     let bs_len  = bs.len();
     if str_len < bs_len { return false }
-    let str: &[ddl::U<8>] = &xs[self.offset .. self.offset + bs_len];
+    let str: &[ddl::U<8>] = &self.bytes[self.offset .. self.offset + bs_len];
     return str == bs;
   }
   

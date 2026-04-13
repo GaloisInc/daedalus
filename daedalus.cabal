@@ -15,17 +15,60 @@ extra-source-files:
   exe/c-template/Makefile
   exe/c-template/Doxyfile
   exe/c-template/main.cpp
-  exe/html-template/*.js
-  exe/html-template/*.html
-  exe/html-template/*.css
+  exe/html-template/render.js
+  exe/html-template/index.html
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
-  exe/error-viewer-template/*.js
-  exe/error-viewer-template/*.html
-  exe/error-viewer-template/*.css
-  rts-c/ddl/*.h
+  exe/error-viewer-template/stringSet.js
+  exe/error-viewer-template/tree.js
+  exe/error-viewer-template/hex-view.js
+  exe/error-viewer-template/error.js
+  exe/error-viewer-template/scope.js
+  exe/error-viewer-template/view.js
+  exe/error-viewer-template/index.html
+  exe/error-viewer-template/view.css
+  rts-c/ddl/bitdata.h
+  rts-c/ddl/bool.h
+  rts-c/ddl/cast.h
+  rts-c/ddl/debug.h
+  rts-c/ddl/float.h
+  rts-c/ddl/input.h
+  rts-c/ddl/int.h
+  rts-c/ddl/integer.h
+  rts-c/ddl/json.h
+  rts-c/ddl/maybe.h
+  rts-c/ddl/number.h
+  rts-c/ddl/owned.h
+  rts-c/ddl/parse_error.h
+  rts-c/ddl/size.h
+  rts-c/ddl/stack.h
+  rts-c/ddl/stream.h
+  rts-c/ddl/unit.h
+  rts-c/ddl/utils.h
+  rts-c/ddl/value.h
+  rts-c/ddl/export.h
+  rts-c/ddl/array.h
+  rts-c/ddl/boxed.h
+  rts-c/ddl/list.h
+  rts-c/ddl/dex.h
+  rts-c/ddl/map.h
+  rts-c/ddl/parser.h
   rts-rust/Cargo.toml
-  rts-rust/src/*
+  rts-rust/src/array.rs
+  rts-rust/src/map.rs
+  rts-rust/src/map_iterators.rs
+  rts-rust/src/maybe.rs
+  rts-rust/src/number.rs
+  rts-rust/src/unit.rs
+  rts-rust/src/user_defined.rs
+  rts-rust/src/int.rs
+  rts-rust/src/bitdata.rs
+  rts-rust/src/lib.rs
+  rts-rust/src/parser_state.rs
+  rts-rust/src/test.rs
+  rts-rust/src/ddl_box.rs
+  rts-rust/src/input.rs
+  rts-rust/src/builder.rs
 
 library
   hs-source-dirs:      src

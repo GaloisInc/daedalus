@@ -505,10 +505,15 @@ compileCInstr cinstr =
   case cinstr of
     VM.Jump jp -> compileJump jp []
     VM.JumpIf e opts ->
-      [Rust.expr (Rust.matchExpr (deref (compileExpr VM.Borrowed e)) (compileJumpChoice ty opts))]
+      [Rust.expr (Rust.matchExpr (tweak (compileExpr VM.Borrowed e)) (compileJumpChoice ty opts))]
       where
       ty    = VM.getType e
-      deref = if isRecTy ty then Rust.uni Rust.Deref else id
+      tweak
+        | isRecTy ty                   = Rust.uni Rust.Deref
+        | VM.TSem (Core.TUInt _) <- ty = \r -> Rust.callMethod r "into" []
+        | VM.TSem (Core.TSInt _) <- ty = \r -> Rust.callMethod r "into" []
+        | VM.TSem Core.TInteger  <- ty = \r -> Rust.callMethod r "try_into" []
+        | otherwise                    = id
       
     VM.Yield             -> bad
     VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
@@ -583,8 +588,20 @@ compilePat ty p =
     Core.PBool b    -> Rust.litPat (Rust.boolLit b)
     Core.PNothing   -> Rust.conPat (Rust.simplePath' [ddlModName, "Maybe", "Nothing"]) []
     Core.PJust      -> Rust.conPat (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [Rust.wildPat]
-    Core.PNum n     -> Rust.litPat (Rust.intLit n)
-    Core.PBytes {}  -> panic "compilePat" ["Unexpecte PBytes"]
+    Core.PNum n ->
+      case ty of
+        VM.TSem (Core.TUInt (Core.TSize x)) -> num False x
+        VM.TSem (Core.TSInt (Core.TSize x)) -> num True x
+        _ -> panic "compilePath" ["Unexpected type in numeric pattern"]
+        where
+        num sign x = Rust.litPat (Rust.intLit' (suff sign x) n)
+        suff sign x
+          | x <= 8  = if sign then Rust.I8  else Rust.U8
+          | x <= 16 = if sign then Rust.I16 else Rust.U16
+          | x <= 32 = if sign then Rust.I32 else Rust.U32
+          | x <= 64 = if sign then Rust.I64 else Rust.U64
+          | otherwise = panic "compilePat" ["Unexpected size"]
+    Core.PBytes {}  -> panic "compilePat" ["Unexpected PBytes"]
     Core.PCon uc    ->
       case ty of
         VM.TSem (Core.TUser ut) -> Rust.conPat nm [Rust.wildPat | hasData ]

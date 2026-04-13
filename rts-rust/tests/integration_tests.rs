@@ -589,3 +589,219 @@ fn test_serialization() {
     let json = serde_json::to_string(&map).unwrap();
     assert!(json.contains(r#""$$map""#), "Map should serialize with $$map key");
 }
+
+// ============================================================================
+// Input Tests
+// ============================================================================
+
+#[test]
+fn test_input_creation() {
+    // Tests creating Input from byte arrays and strings.
+    let name = ddl::new_byte_array(b"test.dat");
+    let bytes = ddl::new_byte_array(b"hello world");
+    let input = ddl::new_input(name, bytes);
+
+    assert_eq!(input.len(), 11);
+    assert_eq!(input.offset(), 0);
+    assert!(!input.is_empty());
+
+    // Test string convenience constructor
+    let input2 = ddl::new_input_str("file.txt", "test data");
+    assert_eq!(input2.len(), 9);
+    assert_eq!(input2.offset(), 0);
+}
+
+#[test]
+fn test_input_empty() {
+    // Tests behavior with empty input.
+    let input = ddl::new_input_str("empty", "");
+    assert_eq!(input.len(), 0);
+    assert!(input.is_empty());
+    assert_eq!(input.offset(), 0);
+}
+
+#[test]
+fn test_input_advance() {
+    // Tests advancing through input by various amounts.
+    let input = ddl::new_input_str("test", "abcdefgh");
+    assert_eq!(input.len(), 8);
+    assert_eq!(input.offset(), 0);
+
+    // Advance by 3 bytes
+    let input2 = input.advance(3);
+    assert_eq!(input2.len(), 5);
+    assert_eq!(input2.offset(), 3);
+
+    // Advance by more bytes
+    let input3 = input2.advance(2);
+    assert_eq!(input3.len(), 3);
+    assert_eq!(input3.offset(), 5);
+
+    // Advance beyond end (should clamp to end)
+    let input4 = input3.advance(100);
+    assert_eq!(input4.len(), 0);
+    assert!(input4.is_empty());
+    assert_eq!(input4.offset(), 8);
+}
+
+#[test]
+fn test_input_advance_maybe() {
+    // Tests conditional advancing that fails if not enough bytes available.
+    let input = ddl::new_input_str("test", "abcdefgh");
+
+    // Should succeed with enough bytes
+    let result = input.clone().advance_maybe(3);
+    assert!(result.is_some());
+    let input2 = result.unwrap();
+    assert_eq!(input2.len(), 5);
+    assert_eq!(input2.offset(), 3);
+
+    // Should succeed advancing to exactly the end
+    let result = input.clone().advance_maybe(8);
+    assert!(result.is_some());
+    let input3 = result.unwrap();
+    assert_eq!(input3.len(), 0);
+    assert!(input3.is_empty());
+
+    // Should fail when not enough bytes
+    let result = input.clone().advance_maybe(9);
+    assert!(result.is_none());
+
+    // Should fail advancing from middle when not enough remaining
+    let input4 = input.advance(5);
+    let result = input4.advance_maybe(4);
+    assert!(result.is_none());
+}
+
+#[test]
+fn test_input_restrict() {
+    // Tests restricting input to a limited number of bytes.
+    let input = ddl::new_input_str("test", "0123456789");
+    assert_eq!(input.len(), 10);
+
+    // Restrict to 5 bytes
+    let restricted = input.clone().restrict(5);
+    assert_eq!(restricted.len(), 5);
+    assert_eq!(restricted.offset(), 0);
+
+    // Advance and then restrict
+    let input2 = input.clone().advance(3);
+    let restricted2 = input2.restrict(4);
+    assert_eq!(restricted2.len(), 4);
+    assert_eq!(restricted2.offset(), 3);
+
+    // Restrict beyond available bytes (should clamp)
+    let restricted3 = input.clone().restrict(100);
+    assert_eq!(restricted3.len(), 10);
+
+    // After restriction, advancing beyond restriction should stop at restriction
+    let restricted4 = input.clone().restrict(5);
+    let advanced = restricted4.advance(10);
+    assert_eq!(advanced.len(), 0);
+    assert_eq!(advanced.offset(), 5);
+}
+
+#[test]
+fn test_input_bytes() {
+    // Tests getting the bytes from input at various offsets.
+    let input = ddl::new_input_str("test", "hello world");
+
+    // Get all bytes from start
+    let bytes = input.bytes();
+    assert_eq!(bytes.len(), 11);
+
+    // Advance and get remaining bytes
+    let input2 = input.advance(6);
+    let bytes2 = input2.bytes();
+    assert_eq!(bytes2.len(), 5);
+
+    // Convert to vec to check actual content
+    let vec: Vec<u8> = bytes2.iter().map(|x| u8::from(*x)).collect();
+    assert_eq!(vec, b"world");
+}
+
+#[test]
+fn test_input_head() {
+    // Tests getting the first byte of input.
+    let input = ddl::new_input_str("test", "abc");
+
+    // Head of initial input
+    let h = input.head();
+    assert_eq!(u8::from(h), b'a');
+
+    // Head after advancing should be the byte at current position
+    let input2 = input.advance(1);
+    let h2 = input2.head();
+    assert_eq!(u8::from(h2), b'b');
+
+    let input3 = input2.advance(1);
+    let h3 = input3.head();
+    assert_eq!(u8::from(h3), b'c');
+}
+
+#[test]
+fn test_input_is_prefix() {
+    // Tests checking if input starts with a given byte sequence.
+    let input = ddl::new_input_str("test", "hello world");
+
+    // Check for matching prefix
+    let prefix1 = ddl::new_byte_array(b"hello");
+    assert!(input.is_prefix(prefix1), "Should match 'hello' prefix");
+
+    // Check for non-matching prefix
+    let prefix2 = ddl::new_byte_array(b"world");
+    assert!(!input.is_prefix(prefix2), "Should not match 'world' at start");
+
+    // Check after advancing
+    let input2 = input.clone().advance(6);
+    let prefix3 = ddl::new_byte_array(b"world");
+    assert!(input2.is_prefix(prefix3), "Should match 'world' after advancing");
+
+    // Check prefix longer than remaining input
+    let input3 = input.clone().advance(9);
+    let prefix4 = ddl::new_byte_array(b"longer");
+    assert!(!input3.is_prefix(prefix4), "Should not match prefix longer than input");
+
+    // Check empty prefix
+    let empty_prefix = ddl::new_byte_array(b"");
+    assert!(input.is_prefix(empty_prefix), "Empty prefix should always match");
+}
+
+#[test]
+fn test_input_name() {
+    // Tests getting the name of the input.
+    let input = ddl::new_input_str("myfile.txt", "data");
+    let name = input.name();
+
+    let name_bytes: Vec<u8> = name.iter().map(|x| u8::from(*x)).collect();
+    assert_eq!(name_bytes, b"myfile.txt");
+
+    // Name should remain unchanged after operations
+    let input2 = input.advance(2);
+    let name2 = input2.name();
+    let name2_bytes: Vec<u8> = name2.iter().map(|x| u8::from(*x)).collect();
+    assert_eq!(name2_bytes, b"myfile.txt");
+}
+
+#[test]
+fn test_input_combined_operations() {
+    // Tests combining multiple input operations.
+    let input = ddl::new_input_str("combined", "0123456789ABCDEF");
+
+    // Restrict to first 10 bytes, then advance
+    let restricted = input.clone().restrict(10);
+    assert_eq!(restricted.len(), 10);
+
+    let advanced = restricted.advance(5);
+    assert_eq!(advanced.len(), 5);
+    assert_eq!(advanced.offset(), 5);
+
+    // Check we can't advance beyond restriction
+    let at_end = advanced.advance(100);
+    assert_eq!(at_end.len(), 0);
+    assert_eq!(at_end.offset(), 10);
+
+    // Original input should be unaffected (immutability)
+    assert_eq!(input.len(), 16);
+    assert_eq!(input.offset(), 0);
+}
