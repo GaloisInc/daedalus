@@ -21,15 +21,13 @@ macro_rules! bitdata {
 }
 
 
+
+
 #[macro_export]
 macro_rules! bitdata_case {
     ( $ty:ty, $case_ty:ident
       $(, ($mask:literal $(, ($p:literal, $con:ident, $t:ty))*) )*
     ) => {
-      enum $case_ty {
-        $($($con($t),)*)*
-        Junk
-      }
 
       impl $ty {
 

@@ -17,7 +17,15 @@ impl Int {
     pub fn from_signed_bytes_be(bytes: &[u8]) -> Int {
         Int(BigInt::from_signed_bytes_be(bytes))
     }
+
+    pub fn lcat<const N: u32>(self, x: ddl::U<N>) -> Self
+    where ddl::Size<false,N>: ddl::WordRep
+    {
+      (self << (N as usize)) | Self::from(x)
+    }
 }
+
+
 
 // Display and Debug traits - delegate to BigInt
 impl fmt::Display for Int {
@@ -174,6 +182,18 @@ where
     }
 }
 
+// Conversions from Int to Word types (with wrap-around/modulo semantics)
+// Unsigned words
+impl<const N: u32> From<&Int> for ddl::U<N>
+where
+    ddl::number::Size<false, N>: ddl::number::WordRep,
+{
+    fn from(i: &Int) -> Self {
+        ddl::U::from(int_to_u64_wrapped(&i.0))
+    }
+}
+
+
 // Signed words
 impl<const N: u32> From<Int> for ddl::I<N>
 where
@@ -183,6 +203,17 @@ where
         ddl::I::from(int_to_u64_wrapped(&i.0) as i64)
     }
 }
+
+// Signed words
+impl<const N: u32> From<&Int> for ddl::I<N>
+where
+    ddl::number::Size<true, N>: ddl::number::WordRep,
+{
+    fn from(i: &Int) -> Self {
+        ddl::I::from(int_to_u64_wrapped(&i.0) as i64)
+    }
+}
+
 
 // Conversions from standard integer types to Int
 impl From<u8> for Int {

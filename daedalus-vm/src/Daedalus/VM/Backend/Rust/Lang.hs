@@ -11,7 +11,7 @@ import Data.ByteString qualified as BS
 import Data.Text(Text)
 import Data.Text qualified as Text
 import Data.Maybe(maybeToList,mapMaybe)
-import Data.Char(isAlpha,toLower,isUpper,toUpper)
+import Data.Char(isAlpha,toUpper, toLower,isLower,isUpper,toUpper)
 import Numeric(showHex)
 import Data.List(intersperse,groupBy)
 import Language.Rust.Syntax
@@ -517,7 +517,23 @@ snakeCase str = lower False str ""
       bufEmpty = null (buf "")
 
 upperCamelCase :: String -> String
-upperCamelCase = concat . mapMaybe check . groupBy isUnder2
+upperCamelCase as =
+  case check as of
+    a : bs -> toUpper a : bs
+    _ -> as
+  where
+  check xs =
+    case xs of
+      '_' : '_' : more -> check ('_' : more)
+      '_' : x : more
+        | isLower x -> toUpper x : check more
+        | otherwise  -> x : check more
+      '_' : [] -> "_"
+      x : more -> x : check more
+      [] -> []
+  {-
+  
+  concat . mapMaybe check . groupBy isUnder2
   where
   isUnder x = x == '_'
   isUnder2 x y = isUnder x == isUnder y
@@ -527,7 +543,7 @@ upperCamelCase = concat . mapMaybe check . groupBy isUnder2
       '_' : _ -> Nothing
       c : cs  -> Just (toUpper c : map toLower cs)
       [] -> panic "check" ["groupBy returned []"]
-
+-}
 
 -- | Name mangling for exotic Unicode characters. For example, the character
 -- 𝑂 is mangled to u1d442, where 1d442 is the hexadecimal value of 𝑂's

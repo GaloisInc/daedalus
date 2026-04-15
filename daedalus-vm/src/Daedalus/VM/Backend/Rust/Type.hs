@@ -68,10 +68,10 @@ compileTDecl td
             Core.BDStruct fs ->
               mac "bitdata_struct_serialize" $
                 Rust.tyToken rty :
-                [ Rust.exprToken (Rust.tupleExpr [lab,meth])
+                [ tup [lab,meth]
                 | Core.BDField { Core.bdFieldType = Core.BDData l _t } <- fs
-                , let lab = Rust.litExpr (Rust.strLit (Text.unpack l))
-                      meth = Rust.identExpr (compileBDFieldLabel l)
+                , let lab = Rust.strToken (Text.unpack l)
+                      meth = Rust.identToken (compileBDFieldLabel l)
                 ]
             Core.BDUnion cons ->
               mac "bitdata_union_serialize" $
@@ -104,6 +104,10 @@ compileTDecl td
                   
               in
               [
+                 Rust.mkEnum [] Rust.PublicV (nm True) Rust.noGenerics $
+                  (bdJunkName, []) :
+                  [ (compileConLabel l, [compileType VM.Owned t]) | (l,t) <- cons ],
+                
                 mac "bitdata_case" $
                   Rust.tyToken rty : Rust.identToken (nm True) :
                   [ tup (num msk :

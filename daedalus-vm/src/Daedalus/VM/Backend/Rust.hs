@@ -284,8 +284,8 @@ compilePrim x prim es =
         _          -> bad 1
 
     VM.Op2 op ->
-      case compiled of
-        [e1,e2] -> compileOp2 x op e1 e2
+      case (compiled,es) of
+        ([e1,e2],[a,b]) -> compileOp2 x op e1 e2 (VM.getType a) (VM.getType b)
         _       -> bad 2
 
     VM.Op3 op ->
@@ -416,7 +416,10 @@ compileOp1 x op e argTy =
       noArg = Rust.pathExpr (Rust.simplePath' [compileTName hasPref nm,compileConLabel lab])
       withArg = Rust.call noArg [e]
       
-    Core.FromUnion _ty lab -> def (Rust.matchExpr e [ arm1, arm2 ])
+    Core.FromUnion ty lab
+      | Core.tnameBD unm ->
+        def (Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [Rust.callMethod e "to_bits" []])
+      | otherwise -> def (Rust.matchExpr e [ arm1, arm2 ])
       where
       arm2 =
         Rust.matchArm Rust.wildPat
@@ -456,14 +459,14 @@ compileOp1 x op e argTy =
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
 
-compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> Rust.Expr () -> Rust.Expr () -> [Rust.Stmt ()]
-compileOp2 x op e1 e2 =
+compileOp2 :: FnCtx => VM.BV -> Core.Op2 -> Rust.Expr () -> Rust.Expr () -> VM.VMT -> VM.VMT -> [Rust.Stmt ()]
+compileOp2 x op e1 e2 t1 t2 =
   case op of
     -- Streams
     Core.Drop         -> def (Rust.callMethod e2 "advance" [ toSize e1 ])
     Core.ArrayStream  -> def (callRTS "new_input" [e1,e2])
-    Core.IsPrefix     -> def (Rust.callMethod e1 "is_prefix" [e2])
-    Core.DropMaybe    -> def (callRTS "from_option" [Rust.callMethod e2 "advance" [ toSize e1 ]])
+    Core.IsPrefix     -> def (Rust.callMethod e2 "is_prefix" [e1])
+    Core.DropMaybe    -> def (Rust.callMethod e2 "advance_maybe" [ toSize e1 ])
     Core.Take         -> def (Rust.callMethod e2 "restrict" [ toSize e1 ])
  
     -- Comparisons
@@ -483,8 +486,22 @@ compileOp2 x op e1 e2 =
     Core.BitAnd -> bin Rust.BitAndOp
     Core.BitOr  -> bin Rust.BitOrOp 
     Core.BitXor -> bin Rust.BitXorOp
-    Core.Cat    -> def (Rust.callMacro (ddlPath "cat") [ e1, e2 ])
-    Core.LCat   -> def (callRTS "lcat" [ e1, e2 ])
+    Core.Cat
+      | Just m <- okT t1
+      , Just n <- okT t2
+      -> def (Rust.callMacro (ddlPath "cat") [ lit m, lit n, e1, e2 ])
+      | otherwise -> panic "compileOp2" ["Unexpected types for `cat`"]
+      where
+      lit = Rust.litExpr . Rust.intLit
+      okT a =
+        case a of
+          VM.TSem t -> Core.isUInt t
+          _ -> Nothing
+
+    Core.LCat   ->
+      case t1 of
+        VM.TSem Core.TInteger -> def (Rust.callMethod e1 "lcat" [e2])
+        _ -> def (callRTS "lcat" [ e1, e2 ])
     Core.LShift -> bin' Rust.ShlOp e1 (toSize e2)
     Core.RShift -> bin' Rust.ShrOp e1 (toSize e2)
  

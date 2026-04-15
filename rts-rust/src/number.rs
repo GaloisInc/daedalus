@@ -216,16 +216,15 @@ pub type U<const N: u32> = Word<false, N>;
 /// A signed [Word] of the given size.
 pub type I<const N: u32> = Word<true, N>;
 
-impl <const N: u32> U<N> where Size<false,N>: WordRep {
-  pub const WIDTH: u32 = N;
-}
 
 impl <const N: u32> U<N> where Size<false,N>: WordRep {
+  pub const WIDTH: u32 = N;
   pub fn to_bits(self) -> U<N> { self }
   pub fn from_bits_unchecked(x: U<N>) -> Self { x }
 }
 
 impl <const N: u32> I<N> where Size<false, N>: WordRep, Size<true,N>: WordRep {
+  pub const WIDTH: u32 = N;
   pub fn to_bits(self) -> U<N> { self.cast_to() }
   pub fn from_bits_unchecked(x: U<N>) -> Self { x.cast_to() }
 }
@@ -409,7 +408,7 @@ impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
 #[macro_export]
 macro_rules! cat {
   ($M: literal, $N: literal, $x: expr, $y: expr) => {
-    U::<{$M+$N}::from(u64::from($x) << ($N as usize)) | (u64::from($y))
+    $crate::U::<{$M+$N}>::from( (u64::from($x) << ($N as usize)) | u64::from($y))
   };
 }
 

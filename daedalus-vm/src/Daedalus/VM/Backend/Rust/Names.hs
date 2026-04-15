@@ -52,6 +52,9 @@ compileBDFieldLabel l = Rust.mkIdent ("get_" <> Rust.snakeCase (Text.unpack l))
 compileConLabel :: Core.Label -> Rust.Ident
 compileConLabel l = Rust.mkIdent (Rust.upperCamelCase (Text.unpack l))
 
+bdJunkName :: Rust.Ident
+bdJunkName = "Junk"
+
 valTPName :: Core.TParam -> Rust.Ident
 valTPName (Core.TP n) = Rust.mkIdent ("T" ++ show n)
 

@@ -66,9 +66,9 @@ impl Input {
   }
 
   /// Advance the input by this much, if there's enough space.
-  pub fn advance_maybe(self, n: usize) -> Option<Input> {
-    if self.len() < n { return None }
-    Some(Input { offset: self.offset + n, ..self })
+  pub fn advance_maybe(self, n: usize) -> ddl::Maybe<Input> {
+    if self.len() < n { return ddl::Maybe::Nothing }
+    ddl::Maybe::Just(Input { offset: self.offset + n, ..self })
   }
 
   /// Restrict the input to the given number of bytes.
@@ -76,7 +76,7 @@ impl Input {
     Input { last_offset: self.offset + std::cmp::min(n,self.len()), ..self }
   }
 
-  pub fn is_prefix(&self, xs: ddl::Array<ddl::U<8>>) -> bool {
+  pub fn is_prefix(&self, xs: ddl::ArrayB<ddl::U<8>>) -> bool {
     let bs: &[ddl::U<8>] = &xs;
     let str_len = self.len();
     let bs_len  = bs.len();
