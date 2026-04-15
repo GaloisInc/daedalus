@@ -6,6 +6,12 @@ use serde::Serialize;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Unit;
 
+impl Unit {
+  pub const WIDTH: u32 = 0;
+  pub fn to_bits(self) -> ddl::U<0> { 0u8.into() }
+  pub fn from_bits_unchecked(_x: ddl::U<0>) -> Self { Unit }
+}
+
 ddl::by_value!(Unit);
 
 impl fmt::Display for Unit {

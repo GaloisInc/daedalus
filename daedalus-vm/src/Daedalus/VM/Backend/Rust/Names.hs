@@ -46,6 +46,9 @@ compileTName isPriv x = Rust.mkIdent (pref ++ Rust.upperCamelCase (Text.unpack (
 compileFieldLabel :: Core.Label -> Rust.Ident
 compileFieldLabel l = Rust.mkIdent (Rust.snakeCase (Text.unpack l))
 
+compileBDFieldLabel :: Core.Label -> Rust.Ident
+compileBDFieldLabel l = Rust.mkIdent ("get_" <> Rust.snakeCase (Text.unpack l))
+  
 compileConLabel :: Core.Label -> Rust.Ident
 compileConLabel l = Rust.mkIdent (Rust.upperCamelCase (Text.unpack l))
 

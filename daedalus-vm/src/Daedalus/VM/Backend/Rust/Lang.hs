@@ -210,6 +210,9 @@ boolLit b = Bool b Unsuffixed ()
 floatLit :: Double -> Lit ()
 floatLit f = Float f Unsuffixed ()
 
+floatLit' :: Suffix -> Double -> Lit ()
+floatLit' s f = Float f s ()
+
 strLit :: String -> Lit ()
 strLit x = Str x Cooked Unsuffixed ()
 
@@ -322,6 +325,13 @@ identToken i = treeToken (IdentTok i)
 -- | Create a token from a string literal
 strToken :: String -> TokenStream
 strToken s = treeToken (LiteralTok (StrTok s) Nothing)
+
+intToken' :: String -> TokenStream
+intToken' n = treeToken (LiteralTok (IntegerTok n) Nothing)
+
+-- | Create a token from a number (unsuffixed)
+intToken :: Integer -> TokenStream
+intToken = intToken' . show
 
 -- | Create a token stream from a list with commas between elements
 commaList :: [TokenStream] -> TokenStream

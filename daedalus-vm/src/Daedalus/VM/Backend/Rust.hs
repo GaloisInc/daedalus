@@ -14,6 +14,7 @@ import Data.Int(Int64)
 import Data.Bits
 
 import Daedalus.PP
+import Daedalus.Rec(forgetRecs)
 import Daedalus.Panic(panic)
 import Daedalus.Core qualified as Core
 import Daedalus.VM qualified as VM
@@ -28,7 +29,8 @@ newtype Config = Config {
 
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
-  ?blockSigs :: Map VM.Label [VM.Ownership]
+  ?blockSigs :: Map VM.Label [VM.Ownership],
+  ?tyDecls :: Map Core.TName Core.TDecl
   )
 
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
@@ -40,6 +42,9 @@ compileProgram cfg vm = show (Rust.pretty' result)
   result =
     let ?funSigs = funSigs
         ?blockSigs = blockSigs
+        ?tyDecls = Map.fromList [ (Core.tName t, t)
+                                | m <- VM.pModules vm,
+                                  t <- forgetRecs (VM.mTypes m) ]
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
@@ -141,7 +146,7 @@ compileBlock bl = (lab, argTs, alt)
   where
   args      = VM.blockArgs bl
   argNames  = map compileBAName args
-  argTs     = [ compileVMT (VM.getType ba) (VM.getOwnership ba) | ba <- args ]
+  argTs     = [ compileVMT (VM.getOwnership ba) (VM.getType ba) | ba <- args ]
   lab       = compileBlockLabel (VM.blockName bl)
   alt       = Rust.matchArm
                 (Rust.conPat (Rust.simplePath' [contTypeName,lab]) (map Rust.identPat argNames))
@@ -185,18 +190,23 @@ integerToBytes i
   | i == 0 = [0]
   | i > 0 =
       let bytes = reverse (go i)
-      in if testBit (head bytes) 7
+      in if most bytes
          then 0 : bytes  -- Add leading 0 if high bit is set
          else bytes
   | otherwise =  -- i < 0
       let bytes = reverse (go (abs i - 1))
           inverted = map complement bytes
-      in if testBit (head inverted) 7
+      in if most inverted
          then inverted
          else 0xff : inverted  -- Add leading 0xff if high bit is clear
   where
-    go 0 = []
-    go n = fromInteger (n .&. 0xff) : go (n `shiftR` 8)
+  go 0 = []
+  go n = fromInteger (n .&. 0xff) : go (n `shiftR` 8)
+
+  most x =
+    case x of
+      b : _ -> testBit b 7
+      [] -> panic "integerToBytes" ["[]"]
 
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
@@ -223,7 +233,43 @@ compilePrim x prim es =
           Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from_signed_bytes_be"))
             [Rust.addrOf (Rust.arrExpr [Rust.litExpr (Rust.intLit' Rust.U8 (toInteger b)) | b <- integerToBytes i])]
 
-    VM.StructCon ut ->
+    VM.StructCon ut
+      | Core.tnameBD nm ->
+        case Map.lookup nm ?tyDecls of
+          Just decl
+            | Core.TBitdata _ (Core.BDStruct fs0) <- Core.tDef decl ->
+              let addData fs args =
+                    case fs of
+                      [] ->
+
+                        case args of
+                          [] -> []
+                          _  -> panic "compilePrim" ["Bad bitdata constructor"]
+
+                      f : more ->
+                        case Core.bdFieldType f of
+                          Core.BDWild -> addData more args
+
+                          Core.BDTag n -> 
+                            Rust.tupleExpr
+                              [ Rust.litExpr (Rust.intLit (toInteger (Core.bdOffset f)))
+                              , compileNumLit n (Core.TUInt (Core.TSize (toInteger (Core.bdWidth f))))
+                              ] : addData more args
+
+                          Core.BDData {} ->
+                            case args of
+                              e : more_es ->
+                                Rust.tupleExpr
+                                  [ Rust.litExpr (Rust.intLit (toInteger (Core.bdOffset f)))
+                                  , e
+                                  ] : addData more more_es
+                              _ -> panic "compilePrim" ["Malformed bitdata struct constructor"]
+
+              in def Nothing (Rust.callMacro (ddlPath "bitdata_con")
+                    (Rust.identExpr (compileTName False nm) : addData fs0 compiled))
+
+          _ -> panic "compilePrim" ["Missing bitdata type", show (pp nm)]
+      | otherwise ->
       case Core.tnameFlav nm of
         Core.TFlavStruct ls ->
           def Nothing (Rust.struct (Rust.simplePath (compileTName False nm))
@@ -271,14 +317,46 @@ compileOp1 x op e argTy =
     Core.FinishBuilder  -> def (Rust.callMethod e "build" [])
 
     Core.CoerceTo ty
-      | Just _ <- Core.isBits ty
-      , Just _ <- Core.isBits srcTy ->
-        -- Word to Word: use cast_to
-        [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
-      | otherwise ->
-        -- Converting to/from Integer: use .into() (leverages From instances)
-        [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "into" [])]
+      | srcTy == ty -> def e
+
+      | Just {} <- Core.isBits srcTy -> 
+        case () of
+          _
+            | Just _ <- Core.isBits ty ->
+              [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
+            | Core.TInteger <- ty -> use_into e
+            | Core.TUser {} <- ty -> mk_bd e
+            | otherwise -> badTgt
+
+      | Core.TInteger <- srcTy ->
+        case () of
+          _ 
+            | Just {} <- Core.isBits ty -> use_into e
+            | Core.TUser {} <- ty -> mk_bd (Rust.callMethod e "into" [])
+            | otherwise -> badTgt
+
+      | Core.TUser {} <- srcTy ->
+        case ty of
+          Core.TUInt {} -> def (Rust.callMethod e "to_bits" [])
+          Core.TInteger -> use_into (Rust.callMethod e "to_bits" [])
+          _ -> badTgt
+      | otherwise -> panic "compileOp1" ["Bad source type in coerce"]
       where
+      use_into v = [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod v "into" [])]
+
+      -- XXX: This is where we should normalize things to fix #395.
+      mk_bd v = def (Rust.call
+                      (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [v]
+                    )
+      badTgt = panic "compileOp1" ["Bad target type in coerce"]
+
+        
+          
+
+        
+      
+        
+
       srcTy = case argTy of
                 VM.TSem t -> t
                 _ -> panic "compileOp1" ["CoerceTo with non-semantic type"]
@@ -301,13 +379,25 @@ compileOp1 x op e argTy =
     Core.EJust -> def (Rust.callCon (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [e])
     Core.FromJust -> def (Rust.callMethod (Rust.callMethod e "unwrap" []) "clo" [])
 
-    -- XXX: bitdata
     Core.SelStruct ty lab ->
-      def
-        (Rust.callMethod
-          (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
+      case argTy of
+        VM.TSem (Core.TUser ut)
+          | Core.tnameBD (Core.utName ut) ->
+            def (Rust.callMethod e (compileBDFieldLabel lab) [])
+          | otherwise ->
+            def
+              (Rust.callMethod
+                (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
+        _ -> panic "compileOp1" ["Unexpected type in field selection", show (pp ty)]
 
-    Core.InUnion ut lab ->
+    Core.InUnion ut lab
+      | Core.tnameBD nm ->
+        def (
+          Rust.call
+          (Rust.typeQualifiedExpr (compileVMT VM.Owned (VM.getType x)) (Rust.simplePath "from_bits_unchecked"))
+          [Rust.callMethod e "to_bits" []]
+        )
+      | otherwise ->
       def (mkBox (
         case Core.tnameFlav nm of
           Core.TFlavEnum {} -> noArg
@@ -471,7 +561,14 @@ compileExpr how expr =
     VM.EUnit         -> Rust.pathExpr (ddlPath "Unit")
     VM.ENum n ty     -> compileNumLit n ty
     VM.EBool b       -> Rust.litExpr (Rust.boolLit b)
-    VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit d)
+    VM.EFloat d ty   -> Rust.litExpr (Rust.floatLit' suff d)
+      where
+      suff =
+        case ty of
+          Core.TFloat -> Rust.F32
+          Core.TDouble -> Rust.F64
+          _ -> panic "compileExpr" ["Unepxeted EFloat type"]
+        
     VM.EMapEmpty k v -> Rust.call (Rust.pathExpr (Rust.pathWithTypes [ddlModName, "empty_map"] [rk,rv])) []
       where rk = compileType VM.Owned k
             rv = compileType VM.Owned v
@@ -489,8 +586,8 @@ compileNumLit n ty =
   case ty of
     Core.TUInt _ -> intoWord False
     Core.TSInt _ -> intoWord True
-    Core.TFloat  -> Rust.litExpr (Rust.floatLit (fromInteger n))
-    Core.TDouble -> Rust.litExpr (Rust.floatLit (fromInteger n))
+    Core.TFloat  -> Rust.litExpr (Rust.floatLit' Rust.F32 (fromInteger n))
+    Core.TDouble -> Rust.litExpr (Rust.floatLit' Rust.F64 (fromInteger n))
     _ -> unsupported (?fnMsg <+> "numeric literal at type" <+> pp ty)
   where
   -- Use .into() on the literal, relying on type inference from context
@@ -513,6 +610,7 @@ compileCInstr cinstr =
         | VM.TSem (Core.TUInt _) <- ty = \r -> Rust.callMethod r "into" []
         | VM.TSem (Core.TSInt _) <- ty = \r -> Rust.callMethod r "into" []
         | VM.TSem Core.TInteger  <- ty = \r -> Rust.callMethod r "try_into" []
+        | VM.TSem (Core.TUser ut) <- ty, Core.tnameBD (Core.utName ut) = \r -> Rust.callMethod r "to_enum" []
         | otherwise                    = id
       
     VM.Yield             -> bad
@@ -608,7 +706,7 @@ compilePat ty p =
           where
           nm    = Rust.simplePath' [qual, compileConLabel uc]
           unm   = Core.utName ut
-          qual  = compileTName (isRecTy ty) unm
+          qual  = compileTName (isRecTy ty || Core.tnameBD unm) unm
           hasData =
             case Core.tnameFlav unm of
               Core.TFlavEnum {} -> False

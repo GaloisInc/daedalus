@@ -14,7 +14,6 @@ mod user_defined;
 mod parser_state;
 
 pub use test::*;
-pub use bitdata::*;
 pub use ddl_box::*;
 pub use number::*;
 pub use int::*;

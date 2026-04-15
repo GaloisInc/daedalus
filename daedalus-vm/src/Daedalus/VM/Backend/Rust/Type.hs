@@ -4,16 +4,21 @@ module Daedalus.VM.Backend.Rust.Type where
 
 import Control.Exception
 import Data.Text qualified as Text
+import Data.List(groupBy)
+import Data.Map(Map)
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
 import Daedalus.Rec
+import Daedalus.BDD qualified as BDD
 import Daedalus.Core qualified as Core
+import Daedalus.Core.Type qualified as Core
 import Daedalus.VM qualified as VM
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
 
 type FnMsg = (?fnMsg :: Doc)
+type TyCtx = (?tyDecls :: Map Core.TName Core.TDecl)
 
 unsupported :: Doc -> a
 unsupported x = throw (Unsupported x)
@@ -21,10 +26,10 @@ unsupported x = throw (Unsupported x)
 newtype Unsupported = Unsupported Doc deriving Show
 instance Exception Unsupported
 
-compileUserType :: Rec Core.TDecl -> [Rust.Item ()]
+compileUserType :: TyCtx => Rec Core.TDecl -> [Rust.Item ()]
 compileUserType = concatMap compileTDecl . recToList
 
-compileTDecl :: Core.TDecl -> [Rust.Item ()]
+compileTDecl :: TyCtx => Core.TDecl -> [Rust.Item ()]
 compileTDecl td
   | not (null (Core.tTParamKNumber td)) = notYet "has numeric parameters"
   | otherwise =
@@ -49,7 +54,70 @@ compileTDecl td
               tyDecl (if and [ Core.isUnit t | (_,t) <- fs ] then "by_value" else "by_ref")
         ]
 
-      Core.TBitdata _p _bdef -> notYet "is bitdata" -- BDD.Pat BitdataDef
+      Core.TBitdata univ bdef ->
+        decl : serialize : fields
+        where
+        mac x y = Rust.macDecl (Rust.mac (ddlPath x) (Rust.commaList y))
+        tup xs = Rust.parenTokens [Rust.commaList xs]
+        decl = mac "bitdata"
+                [ Rust.identToken (nm False),
+                  Rust.intToken (toInteger (BDD.width univ))
+                ]
+        serialize =
+          case bdef of
+            Core.BDStruct fs ->
+              mac "bitdata_struct_serialize" $
+                Rust.tyToken rty :
+                [ Rust.exprToken (Rust.tupleExpr [lab,meth])
+                | Core.BDField { Core.bdFieldType = Core.BDData l _t } <- fs
+                , let lab = Rust.litExpr (Rust.strLit (Text.unpack l))
+                      meth = Rust.identExpr (compileBDFieldLabel l)
+                ]
+            Core.BDUnion cons ->
+              mac "bitdata_union_serialize" $
+                Rust.tyToken rty :
+                Rust.identToken (nm True) :
+                [ tup [ Rust.identToken (compileConLabel l), Rust.strToken ('$' : Text.unpack l) ]
+                | (l,_) <- cons
+                ]
+        rty = Rust.pathType (Rust.simplePath (nm False))
+        fields =
+          case bdef of
+            Core.BDStruct fs ->
+              [ mac "bitdata_field"
+                  [ Rust.tyToken rty,
+                    Rust.identToken (compileBDFieldLabel l),
+                    Rust.tyToken (compileType VM.Owned t),
+                    Rust.intToken (toInteger o)
+                  ]
+              |  Core.BDField { Core.bdFieldType = Core.BDData l t, Core.bdOffset = o } <- fs
+              ]
+            Core.BDUnion cons ->
+              let opts = bdCase univ [ (t,(c,t)) | (c,t) <- cons ]
+                  w    = BDD.width univ
+                  suff
+                    | w <= 8 = "8"
+                    | w <= 16 = "16"
+                    | w <= 32 = "32"
+                    | otherwise = "64"
+                  num n = Rust.intToken' (show n ++ "u" ++ suff)
+                  
+              in
+              [
+                mac "bitdata_case" $
+                  Rust.tyToken rty : Rust.identToken (nm True) :
+                  [ tup (num msk :
+                    [ tup [ num p, Rust.identToken f, Rust.tyToken fty ]
+                    | (p,(c,t)) <- alts,
+                      let fty = compileType VM.Owned t,
+                      let f   = compileConLabel c
+                    ])
+                  | (msk, alts) <- opts
+                  ]
+                  
+              ]
+
+      
   where
   der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
   isRec = Core.tnameRec tn
@@ -67,9 +135,21 @@ compileTDecl td
   tyDecl how =
     Rust.macDecl (Rust.mac (Rust.simplePath' [ddlModName,how]) (Rust.tyToken (tyForm False)))
 
+bdCase :: TyCtx => BDD.Pat -> [(Core.Type, a)] -> [(Integer, [(Integer, a)])]
+bdCase univ cases =
+    map rearrange
+  $ groupBy sameMask
+  $ BDD.patTestsAssumingInOrder univ
+    [ (Core.bdUniverse ?tyDecls t, s) | (t,s) <- cases ]
+  where
+  rearrange xs = ( BDD.patMask (fst (head xs))
+                 , [ (BDD.patValue t, rhs) | (t,rhs) <- xs ]
+                 )
 
-compileVMT :: FnMsg => VM.VMT -> VM.Ownership -> Rust.Ty ()
-compileVMT ty own =
+  sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
+
+compileVMT :: FnMsg => VM.Ownership -> VM.VMT -> Rust.Ty ()
+compileVMT own ty =
   case ty of
     VM.TSem t     -> compileType own t
     VM.TThreadId  -> unsupported (?fnMsg <+> "ThreadId type")
