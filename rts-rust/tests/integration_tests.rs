@@ -651,26 +651,26 @@ fn test_input_advance_maybe() {
 
     // Should succeed with enough bytes
     let result = input.clone().advance_maybe(3);
-    assert!(result.is_some());
+    assert!(result.is_just());
     let input2 = result.unwrap();
     assert_eq!(input2.len(), 5);
     assert_eq!(input2.offset(), 3);
 
     // Should succeed advancing to exactly the end
     let result = input.clone().advance_maybe(8);
-    assert!(result.is_some());
+    assert!(result.is_just());
     let input3 = result.unwrap();
     assert_eq!(input3.len(), 0);
     assert!(input3.is_empty());
 
     // Should fail when not enough bytes
     let result = input.clone().advance_maybe(9);
-    assert!(result.is_none());
+    assert!(result.is_nothing());
 
     // Should fail advancing from middle when not enough remaining
     let input4 = input.advance(5);
     let result = input4.advance_maybe(4);
-    assert!(result.is_none());
+    assert!(result.is_nothing());
 }
 
 #[test]
@@ -745,25 +745,30 @@ fn test_input_is_prefix() {
     let input = ddl::new_input_str("test", "hello world");
 
     // Check for matching prefix
-    let prefix1 = ddl::new_byte_array(b"hello");
+    let prefix1_arr = ddl::new_byte_array(b"hello");
+    let prefix1 = prefix1_arr.bor();
     assert!(input.is_prefix(prefix1), "Should match 'hello' prefix");
 
     // Check for non-matching prefix
-    let prefix2 = ddl::new_byte_array(b"world");
+    let prefix2_arr = ddl::new_byte_array(b"world");
+    let prefix2 = prefix2_arr.bor();
     assert!(!input.is_prefix(prefix2), "Should not match 'world' at start");
 
     // Check after advancing
     let input2 = input.clone().advance(6);
-    let prefix3 = ddl::new_byte_array(b"world");
+    let prefix3_arr = ddl::new_byte_array(b"world");
+    let prefix3 = prefix3_arr.bor();
     assert!(input2.is_prefix(prefix3), "Should match 'world' after advancing");
 
     // Check prefix longer than remaining input
     let input3 = input.clone().advance(9);
-    let prefix4 = ddl::new_byte_array(b"longer");
+    let prefix4_arr = ddl::new_byte_array(b"longer");
+    let prefix4 = prefix4_arr.bor();
     assert!(!input3.is_prefix(prefix4), "Should not match prefix longer than input");
 
     // Check empty prefix
-    let empty_prefix = ddl::new_byte_array(b"");
+    let empty_prefix_arr = ddl::new_byte_array(b"");
+    let empty_prefix = empty_prefix_arr.bor();
     assert!(input.is_prefix(empty_prefix), "Empty prefix should always match");
 }
 
@@ -804,4 +809,60 @@ fn test_input_combined_operations() {
     // Original input should be unaffected (immutability)
     assert_eq!(input.len(), 16);
     assert_eq!(input.offset(), 0);
+}
+
+#[test]
+fn test_input_display_debug() {
+    // Test Display and Debug formatting
+    let input = ddl::new_input_str("test.txt", "hello world");
+    let display_str = format!("{}", input);
+    let debug_str = format!("{:?}", input);
+    
+    // Both should match: Input("test.txt:0x0--0xb")
+    assert!(display_str.starts_with("Input(\"test.txt:0x0--0x"));
+    assert!(debug_str.starts_with("Input(\"test.txt:0x0--0x"));
+    
+    // Test after advancing
+    let input2 = input.clone().advance(5);
+    let display_str2 = format!("{}", input2);
+    assert!(display_str2.contains("0x5--0x"));
+    
+    // Test after restricting
+    let input3 = input.restrict(5);
+    let display_str3 = format!("{}", input3);
+    assert!(display_str3.contains("0x0--0x5"));
+}
+
+#[test]
+fn test_input_serialize() {
+    // Test serialization format matches C++ toJS
+    let input = ddl::new_input_str("test.txt", "hello world");
+    let json = serde_json::to_string(&input).unwrap();
+    
+    // Should be: {"$$input":"test.txt:0x0--0xb"}
+    assert!(json.contains("$$input"));
+    assert!(json.contains("test.txt:0x0--0x"));
+}
+
+#[test]
+fn test_input_format_matches_cpp() {
+    // Verify exact format matches C++ implementation
+    let input = ddl::new_input_str("file.txt", "abcdefgh");
+    
+    // Display/Debug should show: Input("file.txt:0x0--0x8")
+    let display = format!("{}", input);
+    let debug = format!("{:?}", input);
+    
+    println!("Display: {}", display);
+    println!("Debug:   {}", debug);
+    
+    assert!(display.contains("Input(\"file.txt:0x0--0x8\")"));
+    assert!(debug.contains("Input(\"file.txt:0x0--0x8\")"));
+    
+    // Serialize should produce: {"$$input":"file.txt:0x0--0x8"}
+    let json = serde_json::to_string(&input).unwrap();
+    println!("JSON:    {}", json);
+    
+    assert!(json.contains("$$input"));
+    assert!(json.contains("file.txt:0x0--0x8"));
 }

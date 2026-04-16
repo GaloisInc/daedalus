@@ -25,6 +25,16 @@ impl<T> Maybe<T> {
             Maybe::Nothing => panic!("called `Maybe::unwrap()` on a `Nothing` value"),
         }
     }
+
+    /// Returns `true` if the Maybe is a `Just` value.
+    pub fn is_just(&self) -> bool {
+        matches!(self, Maybe::Just(_))
+    }
+
+    /// Returns `true` if the Maybe is a `Nothing` value.
+    pub fn is_nothing(&self) -> bool {
+        matches!(self, Maybe::Nothing)
+    }
 }
 
 impl<T: ddl::Type> ddl::Type for Maybe<T> {

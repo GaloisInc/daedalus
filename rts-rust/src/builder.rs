@@ -220,3 +220,48 @@ impl<'a, T: Type + Serialize> Serialize for BuilderB<'a, T> {
     serialize_builder_iter(self.iter(), serializer)
   }
 }
+
+// Helper function to format a BuilderB with a custom element formatter
+fn fmt_builder_b<'a, T: Type, F>(
+  builder: BuilderB<'a, T>,
+  f: &mut std::fmt::Formatter<'_>,
+  mut fmt_elem: F,
+) -> std::fmt::Result
+where
+  F: FnMut(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+{
+  write!(f, "[")?;
+  let mut first = true;
+  for elem in builder.iter() {
+    if !first {
+      write!(f, ", ")?;
+    }
+    first = false;
+    fmt_elem(elem, f)?;
+  }
+  write!(f, "]")
+}
+
+impl<T: Type + std::fmt::Display> std::fmt::Display for Builder<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fmt_builder_b(self.bor(), f, |elem, f| write!(f, "{}", elem))
+  }
+}
+
+impl<'a, T: Type + std::fmt::Display> std::fmt::Display for BuilderB<'a, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fmt_builder_b(*self, f, |elem, f| write!(f, "{}", elem))
+  }
+}
+
+impl<T: Type + std::fmt::Debug> std::fmt::Debug for Builder<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fmt_builder_b(self.bor(), f, |elem, f| write!(f, "{:?}", elem))
+  }
+}
+
+impl<'a, T: Type + std::fmt::Debug> std::fmt::Debug for BuilderB<'a, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fmt_builder_b(*self, f, |elem, f| write!(f, "{:?}", elem))
+  }
+}

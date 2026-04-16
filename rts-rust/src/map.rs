@@ -277,39 +277,58 @@ fn set_rebalance_right<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_r
 
 }
 
+// Helper function to format a MapB with custom key/value formatters
+fn fmt_map_b<'a, K: Type, V: Type, FK, FV>(
+  map: MapB<'a, K, V>,
+  f: &mut fmt::Formatter<'_>,
+  mut fmt_key: FK,
+  mut fmt_val: FV,
+) -> fmt::Result
+where
+  FK: FnMut(K::B<'a>, &mut fmt::Formatter<'_>) -> fmt::Result,
+  FV: FnMut(V::B<'a>, &mut fmt::Formatter<'_>) -> fmt::Result,
+{
+  write!(f, "[| ")?;
+  let mut it = new_map_borrow_iterator(map);
+  let mut first = true;
+  while !it.ddl_done() {
+    if !first {
+      write!(f, ", ")?;
+    }
+    first = false;
+    fmt_key(it.ddl_key(), f)?;
+    write!(f, " -> ")?;
+    fmt_val(it.ddl_value(), f)?;
+    it = it.ddl_next();
+  }
+  write!(f, " |]")
+}
+
 impl<K: Type, V: Type> fmt::Display for Map<K,V>
   where for<'a> K::B<'a>: fmt::Display, for<'a> V::B<'a>: fmt::Display {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "[| ")?;
-    let mut it = new_map_borrow_iterator(self.bor());
-    let mut first = true;
-    while !it.ddl_done() {
-      if !first {
-        write!(f, ", ")?;
-      }
-      first = false;
-      write!(f, "{} -> {}", it.ddl_key(), it.ddl_value())?;
-      it = it.ddl_next();
-    }
-    write!(f, " |]")
+    fmt_map_b(self.bor(), f, |k, f| write!(f, "{}", k), |v, f| write!(f, "{}", v))
   }
 }
 
 impl<'a, K: Type, V: Type> fmt::Display for MapB<'a, K, V>
   where K::B<'a>: fmt::Display, V::B<'a>: fmt::Display {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "[| ")?;
-    let mut it = new_map_borrow_iterator(*self);
-    let mut first = true;
-    while !it.ddl_done() {
-      if !first {
-        write!(f, ", ")?;
-      }
-      first = false;
-      write!(f, "{} -> {}", it.ddl_key(), it.ddl_value())?;
-      it = it.ddl_next();
-    }
-    write!(f, " |]")
+    fmt_map_b(*self, f, |k, f| write!(f, "{}", k), |v, f| write!(f, "{}", v))
+  }
+}
+
+impl<K: Type, V: Type> fmt::Debug for Map<K,V>
+  where for<'a> K::B<'a>: fmt::Debug, for<'a> V::B<'a>: fmt::Debug {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_map_b(self.bor(), f, |k, f| write!(f, "{:?}", k), |v, f| write!(f, "{:?}", v))
+  }
+}
+
+impl<'a, K: Type, V: Type> fmt::Debug for MapB<'a, K, V>
+  where K::B<'a>: fmt::Debug, V::B<'a>: fmt::Debug {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fmt_map_b(*self, f, |k, f| write!(f, "{:?}", k), |v, f| write!(f, "{:?}", v))
   }
 }
 

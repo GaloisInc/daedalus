@@ -1,5 +1,7 @@
 use crate as ddl;
 use ddl::{Clo,Type};
+use std::fmt;
+use serde::Serialize;
 
 #[derive(Clone)]
 
@@ -84,6 +86,39 @@ impl Input {
     let str: &[ddl::U<8>] = &self.bytes[self.offset .. self.offset + bs_len];
     return str == bs;
   }
-  
+}
 
+// Helper to convert name bytes to a string for display
+fn name_to_string(name: &[ddl::U<8>]) -> String {
+  String::from_utf8_lossy(&name.iter().map(|&b| u8::from(b)).collect::<Vec<_>>()).to_string()
+}
+
+impl fmt::Display for Input {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let name_str = name_to_string(&self.name);
+    write!(f, "Input(\"{}:0x{:x}--0x{:x}\")", name_str, self.offset, self.last_offset)
+  }
+}
+
+impl fmt::Debug for Input {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let name_str = name_to_string(&self.name);
+    write!(f, "Input(\"{}:0x{:x}--0x{:x}\")", name_str, self.offset, self.last_offset)
+  }
+}
+
+impl Serialize for Input {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    use serde::ser::SerializeMap;
+
+    let name_str = name_to_string(&self.name);
+    let value = format!("{}:0x{:x}--0x{:x}", name_str, self.offset, self.last_offset);
+
+    let mut map = serializer.serialize_map(Some(1))?;
+    map.serialize_entry("$$input", &value)?;
+    map.end()
+  }
 }

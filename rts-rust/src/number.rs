@@ -36,7 +36,7 @@ pub struct U0 ();
 
 impl Ops for U0 {
   const WIDTH: u32 = 0;
-  
+
   fn op_from_u64(_: u64) -> Self { U0() }
   fn op_from_i64(_: i64) -> Self { U0() }
   fn op_to_u64(self) -> u64 { 0 }
@@ -57,7 +57,28 @@ impl Ops for U0 {
 
   fn op_shl(self, _amt: u32)  -> Self { U0() }
   fn op_shr(self, _amt: u32)  -> Self { U0() }
-  
+
+}
+
+impl fmt::Display for U0 {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "0")
+  }
+}
+
+impl fmt::Debug for U0 {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "0")
+  }
+}
+
+impl serde::Serialize for U0 {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_u64(0)
+  }
 }
 
 macro_rules! MakeOps {
@@ -336,13 +357,25 @@ impl<const S: bool, const N: u32> ops::Not for Word<S,N> where Size<S, N>: WordR
 
 impl <const N: u32> fmt::Display for Word<false,N> where Size<false,N>: WordRep {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    self.rep.op_to_u64().fmt(f)
+    u64::from(*self).fmt(f)
   }
 }
 
 impl <const N: u32> fmt::Display for Word<true,N> where Size<true,N>: WordRep {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    self.rep.op_to_i64().fmt(f)
+    i64::from(*self).fmt(f)
+  }
+}
+
+impl <const N: u32> fmt::Debug for Word<false,N> where Size<false,N>: WordRep {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "U<{}>({:?})", N, u64::from(*self))
+  }
+}
+
+impl <const N: u32> fmt::Debug for Word<true,N> where Size<true,N>: WordRep {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "I<{}>({:?})", N, i64::from(*self))
   }
 }
 
