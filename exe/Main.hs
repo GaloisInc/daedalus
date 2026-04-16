@@ -335,7 +335,7 @@ generateRust opts mm =
   do
     prog <- doToVM opts { optVM_do_mm = True } mm
     let cfg = Rust.Config {
-                cfgUserModule = optUserNS opts
+                
               }
         -- XXX: catch unsupported.
         rust = Rust.compileProgram cfg prog
@@ -349,6 +349,9 @@ generateRust opts mm =
             rtsPath = if optSaveRTS opts
                        then "rts-rust"
                        else fromMaybe "../rts-rust" (optRTSPath opts)
+            rtsFeatures
+              | optErrorStacks opts = []
+              | otherwise = ["detailed-errors"::String]
         createDirectoryIfMissing True dir
         createDirectoryIfMissing True src
         -- XXX: The configuration is just temporary for testing
@@ -359,7 +362,7 @@ generateRust opts mm =
             "edition = \"2024\"",
             "",
             "[dependencies]",
-            "daedalus-rts-rust = { path = " ++ show rtsPath ++ " }",
+            "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
             "serde = { version = \"1.0\" }"
           ]
         createDirectoryIfMissing True src

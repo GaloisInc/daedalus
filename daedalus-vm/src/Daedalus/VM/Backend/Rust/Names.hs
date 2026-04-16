@@ -33,7 +33,7 @@ pcName :: Rust.Ident
 pcName = "block_id"
 
 parserStateName :: Rust.Ident
-parserStateName = "state"
+parserStateName = "_state"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
 compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "_" ++ show n)
@@ -65,7 +65,7 @@ contTypeName :: Rust.Ident
 contTypeName = "Goto"
 
 intDecisionTreeDfltName :: String
-intDecisionTreeDfltName = "int_case"
+intDecisionTreeDfltName = "_int_case"
 
 funLoopName :: String
-funLoopName = "fun_loop"
+funLoopName = "_fun_loop"

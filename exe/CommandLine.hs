@@ -390,10 +390,6 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
         "Output file template (default: main_parser)"
         $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
 
-      , Option [] ["user-module"]
-        "Place type declarations in this module (default: User)"
-        $ ReqArg "NAMESPACE" \s o -> Right o { optUserNS = s }
-
       , Option [] ["rts-path"]
         "Path to the Daedalus RTS"
         $ ReqArg "PATH" \s o -> Right o { optRTSPath = Just s }
@@ -401,6 +397,10 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["save-rts"]
         "Also generate the source code for the Daedalus RTS."
         $ NoArg \o -> Right o { optSaveRTS = True }
+
+      , Option [] ["no-error-stack"]
+        "Do not generate a grammar stack trace on error."
+        $ NoArg \o -> Right o { optErrorStacks = False }
       ] ++
       coreOptions ++
       [ helpOption

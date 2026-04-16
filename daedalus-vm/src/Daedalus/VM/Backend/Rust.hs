@@ -23,9 +23,7 @@ import Daedalus.VM.Backend.Rust.Names
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
 
-newtype Config = Config {
-  cfgUserModule :: String
-}
+data Config = Config
 
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
@@ -36,7 +34,7 @@ type ProgCtx = (
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
 
 compileProgram :: Config -> VM.Program -> String
-compileProgram cfg vm = show (Rust.pretty' result)
+compileProgram _cfg vm = show (Rust.pretty' result)
   where
   result :: Rust.SourceFile ()
   result =
@@ -527,8 +525,8 @@ compileOp3 x op e1 e2 e3 t1 _t2 _t3 =
       def (
         callRTS "new_array_iter" [
           case t1 of
-            VM.TSem (Core.TUInt _) -> callRTS "range_up_u" [e1,e2,e3]
-            VM.TSem (Core.TSInt _) -> callRTS "range_up_i" [e1,e2,e3]
+            VM.TSem (Core.TUInt _) -> callRTS "rng_up_u" [e1,e2,e3]
+            VM.TSem (Core.TSInt _) -> callRTS "rng_up_i" [e1,e2,e3]
             VM.TSem Core.TInteger  -> unsupported "RangeUp on Integer"
             _ -> bad
         ])
@@ -537,8 +535,8 @@ compileOp3 x op e1 e2 e3 t1 _t2 _t3 =
       def (
         callRTS "new_array_iter" [
           case t1 of
-            VM.TSem (Core.TUInt _) -> callRTS "range_down_u" [e1,e2,e3]
-            VM.TSem (Core.TSInt _) -> callRTS "range_down_i" [e1,e2,e3]
+            VM.TSem (Core.TUInt _) -> callRTS "rng_down_u" [e1,e2,e3]
+            VM.TSem (Core.TSInt _) -> callRTS "rng_down_i" [e1,e2,e3]
             VM.TSem Core.TInteger  -> unsupported "RangeDown on Integer"
             _ -> bad
         ])
@@ -598,7 +596,7 @@ compileNumLit n ty =
     Core.TSInt _ -> intoWord True
     Core.TFloat  -> Rust.litExpr (Rust.floatLit' Rust.F32 (fromInteger n))
     Core.TDouble -> Rust.litExpr (Rust.floatLit' Rust.F64 (fromInteger n))
-    _ -> unsupported (?fnMsg <+> "numeric literal at type" <+> pp ty)
+    _ -> panic "compileNumLit" [show (?fnMsg <+> "numeric literal at type" <+> pp ty)]
   where
   -- Use .into() on the literal, relying on type inference from context
   intoWord sign = 

@@ -263,12 +263,14 @@ impl Serialize for ParseError {
 // ============================================================================
 
 pub struct ParserState {
+  #[cfg(feature = "detailed-errors")]
   context: ParserContextStack,
   pub error: ParseError,
 }
 
 pub fn new_parser_state() -> ParserState {
   ParserState {
+    #[cfg(feature = "detailed-errors")]
     context: ParserContextStack::new(),
     error: ParseError::new(),
   }
@@ -280,20 +282,29 @@ impl ParserState {
     println!("{}", msg)
   }
 
+  #[allow(unused_variables)]
   pub fn push(&mut self, tail: bool, name: &str) {
-    if tail {
-      self.context.tail_call_fun(name.to_string());
-    } else {
-      self.context.call_fun(name.to_string());
+    #[cfg(feature = "detailed-errors")]
+    {
+      if tail {
+        self.context.tail_call_fun(name.to_string());
+      } else {
+        self.context.call_fun(name.to_string());
+      }
     }
   }
 
   pub fn pop(&mut self) {
+    #[cfg(feature = "detailed-errors")]
     self.context.pop_fun();
   }
 
+  #[allow(unused_variables)]
   pub fn note_fail(&mut self, is_user: bool, loc: &str, inp: &ddl::Input, msg: ddl::ArrayB<ddl::U<8>>) {
-    // Improve the error if this one is better
-    self.error.improve(!is_user, loc.to_string(), inp, msg, &self.context);
+    #[cfg(feature = "detailed-errors")]
+    {
+      // Improve the error if this one is better
+      self.error.improve(!is_user, loc.to_string(), inp, msg, &self.context);
+    }
   }
 }
