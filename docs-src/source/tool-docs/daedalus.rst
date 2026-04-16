@@ -227,7 +227,7 @@ Flags
 
 .. data:: --add-include=INCLUDE
 
-  Add an additoinal `#include` to the generated parser header file.
+  Add an additional `#include` to the generated parser header file.
   Typically, this is used to support custom user state, or integration
   with an pre-compiled DaeDaLus parser.  The parameter should just contain
   the thing to be incuded (e.g., ``"file.h"`` or ``<file.h>``).
@@ -235,7 +235,7 @@ Flags
 .. data:: --entry=[MODULE.]NAME
 
   Declare that the given parser is an entry point for the generated parser.
-  Specifying an entry point will disable the genration of a sample driver
+  Specifying an entry point will disable the generation of a sample driver
   executable.  The name of the C++ function corresponding to DaeDaLus
   declaration ``F`` is ``parseF``.  The entry point should have a fixed
   type, but MAY have argument.
@@ -249,7 +249,7 @@ Flags
                    , DDL::Input      input
                    );
 
-  If an extry point has arguments, they'll come after the ``input`` argument.
+  If an entry point has arguments, they'll come after the ``input`` argument.
   The entry point returns any parsed semantic values in the ``results`` vector,
   there could be multiple results if the grammar is ambiguous.  If there
   are no results (i.e., ``results`` is empty), then ``error`` will contain
@@ -257,8 +257,8 @@ Flags
 
 .. data:: --inline
 
-  Perform agressive inlinining---all parsers that can be inlined will be
-  inlinined at each use site.  Sometimes this may improve performance, but
+  Perform aggressive inlining---all parsers that can be inlined will be
+  inlined at each use site.  Sometimes this may improve performance, but
   sometimes it may reduce it, due to a significant increase in the size
   of the generate code.
 
@@ -271,17 +271,17 @@ Flags
   Do not generate declarations for the types declared in the given module.
   This is useful when interfacing with a pre-compiled DaeDaLus parser,
   which already contains declarations for the given types.  Often, this
-  option will be comined with ``add-include`` to include the declarations
+  option will be combined with ``add-include`` to include the declarations
   of the already compiled code.  If a namespace is provided, then uses of
   types in the given module will be qualified with the given namespace.
   Otherwise, the default namespace ``User`` will be used.
 
-.. data:: --lazy-strems
+.. data:: --lazy-streams
 
   Generate code that uses streams where not all data is available when
   the parser starts.  The generated code uses coroutines, as defined by
   the ``fiber`` class from ``boost-context`` library.  If the parser
-  reaches the end of an incomplete data stream, it yileds to another
+  reaches the end of an incomplete data stream, it yields to another
   coroutine which should either provide more data or terminate the
   stream before resuming the parser.  For more details see ``ddl/stream.h``.
   The data streams used by the parser are as defined in class
