@@ -7,7 +7,7 @@ module Daedalus.VM.Backend.Rust (
 import Data.Text qualified as Text
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.List(foldl')
+import Data.List(foldl',sortOn)
 import Data.ByteString qualified as BS
 import Data.Word(Word8,Word64)
 import Data.Int(Int64)
@@ -132,7 +132,7 @@ compileFunBody body = (args, Rust.block [contT, pcDecl, mainLoop])
 
   mainLoop =
     Rust.expr (
-      Rust.loopExpr (Rust.block [
+      Rust.loopExpr (Just funLoopName) (Rust.block [
         Rust.expr (Rust.matchExpr
                     (Rust.pathExpr (Rust.simplePath pcName))
                     [ arm | (_,_,arm) <- Map.elems blockCode ])
@@ -349,13 +349,6 @@ compileOp1 x op e argTy =
                       (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [v]
                     )
       badTgt = panic "compileOp1" ["Bad target type in coerce"]
-
-        
-          
-
-        
-      
-        
 
       srcTy = case argTy of
                 VM.TSem t -> t
@@ -618,7 +611,10 @@ compileCInstr :: FnCtx => VM.CInstr -> [Rust.Stmt ()]
 compileCInstr cinstr =
   case cinstr of
     VM.Jump jp -> compileJump jp []
-    VM.JumpIf e opts ->
+    VM.JumpIf e opts
+      | VM.TSem Core.TInteger <- ty ->
+        compileIntCase (compileExpr VM.Borrowed e) opts
+      | otherwise ->
       [Rust.expr (Rust.matchExpr (tweak (compileExpr VM.Borrowed e)) (compileJumpChoice ty opts))]
       where
       ty    = VM.getType e
@@ -626,7 +622,6 @@ compileCInstr cinstr =
         | isRecTy ty                   = Rust.uni Rust.Deref
         | VM.TSem (Core.TUInt _) <- ty = \r -> Rust.callMethod r "into" []
         | VM.TSem (Core.TSInt _) <- ty = \r -> Rust.callMethod r "into" []
-        | VM.TSem Core.TInteger  <- ty = \r -> Rust.callMethod r "try_into" []
         | VM.TSem (Core.TUser ut) <- ty, Core.tnameBD (Core.utName ut) = \r -> Rust.callMethod r "to_enum" []
         | otherwise                    = id
       
@@ -672,7 +667,7 @@ compileJump (VM.JumpPoint l es) extra =
     (Rust.identExpr pcName)
     (Rust.callCon (Rust.simplePath' [contTypeName, compileBlockLabel l])
                (extra ++ zipWith compileExpr (drop (length extra) sig) es)),
-    Rust.continue
+    Rust.continueLab funLoopName
   ]
   where
   sig =
@@ -683,10 +678,85 @@ compileJump (VM.JumpPoint l es) extra =
 compileJumpWithFree :: FnCtx => VM.JumpWithFree -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJumpWithFree = compileJump . VM.jumpTarget -- Rust will do the freeing
 
+
+compileIntCase ::
+  FnCtx => Rust.Expr () -> VM.JumpChoice Core.Pattern -> [Rust.Stmt ()]
+compileIntCase e (VM.JumpCase ps0) = classify [] [] [] [] [] (Map.toList ps0)
+  where
+  classify dflt useI useUI useU useBig ps =
+    case ps of
+      (p,k) : more ->
+        case p of
+          Core.PAny -> classify (k : dflt) useI useUI useU useBig more
+          Core.PNum n
+            | n < 0 ->
+              if toInteger (minBound :: Int64) <= n
+                then classify dflt ((n,k) : useI) useUI useU useBig more
+                else classify dflt useI useUI useU ((n,k) : useBig) more
+            | n <= toInteger (maxBound :: Int64) ->
+              classify dflt useI ((n,k) : useUI) useU useBig more
+            | n <= toInteger (maxBound :: Word64) ->
+                classify dflt useI useUI ((n,k) : useU) useBig more
+            | otherwise -> classify dflt useI useUI useU ((n,k) : useBig) more
+          _ -> panic "compuleJumpChoice" ["Unexpected pattern for TInteger"]
+      [] -> [ Rust.expr $
+                Rust.matchExpr
+                  (Rust.callMethod e meth [])
+                  (map smallAlt smallCases ++ [bigAlt bigCases])
+            ]
+        where
+        smallAlt (p,k) =
+          Rust.matchArm (Rust.somePat (Rust.litPat (Rust.intLit' smallSuff p)))
+                        (Rust.blockExpr (compileJumpWithFree k []))
+        
+        bigAlt opts =
+          Rust.matchArm Rust.wildPat $
+          case opts of
+            [] -> dfltK
+            _  ->
+              Rust.blockExpr
+                [ Rust.expr_ $ Rust.blockExprLab intDecisionTreeDfltName $
+                    Rust.block [
+                      Rust.expr_ (decisionTree (length opts) opts)
+                    ]
+                , Rust.expr dfltK
+                ]
+
+        dfltK =
+          case dflt of
+            [] -> Rust.callMacro (Rust.simplePath "unreachable") []
+            [k] -> Rust.blockExpr (compileJumpWithFree k [])
+            _   -> panic "compileIntCase" ["Multiple default cases"]
+
+        
+        decisionTree len opts =
+          case splitAt n opts of
+            (as,(b,k):bs) ->
+              Rust.matchExpr (Rust.callMethod e "cmp" [lit b])
+                [ Rust.matchArm (p "Less") (decisionTree n as)
+                , Rust.matchArm (p "Equal") (Rust.blockExpr (compileJumpWithFree k []))
+                , Rust.matchArm (p "Greater") (decisionTree (len - n - 1) bs)
+                ]
+            _ -> Rust.break (Just intDecisionTreeDfltName)
+            where
+            n   = div len 2
+            p x = Rust.conPat (Rust.simplePath' ["std","cmp","Ordering",x]) []
+            ty  = compileType VM.Owned Core.TInteger
+            lit x =
+              Rust.addrOf $
+              Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from_signed_bytes_be"))
+              [Rust.addrOf (Rust.arrExpr [Rust.litExpr (Rust.intLit' Rust.U8 (toInteger b)) | b <- integerToBytes x])]
+              
+        (smallSuff, meth, smallCases, bigCases) =
+          case useI of
+            [] -> (Rust.U64, "try_to_unsigned", sortOn fst (useUI ++ useU), sortOn fst useBig)
+            _  -> (Rust.I64, "try_to_signed", sortOn fst (useI ++ useUI), sortOn fst (useU ++ useBig))
+
+
+
 compileJumpChoice :: FnCtx => VM.VMT -> VM.JumpChoice Core.Pattern -> [Rust.Arm ()]
 compileJumpChoice ty (VM.JumpCase opts) =
   [ Rust.matchArm (compilePat ty p) (Rust.blockExpr (compileJumpWithFree k []))
-    -- XXX: for big integers we should use a decision tree instead of `match`
   | (p,k) <- Map.toList opts
   ]
 

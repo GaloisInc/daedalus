@@ -24,54 +24,11 @@ impl Int {
       (self << (N as usize)) | Self::from(x)
     }
 
-    /// Try to convert to an unsigned Word of width N.
-    /// Returns None if the Int is negative or doesn't fit in N bits.
-    pub fn try_to_unsigned<const N: u32>(&self) -> Option<ddl::U<N>>
-    where
-        ddl::number::Size<false, N>: ddl::number::WordRep,
-    {
-        use num_bigint::Sign;
+    /// Try to convert to a u64.
+    pub fn try_to_unsigned(&self) -> Option<u64> { (&self.0).try_into().ok() }
 
-        // Check if value is negative
-        if self.0.sign() == Sign::Minus {
-            return None;
-        }
-
-        // Check if value fits in N bits
-        if self.0.bits() > N as u64 {
-            return None;
-        }
-
-        Some(ddl::U::from(self))
-    }
-
-    /// Try to convert to a signed Word of width N.
-    /// Returns None if the Int doesn't fit in the range [-2^(N-1), 2^(N-1) - 1].
-    pub fn try_to_signed<const N: u32>(&self) -> Option<ddl::I<N>>
-    where
-        ddl::number::Size<true, N>: ddl::number::WordRep,
-    {
-        use num_bigint::Sign;
-
-        // For N-bit signed value, valid range is [-2^(N-1), 2^(N-1) - 1]
-        match self.0.sign() {
-            Sign::Minus => {
-                // For negative values, check if abs(i) <= 2^(N-1)
-                let max_neg = BigInt::from(1) << ((N - 1) as usize);
-                if (-self.0.clone()) > max_neg {
-                    return None;
-                }
-            }
-            Sign::NoSign | Sign::Plus => {
-                // For non-negative values, check if i < 2^(N-1)
-                if self.0.bits() >= N as u64 {
-                    return None;
-                }
-            }
-        }
-
-        Some(ddl::I::from(self))
-    }
+    /// Try to convert to a i64.
+    pub fn try_to_signed(&self) -> Option<i64> { (&self.0).try_into().ok() }
 }
 
 
@@ -450,75 +407,45 @@ mod tests {
 
     #[test]
     fn test_try_to_unsigned() {
-        // Valid conversions for U<8>
-        assert!(Int::from(0u64).try_to_unsigned::<8>().is_some());
-        assert!(Int::from(255u64).try_to_unsigned::<8>().is_some());
+        // Valid conversions within u64 range
+        assert_eq!(Int::from(0u64).try_to_unsigned(), Some(0u64));
+        assert_eq!(Int::from(255u64).try_to_unsigned(), Some(255u64));
+        assert_eq!(Int::from(256u64).try_to_unsigned(), Some(256u64));
+        assert_eq!(Int::from(65535u64).try_to_unsigned(), Some(65535u64));
+        assert_eq!(Int::from(65536u64).try_to_unsigned(), Some(65536u64));
+        assert_eq!(Int::from(u64::MAX).try_to_unsigned(), Some(u64::MAX));
 
-        // Out of range for U<8>
-        assert!(Int::from(256u64).try_to_unsigned::<8>().is_none());
-        assert!(Int::from(-1i64).try_to_unsigned::<8>().is_none());
+        // Negative values fail
+        assert!(Int::from(-1i64).try_to_unsigned().is_none());
+        assert!(Int::from(-128i64).try_to_unsigned().is_none());
 
-        // Valid conversions for U<16>
-        assert!(Int::from(0u64).try_to_unsigned::<16>().is_some());
-        assert!(Int::from(65535u64).try_to_unsigned::<16>().is_some());
-
-        // Out of range for U<16>
-        assert!(Int::from(65536u64).try_to_unsigned::<16>().is_none());
-        assert!(Int::from(-1i64).try_to_unsigned::<16>().is_none());
-
-        // Valid conversions for U<3> (max value 7)
-        assert!(Int::from(0u64).try_to_unsigned::<3>().is_some());
-        assert!(Int::from(7u64).try_to_unsigned::<3>().is_some());
-
-        // Out of range for U<3>
-        assert!(Int::from(8u64).try_to_unsigned::<3>().is_none());
-        assert!(Int::from(-1i64).try_to_unsigned::<3>().is_none());
-
-        // Large Int values
+        // Large Int values beyond u64 range
         let large = Int::from(u64::MAX) + Int::from(1000u64);
-        assert!(large.try_to_unsigned::<8>().is_none());
-        assert!(large.try_to_unsigned::<64>().is_none());
+        assert!(large.try_to_unsigned().is_none());
 
-        // Verify the actual values are correct for valid conversions
-        assert_eq!(Int::from(42u64).try_to_unsigned::<8>().unwrap(), U::<8>::from(42u64));
-        assert_eq!(Int::from(255u64).try_to_unsigned::<8>().unwrap(), U::<8>::from(255u64));
+        // Verify actual values
+        assert_eq!(Int::from(42u64).try_to_unsigned().unwrap(), 42u64);
     }
 
     #[test]
     fn test_try_to_signed() {
-        // Valid conversions for I<8> (range: -128 to 127)
-        assert!(Int::from(-128i64).try_to_signed::<8>().is_some());
-        assert!(Int::from(127i64).try_to_signed::<8>().is_some());
-        assert!(Int::from(0i64).try_to_signed::<8>().is_some());
+        // Valid conversions within i64 range
+        assert_eq!(Int::from(-128i64).try_to_signed(), Some(-128i64));
+        assert_eq!(Int::from(127i64).try_to_signed(), Some(127i64));
+        assert_eq!(Int::from(0i64).try_to_signed(), Some(0i64));
+        assert_eq!(Int::from(-32768i64).try_to_signed(), Some(-32768i64));
+        assert_eq!(Int::from(32767i64).try_to_signed(), Some(32767i64));
+        assert_eq!(Int::from(i64::MIN).try_to_signed(), Some(i64::MIN));
+        assert_eq!(Int::from(i64::MAX).try_to_signed(), Some(i64::MAX));
 
-        // Out of range for I<8>
-        assert!(Int::from(-129i64).try_to_signed::<8>().is_none());
-        assert!(Int::from(128i64).try_to_signed::<8>().is_none());
-
-        // Valid conversions for I<16> (range: -32768 to 32767)
-        assert!(Int::from(-32768i64).try_to_signed::<16>().is_some());
-        assert!(Int::from(32767i64).try_to_signed::<16>().is_some());
-
-        // Out of range for I<16>
-        assert!(Int::from(-32769i64).try_to_signed::<16>().is_none());
-        assert!(Int::from(32768i64).try_to_signed::<16>().is_none());
-
-        // Valid conversions for I<3> (range: -4 to 3)
-        assert!(Int::from(-4i64).try_to_signed::<3>().is_some());
-        assert!(Int::from(3i64).try_to_signed::<3>().is_some());
-
-        // Out of range for I<3>
-        assert!(Int::from(-5i64).try_to_signed::<3>().is_none());
-        assert!(Int::from(4i64).try_to_signed::<3>().is_none());
-
-        // Large Int values
+        // Large Int values beyond i64 range
         let large_pos = Int::from(i64::MAX) + Int::from(1000u64);
-        let large_neg = -(Int::from(u64::MAX));
-        assert!(large_pos.try_to_signed::<8>().is_none());
-        assert!(large_neg.try_to_signed::<8>().is_none());
+        let large_neg = Int::from(i64::MIN) - Int::from(1000u64);
+        assert!(large_pos.try_to_signed().is_none());
+        assert!(large_neg.try_to_signed().is_none());
 
-        // Verify the actual values are correct for valid conversions
-        assert_eq!(Int::from(42i64).try_to_signed::<8>().unwrap(), I::<8>::from(42i64));
-        assert_eq!(Int::from(-42i64).try_to_signed::<8>().unwrap(), I::<8>::from(-42i64));
+        // Verify actual values
+        assert_eq!(Int::from(42i64).try_to_signed().unwrap(), 42i64);
+        assert_eq!(Int::from(-42i64).try_to_signed().unwrap(), -42i64);
     }
 }

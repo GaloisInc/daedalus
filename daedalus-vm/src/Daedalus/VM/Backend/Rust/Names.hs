@@ -64,3 +64,8 @@ numTPName (Core.TP n) = Rust.mkIdent ("N" ++ show n)
 contTypeName :: Rust.Ident
 contTypeName = "Goto"
 
+intDecisionTreeDfltName :: String
+intDecisionTreeDfltName = "int_case"
+
+funLoopName :: String
+funLoopName = "fun_loop"

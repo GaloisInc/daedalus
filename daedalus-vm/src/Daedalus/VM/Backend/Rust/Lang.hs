@@ -10,10 +10,10 @@ import Data.ByteString(ByteString)
 import Data.ByteString qualified as BS
 import Data.Text(Text)
 import Data.Text qualified as Text
-import Data.Maybe(maybeToList,mapMaybe)
+import Data.Maybe(maybeToList)
 import Data.Char(isAlpha,toUpper, toLower,isLower,isUpper,toUpper)
 import Numeric(showHex)
-import Data.List(intersperse,groupBy)
+import Data.List(intersperse)
 import Language.Rust.Syntax
 import Language.Rust.Data.Ident
 import Language.Rust.Data.Position
@@ -188,6 +188,10 @@ assign lhs rhs = expr_ (Assign [] lhs rhs ())
 continue :: Stmt ()
 continue = expr (Continue [] Nothing ())
 
+continueLab :: String -> Stmt ()
+continueLab l = expr (Continue [] (Just (Label l ())) ())
+
+
 ret_ :: Stmt ()
 ret_ = expr_ (Ret [] Nothing ())
 
@@ -229,6 +233,9 @@ pathExpr p = PathExpr [] Nothing p ()
 identExpr :: Ident -> Expr ()
 identExpr = pathExpr . simplePath
 
+blockExprLab :: String -> Block () -> Expr ()
+blockExprLab l b = BlockExpr [] b (Just (Label l ())) ()
+
 blockExpr' :: Block () -> Expr ()
 blockExpr' b = BlockExpr [] b Nothing ()
 
@@ -242,11 +249,16 @@ tupleExpr es = TupExpr [] es ()
 arrExpr :: [Expr ()] -> Expr ()
 arrExpr es = Vec [] es ()
 
-loopExpr :: Block () -> Expr ()
-loopExpr b = Loop [] b Nothing ()
+loopExpr :: Maybe String -> Block () -> Expr ()
+loopExpr mbLab b = Loop [] b (toLab <$> mbLab) ()
+  where toLab x = Label x ()
 
 matchExpr :: Expr () -> [Arm ()] -> Expr ()
 matchExpr scrut arms = Match [] scrut arms ()
+
+break :: Maybe String -> Expr ()
+break mb = Break [] (lab <$> mb) Nothing ()
+  where lab x = Label x ()
 
 -- | An arm of a @match@ expression.
 matchArm :: Pat () -> Expr () -> Arm ()
