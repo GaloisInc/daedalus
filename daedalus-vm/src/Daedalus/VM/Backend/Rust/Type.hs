@@ -146,9 +146,13 @@ bdCase univ cases =
   $ BDD.patTestsAssumingInOrder univ
     [ (Core.bdUniverse ?tyDecls t, s) | (t,s) <- cases ]
   where
-  rearrange xs = ( BDD.patMask (fst (head xs))
-                 , [ (BDD.patValue t, rhs) | (t,rhs) <- xs ]
-                 )
+  rearrange xs =
+    case xs of
+      (x,_) : _ ->
+        ( BDD.patMask x
+        , [ (BDD.patValue t, rhs) | (t,rhs) <- xs ]
+        )
+      [] -> panic "bdCase" ["groupBy: []"]
 
   sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y
 
