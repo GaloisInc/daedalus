@@ -61,7 +61,7 @@ the given specification.  For example:
 
 
 
-The resulting types have the following form: 
+The resulting types have the following form:
 
 .. code-block:: DaeDaLus
 
@@ -75,11 +75,11 @@ This resembles a C type declaration as follows:
 
 .. code-block:: C
 
-  <type C> ParserName(<type A>, <type B>, ...); 
+  <type C> ParserName(<type A>, <type B>, ...);
 
 The types themselves may be simple types such as integers or arrays, but they
 often have the form ``parser of <type A>``. This indicates that the parameter or
-result is a parser, that itself generates semantic values of type ``A``. 
+result is a parser, that itself generates semantic values of type ``A``.
 
 Command ``run``
 ===============
@@ -262,7 +262,7 @@ Flags
   sometimes it may reduce it, due to a significant increase in the size
   of the generate code.
 
-.. data:: --inlinine-this=[MODULE.]NAME
+.. data:: --inline-this=[MODULE.]NAME
 
   Inline uses of a specific parser.
 
@@ -288,6 +288,174 @@ Flags
   ``DDL::Stream``.  The interaction between the data provider and the
   parser should be done using class ``DDL::ParserThread``.
 
+
+Command: ``compile-rust``
+==========================
+
+To compile a DaeDaLus parser specification to Rust:
+
+.. code-block:: bash
+
+  daedalus compile-rust MyParserSpec.ddl
+
+By default, the output will be saved in a directory whose name is derived
+from the name of the input file (e.g., ``MyParserSpec.ddl`` becomes
+``MyParserSpec``). You can specify a different output directory using
+the ``--out-dir`` flag.
+
+The result is a directory containing a complete Rust crate with the generated
+parser and type definitions. The generated code uses the Daedalus Rust runtime
+system (RTS), which provides core parsing functionality.
+
+Generated Files
+---------------
+
+The compiled parser is placed in a standard Rust crate structure:
+  * ``src/lib.rs`` contains the generated parser implementation and type definitions
+  * ``Cargo.toml`` provides the Rust package configuration
+  * A sample executable driver ``src/main.rs`` (if no explicit ``--entry`` is specified)
+
+To build the generated parser:
+
+.. code-block:: bash
+
+  cd MyParserSpec
+  cargo build --release
+
+The ``--save-rts`` flag can be used to include the RTS source code directly
+in the output directory, which is useful for standalone builds that do not
+depend on an external RTS installation.
+
+Flags
+-----
+
+.. data:: --out-dir=DIRECTORY
+
+  Save generated files in the given directory.
+  The directory will be created if it does not exist.
+  If not specified, a directory name is derived from the input file name.
+
+.. data:: --rts-path=PATH
+
+  Specify the path to the Daedalus Rust runtime system.
+  This is used when the RTS is located in a non-standard location.
+  If not specified, the default path is ``../rts-rust`` relative to the
+  output directory.
+
+.. data:: --save-rts
+
+  Include the source code for the Daedalus RTS in the output directory.
+  This creates a standalone build that does not depend on an external
+  RTS installation. The RTS will be copied to a ``rts-rust`` subdirectory
+  within the output directory.
+
+.. data:: --no-error-stack
+
+  Disable call stack tracking in parse errors. Without this option,
+  the generated code includes grammar stack traces in error messages,
+  which provide more detailed diagnostic information at some runtime cost.
+  Adding this flag produces less detailed parse errors but may improve
+  performance.
+
+.. data:: --entry=[MODULE.]NAME
+
+  Declare that the given parser is an entry point for the generated parser.
+  The entry point should have a fixed type, but MAY have arguments.
+  Multiple entry points can be specified by using this flag multiple times.
+  Specifying at least one entry point will disable the generation of the
+  sample executable driver.
+
+.. data:: --determinize
+
+  Apply determinization transformations to the Core IR.
+  This optimization can improve parser performance by eliminating
+  non-deterministic choice where possible.
+
+.. data:: --keep-match
+
+  Do not remove matching constructs during compilation.
+  By default, the compiler removes certain matching patterns as an
+  optimization.
+
+.. data:: --no-shrink-biased
+
+  Do not attempt to shrink the scope of biased choice operations.
+  By default, the compiler optimizes biased choice by reducing its scope
+  where possible.
+
+.. data:: --no-case-of-case
+
+  Do not attempt to eliminate case-of-case patterns.
+  By default, the compiler applies this optimization to simplify nested
+  pattern matching.
+
+.. data:: --inline
+
+  Perform aggressive inlining---all parsers that can be inlined will be
+  inlined at each use site. This may improve or reduce performance depending
+  on the specific parser structure and the size of the generated code.
+
+.. data:: --inline-this=[MODULE.]NAME
+
+  Inline uses of a specific parser. This flag can be used multiple times
+  to inline different parsers selectively.
+
+.. data:: --strip-fail
+
+  Remove failure nodes from the Core IR during optimization.
+  This can reduce code size but may make debugging more difficult.
+
+.. data:: --no-loops
+
+  Remove loop constructs from the Core IR, transforming them into
+  recursive functions.
+
+.. data:: --no-bitdata
+
+  Remove bitdata constructs from the Core IR, transforming them into
+  equivalent operations on standard integer types.
+
+.. data:: --spec-types
+
+  Specialize polymorphic types during compilation.
+  This can improve performance but may increase code size.
+
+.. data:: --no-core-check
+
+  Skip validation of the Core IR after transformations.
+  This can speed up compilation but should be used with caution as it
+  may allow invalid IR to reach code generation.
+
+.. data:: --extern=MODULE[:NAMESPACE]
+
+  Do not generate definitions for the types declared in the given module.
+  This is useful when interfacing with another pre-compiled DaeDaLus parser
+  that already contains definitions for the given types. If a namespace is
+  provided, uses of types in the given module will be qualified with that
+  namespace.
+
+Unsupported Features
+--------------------
+
+The Rust backend currently does not support the following features:
+
+* **Stack capture**: Parsers that capture the execution stack (closures that
+  capture parser state) are not supported.
+
+* **External functions**: Externally defined functions (primitives defined
+  outside of DaeDaLus) cannot be compiled to Rust.
+
+* **User types iwth numeric parameters**: Types that are parameterized by numeric
+  values are not supported.
+
+* **Builder emission**: The ``emitBuilder`` operation for emitting builder
+  values into other builders is not yet implemented.
+
+* **Integer ranges**: These only work for ``sint`` and ``uint``, but not
+  for ``int`` (i.e., arbitrary-precision integers).
+
+If your parser uses any of these features, the compiler will report an
+error indicating which feature is unsupported.
 
 
 Command: ``dump``

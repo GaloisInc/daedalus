@@ -386,10 +386,6 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
         "Save output in this directory."
         $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
 
-      , Option [] ["file-root"]
-        "Output file template (default: main_parser)"
-        $ ReqArg "FILE" \s o -> Right o { optFileRoot = s }
-
       , Option [] ["rts-path"]
         "Path to the Daedalus RTS"
         $ ReqArg "PATH" \s o -> Right o { optRTSPath = Just s }
