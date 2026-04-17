@@ -16,7 +16,6 @@ import           Data.Functor.Identity       (Identity (Identity), runIdentity)
 import           Data.List                   (foldl')
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
-import           Data.Maybe                  (isJust)
 import qualified Data.Text                   as Text
 import qualified Data.Vector                 as Vector
 
@@ -247,7 +246,6 @@ evalOp1 env op ty v = case op of
   Head          -> partial (vStreamHead v)
   StreamOffset  -> vStreamOffset v
   BytesOfStream -> vBytesOfStream v
-  OneOf bs      -> VBool $ isJust $ BS.elemIndex (valueToByte v) bs
   Neg           -> partial (vNeg v)
   BitNot        -> vComplement v
   Not           -> vNot v

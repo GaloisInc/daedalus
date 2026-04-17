@@ -435,7 +435,6 @@ modeOp1 op =
     Head                  -> [Borrowed]
     StreamOffset          -> [Borrowed]
     BytesOfStream         -> [Borrowed]
-    OneOf {}              -> [Borrowed]
     Neg                   -> [Owned]
     BitNot                -> [Owned]
     Not                   -> [Owned]

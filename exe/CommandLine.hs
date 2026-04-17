@@ -31,6 +31,7 @@ data Command =
   | DumpGen
   | CompileHS
   | CompileCPP
+  | CompileRust
   | Interp (Maybe FilePath)
   | JStoHTML
   | ShowHelp
@@ -84,6 +85,9 @@ data Options =
             -- 'Nothing' means no detailed errors, `Just` contains
             -- the directory where we should save stuff
 
+          , optRTSPath :: Maybe FilePath
+            -- ^ Path to the RTS (runtime system)
+
           , optParams :: [String]
           } deriving Show
 
@@ -122,6 +126,7 @@ defaultOptions =
           , optExternMods = Map.empty
           , optModulePath = []
           , optDetailedErrors = Nothing
+          , optRTSPath = Nothing
           , optUseLazyStream = False
           , optVM_do_mm = True
           , optSaveRTS = False
@@ -175,6 +180,7 @@ commands =
   , ("show-types",    cmdShowTypesOptions)
   , ("compile-hs",    cmdCompileHSOptions)
   , ("compile-c++",   cmdCompileCPPOptions)
+  , ("compile-rust",  cmdCompileRustOptions)
   , ("json-to-html",  cmdJsonToHtmlOptions)
   , ("dump",          cmdDumpOptions)
   ]
@@ -370,6 +376,34 @@ cmdCompileHSOptions = (\o -> o { optCommand = CompileHS }, opts)
       ]
     }
 
+cmdCompileRustOptions :: CommandSpec
+cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
+  where
+  opts = optWithDDL
+    { progDescription = [ "Generate Rust code" ]
+    , progOptions =
+      [ Option [] ["out-dir"]
+        "Save output in this directory."
+        $ ReqArg "DIR" \s o -> Right o { optOutDir = Just s }
+
+      , Option [] ["rts-path"]
+        "Path to the Daedalus RTS"
+        $ ReqArg "PATH" \s o -> Right o { optRTSPath = Just s }
+
+      , Option [] ["save-rts"]
+        "Also generate the source code for the Daedalus RTS."
+        $ NoArg \o -> Right o { optSaveRTS = True }
+
+      , Option [] ["no-error-stack"]
+        "Do not generate a grammar stack trace on error."
+        $ NoArg \o -> Right o { optErrorStacks = False }
+      ] ++
+      coreOptions ++
+      [ helpOption
+      ]
+    }
+
+
 cmdCompileCPPOptions :: CommandSpec
 cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
   where
@@ -545,6 +579,7 @@ impliedOptions opts0 =
         DumpGen         -> opts
         CompileHS       -> opts
         CompileCPP      -> noTCUnbiased
+        CompileRust     -> noTCUnbiased
         Interp {}       -> opts
         JStoHTML        -> opts
         ShowHelp        -> opts

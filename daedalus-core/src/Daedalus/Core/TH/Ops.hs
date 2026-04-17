@@ -4,7 +4,6 @@ module Daedalus.Core.TH.Ops where
 import qualified Data.Text as Text
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import Data.List(sort)
 import Data.Maybe(fromJust)
 import GHC.Records(getField)
 
@@ -58,14 +57,6 @@ compileOp1 op1 argT e =
 
     BytesOfStream     -> [| RTS.vecFromRep (RTS.inputBytes $e)
                               :: $(compileMonoType tByteArray) |]
-
-    -- We could compile this ourselves in some way, but we leave to GHC for now
-    OneOf bs          -> TH.caseE e (map alt opts ++ [dflt])
-      where
-      opts  = sort (BS.unpack bs)
-      alt b = let pat = TH.litP (TH.integerL (fromIntegral b))
-              in TH.match pat (TH.normalB [| True |]) []
-      dflt  = TH.match [p| _ |](TH.normalB [| False |]) []
 
     Neg               -> [| RTS.neg $e |]
 

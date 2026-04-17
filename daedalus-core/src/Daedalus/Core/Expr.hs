@@ -52,7 +52,6 @@ data Op1 =
   | Head
   | StreamOffset
   | BytesOfStream
-  | OneOf ByteString
   | Neg
   | BitNot
   | Not
@@ -257,7 +256,6 @@ eq            = Ap2 Eq
 notEq         = Ap2 NotEq
 leq           = Ap2 Leq
 lt            = Ap2 Lt
-oneOf b       = Ap1 (OneOf b)
 
 
 --------------------------------------------------------------------------------
@@ -411,7 +409,6 @@ instance PP Op1 where
       Head            -> "iHead"
       StreamOffset    -> "iOffset"
       BytesOfStream   -> "bytesOfStream"
-      OneOf xs        -> "oneOf" <+> pp xs
       Neg             -> "neg"
       BitNot          -> "complement"
       Not             -> "not"

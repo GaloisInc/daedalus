@@ -1315,7 +1315,7 @@ newTNameRec rec =
                    TC.TCTyStruct _ fs -> TFlavStruct (map fst fs)
                    TC.TCTyUnion cs
                      | all (\(_, (t, _)) -> t == TC.tUnit) cs -> TFlavEnum (map fst cs)
-                     | otherwise -> TFlavUnion (map fst cs)
+                     | otherwise -> TFlavUnion [ (l,if t == TC.tUnit then NoData else HasData) | (l,(t,_)) <- cs ]
     in newTName r bd flavor (TC.tctyName d)
 
 newTName :: Bool -> Bool -> TFlav -> TC.TCTyName -> M ()

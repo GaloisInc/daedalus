@@ -8,7 +8,7 @@ import Text.Read(readMaybe)
 import Data.Maybe
 import Data.List
 import Data.Char
-import Control.Monad(filterM,forM)
+import Control.Monad(filterM,forM,unless)
 import Control.Exception(SomeException(..),catch)
 import System.FilePath
 import System.Process
@@ -92,9 +92,10 @@ isOK result =
 --------------------------------------------------------------------------------
 allPhases :: Quiet => FilePath -> Maybe FilePath -> IO ()
 allPhases file mbInp =
-  do compile file
-     run file mbInp
-     validate file mbInp
+  do backends <- backendsFor file
+     compileAll backends file
+     runAll backends file mbInp
+     validateAll backends file mbInp
 
 
 
@@ -102,7 +103,12 @@ allPhases file mbInp =
 -- Compilation
 
 compile :: Quiet => FilePath -> IO ()
-compile file = mapM_ (`compileWith` file) allBackends
+compile file =
+  do backends <- backendsFor file
+     compileAll backends file
+
+compileAll :: Quiet => [Backend] -> FilePath -> IO ()
+compileAll backends file = mapM_ (`compileWith` file) backends
 
 compileWith :: Quiet => Backend -> FilePath -> IO ()
 compileWith be ddl =
@@ -113,6 +119,7 @@ compileWith be ddl =
        InterpVM       -> pure ()
        CompileHaskell -> compileHaskell ddl
        CompileCPP     -> compileCPP ddl
+       CompileRust    -> compileRust ddl
 
 compileHaskell :: Quiet => FilePath -> IO ()
 compileHaskell ddl =
@@ -136,12 +143,25 @@ compileCPP ddl =
      callProcess' exe [ "compile-c++", "--out-dir=" ++ build, ddl ]
      callProcess' "make" [ "-C", build, "parser" ]
 
+compileRust :: Quiet => FilePath -> IO ()
+compileRust ddl =
+  do let build = buildDirFor CompileRust ddl
+     createDirectoryIfMissing True build
+     exe <- daedalusExe
+     callProcess' exe [ "compile-rust", "--determinize", "--save-rts", "--out-dir=" ++ build, ddl ]
+     callProcessIn_ build "cargo" ["build", "--release"]
+
 
 --------------------------------------------------------------------------------
 -- Running
 
 run :: FilePath -> Maybe FilePath -> IO ()
-run ddl mbInput = mapM_ (\be -> runWith be ddl mbInput) allBackends
+run ddl mbInput =
+  do backends <- backendsFor ddl
+     runAll backends ddl mbInput
+
+runAll :: [Backend] -> FilePath -> Maybe FilePath -> IO ()
+runAll backends ddl mbInput = mapM_ (\be -> runWith be ddl mbInput) backends
 
 runWith :: Backend -> FilePath -> Maybe FilePath -> IO ()
 runWith be ddl mbInput =
@@ -169,6 +189,11 @@ runWith be ddl mbInput =
 
           CompileCPP ->
             readProcessWithExitCode (buildDirFor be ddl </> "parser")
+                                    (maybeToList mbInput)
+                                    ""
+
+          CompileRust ->
+            readProcessWithExitCode (buildDirFor be ddl </> "target" </> "release" </> short ddl)
                                     (maybeToList mbInput)
                                     ""
   where
@@ -202,9 +227,17 @@ load be ddl mbInput =
 validate :: FilePath -> Maybe FilePath -> IO ()
 validate x y = validate' x y >> pure ()
 
+validateAll :: Quiet => [Backend] -> FilePath -> Maybe FilePath -> IO ()
+validateAll backends ddl mbInput = validate'' backends ddl mbInput >> pure ()
+
 validate' :: FilePath -> Maybe FilePath -> IO TestResult
 validate' ddl mbInput =
-  do results <- mapM (\be -> load be ddl mbInput) allBackends
+  do backends <- backendsFor ddl
+     validate'' backends ddl mbInput
+
+validate'' :: [Backend] -> FilePath -> Maybe FilePath -> IO TestResult
+validate'' backends ddl mbInput =
+  do results <- mapM (\be -> load be ddl mbInput) backends
      case equiv results of
        [_] -> putStrLn "OK" >> pure OK
        rs  -> do putStrLn "DIFFERENT"
@@ -293,6 +326,10 @@ doAllTestsIn dirName =
     attempt
     do putStrLn ("--- " ++ ddl ++ " ------------------------------------------")
        let file = dirName </> ddl
+       backends <- backendsFor file
+       let unsupported = allBackends \\ backends
+       unless (null unsupported) $
+         putStrLn $ "    Skipping backends: " ++ unwords (map show unsupported)
        compile file
        case ins of
          [] -> attempt
@@ -331,10 +368,31 @@ data Backend = InterpDaedalus
              | InterpVM
              | CompileHaskell
              | CompileCPP
+             | CompileRust
                deriving (Eq,Ord,Enum,Bounded,Show,Read)
 
 allBackends :: [Backend]
 allBackends = [ minBound .. maxBound ]
+
+-- | Read backends that are not supported for a given test file.
+-- The .unsupported file should contain one backend name per line.
+unsupportedBackends :: FilePath -> IO [Backend]
+unsupportedBackends ddl =
+  do let unsupportedFile = replaceExtension ddl "unsupported"
+     exists <- doesFileExist unsupportedFile
+     if exists
+       then do content <- readFile unsupportedFile
+               let names = filter (not . null)
+                         $ map (dropWhile isSpace . takeWhile (not . isSpace))
+                         $ lines content
+               pure (mapMaybe readMaybe names)
+       else pure []
+
+-- | Get the list of backends to test for a given file
+backendsFor :: FilePath -> IO [Backend]
+backendsFor ddl =
+  do unsupported <- unsupportedBackends ddl
+     pure (allBackends \\ unsupported)
 
 buildRootDirFor :: Backend -> FilePath
 buildRootDirFor be = buildDir </> show be

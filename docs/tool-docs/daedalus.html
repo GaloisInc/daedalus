@@ -59,6 +59,12 @@
 <li class="toctree-l3"><a class="reference internal" href="#id1">Flags</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#command-compile-rust">Command: <code class="docutils literal notranslate"><span class="pre">compile-rust</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Generated Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Flags</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#unsupported-features">Unsupported Features</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#command-dump">Command: <code class="docutils literal notranslate"><span class="pre">dump</span></code></a></li>
 </ul>
 </li>
@@ -110,8 +116,8 @@
 </div>
 <p>The command prints information about the types and parsers defined by
 the given specification.  For example:</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id2" title="Link to this code"></a></div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id4" title="Link to this code"></a></div>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Types
 ======
 
@@ -321,7 +327,7 @@ to this state make sense even when the parsers backtracks.</p>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--add-include=INCLUDE</span></span></dt>
-<dd><p>Add an additoinal <cite>#include</cite> to the generated parser header file.
+<dd><p>Add an additional <cite>#include</cite> to the generated parser header file.
 Typically, this is used to support custom user state, or integration
 with an pre-compiled DaeDaLus parser.  The parameter should just contain
 the thing to be incuded (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;file.h&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&lt;file.h&gt;</span></code>).</p>
@@ -331,13 +337,13 @@ the thing to be incuded (e.g., <code class="docutils literal notranslate"><span 
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--entry=[MODULE.]NAME</span></span></dt>
 <dd><p>Declare that the given parser is an entry point for the generated parser.
-Specifying an entry point will disable the genration of a sample driver
+Specifying an entry point will disable the generation of a sample driver
 executable.  The name of the C++ function corresponding to DaeDaLus
 declaration <code class="docutils literal notranslate"><span class="pre">F</span></code> is <code class="docutils literal notranslate"><span class="pre">parseF</span></code>.  The entry point should have a fixed
 type, but MAY have argument.</p>
-<div class="literal-block-wrapper docutils container" id="id3">
+<div class="literal-block-wrapper docutils container" id="id5">
 <div class="code-block-caption"><span class="caption-text">Sample entry point for parser <code class="docutils literal notranslate"><span class="pre">Main</span></code> with no extra arguments,
-returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id3" title="Link to this code"></a></div>
+returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id5" title="Link to this code"></a></div>
 <div class="highlight-C++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">parseMain</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">ParseError</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>
 <span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">results</span>
 <span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">Input</span><span class="w">      </span><span class="n">input</span>
@@ -345,7 +351,7 @@ returning a semantic value of type <code class="docutils literal notranslate"><s
 </pre></div>
 </div>
 </div>
-<p>If an extry point has arguments, they’ll come after the <code class="docutils literal notranslate"><span class="pre">input</span></code> argument.
+<p>If an entry point has arguments, they’ll come after the <code class="docutils literal notranslate"><span class="pre">input</span></code> argument.
 The entry point returns any parsed semantic values in the <code class="docutils literal notranslate"><span class="pre">results</span></code> vector,
 there could be multiple results if the grammar is ambiguous.  If there
 are no results (i.e., <code class="docutils literal notranslate"><span class="pre">results</span></code> is empty), then <code class="docutils literal notranslate"><span class="pre">error</span></code> will contain
@@ -355,15 +361,15 @@ information about the parser error.</p>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--inline</span></span></dt>
-<dd><p>Perform agressive inlinining—all parsers that can be inlined will be
-inlinined at each use site.  Sometimes this may improve performance, but
+<dd><p>Perform aggressive inlining—all parsers that can be inlined will be
+inlined at each use site.  Sometimes this may improve performance, but
 sometimes it may reduce it, due to a significant increase in the size
 of the generate code.</p>
 </dd></dl>
 
 <dl class="py data">
 <dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">--inlinine-this=[MODULE.]NAME</span></span></dt>
+<span class="sig-name descname"><span class="pre">--inline-this=[MODULE.]NAME</span></span></dt>
 <dd><p>Inline uses of a specific parser.</p>
 </dd></dl>
 
@@ -373,7 +379,7 @@ of the generate code.</p>
 <dd><p>Do not generate declarations for the types declared in the given module.
 This is useful when interfacing with a pre-compiled DaeDaLus parser,
 which already contains declarations for the given types.  Often, this
-option will be comined with <code class="docutils literal notranslate"><span class="pre">add-include</span></code> to include the declarations
+option will be combined with <code class="docutils literal notranslate"><span class="pre">add-include</span></code> to include the declarations
 of the already compiled code.  If a namespace is provided, then uses of
 types in the given module will be qualified with the given namespace.
 Otherwise, the default namespace <code class="docutils literal notranslate"><span class="pre">User</span></code> will be used.</p>
@@ -381,11 +387,11 @@ Otherwise, the default namespace <code class="docutils literal notranslate"><spa
 
 <dl class="py data">
 <dt class="sig sig-object py">
-<span class="sig-name descname"><span class="pre">--lazy-strems</span></span></dt>
+<span class="sig-name descname"><span class="pre">--lazy-streams</span></span></dt>
 <dd><p>Generate code that uses streams where not all data is available when
 the parser starts.  The generated code uses coroutines, as defined by
 the <code class="docutils literal notranslate"><span class="pre">fiber</span></code> class from <code class="docutils literal notranslate"><span class="pre">boost-context</span></code> library.  If the parser
-reaches the end of an incomplete data stream, it yileds to another
+reaches the end of an incomplete data stream, it yields to another
 coroutine which should either provide more data or terminate the
 stream before resuming the parser.  For more details see <code class="docutils literal notranslate"><span class="pre">ddl/stream.h</span></code>.
 The data streams used by the parser are as defined in class
@@ -393,6 +399,199 @@ The data streams used by the parser are as defined in class
 parser should be done using class <code class="docutils literal notranslate"><span class="pre">DDL::ParserThread</span></code>.</p>
 </dd></dl>
 
+</section>
+</section>
+<section id="command-compile-rust">
+<h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-rust</span></code><a class="headerlink" href="#command-compile-rust" title="Link to this heading"></a></h1>
+<p>To compile a DaeDaLus parser specification to Rust:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-rust<span class="w"> </span>MyParserSpec.ddl
+</pre></div>
+</div>
+<p>By default, the output will be saved in a directory whose name is derived
+from the name of the input file (e.g., <code class="docutils literal notranslate"><span class="pre">MyParserSpec.ddl</span></code> becomes
+<code class="docutils literal notranslate"><span class="pre">MyParserSpec</span></code>). You can specify a different output directory using
+the <code class="docutils literal notranslate"><span class="pre">--out-dir</span></code> flag.</p>
+<p>The result is a directory containing a complete Rust crate with the generated
+parser and type definitions. The generated code uses the Daedalus Rust runtime
+system (RTS), which provides core parsing functionality.</p>
+<section id="id2">
+<h2>Generated Files<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>The compiled parser is placed in a standard Rust crate structure:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">src/lib.rs</span></code> contains the generated parser implementation and type definitions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> provides the Rust package configuration</p></li>
+<li><p>A sample executable driver <code class="docutils literal notranslate"><span class="pre">src/main.rs</span></code> (if no explicit <code class="docutils literal notranslate"><span class="pre">--entry</span></code> is specified)</p></li>
+</ul>
+</dd>
+</dl>
+<p>To build the generated parser:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>MyParserSpec
+cargo<span class="w"> </span>build<span class="w"> </span>--release
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--save-rts</span></code> flag can be used to include the RTS source code directly
+in the output directory, which is useful for standalone builds that do not
+depend on an external RTS installation.</p>
+</section>
+<section id="id3">
+<h2>Flags<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
+<dd><p>Save generated files in the given directory.
+The directory will be created if it does not exist.
+If not specified, a directory name is derived from the input file name.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--rts-path=PATH</span></span></dt>
+<dd><p>Specify the path to the Daedalus Rust runtime system.
+This is used when the RTS is located in a non-standard location.
+If not specified, the default path is <code class="docutils literal notranslate"><span class="pre">../rts-rust</span></code> relative to the
+output directory.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--save-rts</span></span></dt>
+<dd><p>Include the source code for the Daedalus RTS in the output directory.
+This creates a standalone build that does not depend on an external
+RTS installation. The RTS will be copied to a <code class="docutils literal notranslate"><span class="pre">rts-rust</span></code> subdirectory
+within the output directory.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-error-stack</span></span></dt>
+<dd><p>Disable call stack tracking in parse errors. Without this option,
+the generated code includes grammar stack traces in error messages,
+which provide more detailed diagnostic information at some runtime cost.
+Adding this flag produces less detailed parse errors but may improve
+performance.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--entry=[MODULE.]NAME</span></span></dt>
+<dd><p>Declare that the given parser is an entry point for the generated parser.
+The entry point should have a fixed type, but MAY have arguments.
+Multiple entry points can be specified by using this flag multiple times.
+Specifying at least one entry point will disable the generation of the
+sample executable driver.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--determinize</span></span></dt>
+<dd><p>Apply determinization transformations to the Core IR.
+This optimization can improve parser performance by eliminating
+non-deterministic choice where possible.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--keep-match</span></span></dt>
+<dd><p>Do not remove matching constructs during compilation.
+By default, the compiler removes certain matching patterns as an
+optimization.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-shrink-biased</span></span></dt>
+<dd><p>Do not attempt to shrink the scope of biased choice operations.
+By default, the compiler optimizes biased choice by reducing its scope
+where possible.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-case-of-case</span></span></dt>
+<dd><p>Do not attempt to eliminate case-of-case patterns.
+By default, the compiler applies this optimization to simplify nested
+pattern matching.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--inline</span></span></dt>
+<dd><p>Perform aggressive inlining—all parsers that can be inlined will be
+inlined at each use site. This may improve or reduce performance depending
+on the specific parser structure and the size of the generated code.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--inline-this=[MODULE.]NAME</span></span></dt>
+<dd><p>Inline uses of a specific parser. This flag can be used multiple times
+to inline different parsers selectively.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--strip-fail</span></span></dt>
+<dd><p>Remove failure nodes from the Core IR during optimization.
+This can reduce code size but may make debugging more difficult.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-loops</span></span></dt>
+<dd><p>Remove loop constructs from the Core IR, transforming them into
+recursive functions.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-bitdata</span></span></dt>
+<dd><p>Remove bitdata constructs from the Core IR, transforming them into
+equivalent operations on standard integer types.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--spec-types</span></span></dt>
+<dd><p>Specialize polymorphic types during compilation.
+This can improve performance but may increase code size.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-core-check</span></span></dt>
+<dd><p>Skip validation of the Core IR after transformations.
+This can speed up compilation but should be used with caution as it
+may allow invalid IR to reach code generation.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--extern=MODULE[:NAMESPACE]</span></span></dt>
+<dd><p>Do not generate definitions for the types declared in the given module.
+This is useful when interfacing with another pre-compiled DaeDaLus parser
+that already contains definitions for the given types. If a namespace is
+provided, uses of types in the given module will be qualified with that
+namespace.</p>
+</dd></dl>
+
+</section>
+<section id="unsupported-features">
+<h2>Unsupported Features<a class="headerlink" href="#unsupported-features" title="Link to this heading"></a></h2>
+<p>The Rust backend currently does not support the following features:</p>
+<ul class="simple">
+<li><p><strong>Stack capture</strong>: Parsers that capture the execution stack (closures that
+capture parser state) are not supported.</p></li>
+<li><p><strong>External functions</strong>: Externally defined functions (primitives defined
+outside of DaeDaLus) cannot be compiled to Rust.</p></li>
+<li><p><strong>User types iwth numeric parameters</strong>: Types that are parameterized by numeric
+values are not supported.</p></li>
+<li><p><strong>Builder emission</strong>: The <code class="docutils literal notranslate"><span class="pre">emitBuilder</span></code> operation for emitting builder
+values into other builders is not yet implemented.</p></li>
+<li><p><strong>Integer ranges</strong>: These only work for <code class="docutils literal notranslate"><span class="pre">sint</span></code> and <code class="docutils literal notranslate"><span class="pre">uint</span></code>, but not
+for <code class="docutils literal notranslate"><span class="pre">int</span></code> (i.e., arbitrary-precision integers).</p></li>
+</ul>
+<p>If your parser uses any of these features, the compiler will report an
+error indicating which feature is unsupported.</p>
 </section>
 </section>
 <section id="command-dump">

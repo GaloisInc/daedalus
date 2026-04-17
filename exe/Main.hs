@@ -10,7 +10,7 @@ import Control.Exception( catches, Handler(..), SomeException(..)
                         , displayException
                         )
 import Control.Monad(when,unless,forM,forM_)
-import Data.Maybe(fromJust,isNothing)
+import Data.Maybe(fromJust,isNothing,fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -51,6 +51,7 @@ import qualified Daedalus.VM.BorrowAnalysis as VM
 import qualified Daedalus.VM.InsertCopy as VM
 import qualified Daedalus.VM.GraphViz as VM
 import qualified Daedalus.VM.Backend.C as C
+import qualified Daedalus.VM.Backend.Rust as Rust
 import qualified Daedalus.VM.Semantics as VM
 import qualified Daedalus.VM.RefCountSane as VM
 
@@ -193,6 +194,9 @@ handleOptions opts
              UseCore   -> generateCPP opts mm
              UseVM     -> generateCPP opts mm
              UsePGen {} -> ddlIO $ throwOptError ["This backend is out of date."]
+
+         CompileRust -> generateRust opts mm
+
 {-
              UsePGen _ ->
                do passSpecialize specMod mainRules
@@ -325,6 +329,57 @@ parseEntry mm x =
     (as,_:bs) -> (Text.pack as, Text.pack bs)
     _         -> (mm, Text.pack x)
 
+
+generateRust :: Options -> ModuleName -> Daedalus ()
+generateRust opts mm =
+  do
+    prog <- doToVM opts { optVM_do_mm = True } mm
+    let cfg = Rust.Config {
+                
+              }
+        -- XXX: catch unsupported.
+        rust = Rust.compileProgram cfg prog
+    ddlIO
+      do
+        let nm = case optParserDDL opts of
+                   Nothing -> "ddl-parser"
+                   Just p  -> dropExtension (takeFileName p)
+        let dir = fromMaybe nm (optOutDir opts)
+            src = dir </> "src"
+            rtsPath = if optSaveRTS opts
+                       then "rts-rust"
+                       else fromMaybe "../rts-rust" (optRTSPath opts)
+            rtsFeatures
+              | optErrorStacks opts = []
+              | otherwise = ["detailed-errors"::String]
+        createDirectoryIfMissing True dir
+        createDirectoryIfMissing True src
+        -- XXX: The configuration is just temporary for testing
+        writeFile (dir </> "Cargo.toml") $ unlines
+          [ "[package]",
+            "name = " ++ show nm,
+            "version = \"0.1.0\"",
+            "edition = \"2024\"",
+            "",
+            "[dependencies]",
+            "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
+            "serde = { version = \"1.0\" }"
+          ]
+        createDirectoryIfMissing True src
+        writeFile (src </> "lib.rs") rust
+
+        -- XXX: Temporary driver for testing
+        writeFile (src </> "main.rs") $ unlines
+          [ "use daedalus_rts_rust as ddl;"
+          , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
+          ]
+
+        when (optSaveRTS opts) $
+          do let save (x,b) =
+                   do let d = dir </> "rts-rust" </> takeDirectory x
+                      createDirectoryIfMissing True d
+                      BS.writeFile (dir </> "rts-rust" </> x) b
+             mapM_ save rust_rts_files
 
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =

@@ -51,7 +51,10 @@ vMod =
                           , "Operand 1: " ++ show a
                           , "Operand 2: " ++ show b
                           ]
-  where f x y = if y == 0 then vErr "Modulus by 0" else pure (mod x y)
+  where f x y = if y == 0 then vErr "Modulus by 0" else pure (rem x y)
+  -- We use `rem` here, because this is what % does on signed numbers in
+  -- most standard languages (e.g., C++/Rust), so this should be the least
+  -- surprising behavior.
 
 
 

@@ -85,7 +85,7 @@ shiftOp name f =
 
 
 
--- XXX: Should we annotate individula elements with trace info?
+-- XXX: Should we annotate individual elements with trace info?
 rangeOp ::
   String -> (Integer -> Integer -> Integer) -> (Integer -> Integer -> Bool) ->
   Value -> Value -> Value -> Partial Value
