@@ -823,8 +823,8 @@ cOp1 x op1 ~[e'] =
 
           Src.TDouble ->
             case tgtT of
-              Src.TInteger -> "DDL::double"
-              Src.TUInt to -> cInst "DDL:double_to_uint" [sz to]
+              Src.TInteger -> "DDL::double_to_integer"
+              Src.TUInt to -> cInst "DDL::double_to_uint" [sz to]
               Src.TSInt to -> cInst "DDL::double_to_sint" [sz to]
               Src.TFloat   -> "DDL::double_to_float"
               _            -> bad "Unexpected target type"
