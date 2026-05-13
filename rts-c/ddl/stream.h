@@ -537,7 +537,7 @@ public:
     if (n >= have) return;
 
     last_offset = global.incrementedBy(n);
-    have = have.decrementedBy(n);
+    have = offset.incrementedBy(n);
     if (chunk_size > have) chunk_size = have;
   }
 
