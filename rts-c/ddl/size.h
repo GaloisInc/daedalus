@@ -3,14 +3,12 @@
 
 #include <cstdint>
 #include <cassert>
+#include <cstdlib>
 #include <limits>
 #include <iostream>
 
 
 namespace DDL {
-
-struct SizeOverflow {};
-struct SizeUnderflow {};
 
 
 class Size;
@@ -35,7 +33,7 @@ public:
     if (0 <= x && x <= max_size_t) {
       return Size{static_cast<size_t>(x)};
     } else {
-      throw SizeOverflow{};
+      abort();
     }
 
   }
@@ -57,11 +55,11 @@ public:
     if (n <= remaining()) {
       value += n;
     } else {
-      throw SizeOverflow();
+      abort();
     }
   }
   void decrementBy(Size x) {
-    if (x > *this) throw SizeUnderflow();
+    if (x > *this) abort();
     value -= x.rep();
   }
   void increment() { incrementBy(Size(1)); }
@@ -71,13 +69,13 @@ public:
     if (value == 0) return;
     size_t have = max_size_t / value;
     auto n = x.rep();
-    if (n > have) throw SizeOverflow{};
+    if (n > have) abort();
     value *= n;
   }
 
   void inUnitsOf(Size x) {
     auto n = x.rep();
-    if (n == 0) throw SizeOverflow();
+    if (n == 0) abort();
     auto r = value / n;
     value = value % n? r + 1 : r;
   }

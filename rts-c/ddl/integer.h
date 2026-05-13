@@ -266,7 +266,6 @@ Integer operator * (Integer x, Integer y) {
   return z;
 }
 
-// XXX: Check for division by 0?
 // owned
 static inline
 Integer operator / (Integer x, Integer y) {
@@ -279,8 +278,6 @@ Integer operator / (Integer x, Integer y) {
   return z;
 }
 
-
-// XXX: Check for division by 0?
 // owned
 static inline
 Integer operator % (Integer x, Integer y) {
