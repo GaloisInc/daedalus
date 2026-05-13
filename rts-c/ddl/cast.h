@@ -53,7 +53,7 @@ Float uint_to_float(UInt<in> x) { return Float(static_cast<float>(x.rep())); }
 
 template <Width in>
 inline
-Float sint_to_float(UInt<in> x) { return Float(static_cast<float>(x.rep())); }
+Float sint_to_float(SInt<in> x) { return Float(static_cast<float>(x.rep())); }
 
 inline
 Float double_to_float(Double x) { return Float::fromDouble(x.getValue()); }
@@ -68,7 +68,7 @@ Double uint_to_double(UInt<in> x) {
 
 template <Width in>
 inline
-Double sint_to_double(UInt<in> x) {
+Double sint_to_double(SInt<in> x) {
   return Double(static_cast<double>(x.rep()));
 }
 

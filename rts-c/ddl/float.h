@@ -125,7 +125,13 @@ public:
     memcpy(&x,&f,sizeof(f));
     return UInt<bitWidth>(x);
   }
-  static Float fromBits(UInt<bitWidth> x) { return Float::fromBits(x.rep()); }
+  static Double fromBits(UInt<bitWidth> x) {
+    double f;
+    static_assert(sizeof(x.rep()) == sizeof(f));
+    uint64_t raw = x.rep();
+    std::memcpy(&f, &raw, sizeof(f));
+    return Double{f};
+  }
   static bool isValid(UInt<bitWidth> x)   { return true; }
 
 };
