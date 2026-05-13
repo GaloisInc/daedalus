@@ -43,14 +43,14 @@ bool free_boxed(BoxedValue<T>* ptr) {
   if (!ptr) return false;
 
   RefCount n = ptr->ref_count;
-  if (n == 1) {
+  if (n == Size(1)) {
     if constexpr (hasRefs<T>()) ptr->value.free();
     debug("  freeing boxed "); debugValNL((void*) ptr);
     delete ptr;
     return true;
   }
   else {
-    ptr->ref_count = n - 1;
+    ptr->ref_count.decrement();
     return false;
   }
 }
@@ -59,7 +59,7 @@ bool free_boxed(BoxedValue<T>* ptr) {
 // Release this reference to the box.
 template <typename T>
 inline
-void copy_boxed(BoxedValue<T> *ptr) { ++(ptr->ref_count); }
+void copy_boxed(BoxedValue<T> *ptr) { ptr->ref_count.increment(); }
 
 
 

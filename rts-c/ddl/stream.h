@@ -115,13 +115,13 @@ class StreamData : HasRefs {
     }
 
     /// Add an extra reference.
-    void copy() { ++ref_count; }
+    void copy() { ref_count.increment(); }
 
     /// Remove a reference.
     /// Owns this.
     void free() {
       for (auto p = this; p != empty() && p != nullptr;) {
-        if (p->ref_count > 1) { --(p->ref_count); return; }
+        if (p->ref_count > 1) { p->ref_count.decrement(); return; }
         p = p->freeThis();
       }
     }
@@ -133,9 +133,9 @@ class StreamData : HasRefs {
     Chunk* nextChunk() {
       assert(!isTerminal());
 
-      if (ref_count > 1) {
-        --ref_count;
-        ++(next->ref_count);
+      if (ref_count > Size(1)) {
+        ref_count.decrement();
+        next->ref_count.increment();
         return next;
       } else
         return freeThis();
@@ -637,10 +637,10 @@ public:
   }
 
 
-  // XXX: We need to esacpe quotes in the input name
+  // XXX: We need to escape quotes in the input name
   friend
   std::ostream& operator<<(std::ostream& os, Stream x) {
-    os << "Stream(\"" << (char*)x.name.borrowData()
+    os << "Stream(\"" << x.borrowNameBytes()
                    << "\":0x" << std::hex << x.offset;
     if (x.last_offset < Size::maxValue()) {
        os << "--0x" << std::hex << x.last_offset;
@@ -653,7 +653,7 @@ public:
   // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& toJS(std::ostream& os, Stream x) {
-    os << "{ \"$$input\": \"" << (char*)x.name.borrowData()
+    os << "{ \"$$input\": \"" << x.borrowNameBytes()
                    << ":0x" << std::hex << x.offset;
     if (x.last_offset < Size::maxValue()) {
       os << "--0x" << std::hex << x.last_offset;

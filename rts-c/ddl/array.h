@@ -7,6 +7,7 @@
 #include <functional>
 #include <vector>
 #include <string_view>
+#include <limits>
 
 #include <ddl/debug.h>
 #include <ddl/list.h>
@@ -32,14 +33,18 @@ class Array : IsBoxed {
     friend Builder<T>;
     friend Stream;
 
-    // Allocate an array with unitialized data
+    /// Allocate an array with uninitialized data.
+    /// Throws exception on large sizes (e.g., `size_t` overflow).
     static
     Content *allocate(Size n) {
-      size_t hdr_size = sizeof(Content);
-      size_t need_bytes = hdr_size + n.rep() * sizeof(T);
-      // In unites of content, so that we can get proper alignment
-      size_t need_content = (need_bytes - 1 + hdr_size) / hdr_size;
-      Content *p   = new Content[need_content];
+      auto hdr_size = Size(sizeof(Content));
+      auto bytes = n;
+      bytes.scaleBy(Size(sizeof(T)));
+      bytes.incrementBy(hdr_size);
+      
+      // In units of content, so that we can get proper alignment
+      bytes.inUnitsOf(hdr_size);
+      Content *p   = new Content[bytes.rep()];
       p->ref_count = 1;
       p->size      = n;
       return p;
@@ -49,8 +54,10 @@ class Array : IsBoxed {
 
   Array(Content *p) : ptr(p) {}
 
+  /// Assumes `step > 0`.
   static
   Size rangeSize(Size space, Size step) {
+    assert(step > Size(0));
     Size ents  = Size{space.rep() / step.rep()};
     if (space.rep() % step.rep() > 0) ents.increment();
     return ents;
@@ -167,11 +174,13 @@ public:
                 || std::is_same_v<T, uint8_t>
                 || std::is_same_v<T, char>
                  , "borrowBytes works only for UInt<8>, uint8_t, and char");
-    assert(from.incrementedBy(len) <= size());
-    return std::string_view( reinterpret_cast<char const*>(borrowData()) +
-                             from.rep()
-                           , len.rep()
-                           );
+    return
+      from.incrementedBy(len) <= size()?
+        std::string_view( reinterpret_cast<char const*>(borrowData()) +
+                               from.rep()
+                             , len.rep()
+                             ) :
+        std::string_view();
   }
 
 
@@ -198,13 +207,15 @@ public:
 // -- Boxed --------------------------------------------------------------------
   RefCount refCount() const { return ptr == nullptr ? 0 : ptr->ref_count; }
 
-  void copy() { if (ptr != nullptr) ptr->ref_count++; }
+  void copy() {
+    if (ptr != nullptr) { ptr->ref_count.increment(); }
+  }
 
   void free() {
     if (ptr == nullptr) return;
 
     RefCount n = refCount();
-    if (n == 1) {
+    if (n == Size(1)) {
       if constexpr (std::is_base_of<HasRefs,T>::value) {
         size_t todo = ptr->size.rep();
         T* arr = ptr->data;
@@ -214,14 +225,14 @@ public:
       delete[] ptr;
       ptr = nullptr;
     } else {
-      ptr->ref_count = n - 1;
+      ptr->ref_count.decrement();
     }
   }
 
   // Free array assuming that its elements are already freed.
   void del() {
     if (ptr == nullptr) return;
-    assert(refCount() == 1);
+    assert(refCount() == Size(1));
     delete[] ptr;
     ptr = nullptr;
   }
@@ -295,7 +306,7 @@ class Builder {
     // owns a, b
     Builder(Builder b, Array<T> a) {
       auto beginData = a.ptr->data;
-      auto endData = beginData + a.ptr->size.value;
+      auto endData = beginData + a.ptr->size.rep();
 
       // support copy if array has 1 reference
       if constexpr (hasRefs<T>()) {
@@ -327,9 +338,9 @@ class Builder {
 
     // owns *this
     typename Array<T>::Content *toContent() {
-      size_t n = 0;
+      Size n = 0;
       for (auto cursor = list; !cursor.isNull(); cursor = cursor.borrowTail()) {
-        n += cursor.borrowHead().size();
+        n.incrementBy(cursor.borrowHead().size());
       }
       auto ptr = Array<T>::Content::allocate(Size{n});
       
@@ -340,7 +351,8 @@ class Builder {
         for (auto i = v.size(); i > 0; i--) {
           auto &x = v[i-1];
           if (!moving) x.copy();
-          ptr->data[--n] = x;
+          n.decrement();
+          ptr->data[n.rep()] = x;
         }
       }
       list.free();

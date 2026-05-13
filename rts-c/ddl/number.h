@@ -97,12 +97,12 @@ public:
   UInt operator ^ (UInt x) const { return UInt(data ^ x.data); }
 
   // XXX: remove in favor of Size
-  UInt operator << (UInt<64> x) const { return UInt(data << x.rep()); }
-  UInt operator >> (UInt<64> x) const { return UInt(data >> x.rep()); }
+  UInt operator << (UInt<64> x) const { return x.rep() >= w? UInt(0) : UInt(data << x.rep()); }
+  UInt operator >> (UInt<64> x) const { return x.rep() >= w? UInt(0) : UInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
-  UInt operator << (Size x) const { return UInt(data << x.rep()); }
-  UInt operator >> (Size x) const { return UInt(data >> x.rep()); }
+  UInt operator << (Size x) const { return x.rep() >= w? UInt(0) : UInt(data << x.rep()); }
+  UInt operator >> (Size x) const { return x.rep() >= w? UInt(0) : UInt(data >> x.rep()); }
 
   bool operator == (UInt x) const { return rep() == x.rep(); }
   bool operator != (UInt x) const { return rep() != x.rep(); }
@@ -213,8 +213,8 @@ public:
   SInt operator + (SInt x) const { return Rep(data + x.data); }
   SInt operator - (SInt x) const { return Rep(data - x.data); }
   SInt operator * (SInt x) const { return Rep(data * x.data); }
-  SInt operator % (SInt x) const { return Rep(data % x.data); }
-  SInt operator / (SInt x) const { return Rep(data / x.data); }
+  SInt operator % (SInt x) const { assert (x != 0 && x != -1); return Rep(data % x.data); }
+  SInt operator / (SInt x) const { assert (x != 0 && x != -1); return Rep(data / x.data); }
   SInt operator - ()       const { return Rep(-data); }
 
   bool operator == (SInt<w> x) const { return data == x.data; }
@@ -236,13 +236,13 @@ public:
     return (-maxValRep())-1;
   }
   // XXX: Remove in favor of Size
-  SInt operator << (UInt<64> x) const { return SInt(data << x.rep()); }
-  SInt operator >> (UInt<64> x) const { return SInt(data >> x.rep()); }
+  SInt operator << (UInt<64> x) const { return x.rep() >= w? SInt(0) : SInt(data << x.rep()); }
+  SInt operator >> (UInt<64> x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
-  // XXX: should we call fixUp or assumed that we are stying in bounds?
-  SInt operator << (Size x) const { return SInt(data << x.rep()); }
-  SInt operator >> (Size x) const { return SInt(data >> x.rep()); }
+  // XXX: should we call fixUp or assumed that we are staying in bounds?
+  SInt operator << (Size x) const { return x.rep() >= w? SInt(0) : SInt(data << x.rep()); }
+  SInt operator >> (Size x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
   Size asSize() const { return Size::from(rep()); } // used in array
 

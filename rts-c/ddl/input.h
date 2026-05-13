@@ -128,7 +128,7 @@ public:
   friend
   std::ostream& operator<<(std::ostream& os, Input x) {
     os << "Input(\"" << x.name.refCount() << "," << x.bytes.refCount()
-                     << "," << (char*)x.name.borrowData()
+                     << "," << x.borrowNameBytes()
                    << ":0x" << std::hex << x.offset << "--0x"
                             << std::hex << x.last_offset << "\")";
 
@@ -138,7 +138,7 @@ public:
   // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& toJS(std::ostream& os, Input x) {
-    os << "{ \"$$input\": \"" << (char*)x.name.borrowData()
+    os << "{ \"$$input\": \"" << x.borrowNameBytes()
                    << ":0x" << std::hex << x.offset << "--0x"
                             << std::hex << x.last_offset << "\"}";
 

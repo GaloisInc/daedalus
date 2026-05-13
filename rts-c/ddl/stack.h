@@ -18,16 +18,16 @@ struct Closure {
   virtual void freeMembers() = 0;
 
   void free() {
-    if (ref_count == 1) {
+    if (ref_count == Size(1)) {
       freeMembers();
       delete this;
     } else {
-      --ref_count;
+      ref_count.decrement();
     }
   }
 
   void copy() {
-    ++ref_count;
+    ref_count.increment();
   }
 };
 

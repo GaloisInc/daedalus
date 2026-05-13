@@ -47,7 +47,7 @@ class Map : HasRefs {
         copy(right);
       }
 
-    static void copy(Node *n) { if (n != nullptr) ++(n->ref_count); }
+    static void copy(Node *n) { if (n != nullptr) n->ref_count.increment(); }
 
     static void free(Node *n) {
       if (n == nullptr) return;
@@ -64,7 +64,7 @@ class Map : HasRefs {
         n = nullptr;
       } else {
         debugLine("freeing decrement");
-        n->ref_count = r - 1;
+        n->ref_count.decrement();
       }
 
     }
