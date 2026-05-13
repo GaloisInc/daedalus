@@ -141,11 +141,12 @@ public:
 
   // Borrow this.
   // Returns a borrowed version of to element (if reference)
-  T borrowElement(Size i) const { return ptr->data[i.rep()]; }
+  T borrowElement(Size i) const { assert(i < size()); return ptr->data[i.rep()]; }
 
   // Borrows this
   // Returns an owned copy of the element.
   T operator[] (Size i0) const {
+    assert(i0 < size());
     size_t i = i0.rep();
     if constexpr (std::is_base_of<HasRefs,T>::value) {
       T& x = ptr->data[i];
