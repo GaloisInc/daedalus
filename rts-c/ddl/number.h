@@ -213,8 +213,8 @@ public:
   SInt operator + (SInt x) const { return Rep(data + x.data); }
   SInt operator - (SInt x) const { return Rep(data - x.data); }
   SInt operator * (SInt x) const { return Rep(data * x.data); }
-  SInt operator % (SInt x) const { assert (x != 0 && x != -1); return Rep(data % x.data); }
-  SInt operator / (SInt x) const { assert (x != 0 && x != -1); return Rep(data / x.data); }
+  SInt operator % (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data != -1)); return Rep(data % x.data); }
+  SInt operator / (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data != -1)); return Rep(data / x.data); }
   SInt operator - ()       const { return Rep(-data); }
 
   bool operator == (SInt<w> x) const { return data == x.data; }
