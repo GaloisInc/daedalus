@@ -1,6 +1,9 @@
 #ifndef DDL_CAST_H
 #define DDL_CAST_H
 
+#include <cmath>
+#include <cstdlib>
+
 #include <ddl/number.h>
 #include <ddl/float.h>
 #include <ddl/integer.h>
@@ -21,11 +24,19 @@ UInt<out> sint_to_uint(SInt<in> x) { return UInt<out>(x.rep()); }
 
 template <Width out>
 inline
-UInt<out> float_to_uint(Float x) { return UInt<out>(x.getValue()); }
+UInt<out> float_to_uint(Float x) {
+  float v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return UInt<out>(v);
+}
 
 template <Width out>
 inline
-UInt<out> double_to_uint(Double x) { return UInt<out>(x.getValue()); }
+UInt<out> double_to_uint(Double x) {
+  double v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return UInt<out>(v);
+}
 
 
 
@@ -40,11 +51,19 @@ SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
 
 template <Width out>
 inline
-SInt<out> float_to_sint(Float x) { return SInt<out>(x.getValue()); }
+SInt<out> float_to_sint(Float x) {
+  float v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return SInt<out>(v);
+}
 
 template <Width out>
 inline
-SInt<out> double_to_sint(Double x) { return SInt<out>(x.getValue()); }
+SInt<out> double_to_sint(Double x) {
+  double v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return SInt<out>(v);
+}
 
 
 template <Width in>
@@ -94,10 +113,18 @@ inline
 Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
 
 inline
-Integer float_to_integer(Float x)   { return Integer(x.getValue()); }
+Integer float_to_integer(Float x) {
+  float v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return Integer(v);
+}
 
 inline
-Integer double_to_integer(Double x) { return Integer(x.getValue()); }
+Integer double_to_integer(Double x) {
+  double v = x.getValue();
+  if (std::isnan(v) || std::isinf(v)) abort();
+  return Integer(v);
+}
 
 
 // borrow

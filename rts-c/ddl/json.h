@@ -36,7 +36,7 @@ std::ostream& toJS(std::ostream &os, std::string_view const& str) {
         if (32 <= c && c < 127) {
           os << c;
         } else {
-          auto v = c;
+          unsigned v = static_cast<unsigned char>(c);
           auto d1 = hex[v % 16]; v /= 16;
           auto d2 = hex[v % 16]; v /= 16;
           auto d3 = hex[v % 16]; v /= 16;
