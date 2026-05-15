@@ -103,7 +103,7 @@ data CInstr =
 
   | CallPure Src.FName JumpWithFree [E]
     -- ^ The jump point contains information on where to continue after
-    -- return and what we need to preserve acrross the call, and what we
+    -- return and what we need to preserve across the call, and what we
     -- should free right after we return from the call.
 
   | CallNoCapture Src.FName (JumpChoice Bool) [E]
