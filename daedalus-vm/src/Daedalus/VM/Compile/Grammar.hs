@@ -206,7 +206,7 @@ compile expr next0 =
                                  cloYes <- yesL
                                  dbgEnter DebugCall
                                  i <- getInput
-                                 term $ CallCapture f cloNo cloYes (i:vs)
+                                 term $ CallCapture f cloNo cloYes (i:vs) mempty
                                  -- Later we do an analsis to refine this.
                                  -- See CaptureAnalysis.
 

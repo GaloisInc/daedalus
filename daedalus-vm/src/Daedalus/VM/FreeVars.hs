@@ -80,10 +80,11 @@ instance FreeVars CInstr where
       JumpIf e ls       -> freeVars' (e, ls)
       Yield             -> id
       ReturnNo          -> id
+      Throw _ _  -> id
       ReturnYes e i     -> freeVars' (e,i)
-      CallNoCapture _ ks es -> freeVars' (es,ks)
-      CallCapture _ no yes es -> freeVars' (es,(no,yes))
-      CallPure _ l es   -> freeVars' (l,es)
+      CallNoCapture _ ks es exnFree -> freeVars' (es,(ks,exnFree))
+      CallCapture _ no yes es exnFree -> freeVars' (es,((no,yes),exnFree))
+      CallPure _ l es exnFree -> freeVars' (l,(es,exnFree))
       TailCall _ _ es   -> freeVars' es
       ReturnPure e      -> freeVars' e
 

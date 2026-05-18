@@ -46,6 +46,7 @@ extra-source-files:
   rts-c/ddl/unit.h
   rts-c/ddl/utils.h
   rts-c/ddl/value.h
+  rts-c/ddl/exception.h
   rts-c/ddl/export.h
   rts-c/ddl/array.h
   rts-c/ddl/boxed.h

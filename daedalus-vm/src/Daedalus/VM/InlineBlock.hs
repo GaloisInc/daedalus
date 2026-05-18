@@ -158,11 +158,12 @@ updS b =
     JumpIf _ ls       -> stays2 ls
     Yield             -> id
     ReturnNo          -> id
+    Throw _ _  -> id
     ReturnYes {}      -> id
     ReturnPure _      -> id
-    CallPure _ l _    -> staysJF l
-    CallCapture _ no yes _ -> addStays no . addStays yes
-    CallNoCapture _ ks _ -> stays2 ks
+    CallPure _ l _ _    -> staysJF l
+    CallCapture _ no yes _ _ -> addStays no . addStays yes
+    CallNoCapture _ ks _ _ -> stays2 ks
     TailCall {}       -> id
   where
   stays2 (JumpCase opts) = \i -> foldr staysJF i opts
@@ -209,12 +210,15 @@ mergeBlocks front back =
       JumpIf e ls     -> JumpIf (renE e) (renJ2 ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
+      Throw l m -> Throw l m
       ReturnYes e i   -> ReturnYes (renE e) (renE i)
       ReturnPure e    -> ReturnPure (renE e)
-      CallNoCapture f ks es -> CallNoCapture f (renJ2 ks) (map renE es)
-      CallCapture f no yes es ->
-        CallCapture f (renJ no) (renJ yes) (map renE es)
-      CallPure f l es -> CallPure f (renJF l) (map renE es)
+      CallNoCapture f ks es exnFree ->
+        CallNoCapture f (renJ2 ks) (map renE es) (renVarSet exnFree)
+      CallCapture f no yes es exnFree ->
+        CallCapture f (renJ no) (renJ yes) (map renE es) (renVarSet exnFree)
+      CallPure f l es exnFree ->
+        CallPure f (renJF l) (map renE es) (renVarSet exnFree)
       TailCall f ca es-> TailCall f ca (map renE es)
 
 
@@ -223,11 +227,11 @@ mergeBlocks front back =
 
   renJF jf =
     JumpWithFree
-      { freeFirst =  Set.fromList [ x | v <- Set.toList (freeFirst jf)
-                                      , Just x <- [renV v]
-                                      ]
+      { freeFirst  = renVarSet (freeFirst jf)
       , jumpTarget = renJ (jumpTarget jf)
       }
+
+  renVarSet s = Set.fromList [ x | v <- Set.toList s, Just x <- [renV v] ]
 
   renBV (BV x t) = BV (x + blockLocalNum front) t
 
@@ -304,11 +308,12 @@ jjElim fun = fun { vmfBlocks = Map.mapMaybe changeBlock (vmfBlocks fun) }
       JumpIf e jc       -> JumpIf e (rewJC jc)
       Yield             -> term
       ReturnNo          -> term
+      Throw {}   -> term
       ReturnYes {}      -> term
       ReturnPure {}     -> term
-      CallPure f l es   -> CallPure f (rewJF l) es
-      CallNoCapture f ks es -> CallNoCapture f (rewJC ks) es
-      CallCapture   f l1 l2 es -> CallCapture   f (rewJ l1)  (rewJ l2)  es
+      CallPure f l es exnFree -> CallPure f (rewJF l) es exnFree
+      CallNoCapture f ks es exnFree -> CallNoCapture f (rewJC ks) es exnFree
+      CallCapture f l1 l2 es exnFree -> CallCapture f (rewJ l1) (rewJ l2) es exnFree
       TailCall {}       -> term
 
   rewL l  = Map.findWithDefault l l (jjReplace subst)
@@ -351,12 +356,13 @@ jjInfo b =
         _ -> addFixed l
 
     JumpIf _ ls       -> fixed2 ls
-    CallPure _ l _    -> fixedJF l
-    CallNoCapture _ ks _ -> fixed2 ks
-    CallCapture _ no yes _   -> addFixed no . addFixed yes
+    CallPure _ l _ _    -> fixedJF l
+    CallNoCapture _ ks _ _ -> fixed2 ks
+    CallCapture _ no yes _ _   -> addFixed no . addFixed yes
     TailCall {}       -> id
     Yield             -> id
     ReturnNo          -> id
+    Throw _ _  -> id
     ReturnYes {}      -> id
     ReturnPure _      -> id
 

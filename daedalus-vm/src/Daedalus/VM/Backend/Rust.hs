@@ -627,9 +627,9 @@ compileCInstr cinstr =
     VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
     VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map (compileExpr VM.Owned) [res,inp])])]
     VM.ReturnPure res    -> [Rust.ret (compileExpr VM.Owned res)]
-    VM.CallPure f j es   -> compileJumpWithFree j [doCall f es]
-    VM.CallNoCapture f (VM.JumpCase opts) es ->
-      [ Rust.expr (Rust.matchExpr (doCall f es) 
+    VM.CallPure f j es _exnFree -> compileJumpWithFree j [doCall f es]
+    VM.CallNoCapture f (VM.JumpCase opts) es _exnFree ->
+      [ Rust.expr (Rust.matchExpr (doCall f es)
           [ Rust.matchArm (Rust.somePat (Rust.tuplePat [Rust.identPat "x", Rust.identPat "i"]))
                           (opt True [Rust.identExpr "x", Rust.identExpr "i"]),
             Rust.matchArm Rust.nonePat (opt False [])
@@ -641,9 +641,9 @@ compileCInstr cinstr =
         case Map.lookup x opts of
           Just a -> Rust.blockExpr (compileJumpWithFree a y)
           Nothing -> panic "compileCInstr" ["Missing option", show x]
-      
-      
-    VM.CallCapture {}    -> bad
+
+
+    VM.CallCapture {} -> bad
     VM.TailCall f c es ->
       case c of
         VM.NoCapture -> [ Rust.ret (doCall f es) ]

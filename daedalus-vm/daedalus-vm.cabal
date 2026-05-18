@@ -21,6 +21,7 @@ library
     Daedalus.VM.FreeVars
     Daedalus.VM.FindLoops
     Daedalus.VM.CaptureAnalysis
+    Daedalus.VM.ThrowsAnalysis
     Daedalus.VM.BorrowAnalysis
     Daedalus.VM.TypeRep
     Daedalus.VM.InsertCopy

@@ -76,6 +76,7 @@ data Result
   -- Outcomes
   = Success V.Value
   | Failure
+  | Exception Text Text  -- ^ location, message
 
   -- Concurrency
   | SpawnResult (Bool -> Result) (ThreadId -> Result)
@@ -130,6 +131,7 @@ resultToValues' notifies threads = \case
 
   Success va            -> va : resume
   Failure               -> resume
+  Exception _ _         -> resume
   where
     resume =
       case IntMap.maxViewWithKey threads of
@@ -162,6 +164,7 @@ semModule m =
     endThread = \case
       Yes x _ -> Success x
       No      -> Failure
+      Except loc msg -> Exception loc msg
       Pure x  -> Success x
 
 -- | Result of running a single VM function
@@ -169,6 +172,7 @@ data FrameResult
   = Yes V.Value V.Value -- ^ parser function succeeded; result, input
   | Pure V.Value        -- ^ pure function finished; result
   | No                  -- ^ parser failed
+  | Except Text Text    -- ^ exception was thrown; location, message
 
 semVMFDef :: DeclEnv => Src.FName -> VMFDef -> [V.Value] -> M FrameResult
 semVMFDef fn def args =
@@ -206,31 +210,35 @@ semCInstr env term =
     -- Finished
     Yield         -> abort Failure
     ReturnNo      -> pure No
+    Throw loc msg -> pure (Except loc msg)
     ReturnYes x y -> pure (Yes (semE env x) (semE env y))
     ReturnPure x  -> pure (Pure (semE env x))
 
     -- Calls
     TailCall fn _ es -> semFName fn (semE env <$> es)
 
-    CallPure fn jp es ->
+    CallPure fn jp es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Pure va -> next (jumpTarget jp) [va]
-          _       -> panic "semCInstr" ["pure function returned impure result"]
+          Pure va       -> next (jumpTarget jp) [va]
+          Except l m    -> pure (Except l m)
+          _             -> panic "semCInstr" ["pure function returned impure result"]
 
-    CallNoCapture fn (JumpCase ks) es ->
+    CallNoCapture fn (JumpCase ks) es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Yes x y -> next (jumpTarget (ks Map.! True)) [x,y]
-          No      -> next (jumpTarget (ks Map.! False)) []
-          Pure{}  -> panic "semCInstr" ["parser returned pure result"]
+          Yes x y    -> next (jumpTarget (ks Map.! True)) [x,y]
+          No         -> next (jumpTarget (ks Map.! False)) []
+          Except l m -> pure (Except l m)
+          Pure{}     -> panic "semCInstr" ["parser returned pure result"]
 
-    CallCapture fn jpN jpY es ->
+    CallCapture fn jpN jpY es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Yes x y -> next jpY [x,y]
-          No      -> next jpN []
-          Pure{}  -> panic "semCInstr" ["parser returned pure result"]
+          Yes x y    -> next jpY [x,y]
+          No         -> next jpN []
+          Except l m -> pure (Except l m)
+          Pure{}     -> panic "semCInstr" ["parser returned pure result"]
 
 semInstr :: DeclEnv => (FrameResult -> Result) -> Env -> Instr -> M Env
 semInstr kFrame env = \case

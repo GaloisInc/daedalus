@@ -549,10 +549,10 @@ compileCInstr cinstr =
 
     Yield -> [| RTS.vmYield $getThreadState |]
 
-    CallPure f jp es ->
+    CallPure f jp es _exnFree ->
       doJump [ doCall f (map compileE es) ] stateArgs (jumpTarget jp)
 
-    CallNoCapture f (JumpCase ks) es ->
+    CallNoCapture f (JumpCase ks) es _exnFree ->
       let no  = jumpTarget (ks Map.! False)
           yes = jumpTarget (ks Map.! True)
       in
@@ -582,7 +582,7 @@ compileCInstr cinstr =
 
         PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
 
-    CallCapture f no yes es ->
+    CallCapture f no yes es _exnFree ->
       doCall f $
         map compileE es ++
         [ [| \s -> $(doJump [] [ [| s |] ] no) |]

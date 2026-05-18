@@ -1,8 +1,11 @@
 {-# Language BlockArguments #-}
+{-# Language OverloadedStrings #-}
 module Daedalus.VM.Compile.Expr where
 
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
+import Data.Text(Text)
+import qualified Data.Text as Text
 import qualified Data.Map as Map
 import Control.Monad(forM)
 
@@ -38,10 +41,35 @@ compileEs es0 k = go [] es0
 
 type CE = Maybe (E -> BlockBuilder Void) -> C (BlockBuilder Void)
 
-
 continue :: Maybe (E -> BlockBuilder Void) -> E -> BlockBuilder Void
 continue = fromMaybe (term . ReturnPure)
 
+-- | Get the current source location from the debug mode.
+getCurLoc :: C Text
+getCurLoc =
+  do dbg <- getDebugMode
+     pure case dbg of
+       NoDebug -> ""
+       DebugStack _ ls ->
+         case ls of
+           a : _ -> showAnnot a
+           _     -> ""
+  where
+  showAnnot a = case a of
+    Src.SrcAnnot txt -> txt
+    Src.SrcRange r   -> Text.pack (show (pp r))
+    _                -> ""
+
+-- | Guard an operation: if the boolean check is true, run the body;
+-- otherwise raise an exception.  The check and body are given access
+-- to the block builder so they can reference already-compiled operands.
+guarded :: Text -> BlockBuilder E -> BlockBuilder Void -> C (BlockBuilder Void)
+guarded msg check body =
+  do loc  <- getCurLoc
+     okL  <- label0 NormalBlock body
+     excL <- label0 NormalBlock (term (Throw loc msg))
+     pure do cond <- check
+             jumpIf cond okL excL
 
 compileE :: Src.Expr -> CE
 compileE expr k =
@@ -99,7 +127,24 @@ compileOp0 op ty k' =
 
 compileOp1 :: Src.Op1 -> VMT -> Src.Expr -> CE
 compileOp1 op ty e k =
-  compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
+  case op of
+    Src.Neg
+      | Src.TSInt (Src.TSize n) <- Src.typeOf e ->
+        -- Check: e != MIN_VALUE (negating the minimum overflows)
+        do let minVal = negate (2 ^ (n - 1))
+               argTy  = Src.typeOf e
+               check v = stmt (TSem Src.TBool)
+                           (\x -> CallPrim x (Op2 Src.NotEq) [v, ENum minVal argTy])
+               body v = continue k =<<
+                          stmt ty (\x -> CallPrim x (Op1 op) [v])
+           l <- newLocal (TSem argTy)
+           code <- guarded "negation overflow"
+                     (check =<< getLocal l) (body =<< getLocal l)
+           compileE e $ Just \v ->
+             do setLocal l v
+                code
+    _ ->
+      compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
 
 compileOp2 :: Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
 compileOp2 op ty e1 e2 k =
@@ -129,7 +174,7 @@ compileOpN op ty es k =
                do mkL <- retPure (Src.typeOf f) k'
                   pure \vs ->
                     do l <- mkL
-                       term (CallPure f (jumpNoFree l) vs)
+                       term (CallPure f (jumpNoFree l) vs mempty)
 
          compileEs es doCall
 
