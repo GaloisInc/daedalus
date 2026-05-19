@@ -120,7 +120,7 @@ evalOp0 op =
       case t of
         TInteger        -> pure (VInteger i)
         TUInt (TSize n) -> case integerToInt n of
-                             Just w  -> pure (vUInt w i)
+                             Just w  -> pure (vUIntWrapping w i)
                              Nothing -> panic "evalOp0" [ "Vector size too big"
                                                         , show n ]
         TSInt (TSize n) -> case integerToInt n of

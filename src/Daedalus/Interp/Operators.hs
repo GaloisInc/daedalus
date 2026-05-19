@@ -19,7 +19,7 @@ evalLiteral env t l =
     LNumber n _ ->
       case tval of
         TVInteger     -> VInteger n
-        TVUInt s      -> vUInt s n
+        TVUInt s      -> vUIntWrapping s n
         TVSInt s      -> partial (vSInt s n)
         TVFloat       -> vFloat (fromIntegral n)
         TVDouble      -> vDouble (fromIntegral n)

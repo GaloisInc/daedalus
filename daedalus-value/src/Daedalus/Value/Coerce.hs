@@ -20,7 +20,7 @@ vCoerceTo tgt v =
     VUInt _ n ->
       case tgt of
         TVInteger     -> (Right (VInteger  n),    exact)
-        TVUInt st     -> (Right (vUInt  st n),    inRange (uintRange st) n)
+        TVUInt st     -> (Right (vUIntWrapping  st n),    inRange (uintRange st) n)
         TVSInt st     -> (Right (vSInt' st n),    inRange (sintRange st) n)
         TVBDStruct bd -> (Right (VBDStruct bd n), bdValid bd n)
         TVBDUnion bd  -> (Right (VBDUnion bd n),  bduValid bd n)
@@ -39,7 +39,7 @@ vCoerceTo tgt v =
     VSInt _ n ->
       case tgt of
         TVInteger -> (Right (VInteger  n), exact)
-        TVUInt st -> (Right (vUInt  st n), inRange (uintRange st) n)
+        TVUInt st -> (Right (vUIntWrapping  st n), inRange (uintRange st) n)
         TVSInt st -> (Right (vSInt' st n), inRange (sintRange st) n)
 
         TVFloat   -> (Right (VFloat x), b)
@@ -58,7 +58,7 @@ vCoerceTo tgt v =
     VInteger n ->
       case tgt of
         TVInteger -> (Right v,             exact)
-        TVUInt st -> (Right (vUInt  st n), inRange (uintRange st) n)
+        TVUInt st -> (Right (vUIntWrapping  st n), inRange (uintRange st) n)
         TVSInt st -> (Right (vSInt' st n), inRange (sintRange st) n)
 
         TVFloat   -> (Right (VFloat x), b)
@@ -81,7 +81,7 @@ vCoerceTo tgt v =
 
         TVUInt w      -> (r, ifDef r \ ~(VUInt _ j) -> fromInteger j == n)
           where
-          r = vUInt w <$> floatingToInt n
+          r = vUIntWrapping w <$> floatingToInt n
 
         TVSInt w      -> (r, ifDef r \ ~(VSInt _ j) -> fromInteger j == n)
           where
@@ -103,7 +103,7 @@ vCoerceTo tgt v =
 
         TVUInt w      -> (r, ifDef r \ ~(VUInt _ j) -> fromInteger j == n)
           where
-          r = vUInt w <$> floatingToInt n
+          r = vUIntWrapping w <$> floatingToInt n
 
         TVSInt w      -> (r, ifDef r \ ~(VSInt _ j) -> fromInteger j == n)
           where

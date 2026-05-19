@@ -115,8 +115,13 @@ vFloat = VFloat
 vDouble :: Double -> Value
 vDouble = VDouble
 
-vUInt :: Int -> Integer -> Value
-vUInt w i = VUInt w (i `mod` (snd (uintRange w) + 1))
+vUIntWrapping :: Int -> Integer -> Value
+vUIntWrapping w i = VUInt w (i `mod` (snd (uintRange w) + 1))
+
+vUInt :: Int -> Integer -> Partial Value
+vUInt w x
+  | inRange (uintRange w) x = pure (VUInt w x)
+  | otherwise = vErr (show x ++ " does not fit in uint" ++ show w)
 
 vSInt :: Int -> Integer -> Partial Value
 vSInt w x
@@ -130,12 +135,12 @@ vSInt' w x = VSInt w (mod (x - lb) (ub - lb + 1) + lb)
   (lb,ub) = sintRange w
 
 vSize :: Integer -> Value
-vSize = vUInt 64
+vSize = vUIntWrapping 64
 
 vFromBits :: TValue -> Integer -> Value
 vFromBits t i =
   case t of
-    TVUInt n      -> vUInt n i
+    TVUInt n      -> vUIntWrapping n i
     TVSInt n      -> vSInt' n i
     TVBDStruct bd -> VBDStruct bd (clampTo (bdWidth bd) i)
     TVBDUnion bd  -> VBDUnion bd (clampTo (bduWidth bd) i)
