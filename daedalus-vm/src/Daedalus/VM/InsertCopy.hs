@@ -7,7 +7,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
-import Data.List(mapAccumL)
+import Data.List(mapAccumL,foldl')
 
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
@@ -166,11 +166,12 @@ checkTermCopies is0 term0 = (reverse is1, term1)
     case term0 of
       JumpIf e ls0 ->
         case checkIs okChoice is0 ls0 of
-          (is,ls) -> (is, JumpIf e ls)
+          (is,ls,_) -> (is, JumpIf e ls)
 
-      CallNoCapture fu ks0 args exnFree ->
+      CallNoCapture fu ks0 args exnFree0 ->
         case checkIs (okFun (freeVarSet args)) is0 ks0 of
-          (is,ks) -> (is, CallNoCapture fu ks args exnFree)
+          (is,ks,substs) -> (is, CallNoCapture fu ks args exnFree)
+            where exnFree = foldl' (\s (x,v) -> doSubstFreeSet x v s) exnFree0 substs
 
       _ -> (is0,term0)
 
@@ -181,11 +182,13 @@ checkTermCopies is0 term0 = (reverse is1, term1)
       i@(Let x e) : more ->
         case eIsVar e of
           Just v
-            | Just jc1 <- upd x v jc -> checkIs upd more jc1
-          _ -> let (is',jc1) = checkIs upd more jc
-               in (i : is',jc1)
+            | Just jc1 <- upd x v jc ->
+              let (is',jc2,substs) = checkIs upd more jc1
+              in (is', jc2, (x,v) : substs)
+          _ -> let (is',jc1,substs) = checkIs upd more jc
+               in (i : is', jc1, substs)
 
-      _ -> (is, jc)
+      _ -> (is, jc, [])
 
   okFun ::
     Ord i => Set VMVar -> BV -> VMVar -> JumpChoice i -> Maybe (JumpChoice i)
