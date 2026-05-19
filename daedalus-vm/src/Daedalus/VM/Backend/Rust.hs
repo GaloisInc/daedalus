@@ -28,10 +28,11 @@ data Config = Config
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
   ?blockSigs :: Map VM.Label [VM.Ownership],
-  ?tyDecls :: Map Core.TName Core.TDecl
+  ?tyDecls :: Map Core.TName Core.TDecl,
+  ?allFuns :: Map VM.FName VM.VMFun
   )
 
-type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
+type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
 
 compileProgram :: Config -> VM.Program -> String
 compileProgram _cfg vm = show (Rust.pretty' result)
@@ -43,6 +44,9 @@ compileProgram _cfg vm = show (Rust.pretty' result)
         ?tyDecls = Map.fromList [ (Core.tName t, t)
                                 | m <- VM.pModules vm,
                                   t <- forgetRecs (VM.mTypes m) ]
+        ?allFuns = Map.fromList [ (VM.vmfName f, f)
+                                | m <- VM.pModules vm,
+                                  f <- VM.mFuns m ]
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
@@ -89,15 +93,22 @@ compileFun fu =
   fnMsg           = backticks (pp fnm)
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
+  throws          = VM.vmfThrows fu
+  valTy           = compileType VM.Owned (Core.fnameType fnm)
+    where ?fnMsg = fnMsg
   resT
-    | VM.vmfPure fu = compileType VM.Owned (Core.fnameType fnm)
-    | otherwise     = Rust.tOption (Rust.tTuple [compileType VM.Owned (Core.fnameType fnm), compileType VM.Owned Core.TStream])
+    | VM.vmfPure fu, throws == VM.Throws =
+        Rust.pathType (Rust.pathWithTypes [ddlModName, "PureResult"] [valTy])
+    | VM.vmfPure fu = valTy
+    | otherwise =
+        Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
     where ?fnMsg = fnMsg
 
   args = (parserStateName, Rust.tMutRef (Rust.pathType (ddlPath "ParserState"))) : args'
   (args',def) =
     let ?isPure = VM.vmfPure fu
         ?fnMsg  = fnMsg
+        ?curFunThrows = throws
     in compileFunDef (VM.vmfDef fu)
 
 
@@ -124,7 +135,7 @@ compileFunBody body = (args, Rust.block [contT, pcDecl, mainLoop])
       Just (l,ts,_) ->
         let argName i = Rust.mkIdent ("fa" ++ show i)
             as        = [ (argName i, t) | (i,t) <- [0 :: Int ..] `zip` ts ]
-            start     = Rust.call (Rust.pathExpr (Rust.simplePath' [contTypeName,l])) (map (Rust.identExpr . fst) as)
+            start     = Rust.callCon (Rust.simplePath' [contTypeName,l]) (map (Rust.identExpr . fst) as)
         in (as, Rust.localLetMut ["unused_mut"] pcName Nothing start)
       _ -> panic "compileFunBody" ["Mssing entry block code"]
 
@@ -624,15 +635,61 @@ compileCInstr cinstr =
         | otherwise                    = id
       
     VM.Yield             -> bad
-    VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
-    VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map (compileExpr VM.Owned) [res,inp])])]
-    VM.ReturnPure res    -> [Rust.ret (compileExpr VM.Owned res)]
-    VM.CallPure f j es _exnFree -> compileJumpWithFree j [doCall f es]
+    VM.ReturnNo          ->
+      [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Failure"]))]
+    VM.ReturnYes res inp ->
+      [Rust.ret (Rust.call
+        (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Ok"]))
+        (map (compileExpr VM.Owned) [res,inp]))]
+    VM.ReturnPure res
+      | ?curFunThrows == VM.Throws ->
+        [Rust.ret (Rust.call
+          (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Ok"]))
+          [compileExpr VM.Owned res])]
+      | otherwise -> [Rust.ret (compileExpr VM.Owned res)]
+
+    VM.Throw loc msg
+      | ?isPure ->
+        [Rust.ret (Rust.call
+          (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
+          [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])]
+      | otherwise ->
+        [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
+            [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])
+        , Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))
+        ]
+
+    VM.CallPure f j es _exnFree
+      | calleeThrows ->
+        [ Rust.expr (Rust.matchExpr (doCall f es)
+            [ Rust.matchArm
+                (Rust.conPat (Rust.simplePath' [ddlModName, "PureResult", "Ok"])
+                             [Rust.identPat "x"])
+                (Rust.blockExpr (compileJumpWithFree j [Rust.identExpr "x"]))
+            , Rust.matchArm
+                (Rust.conPat (Rust.simplePath' [ddlModName, "PureResult", "Exception"])
+                             [Rust.identPat "el", Rust.identPat "em"])
+                (Rust.blockExpr (propagateExnFromPure))
+            ])
+        ]
+      | otherwise -> compileJumpWithFree j [doCall f es]
+      where
+      calleeThrows = case Map.lookup f ?allFuns of
+                       Just fun -> VM.vmfThrows fun == VM.Throws
+                       Nothing  -> False
+
     VM.CallNoCapture f (VM.JumpCase opts) es _exnFree ->
       [ Rust.expr (Rust.matchExpr (doCall f es)
-          [ Rust.matchArm (Rust.somePat (Rust.tuplePat [Rust.identPat "x", Rust.identPat "i"]))
-                          (opt True [Rust.identExpr "x", Rust.identExpr "i"]),
-            Rust.matchArm Rust.nonePat (opt False [])
+          [ Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Ok"])
+                           [Rust.identPat "x", Rust.identPat "i"])
+              (opt True [Rust.identExpr "x", Rust.identExpr "i"])
+          , Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Failure"]) [])
+              (opt False [])
+          , Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]) [])
+              (Rust.blockExpr (propagateExnFromParser))
           ]
         )
       ]
@@ -650,6 +707,21 @@ compileCInstr cinstr =
         _            ->  bad
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
+
+  propagateExnFromPure
+    | ?isPure =
+      [Rust.ret (Rust.call
+        (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
+        [Rust.identExpr "el", Rust.identExpr "em"])]
+    | otherwise =
+      [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
+          [Rust.identExpr "el", Rust.identExpr "em"])
+      , Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))
+      ]
+
+  propagateExnFromParser =
+    [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))]
+
   doCall f es = Rust.call (Rust.identExpr (compileFName f))
                           (Rust.identExpr parserStateName : zipWith compileExpr sig es)
     where

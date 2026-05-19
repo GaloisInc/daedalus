@@ -12,6 +12,7 @@ mod maybe;
 mod unit;
 mod user_defined;
 mod parser_state;
+mod exception;
 
 pub use test::*;
 pub use ddl_box::*;
@@ -25,6 +26,7 @@ pub use builder::*;
 pub use maybe::*;
 pub use unit::*;
 pub use parser_state::*;
+pub use exception::*;
 
 /// DDL types representing owned things that can be borrowed.
 /// The main reason for this is because in some cases we'd like to represent
