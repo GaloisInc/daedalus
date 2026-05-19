@@ -53,6 +53,8 @@ type HasConfig = (?config :: Config)
 
 type HasTypes  = (?tdecls :: Map Core.TName Core.TDecl)
 
+type HasFuns   = (?allFuns :: Map FName VMFun)
+
 compileVMT :: VMT -> TH.TypeQ
 compileVMT vmt =
   case vmt of
@@ -66,13 +68,14 @@ compileModule cfg m =
   do tys <- compileTDecls (mTypes m)
      let ?config = cfg
      let ?tdecls = Map.fromList [ (Core.tName d, d) | d <- forgetRecs (mTypes m) ]
+     let ?allFuns = Map.fromList [ (vmfName f, f) | f <- mFuns m ]
      fus <- mapM compileFun (mFuns m)
      pure (tys ++ concat fus)
 
 
 --------------------------------------------------------------------------------
 
-compileFun :: (HasConfig, HasTypes) => VMFun -> TH.DecsQ
+compileFun :: (HasConfig, HasTypes, HasFuns) => VMFun -> TH.DecsQ
 compileFun fun =
   do args     <- traverse newArg srcArgs
 
@@ -88,6 +91,7 @@ compileFun fun =
                   pure ( CapturingParser () rtyName (TH.varE noK) (TH.varE yesK)
                        , [ noP, yesP ]
                        )
+     let ?curFunThrows = vmfThrows fun
      let def = compileDef (vmfName fun) funTy (vmfDef fun) (map snd args)
      decl <- TH.funD (fnameName (vmfName fun))
                   [ TH.clause (map fst args ++ contArgs) (TH.normalB def) [] ]
@@ -101,9 +105,11 @@ compileFun fun =
   sigTy funTy =
 
     case funTy of
-      PureFun ->
-        funT srcTs
-        valResT
+      PureFun
+        | vmfThrows fun == Throws ->
+          funT srcTs [t| RTS.PureResult $valResT |]
+        | otherwise ->
+          funT srcTs valResT
 
       NonCapturingParser {} ->
         funT srcTs
@@ -133,7 +139,8 @@ compileFun fun =
                    Nothing -> panic "compileFun" ["Missing entry"]
 
 compileDef ::
-  (HasConfig, HasTypes) => FName -> FunTy () -> VMFDef -> [TH.ExpQ] -> TH.ExpQ
+  (HasConfig, HasTypes, HasFuns, ?curFunThrows :: Throws) =>
+  FName -> FunTy () -> VMFDef -> [TH.ExpQ] -> TH.ExpQ
 compileDef nm ty def args =
   case def of
     VMExtern {} ->
@@ -146,7 +153,7 @@ compileDef nm ty def args =
 
 
 
-compileBlock :: (HasConfig, HasTypes) => FunTy () -> Block -> TH.DecQ
+compileBlock :: (HasConfig, HasTypes, HasFuns, ?curFunThrows :: Throws) => FunTy () -> Block -> TH.DecQ
 compileBlock ty b =
   do args <- traverse newArg (blockArgs b)
 
@@ -317,8 +324,10 @@ data FunTy s =
 type BlockEnv =
   ( HasConfig
   , HasTypes
+  , HasFuns
   , ExprEnv
   , ?funTy :: FunTy TH.ExpQ
+  , ?curFunThrows :: Throws
   )
 
 stateArgs :: BlockEnv => [TH.ExpQ]
@@ -443,17 +452,19 @@ compileInstr i k =
 compileCInstr :: BlockEnv => CInstr -> TH.ExpQ
 compileCInstr cinstr =
   case cinstr of
-    ReturnPure a      -> compileE a
+    ReturnPure a
+      | ?curFunThrows == Throws -> [| RTS.PureOk $(compileE a) |]
+      | otherwise -> compileE a
 
     ReturnNo ->
       case ?funTy of
         NonCapturingParser {} ->
           let val
-                | enableErrors ?config = [| (Nothing, $getErrorState) |]
-                | otherwise = [| Nothing |]
+                | enableErrors ?config = [| (RTS.DFailure, $getErrorState) |]
+                | otherwise = [| RTS.DFailure |]
           in case userMonad ?config of
                Nothing -> val
-               Just {} -> [| pure $val |] -- do we need type sig here?
+               Just {} -> [| pure $val |]
 
         CapturingParser _ _ noK _ -> [| $noK $getThreadState |]
         PureFun {} -> panic "compileCInstr" ["ReturnNo in pure"]
@@ -461,7 +472,7 @@ compileCInstr cinstr =
     ReturnYes a inp ->
       case ?funTy of
         NonCapturingParser {} ->
-          let res = [| Just ($(compileE a), $(compileE inp)) |]
+          let res = [| RTS.DSuccess $(compileE a) $(compileE inp) |]
               val
                 | enableErrors ?config = [| ($res, $getErrorState) |]
                 | otherwise = res
@@ -471,7 +482,25 @@ compileCInstr cinstr =
 
         CapturingParser _ _ _ yesK -> [| $yesK $(compileE a) $(compileE inp)
                                              $getThreadState |]
-        PureFun {} -> panic "compileCInstr" ["ReturnNo i  pure"]
+        PureFun {} -> panic "compileCInstr" ["ReturnYes in pure"]
+
+    Throw loc msg ->
+      case ?funTy of
+        PureFun -> [| RTS.PureException loc msg |]
+        NonCapturingParser {}
+          | enableErrors ?config ->
+            let val = [| (RTS.DException loc msg,
+                          RTS.vmSetException loc msg $getErrorState) |]
+            in case userMonad ?config of
+                 Nothing -> val
+                 Just {} -> [| pure $val |]
+          | otherwise ->
+            let val = [| RTS.DException loc msg |]
+            in case userMonad ?config of
+                 Nothing -> val
+                 Just {} -> [| pure $val |]
+        CapturingParser {} ->
+          [| RTS.vmAbortAll loc msg $getThreadState |]
 
     Jump jp -> doJump [] stateArgs jp
 
@@ -549,8 +578,31 @@ compileCInstr cinstr =
 
     Yield -> [| RTS.vmYield $getThreadState |]
 
-    CallPure f jp es _exnFree ->
-      doJump [ doCall f (map compileE es) ] stateArgs (jumpTarget jp)
+    CallPure f jp es _exnFree
+      | calleeThrows f ->
+        [| case $(doCall f (map compileE es)) of
+             RTS.PureOk v -> $(doJump [ [| v |] ] stateArgs (jumpTarget jp))
+             RTS.PureException el em ->
+               $(let l = [| el |]; m = [| em |]
+                 in case ?funTy of
+                      PureFun -> [| RTS.PureException $l $m |]
+                      NonCapturingParser {}
+                        | enableErrors ?config ->
+                          let val = [| (RTS.DException $l $m,
+                                        RTS.vmSetException $l $m $getErrorState) |]
+                          in case userMonad ?config of
+                               Nothing -> val
+                               Just {} -> [| pure $val |]
+                        | otherwise ->
+                          let val = [| RTS.DException $l $m |]
+                          in case userMonad ?config of
+                               Nothing -> val
+                               Just {} -> [| pure $val |]
+                      CapturingParser {} ->
+                        [| RTS.vmAbortAll $l $m $getThreadState |])
+        |]
+      | otherwise ->
+        doJump [ doCall f (map compileE es) ] stateArgs (jumpTarget jp)
 
     CallNoCapture f (JumpCase ks) es _exnFree ->
       let no  = jumpTarget (ks Map.! False)
@@ -563,10 +615,20 @@ compileCInstr cinstr =
           dToC (doCall f (map compileE es ++ stateArgs))
                (\s1     -> doJump []     [s1] no)
                (\a i s1 -> doJump [a, i] [s1] yes)
+               (\l m s1 ->
+                  let val = [| (RTS.DException $l $m, $s1) |]
+                  in case userMonad ?config of
+                       Nothing -> val
+                       Just {} -> [| pure $val |])
           | otherwise ->
           dToC' (doCall f (map compileE es))
                  (doJump [] [] no)
                  (\a i -> doJump [a,i] [] yes)
+                 (\l m ->
+                    let val = [| RTS.DException $l $m |]
+                    in case userMonad ?config of
+                         Nothing -> val
+                         Just {} -> [| pure $val |])
 
         CapturingParser {}
           | enableErrors ?config ->
@@ -574,10 +636,12 @@ compileCInstr cinstr =
             dToC (doCall f (map compileE es ++ [getS]))
                  (\s1     -> doJump []     [setS s1] no)
                  (\a i s1 -> doJump [a, i] [setS s1] yes)
+                 (\l m s1 -> [| RTS.vmAbortAll $l $m $(setS s1) |])
           | otherwise ->
             dToC' (doCall f (map compileE es))
                    (doJump [] [] no)
                    (\a i -> doJump [a,i] [] yes)
+                   (\l m -> [| RTS.vmAbortAll $l $m $getThreadState |])
 
 
         PureFun -> panic "compileCInstr" ["Called non-capturing from pure"]
@@ -603,10 +667,12 @@ compileCInstr cinstr =
               dToC (doCall f (map compileE es ++ [getS]))
                    (\s1 -> [| $noK $(setS s1) |])
                    (\a i s1 -> [| $yesK $a $i $(setS s1) |])
+                   (\l m s1 -> [| RTS.vmAbortAll $l $m $(setS s1) |])
               | otherwise ->
               dToC' (doCall f (map compileE es))
                     noK
                     (\a i -> [| $yesK $a $i |])
+                    (\l m -> [| RTS.vmAbortAll $l $m $getThreadState |])
 
             PureFun -> doCall f (map compileE es)
 
@@ -624,8 +690,9 @@ dToC :: HasConfig =>
   TH.ExpQ ->
   (TH.ExpQ -> TH.ExpQ) ->
   (TH.ExpQ -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
+  (TH.ExpQ -> TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
   TH.ExpQ
-dToC e no yes =
+dToC e no yes exn =
   case userMonad ?config of
     Nothing -> doCase e
     Just _ ->
@@ -635,8 +702,9 @@ dToC e no yes =
   where
   doCase d =
     [| case $d of
-         (Nothing,    s1) -> $(no                  [| s1 |])
-         (Just (a,i), s1) -> $(yes [| a |] [| i |] [| s1 |])
+         (RTS.DFailure,         s1) -> $(no                  [| s1 |])
+         (RTS.DSuccess a i,     s1) -> $(yes [| a |] [| i |] [| s1 |])
+         (RTS.DException el em, s1) -> $(exn [| el |] [| em |] [| s1 |])
     |]
 
 -- | Version without error state
@@ -644,8 +712,9 @@ dToC' :: HasConfig =>
   TH.ExpQ ->
   TH.ExpQ ->
   (TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
+  (TH.ExpQ -> TH.ExpQ -> TH.ExpQ) ->
   TH.ExpQ
-dToC' e no yes =
+dToC' e no yes exn =
   case userMonad ?config of
     Nothing -> doCase e
     Just _ ->
@@ -655,11 +724,19 @@ dToC' e no yes =
   where
   doCase d =
     [| case $d of
-         Nothing    -> $no
-         Just (a,i) -> $(yes [| a |] [| i |])
+         RTS.DFailure        -> $no
+         RTS.DSuccess a i    -> $(yes [| a |] [| i |])
+         RTS.DException el em -> $(exn [| el |] [| em |])
      |]
 
 
+
+
+-- | Look up whether a callee can throw
+calleeThrows :: HasFuns => FName -> Bool
+calleeThrows f = case Map.lookup f ?allFuns of
+                   Just fun -> vmfThrows fun == Throws
+                   Nothing  -> False
 
 
 labelName :: Label -> TH.Name
