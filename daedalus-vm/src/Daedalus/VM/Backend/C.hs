@@ -836,6 +836,9 @@ cPropagateExnParser =
 cAbortCapture :: [CStmt]
 cAbortCapture =
   [ cStmt (cCall "p.abortAll" [])
+  , cStmt ("if constexpr (DDL::hasRefs<decltype(results)::value_type>())" <+>
+           "for (auto& r : results) r.free()")
+  , cStmt (cCallMethod "results" "clear" [])
   , cAssign "err" (cCallMethod "p" "getParseError" [])
   , "return;"
   ]
