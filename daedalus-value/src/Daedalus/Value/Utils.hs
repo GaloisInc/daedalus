@@ -66,22 +66,24 @@ shiftOp ::
   String -> (Integer -> Int -> Integer) -> Value -> Value -> Partial Value
 shiftOp name f =
   tracedFun \a b ->
-  let toobig = vErr ("Shift amount is too big: " ++ show (pp b))
-  in
   case valueToIntSize b of
     Nothing -> toobig
-    Just y  ->
-      case a of
-        VInteger x                    -> pure (VInteger (f x y))
-        VUInt n x | 0 <= n && y < n   -> pure (vUIntWrapping n (f x y))
-                  | otherwise -> toobig
-        VSInt n x | 0 <= n && y < n   -> vSInt n (f x y)
-                  | otherwise -> toobig
-        _ -> panic "shiftOp" [ "Invalid shift operation"
-                             , "Operator: " ++ name
-                             , "Operand 1: " ++ show a
-                             , "Operand 2: " ++ show b
-                             ]
+    Just y
+      | y < 0 -> toobig
+      | otherwise ->
+        case a of
+          VInteger x
+            | y > 4095 -> toobig
+            | otherwise -> pure (VInteger (f x y))
+          VUInt n x  -> pure (vUIntWrapping n (f x (min n y)))
+          VSInt n x  -> pure (vSInt' n (f x (min n y)))
+          _ -> panic "shiftOp" [ "Invalid shift operation"
+                               , "Operator: " ++ name
+                               , "Operand 1: " ++ show a
+                               , "Operand 2: " ++ show b
+                               ]
+  where
+  toobig = vErr "Shift amount is too big"
 
 
 

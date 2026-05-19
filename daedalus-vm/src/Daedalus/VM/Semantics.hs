@@ -301,7 +301,7 @@ valuePattern = \case
 
 semE :: Env -> E -> V.Value
 semE env = \case
-  ENum n (Src.TUInt (Src.TSize w)) -> V.vUInt  (fromInteger w) n
+  ENum n (Src.TUInt (Src.TSize w)) -> V.vUIntWrapping  (fromInteger w) n
   ENum n (Src.TSInt (Src.TSize w)) -> V.vSInt' (fromInteger w) n
   ENum n Src.TFloat     -> V.vFloat (fromInteger n)
   ENum n Src.TDouble    -> V.vDouble (fromInteger n)
