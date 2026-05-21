@@ -308,7 +308,7 @@ evalOp2 op v1 v2 = case op of
   BitOr    -> vBitOr  v1 v2
   BitXor   -> vBitXor v1 v2
   Cat      -> vCat    v1 v2
-  LCat     -> partial (vLCat   v1 v2)
+  LCat     -> vLCat   v1 v2
   LShift   -> partial (vShiftL v1 v2)
   RShift   -> partial (vShiftR v1 v2)
 

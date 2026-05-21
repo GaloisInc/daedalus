@@ -132,6 +132,8 @@ checkI loc ro i count =
   let mode            = modeI i
       checkArgs args  = checkEs loc args (zipWith const mode args) count
       checkDef x args = newVar (LocalVar x) <$> checkArgs args
+      checkDef2 x y args = newVar (LocalVar y) . newVar (LocalVar x) <$>
+                           checkArgs args
   in
   case i of
     Say _           -> checkArgs []
@@ -140,6 +142,7 @@ checkI loc ro i count =
     Output e        -> checkArgs [e]
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
+    CallPrim2 x y _ es -> checkDef2 x y es
     Spawn x l -> newVar (LocalVar x) <$> checkJP loc ro (==ThreadBlock) l count
     NoteFail _ _ ei em -> checkArgs [ei,em]
 

@@ -252,6 +252,10 @@ semInstr kFrame env = \case
    do let r = semPrimName primName [(semE env e, getType e) | e <- es]
       pure (extendEnv bv r env)
 
+  CallPrim2 bv1 bv2 primName es ->
+   do let (r1, r2) = semPrimName2 primName [(semE env e, getType e) | e <- es]
+      pure (extendEnv bv2 r2 (extendEnv bv1 r1 env))
+
   Spawn bv c ->
    do r <- yield (SpawnResult \flag -> runM (semJumpPoint env c [V.VBool flag]) kFrame)
       pure (extendEnv bv (vThreadId r) env)
@@ -324,11 +328,41 @@ semPrimName prim vs =
     (Integer n, [])                 -> V.VInteger n
     (ByteArray bs, [])              -> V.vByteString bs
     (Op1 op1, [(x, TSem t)])        -> evalOp1 ?tDecls op1 t x
-    (Op2 op2, [(x,_),(y,_)])        -> evalOp2 op2 x y
+    (Op2 op2, [(x, t),(y,_)])
+      | checkedOp op2, bounded t -> panic "semPrimName" ["use CallPrim2 for checked arithmetic", show (pp op2)]
+      | otherwise                -> evalOp2 op2 x y
     (Op3 op3, [(x,_),(y,_),(z,_)])  -> evalOp3 op3 x y z
     (OpN Src.ArrayL{}, _)           -> V.vArray (map fst vs)
     (OpN Src.CallF{}, _)            -> panic "semPrimName" ["calls not supported"]
     _                               -> panic "semPrimName" ["argument mismatch", show (pp prim)]
+  where
+  checkedOp op =
+    case op of
+      Src.Add -> True
+      Src.Sub -> True
+      Src.Mul -> True
+      _       -> False
+  bounded t =
+    case t of
+      TSem ty -> Src.isBits ty /= Nothing
+      _       -> False
+
+semPrimName2 :: DeclEnv => PrimName -> [(V.Value, VMT)] -> (V.Value, V.Value)
+semPrimName2 prim vs =
+  case (prim, vs) of
+    (Op2 Src.Add, [(x,_),(y,_)]) -> checkedArith (V.vAdd x y) x
+    (Op2 Src.Sub, [(x,_),(y,_)]) -> checkedArith (V.vSub x y) x
+    (Op2 Src.Mul, [(x,_),(y,_)]) -> checkedArith (V.vMul x y) x
+    _ -> panic "semPrimName2" ["not yet implemented", show (pp prim)]
+  where
+  checkedArith result operand =
+    case result of
+      Right v -> (V.VBool False, v)
+      Left _  -> (V.VBool True, zeroLike operand)
+
+  zeroLike (V.VUInt n _) = V.VUInt n 0
+  zeroLike (V.VSInt n _) = V.VSInt n 0
+  zeroLike v = panic "semPrimName2.zeroLike" ["not a bounded numeric value", show v]
 
 semStructCon :: DeclEnv => Src.UserType -> [(V.Value, b)] -> V.Value
 semStructCon ut vs =

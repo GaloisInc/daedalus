@@ -190,6 +190,7 @@ mergeBlocks front back =
   renI i =
     case i of
       CallPrim x f e -> Just $ CallPrim (renBV x) f (map renE e)
+      CallPrim2 x y f e -> Just $ CallPrim2 (renBV x) (renBV y) f (map renE e)
       Spawn x j      -> Just $ Spawn (renBV x) (renJ j)
 
       Say s          -> Just $ Say s

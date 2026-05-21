@@ -83,6 +83,33 @@ public:
   UInt operator + (UInt x) const { return UInt(data + x.data); }
   UInt operator - (UInt x) const { return UInt(data - x.data); }
   UInt operator * (UInt x) const { return UInt(data * x.data); }
+
+  bool checked_add(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_add_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_sub(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_sub_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_mul(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_mul_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
   UInt operator % (UInt x) const { Rep xv = x.rep();
                                    assert(xv != 0);
                                    return UInt(rep() % xv); }
@@ -213,6 +240,33 @@ public:
   SInt operator + (SInt x) const { return Rep(data + x.data); }
   SInt operator - (SInt x) const { return Rep(data - x.data); }
   SInt operator * (SInt x) const { return Rep(data * x.data); }
+
+  bool checked_add(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_add_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_sub(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_sub_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_mul(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_mul_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
   SInt operator % (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data == -1)); return Rep(data % x.data); }
   SInt operator / (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data == -1)); return Rep(data / x.data); }
   SInt operator - ()       const { return Rep(-data); }

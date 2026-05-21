@@ -170,6 +170,7 @@ compileBlockInstr instr =
     VM.Output {}        -> bad
     VM.Notify {}        -> bad
     VM.CallPrim x f es  -> compilePrim x f es
+    VM.CallPrim2 x y f es -> compilePrim2 x y f es
     VM.Spawn {}         -> bad
     VM.Let x e ->
       [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "clo" [])]
@@ -217,6 +218,22 @@ integerToBytes i
       b : _ -> testBit b 7
       [] -> panic "integerToBytes" ["[]"]
 
+
+compilePrim2 :: FnCtx => VM.BV -> VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
+compilePrim2 x y f es =
+  case (f, compiled) of
+    (VM.Op2 Core.Add, [e1,e2]) -> checkedArith "op_add" e1 e2
+    (VM.Op2 Core.Sub, [e1,e2]) -> checkedArith "op_sub" e1 e2
+    (VM.Op2 Core.Mul, [e1,e2]) -> checkedArith "op_mul" e1 e2
+    _ -> panic "compilePrim2" ["not yet implemented", show (pp f)]
+  where
+  compiled = zipWith compileExpr (modePrimName f) es
+  checkedArith method e1 e2 =
+    [ Rust.localLetPat
+        (Rust.tuplePat [Rust.identPat (compileBVName y), Rust.identPat (compileBVName x)])
+        Nothing
+        (Rust.callMethod e1 method [e2])
+    ]
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
@@ -477,10 +494,16 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.Leq    -> bin Rust.LeOp
     Core.Lt     -> bin Rust.LtOp
  
-    -- Arithmetic
-    Core.Add    -> bin Rust.AddOp
-    Core.Sub    -> bin Rust.SubOp
-    Core.Mul    -> bin Rust.MulOp
+    -- Arithmetic (only Integer; bounded types must use CallPrim2)
+    Core.Add
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.AddOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
+    Core.Sub
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.SubOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
+    Core.Mul
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.MulOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Div    -> bin Rust.DivOp
     Core.Mod    -> bin Rust.RemOp
  

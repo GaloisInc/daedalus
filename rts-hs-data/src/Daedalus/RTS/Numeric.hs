@@ -1,8 +1,10 @@
+{-# LANGUAGE MagicHash, UnboxedTuples, BangPatterns #-}
 module Daedalus.RTS.Numeric
   ( UInt(..), UIntRep
   , SInt(..), SIntRep
   , Numeric(..)
   , Arith(..)
+  , CheckedArith(..)
   , Literal
   , SizeType
 
@@ -32,6 +34,9 @@ module Daedalus.RTS.Numeric
 
 import GHC.TypeNats
 import GHC.Float
+import GHC.Exts (Int(..), Word(..), isTrue#,
+                 addWordC#, subWordC#, timesWord2#,
+                 addIntC#, subIntC#, timesInt2#, (/=#))
 import Data.Kind(Constraint)
 import Data.Word
 import Data.Int
@@ -119,6 +124,8 @@ type NormCtrs n    = (KnownNat n, Supports Bits n, Supports Integral n)
 type SizeTypeDef n = ( NormCtrs n
                      , NormU n (SizeOf n)
                      , NormS n (SizeOf n)
+                     , CheckedU n (SizeOf n)
+                     , CheckedS n (SizeOf n)
                      , Supports Show n
                      )
 
@@ -391,6 +398,149 @@ deriving instance SizeType n => Ord  (UInt n)
 deriving instance SizeType n => Show (SInt n)
 deriving instance SizeType n => Eq   (SInt n)
 deriving instance SizeType n => Ord  (SInt n)
+
+--------------------------------------------------------------------------------
+-- Checked arithmetic
+
+class Arith t => CheckedArith t where
+  checkedAdd :: t -> t -> (Bool, t)
+  checkedSub :: t -> t -> (Bool, t)
+  checkedMul :: t -> t -> (Bool, t)
+
+instance SizeType n => CheckedArith (UInt n) where
+  checkedAdd = checkedAddU
+  checkedSub = checkedSubU
+  checkedMul = checkedMulU
+  {-# INLINE checkedAdd #-}
+  {-# INLINE checkedSub #-}
+  {-# INLINE checkedMul #-}
+
+instance SizeType n => CheckedArith (SInt n) where
+  checkedAdd = checkedAddS
+  checkedSub = checkedSubS
+  checkedMul = checkedMulS
+  {-# INLINE checkedAdd #-}
+  {-# INLINE checkedSub #-}
+  {-# INLINE checkedMul #-}
+
+-- Dispatch on representation size
+class (SizeOf n ~ s) => CheckedU (n :: Nat) (s :: Size) where
+  checkedAddU :: UInt n -> UInt n -> (Bool, UInt n)
+  checkedSubU :: UInt n -> UInt n -> (Bool, UInt n)
+  checkedMulU :: UInt n -> UInt n -> (Bool, UInt n)
+
+class (SizeOf n ~ s) => CheckedS (n :: Nat) (s :: Size) where
+  checkedAddS :: SInt n -> SInt n -> (Bool, SInt n)
+  checkedSubS :: SInt n -> SInt n -> (Bool, SInt n)
+  checkedMulS :: SInt n -> SInt n -> (Bool, SInt n)
+
+-- Helper: promote to a wider unsigned type, compute, normalize, check
+checkedBinU :: (Integral wide, NormCtrs n, NormU n (SizeOf n)) =>
+  (wide -> wide -> wide) -> UInt n -> UInt n -> (Bool, UInt n)
+checkedBinU op (UInt x) (UInt y) =
+  let wide = fromIntegral x `op` fromIntegral y
+      result = normU (UInt (fromIntegral wide))
+  in (wide /= fromIntegral (fromUInt result), result)
+{-# INLINE checkedBinU #-}
+
+-- Helper: promote to a wider signed type, compute, normalize, check
+checkedBinS :: (Integral wide, NormCtrs n, NormS n (SizeOf n)) =>
+  (wide -> wide -> wide) -> SInt n -> SInt n -> (Bool, SInt n)
+checkedBinS op (SInt x) (SInt y) =
+  let wide = fromIntegral x `op` fromIntegral y
+      result = normS (SInt (fromIntegral wide))
+  in (wide /= fromIntegral (fromSInt result), result)
+{-# INLINE checkedBinS #-}
+
+-- Promote to Word16
+instance (SizeOf n ~ 'S8, NormCtrs n, NormU n 'S8) => CheckedU n 'S8 where
+  checkedAddU = checkedBinU ((+) :: Word16 -> Word16 -> Word16)
+  checkedSubU = checkedBinU ((-) :: Word16 -> Word16 -> Word16)
+  checkedMulU = checkedBinU ((*) :: Word16 -> Word16 -> Word16)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Word32
+instance (SizeOf n ~ 'S16, NormCtrs n, NormU n 'S16) => CheckedU n 'S16 where
+  checkedAddU = checkedBinU ((+) :: Word32 -> Word32 -> Word32)
+  checkedSubU = checkedBinU ((-) :: Word32 -> Word32 -> Word32)
+  checkedMulU = checkedBinU ((*) :: Word32 -> Word32 -> Word32)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Word64
+instance (SizeOf n ~ 'S32, NormCtrs n, NormU n 'S32) => CheckedU n 'S32 where
+  checkedAddU = checkedBinU ((+) :: Word64 -> Word64 -> Word64)
+  checkedSubU = checkedBinU ((-) :: Word64 -> Word64 -> Word64)
+  checkedMulU = checkedBinU ((*) :: Word64 -> Word64 -> Word64)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Use GHC primitives for Word64
+instance (SizeOf n ~ 'S64, NormCtrs n) => CheckedU n 'S64 where
+  checkedAddU (UInt x) (UInt y) =
+    case addWordC# wx wy of
+      (# r, c #) -> (isTrue# c, UInt (fromIntegral (W# r)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  checkedSubU (UInt x) (UInt y) =
+    case subWordC# wx wy of
+      (# r, c #) -> (isTrue# c, UInt (fromIntegral (W# r)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  checkedMulU (UInt x) (UInt y) =
+    case timesWord2# wx wy of
+      (# hi, lo #) -> (W# hi /= 0, UInt (fromIntegral (W# lo)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Int16
+instance (SizeOf n ~ 'S8, NormCtrs n, NormS n 'S8) => CheckedS n 'S8 where
+  checkedAddS = checkedBinS ((+) :: Int16 -> Int16 -> Int16)
+  checkedSubS = checkedBinS ((-) :: Int16 -> Int16 -> Int16)
+  checkedMulS = checkedBinS ((*) :: Int16 -> Int16 -> Int16)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Promote to Int32
+instance (SizeOf n ~ 'S16, NormCtrs n, NormS n 'S16) => CheckedS n 'S16 where
+  checkedAddS = checkedBinS ((+) :: Int32 -> Int32 -> Int32)
+  checkedSubS = checkedBinS ((-) :: Int32 -> Int32 -> Int32)
+  checkedMulS = checkedBinS ((*) :: Int32 -> Int32 -> Int32)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Promote to Int64
+instance (SizeOf n ~ 'S32, NormCtrs n, NormS n 'S32) => CheckedS n 'S32 where
+  checkedAddS = checkedBinS ((+) :: Int64 -> Int64 -> Int64)
+  checkedSubS = checkedBinS ((-) :: Int64 -> Int64 -> Int64)
+  checkedMulS = checkedBinS ((*) :: Int64 -> Int64 -> Int64)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Use GHC primitives for Int64
+instance (SizeOf n ~ 'S64, NormCtrs n) => CheckedS n 'S64 where
+  checkedAddS (SInt x) (SInt y) =
+    case addIntC# ix iy of
+      (# r, c #) -> (isTrue# c, SInt (fromIntegral (I# r)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  checkedSubS (SInt x) (SInt y) =
+    case subIntC# ix iy of
+      (# r, c #) -> (isTrue# c, SInt (fromIntegral (I# r)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  checkedMulS (SInt x) (SInt y) =
+    case timesInt2# ix iy of
+      (# s, h, lo #) -> (isTrue# (s /=# h), SInt (fromIntegral (I# lo)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
 
 --------------------------------------------------------------------------------
 

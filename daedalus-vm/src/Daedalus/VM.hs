@@ -84,6 +84,7 @@ data Instr =
   | Output E
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
+  | CallPrim2 BV BV PrimName [E]
   | Spawn BV Closure
 
   | Let BV E
@@ -202,6 +203,7 @@ iArgs i =
     Output e          -> [e]
     Notify e          -> [e]
     CallPrim _ _ es   -> es
+    CallPrim2 _ _ _ es -> es
     Spawn _ j         -> jArgs j
     NoteFail _ _ ei em -> [ei,em]
 
@@ -318,6 +320,8 @@ instance PP Instr where
   pp instr =
     case instr of
       CallPrim x f vs  -> pp x <+> "=" <+> ppFun (pp f) (map pp vs)
+      CallPrim2 x y f vs ->
+        pp x <.> "," <+> pp y <+> "=" <+> ppFun (pp f) (map pp vs)
       Spawn x c        -> pp x <+> "=" <+> ppFun "spawn" [pp c]
       Say x            -> ppFun "say" [text (show x)]
       Output v         -> ppFun "output" [ pp v ]

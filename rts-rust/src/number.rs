@@ -15,9 +15,9 @@ pub trait Ops : Copy + PartialEq + Eq + PartialOrd + Ord {
   fn op_not(self) -> Self;
   fn op_neg(self) -> Self;
 
-  fn op_add(self, rhs: Self) -> Self;
-  fn op_sub(self, rhs: Self) -> Self;
-  fn op_mul(self, rhs: Self) -> Self;
+  fn op_add(self, rhs: Self) -> (Self, bool);
+  fn op_sub(self, rhs: Self) -> (Self, bool);
+  fn op_mul(self, rhs: Self) -> (Self, bool);
   fn op_div(self, rhs: Self) -> Self;
   fn op_rem(self, rhs: Self) -> Self;
 
@@ -45,9 +45,9 @@ impl Ops for U0 {
   fn op_not(self) -> Self { U0() }
   fn op_neg(self) -> Self { U0() }
 
-  fn op_add(self, _rhs: Self) -> Self { U0() }
-  fn op_sub(self, _rhs: Self) -> Self { U0() }
-  fn op_mul(self, _rhs: Self) -> Self { U0() }
+  fn op_add(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
+  fn op_sub(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
+  fn op_mul(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
   fn op_div(self, _rhs: Self) -> Self { U0() }
   fn op_rem(self, _rhs: Self) -> Self { U0() }
 
@@ -94,9 +94,9 @@ macro_rules! MakeOps {
       fn op_not(self) -> Self { !self }
       fn op_neg(self) -> Self { self.wrapping_neg() }
 
-      fn op_add(self, rhs: Self) -> Self { self.wrapping_add(rhs) }
-      fn op_sub(self, rhs: Self) -> Self { self.wrapping_sub(rhs) }
-      fn op_mul(self, rhs: Self) -> Self { self.wrapping_mul(rhs) }
+      fn op_add(self, rhs: Self) -> (Self, bool) { self.overflowing_add(rhs) }
+      fn op_sub(self, rhs: Self) -> (Self, bool) { self.overflowing_sub(rhs) }
+      fn op_mul(self, rhs: Self) -> (Self, bool) { self.overflowing_mul(rhs) }
       fn op_div(self, rhs: Self) -> Self { self.wrapping_div(rhs) }
       fn op_rem(self, rhs: Self) -> Self { self.wrapping_rem(rhs) }
 
@@ -258,7 +258,7 @@ impl <const N: u32> I<N> where Size<false, N>: WordRep, Size<true,N>: WordRep {
 impl<const S: bool, const N: u32> ops::Add for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn add(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_add(rhs.rep) }
+    Word { rep: self.rep.op_add(rhs.rep).0 }
   }
 }
 
@@ -272,14 +272,14 @@ impl<const S: bool, const N: u32> ops::Neg for Word<S,N> where Size<S, N>: WordR
 impl<const S: bool, const N: u32> ops::Sub for Word<S,N> where Size<S,N>: WordRep {
   type Output = Self;
   fn sub(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_sub(rhs.rep) }
+    Word { rep: self.rep.op_sub(rhs.rep).0 }
   }
 }
 
 impl<const S: bool, const N: u32> ops::Mul for Word<S,N> where Size<S,N>: WordRep {
   type Output = Self;
   fn mul(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING)) }
+    Word { rep: self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING)).0 }
   }
 }
 
@@ -435,6 +435,21 @@ impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
   pub fn cast_to<const S1: bool, const N1: u32>(self) -> Word<S1,N1> where Size<S1,N1>: WordRep {
     let v = self.rep.op_shr(Size::<S,N>::PADDING).op_to_u64();
     Word { rep: <<Size<S1,N1> as WordRep>::Rep>::op_from_u64(v).op_shl(Size::<S1,N1>::PADDING) }
+  }
+
+  pub fn op_add(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_add(rhs.rep);
+    (Word { rep: r }, overflow)
+  }
+
+  pub fn op_sub(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_sub(rhs.rep);
+    (Word { rep: r }, overflow)
+  }
+
+  pub fn op_mul(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING));
+    (Word { rep: r }, overflow)
   }
 }
 

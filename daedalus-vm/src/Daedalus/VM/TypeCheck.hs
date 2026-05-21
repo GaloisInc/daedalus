@@ -74,6 +74,9 @@ checkInstr loc instr =
     CallPrim x p es ->
       checkPrim loc p es (getType x)
 
+    CallPrim2 x y p es ->
+      checkPrim2 loc p es (getType x) (getType y)
+
     Spawn x c ->
       do checkExpr loc (EVar x) TThreadId
          checkJump loc c []
@@ -163,3 +166,6 @@ checkJumpWithFree loc jwf = checkJump loc (jumpTarget jwf)
 
 checkPrim :: [Doc] -> PrimName -> [E] -> VMT -> M ()
 checkPrim = undefined
+
+checkPrim2 :: [Doc] -> PrimName -> [E] -> VMT -> VMT -> M ()
+checkPrim2 = undefined

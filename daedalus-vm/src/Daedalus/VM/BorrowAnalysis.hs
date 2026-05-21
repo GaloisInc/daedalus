@@ -100,6 +100,7 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       Output e        -> Output (annE mp e)
       Notify e        -> Notify (annE mp e)
       CallPrim x p es -> CallPrim x p (map (annE mp) es)
+      CallPrim2 x y p es -> CallPrim2 x y p (map (annE mp) es)
       Spawn x l       -> Spawn x (annClo mp l)
       NoteFail err loc ei em  -> NoteFail err loc (annE mp ei) (annE mp em)
       Let x e         -> Let x (annE mp e)
@@ -405,6 +406,7 @@ modeI i =
     Output e                 -> [ Owned `ifRefs` e ]
     Notify _                 -> [ Unmanaged ]
     CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
+    CallPrim2 _ _ pn es      -> zipWith ifRefs (modePrimName pn) es
     Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
 
     NoteFail {}              -> [ Borrowed, Borrowed ]

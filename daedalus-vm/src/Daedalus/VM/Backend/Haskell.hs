@@ -259,7 +259,15 @@ compilePrim prim es =
 
     Op2 op2 ->
       case args of
-        [e1,e2] -> compileOp2 op2 e1 e2
+        [e1,e2] ->
+          case op2 of
+            Core.Add | Core.TInteger /= getSemType (es !! 0) ->
+              panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
+            Core.Sub | Core.TInteger /= getSemType (es !! 0) ->
+              panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
+            Core.Mul | Core.TInteger /= getSemType (es !! 0) ->
+              panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
+            _ -> compileOp2 op2 e1 e2
         _       -> panic "compilePrim" ["Op2 arity mismatch"]
 
     Op3 op3 ->
@@ -408,6 +416,23 @@ compileInstr i k =
       [| let v = $(compilePrim p es)
          in $(addLocal x [| v |] k)
       |]
+
+    CallPrim2 x y p es ->
+      let args = map compileE es
+      in case (p, args) of
+        (Op2 Core.Add, [e1,e2]) ->
+          [| let (ovf, val) = RTS.checkedAdd $e1 $e2
+             in $(addLocal x [| ovf |] (addLocal y [| val |] k))
+          |]
+        (Op2 Core.Sub, [e1,e2]) ->
+          [| let (ovf, val) = RTS.checkedSub $e1 $e2
+             in $(addLocal x [| ovf |] (addLocal y [| val |] k))
+          |]
+        (Op2 Core.Mul, [e1,e2]) ->
+          [| let (ovf, val) = RTS.checkedMul $e1 $e2
+             in $(addLocal x [| ovf |] (addLocal y [| val |] k))
+          |]
+        _ -> panic "CallPrim2" ["Unexpected operation"]
 
     Let x e -> addLocal x (compileE e) k
 

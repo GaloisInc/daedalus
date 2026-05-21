@@ -237,6 +237,7 @@ instance DoSubst Instr where
       Output e        -> Output (doSubst  x v e)
       Notify e        -> Notify (doSubst  x v e)
       CallPrim y p es -> CallPrim y p (doSubst x v es)
+      CallPrim2 y z p es -> CallPrim2 y z p (doSubst x v es)
       Spawn y l       -> Spawn y (doSubst x v l)
       NoteFail er loc inp m -> NoteFail er loc (doSubst x v inp) (doSubst x v m)
       Let y e         -> Let y (doSubst x v e)
@@ -491,6 +492,10 @@ doInstr instr =
     CallPrim x p es ->
       do es1 <- doArgs es (modePrimName p)
          emit (CallPrim x p es1)
+
+    CallPrim2 x y p es ->
+      do es1 <- doArgs es (modePrimName p)
+         emit (CallPrim2 x y p es1)
 
     Spawn x (JumpPoint l es) ->   -- this is a bit different because we
                                   -- are not jumping now

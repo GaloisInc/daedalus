@@ -19,7 +19,7 @@ vCat =
 
 
 -- x <# y  ==   x * 2^n + y,   where y : uint n
-vLCat :: Value -> Value -> Partial Value
+vLCat :: Value -> Value -> Value
 vLCat =
   tracedFun \a b ->
   let bad = panic "vLCat" [ "Invalid lcat"
@@ -32,9 +32,9 @@ vLCat =
       let mk f i = f ((i `shiftL` w) .|. y)
       in
       case a of
-        VInteger x -> mk (pure . VInteger)   x
-        VUInt n x  -> mk (vUInt n) x
-        VSInt n x  -> mk (vSInt n) x
+        VInteger x -> mk VInteger        x
+        VUInt n x  -> mk (vUIntWrapping n) x
+        VSInt n x  -> mk (vSInt' n)        x
         _          -> bad
 
     _ -> bad

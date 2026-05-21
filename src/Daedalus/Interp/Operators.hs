@@ -101,7 +101,7 @@ evalBinOp op =
     NotEq       -> vNeq
 
     Cat         -> vCat
-    LCat        -> partial2 vLCat
+    LCat        -> vLCat
     LShift      -> partial2 vShiftL
     RShift      -> partial2 vShiftR
     BitwiseAnd  -> vBitAnd

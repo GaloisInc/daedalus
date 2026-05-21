@@ -782,6 +782,21 @@ cBlockStmt cInstr =
         Op3 op3      -> cOp3 x op3 es
         OpN opN      -> cOpN x opN es
 
+    CallPrim2 x y p es ->
+      case p of
+        Op2 Src.Add -> checkedArith "checked_add"
+        Op2 Src.Sub -> checkedArith "checked_sub"
+        Op2 Src.Mul -> checkedArith "checked_mul"
+        _ -> panic "CallPrim2" ["not yet implemented", show (pp p)]
+      where
+      [e1,e2] = map cExpr es
+      checkedArith method =
+        vcat [ cDeclareVar (cType (getType y)) (cVarUse y)
+             , cVarDecl x
+                 (cCallCon "DDL::Bool"
+                   [cCallMethod e1 method [e2, "&" <.> cVarUse y]])
+             ]
+
 
 cFree :: (CurBlock, Copies, NSUser) => Set VMVar -> [CStmt]
 cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
@@ -1027,9 +1042,15 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Leq   -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<=" <+> e2]
     Src.Lt    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<"  <+> e2]
 
-    Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
-    Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
-    Src.Mul   -> cVarDecl x (e1 <+> "*" <+> e2)
+    Src.Add
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "+" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
+    Src.Sub
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "-" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
+    Src.Mul
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "*" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
     Src.Div   -> cVarDecl x (e1 <+> "/" <+> e2)
     Src.Mod   -> cVarDecl x (e1 <+> "%" <+> e2)
 

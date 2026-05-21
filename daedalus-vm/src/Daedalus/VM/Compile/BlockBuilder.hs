@@ -128,6 +128,17 @@ stmt ty s = BlockBuilder \k i ->
                   (is, r) = k (EVar x) i1
               in (s x : is, r)
 
+-- | Emit a statement that returns two values.
+stmt2 :: VMT -> VMT -> (BV -> BV -> Instr) -> BlockBuilder (E, E)
+stmt2 ty1 ty2 s = BlockBuilder \k i ->
+  let v1 = nextLocal i
+      x1 = BV v1 ty1
+      v2 = v1 + 1
+      x2 = BV v2 ty2
+      i1 = i { nextLocal = v2 + 1 }
+      (is, r) = k (EVar x1, EVar x2) i1
+  in (s x1 x2 : is, r)
+
 -- | Emit a statement that does not return a result.
 stmt_ :: Instr -> BlockBuilder ()
 stmt_ i = BlockBuilder \k info ->
