@@ -4,6 +4,8 @@ use crate as ddl;
 use serde::Serialize;
 
 /// Operations that should be supported by representation types for [Word].
+/// Checked arithmetic (op_add, op_sub, op_mul) returns (result, overflow_flag).
+/// Generated code uses these to detect overflow and throw an exception.
 pub trait Ops : Copy + PartialEq + Eq + PartialOrd + Ord {
   const WIDTH: u32;
 
@@ -253,6 +255,12 @@ impl <const N: u32> I<N> where Size<false, N>: WordRep, Size<true,N>: WordRep {
 
 // -----------------------------------------------------------------------------
 // Standard Operations
+//
+// Wrapping arithmetic: these discard the overflow flag.
+// Generated code does NOT use these for bounded integer types; it calls
+// op_add/op_sub/op_mul directly to obtain the overflow flag and throw on
+// overflow.  These trait impls exist only for convenience (e.g., literals,
+// tests) and should not be relied upon for DDL checked-arithmetic semantics.
 // -----------------------------------------------------------------------------
 
 impl<const S: bool, const N: u32> ops::Add for Word<S,N> where Size<S, N>: WordRep {
@@ -262,6 +270,8 @@ impl<const S: bool, const N: u32> ops::Add for Word<S,N> where Size<S, N>: WordR
   }
 }
 
+// Wrapping negation: generated code guards against negating non-zero unsigned
+// values and negating minBound for signed types.
 impl<const S: bool, const N: u32> ops::Neg for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn neg(self) -> Self {
@@ -283,6 +293,8 @@ impl<const S: bool, const N: u32> ops::Mul for Word<S,N> where Size<S,N>: WordRe
   }
 }
 
+// Truncating division and remainder: rounds toward zero.
+// Generated code inserts a division-by-zero guard before calling these.
 impl<const S: bool, const N: u32> ops::Div for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn div(self, rhs: Self) -> Self {
@@ -437,6 +449,8 @@ impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
     Word { rep: <<Size<S1,N1> as WordRep>::Rep>::op_from_u64(v).op_shl(Size::<S1,N1>::PADDING) }
   }
 
+  // Checked arithmetic: used by generated code for bounded integer types.
+  // Returns (wrapped_result, overflow_flag).
   pub fn op_add(self, rhs: Self) -> (Self, bool) {
     let (r, overflow) = self.rep.op_add(rhs.rep);
     (Word { rep: r }, overflow)

@@ -189,13 +189,16 @@ instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64;
 
 type Literal (x :: Nat) t = Arith t
 
+-- | Wrapping arithmetic: used by generated code when overflow is acceptable
+-- (e.g., Integer which cannot overflow). For bounded types, generated code
+-- uses 'CheckedArith' to detect overflow and throw an exception.
 class Arith t where
   lit :: Integer -> t
   add :: t -> t -> t
   sub :: t -> t -> t
   mul :: t -> t -> t
-  div :: t -> t -> t
-  neg :: t -> t
+  div :: t -> t -> t   -- ^ Truncating division (rounds toward zero)
+  neg :: t -> t        -- ^ Wrapping negation; generated code guards overflow
 
 instance Arith Float where
   lit = fromInteger
@@ -228,7 +231,7 @@ instance Arith Double where
 
 
 class Arith t => Numeric t where
-  mod :: t -> t -> t
+  mod :: t -> t -> t   -- ^ Truncating remainder (rounds toward zero)
   asInt :: t -> Integer
 
   shiftl' :: t -> Int -> t
@@ -400,7 +403,8 @@ deriving instance SizeType n => Eq   (SInt n)
 deriving instance SizeType n => Ord  (SInt n)
 
 --------------------------------------------------------------------------------
--- Checked arithmetic
+-- Checked arithmetic: used by generated code for bounded integer types.
+-- Returns (overflow_flag, wrapped_result).
 
 class Arith t => CheckedArith t where
   checkedAdd :: t -> t -> (Bool, t)
