@@ -22,20 +22,23 @@ template <Width in, Width out>
 inline
 UInt<out> sint_to_uint(SInt<in> x) { return UInt<out>(x.rep()); }
 
+// Saturating float-to-uint: NaN -> 0, clamp to [0, maxVal].
 template <Width out>
 inline
 UInt<out> float_to_uint(Float x) {
   float v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
-  return UInt<out>(v);
+  if (std::isnan(v) || v <= 0.0f) return UInt<out>(0);
+  if (v >= ldexpf(1.0f, out)) return UInt<out>(UInt<out>::maxValRep());
+  return UInt<out>(static_cast<typename UInt<out>::Rep>(v));
 }
 
 template <Width out>
 inline
 UInt<out> double_to_uint(Double x) {
   double v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
-  return UInt<out>(v);
+  if (std::isnan(v) || v <= 0.0) return UInt<out>(0);
+  if (v >= ldexp(1.0, out)) return UInt<out>(UInt<out>::maxValRep());
+  return UInt<out>(static_cast<typename UInt<out>::Rep>(v));
 }
 
 
@@ -49,20 +52,25 @@ template <Width in, Width out>
 inline
 SInt<out> sint_to_sint(SInt<in> x) { return SInt<out>(x.rep()); }
 
+// Saturating float-to-sint: NaN → 0, clamp to [minVal, maxVal].
 template <Width out>
 inline
 SInt<out> float_to_sint(Float x) {
   float v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
-  return SInt<out>(v);
+  if (std::isnan(v)) return SInt<out>(0);
+  if (v < -ldexpf(1.0f, out-1)) return SInt<out>(SInt<out>::minValRep());
+  if (v >= ldexpf(1.0f, out-1)) return SInt<out>(SInt<out>::maxValRep());
+  return SInt<out>(static_cast<typename SInt<out>::Rep>(v));
 }
 
 template <Width out>
 inline
 SInt<out> double_to_sint(Double x) {
   double v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
-  return SInt<out>(v);
+  if (std::isnan(v)) return SInt<out>(0);
+  if (v < -ldexp(1.0, out-1)) return SInt<out>(SInt<out>::minValRep());
+  if (v >= ldexp(1.0, out-1)) return SInt<out>(SInt<out>::maxValRep());
+  return SInt<out>(static_cast<typename SInt<out>::Rep>(v));
 }
 
 
@@ -112,17 +120,18 @@ template <Width in>
 inline
 Integer sint_to_integer(SInt<in> x) { return Integer(x.rep()); }
 
+// NaN and Inf map to 0; finite values are truncated toward zero.
 inline
 Integer float_to_integer(Float x) {
   float v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
-  return Integer(v);
+  if (std::isnan(v) || std::isinf(v)) return Integer(0);
+  return Integer(static_cast<double>(v));
 }
 
 inline
 Integer double_to_integer(Double x) {
   double v = x.getValue();
-  if (std::isnan(v) || std::isinf(v)) abort();
+  if (std::isnan(v) || std::isinf(v)) return Integer(0);
   return Integer(v);
 }
 

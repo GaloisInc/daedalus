@@ -302,7 +302,7 @@ compilePureExpr env = go
                          , show (pp x)
                          ]
 
-        TCCoerce _ t2 e -> partial (fst (vCoerceTo (evalType env t2) (go e)))
+        TCCoerce _ t2 e -> fst (vCoerceTo (evalType env t2) (go e))
 
         TCMapEmpty _    -> VMap Map.empty
 
@@ -590,9 +590,9 @@ compilePExpr env expr0 args = go expr0
 
         TCCoerceCheck  s _ t e ->
           case vCoerceTo (evalType env t) (compilePureExpr env e) of
-            (v, exact) ->
+            (v', exact) ->
               if exact
-                then pure $! mbSkip s (partial v)
+                then pure $! mbSkip s v'
                      -- XXX: should it still be an error if the value is
                      -- skipped?
 

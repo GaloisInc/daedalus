@@ -9,26 +9,26 @@ import Daedalus.Value.Type
 
 
 -- | The second value in the result indicates if the coercion is exact
-vCoerceTo :: TValue -> Value -> (Partial Value,Bool)
+vCoerceTo :: TValue -> Value -> (Value,Bool)
 vCoerceTo tgt v =
   case v of
 
     VTraced v1 i ->
       case vCoerceTo tgt v1 of
-        (pv,ex) -> (fmap (`vTraced` i) pv, ex)
+        (v1',ex) -> (vTraced v1' i, ex)
 
     VUInt _ n ->
       case tgt of
-        TVInteger     -> (Right (VInteger  n),    exact)
-        TVUInt st     -> (Right (vUIntWrapping  st n),    inRange (uintRange st) n)
-        TVSInt st     -> (Right (vSInt' st n),    inRange (sintRange st) n)
-        TVBDStruct bd -> (Right (VBDStruct bd n), bdValid bd n)
-        TVBDUnion bd  -> (Right (VBDUnion bd n),  bduValid bd n)
+        TVInteger     -> ((VInteger  n),    exact)
+        TVUInt st     -> ((vUIntWrapping  st n),    inRange (uintRange st) n)
+        TVSInt st     -> ((vSInt' st n),    inRange (sintRange st) n)
+        TVBDStruct bd -> ((VBDStruct bd n), bdValid bd n)
+        TVBDUnion bd  -> ((VBDUnion bd n),  bduValid bd n)
 
-        TVFloat   -> (Right (VFloat x), b)
+        TVFloat   -> ((VFloat x), b)
            where (x,b) = numToFloating n
 
-        TVDouble  -> (Right (VDouble x), b)
+        TVDouble  -> ((VDouble x), b)
            where (x,b) = numToFloating n
 
         TVNum {}  -> bug
@@ -38,14 +38,14 @@ vCoerceTo tgt v =
 
     VSInt _ n ->
       case tgt of
-        TVInteger -> (Right (VInteger  n), exact)
-        TVUInt st -> (Right (vUIntWrapping  st n), inRange (uintRange st) n)
-        TVSInt st -> (Right (vSInt' st n), inRange (sintRange st) n)
+        TVInteger -> ((VInteger  n), exact)
+        TVUInt st -> ((vUIntWrapping  st n), inRange (uintRange st) n)
+        TVSInt st -> ((vSInt' st n), inRange (sintRange st) n)
 
-        TVFloat   -> (Right (VFloat x), b)
+        TVFloat   -> ((VFloat x), b)
            where (x,b) = numToFloating n
 
-        TVDouble  -> (Right (VDouble x), b)
+        TVDouble  -> ((VDouble x), b)
            where (x,b) = numToFloating n
 
         TVBDStruct {} -> bug
@@ -57,14 +57,14 @@ vCoerceTo tgt v =
 
     VInteger n ->
       case tgt of
-        TVInteger -> (Right v,             exact)
-        TVUInt st -> (Right (vUIntWrapping  st n), inRange (uintRange st) n)
-        TVSInt st -> (Right (vSInt' st n), inRange (sintRange st) n)
+        TVInteger -> (v,             exact)
+        TVUInt st -> ((vUIntWrapping  st n), inRange (uintRange st) n)
+        TVSInt st -> ((vSInt' st n), inRange (sintRange st) n)
 
-        TVFloat   -> (Right (VFloat x), b)
+        TVFloat   -> ((VFloat x), b)
            where (x,b) = numToFloating n
 
-        TVDouble  -> (Right (VDouble x), b)
+        TVDouble  -> ((VDouble x), b)
            where (x,b) = numToFloating n
 
         TVBDStruct {} -> bug
@@ -76,19 +76,17 @@ vCoerceTo tgt v =
 
     VFloat n ->
       case tgt of
-        TVInteger     -> (r, ifDef r \ ~(VInteger j) -> fromInteger j == n)
-          where r = VInteger <$> floatingToInt n
+        TVInteger     -> (VInteger i, fromInteger i == n)
+          where i = floatingToInt n
 
-        TVUInt w      -> (r, ifDef r \ ~(VUInt _ j) -> fromInteger j == n)
-          where
-          r = vUIntWrapping w <$> floatingToInt n
+        TVUInt w      -> (r, let VUInt _ j = r in fromInteger j == n)
+          where r = floatingToUInt w n
 
-        TVSInt w      -> (r, ifDef r \ ~(VSInt _ j) -> fromInteger j == n)
-          where
-          r = vSInt' w <$> floatingToInt n
+        TVSInt w      -> (r, let VSInt _ j = r in fromInteger j == n)
+          where r = floatingToSInt w n
 
-        TVFloat       -> (Right v, exact)
-        TVDouble      -> (Right (VDouble (float2Double n)), True)
+        TVFloat       -> (v, exact)
+        TVDouble      -> (VDouble (float2Double n), True)
         TVNum {}      -> bug
         TVArray       -> bug
         TVMap         -> bug
@@ -98,22 +96,20 @@ vCoerceTo tgt v =
 
     VDouble n ->
       case tgt of
-        TVInteger     -> (r, ifDef r \ ~(VInteger j) -> fromInteger j == n)
-          where r = VInteger <$> floatingToInt n
+        TVInteger     -> (VInteger i, fromInteger i == n)
+          where i = floatingToInt n
 
-        TVUInt w      -> (r, ifDef r \ ~(VUInt _ j) -> fromInteger j == n)
-          where
-          r = vUIntWrapping w <$> floatingToInt n
+        TVUInt w      -> (r, let VUInt _ j = r in fromInteger j == n)
+          where r = floatingToUInt w n
 
-        TVSInt w      -> (r, ifDef r \ ~(VSInt _ j) -> fromInteger j == n)
-          where
-          r = vSInt' w <$> floatingToInt n
+        TVSInt w      -> (r, let VSInt _ j = r in fromInteger j == n)
+          where r = floatingToSInt w n
 
-        TVFloat       -> (Right (VFloat x), b)
+        TVFloat       -> ((VFloat x), b)
           where x = double2Float n
                 b = isNaN n || float2Double x == n
 
-        TVDouble      -> (Right v, exact)
+        TVDouble      -> (v, exact)
         TVNum {}      -> bug
         TVArray       -> bug
         TVMap         -> bug
@@ -123,7 +119,7 @@ vCoerceTo tgt v =
 
     VBDStruct _ n ->
       case tgt of
-        TVUInt w      -> (Right (VUInt w n), exact)
+        TVUInt w      -> ((VUInt w n), exact)
         -- assumes that the widths match
         TVInteger     -> bug
         TVSInt {}     -> bug
@@ -132,13 +128,13 @@ vCoerceTo tgt v =
         TVNum {}      -> bug
         TVArray       -> bug
         TVMap         -> bug
-        TVBDStruct {} -> (Right v, exact)
+        TVBDStruct {} -> (v, exact)
         TVBDUnion {}  -> bug
         TVOther       -> bug
 
     VBDUnion _ n ->
       case tgt of
-        TVUInt w      -> (Right (VUInt w n), exact)
+        TVUInt w      -> ((VUInt w n), exact)
         -- assumes that the widths match
         TVInteger     -> bug
         TVSInt {}     -> bug
@@ -148,26 +144,23 @@ vCoerceTo tgt v =
         TVArray       -> bug
         TVMap         -> bug
         TVBDStruct {} -> bug
-        TVBDUnion {}  -> (Right v,exact)
+        TVBDUnion {}  -> (v,exact)
         TVOther       -> bug
 
-    VBool {}      -> (Right v, exact)
-    VUnionElem {} -> (Right v, exact)
-    VStruct {}    -> (Right v, exact)
-    VMap {}       -> (Right v, exact)
-    VStream {}    -> (Right v, exact)
-    VArray {}     -> (Right v, exact)
-    VMaybe {}     -> (Right v, exact)
-    VBuilder {}   -> (Right v, exact)
-    VIterator {}  -> (Right v, exact)
+    VBool {}      -> (v, exact)
+    VUnionElem {} -> (v, exact)
+    VStruct {}    -> (v, exact)
+    VMap {}       -> (v, exact)
+    VStream {}    -> (v, exact)
+    VArray {}     -> (v, exact)
+    VMaybe {}     -> (v, exact)
+    VBuilder {}   -> (v, exact)
+    VIterator {}  -> (v, exact)
 
 
 
   where
   exact = True
-  ifDef x p = case x of
-                Left {} -> False
-                Right a -> p a
 
   bug   = panic "vCoerceTo" [ "Invalid coercion"
                             , "Target: " ++ showPP tgt
@@ -180,11 +173,36 @@ numToFloating a = (y, toRational y == x)
   x = toRational a
   y = fromRational x
 
-floatingToInt :: RealFloat a => a -> Partial Integer
+-- | Total conversion from float to Integer: NaN/Inf -> 0, otherwise truncate.
+floatingToInt :: RealFloat a => a -> Integer
 floatingToInt a
-  | isNaN a      = vErr "Cannot cast NaN"
-  | isInfinite a = vErr "Cannon cast Inf"
-  | otherwise    = Right (truncate a)
+  | isNaN a      = 0
+  | isInfinite a = 0
+  | otherwise    = truncate a
+
+-- | Saturating conversion from float to UInt: NaN -> 0, clamp to [0, max].
+floatingToUInt :: RealFloat a => Int -> a -> Value
+floatingToUInt w a
+  | isNaN a || a <= 0    = VUInt w 0
+  | isInfinite a         = VUInt w hi
+  | i >= hi              = VUInt w hi
+  | otherwise            = VUInt w i
+  where
+    i  = truncate a
+    hi = snd (uintRange w)
+
+-- | Saturating conversion from float to SInt: NaN → 0, clamp to [min, max].
+floatingToSInt :: RealFloat a => Int -> a -> Value
+floatingToSInt w a
+  | isNaN a              = VSInt w 0
+  | isInfinite a && a > 0 = VSInt w hi
+  | isInfinite a         = VSInt w lo
+  | i < lo               = VSInt w lo
+  | i > hi               = VSInt w hi
+  | otherwise            = VSInt w i
+  where
+    i       = truncate a
+    (lo,hi) = sintRange w
 
 
 

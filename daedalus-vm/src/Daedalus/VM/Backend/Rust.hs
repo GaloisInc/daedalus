@@ -345,20 +345,42 @@ compileOp1 x op e argTy =
     Core.CoerceTo ty
       | srcTy == ty -> def e
 
-      | Just {} <- Core.isBits srcTy -> 
+      | Just {} <- Core.isBits srcTy ->
         case () of
           _
             | Just _ <- Core.isBits ty ->
               [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
             | Core.TInteger <- ty -> use_into e
+            | Core.TFloat  <- ty -> def (Rust.callMethod e "to_f32" [])
+            | Core.TDouble <- ty -> def (Rust.callMethod e "to_f64" [])
             | Core.TUser {} <- ty -> mk_bd e
             | otherwise -> badTgt
 
       | Core.TInteger <- srcTy ->
         case () of
-          _ 
+          _
             | Just {} <- Core.isBits ty -> use_into e
+            | Core.TFloat  <- ty -> def (Rust.callMethod e "to_f32" [])
+            | Core.TDouble <- ty -> def (Rust.callMethod e "to_f64" [])
             | Core.TUser {} <- ty -> mk_bd (Rust.callMethod e "into" [])
+            | otherwise -> badTgt
+
+      | Core.TFloat <- srcTy ->
+        case () of
+          _
+            | Just (False, _) <- Core.isBits ty -> defTy (fromTgt "from_f32" e)
+            | Just (True, _)  <- Core.isBits ty -> defTy (fromTgt "from_f32" e)
+            | Core.TInteger <- ty -> def (callRTS "Int::from_f32" [e])
+            | Core.TDouble  <- ty -> def (Rust.cast e (Rust.tF 64))
+            | otherwise -> badTgt
+
+      | Core.TDouble <- srcTy ->
+        case () of
+          _
+            | Just (False, _) <- Core.isBits ty -> defTy (fromTgt "from_f64" e)
+            | Just (True, _)  <- Core.isBits ty -> defTy (fromTgt "from_f64" e)
+            | Core.TInteger <- ty -> def (callRTS "Int::from_f64" [e])
+            | Core.TFloat   <- ty -> def (Rust.cast e (Rust.tF 32))
             | otherwise -> badTgt
 
       | Core.TUser {} <- srcTy ->
@@ -369,6 +391,8 @@ compileOp1 x op e argTy =
       | otherwise -> panic "compileOp1" ["Bad source type in coerce"]
       where
       use_into v = [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod v "into" [])]
+      defTy re = [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) re]
+      fromTgt meth arg = Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath meth)) [arg]
 
       -- XXX: This is where we should normalize things to fix #395.
       mk_bd v = def (Rust.call
@@ -466,8 +490,10 @@ compileOp1 x op e argTy =
       bad msg = panic "compileOp1" ["FromUnion",msg]
                   
        
-    Core.WordToFloat -> def (Rust.cast e (Rust.tF 32))
-    Core.WordToDouble -> def (Rust.cast e (Rust.tF 64))
+    Core.WordToFloat -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f32", "from_bits"]))
+                              [Rust.call (Rust.pathExpr (Rust.simplePath' ["u32", "from"])) [e]])
+    Core.WordToDouble -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f64", "from_bits"]))
+                              [Rust.call (Rust.pathExpr (Rust.simplePath' ["u64", "from"])) [e]])
     Core.IsNaN -> def (Rust.callMethod e "is_nan" [])
     Core.IsInfinite -> def (Rust.callMethod e "is_infinite" [])
     Core.IsDenormalized -> def (Rust.callMethod e "is_subnormal" [])

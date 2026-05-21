@@ -233,7 +233,7 @@ evalType env ty =
 
 evalOp1 :: Map TName TDecl -> Op1 -> Type -> Value -> Value
 evalOp1 env op ty v = case op of
-  CoerceTo t    -> partial (fst (vCoerceTo (evalType env t) v))
+  CoerceTo t    -> fst (vCoerceTo (evalType env t) v)
 
   WordToFloat     -> vWordToFloat v
   WordToDouble    -> vWordToDouble v

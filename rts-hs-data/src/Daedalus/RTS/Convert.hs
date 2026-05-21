@@ -66,11 +66,11 @@ instance Bitdata Float where
 
 instance Convert Float Float        where convert = id; {-# INLINE convert #-}
 instance Convert Float Double       where convert = float2Double; {-# INLINE convert #-}
-instance Convert Float Integer      where convert = truncate; {-# INLINE convert #-}
+instance Convert Float Integer      where convert = floatToInteger; {-# INLINE convert #-}
 instance SizeType n =>
-         Convert Float (UInt n)     where convert = lit . convert; {-# INLINE convert #-}
+         Convert Float (UInt n)     where convert = floatToUInt; {-# INLINE convert #-}
 instance SizeType n =>
-         Convert Float (SInt n)     where convert = lit . convert; {-# INLINE convert #-}
+         Convert Float (SInt n)     where convert = floatToSInt; {-# INLINE convert #-}
 
 -- Double ----------------------------------------------------------------------
 instance Bitdata Double where
@@ -82,11 +82,11 @@ instance Bitdata Double where
 
 instance Convert Double Float       where convert = double2Float; {-# INLINE convert #-}
 instance Convert Double Double      where convert = id; {-# INLINE convert #-}
-instance Convert Double Integer     where convert = truncate; {-# INLINE convert #-}
+instance Convert Double Integer     where convert = floatToInteger; {-# INLINE convert #-}
 instance SizeType n =>
-         Convert Double (UInt n)    where convert = lit . convert; {-# INLINE convert #-}
+         Convert Double (UInt n)    where convert = floatToUInt; {-# INLINE convert #-}
 instance SizeType n =>
-         Convert Double (SInt n)    where convert = lit . convert; {-# INLINE convert #-}
+         Convert Double (SInt n)    where convert = floatToSInt; {-# INLINE convert #-}
 
 -- Integer ---------------------------------------------------------------------
 instance Convert Integer Float      where convert = fromInteger; {-# INLINE convert #-}

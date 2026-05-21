@@ -19,6 +19,11 @@ module Daedalus.RTS.Numeric
   , cvtFloatingToNumMaybe
   , cvtNumMaybe
 
+    -- ** Saturating float-to-int
+  , floatToUInt
+  , floatToSInt
+  , floatToInteger
+
     -- ** Floating
   , wordToFloat, floatToWord
   , wordToDouble, doubleToWord
@@ -576,6 +581,47 @@ cvtFloatingToNumMaybe x
 {-# INLINE cvtFloatingToNumMaybe #-}
 
 
+
+-- | Saturating conversion from floating point to UInt.
+-- NaN → 0, clamp to [0, 2^n - 1], truncate toward zero.
+floatToUInt :: (RealFloat a, SizeType n) => a -> UInt n
+floatToUInt x = result
+  where
+    result
+      | isNaN x || x <= 0   = lit 0
+      | isInfinite x        = lit maxVal
+      | i >= maxVal          = lit maxVal
+      | otherwise            = lit i
+    i = truncate x :: Integer
+    maxVal = bit (thisWidth result) - 1
+{-# INLINE floatToUInt #-}
+
+-- | Saturating conversion from floating point to SInt.
+-- NaN → 0, clamp to [-2^(n-1), 2^(n-1) - 1], truncate toward zero.
+floatToSInt :: (RealFloat a, SizeType n) => a -> SInt n
+floatToSInt x = result
+  where
+    result
+      | isNaN x              = lit 0
+      | isInfinite x && x > 0 = lit hi
+      | isInfinite x         = lit lo
+      | i < lo               = lit lo
+      | i > hi               = lit hi
+      | otherwise            = lit i
+    i  = truncate x :: Integer
+    w  = thisWidth result
+    hi = bit (w - 1) - 1
+    lo = negate (bit (w - 1))
+{-# INLINE floatToSInt #-}
+
+-- | Saturating conversion from floating point to Integer.
+-- NaN/Inf → 0, otherwise truncate toward zero.
+floatToInteger :: RealFloat a => a -> Integer
+floatToInteger x
+  | isNaN x      = 0
+  | isInfinite x = 0
+  | otherwise    = truncate x
+{-# INLINE floatToInteger #-}
 
 cvtNum :: (Numeric a, Arith b) => a -> b
 cvtNum = lit . asInt
