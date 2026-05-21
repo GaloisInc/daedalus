@@ -33,7 +33,7 @@ vDiv =
                           , "Operand 2: " ++ show b
                           ]
   where
-  f x y = if y == 0 then vErr "Division by 0" else pure (div x y)
+  f x y = if y == 0 then vErr "Division by 0" else pure (quot x y)
 
 vMod :: Value -> Value -> Partial Value
 vMod =
@@ -48,9 +48,6 @@ vMod =
                           , "Operand 2: " ++ show b
                           ]
   where f x y = if y == 0 then vErr "Modulus by 0" else pure (rem x y)
-  -- We use `rem` here, because this is what % does on signed numbers in
-  -- most standard languages (e.g., C++/Rust), so this should be the least
-  -- surprising behavior.
 
 
 

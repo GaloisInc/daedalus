@@ -243,7 +243,7 @@ instance Arith Integer where
   add = (+)
   sub = (-)
   mul = (*)
-  div = Prelude.div
+  div = quot
   neg = negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -255,7 +255,7 @@ instance Arith Integer where
 
 
 instance Numeric Integer where
-  mod = Prelude.mod
+  mod = Prelude.rem
 
   asInt = id
 
@@ -319,7 +319,7 @@ instance SizeType n => Arith (UInt n) where
   add             = normBinU (+)
   sub             = normBinU (-)
   mul             = normBinU (*)
-  div             = normBinU Prelude.div
+  div             = normBinU quot
   neg             = normUnU negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -332,7 +332,7 @@ instance SizeType n => Arith (UInt n) where
 
 
 instance SizeType n => Numeric (UInt n) where
-  mod             = normBinU Prelude.mod
+  mod             = normBinU Prelude.rem
 
   bitOr           = binU (.|.)
   bitAnd          = binU (.&.)
@@ -358,7 +358,7 @@ instance SizeType n => Arith (SInt n) where
   add             = normBinS (+)
   sub             = normBinS (-)
   mul             = normBinS (*)
-  div             = normBinS Prelude.div
+  div             = normBinS quot
   neg             = normUnS negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -370,7 +370,7 @@ instance SizeType n => Arith (SInt n) where
 
 
 instance SizeType n => Numeric (SInt n) where
-  mod             = normBinS Prelude.mod
+  mod             = normBinS Prelude.rem
 
   bitOr           = binS (.|.)
   bitAnd          = binS (.&.)
