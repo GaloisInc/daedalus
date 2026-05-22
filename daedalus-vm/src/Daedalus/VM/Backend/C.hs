@@ -248,6 +248,9 @@ curFunThrows = vmfThrows curBlockFun
 curFunIsPure :: (CurBlock, BlockOwner, AllFuns) => Bool
 curFunIsPure = vmfPure curBlockFun
 
+curResultType :: (CurBlock, BlockOwner, AllFuns, NSUser) => CType
+curResultType =
+  cInst "DDL::Result" [cSemType (Src.fnameType (vmfName curBlockFun))]
 
 
 --------------------------------------------------------------------------------
@@ -819,7 +822,8 @@ cPropagateExnPure resultVar =
     NoCapture
       | curFunIsPure ->
         [ cStmt ("return" <+>
-            cCall "DDL::Result::failure" [resultVar <.> ".getException()"])
+            cCall (curResultType <.> "::failure")
+                  [resultVar <.> ".getException()"])
         ]
       | otherwise ->
         cSetExnFromPure resultVar ++
@@ -1204,7 +1208,8 @@ cTermStmt ccInstr =
         NoCapture
           | curFunIsPure ->
             [ cStmt ("return" <+>
-                cCall "DDL::Result::failure" [text (show loc), text (show msg)])
+                cCall (curResultType <.> "::failure")
+                      [text (show loc), text (show msg)])
             ]
           | otherwise ->
             [ cStmt (cCall "p.setException" [text (show loc), text (show msg)])
@@ -1221,7 +1226,7 @@ cTermStmt ccInstr =
         NoCapture
           | curFunThrows == Throws ->
             [ cStmt ("return" <+>
-                cCall "DDL::Result::ok" [cExpr e]) ]
+                cCall (curResultType <.> "::ok") [cExpr e]) ]
           | otherwise ->
             [ cStmt ("return" <+> cExpr e) ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
