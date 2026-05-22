@@ -28,7 +28,7 @@ impl<'a,T> Clone for BuilderB<'a,T> {
 
 impl <T: ddl::Type> Type for Builder<T> {
   type B<'a> = BuilderB<'a,T>;
-  fn bor(&self) -> BuilderB<T> { BuilderB { node: self.node.bor() } }
+  fn bor(&self) -> BuilderB<'_,T> { BuilderB { node: self.node.bor() } }
 }
 
 impl <'a, T: ddl::Type> Clo for BuilderB<'a,T> {
@@ -136,7 +136,7 @@ pub fn new_builder<T>() -> Builder<T> {
 
 
 impl<T: Type> Builder<T> {
-  pub fn iter(&self) -> BuilderBIter<T> {
+  pub fn iter(&self) -> BuilderBIter<'_,T> {
     self.bor().iter()
   }
 }

@@ -15,7 +15,7 @@ pub struct ArrayB<'a,T> { rc: ddl::B<'a,[T]> }
 
 impl<T: ddl::Type> ddl::Type for Array<T> {
   type B<'a> = ArrayB<'a,T>;
-  fn bor(&self) -> ArrayB<T> { ArrayB { rc: self.rc.bor() } }
+  fn bor(&self) -> ArrayB<'_,T> { ArrayB { rc: self.rc.bor() } }
 }
 
 impl <T: ddl::Type> ddl::Clo for ArrayB<'_,T> {
@@ -130,7 +130,7 @@ impl<'a,T> Copy for ArrayIteratorB<'a,T> {}
 
 impl<T: ddl::Type> ddl::Type for ArrayIterator<T> {
   type B<'a> = ArrayIteratorB<'a,T>;
-  fn bor(&self) -> ArrayIteratorB<T> {
+  fn bor(&self) -> ArrayIteratorB<'_,T> {
     ArrayIteratorB { index: self.index, array: self.array.bor() }
   }
 }
