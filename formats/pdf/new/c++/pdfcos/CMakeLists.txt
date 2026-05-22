@@ -15,7 +15,7 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfDecl.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfXRef.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfValue.ddl
-  COMMAND cabal run exe:daedalus -v0 --
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../bin/daedalus
     compile-c++
     --add-include='<pdfcos/declare_state.hpp>'
     --user-state=ReferenceTable

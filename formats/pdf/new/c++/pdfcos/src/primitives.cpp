@@ -10,10 +10,11 @@
 #include "lzw.hpp"
 #include "predictor.hpp"
 
+#include <ddl/exception.h>
 #include <pdfcos.hpp>
 
 // owns inputin, message
-bool parser_Trace
+DDL::ParserResult parser_Trace
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input* inputout
@@ -25,7 +26,7 @@ bool parser_Trace
   *result = DDL::Unit();
 
   std::string msg;
-  msg.reserve(message.size().value);
+  msg.reserve(message.size().rep());
 
   for (DDL::Size i = 0; i < message.size(); i.increment()) {
     msg += message.borrowElement(i).rep();
@@ -34,12 +35,12 @@ bool parser_Trace
 
   std::cerr << "Parser trace: " << msg << std::endl;
 
-  return true;
+  return DDL::ParserResult::Ok;
 }
 
 
 // owns input,ref
-bool parser_ResolveRef
+DDL::ParserResult parser_ResolveRef
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Maybe<PdfCos::TopDecl> *result
   , DDL::Input *out_input
@@ -58,15 +59,15 @@ bool parser_ResolveRef
     auto &refs = pstate.getUserState();
     if (refs.resolve_reference(refid, gen, result)) {
       *out_input = input;
-      return true;
+      return DDL::ParserResult::Ok;
     } else {
       input.free();
-      return false;
+      return DDL::ParserResult::Failure;
     }
 }
 
 // owns input body
-bool parser_Decrypt
+DDL::ParserResult parser_Decrypt
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -78,7 +79,7 @@ bool parser_Decrypt
   auto &refs = pstate.getUserState();
   if (refs.getEncryptionContext().has_value()) {
     auto const& e = *refs.getEncryptionContext();
-    
+
     switch (e.cipher.borrow().getTag()) {
       case DDL::Tag::ChooseCiph::v4AES: {
         auto key = makeObjKey(
@@ -91,39 +92,39 @@ bool parser_Decrypt
         if (!aes_cbc_decryption(
               EVP_aes_128_cbc(),
               body.borrowBytes().data(),
-              body.length().value,
+              body.length().rep(),
               reinterpret_cast<char const*>(key.data()),
               output)
         ) {
           std::cerr << "INFO: Decryption has failed (v4AES)?" << std::endl;
           input.free();
           body.free();
-          return false;
+          return DDL::ParserResult::Failure;
         }
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
         body.free();
-        return true;
+        return DDL::ParserResult::Ok;
       }
       case DDL::Tag::ChooseCiph::v5AES: {
         std::string output;
         if (!aes_cbc_decryption(
               EVP_aes_256_cbc(),
               body.borrowBytes().data(),
-              body.length().value,
+              body.length().rep(),
               reinterpret_cast<char const*>(refs.getEncryptionContext()->key.data()),
               output)
         ) {
           std::cerr << "INFO: Decryption has failed (v5AES)?" << std::endl;
           input.free();
           body.free();
-          return false;
+          return DDL::ParserResult::Failure;
         }
         // Check length is multiple of 16 and longer than 0
         *result = DDL::Input("decrypted", output.data(), output.size());
         *out_input = input;
         body.free();
-        return true;
+        return DDL::ParserResult::Ok;
       }
       default:
         std::cerr
@@ -135,17 +136,17 @@ bool parser_Decrypt
           << std::endl;
         input.free();
         body.free();
-        return false;
+        return DDL::ParserResult::Failure;
     }
   } else {
     *result = body;
     *out_input = input;
-    return true;
+    return DDL::ParserResult::Ok;
   }
 }
 
 // owns input, predictor, colors, bpc, columns, body
-bool parser_FlateDecode
+DDL::ParserResult parser_FlateDecode
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -170,13 +171,13 @@ bool parser_FlateDecode
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    strm.avail_in = body.length().value;
+    strm.avail_in = body.length().rep();
     strm.next_in = const_cast<unsigned char *>(reinterpret_cast<unsigned char const *>(bodyRef->borrowBytes().data()));
-    
+
     if (Z_OK != inflateInit(&strm)) {
       std::cerr << "INFO: inflate failed Z NOT OK" << std::endl;
       input.free();
-      return false;
+      return DDL::ParserResult::Failure;
     }
 
     size_t const chunksize = 2048;
@@ -197,7 +198,7 @@ bool parser_FlateDecode
           inflateEnd(&strm);
           input.free();
           std::cerr << "INFO: inflate failed" << std::endl;
-          return false;
+          return DDL::ParserResult::Failure;
       }
 
       if (strm.avail_out > 0) {
@@ -208,25 +209,25 @@ bool parser_FlateDecode
     inflateEnd(&strm);
 
     if (!unpredict(
-        predictor.asSize().value,
-        colors.asSize().value,
-        bpc.asSize().value,
-        columns.asSize().value,
+        predictor.asSize().rep(),
+        colors.asSize().rep(),
+        bpc.asSize().rep(),
+        columns.asSize().rep(),
         buffer))
     {
       std::cerr << "INFO: unpredict failed" << std::endl;
       input.free();
-      return false;
+      return DDL::ParserResult::Failure;
     }
 
     *result = DDL::Input("inflated", reinterpret_cast<char const*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
-    return true;
+    return DDL::ParserResult::Ok;
 }
 
 
 // owns input predictor colors bpc column earlychange body
-bool parser_LZWDecode
+DDL::ParserResult parser_LZWDecode
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input* result
   , DDL::Input* out_input
@@ -247,42 +248,42 @@ bool parser_LZWDecode
   auto bodyRef = DDL::Owned(body);
 
   try {
-    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes().data()), bodyRef->length().value);
+    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes().data()), bodyRef->length().rep());
 
     if (!unpredict(
-        predictor.asSize().value,
-        colors.asSize().value,
-        bpc.asSize().value,
-        columns.asSize().value,
+        predictor.asSize().rep(),
+        colors.asSize().rep(),
+        bpc.asSize().rep(),
+        columns.asSize().rep(),
         output))
     {
       input.free();
-      return false;
+      return DDL::ParserResult::Failure;
     }
 
     if (!unpredict(
-        predictor.asSize().value,
-        colors.asSize().value,
-        bpc.asSize().value,
-        columns.asSize().value,
+        predictor.asSize().rep(),
+        colors.asSize().rep(),
+        bpc.asSize().rep(),
+        columns.asSize().rep(),
         output))
     {
       input.free();
-      return false;
+      return DDL::ParserResult::Failure;
     }
 
     *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
     *out_input = input;
-    return true;
+    return DDL::ParserResult::Ok;
   } catch (LzwException const& e) {
     std::cerr << "INFO: " << e.what() << std::endl;
     input.free();
-    return false;
+    return DDL::ParserResult::Failure;
   }
 }
 
 // owns input,body
-bool parser_ASCIIHexDecode
+DDL::ParserResult parser_ASCIIHexDecode
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -293,19 +294,19 @@ bool parser_ASCIIHexDecode
   auto bodyRef = DDL::Owned(body);
 
   std::vector<unsigned char> buffer;
-  
-  if (ASCIIHexDecode(bodyRef->borrowBytes().data(), bodyRef->length().value, buffer)) {
+
+  if (ASCIIHexDecode(bodyRef->borrowBytes().data(), bodyRef->length().rep(), buffer)) {
     *result = DDL::Input("asciihex", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
-    return true;
+    return DDL::ParserResult::Ok;
   } else {
     input.free();
-    return false;
+    return DDL::ParserResult::Failure;
   }
 }
 
 // owns input,body
-bool parser_ASCII85Decode
+DDL::ParserResult parser_ASCII85Decode
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
   , DDL::Input *result
   , DDL::Input *out_input
@@ -317,13 +318,13 @@ bool parser_ASCII85Decode
 
   std::vector<uint8_t> buffer;
 
-  if (ASCII85Decode(bodyRef->borrowBytes().data(), bodyRef->length().value, buffer)) {
+  if (ASCII85Decode(bodyRef->borrowBytes().data(), bodyRef->length().rep(), buffer)) {
     *result = DDL::Input("ascii85", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
     *out_input = input;
-    return true;
+    return DDL::ParserResult::Ok;
   } else {
     std::cerr << "INFO: ascii85 failed" << std::endl;
     input.free();
-    return false;
+    return DDL::ParserResult::Failure;
   }
 }

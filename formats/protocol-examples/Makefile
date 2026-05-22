@@ -1,7 +1,7 @@
 .PHONY: build run clean example0 example1 example2
 
-# IMPORTANT:
-# Assumes that `ddl` directory is in the current directory
+DAEDALUS=../../bin/daedalus
+CXXFLAGS=--std=c++20 $(shell pkg-config --cflags gmpxx)
 
 run: build
 	###################
@@ -28,7 +28,7 @@ example0:
 	# Example 0
 	###########
 	# We use Daedalus to generate the C++ parser, and a sample driver
-	cabal exec daedalus -- \
+	$(DAEDALUS) \
 	  compile-c++ \
 	  Example0 \
 	  --out-dir=build/ddl/example0
@@ -42,14 +42,14 @@ example1:
 	# Example 1
 	###########
 	# First we use Daedalus to generate the C++ for the parser
-	cabal exec daedalus -- \
+	$(DAEDALUS) \
 	  compile-c++ \
 	  Example1 \
 	  --out-dir=build/ddl/example1 \
 	  --entry=Packet
 	#
 	# Then we build the executable
-	g++ -I. \
+	g++ $(CXXFLAGS) -I. \
 	    src/example1-driver.cpp \
 	    build/ddl/example1/main_parser.cpp \
 	    -o build/example1
@@ -59,14 +59,14 @@ example2:
 	# Example 2
 	###########
 	# First we use Daedalus to generate the C++ for the parser
-	cabal exec daedalus -- \
+	$(DAEDALUS) \
 	  compile-c++ \
 	  Example2 \
 	  --out-dir=build/ddl/example2 \
 	  --entry=Protocol
 	#
 	# Then we build the executable
-	g++ -I. \
+	g++ $(CXXFLAGS) -I. \
 	    src/example2-driver.cpp \
 	    build/ddl/example2/main_parser.cpp \
 	    -o build/example2
@@ -76,7 +76,7 @@ example3:
 	# Example 3
 	###########
 	# First we use Daedalus to generate the C++ for the parser
-	cabal exec daedalus -- \
+	$(DAEDALUS) \
 	  compile-c++ \
 	  Example2 \
 	  --out-dir=build/ddl/example3 \
@@ -85,7 +85,7 @@ example3:
 	  --user-state=CustomState
 	#
 	# Then we build the executable
-	g++ -I. -Isrc \
+	g++ $(CXXFLAGS) -I. -Isrc \
 	    src/example3-driver.cpp \
 	    build/ddl/example3/main_parser.cpp \
 	    -o build/example3

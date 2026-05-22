@@ -8,7 +8,7 @@ add_custom_command(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-validate-spec/PdfAll.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-validate-spec/TextExtract.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-validate-spec/Catalog.ddl
-  COMMAND cabal run exe:daedalus -v0 --
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../bin/daedalus
     --path=${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec
     --path=${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-validate-spec
     compile-c++

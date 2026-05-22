@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cctype>
 #include <iomanip>
+#include <ddl/exception.h>
 #include <main_parser.h>
 #include <pdfcos.hpp>
 
@@ -10,7 +11,7 @@
 std::u32string emittedCodepoints;
 
 
-bool parser_GetCharCode
+DDL::ParserResult parser_GetCharCode
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::SInt<32> *result
   , DDL::Input    *inputout
@@ -21,7 +22,7 @@ bool parser_GetCharCode
   if (inputin.isEmpty()) {
     cmap.free();
     inputin.free();
-    return false;
+    return DDL::ParserResult::Failure;
   }
 
 
@@ -34,7 +35,7 @@ bool parser_GetCharCode
     std::cerr << "Info: EMPTY RANGE\n";
     cmap.free();
     inputin.free();
-    return false;
+    return DDL::ParserResult::Failure;
   }
 
   int32_t val = 0;
@@ -46,7 +47,7 @@ bool parser_GetCharCode
       // *inputout = inp;
       // *result = val;
       // cmap.free();
-      return true;
+      return DDL::ParserResult::Ok;
     } 
     auto b = inp.iHead();
     // std::cerr << "byteIx = " << byteIx << ", byte = " << std::hex << b << "\n";
@@ -79,7 +80,7 @@ bool parser_GetCharCode
         *inputout = inp;
         *result = val;
         cmap.free();
-        return true;
+        return DDL::ParserResult::Ok;
       }
     }
     // std::cerr << "next byte\n";
@@ -92,10 +93,10 @@ FAIL:
   *inputout = inp;
   *result = -1;
   cmap.free();
-  return true;
+  return DDL::ParserResult::Ok;
 }
 
-bool parser_EmitChar
+DDL::ParserResult parser_EmitChar
   ( DDL::ParserStateUser<DDL::Input,ReferenceTable>& state
   , DDL::Unit* result
   , DDL::Input *inputout
@@ -106,7 +107,7 @@ bool parser_EmitChar
 
   *inputout = inputin;
   *result   = DDL::Unit();
-  return true;
+  return DDL::ParserResult::Ok;
 }
 
 

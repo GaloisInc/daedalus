@@ -1,4 +1,4 @@
-DAEDALUS=../bin/daedalus
+DAEDALUS=../../bin/daedalus
 PARSER_DIR=parser
 PARSER_FILES=$(PARSER_DIR)/format.cpp $(PARSER_DIR)/format.h
 

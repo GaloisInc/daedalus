@@ -20,7 +20,7 @@ TopThunk::TopThunk(uint64_t offset) : offset(offset) {}
 bool
 TopThunk::getDecl(ReferenceTable &refs, DDL::Input input, PdfCos::TopDecl *result)
 {
-    if (offset > input.length().value) {
+    if (offset > input.length().rep()) {
         input.free();
         return false;
     }
@@ -199,7 +199,7 @@ void ReferenceTable::process_trailer(std::unordered_set<size_t> *visited, DDL::I
         if (offset->isNothing()) {
             throw XrefException("Trailer has invalid Prev value");
         }
-        dbg << "Has PREV at " << offset->borrowValue().asSize().value << std::endl;
+        dbg << "Has PREV at " << offset->borrowValue().asSize().rep() << std::endl;
         process_xref(visited, input, offset->borrowValue().asSize(), false);
         dbg << "prev complete" << std::endl;
     }
@@ -226,7 +226,7 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
         auto subsection = subsections.borrowElement(i);
 
         // XXX: bounds check
-        uint64_t refid = subsection.borrow_firstId().asSize().value;
+        uint64_t refid = subsection.borrow_firstId().asSize().rep();
         dbg << "XRef Section starting at " << refid << std::endl;
 
         auto entries = subsection.borrow_entries();
@@ -237,15 +237,15 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
                 case DDL::Tag::XRefObjEntry::compressed: {
                     auto compressed = entry.borrow_compressed();
 
-                    uint64_t container = compressed.borrow_container_obj().asSize().value;
-                    uint64_t obj_index = compressed.borrow_obj_index().asSize().value;
+                    uint64_t container = compressed.borrow_container_obj().asSize().rep();
+                    uint64_t obj_index = compressed.borrow_obj_index().asSize().rep();
 
                     register_compressed_reference(refid, container, obj_index);
                     break;
                 }
                 case DDL::Tag::XRefObjEntry::free: {
                     dbg << "FREE entry " << refid << std::endl;
-                    unregister(entry.borrow_free().borrow_obj().asSize().value);
+                    unregister(entry.borrow_free().borrow_obj().asSize().rep());
                     break;
                 }
 
@@ -253,10 +253,10 @@ void ReferenceTable::process_newXRef(std::unordered_set<size_t> *visited, DDL::I
                     auto inUse = entry.borrow_inUse();
                     
                     // 10 digit natural fits in 34 bits
-                    uint64_t offset = inUse.borrow_offset().asSize().value;
+                    uint64_t offset = inUse.borrow_offset().asSize().rep();
 
                     // maximum generation number is 65,535
-                    generation_type gen = inUse.borrow_gen().asSize().value;
+                    generation_type gen = inUse.borrow_gen().asSize().rep();
 
                     register_uncompressed_reference(refid, gen, offset);
                     break;
@@ -315,12 +315,12 @@ void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::I
 
     auto subsections = old.borrow_xref();
 
-    DDL::Size in = subsections.size().value;
+    DDL::Size in = subsections.size().rep();
     for (DDL::Size i = 0; i < in; i.increment()) {
         auto sub = subsections.borrowElement(i);
 
         // XXX: Bounds check
-        uint64_t refid = sub.borrow_firstId().asSize().value;
+        uint64_t refid = sub.borrow_firstId().asSize().rep();
 
         auto entries = sub.borrow_entries();
         for (DDL::Size j = 0; j < entries.size(); j.increment()) {
@@ -331,17 +331,17 @@ void ReferenceTable::process_oldXRef(std::unordered_set<size_t> *visited, DDL::I
                     auto isUse = entry.borrow_inUse();
 
                     // 10 digit natural fits in 34 bits
-                    uint64_t offset = isUse.borrow_offset().asSize().value;
+                    uint64_t offset = isUse.borrow_offset().asSize().rep();
 
                     // maximum generation number is 65,535
-                    generation_type gen = isUse.borrow_gen().asSize().value;
+                    generation_type gen = isUse.borrow_gen().asSize().rep();
 
                     register_uncompressed_reference(refid, gen, offset);
                     break;
                 }
 
                 case DDL::Tag::CrossRefEntry::free: {
-                    unregister(entry.borrow_free().borrow_obj().asSize().value);
+                    unregister(entry.borrow_free().borrow_obj().asSize().rep());
                     break;
                 }
             }
@@ -369,7 +369,7 @@ ReferenceTable::getRoot() const { return root; }
 void ReferenceTable::process_xref(std::unordered_set<size_t> *visited, DDL::Input input, DDL::Size offset, bool top)
 {
     // Detect if cross-reference sections form a cycle
-    if (!visited->insert(offset.value).second) {
+    if (!visited->insert(offset.rep()).second) {
         throw XrefException("XRef tables form loop");
     }
 
@@ -443,7 +443,7 @@ size_t findPdfStart(size_t len, char const* bytes) {
 // Owns input
 void ReferenceTable::process_pdf(DDL::Input input)
 {
-    auto start = findPdfStart(input.length().value, input.borrowBytes().data());
+    auto start = findPdfStart(input.length().rep(), input.borrowBytes().data());
     input.iDropMut(start);
 
     topinput = DDL::Owned(input);

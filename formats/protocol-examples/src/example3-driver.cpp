@@ -5,6 +5,7 @@
 #include <ddl/input.h>
 #include <ddl/number.h>
 #include <ddl/unit.h>
+#include <ddl/exception.h>
 #include <ddl/utils.h>
 
 #include "build/ddl/example3/main_parser.h"
@@ -28,7 +29,7 @@ bool inputFromFile(const char *file, DDL::Input *input)
 }
 
 // This is the implementation of the `GetPacketBytes` primitive.
-bool parser_GetPacketBytes
+DDL::ParserResult parser_GetPacketBytes
   ( DDL::ParserStateUser<DDL::Input,CustomState>& state
   , DDL::Unit *result
   , DDL::Input *newInput
@@ -43,19 +44,20 @@ bool parser_GetPacketBytes
   currentInput.free();
 
   // Parser fails if we don't have any more "packets"
-  if (user.next_file >= user.file_number) return false;
+  if (user.next_file >= user.file_number)
+    return DDL::ParserResult::Failure;
 
   char *name = user.files[user.next_file];
   // Load packet bytes from a file
   if (!inputFromFile(name, newInput)) {
     std::cerr << "Failed to open file " << name << std::endl;
-    return false; // We also fail if we failed to open the file
+    return DDL::ParserResult::Failure;
   }
 
   ++user.next_file;   // Get ready for next packet
   *result = DDL::Unit();      // No interesting result to return
 
-  return true;                // Success!
+  return DDL::ParserResult::Ok;
 }
 
 

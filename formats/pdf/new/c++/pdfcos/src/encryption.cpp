@@ -49,22 +49,22 @@ struct EncStringParts {
 namespace {
 EncStringParts splitEncBytes(DDL::Array<DDL::UInt<8>> & input)
 {
-    if (input.size().value != 48) {
+    if (input.size().rep() != 48) {
         throw EncryptionException();
     }
 
     EncStringParts result;
 
     for (DDL::Size i = 0; i < 32; i.increment()) {
-        result.hashValue[i.value] = input[i].rep();
+        result.hashValue[i.rep()] = input[i].rep();
     }
 
     for (DDL::Size i = 32; i < 40; i.increment()) {
-        result.validationSalt[i.value-32] = input[i].rep();
+        result.validationSalt[i.rep()-32] = input[i].rep();
     }
 
     for (DDL::Size i = 40; i < 48; i.increment()) {
-        result.keySalt[i.value-40] = input[i].rep();
+        result.keySalt[i.rep()-40] = input[i].rep();
     }
 
     return result;
@@ -153,7 +153,7 @@ std::vector<uint8_t> makeFileKeyAlg2a(
 namespace {
 std::vector<uint8_t> arrayToVector(DDL::Array<DDL::UInt<8>> array) {
     std::vector<uint8_t> result;
-    result.reserve(array.size().value);
+    result.reserve(array.size().rep());
 
     for (DDL::Size i = 0; i < array.size(); i.increment()) {
         result.push_back(array.borrowElement(i).rep());
@@ -188,18 +188,18 @@ std::vector<uint8_t> makeFileKeyAlg2(
     }
 
     std::vector<uint8_t> hashInput;
-    hashInput.reserve(encO.size().value);
+    hashInput.reserve(encO.size().rep());
     for (DDL::Size i = 0; i < encO.size(); i.increment()) {
         hashInput.push_back(encO.borrowElement(i).rep());
     }
     ctx.update(hashInput.data(), hashInput.size());
 
-    uint32_t pval = encP.asSize().value;
+    uint32_t pval = encP.asSize().rep();
     uint8_t pbytes[4] = { uint8_t(pval >> (0*8)), uint8_t(pval >> (1*8)), uint8_t(pval >> (2*8)), uint8_t(pval >> (3*8)) };
     ctx.update(pbytes, std::size(pbytes));
 
     hashInput.clear();
-    hashInput.reserve(id0.size().value);
+    hashInput.reserve(id0.size().rep());
     for (DDL::Size i = 0; i < id0.size(); i.increment()) {
         hashInput.push_back(id0.borrowElement(i).rep());
     }
