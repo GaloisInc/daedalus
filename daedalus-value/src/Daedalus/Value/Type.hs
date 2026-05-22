@@ -331,13 +331,13 @@ vCompare a b =
     (VBool _,        _)                     -> LT
     (_,              VBool _)               -> GT
 
-    (VFloat x,        VFloat y)               -> compare x y
-    (VFloat _,        _)                     -> LT
-    (_,              VFloat _)               -> GT
+    (VFloat x,        VFloat y)             -> compare x y
+    (VFloat _,        _)                    -> LT
+    (_,              VFloat _)              -> GT
 
-    (VDouble x,        VDouble y)               -> compare x y
-    (VDouble _,        _)                     -> LT
-    (_,              VDouble _)               -> GT
+    (VDouble x,        VDouble y)           -> compare x y
+    (VDouble _,        _)                   -> LT
+    (_,              VDouble _)             -> GT
 
     (VUnionElem p x, VUnionElem q y)        -> compare (p,x) (q,y)
     (VUnionElem _ _, _)                     -> LT
