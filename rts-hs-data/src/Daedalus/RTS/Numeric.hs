@@ -346,8 +346,10 @@ instance SizeType n => Numeric (UInt n) where
   bitAnd          = binU (.&.)
   bitXor          = binU xor
   bitCompl        = unU complement
-  shiftl' x i     = normUnU (`shiftL` i) x
-  shiftr' x i     = normUnU (`shiftR` i) x
+  shiftl' x i     = if i >= thisWidth x then UInt 0
+                     else normUnU (`shiftL` i) x
+  shiftr' x i     = if i >= thisWidth x then UInt 0
+                     else normUnU (`shiftR` i) x
 
   asInt (UInt x)  = toInteger x
   {-# INLINE mod #-}
@@ -384,8 +386,10 @@ instance SizeType n => Numeric (SInt n) where
   bitAnd          = binS (.&.)
   bitXor          = binS xor
   bitCompl        = unS complement
-  shiftl' x i     = normUnS (`shiftL` i) x
-  shiftr' x i     = normUnS (`shiftR` i) x
+  shiftl' x i     = if i >= thisWidth x then lit 0
+                     else normUnS (`shiftL` i) x
+  shiftr' x i     = if i >= thisWidth x then lit (if asInt x < 0 then -1 else 0)
+                     else normUnS (`shiftR` i) x
 
   asInt (SInt x)  = toInteger x
   {-# INLINE mod #-}
