@@ -44,6 +44,7 @@ bitwise1 name f =
   tracedFun \a ->
   case a of
     VUInt n x -> vUIntWrapping n (f x)
+    VSInt n x -> vSInt' n (f x)
     _ -> panic "bitwise1" [ "Invalid unary bitwise operation"
                           , "Operation: " ++ name
                           , "Operand: " ++ show a
@@ -55,6 +56,7 @@ bitwise2 name f =
   tracedFun \a b ->
   case (a,b) of
     (VUInt n x, VUInt n' y) | n == n' -> vUIntWrapping n (f x y)
+    (VSInt n x, VSInt n' y) | n == n' -> vSInt' n (f x y)
     _ -> panic "bitwise2" [ "Invalid binary bitwise operation"
                           , "Operation: " ++ name
                           , "Operand 1: " ++ show a
