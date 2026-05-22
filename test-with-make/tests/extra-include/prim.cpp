@@ -2,7 +2,7 @@
 #include <userState.hpp>
 #include <iostream>
 
-bool parser_P
+DDL::ParserResult parser_P
   ( DDL::ParserStateUser<DDL::Input,UserState> &p
   , DDL::UInt<8ul> *out
   , DDL::Input *outi
@@ -14,5 +14,5 @@ bool parser_P
   s.increment();
   *out  = r;
   *outi = ini;
-  return true;
+  return DDL::ParserResult::Ok;
 }

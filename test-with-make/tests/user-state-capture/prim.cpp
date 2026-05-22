@@ -1,7 +1,7 @@
 #include <main_parser.h>
 #include <iostream>
 
-bool parser_P
+DDL::ParserResult parser_P
   ( DDL::ParserStateUser<DDL::Input,int> &p
   , DDL::UInt<8ul> *out
   , DDL::Input *outi
@@ -13,7 +13,7 @@ bool parser_P
   ++s;
   *out = DDL::UInt<8>(72);
   *outi = ini;
-  return true;
+  return DDL::ParserResult::Ok;
 }
 
 
