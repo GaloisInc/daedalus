@@ -155,33 +155,33 @@ impl<T: Clone> Builder<T> {
   }
 
   pub fn build(self) -> ddl::Array<T> {
-    
+    enum Chunk<T> { Owned(Vec<T>), Shared(Rc<Node<T>>) }
+
     let mut size = 0;
-    let mut own_stack: Vec<Vec<T>> = vec![];
-    let mut shared_stack: Vec<Rc<Node<T>>> = vec![];
-    
+    let mut stack: Vec<Chunk<T>> = vec![];
+
     let mut cur = Some(self);
     while let Some(builder) = cur {
       match Rc::try_unwrap(builder.node.rc) {
         Ok(node) => {
           size += node.data.len();
-          own_stack.push(node.data);
           cur = node.more;
+          stack.push(Chunk::Owned(node.data));
         },
         Err(rc) => {
           size += rc.data.len();
           cur = rc.more.clone();
-          shared_stack.push(rc);
+          stack.push(Chunk::Shared(rc));
         }
       }
     }
 
     let mut v = Vec::with_capacity(size);
-    for mut xs in own_stack.into_iter().rev() {
-      v.append(&mut xs);
-    }
-    for xs in shared_stack.into_iter().rev() {
-      v.extend_from_slice(xs.data.as_slice())
+    for chunk in stack.into_iter().rev() {
+      match chunk {
+        Chunk::Owned(mut xs) => v.append(&mut xs),
+        Chunk::Shared(rc) => v.extend_from_slice(&rc.data),
+      }
     }
     ddl::new_array_vec(v)
   }
