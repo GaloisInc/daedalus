@@ -811,7 +811,7 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
 
 -- Propagate an exception from a pure callee.
 -- The caller may be pure or a parser.
-cPropagateExnPure :: (CurBlock, BlockOwner, AllFuns, CaptureFun) => Doc -> [CStmt]
+cPropagateExnPure :: (CurBlock, BlockOwner, AllFuns, CaptureFun, NSUser) => Doc -> [CStmt]
 cPropagateExnPure resultVar =
   case ?captures of
     Capture ->
@@ -837,7 +837,7 @@ cSetExnFromPure resultVar =
 
 -- Propagate an exception from a parser callee.
 -- The exception is already stored in the parser state.
-cPropagateExnParser :: (CurBlock, BlockOwner, AllFuns, CaptureFun) => [CStmt]
+cPropagateExnParser :: (CurBlock, BlockOwner, AllFuns, CaptureFun, NSUser) => [CStmt]
 cPropagateExnParser =
   case ?captures of
     Capture -> cAbortCapture
@@ -848,15 +848,19 @@ cPropagateExnParser =
     Unknown -> panic "cPropagateExnParser" ["Unknown"]
 
 -- Abort a capturing parser: free all threads and return.
-cAbortCapture :: [CStmt]
+cAbortCapture :: (CurBlock, BlockOwner, AllFuns, NSUser) => [CStmt]
 cAbortCapture =
   [ cStmt (cCall "p.abortAll" [])
-  , cStmt ("if constexpr (DDL::hasRefs<decltype(results)::value_type>())" <+>
-           "for (auto& r : results) r.free()")
-  , cStmt (cCallMethod "results" "clear" [])
+  , cStmt ("if constexpr (DDL::hasRefs<" <.> elemTy <.> ">())" <+>
+           "for (auto& r : *" <.> resultsPtr <.> ") r.free()")
+  , cStmt (cCall (resultsPtr <.> "->clear") [])
   , cAssign "err" (cCallMethod "p" "getParseError" [])
   , "return;"
   ]
+  where
+  elemTy     = cSemType (Src.fnameType (vmfName curBlockFun))
+  vecTy      = cPtrT (cInst "std::vector" [ elemTy ])
+  resultsPtr = parens (parens vecTy <.> "out")
 
 
 
