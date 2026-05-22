@@ -28,10 +28,11 @@ data Config = Config
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
   ?blockSigs :: Map VM.Label [VM.Ownership],
-  ?tyDecls :: Map Core.TName Core.TDecl
+  ?tyDecls :: Map Core.TName Core.TDecl,
+  ?allFuns :: Map VM.FName VM.VMFun
   )
 
-type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc)
+type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
 
 compileProgram :: Config -> VM.Program -> String
 compileProgram _cfg vm = show (Rust.pretty' result)
@@ -43,6 +44,9 @@ compileProgram _cfg vm = show (Rust.pretty' result)
         ?tyDecls = Map.fromList [ (Core.tName t, t)
                                 | m <- VM.pModules vm,
                                   t <- forgetRecs (VM.mTypes m) ]
+        ?allFuns = Map.fromList [ (VM.vmfName f, f)
+                                | m <- VM.pModules vm,
+                                  f <- VM.mFuns m ]
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
@@ -89,15 +93,22 @@ compileFun fu =
   fnMsg           = backticks (pp fnm)
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
+  throws          = VM.vmfThrows fu
+  valTy           = compileType VM.Owned (Core.fnameType fnm)
+    where ?fnMsg = fnMsg
   resT
-    | VM.vmfPure fu = compileType VM.Owned (Core.fnameType fnm)
-    | otherwise     = Rust.tOption (Rust.tTuple [compileType VM.Owned (Core.fnameType fnm), compileType VM.Owned Core.TStream])
+    | VM.vmfPure fu, throws == VM.Throws =
+        Rust.pathType (Rust.pathWithTypes [ddlModName, "PureResult"] [valTy])
+    | VM.vmfPure fu = valTy
+    | otherwise =
+        Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
     where ?fnMsg = fnMsg
 
   args = (parserStateName, Rust.tMutRef (Rust.pathType (ddlPath "ParserState"))) : args'
   (args',def) =
     let ?isPure = VM.vmfPure fu
         ?fnMsg  = fnMsg
+        ?curFunThrows = throws
     in compileFunDef (VM.vmfDef fu)
 
 
@@ -124,7 +135,7 @@ compileFunBody body = (args, Rust.block [contT, pcDecl, mainLoop])
       Just (l,ts,_) ->
         let argName i = Rust.mkIdent ("fa" ++ show i)
             as        = [ (argName i, t) | (i,t) <- [0 :: Int ..] `zip` ts ]
-            start     = Rust.call (Rust.pathExpr (Rust.simplePath' [contTypeName,l])) (map (Rust.identExpr . fst) as)
+            start     = Rust.callCon (Rust.simplePath' [contTypeName,l]) (map (Rust.identExpr . fst) as)
         in (as, Rust.localLetMut ["unused_mut"] pcName Nothing start)
       _ -> panic "compileFunBody" ["Mssing entry block code"]
 
@@ -159,6 +170,7 @@ compileBlockInstr instr =
     VM.Output {}        -> bad
     VM.Notify {}        -> bad
     VM.CallPrim x f es  -> compilePrim x f es
+    VM.CallPrim2 x y f es -> compilePrim2 x y f es
     VM.Spawn {}         -> bad
     VM.Let x e ->
       [ Rust.localLet [] (compileBVName x) Nothing (Rust.callMethod (compileExpr VM.Borrowed e) "clo" [])]
@@ -206,6 +218,22 @@ integerToBytes i
       b : _ -> testBit b 7
       [] -> panic "integerToBytes" ["[]"]
 
+
+compilePrim2 :: FnCtx => VM.BV -> VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
+compilePrim2 x y f es =
+  case (f, compiled) of
+    (VM.Op2 Core.Add, [e1,e2]) -> checkedArith "op_add" e1 e2
+    (VM.Op2 Core.Sub, [e1,e2]) -> checkedArith "op_sub" e1 e2
+    (VM.Op2 Core.Mul, [e1,e2]) -> checkedArith "op_mul" e1 e2
+    _ -> panic "compilePrim2" ["not yet implemented", show (pp f)]
+  where
+  compiled = zipWith compileExpr (modePrimName f) es
+  checkedArith method e1 e2 =
+    [ Rust.localLetPat
+        (Rust.tuplePat [Rust.identPat (compileBVName y), Rust.identPat (compileBVName x)])
+        Nothing
+        (Rust.callMethod e1 method [e2])
+    ]
 
 compilePrim :: FnCtx => VM.BV -> VM.PrimName -> [VM.E] -> [Rust.Stmt ()]
 compilePrim x prim es =
@@ -317,20 +345,42 @@ compileOp1 x op e argTy =
     Core.CoerceTo ty
       | srcTy == ty -> def e
 
-      | Just {} <- Core.isBits srcTy -> 
+      | Just {} <- Core.isBits srcTy ->
         case () of
           _
             | Just _ <- Core.isBits ty ->
               [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod e "cast_to" [])]
             | Core.TInteger <- ty -> use_into e
+            | Core.TFloat  <- ty -> def (Rust.callMethod e "to_f32" [])
+            | Core.TDouble <- ty -> def (Rust.callMethod e "to_f64" [])
             | Core.TUser {} <- ty -> mk_bd e
             | otherwise -> badTgt
 
       | Core.TInteger <- srcTy ->
         case () of
-          _ 
+          _
             | Just {} <- Core.isBits ty -> use_into e
+            | Core.TFloat  <- ty -> def (Rust.callMethod e "to_f32" [])
+            | Core.TDouble <- ty -> def (Rust.callMethod e "to_f64" [])
             | Core.TUser {} <- ty -> mk_bd (Rust.callMethod e "into" [])
+            | otherwise -> badTgt
+
+      | Core.TFloat <- srcTy ->
+        case () of
+          _
+            | Just (False, _) <- Core.isBits ty -> defTy (fromTgt "from_f32" e)
+            | Just (True, _)  <- Core.isBits ty -> defTy (fromTgt "from_f32" e)
+            | Core.TInteger <- ty -> def (callRTS "Int::from_f32" [e])
+            | Core.TDouble  <- ty -> def (Rust.cast e (Rust.tF 64))
+            | otherwise -> badTgt
+
+      | Core.TDouble <- srcTy ->
+        case () of
+          _
+            | Just (False, _) <- Core.isBits ty -> defTy (fromTgt "from_f64" e)
+            | Just (True, _)  <- Core.isBits ty -> defTy (fromTgt "from_f64" e)
+            | Core.TInteger <- ty -> def (callRTS "Int::from_f64" [e])
+            | Core.TFloat   <- ty -> def (Rust.cast e (Rust.tF 32))
             | otherwise -> badTgt
 
       | Core.TUser {} <- srcTy ->
@@ -341,6 +391,8 @@ compileOp1 x op e argTy =
       | otherwise -> panic "compileOp1" ["Bad source type in coerce"]
       where
       use_into v = [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) (Rust.callMethod v "into" [])]
+      defTy re = [Rust.localLet [] (compileBVName x) (Just (compileType VM.Owned ty)) re]
+      fromTgt meth arg = Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath meth)) [arg]
 
       -- XXX: This is where we should normalize things to fix #395.
       mk_bd v = def (Rust.call
@@ -438,8 +490,10 @@ compileOp1 x op e argTy =
       bad msg = panic "compileOp1" ["FromUnion",msg]
                   
        
-    Core.WordToFloat -> def (Rust.cast e (Rust.tF 32))
-    Core.WordToDouble -> def (Rust.cast e (Rust.tF 64))
+    Core.WordToFloat -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f32", "from_bits"]))
+                              [Rust.call (Rust.pathExpr (Rust.simplePath' ["u32", "from"])) [e]])
+    Core.WordToDouble -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f64", "from_bits"]))
+                              [Rust.call (Rust.pathExpr (Rust.simplePath' ["u64", "from"])) [e]])
     Core.IsNaN -> def (Rust.callMethod e "is_nan" [])
     Core.IsInfinite -> def (Rust.callMethod e "is_infinite" [])
     Core.IsDenormalized -> def (Rust.callMethod e "is_subnormal" [])
@@ -466,10 +520,16 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.Leq    -> bin Rust.LeOp
     Core.Lt     -> bin Rust.LtOp
  
-    -- Arithmetic
-    Core.Add    -> bin Rust.AddOp
-    Core.Sub    -> bin Rust.SubOp
-    Core.Mul    -> bin Rust.MulOp
+    -- Arithmetic (only Integer; bounded types must use CallPrim2)
+    Core.Add
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.AddOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
+    Core.Sub
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.SubOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
+    Core.Mul
+      | VM.TSem Core.TInteger <- t1 -> bin Rust.MulOp
+      | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Div    -> bin Rust.DivOp
     Core.Mod    -> bin Rust.RemOp
  
@@ -624,15 +684,61 @@ compileCInstr cinstr =
         | otherwise                    = id
       
     VM.Yield             -> bad
-    VM.ReturnNo          -> [Rust.ret (Rust.identExpr "None")]
-    VM.ReturnYes res inp -> [Rust.ret (Rust.call (Rust.identExpr "Some") [Rust.tupleExpr (map (compileExpr VM.Owned) [res,inp])])]
-    VM.ReturnPure res    -> [Rust.ret (compileExpr VM.Owned res)]
-    VM.CallPure f j es   -> compileJumpWithFree j [doCall f es]
-    VM.CallNoCapture f (VM.JumpCase opts) es ->
-      [ Rust.expr (Rust.matchExpr (doCall f es) 
-          [ Rust.matchArm (Rust.somePat (Rust.tuplePat [Rust.identPat "x", Rust.identPat "i"]))
-                          (opt True [Rust.identExpr "x", Rust.identExpr "i"]),
-            Rust.matchArm Rust.nonePat (opt False [])
+    VM.ReturnNo          ->
+      [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Failure"]))]
+    VM.ReturnYes res inp ->
+      [Rust.ret (Rust.call
+        (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Ok"]))
+        (map (compileExpr VM.Owned) [res,inp]))]
+    VM.ReturnPure res
+      | ?curFunThrows == VM.Throws ->
+        [Rust.ret (Rust.call
+          (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Ok"]))
+          [compileExpr VM.Owned res])]
+      | otherwise -> [Rust.ret (compileExpr VM.Owned res)]
+
+    VM.Throw loc msg
+      | ?isPure ->
+        [Rust.ret (Rust.call
+          (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
+          [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])]
+      | otherwise ->
+        [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
+            [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])
+        , Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))
+        ]
+
+    VM.CallPure f j es _exnFree
+      | calleeThrows ->
+        [ Rust.expr (Rust.matchExpr (doCall f es)
+            [ Rust.matchArm
+                (Rust.conPat (Rust.simplePath' [ddlModName, "PureResult", "Ok"])
+                             [Rust.identPat "x"])
+                (Rust.blockExpr (compileJumpWithFree j [Rust.identExpr "x"]))
+            , Rust.matchArm
+                (Rust.conPat (Rust.simplePath' [ddlModName, "PureResult", "Exception"])
+                             [Rust.identPat "el", Rust.identPat "em"])
+                (Rust.blockExpr (propagateExnFromPure))
+            ])
+        ]
+      | otherwise -> compileJumpWithFree j [doCall f es]
+      where
+      calleeThrows = case Map.lookup f ?allFuns of
+                       Just fun -> VM.vmfThrows fun == VM.Throws
+                       Nothing  -> False
+
+    VM.CallNoCapture f (VM.JumpCase opts) es _exnFree ->
+      [ Rust.expr (Rust.matchExpr (doCall f es)
+          [ Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Ok"])
+                           [Rust.identPat "x", Rust.identPat "i"])
+              (opt True [Rust.identExpr "x", Rust.identExpr "i"])
+          , Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Failure"]) [])
+              (opt False [])
+          , Rust.matchArm
+              (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]) [])
+              (Rust.blockExpr (propagateExnFromParser))
           ]
         )
       ]
@@ -641,15 +747,30 @@ compileCInstr cinstr =
         case Map.lookup x opts of
           Just a -> Rust.blockExpr (compileJumpWithFree a y)
           Nothing -> panic "compileCInstr" ["Missing option", show x]
-      
-      
-    VM.CallCapture {}    -> bad
+
+
+    VM.CallCapture {} -> bad
     VM.TailCall f c es ->
       case c of
         VM.NoCapture -> [ Rust.ret (doCall f es) ]
         _            ->  bad
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
+
+  propagateExnFromPure
+    | ?isPure =
+      [Rust.ret (Rust.call
+        (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
+        [Rust.identExpr "el", Rust.identExpr "em"])]
+    | otherwise =
+      [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
+          [Rust.identExpr "el", Rust.identExpr "em"])
+      , Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))
+      ]
+
+  propagateExnFromParser =
+    [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))]
+
   doCall f es = Rust.call (Rust.identExpr (compileFName f))
                           (Rust.identExpr parserStateName : zipWith compileExpr sig es)
     where

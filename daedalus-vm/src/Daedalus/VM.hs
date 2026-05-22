@@ -34,6 +34,7 @@ data Module = Module
 data VMFun = VMFun
   { vmfName     :: Src.FName
   , vmfCaptures :: Captures
+  , vmfThrows   :: Throws
   , vmfPure     :: Bool     -- ^ True if this is not a parser
   , vmfLoop     :: Bool     -- XXX we need to know the other loop members
                             -- for inlining
@@ -83,6 +84,7 @@ data Instr =
   | Output E
   | Notify E          -- Let this thread know other alternative failed
   | CallPrim BV PrimName [E]
+  | CallPrim2 BV BV PrimName [E]
   | Spawn BV Closure
 
   | Let BV E
@@ -98,21 +100,25 @@ data CInstr =
   | JumpIf E (JumpChoice Src.Pattern)
   | Yield
   | ReturnNo
+  | Throw Text Text  -- ^ location, message
   | ReturnYes E E   -- ^ Result, input
   | ReturnPure E    -- ^ Return from a pure function (no fail cont.)
 
-  | CallPure Src.FName JumpWithFree [E]
+  | CallPure Src.FName JumpWithFree [E] (Set VMVar)
     -- ^ The jump point contains information on where to continue after
-    -- return and what we need to preserve acrross the call, and what we
+    -- return and what we need to preserve across the call, and what we
     -- should free right after we return from the call.
+    -- The set contains variables to free if the callee throws an exception.
 
-  | CallNoCapture Src.FName (JumpChoice Bool) [E]
+  | CallNoCapture Src.FName (JumpChoice Bool) [E] (Set VMVar)
     -- ^ Call a parser that does not capture the continuation.
+    -- The set contains variables to free if the callee throws an exception.
 
-  | CallCapture Src.FName Closure Closure [E]
+  | CallCapture Src.FName Closure Closure [E] (Set VMVar)
     -- ^ Call a function that captures the continuation.
     -- The closures are: no, yes
     -- This differs from NoCapture in that we may use *both* continuations.
+    -- The set contains variables to free if the callee throws an exception.
 
   | TailCall Src.FName Captures [E]
     -- ^ Used for both grammars and exprs.
@@ -126,6 +132,8 @@ data CInstr =
 data Captures = Capture | NoCapture | Unknown
   deriving (Eq,Show)
 
+data Throws = Throws | NoThrows | UnknownThrows
+  deriving (Eq,Show)
 
 -- | Target of a jump
 data JumpPoint = JumpPoint { jLabel :: Label, jArgs :: [E] }
@@ -195,6 +203,7 @@ iArgs i =
     Output e          -> [e]
     Notify e          -> [e]
     CallPrim _ _ es   -> es
+    CallPrim2 _ _ _ es -> es
     Spawn _ j         -> jArgs j
     NoteFail _ _ ei em -> [ei,em]
 
@@ -311,6 +320,8 @@ instance PP Instr where
   pp instr =
     case instr of
       CallPrim x f vs  -> pp x <+> "=" <+> ppFun (pp f) (map pp vs)
+      CallPrim2 x y f vs ->
+        pp x <.> "," <+> pp y <+> "=" <+> ppFun (pp f) (map pp vs)
       Spawn x c        -> pp x <+> "=" <+> ppFun "spawn" [pp c]
       Say x            -> ppFun "say" [text (show x)]
       Output v         -> ppFun "output" [ pp v ]
@@ -337,29 +348,38 @@ instance PP CInstr where
             where ppAlt (p,g) = pp p <+> "->" <+> pp g
       Yield         -> "yield"
       ReturnNo      -> ppFun "return_fail" []
+      Throw loc msg -> ppFun "throw" [text (show loc), text (show msg)]
       ReturnYes e i -> ppFun "return" [pp e, pp i]
       ReturnPure e  -> ppFun "return" [pp e]
-      CallPure f l es -> ppFun (pp f) (map pp es) $$ nest 2 ("jump" <+> pp l)
+      CallPure f l es exnFree ->
+        ppFun (pp f) (map pp es) $$ nest 2 ("ok:" <+> pp l)
+                                 $$ ppExnFree exnFree
 
-      CallNoCapture f (JumpCase ks) es ->
+      CallNoCapture f (JumpCase ks) es exnFree ->
         vcat [ ppFun (pp f) (map pp es)
              , nest 2 $ vcat [ "ok:"   <+> pp (ks Map.! True)
                              , "fail:" <+> pp (ks Map.! False)
                              ]
+             , ppExnFree exnFree
              ]
 
 
-      CallCapture f no yes es ->
+      CallCapture f no yes es exnFree ->
         vcat [ ppFun (pp f) (map pp es)
              , nest 2 $ vcat [ ".spawns"
                              , "ok:"   <+> pp yes
                              , "fail:" <+> pp no
                              ]
+             , ppExnFree exnFree
              ]
       TailCall f c xs -> ppFun (pp f) (map pp xs) <+> ".tail" <+> pp c
+    where
+    ppExnFree s
+      | Set.null s = empty
+      | otherwise  = nest 2 ("exn:" <+> pp (Free s))
 
 instance PP JumpWithFree where
-  pp jf = ppF <+> pp (Jump (jumpTarget jf))
+  pp jf = ppF <+> "jump" <+> pp (jumpTarget jf)
     where ppF = if Set.null (freeFirst jf)
                   then empty
                   else pp (Free (freeFirst jf)) <.> semi
@@ -393,6 +413,12 @@ instance PP Captures where
           Capture   -> ".spawns"
           NoCapture -> empty
           Unknown   -> ".capture-unknown"
+
+instance PP Throws where
+  pp t = case t of
+          Throws        -> ".throws"
+          NoThrows      -> empty
+          UnknownThrows -> ".throws-unknown"
 
 instance PP VMT where
   pp ty =

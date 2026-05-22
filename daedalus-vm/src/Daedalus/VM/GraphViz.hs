@@ -59,14 +59,15 @@ edge sty funMap b =
         map (edgeTo black "case" . jLabel . jumpTarget) (Map.elems mp)
       | otherwise -> []
 
-    CallPure f c _   -> doCall red f [jumpTarget c]
-    CallNoCapture f (JumpCase ks) _ ->
+    CallPure f c _ _   -> doCall red f [jumpTarget c]
+    CallNoCapture f (JumpCase ks) _ _ ->
         doCall red f [ jumpTarget (ks Map.! k) | k <- [ False, True ] ]
-    CallCapture f c1 c2 _ -> doCall red f [c1,c2]
+    CallCapture f c1 c2 _ _ -> doCall red f [c1,c2]
     TailCall f _ _   -> doCall green f []
 
     Yield -> []
     ReturnNo -> []
+    Throw _ _ -> []
     ReturnYes _ _ -> []
     ReturnPure _ -> []
 

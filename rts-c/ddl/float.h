@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 #include <ddl/size.h>
 #include <ddl/value.h>
@@ -20,7 +21,13 @@ public:
   Float() {}
   Float(float x)  : f(x) {}
 
-  static Float fromDouble(double x) { return Float{static_cast<float>(x)}; }
+  static Float fromDouble(double x) {
+    if (x > static_cast<double>(std::numeric_limits<float>::max()))
+      return Float{std::numeric_limits<float>::infinity()};
+    if (x < static_cast<double>(-std::numeric_limits<float>::max()))
+      return Float{-std::numeric_limits<float>::infinity()};
+    return Float{static_cast<float>(x)};
+  }
 
   static Float fromBits(uint32_t x) {
     float f;

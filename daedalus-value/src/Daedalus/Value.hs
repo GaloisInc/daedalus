@@ -9,6 +9,7 @@ module Daedalus.Value
 
     -- * Numbers
   , vUInt
+  , vUIntWrapping
   , vSInt
   , vSInt'
   , vSize

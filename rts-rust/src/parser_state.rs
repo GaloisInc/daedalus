@@ -278,6 +278,16 @@ pub fn new_parser_state() -> ParserState {
 
 impl ParserState {
 
+  pub fn set_exception(&mut self, loc: &'static str, msg: &'static str) {
+    self.error = ParseError {
+      input: ddl::new_input(ddl::new_byte_array(b""), ddl::new_byte_array(b"")),
+      message: ddl::new_byte_array(msg.as_bytes()),
+      is_system_error: false,
+      debugs: ParserContextStack::new(),
+      error_loc: loc.to_string(),
+    };
+  }
+
   pub fn say(&self, msg: &str) {
     println!("{}", msg)
   }

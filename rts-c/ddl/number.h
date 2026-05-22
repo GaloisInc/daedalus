@@ -80,15 +80,50 @@ public:
   }
 
 
+  // Wrapping arithmetic: NOT used by generated code for bounded types.
+  // Generated code uses checked_add/checked_sub/checked_mul below, which
+  // detect overflow and let the caller throw an exception.
   UInt operator + (UInt x) const { return UInt(data + x.data); }
   UInt operator - (UInt x) const { return UInt(data - x.data); }
   UInt operator * (UInt x) const { return UInt(data * x.data); }
+
+  // Checked arithmetic: used by generated code for bounded integer types.
+  // Returns true on overflow; *result always holds the wrapped value.
+  bool checked_add(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_add_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_sub(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_sub_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_mul(UInt x, UInt *result) const {
+    Rep r;
+    bool overflow = __builtin_mul_overflow(rep(), x.rep(), &r);
+    *result = UInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+  // Truncating division and remainder: rounds toward zero.
+  // Generated code inserts a division-by-zero guard before calling these.
   UInt operator % (UInt x) const { Rep xv = x.rep();
                                    assert(xv != 0);
                                    return UInt(rep() % xv); }
   UInt operator / (UInt x) const { Rep xv = x.rep();
                                    assert(xv != 0);
                                    return UInt(rep() / xv); }
+  // Wrapping negation: generated code guards against negating non-zero unsigned values.
   UInt operator - ()       const { return UInt(-data); }
   UInt operator ~ ()       const { return UInt(~data); }
 
@@ -157,10 +192,8 @@ std::ostream& toJS(std::ostream& os, UInt<w> x) {
 // Signed ----------------------------------------------------------------------
 
 
-// XXX: How should arithmetic work on these?
-// For the moment we assume no under/overflow, same as C does
-// but it is not clear if that's what we want from daedluas.
-// XXX: Add `asserts` to detect wrap around in debug mode
+// Signed fixed-width integers. Generated code uses checked_add/checked_sub/
+// checked_mul for arithmetic, which detect overflow and throw an exception.
 template <Width w>
 class SInt : public Value {
   static_assert(w >= 1,  "SInt needs at least 1 bit");
@@ -208,13 +241,49 @@ public:
 
   Rep rep() const { return data; }
 
-  // These are assumed to stay in bounds.
-  // XXX: if we used fixUp, would that give us the normal module arithmetic?
+  // Wrapping arithmetic: NOT used by generated code for bounded types.
+  // Generated code uses checked_add/checked_sub/checked_mul below, which
+  // detect overflow and let the caller throw an exception.
+  // Note: signed overflow is UB in C++ prior to C++20; these rely on
+  // two's-complement wrap-around which all major compilers guarantee.
   SInt operator + (SInt x) const { return Rep(data + x.data); }
   SInt operator - (SInt x) const { return Rep(data - x.data); }
   SInt operator * (SInt x) const { return Rep(data * x.data); }
+
+  // Checked arithmetic: used by generated code for bounded integer types.
+  // Returns true on overflow; *result always holds the wrapped value.
+  bool checked_add(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_add_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_sub(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_sub_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+
+  bool checked_mul(SInt x, SInt *result) const {
+    Rep r;
+    bool overflow = __builtin_mul_overflow(data, x.data, &r);
+    *result = SInt(r);
+    if constexpr (w < 8 * sizeof(Rep))
+      overflow = overflow || (r != result->rep());
+    return overflow;
+  }
+  // Truncating division and remainder: rounds toward zero.
+  // Generated code inserts guards for division-by-zero and minBound/-1.
   SInt operator % (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data == -1)); return Rep(data % x.data); }
   SInt operator / (SInt x) const { assert (x != 0 && !(data == minValRep() && x.data == -1)); return Rep(data / x.data); }
+  // Negation: UB if applied to minBound.
+  // Generated code guards against this case.
   SInt operator - ()       const { return Rep(-data); }
 
   bool operator == (SInt<w> x) const { return data == x.data; }
@@ -240,7 +309,6 @@ public:
   SInt operator >> (UInt<64> x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
-  // XXX: should we call fixUp or assumed that we are staying in bounds?
   SInt operator << (Size x) const { return x.rep() >= w? SInt(0) : SInt(data << x.rep()); }
   SInt operator >> (Size x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 

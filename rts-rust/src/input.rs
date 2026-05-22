@@ -37,7 +37,7 @@ pub fn new_input_str(name: &str, bytes: &str) -> Input {
 
 impl Input {
   /// Get the name of the input
-  pub fn name(&self)        -> ddl::ArrayB<ddl::U<8>> { self.name.bor() }
+  pub fn name(&self)        -> ddl::ArrayB<'_, ddl::U<8>> { self.name.bor() }
   
   /// Get the current byte offset in the input.
   pub fn offset(&self)      -> usize { self.offset }

@@ -162,6 +162,13 @@ localLet allow rname ty def =
     attrs = map disableWarning allow
 
 
+localLetPat ::
+  Pat () ->
+  Maybe (Ty ()) ->
+  Expr () ->
+  Stmt ()
+localLetPat pat ty def = Local pat ty (Just def) [] ()
+
 localLetMut ::
   [Ident] {- ^ Disable these warnings -} ->
   Ident {- ^ Name -} ->

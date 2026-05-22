@@ -86,7 +86,7 @@ impl <'a,T: ?Sized + Ord> Ord for B<'a,T> {
 
 impl<T: ?Sized + 'static> ddl::Type for O<T> {
   type B<'a> = B<'a,T>;
-  fn bor(&self) -> B<T> {
+  fn bor(&self) -> B<'_,T> {
     B { ptr: Rc::as_ptr(&(self.rc)), lifetime: PhantomData }
   }
 }

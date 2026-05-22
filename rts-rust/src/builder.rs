@@ -28,7 +28,7 @@ impl<'a,T> Clone for BuilderB<'a,T> {
 
 impl <T: ddl::Type> Type for Builder<T> {
   type B<'a> = BuilderB<'a,T>;
-  fn bor(&self) -> BuilderB<T> { BuilderB { node: self.node.bor() } }
+  fn bor(&self) -> BuilderB<'_,T> { BuilderB { node: self.node.bor() } }
 }
 
 impl <'a, T: ddl::Type> Clo for BuilderB<'a,T> {
@@ -136,7 +136,7 @@ pub fn new_builder<T>() -> Builder<T> {
 
 
 impl<T: Type> Builder<T> {
-  pub fn iter(&self) -> BuilderBIter<T> {
+  pub fn iter(&self) -> BuilderBIter<'_,T> {
     self.bor().iter()
   }
 }
@@ -155,33 +155,33 @@ impl<T: Clone> Builder<T> {
   }
 
   pub fn build(self) -> ddl::Array<T> {
-    
+    enum Chunk<T> { Owned(Vec<T>), Shared(Rc<Node<T>>) }
+
     let mut size = 0;
-    let mut own_stack: Vec<Vec<T>> = vec![];
-    let mut shared_stack: Vec<Rc<Node<T>>> = vec![];
-    
+    let mut stack: Vec<Chunk<T>> = vec![];
+
     let mut cur = Some(self);
     while let Some(builder) = cur {
       match Rc::try_unwrap(builder.node.rc) {
         Ok(node) => {
           size += node.data.len();
-          own_stack.push(node.data);
           cur = node.more;
+          stack.push(Chunk::Owned(node.data));
         },
         Err(rc) => {
           size += rc.data.len();
           cur = rc.more.clone();
-          shared_stack.push(rc);
+          stack.push(Chunk::Shared(rc));
         }
       }
     }
 
     let mut v = Vec::with_capacity(size);
-    for mut xs in own_stack.into_iter().rev() {
-      v.append(&mut xs);
-    }
-    for xs in shared_stack.into_iter().rev() {
-      v.extend_from_slice(xs.data.as_slice())
+    for chunk in stack.into_iter().rev() {
+      match chunk {
+        Chunk::Owned(mut xs) => v.append(&mut xs),
+        Chunk::Shared(rc) => v.extend_from_slice(&rc.data),
+      }
     }
     ddl::new_array_vec(v)
   }

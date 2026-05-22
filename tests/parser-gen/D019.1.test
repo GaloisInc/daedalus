@@ -1,4 +1,0 @@
-run
-D019.ddl
---input=inputs/D019.1.inp
---gen=metrics

@@ -1,8 +1,0 @@
-[WARNING] ./D007.ddl:12:10--15:5:
-            Using unbiased choice may be inefficient.
-context:
-  "Main"
-input: File context:
-Length: 7 (0x7) bytes
-0000:   67 67 67 67  61 64 [1;91m0a[0m                     ggggad[1;91m.[0m
-

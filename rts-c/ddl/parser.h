@@ -2,6 +2,7 @@
 #define DDL_PARSER_H
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <optional>
@@ -9,6 +10,7 @@
 #include <ddl/debug.h>
 #include <ddl/stack.h>
 #include <ddl/parse_error.h>
+#include <ddl/exception.h>
 
 namespace DDL {
 
@@ -26,17 +28,33 @@ class ParserState {
 public:
   ParserState() {}
 
+  void setException(char const *loc, char const *msg) {
+    auto len = std::strlen(msg);
+    auto arr = Array<UInt<8>>(reinterpret_cast<UInt<8> const*>(msg), Size(len));
+    error = ParseError<I>(false, loc, I(), arr, debugs);
+  }
+
   ParseError<I> getParseError() { return error; }
 
   // There are no more alternatives to consider.
   // Free the stack and return the best error we know about.
-  // Note that if no errors occurer, the "error" woudl be just
+  // Note that if no errors occurred, the "error" would be just
   // the default error.
   ParseError<I> finalYield() {
     debugLine("final yield");
     debugVal(stack);
     stack.free();
     return getParseError();
+  }
+
+  // An exception was thrown: free the current stack and all suspended threads.
+  void abortAll() {
+    stack.free();
+    for (auto& t : suspended) {
+      t.closure->free();
+      t.stack.free();
+    }
+    suspended.clear();
   }
 
 

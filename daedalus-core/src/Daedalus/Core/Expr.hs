@@ -462,7 +462,7 @@ ppOp2 op =
       Take        -> pref "iTake"
 
       Eq          -> inf "=="
-      NotEq       -> inf "/"
+      NotEq       -> inf "/="
       Leq         -> inf "<="
       Lt          -> inf "<"
 

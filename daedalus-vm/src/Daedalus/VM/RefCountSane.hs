@@ -132,6 +132,8 @@ checkI loc ro i count =
   let mode            = modeI i
       checkArgs args  = checkEs loc args (zipWith const mode args) count
       checkDef x args = newVar (LocalVar x) <$> checkArgs args
+      checkDef2 x y args = newVar (LocalVar y) . newVar (LocalVar x) <$>
+                           checkArgs args
   in
   case i of
     Say _           -> checkArgs []
@@ -140,6 +142,7 @@ checkI loc ro i count =
     Output e        -> checkArgs [e]
     Notify e        -> checkArgs [e]
     CallPrim x _ es -> checkDef x es
+    CallPrim2 x y _ es -> checkDef2 x y es
     Spawn x l -> newVar (LocalVar x) <$> checkJP loc ro (==ThreadBlock) l count
     NoteFail _ _ ei em -> checkArgs [ei,em]
 
@@ -159,6 +162,7 @@ checkTerm loc ro ci count =
   case ci of
     Yield         -> pure count
     ReturnNo      -> pure count
+    Throw {}      -> pure count
     ReturnYes e i -> checkE "returnYesI" i Owned =<<
                      checkE "returnYesR" e Owned count
     ReturnPure e  -> checkE "returnPure" e Owned count
@@ -167,11 +171,18 @@ checkTerm loc ro ci count =
     JumpIf e ch   ->
       checkJumpChoice loc ro (== NormalBlock) ch =<<
                         checkE (loc ++ ":case") e (Borrowed `ifRefs` e) count
-    CallPure f jp es -> checkJumpWithFree retLab ro isRet jp =<< checkArgs f es
-    CallNoCapture f ks es ->
-      checkJumpChoice retLab ro isRet ks =<< checkArgs f es
-    CallCapture f jp1 jp2 es ->
-      checkRet jp1 =<< checkRet jp2 =<< checkArgs f es
+    CallPure f jp es exnFree ->
+      do count' <- checkArgs f es
+         checkExnFree retLab exnFree count'
+         checkJumpWithFree retLab ro isRet jp count'
+    CallNoCapture f ks es exnFree ->
+      do count' <- checkArgs f es
+         checkExnFree retLab exnFree count'
+         checkJumpChoice retLab ro isRet ks count'
+    CallCapture f jp1 jp2 es exnFree ->
+      do count' <- checkArgs f es
+         checkExnFree retLab exnFree count'
+         checkRet jp1 =<< checkRet jp2 count'
     TailCall f _ es -> checkArgs f es
   where
   isRet r = case r of
@@ -255,6 +266,23 @@ checkJumpWithFree ::
 checkJumpWithFree loc ro typeOk jf count =
   checkJP loc ro typeOk (jumpTarget jf) =<< freeVars (freeFirst jf) count
 
+
+checkExnFree :: String -> Set VMVar -> Count -> Either Error ()
+checkExnFree loc exnFree count =
+  let expected = Set.fromList
+        [ x | (x, O n) <- Map.toList count
+            , n > 0
+            , typeRepOf x == HasRefs
+        ]
+      missing = Set.difference expected exnFree
+      extra   = Set.difference exnFree expected
+  in do
+    when (not (Set.null missing)) $
+      Left (loc : "exn-free missing variables:"
+                : map showPP (Set.toList missing))
+    when (not (Set.null extra)) $
+      Left (loc : "exn-free contains invalid variables:"
+                : map showPP (Set.toList extra))
 
 checkJumpChoice ::
   (PP i) => String -> RO -> (BlockType -> Bool) ->

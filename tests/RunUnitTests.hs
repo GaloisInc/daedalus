@@ -164,7 +164,7 @@ runTest odir file =
            do putStrLn " [Fail]"
               case err of
                Diff g s -> putStrLn $ unwords
-                             [ "***", "meld", show g, show s ]
+                             [ "cp", show s, show g ]
                Except e -> putStrLn ("*** " ++ show x)
        pure x
 

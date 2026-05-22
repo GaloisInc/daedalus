@@ -18,6 +18,7 @@ import Daedalus.VM.Compile.Expr
 import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
+import Daedalus.VM.ThrowsAnalysis
 import Daedalus.VM.FindLoops
 import Daedalus.VM.TailCallJump
 
@@ -26,6 +27,7 @@ import Daedalus.VM.TailCallJump
 moduleToProgram :: [Module] -> Program
 moduleToProgram ms =
   tailProgram $
+  throwsAnalysis $
   captureAnalysis
   Program { pModules = map loopAnalysis ms }
 
@@ -88,6 +90,9 @@ compileSomeFun isPure dm doBody fun =
             , vmfCaptures = case Src.fDef fun of
                               Src.Def {}   -> Unknown
                               Src.External -> NoCapture
+            , vmfThrows = case Src.fDef fun of
+                            Src.Def {}   -> UnknownThrows
+                            Src.External -> NoThrows
             , vmfPure   = isPure
             , vmfLoop   = False
             , vmfDef    = def

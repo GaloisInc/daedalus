@@ -1,4 +1,0 @@
-run
-plain-ppm2.ddl
---input=../ppm/inputs/01.ppm
---gen=metrics

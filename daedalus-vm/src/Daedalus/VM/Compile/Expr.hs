@@ -1,8 +1,11 @@
 {-# Language BlockArguments #-}
+{-# Language OverloadedStrings #-}
 module Daedalus.VM.Compile.Expr where
 
 import Data.Void(Void)
 import Data.Maybe(fromMaybe)
+import Data.Text(Text)
+import qualified Data.Text as Text
 import qualified Data.Map as Map
 import Control.Monad(forM)
 
@@ -38,10 +41,35 @@ compileEs es0 k = go [] es0
 
 type CE = Maybe (E -> BlockBuilder Void) -> C (BlockBuilder Void)
 
-
 continue :: Maybe (E -> BlockBuilder Void) -> E -> BlockBuilder Void
 continue = fromMaybe (term . ReturnPure)
 
+-- | Get the current source location from the debug mode.
+getCurLoc :: C Text
+getCurLoc =
+  do dbg <- getDebugMode
+     pure case dbg of
+       NoDebug -> ""
+       DebugStack _ ls ->
+         case ls of
+           a : _ -> showAnnot a
+           _     -> ""
+  where
+  showAnnot a = case a of
+    Src.SrcAnnot txt -> txt
+    Src.SrcRange r   -> Text.pack (show (pp r))
+    _                -> ""
+
+-- | Guard an operation: if the boolean check is true, run the body;
+-- otherwise raise an exception.  The check and body are given access
+-- to the block builder so they can reference already-compiled operands.
+guarded :: Text -> BlockBuilder E -> BlockBuilder Void -> C (BlockBuilder Void)
+guarded msg check body =
+  do loc  <- getCurLoc
+     okL  <- label0 NormalBlock body
+     excL <- label0 NormalBlock (term (Throw loc msg))
+     pure do cond <- check
+             jumpIf cond okL excL
 
 compileE :: Src.Expr -> CE
 compileE expr k =
@@ -99,18 +127,208 @@ compileOp0 op ty k' =
 
 compileOp1 :: Src.Op1 -> VMT -> Src.Expr -> CE
 compileOp1 op ty e k =
-  compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
+  case op of
+    Src.Neg
+      | Src.TSInt (Src.TSize n) <- Src.typeOf e ->
+        guardNegSInt n ty e k
+      | Src.TUInt _ <- Src.typeOf e ->
+        guardNegUInt ty e k
+    Src.CoerceTo tgt
+      | isFloatToInt (Src.typeOf e) tgt -> guardFloatToInt tgt ty e k
+
+    _ ->
+      compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
+
+-- Check: e != minBound
+guardNegSInt :: Integer -> VMT -> Src.Expr -> CE
+guardNegSInt n ty e k =
+  do let minVal = negate (2 ^ (n - 1))
+         argTy  = Src.typeOf e
+         check v = stmt (TSem Src.TBool)
+                     (\x -> CallPrim x (Op2 Src.NotEq) [v, ENum minVal argTy])
+         body v = continue k =<<
+                    stmt ty (\x -> CallPrim x (Op1 Src.Neg) [v])
+     l <- newLocal (TSem argTy)
+     code <- guarded "negation overflow"
+               (check =<< getLocal l) (body =<< getLocal l)
+     compileE e $ Just \v ->
+       do setLocal l v
+          code
+
+-- Check: e == 0
+guardNegUInt :: VMT -> Src.Expr -> CE
+guardNegUInt ty e k =
+  do let argTy = Src.typeOf e
+         check v = stmt (TSem Src.TBool)
+                     (\x -> CallPrim x (Op2 Src.Eq) [v, ENum 0 argTy])
+         body v = continue k =<<
+                    stmt ty (\x -> CallPrim x (Op1 Src.Neg) [v])
+     l <- newLocal (TSem argTy)
+     code <- guarded "negation of non-zero unsigned integer"
+               (check =<< getLocal l) (body =<< getLocal l)
+     compileE e $ Just \v ->
+       do setLocal l v
+          code
+
+-- Check: not (isNaN e) && not (isInfinite e)
+guardFloatToInt :: Src.Type -> VMT -> Src.Expr -> CE
+guardFloatToInt tgt ty e k =
+  do let argTy = Src.typeOf e
+         tgtTxt = Text.pack (show (pp tgt))
+         checkNot prim v =
+           do r <- stmt (TSem Src.TBool)
+                     (\x -> CallPrim x (Op1 prim) [v])
+              stmt (TSem Src.TBool)
+                (\x -> CallPrim x (Op1 Src.Not) [r])
+         body v = continue k =<<
+                    stmt ty (\x -> CallPrim x (Op1 (Src.CoerceTo tgt)) [v])
+     l <- newLocal (TSem argTy)
+     infCode <- guarded ("coercion of Infinity to " <> tgtTxt)
+                  (checkNot Src.IsInfinite =<< getLocal l) (body =<< getLocal l)
+     nanCode <- guarded ("coercion of NaN to " <> tgtTxt)
+                  (checkNot Src.IsNaN =<< getLocal l) infCode
+     compileE e $ Just \v ->
+       do setLocal l v
+          nanCode
+
+isFloatToInt :: Src.Type -> Src.Type -> Bool
+isFloatToInt src tgt =
+  case src of
+    Src.TFloat  -> isIntegerType tgt
+    Src.TDouble -> isIntegerType tgt
+    _           -> False
+
+isIntegerType :: Src.Type -> Bool
+isIntegerType t =
+  case t of
+    Src.TInteger -> True
+    Src.TUInt _  -> True
+    Src.TSInt _  -> True
+    _            -> False
+
+isBoundedType :: Src.Type -> Bool
+isBoundedType t =
+  case t of
+    Src.TUInt _ -> True
+    Src.TSInt _ -> True
+    _           -> False
 
 compileOp2 :: Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
 compileOp2 op ty e1 e2 k =
-  compileEs [e1,e2] \ vs -> continue k =<<
-                                   stmt ty (\x -> CallPrim x (Op2 op) vs)
+  case op of
+    Src.Add
+      | isBoundedType (Src.typeOf e1) -> guardedArith Src.Add e1 e2 k
+    Src.Sub
+      | isBoundedType (Src.typeOf e1) -> guardedArith Src.Sub e1 e2 k
+    Src.Mul
+      | isBoundedType (Src.typeOf e1) -> guardedArith Src.Mul e1 e2 k
+    Src.Div
+      | Src.TSInt (Src.TSize n) <- Src.typeOf e1 -> guardDivModSInt n Src.Div ty e1 e2 k
+      | isIntegerType (Src.typeOf e1) -> guardDivMod Src.Div ty e1 e2 k
+    Src.Mod
+      | Src.TSInt (Src.TSize n) <- Src.typeOf e1 -> guardDivModSInt n Src.Mod ty e1 e2 k
+      | isIntegerType (Src.typeOf e1) -> guardDivMod Src.Mod ty e1 e2 k
+    _ ->
+      compileEs [e1,e2] \vs -> continue k =<<
+                                      stmt ty (\x -> CallPrim x (Op2 op) vs)
 
+guardedArith :: Src.Op2 -> Src.Expr -> Src.Expr -> CE
+guardedArith op e1 e2 k =
+  do let argTy = Src.typeOf e1
+         msg = case op of
+                 Src.Add -> "addition out of bounds"
+                 Src.Sub -> "subtraction out of bounds"
+                 Src.Mul -> "multiplication out of bounds"
+                 _       -> panic "guardedArith" [show (pp op)]
+     loc  <- getCurLoc
+     okL  <- setCurTy (TSem argTy) (label1 (continue k))
+     excL <- label0 NormalBlock (term (Throw loc msg))
+     compileEs [e1,e2] \[v1, v2] ->
+       do (overflow, result) <-
+            stmt2 (TSem Src.TBool) (TSem argTy)
+                  (\x y -> CallPrim2 x y (Op2 op) [v1, v2])
+          jumpIf overflow excL (okL result)
+
+-- Check: b != 0
+guardDivMod :: Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
+guardDivMod op ty e1 e2 k =
+  do let doOp l1 l2 = pure
+           do a <- getLocal l1
+              b <- getLocal l2
+              continue k =<< stmt ty (\x -> CallPrim x (Op2 op) [a, b])
+     guardDivMod' (Src.typeOf e2) doOp e1 e2
+
+-- Check: b != 0 && !(a == minBound && b == -1)
+guardDivModSInt :: Integer -> Src.Op2 -> VMT -> Src.Expr -> Src.Expr -> CE
+guardDivModSInt n op ty e1 e2 k =
+  do let argTy  = Src.typeOf e1
+         minVal = negate (2 ^ (n - 1))
+         doOp l1 l2 =
+           do let body =
+                    do a <- getLocal l1
+                       b <- getLocal l2
+                       continue k =<< stmt ty (\x -> CallPrim x (Op2 op) [a, b])
+                  -- Check: !(a == minBound && b == -1)
+                  check =
+                    do a <- getLocal l1
+                       b <- getLocal l2
+                       aMin <- stmt (TSem Src.TBool)
+                                 (\x -> CallPrim x (Op2 Src.Eq) [a, ENum minVal argTy])
+                       bNeg1 <- stmt (TSem Src.TBool)
+                                  (\x -> CallPrim x (Op2 Src.Eq) [b, ENum (-1) argTy])
+                       both <- stmt (TSem Src.TBool)
+                                 (\x -> CallPrim x (Op2 Src.BitAnd) [aMin, bNeg1])
+                       stmt (TSem Src.TBool)
+                         (\x -> CallPrim x (Op1 Src.Not) [both])
+              guarded "signed division overflow (minBound / -1)" check body
+     guardDivMod' argTy doOp e1 e2
+
+-- Shared: check b != 0, then run the given body.
+guardDivMod' ::
+  Src.Type ->
+  (FV -> FV -> C (BlockBuilder Void)) ->
+  Src.Expr -> Src.Expr -> C (BlockBuilder Void)
+guardDivMod' argTy mkBody e1 e2 =
+  do l1 <- newLocal (TSem argTy)
+     l2 <- newLocal (TSem argTy)
+     body <- mkBody l1 l2
+     code <- guarded "division by zero"
+               (do b <- getLocal l2
+                   stmt (TSem Src.TBool)
+                     (\x -> CallPrim x (Op2 Src.NotEq) [b, ENum 0 argTy]))
+               body
+     compileEs [e1,e2] \[v1,v2] ->
+       do setLocal l1 v1
+          setLocal l2 v2
+          code
 
 compileOp3 :: Src.Op3 -> VMT -> Src.Expr -> Src.Expr -> Src.Expr -> CE
 compileOp3 op ty e1 e2 e3 k =
-  compileEs [e1,e2,e3] \vs -> continue k =<<
-                                      stmt ty (\x -> CallPrim x (Op3 op) vs)
+  case op of
+    Src.RangeUp   -> guardedRange
+    Src.RangeDown -> guardedRange
+    _ -> compileEs [e1,e2,e3] \vs -> continue k =<<
+                                       stmt ty (\x -> CallPrim x (Op3 op) vs)
+  where
+  guardedRange =
+    do let stepTy = Src.typeOf e3
+       l1 <- newLocal (TSem (Src.typeOf e1))
+       l2 <- newLocal (TSem (Src.typeOf e2))
+       l3 <- newLocal (TSem stepTy)
+       let check = do v <- getLocal l3
+                      stmt (TSem Src.TBool)
+                        (\x -> CallPrim x (Op2 Src.Lt) [ENum 0 stepTy, v])
+           body  = do v1 <- getLocal l1
+                      v2 <- getLocal l2
+                      v3 <- getLocal l3
+                      continue k =<<
+                        stmt ty (\x -> CallPrim x (Op3 op) [v1, v2, v3])
+       code <- guarded "invalid range step (must be positive)" check body
+       compileEs [e1,e2,e3] \[v1,v2,v3] ->
+         do setLocal l1 v1
+            setLocal l2 v2
+            setLocal l3 v3
+            code
 
 
 compileOpN :: Src.OpN -> VMT -> [Src.Expr] -> CE
@@ -129,7 +347,7 @@ compileOpN op ty es k =
                do mkL <- retPure (Src.typeOf f) k'
                   pure \vs ->
                     do l <- mkL
-                       term (CallPure f (jumpNoFree l) vs)
+                       term (CallPure f (jumpNoFree l) vs mempty)
 
          compileEs es doCall
 

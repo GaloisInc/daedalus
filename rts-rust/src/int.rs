@@ -1,6 +1,7 @@
 use crate as ddl;
 use crate::Type;
 use num_bigint::BigInt;
+use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Serialize, Serializer};
 use std::fmt;
 use std::ops;
@@ -29,6 +30,30 @@ impl Int {
 
     /// Try to convert to a i64.
     pub fn try_to_signed(&self) -> Option<i64> { (&self.0).try_into().ok() }
+
+    pub fn from_f32(v: f32) -> Self {
+      if v.is_nan() || v.is_infinite() { return Int(BigInt::ZERO) }
+      match BigInt::from_f32(v.trunc()) {
+        Some(n) => Int(n),
+        None    => Int(BigInt::ZERO),
+      }
+    }
+
+    pub fn from_f64(v: f64) -> Self {
+      if v.is_nan() || v.is_infinite() { return Int(BigInt::ZERO) }
+      match BigInt::from_f64(v.trunc()) {
+        Some(n) => Int(n),
+        None    => Int(BigInt::ZERO),
+      }
+    }
+
+    pub fn to_f32(&self) -> f32 {
+      self.0.to_f32().unwrap_or(if self.0 < BigInt::ZERO { f32::NEG_INFINITY } else { f32::INFINITY })
+    }
+
+    pub fn to_f64(&self) -> f64 {
+      self.0.to_f64().unwrap_or(if self.0 < BigInt::ZERO { f64::NEG_INFINITY } else { f64::INFINITY })
+    }
 }
 
 

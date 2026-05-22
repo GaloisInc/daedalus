@@ -1,8 +1,10 @@
+{-# LANGUAGE MagicHash, UnboxedTuples, BangPatterns #-}
 module Daedalus.RTS.Numeric
   ( UInt(..), UIntRep
   , SInt(..), SIntRep
   , Numeric(..)
   , Arith(..)
+  , CheckedArith(..)
   , Literal
   , SizeType
 
@@ -16,6 +18,11 @@ module Daedalus.RTS.Numeric
   , cvtNumToFloatingMaybe
   , cvtFloatingToNumMaybe
   , cvtNumMaybe
+
+    -- ** Saturating float-to-int
+  , floatToUInt
+  , floatToSInt
+  , floatToInteger
 
     -- ** Floating
   , wordToFloat, floatToWord
@@ -32,6 +39,9 @@ module Daedalus.RTS.Numeric
 
 import GHC.TypeNats
 import GHC.Float
+import GHC.Exts (Int(..), Word(..), isTrue#,
+                 addWordC#, subWordC#, timesWord2#,
+                 addIntC#, subIntC#, timesInt2#, (/=#))
 import Data.Kind(Constraint)
 import Data.Word
 import Data.Int
@@ -119,6 +129,8 @@ type NormCtrs n    = (KnownNat n, Supports Bits n, Supports Integral n)
 type SizeTypeDef n = ( NormCtrs n
                      , NormU n (SizeOf n)
                      , NormS n (SizeOf n)
+                     , CheckedU n (SizeOf n)
+                     , CheckedS n (SizeOf n)
                      , Supports Show n
                      )
 
@@ -182,13 +194,16 @@ instance (SizeOf w ~ 'S64, NormCtrs w) => NormS w  'S64 where normS = normS' 64;
 
 type Literal (x :: Nat) t = Arith t
 
+-- | Wrapping arithmetic: used by generated code when overflow is acceptable
+-- (e.g., Integer which cannot overflow). For bounded types, generated code
+-- uses 'CheckedArith' to detect overflow and throw an exception.
 class Arith t where
   lit :: Integer -> t
   add :: t -> t -> t
   sub :: t -> t -> t
   mul :: t -> t -> t
-  div :: t -> t -> t
-  neg :: t -> t
+  div :: t -> t -> t   -- ^ Truncating division (rounds toward zero)
+  neg :: t -> t        -- ^ Wrapping negation; generated code guards overflow
 
 instance Arith Float where
   lit = fromInteger
@@ -221,7 +236,7 @@ instance Arith Double where
 
 
 class Arith t => Numeric t where
-  mod :: t -> t -> t
+  mod :: t -> t -> t   -- ^ Truncating remainder (rounds toward zero)
   asInt :: t -> Integer
 
   shiftl' :: t -> Int -> t
@@ -236,7 +251,7 @@ instance Arith Integer where
   add = (+)
   sub = (-)
   mul = (*)
-  div = Prelude.div
+  div = quot
   neg = negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -248,7 +263,7 @@ instance Arith Integer where
 
 
 instance Numeric Integer where
-  mod = Prelude.mod
+  mod = Prelude.rem
 
   asInt = id
 
@@ -312,7 +327,7 @@ instance SizeType n => Arith (UInt n) where
   add             = normBinU (+)
   sub             = normBinU (-)
   mul             = normBinU (*)
-  div             = normBinU Prelude.div
+  div             = normBinU quot
   neg             = normUnU negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -325,14 +340,16 @@ instance SizeType n => Arith (UInt n) where
 
 
 instance SizeType n => Numeric (UInt n) where
-  mod             = normBinU Prelude.mod
+  mod             = normBinU Prelude.rem
 
   bitOr           = binU (.|.)
   bitAnd          = binU (.&.)
   bitXor          = binU xor
   bitCompl        = unU complement
-  shiftl' x i     = normUnU (`shiftL` i) x
-  shiftr' x i     = normUnU (`shiftR` i) x
+  shiftl' x i     = if i >= thisWidth x then UInt 0
+                     else normUnU (`shiftL` i) x
+  shiftr' x i     = if i >= thisWidth x then UInt 0
+                     else normUnU (`shiftR` i) x
 
   asInt (UInt x)  = toInteger x
   {-# INLINE mod #-}
@@ -351,7 +368,7 @@ instance SizeType n => Arith (SInt n) where
   add             = normBinS (+)
   sub             = normBinS (-)
   mul             = normBinS (*)
-  div             = normBinS Prelude.div
+  div             = normBinS quot
   neg             = normUnS negate
   {-# INLINE lit #-}
   {-# INLINE add #-}
@@ -363,14 +380,16 @@ instance SizeType n => Arith (SInt n) where
 
 
 instance SizeType n => Numeric (SInt n) where
-  mod             = normBinS Prelude.mod
+  mod             = normBinS Prelude.rem
 
   bitOr           = binS (.|.)
   bitAnd          = binS (.&.)
   bitXor          = binS xor
   bitCompl        = unS complement
-  shiftl' x i     = normUnS (`shiftL` i) x
-  shiftr' x i     = normUnS (`shiftR` i) x
+  shiftl' x i     = if i >= thisWidth x then lit 0
+                     else normUnS (`shiftL` i) x
+  shiftr' x i     = if i >= thisWidth x then lit (if asInt x < 0 then -1 else 0)
+                     else normUnS (`shiftR` i) x
 
   asInt (SInt x)  = toInteger x
   {-# INLINE mod #-}
@@ -391,6 +410,150 @@ deriving instance SizeType n => Ord  (UInt n)
 deriving instance SizeType n => Show (SInt n)
 deriving instance SizeType n => Eq   (SInt n)
 deriving instance SizeType n => Ord  (SInt n)
+
+--------------------------------------------------------------------------------
+-- Checked arithmetic: used by generated code for bounded integer types.
+-- Returns (overflow_flag, wrapped_result).
+
+class Arith t => CheckedArith t where
+  checkedAdd :: t -> t -> (Bool, t)
+  checkedSub :: t -> t -> (Bool, t)
+  checkedMul :: t -> t -> (Bool, t)
+
+instance SizeType n => CheckedArith (UInt n) where
+  checkedAdd = checkedAddU
+  checkedSub = checkedSubU
+  checkedMul = checkedMulU
+  {-# INLINE checkedAdd #-}
+  {-# INLINE checkedSub #-}
+  {-# INLINE checkedMul #-}
+
+instance SizeType n => CheckedArith (SInt n) where
+  checkedAdd = checkedAddS
+  checkedSub = checkedSubS
+  checkedMul = checkedMulS
+  {-# INLINE checkedAdd #-}
+  {-# INLINE checkedSub #-}
+  {-# INLINE checkedMul #-}
+
+-- Dispatch on representation size
+class (SizeOf n ~ s) => CheckedU (n :: Nat) (s :: Size) where
+  checkedAddU :: UInt n -> UInt n -> (Bool, UInt n)
+  checkedSubU :: UInt n -> UInt n -> (Bool, UInt n)
+  checkedMulU :: UInt n -> UInt n -> (Bool, UInt n)
+
+class (SizeOf n ~ s) => CheckedS (n :: Nat) (s :: Size) where
+  checkedAddS :: SInt n -> SInt n -> (Bool, SInt n)
+  checkedSubS :: SInt n -> SInt n -> (Bool, SInt n)
+  checkedMulS :: SInt n -> SInt n -> (Bool, SInt n)
+
+-- Helper: promote to a wider unsigned type, compute, normalize, check
+checkedBinU :: (Integral wide, NormCtrs n, NormU n (SizeOf n)) =>
+  (wide -> wide -> wide) -> UInt n -> UInt n -> (Bool, UInt n)
+checkedBinU op (UInt x) (UInt y) =
+  let wide = fromIntegral x `op` fromIntegral y
+      result = normU (UInt (fromIntegral wide))
+  in (wide /= fromIntegral (fromUInt result), result)
+{-# INLINE checkedBinU #-}
+
+-- Helper: promote to a wider signed type, compute, normalize, check
+checkedBinS :: (Integral wide, NormCtrs n, NormS n (SizeOf n)) =>
+  (wide -> wide -> wide) -> SInt n -> SInt n -> (Bool, SInt n)
+checkedBinS op (SInt x) (SInt y) =
+  let wide = fromIntegral x `op` fromIntegral y
+      result = normS (SInt (fromIntegral wide))
+  in (wide /= fromIntegral (fromSInt result), result)
+{-# INLINE checkedBinS #-}
+
+-- Promote to Word16
+instance (SizeOf n ~ 'S8, NormCtrs n, NormU n 'S8) => CheckedU n 'S8 where
+  checkedAddU = checkedBinU ((+) :: Word16 -> Word16 -> Word16)
+  checkedSubU = checkedBinU ((-) :: Word16 -> Word16 -> Word16)
+  checkedMulU = checkedBinU ((*) :: Word16 -> Word16 -> Word16)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Word32
+instance (SizeOf n ~ 'S16, NormCtrs n, NormU n 'S16) => CheckedU n 'S16 where
+  checkedAddU = checkedBinU ((+) :: Word32 -> Word32 -> Word32)
+  checkedSubU = checkedBinU ((-) :: Word32 -> Word32 -> Word32)
+  checkedMulU = checkedBinU ((*) :: Word32 -> Word32 -> Word32)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Word64
+instance (SizeOf n ~ 'S32, NormCtrs n, NormU n 'S32) => CheckedU n 'S32 where
+  checkedAddU = checkedBinU ((+) :: Word64 -> Word64 -> Word64)
+  checkedSubU = checkedBinU ((-) :: Word64 -> Word64 -> Word64)
+  checkedMulU = checkedBinU ((*) :: Word64 -> Word64 -> Word64)
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Use GHC primitives for Word64
+instance (SizeOf n ~ 'S64, NormCtrs n) => CheckedU n 'S64 where
+  checkedAddU (UInt x) (UInt y) =
+    case addWordC# wx wy of
+      (# r, c #) -> (isTrue# c, UInt (fromIntegral (W# r)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  checkedSubU (UInt x) (UInt y) =
+    case subWordC# wx wy of
+      (# r, c #) -> (isTrue# c, UInt (fromIntegral (W# r)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  checkedMulU (UInt x) (UInt y) =
+    case timesWord2# wx wy of
+      (# hi, lo #) -> (W# hi /= 0, UInt (fromIntegral (W# lo)))
+    where !(W# wx) = fromIntegral x; !(W# wy) = fromIntegral y
+  {-# INLINE checkedAddU #-}
+  {-# INLINE checkedSubU #-}
+  {-# INLINE checkedMulU #-}
+
+-- Promote to Int16
+instance (SizeOf n ~ 'S8, NormCtrs n, NormS n 'S8) => CheckedS n 'S8 where
+  checkedAddS = checkedBinS ((+) :: Int16 -> Int16 -> Int16)
+  checkedSubS = checkedBinS ((-) :: Int16 -> Int16 -> Int16)
+  checkedMulS = checkedBinS ((*) :: Int16 -> Int16 -> Int16)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Promote to Int32
+instance (SizeOf n ~ 'S16, NormCtrs n, NormS n 'S16) => CheckedS n 'S16 where
+  checkedAddS = checkedBinS ((+) :: Int32 -> Int32 -> Int32)
+  checkedSubS = checkedBinS ((-) :: Int32 -> Int32 -> Int32)
+  checkedMulS = checkedBinS ((*) :: Int32 -> Int32 -> Int32)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Promote to Int64
+instance (SizeOf n ~ 'S32, NormCtrs n, NormS n 'S32) => CheckedS n 'S32 where
+  checkedAddS = checkedBinS ((+) :: Int64 -> Int64 -> Int64)
+  checkedSubS = checkedBinS ((-) :: Int64 -> Int64 -> Int64)
+  checkedMulS = checkedBinS ((*) :: Int64 -> Int64 -> Int64)
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
+
+-- Use GHC primitives for Int64
+instance (SizeOf n ~ 'S64, NormCtrs n) => CheckedS n 'S64 where
+  checkedAddS (SInt x) (SInt y) =
+    case addIntC# ix iy of
+      (# r, c #) -> (isTrue# c, SInt (fromIntegral (I# r)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  checkedSubS (SInt x) (SInt y) =
+    case subIntC# ix iy of
+      (# r, c #) -> (isTrue# c, SInt (fromIntegral (I# r)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  checkedMulS (SInt x) (SInt y) =
+    case timesInt2# ix iy of
+      (# s, h, lo #) -> (isTrue# (s /=# h), SInt (fromIntegral (I# lo)))
+    where !(I# ix) = fromIntegral x; !(I# iy) = fromIntegral y
+  {-# INLINE checkedAddS #-}
+  {-# INLINE checkedSubS #-}
+  {-# INLINE checkedMulS #-}
 
 --------------------------------------------------------------------------------
 
@@ -422,6 +585,47 @@ cvtFloatingToNumMaybe x
 {-# INLINE cvtFloatingToNumMaybe #-}
 
 
+
+-- | Saturating conversion from floating point to UInt.
+-- NaN → 0, clamp to [0, 2^n - 1], truncate toward zero.
+floatToUInt :: (RealFloat a, SizeType n) => a -> UInt n
+floatToUInt x = result
+  where
+    result
+      | isNaN x || x <= 0   = lit 0
+      | isInfinite x        = lit maxVal
+      | i >= maxVal          = lit maxVal
+      | otherwise            = lit i
+    i = truncate x :: Integer
+    maxVal = bit (thisWidth result) - 1
+{-# INLINE floatToUInt #-}
+
+-- | Saturating conversion from floating point to SInt.
+-- NaN → 0, clamp to [-2^(n-1), 2^(n-1) - 1], truncate toward zero.
+floatToSInt :: (RealFloat a, SizeType n) => a -> SInt n
+floatToSInt x = result
+  where
+    result
+      | isNaN x              = lit 0
+      | isInfinite x && x > 0 = lit hi
+      | isInfinite x         = lit lo
+      | i < lo               = lit lo
+      | i > hi               = lit hi
+      | otherwise            = lit i
+    i  = truncate x :: Integer
+    w  = thisWidth result
+    hi = bit (w - 1) - 1
+    lo = negate (bit (w - 1))
+{-# INLINE floatToSInt #-}
+
+-- | Saturating conversion from floating point to Integer.
+-- NaN/Inf → 0, otherwise truncate toward zero.
+floatToInteger :: RealFloat a => a -> Integer
+floatToInteger x
+  | isNaN x      = 0
+  | isInfinite x = 0
+  | otherwise    = truncate x
+{-# INLINE floatToInteger #-}
 
 cvtNum :: (Numeric a, Arith b) => a -> b
 cvtNum = lit . asInt

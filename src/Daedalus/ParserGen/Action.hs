@@ -554,12 +554,6 @@ evalLiteral lit t =
     LByte w _ -> Interp.VUInt 8 (fromIntegral w)
 
 
-partial :: Either String a -> a
-partial x =
-  case x of
-    Right a -> a
-    Left err -> error err
-
 
 evalVExpr :: GblFuns -> NVExpr -> ControlData -> SemanticData -> Val
 evalVExpr gbl expr ctrl out =
@@ -569,8 +563,7 @@ evalVExpr gbl expr ctrl out =
       case texprValue e of
         TCCoerce _ty1 ty2 e1 ->
           let ev = eval env e1 in
-          partial $ fst
-                  $ Interp.vCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
+          fst $ Interp.vCoerceTo (Interp.evalType Interp.emptyEnv ty2) ev
         TCLiteral lit ty -> evalLiteral lit ty
         TCNothing _ty ->
           Interp.VMaybe (Nothing)
@@ -1187,8 +1180,8 @@ applySemanticAction gbl (ctrl, out) act =
            _ -> error "Lookup is not applied to value of type map"
     CoerceCheck s _t1 t2 e1 ->
       let ev1 = evalVExpr gbl e1 ctrl out in
-        case (Interp.vCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1) of
-          (v, True) -> resultWithSem s (partial v)
+        case Interp.vCoerceTo (Interp.evalType Interp.emptyEnv t2) ev1 of
+          (v', True) -> resultWithSem s v'
           (_, False) -> Nothing -- error "Lossy coercion"
 
     Guard e1 ->

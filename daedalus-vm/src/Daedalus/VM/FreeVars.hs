@@ -13,6 +13,7 @@ defines instr =
     Output {}       -> []
     Notify {}       -> []
     CallPrim v _ _  -> [v]
+    CallPrim2 v w _ _ -> [v, w]
     Spawn v _       -> [v]
     NoteFail {}     -> []
     Free {}         -> []
@@ -80,10 +81,11 @@ instance FreeVars CInstr where
       JumpIf e ls       -> freeVars' (e, ls)
       Yield             -> id
       ReturnNo          -> id
+      Throw _ _  -> id
       ReturnYes e i     -> freeVars' (e,i)
-      CallNoCapture _ ks es -> freeVars' (es,ks)
-      CallCapture _ no yes es -> freeVars' (es,(no,yes))
-      CallPure _ l es   -> freeVars' (l,es)
+      CallNoCapture _ ks es exnFree -> freeVars' (es,(ks,exnFree))
+      CallCapture _ no yes es exnFree -> freeVars' (es,((no,yes),exnFree))
+      CallPure _ l es exnFree -> freeVars' (l,(es,exnFree))
       TailCall _ _ es   -> freeVars' es
       ReturnPure e      -> freeVars' e
 
@@ -95,6 +97,7 @@ instance FreeVars Instr where
       Output e        -> freeVars' e
       Notify e        -> freeVars' e
       CallPrim _ _ es -> freeVars' es
+      CallPrim2 _ _ _ es -> freeVars' es
       Spawn _ l       -> freeVars' l
       NoteFail _ _ i m -> freeVars' (i,m)
       Free xs         -> freeVars' xs

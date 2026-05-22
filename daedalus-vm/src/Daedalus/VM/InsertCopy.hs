@@ -7,7 +7,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
-import Data.List(mapAccumL)
+import Data.List(mapAccumL,foldl')
 
 import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
@@ -166,11 +166,12 @@ checkTermCopies is0 term0 = (reverse is1, term1)
     case term0 of
       JumpIf e ls0 ->
         case checkIs okChoice is0 ls0 of
-          (is,ls) -> (is, JumpIf e ls)
+          (is,ls,_) -> (is, JumpIf e ls)
 
-      CallNoCapture fu ks0 args ->
+      CallNoCapture fu ks0 args exnFree0 ->
         case checkIs (okFun (freeVarSet args)) is0 ks0 of
-          (is,ks) -> (is, CallNoCapture fu ks args)
+          (is,ks,substs) -> (is, CallNoCapture fu ks args exnFree)
+            where exnFree = foldl' (\s (x,v) -> doSubstFreeSet x v s) exnFree0 substs
 
       _ -> (is0,term0)
 
@@ -181,11 +182,13 @@ checkTermCopies is0 term0 = (reverse is1, term1)
       i@(Let x e) : more ->
         case eIsVar e of
           Just v
-            | Just jc1 <- upd x v jc -> checkIs upd more jc1
-          _ -> let (is',jc1) = checkIs upd more jc
-               in (i : is',jc1)
+            | Just jc1 <- upd x v jc ->
+              let (is',jc2,substs) = checkIs upd more jc1
+              in (is', jc2, (x,v) : substs)
+          _ -> let (is',jc1,substs) = checkIs upd more jc
+               in (i : is', jc1, substs)
 
-      _ -> (is, jc)
+      _ -> (is, jc, [])
 
   okFun ::
     Ord i => Set VMVar -> BV -> VMVar -> JumpChoice i -> Maybe (JumpChoice i)
@@ -234,6 +237,7 @@ instance DoSubst Instr where
       Output e        -> Output (doSubst  x v e)
       Notify e        -> Notify (doSubst  x v e)
       CallPrim y p es -> CallPrim y p (doSubst x v es)
+      CallPrim2 y z p es -> CallPrim2 y z p (doSubst x v es)
       Spawn y l       -> Spawn y (doSubst x v l)
       NoteFail er loc inp m -> NoteFail er loc (doSubst x v inp) (doSubst x v m)
       Let y e         -> Let y (doSubst x v e)
@@ -248,12 +252,18 @@ instance DoSubst CInstr where
       JumpIf e ls     -> JumpIf (doSubst x v e) (doSubst x v ls)
       Yield           -> Yield
       ReturnNo        -> ReturnNo
+      Throw l m       -> Throw l m
       ReturnYes e i   -> ReturnYes  (doSubst x v e) (doSubst x v i)
       ReturnPure e    -> ReturnPure (doSubst x v e)
-      CallPure f l es -> CallPure f (doSubst x v l) (doSubst x v es)
-      CallNoCapture f ks es -> CallNoCapture f (doSubst x v ks) (doSubst x v es)
-      CallCapture f no yes es ->
+      CallPure f l es exnFree ->
+        CallPure f (doSubst x v l) (doSubst x v es)
+                   (doSubstFreeSet x v exnFree)
+      CallNoCapture f ks es exnFree ->
+        CallNoCapture f (doSubst x v ks) (doSubst x v es)
+                        (doSubstFreeSet x v exnFree)
+      CallCapture f no yes es exnFree ->
         CallCapture f (doSubst x v no) (doSubst x v yes) (doSubst x v es)
+                      (doSubstFreeSet x v exnFree)
       TailCall f c es -> TailCall f c (doSubst x v es)
 
 instance DoSubst JumpPoint where
@@ -265,14 +275,16 @@ instance DoSubst (JumpChoice ix) where
 instance DoSubst JumpWithFree where
   doSubst x v jf =
     JumpWithFree
-      { freeFirst = let fs = freeFirst jf
-                        x' = LocalVar x
-                    in if x' `Set.member` fs
-                          then Set.insert v (Set.delete x' fs)
-                          else fs
+      { freeFirst  = doSubstFreeSet x v (freeFirst jf)
       , jumpTarget = doSubst x v (jumpTarget jf)
       }
 
+doSubstFreeSet :: BV -> VMVar -> Set VMVar -> Set VMVar
+doSubstFreeSet x v s =
+  let x' = LocalVar x
+  in if x' `Set.member` s
+       then Set.insert v (Set.delete x' s)
+       else s
 
 instance DoSubst E where
   doSubst x v e =
@@ -315,6 +327,9 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
 
   mkFree vs = [ Free vs' | let vs'= filterFree True vs, not (Set.null vs') ]
 
+  -- | Keep only the variables that actually need explicit freeing:
+  -- owned, with reference-counted contents.  When checkCopy is True,
+  -- also exclude locals that are copies (they'll be eliminated later).
   filterFree checkCopy =
     Set.filter \v ->
       getOwnership v == Owned &&
@@ -324,32 +339,49 @@ insertFree ro (copies,b) = b { blockInstrs = newIs, blockTerm = newTerm }
            LocalVar y -> not (y `Set.member` copies)
            ArgVar {}  -> True)
 
+  -- Variables to free if the callee throws and the continuation is never activated.
+  exnFreeJWF jwf = filterFree False (freeVarSet jwf)
+  exnFreeJC (JumpCase opts) =
+    case Map.elems opts of
+      jwf : _ -> exnFreeJWF jwf
+      []      -> Set.empty
+  exnFreeJPs jps = filterFree False (Set.unions (map freeVarSet jps))
 
   inTerm = case blockTerm b of
              JumpIf e ls -> (JumpIf e (freeChoice freeE ls), [])
                 where freeE = maybe Set.empty Set.singleton (eIsVar e)
 
-             CallPure f l es
-                | not (null freeE) -> (CallPure f (ans Map.! ()) es, [])
+             CallPure f l es _
+                | not (null freeE) ->
+                    (CallPure f updatedL es (exnFreeJWF updatedL), [])
+                | otherwise ->
+                    (CallPure f l es (exnFreeJWF l), [])
                 where
                 freeE = freeFunArgs f es
                 JumpCase ans = freeChoice freeE (JumpCase (Map.singleton () l))
+                updatedL = ans Map.! ()
 
-             CallNoCapture f ks es ->
-                (CallNoCapture f (freeChoice freeE ks) es, [])
+             CallNoCapture f ks es _ ->
+                (CallNoCapture f updatedKs es exnFree, [])
                 where
                 freeE = freeFunArgs f es
+                updatedKs = freeChoice freeE ks
+                exnFree = exnFreeJC updatedKs
 
-             -- XXX: This operators on the assumption that we will execute
-             -- both continuations (yes and no), which is OK as long as we
-             -- are generating *all* possible results of a parse, but is not
-             -- OK if we stop after the first one.
+             -- This assumes that we will execute both continuations (yes
+             -- and no), which is correct when generating *all* parse results.
+             -- If we want to stop after the first result, we should use
+             -- abortAll() (see rts-c/ddl/parser.h) to clean up the remaining
+             -- threads, which frees their closures and stacks uniformly.
              --
-             -- If we have pass an owned thing as a borrowed argument, and
-             --  *none* of the continuations own it, we transform one of the
-             -- continutations so that it will free that parameter.
-             CallCapture f l1 l2 es
-                | not (null cs) -> (CallCapture f l' l2 es,[newB])
+             -- If we have passed an owned thing as a borrowed argument, and
+             -- *none* of the continuations own it, we transform one of the
+             -- continuations so that it will free that parameter.
+             CallCapture f l1 l2 es _
+                | not (null cs) ->
+                    (CallCapture f l' l2 es (exnFreeJPs [l',l2]),[newB])
+                | otherwise ->
+                    (CallCapture f l1 l2 es (exnFreeJPs [l1,l2]),[])
                 where
                 cs = filter (needsOwner [l1,l2]) (Set.toList (freeFunArgs f es))
                 (l',newB) = makeOwner l1 cs  -- arbitrary choice of l1
@@ -461,6 +493,10 @@ doInstr instr =
       do es1 <- doArgs es (modePrimName p)
          emit (CallPrim x p es1)
 
+    CallPrim2 x y p es ->
+      do es1 <- doArgs es (modePrimName p)
+         emit (CallPrim2 x y p es1)
+
     Spawn x (JumpPoint l es) ->   -- this is a bit different because we
                                   -- are not jumping now
       do es1 <- mapM copy es
@@ -487,7 +523,9 @@ doArg e m =
     Unmanaged -> pure e
 
 
--- | Insert copy instructions for all owned things.
+-- | Insert copies for the terminal instruction.
+-- The exn-free sets are set to empty here as placeholders;
+-- they are computed later in 'insertFree'.
 doCInstr :: CInstr -> M CInstr
 doCInstr cinstr =
   case cinstr of
@@ -496,27 +534,28 @@ doCInstr cinstr =
 
     Yield        -> pure cinstr
     ReturnNo     -> pure cinstr
+    Throw {}     -> pure cinstr
     ReturnYes e i-> ReturnYes  <$> copy e <*> copy i
     ReturnPure e -> ReturnPure <$> copy e
 
-    CallPure f l es ->
+    CallPure f l es _exnFree ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
          l1  <- doJumpWithFree l
-         pure (CallPure f l1 es1)
+         pure (CallPure f l1 es1 Set.empty)
 
-    CallNoCapture f ks es  ->
+    CallNoCapture f ks es _exnFree ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
          ks1 <- doJumpChoice ks
-         pure (CallNoCapture f ks1 es1)
+         pure (CallNoCapture f ks1 es1 Set.empty)
 
-    CallCapture f no yes es  ->
+    CallCapture f no yes es _exnFree ->
       do sig <- lookupFunMode f
          es1 <- doArgs es sig
          no1 <- doJump no
          yes1 <- doJump yes
-         pure (CallCapture f no1 yes1 es1)
+         pure (CallCapture f no1 yes1 es1 Set.empty)
 
     TailCall f c es ->
       do sig <- lookupFunMode f

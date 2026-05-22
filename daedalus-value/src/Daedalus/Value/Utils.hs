@@ -43,7 +43,8 @@ bitwise1 ::
 bitwise1 name f =
   tracedFun \a ->
   case a of
-    VUInt n x -> vUInt n (f x)
+    VUInt n x -> vUIntWrapping n (f x)
+    VSInt n x -> vSInt' n (f x)
     _ -> panic "bitwise1" [ "Invalid unary bitwise operation"
                           , "Operation: " ++ name
                           , "Operand: " ++ show a
@@ -54,7 +55,8 @@ bitwise2 ::
 bitwise2 name f =
   tracedFun \a b ->
   case (a,b) of
-    (VUInt n x, VUInt n' y) | n == n' -> vUInt n (f x y)
+    (VUInt n x, VUInt n' y) | n == n' -> vUIntWrapping n (f x y)
+    (VSInt n x, VSInt n' y) | n == n' -> vSInt' n (f x y)
     _ -> panic "bitwise2" [ "Invalid binary bitwise operation"
                           , "Operation: " ++ name
                           , "Operand 1: " ++ show a
@@ -66,22 +68,24 @@ shiftOp ::
   String -> (Integer -> Int -> Integer) -> Value -> Value -> Partial Value
 shiftOp name f =
   tracedFun \a b ->
-  let toobig = vErr ("Shift amount is too big: " ++ show (pp b))
-  in
   case valueToIntSize b of
     Nothing -> toobig
-    Just y  ->
-      case a of
-        VInteger x                    -> pure (VInteger (f x y))
-        VUInt n x | 0 <= n && y < n   -> pure (vUInt n (f x y))
-                  | otherwise -> toobig
-        VSInt n x | 0 <= n && y < n   -> vSInt n (f x y)
-                  | otherwise -> toobig
-        _ -> panic "shiftOp" [ "Invalid shift operation"
-                             , "Operator: " ++ name
-                             , "Operand 1: " ++ show a
-                             , "Operand 2: " ++ show b
-                             ]
+    Just y
+      | y < 0 -> toobig
+      | otherwise ->
+        case a of
+          VInteger x
+            | y > 4095 -> toobig
+            | otherwise -> pure (VInteger (f x y))
+          VUInt n x  -> pure (vUIntWrapping n (f x (min n y)))
+          VSInt n x  -> pure (vSInt' n (f x (min n y)))
+          _ -> panic "shiftOp" [ "Invalid shift operation"
+                               , "Operator: " ++ name
+                               , "Operand 1: " ++ show a
+                               , "Operand 2: " ++ show b
+                               ]
+  where
+  toobig = vErr "Shift amount is too big"
 
 
 

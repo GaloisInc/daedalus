@@ -33,7 +33,7 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
   -- the corresponding return block should be *non* capturing!
   findNoCaptureRet b =
     case blockTerm b of
-      CallCapture f r1 r2 _
+      CallCapture f r1 r2 _ _
         | NoCapture <- getCaptures info f -> [ jLabel r1, jLabel r2 ]
       CallNoCapture {} -> panic "findNoCaptureRet" ["CallNoCapture"]
       _ -> []
@@ -72,10 +72,10 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
 
   annotateTerm me i =
     case i of
-      CallCapture f no yes es ->
+      CallCapture f no yes es exnFree ->
         case callSanity f of
-          Capture   -> CallCapture f no yes es
-          NoCapture -> CallNoCapture f (JumpCase ks) es
+          Capture   -> CallCapture f no yes es exnFree
+          NoCapture -> CallNoCapture f (JumpCase ks) es exnFree
             where ks = Map.fromList
                           [ (False, jumpNoFree no)
                           , (True,  jumpNoFree yes)
@@ -175,7 +175,7 @@ instance GetCaptureInfo Instr where
 instance GetCaptureInfo CInstr where
   captureInfo i =
     case i of
-      CallCapture f _ _ _ -> CapturesIf (Set.singleton f)
+      CallCapture f _ _ _ _ -> CapturesIf (Set.singleton f)
       CallNoCapture {}    -> panic "captureInfo" ["CallNoCapture"]
       TailCall f c _      -> case c of
                                Unknown   -> CapturesIf (Set.singleton f)

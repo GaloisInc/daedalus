@@ -4,6 +4,8 @@ use crate as ddl;
 use serde::Serialize;
 
 /// Operations that should be supported by representation types for [Word].
+/// Checked arithmetic (op_add, op_sub, op_mul) returns (result, overflow_flag).
+/// Generated code uses these to detect overflow and throw an exception.
 pub trait Ops : Copy + PartialEq + Eq + PartialOrd + Ord {
   const WIDTH: u32;
 
@@ -15,9 +17,9 @@ pub trait Ops : Copy + PartialEq + Eq + PartialOrd + Ord {
   fn op_not(self) -> Self;
   fn op_neg(self) -> Self;
 
-  fn op_add(self, rhs: Self) -> Self;
-  fn op_sub(self, rhs: Self) -> Self;
-  fn op_mul(self, rhs: Self) -> Self;
+  fn op_add(self, rhs: Self) -> (Self, bool);
+  fn op_sub(self, rhs: Self) -> (Self, bool);
+  fn op_mul(self, rhs: Self) -> (Self, bool);
   fn op_div(self, rhs: Self) -> Self;
   fn op_rem(self, rhs: Self) -> Self;
 
@@ -45,9 +47,9 @@ impl Ops for U0 {
   fn op_not(self) -> Self { U0() }
   fn op_neg(self) -> Self { U0() }
 
-  fn op_add(self, _rhs: Self) -> Self { U0() }
-  fn op_sub(self, _rhs: Self) -> Self { U0() }
-  fn op_mul(self, _rhs: Self) -> Self { U0() }
+  fn op_add(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
+  fn op_sub(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
+  fn op_mul(self, _rhs: Self) -> (Self, bool) { (U0(), false) }
   fn op_div(self, _rhs: Self) -> Self { U0() }
   fn op_rem(self, _rhs: Self) -> Self { U0() }
 
@@ -94,9 +96,9 @@ macro_rules! MakeOps {
       fn op_not(self) -> Self { !self }
       fn op_neg(self) -> Self { self.wrapping_neg() }
 
-      fn op_add(self, rhs: Self) -> Self { self.wrapping_add(rhs) }
-      fn op_sub(self, rhs: Self) -> Self { self.wrapping_sub(rhs) }
-      fn op_mul(self, rhs: Self) -> Self { self.wrapping_mul(rhs) }
+      fn op_add(self, rhs: Self) -> (Self, bool) { self.overflowing_add(rhs) }
+      fn op_sub(self, rhs: Self) -> (Self, bool) { self.overflowing_sub(rhs) }
+      fn op_mul(self, rhs: Self) -> (Self, bool) { self.overflowing_mul(rhs) }
       fn op_div(self, rhs: Self) -> Self { self.wrapping_div(rhs) }
       fn op_rem(self, rhs: Self) -> Self { self.wrapping_rem(rhs) }
 
@@ -253,15 +255,23 @@ impl <const N: u32> I<N> where Size<false, N>: WordRep, Size<true,N>: WordRep {
 
 // -----------------------------------------------------------------------------
 // Standard Operations
+//
+// Wrapping arithmetic: these discard the overflow flag.
+// Generated code does NOT use these for bounded integer types; it calls
+// op_add/op_sub/op_mul directly to obtain the overflow flag and throw on
+// overflow.  These trait impls exist only for convenience (e.g., literals,
+// tests) and should not be relied upon for DDL checked-arithmetic semantics.
 // -----------------------------------------------------------------------------
 
 impl<const S: bool, const N: u32> ops::Add for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn add(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_add(rhs.rep) }
+    Word { rep: self.rep.op_add(rhs.rep).0 }
   }
 }
 
+// Wrapping negation: generated code guards against negating non-zero unsigned
+// values and negating minBound for signed types.
 impl<const S: bool, const N: u32> ops::Neg for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn neg(self) -> Self {
@@ -272,17 +282,19 @@ impl<const S: bool, const N: u32> ops::Neg for Word<S,N> where Size<S, N>: WordR
 impl<const S: bool, const N: u32> ops::Sub for Word<S,N> where Size<S,N>: WordRep {
   type Output = Self;
   fn sub(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_sub(rhs.rep) }
+    Word { rep: self.rep.op_sub(rhs.rep).0 }
   }
 }
 
 impl<const S: bool, const N: u32> ops::Mul for Word<S,N> where Size<S,N>: WordRep {
   type Output = Self;
   fn mul(self, rhs: Self) -> Self {
-    Word { rep: self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING)) }
+    Word { rep: self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING)).0 }
   }
 }
 
+// Truncating division and remainder: rounds toward zero.
+// Generated code inserts a division-by-zero guard before calling these.
 impl<const S: bool, const N: u32> ops::Div for Word<S,N> where Size<S, N>: WordRep {
   type Output = Self;
   fn div(self, rhs: Self) -> Self {
@@ -435,6 +447,72 @@ impl<const S: bool, const N: u32> Word<S,N> where Size<S,N>: WordRep {
   pub fn cast_to<const S1: bool, const N1: u32>(self) -> Word<S1,N1> where Size<S1,N1>: WordRep {
     let v = self.rep.op_shr(Size::<S,N>::PADDING).op_to_u64();
     Word { rep: <<Size<S1,N1> as WordRep>::Rep>::op_from_u64(v).op_shl(Size::<S1,N1>::PADDING) }
+  }
+
+  // Checked arithmetic: used by generated code for bounded integer types.
+  // Returns (wrapped_result, overflow_flag).
+  pub fn op_add(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_add(rhs.rep);
+    (Word { rep: r }, overflow)
+  }
+
+  pub fn op_sub(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_sub(rhs.rep);
+    (Word { rep: r }, overflow)
+  }
+
+  pub fn op_mul(self, rhs: Self) -> (Self, bool) {
+    let (r, overflow) = self.rep.op_mul(rhs.rep.op_shr(Size::<S,N>::PADDING));
+    (Word { rep: r }, overflow)
+  }
+
+}
+
+impl<const N: u32> U<N> where Size<false,N>: WordRep {
+
+  pub fn to_f32(self) -> f32 { u64::from(self) as f32 }
+  pub fn to_f64(self) -> f64 { u64::from(self) as f64 }
+
+  pub fn from_f32(v: f32) -> Self {
+    if v.is_nan() || v <= 0.0 { return U::<N>::from(0u64) }
+    let hi: u64 = if N >= 64 { u64::MAX } else { (1u64 << N) - 1 };
+    if v >= (hi as f64 + 1.0) as f32 { return U::<N>::from(hi) }
+    let i = v as u64;
+    U::<N>::from(if i > hi { hi } else { i })
+  }
+
+  pub fn from_f64(v: f64) -> Self {
+    if v.is_nan() || v <= 0.0 { return U::<N>::from(0u64) }
+    let hi: u64 = if N >= 64 { u64::MAX } else { (1u64 << N) - 1 };
+    if v >= hi as f64 + 1.0 { return U::<N>::from(hi) }
+    let i = v as u64;
+    U::<N>::from(if i > hi { hi } else { i })
+  }
+}
+
+impl<const N: u32> I<N> where Size<false,N>: WordRep, Size<true,N>: WordRep {
+
+  pub fn to_f32(self) -> f32 { i64::from(self) as f32 }
+  pub fn to_f64(self) -> f64 { i64::from(self) as f64 }
+
+  pub fn from_f32(v: f32) -> Self {
+    if v.is_nan() { return I::<N>::from(0i64) }
+    let lo: i64 = if N == 0 { 0 } else { -(1i64 << (N - 1)) };
+    let hi: i64 = if N == 0 { 0 } else { (1i64 << (N - 1)) - 1 };
+    if v <= lo as f32 - 1.0 { return I::<N>::from(lo) }
+    if v >= hi as f32 + 1.0 { return I::<N>::from(hi) }
+    let i = v as i64;
+    I::<N>::from(i.clamp(lo, hi))
+  }
+
+  pub fn from_f64(v: f64) -> Self {
+    if v.is_nan() { return I::<N>::from(0i64) }
+    let lo: i64 = if N == 0 { 0 } else { -(1i64 << (N - 1)) };
+    let hi: i64 = if N == 0 { 0 } else { (1i64 << (N - 1)) - 1 };
+    if v <= lo as f64 - 1.0 { return I::<N>::from(lo) }
+    if v >= hi as f64 + 1.0 { return I::<N>::from(hi) }
+    let i = v as i64;
+    I::<N>::from(i.clamp(lo, hi))
   }
 }
 

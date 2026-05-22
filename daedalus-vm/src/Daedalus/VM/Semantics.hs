@@ -76,6 +76,7 @@ data Result
   -- Outcomes
   = Success V.Value
   | Failure
+  | Exception Text Text  -- ^ location, message
 
   -- Concurrency
   | SpawnResult (Bool -> Result) (ThreadId -> Result)
@@ -130,6 +131,7 @@ resultToValues' notifies threads = \case
 
   Success va            -> va : resume
   Failure               -> resume
+  Exception _ _         -> resume
   where
     resume =
       case IntMap.maxViewWithKey threads of
@@ -162,6 +164,7 @@ semModule m =
     endThread = \case
       Yes x _ -> Success x
       No      -> Failure
+      Except loc msg -> Exception loc msg
       Pure x  -> Success x
 
 -- | Result of running a single VM function
@@ -169,6 +172,7 @@ data FrameResult
   = Yes V.Value V.Value -- ^ parser function succeeded; result, input
   | Pure V.Value        -- ^ pure function finished; result
   | No                  -- ^ parser failed
+  | Except Text Text    -- ^ exception was thrown; location, message
 
 semVMFDef :: DeclEnv => Src.FName -> VMFDef -> [V.Value] -> M FrameResult
 semVMFDef fn def args =
@@ -206,31 +210,35 @@ semCInstr env term =
     -- Finished
     Yield         -> abort Failure
     ReturnNo      -> pure No
+    Throw loc msg -> pure (Except loc msg)
     ReturnYes x y -> pure (Yes (semE env x) (semE env y))
     ReturnPure x  -> pure (Pure (semE env x))
 
     -- Calls
     TailCall fn _ es -> semFName fn (semE env <$> es)
 
-    CallPure fn jp es ->
+    CallPure fn jp es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Pure va -> next (jumpTarget jp) [va]
-          _       -> panic "semCInstr" ["pure function returned impure result"]
+          Pure va       -> next (jumpTarget jp) [va]
+          Except l m    -> pure (Except l m)
+          _             -> panic "semCInstr" ["pure function returned impure result"]
 
-    CallNoCapture fn (JumpCase ks) es ->
+    CallNoCapture fn (JumpCase ks) es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Yes x y -> next (jumpTarget (ks Map.! True)) [x,y]
-          No      -> next (jumpTarget (ks Map.! False)) []
-          Pure{}  -> panic "semCInstr" ["parser returned pure result"]
+          Yes x y    -> next (jumpTarget (ks Map.! True)) [x,y]
+          No         -> next (jumpTarget (ks Map.! False)) []
+          Except l m -> pure (Except l m)
+          Pure{}     -> panic "semCInstr" ["parser returned pure result"]
 
-    CallCapture fn jpN jpY es ->
+    CallCapture fn jpN jpY es _exnFree ->
      do result <- semFName fn (semE env <$> es)
         case result of
-          Yes x y -> next jpY [x,y]
-          No      -> next jpN []
-          Pure{}  -> panic "semCInstr" ["parser returned pure result"]
+          Yes x y    -> next jpY [x,y]
+          No         -> next jpN []
+          Except l m -> pure (Except l m)
+          Pure{}     -> panic "semCInstr" ["parser returned pure result"]
 
 semInstr :: DeclEnv => (FrameResult -> Result) -> Env -> Instr -> M Env
 semInstr kFrame env = \case
@@ -243,6 +251,10 @@ semInstr kFrame env = \case
   CallPrim bv primName es ->
    do let r = semPrimName primName [(semE env e, getType e) | e <- es]
       pure (extendEnv bv r env)
+
+  CallPrim2 bv1 bv2 primName es ->
+   do let (r1, r2) = semPrimName2 primName [(semE env e, getType e) | e <- es]
+      pure (extendEnv bv2 r2 (extendEnv bv1 r1 env))
 
   Spawn bv c ->
    do r <- yield (SpawnResult \flag -> runM (semJumpPoint env c [V.VBool flag]) kFrame)
@@ -293,7 +305,7 @@ valuePattern = \case
 
 semE :: Env -> E -> V.Value
 semE env = \case
-  ENum n (Src.TUInt (Src.TSize w)) -> V.vUInt  (fromInteger w) n
+  ENum n (Src.TUInt (Src.TSize w)) -> V.vUIntWrapping  (fromInteger w) n
   ENum n (Src.TSInt (Src.TSize w)) -> V.vSInt' (fromInteger w) n
   ENum n Src.TFloat     -> V.vFloat (fromInteger n)
   ENum n Src.TDouble    -> V.vDouble (fromInteger n)
@@ -316,11 +328,41 @@ semPrimName prim vs =
     (Integer n, [])                 -> V.VInteger n
     (ByteArray bs, [])              -> V.vByteString bs
     (Op1 op1, [(x, TSem t)])        -> evalOp1 ?tDecls op1 t x
-    (Op2 op2, [(x,_),(y,_)])        -> evalOp2 op2 x y
+    (Op2 op2, [(x, t),(y,_)])
+      | checkedOp op2, bounded t -> panic "semPrimName" ["use CallPrim2 for checked arithmetic", show (pp op2)]
+      | otherwise                -> evalOp2 op2 x y
     (Op3 op3, [(x,_),(y,_),(z,_)])  -> evalOp3 op3 x y z
     (OpN Src.ArrayL{}, _)           -> V.vArray (map fst vs)
     (OpN Src.CallF{}, _)            -> panic "semPrimName" ["calls not supported"]
     _                               -> panic "semPrimName" ["argument mismatch", show (pp prim)]
+  where
+  checkedOp op =
+    case op of
+      Src.Add -> True
+      Src.Sub -> True
+      Src.Mul -> True
+      _       -> False
+  bounded t =
+    case t of
+      TSem ty -> Src.isBits ty /= Nothing
+      _       -> False
+
+semPrimName2 :: DeclEnv => PrimName -> [(V.Value, VMT)] -> (V.Value, V.Value)
+semPrimName2 prim vs =
+  case (prim, vs) of
+    (Op2 Src.Add, [(x,_),(y,_)]) -> checkedArith (V.vAdd x y) x
+    (Op2 Src.Sub, [(x,_),(y,_)]) -> checkedArith (V.vSub x y) x
+    (Op2 Src.Mul, [(x,_),(y,_)]) -> checkedArith (V.vMul x y) x
+    _ -> panic "semPrimName2" ["not yet implemented", show (pp prim)]
+  where
+  checkedArith result operand =
+    case result of
+      Right v -> (V.VBool False, v)
+      Left _  -> (V.VBool True, zeroLike operand)
+
+  zeroLike (V.VUInt n _) = V.VUInt n 0
+  zeroLike (V.VSInt n _) = V.VSInt n 0
+  zeroLike v = panic "semPrimName2.zeroLike" ["not a bounded numeric value", show v]
 
 semStructCon :: DeclEnv => Src.UserType -> [(V.Value, b)] -> V.Value
 semStructCon ut vs =

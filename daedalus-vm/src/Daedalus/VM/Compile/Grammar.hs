@@ -81,6 +81,7 @@ compile expr next0 =
         Src.NoFail      -> compile e next { onNo = Nothing }
         Src.SrcAnnot {} -> withAnnot a (compile e next)
         Src.SrcRange {} -> withAnnot a (compile e next)
+        Src.NodeID {}   -> compile e next  -- Currently we don't use the IDs in VM 
 
     Src.GCase (Src.Case x as) ->
       do next' <- sharedYes =<< sharedNo next
@@ -206,7 +207,7 @@ compile expr next0 =
                                  cloYes <- yesL
                                  dbgEnter DebugCall
                                  i <- getInput
-                                 term $ CallCapture f cloNo cloYes (i:vs)
+                                 term $ CallCapture f cloNo cloYes (i:vs) mempty
                                  -- Later we do an analsis to refine this.
                                  -- See CaptureAnalysis.
 

@@ -2,6 +2,7 @@ module Daedalus.RTS.Parser where
 
 import Data.Text(Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Char8 as BS8
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
@@ -13,28 +14,36 @@ import qualified Daedalus.RTS.Input as RTS
 import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Numeric as RTS
 
+-- | The result of a parser: success, failure, or exception.
+data DResult a = DSuccess a RTS.Input
+               | DFailure
+               | DException Text Text  -- ^ location, message
+
+-- | The result of a pure function that may throw.
+data PureResult a = PureOk a | PureException Text Text
+
 -- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No custom user monad.  No error reporting.
-type DParser'    a = Maybe (a,RTS.Input)
+type DParser'    a = DResult a
 
 -- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No error reporting.
-type DParserM' m a = m (Maybe (a,RTS.Input))
+type DParserM' m a = m (DResult a)
 
 -- | A direct parser.  Used for parsers that do not use unbiased choice.
 -- No custom user monad
-type DParser a = ParserErrorState -> (Maybe (a,RTS.Input), ParserErrorState)
+type DParser a = ParserErrorState -> (DResult a, ParserErrorState)
 
 -- | A direct parser.  Used for parsers that do not use unbiased choice.
-type DParserM m a = ParserErrorState -> m (Maybe (a,RTS.Input), ParserErrorState)
+type DParserM m a = ParserErrorState -> m (DResult a, ParserErrorState)
 
 liftD :: Functor m => m a -> RTS.Input -> DParserM m a
 liftD m i s = mk <$> m
-  where mk a = (Just (a,i), s)
+  where mk a = (DSuccess a i, s)
 
 liftD' :: Functor m => m a -> RTS.Input -> DParserM' m a
 liftD' m i = mk <$> m
-  where mk a = Just (a,i)
+  where mk a = DSuccess a i
 
 -- | A continuation parser.  Used for parsers that use unbiased choice.
 -- No custom user monad
@@ -106,6 +115,27 @@ vmNoteFail ty loc inp msg s =
               (FromUser, FromSystem) -> old
               _ -> newErr
 
+
+vmSetException ::
+  Text ->
+  Text ->
+  ParserErrorState ->
+  ParserErrorState
+vmSetException loc msg s = s { pesError = Just err }
+  where
+  err = ParseError
+    { peSource = FromUser
+    , peLoc    = loc
+    , peInput  = RTS.newInput "" ""
+    , peMsg    = RTS.vecFromRep (Text.encodeUtf8 msg)
+    , peStack  = pesCallStack s
+    }
+
+vmAbortAll :: Applicative m => Text -> Text -> Code r m
+vmAbortAll loc msg s = pure s { thrStack   = []
+                              , thrResults = []
+                              , thrErrors  = vmSetException loc msg (thrErrors s)
+                              }
 
 vmPushDebugTail :: Text -> ParserErrorState -> ParserErrorState
 vmPushDebugTail t s =
@@ -200,10 +230,10 @@ runDParser :: DParser a -> Either ParseError a
 runDParser p = dparserToEither (p initParseErrorState)
 
 runDParserM' :: Functor m => DParserM' m a -> m (Maybe a)
-runDParserM' p = dparserToMaybe <$> p
+runDParserM' p = dresultToMaybe <$> p
 
 runDParser' :: DParser' a -> Maybe a
-runDParser' = dparserToMaybe
+runDParser' = dresultToMaybe
 
 runCParserOne :: CParser a a -> Either ParseError a
 runCParserOne p = coerce (runCParserOneM p)
@@ -227,11 +257,12 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
 
 --------------------------------------------------------------------------------
 dparserToEither ::
-  (Maybe (a,RTS.Input), ParserErrorState) -> Either ParseError a
+  (DResult a, ParserErrorState) -> Either ParseError a
 dparserToEither (res,s) =
   case res of
-    Nothing -> Left (doGetErr s)
-    Just (a,_) -> Right a
+    DSuccess a _ -> Right a
+    DFailure     -> Left (doGetErr s)
+    DException _ _ -> Left (doGetErr s)
 
 
 doGetErr :: ParserErrorState -> ParseError
@@ -239,8 +270,9 @@ doGetErr s = case pesError s of
                Just e  -> e
                Nothing -> error "doGetErr: Nothing"
 
-dparserToMaybe :: DParser' a -> Maybe a
-dparserToMaybe = fmap fst
+dresultToMaybe :: DResult a -> Maybe a
+dresultToMaybe (DSuccess a _) = Just a
+dresultToMaybe _              = Nothing
 
 --------------------------------------------------------------------------------
 

@@ -15,7 +15,7 @@ pub struct ArrayB<'a,T> { rc: ddl::B<'a,[T]> }
 
 impl<T: ddl::Type> ddl::Type for Array<T> {
   type B<'a> = ArrayB<'a,T>;
-  fn bor(&self) -> ArrayB<T> { ArrayB { rc: self.rc.bor() } }
+  fn bor(&self) -> ArrayB<'_,T> { ArrayB { rc: self.rc.bor() } }
 }
 
 impl <T: ddl::Type> ddl::Clo for ArrayB<'_,T> {
@@ -130,7 +130,7 @@ impl<'a,T> Copy for ArrayIteratorB<'a,T> {}
 
 impl<T: ddl::Type> ddl::Type for ArrayIterator<T> {
   type B<'a> = ArrayIteratorB<'a,T>;
-  fn bor(&self) -> ArrayIteratorB<T> {
+  fn bor(&self) -> ArrayIteratorB<'_,T> {
     ArrayIteratorB { index: self.index, array: self.array.bor() }
   }
 }
@@ -234,8 +234,8 @@ pub fn rng_up_u_iter<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::
 
 pub fn rng_up_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>) -> impl Iterator<Item=ddl::I<N>>
   where ddl::Size<true,N> : ddl::WordRep {
+  assert!(i64::from(step) > 0, "rng_up_i: step must be positive");
   (i64::from(start) .. i64::from(end)).step_by(i64::from(step) as usize).map(|x| x.into())
-  
 }
 
 pub fn rng_down_u<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
@@ -245,5 +245,6 @@ pub fn rng_down_u<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N
 
 pub fn rng_down_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>) -> impl Iterator<Item=ddl::I<N>>
   where ddl::Size<true,N> : ddl::WordRep {
+    assert!(i64::from(step) > 0, "rng_down_i: step must be positive");
     (i64::from(start) + 1 ..= i64::from(end)).rev().step_by(i64::from(step) as usize).map(|x| x.into())
 }

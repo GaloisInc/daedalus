@@ -100,6 +100,7 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       Output e        -> Output (annE mp e)
       Notify e        -> Notify (annE mp e)
       CallPrim x p es -> CallPrim x p (map (annE mp) es)
+      CallPrim2 x y p es -> CallPrim2 x y p (map (annE mp) es)
       Spawn x l       -> Spawn x (annClo mp l)
       NoteFail err loc ei em  -> NoteFail err loc (annE mp ei) (annE mp em)
       Let x e         -> Let x (annE mp e)
@@ -113,14 +114,17 @@ doBorrowAnalysis prog = Program { pModules = annModule <$> pModules prog }
       JumpIf e ls        -> JumpIf (annE mp e) (annJ2 mp ls)
       Yield              -> Yield
       ReturnNo           -> ReturnNo
+      Throw l m   -> Throw l m
       ReturnYes e i      -> ReturnYes (annE mp e) (annE mp i)
       ReturnPure e       -> ReturnPure (annE mp e)
-      CallPure f l es    -> CallPure f (annJF mp l) (annE mp <$> es)
+      CallPure f l es exnFree ->
+        CallPure f (annJF mp l) (annE mp <$> es) exnFree
 
-      CallNoCapture f ks es -> CallNoCapture f (annJ2 mp ks) (annE mp <$> es)
+      CallNoCapture f ks es exnFree ->
+        CallNoCapture f (annJ2 mp ks) (annE mp <$> es) exnFree
 
-      CallCapture f no yes es ->
-        CallCapture f (annClo mp no) (annClo mp yes) (annE mp <$> es)
+      CallCapture f no yes es exnFree ->
+        CallCapture f (annClo mp no) (annClo mp yes) (annE mp <$> es) exnFree
 
       TailCall f c es    -> TailCall f c (annE mp <$> es)
 
@@ -332,24 +336,25 @@ cinstr _b ci =
     JumpIf _ ls  -> jumpChoice ls   -- the scrutinized expression is "borrowed"
     Yield        -> id
     ReturnNo     -> id
+    Throw _ _ -> id
     ReturnYes e i -> expr e (Nothing,Owned `ifRefs` e)
                    . expr i (Nothing,Owned `ifRefs` i)
     ReturnPure e -> expr e (Nothing,Owned `ifRefs` e)
 
-    CallPure f l es ->
+    CallPure f l es _ ->
       \i -> jumpWithFree l
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
 
-    CallCapture f no yes es ->
+    CallCapture f no yes es _ ->
       \i -> closure no
           $ closure yes
           $ foldr ($) i
           $ zipWith expr es
           $ getFunOwnership f i
 
-    CallNoCapture f ks es ->
+    CallNoCapture f ks es _ ->
       \i -> jumpChoice ks
           $ foldr ($) i
           $ zipWith expr es
@@ -401,6 +406,7 @@ modeI i =
     Output e                 -> [ Owned `ifRefs` e ]
     Notify _                 -> [ Unmanaged ]
     CallPrim _ pn es         -> zipWith ifRefs (modePrimName pn) es
+    CallPrim2 _ _ pn es      -> zipWith ifRefs (modePrimName pn) es
     Spawn _ clo              -> map (ifRefs Owned) (jArgs clo)
 
     NoteFail {}              -> [ Borrowed, Borrowed ]

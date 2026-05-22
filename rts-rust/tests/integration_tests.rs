@@ -265,21 +265,30 @@ fn test_builder_push_array() {
 #[test]
 fn test_builder_persistence() {
     // Tests that builders are persistent - sharing a builder and then
-    // diverging creates independent results.
-    // Due to sharing (Rc), when a builder is cloned and then pushed to,
-    // the new element goes into a separate node, affecting final order.
-    let b1 = ddl::new_builder().push(1u32).push(2);
-    let b2 = b1.clone().push(3);
-    let b3 = b1.clone().push(4);
+    // pushing to divergent copies produces correctly ordered results.
+    let b0 = ddl::new_builder().push(1u32).push(2);
+    let b1 = b0.clone().push(3);
+    let b2 = b0.clone().push(4);
 
+    let arr1 = b1.build();
     let arr2 = b2.build();
-    let arr3 = b3.build();
 
-    // When a builder is shared, new pushes create new nodes at the front,
-    // so the most recent push appears first, followed by the shared content
-    assert_eq!(ddl::array_to_vec(arr2), vec![3, 1, 2]);
-    assert_eq!(ddl::array_to_vec(arr3), vec![4, 1, 2],
-               "Diverged builders should produce independent results");
+    assert_eq!(ddl::array_to_vec(arr1), vec![1, 2, 3]);
+    assert_eq!(ddl::array_to_vec(arr2), vec![1, 2, 4]);
+}
+
+#[test]
+fn test_builder_shared_then_extended() {
+    // Regression test: a shared builder extended with multiple elements
+    // must preserve the original order (shared prefix followed by new elements).
+    let base = ddl::new_builder().push(10u32).push(20).push(30);
+    let extended = base.clone().push(40).push(50);
+
+    let base_arr = base.build();
+    let ext_arr = extended.build();
+
+    assert_eq!(ddl::array_to_vec(base_arr), vec![10, 20, 30]);
+    assert_eq!(ddl::array_to_vec(ext_arr), vec![10, 20, 30, 40, 50]);
 }
 
 // ============================================================================

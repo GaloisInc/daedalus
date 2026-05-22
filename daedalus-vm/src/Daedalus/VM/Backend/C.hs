@@ -132,6 +132,7 @@ cProgram
   noPrimDefs =
     let ?allFuns = allFunMap
         ?allTypes = allTypesMap
+        ?blockOwner = blockOwnerMap
         ?userState = userState
         ?nsUser = nsUserParam
         ?nsInputType = inpType
@@ -164,6 +165,7 @@ cProgram
     let ?allFuns = allFunMap
         ?allBlocks = allBlocks
         ?captures = Capture
+        ?blockOwner = blockOwnerMap
         ?allTypes = allTypesMap
         ?userState = userState
         ?nsUser    = nsUserParam
@@ -182,6 +184,12 @@ cProgram
   allTypesMap    = Map.fromList [ (Src.tName d, d) | d <- forgetRecs allTypes ]
   allFuns        = concatMap mFuns orderedModules
   allFunMap      = Map.fromList [ (vmfName f, f) | f <- allFuns ]
+  blockOwnerMap  = Map.fromList
+                   [ (l, vmfName f)
+                   | f <- allFuns
+                   , VMDef d <- [vmfDef f]
+                   , l <- Map.keys (vmfBlocks d)
+                   ]
 
   (capFuns,noCapFun) = partition ((Capture ==) . vmfCaptures) allFuns
 
@@ -194,7 +202,8 @@ cProgram
 includes :: CCodeGenConfig -> Doc
 includes opts =
   vcat $ maybeStream ++
-       [ "#include <ddl/parser.h>"
+       [ "#include <ddl/exception.h>"
+       , "#include <ddl/parser.h>"
        , "#include <ddl/size.h>"
        , "#include <ddl/input.h>"
        , "#include <ddl/unit.h>"
@@ -221,6 +230,23 @@ type AllBlocks  = (?allBlocks :: Map Label Block)
 type CurBlock   = (?curBlock  :: Block)
 type Copies     = (?copies    :: Map BV E)
 type CaptureFun = (?captures  :: Captures)
+type BlockOwner = (?blockOwner :: Map Label Src.FName)
+  -- ^ Maps block labels to the function that owns them.
+  -- In the capturing parser case, blocks from multiple functions are
+  -- compiled into a single C function, so we need this to look up
+  -- per-function properties (throws, isPure) for each block.
+
+curBlockFun :: (CurBlock, BlockOwner, AllFuns) => VMFun
+curBlockFun =
+  case Map.lookup (blockName ?curBlock) ?blockOwner of
+    Just fn -> ?allFuns Map.! fn
+    Nothing -> panic "curBlockFun" ["block has no owner"]
+
+curFunThrows :: (CurBlock, BlockOwner, AllFuns) => Throws
+curFunThrows = vmfThrows curBlockFun
+
+curFunIsPure :: (CurBlock, BlockOwner, AllFuns) => Bool
+curFunIsPure = vmfPure curBlockFun
 
 
 
@@ -288,7 +314,7 @@ cCaptureParserSig =
 
 
 defineCaptureParser ::
-  (UserState,AllFuns,AllTypes,AllBlocks,CaptureFun,NSUser) =>
+  (UserState,AllFuns,AllTypes,AllBlocks,CaptureFun,BlockOwner,NSUser) =>
   [CDecl] -> [CExpr -> CStmt] -> [VMFun] -> (CDecl, CDecl, CDecl)
 defineCaptureParser entTs ents capFuns
   | null ents   = (empty,empty,empty)
@@ -499,17 +525,24 @@ cNonCaptureRoot fun = (cStmt sig, sig <+> "{" $$ nest 2 (vcat body) $$ "}")
 
   ty   = cSemType (Src.fnameType name)
 
+  resultVar = "callResult"
   call = cCall (cFName name)
                ([ "p", "&out_result", "&out_input" ] ++ map snd pargs)
 
   body = [ declareParserState
          , cDeclareVar ty "out_result"
          , cDeclareVar nsInputType "out_input"
-         , cIf call
-              [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
-              , cStmt (cCallMethod "out_input" "free" [])
-              ]
-              [ cAssign "error" (cCallMethod "p" "getParseError" [])]
+         , cDeclareInitVar "DDL::ParserResult" resultVar call
+         , cSwitch resultVar
+             [ cCaseBlock "DDL::ParserResult::Ok"
+                 [ cStmt (cCallMethod "results" "push_back" [ "out_result" ])
+                 , cStmt (cCallMethod "out_input" "free" [])
+                 ]
+             , cCaseBlock "DDL::ParserResult::Failure"
+                 [ cAssign "error" (cCallMethod "p" "getParseError" []) ]
+             , cCaseBlock "DDL::ParserResult::Exception"
+                 [ cAssign "error" (cCallMethod "p" "getParseError" []) ]
+             ]
          ]
 
 
@@ -526,6 +559,15 @@ delcareEntryResults es = cNamespace "DDL" [ cNamespace "ResultOf" (map ty es) ]
 --------------------------------------------------------------------------------
 -- Non-capturing parsers
 
+-- | The C return type for a VM function.
+cFunRetType :: NSUser => VMFun -> CType
+cFunRetType fun
+  | vmfPure fun, vmfThrows fun == Throws = cInst "DDL::Result" [retTy]
+  | vmfPure fun                          = retTy
+  | otherwise                            = "DDL::ParserResult"
+  where
+  retTy = cSemType (Src.fnameType (vmfName fun))
+
 data FunLinkage = Static | Extern
 
 cFunSig :: (UserState,NSUser) => FunLinkage -> VMFun -> CDecl
@@ -535,7 +577,7 @@ cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
     case linkage of
       Static -> "static"
       Extern -> "extern"
-  res  = if vmfPure fun then retTy else "bool"
+  res  = cFunRetType fun
   args = if vmfPure fun then normalArgs else retArgs ++ normalArgs
   normalArgs = [ cType (getType x)
                | x <- case vmfDef fun of
@@ -548,7 +590,8 @@ cFunSig linkage fun = linkageStr <+> cDeclareFun res (cFName (vmfName fun)) args
 
 
 
-cFun :: (UserState,AllTypes,AllFuns,NSUser) => VMFun -> [CDecl]
+-- | Generate code for a non-capturing function (pure or parser).
+cFun :: (UserState,AllTypes,AllFuns,BlockOwner,NSUser) => VMFun -> [CDecl]
 cFun fun =
   case vmfDef fun of
     VMExtern {} -> []
@@ -562,9 +605,7 @@ cFun fun =
       thisName = if null args then cFNameInit else cFName
       thisDef  = cDefineFun res (thisName (vmfName fun)) args body
 
-      res
-        | vmfPure fun    = retTy
-        | otherwise      = "bool"
+      res = cFunRetType fun
 
       args
         | vmfPure fun = normalArgs
@@ -586,8 +627,8 @@ cFun fun =
                 , cPtrT (cSemType Src.TStream) <+> cRetInputFun
                 ]
 
-      body   = let ?allBlocks = vmfBlocks d
-                   ?captures  = NoCapture
+      body   = let ?allBlocks  = vmfBlocks d
+                   ?captures   = NoCapture
                in map cDeclareBlockParams (Map.elems (vmfBlocks d))
                  ++ [ cAssign (cArgUse entryBlock x) (argName n)
                     | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
@@ -615,7 +656,7 @@ cMemoValFun f = cDefineFun retTy (cFName f) [] body
 --------------------------------------------------------------------------------
 
 
-cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun,NSUser) => Block -> CStmt
+cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun,BlockOwner,NSUser) => Block -> CStmt
 cBasicBlock b = "//" <+> text (show (blockType b))
              $$ cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
@@ -741,6 +782,21 @@ cBlockStmt cInstr =
         Op3 op3      -> cOp3 x op3 es
         OpN opN      -> cOpN x opN es
 
+    CallPrim2 x y p es ->
+      case p of
+        Op2 Src.Add -> checkedArith "checked_add"
+        Op2 Src.Sub -> checkedArith "checked_sub"
+        Op2 Src.Mul -> checkedArith "checked_mul"
+        _ -> panic "CallPrim2" ["not yet implemented", show (pp p)]
+      where
+      [e1,e2] = map cExpr es
+      checkedArith method =
+        vcat [ cDeclareVar (cType (getType y)) (cVarUse y)
+             , cVarDecl x
+                 (cCallCon "DDL::Bool"
+                   [cCallMethod e1 method [e2, "&" <.> cVarUse y]])
+             ]
+
 
 cFree :: (CurBlock, Copies, NSUser) => Set VMVar -> [CStmt]
 cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
@@ -752,6 +808,59 @@ cFree xs = [ cStmt (cCall (cVMVar y <.> ".free") [])
     case x of
       LocalVar y | Just e <- Map.lookup y ?copies -> maybeToList (eIsVar e)
       _                                           -> [x]
+
+-- Propagate an exception from a pure callee.
+-- The caller may be pure or a parser.
+cPropagateExnPure :: (CurBlock, BlockOwner, AllFuns, CaptureFun, NSUser) => Doc -> [CStmt]
+cPropagateExnPure resultVar =
+  case ?captures of
+    Capture ->
+      cSetExnFromPure resultVar ++ cAbortCapture
+    NoCapture
+      | curFunIsPure ->
+        [ cStmt ("return" <+>
+            cCall "DDL::Result::failure" [resultVar <.> ".getException()"])
+        ]
+      | otherwise ->
+        cSetExnFromPure resultVar ++
+        [ cStmt ("return" <+> "DDL::ParserResult::Exception") ]
+    Unknown -> panic "cPropagateExnPure" ["Unknown"]
+
+-- Store an exception from a pure callee into the parser state.
+cSetExnFromPure :: Doc -> [CStmt]
+cSetExnFromPure resultVar =
+  [ cStmt (cCall "p.setException"
+      [ resultVar <.> ".getException().getLocation()"
+      , resultVar <.> ".getException().getMessage()"
+      ])
+  ]
+
+-- Propagate an exception from a parser callee.
+-- The exception is already stored in the parser state.
+cPropagateExnParser :: (CurBlock, BlockOwner, AllFuns, CaptureFun, NSUser) => [CStmt]
+cPropagateExnParser =
+  case ?captures of
+    Capture -> cAbortCapture
+    NoCapture
+      | curFunIsPure -> panic "cPropagateExnParser" ["parser called from pure function"]
+      | otherwise ->
+        [ cStmt ("return" <+> "DDL::ParserResult::Exception") ]
+    Unknown -> panic "cPropagateExnParser" ["Unknown"]
+
+-- Abort a capturing parser: free all threads and return.
+cAbortCapture :: (CurBlock, BlockOwner, AllFuns, NSUser) => [CStmt]
+cAbortCapture =
+  [ cStmt (cCall "p.abortAll" [])
+  , cStmt ("if constexpr (DDL::hasRefs<" <.> elemTy <.> ">())" <+>
+           "for (auto& r : *" <.> resultsPtr <.> ") r.free()")
+  , cStmt (cCall (resultsPtr <.> "->clear") [])
+  , cAssign "err" (cCallMethod "p" "getParseError" [])
+  , "return;"
+  ]
+  where
+  elemTy     = cSemType (Src.fnameType (vmfName curBlockFun))
+  vecTy      = cPtrT (cInst "std::vector" [ elemTy ])
+  resultsPtr = parens (parens vecTy <.> "out")
 
 
 
@@ -937,9 +1046,15 @@ cOp2 x op2 ~[e1',e2'] =
     Src.Leq   -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<=" <+> e2]
     Src.Lt    -> cVarDecl x $ cCallCon "DDL::Bool" [e1 <+> "<"  <+> e2]
 
-    Src.Add   -> cVarDecl x (e1 <+> "+" <+> e2)
-    Src.Sub   -> cVarDecl x (e1 <+> "-" <+> e2)
-    Src.Mul   -> cVarDecl x (e1 <+> "*" <+> e2)
+    Src.Add
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "+" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
+    Src.Sub
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "-" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
+    Src.Mul
+      | TSem Src.TInteger <- getType e1' -> cVarDecl x (e1 <+> "*" <+> e2)
+      | otherwise -> panic "cOp2" ["use CallPrim2 for checked arithmetic"]
     Src.Div   -> cVarDecl x (e1 <+> "/" <+> e2)
     Src.Mod   -> cVarDecl x (e1 <+> "%" <+> e2)
 
@@ -1047,7 +1162,7 @@ cExpr expr =
 --------------------------------------------------------------------------------
 
 cTermStmt ::
-  (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, NSUser) =>
+  (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, BlockOwner, NSUser) =>
   CInstr -> [CStmt]
 cTermStmt ccInstr =
   case ccInstr of
@@ -1064,7 +1179,7 @@ cTermStmt ccInstr =
     ReturnNo ->
       case ?captures of
         Capture   -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
-        NoCapture -> [ "return false;" ]
+        NoCapture -> [ cStmt ("return" <+> "DDL::ParserResult::Failure") ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
     ReturnYes e i ->
@@ -1077,9 +1192,25 @@ cTermStmt ccInstr =
         NoCapture ->
           [ cAssign ("*" <.> cRetVarFun)   (cExpr e)
           , cAssign ("*" <.> cRetInputFun) (cExpr i)
-          , "return true;"
+          , cStmt ("return" <+> "DDL::ParserResult::Ok")
           ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
+
+    Throw loc msg ->
+      case ?captures of
+        Capture ->
+          [ cStmt (cCall "p.setException" [text (show loc), text (show msg)])
+          ] ++ cAbortCapture
+        NoCapture
+          | curFunIsPure ->
+            [ cStmt ("return" <+>
+                cCall "DDL::Result::failure" [text (show loc), text (show msg)])
+            ]
+          | otherwise ->
+            [ cStmt (cCall "p.setException" [text (show loc), text (show msg)])
+            , cStmt ("return" <+> "DDL::ParserResult::Exception")
+            ]
+        Unknown -> panic "cTermStmt" ["Unknown"]
 
     ReturnPure e ->
       case ?captures of
@@ -1087,18 +1218,22 @@ cTermStmt ccInstr =
           [ cAssign (cRetVar (getType e)) (cExpr e)
           , cGoto ("*" <.> cCall "p.returnPure" [])
           ]
-        NoCapture ->
-          [ cStmt ("return" <+> cExpr e) ]
+        NoCapture
+          | curFunThrows == Throws ->
+            [ cStmt ("return" <+>
+                cCall "DDL::Result::ok" [cExpr e]) ]
+          | otherwise ->
+            [ cStmt ("return" <+> cExpr e) ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
-    CallCapture f no yes es ->
-        doPush no
-      : doPush yes
-      : case vmfDef (lkpFun f) of
-         VMDef d -> cJump (JumpPoint (vmfEntry d) es)
-         VMExtern {} -> panic "Capture call to extern" []
+    CallCapture f no yes es _exnFree ->
+          doPush no
+        : doPush yes
+        : case vmfDef (lkpFun f) of
+           VMDef d -> cJump (JumpPoint (vmfEntry d) es)
+           VMExtern {} -> panic "Capture call to extern" []
 
-    CallNoCapture f (JumpCase ks) es ->
+    CallNoCapture f (JumpCase ks) es exnFree ->
       let yes = ks Map.! True
           no  = ks Map.! False
           JumpPoint lYes esYes = jumpTarget yes
@@ -1106,26 +1241,49 @@ cTermStmt ccInstr =
           bYes = ?allBlocks Map.! lYes
           bNo  = ?allBlocks Map.! lNo
           a : i : _ = blockArgs bYes
+          resultVar = "callResult"
           call = cCall (cFName f)
                $ "p"
                : ("&" <.> cArgUse bYes a)
                : ("&" <.> cArgUse bYes i)
                : map cExpr es
-      in [ cIf call
-             (freeClo yes ++ cDoJump bYes esYes)
-             (freeClo no  ++ cDoJump bNo  esNo)
-        ]
+      in [ cDeclareInitVar "DDL::ParserResult" resultVar call
+         , cSwitch resultVar
+             [ cCaseBlock "DDL::ParserResult::Ok"
+                 (freeClo yes ++ cDoJump bYes esYes)
+             , cCaseBlock "DDL::ParserResult::Failure"
+                 (freeClo no ++ cDoJump bNo esNo)
+             , cCaseBlock "DDL::ParserResult::Exception"
+                 (cFree exnFree ++ cPropagateExnParser)
+             ]
+         ]
 
       where
       freeClo c = cFree (freeFirst c)
 
-    CallPure f jp es ->
+    CallPure f jp es exnFree ->
       let JumpPoint lab les = jumpTarget jp
+          calleeThrows = vmfThrows (lkpFun f) == Throws
       in
       case Map.lookup lab ?allBlocks of
-        Just b -> zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
-                  cFree (freeFirst jp) ++
-                  [ cGoto (cBlockLabel (blockName b)) ]
+        Just b
+          | calleeThrows ->
+            let resultVar = "callResult"
+                resultTy  = cInst "DDL::Result"
+                              [cSemType (Src.fnameType f)]
+            in [ cDeclareInitVar resultTy resultVar
+                    (cCall (cFName f) (map cExpr es))
+               , cIf' ("!" <.> resultVar <.> ".isOk()")
+                   (cFree exnFree ++ cPropagateExnPure resultVar)
+               ]
+               ++ zipWith assignP (blockArgs b)
+                    (resultVar <.> ".getValue()" : map cExpr les)
+               ++ cFree (freeFirst jp)
+               ++ [ cGoto (cBlockLabel (blockName b)) ]
+          | otherwise ->
+              zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
+              cFree (freeFirst jp) ++
+              [ cGoto (cBlockLabel (blockName b)) ]
           where
           assignP ba = cAssign (cArgUse b ba)
           doCall = cCall (cFName f) (map cExpr es)
@@ -1146,16 +1304,34 @@ cTermStmt ccInstr =
 
         -- this is not a tail call anymore
         (NoCapture,Capture)
+          | vmfPure fun, vmfThrows fun == Throws ->
+            let resultVar = "callResult"
+                resultTy  = cInst "DDL::Result" [cSemType (Src.fnameType f)]
+            in [ cDeclareInitVar resultTy resultVar (doCall [])
+               , cIf' ("!" <.> resultVar <.> ".isOk()")
+                   (cSetExnFromPure resultVar ++ cAbortCapture)
+               , cAssign (cRetVar retT) (resultVar <.> ".getValue()")
+               , cGoto ("*" <.> cCall "p.returnPure" [])
+               ]
+
           | vmfPure fun ->
             [ cAssign (cRetVar retT) (doCall [])
             , cGoto ("*" <.> cCall "p.returnPure" [])
             ]
 
           | otherwise ->
-            [ cIf (doCall [ "p", "&" <.> cRetVar retT, "&" <.> cRetInput ])
-                  [cGoto ("*" <.> cCall "p.returnYes" [])]
-                  [cGoto ("*" <.> cCall "p.returnNo" [])]
-            ]
+            let resultVar = "callResult"
+            in [ cDeclareInitVar "DDL::ParserResult" resultVar
+                   (doCall [ "p", "&" <.> cRetVar retT, "&" <.> cRetInput ])
+               , cSwitch resultVar
+                   [ cCaseBlock "DDL::ParserResult::Ok"
+                       [cGoto ("*" <.> cCall "p.returnYes" [])]
+                   , cCaseBlock "DDL::ParserResult::Failure"
+                       [cGoto ("*" <.> cCall "p.returnNo" [])]
+                   , cCaseBlock "DDL::ParserResult::Exception"
+                       cAbortCapture
+                   ]
+               ]
 
         (NoCapture,NoCapture) ->
             [ cStmt $ "return" <+> doCall args ]

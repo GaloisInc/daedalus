@@ -11,7 +11,7 @@ vCat :: Value -> Value -> Value
 vCat =
   tracedFun \a b ->
   case (a,b) of
-    (VUInt m x, VUInt n y) -> vUInt (m + n) ((x `shiftL` fromIntegral n) .|. y)
+    (VUInt m x, VUInt n y) -> vUIntWrapping (m + n) ((x `shiftL` fromIntegral n) .|. y)
     _ -> panic "vCat" [ "Invalid bit concatenation"
                       , "Operand 1: " ++ show a
                       , "Operand 2: " ++ show b
@@ -19,7 +19,7 @@ vCat =
 
 
 -- x <# y  ==   x * 2^n + y,   where y : uint n
-vLCat :: Value -> Value -> Partial Value
+vLCat :: Value -> Value -> Value
 vLCat =
   tracedFun \a b ->
   let bad = panic "vLCat" [ "Invalid lcat"
@@ -32,9 +32,9 @@ vLCat =
       let mk f i = f ((i `shiftL` w) .|. y)
       in
       case a of
-        VInteger x -> mk (pure . VInteger)   x
-        VUInt n x  -> mk (pure . vUInt n) x
-        VSInt n x  -> mk (vSInt n) x
+        VInteger x -> mk VInteger        x
+        VUInt n x  -> mk (vUIntWrapping n) x
+        VSInt n x  -> mk (vSInt' n)        x
         _          -> bad
 
     _ -> bad

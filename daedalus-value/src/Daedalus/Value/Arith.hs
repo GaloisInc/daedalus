@@ -18,16 +18,12 @@ vNeg = numeric1 "-" negate
 vMul :: Value -> Value -> Partial Value
 vMul = numeric2 "*" (*)
 
-
-
--- XXX: div/mod or quot/rem?
-
 vDiv :: Value -> Value -> Partial Value
 vDiv =
   tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> VInteger <$> f x y
-    (VUInt n x,  VUInt n' y) | n == n' -> vUInt n <$> f x y
+    (VUInt n x,  VUInt n' y) | n == n' -> vUInt n =<< f x y
     (VSInt n x,  VSInt n' y) | n == n' -> vSInt n =<< f x y
     (VFloat x, VFloat y)               -> pure (VFloat (x/y))
     (VDouble x, VDouble y)             -> pure (VDouble (x/y))
@@ -37,14 +33,14 @@ vDiv =
                           , "Operand 2: " ++ show b
                           ]
   where
-  f x y = if y == 0 then vErr "Division by 0" else pure (div x y)
+  f x y = if y == 0 then vErr "Division by 0" else pure (quot x y)
 
 vMod :: Value -> Value -> Partial Value
 vMod =
   tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> VInteger <$> f x y
-    (VUInt n x,  VUInt n' y) | n == n' -> vUInt n <$> f x y
+    (VUInt n x,  VUInt n' y) | n == n' -> vUInt n =<< f x y
     (VSInt n x,  VSInt n' y) | n == n' -> vSInt n =<< f x y
     _ -> panic "numeric2" [ "Invalid binary numeric operation"
                           , "Operation: mod"
@@ -52,9 +48,6 @@ vMod =
                           , "Operand 2: " ++ show b
                           ]
   where f x y = if y == 0 then vErr "Modulus by 0" else pure (rem x y)
-  -- We use `rem` here, because this is what % does on signed numbers in
-  -- most standard languages (e.g., C++/Rust), so this should be the least
-  -- surprising behavior.
 
 
 
@@ -64,7 +57,7 @@ numeric1 name f =
   tracedFun \a ->
   case a of
     VInteger x -> pure (VInteger (f x))
-    VUInt n x  -> pure (vUInt n (f x))
+    VUInt n x  -> vUInt n (f x)
     VSInt n x  -> vSInt n (f x)
     VFloat x   -> pure (VFloat (f x))
     VDouble x  -> pure (VDouble (f x))
@@ -78,7 +71,7 @@ numeric2 name f =
   tracedFun \a b ->
   case (a,b) of
     (VInteger x, VInteger y)           -> pure (VInteger (f x y))
-    (VUInt n x,  VUInt n' y) | n == n' -> pure (vUInt n (f x y))
+    (VUInt n x,  VUInt n' y) | n == n' -> vUInt n (f x y)
     (VSInt n x,  VSInt n' y) | n == n' -> vSInt n (f x y)
     (VFloat x, VFloat y)               -> pure (VFloat (f x y))
     (VDouble x, VDouble y)             -> pure (VDouble (f x y))

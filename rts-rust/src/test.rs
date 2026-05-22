@@ -5,11 +5,10 @@ use std::process;
 use serde::Serialize;
 
 
-pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) -> Option<(T,ddl::Input)>>(f: F) {
+pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) -> ddl::ParserResult<T>>(f: F) {
     let args: Vec<String> = env::args().collect();
 
     let (nm_arr, byte_arr) = if args.len() == 1 {
-        // No file provided, use empty input
         let empty = b"";
         (ddl::new_byte_array(empty), ddl::new_byte_array(empty))
     } else if args.len() == 2 {
@@ -27,9 +26,11 @@ pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) ->
     let mut pstate = ddl::new_parser_state();
 
     match f(&mut pstate, ddl::new_input(nm_arr, byte_arr)) {
-      None =>
+      ddl::ParserResult::Failure =>
         println!("parse error: {}", pstate.error),
-      Some((a,_)) => {
+      ddl::ParserResult::Exception =>
+        println!("exception: {}", pstate.error),
+      ddl::ParserResult::Ok(a, _) => {
           match serde_json::to_string_pretty(&a) {
               Ok(json) => println!("[{}]", json),
               Err(err) => eprintln!("Serialization error: {}", err)
