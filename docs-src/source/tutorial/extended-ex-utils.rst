@@ -41,7 +41,7 @@ big-endian, 32-bit, unsigned integer.
     :color: info
 
     You may want to review the section
-    :ref:`aside: the daedalus standard library` if you're not sure how to deal
+    :ref:`tutorial/extended-ex-stdlib:The DaeDaLus Standard Library` if you're not sure how to deal
     with the endianness.
 
 .. dropdown:: Solution

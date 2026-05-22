@@ -63,7 +63,7 @@ using the name ``?a``, as we do in the body.
 
   The notation ?x is used for two unrelated features:  in types it refers
   to some unknown type, as in the previous example;  in parsers and value
-  declarations it refers to :ref:`Implicit Parameters`.
+  declarations it refers to :ref:`user-guide/implicit-parameters:Implicit Parameters`.
 
 
 Coercions

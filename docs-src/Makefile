@@ -32,8 +32,12 @@ github:
 	tar czf build/examples.tar.gz -C build/downloads/source examples
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-	cd .. && $(CABAL) build exe:daedalus
-	cd .. && for f in $$(find docs-src/build -name \*.ddl); do \
-		echo "Testing $$f with daedalus:" ; \
-		$(CABAL) exec daedalus -- --path=lib/ $$f; \
-		done
+	@failed=0; \
+	for f in $$(find build -name \*.ddl); do \
+		if ! ../bin/daedalus --path=../lib/ $$f > /dev/null 2>&1; then \
+			echo "FAILED: $$f"; \
+			../bin/daedalus --path=../lib/ $$f 2>&1 | grep -i "error"; \
+			failed=1; \
+		fi; \
+	done; \
+	if [ $$failed -eq 0 ]; then echo "All examples passed."; fi

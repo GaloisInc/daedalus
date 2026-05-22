@@ -7,7 +7,7 @@ a *character class*.  Parsers may examine and consume input, and have
 the ability to fail.  If successful, they produce a semantic value.
 Character classes describe sets of bytes, which may be used to define
 parsers, and will be discussed in more detail in section
-:ref:`Character Classes`.
+:ref:`user-guide/character-classes:Character Classes`.
 
 The general form of a declarations is as follows:
 

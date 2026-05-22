@@ -193,8 +193,12 @@ The parser ``S1`` is a sequence of two parsers, whose semantic value
 is a structure with two fields, ``x`` and ``y``.  Both fields have type
 ``uint 8``.  The first parser just extracts a byte from input.  The second
 parser is itself a sequence: first it extracts a byte from the input,
-but its semantic value is the sum of the two extracted bytes.  As another
-example, here is an equivalent way to define the same parser:
+but its semantic value is the sum of the two extracted bytes.
+
+Note that ``let`` bindings in a structure sequence introduce local
+variables that are available to later parsers but do *not* become fields
+of the resulting structure type.  As another example, here is an
+equivalent way to define the same parser:
 
 .. code-block:: DaeDaLus
 
@@ -221,6 +225,31 @@ Here are some examples:
 +----------------------+-----------------------------------------------------+
 | ``{ x = P; y = Q }`` | ``{ let x  = P; let y  = Q; ^ { x = x; y = y } }``  |
 +----------------------+-----------------------------------------------------+
+
+
+Suppressing Results (``@``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``@`` operator runs a parser but discards its semantic value, producing
+``{}`` (unit) instead.  This is useful when a parser is needed only for its
+effect on the input stream---for example, to consume bytes without recording
+them:
+
+.. code-block:: DaeDaLus
+
+  def Sign =
+    First
+      pos = @$['+']
+      neg = @$['-']
+
+Here ``@$['+']`` matches a ``+`` character and advances the input, but
+the resulting union field ``pos`` has type ``{}`` rather than ``uint 8``.
+This is particularly important in cases like this where the result *is*
+being stored---without ``@``, the field would have type ``uint 8``.
+
+In contexts where a parser's result is obviously unused (e.g., an
+unnamed statement in a sequence that is not the last), DaeDaLus will
+automatically suppress the result, so ``@`` is not needed there.
 
 
 Parsing Alternatives
@@ -417,6 +446,24 @@ To use an explicitly-declared union, we give ``MyUnionParser`` a return
 type annotation to indicate that it returns values of type ``MyUnion``.
 We then construct union semantic values using the ``Good`` and ``Bad``
 constructors and the ``{| ... |}`` notation.
+
+Similarly, structure types can be declared explicitly:
+
+.. code-block:: DaeDaLus
+
+  def Point = struct
+    x: uint 32
+    y: uint 32
+
+This declares a type ``Point`` with two fields, ``x`` and ``y``.
+A value of this type can be constructed using the ``{ ... }`` notation:
+
+.. code-block:: DaeDaLus
+
+  def Origin: Point = ^ { x = 0, y = 0 }
+
+As with unions, the type annotation is needed when DaeDaLus cannot
+infer which struct type is intended.
 
 Repetition
 ----------

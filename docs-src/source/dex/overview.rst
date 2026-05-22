@@ -91,7 +91,7 @@ are added to the ``.h`` file, and ``extern def`` declarations are added to the
 ``.cpp`` file.   Typically, ``extern`` declarations should be used to
 ``#include`` dependencies, and ``extern def`` should be used to add local helper
 functions.  The CODE_BLOCKS in ``extern`` may not contain any escapes.
-See :ref:`Writing External Code` for more details on ``CODE_BLOCK``.
+See :ref:`dex/overview:Writing External Code` for more details on ``CODE_BLOCK``.
 
 .. code-block:: Dex
 

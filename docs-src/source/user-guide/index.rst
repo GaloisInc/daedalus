@@ -17,4 +17,5 @@ Language Reference
   bitdata
   lifting
   implicit-parameters
+  stdlib
 

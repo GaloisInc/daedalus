@@ -95,6 +95,8 @@ input from file ``input.txt``.
 
 If successful, the resulting semantic value will be shown on ``stdout``.
 
+.. _run-flags:
+
 Flags
 -----
 
@@ -163,6 +165,8 @@ To compile a DaeDaLus package specification C++:
 
   daedalus compile-c++ MyParserSpec.ddl --out-dir=some_dir_name
 
+.. _compile-cpp-generated-files:
+
 Generated Files
 ---------------
 
@@ -181,6 +185,8 @@ The sample executable driver will be generated when:
   * there is no explicit ``--entry`` specified, and
   * there is no custom user state ``--user-state``, and
   * the flag ``--lazy-streams`` is not enabled
+
+.. _compile-cpp-flags:
 
 Flags
 -----
@@ -307,6 +313,8 @@ The result is a directory containing a complete Rust crate with the generated
 parser and type definitions. The generated code uses the Daedalus Rust runtime
 system (RTS), which provides core parsing functionality.
 
+.. _compile-rust-generated-files:
+
 Generated Files
 ---------------
 
@@ -325,6 +333,8 @@ To build the generated parser:
 The ``--save-rts`` flag can be used to include the RTS source code directly
 in the output directory, which is useful for standalone builds that do not
 depend on an external RTS installation.
+
+.. _compile-rust-flags:
 
 Flags
 -----
