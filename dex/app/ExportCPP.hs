@@ -225,7 +225,7 @@ genCase x ty alts =
         (TMaybe,[a],[]) ->
           cIf (cCallMethod xe "isNothing" [])
             [genForeignCode nothingCase]
-            [ cDeclareInitVar (genDDLType a) (pp field) (cCallMethod xe "getValue" []),
+            [ cDeclareInitVar (genDDLType a) (pp field) (cCallMethod xe "borrowValue" []),
               genForeignCode justCase
             ]
           where
