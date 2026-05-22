@@ -1,8 +1,0 @@
-[WARNING] ./P036.ddl:4:9--4:35:
-            Using unbiased choice may be inefficient.
-context:
-  "Main"
-input: File context:
-Length: 1 (0x1) bytes
-0000:   32                                                   2
-
