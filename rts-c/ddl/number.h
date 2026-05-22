@@ -309,7 +309,6 @@ public:
   SInt operator >> (UInt<64> x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
   // Assumes C++ 20 semantics
-  // XXX: should we call fixUp or assumed that we are staying in bounds?
   SInt operator << (Size x) const { return x.rep() >= w? SInt(0) : SInt(data << x.rep()); }
   SInt operator >> (Size x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
