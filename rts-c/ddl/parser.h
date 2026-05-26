@@ -129,12 +129,11 @@ public:
     stack.free();
     ThreadClosure *c = t.closure;
     stack = ListStack(c,t.stack);
+    debugs = t.debug;
     suspended.pop_back();
 
     debugLine("new stack");
     debugVal(stack);
-
-    debugs = t.debug;
 
     return stack.retAddr();
   }
