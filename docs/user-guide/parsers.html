@@ -58,6 +58,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#local-variables">Local Variables</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#structure-sequence">Structure Sequence</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#syntactic-sugar">Syntactic Sugar</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#suppressing-results">Suppressing Results (<code class="docutils literal notranslate"><span class="pre">&#64;</span></code>)</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#parsing-alternatives">Parsing Alternatives</a><ul>
@@ -79,6 +80,7 @@
 <li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html">Standard Library</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
@@ -267,8 +269,11 @@ earlier parsers in the sequence.  For example:</p>
 is a structure with two fields, <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>.  Both fields have type
 <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.  The first parser just extracts a byte from input.  The second
 parser is itself a sequence: first it extracts a byte from the input,
-but its semantic value is the sum of the two extracted bytes.  As another
-example, here is an equivalent way to define the same parser:</p>
+but its semantic value is the sum of the two extracted bytes.</p>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">let</span></code> bindings in a structure sequence introduce local
+variables that are available to later parsers but do <em>not</em> become fields
+of the resulting structure type.  As another example, here is an
+equivalent way to define the same parser:</p>
 <div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">S2</span> <span class="k">=</span>
   <span class="k">block</span>
     <span class="n">x</span> <span class="k">=</span> <span class="k">UInt8</span>
@@ -300,6 +305,26 @@ Here are some examples:</p>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="suppressing-results">
+<h3>Suppressing Results (<code class="docutils literal notranslate"><span class="pre">&#64;</span></code>)<a class="headerlink" href="#suppressing-results" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> operator runs a parser but discards its semantic value, producing
+<code class="docutils literal notranslate"><span class="pre">{}</span></code> (unit) instead.  This is useful when a parser is needed only for its
+effect on the input stream—for example, to consume bytes without recording
+them:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Sign</span> <span class="k">=</span>
+  <span class="k">First</span>
+    <span class="n">pos</span> <span class="k">=</span> <span class="k">@</span><span class="n">$</span><span class="p">[</span><span class="s">&#39;+&#39;</span><span class="p">]</span>
+    <span class="n">neg</span> <span class="k">=</span> <span class="k">@</span><span class="n">$</span><span class="p">[</span><span class="s">&#39;-&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal notranslate"><span class="pre">&#64;$['+']</span></code> matches a <code class="docutils literal notranslate"><span class="pre">+</span></code> character and advances the input, but
+the resulting union field <code class="docutils literal notranslate"><span class="pre">pos</span></code> has type <code class="docutils literal notranslate"><span class="pre">{}</span></code> rather than <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.
+This is particularly important in cases like this where the result <em>is</em>
+being stored—without <code class="docutils literal notranslate"><span class="pre">&#64;</span></code>, the field would have type <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>.</p>
+<p>In contexts where a parser’s result is obviously unused (e.g., an
+unnamed statement in a sequence that is not the last), DaeDaLus will
+automatically suppress the result, so <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> is not needed there.</p>
 </section>
 </section>
 <section id="parsing-alternatives">
@@ -468,6 +493,19 @@ a single <code class="docutils literal notranslate"><span class="pre">uint</span
 type annotation to indicate that it returns values of type <code class="docutils literal notranslate"><span class="pre">MyUnion</span></code>.
 We then construct union semantic values using the <code class="docutils literal notranslate"><span class="pre">Good</span></code> and <code class="docutils literal notranslate"><span class="pre">Bad</span></code>
 constructors and the <code class="docutils literal notranslate"><span class="pre">{|</span> <span class="pre">...</span> <span class="pre">|}</span></code> notation.</p>
+<p>Similarly, structure types can be declared explicitly:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Point</span> <span class="k">=</span> <span class="n">struct</span>
+  <span class="n">x</span><span class="p">:</span> <span class="k">uint</span> <span class="m">32</span>
+  <span class="n">y</span><span class="p">:</span> <span class="k">uint</span> <span class="m">32</span>
+</pre></div>
+</div>
+<p>This declares a type <code class="docutils literal notranslate"><span class="pre">Point</span></code> with two fields, <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>.
+A value of this type can be constructed using the <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code> notation:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">Origin</span><span class="p">:</span> <span class="n">Point</span> <span class="k">=</span> <span class="k">^</span> <span class="p">{</span> <span class="n">x</span> <span class="k">=</span> <span class="m">0</span><span class="p">,</span> <span class="n">y</span> <span class="k">=</span> <span class="m">0</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>As with unions, the type annotation is needed when DaeDaLus cannot
+infer which struct type is intended.</p>
 </section>
 </section>
 <section id="repetition">

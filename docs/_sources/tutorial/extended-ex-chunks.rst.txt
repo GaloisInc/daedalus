@@ -153,7 +153,7 @@ PLTE
 
 The PLTE chunk contains between 1 and 256 palette entries, which are
 simply RGB structures as we defined in the section
-:ref:`extended exercise: defining helpful utilities`.
+:ref:`tutorial/extended-ex-utils:Extended Exercise: Defining Helpful Utilities`.
 
 **Exercise:** Write a parser ``PLTEChunkData`` that parses between 1 and
 256 ``RGB`` structures.

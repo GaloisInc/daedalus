@@ -60,6 +60,7 @@
 <li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html">Standard Library</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
@@ -95,6 +96,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="general.html">General Information</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="general.html#daedalus-input-format">DaeDaLus Input Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="general.html#modules-and-imports">Modules and Imports</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="declarations.html">Declarations</a></li>
@@ -106,6 +108,7 @@
 <li class="toctree-l3"><a class="reference internal" href="parsers.html#local-variables">Local Variables</a></li>
 <li class="toctree-l3"><a class="reference internal" href="parsers.html#structure-sequence">Structure Sequence</a></li>
 <li class="toctree-l3"><a class="reference internal" href="parsers.html#syntactic-sugar">Syntactic Sugar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parsers.html#suppressing-results">Suppressing Results (<code class="docutils literal notranslate"><span class="pre">&#64;</span></code>)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="parsers.html#parsing-alternatives">Parsing Alternatives</a><ul>
@@ -147,11 +150,17 @@
 <li class="toctree-l3"><a class="reference internal" href="semantic-values.html#numeric-literals">Numeric Literals</a></li>
 <li class="toctree-l3"><a class="reference internal" href="semantic-values.html#comparisons">Comparisons</a></li>
 <li class="toctree-l3"><a class="reference internal" href="semantic-values.html#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#arithmetic-exceptions">Arithmetic Exceptions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="semantic-values.html#bitwise-operations">Bitwise Operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#floating-point-operations">Floating-Point Operations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#coercions-involving-floating-point-types">Coercions Involving Floating-Point Types</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
-<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html#arrays">Arrays</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="semantic-values.html#numeric-ranges">Numeric Ranges</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#array-builders">Array Builders</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#association-maps">Association Maps</a></li>
 <li class="toctree-l2"><a class="reference internal" href="semantic-values.html#streams">Streams</a></li>
@@ -159,10 +168,23 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="external.html">External Declarations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="external.html#external-primitives">External Primitives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="external.html#external-module-imports">External Module Imports</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stdlib.html">Standard Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#multi-byte-integer-parsers">Multi-Byte Integer Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#floating-point-parsers">Floating-Point Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#utility-combinators">Utility Combinators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#numeric-utilities">Numeric Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#stream-manipulation">Stream Manipulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#testing-combinators">Testing Combinators</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </section>

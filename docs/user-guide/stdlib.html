@@ -1,0 +1,325 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Standard Library &mdash; Daedalus 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dex: Daedalus Export DSL" href="../dex/index.html" />
+    <link rel="prev" title="Implicit Parameters" href="implicit-parameters.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Daedalus
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../tutorial/index.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool-docs/index.html">The Command-Line Tools</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General Information</a></li>
+<li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parsers.html">Parsers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="control-structures.html">Control Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="types.html">Type Annotations and Coercions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic-values.html">Semantic Values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="streams.html">Stream Manipulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="character-classes.html">Character Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="external.html">External Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Standard Library</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#multi-byte-integer-parsers">Multi-Byte Integer Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#floating-point-parsers">Floating-Point Parsers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#utility-combinators">Utility Combinators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#numeric-utilities">Numeric Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stream-manipulation">Stream Manipulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-combinators">Testing Combinators</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Daedalus</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Language Reference</a></li>
+      <li class="breadcrumb-item active">Standard Library</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-guide/stdlib.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="standard-library">
+<h1>Standard Library<a class="headerlink" href="#standard-library" title="Link to this heading"></a></h1>
+<p>DaeDaLus provides a standard library module called <code class="docutils literal notranslate"><span class="pre">Daedalus</span></code> that can
+be imported with:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="n">Daedalus</span>
+</pre></div>
+</div>
+<section id="multi-byte-integer-parsers">
+<h2>Multi-Byte Integer Parsers<a class="headerlink" href="#multi-byte-integer-parsers" title="Link to this heading"></a></h2>
+<p>These parsers read multi-byte integers from the input.  They use the
+implicit parameter <code class="docutils literal notranslate"><span class="pre">?bigEndian</span></code> to determine byte order:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parser</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UInt16</span></code></p></td>
+<td><p>Parse a 16-bit unsigned integer</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UInt32</span></code></p></td>
+<td><p>Parse a 32-bit unsigned integer</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UInt64</span></code></p></td>
+<td><p>Parse a 64-bit unsigned integer</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SInt16</span></code></p></td>
+<td><p>Parse a 16-bit signed integer</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SInt32</span></code></p></td>
+<td><p>Parse a 32-bit signed integer</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SInt64</span></code></p></td>
+<td><p>Parse a 64-bit signed integer</p></td>
+</tr>
+</tbody>
+</table>
+<p>There are also variants with a fixed byte order:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parser</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BEUInt16</span></code>, <code class="docutils literal notranslate"><span class="pre">BEUInt32</span></code>, …</p></td>
+<td><p>Big-endian (most significant byte first)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">LEUInt16</span></code>, <code class="docutils literal notranslate"><span class="pre">LEUInt32</span></code>, …</p></td>
+<td><p>Little-endian (least significant byte first)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="floating-point-parsers">
+<h2>Floating-Point Parsers<a class="headerlink" href="#floating-point-parsers" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parser</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HalfFloat</span></code></p></td>
+<td><p>Parse a 16-bit half-precision float</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Float</span></code></p></td>
+<td><p>Parse a 32-bit single-precision float</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Double</span></code></p></td>
+<td><p>Parse a 64-bit double-precision float</p></td>
+</tr>
+</tbody>
+</table>
+<p>These also have <code class="docutils literal notranslate"><span class="pre">BE</span></code> and <code class="docutils literal notranslate"><span class="pre">LE</span></code> variants (e.g., <code class="docutils literal notranslate"><span class="pre">BEFloat</span></code>, <code class="docutils literal notranslate"><span class="pre">LEDouble</span></code>).</p>
+</section>
+<section id="utility-combinators">
+<h2>Utility Combinators<a class="headerlink" href="#utility-combinators" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Combinator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Guard</span> <span class="pre">b</span></code></p></td>
+<td><p>Succeed if <code class="docutils literal notranslate"><span class="pre">b</span></code> is true, fail otherwise</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GuardMsg</span> <span class="pre">b</span> <span class="pre">s</span></code></p></td>
+<td><p>Like <code class="docutils literal notranslate"><span class="pre">Guard</span></code> but with a custom error message</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">When</span> <span class="pre">P</span> <span class="pre">x</span></code></p></td>
+<td><p>Parse <code class="docutils literal notranslate"><span class="pre">P</span></code>, discard its result, return <code class="docutils literal notranslate"><span class="pre">x</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Default</span> <span class="pre">x</span> <span class="pre">P</span></code></p></td>
+<td><p>Parse <code class="docutils literal notranslate"><span class="pre">P</span></code>; if it fails, return <code class="docutils literal notranslate"><span class="pre">x</span></code> instead</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Only</span> <span class="pre">P</span></code></p></td>
+<td><p>Succeed only if <code class="docutils literal notranslate"><span class="pre">P</span></code> consumes all input</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Count</span> <span class="pre">P</span></code></p></td>
+<td><p>Count how many times <code class="docutils literal notranslate"><span class="pre">P</span></code> succeeds</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ManyStart</span> <span class="pre">P</span> <span class="pre">Q</span></code></p></td>
+<td><p>Match one <code class="docutils literal notranslate"><span class="pre">P</span></code> followed by zero or more <code class="docutils literal notranslate"><span class="pre">Q</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="numeric-utilities">
+<h2>Numeric Utilities<a class="headerlink" href="#numeric-utilities" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">numBase</span> <span class="pre">base</span> <span class="pre">ds</span></code></p></td>
+<td><p>Evaluate a digit array in the given base</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">min</span> <span class="pre">x</span> <span class="pre">y</span></code></p></td>
+<td><p>The smaller of two values</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">max</span> <span class="pre">x</span> <span class="pre">y</span></code></p></td>
+<td><p>The larger of two values</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="stream-manipulation">
+<h2>Stream Manipulation<a class="headerlink" href="#stream-manipulation" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Combinator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SetStreamAt</span> <span class="pre">n</span> <span class="pre">s</span></code></p></td>
+<td><p>Set the stream to the <code class="docutils literal notranslate"><span class="pre">n</span></code>-th byte of <code class="docutils literal notranslate"><span class="pre">s</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Skip</span> <span class="pre">n</span></code></p></td>
+<td><p>Advance the current stream by <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Chunk</span> <span class="pre">n</span> <span class="pre">P</span></code></p></td>
+<td><p>Parse the next <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes using <code class="docutils literal notranslate"><span class="pre">P</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Bytes</span> <span class="pre">n</span></code></p></td>
+<td><p>Get the next <code class="docutils literal notranslate"><span class="pre">n</span></code> bytes as a raw array</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">LookAhead</span> <span class="pre">P</span></code></p></td>
+<td><p>Parse with <code class="docutils literal notranslate"><span class="pre">P</span></code> without consuming input</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">WithStream</span> <span class="pre">s</span> <span class="pre">P</span></code></p></td>
+<td><p>Parse <code class="docutils literal notranslate"><span class="pre">s</span></code> with <code class="docutils literal notranslate"><span class="pre">P</span></code>, leaving current stream
+unchanged</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="testing-combinators">
+<h2>Testing Combinators<a class="headerlink" href="#testing-combinators" title="Link to this heading"></a></h2>
+<p>These are useful for writing test cases within DaeDaLus:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Combinator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TestAccepts</span> <span class="pre">Parser</span> <span class="pre">input</span></code></p></td>
+<td><p>Succeeds if <code class="docutils literal notranslate"><span class="pre">Parser</span></code> consumes all of
+<code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TestAcceptsPrefix</span> <span class="pre">Parser</span> <span class="pre">input</span></code></p></td>
+<td><p>Succeeds if <code class="docutils literal notranslate"><span class="pre">Parser</span></code> accepts a prefix
+of <code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TestParses</span> <span class="pre">Parser</span> <span class="pre">input</span> <span class="pre">expected</span></code></p></td>
+<td><p>Succeeds if <code class="docutils literal notranslate"><span class="pre">Parser</span></code> produces
+<code class="docutils literal notranslate"><span class="pre">expected</span></code> from <code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TestFails</span> <span class="pre">Parser</span> <span class="pre">input</span></code></p></td>
+<td><p>Succeeds if <code class="docutils literal notranslate"><span class="pre">Parser</span></code> rejects <code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="implicit-parameters.html" class="btn btn-neutral float-left" title="Implicit Parameters" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../dex/index.html" class="btn btn-neutral float-right" title="Dex: Daedalus Export DSL" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The Daedalus Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

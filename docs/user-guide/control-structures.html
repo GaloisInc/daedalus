@@ -74,6 +74,7 @@
 <li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html">Standard Library</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
@@ -209,17 +210,20 @@ match should have the form <code class="docutils literal notranslate"><span clas
 <p>Here the special pattern <code class="docutils literal notranslate"><span class="pre">_</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code> serves as a default, which matches
 against any value. Similarly, a pattern of the form <code class="docutils literal notranslate"><span class="pre">pattern</span> <span class="pre">_</span> <span class="pre">-&gt;</span> <span class="pre">result</span></code>
 indicates that the value will not be used in the result.</p>
+<p>Patterns may also match numeric literals and byte string literals directly:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="n">tag</span> <span class="k">of</span>
+  <span class="m">0x01</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">A</span> <span class="k">|</span><span class="p">}</span>
+  <span class="m">0x02</span> <span class="k">-&gt;</span> <span class="p">{|</span> <span class="n">B</span> <span class="k">=</span> <span class="k">UInt8</span> <span class="k">|</span><span class="p">}</span>
+  _    <span class="k">-&gt;</span> <span class="n">Fail</span> <span class="s">&quot;Unknown tag&quot;</span>
+</pre></div>
+</div>
 <p>In a parser expression, case need not be total (i.e. cover all possible
 patterns) as any omitted matches will implicitly result in failure and
 backtracking. In non-parser contexts, all case expressions are required to be
 total.</p>
-<div class="admonition-todo admonition" id="id1">
-<p class="admonition-title">Todo</p>
-<p>It should be true that guards are just syntactic sugar for case</p>
-</div>
 </section>
 <section id="for-loops">
-<span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Link to this heading"></a></h2>
+<span id="id1"></span><h2><code class="docutils literal notranslate"><span class="pre">for</span></code> loops<a class="headerlink" href="#for-loops" title="Link to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">for</span></code> construct can be used to iterate over collections (arrays
 and dictionaries).  A for-loop declares a local variable representing
 the accumulated result of the computation, and a variable that is

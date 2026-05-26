@@ -228,6 +228,8 @@ compileOp2 op ty e1 e2 k =
     Src.Mod
       | Src.TSInt (Src.TSize n) <- Src.typeOf e1 -> guardDivModSInt n Src.Mod ty e1 e2 k
       | isIntegerType (Src.typeOf e1) -> guardDivMod Src.Mod ty e1 e2 k
+    Src.LShift
+      | Src.TInteger <- Src.typeOf e1 -> guardedShift ty e1 e2 k
     _ ->
       compileEs [e1,e2] \vs -> continue k =<<
                                       stmt ty (\x -> CallPrim x (Op2 op) vs)
@@ -297,6 +299,26 @@ guardDivMod' argTy mkBody e1 e2 =
                    stmt (TSem Src.TBool)
                      (\x -> CallPrim x (Op2 Src.NotEq) [b, ENum 0 argTy]))
                body
+     compileEs [e1,e2] \[v1,v2] ->
+       do setLocal l1 v1
+          setLocal l2 v2
+          code
+
+-- Check: amount <= 4095
+guardedShift :: VMT -> Src.Expr -> Src.Expr -> CE
+guardedShift ty e1 e2 k =
+  do let amtTy = Src.typeOf e2
+     l1 <- newLocal (TSem (Src.typeOf e1))
+     l2 <- newLocal (TSem amtTy)
+     let body =
+           do a <- getLocal l1
+              b <- getLocal l2
+              continue k =<< stmt ty (\x -> CallPrim x (Op2 Src.LShift) [a, b])
+         check =
+           do b <- getLocal l2
+              stmt (TSem Src.TBool)
+                (\x -> CallPrim x (Op2 Src.Leq) [b, ENum 4095 amtTy])
+     code <- guarded "shift amount is too big" check body
      compileEs [e1,e2] \[v1,v2] ->
        do setLocal l1 v1
           setLocal l2 v2

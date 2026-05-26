@@ -50,6 +50,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Language Reference</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">General Information</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#daedalus-input-format">DaeDaLus Input Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#modules-and-imports">Modules and Imports</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="declarations.html">Declarations</a></li>
@@ -63,6 +64,7 @@
 <li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html">Standard Library</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
@@ -102,6 +104,27 @@ characters. That means that all string literals and identifiers for
 parsers, semantic values, etc. can only contain ASCII characters. At the
 time of this writing, DaeDaLus does not support Unicode characters in
 its specification files.</p>
+</section>
+<section id="modules-and-imports">
+<h2>Modules and Imports<a class="headerlink" href="#modules-and-imports" title="Link to this heading"></a></h2>
+<p>Each DaeDaLus source file defines a module. The module name is
+determined by the file name: a file called <code class="docutils literal notranslate"><span class="pre">Foo.ddl</span></code> defines a module
+called <code class="docutils literal notranslate"><span class="pre">Foo</span></code>.  Module files may use either the <code class="docutils literal notranslate"><span class="pre">.ddl</span></code> or <code class="docutils literal notranslate"><span class="pre">.md</span></code>
+extension.</p>
+<p>To use declarations from another module, import it with an <code class="docutils literal notranslate"><span class="pre">import</span></code>
+declaration at the top of the file (before any <code class="docutils literal notranslate"><span class="pre">def</span></code> declarations):</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="n">Foo</span>
+<span class="k">import</span> <span class="n">myHelpers</span>
+
+<span class="k">def</span> <span class="n">Main</span> <span class="k">=</span> <span class="p">...</span>
+</pre></div>
+</div>
+<p>An import brings all declarations from the imported module into scope.
+There is no support for selective imports or qualified names—all
+imported names are available directly.</p>
+<p>When resolving an import, DaeDaLus searches for the corresponding file
+in its search path.  For example, <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">Foo</span></code> will look for
+<code class="docutils literal notranslate"><span class="pre">Foo.ddl</span></code> (or <code class="docutils literal notranslate"><span class="pre">Foo.md</span></code>) in the configured search directories.</p>
 </section>
 </section>
 

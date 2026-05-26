@@ -16,7 +16,7 @@ or number of chunks other than the header and end. Furthermore, we
 will not perform any of the typical CRC validation, a criticial error
 detection/correction system that contributes to the reliability of PNG.
 
-We recommend reading :ref:`Validation in Parsing` on some high-level
+We recommend reading :ref:`tutorial/extended-ex-parsers:Validation in Parsing` on some high-level
 guiding principles one should have in mind when deciding what to include
 in the parsing stage of a format-processing application. This will
 directly address some of the things we're omitting from our development

@@ -442,7 +442,7 @@ an expression for which we want the type to be ``maybe`` of *something*.
 
   Unfortunately, in DaeDaLus, the naming scheme described for unknown types is
   reused for another unrelated feature: implicit parameters. This tutorial does
-  not cover implicit parameters, but you can read :ref:`implicit parameters` in
+  not cover implicit parameters, but you can read :ref:`user-guide/implicit-parameters:implicit parameters` in
   the user guide for more detail on this feature.
 
 Type Coercion
@@ -475,10 +475,10 @@ another:
 
 We've now covered all of the essential types of values and control-flow
 structures. There are a few others for more specialized use cases; you
-can check out the :ref:`control structures` section of the main user
+can check out the :ref:`user-guide/control-structures:control structures` section of the main user
 guide for details on how to use these features.
 
-In :ref:`Extended Exercise: The PNG Format`, we'll work through the
+In :ref:`tutorial/extended-ex-intro:Extended Exercise: The PNG Format`, we'll work through the
 implementation of a much more complicated layout specification one step
 at a time, with any gaps in necessary knowledge filled in. The exercises
 are followed by solutions, so if you get stuck, you can skip ahead to

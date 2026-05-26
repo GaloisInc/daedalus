@@ -87,7 +87,7 @@ Some arithmetic operations can raise exceptions on integer types:
 * ``/`` and ``%`` raise an exception on division by zero.  They can also
   raise an exception on ``sint N`` when dividing the minimum value by -1
   (as the result overflows).
-* ``<<`` and ``>>`` raise an exception if the shift amount is too large
+* ``<<`` raises an exception if the shift amount exceeds 4095
   (when the first operand is of type ``int``).
 
 Arithmetic exceptions cannot be caught and will result in the parser

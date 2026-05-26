@@ -27,7 +27,7 @@ conventions to make the API easy to understand:
 * Parsers with names like ``UInt16`` and ``SInt32`` parse *either*
   big-endian or little-endian data, depending on the value of an
   *implicit parameter*. We haven't discussed implicit parameters in this
-  tutorial; for more detail about them, see :ref:`implicit parameters`.
+  tutorial; for more detail about them, see :ref:`user-guide/implicit-parameters:implicit parameters`.
 
 First, the unsigned/signed integer parsers that depend on the implicit
 parameter ``?bigEndian``:

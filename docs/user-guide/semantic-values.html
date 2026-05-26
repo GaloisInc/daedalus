@@ -59,11 +59,17 @@
 <li class="toctree-l4"><a class="reference internal" href="#numeric-literals">Numeric Literals</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#comparisons">Comparisons</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#basic-arithmetic">Basic Arithmetic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#arithmetic-exceptions">Arithmetic Exceptions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#bitwise-operations">Bitwise Operations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#floating-point-operations">Floating-Point Operations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#coercions-involving-floating-point-types">Coercions Involving Floating-Point Types</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#maybe-type"><code class="docutils literal notranslate"><span class="pre">maybe</span></code> type</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#arrays">Arrays</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#arrays">Arrays</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#numeric-ranges">Numeric Ranges</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#array-builders">Array Builders</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#association-maps">Association Maps</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#streams">Streams</a></li>
@@ -75,6 +81,7 @@
 <li class="toctree-l2"><a class="reference internal" href="bitdata.html">Bitdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="lifting.html">Implicit Lifting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="implicit-parameters.html">Implicit Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html">Standard Library</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../dex/index.html">Dex: Daedalus Export DSL</a></li>
@@ -125,28 +132,74 @@ using <a class="reference internal" href="control-structures.html#guards"><span 
 </section>
 <section id="numeric-types">
 <h2>Numeric Types<a class="headerlink" href="#numeric-types" title="Link to this heading"></a></h2>
-<p>DaeDaLus supports a variety of numeric types: <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>, the latter two being families of types indexed by a number.
-The type <code class="docutils literal notranslate"><span class="pre">int</span></code> classifies integers of arbitrary size.
-The <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> classify unsigned numbers that can be represented using <code class="docutils literal notranslate"><span class="pre">N</span></code>
-bits and <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> is for signed numbers that can be represented
-in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits.</p>
+<p>DaeDaLus supports the following numeric types:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>Integers of arbitrary size</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code></p></td>
+<td><p>Unsigned integers represented in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code></p></td>
+<td><p>Signed integers represented in <code class="docutils literal notranslate"><span class="pre">N</span></code> bits</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">float</span></code></p></td>
+<td><p>IEEE 754 single-precision (32-bit) floating-point numbers</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+<td><p>IEEE 754 double-precision (64-bit) floating-point numbers</p></td>
+</tr>
+</tbody>
+</table>
 <section id="numeric-literals">
 <h3>Numeric Literals<a class="headerlink" href="#numeric-literals" title="Link to this heading"></a></h3>
-<p>Literals of the numeric types may written either using decimal or hexadecimal
-notation (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> or <code class="docutils literal notranslate"><span class="pre">0xA</span></code>).  The type of a literal can be inferred
-from the context (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> can be used as both <code class="docutils literal notranslate"><span class="pre">int</span></code> a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
+<p>Integer literals may be written in decimal, hexadecimal (<code class="docutils literal notranslate"><span class="pre">0x</span></code>),
+octal (<code class="docutils literal notranslate"><span class="pre">0o</span></code>), or binary (<code class="docutils literal notranslate"><span class="pre">0b</span></code>) notation (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code>, <code class="docutils literal notranslate"><span class="pre">0xA</span></code>,
+<code class="docutils literal notranslate"><span class="pre">0o12</span></code>, <code class="docutils literal notranslate"><span class="pre">0b1010</span></code>).  The type of a literal can be inferred from the
+context (e.g., <code class="docutils literal notranslate"><span class="pre">10</span></code> can be used as both <code class="docutils literal notranslate"><span class="pre">int</span></code> and <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">8</span></code>).</p>
+<p>There is also a byte-string numeric literal written as <code class="docutils literal notranslate"><span class="pre">0s&quot;...&quot;</span></code>, which
+interprets each character as a byte (8 bits) and concatenates them into
+a single integer.  For example, <code class="docutils literal notranslate"><span class="pre">0s&quot;scnr&quot;</span></code> is a <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">32</span></code> with value
+<code class="docutils literal notranslate"><span class="pre">0x73636E72</span></code>.  The width of the resulting type is the number of
+characters times 8.</p>
+<p>Floating-point literals are written with a decimal point (e.g., <code class="docutils literal notranslate"><span class="pre">3.14</span></code>).
+The constant <code class="docutils literal notranslate"><span class="pre">pi</span></code> is also available at both <code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">double</span></code> types.</p>
 </section>
 <section id="comparisons">
 <h3>Comparisons<a class="headerlink" href="#comparisons" title="Link to this heading"></a></h3>
-<p>Numeric types can also be compared for equality, using <code class="docutils literal notranslate"><span class="pre">==</span></code> and ordering
-using <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>.</p>
+<p>Numeric types can also be compared for equality using <code class="docutils literal notranslate"><span class="pre">==</span></code> and <code class="docutils literal notranslate"><span class="pre">!=</span></code>,
+and ordered using <code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>.</p>
 </section>
 <section id="basic-arithmetic">
 <h3>Basic Arithmetic<a class="headerlink" href="#basic-arithmetic" title="Link to this heading"></a></h3>
-<p>Numeric types support basic arithmetic: addition, subtraction,
-multiplication, division, and modulus using the usual operators
-<code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, <code class="docutils literal notranslate"><span class="pre">/</span></code>, and <code class="docutils literal notranslate"><span class="pre">%</span></code>.</p>
+<p>All numeric types support addition, subtraction, multiplication, and
+division using the operators <code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, and <code class="docutils literal notranslate"><span class="pre">/</span></code>.
+The modulus operator <code class="docutils literal notranslate"><span class="pre">%</span></code> is available only for integer types.</p>
+<p>For floating-point types, arithmetic follows IEEE 754 semantics and never
+raises an exception—operations that overflow or are undefined produce
+infinity or NaN instead.</p>
+</section>
+<section id="arithmetic-exceptions">
+<h3>Arithmetic Exceptions<a class="headerlink" href="#arithmetic-exceptions" title="Link to this heading"></a></h3>
+<p>Some arithmetic operations can raise exceptions on integer types:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">+</span></code>, <code class="docutils literal notranslate"><span class="pre">-</span></code>, <code class="docutils literal notranslate"><span class="pre">*</span></code>, and unary negation raise an exception if the
+result overflows for <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code> or <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code>.  Operations on <code class="docutils literal notranslate"><span class="pre">int</span></code>
+never overflow.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/</span></code> and <code class="docutils literal notranslate"><span class="pre">%</span></code> raise an exception on division by zero.  They can also
+raise an exception on <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code> when dividing the minimum value by -1
+(as the result overflows).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> raises an exception if the shift amount exceeds 4095
+(when the first operand is of type <code class="docutils literal notranslate"><span class="pre">int</span></code>).</p></li>
+</ul>
+<p>Arithmetic exceptions cannot be caught and will result in the parser
+terminating with a parse error.</p>
 </section>
 <section id="bitwise-operations">
 <h3>Bitwise Operations<a class="headerlink" href="#bitwise-operations" title="Link to this heading"></a></h3>
@@ -169,6 +222,85 @@ The result of <code class="docutils literal notranslate"><span class="pre">x</sp
 <code class="docutils literal notranslate"><span class="pre">x</span></code> in the more significant bits, and <code class="docutils literal notranslate"><span class="pre">y</span></code> in the less significant bits.
 The result of <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">&lt;#</span> <span class="pre">y</span></code> is a bitvector of type <code class="docutils literal notranslate"><span class="pre">A</span></code> that contains
 <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">#</span> <span class="pre">y</span></code> but truncated to the <code class="docutils literal notranslate"><span class="pre">A</span></code> less significant bits.</p>
+</section>
+<section id="floating-point-operations">
+<h3>Floating-Point Operations<a class="headerlink" href="#floating-point-operations" title="Link to this heading"></a></h3>
+<p>Comparisons on floating-point types follow IEEE 754 semantics:
+comparisons involving NaN return <code class="docutils literal notranslate"><span class="pre">false</span></code>, except for <code class="docutils literal notranslate"><span class="pre">!=</span></code> which
+returns <code class="docutils literal notranslate"><span class="pre">true</span></code> when either operand is NaN.</p>
+<p>The following predicates test for special IEEE 754 values:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Predicate</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">isNaN</span> <span class="pre">x</span></code></p></td>
+<td><p>True if the value is NaN</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">isInfinite</span> <span class="pre">x</span></code></p></td>
+<td><p>True if the value is positive or negative infinity</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">isDenormalized</span> <span class="pre">x</span></code></p></td>
+<td><p>True if the value is denormalized</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">isNegativeZero</span> <span class="pre">x</span></code></p></td>
+<td><p>True if the value is negative zero</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following operations reinterpret the bits of an integer as a
+floating-point value (a bitcast, not a numeric conversion):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operation</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wordToFloat</span> <span class="pre">(x</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">32)</span></code></p></td>
+<td><p>Reinterpret 32 bits as a <code class="docutils literal notranslate"><span class="pre">float</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">wordToDouble</span> <span class="pre">(x</span> <span class="pre">:</span> <span class="pre">uint</span> <span class="pre">64)</span></code></p></td>
+<td><p>Reinterpret 64 bits as a <code class="docutils literal notranslate"><span class="pre">double</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="coercions-involving-floating-point-types">
+<h3>Coercions Involving Floating-Point Types<a class="headerlink" href="#coercions-involving-floating-point-types" title="Link to this heading"></a></h3>
+<p>Integer types may be coerced to floating-point types.  The coercion
+is lossless (<code class="docutils literal notranslate"><span class="pre">as</span></code>) only if the integer is exactly representable;
+otherwise use <code class="docutils literal notranslate"><span class="pre">as!</span></code> (which may round) or <code class="docutils literal notranslate"><span class="pre">as?</span></code> (which fails if
+rounding would occur).</p>
+<p>Coercion from <code class="docutils literal notranslate"><span class="pre">float</span></code> to <code class="docutils literal notranslate"><span class="pre">double</span></code> is always exact.  Coercion from
+<code class="docutils literal notranslate"><span class="pre">double</span></code> to <code class="docutils literal notranslate"><span class="pre">float</span></code> may lose precision; use <code class="docutils literal notranslate"><span class="pre">as?</span></code> to detect this.</p>
+<p>When coercing from a floating-point type to an integer type using <code class="docutils literal notranslate"><span class="pre">as!</span></code>,
+the value is truncated toward zero and clamped to the target range:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">int</span></code>        <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>            <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>NaN</p></td>
+<td><p>0              0                     0</p></td>
+</tr>
+<tr class="row-odd"><td><p>Positive infinity</p></td>
+<td><p>0              2^N - 1               max representable</p></td>
+</tr>
+<tr class="row-even"><td><p>Negative infinity</p></td>
+<td><p>0              0                     min representable</p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal values</p></td>
+<td><p>truncated      clamped to [0, 2^N-1] clamped to range</p></td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="docutils literal notranslate"><span class="pre">as?</span></code> coercion succeeds only when the conversion is exact (i.e.,
+the floating-point value is an integer that fits in the target type).</p>
 </section>
 </section>
 <section id="maybe-type">
@@ -202,6 +334,34 @@ a <code class="docutils literal notranslate"><span class="pre">maybe</span></cod
 </pre></div>
 </div>
 <p>To visit all elements in array you may use a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop <a class="reference internal" href="control-structures.html#for-loops"><span class="std std-ref">for loops</span></a>.</p>
+<section id="numeric-ranges">
+<h3>Numeric Ranges<a class="headerlink" href="#numeric-ranges" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">rangeUp</span></code> and <code class="docutils literal notranslate"><span class="pre">rangeDown</span></code> operations produce arrays of numbers:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">rangeUp</span> <span class="n">end</span>                <span class="c">-- [0, 1, ..., end-1]</span>
+<span class="k">rangeUp</span> <span class="n">start</span> <span class="n">end</span>          <span class="c">-- [start, start+1, ..., end-1]</span>
+<span class="k">rangeUp</span> <span class="n">start</span> <span class="n">end</span> <span class="n">step</span>     <span class="c">-- [start, start+step, ...] while &lt; end</span>
+
+<span class="k">rangeDown</span> <span class="n">start</span>            <span class="c">-- [start, start-1, ..., 1]</span>
+<span class="k">rangeDown</span> <span class="n">start</span> <span class="n">end</span>        <span class="c">-- [start, start-1, ..., end+1]</span>
+<span class="k">rangeDown</span> <span class="n">start</span> <span class="n">end</span> <span class="n">step</span>   <span class="c">-- [start, start-step, ...] while &gt; end</span>
+</pre></div>
+</div>
+<p>The step must be a positive number; a non-positive step raises an
+exception.  Some examples:</p>
+<div class="highlight-DaeDaLus notranslate"><div class="highlight"><pre><span></span><span class="k">rangeUp</span> <span class="m">5</span>           <span class="c">-- [0, 1, 2, 3, 4]</span>
+<span class="k">rangeUp</span> <span class="m">10</span> <span class="m">20</span>       <span class="c">-- [10, 11, 12, ..., 19]</span>
+<span class="k">rangeUp</span> <span class="m">10</span> <span class="m">20</span> <span class="m">3</span>     <span class="c">-- [10, 13, 16, 19]</span>
+<span class="k">rangeDown</span> <span class="m">5</span>         <span class="c">-- [5, 4, 3, 2, 1]</span>
+<span class="k">rangeDown</span> <span class="m">20</span> <span class="m">10</span>     <span class="c">-- [20, 19, 18, ..., 11]</span>
+<span class="k">rangeDown</span> <span class="m">20</span> <span class="m">10</span> <span class="m">3</span>   <span class="c">-- [20, 17, 14, 11]</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>These operations construct the entire array in memory.  They are not
+lazy iterators, so avoid using them for very large ranges.</p>
+</div>
+</section>
 </section>
 <section id="array-builders">
 <h2>Array Builders<a class="headerlink" href="#array-builders" title="Link to this heading"></a></h2>

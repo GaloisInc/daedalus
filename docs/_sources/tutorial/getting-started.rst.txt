@@ -64,7 +64,7 @@ The DaeDaLus Command-Line Interface
 -----------------------------------
 
 Once DaeDaLus has been compiled and installed, we recommend reading
-:ref:`The Command-Line Tools` section to become familiar with how to run
+:ref:`tool-docs/index:The Command-Line Tools` section to become familiar with how to run
 the DaeDaLus tool. For the purposes of this tutorial, it will be helpful
 to be familiar with the ``show-types`` DaeDaLus command. This command
 is useful to get DaeDaLus to show you the types of the elements of your

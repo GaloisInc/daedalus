@@ -69,7 +69,7 @@ Guards on Tagged Unions
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The same notation may be used to examine values of user-defined
-union types (see :ref:`Tagged Unions`)
+union types (see :ref:`user-guide/parsers:Tagged Unions`)
 
 
 .. code-block:: DaeDaLus 
@@ -128,13 +128,19 @@ Here the special pattern ``_ -> result`` serves as a default, which matches
 against any value. Similarly, a pattern of the form ``pattern _ -> result``
 indicates that the value will not be used in the result.
 
+Patterns may also match numeric literals and byte string literals directly:
+
+.. code-block:: DaeDaLus
+
+  case tag of
+    0x01 -> {| A |}
+    0x02 -> {| B = UInt8 |}
+    _    -> Fail "Unknown tag"
+
 In a parser expression, case need not be total (i.e. cover all possible
 patterns) as any omitted matches will implicitly result in failure and
 backtracking. In non-parser contexts, all case expressions are required to be
-total. 
-
-.. todo:: 
-  It should be true that guards are just syntactic sugar for case
+total.
 
 .. _for_loops:
 

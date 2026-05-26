@@ -56,12 +56,12 @@
 <li class="toctree-l2"><a class="reference internal" href="#command-compile-hs">Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#command-compile-c">Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#generated-files">Generated Files</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id1">Flags</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compile-cpp-flags">Flags</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#command-compile-rust">Command: <code class="docutils literal notranslate"><span class="pre">compile-rust</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2">Generated Files</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">Flags</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compile-rust-generated-files">Generated Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compile-rust-flags">Flags</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#unsupported-features">Unsupported Features</a></li>
 </ul>
 </li>
@@ -176,7 +176,7 @@ result is a parser, that itself generates semantic values of type <code class="d
 input from file <code class="docutils literal notranslate"><span class="pre">input.txt</span></code>.</p>
 <p>If successful, the resulting semantic value will be shown on <code class="docutils literal notranslate"><span class="pre">stdout</span></code>.</p>
 <section id="flags">
-<h2>Flags<a class="headerlink" href="#flags" title="Link to this heading"></a></h2>
+<span id="run-flags"></span><h2>Flags<a class="headerlink" href="#flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--input=FILE</span></span></dt>
@@ -249,7 +249,7 @@ command will start using the new backend.</p>
 </pre></div>
 </div>
 <section id="generated-files">
-<h2>Generated Files<a class="headerlink" href="#generated-files" title="Link to this heading"></a></h2>
+<span id="compile-cpp-generated-files"></span><h2>Generated Files<a class="headerlink" href="#generated-files" title="Link to this heading"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is in two files:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">main_parser.h</span></code> contains the interface to the generated parser, and</p></li>
@@ -271,8 +271,8 @@ of any kind—if this is not the case, the sample driver will fail to compile.</
 </ul>
 </div></blockquote>
 </section>
-<section id="id1">
-<h2>Flags<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<section id="compile-cpp-flags">
+<span id="id1"></span><h2>Flags<a class="headerlink" href="#compile-cpp-flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
@@ -414,8 +414,8 @@ the <code class="docutils literal notranslate"><span class="pre">--out-dir</span
 <p>The result is a directory containing a complete Rust crate with the generated
 parser and type definitions. The generated code uses the Daedalus Rust runtime
 system (RTS), which provides core parsing functionality.</p>
-<section id="id2">
-<h2>Generated Files<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<section id="compile-rust-generated-files">
+<span id="id2"></span><h2>Generated Files<a class="headerlink" href="#compile-rust-generated-files" title="Link to this heading"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is placed in a standard Rust crate structure:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">src/lib.rs</span></code> contains the generated parser implementation and type definitions</p></li>
@@ -433,8 +433,8 @@ cargo<span class="w"> </span>build<span class="w"> </span>--release
 in the output directory, which is useful for standalone builds that do not
 depend on an external RTS installation.</p>
 </section>
-<section id="id3">
-<h2>Flags<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<section id="compile-rust-flags">
+<span id="id3"></span><h2>Flags<a class="headerlink" href="#compile-rust-flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
