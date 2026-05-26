@@ -304,6 +304,12 @@ public:
   constexpr static Rep minValRep() {
     return (-maxValRep())-1;
   }
+  SInt operator ~ ()       const { return SInt(~data); }
+
+  SInt operator | (SInt x) const { return SInt(data | x.data); }
+  SInt operator & (SInt x) const { return SInt(data & x.data); }
+  SInt operator ^ (SInt x) const { return SInt(data ^ x.data); }
+
   // XXX: Remove in favor of Size
   SInt operator << (UInt<64> x) const { return x.rep() >= w? SInt(0) : SInt(data << x.rep()); }
   SInt operator >> (UInt<64> x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
