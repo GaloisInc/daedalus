@@ -161,14 +161,14 @@ Coercion from ``float`` to ``double`` is always exact.  Coercion from
 When coercing from a floating-point type to an integer type using ``as!``,
 the value is truncated toward zero and clamped to the target range:
 
-=================== =========================================================
-Value               ``int``        ``uint N``            ``sint N``
-=================== =========================================================
-NaN                 0              0                     0
-Positive infinity   0              2^N - 1               max representable
-Negative infinity   0              0                     min representable
-Normal values       truncated      clamped to [0, 2^N-1] clamped to range
-=================== =========================================================
+=================== ========== ====================== =================
+Value               ``int``    ``uint N``             ``sint N``
+=================== ========== ====================== =================
+NaN                 0          0                      0
+Positive infinity   0          2^N - 1                max representable
+Negative infinity   0          0                      min representable
+Normal values       truncated  clamped to [0, 2^N-1]  clamped to range
+=================== ========== ====================== =================
 
 The ``as?`` coercion succeeds only when the conversion is exact (i.e.,
 the floating-point value is an integer that fits in the target type).

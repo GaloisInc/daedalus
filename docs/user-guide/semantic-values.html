@@ -281,21 +281,31 @@ the value is truncated toward zero and clamped to the target range:</p>
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Value</p></th>
-<th class="head"><p><code class="docutils literal notranslate"><span class="pre">int</span></code>        <code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code>            <code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code></p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">uint</span> <span class="pre">N</span></code></p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">sint</span> <span class="pre">N</span></code></p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>NaN</p></td>
-<td><p>0              0                     0</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
 </tr>
 <tr class="row-odd"><td><p>Positive infinity</p></td>
-<td><p>0              2^N - 1               max representable</p></td>
+<td><p>0</p></td>
+<td><p>2^N - 1</p></td>
+<td><p>max representable</p></td>
 </tr>
 <tr class="row-even"><td><p>Negative infinity</p></td>
-<td><p>0              0                     min representable</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>min representable</p></td>
 </tr>
 <tr class="row-odd"><td><p>Normal values</p></td>
-<td><p>truncated      clamped to [0, 2^N-1] clamped to range</p></td>
+<td><p>truncated</p></td>
+<td><p>clamped to [0, 2^N-1]</p></td>
+<td><p>clamped to range</p></td>
 </tr>
 </tbody>
 </table>
