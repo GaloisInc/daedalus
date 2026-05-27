@@ -552,6 +552,7 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.LCat   ->
       case t1 of
         VM.TSem Core.TInteger -> def (Rust.callMethod e1 "lcat" [e2])
+        VM.TSem (Core.TSInt _) -> def (callRTS "lcat_s" [ e1, e2 ])
         _ -> def (callRTS "lcat" [ e1, e2 ])
     Core.LShift -> bin' Rust.ShlOp e1 (toSize e2)
     Core.RShift -> bin' Rust.ShrOp e1 (toSize e2)
@@ -610,7 +611,7 @@ compileOpN :: FnCtx => VM.BV -> Core.OpN -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileOpN x op es =
   case op of
     Core.ArrayL t ->
-      def (if null es then Just (compileType VM.Owned t) else Nothing)
+      def (if null es then Just (compileType VM.Owned (Core.TArray t)) else Nothing)
           (callRTS "new_array" [Rust.arrExpr es])
     Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
   where
@@ -637,7 +638,7 @@ compileExpr how expr =
           Core.TDouble -> Rust.F64
           _ -> panic "compileExpr" ["Unepxeted EFloat type"]
         
-    VM.EMapEmpty k v -> Rust.call (Rust.pathExpr (Rust.pathWithTypes [ddlModName, "empty_map"] [rk,rv])) []
+    VM.EMapEmpty k v -> mbBorrow VM.Owned (Rust.call (Rust.pathExpr (Rust.pathWithTypes [ddlModName, "empty_map"] [rk,rv])) [])
       where rk = compileType VM.Owned k
             rv = compileType VM.Owned v
     VM.ENothing {}   -> Rust.pathExpr (Rust.simplePath' [ddlModName, "Maybe", "Nothing"])
