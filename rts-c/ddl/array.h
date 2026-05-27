@@ -306,6 +306,7 @@ class Builder {
 
     // owns a, b
     Builder(Builder b, Array<T> a) {
+      if (a.ptr == nullptr) { list = b.list; return; }
       auto beginData = a.ptr->data;
       auto endData = beginData + a.ptr->size.rep();
 
