@@ -24,6 +24,9 @@ inline bool operator <= (Bool x, Bool y) { return x.getValue() <= y.getValue(); 
 inline bool operator >  (Bool x, Bool y) { return x.getValue() >  y.getValue(); }
 inline bool operator >= (Bool x, Bool y) { return x.getValue() >= y.getValue(); }
 inline Bool operator ! (Bool x)  { return Bool(!x.getValue()); }
+inline Bool operator & (Bool x, Bool y) { return Bool(x.getValue() && y.getValue()); }
+inline Bool operator | (Bool x, Bool y) { return Bool(x.getValue() || y.getValue()); }
+inline Bool operator ^ (Bool x, Bool y) { return Bool(x.getValue() != y.getValue()); }
 
 inline int compare(Bool x, Bool y) { return x.getValue() - y.getValue(); }
 
