@@ -1144,12 +1144,26 @@ cExpr expr =
           Src.TSizeParam {} -> panic "cExpr" [ "Type variable in literal" ]
       mkArg cty = cCall cty [integer n]
 
+      mkSignedArg sz
+        | Just minC <- isMinVal sz = minC
+        | otherwise = mkArg (lit "" sz)
+
+      isMinVal (Src.TSize s)
+        | n == negate (2 ^ (s - 1)) =
+          Just $ case s of
+            8  -> "INT8_MIN"
+            16 -> "INT16_MIN"
+            32 -> "INT32_MIN"
+            64 -> "INT64_MIN"
+            _  -> cCall (lit "" (Src.TSize s)) [integer n]
+      isMinVal _ = Nothing
+
       (f,arg) =
         case ty of
           Src.TUInt sz -> ( cInst "DDL::UInt"   [ cSizeType sz ]
                           , mkArg (lit "U" sz) )
           Src.TSInt sz -> ( cInst "DDL::SInt"   [ cSizeType sz ]
-                          , mkArg (lit ""  sz) )
+                          , mkSignedArg sz )
           Src.TFloat   -> ("DDL::Float", integer n)
           Src.TDouble  -> ("DDL::Double", integer n)
 
