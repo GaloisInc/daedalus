@@ -470,12 +470,10 @@ fn test_range_iterators() {
     assert_eq!(up_step.len(), 4); // 0, 3, 6, 9
     assert_eq!(u8::from(up_step[3]), 9);
 
-    // Note: rng_down_u takes (start, end, step) where range is (start+1..=end).rev()
-    // So for a descending sequence from 10 down to 5, we pass end=10, start=4
-    let down_u: Vec<ddl::U<8>> = ddl::rng_down_u(4u8.into(), 10u8.into(), 1u8.into()).collect();
-    assert_eq!(down_u.len(), 6); // 10, 9, 8, 7, 6, 5
+    let down_u: Vec<ddl::U<8>> = ddl::rng_down_u(10u8.into(), 5u8.into(), 1u8.into()).collect();
+    assert_eq!(down_u.len(), 5); // 10, 9, 8, 7, 6
     assert_eq!(u8::from(down_u[0]), 10);
-    assert_eq!(u8::from(down_u[5]), 5);
+    assert_eq!(u8::from(down_u[4]), 6);
 
     let up_i: Vec<ddl::I<8>> = ddl::rng_up_i((-3i8).into(), 3i8.into(), 2i8.into()).collect();
     assert_eq!(up_i.len(), 3); // -3, -1, 1

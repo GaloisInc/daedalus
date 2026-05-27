@@ -68,9 +68,7 @@ public:
   friend Stream;
 
   static Array rangeUp(T start,T end, T step) {
-    // step > 0 && step <= MAX(Size)
-    // start <= end
-    // (end - start) <= MAX(Size)
+    if (start >= end) return Array();
 
     Size ents = rangeSize((end - start).asSize(), step.asSize());
     Content *p = Content::allocate(ents);
@@ -84,9 +82,7 @@ public:
   }
 
   static Array rangeDown(T start,T end, T step) {
-    // step > 0 && step <= MAX(Size)
-    // start >= end
-    // (start - end) <= MAX(Size)
+    if (start <= end) return Array();
 
     Size ents = rangeSize((start - end).asSize(), step.asSize());
     Content *p = Content::allocate(ents);
