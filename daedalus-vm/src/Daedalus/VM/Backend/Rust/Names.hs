@@ -44,7 +44,17 @@ compileTName isPriv x = Rust.mkIdent (pref ++ Rust.upperCamelCase (Text.unpack (
     where pref = if isPriv then "_" else ""
 
 compileFieldLabel :: Core.Label -> Rust.Ident
-compileFieldLabel l = Rust.mkIdent (Rust.snakeCase (Text.unpack l))
+compileFieldLabel l
+  | s `elem` rustKeywords = (Rust.mkIdent s) { Rust.raw = True }
+  | otherwise             = Rust.mkIdent s
+  where s = Rust.snakeCase (Text.unpack l)
+
+rustKeywords :: [String]
+rustKeywords = words "as async await box break const continue crate do dyn else enum \
+  \extern false fn for if impl in let loop macro match mod move mut \
+  \pub ref return self static struct super trait true try type \
+  \unsafe use where while yield abstract become final override priv \
+  \proc typeof unsized virtual"
 
 compileBDFieldLabel :: Core.Label -> Rust.Ident
 compileBDFieldLabel l = Rust.mkIdent ("get_" <> Rust.snakeCase (Text.unpack l))
