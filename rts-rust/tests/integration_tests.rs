@@ -461,12 +461,12 @@ fn test_word_various_sizes() {
 #[test]
 fn test_range_iterators() {
     // Tests range iterator functions for ascending/descending, signed/unsigned.
-    let up_u: Vec<ddl::U<8>> = ddl::rng_up_u_iter(0u8.into(), 5u8.into(), 1u8.into()).collect();
+    let up_u: Vec<ddl::U<8>> = ddl::rng_up_u(0u8.into(), 5u8.into(), 1u8.into()).collect();
     assert_eq!(up_u.len(), 5);
     assert_eq!(u8::from(up_u[0]), 0);
     assert_eq!(u8::from(up_u[4]), 4);
 
-    let up_step: Vec<ddl::U<8>> = ddl::rng_up_u_iter(0u8.into(), 10u8.into(), 3u8.into()).collect();
+    let up_step: Vec<ddl::U<8>> = ddl::rng_up_u(0u8.into(), 10u8.into(), 3u8.into()).collect();
     assert_eq!(up_step.len(), 4); // 0, 3, 6, 9
     assert_eq!(u8::from(up_step[3]), 9);
 

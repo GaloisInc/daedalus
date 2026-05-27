@@ -227,7 +227,7 @@ impl<'a, T: Serialize> Serialize for ArrayB<'a, T> {
 }
 
 
-pub fn rng_up_u_iter<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
+pub fn rng_up_u<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
   where ddl::Size<false,N> : ddl::WordRep {
   (u64::from(start) .. u64::from(end)).step_by(usize::from(step)).map(|x| x.into())
 }
