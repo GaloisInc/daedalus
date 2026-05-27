@@ -39,7 +39,7 @@ default def as_int16(x: sint 16): int16_t = extern
 default def as_int32(x: sint 32): int32_t = extern
 default def as_int64(x: sint 64): int64_t = extern
 
-type optional<T> -> std::optional<T>
+type optional<T> -> std::optional<$T>
 def as_optional<A,T,f: A => T>(x: maybe A): optional<T> =
   case x of
     nothing -> std::optional<$T>()
