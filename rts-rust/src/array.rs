@@ -240,11 +240,17 @@ pub fn rng_up_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>)
 
 pub fn rng_down_u<const N: u32>(start: ddl::U<N>, end: ddl::U<N>, step: ddl::U<N>) -> impl Iterator<Item=ddl::U<N>>
   where ddl::Size<false,N> : ddl::WordRep {
-    (u64::from(end) + 1 ..= u64::from(start)).rev().step_by(usize::from(step)).map(|x| x.into())
+    let s = u64::from(start);
+    let e = u64::from(end);
+    let len = if s <= e { 0 } else { s - e };
+    (0..len).step_by(usize::from(step)).map(move |i| (s - i).into())
 }
 
 pub fn rng_down_i<const N: u32>(start: ddl::I<N>, end: ddl::I<N>, step: ddl::I<N>) -> impl Iterator<Item=ddl::I<N>>
   where ddl::Size<true,N> : ddl::WordRep {
     assert!(i64::from(step) > 0, "rng_down_i: step must be positive");
-    (i64::from(end) + 1 ..= i64::from(start)).rev().step_by(i64::from(step) as usize).map(|x| x.into())
+    let s = i64::from(start);
+    let e = i64::from(end);
+    let len = if s <= e { 0 } else { (s - e) as u64 };
+    (0..len).step_by(i64::from(step) as usize).map(move |i| (s - i as i64).into())
 }
