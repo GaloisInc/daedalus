@@ -40,8 +40,12 @@ compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unp
 
 -- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident
-compileTName isPriv x = Rust.mkIdent (pref ++ Rust.upperCamelCase (Text.unpack (Core.tnameText x)))
+compileTName isPriv x = Rust.mkIdent (pref ++ root ++ suff)
     where pref = if isPriv then "_" else ""
+          root = Rust.upperCamelCase (Text.unpack (Core.tnameText x))
+          suff = case Core.tnameAnon x of
+                   Nothing -> ""
+                   Just i  -> show i
 
 compileFieldLabel :: Core.Label -> Rust.Ident
 compileFieldLabel l
