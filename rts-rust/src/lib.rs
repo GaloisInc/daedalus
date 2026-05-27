@@ -70,6 +70,8 @@ by_value!(u8);
 by_value!(u16);
 by_value!(u32);
 by_value!(u64);
+by_value!(f32);
+by_value!(f64);
 
 
 /// A helper macro for making instances of [Type] for types that
