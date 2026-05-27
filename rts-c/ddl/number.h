@@ -340,8 +340,8 @@ int compare(SInt<w> x, SInt<w> y) {
 template <Width a, Width b>
 static inline
 SInt<a> lcat(SInt<a> x, UInt<b> y) {
-  if constexpr (b >= a) return SInt(y.rep());
-  else                  return (x << b) | y.rep();
+  if constexpr (b >= a) return SInt<a>(y.rep());
+  else                  return SInt<a>((x.rep() << b) | y.rep());
 }
 
 
