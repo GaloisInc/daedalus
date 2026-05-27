@@ -37,11 +37,12 @@ class Array : IsBoxed {
     /// Throws exception on large sizes (e.g., `size_t` overflow).
     static
     Content *allocate(Size n) {
+      if (n == Size(0)) return nullptr;
       auto hdr_size = Size(sizeof(Content));
       auto bytes = n;
       bytes.scaleBy(Size(sizeof(T)));
       bytes.incrementBy(hdr_size);
-      
+
       // In units of content, so that we can get proper alignment
       bytes.inUnitsOf(hdr_size);
       Content *p   = new Content[bytes.rep()];
@@ -99,7 +100,7 @@ public:
 
   Array(std::initializer_list<T> xs)
   : ptr(Content::allocate(xs.size())) {
-    std::copy(xs.begin(), xs.end(), ptr->data);
+    if (ptr) std::copy(xs.begin(), xs.end(), ptr->data);
   }
 
   // Array from builder. Owns b
@@ -113,6 +114,7 @@ public:
       inSize.incrementBy(xs.borrowElement(i).size());
     }
     ptr = Content::allocate(inSize);
+    if (ptr == nullptr) return;
 
     T* data = ptr->data;
 
@@ -129,7 +131,7 @@ public:
   // Borrow arguments
   Array(T const *data, Size n)
   : ptr(Content::allocate(n)) {
-    std::copy_n(data, n.rep(), ptr->data);
+    if (ptr) std::copy_n(data, n.rep(), ptr->data);
   }
 
   // Borrows this
