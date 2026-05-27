@@ -525,6 +525,14 @@ macro_rules! cat {
 
 pub fn lcat<const M: u32, const N: u32>(x: U<M>, y: U<N>) -> U<M>
   where
-  Size<false, M>: WordRep, Size<false,N>: WordRep, U<M>: From<U<N>> {
-  (x << (N as usize)) | U::<M>::from(y)
+  Size<false, M>: WordRep, Size<false,N>: WordRep {
+  if N >= M { U::<M>::from(u64::from(y)) }
+  else { U::<M>::from((u64::from(x) << N) | u64::from(y)) }
+}
+
+pub fn lcat_s<const M: u32, const N: u32>(x: I<M>, y: U<N>) -> I<M>
+  where
+  Size<true, M>: WordRep, Size<false,N>: WordRep {
+  if N >= M { I::<M>::from(u64::from(y) as i64) }
+  else { I::<M>::from((i64::from(x) << N) | u64::from(y) as i64) }
 }
