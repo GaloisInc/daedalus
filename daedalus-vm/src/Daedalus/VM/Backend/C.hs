@@ -220,7 +220,7 @@ includes opts =
        , "#include <ddl/utils.h>"
        , "#include <optional>"
        ]
-  where maybeStream = [ "<ddl/stream.h>" | cfgLazyStreams opts ]
+  where maybeStream = [ "#include <ddl/stream.h>" | cfgLazyStreams opts ]
 
 
 type UserState  = (?userState :: Maybe CType, NSUser)
