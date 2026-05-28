@@ -474,16 +474,18 @@ impl<const N: u32> U<N> where Size<false,N>: WordRep {
   pub fn to_f64(self) -> f64 { u64::from(self) as f64 }
 
   pub fn from_f32(v: f32) -> Self {
+    assert!(N <= 64, "from_f32: unsigned integers wider than 64 bits are not supported");
     if v.is_nan() || v <= 0.0 { return U::<N>::from(0u64) }
-    let hi: u64 = if N >= 64 { u64::MAX } else { (1u64 << N) - 1 };
+    let hi: u64 = if N == 64 { u64::MAX } else { (1u64 << N) - 1 };
     if v >= (hi as f64 + 1.0) as f32 { return U::<N>::from(hi) }
     let i = v as u64;
     U::<N>::from(if i > hi { hi } else { i })
   }
 
   pub fn from_f64(v: f64) -> Self {
+    assert!(N <= 64, "from_f64: unsigned integers wider than 64 bits are not supported");
     if v.is_nan() || v <= 0.0 { return U::<N>::from(0u64) }
-    let hi: u64 = if N >= 64 { u64::MAX } else { (1u64 << N) - 1 };
+    let hi: u64 = if N == 64 { u64::MAX } else { (1u64 << N) - 1 };
     if v >= hi as f64 + 1.0 { return U::<N>::from(hi) }
     let i = v as u64;
     U::<N>::from(if i > hi { hi } else { i })
@@ -496,9 +498,10 @@ impl<const N: u32> I<N> where Size<false,N>: WordRep, Size<true,N>: WordRep {
   pub fn to_f64(self) -> f64 { i64::from(self) as f64 }
 
   pub fn from_f32(v: f32) -> Self {
+    assert!(N <= 64, "from_f32: signed integers wider than 64 bits are not supported");
     if v.is_nan() { return I::<N>::from(0i64) }
-    let lo: i64 = if N == 0 { 0 } else { -(1i64 << (N - 1)) };
-    let hi: i64 = if N == 0 { 0 } else { (1i64 << (N - 1)) - 1 };
+    let lo: i64 = if N == 0 { 0 } else if N == 64 { i64::MIN } else { -(1i64 << (N - 1)) };
+    let hi: i64 = if N == 0 { 0 } else if N == 64 { i64::MAX } else { (1i64 << (N - 1)) - 1 };
     if v <= lo as f32 - 1.0 { return I::<N>::from(lo) }
     if v >= hi as f32 + 1.0 { return I::<N>::from(hi) }
     let i = v as i64;
@@ -506,9 +509,10 @@ impl<const N: u32> I<N> where Size<false,N>: WordRep, Size<true,N>: WordRep {
   }
 
   pub fn from_f64(v: f64) -> Self {
+    assert!(N <= 64, "from_f64: signed integers wider than 64 bits are not supported");
     if v.is_nan() { return I::<N>::from(0i64) }
-    let lo: i64 = if N == 0 { 0 } else { -(1i64 << (N - 1)) };
-    let hi: i64 = if N == 0 { 0 } else { (1i64 << (N - 1)) - 1 };
+    let lo: i64 = if N == 0 { 0 } else if N == 64 { i64::MIN } else { -(1i64 << (N - 1)) };
+    let hi: i64 = if N == 0 { 0 } else if N == 64 { i64::MAX } else { (1i64 << (N - 1)) - 1 };
     if v <= lo as f64 - 1.0 { return I::<N>::from(lo) }
     if v >= hi as f64 + 1.0 { return I::<N>::from(hi) }
     let i = v as i64;
