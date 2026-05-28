@@ -133,9 +133,6 @@ compileOp1 op ty e k =
         guardNegSInt n ty e k
       | Src.TUInt _ <- Src.typeOf e ->
         guardNegUInt ty e k
-    Src.CoerceTo tgt
-      | isFloatToInt (Src.typeOf e) tgt -> guardFloatToInt tgt ty e k
-
     _ ->
       compileE e $ Just \v -> continue k =<< stmt ty (\x -> CallPrim x (Op1 op) [v])
 
@@ -170,33 +167,6 @@ guardNegUInt ty e k =
        do setLocal l v
           code
 
--- Check: not (isNaN e) && not (isInfinite e)
-guardFloatToInt :: Src.Type -> VMT -> Src.Expr -> CE
-guardFloatToInt tgt ty e k =
-  do let argTy = Src.typeOf e
-         tgtTxt = Text.pack (show (pp tgt))
-         checkNot prim v =
-           do r <- stmt (TSem Src.TBool)
-                     (\x -> CallPrim x (Op1 prim) [v])
-              stmt (TSem Src.TBool)
-                (\x -> CallPrim x (Op1 Src.Not) [r])
-         body v = continue k =<<
-                    stmt ty (\x -> CallPrim x (Op1 (Src.CoerceTo tgt)) [v])
-     l <- newLocal (TSem argTy)
-     infCode <- guarded ("coercion of Infinity to " <> tgtTxt)
-                  (checkNot Src.IsInfinite =<< getLocal l) (body =<< getLocal l)
-     nanCode <- guarded ("coercion of NaN to " <> tgtTxt)
-                  (checkNot Src.IsNaN =<< getLocal l) infCode
-     compileE e $ Just \v ->
-       do setLocal l v
-          nanCode
-
-isFloatToInt :: Src.Type -> Src.Type -> Bool
-isFloatToInt src tgt =
-  case src of
-    Src.TFloat  -> isIntegerType tgt
-    Src.TDouble -> isIntegerType tgt
-    _           -> False
 
 isIntegerType :: Src.Type -> Bool
 isIntegerType t =
