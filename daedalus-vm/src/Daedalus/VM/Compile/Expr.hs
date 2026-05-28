@@ -296,13 +296,19 @@ guardDivMod' argTy mkBody e1 e2 =
      body <- mkBody l1 l2
      code <- guarded "division by zero"
                (do b <- getLocal l2
+                   zero <- mkZero
                    stmt (TSem Src.TBool)
-                     (\x -> CallPrim x (Op2 Src.NotEq) [b, ENum 0 argTy]))
+                     (\x -> CallPrim x (Op2 Src.NotEq) [b, zero]))
                body
      compileEs [e1,e2] \[v1,v2] ->
        do setLocal l1 v1
           setLocal l2 v2
           code
+  where
+  mkZero
+    | Src.TInteger <- argTy =
+        stmt (TSem Src.TInteger) (\x -> CallPrim x (Integer 0) [])
+    | otherwise = pure (ENum 0 argTy)
 
 -- Check: amount <= 4095
 guardedShift :: VMT -> Src.Expr -> Src.Expr -> CE
