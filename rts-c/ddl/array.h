@@ -71,7 +71,7 @@ public:
   static Array rangeUp(T start,T end, T step) {
     if (start >= end) return Array();
 
-    Size ents = rangeSize((end - start).asSize(), step.asSize());
+    Size ents = rangeSize(start.distanceTo(end), step.asSize());
     Content *p = Content::allocate(ents);
     T val = start;
     for (Size i = 0; i < ents; i.increment()) {
@@ -85,7 +85,7 @@ public:
   static Array rangeDown(T start,T end, T step) {
     if (start <= end) return Array();
 
-    Size ents = rangeSize((start - end).asSize(), step.asSize());
+    Size ents = rangeSize(end.distanceTo(start), step.asSize());
     Content *p = Content::allocate(ents);
     T val = start;
     for (Size i = 0; i < ents; i.increment()) {

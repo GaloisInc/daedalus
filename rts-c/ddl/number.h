@@ -148,6 +148,11 @@ public:
 
   Size asSize() const { return Size::from(rep()); }  // used in array
 
+  // Unsigned distance from *this to other (precondition: other >= *this).
+  Size distanceTo(UInt other) const {
+    return Size::from(other.rep() - rep());
+  }
+
   // Bitdata
   UInt toBits()                { return *this; }
   static UInt fromBits(UInt x) { return x; }
@@ -319,6 +324,14 @@ public:
   SInt operator >> (Size x) const { return x.rep() >= w? SInt(data >= 0? 0 : ~0) : SInt(data >> x.rep()); }
 
   Size asSize() const { return Size::from(rep()); } // used in array
+
+  // Unsigned distance from *this to other (precondition: other > *this).
+  // Computes in unsigned to avoid signed overflow.
+  Size distanceTo(SInt other) const {
+    using URep = typename std::make_unsigned<Rep>::type;
+    URep diff = static_cast<URep>(other.data) - static_cast<URep>(data);
+    return Size::from(diff);
+  }
 
   // Bitdata
   UInt<w> toBits()                { return UInt<w>(data); }
