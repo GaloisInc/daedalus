@@ -165,11 +165,11 @@ handle = mconcat
 
     liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
 
-  -- , notificationHandler J.STextDocumentDidSave $ \msg -> do
-  --     let doc = msg ^. J.params . J.textDocument . J.uri
-  --         fileName = J.uriToFilePath doc
-  --     liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
-  --     sendDiagnostics (J.toNormalizedUri doc) Nothing
+  , notificationHandler J.SMethod_TextDocumentDidSave $ \_msg ->
+      pure ()
+
+  , notificationHandler J.SMethod_TextDocumentDidClose $ \_msg ->
+      pure ()
 
   , requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
