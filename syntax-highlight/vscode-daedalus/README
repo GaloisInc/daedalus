@@ -1,35 +1,46 @@
-This directory contains code to integrate the DaeDaLus LSP server
-with Visual Studio Code.
+This extension provides language support for DaeDaLus specifications.
 
-Prerequisites
--------------
+The extension relies on a language server, which needs to be installed
+separately (see below).
 
-To build the extension you'll need `npm` and `libsecret-1-0`
 
-    apt-get update && apt-get install -y npm libsecret-1-0
+Packaging and Installing the VSCode Client
+==========================================
 
-Building the Extension
-----------------------
+The source code for the client is in this directory.
+You'll need `node` already installed.
 
-    npm install vsce && npm install && npm run package
+Install dependencies:
 
-If this is successful you should now have a VSCode extension
-called `daedalus-0.0.1.vsix` in the current directory.
+    npm install
 
-Adding the Extension to VS Code
--------------------------------
+Build a VSCode package:
 
-  1. Open the "Extensions" pane (menu: View / Extensions)
-  2. From the `...` menu in "Extensions" select "Install from VSIX"
-  3. Navigate to the location of `daedalus-0.0.1.vsix` and select it
-  4. Make sure that the `daedalus-language-server` executable is in your path
+    npm run package
+
+If everything went OK you should see a file called `daedalus-`X.Y.Z`.vsix`.
+
+To install the extension in VSCode, open the extensions tab, and from
+the menu (three little dots) select "Install from VSIX".  Once the extension
+is installed, open the settings, and find its settings to specify the
+path to the language server binary.
+
+
+Installing the Language Server
+==============================
+
+Build and install with:
+
+    cabal install daedalus-language-server
+
+Make sure the resulting `daedalus-language-server` executable is on your
+`$PATH`, or point the `daedalus.language-server-path` VSCode setting at it.
+
 
 Test
 ----
 
-To see the extension in action open a DaeDaLus specification (a `.ddl` file).
-VS Code should recognize the file as `Daedalus` (in the bottom status bar).
-You should get syntax highlighting for the file, and when you hover
-over expressions you should be able to see their type.
-
-
+Open a DaeDaLus specification (a `.ddl` file).  VSCode should recognize
+the file as `Daedalus` (in the bottom status bar).  You should get syntax
+highlighting for the file, and when you hover over expressions you should
+be able to see their type.
