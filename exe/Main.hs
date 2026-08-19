@@ -350,8 +350,8 @@ generateRust opts mm =
                        then "rts-rust"
                        else fromMaybe "../rts-rust" (optRTSPath opts)
             rtsFeatures
-              | optErrorStacks opts = []
-              | otherwise = ["detailed-errors"::String]
+              | optErrorStacks opts = ["detailed-errors"::String]
+              | otherwise = []
         createDirectoryIfMissing True dir
         createDirectoryIfMissing True src
         -- XXX: The configuration is just temporary for testing
