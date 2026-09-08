@@ -68,6 +68,7 @@ data Options =
           , optErrorStacks :: Bool
           , optUserState :: Maybe String
           , optExtraInclude :: [String]
+          , optExtraImport :: [String]
           , optFileRoot :: String
           , optVM_do_mm :: Bool -- ^ Should we do memomry management in VM
           , optUserNS :: String
@@ -121,6 +122,7 @@ defaultOptions =
           , optErrorStacks = True
           , optUserState = Nothing
           , optExtraInclude = []
+          , optExtraImport = []
           , optFileRoot = "main_parser"
           , optUserNS = defaultUserSpace
           , optExternMods = Map.empty
@@ -397,6 +399,15 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["no-error-stack"]
         "Do not generate a grammar stack trace on error."
         $ NoArg \o -> Right o { optErrorStacks = False }
+
+      , Option [] ["user-state"]
+        "Generate a parser using this Rust type for custom user state"
+        $ ReqArg "STATE_TYPE" \s o -> Right o { optUserState = Just s }
+
+      , Option [] ["add-import"]
+        "Add a Rust import to the generated parser"
+        $ ReqArg "IMPORT" \s o ->
+            Right o { optExtraImport = optExtraImport o ++ [s] }
       ] ++
       coreOptions ++
       [ helpOption
@@ -625,7 +636,5 @@ colonSplit a =
     (xs,ys) -> (xs, case ys of
                       _ : more -> Just more
                       _        -> Nothing)
-
-
 
 

@@ -334,9 +334,10 @@ generateRust :: Options -> ModuleName -> Daedalus ()
 generateRust opts mm =
   do
     prog <- doToVM opts { optVM_do_mm = True } mm
-    let cfg = Rust.Config {
-                
-              }
+    let cfg = Rust.Config
+                { Rust.cfgUserState = optUserState opts
+                , Rust.cfgExtraImports = optExtraImport opts
+                }
         -- XXX: catch unsupported.
         rust = Rust.compileProgram cfg prog
     ddlIO
@@ -369,10 +370,11 @@ generateRust opts mm =
         writeFile (src </> "lib.rs") rust
 
         -- XXX: Temporary driver for testing
-        writeFile (src </> "main.rs") $ unlines
-          [ "use daedalus_rts_rust as ddl;"
-          , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
-          ]
+        when (isNothing (optUserState opts)) $
+          writeFile (src </> "main.rs") $ unlines
+            [ "use daedalus_rts_rust as ddl;"
+            , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
+            ]
 
         when (optSaveRTS opts) $
           do let save (x,b) =
@@ -614,5 +616,4 @@ dumpHTML jsData = vcat
   Just tscope  = lookup "scope.js" html_files
   Just tindex   = lookup "index.html" html_files
   bytes = text . BS8.unpack
-
 

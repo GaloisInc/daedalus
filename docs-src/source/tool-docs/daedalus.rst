@@ -323,6 +323,9 @@ The compiled parser is placed in a standard Rust crate structure:
   * ``Cargo.toml`` provides the Rust package configuration
   * A sample executable driver ``src/main.rs`` (if no explicit ``--entry`` is specified)
 
+The sample driver is not generated when ``--user-state`` is specified, because
+constructing the custom state is the responsibility of the embedding program.
+
 To build the generated parser:
 
 .. code-block:: bash
@@ -366,6 +369,36 @@ Flags
   which provide more detailed diagnostic information at some runtime cost.
   Adding this flag produces less detailed parse errors but may improve
   performance.
+
+.. data:: --user-state=STATE_TYPE
+
+  Generate parser functions with custom user state of the given Rust type.
+  For example, ``--user-state=MyState`` causes generated parser functions
+  to accept ``&mut ddl::ParserStateWith<MyState>`` instead of the default
+  ``&mut ddl::ParserState``.
+
+  The embedding program should construct the parser state with
+  ``ddl::new_parser_state_with(user_state)``.  Generated or external parser
+  functions may access the state through the public ``user_state`` field.
+  Care should be taken that state updates make sense when a parser
+  backtracks.
+
+.. data:: --add-import=IMPORT
+
+  Add ``use IMPORT;`` to the generated parser module.  This option may be
+  specified multiple times.  It can be used, for example, to bring a custom
+  user-state type into scope:
+
+  .. code-block:: bash
+
+    daedalus compile-rust MyParser.ddl \
+      --add-import=my_crate::MyState \
+      --user-state=MyState
+
+  ``IMPORT`` should contain the Rust import specification without the
+  leading ``use`` or trailing semicolon.  Rust import forms such as
+  ``module::Type``, ``module::*``, and ``module::{TypeA, TypeB}`` are
+  supported.
 
 .. data:: --entry=[MODULE.]NAME
 

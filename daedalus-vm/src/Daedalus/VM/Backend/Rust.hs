@@ -12,6 +12,7 @@ import Data.ByteString qualified as BS
 import Data.Word(Word8,Word64)
 import Data.Int(Int64)
 import Data.Bits
+import Control.Monad(void)
 
 import Daedalus.PP
 import Daedalus.Rec(forgetRecs)
@@ -22,8 +23,12 @@ import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
+import Language.Rust.Parser qualified as RustParser
 
 data Config = Config
+  { cfgUserState :: Maybe String
+  , cfgExtraImports :: [String]
+  }
 
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
@@ -35,7 +40,7 @@ type ProgCtx = (
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
 
 compileProgram :: Config -> VM.Program -> String
-compileProgram _cfg vm = show (Rust.pretty' result)
+compileProgram cfg vm = show (Rust.pretty' result)
   where
   result :: Rust.SourceFile ()
   result =
@@ -48,14 +53,15 @@ compileProgram _cfg vm = show (Rust.pretty' result)
                                 | m <- VM.pModules vm,
                                   f <- VM.mFuns m ]
     in
-    Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
+    Rust.SourceFile Nothing [] (uses ++ concatMap (compileModule userState) (VM.pModules vm))
 
   unusedOk = [Rust.disableWarning "unused_imports"]
-  uses = [
-    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
-    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ]),
-    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
-    ]
+  userState = parseRustType <$> cfgUserState cfg
+  uses =
+    [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl"))
+    , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
+    , Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
+    ] ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
@@ -77,12 +83,12 @@ compileProgram _cfg vm = show (Rust.pretty' result)
   getSig            = map VM.getOwnership
 
 
-compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
-compileModule m = concatMap compileUserType (VM.mTypes m) ++
-                  map compileFun (VM.mFuns m)
+compileModule :: ProgCtx => Maybe (Rust.Ty ()) -> VM.Module -> [Rust.Item ()]
+compileModule userState m = concatMap compileUserType (VM.mTypes m) ++
+                            map (compileFun userState) (VM.mFuns m)
   
-compileFun :: ProgCtx => VM.VMFun -> Rust.Item ()
-compileFun fu =
+compileFun :: ProgCtx => Maybe (Rust.Ty ()) -> VM.VMFun -> Rust.Item ()
+compileFun userState fu =
   case VM.vmfCaptures fu of
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
     VM.Unknown   -> panic "compileFun" [ show (pp fnm), "`Unknwon` capture" ]
@@ -104,12 +110,42 @@ compileFun fu =
         Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
     where ?fnMsg = fnMsg
 
-  args = (parserStateName, Rust.tMutRef (Rust.pathType (ddlPath "ParserState"))) : args'
+  args = (parserStateName, Rust.tMutRef (parserStateType userState)) : args'
   (args',def) =
     let ?isPure = VM.vmfPure fu
         ?fnMsg  = fnMsg
         ?curFunThrows = throws
     in compileFunDef (VM.vmfDef fu)
+
+parserStateType :: Maybe (Rust.Ty ()) -> Rust.Ty ()
+parserStateType userState =
+  case userState of
+    Nothing -> Rust.pathType (ddlPath "ParserState")
+    Just ty ->
+      Rust.pathType
+        (Rust.pathWithTypes [ddlModName, "ParserStateWith"] [ty])
+
+parseRustType :: String -> Rust.Ty ()
+parseRustType ty =
+  case RustParser.parse (RustParser.inputStreamFromString ty) of
+    Left err ->
+      panic "compileProgram"
+        [ "Invalid Rust user state type"
+        , ty
+        , show err
+        ]
+    Right parsed -> void (parsed :: Rust.Ty RustParser.Span)
+
+parseRustImport :: String -> Rust.Item ()
+parseRustImport imp =
+  case RustParser.parse (RustParser.inputStreamFromString ("use " ++ imp ++ ";")) of
+    Left err ->
+      panic "compileProgram"
+        [ "Invalid Rust import"
+        , imp
+        , show err
+        ]
+    Right parsed -> void (parsed :: Rust.Item RustParser.Span)
 
 
 
@@ -924,4 +960,3 @@ compilePat ty p =
         _  -> panic "compilePat" ["Con pat for not TUser"]
 
     Core.PAny       -> Rust.wildPat
-
