@@ -416,6 +416,10 @@ deriveAttribute is = Attribute Inner (simplePath "derive") toks ()
        $ Stream
        $ intersperse tokComma [ Tree (Token dummySpan (IdentTok i)) | i <- is ]
 
+inlineAlwaysAttribute :: Attribute ()
+inlineAlwaysAttribute =
+  Attribute Inner (simplePath "inline") (parenTokens [identToken "always"]) ()
+
 macDecl :: Mac () -> Item ()
 macDecl m = MacItem [] m ()
 

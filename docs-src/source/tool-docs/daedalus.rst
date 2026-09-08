@@ -313,6 +313,9 @@ The result is a directory containing a complete Rust crate with the generated
 parser and type definitions. The generated code uses the Daedalus Rust runtime
 system (RTS), which provides core parsing functionality.
 
+When integrating a parser into an existing Rust crate, use ``--output-file``
+to generate just a Rust source module instead of a complete crate.
+
 .. _compile-rust-generated-files:
 
 Generated Files
@@ -347,6 +350,31 @@ Flags
   Save generated files in the given directory.
   The directory will be created if it does not exist.
   If not specified, a directory name is derived from the input file name.
+
+.. data:: --output-file=FILE
+
+  Save only the generated parser and type definitions as a Rust source file.
+  Parent directories are created as needed. No ``Cargo.toml``, driver, or
+  runtime source is generated.
+
+  This is useful when the parser should be a module in an existing
+  application crate. For example:
+
+  .. code-block:: bash
+
+    daedalus compile-rust Format.ddl \
+      --output-file=src/format.rs \
+      --entry=Main \
+      --user-state=crate::native::State \
+      --user-fun=crate::native
+
+  The application may then declare ``mod format;`` and ``mod native;``.
+  Because both are in the same crate, native functions can refer directly to
+  types generated in ``format``.
+
+  This option may not be combined with ``--out-dir``, ``--rts-path``, or
+  ``--save-rts``. The application crate is responsible for declaring its
+  dependencies on ``daedalus-rts-rust`` and ``serde``.
 
 .. data:: --rts-path=PATH
 
@@ -399,6 +427,17 @@ Flags
   leading ``use`` or trailing semicolon.  Rust import forms such as
   ``module::Type``, ``module::*``, and ``module::{TypeA, TypeB}`` are
   supported.
+
+.. data:: --user-fun=QUAL
+
+  Provide implementations for external Daedalus functions using native Rust
+  functions under the qualifier ``QUAL``.  For each external function ``f``,
+  the generated parser defines an ``#[inline(always)]`` wrapper that calls
+  ``QUAL::f``, forwarding the parser state and all function arguments.
+
+  For example, ``--user-fun=native`` maps an external Daedalus function whose
+  generated Rust name is ``get_value`` to ``native::get_value``.  Use
+  ``--add-import`` as needed to bring ``QUAL`` into scope.
 
 .. data:: --entry=[MODULE.]NAME
 
