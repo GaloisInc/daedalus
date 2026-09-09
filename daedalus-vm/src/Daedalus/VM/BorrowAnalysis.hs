@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 import Daedalus.Panic(panic)
 import Daedalus.PP hiding (block)
 import Daedalus.Core(Op1(..),Op2(..),Op3(..),OpN(..))
+import Daedalus.Rec(Rec(..))
 import Daedalus.VM
 import Daedalus.VM.TypeRep
 
@@ -254,12 +255,26 @@ borrowAnalysis p = loop i0
                           $ [ x | f <- programFuns p
                             , x <- checkEntry f ]
                          ++ concatMap nonNormal (pAllBlocks p)
+                         ++ Map.toList recursiveBlockSigs
             , iFunEntry   = Map.fromList [ (vmfName f, infoEntry f)
                                          | f <- programFuns p
                                          ]
             , iBlockType  = Map.fromList
                               [ (blockName b, blockType b) | b <- pAllBlocks p ]
             }
+
+  -- Recursive calls will save the caller's state on an explicit stack.
+  -- Mark callee entry arguments as owned so that they do not borrow from
+  -- values stored in movable stack frames.
+  recursiveBlockSigs =
+    Map.fromList
+      [ (blockName b, [ Owned `ifRefs` a | a <- blockArgs b ])
+      | m <- pModules p
+      , MutRec fs <- mFuns m
+      , f <- fs
+      , VMDef body <- [vmfDef f]
+      , let b = vmfBlocks body Map.! vmfEntry body
+      ]
 
   infoEntry f = case vmfDef f of
                   VMExtern as -> Left [ (Nothing, Owned `ifRefs` a) | a <- as ]
