@@ -1,0 +1,9 @@
+[package]
+name = "stateful-parser-example-rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+daedalus-rts-rust = { path = "../../rts-rust", features = ["detailed-errors"] }
+serde = "1.0"
+serde_json = "1.0"

@@ -313,6 +313,9 @@ The result is a directory containing a complete Rust crate with the generated
 parser and type definitions. The generated code uses the Daedalus Rust runtime
 system (RTS), which provides core parsing functionality.
 
+When integrating a parser into an existing Rust crate, use ``--output-file``
+to generate just a Rust source module instead of a complete crate.
+
 .. _compile-rust-generated-files:
 
 Generated Files
@@ -322,6 +325,9 @@ The compiled parser is placed in a standard Rust crate structure:
   * ``src/lib.rs`` contains the generated parser implementation and type definitions
   * ``Cargo.toml`` provides the Rust package configuration
   * A sample executable driver ``src/main.rs`` (if no explicit ``--entry`` is specified)
+
+The sample driver is not generated when ``--user-state`` is specified, because
+constructing the custom state is the responsibility of the embedding program.
 
 To build the generated parser:
 
@@ -345,6 +351,31 @@ Flags
   The directory will be created if it does not exist.
   If not specified, a directory name is derived from the input file name.
 
+.. data:: --output-file=FILE
+
+  Save only the generated parser and type definitions as a Rust source file.
+  Parent directories are created as needed. No ``Cargo.toml``, driver, or
+  runtime source is generated.
+
+  This is useful when the parser should be a module in an existing
+  application crate. For example:
+
+  .. code-block:: bash
+
+    daedalus compile-rust Format.ddl \
+      --output-file=src/format.rs \
+      --entry=Main \
+      --user-state=crate::native::State \
+      --user-fun=crate::native
+
+  The application may then declare ``mod format;`` and ``mod native;``.
+  Because both are in the same crate, native functions can refer directly to
+  types generated in ``format``.
+
+  This option may not be combined with ``--out-dir``, ``--rts-path``, or
+  ``--save-rts``. The application crate is responsible for declaring its
+  dependencies on ``daedalus-rts-rust`` and ``serde``.
+
 .. data:: --rts-path=PATH
 
   Specify the path to the Daedalus Rust runtime system.
@@ -366,6 +397,47 @@ Flags
   which provide more detailed diagnostic information at some runtime cost.
   Adding this flag produces less detailed parse errors but may improve
   performance.
+
+.. data:: --user-state=STATE_TYPE
+
+  Generate parser functions with custom user state of the given Rust type.
+  For example, ``--user-state=MyState`` causes generated parser functions
+  to accept ``&mut ddl::ParserStateWith<MyState>`` instead of the default
+  ``&mut ddl::ParserState``.
+
+  The embedding program should construct the parser state with
+  ``ddl::new_parser_state_with(user_state)``.  Generated or external parser
+  functions may access the state through the public ``user_state`` field.
+  Care should be taken that state updates make sense when a parser
+  backtracks.
+
+.. data:: --add-import=IMPORT
+
+  Add ``use IMPORT;`` to the generated parser module.  This option may be
+  specified multiple times.  It can be used, for example, to bring a custom
+  user-state type into scope:
+
+  .. code-block:: bash
+
+    daedalus compile-rust MyParser.ddl \
+      --add-import=my_crate::MyState \
+      --user-state=MyState
+
+  ``IMPORT`` should contain the Rust import specification without the
+  leading ``use`` or trailing semicolon.  Rust import forms such as
+  ``module::Type``, ``module::*``, and ``module::{TypeA, TypeB}`` are
+  supported.
+
+.. data:: --user-fun=QUAL
+
+  Provide implementations for external Daedalus functions using native Rust
+  functions under the qualifier ``QUAL``.  For each external function ``f``,
+  the generated parser defines an ``#[inline(always)]`` wrapper that calls
+  ``QUAL::f``, forwarding the parser state and all function arguments.
+
+  For example, ``--user-fun=native`` maps an external Daedalus function whose
+  generated Rust name is ``get_value`` to ``native::get_value``.  Use
+  ``--add-import`` as needed to bring ``QUAL`` into scope.
 
 .. data:: --entry=[MODULE.]NAME
 

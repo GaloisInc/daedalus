@@ -262,21 +262,29 @@ impl Serialize for ParseError {
 // Parser State (for VM execution)
 // ============================================================================
 
-pub struct ParserState {
+pub struct ParserStateWith<T> {
   #[cfg(feature = "detailed-errors")]
   context: ParserContextStack,
   pub error: ParseError,
+  pub user_state: T,
 }
 
-pub fn new_parser_state() -> ParserState {
-  ParserState {
+pub type ParserState = ParserStateWith<()>;
+
+pub fn new_parser_state_with<T>(user_state: T) -> ParserStateWith<T> {
+  ParserStateWith {
     #[cfg(feature = "detailed-errors")]
     context: ParserContextStack::new(),
     error: ParseError::new(),
+    user_state,
   }
 }
 
-impl ParserState {
+pub fn new_parser_state() -> ParserState {
+  new_parser_state_with(())
+}
+
+impl<T> ParserStateWith<T> {
 
   pub fn set_exception(&mut self, loc: &'static str, msg: &'static str) {
     self.error = ParseError {

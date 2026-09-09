@@ -12,6 +12,7 @@ import Data.ByteString qualified as BS
 import Data.Word(Word8,Word64)
 import Data.Int(Int64)
 import Data.Bits
+import Control.Monad(void)
 
 import Daedalus.PP
 import Daedalus.Rec(forgetRecs)
@@ -22,20 +23,27 @@ import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
+import Language.Rust.Parser qualified as RustParser
 
 data Config = Config
+  { cfgUserState :: Maybe String
+  , cfgExtraImports :: [String]
+  , cfgUserFun :: Maybe String
+  }
 
 type ProgCtx = (
   ?funSigs :: Map VM.FName [VM.Ownership],
   ?blockSigs :: Map VM.Label [VM.Ownership],
   ?tyDecls :: Map Core.TName Core.TDecl,
-  ?allFuns :: Map VM.FName VM.VMFun
+  ?allFuns :: Map VM.FName VM.VMFun,
+  ?userState :: Maybe (Rust.Ty ()),
+  ?userFun :: Maybe (Rust.Path ())
   )
 
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
 
 compileProgram :: Config -> VM.Program -> String
-compileProgram _cfg vm = show (Rust.pretty' result)
+compileProgram cfg vm = show (Rust.pretty' result)
   where
   result :: Rust.SourceFile ()
   result =
@@ -47,15 +55,17 @@ compileProgram _cfg vm = show (Rust.pretty' result)
         ?allFuns = Map.fromList [ (VM.vmfName f, f)
                                 | m <- VM.pModules vm,
                                   f <- VM.mFuns m ]
+        ?userState = parseRustType <$> cfgUserState cfg
+        ?userFun = parseRustPath <$> cfgUserFun cfg
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
   unusedOk = [Rust.disableWarning "unused_imports"]
-  uses = [
-    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl")),
-    Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ]),
-    Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
-    ]
+  uses =
+    [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl"))
+    , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
+    , Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
+    ] ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
@@ -78,8 +88,9 @@ compileProgram _cfg vm = show (Rust.pretty' result)
 
 
 compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
-compileModule m = concatMap compileUserType (VM.mTypes m) ++
-                  map compileFun (VM.mFuns m)
+compileModule m =
+  concatMap compileUserType (VM.mTypes m) ++
+  map compileFun (VM.mFuns m)
   
 compileFun :: ProgCtx => VM.VMFun -> Rust.Item ()
 compileFun fu =
@@ -87,9 +98,13 @@ compileFun fu =
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
     VM.Unknown   -> panic "compileFun" [ show (pp fnm), "`Unknwon` capture" ]
     VM.NoCapture ->
-      Rust.mkFnItem Nothing [] [] vis nm Rust.noGenerics args resT def
+      Rust.mkFnItem Nothing [] attrs vis nm Rust.noGenerics args resT def
   where
   vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  attrs =
+    case VM.vmfDef fu of
+      VM.VMExtern {} -> [Rust.inlineAlwaysAttribute]
+      VM.VMDef {}    -> []
   fnMsg           = backticks (pp fnm)
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
@@ -104,20 +119,91 @@ compileFun fu =
         Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
     where ?fnMsg = fnMsg
 
-  args = (parserStateName, Rust.tMutRef (Rust.pathType (ddlPath "ParserState"))) : args'
+  args = (parserStateName, Rust.tMutRef parserStateType) : args'
   (args',def) =
     let ?isPure = VM.vmfPure fu
         ?fnMsg  = fnMsg
         ?curFunThrows = throws
-    in compileFunDef (VM.vmfDef fu)
+    in compileFunDef fnm (VM.vmfDef fu)
 
+parserStateType :: ProgCtx => Rust.Ty ()
+parserStateType =
+  case ?userState of
+    Nothing -> Rust.pathType (ddlPath "ParserState")
+    Just ty ->
+      Rust.pathType
+        (Rust.pathWithTypes [ddlModName, "ParserStateWith"] [ty])
 
+parseRustType :: String -> Rust.Ty ()
+parseRustType ty =
+  case RustParser.parse (RustParser.inputStreamFromString ty) of
+    Left err ->
+      panic "compileProgram"
+        [ "Invalid Rust user state type"
+        , ty
+        , show err
+        ]
+    Right parsed -> void (parsed :: Rust.Ty RustParser.Span)
 
-compileFunDef :: FnCtx => VM.VMFDef -> ([(Rust.Ident,Rust.Ty ())], Rust.Block ())
-compileFunDef def =
+parseRustImport :: String -> Rust.Item ()
+parseRustImport imp =
+  case RustParser.parse (RustParser.inputStreamFromString ("use " ++ imp ++ ";")) of
+    Left err ->
+      panic "compileProgram"
+        [ "Invalid Rust import"
+        , imp
+        , show err
+        ]
+    Right parsed -> void (parsed :: Rust.Item RustParser.Span)
+
+parseRustPath :: String -> Rust.Path ()
+parseRustPath path =
+  case RustParser.parse (RustParser.inputStreamFromString path) of
+    Left err ->
+      panic "compileProgram"
+        [ "Invalid Rust user function qualifier"
+        , path
+        , show err
+        ]
+    Right parsed -> void (parsed :: Rust.Path RustParser.Span)
+
+compileFunDef ::
+  FnCtx =>
+  Core.FName ->
+  VM.VMFDef ->
+  ([(Rust.Ident,Rust.Ty ())], Rust.Block ())
+compileFunDef fnm def =
   case def of
-    VM.VMExtern _ -> unsupported (?fnMsg <+> "is an externally defined function")
+    VM.VMExtern args ->
+      case ?userFun of
+        Nothing -> unsupported (?fnMsg <+> "is an externally defined function")
+        Just qual -> compileExternFun qual fnm args
     VM.VMDef body -> compileFunBody body
+
+compileExternFun ::
+  FnCtx =>
+  Rust.Path () ->
+  Core.FName ->
+  [VM.BA] ->
+  ([(Rust.Ident,Rust.Ty ())], Rust.Block ())
+compileExternFun qual fnm args =
+  ( params
+  , Rust.block
+      [ Rust.ret
+          (Rust.call
+            (Rust.pathExpr (qualifyPath qual (compileFName fnm)))
+            (Rust.identExpr parserStateName : map (Rust.identExpr . fst) params))
+      ]
+  )
+  where
+  params =
+    [ (compileBAName arg, compileVMT (VM.getOwnership arg) (VM.getType arg))
+    | arg <- args
+    ]
+
+qualifyPath :: Rust.Path () -> Rust.Ident -> Rust.Path ()
+qualifyPath (Rust.Path global segments ()) name =
+  Rust.Path global (segments ++ [Rust.PathSegment name Nothing ()]) ()
 
 
 compileFunBody ::
@@ -924,4 +1010,3 @@ compilePat ty p =
         _  -> panic "compilePat" ["Con pat for not TUser"]
 
     Core.PAny       -> Rust.wildPat
-
