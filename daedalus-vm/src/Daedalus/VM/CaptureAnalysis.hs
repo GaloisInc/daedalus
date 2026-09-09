@@ -23,7 +23,7 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
 
   info    = fixCaptureInfo
           $ Map.fromList
-              [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
+              [ (vmfName f, captureInfo f) | m <- ms, f <- moduleFuns m ]
 
 
   -- NOTE: we assume that return blocks are not shared across functions with
@@ -44,7 +44,7 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
 
   ---
 
-  annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateModule = mapModuleFuns annotateFun
 
   annotateFun f = f { vmfCaptures = me
                     , vmfDef = annotateDef me (vmfDef f)

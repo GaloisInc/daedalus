@@ -21,7 +21,7 @@ import Daedalus.VM.FreeVars
 addCopyIs :: Program -> Program
 addCopyIs p = Program { pModules = annModule <$> pModules p }
   where
-  annModule m = m { mFuns = map annFun (mFuns m) }
+  annModule = mapModuleFuns annFun
   annFun f    = f { vmfDef = annDef (vmfDef f) }
   annDef d    = case d of
                   VMExtern {} -> d
@@ -33,7 +33,7 @@ addCopyIs p = Program { pModules = annModule <$> pModules p }
               . Map.elems
 
 buildRO :: Program -> RO
-buildRO p = foldr addFun initRO [ f | m <- pModules p, f <- mFuns m ]
+buildRO p = foldr addFun initRO (programFuns p)
   where
   initRO = RO { funMap = Map.empty, labOwn = Map.empty }
 

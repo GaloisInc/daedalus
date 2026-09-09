@@ -12,7 +12,7 @@ tailProgram :: Program -> Program
 tailProgram p = p { pModules = tailModule <$> pModules p }
 
 tailModule :: Module -> Module
-tailModule m = m { mFuns = tailFun <$> mFuns m }
+tailModule = mapModuleFuns tailFun
 
 tailFun :: VMFun -> VMFun
 tailFun fun =
@@ -29,4 +29,3 @@ tailFun fun =
                              , jArgs  = es
                              }
       _ -> b
-

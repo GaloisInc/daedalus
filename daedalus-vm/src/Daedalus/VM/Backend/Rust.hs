@@ -53,8 +53,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
                                 | m <- VM.pModules vm,
                                   t <- forgetRecs (VM.mTypes m) ]
         ?allFuns = Map.fromList [ (VM.vmfName f, f)
-                                | m <- VM.pModules vm,
-                                  f <- VM.mFuns m ]
+                                | f <- VM.programFuns vm ]
         ?userState = parseRustType <$> cfgUserState cfg
         ?userFun = parseRustPath <$> cfgUserFun cfg
     in
@@ -68,7 +67,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
     ] ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
-  sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
+  sigsOfMod s m = foldl' sigsOfFun s (VM.moduleFuns m)
 
   sigsOfFun (fs,bs) f =
     case VM.vmfDef f of
@@ -90,7 +89,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
 compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
 compileModule m =
   concatMap compileUserType (VM.mTypes m) ++
-  map compileFun (VM.mFuns m)
+  map compileFun (VM.moduleFuns m)
   
 compileFun :: ProgCtx => VM.VMFun -> Rust.Item ()
 compileFun fu =

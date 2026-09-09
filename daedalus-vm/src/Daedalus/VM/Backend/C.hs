@@ -71,7 +71,7 @@ cProgram
 
   warns = [ "Using external definition" <+> backticks (pp w)
           | m <- pModules prog
-          , w <- findExternFunsWithDef (Map.keysSet externalMap) (mFuns m)
+          , w <- findExternFunsWithDef (Map.keysSet externalMap) (moduleFuns m)
           ]
 
 
@@ -182,7 +182,7 @@ cProgram
 
   allTypes       = concatMap mTypes orderedModules
   allTypesMap    = Map.fromList [ (Src.tName d, d) | d <- forgetRecs allTypes ]
-  allFuns        = concatMap mFuns orderedModules
+  allFuns        = concatMap moduleFuns orderedModules
   allFunMap      = Map.fromList [ (vmfName f, f) | f <- allFuns ]
   blockOwnerMap  = Map.fromList
                    [ (l, vmfName f)
@@ -1550,5 +1550,4 @@ compileBigInteITE e alts = foldTree dflt mkOne mkIf opts
                                  [cString (show i)] ]
            , [ cStmt (cCallMethod ivarName "free" []) ]
            )
-
 

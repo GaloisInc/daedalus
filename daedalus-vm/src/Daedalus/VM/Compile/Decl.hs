@@ -36,7 +36,8 @@ compileModule useDebug m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
-         , mFuns  = map (compileFFun dm) (Src.mFFuns m)
+         , mFuns  = funSCCs
+                  $ map (compileFFun dm) (Src.mFFuns m)
                  ++ map (compileGFun dm failing) (Src.mGFuns m)
          }
   where

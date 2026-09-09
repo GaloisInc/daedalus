@@ -68,8 +68,8 @@ compileModule cfg m =
   do tys <- compileTDecls (mTypes m)
      let ?config = cfg
      let ?tdecls = Map.fromList [ (Core.tName d, d) | d <- forgetRecs (mTypes m) ]
-     let ?allFuns = Map.fromList [ (vmfName f, f) | f <- mFuns m ]
-     fus <- mapM compileFun (mFuns m)
+     let ?allFuns = Map.fromList [ (vmfName f, f) | f <- moduleFuns m ]
+     fus <- mapM compileFun (moduleFuns m)
      pure (tys ++ concat fus)
 
 
@@ -778,7 +778,6 @@ doJump before after jp =
           ++ map compileE (jArgs jp)
           ++ after
            )
-
 
 
 

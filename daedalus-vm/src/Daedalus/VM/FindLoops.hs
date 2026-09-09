@@ -26,27 +26,41 @@ import Daedalus.Rec
 import Daedalus.VM
 
 
+-- | The strongly connected components of a module's call graph, in
+-- dependency order.  A 'MutRec' component is recursive; this includes a
+-- singleton function with a self-call.
+funSCCs :: [VMFun] -> [Rec VMFun]
+funSCCs = topoOrder deps
+  where
+  deps f = (vmfName f, funDeps f)
+
+
 loopAnalysis :: Module -> Module
 loopAnalysis m = m { mFuns = annotateLoops (mFuns m) }
 
-annotateLoops :: [VMFun] -> [VMFun]
-annotateLoops = foldr doComp [] . topoOrder deps
+annotateLoops :: [Rec VMFun] -> [Rec VMFun]
+annotateLoops = map doComp
   where
-  deps f      = (vmfName f,funDeps f)
-  funDeps f   = case vmfDef f of
-                  VMExtern {} -> Set.empty
-                  VMDef b     -> foldr blockDeps Set.empty (vmfBlocks b)
-  blockDeps b = case blockTerm b of
-                  CallPure f _ _ _   -> Set.insert f
-                  CallCapture f _ _ _ _  -> Set.insert f
-                  CallNoCapture f _ _ _  -> Set.insert f
-                  TailCall f _ _   -> Set.insert f
-                  _                -> id
-
-  doComp c xs =
+  doComp c =
     case c of
-      NonRec f  -> f : xs
-      MutRec fs -> isLoop fs ++ xs
+      NonRec f  -> NonRec f
+      MutRec fs -> MutRec (isLoop fs)
+
+funDeps :: VMFun -> Set.Set FName
+funDeps f =
+  case vmfDef f of
+    VMExtern {} -> Set.empty
+    VMDef b     -> foldr blockDeps Set.empty (vmfBlocks b)
+
+blockDeps :: Block -> Set.Set FName -> Set.Set FName
+blockDeps b =
+  case blockTerm b of
+    CallPure f _ _ _          -> Set.insert f
+    CallCapture f _ _ _ _     -> Set.insert f
+    CallNoCapture f _ _ _     -> Set.insert f
+    TailCall f _ _             -> Set.insert f
+    _                          -> id
+
 
 isLoop :: [VMFun] -> [VMFun]
 isLoop xs
@@ -82,5 +96,3 @@ isLoop xs
                  VMExtern {} -> x
              ]
       _   -> panic "isLoop" [ "XXX: multi-function loops" ]
-
-

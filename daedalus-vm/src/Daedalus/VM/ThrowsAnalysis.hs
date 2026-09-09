@@ -20,9 +20,9 @@ throwsAnalysis prog = Program { pModules = map annotateModule ms }
 
   info = fixThrowsInfo
        $ Map.fromList
-           [ (vmfName f, throwsInfo f) | m <- ms, f <- mFuns m ]
+           [ (vmfName f, throwsInfo f) | m <- ms, f <- moduleFuns m ]
 
-  annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateModule = mapModuleFuns annotateFun
 
   annotateFun f = f { vmfThrows = getThrows info (vmfName f) }
 

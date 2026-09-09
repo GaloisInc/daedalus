@@ -153,11 +153,11 @@ type DeclEnv =
 semModule :: Module -> Map Src.FName ([V.Value] -> Result)
 semModule m =
   let ?tDecls = Map.fromList [(Src.tName t, t) | t <- forgetRecs (mTypes m)]
-      ?fDecls = Map.fromList [(vmfName f, vmfDef f) | f <- mFuns m]
-      ?lDecls = Map.unions [vmfBlocks body | f <- mFuns m, VMDef body <- [vmfDef f]]
+      ?fDecls = Map.fromList [(vmfName f, vmfDef f) | f <- moduleFuns m]
+      ?lDecls = Map.unions [vmfBlocks body | f <- moduleFuns m, VMDef body <- [vmfDef f]]
   in Map.fromList [
     (fn, \args -> runM (semVMFDef fn def args) endThread)
-    | f <- mFuns m, vmfIsEntry f, let fn = vmfName f, def <- [vmfDef f]
+    | f <- moduleFuns m, vmfIsEntry f, let fn = vmfName f, def <- [vmfDef f]
   ]
 
   where

@@ -21,8 +21,8 @@ toGraphViz sty p = unlines
   : concat ns ++ concat es
   ++ ["}"]
   where
-  allFuns = [ f | m <- pModules p, f <- mFuns m ]
-  funMap = Map.fromList [ (vmfName f, f) | m <- pModules p, f <- mFuns m ]
+  allFuns = programFuns p
+  funMap = Map.fromList [ (vmfName f, f) | f <- allFuns ]
 
   (ns,es) = unzip (zipWith (doFun sty funMap) [1..] allFuns)
 
@@ -90,4 +90,3 @@ edge sty funMap b =
                       : [ edgeTo black l (jLabel x)
                                         | (l,x) <- zip ["fail","return"] xs
                                         , sty == Everything ]
-
