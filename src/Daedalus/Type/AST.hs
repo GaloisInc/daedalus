@@ -373,7 +373,7 @@ instance PP Kind where
     case k of
       KValue   -> "a semantic value"
       KGrammar -> "a grammar"
-      KClass   -> "a byte preicate"
+      KClass   -> "a byte predicate"
       KNumber  -> "a size"
 
 instance PP RuleType where
