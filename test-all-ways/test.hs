@@ -9,7 +9,13 @@ import Data.Maybe
 import Data.List
 import Data.Char
 import Control.Monad(filterM,forM,unless)
-import Control.Exception(SomeException(..),catch)
+import Control.Exception
+  ( AsyncException
+  , SomeException(..)
+  , catch
+  , fromException
+  , throwIO
+  )
 import System.FilePath
 import System.Process
 import System.Directory
@@ -346,8 +352,10 @@ doAllTestsIn dirName =
 
 
   attempt m = m `catch` \e@SomeException{} ->
-                            do print e
-                               pure [Fail e]
+    case fromException e :: Maybe AsyncException of
+      Just _  -> throwIO e
+      Nothing -> do print e
+                    pure [Fail e]
 
 
 --------------------------------------------------------------------------------
@@ -447,5 +455,4 @@ quiet err
 
 short :: FilePath -> String
 short = dropExtension . takeFileName
-
 
