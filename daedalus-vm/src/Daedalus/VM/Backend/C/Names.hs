@@ -197,6 +197,39 @@ cFNameInit = cFNameWithPref "init_"
 cFEntryName :: FName -> CIdent
 cFEntryName f = escText ("parse" <> Src.fnameText f)
 
+-- | Name of the entry type for a recursive-group worker.
+cRecEntryTypeName :: FName -> CIdent
+cRecEntryTypeName f =
+  text ("DDL_Rec_Entry_" ++ guidString (Src.fnameId f))
+
+-- | Name of an alternative in a recursive-group entry type.
+cRecEntryAltName :: FName -> CIdent
+cRecEntryAltName f =
+  "Entry_" <.> escText (Src.fnameText f) <.> "_"
+           <.> text (guidString (Src.fnameId f))
+
+-- | Name of the shared worker for a recursive group.
+cRecWorkerName :: FName -> CIdent
+cRecWorkerName f =
+  text ("ddl_rec_worker_" ++ guidString (Src.fnameId f))
+
+-- | Name of a continuation frame for an internal recursive call.
+cRecCallFrameName :: Label -> FName -> CIdent
+cRecCallFrameName caller callee =
+  "Call_" <.> cBlockLabel caller <.> "_"
+          <.> escText (Src.fnameText callee) <.> "_"
+          <.> text (guidString (Src.fnameId callee))
+
+-- These names are local to a recursive-group worker.
+cRecFrameTypeName :: CIdent
+cRecFrameTypeName = "Frame"
+
+cRecStackName :: CIdent
+cRecStackName = "rec_stack"
+
+cRecCurrentFrameName :: CIdent
+cRecCurrentFrameName = "rec_frame"
+
 
 
 --------------------------------------------------------------------------------
