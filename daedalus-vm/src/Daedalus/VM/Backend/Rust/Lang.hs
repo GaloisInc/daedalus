@@ -91,6 +91,9 @@ tOption elT = pathType (pathWithTypes ["Option"] [elT])
 tRef :: Maybe (Lifetime ()) -> Ty () -> Ty ()
 tRef l ty = Rptr l Immutable ty ()
 
+tMutRefL :: Lifetime () -> Ty () -> Ty ()
+tMutRefL l ty = Rptr (Just l) Mutable ty ()
+
 tMutRef :: Ty () -> Ty ()
 tMutRef ty = Rptr Nothing Mutable ty ()
 
@@ -108,6 +111,12 @@ mkGenerics ps wc = Generics ps wc ()
 
 tyParam :: Ident -> GenericParam ()
 tyParam a = TypeParam [] a [] Nothing ()
+
+lifetime :: Ident -> Lifetime ()
+lifetime a = Lifetime (name a) ()
+
+lifetimeParam :: Ident -> GenericParam ()
+lifetimeParam a = LifetimeParam [] (lifetime a) [] ()
 
 constGeneric :: Expr () -> GenericArg ()
 constGeneric = ConstArg
@@ -149,6 +158,9 @@ wildPat = WildP ()
 
 block :: [Stmt ()] -> Block ()
 block xs = Block xs Normal ()
+
+unsafeBlockExpr :: [Stmt ()] -> Expr ()
+unsafeBlockExpr xs = blockExpr' (Block xs Unsafe ())
 
 localLet ::
   [Ident] {- ^ Disable these warnings -} ->
@@ -311,6 +323,9 @@ bin op e1 e2 = Binary [] op e1 e2 ()
 addrOf :: Expr () -> Expr ()
 addrOf e = AddrOf [] Immutable e ()
 
+addrOfMut :: Expr () -> Expr ()
+addrOfMut e = AddrOf [] Mutable e ()
+
 
 callMacro :: Path () -> [Expr ()] -> Expr ()
 callMacro m es = callMacro' m args
@@ -418,7 +433,7 @@ deriveAttribute is = Attribute Inner (simplePath "derive") toks ()
 
 inlineAlwaysAttribute :: Attribute ()
 inlineAlwaysAttribute =
-  Attribute Inner (simplePath "inline") (parenTokens [identToken "always"]) ()
+  Attribute Outer (simplePath "inline") (parenTokens [identToken "always"]) ()
 
 macDecl :: Mac () -> Item ()
 macDecl m = MacItem [] m ()

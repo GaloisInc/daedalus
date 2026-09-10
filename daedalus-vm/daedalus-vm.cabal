@@ -27,6 +27,7 @@ library
     Daedalus.VM.InsertCopy
     Daedalus.VM.RefCountSane
     Daedalus.VM.TypeCheck
+    Daedalus.VM.RecursionAnalysis
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.BlockBuilder
     Daedalus.VM.Compile.Grammar
@@ -47,6 +48,7 @@ library
     Daedalus.VM.Backend.Rust.Lang
     Daedalus.VM.Backend.Rust.Type
     Daedalus.VM.Backend.Rust.Names
+    Daedalus.VM.Backend.Rust.Recursive
     Daedalus.VM.Semantics
 
   build-depends:
