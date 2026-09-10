@@ -38,9 +38,9 @@ import Daedalus.Compile.LangHS hiding (Import(..))
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.TH.Compile as THC
-import Daedalus.Type.AST(TCModule(..))
+import Daedalus.Type.AST(TCModule(..),TCDecl(..),TCDeclDef(..))
 import Daedalus.Type.Monad(TypeWarning(..))
-import Daedalus.Type.Pretty(ppTypes)
+import Daedalus.Type.Pretty(ppTypesWith)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -125,8 +125,21 @@ handleOptions opts
   | DumpTypes <- optCommand opts =
     do path <- getSpecPath
        mm   <- ddlPassFromFile passTC path
-       mo   <- ddlGetAST mm astTC
-       ddlPrint (ppTypes mo)
+       basis <- ddlBasis mm
+       let selectedModule =
+             maybe mm Text.pack (optShowTypesModule opts)
+       unless (selectedModule `elem` basis) $
+         ddlIO (throwOptError
+           [ "Module `" ++ Text.unpack selectedModule ++
+             "` is not imported by `" ++ Text.unpack mm ++ "`."
+           ])
+       mo <- ddlGetAST selectedModule astTC
+       let hasDeclFilter =
+             optShowTypesExtern opts || isJust (optShowTypesDecl opts)
+           showDecl d =
+             maybe True (matchesDecl d) (optShowTypesDecl opts) &&
+             (not (optShowTypesExtern opts) || isExternDecl d)
+       ddlPrint (ppTypesWith (const (not hasDeclFilter)) showDecl mo)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
@@ -213,6 +226,12 @@ handleOptions opts
      Nothing -> ddlIO $ throwOptError
                              [ "Missing command-line argument: DDL input file" ]
      Just p -> pure p
+
+  matchesDecl d wanted =
+    snd (nameScopeAsModScope (tcDeclName d)) == Text.pack wanted
+
+  isExternDecl TCDecl { tcDeclDef = ExternDecl {} } = True
+  isExternDecl _ = False
 
 
 interpInterp ::

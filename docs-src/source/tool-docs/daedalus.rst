@@ -26,6 +26,26 @@ To type-check a DaeDaLus specification and see the types of the declarations:
 The command prints information about the types and parsers defined by
 the given specification.  For example:
 
+The output may be filtered with the following options:
+
+``--externals``
+  Show only declarations without a definition.
+
+``--name NAME``
+  Show only the declaration named ``NAME``.
+
+``--module MODULE``
+  Show declarations from the named module instead of the module containing
+  the input file.  The module must be imported, directly or indirectly, by
+  the input specification.
+
+The options may be combined.  For example, this shows the type of the external
+declaration ``Decode`` in module ``Primitives``:
+
+.. code-block:: bash
+
+  .. daedalus show-types --module Primitives --externals
+
 .. code-block:: none
   :caption: Sample output for ``show-types``
 

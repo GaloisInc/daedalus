@@ -43,6 +43,9 @@ data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 data Options =
   Options { optCommand   :: Command
           , optParserDDL :: Maybe FilePath
+          , optShowTypesExtern :: Bool
+          , optShowTypesDecl :: Maybe String
+          , optShowTypesModule :: Maybe String
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
@@ -98,6 +101,9 @@ defaultOptions :: Options
 defaultOptions =
   Options { optCommand   = DumpTC
           , optParserDDL = Nothing
+          , optShowTypesExtern = False
+          , optShowTypesDecl = Nothing
+          , optShowTypesModule = Nothing
           , optBackend   = UseInterp
           , optEntries   = []
           , optForceUTF8 = True
@@ -228,7 +234,23 @@ cmdShowTypesOptions = (\o -> o { optCommand = DumpTypes }, opts)
   where
   opts = optWithDDL
           { progDescription = [ "Show the types of the definitions in a file." ]
-          , progOptions = [ helpOption ]
+          , progOptions =
+              [ Option [] ["externals"]
+                "Show only external declarations."
+                $ NoArg \o -> Right o { optShowTypesExtern = True }
+
+              , Option [] ["name"]
+                "Show only the declaration with this name."
+                $ ReqArg "NAME"
+                \s o -> Right o { optShowTypesDecl = Just s }
+
+              , Option [] ["module"]
+                "Show only declarations from this module."
+                $ ReqArg "MODULE"
+                \s o -> Right o { optShowTypesModule = Just s }
+
+              , helpOption
+              ]
           }
 
 cmdRunOptions :: CommandSpec
