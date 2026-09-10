@@ -26,6 +26,10 @@ To type-check a DaeDaLus specification and see the types of the declarations:
 The command prints information about the types and parsers defined by
 the given specification.  For example:
 
+If type checking fails, the command still prints declarations that were
+successfully type checked before the error.  The type error is reported and
+the command exits unsuccessfully as usual.
+
 The output may be filtered with the following options:
 
 ``--externals``

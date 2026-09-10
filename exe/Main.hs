@@ -124,7 +124,7 @@ handleOptions opts
 
   | DumpTypes <- optCommand opts =
     do path <- getSpecPath
-       mm   <- ddlPassFromFile passTC path
+       mm   <- ddlPassFromFile passResolve path
        basis <- ddlBasis mm
        let selectedModule =
              maybe mm Text.pack (optShowTypesModule opts)
@@ -133,13 +133,19 @@ handleOptions opts
            [ "Module `" ++ Text.unpack selectedModule ++
              "` is not imported by `" ++ Text.unpack mm ++ "`."
            ])
-       mo <- ddlGetAST selectedModule astTC
+       result <- ddlTypeCheckPartial selectedModule
        let hasDeclFilter =
              optShowTypesExtern opts || isJust (optShowTypesDecl opts)
            showDecl d =
              maybe True (matchesDecl d) (optShowTypesDecl opts) &&
              (not (optShowTypesExtern opts) || isExternDecl d)
-       ddlPrint (ppTypesWith (const (not hasDeclFilter)) showDecl mo)
+           printTypes mo =
+             ddlPrint (ppTypesWith (const (not hasDeclFilter)) showDecl mo)
+       case result of
+         Right mo -> printTypes mo
+         Left (err,mo) ->
+           do printTypes mo
+              ddlThrow (ATypeError err)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 

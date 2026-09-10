@@ -6,7 +6,12 @@
 module Daedalus.Type.Monad
   ( 
     -- * Typechking a module
-    MTypeM, runMTypeM, MTCMonad, TCConfig(..)
+    MTypeM, runMTypeM, runMTypeMPartial, MTCMonad, TCConfig(..)
+  , PartialTypes
+  , recordPartialTypeDecls
+  , recordPartialRuleDecls
+  , partialTypeDecls
+  , partialRuleDecls
 
     -- * Typechecking a group of declarations
   , STypeM, runSTypeM, STCMonad
@@ -158,6 +163,7 @@ newtype MTypeM a = MTypeM { getMTypeM ::
                               '[ ReaderT TCConfig
                                , StateT [TypeWarning]
                                , ExceptionT TypeError
+                               , StateT PartialTypes
                                ] a
                           }
 
@@ -178,9 +184,45 @@ data TCConfig = TCConfig
   , tcConfWarn      :: !(TypeWarning -> Bool)
   }
 
--- XXX: maybe preserve something about the state?
 runMTypeM :: TCConfig -> MTypeM a -> PassM (Either TypeError (a,[TypeWarning]))
-runMTypeM r0 (MTypeM m) = runExceptionT $ runStateT [] $ runReaderT r0 m 
+runMTypeM r0 m = fst <$> runMTypeMPartial r0 m
+
+runMTypeMPartial ::
+  TCConfig ->
+  MTypeM a ->
+  PassM (Either TypeError (a,[TypeWarning]), PartialTypes)
+runMTypeMPartial r0 (MTypeM m) =
+  runStateT emptyPartialTypes
+    $ runExceptionT
+    $ runStateT []
+    $ runReaderT r0 m
+
+data PartialTypes = PartialTypes
+  { partialTypeDecls :: [Map TCTyName TCTyDecl]
+  , partialRuleDecls :: [Rec (TCDecl SourceRange)]
+  }
+
+emptyPartialTypes :: PartialTypes
+emptyPartialTypes =
+  PartialTypes
+    { partialTypeDecls = []
+    , partialRuleDecls = []
+    }
+
+recordPartialTypeDecls :: Map TCTyName TCTyDecl -> MTypeM ()
+recordPartialTypeDecls ds =
+  MTypeM $ lift $ lift $ lift $ sets_ \s ->
+    s { partialTypeDecls = ds : partialTypeDecls s }
+
+recordPartialRuleDecls ::
+  Map TCTyName TCTyDecl ->
+  Rec (TCDecl SourceRange) ->
+  MTypeM ()
+recordPartialRuleDecls tds ds =
+  MTypeM $ lift $ lift $ lift $ sets_ \s ->
+    s { partialTypeDecls = tds : partialTypeDecls s
+      , partialRuleDecls = ds : partialRuleDecls s
+      }
 
 instance HasGUID MTypeM where
   guidState f = MTypeM $ inBase (guidState f)
@@ -529,6 +571,3 @@ sets' :: StateM m s => (s -> (a,s)) -> m a
 sets' f = sets $ \s -> case f s of
                         (a,s1) -> a `seq` s1 `seq` (a,s1)
 {-# INLINE sets' #-}
-
-
-
