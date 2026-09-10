@@ -69,7 +69,8 @@ parserStateName :: Rust.Ident
 parserStateName = "_state"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
-compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "_" ++ show n)
+compileBlockLabel (VM.Label txt n) =
+  Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "B" ++ show n)
 
 -- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident
