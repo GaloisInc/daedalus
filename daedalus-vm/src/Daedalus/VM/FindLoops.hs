@@ -95,4 +95,7 @@ isLoop xs
                                                     rewBlock <$> vmfBlocks b } }
                  VMExtern {} -> x
              ]
-      _   -> panic "isLoop" [ "XXX: multi-function loops" ]
+      -- Rewriting a multi-function loop would require combining the
+      -- functions' CFGs.  Leave the recursive group unchanged and let the
+      -- backend handle its tail calls.
+      _ -> xs
