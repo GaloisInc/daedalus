@@ -7,7 +7,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List(foldl')
 
-import Daedalus.Rec(topoOrder,Rec(..))
+import Daedalus.Rec(Rec(..))
 import Daedalus.PP
 
 import Daedalus.VM
@@ -18,9 +18,12 @@ throwsAnalysis prog = Program { pModules = map annotateModule ms }
   where
   ms = pModules prog
 
-  info = fixThrowsInfo
-       $ Map.fromList
-           [ (vmfName f, throwsInfo f) | m <- ms, f <- moduleFuns m ]
+  info =
+    foldl' updateKnownGroup Map.empty
+      [ fmap (\f -> (vmfName f, throwsInfo f)) group
+      | m <- ms
+      , group <- mFuns m
+      ]
 
   annotateModule = mapModuleFuns annotateFun
 
@@ -32,16 +35,6 @@ getThrows mp f =
   case Map.lookup f mp of
     Just ThrowsYes -> Throws
     _              -> NoThrows
-
-fixThrowsInfo :: Map FName ThrowsInfo -> Map FName ThrowsInfo
-fixThrowsInfo = foldl' updateKnownGroup Map.empty
-              . topoOrder deps
-              . Map.toList
-  where
-  deps (f,i) = (f, case i of
-                     ThrowsYes   -> Set.empty
-                     ThrowsIf fs -> fs
-               )
 
 updateKnownGroup ::
   Map FName ThrowsInfo -> Rec (FName, ThrowsInfo) -> Map FName ThrowsInfo

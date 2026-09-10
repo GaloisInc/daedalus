@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import Data.List(foldl')
 
 import Daedalus.Panic(panic)
-import Daedalus.Rec(topoOrder,Rec(..))
+import Daedalus.Rec(Rec(..))
 import Daedalus.PP
 
 import Daedalus.VM
@@ -21,9 +21,12 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
   where
   ms = pModules prog
 
-  info    = fixCaptureInfo
-          $ Map.fromList
-              [ (vmfName f, captureInfo f) | m <- ms, f <- moduleFuns m ]
+  info =
+    foldl' updateKnownGroup Map.empty
+      [ fmap (\f -> (vmfName f, captureInfo f)) group
+      | m <- ms
+      , group <- mFuns m
+      ]
 
 
   -- NOTE: we assume that return blocks are not shared across functions with
@@ -103,17 +106,6 @@ getCaptures mp f =
   case Map.lookup f mp of
     Just CapturesYes -> Capture
     _                -> NoCapture
-
--- | Compute a fix-point of the input map.
-fixCaptureInfo :: Map FName CaptureInfo -> Map FName CaptureInfo
-fixCaptureInfo = foldl' updateKnownGroup Map.empty
-               . topoOrder deps
-               . Map.toList
-  where
-  deps (f,i) = (f, case i of
-                     CapturesYes   -> Set.empty
-                     CapturesIf fs -> fs
-               )
 
 updateKnownGroup ::
   Map FName CaptureInfo -> Rec (FName, CaptureInfo) -> Map FName CaptureInfo
