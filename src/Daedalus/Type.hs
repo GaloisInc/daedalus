@@ -46,6 +46,7 @@ inferRules m =
   goBD done [] = go done [] [] (moduleRules m)
   goBD done (x : more) = do
     newDecls <- inferBitData x
+    recordPartialTypeDecls newDecls
     extGlobTyDefs newDecls $ goBD (newDecls : done) more
 
   go bds tys done todo =
@@ -65,13 +66,36 @@ inferRules m =
       x : more ->
         do mb <- inferTRuleRec x
            case mb of
-             Right tds -> extGlobTyDefs tds (go bds (tds : tys) done more)
-             Left info -> extEnvManyRules env
-                        $ extGlobTyDefs (tcTypeDefs info)
-                        $ go bds tys (info : done) more
+             Right tds ->
+               do recordPartialTypeDecls tds
+                  extGlobTyDefs tds (go bds (tds : tys) done more)
+             Left info ->
+               do recordPartialRuleDecls (tcTypeDefs info) (tcDecls info)
+                  extEnvManyRules env
+                    $ extGlobTyDefs (tcTypeDefs info)
+                    $ go bds tys (info : done) more
                where env = [ (tcDeclName d, declTypeOf d)
                            | d <- recToList (tcDecls info)
                            ]
+
+--------------------------------------------------------------------------------
+
+partialTypesModule :: Module -> PartialTypes -> TCModule SourceRange
+partialTypesModule m partial =
+  TCModule
+    { tcModuleName = moduleName m
+    , tcModuleImports = moduleImports m
+    , tcEntries = []
+    , tcModuleTypes =
+        map sccToRec
+          $ stronglyConnComp
+          $ map getDeps
+          $ concatMap Map.elems
+          $ partialTypeDecls partial
+    , tcModuleDecls = reverse (partialRuleDecls partial)
+    }
+  where
+  getDeps d = (d, tctyName d, Set.toList (collectTypes freeTCons (tctyDef d)))
 
 --------------------------------------------------------------------------------
 

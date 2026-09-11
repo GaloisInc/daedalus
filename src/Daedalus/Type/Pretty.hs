@@ -2,6 +2,7 @@
 {-# Language ImplicitParams #-}
 module Daedalus.Type.Pretty
   ( ppTypes
+  , ppTypesWith
   , ppNamedRuleType
   , ppRuleType
   , ppTypeInContext
@@ -9,6 +10,7 @@ module Daedalus.Type.Pretty
 
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.List(intersperse)
 
 import Daedalus.PP
 import Daedalus.Rec
@@ -18,18 +20,30 @@ import Daedalus.Type.AST
 
 
 ppTypes :: TCModule a -> Doc
-ppTypes m =
-  vcat
-    [ "Types"
-    , text (replicate 80 '=')
-    , " "
-    , vcat $ map ppTD  $ forgetRecs $ tcModuleTypes m
-    , " "
-    , " "
-    , "Parsers and Semantic Values"
-    , text (replicate 80 '=')
-    , " "
-    , vcat $ map ppD   $ forgetRecs $ tcModuleDecls m
+ppTypes = ppTypesWith (const True) (const True)
+
+-- | Show info, given some filters.
+ppTypesWith :: (TCTyDecl -> Bool) -> (TCDecl a -> Bool) -> TCModule a -> Doc
+ppTypesWith showType showDecl m =
+  vcat (intersperse (" " $$ " ") sections)
+  where
+  typeDocs = map ppTD $ filter showType $ forgetRecs $ tcModuleTypes m
+  declDocs = map ppD  $ filter showDecl $ forgetRecs $ tcModuleDecls m
+
+  sections =
+    [ vcat [ "Types"
+           , text (replicate 80 '=')
+           , " "
+           , vcat typeDocs
+           ]
+    | not (null typeDocs)
+    ] ++
+    [ vcat [ "Parsers and Semantic Values"
+           , text (replicate 80 '=')
+           , " "
+           , vcat declDocs
+           ]
+    | not (null declDocs)
     ]
 
 ppTD :: TCTyDecl -> Doc

@@ -1,0 +1,8 @@
+Parsers and Semantic Values
+================================================================================
+ 
+def f:
+  for any type a:
+  parameter: a
+  defines: a
+   
