@@ -44,8 +44,8 @@ data Options =
   Options { optCommand   :: Command
           , optParserDDL :: Maybe FilePath
           , optShowTypesExtern :: Bool
-          , optShowTypesDecl :: Maybe String
-          , optShowTypesModule :: Maybe String
+          , optShowTypesDecl :: Maybe Text
+          , optShowTypesModule :: Maybe Text
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
@@ -242,12 +242,12 @@ cmdShowTypesOptions = (\o -> o { optCommand = DumpTypes }, opts)
               , Option [] ["name"]
                 "Show only the declaration with this name."
                 $ ReqArg "NAME"
-                \s o -> Right o { optShowTypesDecl = Just s }
+                \s o -> Right o { optShowTypesDecl = Just (Text.pack s) }
 
               , Option [] ["module"]
                 "Show only declarations from this module."
                 $ ReqArg "MODULE"
-                \s o -> Right o { optShowTypesModule = Just s }
+                \s o -> Right o { optShowTypesModule = Just (Text.pack s) }
 
               , helpOption
               ]

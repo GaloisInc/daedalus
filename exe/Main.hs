@@ -127,7 +127,7 @@ handleOptions opts
        mm   <- ddlPassFromFile passResolve path
        basis <- ddlBasis mm
        let selectedModule =
-             maybe mm Text.pack (optShowTypesModule opts)
+             fromMaybe mm (optShowTypesModule opts)
        unless (selectedModule `elem` basis) $
          ddlIO (throwOptError
            [ "Module `" ++ Text.unpack selectedModule ++
@@ -234,7 +234,7 @@ handleOptions opts
      Just p -> pure p
 
   matchesDecl d wanted =
-    snd (nameScopeAsModScope (tcDeclName d)) == Text.pack wanted
+    snd (nameScopeAsModScope (tcDeclName d)) == wanted
 
   isExternDecl TCDecl { tcDeclDef = ExternDecl {} } = True
   isExternDecl _ = False

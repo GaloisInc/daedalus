@@ -5,7 +5,7 @@
 {-# Language RankNTypes #-}
 module Daedalus.Type.Monad
   ( 
-    -- * Typechking a module
+    -- * Typechecking a module
     MTypeM, runMTypeM, runMTypeMPartial, MTCMonad, TCConfig(..)
   , PartialTypes
   , recordPartialTypeDecls
