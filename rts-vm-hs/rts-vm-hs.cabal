@@ -39,6 +39,7 @@ library
     FlexibleInstances,
     FlexibleContexts,
     MultiParamTypeClasses,
+    TypeSynonymInstances,
     UndecidableInstances,
     ConstraintKinds,
     ScopedTypeVariables,

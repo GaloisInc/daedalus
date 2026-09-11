@@ -4,6 +4,7 @@
 module Daedalus.Core.TH.TypeDecls (compileTDecls) where
 
 import qualified Data.Text as Text
+import qualified Data.ByteString.Char8 as BS8
 import Data.Maybe(mapMaybe)
 import qualified Data.Map as Map
 import qualified Data.Kind as K
@@ -12,6 +13,7 @@ import qualified GHC.Records as R
 import Control.Monad(forM)
 
 import qualified Daedalus.RTS as RTS
+import qualified Daedalus.RTS.JSON as JSON
 
 import Daedalus.TH(Q)
 import qualified Daedalus.TH as TH
@@ -19,19 +21,23 @@ import Daedalus.Rec(Rec,recToList)
 import qualified Daedalus.BDD as BDD
 import Daedalus.Core.Basics
 import Daedalus.Core.Decl
+import qualified Daedalus.Core.Bitdata as Bitdata
 import Daedalus.Core.TH.Names
 import Daedalus.Core.TH.Type
 
 
 compileTDecls :: [Rec TDecl] -> TH.DecsQ
 compileTDecls rs = concat <$> traverse compileTDeclRec rs
+  where
+  ?tdecls = Map.fromList
+    [ (tName d, d) | r <- rs, d <- recToList r ]
 
-compileTDeclRec :: Rec TDecl -> TH.DecsQ
+compileTDeclRec :: Bitdata.HasTDecls => Rec TDecl -> TH.DecsQ
 compileTDeclRec decls =
   do let ds = recToList decls
      concat <$> traverse compileTDecl ds
 
-compileTDecl :: TDecl -> TH.DecsQ
+compileTDecl :: Bitdata.HasTDecls => TDecl -> TH.DecsQ
 compileTDecl decl =
   do (nBs,nTs) <- unzip <$> mapM (newTParam [t| K.Nat  |]) (tTParamKNumber decl)
      (vBs,vTs) <- unzip <$> mapM (newTParam [t| K.Type |]) (tTParamKValue decl)
@@ -46,7 +52,8 @@ newTParam k p =
 
 
 compileTDef ::
-  HasTypeParams => TName -> [TH.DataParam] -> [TH.DataParam] -> TDef -> TH.DecsQ
+  (HasTypeParams, Bitdata.HasTDecls) =>
+  TName -> [TH.DataParam] -> [TH.DataParam] -> TDef -> TH.DecsQ
 compileTDef name asN asT def =
   case def of
     TStruct fs   -> compileStruct name allParams fs
@@ -98,7 +105,9 @@ compileStruct name as fields =
                     {-# INLINE convert #-}
                 |]
 
-     pure (dataD : cvtIs ++ concat hasIs)
+     jsonIs <- jsonStructInstance ty cname fields
+
+     pure (dataD : cvtIs ++ [jsonIs] ++ concat hasIs)
 
   where
   hasInstance ty cname fs (l,mb) =
@@ -145,7 +154,9 @@ compileUnion name as cons =
                     {-# INLINE convert #-}
                 |]
 
-     pure (dataD : cvtIs ++ concat hasIs)
+     jsonIs <- jsonUnionInstance ty name cons
+
+     pure (dataD : cvtIs ++ [jsonIs] ++ concat hasIs)
 
   where
   lab l = TH.litT (TH.strTyLit (Text.unpack l))
@@ -165,7 +176,63 @@ compileUnion name as cons =
                                 (TH.varE x)
                    )
 
-compileBitdata :: HasTypeParams => TName -> BDD.Pat -> BitdataDef -> TH.DecsQ
+
+jsonStructInstance ::
+  HasTypeParams => TH.TypeQ -> TH.Name -> [(Label,Type)] -> TH.DecQ
+jsonStructInstance ty cname fields =
+  do vars <- traverse newField fields
+     let pats = [ TH.varP x | (_,_,Just x) <- vars ]
+         value mb = case mb of
+                      Nothing -> [| () |]
+                      Just x  -> TH.varE x
+         pair (l,_,x) =
+           [| (BS8.pack $(TH.litE (TH.stringL (Text.unpack l))),
+                JSON.toJSON $(value x)) |]
+         body = [| JSON.jsObject $(TH.listE (map pair vars)) |]
+         constraints =
+           [ [t| JSON.ToJSON $(compileType t) |]
+           | (_,t) <- fields, t /= TUnit
+           ]
+     method <- TH.funD 'JSON.toJSON
+                 [ TH.clause [TH.conP cname pats] (TH.normalB body) [] ]
+     TH.instanceD (sequence constraints) [t| JSON.ToJSON $ty |] [pure method]
+  where
+  newField (l,t) =
+    do x <- case t of
+              TUnit -> pure Nothing
+              _     -> Just <$> TH.newName "x"
+       pure (l,t,x)
+
+
+jsonUnionInstance ::
+  HasTypeParams => TH.TypeQ -> TName -> [(Label,Type)] -> TH.DecQ
+jsonUnionInstance ty name fields =
+  do let clauses = map one fields
+         constraints =
+           [ [t| JSON.ToJSON $(compileType t) |]
+           | (_,t) <- fields, t /= TUnit
+           ]
+     method <- TH.funD 'JSON.toJSON clauses
+     TH.instanceD (sequence constraints) [t| JSON.ToJSON $ty |] [pure method]
+  where
+  one (l,t) =
+    do let tag =
+             TH.litE (TH.stringL ('$' : Text.unpack l))
+       case t of
+         TUnit ->
+           TH.clause [TH.conP (unionConName name l) []]
+             (TH.normalB [| JSON.jsTagged (BS8.pack $tag) (JSON.toJSON ()) |])
+             []
+         _ ->
+           do x <- TH.newName "x"
+              TH.clause [TH.conP (unionConName name l) [TH.varP x]]
+                (TH.normalB
+                  [| JSON.jsTagged (BS8.pack $tag) (JSON.toJSON $(TH.varE x)) |])
+                []
+
+compileBitdata ::
+  (HasTypeParams, Bitdata.HasTDecls) =>
+  TName -> BDD.Pat -> BitdataDef -> TH.DecsQ
 compileBitdata name univ def =
   do let tname = dataName name
      let ty    = mkT tname []
@@ -202,7 +269,9 @@ compileBitdata name univ def =
                 BDStruct fs -> traverse (hasInstanceStruct ty cname) fs
                 BDUnion cs  -> traverse (hasInstanceUnion ty) cs
 
-     pure (dataD : cvtIs ++ concat hasIs)
+     jsonIs <- jsonBitdataInstance ty name def
+
+     pure (dataD : cvtIs ++ [jsonIs] ++ concat hasIs)
 
   where
 
@@ -241,4 +310,54 @@ compileBitdata name univ def =
           |]
 
 
-
+jsonBitdataInstance ::
+  Bitdata.HasTDecls => TH.TypeQ -> TName -> BitdataDef -> TH.DecQ
+jsonBitdataInstance ty name def =
+  do x <- TH.newName "x"
+     let value = TH.varE x
+         field l =
+           TH.appE
+             (TH.appTypeE [| R.getField |]
+                          (TH.litT (TH.strTyLit (Text.unpack l))))
+             value
+         label l =
+           [| BS8.pack $(TH.litE (TH.stringL (Text.unpack l))) |]
+         tagged l =
+           [| JSON.jsTagged
+                (BS8.pack
+                  $(TH.litE (TH.stringL ('$' : Text.unpack l))))
+                (JSON.toJSON $(field l))
+            |]
+         body =
+           case def of
+             BDStruct fields ->
+               let pairs =
+                     [ [| ($(label l), JSON.toJSON $(field l)) |]
+                     | BDField { bdFieldType = BDData l _ } <- fields
+                     ]
+               in [| JSON.jsObject $(TH.listE pairs) |]
+             BDUnion fields ->
+               let choices =
+                     [ (mask,val,l)
+                     | (mask,vals) <-
+                         Bitdata.bdCase name [ (l,l) | (l,_) <- fields ] Nothing
+                     , (val,l) <- vals
+                     ]
+                   choose cs =
+                     case cs of
+                       [] -> [| error "Invalid bitdata union value" |]
+                       (mask,val,l) : more ->
+                         [| if RTS.bitAnd
+                                  (RTS.toBits $value)
+                                  (RTS.UInt
+                                    $(TH.litE (TH.integerL mask)))
+                                ==
+                                RTS.UInt
+                                  $(TH.litE (TH.integerL val))
+                            then $(tagged l)
+                            else $(choose more)
+                          |]
+               in choose choices
+     method <- TH.funD 'JSON.toJSON
+                 [ TH.clause [TH.varP x] (TH.normalB body) [] ]
+     TH.instanceD (pure []) [t| JSON.ToJSON $ty |] [pure method]
