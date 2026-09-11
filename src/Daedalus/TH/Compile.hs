@@ -12,7 +12,6 @@ import Daedalus.SourceRange(SourcePos(..))
 import qualified Daedalus.TH as TH
 
 import Daedalus.AST(ModuleName)
-import qualified Daedalus.Core.Inline as Core
 import qualified Daedalus.VM as VM
 import qualified Daedalus.VM.Backend.Haskell as VM
 import qualified Daedalus.VM.Compile.Decl as VM (moduleToProgram)
@@ -38,6 +37,7 @@ defaultConfig = CompileConfig
 
 data DDLText = Inline SourcePos Text
              | FromFile FilePath
+             | FromFileAs FilePath FilePath
              | FromModule ModuleName -- assumes it's parsed
 
 compileDDL :: DDLText -> TH.DecsQ
@@ -49,6 +49,10 @@ compileDDLWith cfg ddlText =
        FromFile f -> do f' <- liftIO (canonicalizePath f)
                         liftIO (putStrLn ("Compiling: " ++ show f'))
                         TH.addDependentFile f'
+       FromFileAs f _ ->
+         do f' <- liftIO (canonicalizePath f)
+            liftIO (putStrLn ("Compiling: " ++ show f'))
+            TH.addDependentFile f'
        _          -> pure ()
      mb <-
         liftIO $ try $ DDL.daedalus
@@ -85,6 +89,10 @@ loadDDLVM cfg src =
              FromFile f ->
                do let mo = Text.pack (dropExtension (takeFileName f))
                   DDL.parseModuleFromFile mo f
+                  pure mo
+             FromFileAs f sourceName ->
+               do let mo = Text.pack (dropExtension (takeFileName f))
+                  DDL.parseModuleFromFileAs mo sourceName f
                   pure mo
              FromModule mo -> pure mo
      DDL.ddlLoadModule mo

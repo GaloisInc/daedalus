@@ -14,7 +14,7 @@ import Data.Maybe(fromJust,isJust,isNothing,fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import System.Directory(createDirectoryIfMissing)
+import System.Directory(canonicalizePath,createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
 import Data.Traversable(for)
@@ -37,7 +37,6 @@ import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS hiding (Import(..))
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
-import qualified Daedalus.TH.Compile as THC
 import Daedalus.Type.AST(TCModule(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypes)
@@ -455,9 +454,39 @@ generateCPP opts mm =
 
 generateHS :: Options -> ModuleName -> [ModuleName] -> Daedalus ()
 generateHS opts mainMod allMods
-  | hsoptCore hsopts =
-    let cfg = THC.defaultConfig -- XXX
-    in ddlIO $ THC.saveDDLWith cfg (THC.FromModule mainMod) (Just "out.hs") --XX
+  | hsoptVM hsopts =
+    do outD <- case optOutDir opts of
+                 Nothing -> ddlIO $ throwOptError
+                              [ "Generating a parser executable requires an output directory" ]
+                 Just d  -> pure d
+       spec <- case optParserDDL opts of
+                 Nothing -> ddlIO $ throwOptError
+                              [ "Missing command-line argument: DDL input file" ]
+                 Just f  -> pure f
+       unless (null (optEntries opts)) $
+         ddlIO $ throwOptError
+           [ "The VM Haskell executable currently supports only the default Main entry" ]
+       ddlIO $
+         do absSpec <- canonicalizePath spec
+            searchPath <- mapM canonicalizePath
+                            (takeDirectory absSpec : optModulePath opts)
+            createDirectoryIfMissing True outD
+            let name = takeFileName outD
+                vars = Map.fromList
+                  [ ("EXE", BS8.pack name)
+                  , ("SEARCH_PATH", BS8.pack (show searchPath))
+                  , ("DDL_FILE", BS8.pack (show absSpec))
+                  , ("SOURCE_NAME", BS8.pack (show spec))
+                  , ("ERROR_LEVEL",
+                       if optErrorStacks opts then "2" else "1")
+                  ]
+                save (file,bytes) =
+                  let outFile
+                        | file == "template.cabal" = name <.> "cabal"
+                        | otherwise                = file
+                  in BS.writeFile (outD </> outFile)
+                                  (substTemplate vars bytes)
+            mapM_ save hs_vm_template_files
 
   | otherwise =
   do let makeExe = null (optEntries opts)

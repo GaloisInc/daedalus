@@ -31,6 +31,7 @@ module Daedalus.Driver
   , passParse
   , parseModuleFromText
   , parseModuleFromFile
+  , parseModuleFromFileAs
   , passResolve
   , passTC
   , passDeadVal
@@ -114,7 +115,9 @@ import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser
-          (prettyParseError, ParseError, parseFromFile, parseFromTextAt)
+          ( prettyParseError, ParseError
+          , parseFromFileAs, parseFromTextAt
+          )
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules)
@@ -534,8 +537,11 @@ ddlGetFName m f =
 --------------------------------------------------------------------------------
 
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
-parseModuleFromFile n file =
-  do mb <- ddlIO (parseFromFile file n)
+parseModuleFromFile n file = parseModuleFromFileAs n file file
+
+parseModuleFromFileAs :: ModuleName -> FilePath -> FilePath -> Daedalus ()
+parseModuleFromFileAs n sourceName file =
+  do mb <- ddlIO (parseFromFileAs sourceName file n)
      m <- case mb of
             Left err -> ddlThrow (AParseError err)
             Right m -> pure (ParsedModule m)

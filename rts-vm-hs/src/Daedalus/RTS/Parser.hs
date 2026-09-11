@@ -257,6 +257,16 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
              [] -> Left (doGetErr (thrErrors s))
              rs -> Right rs
 
+-- | Uniform interface used by generated standalone parser applications.
+class RunnableParser p a | p -> a where
+  runParserResults :: p -> Either ParseError [a]
+
+instance RunnableParser (DParser a) a where
+  runParserResults p = (:[]) <$> runDParser p
+
+instance RunnableParser (CParser a a) a where
+  runParserResults = runCParserAll
+
 --------------------------------------------------------------------------------
 dparserToEither ::
   (DResult a, ParserErrorState) -> Either ParseError a

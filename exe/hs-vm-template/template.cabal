@@ -1,0 +1,14 @@
+cabal-version:       2.4
+name:                $EXE
+version:             1.0
+build-type:          Simple
+
+executable $EXE
+  main-is:             Main.hs
+  build-depends:       base >=4.13,
+                       bytestring,
+                       daedalus,
+                       rts-hs-data,
+                       rts-vm-hs
+  default-language:    Haskell2010
+  ghc-options:         -O2

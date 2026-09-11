@@ -24,6 +24,9 @@ rust_rts_files = ("Cargo.toml", $(embedFile "rts-rust/Cargo.toml"))
 hs_template_files :: [(FilePath,ByteString)]
 hs_template_files = $(embedDir "exe/hs-template")
 
+hs_vm_template_files :: [(FilePath,ByteString)]
+hs_vm_template_files = $(embedDir "exe/hs-vm-template")
+
 html_files :: [(FilePath,ByteString)]
 html_files = $(embedDir "exe/html-template")
 
