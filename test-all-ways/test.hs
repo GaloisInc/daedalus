@@ -283,7 +283,7 @@ validate'' backends ddl mbInput =
              ([(_,NoResult)],[(_,ErrorResult {})]) -> True
              ([(_,x)],[(_,y)]) -> x == y
              _ -> False
-         groups = interpGroups ++ compiledGroups
+         groups = equiv results
      if groupsAgree interpGroups && groupsAgree compiledGroups && crossAgree
        then putStrLn "OK" >> pure OK
        else do putStrLn "DIFFERENT"
