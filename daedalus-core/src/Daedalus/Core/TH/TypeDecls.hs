@@ -256,12 +256,12 @@ compileBitdata name univ def =
                     {-# INLINE toBits #-}
 
                   instance RTS.Convert $ty $repT where
-                    convert = toBits
+                    convert = RTS.toBits
                     {-# INLINE convert #-}
 
 
                   instance RTS.Convert $repT $ty where
-                    convert = fromBits
+                    convert = RTS.fromBits
                     {-# INLINE convert #-}
                 |]
 
@@ -305,7 +305,7 @@ compileBitdata name univ def =
               {-# INLINE getField #-}
 
            instance RTS.Convert $(pure ft) $ty where
-              convert = fromBits . toBits
+              convert = RTS.fromBits . RTS.toBits
               {-# INLINE convert #-}
           |]
 
