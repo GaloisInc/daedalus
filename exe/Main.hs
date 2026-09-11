@@ -261,7 +261,8 @@ interpVM opts mm inpMb =
     let entries = VM.semModule (head (VM.pModules r))
     let ?opts = opts
     for_ (Map.elems entries) \impl ->
-        ddlPrint (dumpValues (VM.resultToValues (impl [VStream inp])))
+        do let values = VM.resultToValues (impl [VStream inp])
+           unless (null values) (ddlPrint (dumpValues values))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
