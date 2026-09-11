@@ -287,11 +287,17 @@ pub fn new_parser_state() -> ParserState {
 impl<T> ParserStateWith<T> {
 
   pub fn set_exception(&mut self, loc: &'static str, msg: &'static str) {
+    #[cfg(feature = "detailed-errors")]
+    let debugs = self.context.clone();
+
+    #[cfg(not(feature = "detailed-errors"))]
+    let debugs = ParserContextStack::new();
+
     self.error = ParseError {
       input: ddl::new_input(ddl::new_byte_array(b""), ddl::new_byte_array(b"")),
       message: ddl::new_byte_array(msg.as_bytes()),
       is_system_error: false,
-      debugs: ParserContextStack::new(),
+      debugs,
       error_loc: loc.to_string(),
     };
   }

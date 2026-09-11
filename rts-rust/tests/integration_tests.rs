@@ -873,3 +873,20 @@ fn test_input_format_matches_cpp() {
     assert!(json.contains("$$input"));
     assert!(json.contains("file.txt:0x0--0x8"));
 }
+
+#[cfg(feature = "detailed-errors")]
+#[test]
+fn test_exception_preserves_parser_context() {
+    let mut state = ddl::new_parser_state();
+    state.push(false, "outer");
+    state.push(true, "inner");
+    state.push(false, "callee");
+
+    state.set_exception("test.ddl:1:1", "test exception");
+
+    let error = serde_json::to_value(&state.error).unwrap();
+    assert_eq!(
+        error["context"],
+        serde_json::json!([["inner", "outer"], ["callee"]])
+    );
+}
