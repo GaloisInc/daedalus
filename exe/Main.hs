@@ -14,7 +14,7 @@ import Data.Maybe(fromJust,isJust,isNothing,fromMaybe)
 import System.FilePath hiding (normalise)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import System.Directory(createDirectoryIfMissing)
+import System.Directory(canonicalizePath,createDirectoryIfMissing)
 import System.Exit(exitSuccess,exitFailure,exitWith)
 import System.IO(stdin,stdout,stderr,hPutStrLn,hSetEncoding,utf8)
 import Data.Traversable(for)
@@ -38,9 +38,9 @@ import Daedalus.Compile.LangHS hiding (Import(..))
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
 import qualified Daedalus.TH.Compile as THC
-import Daedalus.Type.AST(TCModule(..))
+import Daedalus.Type.AST(TCModule(..),TCDecl(..),TCDeclDef(..))
 import Daedalus.Type.Monad(TypeWarning(..))
-import Daedalus.Type.Pretty(ppTypes)
+import Daedalus.Type.Pretty(ppTypesWith)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -124,9 +124,28 @@ handleOptions opts
 
   | DumpTypes <- optCommand opts =
     do path <- getSpecPath
-       mm   <- ddlPassFromFile passTC path
-       mo   <- ddlGetAST mm astTC
-       ddlPrint (ppTypes mo)
+       mm   <- ddlPassFromFile passResolve path
+       basis <- ddlBasis mm
+       let selectedModule =
+             fromMaybe mm (optShowTypesModule opts)
+       unless (selectedModule `elem` basis) $
+         ddlIO (throwOptError
+           [ "Module `" ++ Text.unpack selectedModule ++
+             "` is not imported by `" ++ Text.unpack mm ++ "`."
+           ])
+       result <- ddlTypeCheckPartial selectedModule
+       let hasDeclFilter =
+             optShowTypesExtern opts || isJust (optShowTypesDecl opts)
+           showDecl d =
+             maybe True (matchesDecl d) (optShowTypesDecl opts) &&
+             (not (optShowTypesExtern opts) || isExternDecl d)
+           printTypes mo =
+             ddlPrint (ppTypesWith (const (not hasDeclFilter)) showDecl mo)
+       case result of
+         Right mo -> printTypes mo
+         Left (err,mo) ->
+           do printTypes mo
+              ddlThrow (ATypeError err)
 
   | JStoHTML <- optCommand opts = jsToHTML opts
 
@@ -214,6 +233,12 @@ handleOptions opts
                              [ "Missing command-line argument: DDL input file" ]
      Just p -> pure p
 
+  matchesDecl d wanted =
+    snd (nameScopeAsModScope (tcDeclName d)) == wanted
+
+  isExternDecl TCDecl { tcDeclDef = ExternDecl {} } = True
+  isExternDecl _ = False
+
 
 interpInterp ::
   Options    {- ^ Options -} ->
@@ -262,7 +287,8 @@ interpVM opts mm inpMb =
     let entries = VM.semModule (head (VM.pModules r))
     let ?opts = opts
     for_ (Map.elems entries) \impl ->
-        ddlPrint (dumpValues (VM.resultToValues (impl [VStream inp])))
+        do let values = VM.resultToValues (impl [VStream inp])
+           unless (null values) (ddlPrint (dumpValues values))
 
 doToCore :: Options -> ModuleName -> Daedalus [Core.FName]
 doToCore opts mm =
@@ -455,9 +481,39 @@ generateCPP opts mm =
 
 generateHS :: Options -> ModuleName -> [ModuleName] -> Daedalus ()
 generateHS opts mainMod allMods
-  | hsoptCore hsopts =
-    let cfg = THC.defaultConfig -- XXX
-    in ddlIO $ THC.saveDDLWith cfg (THC.FromModule mainMod) (Just "out.hs") --XX
+  | hsoptVM hsopts =
+    do outD <- case optOutDir opts of
+                 Nothing -> ddlIO $ throwOptError
+                              [ "Generating a parser executable requires an output directory" ]
+                 Just d  -> pure d
+       spec <- case optParserDDL opts of
+                 Nothing -> ddlIO $ throwOptError
+                              [ "Missing command-line argument: DDL input file" ]
+                 Just f  -> pure f
+       unless (null (optEntries opts)) $
+         ddlIO $ throwOptError
+           [ "The VM Haskell executable currently supports only the default Main entry" ]
+       ddlIO $
+         do absSpec <- canonicalizePath spec
+            searchPath <- mapM canonicalizePath
+                            (takeDirectory absSpec : optModulePath opts)
+            createDirectoryIfMissing True outD
+            let name = takeFileName outD
+                vars = Map.fromList
+                  [ ("EXE", BS8.pack name)
+                  , ("SEARCH_PATH", BS8.pack (show searchPath))
+                  , ("DDL_FILE", BS8.pack (show absSpec))
+                  , ("SOURCE_NAME", BS8.pack (show spec))
+                  , ("ERROR_LEVEL",
+                       if optErrorStacks opts then "2" else "1")
+                  ]
+                save (file,bytes) =
+                  let outFile
+                        | file == "template.cabal" = name <.> "cabal"
+                        | otherwise                = file
+                  in BS.writeFile (outD </> outFile)
+                                  (substTemplate vars bytes)
+            mapM_ save hs_vm_template_files
 
   | otherwise =
   do let makeExe = null (optEntries opts)

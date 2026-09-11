@@ -43,6 +43,9 @@ data Backend = UseInterp | UseCore | UseVM | UsePGen Bool
 data Options =
   Options { optCommand   :: Command
           , optParserDDL :: Maybe FilePath
+          , optShowTypesExtern :: Bool
+          , optShowTypesDecl :: Maybe Text
+          , optShowTypesModule :: Maybe Text
           , optEntries   :: [String]
           , optBackend   :: Backend
           , optForceUTF8 :: Bool
@@ -98,6 +101,9 @@ defaultOptions :: Options
 defaultOptions =
   Options { optCommand   = DumpTC
           , optParserDDL = Nothing
+          , optShowTypesExtern = False
+          , optShowTypesDecl = Nothing
+          , optShowTypesModule = Nothing
           , optBackend   = UseInterp
           , optEntries   = []
           , optForceUTF8 = True
@@ -149,7 +155,7 @@ data OptsHS =
     , hsoptImports :: [ (String,Maybe String) ]   -- module as A
     , hsoptPrims   :: [ (Text,Text,String) ]  -- (mod,prim,haskellVar)
     , hsoptFile    :: Maybe FilePath
-    , hsoptCore    :: Bool
+    , hsoptVM      :: Bool
     } deriving Show
 
 noOptsHS :: OptsHS
@@ -159,7 +165,7 @@ noOptsHS =
     , hsoptImports = []
     , hsoptPrims   = []
     , hsoptFile    = Nothing
-    , hsoptCore    = False
+    , hsoptVM      = True
     }
 
 noOptHS :: (OptsHS -> Either String OptsHS) ->
@@ -228,7 +234,23 @@ cmdShowTypesOptions = (\o -> o { optCommand = DumpTypes }, opts)
   where
   opts = optWithDDL
           { progDescription = [ "Show the types of the definitions in a file." ]
-          , progOptions = [ helpOption ]
+          , progOptions =
+              [ Option [] ["externals"]
+                "Show only external declarations."
+                $ NoArg \o -> Right o { optShowTypesExtern = True }
+
+              , Option [] ["name"]
+                "Show only the declaration with this name."
+                $ ReqArg "NAME"
+                \s o -> Right o { optShowTypesDecl = Just (Text.pack s) }
+
+              , Option [] ["module"]
+                "Show only declarations from this module."
+                $ ReqArg "MODULE"
+                \s o -> Right o { optShowTypesModule = Just (Text.pack s) }
+
+              , helpOption
+              ]
           }
 
 cmdRunOptions :: CommandSpec
@@ -375,8 +397,16 @@ cmdCompileHSOptions = (\o -> o { optCommand = CompileHS }, opts)
               "Invalid primitve, expected: MODULE:PRIM_NAME:EXTERNAL_NAME"
 
       , Option [] ["vm"]
-        "Use the VM backend (experimental)."
-        $ NoArg $ noOptHS \o -> pure o { hsoptCore = True }
+        "Use the VM backend (the default)."
+        $ NoArg $ noOptHS \o -> pure o { hsoptVM = True }
+
+      , Option [] ["old"]
+        "Use the legacy Haskell backend."
+        $ NoArg $ noOptHS \o -> pure o { hsoptVM = False }
+
+      , Option [] ["no-error-stack"]
+        "Disable call stack and source location tracking in errors."
+        $ NoArg \o -> Right o { optErrorStacks = False }
 
       , helpOption
       ]

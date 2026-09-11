@@ -39,9 +39,10 @@ library
     FlexibleInstances,
     FlexibleContexts,
     MultiParamTypeClasses,
+    FunctionalDependencies,
+    TypeSynonymInstances,
     UndecidableInstances,
     ConstraintKinds,
     ScopedTypeVariables,
     RecordWildCards
-
 

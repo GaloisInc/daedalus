@@ -30,6 +30,7 @@ module Daedalus.TH
   , TH.lamE
   , TH.letE
   , TH.appE
+  , TH.appTypeE
   , TH.appsE
   , TH.listE
   , TH.conE
@@ -60,6 +61,7 @@ module Daedalus.TH
   , TH.dataD
   , TH.funD
   , TH.sigD
+  , TH.instanceD
 
   , BangType
   , bangT

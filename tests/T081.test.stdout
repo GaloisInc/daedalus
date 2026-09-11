@@ -1,0 +1,8 @@
+Parsers and Semantic Values
+================================================================================
+ 
+def good:
+  for any type a:
+  parameter: a
+  defines: a
+   

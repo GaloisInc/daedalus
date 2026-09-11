@@ -16,6 +16,7 @@ module Daedalus.Driver
   , ddlBasisMany
   , ddlGetFNameMaybe
   , ddlGetFName
+  , ddlTypeCheckPartial
 
     -- * Various ASTs
   , ModulePhase(..)
@@ -31,6 +32,7 @@ module Daedalus.Driver
   , passParse
   , parseModuleFromText
   , parseModuleFromFile
+  , parseModuleFromFileAs
   , passResolve
   , passTC
   , passDeadVal
@@ -114,11 +116,14 @@ import Daedalus.AST
 import Daedalus.Type.AST
 import Daedalus.Module(ModuleException(..), resolveModulePath, pathToModuleName)
 import Daedalus.Parser
-          (prettyParseError, ParseError, parseFromFile, parseFromTextAt)
+          ( prettyParseError, ParseError
+          , parseFromFileAs, parseFromTextAt
+          )
 import Daedalus.Scope (Scope)
 import qualified Daedalus.Scope as Scope
-import Daedalus.Type(inferRules)
-import Daedalus.Type.Monad(TypeError, runMTypeM, TCConfig(..), TypeWarning)
+import Daedalus.Type(inferRules,partialTypesModule)
+import Daedalus.Type.Monad
+  ( TypeError, runMTypeM, runMTypeMPartial, TCConfig(..), TypeWarning )
 import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
@@ -534,8 +539,11 @@ ddlGetFName m f =
 --------------------------------------------------------------------------------
 
 parseModuleFromFile :: ModuleName -> FilePath -> Daedalus ()
-parseModuleFromFile n file =
-  do mb <- ddlIO (parseFromFile file n)
+parseModuleFromFile n file = parseModuleFromFileAs n file file
+
+parseModuleFromFileAs :: ModuleName -> FilePath -> FilePath -> Daedalus ()
+parseModuleFromFileAs n sourceName file =
+  do mb <- ddlIO (parseFromFileAs sourceName file n)
      m <- case mb of
             Left err -> ddlThrow (AParseError err)
             Right m -> pure (ParsedModule m)
@@ -618,6 +626,48 @@ tcModule m =
        Right (m1',warnings) ->
          do unless (null warnings) (ppTCWarn warnings)
             recordTCModule m1'
+  where
+  ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
+
+-- | Typecheck a module, retaining declarations completed before a type error.
+-- Dependencies are still typechecked normally.
+ddlTypeCheckPartial ::
+  ModuleName ->
+  Daedalus (Either (TypeError, TCModule SourceRange)
+                   (TCModule SourceRange))
+ddlTypeCheckPartial m =
+  do passResolve m
+     ph <- ddlGetPhase m
+     case ph of
+       TypeCheckedModule tc -> pure (Right tc)
+       ResolvedModule ast ->
+         do mapM_ (passTC . importModule) (moduleImports ast)
+            tcModulePartial ast
+       _ -> panic "ddlTypeCheckPartial"
+              [ "Unexpected phase for", show (pp m) ]
+
+tcModulePartial ::
+  Module ->
+  Daedalus (Either (TypeError, TCModule SourceRange)
+                   (TCModule SourceRange))
+tcModulePartial m =
+  do ddlDebug ("Type checking " ++ show (moduleName m))
+     tdefs <- ddlGet declaredTypes
+     rtys  <- ddlGet ruleTypes
+     warn  <- ddlGet useWarning
+     let tcConf = TCConfig { tcConfTypes = tdefs
+                           , tcConfDecls = rtys
+                           , tcConfWarn  = warn
+                           }
+     (r,partial) <- ddlRunPass (runMTypeMPartial tcConf (inferRules m))
+     case r of
+       Left err ->
+         pure (Left (err, normTCModule (partialTypesModule m partial)))
+       Right (m1',warnings) ->
+         do unless (null warnings) (ppTCWarn warnings)
+            let m1 = normTCModule m1'
+            recordTCModule m1
+            pure (Right m1)
   where
   ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
 

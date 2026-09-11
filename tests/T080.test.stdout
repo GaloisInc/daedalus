@@ -1,0 +1,14 @@
+Parsers and Semantic Values
+================================================================================
+ 
+def ModuleExt:
+  parameter: int
+  defines: parser of int
+   
+def inModule:
+  for any type a:
+    `a` contains the number 1
+    `a` supports arithmetic
+  parameter: a
+  defines: a
+   
