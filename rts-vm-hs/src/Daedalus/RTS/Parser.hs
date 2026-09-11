@@ -255,7 +255,7 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
   where
   done s = case thrResults s of
              [] -> Left (doGetErr (thrErrors s))
-             rs -> Right rs
+             rs -> Right (reverse rs)
 
 -- | Uniform interface used by generated standalone parser applications.
 class RunnableParser p a | p -> a where
@@ -264,7 +264,7 @@ class RunnableParser p a | p -> a where
 instance RunnableParser (DParser a) a where
   runParserResults p = (:[]) <$> runDParser p
 
-instance RunnableParser (CParser a a) a where
+instance (r ~ a) => RunnableParser (CParser r a) a where
   runParserResults = runCParserAll
 
 --------------------------------------------------------------------------------
