@@ -106,7 +106,7 @@ vmNoteFail ty loc inp msg s =
              , peLoc    = loc
              , peInput  = inp
              , peMsg    = msg
-             , peStack  = pesCallStack s
+             , peStack  = reverse (pesCallStack s)
              }
 
   improve old =
@@ -130,7 +130,7 @@ vmSetException loc msg s = s { pesError = Just err }
     , peLoc    = loc
     , peInput  = RTS.newInput "" ""
     , peMsg    = RTS.vecFromRep (Text.encodeUtf8 msg)
-    , peStack  = pesCallStack s
+    , peStack  = reverse (pesCallStack s)
     }
 
 vmAbortAll :: Applicative m => Text -> Text -> Code r m
