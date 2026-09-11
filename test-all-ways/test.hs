@@ -145,7 +145,7 @@ compileCPP ddl =
      createDirectoryIfMissing True build
      exe <- daedalusExe
      callProcess' exe [ "compile-c++", "--out-dir=" ++ build, ddl ]
-     callProcess' "make" [ "-C", build, "parser" ]
+     callProcess' "make" [ "-C", build, "-f", "Makefile.debug", "parser" ]
 
 compileRust :: Quiet => FilePath -> IO ()
 compileRust ddl =
@@ -509,4 +509,3 @@ quiet err
 
 short :: FilePath -> String
 short = dropExtension . takeFileName
-
