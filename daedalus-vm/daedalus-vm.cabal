@@ -34,7 +34,6 @@ library
     Daedalus.VM.Compile.Decl
     Daedalus.VM.Compile.StrPat
     Daedalus.VM.GraphViz
-    Daedalus.VM.TailCallJump
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
     Daedalus.VM.Backend.C.Names

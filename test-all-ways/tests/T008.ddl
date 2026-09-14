@@ -14,6 +14,7 @@ def Normal : uint 8 =
 
     let counted = countDown depth
     (counted == depth) is true
+    (countTail depth 0 == depth) is true
     (isEven depth) is true
     (isOdd (depth + 1)) is true
 
@@ -53,6 +54,13 @@ def countDown (n : uint 8) =
   if n == 0
     then 0
     else 1 + countDown (n - 1)
+
+-- Direct self tail recursion.  This should use the same recursive-group
+-- worker as a group containing multiple mutually recursive functions.
+def countTail (n : uint 8) (acc : uint 8) =
+  if n == 0
+    then acc
+    else countTail (n - 1) (acc + 1)
 
 
 -- Tail-recursive mutual pure functions.  Main calls both members, so both

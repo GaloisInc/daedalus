@@ -20,13 +20,11 @@ import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
 import Daedalus.VM.ThrowsAnalysis
 import Daedalus.VM.RecursionAnalysis (funSCCs)
-import Daedalus.VM.TailCallJump
 
 
 
 moduleToProgram :: [Module] -> Program
 moduleToProgram ms =
-  tailProgram $
   throwsAnalysis $
   captureAnalysis
   Program { pModules = ms }
