@@ -40,8 +40,7 @@ doFun sty funMap n fun =
     VMDef body ->
       (  ("subgraph cluster_" ++ show n ++ " {")
        : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
-       : ("color=" ++ (if vmfLoop fun then show "#ccccccff"
-                                      else show "#999999ff") ++ ";")
+       : "color=\"#999999ff\";"
        : "style=\"filled\";"
        : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks body) ]
        ++ ["}"]
@@ -90,4 +89,3 @@ edge sty funMap b =
                       : [ edgeTo black l (jLabel x)
                                         | (l,x) <- zip ["fail","return"] xs
                                         , sty == Everything ]
-

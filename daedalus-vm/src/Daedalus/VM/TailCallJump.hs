@@ -2,7 +2,6 @@
 -- XXX: More generally, if we have a mutually recursive group of functions
 -- which tail call each other, we could put them in a single function and
 -- jump instead.
--- XXX: This duplicates stuff in FindLoops.
 module Daedalus.VM.TailCallJump where
 
 import Daedalus.VM
@@ -29,4 +28,3 @@ tailFun fun =
                              , jArgs  = es
                              }
       _ -> b
-

@@ -19,7 +19,6 @@ library
     Daedalus.VM
     Daedalus.VM.InlineBlock
     Daedalus.VM.FreeVars
-    Daedalus.VM.FindLoops
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.ThrowsAnalysis
     Daedalus.VM.BorrowAnalysis
