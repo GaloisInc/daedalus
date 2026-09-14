@@ -1,3 +1,5 @@
+-- | Identify recursive function groups and compute the continuation-frame
+-- information needed to compile them using an explicit stack.
 module Daedalus.VM.RecursionAnalysis
   ( Frame(..)
   , RetCont(..)
