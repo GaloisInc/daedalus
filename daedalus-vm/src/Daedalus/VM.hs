@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM
   ( module Daedalus.VM
   , Src.Pattern(..)
@@ -27,7 +26,7 @@ data Module = Module
   { mName     :: Src.MName
   , mImports  :: [Src.MName]
   , mTypes    :: [Rec Src.TDecl]
-  , mFuns     :: [VMFun]
+  , mFuns     :: [Rec VMFun]
   }
 
 -- | A function
@@ -36,8 +35,6 @@ data VMFun = VMFun
   , vmfCaptures :: Captures
   , vmfThrows   :: Throws
   , vmfPure     :: Bool     -- ^ True if this is not a parser
-  , vmfLoop     :: Bool     -- XXX we need to know the other loop members
-                            -- for inlining
   , vmfDef      :: VMFDef   -- ^ Definition for the function, if any
   , vmfIsEntry  :: Bool
   }
@@ -214,8 +211,17 @@ iArgs i =
 
 pAllBlocks :: Program -> [Block]
 pAllBlocks p =
-  [ b | m <- pModules p, f <- mFuns m, VMDef d <- [vmfDef f]
+  [ b | m <- pModules p, f <- moduleFuns m, VMDef d <- [vmfDef f]
       , b <- Map.elems (vmfBlocks d) ]
+
+moduleFuns :: Module -> [VMFun]
+moduleFuns = forgetRecs . mFuns
+
+programFuns :: Program -> [VMFun]
+programFuns = concatMap moduleFuns . pModules
+
+mapModuleFuns :: (VMFun -> VMFun) -> Module -> Module
+mapModuleFuns f m = m { mFuns = fmap (fmap f) (mFuns m) }
 
 extraArgs :: BlockType -> Int
 extraArgs b =
@@ -398,8 +404,8 @@ instance PP Module where
 instance PP VMFun where
   pp f =
     (".function" <+> pp (vmfName f)) $$
-    nest 2 (pp (vmfCaptures f) <+> (if vmfLoop f then ".loop" else empty)
-                               <+> (if vmfIsEntry f then ".root" else empty)
+    nest 2 (pp (vmfCaptures f) <+>
+            (if vmfIsEntry f then ".root" else empty)
         $$ case vmfDef f of
              VMExtern as -> ".extern" <+>
                   hsep [ parens (pp a <+> ":" <+> pp (getType a)) | a <- as ]
@@ -503,10 +509,3 @@ instance PP PrimName where
       Op2 op -> pp op
       Op3 op -> pp op
       OpN op -> pp op
-
-
-
-
-
-
-

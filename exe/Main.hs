@@ -1,6 +1,3 @@
-{-# Language ScopedTypeVariables #-}
-{-# Language ImplicitParams #-}
-{-# Language GADTs #-}
 module Main where
 
 import qualified Data.Text as Text
@@ -37,7 +34,6 @@ import Daedalus.AST hiding (Value)
 import Daedalus.Compile.LangHS hiding (Import(..))
 import qualified Daedalus.Compile.LangHS as HS
 import Daedalus.CompileHS(hsIdentMod)
-import qualified Daedalus.TH.Compile as THC
 import Daedalus.Type.AST(TCModule(..),TCDecl(..),TCDeclDef(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypesWith)

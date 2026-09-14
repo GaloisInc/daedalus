@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.CaptureAnalysis where
 
 import Data.Set(Set)
@@ -8,7 +7,7 @@ import qualified Data.Map as Map
 import Data.List(foldl')
 
 import Daedalus.Panic(panic)
-import Daedalus.Rec(topoOrder,Rec(..))
+import Daedalus.Rec(Rec(..))
 import Daedalus.PP
 
 import Daedalus.VM
@@ -21,9 +20,12 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
   where
   ms = pModules prog
 
-  info    = fixCaptureInfo
-          $ Map.fromList
-              [ (vmfName f, captureInfo f) | m <- ms, f <- mFuns m ]
+  info =
+    foldl' updateKnownGroup Map.empty
+      [ fmap (\f -> (vmfName f, captureInfo f)) group
+      | m <- ms
+      , group <- mFuns m
+      ]
 
 
   -- NOTE: we assume that return blocks are not shared across functions with
@@ -44,7 +46,7 @@ captureAnalysis prog = Program { pModules = map annotateModule ms }
 
   ---
 
-  annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateModule = mapModuleFuns annotateFun
 
   annotateFun f = f { vmfCaptures = me
                     , vmfDef = annotateDef me (vmfDef f)
@@ -102,18 +104,16 @@ getCaptures :: Map FName CaptureInfo -> FName -> Captures
 getCaptures mp f =
   case Map.lookup f mp of
     Just CapturesYes -> Capture
-    _                -> NoCapture
-
--- | Compute a fix-point of the input map.
-fixCaptureInfo :: Map FName CaptureInfo -> Map FName CaptureInfo
-fixCaptureInfo = foldl' updateKnownGroup Map.empty
-               . topoOrder deps
-               . Map.toList
-  where
-  deps (f,i) = (f, case i of
-                     CapturesYes   -> Set.empty
-                     CapturesIf fs -> fs
-               )
+    Just (CapturesIf fs)
+      | Set.null fs -> NoCapture
+      | otherwise ->
+          panic "getCaptures"
+            [ "Unresolved capture dependencies for " ++ show (pp f)
+            , show (map pp (Set.toList fs))
+            ]
+    Nothing ->
+      panic "getCaptures"
+        [ "Missing capture information for " ++ show (pp f) ]
 
 updateKnownGroup ::
   Map FName CaptureInfo -> Rec (FName, CaptureInfo) -> Map FName CaptureInfo

@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Lang where
 
 import Text.PrettyPrint as P
@@ -112,6 +111,10 @@ cWhile :: CExpr -> CStmt -> CStmt
 cWhile e body =
   ("while" <+> parens e) $$ nest 2 body
 
+cForRange :: CType -> CIdent -> CExpr -> CStmt -> CStmt
+cForRange ty var range body =
+  ("for" <+> parens (ty <+> var <+> ":" <+> range)) $$ nest 2 body
+
 cBreak :: CStmt
 cBreak = cStmt "break"
 
@@ -170,5 +173,3 @@ cTemplate typeArgs body = cInst "template" typeArgs $$ body
 
 cDebugMsg :: String -> Doc
 cDebugMsg msg = "std::cout <<" <+> text (show msg) <+> "<< std::endl;"
-
-

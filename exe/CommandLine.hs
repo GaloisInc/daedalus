@@ -1,4 +1,3 @@
-{-# Language BlockArguments #-}
 module CommandLine ( Command(..)
                    , Options(..), Backend(..)
                    , getOptions

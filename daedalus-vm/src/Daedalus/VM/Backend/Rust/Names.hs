@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings #-}
 module Daedalus.VM.Backend.Rust.Names where
 
 import Data.Text qualified as Text
@@ -23,6 +22,39 @@ compileFName f = Rust.mkIdent (txt ++ suff)
   uid = guidString (Core.fnameId f)
   txt = Rust.snakeCase (Text.unpack (Core.fnameText f))
 
+compileRecEntryTypeName :: Core.FName -> Rust.Ident
+compileRecEntryTypeName f =
+  Rust.mkIdent ("__CallRec" ++ guidString (Core.fnameId f))
+  -- `compileTName` cannot produce the leading double underscore.
+
+compileRecEntryConName :: Core.FName -> Rust.Ident
+compileRecEntryConName f =
+  Rust.mkIdent
+    (Rust.upperCamelCase (Text.unpack (Core.fnameText f)) ++
+     guidString (Core.fnameId f))
+
+compileRecFunName :: Core.FName -> Rust.Ident
+compileRecFunName f =
+  Rust.mkIdent ("__call_rec" ++ guidString (Core.fnameId f))
+
+compileRecFrameConName :: Core.FName -> Rust.Ident
+compileRecFrameConName f =
+  Rust.mkIdent
+    ("Done" ++ Rust.upperCamelCase (Text.unpack (Core.fnameText f)) ++
+     guidString (Core.fnameId f))
+
+compileRecCallFrameConName :: VM.Label -> Core.FName -> Rust.Ident
+compileRecCallFrameConName (VM.Label caller n) callee =
+  Rust.mkIdent
+    (Rust.upperCamelCase (Text.unpack caller) ++
+     Rust.upperCamelCase (Text.unpack (Core.fnameText callee)) ++ show n)
+
+recFrameTypeName :: Rust.Ident
+recFrameTypeName = "Frame"
+
+recStackName :: Rust.Ident
+recStackName = "__stack"
+
 compileBAName :: VM.BA -> Rust.Ident
 compileBAName (VM.BA n _ _) = Rust.mkIdent ("_arg_" ++ show n)
 
@@ -36,7 +68,8 @@ parserStateName :: Rust.Ident
 parserStateName = "_state"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
-compileBlockLabel (VM.Label txt n) = Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "_" ++ show n)
+compileBlockLabel (VM.Label txt n) =
+  Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "B" ++ show n)
 
 -- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident

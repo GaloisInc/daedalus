@@ -1,6 +1,3 @@
-{-# Language BlockArguments #-}
-{-# Language OverloadedStrings #-}
-{-# Language ImplicitParams #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use record patterns" #-}
 {-# HLINT ignore "Use const" #-}
@@ -257,4 +254,3 @@ sharedYes next =
     Nothing -> pure next
     Just c  -> do l <- label1 c
                   pure next { onYes = Just \v -> jump (l v) }
-

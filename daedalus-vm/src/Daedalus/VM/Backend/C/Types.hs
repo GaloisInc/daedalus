@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Types where
 
 import Text.PrettyPrint as P
@@ -59,4 +58,3 @@ cTypeUse nm nparams vparams =
   case nparams ++ vparams of
     [] -> nm
     xs -> nm <.> "<" <.> hsep (punctuate comma xs) <.> ">"
-

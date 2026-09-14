@@ -880,6 +880,8 @@ fn test_exception_preserves_parser_context() {
     let mut state = ddl::new_parser_state();
     state.push(false, "outer");
     state.push(true, "inner");
+    state.push(true, "inner");
+    state.push(true, "outer");
     state.push(false, "callee");
 
     state.set_exception("test.ddl:1:1", "test exception");
@@ -887,6 +889,26 @@ fn test_exception_preserves_parser_context() {
     let error = serde_json::to_value(&state.error).unwrap();
     assert_eq!(
         error["context"],
-        serde_json::json!([["inner", "outer"], ["callee"]])
+        serde_json::json!([["outer", ["inner", 2], "outer"], "callee"])
     );
+}
+
+#[cfg(feature = "detailed-errors")]
+#[test]
+fn test_tail_call_context_is_bounded() {
+    let mut state = ddl::new_parser_state();
+    state.push(false, "entry");
+    for i in 0..66 {
+        state.push(true, &format!("tail-{}", i));
+    }
+
+    state.set_exception("test.ddl:1:1", "test exception");
+
+    let error = serde_json::to_value(&state.error).unwrap();
+    let frame = error["context"][0].as_array().unwrap();
+    assert_eq!(frame.len(), 66);
+    assert_eq!(frame[0], serde_json::json!("entry"));
+    assert_eq!(frame[1], serde_json::json!({ "omitted": 2 }));
+    assert_eq!(frame[2], serde_json::json!("tail-2"));
+    assert_eq!(frame[65], serde_json::json!("tail-65"));
 }

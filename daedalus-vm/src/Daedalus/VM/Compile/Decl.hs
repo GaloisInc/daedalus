@@ -1,6 +1,3 @@
-{-# Language BlockArguments #-}
-{-# Language OverloadedStrings #-}
-{-# Language ImplicitParams #-}
 module Daedalus.VM.Compile.Decl where
 
 import Data.Set (Set)
@@ -19,24 +16,27 @@ import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
 import Daedalus.VM.ThrowsAnalysis
-import Daedalus.VM.FindLoops
-import Daedalus.VM.TailCallJump
+import Daedalus.VM.RecursionAnalysis (funSCCs)
 
 
 
+-- | Construct a VM program.
+--
+-- Modules must be supplied in dependency order.  Cross-module recursion is
+-- not supported.
 moduleToProgram :: [Module] -> Program
 moduleToProgram ms =
-  tailProgram $
   throwsAnalysis $
   captureAnalysis
-  Program { pModules = map loopAnalysis ms }
+  Program { pModules = ms }
 
 compileModule :: Bool -> Src.Module -> Module
 compileModule useDebug m =
   Module { mName = Src.mName m
          , mImports = Src.mImports m
          , mTypes = Src.mTypes m
-         , mFuns  = map (compileFFun dm) (Src.mFFuns m)
+         , mFuns  = funSCCs
+                  $ map (compileFFun dm) (Src.mFFuns m)
                  ++ map (compileGFun dm failing) (Src.mGFuns m)
          }
   where
@@ -94,7 +94,6 @@ compileSomeFun isPure dm doBody fun =
                             Src.Def {}   -> UnknownThrows
                             Src.External -> NoThrows
             , vmfPure   = isPure
-            , vmfLoop   = False
             , vmfDef    = def
             , vmfIsEntry = Src.fIsEntry fun
             }

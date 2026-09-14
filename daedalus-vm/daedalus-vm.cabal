@@ -19,7 +19,6 @@ library
     Daedalus.VM
     Daedalus.VM.InlineBlock
     Daedalus.VM.FreeVars
-    Daedalus.VM.FindLoops
     Daedalus.VM.CaptureAnalysis
     Daedalus.VM.ThrowsAnalysis
     Daedalus.VM.BorrowAnalysis
@@ -27,6 +26,7 @@ library
     Daedalus.VM.InsertCopy
     Daedalus.VM.RefCountSane
     Daedalus.VM.TypeCheck
+    Daedalus.VM.RecursionAnalysis
     Daedalus.VM.Compile.Monad
     Daedalus.VM.Compile.BlockBuilder
     Daedalus.VM.Compile.Grammar
@@ -34,7 +34,6 @@ library
     Daedalus.VM.Compile.Decl
     Daedalus.VM.Compile.StrPat
     Daedalus.VM.GraphViz
-    Daedalus.VM.TailCallJump
     Daedalus.VM.Backend.C
     Daedalus.VM.Backend.C.Lang
     Daedalus.VM.Backend.C.Names
@@ -42,11 +41,13 @@ library
     Daedalus.VM.Backend.C.UserDefined
     Daedalus.VM.Backend.C.Bitdata
     Daedalus.VM.Backend.C.Call
+    Daedalus.VM.Backend.C.Recursive
     Daedalus.VM.Backend.Haskell
     Daedalus.VM.Backend.Rust
     Daedalus.VM.Backend.Rust.Lang
     Daedalus.VM.Backend.Rust.Type
     Daedalus.VM.Backend.Rust.Names
+    Daedalus.VM.Backend.Rust.Recursive
     Daedalus.VM.Semantics
 
   build-depends:
@@ -67,3 +68,16 @@ library
 
   hs-source-dirs:      src
   default-language:    Haskell2010
+  default-extensions:
+    BangPatterns,
+    BlockArguments,
+    ConstraintKinds,
+    EmptyCase,
+    GeneralizedNewtypeDeriving,
+    ImplicitParams,
+    ImportQualifiedPost,
+    LambdaCase,
+    OverloadedStrings,
+    ParallelListComp,
+    RankNTypes,
+    TemplateHaskell

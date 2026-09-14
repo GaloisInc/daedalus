@@ -1,10 +1,14 @@
 #ifndef DDL_PARSE_ERROR_H
 #define DDL_PARSE_ERROR_H
 
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <iostream>
+#include <string_view>
+#include <utility>
+#include <variant>
 #include <vector>
-#include <unordered_map>
 
 #include <ddl/debug.h>
 #include <ddl/owned.h>
@@ -15,22 +19,108 @@
 
 namespace DDL {
 
+struct ParserContextCall {
+  char const *label;
+  size_t count;
+};
+
+struct ParserContextOmitted {
+  size_t count;
+};
+
+using ParserContextEntry =
+  std::variant<ParserContextCall,ParserContextOmitted>;
+
 class ParserContextFrame {
-  char const *cur;
-  std::unordered_map<std::string_view, size_t> history;
+  static constexpr size_t maxTailCallRuns = 64;
 
-public:
-  explicit ParserContextFrame(char const* fun) : cur(fun) {}
+  struct Call {
+    char const *label;
+  };
 
-  void tailCall(char const* fun) {
-      auto [thing, inserted] = history.insert({cur,1});
-      if (!inserted) thing->second++;
-      cur = fun;
+  struct TailCallRun {
+    char const *label;
+    size_t count;
+  };
+
+  struct TailCalls {
+    char const *entry;
+    std::deque<TailCallRun> recent;
+    size_t omitted;
+  };
+
+  std::variant<Call,TailCalls> frame;
+
+  static bool sameCallSite(char const *x, char const *y) {
+    return std::string_view(x) == std::string_view(y);
   }
 
-  char const* get_cur() const { return cur; }
+public:
+  explicit ParserContextFrame(char const* label) : frame(Call { label }) {}
 
-  auto const& get_history() const { return history; }
+  void tailCall(char const* label) {
+    if (auto *call = std::get_if<Call>(&frame)) {
+      auto entry = call->label;
+      std::deque<TailCallRun> recent;
+      recent.push_back(TailCallRun { label, 1 });
+      frame = TailCalls { entry, std::move(recent), 0 };
+      return;
+    }
+
+    auto &calls = std::get<TailCalls>(frame);
+    if (!calls.recent.empty() &&
+        sameCallSite(calls.recent.back().label,label)) {
+      calls.recent.back().count++;
+      return;
+    }
+
+    if (calls.recent.size() == maxTailCallRuns) {
+      calls.omitted += calls.recent.front().count;
+      calls.recent.pop_front();
+    }
+    calls.recent.push_back(TailCallRun { label, 1 });
+  }
+
+  bool isCall() const {
+    return std::holds_alternative<Call>(frame);
+  }
+
+  char const* callSiteLabel() const {
+    return std::get<Call>(frame).label;
+  }
+
+  std::vector<ParserContextEntry> entries() const {
+    if (auto const *call = std::get_if<Call>(&frame)) {
+      return { ParserContextCall { call->label, 1 } };
+    }
+
+    auto const &calls = std::get<TailCalls>(frame);
+    std::vector<ParserContextEntry> result;
+    size_t firstRecent = 0;
+
+    if (calls.omitted == 0 &&
+        sameCallSite(calls.entry,calls.recent.front().label)) {
+      result.push_back(
+        ParserContextCall {
+          calls.entry,
+          calls.recent.front().count + 1
+        }
+      );
+      firstRecent = 1;
+    } else {
+      result.push_back(ParserContextCall { calls.entry, 1 });
+    }
+
+    if (calls.omitted > 0) {
+      result.push_back(ParserContextOmitted { calls.omitted });
+    }
+
+    for (size_t i = firstRecent; i < calls.recent.size(); ++i) {
+      auto const &run = calls.recent[i];
+      result.push_back(ParserContextCall { run.label, run.count });
+    }
+    return result;
+  }
 };
 
 class ParserContextStack {
@@ -130,28 +220,32 @@ std::ostream& toJS(std::ostream &os, ParseError<I> const& err) {
     if (!first) os << "\n, ";
     first = false;
 
-    auto cur = frame.get_cur();
-    auto const& h = frame.get_history();
-    auto in_hist = h.find(cur);
+    if (frame.isCall()) {
+      os << JS(std::string_view(frame.callSiteLabel()));
+      continue;
+    }
 
     os << "[ ";
-
-    size_t n = 1;
-    if (in_hist != h.end()) {
-      n += in_hist->second;
-    }
-    if (n > 1)
-      os << "[" << JS(std::string_view(cur)) << ", " << n << "]";
-    else
-      os << JS(std::string_view(cur));
-
-    for (auto &&el : h) {
-      if (el.first == cur) continue;
-      os << "\n, ";
-      if (el.second > 1)
-        os << "[" << JS(el.first) << ", " << el.second << "]";
-      else
-        os << JS(el.first);
+    bool firstEntry = true;
+    auto separator = [&]() {
+      if (!firstEntry) os << "\n, ";
+      firstEntry = false;
+    };
+    for (auto const &entry : frame.entries()) {
+      separator();
+      if (auto const *call = std::get_if<ParserContextCall>(&entry)) {
+        auto label = call->label;
+        auto count = call->count;
+        if (count > 1) {
+          os << "[" << JS(std::string_view(label))
+             << ", " << count << "]";
+        } else {
+          os << JS(std::string_view(label));
+        }
+      } else {
+        auto omitted = std::get<ParserContextOmitted>(entry).count;
+        os << "{ \"omitted\": " << omitted << " }";
+      }
     }
     os << "]";
   }
@@ -178,23 +272,18 @@ std::ostream& operator << (std::ostream &os, ParseError<I> const& err) {
   os << "  • Grammar context:";
   os << std::endl;
   for (auto&& frame : err.debugs) {
-    os << "    • ";
-
-    auto cur = frame.get_cur();
-    os << cur;
-    auto const& h = frame.get_history();
-    auto in_hist = h.find(cur);
-
-    if (in_hist != h.end()) {
-      auto n = in_hist->second;
-      if (n > 1) os << " (" << (n+1) << " times)";
-    }
-
-    for (auto &&el : frame.get_history()) {
-      if (el.first == cur) continue;
-      os << " " << el.first;
-      if (el.second > 1) {
-        os << " (" << el.second << " times)";
+    os << "    •";
+    for (auto const &entry : frame.entries()) {
+      if (auto const *call = std::get_if<ParserContextCall>(&entry)) {
+        auto label = call->label;
+        auto count = call->count;
+        os << " " << label;
+        if (count > 1) {
+          os << " (" << count << " times)";
+        }
+      } else {
+        auto omitted = std::get<ParserContextOmitted>(entry).count;
+        os << " ... (" << omitted << " tail calls omitted)";
       }
     }
     os << std::endl;

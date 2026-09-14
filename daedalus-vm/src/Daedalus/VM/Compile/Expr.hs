@@ -1,5 +1,3 @@
-{-# Language BlockArguments #-}
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.Compile.Expr where
 
 import Data.Void(Void)
@@ -417,5 +415,4 @@ compileStrCase x codes =
           PAny   -> (reverse alts, b)
           _      -> panic "compileStrCase" [ "Unexpected pattern", show (pp p) ]
       [] -> panic "compileStrCase" [ "Missing default in StrPat" ]
-
 

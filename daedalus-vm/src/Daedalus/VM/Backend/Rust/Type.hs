@@ -1,5 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings, ImplicitParams, ConstraintKinds #-}
-{-# Language BlockArguments #-}
 module Daedalus.VM.Backend.Rust.Type where
 
 import Control.Exception

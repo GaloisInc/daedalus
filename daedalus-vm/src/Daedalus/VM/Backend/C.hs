@@ -1,6 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
-{-# Language ImplicitParams, ConstraintKinds #-}
-{-# Language ParallelListComp #-}
 module Daedalus.VM.Backend.C where
 
 import qualified Data.ByteString as BS
@@ -19,9 +16,10 @@ import           Control.Applicative((<|>))
 
 import Daedalus.PP
 import Daedalus.Panic(panic)
-import Daedalus.Rec(topoOrder,forgetRecs)
+import Daedalus.Rec(Rec(..),topoOrder,forgetRecs)
 
 import Daedalus.VM
+import qualified Daedalus.VM.RecursionAnalysis as RA
 import qualified Daedalus.Core as Src
 import Daedalus.VM.RefCountSane
 import Daedalus.VM.Backend.C.Lang
@@ -30,6 +28,7 @@ import Daedalus.VM.Backend.C.Types
 import Daedalus.VM.Backend.C.UserDefined
 import Daedalus.VM.Backend.C.Bitdata(bdCase,bdCaseDflt)
 import Daedalus.VM.Backend.C.Call
+import qualified Daedalus.VM.Backend.C.Recursive as Recursive
 
 
 data CCodeGenConfig = CCodeGenConfig
@@ -42,7 +41,6 @@ data CCodeGenConfig = CCodeGenConfig
     -- types in them.
   , cfgLazyStreams  :: !Bool
   }
-
 
 {- assumptions on all DDL types:
   * default constructors: for uninitialized block parameters
@@ -71,7 +69,7 @@ cProgram
 
   warns = [ "Using external definition" <+> backticks (pp w)
           | m <- pModules prog
-          , w <- findExternFunsWithDef (Map.keysSet externalMap) (mFuns m)
+          , w <- findExternFunsWithDef (Map.keysSet externalMap) (moduleFuns m)
           ]
 
 
@@ -102,7 +100,7 @@ cProgram
         vcat $ [ "#include" <+> doubleQuotes (text fileNameRoot <.> ".h")
                , " "
                ] ++
-               map (cFunSig Static) noPrims ++
+               noPrimSigs ++
                [ entTypeDef, capPrserSig ] ++
                noCapRootDefs ++
                capRootDefs ++
@@ -112,10 +110,33 @@ cProgram
 
 
   -- primitives
-  (prims,noPrims) = flip partition noCapFun \fun ->
-                    case vmfDef fun of
-                      VMExtern {} -> True
-                      VMDef {}    -> False
+  prims = filter isExtern noCapFun
+    where
+    isExtern fun =
+      case vmfDef fun of
+        VMExtern {} -> True
+        VMDef {}    -> False
+
+  noPrimSigs =
+    let ?userState = userState
+        ?nsUser = nsUserParam
+        ?nsInputType = inpType
+        ?nsExternal = externalMap
+    in
+    concatMap groupSigs noCapGroups
+    where
+    groupSigs group =
+      case group of
+        NonRec fun ->
+          case vmfDef fun of
+            VMExtern {} -> []
+            VMDef {}    -> [cFunSig Static fun]
+        MutRec funs ->
+          let recGroup = RA.analyzeGroup allFuns funs
+          in [ cFunSig Static fun
+             | fun <- funs
+             , RA.needsWrapper recGroup (vmfName fun)
+             ]
 
   primSigs =
     let ?userState = userState
@@ -137,7 +158,23 @@ cProgram
         ?nsUser = nsUserParam
         ?nsInputType = inpType
         ?nsExternal = externalMap
-    in concatMap cFun noCapFun
+    in
+    let recCodegen =
+          Recursive.GroupCodegen
+            { Recursive.groupAllFuns = allFunMap
+            , Recursive.groupCompileMemo = cMemoValFun
+            , Recursive.groupParserStateType = parserStateType
+            , Recursive.groupCompileBlock =
+                \blocks _fun recCtx bb ->
+                  let ?allBlocks = blocks
+                      ?captures = NoCapture
+                  in cBasicBlock (Just recCtx) bb
+            }
+        compileFunGroup group =
+          case group of
+            NonRec fun  -> cFun fun
+            MutRec funs -> Recursive.compileGroup recCodegen funs
+    in concatMap compileFunGroup noCapGroups
 
 
   -- Non-capturing roots
@@ -182,7 +219,17 @@ cProgram
 
   allTypes       = concatMap mTypes orderedModules
   allTypesMap    = Map.fromList [ (Src.tName d, d) | d <- forgetRecs allTypes ]
-  allFuns        = concatMap mFuns orderedModules
+  funGroups      = concatMap mFuns orderedModules
+  (capGroups,noCapGroups) = partition isCaptureGroup funGroups
+
+  isCaptureGroup group =
+    case forgetRecs [group] of
+      f : _ -> vmfCaptures f == Capture
+      []    -> panic "isCaptureGroup" ["Empty recursive function group"]
+
+  capFuns        = forgetRecs capGroups
+  noCapFun       = forgetRecs noCapGroups
+  allFuns        = forgetRecs funGroups
   allFunMap      = Map.fromList [ (vmfName f, f) | f <- allFuns ]
   blockOwnerMap  = Map.fromList
                    [ (l, vmfName f)
@@ -190,8 +237,6 @@ cProgram
                    , VMDef d <- [vmfDef f]
                    , l <- Map.keys (vmfBlocks d)
                    ]
-
-  (capFuns,noCapFun) = partition ((Capture ==) . vmfCaptures) allFuns
 
   allBlocks      = Map.unions
                  $ capBlocks ++
@@ -219,6 +264,7 @@ includes opts =
        , "#include <ddl/owned.h>"
        , "#include <ddl/utils.h>"
        , "#include <optional>"
+       , "#include <variant>"
        ]
   where maybeStream = [ "#include <ddl/stream.h>" | cfgLazyStreams opts ]
 
@@ -335,7 +381,7 @@ defineCaptureParser entTs ents capFuns
     , " "
     , cSwitch "entry.tag" ([ e "entry" | e <- ents ] ++ [ cDefault "return;" ])
     , " "
-    , vcat' (map cBasicBlock (Map.elems ?allBlocks))
+    , vcat' (map (cBasicBlock Nothing) (Map.elems ?allBlocks))
     ]
 
 
@@ -637,7 +683,7 @@ cFun fun =
                     | (x,n) <- blockArgs entryBlock `zip` [ 1.. ]
                     ]
                  ++ cGoto (cBlockLabel (vmfEntry d))
-                  : [ cBasicBlock b | b <- Map.elems (vmfBlocks d) ]
+                  : [ cBasicBlock Nothing b | b <- Map.elems (vmfBlocks d) ]
 
 
 cMemoValFun :: NSUser => FName -> CDecl
@@ -659,15 +705,17 @@ cMemoValFun f = cDefineFun retTy (cFName f) [] body
 --------------------------------------------------------------------------------
 
 
-cBasicBlock :: (AllTypes, AllFuns,AllBlocks,CaptureFun,BlockOwner,NSUser) => Block -> CStmt
-cBasicBlock b = "//" <+> text (show (blockType b))
+cBasicBlock ::
+  (AllTypes, AllFuns,AllBlocks,CaptureFun,BlockOwner,NSUser) =>
+  Maybe RA.BlockContext -> Block -> CStmt
+cBasicBlock recCtx b = "//" <+> text (show (blockType b))
              $$ cBlockLabel (blockName b) <.> ": {" $$ nest 2 body $$ "}"
   where
   body = let ?curBlock = b
              ?copies   = Map.fromList [ (x,v) | Let x v <- blockInstrs b ]
          in getArgs
          $$ vcat (map cBlockStmt (blockInstrs b))
-         $$ vcat (cTermStmt (blockTerm b))
+         $$ vcat (cTermStmt recCtx (blockTerm b))
 
   getArgs = case blockType b of
               NormalBlock -> empty
@@ -1181,25 +1229,41 @@ cExpr expr =
 
 cTermStmt ::
   (AllTypes, AllFuns, AllBlocks, CurBlock, Copies, CaptureFun, BlockOwner, NSUser) =>
-  CInstr -> [CStmt]
-cTermStmt ccInstr =
+  Maybe RA.BlockContext -> CInstr -> [CStmt]
+cTermStmt recCtx ccInstr =
   case ccInstr of
     Jump jp -> cJump jp
 
     JumpIf e (JumpCase opts) -> cDoCase e opts
 
+    -- Yield is specific to the existing capturing-parser path: resume a
+    -- suspended alternative, or finish when none remain.
     Yield ->
       [ cIf (cCall "p.hasSuspended" [])
           [ cGoto ("*" <.> cCall "p.yield" []) ]
           [ cAssign "err" "p.finalYield()", "return;" ]
       ]
 
+    -- Within a recursive group, pop and dispatch the top continuation
+    -- frame with a parser failure.
+    ReturnNo | Just ctx <- recCtx ->
+      Recursive.compileReturnNo recCodegen ctx
+
+    -- Outside the explicit-stack worker, use the existing capturing or
+    -- ordinary non-capturing parser return.
     ReturnNo ->
       case ?captures of
         Capture   -> [ cGoto ("*" <.> cCall "p.returnNo" []) ]
         NoCapture -> [ cStmt ("return" <+> "DDL::ParserResult::Failure") ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
+    -- Within a recursive group, pop and dispatch the top continuation
+    -- frame with the parser result and remaining input.
+    ReturnYes e i | Just ctx <- recCtx ->
+      Recursive.compileReturnYes recCodegen ctx e i
+
+    -- Outside the explicit-stack worker, use the existing capturing or
+    -- ordinary non-capturing parser return.
     ReturnYes e i ->
       case ?captures of
         Capture ->
@@ -1214,6 +1278,13 @@ cTermStmt ccInstr =
           ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
+    -- Within a recursive group, bypass ordinary continuation frames and
+    -- propagate the exception through the explicit stack.
+    Throw loc msg | Just ctx <- recCtx ->
+      Recursive.compileThrow recCodegen ctx (text (show loc)) (text (show msg))
+
+    -- Outside a recursive group, use the existing pure, non-capturing
+    -- parser, or capturing-parser exception path.
     Throw loc msg ->
       case ?captures of
         Capture ->
@@ -1231,6 +1302,13 @@ cTermStmt ccInstr =
             ]
         Unknown -> panic "cTermStmt" ["Unknown"]
 
+    -- Within a recursive group, pop and dispatch the top continuation
+    -- frame with the returned value.
+    ReturnPure e | Just ctx <- recCtx ->
+      Recursive.compileReturnPure recCodegen ctx e
+
+    -- Outside the explicit-stack worker, use the existing capturing or
+    -- ordinary pure-function return convention.
     ReturnPure e ->
       case ?captures of
         Capture ->
@@ -1245,6 +1323,8 @@ cTermStmt ccInstr =
             [ cStmt ("return" <+> cExpr e) ]
         Unknown   -> panic "cTermStmt" ["Unknown"]
 
+    -- A capturing parser call pushes both continuations onto ParserState's
+    -- persistent stack and jumps directly to the callee.
     CallCapture f no yes es _exnFree ->
           doPush no
         : doPush yes
@@ -1252,6 +1332,14 @@ cTermStmt ccInstr =
            VMDef d -> cJump (JumpPoint (vmfEntry d) es)
            VMExtern {} -> panic "Capture call to extern" []
 
+    -- A non-tail call within the recursive group saves both parser
+    -- continuations in a vector frame, then jumps to the callee.
+    CallNoCapture f rets es exnFree
+      | Just ctx <- recCtx, Recursive.isRecFun ctx f ->
+        Recursive.compileCallNoCapture recCodegen ctx f rets es exnFree
+
+    -- An ordinary parser call selects its success or failure continuation,
+    -- or propagates an exception.
     CallNoCapture f (JumpCase ks) es exnFree ->
       let yes = ks Map.! True
           no  = ks Map.! False
@@ -1273,19 +1361,29 @@ cTermStmt ccInstr =
              , cCaseBlock "DDL::ParserResult::Failure"
                  (freeClo no ++ cDoJump bNo esNo)
              , cCaseBlock "DDL::ParserResult::Exception"
-                 (cFree exnFree ++ cPropagateExnParser)
+                 (cFree exnFree ++ propagateParserException)
              ]
          ]
 
       where
       freeClo c = cFree (freeFirst c)
 
+    -- A non-tail call within the recursive group saves its continuation
+    -- in a vector frame, then jumps to the callee.
+    CallPure f jp es exnFree
+      | Just ctx <- recCtx
+      , Recursive.isRecFun ctx f ->
+          Recursive.compileCallPure recCodegen ctx f jp es exnFree
+
+    -- An ordinary pure call invokes the generated function directly.
     CallPure f jp es exnFree ->
       let JumpPoint lab les = jumpTarget jp
           calleeThrows = vmfThrows (lkpFun f) == Throws
       in
       case Map.lookup lab ?allBlocks of
         Just b
+          -- A throwing pure call must inspect the result and propagate an
+          -- exception instead of entering the continuation.
           | calleeThrows ->
             let resultVar = "callResult"
                 resultTy  = cInst "DDL::Result"
@@ -1293,12 +1391,15 @@ cTermStmt ccInstr =
             in [ cDeclareInitVar resultTy resultVar
                     (cCall (cFName f) (map cExpr es))
                , cIf' ("!" <.> resultVar <.> ".isOk()")
-                   (cFree exnFree ++ cPropagateExnPure resultVar)
+                   (cFree exnFree ++ propagatePureException resultVar)
                ]
                ++ zipWith assignP (blockArgs b)
                     (resultVar <.> ".getValue()" : map cExpr les)
                ++ cFree (freeFirst jp)
                ++ [ cGoto (cBlockLabel (blockName b)) ]
+
+          -- A non-throwing ordinary call enters its continuation with the
+          -- returned value.
           | otherwise ->
               zipWith assignP (blockArgs b) (doCall : map cExpr les) ++
               cFree (freeFirst jp) ++
@@ -1309,19 +1410,34 @@ cTermStmt ccInstr =
         Nothing -> panic "CallPure" [ "Missing block: " ++ show (pp lab) ]
 
 
+    -- Within a recursive worker, an internal tail call is a direct jump;
+    -- one leaving the group calls the function and returns through the
+    -- explicit stack.
+    TailCall f _captures es
+      | Just ctx <- recCtx ->
+          Recursive.compileTailCall recCodegen ctx (lkpFun f) es
+
+    -- Outside an explicit-stack worker, retain the existing capturing and
+    -- ordinary non-capturing tail-call conventions.
     TailCall f captures es ->
       let fun       = lkpFun f
           retT      = TSem (Src.fnameType f)
           doCall as = cCall (cFName f) (as ++ map cExpr es)
       in
       case (captures, ?captures) of
+        -- Capturing callees share the capturing parser's computed-goto
+        -- worker, so a tail call is a direct jump.
         (Capture,Capture) ->
           case vmfDef fun of
             VMDef d  ->  cJump (JumpPoint (vmfEntry d) es)
             VMExtern _ -> panic "Tail call" ["Capturing primitive?", showPP f]
+
+        -- Capture analysis should never permit a non-capturing caller to
+        -- tail-call a capturing function.
         (Capture,NoCapture) -> panic "cBasicBlock" [ "Capture from no-capture" ]
 
-        -- this is not a tail call anymore
+        -- A capturing caller cannot return directly from a non-capturing
+        -- callee, so call it normally and feed its result to ParserState.
         (NoCapture,Capture)
           | vmfPure fun, vmfThrows fun == Throws ->
             let resultVar = "callResult"
@@ -1352,6 +1468,8 @@ cTermStmt ccInstr =
                    ]
                ]
 
+        -- Outside an explicit-stack worker, an ordinary non-capturing tail
+        -- call is emitted as a native C++ return.
         (NoCapture,NoCapture) ->
             [ cStmt $ "return" <+> doCall args ]
 
@@ -1364,6 +1482,31 @@ cTermStmt ccInstr =
         (_,Unknown) ->  panic "cTermStmt" ["Unknown"]
 
   where
+  recCodegen =
+    Recursive.Codegen
+      { Recursive.compileExpr = cExpr
+      , Recursive.compileFree = cFree
+      , Recursive.compileFreeValue =
+          \ty value ->
+            case ty of
+              TThreadId -> empty
+              TSem {}   -> cStmt (cCall (value <.> ".free") [])
+      }
+
+  -- A call leaving a recursive group must unwind its vector stack before
+  -- propagating an exception.
+  propagateParserException =
+    case recCtx of
+      Just ctx -> Recursive.compileExceptionParser recCodegen ctx
+      Nothing  -> cPropagateExnParser
+
+  propagatePureException resultVar =
+    case recCtx of
+      Just ctx ->
+        Recursive.compileExceptionPure recCodegen ctx
+          (cCallMethod resultVar "getException" [])
+      Nothing -> cPropagateExnPure resultVar
+
   lkpFun f = case Map.lookup f ?allFuns of
                Just fun -> fun
                Nothing  -> panic "cTermStmt" [ "Unknown function", show (pp f) ]
@@ -1550,5 +1693,3 @@ compileBigInteITE e alts = foldTree dflt mkOne mkIf opts
                                  [cString (show i)] ]
            , [ cStmt (cCallMethod ivarName "free" []) ]
            )
-
-
