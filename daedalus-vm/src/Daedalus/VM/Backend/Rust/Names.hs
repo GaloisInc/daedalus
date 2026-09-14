@@ -1,6 +1,8 @@
 module Daedalus.VM.Backend.Rust.Names where
 
+import Data.Char(isAlphaNum,isAscii)
 import Data.Text qualified as Text
+import Numeric(showHex)
 
 import Daedalus.GUID(guidString)
 import Daedalus.Core qualified as Core
@@ -20,7 +22,23 @@ compileFName f = Rust.mkIdent (txt ++ suff)
   where
   suff = if Core.fnamePublic f then "" else "_" ++ uid
   uid = guidString (Core.fnameId f)
-  txt = Rust.snakeCase (Text.unpack (Core.fnameText f))
+  txt = Rust.snakeCase (escapeFName (Text.unpack (Core.fnameText f)))
+
+-- Named byte classes have names such as `$lf`.  Give these a readable Rust
+-- name, so `$lf` becomes `byte_class_lf`.  Encode any other characters which
+-- are not valid in Rust identifiers using the convention employed by the C
+-- backend.
+escapeFName :: String -> String
+escapeFName name =
+  case name of
+    '$' : more -> "byte_class_" ++ escapeChars more
+    _          -> escapeChars name
+  where
+  escapeChars = concatMap escape
+
+  escape c
+    | c == '_' || isAlphaNum c && isAscii c = [c]
+    | otherwise                            = "z" ++ showHex (fromEnum c) "z"
 
 compileRecEntryTypeName :: Core.FName -> Rust.Ident
 compileRecEntryTypeName f =
@@ -30,7 +48,7 @@ compileRecEntryTypeName f =
 compileRecEntryConName :: Core.FName -> Rust.Ident
 compileRecEntryConName f =
   Rust.mkIdent
-    (Rust.upperCamelCase (Text.unpack (Core.fnameText f)) ++
+    (Rust.upperCamelCase (escapeFName (Text.unpack (Core.fnameText f))) ++
      guidString (Core.fnameId f))
 
 compileRecFunName :: Core.FName -> Rust.Ident
@@ -40,14 +58,17 @@ compileRecFunName f =
 compileRecFrameConName :: Core.FName -> Rust.Ident
 compileRecFrameConName f =
   Rust.mkIdent
-    ("Done" ++ Rust.upperCamelCase (Text.unpack (Core.fnameText f)) ++
+    ("Done" ++
+     Rust.upperCamelCase (escapeFName (Text.unpack (Core.fnameText f))) ++
      guidString (Core.fnameId f))
 
 compileRecCallFrameConName :: VM.Label -> Core.FName -> Rust.Ident
 compileRecCallFrameConName (VM.Label caller n) callee =
   Rust.mkIdent
-    (Rust.upperCamelCase (Text.unpack caller) ++
-     Rust.upperCamelCase (Text.unpack (Core.fnameText callee)) ++ show n)
+    (Rust.upperCamelCase (escapeFName (Text.unpack caller)) ++
+     Rust.upperCamelCase
+       (escapeFName (Text.unpack (Core.fnameText callee))) ++
+     show n)
 
 recFrameTypeName :: Rust.Ident
 recFrameTypeName = "Frame"
@@ -69,7 +90,8 @@ parserStateName = "_state"
 
 compileBlockLabel :: VM.Label -> Rust.Ident
 compileBlockLabel (VM.Label txt n) =
-  Rust.mkIdent (Rust.upperCamelCase (Text.unpack txt) ++ "B" ++ show n)
+  Rust.mkIdent
+    (Rust.upperCamelCase (escapeFName (Text.unpack txt)) ++ "B" ++ show n)
 
 -- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident
