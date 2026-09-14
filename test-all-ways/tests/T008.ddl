@@ -3,7 +3,7 @@ def Main =
     'F' -> ThrowF 4 255
     'T' -> TailThrowF 4 255
     'N' -> Normal
-    
+
 
 
 def Normal : uint 8 =
@@ -17,6 +17,15 @@ def Normal : uint 8 =
     (countTail depth 0 == depth) is true
     (isEven depth) is true
     (isOdd (depth + 1)) is true
+    (DeepTailF 250000 0 == 250000) is true
+
+    -- Exercise an owned reference value saved in a continuation frame.
+    let kept = KeepArrayF 3 [1, 2]
+    (length kept == 8) is true
+
+    -- Exercise a tail call leaving a recursive group while non-tail
+    -- continuation frames are still pending.
+    (ExitFramedF 4 == 15) is true
 
     -- Exercise a non-tail parser call within a mutually recursive group.
     -- Both functions are called from outside the group, so both need wrappers.
@@ -46,6 +55,17 @@ def Normal : uint 8 =
     let exitFailure = Optional (ExitF 4)
     exitFailure is nothing
 
+    -- Exercise a tail call leaving a recursive parser group while non-tail
+    -- parser continuation frames are still pending.
+    SetStream (arrayStream "z!!!!!")
+    let framedExitSuccess = ExitParserF 4
+    (framedExitSuccess == 'z') is true
+    END
+
+    SetStream (arrayStream "z!!!!")
+    let framedExitFailure = Optional (ExitParserF 4)
+    framedExitFailure is nothing
+
     counted
 
 
@@ -70,6 +90,37 @@ def isEven (n : uint 8) =
 
 def isOdd (n : uint 8) =
   if n == 0 then false else isEven (n - 1)
+
+
+-- Use enough mutually recursive tail calls that generated native recursion is
+-- likely to overflow the C++ or Rust call stack.
+def DeepTailF (n : uint 64) (acc : uint 64) : uint 64 =
+  if n == 0 then acc else DeepTailG (n - 1) (acc + 1)
+
+def DeepTailG (n : uint 64) (acc : uint 64) : uint 64 =
+  DeepTailF n acc
+
+
+-- KeepArrayF saves xs in a continuation frame while KeepArrayG tail-calls
+-- back into the group.  This exercises reference-valued frame fields.
+def KeepArrayF (n : uint 8) (xs : [uint 8]) =
+  if n == 0
+    then xs
+    else concat [ KeepArrayG (n - 1) xs, xs ]
+
+def KeepArrayG (n : uint 8) (xs : [uint 8]) =
+  KeepArrayF n xs
+
+
+-- ExitFramedF pushes a continuation frame, ExitFramedG tail-calls within the
+-- group, and the base case tail-calls a function outside the group.
+def ExitFramedF (n : uint 8) : uint 8 =
+  ExitFramedG n + 1
+
+def ExitFramedG (n : uint 8) : uint 8 =
+  if n == 0 then ExitFramedLeaf else ExitFramedF (n - 1)
+
+def ExitFramedLeaf : uint 8 = 10
 
 
 -- NestF makes a non-tail call to NestG because it must still parse the closing
@@ -116,3 +167,15 @@ def ExitG (n : uint 8) : uint 8 =
   ExitF n
 
 def ExitLeaf = $['z']
+
+
+-- ExitParserF has work to do after calling ExitParserG, so it pushes a
+-- continuation frame.  ExitParserG either tail-calls back into the group or
+-- tail-calls ExitLeaf outside the group.
+def ExitParserF (n : uint 8) : uint 8 =
+  block
+    $$ = ExitParserG n
+    $['!']
+
+def ExitParserG (n : uint 8) : uint 8 =
+  if n == 0 then ExitLeaf else ExitParserF (n - 1)
