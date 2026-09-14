@@ -599,7 +599,9 @@ compileOp1 x op e argTy =
             case lookup lab ls of
               Nothing -> bad "Missing label"
               Just Core.HasData ->
-                Rust.matchArm (Rust.conPat con [Rust.identPat "a"]) (Rust.identExpr "a")
+                Rust.matchArm
+                  (Rust.conPat con [Rust.identPat "a"])
+                  (Rust.callMethod (Rust.identExpr "a") "clo" [])
               Just Core.NoData -> noArg
           Core.TFlavStruct {} -> bad "struct"
         
