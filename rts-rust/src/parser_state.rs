@@ -1,41 +1,110 @@
 use crate as ddl;
 use ddl::Clo;
-use std::collections::HashMap;
-use std::fmt;
 use serde::Serialize;
+use std::collections::VecDeque;
+use std::fmt;
 
 // ============================================================================
 // Parser Context Tracking
 // ============================================================================
 
-/// A frame in the parser context stack, tracking the current function
-/// and history of tail calls within this frame.
+const MAX_TAIL_CALL_RUNS: usize = 64;
+
 #[derive(Clone)]
-pub struct ParserContextFrame {
-    cur: String,
-    history: HashMap<String, usize>,
+pub struct TailCallRun {
+    label: String,
+    count: usize,
+}
+
+/// A frame in the parser context stack.
+#[derive(Clone)]
+pub enum ParserContextFrame {
+    Call {
+        label: String,
+    },
+    TailCalls {
+        entry: String,
+        recent: VecDeque<TailCallRun>,
+        omitted: usize,
+    },
 }
 
 impl ParserContextFrame {
-    pub fn new(fun: String) -> Self {
-        ParserContextFrame {
-            cur: fun,
-            history: HashMap::new(),
+    pub fn new(label: String) -> Self {
+        ParserContextFrame::Call { label }
+    }
+
+    pub fn tail_call(&mut self, label: String) {
+        match self {
+            ParserContextFrame::Call { label: call_site } => {
+                let entry = std::mem::take(call_site);
+                let mut recent = VecDeque::new();
+                recent.push_back(TailCallRun {
+                    label,
+                    count: 1,
+                });
+                *self = ParserContextFrame::TailCalls {
+                    entry,
+                    recent,
+                    omitted: 0,
+                };
+            }
+            ParserContextFrame::TailCalls {
+                recent, omitted, ..
+            } => {
+                if let Some(run) = recent.back_mut() {
+                    if run.label == label {
+                        run.count += 1;
+                        return;
+                    }
+                }
+
+                if recent.len() == MAX_TAIL_CALL_RUNS {
+                    let run = recent.pop_front().unwrap();
+                    *omitted += run.count;
+                }
+                recent.push_back(TailCallRun {
+                    label,
+                    count: 1,
+                });
+            }
         }
     }
 
-    pub fn tail_call(&mut self, fun: String) {
-        let count = self.history.entry(self.cur.clone()).or_insert(0);
-        *count += 1;
-        self.cur = fun;
-    }
+    fn entries(&self) -> Vec<ContextEntry> {
+        match self {
+            ParserContextFrame::Call { label } => {
+                vec![ContextEntry::Simple(label.clone())]
+            }
+            ParserContextFrame::TailCalls {
+                entry,
+                recent,
+                omitted,
+            } => {
+                let mut entries = Vec::new();
+                let mut first_recent = 0;
 
-    pub fn get_cur(&self) -> &str {
-        &self.cur
-    }
+                // Combine the entry with an immediately repeated call site.
+                if *omitted == 0 && recent.front().map(|run| &run.label) == Some(entry) {
+                    entries.push(ContextEntry::call(entry, recent[0].count + 1));
+                    first_recent = 1;
+                } else {
+                    entries.push(ContextEntry::Simple(entry.clone()));
+                }
 
-    pub fn get_history(&self) -> &HashMap<String, usize> {
-        &self.history
+                if *omitted > 0 {
+                    entries.push(ContextEntry::Omitted { omitted: *omitted });
+                }
+
+                entries.extend(
+                    recent
+                        .iter()
+                        .skip(first_recent)
+                        .map(|run| ContextEntry::call(&run.label, run.count)),
+                );
+                entries
+            }
+        }
     }
 }
 
@@ -154,22 +223,16 @@ impl fmt::Display for ParseError {
         writeln!(f, "  • Grammar context:")?;
 
         for frame in self.debugs.iter() {
-            write!(f, "    • {}", frame.get_cur())?;
-
-            let history = frame.get_history();
-            if let Some(&count) = history.get(frame.get_cur()) {
-                if count > 0 {
-                    write!(f, " ({} times)", count + 1)?;
-                }
-            }
-
-            for (name, &count) in history.iter() {
-                if name == frame.get_cur() {
-                    continue;
-                }
-                write!(f, " {}", name)?;
-                if count > 1 {
-                    write!(f, " ({} times)", count)?;
+            write!(f, "    •")?;
+            for entry in frame.entries() {
+                match entry {
+                    ContextEntry::Simple(name) => write!(f, " {}", name)?,
+                    ContextEntry::WithCount(name, count) => {
+                        write!(f, " {} ({} times)", name, count)?
+                    }
+                    ContextEntry::Omitted { omitted } => {
+                        write!(f, " ... ({} tail calls omitted)", omitted)?
+                    }
                 }
             }
             writeln!(f)?;
@@ -193,6 +256,24 @@ impl fmt::Display for ParseError {
 enum ContextEntry {
     WithCount(String, usize),
     Simple(String),
+    Omitted { omitted: usize },
+}
+
+impl ContextEntry {
+    fn call(label: &str, count: usize) -> Self {
+        if count > 1 {
+            ContextEntry::WithCount(label.to_string(), count)
+        } else {
+            ContextEntry::Simple(label.to_string())
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ContextFrame {
+    Call(String),
+    TailCalls(Vec<ContextEntry>),
 }
 
 impl Serialize for ParseError {
@@ -213,40 +294,14 @@ impl Serialize for ParseError {
         map.serialize_entry("offset", &self.input.offset())?;
 
         // Serialize context
-        let mut context: Vec<Vec<ContextEntry>> = Vec::new();
-        for frame in self.debugs.iter() {
-            let mut frame_entries = Vec::new();
-
-            let cur = frame.get_cur();
-            let history = frame.get_history();
-
-            // Current function (first in frame)
-            let n = if let Some(&count) = history.get(cur) {
-                count + 1
-            } else {
-                1
-            };
-
-            if n > 1 {
-                frame_entries.push(ContextEntry::WithCount(cur.to_string(), n));
-            } else {
-                frame_entries.push(ContextEntry::Simple(cur.to_string()));
-            }
-
-            // History entries (excluding current)
-            for (name, &count) in history.iter() {
-                if name == cur {
-                    continue;
-                }
-                if count > 1 {
-                    frame_entries.push(ContextEntry::WithCount(name.clone(), count));
-                } else {
-                    frame_entries.push(ContextEntry::Simple(name.clone()));
-                }
-            }
-
-            context.push(frame_entries);
-        }
+        let context: Vec<_> = self
+            .debugs
+            .iter()
+            .map(|frame| match frame {
+                ParserContextFrame::Call { label } => ContextFrame::Call(label.clone()),
+                ParserContextFrame::TailCalls { .. } => ContextFrame::TailCalls(frame.entries()),
+            })
+            .collect();
         map.serialize_entry("context", &context)?;
 
         // Serialize location if present
