@@ -1,0 +1,30 @@
+DAEDALUS ?= ../../../../bin/daedalus
+
+SPEC_DIR = ../pdf-cos-spec
+SPEC = $(SPEC_DIR)/PdfCos.ddl
+SPEC_SOURCES = $(wildcard $(SPEC_DIR)/*.ddl)
+PARSER = src/pdfcos.rs
+
+.PHONY: all generate clean
+
+all: $(PARSER)
+	cargo build
+
+generate: $(PARSER)
+
+$(PARSER): $(SPEC_SOURCES) src/native.rs src/state.rs
+	$(DAEDALUS) compile-rust $(SPEC) \
+		--determinize \
+		--output-file=$(PARSER) \
+		--entry=PdfXRef.PdfEnd \
+		--entry=PdfXRef.CrossRef \
+		--entry=PdfDecl.TopDecl \
+		--entry=PdfDecl.ObjStream \
+		--entry=PdfDecl.ObjStreamEntry \
+		--entry=PdfCrypto.EncryptionDict \
+		--user-state=crate::state::ReferenceTable \
+		--user-fun=crate::native
+
+clean:
+	cargo clean
+	rm -f $(PARSER)
