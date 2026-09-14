@@ -584,9 +584,7 @@ compileOp1 x op e argTy =
       where
       arm2 =
         Rust.matchArm Rust.wildPat
-          (Rust.callMacro (Rust.simplePath "assert")
-            (map Rust.litExpr [ Rust.boolLit False,
-                                Rust.strLit ("Not " ++ show (pp lab))]))
+          (Rust.callMacro (Rust.simplePath "unreachable") [])
       unm =
         case argTy of
           VM.TSem (Core.TUser ut) -> Core.utName ut
