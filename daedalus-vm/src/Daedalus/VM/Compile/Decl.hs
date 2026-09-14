@@ -1,6 +1,3 @@
-{-# Language BlockArguments #-}
-{-# Language OverloadedStrings #-}
-{-# Language ImplicitParams #-}
 module Daedalus.VM.Compile.Decl where
 
 import Data.Set (Set)

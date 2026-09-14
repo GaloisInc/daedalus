@@ -1,4 +1,3 @@
-{-# Language BlockArguments #-}
 module Daedalus.VM.RefCountSane where
 
 import Data.List(find)
@@ -312,4 +311,3 @@ checkJumpChoice loc ro blockOk (JumpCase alts) count =
                     )
            -- XXX: report diff
          | otherwise -> pure m
-

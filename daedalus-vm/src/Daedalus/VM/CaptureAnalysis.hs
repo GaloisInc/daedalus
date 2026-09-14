@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.CaptureAnalysis where
 
 import Data.Set(Set)

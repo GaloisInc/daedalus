@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings, ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.Rust (
   compileProgram,
   Config(..)

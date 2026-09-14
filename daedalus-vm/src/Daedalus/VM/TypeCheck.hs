@@ -1,5 +1,3 @@
-{-# Language BlockArguments, ImplicitParams, ConstraintKinds #-}
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.TypeCheck where
 
 import Data.Map (Map)

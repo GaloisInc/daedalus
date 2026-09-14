@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings #-}
 module Daedalus.VM.Backend.Rust.Names where
 
 import Data.Text qualified as Text

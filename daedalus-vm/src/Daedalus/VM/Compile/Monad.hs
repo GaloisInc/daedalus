@@ -1,4 +1,3 @@
-{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.Compile.Monad where
 
 import Data.Map(Map)
@@ -200,5 +199,4 @@ retPure t def =
      pure do es <- mapM getLocal vs
              is <- if inp then (:[]) <$> getInput else pure []
              pure (JumpPoint l (is++es))
-
 

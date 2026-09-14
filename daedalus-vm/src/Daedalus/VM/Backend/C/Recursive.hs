@@ -1,5 +1,3 @@
-{-# Language BlockArguments, ConstraintKinds, ImplicitParams #-}
-{-# Language ImportQualifiedPost, OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Recursive
   ( Codegen(..)
   , GroupCodegen(..)

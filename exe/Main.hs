@@ -1,6 +1,3 @@
-{-# Language ScopedTypeVariables #-}
-{-# Language ImplicitParams #-}
-{-# Language GADTs #-}
 module Main where
 
 import qualified Data.Text as Text

@@ -1,6 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
-{-# Language ImplicitParams, ConstraintKinds #-}
-{-# Language ParallelListComp #-}
 module Daedalus.VM.Backend.C where
 
 import qualified Data.ByteString as BS

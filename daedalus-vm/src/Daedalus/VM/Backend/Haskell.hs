@@ -1,5 +1,3 @@
-{-# Language TemplateHaskell, ConstraintKinds, ImplicitParams #-}
-{-# Language RankNTypes, BlockArguments #-}
 module Daedalus.VM.Backend.Haskell
   ( compileModule
   , Config(..)
@@ -778,6 +776,5 @@ doJump before after jp =
           ++ map compileE (jArgs jp)
           ++ after
            )
-
 
 

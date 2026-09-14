@@ -1,5 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
-{-# Language ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.C.Names where
 
 import Data.Text(Text)

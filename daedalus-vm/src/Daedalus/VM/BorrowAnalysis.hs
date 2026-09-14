@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.BorrowAnalysis(doBorrowAnalysis,modeI,modePrimName) where
 
 import           Data.Maybe(catMaybes)

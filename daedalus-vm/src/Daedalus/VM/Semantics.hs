@@ -1,4 +1,3 @@
-{-# Language BlockArguments, LambdaCase, GeneralizedNewtypeDeriving, ParallelListComp, ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Semantics where
 
 import Control.Applicative ((<|>))

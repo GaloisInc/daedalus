@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM
   ( module Daedalus.VM
   , Src.Pattern(..)

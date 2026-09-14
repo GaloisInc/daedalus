@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings #-}
 module Daedalus.VM.Backend.Rust.Recursive
   ( Codegen(..)
   , GroupCodegen(..)

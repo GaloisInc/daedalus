@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.ThrowsAnalysis where
 
 import Data.Set(Set)

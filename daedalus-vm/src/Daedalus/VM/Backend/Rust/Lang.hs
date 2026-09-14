@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, ImportQualifiedPost #-}
 module Daedalus.VM.Backend.Rust.Lang (
   module Daedalus.VM.Backend.Rust.Lang,
   module Language.Rust.Syntax,

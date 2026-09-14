@@ -76,6 +76,7 @@ edge sty funMap b =
   red   = "#FF0000FF"
   green = "#00FF00FF"
 
+  edgeTo :: String -> String -> Label -> String
   edgeTo c l x = me ++ " -> " ++ node x ++ "[ label=" ++ show l ++
                                   " color=" ++ show c ++ "];"
 

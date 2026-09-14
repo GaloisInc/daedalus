@@ -1,4 +1,3 @@
-{-# Language ImplicitParams #-}
 module Results(dumpResult, dumpValues, dumpErr, saveDetailedError) where
 
 import Control.Monad(forM_)
@@ -345,7 +344,6 @@ tokenClass tok =
 
     TokError {}           -> clNone
     TokEOF                -> clNone
-
 
 
 

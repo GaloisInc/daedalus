@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost #-}
 module Daedalus.VM.RecursionAnalysis
   ( Frame(..)
   , RetCont(..)

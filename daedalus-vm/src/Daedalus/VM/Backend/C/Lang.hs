@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Lang where
 
 import Text.PrettyPrint as P
@@ -174,4 +173,3 @@ cTemplate typeArgs body = cInst "template" typeArgs $$ body
 
 cDebugMsg :: String -> Doc
 cDebugMsg msg = "std::cout <<" <+> text (show msg) <+> "<< std::endl;"
-

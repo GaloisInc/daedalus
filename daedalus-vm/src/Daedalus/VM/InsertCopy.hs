@@ -1,5 +1,4 @@
 -- | Assumes borrow analysis has been done
-{-# Language BlockArguments, OverloadedStrings #-}
 module Daedalus.VM.InsertCopy (addCopyIs) where
 
 import Control.Monad(zipWithM,ap,liftM)
