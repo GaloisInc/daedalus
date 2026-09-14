@@ -4,9 +4,11 @@ import Data.Text(Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Char8 as BS8
+import Data.Foldable(toList)
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
-import Data.List(nub)
+import Data.Sequence(Seq)
+import qualified Data.Sequence as Seq
 import Data.Functor.Identity
 import Data.Coerce(coerce)
 import qualified Text.PrettyPrint as PP
@@ -69,9 +71,30 @@ data ThreadState r m = ThreadState
   }
 
 data ParserErrorState = ParserErrorState
-  { pesCallStack :: [[Text]]
+  { pesCallStack :: [ParserContextFrame]
   , pesError     :: Maybe ParseError
   }
+
+data ParserContextFrame
+  = ParserContextCall Text
+  | ParserContextTailCalls
+      { pctEntry   :: Text
+      , pctRecent  :: Seq TailCallRun
+      , pctOmitted :: !Int
+      }
+  deriving Show
+
+data TailCallRun = TailCallRun
+  { tcrLabel :: Text
+  , tcrCount :: !Int
+  } deriving Show
+
+data ParserContextEntry
+  = ParserContextEntry Text Int
+  | ParserContextOmitted Int
+
+maxTailCallRuns :: Int
+maxTailCallRuns = 64
 
 data ParseErrorSource = FromUser | FromSystem
   deriving Show
@@ -81,7 +104,7 @@ data ParseError = ParseError
   , peLoc    :: Text
   , peInput  :: RTS.Input
   , peMsg    :: RTS.Vector (RTS.UInt 8)
-  , peStack  :: [[Text]]
+  , peStack  :: [ParserContextFrame]
   } deriving Show
 
 thrUpdateErrors ::
@@ -142,12 +165,39 @@ vmAbortAll loc msg s = pure s { thrStack   = []
 vmPushDebugTail :: Text -> ParserErrorState -> ParserErrorState
 vmPushDebugTail t s =
   case pesCallStack s of
-    xs : more -> s { pesCallStack = (t : xs) : more }
-    []        -> s { pesCallStack = [[t]] }
+    frame : more -> s { pesCallStack = tailCall t frame : more }
+    []           -> s { pesCallStack = [ParserContextCall t] }
+  where
+  tailCall label frame =
+    case frame of
+      ParserContextCall entry ->
+        ParserContextTailCalls
+          { pctEntry   = entry
+          , pctRecent  = Seq.singleton (TailCallRun label 1)
+          , pctOmitted = 0
+          }
+
+      ParserContextTailCalls { .. } ->
+        case Seq.viewr pctRecent of
+          recent Seq.:> TailCallRun runLabel count
+            | runLabel == label ->
+                frame { pctRecent = recent Seq.|> TailCallRun runLabel (count + 1) }
+
+          _ ->
+            case Seq.viewl pctRecent of
+              TailCallRun _ count Seq.:< recent
+                | Seq.length pctRecent == maxTailCallRuns ->
+                    frame { pctRecent  = recent Seq.|> TailCallRun label 1
+                          , pctOmitted = pctOmitted + count
+                          }
+
+              _ -> frame { pctRecent = pctRecent Seq.|> TailCallRun label 1 }
+                  
 {-# INLINE vmPushDebugTail #-}
 
 vmPushDebugCall :: Text -> ParserErrorState -> ParserErrorState
-vmPushDebugCall t s = s { pesCallStack = [t] : pesCallStack s }
+vmPushDebugCall t s =
+  s { pesCallStack = ParserContextCall t : pesCallStack s }
 {-# INLINE vmPushDebugCall #-}
 
 vmPopDebug :: ParserErrorState -> ParserErrorState
@@ -303,7 +353,39 @@ ppParseError pe =
   where
   inp      = peInput pe
   ppText t = PP.text (Text.unpack t)
-  ppFun xs = PP.hsep (map ppText xs)
+  ppFun frame = PP.hsep (map ppEntry (contextEntries frame))
+
+  ppEntry entry =
+    case entry of
+      ParserContextEntry label count
+        | count > 1 ->
+            ppText label PP.<+>
+              PP.parens (PP.int count PP.<+> "times")
+        | otherwise -> ppText label
+      ParserContextOmitted count ->
+        "..." PP.<+>
+          PP.parens (PP.int count PP.<+> "tail calls omitted")
+
+
+contextEntries :: ParserContextFrame -> [ParserContextEntry]
+contextEntries frame =
+  case frame of
+    ParserContextCall label -> [ ParserContextEntry label 1 ]
+
+    ParserContextTailCalls { .. } ->
+      case toList pctRecent of
+        TailCallRun label count : recent
+          | pctOmitted == 0 && label == pctEntry ->
+              ParserContextEntry pctEntry (count + 1)
+                : map runEntry recent
+
+        recent ->
+          ParserContextEntry pctEntry 1
+            : [ ParserContextOmitted pctOmitted | pctOmitted > 0 ]
+           ++ map runEntry recent
+  where
+  runEntry TailCallRun { .. } =
+    ParserContextEntry tcrLabel tcrCount
 
 
 instance JSON.ToJSON ParseError where
@@ -319,17 +401,16 @@ instance JSON.ToJSON ParseError where
       )
     where
     jsonFrame frame =
-      JSON.jsArray
-        case frame of
-          [] -> []
-          cur : history ->
-            jsonEntry cur (1 + count cur history)
-            : [ jsonEntry name (count name history)
-              | name <- nub history, name /= cur
-              ]
+      case frame of
+        ParserContextCall label -> JSON.toJSON label
+        ParserContextTailCalls {} ->
+          JSON.jsArray (map jsonEntry (contextEntries frame))
 
-    jsonEntry name n
-      | n > 1 = JSON.jsArray [ JSON.toJSON name, JSON.toJSON n ]
-      | otherwise = JSON.toJSON name
-
-    count name = length . filter (== name)
+    jsonEntry entry =
+      case entry of
+        ParserContextEntry label count
+          | count > 1 ->
+              JSON.jsArray [ JSON.toJSON label, JSON.toJSON count ]
+          | otherwise -> JSON.toJSON label
+        ParserContextOmitted count ->
+          JSON.jsObject [ ("omitted", JSON.toJSON count) ]
