@@ -580,7 +580,7 @@ compileOp1 x op e argTy =
     Core.FromUnion ty lab
       | Core.tnameBD unm ->
         def (Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [Rust.callMethod e "to_bits" []])
-      | otherwise -> def (Rust.matchExpr e [ arm1, arm2 ])
+      | otherwise -> def (Rust.matchExpr matchInput [ arm1, arm2 ])
       where
       arm2 =
         Rust.matchArm Rust.wildPat
@@ -590,6 +590,9 @@ compileOp1 x op e argTy =
           VM.TSem (Core.TUser ut) -> Core.utName ut
           _ -> bad "not a sematnic type"
       isRec = Core.tnameRec unm
+      matchInput
+        | isRec = Rust.callMethod e "as_ref" []
+        | otherwise = e
       con   = Rust.simplePath' [compileTName isRec unm, compileConLabel lab]
       noArg = Rust.matchArm (Rust.conPat con []) (Rust.pathExpr (ddlPath "Unit"))
       arm1  =
