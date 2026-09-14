@@ -110,7 +110,7 @@ compileFieldLabel l
 
 rustKeywords :: [String]
 rustKeywords = words "as async await box break const continue crate do dyn else enum \
-  \extern false fn for if impl in let loop macro match mod move mut \
+  \extern false fn for gen if impl in let loop macro match mod move mut \
   \pub ref return self static struct super trait true try type \
   \unsafe use where while yield abstract become final override priv \
   \proc typeof unsized virtual"
