@@ -23,6 +23,10 @@ import Daedalus.VM.RecursionAnalysis (funSCCs)
 
 
 
+-- | Construct a VM program.
+--
+-- Modules must be supplied in dependency order.  Cross-module recursion is
+-- not supported.
 moduleToProgram :: [Module] -> Program
 moduleToProgram ms =
   throwsAnalysis $

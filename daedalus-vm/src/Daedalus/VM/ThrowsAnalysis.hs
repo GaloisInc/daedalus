@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import Data.List(foldl')
 
 import Daedalus.Rec(Rec(..))
+import Daedalus.Panic(panic)
 import Daedalus.PP
 
 import Daedalus.VM
@@ -34,7 +35,16 @@ getThrows :: Map FName ThrowsInfo -> FName -> Throws
 getThrows mp f =
   case Map.lookup f mp of
     Just ThrowsYes -> Throws
-    _              -> NoThrows
+    Just (ThrowsIf fs)
+      | Set.null fs -> NoThrows
+      | otherwise ->
+          panic "getThrows"
+            [ "Unresolved throw dependencies for " ++ show (pp f)
+            , show (map pp (Set.toList fs))
+            ]
+    Nothing ->
+      panic "getThrows"
+        [ "Missing throw information for " ++ show (pp f) ]
 
 updateKnownGroup ::
   Map FName ThrowsInfo -> Rec (FName, ThrowsInfo) -> Map FName ThrowsInfo

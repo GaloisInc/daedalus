@@ -105,7 +105,16 @@ getCaptures :: Map FName CaptureInfo -> FName -> Captures
 getCaptures mp f =
   case Map.lookup f mp of
     Just CapturesYes -> Capture
-    _                -> NoCapture
+    Just (CapturesIf fs)
+      | Set.null fs -> NoCapture
+      | otherwise ->
+          panic "getCaptures"
+            [ "Unresolved capture dependencies for " ++ show (pp f)
+            , show (map pp (Set.toList fs))
+            ]
+    Nothing ->
+      panic "getCaptures"
+        [ "Missing capture information for " ++ show (pp f) ]
 
 updateKnownGroup ::
   Map FName CaptureInfo -> Rec (FName, CaptureInfo) -> Map FName CaptureInfo
