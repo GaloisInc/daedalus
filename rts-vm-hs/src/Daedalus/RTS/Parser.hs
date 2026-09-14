@@ -6,6 +6,7 @@ import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Char8 as BS8
 import Data.IntSet(IntSet)
 import qualified Data.IntSet as Set
+import Data.List(nub)
 import Data.Functor.Identity
 import Data.Coerce(coerce)
 import qualified Text.PrettyPrint as PP
@@ -13,6 +14,7 @@ import qualified Text.PrettyPrint as PP
 import qualified Daedalus.RTS.Input as RTS
 import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Numeric as RTS
+import qualified Daedalus.RTS.JSON as JSON
 
 -- | The result of a parser: success, failure, or exception.
 data DResult a = DSuccess a RTS.Input
@@ -104,7 +106,7 @@ vmNoteFail ty loc inp msg s =
              , peLoc    = loc
              , peInput  = inp
              , peMsg    = msg
-             , peStack  = pesCallStack s
+             , peStack  = reverse (pesCallStack s)
              }
 
   improve old =
@@ -128,7 +130,7 @@ vmSetException loc msg s = s { pesError = Just err }
     , peLoc    = loc
     , peInput  = RTS.newInput "" ""
     , peMsg    = RTS.vecFromRep (Text.encodeUtf8 msg)
-    , peStack  = pesCallStack s
+    , peStack  = reverse (pesCallStack s)
     }
 
 vmAbortAll :: Applicative m => Text -> Text -> Code r m
@@ -253,7 +255,17 @@ runCParserAllM p = done <$> p topNoK topYesAllK initThreadState
   where
   done s = case thrResults s of
              [] -> Left (doGetErr (thrErrors s))
-             rs -> Right rs
+             rs -> Right (reverse rs)
+
+-- | Uniform interface used by generated standalone parser applications.
+class RunnableParser p a | p -> a where
+  runParserResults :: p -> Either ParseError [a]
+
+instance RunnableParser (DParser a) a where
+  runParserResults p = (:[]) <$> runDParser p
+
+instance (r ~ a) => RunnableParser (CParser r a) a where
+  runParserResults = runCParserAll
 
 --------------------------------------------------------------------------------
 dparserToEither ::
@@ -294,3 +306,30 @@ ppParseError pe =
   ppFun xs = PP.hsep (map ppText xs)
 
 
+instance JSON.ToJSON ParseError where
+  toJSON pe =
+    JSON.jsObject
+      ( [ ("error", JSON.toJSON (Text.decodeUtf8 (RTS.vecToRep (peMsg pe))))
+        , ("offset", JSON.toJSON (RTS.inputOffset (peInput pe)))
+        , ("context", JSON.jsArray (map jsonFrame (peStack pe)))
+        ]
+        ++ [ ("location", JSON.toJSON (peLoc pe))
+           | not (Text.null (peLoc pe))
+           ]
+      )
+    where
+    jsonFrame frame =
+      JSON.jsArray
+        case frame of
+          [] -> []
+          cur : history ->
+            jsonEntry cur (1 + count cur history)
+            : [ jsonEntry name (count name history)
+              | name <- nub history, name /= cur
+              ]
+
+    jsonEntry name n
+      | n > 1 = JSON.jsArray [ JSON.toJSON name, JSON.toJSON n ]
+      | otherwise = JSON.toJSON name
+
+    count name = length . filter (== name)

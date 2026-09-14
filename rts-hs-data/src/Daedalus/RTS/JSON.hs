@@ -65,7 +65,7 @@ instance ToJSON ShortByteString where
 instance (ToJSON a) => ToJSON (Maybe a) where
   toJSON a = case a of
                Nothing -> jsNull
-               Just v  -> jsTagged "$just" (toJSON v)
+               Just v  -> jsTagged "$$just" (toJSON v)
 
 -- This is DDL specific
 instance (ToJSON a, ToJSON b) => ToJSON (Map a b) where
@@ -145,5 +145,4 @@ jsText x = coerce (char7 '"' <> escaped x <> char7 '"')
       34  -> "\\\""
       92  -> "\\\\"
       _   -> "\\u00" <> hex (div c 16) <> hex (mod c 16)
-
 

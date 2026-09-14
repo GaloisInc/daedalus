@@ -9,13 +9,19 @@ import Data.Maybe
 import Data.List
 import Data.Char
 import Control.Monad(filterM,forM,unless)
-import Control.Exception(SomeException(..),catch)
+import Control.Exception
+  ( AsyncException
+  , SomeException(..)
+  , catch
+  , fromException
+  , throwIO
+  )
 import System.FilePath
 import System.Process
 import System.Directory
 import System.Environment
 import System.IO
-import System.Exit(exitFailure,exitSuccess)
+import System.Exit(ExitCode(..),exitFailure,exitSuccess)
 
 main :: IO ()
 main =
@@ -123,10 +129,8 @@ compileWith be ddl =
 
 compileHaskell :: Quiet => FilePath -> IO ()
 compileHaskell ddl =
-  do let root   = buildRootDirFor CompileHaskell
-         build  = buildDirFor CompileHaskell ddl
+  do let build  = buildDirFor CompileHaskell ddl
      createDirectoryIfMissing True build
-     callProcess' "cp" ["template_cabal_project", root </> "cabal.project"]
      exe <- daedalusExe
      callProcess' exe [ "compile-hs", "--out-dir=" ++ build, ddl ]
      callProcessIn_ build "cabal" ["build"]
@@ -141,7 +145,7 @@ compileCPP ddl =
      createDirectoryIfMissing True build
      exe <- daedalusExe
      callProcess' exe [ "compile-c++", "--out-dir=" ++ build, ddl ]
-     callProcess' "make" [ "-C", build, "parser" ]
+     callProcess' "make" [ "-C", build, "-f", "Makefile.debug", "parser" ]
 
 compileRust :: Quiet => FilePath -> IO ()
 compileRust ddl =
@@ -214,15 +218,43 @@ equiv xs0 =
       case partition ((== b) . snd) xs of
         (as,bs) -> (x : map fst as, b) : equiv bs
 
-load :: Backend -> FilePath -> Maybe FilePath -> IO (Backend,String)
+data Output = NoResult
+            | Results String
+            | ErrorResult String
+            | InvalidOutput String
+  deriving Eq
+
+load :: Backend -> FilePath -> Maybe FilePath -> IO (Backend,Output)
 load be ddl mbInput =
   do let file = outputFileFor be ddl mbInput
-     txt <- readProcess "jq" [".",file] ""
-                `catch` \SomeException{} ->
-                   do putStrLn ("Failed to parse output: " ++ show file)
-                      putStrLn =<< readFile file
-                      pure ""
-     pure (be,txt)
+     raw <- readFile file
+     if all isSpace raw
+       then pure (be,NoResult)
+       else do
+         (status,txt,err) <- readProcessWithExitCode "jq" [".",file] ""
+         case status of
+           ExitFailure _ ->
+             do putStrLn ("Failed to parse output: " ++ show file)
+                putStrLn raw
+                unless (null err) (putStrLn err)
+                pure (be,InvalidOutput raw)
+           ExitSuccess ->
+            do
+              (_,kind,_) <-
+                readProcessWithExitCode "jq"
+                  [ "-r"
+                  , "if type == \"object\" and has(\"error\")"
+                    ++ " then \"error\" else \"results\" end"
+                  , file
+                  ]
+                  ""
+              pure
+                ( be
+                , case (isInterpreter be,words kind) of
+                    (True, ["error"]) -> NoResult
+                    (_,    ["error"]) -> ErrorResult txt
+                    _                 -> Results txt
+                )
 
 validate :: FilePath -> Maybe FilePath -> IO ()
 validate x y = validate' x y >> pure ()
@@ -238,16 +270,44 @@ validate' ddl mbInput =
 validate'' :: [Backend] -> FilePath -> Maybe FilePath -> IO TestResult
 validate'' backends ddl mbInput =
   do results <- mapM (\be -> load be ddl mbInput) backends
-     case equiv results of
-       [_] -> putStrLn "OK" >> pure OK
-       rs  -> do putStrLn "DIFFERENT"
-                 mapM_ showGroup rs
-                 pure (OutputsDiffer (map fst rs))
+     let interpGroups  = equiv (filter (isInterpreter . fst) results)
+         compiledGroups = equiv (filter (not . isInterpreter . fst) results)
+         groupsAgree xs =
+           case xs of
+             _ : _ : _ -> False
+             _ -> True
+         crossAgree =
+           case (interpGroups,compiledGroups) of
+             ([],_) -> True
+             (_,[]) -> True
+             ([(_,NoResult)],[(_,ErrorResult {})]) -> True
+             ([(_,x)],[(_,y)]) -> x == y
+             _ -> False
+         groups = equiv results
+     if groupsAgree interpGroups && groupsAgree compiledGroups && crossAgree
+       then putStrLn "OK" >> pure OK
+       else do putStrLn "DIFFERENT"
+               mapM_ showGroup groups
+               pure (OutputsDiffer (map fst groups))
   where
   showGroup (rs,ys) =
     do
       putStrLn (unwords (map show rs))
-      putStrLn ys
+      case ys of
+        NoResult        -> putStrLn "<no result>"
+        Results txt     -> putStrLn txt
+        ErrorResult txt -> putStrLn txt
+        InvalidOutput txt -> putStrLn txt
+
+isInterpreter :: Backend -> Bool
+isInterpreter be =
+  case be of
+    InterpDaedalus -> True
+    InterpCore     -> True
+    InterpVM       -> True
+    CompileHaskell -> False
+    CompileCPP     -> False
+    CompileRust    -> False
       
 
 --------------------------------------------------------------------------------
@@ -346,8 +406,10 @@ doAllTestsIn dirName =
 
 
   attempt m = m `catch` \e@SomeException{} ->
-                            do print e
-                               pure [Fail e]
+    case fromException e :: Maybe AsyncException of
+      Just _  -> throwIO e
+      Nothing -> do print e
+                    pure [Fail e]
 
 
 --------------------------------------------------------------------------------
@@ -447,5 +509,3 @@ quiet err
 
 short :: FilePath -> String
 short = dropExtension . takeFileName
-
-

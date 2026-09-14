@@ -1,5 +1,6 @@
 module Daedalus.Parser
-  ( parseFromText, parseFromTextAt, parseFromTokens, parseFromFile
+  ( parseFromText, parseFromTextAt, parseFromTokens
+  , parseFromFile, parseFromFileAs
   , ParseError(..), prettyParseError
   , unlitMarkdown
   ) where
@@ -47,8 +48,12 @@ parseFromTokens txtName n toks = do
     declToEither (DeclBitData bd) = Right bd
 
 parseFromFile :: FilePath -> ModuleName -> IO (Either ParseError Module)
-parseFromFile file n =
-  parseFromText (Text.pack file) n . unlit <$> Text.readFile file
+parseFromFile file = parseFromFileAs file file
+
+parseFromFileAs ::
+  FilePath -> FilePath -> ModuleName -> IO (Either ParseError Module)
+parseFromFileAs sourceName file n =
+  parseFromText (Text.pack sourceName) n . unlit <$> Text.readFile file
   where unlit = if takeExtension file == ".md"
                   then unlitMarkdown
                   else id
@@ -56,4 +61,3 @@ parseFromFile file n =
 prettyParseError :: ParseError -> IO String
 prettyParseError (ParseError { errorLoc = loc, errorMsg = msg }) =
   prettyError loc msg
-

@@ -592,7 +592,7 @@ compileCInstr cinstr =
                   Just r -> r
                   Nothing -> panic "doOpt" ["Nothing"]
               | otherwise =
-                  doChoices [| $val `RTS.bitAnd` UInt mask |] choices orElse
+                  doChoices [| $val `RTS.bitAnd` RTS.UInt mask |] choices orElse
 
         in [| let x = RTS.toBits $(compileE e)
               in $(foldr (doOpt [|x|]) [| error "Unreachable" |] opts)
@@ -778,7 +778,6 @@ doJump before after jp =
           ++ map compileE (jArgs jp)
           ++ after
            )
-
 
 
 

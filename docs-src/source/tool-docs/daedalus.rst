@@ -163,20 +163,64 @@ To compile a DaeDaLus parser specification to Haskell:
 
   daedalus compile-hs MyParserSpec.ddl --out-dir=some_dir_name
 
-The result is a directory populated with a Haskell module containing
-definitions for the parsers and functions defined in the specification.
-In addition, the DaeDaLus compiler will generate a sample executable
-driver and Cabal package description for easy prototyping. To use the
-generated code you'll have to compile it with the ``rts-hs`` package
-provided in this distribution.
+Generates a small Cabal application consisting of a ``Main.hs`` and a
+Cabal package file.  The generated ``Main.hs`` uses Template Haskell to load
+the DaeDaLus specification and compile it through the VM pipeline when the
+application is built.
 
-.. warning::
+The generated application expects a parser named ``Main`` with a fixed result
+type and no parameters.  It accepts an optional input filename and writes the
+result, or a parse error, as JSON:
 
-  At present the command ``compile-hs`` uses the *old* Haskell backend which
-  may go away in future.  To use the new backend, which is actively
-  maintained, please use Template Haskell.   If there is demand, we may adapt
-  the new backend to generate explicit Haskell files, in which case this
-  command will start using the new backend.
+.. code-block:: bash
+
+  cd some_dir_name
+  cabal build
+  cabal run some_dir_name -- input.bin
+
+If no input filename is provided, the parser is run on an empty input.
+
+.. important::
+
+  The Haskell project is not self-contained at build time.  Its Template
+  Haskell splice requires the ``daedalus``, ``rts-vm-hs``, and
+  ``rts-hs-data`` Haskell packages to be available to Cabal.  Having only a
+  standalone ``daedalus`` executable is not sufficient.
+
+  The generated directory does not contain a ``cabal.project``.  When local
+  source checkouts of the Daedalus packages are needed, create a project file
+  that lists the generated package and those source packages.
+
+  The original specification and any imported DaeDaLus modules must also
+  remain available while the generated application is being built.  Once
+  built, the resulting executable does not need the compiler packages or the
+  specification at runtime.
+
+Flags
+-----
+
+.. data:: --out-dir=DIRECTORY
+
+  Save the generated files in the given directory.  This option is required
+  when generating the VM Haskell application.
+
+.. data:: --vm
+
+  Explicitly select the VM Haskell backend.  This is the default.
+
+.. data:: --old
+
+  Use the legacy Haskell backend.  This generates Haskell parser modules,
+  a sample driver, and a Cabal package description using ``rts-hs``.
+
+.. data:: --no-error-stack
+
+  Disable grammar call stacks and source locations in parse errors generated
+  by the VM Haskell backend.  Error tracking remains enabled, but produces
+  less detailed output with lower runtime overhead.
+
+The VM-generated driver currently supports only the default ``Main`` entry
+point; it may not be combined with ``--entry``.
 
 Command: ``compile-c++``
 ========================
