@@ -19,7 +19,7 @@ import Daedalus.VM.Compile.Grammar
 import Daedalus.VM.InlineBlock
 import Daedalus.VM.CaptureAnalysis
 import Daedalus.VM.ThrowsAnalysis
-import Daedalus.VM.FindLoops
+import Daedalus.VM.RecursionAnalysis (funSCCs)
 import Daedalus.VM.TailCallJump
 
 
@@ -29,7 +29,7 @@ moduleToProgram ms =
   tailProgram $
   throwsAnalysis $
   captureAnalysis
-  Program { pModules = map loopAnalysis ms }
+  Program { pModules = ms }
 
 compileModule :: Bool -> Src.Module -> Module
 compileModule useDebug m =
@@ -95,7 +95,6 @@ compileSomeFun isPure dm doBody fun =
                             Src.Def {}   -> UnknownThrows
                             Src.External -> NoThrows
             , vmfPure   = isPure
-            , vmfLoop   = False
             , vmfDef    = def
             , vmfIsEntry = Src.fIsEntry fun
             }

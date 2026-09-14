@@ -14,6 +14,7 @@ module Daedalus.VM.RecursionAnalysis
   , frameVars
   , continuationFrameFields
   , frameArgCount
+  , funSCCs
   ) where
 
 import Data.Map (Map)
@@ -22,7 +23,16 @@ import Data.Set qualified as Set
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
+import Daedalus.Rec(Rec,topoOrder)
 import Daedalus.VM qualified as VM
+
+-- | The strongly connected components of a module's call graph, in
+-- dependency order.  A recursive component includes a singleton function
+-- with a self-call.
+funSCCs :: [VM.VMFun] -> [Rec VM.VMFun]
+funSCCs = topoOrder deps
+  where
+  deps f = (VM.vmfName f, funCalls f)
 
 -- | A continuation frame needed at a non-tail call within a recursive group.
 data Frame = Frame

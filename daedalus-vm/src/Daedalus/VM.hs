@@ -36,8 +36,6 @@ data VMFun = VMFun
   , vmfCaptures :: Captures
   , vmfThrows   :: Throws
   , vmfPure     :: Bool     -- ^ True if this is not a parser
-  , vmfLoop     :: Bool     -- XXX we need to know the other loop members
-                            -- for inlining
   , vmfDef      :: VMFDef   -- ^ Definition for the function, if any
   , vmfIsEntry  :: Bool
   }
@@ -407,8 +405,8 @@ instance PP Module where
 instance PP VMFun where
   pp f =
     (".function" <+> pp (vmfName f)) $$
-    nest 2 (pp (vmfCaptures f) <+> (if vmfLoop f then ".loop" else empty)
-                               <+> (if vmfIsEntry f then ".root" else empty)
+    nest 2 (pp (vmfCaptures f) <+>
+            (if vmfIsEntry f then ".root" else empty)
         $$ case vmfDef f of
              VMExtern as -> ".extern" <+>
                   hsep [ parens (pp a <+> ":" <+> pp (getType a)) | a <- as ]
@@ -512,9 +510,3 @@ instance PP PrimName where
       Op2 op -> pp op
       Op3 op -> pp op
       OpN op -> pp op
-
-
-
-
-
-
