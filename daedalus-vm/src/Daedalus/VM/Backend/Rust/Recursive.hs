@@ -84,7 +84,7 @@ compileRecFun ::
   GroupCodegen -> RA.Group -> VM.VMFun -> [VM.VMFun] -> [VM.VMFun] ->
   Rust.Item ()
 compileRecFun codegen recCtx rep fus wrapperFuns =
-  Rust.mkFnItem Nothing [] [] Rust.InheritedV
+  Rust.mkFnItem Nothing ["unused", "nonstandard_style"] [] Rust.InheritedV
     (compileRecFunName fnm)
     generics
     [ (parserStateName, Rust.tMutRef (groupParserStateType codegen))
@@ -220,7 +220,7 @@ compileWrapper codegen rep fu =
     VM.Unknown ->
       panic "compileWrapper" [show (pp fnm), "`Unknown` capture"]
     VM.NoCapture ->
-      Rust.mkFnItem Nothing [] [Rust.inlineAlwaysAttribute] vis
+      Rust.mkFnItem Nothing suppressedWarnings [Rust.inlineAlwaysAttribute] vis
         (compileFName fnm)
         Rust.noGenerics
         ((parserStateName, Rust.tMutRef (groupParserStateType codegen)) : args)
@@ -231,6 +231,8 @@ compileWrapper codegen rep fu =
   fnm = VM.vmfName fu
   fnMsg = backticks (pp fnm)
   vis = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  suppressedWarnings =
+    if VM.vmfIsEntry fu then [] else ["unused", "nonstandard_style"]
   resT = groupResultType codegen fu
   args = compileEntryArgs codegen fu
   resultType = maybeUninitType resT

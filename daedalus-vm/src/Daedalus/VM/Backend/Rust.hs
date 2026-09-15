@@ -123,9 +123,12 @@ compileFun fu =
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
     VM.Unknown   -> panic "compileFun" [ show (pp fnm), "`Unknwon` capture" ]
     VM.NoCapture ->
-      Rust.mkFnItem Nothing [] attrs vis nm Rust.noGenerics args resT def
+      Rust.mkFnItem Nothing suppressedWarnings attrs vis nm
+        Rust.noGenerics args resT def
   where
   vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  suppressedWarnings =
+    if VM.vmfIsEntry fu then [] else ["unused", "nonstandard_style"]
   attrs =
     case VM.vmfDef fu of
       VM.VMExtern {} -> [Rust.inlineAlwaysAttribute]
