@@ -1,4 +1,8 @@
 pub mod filters;
 pub mod native;
 pub mod pdfcos;
-pub mod state;
+pub mod pdfcos_parsers;
+
+pub use pdfcos::{
+    PreparePdfError, ReferenceEntry, ReferenceState, ReferenceTable, prepare_pdf,
+};
