@@ -22,7 +22,7 @@ $(PARSER): $(SPEC_SOURCES) src/native.rs src/pdfcos.rs
 		--entry=PdfDecl.ObjStream \
 		--entry=PdfDecl.ObjStreamEntry \
 		--entry=PdfCrypto.EncryptionDict \
-		--user-state=crate::pdfcos::ReferenceTable \
+		--user-state=crate::pdfcos::Pdf \
 		--user-fun=crate::native
 
 clean:

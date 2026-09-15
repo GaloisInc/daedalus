@@ -4,5 +4,6 @@ pub mod pdfcos;
 pub mod pdfcos_parsers;
 
 pub use pdfcos::{
-    PreparePdfError, ReferenceEntry, ReferenceState, ReferenceTable, prepare_pdf,
+    Pdf, PdfObject, PreparePdfError, PreparedPdf, Ref, ReferenceState, TopDecl, prepare_pdf,
+    resolve_reference,
 };

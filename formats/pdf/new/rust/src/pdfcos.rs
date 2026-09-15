@@ -1,9 +1,10 @@
 //! PDF COS preparation, reference table, and lazy object cache.
 
 use crate::pdfcos_parsers::{
-    CrossRef, CrossRefAndTrailer, CrossRefEntry, Ref, TopDecl, TrailerDict, XRefObjEntry,
+    CrossRef, CrossRefAndTrailer, CrossRefEntry, TopDeclDef, TrailerDict, XRefObjEntry,
     XRefObjTable,
 };
+pub use crate::pdfcos_parsers::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
 use ddl::Type;
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,6 +16,12 @@ use std::fmt;
 pub enum ReferenceState {
     /// The object is currently being parsed.
     Loading,
+
+    /// Parsing the object failed on an earlier resolution attempt.
+    Failed {
+        error: String,
+        exception: bool,
+    },
 
     /// An indirect object at a byte offset relative to the `%PDF-` header.
     AtOffset(usize),
@@ -29,20 +36,24 @@ pub enum ReferenceState {
     Parsed(TopDecl),
 }
 
-/// A processed cross-reference entry.
+/// A PDF object and its lazy parsing state.
 #[derive(Clone, PartialEq, Eq)]
-pub struct ReferenceEntry {
+pub struct PdfObject {
     pub generation: u64,
     pub state: ReferenceState,
 }
 
-/// Reference table and lazy object cache used while processing a PDF.
-pub struct ReferenceTable {
+/// A PDF document being processed.
+pub struct Pdf {
     /// The PDF input, normalized to begin at its `%PDF-` header and end at
     pub input: ddl::Input,
 
     /// The entries collected from the PDF's cross-reference sections.
-    pub entries: BTreeMap<u64, ReferenceEntry>,
+    /// We only track the current generation of each object.
+    pub entries: BTreeMap<u64, PdfObject>,
+
+    /// The trailer from the newest cross-reference section.
+    pub trailer: Option<TrailerDict>,
 
     /// The root object reference from the newest trailer, if present.
     pub root: Option<Ref>,
@@ -51,6 +62,10 @@ pub struct ReferenceTable {
     /// as decryption.
     pub current_object: Option<(u64, u64)>,
 }
+
+/// A PDF whose cross-reference information has been prepared for object
+/// parsing.
+pub type PreparedPdf = ddl::ParserStateWith<Pdf>;
 
 /// An error encountered while locating or processing the PDF cross-reference
 /// information.
@@ -98,9 +113,9 @@ impl Error for PreparePdfError {}
 
 /// Locate the PDF header and process its cross-reference sections.
 ///
-/// The returned reference table retains an input normalized to the `%PDF-`
+/// The returned prepared PDF retains an input normalized to the `%PDF-`
 /// header, so all stored byte offsets use the PDF coordinate system.
-pub fn prepare_pdf(input: ddl::Input) -> Result<ReferenceTable, PreparePdfError> {
+pub fn prepare_pdf(input: ddl::Input) -> Result<PreparedPdf, PreparePdfError> {
     let input_bytes = input.bytes();
     let pdf_start =
         find_bytes(&input_bytes, b"%PDF-").ok_or(PreparePdfError::PdfStartNotFound)?;
@@ -110,9 +125,10 @@ pub fn prepare_pdf(input: ddl::Input) -> Result<ReferenceTable, PreparePdfError>
     let pdf_end =
         rfind_bytes(&pdf_bytes, b"startxref").ok_or(PreparePdfError::StartXrefNotFound)?;
 
-    let mut state = ddl::new_parser_state_with(ReferenceTable {
+    let mut state = ddl::new_parser_state_with(Pdf {
         input: input.clone(),
         entries: BTreeMap::new(),
+        trailer: None,
         root: None,
         current_object: None,
     });
@@ -127,11 +143,11 @@ pub fn prepare_pdf(input: ddl::Input) -> Result<ReferenceTable, PreparePdfError>
 
     let mut visited = BTreeSet::new();
     process_xref(&mut state, &input, &mut visited, startxref, true)?;
-    Ok(state.user_state)
+    Ok(state)
 }
 
 fn process_xref(
-    state: &mut ddl::ParserStateWith<ReferenceTable>,
+    state: &mut ddl::ParserStateWith<Pdf>,
     input: &ddl::Input,
     visited: &mut BTreeSet<usize>,
     offset: usize,
@@ -163,7 +179,7 @@ fn process_xref(
 }
 
 fn process_old_xref(
-    state: &mut ddl::ParserStateWith<ReferenceTable>,
+    state: &mut ddl::ParserStateWith<Pdf>,
     input: &ddl::Input,
     visited: &mut BTreeSet<usize>,
     xref: CrossRefAndTrailer,
@@ -178,7 +194,7 @@ fn process_old_xref(
                 CrossRefEntry::InUse(entry) => {
                     state.user_state.entries.insert(
                         object,
-                        ReferenceEntry {
+                        PdfObject {
                             generation: int_to_u64(&entry.r#gen, "generation")?,
                             state: ReferenceState::AtOffset(int_to_usize(
                                 &entry.offset,
@@ -204,7 +220,7 @@ fn process_old_xref(
 }
 
 fn process_new_xref(
-    state: &mut ddl::ParserStateWith<ReferenceTable>,
+    state: &mut ddl::ParserStateWith<Pdf>,
     input: &ddl::Input,
     visited: &mut BTreeSet<usize>,
     xref: XRefObjTable,
@@ -219,7 +235,7 @@ fn process_new_xref(
                 XRefObjEntry::InUse(entry) => {
                     state.user_state.entries.insert(
                         object,
-                        ReferenceEntry {
+                        PdfObject {
                             generation: int_to_u64(&entry.r#gen, "generation")?,
                             state: ReferenceState::AtOffset(int_to_usize(
                                 &entry.offset,
@@ -231,7 +247,7 @@ fn process_new_xref(
                 XRefObjEntry::Compressed(entry) => {
                     state.user_state.entries.insert(
                         object,
-                        ReferenceEntry {
+                        PdfObject {
                             generation: 0,
                             state: ReferenceState::InObjectStream {
                                 container: int_to_u64(
@@ -249,7 +265,7 @@ fn process_new_xref(
                 XRefObjEntry::Null => {
                     state.user_state.entries.insert(
                         object,
-                        ReferenceEntry {
+                        PdfObject {
                             generation: 0,
                             state: ReferenceState::Null,
                         },
@@ -269,7 +285,7 @@ fn process_new_xref(
 }
 
 fn process_trailer_links(
-    state: &mut ddl::ParserStateWith<ReferenceTable>,
+    state: &mut ddl::ParserStateWith<Pdf>,
     input: &ddl::Input,
     visited: &mut BTreeSet<usize>,
     trailer: &TrailerDict,
@@ -292,10 +308,11 @@ fn process_trailer_links(
     Ok(())
 }
 
-fn record_top_trailer(table: &mut ReferenceTable, trailer: &TrailerDict) {
+fn record_top_trailer(table: &mut Pdf, trailer: &TrailerDict) {
     if let ddl::Maybe::Just(root) = &trailer.root {
         table.root = Some(root.clone());
     }
+    table.trailer = Some(trailer.clone());
 }
 
 fn int_to_u64(value: &ddl::Int, field: &'static str) -> Result<u64, PreparePdfError> {
@@ -311,8 +328,12 @@ fn int_to_usize(value: &ddl::Int, field: &'static str) -> Result<usize, PrepareP
     usize::try_from(value).map_err(|_| PreparePdfError::InvalidXrefOffset(field))
 }
 
-pub(crate) fn resolve_reference(
-    parser_state: &mut ddl::ParserStateWith<ReferenceTable>,
+/// Resolve and parse an indirect PDF object, caching the result.
+///
+/// Returns `Nothing` if the reference is absent, has a mismatched generation,
+/// or denotes a null object.
+pub fn resolve_reference(
+    parser_state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
     reference: Ref,
 ) -> ddl::ParserResult<ddl::Maybe<TopDecl>> {
@@ -342,11 +363,11 @@ pub(crate) fn resolve_reference(
         None => return ddl::ParserResult::Ok(ddl::Maybe::Nothing, input),
     };
 
-    let ReferenceEntry { generation, state } = entry;
+    let PdfObject { generation, state } = entry;
     if generation != requested_generation {
         parser_state.user_state.entries.insert(
             object,
-            ReferenceEntry { generation, state },
+            PdfObject { generation, state },
         );
         return ddl::ParserResult::Ok(ddl::Maybe::Nothing, input);
     }
@@ -356,7 +377,7 @@ pub(crate) fn resolve_reference(
             let result = value.clone();
             parser_state.user_state.entries.insert(
                 object,
-                ReferenceEntry {
+                PdfObject {
                     generation,
                     state: ReferenceState::Parsed(value),
                 },
@@ -367,7 +388,7 @@ pub(crate) fn resolve_reference(
         ReferenceState::Null => {
             parser_state.user_state.entries.insert(
                 object,
-                ReferenceEntry {
+                PdfObject {
                     generation,
                     state: ReferenceState::Null,
                 },
@@ -376,43 +397,99 @@ pub(crate) fn resolve_reference(
         }
 
         ReferenceState::Loading => {
-            parser_state.user_state.entries.insert(
-                object,
-                ReferenceEntry {
-                    generation,
-                    state: ReferenceState::Loading,
-                },
-            );
-            resolve_failure(
+            let error = format!("recursive resolution of PDF object {object} {generation}");
+            cache_resolve_error(
                 parser_state,
                 &input,
-                &format!(
-                    "recursive resolution of PDF object {object} {generation}"
-                ),
+                object,
+                generation,
+                error,
+                false,
             )
+        }
+
+        ReferenceState::Failed { error, exception } => {
+            parser_state.user_state.entries.insert(
+                object,
+                PdfObject {
+                    generation,
+                    state: ReferenceState::Failed {
+                        error: error.clone(),
+                        exception,
+                    },
+                },
+            );
+            replay_resolve_error(parser_state, &input, &error, exception)
         }
 
         ReferenceState::InObjectStream { container, index } => {
             parser_state.user_state.entries.insert(
                 object,
-                ReferenceEntry {
+                PdfObject {
                     generation,
-                    state: ReferenceState::InObjectStream { container, index },
+                    state: ReferenceState::Loading,
                 },
             );
-            resolve_failure(
+
+            let previous_object = parser_state
+                .user_state
+                .current_object
+                .replace((object, generation));
+            let parsed = resolve_compressed_object(
                 parser_state,
                 &input,
-                &format!(
-                    "resolving PDF object {object} {generation} from an object stream is not implemented"
-                ),
-            )
+                object,
+                container,
+                index,
+            );
+            parser_state.user_state.current_object = previous_object;
+
+            match parsed {
+                ddl::ParserResult::Ok(value, _) => {
+                    parser_state.user_state.entries.insert(
+                        object,
+                        PdfObject {
+                            generation,
+                            state: ReferenceState::Parsed(value.clone()),
+                        },
+                    );
+                    ddl::ParserResult::Ok(ddl::Maybe::Just(value), input)
+                }
+                ddl::ParserResult::Failure => {
+                    let error = format!(
+                        "failed to parse PDF object {object} {generation} from object stream {container}:\n{}",
+                        parser_state.error
+                    );
+                    cache_resolve_error(
+                        parser_state,
+                        &input,
+                        object,
+                        generation,
+                        error,
+                        false,
+                    )
+                }
+                ddl::ParserResult::Exception => {
+                    let error = format!(
+                        "exception while parsing PDF object {object} {generation} from object stream {container}:\n{}",
+                        parser_state.error
+                    );
+                    cache_resolve_error(
+                        parser_state,
+                        &input,
+                        object,
+                        generation,
+                        error,
+                        true,
+                    )
+                }
+            }
         }
 
         ReferenceState::AtOffset(offset) => {
             parser_state.user_state.entries.insert(
                 object,
-                ReferenceEntry {
+                PdfObject {
                     generation,
                     state: ReferenceState::Loading,
                 },
@@ -422,12 +499,16 @@ pub(crate) fn resolve_reference(
                 match parser_state.user_state.input.clone().advance_maybe(offset) {
                     ddl::Maybe::Just(input) => input,
                     ddl::Maybe::Nothing => {
-                        return resolve_failure(
+                        let error = format!(
+                            "PDF object {object} {generation} has invalid offset {offset}"
+                        );
+                        return cache_resolve_error(
                             parser_state,
                             &input,
-                            &format!(
-                                "PDF object {object} {generation} has invalid offset {offset}"
-                            ),
+                            object,
+                            generation,
+                            error,
+                            false,
                         );
                     }
                 };
@@ -444,26 +525,145 @@ pub(crate) fn resolve_reference(
                 ddl::ParserResult::Ok(value, _) => {
                     parser_state.user_state.entries.insert(
                         object,
-                        ReferenceEntry {
+                        PdfObject {
                             generation,
                             state: ReferenceState::Parsed(value.clone()),
                         },
                     );
                     ddl::ParserResult::Ok(ddl::Maybe::Just(value), input)
                 }
-                ddl::ParserResult::Failure => resolve_failure(
-                    parser_state,
-                    &error_input,
-                    &format!("failed to parse PDF object {object} {generation}"),
-                ),
-                ddl::ParserResult::Exception => ddl::ParserResult::Exception,
+                ddl::ParserResult::Failure => {
+                    let error = format!(
+                        "failed to parse PDF object {object} {generation}:\n{}",
+                        parser_state.error
+                    );
+                    cache_resolve_error(
+                        parser_state,
+                        &error_input,
+                        object,
+                        generation,
+                        error,
+                        false,
+                    )
+                }
+                ddl::ParserResult::Exception => {
+                    let error = format!(
+                        "exception while parsing PDF object {object} {generation}:\n{}",
+                        parser_state.error
+                    );
+                    cache_resolve_error(
+                        parser_state,
+                        &error_input,
+                        object,
+                        generation,
+                        error,
+                        true,
+                    )
+                }
             }
         }
     }
 }
 
+/// Extract an object packed inside a PDF object stream.
+///
+/// The containing object stream is resolved and parsed each time this is
+/// called; only the extracted object is cached by the caller.
+fn resolve_compressed_object(
+    parser_state: &mut ddl::ParserStateWith<Pdf>,
+    input: &ddl::Input,
+    object: u64,
+    container: u64,
+    index: u64,
+) -> ddl::ParserResult<TopDecl> {
+    let container_reference = Ref {
+        obj: ddl::Int::from(container),
+        r#gen: ddl::Int::from(0_u64),
+    };
+    let container_decl =
+        match resolve_reference(parser_state, input.clone(), container_reference) {
+            ddl::ParserResult::Ok(ddl::Maybe::Just(value), _) => value,
+            ddl::ParserResult::Ok(ddl::Maybe::Nothing, _) => {
+                return resolve_failure(
+                    parser_state,
+                    input,
+                    &format!(
+                        "object stream {container} containing PDF object {object} was not found"
+                    ),
+                );
+            }
+            ddl::ParserResult::Failure => return ddl::ParserResult::Failure,
+            ddl::ParserResult::Exception => return ddl::ParserResult::Exception,
+        };
+
+    let stream = match container_decl.obj {
+        TopDeclDef::Stream(stream) => stream,
+        TopDeclDef::Value(_) => {
+            return resolve_failure(
+                parser_state,
+                input,
+                &format!(
+                    "object stream container {container} for PDF object {object} is not a stream"
+                ),
+            );
+        }
+    };
+
+    let object_stream = match crate::pdfcos_parsers::obj_stream(
+        parser_state,
+        ddl::new_input_str("ObjStream", ""),
+        stream,
+    ) {
+        ddl::ParserResult::Ok(value, _) => value,
+        ddl::ParserResult::Failure => return ddl::ParserResult::Failure,
+        ddl::ParserResult::Exception => return ddl::ParserResult::Exception,
+    };
+
+    crate::pdfcos_parsers::obj_stream_entry(
+        parser_state,
+        ddl::new_input_str("ObjStreamEntry", ""),
+        object_stream,
+        ddl::U::<64>::from(index),
+    )
+}
+
+fn cache_resolve_error<T>(
+    parser_state: &mut ddl::ParserStateWith<Pdf>,
+    input: &ddl::Input,
+    object: u64,
+    generation: u64,
+    error: String,
+    exception: bool,
+) -> ddl::ParserResult<T> {
+    parser_state.user_state.entries.insert(
+        object,
+        PdfObject {
+            generation,
+            state: ReferenceState::Failed {
+                error: error.clone(),
+                exception,
+            },
+        },
+    );
+    replay_resolve_error(parser_state, input, &error, exception)
+}
+
+fn replay_resolve_error<T>(
+    parser_state: &mut ddl::ParserStateWith<Pdf>,
+    input: &ddl::Input,
+    error: &str,
+    exception: bool,
+) -> ddl::ParserResult<T> {
+    let result = resolve_failure(parser_state, input, error);
+    if exception {
+        ddl::ParserResult::Exception
+    } else {
+        result
+    }
+}
+
 fn resolve_failure<T>(
-    parser_state: &mut ddl::ParserStateWith<ReferenceTable>,
+    parser_state: &mut ddl::ParserStateWith<Pdf>,
     input: &ddl::Input,
     message: &str,
 ) -> ddl::ParserResult<T> {

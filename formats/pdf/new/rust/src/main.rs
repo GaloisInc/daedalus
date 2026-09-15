@@ -27,7 +27,7 @@ fn main() {
             println!(
                 "Prepared '{}' with {} cross-reference entries.",
                 file,
-                pdf.entries.len()
+                pdf.user_state.entries.len()
             );
         }
         Err(err) => {
