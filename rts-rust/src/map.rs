@@ -18,6 +18,30 @@ impl<K,V> Clone for Map<K,V> {
   fn clone(&self) -> Self { Map { mp: self.mp.clone() } }
 }
 
+impl<K: Type, V: Type> PartialEq for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn eq(&self, other: &Self) -> bool {
+    self.bor() == other.bor()
+  }
+}
+
+impl<K: Type, V: Type> Eq for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {}
+
+impl<K: Type, V: Type> PartialOrd for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl<K: Type, V: Type> Ord for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.bor().cmp(&other.bor())
+  }
+}
+
 impl<'a,K,V> Clone for MapB<'a,K,V> {
   fn clone(&self) -> Self { MapB { mp: self.mp.clone() } }
 }
