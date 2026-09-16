@@ -178,12 +178,15 @@ fn process_xref(
         ddl::Maybe::Nothing => return Err(PreparePdfError::XrefOffsetOutOfRange(offset)),
     };
 
-    let xref = match crate::pdfcos_parsers::cross_ref(state, xref_input) {
+    let (xref, parse_error) = with_fresh_error(state, |state| {
+        crate::pdfcos_parsers::cross_ref(state, xref_input)
+    });
+    let xref = match xref {
         ddl::ParserResult::Ok(xref, _) => xref,
         ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
             return Err(PreparePdfError::XrefParse {
                 offset,
-                error: state.error.to_string(),
+                error: parse_error.to_string(),
             });
         }
     };
@@ -353,10 +356,15 @@ pub fn resolve_reference(
     reference: Ref,
 ) -> Result<Option<TopDecl>, String> {
     let input = pdf.user_state.input.clone();
-    match resolve_reference_parser(pdf, input, reference) {
+    let (resolved, parse_error) = with_fresh_error(pdf, |pdf| {
+        resolve_reference_parser(pdf, input, reference)
+    });
+    match resolved {
         ddl::ParserResult::Ok(ddl::Maybe::Just(value), _) => Ok(Some(value)),
         ddl::ParserResult::Ok(ddl::Maybe::Nothing, _) => Ok(None),
-        ddl::ParserResult::Failure | ddl::ParserResult::Exception => Err(pdf.error.to_string()),
+        ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
+            Err(parse_error.to_string())
+        }
     }
 }
 
@@ -464,13 +472,15 @@ pub(crate) fn resolve_reference_parser(
                 .user_state
                 .current_object
                 .replace((object, generation));
-            let parsed = resolve_compressed_object(
-                parser_state,
-                &input,
-                object,
-                container,
-                index,
-            );
+            let (parsed, parse_error) = with_fresh_error(parser_state, |parser_state| {
+                resolve_compressed_object(
+                    parser_state,
+                    &input,
+                    object,
+                    container,
+                    index,
+                )
+            });
             parser_state.user_state.current_object = previous_object;
 
             match parsed {
@@ -487,7 +497,7 @@ pub(crate) fn resolve_reference_parser(
                 ddl::ParserResult::Failure => {
                     let error = format!(
                         "failed to parse PDF object {object} {generation} from object stream {container}:\n{}",
-                        parser_state.error
+                        parse_error
                     );
                     cache_resolve_error(
                         parser_state,
@@ -501,7 +511,7 @@ pub(crate) fn resolve_reference_parser(
                 ddl::ParserResult::Exception => {
                     let error = format!(
                         "exception while parsing PDF object {object} {generation} from object stream {container}:\n{}",
-                        parser_state.error
+                        parse_error
                     );
                     cache_resolve_error(
                         parser_state,
@@ -547,7 +557,9 @@ pub(crate) fn resolve_reference_parser(
                 .user_state
                 .current_object
                 .replace((object, generation));
-            let parsed = crate::pdfcos_parsers::top_decl(parser_state, object_input);
+            let (parsed, parse_error) = with_fresh_error(parser_state, |parser_state| {
+                crate::pdfcos_parsers::top_decl(parser_state, object_input)
+            });
             parser_state.user_state.current_object = previous_object;
 
             match parsed {
@@ -564,7 +576,7 @@ pub(crate) fn resolve_reference_parser(
                 ddl::ParserResult::Failure => {
                     let error = format!(
                         "failed to parse PDF object {object} {generation}:\n{}",
-                        parser_state.error
+                        parse_error
                     );
                     cache_resolve_error(
                         parser_state,
@@ -578,7 +590,7 @@ pub(crate) fn resolve_reference_parser(
                 ddl::ParserResult::Exception => {
                     let error = format!(
                         "exception while parsing PDF object {object} {generation}:\n{}",
-                        parser_state.error
+                        parse_error
                     );
                     cache_resolve_error(
                         parser_state,
@@ -704,6 +716,16 @@ fn resolve_failure<T>(
         message.bor(),
     );
     ddl::ParserResult::Failure
+}
+
+fn with_fresh_error<T, R>(
+    parser_state: &mut ddl::ParserStateWith<T>,
+    action: impl FnOnce(&mut ddl::ParserStateWith<T>) -> R,
+) -> (R, ddl::ParseError) {
+    let previous = std::mem::replace(&mut parser_state.error, ddl::ParseError::new());
+    let result = action(parser_state);
+    let error = std::mem::replace(&mut parser_state.error, previous);
+    (result, error)
 }
 
 fn find_bytes(bytes: &[ddl::U<8>], needle: &[u8]) -> Option<usize> {
