@@ -1,5 +1,22 @@
 //! Predictor reversal for PDF LZW and Flate stream filters.
 
+pub(crate) fn apply_predictor(
+    input: Vec<u8>,
+    predictor: u64,
+    colors: usize,
+    bits_per_component: usize,
+    columns: usize,
+) -> Result<Vec<u8>, String> {
+    match predictor {
+        1 => Ok(input),
+        10..=15 => png_predictor(input, colors, bits_per_component, columns),
+        _ => Err(format!(
+            "unsupported predictor parameters: Predictor={predictor}, Colors={colors}, \
+             BitsPerComponent={bits_per_component}"
+        )),
+    }
+}
+
 /// Reverse the PNG row predictors used by PDF Predictor values 10 through 15.
 /// Each encoded row begins with a tag selecting None, Sub, Up, Average, or
 /// Paeth. The tag is removed while the reconstructed rows are compacted in
@@ -7,7 +24,7 @@
 ///
 /// See ISO 32000-2:2017 section 7.4.4.4 and
 /// https://en.wikipedia.org/wiki/PNG#Filtering.
-pub(crate) fn png_predictor(
+fn png_predictor(
     mut input: Vec<u8>,
     colors: usize,
     bits_per_component: usize,

@@ -1,8 +1,9 @@
 //! Native functions used by the generated Daedalus parser.
 
+use crate::filters::apply_predictor;
+use crate::lzw;
 use crate::pdfcos::{Pdf, resolve_reference};
 use crate::pdfcos_parsers::{Ref, TopDecl};
-use crate::predictor::png_predictor;
 use daedalus_rts_rust as ddl;
 use ddl::Type;
 use flate2::read::ZlibDecoder;
@@ -34,8 +35,8 @@ pub fn decrypt(
 
 /// Implements `FlateDecode` from `pdf-cos-spec/PdfDecl.ddl:219`.
 ///
-/// Inflates a zlib-compressed stream and reverses its optional TIFF or PNG
-/// predictor using the supplied image parameters.
+/// Inflates a zlib-compressed stream and reverses its optional PNG predictor
+/// using the supplied image parameters.
 pub fn flate_decode(
     state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
@@ -45,7 +46,7 @@ pub fn flate_decode(
     columns: ddl::Int,
     body: ddl::Input,
 ) -> ddl::ParserResult<ddl::Input> {
-    let result = (|| {
+    let result: Result<ddl::Input, String> = (|| {
         let predictor = unsigned_parameter(&predictor, "Predictor")?;
         let colors = usize::try_from(unsigned_parameter(&colors, "Colors")?)
             .map_err(|_| "parameter Colors does not fit in usize".to_owned())?;
@@ -61,16 +62,8 @@ pub fn flate_decode(
             .read_to_end(&mut decoded)
             .map_err(|error| format!("invalid Flate stream: {error}"))?;
 
-        let decoded = match predictor {
-            1 => decoded,
-            10..=15 => png_predictor(decoded, colors, bits_per_component, columns)?,
-            _ => {
-                return Err(format!(
-                    "unsupported FlateDecode predictor parameters: Predictor={predictor}, \
-                     Colors={colors}, BitsPerComponent={bits_per_component}"
-                ));
-            }
-        };
+        let decoded =
+            apply_predictor(decoded, predictor, colors, bits_per_component, columns)?;
 
         Ok(ddl::new_input(
             ddl::new_byte_array(b"FlateDecode"),
@@ -87,18 +80,45 @@ pub fn flate_decode(
 /// Implements `LZWDecode` from `pdf-cos-spec/PdfDecl.ddl:248`.
 ///
 /// Decompresses a PDF LZW stream, honoring `EarlyChange`, and reverses its
-/// optional TIFF or PNG predictor using the supplied image parameters.
+/// optional PNG predictor using the supplied image parameters.
 pub fn lzw_decode(
-    _state: &mut ddl::ParserStateWith<Pdf>,
-    _input: ddl::Input,
-    _predictor: ddl::Int,
-    _colors: ddl::Int,
-    _bits_per_component: ddl::Int,
-    _columns: ddl::Int,
-    _early_change: ddl::Int,
-    _body: ddl::Input,
+    state: &mut ddl::ParserStateWith<Pdf>,
+    input: ddl::Input,
+    predictor: ddl::Int,
+    colors: ddl::Int,
+    bits_per_component: ddl::Int,
+    columns: ddl::Int,
+    early_change: ddl::Int,
+    body: ddl::Input,
 ) -> ddl::ParserResult<ddl::Input> {
-    todo!()
+
+    // Wrap in lambda so we can use ? at Result locally.
+    let result: Result<ddl::Input, String> = (|| {
+        let predictor = unsigned_parameter(&predictor, "Predictor")?;
+        let colors = usize::try_from(unsigned_parameter(&colors, "Colors")?)
+            .map_err(|_| "parameter Colors does not fit in usize".to_owned())?;
+        let bits_per_component =
+            usize::try_from(unsigned_parameter(&bits_per_component, "BitsPerComponent")?)
+                .map_err(|_| "parameter BitsPerComponent does not fit in usize".to_owned())?;
+        let columns = usize::try_from(unsigned_parameter(&columns, "Columns")?)
+            .map_err(|_| "parameter Columns does not fit in usize".to_owned())?;
+        let early_change = u8::try_from(unsigned_parameter(&early_change, "EarlyChange")?)
+            .map_err(|_| "parameter EarlyChange does not fit in u8".to_owned())?;
+
+        let decoded = lzw::decode(body.as_bytes(), early_change)?;
+        let decoded =
+            apply_predictor(decoded, predictor, colors, bits_per_component, columns)?;
+
+        Ok(ddl::new_input(
+            ddl::new_byte_array(b"LZWDecode"),
+            ddl::new_byte_array_vec(decoded),
+        ))
+    })();
+
+    match result {
+        Ok(decoded) => ddl::ParserResult::Ok(decoded, input),
+        Err(error) => native_failure(state, &input, "LZWDecode", &error),
+    }
 }
 
 /// Implements `ASCIIHexDecode` from `pdf-cos-spec/PdfDecl.ddl:257`.
