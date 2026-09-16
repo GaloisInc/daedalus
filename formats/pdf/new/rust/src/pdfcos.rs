@@ -11,11 +11,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+const MAX_RESOLUTION_DEPTH: usize = 256;
+
 /// The current state of an object in the reference table.
 #[derive(Clone, PartialEq, Eq)]
 pub enum ReferenceState {
     /// The object is currently being parsed.
-    Loading,
+    Loading { depth: usize },
 
     /// Parsing the object failed on an earlier resolution attempt.
     Failed {
@@ -433,7 +435,7 @@ pub(crate) fn resolve_reference_parser(
             ddl::ParserResult::Ok(ddl::Maybe::Nothing, input)
         }
 
-        ReferenceState::Loading => {
+        ReferenceState::Loading { .. } => {
             let error = format!("recursive resolution of PDF object {object} {generation}");
             cache_resolve_error(
                 parser_state,
@@ -460,11 +462,25 @@ pub(crate) fn resolve_reference_parser(
         }
 
         ReferenceState::InObjectStream { container, index } => {
+            let depth = next_resolution_depth(&parser_state.user_state);
+            if depth > MAX_RESOLUTION_DEPTH {
+                let error = format!(
+                    "PDF object resolution exceeds the maximum depth of {MAX_RESOLUTION_DEPTH}"
+                );
+                return cache_resolve_error(
+                    parser_state,
+                    &input,
+                    object,
+                    generation,
+                    error,
+                    false,
+                );
+            }
             parser_state.user_state.entries.insert(
                 object,
                 PdfObject {
                     generation,
-                    state: ReferenceState::Loading,
+                    state: ReferenceState::Loading { depth },
                 },
             );
 
@@ -526,11 +542,25 @@ pub(crate) fn resolve_reference_parser(
         }
 
         ReferenceState::AtOffset(offset) => {
+            let depth = next_resolution_depth(&parser_state.user_state);
+            if depth > MAX_RESOLUTION_DEPTH {
+                let error = format!(
+                    "PDF object resolution exceeds the maximum depth of {MAX_RESOLUTION_DEPTH}"
+                );
+                return cache_resolve_error(
+                    parser_state,
+                    &input,
+                    object,
+                    generation,
+                    error,
+                    false,
+                );
+            }
             parser_state.user_state.entries.insert(
                 object,
                 PdfObject {
                     generation,
-                    state: ReferenceState::Loading,
+                    state: ReferenceState::Loading { depth },
                 },
             );
 
@@ -604,6 +634,18 @@ pub(crate) fn resolve_reference_parser(
             }
         }
     }
+}
+
+fn next_resolution_depth(pdf: &Pdf) -> usize {
+    let current_depth = pdf
+        .current_object
+        .and_then(|(object, _)| pdf.entries.get(&object))
+        .and_then(|entry| match &entry.state {
+            ReferenceState::Loading { depth } => Some(*depth),
+            _ => None,
+        })
+        .unwrap_or(0);
+    current_depth.saturating_add(1)
 }
 
 /// Extract an object packed inside a PDF object stream.
