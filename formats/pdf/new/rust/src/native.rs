@@ -121,17 +121,6 @@ pub fn lzw_decode(
     }
 }
 
-/// Implements `ASCIIHexDecode` from `pdf-cos-spec/PdfDecl.ddl:257`.
-///
-/// Converts the stream's hexadecimal text representation back into bytes.
-pub fn ascii_hex_decode(
-    _state: &mut ddl::ParserStateWith<Pdf>,
-    _input: ddl::Input,
-    _body: ddl::Input,
-) -> ddl::ParserResult<ddl::Input> {
-    todo!()
-}
-
 /// Implements `ASCII85Decode` from `pdf-cos-spec/PdfDecl.ddl:260`.
 ///
 /// Converts the stream's base-85 text representation back into bytes.

@@ -5,7 +5,6 @@
 
 #include <zlib.h>
 
-#include "asciihex.hpp"
 #include "ascii85.hpp"
 #include "lzw.hpp"
 #include "predictor.hpp"
@@ -277,29 +276,6 @@ DDL::ParserResult parser_LZWDecode
     return DDL::ParserResult::Ok;
   } catch (LzwException const& e) {
     std::cerr << "INFO: " << e.what() << std::endl;
-    input.free();
-    return DDL::ParserResult::Failure;
-  }
-}
-
-// owns input,body
-DDL::ParserResult parser_ASCIIHexDecode
-  ( DDL::ParserStateUser<DDL::Input,ReferenceTable> &pstate
-  , DDL::Input *result
-  , DDL::Input *out_input
-  , DDL::Input input
-  , DDL::Input body
-  ) {
-
-  auto bodyRef = DDL::Owned(body);
-
-  std::vector<unsigned char> buffer;
-
-  if (ASCIIHexDecode(bodyRef->borrowBytes().data(), bodyRef->length().rep(), buffer)) {
-    *result = DDL::Input("asciihex", reinterpret_cast<char*>(buffer.data()), DDL::Size(buffer.size()));
-    *out_input = input;
-    return DDL::ParserResult::Ok;
-  } else {
     input.free();
     return DDL::ParserResult::Failure;
   }
