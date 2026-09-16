@@ -728,6 +728,18 @@ fn test_input_bytes() {
 }
 
 #[test]
+fn test_input_as_bytes() {
+    let input = ddl::new_input_str("test", "hello world");
+    assert_eq!(input.as_bytes(), b"hello world");
+
+    let advanced = input.clone().advance(6);
+    assert_eq!(advanced.as_bytes(), b"world");
+
+    let restricted = input.advance(3).restrict(4);
+    assert_eq!(restricted.as_bytes(), b"lo w");
+}
+
+#[test]
 fn test_input_head() {
     // Tests getting the first byte of input.
     let input = ddl::new_input_str("test", "abc");

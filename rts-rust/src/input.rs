@@ -77,6 +77,18 @@ impl Input {
     }
   }
 
+  /// Borrow the bytes in the current input range as native Rust bytes.
+  pub fn as_bytes(&self) -> &[u8] {
+    let bytes = &self.bytes[self.offset .. self.last_offset];
+
+    // SAFETY: U<8> is Word<false, 8>, which is #[repr(transparent)] over
+    // its u8 representation. Thus the element size, alignment, and valid
+    // bit patterns are identical, and the returned slice borrows `self`.
+    unsafe {
+      std::slice::from_raw_parts(bytes.as_ptr().cast::<u8>(), bytes.len())
+    }
+  }
+
   /// Get the number of bytes in the input.
   pub fn len(&self)         -> usize { self.last_offset - self.offset }
 
