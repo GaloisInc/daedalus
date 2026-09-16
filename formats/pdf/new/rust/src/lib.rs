@@ -5,6 +5,6 @@ pub mod pdfcos;
 pub mod pdfcos_parsers;
 
 pub use pdfcos::{
-    Pdf, PdfObject, PreparePdfError, PreparedPdf, Ref, ReferenceState, TopDecl, prepare_pdf,
-    resolve_reference,
+    Pdf, PdfCos, PdfObject, PreparePdfError, Ref, ReferenceState, TopDecl, prepare_pdf,
+    prepare_pdf_bytes, references, resolve_reference,
 };

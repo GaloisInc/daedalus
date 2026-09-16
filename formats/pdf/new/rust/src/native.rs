@@ -2,7 +2,7 @@
 
 use crate::filters::apply_predictor;
 use crate::lzw;
-use crate::pdfcos::{Pdf, resolve_reference};
+use crate::pdfcos::{Pdf, resolve_reference_parser};
 use crate::pdfcos_parsers::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
 use ddl::Type;
@@ -18,7 +18,7 @@ pub fn resolve_ref(
     input: ddl::Input,
     reference: Ref,
 ) -> ddl::ParserResult<ddl::Maybe<TopDecl>> {
-    resolve_reference(state, input, reference)
+    resolve_reference_parser(state, input, reference)
 }
 
 /// Implements `Decrypt` from `pdf-cos-spec/PdfDecl.ddl:142`.

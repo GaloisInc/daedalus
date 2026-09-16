@@ -65,7 +65,7 @@ pub struct Pdf {
 
 /// A PDF whose cross-reference information has been prepared for object
 /// parsing.
-pub type PreparedPdf = ddl::ParserStateWith<Pdf>;
+pub type PdfCos = ddl::ParserStateWith<Pdf>;
 
 /// An error encountered while locating or processing the PDF cross-reference
 /// information.
@@ -111,11 +111,27 @@ impl fmt::Display for PreparePdfError {
 
 impl Error for PreparePdfError {}
 
+/// Construct a Daedalus input and prepare a PDF from its complete contents.
+pub fn prepare_pdf_bytes(name: &str, bytes: &[u8]) -> Result<PdfCos, PreparePdfError> {
+    prepare_pdf(ddl::new_input(
+        ddl::new_byte_array(name.as_bytes()),
+        ddl::new_byte_array(bytes),
+    ))
+}
+
+/// Iterate over the current references in object-number order.
+pub fn references(pdf: &PdfCos) -> impl Iterator<Item = Ref> + '_ {
+    pdf.user_state.entries.iter().map(|(&object, entry)| Ref {
+        obj: ddl::Int::from(object),
+        r#gen: ddl::Int::from(entry.generation),
+    })
+}
+
 /// Locate the PDF header and process its cross-reference sections.
 ///
 /// The returned prepared PDF retains an input normalized to the `%PDF-`
 /// header, so all stored byte offsets use the PDF coordinate system.
-pub fn prepare_pdf(input: ddl::Input) -> Result<PreparedPdf, PreparePdfError> {
+pub fn prepare_pdf(input: ddl::Input) -> Result<PdfCos, PreparePdfError> {
     let input_bytes = input.bytes();
     let pdf_start =
         find_bytes(&input_bytes, b"%PDF-").ok_or(PreparePdfError::PdfStartNotFound)?;
@@ -330,10 +346,23 @@ fn int_to_usize(value: &ddl::Int, field: &'static str) -> Result<usize, PrepareP
 
 /// Resolve and parse an indirect PDF object, caching the result.
 ///
-/// Returns `Nothing` if the reference is absent, has a mismatched generation,
+/// Returns `None` if the reference is absent, has a mismatched generation,
 /// or denotes a null object.
 pub fn resolve_reference(
-    parser_state: &mut ddl::ParserStateWith<Pdf>,
+    pdf: &mut PdfCos,
+    reference: Ref,
+) -> Result<Option<TopDecl>, String> {
+    let input = pdf.user_state.input.clone();
+    match resolve_reference_parser(pdf, input, reference) {
+        ddl::ParserResult::Ok(ddl::Maybe::Just(value), _) => Ok(Some(value)),
+        ddl::ParserResult::Ok(ddl::Maybe::Nothing, _) => Ok(None),
+        ddl::ParserResult::Failure | ddl::ParserResult::Exception => Err(pdf.error.to_string()),
+    }
+}
+
+/// Parser-facing reference resolution used by the generated native primitive.
+pub(crate) fn resolve_reference_parser(
+    parser_state: &mut PdfCos,
     input: ddl::Input,
     reference: Ref,
 ) -> ddl::ParserResult<ddl::Maybe<TopDecl>> {
@@ -581,7 +610,7 @@ fn resolve_compressed_object(
         r#gen: ddl::Int::from(0_u64),
     };
     let container_decl =
-        match resolve_reference(parser_state, input.clone(), container_reference) {
+        match resolve_reference_parser(parser_state, input.clone(), container_reference) {
             ddl::ParserResult::Ok(ddl::Maybe::Just(value), _) => value,
             ddl::ParserResult::Ok(ddl::Maybe::Nothing, _) => {
                 return resolve_failure(
