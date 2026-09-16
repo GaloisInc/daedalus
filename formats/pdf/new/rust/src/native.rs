@@ -2,7 +2,11 @@
 
 use crate::pdfcos::{Pdf, resolve_reference};
 use crate::pdfcos_parsers::{Ref, TopDecl};
+use crate::predictor::png_predictor;
 use daedalus_rts_rust as ddl;
+use ddl::Type;
+use flate2::read::ZlibDecoder;
+use std::io::Read;
 
 /// Implements `ResolveRef` from `pdf-cos-spec/PdfDecl.ddl:37`.
 ///
@@ -33,15 +37,51 @@ pub fn decrypt(
 /// Inflates a zlib-compressed stream and reverses its optional TIFF or PNG
 /// predictor using the supplied image parameters.
 pub fn flate_decode(
-    _state: &mut ddl::ParserStateWith<Pdf>,
-    _input: ddl::Input,
-    _predictor: ddl::Int,
-    _colors: ddl::Int,
-    _bits_per_component: ddl::Int,
-    _columns: ddl::Int,
-    _body: ddl::Input,
+    state: &mut ddl::ParserStateWith<Pdf>,
+    input: ddl::Input,
+    predictor: ddl::Int,
+    colors: ddl::Int,
+    bits_per_component: ddl::Int,
+    columns: ddl::Int,
+    body: ddl::Input,
 ) -> ddl::ParserResult<ddl::Input> {
-    todo!()
+    let result = (|| {
+        let predictor = unsigned_parameter(&predictor, "Predictor")?;
+        let colors = usize::try_from(unsigned_parameter(&colors, "Colors")?)
+            .map_err(|_| "parameter Colors does not fit in usize".to_owned())?;
+        let bits_per_component =
+            usize::try_from(unsigned_parameter(&bits_per_component, "BitsPerComponent")?)
+                .map_err(|_| "parameter BitsPerComponent does not fit in usize".to_owned())?;
+        let columns = usize::try_from(unsigned_parameter(&columns, "Columns")?)
+            .map_err(|_| "parameter Columns does not fit in usize".to_owned())?;
+
+        let mut decoder = ZlibDecoder::new(body.as_bytes());
+        let mut decoded = Vec::new();
+        decoder
+            .read_to_end(&mut decoded)
+            .map_err(|error| format!("invalid Flate stream: {error}"))?;
+
+        let decoded = match predictor {
+            1 => decoded,
+            10..=15 => png_predictor(decoded, colors, bits_per_component, columns)?,
+            _ => {
+                return Err(format!(
+                    "unsupported FlateDecode predictor parameters: Predictor={predictor}, \
+                     Colors={colors}, BitsPerComponent={bits_per_component}"
+                ));
+            }
+        };
+
+        Ok(ddl::new_input(
+            ddl::new_byte_array(b"FlateDecode"),
+            ddl::new_byte_array_vec(decoded),
+        ))
+    })();
+
+    match result {
+        Ok(decoded) => ddl::ParserResult::Ok(decoded, input),
+        Err(error) => native_failure(state, &input, "FlateDecode", &error),
+    }
 }
 
 /// Implements `LZWDecode` from `pdf-cos-spec/PdfDecl.ddl:248`.
@@ -81,4 +121,21 @@ pub fn ascii85_decode(
     _body: ddl::Input,
 ) -> ddl::ParserResult<ddl::Input> {
     todo!()
+}
+
+fn unsigned_parameter(value: &ddl::Int, name: &str) -> Result<u64, String> {
+    value
+        .try_to_unsigned()
+        .ok_or_else(|| format!("parameter {name} is not an unsigned integer"))
+}
+
+fn native_failure<T>(
+    state: &mut ddl::ParserStateWith<Pdf>,
+    input: &ddl::Input,
+    primitive: &str,
+    message: &str,
+) -> ddl::ParserResult<T> {
+    let message = ddl::new_byte_array(message.as_bytes());
+    state.note_fail(true, primitive, input, message.bor());
+    ddl::ParserResult::Failure
 }
