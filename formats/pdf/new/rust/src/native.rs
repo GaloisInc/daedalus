@@ -26,11 +26,26 @@ pub fn resolve_ref(
 /// Decrypts a stream using the document encryption context and current object
 /// number/generation, or returns the stream unchanged for an unencrypted file.
 pub fn decrypt(
-    _state: &mut ddl::ParserStateWith<Pdf>,
-    _input: ddl::Input,
-    _body: ddl::Input,
+    state: &mut ddl::ParserStateWith<Pdf>,
+    input: ddl::Input,
+    body: ddl::Input,
 ) -> ddl::ParserResult<ddl::Input> {
-    todo!()
+    let encrypted = state
+        .user_state
+        .trailer
+        .as_ref()
+        .is_some_and(|trailer| trailer.encrypt.is_just());
+
+    if encrypted {
+        native_failure(
+            state,
+            &input,
+            "Decrypt",
+            "encrypted PDF streams are not supported",
+        )
+    } else {
+        ddl::ParserResult::Ok(body, input)
+    }
 }
 
 /// Implements `FlateDecode` from `pdf-cos-spec/PdfDecl.ddl:219`.
