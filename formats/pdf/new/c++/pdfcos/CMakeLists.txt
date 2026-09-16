@@ -11,6 +11,7 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/include/pdfcos/types.h
   DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/Daedalus.ddl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfASCII.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfCos.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfDecl.ddl
     ${CMAKE_CURRENT_SOURCE_DIR}/../../pdf-cos-spec/PdfXRef.ddl

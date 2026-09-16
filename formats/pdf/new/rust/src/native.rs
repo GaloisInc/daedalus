@@ -121,17 +121,6 @@ pub fn lzw_decode(
     }
 }
 
-/// Implements `ASCII85Decode` from `pdf-cos-spec/PdfDecl.ddl:260`.
-///
-/// Converts the stream's base-85 text representation back into bytes.
-pub fn ascii85_decode(
-    _state: &mut ddl::ParserStateWith<Pdf>,
-    _input: ddl::Input,
-    _body: ddl::Input,
-) -> ddl::ParserResult<ddl::Input> {
-    todo!()
-}
-
 fn unsigned_parameter(value: &ddl::Int, name: &str) -> Result<u64, String> {
     value
         .try_to_unsigned()

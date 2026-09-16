@@ -1,4 +1,5 @@
 import Daedalus
+import PdfASCII
 import PdfValue
 
 -- ENTRY
@@ -252,31 +253,6 @@ def LZWDecode (predictor   : int)
               (earlychange : int)
               (body        : stream)
               : stream
-
-
-def ASCIIHexDecode (body : stream) : stream =
-  WithStream body
-    block
-      let result =
-        many (output = builder)
-          (emit output ASCIIHexByte)
-      let result = emit result ASCIIHexLast <| result
-      Many JustWhite
-      Match ">"
-      arrayStream (build result)
-
--- ISO 32000-2:2017 section 7.4.2 specifies that all PDF white-space
--- characters shall be ignored within ASCII hexadecimal data.
-def ASCIIHexDigit =
-  block
-    Many JustWhite
-    HexDigit
-
-def ASCIIHexByte = numBase 16 (Many 2 ASCIIHexDigit) as! uint 8
-def ASCIIHexLast = 16 * ASCIIHexDigit as! uint 8
-
-def ASCII85Decode (body : stream)
-                  : stream
 
 
 --------------------------------------------------------------------------------
