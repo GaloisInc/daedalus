@@ -1,5 +1,4 @@
 #include <iostream>
-#include <cctype>
 #include <iomanip>
 #include <openssl/evp.h>
 
