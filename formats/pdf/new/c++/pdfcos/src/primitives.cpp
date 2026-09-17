@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <openssl/evp.h>
 
 #include <zlib.h>
@@ -164,12 +166,7 @@ DDL::ParserResult parser_FlateDecode
 
     std::string buffer;
 
-    z_stream strm;
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = body.length().rep();
-    strm.next_in = const_cast<unsigned char *>(reinterpret_cast<unsigned char const *>(bodyRef->borrowBytes().data()));
+    z_stream strm {};
 
     if (Z_OK != inflateInit(&strm)) {
       std::cerr << "INFO: inflate failed Z NOT OK" << std::endl;
@@ -178,30 +175,44 @@ DDL::ParserResult parser_FlateDecode
     }
 
     size_t const chunksize = 2048;
+    auto const *compressed =
+      reinterpret_cast<unsigned char const *>(bodyRef->borrowBytes().data());
+    size_t const compressedSize = bodyRef->length().rep();
+    size_t inputOffset = 0;
 
-    do {
+    for (;;) {
+      if (strm.avail_in == 0 && inputOffset < compressedSize) {
+        size_t const inputSize = std::min(
+          compressedSize - inputOffset,
+          size_t(std::numeric_limits<uInt>::max()));
+        strm.avail_in = uInt(inputSize);
+        strm.next_in = const_cast<unsigned char *>(compressed + inputOffset);
+        inputOffset += inputSize;
+      }
+
       size_t used = buffer.size();
       buffer.resize(used + chunksize);
 
       strm.avail_out = chunksize;
       strm.next_out = reinterpret_cast<unsigned char*>(&buffer[used]);
 
-      int ret = inflate(&strm, Z_FINISH);
+      int const status = inflate(&strm, Z_NO_FLUSH);
+      buffer.resize(used + (chunksize - strm.avail_out));
 
-      switch (ret) {
-        case Z_NEED_DICT:
-        case Z_DATA_ERROR:
-        case Z_MEM_ERROR:
-          inflateEnd(&strm);
-          input.free();
-          std::cerr << "INFO: inflate failed" << std::endl;
-          return DDL::ParserResult::Failure;
+      if (status == Z_STREAM_END) {
+        break;
       }
-
-      if (strm.avail_out > 0) {
-        buffer.resize(used + (chunksize - strm.avail_out));
+      if (status != Z_OK) {
+        std::cerr << "INFO: inflate failed";
+        if (strm.msg != nullptr) {
+          std::cerr << ": " << strm.msg;
+        }
+        std::cerr << std::endl;
+        inflateEnd(&strm);
+        input.free();
+        return DDL::ParserResult::Failure;
       }
-    } while (strm.avail_out == 0);
+    }
 
     inflateEnd(&strm);
 
