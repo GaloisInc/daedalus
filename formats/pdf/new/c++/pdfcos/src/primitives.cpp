@@ -258,17 +258,6 @@ DDL::ParserResult parser_LZWDecode
       return DDL::ParserResult::Failure;
     }
 
-    if (!unpredict(
-        predictor.asSize().rep(),
-        colors.asSize().rep(),
-        bpc.asSize().rep(),
-        columns.asSize().rep(),
-        output))
-    {
-      input.free();
-      return DDL::ParserResult::Failure;
-    }
-
     *result = DDL::Input("lzw", output.data(), DDL::Size(output.length()));
     *out_input = input;
     return DDL::ParserResult::Ok;
