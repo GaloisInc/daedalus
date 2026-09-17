@@ -11,7 +11,11 @@ const char * LzwException::what () const throw ()
     return msg;
 }
 
-std::string decompress(uint8_t const* ptr, size_t len) {
+std::string decompress(uint8_t const* ptr, size_t len, uint64_t early_change) {
+
+    if (early_change > 1) {
+        throw LzwException("Invalid LZW EarlyChange value");
+    }
 
     int codelen = 9;
 
@@ -77,9 +81,12 @@ std::string decompress(uint8_t const* ptr, size_t len) {
   
         // PDF defines the maximum dictionary size to be 4096
         // and the maximum code to be 12-bits
-        switch (dictionary.size()) {
-            case 4097: throw LzwException("Table was full"); // clear table code expected
-            case 512: case 1024: case 2048: codelen++; /* fall through */
+        if (dictionary.size() == 4097) {
+            throw LzwException("Table was full"); // clear table code expected
+        }
+        if (codelen < 12 &&
+            dictionary.size() + early_change == (size_t(1) << codelen)) {
+            codelen++;
         }
     }
 }

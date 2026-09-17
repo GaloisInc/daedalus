@@ -242,10 +242,14 @@ DDL::ParserResult parser_LZWDecode
   auto colorsOwned = DDL::Owned(colors);
   auto bpcOwned = DDL::Owned(bpc);
   auto columnsOwned = DDL::Owned(columns);
+  auto earlychangeOwned = DDL::Owned(earlychange);
   auto bodyRef = DDL::Owned(body);
 
   try {
-    auto output = decompress(reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes().data()), bodyRef->length().rep());
+    auto output = decompress(
+        reinterpret_cast<uint8_t const*>(bodyRef->borrowBytes().data()),
+        bodyRef->length().rep(),
+        earlychange.asSize().rep());
 
     if (!unpredict(
         predictor.asSize().rep(),
