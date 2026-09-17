@@ -26,16 +26,19 @@ pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) ->
     let mut pstate = ddl::new_parser_state();
 
     match f(&mut pstate, ddl::new_input(nm_arr, byte_arr)) {
-      ddl::ParserResult::Failure | ddl::ParserResult::Exception =>
-        match serde_json::to_string_pretty(&pstate.error) {
-            Ok(json) => println!("{}", json),
-            Err(err) => eprintln!("Serialization error: {}", err)
-        },
-      ddl::ParserResult::Ok(a, _) => {
-          match serde_json::to_string_pretty(&a) {
-              Ok(json) => println!("[{}]", json),
-              Err(err) => eprintln!("Serialization error: {}", err)
-          }
-      }
+      ddl::ParserResult::Failure =>
+        print_json(&pstate.error, false),
+      ddl::ParserResult::Exception =>
+        print_json(&pstate.error, false),
+      ddl::ParserResult::Ok(a, _) =>
+        print_json(&a, true),
+    }
+}
+
+fn print_json<T: Serialize>(value: &T, as_result_array: bool) {
+    match serde_json::to_string_pretty(value) {
+        Ok(json) if as_result_array => println!("[{}]", json),
+        Ok(json) => println!("{}", json),
+        Err(err) => eprintln!("Serialization error: {}", err),
     }
 }

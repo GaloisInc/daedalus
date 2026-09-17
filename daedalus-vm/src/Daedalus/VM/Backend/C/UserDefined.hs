@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments, ImplicitParams #-}
 module Daedalus.VM.Backend.C.UserDefined where
 
 import qualified Data.Set as Set
@@ -869,4 +868,3 @@ maybeCopyFree fun ty e =
   case ty of
     TUnit -> Nothing  -- these are deleted
     _     -> Just (cStmt (cCallMethod e fun []))
-

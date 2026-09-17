@@ -21,8 +21,8 @@ toGraphViz sty p = unlines
   : concat ns ++ concat es
   ++ ["}"]
   where
-  allFuns = [ f | m <- pModules p, f <- mFuns m ]
-  funMap = Map.fromList [ (vmfName f, f) | m <- pModules p, f <- mFuns m ]
+  allFuns = programFuns p
+  funMap = Map.fromList [ (vmfName f, f) | f <- allFuns ]
 
   (ns,es) = unzip (zipWith (doFun sty funMap) [1..] allFuns)
 
@@ -40,8 +40,7 @@ doFun sty funMap n fun =
     VMDef body ->
       (  ("subgraph cluster_" ++ show n ++ " {")
        : ("label=\"" ++ show (pp (vmfName fun)) ++ "\";")
-       : ("color=" ++ (if vmfLoop fun then show "#ccccccff"
-                                      else show "#999999ff") ++ ";")
+       : "color=\"#999999ff\";"
        : "style=\"filled\";"
        : [ node (blockName b) ++";" | b <- Map.elems (vmfBlocks body) ]
        ++ ["}"]
@@ -77,6 +76,7 @@ edge sty funMap b =
   red   = "#FF0000FF"
   green = "#00FF00FF"
 
+  edgeTo :: String -> String -> Label -> String
   edgeTo c l x = me ++ " -> " ++ node x ++ "[ label=" ++ show l ++
                                   " color=" ++ show c ++ "];"
 
@@ -90,4 +90,3 @@ edge sty funMap b =
                       : [ edgeTo black l (jLabel x)
                                         | (l,x) <- zip ["fail","return"] xs
                                         , sty == Everything ]
-

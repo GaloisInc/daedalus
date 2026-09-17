@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.Backend.C.Bitdata (cBitdata,bdCase,bdCaseDflt) where
 
 import Data.Maybe(mapMaybe)

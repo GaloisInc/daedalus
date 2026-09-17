@@ -18,6 +18,7 @@ add_executable(rts-c-tests main.cpp
     map_tests.cpp
     maybe_tests.cpp
     number_tests.cpp
+    parse_error_tests.cpp
     size_tests.cpp
     unit_tests.cpp
     stream_tests.cpp

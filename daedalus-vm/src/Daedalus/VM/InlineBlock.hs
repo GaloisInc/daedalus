@@ -55,8 +55,6 @@ And we replace @L1@ and @L2@ with @L3@.
 
 We should elimiate L1, and replace `jump L1(e)` with `tail_call f(e)`
 -}
-{-# Language BlockArguments, BangPatterns #-}
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.InlineBlock where
 
 import Data.Set (Set)
@@ -375,6 +373,5 @@ jjInfo b =
   isArg e    = case e of
                  EBlockArg a -> Just a
                  _           -> Nothing
-
 
 

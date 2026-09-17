@@ -1,4 +1,3 @@
-{-# Language TemplateHaskell #-}
 module Templates where
 
 import Data.Map(Map)

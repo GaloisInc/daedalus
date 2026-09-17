@@ -1,4 +1,3 @@
-{-# Language BlockArguments #-}
 module Daedalus.VM.RefCountSane where
 
 import Data.List(find)
@@ -31,7 +30,7 @@ checkProgram prog =
   where
   check = mapM_ checkModule (pModules prog)
 
-  checkModule = mapM_ checkVMFun . mFuns
+  checkModule = mapM_ checkVMFun . moduleFuns
   checkVMFun f = case vmfDef f of
                    VMDef b -> checkBlocks (vmfBlocks b)
                    VMExtern {} -> pure ()
@@ -46,7 +45,7 @@ checkProgram prog =
                        VMExtern as -> Left as
                        VMDef d  -> Right (vmfBlocks d Map.! vmfEntry d)
                    )
-  allFuns        = concatMap mFuns (pModules prog)
+  allFuns        = programFuns prog
   allBlocks      = Map.fromList
                     [ (blockName b, b)
                     | b <- pAllBlocks prog
@@ -312,5 +311,3 @@ checkJumpChoice loc ro blockOk (JumpCase alts) count =
                     )
            -- XXX: report diff
          | otherwise -> pure m
-
-

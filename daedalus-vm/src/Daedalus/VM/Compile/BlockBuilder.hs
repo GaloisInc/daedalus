@@ -1,5 +1,3 @@
-{-# Language BlockArguments #-}
-{-# Language EmptyCase #-}
 module Daedalus.VM.Compile.BlockBuilder where
 
 import Data.Map(Map)
@@ -212,4 +210,3 @@ jumpCase :: Map Pattern (BlockBuilder JumpPoint) -> E -> BlockBuilder Void
 jumpCase bs e =
   do jps <- sequence bs
      term $ JumpIf e $ JumpCase $ jumpNoFree <$> jps
-

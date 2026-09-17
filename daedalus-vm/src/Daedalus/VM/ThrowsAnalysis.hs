@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings, BlockArguments #-}
 module Daedalus.VM.ThrowsAnalysis where
 
 import Data.Set(Set)
@@ -7,7 +6,8 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List(foldl')
 
-import Daedalus.Rec(topoOrder,Rec(..))
+import Daedalus.Rec(Rec(..))
+import Daedalus.Panic(panic)
 import Daedalus.PP
 
 import Daedalus.VM
@@ -18,11 +18,14 @@ throwsAnalysis prog = Program { pModules = map annotateModule ms }
   where
   ms = pModules prog
 
-  info = fixThrowsInfo
-       $ Map.fromList
-           [ (vmfName f, throwsInfo f) | m <- ms, f <- mFuns m ]
+  info =
+    foldl' updateKnownGroup Map.empty
+      [ fmap (\f -> (vmfName f, throwsInfo f)) group
+      | m <- ms
+      , group <- mFuns m
+      ]
 
-  annotateModule m = m { mFuns = map annotateFun (mFuns m) }
+  annotateModule = mapModuleFuns annotateFun
 
   annotateFun f = f { vmfThrows = getThrows info (vmfName f) }
 
@@ -31,17 +34,16 @@ getThrows :: Map FName ThrowsInfo -> FName -> Throws
 getThrows mp f =
   case Map.lookup f mp of
     Just ThrowsYes -> Throws
-    _              -> NoThrows
-
-fixThrowsInfo :: Map FName ThrowsInfo -> Map FName ThrowsInfo
-fixThrowsInfo = foldl' updateKnownGroup Map.empty
-              . topoOrder deps
-              . Map.toList
-  where
-  deps (f,i) = (f, case i of
-                     ThrowsYes   -> Set.empty
-                     ThrowsIf fs -> fs
-               )
+    Just (ThrowsIf fs)
+      | Set.null fs -> NoThrows
+      | otherwise ->
+          panic "getThrows"
+            [ "Unresolved throw dependencies for " ++ show (pp f)
+            , show (map pp (Set.toList fs))
+            ]
+    Nothing ->
+      panic "getThrows"
+        [ "Missing throw information for " ++ show (pp f) ]
 
 updateKnownGroup ::
   Map FName ThrowsInfo -> Rec (FName, ThrowsInfo) -> Map FName ThrowsInfo

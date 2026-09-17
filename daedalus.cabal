@@ -214,8 +214,12 @@ executable daedalus
   default-language:    Haskell2010
   default-extensions:
     BlockArguments,
+    GADTs,
+    ImplicitParams,
     OverloadedStrings,
-    RecordWildCards
+    RecordWildCards,
+    ScopedTypeVariables,
+    TemplateHaskell
 
 
 executable daedalus-run-test
@@ -261,4 +265,3 @@ test-suite daedalus-test-makefile
   build-depends:      base,
                       process,
                       directory
-

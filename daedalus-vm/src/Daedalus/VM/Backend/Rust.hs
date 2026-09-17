@@ -1,4 +1,3 @@
-{-# Language ImportQualifiedPost, OverloadedStrings, ImplicitParams, ConstraintKinds #-}
 module Daedalus.VM.Backend.Rust (
   compileProgram,
   Config(..)
@@ -15,12 +14,14 @@ import Data.Bits
 import Control.Monad(void)
 
 import Daedalus.PP
-import Daedalus.Rec(forgetRecs)
+import Daedalus.Rec(Rec(..),forgetRecs)
 import Daedalus.Panic(panic)
 import Daedalus.Core qualified as Core
 import Daedalus.VM qualified as VM
+import Daedalus.VM.RecursionAnalysis qualified as RA
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
+import Daedalus.VM.Backend.Rust.Recursive qualified as Rec
 import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
 import Language.Rust.Parser qualified as RustParser
@@ -53,8 +54,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
                                 | m <- VM.pModules vm,
                                   t <- forgetRecs (VM.mTypes m) ]
         ?allFuns = Map.fromList [ (VM.vmfName f, f)
-                                | m <- VM.pModules vm,
-                                  f <- VM.mFuns m ]
+                                | f <- VM.programFuns vm ]
         ?userState = parseRustType <$> cfgUserState cfg
         ?userFun = parseRustPath <$> cfgUserFun cfg
     in
@@ -68,7 +68,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
     ] ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
-  sigsOfMod s m = foldl' sigsOfFun s (VM.mFuns m)
+  sigsOfMod s m = foldl' sigsOfFun s (VM.moduleFuns m)
 
   sigsOfFun (fs,bs) f =
     case VM.vmfDef f of
@@ -90,8 +90,33 @@ compileProgram cfg vm = show (Rust.pretty' result)
 compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
 compileModule m =
   concatMap compileUserType (VM.mTypes m) ++
-  map compileFun (VM.mFuns m)
-  
+  concatMap compileFunGroup (VM.mFuns m)
+
+compileFunGroup :: ProgCtx => Rec VM.VMFun -> [Rust.Item ()]
+compileFunGroup r =
+  case r of
+    NonRec fu  -> [ compileFun fu ]
+    MutRec fus -> Rec.compileGroup recGroupCodegen fus
+  where
+  recGroupCodegen =
+    Rec.GroupCodegen
+      { Rec.groupAllFuns          = ?allFuns
+      , Rec.groupCompileBlock     = compileGroupBlock
+      , Rec.groupResultType       = compileFunResultType
+      , Rec.groupParserStateType  = parserStateType
+      , Rec.groupCompileVMT       = compileGroupVMT
+      }
+
+  compileGroupBlock fu recCtx bl =
+    let ?isPure = VM.vmfPure fu
+        ?fnMsg = backticks (pp (VM.vmfName fu))
+        ?curFunThrows = VM.vmfThrows fu
+    in compileBlock (Just recCtx) bl
+
+  compileGroupVMT caller ownership ty =
+    let ?fnMsg = backticks (pp caller)
+    in compileVMT ownership ty
+
 compileFun :: ProgCtx => VM.VMFun -> Rust.Item ()
 compileFun fu =
   case VM.vmfCaptures fu of
@@ -109,15 +134,7 @@ compileFun fu =
   fnm             = VM.vmfName fu
   nm              = compileFName fnm
   throws          = VM.vmfThrows fu
-  valTy           = compileType VM.Owned (Core.fnameType fnm)
-    where ?fnMsg = fnMsg
-  resT
-    | VM.vmfPure fu, throws == VM.Throws =
-        Rust.pathType (Rust.pathWithTypes [ddlModName, "PureResult"] [valTy])
-    | VM.vmfPure fu = valTy
-    | otherwise =
-        Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
-    where ?fnMsg = fnMsg
+  resT            = compileFunResultType fu
 
   args = (parserStateName, Rust.tMutRef parserStateType) : args'
   (args',def) =
@@ -125,6 +142,19 @@ compileFun fu =
         ?fnMsg  = fnMsg
         ?curFunThrows = throws
     in compileFunDef fnm (VM.vmfDef fu)
+
+compileFunResultType :: ProgCtx => VM.VMFun -> Rust.Ty ()
+compileFunResultType fu
+  | VM.vmfPure fu, VM.vmfThrows fu == VM.Throws =
+      Rust.pathType (Rust.pathWithTypes [ddlModName, "PureResult"] [valTy])
+  | VM.vmfPure fu = valTy
+  | otherwise =
+      Rust.pathType (Rust.pathWithTypes [ddlModName, "ParserResult"] [valTy])
+  where
+  fnm = VM.vmfName fu
+  valTy =
+    let ?fnMsg = backticks (pp fnm)
+    in compileType VM.Owned (Core.fnameType fnm)
 
 parserStateType :: ProgCtx => Rust.Ty ()
 parserStateType =
@@ -233,11 +263,13 @@ compileFunBody body = (args, Rust.block [contT, pcDecl, mainLoop])
                     [ arm | (_,_,arm) <- Map.elems blockCode ])
       ]))
 
-  blockCode = compileBlock <$> blocks
+  blockCode = compileBlock Nothing <$> blocks
 
 
-compileBlock :: FnCtx => VM.Block -> (Rust.Ident, [Rust.Ty ()], Rust.Arm ())
-compileBlock bl = (lab, argTs, alt)
+compileBlock ::
+  FnCtx => Maybe RA.BlockContext -> VM.Block ->
+  (Rust.Ident, [Rust.Ty ()], Rust.Arm ())
+compileBlock recCtx bl = (lab, argTs, alt)
   where
   args      = VM.blockArgs bl
   argNames  = map compileBAName args
@@ -247,7 +279,7 @@ compileBlock bl = (lab, argTs, alt)
                 (Rust.conPat (Rust.simplePath' [contTypeName,lab]) (map Rust.identPat argNames))
                 (Rust.blockExpr code)
   code = concatMap compileBlockInstr (VM.blockInstrs bl) ++
-         compileCInstr (VM.blockTerm bl)
+         compileCInstr recCtx (VM.blockTerm bl)
 
 compileBlockInstr :: FnCtx => VM.Instr -> [Rust.Stmt ()]
 compileBlockInstr instr =
@@ -752,8 +784,9 @@ compileNumLit n ty =
     where
     suf = if sign then Rust.I64 else Rust.U64
 
-compileCInstr :: FnCtx => VM.CInstr -> [Rust.Stmt ()]
-compileCInstr cinstr =
+compileCInstr ::
+  FnCtx => Maybe RA.BlockContext -> VM.CInstr -> [Rust.Stmt ()]
+compileCInstr mbRec cinstr =
   case cinstr of
     VM.Jump jp -> compileJump jp []
     VM.JumpIf e opts
@@ -771,24 +804,56 @@ compileCInstr cinstr =
         | otherwise                    = id
       
     VM.Yield             -> bad
-    VM.ReturnNo          ->
+    VM.ReturnNo
+      -- Within a recursive group, pop and dispatch the top continuation
+      -- frame with a parser failure.
+      | Just recCtx <- mbRec -> Rec.compileReturnNo recCodegen recCtx
+
+      -- A non-recursive parser returns failure directly.
+      | otherwise ->
       [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Failure"]))]
-    VM.ReturnYes res inp ->
+
+    VM.ReturnYes res inp
+      -- Within a recursive group, pop and dispatch the top continuation
+      -- frame with the parser result and remaining input.
+      | Just recCtx <- mbRec ->
+          Rec.compileReturnYes recCodegen recCtx res inp
+
+      -- A non-recursive parser returns success directly.
+      | otherwise ->
       [Rust.ret (Rust.call
         (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Ok"]))
         (map (compileExpr VM.Owned) [res,inp]))]
+
     VM.ReturnPure res
+      -- Within a recursive group, pop and dispatch the top continuation
+      -- frame with the returned value.
+      | Just recCtx <- mbRec ->
+          Rec.compileReturnPure recCodegen recCtx res
+
+      -- A throwing pure function represents a successful return with `Ok`.
       | ?curFunThrows == VM.Throws ->
         [Rust.ret (Rust.call
           (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Ok"]))
           [compileExpr VM.Owned res])]
+
+      -- A non-throwing pure function returns its value directly.
       | otherwise -> [Rust.ret (compileExpr VM.Owned res)]
 
     VM.Throw loc msg
+      -- Within a recursive group, bypass ordinary continuation frames and
+      -- propagate the exception through the explicit stack.
+      | Just recCtx <- mbRec ->
+          Rec.compileThrow recCodegen recCtx loc msg
+
+      -- A non-recursive pure function returns the exception as a `PureResult`.
       | ?isPure ->
         [Rust.ret (Rust.call
           (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
           [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])]
+
+      -- A non-recursive parser records the exception in the parser state and
+      -- returns a `ParserResult` exception.
       | otherwise ->
         [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
             [Rust.litExpr (Rust.strLit (Text.unpack loc)), Rust.litExpr (Rust.strLit (Text.unpack msg))])
@@ -796,6 +861,13 @@ compileCInstr cinstr =
         ]
 
     VM.CallPure f j es _exnFree
+      -- A non-tail call within the recursive group saves its continuation
+      -- in a frame, then jumps to the callee.
+      | Just recCtx <- mbRec, Rec.isRecFun recCtx f ->
+          Rec.compileCall recCodegen recCtx f es
+
+      -- An ordinary call to a throwing pure function must inspect the result
+      -- and propagate an exception instead of entering the continuation.
       | calleeThrows ->
         [ Rust.expr (Rust.matchExpr (doCall f es)
             [ Rust.matchArm
@@ -808,13 +880,21 @@ compileCInstr cinstr =
                 (Rust.blockExpr (propagateExnFromPure))
             ])
         ]
+
+      -- A non-throwing ordinary call enters its continuation with the result.
       | otherwise -> compileJumpWithFree j [doCall f es]
       where
-      calleeThrows = case Map.lookup f ?allFuns of
-                       Just fun -> VM.vmfThrows fun == VM.Throws
-                       Nothing  -> False
+      calleeThrows = funThrows f
 
-    VM.CallNoCapture f (VM.JumpCase opts) es _exnFree ->
+    VM.CallNoCapture f (VM.JumpCase opts) es _exnFree
+      -- A non-tail call within the recursive group saves both parser
+      -- continuations in a frame, then jumps to the callee.
+      | Just recCtx <- mbRec, Rec.isRecFun recCtx f ->
+          Rec.compileCall recCodegen recCtx f es
+
+      -- An ordinary parser call selects its success or failure continuation,
+      -- or propagates an exception.
+      | otherwise ->
       [ Rust.expr (Rust.matchExpr (doCall f es)
           [ Rust.matchArm
               (Rust.conPat (Rust.simplePath' [ddlModName, "ParserResult", "Ok"])
@@ -836,27 +916,72 @@ compileCInstr cinstr =
           Nothing -> panic "compileCInstr" ["Missing option", show x]
 
 
+    -- The Rust backend does not support calls that capture their continuation.
     VM.CallCapture {} -> bad
-    VM.TailCall f c es ->
-      case c of
-        VM.NoCapture -> [ Rust.ret (doCall f es) ]
-        _            ->  bad
+
+    VM.TailCall f c es
+      -- A tail call within the recursive group is a direct jump and does
+      -- not push a continuation frame.
+      | Just recCtx <- mbRec, Rec.isRecFun recCtx f ->
+          Rec.compileEnter recCodegen recCtx f es
+
+      -- A tail call leaving the recursive group calls the function normally,
+      -- then returns its result through the explicit stack.
+      | Just recCtx <- mbRec ->
+          case c of
+            VM.NoCapture ->
+              Rec.compileTailCall
+                recCodegen recCtx (funThrows f) (doCall f es)
+            _ -> bad
+
+      -- Outside a recursive group, emit an ordinary Rust return.
+      | otherwise ->
+          case c of
+            VM.NoCapture -> [ Rust.ret (doCall f es) ]
+            _            -> bad
   where
   bad = panic "compileCInstr" ["Unexpected instruction", show (pp cinstr)]
 
   propagateExnFromPure
+    -- A pure recursive function propagates the exception through the
+    -- explicit stack as a `PureResult`.
+    | Just recCtx <- mbRec, ?isPure =
+      Rec.compileException recCodegen recCtx
+        (Rust.call
+          (Rust.pathExpr
+            (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
+          [Rust.identExpr "el", Rust.identExpr "em"])
+
+    -- A recursive parser calling a pure function records the exception in
+    -- the parser state before unwinding the explicit stack.
+    | Just recCtx <- mbRec =
+      Rust.expr_
+        (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
+          [Rust.identExpr "el", Rust.identExpr "em"])
+      : Rec.compileException recCodegen recCtx parserException
+
+    -- A non-recursive pure function returns the exception directly.
     | ?isPure =
       [Rust.ret (Rust.call
         (Rust.pathExpr (Rust.simplePath' [ddlModName, "PureResult", "Exception"]))
         [Rust.identExpr "el", Rust.identExpr "em"])]
+
+    -- A non-recursive parser records the exception and returns it directly.
     | otherwise =
       [ Rust.expr_ (Rust.callMethod (Rust.identExpr parserStateName) "set_exception"
           [Rust.identExpr "el", Rust.identExpr "em"])
       , Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))
       ]
 
-  propagateExnFromParser =
-    [Rust.ret (Rust.pathExpr (Rust.simplePath' [ddlModName, "ParserResult", "Exception"]))]
+  propagateExnFromParser
+    | Just recCtx <- mbRec =
+        Rec.compileException recCodegen recCtx parserException
+    | otherwise =
+        [Rust.ret parserException]
+
+  parserException =
+    Rust.pathExpr
+      (Rust.simplePath' [ddlModName, "ParserResult", "Exception"])
 
   doCall f es = Rust.call (Rust.identExpr (compileFName f))
                           (Rust.identExpr parserStateName : zipWith compileExpr sig es)
@@ -866,7 +991,20 @@ compileCInstr cinstr =
         Just s -> s
         Nothing -> panic "compileCInstr" ["Missing ownership signature for", show (pp f)]
 
- 
+  funThrows f =
+    case Map.lookup f ?allFuns of
+      Just fun -> VM.vmfThrows fun == VM.Throws
+      Nothing ->
+        panic "compileCInstr"
+          ["Missing function definition for", show (pp f)]
+
+  recCodegen =
+    Rec.Codegen
+      { Rec.compileExpr = compileExpr
+      , Rec.funSigs = ?funSigs
+      , Rec.isPure = ?isPure
+      }
+
 compileJump :: FnCtx => VM.JumpPoint -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileJump (VM.JumpPoint l es) extra =
  [ Rust.assign

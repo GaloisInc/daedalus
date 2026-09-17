@@ -1,4 +1,3 @@
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.Backend.C.Call where
 
 import Daedalus.PP
@@ -45,5 +44,4 @@ cClosureClass super thisTy tys = cStmt $ vcat
     ]
 
   param n = "x" <.> int n
-
 

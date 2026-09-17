@@ -1,5 +1,3 @@
-{-# Language BlockArguments, ImplicitParams, ConstraintKinds #-}
-{-# Language OverloadedStrings #-}
 module Daedalus.VM.TypeCheck where
 
 import Data.Map (Map)
@@ -57,7 +55,7 @@ funSigs prog =
     do sig <- funSig fu
        pure (vmfName fu, sig)
   where
-  allFuns = [ fu | m  <- pModules prog, fu <- mFuns m ]
+  allFuns = programFuns prog
 
 --------------------------------------------------------------------------------
 
