@@ -147,9 +147,10 @@ def TryApplyFilter (f : Filter) (body : stream) =
   if f.name == "FlateDecode"
     then block
       let params = FlateDecodeParams f.param
-      ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
-                      (params.colors == 1) &&
-                      (params.bpc == 8)) body
+      ApplyFilter f (supportedPredictor params.predictor
+                                        params.colors
+                                        params.bpc
+                                        params.columns) body
                     (FlateDecode params.predictor
                                  params.colors
                                  params.bpc
@@ -159,9 +160,10 @@ def TryApplyFilter (f : Filter) (body : stream) =
   else if f.name == "LZWDecode"
     then block
       let params = LZWDecodeParams f.param
-      ApplyFilter f ( (params.predictor == 1 || params.predictor == 12) &&
-                      (params.colors == 1) &&
-                      (params.bpc == 8) ) body
+      ApplyFilter f (supportedPredictor params.predictor
+                                        params.colors
+                                        params.bpc
+                                        params.columns) body
                     ( LZWDecode params.predictor
                                 params.colors
                                 params.bpc
@@ -186,6 +188,13 @@ def TryApplyFilter (f : Filter) (body : stream) =
 
   else ApplyFilter f false body (Fail "Unsupported filter")
 
+def supportedPredictor predictor colors bpc columns =
+  predictor == 1 ||
+  (predictor >= 10 && predictor <= 15 &&
+   colors >= 1 &&
+   (bpc == 1 || bpc == 2 || bpc == 4 || bpc == 8 || bpc == 16) &&
+   columns >= 1)
+
 def ApplyFilter (f : Filter) guard (body: stream) (P : stream) : ApplyFilter = block
   -- Trace "ApplyFilter"
   if guard
@@ -196,7 +205,6 @@ def ApplyFilter (f : Filter) guard (body: stream) (P : stream) : ApplyFilter = b
                 _       -> concat [ f.name, " (with params)" ]
          |}
 
--- XXX: some more checking (e.g., predictor 1 does not support the other ps)
 def FlateDecodeParams (params : maybe [ [uint 8] -> Value ]) =
   { params is nothing;
     ^ fdDefaults;
