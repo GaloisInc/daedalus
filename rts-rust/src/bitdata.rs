@@ -67,12 +67,12 @@ macro_rules! bitdata_field {
 
 #[macro_export]
 macro_rules! bitdata_con {
-    ($tname: ident $(, ($offset: literal, $value: expr))*) => {
-        { const W: u32 = $tname::WIDTH;
-          $tname { rep: <$crate::U<{W}>>::from(0u8)
-                        $( | ($value.to_bits().cast_to::<false,{W}>() << $offset)
-                         )*
-                  }
+    ($tname: path $(, ($offset: literal, $value: expr))*) => {
+        { const W: u32 = <$tname>::WIDTH;
+          <$tname>::from_bits_unchecked(
+            <$crate::U<{W}>>::from(0u8)
+              $( | ($value.to_bits().cast_to::<false,{W}>() << $offset) )*
+          )
         }
     };
 }
@@ -118,4 +118,3 @@ macro_rules! bitdata_union_serialize {
         }
     };
 }
-

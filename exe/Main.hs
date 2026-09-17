@@ -370,6 +370,7 @@ generateRust opts mm =
                 { Rust.cfgUserState = optUserState opts
                 , Rust.cfgExtraImports = optExtraImport opts
                 , Rust.cfgUserFun = optUserFun opts
+                , Rust.cfgExternal = optExternMods opts
                 }
         -- XXX: catch unsupported.
         rust = Rust.compileProgram cfg prog
