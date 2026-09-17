@@ -30,6 +30,7 @@ data Config = Config
   { cfgUserState :: Maybe String
   , cfgExtraImports :: [String]
   , cfgUserFun :: Maybe String
+  , cfgExternal :: Map Text.Text String
   }
 
 type ProgCtx = (
@@ -38,7 +39,8 @@ type ProgCtx = (
   ?tyDecls :: Map Core.TName Core.TDecl,
   ?allFuns :: Map VM.FName VM.VMFun,
   ?userState :: Maybe (Rust.Ty ()),
-  ?userFun :: Maybe (Rust.Path ())
+  ?userFun :: Maybe (Rust.Path ()),
+  ?externalTypes :: ExternalTypes
   )
 
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
@@ -57,6 +59,11 @@ compileProgram cfg vm = show (Rust.pretty' result)
                                 | f <- VM.programFuns vm ]
         ?userState = parseRustType <$> cfgUserState cfg
         ?userFun = parseRustPath <$> cfgUserFun cfg
+        ?externalTypes =
+          Map.fromList
+            [ (Core.MName name, parseRustPath namespace)
+            | (name, namespace) <- Map.toList (cfgExternal cfg)
+            ]
     in
     Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
 
@@ -89,8 +96,14 @@ compileProgram cfg vm = show (Rust.pretty' result)
 
 compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
 compileModule m =
-  concatMap compileUserType (VM.mTypes m) ++
+  concatMap (compileUserType . NonRec) localTypes ++
   concatMap compileFunGroup (VM.mFuns m)
+  where
+  localTypes =
+    [ ty
+    | ty <- forgetRecs (VM.mTypes m)
+    , Map.notMember (Core.tnameMod (Core.tName ty)) ?externalTypes
+    ]
 
 compileFunGroup :: ProgCtx => Rec VM.VMFun -> [Rust.Item ()]
 compileFunGroup r =
@@ -413,13 +426,14 @@ compilePrim x prim es =
                               _ -> panic "compilePrim" ["Malformed bitdata struct constructor"]
 
               in def Nothing (Rust.callMacro (ddlPath "bitdata_con")
-                    (Rust.identExpr (compileTName False nm) : addData fs0 compiled))
+                    (Rust.pathExpr (compileTPath False nm) :
+                     addData fs0 compiled))
 
           _ -> panic "compilePrim" ["Missing bitdata type", show (pp nm)]
       | otherwise ->
       case Core.tnameFlav nm of
         Core.TFlavStruct ls ->
-          def Nothing (Rust.struct (Rust.simplePath (compileTName False nm))
+          def Nothing (Rust.struct (compileTPath False nm)
               [ (compileFieldLabel l, e) | (l,e) <- zip ls compiled ])
         _ -> panic "compilePrim" ["StructCon bad flavor"]
       
@@ -577,7 +591,9 @@ compileOp1 x op e argTy =
         | Core.tnameRec nm = (True,\val -> callRTS "new" [val])
         | otherwise = (False,id)
       nm = Core.utName ut
-      noArg = Rust.pathExpr (Rust.simplePath' [compileTName hasPref nm,compileConLabel lab])
+      noArg =
+        Rust.pathExpr
+          (appendPath (compileTPath hasPref nm) (compileConLabel lab))
       withArg = Rust.call noArg [e]
       
     Core.FromUnion ty lab
@@ -596,7 +612,7 @@ compileOp1 x op e argTy =
       matchInput
         | isRec = Rust.callMethod e "as_ref" []
         | otherwise = e
-      con   = Rust.simplePath' [compileTName isRec unm, compileConLabel lab]
+      con   = appendPath (compileTPath isRec unm) (compileConLabel lab)
       noArg = Rust.matchArm (Rust.conPat con []) (Rust.pathExpr (ddlPath "Unit"))
       arm1  =
         case Core.tnameFlav unm of
@@ -1117,7 +1133,8 @@ isRecTy ty =
     _ -> False
 
 
-compilePat :: VM.VMT -> Core.Pattern -> Rust.Pat ()
+compilePat :: (?externalTypes :: ExternalTypes) =>
+              VM.VMT -> Core.Pattern -> Rust.Pat ()
 compilePat ty p =
   case p of
     Core.PBool b    -> Rust.litPat (Rust.boolLit b)
@@ -1141,9 +1158,9 @@ compilePat ty p =
       case ty of
         VM.TSem (Core.TUser ut) -> Rust.conPat nm [Rust.wildPat | hasData ]
           where
-          nm    = Rust.simplePath' [qual, compileConLabel uc]
+          nm    = appendPath qual (compileConLabel uc)
           unm   = Core.utName ut
-          qual  = compileTName (isRecTy ty || Core.tnameBD unm) unm
+          qual  = compileTPath (isRecTy ty || Core.tnameBD unm) unm
           hasData =
             case Core.tnameFlav unm of
               Core.TFlavEnum {} -> False

@@ -1,10 +1,13 @@
 module Daedalus.VM.Backend.Rust.Names where
 
 import Data.Char(isAlphaNum,isAscii)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Numeric(showHex)
 
 import Daedalus.GUID(guidString)
+import Daedalus.Panic(panic)
 import Daedalus.Core qualified as Core
 import Daedalus.VM qualified as VM
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
@@ -15,6 +18,36 @@ ddlModName = "ddl"
 
 ddlPath :: Rust.Ident -> Rust.Path ()
 ddlPath f = Rust.simplePath' [ddlModName,f]
+
+type ExternalTypes = Map Core.MName (Rust.Path ())
+
+-- Types from modules named by `--extern` are defined in another Rust module.
+-- Build either that qualified path or the usual local type name.
+compileTPath :: (?externalTypes :: ExternalTypes) =>
+                Bool -> Core.TName -> Rust.Path ()
+compileTPath isPriv ty =
+  case Map.lookup (Core.tnameMod ty) ?externalTypes of
+    Nothing        -> Rust.simplePath (compileTName isPriv ty)
+    Just namespace -> appendPath namespace (compileTName isPriv ty)
+
+appendPath :: Rust.Path () -> Rust.Ident -> Rust.Path ()
+appendPath (Rust.Path global segments ()) name =
+  Rust.Path global (segments ++ [Rust.PathSegment name Nothing ()]) ()
+
+-- Attach generic type arguments to the final segment of a qualified path.
+addPathTypes :: Rust.Path () -> [Rust.Ty ()] -> Rust.Path ()
+addPathTypes path [] = path
+addPathTypes (Rust.Path global segments ()) tys =
+  case reverse segments of
+    [] -> panic "addPathTypes" ["empty path"]
+    Rust.PathSegment name Nothing () : more ->
+      Rust.Path global
+        (reverse more ++
+          [ Rust.PathSegment name
+              (Just (Rust.AngleBracketed (map Rust.TypeArg tys) [] ())) ()
+          ])
+        ()
+    _ -> panic "addPathTypes" ["path already has generic arguments"]
 
 -- XXX: collisions
 compileFName :: Core.FName -> Rust.Ident

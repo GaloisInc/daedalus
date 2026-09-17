@@ -15,8 +15,12 @@ import Daedalus.VM qualified as VM
 import Daedalus.VM.Backend.Rust.Lang qualified as Rust
 import Daedalus.VM.Backend.Rust.Names
 
-type FnMsg = (?fnMsg :: Doc)
-type TyCtx = (?tyDecls :: Map Core.TName Core.TDecl)
+type FnMsg = ( ?fnMsg :: Doc
+             , ?externalTypes :: ExternalTypes
+             )
+type TyCtx = ( ?tyDecls :: Map Core.TName Core.TDecl
+             , ?externalTypes :: ExternalTypes
+             )
 
 unsupported :: Doc -> a
 unsupported x = throw (Unsupported x)
@@ -195,9 +199,9 @@ compileType own ty =
         _ -> panic "compileType" ["Unexpected iterator type"]
     Core.TUser t
       | not (null (Core.utNumArgs t)) -> unsupported (?fnMsg <> "numeric type arguments")
-      | otherwise           -> Rust.pathType (Rust.pathWithTypes [nm] args)
+      | otherwise           -> Rust.pathType (addPathTypes nm args)
       where
-      nm = compileTName False (Core.utName t)
+      nm = compileTPath False (Core.utName t)
       args = [ compileType VM.Owned arg | arg <- Core.utTyArgs t ]
 
     Core.TParam bp          -> Rust.pathType (Rust.simplePath (valTPName bp))
