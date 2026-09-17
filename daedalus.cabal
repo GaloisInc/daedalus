@@ -19,6 +19,8 @@ extra-source-files:
   exe/html-template/index.html
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
+  exe/hs-vm-template/Main.hs
+  exe/hs-vm-template/template.cabal
   exe/error-viewer-template/stringSet.js
   exe/error-viewer-template/tree.js
   exe/error-viewer-template/hex-view.js
