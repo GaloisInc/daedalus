@@ -71,3 +71,5 @@ def OneOrMoreSepBy P Sep =
 -- results.
 def NSepBy n P Sep =
   build (emitArray (emit builder P) (Many (n - 1) { Sep; P }))
+
+def Main = { $$ = CSV; END }
