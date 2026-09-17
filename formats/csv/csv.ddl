@@ -20,6 +20,8 @@
                  common in other CSV parser implementations
 -}
 
+import Daedalus
+
 -- Complete CSV
 
 def CSV =
@@ -64,12 +66,11 @@ def $textdata = ' ' | '!' | '#' .. '+' | '-' .. '~'
 
 -- Parse one or more `P` separated by `Sep`, producing an array of the
 -- results.
-def OneOrMoreSepBy P Sep =
-  build (emitArray (emit builder P) (Many { Sep; P }))
+def OneOrMoreSepBy P Sep = ManyStart P {Sep; P}
 
 -- Parse `P` `n` times, separated by `Sep`, producing an array of the
 -- results.
 def NSepBy n P Sep =
-  build (emitArray (emit builder P) (Many (n - 1) { Sep; P }))
+  build (for (out = emit builder P; x in rangeUp (n - 1)) (emit out { Sep; P }))
 
 def Main = { $$ = CSV; END }
