@@ -15,15 +15,18 @@
                    lines
                - CSVs where records don't have the proper number of
                  columns (as determined by the header) are rejected
+               - Both CRLF and LF are accepted as the separator
+                 between header/records; this extra permissiveness is
+                 common in other CSV parser implementations
 -}
 
 -- Complete CSV
 
 def CSV =
   block
-    header = { $$ = Header; CRLF }
-    data = OneOrMoreSepBy (Record (length header)) CRLF
-    Optional CRLF
+    header = { $$ = Header; Newline }
+    data = OneOrMoreSepBy (Record (length header)) Newline
+    Optional Newline
 
 -- Headers
 
@@ -53,6 +56,7 @@ def $dquote   = '"'
 def $cr       = '\r'
 def $lf       = '\n'
 def CRLF      = { $cr; $lf }
+def Newline   = CRLF <| $lf
 
 def $textdata = ' ' | '!' | '#' .. '+' | '-' .. '~'
 
