@@ -9,6 +9,20 @@
                "followed by most implementations".
 -}
 
+-- Data records
+
+def Record = build (emitArray (emit builder Field) (Many { $comma; Field }))
+
+def Field = Escaped <| NonEscaped
+
+def Escaped =
+  block
+    $dquote
+    $$ = Many ($textdata <| $comma <| $cr <| $lf <| { $dquote; $dquote })
+    $dquote
+
+def NonEscaped = Many $textdata
+
 -- Characters / character classes
 
 def $comma    = ','
