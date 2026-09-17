@@ -9,6 +9,12 @@
                "followed by most implementations".
 -}
 
+-- Headers
+
+def Header = build (emitArray (emit builder Name) (Many { $comma; Name }))
+
+def Name = Field
+
 -- Data records
 
 def Record = build (emitArray (emit builder Field) (Many { $comma; Field }))
