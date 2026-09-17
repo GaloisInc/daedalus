@@ -1,0 +1,3 @@
+run
+../../formats/csv.ddl
+--input=inputs/sample_embedded_newlines.csv
