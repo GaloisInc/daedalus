@@ -14,18 +14,18 @@
 def CSV =
   block
     header = Optional { $$ = Header; CRLF }
-    data = build (emitArray (emit builder Record) (Many { CRLF; Record }))
+    data = OneOrMoreSepBy Record CRLF
     Optional CRLF
 
 -- Headers
 
-def Header = build (emitArray (emit builder Name) (Many { $comma; Name }))
+def Header = OneOrMoreSepBy Name $comma
 
 def Name = Field
 
 -- Data records
 
-def Record = build (emitArray (emit builder Field) (Many { $comma; Field }))
+def Record = OneOrMoreSepBy Field $comma
 
 def Field = Escaped <| NonEscaped
 
@@ -47,3 +47,10 @@ def $lf       = '\n'
 def CRLF      = { $cr; $lf }
 
 def $textdata = ' ' | '!' | '#' .. '+' | '-' .. '~'
+
+-- Helpers
+
+-- Parse one or more `P` separated by `Sep`, producing an array of the
+-- results.
+def OneOrMoreSepBy P Sep =
+  build (emitArray (emit builder P) (Many { Sep; P }))
