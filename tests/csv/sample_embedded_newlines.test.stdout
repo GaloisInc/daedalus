@@ -1,0 +1,33 @@
+--- Found 1 results:
+{ header: [ "id"
+          , "description"
+          , "address"
+          , "note"
+          ]
+, data: [ [ "1"
+          , "Single line description."
+          , "123 Main St\nApt 4B\nSpringfield, IL 62701"
+          , "plain"
+          ]
+        , [ "2"
+          , "Multi-line\ndescription with\nthree lines."
+          , "456 Oak Ave\nDover, DE 19901"
+          , "no quotes around newlines"
+          ]
+        , [ "3"
+          , "Carriage return\rfollowed by line feed"
+          , "789 Elm Rd\r\nMadison, WI 53701"
+          , "mixed CR/LF/CRLF"
+          ]
+        , [ "4"
+          , "Has \"quotes\" and\nnewlines"
+          , "321 Pine\nGreenville, SC"
+          , "both at once"
+          ]
+        , [ "5"
+          , "Trailing newline\n"
+          , "PO Box 100\n"
+          , "each ends with \\n"
+          ]
+        ]
+}
