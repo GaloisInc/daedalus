@@ -9,6 +9,14 @@
                "followed by most implementations".
 -}
 
+-- Complete CSV
+
+def CSV =
+  block
+    header = Optional { $$ = Header; CRLF }
+    data = build (emitArray (emit builder Record) (Many { CRLF; Record }))
+    Optional CRLF
+
 -- Headers
 
 def Header = build (emitArray (emit builder Name) (Many { $comma; Name }))
