@@ -2,8 +2,9 @@
 
 use crate::filters::apply_predictor;
 use crate::lzw;
-use crate::pdfcos::{Pdf, resolve_reference_parser};
+use crate::pdfcos::Pdf;
 use crate::pdfcos_parsers::{Ref, TopDecl};
+use crate::resolve::resolve_reference_parser;
 use daedalus_rts_rust as ddl;
 use ddl::Type;
 use flate2::read::ZlibDecoder;
