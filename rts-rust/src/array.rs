@@ -60,6 +60,23 @@ pub fn new_byte_array(x: &[u8]) -> ddl::Array<ddl::U<8>> {
   new_array_iter(x.into_iter().copied().map(|a| a.into()))
 }
 
+/// Create a new byte array by consuming a vector of native Rust bytes.
+pub fn new_byte_array_vec(x: Vec<u8>) -> ddl::Array<ddl::U<8>> {
+  let mut x = std::mem::ManuallyDrop::new(x);
+
+  // SAFETY: U<8> is Word<false, 8>, which is #[repr(transparent)] over
+  // its u8 representation. Thus the element size, alignment, and valid
+  // bit patterns are identical.
+  let words = unsafe {
+    Vec::from_raw_parts(
+      x.as_mut_ptr().cast::<ddl::U<8>>(),
+      x.len(),
+      x.capacity(),
+    )
+  };
+  new_array_vec(words)
+}
+
 /// Create new owned array out of a Rust reference to a slice.
 pub fn new_array_slice<T: Clone>(x: &[T]) -> ddl::Array<T> {
   Array { rc: ddl::O { rc: x.into() } }

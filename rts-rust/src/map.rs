@@ -14,8 +14,39 @@ pub struct MapB<'a,K,V> { pub(crate) mp: ddl::Maybe<ddl::B<'a,Node<K,V>>> }
 /// Creates a new empty map.
 pub fn empty_map<K,V>() -> Map<K,V> { Map { mp: ddl::Maybe::Nothing } }
 
+impl<K,V> Map<K,V> {
+  /// Check the red-black tree invariants.
+  pub fn valid(&self) -> bool {
+    black_depth(self).is_some()
+  }
+}
+
 impl<K,V> Clone for Map<K,V> {
   fn clone(&self) -> Self { Map { mp: self.mp.clone() } }
+}
+
+impl<K: Type, V: Type> PartialEq for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn eq(&self, other: &Self) -> bool {
+    self.bor() == other.bor()
+  }
+}
+
+impl<K: Type, V: Type> Eq for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {}
+
+impl<K: Type, V: Type> PartialOrd for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl<K: Type, V: Type> Ord for Map<K, V>
+  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.bor().cmp(&other.bor())
+  }
 }
 
 impl<'a,K,V> Clone for MapB<'a,K,V> {
@@ -179,22 +210,45 @@ fn move_out_right<K,V>(n: &mut Node<K,V>) -> Map<K,V> {
   std::mem::replace(&mut n.right, empty_map())
 }
 
+fn is_red<K,V>(m: &Map<K,V>) -> bool {
+  match &m.mp {
+    ddl::Maybe::Just(n) => !n.is_black,
+    ddl::Maybe::Nothing => false,
+  }
+}
+
+/// Validate the red-black invariants and return the common black depth.
+fn black_depth<K,V>(m: &Map<K,V>) -> Option<usize> {
+  match &m.mp {
+    ddl::Maybe::Nothing => Some(1),
+    ddl::Maybe::Just(n) => {
+      if !n.is_black && (is_red(&n.left) || is_red(&n.right)) {
+        return None
+      }
+
+      let left = black_depth(&n.left)?;
+      let right = black_depth(&n.right)?;
+      if left != right {
+        return None
+      }
+
+      Some(left + usize::from(n.is_black))
+    }
+  }
+}
 
 fn set_rebalance_left<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_left: ddl::Uniq<Node<K,V>>) -> ddl::Uniq<Node<K,V>> {
 
   if n.is_black && !new_left.is_black {
-    let mut sub2 = move_out_left(new_left.to_mut());
-
-    if let ddl::Maybe::Just(sub2_node) = sub2.mp {
+    if let ddl::Maybe::Just(sub2_node) = &new_left.left.mp {
       if !sub2_node.is_black {
         // left-left
-        let mut l = sub2_node.to_uniq();
+        let mut l = move_out_left(new_left.to_mut()).mp.unwrap().to_uniq();
         l.to_mut().is_black = true;  
         
         let r = n.to_mut();
         r.is_black = true;
         r.left = move_out_right(new_left.to_mut());
-        
         
         let p = new_left.to_mut();
         p.left  = Map { mp: ddl::Maybe::Just(l.to_o()) };
@@ -204,12 +258,11 @@ fn set_rebalance_left<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_le
       }
     }
 
-    sub2 = move_out_right(new_left.to_mut());
-    if let ddl::Maybe::Just(sub2_node) = sub2.mp {
+    if let ddl::Maybe::Just(sub2_node) = &new_left.right.mp {
       if !sub2_node.is_black {
         // left-right
 
-        let mut res = sub2_node.to_uniq();
+        let mut res = move_out_right(new_left.to_mut()).mp.unwrap().to_uniq();
 
         let nl = new_left.to_mut();
         nl.is_black = true;
@@ -233,11 +286,10 @@ fn set_rebalance_left<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_le
 fn set_rebalance_right<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_right: ddl::Uniq<Node<K,V>>) -> ddl::Uniq<Node<K,V>> {
   if n.is_black && !new_right.is_black {
 
-    let mut sub2 = move_out_left(new_right.to_mut());
-    if let ddl::Maybe::Just(sub2_node) = sub2.mp {
+    if let ddl::Maybe::Just(sub2_node) = &new_right.left.mp {
       if !sub2_node.is_black {
         // right-left
-        let mut res = sub2_node.to_uniq();
+        let mut res = move_out_left(new_right.to_mut()).mp.unwrap().to_uniq();
 
         let lp  = n.to_mut();
         lp.is_black = true;
@@ -254,14 +306,14 @@ fn set_rebalance_right<K: Clone,V: Clone>(mut n: ddl::Uniq<Node<K,V>>, mut new_r
       }
     }
 
-    sub2 = move_out_right(new_right.to_mut());
-    if let ddl::Maybe::Just(sub2_node) = sub2.mp {
+    if let ddl::Maybe::Just(sub2_node) = &new_right.right.mp {
       if !sub2_node.is_black {
+        // right-right
         let lp = n.to_mut();
         lp.is_black = true;
         lp.right = move_out_left(new_right.to_mut());
 
-        let mut rp = sub2_node.to_uniq();
+        let mut rp = move_out_right(new_right.to_mut()).mp.unwrap().to_uniq();
         rp.to_mut().is_black = true;
 
         let p   = new_right.to_mut();

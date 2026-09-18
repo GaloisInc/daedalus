@@ -40,7 +40,7 @@ compileTDecl td
         , makeSerializeStruct as (nm False) fs
         ]
       Core.TUnion fs ->
-        [ Rust.mkEnum der Rust.PublicV (nm isRec) gen
+        [ Rust.mkEnum unionDer Rust.PublicV (nm isRec) gen
             [ (compileConLabel l, [ compileType VM.Owned t | not (Core.isUnit t) ])
             | (l,t) <- fs ]
         , makeSerializeEnum as (nm isRec) fs
@@ -122,6 +122,11 @@ compileTDecl td
       
   where
   der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
+  unionDer =
+    case Core.tDef td of
+      Core.TUnion fs
+        | and [ Core.isUnit t | (_,t) <- fs ] -> "Copy" : der
+      _ -> der
   isRec = Core.tnameRec tn
   tn = Core.tName td
   notYet msg = unsupported ("Type" <+> pp tn <+> msg)

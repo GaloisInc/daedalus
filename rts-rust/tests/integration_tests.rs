@@ -115,6 +115,56 @@ fn test_map_persistence() {
     assert!(m3.bor().contains(3));
 }
 
+#[test]
+fn test_map_all_insertion_orders() {
+    let mut elements = [1_u32, 2, 3, 4, 5, 6];
+
+    loop {
+        let mut map = ddl::empty_map::<u32, u32>();
+        for (inserted, &key) in elements.iter().enumerate() {
+            map = map.insert(key, 10 * key);
+            assert!(map.valid());
+
+            for &present in &elements[..=inserted] {
+                assert!(map.bor().contains(present));
+                assert_eq!(map.bor().lookup(present), ddl::Maybe::Just(10 * present));
+            }
+        }
+
+        let mut updated = map.clone();
+        for &key in &elements {
+            updated = updated.insert(key, 100 * key);
+            assert!(updated.valid());
+        }
+
+        for &key in &elements {
+            assert_eq!(map.bor().lookup(key), ddl::Maybe::Just(10 * key));
+            assert_eq!(updated.bor().lookup(key), ddl::Maybe::Just(100 * key));
+        }
+
+        if !next_permutation(&mut elements) {
+            break
+        }
+    }
+}
+
+fn next_permutation<T: Ord>(values: &mut [T]) -> bool {
+    let Some(pivot) = (0..values.len() - 1)
+        .rev()
+        .find(|&index| values[index] < values[index + 1])
+    else {
+        return false
+    };
+
+    let successor = (pivot + 1..values.len())
+        .rev()
+        .find(|&index| values[pivot] < values[index])
+        .unwrap();
+    values.swap(pivot, successor);
+    values[pivot + 1..].reverse();
+    true
+}
+
 // ============================================================================
 // Array Tests
 // ============================================================================
@@ -725,6 +775,18 @@ fn test_input_bytes() {
     // Convert to vec to check actual content
     let vec: Vec<u8> = bytes2.iter().map(|x| u8::from(*x)).collect();
     assert_eq!(vec, b"world");
+}
+
+#[test]
+fn test_input_as_bytes() {
+    let input = ddl::new_input_str("test", "hello world");
+    assert_eq!(input.as_bytes(), b"hello world");
+
+    let advanced = input.clone().advance(6);
+    assert_eq!(advanced.as_bytes(), b"world");
+
+    let restricted = input.advance(3).restrict(4);
+    assert_eq!(restricted.as_bytes(), b"lo w");
 }
 
 #[test]

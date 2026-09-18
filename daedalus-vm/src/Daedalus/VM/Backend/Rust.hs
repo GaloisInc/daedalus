@@ -123,9 +123,12 @@ compileFun fu =
     VM.Capture   -> unsupported (fnMsg <+> "captures the stack")
     VM.Unknown   -> panic "compileFun" [ show (pp fnm), "`Unknwon` capture" ]
     VM.NoCapture ->
-      Rust.mkFnItem Nothing [] attrs vis nm Rust.noGenerics args resT def
+      Rust.mkFnItem Nothing suppressedWarnings attrs vis nm
+        Rust.noGenerics args resT def
   where
   vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  suppressedWarnings =
+    if VM.vmfIsEntry fu then [] else ["unused", "nonstandard_style"]
   attrs =
     case VM.vmfDef fu of
       VM.VMExtern {} -> [Rust.inlineAlwaysAttribute]
@@ -580,18 +583,19 @@ compileOp1 x op e argTy =
     Core.FromUnion ty lab
       | Core.tnameBD unm ->
         def (Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [Rust.callMethod e "to_bits" []])
-      | otherwise -> def (Rust.matchExpr e [ arm1, arm2 ])
+      | otherwise -> def (Rust.matchExpr matchInput [ arm1, arm2 ])
       where
       arm2 =
         Rust.matchArm Rust.wildPat
-          (Rust.callMacro (Rust.simplePath "assert")
-            (map Rust.litExpr [ Rust.boolLit False,
-                                Rust.strLit ("Not " ++ show (pp lab))]))
+          (Rust.callMacro (Rust.simplePath "unreachable") [])
       unm =
         case argTy of
           VM.TSem (Core.TUser ut) -> Core.utName ut
           _ -> bad "not a sematnic type"
       isRec = Core.tnameRec unm
+      matchInput
+        | isRec = Rust.callMethod e "as_ref" []
+        | otherwise = e
       con   = Rust.simplePath' [compileTName isRec unm, compileConLabel lab]
       noArg = Rust.matchArm (Rust.conPat con []) (Rust.pathExpr (ddlPath "Unit"))
       arm1  =
@@ -601,7 +605,9 @@ compileOp1 x op e argTy =
             case lookup lab ls of
               Nothing -> bad "Missing label"
               Just Core.HasData ->
-                Rust.matchArm (Rust.conPat con [Rust.identPat "a"]) (Rust.identExpr "a")
+                Rust.matchArm
+                  (Rust.conPat con [Rust.identPat "a"])
+                  (Rust.callMethod (Rust.identExpr "a") "clo" [])
               Just Core.NoData -> noArg
           Core.TFlavStruct {} -> bad "struct"
         

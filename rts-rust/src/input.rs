@@ -1,5 +1,6 @@
 use crate as ddl;
 use ddl::{Clo,Type};
+use std::cmp::Ordering;
 use std::fmt;
 use serde::Serialize;
 
@@ -14,6 +15,30 @@ pub struct Input {
 }
 
 ddl::by_ref!(Input);
+
+impl PartialEq for Input {
+  fn eq(&self, other: &Self) -> bool {
+    self.offset == other.offset &&
+    self.last_offset == other.last_offset &&
+    self.name == other.name
+  }
+}
+
+impl Eq for Input {}
+
+impl PartialOrd for Input {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for Input {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.offset.cmp(&other.offset)
+      .then_with(|| self.last_offset.cmp(&other.last_offset))
+      .then_with(|| self.name.cmp(&other.name))
+  }
+}
 
 
 pub fn new_input(name: ddl::Array<ddl::U<8>>, bytes: ddl::Array<ddl::U<8>>) -> Input {
@@ -49,6 +74,18 @@ impl Input {
     } else {
       let x = &self.bytes;
       ddl::new_array_slice(&x[self.offset .. self.last_offset])
+    }
+  }
+
+  /// Borrow the bytes in the current input range as native Rust bytes.
+  pub fn as_bytes(&self) -> &[u8] {
+    let bytes = &self.bytes[self.offset .. self.last_offset];
+
+    // SAFETY: U<8> is Word<false, 8>, which is #[repr(transparent)] over
+    // its u8 representation. Thus the element size, alignment, and valid
+    // bit patterns are identical, and the returned slice borrows `self`.
+    unsafe {
+      std::slice::from_raw_parts(bytes.as_ptr().cast::<u8>(), bytes.len())
     }
   }
 

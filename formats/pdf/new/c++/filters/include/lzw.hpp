@@ -11,4 +11,4 @@ struct LzwException : public std::exception {
     const char * what () const throw () override;
 };
 
-std::string decompress(uint8_t const* bits, size_t len);
+std::string decompress(uint8_t const* bits, size_t len, uint64_t early_change);
