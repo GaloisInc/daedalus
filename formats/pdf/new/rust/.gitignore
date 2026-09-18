@@ -1,3 +1,4 @@
 /Cargo.lock
 /pdfcos/src/pdfcos_parsers.rs
+/text-extract/src/text_extract_parsers.rs
 /target/

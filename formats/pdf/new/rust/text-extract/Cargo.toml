@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 daedalus-pdf-cos = { path = "../pdfcos" }
+daedalus-rts-rust = { path = "../../../../../rts-rust", features = ["detailed-errors"] }
+serde = "1.0"
