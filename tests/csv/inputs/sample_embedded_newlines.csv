@@ -1,0 +1,16 @@
+"id","description","address","note"
+"1","Single line description.","123 Main St
+Apt 4B
+Springfield, IL 62701","plain"
+"2","Multi-line
+description with
+three lines.","456 Oak Ave
+Dover, DE 19901","no quotes around newlines"
+"3","Carriage returnfollowed by line feed","789 Elm Rd
+Madison, WI 53701","mixed CR/LF/CRLF"
+"4","Has ""quotes"" and
+newlines","321 Pine
+Greenville, SC","both at once"
+"5","Trailing newline
+","PO Box 100
+","each ends with \n"

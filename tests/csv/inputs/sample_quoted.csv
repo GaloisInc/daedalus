@@ -1,0 +1,11 @@
+id,description,note,multiline
+1,"Simple, with a comma",No quotes here,single line
+2,"He said ""hello""","Embedded ""double"" quotes",still single
+3,"Mix: ""quoted, comma""",Normal text,"Line A
+Line B
+Line C"
+4,,Empty first field above,"newline at end
+"
+5,"""already quoted""",starts and ends with quotes,"carriage return"
+6,"commas, quotes ""x"", and
+newlines",all three,plain
