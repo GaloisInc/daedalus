@@ -437,6 +437,14 @@ inlineAlwaysAttribute =
 macDecl :: Mac () -> Item ()
 macDecl m = MacItem [] m ()
 
+mkMod ::
+  [Attribute ()] ->
+  Visibility () ->
+  Ident ->
+  [Item ()] ->
+  Item ()
+mkMod attrs vis nm items = Mod attrs vis nm (Just items) ()
+
 mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
   [Ident]           {- ^ Disable these warnings -} ->
