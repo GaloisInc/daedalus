@@ -1,5 +1,7 @@
 module Daedalus.VM.Backend.Rust (
   compileProgram,
+  compileEntryName,
+  compileModuleName,
   Config(..)
 ) where
 
@@ -45,6 +47,12 @@ type ProgCtx = (
 
 type FnCtx = (ProgCtx, ?isPure :: Bool, ?fnMsg :: Doc, ?curFunThrows :: VM.Throws)
 
+compileModuleName :: Text.Text -> String
+compileModuleName = renderIdent . compileMName . Core.MName
+
+compileEntryName :: Text.Text -> String
+compileEntryName = renderIdent . compileSourceFName
+
 compileProgram :: Config -> VM.Program -> String
 compileProgram cfg vm = show (Rust.pretty' result)
   where
@@ -65,7 +73,10 @@ compileProgram cfg vm = show (Rust.pretty' result)
             | (name, namespace) <- Map.toList (cfgExternal cfg)
             ]
     in
-    Rust.SourceFile Nothing [] (uses ++ concatMap compileModule (VM.pModules vm))
+    Rust.SourceFile Nothing []
+      [ compileGeneratedModule uses name code
+      | (name, code) <- collectModules ?externalTypes vm
+      ]
 
   unusedOk = [Rust.disableWarning "unused_imports"]
   uses =
@@ -94,16 +105,64 @@ compileProgram cfg vm = show (Rust.pretty' result)
   getSig            = map VM.getOwnership
 
 
-compileModule :: ProgCtx => VM.Module -> [Rust.Item ()]
-compileModule m =
-  concatMap (compileUserType . NonRec) localTypes ++
-  concatMap compileFunGroup (VM.mFuns m)
+data ModuleCode = ModuleCode
+  { moduleTypes :: [Core.TDecl]
+  , moduleFuns  :: [Rec VM.VMFun]
+  }
+
+collectModules ::
+  ExternalTypes -> VM.Program -> [(Core.MName, ModuleCode)]
+collectModules externalTypes =
+  Map.toList . foldl' collectVMModule Map.empty . VM.pModules
   where
-  localTypes =
-    [ ty
-    | ty <- forgetRecs (VM.mTypes m)
-    , Map.notMember (Core.tnameMod (Core.tName ty)) ?externalTypes
-    ]
+  collectVMModule modules vmModule =
+    foldl' addFunGroup
+      (foldl' addType modules (forgetRecs (VM.mTypes vmModule)))
+      (VM.mFuns vmModule)
+
+  addType modules ty
+    | owner `Map.member` externalTypes = modules
+    | otherwise = Map.alter add owner modules
+    where
+    owner = Core.tnameMod (Core.tName ty)
+    add Nothing = Just ModuleCode { moduleTypes = [ty], moduleFuns = [] }
+    add (Just code) = Just code { moduleTypes = ty : moduleTypes code }
+
+  addFunGroup modules group = Map.alter add owner modules
+    where
+    owner = funGroupModule group
+    add Nothing = Just ModuleCode { moduleTypes = [], moduleFuns = [group] }
+    add (Just code) = Just code { moduleFuns = group : moduleFuns code }
+
+funGroupModule :: Rec VM.VMFun -> Core.MName
+funGroupModule group =
+  case group of
+    NonRec fun -> Core.fnameMod (VM.vmfName fun)
+    MutRec [] -> panic "funGroupModule" ["Empty recursive group"]
+    MutRec (fun : more)
+      | all ((owner ==) . Core.fnameMod . VM.vmfName) more -> owner
+      | otherwise ->
+          panic "funGroupModule"
+            [ "Recursive group contains declarations from multiple modules"
+            , show (vcat (map (pp . VM.vmfName) (fun : more)))
+            ]
+      where
+      owner = Core.fnameMod (VM.vmfName fun)
+
+compileGeneratedModule ::
+  ProgCtx =>
+  [Rust.Item ()] ->
+  Core.MName ->
+  ModuleCode ->
+  Rust.Item ()
+compileGeneratedModule uses name code =
+  Rust.mkMod
+    [Rust.disableWarning "nonstandard_style"]
+    Rust.PublicV
+    (compileMName name)
+    (uses ++
+     concatMap (compileUserType . NonRec) (reverse (moduleTypes code)) ++
+     concatMap compileFunGroup (reverse (moduleFuns code)))
 
 compileFunGroup :: ProgCtx => Rec VM.VMFun -> [Rust.Item ()]
 compileFunGroup r =
@@ -139,7 +198,7 @@ compileFun fu =
       Rust.mkFnItem Nothing suppressedWarnings attrs vis nm
         Rust.noGenerics args resT def
   where
-  vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  vis             = if VM.vmfIsEntry fu then Rust.PublicV else Rust.CrateV
   suppressedWarnings =
     if VM.vmfIsEntry fu then [] else ["unused", "nonstandard_style"]
   attrs =
@@ -1005,7 +1064,7 @@ compileCInstr mbRec cinstr =
     Rust.pathExpr
       (Rust.simplePath' [ddlModName, "ParserResult", "Exception"])
 
-  doCall f es = Rust.call (Rust.identExpr (compileFName f))
+  doCall f es = Rust.call (Rust.pathExpr (compileFPath f))
                           (Rust.identExpr parserStateName : zipWith compileExpr sig es)
     where
     sig =

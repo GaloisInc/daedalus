@@ -374,6 +374,10 @@ generateRust opts mm =
                 }
         -- XXX: catch unsupported.
         rust = Rust.compileProgram cfg prog
+    driverEntry <-
+      case parseEntries opts mm of
+        entry : _ -> pure entry
+        [] -> ddlThrow (ADriverError "No parser entry was selected.")
     ddlIO $ case optRustOutputFile opts of
         Just file ->
           do createDirectoryIfMissing True (takeDirectory file)
@@ -408,12 +412,18 @@ generateRust opts mm =
             createDirectoryIfMissing True src
             writeFile (src </> "lib.rs") rust
 
-            -- XXX: Temporary driver for testing
+
             when (isNothing (optUserState opts)) $
-              writeFile (src </> "main.rs") $ unlines
-                [ "use daedalus_rts_rust as ddl;"
-                , "pub fn main() { ddl::test_parser(" ++ nm ++ "::Main) }"
-                ]
+              do
+                let (entryModule, entryName) = driverEntry
+                    entryPath =
+                      nm ++ "::" ++
+                      Rust.compileModuleName entryModule ++ "::" ++
+                      Rust.compileEntryName entryName
+                writeFile (src </> "main.rs") $ unlines
+                  [ "use daedalus_rts_rust as ddl;"
+                  , "pub fn main() { ddl::test_parser(" ++ entryPath ++ ") }"
+                  ]
 
             when (optSaveRTS opts) $
               do let save (x,b) =
