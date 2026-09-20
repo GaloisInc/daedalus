@@ -50,7 +50,7 @@ impl<K: Type, V: Type> MapIterator<K,V> {
 
   /// Returns the value at the current iterator position.
   /// Should only be called when `!self.ddl_done()`.
-  pub fn ddl_value(&self) -> V {
+  pub fn ddl_val(&self) -> V {
     let s = &self.stack;
     s[s.len()-1].bor().value.clo()
   }
@@ -108,7 +108,7 @@ impl<'a, K: Type, V: Type> MapBorrowIterator<'a, K, V> {
 
   /// Returns a borrowed reference to the value at the current iterator position.
   /// Should only be called when `!self.ddl_done()`.
-  pub fn ddl_value(&self) -> V::B<'a> {
+  pub fn ddl_val(&self) -> V::B<'a> {
     let s = &self.stack;
     s[s.len()-1].as_ref().value.bor()
   }
