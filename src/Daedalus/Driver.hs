@@ -530,10 +530,12 @@ ddlGetFName m f =
          Just a  -> pure a
          Nothing ->
            do nms <- ddlGet (Map.keys . coreTopNames)
-              panic "ddlGetFName" $ "Unknown name"
-                                  : ("module: " ++ show (pp m))
-                                  : ("fun: " ++ show (pp f))
-                                  : map (show . pp) nms
+              ddlThrow (ADriverError (unlines
+                ( [ "Unknown entry " ++ show (pp m <> "." <> pp f)
+                  , "Available names:"
+                  ] ++
+                  map (("  " ++) . show . pp) nms
+                )))
 
 
 --------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 module Daedalus.VM.Backend.Rust.Names where
 
-import Data.Char(isAlphaNum,isAscii)
+import Data.Char(isAlpha,isAlphaNum,isAscii)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -23,14 +23,54 @@ ddlPath f = Rust.simplePath' [ddlModName,f]
 
 type ExternalTypes = Map Core.MName (Rust.Path ())
 
--- Types from modules named by `--extern` are defined in another Rust module.
--- Build either that qualified path or the usual local type name.
+compileMName :: Core.MName -> Rust.Ident
+compileMName = compileMNameText . Core.mNameText
+
+compileMNameText :: Text.Text -> Rust.Ident
+compileMNameText name
+  | isSourceIdent name = compileSourceIdent name
+  | otherwise =
+      compileGeneratedIdent
+        ("module_" <>
+         Text.intercalate "_"
+           (map (Text.pack . (`showHex` "") . fromEnum) (Text.unpack name)))
+
+renderIdent :: Rust.Ident -> String
+renderIdent name =
+  (if Rust.raw name then "r#" else "") ++ Rust.name name
+
+isSourceIdent :: Text.Text -> Bool
+isSourceIdent name =
+  case Text.uncons name of
+    Just (c, more) ->
+      isAscii c && isAlpha c &&
+      Text.all (\x -> x == '_' || isAscii x && isAlphaNum x) more
+    Nothing -> False
+
+-- Types from modules named by `--extern` are defined under another Rust path.
+-- The configured path replaces `crate`, while the Daedalus module and type
+-- names remain the final two path components.
 compileTPath :: (?externalTypes :: ExternalTypes) =>
                 Bool -> Core.TName -> Rust.Path ()
 compileTPath isRepr ty =
-  case Map.lookup (Core.tnameMod ty) ?externalTypes of
-    Nothing        -> Rust.simplePath (compileTName isRepr ty)
-    Just namespace -> appendPath namespace (compileTName isRepr ty)
+  appendPath
+    (appendPath root (compileMName owner))
+    (compileTName isRepr ty)
+  where
+  owner = Core.tnameMod ty
+  root =
+    Map.findWithDefault
+      (Rust.simplePath "crate")
+      owner
+      ?externalTypes
+
+compileFPath :: Core.FName -> Rust.Path ()
+compileFPath f =
+  Rust.simplePath'
+    [ "crate"
+    , compileMName (Core.fnameMod f)
+    , compileFName f
+    ]
 
 appendPath :: Rust.Path () -> Rust.Ident -> Rust.Path ()
 appendPath (Rust.Path global segments ()) name =
