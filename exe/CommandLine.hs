@@ -451,7 +451,7 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
         $ ReqArg "QUAL" \s o -> Right o { optUserFun = Just s }
 
       , Option [] ["extern"]
-        "Use external definitions for types from MODULE, replacing `crate` with ROOT."
+        "Use types from MODULE under the Rust path ROOT::MODULE."
         $ ReqArg "MODULE:ROOT"
           \s o ->
             case break (== ':') s of
