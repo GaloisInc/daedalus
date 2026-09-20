@@ -48,8 +48,9 @@ isSourceIdent name =
     Nothing -> False
 
 -- Types from modules named by `--extern` are defined under another Rust path.
--- The configured path replaces `crate`, while the Daedalus module and type
--- names remain the final two path components.
+-- The configured path is used as the root, while the Daedalus module and type
+-- names remain the final two path components.  Other generated modules are
+-- siblings of the current module.
 compileTPath :: (?externalTypes :: ExternalTypes) =>
                 Bool -> Core.TName -> Rust.Path ()
 compileTPath isRepr ty =
@@ -60,14 +61,14 @@ compileTPath isRepr ty =
   owner = Core.tnameMod ty
   root =
     Map.findWithDefault
-      (Rust.simplePath "crate")
+      (Rust.simplePath "super")
       owner
       ?externalTypes
 
 compileFPath :: Core.FName -> Rust.Path ()
 compileFPath f =
   Rust.simplePath'
-    [ "crate"
+    [ "super"
     , compileMName (Core.fnameMod f)
     , compileFName f
     ]
