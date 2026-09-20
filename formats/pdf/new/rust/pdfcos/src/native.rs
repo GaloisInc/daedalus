@@ -1,9 +1,12 @@
 //! Native functions used by the generated Daedalus parser.
 
+#![allow(non_snake_case)]
+
 use crate::filters::apply_predictor;
 use crate::lzw;
 use crate::pdfcos::Pdf;
-use crate::pdfcos_parsers::{Ref, TopDecl};
+use crate::pdfcos_parsers::PdfDecl::TopDecl;
+use crate::pdfcos_parsers::PdfValue::Ref;
 use crate::resolve::resolve_reference_parser;
 use daedalus_rts_rust as ddl;
 use ddl::Type;
@@ -14,7 +17,7 @@ use std::io::Read;
 ///
 /// Looks up and parses an indirect PDF object through the reference table,
 /// returning `nothing` when the cross-reference entry is absent.
-pub fn resolve_ref(
+pub fn ResolveRef(
     state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
     reference: Ref,
@@ -26,7 +29,7 @@ pub fn resolve_ref(
 ///
 /// Decrypts a stream using the document encryption context and current object
 /// number/generation, or returns the stream unchanged for an unencrypted file.
-pub fn decrypt(
+pub fn Decrypt(
     state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
     body: ddl::Input,
@@ -53,7 +56,7 @@ pub fn decrypt(
 ///
 /// Inflates a zlib-compressed stream and reverses its optional PNG predictor
 /// using the supplied image parameters.
-pub fn flate_decode(
+pub fn FlateDecode(
     state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
     predictor: ddl::Int,
@@ -97,7 +100,7 @@ pub fn flate_decode(
 ///
 /// Decompresses a PDF LZW stream, honoring `EarlyChange`, and reverses its
 /// optional PNG predictor using the supplied image parameters.
-pub fn lzw_decode(
+pub fn LZWDecode(
     state: &mut ddl::ParserStateWith<Pdf>,
     input: ddl::Input,
     predictor: ddl::Int,

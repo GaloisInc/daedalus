@@ -1,17 +1,19 @@
 //! Native functions used by the generated text-extraction parser.
 
+#![allow(non_snake_case)]
+
 use crate::state::TextExtractState;
-use crate::text_extract_parsers::Cmap;
+use crate::text_extract_parsers::CMap::cmap;
 use daedalus_pdf_cos::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
 
 /// Resolve an indirect object using the PDF COS parser state.
-pub fn resolve_ref(
+pub fn ResolveRef(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
     reference: Ref,
 ) -> ddl::ParserResult<ddl::Maybe<TopDecl>> {
-    let result = daedalus_pdf_cos::native::resolve_ref(&mut state.user_state.pdf, input, reference);
+    let result = daedalus_pdf_cos::native::ResolveRef(&mut state.user_state.pdf, input, reference);
 
     if matches!(
         result,
@@ -24,10 +26,10 @@ pub fn resolve_ref(
 }
 
 /// Read a character code whose width is selected by the CMap codespace ranges.
-pub fn get_char_code(
+pub fn GetCharCode(
     _state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    cmap: Cmap,
+    cmap: cmap,
 ) -> ddl::ParserResult<ddl::I<32>> {
     if input.is_empty() || cmap.ranges.is_empty() {
         return ddl::ParserResult::Failure;
@@ -72,7 +74,7 @@ pub fn get_char_code(
 }
 
 /// Append a Unicode code point to the extraction output.
-pub fn emit_char(
+pub fn EmitChar(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
     character: ddl::U<32>,
