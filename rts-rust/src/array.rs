@@ -166,7 +166,9 @@ pub fn new_array_iterator<T>(xs: Array<T>) -> ArrayIterator<T> {
 impl<'a,T: ddl::Type> ArrayIteratorB<'a,T> {
   pub fn ddl_done(self) -> bool { self.index >= self.array.len() }
   pub fn ddl_key(self) -> usize { self.index }
-  pub fn ddl_val(self) -> T     { self.array[self.index].clo() }
+  pub fn ddl_val(self) -> T::B<'a> {
+    <T as ddl::Type>::bor(&self.array.rc.as_ref()[self.index])
+  }
 }
 
 impl <T> ArrayIterator<T> {
