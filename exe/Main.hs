@@ -412,7 +412,7 @@ generateRust opts mm =
             when (isNothing (optUserState opts)) $
               writeFile (src </> "main.rs") $ unlines
                 [ "use daedalus_rts_rust as ddl;"
-                , "pub fn main() { ddl::test_parser(" ++ nm ++ "::main) }"
+                , "pub fn main() { ddl::test_parser(" ++ nm ++ "::Main) }"
                 ]
 
             when (optSaveRTS opts) $

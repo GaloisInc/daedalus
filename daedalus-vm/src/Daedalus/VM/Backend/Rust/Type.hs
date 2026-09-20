@@ -134,7 +134,7 @@ compileTDecl td
   isRec = Core.tnameRec tn
   tn = Core.tName td
   notYet msg = unsupported ("Type" <+> pp tn <+> msg)
-  nm isPriv = compileTName isPriv tn
+  nm isRepr = compileTName isRepr tn
   as = map valTPName (Core.tTParamKValue td)
   tyForm inner =
     Rust.pathType (Rust.pathWithTypes [nm inner]
