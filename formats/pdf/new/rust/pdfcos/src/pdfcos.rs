@@ -1,10 +1,11 @@
 //! PDF COS preparation, reference table, and lazy object cache.
 
-use crate::pdfcos_parsers::{
-    CrossRef, CrossRefAndTrailer, CrossRefEntry, ObjStream, TrailerDict, XRefObjEntry,
-    XRefObjTable,
+use crate::pdfcos_parsers::PdfDecl::ObjStream;
+use crate::pdfcos_parsers::PdfXRef::{
+    CrossRef, CrossRefAndTrailer, CrossRefEntry, TrailerDict, XRefObjEntry, XRefObjTable,
 };
-pub use crate::pdfcos_parsers::{Ref, TopDecl};
+pub use crate::pdfcos_parsers::PdfDecl::TopDecl;
+pub use crate::pdfcos_parsers::PdfValue::Ref;
 pub use crate::resolve::resolve_reference;
 use daedalus_rts_rust as ddl;
 use std::collections::{BTreeMap, BTreeSet};
@@ -169,7 +170,10 @@ pub fn prepare_pdf(input: ddl::Input) -> Result<PdfCos, PreparePdfError> {
         current_object: None,
     });
     let startxref =
-        match crate::pdfcos_parsers::pdf_end(&mut state, input.clone().advance(pdf_end)) {
+        match crate::pdfcos_parsers::PdfXRef::PdfEnd(
+            &mut state,
+            input.clone().advance(pdf_end),
+        ) {
         ddl::ParserResult::Ok(offset, _) => usize::try_from(u64::from(offset))
             .map_err(|_| PreparePdfError::InvalidXrefOffset("startxref"))?,
         ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
@@ -199,7 +203,7 @@ fn process_xref(
     };
 
     let (xref, parse_error) = with_fresh_error(state, |state| {
-        crate::pdfcos_parsers::cross_ref(state, xref_input)
+        crate::pdfcos_parsers::PdfXRef::CrossRef(state, xref_input)
     });
     let xref = match xref {
         ddl::ParserResult::Ok(xref, _) => xref,
@@ -212,8 +216,8 @@ fn process_xref(
     };
 
     match xref {
-        CrossRef::OldXref(xref) => process_old_xref(state, input, visited, xref, top),
-        CrossRef::NewXref(xref) => process_new_xref(state, input, visited, xref, top),
+        CrossRef::oldXref(xref) => process_old_xref(state, input, visited, xref, top),
+        CrossRef::newXref(xref) => process_new_xref(state, input, visited, xref, top),
     }
 }
 
@@ -227,10 +231,10 @@ fn process_old_xref(
     process_trailer_links(state, input, visited, &xref.trailer)?;
 
     for subsection in xref.xref.iter() {
-        let mut object = int_to_u64(&subsection.first_id, "firstId")?;
+        let mut object = int_to_u64(&subsection.firstId, "firstId")?;
         for entry in subsection.entries.iter() {
             match entry {
-                CrossRefEntry::InUse(entry) => {
+                CrossRefEntry::inUse(entry) => {
                     state.user_state.entries.insert(
                         object,
                         PdfObject {
@@ -242,7 +246,7 @@ fn process_old_xref(
                         },
                     );
                 }
-                CrossRefEntry::Free(_) => {
+                CrossRefEntry::free(_) => {
                     state.user_state.entries.remove(&object);
                 }
             }
@@ -268,10 +272,10 @@ fn process_new_xref(
     process_trailer_links(state, input, visited, &xref.trailer)?;
 
     for subsection in xref.xref.iter() {
-        let mut object = int_to_u64(&subsection.first_id, "firstId")?;
+        let mut object = int_to_u64(&subsection.firstId, "firstId")?;
         for entry in subsection.entries.iter() {
             match entry {
-                XRefObjEntry::InUse(entry) => {
+                XRefObjEntry::inUse(entry) => {
                     state.user_state.entries.insert(
                         object,
                         PdfObject {
@@ -283,7 +287,7 @@ fn process_new_xref(
                         },
                     );
                 }
-                XRefObjEntry::Compressed(entry) => {
+                XRefObjEntry::compressed(entry) => {
                     state.user_state.entries.insert(
                         object,
                         PdfObject {
@@ -298,10 +302,10 @@ fn process_new_xref(
                         },
                     );
                 }
-                XRefObjEntry::Free(_) => {
+                XRefObjEntry::free(_) => {
                     state.user_state.entries.remove(&object);
                 }
-                XRefObjEntry::Null => {
+                XRefObjEntry::null => {
                     state.user_state.entries.insert(
                         object,
                         PdfObject {

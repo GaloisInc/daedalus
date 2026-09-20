@@ -1,7 +1,8 @@
 //! Lazy resolution and parsing of indirect PDF objects.
 
 use crate::pdfcos::{ObjectStreamState, Pdf, PdfCos, PdfObject, ReferenceState, with_fresh_error};
-use crate::pdfcos_parsers::{ObjStream, Ref, TopDecl, TopDeclDef};
+use crate::pdfcos_parsers::PdfDecl::{ObjStream, TopDecl, TopDeclDef};
+use crate::pdfcos_parsers::PdfValue::Ref;
 use daedalus_rts_rust as ddl;
 use ddl::Type;
 
@@ -172,7 +173,7 @@ pub(crate) fn resolve_reference_parser(
                 .current_object
                 .replace((object, generation, depth));
             let (parsed, parse_error) = with_fresh_error(parser_state, |parser_state| {
-                crate::pdfcos_parsers::top_decl(parser_state, object_input)
+                crate::pdfcos_parsers::PdfDecl::TopDecl(parser_state, object_input)
             });
             parser_state.user_state.current_object = previous_object;
 
@@ -304,8 +305,8 @@ fn parse_object_stream(
         };
 
     let stream = match container_decl.obj {
-        TopDeclDef::Stream(stream) => stream,
-        TopDeclDef::Value(_) => {
+        TopDeclDef::stream(stream) => stream,
+        TopDeclDef::value(_) => {
             return resolve_failure(
                 parser_state,
                 &input,
@@ -314,7 +315,7 @@ fn parse_object_stream(
         }
     };
 
-    crate::pdfcos_parsers::obj_stream(parser_state, input, stream)
+    crate::pdfcos_parsers::PdfDecl::ObjStream(parser_state, input, stream)
 }
 
 /// Extract an object packed inside a cached PDF object stream.
@@ -331,7 +332,7 @@ fn resolve_compressed_object(
         ddl::ParserResult::Exception => return ddl::ParserResult::Exception,
     };
 
-    crate::pdfcos_parsers::obj_stream_entry(
+    crate::pdfcos_parsers::PdfDecl::ObjStreamEntry(
         parser_state,
         input,
         object_stream,
