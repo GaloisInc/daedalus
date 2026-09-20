@@ -609,8 +609,15 @@ compileOp1 x op e argTy =
         _ -> panic "compileOp1" ["NewIterator: unexpected argument type"]
 
     Core.IteratorDone -> def (Rust.callMethod e "ddl_done" [])
-    Core.IteratorKey -> def (fromSize (Rust.callMethod e "ddl_key" []))
-    Core.IteratorVal -> def (Rust.callMethod e "ddl_val" [])
+    Core.IteratorKey ->
+      case argTy of
+        VM.TSem (Core.TIterator (Core.TArray {})) ->
+          def (fromSize (Rust.callMethod e "ddl_key" []))
+        VM.TSem (Core.TIterator (Core.TMap {})) ->
+          def (Rust.callMethod (Rust.callMethod e "ddl_key" []) "clo" [])
+        _ -> panic "compileOp1" ["IteratorKey: unexpected argument type"]
+    Core.IteratorVal ->
+      def (Rust.callMethod (Rust.callMethod e "ddl_val" []) "clo" [])
     Core.IteratorNext -> def (Rust.callMethod e "ddl_next" [])
 
     Core.EJust -> def (Rust.callCon (Rust.simplePath' [ddlModName, "Maybe", "Just"]) [e])
