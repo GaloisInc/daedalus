@@ -2,7 +2,7 @@
 
 #![allow(non_snake_case)]
 
-use crate::state::TextExtractState;
+use crate::TextExtractState;
 use crate::text_extract_parsers::CMap::cmap;
 use daedalus_pdf_cos::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
