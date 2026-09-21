@@ -24,8 +24,9 @@ $(PARSER): $(SPEC_SOURCES)
 		--entry=StandardEncodings.StdEncodings \
 		--entry=Catalog.PdfCatalog \
 		--entry=TextExtract.TextInCatalog \
-		--user-state=crate::state::TextExtractState \
+		--user-state=crate::TextExtractState \
 		--user-fun=crate::native \
+		--extern=PdfASCII:daedalus_pdf_cos::pdfcos_parsers \
 		--extern=PdfValue:daedalus_pdf_cos::pdfcos_parsers \
 		--extern=PdfDecl:daedalus_pdf_cos::pdfcos_parsers \
 		--extern=PdfXRef:daedalus_pdf_cos::pdfcos_parsers \
