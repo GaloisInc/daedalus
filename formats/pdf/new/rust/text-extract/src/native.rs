@@ -7,6 +7,17 @@ use crate::text_extract_parsers::CMap::cmap;
 use daedalus_pdf_cos::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
 
+/// Print a diagnostic message emitted by the Daedalus specification.
+pub fn Trace(
+    _state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+    message: ddl::Array<ddl::U<8>>,
+) -> ddl::ParserResult<ddl::Unit> {
+    let bytes: Vec<u8> = message.iter().map(|byte| u8::from(*byte)).collect();
+    eprintln!("{}", String::from_utf8_lossy(&bytes));
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
 /// Resolve an indirect object using the PDF COS parser state.
 pub fn ResolveRef(
     state: &mut ddl::ParserStateWith<TextExtractState>,
