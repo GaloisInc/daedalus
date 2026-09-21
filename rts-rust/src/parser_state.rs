@@ -341,6 +341,15 @@ pub fn new_parser_state() -> ParserState {
 
 impl<T> ParserStateWith<T> {
 
+  pub fn reset_parse_error(&mut self) {
+    self.error = ParseError::new();
+
+    #[cfg(feature = "detailed-errors")]
+    {
+      self.context = ParserContextStack::new();
+    }
+  }
+
   pub fn set_exception(&mut self, loc: &'static str, msg: &'static str) {
     #[cfg(feature = "detailed-errors")]
     let debugs = self.context.clone();
