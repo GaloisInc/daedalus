@@ -26,6 +26,14 @@ def PdfCatalog
     -- other fields omitted
 
 
+-- ENTRY
+def PdfPageCount (r : Ref) : uint 64 =
+  block
+    let catalog = ResolveValRef r is dict
+    let pages   = ResolveValRef (LookupRef "Pages" catalog) is dict
+    LookupSize "Count" pages
+
+
 --------------------------------------------------------------------------------
 -- Page Tree; Section 7.7.3
 
@@ -128,6 +136,5 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     let content = ContentStream vr
     data        = content.data
     UNPARSED    = content.UNPARSED
-
 
 
