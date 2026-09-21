@@ -5,6 +5,7 @@ use crate::text_extract_parsers::{Catalog, StandardEncodings, TextExtract};
 use daedalus_pdf_cos::{PdfCos, PdfError};
 use daedalus_rts_rust as ddl;
 use std::fmt;
+use std::time::Instant;
 
 const GLYPH_MAP: &[u8] = include_bytes!("../../../pdf-text-extract-spec/glyphmap.txt");
 
@@ -94,31 +95,63 @@ fn extract_text_bytes_from_page(
     };
 
     let empty_input = ddl::new_input(ddl::new_byte_array(b""), ddl::new_byte_array(b""));
-    let catalog = match Catalog::PdfCatalog(
-        &mut state,
-        empty_input.clone(),
-        true,
-        ddl::Maybe::Just(encodings),
-        match page_index {
-            Some(page) => ddl::Maybe::Just(ddl::U::from(page)),
-            None => ddl::Maybe::Nothing,
-        },
-        root,
-    ) {
-        ddl::ParserResult::Ok(catalog, _) => catalog,
-        ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
-            return Err(ExtractError::Catalog(state.error.to_string()));
-        }
+    state.reset_parse_error();
+    let page_count =
+        match Catalog::PdfPageCount(&mut state, empty_input.clone(), root.clone()) {
+            ddl::ParserResult::Ok(page_count, _) => u64::from(page_count),
+            ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
+                return Err(ExtractError::Catalog(state.error.to_string()));
+            }
+        };
+
+    let first_page = page_index.unwrap_or(0);
+    let last_page = page_index.map_or(page_count, |page| page + 1);
+    let mut extract_state = TextExtract::ExtractState {
+        font: ddl::Maybe::Nothing,
+        fontCache: ddl::empty_map(),
     };
 
-    let code_points = match TextExtract::TextInCatalog(&mut state, empty_input, catalog) {
-        ddl::ParserResult::Ok(_, _) => state.user_state.emitted,
-        ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
-            return Err(ExtractError::Text(state.error.to_string()));
-        }
-    };
+    for page_index in first_page..last_page {
+        let page_number = page_index + 1;
+        eprintln!("page {page_number} of {page_count}: parsing content...");
+        let page_start = Instant::now();
+        state.reset_parse_error();
+        let catalog = match Catalog::PdfCatalog(
+            &mut state,
+            empty_input.clone(),
+            true,
+            encodings.clone(),
+            ddl::Maybe::Just(ddl::U::from(page_index)),
+            root.clone(),
+        ) {
+            ddl::ParserResult::Ok(catalog, _) => catalog,
+            ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
+                return Err(ExtractError::Catalog(state.error.to_string()));
+            }
+        };
 
-    code_points
+        eprintln!("page {page_number} of {page_count}: extracting text...");
+        state.reset_parse_error();
+        extract_state = match TextExtract::TextInCatalogPage(
+            &mut state,
+            empty_input.clone(),
+            extract_state,
+            catalog,
+        ) {
+            ddl::ParserResult::Ok(next_state, _) => next_state,
+            ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
+                return Err(ExtractError::Text(state.error.to_string()));
+            }
+        };
+        eprintln!(
+            "page {page_number} of {page_count}: complete in {:.3?}",
+            page_start.elapsed()
+        );
+    }
+
+    state
+        .user_state
+        .emitted
         .into_iter()
         .map(|code| char::from_u32(code).ok_or(ExtractError::InvalidCodePoint(code)))
         .collect()

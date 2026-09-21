@@ -12,17 +12,14 @@ import Fonts
 -- ENTRY
 def PdfCatalog
   (strict : bool)
-  (enc : maybe StdEncodings)
+  (enc : StdEncodings)
   (pageIndex : maybe (uint 64))
   (r : Ref) =
   block
     let ?strict = strict
-    let ?doText  = enc
     let d        = ResolveValRef r is dict
     pageTree     = PdfPageTreeRoot pageIndex (LookupRef "Pages" d)
-    stdEncodings = case enc of
-                     nothing -> noStdEncodings
-                     just e  -> e
+    stdEncodings = enc
     -- other fields omitted
 
 
@@ -136,5 +133,4 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     let content = ContentStream vr
     data        = content.data
     UNPARSED    = content.UNPARSED
-
 

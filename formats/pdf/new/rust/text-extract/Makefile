@@ -22,8 +22,9 @@ $(PARSER): $(SPEC_SOURCES)
 		--inline-this=StandardEncodings.glyph \
 		--output-file=$(PARSER) \
 		--entry=StandardEncodings.StdEncodings \
+		--entry=Catalog.PdfPageCount \
 		--entry=Catalog.PdfCatalog \
-		--entry=TextExtract.TextInCatalog \
+		--entry=TextExtract.TextInCatalogPage \
 		--user-state=crate::TextExtractState \
 		--user-fun=crate::native \
 		--extern=PdfASCII:daedalus_pdf_cos::pdfcos_parsers \

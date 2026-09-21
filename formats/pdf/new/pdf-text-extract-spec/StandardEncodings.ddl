@@ -35,15 +35,6 @@ def StdEncodings =
 
 def stdEncodings : StdEncodings = ?stdEncodings
 
-def noStdEncodings : StdEncodings =
-  block
-    std = empty
-    win = empty
-    mac = empty
-    pdf = empty
-    uni = empty
-
-
 def stdEncoding =
   for (enc = empty; x in latin)
     if x.std == undef  then enc else
@@ -370,7 +361,6 @@ def latin10 =
   , glyph "zcaron"        undef undef 0o236 0o236
   , glyph "zero"          0o060 0o060 0o060 0o060
   ]
-
 
 
 

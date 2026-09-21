@@ -51,16 +51,11 @@ void check_catalog(ReferenceTable &refs, bool text) {
   DDL::ParseError<DDL::Input> error;
 
 
-  DDL::Maybe <DDL::ResultOf::parseStdEncodings> mbglyphs;
+  DDL::ResultOf::parseStdEncodings glyphs;
+  if (!getGlyphMap(refs, "glyphs.txt",&glyphs))
+    throw CatalogException("Failed to parse glyph file.");
 
-  if (text) {
-    DDL::ResultOf::parseStdEncodings glyphs;
-    if (!getGlyphMap(refs, "glyphs.txt",&glyphs))
-      throw CatalogException("Failed to parse glyph file.");
-    mbglyphs = DDL::Maybe {glyphs};
-  }
-
-  parsePdfCatalog(refs, error,results,DDL::Input("empty",""),true,mbglyphs,root->get());
+  parsePdfCatalog(refs, error,results,DDL::Input("empty",""),true,glyphs,root->get());
 
   if (results.size() != 1) {
     for (auto &&x : results) { x.free(); }
