@@ -11,14 +11,20 @@ def GetCharCode (cmap : cmap) : sint 32
 
 def LookupCMap cmap =
   block
+    let start = Offset
     let c = GetCharCode cmap
-    EmitChar (Lookup (c as? uint 32) cmap.charMap <| ('?' as ?auto))
+    let width = Offset - start
+    let key = width <# (c as? uint 32)
+    case Optional (Lookup key cmap.charMap) of
+      just us -> @map (u in us) (EmitChar u)
+      nothing -> EmitChar ('?' as ?auto)
 
 def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
   block
     let c = prevIx <# UInt8
-    case Optional (Lookup c ?cmap) of
-      just v  -> EmitChar v
+    let key = (w / 8 + 1) <# c
+    case Optional (Lookup key ?cmap) of
+      just us -> @map (u in us) (EmitChar u)
       nothing -> if w < 16 then LookupCMapLoop (w + 8) c
                            else Fail "Unknown character code"
 
@@ -131,5 +137,3 @@ def Raw (str : [uint 8]) = @map (x in str) (EmitChar (x as ?auto))
 
 -- Emit a character
 def EmitChar (c : uint 32) : {}
-
-

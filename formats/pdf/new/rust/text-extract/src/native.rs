@@ -25,7 +25,7 @@ pub fn ResolveRef(
     result
 }
 
-/// Read a character code whose width is selected by the CMap codespace ranges.
+/// Read a character code whose fixed-width value is in a CMap codespace range.
 pub fn GetCharCode(
     _state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
@@ -37,36 +37,33 @@ pub fn GetCharCode(
 
     let mut input = input;
     let mut value = 0_u32;
-    let mut possible = vec![true; cmap.ranges.len()];
 
+    // ISO 32000-2:2017, 9.7.6.2 requires trying successively longer
+    // character codes, beginning with one byte. CMap codes are at most
+    // four bytes long.
     for byte_index in 0..4 {
         if input.is_empty() {
             return ddl::ParserResult::Ok(ddl::I::from(-1_i32), input);
         }
 
+        // Character codes are big-endian, so append each byte to the
+        // accumulated value before checking ranges of the new width.
         let byte = u8::from(input.head());
         value = (value << 8) | u32::from(byte);
         input = input.advance(1);
 
-        for (range_index, range) in cmap.ranges.iter().enumerate() {
-            if !possible[range_index] {
-                continue;
-            }
+        let width = (byte_index + 1) as u64;
+        // Width is part of a character code's identity: for example,
+        // <01> and <0001> belong to different codespaces despite having
+        // the same numeric value.
+        let matched = cmap.ranges.iter().any(|range| {
+            u64::from(range.start.width) == width
+                && u32::from(range.start.value) <= value
+                && value <= u32::from(range.end.value)
+        });
 
-            let Some((&lower, &upper)) = range.start.get(byte_index).zip(range.end.get(byte_index))
-            else {
-                possible[range_index] = false;
-                continue;
-            };
-
-            if byte < u8::from(lower) || byte > u8::from(upper) {
-                possible[range_index] = false;
-                continue;
-            }
-
-            if byte_index + 1 == range.start.len() {
-                return ddl::ParserResult::Ok(ddl::I::from(value as i32), input);
-            }
+        if matched {
+            return ddl::ParserResult::Ok(ddl::I::from(value as i32), input);
         }
     }
 
