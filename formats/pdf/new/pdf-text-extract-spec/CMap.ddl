@@ -97,12 +97,18 @@ def BFRangeDestinations (count : uint 64) =
       let first = Token { $['<']; $$ = UTF16BE 512; $['>'] }
       first.bytes > 0 is true
       (first.lastByte as uint 64) + count - 1 <= 255 is true
-      let text = build first.output
-      map (amount in rangeUp count)
-        map (i, codePoint in text)
-          if i + 1 == length text
-            then codePoint + (amount as! uint 32)
-            else codePoint
+      if first.valid
+        then
+          block
+            let text = build first.output
+            map (amount in rangeUp count)
+              validUnicodeDestination
+                (map (i, codePoint in text)
+                  if i + 1 == length text
+                    then codePoint + (amount as! uint 32)
+                    else codePoint)
+        else
+          map (unused in rangeUp count) invalidUnicodeDestination
 
     -- In the array form, there shall be exactly one destination string for
     -- each source code in the range.
@@ -112,7 +118,7 @@ def BFRangeDestinations (count : uint 64) =
         Many count
           block
             let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-            build destination.output
+            unicodeDestination destination
       Token $[']']
 
 
@@ -125,7 +131,7 @@ def BFCharMapping acc count =
       let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
       let key = source.width <# source.value
       BFCharMapping
-        (insertChar key (build destination.output) acc)
+        (insertChar key (unicodeDestination destination) acc)
         (count - 1)
   else
     acc
@@ -165,16 +171,23 @@ def CMapKeyVal =
     @CMapPSDict <| @Value
     Optional (KW "def")
 
--- ISO 32000-2:2017, 9.7.5.4 uses this PostScript dictionary form for
--- CIDSystemInfo. Other metadata values use the ordinary PDF value syntax.
+-- ISO 32000-2:2017, 9.7.5.4 uses a PostScript dictionary for CIDSystemInfo.
+-- Some generated CMaps use `<< >>` delimiters while still terminating each
+-- entry with `def`, so this parser accepts both common representations.
 def CMapPSDict =
-  block
-    Token Natural
-    KW "dict"
-    Optional (KW "dup")
-    KW "begin"
-    Many CMapKeyVal
-    KW "end"
+  First
+    block
+      KW "<<"
+      Many CMapKeyVal
+      KW ">>"
+
+    block
+      Token Natural
+      KW "dict"
+      Optional (KW "dup")
+      KW "begin"
+      Many CMapKeyVal
+      KW "end"
 
 -- Parsing hex digits
 
@@ -191,6 +204,7 @@ def UTF16BE (maxBytes : uint 64) =
     (state =
       { bytes = (0 : uint 64)
       , lastByte = (0 : uint 8)
+      , valid = true
       , output = builder
       })
     block
@@ -199,28 +213,66 @@ def UTF16BE (maxBytes : uint 64) =
       let hi = hiByte # loByte
       if 0xD800 <= hi && hi <= 0xDBFF
         then
-          block
-            let surrogateHi = HexByte
-            let surrogateLo = HexByte
-            let lo = surrogateHi # surrogateLo
-            bytes = state.bytes + 4
-            bytes <= maxBytes is true
-            (0xDC00 <= lo && lo <= 0xDFFF) is true
-            let codePoint =
-              0x10000 +
-                ((hi as uint 32) - 0xD800) * 0x400 +
-                ((lo as uint 32) - 0xDC00)
-            
-            lastByte = surrogateLo
-            output = emit state.output codePoint
+          case Optional
+                 block
+                   hiByte = HexByte
+                   loByte = HexByte
+          of
+            nothing ->
+              block
+                let bytes = state.bytes + 2
+                bytes <= maxBytes is true
+                bytes = bytes
+                lastByte = loByte
+                valid = false
+                output = state.output
+
+            just surrogate ->
+              block
+                let lo = surrogate.hiByte # surrogate.loByte
+                let bytes = state.bytes + 4
+                bytes <= maxBytes is true
+                bytes = bytes
+                lastByte = surrogate.loByte
+                valid = state.valid && 0xDC00 <= lo && lo <= 0xDFFF
+                output =
+                  if 0xDC00 <= lo && lo <= 0xDFFF
+                    then
+                      emit state.output
+                        (0x10000 +
+                          ((hi as uint 32) - 0xD800) * 0x400 +
+                          ((lo as uint 32) - 0xDC00))
+                    else
+                      state.output
         else
           block
             let bytes = state.bytes + 2
             bytes <= maxBytes is true
-            (hi < 0xDC00 || hi > 0xDFFF) is true
             bytes = bytes
             lastByte = loByte
+            valid = state.valid && (hi < 0xDC00 || hi > 0xDFFF)
             output = emit state.output (hi as uint 32)
+
+
+def invalidUnicode : uint 32 = 0xFFFFFFFF
+
+def invalidUnicodeDestination : [uint 32] = [ invalidUnicode ]
+
+def unicodeDestination decoded =
+  if decoded.valid
+    then build decoded.output
+    else invalidUnicodeDestination
+
+def validUnicodeDestination destination =
+  if for (valid = true; codePoint in destination)
+       valid &&
+       codePoint <= 0x10FFFF &&
+       (codePoint < 0xD800 || codePoint > 0xDFFF)
+    then destination
+    else invalidUnicodeDestination
+
+def isInvalidUnicodeDestination destination =
+  destination == invalidUnicodeDestination
 
 
 
@@ -245,6 +297,3 @@ def addCodespaceRange x (acc : cmapBuilder) : cmapBuilder =
   block
     charMap = acc.charMap
     ranges  = emit acc.ranges x
-
-
-
