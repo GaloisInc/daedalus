@@ -3,19 +3,10 @@ import PdfDecl
 import StandardEncodings
 import CMap
 
-
--- XXX: It'd be nice to cache preocessed fonts by reference so if we encounter
--- the same reference we don't parse it over and over again.
--- (this might be a generally useful thing to have)
-def GetFonts (r : Dict) : [ [uint 8] -> Font ] =
-  case ?doText of
+def GetFonts (r : Dict) : [ [uint 8] -> Value ] =
+  case Optional (Lookup "Font" r) of
     nothing -> empty
-    just enc ->
-      block
-        let ?stdEncodings = enc
-        case Optional (Lookup "Font" r) of
-          nothing -> empty
-          just v  -> map (v in (ResolveVal v is dict)) (Font v)
+    just v  -> ResolveVal v is dict
 
 def Font (v : Value) =
   block
@@ -75,6 +66,4 @@ def EncodingDifferences base (ds : [Value]) : [ uint 8 -> [uint 16] ]=
                  }
 
     s.enc
-
-
 

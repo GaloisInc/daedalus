@@ -1,4 +1,3 @@
-import Debug
 import PdfValue
 import PdfDecl
 import StandardEncodings
@@ -6,6 +5,11 @@ import Catalog
 import CMap
 import ContentStream
 import Fonts
+
+def ExtractState =
+  struct
+    font      : maybe Font
+    fontCache : [ Ref -> Font ]
 
 def GetCharCode (cmap : cmap) : sint 32
 
@@ -16,7 +20,10 @@ def LookupCMap cmap =
     let width = Offset - start
     let key = width <# (c as? uint 32)
     case Optional (Lookup key cmap.charMap) of
-      just us -> @map (u in us) (EmitChar u)
+      just us ->
+        if isInvalidUnicodeDestination us
+          then Fail "Invalid Unicode destination in ToUnicode CMap"
+          else @map (u in us) (EmitChar u)
       nothing -> EmitChar ('?' as ?auto)
 
 def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
@@ -24,38 +31,64 @@ def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
     let c = prevIx <# UInt8
     let key = (w / 8 + 1) <# c
     case Optional (Lookup key ?cmap) of
-      just us -> @map (u in us) (EmitChar u)
+      just us ->
+        if isInvalidUnicodeDestination us
+          then Fail "Invalid Unicode destination in ToUnicode CMap"
+          else @map (u in us) (EmitChar u)
       nothing -> if w < 16 then LookupCMapLoop (w + 8) c
                            else Fail "Unknown character code"
 
-def TextInCatalog (c : PdfCatalog) =
+-- ENTRY
+def TextInCatalogPage
+  (state : ExtractState)
+  (c : PdfCatalog) : ExtractState =
   block
     let ?stdEncodings = c.stdEncodings
-    @(TextInPageTree nothing c.pageTree)
+    TextInPageTree
+      { font = nothing, fontCache = state.fontCache }
+      c.pageTree
 
-def TextInPageTree acc (t : PdfPageTree) =
+def TextInPageTree (state : ExtractState) (t : PdfPageTree) =
   case t of
-    Node kids -> for (s = acc; x in kids) (TextInPageTree s x)
-    Leaf p    -> TextInPage acc p
+    Node kids -> for (s = state; x in kids) (TextInPageTree s x)
+    Leaf p    -> TextInPage state p
 
-def TextInPage acc (p : PdfPage) =
+def TextInPage (state : ExtractState) (p : PdfPage) =
   case p of
-    EmptyPage -> acc
+    EmptyPage -> state
     ContentStreams content ->
       block
         let ?resources = content.resources
-        TextInPageContnet acc content
+        TextInPageContnet state content
 
-def TextInPageContnet acc (p : PdfPageContent) =
+def TextInPageContnet (state : ExtractState) (p : PdfPageContent) =
   block
     let ?instrs = p.data
-    FindTextOnPage acc 0
+    FindTextOnPage state 0
 
 def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
-def FindTextOnPage acc i =
+def SelectFont (state : ExtractState) mbValue : ExtractState =
+  case mbValue of
+    nothing -> { font = nothing, fontCache = state.fontCache }
+    just value ->
+      case value of
+        ref r ->
+          case lookup r state.fontCache of
+            just font ->
+              { font = just font, fontCache = state.fontCache }
+            nothing ->
+              block
+                let f = Font value
+                font = just f
+                fontCache = insert r f state.fontCache
+                
+        _ ->
+          { font = just (Font value), fontCache = state.fontCache }
+
+def FindTextOnPage (state : ExtractState) i =
   case Optional (Index ?instrs i) of
-    nothing -> acc
+    nothing -> state
     just instr ->
       case instr of
 
@@ -64,39 +97,40 @@ def FindTextOnPage acc i =
 
             Tj ->
               block
-                DecodeText acc (GetOperand (i - 1) is string)
-                FindTextOnPage acc (i+1)
+                DecodeText state.font (GetOperand (i - 1) is string)
+                FindTextOnPage state (i+1)
 
 
             quote, dquote ->
               block
                 EmitChar ('\n' as ?auto)
-                DecodeText acc (GetOperand (i - 1) is string)
-                FindTextOnPage acc (i+1)
+                DecodeText state.font (GetOperand (i - 1) is string)
+                FindTextOnPage state (i+1)
 
             Td, TD, T_star ->
               block
                 EmitChar ('\n' as ?auto)
-                FindTextOnPage acc (i+1)
+                FindTextOnPage state (i+1)
 
             TJ ->
               block
                 map (x in (GetOperand (i - 1) is array))  
                     case x of
-                      string s -> DecodeText acc s
+                      string s -> DecodeText state.font s
                       _        -> Accept -- EmitChar (' ' as ?auto)
 
-                FindTextOnPage acc (i+1)
+                FindTextOnPage state (i+1)
 
             Tf ->
               block
                 let fontName = GetOperand (i - 2) is name
-                let font     = Optional (Lookup fontName ?resources.fonts)
-                FindTextOnPage font (i+1)
+                let fontValue = Optional (Lookup fontName ?resources.fonts)
+                let nextState = SelectFont state fontValue
+                FindTextOnPage nextState (i+1)
 
-            _  -> FindTextOnPage acc (i+1)
+            _  -> FindTextOnPage state (i+1)
 
-        _  -> FindTextOnPage acc (i+1)
+        _  -> FindTextOnPage state (i+1)
 
 def DecodeText mbFont str =
 
