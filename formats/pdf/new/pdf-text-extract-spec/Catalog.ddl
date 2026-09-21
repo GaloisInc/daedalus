@@ -10,12 +10,16 @@ import Fonts
 -- Section 7.7.2, Table 29
 
 -- ENTRY
-def PdfCatalog (strict : bool) (enc : maybe StdEncodings) (r : Ref) =
+def PdfCatalog
+  (strict : bool)
+  (enc : maybe StdEncodings)
+  (pageIndex : maybe (uint 64))
+  (r : Ref) =
   block
     let ?strict = strict
     let ?doText  = enc
     let d        = ResolveValRef r is dict
-    pageTree     = PdfPageTreeRoot (LookupRef "Pages" d)
+    pageTree     = PdfPageTreeRoot pageIndex (LookupRef "Pages" d)
     stdEncodings = case enc of
                      nothing -> noStdEncodings
                      just e  -> e
@@ -25,9 +29,14 @@ def PdfCatalog (strict : bool) (enc : maybe StdEncodings) (r : Ref) =
 --------------------------------------------------------------------------------
 -- Page Tree; Section 7.7.3
 
-def PdfPageTreeRoot (r : Ref) = PdfPageTree nothing noResources r
+def PdfPageTreeRoot pageIndex (r : Ref) =
+  PdfPageTree pageIndex nothing noResources r
 
-def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
+def PdfPageTree
+  (pageIndex : maybe (uint 64))
+  (p : maybe Ref)
+  (parentResources : Resources)
+  (r : Ref) =
   block
     let node = ResolveValRef r is dict
     PdfCheckParent p node
@@ -44,13 +53,46 @@ def PdfPageTree (p : maybe Ref) (parentResources : Resources) (r : Ref) =
                       nothing -> parentResources
 
     case LookupName "Type" node of
-      "Pages" -> {| Node = map (child in (LookupResolve "Kids" node is array))
-                               (PdfPageTree (just r) resources (child is ref))
-                 |}
+      "Pages" ->
+        block
+          let kids = LookupResolve "Kids" node is array
+          {| Node =
+               case pageIndex of
+                 nothing ->
+                   map (child in kids)
+                     (PdfPageTree nothing (just r) resources (child is ref))
+                 just page ->
+                   [ PdfPageTreeChild page (just r) resources kids 0 ]
+            |}
 
-      "Page"  -> {| Leaf = PdfPage resources node |}
+      "Page"  ->
+        block
+          case pageIndex of
+            nothing   -> Accept
+            just page -> page == 0 is true
+          {| Leaf = PdfPage resources node |}
 
       _       -> Fail "Unexpected `Type` in page tree"
+
+def PdfPageTreeChild
+  (pageIndex : uint 64)
+  (parent : maybe Ref)
+  (resources : Resources)
+  (kids : [Value])
+  (kidIndex : uint 64) =
+  block
+    let child = Index kids kidIndex is ref
+    let node = ResolveValRef child is dict
+    let pageCount =
+      case LookupName "Type" node of
+        "Pages" -> LookupSize "Count" node
+        "Page"  -> 1
+        _       -> Fail "Unexpected `Type` in page tree"
+    if pageIndex < pageCount
+      then PdfPageTree (just pageIndex) parent resources child
+      else
+        PdfPageTreeChild
+          (pageIndex - pageCount) parent resources kids (kidIndex + 1)
 
 def noResources : Resources =
   block
@@ -86,7 +128,6 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     let content = ContentStream vr
     data        = content.data
     UNPARSED    = content.UNPARSED
-
 
 
 

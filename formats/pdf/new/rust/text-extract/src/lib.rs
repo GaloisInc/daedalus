@@ -21,6 +21,7 @@ pub enum ExtractError {
     GlyphMap(String),
     Catalog(String),
     Text(String),
+    InvalidPageNumber(u64),
     InvalidCodePoint(u32),
 }
 
@@ -32,6 +33,9 @@ impl fmt::Display for ExtractError {
             Self::GlyphMap(error) => write!(f, "failed to parse glyph map: {error}"),
             Self::Catalog(error) => write!(f, "failed to parse PDF catalog: {error}"),
             Self::Text(error) => write!(f, "failed to extract text: {error}"),
+            Self::InvalidPageNumber(page) => {
+                write!(f, "invalid page number {page}; page numbers start at 1")
+            }
             Self::InvalidCodePoint(code) => {
                 write!(f, "extracted value U+{code:04X} is not a Unicode code point")
             }
@@ -47,6 +51,26 @@ impl From<PdfError> for ExtractError {
 
 /// Extract UTF-8 text from the complete contents of a PDF.
 pub fn extract_text_bytes(name: &str, bytes: &[u8]) -> Result<String, ExtractError> {
+    extract_text_bytes_from_page(name, bytes, None)
+}
+
+/// Extract UTF-8 text from one page of a PDF, using a one-based page number.
+pub fn extract_page_text_bytes(
+    name: &str,
+    bytes: &[u8],
+    page: u64,
+) -> Result<String, ExtractError> {
+    let page_index = page
+        .checked_sub(1)
+        .ok_or(ExtractError::InvalidPageNumber(page))?;
+    extract_text_bytes_from_page(name, bytes, Some(page_index))
+}
+
+fn extract_text_bytes_from_page(
+    name: &str,
+    bytes: &[u8],
+    page_index: Option<u64>,
+) -> Result<String, ExtractError> {
     let pdf = daedalus_pdf_cos::prepare_pdf_bytes(name, bytes)?;
     let root = pdf
         .user_state
@@ -75,6 +99,10 @@ pub fn extract_text_bytes(name: &str, bytes: &[u8]) -> Result<String, ExtractErr
         empty_input.clone(),
         true,
         ddl::Maybe::Just(encodings),
+        match page_index {
+            Some(page) => ddl::Maybe::Just(ddl::U::from(page)),
+            None => ddl::Maybe::Nothing,
+        },
         root,
     ) {
         ddl::ParserResult::Ok(catalog, _) => catalog,
