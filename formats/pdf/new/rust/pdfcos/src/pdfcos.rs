@@ -90,7 +90,7 @@ pub type PdfCos = ddl::ParserStateWith<Pdf>;
 /// An error encountered while locating or processing the PDF cross-reference
 /// information.
 #[derive(Debug)]
-pub enum PreparePdfError {
+pub enum PdfError {
     PdfStartNotFound,
     StartXrefNotFound,
     StartXrefParse(String),
@@ -101,7 +101,7 @@ pub enum PreparePdfError {
     InvalidXrefOffset(&'static str),
 }
 
-impl fmt::Display for PreparePdfError {
+impl fmt::Display for PdfError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PdfStartNotFound => write!(f, "PDF header not found"),
@@ -129,10 +129,10 @@ impl fmt::Display for PreparePdfError {
     }
 }
 
-impl Error for PreparePdfError {}
+impl Error for PdfError {}
 
 /// Construct a Daedalus input and prepare a PDF from its complete contents.
-pub fn prepare_pdf_bytes(name: &str, bytes: &[u8]) -> Result<PdfCos, PreparePdfError> {
+pub fn prepare_pdf_bytes(name: &str, bytes: &[u8]) -> Result<PdfCos, PdfError> {
     prepare_pdf(ddl::new_input(
         ddl::new_byte_array(name.as_bytes()),
         ddl::new_byte_array(bytes),
@@ -151,15 +151,14 @@ pub fn references(pdf: &PdfCos) -> impl Iterator<Item = Ref> + '_ {
 ///
 /// The returned prepared PDF retains an input normalized to the `%PDF-`
 /// header, so all stored byte offsets use the PDF coordinate system.
-pub fn prepare_pdf(input: ddl::Input) -> Result<PdfCos, PreparePdfError> {
+pub fn prepare_pdf(input: ddl::Input) -> Result<PdfCos, PdfError> {
     let input_bytes = input.bytes();
-    let pdf_start =
-        find_bytes(&input_bytes, b"%PDF-").ok_or(PreparePdfError::PdfStartNotFound)?;
+    let pdf_start = find_bytes(&input_bytes, b"%PDF-").ok_or(PdfError::PdfStartNotFound)?;
     let input = input.advance(pdf_start);
 
     let pdf_bytes = input.bytes();
     let pdf_end =
-        rfind_bytes(&pdf_bytes, b"startxref").ok_or(PreparePdfError::StartXrefNotFound)?;
+        rfind_bytes(&pdf_bytes, b"startxref").ok_or(PdfError::StartXrefNotFound)?;
 
     let mut state = ddl::new_parser_state_with(Pdf {
         input: input.clone(),
@@ -175,9 +174,9 @@ pub fn prepare_pdf(input: ddl::Input) -> Result<PdfCos, PreparePdfError> {
             input.clone().advance(pdf_end),
         ) {
         ddl::ParserResult::Ok(offset, _) => usize::try_from(u64::from(offset))
-            .map_err(|_| PreparePdfError::InvalidXrefOffset("startxref"))?,
+            .map_err(|_| PdfError::InvalidXrefOffset("startxref"))?,
         ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
-            return Err(PreparePdfError::StartXrefParse(state.error.to_string()));
+            return Err(PdfError::StartXrefParse(state.error.to_string()));
         }
     };
 
@@ -192,14 +191,14 @@ fn process_xref(
     visited: &mut BTreeSet<usize>,
     offset: usize,
     top: bool,
-) -> Result<(), PreparePdfError> {
+) -> Result<(), PdfError> {
     if !visited.insert(offset) {
-        return Err(PreparePdfError::XrefCycle(offset));
+        return Err(PdfError::XrefCycle(offset));
     }
 
     let xref_input = match input.clone().advance_maybe(offset) {
         ddl::Maybe::Just(input) => input,
-        ddl::Maybe::Nothing => return Err(PreparePdfError::XrefOffsetOutOfRange(offset)),
+        ddl::Maybe::Nothing => return Err(PdfError::XrefOffsetOutOfRange(offset)),
     };
 
     let (xref, parse_error) = with_fresh_error(state, |state| {
@@ -208,7 +207,7 @@ fn process_xref(
     let xref = match xref {
         ddl::ParserResult::Ok(xref, _) => xref,
         ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
-            return Err(PreparePdfError::XrefParse {
+            return Err(PdfError::XrefParse {
                 offset,
                 error: parse_error.to_string(),
             });
@@ -227,7 +226,7 @@ fn process_old_xref(
     visited: &mut BTreeSet<usize>,
     xref: CrossRefAndTrailer,
     top: bool,
-) -> Result<(), PreparePdfError> {
+) -> Result<(), PdfError> {
     process_trailer_links(state, input, visited, &xref.trailer)?;
 
     for subsection in xref.xref.iter() {
@@ -252,7 +251,7 @@ fn process_old_xref(
             }
             object = object
                 .checked_add(1)
-                .ok_or(PreparePdfError::InvalidXrefInteger("object number"))?;
+                .ok_or(PdfError::InvalidXrefInteger("object number"))?;
         }
     }
 
@@ -268,7 +267,7 @@ fn process_new_xref(
     visited: &mut BTreeSet<usize>,
     xref: XRefObjTable,
     top: bool,
-) -> Result<(), PreparePdfError> {
+) -> Result<(), PdfError> {
     process_trailer_links(state, input, visited, &xref.trailer)?;
 
     for subsection in xref.xref.iter() {
@@ -317,7 +316,7 @@ fn process_new_xref(
             }
             object = object
                 .checked_add(1)
-                .ok_or(PreparePdfError::InvalidXrefInteger("object number"))?;
+                .ok_or(PdfError::InvalidXrefInteger("object number"))?;
         }
     }
 
@@ -332,7 +331,7 @@ fn process_trailer_links(
     input: &ddl::Input,
     visited: &mut BTreeSet<usize>,
     trailer: &TrailerDict,
-) -> Result<(), PreparePdfError> {
+) -> Result<(), PdfError> {
     if let ddl::Maybe::Just(offset) = &trailer.prev {
         process_xref(state, input, visited, int_to_usize(offset, "Prev")?, false)?;
     }
@@ -358,17 +357,17 @@ fn record_top_trailer(table: &mut Pdf, trailer: &TrailerDict) {
     table.trailer = Some(trailer.clone());
 }
 
-fn int_to_u64(value: &ddl::Int, field: &'static str) -> Result<u64, PreparePdfError> {
+fn int_to_u64(value: &ddl::Int, field: &'static str) -> Result<u64, PdfError> {
     value
         .try_to_unsigned()
-        .ok_or(PreparePdfError::InvalidXrefInteger(field))
+        .ok_or(PdfError::InvalidXrefInteger(field))
 }
 
-fn int_to_usize(value: &ddl::Int, field: &'static str) -> Result<usize, PreparePdfError> {
+fn int_to_usize(value: &ddl::Int, field: &'static str) -> Result<usize, PdfError> {
     let value = value
         .try_to_unsigned()
-        .ok_or(PreparePdfError::InvalidXrefOffset(field))?;
-    usize::try_from(value).map_err(|_| PreparePdfError::InvalidXrefOffset(field))
+        .ok_or(PdfError::InvalidXrefOffset(field))?;
+    usize::try_from(value).map_err(|_| PdfError::InvalidXrefOffset(field))
 }
 
 /// Run an operation with a fresh parse error, then restore the caller's error.
