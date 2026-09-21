@@ -7,8 +7,8 @@ import Debug
 --------------------------------------------------------------------------------
 -- Character Maps
 --
--- NOTE: I don't fully understand the formats for these, and they don't
--- appear to work quite as specified here.
+-- Character maps describe how character codes in PDF text strings map to
+-- Unicode sequences. This module parses ToUnicode CMaps for text extraction.
 
 
 def ToUnicodeCMap (v : Value) =
@@ -19,180 +19,51 @@ def ToUnicodeCMap (v : Value) =
         stream s -> {| cmap = ToUnicodeCMapDef s |}
     name x -> {| named = x |}
 
--- XXX: .. in patterns
-def HexNum acc =
-  block
-    let b = UInt8
-    case b of
-      '0', '1','2','3','4','5','6','7','8','9' ->
-        HexNum (16 * acc + ((b - '0') as ?auto))
-
-      'a', 'b', 'c', 'd', 'e', 'f' ->
-        HexNum (16 * acc + (10 + (b - 'a') as ?auto))
-
-      'A', 'B', 'C', 'D', 'E', 'F' ->
-        HexNum (16 * acc + (10 + (b - 'A') as ?auto))
-
-      '>' -> acc
-
-def HexD =
-  First
-    $['0' .. '9'] - '0'
-    10 + $['a' .. 'f'] - 'a'
-    10 + $['A' .. 'F'] - 'A'
-
-def HexByte = 16 * HexD + HexD
-
-def Hex : uint 32 = block $['<']; HexNum 0
-
-def SourceCode =
-  block
-    $['<']
-    $$ =
-      many (state = { width = (0 : uint 64), value = (0 : uint 32) })
-        block
-          state.width < 4 is true
-          width = state.width + 1
-          value = state.value <# HexByte
-    $$.width > 0 is true
-    $['>']
-
-def UTF16BE (maxBytes : uint 64) =
-  block
-    let result =
-      many
-        (state =
-          { bytes = (0 : uint 64)
-          , lastByte = (0 : uint 8)
-          , output = builder
-          })
-        block
-          let hiByte = HexByte
-          let loByte = HexByte
-          let hi = hiByte # loByte
-          if 0xD800 <= hi && hi <= 0xDBFF
-            then
-              block
-                let surrogateHi = HexByte
-                let surrogateLo = HexByte
-                let lo = surrogateHi # surrogateLo
-                bytes = state.bytes + 4
-                bytes <= maxBytes is true
-                (0xDC00 <= lo && lo <= 0xDFFF) is true
-                let codePoint =
-                  0x10000 +
-                    ((hi as uint 32) - 0xD800) * 0x400 +
-                    ((lo as uint 32) - 0xDC00)
-                
-                lastByte = surrogateLo
-                output = emit state.output codePoint
-            else
-              block
-                let bytes = state.bytes + 2
-                bytes <= maxBytes is true
-                (hi < 0xDC00 || hi > 0xDFFF) is true
-                bytes = bytes
-                lastByte = loByte
-                output = emit state.output (hi as uint 32)
-    bytes = result.bytes
-    lastByte = result.lastByte
-    text = build result.output
-
 def ToUnicodeCMapDef (s : Stream) =
   block
     SetStream (s.body is ok)
-    -- Trace (bytesOfStream (s.body is ok))
-    ManyWS
-    Name == "CIDInit" is true
-    Name == "ProcSet" is true
-    KW "findresource"
-    KW "begin"
-    -- XXX: don't quite understand the dict/dup format thing
-    let size = Token Natural
-    KW "dict"
-    -- XXX: don't quite understand the dict/dup format thing
-    KW "begin"
-    KW "begincmap"
-    $$ = CMapEntries cmap
+    CMapPrologue
+    $$ = cmap (CMapEntries cmapBuilder)
     KW "endcmap"
-    -- XXX: ignore rest
 
-
-def cmap =
-  block
-    charMap = empty : [ uint 64 -> [uint 32] ]
-    ranges  = []    : [ CodespaceRangeEntry ]
-
-def insertChar x y (acc : cmap) : cmap =
-  block
-    charMap = insert x y acc.charMap
-    ranges  = acc.ranges
-
-def addCodespaceRange xs (acc : cmap) : cmap =
-  block
-    charMap = acc.charMap
-    ranges  = concat [ xs, acc.ranges ] -- yikes
-
+-- The CMap data is a PostScript program, but text extraction only needs the
+-- portion between begincmap and endcmap. Skip wrapper declarations, comments,
+-- and resource setup rather than requiring one particular prologue.
+def CMapPrologue =
+  KW "begincmap"
+  <| block
+       UInt8
+       CMapPrologue
 
 def CMapEntries acc =
-  case Optional CMapKeyVal of
-    nothing ->
-      case Optional (CMapOperator acc) of
-        just acc1 -> CMapEntries acc1
-        nothing   -> acc
+  case LookAhead UInt8 of
+    '/' ->
+      block
+        -- Parse and ignore CMap metadata entries.
+        CMapKeyVal
+        CMapEntries acc
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' ->
+      CMapEntries (CMapOperator acc)
+    _ -> acc
 
-    just _  -> CMapEntries acc   -- ignore metadata
-
-def CMapKeyVal =
-  block
-    key   = Name
-    value = CMapValue
-    Optional (KW "def")
-
-def CMapValue =
-  First
-    dict    = CMapDict
-    string  = String
-    string  = HexString
-    name    = Name
-    number  = Number
-
-def CMapDict =
-  block
-    let ents = Between "<<" ">>" (Many CMapKeyVal)
-    for (d = empty; e in ents) (insert e.key e.value d)
-
-def CMapOperator (acc : cmap) =
+def CMapOperator (acc : cmapBuilder) =
   block
     let size = Token Natural as? uint 64
     size <= 100 is true
     Match "begin"
     let op = Token (Many $['a' .. 'z'])
-    $$ =      if op == "bfrange" then BFRangeMapping acc size
-         else if op == "bfchar"  then BFCharMapping acc size
-         else if op == "codespacerange" then
-                  addCodespaceRange (Many size CodespaceRangeEntry) acc
-         else Fail "Unsupported operator"
+    $$ =
+      case op of
+        "bfrange"         -> BFRangeMapping acc size
+        "bfchar"          -> BFCharMapping acc size
+        "codespacerange"  -> CodespaceRangeMapping acc size
+        _ -> Fail (concat [ "Unsupported CMap operator `begin", op, "`" ])
     Match "end"
     Token (Match op)
 
-def CodespaceRangeEntry =
-  block
-    start = Token SourceCode
-    end   = Token SourceCode
-    start.width == end.width is true
-    start.value <= end.value is true
 
-def BFCharMapping acc count =
-  if count > 0 then
-    block
-      let source = Token SourceCode
-      let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-      let key = source.width <# source.value
-      BFCharMapping (insertChar key destination.text acc) (count - 1)
-  else
-    acc
-
+-- Parse the requested number of bfrange entries, expanding each source-code
+-- range into individual, width-preserving entries in the character map.
 def BFRangeMapping acc count =
   if count > 0 then
     block
@@ -215,6 +86,7 @@ def BFRangeMapping acc count =
   else
     acc
 
+  
 -- ISO 32000-2:2017, 9.10.3, pp. 355-356 describes the two forms of
 -- destination mappings permitted after `beginbfrange`.
 def BFRangeDestinations (count : uint 64) =
@@ -225,9 +97,10 @@ def BFRangeDestinations (count : uint 64) =
       let first = Token { $['<']; $$ = UTF16BE 512; $['>'] }
       first.bytes > 0 is true
       (first.lastByte as uint 64) + count - 1 <= 255 is true
+      let text = build first.output
       map (amount in rangeUp count)
-        map (i, codePoint in first.text)
-          if i + 1 == length first.text
+        map (i, codePoint in text)
+          if i + 1 == length text
             then codePoint + (amount as! uint 32)
             else codePoint
 
@@ -239,5 +112,139 @@ def BFRangeDestinations (count : uint 64) =
         Many count
           block
             let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-            destination.text
+            build destination.output
       Token $[']']
+
+
+-- Parse the requested number of bfchar entries, adding each source code and
+-- its Unicode destination sequence to the character map.
+def BFCharMapping acc count =
+  if count > 0 then
+    block
+      let source = Token SourceCode
+      let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
+      let key = source.width <# source.value
+      BFCharMapping
+        (insertChar key (build destination.output) acc)
+        (count - 1)
+  else
+    acc
+
+-- Parse codespace ranges directly into the builder-backed CMap accumulator.
+def CodespaceRangeMapping acc count =
+  if count > 0 then
+    CodespaceRangeMapping
+      (addCodespaceRange CodespaceRangeEntry acc)
+      (count - 1)
+  else
+    acc
+
+def CodespaceRangeEntry =
+  block
+    start = Token SourceCode
+    end   = Token SourceCode
+    start.width == end.width is true
+    start.value <= end.value is true
+
+def SourceCode =
+  block
+    $['<']
+    $$ =
+      many (state = { width = (0 : uint 64), value = (0 : uint 32) })
+        block
+          state.width < 4 is true
+          width = state.width + 1
+          value = state.value <# HexByte
+    $$.width > 0 is true
+    $['>']
+
+
+def CMapKeyVal =
+  block
+    Name
+    @CMapPSDict <| @Value
+    Optional (KW "def")
+
+-- ISO 32000-2:2017, 9.7.5.4 uses this PostScript dictionary form for
+-- CIDSystemInfo. Other metadata values use the ordinary PDF value syntax.
+def CMapPSDict =
+  block
+    Token Natural
+    KW "dict"
+    Optional (KW "dup")
+    KW "begin"
+    Many CMapKeyVal
+    KW "end"
+
+-- Parsing hex digits
+
+def HexD =
+  First
+    $['0' .. '9'] - '0'
+    10 + $['a' .. 'f'] - 'a'
+    10 + $['A' .. 'F'] - 'A'
+
+def HexByte = 16 * HexD + HexD
+
+def UTF16BE (maxBytes : uint 64) =
+  many
+    (state =
+      { bytes = (0 : uint 64)
+      , lastByte = (0 : uint 8)
+      , output = builder
+      })
+    block
+      let hiByte = HexByte
+      let loByte = HexByte
+      let hi = hiByte # loByte
+      if 0xD800 <= hi && hi <= 0xDBFF
+        then
+          block
+            let surrogateHi = HexByte
+            let surrogateLo = HexByte
+            let lo = surrogateHi # surrogateLo
+            bytes = state.bytes + 4
+            bytes <= maxBytes is true
+            (0xDC00 <= lo && lo <= 0xDFFF) is true
+            let codePoint =
+              0x10000 +
+                ((hi as uint 32) - 0xD800) * 0x400 +
+                ((lo as uint 32) - 0xDC00)
+            
+            lastByte = surrogateLo
+            output = emit state.output codePoint
+        else
+          block
+            let bytes = state.bytes + 2
+            bytes <= maxBytes is true
+            (hi < 0xDC00 || hi > 0xDFFF) is true
+            bytes = bytes
+            lastByte = loByte
+            output = emit state.output (hi as uint 32)
+
+
+
+-- Helpers for working with cmaps
+
+def cmapBuilder =
+  block
+    charMap = empty : [ uint 64 -> [uint 32] ]
+    ranges  = builder : builder CodespaceRangeEntry
+
+def cmap (acc : cmapBuilder) =
+  block
+    charMap = acc.charMap
+    ranges  = build acc.ranges
+
+def insertChar x y (acc : cmapBuilder) : cmapBuilder =
+  block
+    charMap = insert x y acc.charMap
+    ranges  = acc.ranges
+
+def addCodespaceRange x (acc : cmapBuilder) : cmapBuilder =
+  block
+    charMap = acc.charMap
+    ranges  = emit acc.ranges x
+
+
+
