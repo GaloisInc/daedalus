@@ -469,7 +469,7 @@ compileOp1 x op e argTy =
     Core.Head -> def (Rust.callMethod e "head" [])
     Core.IsEmptyStream -> def (Rust.callMethod e "is_empty" [])
     Core.StreamOffset -> def (fromSize val)
-      where val = Rust.callMethod e "len" []
+      where val = Rust.callMethod e "offset" []
     Core.BytesOfStream -> def (Rust.callMethod e "bytes" [])
 
     -- Arrays
