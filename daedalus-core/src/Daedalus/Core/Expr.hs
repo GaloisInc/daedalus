@@ -66,6 +66,7 @@ data Op1 =
   | EJust
   | FromJust
   | SelStruct Type Label
+  | SelTuple Type Integer
   | InUnion UserType Label
   | FromUnion Type Label
   | WordToFloat
@@ -106,6 +107,7 @@ data Op2 =
   | EmitArray
   | EmitBuilder
   | MapLookup
+  | MapLookupLE
   | MapMember
 
   | ArrayStream
@@ -119,6 +121,7 @@ data Op3 =
 
 data OpN =
     ArrayL Type
+  | TupleL [Type]
   | CallF FName
   deriving (Eq, Generic,NFData)
 
@@ -226,6 +229,7 @@ nothing t = Ap0 (ENothing t)
 -- Datatypes
 
 selStruct t l     = Ap1 (SelStruct t l)
+selTuple t i      = Ap1 (SelTuple t i)
 inUnion t l       = Ap1 (InUnion t l)
 fromUnion t l     = Ap1 (FromUnion t l)
 
@@ -294,6 +298,7 @@ eNot         = Ap1 Not
 -- Arrays
 
 arrayL t      = ApN (ArrayL t)
+tupleL ts     = ApN (TupleL ts)
 byteArrayL b  = Ap0 (ByteArrayL b)
 arrayLen      = Ap1 ArrayLen
 arrayIndex    = Ap2 ArrayIndex
@@ -327,6 +332,7 @@ iteratorNext  = Ap1 IteratorNext
 
 mapEmpty tk tv  = Ap0 (MapEmpty tk tv)
 mapLookup       = Ap2 MapLookup
+mapLookupLE     = Ap2 MapLookupLE
 mapMember       = Ap2 MapMember
 mapInsert       = Ap3 MapInsert
 
@@ -382,6 +388,7 @@ instance PP Expr where
             case es of
               [] -> ppTApp n "[]" [t]
               _  -> brackets (commaSep (map pp es))
+          TupleL _ -> parens (commaSep (map pp es))
           CallF f -> pp f <.> parens (commaSep (map pp es))
 
 
@@ -428,6 +435,7 @@ instance PP Op1 where
       FromJust        -> "fromJust"
 
       SelStruct _ l   -> "get" <+> pp l
+      SelTuple _ i    -> "get" <+> pp i
       InUnion t l     -> ppTApp 0 ("tag" <+> pp l) [TUser t]
       FromUnion _ l   -> "fromTag" <+> pp l
 
@@ -485,6 +493,7 @@ ppOp2 op =
       EmitArray   -> pref "emitArray"
       EmitBuilder -> pref "emitBuilder"
       MapLookup   -> pref "mGet"
+      MapLookupLE -> pref "mGetLE"
       MapMember   -> pref "mMember"
 
       ArrayStream -> pref "arrayStream"
@@ -508,6 +517,7 @@ instance PP OpN where
   pp op =
     case op of
       ArrayL _ -> parens ("arrayLit")
+      TupleL _ -> parens ("tupleLit")
       CallF f  -> parens ("call" <+> pp f)
 
 instance (PP e, PP b) => PP (LoopMorphism' e b) where
@@ -525,5 +535,4 @@ instance PP e => PP (LoopCollection' e) where
     ppK = case lcKName lp of
             Nothing -> empty
             Just k  -> pp k <.> comma
-
 

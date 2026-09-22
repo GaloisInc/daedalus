@@ -94,7 +94,7 @@ data BDFieldType = BDWild | BDTag Integer | BDData Label Type
 
 
 -- | Get an instantiate version of a type.
--- Assumes that the decla name and user type match.
+-- Assumes that the decl name and user type match.
 tyDeclsInst :: TDecl -> UserType -> TDef
 tyDeclsInst td orig =
   case tDef td of
@@ -116,6 +116,7 @@ tyDeclsInst td orig =
       TFloat    -> ty
       TDouble   -> ty
       TUnit     -> ty
+      TTuple ts -> TTuple (map goTy ts)
       TArray ty' -> TArray (goTy ty')
       TMaybe ty' -> TMaybe (goTy ty')
       TMap dTy rTy -> TMap (goTy dTy) (goTy rTy)
@@ -225,4 +226,3 @@ instance DefKW ByteSet where
 instance DefKW Grammar where
   defKW _ = "proc"
   defIsGrammar _ = True
-
