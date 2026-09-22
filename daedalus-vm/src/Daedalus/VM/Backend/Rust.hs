@@ -634,6 +634,9 @@ compileOp1 x op e argTy =
                 (Rust.callMethod (Rust.fieldAccess e (compileFieldLabel lab)) "bor" []) "clo" [])
         _ -> panic "compileOp1" ["Unexpected type in field selection", show (pp ty)]
 
+    Core.SelTuple _ i ->
+      def (Rust.callMethod (Rust.fieldAccess e (Rust.mkIdent (show i))) "clo" [])
+
     Core.InUnion ut lab
       | Core.tnameBD nm ->
         def (
@@ -774,6 +777,7 @@ compileOp2 x op e1 e2 t1 t2 =
     
     -- Maps
     Core.MapLookup -> def (Rust.callMethod e1 "lookup" [e2])
+    Core.MapLookupLE -> def (Rust.callMethod e1 "lookup_le" [e2])
     Core.MapMember -> def (Rust.callMethod e1 "contains" [e2])
  
   where
@@ -819,6 +823,7 @@ compileOpN x op es =
     Core.ArrayL t ->
       def (if null es then Just (compileType VM.Owned (Core.TArray t)) else Nothing)
           (callRTS "new_array" [Rust.arrExpr es])
+    Core.TupleL _ -> def Nothing (Rust.tupleExpr es)
     Core.CallF {} -> panic "compileOpN" ["Unexpected CallF"]
   where
   def mbT e = [Rust.localLet [] (compileBVName x) mbT e]
