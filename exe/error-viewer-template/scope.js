@@ -83,20 +83,46 @@ function renderStruct(ctx, s) {
   return dom
 }
 
-function renderArray(ctx, x) {
-
-  // empty array
+function renderIndexed(ctx, x, kind, indexPath) {
   if (x.length === 0) {
     const dom = document.createElement("div")
     dom.classList.add("value-meta")
-    dom.textContent = "empty array"
+    dom.textContent = "empty " + kind
     return dom
   }
 
-  // differnt views for the array
-  const doms = []
+  const dom = document.createElement("div")
+  dom.classList.add(kind)
+  dom.classList.add("composite-value")
+  dom.classList.add("value")
 
-  let allNums = true
+  for (let i = 0; i < x.length; ++i) {
+    const entry = document.createElement("div")
+    entry.classList.add(kind + "-entry")
+
+    const entryIndex = document.createElement("div")
+    entryIndex.classList.add("value-meta")
+    entryIndex.textContent = i
+    entry.appendChild(entryIndex)
+
+    const newCtx = extendPath(ctx,indexPath(i))
+    entry.appendChild(renderValue(newCtx,entry,x[i]))
+    dom.appendChild(entry)
+  }
+
+  return dom
+}
+
+function renderArray(ctx, x) {
+
+  if (x.length === 0) {
+    return renderIndexed(ctx,x,"array",(i) => "[" + i + "]")
+  }
+
+  // differnt views for the array
+  const doms = [
+    renderIndexed(ctx,x,"array",(i) => "[" + i + "]")
+  ]
 
   function unTrace(v) {
     if (typeof(v) !== "object") return v
@@ -105,32 +131,12 @@ function renderArray(ctx, x) {
     return v
   }
 
-
-  { // Normal array view
-    const dom1 = document.createElement("div")
-    dom1.classList.add("array")
-    dom1.classList.add("composite-value")
-    dom1.classList.add("value")
-
-    const ctx1 = ctx
-    for (let i = 0; i < x.length; ++i) {
-      const entry = document.createElement("div")
-      entry.classList.add("array-entry")
-      const entry_index = document.createElement("div")
-      entry_index.classList.add("value-meta")
-      entry_index.textContent = i
-      entry.appendChild(entry_index)
-
-      const newCtx = extendPath(ctx1,"[" + i + "]")
-      const valDom = renderValue(newCtx, entry, x[i])
-      entry.appendChild(valDom)
-      dom1.appendChild(entry)
-
-      if (typeof(unTrace(x[i])) !== "number") {
-        allNums = false
-      }
+  let allNums = true
+  for (let i = 0; i < x.length; ++i) {
+    if (typeof(unTrace(x[i])) !== "number") {
+      allNums = false
+      break
     }
-    doms.push(dom1)
   }
 
   // String view
@@ -174,6 +180,10 @@ function renderArray(ctx, x) {
   }
 
   return dom
+}
+
+function renderTuple(ctx, x) {
+  return renderIndexed(ctx,x,"tuple",(i) => "." + i)
 }
 
 function renderUnion(ctx,l,x0) {
@@ -357,6 +367,9 @@ function renderValueUntraced(ctx,v) {
 
           case "$$just":
             return renderUnion(ctx,"just",val)
+
+          case "$$tuple":
+            return renderTuple(ctx,val)
 
           case "$$map":
             return renderMap(ctx,val)

@@ -110,6 +110,7 @@ module Daedalus.Value
   , vMapEmpty
   , vMapInsert
   , vMapLookup
+  , vMapLookupLE
   , vMapMember
 
   -- * Streams
@@ -181,9 +182,6 @@ vStructLookup v l =
                               , "Struct " ++ show v
                               ]
 
-vTuple :: [Value] -> Value
-vTuple = VTuple . Vector.fromList
-
 vTupleLookup :: Value -> Integer -> Value
 vTupleLookup v i =
   case integerToInt i >>= (valueToTuple v Vector.!?) of
@@ -193,4 +191,3 @@ vTupleLookup v i =
                  , "Index: " ++ show i
                  , "Tuple: " ++ show v
                  ]
-

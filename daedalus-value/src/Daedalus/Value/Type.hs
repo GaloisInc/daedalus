@@ -110,6 +110,9 @@ vByte x = VUInt 8 (fromIntegral x)
 vByteString :: ByteString -> Value
 vByteString = VArray . Vector.fromList . map vByte . BS.unpack
 
+vTuple :: [Value] -> Value
+vTuple = VTuple . Vector.fromList
+
 vFloat :: Float -> Value
 vFloat = VFloat
 
