@@ -34,6 +34,23 @@ fn test_map_insert_lookup_contains() {
 }
 
 #[test]
+fn test_map_lookup_le() {
+    let empty = ddl::empty_map::<u32, u32>();
+    assert_eq!(empty.bor().lookup_le(10), ddl::Maybe::Nothing);
+
+    let map = empty
+        .insert(20, 200)
+        .insert(10, 100)
+        .insert(30, 300);
+
+    assert_eq!(map.bor().lookup_le(5), ddl::Maybe::Nothing);
+    assert_eq!(map.bor().lookup_le(10), ddl::Maybe::Just((10, 100)));
+    assert_eq!(map.bor().lookup_le(25), ddl::Maybe::Just((20, 200)));
+    assert_eq!(map.bor().lookup_le(30), ddl::Maybe::Just((30, 300)));
+    assert_eq!(map.bor().lookup_le(40), ddl::Maybe::Just((30, 300)));
+}
+
+#[test]
 fn test_map_iteration_order() {
     // Tests that map iterators traverse elements in ascending key order,
     // and that both owned and borrowed iterators work correctly.

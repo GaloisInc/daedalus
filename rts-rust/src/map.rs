@@ -2,7 +2,7 @@ use std::{cmp::Ordering};
 use std::fmt;
 use serde::Serialize;
 use crate as ddl;
-use ddl::Type;
+use ddl::{Type, Clo};
 use ddl::map_iterators::{new_map_iterator, new_map_borrow_iterator};
 
 /// An ordered map from keys of type `K` to values of type `V`.
@@ -175,6 +175,36 @@ impl <'a, K, V> MapB<'a,K,V>
     }
     
     ddl::Maybe::Nothing
+  }
+
+  /// Looks up the greatest key less than or equal to the given key.
+  /// Returns the matching key-value pair, or `Nothing` if there is no such key.
+  pub fn lookup_le(self, key: <K as Type>::B<'a>) -> ddl::Maybe<(K,V)> {
+    let mut cur = self;
+    let mut best = ddl::Maybe::Nothing;
+
+    while let ddl::Maybe::Just(node) = cur.mp {
+      let node_ref = node.as_ref();
+      match key.cmp(&node_ref.key.bor()) {
+        Ordering::Less => cur = node_ref.left.bor(),
+        Ordering::Greater => {
+          best = ddl::Maybe::Just(node);
+          cur = node_ref.right.bor();
+        }
+        Ordering::Equal =>
+          return ddl::Maybe::Just((node_ref.key.bor().clo(),
+                                   node_ref.value.bor().clo()))
+      }
+    }
+
+    match best {
+      ddl::Maybe::Nothing => ddl::Maybe::Nothing,
+      ddl::Maybe::Just(node) => {
+        let node_ref = node.as_ref();
+        ddl::Maybe::Just((node_ref.key.bor().clo(),
+                          node_ref.value.bor().clo()))
+      }
+    }
   }
 }
 
