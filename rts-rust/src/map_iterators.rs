@@ -19,9 +19,6 @@ impl<K,V> Clone for MapIterator<K,V> {
   fn clone(&self) -> Self { MapIterator { stack: self.stack.clone() } }
 }
 
-ddl::by_ref!(MapIterator<K,V>);
-
-
 impl<K: Type, V: Type> MapIterator<K,V> {
   fn push(self, mp: Map<K,V>) -> Self {
     let mut res = self;
@@ -70,21 +67,41 @@ impl<K: Type, V: Type> MapIterator<K,V> {
 
 /// An iterator that traverses a borrowed map in ascending key order.
 /// Borrows the map during iteration without consuming it.
-pub struct MapBorrowIterator<'a, K, V> {
+pub struct MapIteratorB<'a, K, V> {
   stack: Vec<ddl::B<'a, Node<K,V>>>
 }
 
 /// Creates a new iterator for traversing a borrowed map in ascending key order.
-pub fn new_map_borrow_iterator<'a, K: Type, V: Type>(mp: MapB<'a, K, V>) -> MapBorrowIterator<'a, K, V> {
-  let empty = MapBorrowIterator { stack: Vec::with_capacity(4) };
+pub fn new_map_borrow_iterator<'a, K: Type, V: Type>(mp: MapB<'a, K, V>) -> MapIteratorB<'a, K, V> {
+  let empty = MapIteratorB { stack: Vec::with_capacity(4) };
   empty.push(mp)
 }
 
-impl<'a, K, V> Clone for MapBorrowIterator<'a, K, V> {
-  fn clone(&self) -> Self { MapBorrowIterator { stack: self.stack.clone() } }
+impl<'a, K, V> Clone for MapIteratorB<'a, K, V> {
+  fn clone(&self) -> Self { MapIteratorB { stack: self.stack.clone() } }
 }
 
-impl<'a, K: Type, V: Type> MapBorrowIterator<'a, K, V> {
+impl<K: Type, V: Type> Type for MapIterator<K,V> {
+  type B<'a> = MapIteratorB<'a,K,V>;
+
+  fn bor(&self) -> MapIteratorB<'_,K,V> {
+    MapIteratorB {
+      stack: self.stack.iter().map(|node| node.bor()).collect()
+    }
+  }
+}
+
+impl<'a, K: Type, V: Type> Clo for MapIteratorB<'a, K, V> {
+  type O = MapIterator<K,V>;
+
+  fn clo(self) -> MapIterator<K,V> {
+    MapIterator {
+      stack: self.stack.into_iter().map(|node| node.clo()).collect()
+    }
+  }
+}
+
+impl<'a, K: Type, V: Type> MapIteratorB<'a, K, V> {
   fn push(self, mp: MapB<'a, K, V>) -> Self {
     let mut res = self;
     let mut cur = mp;
