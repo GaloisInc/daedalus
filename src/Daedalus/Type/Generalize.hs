@@ -48,6 +48,12 @@ generalize ds =
                                                     "need a concrete type."
                   , "Please use a type annotation to specify it."
                   ]
+                HasTuple ty i _ -> reportDetailedError lc
+                  "Failed to infer tuple type."
+                  [ "Could not resolve selection" <+> pp i <+>
+                    "from type" <+> pp ty <.> "."
+                  , "Please use a type annotation to specify the tuple type."
+                  ]
                 HasUnion ty l _
                   | TCon c _ <- ty
                   , c `Map.member` tds ->
@@ -259,5 +265,4 @@ fixUpRecCallSites ch expr =
     case mapTCF (fixUpRecCallSites ch) (texprValue expr) of
       TCCall x [] es | Just ts <- Map.lookup (tcName x) ch -> TCCall x ts es
       e                                                    -> e
-
 

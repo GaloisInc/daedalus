@@ -96,6 +96,8 @@ instance ApSubst Constraint where
       FloatingType t    -> FloatingType <$> apSubstT' su t
       HasStruct t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasStruct a l b)
+      HasTuple t1 i t2  -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
+                              pure (HasTuple a i b)
       StructCon nm t fs -> someJust2 (StructCon nm)
                                      (apSubstT' su) (someJusts apF)
                                      t              fs
@@ -275,6 +277,7 @@ instance FreeTVS Constraint where
       Arith t           -> freeTVS t
       FloatingType t    -> freeTVS t
       HasStruct t1 _ t2 -> freeTVS t1 <> freeTVS t2
+      HasTuple t1 _ t2  -> freeTVS t1 <> freeTVS t2
       StructCon _ t fs  -> freeTVS t <> freeTVS (map snd fs)
       UnionCon _ t _ tf -> freeTVS t <> freeTVS tf
       HasUnion  t1 _ t2 -> freeTVS t1 <> freeTVS t2
@@ -377,4 +380,3 @@ apSubstArg :: PP a => Subst a -> Arg a -> Arg a
 apSubstArg s (ValArg     e) = ValArg     $ apSubst s e
 apSubstArg s (GrammarArg e) = GrammarArg $ apSubst s e
 apSubstArg s (ClassArg e)   = ClassArg   $ apSubst s e
-

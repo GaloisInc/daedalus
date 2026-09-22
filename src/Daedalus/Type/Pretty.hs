@@ -136,6 +136,8 @@ ppCtr ctr =
     FloatingType t -> ppBackTy t <+> "is a floating point type"
     HasStruct ts l tf ->
       ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf
+    HasTuple ts i tf ->
+      ppBackTy ts <+> "has tuple field" <+> pp i <+> ":" <+> ppTy 0 tf
     HasUnion tu l tf ->
       ppBackTy tu <+> "has a variant" <+> pp l <+> ":" <+> ppTy 0 tf
 
