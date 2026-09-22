@@ -694,6 +694,7 @@ unify2 r s t1' t2' =
             (TDouble, TDouble)         -> pure ()
             (TMaybe x, TMaybe y)       -> unify2 r s x y
             (TArray x, TArray y)       -> unify2 r s x y
+            (TTuple xs, TTuple ys)      -> unifyMany r s xs ys
             (TMap k1 v1, TMap k2 v2)   -> do unify2 r s k1 k2
                                              unify2 r s v1 v2
             (TBuilder a1, TBuilder a2) -> unify2 r s a1 a2
@@ -814,5 +815,4 @@ simplifyConstraints =
       o : more ->
         do yes <- c `isImpliedBy` o
            if yes then pure True else checkKnown c more
-
 

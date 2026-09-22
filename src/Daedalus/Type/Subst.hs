@@ -52,6 +52,7 @@ instance ApSubst Type where
           TDouble    -> Nothing
           TUnit      -> Nothing
           TArray t   -> tArray <$> apSubstT' su t
+          TTuple ts  -> tTuple <$> someJusts (apSubstT' su) ts
           TMaybe t   -> tMaybe <$> apSubstT' su t
           TMap kt vt -> do ~[k',t'] <- someJusts (apSubstT' su) [kt,vt]
                            pure (tMap k' t')
@@ -206,6 +207,7 @@ instance FreeTVS t => FreeTVS (TypeF t) where
       TDouble    -> Set.empty
       TUnit      -> Set.empty
       TArray t   -> freeTVS t
+      TTuple ts  -> freeTVS ts
       TMaybe t   -> freeTVS t
       TMap kt vt -> freeTVS kt `Set.union` freeTVS vt
       TBuilder t -> freeTVS t
@@ -375,5 +377,4 @@ apSubstArg :: PP a => Subst a -> Arg a -> Arg a
 apSubstArg s (ValArg     e) = ValArg     $ apSubst s e
 apSubstArg s (GrammarArg e) = GrammarArg $ apSubst s e
 apSubstArg s (ClassArg e)   = ClassArg   $ apSubst s e
-
 

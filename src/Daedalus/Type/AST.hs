@@ -880,6 +880,9 @@ tMaybe t = Type (TMaybe t)
 tArray :: Type -> Type
 tArray t = Type (TArray t)
 
+tTuple :: [Type] -> Type
+tTuple ts = Type (TTuple ts)
+
 tBuilder :: Type -> Type
 tBuilder t = Type (TBuilder t)
 
@@ -965,6 +968,7 @@ kindOf ty =
         TDouble     -> KValue
         TUnit       -> KValue
         TArray {}   -> KValue
+        TTuple {}   -> KValue
         TMaybe {}   -> KValue
         TMap {}     -> KValue
         TBuilder {} -> KValue

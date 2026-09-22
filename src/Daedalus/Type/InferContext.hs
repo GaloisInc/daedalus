@@ -19,6 +19,7 @@ inferContext expr =
     EMatch1 {}   -> Some AGrammar
     EStruct fs   -> AValue `grammarIf` map inferStructField fs
     EArray es    -> AValue `grammarIf` map inferContext es
+    ETuple es    -> AValue `grammarIf` map inferContext es
 
     EChoiceU {}           -> Some AGrammar
     EChoiceT {}           -> Some AGrammar
@@ -76,6 +77,7 @@ inferContext expr =
     ESel e sel ->
       case sel of
         SelStruct {}   -> inferContext e
+        SelTuple {}    -> inferContext e
         SelUnion {}    -> Some AGrammar
         SelTrue {}     -> Some AGrammar
         SelFalse {}    -> Some AGrammar
@@ -127,4 +129,3 @@ inferStructField fi =
     _ :@= _   -> Some AGrammar
     _ := e    -> inferContext e
     IPName { .. } :?= _   -> Some ipContext
-

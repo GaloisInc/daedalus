@@ -512,6 +512,8 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
+  | '(' expr ',' separated1(expr, ',') ')'
+                                            { at ($1,$5) (ETuple ($2 : $4)) }
   | 'block' 'v{' separated(struct_field, virtSep) 'v}'
                                             { at ($1,$4) (EStruct $3) }
   | '{' separated(struct_field, commaOrSemi) '}'
@@ -541,6 +543,11 @@ aexpr                                    :: { Expr }
 
   | aexpr '.' label                         { at ($1,$3)
                                                  (ESel $1 (SelStruct $3))}
+  | aexpr '.' NUMBER                        { at ($1,nRange $3)
+                                                 (ESel $1
+                                                   (SelTuple
+                                                     (loc (nRange $3)
+                                                          (nValue $3)))) }
 
 implicitParam                            :: { IPName }
   : SMALLIDENTI                             { mkIP AValue   $1 }
@@ -636,6 +643,9 @@ atype                                    :: { SrcType }
   | 'int'                                   { atT $1 TInteger }
   | 'stream'                                { atT $1 TStream }
   | '(' type  ')'                           { $2 }
+  | '(' type ',' separated1(type, ',') ')'
+                                            { atT ($1 <-> $5)
+                                                  (TTuple ($2 : $4)) }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
   | NUMBER                                  { atT (nRange $1)
