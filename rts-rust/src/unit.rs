@@ -1,6 +1,5 @@
 use crate as ddl;
 use std::fmt;
-use serde::Serialize;
 
 /// A unit type representing an empty struct.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -26,8 +25,8 @@ impl fmt::Debug for Unit {
     }
 }
 
-impl Serialize for Unit {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl ddl::DDLSerialize for Unit {
+    fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {

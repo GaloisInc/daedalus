@@ -2,7 +2,6 @@ use crate as ddl;
 use ddl::{Clo,Type};
 use std::cmp::Ordering;
 use std::fmt;
-use serde::Serialize;
 
 #[derive(Clone)]
 
@@ -144,8 +143,8 @@ impl fmt::Debug for Input {
   }
 }
 
-impl Serialize for Input {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl ddl::DDLSerialize for Input {
+  fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {

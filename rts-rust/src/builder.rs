@@ -1,7 +1,6 @@
 use crate as ddl;
-use ddl::{Type,Clo};
+use ddl::{AsDDL, Clo, DDLSerialize, Type};
 use std::rc::Rc;
-use serde::Serialize;
 
 /// A helper type for efficient building of arrays (owned form).
 pub struct Builder<T> { node: ddl::O<Node<T>> }
@@ -190,34 +189,44 @@ impl<T: Clone> Builder<T> {
 
 
 
-fn serialize_builder_iter<'a, S, T>(iter: BuilderBIter<'a, T>, serializer: S) -> Result<S::Ok, S::Error>
+struct DDLElements<'a, T: Type>(BuilderB<'a, T>);
+
+impl<T: Type + DDLSerialize> serde::Serialize for DDLElements<'_, T> {
+  fn serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(None)?;
+    for elem in self.0.iter() {
+      seq.serialize_element(&AsDDL(elem))?;
+    }
+    seq.end()
+  }
+}
+
+fn ddl_serialize_builder<T: Type + DDLSerialize, S>(
+  builder: BuilderB<'_, T>,
+  serializer: S
+) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
-  T: Type + Serialize,
 {
-  use serde::ser::SerializeSeq;
-  let mut seq = serializer.serialize_seq(None)?;
-  for elem in iter {
-    seq.serialize_element(elem)?;
-  }
-  seq.end()
+  use serde::ser::SerializeMap;
+  let mut map = serializer.serialize_map(Some(1))?;
+  map.serialize_entry("$$builder", &DDLElements(builder))?;
+  map.end()
 }
 
-impl<T: Type + Serialize> Serialize for Builder<T> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serialize_builder_iter(self.iter(), serializer)
+impl<T: Type + DDLSerialize> DDLSerialize for Builder<T> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_builder(self.bor(), serializer)
   }
 }
 
-impl<'a, T: Type + Serialize> Serialize for BuilderB<'a, T> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serialize_builder_iter(self.iter(), serializer)
+impl<T: Type + DDLSerialize> DDLSerialize for BuilderB<'_, T> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_builder(*self, serializer)
   }
 }
 

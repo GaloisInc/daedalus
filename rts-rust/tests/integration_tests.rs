@@ -643,24 +643,34 @@ fn test_serialization() {
     // Tests JSON serialization for various DDL types.
 
     // Test Maybe serialization
-    let nothing: ddl::Maybe<u32> = ddl::Maybe::Nothing;
-    let just = ddl::Maybe::Just(42u32);
-    assert_eq!(serde_json::to_string(&nothing).unwrap(), "null");
-    assert_eq!(serde_json::to_string(&just).unwrap(), r#"{"$$just":42}"#);
+    let nothing: ddl::Maybe<ddl::U<8>> = ddl::Maybe::Nothing;
+    let just = ddl::Maybe::Just(ddl::U::<8>::from(42u8));
+    assert_eq!(serde_json::to_string(&ddl::AsDDL(&nothing)).unwrap(), "null");
+    assert_eq!(
+        serde_json::to_string(&ddl::AsDDL(&just)).unwrap(),
+        r#"{"$$just":42}"#
+    );
 
     // Test Array serialization
-    let arr = ddl::new_array([1u32, 2, 3]);
-    assert_eq!(serde_json::to_string(&arr).unwrap(), "[1,2,3]");
+    let arr = ddl::new_array([
+        ddl::U::<8>::from(1u8),
+        ddl::U::<8>::from(2u8),
+        ddl::U::<8>::from(3u8),
+    ]);
+    assert_eq!(
+        serde_json::to_string(&ddl::AsDDL(&arr)).unwrap(),
+        "[1,2,3]"
+    );
 
     // Test Word serialization
     let word: ddl::U<8> = 42u8.into();
-    assert_eq!(serde_json::to_string(&word).unwrap(), "42");
+    assert_eq!(serde_json::to_string(&ddl::AsDDL(&word)).unwrap(), "42");
 
     // Test Map serialization
-    let map = ddl::empty_map::<u32, u32>()
-        .insert(1, 10)
-        .insert(2, 20);
-    let json = serde_json::to_string(&map).unwrap();
+    let map = ddl::empty_map::<ddl::U<8>, ddl::U<8>>()
+        .insert(1u8.into(), 10u8.into())
+        .insert(2u8.into(), 20u8.into());
+    let json = serde_json::to_string(&ddl::AsDDL(&map)).unwrap();
     assert!(json.contains(r#""$$map""#), "Map should serialize with $$map key");
 }
 
@@ -923,7 +933,7 @@ fn test_input_display_debug() {
 fn test_input_serialize() {
     // Test serialization format matches C++ toJS
     let input = ddl::new_input_str("test.txt", "hello world");
-    let json = serde_json::to_string(&input).unwrap();
+    let json = serde_json::to_string(&ddl::AsDDL(&input)).unwrap();
     
     // Should be: {"$$input":"test.txt:0x0--0xb"}
     assert!(json.contains("$$input"));
@@ -946,7 +956,7 @@ fn test_input_format_matches_cpp() {
     assert!(debug.contains("Input(\"file.txt:0x0--0x8\")"));
     
     // Serialize should produce: {"$$input":"file.txt:0x0--0x8"}
-    let json = serde_json::to_string(&input).unwrap();
+    let json = serde_json::to_string(&ddl::AsDDL(&input)).unwrap();
     println!("JSON:    {}", json);
     
     assert!(json.contains("$$input"));

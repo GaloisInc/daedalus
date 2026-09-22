@@ -1,4 +1,4 @@
-/// Macro for generating Serialize implementations for enums.
+/// Macro for generating DDLSerialize implementations for enums.
 ///
 /// Usage:
 /// ```ignore
@@ -13,8 +13,8 @@
 #[macro_export]
 macro_rules! serialize_enum {
   (<$($tp:ident),*>, $type:ty, $(($pat:pat, $label:literal, $val:expr)),* $(,)?) => {
-    impl<$($tp: serde::Serialize),*> serde::Serialize for $type {
-      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    impl<$($tp: $crate::DDLSerialize),*> $crate::DDLSerialize for $type {
+      fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
         S: serde::Serializer,
       {
@@ -23,7 +23,10 @@ macro_rules! serialize_enum {
         match self {
           $(
             $pat => {
-              map.serialize_entry(concat!("$", $label), $val)?;
+              map.serialize_entry(
+                concat!("$", $label),
+                &$crate::AsDDL($val),
+              )?;
             }
           )*
         }
@@ -33,7 +36,7 @@ macro_rules! serialize_enum {
   };
 }
 
-/// Macro for generating Serialize implementations for structs.
+/// Macro for generating DDLSerialize implementations for structs.
 ///
 /// Usage:
 /// ```ignore
@@ -50,8 +53,8 @@ macro_rules! serialize_enum {
 #[macro_export]
 macro_rules! serialize_struct {
   (<$($tp:ident),*>, $type:ty, $(($field:ident, $label:literal)),* $(,)?) => {
-    impl<$($tp: serde::Serialize),*> serde::Serialize for $type {
-      fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    impl<$($tp: $crate::DDLSerialize),*> $crate::DDLSerialize for $type {
+      fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
         S: serde::Serializer,
       {
@@ -59,7 +62,7 @@ macro_rules! serialize_struct {
         let field_count = [$($label),*].len();
         let mut map = serializer.serialize_map(Some(field_count))?;
         $(
-          map.serialize_entry($label, &self.$field)?;
+          map.serialize_entry($label, &$crate::AsDDL(&self.$field))?;
         )*
         map.end()
       }
