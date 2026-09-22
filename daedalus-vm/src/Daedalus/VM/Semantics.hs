@@ -332,6 +332,7 @@ semPrimName prim vs =
       | otherwise                -> evalOp2 op2 x y
     (Op3 op3, [(x,_),(y,_),(z,_)])  -> evalOp3 op3 x y z
     (OpN Src.ArrayL{}, _)           -> V.vArray (map fst vs)
+    (OpN Src.TupleL{}, _)           -> V.vTuple (map fst vs)
     (OpN Src.CallF{}, _)            -> panic "semPrimName" ["calls not supported"]
     _                               -> panic "semPrimName" ["argument mismatch", show (pp prim)]
   where
