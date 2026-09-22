@@ -136,6 +136,7 @@ import Daedalus.Parser.Monad
   'insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapinsert } }
   'Lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapLookup } }
   'lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMaplookup } }
+  'lookupLE'  { Lexeme { lexemeRange = $$, lexemeToken = KWMaplookupLE } }
   'Offset'    { Lexeme { lexemeRange = $$, lexemeToken = KWOffset } }
   'GetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWGetStream } }
   'SetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWSetStream } }
@@ -324,6 +325,7 @@ label                                    :: { Located Label }
   | 'empty'                                 { mkLabel ($1,"empty") }
   | 'Lookup'                                { mkLabel ($1,"Lookup") }
   | 'lookup'                                { mkLabel ($1,"lookup") }
+  | 'lookupLE'                              { mkLabel ($1,"lookupLE") }
   | 'Insert'                                { mkLabel ($1,"Insert") }
   | 'insert'                                { mkLabel ($1,"insert") }
   | 'Offset'                                { mkLabel ($1,"Offset") }
@@ -452,6 +454,7 @@ call_expr                                :: { Expr }
 
   | 'Lookup' aexpr aexpr                    { at ($1,$3) (EMapLookup $2 $3) }
   | 'lookup' aexpr aexpr                    { at ($1,$3) (EBinOp LookupMap $2 $3) }
+  | 'lookupLE' aexpr aexpr                  { at ($1,$3) (EBinOp LookupMapLE $2 $3) }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
   | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }

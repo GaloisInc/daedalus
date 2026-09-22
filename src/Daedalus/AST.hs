@@ -332,6 +332,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LogicAnd | LogicOr
            | ArrayStream
            | LookupMap
+           | LookupMapLE
            | StreamTakeUpTo
            | BuilderEmit -- ^ push a new element onto the end of a builder
            | BuilderEmitArray
@@ -532,6 +533,7 @@ instance PP BinOp where
       ArrayStream -> "arrayStream"
       StreamTakeUpTo -> "take"
       LookupMap -> "lookup"
+      LookupMapLE -> "lookupLE"
       BuilderEmit -> "emit"
       BuilderEmitArray -> "emitArray"
       BuilderEmitBuilder -> "emitBuilder"
@@ -616,6 +618,5 @@ instance TestEquality Context where
 
 instance OrdF Context where
   compareF = $(structuralTypeOrd [t| Context |] [])
-
 
 

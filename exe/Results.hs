@@ -308,6 +308,7 @@ tokenClass tok =
     KWMapinsert           -> clIdent
     KWMapLookup           -> clIdent
     KWMaplookup           -> clIdent
+    KWMaplookupLE         -> clIdent
     KWArrayLength         -> clIdent
     KWArrayIndex          -> clIdent
     KWRangeUp             -> clIdent
@@ -344,6 +345,5 @@ tokenClass tok =
 
     TokError {}           -> clNone
     TokEOF                -> clNone
-
 
 
