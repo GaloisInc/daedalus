@@ -2,6 +2,7 @@ module Daedalus.RTS.Map
   ( Map
   , Map.empty
   , Map.lookup
+  , Map.lookupLE
   , Map.member
   , Map.insert
   , Map.toList
@@ -18,6 +19,5 @@ insertMaybe k v mp =
     _              -> Nothing
   where
   pick _ x _ = x    -- doesn't matter
-
 
 
