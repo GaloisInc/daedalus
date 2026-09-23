@@ -508,6 +508,5 @@ instance VecElem a => Show (Builder a) where
   {-# INLINE showsPrec #-}
 
 instance (VecElem a, ToJSON a) => ToJSON (Builder a) where
-  toJSON = toJSON . finishBuilder
+  toJSON = jsTagged "$$builder" . toJSON . finishBuilder
   {-# INLINE toJSON #-}
-

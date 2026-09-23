@@ -224,7 +224,7 @@ std::ostream& operator<<(std::ostream& os, Integer x) {
 // borrow
 static inline
 std::ostream& toJS(std::ostream& os, Integer x) {
-  return os << std::dec << x.getValue();
+  return os << "\"" << std::dec << x.getValue() << "\"";
 }
 
 
@@ -396,5 +396,4 @@ Integer lcat(Integer x, UInt<b> y) { return (x << Size{b}) | Integer(y.rep()); }
 
 
 #endif
-
 

@@ -412,14 +412,14 @@ inline
 std::ostream& operator<<(std::ostream& os, Array<T> x) {
   Size n = x.size();
 
-  os << "[";
+  os << "{\"$$builder\":[";
   char sep[] = ", ";
   sep[0] = 0;
   for (Size i = 0; i < n; i.increment()) {
     os << sep << x.borrowElement(i);
     sep[0] = ',';
   }
-  os << "]";
+  os << "]}";
   return os;
 }
 

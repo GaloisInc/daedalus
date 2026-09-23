@@ -693,11 +693,10 @@ doubleToWord = UInt . castDoubleToWord64
 -------------------------------------------------------------------------------
 
 instance SizeType n => ToJSON (UInt n) where
-  toJSON = toJSON . asInt
+  toJSON = jsInteger . asInt
   {-# INLINE toJSON #-}
 
 instance SizeType n => ToJSON (SInt n) where
-  toJSON = toJSON . asInt
+  toJSON = jsInteger . asInt
   {-# INLINE toJSON #-}
-
 
