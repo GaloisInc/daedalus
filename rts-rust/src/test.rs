@@ -5,7 +5,7 @@ use std::process;
 use serde::Serialize;
 
 
-pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) -> ddl::ParserResult<T>>(f: F) {
+pub fn test_parser<T: ddl::DDLSerialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) -> ddl::ParserResult<T>>(f: F) {
     let args: Vec<String> = env::args().collect();
 
     let (nm_arr, byte_arr) = if args.len() == 1 {
@@ -31,7 +31,7 @@ pub fn test_parser<T: Serialize, F: FnOnce(&mut ddl::ParserState, ddl::Input) ->
       ddl::ParserResult::Exception =>
         print_json(&pstate.error, false),
       ddl::ParserResult::Ok(a, _) =>
-        print_json(&a, true),
+        print_json(&ddl::AsDDL(&a), true),
     }
 }
 

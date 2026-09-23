@@ -635,7 +635,7 @@ compileOp1 x op e argTy =
         _ -> panic "compileOp1" ["Unexpected type in field selection", show (pp ty)]
 
     Core.SelTuple _ i ->
-      def (Rust.callMethod (Rust.fieldAccess e (Rust.mkIdent (show i))) "clo" [])
+      def (Rust.callMethod (Rust.tupField e i) "clo" [])
 
     Core.InUnion ut lab
       | Core.tnameBD nm ->
