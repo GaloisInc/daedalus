@@ -77,7 +77,94 @@ instance (ToJSON a) => ToJSON [a] where
   toJSON = jsArray . map toJSON
 
 instance (ToJSON a, ToJSON b) => ToJSON (a,b) where
-  toJSON (a,b) = jsArray [ toJSON a, toJSON b ]
+  toJSON (a,b) = jsTuple [ toJSON a, toJSON b ]
+
+instance (ToJSON a, ToJSON b, ToJSON c) => ToJSON (a,b,c) where
+  toJSON (a,b,c) = jsTuple [ toJSON a, toJSON b, toJSON c ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
+  toJSON (a,b,c,d) = jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e) =>
+         ToJSON (a,b,c,d,e) where
+  toJSON (a,b,c,d,e) = jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d
+                               , toJSON e ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f) =>
+         ToJSON (a,b,c,d,e,f) where
+  toJSON (a,b,c,d,e,f) = jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d
+                                 , toJSON e, toJSON f ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g) => ToJSON (a,b,c,d,e,f,g) where
+  toJSON (a,b,c,d,e,f,g) = jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d
+                                   , toJSON e, toJSON f, toJSON g ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h) => ToJSON (a,b,c,d,e,f,g,h) where
+  toJSON (a,b,c,d,e,f,g,h) = jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d
+                                     , toJSON e, toJSON f, toJSON g, toJSON h ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i) => ToJSON (a,b,c,d,e,f,g,h,i) where
+  toJSON (a,b,c,d,e,f,g,h,i) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j) =>
+         ToJSON (a,b,c,d,e,f,g,h,i,j) where
+  toJSON (a,b,c,d,e,f,g,h,i,j) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k) =>
+         ToJSON (a,b,c,d,e,f,g,h,i,j,k) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k, ToJSON l) =>
+         ToJSON (a,b,c,d,e,f,g,h,i,j,k,l) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k,l) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k, toJSON l ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k, ToJSON l,
+          ToJSON m) => ToJSON (a,b,c,d,e,f,g,h,i,j,k,l,m) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k,l,m) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k, toJSON l
+            , toJSON m ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k, ToJSON l,
+          ToJSON m, ToJSON n) => ToJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k, toJSON l
+            , toJSON m, toJSON n ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k, ToJSON l,
+          ToJSON m, ToJSON n, ToJSON o) =>
+         ToJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k, toJSON l
+            , toJSON m, toJSON n, toJSON o ]
+
+instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d, ToJSON e, ToJSON f,
+          ToJSON g, ToJSON h, ToJSON i, ToJSON j, ToJSON k, ToJSON l,
+          ToJSON m, ToJSON n, ToJSON o, ToJSON p) =>
+         ToJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) where
+  toJSON (a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p) =
+    jsTuple [ toJSON a, toJSON b, toJSON c, toJSON d, toJSON e, toJSON f
+            , toJSON g, toJSON h, toJSON i, toJSON j, toJSON k, toJSON l
+            , toJSON m, toJSON n, toJSON o, toJSON p ]
 
 jsNull :: JSON
 jsNull = JSON "null"
@@ -92,6 +179,9 @@ jsObject xs = JSON ("{" <> mconcat (intersperse "," fs) <> "}")
 -- | A shortcur for a common encoding of sum types
 jsTagged :: ByteString -> JSON -> JSON
 jsTagged t v = jsObject [ (t, v) ]
+
+jsTuple :: [JSON] -> JSON
+jsTuple = jsTagged "$$tuple" . jsArray
 
 jsString :: String -> JSON
 jsString = toJSON . Text.pack
@@ -149,4 +239,3 @@ jsText x = coerce (char7 '"' <> escaped x <> char7 '"')
       34  -> "\\\""
       92  -> "\\\\"
       _   -> "\\u00" <> hex (div c 16) <> hex (mod c 16)
-
