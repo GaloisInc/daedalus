@@ -1,9 +1,8 @@
 use std::{cmp::Ordering};
 use std::fmt;
-use serde::Serialize;
 use crate as ddl;
-use ddl::Type;
-use ddl::map_iterators::{new_map_iterator, new_map_borrow_iterator};
+use ddl::{AsDDL, Clo, DDLSerialize, Type};
+use ddl::map_iterators::new_map_borrow_iterator;
 
 /// An ordered map from keys of type `K` to values of type `V`.
 pub struct Map<K,V> { pub(crate) mp: ddl::Maybe<ddl::O<Node<K,V>>> }
@@ -175,6 +174,36 @@ impl <'a, K, V> MapB<'a,K,V>
     }
     
     ddl::Maybe::Nothing
+  }
+
+  /// Looks up the greatest key less than or equal to the given key.
+  /// Returns the matching key-value pair, or `Nothing` if there is no such key.
+  pub fn lookup_le(self, key: <K as Type>::B<'a>) -> ddl::Maybe<(K,V)> {
+    let mut cur = self;
+    let mut best = ddl::Maybe::Nothing;
+
+    while let ddl::Maybe::Just(node) = cur.mp {
+      let node_ref = node.as_ref();
+      match key.cmp(&node_ref.key.bor()) {
+        Ordering::Less => cur = node_ref.left.bor(),
+        Ordering::Greater => {
+          best = ddl::Maybe::Just(node);
+          cur = node_ref.right.bor();
+        }
+        Ordering::Equal =>
+          return ddl::Maybe::Just((node_ref.key.bor().clo(),
+                                   node_ref.value.bor().clo()))
+      }
+    }
+
+    match best {
+      ddl::Maybe::Nothing => ddl::Maybe::Nothing,
+      ddl::Maybe::Just(node) => {
+        let node_ref = node.as_ref();
+        ddl::Maybe::Just((node_ref.key.bor().clo(),
+                          node_ref.value.bor().clo()))
+      }
+    }
   }
 }
 
@@ -384,47 +413,82 @@ impl<'a, K: Type, V: Type> fmt::Debug for MapB<'a, K, V>
   }
 }
 
-impl<K: Type + Serialize, V: Type + Serialize> Serialize for Map<K,V> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
+fn ddl_serialize_map<K: Type + DDLSerialize, V: Type + DDLSerialize, S>(
+  value: MapB<'_, K, V>,
+  serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
     use serde::ser::SerializeMap;
-
     let mut map = serializer.serialize_map(Some(1))?;
-
-    // Collect entries into a Vec
-    let mut entries: Vec<(K, V)> = Vec::new();
-    let mut it = new_map_iterator(self.clone());
-    while !it.ddl_done() {
-      entries.push((it.ddl_key(), it.ddl_val()));
-      it = it.ddl_next();
-    }
-
-    map.serialize_entry("$$map", &entries)?;
+    map.serialize_entry("$$map", &DDLMapEntries(value))?;
     map.end()
+}
+
+struct DDLEntry<'a, K, V> {
+  key: &'a K,
+  value: &'a V,
+}
+
+impl<K: DDLSerialize, V: DDLSerialize> serde::Serialize for DDLEntry<'_, K, V> {
+  fn serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(2))?;
+    seq.serialize_element(&AsDDL(self.key))?;
+    seq.serialize_element(&AsDDL(self.value))?;
+    seq.end()
   }
 }
 
-impl<'a, K: Type, V: Type> Serialize for MapB<'a, K, V>
-  where K::B<'a>: Serialize, V::B<'a>: Serialize {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    use serde::ser::SerializeMap;
+struct DDLMapEntries<'a, K, V>(MapB<'a, K, V>);
 
-    let mut map = serializer.serialize_map(Some(1))?;
-
-    // Collect entries into a Vec
-    let mut entries: Vec<(K::B<'a>, V::B<'a>)> = Vec::new();
-    let mut it = new_map_borrow_iterator(*self);
-    while !it.ddl_done() {
-      entries.push((it.ddl_key(), it.ddl_val()));
-      it = it.ddl_next();
+fn ddl_serialize_map_entries<
+  'a,
+  K: Type + DDLSerialize,
+  V: Type + DDLSerialize,
+  S: serde::ser::SerializeSeq,
+>(
+  value: MapB<'a, K, V>,
+  seq: &mut S,
+) -> Result<(), S::Error> {
+  match value.mp {
+    ddl::Maybe::Nothing => Ok(()),
+    ddl::Maybe::Just(node) => {
+      let node = node.as_ref();
+      ddl_serialize_map_entries(node.left.bor(), seq)?;
+      seq.serialize_element(&DDLEntry {
+        key: &node.key,
+        value: &node.value,
+      })?;
+      ddl_serialize_map_entries(node.right.bor(), seq)
     }
+  }
+}
 
-    map.serialize_entry("$$map", &entries)?;
-    map.end()
+impl<K: Type + DDLSerialize, V: Type + DDLSerialize> serde::Serialize
+  for DDLMapEntries<'_, K, V> {
+  fn serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(None)?;
+    ddl_serialize_map_entries(self.0, &mut seq)?;
+    seq.end()
+  }
+}
+
+impl<K: Type + DDLSerialize, V: Type + DDLSerialize> DDLSerialize for Map<K,V> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_map(self.bor(), serializer)
+  }
+}
+
+impl<K: Type + DDLSerialize, V: Type + DDLSerialize> DDLSerialize
+  for MapB<'_, K, V> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_map(*self, serializer)
   }
 }

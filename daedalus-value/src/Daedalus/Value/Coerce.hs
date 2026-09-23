@@ -153,6 +153,7 @@ vCoerceTo tgt v =
     VMap {}       -> (v, exact)
     VStream {}    -> (v, exact)
     VArray {}     -> (v, exact)
+    VTuple {}     -> (v, exact)
     VMaybe {}     -> (v, exact)
     VBuilder {}   -> (v, exact)
     VIterator {}  -> (v, exact)
@@ -203,6 +204,5 @@ floatingToSInt w a
   where
     i       = truncate a
     (lo,hi) = sintRange w
-
 
 

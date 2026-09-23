@@ -65,6 +65,9 @@ checkType expK srcty =
         TArray t -> do expect KValue
                        tArray <$> checkType KValue t
 
+        TTuple ts -> do expect KValue
+                        tTuple <$> mapM (checkType KValue) ts
+
         TMaybe t -> do expect KValue
                        tMaybe <$> checkType KValue t
 
@@ -82,7 +85,6 @@ checkType expK srcty =
         [ "Expected a type for" <+> pp expK
         , "Actual type is for" <+> pp actK
         ]
-
 
 
 

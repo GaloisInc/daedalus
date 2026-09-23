@@ -28,6 +28,7 @@ cSemType sty =
     Src.TFloat      -> "DDL::Float"
     Src.TDouble     -> "DDL::Double"
     Src.TUnit       -> "DDL::Unit"
+    Src.TTuple ts   -> cInst "DDL::Tuple" (map cSemType ts)
     Src.TArray t    -> cInst "DDL::Array" [ cSemType t ]
     Src.TMaybe t    -> cInst "DDL::Maybe" [ cSemType t ]
     Src.TMap k v    -> cInst "DDL::Map" [ cSemType k, cSemType v ]

@@ -329,6 +329,7 @@ instance ResolveNames e => ResolveNames (ExprF e) where
       EChoiceT c fs   -> EChoiceT c <$> resolve fs
       EIn (l :> e)    -> (\x -> EIn (l :> x)) <$> resolve e
       EArray es       -> EArray    <$> resolve es
+      ETuple es       -> ETuple    <$> resolve es
       EApp f es       -> EApp      <$> resolve f <*> resolve es
       EVar x          -> EVar      <$> resolve x
       EImplicit {}    -> pure expr
@@ -421,6 +422,7 @@ instance ResolveNames t => ResolveNames (TypeF t) where
       TDouble    -> pure tf
       TUnit      -> pure tf
       TArray t   -> TArray <$> resolve t
+      TTuple ts  -> TTuple <$> resolve ts
       TMaybe t   -> TMaybe <$> resolve t
       TMap  k v  -> TMap <$> resolve k <*> resolve v
       TBuilder t -> TBuilder <$> resolve t
@@ -485,5 +487,3 @@ resolveCasePatterns patC =
           WildPattern {} -> Set.empty
           ConPattern _ p -> patVars p
           VarPattern x   -> Set.singleton x
-
-

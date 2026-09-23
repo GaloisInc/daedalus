@@ -110,6 +110,7 @@ data Token =
   | KWMapinsert
   | KWMapLookup
   | KWMaplookup
+  | KWMaplookupLE
   | KWArrayLength
   | KWArrayIndex
   | KWRangeUp
@@ -148,6 +149,5 @@ data Token =
   | TokEOF
 
     deriving Show
-
 
 

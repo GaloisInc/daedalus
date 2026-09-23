@@ -38,6 +38,7 @@ evalType env ty =
         TInteger   -> TVInteger
         TMap {}    -> TVMap
         TArray {}  -> TVArray
+        TTuple {}  -> TVOther
         TBool      -> TVOther
         TFloat     -> TVFloat
         TDouble    -> TVDouble
@@ -122,5 +123,4 @@ evalBitdataType env name u def =
         case lookup l fs of
           Just fv -> fv
           Nothing -> panic "outField" ["Missing field value", showPP l ]
-
 

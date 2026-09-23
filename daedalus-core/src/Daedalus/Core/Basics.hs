@@ -89,6 +89,7 @@ data Type =
   | TFloat
   | TDouble
   | TUnit
+  | TTuple [Type]
   | TArray Type
   | TMaybe Type
   | TMap Type Type
@@ -252,6 +253,7 @@ instance PP Type where
       TFloat      -> "Float"
       TDouble     -> "Double"
       TUnit       -> "()"
+      TTuple ts   -> parens (commaSep (map pp ts))
       TArray t    -> brackets (pp t)
       TMap k v    -> brackets (pp k <+> "->" <+> pp v)
       TMaybe t    -> wrapIf (n > 0) ("Maybe" <+> ppPrec 1 t)

@@ -163,6 +163,7 @@ hsType env ty =
         TFloat      -> "HS.Float"
         TDouble     -> "HS.Double"
         TUnit       -> Tuple []
+        TTuple ts   -> Tuple (map (hsType env) ts)
         TArray t    -> "Vector.Vector" `Ap` hsType env t
         TMaybe t    -> "HS.Maybe" `Ap` hsType env t
         TMap k t    -> "Map.Map" `Ap` hsType env k `Ap` hsType env t
@@ -600,6 +601,8 @@ hsValue env tc =
         Type TUnit | null fs -> Tuple []
         _ -> panic "hsValue" ["Not a struct type", showPP t]
 
+    TCTuple vs -> Tuple (map (hsValue env) vs)
+
 
     TCArray vs t  ->
       case vs of
@@ -648,6 +651,7 @@ hsValue env tc =
         StreamTakeUpTo -> bin "RTS.inputTake"
         ArrayStream -> bin "RTS.arrayStream"
         LookupMap   -> bin "Map.lookup"
+        LookupMapLE -> bin "Map.lookupLE"
         BuilderEmit -> "Vector.pushBack" `Ap` hsValue env v1 `Ap` hsValue env v2
         BuilderEmitArray -> "Vector.pushBackVector" `Ap` hsValue env v1 `Ap` hsValue env v2
         BuilderEmitBuilder -> "Vector.pushBackArray" `Ap` hsValue env v1 `Ap` hsValue env v2
@@ -683,6 +687,8 @@ hsValue env tc =
     TCSelStruct x l _t -> "HS.getField" `Ap` TyParam (hsLabelT l)
                                         `Ap` hsValue env x
 
+    TCSelTuple x i _t -> hsTupleSel env x i
+
     TCCoerce _t1 t2 v -> hasType (hsType env t2)
                                  ("RTS.convert" `Ap` hsValue env v)
 
@@ -692,6 +698,22 @@ hsValue env tc =
 
     TCCase e as d -> hsCase hsValue err env e as d
       where err = "HS.error" `Ap` Raw (describeAlts as)
+
+hsTupleSel :: Env -> TC SourceRange Value -> Integer -> Term
+hsTupleSel env x i =
+  case typeOf x of
+    Type (TTuple ts)
+      | i >= 0 && i < toInteger (length ts) ->
+          Case (hsValue env x)
+            [ (Tuple [ if j == i then Var field else Var "_"
+                     | j <- [0 .. toInteger (length ts) - 1] ]
+              , Var field)
+            ]
+      | otherwise -> bad
+    _ -> bad
+  where
+  field = "__tupleField"
+  bad = panic "hsTupleSel" ["Invalid tuple selector", show i]
 
 hsByteClass :: Env -> TC SourceRange Class -> Term
 hsByteClass env tc =

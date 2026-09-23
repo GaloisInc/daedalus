@@ -19,6 +19,7 @@ module Daedalus.TH
   , TH.appT
   , TH.conT
   , TH.litT
+  , TH.tupleT
   , TH.forallT
   , TH.cxt
 
@@ -33,6 +34,7 @@ module Daedalus.TH
   , TH.appTypeE
   , TH.appsE
   , TH.listE
+  , TH.tupE
   , TH.conE
   , TH.caseE
   , TH.litE
@@ -44,7 +46,9 @@ module Daedalus.TH
   , TH.litP
   , TH.conP
   , TH.recP
+  , TH.tupP
   , TH.varP
+  , TH.wildP
   , TH.sigP
   , TH.bangP
 

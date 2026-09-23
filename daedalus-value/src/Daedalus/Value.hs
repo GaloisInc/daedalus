@@ -36,6 +36,7 @@ module Daedalus.Value
   , valueToMaybe
   , valueToVector
   , valueToList
+  , valueToTuple
   , valueToStruct
   , valueToStructMap
   , valueToUnion
@@ -101,10 +102,15 @@ module Daedalus.Value
   , vEmitBuilder
   , vFinishBuilder
 
+  -- * Tuples
+  , vTuple
+  , vTupleLookup
+
   -- * Maps
   , vMapEmpty
   , vMapInsert
   , vMapLookup
+  , vMapLookupLE
   , vMapMember
 
   -- * Streams
@@ -138,6 +144,8 @@ module Daedalus.Value
 
 import Daedalus.Panic
 import Daedalus.PP
+import Daedalus.Range(integerToInt)
+import qualified Data.Vector as Vector
 
 import Daedalus.Value.Type
 import Daedalus.Value.Bool
@@ -174,4 +182,12 @@ vStructLookup v l =
                               , "Struct " ++ show v
                               ]
 
-
+vTupleLookup :: Value -> Integer -> Value
+vTupleLookup v i =
+  case integerToInt i >>= (valueToTuple v Vector.!?) of
+    Just x  -> x
+    Nothing -> panic "vTupleLookup"
+                 [ "Invalid tuple lookup"
+                 , "Index: " ++ show i
+                 , "Tuple: " ++ show v
+                 ]

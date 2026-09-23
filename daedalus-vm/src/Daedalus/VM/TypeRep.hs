@@ -38,6 +38,9 @@ instance GetTypeRep Src.Type where
       Src.TFloat        -> NoRefs
       Src.TDouble       -> NoRefs
       Src.TUnit         -> NoRefs
+      Src.TTuple ts
+        | any ((== HasRefs) . typeRep) ts -> HasRefs
+        | otherwise                      -> NoRefs
       Src.TArray {}     -> HasRefs
       Src.TMaybe t      -> typeRep t
       Src.TMap {}       -> HasRefs
@@ -56,6 +59,5 @@ instance GetTypeRep Src.Type where
           | otherwise -> panic "typeRep" [ "Bitvectors > 64 not implemented." ]
         Src.TSizeParam {} ->
           panic "typeRep" [ "Unexpceted size type parameter" ]
-
 
 

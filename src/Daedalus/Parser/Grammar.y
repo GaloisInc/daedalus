@@ -136,6 +136,7 @@ import Daedalus.Parser.Monad
   'insert'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapinsert } }
   'Lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMapLookup } }
   'lookup'    { Lexeme { lexemeRange = $$, lexemeToken = KWMaplookup } }
+  'lookupLE'  { Lexeme { lexemeRange = $$, lexemeToken = KWMaplookupLE } }
   'Offset'    { Lexeme { lexemeRange = $$, lexemeToken = KWOffset } }
   'GetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWGetStream } }
   'SetStream' { Lexeme { lexemeRange = $$, lexemeToken = KWSetStream } }
@@ -324,6 +325,7 @@ label                                    :: { Located Label }
   | 'empty'                                 { mkLabel ($1,"empty") }
   | 'Lookup'                                { mkLabel ($1,"Lookup") }
   | 'lookup'                                { mkLabel ($1,"lookup") }
+  | 'lookupLE'                              { mkLabel ($1,"lookupLE") }
   | 'Insert'                                { mkLabel ($1,"Insert") }
   | 'insert'                                { mkLabel ($1,"insert") }
   | 'Offset'                                { mkLabel ($1,"Offset") }
@@ -452,6 +454,7 @@ call_expr                                :: { Expr }
 
   | 'Lookup' aexpr aexpr                    { at ($1,$3) (EMapLookup $2 $3) }
   | 'lookup' aexpr aexpr                    { at ($1,$3) (EBinOp LookupMap $2 $3) }
+  | 'lookupLE' aexpr aexpr                  { at ($1,$3) (EBinOp LookupMapLE $2 $3) }
   | 'Insert' aexpr aexpr aexpr              { at ($1,$4) (EMapInsert $2 $3 $4) }
   | 'insert' aexpr aexpr aexpr              { mkDoInsert $1 $2 $3 $4 }
   | 'SetStream' aexpr                       { at ($1,$2) (ESetStream $2) }
@@ -509,6 +512,8 @@ aexpr                                    :: { Expr }
   | 'GetStream'                             { at $1 ECurrentStream }
 
   | '(' expr ')'                            { $2 }
+  | '(' expr ',' separated1(expr, ',') ')'
+                                            { at ($1,$5) (ETuple ($2 : $4)) }
   | 'block' 'v{' separated(struct_field, virtSep) 'v}'
                                             { at ($1,$4) (EStruct $3) }
   | '{' separated(struct_field, commaOrSemi) '}'
@@ -538,6 +543,11 @@ aexpr                                    :: { Expr }
 
   | aexpr '.' label                         { at ($1,$3)
                                                  (ESel $1 (SelStruct $3))}
+  | aexpr '.' NUMBER                        { at ($1,nRange $3)
+                                                 (ESel $1
+                                                   (SelTuple
+                                                     (loc (nRange $3)
+                                                          (nValue $3)))) }
 
 implicitParam                            :: { IPName }
   : SMALLIDENTI                             { mkIP AValue   $1 }
@@ -633,6 +643,9 @@ atype                                    :: { SrcType }
   | 'int'                                   { atT $1 TInteger }
   | 'stream'                                { atT $1 TStream }
   | '(' type  ')'                           { $2 }
+  | '(' type ',' separated1(type, ',') ')'
+                                            { atT ($1 <-> $5)
+                                                  (TTuple ($2 : $4)) }
   | '[' arr_or_map ']'                      { atT ($1 <-> $3) $2 }
   | '{' '}'                                 { atT ($1 <-> $2) TUnit }
   | NUMBER                                  { atT (nRange $1)

@@ -303,6 +303,9 @@ callMethod obj meth args = MethodCall [] obj (PathSegment meth Nothing ()) args 
 fieldAccess :: Expr () -> Ident -> Expr ()
 fieldAccess e l = FieldAccess [] e l ()
 
+tupField :: Expr () -> Integer -> Expr ()
+tupField e i = TupField [] e (fromInteger i) ()
+
 struct :: Path () -> [(Ident,Expr ())] -> Expr ()
 struct c fs = Struct [] c (map toField fs) Nothing ()
   where toField (l,e) = Field l (Just e) [] ()

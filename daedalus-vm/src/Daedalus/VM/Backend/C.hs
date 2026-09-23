@@ -259,6 +259,7 @@ includes opts =
        , "#include <ddl/integer.h>"
        , "#include <ddl/cast.h>"
        , "#include <ddl/maybe.h>"
+       , "#include <ddl/tuple.h>"
        , "#include <ddl/array.h>"
        , "#include <ddl/map.h>"
        , "#include <ddl/owned.h>"
@@ -1057,6 +1058,9 @@ cOp1 x op1 ~[e'] =
     Src.SelStruct _t l ->
       cVarDecl x $ cCallMethod e (selName GenOwn l) []
 
+    Src.SelTuple _t i ->
+      cVarDecl x $ cCallMethod e (cInst "get" [integer i]) []
+
     Src.InUnion _ut l ->
       vcat [ cDeclareVar (cType (getType x)) (cVarUse x)
            , cStmt $ cCallMethod (cVarUse x) (unionCon l)
@@ -1127,7 +1131,8 @@ cOp2 x op2 ~[e1',e2'] =
 
     Src.ArrayStream -> cVarDecl x (cCall (cType (getType x)) [e1,e2])
 
-    Src.MapLookup -> cVarDecl x (cCallMethod e1 "lookup" [e2])
+    Src.MapLookup   -> cVarDecl x (cCallMethod e1 "lookup" [e2])
+    Src.MapLookupLE -> cVarDecl x (cCallMethod e1 "lookupLE" [e2])
     Src.MapMember ->
       cVarDecl x (cCallCon "DDL::Bool" [ cCallMethod e1 "contains" [e2] ])
 
@@ -1155,6 +1160,9 @@ cOpN x op es =
   case op of
     Src.ArrayL t -> cVarDecl x (cCallCon con (map cExpr es))
       where con = cSemType (Src.TArray t)
+
+    Src.TupleL ts -> cVarDecl x (cCallCon con (map cExpr es))
+      where con = cSemType (Src.TTuple ts)
 
     Src.CallF _  -> panic "cOpN" ["CallF"]
 

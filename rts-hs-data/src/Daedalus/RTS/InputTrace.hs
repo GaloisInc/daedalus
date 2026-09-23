@@ -71,7 +71,7 @@ data Range = R !Int !Int
   deriving Show
 
 instance ToJSON Range where
-  toJSON (R x y) = toJSON (x,y)
+  toJSON (R x y) = jsArray [ toJSON x, toJSON y ]
 
 ppRange :: Range -> Doc
 ppRange (R x y) = hcat [ int x, "--", int y ]

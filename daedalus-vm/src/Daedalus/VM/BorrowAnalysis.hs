@@ -469,6 +469,7 @@ modeOp1 op =
     EJust                 -> [Owned]
     FromJust              -> [Borrowed]
     SelStruct {}          -> [Borrowed]
+    SelTuple {}           -> [Borrowed]
     InUnion {}            -> [Owned]
     FromUnion {}          -> [Borrowed]
     WordToFloat {}        -> [Borrowed]
@@ -510,6 +511,7 @@ modeOp2 op =
     EmitBuilder          -> [Owned,Owned]
     EmitArray            -> [Owned,Owned]
     MapLookup            -> [Borrowed,Borrowed]
+    MapLookupLE          -> [Borrowed,Borrowed]
     MapMember            -> [Borrowed,Borrowed]
 
     ArrayStream          -> [Owned,Owned]
@@ -525,4 +527,5 @@ modeOpN :: OpN -> [Ownership]
 modeOpN op =
   case op of
     ArrayL {} -> repeat Owned
+    TupleL {} -> repeat Owned
     CallF {}  -> panic "modeOpN" [ "CallF" ]

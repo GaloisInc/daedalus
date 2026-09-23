@@ -252,6 +252,7 @@ data ExprF e =
   | EJust       !e
   | EStruct     ![StructField e]
   | EArray      ![e]
+  | ETuple      ![e]
   | EChoiceU    !Commit !e !e
   | EChoiceT    !Commit [UnionField e]
   | EIn         !(UnionField e)    -- make a value of a union type
@@ -332,6 +333,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
            | LogicAnd | LogicOr
            | ArrayStream
            | LookupMap
+           | LookupMapLE
            | StreamTakeUpTo
            | BuilderEmit -- ^ push a new element onto the end of a builder
            | BuilderEmitArray
@@ -347,6 +349,7 @@ data UniOp = Not | Neg | Concat | BitwiseComplement
   deriving (Show, Eq, TH.Lift)
 
 data Selector = SelStruct (Located Label)
+              | SelTuple (Located Integer)
               | SelUnion (Located Label)
               | SelTrue | SelFalse
               | SelNothing | SelJust
@@ -431,6 +434,7 @@ data TypeF t =
   | TBool
   | TUnit
   | TArray !t
+  | TTuple ![t]
   | TMaybe !t
   | TBuilder !t
   | TMap   !t !t
@@ -532,6 +536,7 @@ instance PP BinOp where
       ArrayStream -> "arrayStream"
       StreamTakeUpTo -> "take"
       LookupMap -> "lookup"
+      LookupMapLE -> "lookupLE"
       BuilderEmit -> "emit"
       BuilderEmitArray -> "emitArray"
       BuilderEmitBuilder -> "emitBuilder"
@@ -556,6 +561,7 @@ instance PP UniOp where
 instance PP Selector where
   pp sel = case sel of
              SelStruct x -> pp x
+             SelTuple x -> pp x
              SelUnion x -> pp x
              SelTrue -> "true"
              SelFalse -> "false"
@@ -578,6 +584,7 @@ instance PP t => PP (TypeF t) where
       TDouble    -> "double"
       TUnit      -> "{}"
       TArray t   -> brackets (pp t)
+      TTuple ts  -> parens (commaSep (map pp ts))
       TMaybe t   -> wrapIf (n > 1) ("Maybe" <+> ppPrec 2 t)
       TMap kt vt -> wrapIf (n > 1) ("Map" <+> ppPrec 2 kt <+> ppPrec 2 vt)
       TBuilder t -> wrapIf (n > 1) ("Builder" <+> ppPrec 2 t)
@@ -616,6 +623,3 @@ instance TestEquality Context where
 
 instance OrdF Context where
   compareF = $(structuralTypeOrd [t| Context |] [])
-
-
-

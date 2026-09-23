@@ -335,6 +335,11 @@ compileOpN op ty es k =
         do res <- stmt ty (\x -> CallPrim x (OpN op) vs)
            continue k res
 
+    Src.TupleL _ ->
+      compileEs es \vs ->
+        do res <- stmt ty (\x -> CallPrim x (OpN op) vs)
+           continue k res
+
     Src.CallF f ->
       do doCall <-
            case k of
@@ -415,4 +420,3 @@ compileStrCase x codes =
           PAny   -> (reverse alts, b)
           _      -> panic "compileStrCase" [ "Unexpected pattern", show (pp p) ]
       [] -> panic "compileStrCase" [ "Missing default in StrPat" ]
-

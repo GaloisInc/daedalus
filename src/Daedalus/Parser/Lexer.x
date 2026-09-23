@@ -156,6 +156,7 @@ $ws+        ;
 "insert"    { lexeme KWMapinsert }
 "Lookup"    { lexeme KWMapLookup }
 "lookup"    { lexeme KWMaplookup }
+"lookupLE"  { lexeme KWMaplookupLE }
 
 "build"     { lexeme KWBuilderbuild}
 "emit"      { lexeme KWBuilderemit }
@@ -377,4 +378,3 @@ test txt = mapM_ pp (lexer (Text.pack "(test)") (Text.pack txt))
                                       show (lexemeToken l)
 
 }
-

@@ -392,6 +392,7 @@ checkOp1 op arg =
     FromJust        -> isMaybe arg
 
     SelStruct t l   -> hasField l t arg         $> t
+    SelTuple t i    -> hasTupleField i t arg    $> t
     InUnion ut l    -> hasCon l arg (TUser ut)  $> TUser ut
 
     FromUnion t l   -> hasCon l t arg           $> t
@@ -488,6 +489,11 @@ checkOp2 op arg1 arg2 =
          typeIs k arg2
          pure (TMaybe v)
 
+    MapLookupLE ->
+      do (k,v) <- isMap arg1
+         typeIs k arg2
+         pure (TMaybe (TTuple [k,v]))
+
     MapMember ->
       do (k,_) <- isMap arg1
          typeIs k arg2
@@ -522,6 +528,16 @@ checkOpN op args =
     ArrayL t ->
       do mapM_ (typeIs t) args
          pure (TArray t)
+
+    TupleL ts
+      | length ts == length args ->
+        do zipWithM_ typeIs ts args
+           pure (TTuple ts)
+      | otherwise ->
+        typeError "Malformed tuple literal"
+          [ "Expected:" <+> pp (length ts) <+> "elements"
+          , "Actual:"   <+> pp (length args) <+> "elements"
+          ]
 
     CallF f -> checkCall ?fenv f args
 
@@ -618,6 +634,7 @@ getUserTypeM ut =
       TDouble     -> pure t
       TBool       -> pure t
       TUnit       -> pure t
+      TTuple ts   -> TTuple <$> mapM instType ts
       TArray t1   -> TArray <$> instType t1
       TMaybe t1   -> TMaybe <$> instType t1
       TMap t1 t2  -> TMap <$> instType t1 <*> instType t2
@@ -717,6 +734,32 @@ hasField l t ty =
                     , "Declared:" <+> pp t1
                     , "Selector:" <+> pp t
                     ]
+
+hasTupleField :: Integer -> Type -> Type -> TCResult ()
+hasTupleField i t ty =
+  case ty of
+    TTuple ts ->
+      case tupleIndex i ts of
+        Nothing ->
+          typeError "Malformed tuple selector"
+            [ "Type:"  <+> pp ty
+            , "Index:" <+> pp i
+            ]
+        Just t1
+          | t == t1   -> pure ()
+          | otherwise ->
+            typeError "Malformed tuple selector"
+              [ "Type:"     <+> pp ty
+              , "Index:"    <+> pp i
+              , "Declared:" <+> pp t1
+              , "Selector:" <+> pp t
+              ]
+    _ -> typeMismatch "tuple" ty
+  where
+  tupleIndex 0 (a : _)  = Just a
+  tupleIndex n (_ : as)
+    | n > 0             = tupleIndex (n - 1) as
+  tupleIndex _ _        = Nothing
 
 hasCon :: TEnv => Label -> Type -> Type -> TCResult ()
 hasCon l t ty =
@@ -828,7 +871,6 @@ isMaybe ty =
   case ty of
     TMaybe t -> pure t
     _        -> typeMismatch "maybe" ty
-
 
 
 
