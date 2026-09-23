@@ -88,7 +88,7 @@ impl<'a, K: Type, V: Type> Ord for MapB<'a, K, V>
           match it1.ddl_key().cmp(&it2.ddl_key()) {
             Ordering::Equal => {
               // If keys are equal, compare values
-              match it1.ddl_value().cmp(&it2.ddl_value()) {
+              match it1.ddl_val().cmp(&it2.ddl_val()) {
                 Ordering::Equal => {
                   // Both key and value are equal, continue to next elements
                   it1 = it1.ddl_next();
@@ -350,7 +350,7 @@ where
     first = false;
     fmt_key(it.ddl_key(), f)?;
     write!(f, " -> ")?;
-    fmt_val(it.ddl_value(), f)?;
+    fmt_val(it.ddl_val(), f)?;
     it = it.ddl_next();
   }
   write!(f, " |]")
@@ -397,7 +397,7 @@ impl<K: Type + Serialize, V: Type + Serialize> Serialize for Map<K,V> {
     let mut entries: Vec<(K, V)> = Vec::new();
     let mut it = new_map_iterator(self.clone());
     while !it.ddl_done() {
-      entries.push((it.ddl_key(), it.ddl_value()));
+      entries.push((it.ddl_key(), it.ddl_val()));
       it = it.ddl_next();
     }
 
@@ -420,7 +420,7 @@ impl<'a, K: Type, V: Type> Serialize for MapB<'a, K, V>
     let mut entries: Vec<(K::B<'a>, V::B<'a>)> = Vec::new();
     let mut it = new_map_borrow_iterator(*self);
     while !it.ddl_done() {
-      entries.push((it.ddl_key(), it.ddl_value()));
+      entries.push((it.ddl_key(), it.ddl_val()));
       it = it.ddl_next();
     }
 

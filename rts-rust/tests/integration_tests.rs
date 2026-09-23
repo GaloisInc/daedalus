@@ -56,7 +56,7 @@ fn test_map_iteration_order() {
     let mut it = ddl::new_map_iterator(m.clone());
     let mut values = Vec::new();
     while !it.ddl_done() {
-        values.push(it.ddl_value());
+        values.push(it.ddl_val());
         it = it.ddl_next();
     }
     assert_eq!(values, vec![50, 100, 200, 300],
