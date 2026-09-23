@@ -3,6 +3,7 @@
 #include <cassert>
 #include <memory>
 #include <functional>
+#include <sstream>
 #include <variant>
 #include <boost/context/fiber.hpp>
 
@@ -11,6 +12,7 @@
 #include <ddl/number.h>
 #include <ddl/array.h>
 #include <ddl/maybe.h>
+#include <ddl/json.h>
 
 namespace DDL {
 
@@ -652,15 +654,17 @@ public:
      return os;
   }
 
-  // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& toJS(std::ostream& os, Stream x) {
-    os << "{ \"$$input\": \"" << x.borrowNameBytes()
-                   << ":0x" << std::hex << x.offset;
+    std::ostringstream value;
+    value << x.borrowNameBytes()
+          << ":0x" << std::hex << x.offset;
     if (x.last_offset < Size::maxValue()) {
-      os << "--0x" << std::hex << x.last_offset;
+      value << "--0x" << std::hex << x.last_offset;
     }
-    os << "\"}";
+    os << "{\"$$input\":";
+    DDL::toJS(os, value.str());
+    os << "}";
 
     return os;
   }

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cassert>
 #include <string.h>
+#include <sstream>
 
 #include <ddl/debug.h>
 #include <ddl/boxed.h>
@@ -11,6 +12,7 @@
 #include <ddl/number.h>
 #include <ddl/integer.h>
 #include <ddl/maybe.h>
+#include <ddl/json.h>
 
 namespace DDL {
 
@@ -135,12 +137,15 @@ public:
      return os;
   }
 
-  // XXX: We need to esacpe quotes in the input name
   friend
   std::ostream& toJS(std::ostream& os, Input x) {
-    os << "{ \"$$input\": \"" << x.borrowNameBytes()
-                   << ":0x" << std::hex << x.offset << "--0x"
-                            << std::hex << x.last_offset << "\"}";
+    std::ostringstream value;
+    value << x.borrowNameBytes()
+          << ":0x" << std::hex << x.offset << "--0x"
+          << std::hex << x.last_offset;
+    os << "{\"$$input\":";
+    DDL::toJS(os, value.str());
+    os << "}";
 
     return os;
   }
