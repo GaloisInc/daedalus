@@ -1,0 +1,3 @@
+run
+../../formats/csv/csv.ddl
+--input=inputs/sample_quoted.csv
