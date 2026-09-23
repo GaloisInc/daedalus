@@ -1161,6 +1161,9 @@ cOpN x op es =
     Src.ArrayL t -> cVarDecl x (cCallCon con (map cExpr es))
       where con = cSemType (Src.TArray t)
 
+    Src.TupleL ts -> cVarDecl x (cCallCon con (map cExpr es))
+      where con = cSemType (Src.TTuple ts)
+
     Src.CallF _  -> panic "cOpN" ["CallF"]
 
 
