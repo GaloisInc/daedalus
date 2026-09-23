@@ -8,8 +8,8 @@ namespace DDL {
 
 inline
 std::ostream& toJS(std::ostream& os, double x) {
-  if (std::isnan(x)) return os << "\"NAN\"";
-  if (std::isinf(x)) return os << "\"" << (x > 0 ? "+" : "-") << "inf\"";
+  if (std::isnan(x)) return os << "{\"$$nan\":null}";
+  if (std::isinf(x)) return os << "{\"$$inf\":null}";
   return os << x;
 }
 
@@ -63,4 +63,3 @@ std::ostream &operator << (std::ostream &os, JS<T> x) {
 }
 
 }
-
