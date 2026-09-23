@@ -499,10 +499,10 @@ instance ToJSON Value where
       VMaybe mb -> toJSON mb
 
       VStream inp -> tagged "$input"
-                   $ jsObject [ ("name", toJSON (inputName inp))
-                              , ("start", toJSON (inputOffset inp))
-                              , ("length", toJSON (inputLength inp))
-                              ]
+                   $ jsText
+                   $ SBS.fromShort (inputName inp) <> BS8.pack
+                       (":" ++ "0x" ++ showHex (inputOffset inp)
+                         ("--0x" ++ showHex (inputOffset inp + inputLength inp) ""))
 
       VBuilder xs  -> tagged "$builder" xs
       VIterator xs -> tagged "$iterator" xs
