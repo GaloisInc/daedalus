@@ -30,7 +30,7 @@ fn resolve(file: &str, object: u64, generation: u64) {
     };
 
     match resolve_reference(&mut pdf, reference) {
-        Ok(Some(value)) => match serde_json::to_string_pretty(&value) {
+        Ok(Some(value)) => match serde_json::to_string_pretty(&ddl::AsDDL(&value)) {
             Ok(json) => println!("{json}"),
             Err(error) => exit_with_error(3, &format!("failed to print object: {error}")),
         },
