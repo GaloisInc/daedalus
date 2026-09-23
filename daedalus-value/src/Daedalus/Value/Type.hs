@@ -469,9 +469,9 @@ instance PP Value where
 instance ToJSON Value where
   toJSON val =
     case val of
-      VUInt _ n  -> toJSON n
-      VSInt _ n  -> toJSON n
-      VInteger n -> toJSON n
+      VUInt _ n  -> jsInteger n
+      VSInt _ n  -> jsInteger n
+      VInteger n -> jsString (show n)
       VBool b    -> toJSON b
       VFloat f   -> toJSON f
       VDouble f  -> toJSON f

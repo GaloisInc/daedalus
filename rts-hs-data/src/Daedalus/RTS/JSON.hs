@@ -4,6 +4,7 @@ module Daedalus.RTS.JSON
   , jsNull
   , jsText
   , jsString
+  , jsInteger
   , jsArray
   , jsObject
   , jsTagged
@@ -36,10 +37,10 @@ instance ToJSON JSON where
   toJSON = id
 
 instance ToJSON Integer where
-  toJSON = JSON . integerDec
+  toJSON = jsString . show
 
 instance ToJSON Int where
-  toJSON = toJSON . toInteger
+  toJSON = jsInteger . toInteger
 
 
 
@@ -94,6 +95,9 @@ jsTagged t v = jsObject [ (t, v) ]
 
 jsString :: String -> JSON
 jsString = toJSON . Text.pack
+
+jsInteger :: Integer -> JSON
+jsInteger = JSON . integerDec
 
 jsFloating :: (Show a, RealFloat a) => a -> JSON
 jsFloating x
