@@ -9,6 +9,7 @@
 #include <ddl/debug.h>
 #include <ddl/boxed.h>
 #include <ddl/maybe.h>
+#include <ddl/tuple.h>
 
 namespace DDL {
 
@@ -389,6 +390,30 @@ public:
     if (x == nullptr) return Maybe<Value>();
     if constexpr (hasRefs<Value>()) x->value.copy();
     return Maybe<Value>(x->value);
+  }
+
+  // borrow this, borrow k, own result
+  Maybe<Tuple<Key,Value>> lookupLE(Key k) {
+    Node *cur = tree;
+    Node *best = nullptr;
+
+    while (cur != nullptr) {
+      if (k < cur->key) {
+        cur = cur->left;
+      } else if (cur->key < k) {
+        best = cur;
+        cur = cur->right;
+      } else {
+        best = cur;
+        break;
+      }
+    }
+
+    if (best == nullptr) return Maybe<Tuple<Key,Value>>();
+
+    best->key.copy();
+    best->value.copy();
+    return Maybe<Tuple<Key,Value>>(Tuple<Key,Value>(best->key,best->value));
   }
 
   // reference counting
