@@ -36,7 +36,10 @@ class Tuple : public HasRefs {
 
 public:
   Tuple() = default;
-  Tuple(Ts... xs) : values(xs...) {}
+  template <
+    typename... Us,
+    std::enable_if_t<(sizeof...(Us) > 0), int> = 0>
+  Tuple(Us&&... xs) : values(std::forward<Us>(xs)...) {}
 
   // borrow this, borrow result
   template <std::size_t i>
