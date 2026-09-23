@@ -16,6 +16,9 @@ extra-source-files:
   exe/c-template/Doxyfile
   exe/c-template/main.cpp
   exe/html-template/render.js
+  exe/html-template/hex-view.js
+  exe/html-template/scope.js
+  exe/html-template/view.css
   exe/html-template/index.html
   exe/hs-template/Main.hs
   exe/hs-template/template.cabal
