@@ -1,8 +1,10 @@
 module Daedalus.VM.Backend.Rust.Names where
 
-import Data.Char(isAlphaNum,isAscii)
+import Data.Char(isAlpha,isAlphaNum,isAscii)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Numeric(showHex)
 
@@ -21,14 +23,55 @@ ddlPath f = Rust.simplePath' [ddlModName,f]
 
 type ExternalTypes = Map Core.MName (Rust.Path ())
 
--- Types from modules named by `--extern` are defined in another Rust module.
--- Build either that qualified path or the usual local type name.
+compileMName :: Core.MName -> Rust.Ident
+compileMName = compileMNameText . Core.mNameText
+
+compileMNameText :: Text.Text -> Rust.Ident
+compileMNameText name
+  | isSourceIdent name = compileSourceIdent name
+  | otherwise =
+      compileGeneratedIdent
+        ("module_" <>
+         Text.intercalate "_"
+           (map (Text.pack . (`showHex` "") . fromEnum) (Text.unpack name)))
+
+renderIdent :: Rust.Ident -> String
+renderIdent name =
+  (if Rust.raw name then "r#" else "") ++ Rust.name name
+
+isSourceIdent :: Text.Text -> Bool
+isSourceIdent name =
+  case Text.uncons name of
+    Just (c, more) ->
+      isAscii c && isAlpha c &&
+      Text.all (\x -> x == '_' || isAscii x && isAlphaNum x) more
+    Nothing -> False
+
+-- Types from modules named by `--extern` are defined under another Rust path.
+-- The configured path is used as the root, while the Daedalus module and type
+-- names remain the final two path components.  Other generated modules are
+-- siblings of the current module.
 compileTPath :: (?externalTypes :: ExternalTypes) =>
                 Bool -> Core.TName -> Rust.Path ()
-compileTPath isPriv ty =
-  case Map.lookup (Core.tnameMod ty) ?externalTypes of
-    Nothing        -> Rust.simplePath (compileTName isPriv ty)
-    Just namespace -> appendPath namespace (compileTName isPriv ty)
+compileTPath isRepr ty =
+  appendPath
+    (appendPath root (compileMName owner))
+    (compileTName isRepr ty)
+  where
+  owner = Core.tnameMod ty
+  root =
+    Map.findWithDefault
+      (Rust.simplePath "super")
+      owner
+      ?externalTypes
+
+compileFPath :: Core.FName -> Rust.Path ()
+compileFPath f =
+  Rust.simplePath'
+    [ "super"
+    , compileMName (Core.fnameMod f)
+    , compileFName f
+    ]
 
 appendPath :: Rust.Path () -> Rust.Ident -> Rust.Path ()
 appendPath (Rust.Path global segments ()) name =
@@ -49,18 +92,45 @@ addPathTypes (Rust.Path global segments ()) tys =
         ()
     _ -> panic "addPathTypes" ["path already has generic arguments"]
 
--- XXX: collisions
 compileFName :: Core.FName -> Rust.Ident
-compileFName f = Rust.mkIdent (txt ++ suff)
+compileFName f
+  | Core.fnamePublic f = compileSourceFName txt
+  | otherwise =
+      compileGeneratedIdent
+        (Text.pack (escapeFName (Text.unpack txt) ++ "_" ++ uid))
   where
-  suff = if Core.fnamePublic f then "" else "_" ++ uid
   uid = guidString (Core.fnameId f)
-  txt = Rust.snakeCase (escapeFName (Text.unpack (Core.fnameText f)))
+  txt = Core.fnameText f
 
--- Named byte classes have names such as `$lf`.  Give these a readable Rust
--- name, so `$lf` becomes `byte_class_lf`.  Encode any other characters which
--- are not valid in Rust identifiers using the convention employed by the C
--- backend.
+-- Preserve source-level spelling whenever it is a Rust identifier.  Byte
+-- classes need an encoding because their Daedalus names start with `$`.
+compileSourceFName :: Text.Text -> Rust.Ident
+compileSourceFName name =
+  case Text.uncons name of
+    Just ('$', more) -> compileGeneratedIdent ("class_" <> more)
+    _                -> compileSourceIdent name
+
+-- Daedalus identifiers start with a letter, so leading `_` is reserved for
+-- names introduced or encoded by the backend.
+compileGeneratedIdent :: Text.Text -> Rust.Ident
+compileGeneratedIdent name = Rust.mkIdent (Text.unpack (Text.cons '_' name))
+
+compileSourceIdent :: Text.Text -> Rust.Ident
+compileSourceIdent name
+  | name `Set.member` rawIdentifierExceptions =
+      compileGeneratedIdent name
+  | name `Set.member` rustKeywords =
+      (Rust.mkIdent (Text.unpack name)) { Rust.raw = True }
+  | otherwise = Rust.mkIdent (Text.unpack name)
+
+-- Rust does not permit these names even as raw identifiers.
+rawIdentifierExceptions :: Set Text.Text
+rawIdentifierExceptions =
+  Set.fromList (map Text.pack ["crate", "self", "super", "Self"])
+
+-- Encode characters which are not valid in Rust identifiers using the
+-- convention employed by the C backend.  This is used for private and
+-- internal names; public byte classes are handled by `compileSourceFName`.
 escapeFName :: String -> String
 escapeFName name =
   case name of
@@ -126,33 +196,34 @@ compileBlockLabel (VM.Label txt n) =
   Rust.mkIdent
     (Rust.upperCamelCase (escapeFName (Text.unpack txt)) ++ "B" ++ show n)
 
--- XXX: Name collisions
 compileTName :: Bool -> Core.TName -> Rust.Ident
-compileTName isPriv x = Rust.mkIdent (pref ++ root ++ suff)
-    where pref = if isPriv then "_" else ""
-          root = Rust.upperCamelCase (Text.unpack (Core.tnameText x))
-          suff = case Core.tnameAnon x of
-                   Nothing -> ""
-                   Just i  -> show i
+compileTName isRepr x =
+  case (isRepr, Core.tnameAnon x) of
+    (False, Nothing) -> compileSourceIdent root
+    (True,  Nothing) -> compileGeneratedIdent ("repr_" <> root)
+    (False, Just i)  -> compileGeneratedIdent
+                          ("anon_" <> root <> "_" <> Text.pack (show i))
+    (True,  Just i)  -> compileGeneratedIdent
+                          ("repr_anon_" <> root <> "_" <> Text.pack (show i))
+  where
+  root = Core.tnameText x
 
 compileFieldLabel :: Core.Label -> Rust.Ident
-compileFieldLabel l
-  | s `elem` rustKeywords = (Rust.mkIdent s) { Rust.raw = True }
-  | otherwise             = Rust.mkIdent s
-  where s = Rust.snakeCase (Text.unpack l)
+compileFieldLabel = compileSourceIdent
 
-rustKeywords :: [String]
-rustKeywords = words "as async await box break const continue crate do dyn else enum \
+rustKeywords :: Set Text.Text
+rustKeywords = Set.fromList (Text.words (Text.pack
+  "as async await box break const continue crate do dyn else enum \
   \extern false fn for gen if impl in let loop macro match mod move mut \
   \pub ref return self static struct super trait true try type \
   \unsafe use where while yield abstract become final override priv \
-  \proc typeof unsized virtual"
+  \proc typeof unsized virtual"))
 
 compileBDFieldLabel :: Core.Label -> Rust.Ident
-compileBDFieldLabel l = Rust.mkIdent ("get_" <> Rust.snakeCase (Text.unpack l))
+compileBDFieldLabel l = Rust.mkIdent ("get_" <> Text.unpack l)
   
 compileConLabel :: Core.Label -> Rust.Ident
-compileConLabel l = Rust.mkIdent (Rust.upperCamelCase (Text.unpack l))
+compileConLabel = compileSourceIdent
 
 bdJunkName :: Rust.Ident
 bdJunkName = "Junk"

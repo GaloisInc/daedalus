@@ -230,7 +230,7 @@ compileWrapper codegen rep fu =
   recResultName = "__result"
   fnm = VM.vmfName fu
   fnMsg = backticks (pp fnm)
-  vis = if VM.vmfIsEntry fu then Rust.PublicV else Rust.InheritedV
+  vis = if VM.vmfIsEntry fu then Rust.PublicV else Rust.CrateV
   suppressedWarnings =
     if VM.vmfIsEntry fu then [] else ["unused", "nonstandard_style"]
   resT = groupResultType codegen fu

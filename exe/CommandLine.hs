@@ -78,7 +78,7 @@ data Options =
           , optUserNS :: String
           , optSaveRTS :: Bool  -- ^ Should we generate the RTS files
           , optExternMods :: Map Text String
-            -- ^ maps external module to namespace qualifier in generated code
+            -- ^ maps an external module to its backend-specific qualifier
           , optUseLazyStream :: Bool
 
           , optModulePath :: [String]
@@ -449,6 +449,20 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["user-fun"]
         "Define external functions by calling QUAL::function"
         $ ReqArg "QUAL" \s o -> Right o { optUserFun = Just s }
+
+      , Option [] ["extern"]
+        "Use types from MODULE under the Rust path ROOT::MODULE."
+        $ ReqArg "MODULE:ROOT"
+          \s o ->
+            case break (== ':') s of
+              (m, _ : root)
+                | not (null m), not (null root) ->
+                    Right o
+                      { optExternMods =
+                          Map.insert (Text.pack m) root
+                            (optExternMods o)
+                      }
+              _ -> Left "`--extern` expects MODULE:ROOT"
       ] ++
       coreOptions ++
       [ helpOption
@@ -498,6 +512,19 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
       , Option [] ["save-rts"]
         "Also generate the source code for the Daedalus RTS."
         $ NoArg \o -> Right o { optSaveRTS = True }
+
+      , Option [] ["extern"]
+        "Use external definitions for types from MODULE in NAMESPACE."
+        $ ReqArg "MODULE[:NAMESPACE]"
+          \s o -> Right o
+            { optExternMods =
+                let (m, namespace) =
+                      case break (== ':') s of
+                        (as, []) -> (as, defaultUserSpace)
+                        (as, _ : bs) -> (as, bs)
+                in Map.insert (Text.pack m) namespace
+                     (optExternMods o)
+            }
       ] ++
       coreOptions ++
       [ helpOption
@@ -556,15 +583,6 @@ coreOptions =
     "Do not validate Core"
     $ NoArg \o -> Right o { optCheckCore = False }
 
-  , Option [] ["extern"]
-    "Do not generate definitions for the types in this module."
-    $ ReqArg "MODULE[:NAMESPACE]"
-      \s o -> Right o { optExternMods =
-                          let (m,u) = case break (== ':') s of
-                                        (as,[]) -> (as, defaultUserSpace)
-                                        (as,_:bs) -> (as,bs)
-                          in Map.insert (Text.pack m) u (optExternMods o)
-                       }
   ]
 
 
