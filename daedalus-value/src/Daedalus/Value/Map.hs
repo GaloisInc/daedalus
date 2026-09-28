@@ -24,5 +24,8 @@ vMapLookupLE = tracedFun \k m ->
       Nothing     -> Nothing
       Just (k',v) -> Just (vTuple [k',v])
 
+vMapIsEmpty :: Value -> Value
+vMapIsEmpty = tracedFun \m -> VBool (Map.null (valueToMap m))
+
 vMapMember :: Value {-^ key -} -> Value {- map -} -> Value
 vMapMember = tracedFun \k m -> VBool (Map.member k (valueToMap m))

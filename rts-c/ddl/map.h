@@ -378,6 +378,9 @@ public:
   // Make an empty map
   Map() : tree(nullptr) {}
 
+  // borrow this
+  bool isEmpty() { return tree == nullptr; }
+
   // owns k, v, and this
   Map insert(Key k, Value v) { return Map(Node::insert(k,v,tree)); }
 

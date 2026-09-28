@@ -1081,6 +1081,7 @@ instance TypeOf (TCF a k) where
           Not    -> tBool
           Neg    -> typeOf e
           ArrayLength -> tSize
+          IsMapEmpty -> tBool
           Concat -> let Type (TArray (Type (TArray t))) = typeOf e
                     in tArray t
           BitwiseComplement -> typeOf e

@@ -862,6 +862,7 @@ fromExpr expr =
                 TC.Neg -> neg e
                 TC.Concat -> eConcat e
                 TC.ArrayLength -> arrayLen e
+                TC.IsMapEmpty -> mapIsEmpty e
                 TC.BitwiseComplement -> bitNot e
 
                 TC.WordToFloat    -> wordToFloat e
@@ -1422,4 +1423,3 @@ removeNewFuns =
   M $ sets \s -> ( (newFFuns s, newGFuns s)
                  , s { newFFuns = [], newGFuns = [] }
                  )
-

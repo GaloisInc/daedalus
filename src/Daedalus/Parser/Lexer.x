@@ -157,6 +157,7 @@ $ws+        ;
 "Lookup"    { lexeme KWMapLookup }
 "lookup"    { lexeme KWMaplookup }
 "lookupLE"  { lexeme KWMaplookupLE }
+"isMapEmpty" { lexeme KWMapIsEmpty }
 
 "build"     { lexeme KWBuilderbuild}
 "emit"      { lexeme KWBuilderemit }

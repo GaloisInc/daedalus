@@ -533,6 +533,7 @@ compileOp1 x op e argTy =
 
     -- Arrays
     Core.ArrayLen       -> def (fromSize (Rust.callMethod e "len" []))
+    Core.MapIsEmpty     -> def (Rust.callMethod e "is_empty" [])
     Core.Concat         -> def (Rust.callMethod e "concat" [])
     Core.FinishBuilder  -> def (Rust.callMethod e "build" [])
 

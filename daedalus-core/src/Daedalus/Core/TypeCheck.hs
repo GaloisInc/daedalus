@@ -368,6 +368,7 @@ checkOp1 op arg =
     Not             -> typeIs TBool arg         $> TBool
 
     ArrayLen        -> isArray arg              $> sizeType
+    MapIsEmpty      -> isMap arg                $> TBool
 
     WordToFloat     -> typeIs (tWord 32) arg    $> TFloat
     WordToDouble    -> typeIs (tWord 64) arg    $> TDouble
@@ -871,6 +872,5 @@ isMaybe ty =
   case ty of
     TMaybe t -> pure t
     _        -> typeMismatch "maybe" ty
-
 
 

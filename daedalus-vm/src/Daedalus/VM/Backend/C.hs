@@ -1007,6 +1007,9 @@ cOp1 x op1 ~[e'] =
     Src.IsEmptyStream ->
       cVarDecl x $ cCallMethod e "isEmpty" []
 
+    Src.MapIsEmpty ->
+      cVarDecl x $ cCallMethod e "isEmpty" []
+
     Src.Head ->
       cVarDecl x $ cCall "DDL::UInt<8>" [ cCallMethod e "iHead" [] ]
 
