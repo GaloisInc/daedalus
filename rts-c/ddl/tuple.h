@@ -38,7 +38,9 @@ public:
   Tuple() = default;
   template <
     typename... Us,
-    std::enable_if_t<(sizeof...(Us) > 0), int> = 0>
+    std::enable_if_t<
+      std::is_constructible_v<std::tuple<Ts...>, Us...>,
+      int> = 0>
   Tuple(Us&&... xs) : values(std::forward<Us>(xs)...) {}
 
   // borrow this, borrow result

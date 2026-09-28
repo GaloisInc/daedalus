@@ -88,9 +88,15 @@ type Quiet = (?verbosity :: Int)
 data TestResult = OK | OutputsDiffer [[Backend]] | Fail SomeException
   deriving Show
 
-isOK :: TestResult -> Bool
-isOK result =
-  case result of
+data TestOutcome = TestOutcome
+  { outcomeDDL    :: FilePath
+  , outcomeInput  :: Maybe FilePath
+  , outcomeResult :: TestResult
+  }
+
+isOK :: TestOutcome -> Bool
+isOK outcome =
+  case outcomeResult outcome of
     OK -> True
     _  -> False
 
@@ -350,9 +356,23 @@ doAllTests =
          notOk = length bad
          total = ok + notOk
      putStrLn ("Passed " ++ show ok ++ " / " ++ show total)
+     unless (null bad) $ do
+       putStrLn "Failed tests:"
+       mapM_ reportFailure bad
      if notOk > 0 then exitFailure else exitSuccess
+  where
+  reportFailure outcome =
+    putStrLn $
+      "  " ++ unwords (outcomeDDL outcome : maybeToList (outcomeInput outcome))
+           ++ ": " ++ failureDescription (outcomeResult outcome)
 
-doAllTestsIn :: Quiet => FilePath -> IO [TestResult]
+  failureDescription result =
+    case result of
+      OK                -> "OK"
+      OutputsDiffer {}  -> "outputs differ"
+      Fail e            -> show e
+
+doAllTestsIn :: Quiet => FilePath -> IO [TestOutcome]
 doAllTestsIn dirName =
   do files <- listDirectory dirName
      if "Main.ddl" `elem` files
@@ -383,33 +403,35 @@ doAllTestsIn dirName =
        pure (fs1 ++ fs2)
 
   doOneTest ddl ins =
-    attempt
-    do putStrLn ("--- " ++ ddl ++ " ------------------------------------------")
-       let file = dirName </> ddl
-       backends <- backendsFor file
-       let unsupported = allBackends \\ backends
-       unless (null unsupported) $
-         putStrLn $ "    Skipping backends: " ++ unwords (map show unsupported)
-       compile file
-       case ins of
-         [] -> attempt
-               do run file Nothing
-                  (:[]) <$> validate' file Nothing
-         _  -> concat <$>
-               forM ins \i ->
-                 attempt
-                 do run file (Just i)
-                    (:[]) <$> validate' file (Just i)
+    do let file = dirName </> ddl
+       attempt file Nothing $ do
+         putStrLn ("--- " ++ ddl ++ " ------------------------------------------")
+         backends <- backendsFor file
+         let unsupported = allBackends \\ backends
+         unless (null unsupported) $
+           putStrLn $ "    Skipping backends: " ++ unwords (map show unsupported)
+         compile file
+         case ins of
+           [] -> attempt file Nothing $ do
+                   run file Nothing
+                   result <- validate' file Nothing
+                   pure [TestOutcome file Nothing result]
+           _  -> concat <$>
+                 forM ins \i ->
+                   attempt file (Just i) $ do
+                     run file (Just i)
+                     result <- validate' file (Just i)
+                     pure [TestOutcome file (Just i) result]
 
   -- XXX
   doOneTestInDir siblings = error "Not yet implemented"
 
 
-  attempt m = m `catch` \e@SomeException{} ->
+  attempt ddl mbInput m = m `catch` \e@SomeException{} ->
     case fromException e :: Maybe AsyncException of
       Just _  -> throwIO e
       Nothing -> do print e
-                    pure [Fail e]
+                    pure [TestOutcome ddl mbInput (Fail e)]
 
 
 --------------------------------------------------------------------------------
