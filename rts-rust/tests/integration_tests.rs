@@ -51,6 +51,15 @@ fn test_map_lookup_le() {
 }
 
 #[test]
+fn test_map_is_empty() {
+    let empty = ddl::empty_map::<u32, u32>();
+    assert!(empty.bor().is_empty());
+
+    let map = empty.insert(10, 100);
+    assert!(!map.bor().is_empty());
+}
+
+#[test]
 fn test_map_iteration_order() {
     // Tests that map iterators traverse elements in ascending key order,
     // and that both owned and borrowed iterators work correctly.

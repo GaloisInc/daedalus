@@ -93,6 +93,7 @@ instance TypeOf Expr where
           BitNot          -> typeOf e
           Not             -> TBool
           ArrayLen        -> sizeType
+          MapIsEmpty      -> TBool
 
           WordToFloat     -> TFloat
           WordToDouble    -> TDouble

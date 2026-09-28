@@ -111,6 +111,7 @@ module Daedalus.Value
   , vMapInsert
   , vMapLookup
   , vMapLookupLE
+  , vMapIsEmpty
   , vMapMember
 
   -- * Streams

@@ -73,6 +73,7 @@ evalUniOp op =
     Not               -> vNot
     Neg               -> partial . vNeg
     ArrayLength       -> vArrayLength
+    IsMapEmpty        -> vMapIsEmpty
     Concat            -> vArrayConcat
     BitwiseComplement -> vComplement
     WordToFloat       -> vWordToFloat

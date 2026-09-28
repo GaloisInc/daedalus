@@ -669,6 +669,7 @@ hsValue env tc =
         BitwiseComplement -> "RTS.bitCompl" `Ap` hsValue env v
         Concat            -> "Vector.concat" `Ap` hsValue env v
         ArrayLength       -> "Vector.length" `Ap` hsValue env v
+        IsMapEmpty        -> "Map.null" `Ap` hsValue env v
         WordToFloat       -> "RTS.wordToFloat" `Ap` hsValue env v
         WordToDouble      -> "RTS.wordToDouble" `Ap` hsValue env v
         IsNaN             -> "HS.isNaN" `Ap` hsValue env v
@@ -1290,4 +1291,3 @@ hsModule CompilerCfg { .. } allTys TCModule { .. } = Module
             , envQualNames = cQualNames
             , envTypes = allTys
             }
-

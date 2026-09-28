@@ -251,6 +251,7 @@ evalOp1 env op ty v = case op of
   BitNot        -> vComplement v
   Not           -> vNot v
   ArrayLen      -> vArrayLength v
+  MapIsEmpty    -> vMapIsEmpty v
   Concat        -> vArrayConcat v
   FinishBuilder -> vFinishBuilder v
   NewIterator ->

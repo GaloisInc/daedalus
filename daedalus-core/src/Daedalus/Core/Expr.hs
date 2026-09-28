@@ -56,6 +56,7 @@ data Op1 =
   | BitNot
   | Not
   | ArrayLen
+  | MapIsEmpty
   | Concat
   | FinishBuilder
   | NewIterator
@@ -301,6 +302,7 @@ arrayL t      = ApN (ArrayL t)
 tupleL ts     = ApN (TupleL ts)
 byteArrayL b  = Ap0 (ByteArrayL b)
 arrayLen      = Ap1 ArrayLen
+mapIsEmpty    = Ap1 MapIsEmpty
 arrayIndex    = Ap2 ArrayIndex
 eConcat       = Ap1 Concat
 rangeUp       = Ap3 RangeUp
@@ -421,6 +423,7 @@ instance PP Op1 where
       Not             -> "not"
 
       ArrayLen        -> "aLen"
+      MapIsEmpty      -> "mNull"
       Concat          -> "concat"
 
       FinishBuilder   -> "listToArray"
@@ -535,4 +538,3 @@ instance PP e => PP (LoopCollection' e) where
     ppK = case lcKName lp of
             Nothing -> empty
             Just k  -> pp k <.> comma
-
