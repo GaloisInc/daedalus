@@ -54,7 +54,7 @@ def ParseSourceCodeAt
           byte <= edge.end is true
           let nextWidth = width + 1
           let nextValue = value <# byte
-          if edge.child.branches == empty
+          if isMapEmpty edge.child.branches
             then { width = nextWidth, value = nextValue }
             else ParseSourceCodeAt edge.child nextWidth nextValue
 
@@ -82,7 +82,7 @@ def sourceCodeByte (code : SourceCode) (depth : uint 8) : uint 8 =
 
 def InsertCodespaceAt (depth: uint 8) (trie : codespaceTrie): codespaceTrie =
   block
-    depth < ?sourceStart.width && trie.branches != empty is true
+    depth < ?sourceStart.width && !(isMapEmpty trie.branches) is true
     branches = InsertCodespaceBranches depth trie.branches
 
 
