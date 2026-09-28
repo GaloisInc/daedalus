@@ -65,6 +65,7 @@ instance TraverseUserTypes Type where
       TFloat          -> pure ty
       TDouble         -> pure ty
       TUnit           -> pure ty
+      TTuple ts       -> TTuple <$> traverseUserTypes f ts
       TArray t        -> TArray <$> traverseUserTypes f t
       TMaybe t        -> TMaybe <$> traverseUserTypes f t
       TMap k v        -> TMap <$> traverseUserTypes f k
@@ -209,6 +210,7 @@ instance TraverseUserTypes Op1 where
     case op1 of
       CoerceTo ty -> CoerceTo <$> traverseUserTypes f ty
       SelStruct ty l -> flip SelStruct l <$> traverseUserTypes f ty
+      SelTuple ty i  -> flip SelTuple i <$> traverseUserTypes f ty
       InUnion ut l   -> flip InUnion   l <$> traverseUserTypes f ut
       FromUnion ty l -> flip FromUnion l <$> traverseUserTypes f ty
       _ -> pure op1
@@ -217,6 +219,7 @@ instance TraverseUserTypes OpN where
   traverseUserTypes f opN =
     case opN of
       ArrayL ty -> ArrayL <$> traverseUserTypes f ty
+      TupleL ts -> TupleL <$> traverseUserTypes f ts
       CallF n   -> CallF  <$> traverseUserTypes f n
 
 instance TraverseUserTypes TDecl where

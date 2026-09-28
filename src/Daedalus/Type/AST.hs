@@ -62,6 +62,7 @@ data Poly a     = Poly [TVar] [Constraint] a
 data Constraint = Integral Type
                 | Arith Type
                 | HasStruct Type Label Type
+                | HasTuple Type Integer Type
                 | HasUnion  Type Label Type
 
                 | StructCon TCTyName Type [(Label,Located Type)]
@@ -202,6 +203,8 @@ data TCF :: HS -> Ctx -> HS where
    TCArray      :: [TC a Value] -> Type -> TCF a Value
     -- Type of elements (for empty arr.)
 
+   TCTuple      :: [TC a Value] -> TCF a Value
+
    TCBuilder    :: Type -> TCF a Value
 
    TCIn         :: Label -> TC a Value -> Type -> TCF a Value
@@ -228,6 +231,7 @@ data TCF :: HS -> Ctx -> HS where
    TCFor :: Loop a k -> TCF a k
 
    TCSelStruct :: TC a Value -> Label -> Type -> TCF a Value
+   TCSelTuple  :: TC a Value -> Integer -> Type -> TCF a Value
    TCIf        :: TC a Value -> TC a k -> TC a k -> TCF a k
 
    TCVar  :: TCName k -> TCF a k
@@ -523,6 +527,7 @@ instance PP a => PP (TCF a k) where
       TCStruct xs _ -> braces (vcat (punctuate comma (map ppF xs)))
         where ppF (x,e) = pp x <+> "=" <+> pp e
       TCArray xs _  -> brackets (vcat (punctuate comma (map pp xs)))
+      TCTuple xs    -> parens (commaSep (map pp xs))
 
       TCCall f [] []  -> pp f
       TCCall f ts xs -> wrapIf (n > 0) (pp f <+>
@@ -545,6 +550,7 @@ instance PP a => PP (TCF a k) where
 
       TCUniOp op e -> wrapIf (n > 0) (pp op <+> ppPrec 1 e)
       TCSelStruct x l _ -> wrapIf (n > 0) (ppPrec 1 x <.> "." <.> pp l)
+      TCSelTuple x i _ -> wrapIf (n > 0) (ppPrec 1 x <.> "." <.> pp i)
 
       -- Sets
       TCSetAny -> "UInt8"
@@ -777,6 +783,7 @@ instance PP Constraint where
       Integral x -> wrapIf (n > 0) ("Integral" <+> ppPrec 2 x)
       Arith x    -> wrapIf (n > 0) ("Arith" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
+      HasTuple x i t -> wrapIf (n > 0) ("HasTuple" <+> pp x <+> pp i <+> pp t)
 
       StructCon _ t fs ->
         wrapIf (n > 0)
@@ -880,6 +887,9 @@ tMaybe t = Type (TMaybe t)
 tArray :: Type -> Type
 tArray t = Type (TArray t)
 
+tTuple :: [Type] -> Type
+tTuple ts = Type (TTuple ts)
+
 tBuilder :: Type -> Type
 tBuilder t = Type (TBuilder t)
 
@@ -965,6 +975,7 @@ kindOf ty =
         TDouble     -> KValue
         TUnit       -> KValue
         TArray {}   -> KValue
+        TTuple {}   -> KValue
         TMaybe {}   -> KValue
         TMap {}     -> KValue
         TBuilder {} -> KValue
@@ -1055,6 +1066,7 @@ instance TypeOf (TCF a k) where
       TCJust e        -> tMaybe (typeOf e)
       TCStruct _ t    -> t
       TCArray _ t     -> tArray t
+      TCTuple es      -> tTuple (map typeOf es)
       TCIn _ _ t      -> t
       TCVar x         -> tcType x
       TCBuilder t     -> tBuilder t
@@ -1085,6 +1097,7 @@ instance TypeOf (TCF a k) where
 
 
       TCSelStruct _ _ t  -> t
+      TCSelTuple _ _ t   -> t
 
       TCSetAny          -> tByteClass
       TCSetSingle _     -> tByteClass

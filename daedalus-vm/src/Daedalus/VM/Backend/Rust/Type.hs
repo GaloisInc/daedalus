@@ -187,6 +187,7 @@ compileType own ty =
     Core.TFloat             -> Rust.tF 32
     Core.TDouble            -> Rust.tF 64
     Core.TUnit              -> Rust.pathType (ddlPath "Unit")
+    Core.TTuple ts          -> Rust.tTuple (map (compileType own) ts)
     Core.TArray t           -> maybeB "Array" "ArrayB" [t]
     Core.TBuilder t         -> maybeB "Builder" "BuilderB" [t]
 

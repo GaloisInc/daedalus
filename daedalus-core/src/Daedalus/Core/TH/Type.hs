@@ -37,6 +37,7 @@ compileType ty =
     TFloat      -> [t| Float |]
     TDouble     -> [t| Double |]
     TUnit       -> [t| () |]
+    TTuple ts   -> foldl TH.appT (TH.tupleT (length ts)) (map compileType ts)
     TArray t    -> [t| RTS.Vector $(compileType t) |]
     TMaybe t    -> [t| Maybe $(compileType t) |]
     TMap k v    -> [t| RTS.Map $(compileType k) $(compileType v) |]
@@ -60,5 +61,4 @@ compileTypeParam p =
   case Map.lookup p ?typeParams of
     Just t  -> t
     Nothing -> panic "compileSizeType" [ "Missing type parameter", show (pp p) ]
-
 

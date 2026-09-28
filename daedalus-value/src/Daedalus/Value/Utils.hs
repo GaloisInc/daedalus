@@ -2,8 +2,6 @@
 module Daedalus.Value.Utils where
 
 import qualified Data.Vector as Vector
-
-import Daedalus.PP(pp)
 import Daedalus.Panic(panic)
 import Daedalus.Value.Type
 

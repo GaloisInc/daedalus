@@ -583,6 +583,13 @@ inferExpr expr =
              let ty = tMaybe vt
              pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
 
+        LookupMapLE ->
+          liftValAppPure expr [e1,e2] \ ~[(e1',kt),(e2',mt)] ->
+          do vt <- newTVar e2' KValue
+             unify (tMap kt vt) (e2',mt)
+             let ty = tMaybe (tTuple [kt,vt])
+             pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
+
         LCat ->
           liftValAppPure expr [e1,e2] \ ~[(e1',t1),(e2',t2)] ->
           do addConstraint expr (Integral t1)
@@ -703,6 +710,12 @@ inferExpr expr =
                     addConstraint f (HasStruct t lab a)
                     pure (exprAt expr (TCSelStruct e1 lab a), a)
 
+               SelTuple f ->
+                 liftValAppPure expr [e] \ ~[(e1,t)] ->
+                 do let ix = thingValue f
+                    addConstraint f (HasTuple t ix a)
+                    pure (exprAt expr (TCSelTuple e1 ix a), a)
+
                -- turn 'e is l' into 'case e is { l x => ^ x }'
                SelUnion f ->
                  grammarOnly expr $
@@ -819,6 +832,10 @@ inferExpr expr =
                 do t <- newTVar expr KValue
                    mapM_ (unify t) res
                    pure (exprAt expr (TCArray (map fst res) t), tArray t)
+
+    ETuple es ->
+      liftValAppPure expr es \res ->
+      pure (exprAt expr (TCTuple (map fst res)), tTuple (map snd res))
 
     EArrayIndex e ix ->
       grammarOnly expr $

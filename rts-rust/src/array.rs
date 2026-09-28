@@ -1,7 +1,6 @@
 use crate as ddl;
-use ddl::Clo;
+use ddl::{AsDDL, Clo, DDLSerialize};
 use std::fmt as fmt;
-use serde::Serialize;
 
 /// Owned array
 #[repr(transparent)]
@@ -215,33 +214,32 @@ impl<'a, T: fmt::Debug> fmt::Debug for ArrayB<'a, T> {
   }
 }
 
-fn serialize_array<T: Serialize, S>(slice: &[T], serializer: S) -> Result<S::Ok, S::Error>
+fn ddl_serialize_array<T: DDLSerialize, S>(
+  slice: &[T],
+  serializer: S
+) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
   use serde::ser::SerializeSeq;
   let mut seq = serializer.serialize_seq(Some(slice.len()))?;
   for item in slice.iter() {
-    seq.serialize_element(item)?;
+    seq.serialize_element(&AsDDL(item))?;
   }
   seq.end()
 }
 
-impl<T: Serialize> Serialize for Array<T> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serialize_array(&**self, serializer)
+impl<T: DDLSerialize> DDLSerialize for Array<T> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_array(&**self, serializer)
   }
 }
 
-impl<'a, T: Serialize> Serialize for ArrayB<'a, T> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    serialize_array(&**self, serializer)
+impl<T: DDLSerialize> DDLSerialize for ArrayB<'_, T> {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    ddl_serialize_array(&**self, serializer)
   }
 }
 

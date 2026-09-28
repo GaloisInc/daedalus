@@ -36,6 +36,11 @@ cNew `isImpliedBy` cOld =
         do unify (cNew, t1) (cOld,t2)
            pure True
 
+    (HasTuple x1 i1 t1, HasTuple x2 i2 t2)
+      | x1 == x2 && i1 == i2 ->
+        do unify (cNew, t1) (cOld,t2)
+           pure True
+
     (HasUnion x1 l1 t1, HasUnion x2 l2 t2)
       | x1 == x2 && l1 == l2 ->
         do unify (range cNew, t1) (cOld,t2)
@@ -236,6 +241,25 @@ hasStruct r ty l fty =
   doErr = reportDetailedError r
             ("Type does not have field" <+> backticks (pp l))
             [ "Problem type:" <+> pp ty ]
+
+
+hasTuple :: (STCMonad m, HasRange r) =>
+            r -> Type -> Integer -> Type -> m CtrStatus
+hasTuple r ty ix fty =
+  case ty of
+    TVar _ -> pure Unsolved
+
+    Type (TTuple ts)
+      | ix >= 0, ix < toInteger (length ts) ->
+          do unify (ts !! fromInteger ix) (r,fty)
+             pure Solved
+      | otherwise -> reportDetailedError r
+                       ("Tuple index out of bounds:" <+> pp ix)
+                       [ "Tuple type:" <+> pp ty ]
+
+    _ -> reportDetailedError r
+           "Type is not a tuple."
+           [ "Problem type:" <+> pp ty ]
 
 
 
@@ -635,6 +659,7 @@ solveConstraint lctr =
     Arith t            -> isArith lctr t
     FloatingType t     -> isFloatingType lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
+    HasTuple t i fty   -> hasTuple lctr t i fty
     StructCon _ t fs   -> isStructCon lctr t fs
     UnionCon _ t c ft  -> isUnionCon lctr t c ft
     HasUnion  t l fty  -> hasUnion  lctr t l fty
@@ -694,6 +719,7 @@ unify2 r s t1' t2' =
             (TDouble, TDouble)         -> pure ()
             (TMaybe x, TMaybe y)       -> unify2 r s x y
             (TArray x, TArray y)       -> unify2 r s x y
+            (TTuple xs, TTuple ys)      -> unifyMany r s xs ys
             (TMap k1 v1, TMap k2 v2)   -> do unify2 r s k1 k2
                                              unify2 r s v1 v2
             (TBuilder a1, TBuilder a2) -> unify2 r s a1 a2
@@ -814,5 +840,3 @@ simplifyConstraints =
       o : more ->
         do yes <- c `isImpliedBy` o
            if yes then pure True else checkKnown c more
-
-

@@ -270,6 +270,7 @@ compilePureExpr env = go
                TVBDStruct bd -> VBDStruct bd (bdStruct bd vs)
                _             -> vStruct vs
         TCArray     es _ -> VArray (Vector.fromList $ map go es)
+        TCTuple     es   -> vTuple (map go es)
         TCIn lbl e t ->
           case evalType env t of
             TVBDUnion bd -> VBDUnion bd (vToBits (go e))
@@ -293,6 +294,7 @@ compilePureExpr env = go
         TCIf be te fe  -> go (if valueToBool (go be) then te else fe)
 
         TCSelStruct e n _ -> vStructLookup (go e) n
+        TCSelTuple e i _  -> vTupleLookup (go e) i
 
         TCCall x ts es  ->
           case Map.lookup (tcName x) (funEnv env) of
@@ -768,7 +770,6 @@ interpFile cfg input prog startName = do
   return (bytes, interp cfg builtins nm bytes prog startName)
   where
   builtins = [ ]
-
 
 
 

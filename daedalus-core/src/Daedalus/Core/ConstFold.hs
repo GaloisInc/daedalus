@@ -180,6 +180,11 @@ valueToExpr tenv ty v =
         Struct ut flds'
       | ty == TUnit -> unit
     VStruct {} -> panic "Malfomed struct value/type" [showPP v, showPP ty]
+    VTuple vs
+      | TTuple ts <- ty
+      , length ts == V.length vs ->
+        tupleL ts (zipWith go ts (V.toList vs))
+    VTuple {} -> panic "Malfomed tuple value/type" [showPP v, showPP ty]
     VArray vs
       | ty == TArray (TUInt (TSize 8)) -> byteArrayL (valueToByteString v)
       | TArray ty' <- ty -> arrayL ty' (map (go ty') (V.toList vs))
@@ -210,4 +215,3 @@ valueToExpr tenv ty v =
   where
     go = valueToExpr tenv
     fromMapEls kt vt = foldl' (\m (k, v') -> mapInsert m (go kt k) (go vt v')) (mapEmpty kt vt)
-

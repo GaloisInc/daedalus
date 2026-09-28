@@ -1,6 +1,6 @@
 use crate as ddl;
+use ddl::{AsDDL, DDLSerialize};
 use std::fmt;
-use serde::Serialize;
 
 /// A Maybe type, similar to Haskell's Maybe.
 /// Either contains a value (Just) or is empty (Nothing).
@@ -75,8 +75,8 @@ impl<T: fmt::Debug> fmt::Debug for Maybe<T> {
     }
 }
 
-impl<T: Serialize> Serialize for Maybe<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl<T: DDLSerialize> DDLSerialize for Maybe<T> {
+    fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -85,7 +85,7 @@ impl<T: Serialize> Serialize for Maybe<T> {
             Maybe::Nothing => serializer.serialize_none(),
             Maybe::Just(x) => {
                 let mut map = serializer.serialize_map(Some(1))?;
-                map.serialize_entry("$$just", x)?;
+                map.serialize_entry("$$just", &AsDDL(x))?;
                 map.end()
             }
         }

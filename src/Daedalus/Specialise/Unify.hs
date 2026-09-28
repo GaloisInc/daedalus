@@ -159,6 +159,7 @@ instance Unify (TCF a k) where
           (ls', es') = unzip xs'        
 
       ( TCArray xs t        , TCArray xs' t'  ) | t == t' -> unify xs xs'
+      ( TCTuple xs          , TCTuple xs'      ) -> unify xs xs'
       ( TCIn l e t          , TCIn l' e' t'    )
         | l == l' && t == t' -> unify e e'
 
@@ -187,6 +188,9 @@ instance Unify (TCF a k) where
 
       ( TCSelStruct x n t   , TCSelStruct x' n' t')
         | n == n' && t == t' -> unify x x'
+
+      ( TCSelTuple x i t    , TCSelTuple x' i' t')
+        | i == i' && t == t' -> unify x x'
 
       ( TCIf be te fe       , TCIf be' te' fe'   ) ->
         unify (be, te, fe) (be', te', fe')

@@ -2,7 +2,6 @@ use crate as ddl;
 use crate::Type;
 use num_bigint::BigInt;
 use num_traits::{FromPrimitive, ToPrimitive};
-use serde::{Serialize, Serializer};
 use std::fmt;
 use std::ops;
 
@@ -71,11 +70,11 @@ impl fmt::Debug for Int {
     }
 }
 
-// Serialize as a decimal string representation
-impl Serialize for Int {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+// Serialize as a decimal string representation.
+impl ddl::DDLSerialize for Int {
+    fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
         serializer.serialize_str(&self.0.to_string())
     }

@@ -9,6 +9,7 @@ mod builder;
 mod map;
 mod map_iterators;
 mod maybe;
+mod tuple;
 mod unit;
 mod user_defined;
 mod parser_state;
@@ -40,6 +41,66 @@ pub trait Type : Clone + 'static {
 pub trait Clo {
   type O;
   fn clo(self) -> Self::O;
+}
+
+/// Serialization of DDL values using the common DDL JSON schema.
+pub trait DDLSerialize {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error>;
+}
+
+/// Adapt a [`DDLSerialize`] value for use with Serde combinators.
+#[derive(Clone, Copy)]
+pub struct AsDDL<'a, T: ?Sized>(pub &'a T);
+
+impl<T: ?Sized + DDLSerialize> serde::Serialize for AsDDL<'_, T> {
+  fn serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    self.0.ddl_serialize(serializer)
+  }
+}
+
+impl DDLSerialize for bool {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    serializer.serialize_bool(*self)
+  }
+}
+
+fn ddl_serialize_float_tag<S: serde::Serializer>(
+  tag: &'static str,
+  serializer: S,
+) -> Result<S::Ok, S::Error> {
+  use serde::ser::SerializeMap;
+  let mut map = serializer.serialize_map(Some(1))?;
+  map.serialize_entry(tag, &())?;
+  map.end()
+}
+
+impl DDLSerialize for f32 {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    if self.is_infinite() {
+      ddl_serialize_float_tag("$$inf", serializer)
+    } else if self.is_nan() {
+      ddl_serialize_float_tag("$$nan", serializer)
+    } else {
+      serializer.serialize_f32(*self)
+    }
+  }
+}
+
+impl DDLSerialize for f64 {
+  fn ddl_serialize<S: serde::Serializer>(&self, serializer: S)
+    -> Result<S::Ok, S::Error> {
+    if self.is_infinite() {
+      ddl_serialize_float_tag("$$inf", serializer)
+    } else if self.is_nan() {
+      ddl_serialize_float_tag("$$nan", serializer)
+    } else {
+      serializer.serialize_f64(*self)
+    }
+  }
 }
 
 /// References are the usual way to represent borrowed values.
@@ -93,4 +154,3 @@ macro_rules! by_ref {
 }
 
 by_ref!(Option<T>);
-

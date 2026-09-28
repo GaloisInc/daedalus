@@ -1,7 +1,6 @@
 use std::ops as ops;
 use std::fmt as fmt;
 use crate as ddl;
-use serde::Serialize;
 
 /// Operations that should be supported by representation types for [Word].
 /// Checked arithmetic (op_add, op_sub, op_mul) returns (result, overflow_flag).
@@ -74,8 +73,8 @@ impl fmt::Debug for U0 {
   }
 }
 
-impl serde::Serialize for U0 {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl ddl::DDLSerialize for U0 {
+  fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
@@ -391,8 +390,9 @@ impl <const N: u32> fmt::Debug for Word<true,N> where Size<true,N>: WordRep {
   }
 }
 
-impl <const N: u32> Serialize for Word<false,N> where Size<false,N>: WordRep {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl <const N: u32> ddl::DDLSerialize for Word<false,N>
+  where Size<false,N>: WordRep {
+  fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
@@ -400,8 +400,9 @@ impl <const N: u32> Serialize for Word<false,N> where Size<false,N>: WordRep {
   }
 }
 
-impl <const N: u32> Serialize for Word<true,N> where Size<true,N>: WordRep {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl <const N: u32> ddl::DDLSerialize for Word<true,N>
+  where Size<true,N>: WordRep {
+  fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {

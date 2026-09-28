@@ -108,6 +108,7 @@ instance TraverseTypes (TCF a k) where
       TCStruct fs t   -> TCStruct <$> traverse doField fs <*> f t
         where doField (x,e) = (x,) <$> traverseTypes f e
       TCArray e t     -> TCArray  <$> traverseTypes f e <*> f t
+      TCTuple es      -> TCTuple  <$> traverseTypes f es
       TCIn l e t      -> TCIn l   <$> traverseTypes f e <*> f t
 
       TCVar x         -> TCVar    <$> traverseTypes f x
@@ -124,6 +125,7 @@ instance TraverseTypes (TCF a k) where
       TCUniOp op e      -> TCUniOp op <$> traverseTypes f e
 
       TCSelStruct e l t -> (`TCSelStruct` l) <$> traverseTypes f e <*> f t
+      TCSelTuple e i t  -> (`TCSelTuple` i) <$> traverseTypes f e <*> f t
 
       TCSetAny          -> pure expr
       TCSetSingle e     -> TCSetSingle <$> traverseTypes f e
@@ -184,6 +186,7 @@ instance TraverseTypes Constraint where
       Arith t           -> Arith <$> f t
       FloatingType t    -> FloatingType <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
+      HasTuple t1 i t2  -> HasTuple <$> f t1 <*> pure i <*> f t2
       StructCon nm t fs -> StructCon nm <$> f t <*> traverse tF fs
         where tF (x,ft) = (x,) <$> traverse f ft
       UnionCon nm t c ft -> UnionCon nm <$> f t <*> pure c <*> traverse f ft
@@ -325,6 +328,7 @@ traverseTCF f = go
         TCJust e      -> TCJust <$> f e
         TCStruct xs t -> TCStruct <$> traverse (traverse f) xs <*> pure t
         TCArray xs t  -> TCArray <$> traverse f xs <*> pure t
+        TCTuple xs    -> TCTuple <$> traverse f xs
         TCIn l e t    -> TCIn l <$> f e <*> pure t
 
         -- numeric
@@ -356,6 +360,7 @@ traverseTCF f = go
           travCol col = (\c -> col { lcCol = c }) <$> f (lcCol col)
 
         TCSelStruct x n t  -> TCSelStruct  <$> f x <*> pure n <*> pure t
+        TCSelTuple x i t   -> TCSelTuple   <$> f x <*> pure i <*> pure t
 
         TCIf be te fe      -> TCIf <$> f be <*> f te <*> f fe
 

@@ -12,6 +12,7 @@ import qualified Daedalus.RTS.Vector as RTS
 import qualified Daedalus.RTS.Map    as RTS
 
 import Daedalus.Panic(panic)
+import Daedalus.Range(integerToInt)
 
 import qualified Daedalus.TH as TH
 import Daedalus.Core.Basics
@@ -87,6 +88,23 @@ compileOp1 op1 argT e =
     SelStruct t l     -> [| getField @($lab) $e :: $(compileMonoType t) |]
       where lab = TH.litT (TH.strTyLit (Text.unpack l))
 
+    SelTuple _ i ->
+      case argT of
+        TTuple ts
+          | Just n <- integerToInt i
+          , n >= 0
+          , n < length ts ->
+            do x <- TH.newName "x"
+               let pats = [ if j == n then TH.varP x else TH.wildP
+                          | j <- [ 0 .. length ts - 1 ]
+                          ]
+               TH.caseE e
+                 [ TH.match (TH.tupP pats)
+                            (TH.normalB (TH.varE x))
+                            []
+                 ]
+        _ -> panic "compileOp1" ["Invalid tuple selector"]
+
     InUnion ut l ->
       let nm = utName ut
           con = TH.conE (unionConName nm l)
@@ -143,6 +161,7 @@ compileOp2 op e1 e2 =
 
     -- The map is the first argument.
     MapLookup   -> [| RTS.lookup $e2 $e1 |]
+    MapLookupLE -> [| RTS.lookupLE $e2 $e1 |]
     MapMember   -> [| RTS.member $e2 $e1 |]
 
     ArrayStream -> [| RTS.arrayStream $e1 $e2 |]
@@ -161,7 +180,5 @@ compileOpN call op es =
   case op of
     ArrayL t -> [| RTS.fromList $(TH.listE es)
                       :: $(compileMonoType (TArray t)) |]
+    TupleL _ -> TH.tupE es
     CallF f  -> call f es
-
-
-

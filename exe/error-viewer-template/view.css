@@ -400,13 +400,13 @@ div {
 
 
 /* Arrays */
-.array {
+.array, .tuple {
   display:          inline-flex;
   flex-direction:   column;
   /*align-items:      stretch;*/
 }
 
-.array-entry {
+.array-entry, .tuple-entry {
   display:          flex;
   flex-direction:   row;
   justify-content:  flex-start;
@@ -473,5 +473,4 @@ div {
   display: inline-block;
   color: orange;
 }
-
 

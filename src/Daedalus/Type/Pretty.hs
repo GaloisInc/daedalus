@@ -136,6 +136,8 @@ ppCtr ctr =
     FloatingType t -> ppBackTy t <+> "is a floating point type"
     HasStruct ts l tf ->
       ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf
+    HasTuple ts i tf ->
+      ppBackTy ts <+> "has tuple field" <+> pp i <+> ":" <+> ppTy 0 tf
     HasUnion tu l tf ->
       ppBackTy tu <+> "has a variant" <+> pp l <+> ":" <+> ppTy 0 tf
 
@@ -181,6 +183,7 @@ ppTy n t =
         TDouble    -> "double"
         TUnit      -> "{}"
         TArray a   -> "[" <+> ppTy 0 a <+> "]"
+        TTuple ts  -> parens (commaSep (map (ppTy 0) ts))
         TMaybe a   -> wrap 2 ("maybe" <+> ppTy 1 a)
         TMap a b   -> "[" <+> ppTy 1 a <+> "->" <+> ppTy 0 b <+> "]"
         TBuilder a -> wrap 2 ("builder" <+> ppTy 1 a)
@@ -199,4 +202,3 @@ ppTC x = case x of
 
 ppNM :: Name -> Doc
 ppNM = pp . snd . nameScopeAsModScope
-

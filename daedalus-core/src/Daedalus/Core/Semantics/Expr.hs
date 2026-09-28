@@ -157,6 +157,7 @@ evalType env ty =
     TDouble       -> TVDouble
     TBool         -> TVOther
     TUnit         -> TVOther
+    TTuple {}     -> TVOther
     TArray {}     -> TVArray
     TMaybe {}     -> TVOther
     TMap {}       -> TVMap
@@ -270,6 +271,7 @@ evalOp1 env op ty v = case op of
       Nothing -> panic "evalOp1" [ "Not Just" ]
 
   SelStruct _ l -> vStructLookup v l
+  SelTuple _ i  -> vTupleLookup v i
 
   InUnion t l   ->
     case evalType env (TUser t) of
@@ -324,6 +326,9 @@ evalOp2 op v1 v2 = case op of
   MapLookup -> vMapLookup v2 v1
 
   -- map is 1st
+  MapLookupLE -> vMapLookupLE v2 v1
+
+  -- map is 1st
   MapMember -> vMapMember v2 v1
 
   ArrayStream -> vStreamFromArray v1 v2
@@ -342,6 +347,7 @@ evalOpN :: OpN -> [Value] -> Env -> Value
 evalOpN op vs env =
   case op of
     ArrayL _ -> vArray vs
+    TupleL _ -> vTuple vs
     CallF f  -> case vs of
                   [] -> lookupConst f env
                   _  -> lookupFun f env vs
@@ -371,4 +377,3 @@ evalLoopMorphism lm evalA env =
             VMap m     -> ( Map.toList m, VMap . Map.fromList )
             _ -> panic "evalLoopMorphism" [ "Value not a collection" ]
       in (els, bindIn, mk)
-

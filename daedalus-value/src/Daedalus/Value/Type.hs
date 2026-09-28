@@ -40,6 +40,7 @@ data Value =
   | VBDStruct !BDStruct    !Integer
   | VBDUnion  !BDUnion     !Integer
   | VArray                 !(Vector Value)
+  | VTuple                 !(Vector Value)
   | VMaybe                 !(Maybe Value)
   | VMap                   !(Map Value Value)
   | VStream                !Input
@@ -108,6 +109,9 @@ vByte x = VUInt 8 (fromIntegral x)
 
 vByteString :: ByteString -> Value
 vByteString = VArray . Vector.fromList . map vByte . BS.unpack
+
+vTuple :: [Value] -> Value
+vTuple = VTuple . Vector.fromList
 
 vFloat :: Float -> Value
 vFloat = VFloat
@@ -191,6 +195,7 @@ instance HasInputs Value where
       VBDStruct {} -> mempty
       VBDUnion  {} -> mempty
       VArray vs -> foldMap getInputs vs
+      VTuple vs -> foldMap getInputs vs
       VMaybe v -> getInputs v
       VMap mp -> mconcat [ getInputs x <> getInputs y | (x,y) <- Map.toList mp ]
       VStream i -> getInputs i
@@ -246,6 +251,12 @@ valueToVector v =
 
 valueToList :: Value -> [Value]
 valueToList = Vector.toList . valueToVector
+
+valueToTuple :: Value -> Vector Value
+valueToTuple v =
+  case unTrace v of
+    VTuple vs -> vs
+    _         -> panic "valueToTuple" [ "Not a tuple", show v ]
 
 valueToStruct :: Value -> [(Label,Value)]
 valueToStruct v =
@@ -360,6 +371,10 @@ vCompare a b =
     (VArray _,       _)                     -> LT
     (_,              VArray _)              -> GT
 
+    (VTuple xs,      VTuple ys)             -> compare xs ys
+    (VTuple _,       _)                     -> LT
+    (_,              VTuple _)              -> GT
+
     (VMaybe x,       VMaybe y)              -> compare x y
     (VMaybe _,       _)                     -> LT
     (_,              VMaybe _)              -> GT
@@ -453,6 +468,8 @@ instance PP Value where
                     _ -> block "[" "," "]" (map pp vs)
         where vs = Vector.toList v
 
+      VTuple vs -> parens (commaSep (map pp (Vector.toList vs)))
+
       VMaybe v   -> case v of
                       Nothing -> "Nothing"
                       Just v' -> wrapIf (n > 0) ("Just" <+> ppPrec 1 v')
@@ -495,6 +512,7 @@ instance ToJSON Value where
                               ]
 
       VArray vs -> toJSON (Vector.toList vs)
+      VTuple vs -> tagged "$tuple" (Vector.toList vs)
       VMap mp   -> toJSON mp
       VMaybe mb -> toJSON mb
 
@@ -554,6 +572,8 @@ valueToJS val =
                             ]
 
     VArray vs -> jsBlock "[" "," "]" (map valueToJS (Vector.toList vs))
+    VTuple vs -> tagged "$tuple"
+                   (jsBlock "[" "," "]" (map valueToJS (Vector.toList vs)))
 
     VMap mp -> tagged "$map" $ jsBlock "[" "," "]" (map pair (Map.toList mp))
 

@@ -2,7 +2,6 @@
 module Daedalus.Value.Map where
 
 import qualified Data.Map as Map
-
 import Daedalus.Value.Type
 import Daedalus.Value.Utils
 
@@ -18,6 +17,12 @@ vMapInsert k v = addTraced k
 vMapLookup :: Value {- ^ key -} -> Value {- ^ map -} -> Value
 vMapLookup = tracedFun \k m -> VMaybe (Map.lookup k (valueToMap m))
 
+vMapLookupLE :: Value {- ^ key -} -> Value {- ^ map -} -> Value
+vMapLookupLE = tracedFun \k m ->
+  VMaybe
+    case Map.lookupLE k (valueToMap m) of
+      Nothing     -> Nothing
+      Just (k',v) -> Just (vTuple [k',v])
+
 vMapMember :: Value {-^ key -} -> Value {- map -} -> Value
 vMapMember = tracedFun \k m -> VBool (Map.member k (valueToMap m))
-

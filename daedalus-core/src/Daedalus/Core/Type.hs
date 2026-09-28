@@ -37,6 +37,7 @@ bdUniverse env ty =
     TStream         -> bad
     TInteger        -> bad
     TBool           -> bad
+    TTuple {}       -> bad
     TArray {}       -> bad
     TMaybe {}       -> bad
     TMap {}         -> bad
@@ -137,6 +138,7 @@ instance TypeOf Expr where
                              TMaybe t -> t
                              _ -> bad "FromJust"
           SelStruct t _ -> t
+          SelTuple t _  -> t
           InUnion ut _  -> TUser ut
           FromUnion t _ -> t
 
@@ -186,6 +188,11 @@ instance TypeOf Expr where
               TMap _ t -> TMaybe t
               _        -> bad "MapLookup"
 
+          MapLookupLE ->
+            case typeOf e1 of
+              TMap k v -> TMaybe (TTuple [k,v])
+              _        -> bad "MapLookupLE"
+
           MapMember -> TBool
 
 
@@ -199,6 +206,7 @@ instance TypeOf Expr where
       ApN op _ ->
         case op of
           ArrayL t -> TArray t
+          TupleL ts -> TTuple ts
           CallF f  -> typeOf f
 
     where

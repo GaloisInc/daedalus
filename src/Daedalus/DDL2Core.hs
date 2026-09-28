@@ -824,11 +824,18 @@ fromExpr expr =
     TC.TCArray vs t ->
       arrayL <$> fromTypeM t <*> mapM fromExpr vs
 
+    TC.TCTuple vs ->
+      do ts <- mapM (fromTypeM . TC.typeOf) vs
+         tupleL ts <$> mapM fromExpr vs
+
     TC.TCIn l v t ->
       inUnion <$> userTypeM t <*> pure l <*> fromExpr v
 
     TC.TCSelStruct v l t ->
       selStruct <$> fromTypeM t <*> pure l <*> fromExpr v
+
+    TC.TCSelTuple v i t ->
+      selTuple <$> fromTypeM t <*> pure i <*> fromExpr v
 
     TC.TCIf v1 v2 v3 ->
       do e1 <- fromExpr v1
@@ -894,6 +901,7 @@ fromExpr expr =
            TC.LogicAnd     -> eAnd e1 e2
            TC.LogicOr      -> eOr  e1 e2
            TC.LookupMap    -> pure $ mapLookup e2 e1
+           TC.LookupMapLE  -> pure $ mapLookupLE e2 e1
            TC.BuilderEmit        -> pure $ emit e1 e2
            TC.BuilderEmitArray   -> pure $ emitArray e1 e2
            TC.BuilderEmitBuilder -> pure $ emitBuilder e1 e2
@@ -989,6 +997,7 @@ fromType ty =
         TC.TFloat      -> TFloat
         TC.TDouble     -> TDouble
         TC.TUnit       -> TUnit
+        TC.TTuple ts   -> TTuple (map fromType ts)
         TC.TArray t    -> TArray (fromType t)
         TC.TMaybe t    -> TMaybe (fromType t)
         TC.TMap k v    -> TMap (fromType k) (fromType v)
@@ -1413,5 +1422,4 @@ removeNewFuns =
   M $ sets \s -> ( (newFFuns s, newGFuns s)
                  , s { newFFuns = [], newGFuns = [] }
                  )
-
 

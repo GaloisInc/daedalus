@@ -80,16 +80,17 @@ macro_rules! bitdata_con {
 #[macro_export]
 macro_rules! bitdata_struct_serialize {
     ($ty:ty $(, ($label:literal, $method:ident))*) => {
-        impl serde::Serialize for $ty {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
+        impl $crate::DDLSerialize for $ty {
+            fn ddl_serialize<S: serde::Serializer>(
+                &self,
+                serializer: S
+            ) -> Result<S::Ok, S::Error> {
                 use serde::ser::SerializeStruct;
                 const FIELD_COUNT: usize = <[&str]>::len(&[$(stringify!($label)),*]);
                 let mut state = serializer.serialize_struct(stringify!($ty), FIELD_COUNT)?;
                 $(
-                    state.serialize_field($label, &self.$method())?;
+                    let value = self.$method();
+                    state.serialize_field($label, &$crate::AsDDL(&value))?;
                 )*
                 state.end()
             }
@@ -100,16 +101,16 @@ macro_rules! bitdata_struct_serialize {
 #[macro_export]
 macro_rules! bitdata_union_serialize {
     ($ty:ty, $case_ty:ident $(,($con:ident, $label:literal))*) => {
-        impl serde::Serialize for $ty {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
+        impl $crate::DDLSerialize for $ty {
+            fn ddl_serialize<S: serde::Serializer>(
+                &self,
+                serializer: S
+            ) -> Result<S::Ok, S::Error> {
               use serde::ser::SerializeMap;
               match self.to_enum() {
                   $($case_ty::$con(x) => {
                       let mut map = serializer.serialize_map(Some(1))?;
-                      map.serialize_entry($label, &x)?;
+                      map.serialize_entry($label, &$crate::AsDDL(&x))?;
                       map.end()
                   },)*
                   $case_ty::Junk => unreachable!()

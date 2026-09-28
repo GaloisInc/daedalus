@@ -111,6 +111,7 @@ evalBinOp op =
     StreamTakeUpTo  -> vStreamTake
     ArrayStream     -> vStreamFromArray
     LookupMap       -> vMapLookup
+    LookupMapLE     -> vMapLookupLE
 
     BuilderEmit        -> vEmit
     BuilderEmitArray   -> vEmitArray
@@ -125,4 +126,3 @@ evalTriOp op =
     RangeUp     -> partial3 vRangeUp
     RangeDown   -> partial3 vRangeDown
     MapDoInsert -> vMapInsert
-
