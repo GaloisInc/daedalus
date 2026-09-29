@@ -153,6 +153,7 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWMapEmpty          -> kw
       KWMapInsert         -> kw
       KWMapLookup         -> kw
+      KWMapIsEmpty        -> kw
       KWArrayLength       -> kw
       KWArrayIndex        -> kw
       KWRangeUp           -> kw

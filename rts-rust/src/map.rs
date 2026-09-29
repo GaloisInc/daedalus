@@ -14,6 +14,13 @@ pub struct MapB<'a,K,V> { pub(crate) mp: ddl::Maybe<ddl::B<'a,Node<K,V>>> }
 pub fn empty_map<K,V>() -> Map<K,V> { Map { mp: ddl::Maybe::Nothing } }
 
 impl<K,V> Map<K,V> {
+  pub fn is_empty(&self) -> bool {
+    match self.mp {
+      ddl::Maybe::Nothing => true,
+      ddl::Maybe::Just(_) => false,
+    }
+  }
+
   /// Check the red-black tree invariants.
   pub fn valid(&self) -> bool {
     black_depth(self).is_some()
@@ -50,6 +57,15 @@ impl<K: Type, V: Type> Ord for Map<K, V>
 
 impl<'a,K,V> Clone for MapB<'a,K,V> {
   fn clone(&self) -> Self { MapB { mp: self.mp.clone() } }
+}
+
+impl<'a,K,V> MapB<'a,K,V> {
+  pub fn is_empty(self) -> bool {
+    match self.mp {
+      ddl::Maybe::Nothing => true,
+      ddl::Maybe::Just(_) => false,
+    }
+  }
 }
 
 impl<'a,K,V> Copy for MapB<'a,K,V> {}

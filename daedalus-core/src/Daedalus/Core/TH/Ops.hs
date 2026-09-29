@@ -66,6 +66,7 @@ compileOp1 op1 argT e =
     Not               -> [| not $e |]
 
     ArrayLen          -> [| RTS.length $e |]
+    MapIsEmpty        -> [| RTS.null $e |]
 
     Concat            -> [| RTS.concat $e |]
 

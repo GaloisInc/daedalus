@@ -486,6 +486,13 @@ inferExpr expr =
                unify (tArray vt) (e, et)
                pure (exprAt expr (TCUniOp ArrayLength e1), tSize)
 
+        IsMapEmpty ->
+          liftValAppPure expr [e] \ ~[(e1,et)] ->
+            do kt <- newTVar e KValue
+               vt <- newTVar e KValue
+               unify (tMap kt vt) (e,et)
+               pure (exprAt expr (TCUniOp IsMapEmpty e1), tBool)
+
         Concat ->
           liftValAppPure expr [e] \ ~[(e1,t)] ->
             do a <- newTVar e KValue

@@ -342,6 +342,7 @@ data BinOp = Add | Sub | Mul | Div | Mod
 
 data UniOp = Not | Neg | Concat | BitwiseComplement
            | ArrayLength
+           | IsMapEmpty
            | WordToFloat | WordToDouble
            | IsNaN | IsInfinite | IsDenormalized | IsNegativeZero
            | BytesOfStream
@@ -548,6 +549,7 @@ instance PP UniOp where
       Neg    -> "-"
       Concat -> "concat"
       ArrayLength -> "length"
+      IsMapEmpty -> "isMapEmpty"
       BitwiseComplement -> "~"
       WordToFloat     -> "wordToFloat"
       WordToDouble    -> "wordToDouble"
