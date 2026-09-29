@@ -158,6 +158,21 @@ def CMapPSDict =
 def UTF16BE = Many (..256) (HexByte # HexByte)
 
 
+def mappingEnd (source : SourceCode) (mapping : CMapMapping) : uint 32 =
+  case mapping of
+    Single _       -> source.value
+    Range range    -> range.0
+    ArrayRange range -> range.0
+
+def mappingDisjoint
+  (key : SourceCode)
+  (mapping : CMapMapping)
+  (existing : (SourceCode, CMapMapping)) : bool =
+  key.width != existing.0.width ||
+  mappingEnd key mapping < existing.0.value ||
+  mappingEnd existing.0 existing.1 < key.value
+
+
 def InsertEntry
   (source : SourceCode)
   (entry : CMapEntry)
@@ -165,6 +180,18 @@ def InsertEntry
   case entry of
     Mapping mapping ->
       block
+        -- Check for an earlier mapping that extends into the new range.
+        case lookupLE source acc.rangeMap of
+          nothing  -> Accept
+          just old -> mappingDisjoint source mapping old is true
+
+        let endSource =
+          { width = source.width, value = mappingEnd source mapping }
+        -- Check for an existing mapping that starts inside the new range.
+        case lookupLE endSource acc.rangeMap of
+          nothing  -> Accept
+          just old -> mappingDisjoint source mapping old is true
+
         rangeMap = insert source mapping acc.rangeMap
         codespace = acc.codespace
 
