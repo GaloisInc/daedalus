@@ -1,9 +1,10 @@
 mod native;
 mod text_extract_parsers;
 
-use crate::text_extract_parsers::{Catalog, StandardEncodings, TextExtract};
-use daedalus_pdf_cos::{PdfCos, PdfError};
+use crate::text_extract_parsers::{CMap, Catalog, StandardEncodings, TextExtract};
+use daedalus_pdf_cos::{PdfCos, PdfError, Ref};
 use daedalus_rts_rust as ddl;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::time::Instant;
 
@@ -11,7 +12,8 @@ const GLYPH_MAP: &[u8] = include_bytes!("../../../pdf-text-extract-spec/glyphmap
 
 pub(crate) struct TextExtractState {
     pub(crate) pdf: PdfCos,
-    pub(crate) emitted: Vec<u32>,
+    pub(crate) cmap_cache: BTreeMap<Ref, CMap::cmap>,
+    pub(crate) loading_cmaps: BTreeSet<Ref>,
 }
 
 /// An error encountered while extracting text from a PDF.
@@ -23,7 +25,7 @@ pub enum ExtractError {
     Catalog(String),
     Text(String),
     InvalidPageNumber(u64),
-    InvalidCodePoint(u32),
+    InvalidUtf16,
 }
 
 impl fmt::Display for ExtractError {
@@ -37,9 +39,7 @@ impl fmt::Display for ExtractError {
             Self::InvalidPageNumber(page) => {
                 write!(f, "invalid page number {page}; page numbers start at 1")
             }
-            Self::InvalidCodePoint(code) => {
-                write!(f, "extracted value U+{code:04X} is not a Unicode code point")
-            }
+            Self::InvalidUtf16 => write!(f, "extracted text contains malformed UTF-16"),
         }
     }
 }
@@ -80,7 +80,8 @@ fn extract_text_bytes_from_page(
         .ok_or(ExtractError::MissingRoot)?;
     let mut state = ddl::new_parser_state_with(TextExtractState {
         pdf,
-        emitted: Vec::new(),
+        cmap_cache: BTreeMap::new(),
+        loading_cmaps: BTreeSet::new(),
     });
 
     let glyph_input = ddl::new_input(
@@ -109,6 +110,7 @@ fn extract_text_bytes_from_page(
     let mut extract_state = TextExtract::ExtractState {
         font: ddl::Maybe::Nothing,
         fontCache: ddl::empty_map(),
+        output: ddl::new_builder(),
     };
 
     for page_index in first_page..last_page {
@@ -149,10 +151,13 @@ fn extract_text_bytes_from_page(
         );
     }
 
-    state
-        .user_state
-        .emitted
-        .into_iter()
-        .map(|code| char::from_u32(code).ok_or(ExtractError::InvalidCodePoint(code)))
-        .collect()
+    char::decode_utf16(
+        extract_state
+            .output
+            .build()
+            .iter()
+            .map(|unit| u16::from(*unit)),
+    )
+    .map(|character| character.map_err(|_| ExtractError::InvalidUtf16))
+    .collect()
 }

@@ -15,7 +15,7 @@ def Font (v : Value) =
     encoding  = GetEncoding dict
     toUnicode = case lookup "ToUnicode" dict of
                   nothing -> nothing
-                  just v  -> just (ToUnicodeCMap v)
+                  just v  -> just (UnicodeCMap v)
 
 def namedEncoding encName =
   case encName of
@@ -66,4 +66,3 @@ def EncodingDifferences base (ds : [Value]) : [ uint 8 -> [uint 16] ]=
                  }
 
     s.enc
-

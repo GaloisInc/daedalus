@@ -10,33 +10,7 @@ def ExtractState =
   struct
     font      : maybe Font
     fontCache : [ Ref -> Font ]
-
-def GetCharCode (cmap : cmap) : sint 32
-
-def LookupCMap cmap =
-  block
-    let start = Offset
-    let c = GetCharCode cmap
-    let width = Offset - start
-    let key = width <# (c as? uint 32)
-    case Optional (Lookup key cmap.charMap) of
-      just us ->
-        if isInvalidUnicodeDestination us
-          then Fail "Invalid Unicode destination in ToUnicode CMap"
-          else @map (u in us) (EmitChar u)
-      nothing -> EmitChar ('?' as ?auto)
-
-def LookupCMapLoop (w : uint 64) (prevIx : uint 32) =
-  block
-    let c = prevIx <# UInt8
-    let key = (w / 8 + 1) <# c
-    case Optional (Lookup key ?cmap) of
-      just us ->
-        if isInvalidUnicodeDestination us
-          then Fail "Invalid Unicode destination in ToUnicode CMap"
-          else @map (u in us) (EmitChar u)
-      nothing -> if w < 16 then LookupCMapLoop (w + 8) c
-                           else Fail "Unknown character code"
+    output    : builder (uint 16)
 
 -- ENTRY
 def TextInCatalogPage
@@ -45,7 +19,7 @@ def TextInCatalogPage
   block
     let ?stdEncodings = c.stdEncodings
     TextInPageTree
-      { font = nothing, fontCache = state.fontCache }
+      { font = nothing, fontCache = state.fontCache, output = state.output }
       c.pageTree
 
 def TextInPageTree (state : ExtractState) (t : PdfPageTree) =
@@ -70,21 +44,29 @@ def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
 def SelectFont (state : ExtractState) mbValue : ExtractState =
   case mbValue of
-    nothing -> { font = nothing, fontCache = state.fontCache }
+    nothing ->
+      { font = nothing, fontCache = state.fontCache, output = state.output }
     just value ->
       case value of
         ref r ->
           case lookup r state.fontCache of
             just font ->
-              { font = just font, fontCache = state.fontCache }
+              { font = just font
+              , fontCache = state.fontCache
+              , output = state.output
+              }
             nothing ->
               block
                 let f = Font value
                 font = just f
                 fontCache = insert r f state.fontCache
+                output = state.output
                 
         _ ->
-          { font = just (Font value), fontCache = state.fontCache }
+          { font = just (Font value)
+          , fontCache = state.fontCache
+          , output = state.output
+          }
 
 def FindTextOnPage (state : ExtractState) i =
   case Optional (Index ?instrs i) of
@@ -97,29 +79,29 @@ def FindTextOnPage (state : ExtractState) i =
 
             Tj ->
               block
-                DecodeText state.font (GetOperand (i - 1) is string)
-                FindTextOnPage state (i+1)
+                let next = DecodeText state (GetOperand (i - 1) is string)
+                FindTextOnPage next (i+1)
 
 
             quote, dquote ->
               block
-                EmitChar ('\n' as ?auto)
-                DecodeText state.font (GetOperand (i - 1) is string)
-                FindTextOnPage state (i+1)
+                let next = EmitUtf16 state [ '\n' as uint 16 ]
+                let next = DecodeText next (GetOperand (i - 1) is string)
+                FindTextOnPage next (i+1)
 
             Td, TD, T_star ->
               block
-                EmitChar ('\n' as ?auto)
-                FindTextOnPage state (i+1)
+                let next = EmitUtf16 state [ '\n' as uint 16 ]
+                FindTextOnPage next (i+1)
 
             TJ ->
               block
-                map (x in (GetOperand (i - 1) is array))  
+                let next =
+                  for (next = state; x in (GetOperand (i - 1) is array))
                     case x of
-                      string s -> DecodeText state.font s
-                      _        -> Accept -- EmitChar (' ' as ?auto)
-
-                FindTextOnPage state (i+1)
+                      string s -> DecodeText next s
+                      _        -> next
+                FindTextOnPage next (i+1)
 
             Tf ->
               block
@@ -132,42 +114,48 @@ def FindTextOnPage (state : ExtractState) i =
 
         _  -> FindTextOnPage state (i+1)
 
-def DecodeText mbFont str =
+def DecodeText (state : ExtractState) str =
 
-  case mbFont of
-    nothing -> Raw str
+  case state.font of
+    nothing -> Raw state str
 
     just f ->
       if f.subType == "Type1" || f.subType == "Type3"
-        then DecodeTextWithEncoding f str
+        then DecodeTextWithEncoding state f str
         else
           case (f : Font).toUnicode of
-            nothing -> Raw str
+            nothing -> Raw state str
             just cmap ->
               case cmap of
-                named x -> Raw str
-
                 cmap c ->
                   block
                     let s = GetStream
                     SetStream (arrayStream str)
-                    Many (LookupCMap c)
+                    let units =
+                      many (output = builder)
+                        ParseUnicode output c
+                    let next = EmitUtf16 state (build units)
                     SetStream s
+                    next
 
 
-def DecodeTextWithEncoding (f : Font) str =
+def DecodeTextWithEncoding (state : ExtractState) (f : Font) str =
   block
     let enc = case f.encoding of
                 nothing  -> ?stdEncodings.std
                 just enc -> enc
-    @map (x in str)
-       case lookup x enc of
-         just us -> @map (u in us) (EmitChar (u as ?auto))
-         nothing -> EmitChar ('.' as ?auto)
+    for (next = state; x in str)
+      case lookup x enc of
+        just us -> EmitUtf16 next us
+        nothing -> EmitUtf16 next [ '.' as uint 16 ]
 
 
 
-def Raw (str : [uint 8]) = @map (x in str) (EmitChar (x as ?auto))
+def Raw (state : ExtractState) (str : [uint 8]) =
+  EmitUtf16 state (map (x in str) (x as uint 16))
 
--- Emit a character
-def EmitChar (c : uint 32) : {}
+def EmitUtf16 (state : ExtractState) (text : [uint 16]) : ExtractState =
+  { font = state.font
+  , fontCache = state.fontCache
+  , output = emitArray state.output text
+  }

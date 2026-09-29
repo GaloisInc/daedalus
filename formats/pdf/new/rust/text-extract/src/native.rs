@@ -3,9 +3,10 @@
 #![allow(non_snake_case)]
 
 use crate::TextExtractState;
-use crate::text_extract_parsers::CMap::cmap;
+use crate::text_extract_parsers::CMap::{self, cmap};
 use daedalus_pdf_cos::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
+use ddl::Type;
 
 /// Print a diagnostic message emitted by the Daedalus specification.
 pub fn Trace(
@@ -36,57 +37,46 @@ pub fn ResolveRef(
     result
 }
 
-/// Read a character code whose fixed-width value is in a CMap codespace range.
-pub fn GetCharCode(
-    _state: &mut ddl::ParserStateWith<TextExtractState>,
-    input: ddl::Input,
-    cmap: cmap,
-) -> ddl::ParserResult<ddl::I<32>> {
-    if input.is_empty() || cmap.ranges.is_empty() {
-        return ddl::ParserResult::Failure;
-    }
-
-    let mut input = input;
-    let mut value = 0_u32;
-
-    // ISO 32000-2:2017, 9.7.6.2 requires trying successively longer
-    // character codes, beginning with one byte. CMap codes are at most
-    // four bytes long.
-    for byte_index in 0..4 {
-        if input.is_empty() {
-            return ddl::ParserResult::Ok(ddl::I::from(-1_i32), input);
-        }
-
-        // Character codes are big-endian, so append each byte to the
-        // accumulated value before checking ranges of the new width.
-        let byte = u8::from(input.head());
-        value = (value << 8) | u32::from(byte);
-        input = input.advance(1);
-
-        let width = (byte_index + 1) as u64;
-        // Width is part of a character code's identity: for example,
-        // <01> and <0001> belong to different codespaces despite having
-        // the same numeric value.
-        let matched = cmap.ranges.iter().any(|range| {
-            u64::from(range.start.width) == width
-                && u32::from(range.start.value) <= value
-                && value <= u32::from(range.end.value)
-        });
-
-        if matched {
-            return ddl::ParserResult::Ok(ddl::I::from(value as i32), input);
-        }
-    }
-
-    ddl::ParserResult::Ok(ddl::I::from(-1_i32), input)
-}
-
-/// Append a Unicode code point to the extraction output.
-pub fn EmitChar(
+/// Load and cache a CMap stored in an indirect PDF stream.
+pub fn LoadCMapByRef(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    character: ddl::U<32>,
-) -> ddl::ParserResult<ddl::Unit> {
-    state.user_state.emitted.push(u32::from(character));
-    ddl::ParserResult::Ok(ddl::Unit, input)
+    reference: Ref,
+) -> ddl::ParserResult<cmap> {
+    if let Some(cmap) = state.user_state.cmap_cache.get(&reference) {
+        return ddl::ParserResult::Ok(cmap.clone(), input);
+    }
+
+    if !state.user_state.loading_cmaps.insert(reference.clone()) {
+        return native_failure(state, &input, "cyclic CMap UseCMap reference");
+    }
+
+    let result = CMap::CMap(state, input.clone(), reference.clone());
+    state.user_state.loading_cmaps.remove(&reference);
+
+    match result {
+        ddl::ParserResult::Ok(cmap, _) => {
+            state
+                .user_state
+                .cmap_cache
+                .insert(reference, cmap.clone());
+            ddl::ParserResult::Ok(cmap, input)
+        }
+        ddl::ParserResult::Failure => ddl::ParserResult::Failure,
+        ddl::ParserResult::Exception => ddl::ParserResult::Exception,
+    }
+}
+
+fn native_failure(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: &ddl::Input,
+    message: &str,
+) -> ddl::ParserResult<cmap> {
+    state.note_fail(
+        false,
+        "LoadCMapByRef",
+        input.bor(),
+        ddl::new_byte_array(message.as_bytes()).bor(),
+    );
+    ddl::ParserResult::Failure
 }

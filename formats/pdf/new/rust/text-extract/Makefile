@@ -24,6 +24,7 @@ $(PARSER): $(SPEC_SOURCES)
 		--entry=StandardEncodings.StdEncodings \
 		--entry=Catalog.PdfPageCount \
 		--entry=Catalog.PdfCatalog \
+		--entry=CMap.CMap \
 		--entry=TextExtract.TextInCatalogPage \
 		--user-state=crate::TextExtractState \
 		--user-fun=crate::native \

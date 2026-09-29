@@ -1,30 +1,74 @@
 import Daedalus
 import PdfValue
 import PdfDecl
-import StandardEncodings
-import Debug
+import CodespaceRange
 
 --------------------------------------------------------------------------------
--- Character Maps
---
--- Character maps describe how character codes in PDF text strings map to
--- Unicode sequences. This module parses ToUnicode CMaps for text extraction.
+-- Character maps
 
-
-def ToUnicodeCMap (v : Value) =
+-- Parse a unicode character map out of a PDF value
+def UnicodeCMap (v : Value) =
   case v of
-    ref r ->
-      case ResolveDeclRef r of
-        value v  -> {| named = v is name |}
-        stream s -> {| cmap = ToUnicodeCMapDef s |}
-    name x -> {| named = x |}
+    ref r  -> {| cmap = LoadCMapByRef r |}
+    name _ -> Fail "Named CMaps are not supported"
 
-def ToUnicodeCMapDef (s : Stream) =
+-- Resolve a referenced CMap through the application cache.
+def LoadCMapByRef (r : Ref) : cmap
+
+-- Resolve the CMap stream and its optional parent, then parse the stream.
+-- The application calls this parser on a cache miss.
+def CMap (r : Ref) : cmap =
   block
+    let s = ResolveStreamRef r
+    let parent =
+      case lookup "UseCMap" s.header of
+        nothing -> nothing
+        just v ->
+          case v of
+            ref parentRef -> just (LoadCMapByRef parentRef)
+            name _        -> Fail "Named CMaps are not supported"
+            _             -> Fail "CMap UseCMap shall be a name or stream reference"
     SetStream (s.body is ok)
     CMapPrologue
-    $$ = cmap (CMapEntries cmapBuilder)
+    let initial =
+      case parent of
+        nothing ->
+          block
+            codeSpace    = codespaceTrie
+            codeMapping  = cmapMappings
+        just p ->
+          block
+            codeSpace = p.codeSpace
+            codeMapping =
+              block
+                codeValue = empty
+                parent    = just p.codeMapping
+    $$ = CMapEntries initial
     KW "endcmap"
+
+
+
+-- A character map contains information on:
+-- (a) how to convert PDF bytes into character codes, and
+-- (b) how to map charcter codes to unicode. 
+-- Unicode is encoded as UTF16BE.
+def cmap =
+  block
+    codeMapping = cmapMappings    -- How to map character codes to unicode.
+    codeSpace   = codespaceTrie   -- How to decode bytes into character codes.
+
+-- An empty table for mapping character codes to unicode.
+def cmapMappings =
+  block
+    codeValue = empty : [SourceCode -> cmapMapping] -- Local entries
+    parent    = nothing : maybe cmapMappings        -- Inherited entries
+
+-- An entry mapping a character code to UTF
+def cmapMapping =
+  union
+    Single:     [uint 16]               -- One source code mapped to one unicode sequence.
+    Range:      (uint 32, [uint 16])    -- A source range mapped by incrementing the final destination code unit.
+    ArrayRange: (uint 32, [[uint 16]])  -- A source range with one explicit unicode sequence per source code.
 
 -- The CMap data is a PostScript program, but text extraction only needs the
 -- portion between begincmap and endcmap. Skip wrapper declarations, comments,
@@ -35,18 +79,26 @@ def CMapPrologue =
        UInt8
        CMapPrologue
 
+
+
+--------------------------------------------------------------------------------
+-- Parsing CMap Entries
+--------------------------------------------------------------------------------
+
 def CMapEntries acc =
   case LookAhead UInt8 of
+
     '/' ->
       block
-        -- Parse and ignore CMap metadata entries.
         CMapKeyVal
         CMapEntries acc
+
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' ->
       CMapEntries (CMapOperator acc)
+      
     _ -> acc
 
-def CMapOperator (acc : cmapBuilder) =
+def CMapOperator (acc : CMap) =
   block
     let size = Token Natural as? uint 64
     size <= 100 is true
@@ -54,116 +106,177 @@ def CMapOperator (acc : cmapBuilder) =
     let op = Token (Many $['a' .. 'z'])
     $$ =
       case op of
-        "bfrange"         -> BFRangeMapping acc size
-        "bfchar"          -> BFCharMapping acc size
-        "codespacerange"  -> CodespaceRangeMapping acc size
+        "bfrange"         -> CMapMappings BFRangeEntry acc size
+        "bfchar"          -> CMapMappings BFCharEntry acc size
+        "codespacerange"  -> CMapMappings CodespaceRangeEntry acc size
         _ -> Fail (concat [ "Unsupported CMap operator `begin", op, "`" ])
     Match "end"
     Token (Match op)
 
 
--- Parse the requested number of bfrange entries, expanding each source-code
--- range into individual, width-preserving entries in the character map.
-def BFRangeMapping acc count =
-  if count > 0 then
-    block
-      let start = Token SourceCode
-      let end   = Token SourceCode
-      start.width == end.width is true
-      if end.value < start.value
-        then BFRangeMapping acc (count - 1)
-        else
-          block
-            let rangeCount =
-              (end.value as uint 64) - (start.value as uint 64) + 1
-            let destinations = BFRangeDestinations rangeCount
-            let result =
-              for (result = acc; i, destination in destinations)
-                block
-                  let key = start.width <# (start.value + (i as! uint 32))
-                  insertChar key destination result
-            BFRangeMapping result (count - 1)
-  else
-    acc
-
-  
--- ISO 32000-2:2017, 9.10.3, pp. 355-356 describes the two forms of
--- destination mappings permitted after `beginbfrange`.
-def BFRangeDestinations (count : uint 64) =
-  First
-    -- In the starting-string form, increment only the final byte for each
-    -- consecutive source code, without allowing that byte to exceed 255.
-    block
-      let first = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-      first.bytes > 0 is true
-      (first.lastByte as uint 64) + count - 1 <= 255 is true
-      if first.valid
-        then
-          block
-            let text = build first.output
-            map (amount in rangeUp count)
-              validUnicodeDestination
-                (map (i, codePoint in text)
-                  if i + 1 == length text
-                    then codePoint + (amount as! uint 32)
-                    else codePoint)
-        else
-          map (unused in rangeUp count) invalidUnicodeDestination
-
-    -- In the array form, there shall be exactly one destination string for
-    -- each source code in the range.
-    block
-      Token $['[']
-      $$ =
-        Many count
-          block
-            let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-            unicodeDestination destination
-      Token $[']']
-
-
--- Parse the requested number of bfchar entries, adding each source code and
--- its Unicode destination sequence to the character map.
-def BFCharMapping acc count =
+-- Parse a sequence of entries that share the same source-key/accumulator
+-- structure, while leaving the entry-specific syntax to P.
+def CMapMappings P acc count =
   if count > 0 then
     block
       let source = Token SourceCode
-      let destination = Token { $['<']; $$ = UTF16BE 512; $['>'] }
-      let key = source.width <# source.value
-      BFCharMapping
-        (insertChar key (unicodeDestination destination) acc)
-        (count - 1)
+      let entry = P source
+      CMapMappings P (InsertEntry source entry acc) (count - 1)
   else
     acc
 
--- Parse codespace ranges directly into the builder-backed CMap accumulator.
-def CodespaceRangeMapping acc count =
-  if count > 0 then
-    CodespaceRangeMapping
-      (addCodespaceRange CodespaceRangeEntry acc)
-      (count - 1)
-  else
-    acc
+def cmapEntry =
+  union
+    Mapping:   cmapMapping
+    Codespace: SourceCode
 
-def CodespaceRangeEntry =
+-- An entry for a range of input codes
+def BFRangeEntry (start : SourceCode) : cmapEntry =
   block
-    start = Token SourceCode
-    end   = Token SourceCode
+    let end = Token SourceCode
     start.width == end.width is true
     start.value <= end.value is true
+    let rangeCount =
+      (end.value as uint 64) - (start.value as uint 64) + 1
 
-def SourceCode =
-  block
-    $['<']
-    $$ =
-      many (state = { width = (0 : uint 64), value = (0 : uint 32) })
+    Token
+      First
         block
-          state.width < 4 is true
-          width = state.width + 1
-          value = state.value <# HexByte
-    $$.width > 0 is true
-    $['>']
+          let units = Between "<" ">" UTF16BE
+          length units > 0 is true
+          let last = Index units (length units - 1)
+          let lastByte = last as! uint 8
+          (lastByte as uint 64) + rangeCount - 1 <= 255 is true
+          {| Mapping = {| Range = (end.value, units) |} |}
 
+        block
+          let destinations =
+            Between "[" "]"
+              (Many rangeCount
+                (Between "<" ">" UTF16BE))
+          {| Mapping = {| ArrayRange = (end.value, destinations) |} |}
+
+
+-- An entry for a single code
+def BFCharEntry (source : SourceCode) : cmapEntry =
+  Between "<" ">" {| Mapping = {| Single = UTF16BE |} |}
+
+-- Codespace ranges determine how many input bytes form each source code.
+def CodespaceRangeEntry (start : SourceCode) : cmapEntry =
+  block
+    let end = Token SourceCode
+    start.width == end.width is true
+    start.value <= end.value is true
+    {| Codespace = end |}
+
+-- Destination strings are retained as arrays of raw UTF-16BE code units.
+-- Unicode scalar validation is deferred to the Rust emitter.
+def UTF16BE = Many (..256) (HexByte # HexByte)
+
+
+def mappingEnd (source : SourceCode) (mapping : cmapMapping) : uint 32 =
+  case mapping of
+    Single _       -> source.value
+    Range range    -> range.0
+    ArrayRange range -> range.0
+
+def mappingDisjoint
+  (key : SourceCode)
+  (mapping : cmapMapping)
+  (existing : (SourceCode, cmapMapping)) : bool =
+  key.width != existing.0.width ||
+  mappingEnd key mapping < existing.0.value ||
+  mappingEnd existing.0 existing.1 < key.value
+
+-- Add a parsed entry to the existing map
+def InsertEntry (source : SourceCode) (entry : cmapEntry) (acc : cmap) : cmap =
+  case entry of
+    Mapping mapping ->
+      block
+        -- Check for an earlier mapping that extends into the new range.
+        case lookupLE source acc.codeMapping.codeValue of
+          nothing  -> Accept
+          just old -> mappingDisjoint source mapping old is true
+
+        let endSource =
+          { width = source.width, value = mappingEnd source mapping }
+        -- Check for an existing mapping that starts inside the new range.
+        case lookupLE endSource acc.codeMapping.codeValue of
+          nothing  -> Accept
+          just old -> mappingDisjoint source mapping old is true
+
+        codeSpace = acc.codeSpace
+        codeMapping =
+          block
+            codeValue = insert source mapping acc.codeMapping.codeValue
+            parent    = acc.codeMapping.parent
+
+    Codespace end ->
+      block
+        codeSpace   = InsertCodespace source end acc.codeSpace
+        codeMapping = acc.codeMapping
+
+
+--------------------------------------------------------------------------------
+-- Looking up character codes
+--------------------------------------------------------------------------------
+
+-- Parse one character code and append its UTF-16BE code units to the builder.
+def ParseUnicode output (cm : cmap) =
+  block
+    let source = ParseSourceCode cm.codeSpace
+    case lookupCMapEntry source cm.codeMapping of
+      just entry -> MappingValue output source entry
+      nothing    -> Fail "Unknown character code"
+
+-- Look in the local mappings first, followed by inherited mappings.
+def lookupCMapEntry (source : SourceCode) (mappings : cmapMappings) =
+  case lookupLE source mappings.codeValue of
+    just entry ->
+      if source.width == entry.0.width &&
+         source.value <= mappingEnd entry.0 entry.1
+        then just entry
+        else lookupParentCMapEntry source mappings.parent
+    nothing -> lookupParentCMapEntry source mappings.parent
+
+def lookupParentCMapEntry (source : SourceCode) parent =
+  case parent of
+    nothing       -> nothing
+    just mappings -> lookupCMapEntry source mappings
+
+-- Resolve a mapping known to contain the given source code.
+def MappingValue
+  output
+  (source : SourceCode)
+  (entry : (SourceCode, cmapMapping)) =
+  block
+    case entry.1 of
+      Single units ->
+        for (result = output; unit in units)
+          emit result unit
+
+      Range range ->
+        block
+          let offset = source.value - entry.0.value
+          for (result = output; i, unit in range.1)
+            emit result
+              (if i + 1 == length range.1
+                 then unit + (offset as! uint 16)
+                 else unit)
+
+      ArrayRange range ->
+        block
+          let offset = source.value - entry.0.value
+          let units = Index range.1 (offset as uint 64)
+          for (result = output; unit in units)
+            emit result unit
+
+
+
+
+--------------------------------------------------------------------------------
+-- Parsing CMap Metadata (ignored)
+--------------------------------------------------------------------------------
 
 def CMapKeyVal =
   block
@@ -188,112 +301,3 @@ def CMapPSDict =
       KW "begin"
       Many CMapKeyVal
       KW "end"
-
--- Parsing hex digits
-
-def HexD =
-  First
-    $['0' .. '9'] - '0'
-    10 + $['a' .. 'f'] - 'a'
-    10 + $['A' .. 'F'] - 'A'
-
-def HexByte = 16 * HexD + HexD
-
-def UTF16BE (maxBytes : uint 64) =
-  many
-    (state =
-      { bytes = (0 : uint 64)
-      , lastByte = (0 : uint 8)
-      , valid = true
-      , output = builder
-      })
-    block
-      let hiByte = HexByte
-      let loByte = HexByte
-      let hi = hiByte # loByte
-      if 0xD800 <= hi && hi <= 0xDBFF
-        then
-          case Optional
-                 block
-                   hiByte = HexByte
-                   loByte = HexByte
-          of
-            nothing ->
-              block
-                let bytes = state.bytes + 2
-                bytes <= maxBytes is true
-                bytes = bytes
-                lastByte = loByte
-                valid = false
-                output = state.output
-
-            just surrogate ->
-              block
-                let lo = surrogate.hiByte # surrogate.loByte
-                let bytes = state.bytes + 4
-                bytes <= maxBytes is true
-                bytes = bytes
-                lastByte = surrogate.loByte
-                valid = state.valid && 0xDC00 <= lo && lo <= 0xDFFF
-                output =
-                  if 0xDC00 <= lo && lo <= 0xDFFF
-                    then
-                      emit state.output
-                        (0x10000 +
-                          ((hi as uint 32) - 0xD800) * 0x400 +
-                          ((lo as uint 32) - 0xDC00))
-                    else
-                      state.output
-        else
-          block
-            let bytes = state.bytes + 2
-            bytes <= maxBytes is true
-            bytes = bytes
-            lastByte = loByte
-            valid = state.valid && (hi < 0xDC00 || hi > 0xDFFF)
-            output = emit state.output (hi as uint 32)
-
-
-def invalidUnicode : uint 32 = 0xFFFFFFFF
-
-def invalidUnicodeDestination : [uint 32] = [ invalidUnicode ]
-
-def unicodeDestination decoded =
-  if decoded.valid
-    then build decoded.output
-    else invalidUnicodeDestination
-
-def validUnicodeDestination destination =
-  if for (valid = true; codePoint in destination)
-       valid &&
-       codePoint <= 0x10FFFF &&
-       (codePoint < 0xD800 || codePoint > 0xDFFF)
-    then destination
-    else invalidUnicodeDestination
-
-def isInvalidUnicodeDestination destination =
-  destination == invalidUnicodeDestination
-
-
-
--- Helpers for working with cmaps
-
-def cmapBuilder =
-  block
-    charMap = empty : [ uint 64 -> [uint 32] ]
-    ranges  = builder : builder CodespaceRangeEntry
-
-def cmap (acc : cmapBuilder) =
-  block
-    charMap = acc.charMap
-    ranges  = build acc.ranges
-
-def insertChar x y (acc : cmapBuilder) : cmapBuilder =
-  block
-    charMap = insert x y acc.charMap
-    ranges  = acc.ranges
-
-def addCodespaceRange x (acc : cmapBuilder) : cmapBuilder =
-  block
-    charMap = acc.charMap
-    ranges  = emit acc.ranges x
