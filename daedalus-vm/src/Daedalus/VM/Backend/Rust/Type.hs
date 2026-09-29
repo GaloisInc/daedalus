@@ -38,10 +38,15 @@ compileTDecl td
     let ?fnMsg = pp tn in
     case Core.tDef td of
       Core.TStruct fs ->
-        [ tyDecl "by_ref"
-        , Rust.mkStruct der Rust.PublicV (nm False) gen
+        [ Rust.mkStruct der Rust.PublicV (nm isRec) gen
             [ (compileFieldLabel l, compileType VM.Owned t) | (l,t) <- fs ]
-        , makeSerializeStruct as (nm False) fs
+        , makeSerializeStruct as (nm isRec) fs
+        , if isRec
+            then
+              Rust.mkTySyn Rust.PublicV (nm False) gen
+                  (Rust.pathType (Rust.pathWithTypes [ddlModName,"O"] [ tyForm True ]))
+            else
+              tyDecl "by_ref"
         ]
       Core.TUnion fs ->
         [ Rust.mkEnum unionDer Rust.PublicV (nm isRec) gen
