@@ -6,10 +6,13 @@ SPEC = $(TEXT_SPEC_DIR)/TextExtract.ddl
 SPEC_SOURCES = $(wildcard $(TEXT_SPEC_DIR)/*.ddl)
 PARSER = src/text_extract_parsers.rs
 
-.PHONY: all generate clean
+.PHONY: all release generate clean
 
 all: $(PARSER)
 	cargo build
+
+release: $(PARSER)
+	cargo build --release
 
 generate: $(PARSER)
 

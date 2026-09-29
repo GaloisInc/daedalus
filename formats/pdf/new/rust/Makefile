@@ -1,7 +1,10 @@
-.PHONY: all generate clean
+.PHONY: all release generate clean
 
 all: generate
 	cargo build --workspace
+
+release: generate
+	cargo build --workspace --release
 
 generate:
 	$(MAKE) -C pdfcos generate

@@ -5,10 +5,13 @@ SPEC = $(SPEC_DIR)/PdfCos.ddl
 SPEC_SOURCES = $(wildcard $(SPEC_DIR)/*.ddl)
 PARSER = src/pdfcos_parsers.rs
 
-.PHONY: all generate clean
+.PHONY: all release generate clean
 
 all: $(PARSER)
 	cargo build
+
+release: $(PARSER)
+	cargo build --release
 
 generate: $(PARSER)
 
