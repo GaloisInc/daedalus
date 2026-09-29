@@ -59,7 +59,8 @@ def ParseSourceCodeAt
             else ParseSourceCodeAt edge.child nextWidth nextValue
 
 -- Insert a codespace range into the interval trie.
--- Fails if codespace ranges have overlapping prefixes.
+-- Same-length overlaps are merged.  The insertion fails only when one range
+-- terminates at a prefix where another range continues.
 def InsertCodespace
   (start : SourceCode)       -- Inclusive lower bound.
   (end : SourceCode)         -- Inclusive upper bound.
@@ -80,10 +81,21 @@ def sourceCodeByte (code : SourceCode) (depth : uint 8) : uint 8 =
     (code.value >> shift) as! uint 8
 
 
-def InsertCodespaceAt (depth: uint 8) (trie : codespaceTrie): codespaceTrie =
-  block
-    depth < ?sourceStart.width && !(isMapEmpty trie.branches) is true
-    branches = InsertCodespaceBranches depth trie.branches
+def MergeCodespaceOverlap
+  (depth: uint 8)
+  (trie : codespaceTrie): codespaceTrie =
+  if depth == ?sourceStart.width
+    -- Both ranges terminate here, so this overlap is unambiguous.
+    -- The existing node must also be terminal.
+    then
+      block
+        isMapEmpty trie.branches is true
+        trie
+    else
+      block
+        -- Make sure not existing path ends here.
+        isMapEmpty trie.branches is false
+        branches = InsertCodespaceBranches depth trie.branches
 
 
 -- Construct the untouched remainder of a newly inserted range.  An empty
@@ -168,7 +180,7 @@ def InsertCodespaceBranch
           let withOverlap =
             insert
               overlapStart
-              (codespaceEdge overlapEnd (InsertCodespaceAt depth edge.child))
+              (codespaceEdge overlapEnd (MergeCodespaceOverlap depth edge.child))
               withGap
 
           branches =
