@@ -471,7 +471,7 @@ noSem' tc =
 
      TCVar x ->
        case typeOf x of
-         Type (TGrammar (Type TUnit)) -> pure (tc, mempty)
+         Type (TGrammar (Type TUnit)) -> pure (tc, tcFree tc)
          _ -> do e <- newMParam tc x
                  pure (e, mempty)
 
