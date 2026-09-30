@@ -4,34 +4,34 @@ module DaedalusMain where
 -------------
  
 -- may not fail
--- tests/T082.ddl:8:1--11:11
+-- ./T082.ddl:8:1--11:11
 proc Operator__13(i : Word 64) : () =
-  -- tests/T082.ddl:9:3--11:11
+  -- ./T082.ddl:9:3--11:11
   try
-    -- tests/T082.ddl:10:5--10:5
+    -- ./T082.ddl:10:5--10:5
     do let _x17 = i == (0 @(Word 64))
        case _x17 of
          True ->
-           -- tests/T082.ddl:5:15--5:28
+           -- ./T082.ddl:5:15--5:28
            pure ()
          False ->
            fail_sys @() "Pattern match failure"
   orelse
-    -- tests/T082.ddl:11:5--11:10
+    -- ./T082.ddl:11:5--11:10
     pure ()
  
 -- may not fail
--- tests/T082.ddl:3:1--8:3
+-- ./T082.ddl:3:1--8:3
 proc Dispatch(i : Word 64) : () =
-  -- tests/T082.ddl:5:5--8:3
-  do -- tests/T082.ddl:5:5--5:28
+  -- ./T082.ddl:5:5--8:3
+  do -- ./T082.ddl:5:5--5:28
      Operator__13(i)
-     -- tests/T082.ddl:6:5--6:19
+     -- ./T082.ddl:6:5--6:19
      Dispatch(i + (1 @(Word 64)))
  
 -- entry pont
 -- may not fail
--- tests/T082.ddl:1:1--1:21
+-- ./T082.ddl:1:1--1:21
 proc Main() : () =
-  -- tests/T082.ddl:1:12--1:21
+  -- ./T082.ddl:1:12--1:21
   Dispatch(0 @(Word 64))
