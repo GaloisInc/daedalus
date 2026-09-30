@@ -11,13 +11,57 @@ def GetFonts (r : Dict) : [ [uint 8] -> Value ] =
 def Font (v : Value) =
   block
     let dict  = ResolveVal v is dict
+    let descriptor = GetFontDescriptor dict
     subType   = LookupName "Subtype" dict
     encoding  = GetEncoding dict
     toUnicode = case lookup "ToUnicode" dict of
                   nothing -> nothing
                   just v  -> just (UnicodeCMap v)
+    firstChar = GetFirstChar dict
+    widths = GetWidths dict
+    missingWidth = GetDescriptorNumber "MissingWidth" descriptor
+    ascent = GetDescriptorNumber "Ascent" descriptor
+    descent = GetDescriptorNumber "Descent" descriptor
+    fontBBox = GetFontBBox dict descriptor
 
 def FontByRef (r : Ref) = Font {| ref = r |}
+
+def GetFirstChar (dict : Dict) : maybe (uint 8) =
+  case lookup "FirstChar" dict of
+    nothing -> nothing
+    just v ->
+      just (NumberAsNat (ResolveVal v is number) as? uint 8)
+
+def GetWidths (dict : Dict) : maybe [Number] =
+  case lookup "Widths" dict of
+    nothing -> nothing
+    just v ->
+      just
+        (map (width in (ResolveVal v is array))
+          (ResolveVal width is number))
+
+def GetFontDescriptor (dict : Dict) : maybe Dict =
+  Optional (ResolveVal (Lookup "FontDescriptor" dict) is dict)
+
+def GetDescriptorNumber
+  (key : [uint 8])
+  (descriptor : maybe Dict) : maybe Number =
+  Optional
+    (ResolveVal (Lookup key (descriptor is just)) is number)
+
+def GetFontBBox
+  (font : Dict)
+  (descriptor : maybe Dict) : maybe [Number] =
+  Optional
+    First
+      GetBBox (Lookup "FontBBox" font)
+      GetBBox (Lookup "FontBBox" (descriptor is just))
+
+def GetBBox value : [Number] =
+  block
+    let values = ResolveVal value is array
+    length values == 4 is true
+    map (coordinate in values) (ResolveVal coordinate is number)
 
 def namedEncoding encName =
   case encName of
