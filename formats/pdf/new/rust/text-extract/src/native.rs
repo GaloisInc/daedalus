@@ -373,6 +373,8 @@ pub fn SetFont(
 pub fn EmitUtf16(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
+    _code_width: ddl::U<8>,
+    _character_code: ddl::U<32>,
     text: ddl::Array<ddl::U<16>>,
 ) -> ddl::ParserResult<ddl::Unit> {
     state

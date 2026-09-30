@@ -1,3 +1,4 @@
+mod font_metrics;
 mod layout_state;
 mod native;
 mod text_extract_parsers;

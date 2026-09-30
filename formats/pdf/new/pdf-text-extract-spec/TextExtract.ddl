@@ -270,10 +270,13 @@ def DecodeText str =
               block
                 let s = GetStream
                 SetStream (arrayStream str)
-                let units =
-                  many (output = builder)
-                    ParseUnicode output c
-                EmitUtf16 (build units)
+                Many
+                  block
+                    let decoded = ParseUnicode c
+                    EmitUtf16
+                      decoded.source.width
+                      decoded.source.value
+                      decoded.units
                 SetStream s
 
 
@@ -284,13 +287,14 @@ def DecodeTextWithEncoding (f : Font) str =
                 just enc -> enc
     for (done = {}; x in str)
       case lookup x enc of
-        just us -> EmitUtf16 us
-        nothing -> EmitUtf16 [ '.' as uint 16 ]
+        just us -> EmitUtf16 1 (x as uint 32) us
+        nothing -> EmitUtf16 1 (x as uint 32) [ '.' as uint 16 ]
 
 
 
 def Raw (str : [uint 8]) =
-  EmitUtf16 (map (x in str) (x as uint 16))
+  for (done = {}; x in str)
+    EmitUtf16 1 (x as uint 32) [ x as uint 16 ]
 
 def ResetPage : {}
 def SaveGraphicsState : {}
@@ -316,4 +320,7 @@ def NoteMalformedOperator : {}
 def CurrentFont : maybe Font
 def LoadFontByRef (encodings : StdEncodings) (r : Ref) : Font
 def SetFont (fontSize : Number) (font : maybe Font) : {}
-def EmitUtf16 (text : [uint 16]) : {}
+def EmitUtf16
+  (codeWidth : uint 8)
+  (characterCode : uint 32)
+  (text : [uint 16]) : {}

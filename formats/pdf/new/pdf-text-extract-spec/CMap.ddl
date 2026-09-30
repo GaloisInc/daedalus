@@ -221,13 +221,16 @@ def InsertEntry (source : SourceCode) (entry : cmapEntry) (acc : cmap) : cmap =
 -- Looking up character codes
 --------------------------------------------------------------------------------
 
--- Parse one character code and append its UTF-16BE code units to the builder.
-def ParseUnicode output (cm : cmap) =
+-- Parse one character code and return it with its UTF-16BE code units.
+def ParseUnicode (cm : cmap) =
   block
     let source = ParseSourceCode cm.codeSpace
-    case lookupCMapEntry source cm.codeMapping of
-      just entry -> MappingValue output source entry
-      nothing    -> Fail "Unknown character code"
+    let entry =
+      case lookupCMapEntry source cm.codeMapping of
+        just entry -> entry
+        nothing    -> Fail "Unknown character code"
+    source = source
+    units = build (MappingValue builder source entry)
 
 -- Look in the local mappings first, followed by inherited mappings.
 def lookupCMapEntry (source : SourceCode) (mappings : cmapMappings) =
