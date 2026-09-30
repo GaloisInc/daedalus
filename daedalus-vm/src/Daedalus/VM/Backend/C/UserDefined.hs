@@ -46,16 +46,17 @@ cTypeGroup allTypes rec =
         ( vcat' $
           -- 1. Declare names of types
           map (cTypeDecl GenPublic) (sums ++ prods) ++
-          map (cTypeDecl GenPrivate) sums ++
+          map (cTypeDecl GenPrivate) (sums ++ prods) ++
 
           -- 2. Declare tags
           [ cSumTags sums ] ++
 
           -- 3. Declare boxed sums
           map cBoxedSum sums ++
+          map cBoxedProd prods ++
 
           -- 4. Declare products
-          map cUnboxedProd prods ++
+          map (cUnboxedProd' GenPrivate) prods ++
 
           -- 5. Declare unboxed sums
           map (cUnboxedSum GenPrivate) sums
@@ -63,8 +64,8 @@ cTypeGroup allTypes rec =
         , vcat' $
           -- 6. Generate methods
           map (generateMethods GenPrivate GenUnboxed) sums ++
-          map (generateMethods GenPublic GenUnboxed) prods ++
-          map (generateMethods GenPublic GenBoxed) sums
+          map (generateMethods GenPrivate GenUnboxed) prods ++
+          map (generateMethods GenPublic GenBoxed) (sums ++ prods)
         )
 
         where
@@ -73,26 +74,20 @@ cTypeGroup allTypes rec =
   where
   isExtern = (`Map.member` ?nsExternal) . tnameMod . tName
 
-{- Note: Product types shouldn't be directly recursive as that would
-require infinite values, which we do not support.   There may be recursive
-groups only containing products though: for example, if the recursion happens
-through an array: a = [a]
-
-A recursive sum type is represented with 3 types:
-  A) an unboxed sum type describing the data
-  B) a boxed pointer to A
-  C) an enumeration type for the tags
-All types in the group may depend on the B) part of the type.
-Only the B) part of a type can depend on the A) part.
+{- A recursive user type is represented with:
+  A) a private unboxed type describing the data
+  B) a public boxed pointer to A
+Recursive sum types also have an enumeration type for the tags.
+All types in the group may depend on the B) part of a type.
+Only the B) part of a type can depend on its A) part.
 
 
 The types in a recursive group are declared in this order:
   1. Add declarations (without definitions) for all types in the group
     (without enums)
   2. Declare enums
-  3. Add class declarations (without methods) for the B) parts of sum types
-  4. Add class declarations (without methods) for the struct types,
-     in dependency order (without the sums these should not be recursive)
+  3. Add class declarations (without methods) for the B) parts
+  4. Add class declarations (without methods) for the A) parts of struct types
   5. Add class declarations (without methods) for the A) parts of sum types.
 -}
 orderRecGroup :: [TDecl] -> ([TDecl],[TDecl]) -- ^ (sums,products)
@@ -214,10 +209,13 @@ cSumCtrs tdecl =
 
 -- | Interface definition for struct types
 cUnboxedProd :: NSUser => TDecl -> CDecl
-cUnboxedProd ty = vcat (theClass : decFunctions GenPublic ty)
+cUnboxedProd = cUnboxedProd' GenPublic
+
+cUnboxedProd' :: NSUser => GenVis -> TDecl -> CDecl
+cUnboxedProd' vis ty = vcat (theClass : decFunctions vis ty)
   where
   theClass =
-    cNamespace nsUser
+    cUserNS vis
       [ cTypeDecl' ty <+> ": public" <+> (nsDDL .:: "HasRefs") <+> "{"
       , nest 2 $ vcat attribs
       , "public:"
@@ -415,6 +413,44 @@ cBoxedSum tdecl = vcat (theClass : decFunctions GenPublic tdecl)
     ++ cSumPats tdecl (getFields tdecl)
     ++ [cSumCaseDecl]
     ++ [ "///@}"]
+
+-- | Class signature for a boxed product.
+cBoxedProd :: NSUser => TDecl -> CDecl
+cBoxedProd tdecl = vcat (theClass : decFunctions GenPublic tdecl)
+  where
+  theClass =
+    cNamespace nsUser
+      [ cTypeDecl' tdecl <+> ": public" <+> (nsDDL .:: "IsBoxed") <+> "{"
+      , nest 2 $ vcat attrs
+      , "public:"
+      , nest 2 $ vcat methods
+      , "};"
+      ]
+
+  attrs =
+    [ cStmt
+        $ cInst (nsDDL .:: "Boxed") [ cTypeNameUse GenPrivate tdecl ] <+> "ptr"
+    ]
+
+  methods =
+       [ "/** @name Constructor */"
+       , "///@{"
+       , cProdCtr tdecl
+       , "///@}"
+       , ""
+       , "/** @name Selectors */"
+       , "///@{" ]
+    ++ cProdSels tdecl
+    ++ [ "///@}"
+       , ""
+       , "/** @name Memory Management */"
+       , "///@{"
+       , copyMethodSig
+       , freeMethodSig
+       , delMethodSig
+       , refCountMethodSig
+       , "///@}"
+       ]
 
 --------------------------------------------------------------------------------
 -- Method definitions

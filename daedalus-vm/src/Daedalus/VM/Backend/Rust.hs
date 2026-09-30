@@ -492,11 +492,16 @@ compilePrim x prim es =
       | otherwise ->
       case Core.tnameFlav nm of
         Core.TFlavStruct ls ->
-          def Nothing (Rust.struct (compileTPath False nm)
-              [ (compileFieldLabel l, e) | (l,e) <- zip ls compiled ])
+          def Nothing (mkBox (Rust.struct (compileTPath isRec nm)
+              [ (compileFieldLabel l, e) | (l,e) <- zip ls compiled ]))
         _ -> panic "compilePrim" ["StructCon bad flavor"]
       
-      where nm = Core.utName ut
+      where
+      nm = Core.utName ut
+      isRec = Core.tnameRec nm
+      mkBox
+        | isRec = \val -> callRTS "new" [val]
+        | otherwise = id
     
     VM.Op1 op ->
       case (compiled,es) of
