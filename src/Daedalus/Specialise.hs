@@ -33,7 +33,7 @@ are unified.  See 'Specialise.Unfiy' for details.
 
 module Daedalus.Specialise (specialise, regroup) where
 
-import Control.Monad
+import Data.List (find, partition)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -78,6 +78,22 @@ regroup = fmap reverse . foldr addR Map.empty . topoOrder
                      _ -> panic "recroup.addR" ["Oops"]
 
 
+-- | Does this declaration need to be turned into monomorphic instances?
+-- True if it has type parameters, or a class/grammar/higher-order value
+-- parameter.
+isTemplateDecl :: TCDecl a -> Bool
+isTemplateDecl d =
+  not (null (tcDeclTyParams d)) || any isHigherOrder (tcDeclParams d)
+  where
+  isHigherOrder p =
+    case p of
+      ValParam x     ->
+        case tcType x of
+          Type (TFun _ _) -> True
+          _               -> False
+      ClassParam _   -> True
+      GrammarParam _ -> True
+
 -- | This assumes that the declratations are in dependency order.
 specialise :: [Name] -> [Rec (TCDecl SourceRange)]
               -> PassM (Either String [TCDecl SourceRange])
@@ -96,61 +112,69 @@ specialise ruleRoots decls =
                  Nothing        -> pure []
       mapM specialiseOne ds
 
-    -- We treat each inst. req. independently; the unify stuff will
-    -- make sure it doesn't explode.  We check for unsupported
-    -- recursion by checking for new recursive reqs. after completing
-    -- all decls in the ds.
+    -- Skip the whole group if it is dead code.
     go (MutRec ds) = do
-      insts <- getPendingSpecs (map tcDeclName ds)
-      -- We know that any recursive element we have seen doesn't have
-      -- grammar args, so is a reasonably place to start if we have no
-      -- specialisations.  Note that we may have specialisations that
-      -- are internal to the recursive group.
-      (seen, unseen) <- partitionM (seenRule . tcDeclName) ds
-      let roots = [ Map.singleton n [i] | (n, is) <- Map.toList insts, i <- is ]
-      case (roots, seen) of
-        ([], [])      -> pure []
-        ([], _ )      -> goOneRoot (seen ++ unseen) mempty
-        _             -> concat <$> mapM (goOneRoot ds) roots
+      extInsts  <- getPendingSpecs (map tcDeclName ds)
+      reachable <- or <$> mapM (seenRule . tcDeclName) ds
+      if Map.null extInsts && not reachable
+        then pure []
+        else goOneRoot ds extInsts
 
     goOneRoot :: [TCDecl SourceRange] ->
                  Map Name [Instantiation] -> PApplyM [TCDecl SourceRange]
-    goOneRoot ds todo = do
-      rs <- goOne ds todo
-      insts <- getPendingSpecs (map tcDeclName ds)
-      if not (Map.null insts)
-        then raise ("Incompatible recursion detected for " ++ show (ppError insts))
-        else return rs
+    goOneRoot ds extInsts =
+      do normalOut <- mapM specialiseOne normal
+         newInsts  <- getPendingSpecs (map tcDeclName ds)
+         let todo = Map.unionWith (++) extInsts newInsts
+         (normalOut ++) <$> goOne maxRecursiveInstantiations templates todo []
+      where
+      (normal, templates) = partition (not . isTemplateDecl) ds
 
-    ppError insts =
-      punctuate ", " $ map (\(k, is) -> pp k <+> vcat (map pp is)) (Map.toList insts)
+    -- Keep processing newly requested instances until the recursive group
+    -- reaches a fixed point.  There are malformed programs for which
+    -- specialization produces an infinite sequence of distinct instances,
+    -- so put a deterministic bound on the amount of work done for one root.
+    goOne :: Int ->
+             [TCDecl SourceRange] ->
+             Map Name [Instantiation] ->
+             [TCDecl SourceRange] -> PApplyM [TCDecl SourceRange]
+    goOne fuel templates todo done =
+      case popInstantiation todo of
+        Nothing -> pure (reverse done)
+        Just ((n, inst), todoRest)
+          | fuel <= 0 ->
+              raise $ unlines
+                [ "Specialization of a recursive group did not terminate."
+                , "The group contains: " ++
+                    show (commaSep (map (pp . tcDeclName) templates))
+                , "Still pending: " ++ show (pendingSummary todo)
+                ]
+          | Just d <- findDecl n templates -> do
+              d' <- specialiseOne =<< apInst inst d
+              newTodo <- getPendingSpecs (map tcDeclName templates)
+              let todo' = Map.unionWith (++) todoRest newTodo
+              goOne (fuel - 1) templates todo' (d' : done)
+          | otherwise -> panic "Missing declaration in recursive group"
+                               [show (pp n)]
 
-    -- The idea here is that we process each decl exactly once, so
-    -- that if we see the decl again (after we are done), then
-    -- something is wrong with the input.
-    goOne :: [TCDecl SourceRange] ->
-             Map Name [Instantiation] -> PApplyM [TCDecl SourceRange]
-    goOne [] _    = pure []
-    goOne ds@(d : rest) todo =
+    findDecl n = find ((n ==) . tcDeclName)
+
+    popInstantiation todo =
       case Map.minViewWithKey todo of
-        -- Fall back to just processing the first decl.
-        Nothing ->
-            do d'      <- specialiseOne d
-               newTodo <- getPendingSpecs (map tcDeclName rest)
-               (d' :) <$> goOne rest newTodo
-
-        Just ((n, [inst]), todoRest)
-          | (ds', d' : ds'') <- break (\di -> tcDeclName di == n) ds ->
-            do let newds = ds' ++ ds''
-               -- let d' = apInst inst d
-               d'' <- specialiseOne =<< apInst inst d'
-               newTodo <- getPendingSpecs (map tcDeclName newds)
-               (d'' :) <$> goOne newds (Map.unionWith (++) todoRest newTodo)
-
-        Just ((n, _ : _ : _), _) ->
-          raise ("Multiple instantiations requested for " ++ show (pp n))
+        Nothing -> Nothing
+        Just ((n, inst : insts), rest) ->
+          let rest' | null insts = rest
+                    | otherwise  = Map.insert n insts rest
+          in Just ((n, inst), rest')
         Just ((_, []), _) -> panic "Empty instantiation list" []
-        _ -> panic "Impossible" []
+
+    pendingSummary todo =
+      commaSep
+        [ pp n <+> parens (text (show (length is)) <+> "instances")
+        | (n, is) <- Map.toList todo
+        ]
+
+    maxRecursiveInstantiations = 20
 
 
 -- This function traverses a term and replaces all problematic
@@ -177,16 +201,6 @@ specialiseOne TCDecl {..}
           let m = fst (nameScopeAsModScope tcDeclName)
           specialiseCall m n ts as'
         x -> traverseTCF go x
-
-partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a], [a])
-partitionM p xs = do
-  (yess, nos) <- foldM go ([], []) xs
-  pure (reverse yess, reverse nos)
-  where
-    go (yes, no) x = do r <- p x
-                        pure $ if r then (x : yes, no) else (yes, x : no)
-
-
 
 -- -----------------------------------------------------------------------------
 -- Specialisation policy
@@ -271,6 +285,3 @@ requestSpec m tnm ts args origArgs = do
 
 syntheticTC :: TCF SourceRange k -> TC SourceRange k
 syntheticTC = annotExpr synthetic
-
-
-
